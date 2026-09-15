@@ -23,6 +23,8 @@ export interface FamilyRecord {
   xrefId?: string | null;
   husbandId?: string | null;
   wifeId?: string | null;
+  partner1Id?: string | null;
+  partner2Id?: string | null;
   version: number;
   createdAt: Date;
   updatedAt: Date;

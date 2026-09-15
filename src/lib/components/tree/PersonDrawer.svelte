@@ -9,7 +9,7 @@
     onClose: () => void;
     onMediaUploaded?: () => void;
     onSelectPerson?: (id: string) => void;
-    onAddFamily?: (defaults: { husbandId?: string; wifeId?: string; childId?: string; familyId?: string; mode?: 'editFamily' | 'newFamily' | 'addChild' }) => void;
+    onAddFamily?: (defaults: { husbandId?: string; wifeId?: string; partner1Id?: string; partner2Id?: string; childId?: string; familyId?: string; mode?: 'editFamily' | 'newFamily' | 'addChild' }) => void;
     onEditPerson?: (person: any) => void;
     onDeletePerson?: (person: any) => void;
   }
@@ -28,7 +28,9 @@
   }
 
   function spouseOf(fam: any): string | null | undefined {
-    return fam.husbandId === person.id ? fam.wifeId : fam.husbandId;
+    const p1 = fam.partner1Id || fam.husbandId;
+    const p2 = fam.partner2Id || fam.wifeId;
+    return p1 === person.id ? p2 : p1;
   }
 
   function ordinal(n: number): string {
@@ -169,7 +171,7 @@
           <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">
-                {#if fam.husbandId && fam.wifeId}Parents{:else}Parent{/if}
+                {#if (fam.partner1Id || fam.husbandId) && (fam.partner2Id || fam.wifeId)}Parents{:else}Parent{/if}
               </span>
               <button
                 type="button"
@@ -180,27 +182,27 @@
                 <Pencil class="w-3.5 h-3.5" />
               </button>
             </div>
-            {#if fam.husbandId || fam.wifeId}
+            {#if fam.partner1Id || fam.husbandId}
               <button
                 type="button"
-                onclick={() => onSelectPerson?.(fam.husbandId || fam.wifeId)}
+                onclick={() => onSelectPerson?.(fam.partner1Id || fam.husbandId)}
                 class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                  {indName(fam.husbandId || fam.wifeId)}
-                  <span class="text-stone-400 font-normal">({fam.husbandId ? 'father' : 'mother'})</span>
+                  {indName(fam.partner1Id || fam.husbandId)}
+                  <span class="text-stone-400 font-normal">({(fam.partner2Id || fam.wifeId) ? 'parent 1' : 'parent'})</span>
                 </span>
               </button>
             {/if}
-            {#if fam.husbandId && fam.wifeId}
+            {#if fam.partner2Id || fam.wifeId}
               <button
                 type="button"
-                onclick={() => onSelectPerson?.(fam.wifeId)}
+                onclick={() => onSelectPerson?.(fam.partner2Id || fam.wifeId)}
                 class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                  {indName(fam.wifeId)}
-                  <span class="text-stone-400 font-normal">(mother)</span>
+                  {indName(fam.partner2Id || fam.wifeId)}
+                  <span class="text-stone-400 font-normal">({(fam.partner1Id || fam.husbandId) ? 'parent 2' : 'parent'})</span>
                 </span>
               </button>
             {/if}
@@ -281,10 +283,9 @@
           <button
             type="button"
             onclick={() => {
-              const isMother = person.sex === 'F';
               onAddFamily?.({
-                husbandId: isMother ? undefined : person.id,
-                wifeId: isMother ? person.id : undefined,
+                partner1Id: person.id,
+                husbandId: person.id,
                 mode: 'newFamily'
               });
             }}
@@ -295,10 +296,9 @@
           <button
             type="button"
             onclick={() => {
-              const isMother = person.sex === 'F';
               onAddFamily?.({
-                husbandId: isMother ? undefined : person.id,
-                wifeId: isMother ? person.id : undefined,
+                partner1Id: person.id,
+                husbandId: person.id,
                 mode: 'addChild'
               });
             }}

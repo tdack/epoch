@@ -425,6 +425,8 @@
   function openAddFamilyModal(defaults?: {
     husbandId?: string;
     wifeId?: string;
+    partner1Id?: string;
+    partner2Id?: string;
     childId?: string;
     familyId?: string;
     mode?: 'editFamily' | 'newFamily' | 'addChild';
@@ -433,27 +435,34 @@
     isCreatingFamily = false;
     familyModalMode = defaults?.mode || (defaults?.familyId ? 'editFamily' : 'newFamily');
 
+    const defaultP1 = defaults?.partner1Id || defaults?.husbandId;
+    const defaultP2 = defaults?.partner2Id || defaults?.wifeId;
+
     // Anchor person ID if launched from a person's drawer
-    familyAnchorPersonId = defaults?.husbandId || defaults?.wifeId || null;
+    familyAnchorPersonId = defaultP1 || defaultP2 || null;
 
     if (familyModalMode === 'addChild') {
       // Adding a child to an individual parent: reuse their existing family
       // (preselecting the partner) instead of creating a duplicate family record.
-      const anchorId = defaults?.husbandId || defaults?.wifeId;
+      const anchorId = defaultP1 || defaultP2;
       let existingFamily: any = null;
       if (anchorId && activeTreeData?.families) {
         const famsForPerson = activeTreeData.families.filter(
-          (f: any) => f.husbandId === anchorId || f.wifeId === anchorId
+          (f: any) =>
+            (f.partner1Id || f.husbandId) === anchorId ||
+            (f.partner2Id || f.wifeId) === anchorId
         );
         existingFamily =
-          famsForPerson.find((f: any) => f.husbandId && f.wifeId) || famsForPerson[0] || null;
+          famsForPerson.find((f: any) => (f.partner1Id || f.husbandId) && (f.partner2Id || f.wifeId)) ||
+          famsForPerson[0] ||
+          null;
       }
 
       if (existingFamily) {
         isEditingFamily = true;
         editingFamilyId = existingFamily.id;
-        familyHusbandId = existingFamily.husbandId || '';
-        familyWifeId = existingFamily.wifeId || '';
+        familyHusbandId = existingFamily.partner1Id || existingFamily.husbandId || '';
+        familyWifeId = existingFamily.partner2Id || existingFamily.wifeId || '';
         const existingChildIds = (existingFamily.children || []).map((c: any) => c.childId || c);
         familyChildIds = defaults?.childId && !existingChildIds.includes(defaults.childId)
           ? [...existingChildIds, defaults.childId]
@@ -469,8 +478,8 @@
         // No existing family: allow a single-parent family or a new union.
         isEditingFamily = false;
         editingFamilyId = null;
-        familyHusbandId = defaults?.husbandId || '';
-        familyWifeId = defaults?.wifeId || '';
+        familyHusbandId = defaultP1 || '';
+        familyWifeId = defaultP2 || '';
         familyChildIds = defaults?.childId ? [defaults.childId] : [];
         familyMarriageDate = '';
         familyMarriagePlace = '';
@@ -482,8 +491,8 @@
       if (targetFamily) {
         isEditingFamily = true;
         editingFamilyId = targetFamily.id;
-        familyHusbandId = targetFamily.husbandId || '';
-        familyWifeId = targetFamily.wifeId || '';
+        familyHusbandId = targetFamily.partner1Id || targetFamily.husbandId || '';
+        familyWifeId = targetFamily.partner2Id || targetFamily.wifeId || '';
         familyChildIds = (targetFamily.children || []).map((c: any) => c.childId || c);
 
         const marrEvent = (targetFamily.events || []).find((e: any) => e.type === 'MARR');
@@ -496,8 +505,8 @@
     } else if (familyModalMode === 'newFamily') {
       isEditingFamily = false;
       editingFamilyId = null;
-      familyHusbandId = defaults?.husbandId || '';
-      familyWifeId = defaults?.wifeId || '';
+      familyHusbandId = defaultP1 || '';
+      familyWifeId = defaultP2 || '';
       familyChildIds = defaults?.childId ? [defaults.childId] : [];
       familyMarriageDate = '';
       familyMarriagePlace = '';
@@ -506,17 +515,21 @@
     } else {
       // General fallback
       let targetFamily: any = null;
-      if (defaults?.husbandId && activeTreeData?.families) {
-        targetFamily = activeTreeData.families.find((f: any) => f.husbandId === defaults.husbandId);
-      } else if (defaults?.wifeId && activeTreeData?.families) {
-        targetFamily = activeTreeData.families.find((f: any) => f.wifeId === defaults.wifeId);
+      if (defaultP1 && activeTreeData?.families) {
+        targetFamily = activeTreeData.families.find(
+          (f: any) => (f.partner1Id || f.husbandId) === defaultP1
+        );
+      } else if (defaultP2 && activeTreeData?.families) {
+        targetFamily = activeTreeData.families.find(
+          (f: any) => (f.partner2Id || f.wifeId) === defaultP2
+        );
       }
 
       if (targetFamily) {
         isEditingFamily = true;
         editingFamilyId = targetFamily.id;
-        familyHusbandId = targetFamily.husbandId || '';
-        familyWifeId = targetFamily.wifeId || '';
+        familyHusbandId = targetFamily.partner1Id || targetFamily.husbandId || '';
+        familyWifeId = targetFamily.partner2Id || targetFamily.wifeId || '';
         familyChildIds = (targetFamily.children || []).map((c: any) => c.childId || c);
 
         const marrEvent = (targetFamily.events || []).find((e: any) => e.type === 'MARR');
@@ -528,8 +541,8 @@
       } else {
         isEditingFamily = false;
         editingFamilyId = null;
-        familyHusbandId = defaults?.husbandId || '';
-        familyWifeId = defaults?.wifeId || '';
+        familyHusbandId = defaultP1 || '';
+        familyWifeId = defaultP2 || '';
         familyChildIds = defaults?.childId ? [defaults.childId] : [];
         familyMarriageDate = '';
         familyMarriagePlace = '';
@@ -570,6 +583,8 @@
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          partner1Id: familyHusbandId || undefined,
+          partner2Id: familyWifeId || undefined,
           husbandId: familyHusbandId || undefined,
           wifeId: familyWifeId || undefined,
           childrenIds: familyChildIds,
@@ -1449,7 +1464,7 @@
           <!-- Spouses / Partners -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="family-husband" class="text-xs font-semibold text-stone-700 block mb-1">Husband / Partner 1</label>
+              <label for="family-husband" class="text-xs font-semibold text-stone-700 block mb-1">Partner 1</label>
               <select
                 id="family-husband"
                 bind:value={familyHusbandId}
@@ -1465,7 +1480,7 @@
               </select>
             </div>
             <div>
-              <label for="family-wife" class="text-xs font-semibold text-stone-700 block mb-1">Wife / Partner 2</label>
+              <label for="family-wife" class="text-xs font-semibold text-stone-700 block mb-1">Partner 2</label>
               <select
                 id="family-wife"
                 bind:value={familyWifeId}
