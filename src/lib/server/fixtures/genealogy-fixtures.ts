@@ -1,0 +1,71 @@
+/**
+ * Representative genealogy scenarios covering Phase 0 & Phase 1 complex graph criteria:
+ * 1. Two mothers (biological mother + adoptive/step mother)
+ * 2. Adoption and foster care pedigree links
+ * 3. Divorce followed by remarriage
+ * 4. Remarriage after spouse death
+ * 5. Same-sex partnership
+ * 6. Incomplete individuals and approximate/ranged dates
+ */
+
+export const REPRESENTATIVE_GEDCOM_FIXTURE = `0 HEAD
+1 SOUR EPOCH_TEST_SUITE
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I_ALICE@ INDI
+1 NAME Alice /Walker/
+1 SEX F
+1 BIRT
+2 DATE ABT 1970
+2 PLAC London, UK
+1 FAMS @F_WALKER_SMITH@
+1 FAMS @F_WALKER_JONES@
+0 @I_BOB@ INDI
+1 NAME Bob /Smith/
+1 SEX M
+1 BIRT
+2 DATE 12 MAY 1968
+1 DEAT
+2 DATE 10 OCT 2005
+1 FAMS @F_WALKER_SMITH@
+0 @I_CAROL@ INDI
+1 NAME Carol /Jones/
+1 SEX F
+1 BIRT
+2 DATE CALC 1972
+1 FAMS @F_WALKER_JONES@
+0 @I_DAVID@ INDI
+1 NAME David /Smith/
+1 SEX M
+1 BIRT
+2 DATE 15 JUN 1995
+1 FAMC @F_WALKER_SMITH@
+1 FAMC @F_WALKER_JONES@
+2 PEDI ADOPTED
+0 @I_EMILY@ INDI
+1 NAME Emily /Foster-Child/
+1 SEX F
+1 BIRT
+2 DATE BETWEEN 2000 AND 2002
+1 FAMC @F_WALKER_JONES@
+2 PEDI FOSTER
+0 @F_WALKER_SMITH@ FAM
+1 HUSB @I_BOB@
+1 WIFE @I_ALICE@
+1 MARR
+2 DATE 20 JUN 1992
+1 DIV
+2 DATE 1999
+1 CHIL @I_DAVID@
+0 @F_WALKER_JONES@ FAM
+1 HUSB @I_CAROL@
+1 WIFE @I_ALICE@
+1 MARR
+2 DATE 14 FEB 2008
+1 CHIL @I_DAVID@
+2 PEDI ADOPTED
+1 CHIL @I_EMILY@
+2 PEDI FOSTER
+0 TRLR`;
