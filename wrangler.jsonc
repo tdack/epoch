@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "epoch-genealogy",
+  "main": ".svelte-kit/cloudflare/_worker.js",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".svelte-kit/cloudflare",
+    "binding": "ASSETS",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "epoch-genealogy-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "epoch-genealogy-media",
+    },
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "GEDCOM_IMPORT_QUEUE",
+        "queue": "epoch-genealogy-import-queue",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "epoch-genealogy-import-queue",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+      },
+    ],
+  },
+  "workflows": [
+    {
+      "name": "epoch-genealogy-export-workflow",
+      "binding": "GEDCOM_EXPORT_WORKFLOW",
+      "class_name": "GedcomExportWorkflow",
+    },
+  ],
+  "observability": {
+    "logs": { 
+		"enabled": true 
+	},
+  },
+}
