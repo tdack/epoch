@@ -1,8 +1,15 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getTreeExportData } from '$lib/server/gedcom/importer';
 import { buildGedcom551String } from '$lib/server/gedcom/index';
+import { getDb, ensureDbSchema } from '$lib/server/db';
+import { GenealogyService } from '$lib/server/services/genealogy-service';
+import { DomainError } from '$lib/server/domain/errors';
 
-export const GET: RequestHandler = async ({ url, platform }) => {
+export const GET: RequestHandler = async ({ url, locals, platform }) => {
+  if (!locals.user) {
+    return json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   if (!platform?.env?.DB) {
     return json({ error: 'Database binding unavailable' }, { status: 500 });
   }
@@ -13,6 +20,15 @@ export const GET: RequestHandler = async ({ url, platform }) => {
   }
 
   try {
+    await ensureDbSchema(platform.env.DB);
+    const db = getDb(platform.env.DB);
+    const service = new GenealogyService(db);
+    // Verifies tree access
+    await service.getTree(treeId, {
+      user: locals.user,
+      correlationId: locals.correlationId
+    });
+
     const data = await getTreeExportData(platform.env.DB, treeId);
     const gedcom = buildGedcom551String(data);
 
@@ -24,40 +40,66 @@ export const GET: RequestHandler = async ({ url, platform }) => {
       }
     });
   } catch (err: any) {
+    if (err instanceof DomainError) {
+      return json({ error: err.message, code: err.code }, { status: err.status });
+    }
     return json({ error: `Export failed: ${err.message}` }, { status: 500 });
   }
 };
 
-export const POST: RequestHandler = async ({ request, platform }) => {
+export const POST: RequestHandler = async ({ request, locals, platform }) => {
+  if (!locals.user) {
+    return json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const body = (await request.json().catch(() => ({}))) as { treeId?: string };
   const { treeId } = body;
   if (!treeId) {
     return json({ error: 'treeId is required' }, { status: 400 });
   }
 
-  // Trigger Cloudflare Workflow if binding exists
-  if (platform?.env?.GEDCOM_EXPORT_WORKFLOW) {
-    const instance = await platform.env.GEDCOM_EXPORT_WORKFLOW.create({
-      params: { treeId }
+  if (!platform?.env?.DB) {
+    return json({ error: 'Database binding unavailable' }, { status: 500 });
+  }
+
+  try {
+    await ensureDbSchema(platform.env.DB);
+    const db = getDb(platform.env.DB);
+    const service = new GenealogyService(db);
+    await service.getTree(treeId, {
+      user: locals.user,
+      correlationId: locals.correlationId
     });
-    return json({ status: 'started', instanceId: instance.id });
-  }
 
-  // Fallback direct execution
-  if (!platform?.env?.DB || !platform?.env?.MEDIA_BUCKET) {
-    return json({ error: 'Storage or Database binding unavailable' }, { status: 500 });
-  }
-
-  const data = await getTreeExportData(platform.env.DB, treeId);
-  const gedcom = buildGedcom551String(data);
-  const fileKey = `exports/${treeId}-${Date.now()}.ged`;
-
-  await platform.env.MEDIA_BUCKET.put(fileKey, gedcom, {
-    httpMetadata: {
-      contentType: 'text/vnd.familysearch.gedcom',
-      contentDisposition: `attachment; filename="${treeId}.ged"`
+    // Trigger Cloudflare Workflow if binding exists
+    if (platform?.env?.GEDCOM_EXPORT_WORKFLOW) {
+      const instance = await platform.env.GEDCOM_EXPORT_WORKFLOW.create({
+        params: { treeId }
+      });
+      return json({ status: 'started', instanceId: instance.id });
     }
-  });
 
-  return json({ status: 'complete', fileKey });
+    // Fallback direct execution
+    if (!platform?.env?.MEDIA_BUCKET) {
+      return json({ error: 'Storage binding unavailable' }, { status: 500 });
+    }
+
+    const data = await getTreeExportData(platform.env.DB, treeId);
+    const gedcom = buildGedcom551String(data);
+    const fileKey = `exports/${treeId}-${Date.now()}.ged`;
+
+    await platform.env.MEDIA_BUCKET.put(fileKey, gedcom, {
+      httpMetadata: {
+        contentType: 'text/vnd.familysearch.gedcom',
+        contentDisposition: `attachment; filename="${treeId}.ged"`
+      }
+    });
+
+    return json({ status: 'complete', fileKey });
+  } catch (err: any) {
+    if (err instanceof DomainError) {
+      return json({ error: err.message, code: err.code }, { status: err.status });
+    }
+    return json({ error: `Export failed: ${err?.message || err}` }, { status: 500 });
+  }
 };

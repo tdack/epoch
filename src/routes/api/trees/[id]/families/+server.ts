@@ -1,10 +1,11 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDb, families, familyChildren, events, ensureDbSchema } from '$lib/server/db';
-import { eq, and } from 'drizzle-orm';
+import { getDb, ensureDbSchema } from '$lib/server/db';
+import { GenealogyService } from '$lib/server/services/genealogy-service';
+import { DomainError } from '$lib/server/domain/errors';
 
-export const POST: RequestHandler = async ({ params, request, platform }) => {
-  if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
+  if (!locals.user) {
+    return json({ error: 'Authentication required' }, { status: 401 });
   }
 
   const { id: treeId } = params;
@@ -12,117 +13,55 @@ export const POST: RequestHandler = async ({ params, request, platform }) => {
     return json({ error: 'Tree ID required' }, { status: 400 });
   }
 
+  if (!platform?.env?.DB) {
+    return json({ error: 'Database binding unavailable' }, { status: 500 });
+  }
+
   const body = (await request.json().catch(() => ({}))) as {
     husbandId?: string | null;
     wifeId?: string | null;
+    partner1Id?: string | null;
+    partner2Id?: string | null;
     childrenIds?: string[];
     marriageDate?: string;
     marriagePlace?: string;
   };
 
-  const { husbandId, wifeId, childrenIds = [], marriageDate, marriagePlace } = body;
+  const partner1 = body.partner1Id !== undefined ? body.partner1Id : body.husbandId;
+  const partner2 = body.partner2Id !== undefined ? body.partner2Id : body.wifeId;
+  const { childrenIds = [], marriageDate, marriagePlace } = body;
 
-  if (!husbandId && !wifeId && childrenIds.length === 0) {
+  if (!partner1 && !partner2 && childrenIds.length === 0) {
     return json({ error: 'A family requires at least one spouse or child' }, { status: 400 });
   }
 
   try {
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
+    const service = new GenealogyService(db);
 
-    // Guard against duplicate families: if a family already exists with the
-    // exact same parents, add children to it instead of creating a duplicate.
-    const existingFamilies = await db
-      .select()
-      .from(families)
-      .where(eq(families.treeId, treeId))
-      .all();
-    const duplicate = existingFamilies.find(
-      (f) => (f.husbandId || null) === (husbandId || null) && (f.wifeId || null) === (wifeId || null)
+    const result = await service.createFamily(
+      treeId,
+      {
+        partner1Id: partner1,
+        partner2Id: partner2,
+        husbandId: partner1,
+        wifeId: partner2,
+        childrenIds,
+        marriageDate,
+        marriagePlace
+      },
+      {
+        user: locals.user,
+        correlationId: locals.correlationId
+      }
     );
 
-    if (duplicate) {
-      const existingChildRows = await db
-        .select()
-        .from(familyChildren)
-        .where(eq(familyChildren.familyId, duplicate.id))
-        .all();
-      const existingChildIds = new Set(existingChildRows.map((c) => c.childId));
-      for (const childId of childrenIds) {
-        if (childId?.trim() && !existingChildIds.has(childId.trim())) {
-          await db.insert(familyChildren).values({
-            familyId: duplicate.id,
-            childId: childId.trim(),
-            pedigree: 'birth'
-          });
-        }
-      }
-
-      if ((marriageDate?.trim() || marriagePlace?.trim()) && !existingChildRows.length) {
-        const hasMarr = await db.select().from(events).where(and(
-          eq(events.treeId, treeId),
-          eq(events.entityType, 'FAMILY'),
-          eq(events.entityId, duplicate.id),
-          eq(events.type, 'MARR')
-        )).get();
-        if (!hasMarr) {
-          await db.insert(events).values({
-            id: crypto.randomUUID(),
-            treeId,
-            entityType: 'FAMILY',
-            entityId: duplicate.id,
-            type: 'MARR',
-            dateRaw: marriageDate?.trim() || null,
-            dateSort: marriageDate?.trim() || null,
-            place: marriagePlace?.trim() || null,
-            description: null
-          });
-        }
-      }
-
-      return json({ success: true, family: duplicate, merged: true }, { status: 200 });
-    }
-
-    const familyId = `@F_${crypto.randomUUID().slice(0, 8)}@`;
-    const newFamily = {
-      id: familyId,
-      treeId,
-      husbandId: husbandId || null,
-      wifeId: wifeId || null
-    };
-
-    await db.insert(families).values(newFamily);
-
-    // Add children links
-    if (childrenIds && childrenIds.length > 0) {
-      for (const childId of childrenIds) {
-        if (childId?.trim()) {
-          await db.insert(familyChildren).values({
-            familyId,
-            childId: childId.trim(),
-            pedigree: 'birth'
-          });
-        }
-      }
-    }
-
-    // Optional marriage event
-    if (marriageDate?.trim() || marriagePlace?.trim()) {
-      await db.insert(events).values({
-        id: crypto.randomUUID(),
-        treeId,
-        entityType: 'FAMILY',
-        entityId: familyId,
-        type: 'MARR',
-        dateRaw: marriageDate?.trim() || null,
-        dateSort: marriageDate?.trim() || null,
-        place: marriagePlace?.trim() || null,
-        description: null
-      });
-    }
-
-    return json({ success: true, family: newFamily }, { status: 201 });
+    return json({ success: true, family: result.family, merged: result.merged }, { status: result.merged ? 200 : 201 });
   } catch (err: any) {
+    if (err instanceof DomainError) {
+      return json({ error: err.message, code: err.code }, { status: err.status });
+    }
     console.error('Failed to create family:', err);
     return json({ error: err?.message || 'Failed to create family' }, { status: 500 });
   }

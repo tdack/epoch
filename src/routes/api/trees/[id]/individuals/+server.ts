@@ -1,14 +1,20 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDb, individuals, events, ensureDbSchema } from '$lib/server/db';
+import { getDb, ensureDbSchema } from '$lib/server/db';
+import { GenealogyService } from '$lib/server/services/genealogy-service';
+import { DomainError } from '$lib/server/domain/errors';
 
-export const POST: RequestHandler = async ({ params, request, platform }) => {
-  if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
+  if (!locals.user) {
+    return json({ error: 'Authentication required' }, { status: 401 });
   }
 
   const { id: treeId } = params;
   if (!treeId) {
     return json({ error: 'Tree ID required' }, { status: 400 });
+  }
+
+  if (!platform?.env?.DB) {
+    return json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
   const body = (await request.json().catch(() => ({}))) as {
@@ -29,51 +35,30 @@ export const POST: RequestHandler = async ({ params, request, platform }) => {
   try {
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
+    const service = new GenealogyService(db);
 
-    const individualId = `@I_${crypto.randomUUID().slice(0, 8)}@`;
-    const newIndividual = {
-      id: individualId,
+    const individual = await service.createIndividual(
       treeId,
-      givenName: givenName?.trim() || null,
-      surname: surname?.trim() || null,
-      sex: sex || 'U',
-      createdAt: new Date()
-    };
+      {
+        givenName: givenName?.trim() || null,
+        surname: surname?.trim() || null,
+        sex: (sex as 'M' | 'F' | 'U') || 'U',
+        birthDate: birthDate?.trim() || null,
+        birthPlace: birthPlace?.trim() || null,
+        deathDate: deathDate?.trim() || null,
+        deathPlace: deathPlace?.trim() || null
+      },
+      {
+        user: locals.user,
+        correlationId: locals.correlationId
+      }
+    );
 
-    await db.insert(individuals).values(newIndividual);
-
-    // Optional birth event
-    if (birthDate?.trim() || birthPlace?.trim()) {
-      await db.insert(events).values({
-        id: crypto.randomUUID(),
-        treeId,
-        entityType: 'INDIVIDUAL',
-        entityId: individualId,
-        type: 'BIRT',
-        dateRaw: birthDate?.trim() || null,
-        dateSort: birthDate?.trim() || null,
-        place: birthPlace?.trim() || null,
-        description: null
-      });
-    }
-
-    // Optional death event
-    if (deathDate?.trim() || deathPlace?.trim()) {
-      await db.insert(events).values({
-        id: crypto.randomUUID(),
-        treeId,
-        entityType: 'INDIVIDUAL',
-        entityId: individualId,
-        type: 'DEAT',
-        dateRaw: deathDate?.trim() || null,
-        dateSort: deathDate?.trim() || null,
-        place: deathPlace?.trim() || null,
-        description: null
-      });
-    }
-
-    return json({ success: true, individual: newIndividual }, { status: 201 });
+    return json({ success: true, individual }, { status: 201 });
   } catch (err: any) {
+    if (err instanceof DomainError) {
+      return json({ error: err.message, code: err.code }, { status: err.status });
+    }
     console.error('Failed to create individual:', err);
     return json({ error: err?.message || 'Failed to create individual' }, { status: 500 });
   }
