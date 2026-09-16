@@ -6,7 +6,15 @@
   import { Upload, Download, RefreshCw, GitBranch, Plus, Database, Sparkles, UserPlus, Users, Pencil, Trash2 } from 'lucide-svelte';
   import NewTreeModal from '$lib/components/modals/NewTreeModal.svelte';
   import PersonModal from '$lib/components/modals/PersonModal.svelte';
-  import type { TreeSummary, TreeDetails, ImportPreviewData, PersonFormData } from '$lib/types/genealogy';
+  import FamilyModal from '$lib/components/modals/FamilyModal.svelte';
+  import type {
+    TreeSummary,
+    TreeDetails,
+    ImportPreviewData,
+    PersonFormData,
+    FamilyFormData,
+    OpenAddFamilyDefaults
+  } from '$lib/types/genealogy';
   import {
     fetchTrees,
     fetchTreeDetails,
@@ -43,21 +51,11 @@
   let isSubmittingPerson = $state(false);
   let personModalError = $state<string | null>(null);
 
-  // Add/Edit Family Modal State
-  let showAddFamilyModal = $state(false);
-  let familyModalMode = $state<'editFamily' | 'newFamily' | 'addChild'>('newFamily');
-  let isEditingFamily = $state(false);
-  let editingFamilyId = $state<string | null>(null);
-  let isCreatingFamily = $state(false);
-  let createFamilyError = $state<string | null>(null);
-  let familyHusbandId = $state<string>('');
-  let familyWifeId = $state<string>('');
-  let familyChildIds = $state<string[]>([]);
-  let familyMarriageDate = $state('');
-  let familyMarriagePlace = $state('');
-  let familyDivorceDate = $state('');
-  let familyDivorcePlace = $state('');
-  let familyAnchorPersonId = $state<string | null>(null);
+  // Family Modal State
+  let showFamilyModal = $state(false);
+  let familyModalDefaults = $state<OpenAddFamilyDefaults | undefined>(undefined);
+  let isSubmittingFamily = $state(false);
+  let familyModalError = $state<string | null>(null);
 
   // Delete Tree Modal State
   let showDeleteTreeModal = $state(false);
@@ -262,180 +260,27 @@
     }
   }
 
-  function openAddFamilyModal(defaults?: {
-    husbandId?: string;
-    wifeId?: string;
-    partner1Id?: string;
-    partner2Id?: string;
-    childId?: string;
-    familyId?: string;
-    mode?: 'editFamily' | 'newFamily' | 'addChild';
-  }) {
-    createFamilyError = null;
-    isCreatingFamily = false;
-    familyModalMode = defaults?.mode || (defaults?.familyId ? 'editFamily' : 'newFamily');
-
-    const defaultP1 = defaults?.partner1Id || defaults?.husbandId;
-    const defaultP2 = defaults?.partner2Id || defaults?.wifeId;
-
-    // Anchor person ID if launched from a person's drawer
-    familyAnchorPersonId = defaultP1 || defaultP2 || null;
-
-    if (familyModalMode === 'addChild') {
-      // Adding a child to an individual parent: reuse their existing family
-      // (preselecting the partner) instead of creating a duplicate family record.
-      const anchorId = defaultP1 || defaultP2;
-      let existingFamily: any = null;
-      if (anchorId && activeTreeData?.families) {
-        const famsForPerson = activeTreeData.families.filter(
-          (f: any) =>
-            (f.partner1Id || f.husbandId) === anchorId ||
-            (f.partner2Id || f.wifeId) === anchorId
-        );
-        existingFamily =
-          famsForPerson.find((f: any) => (f.partner1Id || f.husbandId) && (f.partner2Id || f.wifeId)) ||
-          famsForPerson[0] ||
-          null;
-      }
-
-      if (existingFamily) {
-        isEditingFamily = true;
-        editingFamilyId = existingFamily.id;
-        familyHusbandId = existingFamily.partner1Id || existingFamily.husbandId || '';
-        familyWifeId = existingFamily.partner2Id || existingFamily.wifeId || '';
-        const existingChildIds = (existingFamily.children || []).map((c: any) => c.childId || c);
-        familyChildIds = defaults?.childId && !existingChildIds.includes(defaults.childId)
-          ? [...existingChildIds, defaults.childId]
-          : existingChildIds;
-
-        const marrEvent = (existingFamily.events || []).find((e: any) => e.type === 'MARR');
-        familyMarriageDate = marrEvent?.dateRaw || '';
-        familyMarriagePlace = marrEvent?.place || '';
-        const divEvent = (existingFamily.events || []).find((e: any) => e.type === 'DIV');
-        familyDivorceDate = divEvent?.dateRaw || '';
-        familyDivorcePlace = divEvent?.place || '';
-      } else {
-        // No existing family: allow a single-parent family or a new union.
-        isEditingFamily = false;
-        editingFamilyId = null;
-        familyHusbandId = defaultP1 || '';
-        familyWifeId = defaultP2 || '';
-        familyChildIds = defaults?.childId ? [defaults.childId] : [];
-        familyMarriageDate = '';
-        familyMarriagePlace = '';
-        familyDivorceDate = '';
-        familyDivorcePlace = '';
-      }
-    } else if (defaults?.familyId && activeTreeData?.families) {
-      const targetFamily = activeTreeData.families.find((f: any) => f.id === defaults.familyId);
-      if (targetFamily) {
-        isEditingFamily = true;
-        editingFamilyId = targetFamily.id;
-        familyHusbandId = targetFamily.partner1Id || targetFamily.husbandId || '';
-        familyWifeId = targetFamily.partner2Id || targetFamily.wifeId || '';
-        familyChildIds = (targetFamily.children || []).map((c: any) => c.childId || c);
-
-        const marrEvent = (targetFamily.events || []).find((e: any) => e.type === 'MARR');
-        familyMarriageDate = marrEvent?.dateRaw || '';
-        familyMarriagePlace = marrEvent?.place || '';
-        const divEvent = (targetFamily.events || []).find((e: any) => e.type === 'DIV');
-        familyDivorceDate = divEvent?.dateRaw || '';
-        familyDivorcePlace = divEvent?.place || '';
-      }
-    } else if (familyModalMode === 'newFamily') {
-      isEditingFamily = false;
-      editingFamilyId = null;
-      familyHusbandId = defaultP1 || '';
-      familyWifeId = defaultP2 || '';
-      familyChildIds = defaults?.childId ? [defaults.childId] : [];
-      familyMarriageDate = '';
-      familyMarriagePlace = '';
-      familyDivorceDate = '';
-      familyDivorcePlace = '';
-    } else {
-      // General fallback
-      let targetFamily: any = null;
-      if (defaultP1 && activeTreeData?.families) {
-        targetFamily = activeTreeData.families.find(
-          (f: any) => (f.partner1Id || f.husbandId) === defaultP1
-        );
-      } else if (defaultP2 && activeTreeData?.families) {
-        targetFamily = activeTreeData.families.find(
-          (f: any) => (f.partner2Id || f.wifeId) === defaultP2
-        );
-      }
-
-      if (targetFamily) {
-        isEditingFamily = true;
-        editingFamilyId = targetFamily.id;
-        familyHusbandId = targetFamily.partner1Id || targetFamily.husbandId || '';
-        familyWifeId = targetFamily.partner2Id || targetFamily.wifeId || '';
-        familyChildIds = (targetFamily.children || []).map((c: any) => c.childId || c);
-
-        const marrEvent = (targetFamily.events || []).find((e: any) => e.type === 'MARR');
-        familyMarriageDate = marrEvent?.dateRaw || '';
-        familyMarriagePlace = marrEvent?.place || '';
-        const divEvent = (targetFamily.events || []).find((e: any) => e.type === 'DIV');
-        familyDivorceDate = divEvent?.dateRaw || '';
-        familyDivorcePlace = divEvent?.place || '';
-      } else {
-        isEditingFamily = false;
-        editingFamilyId = null;
-        familyHusbandId = defaultP1 || '';
-        familyWifeId = defaultP2 || '';
-        familyChildIds = defaults?.childId ? [defaults.childId] : [];
-        familyMarriageDate = '';
-        familyMarriagePlace = '';
-        familyDivorceDate = '';
-        familyDivorcePlace = '';
-      }
-    }
-
-    showAddFamilyModal = true;
+  function openAddFamilyModal(defaults?: OpenAddFamilyDefaults) {
+    familyModalError = null;
+    isSubmittingFamily = false;
+    familyModalDefaults = defaults;
+    showFamilyModal = true;
   }
 
-  function toggleFamilyChild(id: string) {
-    if (familyChildIds.includes(id)) {
-      familyChildIds = familyChildIds.filter((cid) => cid !== id);
-    } else {
-      familyChildIds = [...familyChildIds, id];
-    }
-  }
-
-  async function saveFamily() {
+  async function handleSaveFamily(data: FamilyFormData, isEditing: boolean, editingFamilyId: string | null) {
     if (!selectedTreeId) return;
-    createFamilyError = null;
+    familyModalError = null;
+    isSubmittingFamily = true;
 
-    if (!familyHusbandId && !familyWifeId && familyChildIds.length === 0) {
-      createFamilyError = 'Please select at least one parent or child to form a family.';
-      return;
-    }
-
-    isCreatingFamily = true;
     try {
-      await saveFamilyApi(
-        selectedTreeId,
-        {
-          partner1Id: familyHusbandId || undefined,
-          partner2Id: familyWifeId || undefined,
-          husbandId: familyHusbandId || undefined,
-          wifeId: familyWifeId || undefined,
-          childrenIds: familyChildIds,
-          marriageDate: familyMarriageDate.trim() || undefined,
-          marriagePlace: familyMarriagePlace.trim() || undefined,
-          divorceDate: familyDivorceDate.trim() || undefined,
-          divorcePlace: familyDivorcePlace.trim() || undefined
-        },
-        isEditingFamily ? editingFamilyId : null
-      );
-
-      showAddFamilyModal = false;
+      await saveFamilyApi(selectedTreeId, data, isEditing ? editingFamilyId : null);
+      showFamilyModal = false;
       await selectTree(selectedTreeId);
     } catch (err: any) {
       console.error('Failed to save family', err);
-      createFamilyError = err.message || 'Failed to save family';
+      familyModalError = err.message || 'Failed to save family';
     } finally {
-      isCreatingFamily = false;
+      isSubmittingFamily = false;
     }
   }
 
@@ -831,213 +676,21 @@
     onsubmit={handleSavePerson}
   />
 
-  <!-- Add Family Modal -->
-  {#if showAddFamilyModal}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          saveFamily();
-        }}
-        class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]"
-      >
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800">
-            <Users class="w-4 h-4" />
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-stone-900">
-              {familyModalMode === 'addChild' ? 'Add Children to Family' : isEditingFamily ? 'Edit Family Union' : 'Add Family Union'}
-            </h3>
-            {#if familyModalMode === 'addChild'}
-              <p class="text-[11px] text-stone-500">
-                Choose the co-parent partner or leave as "None / Single Parent".
-              </p>
-            {/if}
-          </div>
-        </div>
-
-        {#if createFamilyError}
-          <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
-            {createFamilyError}
-          </div>
-        {/if}
-
-        <div class="space-y-4">
-          {#if familyModalMode === 'addChild' && familyAnchorPersonId}
-            {@const anchorInd = activeTreeData?.individuals?.find((i: any) => i.id === familyAnchorPersonId)}
-            {@const anchorName = anchorInd ? [anchorInd.givenName, anchorInd.surname].filter(Boolean).join(' ') || anchorInd.id : 'Selected Parent'}
-            <div class="bg-amber-100/60 border border-amber-300/80 rounded-xl p-3 text-xs text-amber-900 space-y-1">
-              <span class="font-bold block">Adding child for: {anchorName}</span>
-              <p class="text-stone-600 text-[11px]">
-                You can select a partner below to associate the child with both parents, or leave the partner as <em>None / Unknown</em> for a single-parent family.
-              </p>
-            </div>
-          {/if}
-
-          <!-- Spouses / Partners -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="family-husband" class="text-xs font-semibold text-stone-700 block mb-1">Partner 1</label>
-              <select
-                id="family-husband"
-                bind:value={familyHusbandId}
-                disabled={isCreatingFamily}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-              >
-                <option value="">None / Unknown</option>
-                {#each activeTreeData?.individuals || [] as ind}
-                  <option value={ind.id}>
-                    {[ind.givenName, ind.surname].filter(Boolean).join(' ') || ind.id} ({ind.sex || '?'})
-                  </option>
-                {/each}
-              </select>
-            </div>
-            <div>
-              <label for="family-wife" class="text-xs font-semibold text-stone-700 block mb-1">Partner 2</label>
-              <select
-                id="family-wife"
-                bind:value={familyWifeId}
-                disabled={isCreatingFamily}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-              >
-                <option value="">None / Unknown</option>
-                {#each activeTreeData?.individuals || [] as ind}
-                  <option value={ind.id}>
-                    {[ind.givenName, ind.surname].filter(Boolean).join(' ') || ind.id} ({ind.sex || '?'})
-                  </option>
-                {/each}
-              </select>
-            </div>
-          </div>
-
-          <!-- Marriage Event -->
-          <div class="border-t border-stone-200 pt-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Marriage / Union Event</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label for="marriage-date" class="text-xs font-medium text-stone-600 block mb-1">Marriage Date</label>
-                <input
-                  id="marriage-date"
-                  type="text"
-                  bind:value={familyMarriageDate}
-                  placeholder="e.g. 12 JUN 1940"
-                  disabled={isCreatingFamily}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label for="marriage-place" class="text-xs font-medium text-stone-600 block mb-1">Marriage Place</label>
-                <input
-                  id="marriage-place"
-                  type="text"
-                  bind:value={familyMarriagePlace}
-                  placeholder="e.g. Edinburgh, Scotland"
-                  disabled={isCreatingFamily}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Divorce / Separation Event -->
-          {#if isEditingFamily}
-            <div class="border-t border-stone-200 pt-3">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Divorce / Separation</h4>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label for="divorce-date" class="text-xs font-medium text-stone-600 block mb-1">Divorce Date</label>
-                  <input
-                    id="divorce-date"
-                    type="text"
-                    bind:value={familyDivorceDate}
-                    placeholder="e.g. 3 SEP 1985 (leave blank if none)"
-                    disabled={isCreatingFamily}
-                    class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label for="divorce-place" class="text-xs font-medium text-stone-600 block mb-1">Place</label>
-                  <input
-                    id="divorce-place"
-                    type="text"
-                    bind:value={familyDivorcePlace}
-                    placeholder="e.g. Adelaide, Australia"
-                    disabled={isCreatingFamily}
-                    class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:opacity-50"
-                  />
-                </div>
-              </div>
-              <p class="text-[11px] text-stone-500 mt-1.5">Clearing both fields removes the divorce record. For remarriage, use "New Marriage / Partner" in a person's drawer to create a second union.</p>
-            </div>
-          {/if}
-
-          <!-- Children Selection -->
-          <div class="border-t border-stone-200 pt-3">
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600">
-                Link Children ({familyChildIds.length} selected)
-              </h4>
-              <button
-                type="button"
-                onclick={() => {
-                  showAddFamilyModal = false;
-                  openAddPersonModal();
-                }}
-                class="text-[11px] font-medium text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
-              >
-                + New Individual
-              </button>
-            </div>
-            <div class="max-h-40 overflow-y-auto space-y-1.5 border border-stone-200 rounded-lg p-2.5 bg-stone-50/70">
-              {#if !activeTreeData?.individuals || activeTreeData.individuals.length === 0}
-                <p class="text-xs text-stone-500 italic">No individuals available in this tree</p>
-              {:else}
-                {#each activeTreeData.individuals as ind}
-                  {#if ind.id !== familyHusbandId && ind.id !== familyWifeId}
-                    <label class="flex items-center space-x-2 text-xs text-stone-700 hover:bg-stone-200/50 p-1.5 rounded-md cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={familyChildIds.includes(ind.id)}
-                        onchange={() => toggleFamilyChild(ind.id)}
-                        disabled={isCreatingFamily}
-                        class="text-amber-800 rounded-sm focus:ring-amber-600"
-                      />
-                      <span class="font-medium">{[ind.givenName, ind.surname].filter(Boolean).join(' ') || ind.id}</span>
-                      <span class="text-stone-400 text-[10px]">({ind.sex || '?'})</span>
-                    </label>
-                  {/if}
-                {/each}
-              {/if}
-            </div>
-          </div>
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-3 border-t border-stone-200">
-          <button
-            type="button"
-            onclick={() => (showAddFamilyModal = false)}
-            disabled={isCreatingFamily}
-            class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isCreatingFamily}
-            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-amber-800 hover:bg-amber-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {#if isCreatingFamily}
-              <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-              <span>Saving...</span>
-            {:else}
-              <span>{isEditingFamily ? 'Update Family' : 'Create Family'}</span>
-            {/if}
-          </button>
-        </div>
-      </form>
-    </div>
-  {/if}
+  <!-- Family Modal -->
+  <FamilyModal
+    show={showFamilyModal}
+    individuals={activeTreeData?.individuals || []}
+    families={activeTreeData?.families || []}
+    defaults={familyModalDefaults}
+    isSubmitting={isSubmittingFamily}
+    error={familyModalError}
+    onclose={() => (showFamilyModal = false)}
+    onsubmit={handleSaveFamily}
+    onopenAddPerson={() => {
+      showFamilyModal = false;
+      openAddPersonModal();
+    }}
+  />
 
   <!-- Delete Tree Confirmation Modal -->
   {#if showDeleteTreeModal && activeTreeData}
