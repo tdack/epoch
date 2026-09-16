@@ -8,6 +8,7 @@
   import PersonModal from '$lib/components/modals/PersonModal.svelte';
   import FamilyModal from '$lib/components/modals/FamilyModal.svelte';
   import DeleteTreeModal from '$lib/components/modals/DeleteTreeModal.svelte';
+  import ImportConfirmModal from '$lib/components/modals/ImportConfirmModal.svelte';
   import type {
     TreeSummary,
     TreeDetails,
@@ -110,22 +111,6 @@
     }
   }
 
-  // Import confirmation modal state
-  interface ImportPreviewData {
-    mode: 'replace' | 'merge';
-    deleteCounts?: { individuals: number; families: number; events: number; childLinks: number };
-    merge?: {
-      newIndividuals: number;
-      existingIndividuals: number;
-      newFamilies: number;
-      mergedFamilies: number;
-      newChildLinks: number;
-      duplicateChildLinks: number;
-      newEvents: number;
-      duplicateEvents: number;
-    };
-    incoming: { individuals: number; families: number; events: number };
-  }
   let pendingImportFile = $state<File | null>(null);
   let importPreview = $state<ImportPreviewData | null>(null);
   let isLoadingPreview = $state(false);
@@ -516,157 +501,6 @@
     oncreate={handleCreateTree}
   />
 
-  <!-- Import Confirmation Modal -->
-  {#if showImportConfirmModal}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800">
-            <Upload class="w-4 h-4" />
-          </div>
-          <h3 class="text-lg font-bold text-stone-900">Import GEDCOM</h3>
-        </div>
-
-        {#if importConfirmError}
-          <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
-            {importConfirmError}
-          </div>
-        {/if}
-
-        {#if isLoadingPreview}
-          <div class="flex items-center space-x-2 text-xs text-stone-600 py-4">
-            <RefreshCw class="w-4 h-4 animate-spin" />
-            <span>Analysing GEDCOM file against the selected tree...</span>
-          </div>
-        {:else if importPreview}
-          <div class="text-xs text-stone-700 space-y-3">
-            <p>
-              File contains <strong>{importPreview.incoming.individuals}</strong> people,
-              <strong>{importPreview.incoming.families}</strong> families and
-              <strong>{importPreview.incoming.events}</strong> events.
-            </p>
-
-            {#if !selectedTreeId}
-              <div class="bg-stone-100 border border-stone-300 rounded-lg p-3 space-y-1">
-                <p class="font-semibold text-stone-900">New tree</p>
-                <p>All {importPreview.incoming.individuals} people and {importPreview.incoming.families} families from the file will be imported into a fresh tree.</p>
-              </div>
-              <button
-                type="button"
-                onclick={() => confirmImport('replace')}
-                disabled={isConfirmingImport}
-                class="w-full inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-              >
-                {#if isConfirmingImport}
-                  <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                  <span>Importing...</span>
-                {:else}
-                  <span>Import into new tree</span>
-                {/if}
-              </button>
-            {:else if importPreview.mode === 'replace' && importPreview.deleteCounts}
-              <div class="bg-red-50 border border-red-300 rounded-lg p-3 space-y-1">
-                <p class="font-semibold text-red-900">Replace — destructive</p>
-                <p>
-                  <strong>{importPreview.deleteCounts.individuals}</strong> people,
-                  <strong>{importPreview.deleteCounts.families}</strong> families and
-                  <strong>{importPreview.deleteCounts.events}</strong> events in
-                  “{activeTreeData?.tree?.name ?? 'this tree'}” will be <strong>permanently deleted</strong>
-                  and replaced by {importPreview.incoming.individuals} people and
-                  {importPreview.incoming.families} families from the file.
-                </p>
-              </div>
-              <div class="flex space-x-2">
-                <button
-                  type="button"
-                  onclick={() => confirmImport('merge')}
-                  disabled={isConfirmingImport}
-                  class="flex-1 px-4 py-2 text-xs font-semibold text-stone-700 border border-stone-300 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Merge instead
-                </button>
-                <button
-                  type="button"
-                  onclick={() => confirmImport('replace')}
-                  disabled={isConfirmingImport}
-                  class="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-red-800 hover:bg-red-700 text-red-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                >
-                  {#if isConfirmingImport}
-                    <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                    <span>Replacing...</span>
-                  {:else}
-                    <span>Delete &amp; replace</span>
-                  {/if}
-                </button>
-              </div>
-            {:else if importPreview.merge}
-              <div class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 space-y-1.5">
-                <p class="font-semibold text-emerald-900">Merge — changes preview</p>
-                <ul class="space-y-0.5 list-disc list-inside text-stone-800">
-                  <li>{importPreview.merge.newIndividuals} new people ({importPreview.merge.existingIndividuals} already exist and will be kept)</li>
-                  <li>{importPreview.merge.newFamilies} new families; {importPreview.merge.mergedFamilies} duplicate families will be merged into existing ones</li>
-                  <li>{importPreview.merge.newChildLinks} new child links ({importPreview.merge.duplicateChildLinks} duplicates skipped)</li>
-                  <li>{importPreview.merge.newEvents} new events ({importPreview.merge.duplicateEvents} duplicates skipped)</li>
-                </ul>
-                {#if importPreview.deleteCounts}
-                  <p class="text-stone-600">
-                    Alternatively, replace would delete {importPreview.deleteCounts.individuals} people,
-                    {importPreview.deleteCounts.families} families and {importPreview.deleteCounts.events} events
-                    and rebuild the tree from the file.
-                  </p>
-                {/if}
-              </div>
-              <div class="flex space-x-2">
-                <button
-                  type="button"
-                  onclick={cancelImport}
-                  disabled={isConfirmingImport}
-                  class="flex-1 px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                {#if importPreview.deleteCounts}
-                  <button
-                    type="button"
-                    onclick={() => confirmImport('replace')}
-                    disabled={isConfirmingImport}
-                    class="flex-1 px-4 py-2 text-xs font-semibold bg-red-800 hover:bg-red-700 text-red-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                  >
-                    Delete &amp; replace
-                  </button>
-                {/if}
-                <button
-                  type="button"
-                  onclick={() => confirmImport('merge')}
-                  disabled={isConfirmingImport}
-                  class="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                >
-                  {#if isConfirmingImport}
-                    <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                    <span>Merging...</span>
-                  {:else}
-                    <span>Merge into tree</span>
-                  {/if}
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        {#if !isLoadingPreview && selectedTreeId}
-          <button
-            type="button"
-            onclick={cancelImport}
-            disabled={isConfirmingImport}
-            class="w-full text-center text-xs text-stone-500 hover:text-stone-800 transition-colors cursor-pointer"
-          >
-            Cancel import
-          </button>
-        {/if}
-      </div>
-    </div>
-  {/if}
-
   <!-- Person Modal (Add / Edit) -->
   <PersonModal
     show={showPersonModal}
@@ -707,5 +541,17 @@
       ondelete={handleDeleteTree}
     />
   {/if}
+
+  <ImportConfirmModal
+    show={showImportConfirmModal}
+    treeName={activeTreeData?.tree?.name}
+    hasSelectedTree={Boolean(selectedTreeId)}
+    preview={importPreview}
+    isLoadingPreview={isLoadingPreview}
+    isConfirming={isConfirmingImport}
+    error={importConfirmError}
+    onclose={cancelImport}
+    onconfirm={confirmImport}
+  />
 </div>
 
