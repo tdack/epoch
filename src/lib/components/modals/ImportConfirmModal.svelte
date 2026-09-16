@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Upload, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
-  import type { ImportPreviewData } from '$lib/types/genealogy';
+  import type { ImportPreviewData } from '#lib/types/genealogy.js';
 
   interface Props {
     show: boolean;

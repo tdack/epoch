@@ -1,7 +1,7 @@
 <script lang="ts">
   import { UserPlus, Pencil, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
-  import type { PersonFormData } from '$lib/types/genealogy';
+  import type { PersonFormData } from '#lib/types/genealogy.js';
 
   interface Props {
     show: boolean;

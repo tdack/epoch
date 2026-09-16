@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import FamilyTreeCanvas from '$lib/components/tree/FamilyTreeCanvas.svelte';
-  import PersonDrawer from '$lib/components/tree/PersonDrawer.svelte';
-  import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '$lib/components/tree/tree-layout';
-  import AppHeader from '$lib/components/layout/AppHeader.svelte';
-  import TreeStatsBanner from '$lib/components/layout/TreeStatsBanner.svelte';
-  import NewTreeModal from '$lib/components/modals/NewTreeModal.svelte';
-  import PersonModal from '$lib/components/modals/PersonModal.svelte';
-  import FamilyModal from '$lib/components/modals/FamilyModal.svelte';
-  import DeleteTreeModal from '$lib/components/modals/DeleteTreeModal.svelte';
-  import ImportConfirmModal from '$lib/components/modals/ImportConfirmModal.svelte';
+  import FamilyTreeCanvas from '#lib/components/tree/FamilyTreeCanvas.svelte';
+  import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
+  import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '#lib/components/tree/tree-layout.js';
+  import AppHeader from '#lib/components/layout/AppHeader.svelte';
+  import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
+  import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
+  import PersonModal from '#lib/components/modals/PersonModal.svelte';
+  import FamilyModal from '#lib/components/modals/FamilyModal.svelte';
+  import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
+  import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
   import { RefreshCw, Sparkles } from 'lucide-svelte';
   import type {
     TreeSummary,
@@ -18,7 +18,7 @@
     PersonFormData,
     FamilyFormData,
     OpenAddFamilyDefaults
-  } from '$lib/types/genealogy';
+  } from '#lib/types/genealogy.js';
   import {
     fetchTrees,
     fetchTreeDetails,
@@ -29,7 +29,7 @@
     saveFamilyApi,
     previewGedcomImport,
     submitGedcomImport
-  } from '$lib/services/tree-api';
+  } from '#lib/services/tree-api.js';
 
   let trees = $state<TreeSummary[]>([]);
   let selectedTreeId = $state<string | null>(null);

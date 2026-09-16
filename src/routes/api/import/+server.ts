@@ -1,16 +1,16 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { importGedcomToDb, previewGedcomImport, type ImportMode } from '$lib/server/gedcom/importer';
-import { getDb, ensureDbSchema } from '$lib/server/db';
-import { GenealogyService } from '$lib/server/services/genealogy-service';
-import { DomainError } from '$lib/server/domain/errors';
+import type { RequestHandler } from '@sveltejs/kit';
+import { importGedcomToDb, previewGedcomImport, type ImportMode } from '#lib/server/gedcom/importer.js';
+import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { GenealogyService } from '#lib/server/services/genealogy-service.js';
+import { DomainError } from '#lib/server/domain/errors.js';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!locals.user) {
-    return json({ error: 'Authentication required' }, { status: 401 });
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+    return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
   const formData = await request.formData();
@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const mode = (formData.get('mode') as string | null) === 'merge' ? 'merge' : 'replace';
 
   if (!file) {
-    return json({ error: 'GEDCOM file is required' }, { status: 400 });
+    return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
   }
 
   try {
@@ -61,7 +61,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
         mode
       });
 
-      return json({
+      return Response.json({
         status: 'queued',
         message: 'Large GEDCOM file queued for asynchronous background processing',
         treeId
@@ -77,27 +77,27 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       mode
     );
 
-    return json({
+    return Response.json({
       status: 'complete',
       treeId,
       ...result
     });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code }, { status: err.status });
     }
     console.error('Import error:', err?.message, err?.stack, JSON.stringify(err));
-    return json({ error: `Failed to import GEDCOM: ${err?.message || err}` }, { status: 500 });
+    return Response.json({ error: `Failed to import GEDCOM: ${err?.message || err}` }, { status: 500 });
   }
 };
 
 export const PUT: RequestHandler = async ({ request, locals, platform }) => {
   if (!locals.user) {
-    return json({ error: 'Authentication required' }, { status: 401 });
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+    return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
   const formData = await request.formData();
@@ -105,7 +105,7 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
   const treeId = formData.get('treeId') as string | null;
 
   if (!file || !treeId) {
-    return json({ error: 'GEDCOM file and treeId are required' }, { status: 400 });
+    return Response.json({ error: 'GEDCOM file and treeId are required' }, { status: 400 });
   }
 
   try {
@@ -119,12 +119,12 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
     });
 
     const preview = await previewGedcomImport(platform.env.DB, treeId, await file.text());
-    return json(preview);
+    return Response.json(preview);
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code }, { status: err.status });
     }
     console.error('Preview error:', err);
-    return json({ error: `Failed to preview GEDCOM: ${err.message}` }, { status: 500 });
+    return Response.json({ error: `Failed to preview GEDCOM: ${err.message}` }, { status: 500 });
   }
 };

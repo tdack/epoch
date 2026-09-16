@@ -1,5 +1,5 @@
 import type { D1Database, R2Bucket, Queue } from '@cloudflare/workers-types';
-import type { UserIdentity } from '$lib/server/domain/identity';
+import type { UserIdentity } from '#lib/server/domain/identity.js';
 
 declare global {
 	namespace App {

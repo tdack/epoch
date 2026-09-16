@@ -1,4 +1,4 @@
-import type { TreeSummary, TreeDetails, PersonFormData, FamilyFormData } from '$lib/types/genealogy';
+import type { TreeSummary, TreeDetails, PersonFormData, FamilyFormData } from '#lib/types/genealogy.js';
 
 export async function fetchTrees(): Promise<TreeSummary[]> {
   const res = await fetch('/api/trees');
@@ -111,13 +111,13 @@ export async function saveFamilyApi(
   }
 }
 
-export async function previewGedcomImport(file: File, treeId?: string | null): Promise<import('$lib/types/genealogy').ImportPreviewData> {
+export async function previewGedcomImport(file: File, treeId?: string | null): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
   if (treeId) {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('treeId', treeId);
     const res = await fetch('/api/import', { method: 'PUT', body: fd });
-    const data = (await res.json().catch(() => ({}))) as import('$lib/types/genealogy').ImportPreviewData & { error?: string };
+    const data = (await res.json().catch(() => ({}))) as import('#lib/types/genealogy.js').ImportPreviewData & { error?: string };
     if (!res.ok) throw new Error(data.error || 'Failed to preview import');
     return data;
   }

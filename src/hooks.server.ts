@@ -1,8 +1,8 @@
-import type { Handle } from '@sveltejs/kit';
-import { extractAccessJwt, validateAccessJwt } from '$lib/server/auth/access';
-import { getDb } from '$lib/server/db';
-import { UserRepository } from '$lib/server/repositories/user-repository';
-import { Logger } from '$lib/server/logging/logger';
+import type { Handle } from '@sveltejs/kit/hooks';
+import { extractAccessJwt, validateAccessJwt } from '#lib/server/auth/access.js';
+import { getDb } from '#lib/server/db/index.js';
+import { UserRepository } from '#lib/server/repositories/user-repository.js';
+import { Logger } from '#lib/server/logging/logger.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
   const correlationId = event.request.headers.get('x-correlation-id') || crypto.randomUUID();

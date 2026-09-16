@@ -1,22 +1,22 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { getTreeExportData } from '$lib/server/gedcom/importer';
-import { buildGedcom551String } from '$lib/server/gedcom/index';
-import { getDb, ensureDbSchema } from '$lib/server/db';
-import { GenealogyService } from '$lib/server/services/genealogy-service';
-import { DomainError } from '$lib/server/domain/errors';
+import type { RequestHandler } from '@sveltejs/kit';
+import { getTreeExportData } from '#lib/server/gedcom/importer.js';
+import { buildGedcom551String } from '#lib/server/gedcom/index.js';
+import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { GenealogyService } from '#lib/server/services/genealogy-service.js';
+import { DomainError } from '#lib/server/domain/errors.js';
 
 export const GET: RequestHandler = async ({ url, locals, platform }) => {
   if (!locals.user) {
-    return json({ error: 'Authentication required' }, { status: 401 });
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+    return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
   const treeId = url.searchParams.get('treeId');
   if (!treeId) {
-    return json({ error: 'treeId query parameter required' }, { status: 400 });
+    return Response.json({ error: 'treeId query parameter required' }, { status: 400 });
   }
 
   try {
@@ -41,25 +41,25 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
     });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code }, { status: err.status });
     }
-    return json({ error: `Export failed: ${err.message}` }, { status: 500 });
+    return Response.json({ error: `Export failed: ${err.message}` }, { status: 500 });
   }
 };
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!locals.user) {
-    return json({ error: 'Authentication required' }, { status: 401 });
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => ({}))) as { treeId?: string };
   const { treeId } = body;
   if (!treeId) {
-    return json({ error: 'treeId is required' }, { status: 400 });
+    return Response.json({ error: 'treeId is required' }, { status: 400 });
   }
 
   if (!platform?.env?.DB) {
-    return json({ error: 'Database binding unavailable' }, { status: 500 });
+    return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
   try {
@@ -76,12 +76,12 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       const instance = await platform.env.GEDCOM_EXPORT_WORKFLOW.create({
         params: { treeId }
       });
-      return json({ status: 'started', instanceId: instance.id });
+      return Response.json({ status: 'started', instanceId: instance.id });
     }
 
     // Fallback direct execution
     if (!platform?.env?.MEDIA_BUCKET) {
-      return json({ error: 'Storage binding unavailable' }, { status: 500 });
+      return Response.json({ error: 'Storage binding unavailable' }, { status: 500 });
     }
 
     const data = await getTreeExportData(platform.env.DB, treeId);
@@ -95,11 +95,11 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       }
     });
 
-    return json({ status: 'complete', fileKey });
+    return Response.json({ status: 'complete', fileKey });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code }, { status: err.status });
     }
-    return json({ error: `Export failed: ${err?.message || err}` }, { status: 500 });
+    return Response.json({ error: `Export failed: ${err?.message || err}` }, { status: 500 });
   }
 };

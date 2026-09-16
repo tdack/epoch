@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFamilyTreeHierarchy, normalizeFamilies } from '$lib/components/tree/tree-layout';
+import { buildFamilyTreeHierarchy, normalizeFamilies } from '#lib/components/tree/tree-layout.js';
 
 describe('buildFamilyTreeHierarchy', () => {
   it('handles empty input gracefully', () => {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Users, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
-  import type { FamilyFormData, OpenAddFamilyDefaults } from '$lib/types/genealogy';
+  import type { FamilyFormData, OpenAddFamilyDefaults } from '#lib/types/genealogy.js';
 
   interface Props {
     show: boolean;

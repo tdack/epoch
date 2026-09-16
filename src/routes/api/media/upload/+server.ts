@@ -1,9 +1,9 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDb, mediaItems, ensureDbSchema } from '$lib/server/db';
+import type { RequestHandler } from '@sveltejs/kit';
+import { getDb, mediaItems, ensureDbSchema } from '#lib/server/db/index.js';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
   if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
-    return json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
+    return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
   }
 
   const formData = await request.formData();
@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
   const title = formData.get('title') as string | null;
 
   if (!file || !treeId || !entityId) {
-    return json({ error: 'file, treeId, and entityId are required' }, { status: 400 });
+    return Response.json({ error: 'file, treeId, and entityId are required' }, { status: 400 });
   }
 
   try {
@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       createdAt: new Date()
     });
 
-    return json({
+    return Response.json({
       success: true,
       media: {
         id: mediaId,
@@ -54,6 +54,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
     }, { status: 201 });
   } catch (err: any) {
     console.error('Failed to upload media:', err);
-    return json({ error: err?.message || 'Failed to upload media' }, { status: 500 });
+    return Response.json({ error: err?.message || 'Failed to upload media' }, { status: 500 });
   }
 };

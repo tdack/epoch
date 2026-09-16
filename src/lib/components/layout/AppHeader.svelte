@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GitBranch, Plus, Trash2, UserPlus, Users, Upload, Download } from 'lucide-svelte';
-  import type { TreeSummary } from '$lib/types/genealogy';
+  import type { TreeSummary } from '#lib/types/genealogy.js';
 
   interface Props {
     trees: TreeSummary[];

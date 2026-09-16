@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Database, GitBranch, RefreshCw } from 'lucide-svelte';
-  import type { TreeDetails } from '$lib/types/genealogy';
+  import type { TreeDetails } from '#lib/types/genealogy.js';
 
   interface Props {
     treeData: TreeDetails;
