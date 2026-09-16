@@ -5,7 +5,8 @@
   import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '$lib/components/tree/tree-layout';
   import { Upload, Download, RefreshCw, GitBranch, Plus, Database, Sparkles, UserPlus, Users, Pencil, Trash2 } from 'lucide-svelte';
   import NewTreeModal from '$lib/components/modals/NewTreeModal.svelte';
-  import type { TreeSummary, TreeDetails, ImportPreviewData } from '$lib/types/genealogy';
+  import PersonModal from '$lib/components/modals/PersonModal.svelte';
+  import type { TreeSummary, TreeDetails, ImportPreviewData, PersonFormData } from '$lib/types/genealogy';
   import {
     fetchTrees,
     fetchTreeDetails,
@@ -35,30 +36,12 @@
   let isCreatingTree = $state(false);
   let createTreeError = $state<string | null>(null);
 
-  // Add Person Modal State
-  let showAddPersonModal = $state(false);
-  let isCreatingPerson = $state(false);
-  let createPersonError = $state<string | null>(null);
-  let personGivenName = $state('');
-  let personSurname = $state('');
-  let personSex = $state<'M' | 'F' | 'U'>('U');
-  let personBirthDate = $state('');
-  let personBirthPlace = $state('');
-  let personDeathDate = $state('');
-  let personDeathPlace = $state('');
-
-  // Edit Person Modal State
-  let showEditPersonModal = $state(false);
-  let isEditingPerson = $state(false);
-  let editingPersonId = $state<string | null>(null);
-  let editPersonError = $state<string | null>(null);
-  let editGivenName = $state('');
-  let editSurname = $state('');
-  let editSex = $state<'M' | 'F' | 'U'>('U');
-  let editBirthDate = $state('');
-  let editBirthPlace = $state('');
-  let editDeathDate = $state('');
-  let editDeathPlace = $state('');
+  // Person Modal State (add & edit)
+  let showPersonModal = $state(false);
+  let personModalMode = $state<'add' | 'edit'>('add');
+  let personToEdit = $state<any | null>(null);
+  let isSubmittingPerson = $state(false);
+  let personModalError = $state<string | null>(null);
 
   // Add/Edit Family Modal State
   let showAddFamilyModal = $state(false);
@@ -239,101 +222,43 @@
   }
 
   function openAddPersonModal() {
-    personGivenName = '';
-    personSurname = '';
-    personSex = 'U';
-    personBirthDate = '';
-    personBirthPlace = '';
-    personDeathDate = '';
-    personDeathPlace = '';
-    createPersonError = null;
-    isCreatingPerson = false;
-    showAddPersonModal = true;
-  }
-
-  async function createPerson() {
-    if (!selectedTreeId) return;
-    createPersonError = null;
-
-    if (!personGivenName.trim() && !personSurname.trim()) {
-      createPersonError = 'Please provide at least a given name or surname.';
-      return;
-    }
-
-    isCreatingPerson = true;
-    try {
-      const created = await createIndividualApi(selectedTreeId, {
-        givenName: personGivenName.trim() || undefined,
-        surname: personSurname.trim() || undefined,
-        sex: personSex,
-        birthDate: personBirthDate.trim() || undefined,
-        birthPlace: personBirthPlace.trim() || undefined,
-        deathDate: personDeathDate.trim() || undefined,
-        deathPlace: personDeathPlace.trim() || undefined
-      });
-
-      showAddPersonModal = false;
-      await selectTree(selectedTreeId, created.id);
-    } catch (err: any) {
-      console.error('Failed to create person', err);
-      createPersonError = err.message || 'Failed to create person';
-    } finally {
-      isCreatingPerson = false;
-    }
+    personModalMode = 'add';
+    personToEdit = null;
+    personModalError = null;
+    isSubmittingPerson = false;
+    showPersonModal = true;
   }
 
   function openEditPersonModal(person: any) {
     if (!person) return;
-    editingPersonId = person.id;
-    editPersonError = null;
-    isEditingPerson = false;
-
-    const raw = person.raw || {};
-    editGivenName = raw.givenName || '';
-    editSurname = raw.surname || '';
-    editSex = (person.sex as 'M' | 'F' | 'U') || raw.sex || 'U';
-
-    const events = raw.events || [];
-    const birthEvent = events.find((e: any) => e.type === 'BIRT');
-    const deathEvent = events.find((e: any) => e.type === 'DEAT');
-
-    editBirthDate = birthEvent?.dateRaw || '';
-    editBirthPlace = birthEvent?.place || '';
-    editDeathDate = deathEvent?.dateRaw || '';
-    editDeathPlace = deathEvent?.place || '';
-
-    showEditPersonModal = true;
+    personModalMode = 'edit';
+    personToEdit = person;
+    personModalError = null;
+    isSubmittingPerson = false;
+    showPersonModal = true;
   }
 
-  async function updatePerson() {
-    if (!selectedTreeId || !editingPersonId) return;
-    editPersonError = null;
+  async function handleSavePerson(formData: PersonFormData) {
+    if (!selectedTreeId) return;
+    personModalError = null;
+    isSubmittingPerson = true;
 
-    if (!editGivenName.trim() && !editSurname.trim()) {
-      editPersonError = 'Please provide at least a given name or surname.';
-      return;
-    }
-
-    isEditingPerson = true;
     try {
-      await updateIndividualApi(selectedTreeId, editingPersonId, {
-        givenName: editGivenName.trim() || undefined,
-        surname: editSurname.trim() || undefined,
-        sex: editSex,
-        birthDate: editBirthDate.trim() || undefined,
-        birthPlace: editBirthPlace.trim() || undefined,
-        deathDate: editDeathDate.trim() || undefined,
-        deathPlace: editDeathPlace.trim() || undefined
-      });
-
-      showEditPersonModal = false;
-      const personIdToRestore = editingPersonId;
-      await selectTree(selectedTreeId, personIdToRestore);
+      if (personModalMode === 'add') {
+        const created = await createIndividualApi(selectedTreeId, formData);
+        showPersonModal = false;
+        await selectTree(selectedTreeId, created.id);
+      } else if (personModalMode === 'edit' && personToEdit?.id) {
+        const editingId = personToEdit.id;
+        await updateIndividualApi(selectedTreeId, editingId, formData);
+        showPersonModal = false;
+        await selectTree(selectedTreeId, editingId);
+      }
     } catch (err: any) {
-      console.error('Failed to update person', err);
-      editPersonError = err.message || 'Failed to update person';
+      console.error('Failed to save person', err);
+      personModalError = err.message || 'Failed to save person';
     } finally {
-      isEditingPerson = false;
+      isSubmittingPerson = false;
     }
   }
 
@@ -895,355 +820,16 @@
     </div>
   {/if}
 
-  <!-- Add Person Modal -->
-  {#if showAddPersonModal}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          createPerson();
-        }}
-        class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]"
-      >
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800">
-            <UserPlus class="w-4 h-4" />
-          </div>
-          <h3 class="text-lg font-bold text-stone-900">Add Individual</h3>
-        </div>
-
-        {#if createPersonError}
-          <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
-            {createPersonError}
-          </div>
-        {/if}
-
-        <div class="space-y-4">
-          <!-- Names -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="person-given-name" class="text-xs font-semibold text-stone-700 block mb-1">Given Names</label>
-              <input
-                id="person-given-name"
-                type="text"
-                bind:value={personGivenName}
-                placeholder="e.g. John Edward"
-                disabled={isCreatingPerson}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-              />
-            </div>
-            <div>
-              <label for="person-surname" class="text-xs font-semibold text-stone-700 block mb-1">Surname</label>
-              <input
-                id="person-surname"
-                type="text"
-                bind:value={personSurname}
-                placeholder="e.g. Smith"
-                disabled={isCreatingPerson}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <!-- Sex -->
-          <div>
-            <span class="text-xs font-semibold text-stone-700 block mb-1.5">Sex</span>
-            <div class="flex items-center space-x-4">
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sex"
-                  value="M"
-                  bind:group={personSex}
-                  disabled={isCreatingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Male
-              </label>
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sex"
-                  value="F"
-                  bind:group={personSex}
-                  disabled={isCreatingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Female
-              </label>
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sex"
-                  value="U"
-                  bind:group={personSex}
-                  disabled={isCreatingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Unknown
-              </label>
-            </div>
-          </div>
-
-          <!-- Birth Event -->
-          <div class="border-t border-stone-200 pt-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Birth Event</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label for="person-birth-date" class="text-xs font-medium text-stone-600 block mb-1">Birth Date</label>
-                <input
-                  id="person-birth-date"
-                  type="text"
-                  bind:value={personBirthDate}
-                  placeholder="e.g. 14 APR 1912"
-                  disabled={isCreatingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label for="person-birth-place" class="text-xs font-medium text-stone-600 block mb-1">Birth Place</label>
-                <input
-                  id="person-birth-place"
-                  type="text"
-                  bind:value={personBirthPlace}
-                  placeholder="e.g. Southampton, England"
-                  disabled={isCreatingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Death Event -->
-          <div class="border-t border-stone-200 pt-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Death Event</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label for="person-death-date" class="text-xs font-medium text-stone-600 block mb-1">Death Date</label>
-                <input
-                  id="person-death-date"
-                  type="text"
-                  bind:value={personDeathDate}
-                  placeholder="e.g. 23 OCT 1985"
-                  disabled={isCreatingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label for="person-death-place" class="text-xs font-medium text-stone-600 block mb-1">Death Place</label>
-                <input
-                  id="person-death-place"
-                  type="text"
-                  bind:value={personDeathPlace}
-                  placeholder="e.g. New York, USA"
-                  disabled={isCreatingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-3 border-t border-stone-200">
-          <button
-            type="button"
-            onclick={() => (showAddPersonModal = false)}
-            disabled={isCreatingPerson}
-            class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isCreatingPerson}
-            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {#if isCreatingPerson}
-              <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-              <span>Saving...</span>
-            {:else}
-              <span>Add Person</span>
-            {/if}
-          </button>
-        </div>
-      </form>
-    </div>
-  {/if}
-
-  <!-- Edit Person Modal -->
-  {#if showEditPersonModal}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          updatePerson();
-        }}
-        class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
-      >
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800">
-            <Pencil class="w-4 h-4" />
-          </div>
-          <h3 class="text-lg font-bold text-stone-900">Edit Person Details</h3>
-        </div>
-
-        {#if editPersonError}
-          <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
-            {editPersonError}
-          </div>
-        {/if}
-
-        <div class="space-y-3.5">
-          <!-- Name Fields -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="edit-person-given-name" class="text-xs font-semibold text-stone-700 block mb-1">Given Name</label>
-              <input
-                id="edit-person-given-name"
-                type="text"
-                bind:value={editGivenName}
-                placeholder="e.g. John"
-                disabled={isEditingPerson}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-              />
-            </div>
-            <div>
-              <label for="edit-person-surname" class="text-xs font-semibold text-stone-700 block mb-1">Surname</label>
-              <input
-                id="edit-person-surname"
-                type="text"
-                bind:value={editSurname}
-                placeholder="e.g. Smith"
-                disabled={isEditingPerson}
-                class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <!-- Sex -->
-          <div>
-            <span class="text-xs font-semibold text-stone-700 block mb-1.5">Sex</span>
-            <div class="flex items-center space-x-4">
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-sex"
-                  value="M"
-                  bind:group={editSex}
-                  disabled={isEditingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Male
-              </label>
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-sex"
-                  value="F"
-                  bind:group={editSex}
-                  disabled={isEditingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Female
-              </label>
-              <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-sex"
-                  value="U"
-                  bind:group={editSex}
-                  disabled={isEditingPerson}
-                  class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-                />
-                Unknown
-              </label>
-            </div>
-          </div>
-
-          <!-- Birth Event -->
-          <div class="border-t border-stone-200 pt-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Birth Event</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label for="edit-person-birth-date" class="text-xs font-medium text-stone-600 block mb-1">Birth Date</label>
-                <input
-                  id="edit-person-birth-date"
-                  type="text"
-                  bind:value={editBirthDate}
-                  placeholder="e.g. 14 APR 1912"
-                  disabled={isEditingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label for="edit-person-birth-place" class="text-xs font-medium text-stone-600 block mb-1">Birth Place</label>
-                <input
-                  id="edit-person-birth-place"
-                  type="text"
-                  bind:value={editBirthPlace}
-                  placeholder="e.g. Southampton, England"
-                  disabled={isEditingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Death Event -->
-          <div class="border-t border-stone-200 pt-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">Death Event</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label for="edit-person-death-date" class="text-xs font-medium text-stone-600 block mb-1">Death Date</label>
-                <input
-                  id="edit-person-death-date"
-                  type="text"
-                  bind:value={editDeathDate}
-                  placeholder="e.g. 23 OCT 1985"
-                  disabled={isEditingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label for="edit-person-death-place" class="text-xs font-medium text-stone-600 block mb-1">Death Place</label>
-                <input
-                  id="edit-person-death-place"
-                  type="text"
-                  bind:value={editDeathPlace}
-                  placeholder="e.g. New York, USA"
-                  disabled={isEditingPerson}
-                  class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-3 border-t border-stone-200">
-          <button
-            type="button"
-            onclick={() => (showEditPersonModal = false)}
-            disabled={isEditingPerson}
-            class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isEditingPerson}
-            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {#if isEditingPerson}
-              <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-              <span>Saving...</span>
-            {:else}
-              <span>Save Changes</span>
-            {/if}
-          </button>
-        </div>
-      </form>
-    </div>
-  {/if}
+  <!-- Person Modal (Add / Edit) -->
+  <PersonModal
+    show={showPersonModal}
+    mode={personModalMode}
+    initialPerson={personToEdit}
+    isSubmitting={isSubmittingPerson}
+    error={personModalError}
+    onclose={() => (showPersonModal = false)}
+    onsubmit={handleSavePerson}
+  />
 
   <!-- Add Family Modal -->
   {#if showAddFamilyModal}
