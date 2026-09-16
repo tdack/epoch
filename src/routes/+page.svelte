@@ -4,10 +4,22 @@
   import PersonDrawer from '$lib/components/tree/PersonDrawer.svelte';
   import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '$lib/components/tree/tree-layout';
   import { Upload, Download, RefreshCw, GitBranch, Plus, Database, Sparkles, UserPlus, Users, Pencil, Trash2 } from 'lucide-svelte';
+  import type { TreeSummary, TreeDetails, ImportPreviewData } from '$lib/types/genealogy';
+  import {
+    fetchTrees,
+    fetchTreeDetails,
+    createTreeApi,
+    deleteTreeApi,
+    createIndividualApi,
+    updateIndividualApi,
+    saveFamilyApi,
+    previewGedcomImport,
+    submitGedcomImport
+  } from '$lib/services/tree-api';
 
-  let trees = $state<Array<{ id: string; name: string; description: string | null }>>([]);
+  let trees = $state<TreeSummary[]>([]);
   let selectedTreeId = $state<string | null>(null);
-  let activeTreeData = $state<{ tree: any; individuals: any[]; families: any[] } | null>(null);
+  let activeTreeData = $state<TreeDetails | null>(null);
   let treeLayout = $state<TreeLayoutResult>({ nodes: [], unionNodes: [], links: [] });
 
   let selectedPersonId = $state<string | null>(null);
@@ -79,13 +91,9 @@
 
   async function loadTrees() {
     try {
-      const res = await fetch('/api/trees');
-      if (res.ok) {
-        const data = (await res.json()) as { trees?: Array<{ id: string; name: string; description: string | null }> };
-        trees = data.trees || [];
-        if (trees.length > 0 && !selectedTreeId) {
-          await selectTree(trees[0].id);
-        }
+      trees = await fetchTrees();
+      if (trees.length > 0 && !selectedTreeId) {
+        await selectTree(trees[0].id);
       }
     } catch (e) {
       console.error('Failed to load trees', e);
@@ -101,18 +109,11 @@
     }
 
     try {
-      const res = await fetch(`/api/trees/${id}`);
-      if (res.ok) {
-        const data = (await res.json()) as {
-          tree: any;
-          individuals: any[];
-          families: any[];
-        };
-        activeTreeData = data;
-        treeLayout = buildFamilyTreeHierarchy(data.individuals || [], data.families || []);
-        if (preservePersonId) {
-          handleSelectPerson(preservePersonId);
-        }
+      const data = await fetchTreeDetails(id);
+      activeTreeData = data;
+      treeLayout = buildFamilyTreeHierarchy(data.individuals || [], data.families || []);
+      if (preservePersonId) {
+        handleSelectPerson(preservePersonId);
       }
     } catch (e) {
       console.error('Failed to fetch tree details', e);
@@ -167,22 +168,7 @@
     isLoadingPreview = true;
     importConfirmError = null;
     try {
-      if (selectedTreeId) {
-        // Existing tree: fetch preview from server
-        const fd = new FormData();
-        fd.append('file', pendingImportFile);
-        fd.append('treeId', selectedTreeId);
-        const res = await fetch('/api/import', { method: 'PUT', body: fd });
-        const data = (await res.json().catch(() => ({}))) as ImportPreviewData & { error?: string };
-        if (!res.ok) throw new Error(data.error || 'Failed to preview import');
-        importPreview = data;
-      } else {
-        // New tree: nothing to delete, everything is new
-        importPreview = {
-          mode: 'replace',
-          incoming: { individuals: 0, families: 0, events: 0 }
-        };
-      }
+      importPreview = await previewGedcomImport(pendingImportFile, selectedTreeId);
     } catch (err: any) {
       importConfirmError = err.message;
     } finally {
@@ -197,26 +183,8 @@
     isImporting = true;
     importStatus = 'Importing GEDCOM records into Cloudflare D1...';
 
-    const fd = new FormData();
-    fd.append('file', pendingImportFile);
-    fd.append('mode', mode);
-    if (selectedTreeId) {
-      fd.append('treeId', selectedTreeId);
-    }
-
     try {
-      const res = await fetch('/api/import', {
-        method: 'POST',
-        body: fd
-      });
-
-      const resData = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        individualsCount?: number;
-        familiesCount?: number;
-        treeId?: string;
-      };
-      if (!res.ok) throw new Error(resData.error || 'Import failed');
+      const resData = await submitGedcomImport(pendingImportFile, mode, selectedTreeId);
 
       importStatus = `Import complete: ${resData.individualsCount || 0} individuals, ${resData.familiesCount || 0} families.`;
       showImportConfirmModal = false;
@@ -260,28 +228,18 @@
 
     isCreatingTree = true;
     try {
-      const res = await fetch('/api/trees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmedName, description: newTreeDesc.trim() || undefined })
+      const createdTree = await createTreeApi({
+        name: trimmedName,
+        description: newTreeDesc.trim() || undefined
       });
-
-      const data = (await res.json().catch(() => ({}))) as {
-        tree?: { id: string; name: string };
-        error?: string;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create tree. Please try again.');
-      }
 
       showNewTreeModal = false;
       newTreeName = '';
       newTreeDesc = '';
 
       await loadTrees();
-      if (data.tree?.id) {
-        await selectTree(data.tree.id);
+      if (createdTree?.id) {
+        await selectTree(createdTree.id);
       }
     } catch (e: any) {
       console.error('Failed to create tree', e);
@@ -320,32 +278,18 @@
 
     isCreatingPerson = true;
     try {
-      const res = await fetch(`/api/trees/${selectedTreeId}/individuals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          givenName: personGivenName.trim() || undefined,
-          surname: personSurname.trim() || undefined,
-          sex: personSex,
-          birthDate: personBirthDate.trim() || undefined,
-          birthPlace: personBirthPlace.trim() || undefined,
-          deathDate: personDeathDate.trim() || undefined,
-          deathPlace: personDeathPlace.trim() || undefined
-        })
+      const created = await createIndividualApi(selectedTreeId, {
+        givenName: personGivenName.trim() || undefined,
+        surname: personSurname.trim() || undefined,
+        sex: personSex,
+        birthDate: personBirthDate.trim() || undefined,
+        birthPlace: personBirthPlace.trim() || undefined,
+        deathDate: personDeathDate.trim() || undefined,
+        deathPlace: personDeathPlace.trim() || undefined
       });
 
-      const data = (await res.json().catch(() => ({}))) as {
-        success?: boolean;
-        individual?: any;
-        error?: string;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to add individual.');
-      }
-
       showAddPersonModal = false;
-      await selectTree(selectedTreeId, data.individual?.id);
+      await selectTree(selectedTreeId, created.id);
     } catch (err: any) {
       console.error('Failed to create person', err);
       createPersonError = err.message || 'Failed to create person';
@@ -388,28 +332,15 @@
 
     isEditingPerson = true;
     try {
-      const res = await fetch(`/api/trees/${selectedTreeId}/individuals/${editingPersonId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          givenName: editGivenName.trim() || null,
-          surname: editSurname.trim() || null,
-          sex: editSex,
-          birthDate: editBirthDate.trim() || null,
-          birthPlace: editBirthPlace.trim() || null,
-          deathDate: editDeathDate.trim() || null,
-          deathPlace: editDeathPlace.trim() || null
-        })
+      await updateIndividualApi(selectedTreeId, editingPersonId, {
+        givenName: editGivenName.trim() || undefined,
+        surname: editSurname.trim() || undefined,
+        sex: editSex,
+        birthDate: editBirthDate.trim() || undefined,
+        birthPlace: editBirthPlace.trim() || undefined,
+        deathDate: editDeathDate.trim() || undefined,
+        deathPlace: editDeathPlace.trim() || undefined
       });
-
-      const data = (await res.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update person.');
-      }
 
       showEditPersonModal = false;
       const personIdToRestore = editingPersonId;
@@ -573,16 +504,9 @@
 
     isCreatingFamily = true;
     try {
-      const url = isEditingFamily && editingFamilyId
-        ? `/api/trees/${selectedTreeId}/families/${editingFamilyId}`
-        : `/api/trees/${selectedTreeId}/families`;
-
-      const method = isEditingFamily && editingFamilyId ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await saveFamilyApi(
+        selectedTreeId,
+        {
           partner1Id: familyHusbandId || undefined,
           partner2Id: familyWifeId || undefined,
           husbandId: familyHusbandId || undefined,
@@ -592,18 +516,9 @@
           marriagePlace: familyMarriagePlace.trim() || undefined,
           divorceDate: familyDivorceDate.trim() || undefined,
           divorcePlace: familyDivorcePlace.trim() || undefined
-        })
-      });
-
-      const data = (await res.json().catch(() => ({}))) as {
-        success?: boolean;
-        family?: any;
-        error?: string;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || `Failed to ${isEditingFamily ? 'update' : 'create'} family.`);
-      }
+        },
+        isEditingFamily ? editingFamilyId : null
+      );
 
       showAddFamilyModal = false;
       await selectTree(selectedTreeId);
@@ -620,11 +535,7 @@
     isDeletingTree = true;
     deleteTreeError = null;
     try {
-      const res = await fetch(`/api/trees/${selectedTreeId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error || 'Failed to delete tree');
-      }
+      await deleteTreeApi(selectedTreeId);
       showDeleteTreeModal = false;
       selectedTreeId = null;
       activeTreeData = null;
