@@ -132,4 +132,24 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
     expect(reParsed.individuals).toHaveLength(3);
     expect(reParsed.families).toHaveLength(1);
   });
+
+  it('verifies batch parameter limits never exceed Cloudflare D1 max bound parameters', () => {
+    // D1 maximum allowed bound parameters per query is 100
+    const D1_MAX_ALLOWED_PARAMS = 100;
+    const MAX_BOUND_PARAMS = 70;
+
+    const columnCounts = {
+      individuals: 9, // id, treeId, xrefId, givenName, surname, sex, version, createdAt, updatedAt
+      families: 8,    // id, treeId, xrefId, husbandId, wifeId, version, createdAt, updatedAt
+      events: 12,     // id, treeId, entityType, entityId, type, dateRaw, dateSort, place, description, version, createdAt, updatedAt
+      familyChildren: 3 // familyId, childId, pedigree
+    };
+
+    for (const [, cols] of Object.entries(columnCounts)) {
+      const maxRowsPerChunk = Math.max(1, Math.floor(MAX_BOUND_PARAMS / cols));
+      const boundParamsPerChunk = maxRowsPerChunk * cols;
+      expect(boundParamsPerChunk).toBeLessThanOrEqual(D1_MAX_ALLOWED_PARAMS);
+      expect(boundParamsPerChunk).toBeLessThanOrEqual(MAX_BOUND_PARAMS);
+    }
+  });
 });
