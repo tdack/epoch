@@ -18,6 +18,25 @@ export class TreeRepository {
   constructor(private db: DbClient) {}
 
   async listForUser(userId: string): Promise<TreeSummary[]> {
+    // 1. Backfill memberships for any existing unassigned trees (e.g. legacy D1 data)
+    // Find trees that have no memberships at all and assign them to this user as owner.
+    const allTrees = await this.db.select().from(trees).all();
+    const existingMemberships = await this.db.select().from(treeMemberships).all();
+    const treesWithMembers = new Set(existingMemberships.map((m) => m.treeId));
+
+    for (const tree of allTrees) {
+      if (!treesWithMembers.has(tree.id)) {
+        await this.db.insert(treeMemberships).values({
+          id: crypto.randomUUID(),
+          treeId: tree.id,
+          userId,
+          role: 'owner',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).onConflictDoNothing();
+      }
+    }
+
     const records = await this.db
       .select({
         id: trees.id,

@@ -69,13 +69,45 @@ export class UserRepository {
   }
 
   async getMembership(treeId: string, userId: string): Promise<TreeMembership | null> {
-    const member = await this.db
+    let member = await this.db
       .select()
       .from(treeMemberships)
       .where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
       .get();
 
-    if (!member) return null;
+    if (!member) {
+      // Check if tree exists and has no owners/members at all (legacy tree)
+      const anyMembership = await this.db
+        .select()
+        .from(treeMemberships)
+        .where(eq(treeMemberships.treeId, treeId))
+        .get();
+
+      if (!anyMembership) {
+        // Auto-assign this user as owner
+        const now = new Date();
+        const id = crypto.randomUUID();
+        await this.db.insert(treeMemberships).values({
+          id,
+          treeId,
+          userId,
+          role: 'owner',
+          createdAt: now,
+          updatedAt: now
+        }).onConflictDoNothing();
+
+        member = {
+          id,
+          treeId,
+          userId,
+          role: 'owner',
+          createdAt: now,
+          updatedAt: now
+        };
+      } else {
+        return null;
+      }
+    }
 
     return {
       id: member.id,
