@@ -7,6 +7,7 @@
   import NewTreeModal from '$lib/components/modals/NewTreeModal.svelte';
   import PersonModal from '$lib/components/modals/PersonModal.svelte';
   import FamilyModal from '$lib/components/modals/FamilyModal.svelte';
+  import DeleteTreeModal from '$lib/components/modals/DeleteTreeModal.svelte';
   import type {
     TreeSummary,
     TreeDetails,
@@ -61,7 +62,6 @@
   let showDeleteTreeModal = $state(false);
   let isDeletingTree = $state(false);
   let deleteTreeError = $state<string | null>(null);
-  let deleteTreeConfirmText = $state('');
 
   let showImportConfirmModal = $state(false);
 
@@ -284,8 +284,14 @@
     }
   }
 
-  async function deleteTree() {
-    if (!selectedTreeId || deleteTreeConfirmText !== activeTreeData?.tree?.name) return;
+  function openDeleteTreeModal() {
+    deleteTreeError = null;
+    isDeletingTree = false;
+    showDeleteTreeModal = true;
+  }
+
+  async function handleDeleteTree() {
+    if (!selectedTreeId) return;
     isDeletingTree = true;
     deleteTreeError = null;
     try {
@@ -353,11 +359,7 @@
         <!-- Delete Tree Action -->
         <button
           type="button"
-          onclick={() => {
-            deleteTreeConfirmText = '';
-            deleteTreeError = null;
-            showDeleteTreeModal = true;
-          }}
+          onclick={openDeleteTreeModal}
           title="Delete this tree"
           class="inline-flex items-center justify-center text-xs font-semibold bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-300 hover:border-red-300 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer shadow-xs"
         >
@@ -693,73 +695,17 @@
   />
 
   <!-- Delete Tree Confirmation Modal -->
-  {#if showDeleteTreeModal && activeTreeData}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div class="bg-[#fcfaf5] border border-red-300 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-red-100 border border-red-300 flex items-center justify-center text-red-700">
-            <Trash2 class="w-4 h-4" />
-          </div>
-          <h3 class="text-lg font-bold text-stone-900">Delete Tree Permanently</h3>
-        </div>
-
-        {#if deleteTreeError}
-          <div class="bg-red-50 border border-red-300 text-red-900 rounded-lg p-2.5 text-xs font-medium">
-            {deleteTreeError}
-          </div>
-        {/if}
-
-        <div class="bg-red-50 border border-red-300 rounded-xl p-3.5 text-xs text-red-900 space-y-1.5">
-          <p class="font-bold">This will permanently delete:</p>
-          <ul class="list-disc list-inside space-y-0.5 text-red-800">
-            <li>The tree <span class="font-semibold">"{activeTreeData.tree?.name}"</span></li>
-            <li>{activeTreeData.individuals?.length || 0} people</li>
-            <li>{activeTreeData.families?.length || 0} families</li>
-            <li>All events, relationships and attached media records</li>
-          </ul>
-          <p class="text-red-700 pt-1">This action cannot be undone.</p>
-        </div>
-
-        <div>
-          <label for="delete-tree-confirm" class="text-xs font-medium text-stone-600 block mb-1">
-            Type <span class="font-bold text-red-700">{activeTreeData.tree?.name}</span> to confirm
-          </label>
-          <input
-            id="delete-tree-confirm"
-            type="text"
-            bind:value={deleteTreeConfirmText}
-            placeholder={activeTreeData.tree?.name}
-            disabled={isDeletingTree}
-            class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50"
-          />
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-3 border-t border-stone-200">
-          <button
-            type="button"
-            onclick={() => (showDeleteTreeModal = false)}
-            disabled={isDeletingTree}
-            class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onclick={deleteTree}
-            disabled={isDeletingTree || deleteTreeConfirmText !== activeTreeData.tree?.name}
-            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-red-700 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {#if isDeletingTree}
-              <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-              <span>Deleting...</span>
-            {:else}
-              <Trash2 class="w-3.5 h-3.5" />
-              <span>Delete Tree</span>
-            {/if}
-          </button>
-        </div>
-      </div>
-    </div>
+  {#if activeTreeData}
+    <DeleteTreeModal
+      show={showDeleteTreeModal}
+      treeName={activeTreeData.tree?.name || ''}
+      individualsCount={activeTreeData.individuals?.length || 0}
+      familiesCount={activeTreeData.families?.length || 0}
+      isDeleting={isDeletingTree}
+      error={deleteTreeError}
+      onclose={() => (showDeleteTreeModal = false)}
+      ondelete={handleDeleteTree}
+    />
   {/if}
 </div>
 
