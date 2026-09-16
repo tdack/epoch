@@ -4,6 +4,7 @@
   import PersonDrawer from '$lib/components/tree/PersonDrawer.svelte';
   import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '$lib/components/tree/tree-layout';
   import { Upload, Download, RefreshCw, GitBranch, Plus, Database, Sparkles, UserPlus, Users, Pencil, Trash2 } from 'lucide-svelte';
+  import NewTreeModal from '$lib/components/modals/NewTreeModal.svelte';
   import type { TreeSummary, TreeDetails, ImportPreviewData } from '$lib/types/genealogy';
   import {
     fetchTrees,
@@ -31,8 +32,6 @@
 
   // New Tree Modal State
   let showNewTreeModal = $state(false);
-  let newTreeName = $state('');
-  let newTreeDesc = $state('');
   let isCreatingTree = $state(false);
   let createTreeError = $state<string | null>(null);
 
@@ -211,32 +210,17 @@
   }
 
   function openNewTreeModal() {
-    newTreeName = '';
-    newTreeDesc = '';
     createTreeError = null;
     isCreatingTree = false;
     showNewTreeModal = true;
   }
 
-  async function createTree() {
+  async function handleCreateTree(data: { name: string; description?: string }) {
     createTreeError = null;
-    const trimmedName = newTreeName.trim();
-    if (!trimmedName) {
-      createTreeError = 'Please enter a name for your tree.';
-      return;
-    }
-
     isCreatingTree = true;
     try {
-      const createdTree = await createTreeApi({
-        name: trimmedName,
-        description: newTreeDesc.trim() || undefined
-      });
-
+      const createdTree = await createTreeApi(data);
       showNewTreeModal = false;
-      newTreeName = '';
-      newTreeDesc = '';
-
       await loadTrees();
       if (createdTree?.id) {
         await selectTree(createdTree.id);
@@ -752,80 +736,13 @@
   {/if}
 
   <!-- New Tree Modal -->
-  {#if showNewTreeModal}
-    <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          createTree();
-        }}
-        class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
-      >
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800">
-            <Plus class="w-4 h-4" />
-          </div>
-          <h3 class="text-lg font-bold text-stone-900">Create New Genealogy Tree</h3>
-        </div>
-
-        {#if createTreeError}
-          <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
-            {createTreeError}
-          </div>
-        {/if}
-
-        <div class="space-y-3.5">
-          <div>
-            <label for="tree-name-input" class="text-xs font-semibold text-stone-700 block mb-1">
-              Tree Name <span class="text-orange-600">*</span>
-            </label>
-            <input
-              id="tree-name-input"
-              type="text"
-              bind:value={newTreeName}
-              placeholder="e.g. Smith Ancestry"
-              disabled={isCreatingTree}
-              class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label for="tree-desc-input" class="text-xs font-semibold text-stone-700 block mb-1">Description (Optional)</label>
-            <textarea
-              id="tree-desc-input"
-              bind:value={newTreeDesc}
-              placeholder="Lineage notes or family history details..."
-              rows="3"
-              disabled={isCreatingTree}
-              class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-            ></textarea>
-          </div>
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-2 border-t border-stone-200">
-          <button
-            type="button"
-            onclick={() => (showNewTreeModal = false)}
-            disabled={isCreatingTree}
-            class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isCreatingTree}
-            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {#if isCreatingTree}
-              <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-              <span>Creating...</span>
-            {:else}
-              <span>Create Tree</span>
-            {/if}
-          </button>
-        </div>
-      </form>
-    </div>
-  {/if}
+  <NewTreeModal
+    show={showNewTreeModal}
+    isCreating={isCreatingTree}
+    error={createTreeError}
+    onclose={() => (showNewTreeModal = false)}
+    oncreate={handleCreateTree}
+  />
 
   <!-- Import Confirmation Modal -->
   {#if showImportConfirmModal}
