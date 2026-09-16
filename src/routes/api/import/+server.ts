@@ -86,8 +86,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     if (err instanceof DomainError) {
       return json({ error: err.message, code: err.code }, { status: err.status });
     }
-    console.error('Import error:', err);
-    return json({ error: `Failed to import GEDCOM: ${err.message}` }, { status: 500 });
+    console.error('Import error:', err?.message, err?.stack, JSON.stringify(err));
+    return json({ error: `Failed to import GEDCOM: ${err?.message || err}` }, { status: 500 });
   }
 };
 

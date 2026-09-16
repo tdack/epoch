@@ -43,6 +43,12 @@ export interface ImportPreview {
 /**
  * Compute what an import would do without writing anything.
  */
+function treeScopedId(treeId: string, rawXrefOrId: string): string {
+  // If it's already scoped to this tree, return as is
+  if (rawXrefOrId.startsWith(`${treeId}:`)) return rawXrefOrId;
+  return `${treeId}:${rawXrefOrId}`;
+}
+
 export async function previewGedcomImport(
   d1: D1Database,
   treeId: string,
@@ -92,6 +98,7 @@ export async function previewGedcomImport(
   );
   const existingChildKeys = new Set(treeChildren.map((c) => `${c.familyId}:${c.childId}`));
   const existingIndIds = new Set(treeInds.map((i) => i.id));
+  const existingIndXrefs = new Set(treeInds.map((i) => i.xrefId || i.id));
 
   const merge: ImportPreview['merge'] = {
     newIndividuals: 0,
@@ -107,26 +114,28 @@ export async function previewGedcomImport(
   // Map incoming family ids onto existing families by spouse-pair key
   const incomingFamIdMap = new Map<string, string>();
   for (const fam of parsed.families) {
-    const key = familyKey(fam.husbandId, fam.wifeId);
+    const mappedHusbandId = fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null;
+    const mappedWifeId = fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null;
+    const key = familyKey(mappedHusbandId, mappedWifeId);
     const existingId = existingFamByKey.get(key);
+    const targetFamId = existingId ?? treeScopedId(treeId, fam.id);
     if (existingId) {
-      incomingFamIdMap.set(fam.id, existingId);
+      incomingFamIdMap.set(treeScopedId(treeId, fam.id), existingId);
       merge.mergedFamilies++;
     } else {
       merge.newFamilies++;
     }
     for (const ch of fam.children) {
-      const targetId = existingId ?? fam.id;
-      if (existingChildKeys.has(`${targetId}:${ch.childId}`)) {
+      const targetChildId = treeScopedId(treeId, ch.childId);
+      if (existingChildKeys.has(`${targetFamId}:${targetChildId}`)) {
         merge.duplicateChildLinks++;
       } else {
         merge.newChildLinks++;
-        existingChildKeys.add(`${targetId}:${ch.childId}`);
+        existingChildKeys.add(`${targetFamId}:${targetChildId}`);
       }
     }
     for (const ev of fam.events) {
-      const targetId = existingId ?? fam.id;
-      const evKey = `FAMILY:${targetId}:${ev.type}:${ev.dateRaw ?? ''}:${ev.place ?? ''}`;
+      const evKey = `FAMILY:${targetFamId}:${ev.type}:${ev.dateRaw ?? ''}:${ev.place ?? ''}`;
       if (existingEventKeys.has(evKey)) {
         merge.duplicateEvents++;
       } else {
@@ -137,13 +146,14 @@ export async function previewGedcomImport(
   }
 
   for (const ind of parsed.individuals) {
-    if (existingIndIds.has(ind.id)) {
+    const scopedIndId = treeScopedId(treeId, ind.id);
+    if (existingIndIds.has(scopedIndId) || existingIndXrefs.has(ind.id)) {
       merge.existingIndividuals++;
     } else {
       merge.newIndividuals++;
     }
     for (const ev of ind.events) {
-      const evKey = `INDIVIDUAL:${ind.id}:${ev.type}:${ev.dateRaw ?? ''}:${ev.place ?? ''}`;
+      const evKey = `INDIVIDUAL:${scopedIndId}:${ev.type}:${ev.dateRaw ?? ''}:${ev.place ?? ''}`;
       if (existingEventKeys.has(evKey)) {
         merge.duplicateEvents++;
       } else {
@@ -194,8 +204,9 @@ export async function importGedcomToDb(
 
   // 1. Prepare Individual Inserts
   const indValues = parsed.individuals.map((ind) => ({
-    id: ind.id,
+    id: treeScopedId(treeId, ind.id),
     treeId,
+    xrefId: ind.id,
     givenName: ind.givenName || null,
     surname: ind.surname || null,
     sex: ind.sex || 'U',
@@ -204,7 +215,7 @@ export async function importGedcomToDb(
 
   // Batch insert individuals
   if (indValues.length > 0) {
-    for (const chunk of chunkByParamLimit(indValues, 6)) {
+    for (const chunk of chunkByParamLimit(indValues, 7)) {
       await db.insert(individuals).values(chunk).onConflictDoNothing();
     }
   }
@@ -219,24 +230,30 @@ export async function importGedcomToDb(
       existingFamByKey.set(familyKey(f.husbandId, f.wifeId), f.id);
     }
     for (const fam of parsed.families) {
-      const existingId = existingFamByKey.get(familyKey(fam.husbandId, fam.wifeId));
-      if (existingId && existingId !== fam.id) {
-        incomingFamIdMap.set(fam.id, existingId);
+      const mappedHusbandId = fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null;
+      const mappedWifeId = fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null;
+      const existingId = existingFamByKey.get(familyKey(mappedHusbandId, mappedWifeId));
+      if (existingId && existingId !== treeScopedId(treeId, fam.id)) {
+        incomingFamIdMap.set(treeScopedId(treeId, fam.id), existingId);
       }
     }
   }
 
   const famValues = parsed.families
-    .filter((fam) => !incomingFamIdMap.has(fam.id))
-    .map((fam) => ({
-      id: fam.id,
-      treeId,
-      husbandId: fam.husbandId || null,
-      wifeId: fam.wifeId || null
-    }));
+    .map((fam) => {
+      const scopedFamId = treeScopedId(treeId, fam.id);
+      return {
+        id: scopedFamId,
+        treeId,
+        xrefId: fam.id,
+        husbandId: fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null,
+        wifeId: fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null
+      };
+    })
+    .filter((fam) => !incomingFamIdMap.has(fam.id));
 
   if (famValues.length > 0) {
-    for (const chunk of chunkByParamLimit(famValues, 4)) {
+    for (const chunk of chunkByParamLimit(famValues, 5)) {
       await db.insert(families).values(chunk).onConflictDoNothing();
     }
   }
@@ -249,11 +266,12 @@ export async function importGedcomToDb(
   }> = [];
 
   for (const fam of parsed.families) {
-    const targetFamId = incomingFamIdMap.get(fam.id) ?? fam.id;
+    const scopedFamId = treeScopedId(treeId, fam.id);
+    const targetFamId = incomingFamIdMap.get(scopedFamId) ?? scopedFamId;
     for (const child of fam.children) {
       childJunctions.push({
         familyId: targetFamId,
-        childId: child.childId,
+        childId: treeScopedId(treeId, child.childId),
         pedigree: (child.pedigree as 'birth' | 'adopted' | 'foster') || 'birth'
       });
     }
@@ -279,12 +297,13 @@ export async function importGedcomToDb(
   }> = [];
 
   for (const ind of parsed.individuals) {
+    const scopedIndId = treeScopedId(treeId, ind.id);
     for (const ev of ind.events) {
       eventValues.push({
         id: crypto.randomUUID(),
         treeId,
         entityType: 'INDIVIDUAL',
-        entityId: ind.id,
+        entityId: scopedIndId,
         type: ev.type,
         dateRaw: ev.dateRaw || null,
         dateSort: ev.dateSort || null,
@@ -295,7 +314,8 @@ export async function importGedcomToDb(
   }
 
   for (const fam of parsed.families) {
-    const targetFamId = incomingFamIdMap.get(fam.id) ?? fam.id;
+    const scopedFamId = treeScopedId(treeId, fam.id);
+    const targetFamId = incomingFamIdMap.get(scopedFamId) ?? scopedFamId;
     for (const ev of fam.events) {
       eventValues.push({
         id: crypto.randomUUID(),
@@ -387,23 +407,43 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     }
   }
 
+  // Format export IDs: prefer original xrefId if present, otherwise clean ID
+  const indXrefMap = new Map<string, string>();
+  for (const ind of treeInds) {
+    indXrefMap.set(ind.id, ind.xrefId || ind.id.replace(new RegExp(`^${treeId}:`), ''));
+  }
+
+  const famXrefMap = new Map<string, string>();
+  for (const fam of treeFams) {
+    famXrefMap.set(fam.id, fam.xrefId || fam.id.replace(new RegExp(`^${treeId}:`), ''));
+  }
+
   return {
     treeName: tree?.name || 'Family Tree',
-    individuals: treeInds.map((ind) => ({
-      id: ind.id,
-      givenName: ind.givenName,
-      surname: ind.surname,
-      sex: ind.sex,
-      events: eventsByEntity[ind.id] || [],
-      famc: famcByChild[ind.id] || [],
-      fams: famsByInd[ind.id] || []
-    })),
-    families: treeFams.map((fam) => ({
-      id: fam.id,
-      husbandId: fam.husbandId,
-      wifeId: fam.wifeId,
-      children: childrenByFam[fam.id] || [],
-      events: eventsByEntity[fam.id] || []
-    }))
+    individuals: treeInds.map((ind) => {
+      const exportId = indXrefMap.get(ind.id) || ind.id;
+      return {
+        id: exportId,
+        givenName: ind.givenName,
+        surname: ind.surname,
+        sex: ind.sex,
+        events: eventsByEntity[ind.id] || [],
+        famc: (famcByChild[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid),
+        fams: (famsByInd[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid)
+      };
+    }),
+    families: treeFams.map((fam) => {
+      const exportFamId = famXrefMap.get(fam.id) || fam.id;
+      return {
+        id: exportFamId,
+        husbandId: fam.husbandId ? (indXrefMap.get(fam.husbandId) || fam.husbandId) : null,
+        wifeId: fam.wifeId ? (indXrefMap.get(fam.wifeId) || fam.wifeId) : null,
+        children: (childrenByFam[fam.id] || []).map((c) => ({
+          childId: indXrefMap.get(c.childId) || c.childId,
+          pedigree: c.pedigree
+        })),
+        events: eventsByEntity[fam.id] || []
+      };
+    })
   };
 }
