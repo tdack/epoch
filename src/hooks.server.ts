@@ -1,4 +1,7 @@
 import type { Handle } from '@sveltejs/kit/hooks';
+import { CF_ACCESS_TEAM_DOMAIN } from '$app/env/public';
+import { CF_ACCESS_AUD, ACCESS_BYPASS_DEV } from '$app/env/private';
+import { getPlatformBindings } from '#lib/server/platform.js';
 import { extractAccessJwt, validateAccessJwt } from '#lib/server/auth/access.js';
 import { getDb } from '#lib/server/db/index.js';
 import { UserRepository } from '#lib/server/repositories/user-repository.js';
@@ -9,24 +12,34 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.correlationId = correlationId;
   event.locals.user = null;
 
+  const bindings = getPlatformBindings();
+
+  // Populate event.platform for SvelteKit handlers expecting platform.env
+  const mutableEvent = event as { platform?: { env?: unknown; context?: unknown; caches?: unknown } };
+  if (!mutableEvent.platform) {
+    mutableEvent.platform = { env: bindings, context: {}, caches: globalThis.caches };
+  } else if (!mutableEvent.platform.env) {
+    mutableEvent.platform.env = bindings;
+  }
+
   const requestLogger = new Logger({ correlationId, path: event.url.pathname, method: event.request.method });
 
   const token = extractAccessJwt(event.request);
   const allowDevBypass =
-    event.platform?.env?.ACCESS_BYPASS_DEV === 'true' ||
+    ACCESS_BYPASS_DEV === 'true' ||
     process.env.NODE_ENV !== 'production' ||
     process.env.ACCESS_BYPASS_DEV === 'true';
 
   if (token) {
     try {
       const validated = await validateAccessJwt(token, {
-        teamDomain: event.platform?.env?.CF_ACCESS_TEAM_DOMAIN,
-        aud: event.platform?.env?.CF_ACCESS_AUD,
+        teamDomain: CF_ACCESS_TEAM_DOMAIN,
+        aud: CF_ACCESS_AUD,
         allowDevBypass
       });
 
-      if (event.platform?.env?.DB) {
-        const db = getDb(event.platform.env.DB);
+      if (bindings.DB) {
+        const db = getDb(bindings.DB);
         const userRepo = new UserRepository(db);
         const user = await userRepo.upsertFromAccess(validated);
         event.locals.user = user;
@@ -47,8 +60,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     const devEmail = event.request.headers.get('x-dev-user-email') || 'developer@epoch.local';
     const devName = event.request.headers.get('x-dev-user-name') || 'Local Developer';
 
-    if (event.platform?.env?.DB) {
-      const db = getDb(event.platform.env.DB);
+    if (bindings.DB) {
+      const db = getDb(bindings.DB);
       const userRepo = new UserRepository(db);
       const user = await userRepo.upsertFromAccess({
         accessSub: devSub,
