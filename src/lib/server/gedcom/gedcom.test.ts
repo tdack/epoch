@@ -202,9 +202,8 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
 
     const columnCounts = {
       individuals: 9, // id, treeId, xrefId, givenName, surname, sex, version, createdAt, updatedAt
-      families: 8,    // id, treeId, xrefId, husbandId, wifeId, version, createdAt, updatedAt
-      events: 12,     // id, treeId, entityType, entityId, type, dateRaw, dateSort, place, description, version, createdAt, updatedAt
-      familyChildren: 3 // familyId, childId, pedigree
+      unions: 6,      // id, treeId, status, version, createdAt, updatedAt (+ partners/assertions batched separately)
+      events: 12      // id, treeId, entityType, entityId, type, dateRaw, dateSort, place, description, version, createdAt, updatedAt
     };
 
     for (const [, cols] of Object.entries(columnCounts)) {

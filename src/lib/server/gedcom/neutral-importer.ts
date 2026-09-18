@@ -1,7 +1,6 @@
 /**
  * Neutral-model importer: persists parsed GEDCOM into the Phase 1 neutral
- * tables (`unions`, `union_partners`, `parent_child`, `person_names`) alongside
- * the legacy tables.
+ * tables (`unions`, `union_partners`, `parent_child`, `person_names`).
  *
  * Identity is the tree-scoped GEDCOM XREF. A union is created for every family
  * record; each participant becomes an ordered `union_partner`; each child link
