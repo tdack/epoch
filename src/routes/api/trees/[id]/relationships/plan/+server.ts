@@ -2,7 +2,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
-import type { RelationshipIntent } from '#lib/server/domain/relationship-sentence.js';
+import { relationshipPayloadSchema } from '#lib/server/validation/schemas.js';
+import { parseBody } from '#lib/server/validation/index.js';
 
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	if (!locals.user) {
@@ -18,17 +19,13 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 	}
 
-	const body = (await request.json().catch(() => ({}))) as { intent?: RelationshipIntent };
-	if (!body.intent) {
-		return Response.json({ error: 'intent is required' }, { status: 400 });
-	}
-
 	try {
+		const { intent } = parseBody(relationshipPayloadSchema, await request.json().catch(() => ({})));
 		await ensureDbSchema(platform.env.DB);
 		const db = getDb(platform.env.DB);
 		const service = new RelationshipService(db);
 
-		const plan = await service.plan(treeId, body.intent, {
+		const plan = await service.plan(treeId, intent, {
 			user: locals.user,
 			correlationId: locals.correlationId
 		});

@@ -1,0 +1,112 @@
+/**
+ * Zod schemas for transport-layer request payloads.
+ *
+ * These guard the boundary between the HTTP layer and the domain/services so
+ * that malformed JSON never reaches a service. They mirror the domain types in
+ * `relationship-sentence.ts` and the neutral genealogy model; where they
+ * differ, the transport shape is the more permissive one (trimming and
+ * normalization stay in the service).
+ */
+
+import { z } from 'zod';
+
+/** A tree-scoped record id (opaque, but must be a non-empty string). */
+export const idSchema = z.string().min(1);
+
+/** Optional free-text field; empty strings are treated as absent by callers. */
+const optionalText = z.string().trim().nullish();
+
+/** Nullable free-text field matching a `string | null` domain field. */
+const nullableText = z.string().trim().nullable();
+
+const personRefSchema = z.object({
+	id: idSchema,
+	givenName: nullableText,
+	surname: nullableText
+});
+
+export const parentRoleSchema = z.enum(['parent', 'mother', 'father']);
+
+// Literal tuple preserves the union of the five neutral relationship types.
+export const parentChildTypeSchema = z.enum([
+	'biological',
+	'adoptive',
+	'foster',
+	'guardian',
+	'unknown'
+]);
+
+/**
+ * Discriminated union over the relationship intents the UI can submit. Field
+ * shapes mirror `RelationshipIntent`; `unionLabel` is null or a string.
+ */
+export const relationshipIntentSchema = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('add_parent'),
+		child: personRefSchema,
+		parent: personRefSchema,
+		type: parentChildTypeSchema,
+		role: parentRoleSchema,
+		unionLabel: nullableText
+	}),
+	z.object({
+		kind: z.literal('add_child'),
+		parent: personRefSchema,
+		child: personRefSchema,
+		type: parentChildTypeSchema,
+		unionLabel: nullableText
+	}),
+	z.object({
+		kind: z.literal('add_partner'),
+		person: personRefSchema,
+		partner: personRefSchema,
+		unionLabel: nullableText
+	}),
+	z.object({
+		kind: z.literal('record_death'),
+		person: personRefSchema,
+		widowedPartners: z.array(personRefSchema)
+	}),
+	z.object({
+		kind: z.literal('end_union'),
+		person: personRefSchema,
+		unionLabel: z.string().min(1)
+	})
+]);
+
+export const relationshipPayloadSchema = z.object({
+	intent: relationshipIntentSchema
+});
+
+export const treeCreateSchema = z.object({
+	name: z.string().trim().min(1, 'Tree name is required'),
+	description: optionalText
+});
+
+export const individualCreateSchema = z.object({
+	givenName: optionalText,
+	surname: optionalText,
+	sex: z.enum(['M', 'F', 'U']).default('U'),
+	birthDate: optionalText,
+	birthPlace: optionalText,
+	deathDate: optionalText,
+	deathPlace: optionalText
+});
+
+export const individualUpdateSchema = individualCreateSchema
+	.partial()
+	.extend({
+		version: z.number().int().nonnegative().default(1)
+	});
+
+export const exportBodySchema = z.object({
+	treeId: idSchema,
+	format: z.enum(['gedcom551', 'gedcom7']).optional()
+});
+
+/** Derived TypeScript types for validated payloads. */
+export type TreeCreateInput = z.infer<typeof treeCreateSchema>;
+export type IndividualCreateInput = z.infer<typeof individualCreateSchema>;
+export type IndividualUpdateInput = z.infer<typeof individualUpdateSchema>;
+export type RelationshipPayloadInput = z.infer<typeof relationshipPayloadSchema>;
+export type ExportBodyInput = z.infer<typeof exportBodySchema>;

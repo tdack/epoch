@@ -2,6 +2,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
+import { individualCreateSchema } from '#lib/server/validation/schemas.js';
+import { parseBody } from '#lib/server/validation/index.js';
 
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
   if (!locals.user) {
@@ -17,22 +19,13 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
     return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    givenName?: string;
-    surname?: string;
-    sex?: 'M' | 'F' | 'U';
-    birthDate?: string;
-    birthPlace?: string;
-    deathDate?: string;
-    deathPlace?: string;
-  };
-
-  const { givenName, surname, sex = 'U', birthDate, birthPlace, deathDate, deathPlace } = body;
-  if (!givenName?.trim() && !surname?.trim()) {
-    return Response.json({ error: 'Given name or surname is required' }, { status: 400 });
-  }
-
   try {
+    const body = parseBody(individualCreateSchema, await request.json().catch(() => ({})));
+    const { givenName, surname, sex = 'U', birthDate, birthPlace, deathDate, deathPlace } = body;
+    if (!givenName?.trim() && !surname?.trim()) {
+      return Response.json({ error: 'Given name or surname is required' }, { status: 400 });
+    }
+
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);

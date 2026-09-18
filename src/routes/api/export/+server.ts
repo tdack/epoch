@@ -4,6 +4,8 @@ import { buildGedcomString, type GedcomFormat } from '#lib/server/gedcom/index.j
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
+import { exportBodySchema } from '#lib/server/validation/schemas.js';
+import { parseBody } from '#lib/server/validation/index.js';
 
 function resolveFormat(raw: string | null): GedcomFormat {
   return raw === 'gedcom7' ? 'gedcom7' : 'gedcom551';
@@ -58,12 +60,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { treeId?: string; format?: string };
+  const body = parseBody(exportBodySchema, await request.json().catch(() => ({})));
   const { treeId } = body;
-  if (!treeId) {
-    return Response.json({ error: 'treeId is required' }, { status: 400 });
-  }
-
   const format = resolveFormat(body.format ?? null);
 
   if (!platform?.env?.DB) {

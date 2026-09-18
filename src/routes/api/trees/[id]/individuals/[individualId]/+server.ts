@@ -2,6 +2,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
+import { individualUpdateSchema } from '#lib/server/validation/schemas.js';
+import { parseBody } from '#lib/server/validation/index.js';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
   if (!locals.user) {
@@ -50,20 +52,10 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    givenName?: string | null;
-    surname?: string | null;
-    sex?: 'M' | 'F' | 'U';
-    birthDate?: string | null;
-    birthPlace?: string | null;
-    deathDate?: string | null;
-    deathPlace?: string | null;
-    version?: number;
-  };
-
-  const { givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace, version = 1 } = body;
-
   try {
+    const body = parseBody(individualUpdateSchema, await request.json().catch(() => ({})));
+    const { givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace, version } = body;
+
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);

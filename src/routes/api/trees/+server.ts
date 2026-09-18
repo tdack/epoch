@@ -2,6 +2,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
+import { treeCreateSchema } from '#lib/server/validation/schemas.js';
+import { parseBody } from '#lib/server/validation/index.js';
 
 export const GET: RequestHandler = async ({ locals, platform }) => {
   if (!locals.user) {
@@ -40,14 +42,14 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { name?: string; description?: string };
-  const { name, description } = body;
-
   try {
+    const body = parseBody(treeCreateSchema, await request.json().catch(() => ({})));
+    const { name, description } = body;
+
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
-    const newTree = await service.createTree(name || '', description || null, {
+    const newTree = await service.createTree(name, description ?? null, {
       user: locals.user,
       correlationId: locals.correlationId
     });
