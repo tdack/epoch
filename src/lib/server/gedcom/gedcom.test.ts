@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseGedcom, buildGedcom551String, normalizeGedcomDate } from './index';
+import {
+	parseGedcom,
+	buildGedcom551String,
+	buildGedcom7String,
+	buildGedcomString,
+	detectGedcomVersion,
+	normalizeGedcomDate
+} from './index';
 
 describe('GEDCOM 5.5.1 Parser and Serializer', () => {
   const sampleGedcom = `0 HEAD
@@ -47,16 +54,31 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
   it('normalizes GEDCOM dates accurately', () => {
     expect(normalizeGedcomDate('15 JAN 1900')).toEqual({
       raw: '15 JAN 1900',
-      sort: '1900-01-15'
+      sort: '1900-01-15',
+      sortEnd: '1900-01-15'
     });
     expect(normalizeGedcomDate('FEB 1905')).toEqual({
       raw: 'FEB 1905',
-      sort: '1905-02-01'
+      sort: '1905-02-01',
+      sortEnd: '1905-02-28'
     });
     expect(normalizeGedcomDate('1930')).toEqual({
       raw: '1930',
-      sort: '1930-01-01'
+      sort: '1930-01-01',
+      sortEnd: '1930-12-31'
     });
+  });
+
+  it('never fabricates an exact day from a partial date', () => {
+    // Year-only must span the whole year, not collapse to 1930-01-01.
+    const yearOnly = normalizeGedcomDate('1930');
+    expect(yearOnly.sort).toBe('1930-01-01');
+    expect(yearOnly.sortEnd).toBe('1930-12-31');
+
+    // Approximate year keeps its qualifier semantics (still year precision).
+    const approx = normalizeGedcomDate('ABT 1900');
+    expect(approx.sort).toBe('1900-01-01');
+    expect(approx.sortEnd).toBe('1900-12-31');
   });
 
   it('parses individuals, families, and events from standard GEDCOM format', () => {
