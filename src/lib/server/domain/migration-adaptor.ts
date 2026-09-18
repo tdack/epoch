@@ -26,7 +26,7 @@ export interface LegacyIndividual {
 	xrefId: string | null;
 	givenName: string | null;
 	surname: string | null;
-	sex: 'M' | 'F' | 'U';
+	sex: 'M' | 'F' | 'X' | 'U';
 	version: number;
 	createdAt: Date;
 	updatedAt: Date;
