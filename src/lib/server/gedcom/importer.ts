@@ -1,6 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { getDb, individuals, families, familyChildren, events, trees, ensureDbSchema } from '../db';
+import { getDb, individuals, families, familyChildren, events, trees, unions, parentChild, gedcomPreserved, ensureDbSchema } from '../db';
 import { parseGedcom, type ParsedGedcomData } from './index';
+import { importNeutralModel } from './neutral-importer';
 import { eq, inArray } from 'drizzle-orm';
 
 // D1 limits a single query to 100 bound parameters, so batch inserts must be
@@ -90,17 +91,16 @@ export async function previewGedcomImport(
     childLinks: treeChildren.filter((c) => treeFams.some((f) => f.id === c.familyId)).length
   };
 
-  // Merge analysis
-  const existingFamByKey = new Map<string, string>();
-  for (const f of treeFams) {
-    existingFamByKey.set(familyKey(f.husbandId, f.wifeId), f.id);
-  }
+  // Merge analysis — identity is the tree-scoped GEDCOM XREF, never a spouse
+  // pair. A family that collides with an existing XREF maps onto that record;
+  // a distinct XREF always stays distinct, even if the participants match.
   const existingEventKeys = new Set(
     treeEvents.map((e) => `${e.entityType}:${e.entityId}:${e.type}:${e.dateRaw ?? ''}:${e.place ?? ''}`)
   );
   const existingChildKeys = new Set(treeChildren.map((c) => `${c.familyId}:${c.childId}`));
   const existingIndIds = new Set(treeInds.map((i) => i.id));
   const existingIndXrefs = new Set(treeInds.map((i) => i.xrefId || i.id));
+  const existingFamIds = new Set(treeFams.map((f) => f.id));
 
   const merge: ImportPreview['merge'] = {
     newIndividuals: 0,
@@ -113,16 +113,9 @@ export async function previewGedcomImport(
     duplicateEvents: 0
   };
 
-  // Map incoming family ids onto existing families by spouse-pair key
-  const incomingFamIdMap = new Map<string, string>();
   for (const fam of parsed.families) {
-    const mappedHusbandId = fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null;
-    const mappedWifeId = fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null;
-    const key = familyKey(mappedHusbandId, mappedWifeId);
-    const existingId = existingFamByKey.get(key);
-    const targetFamId = existingId ?? treeScopedId(treeId, fam.id);
-    if (existingId) {
-      incomingFamIdMap.set(treeScopedId(treeId, fam.id), existingId);
+    const targetFamId = treeScopedId(treeId, fam.id);
+    if (existingFamIds.has(targetFamId)) {
       merge.mergedFamilies++;
     } else {
       merge.newFamilies++;
@@ -168,10 +161,6 @@ export async function previewGedcomImport(
   return { mode: 'merge', deleteCounts, merge, incoming };
 }
 
-function familyKey(husbandId: string | null | undefined, wifeId: string | null | undefined): string {
-  return `${husbandId ?? '-'}__${wifeId ?? '-'}`;
-}
-
 export async function importGedcomToDb(
   d1: D1Database,
   treeId: string,
@@ -204,6 +193,9 @@ export async function importGedcomToDb(
     }
     await db.delete(events).where(eq(events.treeId, treeId));
     await db.delete(families).where(eq(families.treeId, treeId));
+    // Neutral tables: deleting unions cascades union_partners; parent_child and
+    // person_names are removed via the individuals cascade below.
+    await db.delete(unions).where(eq(unions.treeId, treeId));
     await db.delete(individuals).where(eq(individuals.treeId, treeId));
   }
 
@@ -227,37 +219,19 @@ export async function importGedcomToDb(
     }
   }
 
-  // 2. Prepare Family Inserts — in merge mode, remap duplicate families
-  // (same spouse pair) onto the existing family so children/events merge in.
-  const incomingFamIdMap = new Map<string, string>();
-  if (mode === 'merge') {
-    const treeFams = await db.select().from(families).where(eq(families.treeId, treeId)).all();
-    const existingFamByKey = new Map<string, string>();
-    for (const f of treeFams) {
-      existingFamByKey.set(familyKey(f.husbandId, f.wifeId), f.id);
-    }
-    for (const fam of parsed.families) {
-      const mappedHusbandId = fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null;
-      const mappedWifeId = fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null;
-      const existingId = existingFamByKey.get(familyKey(mappedHusbandId, mappedWifeId));
-      if (existingId && existingId !== treeScopedId(treeId, fam.id)) {
-        incomingFamIdMap.set(treeScopedId(treeId, fam.id), existingId);
-      }
-    }
-  }
-
-  const famValues = parsed.families
-    .map((fam) => {
-      const scopedFamId = treeScopedId(treeId, fam.id);
-      return {
-        id: scopedFamId,
-        treeId,
-        xrefId: fam.id,
-        husbandId: fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null,
-        wifeId: fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null
-      };
-    })
-    .filter((fam) => !incomingFamIdMap.has(fam.id));
+  // 2. Prepare Family Inserts — identity is the tree-scoped GEDCOM XREF.
+  // A family with a colliding XREF maps onto the existing record via
+  // onConflictDoNothing; distinct XREFs stay distinct regardless of spouse pair.
+  const famValues = parsed.families.map((fam) => {
+    const scopedFamId = treeScopedId(treeId, fam.id);
+    return {
+      id: scopedFamId,
+      treeId,
+      xrefId: fam.id,
+      husbandId: fam.husbandId ? treeScopedId(treeId, fam.husbandId) : null,
+      wifeId: fam.wifeId ? treeScopedId(treeId, fam.wifeId) : null
+    };
+  });
 
   // Batch insert families (8 columns generated by Drizzle: id, treeId, xrefId, husbandId, wifeId, version, createdAt, updatedAt)
   if (famValues.length > 0) {
@@ -266,7 +240,7 @@ export async function importGedcomToDb(
     }
   }
 
-  // 3. Prepare Family Children Junction (remapped onto merged families)
+  // 3. Prepare Family Children Junction
   const childJunctions: Array<{
     familyId: string;
     childId: string;
@@ -275,10 +249,9 @@ export async function importGedcomToDb(
 
   for (const fam of parsed.families) {
     const scopedFamId = treeScopedId(treeId, fam.id);
-    const targetFamId = incomingFamIdMap.get(scopedFamId) ?? scopedFamId;
     for (const child of fam.children) {
       childJunctions.push({
-        familyId: targetFamId,
+        familyId: scopedFamId,
         childId: treeScopedId(treeId, child.childId),
         pedigree: (child.pedigree as 'birth' | 'adopted' | 'foster') || 'birth'
       });
@@ -323,13 +296,12 @@ export async function importGedcomToDb(
 
   for (const fam of parsed.families) {
     const scopedFamId = treeScopedId(treeId, fam.id);
-    const targetFamId = incomingFamIdMap.get(scopedFamId) ?? scopedFamId;
     for (const ev of fam.events) {
       eventValues.push({
         id: crypto.randomUUID(),
         treeId,
         entityType: 'FAMILY',
-        entityId: targetFamId,
+        entityId: scopedFamId,
         type: ev.type,
         dateRaw: ev.dateRaw || null,
         dateSort: ev.dateSort || null,
@@ -365,6 +337,9 @@ export async function importGedcomToDb(
     }
   }
 
+  // 5. Populate the neutral model alongside the legacy tables.
+  await importNeutralModel(db, treeId, parsed);
+
   return {
     individualsCount: indValues.length,
     familiesCount: famValues.length,
@@ -382,6 +357,11 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
   const treeFams = await db.select().from(families).where(eq(families.treeId, treeId)).all();
   const treeChildren = await db.select().from(familyChildren).all();
   const treeEvents = await db.select().from(events).where(eq(events.treeId, treeId)).all();
+  const treePreserved = await db
+    .select()
+    .from(gedcomPreserved)
+    .where(eq(gedcomPreserved.treeId, treeId))
+    .all();
 
   // Map events to individual or family
   const eventsByEntity: Record<string, typeof treeEvents> = {};
@@ -427,6 +407,15 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     famXrefMap.set(fam.id, fam.xrefId || fam.id.replace(new RegExp(`^${treeId}:`), ''));
   }
 
+  // Map stored XREFs to export IDs so preserved lines re-attach to their owner.
+  const xrefToExportId = new Map<string, string>();
+  for (const [id, xref] of indXrefMap) {
+    if (xref) xrefToExportId.set(xref, xref);
+  }
+  for (const [id, xref] of famXrefMap) {
+    if (xref) xrefToExportId.set(xref, xref);
+  }
+
   return {
     treeName: tree?.name || 'Family Tree',
     individuals: treeInds.map((ind) => {
@@ -453,6 +442,13 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
         })),
         events: eventsByEntity[fam.id] || []
       };
-    })
+    }),
+    preserved: treePreserved
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((p) => ({
+        xref: p.ownerXref ? xrefToExportId.get(p.ownerXref) ?? p.ownerXref : null,
+        lines: p.lines as unknown as string[]
+      }))
   };
 }
