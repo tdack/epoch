@@ -127,6 +127,13 @@
   }
 
   function handleSelectPerson(id: string) {
+    // Clicking the already-focused person toggles them off and returns to the
+    // full (unfocused) tree, so a user can always deselect.
+    if (selectedPersonId === id) {
+      clearSelection();
+      return;
+    }
+
     selectedPersonId = id;
     const foundNode = treeLayout.nodes.find((n) => n.data.id === id);
     if (foundNode) {
@@ -146,6 +153,14 @@
     // Rebuild the neutral layout centred on the newly selected person.
     if (relationshipGraph) {
       neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: id });
+    }
+  }
+
+  function clearSelection() {
+    selectedPersonId = null;
+    selectedPerson = null;
+    if (relationshipGraph) {
+      neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: null });
     }
   }
 
@@ -415,8 +430,7 @@
       person={selectedPerson}
       treeId={selectedTreeId}
       onClose={() => {
-        selectedPersonId = null;
-        selectedPerson = null;
+        clearSelection();
       }}
       onMediaUploaded={() => {
         if (selectedTreeId) selectTree(selectedTreeId, selectedPersonId || undefined);
