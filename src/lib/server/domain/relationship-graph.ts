@@ -14,12 +14,15 @@ export interface GraphPersonInput {
 	id: string;
 	givenName: string | null;
 	surname: string | null;
+	sex: 'M' | 'F' | 'X' | 'U' | null;
 	isDeceased: boolean;
 }
 
 export interface GraphUnionInput {
 	id: string;
 	status: UnionStatus;
+	marriageDate?: string | null;
+	marriagePlace?: string | null;
 	partnerIds: string[];
 }
 
@@ -33,6 +36,8 @@ export interface GraphParentChildInput {
 export interface RelationshipGraphPerson {
 	id: string;
 	displayName: string;
+	/** Neutral sex marker, `null` when not recorded. */
+	sex: 'M' | 'F' | 'X' | 'U' | null;
 	isDeceased: boolean;
 	/** Parents grouped by union context (`__direct__` for none). */
 	parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
@@ -45,6 +50,9 @@ export interface RelationshipGraphPerson {
 export interface RelationshipGraphUnion {
 	id: string;
 	status: UnionStatus;
+	/** Marriage/partnership date text, when recorded. */
+	marriageDate: string | null;
+	marriagePlace: string | null;
 	partnerIds: string[];
 	/** Children asserted within this union, with per-parent type. */
 	children: Array<{ childId: string; parentId: string; type: ParentChildType }>;
@@ -121,6 +129,7 @@ export function buildRelationshipGraph(input: {
 		return {
 			id: p.id,
 			displayName: displayName(p.givenName, p.surname, p.id),
+			sex: p.sex,
 			isDeceased: p.isDeceased,
 			parentsByUnion,
 			unionIds,
@@ -131,6 +140,8 @@ export function buildRelationshipGraph(input: {
 	const unions: RelationshipGraphUnion[] = input.unions.map((u) => ({
 		id: u.id,
 		status: u.status,
+		marriageDate: u.marriageDate ?? null,
+		marriagePlace: u.marriagePlace ?? null,
 		partnerIds: u.partnerIds,
 		children: childrenByUnion.get(u.id) ?? []
 	}));

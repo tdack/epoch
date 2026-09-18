@@ -5,8 +5,8 @@ describe('buildRelationshipGraph', () => {
 	it('preserves repeated unions between the same participants', () => {
 		const graph = buildRelationshipGraph({
 			people: [
-				{ id: 'a', givenName: 'Alex', surname: 'Walker', isDeceased: false },
-				{ id: 'b', givenName: 'Bob', surname: 'Smith', isDeceased: false }
+				{ id: 'a', givenName: 'Alex', surname: 'Walker', sex: 'M', isDeceased: false },
+				{ id: 'b', givenName: 'Bob', surname: 'Smith', sex: 'M', isDeceased: false }
 			],
 			unions: [
 				{ id: 'u1', status: 'divorced', partnerIds: ['a', 'b'] },
@@ -22,9 +22,9 @@ describe('buildRelationshipGraph', () => {
 	it('groups per-parent assertions by union and type', () => {
 		const graph = buildRelationshipGraph({
 			people: [
-				{ id: 'mom1', givenName: 'Alice', surname: null, isDeceased: false },
-				{ id: 'mom2', givenName: 'Carol', surname: null, isDeceased: false },
-				{ id: 'child', givenName: 'Sam', surname: null, isDeceased: false }
+				{ id: 'mom1', givenName: 'Alice', surname: null, sex: 'F', isDeceased: false },
+				{ id: 'mom2', givenName: 'Carol', surname: null, sex: 'F', isDeceased: false },
+				{ id: 'child', givenName: 'Sam', surname: null, sex: 'U', isDeceased: false }
 			],
 			unions: [{ id: 'u1', status: 'active', partnerIds: ['mom1', 'mom2'] }],
 			parentChild: [
@@ -41,9 +41,9 @@ describe('buildRelationshipGraph', () => {
 	it('derives step parents from a parent\u2019s union', () => {
 		const graph = buildRelationshipGraph({
 			people: [
-				{ id: 'parent', givenName: 'Alex', surname: null, isDeceased: false },
-				{ id: 'stepparent', givenName: 'Jordan', surname: null, isDeceased: false },
-				{ id: 'child', givenName: 'Sam', surname: null, isDeceased: false }
+				{ id: 'parent', givenName: 'Alex', surname: null, sex: 'U', isDeceased: false },
+				{ id: 'stepparent', givenName: 'Jordan', surname: null, sex: 'U', isDeceased: false },
+				{ id: 'child', givenName: 'Sam', surname: null, sex: 'U', isDeceased: false }
 			],
 			unions: [{ id: 'u1', status: 'active', partnerIds: ['parent', 'stepparent'] }],
 			parentChild: [{ parentId: 'parent', childId: 'child', type: 'biological', unionId: null }]
@@ -56,8 +56,8 @@ describe('buildRelationshipGraph', () => {
 	it('marks deceased people', () => {
 		const graph = buildRelationshipGraph({
 			people: [
-				{ id: 'a', givenName: 'Alex', surname: null, isDeceased: true },
-				{ id: 'b', givenName: 'Bob', surname: null, isDeceased: false }
+				{ id: 'a', givenName: 'Alex', surname: null, sex: 'U', isDeceased: true },
+				{ id: 'b', givenName: 'Bob', surname: null, sex: 'U', isDeceased: false }
 			],
 			unions: [],
 			parentChild: []

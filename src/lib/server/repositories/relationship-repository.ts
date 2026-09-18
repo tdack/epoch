@@ -128,18 +128,33 @@ export class RelationshipRepository {
 			partnersByUnion.set(p.unionId, list);
 		}
 
+		// Marriage/partnership markers per union, from the MARR event.
+		const marriageByUnion = new Map<string, { date: string | null; place: string | null }>();
+		for (const e of eventRows) {
+			if (e.entityType !== 'FAMILY' || e.type !== 'MARR') continue;
+			if (!marriageByUnion.has(e.entityId)) {
+				marriageByUnion.set(e.entityId, { date: e.dateRaw ?? null, place: e.place ?? null });
+			}
+		}
+
 		return buildRelationshipGraph({
 			people: indRows.map((i) => ({
 				id: i.id,
 				givenName: i.givenName,
 				surname: i.surname,
+				sex: (i.sex as 'M' | 'F' | 'X' | 'U') || 'U',
 				isDeceased: deceasedIds.has(i.id)
 			})),
-			unions: unionRows.map((u) => ({
-				id: u.id,
-				status: u.status as UnionStatus,
-				partnerIds: partnersByUnion.get(u.id) ?? []
-			})),
+			unions: unionRows.map((u) => {
+				const marr = marriageByUnion.get(u.id);
+				return {
+					id: u.id,
+					status: u.status as UnionStatus,
+					marriageDate: marr?.date ?? null,
+					marriagePlace: marr?.place ?? null,
+					partnerIds: partnersByUnion.get(u.id) ?? []
+				};
+			}),
 			parentChild: pcRows.map((pc) => ({
 				parentId: pc.parentId,
 				childId: pc.childId,

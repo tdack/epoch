@@ -8,6 +8,7 @@ function graph(): RelationshipGraph {
 			{
 				id: 'p1',
 				displayName: 'Alex Walker',
+				sex: 'M',
 				isDeceased: false,
 				parentsByUnion: {},
 				unionIds: ['u1'],
@@ -16,6 +17,7 @@ function graph(): RelationshipGraph {
 			{
 				id: 'p2',
 				displayName: 'Bob Smith',
+				sex: 'F',
 				isDeceased: false,
 				parentsByUnion: {},
 				unionIds: ['u1'],
@@ -24,13 +26,14 @@ function graph(): RelationshipGraph {
 			{
 				id: 'c1',
 				displayName: 'Sam Walker',
+				sex: 'U',
 				isDeceased: false,
 				parentsByUnion: {},
 				unionIds: [],
 				stepParents: []
 			}
 		],
-		unions: [{ id: 'u1', status: 'active', partnerIds: ['p1', 'p2'], children: [{ childId: 'c1', parentId: 'p1', type: 'biological' }] }],
+		unions: [{ id: 'u1', status: 'active', marriageDate: '12 Jun 1990', marriagePlace: null, partnerIds: ['p1', 'p2'], children: [{ childId: 'c1', parentId: 'p1', type: 'biological' }] }],
 		parentChild: [{ parentId: 'p1', childId: 'c1', type: 'biological', unionId: 'u1' }]
 	};
 }
@@ -55,7 +58,7 @@ describe('buildNeutralGraphLayout', () => {
 
 	it('keeps repeated unions as distinct union nodes', () => {
 		const g = graph();
-		g.unions.push({ id: 'u2', status: 'active', partnerIds: ['p1', 'p2'], children: [] });
+		g.unions.push({ id: 'u2', status: 'active', marriageDate: null, marriagePlace: null, partnerIds: ['p1', 'p2'], children: [] });
 		const layout = buildNeutralGraphLayout(g);
 		expect(layout.unions).toHaveLength(2);
 		expect(layout.unions.map((u) => u.id)).toEqual(['u1', 'u2']);
@@ -63,7 +66,7 @@ describe('buildNeutralGraphLayout', () => {
 
 	it('handles a single-parent union without crashing', () => {
 		const g = graph();
-		g.unions = [{ id: 'u1', status: 'active', partnerIds: ['p1'], children: [{ childId: 'c1', parentId: 'p1', type: 'biological' }] }];
+		g.unions = [{ id: 'u1', status: 'active', marriageDate: null, marriagePlace: null, partnerIds: ['p1'], children: [{ childId: 'c1', parentId: 'p1', type: 'biological' }] }];
 		const layout = buildNeutralGraphLayout(g);
 		expect(layout.unions).toHaveLength(1);
 		expect(layout.links.filter((l) => l.type === 'partner')).toHaveLength(1);
@@ -91,7 +94,7 @@ describe('selectFocusedGraph', () => {
 	it('selects the subgraph around the focus person within depth limits', () => {
 		const g = graph();
 		// Add a grandparent chain to verify ancestor depth.
-		g.people.push({ id: 'gp', displayName: 'Grand Parent', isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [] });
+		g.people.push({ id: 'gp', displayName: 'Grand Parent', sex: 'U', isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [] });
 		g.parentChild.push({ parentId: 'gp', childId: 'p1', type: 'biological', unionId: null });
 
 		const focused = selectFocusedGraph(g, 'c1', { ancestorDepth: 2, descendantDepth: 2 });
