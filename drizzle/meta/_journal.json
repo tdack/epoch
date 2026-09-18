@@ -15,6 +15,13 @@
       "when": 1789483683689,
       "tag": "0001_robust_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789723993898,
+      "tag": "0002_melodic_ronan",
+      "breakpoints": true
     }
   ]
 }
