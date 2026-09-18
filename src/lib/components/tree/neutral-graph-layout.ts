@@ -37,10 +37,17 @@ export type GraphLinkType = 'partner' | 'parent_child';
 
 export interface GraphLink {
 	type: GraphLinkType;
+	/** Unique identity for selection/deletion of a specific relationship. */
+	id: string;
 	/** The relationship type for parent_child links. */
 	relationshipType?: string;
 	sourceId: string;
 	targetId: string;
+	/** For partner links, the union this partnership belongs to. */
+	unionId?: string;
+	/** The parent/child ids for parent_child links (both direct and union-mediated). */
+	parentId?: string;
+	childId?: string;
 	source: { x: number; y: number };
 	target: { x: number; y: number };
 }
@@ -289,8 +296,10 @@ export function buildNeutralGraphLayout(
 			if (!p) continue;
 			links.push({
 				type: 'partner',
+				id: `partner:${u.id}:${id}`,
 				sourceId: id,
 				targetId: u.id,
+				unionId: u.id,
 				source: { x: p.x, y: p.y },
 				target: { x, y }
 			});
@@ -301,9 +310,13 @@ export function buildNeutralGraphLayout(
 			if (!child) continue;
 			links.push({
 				type: 'parent_child',
+				id: `pc:${u.id}:${c.parentId}:${c.childId}:${c.type}`,
 				relationshipType: c.type,
 				sourceId: u.id,
 				targetId: c.childId,
+				unionId: u.id,
+				parentId: c.parentId,
+				childId: c.childId,
 				source: { x, y },
 				target: { x: child.x, y: child.y }
 			});
@@ -317,9 +330,12 @@ export function buildNeutralGraphLayout(
 		if (!parent || !child) continue;
 		links.push({
 			type: 'parent_child',
+			id: `pc:direct:${pc.parentId}:${pc.childId}:${pc.type}`,
 			relationshipType: pc.type,
 			sourceId: pc.parentId,
 			targetId: pc.childId,
+			parentId: pc.parentId,
+			childId: pc.childId,
 			source: { x: parent.x, y: parent.y },
 			target: { x: child.x, y: child.y }
 		});
