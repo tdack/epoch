@@ -24,6 +24,16 @@ export type RelationshipCommand =
 			unionId: string | null;
 	  }
 	| {
+			kind: 'add_partner_to_union';
+			unionId: string;
+			personId: string;
+	  }
+	| {
+			kind: 'remove_partner_from_union';
+			unionId: string;
+			personId: string;
+	  }
+	| {
 			kind: 'end_union';
 			unionId: string;
 	  }
@@ -35,7 +45,13 @@ export type RelationshipCommand =
 	  };
 
 export interface PlanWarning {
-	code: 'DUPLICATE_PERSON' | 'MULTIPLE_UNIONS' | 'UNKNOWN_PARENT' | 'CYCLE' | 'NO_UNION';
+	code:
+		| 'DUPLICATE_PERSON'
+		| 'MULTIPLE_UNIONS'
+		| 'UNKNOWN_PARENT'
+		| 'CYCLE'
+		| 'NO_UNION'
+		| 'ALREADY_PARTNERS';
 	message: string;
 }
 
@@ -46,6 +62,11 @@ export interface RelationshipPlan {
 	warnings: PlanWarning[];
 }
 
+export interface ExistingUnion {
+	id: string;
+	partnerIds: string[];
+}
+
 export interface PlanContext {
 	/** Existing parent-child assertions in the tree, used for invariant checks. */
 	assertions: ParentChild[];
@@ -53,6 +74,8 @@ export interface PlanContext {
 	hasDuplicateName: boolean;
 	/** Number of unions the subject participates in (for ambiguity cues). */
 	unionCount: number;
+	/** Existing unions, so the planner can reuse rather than duplicate them. */
+	existingUnions: ExistingUnion[];
 }
 
 /**
@@ -65,15 +88,19 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 
 	switch (intent.kind) {
 		case 'add_parent': {
+			// Reuse an existing union that already links the child to another
+			// parent, so the new parent joins the established family rather than
+			// creating a disconnected assertion.
+			const unionId = findUnionForChild(intent.child.id, context.assertions);
 			commands.push({
 				kind: 'assert_parent_child',
 				parentId: intent.parent.id,
 				childId: intent.child.id,
 				type: intent.type,
-				unionId: null
+				unionId
 			});
 			const violations = validateParentChildAssertion(
-				{ parentId: intent.parent.id, childId: intent.child.id, type: intent.type, unionId: null },
+				{ parentId: intent.parent.id, childId: intent.child.id, type: intent.type, unionId },
 				'',
 				context.assertions,
 				context.assertions
@@ -84,15 +111,18 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 			break;
 		}
 		case 'add_child': {
+			// Reuse the union that already contains the parent, so the child is
+			// added to the parent's established family.
+			const unionId = findUnionForParent(intent.parent.id, context.existingUnions);
 			commands.push({
 				kind: 'assert_parent_child',
 				parentId: intent.parent.id,
 				childId: intent.child.id,
 				type: intent.type,
-				unionId: null
+				unionId
 			});
 			const violations = validateParentChildAssertion(
-				{ parentId: intent.parent.id, childId: intent.child.id, type: intent.type, unionId: null },
+				{ parentId: intent.parent.id, childId: intent.child.id, type: intent.type, unionId },
 				'',
 				context.assertions,
 				context.assertions
@@ -103,7 +133,25 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 			break;
 		}
 		case 'add_partner': {
-			commands.push({ kind: 'create_union', personIds: [intent.person.id, intent.partner.id] });
+			// Reuse an existing union the person already belongs to (adding the
+			// partner to it) rather than always creating a new union.
+			const existingUnion = findUnionForPerson(intent.person.id, context.existingUnions);
+			if (existingUnion) {
+				if (existingUnion.partnerIds.includes(intent.partner.id)) {
+					warnings.push({
+						code: 'ALREADY_PARTNERS',
+						message: 'These two people are already partners in an existing union.'
+					});
+				} else {
+					commands.push({
+						kind: 'add_partner_to_union',
+						unionId: existingUnion.id,
+						personId: intent.partner.id
+					});
+				}
+			} else {
+				commands.push({ kind: 'create_union', personIds: [intent.person.id, intent.partner.id] });
+			}
 			break;
 		}
 		case 'record_death': {
@@ -136,4 +184,37 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 		commands,
 		warnings
 	};
+}
+
+/**
+ * Find an existing union that already links the child to a parent (via a
+ * parent-child assertion with a union context), so a new parent joins the
+ * child's established family. Returns null when none exists.
+ */
+function findUnionForChild(childId: string, assertions: ParentChild[]): string | null {
+	for (const a of assertions) {
+		if (a.childId === childId && a.unionId) return a.unionId;
+	}
+	return null;
+}
+
+/**
+ * Find an existing union the parent participates in as a partner, so a new
+ * child joins the parent's established family.
+ */
+function findUnionForParent(parentId: string, unions: ExistingUnion[]): string | null {
+	for (const u of unions) {
+		if (u.partnerIds.includes(parentId)) return u.id;
+	}
+	return null;
+}
+
+/**
+ * Find an existing union the person participates in as a partner.
+ */
+function findUnionForPerson(personId: string, unions: ExistingUnion[]): ExistingUnion | null {
+	for (const u of unions) {
+		if (u.partnerIds.includes(personId)) return u;
+	}
+	return null;
 }

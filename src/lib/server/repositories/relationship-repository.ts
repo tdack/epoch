@@ -86,6 +86,25 @@ export class RelationshipRepository {
 		return rows.length;
 	}
 
+	/** List existing unions with their participant IDs (for union reuse). */
+	async listUnions(treeId: string): Promise<Array<{ id: string; partnerIds: string[] }>> {
+		const unionRows = await this.db
+			.select({ id: unions.id })
+			.from(unions)
+			.where(eq(unions.treeId, treeId))
+			.all();
+		const partnerRows = await this.db.select().from(unionPartners).all();
+
+		const partnersByUnion = new Map<string, string[]>();
+		for (const p of partnerRows) {
+			const list = partnersByUnion.get(p.unionId) ?? [];
+			list.push(p.personId);
+			partnersByUnion.set(p.unionId, list);
+		}
+
+		return unionRows.map((u) => ({ id: u.id, partnerIds: partnersByUnion.get(u.id) ?? [] }));
+	}
+
 	/** Assemble the read-only relationship graph from the neutral model. */
 	async getGraph(treeId: string): Promise<RelationshipGraph> {
 		const [indRows, unionRows, partnerRows, pcRows, eventRows] = await Promise.all([
@@ -186,6 +205,49 @@ export class RelationshipRepository {
 				return null;
 			}
 
+			case 'add_partner_to_union': {
+				const union = await this.db
+					.select()
+					.from(unions)
+					.where(and(eq(unions.id, command.unionId), eq(unions.treeId, treeId)))
+					.get();
+				if (!union) throw new NotFoundError('Union', command.unionId);
+
+				const existing = await this.db
+					.select({ id: unionPartners.id })
+					.from(unionPartners)
+					.where(and(eq(unionPartners.unionId, command.unionId), eq(unionPartners.personId, command.personId)))
+					.get();
+				if (existing) return null;
+
+				const maxOrder = await this.db
+					.select({ order: unionPartners.order })
+					.from(unionPartners)
+					.where(eq(unionPartners.unionId, command.unionId))
+					.all();
+				const nextOrder = maxOrder.reduce((m, r) => Math.max(m, r.order), -1) + 1;
+
+				await this.db.insert(unionPartners).values({
+					id: crypto.randomUUID(),
+					unionId: command.unionId,
+					personId: command.personId,
+					order: nextOrder
+				});
+				return null;
+			}
+
+			case 'remove_partner_from_union': {
+				await this.db
+					.delete(unionPartners)
+					.where(
+						and(
+							eq(unionPartners.unionId, command.unionId),
+							eq(unionPartners.personId, command.personId)
+						)
+					);
+				return null;
+			}
+
 			case 'remove_parent_child': {
 				await this.db
 					.delete(parentChild)
@@ -226,6 +288,14 @@ export class RelationshipRepository {
 					.get();
 				return union ? `End the union '${union.id}'.` : 'End a union.';
 			}
+			case 'add_partner_to_union': {
+				const [name] = await this.personNames([command.personId]);
+				return `Add ${name} to an existing union.`;
+			}
+			case 'remove_partner_from_union': {
+				const [name] = await this.personNames([command.personId]);
+				return `Remove ${name} from a union. This does not delete the person.`;
+			}
 			case 'remove_parent_child': {
 				const [parentName, childName] = await this.personNames([
 					command.parentId,
@@ -257,6 +327,18 @@ export class RelationshipRepository {
 				// Re-activating is represented by a no-op here; the service
 				// re-applies status explicitly.
 				return null;
+			case 'add_partner_to_union':
+				return {
+					kind: 'remove_partner_from_union',
+					unionId: command.unionId,
+					personId: command.personId
+				};
+			case 'remove_partner_from_union':
+				return {
+					kind: 'add_partner_to_union',
+					unionId: command.unionId,
+					personId: command.personId
+				};
 			case 'remove_parent_child':
 				return {
 					kind: 'assert_parent_child',

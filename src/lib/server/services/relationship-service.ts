@@ -44,15 +44,16 @@ export class RelationshipService {
 	async plan(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<RelationshipPlan> {
 		await this.verifyAccess(treeId, context, 'record:create');
 
-		const [assertions, subjectId] = await Promise.all([
+		const [assertions, subjectId, existingUnions] = await Promise.all([
 			this.relationshipRepo.listAssertions(treeId),
-			this.subjectIdForIntent(intent)
+			this.subjectIdForIntent(intent),
+			this.relationshipRepo.listUnions(treeId)
 		]);
 
 		const unionCount = subjectId ? await this.relationshipRepo.countUnionsForPerson(subjectId) : 0;
 		const hasDuplicateName = await this.hasDuplicate(treeId, intent);
 
-		return planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount });
+		return planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount, existingUnions });
 	}
 
 	/**
@@ -64,10 +65,11 @@ export class RelationshipService {
 
 		const assertions = await this.relationshipRepo.listAssertions(treeId);
 		const subjectId = await this.subjectIdForIntent(intent);
+		const existingUnions = await this.relationshipRepo.listUnions(treeId);
 		const unionCount = subjectId ? await this.relationshipRepo.countUnionsForPerson(subjectId) : 0;
 		const hasDuplicateName = await this.hasDuplicate(treeId, intent);
 
-		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount });
+		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount, existingUnions });
 
 		for (const command of plan.commands) {
 			const createdUnionId = await this.relationshipRepo.applyCommand(treeId, command);
@@ -82,7 +84,8 @@ export class RelationshipService {
 	async previewImpact(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<string[]> {
 		await this.verifyAccess(treeId, context, 'record:create');
 		const assertions = await this.relationshipRepo.listAssertions(treeId);
-		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName: false, unionCount: 0 });
+		const existingUnions = await this.relationshipRepo.listUnions(treeId);
+		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName: false, unionCount: 0, existingUnions });
 		return Promise.all(plan.commands.map((c) => this.relationshipRepo.summarizeImpact(treeId, c)));
 	}
 
