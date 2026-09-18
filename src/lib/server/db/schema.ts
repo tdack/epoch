@@ -79,13 +79,15 @@ export const familyChildren = sqliteTable('family_children', {
   uniqueFamChild: uniqueIndex('idx_uq_fam_child').on(table.familyId, table.childId)
 }));
 
-// Events (Births, Deaths, Marriages, Burials)
+// Events (Births, Deaths, Marriages, Burials, and extensible GEDCOM types)
 export const events = sqliteTable('events', {
   id: text('id').primaryKey(),
   treeId: text('tree_id').notNull().references(() => trees.id, { onDelete: 'cascade' }),
   entityType: text('entity_type', { enum: ['INDIVIDUAL', 'FAMILY'] }).notNull(),
   entityId: text('entity_id').notNull(),
-  type: text('type', { enum: ['BIRT', 'DEAT', 'MARR', 'DIV', 'BAPM', 'BURI'] }).notNull(),
+  // Extensible GEDCOM event tags; stored as text rather than a closed enum so
+  // unsupported/custom types survive import/export without loss.
+  type: text('type').notNull(),
   dateRaw: text('date_raw'),
   dateSort: text('date_sort'), // YYYY-MM-DD for indexing
   place: text('place'),

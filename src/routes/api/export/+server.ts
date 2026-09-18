@@ -1,9 +1,13 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getTreeExportData } from '#lib/server/gedcom/importer.js';
-import { buildGedcom551String } from '#lib/server/gedcom/index.js';
+import { buildGedcomString, type GedcomFormat } from '#lib/server/gedcom/index.js';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
+
+function resolveFormat(raw: string | null): GedcomFormat {
+  return raw === 'gedcom7' ? 'gedcom7' : 'gedcom551';
+}
 
 export const GET: RequestHandler = async ({ url, locals, platform }) => {
   if (!locals.user) {
@@ -19,6 +23,8 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
     return Response.json({ error: 'treeId query parameter required' }, { status: 400 });
   }
 
+  const format = resolveFormat(url.searchParams.get('format'));
+
   try {
     await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
@@ -30,7 +36,7 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
     });
 
     const data = await getTreeExportData(platform.env.DB, treeId);
-    const gedcom = buildGedcom551String(data);
+    const gedcom = buildGedcomString(data, format);
 
     return new Response(gedcom, {
       status: 200,
@@ -52,11 +58,13 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { treeId?: string };
+  const body = (await request.json().catch(() => ({}))) as { treeId?: string; format?: string };
   const { treeId } = body;
   if (!treeId) {
     return Response.json({ error: 'treeId is required' }, { status: 400 });
   }
+
+  const format = resolveFormat(body.format ?? null);
 
   if (!platform?.env?.DB) {
     return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
@@ -74,7 +82,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     // Trigger Cloudflare Workflow if binding exists
     if (platform?.env?.GEDCOM_EXPORT_WORKFLOW) {
       const instance = await platform.env.GEDCOM_EXPORT_WORKFLOW.create({
-        params: { treeId }
+        params: { treeId, format }
       });
       return Response.json({ status: 'started', instanceId: instance.id });
     }
@@ -85,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     }
 
     const data = await getTreeExportData(platform.env.DB, treeId);
-    const gedcom = buildGedcom551String(data);
+    const gedcom = buildGedcomString(data, format);
     const fileKey = `exports/${treeId}-${Date.now()}.ged`;
 
     await platform.env.MEDIA_BUCKET.put(fileKey, gedcom, {

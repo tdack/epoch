@@ -1,21 +1,24 @@
 import { WorkflowEntrypoint, type WorkflowStep, type WorkflowEvent } from 'cloudflare:workers';
 import { getTreeExportData } from '../gedcom/importer';
-import { buildGedcom551String } from '../gedcom/index';
+import { buildGedcomString, type GedcomFormat } from '../gedcom/index';
 
 export interface GedcomExportPayload {
   treeId: string;
   userId?: string;
+  format?: GedcomFormat;
 }
 
 export class GedcomExportWorkflow extends WorkflowEntrypoint<App.Platform['env'], GedcomExportPayload> {
   async run(event: WorkflowEvent<GedcomExportPayload>, step: WorkflowStep) {
+    const format = event.payload.format ?? 'gedcom551';
+
     const data = await step.do('fetch-records', async () => {
       // Query D1 DB for all Individuals, Families, and Events tied to treeId
       return await getTreeExportData(this.env.DB, event.payload.treeId);
     });
 
     const gedcomContent = await step.do('serialize-gedcom', async () => {
-      return buildGedcom551String(data);
+      return buildGedcomString(data, format);
     });
 
     const fileKey = await step.do('write-r2-export', async () => {
@@ -29,6 +32,6 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<App.Platform['env']
       return key;
     });
 
-    return { status: 'complete', fileKey };
+    return { status: 'complete', fileKey, format };
   }
 }

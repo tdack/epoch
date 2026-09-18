@@ -214,7 +214,9 @@ export async function importGedcomToDb(
     xrefId: ind.id,
     givenName: ind.givenName || null,
     surname: ind.surname || null,
-    sex: ind.sex || 'U',
+    // The legacy individuals table only stores M/F/U; GEDCOM 7 `X` (non-binary)
+    // is stored as U until the neutral model adopts its own sex representation.
+    sex: ind.sex === 'X' ? 'U' : (ind.sex || 'U'),
     createdAt: new Date()
   }));
 
@@ -295,7 +297,7 @@ export async function importGedcomToDb(
     treeId: string;
     entityType: 'INDIVIDUAL' | 'FAMILY';
     entityId: string;
-    type: 'BIRT' | 'DEAT' | 'MARR' | 'DIV' | 'BAPM' | 'BURI';
+    type: string;
     dateRaw: string | null;
     dateSort: string | null;
     place: string | null;
