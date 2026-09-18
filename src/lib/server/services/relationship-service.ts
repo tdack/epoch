@@ -72,6 +72,11 @@ export class RelationshipService {
 		return this.relationshipRepo.searchPeople(treeId, query);
 	}
 
+	async getGraph(treeId: string, context: AuthenticatedContext) {
+		await this.verifyAccess(treeId, context, 'tree:view');
+		return this.relationshipRepo.getGraph(treeId);
+	}
+
 	private async subjectIdForIntent(intent: RelationshipIntent): Promise<string | null> {
 		switch (intent.kind) {
 			case 'add_parent':

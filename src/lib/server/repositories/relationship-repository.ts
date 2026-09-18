@@ -5,9 +5,10 @@
  */
 
 import type { DbClient } from '../db';
-import { unions, unionPartners, parentChild, individuals } from '../db/schema';
+import { unions, unionPartners, parentChild, individuals, events } from '../db/schema';
 import { eq, and, like } from 'drizzle-orm';
-import type { ParentChild, ParentChildType } from '../domain/genealogy-model';
+import type { ParentChild, ParentChildType, UnionStatus } from '../domain/genealogy-model';
+import { buildRelationshipGraph, type RelationshipGraph } from '../domain/relationship-graph';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { validateParentChildAssertion } from '../domain/invariants';
 import { ValidationError, NotFoundError } from '../domain/errors';
@@ -83,6 +84,50 @@ export class RelationshipRepository {
 			.where(eq(unionPartners.personId, personId))
 			.all();
 		return rows.length;
+	}
+
+	/** Assemble the read-only relationship graph from the neutral model. */
+	async getGraph(treeId: string): Promise<RelationshipGraph> {
+		const [indRows, unionRows, partnerRows, pcRows, eventRows] = await Promise.all([
+			this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
+			this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
+			this.db.select().from(unionPartners).all(),
+			this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
+			this.db.select().from(events).where(eq(events.treeId, treeId)).all()
+		]);
+
+		// Death markers: an individual with a DEAT event is deceased.
+		const deceasedIds = new Set(
+			eventRows.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId)
+		);
+
+		// Group partners by union.
+		const partnersByUnion = new Map<string, string[]>();
+		for (const p of partnerRows) {
+			const list = partnersByUnion.get(p.unionId) ?? [];
+			list.push(p.personId);
+			partnersByUnion.set(p.unionId, list);
+		}
+
+		return buildRelationshipGraph({
+			people: indRows.map((i) => ({
+				id: i.id,
+				givenName: i.givenName,
+				surname: i.surname,
+				isDeceased: deceasedIds.has(i.id)
+			})),
+			unions: unionRows.map((u) => ({
+				id: u.id,
+				status: u.status as UnionStatus,
+				partnerIds: partnersByUnion.get(u.id) ?? []
+			})),
+			parentChild: pcRows.map((pc) => ({
+				parentId: pc.parentId,
+				childId: pc.childId,
+				type: pc.type as ParentChildType,
+				unionId: pc.unionId
+			}))
+		});
 	}
 
 	async applyCommand(treeId: string, command: RelationshipCommand): Promise<void> {
