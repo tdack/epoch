@@ -1,5 +1,5 @@
 import type { DbClient } from '../db';
-import { trees, treeMemberships, individuals, families, familyChildren, events } from '../db/schema';
+import { trees, treeMemberships } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';

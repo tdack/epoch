@@ -5,28 +5,13 @@
  */
 
 import type { DbClient } from '../db';
-import {
-	unions,
-	unionPartners,
-	parentChild,
-	individuals,
-	events,
-	families,
-	familyChildren
-} from '../db/schema';
+import { unions, unionPartners, parentChild, individuals, events } from '../db/schema';
 import { eq, and, like, inArray } from 'drizzle-orm';
 import type { ParentChild, ParentChildType, UnionStatus } from '../domain/genealogy-model';
 import { buildRelationshipGraph, type RelationshipGraph } from '../domain/relationship-graph';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { validateParentChildAssertion } from '../domain/invariants';
 import { ValidationError, NotFoundError } from '../domain/errors';
-
-/** Map legacy family-wide pedigree to a neutral parent-child type. */
-const PEDIGREE_TO_TYPE: Record<string, ParentChildType> = {
-	birth: 'biological',
-	adopted: 'adoptive',
-	foster: 'foster'
-};
 
 export interface DuplicateCandidate {
 	id: string;
@@ -122,10 +107,6 @@ export class RelationshipRepository {
 
 	/** Assemble the read-only relationship graph from the neutral model. */
 	async getGraph(treeId: string): Promise<RelationshipGraph> {
-		// Backfill the neutral tables from legacy gendered data, so relationships
-		// entered via the earlier "Families" UI remain visible. Idempotent.
-		await this.backfillFromLegacy(treeId);
-
 		const [indRows, unionRows, partnerRows, pcRows, eventRows] = await Promise.all([
 			this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
 			this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
@@ -382,99 +363,5 @@ export class RelationshipRepository {
 			if (!r) return id;
 			return [r.givenName, r.surname].filter(Boolean).join(' ') || id;
 		});
-	}
-
-	/**
-	 * Backfill the neutral tables from the legacy gendered tables.
-	 *
-	 * This is required because people and their relationships were entered via
-	 * the earlier "Families" UI, which writes only `families`/`family_children`.
-	 * The neutral graph reads `unions`/`union_partners`/`parent_child`, so those
-	 * rows must be mirrored. Idempotent: preserves the legacy record IDs and
-	 * skips records that already exist in the neutral tables.
-	 */
-	private async backfillFromLegacy(treeId: string): Promise<void> {
-		const legacyFams = await this.db
-			.select()
-			.from(families)
-			.where(eq(families.treeId, treeId))
-			.all();
-		const legacyChildren = await this.db
-			.select()
-			.from(familyChildren)
-			.all();
-		const familyEvents = await this.db
-			.select()
-			.from(events)
-			.where(and(eq(events.treeId, treeId), eq(events.entityType, 'FAMILY')))
-			.all();
-
-		// Existing neutral rows, keyed by their (legacy-preserved) IDs.
-		const existingUnions = new Set(
-			(await this.db.select({ id: unions.id }).from(unions).where(eq(unions.treeId, treeId)).all()).map(
-				(u) => u.id
-			)
-		);
-		const existingPartners = new Set(
-			(await this.db.select().from(unionPartners).all()).map((p) => `${p.unionId}:${p.personId}`)
-		);
-		const existingAssertions = new Set(
-			(await this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all()).map(
-				(pc) => `${pc.parentId}:${pc.childId}:${pc.type}`
-			)
-		);
-
-		for (const fam of legacyFams) {
-			const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
-
-			// Derive union status from a divorce/annulment event.
-			const divorce = familyEvents.find(
-				(e) => e.entityId === fam.id && (e.type === 'DIV' || e.type === 'ANUL')
-			);
-			const status: UnionStatus = divorce ? 'divorced' : 'active';
-
-			if (!existingUnions.has(fam.id)) {
-				await this.db
-					.insert(unions)
-					.values({ id: fam.id, treeId, status })
-					.onConflictDoNothing();
-				existingUnions.add(fam.id);
-			}
-
-			for (let i = 0; i < participants.length; i++) {
-				if (existingPartners.has(`${fam.id}:${participants[i]}`)) continue;
-				await this.db
-					.insert(unionPartners)
-					.values({
-						id: crypto.randomUUID(),
-						unionId: fam.id,
-						personId: participants[i],
-						order: i
-					})
-					.onConflictDoNothing();
-				existingPartners.add(`${fam.id}:${participants[i]}`);
-			}
-
-			for (const child of legacyChildren.filter((c) => c.familyId === fam.id)) {
-				const type = PEDIGREE_TO_TYPE[child.pedigree ?? 'birth'] ?? 'unknown';
-				for (const parentId of participants) {
-					const key = `${parentId}:${child.childId}:${type}`;
-					if (existingAssertions.has(key)) continue;
-					await this.db
-						.insert(parentChild)
-						.values({
-							id: crypto.randomUUID(),
-							treeId,
-							parentId,
-							childId: child.childId,
-							type,
-							status: 'active',
-							unionId: fam.id
-						})
-						.onConflictDoNothing();
-					existingAssertions.add(key);
-				}
-			}
-		}
 	}
 }

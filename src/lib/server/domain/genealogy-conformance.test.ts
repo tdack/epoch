@@ -1,85 +1,53 @@
 import { describe, it, expect } from 'vitest';
 import { parseGedcom } from '../gedcom/index';
-import { migrateLegacyToNeutral } from './migration-adaptor';
 import { validateParentChildAssertion } from './invariants';
-import type { ParentChild } from './genealogy-model';
+import type { ParentChild, ParentChildType, Union } from './genealogy-model';
 import {
 	REPRESENTATIVE_GEDCOM_FIXTURE,
 	REPRESENTATIVE_GEDCOM_7_FIXTURE
 } from '../fixtures/genealogy-fixtures';
 
-/**
- * Build a neutral model from a GEDCOM fixture by way of the legacy parse shape,
- * so the assertions below verify the graph semantics that Phase 1 requires.
- */
-function neutralFromGedcom(fixture: string) {
-	const parsed = parseGedcom(fixture);
-	const legacy = {
-		individuals: parsed.individuals.map((ind) => ({
-			id: ind.id,
-			treeId: 'tree-1',
-			xrefId: ind.id,
-			givenName: ind.givenName || null,
-			surname: ind.surname || null,
-			sex: ind.sex || 'U',
-			version: 1,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		})),
-		families: parsed.families.map((f) => ({
-			id: f.id,
-			treeId: 'tree-1',
-			xrefId: f.id,
-			husbandId: f.husbandId || null,
-			wifeId: f.wifeId || null,
-			version: 1,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		})),
-		familyChildren: parsed.families.flatMap((f) =>
-			f.children.map((c) => ({
-				familyId: f.id,
-				childId: c.childId,
-				pedigree: c.pedigree ?? 'birth'
-			}))
-		),
-		events: [
-			...parsed.individuals.flatMap((ind) =>
-				ind.events.map((e) => ({
-					id: crypto.randomUUID(),
-					treeId: 'tree-1',
-					entityType: 'INDIVIDUAL' as const,
-					entityId: ind.id,
-					type: e.type,
-					dateRaw: e.dateRaw || null,
-					dateSort: e.dateSort || null,
-					place: e.place || null,
-					description: e.description || null,
-					version: 1,
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}))
-			),
-			...parsed.families.flatMap((f) =>
-				f.events.map((e) => ({
-					id: crypto.randomUUID(),
-					treeId: 'tree-1',
-					entityType: 'FAMILY' as const,
-					entityId: f.id,
-					type: e.type,
-					dateRaw: e.dateRaw || null,
-					dateSort: e.dateSort || null,
-					place: e.place || null,
-					description: e.description || null,
-					version: 1,
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}))
-			)
-		]
-	};
+const PEDIGREE_TO_TYPE: Record<string, ParentChildType> = {
+	birth: 'biological',
+	adopted: 'adoptive',
+	foster: 'foster'
+};
 
-	return migrateLegacyToNeutral(legacy).result;
+/**
+ * Build a neutral model from a GEDCOM fixture directly from the parsed shape,
+ * mirroring the neutral importer's union/assertion logic.
+ */
+function neutralFromGedcom(fixture: string): { unions: Union[]; parentChild: ParentChild[] } {
+	const parsed = parseGedcom(fixture);
+
+	const unions: Union[] = parsed.families.map((f) => ({
+		id: f.id,
+		treeId: 'tree-1',
+		status: f.events.some((e) => e.type === 'DIV' || e.type === 'ANUL') ? 'divorced' : 'active',
+		version: 1,
+		createdAt: new Date(),
+		updatedAt: new Date()
+	}));
+
+	const parentChild: ParentChild[] = parsed.families.flatMap((f) => {
+		const participants = [f.husbandId, f.wifeId].filter((id): id is string => Boolean(id));
+		return f.children.flatMap((c) =>
+			participants.map((parentId) => ({
+				id: crypto.randomUUID(),
+				treeId: 'tree-1',
+				parentId,
+				childId: c.childId,
+				type: PEDIGREE_TO_TYPE[c.pedigree ?? 'birth'] ?? 'unknown',
+				status: 'active' as const,
+				unionId: f.id,
+				version: 1,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}))
+		);
+	});
+
+	return { unions, parentChild };
 }
 
 describe('Phase 1 neutral graph conformance', () => {

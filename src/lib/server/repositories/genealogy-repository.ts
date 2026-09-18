@@ -1,17 +1,27 @@
 import type { DbClient } from '../db';
-import { individuals, families, familyChildren, events, mediaItems } from '../db/schema';
+import { individuals, unions, unionPartners, parentChild, events, mediaItems } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
-import type { IndividualRecord, FamilyRecord, EventRecord } from '../domain/genealogy';
+import type { IndividualRecord } from '../domain/genealogy';
+
+/** Map a neutral parent-child type to the legacy family-wide pedigree value. */
+const TYPE_TO_PEDIGREE: Record<string, string> = {
+  biological: 'birth',
+  adoptive: 'adopted',
+  foster: 'foster',
+  guardian: 'foster',
+  unknown: 'birth'
+};
 
 export class GenealogyRepository {
   constructor(private db: DbClient) {}
 
   async getTreeData(treeId: string) {
-    const [indList, famList, childrenList, eventList, mediaList] = await Promise.all([
+    const [indList, unionList, partnerList, pcList, eventList, mediaList] = await Promise.all([
       this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
-      this.db.select().from(families).where(eq(families.treeId, treeId)).all(),
-      this.db.select().from(familyChildren).all(),
+      this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
+      this.db.select().from(unionPartners).all(),
+      this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
       this.db.select().from(events).where(eq(events.treeId, treeId)).all(),
       this.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all()
     ]);
@@ -28,25 +38,37 @@ export class GenealogyRepository {
       mediaByEntity[med.entityId].push(med);
     }
 
-    const childrenByFam: Record<string, typeof childrenList> = {};
-    const famcByChild: Record<string, string[]> = {};
-    for (const child of childrenList) {
-      if (!childrenByFam[child.familyId]) childrenByFam[child.familyId] = [];
-      childrenByFam[child.familyId].push(child);
+    // Ordered partners per union, projected to a binary (partner1/partner2)
+    // read shape for the UI. The neutral order is preserved; further partners
+    // remain in the graph but are not represented in this two-column view.
+    const partnersByUnion = new Map<string, string[]>();
+    for (const p of partnerList) {
+      const list = partnersByUnion.get(p.unionId) ?? [];
+      list[p.order] = p.personId;
+      partnersByUnion.set(p.unionId, list);
+    }
 
-      if (!famcByChild[child.childId]) famcByChild[child.childId] = [];
-      famcByChild[child.childId].push(child.familyId);
+    // Collapse per-parent assertions into family-wide children for the UI.
+    const childrenByUnion = new Map<string, Array<{ childId: string; pedigree: string | null }>>();
+    const famcByChild: Record<string, string[]> = {};
+    for (const pc of pcList) {
+      if (!pc.unionId) continue;
+      const children = childrenByUnion.get(pc.unionId) ?? [];
+      if (!children.some((c) => c.childId === pc.childId)) {
+        children.push({ childId: pc.childId, pedigree: TYPE_TO_PEDIGREE[pc.type] || 'birth' });
+      }
+      childrenByUnion.set(pc.unionId, children);
+
+      if (!famcByChild[pc.childId]) famcByChild[pc.childId] = [];
+      if (!famcByChild[pc.childId].includes(pc.unionId)) famcByChild[pc.childId].push(pc.unionId);
     }
 
     const famsByPerson: Record<string, string[]> = {};
-    for (const fam of famList) {
-      if (fam.husbandId) {
-        if (!famsByPerson[fam.husbandId]) famsByPerson[fam.husbandId] = [];
-        famsByPerson[fam.husbandId].push(fam.id);
-      }
-      if (fam.wifeId) {
-        if (!famsByPerson[fam.wifeId]) famsByPerson[fam.wifeId] = [];
-        famsByPerson[fam.wifeId].push(fam.id);
+    for (const u of unionList) {
+      for (const personId of partnersByUnion.get(u.id) ?? []) {
+        if (!personId) continue;
+        if (!famsByPerson[personId]) famsByPerson[personId] = [];
+        famsByPerson[personId].push(u.id);
       }
     }
 
@@ -58,13 +80,17 @@ export class GenealogyRepository {
         famc: famcByChild[ind.id] || [],
         fams: famsByPerson[ind.id] || []
       })),
-      families: famList.map((fam) => ({
-        ...fam,
-        partner1Id: fam.husbandId,
-        partner2Id: fam.wifeId,
-        children: childrenByFam[fam.id] || [],
-        events: eventsByEntity[fam.id] || []
-      }))
+      families: unionList.map((u) => {
+        const partners = partnersByUnion.get(u.id) ?? [];
+        return {
+          id: u.id,
+          partner1Id: partners[0] ?? null,
+          partner2Id: partners[1] ?? null,
+          status: u.status,
+          children: childrenByUnion.get(u.id) || [],
+          events: eventsByEntity[u.id] || []
+        };
+      })
     };
   }
 
@@ -318,307 +344,10 @@ export class GenealogyRepository {
         )
       );
 
-    await this.db.delete(familyChildren).where(eq(familyChildren.childId, individualId));
-
-    await this.db
-      .update(families)
-      .set({ husbandId: null })
-      .where(and(eq(families.treeId, treeId), eq(families.husbandId, individualId)));
-
-    await this.db
-      .update(families)
-      .set({ wifeId: null })
-      .where(and(eq(families.treeId, treeId), eq(families.wifeId, individualId)));
-
+    // Neutral model: removing the person cascades union_partners and
+    // parent_child assertions referencing them.
     await this.db
       .delete(individuals)
       .where(and(eq(individuals.treeId, treeId), eq(individuals.id, individualId)));
-  }
-
-  async createFamily(data: {
-    treeId: string;
-    xrefId?: string | null;
-    husbandId?: string | null;
-    wifeId?: string | null;
-    partner1Id?: string | null;
-    partner2Id?: string | null;
-    childrenIds?: string[];
-    marriageDate?: string | null;
-    marriagePlace?: string | null;
-  }) {
-    const partner1 = data.partner1Id !== undefined ? data.partner1Id : data.husbandId;
-    const partner2 = data.partner2Id !== undefined ? data.partner2Id : data.wifeId;
-
-    const existingFamilies = await this.db
-      .select()
-      .from(families)
-      .where(eq(families.treeId, data.treeId))
-      .all();
-
-    const duplicate = existingFamilies.find(
-      (f) => (f.husbandId || null) === (partner1 || null) && (f.wifeId || null) === (partner2 || null)
-    );
-
-    if (duplicate) {
-      const existingChildRows = await this.db
-        .select()
-        .from(familyChildren)
-        .where(eq(familyChildren.familyId, duplicate.id))
-        .all();
-      const existingChildIds = new Set(existingChildRows.map((c) => c.childId));
-      for (const childId of data.childrenIds || []) {
-        if (childId?.trim() && !existingChildIds.has(childId.trim())) {
-          await this.db.insert(familyChildren).values({
-            familyId: duplicate.id,
-            childId: childId.trim(),
-            pedigree: 'birth'
-          });
-        }
-      }
-
-      if ((data.marriageDate?.trim() || data.marriagePlace?.trim()) && !existingChildRows.length) {
-        const hasMarr = await this.db.select().from(events).where(and(
-          eq(events.treeId, data.treeId),
-          eq(events.entityType, 'FAMILY'),
-          eq(events.entityId, duplicate.id),
-          eq(events.type, 'MARR')
-        )).get();
-        if (!hasMarr) {
-          const now = new Date();
-          await this.db.insert(events).values({
-            id: crypto.randomUUID(),
-            treeId: data.treeId,
-            entityType: 'FAMILY',
-            entityId: duplicate.id,
-            type: 'MARR',
-            dateRaw: data.marriageDate?.trim() || null,
-            dateSort: data.marriageDate?.trim() || null,
-            place: data.marriagePlace?.trim() || null,
-            description: null,
-            version: 1,
-            createdAt: now,
-            updatedAt: now
-          });
-        }
-      }
-
-      return { family: duplicate, merged: true };
-    }
-
-    const id = crypto.randomUUID();
-    const now = new Date();
-    const newFamily = {
-      id,
-      treeId: data.treeId,
-      xrefId: data.xrefId || `@F_${id.slice(0, 8)}@`,
-      husbandId: partner1 || null,
-      wifeId: partner2 || null,
-      version: 1,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    await this.db.insert(families).values(newFamily);
-
-    for (const childId of data.childrenIds || []) {
-      if (childId?.trim()) {
-        await this.db.insert(familyChildren).values({
-          familyId: id,
-          childId: childId.trim(),
-          pedigree: 'birth'
-        });
-      }
-    }
-
-    if (data.marriageDate?.trim() || data.marriagePlace?.trim()) {
-      await this.db.insert(events).values({
-        id: crypto.randomUUID(),
-        treeId: data.treeId,
-        entityType: 'FAMILY',
-        entityId: id,
-        type: 'MARR',
-        dateRaw: data.marriageDate?.trim() || null,
-        dateSort: data.marriageDate?.trim() || null,
-        place: data.marriagePlace?.trim() || null,
-        description: null,
-        version: 1,
-        createdAt: now,
-        updatedAt: now
-      });
-    }
-
-    return { family: newFamily, merged: false };
-  }
-
-  async getFamily(treeId: string, familyId: string) {
-    const family = await this.db.select().from(families).where(and(eq(families.id, familyId), eq(families.treeId, treeId))).get();
-    if (!family) return null;
-
-    const [children, familyEvents] = await Promise.all([
-      this.db.select().from(familyChildren).where(eq(familyChildren.familyId, familyId)).all(),
-      this.db.select().from(events).where(and(eq(events.entityId, familyId), eq(events.treeId, treeId))).all()
-    ]);
-
-    return {
-      family: {
-        ...family,
-        partner1Id: family.husbandId,
-        partner2Id: family.wifeId,
-        children,
-        events: familyEvents
-      }
-    };
-  }
-
-  async updateFamily(
-    treeId: string,
-    familyId: string,
-    expectedVersion: number | undefined,
-    data: {
-      husbandId?: string | null;
-      wifeId?: string | null;
-      partner1Id?: string | null;
-      partner2Id?: string | null;
-      childrenIds?: string[];
-      marriageDate?: string | null;
-      marriagePlace?: string | null;
-      divorceDate?: string | null;
-      divorcePlace?: string | null;
-    }
-  ) {
-    const existingFamily = await this.db.select().from(families).where(and(eq(families.id, familyId), eq(families.treeId, treeId))).get();
-    if (!existingFamily) throw new NotFoundError('Family', familyId);
-
-    if (expectedVersion !== undefined && existingFamily.version !== expectedVersion) {
-      throw new ConcurrencyConflictError(
-        `Family '${familyId}' was modified concurrently (current: ${existingFamily.version}, expected: ${expectedVersion})`
-      );
-    }
-
-    const partner1 = data.partner1Id !== undefined ? data.partner1Id : data.husbandId;
-    const partner2 = data.partner2Id !== undefined ? data.partner2Id : data.wifeId;
-
-    const nextVersion = existingFamily.version + 1;
-    const now = new Date();
-
-    await this.db.update(families)
-      .set({
-        husbandId: partner1 === undefined ? existingFamily.husbandId : (partner1 || null),
-        wifeId: partner2 === undefined ? existingFamily.wifeId : (partner2 || null),
-        version: nextVersion,
-        updatedAt: now
-      })
-      .where(and(eq(families.id, familyId), eq(families.treeId, treeId)));
-
-    if (Array.isArray(data.childrenIds)) {
-      await this.db.delete(familyChildren).where(eq(familyChildren.familyId, familyId));
-      for (const childId of data.childrenIds) {
-        if (childId?.trim()) {
-          await this.db.insert(familyChildren).values({
-            familyId,
-            childId: childId.trim(),
-            pedigree: 'birth'
-          });
-        }
-      }
-    }
-
-    const trimmedDate = data.marriageDate?.trim() || null;
-    const trimmedPlace = data.marriagePlace?.trim() || null;
-
-    if (trimmedDate || trimmedPlace) {
-      const existingMarr = await this.db.select().from(events).where(and(
-        eq(events.treeId, treeId),
-        eq(events.entityType, 'FAMILY'),
-        eq(events.entityId, familyId),
-        eq(events.type, 'MARR')
-      )).get();
-
-      if (existingMarr) {
-        await this.db.update(events)
-          .set({
-            dateRaw: trimmedDate,
-            dateSort: trimmedDate,
-            place: trimmedPlace,
-            version: existingMarr.version + 1,
-            updatedAt: now
-          })
-          .where(eq(events.id, existingMarr.id));
-      } else {
-        await this.db.insert(events).values({
-          id: crypto.randomUUID(),
-          treeId,
-          entityType: 'FAMILY',
-          entityId: familyId,
-          type: 'MARR',
-          dateRaw: trimmedDate,
-          dateSort: trimmedDate,
-          place: trimmedPlace,
-          description: null,
-          version: 1,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    } else if (data.marriageDate !== undefined || data.marriagePlace !== undefined) {
-      await this.db.delete(events).where(and(
-        eq(events.treeId, treeId),
-        eq(events.entityType, 'FAMILY'),
-        eq(events.entityId, familyId),
-        eq(events.type, 'MARR')
-      ));
-    }
-
-    const trimmedDivDate = data.divorceDate?.trim() || null;
-    const trimmedDivPlace = data.divorcePlace?.trim() || null;
-
-    if (trimmedDivDate || trimmedDivPlace) {
-      const existingDiv = await this.db.select().from(events).where(and(
-        eq(events.treeId, treeId),
-        eq(events.entityType, 'FAMILY'),
-        eq(events.entityId, familyId),
-        eq(events.type, 'DIV')
-      )).get();
-
-      if (existingDiv) {
-        await this.db.update(events)
-          .set({
-            dateRaw: trimmedDivDate,
-            dateSort: trimmedDivDate,
-            place: trimmedDivPlace,
-            version: existingDiv.version + 1,
-            updatedAt: now
-          })
-          .where(eq(events.id, existingDiv.id));
-      } else {
-        await this.db.insert(events).values({
-          id: crypto.randomUUID(),
-          treeId,
-          entityType: 'FAMILY',
-          entityId: familyId,
-          type: 'DIV',
-          dateRaw: trimmedDivDate,
-          dateSort: trimmedDivDate,
-          place: trimmedDivPlace,
-          description: null,
-          version: 1,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    } else if (data.divorceDate !== undefined || data.divorcePlace !== undefined) {
-      await this.db.delete(events).where(and(
-        eq(events.treeId, treeId),
-        eq(events.entityType, 'FAMILY'),
-        eq(events.entityId, familyId),
-        eq(events.type, 'DIV')
-      ));
-    }
-  }
-
-  async deleteFamily(treeId: string, familyId: string) {
-    await this.db.delete(familyChildren).where(eq(familyChildren.familyId, familyId));
-    await this.db.delete(events).where(and(eq(events.treeId, treeId), eq(events.entityId, familyId)));
-    await this.db.delete(families).where(and(eq(families.id, familyId), eq(families.treeId, treeId)));
   }
 }
