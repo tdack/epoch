@@ -38,6 +38,12 @@ export interface ParsedGedcomData {
   individuals: ParsedIndividual[];
   families: ParsedFamily[];
   treeName?: string;
+  /**
+   * Raw lines of structures the parser does not yet model, preserved verbatim
+   * so they survive export. `xref` is the owning record's XREF (or null for
+   * tree/header-level records).
+   */
+  preserved: Array<{ xref: string | null; lines: string[] }>;
 }
 
 /** Individual-level event tags shared by GEDCOM 5.5.1 and 7.0. */
@@ -83,6 +89,7 @@ interface GedcomNode {
   tag: string;
   xref?: string;
   value?: string;
+  rawLine: string;
   children: GedcomNode[];
 }
 
@@ -145,6 +152,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       tag: parsed.tag,
       xref: parsed.xref,
       value: parsed.value,
+      rawLine: line,
       children: []
     };
 
@@ -165,7 +173,14 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 
   const individuals: ParsedIndividual[] = [];
   const families: ParsedFamily[] = [];
+  const preserved: ParsedGedcomData['preserved'] = [];
   let treeName = 'Imported Family Tree';
+
+  const collectLines = (node: GedcomNode): string[] => {
+    const out = [node.rawLine];
+    for (const c of node.children) out.push(...collectLines(c));
+    return out;
+  };
 
   for (const node of rootNodes) {
     if (node.tag === 'HEAD') {
@@ -219,6 +234,10 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
             place: placNode?.value?.trim(),
             description: descNode?.value?.trim() || child.value?.trim()
           });
+        } else {
+          // Preserve unmodeled individual-level structures (CHAN, NOTE, SOUR,
+          // OBJE, REFN, ASSO, custom tags, etc.) verbatim.
+          preserved.push({ xref: id, lines: collectLines(child) });
         }
       }
 
@@ -263,6 +282,9 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
             place: placNode?.value?.trim(),
             description: child.value?.trim()
           });
+        } else {
+          // Preserve unmodeled family-level structures verbatim.
+          preserved.push({ xref: id, lines: collectLines(child) });
         }
       }
 
@@ -273,6 +295,10 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         children,
         events
       });
+    } else if (node.tag !== 'TRLR') {
+      // Preserve unrecognized root-level records (NOTE, SOUR, SUBM, REPO, OBJE,
+      // custom records) so they are retained for export.
+      preserved.push({ xref: node.xref ?? null, lines: collectLines(node) });
     }
   }
 
@@ -280,7 +306,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
     version: detectGedcomVersion(rawContent),
     individuals,
     families,
-    treeName
+    treeName,
+    preserved
   };
 }
 
@@ -315,10 +342,30 @@ export interface GedcomExportPayload {
       description: string | null;
     }>;
   }>;
+  /** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
+  preserved?: Array<{ xref: string | null; lines: string[] }>;
 }
 
 function asXref(id: string): string {
   return id.startsWith('@') ? id : `@${id}@`;
+}
+
+/**
+ * Append preserved (unmodeled) GEDCOM structures to the output.
+ * Structures owned by a specific record are emitted immediately after that
+ * record; tree/header-level records are emitted before the trailer.
+ */
+function appendPreserved(
+  lines: string[],
+  preserved: Array<{ xref: string | null; lines: string[] }> | undefined,
+  ownerXref: string | null
+): void {
+  if (!preserved) return;
+  for (const entry of preserved) {
+    if (entry.xref === ownerXref) {
+      for (const l of entry.lines) lines.push(l);
+    }
+  }
 }
 
 /**
@@ -372,6 +419,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
         lines.push(`1 FAMS ${asXref(f)}`);
       }
     }
+    appendPreserved(lines, data.preserved, xref);
   }
 
   // Families
@@ -400,7 +448,10 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
         if (ev.description) lines.push(`2 NOTE ${ev.description}`);
       }
     }
+    appendPreserved(lines, data.preserved, xref);
   }
+
+  appendPreserved(lines, data.preserved, null);
 
   // Trailer
   lines.push('0 TRLR');
@@ -462,6 +513,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
         lines.push(`1 FAMS ${asXref(f)}`);
       }
     }
+    appendPreserved(lines, data.preserved, xref);
   }
 
   // Families
@@ -490,7 +542,10 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
         if (ev.description) lines.push(`2 NOTE ${ev.description}`);
       }
     }
+    appendPreserved(lines, data.preserved, xref);
   }
+
+  appendPreserved(lines, data.preserved, null);
 
   // Trailer
   lines.push('0 TRLR');

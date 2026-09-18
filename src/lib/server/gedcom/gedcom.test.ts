@@ -155,6 +155,46 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
     expect(reParsed.families).toHaveLength(1);
   });
 
+  it('preserves unmodeled GEDCOM structures verbatim for export', () => {
+    const gedcomWithCustomTags = `0 HEAD
+1 SOUR TEST
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Doe/
+1 SEX M
+1 REFN 12345
+2 TYPE Reference
+1 _ATTR Custom
+2 DESC Something unmodeled
+0 TRLR`;
+
+    const parsed = parseGedcom(gedcomWithCustomTags);
+    expect(parsed.preserved.length).toBeGreaterThan(0);
+
+    const refn = parsed.preserved.find((p) => p.xref === '@I1@' && p.lines[0].includes('REFN'));
+    expect(refn).toBeDefined();
+    expect(refn!.lines[0]).toBe('1 REFN 12345');
+    expect(refn!.lines[1]).toBe('2 TYPE Reference');
+
+    // Serializer re-emits preserved lines after the owner record.
+    const generated = buildGedcom551String({
+      individuals: parsed.individuals.map((ind) => ({
+        id: ind.id,
+        givenName: ind.givenName || null,
+        surname: ind.surname || null,
+        sex: ind.sex || null,
+        events: [],
+        famc: ind.famc,
+        fams: ind.fams
+      })),
+      families: [],
+      preserved: parsed.preserved
+    });
+    expect(generated).toContain('1 REFN 12345');
+    expect(generated).toContain('1 _ATTR Custom');
+  });
+
   it('verifies batch parameter limits never exceed Cloudflare D1 max bound parameters', () => {
     // D1 maximum allowed bound parameters per query is 100
     const D1_MAX_ALLOWED_PARAMS = 100;
