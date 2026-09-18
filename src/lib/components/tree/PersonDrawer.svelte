@@ -1,49 +1,47 @@
 <script lang="ts">
-  import { X, Calendar, MapPin, FileText, Upload, Image as ImageIcon, Heart, Users, UserPlus, Pencil, Trash2, HeartCrack } from 'lucide-svelte';
+  import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2 } from 'lucide-svelte';
+  import type { RelationshipGraph, RelationshipGraphPerson } from '#lib/server/domain/relationship-graph.js';
 
   interface Props {
     person: any | null;
     treeId: string;
-    families?: any[];
-    individuals?: any[];
+    graph: RelationshipGraph;
     onClose: () => void;
     onMediaUploaded?: () => void;
     onSelectPerson?: (id: string) => void;
-    onAddFamily?: (defaults: { husbandId?: string; wifeId?: string; partner1Id?: string; partner2Id?: string; childId?: string; familyId?: string; mode?: 'editFamily' | 'newFamily' | 'addChild' }) => void;
     onAddRelationship?: (person: any) => void;
     onEditPerson?: (person: any) => void;
     onDeletePerson?: (person: any) => void;
   }
 
-  let { person, treeId, families = [], individuals = [], onClose, onMediaUploaded, onSelectPerson, onAddFamily, onAddRelationship, onEditPerson, onDeletePerson }: Props = $props();
+  let { person, treeId, graph, onClose, onMediaUploaded, onSelectPerson, onAddRelationship, onEditPerson, onDeletePerson }: Props = $props();
 
-  function indName(id: string | null | undefined): string {
+  function nameOf(id: string | null | undefined): string {
     if (!id) return '';
-    const ind = individuals.find((i: any) => i.id === id);
-    if (!ind) return id;
-    return [ind.givenName, ind.surname].filter(Boolean).join(' ') || id;
+    const p = graph.people.find((g) => g.id === id);
+    return p?.displayName || id;
   }
 
-  function famEvent(fam: any, type: string) {
-    return (fam?.events || []).find((e: any) => e.type === type) || null;
+  function graphPersonFor(id: string): RelationshipGraphPerson | null {
+    return graph.people.find((g) => g.id === id) || null;
   }
 
-  function spouseOf(fam: any): string | null | undefined {
-    const p1 = fam.partner1Id || fam.husbandId;
-    const p2 = fam.partner2Id || fam.wifeId;
-    return p1 === person.id ? p2 : p1;
+  function isDeceased(id: string): boolean {
+    return graph.people.find((g) => g.id === id)?.isDeceased ?? false;
   }
 
-  function ordinal(n: number): string {
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  }
+  // Union IDs where this person is recorded as a child, keyed by union.
+  let parentGroups = $derived.by(() => {
+    const gp = person ? graphPersonFor(person.id) : null;
+    return gp ? gp.parentsByUnion : {};
+  });
 
-  // Parent family (FAMC) records for this person
-  let parentFamilies = $derived(families.filter((f: any) => (person?.raw?.famc || []).includes(f.id)));
-  // Spouse families (FAMS) records for this person
-  let spouseFamilies = $derived(families.filter((f: any) => (person?.raw?.fams || []).includes(f.id)));
+  // Unions where this person participates as a partner.
+  let partnerUnions = $derived.by(() => {
+    const gp = person ? graphPersonFor(person.id) : null;
+    if (!gp) return [];
+    return graph.unions.filter((u) => gp.unionIds.includes(u.id));
+  });
 
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
@@ -178,100 +176,60 @@
       <div class="space-y-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-stone-600">Families</h3>
 
-        {#each parentFamilies as fam}
+        {#each Object.entries(parentGroups) as [unionKey, parents]}
           <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">
-                {#if (fam.partner1Id || fam.husbandId) && (fam.partner2Id || fam.wifeId)}Parents{:else}Parent{/if}
+                {parents.length > 1 ? 'Parents' : 'Parent'}
               </span>
-              <button
-                type="button"
-                title="Edit this family"
-                onclick={() => onAddFamily?.({ familyId: fam.id, mode: 'editFamily' })}
-                class="text-stone-400 hover:text-emerald-800 p-1 rounded-md hover:bg-stone-200/60 transition-colors cursor-pointer"
-              >
-                <Pencil class="w-3.5 h-3.5" />
-              </button>
             </div>
-            {#if fam.partner1Id || fam.husbandId}
+            {#each parents as parent, i}
               <button
                 type="button"
-                onclick={() => onSelectPerson?.(fam.partner1Id || fam.husbandId)}
+                onclick={() => onSelectPerson?.(parent.parentId)}
                 class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                  {indName(fam.partner1Id || fam.husbandId)}
-                  <span class="text-stone-400 font-normal">({(fam.partner2Id || fam.wifeId) ? 'parent 1' : 'parent'})</span>
+                  {nameOf(parent.parentId)}
+                  <span class="text-stone-400 font-normal">({parent.type})</span>
                 </span>
               </button>
-            {/if}
-            {#if fam.partner2Id || fam.wifeId}
-              <button
-                type="button"
-                onclick={() => onSelectPerson?.(fam.partner2Id || fam.wifeId)}
-                class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
-              >
-                <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                  {indName(fam.partner2Id || fam.wifeId)}
-                  <span class="text-stone-400 font-normal">({(fam.partner1Id || fam.husbandId) ? 'parent 2' : 'parent'})</span>
-                </span>
-              </button>
-            {/if}
+            {/each}
           </div>
         {/each}
 
-        {#each spouseFamilies as fam}
+        {#each partnerUnions as union}
           <div class="bg-amber-50/70 rounded-xl p-3 border border-amber-200/80 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
-                {#if spouseFamilies.length > 1 && (person.raw?.fams?.indexOf(fam.id) ?? 0) > 0}{ordinal((person.raw?.fams?.indexOf(fam.id) ?? 0) + 1)} {/if}Partner & Children
+                Partner &amp; Children
+                {#if union.status !== 'active'}<span class="text-red-700">· {union.status}</span>{/if}
               </span>
-              <button
-                type="button"
-                title="Edit this family"
-                onclick={() => onAddFamily?.({ familyId: fam.id, mode: 'editFamily' })}
-                class="text-amber-600 hover:text-amber-900 p-1 rounded-md hover:bg-amber-100/70 transition-colors cursor-pointer"
-              >
-                <Pencil class="w-3.5 h-3.5" />
-              </button>
             </div>
-            {#if spouseOf(fam)}
+            {#each union.partnerIds.filter((id) => id !== person.id) as partnerId}
               <button
                 type="button"
-                onclick={() => onSelectPerson?.(spouseOf(fam)!)}
+                onclick={() => onSelectPerson?.(partnerId)}
                 class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                  {indName(spouseOf(fam)!)}
-                  <span class="text-stone-400 font-normal">({spouseFamilies.length > 1 ? `partner ${(person.raw?.fams?.indexOf(fam.id) ?? 0) + 1}` : 'partner'})</span>
+                  {nameOf(partnerId)}
+                  <span class="text-stone-400 font-normal">({isDeceased(partnerId) ? 'deceased' : 'partner'})</span>
                 </span>
               </button>
-            {/if}
-            {#if famEvent(fam, 'MARR')}
-              <div class="flex items-center text-[11px] text-stone-600 px-0.5">
-                <Heart class="w-3 h-3 mr-1.5 text-amber-700 shrink-0" />
-                <span>Married{famEvent(fam, 'MARR')?.dateRaw ? ` ${famEvent(fam, 'MARR').dateRaw}` : ''}{famEvent(fam, 'MARR')?.place ? ` · ${famEvent(fam, 'MARR').place}` : ''}</span>
-              </div>
-            {/if}
-            {#if famEvent(fam, 'DIV')}
-              <div class="flex items-center text-[11px] text-stone-600 px-0.5">
-                <HeartCrack class="w-3 h-3 mr-1.5 text-red-700 shrink-0" />
-                <span>Divorced{famEvent(fam, 'DIV')?.dateRaw ? ` ${famEvent(fam, 'DIV').dateRaw}` : ''}</span>
-              </div>
-            {/if}
-            {#if (fam.children || []).length}
+            {/each}
+            {#if union.children.length}
               <div class="space-y-1 pt-0.5">
                 <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Children</span>
-                {#each fam.children as child}
-                  {@const childId = child.childId || child}
+                {#each union.children as child}
                   <button
                     type="button"
-                    onclick={() => onSelectPerson?.(childId)}
+                    onclick={() => onSelectPerson?.(child.childId)}
                     class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
                   >
                     <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-                      {indName(childId)}
-                      <span class="text-stone-400 font-normal">{#if child === person || childId === person.id}(this person){/if}</span>
+                      {nameOf(child.childId)}
+                      <span class="text-stone-400 font-normal">{child.childId === person.id ? '(this person)' : ''}</span>
                     </span>
                   </button>
                 {/each}
@@ -280,42 +238,14 @@
           </div>
         {/each}
 
-        <!-- Add-family actions, inline like webtrees -->
+        <!-- Add-relationship action -->
         <div class="bg-stone-100/70 border border-stone-200 rounded-xl p-3 space-y-2">
-          {#if parentFamilies.length === 0}
-            <button
-              type="button"
-              onclick={() => onAddFamily?.({ childId: person.id, mode: 'newFamily' })}
-              class="w-full text-left text-xs font-medium text-emerald-800 hover:text-emerald-950 hover:bg-white rounded-lg px-2 py-1.5 transition-colors cursor-pointer"
-            >
-              + Add parents (new family as child)
-            </button>
-          {/if}
           <button
             type="button"
-            onclick={() => {
-              onAddFamily?.({
-                partner1Id: person.id,
-                husbandId: person.id,
-                mode: 'newFamily'
-              });
-            }}
+            onclick={() => onAddRelationship?.(person)}
             class="w-full text-left text-xs font-medium text-emerald-800 hover:text-emerald-950 hover:bg-white rounded-lg px-2 py-1.5 transition-colors cursor-pointer"
           >
-            + Add a partner
-          </button>
-          <button
-            type="button"
-            onclick={() => {
-              onAddFamily?.({
-                partner1Id: person.id,
-                husbandId: person.id,
-                mode: 'addChild'
-              });
-            }}
-            class="w-full text-left text-xs font-medium text-emerald-800 hover:text-emerald-950 hover:bg-white rounded-lg px-2 py-1.5 transition-colors cursor-pointer"
-          >
-            + Add a child
+            + Add parents, partner, or child
           </button>
         </div>
       </div>

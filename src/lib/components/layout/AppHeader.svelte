@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GitBranch, Plus, Trash2, UserPlus, Users, Upload, Download } from 'lucide-svelte';
+  import { GitBranch, Plus, Trash2, UserPlus, Upload, Download } from 'lucide-svelte';
   import type { TreeSummary } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -10,7 +10,6 @@
     onopenNewTree: () => void;
     onopenDeleteTree: () => void;
     onopenAddPerson: () => void;
-    onopenAddFamily: () => void;
     onfileSelect: (e: Event) => void;
     onexportGedcom: () => void;
   }
@@ -23,7 +22,6 @@
     onopenNewTree,
     onopenDeleteTree,
     onopenAddPerson,
-    onopenAddFamily,
     onfileSelect,
     onexportGedcom
   }: Props = $props();
@@ -84,16 +82,6 @@
       >
         <UserPlus class="w-3.5 h-3.5" />
         <span>Add Person</span>
-      </button>
-
-      <!-- Add Family Action -->
-      <button
-        type="button"
-        onclick={onopenAddFamily}
-        class="inline-flex items-center space-x-1.5 text-xs font-semibold bg-amber-800 hover:bg-amber-700 text-amber-50 rounded-lg px-3 py-1.5 transition-colors cursor-pointer shadow-sm shadow-amber-900/15"
-      >
-        <Users class="w-3.5 h-3.5" />
-        <span>Add Family</span>
       </button>
     {/if}
 

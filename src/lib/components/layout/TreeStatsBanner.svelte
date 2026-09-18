@@ -24,7 +24,7 @@
       <GitBranch class="w-5 h-5" />
     </div>
     <div>
-      <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Families</p>
+      <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Unions</p>
       <p class="text-xl font-bold text-stone-900">{treeData.families.length}</p>
     </div>
   </div>
