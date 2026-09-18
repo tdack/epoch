@@ -2,18 +2,56 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-svelte';
-  import type { NeutralGraphLayout } from './neutral-graph-layout';
+  import type { NeutralGraphLayout, GraphLink } from './neutral-graph-layout';
+
+  interface PersonRef {
+    id: string;
+    displayName: string;
+  }
+
+  /** Drag-to-relate: user released a drag from one person onto another. */
+  interface DragRelate {
+    source: PersonRef;
+    target: PersonRef;
+  }
 
   interface Props {
     layout: NeutralGraphLayout;
     onSelectPerson?: (id: string) => void;
+    onEditPerson?: (id: string) => void;
+    onDeletePerson?: (id: string) => void;
+    onAddRelationship?: (anchor: PersonRef) => void;
+    onRemoveLink?: (link: GraphLink) => void;
+    onRemoveUnion?: (unionId: string) => void;
+    onDragRelate?: (relate: DragRelate) => void;
   }
 
-  let { layout, onSelectPerson }: Props = $props();
+  let {
+    layout,
+    onSelectPerson,
+    onEditPerson,
+    onDeletePerson,
+    onAddRelationship,
+    onRemoveLink,
+    onRemoveUnion,
+    onDragRelate
+  }: Props = $props();
 
   let svgElement: SVGSVGElement | null = $state(null);
   let transform = $state({ k: 1, x: 400, y: 100 });
   let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
+
+  // Context menu state (menu items + screen coords inside this container).
+  let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
+  // Selected link id (for Delete-key removal), and drag source person id.
+  let selectedLinkId = $state<string | null>(null);
+  let dragSourceId = $state<string | null>(null);
+
+  interface MenuItem {
+    label: string;
+    danger?: boolean;
+    onClick: () => void;
+  }
 
   const NODE_WIDTH = 210;
   const NODE_HEIGHT = 74;
@@ -79,9 +117,114 @@
     if (sex === 'F') return '#fff7ed';
     return '#fdfbf7';
   }
+
+  // ---- Context menu ----
+
+  function openPersonMenu(e: MouseEvent, personId: string, displayName: string) {
+    if (!e.target || e.button !== 2) return;
+    e.preventDefault();
+    const items: MenuItem[] = [];
+    if (onEditPerson) {
+      items.push({ label: 'Edit details', onClick: () => onEditPerson(personId) });
+    }
+    if (onAddRelationship) {
+      items.push({ label: 'Add relationship', onClick: () => onAddRelationship({ id: personId, displayName }) });
+    }
+    if (onDeletePerson) {
+      items.push({ label: 'Delete person', danger: true, onClick: () => onDeletePerson(personId) });
+    }
+    menu = { x: e.clientX, y: e.clientY, items };
+  }
+
+  function openUnionMenu(e: MouseEvent, unionId: string) {
+    if (!e.target || e.button !== 2) return;
+    e.preventDefault();
+    const items: MenuItem[] = [];
+    if (onRemoveUnion) {
+      items.push({ label: 'Delete union', danger: true, onClick: () => onRemoveUnion(unionId) });
+    }
+    menu = { x: e.clientX, y: e.clientY, items };
+  }
+
+  function openLinkMenu(e: MouseEvent, link: GraphLink) {
+    if (!e.target || e.button !== 2) return;
+    e.preventDefault();
+    const items: MenuItem[] = [];
+    if (onRemoveLink) {
+      items.push({
+        label: link.type === 'parent_child' ? 'Delete relationship' : 'Delete partnership',
+        danger: true,
+        onClick: () => onRemoveLink(link)
+      });
+    }
+    menu = { x: e.clientX, y: e.clientY, items };
+  }
+
+  function closeMenu() {
+    menu = null;
+  }
+
+  function runMenuAction(item: MenuItem) {
+    closeMenu();
+    item.onClick();
+  }
+
+  // ---- Drag to relate ----
+
+  function onNodePointerDown(e: PointerEvent, personId: string) {
+    if (e.button !== 0) return;
+    // Prevent d3 pan/zoom from starting on a person node.
+    e.stopPropagation();
+    dragSourceId = personId;
+  }
+
+  function onSvgPointerUp(e: PointerEvent) {
+    if (!dragSourceId) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const targetId = el?.closest?.('[data-person-id]')?.getAttribute('data-person-id');
+    if (targetId && targetId !== dragSourceId && onDragRelate) {
+      const source = layout.people.find((n) => n.person.id === dragSourceId);
+      const target = layout.people.find((n) => n.person.id === targetId);
+      if (source && target) {
+        onDragRelate({
+          source: { id: source.person.id, displayName: source.person.displayName },
+          target: { id: target.person.id, displayName: target.person.displayName }
+        });
+      }
+    }
+    dragSourceId = null;
+  }
+
+  function onSvgClick(e: MouseEvent) {
+    // Clicking empty canvas clears link selection (and any menu).
+    if ((e.target as Element)?.closest?.('[data-link-id], [data-person-id], [data-union-id]')) return;
+    selectedLinkId = null;
+    closeMenu();
+  }
+
+  function onLinkClick(e: MouseEvent, link: GraphLink) {
+    e.stopPropagation();
+    selectedLinkId = selectedLinkId === link.id ? null : link.id;
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLinkId && onRemoveLink) {
+      const link = layout.links.find((l) => l.id === selectedLinkId);
+      if (link) {
+        e.preventDefault();
+        onRemoveLink(link);
+        selectedLinkId = null;
+      }
+    }
+    if (e.key === 'Escape') {
+      closeMenu();
+      selectedLinkId = null;
+    }
+  }
 </script>
 
-<div class="relative w-full h-[75vh] overflow-hidden bg-[#f7f3ea] rounded-2xl border border-stone-300/80 shadow-inner">
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+<div class="relative w-full h-[75vh] overflow-hidden bg-[#f7f3ea] rounded-2xl border border-stone-300/80 shadow-inner" onclick={onSvgClick} onkeydown={onKeydown}>
   <div
     class="absolute inset-0 pointer-events-none opacity-40"
     style="background-image: radial-gradient(circle, #d6cebf 1px, transparent 1px); background-size: 24px 24px;"
@@ -104,25 +247,38 @@
       <p class="text-base font-medium text-stone-700">No people in this tree yet.</p>
     </div>
   {:else}
-    <svg bind:this={svgElement} class="w-full h-full cursor-grab active:cursor-grabbing select-none relative z-10">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <svg bind:this={svgElement} class="w-full h-full cursor-grab active:cursor-grabbing select-none relative z-10" onpointerup={onSvgPointerUp}>
       <g transform="translate({transform.x},{transform.y}) scale({transform.k})">
         <!-- Links -->
         {#each layout.links as link}
           {#if link.type === 'partner'}
+            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <line
+              data-link-id={link.id}
               x1={link.source.x}
               y1={link.source.y}
               x2={link.target.x}
               y2={link.target.y}
+              onclick={(e) => onLinkClick(e, link)}
+              oncontextmenu={(e) => openLinkMenu(e, link)}
               class="stroke-amber-600/70 stroke-[2px] stroke-dashed"
+              class:stroke-amber-900={selectedLinkId === link.id}
+              class:!stroke-[3px]={selectedLinkId === link.id}
               stroke-dasharray="5 4"
+              style="cursor: pointer; pointer-events: stroke;"
             />
           {:else}
+            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <path
+              data-link-id={link.id}
               d="M {link.source.x} {link.source.y} C {link.source.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {link.target.y}"
               stroke={typeColor(link.relationshipType)}
-              stroke-width="2"
+              stroke-width={selectedLinkId === link.id ? 4 : 2}
+              onclick={(e) => onLinkClick(e, link)}
+              oncontextmenu={(e) => openLinkMenu(e, link)}
               class="fill-none opacity-70"
+              style="cursor: pointer; pointer-events: stroke;"
             />
           {/if}
         {/each}
@@ -130,7 +286,15 @@
         <!-- Union nodes -->
         {#each layout.unions as union}
           {@const marrLabel = union.union.marriageDate || union.union.marriagePlace}
-          <g transform="translate({union.x}, {union.y})" class="cursor-pointer">
+          <g
+            data-union-id={union.id}
+            transform="translate({union.x}, {union.y})"
+            class="cursor-pointer"
+            oncontextmenu={(e) => openUnionMenu(e, union.id)}
+            role="button"
+            tabindex="0"
+            aria-label="Union · {union.union.status}"
+          >
             <circle r="13" class="fill-[#fdfbf7] stroke-amber-500/80 stroke-[2px]" />
             <circle cx="-3" cy="0" r="4.5" class="fill-none stroke-amber-600 stroke-[1.5px]" />
             <circle cx="3" cy="0" r="4.5" class="fill-none stroke-amber-600 stroke-[1.5px]" />
@@ -150,11 +314,14 @@
         <!-- People -->
         {#each layout.people as node}
           <g
+            data-person-id={node.person.id}
             transform="translate({node.x - NODE_WIDTH / 2}, {node.y - NODE_HEIGHT / 2})"
             class="cursor-pointer group"
             role="button"
             tabindex="0"
             onclick={() => onSelectPerson?.(node.person.id)}
+            oncontextmenu={(e) => openPersonMenu(e, node.person.id, node.person.displayName)}
+            onpointerdown={(e) => onNodePointerDown(e, node.person.id)}
             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectPerson?.(node.person.id); }}
           >
             <rect
@@ -188,6 +355,30 @@
         {/each}
       </g>
     </svg>
+  {/if}
+
+  <!-- Context menu -->
+  {#if menu}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="absolute z-30 min-w-44 bg-white border border-stone-200 rounded-lg shadow-lg py-1 text-sm"
+      style="left: {menu.x}px; top: {menu.y}px;"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === 'Escape') closeMenu();
+      }}
+      role="menu"
+      tabindex="-1"
+    >
+      {#each menu.items as item}
+        <button
+          type="button"
+          role="menuitem"
+          onclick={() => runMenuAction(item)}
+          class="w-full text-left px-3 py-1.5 hover:bg-stone-100 cursor-pointer {item.danger ? 'text-red-700' : 'text-stone-800'}"
+        >{item.label}</button>
+      {/each}
+    </div>
   {/if}
 
   <!-- Relationship type legend -->

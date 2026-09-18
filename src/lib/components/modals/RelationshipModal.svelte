@@ -15,11 +15,13 @@
     treeId: string;
     /** The person who is the anchor/subject of this relationship edit. */
     anchor: { id: string; givenName: string | null; surname: string | null };
+    /** Optional counterpart already known (e.g. from drag-to-relate). */
+    preselect?: { id: string; givenName: string | null; surname: string | null } | null;
     onclose: () => void;
     onsaved: () => void;
   }
 
-  let { show, treeId, anchor, onclose, onsaved }: Props = $props();
+  let { show, treeId, anchor, preselect = null, onclose, onsaved }: Props = $props();
 
   type IntentKind = 'add_parent' | 'add_child' | 'add_partner';
 
@@ -59,7 +61,9 @@
     type = 'biological';
     searchQuery = '';
     results = [];
-    selected = null;
+    selected = preselect
+      ? { id: preselect.id, givenName: preselect.givenName ?? null, surname: preselect.surname ?? null }
+      : null;
     newGivenName = '';
     newSurname = '';
     useNewPerson = false;

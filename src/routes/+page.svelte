@@ -27,7 +27,9 @@
     updateIndividualApi,
     previewGedcomImport,
     submitGedcomImport,
-    fetchRelationshipGraph
+    fetchRelationshipGraph,
+    removeRelationshipApi,
+    type RelationshipDeleteCommand
   } from '#lib/services/tree-api.js';
 
   let trees = $state<TreeSummary[]>([]);
@@ -58,6 +60,7 @@
   // Relationship editor state
   let showRelationshipModal = $state(false);
   let relationshipAnchor = $state<{ id: string; givenName: string | null; surname: string | null } | null>(null);
+  let relationshipPreselect = $state<{ id: string; givenName: string | null; surname: string | null } | null>(null);
 
   // Delete Tree Modal State
   let showDeleteTreeModal = $state(false);
@@ -277,6 +280,112 @@
     showPersonModal = true;
   }
 
+  /** Resolve a person id to the full individual record, for canvas callbacks. */
+  function personRecordById(id: string): any | null {
+    const ind = activeTreeData?.individuals?.find((i) => i.id === id);
+    if (ind) {
+      return {
+        id: ind.id,
+        name: [ind.givenName, ind.surname].filter(Boolean).join(' ') || ind.id,
+        givenName: ind.givenName,
+        surname: ind.surname,
+        sex: ind.sex,
+        raw: ind
+      };
+    }
+    const gp = relationshipGraph?.people.find((p) => p.id === id);
+    if (gp) {
+      return { id: gp.id, name: gp.displayName, givenName: null, surname: null, sex: gp.sex, raw: {} };
+    }
+    return null;
+  }
+
+  async function refreshGraph() {
+    if (!selectedTreeId) return;
+    const graph = await fetchRelationshipGraph(selectedTreeId);
+    relationshipGraph = graph;
+    neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: selectedPersonId ?? null });
+    // Keep the drawer selection in sync with the refreshed graph.
+    if (selectedPersonId) {
+      handleSelectPerson(selectedPersonId);
+    }
+  }
+
+  async function handleCanvasAddRelationship(anchor: { id: string; displayName: string }) {
+    relationshipAnchor = {
+      id: anchor.id,
+      givenName: anchor.displayName,
+      surname: null
+    };
+    relationshipPreselect = null;
+    showRelationshipModal = true;
+  }
+
+  async function handleCanvasEditPerson(id: string) {
+    const rec = personRecordById(id);
+    if (rec) openEditPersonModal(rec);
+  }
+
+  async function handleCanvasDeletePerson(id: string) {
+    if (!selectedTreeId) return;
+    if (!window.confirm('Delete this person? This cannot be undone.')) return;
+    try {
+      await fetch(`/api/trees/${selectedTreeId}/individuals/${id}`, { method: 'DELETE' });
+      await selectTree(selectedTreeId);
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to delete person');
+    }
+  }
+
+  async function handleRemoveLink(link: any) {
+    if (!selectedTreeId) return;
+    let command: RelationshipDeleteCommand;
+    if (link.type === 'partner') {
+      const personId = link.sourceId;
+      command = { kind: 'remove_partner_from_union', unionId: link.unionId, personId };
+    } else {
+      command = {
+        kind: 'remove_parent_child',
+        parentId: link.parentId,
+        childId: link.childId,
+        type: link.relationshipType
+      };
+    }
+    try {
+      await removeRelationshipApi(selectedTreeId, command);
+      await refreshGraph();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to remove relationship');
+    }
+  }
+
+  async function handleRemoveUnion(unionId: string) {
+    if (!selectedTreeId) return;
+    if (!window.confirm('Delete this union and its relationship links?')) return;
+    try {
+      await removeRelationshipApi(selectedTreeId, { kind: 'destroy_union', unionId });
+      await refreshGraph();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to delete union');
+    }
+  }
+
+  function handleDragRelate(relate: { source: { id: string; displayName: string }; target: { id: string; displayName: string } }) {
+    // Open the relationship editor anchored on the dragged person, with the
+    // drop target pre-selected so the user just confirms the relationship kind.
+    relationshipAnchor = {
+      id: relate.source.id,
+      givenName: relate.source.displayName,
+      surname: null
+    };
+    relationshipPreselect = {
+      id: relate.target.id,
+      givenName: relate.target.displayName,
+      surname: null
+    };
+    showRelationshipModal = true;
+  }
+
   async function handleSavePerson(formData: PersonFormData) {
     if (!selectedTreeId) return;
     personModalError = null;
@@ -308,6 +417,7 @@
       givenName: person.givenName ?? person.raw?.givenName ?? null,
       surname: person.surname ?? person.raw?.surname ?? null
     };
+    relationshipPreselect = null;
     showRelationshipModal = true;
   }
 
@@ -363,6 +473,12 @@
       <NeutralFamilyTreeCanvas
         layout={neutralLayout}
         onSelectPerson={handleSelectPerson}
+        onEditPerson={handleCanvasEditPerson}
+        onDeletePerson={handleCanvasDeletePerson}
+        onAddRelationship={handleCanvasAddRelationship}
+        onRemoveLink={handleRemoveLink}
+        onRemoveUnion={handleRemoveUnion}
+        onDragRelate={handleDragRelate}
       />
     {/if}
   </div>
@@ -459,6 +575,7 @@
       show={showRelationshipModal}
       treeId={selectedTreeId}
       anchor={relationshipAnchor}
+      preselect={relationshipPreselect}
       onclose={() => (showRelationshipModal = false)}
       onsaved={handleRelationshipSaved}
     />

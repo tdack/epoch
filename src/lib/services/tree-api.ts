@@ -5,7 +5,8 @@ import type {
 	RelationshipIntent,
 	RelationshipPlan,
 	RelationshipGraph,
-	PeopleSearchResult
+	PeopleSearchResult,
+	ParentChildType
 } from '#lib/types/genealogy.js';
 
 export async function fetchTrees(): Promise<TreeSummary[]> {
@@ -152,6 +153,27 @@ export async function applyRelationshipApi(
 
   if (!res.ok) throw new Error(data.error || 'Failed to apply relationship');
   return data.plan!;
+}
+
+export type RelationshipDeleteCommand =
+  | { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
+  | { kind: 'remove_partner_from_union'; unionId: string; personId: string }
+  | { kind: 'destroy_union'; unionId: string };
+
+export async function removeRelationshipApi(
+  treeId: string,
+  command: RelationshipDeleteCommand
+): Promise<void> {
+  const res = await fetch(`/api/trees/${treeId}/relationships/remove`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command)
+  });
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err.error || 'Failed to remove relationship');
+  }
 }
 
 export async function fetchRelationshipGraph(treeId: string): Promise<RelationshipGraph> {
