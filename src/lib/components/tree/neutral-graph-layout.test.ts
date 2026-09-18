@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNeutralGraphLayout } from './neutral-graph-layout';
+import { buildNeutralGraphLayout, selectFocusedGraph } from './neutral-graph-layout';
 import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
 
 function graph(): RelationshipGraph {
@@ -67,5 +67,35 @@ describe('buildNeutralGraphLayout', () => {
 		const layout = buildNeutralGraphLayout(g);
 		expect(layout.unions).toHaveLength(1);
 		expect(layout.links.filter((l) => l.type === 'partner')).toHaveLength(1);
+	});
+
+	it('centres the focus person at the origin', () => {
+		const g = graph();
+		const layout = buildNeutralGraphLayout(g, { focusPersonId: 'c1' });
+		expect(layout.focusPersonId).toBe('c1');
+		const focus = layout.people.find((p) => p.id === 'c1')!;
+		expect(focus.x).toBe(0);
+		expect(focus.y).toBe(0);
+	});
+
+	it('places ancestors above and descendants below the focus person', () => {
+		const g = graph();
+		const layout = buildNeutralGraphLayout(g, { focusPersonId: 'c1' });
+		const parent = layout.people.find((p) => p.id === 'p1')!;
+		const child = layout.people.find((p) => p.id === 'c1')!;
+		expect(parent.y).toBeLessThan(child.y);
+	});
+});
+
+describe('selectFocusedGraph', () => {
+	it('selects the subgraph around the focus person within depth limits', () => {
+		const g = graph();
+		// Add a grandparent chain to verify ancestor depth.
+		g.people.push({ id: 'gp', displayName: 'Grand Parent', isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [] });
+		g.parentChild.push({ parentId: 'gp', childId: 'p1', type: 'biological', unionId: null });
+
+		const focused = selectFocusedGraph(g, 'c1', { ancestorDepth: 2, descendantDepth: 2 });
+		// c1 + its parent p1 + grandparent gp; p2 is not reachable from c1.
+		expect(focused.people.map((p) => p.id).sort()).toEqual(['c1', 'gp', 'p1']);
 	});
 });

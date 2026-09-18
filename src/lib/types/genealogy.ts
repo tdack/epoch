@@ -100,27 +100,12 @@ export interface RelationshipPlan {
   warnings: RelationshipPlanWarning[];
 }
 
-export interface RelationshipGraphPerson {
-  id: string;
-  displayName: string;
-  isDeceased: boolean;
-  parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
-  unionIds: string[];
-  stepParents: Array<{ stepParentId: string; unionId: string }>;
-}
-
-export interface RelationshipGraphUnion {
-  id: string;
-  status: string;
-  partnerIds: string[];
-  children: Array<{ childId: string; parentId: string; type: ParentChildType }>;
-}
-
-export interface RelationshipGraph {
-  people: RelationshipGraphPerson[];
-  unions: RelationshipGraphUnion[];
-  parentChild: Array<{ parentId: string; childId: string; type: ParentChildType; unionId: string | null }>;
-}
+// The relationship graph types are shared with the server domain (pure, no I/O).
+export type {
+  RelationshipGraph,
+  RelationshipGraphPerson,
+  RelationshipGraphUnion
+} from '#lib/server/domain/relationship-graph.js';
 
 export interface PeopleSearchResult {
   id: string;

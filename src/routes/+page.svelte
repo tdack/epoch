@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import FamilyTreeCanvas from '#lib/components/tree/FamilyTreeCanvas.svelte';
+  import NeutralFamilyTreeCanvas from '#lib/components/tree/NeutralFamilyTreeCanvas.svelte';
   import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
   import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '#lib/components/tree/tree-layout.js';
+  import { buildNeutralGraphLayout, type NeutralGraphLayout } from '#lib/components/tree/neutral-graph-layout.js';
+  import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
   import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
@@ -29,13 +31,16 @@
     updateIndividualApi,
     saveFamilyApi,
     previewGedcomImport,
-    submitGedcomImport
+    submitGedcomImport,
+    fetchRelationshipGraph
   } from '#lib/services/tree-api.js';
 
   let trees = $state<TreeSummary[]>([]);
   let selectedTreeId = $state<string | null>(null);
   let activeTreeData = $state<TreeDetails | null>(null);
   let treeLayout = $state<TreeLayoutResult>({ nodes: [], unionNodes: [], links: [] });
+  let relationshipGraph = $state<RelationshipGraph | null>(null);
+  let neutralLayout = $state<NeutralGraphLayout>({ people: [], unions: [], links: [], focusPersonId: null });
 
   let selectedPersonId = $state<string | null>(null);
   let selectedPerson = $state<any | null>(null);
@@ -103,9 +108,14 @@
     }
 
     try {
-      const data = await fetchTreeDetails(id);
+      const [data, graph] = await Promise.all([
+        fetchTreeDetails(id),
+        fetchRelationshipGraph(id)
+      ]);
       activeTreeData = data;
       treeLayout = buildFamilyTreeHierarchy(data.individuals || [], data.families || []);
+      relationshipGraph = graph;
+      neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: preservePersonId ?? null });
       if (preservePersonId) {
         handleSelectPerson(preservePersonId);
       }
@@ -121,6 +131,21 @@
     const foundNode = treeLayout.nodes.find((n) => n.data.id === id);
     if (foundNode) {
       selectedPerson = foundNode.data;
+    } else if (relationshipGraph) {
+      const gp = relationshipGraph.people.find((p) => p.id === id);
+      if (gp) {
+        selectedPerson = {
+          id: gp.id,
+          name: gp.displayName,
+          sex: 'U',
+          dates: '',
+          raw: {}
+        };
+      }
+    }
+    // Rebuild the neutral layout centred on the newly selected person.
+    if (relationshipGraph) {
+      neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: id });
     }
   }
 
@@ -269,7 +294,11 @@
   }
 
   async function handleRelationshipSaved() {
-    if (selectedTreeId) await selectTree(selectedTreeId);
+    if (selectedTreeId) {
+      const graph = await fetchRelationshipGraph(selectedTreeId);
+      relationshipGraph = graph;
+      neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: selectedPersonId ?? null });
+    }
   }
 
   async function handleSaveFamily(data: FamilyFormData, isEditing: boolean, editingFamilyId: string | null) {
@@ -329,8 +358,8 @@
         <RefreshCw class="w-8 h-8 text-emerald-700 animate-spin" />
       </div>
     {:else}
-      <FamilyTreeCanvas
-        treeData={treeLayout}
+      <NeutralFamilyTreeCanvas
+        layout={neutralLayout}
         onSelectPerson={handleSelectPerson}
       />
     {/if}
