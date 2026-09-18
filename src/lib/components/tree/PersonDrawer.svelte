@@ -164,16 +164,6 @@
             <p class="text-xs text-stone-500 mt-1">{person.dates}</p>
           {/if}
         </div>
-        {#if onEditPerson}
-          <button
-            type="button"
-            onclick={() => onEditPerson(person)}
-            class="text-xs font-semibold text-emerald-800 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-colors cursor-pointer inline-flex items-center space-x-1"
-          >
-            <Pencil class="w-3 h-3" />
-            <span>Edit</span>
-          </button>
-        {/if}
         {#if onAddRelationship}
           <button
             type="button"

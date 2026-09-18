@@ -66,6 +66,19 @@
   function typeColor(type?: string): string {
     return type ? TYPE_COLORS[type] ?? '#9ca3af' : '#9ca3af';
   }
+
+  // Gender colouring: border colour and a soft fill tint per sex.
+  function sexStroke(sex: string | null | undefined): string {
+    if (sex === 'M') return '#059669'; // emerald
+    if (sex === 'F') return '#ea580c'; // orange
+    return '#a8a29e'; // stone
+  }
+
+  function sexTint(sex: string | null | undefined): string {
+    if (sex === 'M') return '#ecfdf5';
+    if (sex === 'F') return '#fff7ed';
+    return '#fdfbf7';
+  }
 </script>
 
 <div class="relative w-full h-[75vh] overflow-hidden bg-[#f7f3ea] rounded-2xl border border-stone-300/80 shadow-inner">
@@ -116,12 +129,22 @@
 
         <!-- Union nodes -->
         {#each layout.unions as union}
+          {@const marrLabel = union.union.marriageDate || union.union.marriagePlace}
           <g transform="translate({union.x}, {union.y})" class="cursor-pointer">
             <circle r="13" class="fill-[#fdfbf7] stroke-amber-500/80 stroke-[2px]" />
             <circle cx="-3" cy="0" r="4.5" class="fill-none stroke-amber-600 stroke-[1.5px]" />
             <circle cx="3" cy="0" r="4.5" class="fill-none stroke-amber-600 stroke-[1.5px]" />
-            <title>Union {union.union.status}</title>
+            <title>Union · {union.union.status}{marrLabel ? ` · ${marrLabel}` : ''}</title>
           </g>
+          {#if marrLabel}
+            <text
+              x={union.x}
+              y={union.y - 20}
+              text-anchor="middle"
+              class="fill-amber-800 font-semibold pointer-events-none"
+              style="font-size: 11px"
+            >{marrLabel}</text>
+          {/if}
         {/each}
 
         <!-- People -->
@@ -138,7 +161,9 @@
               width={NODE_WIDTH}
               height={NODE_HEIGHT}
               rx="12"
-              class="fill-[#fdfbf7] stroke-stone-300 hover:stroke-emerald-600 transition-colors"
+              stroke={sexStroke(node.person.sex)}
+              fill={sexTint(node.person.sex)}
+              class="stroke-[1.5] hover:stroke-[2.5] transition-all"
               class:stroke-2={node.person.id === layout.focusPersonId}
             />
             <text
@@ -146,8 +171,15 @@
               y="30"
               class="fill-stone-900 text-sm font-bold"
             >{node.person.displayName}</text>
+            {#if node.person.sex === 'M' || node.person.sex === 'F'}
+              <text
+                x="14"
+                y="50"
+                class="fill-stone-500 text-[11px]"
+              >{node.person.sex === 'M' ? 'Male' : 'Female'}</text>
+            {/if}
             {#if node.person.isDeceased}
-              <text x="14" y="52" class="fill-stone-500 text-xs">deceased</text>
+              <text x="14" y="66" class="fill-stone-500 text-xs">deceased</text>
             {/if}
             {#if node.person.id === layout.focusPersonId}
               <circle cx={NODE_WIDTH - 16} cy="16" r="5" class="fill-emerald-600" />
