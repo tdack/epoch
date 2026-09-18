@@ -8,6 +8,7 @@
   import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
   import PersonModal from '#lib/components/modals/PersonModal.svelte';
   import FamilyModal from '#lib/components/modals/FamilyModal.svelte';
+  import RelationshipModal from '#lib/components/modals/RelationshipModal.svelte';
   import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
   import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
   import { RefreshCw, Sparkles } from 'lucide-svelte';
@@ -60,6 +61,10 @@
   let familyModalDefaults = $state<OpenAddFamilyDefaults | undefined>(undefined);
   let isSubmittingFamily = $state(false);
   let familyModalError = $state<string | null>(null);
+
+  // Relationship editor state
+  let showRelationshipModal = $state(false);
+  let relationshipAnchor = $state<{ id: string; givenName: string | null; surname: string | null } | null>(null);
 
   // Delete Tree Modal State
   let showDeleteTreeModal = $state(false);
@@ -253,6 +258,20 @@
     showFamilyModal = true;
   }
 
+  function openRelationshipModal(person: any) {
+    if (!person) return;
+    relationshipAnchor = {
+      id: person.id,
+      givenName: person.givenName ?? person.raw?.givenName ?? null,
+      surname: person.surname ?? person.raw?.surname ?? null
+    };
+    showRelationshipModal = true;
+  }
+
+  async function handleRelationshipSaved() {
+    if (selectedTreeId) await selectTree(selectedTreeId);
+  }
+
   async function handleSaveFamily(data: FamilyFormData, isEditing: boolean, editingFamilyId: string | null) {
     if (!selectedTreeId) return;
     familyModalError = null;
@@ -376,6 +395,9 @@
       onAddFamily={(defaults) => {
         openAddFamilyModal(defaults);
       }}
+      onAddRelationship={(person) => {
+        openRelationshipModal(person);
+      }}
       onEditPerson={(person) => {
         openEditPersonModal(person);
       }}
@@ -421,6 +443,16 @@
       openAddPersonModal();
     }}
   />
+
+  {#if relationshipAnchor && selectedTreeId}
+    <RelationshipModal
+      show={showRelationshipModal}
+      treeId={selectedTreeId}
+      anchor={relationshipAnchor}
+      onclose={() => (showRelationshipModal = false)}
+      onsaved={handleRelationshipSaved}
+    />
+  {/if}
 
   {#if activeTreeData}
     <DeleteTreeModal

@@ -1,4 +1,13 @@
-import type { TreeSummary, TreeDetails, PersonFormData, FamilyFormData } from '#lib/types/genealogy.js';
+import type {
+	TreeSummary,
+	TreeDetails,
+	PersonFormData,
+	FamilyFormData,
+	RelationshipIntent,
+	RelationshipPlan,
+	RelationshipGraph,
+	PeopleSearchResult
+} from '#lib/types/genealogy.js';
 
 export async function fetchTrees(): Promise<TreeSummary[]> {
   const res = await fetch('/api/trees');
@@ -154,4 +163,43 @@ export async function submitGedcomImport(
 
   if (!res.ok) throw new Error(resData.error || 'Import failed');
   return resData;
+}
+
+export async function applyRelationshipApi(
+  treeId: string,
+  intent: RelationshipIntent
+): Promise<RelationshipPlan> {
+  const res = await fetch(`/api/trees/${treeId}/relationships`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intent })
+  });
+
+  const data = (await res.json().catch(() => ({}))) as {
+    plan?: RelationshipPlan;
+    error?: string;
+  };
+
+  if (!res.ok) throw new Error(data.error || 'Failed to apply relationship');
+  return data.plan!;
+}
+
+export async function fetchRelationshipGraph(treeId: string): Promise<RelationshipGraph> {
+  const res = await fetch(`/api/trees/${treeId}/graph`);
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err.error || 'Failed to load relationship graph');
+  }
+  const data = (await res.json()) as { graph?: RelationshipGraph };
+  return data.graph!;
+}
+
+export async function searchPeopleApi(treeId: string, query: string): Promise<PeopleSearchResult[]> {
+  const res = await fetch(`/api/trees/${treeId}/people-search?q=${encodeURIComponent(query)}`);
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err.error || 'Failed to search people');
+  }
+  const data = (await res.json()) as { people?: PeopleSearchResult[] };
+  return data.people || [];
 }

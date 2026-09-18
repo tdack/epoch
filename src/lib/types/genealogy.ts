@@ -72,3 +72,58 @@ export interface OpenAddFamilyDefaults {
   familyId?: string;
   mode?: 'editFamily' | 'newFamily' | 'addChild';
 }
+
+export type ParentChildType = 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown';
+export type ParentRole = 'parent' | 'mother' | 'father';
+
+export type RelationshipIntent =
+  | { kind: 'add_parent'; child: PersonRef; parent: PersonRef; type: ParentChildType; role: ParentRole; unionLabel: string | null }
+  | { kind: 'add_child'; parent: PersonRef; child: PersonRef; type: ParentChildType; unionLabel: string | null }
+  | { kind: 'add_partner'; person: PersonRef; partner: PersonRef; unionLabel: string | null }
+  | { kind: 'record_death'; person: PersonRef; widowedPartners: PersonRef[] }
+  | { kind: 'end_union'; person: PersonRef; unionLabel: string };
+
+export interface PersonRef {
+  id: string;
+  givenName: string | null;
+  surname: string | null;
+}
+
+export interface RelationshipPlanWarning {
+  code: string;
+  message: string;
+}
+
+export interface RelationshipPlan {
+  sentence: string;
+  commands: unknown[];
+  warnings: RelationshipPlanWarning[];
+}
+
+export interface RelationshipGraphPerson {
+  id: string;
+  displayName: string;
+  isDeceased: boolean;
+  parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
+  unionIds: string[];
+  stepParents: Array<{ stepParentId: string; unionId: string }>;
+}
+
+export interface RelationshipGraphUnion {
+  id: string;
+  status: string;
+  partnerIds: string[];
+  children: Array<{ childId: string; parentId: string; type: ParentChildType }>;
+}
+
+export interface RelationshipGraph {
+  people: RelationshipGraphPerson[];
+  unions: RelationshipGraphUnion[];
+  parentChild: Array<{ parentId: string; childId: string; type: ParentChildType; unionId: string | null }>;
+}
+
+export interface PeopleSearchResult {
+  id: string;
+  givenName: string | null;
+  surname: string | null;
+}

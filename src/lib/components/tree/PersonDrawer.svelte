@@ -10,11 +10,12 @@
     onMediaUploaded?: () => void;
     onSelectPerson?: (id: string) => void;
     onAddFamily?: (defaults: { husbandId?: string; wifeId?: string; partner1Id?: string; partner2Id?: string; childId?: string; familyId?: string; mode?: 'editFamily' | 'newFamily' | 'addChild' }) => void;
+    onAddRelationship?: (person: any) => void;
     onEditPerson?: (person: any) => void;
     onDeletePerson?: (person: any) => void;
   }
 
-  let { person, treeId, families = [], individuals = [], onClose, onMediaUploaded, onSelectPerson, onAddFamily, onEditPerson, onDeletePerson }: Props = $props();
+  let { person, treeId, families = [], individuals = [], onClose, onMediaUploaded, onSelectPerson, onAddFamily, onAddRelationship, onEditPerson, onDeletePerson }: Props = $props();
 
   function indName(id: string | null | undefined): string {
     if (!id) return '';
@@ -159,6 +160,16 @@
           >
             <Pencil class="w-3 h-3" />
             <span>Edit</span>
+          </button>
+        {/if}
+        {#if onAddRelationship}
+          <button
+            type="button"
+            onclick={() => onAddRelationship(person)}
+            class="text-xs font-semibold text-emerald-800 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-colors cursor-pointer inline-flex items-center space-x-1"
+          >
+            <UserPlus class="w-3 h-3" />
+            <span>Relationship</span>
           </button>
         {/if}
       </div>
