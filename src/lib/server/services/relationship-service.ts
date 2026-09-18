@@ -113,6 +113,16 @@ export class RelationshipService {
 		return last;
 	}
 
+	/**
+	 * Apply a concrete destructive command (remove_parent_child, destroy_union,
+	 * remove_partner_from_union) directly, for line/union deletion from the
+	 * canvas. Never deletes people.
+	 */
+	async removeRelationship(treeId: string, command: RelationshipCommand, context: AuthenticatedContext): Promise<void> {
+		await this.verifyAccess(treeId, context, 'record:edit');
+		await this.relationshipRepo.applyCommand(treeId, command);
+	}
+
 	async searchPeople(treeId: string, query: string, context: AuthenticatedContext) {
 		await this.verifyAccess(treeId, context, 'tree:view');
 		return this.relationshipRepo.searchPeople(treeId, query);

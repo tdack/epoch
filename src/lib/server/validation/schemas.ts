@@ -78,6 +78,28 @@ export const relationshipPayloadSchema = z.object({
 	intent: relationshipIntentSchema
 });
 
+/**
+ * A destructive relationship command submitted directly (line/union deletion
+ * from the canvas). Restricted to the non-destructive-to-people commands.
+ */
+export const relationshipDeleteSchema = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('remove_parent_child'),
+		parentId: idSchema,
+		childId: idSchema,
+		type: parentChildTypeSchema
+	}),
+	z.object({
+		kind: z.literal('remove_partner_from_union'),
+		unionId: idSchema,
+		personId: idSchema
+	}),
+	z.object({
+		kind: z.literal('destroy_union'),
+		unionId: idSchema
+	})
+]);
+
 export const treeCreateSchema = z.object({
 	name: z.string().trim().min(1, 'Tree name is required'),
 	description: optionalText
@@ -109,4 +131,5 @@ export type TreeCreateInput = z.infer<typeof treeCreateSchema>;
 export type IndividualCreateInput = z.infer<typeof individualCreateSchema>;
 export type IndividualUpdateInput = z.infer<typeof individualUpdateSchema>;
 export type RelationshipPayloadInput = z.infer<typeof relationshipPayloadSchema>;
+export type RelationshipDeleteInput = z.infer<typeof relationshipDeleteSchema>;
 export type ExportBodyInput = z.infer<typeof exportBodySchema>;

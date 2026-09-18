@@ -42,6 +42,10 @@ export type RelationshipCommand =
 			parentId: string;
 			childId: string;
 			type: ParentChildType;
+	  }
+	| {
+			kind: 'destroy_union';
+			unionId: string;
 	  };
 
 export interface PlanWarning {

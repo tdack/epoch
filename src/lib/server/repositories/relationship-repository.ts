@@ -275,6 +275,18 @@ export class RelationshipRepository {
 					);
 				return null;
 			}
+
+			case 'destroy_union': {
+				const union = await this.db
+					.select()
+					.from(unions)
+					.where(and(eq(unions.id, command.unionId), eq(unions.treeId, treeId)))
+					.get();
+				if (!union) throw new NotFoundError('Union', command.unionId);
+				// Cascades union_partners and set-nulls parent_child assertions.
+				await this.db.delete(unions).where(eq(unions.id, command.unionId));
+				return null;
+			}
 		}
 	}
 
@@ -318,6 +330,8 @@ export class RelationshipRepository {
 				]);
 				return `Remove the ${command.type} relationship between ${parentName} and ${childName}. This does not delete either person.`;
 			}
+			case 'destroy_union':
+				return 'Delete the union and its partnership/child links. People are not deleted.';
 		}
 	}
 
@@ -362,6 +376,10 @@ export class RelationshipRepository {
 					type: command.type,
 					unionId: null
 				};
+			case 'destroy_union':
+				// A deleted union plus its partners/links is not reconstructed;
+				// reported as non-undoable (no people are lost).
+				return null;
 		}
 	}
 
