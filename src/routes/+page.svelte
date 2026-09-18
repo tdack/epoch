@@ -2,14 +2,12 @@
   import { onMount } from 'svelte';
   import NeutralFamilyTreeCanvas from '#lib/components/tree/NeutralFamilyTreeCanvas.svelte';
   import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
-  import { buildFamilyTreeHierarchy, type TreeLayoutResult } from '#lib/components/tree/tree-layout.js';
   import { buildNeutralGraphLayout, type NeutralGraphLayout } from '#lib/components/tree/neutral-graph-layout.js';
   import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
   import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
   import PersonModal from '#lib/components/modals/PersonModal.svelte';
-  import FamilyModal from '#lib/components/modals/FamilyModal.svelte';
   import RelationshipModal from '#lib/components/modals/RelationshipModal.svelte';
   import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
   import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
@@ -18,9 +16,7 @@
     TreeSummary,
     TreeDetails,
     ImportPreviewData,
-    PersonFormData,
-    FamilyFormData,
-    OpenAddFamilyDefaults
+    PersonFormData
   } from '#lib/types/genealogy.js';
   import {
     fetchTrees,
@@ -29,7 +25,6 @@
     deleteTreeApi,
     createIndividualApi,
     updateIndividualApi,
-    saveFamilyApi,
     previewGedcomImport,
     submitGedcomImport,
     fetchRelationshipGraph
@@ -38,7 +33,6 @@
   let trees = $state<TreeSummary[]>([]);
   let selectedTreeId = $state<string | null>(null);
   let activeTreeData = $state<TreeDetails | null>(null);
-  let treeLayout = $state<TreeLayoutResult>({ nodes: [], unionNodes: [], links: [] });
   let relationshipGraph = $state<RelationshipGraph | null>(null);
   let neutralLayout = $state<NeutralGraphLayout>({ people: [], unions: [], links: [], focusPersonId: null });
 
@@ -60,12 +54,6 @@
   let personToEdit = $state<any | null>(null);
   let isSubmittingPerson = $state(false);
   let personModalError = $state<string | null>(null);
-
-  // Family Modal State
-  let showFamilyModal = $state(false);
-  let familyModalDefaults = $state<OpenAddFamilyDefaults | undefined>(undefined);
-  let isSubmittingFamily = $state(false);
-  let familyModalError = $state<string | null>(null);
 
   // Relationship editor state
   let showRelationshipModal = $state(false);
@@ -113,7 +101,6 @@
         fetchRelationshipGraph(id)
       ]);
       activeTreeData = data;
-      treeLayout = buildFamilyTreeHierarchy(data.individuals || [], data.families || []);
       relationshipGraph = graph;
       neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: preservePersonId ?? null });
       if (preservePersonId) {
@@ -135,10 +122,7 @@
     }
 
     selectedPersonId = id;
-    const foundNode = treeLayout.nodes.find((n) => n.data.id === id);
-    if (foundNode) {
-      selectedPerson = foundNode.data;
-    } else if (relationshipGraph) {
+    if (relationshipGraph) {
       const gp = relationshipGraph.people.find((p) => p.id === id);
       if (gp) {
         selectedPerson = {
@@ -291,13 +275,6 @@
     }
   }
 
-  function openAddFamilyModal(defaults?: OpenAddFamilyDefaults) {
-    familyModalError = null;
-    isSubmittingFamily = false;
-    familyModalDefaults = defaults;
-    showFamilyModal = true;
-  }
-
   function openRelationshipModal(person: any) {
     if (!person) return;
     relationshipAnchor = {
@@ -316,23 +293,6 @@
     }
   }
 
-  async function handleSaveFamily(data: FamilyFormData, isEditing: boolean, editingFamilyId: string | null) {
-    if (!selectedTreeId) return;
-    familyModalError = null;
-    isSubmittingFamily = true;
-
-    try {
-      await saveFamilyApi(selectedTreeId, data, isEditing ? editingFamilyId : null);
-      showFamilyModal = false;
-      await selectTree(selectedTreeId);
-    } catch (err: any) {
-      console.error('Failed to save family', err);
-      familyModalError = err.message || 'Failed to save family';
-    } finally {
-      isSubmittingFamily = false;
-    }
-  }
-
   function openDeleteTreeModal() {
     deleteTreeError = null;
     isDeletingTree = false;
@@ -348,7 +308,8 @@
       showDeleteTreeModal = false;
       selectedTreeId = null;
       activeTreeData = null;
-      treeLayout = { nodes: [], unionNodes: [], links: [] };
+      relationshipGraph = null;
+      neutralLayout = { people: [], unions: [], links: [], focusPersonId: null };
       selectedPersonId = null;
       selectedPerson = null;
       await loadTrees();
@@ -406,7 +367,6 @@
     onopenNewTree={openNewTreeModal}
     onopenDeleteTree={openDeleteTreeModal}
     onopenAddPerson={openAddPersonModal}
-    onopenAddFamily={() => openAddFamilyModal()}
     onfileSelect={handleGedcomFileSelect}
     onexportGedcom={handleExportGedcom}
   />
@@ -425,18 +385,16 @@
   </main>
 
   <!-- Person Detail Drawer -->
-  {#if selectedPerson && selectedTreeId}
+  {#if selectedPerson && selectedTreeId && relationshipGraph}
     <PersonDrawer
       person={selectedPerson}
       treeId={selectedTreeId}
+      graph={relationshipGraph}
       onClose={() => {
         clearSelection();
       }}
       onMediaUploaded={() => {
         if (selectedTreeId) selectTree(selectedTreeId, selectedPersonId || undefined);
-      }}
-      onAddFamily={(defaults) => {
-        openAddFamilyModal(defaults);
       }}
       onAddRelationship={(person) => {
         openRelationshipModal(person);
@@ -447,8 +405,6 @@
       onDeletePerson={(person) => {
         handleDeletePerson(person);
       }}
-      families={activeTreeData?.families || []}
-      individuals={activeTreeData?.individuals || []}
       onSelectPerson={(id) => handleSelectPerson(id)}
     />
   {/if}
@@ -470,21 +426,6 @@
     error={personModalError}
     onclose={() => (showPersonModal = false)}
     onsubmit={handleSavePerson}
-  />
-
-  <FamilyModal
-    show={showFamilyModal}
-    individuals={activeTreeData?.individuals || []}
-    families={activeTreeData?.families || []}
-    defaults={familyModalDefaults}
-    isSubmitting={isSubmittingFamily}
-    error={familyModalError}
-    onclose={() => (showFamilyModal = false)}
-    onsubmit={handleSaveFamily}
-    onopenAddPerson={() => {
-      showFamilyModal = false;
-      openAddPersonModal();
-    }}
   />
 
   {#if relationshipAnchor && selectedTreeId}

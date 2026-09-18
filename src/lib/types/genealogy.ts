@@ -63,16 +63,6 @@ export interface FamilyFormData {
   divorcePlace?: string;
 }
 
-export interface OpenAddFamilyDefaults {
-  husbandId?: string;
-  wifeId?: string;
-  partner1Id?: string;
-  partner2Id?: string;
-  childId?: string;
-  familyId?: string;
-  mode?: 'editFamily' | 'newFamily' | 'addChild';
-}
-
 export type ParentChildType = 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown';
 export type ParentRole = 'parent' | 'mother' | 'father';
 

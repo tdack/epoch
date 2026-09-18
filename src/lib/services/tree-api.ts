@@ -2,7 +2,6 @@ import type {
 	TreeSummary,
 	TreeDetails,
 	PersonFormData,
-	FamilyFormData,
 	RelationshipIntent,
 	RelationshipPlan,
 	RelationshipGraph,
@@ -88,35 +87,6 @@ export async function updateIndividualApi(treeId: string, individualId: string, 
 
   if (!res.ok) {
     throw new Error(resData.error || 'Failed to update person.');
-  }
-}
-
-export async function saveFamilyApi(
-  treeId: string,
-  data: FamilyFormData,
-  editingFamilyId?: string | null
-): Promise<void> {
-  const isEditing = Boolean(editingFamilyId);
-  const url = isEditing
-    ? `/api/trees/${treeId}/families/${editingFamilyId}`
-    : `/api/trees/${treeId}/families`;
-
-  const method = isEditing ? 'PUT' : 'POST';
-
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-
-  const resData = (await res.json().catch(() => ({}))) as {
-    success?: boolean;
-    family?: any;
-    error?: string;
-  };
-
-  if (!res.ok) {
-    throw new Error(resData.error || `Failed to ${isEditing ? 'update' : 'create'} family.`);
   }
 }
 
