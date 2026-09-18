@@ -36,11 +36,25 @@
     return gp ? gp.parentsByUnion : {};
   });
 
-  // Unions where this person participates as a partner.
+  // Unions where this person participates as a partner, each with children
+  // deduplicated by child id. `parent_child` asserts one row per parent, so a
+  // child of a two-parent union repeats once per parent; collapse those.
   let partnerUnions = $derived.by(() => {
     const gp = person ? graphPersonFor(person.id) : null;
     if (!gp) return [];
-    return graph.unions.filter((u) => gp.unionIds.includes(u.id));
+    return graph.unions
+      .filter((u) => gp.unionIds.includes(u.id))
+      .map((u) => {
+        const seen = new Set<string>();
+        return {
+          ...u,
+          children: u.children.filter((c) => {
+            if (seen.has(c.childId)) return false;
+            seen.add(c.childId);
+            return true;
+          })
+        };
+      });
   });
 
   let uploading = $state(false);

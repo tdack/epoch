@@ -113,6 +113,16 @@
     }
   }
 
+  function formatLifeDates(events: any[] | undefined): string {
+    if (!events?.length) return '';
+    const birth = events.find((e) => e.type === 'BIRT')?.dateRaw;
+    const death = events.find((e) => e.type === 'DEAT')?.dateRaw;
+    if (birth && death) return `${birth} – ${death}`;
+    if (birth) return `b. ${birth}`;
+    if (death) return `d. ${death}`;
+    return '';
+  }
+
   function handleSelectPerson(id: string) {
     // Clicking the already-focused person toggles them off and returns to the
     // full (unfocused) tree, so a user can always deselect.
@@ -122,7 +132,22 @@
     }
 
     selectedPersonId = id;
-    if (relationshipGraph) {
+
+    // Prefer the full individual record from the tree details so the drawer and
+    // edit modal get sex, names, events, and media. Fall back to the graph's
+    // display name when the record is absent.
+    const ind = activeTreeData?.individuals?.find((i) => i.id === id);
+    if (ind) {
+      selectedPerson = {
+        id: ind.id,
+        name: [ind.givenName, ind.surname].filter(Boolean).join(' ') || ind.id,
+        givenName: ind.givenName,
+        surname: ind.surname,
+        sex: ind.sex,
+        dates: formatLifeDates(ind.events),
+        raw: ind
+      };
+    } else if (relationshipGraph) {
       const gp = relationshipGraph.people.find((p) => p.id === id);
       if (gp) {
         selectedPerson = {
@@ -134,6 +159,7 @@
         };
       }
     }
+
     // Rebuild the neutral layout centred on the newly selected person.
     if (relationshipGraph) {
       neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: id });
