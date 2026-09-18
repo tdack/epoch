@@ -9,13 +9,22 @@ import { UserRepository } from '../repositories/user-repository';
 import { RelationshipRepository } from '../repositories/relationship-repository';
 import { isActionAllowed } from '../auth/authorization';
 import { UnauthorizedError } from '../domain/errors';
-import { planRelationshipCommand, type RelationshipPlan } from '../domain/relationship-commands';
+import { planRelationshipCommand, type RelationshipPlan, type RelationshipCommand } from '../domain/relationship-commands';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { AuthenticatedContext } from '../domain/identity';
+
+/** A record of an applied command, enabling undo of the last safe mutation. */
+export interface AppliedCommand {
+	command: RelationshipCommand;
+	/** Concrete union ID produced by a create_union, when applicable. */
+	createdUnionId: string | null;
+	impactSummary: string;
+}
 
 export class RelationshipService {
 	private userRepo: UserRepository;
 	private relationshipRepo: RelationshipRepository;
+	private lastApplied: AppliedCommand[] = [];
 
 	constructor(private db: DbClient) {
 		this.userRepo = new UserRepository(db);
@@ -61,10 +70,44 @@ export class RelationshipService {
 		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount });
 
 		for (const command of plan.commands) {
-			await this.relationshipRepo.applyCommand(treeId, command);
+			const createdUnionId = await this.relationshipRepo.applyCommand(treeId, command);
+			const impactSummary = await this.relationshipRepo.summarizeImpact(treeId, command);
+			this.lastApplied.push({ command, createdUnionId, impactSummary });
 		}
 
 		return plan;
+	}
+
+	/** Preview the impact summary of a planned intent (no write). */
+	async previewImpact(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<string[]> {
+		await this.verifyAccess(treeId, context, 'record:create');
+		const assertions = await this.relationshipRepo.listAssertions(treeId);
+		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName: false, unionCount: 0 });
+		return Promise.all(plan.commands.map((c) => this.relationshipRepo.summarizeImpact(treeId, c)));
+	}
+
+	/** Undo the last applied command in this service instance (in-memory). */
+	async undoLast(treeId: string, context: AuthenticatedContext): Promise<AppliedCommand | null> {
+		await this.verifyAccess(treeId, context, 'record:edit');
+		const last = this.lastApplied.pop();
+		if (!last) return null;
+
+		const inverse = this.relationshipRepo.inverseOf(last.command);
+		if (inverse) {
+			await this.relationshipRepo.applyCommand(treeId, inverse);
+		} else if (last.command.kind === 'create_union' && last.createdUnionId) {
+			// Undo a create_union by ending the concrete union.
+			await this.relationshipRepo.applyCommand(treeId, {
+				kind: 'end_union',
+				unionId: last.createdUnionId
+			});
+		} else if (last.command.kind === 'end_union') {
+			// Re-activate the union by recreating it is out of scope; report the
+			// action as non-undoable here (no person data is lost).
+			return last;
+		}
+
+		return last;
 	}
 
 	async searchPeople(treeId: string, query: string, context: AuthenticatedContext) {

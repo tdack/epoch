@@ -6,7 +6,7 @@
 
 import type { DbClient } from '../db';
 import { unions, unionPartners, parentChild, individuals, events } from '../db/schema';
-import { eq, and, like } from 'drizzle-orm';
+import { eq, and, like, inArray } from 'drizzle-orm';
 import type { ParentChild, ParentChildType, UnionStatus } from '../domain/genealogy-model';
 import { buildRelationshipGraph, type RelationshipGraph } from '../domain/relationship-graph';
 import type { RelationshipCommand } from '../domain/relationship-commands';
@@ -130,7 +130,7 @@ export class RelationshipRepository {
 		});
 	}
 
-	async applyCommand(treeId: string, command: RelationshipCommand): Promise<void> {
+	async applyCommand(treeId: string, command: RelationshipCommand): Promise<string | null> {
 		switch (command.kind) {
 			case 'create_union': {
 				if (command.personIds.length < 1) {
@@ -148,7 +148,7 @@ export class RelationshipRepository {
 						order: order++
 					});
 				}
-				return;
+				return unionId;
 			}
 
 			case 'assert_parent_child': {
@@ -172,7 +172,7 @@ export class RelationshipRepository {
 					status: 'active',
 					unionId: command.unionId
 				});
-				return;
+				return null;
 			}
 
 			case 'end_union': {
@@ -183,7 +183,7 @@ export class RelationshipRepository {
 					.get();
 				if (!union) throw new NotFoundError('Union', command.unionId);
 				await this.db.update(unions).set({ status: 'ended' }).where(eq(unions.id, command.unionId));
-				return;
+				return null;
 			}
 
 			case 'remove_parent_child': {
@@ -196,8 +196,90 @@ export class RelationshipRepository {
 							eq(parentChild.type, command.type)
 						)
 					);
-				return;
+				return null;
 			}
 		}
+	}
+
+	/**
+	 * Compute a human-readable impact summary for a command before applying it,
+	 * so destructive actions (e.g. removing a relationship) can be previewed.
+	 */
+	async summarizeImpact(treeId: string, command: RelationshipCommand): Promise<string> {
+		switch (command.kind) {
+			case 'create_union': {
+				const names = await this.personNames(command.personIds);
+				return `Create a union between ${names.join(' and ')}.`;
+			}
+			case 'assert_parent_child': {
+				const [parentName, childName] = await this.personNames([
+					command.parentId,
+					command.childId
+				]);
+				return `Record ${parentName} as a ${command.type} parent of ${childName}.`;
+			}
+			case 'end_union': {
+				const union = await this.db
+					.select()
+					.from(unions)
+					.where(and(eq(unions.id, command.unionId), eq(unions.treeId, treeId)))
+					.get();
+				return union ? `End the union '${union.id}'.` : 'End a union.';
+			}
+			case 'remove_parent_child': {
+				const [parentName, childName] = await this.personNames([
+					command.parentId,
+					command.childId
+				]);
+				return `Remove the ${command.type} relationship between ${parentName} and ${childName}. This does not delete either person.`;
+			}
+		}
+	}
+
+	/**
+	 * Return the inverse command that would undo a given command. Only
+	 * non-destructive to people — removing a union never deletes a person.
+	 */
+	inverseOf(command: RelationshipCommand): RelationshipCommand | null {
+		switch (command.kind) {
+			case 'create_union':
+				// A created union has no stable ID until applied; undo by ending
+				// it is handled by the service, which tracks applied IDs.
+				return null;
+			case 'assert_parent_child':
+				return {
+					kind: 'remove_parent_child',
+					parentId: command.parentId,
+					childId: command.childId,
+					type: command.type
+				};
+			case 'end_union':
+				// Re-activating is represented by a no-op here; the service
+				// re-applies status explicitly.
+				return null;
+			case 'remove_parent_child':
+				return {
+					kind: 'assert_parent_child',
+					parentId: command.parentId,
+					childId: command.childId,
+					type: command.type,
+					unionId: null
+				};
+		}
+	}
+
+	private async personNames(ids: string[]): Promise<string[]> {
+		if (ids.length === 0) return [];
+		const rows = await this.db
+			.select({ id: individuals.id, givenName: individuals.givenName, surname: individuals.surname })
+			.from(individuals)
+			.where(inArray(individuals.id, ids))
+			.all();
+		const byId = new Map(rows.map((r) => [r.id, r]));
+		return ids.map((id) => {
+			const r = byId.get(id);
+			if (!r) return id;
+			return [r.givenName, r.surname].filter(Boolean).join(' ') || id;
+		});
 	}
 }
