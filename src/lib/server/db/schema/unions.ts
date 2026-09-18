@@ -2,36 +2,9 @@ import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqli
 import { trees } from './trees';
 import { individuals } from './people';
 
-// Families (@F123@) — legacy gendered schema, being replaced by the neutral
-// union model below. Kept during the expand-and-contract migration.
-export const families = sqliteTable('families', {
-  id: text('id').primaryKey(),
-  treeId: text('tree_id').notNull().references(() => trees.id, { onDelete: 'cascade' }),
-  xrefId: text('xref_id'), // Preserved GEDCOM XREF (@F1@)
-  husbandId: text('husband_id').references(() => individuals.id, { onDelete: 'set null' }),
-  wifeId: text('wife_id').references(() => individuals.id, { onDelete: 'set null' }),
-  version: integer('version').notNull().default(1),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
-}, (table) => ({
-  treeIdx: index('idx_fam_tree').on(table.treeId),
-  husbandIdx: index('idx_fam_husband').on(table.husbandId),
-  wifeIdx: index('idx_fam_wife').on(table.wifeId)
-}));
-
-// Legacy Family Children Junction
-export const familyChildren = sqliteTable('family_children', {
-  familyId: text('family_id').notNull().references(() => families.id, { onDelete: 'cascade' }),
-  childId: text('child_id').notNull().references(() => individuals.id, { onDelete: 'cascade' }),
-  pedigree: text('pedigree', { enum: ['birth', 'adopted', 'foster'] }).default('birth'),
-}, (table) => ({
-  famChildIdx: index('idx_fam_child').on(table.familyId, table.childId),
-  childIdx: index('idx_child').on(table.childId),
-  uniqueFamChild: uniqueIndex('idx_uq_fam_child').on(table.familyId, table.childId)
-}));
-
-// Phase 1 neutral model tables. These coexist with the legacy gendered tables
-// during the expand-and-contract migration and do not reinterpret them.
+// Neutral model. The gendered legacy `families`/`family_children` tables were
+// expunged; unions are the single source of truth for partnership/family
+// episodes and parent-child assertions.
 
 // Union: a partnership/family episode, never inferred to mean marriage.
 export const unions = sqliteTable('unions', {

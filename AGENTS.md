@@ -26,8 +26,8 @@ supported structure without loss; unsupported imported structures are retained f
 4. **Transport/UI** (`src/routes/`, `src/lib/components/`) — SvelteKit hooks, API endpoints, and
    views. Handlers only parse input, invoke services, and format responses.
 
-**Data model direction** (Phase 1 target — the current gendered schema is being replaced, not
-extended):
+**Data model** (the neutral model is the single source of truth; the gendered
+legacy `families`/`family_children` tables have been expunged):
 
 - `person` — identity container, privacy/living-state inputs, record metadata.
 - `person_name` — multiple names, types, components, preferred display name.

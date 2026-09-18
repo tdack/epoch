@@ -50,32 +50,6 @@ const BASELINE_MIGRATION = [
   );`,
   `CREATE INDEX IF NOT EXISTS \`idx_ind_tree\` ON \`individuals\` (\`tree_id\`);`,
   `CREATE INDEX IF NOT EXISTS \`idx_ind_xref\` ON \`individuals\` (\`tree_id\`, \`xref_id\`);`,
-  `CREATE TABLE IF NOT EXISTS \`families\` (
-    \`id\` text PRIMARY KEY NOT NULL,
-    \`tree_id\` text NOT NULL,
-    \`xref_id\` text,
-    \`husband_id\` text,
-    \`wife_id\` text,
-    \`version\` integer DEFAULT 1 NOT NULL,
-    \`created_at\` integer,
-    \`updated_at\` integer,
-    FOREIGN KEY (\`tree_id\`) REFERENCES \`trees\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-    FOREIGN KEY (\`husband_id\`) REFERENCES \`individuals\`(\`id\`) ON UPDATE no action ON DELETE set null,
-    FOREIGN KEY (\`wife_id\`) REFERENCES \`individuals\`(\`id\`) ON UPDATE no action ON DELETE set null
-  );`,
-  `CREATE INDEX IF NOT EXISTS \`idx_fam_tree\` ON \`families\` (\`tree_id\`);`,
-  `CREATE INDEX IF NOT EXISTS \`idx_fam_husband\` ON \`families\` (\`husband_id\`);`,
-  `CREATE INDEX IF NOT EXISTS \`idx_fam_wife\` ON \`families\` (\`wife_id\`);`,
-  `CREATE TABLE IF NOT EXISTS \`family_children\` (
-    \`family_id\` text NOT NULL,
-    \`child_id\` text NOT NULL,
-    \`pedigree\` text DEFAULT 'birth',
-    FOREIGN KEY (\`family_id\`) REFERENCES \`families\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-    FOREIGN KEY (\`child_id\`) REFERENCES \`individuals\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );`,
-  `CREATE INDEX IF NOT EXISTS \`idx_fam_child\` ON \`family_children\` (\`family_id\`,\`child_id\`);`,
-  `CREATE INDEX IF NOT EXISTS \`idx_child\` ON \`family_children\` (\`child_id\`);`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS \`idx_uq_fam_child\` ON \`family_children\` (\`family_id\`, \`child_id\`);`,
   `CREATE TABLE IF NOT EXISTS \`events\` (
     \`id\` text PRIMARY KEY NOT NULL,
     \`tree_id\` text NOT NULL,
