@@ -38,6 +38,7 @@
   }: Props = $props();
 
   let svgElement: SVGSVGElement | null = $state(null);
+  let containerElement: HTMLDivElement | null = $state(null);
   let transform = $state({ k: 1, x: 400, y: 100 });
   let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
 
@@ -120,6 +121,14 @@
 
   // ---- Context menu ----
 
+  /** Convert viewport pointer coords to container-relative pixels. */
+  function menuPosition(e: MouseEvent): { x: number; y: number } {
+    const rect = containerElement?.getBoundingClientRect();
+    const x = rect ? e.clientX - rect.left : e.clientX;
+    const y = rect ? e.clientY - rect.top : e.clientY;
+    return { x, y };
+  }
+
   function openPersonMenu(e: MouseEvent, personId: string, displayName: string) {
     if (!e.target || e.button !== 2) return;
     e.preventDefault();
@@ -133,7 +142,7 @@
     if (onDeletePerson) {
       items.push({ label: 'Delete person', danger: true, onClick: () => onDeletePerson(personId) });
     }
-    menu = { x: e.clientX, y: e.clientY, items };
+    menu = { ...menuPosition(e), items };
   }
 
   function openUnionMenu(e: MouseEvent, unionId: string) {
@@ -143,7 +152,7 @@
     if (onRemoveUnion) {
       items.push({ label: 'Delete union', danger: true, onClick: () => onRemoveUnion(unionId) });
     }
-    menu = { x: e.clientX, y: e.clientY, items };
+    menu = { ...menuPosition(e), items };
   }
 
   function openLinkMenu(e: MouseEvent, link: GraphLink) {
@@ -157,7 +166,7 @@
         onClick: () => onRemoveLink(link)
       });
     }
-    menu = { x: e.clientX, y: e.clientY, items };
+    menu = { ...menuPosition(e), items };
   }
 
   function closeMenu() {
@@ -224,7 +233,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-<div class="relative w-full h-[75vh] overflow-hidden bg-[#f7f3ea] rounded-2xl border border-stone-300/80 shadow-inner" onclick={onSvgClick} onkeydown={onKeydown}>
+<div bind:this={containerElement} class="relative w-full h-[75vh] overflow-hidden bg-[#f7f3ea] rounded-2xl border border-stone-300/80 shadow-inner" onclick={onSvgClick} onkeydown={onKeydown}>
   <div
     class="absolute inset-0 pointer-events-none opacity-40"
     style="background-image: radial-gradient(circle, #d6cebf 1px, transparent 1px); background-size: 24px 24px;"
@@ -253,6 +262,14 @@
         <!-- Links -->
         {#each layout.links as link}
           {#if link.type === 'partner'}
+            {@const isSel = selectedLinkId === link.id}
+            {#if isSel}
+              <line
+                x1={link.source.x} y1={link.source.y} x2={link.target.x} y2={link.target.y}
+                stroke="#92400e" stroke-width="7" stroke-linecap="round" opacity="0.25"
+                stroke-dasharray="5 4" class="pointer-events-none"
+              />
+            {/if}
             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <line
               data-link-id={link.id}
@@ -262,22 +279,31 @@
               y2={link.target.y}
               onclick={(e) => onLinkClick(e, link)}
               oncontextmenu={(e) => openLinkMenu(e, link)}
-              class="stroke-amber-600/70 stroke-[2px] stroke-dashed"
-              class:stroke-amber-900={selectedLinkId === link.id}
-              class:!stroke-[3px]={selectedLinkId === link.id}
+              stroke={isSel ? '#92400e' : '#d97706'}
+              stroke-width={isSel ? 4 : 2}
+              stroke-opacity={isSel ? 0.95 : 0.7}
+              stroke-linecap="round"
               stroke-dasharray="5 4"
               style="cursor: pointer; pointer-events: stroke;"
             />
           {:else}
+            {@const isSel = selectedLinkId === link.id}
+            {#if isSel}
+              <path
+                d="M {link.source.x} {link.source.y} C {link.source.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {link.target.y}"
+                stroke="#0f172a" stroke-width="8" class="fill-none pointer-events-none" opacity="0.25"
+              />
+            {/if}
             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <path
               data-link-id={link.id}
               d="M {link.source.x} {link.source.y} C {link.source.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {link.target.y}"
-              stroke={typeColor(link.relationshipType)}
-              stroke-width={selectedLinkId === link.id ? 4 : 2}
+              stroke={isSel ? '#0f172a' : typeColor(link.relationshipType)}
+              stroke-width={isSel ? 4 : 2}
+              stroke-opacity={isSel ? 1 : 0.7}
               onclick={(e) => onLinkClick(e, link)}
               oncontextmenu={(e) => openLinkMenu(e, link)}
-              class="fill-none opacity-70"
+              class="fill-none"
               style="cursor: pointer; pointer-events: stroke;"
             />
           {/if}
