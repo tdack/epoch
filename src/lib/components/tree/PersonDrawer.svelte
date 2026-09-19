@@ -1,6 +1,10 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2 } from 'lucide-svelte';
-  import type { RelationshipGraph, RelationshipGraphPerson } from '#lib/server/domain/relationship-graph.js';
+  import type {
+    RelationshipGraph,
+    RelationshipGraphPerson,
+    RelationshipGraphUnion
+  } from '#lib/server/domain/relationship-graph.js';
 
   interface Props {
     person: any | null;
@@ -38,11 +42,14 @@
 
   // Unions where this person participates as a partner, each with children
   // deduplicated by child id. `parent_child` asserts one row per parent, so a
-  // child of a two-parent union repeats once per parent; collapse those.
+  // child of a two-parent union repeats once per parent; collapse those. When
+  // the same set of partners recurs across distinct unions (e.g. a childless
+  // episode and one with children), drop an empty union that is subsumed by a
+  // richer one so the same partner pair is not listed twice in the summary.
   let partnerUnions = $derived.by(() => {
     const gp = person ? graphPersonFor(person.id) : null;
     if (!gp) return [];
-    return graph.unions
+    const unions = graph.unions
       .filter((u) => gp.unionIds.includes(u.id))
       .map((u) => {
         const seen = new Set<string>();
@@ -55,6 +62,30 @@
           })
         };
       });
+
+    const partnerKey = (u: RelationshipGraphUnion) => [...u.partnerIds].sort().join('::');
+    const byKey = new Map<string, RelationshipGraphUnion[]>();
+    for (const u of unions) {
+      const key = partnerKey(u);
+      const list = byKey.get(key) ?? [];
+      list.push(u);
+      byKey.set(key, list);
+    }
+    const result: RelationshipGraphUnion[] = [];
+    for (const group of byKey.values()) {
+      if (group.length === 1) {
+        result.push(group[0]);
+        continue;
+      }
+      // Prefer the union with children; drop empty duplicates of the same pair.
+      const withChildren = group.find((u) => u.children.length > 0);
+      if (withChildren) {
+        result.push(withChildren);
+      } else {
+        result.push(group[0]);
+      }
+    }
+    return result;
   });
 
   let uploading = $state(false);
