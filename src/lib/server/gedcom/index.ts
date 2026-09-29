@@ -5,12 +5,33 @@ export type GedcomVersion = '5.5.1' | '7.0';
 /** Supported GEDCOM dialect labels used by the export `format` parameter. */
 export type GedcomFormat = 'gedcom551' | 'gedcom7';
 
+/**
+ * A child's relationship to the parents of a family (`PEDI`). `sealing` and `other` have no
+ * neutral parent-child type of their own; they are kept so export can write them back.
+ */
+export type Pedigree = 'birth' | 'adopted' | 'foster' | 'sealing' | 'other';
+
+/** A child's `FAMC` link with the pedigree it carries; `parentPedigrees` is Epoch's per-parent extension. */
+export interface ParsedFamcLink {
+  familyId: string;
+  pedigree?: Pedigree;
+  /** Parent XREF to the pedigree that differs from `pedigree`, from `_PEDI_PARENT`. */
+  parentPedigrees?: Record<string, Pedigree>;
+}
+
+/** Marks a `REFN` on a `FAM` as the XREF of a family that was merged into it. */
+export const FAMILY_ALIAS_REFN_TYPE = 'epoch-merged-family';
+
+/** Epoch's per-parent pedigree under `FAMC`; standard `PEDI` cannot differ between two parents. */
+export const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
+
 export interface ParsedIndividual {
   id: string; // e.g. @I1@ or I1
   givenName?: string;
   surname?: string;
   sex?: 'M' | 'F' | 'X' | 'U';
   famc?: string[]; // Family where person is child
+  famcLinks?: ParsedFamcLink[];
   fams?: string[]; // Family where person is spouse
   events: ParsedEvent[];
 }
@@ -19,8 +40,10 @@ export interface ParsedFamily {
   id: string; // e.g. @F1@ or F1
   husbandId?: string;
   wifeId?: string;
-  children: { childId: string; pedigree?: 'birth' | 'adopted' | 'foster' }[];
+  children: { childId: string; pedigree?: Pedigree; parentPedigrees?: Record<string, Pedigree> }[];
   events: ParsedEvent[];
+  /** XREFs of families merged into this one, from `REFN` records typed `epoch-merged-family`. */
+  aliases?: string[];
 }
 
 export interface ParsedEvent {
@@ -100,6 +123,13 @@ export function detectGedcomVersion(rawContent: string): GedcomVersion {
     }
   }
   return '5.5.1';
+}
+
+/** `PEDI` payloads are lowercase in 5.5.1 and uppercase in 7.0; anything else is `other`. */
+export function parsePedigree(value: string | undefined): Pedigree | undefined {
+  const text = value?.trim().toLowerCase();
+  if (!text) return undefined;
+  return text === 'birth' || text === 'adopted' || text === 'foster' || text === 'sealing' ? text : 'other';
 }
 
 interface GedcomNode {
@@ -212,6 +242,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       let surname: string | undefined;
       let sex: 'M' | 'F' | 'X' | 'U' = 'U';
       const famc: string[] = [];
+      const famcLinks: ParsedFamcLink[] = [];
       const fams: string[] = [];
       const events: ParsedEvent[] = [];
 
@@ -228,7 +259,18 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
           if (val === 'M' || val === 'F' || val === 'X') sex = val;
           else sex = 'U';
         } else if (child.tag === 'FAMC' && child.value) {
-          famc.push(child.value.trim());
+          const familyId = child.value.trim();
+          famc.push(familyId);
+          const parentPedigrees: Record<string, Pedigree> = {};
+          for (const sub of child.children) {
+            const parentPedigree = sub.tag === PARENT_PEDIGREE_TAG && sub.value ? parsePedigree(sub.children.find((c) => c.tag === 'PEDI')?.value) : undefined;
+            if (parentPedigree) parentPedigrees[sub.value!.trim()] = parentPedigree;
+          }
+          famcLinks.push({
+            familyId,
+            pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
+            ...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {})
+          });
         } else if (child.tag === 'FAMS' && child.value) {
           fams.push(child.value.trim());
         } else if (INDIVIDUAL_EVENT_TAGS.has(child.tag)) {
@@ -258,6 +300,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         surname,
         sex,
         famc,
+        famcLinks,
         fams,
         events
       });
@@ -265,7 +308,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       const id = node.xref || crypto.randomUUID();
       let husbandId: string | undefined;
       let wifeId: string | undefined;
-      const children: { childId: string; pedigree?: 'birth' | 'adopted' | 'foster' }[] = [];
+      const children: ParsedFamily['children'] = [];
+      const aliases: string[] = [];
       const events: ParsedEvent[] = [];
 
       for (const child of node.children) {
@@ -274,12 +318,13 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         } else if (child.tag === 'WIFE' && child.value) {
           wifeId = child.value.trim();
         } else if (child.tag === 'CHIL' && child.value) {
-          const pedNode = child.children.find((c) => c.tag === 'PEDI');
-          let pedigree: 'birth' | 'adopted' | 'foster' = 'birth';
-          const pVal = pedNode?.value?.toLowerCase().trim();
-          if (pVal === 'adopted' || pVal === 'foster') pedigree = pVal;
-
+          // `PEDI` under `CHIL` is not standard; files Epoch used to export carry it there, so it is
+          // still read, but the child's own `FAMC` takes precedence below.
+          const pedigree = parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value) ?? 'birth';
           children.push({ childId: child.value.trim(), pedigree });
+        } else if (child.tag === 'REFN' && child.value && child.children.some((c) => c.tag === 'TYPE' && c.value?.trim() === FAMILY_ALIAS_REFN_TYPE)) {
+          const alias = child.value.trim();
+          aliases.push(alias.startsWith('@') ? alias : `@${alias}@`);
         } else if (FAMILY_EVENT_TAGS.has(child.tag)) {
           const dateNode = child.children.find((c) => c.tag === 'DATE');
           const placNode = child.children.find((c) => c.tag === 'PLAC');
@@ -304,12 +349,24 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         husbandId,
         wifeId,
         children,
-        events
+        events,
+        ...(aliases.length > 0 ? { aliases } : {})
       });
     } else if (node.tag !== 'TRLR') {
       // Preserve unrecognized root-level records (NOTE, SOUR, SUBM, REPO, OBJE,
       // custom records) so they are retained for export.
       preserved.push({ xref: node.xref ?? null, lines: collectLines(node) });
+    }
+  }
+
+  // The child's own `FAMC` is where PEDI belongs, so it decides the pedigree of that child's link.
+  const linkOf = new Map<string, ParsedFamcLink>();
+  for (const ind of individuals) for (const link of ind.famcLinks ?? []) linkOf.set(`${ind.id}|${link.familyId}`, link);
+  for (const fam of families) {
+    for (const child of fam.children) {
+      const link = linkOf.get(`${child.childId}|${fam.id}`);
+      if (link?.pedigree) child.pedigree = link.pedigree;
+      if (link?.parentPedigrees) child.parentPedigrees = link.parentPedigrees;
     }
   }
 
@@ -345,7 +402,14 @@ export interface GedcomExportPayload {
     id: string;
     husbandId: string | null;
     wifeId: string | null;
-    children?: Array<{ childId: string; pedigree: string | null }>;
+    children?: Array<{
+      childId: string;
+      pedigree: string | null;
+      /** Parent XREF to a pedigree that differs from `pedigree`; written under the child's `FAMC`. */
+      parentPedigrees?: Record<string, string>;
+    }>;
+    /** XREFs of families merged into this one; each is written as a typed `REFN`. */
+    aliases?: string[];
     events?: Array<{
       type: string;
       dateRaw: string | null;
@@ -359,6 +423,46 @@ export interface GedcomExportPayload {
 
 function asXref(id: string): string {
   return id.startsWith('@') ? id : `@${id}@`;
+}
+
+
+/** Where the pedigree of `childId` in `familyId` lives: the family's child entry. */
+function pedigreeIndex(data: GedcomExportPayload) {
+  const index = new Map<string, NonNullable<GedcomExportPayload['families'][number]['children']>[number]>();
+  for (const fam of data.families) for (const child of fam.children ?? []) index.set(`${fam.id}|${child.childId}`, child);
+  return index;
+}
+
+/**
+ * The `PEDI` payload for a pedigree, or null to write none. `birth` is the default and is left
+ * out unless `isExplicit`; 5.5.1 has no value for `other`, so it is left out there.
+ */
+function pedigreeToken(pedigree: string | null | undefined, format: GedcomFormat, isExplicit = false): string | null {
+  if (!pedigree || (pedigree === 'birth' && !isExplicit)) return null;
+  if (format === 'gedcom7') return pedigree.toUpperCase();
+  return pedigree === 'other' ? null : pedigree;
+}
+
+/**
+ * `1 FAMC` with the child's pedigree beneath it, which is where `PEDI` belongs in both versions.
+ * A parent whose pedigree differs from the family's is written as `_PEDI_PARENT`, because a single
+ * `PEDI` cannot say "birth to one parent, adopted by the other".
+ */
+function famcLines(familyId: string, childId: string, index: ReturnType<typeof pedigreeIndex>, format: GedcomFormat): string[] {
+  const lines = [`1 FAMC ${asXref(familyId)}`];
+  const link = index.get(`${familyId}|${childId}`);
+  const pedigree = pedigreeToken(link?.pedigree, format);
+  if (pedigree) lines.push(`2 PEDI ${pedigree}`);
+  for (const [parentId, parentPedigree] of Object.entries(link?.parentPedigrees ?? {})) {
+    const token = pedigreeToken(parentPedigree, format, true);
+    if (token) lines.push(`2 ${PARENT_PEDIGREE_TAG} ${asXref(parentId)}`, `3 PEDI ${token}`);
+  }
+  return lines;
+}
+
+/** Each merged-away XREF, kept on the surviving family as a typed `REFN`. */
+function aliasLines(aliases: string[] | undefined): string[] {
+  return (aliases ?? []).flatMap((alias) => [`1 REFN ${alias.replace(/^@|@$/g, '')}`, `2 TYPE ${FAMILY_ALIAS_REFN_TYPE}`]);
 }
 
 /**
@@ -384,6 +488,7 @@ function appendPreserved(
  */
 export function buildGedcom551String(data: GedcomExportPayload): string {
   const lines: string[] = [];
+  const pedigrees = pedigreeIndex(data);
 
   // Header
   lines.push('0 HEAD');
@@ -421,7 +526,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 
     if (ind.famc) {
       for (const f of ind.famc) {
-        lines.push(`1 FAMC ${asXref(f)}`);
+        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551'));
       }
     }
 
@@ -446,11 +551,9 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
     if (fam.children) {
       for (const child of fam.children) {
         lines.push(`1 CHIL ${asXref(child.childId)}`);
-        if (child.pedigree && child.pedigree !== 'birth') {
-          lines.push(`2 PEDI ${child.pedigree}`);
-        }
       }
     }
+    lines.push(...aliasLines(fam.aliases));
     if (fam.events) {
       for (const ev of fam.events) {
         lines.push(`1 ${ev.type}`);
@@ -478,6 +581,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
  */
 export function buildGedcom7String(data: GedcomExportPayload): string {
   const lines: string[] = [];
+  const pedigrees = pedigreeIndex(data);
 
   // Header
   lines.push('0 HEAD');
@@ -515,7 +619,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
     if (ind.famc) {
       for (const f of ind.famc) {
-        lines.push(`1 FAMC ${asXref(f)}`);
+        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7'));
       }
     }
 
@@ -540,11 +644,9 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
     if (fam.children) {
       for (const child of fam.children) {
         lines.push(`1 CHIL ${asXref(child.childId)}`);
-        if (child.pedigree && child.pedigree !== 'birth') {
-          lines.push(`2 PEDI ${child.pedigree}`);
-        }
       }
     }
+    lines.push(...aliasLines(fam.aliases));
     if (fam.events) {
       for (const ev of fam.events) {
         lines.push(`1 ${ev.type}`);

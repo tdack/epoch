@@ -14,10 +14,16 @@ import type { DbClient } from '../db';
 import { unions, unionPartners, parentChild, personNames, gedcomPreserved } from '../db/schema';
 import type { ParsedGedcomData } from './index';
 
+/**
+ * `sealing` and `other` have no neutral type; they become `unknown` and keep the PEDI word in
+ * `gedcom_pedi` so export can write it back.
+ */
 const PEDIGREE_TO_TYPE = {
 	birth: 'biological',
 	adopted: 'adoptive',
-	foster: 'foster'
+	foster: 'foster',
+	sealing: 'unknown',
+	other: 'unknown'
 } as const;
 
 function deriveUnionStatus(fam: ParsedGedcomData['families'][number]): 'active' | 'divorced' {
@@ -77,7 +83,8 @@ export async function importNeutralModel(
 			.values({
 				id: unionId,
 				treeId,
-				status: deriveUnionStatus(fam)
+				status: deriveUnionStatus(fam),
+				xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
 			})
 			.onConflictDoNothing();
 
@@ -93,10 +100,11 @@ export async function importNeutralModel(
 
 		// Per-parent assertions: expand family-wide pedigree into per-parent type.
 		for (const child of fam.children) {
-			const type = PEDIGREE_TO_TYPE[child.pedigree ?? 'birth'];
 			const childId = scoped(child.childId);
 
 			for (const parentId of participants) {
+				// PEDI is per link to the family; Epoch's `_PEDI_PARENT` refines it for one parent.
+				const pedigree = child.parentPedigrees?.[parentId] ?? child.pedigree ?? 'birth';
 				await db
 					.insert(parentChild)
 					.values({
@@ -104,7 +112,8 @@ export async function importNeutralModel(
 						treeId,
 						parentId: scoped(parentId),
 						childId,
-						type,
+						type: PEDIGREE_TO_TYPE[pedigree],
+						gedcomPedi: pedigree === 'sealing' || pedigree === 'other' ? pedigree : null,
 						status: 'active',
 						unionId
 					})

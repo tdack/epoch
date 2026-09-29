@@ -70,3 +70,13 @@
   - **Conflicts are never resolved silently.** Two unions conflict when they carry the same event type with different date, place or description, or when their statuses differ. An event type or status present on only one side is not a conflict; merging fills the gap. The command refuses with a typed error listing every conflict unless the request names, for each conflicting event type and for the status, which union's fact to keep.
   - **Import-time merge is stricter than the command.** Only a group with two or more partners, the same partner set, identical facts (both empty counts) and no child recorded with two different pedigrees is merged automatically. A one-partner `FAM` is never merged automatically: two of them may be different, unrecorded, other parents. Everything else is listed as a possible duplicate for review.
 - **Consequences:** Re-importing the same dirty file in merge mode would bring back the merged-away `FAM` records, because the importer matches on XREF and does not look at `xref_aliases`. That is a known gap.
+
+## ADR-009: PEDI is per child link, stored per parent (Phase 2, S3)
+- **Context:** `PEDI` describes a child's link to a family, and the standard place for it is `INDI.FAMC.PEDI`. Epoch read and wrote it under `FAM.CHIL`, which no other program understands, and its parser dropped everything under `FAMC`.
+- **Decision:**
+  - **Read** `PEDI` from the child's `FAMC`. The old `CHIL.PEDI` is still read for files Epoch exported earlier, and `FAMC` wins when both are present. Values are case-insensitive (`adopted` in 5.5.1, `ADOPTED` in 7.0).
+  - **Store** it as one `parent_child` row per parent, with the same type on each, because a `FAMC` names the family and not a parent.
+  - **Write** `PEDI` under `FAMC`, lowercase in 5.5.1 and uppercase in 7.0, and stop writing it under `CHIL`. `birth` is the default and is omitted.
+  - **`sealing` and `other`** have no neutral type. They are stored as `unknown` with the word in the nullable `parent_child.gedcom_pedi`, and written back from it. 5.5.1 has no `OTHER`, so `other` is dropped from a 5.5.1 export and kept in 7.0.
+  - **Different types for the two parents** are legal in the model but cannot be said in one `PEDI`. The family's `PEDI` is the first parent's type, and each parent who differs is written as `2 _PEDI_PARENT @I2@` with `3 PEDI adopted`. Epoch reads it back; other programs ignore a user-defined tag.
+  - **Known losses.** A `guardian` link exports as `foster`, and an `unknown` link without a `gedcom_pedi` exports as birth (the default), so both come back as different types. Other structures under `FAMC` (`STAT`, `NOTE`) are still dropped by the parser.

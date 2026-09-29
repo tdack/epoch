@@ -337,24 +337,29 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     partnersByUnion.set(p.unionId, list);
   }
 
-  // Collapse per-parent assertions into family-wide children. A child is
-  // listed once per union; pedigree is derived from the first assertion type.
+  // Collapse per-parent assertions into family-wide children. A child is listed once per union.
+  // PEDI is per link to the family, so it is the first parent's type; a parent whose type differs
+  // is carried in `parentPedigrees` and written as `_PEDI_PARENT`.
   const TYPE_TO_PEDIGREE: Record<string, string> = {
     biological: 'birth',
     adoptive: 'adopted',
     foster: 'foster',
+    // No GEDCOM value for a guardian; foster is the closest, and the loss is documented (ADR-009).
     guardian: 'foster',
     unknown: 'birth'
   };
-  const childrenByUnion = new Map<string, Array<{ childId: string; pedigree: string | null }>>();
+  const pedigreeOf = (a: { type: string; gedcomPedi: string | null }) =>
+    a.type === 'unknown' && a.gedcomPedi ? a.gedcomPedi : TYPE_TO_PEDIGREE[a.type] || 'birth';
+  const orderOfParent = (unionId: string, parentId: string) => (partnersByUnion.get(unionId) ?? []).indexOf(parentId);
+
+  type ExportedChild = { childId: string; pedigree: string | null; parentPedigrees?: Record<string, string> };
+  const childrenByUnion = new Map<string, ExportedChild[]>();
   const famcByChild: Record<string, string[]> = {};
+  const linksByChildUnion = new Map<string, typeof treeAssertions>();
   for (const a of treeAssertions) {
     if (!a.unionId) continue; // direct (non-union) assertions have no GEDCOM family
-    const child = childrenByUnion.get(a.unionId) ?? [];
-    if (!child.some((c) => c.childId === a.childId)) {
-      child.push({ childId: a.childId, pedigree: TYPE_TO_PEDIGREE[a.type] || 'birth' });
-      childrenByUnion.set(a.unionId, child);
-    }
+    const key = `${a.unionId}|${a.childId}`;
+    linksByChildUnion.set(key, [...(linksByChildUnion.get(key) ?? []), a]);
     if (!famcByChild[a.childId]) famcByChild[a.childId] = [];
     if (!famcByChild[a.childId].includes(a.unionId)) famcByChild[a.childId].push(a.unionId);
   }
@@ -380,6 +385,20 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     famXrefMap.set(u.id, u.id.replace(new RegExp(`^${treeId}:`), ''));
   }
 
+  for (const [key, links] of linksByChildUnion) {
+    const [unionId, childId] = key.split('|');
+    const ordered = [...links].sort((a, b) => orderOfParent(unionId, a.parentId) - orderOfParent(unionId, b.parentId));
+    const first = pedigreeOf(ordered[0]);
+    const parentPedigrees: Record<string, string> = {};
+    for (const link of ordered.slice(1)) {
+      if (pedigreeOf(link) !== first) parentPedigrees[indXrefMap.get(link.parentId) || link.parentId] = pedigreeOf(link);
+    }
+    childrenByUnion.set(unionId, [
+      ...(childrenByUnion.get(unionId) ?? []),
+      { childId, pedigree: first, ...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}) }
+    ]);
+  }
+
   // Map stored XREFs to export IDs so preserved lines re-attach to their owner.
   const xrefToExportId = new Map<string, string>();
   for (const [id, xref] of indXrefMap) {
@@ -387,6 +406,10 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
   }
   for (const [id, xref] of famXrefMap) {
     if (xref) xrefToExportId.set(xref, xref);
+  }
+  // Structures preserved under a merged-away family re-attach to the family that absorbed it.
+  for (const u of treeUnions) {
+    for (const alias of u.xrefAliases ?? []) xrefToExportId.set(alias, famXrefMap.get(u.id) ?? u.id);
   }
 
   return {
@@ -414,8 +437,10 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
         wifeId: wifeId ? (indXrefMap.get(wifeId) || wifeId) : null,
         children: (childrenByUnion.get(u.id) || []).map((c) => ({
           childId: indXrefMap.get(c.childId) || c.childId,
-          pedigree: c.pedigree
+          pedigree: c.pedigree,
+          ...(c.parentPedigrees ? { parentPedigrees: c.parentPedigrees } : {})
         })),
+        ...(u.xrefAliases && u.xrefAliases.length > 0 ? { aliases: u.xrefAliases } : {}),
         events: eventsByEntity[u.id] || []
       };
     }),
