@@ -75,11 +75,13 @@ Playwright starts its own dev server on port 5179 (or reuses one already running
 your installed Google Chrome, so no browser download is needed. Without Chrome, run
 `npx playwright install chromium` and remove `channel: 'chrome'` from `playwright.config.ts`.
 
-On a cold start (after clearing `node_modules/.vite`) Vite's first request can log `500 GET /` with
-`TypeError: Cannot read properties of null (reading 'function')` from `+layout.svelte`. It is a
-dev-server race between Svelte's SSR and Vite's dependency optimiser, not an application fault: it
-happens with or without the app's own startup checks, the second request succeeds, and the
-production build is unaffected. Ignore it if the specs pass.
+On a cold start (after clearing `node_modules/.vite`) the dev server's first request often answers
+`500 GET /`, logging `TypeError: Cannot read properties of null (reading 'function')` from
+`+layout.svelte`. It is not caused by the app: the log shows Vite's forced dependency
+re-optimisation followed by an SSR "program reload" while that first request is rendering. Measured
+over 30 cold starts each (2026-09-30), the first request failed 12 times on `main` (S3) and 14 times
+on the S4 branch, and the second request always succeeded. It never happens on a warm cache or in the
+production build. Ignore it if the specs pass.
 
 Every spec creates a uniquely named tree through the API and deletes it afterwards, so "The
 Simpsons" and any other data in your local database are left alone. Stop `npm run dev` before
