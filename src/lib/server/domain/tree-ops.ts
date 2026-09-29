@@ -357,6 +357,7 @@ function createUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 		id: command.unionId,
 		treeId: ctx.treeId,
 		status: command.status ?? 'active',
+		xrefAliases: null,
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now
@@ -410,6 +411,7 @@ function assertParentChild(rows: TreeRows, ctx: OpContext, command: Extract<Rela
 		type: command.type,
 		status: 'active',
 		unionId: command.unionId,
+		gedcomPedi: null,
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now

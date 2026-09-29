@@ -16,7 +16,14 @@ export interface RowsSpec {
 		birth?: string;
 		death?: string | true;
 	}>;
-	unions?: Array<{ id: string; partners: string[]; status?: UnionStatus; version?: number; marriage?: string }>;
+	unions?: Array<{
+		id: string;
+		partners: string[];
+		status?: UnionStatus;
+		version?: number;
+		marriage?: string;
+		xrefAliases?: string[];
+	}>;
 	links?: Array<{ parentId: string; childId: string; type?: ParentChildType; unionId?: string | null }>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 }
@@ -68,6 +75,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			id: u.id,
 			treeId: TEST_TREE_ID,
 			status: u.status ?? 'active',
+			xrefAliases: u.xrefAliases ?? null,
 			version: u.version ?? 1,
 			createdAt: T0,
 			updatedAt: T0
@@ -88,6 +96,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			type: l.type ?? 'biological',
 			status: 'active',
 			unionId: l.unionId ?? null,
+			gedcomPedi: null,
 			version: 1,
 			createdAt: T0,
 			updatedAt: T0

@@ -11,6 +11,9 @@ export const unions = sqliteTable('unions', {
   id: text('id').primaryKey(),
   treeId: text('tree_id').notNull().references(() => trees.id, { onDelete: 'cascade' }),
   status: text('status', { enum: ['active', 'separated', 'divorced', 'annulled', 'ended'] }).notNull().default('active'),
+  // XREFs of unions merged into this one, kept so export can still resolve them (ADR-008). A
+  // column on the surviving row rather than a table, so an undo restores it with the row.
+  xrefAliases: text('xref_aliases', { mode: 'json' }).$type<string[]>(),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
@@ -42,6 +45,9 @@ export const parentChild = sqliteTable('parent_child', {
   type: text('type', { enum: ['biological', 'adoptive', 'foster', 'guardian', 'unknown'] }).notNull().default('unknown'),
   status: text('status', { enum: ['active', 'ended', 'disputed'] }).notNull().default('active'),
   unionId: text('union_id').references(() => unions.id, { onDelete: 'set null' }),
+  // The GEDCOM PEDI value when it has no neutral type of its own ('sealing', 'other'); the type is
+  // 'unknown' then. Null for every link whose type says it all.
+  gedcomPedi: text('gedcom_pedi'),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
