@@ -96,3 +96,47 @@ export async function activate(locator: Locator) {
 	await locator.focus();
 	await locator.press('Enter');
 }
+
+export interface RelationshipForm {
+	/** An existing person, found by searching their name. */
+	existing?: string;
+	/** Or a new person, by given name. */
+	newGiven?: string;
+	/** The option label, e.g. "Adoptive". */
+	type?: string;
+	/** The role option label for add parent, e.g. "Mother". */
+	role?: string;
+	/** Text that identifies the partnership to pick in the chooser, e.g. /2nd partnership/. */
+	partnership?: string | RegExp;
+}
+
+/**
+ * Add a parent, child or partner the way a person would: from the card's menu, through the
+ * relationship dialog, waiting for the preview sentence before saving. Nothing here touches the API.
+ */
+export async function addRelationship(page: Page, anchor: string, kind: 'Add parent' | 'Add child' | 'Add partner', form: RelationshipForm) {
+	const unionsBefore = await page.locator('[data-union-id]').count();
+	await openMenuByKeyboard(page, anchor);
+	await chooseMenuItem(page, 'Add relationship');
+	const dialog = page.getByRole('dialog', { name: 'Add relationship' });
+	await dialog.getByRole('button', { name: kind, exact: true }).click();
+	if (form.type) await dialog.getByLabel('Relationship type').selectOption({ label: form.type });
+	if (form.role) await dialog.getByLabel('Role').selectOption({ label: form.role });
+	if (form.newGiven) {
+		await dialog.getByRole('button', { name: 'New person' }).click();
+		await dialog.getByLabel('Given name').fill(form.newGiven);
+	} else if (form.existing) {
+		await dialog.getByLabel('Search people by name').fill(form.existing);
+		await dialog.getByLabel('Search people by name').press('Enter');
+		await dialog.getByRole('list', { name: 'Search results' }).getByRole('button', { name: new RegExp(form.existing) }).first().click();
+	}
+	if (form.partnership) await dialog.getByTestId('union-chooser').getByRole('radio', { name: form.partnership }).check();
+	// The preview is the promise of what will be saved; wait for it, then save.
+	await expect(dialog.getByText(/will be recorded as/)).toBeVisible();
+	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(dialog).toBeHidden();
+	// The canvas redraws after the save; wait for it so the next step starts from what is shown.
+	const other = form.newGiven ?? form.existing;
+	if (other) await expect(card(page, other)).toBeVisible();
+	if (kind === 'Add partner') await expect(page.locator('[data-union-id]')).toHaveCount(unionsBefore + 1);
+}
