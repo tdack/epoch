@@ -131,30 +131,26 @@ export async function deleteIndividualApi(
 }
 
 export async function previewGedcomImport(file: File, treeId?: string | null): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
-	if (treeId) {
-		const fd = new FormData();
-		fd.append('file', file);
-		fd.append('treeId', treeId);
-		return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
-	}
-
-	return {
-		mode: 'replace',
-		incoming: { individuals: 0, families: 0, events: 0 }
-	};
+	// Without a tree the server still analyses the file, so the duplicate families are listed for a new tree too.
+	const fd = new FormData();
+	fd.append('file', file);
+	if (treeId) fd.append('treeId', treeId);
+	return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
 }
 
 export async function submitGedcomImport(
 	file: File,
 	mode: 'replace' | 'merge',
-	treeId?: string | null
-): Promise<{ individualsCount?: number; familiesCount?: number; treeId?: string }> {
+	treeId?: string | null,
+	options: { shouldMergeDuplicateFamilies?: boolean } = {}
+): Promise<{ individualsCount?: number; familiesCount?: number; mergedFamiliesCount?: number; treeId?: string }> {
 	const fd = new FormData();
 	fd.append('file', file);
 	fd.append('mode', mode);
 	if (treeId) {
 		fd.append('treeId', treeId);
 	}
+	if (options.shouldMergeDuplicateFamilies) fd.append('mergeDuplicates', 'true');
 	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
 }
 

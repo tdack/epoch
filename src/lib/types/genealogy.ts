@@ -39,8 +39,12 @@ export interface ImportPreviewData {
     families: number;
     events: number;
   };
+  /** Families the file repeats: exact ones can be merged on import, possible ones are for review. */
+  duplicates: DuplicateFamilyReport;
 }
 
+export type { DuplicateFamilyReport, ExactDuplicateGroup, PossibleDuplicateGroup } from '#lib/server/gedcom/duplicate-families.js';
+import type { DuplicateFamilyReport } from '#lib/server/gedcom/duplicate-families.js';
 export type { ImpactSummary, ImpactPerson } from '#lib/server/domain/impact.js';
 export type { RecordChange } from '#lib/server/domain/change-log.js';
 export type { UnionEventInput, UnionEventType, EndedUnionStatus } from '#lib/shared/union-events.js';

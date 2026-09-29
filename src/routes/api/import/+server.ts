@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { importGedcomToDb, previewGedcomImport, type ImportMode } from '#lib/server/gedcom/importer.js';
+import { importGedcomToDb, previewGedcomFile, previewGedcomImport, type ImportMode } from '#lib/server/gedcom/importer.js';
 import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
@@ -18,6 +18,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const treeName = formData.get('treeName') as string | null;
   let treeId = formData.get('treeId') as string | null;
   const mode = (formData.get('mode') as string | null) === 'merge' ? 'merge' : 'replace';
+  const shouldMergeDuplicateFamilies = formData.get('mergeDuplicates') === 'true';
 
   if (!file) {
     return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
@@ -58,7 +59,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
         treeId,
         r2ObjectKey: stagingKey,
         treeName: treeName || file.name.replace(/\.ged$/i, ''),
-        mode
+        mode,
+        shouldMergeDuplicateFamilies
       });
 
       return Response.json({
@@ -74,7 +76,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       treeId,
       fileText,
       treeName || file.name.replace(/\.ged$/i, ''),
-      mode
+      mode,
+      { shouldMergeDuplicateFamilies }
     );
 
     return Response.json({
@@ -104,8 +107,17 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
   const file = formData.get('file') as File | null;
   const treeId = formData.get('treeId') as string | null;
 
-  if (!file || !treeId) {
-    return Response.json({ error: 'GEDCOM file and treeId are required' }, { status: 400 });
+  if (!file) {
+    return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
+  }
+
+  // No tree yet: the import will create one, so there is nothing to compare against.
+  if (!treeId) {
+    try {
+      return Response.json(previewGedcomFile(await file.text()));
+    } catch (err: any) {
+      return Response.json({ error: `Failed to preview GEDCOM: ${err.message}` }, { status: 500 });
+    }
   }
 
   try {

@@ -6,6 +6,8 @@ export interface ImportQueueMessage {
   r2ObjectKey: string;
   treeName?: string;
   mode?: 'replace' | 'merge';
+  /** Carried through the queue so a large file is merged exactly as the preview promised. */
+  shouldMergeDuplicateFamilies?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ export default {
   async queue(batch: MessageBatch<ImportQueueMessage>, env: App.Platform['env']): Promise<void> {
     for (const msg of batch.messages) {
       try {
-        const { treeId, r2ObjectKey, treeName, mode } = msg.body;
+        const { treeId, r2ObjectKey, treeName, mode, shouldMergeDuplicateFamilies } = msg.body;
         const r2Object = await env.MEDIA_BUCKET.get(r2ObjectKey);
 
         if (!r2Object) {
@@ -26,7 +28,7 @@ export default {
         }
 
         const rawGedcom = await r2Object.text();
-        await importGedcomToDb(env.DB, treeId, rawGedcom, treeName, mode ?? 'replace');
+        await importGedcomToDb(env.DB, treeId, rawGedcom, treeName, mode ?? 'replace', { shouldMergeDuplicateFamilies });
 
         // Clean up temporary staging file in R2
         await env.MEDIA_BUCKET.delete(r2ObjectKey);

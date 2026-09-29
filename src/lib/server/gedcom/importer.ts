@@ -2,6 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { getDb, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved, ensureDbSchema } from '../db';
 import { parseGedcom, type ParsedGedcomData } from './index';
 import { importNeutralModel } from './neutral-importer';
+import { detectDuplicateFamilies, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
 import { eq } from 'drizzle-orm';
 
 // D1 limits a single query to 100 bound parameters, so batch inserts must be
@@ -41,6 +42,36 @@ export interface ImportPreview {
     duplicateEvents: number;
   };
   incoming: { individuals: number; families: number; events: number };
+  /** Families the file repeats: exact ones can be merged on import, possible ones are for review. */
+  duplicates: DuplicateFamilyReport;
+}
+
+export interface ImportOptions {
+  /**
+   * Fold exact duplicate families into one, keeping every XREF as an alias. Off unless asked, so
+   * a caller that does not know about duplicates gets the file exactly as written.
+   */
+  shouldMergeDuplicateFamilies?: boolean;
+}
+
+/** Preview for a file with no tree to compare against: a new tree, so only the file is analysed. */
+export function previewGedcomFile(rawGedcom: string): ImportPreview {
+  const parsed = parseGedcom(rawGedcom);
+  return {
+    mode: 'replace',
+    incoming: countIncoming(parsed),
+    duplicates: detectDuplicateFamilies(parsed)
+  };
+}
+
+function countIncoming(parsed: ParsedGedcomData): ImportPreview['incoming'] {
+  return {
+    individuals: parsed.individuals.length,
+    families: parsed.families.length,
+    events:
+      parsed.individuals.reduce((n, i) => n + i.events.length, 0) +
+      parsed.families.reduce((n, f) => n + f.events.length, 0)
+  };
 }
 
 /**
@@ -61,20 +92,14 @@ export async function previewGedcomImport(
   const parsed = parseGedcom(rawGedcom);
   const db = getDb(d1);
 
-  const incomingEvents =
-    parsed.individuals.reduce((n, i) => n + i.events.length, 0) +
-    parsed.families.reduce((n, f) => n + f.events.length, 0);
-  const incoming: ImportPreview['incoming'] = {
-    individuals: parsed.individuals.length,
-    families: parsed.families.length,
-    events: incomingEvents
-  };
+  const incoming = countIncoming(parsed);
+  const duplicates = detectDuplicateFamilies(parsed);
 
   const existingTree = await db.select().from(trees).where(eq(trees.id, treeId)).get();
   const isEmpty = !existingTree;
 
   if (isEmpty) {
-    return { mode: 'replace', incoming };
+    return { mode: 'replace', incoming, duplicates };
   }
 
   const [treeInds, treeUnions, treeAssertions, treeEvents] = await Promise.all([
@@ -158,7 +183,7 @@ export async function previewGedcomImport(
     }
   }
 
-  return { mode: 'merge', deleteCounts, merge, incoming };
+  return { mode: 'merge', deleteCounts, merge, incoming, duplicates };
 }
 
 export async function importGedcomToDb(
@@ -166,10 +191,14 @@ export async function importGedcomToDb(
   treeId: string,
   rawGedcom: string,
   treeName?: string,
-  mode: ImportMode = 'replace'
-): Promise<{ individualsCount: number; familiesCount: number; eventsCount: number }> {
+  mode: ImportMode = 'replace',
+  options: ImportOptions = {}
+): Promise<{ individualsCount: number; familiesCount: number; eventsCount: number; mergedFamiliesCount: number }> {
   await ensureDbSchema(d1);
-  const parsed = parseGedcom(rawGedcom);
+  const folded = options.shouldMergeDuplicateFamilies
+    ? mergeExactDuplicateFamilies(parseGedcom(rawGedcom))
+    : { parsed: parseGedcom(rawGedcom), mergedCount: 0 };
+  const parsed = folded.parsed;
   const db = getDb(d1);
 
   // Ensure tree exists or update tree name
@@ -290,7 +319,8 @@ export async function importGedcomToDb(
   return {
     individualsCount: indValues.length,
     familiesCount: parsed.families.length,
-    eventsCount: eventValues.length
+    eventsCount: eventValues.length,
+    mergedFamiliesCount: folded.mergedCount
   };
 }
 
