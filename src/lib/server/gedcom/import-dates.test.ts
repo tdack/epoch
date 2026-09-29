@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import clean from '../../../../docs/The_Simpsons_clean.ged?raw';
+import dirty from '../../../../docs/The_Simpsons.ged?raw';
 import { events } from '../db/schema';
 import { createTestDatabase, createTestTree, createTestUser, type TestDatabase } from '../testing/d1';
 import { GenealogyService } from '../services/genealogy-service';
 import { ChangeLogService } from '../services/change-log-service';
 import { backfillStatements, UNBACKFILLED_EVENTS_SQL, type UnbackfilledEvent } from '../domain/date-backfill';
+import { normalizeGedcomDate } from './index';
 import { importGedcomToDb } from './importer';
 
 let t: TestDatabase;
@@ -19,14 +21,19 @@ afterAll(async () => {
 const eventsOf = (treeId: string) => t.db.select().from(events).where(eq(events.treeId, treeId)).all();
 
 describe('persisting date bounds, precision and qualifier (ADR-004)', () => {
-	it('stores every The_Simpsons dated event with its bounds and precision', async () => {
+	it.each([
+		['The_Simpsons_clean.ged', clean],
+		['The_Simpsons.ged', dirty]
+	])('stores every dated event in %s with its bounds and precision', async (_name, file) => {
 		const treeId = crypto.randomUUID();
-		await importGedcomToDb(t.d1, treeId, clean, 'Simpsons');
+		await importGedcomToDb(t.d1, treeId, file, 'Simpsons');
 		const dated = (await eventsOf(treeId)).filter((e) => e.dateRaw);
 		expect(dated.length).toBeGreaterThan(0);
 		for (const e of dated) {
 			expect(e.dateQualifier, e.dateRaw!).not.toBeNull();
 			expect(e.datePrecision, e.dateRaw!).not.toBeNull();
+			// The lower bound is what date_sort has always held.
+			expect(e.dateSort, e.dateRaw!).toBe(normalizeGedcomDate(e.dateRaw!).sort ?? null);
 		}
 		// A full day is stored as that day, once, at both ends: nothing widened, nothing narrowed.
 		const marriage = dated.find((e) => e.dateRaw === '3 Nov 2014')!;
