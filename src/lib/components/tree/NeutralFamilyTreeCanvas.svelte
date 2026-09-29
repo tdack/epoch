@@ -361,7 +361,7 @@
           {#if marrLabel}
             <text
               x={union.x}
-              y={union.y - 20}
+              y={union.isHanging ? union.y - 20 : union.y - NODE_HEIGHT / 2 - 6}
               text-anchor="middle"
               class="fill-amber-800 font-semibold pointer-events-none"
               style="font-size: 11px"
