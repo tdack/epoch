@@ -14,7 +14,7 @@
 	<summary>Legend</summary>
 
 	<p class="heading">Sex</p>
-	{#each sexes as sex (sex.cls)}
+	{#each sexes as sex (sex.name)}
 		<div class="row">
 			<span class="chip {sex.cls}" aria-hidden="true">{sex.symbol}</span>
 			<span>{sex.name}</span>
