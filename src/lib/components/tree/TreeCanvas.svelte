@@ -13,6 +13,7 @@
 		type Point,
 		type TreeLayout
 	} from '#lib/tree-layout/index.js';
+	import type { ParentChildType } from '#lib/types/genealogy.js';
 	import ParentLinkPopover from './ParentLinkPopover.svelte';
 	import PersonCard from './PersonCard.svelte';
 	import TreeContextMenu from './TreeContextMenu.svelte';
@@ -72,6 +73,8 @@
 		onEndUnion?: (unionId: string) => void;
 		/** Remove one parent's link from a merged (union, child) edge. */
 		onRemoveAssertion?: (edge: ChildEdge, assertion: ChildAssertion) => void;
+		/** Change one parent's link to another type. */
+		onChangeLinkType?: (edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) => void;
 		onRemoveUnion?: (unionId: string) => void;
 		/** "Merge duplicate partnerships…", offered only for a partnership that has a twin. */
 		onMergeUnion?: (unionId: string) => void;
@@ -102,6 +105,7 @@
 		onEditUnion,
 		onEndUnion,
 		onRemoveAssertion,
+		onChangeLinkType,
 		onRemoveUnion,
 		onMergeUnion,
 		mergeableUnionIds,
@@ -452,6 +456,11 @@
 		restoreFocus();
 	}
 
+	function changeLinkType(edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) {
+		closeOverlays();
+		onChangeLinkType?.(edge, assertion, toType);
+	}
+
 	function removeAssertion(edge: ChildEdge, assertion: ChildAssertion) {
 		closeOverlays();
 		onRemoveAssertion?.(edge, assertion);
@@ -746,6 +755,7 @@
 			x={Math.max(8, Math.min(popover.x, size.width - 336))}
 			y={Math.max(8, Math.min(popover.y, size.height - 40 - popoverEdge.assertions.length * 44))}
 			onRemove={removeAssertion}
+			onChangeType={changeLinkType}
 			onClose={closeOverlays}
 		/>
 	{/if}

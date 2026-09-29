@@ -49,7 +49,9 @@
     PersonFormData,
     ChangeSummary,
     ImpactSummary,
-    RelationshipKind
+    RelationshipKind,
+    RelationshipIntent,
+    ParentChildType
   } from '#lib/types/genealogy.js';
   import {
     fetchTrees,
@@ -63,6 +65,8 @@
     submitGedcomImport,
     fetchRelationshipGraph,
     removeRelationshipApi,
+    planRelationshipApi,
+    applyRelationshipApi,
     previewImpactApi,
     previewUnionMergeApi,
     mergeUnionsApi,
@@ -616,6 +620,34 @@
     );
   }
 
+  /** Change one parent's link to another type, after the preview sentence and records are shown. */
+  function handleChangeLinkType(edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) {
+    if (!selectedTreeId) return;
+    const treeId = selectedTreeId;
+    const ref = (id: string) => ({ id, givenName: graphName(id), surname: null });
+    const intent: RelationshipIntent = {
+      kind: 'change_link_type',
+      parent: ref(assertion.parentId),
+      child: ref(edge.childId),
+      fromType: assertion.type,
+      toType
+    };
+    void confirmWithImpact({
+      title: `Change ${graphName(assertion.parentId)}'s link to ${graphName(edge.childId)}?`,
+      confirmLabel: 'Change type',
+      preview: async () => {
+        const plan = await planRelationshipApi(treeId, intent);
+        if (plan.commands.length === 0 || !plan.impact) throw new Error(plan.warnings[0]?.message ?? 'Nothing would change.');
+        return plan.impact;
+      },
+      run: async () => {
+        const saved = await applyRelationshipApi(treeId, intent);
+        return { change: saved.change };
+      },
+      done: 'Link type changed'
+    });
+  }
+
   function handleRemoveUnion(unionId: string) {
     const names = relationshipGraph?.unions.find((u) => u.id === unionId)?.partnerIds.map(graphName).join(' and ');
     requestImpactRemoval(
@@ -856,6 +888,7 @@
         onEditUnion={handleEditUnion}
         onEndUnion={handleEndUnion}
         onRemoveAssertion={handleRemoveAssertion}
+        onChangeLinkType={handleChangeLinkType}
         onRemoveUnion={handleRemoveUnion}
         onMergeUnion={handleMergeUnion}
         mergeableUnionIds={mergeableIds}

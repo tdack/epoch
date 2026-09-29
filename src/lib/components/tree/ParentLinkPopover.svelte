@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { ChildAssertion, ChildEdge } from '#lib/tree-layout/index.js';
+	import type { ParentChildType } from '#lib/types/genealogy.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {
@@ -14,11 +15,15 @@
 		y: number;
 		/** Remove exactly one parent's link; the others on the edge stay. */
 		onRemove: (edge: ChildEdge, assertion: ChildAssertion) => void;
+		/** Ask to change one parent's link to another type; the caller previews it and confirms. */
+		onChangeType: (edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) => void;
 		/** Escape or the Close button. */
 		onClose: () => void;
 	}
 
-	let { edge, childName, nameOf, x, y, onRemove, onClose }: Props = $props();
+	let { edge, childName, nameOf, x, y, onRemove, onChangeType, onClose }: Props = $props();
+
+	const TYPES = Object.keys(RELATIONSHIP_STYLES) as ParentChildType[];
 
 	let dialogElement: HTMLDivElement | null = $state(null);
 
@@ -34,7 +39,7 @@
 		}
 		if (event.key !== 'Tab') return;
 		// Focus is trapped while the popover is open: Tab and Shift+Tab wrap between its buttons.
-		const buttons = [...(dialogElement?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+		const buttons = [...(dialogElement?.querySelectorAll<HTMLElement>('button, select') ?? [])];
 		if (buttons.length === 0) return;
 		const first = buttons[0];
 		const last = buttons[buttons.length - 1];
@@ -79,6 +84,20 @@
 					{nameOf(assertion.parentId)}
 					<span class="type">{style.label}</span>
 				</span>
+				<select
+					class="change"
+					aria-label="Change {style.label.toLowerCase()} link from {nameOf(assertion.parentId)} to…"
+					onchange={(event) => {
+						const toType = event.currentTarget.value as ParentChildType;
+						event.currentTarget.value = '';
+						if (toType) onChangeType(edge, assertion, toType);
+					}}
+				>
+					<option value="">Change…</option>
+					{#each TYPES.filter((t) => t !== assertion.type) as t (t)}
+						<option value={t}>{RELATIONSHIP_STYLES[t].label}</option>
+					{/each}
+				</select>
 				<button
 					type="button"
 					class="remove"
@@ -131,6 +150,14 @@
 		display: block;
 		font-size: 11px;
 		color: var(--tree-ink-muted);
+	}
+	select {
+		max-width: 6.5rem;
+		border-radius: 6px;
+		padding: 3px 4px;
+		border: 1px solid var(--tree-panel-border);
+		background: white;
+		font-size: 12px;
 	}
 	button {
 		cursor: pointer;
