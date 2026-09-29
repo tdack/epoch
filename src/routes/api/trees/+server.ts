@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 import { treeCreateSchema } from '#lib/server/validation/schemas.js';
@@ -15,7 +15,6 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
   }
 
   try {
-    await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
     const userTrees = await service.listTrees({
@@ -46,7 +45,6 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     const body = parseBody(treeCreateSchema, await request.json().catch(() => ({})));
     const { name, description } = body;
 
-    await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
     const newTree = await service.createTree(name, description ?? null, {

@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { getDb, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved, ensureDbSchema } from '../db';
+import { getDb, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved } from '../db';
 import { parseGedcom, type ParsedGedcomData } from './index';
 import { importNeutralModel } from './neutral-importer';
 import { detectDuplicateFamilies, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
@@ -88,7 +88,6 @@ export async function previewGedcomImport(
   treeId: string,
   rawGedcom: string
 ): Promise<ImportPreview> {
-  await ensureDbSchema(d1);
   const parsed = parseGedcom(rawGedcom);
   const db = getDb(d1);
 
@@ -194,7 +193,6 @@ export async function importGedcomToDb(
   mode: ImportMode = 'replace',
   options: ImportOptions = {}
 ): Promise<{ individualsCount: number; familiesCount: number; eventsCount: number; mergedFamiliesCount: number }> {
-  await ensureDbSchema(d1);
   const folded = options.shouldMergeDuplicateFamilies
     ? mergeExactDuplicateFamilies(parseGedcom(rawGedcom))
     : { parsed: parseGedcom(rawGedcom), mergedCount: 0 };

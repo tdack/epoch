@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getTreeExportData } from '#lib/server/gedcom/importer.js';
 import { buildGedcomString, type GedcomFormat } from '#lib/server/gedcom/index.js';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 import { exportBodySchema } from '#lib/server/validation/schemas.js';
@@ -28,7 +28,6 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
   const format = resolveFormat(url.searchParams.get('format'));
 
   try {
-    await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
     // Verifies tree access
@@ -69,7 +68,6 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   }
 
   try {
-    await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
     await service.getTree(treeId, {

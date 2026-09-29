@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, mediaItems, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb, mediaItems } from '#lib/server/db/index.js';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
   if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
@@ -17,7 +17,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
   }
 
   try {
-    await ensureDbSchema(platform.env.DB);
     const fileExt = file.name.split('.').pop() || 'dat';
     const objectKey = `media/${treeId}/${entityId}/${crypto.randomUUID()}.${fileExt}`;
     const arrayBuffer = await file.arrayBuffer();

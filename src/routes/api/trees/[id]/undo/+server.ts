@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { ChangeLogService } from '#lib/server/services/change-log-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 
@@ -13,7 +13,6 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
-		await ensureDbSchema(platform.env.DB);
 		const service = new ChangeLogService(getDb(platform.env.DB));
 		const next = await service.peekUndo(treeId, { user: locals.user, correlationId: locals.correlationId });
 		return Response.json({ next });
@@ -36,7 +35,6 @@ export const POST: RequestHandler = async ({ params, locals, platform }) => {
 	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
-		await ensureDbSchema(platform.env.DB);
 		const service = new ChangeLogService(getDb(platform.env.DB));
 		const { undone, change } = await service.undoLast(treeId, {
 			user: locals.user,

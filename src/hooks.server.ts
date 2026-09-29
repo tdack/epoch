@@ -4,6 +4,7 @@ import { CF_ACCESS_AUD, ACCESS_BYPASS_DEV } from '$app/env/private';
 import { getPlatformBindings } from '#lib/server/platform.js';
 import { extractAccessJwt, isDevBypassEnabled, validateAccessJwt } from '#lib/server/auth/access.js';
 import { getDb } from '#lib/server/db/index.js';
+import { isSchemaCurrent, SCHEMA_NOT_MIGRATED_CODE, SCHEMA_NOT_MIGRATED_MESSAGE } from '#lib/server/db/schema-status.js';
 import { UserRepository } from '#lib/server/repositories/user-repository.js';
 import { Logger } from '#lib/server/logging/logger.js';
 
@@ -20,6 +21,15 @@ export const handle: Handle = async ({ event, resolve }) => {
     mutableEvent.platform = { env: bindings, context: {}, caches: globalThis.caches };
   } else if (!mutableEvent.platform.env) {
     mutableEvent.platform.env = bindings;
+  }
+
+  // Migrations under drizzle/ are the only schema source. Say so plainly instead of letting the
+  // first query fail with `no such table`.
+  if (bindings.DB && !(await isSchemaCurrent(bindings.DB))) {
+    const isApi = event.url.pathname.startsWith('/api/');
+    return isApi
+      ? Response.json({ error: SCHEMA_NOT_MIGRATED_MESSAGE, code: SCHEMA_NOT_MIGRATED_CODE }, { status: 503, headers: { 'x-correlation-id': correlationId } })
+      : new Response(SCHEMA_NOT_MIGRATED_MESSAGE, { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8', 'x-correlation-id': correlationId } });
   }
 
   const requestLogger = new Logger({ correlationId, path: event.url.pathname, method: event.request.method });

@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 
@@ -20,7 +20,6 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 	const query = url.searchParams.get('q') ?? '';
 
 	try {
-		await ensureDbSchema(platform.env.DB);
 		const db = getDb(platform.env.DB);
 		const service = new RelationshipService(db);
 

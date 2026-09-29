@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 import { relationshipPayloadSchema } from '#lib/server/validation/schemas.js';
@@ -21,7 +21,6 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 
 	try {
 		const { intent } = parseBody(relationshipPayloadSchema, await request.json().catch(() => ({})));
-		await ensureDbSchema(platform.env.DB);
 		const db = getDb(platform.env.DB);
 		const service = new RelationshipService(db);
 

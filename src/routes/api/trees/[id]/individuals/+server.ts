@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDb, ensureDbSchema } from '#lib/server/db/index.js';
+import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { DomainError } from '#lib/server/domain/errors.js';
 import { individualCreateSchema } from '#lib/server/validation/schemas.js';
@@ -26,7 +26,6 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
       return Response.json({ error: 'Given name or surname is required' }, { status: 400 });
     }
 
-    await ensureDbSchema(platform.env.DB);
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
 

@@ -1,4 +1,5 @@
 import type { MessageBatch } from '@cloudflare/workers-types';
+import { assertSchemaCurrent } from '../db/schema-status';
 import { importGedcomToDb } from '../gedcom/importer';
 
 export interface ImportQueueMessage {
@@ -16,6 +17,16 @@ export interface ImportQueueMessage {
  */
 export default {
   async queue(batch: MessageBatch<ImportQueueMessage>, env: App.Platform['env']): Promise<void> {
+    // A queue message outlives a deploy, so check once up front and let every message retry
+    // rather than acking imports that cannot be written.
+    try {
+      await assertSchemaCurrent(env.DB);
+    } catch (err) {
+      console.error(err);
+      batch.retryAll();
+      return;
+    }
+
     for (const msg of batch.messages) {
       try {
         const { treeId, r2ObjectKey, treeName, mode, shouldMergeDuplicateFamilies } = msg.body;
