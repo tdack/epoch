@@ -237,3 +237,44 @@ describe('GEDCOM NAME values', () => {
 		expect(reparsed.individuals[0]).toMatchObject({ givenName: 'Alice', surname: 'Walker' });
 	});
 });
+
+describe('partnership events with user-defined tags', () => {
+	const gedcom = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Ada /King/
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Will /King/
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 _PSTART
+2 DATE 1 JAN 1990
+2 PLAC Perth
+1 MARR
+2 DATE 2 FEB 1992
+1 _SEPR
+2 DATE 3 MAR 1998
+0 TRLR
+`;
+
+	it('imports the start and separation as family events, not as unmodelled lines', () => {
+		const family = parseGedcom(gedcom).families[0];
+		expect(family.events.map((e) => [e.type, e.dateRaw, e.place ?? null])).toEqual([
+			['_PSTART', '1 JAN 1990', 'Perth'],
+			['MARR', '2 FEB 1992', null],
+			['_SEPR', '3 MAR 1998', null]
+		]);
+	});
+
+	it('exports them again under the same tags', () => {
+		const parsed = parseGedcom(gedcom);
+		const out = buildGedcom551String({ individuals: parsed.individuals, families: parsed.families } as never);
+		expect(out).toContain('1 _PSTART\r\n2 DATE 1 JAN 1990\r\n2 PLAC Perth');
+		expect(out).toContain('1 _SEPR\r\n2 DATE 3 MAR 1998');
+		expect(parseGedcom(out).families[0].events.map((e) => e.type)).toEqual(['_PSTART', 'MARR', '_SEPR']);
+	});
+});

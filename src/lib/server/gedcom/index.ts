@@ -56,7 +56,7 @@ const INDIVIDUAL_EVENT_TAGS = new Set([
 
 /** Family-level event tags shared by GEDCOM 5.5.1 and 7.0. */
 const FAMILY_EVENT_TAGS = new Set([
-  'MARR', 'DIV', 'ANUL', 'CENS', 'ENGA', 'MARB', 'MARC', 'MARL', 'MARS', 'DIVF',
+  'MARR', 'DIV', 'ANUL', 'CENS', 'ENGA', 'MARB', 'MARC', 'MARL', 'MARS', 'DIVF', '_PSTART', '_SEPR',
   'EVEN'
 ]);
 
