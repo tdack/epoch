@@ -84,5 +84,20 @@ change. Each successful change shows a toast with **Undo**. Undo reverts your ow
 change in the tree, and is refused with a reason if someone else has since changed the same
 records. See ADR-007 in [docs/decisions.md](./docs/decisions.md).
 
+### Duplicate families and merging partnerships
+
+A dirty GEDCOM can carry one family several times ([docs/The_Simpsons.ged](./docs/The_Simpsons.ged) does;
+never seed from it). The import preview lists **Duplicate families** (same two partners, identical
+facts, no disagreement about a child) with a default-on option to merge them, and **Possible
+duplicates** for review only. A merged family keeps every original XREF as an alias, and export
+writes it back as `REFN` records.
+
+For data already in a tree, choose **Merge duplicate partnerships…** from a partnership's menu or
+**Merge…** in the person drawer. The dialog lists exactly which links, events and partnerships move
+or go. If the partnerships record different facts, such as two marriage dates, you must choose
+which to keep. A merge is logged and can be undone. Repeated partnerships between the same pair are
+labelled "1st partnership", "2nd partnership", with dates. See ADR-008 and ADR-009 in
+[docs/decisions.md](./docs/decisions.md).
+
 Migrations must be backwards compatible (expand and contract). `wrangler rollback` restores
 code, never schema.

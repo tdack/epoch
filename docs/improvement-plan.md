@@ -285,7 +285,7 @@ number prefix can overlap.
 | S1e | Graph controls and URL state | Always-focused default view; depth steppers, relationship-type and step toggles, focus search, deep-linkable view. |
 | S1f | Overview spike | Time-boxed d3-dag/ELK comparison on fixtures for an optional whole-tree overview; decision recorded in `decisions.md`. |
 | S2 | Editor completion (done) | Expose `record_death`, `end_union`, union status and marriage/partnership events; replace `confirm`/`alert` with an impact-summary dialog; undo toast using `undoLast`; 409 conflict dialog. |
-| S3 | Duplicate unions | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
+| S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
 | S4 | Phase 0/1 debt | Remove `ensureDbSchema` from request paths; persist date bounds, precision and qualifier (expand-and-contract migration); allow `X` sex; shared route error helper. |
 | S5 | Phase 3 start | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]`; person page with relatives (including siblings and step-relatives) and a full fact editor; bounded `/graph?focus=` endpoint. |
 
