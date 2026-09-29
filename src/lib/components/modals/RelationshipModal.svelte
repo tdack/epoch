@@ -463,6 +463,7 @@
             <input
               type="radio"
               name="rel-union"
+              data-union-id={option.id ?? 'new'}
               checked={selectedUnionId === option.id}
               onchange={() => (unionOverride = option.id)}
               class="mt-1"
