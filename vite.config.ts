@@ -16,6 +16,25 @@ export default defineConfig({
 	],
 	test: {
 		// Browser specs run under Playwright (`npm run test:e2e`), outside the commit gate.
-		exclude: [...defaultExclude, 'e2e/**']
+		// Component tests need Svelte's client build and a DOM, which would change how every
+		// server-side module resolves, so they run as their own project.
+		projects: [
+			{
+				extends: true,
+				test: {
+					name: 'server',
+					exclude: [...defaultExclude, 'e2e/**', 'src/**/*.component.test.ts']
+				}
+			},
+			{
+				extends: true,
+				resolve: { conditions: ['browser'] },
+				test: {
+					name: 'components',
+					environment: 'jsdom',
+					include: ['src/**/*.component.test.ts']
+				}
+			}
+		]
 	}
 });
