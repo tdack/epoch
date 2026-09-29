@@ -60,3 +60,18 @@ Keep old family dialogs read-only during a short transition, then remove them af
 - Removing a union/relationship cannot silently delete a person or unrelated history.
 - Multiple mothers, multiple parental families, divorce/death and remarriage remain visually distinguishable.
 - Targeted component, domain and browser tests pass, including keyboard-only flows.
+
+## Status against the exit criteria
+
+Checked after slice S4 (2026-09-30). Phase 2 stays *In progress* in the roadmap until the open items are done or the criteria are amended.
+
+| Criterion | Status | Evidence and what is left |
+|---|---|---|
+| A user can enter all core scenarios without editing raw GEDCOM or understanding `FAM` records | Partly met | Add parent, child and partner (with explicit partnership choice), marriage and its end, death, link or create, merge, remove and undo are all in the editor. There is no intent to change the type or context of an existing parent link; today that is remove and add again. No task-based usability run over the Phase 1 scenarios has been done. |
+| Every save preview matches the resulting graph | Met | The service tests plan an intent, run it and compare the sentence and the records for add parent, add child, add partner, death and end partnership, including a chosen partnership. The merge and delete dialogs list the same ops they write. |
+| Removing a union or relationship cannot silently delete a person or unrelated history | Met | Service tests and the destructive Playwright specs. |
+| Multiple mothers, multiple parental families, divorce, death and remarriage stay visually distinguishable | Met | Line styles per relationship type, ended-partnership connectors, † and widowhood, and "1st/2nd partnership" labels; checked in the browser on the dirty Simpsons file. |
+| Targeted component, domain and browser tests pass, including keyboard-only flows | Partly met | Domain, service and 20 Playwright specs pass, with keyboard-only flows. There are no Svelte component tests, and mobile and screen-reader use has not been checked beyond the canvas's live announcements. |
+
+Also open from the sections above: the person detail panel does not yet list derived step relatives (the graph has a step-family toggle), and the old family dialogs were not audited for removal.
+

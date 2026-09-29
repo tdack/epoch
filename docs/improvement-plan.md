@@ -198,6 +198,9 @@ screenshots.
 Phase 2 is now *In progress* in the roadmap table. It closes when slices S1–S4 below are done,
 before Phase 3 starts.
 
+After S4 the remaining Phase 2 gaps are listed in [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
+`place_ref` (Phase 1) is still open and belongs to Phase 3 places work.
+
 ### Duplicate unions
 
 **The problem.** In `The_Simpsons.ged`, many of the 10 `FAM` records are copies:
@@ -286,7 +289,7 @@ number prefix can overlap.
 | S1f | Overview spike | Time-boxed d3-dag/ELK comparison on fixtures for an optional whole-tree overview; decision recorded in `decisions.md`. |
 | S2 | Editor completion (done) | Expose `record_death`, `end_union`, union status and marriage/partnership events; replace `confirm`/`alert` with an impact-summary dialog; undo toast using `undoLast`; 409 conflict dialog. |
 | S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
-| S4 | Phase 0/1 debt | Remove `ensureDbSchema` from request paths; persist date bounds, precision and qualifier (expand-and-contract migration); allow `X` sex; shared route error helper. |
+| S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]`; person page with relatives (including siblings and step-relatives) and a full fact editor; bounded `/graph?focus=` endpoint. |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
