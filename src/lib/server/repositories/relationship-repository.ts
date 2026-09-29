@@ -120,6 +120,16 @@ export class RelationshipRepository {
 			eventRows.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId)
 		);
 
+		// The first birth and death date text per person, for card labels.
+		const datesByPerson = new Map<string, { birth: string | null; death: string | null }>();
+		for (const e of eventRows) {
+			if (e.entityType !== 'INDIVIDUAL' || (e.type !== 'BIRT' && e.type !== 'DEAT')) continue;
+			const dates = datesByPerson.get(e.entityId) ?? { birth: null, death: null };
+			const key = e.type === 'BIRT' ? 'birth' : 'death';
+			dates[key] ??= e.dateRaw ?? null;
+			datesByPerson.set(e.entityId, dates);
+		}
+
 		// Group partners by union.
 		const partnersByUnion = new Map<string, string[]>();
 		for (const p of partnerRows) {
@@ -143,7 +153,9 @@ export class RelationshipRepository {
 				givenName: i.givenName,
 				surname: i.surname,
 				sex: (i.sex as 'M' | 'F' | 'X' | 'U') || 'U',
-				isDeceased: deceasedIds.has(i.id)
+				isDeceased: deceasedIds.has(i.id),
+				birthDate: datesByPerson.get(i.id)?.birth ?? null,
+				deathDate: datesByPerson.get(i.id)?.death ?? null
 			})),
 			unions: unionRows.map((u) => {
 				const marr = marriageByUnion.get(u.id);

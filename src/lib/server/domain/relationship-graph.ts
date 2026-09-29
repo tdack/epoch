@@ -16,6 +16,9 @@ export interface GraphPersonInput {
 	surname: string | null;
 	sex: 'M' | 'F' | 'X' | 'U' | null;
 	isDeceased: boolean;
+	/** Birth and death as the original GEDCOM date text, when recorded. */
+	birthDate?: string | null;
+	deathDate?: string | null;
 }
 
 export interface GraphUnionInput {
@@ -39,6 +42,9 @@ export interface RelationshipGraphPerson {
 	/** Neutral sex marker, `null` when not recorded. */
 	sex: 'M' | 'F' | 'X' | 'U' | null;
 	isDeceased: boolean;
+	/** Original date text of the first birth and death events. Absent on older captured graphs. */
+	birthDate?: string | null;
+	deathDate?: string | null;
 	/** Parents grouped by union context (`__direct__` for none). */
 	parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
 	/** Union IDs this person participates in as a partner. */
@@ -131,6 +137,8 @@ export function buildRelationshipGraph(input: {
 			displayName: displayName(p.givenName, p.surname, p.id),
 			sex: p.sex,
 			isDeceased: p.isDeceased,
+			birthDate: p.birthDate ?? null,
+			deathDate: p.deathDate ?? null,
 			parentsByUnion,
 			unionIds,
 			stepParents
