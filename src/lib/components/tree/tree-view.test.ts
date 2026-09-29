@@ -13,6 +13,7 @@ import {
 	levelOfDetail,
 	neighbourOf,
 	partnerEdgePath,
+	generationLabel,
 	relationLabel,
 	surnameInitial,
 	yearsLine
@@ -110,21 +111,41 @@ describe('relationship styles', () => {
 });
 
 describe('accessible names', () => {
-	it('names the person, dates and relationship to the focus', () => {
-		const layout = focusLayout('Jessica Louise Lovejoy');
-		const roles = new Map(layout.people.map((p) => [p.person.displayName, relationLabel(p)]));
+	const labels = (layout: ReturnType<typeof focusLayout>) =>
+		new Map(layout.people.map((p) => [p.person.displayName, relationLabel(p, layout)]));
+
+	it("names each person's relationship to the focus, not just their role", () => {
+		const roles = labels(focusLayout('Jessica Louise Lovejoy'));
 		expect(roles.get('Jessica Louise Lovejoy')).toBe('focus person');
-		expect(roles.get('Rosalind Fairfax')).toBe('partner');
-		expect([...roles.values()]).toEqual(expect.arrayContaining(['parent', 'child']));
-		const someone = layout.people.find((p) => p.role === 'ancestor')!;
-		expect(accessibleName(someone)).toContain(someone.person.displayName);
-		expect(accessibleName(someone)).toMatch(/parent$/);
+		expect(roles.get('Bartholomew Jojo Simpson')).toBe('partner');
+		expect(roles.get('Dermot Lovejoy')).toBe('parent');
+		expect(roles.get('Dorian Lovejoy')).toBe('sibling');
+		expect(roles.get('Ned Dermot Lovejoy')).toBe('child');
+		// Edna is Ned's partner, not Jessica's.
+		expect(roles.get('Rosalind Fairfax')).toBe('partner of Ned Dermot Lovejoy');
+		expect(roles.get('Magnus Lovejoy')).toBe('grandchild');
+	});
+
+	it("calls a partner's children step-children when the step family is drawn", () => {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Bartholomew Jojo Simpson').id, { shouldIncludeStepFamilies: true });
+		const roles = labels(layout);
+		expect(roles.get('Jessica Louise Lovejoy')).toBe('partner');
+		expect(roles.get('Hector James Wren')).toBe('step-child');
+		expect(roles.get('Homer Jay Simpson')).toBe('parent');
+	});
+
+	it('names the person, dates and relationship in one string', () => {
+		const layout = focusLayout('Jessica Louise Lovejoy');
+		const jessica = layout.people.find((p) => p.role === 'focus')!;
+		const dated = { ...jessica, person: { ...jessica.person, birthDate: '9 Mar 1966', deathDate: '1 JAN 2040' } };
+		expect(accessibleName(dated, 'focus person')).toBe('Jessica Louise Lovejoy, born 9 Mar 1966, died 1 JAN 2040, focus person');
+		expect(accessibleName(jessica, 'focus person')).toBe('Jessica Louise Lovejoy, focus person');
 	});
 
 	it('words distant generations without gendered terms', () => {
-		expect(relationLabel({ role: 'ancestor', generation: -2 })).toBe('grandparent');
-		expect(relationLabel({ role: 'ancestor', generation: -3 })).toBe('great-grandparent');
-		expect(relationLabel({ role: 'descendant', generation: 5 })).toBe('3× great-grandchild');
+		expect(generationLabel('ancestor', 2)).toBe('grandparent');
+		expect(generationLabel('ancestor', 3)).toBe('great-grandparent');
+		expect(generationLabel('descendant', 5)).toBe('3× great-grandchild');
 	});
 });
 

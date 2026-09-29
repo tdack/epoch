@@ -12,7 +12,9 @@
 		/** Position in pixels inside the canvas container. */
 		x: number;
 		y: number;
+		/** Remove exactly one parent's link; the others on the edge stay. */
 		onRemove: (edge: ChildEdge, assertion: ChildAssertion) => void;
+		/** Escape or the Close button. */
 		onClose: () => void;
 	}
 

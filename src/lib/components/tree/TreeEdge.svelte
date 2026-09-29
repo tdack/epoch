@@ -8,6 +8,7 @@
 	} from './tree-view.js';
 
 	interface Props {
+		/** The edge to draw; child edges are styled by their parents' relationship types. */
 		edge: LayoutEdge;
 		/** The stub a stub edge leads to. */
 		stub?: PlacedStub;
@@ -15,8 +16,11 @@
 		isFromUnion?: boolean;
 		/** True when the union a partner edge belongs to has ended (separated, divorced, ...). */
 		isUnionEnded?: boolean;
+		/** True while the edge is the selected one; drawn thicker with a halo. */
 		isSelected?: boolean;
+		/** Click on the edge's hit target. */
 		onSelect?: (edge: LayoutEdge, event: MouseEvent) => void;
+		/** Right-click on the edge; the handler is responsible for `preventDefault`. */
 		onContextMenu?: (edge: LayoutEdge, event: MouseEvent) => void;
 	}
 

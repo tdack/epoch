@@ -28,6 +28,7 @@
 		isEndedUnion,
 		levelOfDetail,
 		neighbourOf,
+		relationLabel,
 		type MenuItem,
 		type NavDirection
 	} from './tree-view.js';
@@ -47,11 +48,15 @@
 		fitKey: string;
 		/** Person whose details are open in the drawer, if any. */
 		selectedPersonId?: string | null;
+		/** A card was clicked or activated with Enter/Space. */
 		onSelectPerson?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
 		onClearSelection?: () => void;
+		/** "Edit details" from a card's context menu. */
 		onEditPerson?: (id: string) => void;
+		/** "Delete person" from a card's context menu. */
 		onDeletePerson?: (id: string) => void;
+		/** "Add relationship" from a card's context menu. */
 		onAddRelationship?: (anchor: PersonRef) => void;
 		/** Remove a partner from a union. */
 		onRemoveLink?: (edge: PartnerEdge) => void;
@@ -60,7 +65,9 @@
 		onRemoveUnion?: (unionId: string) => void;
 		/** User dragged one person onto another. */
 		onDragRelate?: (relate: { source: PersonRef; target: PersonRef }) => void;
+		/** A "+N" stub was activated; the caller adds its id to the expanded set. */
 		onExpandStub?: (stubId: string) => void;
+		/** A collapse control was activated; the caller removes the id. */
 		onCollapseStub?: (stubId: string) => void;
 	}
 
@@ -116,6 +123,7 @@
 			? `Tree focused on ${peopleById.get(layout.focusPersonId)?.person.displayName ?? 'unknown'}. ${layout.people.length} people shown.`
 			: ''
 	);
+	const relations = $derived(new Map(layout.people.map((p) => [p.id, relationLabel(p, layout)])));
 	const collapsedIds = $derived(new Set(layout.collapsedPersonIds));
 	const nonAdjacentIds = $derived(new Set(layout.nonAdjacentUnionIds));
 	const popoverEdge = $derived(
@@ -383,10 +391,10 @@
 	function onKeydown(event: KeyboardEvent) {
 		if ((event.target as Element).closest?.('input, textarea, select')) return;
 		if (event.key === 'Escape') {
-			const hadOverlay = menu !== null || popover !== null || selectedEdgeId !== null;
+			const hasOverlay = menu !== null || popover !== null || selectedEdgeId !== null;
 			closeOverlays();
 			selectedEdgeId = null;
-			if (!hadOverlay) onClearSelection?.();
+			if (!hasOverlay) onClearSelection?.();
 			return;
 		}
 		if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEdgeId) {
@@ -472,6 +480,7 @@
 					isSelected={node.id === selectedPersonId}
 					isActive={node.id === activeId}
 					hasMultiplePaths={collapsedIds.has(node.id)}
+					relation={relations.get(node.id) ?? ''}
 					onSelect={(id) => onSelectPerson?.(id)}
 					onContextMenu={openPersonMenu}
 					onPointerDown={onCardPointerDown}

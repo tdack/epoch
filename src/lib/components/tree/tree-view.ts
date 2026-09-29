@@ -109,35 +109,61 @@ export function surnameInitial(displayName: string): string {
 
 // ---- Accessible names ----
 
-function greatPrefix(generations: number, base: string): string {
-	if (generations <= 2) return generations === 1 ? base : `grand${base}`;
+function generationWord(generations: number, base: string): string {
+	if (generations <= 1) return base;
+	if (generations === 2) return `grand${base}`;
 	return generations === 3 ? `great-grand${base}` : `${generations - 2}× great-grand${base}`;
 }
 
-/** Relationship to the focus person in neutral wording. */
-export function relationLabel(person: Pick<PlacedPerson, 'role' | 'generation'>): string {
+/** Wording for an ancestor or descendant `generations` away, with no gendered terms. */
+export function generationLabel(direction: 'ancestor' | 'descendant', generations: number): string {
+	return generationWord(generations, direction === 'ancestor' ? 'parent' : 'child');
+}
+
+/**
+ * How a drawn person relates to the focus person, in neutral wording. A person's role alone is
+ * not enough: a "partner" may be the partner of a child, and a child of a partner is a
+ * step-child, so the label checks who is actually linked to the focus in the drawn edges.
+ */
+export function relationLabel(person: PlacedPerson, layout: TreeLayout): string {
+	const focusId = layout.focusPersonId;
+	const nameOf = (id: string) => layout.people.find((p) => p.id === id)?.person.displayName ?? id;
+	const childEdges = layout.edges.filter((e): e is ChildEdge => e.kind === 'child');
 	switch (person.role) {
 		case 'focus':
 			return 'focus person';
 		case 'sibling':
 			return 'sibling';
-		case 'partner':
-			return 'partner';
-		case 'ancestor':
-			return greatPrefix(-person.generation, 'parent');
-		case 'descendant':
-			return greatPrefix(person.generation, 'child');
+		case 'partner': {
+			const sharing = layout.unions.filter((u) => u.union.partnerIds.includes(person.id));
+			if (sharing.some((u) => focusId && u.union.partnerIds.includes(focusId))) return 'partner';
+			const other = sharing.flatMap((u) => u.union.partnerIds).find((id) => id !== person.id);
+			return other ? `partner of ${nameOf(other)}` : 'partner';
+		}
+		case 'ancestor': {
+			if (person.generation !== -1) return generationLabel('ancestor', -person.generation);
+			const isParent = childEdges.some(
+				(e) => e.childId === focusId && e.assertions.some((a) => a.parentId === person.id)
+			);
+			return isParent ? 'parent' : 'step-parent';
+		}
+		case 'descendant': {
+			if (person.generation !== 1) return generationLabel('descendant', person.generation);
+			const isChild = childEdges.some(
+				(e) => e.childId === person.id && e.assertions.some((a) => a.parentId === focusId)
+			);
+			return isChild ? 'child' : 'step-child';
+		}
 	}
 }
 
-export function accessibleName(person: PlacedPerson): string {
+/** The card's screen-reader name: person, dates, then the relationship to the focus person. */
+export function accessibleName(person: PlacedPerson, relation: string): string {
 	const parts = [person.person.displayName];
-	const born = person.person.birthDate;
-	const died = person.person.deathDate;
-	if (born) parts.push(`born ${born}`);
-	if (died) parts.push(`died ${died}`);
+	if (person.person.birthDate) parts.push(`born ${person.person.birthDate}`);
+	if (person.person.deathDate) parts.push(`died ${person.person.deathDate}`);
 	else if (person.person.isDeceased) parts.push('deceased');
-	parts.push(relationLabel(person));
+	parts.push(relation);
 	return parts.join(', ');
 }
 

@@ -27,8 +27,13 @@
 		isActive: boolean;
 		/** True when the person is reached by more than one path (pedigree collapse). */
 		hasMultiplePaths: boolean;
+		/** Relationship to the focus person ("child", "partner of Ned"), spoken with the name. */
+		relation: string;
+		/** Click or Enter/Space on the card. */
 		onSelect: (id: string) => void;
+		/** Right-click; the handler is responsible for `preventDefault`. */
 		onContextMenu: (event: MouseEvent, node: PlacedPerson) => void;
+		/** Primary-button press, which begins a drag-to-relate gesture. */
 		onPointerDown: (event: PointerEvent, id: string) => void;
 	}
 
@@ -40,6 +45,7 @@
 		isSelected,
 		isActive,
 		hasMultiplePaths,
+		relation,
 		onSelect,
 		onContextMenu,
 		onPointerDown
@@ -70,7 +76,7 @@
 	transform="translate({node.x}, {node.y})"
 	role="button"
 	tabindex={isActive ? 0 : -1}
-	aria-label={accessibleName(node)}
+	aria-label={accessibleName(node, relation)}
 	aria-current={isFocus ? 'true' : undefined}
 	onclick={() => onSelect(node.id)}
 	oncontextmenu={(event) => onContextMenu(event, node)}
@@ -108,7 +114,7 @@
 			</g>
 		{/if}
 	{/if}
-	<title>{accessibleName(node)}</title>
+	<title>{accessibleName(node, relation)}</title>
 </g>
 
 <style>

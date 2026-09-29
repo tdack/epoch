@@ -88,10 +88,10 @@
 	}
 
 	function toggleType(type: ParentChildType) {
-		const has = view.types.includes(type);
+		const isShown = view.types.includes(type);
 		// Hiding the last type would draw no parentage at all, so one always stays on.
-		if (has && view.types.length === 1) return;
-		onChange({ types: ALL_PARENT_CHILD_TYPES.filter((t) => (t === type ? !has : view.types.includes(t))) });
+		if (isShown && view.types.length === 1) return;
+		onChange({ types: ALL_PARENT_CHILD_TYPES.filter((t) => (t === type ? !isShown : view.types.includes(t))) });
 	}
 </script>
 

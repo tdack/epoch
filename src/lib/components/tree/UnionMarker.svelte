@@ -3,12 +3,15 @@
 	import type { LevelOfDetail } from './tree-view.js';
 
 	interface Props {
+		/** The placed union node. */
 		union: PlacedUnion;
+		/** Marriage text is hidden at the smallest level of detail. */
 		level: LevelOfDetail;
 		/** True when the union has separated, divorced, been annulled or otherwise ended. */
 		isEnded: boolean;
 		/** True when a partner could not sit next to the node, so the connectors are drawn as brackets. */
 		isNonAdjacent: boolean;
+		/** Right-click; the handler is responsible for `preventDefault`. */
 		onContextMenu: (event: MouseEvent, union: PlacedUnion) => void;
 	}
 
@@ -40,11 +43,13 @@
 	<title>{description}</title>
 </g>
 {#if label && level !== 'block'}
+	<!-- A hanging node sits under the card row, with partner connectors arriving level with it on both
+	sides, so its label goes below and to the right where only the child edge's other side is free. -->
 	<text
 		class="label"
-		x={union.x}
-		y={union.isHanging ? union.y - R - 5 : union.y - LAYOUT_METRICS.cardHeight / 2 - 6}
-		text-anchor="middle"
+		x={union.isHanging ? union.x + 6 : union.x}
+		y={union.isHanging ? union.y + R + 11 : union.y - LAYOUT_METRICS.cardHeight / 2 - 6}
+		text-anchor={union.isHanging ? 'start' : 'middle'}
 	>
 		{label}
 	</text>

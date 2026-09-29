@@ -60,8 +60,17 @@
   const view = $derived(parseViewState(page.url.searchParams));
   /** The tree is always drawn around one person: the URL's, else the last viewed, else the first. */
   const focusPersonId = $derived(relationshipGraph ? resolveFocus(relationshipGraph, view.focusId) : null);
-  /** Stubs the user opened in place; reset whenever the view changes so a new focus starts compact. */
-  let expandedStubIds = $state<string[]>([]);
+  const viewSignature = $derived(
+    JSON.stringify([selectedTreeId, focusPersonId, view.ancestorDepth, view.descendantDepth, view.shouldIncludeSiblings, view.shouldIncludeStepFamilies, view.types])
+  );
+  /**
+   * Stubs the user opened in place. Stored with the view they were opened under and ignored under
+   * any other, so a new focus, depth or toggle starts compact without an effect resetting it.
+   * Coming back to the same view (back button, refocusing the same person) finds them open again;
+   * they are not kept in the URL, so a reload starts compact.
+   */
+  let expansion = $state<{ signature: string; ids: string[] }>({ signature: '', ids: [] });
+  const expandedStubIds = $derived(expansion.signature === viewSignature ? expansion.ids : []);
   /** Bumped when the graph is reloaded so the canvas re-frames after an edit. */
   let graphVersion = $state(0);
   const graphForLayout = $derived(
@@ -80,15 +89,7 @@
         })
       : EMPTY_LAYOUT
   );
-  const viewSignature = $derived(
-    JSON.stringify([selectedTreeId, focusPersonId, view.ancestorDepth, view.descendantDepth, view.shouldIncludeSiblings, view.shouldIncludeStepFamilies, view.types])
-  );
   const fitKey = $derived(`${viewSignature}|${graphVersion}`);
-
-  $effect(() => {
-    void viewSignature;
-    expandedStubIds = [];
-  });
 
   // Write the resolved tree and focus back into the URL so the address always describes the view.
   $effect(() => {
@@ -599,8 +600,8 @@
         onRemoveAssertion={handleRemoveAssertion}
         onRemoveUnion={handleRemoveUnion}
         onDragRelate={handleDragRelate}
-        onExpandStub={(id) => (expandedStubIds = [...expandedStubIds, id])}
-        onCollapseStub={(id) => (expandedStubIds = expandedStubIds.filter((x) => x !== id))}
+        onExpandStub={(id) => (expansion = { signature: viewSignature, ids: [...expandedStubIds, id] })}
+        onCollapseStub={(id) => (expansion = { signature: viewSignature, ids: expandedStubIds.filter((x) => x !== id) })}
       />
     {/if}
   </div>

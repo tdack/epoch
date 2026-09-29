@@ -3,6 +3,7 @@
 	import type { MenuItem } from './tree-view.js';
 
 	interface Props {
+		/** Menu entries, top to bottom. */
 		items: MenuItem[];
 		/** Position in pixels inside the canvas container. */
 		x: number;
