@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { TriangleAlert } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
   import { groupRecords } from '#lib/shared/impact-groups.js';
@@ -19,6 +20,12 @@
     error?: string | null;
     /** Label of the confirm button, e.g. "Delete person". */
     confirmLabel: string;
+    /** Choices that decide what is previewed (which partnerships to merge), shown above the preview. */
+    controls?: Snippet;
+    /** Shown instead of the preview while `impact` is null and nothing is loading (an open choice). */
+    idleMessage?: string;
+    /** Disables the confirm button while a choice is still open, however complete the preview looks. */
+    isConfirmBlocked?: boolean;
     onconfirm: () => void;
     oncancel: () => void;
   }
@@ -31,6 +38,9 @@
     isConfirming = false,
     error = null,
     confirmLabel,
+    controls,
+    idleMessage = 'Checking what this affects…',
+    isConfirmBlocked = false,
     onconfirm,
     oncancel
   }: Props = $props();
@@ -47,7 +57,12 @@
 
   const ACTION_LABELS = { created: 'Added', updated: 'Changed', deleted: 'Deleted' } as const;
 
-  const groups = $derived(impact ? groupRecords(impact.records) : []);
+  // A moved record is listed once, as a move, not again as "Changed".
+  const moves = $derived(impact?.moves ?? []);
+  const movedIds = $derived(new Set(moves.map((m) => `${m.entityType}:${m.entityId}`)));
+  const groups = $derived(
+    impact ? groupRecords(impact.records.filter((r) => !movedIds.has(`${r.entityType}:${r.entityId}`))) : []
+  );
   const people = $derived(impact?.people ?? []);
 
   let cancelButton: HTMLButtonElement | null = $state(null);
@@ -70,8 +85,9 @@
   onclose={oncancel}
 >
   <div class="space-y-3">
+    {@render controls?.()}
     {#if isLoading || !impact}
-      <p class="text-sm text-stone-600" role="status">Checking what this affects…</p>
+      <p class="text-sm text-stone-600" role="status">{isLoading ? 'Checking what this affects…' : idleMessage}</p>
     {:else}
       <p class="text-sm font-medium text-stone-800">This is exactly what will change:</p>
 
@@ -95,6 +111,21 @@
         </section>
       {/if}
 
+      {#if moves.length > 0}
+        <section aria-label="Moved records">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600">Moved</h4>
+          <ul class="mt-1 space-y-1 text-sm">
+            {#each moves as move (move.entityType + move.entityId)}
+              <li>
+                <span class="text-xs font-semibold text-stone-500">Moved</span>
+                {move.label}
+                <span class="block pl-3 text-xs text-stone-500">from the {move.from} to the {move.to}</span>
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+
       {#each groups.filter((g) => g.entityType !== 'person') as group (group.entityType)}
         <section aria-label={GROUP_LABELS[group.entityType] ?? group.entityType}>
           <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600">{GROUP_LABELS[group.entityType] ?? group.entityType}</h4>
@@ -109,7 +140,7 @@
         </section>
       {/each}
 
-      {#if groups.length === 0}
+      {#if groups.length === 0 && moves.length === 0}
         <p class="text-sm text-stone-600">Nothing would change.</p>
       {/if}
       <p class="text-xs text-stone-500">No other person or history is touched. You can undo this straight afterwards.</p>
@@ -127,7 +158,7 @@
       <button
         type="button"
         onclick={onconfirm}
-        disabled={isLoading || isConfirming || !impact}
+        disabled={isLoading || isConfirming || isConfirmBlocked || !impact}
         class="flex-1 cursor-pointer rounded-lg bg-red-700 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-50"
       >
         {isConfirming ? 'Working…' : confirmLabel}
