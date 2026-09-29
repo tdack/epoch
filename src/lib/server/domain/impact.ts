@@ -5,7 +5,10 @@
  */
 
 import { describeOps, type RecordChange, type RowOp, type TreeRows } from './change-log';
+import { ENTITY_ORDER, groupRecords } from '../../shared/impact-groups';
 import { makeLabeler } from './tree-labels';
+
+export { groupRecords };
 import { personName } from './tree-ops';
 
 export const PERSON_ROLES_IN_IMPACT = { DELETED: 'deleted', CREATED: 'created', AFFECTED: 'affected' } as const;
@@ -27,8 +30,6 @@ export interface ImpactSummary {
 	/** True when the change deletes any record. */
 	isDestructive: boolean;
 }
-
-const ENTITY_ORDER = ['person', 'name', 'union', 'partner', 'link', 'event', 'media'] as const;
 
 /** Every person a row belongs to or points at; a partnership belongs to its partners. */
 function peopleOf(op: RowOp, partnersOf: (unionId: string) => string[]): string[] {
@@ -88,11 +89,3 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		isDestructive: records.some((r) => r.action === 'deleted')
 	};
 }
-
-/** Group records by what they are, for a list in a dialog. */
-export function groupRecords(records: RecordChange[]): Array<{ entityType: string; records: RecordChange[] }> {
-	return ENTITY_ORDER.map((entityType) => ({ entityType, records: records.filter((r) => r.entityType === entityType) })).filter(
-		(g) => g.records.length > 0
-	);
-}
-

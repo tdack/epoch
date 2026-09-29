@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../domain/union-events';
+import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 export const idSchema = z.string().min(1);

@@ -20,6 +20,7 @@ import {
 	type UnionRow
 } from './change-log';
 import { parseDateValue } from './date-value';
+import { personName } from '../../shared/person-name';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { validateParentChildAssertion } from './invariants';
@@ -29,7 +30,7 @@ import {
 	isUnionEventType,
 	type UnionEventInput,
 	type UnionEventType
-} from './union-events';
+} from '../../shared/union-events';
 
 export interface OpContext {
 	treeId: string;
@@ -50,10 +51,7 @@ export function sortKeyOf(dateText: string | null): string | null {
 	return dateText ? parseDateValue(dateText).sortStart : null;
 }
 
-export function personName(person: Pick<IndividualRow, 'givenName' | 'surname'> | undefined): string {
-	if (!person) return 'Unknown';
-	return [person.givenName, person.surname].filter(Boolean).join(' ') || 'Unknown';
-}
+export { personName };
 
 const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	individuals: 'individuals',

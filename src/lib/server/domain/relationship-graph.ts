@@ -10,7 +10,7 @@
 
 import type { TreeRows } from './change-log';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
-import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from './union-events';
+import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from '../../shared/union-events';
 
 /** A partnership event as the graph carries it, for labels and for the union editor. */
 export interface GraphUnionEvent {

@@ -14,7 +14,7 @@ import {
 	type UnionPartnerRow
 } from './change-log';
 import { personName, applyOpsToRows } from './tree-ops';
-import { UNION_EVENT_LABELS, isUnionEventType } from './union-events';
+import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 
 const EVENT_LABELS: Record<string, string> = {
 	BIRT: 'Birth',

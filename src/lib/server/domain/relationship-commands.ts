@@ -15,8 +15,8 @@ import {
 	type SentenceFacts
 } from './relationship-sentence';
 import { asParentChild, deceasedIdsOf, partnerIdsOf, unionIdsOf, personName } from './tree-ops';
-import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from './union-events';
-import { newWidowhoods } from './widowhood';
+import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
+import { newWidowhoods } from '../../shared/widowhood';
 
 export type RelationshipCommand =
 	| {

@@ -6,7 +6,7 @@
  * `_SEPR`), which the importer treats as family events so they survive a round trip through Epoch.
  */
 
-import type { UnionStatus } from './genealogy-model';
+import type { UnionStatus } from '../server/domain/genealogy-model';
 
 export const UNION_EVENT_TYPES = {
 	ENGAGEMENT: 'ENGA',

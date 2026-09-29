@@ -9,7 +9,7 @@
  */
 
 import type { ParentChildType } from './genealogy-model';
-import type { EndedUnionStatus, UnionEventType } from './union-events';
+import type { EndedUnionStatus, UnionEventType } from '../../shared/union-events';
 
 export interface PersonRef {
 	id: string;
