@@ -17,8 +17,10 @@ npm run db:migrate:local      # creates the local D1 schema
 npm run dev
 ```
 
-The app runs at <http://localhost:5173>. Without `npm run db:migrate:local`, requests fail with
-`no such table: users`.
+The app runs at <http://localhost:5173>. The migrations in `drizzle/` are the only schema source.
+Without `npm run db:migrate:local` (or after pulling new migrations) every request fails with a 503
+that says to run it, rather than a `no such table` error. The check compares Wrangler's
+`d1_migrations` record with the migration journal, so it also catches a partly applied set.
 
 ### Dev identity
 
