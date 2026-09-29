@@ -1,9 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { getDb, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved } from '../db';
+import { getDb, type DbClient, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved } from '../db';
 import { dateColumnsFor, type EventDateColumns } from '../domain/date-columns';
 import { parseGedcom, type ParsedGedcomData } from './index';
 import { importNeutralModel } from './neutral-importer';
-import { detectDuplicateFamilies, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
+import { detectDuplicateFamilies, foldIntoExistingAliases, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
 import { eq } from 'drizzle-orm';
 
 // D1 limits a single query to 100 bound parameters, so batch inserts must be
@@ -84,23 +84,35 @@ function treeScopedId(treeId: string, rawXrefOrId: string): string {
   return `${treeId}:${rawXrefOrId}`;
 }
 
+/** Alias XREF to surviving XREF for unions already in the tree that absorbed other families. */
+async function aliasesInTree(db: DbClient, treeId: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (const union of await db.select().from(unions).where(eq(unions.treeId, treeId)).all()) {
+    const survivor = union.id.startsWith(`${treeId}:`) ? union.id.slice(treeId.length + 1) : union.id;
+    for (const alias of union.xrefAliases ?? []) map.set(alias, survivor);
+  }
+  return map;
+}
+
 export async function previewGedcomImport(
   d1: D1Database,
   treeId: string,
   rawGedcom: string
 ): Promise<ImportPreview> {
-  const parsed = parseGedcom(rawGedcom);
   const db = getDb(d1);
-
-  const incoming = countIncoming(parsed);
-  const duplicates = detectDuplicateFamilies(parsed);
-
   const existingTree = await db.select().from(trees).where(eq(trees.id, treeId)).get();
   const isEmpty = !existingTree;
+
+  const fresh = parseGedcom(rawGedcom);
+  const incoming = countIncoming(fresh);
+  const duplicates = detectDuplicateFamilies(fresh);
 
   if (isEmpty) {
     return { mode: 'replace', incoming, duplicates };
   }
+
+  // A family that was merged into another the last time counts as that one, so the counts match what the import will do.
+  const parsed = foldIntoExistingAliases(fresh, await aliasesInTree(db, treeId)).parsed;
 
   const [treeInds, treeUnions, treeAssertions, treeEvents] = await Promise.all([
     db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
@@ -197,7 +209,7 @@ export async function importGedcomToDb(
   const folded = options.shouldMergeDuplicateFamilies
     ? mergeExactDuplicateFamilies(parseGedcom(rawGedcom))
     : { parsed: parseGedcom(rawGedcom), mergedCount: 0 };
-  const parsed = folded.parsed;
+  let parsed = folded.parsed;
   const db = getDb(d1);
 
   // Ensure tree exists or update tree name
@@ -210,6 +222,9 @@ export async function importGedcomToDb(
       createdAt: new Date(),
       updatedAt: new Date()
     });
+  } else if (mode === 'merge') {
+    // A family merged into another in an earlier import must not come back under its old XREF.
+    parsed = foldIntoExistingAliases(parsed, await aliasesInTree(db, treeId)).parsed;
   } else if (mode === 'replace') {
     // Wipe all existing tree data before re-import.
     await db.delete(events).where(eq(events.treeId, treeId));

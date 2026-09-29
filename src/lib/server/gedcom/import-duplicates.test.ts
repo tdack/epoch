@@ -66,3 +66,42 @@ describe('importing The_Simpsons.ged (dirty)', () => {
 		expect(again.families.find((f) => f.id === '@F_87948dab@')!.aliases).toEqual(['@F_ba9969ea@']);
 	});
 });
+
+describe('re-importing a dirty file in merge mode after it was merged', () => {
+	async function mergedTree() {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, dirty, 'Merged once', 'replace', { shouldMergeDuplicateFamilies: true });
+		return treeId;
+	}
+	const childLinks = (treeId: string) => t.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all();
+
+	it('does not bring the merged-away families back, with or without the merge option', async () => {
+		for (const shouldMergeDuplicateFamilies of [false, true]) {
+			const treeId = await mergedTree();
+			const linksBefore = (await childLinks(treeId)).length;
+			await importGedcomToDb(t.d1, treeId, dirty, 'ignored', 'merge', { shouldMergeDuplicateFamilies });
+			const rows = await unionsOf(treeId);
+			expect(rows, `option ${shouldMergeDuplicateFamilies}`).toHaveLength(7);
+			expect(rows.some((u) => u.id.endsWith('@F_ac5bd259@') || u.id.endsWith('@F_d88ca04a@') || u.id.endsWith('@F_ba9969ea@'))).toBe(false);
+			expect((await childLinks(treeId)).length).toBe(linksBefore);
+			// The survivor keeps its aliases.
+			expect(rows.find((u) => u.id.endsWith('@F_d9d0076c@'))!.xrefAliases).toEqual(['@F_ac5bd259@', '@F_d88ca04a@']);
+		}
+	});
+
+	it('previews the aliased families as the unions they were merged into, not as new families', async () => {
+		const treeId = await mergedTree();
+		const preview = await previewGedcomImport(t.d1, treeId, dirty);
+		expect(preview.mode).toBe('merge');
+		expect(preview.merge?.newFamilies).toBe(0);
+		// Ten families in the file, three of them aliases of another: seven distinct unions, all already there.
+		expect(preview.merge?.mergedFamilies).toBe(7);
+	});
+
+	it('still imports a family the tree has never seen', async () => {
+		const treeId = await mergedTree();
+		const extra = dirty.replace('0 TRLR', '0 @F_new00001@ FAM\n1 HUSB @I_937df8d1@\n0 TRLR');
+		await importGedcomToDb(t.d1, treeId, extra, 'ignored', 'merge');
+		expect(await unionsOf(treeId)).toHaveLength(8);
+	});
+});

@@ -198,3 +198,57 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): { parsed:
 		mergedCount: removed.size
 	};
 }
+
+/**
+ * Families in an incoming file whose XREF is an alias of a union already in the tree, folded into
+ * that union. Without this a merge-mode re-import of a file that was merged the first time would
+ * write the merged-away `FAM` records again, because the importer identifies a union by XREF and
+ * an alias is not the union's own XREF.
+ *
+ * @param survivorOfAlias Alias XREF to the XREF of the union it was merged into.
+ */
+export function foldIntoExistingAliases(
+	parsed: ParsedGedcomData,
+	survivorOfAlias: Map<string, string>
+): { parsed: ParsedGedcomData; foldedCount: number } {
+	if (!parsed.families.some((f) => survivorOfAlias.has(f.id))) return { parsed, foldedCount: 0 };
+
+	const families = new Map<string, ParsedFamily>();
+	let foldedCount = 0;
+	for (const fam of parsed.families) {
+		const target = survivorOfAlias.get(fam.id) ?? fam.id;
+		if (target !== fam.id) foldedCount++;
+		const existing = families.get(target);
+		if (!existing) {
+			families.set(target, { ...fam, id: target });
+			continue;
+		}
+		// Two records now name one union: keep everything either says, without repeating a child or a fact.
+		const children = new Map(existing.children.map((c) => [c.childId, c] as const));
+		for (const child of fam.children) if (!children.has(child.childId)) children.set(child.childId, child);
+		const events = new Map(existing.events.map((e) => [factsOf([e])[0], e] as const));
+		for (const event of fam.events) if (!events.has(factsOf([event])[0])) events.set(factsOf([event])[0], event);
+		families.set(target, {
+			...existing,
+			husbandId: existing.husbandId ?? fam.husbandId,
+			wifeId: existing.wifeId ?? fam.wifeId,
+			children: [...children.values()],
+			events: [...events.values()]
+		});
+	}
+
+	const remap = (ids: string[] | undefined) => (ids ? [...new Set(ids.map((id) => survivorOfAlias.get(id) ?? id))] : ids);
+	return {
+		parsed: {
+			...parsed,
+			families: [...families.values()],
+			individuals: parsed.individuals.map((ind) => ({
+				...ind,
+				famc: remap(ind.famc),
+				fams: remap(ind.fams),
+				famcLinks: ind.famcLinks?.map((link) => ({ ...link, familyId: survivorOfAlias.get(link.familyId) ?? link.familyId }))
+			}))
+		},
+		foldedCount
+	};
+}
