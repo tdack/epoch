@@ -49,13 +49,40 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 |---|---|
 | `npm run dev` | Start the dev server |
 | `npm run check` | Sync SvelteKit types and run `svelte-check` |
-| `npm test` | Run all Vitest suites once |
+| `npm test` | Run all Vitest suites once (unit and real-D1 service tests) |
+| `npm run test:e2e` | Run the Playwright browser tests (see [Browser tests](#browser-tests)) |
 | `npm run test:watch` | Run Vitest in watch mode |
 | `npm run build` | Production build |
 | `npm run db:generate` | Generate a Drizzle migration from schema changes |
 | `npm run db:migrate:local` | Apply migrations to the local D1 database |
 | `npm run db:migrate` | Apply migrations to the remote D1 database |
 | `npm run deploy` | Migrate, build and deploy the Worker |
+
+### Browser tests
+
+The Playwright suite in `e2e/` drives the real UI, including keyboard-only flows, delete with an
+impact summary, undo and a forced 409 conflict. It is outside `npm test` and the commit gate.
+
+```sh
+npm run db:migrate:local      # the dev database must be migrated
+npm run test:e2e
+```
+
+Playwright starts its own dev server on port 5179 (or reuses one already running there) and uses
+your installed Google Chrome, so no browser download is needed. Without Chrome, run
+`npx playwright install chromium` and remove `channel: 'chrome'` from `playwright.config.ts`.
+
+Every spec creates a uniquely named tree through the API and deletes it afterwards, so "The
+Simpsons" and any other data in your local database are left alone. Stop `npm run dev` before
+`npm test`, which shares local D1 state with it.
+
+### Change history and undo
+
+Every change to a tree (relationship edits, deaths, partnership edits, person create, edit and
+delete, and removals) is written to an append-only change log in the same atomic batch as the
+change. Each successful change shows a toast with **Undo**. Undo reverts your own most recent
+change in the tree, and is refused with a reason if someone else has since changed the same
+records. See ADR-007 in [docs/decisions.md](./docs/decisions.md).
 
 Migrations must be backwards compatible (expand and contract). `wrangler rollback` restores
 code, never schema.
