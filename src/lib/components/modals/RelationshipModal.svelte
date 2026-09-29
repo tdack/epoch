@@ -11,6 +11,7 @@
     type ConflictError
   } from '#lib/services/tree-api.js';
   import { personName } from '#lib/shared/person-name.js';
+  import { partnershipLabels } from '#lib/shared/partnership-labels.js';
   import {
     END_EVENT_TYPES,
     ENDED_UNION_STATUSES,
@@ -77,6 +78,8 @@
   let deathDate = $state('');
   let deathPlace = $state('');
   let chosenUnionId = $state<string | null>(null);
+  /** The partnership the person picked for add child, add parent or add partner. Undefined: let the server choose. */
+  let unionOverride = $state<string | null | undefined>(undefined);
   let endStatus = $state<EndedUnionStatus>('divorced');
   let endEventType = $state<UnionEventType | ''>('DIV');
   let endDate = $state('');
@@ -114,6 +117,53 @@
   const anchorUnions = $derived(graph.unions.filter((u) => u.partnerIds.includes(anchor.id)));
   const chosenUnion = $derived(anchorUnions.find((u) => u.id === chosenUnionId) ?? null);
   const nameOf = (id: string) => graph.people.find((p) => p.id === id)?.displayName ?? id;
+  const unionLabels = $derived(partnershipLabels(graph.unions));
+
+  interface UnionOption {
+    /** Null for "a new partnership" when adding a partner. */
+    id: string | null;
+    title: string;
+    detail: string;
+  }
+
+  function optionFor(union: RelationshipGraph['unions'][number]): UnionOption {
+    const names = union.partnerIds.map(nameOf);
+    const childCount = new Set(union.children.map((c) => c.childId)).size;
+    const detail = [
+      unionLabels.get(union.id)?.full,
+      childCount === 1 ? '1 child' : `${childCount} children`,
+      union.partnerIds.length < 2 ? 'one partner recorded' : null
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return { id: union.id, title: names.length > 0 ? names.join(' and ') : 'Unknown partners', detail };
+  }
+
+  // A chooser is only worth showing when there is something to choose between. Add-partner always
+  // offers "a new partnership" next to the ones still waiting for a partner, because filling the
+  // wrong waiting one is exactly the mistake the chooser exists to prevent.
+  const unionOptions = $derived.by((): UnionOption[] => {
+    if (kind === 'add_child') return anchorUnions.map(optionFor);
+    if (kind === 'add_parent') {
+      const ids = new Set(graph.parentChild.filter((l) => l.childId === anchor.id && l.unionId).map((l) => l.unionId));
+      return graph.unions.filter((u) => ids.has(u.id)).map(optionFor);
+    }
+    if (kind === 'add_partner') {
+      const waiting = anchorUnions.filter((u) => u.partnerIds.length === 1).map(optionFor);
+      return waiting.length > 0 ? [...waiting, { id: null, title: 'A new partnership', detail: 'Start a separate partnership with them' }] : [];
+    }
+    return [];
+  });
+  const showUnionChooser = $derived(kind === 'add_partner' ? unionOptions.length > 0 : unionOptions.length > 1);
+  const selectedUnionId = $derived(unionOverride !== undefined ? unionOverride : (plan?.unionChoice?.unionId ?? null));
+  const unionChooserLegend = $derived(
+    kind === 'add_parent' ? 'Which parental family' : kind === 'add_partner' ? 'Which partnership to fill' : 'Which partnership'
+  );
+
+  function selectKind(next: RelationshipKind) {
+    kind = next;
+    unionOverride = undefined;
+  }
 
   function reset() {
     kind = initialKind;
@@ -130,6 +180,7 @@
     deathDate = anchorPerson?.deathDate ?? '';
     deathPlace = '';
     // With one partnership there is nothing to choose; with several the person must pick, never a default.
+    unionOverride = undefined;
     chosenUnionId = initialUnionId ?? (anchorUnions.length === 1 ? anchorUnions[0].id : null);
     endStatus = 'divorced';
     endEventType = 'DIV';
@@ -197,9 +248,9 @@
     }
     const other = otherPerson();
     if (!other) return null;
-    if (kind === 'add_partner') return { kind, person: anchor, partner: other, unionLabel: null };
-    if (kind === 'add_parent') return { kind, child: anchor, parent: other, type, role, unionLabel: null };
-    return { kind, parent: anchor, child: other, type, unionLabel: null };
+    if (kind === 'add_partner') return { kind, person: anchor, partner: other, unionLabel: null, unionId: unionOverride };
+    if (kind === 'add_parent') return { kind, child: anchor, parent: other, type, role, unionLabel: null, unionId: unionOverride };
+    return { kind, parent: anchor, child: other, type, unionLabel: null, unionId: unionOverride };
   }
 
   // Preview from the server, so the sentence and records shown are the ones the save will write.
@@ -306,7 +357,7 @@
       {#each kinds as item (item.v)}
         <button
           type="button"
-          onclick={() => (kind = item.v)}
+          onclick={() => selectKind(item.v)}
           aria-pressed={kind === item.v}
           class="p-2 rounded-lg border text-[11px] leading-tight font-medium flex flex-col items-center gap-1 cursor-pointer {kind === item.v ? 'bg-emerald-100 border-emerald-400 text-emerald-900' : 'bg-white border-stone-300 text-stone-600'}"
         >
@@ -402,6 +453,30 @@
           {/if}
         </div>
       {/if}
+    {/if}
+
+    {#if showUnionChooser}
+      <fieldset class="space-y-1.5" data-testid="union-chooser">
+        <legend class="text-xs font-semibold text-stone-700">{unionChooserLegend}</legend>
+        {#each unionOptions as option (option.id ?? 'new')}
+          <label class="flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-sm {selectedUnionId === option.id ? 'border-emerald-400 bg-emerald-50' : 'border-stone-200 bg-white'}">
+            <input
+              type="radio"
+              name="rel-union"
+              checked={selectedUnionId === option.id}
+              onchange={() => (unionOverride = option.id)}
+              class="mt-1"
+            />
+            <span>
+              {option.title}
+              <span class="block text-xs text-stone-500">{option.detail}</span>
+            </span>
+          </label>
+        {/each}
+        {#if unionOverride === undefined && plan?.unionChoice?.reason}
+          <p class="text-xs text-stone-600" data-testid="union-reason">{plan.unionChoice.reason}</p>
+        {/if}
+      </fieldset>
     {/if}
 
     {#if kind === 'record_death'}
