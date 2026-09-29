@@ -36,6 +36,9 @@ test('repeated partnerships between one pair are labelled 1st and 2nd, in the ca
 	await expect(drawer.getByText('1st partnership (m. 3 Nov 2014)')).toBeVisible();
 	await expect(drawer.getByText('2nd partnership (m. 3 Nov 2014)')).toBeVisible();
 	await expect(drawer.getByRole('button', { name: 'Merge…' })).toHaveCount(2);
+	// Oldest first.
+	const titles = await drawer.getByText(/partnership \(m\./).allTextContents();
+	expect(titles.map((t) => t.trim().slice(0, 3))).toEqual(['1st', '2nd']);
 });
 
 test('merging duplicate partnerships from the union menu previews the change, then undoes cleanly', async ({ page, request, api }) => {
@@ -106,6 +109,12 @@ test('the import preview lists duplicate families, merges exact ones by default,
 	await expect(dialog.getByText(/Homer Jay Simpson and Marjorie Jacqueline Bouvier: 3 copies/)).toBeVisible();
 	await expect(dialog.getByText(/Possible duplicates/)).toBeVisible();
 	await expect(dialog.getByText(/the same single partner, listed more than once/)).toBeVisible();
+	// The counts follow the checkbox: ten families in the file, seven once the duplicates are merged.
+	await expect(dialog.getByText(/10 families \(7 once duplicates are merged\)/)).toBeVisible();
+	await expect(dialog.getByText(/so it cannot be merged/).first()).toBeVisible();
+	await dialog.getByRole('checkbox', { name: /Merge duplicate families/ }).uncheck();
+	await expect(dialog.getByText(/once duplicates are merged/)).toHaveCount(0);
+	await dialog.getByRole('checkbox', { name: /Merge duplicate families/ }).check();
 	await expect(dialog.getByRole('checkbox', { name: /Merge duplicate families/ })).toBeChecked();
 
 	await dialog.getByRole('button', { name: /replace/i }).click();

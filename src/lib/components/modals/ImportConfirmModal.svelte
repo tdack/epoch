@@ -42,6 +42,23 @@
     same_single_partner: 'the same single partner, listed more than once'
   };
 
+  /** What to do about each kind of possible duplicate once it is in the tree; not all of them can be merged. */
+  const FOLLOW_UP_TEXT: Record<PossibleDuplicateGroup['reason'], string> = {
+    different_facts: 'If they are one family, merge them from the partnership menu and choose which fact to keep.',
+    different_child_records: 'If they are one family, merge them from the partnership menu and choose which record to keep.',
+    subset_of_full_family: 'A different set of partners, so it cannot be merged. If it is a stray copy, delete that partnership; its parent links stay.',
+    same_single_partner: 'Only one partner is recorded, so these are not merged automatically. If they are one family, merge them from the partnership menu.'
+  };
+
+  /** Families that will exist after the import: the file's count less each exact duplicate that is merged away. */
+  const familiesToWrite = $derived.by(() => {
+    if (!preview) return 0;
+    const mergedAway = shouldMergeDuplicateFamilies
+      ? preview.duplicates.exact.reduce((n, group) => n + group.familyIds.length - 1, 0)
+      : 0;
+    return preview.incoming.families - mergedAway;
+  });
+
   const confirm = (mode: 'replace' | 'merge') => onconfirm(mode, { shouldMergeDuplicateFamilies });
 </script>
 
@@ -72,10 +89,10 @@
             <li>
               {group.partners.join(' and ')}: {REASON_TEXT[group.reason]}
               <span class="font-mono text-[11px] text-stone-600">({group.familyIds.join(', ')})</span>
+              <span class="block pl-4 text-stone-600">{FOLLOW_UP_TEXT[group.reason]}</span>
             </li>
           {/each}
         </ul>
-        <p class="text-stone-600">You can merge these later from the partnership menu once they are in the tree.</p>
       {/if}
     </div>
   {/if}
@@ -100,14 +117,16 @@
     <div class="text-xs text-stone-700 space-y-3">
       <p>
         File contains <strong>{preview.incoming.individuals}</strong> people,
-        <strong>{preview.incoming.families}</strong> families and
+        <strong>{preview.incoming.families}</strong> families{familiesToWrite !== preview.incoming.families
+          ? ` (${familiesToWrite} once duplicates are merged)`
+          : ''} and
         <strong>{preview.incoming.events}</strong> events.
       </p>
 
       {#if !hasSelectedTree}
         <div class="bg-stone-100 border border-stone-300 rounded-lg p-3 space-y-1">
           <p class="font-semibold text-stone-900">New tree</p>
-          <p>All {preview.incoming.individuals} people and {preview.incoming.families} families from the file will be imported into a fresh tree.</p>
+          <p>All {preview.incoming.individuals} people and {familiesToWrite} families from the file will be imported into a fresh tree.</p>
         </div>
         {@render duplicatesBlock()}
         <div class="flex space-x-2 pt-2 border-t border-stone-200">
@@ -142,7 +161,7 @@
             <strong>{preview.deleteCounts.events}</strong> events in
             “{treeName}” will be <strong>permanently deleted</strong>
             and replaced by {preview.incoming.individuals} people and
-            {preview.incoming.families} families from the file.
+            {familiesToWrite} families from the file.
           </p>
         </div>
         {@render duplicatesBlock()}
@@ -182,7 +201,7 @@
           <p class="font-semibold text-emerald-900">Merge — changes preview</p>
           <ul class="space-y-0.5 list-disc list-inside text-stone-800">
             <li>{preview.merge.newIndividuals} new people ({preview.merge.existingIndividuals} already exist and will be kept)</li>
-            <li>{preview.merge.newFamilies} new families; {preview.merge.mergedFamilies} duplicate families will be merged into existing ones</li>
+            <li>{preview.merge.newFamilies} new families (fewer if duplicates within the file are merged); {preview.merge.mergedFamilies} will be merged into existing ones</li>
             <li>{preview.merge.newChildLinks} new child links ({preview.merge.duplicateChildLinks} duplicates skipped)</li>
             <li>{preview.merge.newEvents} new events ({preview.merge.duplicateEvents} duplicates skipped)</li>
           </ul>
