@@ -141,6 +141,20 @@ export const unionUpdateSchema = z.object({
 		.optional()
 });
 
+/** Merge partnerships between the same people; `isPreview` asks for the impact and conflicts, writing nothing. */
+export const unionMergeSchema = z.object({
+	survivorId: idSchema,
+	mergedIds: z.array(idSchema).min(1),
+	expectedVersions: z.record(idSchema, versionSchema).optional(),
+	keep: z
+		.object({
+			status: idSchema.optional(),
+			events: z.record(z.string().min(1), idSchema).optional()
+		})
+		.optional(),
+	isPreview: z.boolean().optional()
+});
+
 export const treeCreateSchema = z.object({
 	name: z.string().trim().min(1, 'Tree name is required'),
 	description: optionalText
@@ -174,5 +188,6 @@ export type IndividualUpdateInput = z.infer<typeof individualUpdateSchema>;
 export type RelationshipPayloadInput = z.infer<typeof relationshipPayloadSchema>;
 export type RelationshipDeleteInput = z.infer<typeof relationshipDeleteSchema>;
 export type ImpactRequestInput = z.infer<typeof impactRequestSchema>;
+export type UnionMergeInput = z.infer<typeof unionMergeSchema>;
 export type UnionUpdateInput = z.infer<typeof unionUpdateSchema>;
 export type ExportBodyInput = z.infer<typeof exportBodySchema>;

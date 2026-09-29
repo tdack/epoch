@@ -11,6 +11,7 @@ import type {
 	ImpactSummary,
 	UnionEventInput
 } from '#lib/types/genealogy.js';
+import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -222,6 +223,29 @@ export async function updateUnionApi(
 		json('PUT', payload),
 		'Failed to save the partnership'
 	);
+	return { change: res.change };
+}
+
+export interface MergeUnionsRequest {
+	survivorId: string;
+	mergedIds: string[];
+	expectedVersions: Record<string, number>;
+	/** Which union's value to keep wherever the unions disagree: `status`, and per event type. */
+	keep?: MergeChoices;
+}
+
+/** What a merge would do. `impact` is null while a conflict has no choice. */
+export interface MergePreviewResponse {
+	conflicts: MergeConflict[];
+	impact: ImpactSummary | null;
+}
+
+export async function previewUnionMergeApi(treeId: string, request: MergeUnionsRequest): Promise<MergePreviewResponse> {
+	return call(`/api/trees/${treeId}/unions/merge`, json('POST', { ...request, isPreview: true }), 'Failed to preview the merge');
+}
+
+export async function mergeUnionsApi(treeId: string, request: MergeUnionsRequest): Promise<{ change: ChangeSummary | null }> {
+	const res = await call<{ change: ChangeSummary | null }>(`/api/trees/${treeId}/unions/merge`, json('POST', request), 'Failed to merge the partnerships');
 	return { change: res.change };
 }
 

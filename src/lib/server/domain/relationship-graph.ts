@@ -17,6 +17,8 @@ export interface GraphUnionEvent {
 	id: string;
 	type: UnionEventType;
 	dateText: string | null;
+	/** Sort key of the date, so partnerships can be put in order without parsing text in the browser. */
+	dateSort?: string | null;
 	place: string | null;
 }
 
@@ -214,7 +216,7 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 	const eventsByUnion = new Map<string, GraphUnionEvent[]>();
 	for (const e of rows.events) {
 		if (e.entityType !== 'FAMILY' || !isUnionEventType(e.type)) continue;
-		eventsByUnion.set(e.entityId, [...(eventsByUnion.get(e.entityId) ?? []), { id: e.id, type: e.type, dateText: e.dateRaw, place: e.place }]);
+		eventsByUnion.set(e.entityId, [...(eventsByUnion.get(e.entityId) ?? []), { id: e.id, type: e.type, dateText: e.dateRaw, dateSort: e.dateSort, place: e.place }]);
 	}
 	for (const list of eventsByUnion.values()) {
 		list.sort((a, b) => UNION_EVENT_TYPE_LIST.indexOf(a.type) - UNION_EVENT_TYPE_LIST.indexOf(b.type));
