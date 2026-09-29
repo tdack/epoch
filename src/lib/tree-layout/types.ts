@@ -176,6 +176,8 @@ export interface TreeLayout {
 	collapsedPersonIds: string[];
 	/** Drawn unions whose partners could not all sit adjacent on one row. */
 	nonAdjacentUnionIds: string[];
+	/** Selected people the placement never reached and had to append to their row; always empty when the engine is correct. */
+	misplacedPersonIds: string[];
 	bounds: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
@@ -211,5 +213,6 @@ export const EMPTY_LAYOUT: TreeLayout = {
 	edges: [],
 	collapsedPersonIds: [],
 	nonAdjacentUnionIds: [],
+	misplacedPersonIds: [],
 	bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }
 };
