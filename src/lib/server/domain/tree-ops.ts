@@ -19,7 +19,7 @@ import {
 	type UnionPartnerRow,
 	type UnionRow
 } from './change-log';
-import { parseDateValue } from './date-value';
+import { dateColumnsFor } from './date-columns';
 import { personName } from '../../shared/person-name';
 import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
@@ -54,11 +54,6 @@ export interface OpContext {
 export function cleanText(value: string | null | undefined): string | null {
 	const trimmed = value?.trim();
 	return trimmed ? trimmed : null;
-}
-
-/** Sort key for an event date; the verbatim text is stored beside it and never rewritten. */
-export function sortKeyOf(dateText: string | null): string | null {
-	return dateText ? parseDateValue(dateText).sortStart : null;
 }
 
 export { personName };
@@ -237,7 +232,7 @@ function upsertEvent(
 		const after: EventRow = {
 			...existing,
 			dateRaw: dateText,
-			dateSort: fields.dateText !== undefined ? sortKeyOf(dateText) : existing.dateSort,
+			...(fields.dateText !== undefined ? dateColumnsFor(dateText) : {}),
 			place: fields.place !== undefined ? cleanText(fields.place) : existing.place
 		};
 		if (after.dateRaw === existing.dateRaw && after.place === existing.place) return [];
@@ -265,7 +260,7 @@ function createEvent(
 		entityId,
 		type,
 		dateRaw: dateText,
-		dateSort: sortKeyOf(dateText),
+		...dateColumnsFor(dateText),
 		place,
 		description: null,
 		version: 1,
@@ -513,7 +508,7 @@ function updateUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 				...existing,
 				type: input.type,
 				dateRaw: cleanText(input.dateText),
-				dateSort: sortKeyOf(cleanText(input.dateText)),
+				...dateColumnsFor(cleanText(input.dateText)),
 				place: cleanText(input.place)
 			};
 			const isChanged = after.type !== existing.type || after.dateRaw !== existing.dateRaw || after.place !== existing.place;

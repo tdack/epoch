@@ -11,7 +11,17 @@ export const events = sqliteTable('events', {
   // unsupported/custom types survive import/export without loss.
   type: text('type').notNull(),
   dateRaw: text('date_raw'),
-  dateSort: text('date_sort'), // YYYY-MM-DD for indexing
+  dateSort: text('date_sort'), // inclusive lower bound, YYYY-MM-DD, for indexing
+  // ADR-004. Null on rows written before these columns existed; readers fall back to parsing
+  // `date_raw`, and scripts/backfill-event-dates.mjs fills them in.
+  dateSortEnd: text('date_sort_end'), // inclusive upper bound; null when unbounded
+  dateQualifier: text('date_qualifier', {
+    enum: ['EXACT', 'ABOUT', 'ESTIMATED', 'CALCULATED', 'BEFORE', 'AFTER', 'BETWEEN', 'FROM_TO', 'PHRASE', 'UNKNOWN']
+  }),
+  datePrecision: text('date_precision', { enum: ['DAY', 'MONTH', 'YEAR', 'NONE'] }),
+  dateCalendar: text('date_calendar', {
+    enum: ['GREGORIAN', 'JULIAN', 'HEBREW', 'FRENCH_REPUBLICAN', 'UNKNOWN']
+  }),
   place: text('place'),
   description: text('description'),
   version: integer('version').notNull().default(1),

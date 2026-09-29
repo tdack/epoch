@@ -4,6 +4,7 @@
  * and the preview sentence; `tree-ops.ts` turns those commands into row operations.
  */
 
+import { eventDateValue } from './date-columns';
 import { parseDateValue } from './date-value';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
 import type { TreeRows } from './change-log';
@@ -308,7 +309,7 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 				});
 			}
 			const birth = rows.events.find((e) => e.entityType === 'INDIVIDUAL' && e.entityId === person.id && e.type === 'BIRT');
-			const born = parseDateValue(birth?.dateRaw);
+			const born = birth ? eventDateValue(birth) : parseDateValue(null);
 			const died = parseDateValue(intent.dateText);
 			if (born.sortStart && died.sortEnd && died.sortEnd < born.sortStart) {
 				warnings.push({ code: 'DEATH_BEFORE_BIRTH', message: 'This death date is earlier than the recorded birth.' });
@@ -355,7 +356,7 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 				const start = rows.events.find(
 					(e) => e.entityType === 'FAMILY' && e.entityId === union.id && e.type === 'MARR' && e.dateRaw
 				);
-				const began = parseDateValue(start?.dateRaw);
+				const began = start ? eventDateValue(start) : parseDateValue(null);
 				const ended = parseDateValue(intent.event?.dateText);
 				if (began.sortStart && ended.sortEnd && ended.sortEnd < began.sortStart) {
 					warnings.push({ code: 'END_BEFORE_START', message: 'The end date is earlier than the marriage date.' });

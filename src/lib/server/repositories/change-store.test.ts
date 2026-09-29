@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { changeLog, changeLogRecords, individuals } from '../db/schema';
+import { changeLog, changeLogRecords, events, individuals } from '../db/schema';
 import { ConcurrencyConflictError } from '../domain/errors';
 import type { RowOp } from '../domain/change-log';
 import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
@@ -147,5 +147,48 @@ describe('ChangeStore undo lookups', () => {
 		});
 		expect(await store.firstTouchedAfter(treeId, targetSeq, [{ entityType: 'person', entityId: 'f1' }])).toBeNull();
 		expect(target).not.toBeNull();
+	});
+});
+
+describe('event row images and the structured date columns', () => {
+	const event = (extra: Record<string, unknown> = {}) => ({
+		id: 'e1',
+		treeId,
+		entityType: 'INDIVIDUAL',
+		entityId: 'p1',
+		type: 'BIRT',
+		dateRaw: 'ABT 1900',
+		dateSort: '1900-01-01',
+		place: null,
+		description: null,
+		version: 1,
+		createdAt: 1_000,
+		updatedAt: 1_000,
+		...extra
+	});
+
+	it('carries the bounds, precision and qualifier in the inverse image, so an undo restores them', async () => {
+		await freshTree();
+		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'p1', before: null, after: person('p1', 'Pat') }] });
+		const full = event({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT', datePrecision: 'YEAR', dateCalendar: 'GREGORIAN' });
+		const committed = await store.commit({ ...base(), ops: [{ table: 'events', id: 'e1', before: null, after: full }] });
+		const stored = await t.db.select().from(events).where(eq(events.id, 'e1')).get();
+		expect(stored).toMatchObject({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT', datePrecision: 'YEAR', dateCalendar: 'GREGORIAN' });
+		const log = await t.db.select().from(changeLog).where(eq(changeLog.id, committed!.id)).get();
+		expect(JSON.parse(log!.inverseJson!)[0].before).toMatchObject({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT' });
+	});
+
+	it('reads an image written before the columns existed as nulls, not as an error', async () => {
+		await freshTree();
+		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'p2', before: null, after: person('p2', 'Pat') }] });
+		// A log row from before migration 0007 has no date_sort_end, date_qualifier, ...
+		await store.commit({ ...base(), ops: [{ table: 'events', id: 'e2', before: null, after: event({ id: 'e2', entityId: 'p2' }) }] });
+		expect(await t.db.select().from(events).where(eq(events.id, 'e2')).get()).toMatchObject({
+			dateRaw: 'ABT 1900',
+			dateSortEnd: null,
+			dateQualifier: null,
+			datePrecision: null,
+			dateCalendar: null
+		});
 	});
 });
