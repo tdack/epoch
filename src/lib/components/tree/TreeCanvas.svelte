@@ -75,6 +75,8 @@
 		onRemoveUnion?: (unionId: string) => void;
 		/** "Merge duplicate partnerships…", offered only for a partnership that has a twin. */
 		onMergeUnion?: (unionId: string) => void;
+		/** Unions that have a twin between the same people, and so can be merged. */
+		mergeableUnionIds?: Set<string>;
 		/** Chronological labels for repeated partnerships between the same people, by union id. */
 		partnershipLabels?: Map<string, PartnershipLabel>;
 		/** User dragged one person onto another. */
@@ -102,6 +104,7 @@
 		onRemoveAssertion,
 		onRemoveUnion,
 		onMergeUnion,
+		mergeableUnionIds,
 		partnershipLabels,
 		onDragRelate,
 		onExpandStub,
@@ -392,7 +395,7 @@
 		const items: MenuItem[] = [];
 		if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
 		if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(union.id) });
-		if (onMergeUnion && partnershipLabels?.has(union.id)) {
+		if (onMergeUnion && mergeableUnionIds?.has(union.id)) {
 			items.push({ label: 'Merge duplicate partnerships…', onClick: () => onMergeUnion(union.id) });
 		}
 		if (onRemoveUnion) items.push({ label: 'Delete partnership…', isDanger: true, onClick: () => onRemoveUnion(union.id) });

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross } from 'lucide-svelte';
   import { widowhoods } from '#lib/shared/widowhood.js';
-  import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
+  import { startSort, type PartnershipLabel } from '#lib/shared/partnership-labels.js';
   import type {
     RelationshipGraph,
     RelationshipGraphPerson
@@ -26,6 +26,8 @@
     onEndUnion?: (unionId: string) => void;
     /** Open the merge dialog for a partnership that has a twin between the same people. */
     onMergeUnion?: (unionId: string) => void;
+    /** Unions that have a twin between the same people, and so can be merged. */
+    mergeableUnionIds?: Set<string>;
     /** Chronological labels for repeated partnerships, by union id. */
     partnershipLabels?: Map<string, PartnershipLabel>;
   }
@@ -44,6 +46,7 @@
     onEditUnion,
     onEndUnion,
     onMergeUnion,
+    mergeableUnionIds,
     partnershipLabels
   }: Props = $props();
 
@@ -82,8 +85,14 @@
   let partnerUnions = $derived.by(() => {
     const gp = person ? graphPersonFor(person.id) : null;
     if (!gp) return [];
+    // Oldest first, as the detail panel should read; undated partnerships follow in stored order.
+    const byStart = (a: { events?: Array<{ type: string; dateSort?: string | null; dateText: string | null }> }, b: typeof a) => {
+      const [sa, sb] = [startSort({ id: '', partnerIds: [], events: a.events }), startSort({ id: '', partnerIds: [], events: b.events })];
+      return sa && sb ? sa.localeCompare(sb) : sa ? -1 : sb ? 1 : 0;
+    };
     return graph.unions
       .filter((u) => gp.unionIds.includes(u.id))
+      .sort(byStart)
       .map((u) => {
         const seen = new Set<string>();
         return {
@@ -244,7 +253,7 @@
                 {#if onEditUnion}
                   <button type="button" onclick={() => onEditUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Edit</button>
                 {/if}
-                {#if onMergeUnion && partnershipLabels?.has(union.id)}
+                {#if onMergeUnion && mergeableUnionIds?.has(union.id)}
                   <button type="button" onclick={() => onMergeUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Merge…</button>
                 {/if}
                 {#if onEndUnion && union.status === 'active'}

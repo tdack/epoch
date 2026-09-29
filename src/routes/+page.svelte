@@ -33,7 +33,7 @@
   import UnionEditorModal from '#lib/components/modals/UnionEditorModal.svelte';
   import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
   import UnionMergeDialog from '#lib/components/modals/UnionMergeDialog.svelte';
-  import { mergeCandidatesFor } from '#lib/components/tree/merge-candidates.js';
+  import { mergeCandidatesFor, mergeableUnionIds } from '#lib/components/tree/merge-candidates.js';
   import { partnershipLabels } from '#lib/shared/partnership-labels.js';
   import ConflictDialog from '#lib/components/modals/ConflictDialog.svelte';
   import { differingRows } from '#lib/components/modals/conflict.js';
@@ -184,6 +184,7 @@
   let mergingUnionId = $state<string | null>(null);
   /** "1st partnership", "2nd partnership" for pairs that recur; computed over the whole graph so hidden unions still count. */
   const unionLabels = $derived(relationshipGraph ? partnershipLabels(relationshipGraph.unions) : new Map());
+  const mergeableIds = $derived(relationshipGraph ? mergeableUnionIds(relationshipGraph.unions) : new Set<string>());
   const mergeCandidates = $derived(
     relationshipGraph && mergingUnionId ? mergeCandidatesFor(relationshipGraph.unions, mergingUnionId, unionLabels) : []
   );
@@ -857,6 +858,7 @@
         onRemoveAssertion={handleRemoveAssertion}
         onRemoveUnion={handleRemoveUnion}
         onMergeUnion={handleMergeUnion}
+        mergeableUnionIds={mergeableIds}
         partnershipLabels={unionLabels}
         onDragRelate={handleDragRelate}
         onExpandStub={(id) => {
@@ -940,6 +942,7 @@
       onEditUnion={handleEditUnion}
       onEndUnion={handleEndUnion}
       onMergeUnion={handleMergeUnion}
+      mergeableUnionIds={mergeableIds}
       partnershipLabels={unionLabels}
       onSelectPerson={(id) => handleSelectPerson(id)}
     />
