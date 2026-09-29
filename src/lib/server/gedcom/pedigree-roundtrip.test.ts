@@ -189,3 +189,65 @@ ${people(['I1', 'I2'])}
 		expect(treeId).toBeTruthy();
 	});
 });
+
+describe('other structures under FAMC (ADR-009)', () => {
+	const ged = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+${people(['I1', 'I2'])}
+0 @I3@ INDI
+1 NAME I3 /Test/
+1 FAMC @F1@
+2 PEDI adopted
+2 STAT challenged
+2 NOTE Disputed by a cousin
+3 CONC , see the letter
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+0 TRLR`;
+
+	const famcBlock = (text: string) => text.split(/\r?\n/).join('\n').match(/1 FAMC @F1@\n(?:[2-9] .*\n?)*/)![0].trim().split('\n');
+
+	it('keeps STAT and NOTE under the same FAMC, next to the PEDI, in both dialects', async () => {
+		const { text551, text7 } = await roundTrip(ged);
+		expect(famcBlock(text551)).toEqual(['1 FAMC @F1@', '2 PEDI adopted', '2 STAT challenged', '2 NOTE Disputed by a cousin', '3 CONC , see the letter']);
+		expect(famcBlock(text7)).toEqual(['1 FAMC @F1@', '2 PEDI ADOPTED', '2 STAT challenged', '2 NOTE Disputed by a cousin', '3 CONC , see the letter']);
+	});
+
+	it('does not write the extras a second time after the record, and is stable over a second round trip', async () => {
+		const first = await roundTrip(ged);
+		expect(first.text551.match(/STAT challenged/g)).toHaveLength(1);
+		const second = await roundTrip(first.text551);
+		expect(second.text551.match(/STAT challenged/g)).toHaveLength(1);
+		expect(famcBlock(second.text551)).toEqual(famcBlock(first.text551));
+	});
+
+	it('follows a family that was merged into another', async () => {
+		const merged = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+${people(['I1', 'I2'])}
+0 @I3@ INDI
+1 NAME I3 /Test/
+1 FAMC @F1@
+2 STAT proven
+1 FAMC @F2@
+2 STAT proven
+2 NOTE second copy
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+0 TRLR`;
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, merged, 'Merged', 'replace', { shouldMergeDuplicateFamilies: true });
+		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
+		expect(famcBlock(text)).toEqual(['1 FAMC @F1@', '2 STAT proven', '2 NOTE second copy']);
+	});
+});

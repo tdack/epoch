@@ -493,9 +493,14 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     preserved: treePreserved
       .slice()
       .sort((a, b) => a.order - b.order)
-      .map((p) => ({
-        xref: p.ownerXref ? xrefToExportId.get(p.ownerXref) ?? p.ownerXref : null,
-        lines: p.lines as unknown as string[]
-      }))
+      .map((p) => {
+        const lines = p.lines as unknown as string[];
+        // Extras kept under a FAMC follow the family that absorbed it, so they land on the FAMC that is written.
+        const famc = lines[0]?.trim().match(/^(1 FAMC\s+)(\S+)$/);
+        return {
+          xref: p.ownerXref ? xrefToExportId.get(p.ownerXref) ?? p.ownerXref : null,
+          lines: famc ? [`${famc[1]}${xrefToExportId.get(famc[2]) ?? famc[2]}`, ...lines.slice(1)] : lines
+        };
+      })
   };
 }

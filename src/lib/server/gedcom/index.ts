@@ -273,6 +273,10 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
             const parentPedigree = sub.tag === PARENT_PEDIGREE_TAG && sub.value ? parsePedigree(sub.children.find((c) => c.tag === 'PEDI')?.value) : undefined;
             if (parentPedigree) parentPedigrees[sub.value!.trim()] = parentPedigree;
           }
+          // STAT, NOTE and the like under FAMC have no model. Keep them, headed by their FAMC line,
+          // so export writes them back under the same link (ADR-009).
+          const extras = child.children.filter((sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG);
+          if (extras.length > 0) preserved.push({ xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] });
           famcLinks.push({
             familyId,
             pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
@@ -456,7 +460,13 @@ function pedigreeToken(pedigree: string | null | undefined, format: GedcomFormat
  * A parent whose pedigree differs from the family's is written as `_PEDI_PARENT`, because a single
  * `PEDI` cannot say "birth to one parent, adopted by the other".
  */
-function famcLines(familyId: string, childId: string, index: ReturnType<typeof pedigreeIndex>, format: GedcomFormat): string[] {
+function famcLines(
+  familyId: string,
+  childId: string,
+  index: ReturnType<typeof pedigreeIndex>,
+  format: GedcomFormat,
+  preserved: GedcomExportPayload['preserved']
+): string[] {
   const lines = [`1 FAMC ${asXref(familyId)}`];
   const link = index.get(`${familyId}|${childId}`);
   const pedigree = pedigreeToken(link?.pedigree, format);
@@ -465,7 +475,26 @@ function famcLines(familyId: string, childId: string, index: ReturnType<typeof p
     const token = pedigreeToken(parentPedigree, format, true);
     if (token) lines.push(`2 ${PARENT_PEDIGREE_TAG} ${asXref(parentId)}`, `3 PEDI ${token}`);
   }
+  // A child linked to a merged family once per copy has several blocks for one link; write each line once.
+  const written = new Set<string>();
+  for (const entry of preserved ?? []) {
+    if (entry.xref !== childId || !isFamcExtra(entry) || asXref(famcTarget(entry)) !== asXref(familyId)) continue;
+    for (const line of entry.lines.slice(1)) {
+      if (written.has(line)) continue;
+      written.add(line);
+      lines.push(line);
+    }
+  }
   return lines;
+}
+
+/** Preserved lines under a `FAMC`, headed by that `FAMC` line; written inside the link, not after the record. */
+function isFamcExtra(entry: { lines: string[] }): boolean {
+  return /^1 FAMC\s+\S+/.test(entry.lines[0] ?? '');
+}
+
+function famcTarget(entry: { lines: string[] }): string {
+  return entry.lines[0].trim().split(/\s+/)[2];
 }
 
 /** Each merged-away XREF, kept on the surviving family as a typed `REFN`. */
@@ -485,7 +514,7 @@ function appendPreserved(
 ): void {
   if (!preserved) return;
   for (const entry of preserved) {
-    if (entry.xref === ownerXref) {
+    if (entry.xref === ownerXref && !(ownerXref !== null && isFamcExtra(entry))) {
       for (const l of entry.lines) lines.push(l);
     }
   }
@@ -538,7 +567,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 
     if (ind.famc) {
       for (const f of ind.famc) {
-        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551'));
+        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', data.preserved));
       }
     }
 
@@ -631,7 +660,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
     if (ind.famc) {
       for (const f of ind.famc) {
-        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7'));
+        lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', data.preserved));
       }
     }
 
