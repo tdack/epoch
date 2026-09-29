@@ -1,8 +1,24 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import NeutralFamilyTreeCanvas from '#lib/components/tree/NeutralFamilyTreeCanvas.svelte';
+  import { onMount, untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
+  import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
+  import {
+    ALL_PARENT_CHILD_TYPES,
+    parseViewState,
+    serializeViewState,
+    type TreeViewState
+  } from '#lib/components/tree/tree-url.js';
   import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
-  import { EMPTY_LAYOUT, layoutFocusView, type ChildEdge, type PartnerEdge } from '#lib/tree-layout/index.js';
+  import {
+    EMPTY_LAYOUT,
+    filterParentChildTypes,
+    layoutFocusView,
+    type ChildAssertion,
+    type ChildEdge,
+    type PartnerEdge
+  } from '#lib/tree-layout/index.js';
   import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
@@ -29,6 +45,7 @@
     submitGedcomImport,
     fetchRelationshipGraph,
     removeRelationshipApi,
+    searchPeopleApi,
     type RelationshipDeleteCommand
   } from '#lib/services/tree-api.js';
 
@@ -36,11 +53,66 @@
   let selectedTreeId = $state<string | null>(null);
   let activeTreeData = $state<TreeDetails | null>(null);
   let relationshipGraph = $state<RelationshipGraph | null>(null);
-  /** The tree is always drawn around one person; null until the user picks one, then a default is used. */
-  let focusPersonId = $state<string | null>(null);
-  const neutralLayout = $derived(
-    relationshipGraph ? layoutFocusView(relationshipGraph, resolveFocus(relationshipGraph)) : EMPTY_LAYOUT
+  /**
+   * The view (focus, depths, toggles) lives in the URL so reloads, back/forward and shared links
+   * restore it. Everything below derives from it rather than keeping a second copy.
+   */
+  const view = $derived(parseViewState(page.url.searchParams));
+  /** The tree is always drawn around one person: the URL's, else the last viewed, else the first. */
+  const focusPersonId = $derived(relationshipGraph ? resolveFocus(relationshipGraph, view.focusId) : null);
+  /** Stubs the user opened in place; reset whenever the view changes so a new focus starts compact. */
+  let expandedStubIds = $state<string[]>([]);
+  /** Bumped when the graph is reloaded so the canvas re-frames after an edit. */
+  let graphVersion = $state(0);
+  const graphForLayout = $derived(
+    relationshipGraph && view.types.length < ALL_PARENT_CHILD_TYPES.length
+      ? filterParentChildTypes(relationshipGraph, view.types)
+      : relationshipGraph
   );
+  const neutralLayout = $derived(
+    graphForLayout
+      ? layoutFocusView(graphForLayout, focusPersonId, {
+          ancestorDepth: view.ancestorDepth,
+          descendantDepth: view.descendantDepth,
+          shouldIncludeSiblings: view.shouldIncludeSiblings,
+          shouldIncludeStepFamilies: view.shouldIncludeStepFamilies,
+          expandedStubIds
+        })
+      : EMPTY_LAYOUT
+  );
+  const viewSignature = $derived(
+    JSON.stringify([selectedTreeId, focusPersonId, view.ancestorDepth, view.descendantDepth, view.shouldIncludeSiblings, view.shouldIncludeStepFamilies, view.types])
+  );
+  const fitKey = $derived(`${viewSignature}|${graphVersion}`);
+
+  $effect(() => {
+    void viewSignature;
+    expandedStubIds = [];
+  });
+
+  // Write the resolved tree and focus back into the URL so the address always describes the view.
+  $effect(() => {
+    if (!relationshipGraph || !selectedTreeId || !focusPersonId) return;
+    if (view.treeId === selectedTreeId && view.focusId === focusPersonId) return;
+    untrack(() => navigate({ treeId: selectedTreeId, focusId: focusPersonId }, { isReplace: true }));
+  });
+
+  // Back/forward changes the focus; keep an open drawer on the person now at the centre.
+  $effect(() => {
+    const id = focusPersonId;
+    untrack(() => {
+      if (id && selectedPersonId && selectedPersonId !== id) openDrawerFor(id);
+    });
+  });
+
+  function navigate(change: Partial<TreeViewState>, options: { isReplace?: boolean } = {}) {
+    const query = serializeViewState({ ...view, treeId: selectedTreeId, ...change }).toString();
+    void goto(query ? `?${query}` : page.url.pathname, {
+      replace: options.isReplace ?? false,
+      // Leave scroll and the focused element alone; the tree view changes in place.
+      reset: false
+    });
+  }
 
   let selectedPersonId = $state<string | null>(null);
   let selectedPerson = $state<any | null>(null);
@@ -87,7 +159,8 @@
     try {
       trees = await fetchTrees();
       if (trees.length > 0 && !selectedTreeId) {
-        await selectTree(trees[0].id);
+        const requested = trees.find((t) => t.id === view.treeId);
+        await selectTree((requested ?? trees[0]).id);
       }
     } catch (e) {
       console.error('Failed to load trees', e);
@@ -98,9 +171,9 @@
     return `epoch:focus:${treeId}`;
   }
 
-  /** Last-viewed person, else the first person in the graph. */
-  function resolveFocus(graph: RelationshipGraph): string | null {
-    if (focusPersonId && graph.people.some((p) => p.id === focusPersonId)) return focusPersonId;
+  /** The URL's person if they exist, else the last viewed, else the first in the graph. */
+  function resolveFocus(graph: RelationshipGraph, requestedId: string | null): string | null {
+    if (requestedId && graph.people.some((p) => p.id === requestedId)) return requestedId;
     try {
       const remembered = localStorage.getItem(focusStorageKey(selectedTreeId));
       if (remembered && graph.people.some((p) => p.id === remembered)) return remembered;
@@ -111,18 +184,18 @@
   }
 
   function setFocus(id: string) {
-    focusPersonId = id;
     try {
       localStorage.setItem(focusStorageKey(selectedTreeId), id);
     } catch {
       // Remembering the focus is a convenience only.
     }
+    navigate({ focusId: id });
   }
 
   async function selectTree(id: string, preservePersonId?: string) {
     selectedTreeId = id;
     loading = true;
-    focusPersonId = preservePersonId ?? null;
+    relationshipGraph = null;
     if (!preservePersonId) {
       selectedPersonId = null;
       selectedPerson = null;
@@ -135,6 +208,7 @@
       ]);
       activeTreeData = data;
       relationshipGraph = graph;
+      graphVersion++;
       if (preservePersonId) {
         handleSelectPerson(preservePersonId);
       }
@@ -161,9 +235,12 @@
       clearSelection();
       return;
     }
-
-    selectedPersonId = id;
     setFocus(id);
+    openDrawerFor(id);
+  }
+
+  function openDrawerFor(id: string) {
+    selectedPersonId = id;
 
     // Prefer the full individual record from the tree details so the drawer and
     // edit modal get sex, names, events, and media. Fall back to the graph's
@@ -325,9 +402,10 @@
     if (!selectedTreeId) return;
     const graph = await fetchRelationshipGraph(selectedTreeId);
     relationshipGraph = graph;
+    graphVersion++;
     // Keep the drawer selection in sync with the refreshed graph.
     if (selectedPersonId) {
-      handleSelectPerson(selectedPersonId);
+      openDrawerFor(selectedPersonId);
     }
   }
 
@@ -357,22 +435,30 @@
     }
   }
 
-  async function handleRemoveLink(edge: PartnerEdge | ChildEdge) {
+  async function handleRemoveLink(edge: PartnerEdge) {
     if (!selectedTreeId) return;
-    // A child edge merges every parent's assertion for one (union, child); deleting it must
-    // remove all of them, not just one parent's, or the edge would seem to survive.
-    const commands: RelationshipDeleteCommand[] =
-      edge.kind === 'partner'
-        ? [{ kind: 'remove_partner_from_union', unionId: edge.unionId, personId: edge.personId }]
-        : edge.assertions.map((a) => ({
-            kind: 'remove_parent_child' as const,
-            parentId: a.parentId,
-            childId: edge.childId,
-            type: a.type
-          }));
-    if (commands.length > 1 && !window.confirm(`Remove ${commands.length} parent links to this child?`)) return;
     try {
-      for (const command of commands) await removeRelationshipApi(selectedTreeId, command);
+      await removeRelationshipApi(selectedTreeId, {
+        kind: 'remove_partner_from_union',
+        unionId: edge.unionId,
+        personId: edge.personId
+      });
+      await refreshGraph();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to remove partnership');
+    }
+  }
+
+  /** Remove one parent's link from a merged (union, child) edge. */
+  async function handleRemoveAssertion(edge: ChildEdge, assertion: ChildAssertion) {
+    if (!selectedTreeId) return;
+    try {
+      await removeRelationshipApi(selectedTreeId, {
+        kind: 'remove_parent_child',
+        parentId: assertion.parentId,
+        childId: edge.childId,
+        type: assertion.type
+      });
       await refreshGraph();
     } catch (err: any) {
       window.alert(err.message || 'Failed to remove relationship');
@@ -445,6 +531,7 @@
     if (selectedTreeId) {
       const graph = await fetchRelationshipGraph(selectedTreeId);
       relationshipGraph = graph;
+      graphVersion++;
     }
   }
 
@@ -464,7 +551,6 @@
       selectedTreeId = null;
       activeTreeData = null;
       relationshipGraph = null;
-      focusPersonId = null;
       selectedPersonId = null;
       selectedPerson = null;
       await loadTrees();
@@ -489,15 +575,32 @@
         <RefreshCw class="w-8 h-8 text-emerald-700 animate-spin" />
       </div>
     {:else}
-      <NeutralFamilyTreeCanvas
+      {#if relationshipGraph && selectedTreeId}
+        {@const treeId = selectedTreeId}
+        <div class="mb-3">
+          <TreeToolbar
+            {view}
+            searchPeople={(q) => searchPeopleApi(treeId, q)}
+            onChange={(change) => navigate(change, { isReplace: true })}
+            onPickFocus={(id) => navigate({ focusId: id })}
+          />
+        </div>
+      {/if}
+      <TreeCanvas
         layout={neutralLayout}
+        {fitKey}
+        {selectedPersonId}
         onSelectPerson={handleSelectPerson}
+        onClearSelection={clearSelection}
         onEditPerson={handleCanvasEditPerson}
         onDeletePerson={handleCanvasDeletePerson}
         onAddRelationship={handleCanvasAddRelationship}
         onRemoveLink={handleRemoveLink}
+        onRemoveAssertion={handleRemoveAssertion}
         onRemoveUnion={handleRemoveUnion}
         onDragRelate={handleDragRelate}
+        onExpandStub={(id) => (expandedStubIds = [...expandedStubIds, id])}
+        onCollapseStub={(id) => (expandedStubIds = expandedStubIds.filter((x) => x !== id))}
       />
     {/if}
   </div>
@@ -524,7 +627,10 @@
     {trees}
     {selectedTreeId}
     {isImporting}
-    onselectTree={(id) => selectTree(id)}
+    onselectTree={(id) => {
+      navigate({ treeId: id, focusId: null });
+      void selectTree(id);
+    }}
     onopenNewTree={openNewTreeModal}
     onopenDeleteTree={openDeleteTreeModal}
     onopenAddPerson={openAddPersonModal}
