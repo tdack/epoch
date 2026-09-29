@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross } from 'lucide-svelte';
   import { sexLabel } from '#lib/shared/sex.js';
+  import { stepRelativesOf } from '#lib/shared/step-relatives.js';
   import { widowhoods } from '#lib/shared/widowhood.js';
   import { startSort, type PartnershipLabel } from '#lib/shared/partnership-labels.js';
   import type {
@@ -106,6 +107,9 @@
         };
       });
   });
+
+  // Derived from partnerships, never stored; shown apart from parents and children so they are not mistaken for either.
+  const steps = $derived(person ? stepRelativesOf(graph, person.id) : { stepParents: [], stepChildren: [] });
 
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
@@ -293,6 +297,36 @@
             {/if}
           </div>
         {/each}
+
+        {#if steps.stepParents.length > 0 || steps.stepChildren.length > 0}
+          <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2" data-testid="step-relatives">
+            <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Step relatives</span>
+            {#each steps.stepParents as step (step.personId)}
+              <button
+                type="button"
+                onclick={() => onSelectPerson?.(step.personId)}
+                class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
+              >
+                <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
+                  {nameOf(step.personId)}
+                  <span class="text-stone-400 font-normal">(step-parent)</span>
+                </span>
+              </button>
+            {/each}
+            {#each steps.stepChildren as step (step.personId)}
+              <button
+                type="button"
+                onclick={() => onSelectPerson?.(step.personId)}
+                class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
+              >
+                <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
+                  {nameOf(step.personId)}
+                  <span class="text-stone-400 font-normal">(step-child, via {nameOf(step.viaPartnerId)})</span>
+                </span>
+              </button>
+            {/each}
+          </div>
+        {/if}
 
         <!-- Add-relationship action -->
         <div class="bg-stone-100/70 border border-stone-200 rounded-xl p-3 space-y-2">
