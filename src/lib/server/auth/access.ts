@@ -33,6 +33,14 @@ interface JWKS {
   keys: JWK[];
 }
 
+/**
+ * The dev bypass is opt-in per environment: only the exact string `'true'` enables it, from any
+ * of the supplied sources (SvelteKit env, Worker binding / `.dev.vars`).
+ */
+export function isDevBypassEnabled(...flags: Array<string | undefined | null>): boolean {
+  return flags.some((flag) => flag === 'true');
+}
+
 let jwksCache: { domain: string; keys: JWK[]; expiresAt: number } | null = null;
 
 function base64UrlDecode(str: string): Uint8Array {

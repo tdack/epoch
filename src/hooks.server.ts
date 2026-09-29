@@ -2,7 +2,7 @@ import type { Handle } from '@sveltejs/kit/hooks';
 import { CF_ACCESS_TEAM_DOMAIN } from '$app/env/public';
 import { CF_ACCESS_AUD, ACCESS_BYPASS_DEV } from '$app/env/private';
 import { getPlatformBindings } from '#lib/server/platform.js';
-import { extractAccessJwt, validateAccessJwt } from '#lib/server/auth/access.js';
+import { extractAccessJwt, isDevBypassEnabled, validateAccessJwt } from '#lib/server/auth/access.js';
 import { getDb } from '#lib/server/db/index.js';
 import { UserRepository } from '#lib/server/repositories/user-repository.js';
 import { Logger } from '#lib/server/logging/logger.js';
@@ -25,10 +25,9 @@ export const handle: Handle = async ({ event, resolve }) => {
   const requestLogger = new Logger({ correlationId, path: event.url.pathname, method: event.request.method });
 
   const token = extractAccessJwt(event.request);
-  const allowDevBypass =
-    ACCESS_BYPASS_DEV === 'true' ||
-    process.env.NODE_ENV !== 'production' ||
-    process.env.ACCESS_BYPASS_DEV === 'true';
+  // Fail closed: the bypass needs an explicit opt-in and never follows NODE_ENV, since the
+  // unbundled server build keeps runtime env checks and would otherwise open production.
+  const allowDevBypass = isDevBypassEnabled(ACCESS_BYPASS_DEV, (bindings as { ACCESS_BYPASS_DEV?: string }).ACCESS_BYPASS_DEV);
 
   if (token) {
     try {

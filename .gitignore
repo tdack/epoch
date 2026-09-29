@@ -30,3 +30,6 @@ vite.config.ts.timestamp-*
 *.code-workspace
 .vscode/
 
+
+# Local Worker secrets/vars
+.dev.vars
