@@ -73,7 +73,7 @@
     {#if isLoading || !impact}
       <p class="text-sm text-stone-600" role="status">Checking what this affects…</p>
     {:else}
-      <p class="text-sm font-medium text-stone-800">{impact.headline}. This is exactly what will change:</p>
+      <p class="text-sm font-medium text-stone-800">This is exactly what will change:</p>
 
       {#if people.length > 0}
         <section aria-labelledby="impact-people">
