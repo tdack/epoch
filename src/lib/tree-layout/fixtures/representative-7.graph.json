@@ -1,0 +1,187 @@
+{
+	"people": [
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+			"displayName": "Alice Walker",
+			"sex": "F",
+			"isDeceased": false,
+			"parentsByUnion": {},
+			"unionIds": [
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@",
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+			],
+			"stepParents": []
+		},
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+			"displayName": "Bob /Smith/",
+			"sex": "M",
+			"isDeceased": true,
+			"parentsByUnion": {},
+			"unionIds": [
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@"
+			],
+			"stepParents": []
+		},
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+			"displayName": "Carol /Jones/",
+			"sex": "U",
+			"isDeceased": false,
+			"parentsByUnion": {},
+			"unionIds": [
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+			],
+			"stepParents": []
+		},
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+			"displayName": "David /Smith/",
+			"sex": "M",
+			"isDeceased": false,
+			"parentsByUnion": {
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@": [
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+						"type": "biological"
+					},
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+						"type": "biological"
+					}
+				],
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@": [
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+						"type": "adoptive"
+					},
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+						"type": "adoptive"
+					}
+				]
+			},
+			"unionIds": [],
+			"stepParents": []
+		},
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_EMILY@",
+			"displayName": "Emily /Foster-Child/",
+			"sex": "F",
+			"isDeceased": false,
+			"parentsByUnion": {
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@": [
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+						"type": "foster"
+					},
+					{
+						"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+						"type": "foster"
+					}
+				]
+			},
+			"unionIds": [],
+			"stepParents": [
+				{
+					"stepParentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+					"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@"
+				}
+			]
+		}
+	],
+	"unions": [
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@",
+			"status": "divorced",
+			"marriageDate": "20 JUN 1992",
+			"marriagePlace": null,
+			"partnerIds": [
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@"
+			],
+			"children": [
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+					"type": "biological"
+				},
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+					"type": "biological"
+				}
+			]
+		},
+		{
+			"id": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@",
+			"status": "active",
+			"marriageDate": "14 FEB 2008",
+			"marriagePlace": null,
+			"partnerIds": [
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+				"5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@"
+			],
+			"children": [
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+					"type": "adoptive"
+				},
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+					"type": "adoptive"
+				},
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_EMILY@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+					"type": "foster"
+				},
+				{
+					"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_EMILY@",
+					"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+					"type": "foster"
+				}
+			]
+		}
+	],
+	"parentChild": [
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_BOB@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+			"type": "biological",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@"
+		},
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+			"type": "biological",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_SMITH@"
+		},
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+			"type": "adoptive",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+		},
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_DAVID@",
+			"type": "adoptive",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+		},
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_CAROL@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_EMILY@",
+			"type": "foster",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+		},
+		{
+			"parentId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_ALICE@",
+			"childId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@I_EMILY@",
+			"type": "foster",
+			"unionId": "5ec1080c-9347-4e74-989a-553d68dcfa04:@F_WALKER_JONES@"
+		}
+	]
+}
