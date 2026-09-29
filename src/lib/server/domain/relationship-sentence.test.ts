@@ -115,8 +115,18 @@ describe('describeRelationshipIntent', () => {
 	it('takes the family from the resolved facts rather than the client label', () => {
 		const sentence = describeRelationshipIntent(
 			{ kind: 'add_child', parent: alex, child: jordan, type: 'biological', unionLabel: 'client says so' },
-			{ unionLabel: 'Alex Walker–Sam Smith' }
+			{ unionPhrase: 'Alex Walker–Sam Smith family' }
 		);
 		expect(sentence).toBe("Jordan Lee will be recorded as Alex Walker's biological child in the Alex Walker–Sam Smith family.");
+	});
+
+	it('names a repeated partnership by its position', () => {
+		const sentence = describeRelationshipIntent(
+			{ kind: 'add_child', parent: alex, child: jordan, type: 'biological', unionLabel: null },
+			{ unionPhrase: '2nd partnership of Alex Walker and Sam Smith' }
+		);
+		expect(sentence).toBe(
+			"Jordan Lee will be recorded as Alex Walker's biological child in the 2nd partnership of Alex Walker and Sam Smith."
+		);
 	});
 });

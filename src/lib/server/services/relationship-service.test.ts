@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ValidationError } from '../domain/errors';
 import type { RelationshipGraph } from '../domain/relationship-graph';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { RecordChange } from '../domain/change-log';
@@ -208,6 +209,112 @@ describe('preview matches result, for every intent', () => {
 			'created event Divorce of Alex Walker–Robin Reed partnership',
 			'updated union Alex Walker–Robin Reed partnership'
 		]);
+	});
+});
+
+describe('choosing a partnership when there are several', () => {
+	/** Homer and Marge twice, as an import without merging leaves them: the first has a child, the second none. */
+	async function twinned() {
+		const s = await setup();
+		const [homer, marge, lisa, sam] = [
+			await s.addPerson('Homer', 'Simpson'),
+			await s.addPerson('Marge', 'Simpson'),
+			await s.addPerson('Lisa', 'Simpson'),
+			await s.addPerson('Sam', 'Simpson')
+		];
+		const unionIds = [1, 2].map((n) => `${s.treeId}:@F${n}@`);
+		await s.relationships.runner.run(s.treeId, s.ctx, {
+			kind: 'create_union',
+			summary: () => 'Imported',
+			commands: unionIds.map((unionId) => ({ kind: 'create_union' as const, unionId, personIds: [homer.id, marge.id] }))
+		});
+		await s.relationships.runner.run(s.treeId, s.ctx, {
+			kind: 'assert_parent_child',
+			summary: () => 'Linked',
+			commands: [homer, marge].map((parent) => ({
+				kind: 'assert_parent_child' as const,
+				parentId: parent.id,
+				childId: lisa.id,
+				type: 'biological' as const,
+				unionId: unionIds[0]
+			}))
+		});
+		const addChild = (unionId?: string | null): RelationshipIntent => ({
+			kind: 'add_child',
+			parent: s.ref(homer),
+			child: s.ref(sam),
+			type: 'biological',
+			unionLabel: null,
+			unionId
+		});
+		const childUnion = async () => (await s.graph()).parentChild.find((l) => l.childId === sam.id && l.parentId === homer.id)?.unionId;
+		return { s, homer, marge, sam, unionIds, addChild, childUnion };
+	}
+
+	it('puts the child in the fullest partnership by default, and says so', async () => {
+		const { s, unionIds, addChild, childUnion } = await twinned();
+		const preview = await s.relationships.plan(s.treeId, addChild(), s.ctx);
+		expect(preview.unionChoice).toMatchObject({ unionId: unionIds[0], isDefault: true });
+		expect(preview.sentence).toBe(
+			"Sam Simpson will be recorded as Homer Simpson's biological child in the 1st partnership of Homer Simpson and Marge Simpson."
+		);
+		await s.relationships.execute(s.treeId, addChild(), s.ctx);
+		expect(await childUnion()).toBe(unionIds[0]);
+	});
+
+	it('puts the child in the partnership the intent names, and the preview matches the save', async () => {
+		const { s, unionIds, addChild, childUnion } = await twinned();
+		const { executed } = await runAndCompare(s, addChild(unionIds[1]));
+		expect(executed.sentence).toContain('in the 2nd partnership of Homer Simpson and Marge Simpson');
+		expect(await childUnion()).toBe(unionIds[1]);
+	});
+
+	it('refuses a partnership the parent is not in, and writes nothing', async () => {
+		const { s, sam, addChild } = await twinned();
+		const stranger = await s.addPerson('Stray');
+		const other = await s.addPerson('Other');
+		await s.partner(stranger, other);
+		const foreign = (await s.graph()).unions.find((u) => u.partnerIds.includes(stranger.id))!;
+		const before = canonical(await s.graph());
+		await expect(s.relationships.execute(s.treeId, addChild(foreign.id), s.ctx)).rejects.toBeInstanceOf(ValidationError);
+		await expect(s.relationships.plan(s.treeId, addChild('no-such-union'), s.ctx)).rejects.toBeInstanceOf(ValidationError);
+		expect(canonical(await s.graph())).toEqual(before);
+		expect((await s.graph()).people.find((p) => p.id === sam.id)).toBeTruthy();
+	});
+
+	it('undoing puts the child link back exactly as it was', async () => {
+		const { s, unionIds, addChild, childUnion } = await twinned();
+		const before = canonical(await s.graph());
+		await s.relationships.execute(s.treeId, addChild(unionIds[1]), s.ctx);
+		expect(await childUnion()).toBe(unionIds[1]);
+		await s.log.undoLast(s.treeId, s.ctx);
+		expect(await childUnion()).toBeUndefined();
+		expect(canonical(await s.graph())).toEqual(before);
+	});
+
+	it('add_parent and add_partner take the chosen partnership too', async () => {
+		const { s, unionIds, marge, sam } = await twinned();
+		const lone = await s.addPerson('Lone');
+		const mate = await s.addPerson('Mate');
+		const dad = await s.addPerson('Dad');
+		await s.relationships.runner.run(s.treeId, s.ctx, {
+			kind: 'create_union',
+			summary: () => 'Imported',
+			commands: ['A', 'B'].map((n) => ({ kind: 'create_union' as const, unionId: `${s.treeId}:@L${n}@`, personIds: [lone.id] }))
+		});
+		await s.relationships.execute(s.treeId, { kind: 'add_partner', person: s.ref(lone), partner: s.ref(mate), unionLabel: null, unionId: `${s.treeId}:@LB@` }, s.ctx);
+		const unions = (await s.graph()).unions;
+		expect(unions.find((u) => u.id === `${s.treeId}:@LB@`)!.partnerIds).toEqual([lone.id, mate.id]);
+		expect(unions.find((u) => u.id === `${s.treeId}:@LA@`)!.partnerIds).toEqual([lone.id]);
+
+		await s.relationships.execute(s.treeId, { kind: 'add_child', parent: s.ref(marge), child: s.ref(sam), type: 'biological', unionLabel: null, unionId: unionIds[1] }, s.ctx);
+		await s.relationships.execute(
+			s.treeId,
+			{ kind: 'add_parent', child: s.ref(sam), parent: s.ref(dad), type: 'biological', role: 'father', unionLabel: null, unionId: unionIds[1] },
+			s.ctx
+		);
+		const links = (await s.graph()).parentChild.filter((l) => l.childId === sam.id);
+		expect(links.map((l) => l.unionId)).toEqual([unionIds[1], unionIds[1]]);
 	});
 });
 

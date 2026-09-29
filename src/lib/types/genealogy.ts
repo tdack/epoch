@@ -77,9 +77,9 @@ export type ParentChildType = 'biological' | 'adoptive' | 'foster' | 'guardian' 
 export type ParentRole = 'parent' | 'mother' | 'father';
 
 export type RelationshipIntent =
-  | { kind: 'add_parent'; child: PersonRef; parent: PersonRef; type: ParentChildType; role: ParentRole; unionLabel: string | null }
-  | { kind: 'add_child'; parent: PersonRef; child: PersonRef; type: ParentChildType; unionLabel: string | null }
-  | { kind: 'add_partner'; person: PersonRef; partner: PersonRef; unionLabel: string | null }
+  | { kind: 'add_parent'; child: PersonRef; parent: PersonRef; type: ParentChildType; role: ParentRole; unionLabel: string | null; unionId?: string | null }
+  | { kind: 'add_child'; parent: PersonRef; child: PersonRef; type: ParentChildType; unionLabel: string | null; unionId?: string | null }
+  | { kind: 'add_partner'; person: PersonRef; partner: PersonRef; unionLabel: string | null; unionId?: string | null }
   | { kind: 'record_death'; person: PersonRef; dateText: string | null; place: string | null; personVersion?: number }
   | {
       kind: 'end_union';
@@ -106,8 +106,19 @@ export interface RelationshipPlanWarning {
   message: string;
 }
 
+/** Which partnership an add-child, add-parent or add-partner will use, and why. */
+export interface UnionChoice {
+  /** Null: no partnership (a single-parent record, or a new partnership for add-partner). */
+  unionId: string | null;
+  /** True when the server picked it because the intent did not name one. */
+  isDefault: boolean;
+  /** Why the server picked it; only set when there was more than one to pick from. */
+  reason: string | null;
+}
+
 export interface RelationshipPlan {
   sentence: string;
+  unionChoice: UnionChoice | null;
   commands: unknown[];
   warnings: RelationshipPlanWarning[];
   /** Present on previews: exactly which records the save would write. */

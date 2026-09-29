@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ValidationError } from './errors';
 import { planRelationshipCommand, type PlanContext } from './relationship-commands';
 import { sequentialIds, treeRows, type RowsSpec } from '../testing/rows';
 
@@ -80,19 +81,103 @@ describe('planRelationshipCommand', () => {
 		expect(plan.sentence).toBe("Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family.");
 	});
 
-	it('warns which family the child joins when the parent has several partnerships', () => {
-		const plan = planRelationshipCommand(
-			{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null },
-			context({
-				people: [alex, sam, other, { id: 'p-third', givenName: 'Third' }],
+	describe('choosing among several partnerships', () => {
+		const third = { id: 'p-third', givenName: 'Third', surname: 'Thorn' };
+		const two = context({
+			people: [alex, sam, other, third],
+			unions: [
+				{ id: 'u1', partners: ['p-alex', 'p-other'] },
+				{ id: 'u2', partners: ['p-alex', 'p-third'] }
+			],
+			links: [{ parentId: 'p-alex', childId: 'p-third', unionId: 'u2' }]
+		});
+		const addChild = (unionId?: string | null) =>
+			planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId }, two);
+
+		it('defaults to the fullest partnership and says why', () => {
+			const plan = addChild();
+			expect(plan.commands[0]).toMatchObject({ unionId: 'u2' });
+			expect(plan.unionChoice).toMatchObject({ unionId: 'u2', isDefault: true });
+			expect(plan.unionChoice?.reason).toContain('most children');
+			expect(plan.warnings.some((w) => w.code === 'MULTIPLE_UNIONS')).toBe(false);
+		});
+
+		it('honours a named partnership, even an empty one, without a reason', () => {
+			const plan = addChild('u1');
+			expect(plan.commands[0]).toMatchObject({ unionId: 'u1' });
+			expect(plan.unionChoice).toEqual({ unionId: 'u1', isDefault: false, reason: null });
+		});
+
+		it('refuses a partnership the parent is not in', () => {
+			const foreign = context({
 				unions: [
 					{ id: 'u1', partners: ['p-alex', 'p-other'] },
-					{ id: 'u2', partners: ['p-alex', 'p-third'] }
+					{ id: 'u2', partners: ['p-sam', 'p-other'] }
 				]
-			})
-		);
-		expect(plan.commands[0]).toMatchObject({ unionId: 'u1' });
-		expect(plan.warnings.some((w) => w.code === 'MULTIPLE_UNIONS')).toBe(true);
+			});
+			expect(() =>
+				planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'u2' }, foreign)
+			).toThrow(/does not include this parent/);
+			expect(() =>
+				planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'nope' }, foreign)
+			).toThrow(ValidationError);
+		});
+
+		it('names a repeated partnership by chronology in the sentence', () => {
+			const twins = context({
+				unions: [
+					{ id: 'u1', partners: ['p-alex', 'p-other'], marriage: '1990' },
+					{ id: 'u2', partners: ['p-alex', 'p-other'], marriage: '2005' }
+				]
+			});
+			const plan = planRelationshipCommand(
+				{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'u2' },
+				twins
+			);
+			expect(plan.sentence).toBe(
+				"Sam Smith will be recorded as Alex Walker's biological child in the 2nd partnership of Alex Walker and Robin Reed."
+			);
+		});
+
+		it('treats an explicit null as a single-parent record', () => {
+			const plan = addChild(null);
+			expect(plan.commands[0]).toMatchObject({ unionId: null });
+		});
+
+		it('lets add_parent pick among the child’s parental families and refuses others', () => {
+			const parental = context({
+				people: [alex, sam, other, third],
+				unions: [
+					{ id: 'u1', partners: ['p-other'] },
+					{ id: 'u2', partners: ['p-third'] },
+					{ id: 'u3', partners: ['p-alex'] }
+				],
+				links: [
+					{ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' },
+					{ parentId: 'p-third', childId: 'p-sam', unionId: 'u2' }
+				]
+			});
+			const intent = { kind: 'add_parent', child: sam, parent: alex, type: 'biological', role: 'parent', unionLabel: null } as const;
+			expect(planRelationshipCommand({ ...intent, unionId: 'u2' }, parental).commands[0]).toMatchObject({ unionId: 'u2' });
+			expect(planRelationshipCommand(intent, parental).unionChoice?.isDefault).toBe(true);
+			expect(() => planRelationshipCommand({ ...intent, unionId: 'u3' }, parental)).toThrow(/parental families/);
+		});
+
+		it('lets add_partner fill a chosen waiting partnership, or start a new one', () => {
+			const waiting = context({
+				people: [alex, sam, other, third],
+				unions: [
+					{ id: 'u1', partners: ['p-alex'] },
+					{ id: 'u2', partners: ['p-alex'] }
+				],
+				links: [{ parentId: 'p-alex', childId: 'p-third', unionId: 'u2' }]
+			});
+			const intent = { kind: 'add_partner', person: alex, partner: sam, unionLabel: null } as const;
+			expect(planRelationshipCommand(intent, waiting).commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u2', personId: 'p-sam' }]);
+			expect(planRelationshipCommand({ ...intent, unionId: 'u1' }, waiting).commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }]);
+			expect(planRelationshipCommand({ ...intent, unionId: null }, waiting).commands).toMatchObject([{ kind: 'create_union' }]);
+			expect(() => planRelationshipCommand({ ...intent, unionId: 'u9' }, waiting)).toThrow(/waiting for a partner/);
+		});
 	});
 
 	it('reuses the child’s existing union when adding a parent', () => {

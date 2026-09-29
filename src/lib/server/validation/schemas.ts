@@ -56,20 +56,23 @@ export const relationshipIntentSchema = z.discriminatedUnion('kind', [
 		parent: personRefSchema,
 		type: parentChildTypeSchema,
 		role: parentRoleSchema,
-		unionLabel: nullableText
+		unionLabel: nullableText,
+		unionId: idSchema.nullable().optional()
 	}),
 	z.object({
 		kind: z.literal('add_child'),
 		parent: personRefSchema,
 		child: personRefSchema,
 		type: parentChildTypeSchema,
-		unionLabel: nullableText
+		unionLabel: nullableText,
+		unionId: idSchema.nullable().optional()
 	}),
 	z.object({
 		kind: z.literal('add_partner'),
 		person: personRefSchema,
 		partner: personRefSchema,
-		unionLabel: nullableText
+		unionLabel: nullableText,
+		unionId: idSchema.nullable().optional()
 	}),
 	z.object({
 		kind: z.literal('record_death'),

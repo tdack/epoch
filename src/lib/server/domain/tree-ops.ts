@@ -21,6 +21,7 @@ import {
 } from './change-log';
 import { parseDateValue } from './date-value';
 import { personName } from '../../shared/person-name';
+import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { validateParentChildAssertion } from './invariants';
@@ -107,6 +108,17 @@ export function partnerIdsOf(rows: TreeRows, unionId: string): string[] {
 
 export function unionIdsOf(rows: TreeRows, personId: string): string[] {
 	return rows.unionPartners.filter((p) => p.personId === personId).map((p) => p.unionId);
+}
+
+/** Every union with its partners and events, in the shape `partnershipLabels` reads. */
+export function labelableUnionsOf(rows: TreeRows): LabelableUnion[] {
+	return rows.unions.map((u) => ({
+		id: u.id,
+		partnerIds: partnerIdsOf(rows, u.id),
+		events: rows.events
+			.filter((e) => e.entityType === 'FAMILY' && e.entityId === u.id)
+			.map((e) => ({ type: e.type, dateText: e.dateRaw, dateSort: e.dateSort }))
+	}));
 }
 
 export function deceasedIdsOf(rows: TreeRows): Set<string> {

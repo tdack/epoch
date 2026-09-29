@@ -29,6 +29,8 @@ export type RelationshipIntent =
 			type: ParentChildType;
 			role: ParentRole;
 			unionLabel: string | null;
+			/** The parental group the parent joins. Undefined: the server picks the fullest. Null: none. */
+			unionId?: string | null;
 	  }
 	| {
 			kind: 'add_child';
@@ -36,12 +38,16 @@ export type RelationshipIntent =
 			child: PersonRef;
 			type: ParentChildType;
 			unionLabel: string | null;
+			/** The partnership the child joins. Undefined: the server picks the fullest. Null: none. */
+			unionId?: string | null;
 	  }
 	| {
 			kind: 'add_partner';
 			person: PersonRef;
 			partner: PersonRef;
 			unionLabel: string | null;
+			/** The one-partner partnership to fill. Undefined: the fullest one, else a new one. Null: a new one. */
+			unionId?: string | null;
 	  }
 	| {
 			kind: 'record_death';
@@ -67,7 +73,8 @@ export type RelationshipIntent =
  * which family a link will land in, who is in the partnership, and who becomes widowed.
  */
 export interface SentenceFacts {
-	unionLabel?: string | null;
+	/** What follows "in the": "Homer Simpson–Marge Simpson family" or "2nd partnership of Homer Simpson and Marge Simpson". */
+	unionPhrase?: string | null;
 	partners?: PersonRef[];
 	widowed?: Array<{ widow: PersonRef; deceased: PersonRef }>;
 }
@@ -103,8 +110,8 @@ function describeParentRole(type: ParentChildType, role: ParentRole): string {
 	return label ? `${label} ${ROLE_LABEL[role]}` : ROLE_LABEL[role];
 }
 
-function unionSuffix(unionLabel: string | null): string {
-	return unionLabel ? ` in the ${unionLabel} family` : '';
+function unionSuffix(unionPhrase: string | null): string {
+	return unionPhrase ? ` in the ${unionPhrase}` : '';
 }
 
 /** "3 Mar 2001, Brisbane": whatever of the date and place was given. */
@@ -124,7 +131,8 @@ const ENDED_STATUS_WORD: Record<EndedUnionStatus, string> = {
  * resolved, so the sentence describes what will actually be saved rather than what was asked for.
  */
 export function describeRelationshipIntent(intent: RelationshipIntent, facts: SentenceFacts = {}): string {
-	const unionLabel = facts.unionLabel ?? ('unionLabel' in intent ? intent.unionLabel : null);
+	const clientLabel = 'unionLabel' in intent && intent.unionLabel ? `${intent.unionLabel} family` : null;
+	const unionLabel = facts.unionPhrase ?? clientLabel;
 	switch (intent.kind) {
 		case 'add_parent':
 			return `${displayName(intent.parent)} will be recorded as ${possessive(

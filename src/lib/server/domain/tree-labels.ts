@@ -13,7 +13,7 @@ import {
 	type TreeRows,
 	type UnionPartnerRow
 } from './change-log';
-import { personName, applyOpsToRows } from './tree-ops';
+import { personName, applyOpsToRows, labelableUnionsOf } from './tree-ops';
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
 
@@ -42,19 +42,9 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 		partnersByUnion.set(partner.unionId, [...(partnersByUnion.get(partner.unionId) ?? []), partner]);
 	}
 
-	const eventsByUnion = new Map<string, EventRow[]>();
-	for (const event of known.events) {
-		if (event.entityType === 'FAMILY') eventsByUnion.set(event.entityId, [...(eventsByUnion.get(event.entityId) ?? []), event]);
-	}
 	// Two partnerships between the same pair share a name, so a preview could not say which one
 	// goes; the chronological label tells them apart.
-	const chronology = partnershipLabels(
-		known.unions.map((u) => ({
-			id: u.id,
-			partnerIds: (partnersByUnion.get(u.id) ?? []).map((p) => p.personId),
-			events: (eventsByUnion.get(u.id) ?? []).map((e) => ({ type: e.type, dateText: e.dateRaw, dateSort: e.dateSort }))
-		}))
-	);
+	const chronology = partnershipLabels(labelableUnionsOf(known));
 
 	const person = (id: string) => personName(people.get(id));
 	const nameOfUnion = (id: string) => {

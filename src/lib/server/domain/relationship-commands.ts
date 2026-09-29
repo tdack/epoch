@@ -14,7 +14,9 @@ import {
 	type RelationshipIntent,
 	type SentenceFacts
 } from './relationship-sentence';
-import { asParentChild, deceasedIdsOf, partnerIdsOf, unionIdsOf, personName } from './tree-ops';
+import { asParentChild, deceasedIdsOf, labelableUnionsOf, partnerIdsOf, unionIdsOf, personName } from './tree-ops';
+import { ValidationError } from './errors';
+import { partnershipLabels } from '../../shared/partnership-labels';
 import type { MergeChoices } from '../../shared/union-merge';
 import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
 import { newWidowhoods } from '../../shared/widowhood';
@@ -105,9 +107,20 @@ export interface PlanWarning {
 	message: string;
 }
 
+/** Which partnership a link will use, and why the planner chose it when the intent did not. */
+export interface UnionChoice {
+	/** Null: no partnership (a single-parent record, or a new partnership for add_partner). */
+	unionId: string | null;
+	isDefault: boolean;
+	/** Set only when the planner chose between several candidates. */
+	reason: string | null;
+}
+
 export interface RelationshipPlan {
 	/** Human-readable preview of the resulting graph. */
 	sentence: string;
+	/** Null for intents that involve no partnership choice. */
+	unionChoice: UnionChoice | null;
 	commands: RelationshipCommand[];
 	warnings: PlanWarning[];
 }
@@ -136,6 +149,55 @@ export function unionLabelOf(rows: TreeRows, unionId: string): string | null {
 }
 
 /**
+ * What follows "in the" when a sentence names a partnership: "2nd partnership of Homer Simpson and
+ * Marge Simpson" when the pair has several, otherwise "Homer Simpson–Marge Simpson family".
+ */
+export function unionPhraseOf(rows: TreeRows, unionId: string): string | null {
+	const label = partnershipLabels(labelableUnionsOf(rows)).get(unionId);
+	const names = partnerIdsOf(rows, unionId).map((id) => personName(rows.individuals.find((p) => p.id === id)));
+	if (label && names.length >= 2) return `${label.title} of ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+	const family = unionLabelOf(rows, unionId);
+	return family ? `${family} family` : null;
+}
+
+function childCountOf(rows: TreeRows, unionId: string): number {
+	return new Set(rows.parentChild.filter((l) => l.unionId === unionId).map((l) => l.childId)).size;
+}
+
+/**
+ * Resolve which of `candidates` a link uses. An intent that names one is honoured (or refused when
+ * it is not a candidate, since a client could send any id); one that names none gets the fullest
+ * candidate, because an empty or stray copy is almost never the family a person means.
+ */
+function chooseUnion(
+	rows: TreeRows,
+	requested: string | null | undefined,
+	candidates: string[],
+	refusal: string
+): UnionChoice {
+	if (requested === null) return { unionId: null, isDefault: false, reason: null };
+	if (requested !== undefined) {
+		if (!candidates.includes(requested)) throw new ValidationError(refusal);
+		return { unionId: requested, isDefault: false, reason: null };
+	}
+	if (candidates.length === 0) return { unionId: null, isDefault: true, reason: null };
+	if (candidates.length === 1) return { unionId: candidates[0], isDefault: true, reason: null };
+	// Most children, then most partners, then id, so the pick is the same on every request.
+	const [best] = [...candidates].sort(
+		(a, b) =>
+			childCountOf(rows, b) - childCountOf(rows, a) ||
+			partnerIdsOf(rows, b).length - partnerIdsOf(rows, a).length ||
+			a.localeCompare(b)
+	);
+	const children = childCountOf(rows, best);
+	const reason =
+		children > 0
+			? `Chosen because it has the most children recorded (${children}). Pick another if that is not the family you mean.`
+			: 'Chosen by default because none of them has children recorded yet. Check it is the family you mean.';
+	return { unionId: best, isDefault: true, reason };
+}
+
+/**
  * Expand a relationship intent into a concrete plan with preview sentence and warnings.
  * Purely functional: no I/O.
  */
@@ -144,6 +206,7 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 	const commands: RelationshipCommand[] = [];
 	const warnings: PlanWarning[] = [];
 	const facts: SentenceFacts = {};
+	let unionChoice: UnionChoice | null = null;
 	const assertions = rows.parentChild.map(asParentChild);
 
 	/** Resolve a person the intent names; a new person becomes a create_person command. */
@@ -173,37 +236,27 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 		case 'add_parent': {
 			const child = refOf(rows, intent.child.id);
 			const parent = resolve(intent.parent);
-			// Reuse a union that already links the child to another parent, so the new parent joins
-			// the established family rather than creating a disconnected assertion.
+			// The new parent joins a family that already links the child to someone, so the link is
+			// not a disconnected assertion. With several, the intent names one or the fullest is used.
 			const childUnionIds = [...new Set(assertions.filter((a) => a.childId === child.id && a.unionId).map((a) => a.unionId!))];
-			const unionId = childUnionIds[0] ?? null;
-			if (childUnionIds.length > 1) {
-				warnings.push({
-					code: 'MULTIPLE_UNIONS',
-					message: 'This person has more than one parental family; the new parent joins the first one listed.'
-				});
-			}
+			unionChoice = chooseUnion(rows, intent.unionId, childUnionIds, 'That family is not one of this person’s parental families.');
+			const unionId = unionChoice.unionId;
 			commands.push({ kind: 'assert_parent_child', parentId: parent.id, childId: child.id, type: intent.type, unionId });
 			warnIfCycle(parent.id, child.id, intent.type, unionId);
-			facts.unionLabel = unionId ? unionLabelOf(rows, unionId) : null;
+			facts.unionPhrase = unionId ? unionPhraseOf(rows, unionId) : null;
 			sentenceIntent = { ...intent, child, parent };
 			break;
 		}
 		case 'add_child': {
 			const parent = refOf(rows, intent.parent.id);
 			const child = resolve(intent.child);
-			// Reuse the union that already contains the parent, so the child joins the parent's family.
-			const parentUnionIds = unionIdsOf(rows, parent.id);
-			const unionId = parentUnionIds[0] ?? null;
-			if (parentUnionIds.length > 1) {
-				warnings.push({
-					code: 'MULTIPLE_UNIONS',
-					message: 'This person belongs to more than one partnership; the child joins the first one listed.'
-				});
-			}
+			// The child joins one of the parent's partnerships. Refusing an id the parent is not in
+			// keeps a crafted request from filing a child under an unrelated family.
+			unionChoice = chooseUnion(rows, intent.unionId, [...new Set(unionIdsOf(rows, parent.id))], 'That partnership does not include this parent.');
+			const unionId = unionChoice.unionId;
 			commands.push({ kind: 'assert_parent_child', parentId: parent.id, childId: child.id, type: intent.type, unionId });
 			warnIfCycle(parent.id, child.id, intent.type, unionId);
-			facts.unionLabel = unionId ? unionLabelOf(rows, unionId) : null;
+			facts.unionPhrase = unionId ? unionPhraseOf(rows, unionId) : null;
 			sentenceIntent = { ...intent, parent, child };
 			break;
 		}
@@ -222,12 +275,18 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 			} else {
 				// A partnership with only this person in it is waiting for its other partner. A full
 				// one is a different partnership, so a new person starts a new union (a remarriage).
-				const open = rows.unions.find((u) => {
-					const members = partnerIdsOf(rows, u.id);
-					return members.length === 1 && members[0] === person.id;
-				});
-				if (open) commands.push({ kind: 'add_partner_to_union', unionId: open.id, personId: partner.id });
-				else commands.push({ kind: 'create_union', unionId: context.newId(), personIds: [person.id, partner.id] });
+				const openIds = rows.unions
+					.filter((u) => {
+						const members = partnerIdsOf(rows, u.id);
+						return members.length === 1 && members[0] === person.id;
+					})
+					.map((u) => u.id);
+				unionChoice = chooseUnion(rows, intent.unionId, openIds, 'That partnership is not waiting for a partner.');
+				if (unionChoice.unionId) {
+					commands.push({ kind: 'add_partner_to_union', unionId: unionChoice.unionId, personId: partner.id });
+				} else {
+					commands.push({ kind: 'create_union', unionId: context.newId(), personIds: [person.id, partner.id] });
+				}
 			}
 			sentenceIntent = { ...intent, person, partner };
 			break;
@@ -317,6 +376,7 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 
 	return {
 		sentence: describeRelationshipIntent(sentenceIntent, facts),
+		unionChoice,
 		commands,
 		warnings
 	};
