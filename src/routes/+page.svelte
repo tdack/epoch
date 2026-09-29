@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import NeutralFamilyTreeCanvas from '#lib/components/tree/NeutralFamilyTreeCanvas.svelte';
   import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
-  import { buildNeutralGraphLayout, type NeutralGraphLayout } from '#lib/components/tree/neutral-graph-layout.js';
+  import { EMPTY_LAYOUT, layoutFocusView, type ChildEdge, type PartnerEdge } from '#lib/tree-layout/index.js';
   import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
@@ -36,7 +36,11 @@
   let selectedTreeId = $state<string | null>(null);
   let activeTreeData = $state<TreeDetails | null>(null);
   let relationshipGraph = $state<RelationshipGraph | null>(null);
-  let neutralLayout = $state<NeutralGraphLayout>({ people: [], unions: [], links: [], focusPersonId: null });
+  /** The tree is always drawn around one person; null until the user picks one, then a default is used. */
+  let focusPersonId = $state<string | null>(null);
+  const neutralLayout = $derived(
+    relationshipGraph ? layoutFocusView(relationshipGraph, resolveFocus(relationshipGraph)) : EMPTY_LAYOUT
+  );
 
   let selectedPersonId = $state<string | null>(null);
   let selectedPerson = $state<any | null>(null);
@@ -90,9 +94,35 @@
     }
   }
 
+  function focusStorageKey(treeId: string | null): string {
+    return `epoch:focus:${treeId}`;
+  }
+
+  /** Last-viewed person, else the first person in the graph. */
+  function resolveFocus(graph: RelationshipGraph): string | null {
+    if (focusPersonId && graph.people.some((p) => p.id === focusPersonId)) return focusPersonId;
+    try {
+      const remembered = localStorage.getItem(focusStorageKey(selectedTreeId));
+      if (remembered && graph.people.some((p) => p.id === remembered)) return remembered;
+    } catch {
+      // Storage can be unavailable (private mode, blocked site data); the default still works.
+    }
+    return graph.people[0]?.id ?? null;
+  }
+
+  function setFocus(id: string) {
+    focusPersonId = id;
+    try {
+      localStorage.setItem(focusStorageKey(selectedTreeId), id);
+    } catch {
+      // Remembering the focus is a convenience only.
+    }
+  }
+
   async function selectTree(id: string, preservePersonId?: string) {
     selectedTreeId = id;
     loading = true;
+    focusPersonId = preservePersonId ?? null;
     if (!preservePersonId) {
       selectedPersonId = null;
       selectedPerson = null;
@@ -105,7 +135,6 @@
       ]);
       activeTreeData = data;
       relationshipGraph = graph;
-      neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: preservePersonId ?? null });
       if (preservePersonId) {
         handleSelectPerson(preservePersonId);
       }
@@ -127,14 +156,14 @@
   }
 
   function handleSelectPerson(id: string) {
-    // Clicking the already-focused person toggles them off and returns to the
-    // full (unfocused) tree, so a user can always deselect.
+    // Clicking the selected person again closes the drawer; the tree stays focused on them.
     if (selectedPersonId === id) {
       clearSelection();
       return;
     }
 
     selectedPersonId = id;
+    setFocus(id);
 
     // Prefer the full individual record from the tree details so the drawer and
     // edit modal get sex, names, events, and media. Fall back to the graph's
@@ -162,19 +191,11 @@
         };
       }
     }
-
-    // Rebuild the neutral layout centred on the newly selected person.
-    if (relationshipGraph) {
-      neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: id });
-    }
   }
 
   function clearSelection() {
     selectedPersonId = null;
     selectedPerson = null;
-    if (relationshipGraph) {
-      neutralLayout = buildNeutralGraphLayout(relationshipGraph, { focusPersonId: null });
-    }
   }
 
   function handleGedcomFileSelect(e: Event) {
@@ -304,7 +325,6 @@
     if (!selectedTreeId) return;
     const graph = await fetchRelationshipGraph(selectedTreeId);
     relationshipGraph = graph;
-    neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: selectedPersonId ?? null });
     // Keep the drawer selection in sync with the refreshed graph.
     if (selectedPersonId) {
       handleSelectPerson(selectedPersonId);
@@ -337,22 +357,22 @@
     }
   }
 
-  async function handleRemoveLink(link: any) {
+  async function handleRemoveLink(edge: PartnerEdge | ChildEdge) {
     if (!selectedTreeId) return;
-    let command: RelationshipDeleteCommand;
-    if (link.type === 'partner') {
-      const personId = link.sourceId;
-      command = { kind: 'remove_partner_from_union', unionId: link.unionId, personId };
-    } else {
-      command = {
-        kind: 'remove_parent_child',
-        parentId: link.parentId,
-        childId: link.childId,
-        type: link.relationshipType
-      };
-    }
+    // A child edge merges every parent's assertion for one (union, child); deleting it must
+    // remove all of them, not just one parent's, or the edge would seem to survive.
+    const commands: RelationshipDeleteCommand[] =
+      edge.kind === 'partner'
+        ? [{ kind: 'remove_partner_from_union', unionId: edge.unionId, personId: edge.personId }]
+        : edge.assertions.map((a) => ({
+            kind: 'remove_parent_child' as const,
+            parentId: a.parentId,
+            childId: edge.childId,
+            type: a.type
+          }));
+    if (commands.length > 1 && !window.confirm(`Remove ${commands.length} parent links to this child?`)) return;
     try {
-      await removeRelationshipApi(selectedTreeId, command);
+      for (const command of commands) await removeRelationshipApi(selectedTreeId, command);
       await refreshGraph();
     } catch (err: any) {
       window.alert(err.message || 'Failed to remove relationship');
@@ -425,7 +445,6 @@
     if (selectedTreeId) {
       const graph = await fetchRelationshipGraph(selectedTreeId);
       relationshipGraph = graph;
-      neutralLayout = buildNeutralGraphLayout(graph, { focusPersonId: selectedPersonId ?? null });
     }
   }
 
@@ -445,7 +464,7 @@
       selectedTreeId = null;
       activeTreeData = null;
       relationshipGraph = null;
-      neutralLayout = { people: [], unions: [], links: [], focusPersonId: null };
+      focusPersonId = null;
       selectedPersonId = null;
       selectedPerson = null;
       await loadTrees();

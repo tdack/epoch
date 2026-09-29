@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-svelte';
-  import type { NeutralGraphLayout, GraphLink } from './neutral-graph-layout';
+  import type { TreeLayout, LayoutEdge, PartnerEdge, ChildEdge } from '#lib/tree-layout/index.js';
 
   interface PersonRef {
     id: string;
@@ -16,12 +16,12 @@
   }
 
   interface Props {
-    layout: NeutralGraphLayout;
+    layout: TreeLayout;
     onSelectPerson?: (id: string) => void;
     onEditPerson?: (id: string) => void;
     onDeletePerson?: (id: string) => void;
     onAddRelationship?: (anchor: PersonRef) => void;
-    onRemoveLink?: (link: GraphLink) => void;
+    onRemoveLink?: (edge: PartnerEdge | ChildEdge) => void;
     onRemoveUnion?: (unionId: string) => void;
     onDragRelate?: (relate: DragRelate) => void;
   }
@@ -69,9 +69,29 @@
     const sel = d3.select(svgElement);
     sel.call(zoomBehavior);
 
-    // Centre the view on the focus person (or the layout origin).
-    const initialTransform = d3.zoomIdentity.translate(svgElement.clientWidth / 2, 120).scale(0.85);
-    sel.call(zoomBehavior.transform, initialTransform);
+    fitToLayout();
+  });
+
+  /** Frame the whole layout. Replaced by the S1d canvas; kept minimal so the app stays usable. */
+  function fitToLayout() {
+    if (!svgElement || !zoomBehavior) return;
+    const { minX, maxX, minY, maxY } = layout.bounds;
+    const width = svgElement.clientWidth || 1000;
+    const height = svgElement.clientHeight || 600;
+    const pad = 40;
+    const scale = Math.min(1, (width - pad * 2) / Math.max(1, maxX - minX), (height - pad * 2) / Math.max(1, maxY - minY));
+    const tx = width / 2 - ((minX + maxX) / 2) * scale;
+    const ty = height / 2 - ((minY + maxY) / 2) * scale;
+    d3.select(svgElement).call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }
+
+  let lastFittedFocus: string | null = null;
+  $effect(() => {
+    const focus = layout.focusPersonId;
+    if (focus !== lastFittedFocus) {
+      lastFittedFocus = focus;
+      fitToLayout();
+    }
   });
 
   function zoomIn() {
@@ -88,8 +108,7 @@
 
   function resetZoom() {
     if (svgElement && zoomBehavior) {
-      const initialTransform = d3.zoomIdentity.translate(svgElement.clientWidth / 2, 120).scale(0.85);
-      d3.select(svgElement).transition().duration(300).call(zoomBehavior.transform, initialTransform);
+      fitToLayout();
     }
   }
 
@@ -101,6 +120,11 @@
     guardian: '#475569',
     unknown: '#9ca3af'
   };
+
+  function curve(a: { x: number; y: number }, b: { x: number; y: number }): string {
+    const midY = (a.y + b.y) / 2;
+    return `M ${a.x} ${a.y} C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
+  }
 
   function typeColor(type?: string): string {
     return type ? TYPE_COLORS[type] ?? '#9ca3af' : '#9ca3af';
@@ -155,13 +179,18 @@
     menu = { ...menuPosition(e), items };
   }
 
-  function openLinkMenu(e: MouseEvent, link: GraphLink) {
+  function openLinkMenu(e: MouseEvent, link: PartnerEdge | ChildEdge) {
     if (!e.target || e.button !== 2) return;
     e.preventDefault();
     const items: MenuItem[] = [];
     if (onRemoveLink) {
       items.push({
-        label: link.type === 'parent_child' ? 'Delete relationship' : 'Delete partnership',
+        label:
+          link.kind === 'partner'
+            ? 'Delete partnership'
+            : link.assertions.length > 1
+              ? `Delete relationship (${link.assertions.length} parent links)`
+              : 'Delete relationship',
         danger: true,
         onClick: () => onRemoveLink(link)
       });
@@ -211,15 +240,15 @@
     closeMenu();
   }
 
-  function onLinkClick(e: MouseEvent, link: GraphLink) {
+  function onLinkClick(e: MouseEvent, link: LayoutEdge) {
     e.stopPropagation();
     selectedLinkId = selectedLinkId === link.id ? null : link.id;
   }
 
   function onKeydown(e: KeyboardEvent) {
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLinkId && onRemoveLink) {
-      const link = layout.links.find((l) => l.id === selectedLinkId);
-      if (link) {
+      const link = layout.edges.find((l) => l.id === selectedLinkId);
+      if (link && link.kind !== 'stub') {
         e.preventDefault();
         onRemoveLink(link);
         selectedLinkId = null;
@@ -259,9 +288,9 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <svg bind:this={svgElement} class="w-full h-full cursor-grab active:cursor-grabbing select-none relative z-10" onpointerup={onSvgPointerUp}>
       <g transform="translate({transform.x},{transform.y}) scale({transform.k})">
-        <!-- Links -->
-        {#each layout.links as link}
-          {#if link.type === 'partner'}
+        <!-- Edges -->
+        {#each layout.edges as link (link.id)}
+          {#if link.kind === 'partner'}
             {@const isSel = selectedLinkId === link.id}
             {#if isSel}
               <line
@@ -286,31 +315,34 @@
               stroke-dasharray="5 4"
               style="cursor: pointer; pointer-events: stroke;"
             />
-          {:else}
+          {:else if link.kind === 'child'}
             {@const isSel = selectedLinkId === link.id}
+            {@const d = curve(link.source, link.target)}
             {#if isSel}
-              <path
-                d="M {link.source.x} {link.source.y} C {link.source.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {link.target.y}"
-                stroke="#0f172a" stroke-width="8" class="fill-none pointer-events-none" opacity="0.25"
-              />
+              <path {d} stroke="#0f172a" stroke-width="8" class="fill-none pointer-events-none" opacity="0.25" />
             {/if}
             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <path
               data-link-id={link.id}
-              d="M {link.source.x} {link.source.y} C {link.source.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {(link.source.y + link.target.y) / 2}, {link.target.x} {link.target.y}"
-              stroke={isSel ? '#0f172a' : typeColor(link.relationshipType)}
+              {d}
+              stroke={isSel ? '#0f172a' : typeColor(link.types.length === 1 ? link.types[0] : 'unknown')}
               stroke-width={isSel ? 4 : 2}
               stroke-opacity={isSel ? 1 : 0.7}
+              stroke-dasharray={link.isSecondaryPath ? '2 5' : undefined}
               onclick={(e) => onLinkClick(e, link)}
               oncontextmenu={(e) => openLinkMenu(e, link)}
               class="fill-none"
               style="cursor: pointer; pointer-events: stroke;"
-            />
+            >
+              <title>{link.types.join(' / ')}{link.isSecondaryPath ? ' (also reached another way)' : ''}</title>
+            </path>
+          {:else}
+            <path d={curve(link.source, link.target)} stroke="#a8a29e" stroke-width="1.5" stroke-dasharray="3 4" class="fill-none pointer-events-none" />
           {/if}
         {/each}
 
         <!-- Union nodes -->
-        {#each layout.unions as union}
+        {#each layout.unions as union (union.id)}
           {@const marrLabel = union.union.marriageDate || union.union.marriagePlace}
           <g
             data-union-id={union.id}
@@ -338,7 +370,7 @@
         {/each}
 
         <!-- People -->
-        {#each layout.people as node}
+        {#each layout.people as node (node.id)}
           <g
             data-person-id={node.person.id}
             transform="translate({node.x - NODE_WIDTH / 2}, {node.y - NODE_HEIGHT / 2})"
@@ -377,6 +409,15 @@
             {#if node.person.id === layout.focusPersonId}
               <circle cx={NODE_WIDTH - 16} cy="16" r="5" class="fill-emerald-600" />
             {/if}
+          </g>
+        {/each}
+
+        <!-- "+N" stubs for relatives beyond the depth limit -->
+        {#each layout.stubs as stub (stub.id)}
+          <g transform="translate({stub.x}, {stub.y})">
+            <rect x="-32" y="-15" width="64" height="30" rx="15" class="fill-stone-200 stroke-stone-400" />
+            <text text-anchor="middle" y="5" class="fill-stone-700 text-xs font-semibold">+{stub.count}</text>
+            <title>{stub.count} more {stub.kind === 'ancestors' ? 'ancestors' : 'children'} not shown</title>
           </g>
         {/each}
       </g>
