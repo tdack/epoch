@@ -459,6 +459,17 @@ function removeParentChild(rows: TreeRows, _ctx: OpContext, command: Extract<Rel
 	return [{ table: 'parent_child', id: link.id, before: link, after: null }];
 }
 
+function changeParentChildType(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'change_parent_child_type' }>): RowOp[] {
+	const link = rows.parentChild.find((l) => l.parentId === command.parentId && l.childId === command.childId && l.type === command.fromType);
+	if (!link) throw new NotFoundError('Parent link');
+	if (command.fromType === command.toType) return [];
+	if (rows.parentChild.some((l) => l.parentId === command.parentId && l.childId === command.childId && l.type === command.toType)) {
+		throw new ValidationError('That parent is already recorded with this type for this child');
+	}
+	// The raw PEDI word only qualified the old type (sealing, other); it says nothing about the new one.
+	return [{ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, type: command.toType, gedcomPedi: null }, ctx) }];
+}
+
 function destroyUnion(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'destroy_union' }>): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	checkUnionVersion(rows, union, command.expectedVersion);
@@ -646,6 +657,8 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 			return assertParentChild(rows, ctx, command);
 		case 'remove_parent_child':
 			return removeParentChild(rows, ctx, command);
+		case 'change_parent_child_type':
+			return changeParentChildType(rows, ctx, command);
 		case 'destroy_union':
 			return destroyUnion(rows, ctx, command);
 		case 'end_union':

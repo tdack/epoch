@@ -81,6 +81,7 @@ export type RelationshipCommand =
 			events?: UnionEventInput[];
 	  }
 	| { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
+	| { kind: 'change_parent_child_type'; parentId: string; childId: string; fromType: ParentChildType; toType: ParentChildType }
 	| { kind: 'destroy_union'; unionId: string; expectedVersion?: number }
 	| {
 			kind: 'merge_unions';
@@ -105,7 +106,9 @@ export interface PlanWarning {
 		| 'ALREADY_DECEASED'
 		| 'DEATH_BEFORE_BIRTH'
 		| 'UNION_ALREADY_ENDED'
-		| 'END_BEFORE_START';
+		| 'END_BEFORE_START'
+		| 'TYPE_UNCHANGED'
+		| 'TYPE_ALREADY_RECORDED';
 	message: string;
 }
 
@@ -291,6 +294,22 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 				}
 			}
 			sentenceIntent = { ...intent, person, partner };
+			break;
+		}
+		case 'change_link_type': {
+			const parent = refOf(rows, intent.parent.id);
+			const child = refOf(rows, intent.child.id);
+			const link = rows.parentChild.find((l) => l.parentId === parent.id && l.childId === child.id && l.type === intent.fromType);
+			if (!link) throw new ValidationError('That parent link no longer exists as described. Reload and try again.');
+			if (intent.fromType === intent.toType) {
+				warnings.push({ code: 'TYPE_UNCHANGED', message: 'The link already has this type; nothing to save.' });
+			} else if (rows.parentChild.some((l) => l.parentId === parent.id && l.childId === child.id && l.type === intent.toType)) {
+				warnings.push({ code: 'TYPE_ALREADY_RECORDED', message: 'This parent is already recorded with that type for this child. Remove one of the two links instead.' });
+			} else {
+				commands.push({ kind: 'change_parent_child_type', parentId: parent.id, childId: child.id, fromType: intent.fromType, toType: intent.toType });
+			}
+			facts.unionPhrase = link.unionId ? unionPhraseOf(rows, link.unionId) : null;
+			sentenceIntent = { ...intent, parent, child };
 			break;
 		}
 		case 'record_death': {

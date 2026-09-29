@@ -50,6 +50,13 @@ export type RelationshipIntent =
 			unionId?: string | null;
 	  }
 	| {
+			kind: 'change_link_type';
+			parent: PersonRef;
+			child: PersonRef;
+			fromType: ParentChildType;
+			toType: ParentChildType;
+	  }
+	| {
 			kind: 'record_death';
 			person: PersonRef;
 			/** Death date as typed; kept verbatim. */
@@ -151,6 +158,12 @@ export function describeRelationshipIntent(intent: RelationshipIntent, facts: Se
 			return `${displayName(intent.partner)} will be recorded as ${possessive(
 				displayName(intent.person)
 			)} partner${unionSuffix(unionLabel)}.`;
+
+		case 'change_link_type':
+			return `${displayName(intent.parent)} will be recorded as ${possessive(displayName(intent.child))} ${describeParentRole(
+				intent.toType,
+				'parent'
+			)} instead of ${describeParentRole(intent.fromType, 'parent')}${unionSuffix(unionLabel)}.`;
 
 		case 'record_death': {
 			const extra = details(intent.dateText, intent.place);

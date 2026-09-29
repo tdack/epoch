@@ -76,6 +76,13 @@ export const relationshipIntentSchema = z.discriminatedUnion('kind', [
 		unionId: idSchema.nullable().optional()
 	}),
 	z.object({
+		kind: z.literal('change_link_type'),
+		parent: personRefSchema,
+		child: personRefSchema,
+		fromType: parentChildTypeSchema,
+		toType: parentChildTypeSchema
+	}),
+	z.object({
 		kind: z.literal('record_death'),
 		person: personRefSchema,
 		dateText: nullableText,

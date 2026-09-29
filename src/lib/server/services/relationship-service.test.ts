@@ -318,6 +318,49 @@ describe('choosing a partnership when there are several', () => {
 	});
 });
 
+describe('changing a parent link’s type', () => {
+	async function linked(type: 'biological' | 'adoptive' = 'biological') {
+		const s = await setup();
+		const [alex, robin, sam] = [await s.addPerson('Alex', 'Walker'), await s.addPerson('Robin', 'Reed'), await s.addPerson('Sam', 'Smith')];
+		await s.partner(alex, robin);
+		await s.relationships.execute(s.treeId, { kind: 'add_child', parent: s.ref(alex), child: s.ref(sam), type, unionLabel: null }, s.ctx);
+		const intent = (fromType: 'biological' | 'adoptive', toType: 'biological' | 'adoptive' | 'foster'): RelationshipIntent => ({
+			kind: 'change_link_type',
+			parent: s.ref(alex),
+			child: s.ref(sam),
+			fromType,
+			toType
+		});
+		return { s, alex, robin, sam, intent };
+	}
+
+	it('changes only that parent’s link, keeps its partnership, and the preview matches the save', async () => {
+		const { s, alex, sam, intent } = await linked();
+		const { executed, before, after } = await runAndCompare(s, intent('biological', 'adoptive'));
+		expect(executed.sentence).toContain('adoptive parent instead of biological parent in the Alex Walker–Robin Reed family');
+		expect(before.parentChild).toEqual([{ parentId: alex.id, childId: sam.id, type: 'biological', unionId: expect.any(String) }]);
+		expect(after.parentChild).toEqual([{ parentId: alex.id, childId: sam.id, type: 'adoptive', unionId: before.parentChild[0].unionId }]);
+		expect(after.people.map((p) => p.id).sort()).toEqual(before.people.map((p) => p.id).sort());
+	});
+
+	it('undo puts the old type back', async () => {
+		const { s, intent } = await linked();
+		const before = canonical(await s.graph());
+		await s.relationships.execute(s.treeId, intent('biological', 'foster'), s.ctx);
+		await s.log.undoLast(s.treeId, s.ctx);
+		expect(canonical(await s.graph())).toEqual(before);
+	});
+
+	it('refuses a link that is not there as described, and a second link of the same type', async () => {
+		const { s, alex, sam, intent } = await linked();
+		await expect(s.relationships.execute(s.treeId, intent('adoptive', 'foster'), s.ctx)).rejects.toBeInstanceOf(ValidationError);
+		await s.relationships.execute(s.treeId, { kind: 'add_child', parent: s.ref(alex), child: s.ref(sam), type: 'adoptive', unionLabel: null }, s.ctx);
+		const plan = await s.relationships.plan(s.treeId, intent('biological', 'adoptive'), s.ctx);
+		expect(plan.commands).toHaveLength(0);
+		expect(plan.warnings.map((w) => w.code)).toEqual(['TYPE_ALREADY_RECORDED']);
+	});
+});
+
 describe('deleting a person', () => {
 	it('lists exactly what goes, and the delete does exactly that', async () => {
 		const s = await setup();

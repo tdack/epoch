@@ -41,6 +41,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Linked ${nameOf(rows, command.parentId)} as ${nameOf(rows, command.childId)}'s ${command.type === 'unknown' ? '' : `${command.type} `}parent`;
 		case 'remove_parent_child':
 			return `Removed the link between ${nameOf(rows, command.parentId)} and ${nameOf(rows, command.childId)}`;
+		case 'change_parent_child_type':
+			return `Changed ${nameOf(rows, command.parentId)} to ${command.toType === 'unknown' ? 'an unspecified' : `a ${command.toType}`} parent of ${nameOf(rows, command.childId)}`;
 		case 'destroy_union':
 			return `Deleted ${partnershipOf(rows, command.unionId)}`;
 		case 'end_union':

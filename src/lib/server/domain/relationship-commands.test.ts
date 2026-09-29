@@ -81,6 +81,35 @@ describe('planRelationshipCommand', () => {
 		expect(plan.sentence).toBe("Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family.");
 	});
 
+	describe('changing the type of a parent link', () => {
+		const withLink = (type = 'biological' as const) => context({ links: [{ parentId: 'p-alex', childId: 'p-sam', type }] });
+		const change = (toType: 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown', fromType: 'biological' | 'adoptive' = 'biological') =>
+			({ kind: 'change_link_type', parent: alex, child: sam, fromType, toType }) as const;
+
+		it('plans one command and says what changes', () => {
+			const plan = planRelationshipCommand(change('adoptive'), withLink());
+			expect(plan.commands).toEqual([{ kind: 'change_parent_child_type', parentId: 'p-alex', childId: 'p-sam', fromType: 'biological', toType: 'adoptive' }]);
+			expect(plan.sentence).toBe("Alex Walker will be recorded as Sam Smith's adoptive parent instead of biological parent.");
+		});
+
+		it('plans nothing, with a reason, when the type is unchanged or already recorded', () => {
+			expect(planRelationshipCommand(change('biological'), withLink()).warnings.map((w) => w.code)).toEqual(['TYPE_UNCHANGED']);
+			const both = context({
+				links: [
+					{ parentId: 'p-alex', childId: 'p-sam', type: 'biological' },
+					{ parentId: 'p-alex', childId: 'p-sam', type: 'adoptive' }
+				]
+			});
+			const plan = planRelationshipCommand(change('adoptive'), both);
+			expect(plan.commands).toHaveLength(0);
+			expect(plan.warnings.map((w) => w.code)).toEqual(['TYPE_ALREADY_RECORDED']);
+		});
+
+		it('refuses a link that is not there', () => {
+			expect(() => planRelationshipCommand(change('adoptive'), context())).toThrow(ValidationError);
+		});
+	});
+
 	describe('choosing among several partnerships', () => {
 		const third = { id: 'p-third', givenName: 'Third', surname: 'Thorn' };
 		const two = context({
