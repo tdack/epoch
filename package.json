@@ -20,10 +20,12 @@
 		"deploy": "npm run db:migrate && npm run build && wrangler deploy workers/entry.ts",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"tree:baseline": "RECORD_CROSSING_BASELINE=1 vitest run src/lib/tree-layout/crossings.record.test.ts -u"
+		"tree:baseline": "RECORD_CROSSING_BASELINE=1 vitest run src/lib/tree-layout/crossings.record.test.ts -u",
+		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260911.1",
+		"@playwright/test": "^1.63.0",
 		"@sveltejs/adapter-auto": "^8.0.0-next.0",
 		"@sveltejs/adapter-cloudflare": "^8.0.0-next.0",
 		"@sveltejs/kit": "^3.0.0-next.0",

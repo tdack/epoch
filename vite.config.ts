@@ -1,7 +1,7 @@
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defaultExclude, defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
@@ -13,5 +13,9 @@ export default defineConfig({
 			},
 			adapter: adapter()
 		})
-	]
+	],
+	test: {
+		// Browser specs run under Playwright (`npm run test:e2e`), outside the commit gate.
+		exclude: [...defaultExclude, 'e2e/**']
+	}
 });

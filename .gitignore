@@ -33,3 +33,7 @@ vite.config.ts.timestamp-*
 
 # Local Worker secrets/vars
 .dev.vars
+
+# Playwright
+/test-results/
+/playwright-report/
