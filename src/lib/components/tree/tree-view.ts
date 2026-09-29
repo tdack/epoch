@@ -84,7 +84,8 @@ export function unionLabelText(union: RelationshipGraphUnion): string {
 	return [begin, ending].filter(Boolean).join(' – ');
 }
 
-export const SEX_SYMBOLS = { M: '♂', F: '♀', X: '⚧', neutral: '○' } as const;
+// U+FE0E asks for the plain glyph: without it ⚧ renders as a colour emoji beside the monochrome ♂ and ♀.
+export const SEX_SYMBOLS = { M: '♂', F: '♀', X: '⚧\uFE0E', neutral: '○' } as const;
 
 export function sexSymbol(sex: PlacedPerson['person']['sex']): string {
 	if (sex === 'M') return SEX_SYMBOLS.M;

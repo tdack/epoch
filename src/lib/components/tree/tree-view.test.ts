@@ -80,7 +80,7 @@ describe('sex symbols', () => {
 	it('gives X its own symbol and leaves unknown neutral, on the same neutral fill', () => {
 		expect(sexSymbol('M')).toBe('♂');
 		expect(sexSymbol('F')).toBe('♀');
-		expect(sexSymbol('X')).toBe('⚧');
+		expect(sexSymbol('X')).toBe('⚧\uFE0E');
 		expect(sexSymbol('U')).toBe('○');
 		expect(sexSymbol(null)).toBe('○');
 		expect(sexClass('X')).toBe('u');
