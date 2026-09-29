@@ -64,6 +64,10 @@ describe('ChangeStore.commit', () => {
 			{ table: 'individuals', id: 'c2', before: null, after: person('c2', 'Dee') },
 			{ table: 'individuals', id: 'c1', before: person('c1', 'Cy', 7), after: person('c1', 'Cyrus', 8) }
 		];
+		await expect(store.commit({ ...base(), ops: stale })).rejects.toMatchObject({
+			status: 409,
+			details: { reason: 'CONCURRENT_WRITE' }
+		});
 		await expect(store.commit({ ...base(), ops: stale })).rejects.toBeInstanceOf(ConcurrencyConflictError);
 		expect(await t.db.select().from(individuals).where(eq(individuals.id, 'c2')).get()).toBeUndefined();
 		expect((await t.db.select().from(individuals).where(eq(individuals.id, 'c1')).get())?.givenName).toBe('Cy');

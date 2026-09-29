@@ -54,7 +54,9 @@ async function call<T>(url: string, init: RequestInit | undefined, failure: stri
 	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
 	if (!res.ok) {
 		const message = data.error || failure;
-		if (res.status === 409 && data.details?.reason === 'STALE_VERSION') {
+		// Only a conflict that carries the stored values can be shown as a comparison; a bare
+		// CONCURRENT_WRITE (a race inside the save) is reported as a plain error.
+		if (res.status === 409 && data.details?.reason === 'STALE_VERSION' && data.details.current) {
 			throw new ConflictError(message, res.status, data.code, data.details);
 		}
 		throw new ApiError(message, res.status, data.code, data.details);

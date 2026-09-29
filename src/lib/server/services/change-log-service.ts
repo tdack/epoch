@@ -7,7 +7,7 @@
  */
 
 import type { DbClient } from '../db';
-import { describeOps, rebaseInverse, recordsOf, UNDO_REFUSALS } from '../domain/change-log';
+import { dependentsOfDeletions, describeOps, rebaseInverse, recordsOf, UNDO_REFUSALS } from '../domain/change-log';
 import { UndoRefusedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
@@ -62,7 +62,19 @@ export class ChangeLogService {
 		await this.runner.requireAccess(treeId, context, actionForOps(rebased.ops));
 
 		const rows = await store.loadRows(treeId);
-		const affected = describeOps(rebased.ops, makeLabeler(rows, rebased.ops));
+		const labeler = makeLabeler(rows, rebased.ops);
+
+		// Deleting a row cascades to whatever points at it. If someone has since attached something
+		// to it, undoing would silently delete their work, so refuse and say what is in the way.
+		const [dependent] = dependentsOfDeletions(rows, rebased.ops);
+		if (dependent) {
+			throw new UndoRefusedError(
+				`Can't undo "${target.summary}" because other records now depend on it (${labeler(dependent.table, dependent.row)}). Remove those first.`,
+				UNDO_REFUSALS.HAS_DEPENDENTS
+			);
+		}
+
+		const affected = describeOps(rebased.ops, labeler);
 		const committed = await store.commit({
 			treeId,
 			actorId: context.user.id,

@@ -215,7 +215,8 @@ export interface LoggedChange {
 export const UNDO_REFUSALS = {
 	NOTHING_TO_UNDO: 'nothing_to_undo',
 	TOUCHED_LATER: 'touched_later',
-	STATE_CHANGED: 'state_changed'
+	STATE_CHANGED: 'state_changed',
+	HAS_DEPENDENTS: 'has_dependents'
 } as const;
 export type UndoRefusalReason = (typeof UNDO_REFUSALS)[keyof typeof UNDO_REFUSALS];
 
@@ -263,4 +264,38 @@ export function rebaseInverse(
 		ops.push({ table: op.table, id: op.id, before: current, after });
 	}
 	return { isOk: true, ops };
+}
+
+/**
+ * Rows that still point at a row an undo would delete, and that the undo does not itself delete.
+ *
+ * Undoing "added Sam" deletes Sam, and the foreign keys would silently take with them a link,
+ * partnership or event that someone attached to Sam afterwards. Those rows are not among the
+ * records the original change wrote, so the touched-later lookup cannot see them.
+ */
+export function dependentsOfDeletions(rows: TreeRows, ops: RowOp[]): Array<{ table: RecordTable; row: RowImage }> {
+	const deleting = new Set(ops.filter((op) => op.after === null).map((op) => `${op.table}:${op.id}`));
+	const deletedPeople = new Set(ops.filter((op) => op.table === 'individuals' && op.after === null).map((op) => op.id));
+	const deletedUnions = new Set(ops.filter((op) => op.table === 'unions' && op.after === null).map((op) => op.id));
+	if (deletedPeople.size === 0 && deletedUnions.size === 0) return [];
+
+	const found: Array<{ table: RecordTable; row: RowImage }> = [];
+	const add = (table: RecordTable, row: { id: string }) => {
+		if (!deleting.has(`${table}:${row.id}`)) found.push({ table, row: row as RowImage });
+	};
+	for (const link of rows.parentChild) {
+		if (deletedPeople.has(link.parentId) || deletedPeople.has(link.childId) || (link.unionId && deletedUnions.has(link.unionId))) {
+			add('parent_child', link);
+		}
+	}
+	for (const partner of rows.unionPartners) {
+		if (deletedPeople.has(partner.personId) || deletedUnions.has(partner.unionId)) add('union_partners', partner);
+	}
+	for (const event of rows.events) {
+		const isOwnerDeleted = event.entityType === 'INDIVIDUAL' ? deletedPeople.has(event.entityId) : deletedUnions.has(event.entityId);
+		if (isOwnerDeleted) add('events', event);
+	}
+	for (const name of rows.personNames) if (deletedPeople.has(name.personId)) add('person_names', name);
+	for (const media of rows.mediaItems) if (deletedPeople.has(media.entityId)) add('media_items', media);
+	return found;
 }

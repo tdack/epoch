@@ -403,6 +403,49 @@ describe('the change log and undo', () => {
 		expect((await s.graph()).people.map((p) => p.displayName)).toEqual(['Augusta']);
 	});
 
+	it('refuses to undo the creation of a person that someone has since linked to, and keeps their link', async () => {
+		const s = await setup();
+		const other = await createTestUser(t.db, 'other');
+		await addTestMember(t.db, s.treeId, other, 'editor');
+		const parent = await s.addPerson('Pat');
+		// The other collaborator hangs a new child off Pat, who I created.
+		const theirs = new RelationshipService(t.db);
+		const child = (await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Kit' }, other.context)).individual;
+		await theirs.execute(
+			s.treeId,
+			{ kind: 'add_child', parent: s.ref(parent), child: s.ref(child), type: 'biological', unionLabel: null },
+			other.context
+		);
+
+		await expect(s.log.undoLast(s.treeId, s.ctx)).rejects.toMatchObject({
+			status: 409,
+			details: { reason: 'has_dependents' },
+			message: expect.stringContaining('Pat as biological parent of Kit')
+		});
+		const after = await s.graph();
+		expect(after.people.map((p) => p.displayName).sort()).toEqual(['Kit', 'Pat']);
+		expect(after.parentChild).toEqual([{ parentId: parent.id, childId: child.id, type: 'biological', unionId: null }]);
+	});
+
+	it('refuses to undo the creation of a partnership that someone has since added a child to', async () => {
+		const s = await setup();
+		const other = await createTestUser(t.db, 'other');
+		await addTestMember(t.db, s.treeId, other, 'editor');
+		const [a, b] = [await s.addPerson('Ann'), await s.addPerson('Ben')];
+		await s.partner(a, b);
+		const kit = (await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Kit' }, other.context)).individual;
+		await new RelationshipService(t.db).execute(
+			s.treeId,
+			{ kind: 'add_child', parent: s.ref(a), child: s.ref(kit), type: 'biological', unionLabel: null },
+			other.context
+		);
+
+		await expect(s.log.undoLast(s.treeId, s.ctx)).rejects.toMatchObject({ status: 409, details: { reason: 'has_dependents' } });
+		const after = await s.graph();
+		expect(after.unions).toHaveLength(1);
+		expect(after.unions[0].children).toHaveLength(1);
+	});
+
 	it('refuses to undo the same change twice', async () => {
 		const s = await setup();
 		await s.addPerson('Ada');

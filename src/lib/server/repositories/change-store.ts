@@ -323,8 +323,10 @@ const ALREADY_REVERTED = /UNIQUE constraint failed: change_log\.reverts_change_i
 function translateBatchError(error: unknown): unknown {
 	const message = `${(error as Error)?.message ?? ''} ${((error as { cause?: Error })?.cause?.message) ?? ''}`;
 	if (GUARD_FAILURE.test(message)) {
-		return new ConcurrencyConflictError('Someone else changed this while you were editing it.', {
-			reason: 'STALE_VERSION'
+		// No `current` snapshot here: the batch only knows a row moved, not which entity the person was editing.
+		// The version pre-check in the op builders is what produces the detailed STALE_VERSION conflict.
+		return new ConcurrencyConflictError('Someone else changed this while you were saving it. Reload and try again.', {
+			reason: 'CONCURRENT_WRITE'
 		});
 	}
 	if (ALREADY_REVERTED.test(message)) {
