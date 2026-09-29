@@ -18,19 +18,6 @@ export interface IndividualRecord {
   updatedAt: Date;
 }
 
-export interface FamilyRecord {
-  id: string; // internal UUID
-  treeId: string;
-  xrefId?: string | null;
-  husbandId?: string | null;
-  wifeId?: string | null;
-  partner1Id?: string | null;
-  partner2Id?: string | null;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface EventRecord {
   id: string; // internal UUID
   treeId: string;

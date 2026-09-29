@@ -6,6 +6,7 @@
 </script>
 
 <svelte:head>
+	<title>Epoch</title>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 

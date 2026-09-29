@@ -239,7 +239,7 @@
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
                   {nameOf(parent.parentId)}
-                  <span class="text-stone-400 font-normal">({parent.type})</span>
+                  <span class="text-stone-600 font-normal">({parent.type})</span>
                 </span>
               </button>
             {/each}
@@ -274,7 +274,7 @@
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
                   {nameOf(partnerId)}
-                  <span class="text-stone-400 font-normal">({isDeceased(partnerId) ? 'deceased' : 'partner'})</span>
+                  <span class="text-stone-600 font-normal">({isDeceased(partnerId) ? 'deceased' : 'partner'})</span>
                 </span>
               </button>
             {/each}
@@ -289,7 +289,7 @@
                   >
                     <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
                       {nameOf(child.childId)}
-                      <span class="text-stone-400 font-normal">{child.childId === person.id ? '(this person)' : ''}</span>
+                      <span class="text-stone-600 font-normal">{child.childId === person.id ? '(this person)' : ''}</span>
                     </span>
                   </button>
                 {/each}
@@ -309,7 +309,7 @@
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
                   {nameOf(step.personId)}
-                  <span class="text-stone-400 font-normal">(step-parent)</span>
+                  <span class="text-stone-600 font-normal">(step-parent)</span>
                 </span>
               </button>
             {/each}
@@ -321,7 +321,7 @@
               >
                 <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
                   {nameOf(step.personId)}
-                  <span class="text-stone-400 font-normal">(step-child, via {nameOf(step.viaPartnerId)})</span>
+                  <span class="text-stone-600 font-normal">(step-child, via {nameOf(step.viaPartnerId)})</span>
                 </span>
               </button>
             {/each}

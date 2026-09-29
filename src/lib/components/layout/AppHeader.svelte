@@ -27,7 +27,7 @@
   }: Props = $props();
 </script>
 
-<header class="h-16 border-b border-stone-200/80 bg-[#fdfbf7]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+<header class="min-h-16 border-b border-stone-200/80 bg-[#fdfbf7]/90 backdrop-blur-md px-3 py-2 sm:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 shadow-xs">
   <div class="flex items-center space-x-3">
     <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-700 flex items-center justify-center shadow-md shadow-emerald-900/15">
       <GitBranch class="w-5 h-5 text-amber-50" />
@@ -41,9 +41,10 @@
   </div>
 
   <!-- Tree Selector & Actions -->
-  <div class="flex items-center space-x-3">
+  <div class="flex flex-wrap items-center gap-2">
     {#if trees.length > 0}
       <select
+        aria-label="Tree"
         value={selectedTreeId}
         onchange={(e) => onselectTree(e.currentTarget.value)}
         class="bg-stone-50 text-xs font-medium text-stone-800 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-xs"
@@ -69,6 +70,7 @@
         type="button"
         onclick={onopenDeleteTree}
         title="Delete this tree"
+        aria-label="Delete this tree"
         class="inline-flex items-center justify-center text-xs font-semibold bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-300 hover:border-red-300 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer shadow-xs"
       >
         <Trash2 class="w-3.5 h-3.5" />

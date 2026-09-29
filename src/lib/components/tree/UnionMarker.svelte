@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { LAYOUT_METRICS, type PlacedUnion } from '#lib/tree-layout/index.js';
-	import type { LevelOfDetail } from './tree-view.js';
+	import { MIN_HIT_TARGET_PX, MIN_ZOOM, type LevelOfDetail } from './tree-view.js';
 
 	interface Props {
 		/** The placed union node. */
@@ -21,6 +21,8 @@
 		label?: string;
 		/** "2nd partnership" for a pair with several; read out and shown as a short "2nd" beside the dates. */
 		ordinalTitle?: string;
+		/** Canvas zoom, so the click target keeps a tappable size on screen when zoomed out. */
+		zoom?: number;
 		/** Click, Enter or Space: open the partnership editor. */
 		onOpen?: (union: PlacedUnion) => void;
 		/** Right-click; the handler is responsible for `preventDefault`. */
@@ -37,11 +39,14 @@
 		partnerNames = '',
 		label = '',
 		ordinalTitle,
+		zoom = 1,
 		onOpen,
 		onContextMenu
 	}: Props = $props();
 
 	const R = LAYOUT_METRICS.unionRadius;
+	// At least 24 by 24 on screen (WCAG 2.2 target size), whatever the zoom.
+	const targetRadius = $derived(Math.max(R + 5, (MIN_HIT_TARGET_PX + 1) / 2 / Math.max(zoom, MIN_ZOOM)));
 	const shownLabel = $derived([ordinalTitle?.split(' ')[0], label].filter(Boolean).join(' · '));
 	const description = $derived(
 		`${ordinalTitle ? ordinalTitle.charAt(0).toUpperCase() + ordinalTitle.slice(1) : 'Partnership'}${partnerNames ? ` of ${partnerNames}` : ''}, ${union.union.status}${label ? `, ${label}` : ''}${isNonAdjacent ? ', shown below the row' : ''}`
@@ -68,7 +73,7 @@
 		}}
 		oncontextmenu={(event) => onContextMenu(event, union)}
 	>
-		<circle r={R + 5} fill="transparent" />
+		<circle r={targetRadius} fill="transparent" />
 		<circle class="focus-ring" r={R + 5} />
 	</g>
 {:else}

@@ -248,6 +248,8 @@
 	.group,
 	.types {
 		display: flex;
+		flex-wrap: wrap;
+		min-width: 0;
 		align-items: center;
 		gap: 6px;
 		border: 0;
@@ -284,6 +286,7 @@
 	.toggle {
 		display: inline-flex;
 		align-items: center;
+		min-height: 24px;
 		gap: 6px;
 		cursor: pointer;
 	}

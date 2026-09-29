@@ -62,18 +62,6 @@ export interface PersonFormData {
   deathPlace?: string | null;
 }
 
-export interface FamilyFormData {
-  partner1Id?: string;
-  partner2Id?: string;
-  husbandId?: string;
-  wifeId?: string;
-  childrenIds: string[];
-  marriageDate?: string;
-  marriagePlace?: string;
-  divorceDate?: string;
-  divorcePlace?: string;
-}
-
 export type ParentChildType = 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown';
 export type ParentRole = 'parent' | 'mother' | 'father';
 

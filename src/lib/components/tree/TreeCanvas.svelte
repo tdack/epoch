@@ -607,6 +607,7 @@
 					isNonAdjacent={nonAdjacentIds.has(union.id)}
 					label={unionLabelText(union.union)}
 					ordinalTitle={partnershipLabels?.get(union.id)?.title}
+					zoom={transform.k}
 					onContextMenu={openUnionMenu}
 				/>
 			{/each}
@@ -654,6 +655,7 @@
 					partnerNames={union.union.partnerIds.map(nameOf).join(' and ')}
 					label={unionLabelText(union.union)}
 					ordinalTitle={partnershipLabels?.get(union.id)?.title}
+					zoom={transform.k}
 					onOpen={(u) => onEditUnion?.(u.id)}
 					onContextMenu={openUnionMenu}
 				/>
