@@ -20,19 +20,19 @@ export interface FocusViewOptions {
 	/** Generations of descendants shown below the focus person. Default 3. */
 	descendantDepth?: number;
 	/** Show the focus person's siblings (other children of their parent unions). Default true. */
-	includeSiblings?: boolean;
+	shouldIncludeSiblings?: boolean;
 }
 
 export interface ResolvedFocusOptions {
 	ancestorDepth: number;
 	descendantDepth: number;
-	includeSiblings: boolean;
+	shouldIncludeSiblings: boolean;
 }
 
 export const DEFAULT_FOCUS_OPTIONS: ResolvedFocusOptions = {
 	ancestorDepth: 3,
 	descendantDepth: 3,
-	includeSiblings: true
+	shouldIncludeSiblings: true
 };
 
 // ---- Selection (which people and unions are drawn) ----

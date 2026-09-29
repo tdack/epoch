@@ -7,7 +7,8 @@ import {
 	findMissingPartners,
 	findOverlaps,
 	findPartnerViolations,
-	findRowViolations
+	findRowViolations,
+	findStackedEdges
 } from './contract';
 import { EMPTY_LAYOUT, LAYOUT_METRICS, type ChildEdge, type TreeLayout } from './types';
 import { makeGraph } from './test-support';
@@ -86,6 +87,20 @@ describe('contract checkers', () => {
 		const layout = goodLayout();
 		layout.people[1] = { ...layout.people[1], x: W / 2 };
 		expect(findOverlaps(layout).length).toBeGreaterThan(0);
+	});
+
+	it('detect overlapping union nodes', () => {
+		const layout = goodLayout();
+		layout.unions.push({ ...layout.unions[0], id: 'u2', x: layout.unions[0].x + 5 });
+		expect(findOverlaps(layout)).toContain('union u overlaps union u2');
+	});
+
+	it('detect edges stacked on the same two points', () => {
+		const layout = goodLayout();
+		const twin = { ...layout.edges[2], id: 'twin', source: layout.edges[2].target, target: layout.edges[2].source };
+		layout.edges.push(twin);
+		expect(findStackedEdges(layout)).toEqual(['edges child:u:c and twin are stacked']);
+		expect(findStackedEdges(goodLayout())).toEqual([]);
 	});
 
 	it('detect a duplicated person', () => {

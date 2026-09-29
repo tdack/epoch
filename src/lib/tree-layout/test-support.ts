@@ -139,6 +139,18 @@ export const SYNTHETIC_GRAPHS: NamedGraph[] = [
 		})
 	},
 	{
+		// One child asserted in three unions between the same pair: each union is a distinct node.
+		name: 'repeated-union-shared-child',
+		graph: makeGraph({
+			people: ['A', 'B', 'K'],
+			unions: [
+				{ id: 'u1', partners: ['A', 'B'], marriageDate: '1980', status: 'divorced', children: ['K'] },
+				{ id: 'u2', partners: ['A', 'B'], marriageDate: '1990', status: 'divorced', children: ['K'] },
+				{ id: 'u3', partners: ['A', 'B'], marriageDate: '2000', children: ['K'] }
+			]
+		})
+	},
+	{
 		name: 'repeated-union',
 		graph: makeGraph({
 			people: ['A', 'B', 'K1', 'K2'],

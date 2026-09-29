@@ -273,8 +273,8 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 	for (let pass = 0; pass < 60; pass++) {
 		const xs = cardPositions(chain.cards.length, anchorIdx, gaps, m);
 		const ordered = [...slots].sort((a, b) => slotX(a, xs) - slotX(b, xs) || a.order - b.order);
-		let changed = false;
-		for (let i = 1; i < ordered.length && !changed; i++) {
+		let didChange = false;
+		for (let i = 1; i < ordered.length && !didChange; i++) {
 			const a = ordered[i - 1];
 			const b = ordered[i];
 			const hasA = a.subs.length > 0;
@@ -286,10 +286,10 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 			if (need > 0 && deficit > 1e-6) {
 				if (b.gapIdx !== null) gaps[b.gapIdx] += 2 * deficit;
 				else b.shift += deficit;
-				changed = true;
+				didChange = true;
 			}
 		}
-		if (!changed) break;
+		if (!didChange) break;
 	}
 
 	const xs = cardPositions(chain.cards.length, anchorIdx, gaps, m);
@@ -402,11 +402,20 @@ function layoutParents(ctx: Context, personId: string): Sub | null {
 			contourMerge(contour, cardSubs[i].contour, offsets[i]);
 			if (cardSubs[i].above) items.push(...shiftItems(cardSubs[i].above!.items, offsets[i]));
 		});
-		for (const pu of classifyUnions(block.chain)) {
-			const x =
+		const unionNodes = classifyUnions(block.chain).map((pu) => ({
+			pu,
+			x:
 				pu.gapIdx !== null
 					? (offsets[pu.gapIdx] + offsets[pu.gapIdx + 1]) / 2
-					: pu.cardIdxs.reduce((s, i) => s + offsets[i], 0) / Math.max(1, pu.cardIdxs.length);
+					: pu.cardIdxs.reduce((s, i) => s + offsets[i], 0) / Math.max(1, pu.cardIdxs.length)
+		}));
+		// Repeated unions between one pair all hang at the same midpoint; spread them so each
+		// stays a distinct node with its own edges instead of stacking.
+		const hanging = unionNodes.filter((n) => n.pu.gapIdx === null).sort((a, b) => a.x - b.x);
+		for (let i = 1; i < hanging.length; i++) {
+			hanging[i].x = Math.max(hanging[i].x, hanging[i - 1].x + 2 * m.unionRadius + 6);
+		}
+		for (const { pu, x } of unionNodes) {
 			items.push({ t: 'union', id: pu.id, gen: row, x, isHanging: pu.gapIdx === null });
 		}
 		blockSubs.push({ items, contour });

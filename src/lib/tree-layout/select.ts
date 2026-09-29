@@ -27,7 +27,7 @@ export function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOpt
 	return {
 		ancestorDepth: clamp(options.ancestorDepth, DEFAULT_FOCUS_OPTIONS.ancestorDepth),
 		descendantDepth: clamp(options.descendantDepth, DEFAULT_FOCUS_OPTIONS.descendantDepth),
-		includeSiblings: options.includeSiblings ?? DEFAULT_FOCUS_OPTIONS.includeSiblings
+		shouldIncludeSiblings: options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings
 	};
 }
 
@@ -112,7 +112,7 @@ export function selectFocusSubgraph(
 	}
 
 	// ---- Siblings: other children of the focus person's drawn parent unions ----
-	if (opts.includeSiblings) {
+	if (opts.shouldIncludeSiblings) {
 		for (const unionId of index.parentUnionIdsOfChild.get(focusPersonId) ?? []) {
 			if (!unions.has(unionId)) continue;
 			for (const siblingId of index.childIdsOfUnion.get(unionId) ?? []) {

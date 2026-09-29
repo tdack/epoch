@@ -19,8 +19,8 @@ const SWEEP: FocusViewOptions[] = [
 	{ ancestorDepth: 4, descendantDepth: 2 },
 	{ ancestorDepth: 8, descendantDepth: 8 }
 ].flatMap((d) => [
-	{ ...d, includeSiblings: true },
-	{ ...d, includeSiblings: false }
+	{ ...d, shouldIncludeSiblings: true },
+	{ ...d, shouldIncludeSiblings: false }
 ]);
 
 /** Only a person with three or more unions can have a partner that cannot sit beside them. */
@@ -143,8 +143,8 @@ describe('known bugs from the plan', () => {
 	});
 
 	it('keeps siblings contiguous and toggles them', () => {
-		const withSiblings = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { includeSiblings: true });
-		const without = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { includeSiblings: false });
+		const withSiblings = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { shouldIncludeSiblings: true });
+		const without = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { shouldIncludeSiblings: false });
 		expect(withSiblings.people.filter((p) => p.role === 'sibling')).toHaveLength(3);
 		expect(without.people.filter((p) => p.role === 'sibling')).toHaveLength(0);
 	});

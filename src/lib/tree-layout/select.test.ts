@@ -12,8 +12,8 @@ const DEPTHS: FocusViewOptions[] = [
 	{ ancestorDepth: 3, descendantDepth: 3 },
 	{ ancestorDepth: 8, descendantDepth: 8 }
 ].flatMap((d) => [
-	{ ...d, includeSiblings: true },
-	{ ...d, includeSiblings: false }
+	{ ...d, shouldIncludeSiblings: true },
+	{ ...d, shouldIncludeSiblings: false }
 ]);
 
 function select(graph: RelationshipGraph, focusId: string, options: FocusViewOptions) {
@@ -38,7 +38,7 @@ describe('selectFocusSubgraph contract sweeps', () => {
 						const ctx = `${name} focus=${focus.displayName} ${JSON.stringify(options)}`;
 						const drawn = new Map(s.people.map((p) => [p.id, p]));
 						const drawnUnions = new Set(s.unions.map((u) => u.id));
-						const { ancestorDepth, descendantDepth, includeSiblings } = s.options;
+						const { ancestorDepth, descendantDepth, shouldIncludeSiblings } = s.options;
 
 						expect(drawn.size, `${ctx}: unique people`).toBe(s.people.length);
 						expect(drawn.get(focus.id)?.generation, ctx).toBe(0);
@@ -81,14 +81,14 @@ describe('selectFocusSubgraph contract sweeps', () => {
 								}
 							}
 						}
-						if (includeSiblings && ancestorDepth > 0) {
+						if (shouldIncludeSiblings && ancestorDepth > 0) {
 							for (const unionId of index.parentUnionIdsOfChild.get(focus.id) ?? []) {
 								for (const siblingId of index.childIdsOfUnion.get(unionId) ?? []) {
 									expect(drawn.has(siblingId), `${ctx}: sibling ${siblingId}`).toBe(true);
 								}
 							}
 						}
-						if (!includeSiblings) {
+						if (!shouldIncludeSiblings) {
 							expect(s.people.some((p) => p.role === PERSON_ROLES.SIBLING), ctx).toBe(false);
 						}
 					}
@@ -149,8 +149,8 @@ describe('known layout bugs', () => {
 
 	it('includes siblings only when asked', () => {
 		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
-		expect(peopleOf('Bartholomew Jojo Simpson', { includeSiblings: true })).toContain('Lenora Marie Simpson');
-		expect(peopleOf('Bartholomew Jojo Simpson', { includeSiblings: false })).not.toContain('Lenora Marie Simpson');
+		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: true })).toContain('Lenora Marie Simpson');
+		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: false })).not.toContain('Lenora Marie Simpson');
 		expect(select(simpsons, bart.id, {}).people.find((p) => p.id === bart.id)?.role).toBe(PERSON_ROLES.FOCUS);
 	});
 });

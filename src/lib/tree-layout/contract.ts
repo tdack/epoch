@@ -61,16 +61,21 @@ export function findOverlaps(layout: TreeLayout, m: LayoutMetrics = LAYOUT_METRI
 			if (intersects(boxes[i], boxes[j])) violations.push(`${boxes[i].id} overlaps ${boxes[j].id}`);
 		}
 	}
-	for (const u of layout.unions) {
-		const node: Box = {
-			id: u.id,
-			x0: u.x - m.unionRadius,
-			x1: u.x + m.unionRadius,
-			y0: u.y - m.unionRadius,
-			y1: u.y + m.unionRadius
-		};
+	const nodes: Box[] = layout.unions.map((u) => ({
+		id: u.id,
+		x0: u.x - m.unionRadius,
+		x1: u.x + m.unionRadius,
+		y0: u.y - m.unionRadius,
+		y1: u.y + m.unionRadius
+	}));
+	for (const node of nodes) {
 		for (const b of boxes) {
-			if (intersects(node, b)) violations.push(`union ${u.id} overlaps ${b.id}`);
+			if (intersects(node, b)) violations.push(`union ${node.id} overlaps ${b.id}`);
+		}
+	}
+	for (let i = 0; i < nodes.length; i++) {
+		for (let j = i + 1; j < nodes.length; j++) {
+			if (intersects(nodes[i], nodes[j])) violations.push(`union ${nodes[i].id} overlaps union ${nodes[j].id}`);
 		}
 	}
 	return violations;
@@ -196,8 +201,8 @@ export function findCentringViolations(layout: TreeLayout): string[] {
 		const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
 		// A child of two drawn unions (secondary path) sits between them, so only sole-parent
 		// groups have a single anchor to centre under.
-		const soleParent = children.every((c) => incoming.get(c.id) === 1);
-		if (soleParent && Math.abs(mid - anchorX) > 1) {
+		const isSoleParent = children.every((c) => incoming.get(c.id) === 1);
+		if (isSoleParent && Math.abs(mid - anchorX) > 1) {
 			violations.push(`children of ${key} are not centred under it`);
 		}
 
@@ -256,6 +261,24 @@ export function countCrossings(layout: TreeLayout): number {
 	return count;
 }
 
+/**
+ * No two edges run between the same two points: that is what "stacked duplicate edges" looks
+ * like on screen, whatever the edges' ids say.
+ */
+export function findStackedEdges(layout: TreeLayout): string[] {
+	const violations: string[] = [];
+	const seen = new Map<string, string>();
+	for (const e of layout.edges) {
+		const a = `${e.source.x},${e.source.y}`;
+		const b = `${e.target.x},${e.target.y}`;
+		const key = a < b ? `${a}>${b}` : `${b}>${a}`;
+		const other = seen.get(key);
+		if (other) violations.push(`edges ${other} and ${e.id} are stacked`);
+		else seen.set(key, e.id);
+	}
+	return violations;
+}
+
 /** Row consistency: y follows the generation, every row is a fixed distance apart. */
 export function findRowViolations(layout: TreeLayout, m: LayoutMetrics = LAYOUT_METRICS): string[] {
 	return layout.people
@@ -274,6 +297,7 @@ export function allContractViolations(
 		...findMissingPartners(graph, layout),
 		...findPartnerViolations(layout, m),
 		...findEdgeViolations(graph, layout),
+		...findStackedEdges(layout),
 		...findCentringViolations(layout),
 		...findRowViolations(layout, m)
 	];
