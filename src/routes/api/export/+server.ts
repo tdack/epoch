@@ -3,7 +3,7 @@ import { getTreeExportData } from '#lib/server/gedcom/importer.js';
 import { buildGedcomString, type GedcomFormat } from '#lib/server/gedcom/index.js';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import { exportBodySchema } from '#lib/server/validation/schemas.js';
 import { parseBody } from '#lib/server/validation/index.js';
 
@@ -46,11 +46,8 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
         'Content-Disposition': `attachment; filename="${data.treeName.replace(/[^a-zA-Z0-9_-]/g, '_')}.ged"`
       }
     });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: `Export failed: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Export failed', { messagePrefix: 'Export failed: ' });
   }
 };
 
@@ -100,10 +97,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     });
 
     return Response.json({ status: 'complete', fileKey });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: `Export failed: ${err?.message || err}` }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Export failed', { messagePrefix: 'Export failed: ' });
   }
 };

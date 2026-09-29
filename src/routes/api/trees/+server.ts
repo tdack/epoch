@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import { treeCreateSchema } from '#lib/server/validation/schemas.js';
 import { parseBody } from '#lib/server/validation/index.js';
 
@@ -23,12 +23,8 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
     });
 
     return Response.json({ trees: userTrees });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Failed to fetch trees:', err);
-    return Response.json({ error: err?.message || 'Failed to fetch trees' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to fetch trees');
   }
 };
 
@@ -53,11 +49,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     });
 
     return Response.json({ tree: newTree }, { status: 201 });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Failed to create tree:', err);
-    return Response.json({ error: err?.message || 'Failed to create tree' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to create tree');
   }
 };

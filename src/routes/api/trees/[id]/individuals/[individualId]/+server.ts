@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import { individualUpdateSchema } from '#lib/server/validation/schemas.js';
 import { parseBody } from '#lib/server/validation/index.js';
 
@@ -28,12 +28,8 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
     });
 
     return Response.json({ individual });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-    }
-    console.error('Failed to get individual:', err);
-    return Response.json({ error: err?.message || 'Failed to get individual' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to get individual');
   }
 };
 
@@ -78,12 +74,8 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     );
 
     return Response.json({ success: true, individual: updated, change });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-    }
-    console.error('Failed to update individual:', err);
-    return Response.json({ error: err?.message || 'Failed to update individual' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to update individual');
   }
 };
 
@@ -114,11 +106,7 @@ export const DELETE: RequestHandler = async ({ params, url, locals, platform }) 
     );
 
     return Response.json({ success: true, change });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-    }
-    console.error('Failed to delete individual:', err);
-    return Response.json({ error: err?.message || 'Failed to delete individual' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to delete individual');
   }
 };

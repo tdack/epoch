@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
   if (!locals.user) {
@@ -26,12 +26,8 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
     });
 
     return Response.json(treeData);
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Failed to fetch tree details:', err);
-    return Response.json({ error: err?.message || 'Failed to fetch tree details' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to fetch tree details');
   }
 };
 
@@ -56,11 +52,7 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
     });
 
     return Response.json({ success: true });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Failed to delete tree:', err);
-    return Response.json({ error: err?.message || 'Failed to delete tree' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to delete tree');
   }
 };

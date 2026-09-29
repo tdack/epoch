@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb, mediaItems } from '#lib/server/db/index.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
   if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
@@ -51,8 +52,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
         mimeType: file.type
       }
     }, { status: 201 });
-  } catch (err: any) {
-    console.error('Failed to upload media:', err);
-    return Response.json({ error: err?.message || 'Failed to upload media' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to upload media');
   }
 };

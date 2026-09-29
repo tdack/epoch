@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 
 export const GET: RequestHandler = async ({ params, url, locals, platform }) => {
 	if (!locals.user) {
@@ -29,11 +29,7 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 		});
 
 		return Response.json({ people });
-	} catch (err: any) {
-		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code }, { status: err.status });
-		}
-		console.error('Failed to search people:', err);
-		return Response.json({ error: err?.message || 'Failed to search people' }, { status: 500 });
+	} catch (err) {
+		return errorResponse(err, 'Failed to search people');
 	}
 };

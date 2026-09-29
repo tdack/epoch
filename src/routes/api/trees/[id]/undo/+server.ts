@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { ChangeLogService } from '#lib/server/services/change-log-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 
 /** What "Undo" would revert next for the signed-in user, or null. */
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
@@ -16,12 +16,8 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		const service = new ChangeLogService(getDb(platform.env.DB));
 		const next = await service.peekUndo(treeId, { user: locals.user, correlationId: locals.correlationId });
 		return Response.json({ next });
-	} catch (err: any) {
-		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-		}
-		console.error('Failed to look up undo:', err);
-		return Response.json({ error: err?.message || 'Failed to look up undo' }, { status: 500 });
+	} catch (err) {
+		return errorResponse(err, 'Failed to look up undo');
 	}
 };
 
@@ -41,11 +37,7 @@ export const POST: RequestHandler = async ({ params, locals, platform }) => {
 			correlationId: locals.correlationId
 		});
 		return Response.json({ success: true, undone, change });
-	} catch (err: any) {
-		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-		}
-		console.error('Failed to undo:', err);
-		return Response.json({ error: err?.message || 'Failed to undo' }, { status: 500 });
+	} catch (err) {
+		return errorResponse(err, 'Failed to undo');
 	}
 };

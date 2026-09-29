@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import { individualCreateSchema } from '#lib/server/validation/schemas.js';
 import { parseBody } from '#lib/server/validation/index.js';
 
@@ -47,11 +47,7 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
     );
 
     return Response.json({ success: true, individual, change }, { status: 201 });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Failed to create individual:', err);
-    return Response.json({ error: err?.message || 'Failed to create individual' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to create individual');
   }
 };

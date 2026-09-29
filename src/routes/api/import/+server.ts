@@ -2,7 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { importGedcomToDb, previewGedcomFile, previewGedcomImport, type ImportMode } from '#lib/server/gedcom/importer.js';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!locals.user) {
@@ -84,12 +84,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       treeId,
       ...result
     });
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Import error:', err?.message, err?.stack, JSON.stringify(err));
-    return Response.json({ error: `Failed to import GEDCOM: ${err?.message || err}` }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to import GEDCOM', { messagePrefix: 'Failed to import GEDCOM: ' });
   }
 };
 
@@ -114,8 +110,8 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
   if (!treeId) {
     try {
       return Response.json(previewGedcomFile(await file.text()));
-    } catch (err: any) {
-      return Response.json({ error: `Failed to preview GEDCOM: ${err.message}` }, { status: 500 });
+    } catch (err) {
+      return errorResponse(err, 'Failed to preview GEDCOM', { messagePrefix: 'Failed to preview GEDCOM: ' });
     }
   }
 
@@ -130,11 +126,7 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
 
     const preview = await previewGedcomImport(platform.env.DB, treeId, await file.text());
     return Response.json(preview);
-  } catch (err: any) {
-    if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    console.error('Preview error:', err);
-    return Response.json({ error: `Failed to preview GEDCOM: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to preview GEDCOM', { messagePrefix: 'Failed to preview GEDCOM: ' });
   }
 };

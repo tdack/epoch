@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
-import { DomainError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import { relationshipDeleteSchema } from '#lib/server/validation/schemas.js';
 import { parseBody } from '#lib/server/validation/index.js';
 
@@ -35,11 +35,7 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		});
 
 		return Response.json({ success: true, change });
-	} catch (err: any) {
-		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
-		}
-		console.error('Failed to remove relationship:', err);
-		return Response.json({ error: err?.message || 'Failed to remove relationship' }, { status: 500 });
+	} catch (err) {
+		return errorResponse(err, 'Failed to remove relationship');
 	}
 };
