@@ -18,6 +18,7 @@ import {
 	type ResolvedFocusOptions,
 	type SelectedPerson,
 	type SelectedUnion,
+	type SelectionExpansion,
 	type SelectionStub
 } from './types.js';
 
@@ -27,7 +28,10 @@ export function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOpt
 	return {
 		ancestorDepth: clamp(options.ancestorDepth, DEFAULT_FOCUS_OPTIONS.ancestorDepth),
 		descendantDepth: clamp(options.descendantDepth, DEFAULT_FOCUS_OPTIONS.descendantDepth),
-		shouldIncludeSiblings: options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings
+		shouldIncludeSiblings: options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
+		shouldIncludeStepFamilies:
+			options.shouldIncludeStepFamilies ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeStepFamilies,
+		expandedStubIds: [...new Set(options.expandedStubIds ?? [])].sort()
 	};
 }
 
@@ -47,6 +51,8 @@ export function selectFocusSubgraph(
 	const unions = new Map<string, SelectedUnion>();
 	const stubs: SelectionStub[] = [];
 	const collapsed = new Set<string>();
+	const expansions: SelectionExpansion[] = [];
+	const expanded = new Set(opts.expandedStubIds);
 
 	/** @returns true when the person was newly drawn; false when they already were. */
 	function place(id: string, generation: number, role: PersonRole): boolean {
@@ -72,7 +78,8 @@ export function selectFocusSubgraph(
 		const parentUnionIds = index.parentUnionIdsOfChild.get(childId) ?? [];
 		const directParentIds = index.directParentIdsOfChild.get(childId) ?? [];
 
-		if (generation <= -opts.ancestorDepth) {
+		const ancestorStubId = `stub:ancestors:${childId}`;
+		if (generation <= -opts.ancestorDepth && !expanded.has(ancestorStubId)) {
 			const hidden = new Set<string>();
 			for (const unionId of parentUnionIds) {
 				for (const partnerId of index.unionById.get(unionId)?.partnerIds ?? []) {
@@ -91,6 +98,10 @@ export function selectFocusSubgraph(
 				});
 			}
 			continue;
+		}
+
+		if (generation <= -opts.ancestorDepth && (parentUnionIds.length > 0 || directParentIds.length > 0)) {
+			expansions.push({ stubId: ancestorStubId, kind: STUB_KINDS.ANCESTORS, personId: childId, unionId: null });
 		}
 
 		for (const unionId of parentUnionIds) {
@@ -121,25 +132,44 @@ export function selectFocusSubgraph(
 		}
 	}
 
+	/** True when the person is in a union that has not been drawn yet. */
+	function hasUndrawnUnion(personId: string): boolean {
+		return (index.unionsOfPerson.get(personId) ?? []).some((u) => !unions.has(u.id));
+	}
+
 	// ---- Descendants, with every partner of every union they belong to ----
-	const childQueue = [focusPersonId];
+	// A step seed is a partner whose other families are drawn too; its partners are not seeds
+	// themselves, so the walk widens by one hop rather than following remarriage chains.
+	interface QueueEntry {
+		id: string;
+		isStepSeed: boolean;
+	}
+	const childQueue: QueueEntry[] = [{ id: focusPersonId, isStepSeed: false }];
 	while (childQueue.length > 0) {
-		const parentId = childQueue.shift()!;
+		const { id: parentId, isStepSeed } = childQueue.shift()!;
 		const generation = people.get(parentId)!.generation;
-		const canShowChildren = generation < opts.descendantDepth;
+		const isBelowLimit = generation < opts.descendantDepth;
 
 		const visit = (unionId: string | null, childIds: string[]) => {
+			const stubId = unionId ? `stub:children:${unionId}` : `stub:children:direct:${parentId}`;
+			const isExpanded = !isBelowLimit && expanded.has(stubId);
+			const canShowChildren = isBelowLimit || isExpanded;
 			const hidden = new Set<string>();
 			for (const childId of childIds) {
 				if (canShowChildren) {
-					if (assign(childId, generation + 1, PERSON_ROLES.DESCENDANT)) childQueue.push(childId);
+					if (assign(childId, generation + 1, PERSON_ROLES.DESCENDANT)) {
+						childQueue.push({ id: childId, isStepSeed: false });
+					}
 				} else if (!people.has(childId)) {
 					hidden.add(childId);
 				}
 			}
+			if (isExpanded && childIds.length > 0) {
+				expansions.push({ stubId, kind: STUB_KINDS.CHILDREN, personId: parentId, unionId });
+			}
 			if (hidden.size > 0) {
 				stubs.push({
-					id: unionId ? `stub:children:${unionId}` : `stub:children:direct:${parentId}`,
+					id: stubId,
 					kind: STUB_KINDS.CHILDREN,
 					personId: parentId,
 					unionId,
@@ -150,8 +180,21 @@ export function selectFocusSubgraph(
 		};
 
 		for (const union of index.unionsOfPerson.get(parentId) ?? []) {
+			// A seed shares its union with the person who queued it; that union is already drawn.
+			if (isStepSeed && unions.has(union.id)) continue;
 			if (!unions.has(union.id)) unions.set(union.id, { id: union.id, generation });
-			for (const partnerId of union.partnerIds) place(partnerId, generation, PERSON_ROLES.PARTNER);
+			for (const partnerId of union.partnerIds) {
+				const isNewPartner = place(partnerId, generation, PERSON_ROLES.PARTNER);
+				if (isNewPartner && !isStepSeed) {
+					const otherStubId = `stub:children:other:${partnerId}`;
+					if (opts.shouldIncludeStepFamilies || expanded.has(otherStubId)) {
+						childQueue.push({ id: partnerId, isStepSeed: true });
+						if (!opts.shouldIncludeStepFamilies && hasUndrawnUnion(partnerId)) {
+							expansions.push({ stubId: otherStubId, kind: STUB_KINDS.CHILDREN, personId: partnerId, unionId: null });
+						}
+					}
+				}
+			}
 			visit(union.id, index.childIdsOfUnion.get(union.id) ?? []);
 		}
 		visit(null, index.directChildIdsOfParent.get(parentId) ?? []);
@@ -185,6 +228,7 @@ export function selectFocusSubgraph(
 		people: [...people.values()],
 		unions: [...unions.values()],
 		stubs,
+		expansions,
 		collapsedPersonIds: [...collapsed]
 	};
 }
