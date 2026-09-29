@@ -19,7 +19,7 @@ import { asParentChild, deceasedIdsOf, labelableUnionsOf, partnerIdsOf, unionIds
 import { ValidationError } from './errors';
 import { partnershipLabels } from '../../shared/partnership-labels';
 import type { MergeChoices } from '../../shared/union-merge';
-import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
+import { ENDED_UNION_STATUSES, type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
 import { newWidowhoods } from '../../shared/widowhood';
 import type { Sex } from '../../shared/sex';
 
@@ -268,9 +268,11 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 		case 'add_partner': {
 			const person = refOf(rows, intent.person.id);
 			const partner = resolve(intent.partner);
+			// A partnership that has ended does not make them partners now: a divorce followed by a
+			// remarriage is a second partnership between the same two people, not a duplicate.
 			const shared = rows.unions.find((u) => {
 				const members = partnerIdsOf(rows, u.id);
-				return members.includes(person.id) && members.includes(partner.id);
+				return members.includes(person.id) && members.includes(partner.id) && !(ENDED_UNION_STATUSES as readonly string[]).includes(u.status);
 			});
 			if (shared) {
 				warnings.push({

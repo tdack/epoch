@@ -72,6 +72,23 @@ describe('planRelationshipCommand', () => {
 		expect(plan.warnings.some((w) => w.code === 'ALREADY_PARTNERS')).toBe(true);
 	});
 
+	it('lets a pair whose partnership ended partner again, as a second partnership', () => {
+		const intent = { kind: 'add_partner', person: alex, partner: sam, unionLabel: null } as const;
+		for (const status of ['divorced', 'separated', 'annulled', 'ended'] as const) {
+			const plan = planRelationshipCommand(intent, context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status }] }));
+			expect(plan.commands, status).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
+			expect(plan.warnings.map((w) => w.code)).not.toContain('ALREADY_PARTNERS');
+		}
+	});
+
+	it('still refuses a second partnership while the first is active', () => {
+		const plan = planRelationshipCommand(
+			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
+			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status: 'active' }] })
+		);
+		expect(plan.commands).toHaveLength(0);
+	});
+
 	it('reuses the parent’s existing union when adding a child and names the family', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null },

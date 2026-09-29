@@ -361,6 +361,23 @@ describe('changing a parent link’s type', () => {
 	});
 });
 
+describe('remarrying the same person', () => {
+	it('after a divorce records a second partnership and keeps the first with its child', async () => {
+		const s = await setup();
+		const [hal, ivy, kit] = [await s.addPerson('Hal'), await s.addPerson('Ivy'), await s.addPerson('Kit')];
+		await s.partner(hal, ivy);
+		await s.relationships.execute(s.treeId, { kind: 'add_child', parent: s.ref(hal), child: s.ref(kit), type: 'biological', unionLabel: null }, s.ctx);
+		const first = (await s.graph()).unions[0];
+		await s.relationships.execute(s.treeId, { kind: 'end_union', person: s.ref(hal), unionId: first.id, status: 'divorced', event: null, unionVersion: first.version }, s.ctx);
+
+		const { after } = await runAndCompare(s, { kind: 'add_partner', person: s.ref(hal), partner: s.ref(ivy), unionLabel: null });
+		expect(after.unions).toHaveLength(2);
+		expect(after.unions.map((u) => u.status).sort()).toEqual(['active', 'divorced']);
+		expect(after.unions.every((u) => u.partnerIds.includes(hal.id) && u.partnerIds.includes(ivy.id))).toBe(true);
+		expect(after.unions.find((u) => u.id === first.id)!.children.length).toBeGreaterThan(0);
+	});
+});
+
 describe('deleting a person', () => {
 	it('lists exactly what goes, and the delete does exactly that', async () => {
 		const s = await setup();
