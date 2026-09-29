@@ -20,7 +20,7 @@
 		"deploy": "npm run db:migrate && npm run build && wrangler deploy workers/entry.ts",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"tree:baseline": "RECORD_CROSSING_BASELINE=1 vitest run src/lib/tree-layout/crossings.record.test.ts"
+		"tree:baseline": "RECORD_CROSSING_BASELINE=1 vitest run src/lib/tree-layout/crossings.record.test.ts -u"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260911.1",
