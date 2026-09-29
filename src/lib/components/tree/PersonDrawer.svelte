@@ -1,10 +1,10 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross } from 'lucide-svelte';
   import { widowhoods } from '#lib/shared/widowhood.js';
+  import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
   import type {
     RelationshipGraph,
-    RelationshipGraphPerson,
-    RelationshipGraphUnion
+    RelationshipGraphPerson
   } from '#lib/server/domain/relationship-graph.js';
 
   interface Props {
@@ -24,6 +24,10 @@
     onEditUnion?: (unionId: string) => void;
     /** Open the end-partnership form on this partnership. */
     onEndUnion?: (unionId: string) => void;
+    /** Open the merge dialog for a partnership that has a twin between the same people. */
+    onMergeUnion?: (unionId: string) => void;
+    /** Chronological labels for repeated partnerships, by union id. */
+    partnershipLabels?: Map<string, PartnershipLabel>;
   }
 
   let {
@@ -38,7 +42,9 @@
     onDeletePerson,
     onRecordDeath,
     onEditUnion,
-    onEndUnion
+    onEndUnion,
+    onMergeUnion,
+    partnershipLabels
   }: Props = $props();
 
   // Widowhood is derived, never stored: a partner is widowed in a partnership that has not ended
@@ -69,16 +75,14 @@
     return gp ? gp.parentsByUnion : {};
   });
 
-  // Unions where this person participates as a partner, each with children
-  // deduplicated by child id. `parent_child` asserts one row per parent, so a
-  // child of a two-parent union repeats once per parent; collapse those. When
-  // the same set of partners recurs across distinct unions (e.g. a childless
-  // episode and one with children), drop an empty union that is subsumed by a
-  // richer one so the same partner pair is not listed twice in the summary.
+  // Every partnership the person is in, exactly as stored. `parent_child` asserts one row per
+  // parent, so a child of a two-parent union repeats once per parent; that is the only thing
+  // collapsed here. Repeated partnerships between the same pair stay separate and are told apart
+  // by their chronological labels.
   let partnerUnions = $derived.by(() => {
     const gp = person ? graphPersonFor(person.id) : null;
     if (!gp) return [];
-    const unions = graph.unions
+    return graph.unions
       .filter((u) => gp.unionIds.includes(u.id))
       .map((u) => {
         const seen = new Set<string>();
@@ -91,30 +95,6 @@
           })
         };
       });
-
-    const partnerKey = (u: RelationshipGraphUnion) => [...u.partnerIds].sort().join('::');
-    const byKey = new Map<string, RelationshipGraphUnion[]>();
-    for (const u of unions) {
-      const key = partnerKey(u);
-      const list = byKey.get(key) ?? [];
-      list.push(u);
-      byKey.set(key, list);
-    }
-    const result: RelationshipGraphUnion[] = [];
-    for (const group of byKey.values()) {
-      if (group.length === 1) {
-        result.push(group[0]);
-        continue;
-      }
-      // Prefer the union with children; drop empty duplicates of the same pair.
-      const withChildren = group.find((u) => u.children.length > 0);
-      if (withChildren) {
-        result.push(withChildren);
-      } else {
-        result.push(group[0]);
-      }
-    }
-    return result;
   });
 
   let uploading = $state(false);
@@ -256,13 +236,16 @@
           <div class="bg-amber-50/70 rounded-xl p-3 border border-amber-200/80 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
-                Partner &amp; Children
+                {partnershipLabels?.get(union.id)?.full ?? 'Partner & Children'}
                 {#if union.status !== 'active'}<span class="text-red-700">· {union.status}</span>{/if}
                 {#if widowedUnionIds.has(union.id)}<span class="text-stone-700">· widowed</span>{/if}
               </span>
               <span class="flex items-center gap-2">
                 {#if onEditUnion}
                   <button type="button" onclick={() => onEditUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Edit</button>
+                {/if}
+                {#if onMergeUnion && partnershipLabels?.has(union.id)}
+                  <button type="button" onclick={() => onMergeUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Merge…</button>
                 {/if}
                 {#if onEndUnion && union.status === 'active'}
                   <button type="button" onclick={() => onEndUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">End</button>

@@ -32,6 +32,9 @@
   import RelationshipModal from '#lib/components/modals/RelationshipModal.svelte';
   import UnionEditorModal from '#lib/components/modals/UnionEditorModal.svelte';
   import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
+  import UnionMergeDialog from '#lib/components/modals/UnionMergeDialog.svelte';
+  import { mergeCandidatesFor } from '#lib/components/tree/merge-candidates.js';
+  import { partnershipLabels } from '#lib/shared/partnership-labels.js';
   import ConflictDialog from '#lib/components/modals/ConflictDialog.svelte';
   import { differingRows } from '#lib/components/modals/conflict.js';
   import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
@@ -61,6 +64,9 @@
     fetchRelationshipGraph,
     removeRelationshipApi,
     previewImpactApi,
+    previewUnionMergeApi,
+    mergeUnionsApi,
+    type MergeUnionsRequest,
     searchPeopleApi,
     undoApi,
     isConflict,
@@ -174,6 +180,16 @@
 
   // Union editor state
   let editingUnionId = $state<string | null>(null);
+  /** Union whose twins the merge dialog is offering to merge, or null when it is closed. */
+  let mergingUnionId = $state<string | null>(null);
+  /** "1st partnership", "2nd partnership" for pairs that recur; computed over the whole graph so hidden unions still count. */
+  const unionLabels = $derived(relationshipGraph ? partnershipLabels(relationshipGraph.unions) : new Map());
+  const mergeCandidates = $derived(
+    relationshipGraph && mergingUnionId ? mergeCandidatesFor(relationshipGraph.unions, mergingUnionId, unionLabels) : []
+  );
+  const mergePartners = $derived(
+    relationshipGraph?.unions.find((u) => u.id === mergingUnionId)?.partnerIds.map((id) => relationshipGraph?.people.find((p) => p.id === id)?.displayName ?? id).join(' and ') ?? ''
+  );
   const editingUnion = $derived(relationshipGraph?.unions.find((u) => u.id === editingUnionId) ?? null);
 
   // Impact (destructive action) dialog state
@@ -613,6 +629,25 @@
     editingUnionId = unionId;
   }
 
+  function handleMergeUnion(unionId: string) {
+    mergingUnionId = unionId;
+  }
+
+  async function runMerge(request: MergeUnionsRequest) {
+    if (!selectedTreeId) return;
+    try {
+      const { change } = await mergeUnionsApi(selectedTreeId, request);
+      mergingUnionId = null;
+      await afterChange(change, 'Partnerships merged');
+    } catch (e: any) {
+      if (!isConflict(e)) throw e;
+      // A partnership changed after the dialog loaded it: show the current state instead of merging on stale information.
+      mergingUnionId = null;
+      await refreshAll();
+      toasts.push(`${e.message} Nothing was merged. Review it and try again.`, { tone: TOAST_TONES.ERROR, durationMs: 10_000 });
+    }
+  }
+
   function handleEndUnion(unionId: string) {
     const union = relationshipGraph?.unions.find((u) => u.id === unionId);
     const partnerId = union?.partnerIds[0];
@@ -821,6 +856,8 @@
         onEndUnion={handleEndUnion}
         onRemoveAssertion={handleRemoveAssertion}
         onRemoveUnion={handleRemoveUnion}
+        onMergeUnion={handleMergeUnion}
+        partnershipLabels={unionLabels}
         onDragRelate={handleDragRelate}
         onExpandStub={(id) => {
           const token = compactStubId(id);
@@ -902,6 +939,8 @@
       onRecordDeath={(person) => openRelationship({ id: person.id, givenName: person.givenName ?? null, surname: person.surname ?? null }, { kind: 'record_death' })}
       onEditUnion={handleEditUnion}
       onEndUnion={handleEndUnion}
+      onMergeUnion={handleMergeUnion}
+      partnershipLabels={unionLabels}
       onSelectPerson={(id) => handleSelectPerson(id)}
     />
   {/if}
@@ -945,6 +984,7 @@
       show={editingUnion !== null}
       treeId={selectedTreeId}
       union={editingUnion}
+      label={editingUnion ? (unionLabels.get(editingUnion.id) ?? null) : null}
       nameOf={graphName}
       onclose={() => (editingUnionId = null)}
       onsaved={handleUnionSaved}
@@ -963,6 +1003,18 @@
     onconfirm={runPendingImpact}
     oncancel={() => (pendingImpact = null)}
   />
+
+  {#if selectedTreeId}
+    {@const treeId = selectedTreeId}
+    <UnionMergeDialog
+      show={mergingUnionId !== null && mergeCandidates.length >= 2}
+      partners={mergePartners}
+      candidates={mergeCandidates}
+      onpreview={(request) => previewUnionMergeApi(treeId, request)}
+      onconfirm={runMerge}
+      oncancel={() => (mergingUnionId = null)}
+    />
+  {/if}
 
   <ConflictDialog
     show={personConflict !== null}

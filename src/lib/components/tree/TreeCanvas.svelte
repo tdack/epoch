@@ -20,6 +20,7 @@
 	import TreeLegend from './TreeLegend.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import { treeTokenStyle } from './tree-tokens.js';
+	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import {
 		MAX_FIT_ZOOM,
 		MAX_ZOOM,
@@ -72,6 +73,10 @@
 		/** Remove one parent's link from a merged (union, child) edge. */
 		onRemoveAssertion?: (edge: ChildEdge, assertion: ChildAssertion) => void;
 		onRemoveUnion?: (unionId: string) => void;
+		/** "Merge duplicate partnerships…", offered only for a partnership that has a twin. */
+		onMergeUnion?: (unionId: string) => void;
+		/** Chronological labels for repeated partnerships between the same people, by union id. */
+		partnershipLabels?: Map<string, PartnershipLabel>;
 		/** User dragged one person onto another. */
 		onDragRelate?: (relate: { source: PersonRef; target: PersonRef }) => void;
 		/** A "+N" stub was activated; the caller adds its id to the expanded set. */
@@ -96,6 +101,8 @@
 		onEndUnion,
 		onRemoveAssertion,
 		onRemoveUnion,
+		onMergeUnion,
+		partnershipLabels,
 		onDragRelate,
 		onExpandStub,
 		onCollapseStub
@@ -385,6 +392,9 @@
 		const items: MenuItem[] = [];
 		if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
 		if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(union.id) });
+		if (onMergeUnion && partnershipLabels?.has(union.id)) {
+			items.push({ label: 'Merge duplicate partnerships…', onClick: () => onMergeUnion(union.id) });
+		}
 		if (onRemoveUnion) items.push({ label: 'Delete partnership…', isDanger: true, onClick: () => onRemoveUnion(union.id) });
 		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
@@ -584,6 +594,7 @@
 					isEnded={isEndedUnion(union.union.status)}
 					isNonAdjacent={nonAdjacentIds.has(union.id)}
 					label={unionLabelText(union.union)}
+					ordinalTitle={partnershipLabels?.get(union.id)?.title}
 					onContextMenu={openUnionMenu}
 				/>
 			{/each}
@@ -630,6 +641,7 @@
 					isTabbable={tabbableUnionIds.has(union.id)}
 					partnerNames={union.union.partnerIds.map(nameOf).join(' and ')}
 					label={unionLabelText(union.union)}
+					ordinalTitle={partnershipLabels?.get(union.id)?.title}
 					onOpen={(u) => onEditUnion?.(u.id)}
 					onContextMenu={openUnionMenu}
 				/>

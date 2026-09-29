@@ -10,6 +10,7 @@
     UNION_STATUS_LABELS,
     type UnionEventType
   } from '#lib/shared/union-events.js';
+  import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
   import type { ChangeSummary, RelationshipGraphUnion } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -18,6 +19,8 @@
     treeId: string;
     /** The partnership being edited, as the graph has it now (with its version and events). */
     union: RelationshipGraphUnion | null;
+    /** Chronological label when the pair has several partnerships ("2nd partnership (m. 1990)"). */
+    label?: PartnershipLabel | null;
     /** Display name for a person id. */
     nameOf: (personId: string) => string;
     onclose: () => void;
@@ -26,7 +29,7 @@
     onrefresh: () => Promise<void>;
   }
 
-  let { show, treeId, union, nameOf, onclose, onsaved, onrefresh }: Props = $props();
+  let { show, treeId, union, label = null, nameOf, onclose, onsaved, onrefresh }: Props = $props();
 
   interface EventRow {
     key: number;
@@ -44,7 +47,11 @@
   let conflict = $state<ConflictError | null>(null);
   let addType = $state<UnionEventType | ''>('');
 
-  const title = $derived(union ? union.partnerIds.map(nameOf).join(' & ') || 'Partnership' : 'Partnership');
+  const title = $derived(
+    union
+      ? [union.partnerIds.map(nameOf).join(' & ') || 'Partnership', label?.full].filter(Boolean).join(' · ')
+      : 'Partnership'
+  );
   const unusedTypes = $derived(UNION_EVENT_TYPE_LIST.filter((t) => !rows.some((r) => r.type === t)));
 
   function load() {

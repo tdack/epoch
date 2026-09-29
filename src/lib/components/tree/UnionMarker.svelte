@@ -19,6 +19,8 @@
 		partnerNames?: string;
 		/** Label under the node: how the partnership began and ended. */
 		label?: string;
+		/** "2nd partnership" for a pair with several; read out and shown as a short "2nd" beside the dates. */
+		ordinalTitle?: string;
 		/** Click, Enter or Space: open the partnership editor. */
 		onOpen?: (union: PlacedUnion) => void;
 		/** Right-click; the handler is responsible for `preventDefault`. */
@@ -34,13 +36,15 @@
 		isTabbable = false,
 		partnerNames = '',
 		label = '',
+		ordinalTitle,
 		onOpen,
 		onContextMenu
 	}: Props = $props();
 
 	const R = LAYOUT_METRICS.unionRadius;
+	const shownLabel = $derived([ordinalTitle?.split(' ')[0], label].filter(Boolean).join(' · '));
 	const description = $derived(
-		`Partnership${partnerNames ? ` of ${partnerNames}` : ''}, ${union.union.status}${label ? `, ${label}` : ''}${isNonAdjacent ? ', shown below the row' : ''}`
+		`${ordinalTitle ? ordinalTitle.charAt(0).toUpperCase() + ordinalTitle.slice(1) : 'Partnership'}${partnerNames ? ` of ${partnerNames}` : ''}, ${union.union.status}${label ? `, ${label}` : ''}${isNonAdjacent ? ', shown below the row' : ''}`
 	);
 </script>
 
@@ -83,7 +87,7 @@
 		<line class="end-mark" x1={-R * 0.7} y1={R * 0.7} x2={R * 0.7} y2={-R * 0.7} />
 	{/if}
 </g>
-{#if label && level !== 'block'}
+{#if shownLabel && level !== 'block'}
 	<!-- A hanging node sits under the card row, with partner connectors arriving level with it on both
 	sides, so its label goes below and to the right where only the child edge's other side is free. -->
 	<text
@@ -92,7 +96,7 @@
 		y={union.isHanging ? union.y + R + 11 : union.y - LAYOUT_METRICS.cardHeight / 2 - 6}
 		text-anchor={union.isHanging ? 'start' : 'middle'}
 	>
-		{label}
+		{shownLabel}
 	</text>
 {/if}
 {/if}
