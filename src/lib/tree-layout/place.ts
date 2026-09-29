@@ -90,17 +90,20 @@ function arrangeChain(
 	ctx: Context,
 	anchorId: string,
 	unions: RelationshipGraphUnion[],
-	hint: 'left' | 'right'
+	hint: 'left' | 'right',
+	viaPartner: Map<string, string> = new Map()
 ): Chain {
 	const row = ctx.genOf.get(anchorId)!;
 	const inChain = new Set([anchorId]);
-	const newPartners = unions.map((union) => {
+	const freshPartners = (union: RelationshipGraphUnion) => {
 		const fresh = unique(union.partnerIds).filter(
 			(id) => !inChain.has(id) && !ctx.placed.has(id) && ctx.genOf.get(id) === row
 		);
 		for (const id of fresh) inChain.add(id);
 		return fresh;
-	});
+	};
+	const ownUnions = unions.filter((u) => !viaPartner.has(u.id));
+	const newPartners = ownUnions.map(freshPartners);
 	const coupleCount = newPartners.filter((p) => p.length > 0).length;
 	const left: string[] = [];
 	const right: string[] = [];
@@ -110,6 +113,16 @@ function arrangeChain(
 		const isLeft = coupleCount >= 2 ? seen === 0 : hint === 'left';
 		(isLeft ? left : right).push(...fresh);
 		seen++;
+	}
+	// A partner's other families extend the row outward from that partner, so the partner stays
+	// between their unions instead of the anchor being wedged between two strangers.
+	for (const union of unions) {
+		const owner = viaPartner.get(union.id);
+		if (owner === undefined) continue;
+		const fresh = freshPartners(union);
+		if (fresh.length === 0) continue;
+		if (left.includes(owner)) left.unshift(...fresh);
+		else right.push(...fresh);
 	}
 	const cards = [...left, anchorId, ...right];
 	for (const id of cards) ctx.placed.add(id);
@@ -125,6 +138,38 @@ function arrangeChain(
 			return { union, cardIdxs, hasMissingPartner };
 		})
 	};
+}
+
+/**
+ * The anchor's drawn unions plus, transitively, the other drawn unions of their partners, so a
+ * partner's own family is placed with the couple. Each extra union records the partner it
+ * belongs to.
+ */
+function chainUnions(ctx: Context, anchorId: string) {
+	const row = ctx.genOf.get(anchorId)!;
+	const drawn = (id: string) => (ctx.index.unionsOfPerson.get(id) ?? []).filter((u) => ctx.unionIds.has(u.id));
+	const unions = drawn(anchorId);
+	const seenUnions = new Set(unions.map((u) => u.id));
+	const viaPartner = new Map<string, string>();
+	const queue = unions.flatMap((u) => unique(u.partnerIds)).filter((id) => id !== anchorId);
+	const queued = new Set([anchorId, ...queue]);
+	while (queue.length > 0) {
+		const personId = queue.shift()!;
+		if (ctx.genOf.get(personId) !== row || ctx.placed.has(personId)) continue;
+		for (const union of drawn(personId)) {
+			if (seenUnions.has(union.id)) continue;
+			seenUnions.add(union.id);
+			unions.push(union);
+			viaPartner.set(union.id, personId);
+			for (const id of unique(union.partnerIds)) {
+				if (!queued.has(id)) {
+					queued.add(id);
+					queue.push(id);
+				}
+			}
+		}
+	}
+	return { unions, viaPartner };
 }
 
 /** Which unions sit between two adjacent cards; repeated unions past the first hang below. */
@@ -202,8 +247,8 @@ function claimChildren(ctx: Context, childIds: string[], row: number, edgeKey: (
 function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'right'): Sub {
 	const { m } = ctx;
 	const row = ctx.genOf.get(anchorId)!;
-	const drawnUnions = (ctx.index.unionsOfPerson.get(anchorId) ?? []).filter((u) => ctx.unionIds.has(u.id));
-	const chain = arrangeChain(ctx, anchorId, drawnUnions, hint);
+	const { unions: drawnUnions, viaPartner } = chainUnions(ctx, anchorId);
+	const chain = arrangeChain(ctx, anchorId, drawnUnions, hint, viaPartner);
 	const anchorIdx = chain.cards.indexOf(anchorId);
 	const placedUnions = classifyUnions(chain);
 

@@ -12,6 +12,7 @@ import {
 	LAYOUT_METRICS,
 	type FocusViewOptions,
 	type LayoutMetrics,
+	type PlacedCollapser,
 	type PlacedPerson,
 	type PlacedStub,
 	type PlacedUnion,
@@ -21,6 +22,7 @@ import {
 
 export * from './types.js';
 export { selectFocusSubgraph } from './select.js';
+export { filterParentChildTypes } from './filter.js';
 export { countCrossings, allContractViolations } from './contract.js';
 
 /** Distance below a card row at which a hanging union node sits. */
@@ -123,6 +125,24 @@ export function layoutFocusView(
 	unions.sort(byRowThenX);
 	stubs.sort(byRowThenX);
 
+	const placedPeople = new Map(people.map((p) => [p.id, p]));
+	const placedUnions = new Map(unions.map((u) => [u.id, u]));
+	const collapsers: PlacedCollapser[] = [];
+	for (const e of selection.expansions) {
+		const person = placedPeople.get(e.personId);
+		const union = e.unionId ? placedUnions.get(e.unionId) : undefined;
+		// Sits where the stub was: above the card for ancestors, below the union or card for children.
+		const at =
+			e.kind === 'ancestors' && person
+				? { x: person.x, y: person.y - m.cardHeight / 2 }
+				: union
+					? { x: union.x, y: union.y + m.unionRadius + 12 }
+					: person
+						? { x: person.x + m.cardWidth / 2 - 18, y: person.y + m.cardHeight / 2 }
+						: null;
+		if (at) collapsers.push({ ...e, x: clean(at.x), y: clean(at.y) });
+	}
+
 	const directLinks = graph.parentChild.filter((pc) => pc.unionId === null);
 	const edges = buildEdges(
 		index,
@@ -141,6 +161,7 @@ export function layoutFocusView(
 		people,
 		unions,
 		stubs,
+		collapsers,
 		edges,
 		collapsedPersonIds: selection.collapsedPersonIds,
 		nonAdjacentUnionIds: [...nonAdjacent].sort(),

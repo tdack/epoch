@@ -75,3 +75,20 @@ describe('isEndedUnionStatus', () => {
 		expect(isEndedUnionStatus('active')).toBe(false);
 	});
 });
+
+describe('person life dates', () => {
+	it('carries the original birth and death text, defaulting to null', () => {
+		const graph = buildRelationshipGraph({
+			people: [
+				{ id: 'a', givenName: 'Alex', surname: null, sex: 'M', isDeceased: true, birthDate: 'ABT 1900', deathDate: '3 MAR 1970' },
+				{ id: 'b', givenName: 'Bob', surname: null, sex: 'M', isDeceased: false }
+			],
+			unions: [],
+			parentChild: []
+		});
+		expect(graph.people.map((p) => [p.birthDate, p.deathDate])).toEqual([
+			['ABT 1900', '3 MAR 1970'],
+			[null, null]
+		]);
+	});
+});

@@ -64,6 +64,24 @@ const FAMILY_EVENT_TAGS = new Set([
  * Detect the GEDCOM version from the `GEDC.VERS` value in the header.
  * Defaults to 5.5.1 when the version cannot be determined.
  */
+/**
+ * Split a GEDCOM `NAME` value ("Given /Surname/ Suffix") into parts. A lazy-prefix regex here
+ * once matched an empty prefix and left the slashes inside the given name whenever the record
+ * had no GIVN/SURN children.
+ */
+export function parseGedcomNameValue(value: string): { givenName?: string; surname?: string } {
+  const open = value.indexOf('/');
+  const close = open === -1 ? -1 : value.indexOf('/', open + 1);
+  if (open === -1 || close === -1) {
+    // No complete surname delimiters; drop a stray slash rather than keep it in the name.
+    return { givenName: value.replace(/\//g, ' ').replace(/\s+/g, ' ').trim() || undefined };
+  }
+  const before = value.slice(0, open);
+  const after = value.slice(close + 1);
+  const given = `${before} ${after}`.replace(/\s+/g, ' ').trim();
+  return { givenName: given || undefined, surname: value.slice(open + 1, close).trim() || undefined };
+}
+
 export function detectGedcomVersion(rawContent: string): GedcomVersion {
   const lines = rawContent.split(/\r?\n/);
   let inGedc = false;
@@ -199,14 +217,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 
       for (const child of node.children) {
         if (child.tag === 'NAME' && child.value) {
-          // GEDCOM format: Given /Surname/
-          const slashMatch = child.value.match(/^(.*?)(?:\/([^/]*)\/)?(.*)$/);
-          if (slashMatch) {
-            givenName = (slashMatch[1] + (slashMatch[3] ? ' ' + slashMatch[3] : '')).trim() || undefined;
-            surname = slashMatch[2]?.trim() || undefined;
-          } else {
-            givenName = child.value.trim();
-          }
+          ({ givenName, surname } = parseGedcomNameValue(child.value));
           // Check child nodes for GIVN and SURN (present in both 5.5.1 and 7.0)
           const givn = child.children.find((c) => c.tag === 'GIVN');
           const surn = child.children.find((c) => c.tag === 'SURN');

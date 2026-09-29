@@ -5,7 +5,8 @@ import {
 	buildGedcom7String,
 	buildGedcomString,
 	detectGedcomVersion,
-	normalizeGedcomDate
+	normalizeGedcomDate,
+	parseGedcomNameValue
 } from './index';
 
 describe('GEDCOM 5.5.1 Parser and Serializer', () => {
@@ -213,4 +214,26 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
       expect(boundParamsPerChunk).toBeLessThanOrEqual(MAX_BOUND_PARAMS);
     }
   });
+});
+
+describe('GEDCOM NAME values', () => {
+	it.each([
+		['Alice /Walker/', 'Alice', 'Walker'],
+		['Alice Jane /Walker/ Jr', 'Alice Jane Jr', 'Walker'],
+		['/Walker/', undefined, 'Walker'],
+		['Alice //', 'Alice', undefined],
+		['Alice', 'Alice', undefined],
+		['Alice /Walker', 'Alice Walker', undefined]
+	])('splits %j', (value, givenName, surname) => {
+		expect(parseGedcomNameValue(value)).toEqual({ givenName, surname });
+	});
+
+	it('keeps slashes out of names on records without GIVN/SURN, and round-trips through export', () => {
+		const source = '0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Alice /Walker/\n1 SEX F\n0 TRLR';
+		const parsed = parseGedcom(source);
+		expect(parsed.individuals[0]).toMatchObject({ givenName: 'Alice', surname: 'Walker' });
+
+		const reparsed = parseGedcom(buildGedcom551String({ individuals: parsed.individuals, families: parsed.families } as never));
+		expect(reparsed.individuals[0]).toMatchObject({ givenName: 'Alice', surname: 'Walker' });
+	});
 });

@@ -21,18 +21,32 @@ export interface FocusViewOptions {
 	descendantDepth?: number;
 	/** Show the focus person's siblings (other children of their parent unions). Default true. */
 	shouldIncludeSiblings?: boolean;
+	/**
+	 * Draw the other families of every drawn partner (a partner's children with someone else, the
+	 * focus person's step-children) instead of a "+N" stub. Default false.
+	 */
+	shouldIncludeStepFamilies?: boolean;
+	/**
+	 * Stub ids to expand in place. Each raises the depth limit by one generation for that branch
+	 * only; ids that are not at a limit are ignored.
+	 */
+	expandedStubIds?: string[];
 }
 
 export interface ResolvedFocusOptions {
 	ancestorDepth: number;
 	descendantDepth: number;
 	shouldIncludeSiblings: boolean;
+	shouldIncludeStepFamilies: boolean;
+	expandedStubIds: string[];
 }
 
 export const DEFAULT_FOCUS_OPTIONS: ResolvedFocusOptions = {
 	ancestorDepth: 3,
 	descendantDepth: 3,
-	shouldIncludeSiblings: true
+	shouldIncludeSiblings: true,
+	shouldIncludeStepFamilies: false,
+	expandedStubIds: []
 };
 
 // ---- Selection (which people and unions are drawn) ----
@@ -79,12 +93,22 @@ export interface SelectionStub {
 	generation: number;
 }
 
+/** A stub that was expanded and now shows its relatives; the canvas offers a way to collapse it. */
+export interface SelectionExpansion {
+	stubId: string;
+	kind: StubKind;
+	personId: string;
+	unionId: string | null;
+}
+
 export interface FocusSelection {
 	focusPersonId: string;
 	options: ResolvedFocusOptions;
 	people: SelectedPerson[];
 	unions: SelectedUnion[];
 	stubs: SelectionStub[];
+	/** Expanded stubs that revealed someone, in the order they were applied. */
+	expansions: SelectionExpansion[];
 	/** People reached by more than one path (pedigree collapse or a child in two drawn unions). */
 	collapsedPersonIds: string[];
 }
@@ -124,6 +148,14 @@ export interface PlacedStub extends Point {
 }
 
 // ---- Edges ----
+
+/** Where the canvas draws the control that collapses an expanded stub. */
+export interface PlacedCollapser extends Point {
+	stubId: string;
+	kind: StubKind;
+	personId: string;
+	unionId: string | null;
+}
 
 export interface EdgeBase {
 	id: string;
@@ -172,6 +204,7 @@ export interface TreeLayout {
 	people: PlacedPerson[];
 	unions: PlacedUnion[];
 	stubs: PlacedStub[];
+	collapsers: PlacedCollapser[];
 	edges: LayoutEdge[];
 	collapsedPersonIds: string[];
 	/** Drawn unions whose partners could not all sit adjacent on one row. */
@@ -210,6 +243,7 @@ export const EMPTY_LAYOUT: TreeLayout = {
 	people: [],
 	unions: [],
 	stubs: [],
+	collapsers: [],
 	edges: [],
 	collapsedPersonIds: [],
 	nonAdjacentUnionIds: [],
