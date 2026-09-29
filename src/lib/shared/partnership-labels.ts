@@ -1,7 +1,8 @@
 /**
  * Chronological labels for repeated partnerships between the same people: "1st partnership",
  * "2nd partnership", with dates where known. Repetition then reads as intentional (a divorce and a
- * remarriage) instead of as a rendering fault. A pair with one partnership gets no label.
+ * remarriage) instead of as a rendering fault. A pair with one partnership gets no label, and neither
+ * does a partnership with a single recorded partner.
  *
  * Browser-safe: the drawer, the editor title, the canvas and the server's previews all use it.
  */
@@ -39,7 +40,7 @@ const SUMMARY_START = [UNION_EVENT_TYPES.MARRIAGE, UNION_EVENT_TYPES.PARTNERSHIP
 const SUMMARY_END = [UNION_EVENT_TYPES.DIVORCE, UNION_EVENT_TYPES.ANNULMENT, UNION_EVENT_TYPES.SEPARATION] as string[];
 
 /** The earliest sort key among the events that begin a partnership; null when none is dated. */
-function startSort(union: LabelableUnion): string | null {
+export function startSort(union: LabelableUnion): string | null {
 	const keys = (union.events ?? [])
 		.filter((e) => START_TYPES.includes(e.type) && e.dateSort)
 		.map((e) => e.dateSort!)
@@ -72,7 +73,9 @@ export function datesOf(union: LabelableUnion): string | null {
 export function partnershipLabels(unions: LabelableUnion[]): Map<string, PartnershipLabel> {
 	const groups = new Map<string, LabelableUnion[]>();
 	for (const union of unions) {
-		if (union.partnerIds.length === 0) continue;
+		// One recorded partner says nothing about who the other was, so two such records are not
+		// "the same pair" and no chronology is claimed for them.
+		if (union.partnerIds.length < 2) continue;
 		const key = partnerSetKey(union.partnerIds);
 		groups.set(key, [...(groups.get(key) ?? []), union]);
 	}

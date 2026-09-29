@@ -42,12 +42,15 @@ describe('partnershipLabels', () => {
 		expect(positions([...unions].reverse())).toEqual(['dated:1', 'y:2', 'z:3']);
 	});
 
-	it('does not label people with different partner sets, and ignores partnerships with no partners', () => {
+	it('does not label people with different partner sets, and ignores partnerships with fewer than two partners', () => {
 		const labels = partnershipLabels([
 			{ id: 'u1', partnerIds: ['a', 'b'] },
 			{ id: 'u2', partnerIds: ['a', 'c'] },
 			{ id: 'e1', partnerIds: [] },
-			{ id: 'e2', partnerIds: [] }
+			{ id: 'e2', partnerIds: [] },
+			// Two one-partner records are not known to be the same pair.
+			{ id: 's1', partnerIds: ['a'] },
+			{ id: 's2', partnerIds: ['a'] }
 		]);
 		expect(labels.size).toBe(0);
 	});

@@ -57,11 +57,18 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 	);
 
 	const person = (id: string) => personName(people.get(id));
-	const union = (id: string) => {
+	const nameOfUnion = (id: string) => {
 		const members = (partnersByUnion.get(id) ?? []).sort((a, b) => a.order - b.order).map((p) => person(p.personId));
-		const name = members.length > 0 ? `${members.join('–')} partnership` : 'partnership';
+		return members.length > 0 ? `${members.join('–')} partnership` : 'partnership';
+	};
+	// Records with a single partner have no chronology, but two of them still share a name; number them.
+	const sameName = new Map<string, string[]>();
+	for (const u of known.unions) sameName.set(nameOfUnion(u.id), [...(sameName.get(nameOfUnion(u.id)) ?? []), u.id]);
+	const union = (id: string) => {
+		const name = nameOfUnion(id);
 		const label = chronology.get(id);
-		if (!label) return name;
+		const twins = (sameName.get(name) ?? []).sort();
+		if (!label) return twins.length > 1 ? `${name} (${twins.indexOf(id) + 1} of ${twins.length})` : name;
 		return `${name} (${ordinalOf(label.position)} of ${label.total}${label.dates ? `, ${label.dates}` : ''})`;
 	};
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import type { RelationshipGraphUnion } from '#lib/server/domain/relationship-graph.js';
-import { defaultSurvivor, mergeCandidatesFor } from './merge-candidates.js';
+import { defaultSurvivor, mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 
 const union = (id: string, partnerIds: string[], childIds: string[] = [], date?: string): RelationshipGraphUnion => ({
 	id,
@@ -32,6 +32,23 @@ describe('mergeCandidatesFor', () => {
 	it('is empty for a partnership with no twin', () => {
 		expect(mergeCandidatesFor(unions, 'other', labels)).toEqual([]);
 		expect(mergeCandidatesFor(unions, 'missing', labels)).toEqual([]);
+	});
+});
+
+describe('one-partner partnerships', () => {
+	const unions = [union('s2', ['a'], ['k2']), union('s1', ['a'], ['k1']), union('full', ['a', 'b'])];
+	const labels = partnershipLabels(unions);
+
+	it('claim no chronology, but can still be merged, told apart by number', () => {
+		expect(labels.size).toBe(0);
+		expect(mergeCandidatesFor(unions, 's1', labels).map((c) => [c.id, c.title])).toEqual([
+			['s1', 'Partnership 1 of 2'],
+			['s2', 'Partnership 2 of 2']
+		]);
+	});
+
+	it('lists every union that has a twin, and only those', () => {
+		expect([...mergeableUnionIds(unions)].sort()).toEqual(['s1', 's2']);
 	});
 });
 
