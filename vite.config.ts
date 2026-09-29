@@ -23,7 +23,7 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: 'server',
-					exclude: [...defaultExclude, 'e2e/**', 'src/**/*.component.test.ts']
+					exclude: [...defaultExclude, 'e2e/**', 'src/**/*.component.test.{ts,svelte.ts}']
 				}
 			},
 			{
@@ -32,7 +32,7 @@ export default defineConfig({
 				test: {
 					name: 'components',
 					environment: 'jsdom',
-					include: ['src/**/*.component.test.ts']
+					include: ['src/**/*.component.test.{ts,svelte.ts}']
 				}
 			}
 		]

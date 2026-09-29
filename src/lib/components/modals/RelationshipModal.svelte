@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { UserPlus, Baby, Heart, Search, Sparkles, Cross, HeartCrack } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
   import ConflictDialog from './ConflictDialog.svelte';
@@ -115,7 +116,10 @@
 
   const anchorPerson = $derived(graph.people.find((p) => p.id === anchor.id));
   const anchorUnions = $derived(graph.unions.filter((u) => u.partnerIds.includes(anchor.id)));
-  const chosenUnion = $derived(anchorUnions.find((u) => u.id === chosenUnionId) ?? null);
+  // With one partnership there is nothing to choose, and the graph may still be reloading when the
+  // dialog opens, so the single one is derived rather than copied in at open time.
+  const effectiveUnionId = $derived(chosenUnionId ?? (anchorUnions.length === 1 ? anchorUnions[0].id : null));
+  const chosenUnion = $derived(anchorUnions.find((u) => u.id === effectiveUnionId) ?? null);
   const nameOf = (id: string) => graph.people.find((p) => p.id === id)?.displayName ?? id;
   const unionLabels = $derived(partnershipLabels(graph.unions));
 
@@ -179,9 +183,9 @@
     useNewPerson = false;
     deathDate = anchorPerson?.deathDate ?? '';
     deathPlace = '';
-    // With one partnership there is nothing to choose; with several the person must pick, never a default.
+    // With several partnerships the person must pick, never a default.
     unionOverride = undefined;
-    chosenUnionId = initialUnionId ?? (anchorUnions.length === 1 ? anchorUnions[0].id : null);
+    chosenUnionId = initialUnionId;
     endStatus = 'divorced';
     endEventType = 'DIV';
     endDate = '';
@@ -191,8 +195,10 @@
     conflict = null;
   }
 
+  // Reset only when the dialog opens. Reading the graph inside `reset` must not make it re-run: the
+  // graph reloads after every save, and a late reload would wipe what the person has typed.
   $effect(() => {
-    if (show) reset();
+    if (show) untrack(reset);
   });
 
   function pickStatus(status: EndedUnionStatus) {
@@ -497,8 +503,8 @@
         <fieldset class="space-y-1.5">
           <legend class="text-xs font-semibold text-stone-700">Which partnership</legend>
           {#each anchorUnions as union (union.id)}
-            <label class="flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-sm {chosenUnionId === union.id ? 'border-emerald-400 bg-emerald-50' : 'border-stone-200 bg-white'}">
-              <input type="radio" name="end-union" value={union.id} bind:group={chosenUnionId} class="mt-1" />
+            <label class="flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-sm {effectiveUnionId === union.id ? 'border-emerald-400 bg-emerald-50' : 'border-stone-200 bg-white'}">
+              <input type="radio" name="end-union" value={union.id} checked={effectiveUnionId === union.id} onchange={() => (chosenUnionId = union.id)} class="mt-1" />
               <span>
                 {partnersLabel(union)}
                 <span class="block text-xs text-stone-500">
