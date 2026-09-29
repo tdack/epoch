@@ -20,11 +20,22 @@ export interface ImpactPerson {
 	role: ImpactPersonRole;
 }
 
+/** A record that stays and is regrouped under another partnership: shown as a move, not an edit. */
+export interface ImpactMove {
+	entityType: 'link' | 'event';
+	entityId: string;
+	label: string;
+	from: string;
+	to: string;
+}
+
 export interface ImpactSummary {
 	/** One line: what is being done. */
 	headline: string;
 	/** Every record written, in the order a person would read them. */
 	records: RecordChange[];
+	/** Links and events that change partnership, so a merge reads "moved from X to Y". */
+	moves: ImpactMove[];
 	/** People deleted or created by the change, and people whose relationships or events change. */
 	people: ImpactPerson[];
 	/** True when the change deletes any record. */
@@ -82,9 +93,30 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 	}
 	const people = [...roles].map(([id, role]) => ({ id, name: names.get(id) ?? 'Unknown', role }));
 
+	const unionLabel = (id: unknown) => (typeof id === 'string' ? labeler('unions', { id }) : 'no partnership');
+	const moves: ImpactMove[] = [];
+	for (const op of ops) {
+		if (!op.before || !op.after) continue;
+		const [from, to] =
+			op.table === 'parent_child'
+				? [op.before.unionId, op.after.unionId]
+				: op.table === 'events' && op.before.entityType === 'FAMILY'
+					? [op.before.entityId, op.after.entityId]
+					: [null, null];
+		if (from === to) continue;
+		moves.push({
+			entityType: op.table === 'events' ? 'event' : 'link',
+			entityId: op.id,
+			label: labeler(op.table, op.after),
+			from: unionLabel(from),
+			to: unionLabel(to)
+		});
+	}
+
 	return {
 		headline,
 		records,
+		moves,
 		people,
 		isDestructive: records.some((r) => r.action === 'deleted')
 	};

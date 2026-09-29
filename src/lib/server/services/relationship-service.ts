@@ -14,6 +14,8 @@ import { graphFromRows } from '../domain/relationship-graph';
 import { planRelationshipCommand, type RelationshipCommand, type RelationshipPlan } from '../domain/relationship-commands';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { TreeRows } from '../domain/change-log';
+import { mergeConflictsOf } from '../domain/tree-ops';
+import { unresolvedConflicts, type MergeConflict } from '../../shared/union-merge';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 
 /** A plan plus the exact records it would write. */
@@ -28,6 +30,15 @@ export type RemovalCommand = Extract<
 	RelationshipCommand,
 	{ kind: 'remove_parent_child' | 'remove_partner_from_union' | 'destroy_union' | 'delete_person' }
 >;
+
+export type MergeUnionsCommand = Extract<RelationshipCommand, { kind: 'merge_unions' }>;
+
+/** What a merge would do: every conflict, and the records it would write once none is left open. */
+export interface MergePreview {
+	conflicts: MergeConflict[];
+	/** Null while any conflict has no choice; the dialog asks first. */
+	impact: ImpactSummary | null;
+}
 
 export class RelationshipService {
 	private repo: RelationshipRepository;
@@ -103,6 +114,24 @@ export class RelationshipService {
 	): Promise<MutationResult> {
 		return this.runner.run(treeId, context, {
 			kind: 'update_union',
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command]
+		});
+	}
+
+	/** Preview a merge without writing. Open conflicts come back as data, not as an error. */
+	async previewMerge(treeId: string, command: MergeUnionsCommand, context: AuthenticatedContext): Promise<MergePreview> {
+		await this.runner.requireAccess(treeId, context, 'tree:view');
+		const rows = await this.runner.store.loadRows(treeId);
+		const conflicts = mergeConflictsOf(rows, [command.survivorId, ...command.mergedIds]);
+		if (unresolvedConflicts(conflicts, command.keep).length > 0) return { conflicts, impact: null };
+		return { conflicts, impact: describeImpact(describeCommand(command, rows), rows, this.runner.plan(treeId, rows, [command])) };
+	}
+
+	/** Merge partnerships between the same people into one. Refuses while a conflict has no choice. */
+	async mergeUnions(treeId: string, command: MergeUnionsCommand, context: AuthenticatedContext): Promise<MutationResult> {
+		return this.runner.run(treeId, context, {
+			kind: 'merge_unions',
 			summary: (rows) => describeCommand(command, rows),
 			commands: [command]
 		});

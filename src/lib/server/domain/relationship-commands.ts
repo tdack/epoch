@@ -15,6 +15,7 @@ import {
 	type SentenceFacts
 } from './relationship-sentence';
 import { asParentChild, deceasedIdsOf, partnerIdsOf, unionIdsOf, personName } from './tree-ops';
+import type { MergeChoices } from '../../shared/union-merge';
 import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
 import { newWidowhoods } from '../../shared/widowhood';
 
@@ -76,7 +77,18 @@ export type RelationshipCommand =
 			events?: UnionEventInput[];
 	  }
 	| { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
-	| { kind: 'destroy_union'; unionId: string; expectedVersion?: number };
+	| { kind: 'destroy_union'; unionId: string; expectedVersion?: number }
+	| {
+			kind: 'merge_unions';
+			/** The union that remains; its XREF stays the primary one. */
+			survivorId: string;
+			/** The unions folded into it and deleted. */
+			mergedIds: string[];
+			/** Version each involved union was loaded at, keyed by union id. */
+			expectedVersions?: Record<string, number>;
+			/** Which union's value to keep wherever the unions disagree. */
+			keep?: MergeChoices;
+	  };
 
 export interface PlanWarning {
 	code:

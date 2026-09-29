@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'CONCURRENCY_CONFLICT'
   | 'UNDO_REFUSED'
+  | 'UNION_MERGE_CONFLICT'
   | 'INTERNAL_ERROR'
   | 'BAD_REQUEST';
 
@@ -62,5 +63,13 @@ export class UndoRefusedError extends DomainError {
   constructor(message: string, reason: string, status = 409) {
     super(message, 'UNDO_REFUSED', status, { reason });
     this.name = 'UndoRefusedError';
+  }
+}
+
+/** A merge would have to pick between two different facts; `details.conflicts` lists every one. */
+export class UnionMergeConflictError extends DomainError {
+  constructor(message: string, conflicts: unknown[]) {
+    super(message, 'UNION_MERGE_CONFLICT', 409, { reason: 'MERGE_CONFLICT', conflicts });
+    this.name = 'UnionMergeConflictError';
   }
 }

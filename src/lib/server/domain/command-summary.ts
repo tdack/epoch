@@ -47,6 +47,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Recorded ${partnershipOf(rows, command.unionId)} as ${command.status}`;
 		case 'update_union':
 			return `Updated ${partnershipOf(rows, command.unionId)}`;
+		case 'merge_unions':
+			return `Merged ${command.mergedIds.length + 1} partnerships into ${partnershipOf(rows, command.survivorId)}`;
 	}
 }
 

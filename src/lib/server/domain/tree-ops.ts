@@ -21,10 +21,19 @@ import {
 } from './change-log';
 import { parseDateValue } from './date-value';
 import { personName } from '../../shared/person-name';
-import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
+import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { validateParentChildAssertion } from './invariants';
 import type { RelationshipCommand } from './relationship-commands';
+import {
+	factKey,
+	findMergeConflicts,
+	partnerSetKey,
+	unresolvedConflicts,
+	type MergeConflict,
+	type MergeFact,
+	type MergeableUnion
+} from '../../shared/union-merge';
 import {
 	ENDED_UNION_STATUSES,
 	isUnionEventType,
@@ -509,6 +518,106 @@ function updateUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	return [{ table: 'unions', id: union.id, before: union, after: touch({ ...union, status }, ctx) }, ...eventOps];
 }
 
+/** The union's facts in the shape the merge rules compare. */
+export function mergeableUnion(rows: TreeRows, union: UnionRow): MergeableUnion {
+	return {
+		id: union.id,
+		status: union.status,
+		facts: eventsOf(rows, 'FAMILY', union.id).map(
+			(e): MergeFact => ({ type: e.type, dateText: e.dateRaw, place: e.place, description: e.description })
+		)
+	};
+}
+
+/** Every disagreement between these unions, before any choice is applied. */
+export function mergeConflictsOf(rows: TreeRows, unionIds: string[]): MergeConflict[] {
+	return findMergeConflicts(unionIds.map((id) => mergeableUnion(rows, requireUnion(rows, id))));
+}
+
+/** Other unions with exactly this union's partners: the candidates for merging it into one. */
+export function samePartnerUnionIds(rows: TreeRows, unionId: string): string[] {
+	const key = partnerSetKey(partnerIdsOf(rows, unionId));
+	if (!key) return [];
+	return rows.unions.filter((u) => u.id !== unionId && partnerSetKey(partnerIdsOf(rows, u.id)) === key).map((u) => u.id);
+}
+
+/** An imported union's id is `<treeId>:<xref>`; anything else was never known by an XREF. */
+function xrefOf(treeId: string, unionId: string): string | null {
+	const prefix = `${treeId}:`;
+	return unionId.startsWith(prefix) ? unionId.slice(prefix.length) : null;
+}
+
+function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'merge_unions' }>): RowOp[] {
+	const mergedIds = [...new Set(command.mergedIds)].filter((id) => id !== command.survivorId);
+	if (mergedIds.length === 0) throw new ValidationError('Choose at least two partnerships to merge');
+
+	const survivor = requireUnion(rows, command.survivorId);
+	const merged = mergedIds.map((id) => requireUnion(rows, id));
+	const involved = [survivor, ...merged];
+	for (const union of involved) checkUnionVersion(rows, union, command.expectedVersions?.[union.id]);
+
+	const key = partnerSetKey(partnerIdsOf(rows, survivor.id));
+	if (!key || involved.some((u) => partnerSetKey(partnerIdsOf(rows, u.id)) !== key)) {
+		throw new ValidationError('Only partnerships between exactly the same people can be merged');
+	}
+
+	// Never pick between two different facts on the person's behalf.
+	const conflicts = mergeConflictsOf(rows, involved.map((u) => u.id));
+	const unresolved = unresolvedConflicts(conflicts, command.keep);
+	if (unresolved.length > 0) {
+		throw new UnionMergeConflictError('These partnerships record different facts; choose which to keep for each.', unresolved);
+	}
+	const keptStatusFrom = command.keep?.status ? requireUnion(rows, command.keep.status) : survivor;
+
+	const ops: RowOp[] = [];
+	const mergedSet = new Set(mergedIds);
+
+	// Events: the survivor's stay; a merged union's move over unless the survivor already states the
+	// same fact, or a conflict was settled in favour of another union.
+	const chosenFor = (type: string) => command.keep?.events?.[type];
+	const seen = new Set<string>();
+	for (const union of involved) {
+		for (const event of eventsOf(rows, 'FAMILY', union.id)) {
+			const chosen = conflicts.some((c) => c.kind === 'event' && c.eventType === event.type) ? chosenFor(event.type) : undefined;
+			const isLoser = chosen !== undefined && chosen !== union.id;
+			const factSeen = seen.has(factKey({ type: event.type, dateText: event.dateRaw, place: event.place, description: event.description }));
+			if (isLoser || (union.id !== survivor.id && factSeen)) {
+				ops.push({ table: 'events', id: event.id, before: event, after: null });
+				continue;
+			}
+			seen.add(factKey({ type: event.type, dateText: event.dateRaw, place: event.place, description: event.description }));
+			if (union.id !== survivor.id) {
+				ops.push({ table: 'events', id: event.id, before: event, after: touch({ ...event, entityId: survivor.id }, ctx) });
+			}
+		}
+	}
+
+	// Parentage is a fact about parent and child, so every link is kept and only regrouped.
+	for (const link of rows.parentChild.filter((l) => l.unionId !== null && mergedSet.has(l.unionId))) {
+		ops.push({ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, unionId: survivor.id }, ctx) });
+	}
+
+	// The partner rows repeat the survivor's, and (union, person) is unique, so they are deleted, not moved.
+	for (const partner of rows.unionPartners.filter((p) => mergedSet.has(p.unionId))) {
+		ops.push({ table: 'union_partners', id: partner.id, before: partner, after: null });
+	}
+
+	const aliases = [...(survivor.xrefAliases ?? [])];
+	for (const union of merged) {
+		for (const alias of [xrefOf(ctx.treeId, union.id), ...(union.xrefAliases ?? [])]) {
+			if (alias && alias !== xrefOf(ctx.treeId, survivor.id) && !aliases.includes(alias)) aliases.push(alias);
+		}
+		ops.push({ table: 'unions', id: union.id, before: union, after: null });
+	}
+	ops.push({
+		table: 'unions',
+		id: survivor.id,
+		before: survivor,
+		after: touch({ ...survivor, status: keptStatusFrom.status, xrefAliases: aliases.length > 0 ? aliases : null }, ctx)
+	});
+	return ops;
+}
+
 /** Ops for one command against the tree as it currently is. */
 export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext): RowOp[] {
 	switch (command.kind) {
@@ -536,6 +645,8 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 			return endUnion(rows, ctx, command);
 		case 'update_union':
 			return updateUnion(rows, ctx, command);
+		case 'merge_unions':
+			return mergeUnions(rows, ctx, command);
 	}
 }
 
