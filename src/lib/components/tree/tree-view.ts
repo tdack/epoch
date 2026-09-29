@@ -84,10 +84,12 @@ export function unionLabelText(union: RelationshipGraphUnion): string {
 	return [begin, ending].filter(Boolean).join(' – ');
 }
 
-export const SEX_SYMBOLS = { M: '♂', F: '♀', neutral: '○' } as const;
+export const SEX_SYMBOLS = { M: '♂', F: '♀', X: '⚧', neutral: '○' } as const;
 
 export function sexSymbol(sex: PlacedPerson['person']['sex']): string {
-	return sex === 'M' ? SEX_SYMBOLS.M : sex === 'F' ? SEX_SYMBOLS.F : SEX_SYMBOLS.neutral;
+	if (sex === 'M') return SEX_SYMBOLS.M;
+	if (sex === 'F') return SEX_SYMBOLS.F;
+	return sex === 'X' ? SEX_SYMBOLS.X : SEX_SYMBOLS.neutral;
 }
 
 export function sexClass(sex: PlacedPerson['person']['sex']): 'm' | 'f' | 'u' {

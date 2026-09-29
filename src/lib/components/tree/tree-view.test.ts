@@ -15,6 +15,8 @@ import {
 	partnerEdgePath,
 	generationLabel,
 	relationLabel,
+	sexClass,
+	sexSymbol,
 	surnameInitial,
 	yearsLine,
 	unionLabelText
@@ -71,6 +73,17 @@ describe('card text', () => {
 	it('takes the surname initial from the last word', () => {
 		expect(surnameInitial('Jessica Louise Lovejoy')).toBe('L');
 		expect(surnameInitial('  cher ')).toBe('C');
+	});
+});
+
+describe('sex symbols', () => {
+	it('gives X its own symbol and leaves unknown neutral, on the same neutral fill', () => {
+		expect(sexSymbol('M')).toBe('♂');
+		expect(sexSymbol('F')).toBe('♀');
+		expect(sexSymbol('X')).toBe('⚧');
+		expect(sexSymbol('U')).toBe('○');
+		expect(sexSymbol(null)).toBe('○');
+		expect(sexClass('X')).toBe('u');
 	});
 });
 

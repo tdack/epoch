@@ -4,7 +4,8 @@ import {
 	buildGedcom7String,
 	buildGedcom551String,
 	buildGedcomString,
-	detectGedcomVersion
+	detectGedcomVersion,
+	SEX_X_TAG
 } from './index';
 import {
 	REPRESENTATIVE_GEDCOM_7_FIXTURE,
@@ -156,5 +157,42 @@ describe('GEDCOM 7.0 support', () => {
 		});
 		expect(generated).toContain('2 VERS 5.5.1');
 		expect(generated).toContain('1 CHAR UTF-8');
+	});
+});
+/** Parse a file and hand its people back as an export payload, without families. */
+function dataOf(ged: string) {
+	return {
+		treeName: 'T',
+		individuals: parseGedcom(ged).individuals.map((ind) => ({
+			id: ind.id,
+			givenName: ind.givenName || null,
+			surname: ind.surname || null,
+			sex: ind.sex || null,
+			events: [],
+			famc: [],
+			fams: []
+		})),
+		families: []
+	};
+}
+
+describe('sex X (ADR-010)', () => {
+	const ged = ['0 HEAD', '0 @I1@ INDI', '1 NAME Sam /Xu/', '1 SEX X', '0 @I2@ INDI', '1 NAME Una /Known/', '1 SEX U', '0 TRLR'].join('\n');
+
+	it('is parsed as X and never collapsed to U', () => {
+		expect(parseGedcom(ged).individuals.map((i) => i.sex)).toEqual(['X', 'U']);
+	});
+
+	it('is written as X in 7.0', () => {
+		const out = buildGedcom7String(dataOf(ged));
+		expect(out).toContain('1 SEX X');
+		expect(out).not.toContain(SEX_X_TAG);
+	});
+
+	it('is written as U plus a custom line in 5.5.1, and read back as X', () => {
+		const out = buildGedcom551String(dataOf(ged));
+		expect(out).not.toMatch(/^1 SEX X$/m);
+		expect(out).toContain(`1 SEX U\r\n1 ${SEX_X_TAG} X`);
+		expect(parseGedcom(out).individuals.map((i) => i.sex)).toEqual(['X', 'U']);
 	});
 });

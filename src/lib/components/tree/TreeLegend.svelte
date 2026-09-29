@@ -5,7 +5,8 @@
 	const sexes = [
 		{ name: 'Male', cls: 'm', symbol: SEX_SYMBOLS.M },
 		{ name: 'Female', cls: 'f', symbol: SEX_SYMBOLS.F },
-		{ name: 'Other or unknown', cls: 'u', symbol: SEX_SYMBOLS.neutral }
+		{ name: 'Other', cls: 'u', symbol: SEX_SYMBOLS.X },
+		{ name: 'Unknown', cls: 'u', symbol: SEX_SYMBOLS.neutral }
 	];
 </script>
 

@@ -1,3 +1,4 @@
+import type { Sex } from '../../shared/sex';
 export interface DateRepresentation {
   raw: string;
   sortStart?: string | null;
@@ -11,7 +12,7 @@ export interface IndividualRecord {
   xrefId?: string | null;
   givenName?: string | null;
   surname?: string | null;
-  sex: 'M' | 'F' | 'U';
+  sex: Sex;
   version: number;
   createdAt: Date;
   updatedAt: Date;

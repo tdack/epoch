@@ -1,4 +1,5 @@
 import { parseDateValue } from '../domain/date-value';
+import type { Sex } from '../../shared/sex';
 
 export type GedcomVersion = '5.5.1' | '7.0';
 
@@ -25,11 +26,14 @@ export const FAMILY_ALIAS_REFN_TYPE = 'epoch-merged-family';
 /** Epoch's per-parent pedigree under `FAMC`; standard `PEDI` cannot differ between two parents. */
 export const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
 
+/** Carries an `X` sex through a GEDCOM 5.5.1 export, whose `SEX` cannot hold it (ADR-010). */
+export const SEX_X_TAG = '_EPOCH_SEX';
+
 export interface ParsedIndividual {
   id: string; // e.g. @I1@ or I1
   givenName?: string;
   surname?: string;
-  sex?: 'M' | 'F' | 'X' | 'U';
+  sex?: Sex;
   famc?: string[]; // Family where person is child
   famcLinks?: ParsedFamcLink[];
   fams?: string[]; // Family where person is spouse
@@ -240,7 +244,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       const id = node.xref || crypto.randomUUID();
       let givenName: string | undefined;
       let surname: string | undefined;
-      let sex: 'M' | 'F' | 'X' | 'U' = 'U';
+      let sex: Sex = 'U';
+      let isSexXFallback = false;
       const famc: string[] = [];
       const famcLinks: ParsedFamcLink[] = [];
       const fams: string[] = [];
@@ -258,6 +263,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
           const val = child.value?.toUpperCase().trim();
           if (val === 'M' || val === 'F' || val === 'X') sex = val;
           else sex = 'U';
+        } else if (child.tag === SEX_X_TAG && child.value?.trim().toUpperCase() === 'X') {
+          isSexXFallback = true;
         } else if (child.tag === 'FAMC' && child.value) {
           const familyId = child.value.trim();
           famc.push(familyId);
@@ -298,7 +305,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         id,
         givenName,
         surname,
-        sex,
+        // A 5.5.1 export cannot say X, so it writes U and `_EPOCH_SEX X`; put the X back.
+        sex: sex === 'U' && isSexXFallback ? 'X' : sex,
         famc,
         famcLinks,
         fams,
@@ -513,7 +521,11 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
     lines.push(`1 NAME ${given} /${sur}/`.trim());
     if (given) lines.push(`2 GIVN ${given}`);
     if (sur) lines.push(`2 SURN ${sur}`);
-    if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
+    // 5.5.1 has no X. U is the honest standard value, and the custom line lets Epoch read X back.
+    if (ind.sex === 'X') {
+      lines.push('1 SEX U');
+      lines.push(`1 ${SEX_X_TAG} X`);
+    } else if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
 
     if (ind.events) {
       for (const ev of ind.events) {

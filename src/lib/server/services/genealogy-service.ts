@@ -9,6 +9,7 @@ import { describeCommand } from '../domain/command-summary';
 import type { ImpactSummary } from '../domain/impact';
 import { describeImpact } from '../domain/impact';
 import { MutationRunner, type MutationClock } from './mutation-runner';
+import type { Sex } from '../../shared/sex';
 
 export class GenealogyService {
   private treeRepo: TreeRepository;
@@ -66,7 +67,7 @@ export class GenealogyService {
     data: {
       givenName?: string | null;
       surname?: string | null;
-      sex?: 'M' | 'F' | 'U';
+      sex?: Sex;
       birthDate?: string | null;
       birthPlace?: string | null;
       deathDate?: string | null;
@@ -96,7 +97,7 @@ export class GenealogyService {
     data: {
       givenName?: string | null;
       surname?: string | null;
-      sex?: 'M' | 'F' | 'U';
+      sex?: Sex;
       birthDate?: string | null;
       birthPlace?: string | null;
       deathDate?: string | null;

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross } from 'lucide-svelte';
+  import { sexLabel } from '#lib/shared/sex.js';
   import { widowhoods } from '#lib/shared/widowhood.js';
   import { startSort, type PartnershipLabel } from '#lib/shared/partnership-labels.js';
   import type {
@@ -198,7 +199,7 @@
           </div>
         {/if}
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-stone-800">Sex: <span class="font-normal text-stone-600">{person.sex === 'M' ? 'Male' : person.sex === 'F' ? 'Female' : 'Unknown'}</span></p>
+          <p class="text-sm font-semibold text-stone-800">Sex: <span class="font-normal text-stone-600">{sexLabel(person.sex)}</span></p>
           {#if person.dates}
             <p class="text-xs text-stone-500 mt-1">{person.dates}</p>
           {/if}

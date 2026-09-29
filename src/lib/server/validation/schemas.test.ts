@@ -46,6 +46,11 @@ describe('transport validation schemas', () => {
 		expect(treeCreateSchema.safeParse({ name: '  Simpsons  ' }).success).toBe(true);
 	});
 
+	it('accepts X and rejects anything else for sex', () => {
+		expect(individualCreateSchema.parse({ givenName: 'Sam', sex: 'X' }).sex).toBe('X');
+		expect(individualCreateSchema.safeParse({ givenName: 'Sam', sex: 'N' }).success).toBe(false);
+	});
+
 	it('defaults individual sex to U', () => {
 		const result = individualCreateSchema.parse({ givenName: 'Jae' });
 		expect(result.sex).toBe('U');

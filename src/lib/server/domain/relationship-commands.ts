@@ -21,6 +21,7 @@ import { partnershipLabels } from '../../shared/partnership-labels';
 import type { MergeChoices } from '../../shared/union-merge';
 import { type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
 import { newWidowhoods } from '../../shared/widowhood';
+import type { Sex } from '../../shared/sex';
 
 export type RelationshipCommand =
 	| {
@@ -28,7 +29,7 @@ export type RelationshipCommand =
 			personId: string;
 			givenName: string | null;
 			surname: string | null;
-			sex: 'M' | 'F' | 'U';
+			sex: Sex;
 			birthDate?: string | null;
 			birthPlace?: string | null;
 			deathDate?: string | null;
@@ -40,7 +41,7 @@ export type RelationshipCommand =
 			expectedVersion?: number;
 			givenName?: string | null;
 			surname?: string | null;
-			sex?: 'M' | 'F' | 'U';
+			sex?: Sex;
 			birthDate?: string | null;
 			birthPlace?: string | null;
 			deathDate?: string | null;

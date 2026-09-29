@@ -81,3 +81,21 @@
   - **`sealing` and `other`** have no neutral type. They are stored as `unknown` with the word in the nullable `parent_child.gedcom_pedi`, and written back from it. 5.5.1 has no `OTHER`, so `other` is dropped from a 5.5.1 export and kept in 7.0.
   - **Different types for the two parents** are legal in the model but cannot be said in one `PEDI`. The family's `PEDI` is the first parent's type, and each parent who differs is written as `2 _PEDI_PARENT @I2@` with `3 PEDI adopted`. Epoch reads it back; other programs ignore a user-defined tag.
   - **Known losses.** A `guardian` link exports as `foster`, and an `unknown` link without a `gedcom_pedi` exports as birth (the default), so both come back as different types. Other structures under `FAMC` (`STAT`, `NOTE`) are still dropped by the parser.
+
+## ADR-010: Sex X and the 5.5.1 fallback (Phase 1, S4)
+- **Context:** The graph domain and the GEDCOM parser accepted `X`, but `individuals.sex` was typed `M | F | U`, the importer mapped `X` to `U`, and the person form, validation and card had no `X`. A GEDCOM 7 file with `SEX X` lost that on import.
+- **Decision:**
+  - **One list.** `src/lib/shared/sex.ts` holds `SEX_VALUES` (`M`, `F`, `X`, `U`), its labels and a guard. The Drizzle column, the zod schema, the person form and the drawer all read it, so they cannot drift.
+  - **No migration.** The column is `text DEFAULT 'U'` with no `CHECK`; the enum was TypeScript only, so widening it changes no stored data and no deployed schema.
+  - **Card.** `X` has its own symbol (⚧) and shares the neutral fill with unknown (○), as the tree design specifies. The legend lists Other and Unknown separately.
+  - **Export in 7.0:** `1 SEX X`, which 7.0 defines.
+  - **Export in 5.5.1:** `SEX` allows no `X`, so the export writes `1 SEX U` followed by `1 _EPOCH_SEX X`. `U` is a value every 5.5.1 reader accepts and is true (the file cannot say more); the user-defined line, which readers ignore, lets Epoch restore `X` on re-import. This is the same device as `_PEDI_PARENT` (ADR-009). The alternative, writing only `U`, would silently turn `X` into "unknown" on a round trip.
+- **Consequences:** Another program that reads the 5.5.1 file sees `U`; only Epoch reads `_EPOCH_SEX`. Someone who edits the file elsewhere and changes `SEX` away from `U` wins over `_EPOCH_SEX`, since the tag only restores `X` when `SEX` is `U`.
+
+## ADR-004 addendum: how the date columns are stored (Phase 1, S4)
+- `events` gains nullable `date_sort_end`, `date_qualifier`, `date_precision` and `date_calendar` (migration 0007, expand-only). `date_sort` keeps meaning the inclusive lower bound, so nothing that read it changes. `date_raw` stays verbatim and is never rewritten.
+- **One derivation.** `dateColumnsFor` (over `parseDateValue`) fills the columns on create, edit and import. `1900` is stored as year precision with bounds `1900-01-01`..`1900-12-31`, and `ABT 1900` keeps `ABOUT`; neither becomes a day. Text that is not a date is stored as `UNKNOWN` or `PHRASE` with no bounds, which is distinguishable from a row that has not been backfilled (all columns null while `date_raw` is set).
+- **Old rows.** Readers use `eventDateValue`, which parses `date_raw` when the qualifier is null, so nothing depends on the backfill having run. `npm run db:backfill:dates` (add `-- --remote` for the deployed database) fills them; it leaves `version` and `updated_at` alone.
+- **Undo.** Row-op images are generated from the Drizzle columns, so the new columns are in every before and after image. An image written before the migration lacks them and restores as null.
+- **Deploy order.** The columns are nullable and defaulted, so the migration is safe before the code. The reverse order is not: the new code inserts the columns. The `deploy` script migrates first, and the request-time check (see `db/schema-status.ts`) answers 503 until every migration in the journal has been applied, so a mis-ordered deploy fails clearly instead of writing to columns that are not there.
+

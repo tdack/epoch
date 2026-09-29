@@ -48,13 +48,14 @@ import type { DuplicateFamilyReport } from '#lib/server/gedcom/duplicate-familie
 export type { ImpactSummary, ImpactPerson } from '#lib/server/domain/impact.js';
 export type { RecordChange } from '#lib/server/domain/change-log.js';
 export type { UnionEventInput, UnionEventType, EndedUnionStatus } from '#lib/shared/union-events.js';
+import type { Sex } from '#lib/shared/sex.js';
 import type { ImpactSummary } from '#lib/server/domain/impact.js';
 import type { EndedUnionStatus, UnionEventType } from '#lib/shared/union-events.js';
 
 export interface PersonFormData {
   givenName?: string | null;
   surname?: string | null;
-  sex: 'M' | 'F' | 'U';
+  sex: Sex;
   birthDate?: string | null;
   birthPlace?: string | null;
   deathDate?: string | null;

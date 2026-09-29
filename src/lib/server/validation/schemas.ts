@@ -10,6 +10,7 @@
 
 import { z } from 'zod';
 import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
+import { SEX_VALUES } from '../../shared/sex';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 export const idSchema = z.string().min(1);
@@ -166,7 +167,7 @@ export const treeCreateSchema = z.object({
 export const individualCreateSchema = z.object({
 	givenName: optionalText,
 	surname: optionalText,
-	sex: z.enum(['M', 'F', 'U']).default('U'),
+	sex: z.enum(SEX_VALUES).default('U'),
 	birthDate: optionalText,
 	birthPlace: optionalText,
 	deathDate: optionalText,

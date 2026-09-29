@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { SEX_VALUES } from '../../../shared/sex';
 import { trees } from './trees';
 
 // Individuals (@I123@)
@@ -8,7 +9,7 @@ export const individuals = sqliteTable('individuals', {
   xrefId: text('xref_id'), // Preserved GEDCOM XREF (@I1@)
   givenName: text('given_name'),
   surname: text('surname'),
-  sex: text('sex', { enum: ['M', 'F', 'U'] }).default('U'),
+  sex: text('sex', { enum: SEX_VALUES }).default('U'),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())

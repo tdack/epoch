@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
       {
         givenName: givenName?.trim() || null,
         surname: surname?.trim() || null,
-        sex: (sex as 'M' | 'F' | 'U') || 'U',
+        sex,
         birthDate: birthDate?.trim() || null,
         birthPlace: birthPlace?.trim() || null,
         deathDate: deathDate?.trim() || null,

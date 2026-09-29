@@ -11,6 +11,7 @@
 import type { TreeRows } from './change-log';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
 import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from '../../shared/union-events';
+import type { Sex } from '../../shared/sex';
 
 /** A partnership event as the graph carries it, for labels and for the union editor. */
 export interface GraphUnionEvent {
@@ -26,7 +27,7 @@ export interface GraphPersonInput {
 	id: string;
 	givenName: string | null;
 	surname: string | null;
-	sex: 'M' | 'F' | 'X' | 'U' | null;
+	sex: Sex | null;
 	isDeceased: boolean;
 	/** Birth and death as the original GEDCOM date text, when recorded. */
 	birthDate?: string | null;
@@ -56,7 +57,7 @@ export interface RelationshipGraphPerson {
 	id: string;
 	displayName: string;
 	/** Neutral sex marker, `null` when not recorded. */
-	sex: 'M' | 'F' | 'X' | 'U' | null;
+	sex: Sex | null;
 	isDeceased: boolean;
 	/** Original date text of the first birth and death events. Absent on older captured graphs. */
 	birthDate?: string | null;
@@ -227,7 +228,7 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 			id: i.id,
 			givenName: i.givenName,
 			surname: i.surname,
-			sex: (i.sex as 'M' | 'F' | 'X' | 'U') || 'U',
+			sex: (i.sex as Sex) || 'U',
 			isDeceased: deceased.has(i.id),
 			birthDate: dates.get(i.id)?.birth ?? null,
 			deathDate: dates.get(i.id)?.death ?? null,

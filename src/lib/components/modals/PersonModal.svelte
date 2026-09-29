@@ -1,6 +1,7 @@
 <script lang="ts">
   import { UserPlus, Pencil, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
+  import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
   import type { PersonFormData } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -25,7 +26,7 @@
 
   let givenName = $state('');
   let surname = $state('');
-  let sex = $state<'M' | 'F' | 'U'>('U');
+  let sex = $state<Sex>('U');
   let birthDate = $state('');
   let birthPlace = $state('');
   let deathDate = $state('');
@@ -39,7 +40,7 @@
         const raw = initialPerson.raw || {};
         givenName = raw.givenName || '';
         surname = raw.surname || '';
-        sex = (initialPerson.sex as 'M' | 'F' | 'U') || raw.sex || 'U';
+        sex = (initialPerson.sex as Sex) || raw.sex || 'U';
 
         const events = raw.events || [];
         const birthEvent = events.find((e: any) => e.type === 'BIRT');
@@ -124,39 +125,19 @@
       <div>
         <span class="text-xs font-semibold text-stone-700 block mb-1.5">Sex</span>
         <div class="flex items-center space-x-4">
-          <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-            <input
-              type="radio"
-              name="person-form-sex"
-              value="M"
-              bind:group={sex}
-              disabled={isSubmitting}
-              class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-            />
-            Male
-          </label>
-          <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-            <input
-              type="radio"
-              name="person-form-sex"
-              value="F"
-              bind:group={sex}
-              disabled={isSubmitting}
-              class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-            />
-            Female
-          </label>
-          <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
-            <input
-              type="radio"
-              name="person-form-sex"
-              value="U"
-              bind:group={sex}
-              disabled={isSubmitting}
-              class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
-            />
-            Unknown
-          </label>
+          {#each SEX_VALUES as option (option)}
+            <label class="inline-flex items-center text-xs text-stone-700 cursor-pointer">
+              <input
+                type="radio"
+                name="person-form-sex"
+                value={option}
+                bind:group={sex}
+                disabled={isSubmitting}
+                class="text-emerald-800 focus:ring-emerald-600 mr-1.5"
+              />
+              {SEX_LABELS[option]}
+            </label>
+          {/each}
         </div>
       </div>
 

@@ -226,9 +226,7 @@ export async function importGedcomToDb(
     xrefId: ind.id,
     givenName: ind.givenName || null,
     surname: ind.surname || null,
-    // The individuals table only stores M/F/U; GEDCOM 7 `X` (non-binary)
-    // is stored as U until the neutral model adopts its own sex representation.
-    sex: ind.sex === 'X' ? 'U' : (ind.sex || 'U'),
+    sex: ind.sex || 'U',
     createdAt: new Date()
   }));
 

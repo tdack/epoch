@@ -2,6 +2,7 @@
 
 import type { EventRow, TreeRows } from '../domain/change-log';
 import type { ParentChildType, UnionStatus } from '../domain/genealogy-model';
+import type { Sex } from '../../shared/sex';
 
 export const TEST_TREE_ID = 'tree-1';
 const T0 = 1_000_000;
@@ -11,7 +12,7 @@ export interface RowsSpec {
 		id: string;
 		givenName?: string | null;
 		surname?: string | null;
-		sex?: 'M' | 'F' | 'U';
+		sex?: Sex;
 		version?: number;
 		birth?: string;
 		death?: string | true;
