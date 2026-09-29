@@ -30,11 +30,33 @@
     children,
     headerExtra
   }: Props = $props();
+
+  const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`;
+  let dialogElement: HTMLDialogElement | null = $state(null);
+
+  // The native dialog traps focus, makes the page behind inert and hands focus back to whatever
+  // opened it when it closes, which a div overlay would each need reimplementing.
+  $effect(() => {
+    if (!dialogElement) return;
+    if (show && !dialogElement.open) dialogElement.showModal();
+    else if (!show && dialogElement.open) dialogElement.close();
+  });
+
+  function onCancel(event: Event) {
+    // Escape: let the owner decide, so `show` stays the single source of truth.
+    event.preventDefault();
+    onclose();
+  }
 </script>
 
-{#if show}
-  <div class="fixed inset-0 z-50 bg-stone-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-[#fcfaf5] border border-stone-300/90 rounded-2xl w-full {maxWidthClass} p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
+<dialog
+  bind:this={dialogElement}
+  aria-labelledby={titleId}
+  oncancel={onCancel}
+  class="m-auto w-full {maxWidthClass} max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-300/90 bg-[#fcfaf5] p-0 text-stone-800 shadow-2xl backdrop:bg-stone-950/40 backdrop:backdrop-blur-xs"
+>
+  {#if show}
+    <div class="space-y-4 p-6">
       <div class="flex items-center space-x-2.5">
         {#if IconComponent}
           <div class="w-7 h-7 rounded-lg {iconBgClass} border {iconBorderClass} flex items-center justify-center {iconTextClass} shrink-0">
@@ -42,7 +64,7 @@
           </div>
         {/if}
         <div class="min-w-0 flex-1">
-          <h3 class="text-lg font-bold text-stone-900 truncate">{title}</h3>
+          <h3 id={titleId} class="text-lg font-bold text-stone-900 truncate">{title}</h3>
           {#if subtitle}
             <p class="text-[11px] text-stone-500">{subtitle}</p>
           {/if}
@@ -53,13 +75,12 @@
       </div>
 
       {#if error}
-        <div class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
+        <div role="alert" class="bg-orange-50 border border-orange-300 text-orange-900 rounded-lg p-2.5 text-xs font-medium">
           {error}
         </div>
       {/if}
 
       {@render children()}
     </div>
-  </div>
-{/if}
-
+  {/if}
+</dialog>

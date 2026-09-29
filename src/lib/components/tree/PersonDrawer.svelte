@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2 } from 'lucide-svelte';
+  import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross } from 'lucide-svelte';
+  import { widowhoods } from '#lib/shared/widowhood.js';
   import type {
     RelationshipGraph,
     RelationshipGraphPerson,
@@ -15,10 +16,38 @@
     onSelectPerson?: (id: string) => void;
     onAddRelationship?: (person: any) => void;
     onEditPerson?: (person: any) => void;
+    /** Ask to delete the person; the caller previews exactly what goes and confirms. */
     onDeletePerson?: (person: any) => void;
+    /** Open the death form for this person. */
+    onRecordDeath?: (person: any) => void;
+    /** Open the partnership editor. */
+    onEditUnion?: (unionId: string) => void;
+    /** Open the end-partnership form on this partnership. */
+    onEndUnion?: (unionId: string) => void;
   }
 
-  let { person, treeId, graph, onClose, onMediaUploaded, onSelectPerson, onAddRelationship, onEditPerson, onDeletePerson }: Props = $props();
+  let {
+    person,
+    treeId,
+    graph,
+    onClose,
+    onMediaUploaded,
+    onSelectPerson,
+    onAddRelationship,
+    onEditPerson,
+    onDeletePerson,
+    onRecordDeath,
+    onEditUnion,
+    onEndUnion
+  }: Props = $props();
+
+  // Widowhood is derived, never stored: a partner is widowed in a partnership that has not ended
+  // when the other partner has died.
+  const widowedUnionIds = $derived.by(() => {
+    const deceased = new Set(graph.people.filter((p) => p.isDeceased).map((p) => p.id));
+    const unions = graph.unions.map((u) => ({ id: u.id, status: u.status, partnerIds: u.partnerIds }));
+    return new Set(widowhoods(unions, deceased).filter((w) => w.widowId === person?.id).map((w) => w.unionId));
+  });
 
   function nameOf(id: string | null | undefined): string {
     if (!id) return '';
@@ -91,29 +120,6 @@
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
   let fileInput: HTMLInputElement | null = $state(null);
-  let confirmingDelete = $state(false);
-  let isDeleting = $state(false);
-  let deleteError = $state<string | null>(null);
-
-  async function handleDeletePerson() {
-    if (!person || !onDeletePerson) return;
-    isDeleting = true;
-    deleteError = null;
-    try {
-      const res = await fetch(`/api/trees/${treeId}/individuals/${person.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error || 'Failed to delete person');
-      }
-      confirmingDelete = false;
-      onDeletePerson(person);
-    } catch (err: any) {
-      deleteError = err.message;
-    } finally {
-      isDeleting = false;
-    }
-  }
-
   async function handleFileUpload(e: Event) {
     const target = e.target as HTMLInputElement;
     if (!target.files || target.files.length === 0 || !person) return;
@@ -158,11 +164,23 @@
         <p class="text-xs text-stone-500 mt-0.5">XREF: <span class="font-mono text-emerald-800 font-medium">{person.id}</span></p>
       </div>
       <div class="flex items-center space-x-1">
+        {#if onRecordDeath}
+          <button
+            type="button"
+            onclick={() => onRecordDeath(person)}
+            title="Record death"
+            aria-label="Record death"
+            class="text-stone-500 hover:text-emerald-800 p-1.5 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+          >
+            <Cross class="w-4 h-4" />
+          </button>
+        {/if}
         {#if onEditPerson}
           <button
             type="button"
             onclick={() => onEditPerson(person)}
             title="Edit Person Details"
+            aria-label="Edit person details"
             class="text-stone-500 hover:text-emerald-800 p-1.5 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
           >
             <Pencil class="w-4 h-4" />
@@ -171,6 +189,7 @@
         <button
           type="button"
           onclick={onClose}
+          aria-label="Close details"
           class="text-stone-400 hover:text-stone-800 p-1.5 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
         >
           <X class="w-5 h-5" />
@@ -211,14 +230,14 @@
       <div class="space-y-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-stone-600">Families</h3>
 
-        {#each Object.entries(parentGroups) as [unionKey, parents]}
+        {#each Object.entries(parentGroups) as [unionKey, parents] (unionKey)}
           <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">
                 {parents.length > 1 ? 'Parents' : 'Parent'}
               </span>
             </div>
-            {#each parents as parent, i}
+            {#each parents as parent (parent.parentId + parent.type)}
               <button
                 type="button"
                 onclick={() => onSelectPerson?.(parent.parentId)}
@@ -233,15 +252,24 @@
           </div>
         {/each}
 
-        {#each partnerUnions as union}
+        {#each partnerUnions as union (union.id)}
           <div class="bg-amber-50/70 rounded-xl p-3 border border-amber-200/80 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
                 Partner &amp; Children
                 {#if union.status !== 'active'}<span class="text-red-700">· {union.status}</span>{/if}
+                {#if widowedUnionIds.has(union.id)}<span class="text-stone-700">· widowed</span>{/if}
+              </span>
+              <span class="flex items-center gap-2">
+                {#if onEditUnion}
+                  <button type="button" onclick={() => onEditUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Edit</button>
+                {/if}
+                {#if onEndUnion && union.status === 'active'}
+                  <button type="button" onclick={() => onEndUnion(union.id)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">End</button>
+                {/if}
               </span>
             </div>
-            {#each union.partnerIds.filter((id) => id !== person.id) as partnerId}
+            {#each union.partnerIds.filter((id) => id !== person.id) as partnerId (partnerId)}
               <button
                 type="button"
                 onclick={() => onSelectPerson?.(partnerId)}
@@ -256,7 +284,7 @@
             {#if union.children.length}
               <div class="space-y-1 pt-0.5">
                 <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Children</span>
-                {#each union.children as child}
+                {#each union.children as child (child.childId)}
                   <button
                     type="button"
                     onclick={() => onSelectPerson?.(child.childId)}
@@ -292,7 +320,7 @@
           <p class="text-xs text-stone-500 italic">No events recorded</p>
         {:else}
           <div class="space-y-2">
-            {#each person.raw.events as ev}
+            {#each person.raw.events as ev (ev.id)}
               <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs">
                 <div class="flex items-center justify-between text-xs font-semibold text-emerald-800">
                   <span>{ev.type}</span>
@@ -344,7 +372,7 @@
           </div>
         {:else}
           <div class="grid grid-cols-2 gap-2">
-            {#each person.raw.media as item}
+            {#each person.raw.media as item (item.id)}
               <a
                 href={`/api/media/${item.r2ObjectKey}`}
                 target="_blank"
@@ -368,49 +396,16 @@
         <div class="border border-red-200 bg-red-50/60 rounded-xl p-3 space-y-2">
           <div>
             <span class="text-xs font-semibold text-red-900 block">Danger Zone</span>
-            <span class="text-[11px] text-red-700/80">Permanently remove this person. Their family links and events are cleaned up automatically.</span>
+            <span class="text-[11px] text-red-700/80">You will see exactly what is removed before anything is deleted.</span>
           </div>
-          {#if deleteError}
-            <p class="text-[11px] font-medium text-red-700">{deleteError}</p>
-          {/if}
-          {#if confirmingDelete}
-            <div class="bg-white border border-red-300 rounded-lg p-2.5 space-y-2">
-              <p class="text-[11px] text-red-900 font-medium">
-                Delete <span class="font-bold">{person.name}</span> permanently? This cannot be undone.
-              </p>
-              <div class="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onclick={handleDeletePerson}
-                  disabled={isDeleting}
-                  class="flex-1 inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-semibold bg-red-700 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {#if isDeleting}
-                    <span class="animate-pulse">Deleting...</span>
-                  {:else}
-                    Yes, Delete
-                  {/if}
-                </button>
-                <button
-                  type="button"
-                  onclick={() => { confirmingDelete = false; deleteError = null; }}
-                  disabled={isDeleting}
-                  class="px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          {:else}
-            <button
-              type="button"
-              onclick={() => (confirmingDelete = true)}
-              class="w-full inline-flex items-center justify-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:text-red-800 bg-white hover:bg-red-100 border border-red-300 rounded-lg transition-colors cursor-pointer"
-            >
-              <Trash2 class="w-3.5 h-3.5" />
-              <span>Delete Person</span>
-            </button>
-          {/if}
+          <button
+            type="button"
+            onclick={() => onDeletePerson(person)}
+            class="w-full inline-flex items-center justify-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:text-red-800 bg-white hover:bg-red-100 border border-red-300 rounded-lg transition-colors cursor-pointer"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>Delete person…</span>
+          </button>
         </div>
       {/if}
     </div>

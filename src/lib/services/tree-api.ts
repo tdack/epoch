@@ -6,192 +6,238 @@ import type {
 	RelationshipPlan,
 	RelationshipGraph,
 	PeopleSearchResult,
-	ParentChildType
+	ParentChildType,
+	ChangeSummary,
+	ImpactSummary,
+	UnionEventInput
 } from '#lib/types/genealogy.js';
 
+/** A failed API call, with the server's code and details so callers can react to specific cases. */
+export class ApiError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+		readonly code: string | undefined,
+		readonly details: Record<string, unknown> | undefined
+	) {
+		super(message);
+		this.name = 'ApiError';
+	}
+}
+
+/** The record changed since it was loaded (HTTP 409, STALE_VERSION); `current` is what is stored now. */
+export class ConflictError extends ApiError {
+	constructor(
+		message: string,
+		status: number,
+		code: string | undefined,
+		readonly details: {
+			reason: 'STALE_VERSION';
+			entity: 'individual' | 'union';
+			id: string;
+			expectedVersion: number;
+			currentVersion: number;
+			current: Record<string, any>;
+		}
+	) {
+		super(message, status, code, details);
+		this.name = 'ConflictError';
+	}
+}
+
+export function isConflict(error: unknown): error is ConflictError {
+	return error instanceof ConflictError;
+}
+
+async function call<T>(url: string, init: RequestInit | undefined, failure: string): Promise<T> {
+	const res = await fetch(url, init);
+	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
+	if (!res.ok) {
+		const message = data.error || failure;
+		if (res.status === 409 && data.details?.reason === 'STALE_VERSION') {
+			throw new ConflictError(message, res.status, data.code, data.details);
+		}
+		throw new ApiError(message, res.status, data.code, data.details);
+	}
+	return data as T;
+}
+
+const json = (method: string, body: unknown): RequestInit => ({
+	method,
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify(body)
+});
+
 export async function fetchTrees(): Promise<TreeSummary[]> {
-  const res = await fetch('/api/trees');
-  if (!res.ok) {
-    throw new Error('Failed to load trees');
-  }
-  const data = (await res.json()) as { trees?: TreeSummary[] };
-  return data.trees || [];
+	const data = await call<{ trees?: TreeSummary[] }>('/api/trees', undefined, 'Failed to load trees');
+	return data.trees || [];
 }
 
 export async function fetchTreeDetails(treeId: string): Promise<TreeDetails> {
-  const res = await fetch(`/api/trees/${treeId}`);
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || 'Failed to fetch tree details');
-  }
-  return (await res.json()) as TreeDetails;
+	return call<TreeDetails>(`/api/trees/${treeId}`, undefined, 'Failed to fetch tree details');
 }
 
 export async function createTreeApi(payload: { name: string; description?: string }): Promise<{ id: string; name: string }> {
-  const res = await fetch('/api/trees', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  const data = (await res.json().catch(() => ({}))) as {
-    tree?: { id: string; name: string };
-    error?: string;
-  };
-
-  if (!res.ok) {
-    throw new Error(data.error || 'Failed to create tree');
-  }
-
-  return data.tree!;
+	const data = await call<{ tree: { id: string; name: string } }>('/api/trees', json('POST', payload), 'Failed to create tree');
+	return data.tree;
 }
 
 export async function deleteTreeApi(treeId: string): Promise<void> {
-  const res = await fetch(`/api/trees/${treeId}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || 'Failed to delete tree');
-  }
+	await call(`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }
 
-export async function createIndividualApi(treeId: string, data: PersonFormData): Promise<{ id: string }> {
-  const res = await fetch(`/api/trees/${treeId}/individuals`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-
-  const resData = (await res.json().catch(() => ({}))) as {
-    success?: boolean;
-    individual?: { id: string };
-    error?: string;
-  };
-
-  if (!res.ok) {
-    throw new Error(resData.error || 'Failed to add individual.');
-  }
-
-  return resData.individual!;
+export async function createIndividualApi(
+	treeId: string,
+	data: PersonFormData
+): Promise<{ id: string; change: ChangeSummary | null }> {
+	const res = await call<{ individual: { id: string }; change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/individuals`,
+		json('POST', data),
+		'Failed to add individual.'
+	);
+	return { id: res.individual.id, change: res.change };
 }
 
-export async function updateIndividualApi(treeId: string, individualId: string, data: PersonFormData): Promise<void> {
-  const res = await fetch(`/api/trees/${treeId}/individuals/${individualId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
+/** `version` is the person's version when the form was opened; a newer stored version is a conflict. */
+export async function updateIndividualApi(
+	treeId: string,
+	individualId: string,
+	data: Partial<PersonFormData>,
+	version: number
+): Promise<{ change: ChangeSummary | null }> {
+	const res = await call<{ change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/individuals/${individualId}`,
+		json('PUT', { ...data, version }),
+		'Failed to update person.'
+	);
+	return { change: res.change };
+}
 
-  const resData = (await res.json().catch(() => ({}))) as {
-    success?: boolean;
-    error?: string;
-  };
-
-  if (!res.ok) {
-    throw new Error(resData.error || 'Failed to update person.');
-  }
+export async function deleteIndividualApi(
+	treeId: string,
+	individualId: string,
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	const query = version === undefined ? '' : `?version=${version}`;
+	const res = await call<{ change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/individuals/${individualId}${query}`,
+		{ method: 'DELETE' },
+		'Failed to delete person'
+	);
+	return { change: res.change };
 }
 
 export async function previewGedcomImport(file: File, treeId?: string | null): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
-  if (treeId) {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('treeId', treeId);
-    const res = await fetch('/api/import', { method: 'PUT', body: fd });
-    const data = (await res.json().catch(() => ({}))) as import('#lib/types/genealogy.js').ImportPreviewData & { error?: string };
-    if (!res.ok) throw new Error(data.error || 'Failed to preview import');
-    return data;
-  }
+	if (treeId) {
+		const fd = new FormData();
+		fd.append('file', file);
+		fd.append('treeId', treeId);
+		return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
+	}
 
-  return {
-    mode: 'replace',
-    incoming: { individuals: 0, families: 0, events: 0 }
-  };
+	return {
+		mode: 'replace',
+		incoming: { individuals: 0, families: 0, events: 0 }
+	};
 }
 
 export async function submitGedcomImport(
-  file: File,
-  mode: 'replace' | 'merge',
-  treeId?: string | null
+	file: File,
+	mode: 'replace' | 'merge',
+	treeId?: string | null
 ): Promise<{ individualsCount?: number; familiesCount?: number; treeId?: string }> {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('mode', mode);
-  if (treeId) {
-    fd.append('treeId', treeId);
-  }
+	const fd = new FormData();
+	fd.append('file', file);
+	fd.append('mode', mode);
+	if (treeId) {
+		fd.append('treeId', treeId);
+	}
+	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
+}
 
-  const res = await fetch('/api/import', {
-    method: 'POST',
-    body: fd
-  });
-
-  const resData = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    individualsCount?: number;
-    familiesCount?: number;
-    treeId?: string;
-  };
-
-  if (!res.ok) throw new Error(resData.error || 'Import failed');
-  return resData;
+/** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
+export async function planRelationshipApi(treeId: string, intent: RelationshipIntent): Promise<RelationshipPlan> {
+	const data = await call<{ plan: RelationshipPlan }>(
+		`/api/trees/${treeId}/relationships/plan`,
+		json('POST', { intent }),
+		'Failed to preview relationship'
+	);
+	return data.plan;
 }
 
 export async function applyRelationshipApi(
-  treeId: string,
-  intent: RelationshipIntent
-): Promise<RelationshipPlan> {
-  const res = await fetch(`/api/trees/${treeId}/relationships`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ intent })
-  });
-
-  const data = (await res.json().catch(() => ({}))) as {
-    plan?: RelationshipPlan;
-    error?: string;
-  };
-
-  if (!res.ok) throw new Error(data.error || 'Failed to apply relationship');
-  return data.plan!;
+	treeId: string,
+	intent: RelationshipIntent
+): Promise<{ plan: RelationshipPlan; change: ChangeSummary | null }> {
+	return call(`/api/trees/${treeId}/relationships`, json('POST', { intent }), 'Failed to apply relationship');
 }
 
 export type RelationshipDeleteCommand =
-  | { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
-  | { kind: 'remove_partner_from_union'; unionId: string; personId: string }
-  | { kind: 'destroy_union'; unionId: string };
+	| { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
+	| { kind: 'remove_partner_from_union'; unionId: string; personId: string; expectedVersion?: number }
+	| { kind: 'destroy_union'; unionId: string; expectedVersion?: number };
 
 export async function removeRelationshipApi(
-  treeId: string,
-  command: RelationshipDeleteCommand
-): Promise<void> {
-  const res = await fetch(`/api/trees/${treeId}/relationships/remove`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(command)
-  });
+	treeId: string,
+	command: RelationshipDeleteCommand
+): Promise<{ change: ChangeSummary | null }> {
+	const res = await call<{ change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/relationships/remove`,
+		json('POST', command),
+		'Failed to remove relationship'
+	);
+	return { change: res.change };
+}
 
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || 'Failed to remove relationship');
-  }
+export type ImpactRequest = RelationshipDeleteCommand | { kind: 'delete_person'; personId: string };
+
+/** What a destructive action would delete or change, listed exactly. Saves nothing. */
+export async function previewImpactApi(treeId: string, request: ImpactRequest): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${treeId}/impact`, json('POST', request), 'Failed to preview the impact');
+	return data.impact;
+}
+
+export interface TreeImpact {
+	people: number;
+	unions: number;
+	links: number;
+	events: number;
+	media: number;
+}
+
+export async function previewTreeDeletionApi(treeId: string): Promise<TreeImpact> {
+	const data = await call<{ treeImpact: TreeImpact }>(`/api/trees/${treeId}/impact`, json('POST', { kind: 'delete_tree' }), 'Failed to preview the impact');
+	return data.treeImpact;
+}
+
+export async function updateUnionApi(
+	treeId: string,
+	unionId: string,
+	payload: { version: number; status?: string; events?: UnionEventInput[] }
+): Promise<{ change: ChangeSummary | null }> {
+	const res = await call<{ change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/unions/${unionId}`,
+		json('PUT', payload),
+		'Failed to save the partnership'
+	);
+	return { change: res.change };
+}
+
+/** Undo the signed-in user's most recent change. Refusals (a later change touched it) come back as ApiError. */
+export async function undoApi(treeId: string): Promise<{ undone: { id: string; summary: string } }> {
+	return call(`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
 }
 
 export async function fetchRelationshipGraph(treeId: string): Promise<RelationshipGraph> {
-  const res = await fetch(`/api/trees/${treeId}/graph`);
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || 'Failed to load relationship graph');
-  }
-  const data = (await res.json()) as { graph?: RelationshipGraph };
-  return data.graph!;
+	const data = await call<{ graph: RelationshipGraph }>(`/api/trees/${treeId}/graph`, undefined, 'Failed to load relationship graph');
+	return data.graph;
 }
 
 export async function searchPeopleApi(treeId: string, query: string): Promise<PeopleSearchResult[]> {
-  const res = await fetch(`/api/trees/${treeId}/people-search?q=${encodeURIComponent(query)}`);
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || 'Failed to search people');
-  }
-  const data = (await res.json()) as { people?: PeopleSearchResult[] };
-  return data.people || [];
+	const data = await call<{ people?: PeopleSearchResult[] }>(
+		`/api/trees/${treeId}/people-search?q=${encodeURIComponent(query)}`,
+		undefined,
+		'Failed to search people'
+	);
+	return data.people || [];
 }

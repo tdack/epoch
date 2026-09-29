@@ -16,7 +16,8 @@ import {
 	generationLabel,
 	relationLabel,
 	surnameInitial,
-	yearsLine
+	yearsLine,
+	unionLabelText
 } from './tree-view';
 import { CAPTURED_GRAPHS, personByName } from '#lib/tree-layout/test-support.js';
 import { LAYOUT_METRICS, layoutFocusView } from '#lib/tree-layout/index.js';
@@ -212,5 +213,24 @@ describe('browser-side copies of server constants', () => {
 	it('agree with the server for every union status and parent-child type', () => {
 		for (const status of Object.values(UNION_STATUSES)) expect(isEndedUnion(status), status).toBe(isEndedUnionStatus(status));
 		expect([...ALL_PARENT_CHILD_TYPES].sort()).toEqual(Object.values(PARENT_CHILD_TYPES).sort());
+	});
+});
+
+describe('unionLabelText', () => {
+	const union = (over: object) => ({ id: 'u', status: 'active', marriageDate: null, marriagePlace: null, partnerIds: [], children: [], ...over }) as never;
+
+	it('shows the marriage as recorded, then how it ended', () => {
+		expect(
+			unionLabelText(union({ marriageDate: '1975', events: [{ id: 'e', type: 'DIV', dateText: '1999', place: null }] }))
+		).toBe('1975 – div. 1999');
+	});
+
+	it('falls back to the start of an unmarried partnership, and to nothing', () => {
+		expect(unionLabelText(union({ events: [{ id: 'e', type: '_PSTART', dateText: '1990', place: null }] }))).toBe('from 1990');
+		expect(unionLabelText(union({}))).toBe('');
+	});
+
+	it('ignores an end event with no date rather than printing a bare abbreviation', () => {
+		expect(unionLabelText(union({ marriageDate: '1975', events: [{ id: 'e', type: 'DIV', dateText: null, place: 'Perth' }] }))).toBe('1975');
 	});
 });

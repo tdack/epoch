@@ -5,6 +5,7 @@
  */
 
 import type { UnionStatus } from '#lib/server/domain/genealogy-model.js';
+import { END_EVENT_TYPES, UNION_EVENT_ABBREVIATIONS } from '#lib/shared/union-events.js';
 import {
 	LAYOUT_METRICS,
 	type ChildEdge,
@@ -12,6 +13,7 @@ import {
 	type PartnerEdge,
 	type PlacedPerson,
 	type PlacedStub,
+	type RelationshipGraphUnion,
 	type Point,
 	type StubEdge,
 	type TreeLayout
@@ -64,6 +66,22 @@ export interface MenuItem {
 
 export function yearOf(text: string | null | undefined): string | null {
 	return text?.match(/\b(\d{3,4})\b/)?.[1] ?? null;
+}
+
+/**
+ * The text under a union node: how the partnership began, then how it ended, e.g. "1975 – div. 1999".
+ * Falls back to the marriage columns for graphs that carry no event list.
+ */
+export function unionLabelText(union: RelationshipGraphUnion): string {
+	const events = union.events ?? [];
+	const start = events.find((e) => e.type === 'ENGA' || e.type === '_PSTART');
+	const begin =
+		union.marriageDate ||
+		union.marriagePlace ||
+		(start ? [UNION_EVENT_ABBREVIATIONS[start.type], start.dateText].filter(Boolean).join(' ') : '');
+	const end = END_EVENT_TYPES.map((type) => events.find((e) => e.type === type)).find((e) => e?.dateText);
+	const ending = end ? `${UNION_EVENT_ABBREVIATIONS[end.type]} ${end.dateText}` : '';
+	return [begin, ending].filter(Boolean).join(' – ');
 }
 
 export const SEX_SYMBOLS = { M: '♂', F: '♀', neutral: '○' } as const;

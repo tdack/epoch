@@ -29,6 +29,7 @@
 		levelOfDetail,
 		neighbourOf,
 		relationLabel,
+		unionLabelText,
 		type MenuItem,
 		type NavDirection
 	} from './tree-view.js';
@@ -60,6 +61,14 @@
 		onAddRelationship?: (anchor: PersonRef) => void;
 		/** Remove a partner from a union. */
 		onRemoveLink?: (edge: PartnerEdge) => void;
+		/** "Record death…" from a card's context menu. */
+		onRecordDeath?: (id: string) => void;
+		/** "End partnership…" from a card's context menu; the caller asks which one if there are several. */
+		onEndPartnership?: (id: string) => void;
+		/** A union node was activated (click, Enter) or "Edit partnership…" chosen. */
+		onEditUnion?: (unionId: string) => void;
+		/** "End partnership…" from a union node's context menu. */
+		onEndUnion?: (unionId: string) => void;
 		/** Remove one parent's link from a merged (union, child) edge. */
 		onRemoveAssertion?: (edge: ChildEdge, assertion: ChildAssertion) => void;
 		onRemoveUnion?: (unionId: string) => void;
@@ -81,6 +90,10 @@
 		onDeletePerson,
 		onAddRelationship,
 		onRemoveLink,
+		onRecordDeath,
+		onEndPartnership,
+		onEditUnion,
+		onEndUnion,
 		onRemoveAssertion,
 		onRemoveUnion,
 		onDragRelate,
@@ -103,6 +116,8 @@
 	let selectedEdgeId = $state<string | null>(null);
 	let popover = $state<{ edgeId: string; x: number; y: number } | null>(null);
 	let dragSourceId = $state<string | null>(null);
+	/** What had focus when a menu or popover opened, so closing it can hand focus back. */
+	let overlayOpener: Element | null = null;
 	/** Card the user last moved to with the arrow keys, remembered for the focus it was chosen under. */
 	let keyboardCursor = $state<{ focusId: string | null; personId: string } | null>(null);
 
@@ -124,6 +139,24 @@
 			: ''
 	);
 	const relations = $derived(new Map(layout.people.map((p) => [p.id, relationLabel(p, layout)])));
+	/**
+	 * Only the edges and partnerships of the person holding the keyboard cursor are in the tab order,
+	 * so Tab walks the card, then its lines, then on to the next control, instead of visiting every line.
+	 */
+	const tabbableEdgeIds = $derived(
+		new Set(
+			layout.edges
+				.filter((e) =>
+					e.kind === 'partner'
+						? e.personId === activeId
+						: e.kind === 'child' && (e.childId === activeId || e.assertions.some((a) => a.parentId === activeId))
+				)
+				.map((e) => e.id)
+		)
+	);
+	const tabbableUnionIds = $derived(
+		new Set(layout.unions.filter((u) => activeId && u.union.partnerIds.includes(activeId)).map((u) => u.id))
+	);
 	const collapsedIds = $derived(new Set(layout.collapsedPersonIds));
 	const nonAdjacentIds = $derived(new Set(layout.nonAdjacentUnionIds));
 	const popoverEdge = $derived(
@@ -132,6 +165,19 @@
 
 	function nameOf(personId: string): string {
 		return peopleById.get(personId)?.person.displayName ?? personId;
+	}
+
+	/** What a screen reader hears on an edge's hit target. */
+	function edgeLabel(edge: LayoutEdge): string {
+		if (edge.kind === 'partner') {
+			const union = unionById.get(edge.unionId);
+			const names = union ? union.union.partnerIds.map(nameOf).join(' and ') : nameOf(edge.personId);
+			return `Partnership line of ${names}. Press Enter for actions.`;
+		}
+		if (edge.kind === 'child') {
+			return `Parent link to ${nameOf(edge.childId)}, from ${edge.assertions.map((a) => nameOf(a.parentId)).join(' and ')}. Press Enter to review.`;
+		}
+		return '';
 	}
 
 	// ---- Viewport ----
@@ -211,7 +257,7 @@
 			.filter((event: Event) => {
 				if (event.type === 'wheel') return true;
 				const target = event.target as Element | null;
-				const isOnControl = target?.closest?.('[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id]');
+				const isOnControl = target?.closest?.('[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id], [data-union-id]');
 				return !(event as MouseEvent).button && !isOnControl;
 			})
 			.on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
@@ -282,36 +328,69 @@
 
 	// ---- Menus, selection and popover ----
 
-	function containerPoint(event: MouseEvent): { x: number; y: number } {
+	/** Where an event happened in canvas pixels; for the keyboard, the middle of the element it came from. */
+	function containerPoint(event: Event): { x: number; y: number } {
 		const rect = containerElement?.getBoundingClientRect();
-		return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+		const mouse = event as MouseEvent;
+		if (typeof mouse.clientX === 'number' && (mouse.clientX !== 0 || mouse.clientY !== 0 || event.type === 'click')) {
+			return { x: mouse.clientX - (rect?.left ?? 0), y: mouse.clientY - (rect?.top ?? 0) };
+		}
+		const element = (event.currentTarget ?? event.target) as Element | null;
+		const box = element?.getBoundingClientRect();
+		if (!box) return { x: 16, y: 16 };
+		return { x: box.left + box.width / 2 - (rect?.left ?? 0), y: box.top + box.height / 2 - (rect?.top ?? 0) };
+	}
+
+	function rememberOpener() {
+		const active = document.activeElement;
+		overlayOpener = active && containerElement?.contains(active) && active !== containerElement ? active : null;
+	}
+
+	/** Hand focus back to what opened the overlay, or to the card holding the cursor if that is gone. */
+	function restoreFocus() {
+		const opener = overlayOpener;
+		overlayOpener = null;
+		const target = opener?.isConnected
+			? (opener as HTMLElement | SVGElement)
+			: containerElement?.querySelector<SVGGElement>(`[data-person-id="${CSS.escape(activeId ?? '')}"]`);
+		target?.focus({ preventScroll: true });
 	}
 
 	function closeOverlays() {
+		const hadOverlay = menu !== null || popover !== null;
 		menu = null;
 		popover = null;
+		if (hadOverlay) restoreFocus();
 	}
 
-	function openPersonMenu(event: MouseEvent, node: PlacedPerson) {
+	function openPersonMenu(event: Event, node: PlacedPerson) {
 		event.preventDefault();
 		const person = { id: node.id, displayName: node.person.displayName };
 		const items: MenuItem[] = [];
 		if (onEditPerson) items.push({ label: 'Edit details', onClick: () => onEditPerson(person.id) });
 		if (onAddRelationship) items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
-		if (onDeletePerson) items.push({ label: 'Delete person', isDanger: true, onClick: () => onDeletePerson(person.id) });
+		if (onRecordDeath) items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
+		if (onEndPartnership && node.person.unionIds.length > 0) {
+			items.push({ label: 'End partnership…', onClick: () => onEndPartnership(person.id) });
+		}
+		if (onDeletePerson) items.push({ label: 'Delete person…', isDanger: true, onClick: () => onDeletePerson(person.id) });
 		popover = null;
+		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
 	}
 
-	function openUnionMenu(event: MouseEvent, union: PlacedUnion) {
+	function openUnionMenu(event: Event, union: PlacedUnion) {
 		event.preventDefault();
 		popover = null;
-		menu = onRemoveUnion
-			? { ...containerPoint(event), items: [{ label: 'Delete union', isDanger: true, onClick: () => onRemoveUnion(union.id) }] }
-			: null;
+		const items: MenuItem[] = [];
+		if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
+		if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(union.id) });
+		if (onRemoveUnion) items.push({ label: 'Delete partnership…', isDanger: true, onClick: () => onRemoveUnion(union.id) });
+		rememberOpener();
+		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
 	}
 
-	function openEdgeMenu(edge: LayoutEdge, event: MouseEvent) {
+	function openEdgeMenu(edge: LayoutEdge, event: Event) {
 		if (edge.kind === 'stub') return;
 		event.preventDefault();
 		event.stopPropagation();
@@ -319,31 +398,54 @@
 		const at = containerPoint(event);
 		const items: MenuItem[] = [];
 		if (edge.kind === 'partner') {
-			if (onRemoveLink) items.push({ label: 'Delete partnership', isDanger: true, onClick: () => onRemoveLink(edge) });
+			if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(edge.unionId) });
+			if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(edge.unionId) });
+			if (onRemoveLink) items.push({ label: 'Remove this partner…', isDanger: true, onClick: () => onRemoveLink(edge) });
 		} else {
-			items.push({ label: 'Review parent links…', onClick: () => (popover = { edgeId: edge.id, ...at }) });
+			items.push({
+				label: 'Review parent links…',
+				onClick: () => {
+					rememberOpener();
+					popover = { edgeId: edge.id, ...at };
+				}
+			});
 			if (onRemoveAssertion && edge.assertions.length === 1) {
-				items.push({ label: 'Delete relationship', isDanger: true, onClick: () => onRemoveAssertion(edge, edge.assertions[0]) });
+				items.push({ label: 'Remove this link…', isDanger: true, onClick: () => onRemoveAssertion(edge, edge.assertions[0]) });
 			}
 		}
 		popover = null;
+		rememberOpener();
 		menu = { ...at, items };
 	}
 
-	function onEdgeSelect(edge: LayoutEdge, event: MouseEvent) {
+	function onEdgeSelect(edge: LayoutEdge, event: Event) {
 		if (edge.kind === 'stub') return;
 		event.stopPropagation();
 		menu = null;
 		selectedEdgeId = edge.id;
-		popover = edge.kind === 'child' ? { edgeId: edge.id, ...containerPoint(event) } : null;
+		if (edge.kind === 'child') {
+			rememberOpener();
+			popover = { edgeId: edge.id, ...containerPoint(event) };
+		} else {
+			// A partnership line has several things to do to it, so activating it lists them.
+			openEdgeMenu(edge, event);
+		}
+	}
+
+	/** Close the menu and hand focus back. Idempotent: focus leaving the menu closes it too. */
+	function closeMenu() {
+		if (menu === null) return;
+		menu = null;
+		restoreFocus();
 	}
 
 	function removeAssertion(edge: ChildEdge, assertion: ChildAssertion) {
+		closeOverlays();
 		onRemoveAssertion?.(edge, assertion);
 	}
 
 	function onCanvasClick(event: MouseEvent) {
-		if ((event.target as Element).closest?.('[data-edge-id], [data-person-id], [data-stub-id], [data-collapser-id]')) return;
+		if ((event.target as Element).closest?.('[data-edge-id], [data-person-id], [data-union-id], [data-stub-id], [data-collapser-id]')) return;
 		selectedEdgeId = null;
 		closeOverlays();
 	}
@@ -390,6 +492,22 @@
 
 	function onKeydown(event: KeyboardEvent) {
 		if ((event.target as Element).closest?.('input, textarea, select')) return;
+		if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+			// The keyboard's context-menu gesture: open the menu of whatever has focus, next to it.
+			const target = event.target as Element;
+			const personId = target.closest?.('[data-person-id]')?.getAttribute('data-person-id');
+			const unionId = target.closest?.('[data-union-id]')?.getAttribute('data-union-id');
+			const edgeId = target.closest?.('[data-edge-id]')?.getAttribute('data-edge-id');
+			const person = personId ? peopleById.get(personId) : undefined;
+			const union = unionId ? layout.unions.find((u) => u.id === unionId) : undefined;
+			const edge = edgeId ? layout.edges.find((e) => e.id === edgeId) : undefined;
+			if (person) openPersonMenu(event, person);
+			else if (union) openUnionMenu(event, union);
+			else if (edge) openEdgeMenu(edge, event);
+			else return;
+			event.preventDefault();
+			return;
+		}
 		if (event.key === 'Escape') {
 			const hasOverlay = menu !== null || popover !== null || selectedEdgeId !== null;
 			closeOverlays();
@@ -456,8 +574,6 @@
 					isFromUnion={stub ? stub.unionId !== null : false}
 					isUnionEnded={unionId ? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active') : false}
 					isSelected={selectedEdgeId === edge.id}
-					onSelect={onEdgeSelect}
-					onContextMenu={openEdgeMenu}
 				/>
 			{/each}
 
@@ -467,6 +583,7 @@
 					{level}
 					isEnded={isEndedUnion(union.union.status)}
 					isNonAdjacent={nonAdjacentIds.has(union.id)}
+					label={unionLabelText(union.union)}
 					onContextMenu={openUnionMenu}
 				/>
 			{/each}
@@ -484,6 +601,37 @@
 					onSelect={(id) => onSelectPerson?.(id)}
 					onContextMenu={openPersonMenu}
 					onPointerDown={onCardPointerDown}
+				/>
+			{/each}
+
+			<!-- Hit targets come after the cards in the document, so Tab reaches a person's lines and partnerships right after the person. -->
+			{#each layout.edges as edge (edge.id)}
+				{#if edge.kind !== 'stub'}
+					{@const unionId = edge.kind === 'partner' ? edge.unionId : undefined}
+					<TreeEdge
+						{edge}
+						part="target"
+						isTabbable={tabbableEdgeIds.has(edge.id)}
+						isUnionEnded={unionId ? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active') : false}
+						label={edgeLabel(edge)}
+						onSelect={onEdgeSelect}
+						onContextMenu={openEdgeMenu}
+					/>
+				{/if}
+			{/each}
+
+			{#each layout.unions as union (union.id)}
+				<UnionMarker
+					{union}
+					{level}
+					part="target"
+					isEnded={isEndedUnion(union.union.status)}
+					isNonAdjacent={nonAdjacentIds.has(union.id)}
+					isTabbable={tabbableUnionIds.has(union.id)}
+					partnerNames={union.union.partnerIds.map(nameOf).join(' and ')}
+					label={unionLabelText(union.union)}
+					onOpen={(u) => onEditUnion?.(u.id)}
+					onContextMenu={openUnionMenu}
 				/>
 			{/each}
 
@@ -572,7 +720,7 @@
 	</div>
 
 	{#if menu}
-		<TreeContextMenu items={menu.items} x={menu.x} y={menu.y} onClose={() => (menu = null)} />
+		<TreeContextMenu items={menu.items} x={menu.x} y={menu.y} onClose={closeMenu} />
 	{/if}
 
 	{#if popover && popoverEdge}
@@ -583,7 +731,7 @@
 			x={Math.max(8, Math.min(popover.x, size.width - 336))}
 			y={Math.max(8, Math.min(popover.y, size.height - 40 - popoverEdge.assertions.length * 44))}
 			onRemove={removeAssertion}
-			onClose={() => (popover = null)}
+			onClose={closeOverlays}
 		/>
 	{/if}
 

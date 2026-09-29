@@ -41,6 +41,12 @@ export interface ImportPreviewData {
   };
 }
 
+export type { ImpactSummary, ImpactPerson } from '#lib/server/domain/impact.js';
+export type { RecordChange } from '#lib/server/domain/change-log.js';
+export type { UnionEventInput, UnionEventType, EndedUnionStatus } from '#lib/shared/union-events.js';
+import type { ImpactSummary } from '#lib/server/domain/impact.js';
+import type { EndedUnionStatus, UnionEventType } from '#lib/shared/union-events.js';
+
 export interface PersonFormData {
   givenName?: string | null;
   surname?: string | null;
@@ -70,13 +76,25 @@ export type RelationshipIntent =
   | { kind: 'add_parent'; child: PersonRef; parent: PersonRef; type: ParentChildType; role: ParentRole; unionLabel: string | null }
   | { kind: 'add_child'; parent: PersonRef; child: PersonRef; type: ParentChildType; unionLabel: string | null }
   | { kind: 'add_partner'; person: PersonRef; partner: PersonRef; unionLabel: string | null }
-  | { kind: 'record_death'; person: PersonRef; widowedPartners: PersonRef[] }
-  | { kind: 'end_union'; person: PersonRef; unionLabel: string };
+  | { kind: 'record_death'; person: PersonRef; dateText: string | null; place: string | null; personVersion?: number }
+  | {
+      kind: 'end_union';
+      person: PersonRef;
+      unionId: string | null;
+      status: EndedUnionStatus;
+      event: { type: UnionEventType; dateText: string | null; place: string | null } | null;
+      unionVersion?: number;
+    };
+
+/** What the relationship editor can record about a person. */
+export type RelationshipKind = 'add_parent' | 'add_child' | 'add_partner' | 'record_death' | 'end_union';
 
 export interface PersonRef {
   id: string;
   givenName: string | null;
   surname: string | null;
+  /** True for someone the intent creates; the server replaces `id`. */
+  isNew?: boolean;
 }
 
 export interface RelationshipPlanWarning {
@@ -88,6 +106,16 @@ export interface RelationshipPlan {
   sentence: string;
   commands: unknown[];
   warnings: RelationshipPlanWarning[];
+  /** Present on previews: exactly which records the save would write. */
+  impact?: ImpactSummary;
+}
+
+/** The change-log entry a mutation returns; the toast offers Undo when `isUndoable`. */
+export interface ChangeSummary {
+  id: string;
+  kind: string;
+  summary: string;
+  isUndoable: boolean;
 }
 
 // The relationship graph types are shared with the server domain (pure, no I/O).

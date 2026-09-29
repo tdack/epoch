@@ -30,6 +30,20 @@
 		if (event.key === 'Escape') {
 			event.stopPropagation();
 			onClose();
+			return;
+		}
+		if (event.key !== 'Tab') return;
+		// Focus is trapped while the popover is open: Tab and Shift+Tab wrap between its buttons.
+		const buttons = [...(dialogElement?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+		if (buttons.length === 0) return;
+		const first = buttons[0];
+		const last = buttons[buttons.length - 1];
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
 		}
 	}
 </script>
@@ -39,6 +53,7 @@
 	class="popover"
 	style="left: {x}px; top: {y}px;"
 	role="dialog"
+	aria-modal="true"
 	aria-label="Parent links to {childName}"
 	tabindex="-1"
 	onkeydown={onKeydown}
@@ -67,7 +82,7 @@
 				<button
 					type="button"
 					class="remove"
-					aria-label="Remove {style.label.toLowerCase()} link from {nameOf(assertion.parentId)}"
+					aria-label="Remove {style.label.toLowerCase()} link from {nameOf(assertion.parentId)}…"
 					onclick={() => onRemove(edge, assertion)}
 				>
 					Remove

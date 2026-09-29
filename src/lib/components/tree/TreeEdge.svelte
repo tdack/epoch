@@ -18,6 +18,15 @@
 		isUnionEnded?: boolean;
 		/** True while the edge is the selected one; drawn thicker with a halo. */
 		isSelected?: boolean;
+		/**
+		 * Which half to draw. The canvas draws every line first, under the cards, and every hit target
+		 * last, after the cards, so Tab reaches an edge straight after the person it belongs to.
+		 */
+		part?: 'line' | 'target';
+		/** True for the edges of the person who holds the keyboard cursor; only those are in the tab order. */
+		isTabbable?: boolean;
+		/** Accessible name of the hit target. */
+		label?: string;
 		/** Click on the edge's hit target. */
 		onSelect?: (edge: LayoutEdge, event: MouseEvent) => void;
 		/** Right-click on the edge; the handler is responsible for `preventDefault`. */
@@ -30,6 +39,9 @@
 		isFromUnion = false,
 		isUnionEnded = false,
 		isSelected = false,
+		part = 'line',
+		isTabbable = false,
+		label,
 		onSelect,
 		onContextMenu
 	}: Props = $props();
@@ -56,8 +68,10 @@
 </script>
 
 {#if edge.kind === 'stub'}
-	<path class="stub-line" {d} />
-{:else}
+	{#if part === 'line'}
+		<path class="stub-line" {d} />
+	{/if}
+{:else if part === 'line'}
 	{#if isSelected}
 		<path class="halo" {d} />
 	{/if}
@@ -72,17 +86,21 @@
 		style:stroke-dasharray={style?.dash ?? undefined}
 		style:stroke-linecap={style?.isRound ? 'round' : undefined}
 	/>
+{:else}
 	<path
 		class="target"
 		data-edge-id={edge.id}
 		{d}
 		role="button"
-		tabindex="-1"
-		aria-label={title}
+		tabindex={isTabbable ? 0 : -1}
+		aria-label={label ?? title}
 		onclick={(event) => onSelect?.(edge, event)}
 		oncontextmenu={(event) => onContextMenu?.(edge, event)}
 		onkeydown={(event) => {
-			if (event.key === 'Enter') onSelect?.(edge, event as unknown as MouseEvent);
+			if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				onSelect?.(edge, event as unknown as MouseEvent);
+			}
 		}}
 	>
 		<title>{title}</title>
@@ -123,6 +141,11 @@
 		stroke-width: 14;
 		pointer-events: stroke;
 		cursor: pointer;
+		outline: none;
+	}
+	.target:focus-visible {
+		stroke: var(--tree-focus-ring);
+		stroke-opacity: 0.45;
 	}
 	.stub-line {
 		stroke: var(--rel-unknown);
