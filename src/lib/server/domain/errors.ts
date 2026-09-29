@@ -4,6 +4,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_ERROR'
   | 'CONCURRENCY_CONFLICT'
+  | 'UNDO_REFUSED'
   | 'INTERNAL_ERROR'
   | 'BAD_REQUEST';
 
@@ -53,5 +54,13 @@ export class ConcurrencyConflictError extends DomainError {
   constructor(message = 'The record was modified by another collaborator. Please refresh and try again.', details?: Record<string, unknown>) {
     super(message, 'CONCURRENCY_CONFLICT', 409, details);
     this.name = 'ConcurrencyConflictError';
+  }
+}
+
+/** Undo was refused; `details.reason` says why (see `UNDO_REFUSALS`), the message says it in words. */
+export class UndoRefusedError extends DomainError {
+  constructor(message: string, reason: string, status = 409) {
+    super(message, 'UNDO_REFUSED', status, { reason });
+    this.name = 'UndoRefusedError';
   }
 }

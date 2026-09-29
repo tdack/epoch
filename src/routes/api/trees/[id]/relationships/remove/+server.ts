@@ -7,7 +7,8 @@ import { parseBody } from '#lib/server/validation/index.js';
 
 /**
  * Delete a specific relationship edge or union (never a person). Accepts
- * `remove_parent_child`, `remove_partner_from_union`, and `destroy_union`.
+ * `remove_parent_child`, `remove_partner_from_union`, and `destroy_union`. Callers show the
+ * impact endpoint's preview first.
  */
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	if (!locals.user) {
@@ -29,15 +30,15 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		const db = getDb(platform.env.DB);
 		const service = new RelationshipService(db);
 
-		await service.removeRelationship(treeId, command, {
+		const { change } = await service.removeRelationship(treeId, command, {
 			user: locals.user,
 			correlationId: locals.correlationId
 		});
 
-		return Response.json({ success: true });
+		return Response.json({ success: true, change });
 	} catch (err: any) {
 		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code }, { status: err.status });
+			return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
 		}
 		console.error('Failed to remove relationship:', err);
 		return Response.json({ error: err?.message || 'Failed to remove relationship' }, { status: 500 });

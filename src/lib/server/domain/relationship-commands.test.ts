@@ -1,80 +1,104 @@
 import { describe, it, expect } from 'vitest';
-import { planRelationshipCommand } from './relationship-commands';
-import type { ParentChild } from './genealogy-model';
+import { planRelationshipCommand, type PlanContext } from './relationship-commands';
+import { sequentialIds, treeRows, type RowsSpec } from '../testing/rows';
 
 const alex = { id: 'p-alex', givenName: 'Alex', surname: 'Walker' };
 const sam = { id: 'p-sam', givenName: 'Sam', surname: 'Smith' };
+const other = { id: 'p-other', givenName: 'Robin', surname: 'Reed' };
 
-function assertion(overrides: Partial<ParentChild> & { parentId: string; childId: string }): ParentChild {
-	return {
-		id: crypto.randomUUID(),
-		treeId: 'tree-1',
-		type: 'biological',
-		status: 'active',
-		unionId: null,
-		version: 1,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-		...overrides
-	};
+function context(spec: RowsSpec = {}, overrides: Partial<PlanContext> = {}): PlanContext {
+	const people = [alex, sam, other].map((p) => ({ ...p, sex: 'U' as const }));
+	return { rows: treeRows({ people, ...spec }), hasDuplicateName: false, newId: sequentialIds(), ...overrides };
 }
-
-const noContext = { assertions: [], hasDuplicateName: false, unionCount: 0, existingUnions: [] };
 
 describe('planRelationshipCommand', () => {
 	it('plans an add_parent as an assert_parent_child command', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_parent', child: sam, parent: alex, type: 'adoptive', role: 'mother', unionLabel: null },
-			noContext
+			context()
 		);
-		expect(plan.commands).toHaveLength(1);
-		expect(plan.commands[0]).toMatchObject({
-			kind: 'assert_parent_child',
-			parentId: 'p-alex',
-			childId: 'p-sam',
-			type: 'adoptive'
-		});
-		expect(plan.sentence).toContain('adoptive mother');
+		expect(plan.commands).toEqual([
+			{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'p-sam', type: 'adoptive', unionId: null }
+		]);
+		expect(plan.sentence).toBe("Alex Walker will be recorded as Sam Smith's adoptive mother.");
+	});
+
+	it('creates a new parent in the same plan and links to them', () => {
+		const plan = planRelationshipCommand(
+			{
+				kind: 'add_parent',
+				child: sam,
+				parent: { id: 'new', givenName: 'Nia', surname: 'Novak', isNew: true },
+				type: 'biological',
+				role: 'parent',
+				unionLabel: null
+			},
+			context()
+		);
+		expect(plan.commands).toMatchObject([
+			{ kind: 'create_person', personId: 'id-1', givenName: 'Nia', surname: 'Novak' },
+			{ kind: 'assert_parent_child', parentId: 'id-1', childId: 'p-sam' }
+		]);
 	});
 
 	it('plans an add_partner as a create_union command when no union exists', () => {
-		const plan = planRelationshipCommand(
-			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
-			noContext
-		);
-		expect(plan.commands[0]).toMatchObject({ kind: 'create_union', personIds: ['p-alex', 'p-sam'] });
+		const plan = planRelationshipCommand({ kind: 'add_partner', person: alex, partner: sam, unionLabel: null }, context());
+		expect(plan.commands).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
 	});
 
-	it('reuses an existing union when adding a partner', () => {
+	it('completes a partnership that is waiting for its other partner', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
-			{ assertions: [], hasDuplicateName: false, unionCount: 1, existingUnions: [{ id: 'u1', partnerIds: ['p-alex', 'p-other'] }] }
+			context({ unions: [{ id: 'u1', partners: ['p-alex'] }] })
 		);
-		expect(plan.commands[0]).toMatchObject({ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' });
+		expect(plan.commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }]);
+	});
+
+	it('starts a new partnership rather than adding a third person to a full one', () => {
+		const plan = planRelationshipCommand(
+			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
+			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-other'] }] })
+		);
+		expect(plan.commands).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
 	});
 
 	it('warns when the two people are already partners', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
-			{ assertions: [], hasDuplicateName: false, unionCount: 1, existingUnions: [{ id: 'u1', partnerIds: ['p-alex', 'p-sam'] }] }
+			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] })
 		);
 		expect(plan.commands).toHaveLength(0);
 		expect(plan.warnings.some((w) => w.code === 'ALREADY_PARTNERS')).toBe(true);
 	});
 
-	it('reuses the parent\u2019s existing union when adding a child', () => {
+	it('reuses the parent’s existing union when adding a child and names the family', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null },
-			{ assertions: [], hasDuplicateName: false, unionCount: 1, existingUnions: [{ id: 'u1', partnerIds: ['p-alex', 'p-other'] }] }
+			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-other'] }] })
 		);
 		expect(plan.commands[0]).toMatchObject({ kind: 'assert_parent_child', unionId: 'u1' });
+		expect(plan.sentence).toBe("Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family.");
 	});
 
-	it('reuses the child\u2019s existing union when adding a parent', () => {
-		const existing = [assertion({ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' })];
+	it('warns which family the child joins when the parent has several partnerships', () => {
+		const plan = planRelationshipCommand(
+			{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null },
+			context({
+				people: [alex, sam, other, { id: 'p-third', givenName: 'Third' }],
+				unions: [
+					{ id: 'u1', partners: ['p-alex', 'p-other'] },
+					{ id: 'u2', partners: ['p-alex', 'p-third'] }
+				]
+			})
+		);
+		expect(plan.commands[0]).toMatchObject({ unionId: 'u1' });
+		expect(plan.warnings.some((w) => w.code === 'MULTIPLE_UNIONS')).toBe(true);
+	});
+
+	it('reuses the child’s existing union when adding a parent', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_parent', child: sam, parent: alex, type: 'adoptive', role: 'mother', unionLabel: null },
-			{ assertions: existing, hasDuplicateName: false, unionCount: 0, existingUnions: [{ id: 'u1', partnerIds: ['p-other'] }] }
+			context({ unions: [{ id: 'u1', partners: ['p-other'] }], links: [{ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' }] })
 		);
 		expect(plan.commands[0]).toMatchObject({ kind: 'assert_parent_child', unionId: 'u1' });
 	});
@@ -82,26 +106,119 @@ describe('planRelationshipCommand', () => {
 	it('flags a duplicate-name warning', () => {
 		const plan = planRelationshipCommand(
 			{ kind: 'add_parent', child: sam, parent: alex, type: 'biological', role: 'parent', unionLabel: null },
-			{ assertions: [], hasDuplicateName: true, unionCount: 0, existingUnions: [] }
+			context({}, { hasDuplicateName: true })
 		);
 		expect(plan.warnings.some((w) => w.code === 'DUPLICATE_PERSON')).toBe(true);
 	});
 
 	it('flags a cycle warning when the assertion would close a loop', () => {
-		// alex -> sam already exists; adding sam -> alex closes a cycle.
-		const existing = [assertion({ parentId: 'p-alex', childId: 'p-sam' })];
 		const plan = planRelationshipCommand(
 			{ kind: 'add_parent', child: alex, parent: sam, type: 'biological', role: 'parent', unionLabel: null },
-			{ assertions: existing, hasDuplicateName: false, unionCount: 0, existingUnions: [] }
+			context({ links: [{ parentId: 'p-alex', childId: 'p-sam' }] })
 		);
 		expect(plan.warnings.some((w) => w.code === 'CYCLE')).toBe(true);
 	});
 
-	it('flags multiple-union ambiguity when ending a union', () => {
-		const plan = planRelationshipCommand(
-			{ kind: 'end_union', person: alex, unionLabel: 'X' },
-			{ assertions: [], hasDuplicateName: false, unionCount: 2, existingUnions: [] }
-		);
-		expect(plan.warnings.some((w) => w.code === 'MULTIPLE_UNIONS')).toBe(true);
+	describe('record_death', () => {
+		const death = { kind: 'record_death', person: alex, dateText: '3 MAR 2001', place: 'Brisbane' } as const;
+
+		it('plans one record_death command carrying the date and place', () => {
+			const plan = planRelationshipCommand(death, context());
+			expect(plan.commands).toEqual([
+				{ kind: 'record_death', personId: 'p-alex', dateText: '3 MAR 2001', place: 'Brisbane', expectedVersion: undefined }
+			]);
+		});
+
+		it('says who becomes widowed, per union that has not ended', () => {
+			const plan = planRelationshipCommand(
+				death,
+				context({
+					unions: [
+						{ id: 'u1', partners: ['p-alex', 'p-sam'] },
+						{ id: 'u2', partners: ['p-alex', 'p-other'], status: 'divorced' }
+					]
+				})
+			);
+			expect(plan.sentence).toBe(
+				'Alex Walker will be recorded as deceased (3 MAR 2001, Brisbane). Sam Smith will be shown as widowed in their partnership with Alex Walker.'
+			);
+		});
+
+		it('does not widow a partner who has already died', () => {
+			const plan = planRelationshipCommand(
+				death,
+				context({ people: [alex, { ...sam, death: '1990' }], unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] })
+			);
+			expect(plan.sentence).not.toContain('widowed');
+		});
+
+		it('warns, without blocking, about an existing death and a death before the birth', () => {
+			const plan = planRelationshipCommand(
+				{ ...death, dateText: '1950' },
+				context({ people: [{ ...alex, birth: '1960', death: '1970' }] })
+			);
+			expect(plan.commands).toHaveLength(1);
+			expect(plan.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['ALREADY_DECEASED', 'DEATH_BEFORE_BIRTH']));
+		});
+	});
+
+	describe('end_union', () => {
+		const divorce = {
+			kind: 'end_union',
+			person: alex,
+			unionId: 'u1',
+			status: 'divorced',
+			event: { type: 'DIV', dateText: '12 MAR 1999', place: 'Sydney' }
+		} as const;
+
+		it('plans an end_union command for the chosen partnership', () => {
+			const plan = planRelationshipCommand(divorce, context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] }));
+			expect(plan.commands).toEqual([
+				{
+					kind: 'end_union',
+					unionId: 'u1',
+					status: 'divorced',
+					event: { type: 'DIV', dateText: '12 MAR 1999', place: 'Sydney' },
+					expectedVersion: undefined
+				}
+			]);
+			expect(plan.sentence).toBe(
+				'The partnership between Alex Walker and Sam Smith will be recorded as divorced (12 MAR 1999, Sydney).'
+			);
+		});
+
+		it('asks for a choice, and plans nothing, when the person has several partnerships and none was chosen', () => {
+			const plan = planRelationshipCommand(
+				{ ...divorce, unionId: null },
+				context({
+					unions: [
+						{ id: 'u1', partners: ['p-alex', 'p-sam'] },
+						{ id: 'u2', partners: ['p-alex', 'p-other'] }
+					]
+				})
+			);
+			expect(plan.commands).toHaveLength(0);
+			expect(plan.warnings.some((w) => w.code === 'MULTIPLE_UNIONS')).toBe(true);
+		});
+
+		it('picks the only partnership without asking', () => {
+			const plan = planRelationshipCommand({ ...divorce, unionId: null }, context({ unions: [{ id: 'u9', partners: ['p-alex', 'p-sam'] }] }));
+			expect(plan.commands[0]).toMatchObject({ unionId: 'u9' });
+		});
+
+		it('refuses a partnership the person is not in', () => {
+			const plan = planRelationshipCommand(divorce, context({ unions: [{ id: 'u1', partners: ['p-sam', 'p-other'] }] }));
+			expect(plan.commands).toHaveLength(0);
+			expect(plan.warnings.some((w) => w.code === 'NO_UNION')).toBe(true);
+		});
+
+		it('warns, without blocking, when the end is dated before the marriage or the union already ended', () => {
+			const plan = planRelationshipCommand(
+				{ ...divorce, event: { type: 'DIV', dateText: '1990', place: null } },
+				context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status: 'divorced', marriage: '1995' }] })
+			);
+			expect(plan.commands).toHaveLength(1);
+			expect(plan.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['END_BEFORE_START', 'UNION_ALREADY_ENDED']));
+		});
 	});
 });

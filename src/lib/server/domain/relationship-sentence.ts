@@ -9,11 +9,14 @@
  */
 
 import type { ParentChildType } from './genealogy-model';
+import type { EndedUnionStatus, UnionEventType } from './union-events';
 
 export interface PersonRef {
 	id: string;
 	givenName: string | null;
 	surname: string | null;
+	/** True for someone the intent creates; `id` is then a placeholder the server replaces. */
+	isNew?: boolean;
 }
 
 export type ParentRole = 'parent' | 'mother' | 'father';
@@ -43,14 +46,31 @@ export type RelationshipIntent =
 	| {
 			kind: 'record_death';
 			person: PersonRef;
-			/** Partners who would become widowed as a derived consequence. */
-			widowedPartners: PersonRef[];
+			/** Death date as typed; kept verbatim. */
+			dateText: string | null;
+			place: string | null;
+			/** The person's version the form was loaded from, so a concurrent edit is caught. */
+			personVersion?: number;
 	  }
 	| {
 			kind: 'end_union';
 			person: PersonRef;
-			unionLabel: string;
+			/** The partnership to end. Null only when the person has exactly one; the planner resolves it. */
+			unionId: string | null;
+			status: EndedUnionStatus;
+			event: { type: UnionEventType; dateText: string | null; place: string | null } | null;
+			unionVersion?: number;
 	  };
+
+/**
+ * Facts the server resolves and the sentence needs but the client cannot be trusted to supply:
+ * which family a link will land in, who is in the partnership, and who becomes widowed.
+ */
+export interface SentenceFacts {
+	unionLabel?: string | null;
+	partners?: PersonRef[];
+	widowed?: Array<{ widow: PersonRef; deceased: PersonRef }>;
+}
 
 const RELATIONSHIP_TYPE_LABEL: Record<ParentChildType, string> = {
 	biological: 'biological',
@@ -87,20 +107,34 @@ function unionSuffix(unionLabel: string | null): string {
 	return unionLabel ? ` in the ${unionLabel} family` : '';
 }
 
+/** "3 Mar 2001, Brisbane": whatever of the date and place was given. */
+function details(dateText: string | null, place: string | null): string {
+	return [dateText?.trim(), place?.trim()].filter(Boolean).join(', ');
+}
+
+const ENDED_STATUS_WORD: Record<EndedUnionStatus, string> = {
+	separated: 'separated',
+	divorced: 'divorced',
+	annulled: 'annulled',
+	ended: 'ended'
+};
+
 /**
- * Produce the graph sentence preview for a relationship intent.
+ * Produce the graph sentence preview for a relationship intent. `facts` carries what the server
+ * resolved, so the sentence describes what will actually be saved rather than what was asked for.
  */
-export function describeRelationshipIntent(intent: RelationshipIntent): string {
+export function describeRelationshipIntent(intent: RelationshipIntent, facts: SentenceFacts = {}): string {
+	const unionLabel = facts.unionLabel ?? ('unionLabel' in intent ? intent.unionLabel : null);
 	switch (intent.kind) {
 		case 'add_parent':
 			return `${displayName(intent.parent)} will be recorded as ${possessive(
 				displayName(intent.child)
-			)} ${describeParentRole(intent.type, intent.role)}${unionSuffix(intent.unionLabel)}.`;
+			)} ${describeParentRole(intent.type, intent.role)}${unionSuffix(unionLabel)}.`;
 
 		case 'add_child':
 			return `${displayName(intent.child)} will be recorded as ${possessive(
 				displayName(intent.parent)
-			)} ${RELATIONSHIP_TYPE_LABEL[intent.type] || ''} child${unionSuffix(intent.unionLabel)}.`.replace(
+			)} ${RELATIONSHIP_TYPE_LABEL[intent.type] || ''} child${unionSuffix(unionLabel)}.`.replace(
 				/\s{2,}/g,
 				' '
 			);
@@ -108,16 +142,29 @@ export function describeRelationshipIntent(intent: RelationshipIntent): string {
 		case 'add_partner':
 			return `${displayName(intent.partner)} will be recorded as ${possessive(
 				displayName(intent.person)
-			)} partner${unionSuffix(intent.unionLabel)}.`;
+			)} partner${unionSuffix(unionLabel)}.`;
 
 		case 'record_death': {
-			const base = `${displayName(intent.person)} will be recorded as deceased.`;
-			if (intent.widowedPartners.length === 0) return base;
-			const names = intent.widowedPartners.map(displayName).join(' and ');
-			return `${base} ${names} will become widowed.`;
+			const extra = details(intent.dateText, intent.place);
+			const base = `${displayName(intent.person)} will be recorded as deceased${extra ? ` (${extra})` : ''}.`;
+			// "their" rather than a guessed pronoun: the record holds sex, not how someone is referred to.
+			const widowed = (facts.widowed ?? []).map(
+				({ widow, deceased }) =>
+					`${displayName(widow)} will be shown as widowed in their partnership with ${displayName(deceased)}.`
+			);
+			return [base, ...new Set(widowed)].join(' ');
 		}
 
-		case 'end_union':
-			return `${displayName(intent.person)} will no longer be part of the ${intent.unionLabel} union.`;
+		case 'end_union': {
+			const partners = facts.partners ?? [];
+			const who =
+				partners.length >= 2
+					? `The partnership between ${partners.map(displayName).join(' and ')}`
+					: partners.length === 1
+						? `${possessive(displayName(partners[0]))} partnership`
+						: 'The partnership';
+			const extra = intent.event ? details(intent.event.dateText, intent.event.place) : '';
+			return `${who} will be recorded as ${ENDED_STATUS_WORD[intent.status]}${extra ? ` (${extra})` : ''}.`;
+		}
 	}
 }

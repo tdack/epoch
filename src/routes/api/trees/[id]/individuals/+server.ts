@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
 
-    const individual = await service.createIndividual(
+    const { individual, change } = await service.createIndividual(
       treeId,
       {
         givenName: givenName?.trim() || null,
@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
       }
     );
 
-    return Response.json({ success: true, individual }, { status: 201 });
+    return Response.json({ success: true, individual, change }, { status: 201 });
   } catch (err: any) {
     if (err instanceof DomainError) {
       return Response.json({ error: err.message, code: err.code }, { status: err.status });

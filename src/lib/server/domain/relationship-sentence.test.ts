@@ -67,21 +67,56 @@ describe('describeRelationshipIntent', () => {
 		expect(sentence).toBe("Jordan Lee will be recorded as Alex Walker's partner.");
 	});
 
-	it('describes a death with derived widowhood', () => {
+	it('describes a death with its date and place', () => {
 		const sentence = describeRelationshipIntent({
 			kind: 'record_death',
 			person: alex,
-			widowedPartners: [jordan]
+			dateText: '3 MAR 2001',
+			place: 'Brisbane'
 		});
-		expect(sentence).toBe('Alex Walker will be recorded as deceased. Jordan Lee will become widowed.');
+		expect(sentence).toBe('Alex Walker will be recorded as deceased (3 MAR 2001, Brisbane).');
 	});
 
-	it('describes ending a union', () => {
-		const sentence = describeRelationshipIntent({
-			kind: 'end_union',
-			person: alex,
-			unionLabel: 'Alex Walker–Jordan Lee'
-		});
-		expect(sentence).toBe('Alex Walker will no longer be part of the Alex Walker–Jordan Lee union.');
+	it('names each derived widowhood without guessing a pronoun', () => {
+		const sentence = describeRelationshipIntent(
+			{ kind: 'record_death', person: alex, dateText: null, place: null },
+			{ widowed: [{ widow: jordan, deceased: alex }] }
+		);
+		expect(sentence).toBe(
+			'Alex Walker will be recorded as deceased. Jordan Lee will be shown as widowed in their partnership with Alex Walker.'
+		);
+	});
+
+	it('does not repeat a widowhood that two duplicate unions imply', () => {
+		const widowed = { widow: jordan, deceased: alex };
+		const sentence = describeRelationshipIntent(
+			{ kind: 'record_death', person: alex, dateText: null, place: null },
+			{ widowed: [widowed, widowed] }
+		);
+		expect(sentence.match(/widowed/g)).toHaveLength(1);
+	});
+
+	it('describes ending a partnership with its status and dated event', () => {
+		const sentence = describeRelationshipIntent(
+			{
+				kind: 'end_union',
+				person: alex,
+				unionId: 'u1',
+				status: 'divorced',
+				event: { type: 'DIV', dateText: '12 MAR 1999', place: null }
+			},
+			{ partners: [alex, jordan] }
+		);
+		expect(sentence).toBe(
+			'The partnership between Alex Walker and Jordan Lee will be recorded as divorced (12 MAR 1999).'
+		);
+	});
+
+	it('takes the family from the resolved facts rather than the client label', () => {
+		const sentence = describeRelationshipIntent(
+			{ kind: 'add_child', parent: alex, child: jordan, type: 'biological', unionLabel: 'client says so' },
+			{ unionLabel: 'Alex Walker–Sam Smith' }
+		);
+		expect(sentence).toBe("Jordan Lee will be recorded as Alex Walker's biological child in the Alex Walker–Sam Smith family.");
 	});
 });

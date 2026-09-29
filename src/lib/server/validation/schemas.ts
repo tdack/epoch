@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod';
+import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../domain/union-events';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 export const idSchema = z.string().min(1);
@@ -22,8 +23,16 @@ const nullableText = z.string().trim().nullable();
 const personRefSchema = z.object({
 	id: idSchema,
 	givenName: nullableText,
-	surname: nullableText
+	surname: nullableText,
+	isNew: z.boolean().optional()
 });
+
+/** A version read from a DTO and sent back on an update; never defaulted, or a stale save would slip through. */
+const versionSchema = z.number().int().nonnegative();
+
+const endedStatusSchema = z.enum(ENDED_UNION_STATUSES);
+const endEventTypeSchema = z.enum(END_EVENT_TYPES);
+const unionEventTypeSchema = z.enum(UNION_EVENT_TYPE_LIST);
 
 export const parentRoleSchema = z.enum(['parent', 'mother', 'father']);
 
@@ -65,12 +74,19 @@ export const relationshipIntentSchema = z.discriminatedUnion('kind', [
 	z.object({
 		kind: z.literal('record_death'),
 		person: personRefSchema,
-		widowedPartners: z.array(personRefSchema)
+		dateText: nullableText,
+		place: nullableText,
+		personVersion: versionSchema.optional()
 	}),
 	z.object({
 		kind: z.literal('end_union'),
 		person: personRefSchema,
-		unionLabel: z.string().min(1)
+		unionId: idSchema.nullable(),
+		status: endedStatusSchema,
+		event: z
+			.object({ type: endEventTypeSchema, dateText: nullableText, place: nullableText })
+			.nullable(),
+		unionVersion: versionSchema.optional()
 	})
 ]);
 
@@ -92,13 +108,38 @@ export const relationshipDeleteSchema = z.discriminatedUnion('kind', [
 	z.object({
 		kind: z.literal('remove_partner_from_union'),
 		unionId: idSchema,
-		personId: idSchema
+		personId: idSchema,
+		expectedVersion: versionSchema.optional()
 	}),
 	z.object({
 		kind: z.literal('destroy_union'),
-		unionId: idSchema
+		unionId: idSchema,
+		expectedVersion: versionSchema.optional()
 	})
 ]);
+
+/** What the impact endpoint previews: any removal, deleting a person, or deleting the whole tree. */
+export const impactRequestSchema = z.discriminatedUnion('kind', [
+	...relationshipDeleteSchema.options,
+	z.object({ kind: z.literal('delete_person'), personId: idSchema }),
+	z.object({ kind: z.literal('delete_tree') })
+]);
+
+/** The partnership editor's save: status and the events it manages, against the version it loaded. */
+export const unionUpdateSchema = z.object({
+	version: versionSchema,
+	status: z.enum(['active', ...ENDED_UNION_STATUSES]).optional(),
+	events: z
+		.array(
+			z.object({
+				id: idSchema.nullable(),
+				type: unionEventTypeSchema,
+				dateText: nullableText,
+				place: nullableText
+			})
+		)
+		.optional()
+});
 
 export const treeCreateSchema = z.object({
 	name: z.string().trim().min(1, 'Tree name is required'),
@@ -118,7 +159,7 @@ export const individualCreateSchema = z.object({
 export const individualUpdateSchema = individualCreateSchema
 	.partial()
 	.extend({
-		version: z.number().int().nonnegative().default(1)
+		version: versionSchema
 	});
 
 export const exportBodySchema = z.object({
@@ -132,4 +173,6 @@ export type IndividualCreateInput = z.infer<typeof individualCreateSchema>;
 export type IndividualUpdateInput = z.infer<typeof individualUpdateSchema>;
 export type RelationshipPayloadInput = z.infer<typeof relationshipPayloadSchema>;
 export type RelationshipDeleteInput = z.infer<typeof relationshipDeleteSchema>;
+export type ImpactRequestInput = z.infer<typeof impactRequestSchema>;
+export type UnionUpdateInput = z.infer<typeof unionUpdateSchema>;
 export type ExportBodyInput = z.infer<typeof exportBodySchema>;

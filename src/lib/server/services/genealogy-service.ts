@@ -5,13 +5,19 @@ import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { isActionAllowed } from '../auth/authorization';
 import { UnauthorizedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
+import { describeCommand } from '../domain/command-summary';
+import type { ImpactSummary } from '../domain/impact';
+import { describeImpact } from '../domain/impact';
+import { MutationRunner, type MutationClock } from './mutation-runner';
 
 export class GenealogyService {
   private treeRepo: TreeRepository;
   private userRepo: UserRepository;
   private genealogyRepo: GenealogyRepository;
+  private runner: MutationRunner;
 
-  constructor(private db: DbClient) {
+  constructor(private db: DbClient, clock?: MutationClock) {
+    this.runner = new MutationRunner(db, clock);
     this.treeRepo = new TreeRepository(db);
     this.userRepo = new UserRepository(db);
     this.genealogyRepo = new GenealogyRepository(db);
@@ -72,7 +78,15 @@ export class GenealogyService {
     if (!data.givenName?.trim() && !data.surname?.trim()) {
       throw new ValidationError('Given name or surname is required');
     }
-    return this.genealogyRepo.createIndividual({ treeId, ...data });
+    const personId = this.runner.clock.newId();
+    const command = { kind: 'create_person' as const, personId, givenName: data.givenName ?? null, surname: data.surname ?? null, sex: data.sex ?? 'U', ...data };
+    const result = await this.runner.run(treeId, context, {
+      kind: 'create_person',
+      summary: (rows) => describeCommand(command, rows),
+      commands: [command]
+    });
+    const individual = await this.genealogyRepo.getIndividual(treeId, personId);
+    return { individual: individual!, change: result.change };
   }
 
   async updateIndividual(
@@ -91,7 +105,14 @@ export class GenealogyService {
     context: AuthenticatedContext
   ) {
     await this.verifyTreeAccess(treeId, context, 'record:edit');
-    return this.genealogyRepo.updateIndividual(treeId, individualId, expectedVersion, data);
+    const command = { kind: 'update_person' as const, personId: individualId, expectedVersion, ...data };
+    const result = await this.runner.run(treeId, context, {
+      kind: 'update_person',
+      summary: (rows) => describeCommand(command, rows),
+      commands: [command]
+    });
+    const individual = await this.genealogyRepo.getIndividual(treeId, individualId);
+    return { individual: individual!, change: result.change };
   }
 
   async getIndividual(treeId: string, individualId: string, context: AuthenticatedContext) {
@@ -101,8 +122,34 @@ export class GenealogyService {
     return individual;
   }
 
-  async deleteIndividual(treeId: string, individualId: string, context: AuthenticatedContext) {
+  /** What deleting this person would remove and change, listed exactly. Nothing is saved. */
+  async previewDeleteIndividual(treeId: string, individualId: string, context: AuthenticatedContext): Promise<ImpactSummary> {
+    await this.verifyTreeAccess(treeId, context, 'tree:view');
+    const rows = await this.runner.store.loadRows(treeId);
+    const command = { kind: 'delete_person' as const, personId: individualId };
+    return describeImpact(describeCommand(command, rows), rows, this.runner.plan(treeId, rows, [command]));
+  }
+
+  async deleteIndividual(treeId: string, individualId: string, context: AuthenticatedContext, expectedVersion?: number) {
     await this.verifyTreeAccess(treeId, context, 'record:delete');
-    return this.genealogyRepo.deleteIndividual(treeId, individualId);
+    const command = { kind: 'delete_person' as const, personId: individualId, expectedVersion };
+    return this.runner.run(treeId, context, {
+      kind: 'delete_person',
+      summary: (rows) => describeCommand(command, rows),
+      commands: [command]
+    });
+  }
+
+  /** Counts of everything deleting a tree would erase. Deleting a tree is not undoable. */
+  async previewDeleteTree(treeId: string, context: AuthenticatedContext) {
+    await this.verifyTreeAccess(treeId, context, 'tree:view');
+    const rows = await this.runner.store.loadRows(treeId);
+    return {
+      people: rows.individuals.length,
+      unions: rows.unions.length,
+      links: rows.parentChild.length,
+      events: rows.events.length,
+      media: rows.mediaItems.length
+    };
   }
 }

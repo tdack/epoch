@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
     return Response.json({ individual });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
     }
     console.error('Failed to get individual:', err);
     return Response.json({ error: err?.message || 'Failed to get individual' }, { status: 500 });
@@ -60,7 +60,7 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
 
-    const updated = await service.updateIndividual(
+    const { individual: updated, change } = await service.updateIndividual(
       treeId,
       individualId,
       version,
@@ -79,17 +79,17 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
       }
     );
 
-    return Response.json({ success: true, individual: updated });
+    return Response.json({ success: true, individual: updated, change });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
     }
     console.error('Failed to update individual:', err);
     return Response.json({ error: err?.message || 'Failed to update individual' }, { status: 500 });
   }
 };
 
-export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
+export const DELETE: RequestHandler = async ({ params, url, locals, platform }) => {
   if (!locals.user) {
     return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
@@ -108,15 +108,18 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
 
-    await service.deleteIndividual(treeId, individualId, {
-      user: locals.user,
-      correlationId: locals.correlationId
-    });
+    const versionParam = url.searchParams.get('version');
+    const { change } = await service.deleteIndividual(
+      treeId,
+      individualId,
+      { user: locals.user, correlationId: locals.correlationId },
+      versionParam === null ? undefined : Number(versionParam)
+    );
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, change });
   } catch (err: any) {
     if (err instanceof DomainError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
     }
     console.error('Failed to delete individual:', err);
     return Response.json({ error: err?.message || 'Failed to delete individual' }, { status: 500 });

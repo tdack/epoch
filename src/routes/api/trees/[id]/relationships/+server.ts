@@ -25,15 +25,16 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		const db = getDb(platform.env.DB);
 		const service = new RelationshipService(db);
 
-		const plan = await service.execute(treeId, intent, {
+		const { change, affected, ...plan } = await service.execute(treeId, intent, {
 			user: locals.user,
 			correlationId: locals.correlationId
 		});
 
-		return Response.json({ success: true, plan }, { status: 201 });
+		// 200 rather than 201 when the plan wrote nothing (a warning stopped it), so the client can say so.
+		return Response.json({ success: true, plan, change, affected }, { status: change ? 201 : 200 });
 	} catch (err: any) {
 		if (err instanceof DomainError) {
-			return Response.json({ error: err.message, code: err.code }, { status: err.status });
+			return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
 		}
 		console.error('Failed to apply relationship command:', err);
 		return Response.json({ error: err?.message || 'Failed to apply relationship command' }, { status: 500 });

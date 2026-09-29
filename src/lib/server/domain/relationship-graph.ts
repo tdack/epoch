@@ -8,7 +8,17 @@
  * and deceased markers are derived from death events.
  */
 
+import type { TreeRows } from './change-log';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
+import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from './union-events';
+
+/** A partnership event as the graph carries it, for labels and for the union editor. */
+export interface GraphUnionEvent {
+	id: string;
+	type: UnionEventType;
+	dateText: string | null;
+	place: string | null;
+}
 
 export interface GraphPersonInput {
 	id: string;
@@ -19,6 +29,8 @@ export interface GraphPersonInput {
 	/** Birth and death as the original GEDCOM date text, when recorded. */
 	birthDate?: string | null;
 	deathDate?: string | null;
+	/** Optimistic-concurrency version of the person record. */
+	version?: number;
 }
 
 export interface GraphUnionInput {
@@ -27,6 +39,8 @@ export interface GraphUnionInput {
 	marriageDate?: string | null;
 	marriagePlace?: string | null;
 	partnerIds: string[];
+	version?: number;
+	events?: GraphUnionEvent[];
 }
 
 export interface GraphParentChildInput {
@@ -45,6 +59,8 @@ export interface RelationshipGraphPerson {
 	/** Original date text of the first birth and death events. Absent on older captured graphs. */
 	birthDate?: string | null;
 	deathDate?: string | null;
+	/** Version to send back when editing this person. Absent on older captured graphs. */
+	version?: number;
 	/** Parents grouped by union context (`__direct__` for none). */
 	parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
 	/** Union IDs this person participates in as a partner. */
@@ -60,6 +76,10 @@ export interface RelationshipGraphUnion {
 	marriageDate: string | null;
 	marriagePlace: string | null;
 	partnerIds: string[];
+	/** Version to send back when editing this partnership. Absent on older captured graphs. */
+	version?: number;
+	/** Engagement, marriage, separation, divorce and the like, in the order people read them. */
+	events?: GraphUnionEvent[];
 	/** Children asserted within this union, with per-parent type. */
 	children: Array<{ childId: string; parentId: string; type: ParentChildType }>;
 }
@@ -139,6 +159,7 @@ export function buildRelationshipGraph(input: {
 			isDeceased: p.isDeceased,
 			birthDate: p.birthDate ?? null,
 			deathDate: p.deathDate ?? null,
+			...(p.version === undefined ? {} : { version: p.version }),
 			parentsByUnion,
 			unionIds,
 			stepParents
@@ -151,6 +172,8 @@ export function buildRelationshipGraph(input: {
 		marriageDate: u.marriageDate ?? null,
 		marriagePlace: u.marriagePlace ?? null,
 		partnerIds: u.partnerIds,
+		...(u.version === undefined ? {} : { version: u.version }),
+		...(u.events === undefined ? {} : { events: u.events }),
 		children: childrenByUnion.get(u.id) ?? []
 	}));
 
@@ -164,4 +187,68 @@ export function buildRelationshipGraph(input: {
 /** True when a union is separated/divorced/annulled/ended (for legend markers). */
 export function isEndedUnionStatus(status: UnionStatus): boolean {
 	return status === 'separated' || status === 'divorced' || status === 'annulled' || status === 'ended';
+}
+
+/**
+ * Assemble the graph from a tree snapshot. Reading and drawing use the same rows the mutations
+ * plan against, so a graph fetched after a save is exactly what the save produced.
+ */
+export function graphFromRows(rows: TreeRows): RelationshipGraph {
+	const deceased = new Set(rows.events.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId));
+
+	// The first birth and death date text per person, for card labels.
+	const dates = new Map<string, { birth: string | null; death: string | null }>();
+	for (const e of rows.events) {
+		if (e.entityType !== 'INDIVIDUAL' || (e.type !== 'BIRT' && e.type !== 'DEAT')) continue;
+		const entry = dates.get(e.entityId) ?? { birth: null, death: null };
+		const key = e.type === 'BIRT' ? 'birth' : 'death';
+		entry[key] ??= e.dateRaw ?? null;
+		dates.set(e.entityId, entry);
+	}
+
+	const partnersByUnion = new Map<string, string[]>();
+	for (const p of [...rows.unionPartners].sort((a, b) => a.order - b.order)) {
+		partnersByUnion.set(p.unionId, [...(partnersByUnion.get(p.unionId) ?? []), p.personId]);
+	}
+
+	const eventsByUnion = new Map<string, GraphUnionEvent[]>();
+	for (const e of rows.events) {
+		if (e.entityType !== 'FAMILY' || !isUnionEventType(e.type)) continue;
+		eventsByUnion.set(e.entityId, [...(eventsByUnion.get(e.entityId) ?? []), { id: e.id, type: e.type, dateText: e.dateRaw, place: e.place }]);
+	}
+	for (const list of eventsByUnion.values()) {
+		list.sort((a, b) => UNION_EVENT_TYPE_LIST.indexOf(a.type) - UNION_EVENT_TYPE_LIST.indexOf(b.type));
+	}
+
+	return buildRelationshipGraph({
+		people: rows.individuals.map((i) => ({
+			id: i.id,
+			givenName: i.givenName,
+			surname: i.surname,
+			sex: (i.sex as 'M' | 'F' | 'X' | 'U') || 'U',
+			isDeceased: deceased.has(i.id),
+			birthDate: dates.get(i.id)?.birth ?? null,
+			deathDate: dates.get(i.id)?.death ?? null,
+			version: i.version
+		})),
+		unions: rows.unions.map((u) => {
+			const unionEvents = eventsByUnion.get(u.id) ?? [];
+			const marriage = unionEvents.find((e) => e.type === 'MARR');
+			return {
+				id: u.id,
+				status: u.status as UnionStatus,
+				marriageDate: marriage?.dateText ?? null,
+				marriagePlace: marriage?.place ?? null,
+				partnerIds: partnersByUnion.get(u.id) ?? [],
+				version: u.version,
+				events: unionEvents
+			};
+		}),
+		parentChild: rows.parentChild.map((pc) => ({
+			parentId: pc.parentId,
+			childId: pc.childId,
+			type: pc.type as ParentChildType,
+			unionId: pc.unionId
+		}))
+	});
 }

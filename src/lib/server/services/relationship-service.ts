@@ -1,178 +1,143 @@
 /**
- * Phase 2 relationship service: turns an intent into a validated plan and
- * applies it against the neutral model. Enforces tree authorization and
- * returns the preview sentence plus applied command results.
+ * Phase 2 relationship service: turns an intent into a validated plan, previews it exactly, and
+ * applies it through the mutation runner, which logs it. Enforces tree authorization and returns
+ * the preview sentence plus what was written.
  */
 
 import type { DbClient } from '../db';
-import { UserRepository } from '../repositories/user-repository';
 import { RelationshipRepository } from '../repositories/relationship-repository';
-import { isActionAllowed } from '../auth/authorization';
-import { UnauthorizedError } from '../domain/errors';
-import { planRelationshipCommand, type RelationshipPlan, type RelationshipCommand } from '../domain/relationship-commands';
-import type { RelationshipIntent } from '../domain/relationship-sentence';
+import { pastTense, describeCommand } from '../domain/command-summary';
+import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
+import { describeImpact, type ImpactSummary } from '../domain/impact';
+import { graphFromRows } from '../domain/relationship-graph';
+import { planRelationshipCommand, type RelationshipCommand, type RelationshipPlan } from '../domain/relationship-commands';
+import type { RelationshipIntent } from '../domain/relationship-sentence';
+import type { TreeRows } from '../domain/change-log';
+import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 
-/** A record of an applied command, enabling undo of the last safe mutation. */
-export interface AppliedCommand {
-	command: RelationshipCommand;
-	/** Concrete union ID produced by a create_union, when applicable. */
-	createdUnionId: string | null;
-	impactSummary: string;
+/** A plan plus the exact records it would write. */
+export interface PreviewedPlan extends RelationshipPlan {
+	impact: ImpactSummary;
 }
 
+export interface ExecutedPlan extends RelationshipPlan, MutationResult {}
+
+/** Commands the canvas and drawers submit directly to remove something; none of them can delete unrelated history. */
+export type RemovalCommand = Extract<
+	RelationshipCommand,
+	{ kind: 'remove_parent_child' | 'remove_partner_from_union' | 'destroy_union' | 'delete_person' }
+>;
+
 export class RelationshipService {
-	private userRepo: UserRepository;
-	private relationshipRepo: RelationshipRepository;
-	private lastApplied: AppliedCommand[] = [];
+	private repo: RelationshipRepository;
+	readonly runner: MutationRunner;
 
-	constructor(private db: DbClient) {
-		this.userRepo = new UserRepository(db);
-		this.relationshipRepo = new RelationshipRepository(db);
+	constructor(db: DbClient, clock?: MutationClock) {
+		this.repo = new RelationshipRepository(db);
+		this.runner = new MutationRunner(db, clock);
 	}
 
-	private async verifyAccess(treeId: string, context: AuthenticatedContext, action: Parameters<typeof isActionAllowed>[1]) {
-		const membership = await this.userRepo.getMembership(treeId, context.user.id);
-		if (!membership || !isActionAllowed(membership.role, action)) {
-			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
-		}
+	private async planFor(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext) {
+		await this.runner.requireAccess(treeId, context, 'record:create');
+		const rows = await this.runner.store.loadRows(treeId);
+		const plan = planRelationshipCommand(intent, {
+			rows,
+			hasDuplicateName: await this.hasDuplicate(treeId, intent),
+			newId: this.runner.clock.newId
+		});
+		return { rows, plan };
 	}
 
-	/**
-	 * Produce a preview plan for an intent without writing anything.
-	 */
-	async plan(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<RelationshipPlan> {
-		await this.verifyAccess(treeId, context, 'record:create');
-
-		const [assertions, subjectId, existingUnions] = await Promise.all([
-			this.relationshipRepo.listAssertions(treeId),
-			this.subjectIdForIntent(intent),
-			this.relationshipRepo.listUnions(treeId)
-		]);
-
-		const unionCount = subjectId ? await this.relationshipRepo.countUnionsForPerson(subjectId) : 0;
-		const hasDuplicateName = await this.hasDuplicate(treeId, intent);
-
-		return planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount, existingUnions });
+	/** Produce a preview for an intent without writing anything. */
+	async plan(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<PreviewedPlan> {
+		const { rows, plan } = await this.planFor(treeId, intent, context);
+		const ops = this.runner.plan(treeId, rows, plan.commands);
+		return { ...plan, impact: describeImpact(plan.sentence, rows, ops) };
 	}
 
 	/**
-	 * Apply a planned intent. Re-plans (to re-validate invariants against the
-	 * latest state) and then executes each command in order.
+	 * Apply an intent. Re-plans against the latest state, so invariants are checked at the moment
+	 * of writing, not when the preview was shown.
 	 */
-	async execute(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<RelationshipPlan> {
-		await this.verifyAccess(treeId, context, 'record:create');
-
-		const assertions = await this.relationshipRepo.listAssertions(treeId);
-		const subjectId = await this.subjectIdForIntent(intent);
-		const existingUnions = await this.relationshipRepo.listUnions(treeId);
-		const unionCount = subjectId ? await this.relationshipRepo.countUnionsForPerson(subjectId) : 0;
-		const hasDuplicateName = await this.hasDuplicate(treeId, intent);
-
-		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName, unionCount, existingUnions });
-
-		for (const command of plan.commands) {
-			const createdUnionId = await this.relationshipRepo.applyCommand(treeId, command);
-			const impactSummary = await this.relationshipRepo.summarizeImpact(treeId, command);
-			this.lastApplied.push({ command, createdUnionId, impactSummary });
-		}
-
-		return plan;
+	async execute(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<ExecutedPlan> {
+		const { rows, plan } = await this.planFor(treeId, intent, context);
+		const result = await this.runner.run(
+			treeId,
+			context,
+			{ kind: intent.kind, summary: () => pastTense(plan.sentence), commands: plan.commands },
+			rows
+		);
+		return { ...plan, ...result };
 	}
 
-	/** Preview the impact summary of a planned intent (no write). */
-	async previewImpact(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<string[]> {
-		await this.verifyAccess(treeId, context, 'record:create');
-		const assertions = await this.relationshipRepo.listAssertions(treeId);
-		const existingUnions = await this.relationshipRepo.listUnions(treeId);
-		const plan = planRelationshipCommand(intent, { assertions, hasDuplicateName: false, unionCount: 0, existingUnions });
-		return Promise.all(plan.commands.map((c) => this.relationshipRepo.summarizeImpact(treeId, c)));
+	private removalHeadline(rows: TreeRows, command: RemovalCommand): string {
+		return describeCommand(command, rows);
 	}
 
-	/** Undo the last applied command in this service instance (in-memory). */
-	async undoLast(treeId: string, context: AuthenticatedContext): Promise<AppliedCommand | null> {
-		await this.verifyAccess(treeId, context, 'record:edit');
-		const last = this.lastApplied.pop();
-		if (!last) return null;
-
-		const inverse = this.relationshipRepo.inverseOf(last.command);
-		if (inverse) {
-			await this.relationshipRepo.applyCommand(treeId, inverse);
-		} else if (last.command.kind === 'create_union' && last.createdUnionId) {
-			// Undo a create_union by ending the concrete union.
-			await this.relationshipRepo.applyCommand(treeId, {
-				kind: 'end_union',
-				unionId: last.createdUnionId
-			});
-		} else if (last.command.kind === 'end_union') {
-			// Re-activate the union by recreating it is out of scope; report the
-			// action as non-undoable here (no person data is lost).
-			return last;
-		}
-
-		return last;
+	/** What removing something would write, without writing it. Destructive actions show this first. */
+	async previewRemoval(treeId: string, command: RemovalCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
+		await this.runner.requireAccess(treeId, context, 'tree:view');
+		const rows = await this.runner.store.loadRows(treeId);
+		return describeImpact(this.removalHeadline(rows, command), rows, this.runner.plan(treeId, rows, [command]));
 	}
 
 	/**
-	 * Apply a concrete destructive command (remove_parent_child, destroy_union,
-	 * remove_partner_from_union) directly, for line/union deletion from the
-	 * canvas. Never deletes people.
+	 * Apply a concrete removal from the canvas: a parent link, a partner, or a whole union. Never
+	 * deletes people; deleting a person goes through the person service.
 	 */
-	async removeRelationship(treeId: string, command: RelationshipCommand, context: AuthenticatedContext): Promise<void> {
-		await this.verifyAccess(treeId, context, 'record:edit');
-		await this.relationshipRepo.applyCommand(treeId, command);
+	async removeRelationship(treeId: string, command: RemovalCommand, context: AuthenticatedContext): Promise<MutationResult> {
+		if (command.kind === 'delete_person') throw new ValidationError('Use the person endpoint to delete a person');
+		return this.runner.run(treeId, context, {
+			kind: command.kind,
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command]
+		});
+	}
+
+	/** Edit a partnership's status and events (the union editor). */
+	async updateUnion(
+		treeId: string,
+		command: Extract<RelationshipCommand, { kind: 'update_union' }>,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		return this.runner.run(treeId, context, {
+			kind: 'update_union',
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command]
+		});
 	}
 
 	async searchPeople(treeId: string, query: string, context: AuthenticatedContext) {
-		await this.verifyAccess(treeId, context, 'tree:view');
-		return this.relationshipRepo.searchPeople(treeId, query);
+		await this.runner.requireAccess(treeId, context, 'tree:view');
+		return this.repo.searchPeople(treeId, query);
 	}
 
 	async getGraph(treeId: string, context: AuthenticatedContext) {
-		await this.verifyAccess(treeId, context, 'tree:view');
-		return this.relationshipRepo.getGraph(treeId);
-	}
-
-	private async subjectIdForIntent(intent: RelationshipIntent): Promise<string | null> {
-		switch (intent.kind) {
-			case 'add_parent':
-				return intent.child.id;
-			case 'add_child':
-				return intent.parent.id;
-			case 'add_partner':
-				return intent.person.id;
-			case 'record_death':
-				return intent.person.id;
-			case 'end_union':
-				return intent.person.id;
-		}
+		await this.runner.requireAccess(treeId, context, 'tree:view');
+		return graphFromRows(await this.runner.store.loadRows(treeId));
 	}
 
 	private async hasDuplicate(treeId: string, intent: RelationshipIntent): Promise<boolean> {
-		let name: string | null = null;
+		let ref;
 		switch (intent.kind) {
 			case 'add_parent':
-				name = intent.parent.givenName ?? intent.parent.surname;
+				ref = intent.parent;
 				break;
 			case 'add_child':
-				name = intent.child.givenName ?? intent.child.surname;
+				ref = intent.child;
 				break;
 			case 'add_partner':
-				name = intent.partner.givenName ?? intent.partner.surname;
+				ref = intent.partner;
 				break;
 			default:
 				return false;
 		}
+		const name = ref.givenName ?? ref.surname;
 		if (!name?.trim()) return false;
-		const matches = await this.relationshipRepo.searchPeople(treeId, name);
-		// A match is a duplicate cue when it is a different person than the
-		// one being linked.
-		const linkedId =
-			intent.kind === 'add_parent'
-				? intent.parent.id
-				: intent.kind === 'add_child'
-					? intent.child.id
-					: intent.partner.id;
-		return matches.some((m) => m.id !== linkedId);
+		const matches = await this.repo.searchPeople(treeId, name);
+		// A match is a duplicate cue when it is a different person than the one being linked. A
+		// person being created has no id yet, so any match is a cue.
+		return matches.some((m) => ref.isNew || m.id !== ref.id);
 	}
 }
