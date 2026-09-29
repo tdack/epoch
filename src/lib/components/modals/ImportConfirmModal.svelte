@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Upload, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
-  import type { ImportPreviewData } from '#lib/types/genealogy.js';
+  import type { ImportPreviewData, PossibleDuplicateGroup } from '#lib/types/genealogy.js';
 
   interface Props {
     show: boolean;
@@ -12,7 +12,8 @@
     isConfirming?: boolean;
     error?: string | null;
     onclose: () => void;
-    onconfirm: (mode: 'replace' | 'merge') => void;
+    /** `shouldMergeDuplicateFamilies` is the state of the "merge duplicate families" checkbox. */
+    onconfirm: (mode: 'replace' | 'merge', options: { shouldMergeDuplicateFamilies: boolean }) => void;
   }
 
   let {
@@ -26,7 +27,59 @@
     onclose,
     onconfirm
   }: Props = $props();
+
+  /** On by default: an exact duplicate is the same family written twice, and merging keeps every XREF. */
+  let shouldMergeDuplicateFamilies = $state(true);
+  // Each opening starts from the default, not from what the last file's review left behind.
+  $effect(() => {
+    if (show) shouldMergeDuplicateFamilies = true;
+  });
+
+  const REASON_TEXT: Record<PossibleDuplicateGroup['reason'], string> = {
+    different_facts: 'same partners, but the records state different facts',
+    different_child_records: 'same partners, but a child is recorded differently',
+    subset_of_full_family: 'one partner only, and its partner and children are already in the fuller family',
+    same_single_partner: 'the same single partner, listed more than once'
+  };
+
+  const confirm = (mode: 'replace' | 'merge') => onconfirm(mode, { shouldMergeDuplicateFamilies });
 </script>
+
+{#snippet duplicatesBlock()}
+  {#if preview && (preview.duplicates.exact.length > 0 || preview.duplicates.possible.length > 0)}
+    <div class="bg-amber-50 border border-amber-300 rounded-lg p-3 space-y-2">
+      {#if preview.duplicates.exact.length > 0}
+        <p class="font-semibold text-amber-950">Duplicate families</p>
+        <ul class="list-disc list-inside space-y-0.5 text-stone-800">
+          {#each preview.duplicates.exact as group (group.survivorId)}
+            <li>
+              {group.partners.join(' and ')}: {group.familyIds.length} copies
+              <span class="font-mono text-[11px] text-stone-600">({group.familyIds.join(', ')})</span>
+            </li>
+          {/each}
+        </ul>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" class="mt-0.5" bind:checked={shouldMergeDuplicateFamilies} />
+          <span>
+            Merge duplicate families into one each. Children and facts are combined, and every original XREF is kept as an alias.
+          </span>
+        </label>
+      {/if}
+      {#if preview.duplicates.possible.length > 0}
+        <p class="font-semibold text-amber-950">Possible duplicates (for review, never merged automatically)</p>
+        <ul class="list-disc list-inside space-y-0.5 text-stone-800">
+          {#each preview.duplicates.possible as group (group.reason + group.familyIds.join())}
+            <li>
+              {group.partners.join(' and ')}: {REASON_TEXT[group.reason]}
+              <span class="font-mono text-[11px] text-stone-600">({group.familyIds.join(', ')})</span>
+            </li>
+          {/each}
+        </ul>
+        <p class="text-stone-600">You can merge these later from the partnership menu once they are in the tree.</p>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
 
 <BaseModal
   {show}
@@ -56,6 +109,7 @@
           <p class="font-semibold text-stone-900">New tree</p>
           <p>All {preview.incoming.individuals} people and {preview.incoming.families} families from the file will be imported into a fresh tree.</p>
         </div>
+        {@render duplicatesBlock()}
         <div class="flex space-x-2 pt-2 border-t border-stone-200">
           <button
             type="button"
@@ -67,7 +121,7 @@
           </button>
           <button
             type="button"
-            onclick={() => onconfirm('replace')}
+            onclick={() => confirm('replace')}
             disabled={isConfirming}
             class="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
@@ -91,6 +145,7 @@
             {preview.incoming.families} families from the file.
           </p>
         </div>
+        {@render duplicatesBlock()}
         <div class="flex space-x-2 pt-2 border-t border-stone-200">
           <button
             type="button"
@@ -102,7 +157,7 @@
           </button>
           <button
             type="button"
-            onclick={() => onconfirm('merge')}
+            onclick={() => confirm('merge')}
             disabled={isConfirming}
             class="flex-1 px-4 py-2 text-xs font-semibold text-stone-700 border border-stone-300 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
@@ -110,7 +165,7 @@
           </button>
           <button
             type="button"
-            onclick={() => onconfirm('replace')}
+            onclick={() => confirm('replace')}
             disabled={isConfirming}
             class="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-red-800 hover:bg-red-700 text-red-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
@@ -139,6 +194,7 @@
             </p>
           {/if}
         </div>
+        {@render duplicatesBlock()}
         <div class="flex space-x-2 pt-2 border-t border-stone-200">
           <button
             type="button"
@@ -151,7 +207,7 @@
           {#if preview.deleteCounts}
             <button
               type="button"
-              onclick={() => onconfirm('replace')}
+              onclick={() => confirm('replace')}
               disabled={isConfirming}
               class="flex-1 px-4 py-2 text-xs font-semibold bg-red-800 hover:bg-red-700 text-red-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
             >
@@ -160,7 +216,7 @@
           {/if}
           <button
             type="button"
-            onclick={() => onconfirm('merge')}
+            onclick={() => confirm('merge')}
             disabled={isConfirming}
             class="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >

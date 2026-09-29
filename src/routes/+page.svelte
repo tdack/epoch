@@ -402,7 +402,7 @@
     }
   }
 
-  async function confirmImport(mode: 'replace' | 'merge') {
+  async function confirmImport(mode: 'replace' | 'merge', options: { shouldMergeDuplicateFamilies: boolean }) {
     if (!pendingImportFile) return;
     isConfirmingImport = true;
     importConfirmError = null;
@@ -410,8 +410,8 @@
     importStatus = 'Importing GEDCOM records into Cloudflare D1...';
 
     try {
-      const resData = await submitGedcomImport(pendingImportFile, mode, selectedTreeId);
-      importStatus = `Import complete: ${resData.individualsCount || 0} individuals, ${resData.familiesCount || 0} families.`;
+      const resData = await submitGedcomImport(pendingImportFile, mode, selectedTreeId, options);
+      importStatus = `Import complete: ${resData.individualsCount || 0} individuals, ${resData.familiesCount || 0} families${resData.mergedFamiliesCount ? ` (${resData.mergedFamiliesCount} duplicate families merged)` : ''}.`;
       showImportConfirmModal = false;
       pendingImportFile = null;
       importPreview = null;
