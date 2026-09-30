@@ -262,12 +262,12 @@
     error={drawerError}
     onClose={clearSelection}
     onMediaUploaded={editor.refresh}
-    onAddRelationship={(id) => editor.openRelationship(editor.anchorFor(id))}
+    onAddRelationship={(id, options) => editor.openRelationship(editor.anchorFor(id), options)}
+    onRemoveRelative={editor.requestRelativeAction}
     onEditPerson={(id) => void editor.openEditPerson(id)}
     onDeletePerson={editor.requestDeletePerson}
     onRecordDeath={(id) => editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
     onEditUnion={editor.editUnion}
-    onEndUnion={editor.endUnion}
     onMergeUnion={editor.mergeUnion}
     onSelectPerson={handleSelectPerson}
   />

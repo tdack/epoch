@@ -48,6 +48,29 @@ export interface PersonRef {
 	surname: string | null;
 }
 
+/** How a relative is listed on the person they belong to; decides what can be done about them. */
+export type RelativeRelation = 'parent' | 'partner' | 'child' | 'sibling';
+
+/** What happened to a relative, as the person chooses it from the trash button on their entry. */
+export const RELATIVE_OUTCOMES = {
+	REMOVE: 'remove',
+	ENDED: 'ended',
+	DIED: 'died',
+	DELETE: 'delete'
+} as const;
+export type RelativeOutcome = (typeof RELATIVE_OUTCOMES)[keyof typeof RELATIVE_OUTCOMES];
+
+export interface RelativeAction {
+	relation: RelativeRelation;
+	/** The person the relative is listed under. */
+	owner: PersonRef;
+	relative: PersonRef & { isDeceased: boolean };
+	/** The partnership a partner is listed in. */
+	unionId: string | null;
+	/** The type of the parent link a parent or child is listed by. */
+	type: ParentChildType | null;
+}
+
 export interface TreeEditorOptions {
 	treeId: () => string;
 	toasts: ToastStore;
@@ -122,6 +145,9 @@ export class TreeEditor {
 	mergingUnionId = $state<string | null>(null);
 
 	pendingImpact = $state<PendingImpact | null>(null);
+
+	/** The relative whose trash button was pressed; the dialog asks what happened to them. */
+	relativeAction = $state<RelativeAction | null>(null);
 
 	/** "1st partnership" and so on; computed over every partnership the graph holds. */
 	unionLabels = $derived(this.graph ? partnershipLabels(this.graph.unions) : new Map());
@@ -460,6 +486,46 @@ export class TreeEditor {
 			'Delete partnership',
 			'Partnership deleted'
 		);
+	};
+
+	// ---- Relatives on a person ----
+
+	requestRelativeAction = (action: RelativeAction) => {
+		this.relativeAction = action;
+	};
+
+	/**
+	 * Carry out what the person said happened to a relative. Every branch ends in a step that shows
+	 * its effect before saving: an impact preview for removals, the death and end-partnership forms
+	 * for the others.
+	 */
+	chooseRelativeOutcome = (outcome: RelativeOutcome) => {
+		const action = this.relativeAction;
+		this.relativeAction = null;
+		if (!action) return;
+		const { relation, owner, relative, unionId, type } = action;
+		if (outcome === RELATIVE_OUTCOMES.DELETE) return this.requestDeletePerson(relative.id);
+		if (outcome === RELATIVE_OUTCOMES.DIED) return this.openRelationship(this.anchorFor(relative.id), { kind: 'record_death' });
+		if (outcome === RELATIVE_OUTCOMES.ENDED && unionId) return this.openRelationship(this.anchorFor(owner.id), { kind: 'end_union', unionId });
+		if (outcome !== RELATIVE_OUTCOMES.REMOVE) return;
+		if (relation === 'partner' && unionId) {
+			this.requestImpactRemoval(
+				{ kind: 'remove_partner_from_union', unionId, personId: relative.id, expectedVersion: this.unionVersion(unionId) },
+				`Remove ${relative.givenName ?? 'this person'} as a partner of ${owner.givenName ?? 'this person'}?`,
+				'Remove partner',
+				'Partner removed'
+			);
+		} else if ((relation === 'parent' || relation === 'child') && type) {
+			const isParent = relation === 'parent';
+			this.requestImpactRemoval(
+				{ kind: 'remove_parent_child', parentId: isParent ? relative.id : owner.id, childId: isParent ? owner.id : relative.id, type },
+				isParent
+					? `Remove ${relative.givenName ?? 'this person'} as a parent of ${owner.givenName ?? 'this person'}?`
+					: `Remove ${relative.givenName ?? 'this person'} as a child of ${owner.givenName ?? 'this person'}?`,
+				'Remove link',
+				'Link removed'
+			);
+		}
 	};
 
 	// ---- Partnerships ----

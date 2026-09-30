@@ -144,7 +144,7 @@ test('a partnership with one recorded parent says so in the drawer, and its edit
 	const drawer = page.locator('div.fixed.inset-y-0');
 	await expect(drawer.getByText('Children, other parent not recorded').first()).toBeVisible();
 
-	const editButtons = drawer.getByRole('button', { name: 'Edit', exact: true });
+	const editButtons = drawer.getByRole('button', { name: 'Dates & status', exact: true });
 	const count = await editButtons.count();
 	let sawSingle = false;
 	for (let i = 0; i < count && !sawSingle; i++) {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { UserPlus, Baby, Heart, Search, Sparkles, Cross, HeartCrack } from 'lucide-svelte';
+  import { UserPlus, Baby, Heart, Search, Sparkles, Cross, HeartCrack, Users } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
   import ConflictDialog from './ConflictDialog.svelte';
   import { differingRows, type ConflictRow } from './conflict.js';
@@ -87,6 +87,8 @@
   let endEventType = $state<UnionEventType | ''>('DIV');
   let endDate = $state('');
   let endPlace = $state('');
+  /** Which parents an added sibling shares. Undefined: the first option, the biological parents. */
+  let siblingOptionKey = $state<string | undefined>(undefined);
   let plan = $state<RelationshipPlan | null>(null);
   let isPlanning = $state(false);
   let isSearching = $state(false);
@@ -111,6 +113,7 @@
   const kinds: Array<{ v: RelationshipKind; label: string; icon: typeof UserPlus }> = [
     { v: 'add_parent', label: 'Add parent', icon: UserPlus },
     { v: 'add_child', label: 'Add child', icon: Baby },
+    { v: 'add_sibling', label: 'Add sibling', icon: Users },
     { v: 'add_partner', label: 'Add partner', icon: Heart },
     { v: 'record_death', label: 'Record death', icon: Cross },
     { v: 'end_union', label: 'End partnership', icon: HeartCrack }
@@ -166,6 +169,43 @@
     kind === 'add_parent' ? 'Which parental family' : kind === 'add_partner' ? 'Which partnership to fill' : 'Which partnership'
   );
 
+  interface SiblingOption {
+    key: string;
+    parentIds: string[];
+    title: string;
+    detail: string;
+  }
+
+  // A sibling is someone who shares a parent, so the choice is which of the person's parents. Whole
+  // families come first, biological ones at the top, then each parent alone for a half-sibling.
+  const siblingOptions = $derived.by((): SiblingOption[] => {
+    const groups = new Map<string, Array<{ parentId: string; type: ParentChildType }>>();
+    for (const link of graph.parentChild) {
+      if (link.childId !== anchor.id) continue;
+      const key = link.unionId ?? 'direct';
+      groups.set(key, [...(groups.get(key) ?? []), { parentId: link.parentId, type: link.type }]);
+    }
+    const typeLabel = (type: ParentChildType) => typeOptions.find((t) => t.value === type)?.label.toLowerCase() ?? type;
+    const whole = [...groups.entries()].map(([key, links]): SiblingOption & { isBiological: boolean } => {
+      const parentIds = [...new Set(links.map((l) => l.parentId))];
+      const types = [...new Set(links.map((l) => l.type))];
+      return {
+        key,
+        parentIds,
+        title: parentIds.map(nameOf).join(' and '),
+        detail: `${parentIds.length > 1 ? 'Both parents' : 'One recorded parent'} · ${types.map(typeLabel).join(', ')}`,
+        isBiological: types.every((t) => t === 'biological')
+      };
+    });
+    whole.sort((a, b) => Number(b.isBiological) - Number(a.isBiological));
+    const halves = whole
+      .filter((g) => g.parentIds.length > 1)
+      .flatMap((g) => g.parentIds.map((id) => ({ key: `${g.key}:${id}`, parentIds: [id], title: `${nameOf(id)} only`, detail: 'A half-sibling: one shared parent' })));
+    return [...whole.map(({ isBiological: _, ...option }) => option), ...halves];
+  });
+  const effectiveSiblingKey = $derived(siblingOptionKey ?? siblingOptions[0]?.key ?? null);
+  const siblingOption = $derived(siblingOptions.find((o) => o.key === effectiveSiblingKey) ?? null);
+
   function selectKind(next: RelationshipKind) {
     kind = next;
     unionOverride = undefined;
@@ -186,7 +226,9 @@
     deathDate = anchorPerson?.deathDate ?? '';
     deathPlace = '';
     // With several partnerships the person must pick, never a default.
-    unionOverride = undefined;
+    // A form opened from one partnership's own "+ Add" starts on it; otherwise the server chooses.
+    unionOverride = initialUnionId && (initialKind === 'add_child' || initialKind === 'add_parent' || initialKind === 'add_partner') ? initialUnionId : undefined;
+    siblingOptionKey = undefined;
     chosenUnionId = initialUnionId;
     endStatus = 'divorced';
     endEventType = 'DIV';
@@ -257,6 +299,7 @@
     const other = otherPerson();
     if (!other) return null;
     if (kind === 'add_partner') return { kind, person: anchor, partner: other, unionLabel: null, unionId: unionOverride };
+    if (kind === 'add_sibling') return siblingOption ? { kind, person: anchor, sibling: other, parentIds: siblingOption.parentIds, type } : null;
     if (kind === 'add_parent') return { kind, child: anchor, parent: other, type, role, unionLabel: null, unionId: unionOverride };
     return { kind, parent: anchor, child: other, type, unionLabel: null, unionId: unionOverride };
   }
@@ -366,7 +409,7 @@
   {error}
 >
   <div class="space-y-4">
-    <div class="grid grid-cols-5 gap-1.5" role="group" aria-label="What to record">
+    <div class="grid grid-cols-3 gap-1.5 sm:grid-cols-6" role="group" aria-label="What to record">
       {#each kinds as item (item.v)}
         <button
           type="button"
@@ -380,7 +423,7 @@
       {/each}
     </div>
 
-    {#if kind === 'add_parent' || kind === 'add_child'}
+    {#if kind === 'add_parent' || kind === 'add_child' || kind === 'add_sibling'}
       <div class="space-y-2">
         <label class="block text-xs font-semibold text-stone-700" for="rel-type">Relationship type</label>
         <select id="rel-type" bind:value={type} class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm">
@@ -399,7 +442,7 @@
       </div>
     {/if}
 
-    {#if kind === 'add_parent' || kind === 'add_child' || kind === 'add_partner'}
+    {#if kind === 'add_parent' || kind === 'add_child' || kind === 'add_partner' || (kind === 'add_sibling' && siblingOptions.length > 0)}
       <div class="flex items-center gap-2">
         <button
           type="button"
@@ -465,6 +508,27 @@
             <p class="text-xs text-stone-500">Press Enter to search.</p>
           {/if}
         </div>
+      {/if}
+    {/if}
+
+    {#if kind === 'add_sibling'}
+      {#if siblingOptions.length === 0}
+        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-testid="sibling-needs-parent">
+          {personName(anchor)} has no parents recorded, and a sibling is someone who shares a parent. Add a parent first.
+        </p>
+      {:else}
+        <fieldset class="space-y-1.5" data-testid="sibling-parents">
+          <legend class="text-xs font-semibold text-stone-700">Which parents do they share</legend>
+          {#each siblingOptions as option (option.key)}
+            <label class="flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-sm {effectiveSiblingKey === option.key ? 'border-emerald-400 bg-emerald-50' : 'border-stone-200 bg-white'}">
+              <input type="radio" name="rel-sibling-parents" checked={effectiveSiblingKey === option.key} onchange={() => (siblingOptionKey = option.key)} class="mt-1" />
+              <span>
+                {option.title}
+                <span class="block text-xs text-stone-500">{option.detail}</span>
+              </span>
+            </label>
+          {/each}
+        </fieldset>
       {/if}
     {/if}
 

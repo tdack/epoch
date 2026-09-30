@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConflictDialog from '#lib/components/modals/ConflictDialog.svelte';
   import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
+  import RelativeActionDialog from '#lib/components/modals/RelativeActionDialog.svelte';
   import PersonModal from '#lib/components/modals/PersonModal.svelte';
   import RelationshipModal from '#lib/components/modals/RelationshipModal.svelte';
   import UnionEditorModal from '#lib/components/modals/UnionEditorModal.svelte';
@@ -51,6 +52,12 @@
   onclose={() => (editor.editingUnionId = null)}
   onsaved={editor.unionSaved}
   onrefresh={editor.refresh}
+/>
+
+<RelativeActionDialog
+  action={editor.relativeAction}
+  onchoose={editor.chooseRelativeOutcome}
+  oncancel={() => (editor.relativeAction = null)}
 />
 
 <ImpactDialog

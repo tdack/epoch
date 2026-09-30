@@ -1,5 +1,8 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross, ExternalLink } from 'lucide-svelte';
+  import type { RelativeAction } from './tree-editor.svelte.js';
+  import type { ParentChildType, RelationshipKind } from '#lib/types/genealogy.js';
+  import type { PersonSummaryDto } from '#lib/server/services/person-page-service.js';
   import { sexLabel } from '#lib/shared/sex.js';
   import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
 
@@ -12,7 +15,10 @@
     onClose: () => void;
     onMediaUploaded?: () => void;
     onSelectPerson?: (id: string) => void;
-    onAddRelationship?: (personId: string) => void;
+    /** Open the add-relationship dialog, optionally on a form and a partnership. */
+    onAddRelationship?: (personId: string, options?: { kind?: RelationshipKind; unionId?: string }) => void;
+    /** A relative's trash button was pressed; the caller asks what happened to them. */
+    onRemoveRelative?: (action: RelativeAction) => void;
     onEditPerson?: (personId: string) => void;
     /** Ask to delete the person; the caller previews exactly what goes and confirms. */
     onDeletePerson?: (personId: string) => void;
@@ -20,8 +26,6 @@
     onRecordDeath?: (personId: string) => void;
     /** Open the partnership editor. */
     onEditUnion?: (unionId: string) => void;
-    /** Open the end-partnership form on this partnership. */
-    onEndUnion?: (unionId: string) => void;
     /** Open the merge dialog for a partnership that has a twin between the same people. */
     onMergeUnion?: (unionId: string) => void;
   }
@@ -34,17 +38,33 @@
     onMediaUploaded,
     onSelectPerson,
     onAddRelationship,
+    onRemoveRelative,
     onEditPerson,
     onDeletePerson,
     onRecordDeath,
     onEditUnion,
-    onEndUnion,
     onMergeUnion
   }: Props = $props();
 
   const person = $derived(page?.person ?? null);
   const hasSteps = $derived((page?.stepParents.length ?? 0) > 0 || (page?.stepChildren.length ?? 0) > 0);
   const personHref = $derived(person ? `/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(person.id)}` : '#');
+
+  /** What the trash button on a relative's entry hands to the caller. */
+  function removal(
+    relation: RelativeAction['relation'],
+    relative: PersonSummaryDto,
+    extra: { unionId?: string; type?: ParentChildType } = {}
+  ): RelativeAction | undefined {
+    if (!onRemoveRelative || !person) return undefined;
+    return {
+      relation,
+      owner: { id: person.id, givenName: person.displayName, surname: null },
+      relative: { id: relative.id, givenName: relative.displayName, surname: null, isDeceased: relative.isDeceased },
+      unionId: extra.unionId ?? null,
+      type: extra.type ?? null
+    };
+  }
 
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
@@ -84,17 +104,42 @@
   }
 </script>
 
-{#snippet personButton(id: string, name: string, note: string)}
-  <button
-    type="button"
-    onclick={() => onSelectPerson?.(id)}
-    class="w-full text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
-  >
-    <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
-      {name}
-      {#if note}<span class="text-stone-600 font-normal">({note})</span>{/if}
-    </span>
-  </button>
+{#snippet personButton(id: string, name: string, note: string, remove?: RelativeAction)}
+  <div class="flex items-stretch gap-1">
+    <button
+      type="button"
+      onclick={() => onSelectPerson?.(id)}
+      class="min-w-0 flex-1 text-left flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-stone-200 hover:border-emerald-500 transition-colors cursor-pointer group"
+    >
+      <span class="text-xs font-medium text-stone-800 group-hover:text-emerald-800">
+        {name}
+        {#if note}<span class="text-stone-600 font-normal">({note})</span>{/if}
+      </span>
+    </button>
+    {#if remove && onRemoveRelative}
+      <button
+        type="button"
+        onclick={() => onRemoveRelative(remove)}
+        title="Remove, or record what happened"
+        aria-label={`Remove ${name}, or record what happened`}
+        class="shrink-0 rounded-lg border border-stone-200 bg-white px-2 text-stone-400 hover:border-red-300 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
+      >
+        <Trash2 class="w-3.5 h-3.5" />
+      </button>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet addLink(label: string, kind: RelationshipKind, unionId?: string)}
+  {#if onAddRelationship && person}
+    <button
+      type="button"
+      onclick={() => onAddRelationship(person.id, { kind, unionId })}
+      class="text-left text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+    >
+      + {label}
+    </button>
+  {/if}
 {/snippet}
 
 {#if page && person}
@@ -174,13 +219,20 @@
         <h3 class="text-xs font-bold uppercase tracking-wider text-stone-600">Families</h3>
 
         {#each page.parentFamilies as family (family.unionId ?? 'direct')}
-          <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2">
+          <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-2" data-testid="parents">
             <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">
               {family.parents.length > 1 ? 'Parents' : 'Parent'}
             </span>
             {#each family.parents as parent (parent.person.id + parent.type)}
-              {@render personButton(parent.person.id, parent.person.displayName, parent.type)}
+              {@render personButton(parent.person.id, parent.person.displayName, parent.type, removal('parent', parent.person, { type: parent.type }))}
             {/each}
+            {@render addLink('Add parent', 'add_parent', family.unionId ?? undefined)}
+          </div>
+        {:else}
+          <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-1" data-testid="parents">
+            <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Parents</span>
+            <p class="text-xs text-stone-500 italic">None recorded</p>
+            {@render addLink('Add parent', 'add_parent')}
           </div>
         {/each}
 
@@ -195,27 +247,26 @@
               <span class="flex items-center gap-2">
                 <a href={`/trees/${encodeURIComponent(treeId)}/unions/${encodeURIComponent(union.unionId)}`} class="text-[11px] font-semibold text-emerald-800 hover:underline">Open</a>
                 {#if onEditUnion}
-                  <button type="button" onclick={() => onEditUnion(union.unionId)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Edit</button>
+                  <button type="button" onclick={() => onEditUnion(union.unionId)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Dates &amp; status</button>
                 {/if}
                 {#if onMergeUnion && union.isMergeable}
                   <button type="button" onclick={() => onMergeUnion(union.unionId)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">Merge…</button>
                 {/if}
-                {#if onEndUnion && union.status === 'active'}
-                  <button type="button" onclick={() => onEndUnion(union.unionId)} class="text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">End</button>
-                {/if}
               </span>
             </div>
             {#each union.partners as partner (partner.id)}
-              {@render personButton(partner.id, partner.displayName, partner.isDeceased ? 'deceased' : 'partner')}
+              {@render personButton(partner.id, partner.displayName, partner.isDeceased ? 'deceased' : 'partner', removal('partner', partner, { unionId: union.unionId }))}
             {/each}
+            {#if union.partners.length === 0}{@render addLink('Add partner', 'add_partner', union.unionId)}{/if}
             {#if union.children.length}
               <div class="space-y-1 pt-0.5">
                 <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Children</span>
                 {#each union.children as child (child.person.id)}
-                  {@render personButton(child.person.id, child.person.displayName, '')}
+                  {@render personButton(child.person.id, child.person.displayName, '', removal('child', child.person, { type: child.types[0] }))}
                 {/each}
               </div>
             {/if}
+            {@render addLink('Add child', 'add_child', union.unionId)}
           </div>
         {/each}
 
@@ -223,20 +274,21 @@
           <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-1">
             <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Children (no partnership recorded)</span>
             {#each page.directChildren as child (child.person.id)}
-              {@render personButton(child.person.id, child.person.displayName, '')}
+              {@render personButton(child.person.id, child.person.displayName, '', removal('child', child.person, { type: child.types[0] }))}
             {/each}
           </div>
         {/if}
 
-        {#if page.siblings.full.length > 0 || page.siblings.half.length > 0}
+        {#if page.parentFamilies.length > 0 || page.siblings.full.length > 0 || page.siblings.half.length > 0}
           <div class="bg-stone-50/90 rounded-xl p-3 border border-stone-200 shadow-xs space-y-1" data-testid="siblings">
             <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Siblings</span>
             {#each page.siblings.full as sibling (sibling.id)}
-              {@render personButton(sibling.id, sibling.displayName, '')}
+              {@render personButton(sibling.id, sibling.displayName, '', removal('sibling', sibling))}
             {/each}
             {#each page.siblings.half as sibling (sibling.id)}
-              {@render personButton(sibling.id, sibling.displayName, 'half-sibling')}
+              {@render personButton(sibling.id, sibling.displayName, 'half-sibling', removal('sibling', sibling))}
             {/each}
+            {@render addLink('Add sibling', 'add_sibling')}
           </div>
         {/if}
 
@@ -259,7 +311,7 @@
             onclick={() => onAddRelationship?.(person.id)}
             class="w-full text-left text-xs font-medium text-emerald-800 hover:text-emerald-950 hover:bg-white rounded-lg px-2 py-1.5 transition-colors cursor-pointer"
           >
-            + Add parents, partner, or child
+            + Add a parent, partner, child or sibling
           </button>
         </div>
       </div>

@@ -68,6 +68,7 @@ export type ParentRole = 'parent' | 'mother' | 'father';
 export type RelationshipIntent =
   | { kind: 'add_parent'; child: PersonRef; parent: PersonRef; type: ParentChildType; role: ParentRole; unionLabel: string | null; unionId?: string | null }
   | { kind: 'add_child'; parent: PersonRef; child: PersonRef; type: ParentChildType; unionLabel: string | null; unionId?: string | null }
+  | { kind: 'add_sibling'; person: PersonRef; sibling: PersonRef; parentIds: string[]; type: ParentChildType }
   | { kind: 'add_partner'; person: PersonRef; partner: PersonRef; unionLabel: string | null; unionId?: string | null }
   | { kind: 'change_link_type'; parent: PersonRef; child: PersonRef; fromType: ParentChildType; toType: ParentChildType }
   | { kind: 'record_death'; person: PersonRef; dateText: string | null; place: string | null; personVersion?: number }
@@ -81,7 +82,7 @@ export type RelationshipIntent =
     };
 
 /** What the relationship editor can record about a person. */
-export type RelationshipKind = 'add_parent' | 'add_child' | 'add_partner' | 'record_death' | 'end_union';
+export type RelationshipKind = 'add_parent' | 'add_child' | 'add_sibling' | 'add_partner' | 'record_death' | 'end_union';
 
 export interface PersonRef {
   id: string;
