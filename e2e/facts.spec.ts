@@ -82,3 +82,22 @@ test('an invalid date blocks the save with a reason, and same-date facts can be 
 	await dialog.getByRole('textbox', { name: 'Date' }).blur();
 	await expect(dialog.getByRole('button', { name: 'Add fact', exact: true })).toBeDisabled();
 });
+
+test('the date picker opens fully inside the fact dialog, even for a field near its bottom edge', async ({ page, api }) => {
+	const wren = await api.addPerson('Wren', 'Ash');
+	await page.setViewportSize({ width: 1280, height: 600 });
+	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
+	await page.getByRole('button', { name: 'Add fact' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
+	await dialog.getByRole('button', { name: 'Pick a date' }).click();
+	const picker = page.getByRole('dialog', { name: 'Date picker' });
+	await expect(picker).toBeVisible();
+	const box = (await picker.boundingBox())!;
+	const viewport = page.viewportSize()!;
+	expect(box.x).toBeGreaterThanOrEqual(0);
+	expect(box.y).toBeGreaterThanOrEqual(0);
+	expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+	expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+	await picker.getByRole('button', { name: /^15 / }).click();
+	await expect(dialog.getByRole('textbox', { name: 'Date' })).toHaveValue(/^15 [A-Z]{3} \d{4}$/);
+});

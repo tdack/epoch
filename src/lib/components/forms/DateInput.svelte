@@ -52,6 +52,16 @@
 	let pickedMonth = $state<number | null>(null);
 	let pickedYear = $state<number | null>(null);
 	let wrapper: HTMLDivElement | undefined = $state();
+	/**
+	 * Where the picker sits, in viewport pixels. It is `fixed` rather than absolute inside the field:
+	 * a dialog scrolls its own content, and an absolutely placed popover is cut off at the dialog's
+	 * edge whenever the field is near the bottom or the side.
+	 */
+	let pickerPosition = $state({ left: 0, top: 0 });
+
+	const PICKER_WIDTH_PX = 256;
+	const PICKER_HEIGHT_PX = 340;
+	const VIEWPORT_MARGIN_PX = 8;
 
 	const check = $derived(checkDateText(value));
 	const problem = $derived(wasTouched && !check.isValid ? check.message : undefined);
@@ -61,7 +71,19 @@
 	const leadingBlanks = $derived((new Date(Date.UTC(viewYear, viewMonth - 1, 1)).getUTCDay() + 6) % 7);
 	const dayCount = $derived(daysInMonthOf(viewYear, viewMonth));
 
+	function placePicker() {
+		if (!wrapper) return;
+		const rect = wrapper.getBoundingClientRect();
+		const left = Math.min(Math.max(rect.right - PICKER_WIDTH_PX, VIEWPORT_MARGIN_PX), window.innerWidth - PICKER_WIDTH_PX - VIEWPORT_MARGIN_PX);
+		const below = rect.bottom + 4;
+		// Open upwards when there is no room below and more room above.
+		const isRoomBelow = below + PICKER_HEIGHT_PX <= window.innerHeight - VIEWPORT_MARGIN_PX;
+		const top = isRoomBelow || rect.top < PICKER_HEIGHT_PX ? below : rect.top - PICKER_HEIGHT_PX - 4;
+		pickerPosition = { left, top: Math.max(VIEWPORT_MARGIN_PX, top) };
+	}
+
 	function openPicker() {
+		placePicker();
 		const state = pickerStateOf(value);
 		prefix = state.prefix;
 		pickedYear = state.date?.year ?? null;
@@ -97,12 +119,22 @@
 		document.getElementById(`${id}-picker-button`)?.focus();
 	}
 
+	// A dialog scrolls under a fixed popover, which would then float away from its field; close it.
+	$effect(() => {
+		if (!isPickerOpen) return;
+		const close = (event: Event) => {
+			if (!(event.target as Element | null)?.closest?.('[aria-label="Date picker"]')) isPickerOpen = false;
+		};
+		window.addEventListener('scroll', close, true);
+		return () => window.removeEventListener('scroll', close, true);
+	});
+
 	function onWindowPointerDown(event: PointerEvent) {
 		if (isPickerOpen && wrapper && !wrapper.contains(event.target as Node)) isPickerOpen = false;
 	}
 </script>
 
-<svelte:window onpointerdown={onWindowPointerDown} />
+<svelte:window onpointerdown={onWindowPointerDown} onresize={() => (isPickerOpen = false)} />
 
 <div class="relative" bind:this={wrapper}>
 	<div class="flex gap-1">
@@ -148,7 +180,8 @@
 			aria-label="Date picker"
 			tabindex="-1"
 			onkeydown={onPickerKeydown}
-			class="absolute right-0 z-20 mt-1 w-64 space-y-2 rounded-xl border border-stone-300 bg-white p-3 text-stone-800 shadow-xl"
+			style="left: {pickerPosition.left}px; top: {pickerPosition.top}px;"
+			class="fixed z-20 w-64 space-y-2 rounded-xl border border-stone-300 bg-white p-3 text-stone-800 shadow-xl"
 		>
 			<div class="flex items-center gap-1">
 				<button type="button" aria-label="Previous year" onclick={() => shiftYear(-1)} class="nav">‹</button>
