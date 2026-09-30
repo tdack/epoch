@@ -101,26 +101,33 @@ export interface CommittedChange {
 export class ChangeStore {
 	constructor(private db: DbClient) {}
 
-	/** Every row of the tree that a mutation can touch, as images. */
+	/**
+	 * Every row of the tree that a mutation can touch, as images, each table in insertion (`rowid`)
+	 * order. The order is part of the contract: the union chronology tie-break, the default focus
+	 * person and the "first birth" all depend on it, and the bounded graph loader reproduces it so
+	 * that a window and the whole tree draw identically.
+	 */
 	async loadRows(treeId: string): Promise<TreeRows> {
 		const { db } = this;
 		const [inds, unionRows, partners, pcs, evs, media, names] = await Promise.all([
-			db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
-			db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
+			db.select().from(individuals).where(eq(individuals.treeId, treeId)).orderBy(sql`${individuals}.rowid`).all(),
+			db.select().from(unions).where(eq(unions.treeId, treeId)).orderBy(sql`${unions}.rowid`).all(),
 			db
 				.select(getTableColumns(unionPartners))
 				.from(unionPartners)
 				.innerJoin(unions, eq(unionPartners.unionId, unions.id))
 				.where(eq(unions.treeId, treeId))
+				.orderBy(sql`${unionPartners}.rowid`)
 				.all(),
-			db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
-			db.select().from(events).where(eq(events.treeId, treeId)).all(),
-			db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all(),
+			db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).orderBy(sql`${parentChild}.rowid`).all(),
+			db.select().from(events).where(eq(events.treeId, treeId)).orderBy(sql`${events}.rowid`).all(),
+			db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).orderBy(sql`${mediaItems}.rowid`).all(),
 			db
 				.select(getTableColumns(personNames))
 				.from(personNames)
 				.innerJoin(individuals, eq(personNames.personId, individuals.id))
 				.where(eq(individuals.treeId, treeId))
+				.orderBy(sql`${personNames}.rowid`)
 				.all()
 		]);
 		const images = <T>(table: SQLiteTable, rows: unknown[]) =>
