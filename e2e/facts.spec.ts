@@ -101,3 +101,19 @@ test('the date picker opens fully inside the fact dialog, even for a field near 
 	await picker.getByRole('button', { name: /^15 / }).click();
 	await expect(dialog.getByRole('textbox', { name: 'Date' })).toHaveValue(/^15 [A-Z]{3} \d{4}$/);
 });
+
+test('the date picker stays open when the window resizes, as a phone keyboard does', async ({ page, api }) => {
+	const wren = await api.addPerson('Wren', 'Ash');
+	await page.setViewportSize({ width: 375, height: 700 });
+	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
+	await page.getByRole('button', { name: 'Add fact' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
+	await dialog.getByRole('button', { name: 'Pick a date' }).click();
+	const picker = page.getByRole('dialog', { name: 'Date picker' });
+	await picker.getByRole('spinbutton', { name: 'Year' }).focus();
+	await page.setViewportSize({ width: 375, height: 420 });
+	await expect(picker).toBeVisible();
+	const box = (await picker.boundingBox())!;
+	expect(box.x).toBeGreaterThanOrEqual(0);
+	expect(box.x + box.width).toBeLessThanOrEqual(375);
+});

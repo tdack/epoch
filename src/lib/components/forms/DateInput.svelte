@@ -119,14 +119,18 @@
 		document.getElementById(`${id}-picker-button`)?.focus();
 	}
 
-	// A dialog scrolls under a fixed popover, which would then float away from its field; close it.
+	// A dialog scrolls under a fixed popover, and a phone's keyboard resizes the window and scrolls
+	// the focused field into view. Closing on either would shut the picker the moment its Year box is
+	// tapped, so it follows its field instead.
 	$effect(() => {
 		if (!isPickerOpen) return;
-		const close = (event: Event) => {
-			if (!(event.target as Element | null)?.closest?.('[aria-label="Date picker"]')) isPickerOpen = false;
+		const follow = () => placePicker();
+		window.addEventListener('scroll', follow, true);
+		window.addEventListener('resize', follow);
+		return () => {
+			window.removeEventListener('scroll', follow, true);
+			window.removeEventListener('resize', follow);
 		};
-		window.addEventListener('scroll', close, true);
-		return () => window.removeEventListener('scroll', close, true);
 	});
 
 	function onWindowPointerDown(event: PointerEvent) {
@@ -134,7 +138,7 @@
 	}
 </script>
 
-<svelte:window onpointerdown={onWindowPointerDown} onresize={() => (isPickerOpen = false)} />
+<svelte:window onpointerdown={onWindowPointerDown} />
 
 <div class="relative" bind:this={wrapper}>
 	<div class="flex gap-1">
