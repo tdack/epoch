@@ -103,6 +103,9 @@ test('the same two people partnering again after a divorce are two partnerships,
 	expect((await api.graph()).unions).toHaveLength(2);
 	await expect(page.locator('[data-union-id][aria-label^="1st partnership"]')).toBeAttached();
 	await expect(page.locator('[data-union-id][aria-label^="2nd partnership"]')).toBeAttached();
+	// The lines carry the same chronology, so a screen reader can tell them apart.
+	await expect(page.locator('[data-edge-id][aria-label*=", 1st partnership."]').first()).toBeAttached();
+	await expect(page.locator('[data-edge-id][aria-label*=", 2nd partnership."]').first()).toBeAttached();
 });
 
 test('a single or unknown parent is recorded without inventing a partnership', async ({ page, api }) => {

@@ -186,7 +186,8 @@
 		if (edge.kind === 'partner') {
 			const union = unionById.get(edge.unionId);
 			const names = union ? union.union.partnerIds.map(nameOf).join(' and ') : nameOf(edge.personId);
-			return `Partnership line of ${names}. Press Enter for actions.`;
+			const ordinalTitle = partnershipLabels?.get(edge.unionId)?.title;
+			return `Partnership line of ${names}${ordinalTitle ? `, ${ordinalTitle}` : ''}. Press Enter for actions.`;
 		}
 		if (edge.kind === 'child') {
 			return `Parent link to ${nameOf(edge.childId)}, from ${edge.assertions.map((a) => nameOf(a.parentId)).join(' and ')}. Press Enter to review.`;
