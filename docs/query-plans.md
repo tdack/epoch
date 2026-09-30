@@ -214,3 +214,55 @@ Search ranks every candidate in the tree before `LIMIT`, because ranking after a
 drop the exact match of a short query ("a"). That is linear in the tree per keystroke (debounced in
 the UI). Past tens of thousands of people it needs an indexed, normalised name column; that is a
 Phase 8 decision with numbers, not a guess now.
+
+## Lists (S7)
+
+Recorded by `src/lib/server/repositories/list-plans.test.ts` on the same two-tree setup as search
+(small tree 419 people and 484 stored names, about 900 rows; big tree 5,324 people, about 11,400
+rows). Regenerate with `WRITE_QUERY_PLANS=plans.txt npx vitest run --project server src/lib/server/repositories/list-plans.test.ts`.
+
+### Indexes decided with numbers
+
+| Query | Without a new index | With it |
+|---|---|---|
+| individuals by surname, any page | 10,648 rows read (`USE TEMP B-TREE FOR ORDER BY`: the page sorts the whole tree, at every offset) | 51 at offset 0; `offset + 51` deeper |
+| individuals by given name | 10,648, same reason | 51 |
+
+Migration 0010 (expand-only, two `CREATE INDEX`es, no table rebuild) adds
+`idx_ind_tree_surname (tree_id, surname COLLATE NOCASE, given_name COLLATE NOCASE, id)` and
+`idx_ind_tree_given (tree_id, given_name COLLATE NOCASE, surname COLLATE NOCASE, id)`. `id` ends each
+so the order is total (stable pages) and the index covers the page query; `COLLATE NOCASE` because a
+list sorted "Brown, brown, Browns" by byte order is wrong and an index only serves an `ORDER BY` with
+the same collation. Each costs one extra index write per person written.
+
+**Rejected:** an index on `person_names (surname COLLATE NOCASE, person_id)` for the surname filter.
+It made the filter fast, but `person_names` has no `tree_id`, so it reads every tree's rows for a
+common surname; the filter instead joins through `individuals` to keep to one tree.
+
+### Plans and rows read
+
+| Query | Small tree returned / read | Big tree returned / read |
+|---|---|---|
+| individuals by surname, first page | 51 / 51 | 51 / 51 |
+| individuals by given name, first page | 51 / 51 | 51 / 51 |
+| individuals by surname, page 100 (offset 4,950) | 0 / 420 | 51 / 5,001 |
+| individuals of one surname (filter) | 19 / 1,743 | 51 / 17,194 |
+| surname list | 51 / 3,119 | 51 / 34,898 |
+| partnership list, first page | 51 / 51 | 51 / 51 |
+
+First pages are `SEARCH i USING COVERING INDEX idx_ind_tree_surname (tree_id=?)` with no sort step
+(the test asserts no `TEMP B-TREE FOR ORDER BY`); the partnership list reads the tree index in rowid
+order. Then the person records for the page come from the bounded id reads.
+
+### Known costs
+
+- **Offset pagination is linear in the offset.** A deep page reads `offset + 51` index entries (5,001
+  for offset 4,950), never more than the tree. A keyset cursor on `(surname, given_name, id)` would
+  read 51, but `NULL` surnames compare false and the cursor would need encoding; the offset form is
+  simple and bounded, so it stays until a tree is large enough to notice.
+- **The surname filter and the surname list are linear in one tree** (3.2x and 6.5x the tree's
+  people read), because the distinct surnames and their per-person counts have to be computed across
+  every stored name. No list loads the tree or returns more than a page; the aggregate is the price
+  of "every stored name". Denormalised surname counters are Phase 8 if a tree needs them.
+- Unsurnamed people sort first (`NULL` first in the index), not last, because an expression in the
+  `ORDER BY` would lose the index.

@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { SEX_VALUES } from '../../../shared/sex';
 import { trees } from './trees';
@@ -15,7 +16,12 @@ export const individuals = sqliteTable('individuals', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 }, (table) => ({
   treeIdx: index('idx_ind_tree').on(table.treeId),
-  xrefIdx: index('idx_ind_xref').on(table.treeId, table.xrefId)
+  xrefIdx: index('idx_ind_xref').on(table.treeId, table.xrefId),
+  // The individuals list pages in name order. Without these every page sorted the whole tree
+  // (2x the tree's rows read, at any offset); with them the first page reads a page (query-plans.md).
+  // `id` ends each so the order is total and the index covers the page query.
+  surnameOrderIdx: index('idx_ind_tree_surname').on(table.treeId, sql`${table.surname} collate nocase`, sql`${table.givenName} collate nocase`, table.id),
+  givenOrderIdx: index('idx_ind_tree_given').on(table.treeId, sql`${table.givenName} collate nocase`, sql`${table.surname} collate nocase`, table.id)
 }));
 
 // Multiple names per person, with a preferred display name.
