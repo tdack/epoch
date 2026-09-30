@@ -128,6 +128,13 @@ describe('searching by XREF', () => {
 	});
 });
 
+describe('an XREF with a filter', () => {
+	it('keeps the person only when one of their facts passes the filter', async () => {
+		expect(ids(await service.search(treeId, { text: '@I2@', place: 'Cork' }, ctx()))).toEqual(['@I2@']);
+		expect(ids(await service.search(treeId, { text: '@I2@', place: 'Leeds' }, ctx()))).toEqual([]);
+	});
+});
+
 describe('searching by place and date', () => {
 	it('finds people by a substring of a place, from their own facts', async () => {
 		const r = await service.search(treeId, { place: 'cork' }, ctx());

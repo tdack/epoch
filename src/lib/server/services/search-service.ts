@@ -59,11 +59,14 @@ export class SearchService {
 		if (words.length === 0 && !place && !from && !to && xrefIds.length === 0) return { people: [], hasMore: false };
 
 		const nameIdOf = new Map(hits.map((h) => [h.personId, h.nameId]));
-		const ordered = [...new Set([...xrefIds, ...hits.map((h) => h.personId)])];
-		// An XREF hit that the place and date filters would have excluded is still what was asked for,
-		// but only when no other filter is set: combining an XREF with a filter is a narrowing.
+		// An XREF names one person; a place or year range narrows, so it keeps them only when one of
+		// their facts passes the same filter the name hits already went through in SQL.
 		const isNarrowed = Boolean(place || from || to);
-		const ids = isNarrowed ? ordered.filter((id) => nameIdOf.has(id)) : ordered;
+		const xrefKept = isNarrowed
+			? new Set((await this.repo.factsMatching(xrefIds, place, from, to)).map((f) => f.personId))
+			: new Set(xrefIds);
+		const keptXrefIds = xrefIds.filter((id) => xrefKept.has(id));
+		const ids = [...new Set([...keptXrefIds, ...hits.map((h) => h.personId)])];
 
 		const [[individuals, vitalEvents, nameRows], facts] = await Promise.all([
 			this.graphRepo.run(
@@ -84,7 +87,7 @@ export class SearchService {
 			const names = namesOfPerson(id);
 			const summary = summaryOfRows(row, eventsOfPerson(id), names);
 			const matches: SearchMatch[] = [];
-			if (xrefIds.includes(id)) matches.push({ kind: 'xref', text: row.xrefId ?? text });
+			if (keptXrefIds.includes(id)) matches.push({ kind: 'xref', text: row.xrefId ?? text });
 
 			let matchedName: string | undefined;
 			if (words.length > 0 && nameIdOf.has(id)) {
