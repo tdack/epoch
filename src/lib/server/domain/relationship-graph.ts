@@ -72,6 +72,12 @@ export interface RelationshipGraphPerson {
 	unionIds: string[];
 	/** Derived step-parent relationships (parent's partner who is not a parent). */
 	stepParents: Array<{ stepParentId: string; unionId: string }>;
+	/**
+	 * Set only by the bounded graph window, on people it names but did not fully load (a neighbour
+	 * of someone drawn). Their `unionIds`, `parentsByUnion` and `stepParents` are incomplete, so
+	 * nothing may treat them as the whole story; a person the view draws is never partial.
+	 */
+	isPartial?: true;
 }
 
 export interface RelationshipGraphUnion {
