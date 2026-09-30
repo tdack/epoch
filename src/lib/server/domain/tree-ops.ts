@@ -21,10 +21,12 @@ import {
 } from './change-log';
 import { dateColumnsFor } from './date-columns';
 import { personName } from '../../shared/person-name';
+import { displayNameWith } from '../../shared/name-types';
 import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { buildFactOps } from './fact-ops';
+import { buildNameOps, initialNameOp, preferredNameOps } from './name-ops';
 import { validateParentChildAssertion } from './invariants';
 import type { RelationshipCommand } from './relationship-commands';
 import {
@@ -58,6 +60,11 @@ export function cleanText(value: string | null | undefined): string | null {
 }
 
 export { personName };
+
+/** "Jessica Wren (née Lovejoy)": the name for a preview, a summary or a sentence, from the rows as they are. */
+export function displayNameOf(rows: TreeRows, personId: string): string {
+	return displayNameWith(rows.individuals.find((p) => p.id === personId), rows.personNames.filter((n) => n.personId === personId));
+}
 
 const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	individuals: 'individuals',
@@ -277,6 +284,16 @@ function createEvent(
 	return { table: 'events', id, before: null, after: row };
 }
 
+/**
+ * Names that say they came from `unionId` (for `personId` only, when given), rewritten to point at
+ * `toUnionId`. Done here rather than by a foreign key so the change is logged and undoable.
+ */
+function relinkNames(rows: TreeRows, ctx: OpContext, unionId: string[], toUnionId: string | null, personId?: string): RowOp[] {
+	return rows.personNames
+		.filter((n) => n.unionId !== null && unionId.includes(n.unionId) && (personId === undefined || n.personId === personId))
+		.map((n) => ({ table: 'person_names' as const, id: n.id, before: n as RowImage, after: touch({ ...n, unionId: toUnionId }, ctx) as RowImage }));
+}
+
 // ---- Builders, one per command ----
 
 function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'create_person' }>): RowOp[] {
@@ -292,6 +309,8 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		updatedAt: ctx.now
 	};
 	const ops: RowOp[] = [{ table: 'individuals', id: row.id, before: null, after: row }];
+	// Every person gets a name row from the start, so the names section has something to edit.
+	if (row.givenName || row.surname) ops.push(initialNameOp(ctx, row.id, { givenName: row.givenName, surname: row.surname }));
 	for (const [type, dateText, place] of [
 		['BIRT', command.birthDate, command.birthPlace],
 		['DEAT', command.deathDate, command.deathPlace]
@@ -320,7 +339,9 @@ function updatePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	const isPersonChanged =
 		after.givenName !== person.givenName || after.surname !== person.surname || after.sex !== person.sex;
 	if (!isPersonChanged && eventOps.length === 0) return [];
-	return [{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) }, ...eventOps];
+	// The form's name fields are the preferred name row's; editing one edits the other (ADR-013).
+	const nameOps = preferredNameOps(rows, ctx, person.id, { givenName: after.givenName, surname: after.surname });
+	return [{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) }, ...nameOps, ...eventOps];
 }
 
 function recordDeath(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'record_death' }>): RowOp[] {
@@ -410,7 +431,8 @@ function removePartner(rows: TreeRows, ctx: OpContext, command: Extract<Relation
 	checkUnionVersion(rows, union, command.expectedVersion);
 	const membership = rows.unionPartners.find((p) => p.unionId === union.id && p.personId === command.personId);
 	if (!membership) throw new NotFoundError('Partner', command.personId);
-	return [bump('unions', union, ctx), { table: 'union_partners', id: membership.id, before: membership, after: null }];
+	// A name that came from this partnership no longer has a partner in it to have come from.
+	return [bump('unions', union, ctx), { table: 'union_partners', id: membership.id, before: membership, after: null }, ...relinkNames(rows, ctx, [union.id], null, command.personId)];
 }
 
 function assertParentChild(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'assert_parent_child' }>): RowOp[] {
@@ -488,6 +510,7 @@ function destroyUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	for (const link of rows.parentChild.filter((l) => l.unionId === union.id)) {
 		ops.push({ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, unionId: null }, ctx) });
 	}
+	ops.push(...relinkNames(rows, ctx, [union.id], null));
 	ops.push({ table: 'unions', id: union.id, before: union, after: null });
 	return ops;
 }
@@ -627,6 +650,8 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 		ops.push({ table: 'union_partners', id: partner.id, before: partner, after: null });
 	}
 
+	ops.push(...relinkNames(rows, ctx, mergedIds, survivor.id));
+
 	const aliases = [...(survivor.xrefAliases ?? [])];
 	for (const union of merged) {
 		for (const alias of [xrefOf(ctx.treeId, union.id), ...(union.xrefAliases ?? [])]) {
@@ -651,6 +676,12 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 		case 'delete_fact':
 		case 'reorder_facts':
 			return buildFactOps(rows, command, ctx);
+		case 'create_name':
+		case 'update_name':
+		case 'delete_name':
+		case 'reorder_names':
+		case 'set_preferred_name':
+			return buildNameOps(rows, command, ctx);
 		case 'create_person':
 			return createPerson(rows, ctx, command);
 		case 'update_person':

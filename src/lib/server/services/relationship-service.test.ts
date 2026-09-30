@@ -111,6 +111,7 @@ describe('preview matches result, for every intent', () => {
 		expect(after.parentChild).toEqual([{ parentId: nia!.id, childId: child.id, type: 'biological', unionId: null }]);
 		expect(shape(executed.affected)).toEqual([
 			'created link Nia Novak as biological parent of Sam Smith',
+			'created name Birth name Nia Novak of Nia Novak',
 			'created person Nia Novak'
 		]);
 	});

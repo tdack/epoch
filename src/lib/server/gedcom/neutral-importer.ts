@@ -10,8 +10,10 @@
  * pair.
  */
 
+import { eq } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { unions, unionPartners, parentChild, personNames, gedcomPreserved } from '../db/schema';
+import { individuals, unions, unionPartners, parentChild, personNames, gedcomPreserved } from '../db/schema';
+import { dateColumnsFor } from '../domain/date-columns';
 import type { ParsedGedcomData } from './index';
 
 /**
@@ -34,6 +36,17 @@ function deriveUnionStatus(fam: ParsedGedcomData['families'][number]): 'active' 
 	return 'active';
 }
 
+/** Columns Drizzle writes for a `person_names` row; the insert is chunked by it under D1's parameter cap. */
+const PERSON_NAME_COLUMNS = 23;
+
+/** What makes two names the same for merge-mode de-duplication, as `eventContentKey` does for facts. */
+function nameContentKey(
+	type: string,
+	n: { givenName?: string | null; surname?: string | null; namePrefix?: string | null; nameSuffix?: string | null; nickname?: string | null; surnamePrefix?: string | null }
+): string {
+	return [type, n.givenName, n.surname, n.namePrefix, n.nameSuffix, n.nickname, n.surnamePrefix].map((part) => part ?? '').join('\u0000');
+}
+
 /**
  * Persist neutral-model rows for a parsed GEDCOM tree.
  * Callers are responsible for tree scoping IDs before invoking.
@@ -46,30 +59,55 @@ export async function importNeutralModel(
 	const scoped = (xrefOrId: string) =>
 		xrefOrId.startsWith(`${treeId}:`) ? xrefOrId : `${treeId}:${xrefOrId}`;
 
-	// 1. person_names (one preferred birth name per individual)
-	const nameRows: Array<{
-		id: string;
-		personId: string;
-		type: 'birth';
-		givenName: string | null;
-		surname: string | null;
-		namePrefix: string | null;
-		nameSuffix: string | null;
-		isPreferred: boolean;
-		order: number;
-	}> = parsed.individuals.map((ind) => ({
-		id: crypto.randomUUID(),
-		personId: scoped(ind.id),
-		type: 'birth',
-		givenName: ind.givenName || null,
-		surname: ind.surname || null,
-		namePrefix: null,
-		nameSuffix: null,
-		isPreferred: true,
-		order: 0
-	}));
+	// 1. person_names: every NAME of the file, in file order; the first is the preferred one.
+	// A merge import meets people who already have names, so a name is skipped when the person
+	// already has one with the same content, and nobody gains a second preferred name.
+	const known = new Map<string, Set<string>>();
+	for (const row of await db
+		.select({ personId: personNames.personId, type: personNames.type, givenName: personNames.givenName, surname: personNames.surname, namePrefix: personNames.namePrefix, nameSuffix: personNames.nameSuffix, nickname: personNames.nickname, surnamePrefix: personNames.surnamePrefix })
+		.from(personNames)
+		.innerJoin(individuals, eq(personNames.personId, individuals.id))
+		.where(eq(individuals.treeId, treeId))
+		.all()) {
+		const keys = known.get(row.personId) ?? new Set<string>();
+		keys.add(nameContentKey(row.type, row));
+		known.set(row.personId, keys);
+	}
 
-	for (const chunk of chunkRows(nameRows, 9)) {
+	const nameRows: Array<typeof personNames.$inferInsert> = [];
+	for (const ind of parsed.individuals) {
+		const personId = scoped(ind.id);
+		const existing = known.get(personId);
+		let order = 0;
+		for (const name of ind.names ?? []) {
+			// The family a name came from, by its own XREF or one it was merged under. A note that names a family the
+			// file lacks stays as written, date and all, so export does not write it twice.
+			const family = name.unionXref ? parsed.families.find((f) => f.id === name.unionXref || f.aliases?.includes(name.unionXref!)) : undefined;
+			const extra = !family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra;
+			const key = nameContentKey(name.type, { givenName: name.givenName, surname: name.surname, namePrefix: name.prefix, nameSuffix: name.suffix, nickname: name.nickname, surnamePrefix: name.surnamePrefix });
+			if (existing?.has(key)) continue;
+			existing?.add(key);
+			nameRows.push({
+				id: crypto.randomUUID(),
+				personId,
+				type: name.type,
+				givenName: name.givenName || null,
+				surname: name.surname || null,
+				namePrefix: name.prefix || null,
+				nameSuffix: name.suffix || null,
+				nickname: name.nickname || null,
+				surnamePrefix: name.surnamePrefix || null,
+				gedcomType: name.gedcomType || null,
+				gedcomExtra: extra.length > 0 ? extra : null,
+				...(name.dateText && (family || !name.unionXref) ? { dateRaw: name.dateText, ...dateColumnsFor(name.dateText) } : {}),
+				unionId: family ? scoped(family.id) : null,
+				isPreferred: !existing && order === 0,
+				order: order++
+			});
+		}
+	}
+
+	for (const chunk of chunkRows(nameRows, PERSON_NAME_COLUMNS)) {
 		await db.insert(personNames).values(chunk).onConflictDoNothing();
 	}
 

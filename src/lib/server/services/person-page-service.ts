@@ -17,6 +17,7 @@ import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { CONFLICT_KINDS, findFactConflicts, sortTimeline, type FactConflict } from '../../shared/fact-timeline';
 import { FACT_KINDS, factTypeInfo, factLabel, type FactKind } from '../../shared/fact-types';
+import { displayNameWith, formatFullName } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
 import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
@@ -60,11 +61,20 @@ export interface FactDto extends PrivacyFlag {
 export interface NameDto extends PrivacyFlag {
 	/** Null for the name derived from the person's own name fields when none is stored. */
 	id: string | null;
+	/** Null with `id`: a derived name has nothing to conflict with. */
+	version: number | null;
 	type: NameType;
+	/** The word of a free-text type, when the type is `other`. */
+	gedcomType: string | null;
 	givenName: string | null;
 	surname: string | null;
 	prefix: string | null;
 	suffix: string | null;
+	nickname: string | null;
+	surnamePrefix: string | null;
+	/** When the name came into use, as typed; the partnership it came from, if recorded. */
+	dateText: string | null;
+	unionId: string | null;
 	displayName: string;
 	isPreferred: boolean;
 }
@@ -185,11 +195,17 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 			{
 				...privacyOf(person),
 				id: null,
+				version: null,
 				type: 'birth',
+				gedcomType: null,
 				givenName: person.givenName,
 				surname: person.surname,
 				prefix: null,
 				suffix: null,
+				nickname: null,
+				surnamePrefix: null,
+				dateText: null,
+				unionId: null,
 				displayName: personName(person),
 				isPreferred: true
 			}
@@ -197,15 +213,23 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 	}
 	return [...rows]
 		.sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
+		// A row the pre-S6 person form left stale reads as the person's own fields, as export does (ADR-013).
+		.map((n) => (n.isPreferred ? { ...n, givenName: person.givenName, surname: person.surname } : n))
 		.map((n) => ({
 			...privacyOf(n),
 			id: n.id,
+			version: n.version,
 			type: n.type as NameType,
+			gedcomType: n.gedcomType,
 			givenName: n.givenName,
 			surname: n.surname,
 			prefix: n.namePrefix,
 			suffix: n.nameSuffix,
-			displayName: [n.namePrefix, n.givenName, n.surname, n.nameSuffix].filter(Boolean).join(' ') || 'Unknown',
+			nickname: n.nickname,
+			surnamePrefix: n.surnamePrefix,
+			dateText: n.dateRaw,
+			unionId: n.unionId,
+			displayName: formatFullName({ prefix: n.namePrefix, givenName: n.givenName, surnamePrefix: n.surnamePrefix, surname: n.surname, suffix: n.nameSuffix }),
 			isPreferred: n.isPreferred
 		}));
 }
@@ -329,7 +353,7 @@ export class PersonPageService {
 				sex: isSex(self.row.sex) ? self.row.sex : 'U',
 				givenName: self.row.givenName,
 				surname: self.row.surname,
-				displayName: personName(self.row),
+				displayName: displayNameWith(self.row, nameRows.map((n) => n.row)),
 				isDeceased: death !== null
 			},
 			names: nameDtos(self.row, nameRows.map((n) => n.row)),

@@ -135,4 +135,6 @@ export interface PeopleSearchResult {
   id: string;
   givenName: string | null;
   surname: string | null;
+  /** Set when the person matched through another of their names, not the one they are shown by. */
+  matchedName?: string;
 }

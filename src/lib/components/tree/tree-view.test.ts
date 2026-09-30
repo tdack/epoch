@@ -73,6 +73,8 @@ describe('card text', () => {
 	it('takes the surname initial from the last word', () => {
 		expect(surnameInitial('Jessica Louise Lovejoy')).toBe('L');
 		expect(surnameInitial('  cher ')).toBe('C');
+		// The birth surname is not part of the name the block is initialled from.
+		expect(surnameInitial('Jessica Wren (née Lovejoy)')).toBe('K');
 	});
 });
 

@@ -16,6 +16,7 @@ import type { FocusGraphDto, TreeSummaryDto } from '#lib/server/services/graph-q
 import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
 import type { UnionPageDto } from '#lib/server/services/union-page-service.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
+import type { NameInput } from '#lib/shared/name-types.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -335,5 +336,38 @@ export type FactImpactRequest =
 
 export async function previewFactApi(treeId: string, request: FactImpactRequest): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/facts/impact`, json('POST', request), 'Failed to preview the change');
+	return data.impact;
+}
+
+// ---- Names ----
+
+export async function createNameApi(treeId: string, personId: string, name: NameInput, isPreferred = false): Promise<{ nameId: string; change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names`, json('POST', { ...name, isPreferred }), 'Failed to add the name');
+}
+
+export async function updateNameApi(treeId: string, nameId: string, name: Partial<NameInput>, version: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/names/${enc(nameId)}`, json('PUT', { ...name, version }), 'Failed to save the name');
+}
+
+export async function deleteNameApi(treeId: string, nameId: string, version: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/names/${enc(nameId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the name');
+}
+
+export async function reorderNamesApi(treeId: string, personId: string, orderedNameIds: string[]): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/reorder`, json('POST', { orderedNameIds }), 'Failed to reorder the names');
+}
+
+export async function setPreferredNameApi(treeId: string, personId: string, nameId: string, version?: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/preferred`, json('POST', { nameId, version }), 'Failed to choose the preferred name');
+}
+
+export type NameImpactRequest =
+	| { kind: 'create_name'; personId: string; name: NameInput & { isPreferred?: boolean } }
+	| { kind: 'update_name'; nameId: string; version?: number; name: Partial<NameInput> }
+	| { kind: 'delete_name'; nameId: string; version?: number }
+	| { kind: 'set_preferred_name'; personId: string; nameId: string; version?: number };
+
+export async function previewNameApi(treeId: string, request: NameImpactRequest): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/names/impact`, json('POST', request), 'Failed to preview the change');
 	return data.impact;
 }

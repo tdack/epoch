@@ -9,7 +9,7 @@ import { ENTITY_ORDER, groupRecords } from '../../shared/impact-groups';
 import { makeLabeler } from './tree-labels';
 
 export { groupRecords };
-import { personName } from './tree-ops';
+import { displayNameOf, personName } from './tree-ops';
 
 export const PERSON_ROLES_IN_IMPACT = { DELETED: 'deleted', CREATED: 'created', AFFECTED: 'affected' } as const;
 export type ImpactPersonRole = (typeof PERSON_ROLES_IN_IMPACT)[keyof typeof PERSON_ROLES_IN_IMPACT];
@@ -69,7 +69,7 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		(a, b) => ENTITY_ORDER.indexOf(a.entityType) - ENTITY_ORDER.indexOf(b.entityType)
 	);
 
-	const names = new Map(rows.individuals.map((p) => [p.id, personName(p)]));
+	const names = new Map(rows.individuals.map((p) => [p.id, displayNameOf(rows, p.id)]));
 	for (const op of ops) if (op.table === 'individuals' && op.after) names.set(op.id, personName(op.after as any));
 
 	// Partners as they are before the change plus those it adds, so a deleted partnership still names them.

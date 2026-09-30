@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
 import { SEX_VALUES } from '../../shared/sex';
 import { isFactType } from '../../shared/fact-types';
+import { isNameType } from '../../shared/name-types';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 export const idSchema = z.string().min(1);
@@ -246,4 +247,48 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('create_fact'), personId: idSchema, fact: factCreateSchema }),
 	z.object({ kind: z.literal('update_fact'), factId: idSchema, version: versionSchema.optional(), fact: factUpdateSchema.omit({ version: true }) }),
 	z.object({ kind: z.literal('delete_fact'), factId: idSchema, version: versionSchema.optional() })
+]);
+
+
+// ---- Names (Phase 3, S6) ----
+
+const nameTypeSchema = z.string().refine(isNameType, { message: 'not a name type' });
+
+/** A name as the form sends it: every field present, empty ones null. */
+export const nameCreateSchema = z.object({
+	type: nameTypeSchema,
+	givenName: nullableText.default(null),
+	surname: nullableText.default(null),
+	prefix: nullableText.default(null),
+	suffix: nullableText.default(null),
+	nickname: nullableText.default(null),
+	surnamePrefix: nullableText.default(null),
+	dateText: nullableText.default(null),
+	unionId: idSchema.nullable().default(null),
+	isPreferred: z.boolean().default(false)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears it. */
+export const nameUpdateSchema = z.object({
+	version: versionSchema,
+	type: nameTypeSchema.optional(),
+	givenName: nullableText.optional(),
+	surname: nullableText.optional(),
+	prefix: nullableText.optional(),
+	suffix: nullableText.optional(),
+	nickname: nullableText.optional(),
+	surnamePrefix: nullableText.optional(),
+	dateText: nullableText.optional(),
+	unionId: idSchema.nullable().optional()
+});
+
+export const nameReorderSchema = z.object({ orderedNameIds: z.array(idSchema).max(200) });
+export const namePreferredSchema = z.object({ nameId: idSchema, version: versionSchema.optional() });
+
+/** A preview of a name change: the same commands the writes take, minus the ids the server mints. */
+export const nameImpactSchema = z.discriminatedUnion('kind', [
+	z.object({ kind: z.literal('create_name'), personId: idSchema, name: nameCreateSchema }),
+	z.object({ kind: z.literal('update_name'), nameId: idSchema, version: versionSchema.optional(), name: nameUpdateSchema.omit({ version: true }) }),
+	z.object({ kind: z.literal('delete_name'), nameId: idSchema, version: versionSchema.optional() }),
+	z.object({ kind: z.literal('set_preferred_name'), personId: idSchema, nameId: idSchema, version: versionSchema.optional() })
 ]);

@@ -1,10 +1,10 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { getDb, type DbClient, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved } from '../db';
+import { getDb, type DbClient, individuals, events, trees, unions, unionPartners, parentChild, gedcomPreserved, personNames } from '../db';
 import { dateColumnsFor, type EventDateColumns } from '../domain/date-columns';
 import { parseGedcom, type ParsedGedcomData } from './index';
 import { importNeutralModel } from './neutral-importer';
 import { detectDuplicateFamilies, foldIntoExistingAliases, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
-import { eq, getTableColumns } from 'drizzle-orm';
+import { eq, getTableColumns, sql } from 'drizzle-orm';
 
 // D1 limits a single query to 100 bound parameters, so batch inserts must be
 // chunked by row count x column count, not by row count alone.
@@ -396,11 +396,21 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     .where(eq(parentChild.treeId, treeId))
     .all();
   const treeEvents = await db.select().from(events).where(eq(events.treeId, treeId)).all();
+  const treeNames = await db
+    .select(getTableColumns(personNames))
+    .from(personNames)
+    .innerJoin(individuals, eq(personNames.personId, individuals.id))
+    .where(eq(individuals.treeId, treeId))
+    .orderBy(sql`${personNames}.rowid`)
+    .all();
   const treePreserved = await db
     .select()
     .from(gedcomPreserved)
     .where(eq(gedcomPreserved.treeId, treeId))
     .all();
+
+  const namesByPerson = new Map<string, typeof treeNames>();
+  for (const n of treeNames) namesByPerson.set(n.personId, [...(namesByPerson.get(n.personId) ?? []), n]);
 
   // Map events to individual or union (family) entity.
   const eventsByEntity: Record<string, typeof treeEvents> = {};
@@ -502,6 +512,26 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
         id: exportId,
         givenName: ind.givenName,
         surname: ind.surname,
+        // The preferred name first, because GEDCOM reads the first NAME as the primary one; the rest keep their order.
+        names: (namesByPerson.get(ind.id) ?? [])
+          .slice()
+          .sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
+          // Before S6 the person form edited `individuals` and left the imported name row alone; where the two
+          // still differ the person's own fields are the edited ones (ADR-013).
+          .map((n) => (n.isPreferred ? { ...n, givenName: ind.givenName, surname: ind.surname } : n))
+          .map((n) => ({
+            type: n.type,
+            gedcomType: n.gedcomType,
+            givenName: n.givenName,
+            surname: n.surname,
+            prefix: n.namePrefix,
+            suffix: n.nameSuffix,
+            nickname: n.nickname,
+            surnamePrefix: n.surnamePrefix,
+            dateText: n.dateRaw,
+            unionXref: n.unionId ? famXrefMap.get(n.unionId) ?? null : null,
+            extra: n.gedcomExtra
+          })),
         sex: ind.sex,
         events: eventsByEntity[ind.id] || [],
         famc: (famcByChild[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid),

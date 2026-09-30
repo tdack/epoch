@@ -145,3 +145,12 @@ far past that, keep counters on the `trees` row instead of counting (Phase 8, pe
 
 Every mutation plans against a full `TreeRows` snapshot (`ChangeStore.loadRows`). That is outside
 this slice, which bounds reads. It is the next place a large tree will hurt.
+
+## Name search (S6)
+
+`RelationshipRepository.searchPeople` matches every stored name. The other filter is a `LIKE`, which
+cannot use an index, so the `+tree_id` trick above is wrong here: with it `EXPLAIN QUERY PLAN`
+reads `SCAN n` (every name of every tree) then `SEARCH i USING INDEX sqlite_autoindex_individuals_1`;
+with a plain `tree_id = ?` it reads `SEARCH i USING INDEX idx_ind_tree` then
+`SEARCH n USING INDEX idx_person_name_person`, so the work is bounded by one tree. The plain form is
+used. Search is still linear in the tree's people, which is fine for this phase's corpora.

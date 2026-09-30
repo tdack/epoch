@@ -15,7 +15,7 @@ import {
 	type RelationshipIntent,
 	type SentenceFacts
 } from './relationship-sentence';
-import { asParentChild, deceasedIdsOf, labelableUnionsOf, partnerIdsOf, unionIdsOf, personName } from './tree-ops';
+import { asParentChild, deceasedIdsOf, labelableUnionsOf, partnerIdsOf, unionIdsOf, personName, displayNameOf } from './tree-ops';
 import { ValidationError } from './errors';
 import { partnershipLabels } from '../../shared/partnership-labels';
 import type { MergeChoices } from '../../shared/union-merge';
@@ -23,9 +23,11 @@ import { ENDED_UNION_STATUSES, type EndedUnionStatus, type UnionEventInput, type
 import { newWidowhoods } from '../../shared/widowhood';
 import type { Sex } from '../../shared/sex';
 import type { FactCommand } from './fact-ops';
+import type { NameCommand } from './name-ops';
 
 export type RelationshipCommand =
 	| FactCommand
+	| NameCommand
 	| {
 			kind: 'create_person';
 			personId: string;
@@ -151,7 +153,7 @@ function refOf(rows: TreeRows, id: string): PersonRef {
 
 /** "Homer Simpson–Marge Simpson": how a family is named in a sentence. */
 export function unionLabelOf(rows: TreeRows, unionId: string): string | null {
-	const names = partnerIdsOf(rows, unionId).map((id) => personName(rows.individuals.find((p) => p.id === id)));
+	const names = partnerIdsOf(rows, unionId).map((id) => displayNameOf(rows, id));
 	return names.length > 0 ? names.join('–') : null;
 }
 
@@ -161,7 +163,7 @@ export function unionLabelOf(rows: TreeRows, unionId: string): string | null {
  */
 export function unionPhraseOf(rows: TreeRows, unionId: string): string | null {
 	const label = partnershipLabels(labelableUnionsOf(rows)).get(unionId);
-	const names = partnerIdsOf(rows, unionId).map((id) => personName(rows.individuals.find((p) => p.id === id)));
+	const names = partnerIdsOf(rows, unionId).map((id) => displayNameOf(rows, id));
 	if (label && names.length >= 2) return `${label.title} of ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 	const family = unionLabelOf(rows, unionId);
 	return family ? `${family} family` : null;

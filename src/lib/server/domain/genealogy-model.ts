@@ -34,16 +34,8 @@ export const UNION_STATUSES = {
 } as const;
 export type UnionStatus = (typeof UNION_STATUSES)[keyof typeof UNION_STATUSES];
 
-export const NAME_TYPES = {
-	BIRTH: 'birth',
-	MARRIED: 'married',
-	AKA: 'aka',
-	IMMIGRANT: 'immigrant',
-	MAIDEN: 'maiden',
-	PROFESSIONAL: 'professional',
-	OTHER: 'other'
-} as const;
-export type NameType = (typeof NAME_TYPES)[keyof typeof NAME_TYPES];
+export { NAME_TYPES, type NameType } from '../../shared/name-types';
+import type { NameType } from '../../shared/name-types';
 
 export interface Person {
 	id: string;

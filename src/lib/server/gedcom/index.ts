@@ -1,5 +1,6 @@
 import { parseDateValue } from '../../shared/date-value';
 import type { Sex } from '../../shared/sex';
+import { NAME_TYPES, type NameType } from '../domain/genealogy-model';
 
 export type GedcomVersion = '5.5.1' | '7.0';
 
@@ -29,10 +30,39 @@ export const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
 /** Carries an `X` sex through a GEDCOM 5.5.1 export, whose `SEX` cannot hold it (ADR-010). */
 export const SEX_X_TAG = '_EPOCH_SEX';
 
-export interface ParsedIndividual {
-  id: string; // e.g. @I1@ or I1
+/**
+ * Marks a name that came from the legacy `_MARNM` tag (ADR-013). It is a married name in the model
+ * and is written back as `_MARNM`, not as a second `NAME`, so a round trip does not double it.
+ */
+export const LEGACY_MARRIED_NAME_TAG = '_MARNM';
+
+/** One `NAME` record of an individual, in file order. The first is the primary name. */
+export interface ParsedName {
+  type: NameType;
+  /** The word of a free-text 5.5.1 TYPE (or a 7.0 PHRASE) under `other`; `_MARNM` for the legacy tag. */
+  gedcomType?: string;
   givenName?: string;
   surname?: string;
+  prefix?: string;
+  suffix?: string;
+  nickname?: string;
+  surnamePrefix?: string;
+  /** From an Epoch name-change `NOTE` (ADR-013): when the name came into use. */
+  dateText?: string;
+  /** From the same note: the family it came from, as the file's XREF. */
+  unionXref?: string;
+  /** That note's own line, kept so a family the file does not have leaves the note in place. */
+  changeNoteLine?: string;
+  /** Sub-structures with no column (NOTE, SOUR, FONE, ROMN, custom tags), verbatim, written back inside this NAME. */
+  extra: string[];
+}
+
+export interface ParsedIndividual {
+  id: string; // e.g. @I1@ or I1
+  /** The primary (first) name's given name and surname, kept for callers that want one name. */
+  givenName?: string;
+  surname?: string;
+  names?: ParsedName[];
   sex?: Sex;
   famc?: string[]; // Family where person is child
   famcLinks?: ParsedFamcLink[];
@@ -196,6 +226,78 @@ function parseGedcomLine(line: string): { level: number; xref?: string; tag: str
   return { level, xref, tag, value: match[4] };
 }
 
+
+const NAME_TYPE_BY_WORD: Record<string, NameType> = Object.fromEntries(Object.values(NAME_TYPES).map((t) => [t, t]));
+
+/** `TYPE` is lowercase in 5.5.1 and uppercase in 7.0; a word that is neither of the known ones is free text. */
+export function parseNameType(value: string | undefined, phrase?: string): { type: NameType; gedcomType?: string } {
+  const word = value?.trim();
+  if (!word) return { type: NAME_TYPES.OTHER };
+  const known = NAME_TYPE_BY_WORD[word.toLowerCase()];
+  if (known === NAME_TYPES.OTHER) return { type: known, ...(phrase?.trim() ? { gedcomType: phrase.trim() } : {}) };
+  if (known) return { type: known };
+  return { type: NAME_TYPES.OTHER, gedcomType: word };
+}
+
+/**
+ * The note Epoch writes under a `NAME` to say when it came into use and from which family (ADR-013).
+ * GEDCOM has no date on a name, so this is the standard place that still reads as prose in any program.
+ */
+export function nameChangeNote(dateText: string | null | undefined, unionXref: string | null | undefined): string | null {
+  if (!dateText && !unionXref) return null;
+  return `Name in use${dateText ? ` from ${dateText}` : ''}${unionXref ? `${dateText ? ',' : ''} through family ${unionXref}` : ''}.`;
+}
+
+const NAME_CHANGE_NOTE = /^Name in use(?: from (.+?))?(?:,? through family (@[^@\s]+@))?\.$/;
+
+const MODELLED_NAME_TAGS = new Set(['TYPE', 'NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX']);
+
+/**
+ * Read one `NAME` record. The line's value supplies what the sub-tags do not; the sub-tags win.
+ * A suffix on the line is kept in the given name when there is no `NSFX`, as it always was. An
+ * untyped name is birth when it is the first and `aka` after that: GEDCOM says nothing, and a
+ * second name is not the one the person was born with.
+ */
+function parseNameNode(node: GedcomNode, collect: (n: GedcomNode) => string[], isPrimary: boolean): ParsedName {
+  const sub = (tag: string) => node.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
+  const value = node.value ?? '';
+  const open = value.indexOf('/');
+  const close = open === -1 ? -1 : value.indexOf('/', open + 1);
+  let { givenName, surname } = parseGedcomNameValue(value);
+  if (sub('NSFX') && close !== -1) {
+    givenName = value.slice(0, open).replace(/\s+/g, ' ').trim() || undefined;
+  }
+  const prefix = sub('NPFX');
+  if (prefix && givenName?.startsWith(`${prefix} `)) givenName = givenName.slice(prefix.length + 1).trim() || undefined;
+  const typeNode = node.children.find((c) => c.tag === 'TYPE');
+  const surn = sub('SURN');
+  const spfx = sub('SPFX');
+  // The line writes the surname prefix inside the slashes ("/de la Cruz/"); the column holds it apart.
+  if (spfx && !surn && surname?.startsWith(`${spfx} `)) surname = surname.slice(spfx.length + 1).trim() || undefined;
+  const changeNode = node.children.find((c) => c.tag === 'NOTE' && c.children.length === 0 && c.value && NAME_CHANGE_NOTE.test(c.value.trim()));
+  const change = changeNode ? NAME_CHANGE_NOTE.exec(changeNode.value!.trim()) : null;
+  return {
+    ...(typeNode ? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value) : { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
+    givenName: sub('GIVN') ?? givenName,
+    surname: surn ?? surname,
+    prefix,
+    suffix: sub('NSFX') ?? undefined,
+    nickname: sub('NICK'),
+    surnamePrefix: spfx,
+    ...(change?.[1] ? { dateText: change[1] } : {}),
+    ...(change?.[2] ? { unionXref: change[2] } : {}),
+    ...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),
+    extra: node.children.filter((c) => !MODELLED_NAME_TAGS.has(c.tag) && c !== changeNode).flatMap(collect)
+  };
+}
+
+/** A `_MARNM` value is "Given /Surname/" in some programs and just the surname in others. */
+function parseLegacyMarriedName(value: string, primary: ParsedName | undefined): ParsedName {
+  const hasSlashes = value.includes('/');
+  const parts = hasSlashes ? parseGedcomNameValue(value) : { givenName: primary?.givenName, surname: value.trim() || undefined };
+  return { type: NAME_TYPES.MARRIED, gedcomType: LEGACY_MARRIED_NAME_TAG, ...parts, extra: [] };
+}
+
 /**
  * Parses raw GEDCOM string into hierarchical records
  */
@@ -251,8 +353,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       }
     } else if (node.tag === 'INDI') {
       const id = node.xref || crypto.randomUUID();
-      let givenName: string | undefined;
-      let surname: string | undefined;
+      const names: ParsedName[] = [];
+      const legacyMarried: string[] = [];
       let sex: Sex = 'U';
       let isSexXFallback = false;
       const famc: string[] = [];
@@ -261,13 +363,10 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       const events: ParsedEvent[] = [];
 
       for (const child of node.children) {
-        if (child.tag === 'NAME' && child.value) {
-          ({ givenName, surname } = parseGedcomNameValue(child.value));
-          // Check child nodes for GIVN and SURN (present in both 5.5.1 and 7.0)
-          const givn = child.children.find((c) => c.tag === 'GIVN');
-          const surn = child.children.find((c) => c.tag === 'SURN');
-          if (givn?.value) givenName = givn.value.trim();
-          if (surn?.value) surname = surn.value.trim();
+        if (child.tag === 'NAME') {
+          names.push(parseNameNode(child, collectLines, names.length === 0));
+        } else if (child.tag === LEGACY_MARRIED_NAME_TAG && child.value?.trim()) {
+          legacyMarried.push(child.value);
         } else if (child.tag === 'SEX') {
           const val = child.value?.toUpperCase().trim();
           if (val === 'M' || val === 'F' || val === 'X') sex = val;
@@ -319,10 +418,13 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         }
       }
 
+      // A legacy `_MARNM` follows the file's real names, so the first `NAME` stays the primary one.
+      for (const value of legacyMarried) names.push(parseLegacyMarriedName(value, names[0]));
       individuals.push({
         id,
-        givenName,
-        surname,
+        givenName: names[0]?.givenName,
+        surname: names[0]?.surname,
+        names,
         // A 5.5.1 export cannot say X, so it writes U and `_EPOCH_SEX X`; put the X back.
         sex: sex === 'U' && isSexXFallback ? 'X' : sex,
         famc,
@@ -408,12 +510,30 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 /**
  * Shared payload shape consumed by both the 5.5.1 and 7.0 serializers.
  */
+/** One name to write, as stored. The payload lists them preferred first, because GEDCOM's first `NAME` is the primary. */
+export interface ExportName {
+  type: string;
+  gedcomType?: string | null;
+  givenName: string | null;
+  surname: string | null;
+  prefix?: string | null;
+  suffix?: string | null;
+  nickname?: string | null;
+  surnamePrefix?: string | null;
+  dateText?: string | null;
+  /** The family the name came from, as its export XREF. */
+  unionXref?: string | null;
+  extra?: string[] | null;
+}
+
 export interface GedcomExportPayload {
   treeName?: string;
   individuals: Array<{
     id: string;
     givenName: string | null;
     surname: string | null;
+    /** Every stored name; when absent or empty the single `givenName`/`surname` pair is written. */
+    names?: ExportName[];
     sex: string | null;
     events?: Array<{
       type: string;
@@ -464,6 +584,54 @@ function individualEventLines(ev: NonNullable<GedcomExportPayload['individuals']
   if (ev.age) lines.push(`2 AGE ${ev.age}`);
   const note = ev.notes ?? ev.description;
   if (note) lines.push(`2 NOTE ${note}`);
+  return lines;
+}
+
+
+/** The `TYPE` payload of a name, and the `PHRASE` a 7.0 file needs to say a free-text type. */
+function nameTypeTokens(name: ExportName, format: GedcomFormat): { token: string; phrase: string | null } {
+  if (name.type === 'other' && name.gedcomType) {
+    return format === 'gedcom7' ? { token: 'OTHER', phrase: name.gedcomType } : { token: name.gedcomType, phrase: null };
+  }
+  return { token: format === 'gedcom7' ? name.type.toUpperCase() : name.type, phrase: null };
+}
+
+/**
+ * The `NAME` records of an individual. `birth` is the default TYPE and is left out of the first
+ * (primary) name only: on any later name an untyped record would be read back as `aka`. A name that
+ * came from the legacy `_MARNM` tag goes back out as that tag, so a re-read does not see it twice.
+ */
+function nameLines(ind: GedcomExportPayload['individuals'][number], format: GedcomFormat): string[] {
+  const names: ExportName[] = ind.names && ind.names.length > 0 ? ind.names : [{ type: 'birth', givenName: ind.givenName, surname: ind.surname }];
+  const lines: string[] = [];
+  const line = (name: ExportName) => {
+    const given = [name.prefix, name.givenName].filter(Boolean).join(' ');
+    const surname = [name.surnamePrefix, name.surname].filter(Boolean).join(' ');
+    return `${given} /${surname}/${name.suffix ? ` ${name.suffix}` : ''}`.trim();
+  };
+  let isFirst = true;
+  for (const name of names) {
+    if (name.type === 'married' && name.gedcomType === LEGACY_MARRIED_NAME_TAG) {
+      lines.push(`1 ${LEGACY_MARRIED_NAME_TAG} ${line({ ...name, prefix: null, surnamePrefix: null, suffix: null })}`);
+      continue;
+    }
+    lines.push(`1 NAME ${line(name)}`);
+    if (!(isFirst && name.type === 'birth')) {
+      const { token, phrase } = nameTypeTokens(name, format);
+      lines.push(`2 TYPE ${token}`);
+      if (phrase) lines.push(`3 PHRASE ${phrase}`);
+    }
+    if (name.prefix) lines.push(`2 NPFX ${name.prefix}`);
+    if (name.givenName) lines.push(`2 GIVN ${name.givenName}`);
+    if (name.nickname) lines.push(`2 NICK ${name.nickname}`);
+    if (name.surnamePrefix) lines.push(`2 SPFX ${name.surnamePrefix}`);
+    if (name.surname) lines.push(`2 SURN ${name.surname}`);
+    if (name.suffix) lines.push(`2 NSFX ${name.suffix}`);
+    const note = nameChangeNote(name.dateText, name.unionXref);
+    if (note) lines.push(`2 NOTE ${note}`);
+    lines.push(...(name.extra ?? []));
+    isFirst = false;
+  }
   return lines;
 }
 
@@ -579,11 +747,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
     const xref = asXref(ind.id);
     lines.push(`0 ${xref} INDI`);
 
-    const given = ind.givenName || '';
-    const sur = ind.surname || '';
-    lines.push(`1 NAME ${given} /${sur}/`.trim());
-    if (given) lines.push(`2 GIVN ${given}`);
-    if (sur) lines.push(`2 SURN ${sur}`);
+    lines.push(...nameLines(ind, 'gedcom551'));
     // 5.5.1 has no X. U is the honest standard value, and the custom line lets Epoch read X back.
     if (ind.sex === 'X') {
       lines.push('1 SEX U');
@@ -671,11 +835,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
     const xref = asXref(ind.id);
     lines.push(`0 ${xref} INDI`);
 
-    const given = ind.givenName || '';
-    const sur = ind.surname || '';
-    lines.push(`1 NAME ${given} /${sur}/`.trim());
-    if (given) lines.push(`2 GIVN ${given}`);
-    if (sur) lines.push(`2 SURN ${sur}`);
+    lines.push(...nameLines(ind, 'gedcom7'));
     if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
 
     if (ind.events) {
