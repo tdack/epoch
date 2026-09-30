@@ -319,9 +319,11 @@ are in [s6-person-names-prompt.md](./s6-person-names-prompt.md).
 - **`_MARNM` is not confirmed against webtrees.** Its `Individual.php` does not mention the tag, so the reading rests on the prompt's recollection: level 1 on the `INDI`, either `Given /Surname/` or a bare surname. A level-2 `_MARNM` under a `NAME` is kept as an extra line, not modelled.
 - **People imported before S6 have one name.** The old importer dropped the others; re-importing the file in replace mode brings them back. Nothing was migrated.
 - **A person created before S6 in the editor has no name row.** The first name command gives them one; until then the page shows their fields as the only name and says to edit it from the person form.
+- **Stale pre-S6 name rows** (the old person form edited `individuals` only) are read as the person's own fields on export and on the person page; nothing is backfilled, and the local database has none. See ADR-013.
 - **The last name of a person cannot be deleted**, so there is always a preferred name to mirror.
 - **Search UI:** the API returns `matchedName` (the stored name a person matched through) but the focus box and the relationship dialog do not show it yet, so a hit on an old name lists the current one.
 - **Not built (out of scope by the prompt):** phonetic and surname-list search, the search page, privacy for names, `FONE`/`ROMN` modelling (they are kept as extra lines).
+- **Known round-trip losses:** a `NAME` line that disagrees with its `GIVN`/`SURN`, or carries a quoted nickname, comes back in canonical form (ADR-013). `union-choice.spec.ts` is a pre-existing flake: it failed 1 of 8 runs on the S5 merge commit and 1 of 4 on this branch.
 - **Known cosmetic limit:** a card truncates the name at 22 characters, so a long given name loses its end before the "née" line.
 
 ## Decisions (2026-09-29)
