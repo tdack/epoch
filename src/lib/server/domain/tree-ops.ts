@@ -109,6 +109,7 @@ export function unionIdsOf(rows: TreeRows, personId: string): string[] {
 export function labelableUnionsOf(rows: TreeRows): LabelableUnion[] {
 	return rows.unions.map((u) => ({
 		id: u.id,
+		createdAt: u.createdAt,
 		partnerIds: partnerIdsOf(rows, u.id),
 		events: rows.events
 			.filter((e) => e.entityType === 'FAMILY' && e.entityId === u.id)

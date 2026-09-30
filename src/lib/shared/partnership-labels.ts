@@ -14,6 +14,8 @@ export interface LabelableUnion {
 	id: string;
 	partnerIds: string[];
 	events?: Array<{ type: string; dateText: string | null; dateSort?: string | null }>;
+	/** Epoch milliseconds the partnership was recorded; orders undated partnerships. */
+	createdAt?: number | null;
 }
 
 export interface PartnershipLabel {
@@ -68,7 +70,8 @@ export function datesOf(union: LabelableUnion): string | null {
 
 /**
  * Labels for every union whose partner set recurs. Dated partnerships come first, oldest first;
- * undated ones follow, in id order so the labels are stable between renders.
+ * undated ones follow in the order they were recorded, then by id, so the labels are stable between
+ * renders and a preview agrees with the save (a new partnership always comes after existing ones).
  */
 export function partnershipLabels(unions: LabelableUnion[]): Map<string, PartnershipLabel> {
 	const groups = new Map<string, LabelableUnion[]>();
@@ -87,6 +90,7 @@ export function partnershipLabels(unions: LabelableUnion[]): Map<string, Partner
 			const [sa, sb] = [startSort(a), startSort(b)];
 			if (sa && sb) return sa === sb ? a.id.localeCompare(b.id) : sa.localeCompare(sb);
 			if (sa || sb) return sa ? -1 : 1;
+			if (a.createdAt != null && b.createdAt != null && a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
 			return a.id.localeCompare(b.id);
 		});
 		ordered.forEach((union, index) => {

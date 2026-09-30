@@ -44,6 +44,8 @@ export interface GraphUnionInput {
 	partnerIds: string[];
 	version?: number;
 	events?: GraphUnionEvent[];
+	/** Epoch milliseconds the partnership was recorded. */
+	createdAt?: number | null;
 }
 
 export interface GraphParentChildInput {
@@ -83,6 +85,8 @@ export interface RelationshipGraphUnion {
 	version?: number;
 	/** Engagement, marriage, separation, divorce and the like, in the order people read them. */
 	events?: GraphUnionEvent[];
+	/** Epoch milliseconds the partnership was recorded; orders undated repeated partnerships. */
+	createdAt?: number | null;
 	/** Children asserted within this union, with per-parent type. */
 	children: Array<{ childId: string; parentId: string; type: ParentChildType }>;
 }
@@ -177,6 +181,7 @@ export function buildRelationshipGraph(input: {
 		partnerIds: u.partnerIds,
 		...(u.version === undefined ? {} : { version: u.version }),
 		...(u.events === undefined ? {} : { events: u.events }),
+		...(u.createdAt == null ? {} : { createdAt: u.createdAt }),
 		children: childrenByUnion.get(u.id) ?? []
 	}));
 
@@ -244,7 +249,8 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 				marriagePlace: marriage?.place ?? null,
 				partnerIds: partnersByUnion.get(u.id) ?? [],
 				version: u.version,
-				events: unionEvents
+				events: unionEvents,
+				createdAt: u.createdAt
 			};
 		}),
 		parentChild: rows.parentChild.map((pc) => ({

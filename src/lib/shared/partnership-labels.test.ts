@@ -55,3 +55,23 @@ describe('partnershipLabels', () => {
 		expect(labels.size).toBe(0);
 	});
 });
+
+describe('undated repeated partnerships', () => {
+	it('are numbered in the order they were recorded, whatever their ids sort to', () => {
+		const labels = partnershipLabels([
+			{ id: 'zzz', partnerIds: ['a', 'b'], createdAt: 1000 },
+			{ id: 'aaa', partnerIds: ['a', 'b'], createdAt: 2000 }
+		]);
+		expect(labels.get('zzz')!.position).toBe(1);
+		expect(labels.get('aaa')!.position).toBe(2);
+	});
+
+	it('fall back to id when nothing says which came first', () => {
+		const labels = partnershipLabels([
+			{ id: 'b', partnerIds: ['x', 'y'] },
+			{ id: 'a', partnerIds: ['x', 'y'], createdAt: 5 }
+		]);
+		expect(labels.get('a')!.position).toBe(1);
+	});
+});
+
