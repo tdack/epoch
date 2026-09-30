@@ -29,8 +29,10 @@
 		hasMultiplePaths: boolean;
 		/** Relationship to the focus person ("child", "partner of Ned"), spoken with the name. */
 		relation: string;
-		/** Click or Enter/Space on the card. */
+		/** Click or Enter/Space on the card: refocus the chart on this person. */
 		onSelect: (id: string) => void;
+		/** Double-click, long-press or Shift+Enter: open this person's details. */
+		onOpen: (id: string) => void;
 		/** Right-click; the handler is responsible for `preventDefault`. */
 		onContextMenu: (event: MouseEvent, node: PlacedPerson) => void;
 		/** Primary-button press, which begins a drag-to-relate gesture. */
@@ -47,6 +49,7 @@
 		hasMultiplePaths,
 		relation,
 		onSelect,
+		onOpen,
 		onContextMenu,
 		onPointerDown
 	}: Props = $props();
@@ -59,10 +62,52 @@
 	/** Blocks grow a little when zoomed far out so they stay a target, but never touch the next row. */
 	const blockHeight = $derived(Math.min(H * 1.6, Math.max(H, 22 / Math.max(zoom, 0.01))));
 
+	const LONG_PRESS_MS = 500;
+	const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
+
+	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	let pressOrigin = { x: 0, y: 0 };
+	/** Set when a long-press fired so the click that follows the release doesn't also refocus. */
+	let didLongPress = false;
+
+	function cancelPress() {
+		clearTimeout(pressTimer);
+		pressTimer = undefined;
+	}
+
+	function onPress(event: PointerEvent) {
+		onPointerDown(event, node.id);
+		if (event.button !== 0) return;
+		didLongPress = false;
+		pressOrigin = { x: event.clientX, y: event.clientY };
+		cancelPress();
+		pressTimer = setTimeout(() => {
+			didLongPress = true;
+			onOpen(node.id);
+		}, LONG_PRESS_MS);
+	}
+
+	// A drag (pan or drag-to-relate) is not a press, so movement cancels it.
+	function onPressMove(event: PointerEvent) {
+		if (!pressTimer) return;
+		if (Math.hypot(event.clientX - pressOrigin.x, event.clientY - pressOrigin.y) > LONG_PRESS_MOVE_TOLERANCE_PX) {
+			cancelPress();
+		}
+	}
+
+	function onClick() {
+		if (didLongPress) {
+			didLongPress = false;
+			return;
+		}
+		onSelect(node.id);
+	}
+
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
-			onSelect(node.id);
+			if (event.shiftKey) onOpen(node.id);
+			else onSelect(node.id);
 		}
 	}
 </script>
@@ -78,9 +123,17 @@
 	tabindex={isActive ? 0 : -1}
 	aria-label={accessibleName(node, relation)}
 	aria-current={isFocus ? 'true' : undefined}
-	onclick={() => onSelect(node.id)}
-	oncontextmenu={(event) => onContextMenu(event, node)}
-	onpointerdown={(event) => onPointerDown(event, node.id)}
+	onclick={onClick}
+	ondblclick={() => onOpen(node.id)}
+	oncontextmenu={(event) => {
+		cancelPress();
+		onContextMenu(event, node);
+	}}
+	onpointerdown={onPress}
+	onpointermove={onPressMove}
+	onpointerup={cancelPress}
+	onpointercancel={cancelPress}
+	onpointerleave={cancelPress}
 	onkeydown={onKeydown}
 >
 	<rect class="hit" x={-hit.width / 2} y={-hit.height / 2} width={hit.width} height={hit.height} />

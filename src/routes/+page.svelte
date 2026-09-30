@@ -337,6 +337,17 @@
     return '';
   }
 
+  /** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
+  function handleFocusPerson(id: string) {
+    setFocus(id);
+  }
+
+  /** Canvas double-click or long-press: focus the person and show their details. */
+  function handleOpenPerson(id: string) {
+    setFocus(id);
+    openDrawerFor(id);
+  }
+
   function handleSelectPerson(id: string) {
     // Clicking the selected person again closes the drawer; the tree stays focused on them.
     if (selectedPersonId === id) {
@@ -877,7 +888,8 @@
         layout={neutralLayout}
         {fitKey}
         {selectedPersonId}
-        onSelectPerson={handleSelectPerson}
+        onSelectPerson={handleFocusPerson}
+        onOpenPerson={handleOpenPerson}
         onClearSelection={clearSelection}
         onEditPerson={handleCanvasEditPerson}
         onDeletePerson={requestDeletePerson}

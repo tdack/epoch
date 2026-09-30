@@ -53,6 +53,8 @@
 		selectedPersonId?: string | null;
 		/** A card was clicked or activated with Enter/Space. */
 		onSelectPerson?: (id: string) => void;
+		/** Double-click, long-press or Shift+Enter on a person: open their details. */
+		onOpenPerson?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
 		onClearSelection?: () => void;
 		/** "Edit details" from a card's context menu. */
@@ -95,6 +97,7 @@
 		fitKey,
 		selectedPersonId = null,
 		onSelectPerson,
+		onOpenPerson,
 		onClearSelection,
 		onEditPerson,
 		onDeletePerson,
@@ -624,6 +627,7 @@
 					hasMultiplePaths={collapsedIds.has(node.id)}
 					relation={relations.get(node.id) ?? ''}
 					onSelect={(id) => onSelectPerson?.(id)}
+					onOpen={(id) => onOpenPerson?.(id)}
 					onContextMenu={openPersonMenu}
 					onPointerDown={onCardPointerDown}
 				/>
