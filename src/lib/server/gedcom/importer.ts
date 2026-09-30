@@ -4,7 +4,7 @@ import { dateColumnsFor, type EventDateColumns } from '../domain/date-columns';
 import { parseGedcom, type ParsedGedcomData } from './index';
 import { importNeutralModel } from './neutral-importer';
 import { detectDuplicateFamilies, foldIntoExistingAliases, mergeExactDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
-import { eq } from 'drizzle-orm';
+import { eq, getTableColumns } from 'drizzle-orm';
 
 // D1 limits a single query to 100 bound parameters, so batch inserts must be
 // chunked by row count x column count, not by row count alone.
@@ -383,7 +383,13 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
   const tree = await db.select().from(trees).where(eq(trees.id, treeId)).get();
   const treeInds = await db.select().from(individuals).where(eq(individuals.treeId, treeId)).all();
   const treeUnions = await db.select().from(unions).where(eq(unions.treeId, treeId)).all();
-  const treePartners = await db.select().from(unionPartners).all();
+  // union_partners has no tree_id; unscoped, this exported every tree's partners into every export.
+  const treePartners = await db
+    .select(getTableColumns(unionPartners))
+    .from(unionPartners)
+    .innerJoin(unions, eq(unionPartners.unionId, unions.id))
+    .where(eq(unions.treeId, treeId))
+    .all();
   const treeAssertions = await db
     .select()
     .from(parentChild)

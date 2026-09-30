@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import { individuals, unions, unionPartners, parentChild, events, mediaItems } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, getTableColumns } from 'drizzle-orm';
 
 /** Map a neutral parent-child type to the legacy family-wide pedigree value. */
 const TYPE_TO_PEDIGREE: Record<string, string> = {
@@ -18,7 +18,13 @@ export class GenealogyRepository {
     const [indList, unionList, partnerList, pcList, eventList, mediaList] = await Promise.all([
       this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
       this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
-      this.db.select().from(unionPartners).all(),
+      // union_partners has no tree_id; unscoped, this read every tree's partners on each load.
+      this.db
+        .select(getTableColumns(unionPartners))
+        .from(unionPartners)
+        .innerJoin(unions, eq(unionPartners.unionId, unions.id))
+        .where(eq(unions.treeId, treeId))
+        .all(),
       this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
       this.db.select().from(events).where(eq(events.treeId, treeId)).all(),
       this.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all()
