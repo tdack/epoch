@@ -25,19 +25,12 @@ import { isSex, type Sex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
 import { widowhoods } from '../../shared/widowhood';
 import { loadFocusWindow } from './focus-window';
+import { personSummaries, type PersonSummaryDto } from './person-summaries';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
 export const RECENT_CHANGES_SHOWN = 15;
 
-/** Enough to draw a link to someone: no relatives, no facts. */
-export interface PersonSummaryDto extends PrivacyFlag {
-	id: string;
-	displayName: string;
-	sex: Sex | null;
-	birthDate: string | null;
-	deathDate: string | null;
-	isDeceased: boolean;
-}
+export type { PersonSummaryDto };
 
 export interface FactDto extends PrivacyFlag {
 	id: string;
@@ -161,34 +154,6 @@ export interface PersonPageDto extends PrivacyFlag {
 
 const PLACEHOLDER: PlaceholderDto = { isSupported: false, items: [] };
 
-/** Birth and death text of the first such fact, in the order the graph reads them. */
-function vitalsOf(rows: EventRow[]): { birthDate: string | null; deathDate: string | null; isDeceased: boolean } {
-	const first = (type: string) => rows.find((e) => e.type === type);
-	return { birthDate: first('BIRT')?.dateRaw ?? null, deathDate: first('DEAT')?.dateRaw ?? null, isDeceased: first('DEAT') !== undefined };
-}
-
-function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto {
-	return {
-		...privacyOf(person),
-		id: person.id,
-		displayName: person.displayName,
-		sex: person.sex,
-		birthDate: person.birthDate ?? null,
-		deathDate: person.deathDate ?? null,
-		isDeceased: person.isDeceased
-	};
-}
-
-function summaryOfRows(person: IndividualRow, events: EventRow[]): PersonSummaryDto {
-	return {
-		...privacyOf(person),
-		id: person.id,
-		displayName: personName(person),
-		sex: isSex(person.sex) ? person.sex : 'U',
-		...vitalsOf(events)
-	};
-}
-
 export function factDto(row: EventRow, conflict: FactConflict | null): FactDto {
 	const date = eventDateValue(row);
 	const info = factTypeInfo(row.type);
@@ -282,8 +247,7 @@ export class PersonPageService {
 		if (!self) throw new NotFoundError('Person', personId);
 
 		// Half-siblings and the like are named by the graph only if the window drew them; fetch the rest.
-		const summaries = new Map(graph.people.map((p) => [p.id, summaryOfGraphPerson(p)]));
-		const wanted = new Set<string>([
+		const wanted = [
 			...relatives.parentFamilies.flatMap((f) => f.parents.map((p) => p.personId)),
 			...relatives.partnerships.flatMap((p) => [...p.partnerIds, ...p.children.map((c) => c.personId)]),
 			...relatives.directChildren.map((c) => c.personId),
@@ -291,19 +255,9 @@ export class PersonPageService {
 			...relatives.siblings.half,
 			...relatives.stepParents.map((s) => s.personId),
 			...relatives.stepChildren.flatMap((s) => [s.personId, s.viaPartnerId])
-		]);
-		const missing = [...wanted].filter((id) => !summaries.has(id));
-		if (missing.length > 0) {
-			const [records, vitalEvents] = await this.repo.run(
-				this.repo.individualsIn(treeId, missing),
-				this.repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT'])
-			);
-			for (const { row } of records) {
-				summaries.set(row.id, summaryOfRows(row, vitalEvents.filter((e) => e.row.entityId === row.id).map((e) => e.row)));
-			}
-		}
-		const summary = (id: string): PersonSummaryDto =>
-			summaries.get(id) ?? { ...privacyOf(), id, displayName: 'Unknown', sex: null, birthDate: null, deathDate: null, isDeceased: false };
+		];
+		const summaries = await personSummaries(this.repo, treeId, graph, wanted);
+		const summary = (id: string): PersonSummaryDto => summaries.get(id)!;
 
 		// ---- Facts ----
 		const rows = factRows.sort((a, b) => a.rid - b.rid).map((r) => r.row);
