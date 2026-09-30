@@ -14,20 +14,13 @@ import {
 	type UnionPartnerRow
 } from './change-log';
 import { personName, applyOpsToRows, labelableUnionsOf } from './tree-ops';
+import { factLabel } from '../../shared/fact-types';
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
 
-const EVENT_LABELS: Record<string, string> = {
-	BIRT: 'Birth',
-	DEAT: 'Death',
-	BURI: 'Burial',
-	CHR: 'Christening',
-	...UNION_EVENT_LABELS
-};
-
 export function eventLabel(type: string): string {
 	if (isUnionEventType(type)) return UNION_EVENT_LABELS[type];
-	return EVENT_LABELS[type] ?? type;
+	return factLabel(type);
 }
 
 export type RowLabeler = (table: RecordTable, image: RowImage) => string;
@@ -80,7 +73,9 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case 'events': {
 				const event = row as EventRow;
 				const owner = event.entityType === 'FAMILY' ? union(event.entityId) : person(event.entityId);
-				return `${eventLabel(event.type)} of ${owner}`;
+				// Two occupations or residences share a name, so a preview names the one it means.
+				const detail = event.value ? ` (${event.value})` : '';
+				return `${eventLabel(event.type)}${detail} of ${owner}`;
 			}
 			case 'media_items':
 				return `Attachment of ${person(row.entityId)}`;

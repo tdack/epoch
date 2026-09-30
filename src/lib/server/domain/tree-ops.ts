@@ -24,6 +24,7 @@ import { personName } from '../../shared/person-name';
 import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
+import { buildFactOps } from './fact-ops';
 import { validateParentChildAssertion } from './invariants';
 import type { RelationshipCommand } from './relationship-commands';
 import {
@@ -645,6 +646,11 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 /** Ops for one command against the tree as it currently is. */
 export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext): RowOp[] {
 	switch (command.kind) {
+		case 'create_fact':
+		case 'update_fact':
+		case 'delete_fact':
+		case 'reorder_facts':
+			return buildFactOps(rows, command, ctx);
 		case 'create_person':
 			return createPerson(rows, ctx, command);
 		case 'update_person':

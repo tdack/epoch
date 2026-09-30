@@ -6,6 +6,7 @@
 import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
 import { partnerIdsOf, personName } from './tree-ops';
+import { factLabel } from '../../shared/fact-types';
 
 function nameOf(rows: TreeRows, id: string): string {
 	return personName(rows.individuals.find((p) => p.id === id));
@@ -21,8 +22,26 @@ export function pastTense(sentence: string): string {
 	return sentence.replace(/ will be /g, ' was ').replace(/ will no longer be /g, ' was no longer ');
 }
 
+/** "Occupation" for the fact a command names, whether it exists yet or not. */
+function factName(rows: TreeRows, factId: string, type?: string): string {
+	return factLabel(type ?? rows.events.find((e) => e.id === factId)?.type ?? 'FACT').toLowerCase();
+}
+
+function factOwner(rows: TreeRows, factId: string): string {
+	const owner = rows.events.find((e) => e.id === factId)?.entityId;
+	return owner ? nameOf(rows, owner) : 'someone';
+}
+
 export function describeCommand(command: RelationshipCommand, rows: TreeRows): string {
 	switch (command.kind) {
+		case 'create_fact':
+			return `Added ${factName(rows, command.factId, command.fact.type)} to ${nameOf(rows, command.personId)}`;
+		case 'update_fact':
+			return `Edited the ${factName(rows, command.factId)} of ${factOwner(rows, command.factId)}`;
+		case 'delete_fact':
+			return `Removed the ${factName(rows, command.factId)} of ${factOwner(rows, command.factId)}`;
+		case 'reorder_facts':
+			return `Reordered the facts of ${nameOf(rows, command.personId)}`;
 		case 'create_person':
 			return `Added ${personName({ givenName: command.givenName, surname: command.surname })}`;
 		case 'update_person':
