@@ -1,12 +1,13 @@
 <script lang="ts">
   import { Database, GitBranch, RefreshCw } from 'lucide-svelte';
-  import type { TreeDetails } from '#lib/types/genealogy.js';
-
   interface Props {
-    treeData: TreeDetails;
+    /** Name and counts from the tree summary; the banner never sees the tree's records. */
+    treeName: string;
+    people: number;
+    unions: number;
   }
 
-  let { treeData }: Props = $props();
+  let { treeName, people, unions }: Props = $props();
 </script>
 
 <div class="grid grid-cols-3 gap-4">
@@ -16,7 +17,7 @@
     </div>
     <div>
       <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Individuals in D1</p>
-      <p class="text-xl font-bold text-stone-900">{treeData.individuals.length}</p>
+      <p class="text-xl font-bold text-stone-900">{people}</p>
     </div>
   </div>
   <div class="bg-stone-50/90 border border-stone-200 rounded-xl p-4 flex items-center space-x-3.5 shadow-xs">
@@ -25,7 +26,7 @@
     </div>
     <div>
       <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Unions</p>
-      <p class="text-xl font-bold text-stone-900">{treeData.families.length}</p>
+      <p class="text-xl font-bold text-stone-900">{unions}</p>
     </div>
   </div>
   <div class="bg-stone-50/90 border border-stone-200 rounded-xl p-4 flex items-center space-x-3.5 shadow-xs">
@@ -34,7 +35,7 @@
     </div>
     <div class="min-w-0">
       <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Active Tree</p>
-      <p class="text-base font-bold text-stone-900 truncate">{treeData.tree.name}</p>
+      <p class="text-base font-bold text-stone-900 truncate">{treeName}</p>
     </div>
   </div>
 </div>
