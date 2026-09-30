@@ -13,6 +13,8 @@
   } from '#lib/services/tree-api.js';
   import { personName } from '#lib/shared/person-name.js';
   import { partnershipLabels } from '#lib/shared/partnership-labels.js';
+  import DateInput from '#lib/components/forms/DateInput.svelte';
+  import { checkDateText } from '#lib/shared/date-value.js';
   import {
     END_EVENT_TYPES,
     ENDED_UNION_STATUSES,
@@ -291,7 +293,12 @@
     };
   });
 
-  const canSave = $derived(Boolean(plan) && plan!.commands.length > 0 && !isSubmitting && !isPlanning);
+  // Only the date the current form shows counts; a stale value in a hidden field must not block saving.
+  const hasDateProblem = $derived(
+    (kind === 'record_death' && !checkDateText(deathDate).isValid) ||
+      (kind === 'end_union' && Boolean(endEventType) && !checkDateText(endDate).isValid)
+  );
+  const canSave = $derived(Boolean(plan) && plan!.commands.length > 0 && !isSubmitting && !isPlanning && !hasDateProblem);
 
   async function submit(versionOverride?: { person?: number; union?: number }) {
     const intent = buildIntent(versionOverride);
@@ -489,7 +496,7 @@
     {#if kind === 'record_death'}
       <div class="space-y-2">
         <label class="block text-xs font-semibold text-stone-700" for="death-date">Date of death</label>
-        <input id="death-date" type="text" bind:value={deathDate} placeholder="e.g. 3 MAR 2001, ABT 1900, BET 1950 AND 1955" class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm" />
+        <DateInput id="death-date" bind:value={deathDate} placeholder="e.g. 3 MAR 2001, ABT 1900, BET 1950 AND 1955" inputClass="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm" />
         <label class="block text-xs font-semibold text-stone-700" for="death-place">Place of death</label>
         <input id="death-place" type="text" bind:value={deathPlace} class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm" />
         <p class="text-[11px] text-stone-500">Leave both empty to record only that they have died. A death never ends or changes a partnership.</p>
@@ -538,7 +545,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-stone-700" for="end-date">Date</label>
-              <input id="end-date" type="text" bind:value={endDate} placeholder="e.g. 12 MAR 1999" class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm" />
+              <DateInput id="end-date" bind:value={endDate} inputClass="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm" />
             </div>
             <div>
               <label class="block text-xs font-semibold text-stone-700" for="end-place">Place</label>

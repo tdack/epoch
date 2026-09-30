@@ -11,6 +11,8 @@
     type UnionEventType
   } from '#lib/shared/union-events.js';
   import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
+  import DateInput from '#lib/components/forms/DateInput.svelte';
+  import { checkDateText } from '#lib/shared/date-value.js';
   import type { ChangeSummary, RelationshipGraphUnion } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -101,6 +103,8 @@
     return { version, status, events };
   }
 
+  const hasDateProblem = $derived(rows.some((r) => !checkDateText(r.dateText).isValid));
+
   async function save(mergeOnto?: ConflictError) {
     if (!union) return;
     isSubmitting = true;
@@ -177,7 +181,7 @@
           <span class="pb-2 text-sm font-medium text-stone-800">{UNION_EVENT_LABELS[row.type]}</span>
           <div>
             <label class="block text-[11px] text-stone-500" for="ev-date-{row.key}">Date</label>
-            <input id="ev-date-{row.key}" type="text" bind:value={row.dateText} placeholder="e.g. 12 MAR 1999" class="w-full rounded-md border border-stone-300 p-1.5 text-sm" />
+            <DateInput id="ev-date-{row.key}" bind:value={row.dateText} placeholder="e.g. 12 MAR 1999" inputClass="w-full rounded-md border border-stone-300 p-1.5 text-sm" />
           </div>
           <div>
             <label class="block text-[11px] text-stone-500" for="ev-place-{row.key}">Place</label>
@@ -212,7 +216,7 @@
 
     <div class="flex gap-2">
       <button type="button" onclick={onclose} class="flex-1 cursor-pointer rounded-lg bg-stone-200 py-2 font-semibold text-stone-700">Cancel</button>
-      <button type="submit" disabled={isSubmitting} class="flex-1 cursor-pointer rounded-lg bg-emerald-700 py-2 font-semibold text-white disabled:opacity-50">
+      <button type="submit" disabled={isSubmitting || hasDateProblem} class="flex-1 cursor-pointer rounded-lg bg-emerald-700 py-2 font-semibold text-white disabled:opacity-50">
         {isSubmitting ? 'Saving…' : 'Save'}
       </button>
     </div>

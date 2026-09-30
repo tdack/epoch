@@ -1,6 +1,8 @@
 <script lang="ts">
   import { UserPlus, Pencil, RefreshCw } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
+  import DateInput from '#lib/components/forms/DateInput.svelte';
+  import { checkDateText } from '#lib/shared/date-value.js';
   import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
   import type { PersonFormData } from '#lib/types/genealogy.js';
 
@@ -35,7 +37,11 @@
 
   $effect(() => {
     if (show) {
-      localError = null;
+      if (!checkDateText(birthDate).isValid || !checkDateText(deathDate).isValid) {
+      localError = 'Fix the highlighted date before saving.';
+      return;
+    }
+    localError = null;
       if (mode === 'edit' && initialPerson) {
         const raw = initialPerson.raw || {};
         givenName = raw.givenName || '';
@@ -147,13 +153,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="person-birth-date-field" class="text-xs font-medium text-stone-600 block mb-1">Birth Date</label>
-            <input
+            <DateInput
               id="person-birth-date-field"
-              type="text"
               bind:value={birthDate}
-              placeholder="e.g. 14 APR 1912"
-              disabled={isSubmitting}
-              class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
+              isDisabled={isSubmitting}
+              inputClass="bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
             />
           </div>
           <div>
@@ -176,13 +180,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="person-death-date-field" class="text-xs font-medium text-stone-600 block mb-1">Death Date</label>
-            <input
+            <DateInput
               id="person-death-date-field"
-              type="text"
               bind:value={deathDate}
-              placeholder="e.g. 23 OCT 1985"
-              disabled={isSubmitting}
-              class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
+              isDisabled={isSubmitting}
+              inputClass="bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
             />
           </div>
           <div>
