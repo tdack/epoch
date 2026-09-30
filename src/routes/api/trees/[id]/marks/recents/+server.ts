@@ -6,7 +6,7 @@ import { errorResponse } from '#lib/server/http/error-response.js';
 /**
  * Record that the user opened a person. A POST from the page, never a side effect of a GET or a
  * load: SvelteKit preloads links on hover, and a preload must not log people nobody opened.
- * Idempotent: a repeat moves the person to the front.
+ * Idempotent: a repeat moves the person to the front. Answers with the marks, so the page updates in place.
  */
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
@@ -16,8 +16,10 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	try {
 		const body = (await request.json().catch(() => null)) as { personId?: unknown } | null;
 		if (typeof body?.personId !== 'string' || !body.personId) return Response.json({ error: 'personId required' }, { status: 400 });
-		await new MarkService(getDb(platform.env.DB)).recordRecent(treeId, body.personId, { user: locals.user, correlationId: locals.correlationId });
-		return new Response(null, { status: 204 });
+		const service = new MarkService(getDb(platform.env.DB));
+		const context = { user: locals.user, correlationId: locals.correlationId };
+		await service.recordRecent(treeId, body.personId, context);
+		return Response.json(await service.get(treeId, context));
 	} catch (err) {
 		return errorResponse(err, 'Failed to record the recent person');
 	}

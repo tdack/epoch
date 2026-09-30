@@ -13,7 +13,7 @@ async function run(action: 'add' | 'remove', { params, locals, platform }: Param
 		const context = { user: locals.user, correlationId: locals.correlationId };
 		if (action === 'add') await service.addFavorite(treeId, personId, context);
 		else await service.removeFavorite(treeId, personId, context);
-		return new Response(null, { status: 204 });
+		return Response.json(await service.get(treeId, context));
 	} catch (err) {
 		return errorResponse(err, 'Failed to change the favourite');
 	}

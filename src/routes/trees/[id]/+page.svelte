@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { goto, invalidate } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
   import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
@@ -20,7 +20,7 @@
   import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
   import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
   import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
-  import { MARKS_KEY, rememberedFocusKey } from '#lib/services/load-helpers.js';
+  import { rememberedFocusKey } from '#lib/services/load-helpers.js';
   import type { PageData } from './$types';
 
   interface Props {
@@ -28,7 +28,7 @@
   }
 
   let { data }: Props = $props();
-  const { editor } = getTreeContext();
+  const { editor, marks } = getTreeContext();
   const historyCoalescer = createHistoryCoalescer();
 
   const treeId = $derived(page.params.id!);
@@ -133,7 +133,7 @@
   function pickFocus(id: string) {
     navigate({ focusId: id }, { kind: HISTORY_KINDS.FOCUS });
     void recordRecentApi(treeId, id)
-      .then(() => invalidate(MARKS_KEY))
+      .then((updated) => marks.set(updated))
       .catch(() => {
         // Recents are a convenience; a failed record is not worth a message.
       });
@@ -218,7 +218,7 @@
         searchPeople={(q) => searchPeopleApi(treeId, q)}
         onChange={(change) => navigate(change, { kind: HISTORY_KINDS.ADJUST })}
         onPickFocus={pickFocus}
-        suggestions={data.marks}
+        suggestions={marks}
       />
     </div>
     <TreeCanvas

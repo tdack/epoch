@@ -291,12 +291,13 @@ export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promi
 	return call(`/api/trees/${treeId}/marks`, undefined, 'Failed to load favourites and recents', fetchFn);
 }
 
-export async function recordRecentApi(treeId: string, personId: string): Promise<void> {
-	await call(`/api/trees/${treeId}/marks/recents`, json('POST', { personId }), 'Failed to record the visit');
+/** Record a visit; answers with the user's marks as they now stand. */
+export function recordRecentApi(treeId: string, personId: string): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks/recents`, json('POST', { personId }), 'Failed to record the visit');
 }
 
-export async function setFavoriteApi(treeId: string, personId: string, isFavorite: boolean): Promise<void> {
-	await call(`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`, { method: isFavorite ? 'PUT' : 'DELETE' }, 'Failed to change the favourite');
+export function setFavoriteApi(treeId: string, personId: string, isFavorite: boolean): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`, { method: isFavorite ? 'PUT' : 'DELETE' }, 'Failed to change the favourite');
 }
 
 // ---- Bounded reads (Phase 3) ----

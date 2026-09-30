@@ -1,13 +1,11 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, Cross, GitBranch, MapPin, Pencil, Plus, Star, Trash2, UserPlus } from 'lucide-svelte';
-  import { invalidate } from '$app/navigation';
   import FactDialog from '#lib/components/modals/FactDialog.svelte';
   import NameDialog from '#lib/components/modals/NameDialog.svelte';
   import { getTreeContext } from '#lib/components/tree/tree-context.js';
   import { sexLabel } from '#lib/shared/sex.js';
   import type { FactDto, NameDto, PersonSummaryDto } from '#lib/server/services/person-page-service.js';
   import { deleteFactApi, deleteNameApi, previewFactApi, previewNameApi, recordRecentApi, reorderFactsApi, reorderNamesApi, setFavoriteApi, setPreferredNameApi } from '#lib/services/tree-api.js';
-  import { MARKS_KEY } from '#lib/services/load-helpers.js';
   import { NAME_TYPE_LABELS, formatFullName } from '#lib/shared/name-types.js';
   import type { PageData } from './$types';
 
@@ -16,7 +14,7 @@
   }
 
   let { data }: Props = $props();
-  const { editor, toasts } = getTreeContext();
+  const { editor, toasts, marks } = getTreeContext();
 
   const dto = $derived(data.person);
   const treeId = $derived(data.summary.tree.id);
@@ -31,14 +29,14 @@
   });
 
   // ---- Favourite and recent ----
-  const isFavorite = $derived(data.marks.favorites.some((f) => f.id === dto.person.id));
+  const isFavorite = $derived(marks.favorites.some((f) => f.id === dto.person.id));
 
   // An explicit POST from the page, not a load: links preload on hover, and a preload is not a visit.
   // Effects never run on the server, so a server render records nothing either.
   $effect(() => {
     const personId = dto.person.id;
     void recordRecentApi(treeId, personId)
-      .then(() => invalidate(MARKS_KEY))
+      .then((updated) => marks.set(updated))
       .catch(() => {
         // Recents are a convenience; a failed record is not worth a message.
       });
@@ -46,8 +44,7 @@
 
   async function toggleFavorite() {
     try {
-      await setFavoriteApi(treeId, dto.person.id, !isFavorite);
-      await invalidate(MARKS_KEY);
+      marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
     } catch (cause) {
       toasts.push((cause as Error).message || 'Could not change the favourite', { tone: 'error' });
     }
@@ -174,7 +171,7 @@
 <nav aria-label="Breadcrumb" class="text-xs text-stone-600">
   <a href={treeHref} class="font-semibold text-emerald-800 hover:underline">{data.summary.tree.name}</a>
   <span aria-hidden="true"> › </span>
-  <span>People</span>
+  <a href={`${treeHref}/people`} class="font-semibold text-emerald-800 hover:underline">People</a>
   <span aria-hidden="true"> › </span>
   <span aria-current="page">{dto.person.displayName}</span>
 </nav>
