@@ -61,7 +61,7 @@ test('recording a death shows the dagger and explains the widowhood before savin
 	expect(graph.unions[0].status).toBe('active');
 
 	// The drawer states the derived widowhood.
-	await card(page, 'Marge').click();
+	await card(page, 'Marge').dblclick();
 	await expect(page.getByText('· widowed')).toBeVisible();
 });
 
@@ -74,7 +74,7 @@ test('editing a partnership updates the label on the canvas', async ({ page, api
 	const dialog = page.getByRole('dialog', { name: 'Edit partnership' });
 	await dialog.getByLabel('Add an event').selectOption('MARR');
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
-	await dialog.getByLabel('Date').fill('1975');
+	await dialog.getByRole('textbox', { name: 'Date' }).fill('1975');
 	await dialog.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('text.label', { hasText: '1975' })).toBeVisible();

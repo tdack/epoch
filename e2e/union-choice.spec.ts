@@ -11,7 +11,7 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 	});
 	expect(imported.ok(), await imported.text()).toBe(true);
 	const homerId = `${api.treeId}:${TERRY}`;
-	await page.goto(`/?tree=${api.treeId}&focus=${encodeURIComponent(homerId)}`);
+	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(homerId)}`);
 	await expect(page.locator('[data-person-id]').filter({ hasText: 'Homer' }).first()).toBeVisible();
 
 	await openMenuByKeyboard(page, 'Homer');

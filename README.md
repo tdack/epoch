@@ -88,6 +88,19 @@ Every spec creates a uniquely named tree through the API and deletes it afterwar
 Simpsons" and any other data in your local database are left alone. Stop `npm run dev` before
 `npm test`, which shares local D1 state with it.
 
+### Addresses
+
+| Address | Shows |
+|---|---|
+| `/` | Opens the latest tree; the old `/?tree=…&focus=…` form redirects to the tree with the rest of the query kept |
+| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it |
+| `/trees/:id/people/:personId` | A person: names, facts (add, edit, remove, reorder), family, history |
+| `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, warnings |
+
+Person ids from an import look like `<treeId>:@I1@`; build links with `encodeURIComponent`. The tree
+reads a bounded window (`GET /api/trees/:id/graph?focus=…`) rather than the whole tree; see
+[docs/query-plans.md](./docs/query-plans.md) and ADR-011.
+
 ### Change history and undo
 
 Every change to a tree (relationship edits, deaths, partnership edits, person create, edit and

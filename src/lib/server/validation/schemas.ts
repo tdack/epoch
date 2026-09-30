@@ -11,6 +11,7 @@
 import { z } from 'zod';
 import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
 import { SEX_VALUES } from '../../shared/sex';
+import { isFactType } from '../../shared/fact-types';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 export const idSchema = z.string().min(1);
@@ -67,6 +68,13 @@ export const relationshipIntentSchema = z.discriminatedUnion('kind', [
 		type: parentChildTypeSchema,
 		unionLabel: nullableText,
 		unionId: idSchema.nullable().optional()
+	}),
+	z.object({
+		kind: z.literal('add_sibling'),
+		person: personRefSchema,
+		sibling: personRefSchema,
+		parentIds: z.array(idSchema).min(1).max(10),
+		type: parentChildTypeSchema
 	}),
 	z.object({
 		kind: z.literal('add_partner'),
@@ -202,3 +210,40 @@ export type ImpactRequestInput = z.infer<typeof impactRequestSchema>;
 export type UnionMergeInput = z.infer<typeof unionMergeSchema>;
 export type UnionUpdateInput = z.infer<typeof unionUpdateSchema>;
 export type ExportBodyInput = z.infer<typeof exportBodySchema>;
+
+
+// ---- Facts (Phase 3 fact editor) ----
+
+const factTypeSchema = z.string().refine(isFactType, { message: 'not a fact type' });
+
+/** A fact as the form sends it: every field present, empty ones null. */
+export const factCreateSchema = z.object({
+	type: factTypeSchema,
+	dateText: nullableText.default(null),
+	place: nullableText.default(null),
+	value: nullableText.default(null),
+	cause: nullableText.default(null),
+	age: nullableText.default(null),
+	notes: nullableText.default(null)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears it. */
+export const factUpdateSchema = z.object({
+	version: versionSchema,
+	type: factTypeSchema.optional(),
+	dateText: nullableText.optional(),
+	place: nullableText.optional(),
+	value: nullableText.optional(),
+	cause: nullableText.optional(),
+	age: nullableText.optional(),
+	notes: nullableText.optional()
+});
+
+export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).max(500) });
+
+/** A preview of a fact change: the same commands the writes take, minus the ids the server mints. */
+export const factImpactSchema = z.discriminatedUnion('kind', [
+	z.object({ kind: z.literal('create_fact'), personId: idSchema, fact: factCreateSchema }),
+	z.object({ kind: z.literal('update_fact'), factId: idSchema, version: versionSchema.optional(), fact: factUpdateSchema.omit({ version: true }) }),
+	z.object({ kind: z.literal('delete_fact'), factId: idSchema, version: versionSchema.optional() })
+]);

@@ -14,7 +14,7 @@ async function importDirty(request: APIRequestContext, api: Api) {
 }
 
 async function openBart(page: Page, api: Api) {
-	await page.goto(`/?tree=${api.treeId}&focus=${encodeURIComponent(`${api.treeId}:${XREF.bart}`)}`);
+	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(`${api.treeId}:${XREF.bart}`)}`);
 	await expect(page.locator('[data-person-id]').filter({ hasText: 'Bart' }).first()).toBeVisible();
 }
 
@@ -27,11 +27,11 @@ test('repeated partnerships between one pair are labelled 1st and 2nd, in the ca
 
 	await expect(bartJessicaMarker(page, '1st')).toBeAttached();
 	await expect(bartJessicaMarker(page, '2nd')).toBeAttached();
-	await expect(page.locator('text.label', { hasText: '1st' })).toBeVisible();
-	await expect(page.locator('text.label', { hasText: '2nd' })).toBeVisible();
+	await expect(page.locator('text.label', { hasText: '1st · 3 Nov 2014' })).toBeVisible();
+	await expect(page.locator('text.label', { hasText: '2nd · 3 Nov 2014' })).toBeVisible();
 
 	// The drawer shows what is stored: both partnerships, not a collapsed one.
-	await page.locator('[data-person-id]').filter({ hasText: 'Bart' }).first().click();
+	await page.locator('[data-person-id]').filter({ hasText: 'Bart' }).first().dblclick();
 	const drawer = page.locator('div.fixed.inset-y-0');
 	await expect(drawer.getByText('1st partnership (m. 3 Nov 2014)')).toBeVisible();
 	await expect(drawer.getByText('2nd partnership (m. 3 Nov 2014)')).toBeVisible();
@@ -99,7 +99,7 @@ test('two different marriage dates are never merged silently: a choice is requir
 
 test('the import preview lists duplicate families, merges exact ones by default, and lists possible ones for review', async ({ page, api }) => {
 	// Into the test's own tree, so "replace" cannot touch anyone's real data.
-	await page.goto(`/?tree=${api.treeId}`);
+	await page.goto(`/trees/${api.treeId}`);
 	// The tree banner only appears once the page has hydrated and loaded the tree; a file chosen sooner is ignored.
 	await expect(page.getByText('Active Tree')).toBeVisible();
 	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
@@ -123,7 +123,7 @@ test('the import preview lists duplicate families, merges exact ones by default,
 });
 
 test('unticking the merge option imports the file exactly as written', async ({ page, api }) => {
-	await page.goto(`/?tree=${api.treeId}`);
+	await page.goto(`/trees/${api.treeId}`);
 	// The tree banner only appears once the page has hydrated and loaded the tree; a file chosen sooner is ignored.
 	await expect(page.getByText('Active Tree')).toBeVisible();
 	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
@@ -133,4 +133,26 @@ test('unticking the merge option imports the file exactly as written', async ({ 
 	await dialog.getByRole('button', { name: /replace/i }).click();
 	await expect(page.getByText(/Import complete: 13 individuals, 10 families\./)).toBeVisible();
 	expect((await api.graph()).unions).toHaveLength(10);
+});
+
+test('a partnership with one recorded parent says so in the drawer, and its editor shows who is in it', async ({ page, request, api }) => {
+	await importDirty(request, api);
+	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(`${api.treeId}:@I_937df8d1@`)}`);
+	const person = page.locator('[data-person-id]').filter({ hasText: 'Homer' }).first();
+	await expect(person).toBeVisible();
+	await person.dblclick();
+	const drawer = page.locator('div.fixed.inset-y-0');
+	await expect(drawer.getByText('Children, other parent not recorded').first()).toBeVisible();
+
+	const editButtons = drawer.getByRole('button', { name: 'Dates & status', exact: true });
+	const count = await editButtons.count();
+	let sawSingle = false;
+	for (let i = 0; i < count && !sawSingle; i++) {
+		await editButtons.nth(i).click();
+		const members = page.getByTestId('union-members');
+		await expect(members).toBeVisible();
+		sawSingle = await members.getByText('Only one parent is recorded').isVisible();
+		await page.getByRole('button', { name: 'Cancel' }).click();
+	}
+	expect(sawSingle).toBe(true);
 });

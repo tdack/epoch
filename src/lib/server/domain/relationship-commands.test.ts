@@ -127,6 +127,46 @@ describe('planRelationshipCommand', () => {
 		});
 	});
 
+	describe('add_sibling', () => {
+		const third = { id: 'p-third', givenName: 'Third', surname: 'Thorn' };
+		const family = context({
+			people: [alex, sam, other, third],
+			unions: [{ id: 'u1', partners: ['p-alex', 'p-other'] }],
+			links: [
+				{ parentId: 'p-alex', childId: 'p-sam', unionId: 'u1' },
+				{ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' }
+			]
+		});
+		const addSibling = (parentIds: string[], sibling = third) =>
+			planRelationshipCommand({ kind: 'add_sibling', person: sam, sibling, parentIds, type: 'biological' }, family);
+
+		it('links the sibling to each chosen parent, in the family the person is in', () => {
+			const plan = addSibling(['p-alex', 'p-other']);
+			expect(plan.commands).toEqual([
+				{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'p-third', type: 'biological', unionId: 'u1' },
+				{ kind: 'assert_parent_child', parentId: 'p-other', childId: 'p-third', type: 'biological', unionId: 'u1' }
+			]);
+			expect(plan.sentence).toBe('Third Thorn will be recorded as Sam Smith\'s sibling and a child of Alex Walker and Robin Reed.');
+		});
+
+		it('links to one parent only when only that parent is chosen, giving a half-sibling', () => {
+			expect(addSibling(['p-alex']).commands).toHaveLength(1);
+		});
+
+		it('creates a new sibling in the same plan', () => {
+			const plan = addSibling(['p-alex'], { id: 'new', givenName: 'Nia', surname: 'Novak', isNew: true } as typeof third);
+			expect(plan.commands).toMatchObject([
+				{ kind: 'create_person', personId: 'id-1', givenName: 'Nia' },
+				{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'id-1' }
+			]);
+		});
+
+		it('refuses a parent the person does not have, and an empty choice', () => {
+			expect(() => addSibling(['p-third'])).toThrow(ValidationError);
+			expect(() => addSibling([])).toThrow(ValidationError);
+		});
+	});
+
 	describe('choosing among several partnerships', () => {
 		const third = { id: 'p-third', givenName: 'Third', surname: 'Thorn' };
 		const two = context({

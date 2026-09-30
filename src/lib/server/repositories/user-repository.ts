@@ -83,6 +83,11 @@ export class UserRepository {
         .where(eq(treeMemberships.treeId, treeId))
         .get();
 
+      // A tree that does not exist has nothing to own: inserting a membership for it fails the
+      // foreign key and surfaced as a 500 for a stale bookmark or a request that raced a delete.
+      const tree = await this.db.select({ id: trees.id }).from(trees).where(eq(trees.id, treeId)).get();
+      if (!tree) return null;
+
       if (!anyMembership) {
         // Auto-assign this user as owner
         const now = new Date();

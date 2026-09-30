@@ -75,3 +75,15 @@ export function unresolvedConflicts(conflicts: MergeConflict[], choices: MergeCh
 		return !chosen || !conflict.options.some((option) => option.unionId === chosen);
 	});
 }
+
+
+/** Ids of every union that has at least one twin with exactly the same partners, one recorded partner included. */
+export function mergeableUnionIds(unions: ReadonlyArray<{ id: string; partnerIds: string[] }>): Set<string> {
+	const groups = new Map<string, string[]>();
+	for (const union of unions) {
+		if (union.partnerIds.length === 0) continue;
+		const key = partnerSetKey(union.partnerIds);
+		groups.set(key, [...(groups.get(key) ?? []), union.id]);
+	}
+	return new Set([...groups.values()].filter((ids) => ids.length > 1).flat());
+}

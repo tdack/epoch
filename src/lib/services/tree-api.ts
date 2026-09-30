@@ -12,6 +12,10 @@ import type {
 	UnionEventInput
 } from '#lib/types/genealogy.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
+import type { FocusGraphDto, TreeSummaryDto } from '#lib/server/services/graph-query-service.js';
+import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
+import type { UnionPageDto } from '#lib/server/services/union-page-service.js';
+import type { FactInput } from '#lib/shared/fact-types.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -34,7 +38,7 @@ export class ConflictError extends ApiError {
 		code: string | undefined,
 		readonly details: {
 			reason: 'STALE_VERSION';
-			entity: 'individual' | 'union';
+			entity: 'individual' | 'union' | 'fact';
 			id: string;
 			expectedVersion: number;
 			currentVersion: number;
@@ -50,8 +54,8 @@ export function isConflict(error: unknown): error is ConflictError {
 	return error instanceof ConflictError;
 }
 
-async function call<T>(url: string, init: RequestInit | undefined, failure: string): Promise<T> {
-	const res = await fetch(url, init);
+async function call<T>(url: string, init: RequestInit | undefined, failure: string, fetchFn: typeof fetch = fetch): Promise<T> {
+	const res = await fetchFn(url, init);
 	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
 	if (!res.ok) {
 		const message = data.error || failure;
@@ -262,4 +266,74 @@ export async function searchPeopleApi(treeId: string, query: string): Promise<Pe
 		'Failed to search people'
 	);
 	return data.people || [];
+}
+
+
+// ---- Bounded reads (Phase 3) ----
+// These take the `fetch` a SvelteKit load function hands them, so a server render forwards the
+// caller's identity and the browser reuses the response.
+
+const enc = encodeURIComponent;
+
+export interface FocusGraphQuery {
+	up?: number;
+	down?: number;
+	siblings?: boolean;
+	step?: boolean;
+	/** Opened stubs as URL tokens. */
+	exp?: string[];
+}
+
+export function fetchFocusGraph(treeId: string, focusId: string, query: FocusGraphQuery, fetchFn: typeof fetch = fetch): Promise<FocusGraphDto> {
+	const params = new URLSearchParams({ focus: focusId });
+	if (query.up !== undefined) params.set('up', String(query.up));
+	if (query.down !== undefined) params.set('down', String(query.down));
+	if (query.siblings !== undefined) params.set('siblings', query.siblings ? '1' : '0');
+	if (query.step !== undefined) params.set('step', query.step ? '1' : '0');
+	if (query.exp?.length) params.set('exp', query.exp.join(','));
+	return call(`/api/trees/${enc(treeId)}/graph?${params}`, undefined, 'Failed to load the tree', fetchFn);
+}
+
+export function fetchTreeSummary(treeId: string, fetchFn: typeof fetch = fetch): Promise<TreeSummaryDto> {
+	return call(`/api/trees/${enc(treeId)}/summary`, undefined, 'Failed to load the tree', fetchFn);
+}
+
+export function fetchTreeList(fetchFn: typeof fetch = fetch): Promise<TreeSummary[]> {
+	return call<{ trees?: TreeSummary[] }>('/api/trees', undefined, 'Failed to load trees', fetchFn).then((d) => d.trees || []);
+}
+
+export function fetchPersonPage(treeId: string, personId: string, fetchFn: typeof fetch = fetch): Promise<PersonPageDto> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}`, undefined, 'Failed to load the person', fetchFn);
+}
+
+export function fetchUnionPage(treeId: string, unionId: string, fetchFn: typeof fetch = fetch): Promise<UnionPageDto> {
+	return call(`/api/trees/${enc(treeId)}/unions/${enc(unionId)}`, undefined, 'Failed to load the partnership', fetchFn);
+}
+
+// ---- Facts ----
+
+export async function createFactApi(treeId: string, personId: string, fact: FactInput): Promise<{ factId: string; change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts`, json('POST', fact), 'Failed to add the fact');
+}
+
+export async function updateFactApi(treeId: string, factId: string, fact: Partial<FactInput>, version: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/facts/${enc(factId)}`, json('PUT', { ...fact, version }), 'Failed to save the fact');
+}
+
+export async function deleteFactApi(treeId: string, factId: string, version: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/facts/${enc(factId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the fact');
+}
+
+export async function reorderFactsApi(treeId: string, personId: string, orderedFactIds: string[]): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts/reorder`, json('POST', { orderedFactIds }), 'Failed to reorder the facts');
+}
+
+export type FactImpactRequest =
+	| { kind: 'create_fact'; personId: string; fact: FactInput }
+	| { kind: 'update_fact'; factId: string; version?: number; fact: Partial<FactInput> }
+	| { kind: 'delete_fact'; factId: string; version?: number };
+
+export async function previewFactApi(treeId: string, request: FactImpactRequest): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/facts/impact`, json('POST', request), 'Failed to preview the change');
+	return data.impact;
 }

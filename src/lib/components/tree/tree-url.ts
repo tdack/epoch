@@ -5,10 +5,13 @@
 
 import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
 import { DEFAULT_FOCUS_OPTIONS } from '#lib/tree-layout/index.js';
+import { MAX_VIEW_DEPTH, STUB_TOKEN } from '#lib/shared/stub-tokens.js';
+
+export { compactStubId, resolveStubTokens } from '#lib/shared/stub-tokens.js';
 
 /** Every parent-child type, in legend order. The server module holding the values is not importable here. */
 export const ALL_PARENT_CHILD_TYPES = ['biological', 'adoptive', 'foster', 'guardian', 'unknown'] as const satisfies readonly ParentChildType[];
-export const MAX_DEPTH = 8;
+export const MAX_DEPTH = MAX_VIEW_DEPTH;
 
 export interface TreeViewState {
 	treeId: string | null;
@@ -36,7 +39,7 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 
 function depth(value: string | null, fallback: number): number {
 	if (value === null || !/^\d+$/.test(value)) return fallback;
-	return Math.min(MAX_DEPTH, Number(value));
+	return Math.min(MAX_VIEW_DEPTH, Number(value));
 }
 
 function flag(value: string | null, fallback: boolean): boolean {
@@ -77,55 +80,6 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length) params.set('types', state.types.join(','));
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
-}
-
-// ---- Opened stubs ----
-
-/** `a.1a2b3c4d`: a kind letter, a dot, and the first characters of the id the stub hangs from. */
-const STUB_TOKEN = /^[aduo]\.[\w-]{1,8}$/;
-
-const STUB_KIND_LETTERS = [
-	['stub:ancestors:', 'a'],
-	['stub:children:direct:', 'd'],
-	['stub:children:other:', 'o'],
-	['stub:children:', 'u']
-] as const;
-
-/** 32-bit FNV-1a, in base 36: at most seven characters. */
-function shortHash(text: string): string {
-	let hash = 0x811c9dc5;
-	for (let i = 0; i < text.length; i++) {
-		hash ^= text.charCodeAt(i);
-		hash = Math.imul(hash, 0x01000193);
-	}
-	return (hash >>> 0).toString(36);
-}
-
-/**
- * A short URL form of a stub id. Ids are long (UUIDs, and here prefixed with the tree's id, so a
- * prefix alone cannot tell two people apart), so a few opened stubs would otherwise run to several
- * hundred characters. A hash keeps each to a handful; a clash would open a stub the person did not
- * ask for, which is harmless because a stub only reveals relatives.
- */
-export function compactStubId(stubId: string): string | null {
-	for (const [prefix, letter] of STUB_KIND_LETTERS) {
-		if (stubId.startsWith(prefix)) return `${letter}.${shortHash(stubId.slice(prefix.length))}`;
-	}
-	return null;
-}
-
-/** The full stub ids the tokens stand for, out of every stub the graph could have. */
-export function resolveStubTokens(tokens: readonly string[], personIds: readonly string[], unionIds: readonly string[]): string[] {
-	if (tokens.length === 0) return [];
-	const wanted = new Set(tokens);
-	const candidates = [
-		...personIds.flatMap((id) => [`stub:ancestors:${id}`, `stub:children:direct:${id}`, `stub:children:other:${id}`]),
-		...unionIds.map((id) => `stub:children:${id}`)
-	];
-	return candidates.filter((id) => {
-		const token = compactStubId(id);
-		return token !== null && wanted.has(token);
-	});
 }
 
 // ---- History ----

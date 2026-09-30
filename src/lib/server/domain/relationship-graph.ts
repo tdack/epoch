@@ -12,6 +12,7 @@ import type { TreeRows } from './change-log';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
 import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from '../../shared/union-events';
 import type { Sex } from '../../shared/sex';
+import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
 
 /** A partnership event as the graph carries it, for labels and for the union editor. */
 export interface GraphUnionEvent {
@@ -55,7 +56,11 @@ export interface GraphParentChildInput {
 	unionId: string | null;
 }
 
-export interface RelationshipGraphPerson {
+/**
+ * `isPrivate` is optional on the graph types: the builder always sets it, but graphs captured
+ * before Phase 3 and hand-written test graphs do not carry it, and absent means not private.
+ */
+export interface RelationshipGraphPerson extends Partial<PrivacyFlag> {
 	id: string;
 	displayName: string;
 	/** Neutral sex marker, `null` when not recorded. */
@@ -72,9 +77,15 @@ export interface RelationshipGraphPerson {
 	unionIds: string[];
 	/** Derived step-parent relationships (parent's partner who is not a parent). */
 	stepParents: Array<{ stepParentId: string; unionId: string }>;
+	/**
+	 * Set only by the bounded graph window, on people it names but did not fully load (a neighbour
+	 * of someone drawn). Their `unionIds`, `parentsByUnion` and `stepParents` are incomplete, so
+	 * nothing may treat them as the whole story; a person the view draws is never partial.
+	 */
+	isPartial?: true;
 }
 
-export interface RelationshipGraphUnion {
+export interface RelationshipGraphUnion extends Partial<PrivacyFlag> {
 	id: string;
 	status: UnionStatus;
 	/** Marriage/partnership date text, when recorded. */
@@ -160,6 +171,7 @@ export function buildRelationshipGraph(input: {
 		}
 
 		return {
+			...privacyOf(p),
 			id: p.id,
 			displayName: displayName(p.givenName, p.surname, p.id),
 			sex: p.sex,
@@ -174,6 +186,7 @@ export function buildRelationshipGraph(input: {
 	});
 
 	const unions: RelationshipGraphUnion[] = input.unions.map((u) => ({
+		...privacyOf(u),
 		id: u.id,
 		status: u.status,
 		marriageDate: u.marriageDate ?? null,

@@ -22,8 +22,10 @@ import type { MergeChoices } from '../../shared/union-merge';
 import { ENDED_UNION_STATUSES, type EndedUnionStatus, type UnionEventInput, type UnionEventType } from '../../shared/union-events';
 import { newWidowhoods } from '../../shared/widowhood';
 import type { Sex } from '../../shared/sex';
+import type { FactCommand } from './fact-ops';
 
 export type RelationshipCommand =
+	| FactCommand
 	| {
 			kind: 'create_person';
 			personId: string;
@@ -263,6 +265,27 @@ export function planRelationshipCommand(intent: RelationshipIntent, context: Pla
 			warnIfCycle(parent.id, child.id, intent.type, unionId);
 			facts.unionPhrase = unionId ? unionPhraseOf(rows, unionId) : null;
 			sentenceIntent = { ...intent, parent, child };
+			break;
+		}
+		case 'add_sibling': {
+			const person = refOf(rows, intent.person.id);
+			const sibling = resolve(intent.sibling);
+			if (sibling.id === person.id) throw new ValidationError('A person cannot be their own sibling.');
+			if (intent.parentIds.length === 0) throw new ValidationError('Choose which parents the sibling shares.');
+			// A sibling is not a stored relationship: it is two people with a parent in common. So the
+			// links written are the sibling's, to parents this person already has, in the same family.
+			// Refusing any other id stops a crafted request from filing someone under a stranger.
+			const links = assertions.filter((a) => a.childId === person.id);
+			const parentRefs: PersonRef[] = [];
+			for (const parentId of new Set(intent.parentIds)) {
+				const link = links.find((a) => a.parentId === parentId);
+				if (!link) throw new ValidationError('That person is not one of this person’s parents.');
+				commands.push({ kind: 'assert_parent_child', parentId, childId: sibling.id, type: intent.type, unionId: link.unionId ?? null });
+				warnIfCycle(parentId, sibling.id, intent.type, link.unionId ?? null);
+				parentRefs.push(refOf(rows, parentId));
+			}
+			facts.siblingParents = parentRefs;
+			sentenceIntent = { ...intent, person, sibling };
 			break;
 		}
 		case 'add_partner': {
