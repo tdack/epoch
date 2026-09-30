@@ -39,7 +39,7 @@ Do not introduce Durable Objects until a demonstrated coordination need exists. 
 |---|---|---|---|---|
 | [0](./phase-0-foundations.md) | Testable architecture, Access identity and authorization boundary | Complete | — | Schema spike, UX prototypes and GEDCOM fixtures can run together |
 | [1](./phase-1-genealogy-core.md) | Correct relationship/event model and lossless supported GEDCOM | Complete | Phase 0 decisions | Schema/domain and parser fixture work can partly run together |
-| [2](./phase-2-relationship-editor.md) | Safe, comprehensible relationship-first editing UX | In progress | Phase 1 contracts | Editor components and graph visualization can run together |
+| [2](./phase-2-relationship-editor.md) | Safe, comprehensible relationship-first editing UX | Complete | Phase 1 contracts | Editor components and graph visualization can run together |
 | [3](./phase-3-records-navigation.md) | Useful person/family records, search and navigation | Planned | Phases 1–2 | Record views, search and date/place UI are parallelizable |
 | [4](./phase-4-collaboration-privacy.md) | Roles, living-person privacy, audit and change review | Planned | Phases 0–3 | Privacy evaluation and audit UI can run together |
 | [5](./phase-5-evidence-quality.md) | Sources, citations, notes and data-quality workflows | Planned | Phases 1, 3–4 | Evidence UI and quality rules can run together |

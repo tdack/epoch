@@ -63,15 +63,14 @@ Keep old family dialogs read-only during a short transition, then remove them af
 
 ## Status against the exit criteria
 
-Checked after slice S4 (2026-09-30). Phase 2 stays *In progress* in the roadmap until the open items are done or the criteria are amended.
+Closed after the work that followed slice S4 (2026-09-30); the roadmap shows Phase 2 as *Complete*.
 
-| Criterion | Status | Evidence and what is left |
+| Criterion | Status | Evidence |
 |---|---|---|
-| A user can enter all core scenarios without editing raw GEDCOM or understanding `FAM` records | Partly met | Add parent, child and partner (with explicit partnership choice), marriage and its end, death, link or create, merge, remove and undo are all in the editor. There is no intent to change the type or context of an existing parent link; today that is remove and add again. No task-based usability run over the Phase 1 scenarios has been done. |
-| Every save preview matches the resulting graph | Met | The service tests plan an intent, run it and compare the sentence and the records for add parent, add child, add partner, death and end partnership, including a chosen partnership. The merge and delete dialogs list the same ops they write. |
+| A user can enter all core scenarios without editing raw GEDCOM or understanding `FAM` records | Met | `e2e/scenarios.spec.ts` builds each Phase 1 scenario through the dialogs alone: two mothers and a father; birth and adoptive parents with foster and guardian links; divorce then a second partnership with a deliberate partnership choice; death then remarriage; partnering again after a divorce; a single or unknown parent; approximate, before, after, range and phrase dates. Running it found and fixed a dialog that wiped a half-filled form when the graph reloaded, and a remarriage the planner refused. Changing an existing link's type is now an intent (`change_link_type`) with a preview and undo. |
+| Every save preview matches the resulting graph | Met | Service tests plan an intent, run it and compare the sentence and the records, for add parent, child and partner (including a chosen partnership), change link type, death, end partnership and remarriage. The merge and delete dialogs list the same ops they write. |
 | Removing a union or relationship cannot silently delete a person or unrelated history | Met | Service tests and the destructive Playwright specs. |
-| Multiple mothers, multiple parental families, divorce, death and remarriage stay visually distinguishable | Met | Line styles per relationship type, ended-partnership connectors, † and widowhood, and "1st/2nd partnership" labels; checked in the browser on the dirty Simpsons file. |
-| Targeted component, domain and browser tests pass, including keyboard-only flows | Partly met | Domain, service and 20 Playwright specs pass, with keyboard-only flows. There are no Svelte component tests, and mobile and screen-reader use has not been checked beyond the canvas's live announcements. |
+| Multiple mothers, multiple parental families, divorce, death and remarriage stay visually distinguishable | Met | Line styles per relationship type, ended-partnership connectors, † and widowhood, "1st/2nd partnership" labels and step relatives in the drawer. |
+| Targeted component, domain and browser tests pass, including keyboard-only flows | Met | Domain and service tests; jsdom component tests for the parent-link popover, the partnership chooser (including the reload regression), the drawer's step relatives and sex label; Playwright specs including keyboard-only flows, axe (WCAG 2.1 A and AA) on the tree, the relationship dialog and the drawer, and a 375px run. |
 
-Also open from the sections above: the person detail panel does not yet list derived step relatives (the graph has a step-family toggle), and the old family dialogs were not audited for removal.
-
+Limits worth knowing. The screen-reader and phone checks are automated: axe and ARIA assertions (dialogs announced, the choice a labelled group, the preview a live region, errors as alerts, saved changes as a status) and a 375px viewport run for sideways scroll, dialog fit and 24px targets. Nobody has yet used the editor with VoiceOver or TalkBack, or on a physical phone; Phase 8's accessibility pass owns that. The old family dialogs are gone: no family form, route or endpoint remains, and the last two types from them (`FamilyFormData`, `FamilyRecord`) were removed.

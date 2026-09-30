@@ -198,7 +198,7 @@ screenshots.
 Phase 2 is now *In progress* in the roadmap table. It closes when slices S1–S4 below are done,
 before Phase 3 starts.
 
-After S4 the remaining Phase 2 gaps are listed in [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
+After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
 `place_ref` (Phase 1) is still open and belongs to Phase 3 places work.
 
 ### Duplicate unions

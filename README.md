@@ -51,7 +51,7 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 |---|---|
 | `npm run dev` | Start the dev server |
 | `npm run check` | Sync SvelteKit types and run `svelte-check` |
-| `npm test` | Run all Vitest suites once (unit and real-D1 service tests) |
+| `npm test` | Run all Vitest suites once: unit, real-D1 service tests and jsdom component tests (`*.component.test.ts`) |
 | `npm run test:e2e` | Run the Playwright browser tests (see [Browser tests](#browser-tests)) |
 | `npm run test:watch` | Run Vitest in watch mode |
 | `npm run build` | Production build |
@@ -64,7 +64,8 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 ### Browser tests
 
 The Playwright suite in `e2e/` drives the real UI, including keyboard-only flows, delete with an
-impact summary, undo and a forced 409 conflict. It is outside `npm test` and the commit gate.
+impact summary, undo, a forced 409 conflict, the Phase 1 scenarios built through the editor,
+axe accessibility checks and a phone-sized run. It is outside `npm test` and the commit gate.
 
 ```sh
 npm run db:migrate:local      # the dev database must be migrated
