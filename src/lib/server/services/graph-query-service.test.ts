@@ -63,6 +63,13 @@ describe('GraphQueryService', () => {
 		await expect(service.summary(treeId, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 
+	it('refuses a tree that does not exist, rather than failing on a foreign key', async () => {
+		const { owner, service } = await setup();
+		const missing = crypto.randomUUID();
+		await expect(service.summary(missing, owner.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(service.focusGraph(missing, 'anyone', {}, owner.context)).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
 	it("answers 404 for a person in another of the caller's trees", async () => {
 		const first = await setup();
 		const second = await setup();

@@ -121,3 +121,8 @@ test('a partnership page lists its events and warns only where the dates rule so
 	await expect(warnings.first()).toContainText('is dated before');
 	await expect(page.getByTestId('chronology').locator('li').first()).toContainText('1890');
 });
+
+test('a tree that does not exist answers with an error page, not a crash', async ({ page }) => {
+	const response = await page.goto(`/trees/${crypto.randomUUID()}`);
+	expect(response?.status()).toBeLessThan(500);
+});
