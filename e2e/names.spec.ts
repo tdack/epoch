@@ -24,6 +24,8 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	await expect(page.getByTestId('person-name')).toHaveText('Jessica Wren (née Lovejoy)');
 	const names = page.getByTestId('name');
 	await expect(names).toHaveCount(2);
+	// The preferred name is listed and exported first, so it cannot move and nothing moves above it.
+	await expect(page.getByRole('button', { name: /^Move .* (up|down)$/ })).toHaveCount(0);
 	await expect(names.filter({ hasText: 'Married name' }).getByTestId('name-context')).toContainText('In use from 8 OCT 2001, taken through Partnership with Nick Smith');
 
 	// The card in the tree says the same.

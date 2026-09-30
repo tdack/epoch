@@ -110,6 +110,13 @@ describe('facts, names and history on the page', () => {
 		expect(names[0]!.id).not.toBeNull();
 	});
 
+	it('reads a preferred name row the pre-S6 person form left stale as the person\'s own fields', async () => {
+		const { page, wren } = await fresh();
+		await t.d1.prepare('UPDATE individuals SET surname = ? WHERE id = ?').bind('Ash-Jones', wren.id).run();
+		const { names } = await page();
+		expect(names.find((n) => n.isPreferred)).toMatchObject({ surname: 'Ash-Jones', displayName: 'Wren Ash-Jones' });
+	});
+
 	it('derives a name for a person with no stored name row (created before names were rows)', async () => {
 		const { page, wren } = await fresh();
 		await t.db.delete(personNames).where(eq(personNames.personId, wren.id));

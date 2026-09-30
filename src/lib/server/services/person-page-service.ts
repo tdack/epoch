@@ -213,6 +213,8 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 	}
 	return [...rows]
 		.sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
+		// A row the pre-S6 person form left stale reads as the person's own fields, as export does (ADR-013).
+		.map((n) => (n.isPreferred ? { ...n, givenName: person.givenName, surname: person.surname } : n))
 		.map((n) => ({
 			...privacyOf(n),
 			id: n.id,

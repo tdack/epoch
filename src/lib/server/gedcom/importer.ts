@@ -516,6 +516,9 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
         names: (namesByPerson.get(ind.id) ?? [])
           .slice()
           .sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
+          // Before S6 the person form edited `individuals` and left the imported name row alone; where the two
+          // still differ the person's own fields are the edited ones (ADR-013).
+          .map((n) => (n.isPreferred ? { ...n, givenName: ind.givenName, surname: ind.surname } : n))
           .map((n) => ({
             type: n.type,
             gedcomType: n.gedcomType,

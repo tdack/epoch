@@ -94,11 +94,25 @@ describe('names survive export', () => {
 		const married = rows.find((r) => r.type === 'married')!;
 		await db.update(personNames).set({ isPreferred: true }).where(eq(personNames.id, married.id));
 		await db.update(personNames).set({ isPreferred: false }).where(eq(personNames.id, rows.find((r) => r.type === 'birth')!.id));
+		// What set_preferred_name does in the same change: the display name follows the preferred row.
+		await t.d1.prepare('UPDATE individuals SET surname = ? WHERE id = ?').bind('Smith', `${treeId}:@I1@`).run();
 		const data = await getTreeExportData(t.d1, treeId);
 		const text = buildGedcom551String(data);
 		const jessica = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
 		expect(jessica.names!.map((n) => n.type)).toEqual(['married', 'birth']);
 		expect(jessica.surname).toBe('Smith');
+	});
+});
+
+describe('a name row the pre-S6 person form left stale', () => {
+	it('exports the person\'s own name, which was the edited one', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
+		// The old person form wrote individuals only, so the imported preferred row still says "Simpson".
+		await t.d1.prepare('UPDATE individuals SET surname = ? WHERE id = ?').bind('Simpson-Smith', `${treeId}:@I1@`).run();
+		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
+		const jessica = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
+		expect(jessica.names!.map((n) => [n.type, n.surname])).toEqual([['birth', 'Simpson-Smith'], ['married', 'Smith']]);
 	});
 });
 

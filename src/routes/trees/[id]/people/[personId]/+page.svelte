@@ -83,6 +83,12 @@
     }
   }
 
+  /** The preferred name is always listed and exported first, so it cannot move and nothing can move above it. */
+  const canMoveName = (index: number, by: -1 | 1) => {
+    const other = dto.names[index + by];
+    return other !== undefined && !other.isPreferred && !dto.names[index]!.isPreferred;
+  };
+
   async function moveName(index: number, by: -1 | 1) {
     const order = dto.names.map((n) => n.id).filter((id): id is string => id !== null);
     [order[index], order[index + by]] = [order[index + by]!, order[index]!];
@@ -195,10 +201,10 @@
                 {#if dto.names.length > 1}
                   <button type="button" onclick={() => removeName(name)} class="link text-red-700" aria-label={`Remove ${typeLabel(name)}`}>Remove</button>
                 {/if}
-                {#if index > 0}
+                {#if canMoveName(index, -1)}
                   <button type="button" onclick={() => void moveName(index, -1)} class="link" aria-label={`Move ${typeLabel(name)} up`}><ArrowUp class="inline h-3 w-3" /></button>
                 {/if}
-                {#if index < dto.names.length - 1}
+                {#if canMoveName(index, 1)}
                   <button type="button" onclick={() => void moveName(index, 1)} class="link" aria-label={`Move ${typeLabel(name)} down`}><ArrowDown class="inline h-3 w-3" /></button>
                 {/if}
               </div>
