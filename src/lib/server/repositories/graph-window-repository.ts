@@ -14,7 +14,7 @@
 
 import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
 import { events, individuals, mediaItems, parentChild, unionPartners, unions } from '../db/schema';
 import type {
@@ -49,10 +49,16 @@ type Results<Reads extends readonly Read<unknown>[]> = { [K in keyof Reads]: Rea
 export interface TreeCounts {
 	people: number;
 	unions: number;
-	links: number;
-	events: number;
-	media: number;
 }
+
+/**
+ * The tree scope as a filter that cannot drive the query. Written as `tree_id = ?` SQLite prefers
+ * the `(tree_id)` index over the id, child, parent or entity index, because it cannot know which
+ * is more selective; the lookup then walks every row of the tree and discards all but a few
+ * (measured: 5,324 rows read to return 3 people). The unary plus keeps the scope check and lets the
+ * selective index lead.
+ */
+const inTree = (column: SQLiteColumn, treeId: string) => sql`+${column} = ${treeId}`;
 
 function chunked<T>(items: readonly T[]): T[][] {
 	const unique = [...new Set(items)];
@@ -101,7 +107,7 @@ export class GraphWindowRepository {
 			this.db
 				.select({ ...getTableColumns(individuals), rid: sql<number>`${individuals}.rowid` })
 				.from(individuals)
-				.where(and(eq(individuals.treeId, treeId), inArray(individuals.id, chunk)))
+				.where(and(inTree(individuals.treeId, treeId), inArray(individuals.id, chunk)))
 		);
 	}
 
@@ -110,7 +116,7 @@ export class GraphWindowRepository {
 			this.db
 				.select({ ...getTableColumns(unions), rid: sql<number>`${unions}.rowid` })
 				.from(unions)
-				.where(and(eq(unions.treeId, treeId), inArray(unions.id, chunk)))
+				.where(and(inTree(unions.treeId, treeId), inArray(unions.id, chunk)))
 		);
 	}
 
@@ -121,7 +127,7 @@ export class GraphWindowRepository {
 				.select({ ...getTableColumns(unionPartners), rid: sql<number>`${unionPartners}.rowid` })
 				.from(unionPartners)
 				.innerJoin(unions, eq(unionPartners.unionId, unions.id))
-				.where(and(eq(unions.treeId, treeId), inArray(unionPartners.personId, chunk)))
+				.where(and(inTree(unions.treeId, treeId), inArray(unionPartners.personId, chunk)))
 		);
 	}
 
@@ -132,7 +138,7 @@ export class GraphWindowRepository {
 				.select({ ...getTableColumns(unionPartners), rid: sql<number>`${unionPartners}.rowid` })
 				.from(unionPartners)
 				.innerJoin(unions, eq(unionPartners.unionId, unions.id))
-				.where(and(eq(unions.treeId, treeId), inArray(unionPartners.unionId, chunk)))
+				.where(and(inTree(unions.treeId, treeId), inArray(unionPartners.unionId, chunk)))
 		);
 	}
 
@@ -143,7 +149,7 @@ export class GraphWindowRepository {
 			this.db
 				.select({ ...getTableColumns(parentChild), rid: sql<number>`${parentChild}.rowid` })
 				.from(parentChild)
-				.where(and(eq(parentChild.treeId, treeId), inArray(column, chunk)))
+				.where(and(inTree(parentChild.treeId, treeId), inArray(column, chunk)))
 		);
 	}
 
@@ -163,7 +169,7 @@ export class GraphWindowRepository {
 				.from(events)
 				.where(
 					and(
-						eq(events.treeId, treeId),
+						inTree(events.treeId, treeId),
 						eq(events.entityType, entityType),
 						inArray(events.entityId, chunk),
 						types ? inArray(events.type, [...types]) : undefined
@@ -172,28 +178,48 @@ export class GraphWindowRepository {
 		);
 	}
 
-	/** The first person recorded in the tree: the default focus when nobody has chosen one. */
-	async firstPersonId(treeId: string): Promise<string | null> {
-		const row = await this.db
+	private firstPersonQuery(treeId: string) {
+		return this.db
 			.select({ id: individuals.id })
 			.from(individuals)
 			.where(eq(individuals.treeId, treeId))
 			.orderBy(asc(sql`${individuals}.rowid`))
-			.limit(1)
-			.get();
-		return row?.id ?? null;
+			.limit(1);
 	}
 
-	async counts(treeId: string): Promise<TreeCounts> {
-		const total = (table: typeof individuals | typeof unions | typeof parentChild | typeof events | typeof mediaItems) =>
+	private countQueries(treeId: string) {
+		const total = (table: typeof individuals | typeof unions) =>
 			this.db.select({ n: count() }).from(table).where(eq(table.treeId, treeId));
-		const [people, unionCount, links, eventCount, media] = (await this.db.batch([
-			total(individuals),
-			total(unions),
-			total(parentChild),
-			total(events),
-			total(mediaItems)
-		])) as Array<Array<{ n: number }>>;
-		return { people: people[0]!.n, unions: unionCount[0]!.n, links: links[0]!.n, events: eventCount[0]!.n, media: media[0]!.n };
+		return [total(individuals), total(unions)] as const;
+	}
+
+	/** The first person recorded in the tree: the default focus when nobody has chosen one. */
+	async firstPersonId(treeId: string): Promise<string | null> {
+		return (await this.firstPersonQuery(treeId).get())?.id ?? null;
+	}
+
+	/** Counting walks a covering index, so this is linear in the tree; see docs/query-plans.md. */
+	async counts(treeId: string): Promise<TreeCounts> {
+		const [people, unionCount] = (await this.db.batch(this.countQueries(treeId))) as unknown as Array<Array<{ n: number }>>;
+		return { people: people[0]!.n, unions: unionCount[0]!.n };
+	}
+
+	/** Every statement this repository can send for a tree, for the query-plan test to explain. */
+	statementsForPlans(treeId: string, sample: { personIds: string[]; unionIds: string[] }): Record<string, BatchItem<'sqlite'>> {
+		const only = <T>(read: Read<T>) => read.queries[0]!;
+		return {
+			'individuals by id': only(this.individualsIn(treeId, sample.personIds)),
+			'unions by id': only(this.unionsIn(treeId, sample.unionIds)),
+			'partner rows of people': only(this.partnerRowsOfPersons(treeId, sample.personIds)),
+			'partner rows of unions': only(this.partnerRowsOfUnions(treeId, sample.unionIds)),
+			'links by child': only(this.linksBy(treeId, 'child', sample.personIds)),
+			'links by parent': only(this.linksBy(treeId, 'parent', sample.personIds)),
+			'links by union': only(this.linksBy(treeId, 'union', sample.unionIds)),
+			'person events (birth, death)': only(this.eventsOf(treeId, 'INDIVIDUAL', sample.personIds, ['BIRT', 'DEAT'])),
+			'union events': only(this.eventsOf(treeId, 'FAMILY', sample.unionIds)),
+			'first person': this.firstPersonQuery(treeId),
+			'count people': this.countQueries(treeId)[0],
+			'count unions': this.countQueries(treeId)[1]
+		};
 	}
 }
