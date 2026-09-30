@@ -1,9 +1,17 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
+import { GraphQueryService } from '#lib/server/services/graph-query-service.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { parseFocusQuery } from '#lib/server/validation/graph-query.js';
 
-export const GET: RequestHandler = async ({ params, locals, platform }) => {
+/**
+ * `?focus=<person>` answers the bounded graph the focus view draws (see `FocusGraphDto`); `up`,
+ * `down`, `siblings`, `step` and `exp` shape it as they shape the page. Without `focus` it answers
+ * the whole-tree aggregate, which no screen uses any more: it stays for tests that assert on the
+ * full graph, and goes when its last consumer does.
+ */
+export const GET: RequestHandler = async ({ params, url, locals, platform }) => {
 	if (!locals.user) {
 		return Response.json({ error: 'Authentication required' }, { status: 401 });
 	}
@@ -19,14 +27,13 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 
 	try {
 		const db = getDb(platform.env.DB);
-		const service = new RelationshipService(db);
+		const context = { user: locals.user, correlationId: locals.correlationId };
+		const { focusPersonId, options } = parseFocusQuery(url.searchParams);
 
-		const graph = await service.getGraph(treeId, {
-			user: locals.user,
-			correlationId: locals.correlationId
-		});
-
-		return Response.json({ graph });
+		if (focusPersonId) {
+			return Response.json(await new GraphQueryService(db).focusGraph(treeId, focusPersonId, options, context));
+		}
+		return Response.json({ graph: await new RelationshipService(db).getGraph(treeId, context) });
 	} catch (err) {
 		return errorResponse(err, 'Failed to load relationship graph');
 	}
