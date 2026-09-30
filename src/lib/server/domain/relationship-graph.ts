@@ -8,7 +8,8 @@
  * and deceased markers are derived from death events.
  */
 
-import type { TreeRows } from './change-log';
+import type { PersonNameRow, TreeRows } from './change-log';
+import { birthSurnameOf } from '../../shared/name-types';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
 import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from '../../shared/union-events';
 import type { Sex } from '../../shared/sex';
@@ -35,6 +36,8 @@ export interface GraphPersonInput {
 	deathDate?: string | null;
 	/** Optimistic-concurrency version of the person record. */
 	version?: number;
+	/** The person's stored names, so the card can say "(née Simpson)". */
+	names?: ReadonlyArray<{ type: string; surname: string | null; isPreferred?: boolean }>;
 }
 
 export interface GraphUnionInput {
@@ -109,9 +112,11 @@ export interface RelationshipGraph {
 	parentChild: GraphParentChildInput[];
 }
 
-function displayName(givenName: string | null, surname: string | null, id: string): string {
+function displayName(givenName: string | null, surname: string | null, id: string, names: GraphPersonInput['names'] = []): string {
 	const parts = [givenName, surname].filter(Boolean);
-	return parts.length > 0 ? parts.join(' ') : id;
+	const base = parts.length > 0 ? parts.join(' ') : id;
+	const birth = parts.length > 0 ? birthSurnameOf(surname, names) : null;
+	return birth ? `${base} (née ${birth})` : base;
 }
 
 /**
@@ -173,7 +178,7 @@ export function buildRelationshipGraph(input: {
 		return {
 			...privacyOf(p),
 			id: p.id,
-			displayName: displayName(p.givenName, p.surname, p.id),
+			displayName: displayName(p.givenName, p.surname, p.id, p.names),
 			sex: p.sex,
 			isDeceased: p.isDeceased,
 			birthDate: p.birthDate ?? null,
@@ -227,6 +232,9 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 		dates.set(e.entityId, entry);
 	}
 
+	const namesByPerson = new Map<string, PersonNameRow[]>();
+	for (const n of rows.personNames) namesByPerson.set(n.personId, [...(namesByPerson.get(n.personId) ?? []), n]);
+
 	const partnersByUnion = new Map<string, string[]>();
 	for (const p of [...rows.unionPartners].sort((a, b) => a.order - b.order)) {
 		partnersByUnion.set(p.unionId, [...(partnersByUnion.get(p.unionId) ?? []), p.personId]);
@@ -250,7 +258,8 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 			isDeceased: deceased.has(i.id),
 			birthDate: dates.get(i.id)?.birth ?? null,
 			deathDate: dates.get(i.id)?.death ?? null,
-			version: i.version
+			version: i.version,
+			names: namesByPerson.get(i.id)
 		})),
 		unions: rows.unions.map((u) => {
 			const unionEvents = eventsByUnion.get(u.id) ?? [];

@@ -7,6 +7,7 @@
 import {
 	type EventRow,
 	type IndividualRow,
+	type PersonNameRow,
 	type RecordTable,
 	type RowImage,
 	type RowOp,
@@ -14,6 +15,7 @@ import {
 	type UnionPartnerRow
 } from './change-log';
 import { personName, applyOpsToRows, labelableUnionsOf } from './tree-ops';
+import { displayNameWith } from '../../shared/name-types';
 import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
@@ -40,7 +42,9 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 	// goes; the chronological label tells them apart.
 	const chronology = partnershipLabels(labelableUnionsOf(known));
 
-	const person = (id: string) => personName(people.get(id));
+	const namesOfPerson = new Map<string, PersonNameRow[]>();
+	for (const n of known.personNames) namesOfPerson.set(n.personId, [...(namesOfPerson.get(n.personId) ?? []), n]);
+	const person = (id: string) => displayNameWith(people.get(id), namesOfPerson.get(id));
 	const nameOfUnion = (id: string) => {
 		const members = (partnersByUnion.get(id) ?? []).sort((a, b) => a.order - b.order).map((p) => person(p.personId));
 		return members.length > 0 ? `${members.join('–')} partnership` : 'partnership';

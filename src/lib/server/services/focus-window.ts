@@ -19,7 +19,7 @@
  */
 
 import { NotFoundError } from '../domain/errors';
-import type { TreeRows, EventRow, IndividualRow, ParentChildRow, UnionPartnerRow, UnionRow } from '../domain/change-log';
+import type { TreeRows, EventRow, IndividualRow, ParentChildRow, PersonNameRow, UnionPartnerRow, UnionRow } from '../domain/change-log';
 import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
 import { resolveStubTokens } from '../../shared/stub-tokens';
 import { selectFocusSubgraph } from '../../tree-layout/select';
@@ -60,6 +60,9 @@ class WindowState {
 	completeUnions = new Set<string>();
 	/** People whose birth and death events are loaded, so nobody's are fetched twice. */
 	hasVitals = new Set<string>();
+	/** People whose names are loaded; a card says "(née …)" from them, so every named person needs them. */
+	hasNames = new Set<string>();
+	names = new Map<string, Ranked<PersonNameRow>>();
 
 	private static inserted<T>(map: Map<string, Ranked<T>>, rows: Array<Ranked<T>>, key: (row: T) => string) {
 		for (const r of rows) map.set(key(r.row), r);
@@ -70,6 +73,7 @@ class WindowState {
 	addPartners = (rows: Array<Ranked<UnionPartnerRow>>) => WindowState.inserted(this.partners, rows, (r) => r.id);
 	addLinks = (rows: Array<Ranked<ParentChildRow>>) => WindowState.inserted(this.links, rows, (r) => r.id);
 	addEvents = (rows: Array<Ranked<EventRow>>) => WindowState.inserted(this.events, rows, (r) => r.id);
+	addNames = (rows: Array<Ranked<PersonNameRow>>) => WindowState.inserted(this.names, rows, (r) => r.id);
 
 	/** Every id the loaded rows mention, drawn or not: the candidates a stub token may name. */
 	personIds(): string[] {
@@ -88,7 +92,7 @@ class WindowState {
 		// A partner row is only kept for a union that is loaded, so a half-loaded union never leaks.
 		return {
 			individuals: inOrder(this.individuals),
-			personNames: [],
+			personNames: inOrder(this.names),
 			unions: inOrder(this.unions),
 			unionPartners: inOrder(this.partners).filter((p) => this.unions.has(p.unionId)),
 			parentChild: inOrder(this.links),
@@ -160,12 +164,16 @@ export async function loadFocusWindow(
 		for (const l of asChild) named.add(l.row.parentId);
 		const missing = [...named].filter((id) => !state.individuals.has(id));
 		const withoutVitals = [...named].filter((id) => !state.hasVitals.has(id));
-		const [records, personEvents] = await repo.run(
+		const withoutNames = [...named].filter((id) => !state.hasNames.has(id));
+		const [records, personEvents, personNameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
-			repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, GRAPH_PERSON_EVENT_TYPES)
+			repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, GRAPH_PERSON_EVENT_TYPES),
+			repo.namesOf(withoutNames)
 		);
 		state.addIndividuals(records);
 		state.addEvents(personEvents);
+		state.addNames(personNameRows);
+		withoutNames.forEach((id) => state.hasNames.add(id));
 		withoutVitals.forEach((id) => state.hasVitals.add(id));
 		people.forEach((id) => state.complete.add(id));
 	}

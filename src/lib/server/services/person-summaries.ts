@@ -4,10 +4,10 @@
  * shows a bare id for someone the window happened not to include.
  */
 
-import type { EventRow, IndividualRow } from '../domain/change-log';
+import type { EventRow, IndividualRow, PersonNameRow } from '../domain/change-log';
 import type { RelationshipGraph, RelationshipGraphPerson } from '../domain/relationship-graph';
 import type { GraphWindowRepository } from '../repositories/graph-window-repository';
-import { personName } from '../../shared/person-name';
+import { displayNameWith } from '../../shared/name-types';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
 import { isSex, type Sex } from '../../shared/sex';
 
@@ -38,11 +38,11 @@ function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto
 	};
 }
 
-function summaryOfRows(person: IndividualRow, events: EventRow[]): PersonSummaryDto {
+function summaryOfRows(person: IndividualRow, events: EventRow[], names: PersonNameRow[] = []): PersonSummaryDto {
 	return {
 		...privacyOf(person),
 		id: person.id,
-		displayName: personName(person),
+		displayName: displayNameWith(person, names),
 		sex: isSex(person.sex) ? person.sex : 'U',
 		...vitalsOf(events)
 	};
@@ -58,12 +58,16 @@ export async function personSummaries(
 	const summaries = new Map(graph.people.map((p) => [p.id, summaryOfGraphPerson(p)]));
 	const missing = [...new Set(ids)].filter((id) => !summaries.has(id));
 	if (missing.length > 0) {
-		const [records, vitalEvents] = await repo.run(
+		const [records, vitalEvents, nameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
-			repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT'])
+			repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT']),
+			repo.namesOf(missing)
 		);
 		for (const { row } of records) {
-			summaries.set(row.id, summaryOfRows(row, vitalEvents.filter((e) => e.row.entityId === row.id).map((e) => e.row)));
+			summaries.set(
+				row.id,
+				summaryOfRows(row, vitalEvents.filter((e) => e.row.entityId === row.id).map((e) => e.row), nameRows.filter((n) => n.row.personId === row.id).map((n) => n.row))
+			);
 		}
 	}
 	for (const id of ids) {

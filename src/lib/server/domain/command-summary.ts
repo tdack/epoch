@@ -5,12 +5,12 @@
 
 import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
-import { partnerIdsOf, personName } from './tree-ops';
+import { displayNameOf, partnerIdsOf, personName } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 
 function nameOf(rows: TreeRows, id: string): string {
-	return personName(rows.individuals.find((p) => p.id === id));
+	return displayNameOf(rows, id);
 }
 
 function partnershipOf(rows: TreeRows, unionId: string): string {

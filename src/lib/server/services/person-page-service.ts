@@ -17,6 +17,7 @@ import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { CONFLICT_KINDS, findFactConflicts, sortTimeline, type FactConflict } from '../../shared/fact-timeline';
 import { FACT_KINDS, factTypeInfo, factLabel, type FactKind } from '../../shared/fact-types';
+import { displayNameWith } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
 import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
@@ -329,7 +330,7 @@ export class PersonPageService {
 				sex: isSex(self.row.sex) ? self.row.sex : 'U',
 				givenName: self.row.givenName,
 				surname: self.row.surname,
-				displayName: personName(self.row),
+				displayName: displayNameWith(self.row, nameRows.map((n) => n.row)),
 				isDeceased: death !== null
 			},
 			names: nameDtos(self.row, nameRows.map((n) => n.row)),

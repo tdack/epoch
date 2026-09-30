@@ -21,6 +21,7 @@ import {
 } from './change-log';
 import { dateColumnsFor } from './date-columns';
 import { personName } from '../../shared/person-name';
+import { displayNameWith } from '../../shared/name-types';
 import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
@@ -59,6 +60,11 @@ export function cleanText(value: string | null | undefined): string | null {
 }
 
 export { personName };
+
+/** "Jessica Wren (née Lovejoy)": the name for a preview, a summary or a sentence, from the rows as they are. */
+export function displayNameOf(rows: TreeRows, personId: string): string {
+	return displayNameWith(rows.individuals.find((p) => p.id === personId), rows.personNames.filter((n) => n.personId === personId));
+}
 
 const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	individuals: 'individuals',
