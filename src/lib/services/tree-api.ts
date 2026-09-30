@@ -17,6 +17,7 @@ import type { PersonPageDto } from '#lib/server/services/person-page-service.js'
 import type { UnionPageDto } from '#lib/server/services/union-page-service.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
+import type { SearchResponse } from '#lib/shared/search.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -269,6 +270,10 @@ export async function searchPeopleApi(treeId: string, query: string): Promise<Pe
 	return data.people || [];
 }
 
+/** The search page's results for its own URL parameters (`q`, `place`, `from`, `to`, `offset`). */
+export function searchTreeApi(treeId: string, params: URLSearchParams, fetchFn: typeof fetch = fetch): Promise<SearchResponse> {
+	return call(`/api/trees/${treeId}/search?${params}`, undefined, 'Failed to search the tree', fetchFn);
+}
 
 // ---- Bounded reads (Phase 3) ----
 // These take the `fetch` a SvelteKit load function hands them, so a server render forwards the

@@ -38,7 +38,7 @@ function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto
 	};
 }
 
-function summaryOfRows(person: IndividualRow, events: EventRow[], names: PersonNameRow[] = []): PersonSummaryDto {
+export function summaryOfRows(person: IndividualRow, events: EventRow[], names: PersonNameRow[] = []): PersonSummaryDto {
 	return {
 		...privacyOf(person),
 		id: person.id,
@@ -48,14 +48,17 @@ function summaryOfRows(person: IndividualRow, events: EventRow[], names: PersonN
 	};
 }
 
-/** A summary for every id asked for; an id that names nobody in the tree reads "Unknown". */
+/**
+ * A summary for every id asked for; an id that names nobody in the tree reads "Unknown". The graph
+ * is what a caller already drew; one with none passes `undefined` and every id is read from the rows.
+ */
 export async function personSummaries(
 	repo: GraphWindowRepository,
 	treeId: string,
-	graph: RelationshipGraph,
+	graph: RelationshipGraph | undefined,
 	ids: readonly string[]
 ): Promise<Map<string, PersonSummaryDto>> {
-	const summaries = new Map(graph.people.map((p) => [p.id, summaryOfGraphPerson(p)]));
+	const summaries = new Map((graph?.people ?? []).map((p) => [p.id, summaryOfGraphPerson(p)]));
 	const missing = [...new Set(ids)].filter((id) => !summaries.has(id));
 	if (missing.length > 0) {
 		const [records, vitalEvents, nameRows] = await repo.run(
