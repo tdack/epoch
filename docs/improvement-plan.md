@@ -291,9 +291,27 @@ number prefix can overlap.
 | S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
 | S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start (done) | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]` with the old `/?tree=` address redirecting; person and partnership pages; a repeatable fact editor; the bounded `/graph?focus=` endpoint (`up`/`down` in place of `depth`), proved equal to the whole-tree layout. See ADR-011 and ADR-012 and [query-plans.md](./query-plans.md). |
+| S6 | Person names (planned) | Several names per person with types (birth, maiden, married, aka…), round-tripped through GEDCOM; add, edit, reorder and undo them; "Jessica Wren (née Lovejoy)" display; optional date and partnership for a name change. See [Person names](#person-names) and the hand-off prompt [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
+
+### Person names
+
+Raised 2026-09-30 while using S5. `person_name` already models type, components, preferred flag and
+order, but only one name per person survives GEDCOM import and export (extra `NAME` records are
+dropped), and nothing in the UI edits names. That is a round-trip bug against the architecture's
+"no loss" rule as well as a missing feature.
+
+What the standard does: a person may have several `NAME` records, each with a `TYPE` (5.5.1: aka,
+birth, immigrant, maiden, married; 7.0 adds professional and other). GEDCOM has no date on a
+`NAME`, so when a name changed has no standard home; webtrees likewise lists names and leaves the
+date to the marriage event or a note. Legacy programs write `_MARNM` for a married name.
+
+Decision for S6: keep every name; add an optional "from" date and an optional partnership link on
+a name in Epoch's own columns, and export them as a `NOTE` under the `NAME` so nothing is lost on a
+round trip. The display name follows the preferred name. Full scope, non-goals and process rules
+are in [s6-person-names-prompt.md](./s6-person-names-prompt.md).
 
 ## Decisions (2026-09-29)
 
