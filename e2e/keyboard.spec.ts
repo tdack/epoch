@@ -87,6 +87,6 @@ test('the card menu opens the details drawer', async ({ page, api }) => {
 	const homer = await api.addPerson('Homer', 'Simpson');
 	await openTree(page, api, homer);
 	await openMenuByKeyboard(page, 'Homer');
-	await chooseMenuItem(page, 'Details');
+	await chooseMenuItem(page, 'Show details');
 	await expect(page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })).toBeVisible();
 });

@@ -57,7 +57,7 @@
 		onOpenPerson?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
 		onClearSelection?: () => void;
-		/** "Edit details" from a card's context menu. */
+		/** "Edit person" from a card's context menu. */
 		onEditPerson?: (id: string) => void;
 		/** "Delete person" from a card's context menu. */
 		onDeletePerson?: (id: string) => void;
@@ -385,8 +385,8 @@
 		event.preventDefault();
 		const person = { id: node.id, displayName: node.person.displayName };
 		const items: MenuItem[] = [];
-		if (onOpenPerson) items.push({ label: 'Details', onClick: () => onOpenPerson(person.id) });
-		if (onEditPerson) items.push({ label: 'Edit details', onClick: () => onEditPerson(person.id) });
+		if (onOpenPerson) items.push({ label: 'Show details', onClick: () => onOpenPerson(person.id) });
+		if (onEditPerson) items.push({ label: 'Edit person', onClick: () => onEditPerson(person.id) });
 		if (onAddRelationship) items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
 		if (onRecordDeath) items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
 		if (onEndPartnership && node.person.unionIds.length > 0) {

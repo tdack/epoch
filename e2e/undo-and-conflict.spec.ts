@@ -44,7 +44,7 @@ test('a refused undo tells the person why', async ({ page, api }) => {
 	);
 
 	await card(page, 'Ann').click({ button: 'right' });
-	await page.getByRole('menuitem', { name: 'Edit details' }).click();
+	await page.getByRole('menuitem', { name: 'Edit person' }).click();
 	const form = page.getByRole('dialog', { name: 'Edit Person Details' });
 	await form.getByLabel('Surname').fill('Archer');
 	await form.getByRole('button', { name: /Save/ }).click();
@@ -56,7 +56,7 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	const ann = await api.addPerson('Ann', 'Archer');
 	await openTree(page, api, ann);
 	await card(page, 'Ann').click({ button: 'right' });
-	await page.getByRole('menuitem', { name: 'Edit details' }).click();
+	await page.getByRole('menuitem', { name: 'Edit person' }).click();
 	const form = page.getByRole('dialog', { name: 'Edit Person Details' });
 
 	// While the form is open, someone else saves a different change to the same person.
