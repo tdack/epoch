@@ -49,7 +49,7 @@
         onchange={(e) => onselectTree(e.currentTarget.value)}
         class="bg-stone-50 text-xs font-medium text-stone-800 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-xs"
       >
-        {#each trees as t}
+        {#each trees as t (t.id)}
           <option value={t.id}>{t.name}</option>
         {/each}
       </select>
