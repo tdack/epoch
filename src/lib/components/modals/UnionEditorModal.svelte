@@ -177,13 +177,13 @@
         <p class="text-xs italic text-stone-500">No events recorded.</p>
       {/if}
       {#each rows as row (row.key)}
-        <div class="grid grid-cols-[7.5rem_1fr_1fr_auto] items-end gap-2 rounded-lg border border-stone-200 bg-white p-2">
-          <span class="pb-2 text-sm font-medium text-stone-800">{UNION_EVENT_LABELS[row.type]}</span>
-          <div>
+        <div class="grid grid-cols-[1fr_auto] items-end gap-2 rounded-lg border border-stone-200 bg-white p-2 sm:grid-cols-[7.5rem_1fr_1fr_auto]">
+          <span class="pb-2 text-sm font-medium text-stone-800 max-sm:col-start-1 max-sm:row-start-1">{UNION_EVENT_LABELS[row.type]}</span>
+          <div class="max-sm:col-span-2 max-sm:row-start-2">
             <label class="block text-[11px] text-stone-500" for="ev-date-{row.key}">Date</label>
             <DateInput id="ev-date-{row.key}" bind:value={row.dateText} placeholder="e.g. 12 MAR 1999" inputClass="w-full rounded-md border border-stone-300 p-1.5 text-sm" />
           </div>
-          <div>
+          <div class="max-sm:col-span-2 max-sm:row-start-3">
             <label class="block text-[11px] text-stone-500" for="ev-place-{row.key}">Place</label>
             <input id="ev-place-{row.key}" type="text" bind:value={row.place} class="w-full rounded-md border border-stone-300 p-1.5 text-sm" />
           </div>
@@ -191,7 +191,7 @@
             type="button"
             onclick={() => (rows = rows.filter((r) => r.key !== row.key))}
             aria-label="Remove {UNION_EVENT_LABELS[row.type].toLowerCase()} event"
-            class="mb-0.5 cursor-pointer rounded-md p-1.5 text-red-700 hover:bg-red-50"
+            class="mb-0.5 cursor-pointer rounded-md p-1.5 text-red-700 hover:bg-red-50 max-sm:col-start-2 max-sm:row-start-1"
           >
             <Trash2 class="h-4 w-4" />
           </button>
