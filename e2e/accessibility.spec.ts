@@ -83,7 +83,7 @@ test.describe('screen reader', () => {
 	test('the person drawer is reachable by keyboard and has no violations', async ({ page, api }) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
-		await card(page, 'Homer').click();
+		await card(page, 'Homer').dblclick();
 		const drawer = page.locator('div.fixed.inset-y-0');
 		await expect(drawer.getByRole('heading', { name: /Homer Simpson/ })).toBeVisible();
 		await expect(drawer.getByRole('button', { name: 'Close details' })).toBeVisible();
@@ -116,7 +116,7 @@ test.describe('phone-sized screen', () => {
 	test('the person drawer fits the screen', async ({ page, api }) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
-		await card(page, 'Homer').click();
+		await card(page, 'Homer').dblclick();
 		const box = (await page.locator('div.fixed.inset-y-0').boundingBox())!;
 		expect(box.width).toBeLessThanOrEqual(375);
 		expect(await fitsWidth(page)).toBe(true);

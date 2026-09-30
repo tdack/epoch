@@ -70,7 +70,7 @@ export function card(page: Page, name: string | RegExp): Locator {
 
 /** Open the tree focused on a person. */
 export async function openTree(page: Page, api: Api, focus: Person) {
-	await page.goto(`/?tree=${api.treeId}&focus=${encodeURIComponent(focus.id)}`);
+	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(focus.id)}`);
 	await expect(card(page, focus.givenName)).toBeVisible();
 }
 
@@ -139,4 +139,13 @@ export async function addRelationship(page: Page, anchor: string, kind: 'Add par
 	const other = form.newGiven ?? form.existing;
 	if (other) await expect(card(page, other)).toBeVisible();
 	if (kind === 'Add partner') await expect(page.locator('[data-union-id]')).toHaveCount(unionsBefore + 1);
+}
+
+/**
+ * Open a page and wait until it is interactive. Person and partnership pages are rendered on the
+ * server, so their buttons are visible a moment before they work; a click in that gap is lost.
+ */
+export async function open(page: Page, url: string) {
+	await page.goto(url);
+	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
 }
