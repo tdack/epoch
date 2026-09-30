@@ -57,7 +57,16 @@ export interface ParsedEvent {
   dateSort?: string;
   dateSortEnd?: string | null;
   place?: string;
+  /** Pre-fact-field text (CAUS, NOTE or line value in one). Family events still use it. */
   description?: string;
+  /** Individual events only: the text on the event's own line (`1 OCCU Carpenter`). */
+  value?: string;
+  /** `2 CAUS` */
+  cause?: string;
+  /** `2 AGE` */
+  age?: string;
+  /** `2 NOTE` */
+  notes?: string;
 }
 
 export interface ParsedGedcomData {
@@ -287,16 +296,21 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         } else if (INDIVIDUAL_EVENT_TAGS.has(child.tag)) {
           const dateNode = child.children.find((c) => c.tag === 'DATE');
           const placNode = child.children.find((c) => c.tag === 'PLAC');
-          const descNode = child.children.find((c) => c.tag === 'CAUS' || c.tag === 'NOTE');
+          const textOf = (tag: string) => child.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
           const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
 
+          // Each piece keeps its own column, so a cause is not written back as a note and a
+          // repeated fact stays a fact. `description` is left for family events and old rows.
           events.push({
             type: child.tag,
             dateRaw: raw,
             dateSort: sort,
             dateSortEnd: sortEnd,
             place: placNode?.value?.trim(),
-            description: descNode?.value?.trim() || child.value?.trim()
+            value: child.value?.trim() || undefined,
+            cause: textOf('CAUS'),
+            age: textOf('AGE'),
+            notes: textOf('NOTE')
           });
         } else {
           // Preserve unmodeled individual-level structures (CHAN, NOTE, SOUR,
@@ -406,6 +420,10 @@ export interface GedcomExportPayload {
       dateRaw: string | null;
       place: string | null;
       description: string | null;
+      value?: string | null;
+      cause?: string | null;
+      age?: string | null;
+      notes?: string | null;
     }>;
     famc?: string[];
     fams?: string[];
@@ -431,6 +449,22 @@ export interface GedcomExportPayload {
   }>;
   /** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
   preserved?: Array<{ xref: string | null; lines: string[] }>;
+}
+
+/**
+ * An individual's event as GEDCOM lines. The line value goes on the event's own line, and a legacy
+ * `description` is written as a note only when the fact has no note of its own, so a fact edited
+ * after import does not gain a second `NOTE`.
+ */
+function individualEventLines(ev: NonNullable<GedcomExportPayload['individuals'][number]['events']>[number]): string[] {
+  const lines = [ev.value ? `1 ${ev.type} ${ev.value}` : `1 ${ev.type}`];
+  if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
+  if (ev.place) lines.push(`2 PLAC ${ev.place}`);
+  if (ev.cause) lines.push(`2 CAUS ${ev.cause}`);
+  if (ev.age) lines.push(`2 AGE ${ev.age}`);
+  const note = ev.notes ?? ev.description;
+  if (note) lines.push(`2 NOTE ${note}`);
+  return lines;
 }
 
 function asXref(id: string): string {
@@ -557,12 +591,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
     } else if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
 
     if (ind.events) {
-      for (const ev of ind.events) {
-        lines.push(`1 ${ev.type}`);
-        if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
-        if (ev.place) lines.push(`2 PLAC ${ev.place}`);
-        if (ev.description) lines.push(`2 NOTE ${ev.description}`);
-      }
+      for (const ev of ind.events) lines.push(...individualEventLines(ev));
     }
 
     if (ind.famc) {
@@ -650,12 +679,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
     if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
 
     if (ind.events) {
-      for (const ev of ind.events) {
-        lines.push(`1 ${ev.type}`);
-        if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
-        if (ev.place) lines.push(`2 PLAC ${ev.place}`);
-        if (ev.description) lines.push(`2 NOTE ${ev.description}`);
-      }
+      for (const ev of ind.events) lines.push(...individualEventLines(ev));
     }
 
     if (ind.famc) {

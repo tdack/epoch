@@ -23,7 +23,19 @@ export const events = sqliteTable('events', {
     enum: ['GREGORIAN', 'JULIAN', 'HEBREW', 'FRENCH_REPUBLICAN', 'UNKNOWN']
   }),
   place: text('place'),
+  // Written before the fact fields below existed: an imported CAUS, NOTE or line value, which
+  // could not be told apart. New facts leave it null and use the specific columns; a fact edited
+  // in the editor folds it into `notes` (see fact-commands).
   description: text('description'),
+  // The fact editor's fields (Phase 3). Null on every earlier row. `value` is the text on the
+  // event's own GEDCOM line (`1 OCCU Carpenter`), `cause` a CAUS, `age` an AGE.
+  value: text('value'),
+  cause: text('cause'),
+  age: text('age'),
+  notes: text('notes'),
+  // Manual order among facts that sort together (same date, or both undated). Never a substitute
+  // for the date: the timeline is date first.
+  sortOrder: integer('sort_order').notNull().default(0),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())

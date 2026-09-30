@@ -264,6 +264,11 @@ function createEvent(
 		...dateColumnsFor(dateText),
 		place,
 		description: null,
+		value: null,
+		cause: null,
+		age: null,
+		notes: null,
+		sortOrder: 0,
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now
