@@ -295,7 +295,11 @@ export function dependentsOfDeletions(rows: TreeRows, ops: RowOp[]): Array<{ tab
 		const isOwnerDeleted = event.entityType === 'INDIVIDUAL' ? deletedPeople.has(event.entityId) : deletedUnions.has(event.entityId);
 		if (isOwnerDeleted) add('events', event);
 	}
-	for (const name of rows.personNames) if (deletedPeople.has(name.personId)) add('person_names', name);
+	for (const name of rows.personNames) {
+		// No foreign key holds a name's partnership (a cascade would change it outside the log), so undoing a
+		// created partnership would leave a name pointing at nothing; refuse it as for links and events.
+		if (deletedPeople.has(name.personId) || (name.unionId !== null && deletedUnions.has(name.unionId))) add('person_names', name);
+	}
 	for (const media of rows.mediaItems) if (deletedPeople.has(media.entityId)) add('media_items', media);
 	return found;
 }
