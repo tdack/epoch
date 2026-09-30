@@ -292,6 +292,7 @@ number prefix can overlap.
 | S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start (done) | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]` with the old `/?tree=` address redirecting; person and partnership pages; a repeatable fact editor; the bounded `/graph?focus=` endpoint (`up`/`down` in place of `depth`), proved equal to the whole-tree layout. See ADR-011 and ADR-012 and [query-plans.md](./query-plans.md). |
 | S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
+| S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
@@ -325,6 +326,29 @@ are in [s6-person-names-prompt.md](./s6-person-names-prompt.md).
 - **Not built (out of scope by the prompt):** phonetic and surname-list search, the search page, privacy for names, `FONE`/`ROMN` modelling (they are kept as extra lines).
 - **Known round-trip losses:** a `NAME` line that disagrees with its `GIVN`/`SURN`, or carries a quoted nickname, comes back in canonical form (ADR-013). `union-choice.spec.ts` is a pre-existing flake: it failed 1 of 8 runs on the S5 merge commit and 1 of 4 on this branch.
 - **Known cosmetic limit:** a card truncates the name at 22 characters, so a long given name loses its end before the "née" line.
+
+### S7: search, lists, recents and favourites
+
+**S7 status (2026-10-01): done.** What shipped, and where it departs from the plan:
+
+- **Search.** One tree-scoped query ranks every stored name and each person's display name in SQL before `LIMIT` (exact, whole word, prefix, word start, substring; displayed name over preferred over other names; stable tie-break), so a one-letter query keeps its exact match under a limit. It also takes an XREF (`@I4@`, `I4` or `i4`), a place substring and a year range. Every result carries `matches[]` saying which name, XREF or fact matched. The page is `/trees/[id]/search` (`?q=&place=&from=&to=&offset=`); the focus box and relationship dialog now say "also known as …".
+- **Place and dates hold on the same fact**, and a partnership's fact (a marriage place) reaches both partners. A fact with no date never matches a date range; `BEF`/`AFT` are open on one side, so `BEF 1900` overlaps 1850–1900. Dates are read from the stored bounds, never re-parsed.
+- **Lists.** `/trees/[id]/people` (sort by surname or given name, optional `?surname=`), `/unions` and `/surnames`, all server-paged (50, offset). A surname's count equals the rows of its filtered list (tested). None calls `loadRows` (tested with a spy).
+- **Recents and favourites.** D1 rows per user and tree (ADR-014), shown in a strip under the tree nav, in the focus box before typing, and with a toggle on the person page. A recent is an explicit `POST` from the page, never a load (`app.html` preloads on hover).
+- **Measured, not guessed** ([query-plans.md](./query-plans.md)). Two trees in one database so a cross-tree scan shows: the first partnership-fact branch read 951,241 rows to answer a 419-person tree; the first XREF lookup read the whole tree. Both fixed in the query. No search index was added. Two expand-only indexes were added for the individuals list (10,648 rows read per page without them, 51 with); a `person_names` surname index was rejected because it reads other trees.
+- **Privacy hooks.** Every new DTO carries `isPrivate` (`privacyOf`), and search, lists and marks all pass through `filterForViewer` (`services/privacy-seam.ts`). What would leak under Phase 4 is listed at the top of that file: the `matches` text (a private person's married name or place), search totals and `hasMore`, surname counts, partner names on the partnership list, and ordering.
+- **`searchPeople` was replaced**, not kept: the repository class is gone; `people-search` keeps its response shape, and the duplicate cue uses `SearchRepository.find`.
+
+Left open or departing from the plan:
+
+- **Search is linear in the tree's people per query** (about 4–8 rows read per person) and offset pages are linear in the offset (never more than the tree). The surname list and a surname filter read about 6.5x and 3.2x the tree's people. Acceptable at this phase's sizes; Phase 8 decides counters or a normalised name column.
+- **Events written before ADR-004's date columns** (a `date_raw` with no `date_sort`) can never match a year range, because the filter reads only the stored bounds. The local database has none (`select count(*) from events where date_raw is not null and date_sort is null` is 0); a deployed one may, and `npm run db:backfill:dates -- --remote` fills them.
+- **ASCII-only case folding.** SQLite `LIKE`, `lower()` and `collate nocase` fold only ASCII, so "müller" does not match "Müller". Needs a normalised column (with the phonetic work).
+- **Unsurnamed people sort first** in the individuals list (an expression in `ORDER BY` would lose the index).
+- **Recents are recorded on the person page and on a focus-box pick only**, not when the tree refocuses by double-click.
+- **Marks for people deleted for good are not pruned**; they are simply not shown. Marks are not in a GEDCOM export.
+- **Keyed by `users.id`, not the raw Access `sub`**, which is the same identity one hop along (ADR-014).
+- **Not built (out of scope by the prompt):** phonetic search, boolean query syntax, place hierarchies, the relationship calculator, pedigree/descendancy charts, source/note search, saved searches, privacy policy.
 
 ## Decisions (2026-09-29)
 
