@@ -42,6 +42,15 @@ export type RelationshipIntent =
 			unionId?: string | null;
 	  }
 	| {
+			kind: 'add_sibling';
+			person: PersonRef;
+			sibling: PersonRef;
+			/** Which of the person's parents the sibling shares. The planner refuses anyone who is not one. */
+			parentIds: string[];
+			/** How the sibling relates to those parents. */
+			type: ParentChildType;
+	  }
+	| {
 			kind: 'add_partner';
 			person: PersonRef;
 			partner: PersonRef;
@@ -83,6 +92,8 @@ export interface SentenceFacts {
 	/** What follows "in the": "Homer Simpson–Marge Simpson family" or "2nd partnership of Homer Simpson and Marge Simpson". */
 	unionPhrase?: string | null;
 	partners?: PersonRef[];
+	/** The parents an added sibling will be linked to. */
+	siblingParents?: PersonRef[];
 	widowed?: Array<{ widow: PersonRef; deceased: PersonRef }>;
 }
 
@@ -153,6 +164,12 @@ export function describeRelationshipIntent(intent: RelationshipIntent, facts: Se
 				/\s{2,}/g,
 				' '
 			);
+
+		case 'add_sibling': {
+			const parents = (facts.siblingParents ?? []).map(displayName);
+			const of = parents.length > 0 ? ` and a child of ${parents.join(' and ')}` : '';
+			return `${displayName(intent.sibling)} will be recorded as ${possessive(displayName(intent.person))} sibling${of}.`;
+		}
 
 		case 'add_partner':
 			return `${displayName(intent.partner)} will be recorded as ${possessive(

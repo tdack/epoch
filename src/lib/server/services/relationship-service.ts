@@ -159,6 +159,9 @@ export class RelationshipService {
 			case 'add_partner':
 				ref = intent.partner;
 				break;
+			case 'add_sibling':
+				ref = intent.sibling;
+				break;
 			default:
 				return false;
 		}

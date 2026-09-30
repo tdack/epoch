@@ -70,6 +70,13 @@ export const relationshipIntentSchema = z.discriminatedUnion('kind', [
 		unionId: idSchema.nullable().optional()
 	}),
 	z.object({
+		kind: z.literal('add_sibling'),
+		person: personRefSchema,
+		sibling: personRefSchema,
+		parentIds: z.array(idSchema).min(1).max(10),
+		type: parentChildTypeSchema
+	}),
+	z.object({
 		kind: z.literal('add_partner'),
 		person: personRefSchema,
 		partner: personRefSchema,
