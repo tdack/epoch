@@ -12,15 +12,17 @@
  * window costs a few round trips per generation rather than a dozen.
  */
 
-import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
-import { events, individuals, mediaItems, parentChild, unionPartners, unions } from '../db/schema';
+import { changeLog, changeLogRecords, events, individuals, mediaItems, parentChild, personNames, unionPartners, unions, users } from '../db/schema';
 import type {
 	EventRow,
 	IndividualRow,
+	MediaRow,
 	ParentChildRow,
+	PersonNameRow,
 	UnionPartnerRow,
 	UnionRow
 } from '../domain/change-log';
@@ -45,6 +47,18 @@ export interface Read<T> {
 }
 
 type Results<Reads extends readonly Read<unknown>[]> = { [K in keyof Reads]: Reads[K] extends Read<infer T> ? T : never };
+
+/** One change that wrote a record, as the person page lists it. */
+export interface ChangeHistoryRow {
+	seq: number;
+	id: string;
+	kind: string;
+	summary: string;
+	actorId: string;
+	/** Epoch milliseconds. */
+	createdAt: number;
+	revertsChangeId: string | null;
+}
 
 export interface TreeCounts {
 	people: number;
@@ -178,6 +192,66 @@ export class GraphWindowRepository {
 		);
 	}
 
+	/** Every name of these people. Callers have already checked the people belong to the tree. */
+	namesOf(personIds: readonly string[]): Read<Array<Ranked<PersonNameRow>>> {
+		return this.readIn(personNames, personIds, (chunk) =>
+			this.db
+				.select({ ...getTableColumns(personNames), rid: sql<number>`${personNames}.rowid` })
+				.from(personNames)
+				.where(inArray(personNames.personId, chunk))
+		);
+	}
+
+	mediaOf(treeId: string, entityIds: readonly string[]): Read<Array<Ranked<MediaRow>>> {
+		return this.readIn(mediaItems, entityIds, (chunk) =>
+			this.db
+				.select({ ...getTableColumns(mediaItems), rid: sql<number>`${mediaItems}.rowid` })
+				.from(mediaItems)
+				.where(and(inTree(mediaItems.treeId, treeId), inArray(mediaItems.entityId, chunk)))
+		);
+	}
+
+	private changeHistoryQuery(treeId: string, chunk: string[], limit: number) {
+		return this.db
+			.select({
+				seq: changeLog.seq,
+				id: changeLog.id,
+				kind: changeLog.kind,
+				summary: changeLog.summary,
+				actorId: changeLog.actorId,
+				createdAt: changeLog.createdAt,
+				revertsChangeId: changeLog.revertsChangeId
+			})
+			.from(changeLogRecords)
+			.innerJoin(changeLog, eq(changeLogRecords.changeId, changeLog.id))
+			.where(and(inTree(changeLog.treeId, treeId), inArray(changeLogRecords.entityId, chunk)))
+			.orderBy(desc(changeLog.seq))
+			.limit(limit);
+	}
+
+	/** The latest changes that wrote any of these records, newest first. Imports write no log rows. */
+	async recentChanges(treeId: string, entityIds: readonly string[], limit: number): Promise<ChangeHistoryRow[]> {
+		const chunks = chunked(entityIds);
+		if (chunks.length === 0) return [];
+		const results = (await this.db.batch(
+			chunks.map((chunk) => this.changeHistoryQuery(treeId, chunk, limit)) as [ReturnType<typeof this.changeHistoryQuery>, ...Array<ReturnType<typeof this.changeHistoryQuery>>]
+		)) as unknown as Array<Array<Omit<ChangeHistoryRow, 'createdAt'> & { createdAt: Date }>>;
+		const byId = new Map<string, ChangeHistoryRow>();
+		for (const row of results.flat()) byId.set(row.id, { ...row, createdAt: row.createdAt.getTime() });
+		return [...byId.values()].sort((a, b) => b.seq - a.seq).slice(0, limit);
+	}
+
+	/** Display names for the people behind a set of changes. */
+	async actorNames(userIds: readonly string[]): Promise<Map<string, string>> {
+		const names = new Map<string, string>();
+		for (const chunk of chunked(userIds)) {
+			for (const row of await this.db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, chunk)).all()) {
+				names.set(row.id, row.name || row.email);
+			}
+		}
+		return names;
+	}
+
 	private firstPersonQuery(treeId: string) {
 		return this.db
 			.select({ id: individuals.id })
@@ -217,6 +291,9 @@ export class GraphWindowRepository {
 			'links by union': only(this.linksBy(treeId, 'union', sample.unionIds)),
 			'person events (birth, death)': only(this.eventsOf(treeId, 'INDIVIDUAL', sample.personIds, ['BIRT', 'DEAT'])),
 			'union events': only(this.eventsOf(treeId, 'FAMILY', sample.unionIds)),
+			'names of people': only(this.namesOf(sample.personIds)),
+			'media of people': only(this.mediaOf(treeId, sample.personIds)),
+			'changes touching records': this.changeHistoryQuery(treeId, sample.personIds, 15),
 			'first person': this.firstPersonQuery(treeId),
 			'count people': this.countQueries(treeId)[0],
 			'count unions': this.countQueries(treeId)[1]

@@ -96,6 +96,26 @@ Rows returned 3, rows read 9.
 
 Rows returned 3, rows read 9.
 
+### names of people
+
+- `SEARCH person_names USING INDEX idx_person_name_person (person_id=?)`
+
+Rows returned 0, rows read 3. (The generated tree has no stored name rows; the plan is what matters.)
+
+### media of people
+
+- `SEARCH media_items USING INDEX idx_media_entity (entity_id=?)`
+
+Rows returned 0, rows read 3.
+
+### changes touching records (the person page's history)
+
+- `SEARCH change_log_records USING INDEX idx_change_log_records_entity (entity_id=?)`
+- `SEARCH change_log USING INDEX change_log_id_unique (id=?)`
+- `USE TEMP B-TREE FOR ORDER BY`
+
+Rows returned 0, rows read 4. The sort is over the changes that wrote these records, not the log.
+
 ### first person
 
 - `SEARCH individuals USING INDEX idx_ind_tree (tree_id=?)`
