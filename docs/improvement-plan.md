@@ -12,7 +12,7 @@ imported into local D1.
   The layout algorithm is a placeholder (x = insertion order). It needs replacing, not tuning.
 - **The roadmap overstates progress.** Phases 0–2 are marked Complete, but several of their exit
   criteria are not met (see [Roadmap reality check](#roadmap-reality-check)). Phase 2 has been
-  reopened, and it closes before Phase 3 starts.
+  reopened, and it has since closed (S1–S4 are done and verified; see the status line below).
 - **Most webtrees capabilities are already assigned to Phases 3–7.** The gaps that no phase covers
   are narrower: siblings and relatives views, pedigree collapse, fitting charts to the screen, a
   person page as the primary navigation surface, and developer onboarding.
@@ -195,7 +195,7 @@ screenshots.
 | 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `89cd0c2`). The real problem is duplicate FAMs from import, such as `The_Simpsons.ged`. See [Duplicate unions](#duplicate-unions). |
 | 2 | Keyboard and screen-reader support | Nodes are focusable, but there is no arrow-key navigation, no text alternative to the graph and no focus management in the drawer. |
 
-Phase 2 is now *In progress* in the roadmap table. It closes when slices S1–S4 below are done,
+Phase 2 was reopened when this plan was written. It closed when slices S1–S4 below were done,
 before Phase 3 starts.
 
 After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
@@ -297,7 +297,7 @@ with any collaborator. The current model has no living-person protection.
 
 ## Decisions (2026-09-29)
 
-1. **Phase 2 is reopened.** The roadmap status table shows *In progress*.
+1. **Phase 2 was reopened** (2026-09-29) and is *Complete* again (2026-09-30).
 2. **The default tree view is focus-centred.** It always centres on one person, using the
    hourglass layout. A whole-tree overview is optional, pending the S1f spike.
 3. **The tree is rebuilt from scratch.** The layout module, its output contract and the canvas
