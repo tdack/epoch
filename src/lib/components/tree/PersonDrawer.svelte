@@ -188,7 +188,7 @@
           <div class="bg-amber-50/70 rounded-xl p-3 border border-amber-200/80 shadow-xs space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
-                {union.label?.full ?? 'Partner & Children'}
+                {union.label?.full ?? (union.partners.length > 0 ? 'Partner & Children' : 'Children, other parent not recorded')}
                 {#if union.status !== 'active'}<span class="text-red-700">· {union.status}</span>{/if}
                 {#if union.isWidowed}<span class="text-stone-700">· widowed</span>{/if}
               </span>

@@ -134,3 +134,25 @@ test('unticking the merge option imports the file exactly as written', async ({ 
 	await expect(page.getByText(/Import complete: 13 individuals, 10 families\./)).toBeVisible();
 	expect((await api.graph()).unions).toHaveLength(10);
 });
+
+test('a partnership with one recorded parent says so in the drawer, and its editor shows who is in it', async ({ page, request, api }) => {
+	await importDirty(request, api);
+	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(`${api.treeId}:@I_937df8d1@`)}`);
+	const person = page.locator('[data-person-id]').filter({ hasText: 'Homer' }).first();
+	await expect(person).toBeVisible();
+	await person.dblclick();
+	const drawer = page.locator('div.fixed.inset-y-0');
+	await expect(drawer.getByText('Children, other parent not recorded').first()).toBeVisible();
+
+	const editButtons = drawer.getByRole('button', { name: 'Edit', exact: true });
+	const count = await editButtons.count();
+	let sawSingle = false;
+	for (let i = 0; i < count && !sawSingle; i++) {
+		await editButtons.nth(i).click();
+		const members = page.getByTestId('union-members');
+		await expect(members).toBeVisible();
+		sawSingle = await members.getByText('Only one parent is recorded').isVisible();
+		await page.getByRole('button', { name: 'Cancel' }).click();
+	}
+	expect(sawSingle).toBe(true);
+});

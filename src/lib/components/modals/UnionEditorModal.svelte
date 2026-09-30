@@ -54,6 +54,7 @@
       ? [union.partnerIds.map(nameOf).join(' & ') || 'Partnership', label?.full].filter(Boolean).join(' · ')
       : 'Partnership'
   );
+  const childIds = $derived([...new Set((union?.children ?? []).map((c) => c.childId))]);
   const unusedTypes = $derived(UNION_EVENT_TYPE_LIST.filter((t) => !rows.some((r) => r.type === t)));
 
   function load() {
@@ -161,6 +162,20 @@
       void save();
     }}
   >
+    <section aria-label="Who is in this partnership" class="rounded-lg border border-stone-200 bg-white p-3 text-sm" data-testid="union-members">
+      <p>
+        <span class="text-xs font-semibold text-stone-700">Partners:</span>
+        {union?.partnerIds.map(nameOf).join(' & ') || 'none recorded'}
+      </p>
+      {#if union && union.partnerIds.length === 1}
+        <p class="mt-0.5 text-xs text-stone-500">Only one parent is recorded. Who the other parent was is not known to this tree.</p>
+      {/if}
+      <p class="mt-1">
+        <span class="text-xs font-semibold text-stone-700">Children:</span>
+        {childIds.map(nameOf).join(', ') || 'none recorded'}
+      </p>
+    </section>
+
     <div>
       <label for="union-status" class="mb-1 block text-xs font-semibold text-stone-700">Status</label>
       <select id="union-status" bind:value={status} class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm">
