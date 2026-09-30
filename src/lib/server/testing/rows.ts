@@ -1,6 +1,6 @@
 /** Builds `TreeRows` snapshots for pure tests of planning and ops, without a database. */
 
-import type { EventRow, TreeRows } from '../domain/change-log';
+import type { EventRow, PersonNameRow, TreeRows } from '../domain/change-log';
 import type { ParentChildType, UnionStatus } from '../domain/genealogy-model';
 import type { Sex } from '../../shared/sex';
 
@@ -27,6 +27,7 @@ export interface RowsSpec {
 	}>;
 	links?: Array<{ parentId: string; childId: string; type?: ParentChildType; unionId?: string | null }>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
+	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
 }
 
 export function treeRows(spec: RowsSpec = {}): TreeRows {
@@ -113,6 +114,32 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		});
 	}
 	for (const e of spec.events ?? []) rows.events.push(event(e));
+	for (const [index, n] of (spec.names ?? []).entries()) {
+		rows.personNames.push({
+			type: 'birth',
+			givenName: null,
+			surname: null,
+			namePrefix: null,
+			nameSuffix: null,
+			nickname: null,
+			surnamePrefix: null,
+			gedcomType: null,
+			gedcomExtra: null,
+			dateRaw: null,
+			dateSort: null,
+			dateSortEnd: null,
+			dateQualifier: null,
+			datePrecision: null,
+			dateCalendar: null,
+			unionId: null,
+			isPreferred: false,
+			order: index,
+			version: 1,
+			createdAt: T0,
+			updatedAt: T0,
+			...n
+		});
+	}
 	return rows;
 }
 

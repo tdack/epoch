@@ -7,7 +7,8 @@ import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
 import { CONFLICT_KINDS } from '../../shared/fact-timeline';
 import { relativesOf } from '../../shared/relatives';
-import { trees, treeMemberships } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { personNames, trees, treeMemberships } from '../db/schema';
 import { insertCorpus } from '../testing/corpus';
 import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
@@ -101,8 +102,17 @@ describe('facts, names and history on the page', () => {
 	}
 	const blank = { dateText: null, place: null, value: null, cause: null, age: null, notes: null };
 
-	it('derives a name for a person created in the editor, which has no stored name row', async () => {
+	it('gives a person created in the editor a stored preferred name', async () => {
 		const { page } = await fresh();
+		const { names } = await page();
+		expect(names).toHaveLength(1);
+		expect(names[0]).toMatchObject({ type: 'birth', displayName: 'Wren Ash', isPreferred: true });
+		expect(names[0]!.id).not.toBeNull();
+	});
+
+	it('derives a name for a person with no stored name row (created before names were rows)', async () => {
+		const { page, wren } = await fresh();
+		await t.db.delete(personNames).where(eq(personNames.personId, wren.id));
 		const { names } = await page();
 		expect(names).toHaveLength(1);
 		expect(names[0]).toMatchObject({ id: null, type: 'birth', displayName: 'Wren Ash', isPreferred: true });

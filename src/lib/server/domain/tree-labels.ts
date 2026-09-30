@@ -15,6 +15,7 @@ import {
 } from './change-log';
 import { personName, applyOpsToRows, labelableUnionsOf } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
+import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
 
@@ -61,7 +62,7 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case 'individuals':
 				return personName(row as IndividualRow);
 			case 'person_names':
-				return `Name of ${person(row.personId)}`;
+				return `${NAME_TYPE_LABELS[(row.type as NameType) ?? 'other'] ?? 'Name'} ${formatFullName({ prefix: row.namePrefix, givenName: row.givenName, surnamePrefix: row.surnamePrefix, surname: row.surname, suffix: row.nameSuffix })} of ${person(row.personId)}`;
 			case 'unions':
 				return union(row.id);
 			case 'union_partners':

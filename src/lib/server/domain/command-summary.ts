@@ -7,6 +7,7 @@ import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
 import { partnerIdsOf, personName } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
+import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 
 function nameOf(rows: TreeRows, id: string): string {
 	return personName(rows.individuals.find((p) => p.id === id));
@@ -32,6 +33,16 @@ function factOwner(rows: TreeRows, factId: string): string {
 	return owner ? nameOf(rows, owner) : 'someone';
 }
 
+function nameOwner(rows: TreeRows, nameId: string): string {
+	const owner = rows.personNames.find((n) => n.id === nameId)?.personId;
+	return owner ? nameOf(rows, owner) : 'someone';
+}
+
+/** "married name" for the name a command names, whether it exists yet or not. */
+function nameKind(rows: TreeRows, nameId: string, type?: NameType): string {
+	return NAME_TYPE_LABELS[type ?? (rows.personNames.find((n) => n.id === nameId)?.type as NameType | undefined) ?? 'other'].toLowerCase();
+}
+
 export function describeCommand(command: RelationshipCommand, rows: TreeRows): string {
 	switch (command.kind) {
 		case 'create_fact':
@@ -42,6 +53,16 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Removed the ${factName(rows, command.factId)} of ${factOwner(rows, command.factId)}`;
 		case 'reorder_facts':
 			return `Reordered the facts of ${nameOf(rows, command.personId)}`;
+		case 'create_name':
+			return `Added ${nameKind(rows, command.nameId, command.name.type)} ${formatFullName(command.name)} to ${nameOf(rows, command.personId)}`;
+		case 'update_name':
+			return `Edited the ${nameKind(rows, command.nameId)} of ${nameOwner(rows, command.nameId)}`;
+		case 'delete_name':
+			return `Removed the ${nameKind(rows, command.nameId)} of ${nameOwner(rows, command.nameId)}`;
+		case 'reorder_names':
+			return `Reordered the names of ${nameOf(rows, command.personId)}`;
+		case 'set_preferred_name':
+			return `Chose the ${nameKind(rows, command.nameId)} as the preferred name of ${nameOf(rows, command.personId)}`;
 		case 'create_person':
 			return `Added ${personName({ givenName: command.givenName, surname: command.surname })}`;
 		case 'update_person':

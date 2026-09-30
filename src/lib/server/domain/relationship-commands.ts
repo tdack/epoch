@@ -23,9 +23,11 @@ import { ENDED_UNION_STATUSES, type EndedUnionStatus, type UnionEventInput, type
 import { newWidowhoods } from '../../shared/widowhood';
 import type { Sex } from '../../shared/sex';
 import type { FactCommand } from './fact-ops';
+import type { NameCommand } from './name-ops';
 
 export type RelationshipCommand =
 	| FactCommand
+	| NameCommand
 	| {
 			kind: 'create_person';
 			personId: string;
