@@ -41,14 +41,16 @@ export class RelationshipRepository {
 			.orderBy(sql`${individuals}.rowid`)
 			.all();
 
-		// person_names has no tree_id, so it joins through individuals; the `+` keeps SQLite from
-		// choosing the tree index and reading the whole tree to return a few rows (ADR-011).
+		// person_names has no tree_id, so it joins through individuals. Unlike the id-list reads of
+		// ADR-011, the other filter here is a LIKE, which cannot drive an index, so the tree index is
+		// what keeps this to one tree: `+tree_id` here made SQLite scan every name of every tree
+		// (see query-plans.md).
 		const named = await this.db
 			.select({ id: individuals.id, givenName: individuals.givenName, surname: individuals.surname, nameGiven: personNames.givenName, nameSurname: personNames.surname, prefix: personNames.namePrefix, nickname: personNames.nickname })
 			.from(personNames)
 			.innerJoin(individuals, eq(personNames.personId, individuals.id))
 			.where(
-				and(sql`+${individuals.treeId} = ${treeId}`, matches(personNames.givenName, personNames.surname))
+				and(eq(individuals.treeId, treeId), matches(personNames.givenName, personNames.surname))
 			)
 			.orderBy(sql`${individuals}.rowid`, sql`${personNames}.rowid`)
 			.all();
