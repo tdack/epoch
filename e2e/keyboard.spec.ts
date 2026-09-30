@@ -82,3 +82,11 @@ test('a partnership node is reachable by Tab and Enter opens its editor', async 
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('dialog', { name: 'Edit partnership' })).toBeVisible();
 });
+
+test('the card menu opens the details drawer', async ({ page, api }) => {
+	const homer = await api.addPerson('Homer', 'Simpson');
+	await openTree(page, api, homer);
+	await openMenuByKeyboard(page, 'Homer');
+	await chooseMenuItem(page, 'Details');
+	await expect(page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })).toBeVisible();
+});

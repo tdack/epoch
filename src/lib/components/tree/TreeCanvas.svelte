@@ -385,6 +385,7 @@
 		event.preventDefault();
 		const person = { id: node.id, displayName: node.person.displayName };
 		const items: MenuItem[] = [];
+		if (onOpenPerson) items.push({ label: 'Details', onClick: () => onOpenPerson(person.id) });
 		if (onEditPerson) items.push({ label: 'Edit details', onClick: () => onEditPerson(person.id) });
 		if (onAddRelationship) items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
 		if (onRecordDeath) items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
