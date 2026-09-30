@@ -83,3 +83,30 @@ describe('PersonDrawer', () => {
 		expect(text).toContain('(half-sibling)');
 	});
 });
+
+describe('PersonDrawer header', () => {
+	const initialsOf = (given: string | null, surname: string | null, displayName: string) => {
+		const page = pageOf('p', displayName);
+		page.person.givenName = given;
+		page.person.surname = surname;
+		open(page);
+		return document.querySelector('span.uppercase')!.textContent;
+	};
+
+	it('uses the first given name and the surname for the initials', () => {
+		expect(initialsOf('Jessica Louise', 'Simpson', 'Jessica Louise Lovejoy')).toBe('SL');
+	});
+
+	it('falls back to the first and last words of the display name', () => {
+		expect(initialsOf(null, null, 'Ada Byron King')).toBe('AK');
+	});
+
+	it('shows one letter for a single name', () => {
+		expect(initialsOf('Cher', null, 'Cher')).toBe('C');
+	});
+
+	it('has no relationship button in the header block', () => {
+		open(pageOf('p', 'Pat'));
+		expect([...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Relationship')).toBe(false);
+	});
+});

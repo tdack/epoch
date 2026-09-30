@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, MapPin, FileText, Upload, Image as ImageIcon, UserPlus, Pencil, Trash2, Cross, ExternalLink } from 'lucide-svelte';
+  import { X, MapPin, FileText, Upload, Image as ImageIcon, Pencil, Trash2, Cross, ExternalLink } from 'lucide-svelte';
   import type { RelativeAction } from './tree-editor.svelte.js';
   import type { ParentChildType, RelationshipKind } from '#lib/types/genealogy.js';
   import type { PersonSummaryDto } from '#lib/server/services/person-page-service.js';
@@ -47,6 +47,16 @@
   }: Props = $props();
 
   const person = $derived(page?.person ?? null);
+  /** First letter of the first given name and of the surname: "Jessica Louise Lovejoy" is SL. */
+  const initials = $derived.by(() => {
+    if (!person) return '';
+    const first = person.givenName?.trim().split(/\s+/)[0]?.[0];
+    const last = person.surname?.trim().split(/\s+/).at(-1)?.[0];
+    const fromName = [first, last].filter(Boolean).join('');
+    if (fromName) return fromName;
+    const words = person.displayName.trim().split(/\s+/).filter(Boolean);
+    return (words.length > 1 ? words[0][0] + words.at(-1)![0] : (words[0]?.slice(0, 2) ?? '')) || '?';
+  });
   const hasSteps = $derived((page?.stepParents.length ?? 0) > 0 || (page?.stepChildren.length ?? 0) > 0);
   const personHref = $derived(person ? `/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(person.id)}` : '#');
 
@@ -194,7 +204,7 @@
       <!-- Profile & Basic Info -->
       <div class="flex items-center space-x-4 bg-stone-50/80 p-3.5 rounded-xl border border-stone-200">
         <div class="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-300 flex items-center justify-center text-emerald-800 shadow-xs">
-          <span class="text-xl font-bold uppercase">{person.displayName.slice(0, 2) || 'UN'}</span>
+          <span class="text-xl font-bold uppercase">{initials}</span>
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-stone-800">Sex: <span class="font-normal text-stone-600">{sexLabel(person.sex)}</span></p>
@@ -202,16 +212,6 @@
             <p class="text-xs text-stone-500 mt-1">{page.vitals.lifespan}</p>
           {/if}
         </div>
-        {#if onAddRelationship}
-          <button
-            type="button"
-            onclick={() => onAddRelationship(person.id)}
-            class="text-xs font-semibold text-emerald-800 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-colors cursor-pointer inline-flex items-center space-x-1"
-          >
-            <UserPlus class="w-3 h-3" />
-            <span>Relationship</span>
-          </button>
-        {/if}
       </div>
 
       <!-- Families (close relatives) -->
