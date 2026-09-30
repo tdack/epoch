@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X, MapPin, FileText, Upload, Image as ImageIcon, Pencil, Trash2, Cross, ExternalLink } from 'lucide-svelte';
   import type { RelativeAction } from './tree-editor.svelte.js';
+  import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
   import type { ParentChildType, RelationshipKind } from '#lib/types/genealogy.js';
   import type { PersonSummaryDto } from '#lib/server/services/person-page-service.js';
   import { sexLabel } from '#lib/shared/sex.js';
@@ -54,9 +55,12 @@
     const last = person.surname?.trim().split(/\s+/).at(-1)?.[0];
     const fromName = [first, last].filter(Boolean).join('');
     if (fromName) return fromName;
-    const words = person.displayName.trim().split(/\s+/).filter(Boolean);
+    const words = splitDisplayName(person.displayName).name.trim().split(/\s+/).filter(Boolean);
     return (words.length > 1 ? words[0][0] + words.at(-1)![0] : (words[0]?.slice(0, 2) ?? '')) || '?';
   });
+  /** The names the person is not shown by: a read-only summary; they are edited on the person's page. */
+  const otherNames = $derived((page?.names ?? []).filter((n) => !n.isPreferred && n.id !== null));
+  const nameNote = (n: PersonPageDto['names'][number]) => (n.type === 'other' && n.gedcomType ? n.gedcomType : NAME_TYPE_LABELS[n.type].toLowerCase());
   const hasSteps = $derived((page?.stepParents.length ?? 0) > 0 || (page?.stepChildren.length ?? 0) > 0);
   const personHref = $derived(person ? `/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(person.id)}` : '#');
 
@@ -210,6 +214,13 @@
           <p class="text-sm font-semibold text-stone-800">Sex: <span class="font-normal text-stone-600">{sexLabel(person.sex)}</span></p>
           {#if page.vitals.lifespan}
             <p class="text-xs text-stone-500 mt-1">{page.vitals.lifespan}</p>
+          {/if}
+          {#if otherNames.length > 0}
+            <ul class="mt-1 space-y-0.5 text-xs text-stone-600" data-testid="drawer-names">
+              {#each otherNames as n (n.id)}
+                <li>{n.displayName} <span class="text-stone-500">({nameNote(n)})</span></li>
+              {/each}
+            </ul>
           {/if}
         </div>
       </div>

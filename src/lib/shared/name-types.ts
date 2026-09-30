@@ -87,3 +87,14 @@ export function displayNameWith(
 	const birth = birthSurnameOf(person.surname, names);
 	return birth ? `${base} (née ${birth})` : base;
 }
+
+const BIRTH_SUFFIX = /^(.*) \(née (.+)\)$/;
+
+/**
+ * The inverse of `displayNameWith`, for the views that draw the two halves apart (a card puts
+ * "née Simpson" on its own line). It lives beside the formatter so the format is written once.
+ */
+export function splitDisplayName(displayName: string): { name: string; birthSurname: string | null } {
+	const match = BIRTH_SUFFIX.exec(displayName);
+	return match ? { name: match[1]!, birthSurname: match[2]! } : { name: displayName, birthSurname: null };
+}

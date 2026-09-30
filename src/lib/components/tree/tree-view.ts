@@ -6,6 +6,7 @@
 
 import type { UnionStatus } from '#lib/server/domain/genealogy-model.js';
 import { END_EVENT_TYPES, UNION_EVENT_ABBREVIATIONS } from '#lib/shared/union-events.js';
+import { splitDisplayName } from '#lib/shared/name-types.js';
 import {
 	LAYOUT_METRICS,
 	type ChildEdge,
@@ -124,7 +125,7 @@ export function truncate(text: string, maxChars: number): string {
 
 /** First letter of the last word of the name, for the block shown below the compact zoom. */
 export function surnameInitial(displayName: string): string {
-	const words = displayName.trim().split(/\s+/);
+	const words = splitDisplayName(displayName).name.trim().split(/\s+/);
 	return (words.at(-1) ?? '?').charAt(0).toUpperCase() || '?';
 }
 

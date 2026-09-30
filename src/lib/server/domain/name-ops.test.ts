@@ -5,7 +5,7 @@ import { ConcurrencyConflictError, NotFoundError, ValidationError } from './erro
 import { buildNameOps } from './name-ops';
 import { applyOpsToRows, buildPlanOps } from './tree-ops';
 import { treeRows, sequentialIds, TEST_TREE_ID } from '../testing/rows';
-import { displayNameWith } from '../../shared/name-types';
+import { displayNameWith, splitDisplayName } from '../../shared/name-types';
 
 const ctx = { treeId: TEST_TREE_ID, now: 2_000_000, newId: sequentialIds('n') };
 
@@ -179,6 +179,11 @@ describe('the display formatter', () => {
 		expect(displayNameWith({ givenName: 'Jessica', surname: 'simpson' }, names)).toBe('Jessica little');
 		expect(displayNameWith({ givenName: 'Jessica', surname: 'Smith' })).toBe('Jessica Wren');
 		expect(displayNameWith(undefined)).toBe('Unknown');
+	});
+	it('splits a display name back into the name and the birth surname', () => {
+		expect(splitDisplayName('Jessica Wren (née Lovejoy)')).toEqual({ name: 'Jessica Wren', birthSurname: 'Simpson' });
+		expect(splitDisplayName('Jessica Lovejoy')).toEqual({ name: 'Jessica Lovejoy', birthSurname: null });
+		expect(splitDisplayName(displayNameWith({ givenName: 'A', surname: 'C' }, [{ type: 'maiden', surname: 'De la M' }]))).toEqual({ name: 'A C', birthSurname: 'De la M' });
 	});
 	it('prefers a maiden name over a birth name', () => {
 		expect(displayNameWith({ givenName: 'A', surname: 'C' }, [{ type: 'birth', surname: 'B' }, { type: 'maiden', surname: 'M' }])).toBe('A C (née M)');

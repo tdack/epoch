@@ -11,6 +11,7 @@
 		yearsLine,
 		type LevelOfDetail
 	} from './tree-view.js';
+	import { splitDisplayName } from '#lib/shared/name-types.js';
 
 	interface Props {
 		/** The placed person to draw, centred on their layout coordinates. */
@@ -58,6 +59,8 @@
 	const H = LAYOUT_METRICS.cardHeight;
 
 	const person = $derived(node.person);
+	/** The name and the "née …" half drawn apart: a full name and its birth surname do not fit one line. */
+	const shown = $derived(splitDisplayName(person.displayName));
 	const hit = $derived(hitSize(zoom));
 	/** Blocks grow a little when zoomed far out so they stay a target, but never touch the next row. */
 	const blockHeight = $derived(Math.min(H * 1.6, Math.max(H, 22 / Math.max(zoom, 0.01))));
@@ -149,16 +152,23 @@
 	{:else if level === 'compact'}
 		<rect class="frame" x={-W / 2} y={-H / 2} width={W} height={H} rx="12" />
 		<text class="name-compact" x="0" y="-4" text-anchor="middle">
-			{truncate(person.displayName, 15)}
+			{truncate(shown.name, 15)}
 		</text>
 		<text class="dates-compact" x="0" y="24" text-anchor="middle">{yearsLine(person)}</text>
 	{:else}
 		<rect class="frame" x={-W / 2} y={-H / 2} width={W} height={H} rx="12" />
 		<text class="symbol" x={-W / 2 + 18} y={-H / 2 + 30} text-anchor="middle">{sexSymbol(person.sex)}</text>
-		<text class="name" x={-W / 2 + 34} y={-H / 2 + 30}>{truncate(person.displayName, 22)}</text>
-		{#each dateLines(person).slice(0, 2) as line, i (i)}
-			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 50 + i * 16}>{truncate(line, 26)}</text>
-		{/each}
+		{#if shown.birthSurname}
+			<!-- Three rows fit the card: the name, the birth surname, then one line of dates. -->
+			<text class="name" x={-W / 2 + 34} y={-H / 2 + 26}>{truncate(shown.name, 22)}</text>
+			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 43}>{truncate(`née ${shown.birthSurname}`, 26)}</text>
+			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 60}>{yearsLine(person)}</text>
+		{:else}
+			<text class="name" x={-W / 2 + 34} y={-H / 2 + 30}>{truncate(shown.name, 22)}</text>
+			{#each dateLines(person).slice(0, 2) as line, i (i)}
+				<text class="dates" x={-W / 2 + 34} y={-H / 2 + 50 + i * 16}>{truncate(line, 26)}</text>
+			{/each}
+		{/if}
 		{#if hasMultiplePaths}
 			<g class="badge" transform="translate({W / 2 - 34}, {-H / 2 - 9})">
 				<rect x="-22" y="-9" width="44" height="18" rx="9" />
