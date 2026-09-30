@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { TriangleAlert } from 'lucide-svelte';
+  import { Info, TriangleAlert } from 'lucide-svelte';
   import BaseModal from './BaseModal.svelte';
   import { groupRecords } from '#lib/shared/impact-groups.js';
   import type { ImpactSummary } from '#lib/types/genealogy.js';
@@ -64,6 +64,12 @@
     impact ? groupRecords(impact.records.filter((r) => !movedIds.has(`${r.entityType}:${r.entityId}`))) : []
   );
   const people = $derived(impact?.people ?? []);
+  // Red is for deleting. A dialog that only adds or edits (a fact) is not styled as a warning, and
+  // says a person's record changes, not their relationships, when no link or partnership does.
+  const isDestructive = $derived(impact?.isDestructive ?? true);
+  const changesRelationships = $derived(
+    (impact?.records ?? []).some((r) => r.entityType === 'link' || r.entityType === 'partner' || r.entityType === 'union')
+  );
 
   let cancelButton: HTMLButtonElement | null = $state(null);
 
@@ -76,10 +82,10 @@
 <BaseModal
   {show}
   {title}
-  icon={TriangleAlert}
-  iconBgClass="bg-red-100"
-  iconBorderClass="border-red-300"
-  iconTextClass="text-red-700"
+  icon={isDestructive ? TriangleAlert : Info}
+  iconBgClass={isDestructive ? 'bg-red-100' : 'bg-emerald-100'}
+  iconBorderClass={isDestructive ? 'border-red-300' : 'border-emerald-300'}
+  iconTextClass={isDestructive ? 'text-red-700' : 'text-emerald-800'}
   maxWidthClass="max-w-lg"
   {error}
   onclose={oncancel}
@@ -103,7 +109,9 @@
                     ? 'will be deleted'
                     : person.role === 'created'
                       ? 'will be added'
-                      : 'stays, and their relationships change'}
+                      : changesRelationships
+                        ? 'stays, and their relationships change'
+                        : 'stays, and their record changes'}
                 </span>
               </li>
             {/each}
@@ -159,7 +167,7 @@
         type="button"
         onclick={onconfirm}
         disabled={isLoading || isConfirming || isConfirmBlocked || !impact}
-        class="flex-1 cursor-pointer rounded-lg bg-red-700 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+        class="flex-1 cursor-pointer rounded-lg py-2 font-semibold text-white disabled:opacity-50 {isDestructive ? 'bg-red-700 hover:bg-red-600' : 'bg-emerald-800 hover:bg-emerald-700'}"
       >
         {isConfirming ? 'Working…' : confirmLabel}
       </button>
