@@ -291,7 +291,7 @@ number prefix can overlap.
 | S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
 | S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start (done) | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]` with the old `/?tree=` address redirecting; person and partnership pages; a repeatable fact editor; the bounded `/graph?focus=` endpoint (`up`/`down` in place of `depth`), proved equal to the whole-tree layout. See ADR-011 and ADR-012 and [query-plans.md](./query-plans.md). |
-| S6 | Person names (planned) | Several names per person with types (birth, maiden, married, aka…), round-tripped through GEDCOM; add, edit, reorder and undo them; "Jessica Wren (née Lovejoy)" display; optional date and partnership for a name change. See [Person names](#person-names) and the hand-off prompt [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
+| S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
@@ -312,6 +312,17 @@ Decision for S6: keep every name; add an optional "from" date and an optional pa
 a name in Epoch's own columns, and export them as a `NOTE` under the `NAME` so nothing is lost on a
 round trip. The display name follows the preferred name. Full scope, non-goals and process rules
 are in [s6-person-names-prompt.md](./s6-person-names-prompt.md).
+
+**S6 status (2026-09-30): done.** Departures from this plan and things left open:
+
+- **Preserved `NAME` sub-structures are stored on the name row** (`gedcom_extra`), not in `gedcom_preserved` as the plan and the hand-off prompt said (ADR-009's mechanism). That table is keyed by the owner's XREF and a head line, which a name does not have, and it is outside the row-operation tables, so deleting or undoing a name could not have carried its `NOTE` or `SOUR`. The mechanism is the same; see ADR-013.
+- **`_MARNM` is not confirmed against webtrees.** Its `Individual.php` does not mention the tag, so the reading rests on the prompt's recollection: level 1 on the `INDI`, either `Given /Surname/` or a bare surname. A level-2 `_MARNM` under a `NAME` is kept as an extra line, not modelled.
+- **People imported before S6 have one name.** The old importer dropped the others; re-importing the file in replace mode brings them back. Nothing was migrated.
+- **A person created before S6 in the editor has no name row.** The first name command gives them one; until then the page shows their fields as the only name and says to edit it from the person form.
+- **The last name of a person cannot be deleted**, so there is always a preferred name to mirror.
+- **Search UI:** the API returns `matchedName` (the stored name a person matched through) but the focus box and the relationship dialog do not show it yet, so a hit on an old name lists the current one.
+- **Not built (out of scope by the prompt):** phonetic and surname-list search, the search page, privacy for names, `FONE`/`ROMN` modelling (they are kept as extra lines).
+- **Known cosmetic limit:** a card truncates the name at 22 characters, so a long given name loses its end before the "née" line.
 
 ## Decisions (2026-09-29)
 
