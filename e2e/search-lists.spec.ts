@@ -16,11 +16,13 @@ test('search finds a person by a former name and by place and years, says why, a
 
 	// A refresh keeps the query; place and a year range hold on the same fact.
 	await open(page, `/trees/${api.treeId}/search?place=cork&from=1850&to=1855`);
-	await expect(page.getByTestId('search-result')).toHaveText('Ann Carter');
+	await expect(page.getByTestId('search-result')).toHaveText('Ann Carter (née Brown)');
 	await expect(results).toContainText('Birth: 12 JUN 1852 in Cork, Ireland');
 	await open(page, `/trees/${api.treeId}/search?place=cork&from=1900&to=1910`);
 	await expect(page.getByTestId('search-empty')).toBeVisible();
 
+	// The form keeps place and years, so a fresh search starts from the bare page.
+	await open(page, `/trees/${api.treeId}/search`);
 	await page.getByTestId('search-q').fill('Ann Carter');
 	await page.getByTestId('search-q').press('Enter');
 	await page.getByTestId('search-result').click();
