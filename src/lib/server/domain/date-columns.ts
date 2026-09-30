@@ -11,7 +11,7 @@ import {
 	type DatePrecision,
 	type DateQualifier,
 	type DateValue
-} from './date-value';
+} from '../../shared/date-value';
 
 export interface EventDateColumns {
 	/** Inclusive lower bound. Unchanged meaning from before ADR-004 was persisted. */

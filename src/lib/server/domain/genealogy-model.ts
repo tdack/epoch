@@ -7,7 +7,7 @@
  * belong to the import/export layer.
  */
 
-import type { DateValue } from './date-value';
+import type { DateValue } from '../../shared/date-value';
 
 export const PARENT_CHILD_TYPES = {
 	BIOLOGICAL: 'biological',

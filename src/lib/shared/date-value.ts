@@ -122,7 +122,11 @@ function parseDateParts(token: string): ParsedDateParts | null {
 	if (dayMonthYear) {
 		const month = parseMonth(dayMonthYear[2]);
 		if (month === null) return null;
-		return { year: Number(dayMonthYear[3]), month, day: Number(dayMonthYear[1]) };
+		const year = Number(dayMonthYear[3]);
+		const day = Number(dayMonthYear[1]);
+		// `31 FEB 1900` would otherwise roll into March in the sort bounds.
+		if (day < 1 || day > daysInMonth(year, month)) return null;
+		return { year, month, day };
 	}
 
 	const monthYear = trimmed.match(/^([A-Za-z]{3,9})\s+(\d{3,4})$/);
@@ -302,4 +306,83 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 			qualifier === DATE_QUALIFIERS.ESTIMATED ||
 			qualifier === DATE_QUALIFIERS.CALCULATED
 	};
+}
+
+/** GEDCOM month abbreviations in calendar order. */
+export const MONTH_ABBREVIATIONS = Object.keys(MONTHS);
+
+export interface DateInputCheck {
+	isValid: boolean;
+	/** Why the text was refused, in words a person can act on. */
+	message?: string;
+}
+
+const DATE_FORMAT_HELP =
+	'Use 14 APR 1912, APR 1912 or 1912, optionally after ABT, BEF, AFT, or as BET 1900 AND 1905. Put free text in brackets.';
+
+/**
+ * Check what a person typed into a date field. The parser deliberately keeps unreadable text
+ * verbatim so imports never lose data; this is the stricter question a form asks before saving.
+ */
+export function checkDateText(rawInput: string | null | undefined): DateInputCheck {
+	const raw = rawInput?.trim() ?? '';
+	if (!raw) return { isValid: true };
+	if (raw.startsWith('(') && raw.endsWith(')')) return { isValid: true };
+
+	// Two-digit years are refused rather than guessed: 26 could be 1826, 1926 or 2026.
+	if (/[A-Za-z]{3,9}\s+\d{1,2}$/.test(raw)) {
+		return { isValid: false, message: 'Enter the full year, such as 1926. Two-digit years are ambiguous.' };
+	}
+	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(raw)) {
+		const dayMonthYear = [...raw.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
+		for (const [, day, monthName, year] of dayMonthYear) {
+			const month = parseMonth(monthName);
+			if (month !== null && Number(day) > daysInMonth(Number(year), month)) {
+				return { isValid: false, message: `${monthName.toUpperCase()} ${year} doesn't have a day ${Number(day)}.` };
+			}
+		}
+	}
+
+	const value = parseDateValue(raw);
+	if (value.qualifier === DATE_QUALIFIERS.UNKNOWN) {
+		return { isValid: false, message: `Not a date Epoch can read. ${DATE_FORMAT_HELP}` };
+	}
+	if (value.sortStart && value.sortEnd && value.sortStart > value.sortEnd) {
+		return { isValid: false, message: 'The range ends before it starts.' };
+	}
+	return { isValid: true };
+}
+
+export interface PickerDate {
+	year: number;
+	/** 1-12, or null for a year-only date. */
+	month: number | null;
+	/** 1-31, or null when the day is not known. */
+	day: number | null;
+}
+
+/** Days in a 1-based month; exposed so a picker can draw its grid from the same rule as validation. */
+export function daysInMonthOf(year: number, month: number): number {
+	return daysInMonth(year, month);
+}
+
+/**
+ * Read the single date a picker can edit from field text, along with any leading qualifier
+ * (`ABT `) to keep when the picker writes the date back. Ranges have two dates, so the picker
+ * starts empty rather than choosing one to overwrite.
+ */
+export function pickerStateOf(rawInput: string): { date: PickerDate | null; prefix: string } {
+	const raw = rawInput.trim();
+	const single = raw.match(/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/i);
+	const prefix = single ? `${single[1].toUpperCase()} ` : '';
+	const parts = parseDateParts(single ? single[2] : raw);
+	return { date: parts, prefix };
+}
+
+/** Write a picked date the way the rest of the app stores it: `14 APR 1912`, `APR 1912` or `1912`. */
+export function formatPickerDate(date: PickerDate): string {
+	const year = date.year.toString();
+	if (date.month === null) return year;
+	const month = MONTH_ABBREVIATIONS[date.month - 1];
+	return date.day === null ? `${month} ${year}` : `${date.day} ${month} ${year}`;
 }

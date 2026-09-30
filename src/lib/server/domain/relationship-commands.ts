@@ -5,7 +5,7 @@
  */
 
 import { eventDateValue } from './date-columns';
-import { parseDateValue } from './date-value';
+import { parseDateValue } from '../../shared/date-value';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
 import type { TreeRows } from './change-log';
 import { validateParentChildAssertion } from './invariants';

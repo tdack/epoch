@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseDateValue, DATE_QUALIFIERS, DATE_PRECISIONS } from './date-value';
+import {
+	parseDateValue,
+	checkDateText,
+	pickerStateOf,
+	formatPickerDate,
+	DATE_QUALIFIERS,
+	DATE_PRECISIONS
+} from './date-value';
 
 describe('parseDateValue', () => {
 	it('parses an exact day', () => {
@@ -82,5 +89,37 @@ describe('parseDateValue', () => {
 		const v = parseDateValue('15 JAN 1900/01');
 		expect(v.calendar).toBe('JULIAN');
 		expect(v.sortStart).toBe('1900-01-15');
+	});
+});
+describe('checkDateText', () => {
+	it.each(['', '  ', '1912', 'APR 1912', '14 apr 1912', 'ABT 1900', 'BET 1900 AND 1905', '(about the war)', '29 FEB 1904'])(
+		'accepts %j',
+		(text) => expect(checkDateText(text).isValid).toBe(true)
+	);
+
+	it.each(['31 FEB 1900', '29 FEB 1900', 'banana', '14 APR', 'BET 1905 AND 1900', '32 JAN 1900'])(
+		'refuses %j',
+		(text) => expect(checkDateText(text).isValid).toBe(false)
+	);
+
+	it('explains that a two-digit year is ambiguous', () => {
+		expect(checkDateText('1 JAN 26').message).toMatch(/full year/);
+	});
+});
+
+describe('picker helpers', () => {
+	it('keeps a qualifier and reads the date under it', () => {
+		expect(pickerStateOf('abt 3 mar 1901')).toEqual({ date: { year: 1901, month: 3, day: 3 }, prefix: 'ABT ' });
+	});
+
+	it('starts empty for ranges and unreadable text', () => {
+		expect(pickerStateOf('BET 1900 AND 1905').date).toBeNull();
+		expect(pickerStateOf('banana').date).toBeNull();
+	});
+
+	it('writes each precision the way the app stores it', () => {
+		expect(formatPickerDate({ year: 1912, month: 4, day: 14 })).toBe('14 APR 1912');
+		expect(formatPickerDate({ year: 1912, month: 4, day: null })).toBe('APR 1912');
+		expect(formatPickerDate({ year: 1912, month: null, day: null })).toBe('1912');
 	});
 });

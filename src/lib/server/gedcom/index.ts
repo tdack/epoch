@@ -1,4 +1,4 @@
-import { parseDateValue } from '../domain/date-value';
+import { parseDateValue } from '../../shared/date-value';
 import type { Sex } from '../../shared/sex';
 
 export type GedcomVersion = '5.5.1' | '7.0';

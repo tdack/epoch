@@ -186,7 +186,7 @@ screenshots.
 | 0 | Remove runtime schema creation | `ensureDbSchema` is still called from 12 API route handlers and the GEDCOM importer. It runs a hand-maintained `CREATE TABLE IF NOT EXISTS` baseline ([schema-init.ts](../src/lib/server/db/schema-init.ts)) once per isolate. That is a second schema source that can silently drift from `drizzle/` migrations. |
 | 0 | Break up the one-page UI into route-level screens | Everything lives on [+page.svelte](../src/routes/+page.svelte) (608 lines) plus modals. There are no person, union or search routes. |
 | 0 | Correlation IDs, typed errors | Present. Handlers still repeat try/catch and `DomainError` mapping in every route, so a shared `handleError` helper would help. |
-| 1 | ADR-004 dates with bounds, precision and qualifier | [date-value.ts](../src/lib/server/domain/date-value.ts) parses these, but `events` stores only `date_raw` and `date_sort`. The bounds, precision and qualifier are discarded at persistence. |
+| 1 | ADR-004 dates with bounds, precision and qualifier | [date-value.ts](../src/lib/shared/date-value.ts) parses these, but `events` stores only `date_raw` and `date_sort`. The bounds, precision and qualifier are discarded at persistence. |
 | 1 | Neutral sex marker | The graph domain uses `'X'`, but `individuals.sex` allows only `M`, `F` and `U`. |
 | 1 | `place_ref` | Only a literal `place` text column exists. |
 | 2 | Intent-based editor covering marriage, separation, divorce, death, end and remove | The modal offers only add parent, add child and add partner. The domain already has `record_death` and `end_union` intents that the UI doesn't expose. Union status and union events (marriage date and place) can't be edited. |
