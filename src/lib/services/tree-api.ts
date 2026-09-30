@@ -18,6 +18,7 @@ import type { UnionPageDto } from '#lib/server/services/union-page-service.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { SearchResponse } from '#lib/shared/search.js';
+import type { MarksDto } from '#lib/shared/marks.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -284,6 +285,18 @@ export function fetchList<T extends IndividualListItem | UnionListItem | Surname
 	fetchFn: typeof fetch = fetch
 ): Promise<Page<T>> {
 	return call(`/api/trees/${treeId}/lists/${list}?${params}`, undefined, 'Failed to load the list', fetchFn);
+}
+
+export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks`, undefined, 'Failed to load favourites and recents', fetchFn);
+}
+
+export async function recordRecentApi(treeId: string, personId: string): Promise<void> {
+	await call(`/api/trees/${treeId}/marks/recents`, json('POST', { personId }), 'Failed to record the visit');
+}
+
+export async function setFavoriteApi(treeId: string, personId: string, isFavorite: boolean): Promise<void> {
+	await call(`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`, { method: isFavorite ? 'PUT' : 'DELETE' }, 'Failed to change the favourite');
 }
 
 // ---- Bounded reads (Phase 3) ----

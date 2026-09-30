@@ -3,6 +3,7 @@
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
+  import MarksStrip from '#lib/components/layout/MarksStrip.svelte';
   import TreeNav from '#lib/components/layout/TreeNav.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
   import ToastHost from '#lib/components/feedback/ToastHost.svelte';
@@ -76,6 +77,7 @@
     <TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
     <TreeStatsBanner treeName={data.summary.tree.name} people={data.summary.counts.people} unions={data.summary.counts.unions} />
     <TreeNav treeId={data.summary.tree.id} />
+    <MarksStrip treeId={data.summary.tree.id} marks={data.marks} />
     {@render children()}
   </main>
 </div>
