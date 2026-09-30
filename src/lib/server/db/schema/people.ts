@@ -27,8 +27,33 @@ export const personNames = sqliteTable('person_names', {
   surname: text('surname'),
   namePrefix: text('name_prefix'),
   nameSuffix: text('name_suffix'),
+  // NICK and SPFX have no neutral home of their own; they are name parts, so they live on the name.
+  nickname: text('nickname'),
+  surnamePrefix: text('surname_prefix'),
+  // The TYPE word of a free-text 5.5.1 type (or a 7.0 PHRASE) under type `other`, so export writes it back.
+  gedcomType: text('gedcom_type'),
+  // Sub-structures of the NAME the model has no column for (NOTE, SOUR, custom tags), verbatim and
+  // headed by nothing: they are written back inside this NAME. A column rather than gedcom_preserved
+  // so they follow the row through edits, reorders, deletion and undo (ADR-013).
+  gedcomExtra: text('gedcom_extra', { mode: 'json' }).$type<string[]>(),
+  // Married when? The optional "from" date, in the same columns as an event's date (ADR-004).
+  dateRaw: text('date_raw'),
+  dateSort: text('date_sort'),
+  dateSortEnd: text('date_sort_end'),
+  dateQualifier: text('date_qualifier', {
+    enum: ['EXACT', 'ABOUT', 'ESTIMATED', 'CALCULATED', 'BEFORE', 'AFTER', 'BETWEEN', 'FROM_TO', 'PHRASE', 'UNKNOWN']
+  }),
+  datePrecision: text('date_precision', { enum: ['DAY', 'MONTH', 'YEAR', 'NONE'] }),
+  dateCalendar: text('date_calendar', {
+    enum: ['GREGORIAN', 'JULIAN', 'HEBREW', 'FRENCH_REPUBLICAN', 'UNKNOWN']
+  }),
+  // The partnership this name came from. Deliberately no foreign key: a cascade or SET NULL would
+  // change the row outside the logged ops, and undo could not restore it. Commands that delete or
+  // merge a union rewrite this column themselves.
+  unionId: text('union_id'),
   isPreferred: integer('is_preferred', { mode: 'boolean' }).notNull().default(false),
   order: integer('order').notNull().default(0),
+  version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 }, (table) => ({
