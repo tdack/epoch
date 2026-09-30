@@ -141,6 +141,9 @@
 						}}
 					>
 						{label(person)}
+						{#if person.matchedName}
+							<span class="aka">also known as {person.matchedName}</span>
+						{/if}
 					</li>
 				{:else}
 					<li class="none" role="option" aria-selected="false" aria-disabled="true">No matching people</li>
@@ -236,6 +239,11 @@
 	.results li.active,
 	.results li:hover {
 		background: #f5f5f4;
+	}
+	.aka {
+		display: block;
+		font-size: 11px;
+		color: #78716c;
 	}
 	.results li.none {
 		color: #78716c;

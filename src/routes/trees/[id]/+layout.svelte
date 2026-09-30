@@ -3,6 +3,7 @@
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
   import AppHeader from '#lib/components/layout/AppHeader.svelte';
+  import TreeNav from '#lib/components/layout/TreeNav.svelte';
   import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
   import ToastHost from '#lib/components/feedback/ToastHost.svelte';
   import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -74,6 +75,7 @@
   <main class="flex-1 p-6 flex flex-col space-y-4 max-w-7xl w-full mx-auto">
     <TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
     <TreeStatsBanner treeName={data.summary.tree.name} people={data.summary.counts.people} unions={data.summary.counts.unions} />
+    <TreeNav treeId={data.summary.tree.id} />
     {@render children()}
   </main>
 </div>
