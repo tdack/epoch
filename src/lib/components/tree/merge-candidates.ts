@@ -5,6 +5,8 @@
 
 import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 import { partnerSetKey } from '#lib/shared/union-merge.js';
+
+export { mergeableUnionIds } from '#lib/shared/union-merge.js';
 import type { RelationshipGraphUnion } from '#lib/server/domain/relationship-graph.js';
 
 export interface MergeCandidate {
@@ -17,17 +19,6 @@ export interface MergeCandidate {
 }
 
 const childCountOf = (union: RelationshipGraphUnion) => new Set(union.children.map((c) => c.childId)).size;
-
-/** Ids of every union that has at least one twin with exactly the same partners, one recorded partner included. */
-export function mergeableUnionIds(unions: RelationshipGraphUnion[]): Set<string> {
-	const groups = new Map<string, string[]>();
-	for (const union of unions) {
-		if (union.partnerIds.length === 0) continue;
-		const key = partnerSetKey(union.partnerIds);
-		groups.set(key, [...(groups.get(key) ?? []), union.id]);
-	}
-	return new Set([...groups.values()].filter((ids) => ids.length > 1).flat());
-}
 
 /**
  * The union itself and every other union with exactly the same partners, oldest first. Empty when
