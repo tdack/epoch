@@ -114,3 +114,40 @@ describe('merge-mode re-import', () => {
 		expect(preferred).toHaveLength(1);
 	});
 });
+
+describe('when a name came into use, and from which partnership', () => {
+	it('writes a readable note under the NAME and reads it back into the date and the link', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
+		const married = (await t.db.select().from(personNames).all()).find((n) => n.personId === `${treeId}:@I1@` && n.type === 'married')!;
+		await t.db
+			.update(personNames)
+			.set({ dateRaw: 'ABT 1998', dateSort: '1998-01-01', dateQualifier: 'ABOUT', unionId: `${treeId}:@F1@` })
+			.where(eq(personNames.id, married.id));
+
+		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
+		expect(text).toContain('2 NOTE Name in use from ABT 1998, through family @F1@.');
+
+		// Another program that ignores the note still sees a plain NAME; Epoch reads it back.
+		const other = crypto.randomUUID();
+		await importGedcomToDb(t.d1, other, text, 'Round trip');
+		const back = (await t.db.select().from(personNames).all()).find((n) => n.personId === `${other}:@I1@` && n.type === 'married')!;
+		expect(back).toMatchObject({ dateRaw: 'ABT 1998', dateQualifier: 'ABOUT', unionId: `${other}:@F1@` });
+		expect(back.gedcomExtra).not.toContain('2 NOTE Name in use from ABT 1998, through family @F1@.');
+		expect(namesOf(buildGedcom551String(await getTreeExportData(t.d1, other)))).toEqual(namesOf(text));
+	});
+
+	it('handles a date alone, a family alone, and a note naming a family the file lacks (kept as written)', async () => {
+		const ged = (note: string) => `0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME A /B/\n1 NAME A /C/\n2 TYPE married\n2 NOTE ${note}\n0 @F1@ FAM\n1 WIFE @I1@\n0 TRLR`;
+		expect(namesOf(ged('Name in use from 1998.'))['@I1@']![1]).toMatchObject({ dateText: '1998' });
+		expect(namesOf(ged('Name in use through family @F1@.'))['@I1@']![1]).toMatchObject({ unionXref: '@F1@' });
+
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, ged('Name in use from 1998, through family @F99@.'), 'Names');
+		const row = (await t.db.select().from(personNames).all()).find((n) => n.personId === `${treeId}:@I1@` && n.type === 'married')!;
+		expect(row).toMatchObject({ unionId: null, dateRaw: null });
+		expect(row.gedcomExtra).toEqual(['2 NOTE Name in use from 1998, through family @F99@.']);
+		const out = buildGedcom551String(await getTreeExportData(t.d1, treeId));
+		expect(out.match(/Name in use/g)).toHaveLength(1);
+	});
+});

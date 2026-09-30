@@ -47,6 +47,12 @@ export interface ParsedName {
   suffix?: string;
   nickname?: string;
   surnamePrefix?: string;
+  /** From an Epoch name-change `NOTE` (ADR-013): when the name came into use. */
+  dateText?: string;
+  /** From the same note: the family it came from, as the file's XREF. */
+  unionXref?: string;
+  /** That note's own line, kept so a family the file does not have leaves the note in place. */
+  changeNoteLine?: string;
   /** Sub-structures with no column (NOTE, SOUR, FONE, ROMN, custom tags), verbatim, written back inside this NAME. */
   extra: string[];
 }
@@ -233,6 +239,17 @@ export function parseNameType(value: string | undefined, phrase?: string): { typ
   return { type: NAME_TYPES.OTHER, gedcomType: word };
 }
 
+/**
+ * The note Epoch writes under a `NAME` to say when it came into use and from which family (ADR-013).
+ * GEDCOM has no date on a name, so this is the standard place that still reads as prose in any program.
+ */
+export function nameChangeNote(dateText: string | null | undefined, unionXref: string | null | undefined): string | null {
+  if (!dateText && !unionXref) return null;
+  return `Name in use${dateText ? ` from ${dateText}` : ''}${unionXref ? `${dateText ? ',' : ''} through family ${unionXref}` : ''}.`;
+}
+
+const NAME_CHANGE_NOTE = /^Name in use(?: from (.+?))?(?:,? through family (@[^@\s]+@))?\.$/;
+
 const MODELLED_NAME_TAGS = new Set(['TYPE', 'NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX']);
 
 /**
@@ -257,6 +274,8 @@ function parseNameNode(node: GedcomNode, collect: (n: GedcomNode) => string[], i
   const spfx = sub('SPFX');
   // The line writes the surname prefix inside the slashes ("/de la Cruz/"); the column holds it apart.
   if (spfx && !surn && surname?.startsWith(`${spfx} `)) surname = surname.slice(spfx.length + 1).trim() || undefined;
+  const changeNode = node.children.find((c) => c.tag === 'NOTE' && c.children.length === 0 && c.value && NAME_CHANGE_NOTE.test(c.value.trim()));
+  const change = changeNode ? NAME_CHANGE_NOTE.exec(changeNode.value!.trim()) : null;
   return {
     ...(typeNode ? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value) : { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
     givenName: sub('GIVN') ?? givenName,
@@ -265,7 +284,10 @@ function parseNameNode(node: GedcomNode, collect: (n: GedcomNode) => string[], i
     suffix: sub('NSFX') ?? undefined,
     nickname: sub('NICK'),
     surnamePrefix: spfx,
-    extra: node.children.filter((c) => !MODELLED_NAME_TAGS.has(c.tag)).flatMap(collect)
+    ...(change?.[1] ? { dateText: change[1] } : {}),
+    ...(change?.[2] ? { unionXref: change[2] } : {}),
+    ...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),
+    extra: node.children.filter((c) => !MODELLED_NAME_TAGS.has(c.tag) && c !== changeNode).flatMap(collect)
   };
 }
 
@@ -498,6 +520,9 @@ export interface ExportName {
   suffix?: string | null;
   nickname?: string | null;
   surnamePrefix?: string | null;
+  dateText?: string | null;
+  /** The family the name came from, as its export XREF. */
+  unionXref?: string | null;
   extra?: string[] | null;
 }
 
@@ -602,6 +627,8 @@ function nameLines(ind: GedcomExportPayload['individuals'][number], format: Gedc
     if (name.surnamePrefix) lines.push(`2 SPFX ${name.surnamePrefix}`);
     if (name.surname) lines.push(`2 SURN ${name.surname}`);
     if (name.suffix) lines.push(`2 NSFX ${name.suffix}`);
+    const note = nameChangeNote(name.dateText, name.unionXref);
+    if (note) lines.push(`2 NOTE ${note}`);
     lines.push(...(name.extra ?? []));
     isFirst = false;
   }

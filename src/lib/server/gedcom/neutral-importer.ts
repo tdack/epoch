@@ -13,6 +13,7 @@
 import { eq } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { individuals, unions, unionPartners, parentChild, personNames, gedcomPreserved } from '../db/schema';
+import { dateColumnsFor } from '../domain/date-columns';
 import type { ParsedGedcomData } from './index';
 
 /**
@@ -79,6 +80,10 @@ export async function importNeutralModel(
 		const existing = known.get(personId);
 		let order = 0;
 		for (const name of ind.names ?? []) {
+			// The family a name came from, by its own XREF or one it was merged under. A note that names a family the
+			// file lacks stays as written, date and all, so export does not write it twice.
+			const family = name.unionXref ? parsed.families.find((f) => f.id === name.unionXref || f.aliases?.includes(name.unionXref!)) : undefined;
+			const extra = !family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra;
 			const key = nameContentKey(name.type, { givenName: name.givenName, surname: name.surname, namePrefix: name.prefix, nameSuffix: name.suffix, nickname: name.nickname, surnamePrefix: name.surnamePrefix });
 			if (existing?.has(key)) continue;
 			existing?.add(key);
@@ -93,7 +98,9 @@ export async function importNeutralModel(
 				nickname: name.nickname || null,
 				surnamePrefix: name.surnamePrefix || null,
 				gedcomType: name.gedcomType || null,
-				gedcomExtra: name.extra.length > 0 ? name.extra : null,
+				gedcomExtra: extra.length > 0 ? extra : null,
+				...(name.dateText && (family || !name.unionXref) ? { dateRaw: name.dateText, ...dateColumnsFor(name.dateText) } : {}),
+				unionId: family ? scoped(family.id) : null,
 				isPreferred: !existing && order === 0,
 				order: order++
 			});

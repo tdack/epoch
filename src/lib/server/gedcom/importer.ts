@@ -525,6 +525,8 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
             suffix: n.nameSuffix,
             nickname: n.nickname,
             surnamePrefix: n.surnamePrefix,
+            dateText: n.dateRaw,
+            unionXref: n.unionId ? famXrefMap.get(n.unionId) ?? null : null,
             extra: n.gedcomExtra
           })),
         sex: ind.sex,
