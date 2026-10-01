@@ -41,8 +41,9 @@ async function measure(name: string, statement: SQL): Promise<Plan> {
 const tableScans = (details: string[]) => details.filter((d) => /^SCAN (?!cand|scored|best|\(subquery)/.test(d));
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01' };
-const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01' };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+// A contributor, so the measured predicate includes the creator test.
+const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01', creatorId: 'a-contributor' };
 
 const FILTERS: Array<[string, Partial<SearchFilters>]> = [
 	['name, two words', { words: ['ann', 'brown'] }],

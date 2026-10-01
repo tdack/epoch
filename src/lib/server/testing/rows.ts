@@ -71,6 +71,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			surname: p.surname ?? null,
 			sex: p.sex ?? 'U',
 			privacy: 'auto',
+			createdBy: null,
 			version: p.version ?? 1,
 			createdAt: T0,
 			updatedAt: T0

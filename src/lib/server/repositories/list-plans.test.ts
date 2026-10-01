@@ -15,8 +15,10 @@ afterAll(async () => {
 });
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01' };
-const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01' };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+// A contributor, so the measured predicate includes the creator test.
+const RESTRICTED: { isRestricted: boolean; cutoff: string; creatorId: string | null } = { isRestricted: true, cutoff: '1906-10-01', creatorId: 'a-contributor' };
+const RESTRICTED_NOT_A_CREATOR = { ...RESTRICTED, creatorId: null };
 
 const dialect = new SQLiteSyncDialect();
 interface Plan {
@@ -30,6 +32,10 @@ async function measure(name: string, statement: SQL): Promise<Plan> {
 	const plan = await t.d1.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...params).all<{ detail: string }>();
 	const run = await t.d1.prepare(sql).bind(...params).run();
 	return { name, details: plan.results.map((r) => r.detail), returned: run.results.length, rowsRead: run.meta.rows_read };
+}
+async function resultOf(statement: SQL): Promise<unknown[]> {
+	const { sql, params } = dialect.sqlToQuery(statement);
+	return (await t.d1.prepare(sql).bind(...params).all()).results;
 }
 /** A CTE or subquery's own scan is not a table scan. */
 const tableScans = (details: string[]) => details.filter((d) => /^SCAN (?!pairs|\(subquery)/.test(d));
@@ -94,6 +100,18 @@ describe('the list queries, against two trees of different size', () => {
 			} else {
 				// Deep pages and a surname filter still walk up to one tree, never more.
 				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(k * 3 * size);
+			}
+		}
+
+		// Nobody in these trees was created by the contributor, so the creator test must change nothing
+		// but the cost: it measured fewer rows read, which is only believable if the answers are the same.
+		for (const treeId of [small, big]) {
+			for (const read of [
+				(scope: typeof RESTRICTED) => repo.individualsSql(treeId, 'surname', '', page, scope),
+				(scope: typeof RESTRICTED) => repo.surnamesSql(treeId, page, scope),
+				(scope: typeof RESTRICTED) => repo.unionsSql(treeId, page, scope)
+			]) {
+				expect(await resultOf(read(RESTRICTED))).toEqual(await resultOf(read(RESTRICTED_NOT_A_CREATOR)));
 			}
 		}
 	}, 240_000);

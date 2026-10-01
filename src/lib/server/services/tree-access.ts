@@ -11,6 +11,14 @@ import type { UserRepository } from '../repositories/user-repository';
  */
 export interface ViewerScope {
 	role: TreeRole;
+	/** The caller, stamped on the people they create. */
+	userId: string;
+	/**
+	 * Set for a contributor: the people they created stay visible to them while private, so a person
+	 * added without a dated fact does not vanish. Null for everyone else (a demoted contributor
+	 * included: they are no longer the author of anything they may see).
+	 */
+	creatorId: string | null;
 	/** True for contributors and viewers: private people are absent from what they read. */
 	isRestricted: boolean;
 	/** A birth that ended before this day makes a person not living; computed from an injected `now`. */
@@ -55,6 +63,8 @@ export async function requireTreeScope(
 	if (!settings) throw new NotFoundError('Tree', treeId);
 	return {
 		role,
+		userId: context.user.id,
+		creatorId: role === 'contributor' ? context.user.id : null,
 		isRestricted: !canSeePrivatePeople(role),
 		cutoff: livingCutoff(now, settings.maxAliveYears),
 		shouldShowPrivateStructure: settings.shouldShowPrivateStructure

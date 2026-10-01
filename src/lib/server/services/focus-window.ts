@@ -39,6 +39,8 @@ const PRIVACY_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as c
 export interface WindowPrivacy {
 	cutoff: string;
 	shouldShowPrivateStructure: boolean;
+	/** A contributor's own id: the people they created are not hidden from them. */
+	creatorId: string | null;
 }
 
 export interface FocusWindowOptions extends Omit<FocusViewOptions, 'expandedStubIds'> {
@@ -115,12 +117,12 @@ class WindowState {
 
 	/** Everyone in the loaded rows whom the viewer may not see; empty when no privacy applies. */
 	hiddenPersonIds(): Set<string> {
-		return this.privacy ? privatePeople(this.unmaskedRows(), this.privacy.cutoff) : new Set();
+		return this.privacy ? privatePeople(this.unmaskedRows(), this.privacy.cutoff, this.privacy.creatorId) : new Set();
 	}
 
 	rows(): { rows: TreeRows; placeholderIds: Set<string> } {
 		const rows = this.unmaskedRows();
-		return this.privacy ? maskRows(rows, this.privacy.cutoff, this.privacy.shouldShowPrivateStructure) : { rows, placeholderIds: new Set() };
+		return this.privacy ? maskRows(rows, this.privacy.cutoff, this.privacy.shouldShowPrivateStructure, this.privacy.creatorId) : { rows, placeholderIds: new Set() };
 	}
 
 	graph(): RelationshipGraph {

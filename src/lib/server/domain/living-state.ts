@@ -54,9 +54,14 @@ export function isLikelyLiving(facts: readonly LivingFact[], cutoff: string): bo
 	return !(latest < cutoff);
 }
 
-/** An override always wins; `auto` follows the derivation. */
-export function isPersonPrivate(privacy: PersonPrivacy, facts: readonly LivingFact[], cutoff: string): boolean {
+/**
+ * An override always wins; `auto` follows the derivation, except that the viewer's own creations
+ * are shown: `isOwn` is true when the viewer is a contributor who created this person. A manager's
+ * `private` still hides them.
+ */
+export function isPersonPrivate(privacy: PersonPrivacy, facts: readonly LivingFact[], cutoff: string, isOwn = false): boolean {
 	if (privacy === PERSON_PRIVACY.PRIVATE) return true;
 	if (privacy === PERSON_PRIVACY.PUBLIC) return false;
+	if (isOwn) return false;
 	return isLikelyLiving(facts, cutoff);
 }

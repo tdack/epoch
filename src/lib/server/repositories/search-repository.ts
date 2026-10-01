@@ -18,7 +18,7 @@ import { dateBound } from '../../shared/search';
 import type { ViewerScope } from '../services/tree-access';
 import { andVisible, isVisibleOf } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
 
 export interface SearchHit {
 	personId: string;
