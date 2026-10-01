@@ -6,7 +6,9 @@
 
 import type { DbClient } from '../db';
 import { isActionAllowed, type TreeAction } from '../auth/authorization';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import {
 	OP_KINDS,
@@ -50,6 +52,7 @@ export function actionForOps(ops: RowOp[]): TreeAction {
 export class MutationRunner {
 	readonly store: ChangeStore;
 	private userRepo: UserRepository;
+	private treeRepo: TreeRepository;
 
 	constructor(
 		db: DbClient,
@@ -57,6 +60,7 @@ export class MutationRunner {
 	) {
 		this.store = new ChangeStore(db);
 		this.userRepo = new UserRepository(db);
+		this.treeRepo = new TreeRepository(db);
 	}
 
 	async requireAccess(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<void> {
@@ -64,6 +68,11 @@ export class MutationRunner {
 		if (!membership || !isActionAllowed(membership.role, action)) {
 			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
 		}
+	}
+
+	/** The action check plus what the caller may see of private people (ADR-015). */
+	scopeFor(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<ViewerScope> {
+		return requireTreeScope(this.userRepo, this.treeRepo, treeId, context, action, new Date(this.clock.now()));
 	}
 
 	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[]): RowOp[] {

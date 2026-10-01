@@ -8,7 +8,7 @@ import { getPlatformProxy } from 'wrangler';
 import type { D1Database } from '@cloudflare/workers-types';
 import { getDb, type DbClient } from '../db';
 import { trees, treeMemberships, users } from '../db/schema';
-import type { AuthenticatedContext } from '../domain/identity';
+import type { AuthenticatedContext, TreeRole } from '../domain/identity';
 import journal from '../../../../drizzle/meta/_journal.json';
 
 /** Migration SQL keyed by path, inlined by Vite so no filesystem types are needed. */
@@ -82,7 +82,7 @@ export async function createTestUser(db: DbClient, label = 'user'): Promise<Test
 export async function createTestTree(
 	db: DbClient,
 	actor: TestActor,
-	role: 'owner' | 'editor' | 'viewer' = 'owner'
+	role: TreeRole = 'owner'
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	await db.insert(trees).values({ id, name: `Test tree ${id.slice(0, 6)}` });
@@ -100,7 +100,7 @@ export async function addTestMember(
 	db: DbClient,
 	treeId: string,
 	actor: TestActor,
-	role: 'owner' | 'editor' | 'viewer'
+	role: TreeRole
 ): Promise<void> {
 	await db.insert(treeMemberships).values({
 		id: crypto.randomUUID(),

@@ -9,6 +9,10 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { INDIVIDUAL_SORTS, type IndividualSort } from '../../shared/lists';
+import type { ViewerScope } from '../services/tree-access';
+import { andVisible, isVisibleOf } from './visibility';
+
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff'>;
 
 export interface PageRequest {
 	offset: number;
@@ -29,28 +33,33 @@ const ORDER: Record<IndividualSort, SQL> = {
 export class ListRepository {
 	constructor(private db: DbClient) {}
 
-	individualsSql(treeId: string, sort: IndividualSort, surname: string, page: PageRequest): SQL {
+	individualsSql(treeId: string, sort: IndividualSort, surname: string, page: PageRequest, scope: Scope): SQL {
 		// The surname filter is the surname list's own rule (see `surnamesSql`): the display surname,
 		// or any stored name's. The stored-name half joins through individuals to bound it to this
 		// tree; person_names has no tree_id, and an index on its surname would read other trees' rows.
 		const filter = surname
 			? sql` and (i.surname = ${surname} collate nocase or i.id in (select n.person_id from person_names n join individuals i2 on i2.id = n.person_id where i2.tree_id = ${treeId} and n.surname = ${surname} collate nocase))`
 			: sql``;
-		return sql`select i.id as id from individuals i where i.tree_id = ${treeId}${filter} order by ${ORDER[sort]} limit ${page.limit + 1} offset ${page.offset}`;
+		return sql`select i.id as id from individuals i where i.tree_id = ${treeId}${filter}${andVisible('i', scope)} order by ${ORDER[sort]} limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async individualIds(treeId: string, sort: IndividualSort, surname: string, page: PageRequest): Promise<{ ids: string[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string }>(this.individualsSql(treeId, sort, surname, page));
+	async individualIds(treeId: string, sort: IndividualSort, surname: string, page: PageRequest, scope: Scope): Promise<{ ids: string[]; hasMore: boolean }> {
+		const rows = await this.db.all<{ id: string }>(this.individualsSql(treeId, sort, surname, page, scope));
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
 
-	unionsSql(treeId: string, page: PageRequest): SQL {
+	unionsSql(treeId: string, page: PageRequest, scope: Scope): SQL {
 		// Creation order: the `(tree_id)` index is in rowid order, so a page reads offset + limit entries.
-		return sql`select id from unions where tree_id = ${treeId} order by rowid limit ${page.limit + 1} offset ${page.offset}`;
+		// A partnership is listed only when every partner is visible: its marriage date and place are
+		// facts about the people in it, so a private partner makes them private too (ADR-015).
+		const allPartnersVisible = scope.isRestricted
+			? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
+			: sql``;
+		return sql`select u.id as id from unions u where u.tree_id = ${treeId}${allPartnersVisible} order by u.rowid limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async unionIds(treeId: string, page: PageRequest): Promise<{ ids: string[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string }>(this.unionsSql(treeId, page));
+	async unionIds(treeId: string, page: PageRequest, scope: Scope): Promise<{ ids: string[]; hasMore: boolean }> {
+		const rows = await this.db.all<{ id: string }>(this.unionsSql(treeId, page, scope));
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
 
@@ -60,21 +69,21 @@ export class ListRepository {
 	 * two casings of a surname are one (`collate nocase`, the same rule the list filter uses, so a
 	 * count here equals the rows of the filtered individuals list).
 	 */
-	surnamesSql(treeId: string, page: PageRequest): SQL {
+	surnamesSql(treeId: string, page: PageRequest, scope: Scope): SQL {
 		return sql`
 			with pairs as (
 				select pid, min(s) as shown from (
-					select i.id as pid, i.surname as s from individuals i where i.tree_id = ${treeId} and i.surname <> ''
+					select i.id as pid, i.surname as s from individuals i where i.tree_id = ${treeId} and i.surname <> ''${andVisible('i', scope)}
 					union all
-					select n.person_id, n.surname from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId} and n.surname <> ''
+					select n.person_id, n.surname from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId} and n.surname <> ''${andVisible('i', scope)}
 				) group by pid, s collate nocase
 			)
 			select min(shown) as surname, count(*) as people from pairs
 			group by shown collate nocase order by shown collate nocase limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async surnames(treeId: string, page: PageRequest): Promise<{ rows: SurnameCount[]; hasMore: boolean }> {
-		const rows = await this.db.all<SurnameCount>(this.surnamesSql(treeId, page));
+	async surnames(treeId: string, page: PageRequest, scope: Scope): Promise<{ rows: SurnameCount[]; hasMore: boolean }> {
+		const rows = await this.db.all<SurnameCount>(this.surnamesSql(treeId, page, scope));
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}
 }

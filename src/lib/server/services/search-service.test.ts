@@ -181,7 +181,9 @@ describe('who may search', () => {
 	it('allows a viewer and refuses a stranger', async () => {
 		const viewer = await createTestUser(t.db, 'viewer');
 		await addTestMember(t.db, treeId, viewer, 'viewer');
-		expect((await service.search(treeId, { text: 'Tom' }, viewer.context)).people).toHaveLength(1);
+		// Tom has no dated fact, so he is private to a viewer (ADR-015); Cora died in 1960.
+		expect((await service.search(treeId, { text: 'Cora' }, viewer.context)).people).toHaveLength(1);
+		expect((await service.search(treeId, { text: 'Tom' }, viewer.context)).people).toHaveLength(0);
 		const stranger = await createTestUser(t.db, 'stranger');
 		await expect(service.search(treeId, { text: 'Tom' }, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
 	});

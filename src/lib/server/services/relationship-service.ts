@@ -17,6 +17,7 @@ import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { TreeRows } from '../domain/change-log';
 import { mergeConflictsOf } from '../domain/tree-ops';
 import { unresolvedConflicts, type MergeConflict } from '../../shared/union-merge';
+import type { ViewerScope } from './tree-access';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 
 /** A plan plus the exact records it would write. */
@@ -51,11 +52,11 @@ export class RelationshipService {
 	}
 
 	private async planFor(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext) {
-		await this.runner.requireAccess(treeId, context, 'record:create');
+		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
 		const rows = await this.runner.store.loadRows(treeId);
 		const plan = planRelationshipCommand(intent, {
 			rows,
-			hasDuplicateName: await this.hasDuplicate(treeId, intent),
+			hasDuplicateName: await this.hasDuplicate(treeId, intent, scope),
 			newId: this.runner.clock.newId
 		});
 		return { rows, plan };
@@ -143,7 +144,9 @@ export class RelationshipService {
 		return graphFromRows(await this.runner.store.loadRows(treeId));
 	}
 
-	private async hasDuplicate(treeId: string, intent: RelationshipIntent): Promise<boolean> {
+	// A restricted viewer's cue ignores private people, or "this name already exists" would tell a
+	// contributor that a private person has it (ADR-015).
+	private async hasDuplicate(treeId: string, intent: RelationshipIntent, scope: ViewerScope): Promise<boolean> {
 		let ref;
 		switch (intent.kind) {
 			case 'add_parent':
@@ -163,7 +166,7 @@ export class RelationshipService {
 		}
 		const name = ref.givenName ?? ref.surname;
 		if (!name?.trim()) return false;
-		const { hits } = await this.search.find(treeId, { words: searchWords(name), place: '', from: '', to: '', limit: 25, offset: 0 });
+		const { hits } = await this.search.find(treeId, { words: searchWords(name), place: '', from: '', to: '', limit: 25, offset: 0 }, scope);
 		// A match is a duplicate cue when it is a different person than the one being linked. A
 		// person being created has no id yet, so any match is a cue.
 		return hits.some((h) => ref.isNew || h.personId !== ref.id);

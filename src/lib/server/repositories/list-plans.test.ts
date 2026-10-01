@@ -14,6 +14,10 @@ afterAll(async () => {
 	await t.dispose();
 });
 
+/** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01' };
+const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01' };
+
 const dialect = new SQLiteSyncDialect();
 interface Plan {
 	name: string;
@@ -53,13 +57,16 @@ describe('the list queries, against two trees of different size', () => {
 		const repo = new ListRepository(t.db);
 		const page = { offset: 0, limit: 50 };
 		const plans: Plan[] = [];
-		for (const [label, treeId] of [['small', small], ['big', big]] as const) {
-			plans.push(await measure(`individuals by surname, first page (${label})`, repo.individualsSql(treeId, 'surname', '', page)));
-			plans.push(await measure(`individuals by given name, first page (${label})`, repo.individualsSql(treeId, 'given', '', page)));
-			plans.push(await measure(`individuals by surname, page 100 (${label})`, repo.individualsSql(treeId, 'surname', '', { offset: 4950, limit: 50 })));
-			plans.push(await measure(`individuals of one surname (${label})`, repo.individualsSql(treeId, 'surname', surname, page)));
-			plans.push(await measure(`surname list (${label})`, repo.surnamesSql(treeId, page)));
-			plans.push(await measure(`partnership list, first page (${label})`, repo.unionsSql(treeId, page)));
+		for (const [viewer, scope] of [['', EVERYONE], [', restricted viewer', RESTRICTED]] as const) {
+			for (const [label, treeId] of [['small', small], ['big', big]] as const) {
+				const at = `${viewer} (${label})`;
+				plans.push(await measure(`individuals by surname, first page${at}`, repo.individualsSql(treeId, 'surname', '', page, scope)));
+				plans.push(await measure(`individuals by given name, first page${at}`, repo.individualsSql(treeId, 'given', '', page, scope)));
+				plans.push(await measure(`individuals by surname, page 100${at}`, repo.individualsSql(treeId, 'surname', '', { offset: 4950, limit: 50 }, scope)));
+				plans.push(await measure(`individuals of one surname${at}`, repo.individualsSql(treeId, 'surname', surname, page, scope)));
+				plans.push(await measure(`surname list${at}`, repo.surnamesSql(treeId, page, scope)));
+				plans.push(await measure(`partnership list, first page${at}`, repo.unionsSql(treeId, page, scope)));
+			}
 		}
 
 		if (process.env.WRITE_QUERY_PLANS) {
@@ -75,14 +82,18 @@ describe('the list queries, against two trees of different size', () => {
 			expect(plan.details.join(' '), plan.name).not.toContain('TEMP B-TREE FOR ORDER BY');
 			const isSmall = plan.name.endsWith('(small)');
 			const size = isSmall ? smallSize : bigSize;
+			// The visibility predicate looks up each person's events (ADR-015): a few rows per person
+			// examined, so a restricted viewer's bounds are wider, and still one tree's worth.
+			const k = plan.name.includes('restricted viewer') ? 4 : 1;
 			if (plan.name.includes('first page')) {
 				// An index in the page's own order: a page costs a page, not the tree.
-				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(2 * (page.limit + 1) + 10);
+				// A partnership page looks up both partners' events per row, about a dozen rows each.
+				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(k === 1 ? 2 * (page.limit + 1) + 10 : 14 * (page.limit + 1));
 			} else if (plan.name.includes('surname list')) {
-				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(10 * size);
+				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(k * 10 * size);
 			} else {
 				// Deep pages and a surname filter still walk up to one tree, never more.
-				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(3 * size);
+				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(k * 3 * size);
 			}
 		}
 	}, 240_000);

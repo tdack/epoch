@@ -9,6 +9,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { PersonNameRow } from '../domain/change-log';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { SearchRepository } from '../repositories/search-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { factLabel } from '../../shared/fact-types';
 import { formatFullName } from '../../shared/name-types';
@@ -23,9 +24,8 @@ import {
 	type SearchResponse,
 	type SearchResultDto
 } from '../../shared/search';
-import { filterForViewer } from './privacy-seam';
 import { summaryOfRows } from './person-summaries';
-import { requireTreeAction } from './tree-access';
+import { requireTreeScope } from './tree-access';
 
 /** Facts listed per person; a person with forty births in Cork needs no forty lines. */
 const FACTS_SHOWN_PER_PERSON = 3;
@@ -36,15 +36,20 @@ export class SearchService {
 	private repo: SearchRepository;
 	private graphRepo: GraphWindowRepository;
 	private users: UserRepository;
+	private trees: TreeRepository;
 
-	constructor(db: DbClient) {
+	constructor(
+		db: DbClient,
+		private now: () => Date = () => new Date()
+	) {
 		this.repo = new SearchRepository(db);
 		this.graphRepo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
+		this.trees = new TreeRepository(db);
 	}
 
 	async search(treeId: string, query: Partial<SearchQuery>, context: AuthenticatedContext): Promise<SearchResponse> {
-		await requireTreeAction(this.users, treeId, context, 'tree:view');
+		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const text = (query.text ?? '').trim();
 		const place = (query.place ?? '').trim();
 		const limit = Math.min(Math.max(query.limit ?? DEFAULT_SEARCH_LIMIT, 1), MAX_SEARCH_LIMIT);
@@ -54,8 +59,8 @@ export class SearchService {
 		const words = searchWords(text);
 
 		// An XREF is exact and is checked on the first page only; it leads, then the name hits.
-		const xrefIds = offset === 0 ? await this.repo.byXref(treeId, text) : [];
-		const { hits, hasMore } = await this.repo.find(treeId, { words, place, from, to, limit, offset });
+		const xrefIds = offset === 0 ? await this.repo.byXref(treeId, text, scope) : [];
+		const { hits, hasMore } = await this.repo.find(treeId, { words, place, from, to, limit, offset }, scope);
 		if (words.length === 0 && !place && !from && !to && xrefIds.length === 0) return { people: [], hasMore: false };
 
 		const nameIdOf = new Map(hits.map((h) => [h.personId, h.nameId]));
@@ -127,6 +132,6 @@ export class SearchService {
 				...(matchedName ? { matchedName } : {})
 			});
 		}
-		return { people: filterForViewer(results, context), hasMore };
+		return { people: results, hasMore };
 	}
 }

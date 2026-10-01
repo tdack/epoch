@@ -266,3 +266,36 @@ order. Then the person records for the page come from the bounded id reads.
   of "every stored name". Denormalised surname counters are Phase 8 if a tree needs them.
 - Unsurnamed people sort first (`NULL` first in the index), not last, because an expression in the
   `ORDER BY` would lose the index.
+
+## Visibility (S8, ADR-015)
+
+For a contributor or a viewer every read below also carries the visibility predicate
+(`repositories/visibility.ts`): two correlated lookups on `idx_event_entity` per person examined,
+about 4.5 index rows each. Owners, managers and editors run the unfiltered query, whose numbers are
+the S7 ones above. The predicate never reads another tree: the lookup is by the person's own id.
+The plan tests measure both viewers on the same two trees (small: 419 people, 903 with names; big:
+5,324 people, 11,425) and fail on a table scan or on a read beyond the bounds in the tests.
+
+| Read | Everyone, small / big | Restricted, small / big |
+|---|---|---|
+| People list, first page (surname order) | 51 / 51 | 217 / 259 |
+| People list, first page (given-name order) | 51 / 51 | 209 / 253 |
+| People list, page 100 | 419 / 5,001 | 1,793 / 23,285 |
+| One surname's people | 1,740 / 17,196 | 1,808 / 17,409 |
+| Surname list, first page | 3,116 / 34,901 | 5,864 / 67,569 |
+| Partnership list, first page | 51 / 51 | 650 / 648 |
+| Search: name, two words | 1,765 / 22,082 | 1,785 / 22,090 |
+| Search: one letter | 3,032 / 40,328 | 4,046 / 54,676 |
+| Search: place | 2,781 / 35,563 | 3,059 / 38,747 |
+| Search: year range | 2,122 / 35,154 | 2,798 / 37,558 |
+| Search: place and year range | 2,913 / 38,036 | 2,989 / 38,232 |
+| XREF lookup | 5 | 7 |
+
+- **Search pays almost nothing** because the predicate is applied after ranking, to the people the
+  name filter already kept; only the short, broad queries (one letter, a place) pay a visible
+  premium.
+- **The surname list pays most** (about 12 rows per person on the big tree, against 6.5 before),
+  because it aggregates over every person. If a tree outgrows that, the stored-column alternative in
+  ADR-015 is the next step, and only the predicate changes.
+- **The partnership list's first page** costs 650 rows instead of 51: each union row looks up both
+  partners' events.

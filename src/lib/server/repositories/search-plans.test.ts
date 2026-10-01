@@ -40,6 +40,10 @@ async function measure(name: string, statement: SQL): Promise<Plan> {
 /** Plan lines that read a named table from its first row to its last. A CTE or subquery is not a table. */
 const tableScans = (details: string[]) => details.filter((d) => /^SCAN (?!cand|scored|best|\(subquery)/.test(d));
 
+/** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01' };
+const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01' };
+
 const FILTERS: Array<[string, Partial<SearchFilters>]> = [
 	['name, two words', { words: ['ann', 'brown'] }],
 	['name, one letter', { words: ['a'] }],
@@ -72,10 +76,13 @@ describe('the search queries, against two trees of different size', () => {
 		const plans: Plan[] = [];
 		for (const [name, partial] of FILTERS) {
 			const filters: SearchFilters = { words: [], place: '', from: '', to: '', limit: 25, offset: 0, ...partial };
-			plans.push(await measure(`${name} (small tree)`, repo.findSql(small, filters)));
-			plans.push(await measure(`${name} (big tree)`, repo.findSql(big, filters)));
+			plans.push(await measure(`${name} (small tree)`, repo.findSql(small, filters, EVERYONE)));
+			plans.push(await measure(`${name} (big tree)`, repo.findSql(big, filters, EVERYONE)));
+			plans.push(await measure(`${name}, restricted viewer (small tree)`, repo.findSql(small, filters, RESTRICTED)));
+			plans.push(await measure(`${name}, restricted viewer (big tree)`, repo.findSql(big, filters, RESTRICTED)));
 		}
-		plans.push(await measure('XREF (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'))));
+		plans.push(await measure('XREF (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'), EVERYONE)));
+		plans.push(await measure('XREF, restricted viewer (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'), RESTRICTED)));
 
 		if (process.env.WRITE_QUERY_PLANS) {
 			const lines = [`Small tree: ${smallPeople} people, ${smallNames} names, ${smallEvents} events. Big tree: ${bigPeople} people.`];
@@ -87,11 +94,15 @@ describe('the search queries, against two trees of different size', () => {
 
 		// A tree's own size is the ceiling for a query over it. The small tree is under a fifth of
 		// the big one, so a query that also read the big tree's rows blows through this.
+		// The visibility predicate adds two event lookups per candidate (ADR-015), so a restricted
+		// viewer's ceiling is higher; it is still the small tree's own size, never the big tree's.
 		const ceiling = 6 * (smallPeople + smallNames + smallEvents);
+		const restrictedCeiling = 12 * (smallPeople + smallNames + smallEvents);
 		for (const plan of plans) {
 			expect(tableScans(plan.details), `${plan.name}: ${plan.details.join(' | ')}`).toEqual([]);
 			if (plan.name.endsWith('(small tree)')) {
-				expect(plan.rowsRead, `${plan.name} read ${plan.rowsRead} rows, tree holds ${smallPeople + smallNames + smallEvents}`).toBeLessThanOrEqual(ceiling);
+				const limit = plan.name.includes('restricted') ? restrictedCeiling : ceiling;
+				expect(plan.rowsRead, `${plan.name} read ${plan.rowsRead} rows, tree holds ${smallPeople + smallNames + smallEvents}`).toBeLessThanOrEqual(limit);
 			}
 		}
 		expect(plans.find((p) => p.name === 'XREF (small tree)')!.rowsRead).toBeLessThanOrEqual(10);
