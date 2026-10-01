@@ -33,7 +33,7 @@ export class ChangeLogService {
 	}
 
 	async undoLast(treeId: string, context: AuthenticatedContext): Promise<UndoResult> {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
+		const scope = await this.runner.scopeFor(treeId, context, 'tree:view');
 		const { store } = this.runner;
 
 		const target = await store.latestUndoable(treeId, context.user.id);
@@ -44,7 +44,8 @@ export class ChangeLogService {
 		const later = await store.firstTouchedAfter(treeId, target.seq, recordsOf(target.inverse));
 		if (later) {
 			throw new UndoRefusedError(
-				`Can't undo "${target.summary}" because a later change ("${later.summary}") also changed those records.`,
+				// A later change may be someone else's, and its summary names whoever it touched.
+				`Can't undo "${target.summary}" because a later change${scope.isRestricted ? '' : ` ("${later.summary}")`} also changed those records.`,
 				UNDO_REFUSALS.TOUCHED_LATER
 			);
 		}
@@ -69,7 +70,7 @@ export class ChangeLogService {
 		const [dependent] = dependentsOfDeletions(rows, rebased.ops);
 		if (dependent) {
 			throw new UndoRefusedError(
-				`Can't undo "${target.summary}" because other records now depend on it (${labeler(dependent.table, dependent.row)}). Remove those first.`,
+				`Can't undo "${target.summary}" because other records now depend on it${scope.isRestricted ? '' : ` (${labeler(dependent.table, dependent.row)})`}. Remove those first.`,
 				UNDO_REFUSALS.HAS_DEPENDENTS
 			);
 		}
@@ -91,7 +92,8 @@ export class ChangeLogService {
 	}
 
 	async listRecent(treeId: string, context: AuthenticatedContext, limit = 50) {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
+		// The tree-wide log is prose naming whoever a change touched, so only roles that see everyone read it.
+		await this.runner.requireAccess(treeId, context, 'record:edit');
 		return this.runner.store.listRecent(treeId, limit);
 	}
 }

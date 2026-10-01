@@ -14,7 +14,7 @@
  */
 
 import { isPersonPrivate, type LivingFact } from './living-state';
-import type { IndividualRow, TreeRows } from './change-log';
+import type { IndividualRow, RowOp, TreeRows } from './change-log';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
 
@@ -71,4 +71,42 @@ export function maskRows(rows: TreeRows, cutoff: string, shouldShowStructure: bo
 		},
 		placeholderIds: new Set()
 	};
+}
+
+/**
+ * Whether any of these row operations reads or writes a record that belongs to a private person:
+ * the person, their names, facts, links, partner rows and media, or a partnership they are in.
+ * A restricted viewer's mutation is refused if it does (ADR-015), because the result would carry
+ * or change something they may not see.
+ */
+export function opsTouchPrivate(ops: readonly RowOp[], rows: TreeRows, cutoff: string): boolean {
+	const hidden = privatePeople(rows, cutoff);
+	if (hidden.size === 0) return false;
+	const hiddenUnions = new Set(rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId));
+	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions));
+}
+
+function touchesHidden(op: RowOp, hidden: Set<string>, hiddenUnions: Set<string>): boolean {
+	return [op.before, op.after].some((image) => {
+		if (!image) return false;
+		const r = image as Record<string, string | undefined>;
+		switch (op.table) {
+			case 'individuals':
+				return hidden.has(op.id);
+			case 'person_names':
+				return hidden.has(r.personId ?? '');
+			case 'unions':
+				return hiddenUnions.has(op.id);
+			case 'union_partners':
+				return hidden.has(r.personId ?? '') || hiddenUnions.has(r.unionId ?? '');
+			case 'parent_child':
+				return hidden.has(r.parentId ?? '') || hidden.has(r.childId ?? '') || hiddenUnions.has(r.unionId ?? '');
+			case 'events':
+				return r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId ?? '') : hiddenUnions.has(r.entityId ?? '');
+			case 'media_items':
+				return hidden.has(r.entityId ?? '');
+			default:
+				return false;
+		}
+	});
 }

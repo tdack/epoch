@@ -11,6 +11,7 @@ import { pastTense, describeCommand } from '../domain/command-summary';
 import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { describeImpact, type ImpactSummary } from '../domain/impact';
+import { maskRows } from '../domain/privacy-mask';
 import { graphFromRows } from '../domain/relationship-graph';
 import { planRelationshipCommand, type RelationshipCommand, type RelationshipPlan } from '../domain/relationship-commands';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
@@ -54,19 +55,22 @@ export class RelationshipService {
 	private async planFor(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext) {
 		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
 		const rows = await this.runner.store.loadRows(treeId);
+		// A restricted viewer's sentence and checks run over the rows they can see, so it can name
+		// nobody they may not (ADR-015); `plan` and `execute` then guard the real ops.
+		const visible = this.runner.visibleRows(rows, scope);
 		const plan = planRelationshipCommand(intent, {
-			rows,
+			rows: visible,
 			hasDuplicateName: await this.hasDuplicate(treeId, intent, scope),
 			newId: this.runner.clock.newId
 		});
-		return { rows, plan };
+		return { rows, visible, scope, plan };
 	}
 
 	/** Produce a preview for an intent without writing anything. */
 	async plan(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<PreviewedPlan> {
-		const { rows, plan } = await this.planFor(treeId, intent, context);
-		const ops = this.runner.plan(treeId, rows, plan.commands);
-		return { ...plan, impact: describeImpact(plan.sentence, rows, ops) };
+		const { rows, visible, scope, plan } = await this.planFor(treeId, intent, context);
+		const ops = this.runner.planFor(treeId, rows, plan.commands, scope);
+		return { ...plan, impact: describeImpact(plan.sentence, visible, ops) };
 	}
 
 	/**
@@ -90,9 +94,7 @@ export class RelationshipService {
 
 	/** What removing something would write, without writing it. Destructive actions show this first. */
 	async previewRemoval(treeId: string, command: RemovalCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
-		const rows = await this.runner.store.loadRows(treeId);
-		return describeImpact(this.removalHeadline(rows, command), rows, this.runner.plan(treeId, rows, [command]));
+		return this.runner.preview(treeId, context, [command], (rows) => this.removalHeadline(rows, command));
 	}
 
 	/**
@@ -123,11 +125,13 @@ export class RelationshipService {
 
 	/** Preview a merge without writing. Open conflicts come back as data, not as an error. */
 	async previewMerge(treeId: string, command: MergeUnionsCommand, context: AuthenticatedContext): Promise<MergePreview> {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
-		const rows = await this.runner.store.loadRows(treeId);
-		const conflicts = mergeConflictsOf(rows, [command.survivorId, ...command.mergedIds]);
+		// Conflicts are read first, from the rows the caller may see; planning (and its rights check)
+		// follows only once none is left open, as before.
+		const scope = await this.runner.scopeFor(treeId, context, 'record:delete');
+		const visible = this.runner.visibleRows(await this.runner.store.loadRows(treeId), scope);
+		const conflicts = mergeConflictsOf(visible, [command.survivorId, ...command.mergedIds]);
 		if (unresolvedConflicts(conflicts, command.keep).length > 0) return { conflicts, impact: null };
-		return { conflicts, impact: describeImpact(describeCommand(command, rows), rows, this.runner.plan(treeId, rows, [command])) };
+		return { conflicts, impact: await this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows)) };
 	}
 
 	/** Merge partnerships between the same people into one. Refuses while a conflict has no choice. */
@@ -140,8 +144,12 @@ export class RelationshipService {
 	}
 
 	async getGraph(treeId: string, context: AuthenticatedContext) {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
-		return graphFromRows(await this.runner.store.loadRows(treeId));
+		const scope = await this.runner.scopeFor(treeId, context, 'tree:view');
+		const rows = await this.runner.store.loadRows(treeId);
+		// The whole-tree graph is masked like the window is: placeholders when the tree allows structure.
+		if (!scope.isRestricted) return graphFromRows(rows);
+		const { rows: masked, placeholderIds } = maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure);
+		return graphFromRows(masked, placeholderIds);
 	}
 
 	// A restricted viewer's cue ignores private people, or "this name already exists" would tell a
