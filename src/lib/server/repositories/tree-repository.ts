@@ -59,6 +59,16 @@ export class TreeRepository {
     }));
   }
 
+  /** The per-tree privacy settings (ADR-015); null when the tree does not exist. */
+  async privacySettings(treeId: string): Promise<{ maxAliveYears: number; shouldShowPrivateStructure: boolean } | null> {
+    const record = await this.db
+      .select({ maxAliveYears: trees.maxAliveYears, shouldShowPrivateStructure: trees.shouldShowPrivateStructure })
+      .from(trees)
+      .where(eq(trees.id, treeId))
+      .get();
+    return record ?? null;
+  }
+
   async findById(treeId: string): Promise<TreeSummary | null> {
     const record = await this.db.select().from(trees).where(eq(trees.id, treeId)).get();
     if (!record) return null;
