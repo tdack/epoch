@@ -3,6 +3,7 @@ import { users, treeMemberships } from '../db/schema';
 import type { UserIdentity, TreeRole, TreeMembership } from '../domain/identity';
 import { eq, and } from 'drizzle-orm';
 import { NotFoundError } from '../domain/errors';
+import { MemberRepository } from './member-repository';
 
 export class UserRepository {
   constructor(private db: DbClient) {}
@@ -12,6 +13,13 @@ export class UserRepository {
    * Treats email and name as mutable profile attributes.
    */
   async upsertFromAccess(identity: { accessSub: string; email: string; name?: string | null }): Promise<UserIdentity> {
+    const user = await this.upsertUser(identity);
+    // A person invited to a tree takes it up the next time they are seen, not only the first (ADR-016).
+    await new MemberRepository(this.db).redeemFor(user.id, user.email, new Date());
+    return user;
+  }
+
+  private async upsertUser(identity: { accessSub: string; email: string; name?: string | null }): Promise<UserIdentity> {
     const existing = await this.db
       .select()
       .from(users)
