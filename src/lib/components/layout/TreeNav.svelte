@@ -5,7 +5,7 @@
 	interface Props {
 		/** The tree these links belong to. */
 		treeId: string;
-		/** The viewer's role; managers and owners also get the privacy settings. */
+		/** The viewer's role; managers and owners also get the members and privacy screens. */
 		role?: TreeRole;
 	}
 
@@ -18,7 +18,12 @@
 		{ href: `${base}/people`, label: 'People', isActive: page.url.pathname === `${base}/people` },
 		{ href: `${base}/unions`, label: 'Partnerships', isActive: page.url.pathname === `${base}/unions` },
 		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) },
-		...(isManagerOrAbove(role) ? [{ href: `${base}/privacy`, label: 'Privacy', isActive: page.url.pathname.startsWith(`${base}/privacy`) }] : [])
+		...(isManagerOrAbove(role)
+			? [
+					{ href: `${base}/members`, label: 'Members', isActive: page.url.pathname.startsWith(`${base}/members`) },
+					{ href: `${base}/privacy`, label: 'Privacy', isActive: page.url.pathname.startsWith(`${base}/privacy`) }
+				]
+			: [])
 	]);
 </script>
 
