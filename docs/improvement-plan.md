@@ -392,7 +392,7 @@ Left open:
 - **Not deployed.** Migrations 0013 and 0014 are applied locally only. The ownership check in the S8 section still has to be run against the remote database first.
 - **Cloudflare Access is separate.** The invited address must also be allowed by the Access policy; the app cannot edit it.
 - **No audit of membership changes,** no invitation email (the manager tells the person), no "leave this tree", and no transfer wizard (an owner makes another owner and steps down).
-- **Contributor-created people:** reads cost less for a contributor than a viewer in the measurements (partnership list 306 rows against 650); the cause was not found, and a test holds the answers identical.
+- **Contributor-created people:** the creator test first leaked a private partner's partnership to contributors through three-valued logic (`null = x`); found by comparing a contributor's and a viewer's answers, fixed with `is`, and both shapes are now measured and compared in the plan tests.
 - **Flake:** `union-choice.spec.ts` failed once in a full run and passed three times alone.
 
 ## Decisions (2026-09-29)

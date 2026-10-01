@@ -280,15 +280,15 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
 |---|---|---|
 | People list, first page (surname order) | 51 / 51 | 217 / 259 |
 | People list, first page (given-name order) | 51 / 51 | 209 / 253 |
-| People list, page 100 | 419 / 5,001 | 1,796 / 23,284 |
-| One surname's people | 1,740 / 17,196 | 1,811 / 17,407 |
-| Surname list, first page | 3,116 / 34,901 | 5,871 / 67,566 |
-| Partnership list, first page | 51 / 51 | 306 / 306 |
-| Search: name, two words | 1,765 / 22,082 | 1,788 / 22,087 |
-| Search: one letter | 3,032 / 40,328 | 4,051 / 54,673 |
-| Search: place | 2,781 / 35,563 | 4,852 / 62,082 |
-| Search: year range | 2,122 / 35,154 | 3,805 / 59,870 |
-| Search: place and year range | 2,913 / 38,036 | 4,892 / 63,932 |
+| People list, page 100 | 419 / 5,001 | 1,793 / 23,285 |
+| One surname's people | 1,740 / 17,196 | 1,808 / 17,409 |
+| Surname list, first page | 3,116 / 34,901 | 5,864 / 67,569 |
+| Partnership list, first page | 51 / 51 | 650 / 648 |
+| Search: name, two words | 1,765 / 22,082 | 1,785 / 22,090 |
+| Search: one letter | 3,032 / 40,328 | 4,046 / 54,676 |
+| Search: place | 2,781 / 35,563 | 7,191 / 86,963 |
+| Search: year range | 2,122 / 35,154 | 5,163 / 82,943 |
+| Search: place and year range | 2,913 / 38,036 | 7,383 / 91,531 |
 | XREF lookup | 5 | 7 |
 
 - **A name search pays almost nothing** because the predicate is applied after ranking, to the people
@@ -301,10 +301,10 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
   ADR-015 is the next step, and only the predicate changes.
 - **The partnership list's first page** costs 306 rows instead of 51: each union row looks up both
   partners' events.
-- **A contributor's own people (created-by test).** The restricted numbers above are measured for a
-  contributor, whose predicate also asks `created_by = <them>` before it looks up any event, so the
-  people they added with no dated fact stay visible to them. For a viewer, which has no such test,
-  the earlier measurements stand: partnership list 650 / 648, place 7,191 / 86,963, year 5,163 /
-  82,943, place and year 7,383 / 91,531. The contributor's reads are lower; I did not find why, and
-  `list-plans.test.ts` holds the answers of both predicates identical on trees where nobody is a
-  creator, so the lower count is not a skipped check.
+- **A contributor's predicate has a third term** (`created_by is <them>`, their own people stay
+  visible, ADR-015) and is measured as a second restricted shape beside the viewer's. The numbers
+  above are the same for both, to the row, and `list-plans.test.ts` and `search-plans.test.ts` hold
+  the answers of the two identical on trees where nobody is a creator. That check exists because the
+  first form of the term, `created_by = <them>`, was null for a person with no author and turned
+  "private" into "unknown" under `not`: it read fewer rows only because it let a private partner's
+  partnership through, which `privacy-reads.test.ts` now covers for a contributor too.
