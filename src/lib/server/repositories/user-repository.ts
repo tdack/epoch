@@ -1,5 +1,5 @@
 import type { DbClient } from '../db';
-import { users, treeMemberships, trees } from '../db/schema';
+import { users, treeMemberships } from '../db/schema';
 import type { UserIdentity, TreeRole, TreeMembership } from '../domain/identity';
 import { eq, and } from 'drizzle-orm';
 import { NotFoundError } from '../domain/errors';
@@ -69,50 +69,16 @@ export class UserRepository {
   }
 
   async getMembership(treeId: string, userId: string): Promise<TreeMembership | null> {
-    let member = await this.db
+    const member = await this.db
       .select()
       .from(treeMemberships)
       .where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
       .get();
 
-    if (!member) {
-      // Check if tree exists and has no owners/members at all (legacy tree)
-      const anyMembership = await this.db
-        .select()
-        .from(treeMemberships)
-        .where(eq(treeMemberships.treeId, treeId))
-        .get();
-
-      // A tree that does not exist has nothing to own: inserting a membership for it fails the
-      // foreign key and surfaced as a 500 for a stale bookmark or a request that raced a delete.
-      const tree = await this.db.select({ id: trees.id }).from(trees).where(eq(trees.id, treeId)).get();
-      if (!tree) return null;
-
-      if (!anyMembership) {
-        // Auto-assign this user as owner
-        const now = new Date();
-        const id = crypto.randomUUID();
-        await this.db.insert(treeMemberships).values({
-          id,
-          treeId,
-          userId,
-          role: 'owner',
-          createdAt: now,
-          updatedAt: now
-        }).onConflictDoNothing();
-
-        member = {
-          id,
-          treeId,
-          userId,
-          role: 'owner',
-          createdAt: now,
-          updatedAt: now
-        };
-      } else {
-        return null;
-      }
-    }
+    // Not a member means no access. This used to make the first caller the owner of any tree with
+    // no members, so once a second person could sign in they would have taken every ownerless tree;
+    // ownership is now assigned by `tree-repository.create` or by hand (ADR-015, Phase 4 migration).
+    if (!member) return null;
 
     return {
       id: member.id,

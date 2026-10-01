@@ -20,6 +20,8 @@ export type TreeAction =
   | 'tree:delete'
   | 'tree:update_settings'
   | 'person:set_privacy'
+  | 'media:manage'
+  | 'media:view'
   | 'record:create'
   | 'record:edit'
   | 'record:delete';
@@ -35,6 +37,8 @@ const ACTION_MIN_ROLES: Record<TreeAction, TreeRole> = {
   'tree:import': 'editor',
   'tree:update_settings': 'manager',
   'person:set_privacy': 'manager',
+  'media:manage': 'editor',
+  'media:view': 'viewer',
   'tree:manage_members': 'manager',
   'tree:delete': 'owner'
 };
