@@ -30,6 +30,10 @@ interface Plan {
  */
 const dialect = new SQLiteSyncDialect();
 
+async function resultOf(statement: SQL): Promise<unknown[]> {
+	const { sql, params } = dialect.sqlToQuery(statement);
+	return (await t.d1.prepare(sql).bind(...params).all()).results;
+}
 async function measure(name: string, statement: SQL): Promise<Plan> {
 	const { sql, params } = dialect.sqlToQuery(statement);
 	const plan = await t.d1.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...params).all<{ detail: string }>();
@@ -42,8 +46,9 @@ const tableScans = (details: string[]) => details.filter((d) => /^SCAN (?!cand|s
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
 const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
-// A contributor, so the measured predicate includes the creator test.
-const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01', creatorId: 'a-contributor' };
+// A viewer has no creator test; a contributor's predicate also asks `created_by`, so both are measured.
+const VIEWER = { isRestricted: true, cutoff: '1906-10-01', creatorId: null as string | null };
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
 
 const FILTERS: Array<[string, Partial<SearchFilters>]> = [
 	['name, two words', { words: ['ann', 'brown'] }],
@@ -79,11 +84,18 @@ describe('the search queries, against two trees of different size', () => {
 			const filters: SearchFilters = { words: [], place: '', from: '', to: '', limit: 25, offset: 0, ...partial };
 			plans.push(await measure(`${name} (small tree)`, repo.findSql(small, filters, EVERYONE)));
 			plans.push(await measure(`${name} (big tree)`, repo.findSql(big, filters, EVERYONE)));
-			plans.push(await measure(`${name}, restricted viewer (small tree)`, repo.findSql(small, filters, RESTRICTED)));
-			plans.push(await measure(`${name}, restricted viewer (big tree)`, repo.findSql(big, filters, RESTRICTED)));
+			plans.push(await measure(`${name}, restricted viewer (small tree)`, repo.findSql(small, filters, VIEWER)));
+			plans.push(await measure(`${name}, restricted viewer (big tree)`, repo.findSql(big, filters, VIEWER)));
+			plans.push(await measure(`${name}, restricted contributor (small tree)`, repo.findSql(small, filters, CONTRIBUTOR)));
+			plans.push(await measure(`${name}, restricted contributor (big tree)`, repo.findSql(big, filters, CONTRIBUTOR)));
+			// Nobody here created anyone, so the creator test may change the cost and never the answer. Compared
+			// without a page limit: ties in the ranking are cut at the limit in whatever order the plan reads them.
+			const everything = { ...filters, limit: 5000 };
+			const idsOf = async (treeId: string, scope: typeof VIEWER) => (await resultOf(repo.findSql(treeId, everything, scope)) as { id: string }[]).map((r) => r.id).sort();
+			for (const treeId of [small, big]) expect(await idsOf(treeId, CONTRIBUTOR), name).toEqual(await idsOf(treeId, VIEWER));
 		}
 		plans.push(await measure('XREF (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'), EVERYONE)));
-		plans.push(await measure('XREF, restricted viewer (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'), RESTRICTED)));
+		plans.push(await measure('XREF, restricted viewer (small tree)', repo.xrefSql(small, xrefCandidates('@I12@'), VIEWER)));
 
 		if (process.env.WRITE_QUERY_PLANS) {
 			const lines = [`Small tree: ${smallPeople} people, ${smallNames} names, ${smallEvents} events. Big tree: ${bigPeople} people.`];

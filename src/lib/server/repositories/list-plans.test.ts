@@ -16,9 +16,9 @@ afterAll(async () => {
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
 const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
-// A contributor, so the measured predicate includes the creator test.
-const RESTRICTED: { isRestricted: boolean; cutoff: string; creatorId: string | null } = { isRestricted: true, cutoff: '1906-10-01', creatorId: 'a-contributor' };
-const RESTRICTED_NOT_A_CREATOR = { ...RESTRICTED, creatorId: null };
+// A viewer has no creator test; a contributor's predicate also asks `created_by`, so both are measured.
+const VIEWER: { isRestricted: boolean; cutoff: string; creatorId: string | null } = { isRestricted: true, cutoff: '1906-10-01', creatorId: null };
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
 
 const dialect = new SQLiteSyncDialect();
 interface Plan {
@@ -63,7 +63,7 @@ describe('the list queries, against two trees of different size', () => {
 		const repo = new ListRepository(t.db);
 		const page = { offset: 0, limit: 50 };
 		const plans: Plan[] = [];
-		for (const [viewer, scope] of [['', EVERYONE], [', restricted viewer', RESTRICTED]] as const) {
+		for (const [viewer, scope] of [['', EVERYONE], [', restricted viewer', VIEWER], [', restricted contributor', CONTRIBUTOR]] as const) {
 			for (const [label, treeId] of [['small', small], ['big', big]] as const) {
 				const at = `${viewer} (${label})`;
 				plans.push(await measure(`individuals by surname, first page${at}`, repo.individualsSql(treeId, 'surname', '', page, scope)));
@@ -90,7 +90,7 @@ describe('the list queries, against two trees of different size', () => {
 			const size = isSmall ? smallSize : bigSize;
 			// The visibility predicate looks up each person's events (ADR-015): a few rows per person
 			// examined, so a restricted viewer's bounds are wider, and still one tree's worth.
-			const k = plan.name.includes('restricted viewer') ? 4 : 1;
+			const k = plan.name.includes('restricted') ? 4 : 1;
 			if (plan.name.includes('first page')) {
 				// An index in the page's own order: a page costs a page, not the tree.
 				// A partnership page looks up both partners' events per row, about a dozen rows each.
@@ -107,11 +107,11 @@ describe('the list queries, against two trees of different size', () => {
 		// but the cost: it measured fewer rows read, which is only believable if the answers are the same.
 		for (const treeId of [small, big]) {
 			for (const read of [
-				(scope: typeof RESTRICTED) => repo.individualsSql(treeId, 'surname', '', page, scope),
-				(scope: typeof RESTRICTED) => repo.surnamesSql(treeId, page, scope),
-				(scope: typeof RESTRICTED) => repo.unionsSql(treeId, page, scope)
+				(scope: typeof VIEWER) => repo.individualsSql(treeId, 'surname', '', page, scope),
+				(scope: typeof VIEWER) => repo.surnamesSql(treeId, page, scope),
+				(scope: typeof VIEWER) => repo.unionsSql(treeId, page, scope)
 			]) {
-				expect(await resultOf(read(RESTRICTED))).toEqual(await resultOf(read(RESTRICTED_NOT_A_CREATOR)));
+				expect(await resultOf(read(CONTRIBUTOR))).toEqual(await resultOf(read(VIEWER)));
 			}
 		}
 	}, 240_000);

@@ -13,6 +13,7 @@ import { privatePeople } from '../domain/privacy-mask';
 import { importGedcomToDb } from '../gedcom/importer';
 import { visibleAmong } from '../repositories/visibility';
 import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import { GenealogyService } from './genealogy-service';
 import { GraphQueryService } from './graph-query-service';
 import { FactService } from './fact-service';
 import { ListService } from './list-service';
@@ -111,10 +112,19 @@ describe('a person with no dated fact, created by a contributor', () => {
 		expect(await names(actors.other)).not.toContain('Newkid');
 	});
 
+	it('is recorded for a person made by the Add person form too, not only by a relationship', async () => {
+		const { individual } = await new GenealogyService(t.db, clock()).createIndividual(treeId, { givenName: 'Formed', surname: 'Direct' }, actors.contributor.context);
+		const found = async (who: TestActor) => (await search().search(treeId, { text: 'Formed' }, who.context)).people.length;
+		expect(await found(actors.contributor)).toBe(1);
+		expect(await found(actors.other)).toBe(0);
+		expect((await t.db.select().from(individuals).where(eq(individuals.id, individual.id)))[0]!.createdBy).toBe(actors.contributor.userId);
+	});
+
 	it('is counted in the creator\'s header and not in another contributor\'s', async () => {
 		const mine = await lists().individuals(treeId, { limit: 50 }, actors.contributor.context);
 		const theirs = await lists().individuals(treeId, { limit: 50 }, actors.other.context);
-		expect(mine.items.length).toBe(theirs.items.length + 1);
+		// Theirs: the person they added, and the one the Add person form made for them.
+		expect(mine.items.length).toBe(theirs.items.length + 2);
 	});
 
 	it('agrees between the SQL predicate and the pure rule', async () => {

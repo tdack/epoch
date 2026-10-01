@@ -7,7 +7,7 @@ import { applyOpsToRows, buildPlanOps } from './tree-ops';
 import { treeRows, sequentialIds, TEST_TREE_ID } from '../testing/rows';
 import { displayNameWith, splitDisplayName } from '../../shared/name-types';
 
-const ctx = { treeId: TEST_TREE_ID, now: 2_000_000, newId: sequentialIds('n') };
+const ctx = { treeId: TEST_TREE_ID, now: 2_000_000, newId: sequentialIds('n'), actorId: null };
 
 const jessica = () =>
 	treeRows({

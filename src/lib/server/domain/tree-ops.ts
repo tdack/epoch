@@ -51,7 +51,7 @@ export interface OpContext {
 	now: number;
 	newId: () => string;
 	/** The user making the change, recorded as the author of a person it creates. */
-	actorId?: string | null;
+	actorId: string | null;
 }
 
 // ---- Small helpers ----

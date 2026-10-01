@@ -25,7 +25,10 @@ type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
  */
 function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
 	const person = sql.raw(alias);
-	const isOwn = creatorId === null ? sql`` : sql`${person}.created_by = ${creatorId} or `;
+	// `is`, not `=`: a person with no author has a null `created_by`, and `null = x` is null, which
+	// turns `false or <birth test>` into null where the viewer's form gives false. `not` of that null
+	// is null too, so a partnership with a private partner would pass the all-partners-visible test.
+	const isOwn = creatorId === null ? sql`` : sql`${person}.created_by is ${creatorId} or `;
 	return sql`(${person}.privacy = 'public' or (${person}.privacy = 'auto' and (${isOwn}
 		exists (select 1 from events de where de.entity_type = 'INDIVIDUAL' and de.entity_id = ${person}.id and de.type in (${list(DEATH_EVENT_TYPES)}))
 		or (select max(coalesce(be.date_sort_end, '9999-12-31')) from events be where be.entity_type = 'INDIVIDUAL' and be.entity_id = ${person}.id and be.type in (${list(BIRTH_EVENT_TYPES)})) < ${cutoff}

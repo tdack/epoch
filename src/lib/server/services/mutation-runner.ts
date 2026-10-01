@@ -76,7 +76,8 @@ export class MutationRunner {
 		return requireTreeScope(this.userRepo, this.treeRepo, treeId, context, action, new Date(this.clock.now()));
 	}
 
-	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[], actorId: string | null = null): RowOp[] {
+	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
+	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[], actorId: string | null): RowOp[] {
 		return buildPlanOps(rows, commands, { treeId, now: this.clock.now(), newId: this.clock.newId, actorId });
 	}
 
