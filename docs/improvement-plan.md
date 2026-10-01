@@ -294,6 +294,7 @@ number prefix can overlap.
 | S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
+| S9 | Members and invitations (done, not deployed) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
@@ -375,6 +376,24 @@ Left open or departing from the plan:
 - **Not built:** member invitation and administration (Phase 4 item 1), suggestions and approval (8), audit and history UI (7, 9), a filtered export for lesser roles, media privacy beyond following the person, notes and citations (they do not exist yet).
 - **Dev identity:** `ACCESS_BYPASS_DEV` also reads the dev identity from a cookie, because a page's server render forwards cookies and not custom headers; still only with the flag on.
 - **Flake:** `undo-and-conflict.spec.ts` "a concurrent edit opens the conflict dialog" failed once in the full run and passed on rerun; not confirmed against the baseline.
+
+### S9: members and invitations
+
+**S9 status (2026-10-01): done on `feat/phase-4-s9`, not merged or deployed.** Phase 4 item 1, and two decisions about S8. See [ADR-016](./decisions.md).
+
+- **Decided about S8:** editors keep seeing everyone; a contributor sees the people they created while they are private (`individuals.created_by`, migration 0013), and a manager's `private` still hides them.
+- **Members screen** (managers and owners): invite an address with a role, see the offers waiting (with expiry), withdraw one, change a member's role, remove a member with a confirmation.
+- **Rules** (`shared/membership-policy.ts`, `services/member-service.ts`): a manager gives and acts on roles below manager only; an owner on any; the last owner can neither be lowered nor removed, enforced inside the statement; a stale version answers 409; only managers and owners can list members.
+- **Taken up on every request,** by an indexed lookup (plan tested), so a second tree reaches a person already signed up.
+- **Tested.** Policy table, the service (roles, expiry, case, second tree, concurrent owner demotion, next-request effect), the matrix test, and Playwright (invite and withdraw, the only owner cannot be lowered, and the viewer in `privacy.spec.ts` now arrives by invitation).
+
+Left open:
+
+- **Not deployed.** Migrations 0013 and 0014 are applied locally only. The ownership check in the S8 section still has to be run against the remote database first.
+- **Cloudflare Access is separate.** The invited address must also be allowed by the Access policy; the app cannot edit it.
+- **No audit of membership changes,** no invitation email (the manager tells the person), no "leave this tree", and no transfer wizard (an owner makes another owner and steps down).
+- **Contributor-created people:** reads cost less for a contributor than a viewer in the measurements (partnership list 306 rows against 650); the cause was not found, and a test holds the answers identical.
+- **Flake:** `union-choice.spec.ts` failed once in a full run and passed three times alone.
 
 ## Decisions (2026-09-29)
 
