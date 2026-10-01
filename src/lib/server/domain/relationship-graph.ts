@@ -219,7 +219,7 @@ export function isEndedUnionStatus(status: UnionStatus): boolean {
  * Assemble the graph from a tree snapshot. Reading and drawing use the same rows the mutations
  * plan against, so a graph fetched after a save is exactly what the save produced.
  */
-export function graphFromRows(rows: TreeRows): RelationshipGraph {
+export function graphFromRows(rows: TreeRows, placeholderIds: ReadonlySet<string> = new Set()): RelationshipGraph {
 	const deceased = new Set(rows.events.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId));
 
 	// The first birth and death date text per person, for card labels.
@@ -249,7 +249,7 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 		list.sort((a, b) => UNION_EVENT_TYPE_LIST.indexOf(a.type) - UNION_EVENT_TYPE_LIST.indexOf(b.type));
 	}
 
-	return buildRelationshipGraph({
+	const graph = buildRelationshipGraph({
 		people: rows.individuals.map((i) => ({
 			id: i.id,
 			givenName: i.givenName,
@@ -282,4 +282,9 @@ export function graphFromRows(rows: TreeRows): RelationshipGraph {
 			unionId: pc.unionId
 		}))
 	});
+	// A placeholder (privacy-mask.ts) is a person the viewer may not see: the flag is what a card
+	// and a page use to draw "Private" and withhold links to a record they cannot open.
+	return placeholderIds.size === 0
+		? graph
+		: { ...graph, people: graph.people.map((p) => (placeholderIds.has(p.id) ? { ...p, isPrivate: true } : p)) };
 }

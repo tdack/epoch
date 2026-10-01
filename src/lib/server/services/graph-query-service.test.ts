@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { individuals } from '../db/schema';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestDatabase } from '../testing/d1';
 import { GenealogyService } from './genealogy-service';
@@ -56,6 +58,9 @@ describe('GraphQueryService', () => {
 		const { treeId, ann, service } = await setup();
 		const viewer = await createTestUser(t.db, 'viewer');
 		await addTestMember(t.db, treeId, viewer, 'viewer');
+		// Ann has no dated fact, so she is private to a viewer until an owner says otherwise (ADR-015).
+		await expect(service.focusGraph(treeId, ann.id, {}, viewer.context)).rejects.toBeInstanceOf(NotFoundError);
+		await t.db.update(individuals).set({ privacy: 'public' }).where(eq(individuals.id, ann.id));
 		await expect(service.focusGraph(treeId, ann.id, {}, viewer.context)).resolves.toBeTruthy();
 
 		const stranger = await createTestUser(t.db, 'stranger');

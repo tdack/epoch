@@ -45,3 +45,21 @@ export async function visibleAmong(db: DbClient, treeId: string, personIds: read
 	const rows = await db.all<{ id: string }>(sql`select i.id as id from individuals i where i.tree_id = ${treeId} and i.id in (${ids})${andVisible('i', scope)}`);
 	return new Set(rows.map((r) => r.id));
 }
+
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff'>;
+
+/** The header counts a restricted viewer may see: visible people, and partnerships whose every partner is visible (as in the list). */
+export async function visibleCounts(db: DbClient, treeId: string, scope: Scope): Promise<{ people: number; unions: number }> {
+	const row = await db.all<{ people: number; unions: number }>(sql`
+		select
+			(select count(*) from individuals i where i.tree_id = ${treeId}${andVisible('i', scope)}) as people,
+			(select count(*) from unions u where u.tree_id = ${treeId} and not exists (
+				select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleSql('p', scope.cutoff)})) as unions`);
+	return { people: row[0]!.people, unions: row[0]!.unions };
+}
+
+/** The first visible person in creation order: the default focus, which must not be a private person. */
+export async function firstVisiblePersonId(db: DbClient, treeId: string, scope: Scope): Promise<string | null> {
+	const rows = await db.all<{ id: string }>(sql`select i.id as id from individuals i where i.tree_id = ${treeId}${andVisible('i', scope)} order by i.rowid limit 1`);
+	return rows[0]?.id ?? null;
+}

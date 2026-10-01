@@ -6,15 +6,16 @@
  */
 
 import type { DbClient } from '../db';
-import { isActionAllowed } from '../auth/authorization';
-import { NotFoundError, UnauthorizedError } from '../domain/errors';
+import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventDateValue } from '../domain/date-columns';
 import type { ParentChildType, UnionStatus } from '../domain/genealogy-model';
 import type { RelationshipGraph } from '../domain/relationship-graph';
 import { eventLabel } from '../domain/tree-labels';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { visibleAmong } from '../repositories/visibility';
 import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
 import { partnerSetKey } from '../../shared/union-merge';
@@ -23,6 +24,7 @@ import { boundsOf, unionWarnings, type UnionWarning } from '../../shared/union-w
 import { loadFocusWindow } from './focus-window';
 import { RECENT_CHANGES_SHOWN, type ChangeEntryDto } from './person-page-service';
 import { personSummaries, type PersonSummaryDto } from './person-summaries';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 
 export interface UnionEventDto extends PrivacyFlag {
 	id: string;
@@ -88,21 +90,23 @@ const EMPTY_GRAPH: RelationshipGraph = { people: [], unions: [], parentChild: []
 export class UnionPageService {
 	private repo: GraphWindowRepository;
 	private users: UserRepository;
+	private trees: TreeRepository;
 
-	constructor(db: DbClient) {
+	constructor(
+		db: DbClient,
+		private now: () => Date = () => new Date()
+	) {
 		this.repo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
+		this.trees = new TreeRepository(db);
 	}
 
-	private async requireView(treeId: string, context: AuthenticatedContext): Promise<void> {
-		const membership = await this.users.getMembership(treeId, context.user.id);
-		if (!membership || !isActionAllowed(membership.role, 'tree:view')) {
-			throw new UnauthorizedError("Forbidden: insufficient privileges for action 'tree:view'");
-		}
+	private requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
+		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 	}
 
 	async getUnion(treeId: string, unionId: string, context: AuthenticatedContext): Promise<UnionPageDto> {
-		await this.requireView(treeId, context);
+		const scope = await this.requireView(treeId, context);
 
 		const [[unionRecord], partnerRows, linkRows, eventRows] = await this.repo.run(
 			this.repo.unionsIn(treeId, [unionId]),
@@ -114,16 +118,22 @@ export class UnionPageService {
 		const union = unionRecord.row;
 
 		const partnerIds = partnerRows.sort((a, b) => a.row.order - b.row.order || a.rid - b.rid).map((p) => p.row.personId);
-		const links = linkRows.sort((a, b) => a.rid - b.rid).map((l) => l.row);
+		// A partnership with a private partner answers as a missing one: its marriage facts and its
+		// children are facts about that partner (ADR-015).
+		const seen = scope.isRestricted ? await visibleAmong(this.repo.client, treeId, [...partnerIds, ...linkRows.map((l) => l.row.childId)], scope) : null;
+		if (seen && partnerIds.some((id) => !seen.has(id))) throw new NotFoundError('Partnership', unionId);
+		// A private child is left out, or shown as a placeholder, as the tree's setting says.
+		const isChildShown = (id: string) => !seen || seen.has(id) || scope.shouldShowPrivateStructure;
+		const links = linkRows.sort((a, b) => a.rid - b.rid).map((l) => l.row).filter((l) => isChildShown(l.childId));
 		const childIds = [...new Set(links.map((l) => l.childId))];
 
 		// The window around the first partner brings the labels, the twins and the dialogs' graph.
 		const graph = partnerIds[0]
-			? (await loadFocusWindow(this.repo, treeId, partnerIds[0], { ancestorDepth: 1, descendantDepth: 1, shouldIncludeStepFamilies: true })).graph
+			? (await loadFocusWindow(this.repo, treeId, partnerIds[0], { ancestorDepth: 1, descendantDepth: 1, shouldIncludeStepFamilies: true }, scope.isRestricted ? scope : undefined)).graph
 			: EMPTY_GRAPH;
 		const labels = partnershipLabels(graph.unions);
 
-		const people = await personSummaries(this.repo, treeId, graph, [...partnerIds, ...childIds]);
+		const people = await personSummaries(this.repo, treeId, graph, [...partnerIds, ...childIds], scope);
 		const partners = partnerIds.map((id) => people.get(id)!);
 		const nameOf = (id: string) => people.get(id)?.displayName ?? 'Unknown';
 
@@ -186,7 +196,8 @@ export class UnionPageService {
 		});
 
 		// ---- History ----
-		const recent = await this.repo.recentChanges(treeId, [unionId, ...events.map((e) => e.id)], RECENT_CHANGES_SHOWN);
+		// See the person page: a change's summary is prose that can name a private person.
+		const recent = scope.isRestricted ? [] : await this.repo.recentChanges(treeId, [unionId, ...events.map((e) => e.id)], RECENT_CHANGES_SHOWN);
 		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
 
 		return {
