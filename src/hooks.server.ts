@@ -65,9 +65,13 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
   } else if (allowDevBypass) {
     // Development / test fallback when running locally without active Access tunnel
-    const devSub = event.request.headers.get('x-dev-user-sub') || 'dev-local-user';
-    const devEmail = event.request.headers.get('x-dev-user-email') || 'developer@epoch.local';
-    const devName = event.request.headers.get('x-dev-user-name') || 'Local Developer';
+    // A header, or the same name as a cookie: a page's server-side loads call the API with `event.fetch`,
+    // which forwards cookies but not custom headers, so a second dev identity needs the cookie to be
+    // the same user on the server render as in the browser. Reachable only with the bypass on.
+    const devValue = (name: string) => event.request.headers.get(name) || event.cookies.get(name);
+    const devSub = devValue('x-dev-user-sub') || 'dev-local-user';
+    const devEmail = devValue('x-dev-user-email') || 'developer@epoch.local';
+    const devName = devValue('x-dev-user-name') || 'Local Developer';
 
     if (bindings.DB) {
       const db = getDb(bindings.DB);
