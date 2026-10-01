@@ -61,11 +61,13 @@ const FIXTURE = `0 HEAD
 1 WIFE @I3@
 1 MARR
 2 DATE 1990
+2 PLAC Marriageton
 0 @F2@ FAM
 1 HUSB @I1@
 1 WIFE @I2@
 1 MARR
 2 DATE 1870
+2 PLAC Hobartville
 0 TRLR`;
 
 /** Whether each fixture person is visible to a contributor or viewer, by XREF. */
@@ -140,6 +142,28 @@ describe('search', () => {
 		expect((await search().search(treeId, { text: '@I3@' }, ctx)).people).toEqual([]);
 		expect((await search().search(treeId, { place: 'Perth' }, ctx)).people).toEqual([]);
 		expect(xrefsOf(people(await search().search(treeId, { text: '@I2@' }, ctx)))).toEqual(['@I2@']);
+	});
+
+	it('does not let a private couple\'s wedding find, or be quoted for, the visible partner', async () => {
+		const owner = actors.owner.context;
+		const viewer = actors.viewer.context;
+		// Dora's partner Liv is private, so the marriage is a fact about Liv too.
+		const asOwner = await search().search(treeId, { place: 'Marriageton' }, owner);
+		expect(xrefsOf(people(asOwner)).sort()).toEqual(['@I1@', '@I3@']);
+		expect(asOwner.people.flatMap((p) => p.matches).some((m) => m.kind === 'fact' && m.isPartnershipFact)).toBe(true);
+		for (const query of [{ place: 'Marriageton' }, { text: 'Deadly', place: 'Marriageton' }, { text: '@I1@', place: 'Marriageton' }]) {
+			const found = await search().search(treeId, query, viewer);
+			expect(JSON.stringify(found), JSON.stringify(query)).not.toContain('Marriageton');
+			expect(found.people, JSON.stringify(query)).toEqual([]);
+		}
+		// 1990 is also the year Pia (forced public) was born, so she may match; the wedding must not be what finds Dora.
+		const byYear = await search().search(treeId, { from: '1990', to: '1990' }, viewer);
+		expect(xrefsOf(people(byYear))).not.toContain('@I1@');
+		expect(byYear.people.flatMap((p) => p.matches).filter((m) => m.kind === 'fact' && m.isPartnershipFact)).toEqual([]);
+		// A couple who are both visible still match, and say why.
+		const visibleCouple = await search().search(treeId, { place: 'Hobartville' }, viewer);
+		expect(xrefsOf(people(visibleCouple)).sort()).toEqual(['@I1@', '@I2@']);
+		expect(visibleCouple.people.flatMap((p) => p.matches).some((m) => m.kind === 'fact' && m.isPartnershipFact)).toBe(true);
 	});
 
 	it('computes hasMore and page fill over what the viewer may see', async () => {

@@ -286,14 +286,16 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
 | Partnership list, first page | 51 / 51 | 650 / 648 |
 | Search: name, two words | 1,765 / 22,082 | 1,785 / 22,090 |
 | Search: one letter | 3,032 / 40,328 | 4,046 / 54,676 |
-| Search: place | 2,781 / 35,563 | 3,059 / 38,747 |
-| Search: year range | 2,122 / 35,154 | 2,798 / 37,558 |
-| Search: place and year range | 2,913 / 38,036 | 2,989 / 38,232 |
+| Search: place | 2,781 / 35,563 | 7,191 / 86,963 |
+| Search: year range | 2,122 / 35,154 | 5,163 / 82,943 |
+| Search: place and year range | 2,913 / 38,036 | 7,383 / 91,531 |
 | XREF lookup | 5 | 7 |
 
-- **Search pays almost nothing** because the predicate is applied after ranking, to the people the
-  name filter already kept; only the short, broad queries (one letter, a place) pay a visible
-  premium.
+- **A name search pays almost nothing** because the predicate is applied after ranking, to the people
+  the name filter already kept. A place or year search pays about 2.3 times: a restricted viewer may
+  match a partnership's marriage only when every partner is visible, so each candidate's partnerships
+  look up their partners' events too (a search for a private couple's wedding year must not find the
+  visible partner; `privacy-reads.test.ts`). Still one tree's worth, never another's.
 - **The surname list pays most** (about 12 rows per person on the big tree, against 6.5 before),
   because it aggregates over every person. If a tree outgrows that, the stored-column alternative in
   ADR-015 is the next step, and only the predicate changes.

@@ -68,7 +68,7 @@ export class SearchService {
 		// their facts passes the same filter the name hits already went through in SQL.
 		const isNarrowed = Boolean(place || from || to);
 		const xrefKept = isNarrowed
-			? new Set((await this.repo.factsMatching(xrefIds, place, from, to)).map((f) => f.personId))
+			? new Set((await this.repo.factsMatching(xrefIds, place, from, to, scope)).map((f) => f.personId))
 			: new Set(xrefIds);
 		const keptXrefIds = xrefIds.filter((id) => xrefKept.has(id));
 		const ids = [...new Set([...keptXrefIds, ...hits.map((h) => h.personId)])];
@@ -79,7 +79,7 @@ export class SearchService {
 				this.graphRepo.eventsOf(treeId, 'INDIVIDUAL', ids, ['BIRT', 'DEAT']),
 				this.graphRepo.namesOf(ids)
 			),
-			this.repo.factsMatching(ids, place, from, to)
+			this.repo.factsMatching(ids, place, from, to, scope)
 		]);
 		const people = new Map(individuals.map(({ row }) => [row.id, row]));
 		const eventsOfPerson = (id: string) => vitalEvents.filter((e) => e.row.entityId === id).map((e) => e.row);
