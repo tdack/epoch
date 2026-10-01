@@ -29,6 +29,14 @@ export const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
 
 /** Carries an `X` sex through a GEDCOM 5.5.1 export, whose `SEX` cannot hold it (ADR-010). */
 export const SEX_X_TAG = '_EPOCH_SEX';
+/**
+ * An explicit "this person is public" override (ADR-015). GEDCOM has `RESN` for restricting a record
+ * and nothing for the opposite, so `public` is carried the way X is (`_EPOCH_SEX`): a custom line
+ * Epoch reads back and other programs ignore.
+ */
+export const PRIVACY_PUBLIC_TAG = '_EPOCH_PRIVACY';
+/** `RESN` words that mean "keep this person from viewers": they become the private override. */
+const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
 
 /**
  * Marks a name that came from the legacy `_MARNM` tag (ADR-013). It is a married name in the model
@@ -64,6 +72,8 @@ export interface ParsedIndividual {
   surname?: string;
   names?: ParsedName[];
   sex?: Sex;
+  /** From `RESN privacy` or `confidential` (private) or `_EPOCH_PRIVACY public`; absent means derive it. */
+  privacy?: 'private' | 'public';
   famc?: string[]; // Family where person is child
   famcLinks?: ParsedFamcLink[];
   fams?: string[]; // Family where person is spouse
@@ -357,6 +367,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
       const legacyMarried: string[] = [];
       let sex: Sex = 'U';
       let isSexXFallback = false;
+      let privacy: 'private' | 'public' | undefined;
       const famc: string[] = [];
       const famcLinks: ParsedFamcLink[] = [];
       const fams: string[] = [];
@@ -373,6 +384,14 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
           else sex = 'U';
         } else if (child.tag === SEX_X_TAG && child.value?.trim().toUpperCase() === 'X') {
           isSexXFallback = true;
+        } else if (child.tag === 'RESN' && child.value?.split(',').some((w) => RESTRICTING_RESN_WORDS.has(w.trim().toLowerCase()))) {
+          // The restriction becomes the override, so there is one source of truth. A `LOCKED` beside it
+          // has no meaning to Epoch and is kept under its own `RESN` line.
+          privacy = 'private';
+          const rest = child.value.split(',').map((w) => w.trim()).filter((w) => w && !RESTRICTING_RESN_WORDS.has(w.toLowerCase()));
+          if (rest.length > 0) preserved.push({ xref: id, lines: [`${child.level} RESN ${rest.join(', ')}`] });
+        } else if (child.tag === PRIVACY_PUBLIC_TAG && child.value?.trim().toLowerCase() === 'public') {
+          privacy = 'public';
         } else if (child.tag === 'FAMC' && child.value) {
           const familyId = child.value.trim();
           famc.push(familyId);
@@ -427,6 +446,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
         names,
         // A 5.5.1 export cannot say X, so it writes U and `_EPOCH_SEX X`; put the X back.
         sex: sex === 'U' && isSexXFallback ? 'X' : sex,
+        ...(privacy ? { privacy } : {}),
         famc,
         famcLinks,
         fams,
@@ -535,6 +555,8 @@ export interface GedcomExportPayload {
     /** Every stored name; when absent or empty the single `givenName`/`surname` pair is written. */
     names?: ExportName[];
     sex: string | null;
+    /** The person's privacy override; `auto` (or absent) writes nothing. */
+    privacy?: string | null;
     events?: Array<{
       type: string;
       dateRaw: string | null;
@@ -576,6 +598,13 @@ export interface GedcomExportPayload {
  * `description` is written as a note only when the fact has no note of its own, so a fact edited
  * after import does not gain a second `NOTE`.
  */
+/** `RESN` for a private person and the custom line for an explicit public one; nothing for `auto`. */
+function privacyLines(privacy: string | null | undefined, restrictionWord: string): string[] {
+  if (privacy === 'private') return [`1 RESN ${restrictionWord}`];
+  if (privacy === 'public') return [`1 ${PRIVACY_PUBLIC_TAG} public`];
+  return [];
+}
+
 function individualEventLines(ev: NonNullable<GedcomExportPayload['individuals'][number]['events']>[number]): string[] {
   const lines = [ev.value ? `1 ${ev.type} ${ev.value}` : `1 ${ev.type}`];
   if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
@@ -753,6 +782,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
       lines.push('1 SEX U');
       lines.push(`1 ${SEX_X_TAG} X`);
     } else if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
+    lines.push(...privacyLines(ind.privacy, 'privacy'));
 
     if (ind.events) {
       for (const ev of ind.events) lines.push(...individualEventLines(ev));
@@ -837,6 +867,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
     lines.push(...nameLines(ind, 'gedcom7'));
     if (ind.sex) lines.push(`1 SEX ${ind.sex}`);
+    lines.push(...privacyLines(ind.privacy, 'PRIVACY'));
 
     if (ind.events) {
       for (const ev of ind.events) lines.push(...individualEventLines(ev));
