@@ -39,7 +39,7 @@
 
 <h2 class="text-2xl font-bold text-stone-900">Privacy</h2>
 <p class="mt-1 max-w-2xl text-sm text-stone-600">
-	Contributors and viewers do not see people who may be living. Owners, managers and editors see everyone. You can force any one person public or private from their page.
+	Contributors and viewers do not see people who may be living. Owners, managers and editors see everyone, and a contributor still sees the people they added themselves. You can force any one person public or private from their page.
 </p>
 
 <form onsubmit={save} class="mt-6 max-w-2xl space-y-6 rounded-xl border border-stone-200 bg-white p-5">
