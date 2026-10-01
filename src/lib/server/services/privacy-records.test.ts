@@ -101,7 +101,9 @@ const unionsPage = () => new UnionPageService(t.db, now);
 async function setPlaceholders(isOn: boolean) {
 	await t.db.update(trees).set({ shouldShowPrivateStructure: isOn }).where(eq(trees.id, treeId));
 }
-const leaks = (value: unknown) => SECRETS.filter((s) => JSON.stringify(value).includes(s));
+// Names and places, and the ids of the private people: an id left in a link, a partner list or a stub is a leak too.
+// A placeholder keeps its id so the structure can be drawn, so the ids are only secrets when people are omitted.
+const leaks = (value: unknown, areIdsSecret = true) => [...SECRETS, ...(areIdsSecret ? [idOf('@I2@'), idOf('@I5@')] : [])].filter((s) => JSON.stringify(value).includes(s));
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -142,7 +144,7 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 
 	it.each(['contributor', 'viewer'] as const)('%s: the focus graph carries nothing private', async (role) => {
 		const r = await graph().focusGraph(treeId, idOf('@I1@'), OPTIONS, actors[role].context);
-		expect(leaks(r)).toEqual([]);
+		expect(leaks(r, !hasPlaceholders)).toEqual([]);
 		const ids = r.graph.people.map((p) => p.id);
 		expect(ids).toContain(idOf('@I3@'));
 		if (hasPlaceholders) {
@@ -177,19 +179,34 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 		expect(page).toBeInstanceOf(NotFoundError);
 		expect(page.message.replace(idOf('@I2@'), 'ID')).toBe(missingPage.message.replace('no-such-person', 'ID'));
 		const union = await unionsPage().getUnion(treeId, await unionOf('@I1@', '@I2@'), ctx).catch((e) => e);
-		expect(union).toBeInstanceOf(NotFoundError);
-		expect(union.message).toContain('Partnership');
+		if (hasPlaceholders) {
+			// The structure stands, as placeholders, and the wedding's facts stay withheld.
+			expect(union.events).toEqual([]);
+			expect(leaks(union, false)).toEqual([]);
+			expect(union.partners.map((p: { displayName: string }) => p.displayName).sort()).toEqual(['Grandar Oldman', 'Private']);
+		} else {
+			expect(union).toBeInstanceOf(NotFoundError);
+			expect(union.message).toContain('Partnership');
+		}
+	});
+
+	it('does not link a page to a partnership the viewer cannot open', async () => {
+		const unionId = await unionOf('@I1@', '@I2@');
+		const page = await persons().getPerson(treeId, idOf('@I1@'), actors.viewer.context);
+		const linked = page.partnerships.map((p) => p.unionId);
+		// Omitted: the partnership is gone from the page. Placeholders: it is shown and its page opens.
+		expect(linked.includes(unionId)).toBe(hasPlaceholders);
 	});
 
 	it('shows a visible person\'s page without the private people around them', async () => {
 		const page = await persons().getPerson(treeId, idOf('@I3@'), actors.viewer.context);
-		expect(leaks(page)).toEqual([]);
+		expect(leaks(page, !hasPlaceholders)).toEqual([]);
 		expect(page.changes.recent).toEqual([]);
 	});
 
 	it('shows a partnership with no private partner, and withholds a private child', async () => {
 		const page = await unionsPage().getUnion(treeId, await unionOf('@I1@', '@I4@'), actors.viewer.context);
-		expect(leaks(page)).toEqual([]);
+		expect(leaks(page, !hasPlaceholders)).toEqual([]);
 		expect(page.partners.map((p) => p.displayName)).toEqual(['Grandar Oldman', 'Samuel Passed']);
 	});
 

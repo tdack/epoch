@@ -4,8 +4,8 @@
  * one rule; the paged reads that cannot load rows use the SQL form in `repositories/visibility.ts`.
  *
  * Two modes, set per tree:
- * - **omit:** a private person, their names and facts, and every link and partner row that names
- *   them are gone, as if they were never recorded. Counts, stubs and relationships are computed over
+ * - **omit:** a private person, their names and facts, every link and partner row that names them,
+ *   and every partnership they are in are gone, as if they were never recorded. Counts, stubs and relationships are computed over
  *   what is left, so nothing says someone was removed.
  * - **placeholder:** structure stays, so a relationship can be drawn, but a private person has no
  *   name, sex, XREF, names or facts: they are "Private".
@@ -55,7 +55,10 @@ export function maskRows(rows: TreeRows, cutoff: string, shouldShowStructure: bo
 		};
 	}
 
-	const unionPartners = rows.unionPartners.filter((p) => !hidden.has(p.personId));
+	// A partnership with a private partner is not left standing with the partner who remains: its page,
+	// its facts and the list all treat it as absent, so a link to it from a page would be a dead end
+	// that also says something is there. Its children keep their parent and lose the partnership.
+	const unionPartners = rows.unionPartners.filter((p) => !hidden.has(p.personId) && !unionsWithHiddenPartner.has(p.unionId));
 	const keptUnions = new Set(unionPartners.map((p) => p.unionId));
 	return {
 		rows: {

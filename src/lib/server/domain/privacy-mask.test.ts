@@ -54,16 +54,20 @@ describe('maskRows, omitting', () => {
 		expect(masked.parentChild.map((l) => l.parentId)).toEqual(['gran']);
 		expect(placeholderIds.size).toBe(0);
 	});
-	it('keeps a partnership with a private partner but not its facts', () => {
-		expect(masked.unions.map((u) => u.id).sort()).toEqual(['u1', 'u2']);
+	it('drops a partnership with a private partner, with its facts, so no page links to a dead end', () => {
+		expect(masked.unions.map((u) => u.id)).toEqual(['u2']);
+		expect(masked.unionPartners.map((p) => p.unionId).sort()).toEqual(['u2', 'u2']);
 		expect(masked.events.filter((e) => e.entityType === 'FAMILY').map((e) => e.entityId)).toEqual(['u2']);
+	});
+	it('leaves the visible parent a child of the person, without the partnership', () => {
+		expect(masked.parentChild).toEqual([expect.objectContaining({ parentId: 'gran', childId: 'kit', unionId: null })]);
 	});
 	it('drops a partnership with nobody visible left, and unlinks its children', () => {
 		const r = rows();
 		r.individuals.find((i) => i.id === 'gran')!.privacy = 'private';
 		const out = maskRows(r, CUTOFF, false).rows;
-		// u1's partners are both private; u2 keeps Sam.
-		expect(out.unions.map((u) => u.id)).toEqual(['u2']);
+		// u1's partners are both private, and u2 has Gran as a partner, so neither stands.
+		expect(out.unions.map((u) => u.id)).toEqual([]);
 		expect(out.parentChild).toEqual([]);
 	});
 });

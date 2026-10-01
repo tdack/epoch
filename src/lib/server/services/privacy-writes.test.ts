@@ -103,11 +103,14 @@ describe('a contributor', () => {
 		expect(hidden.message.replace(idOf('@I2@'), 'ID')).toBe(missing.message.replace('no-such-person', 'ID'));
 	});
 
-	it('cannot add to a partnership that has a private partner, and learns nothing from the refusal', async () => {
+	it('cannot add to a partnership that has a private partner, and is answered as if it did not exist', async () => {
 		const unionId = await unionOf('@I1@', '@I2@');
-		const error = await relationships().execute(treeId, addChild('@I1@', unionId), ctx()).catch((e) => e);
-		expect(error).toBeInstanceOf(UnauthorizedError);
-		expect(leaks(error.message)).toEqual([]);
+		const hidden = await relationships().execute(treeId, addChild('@I1@', unionId), ctx()).catch((e) => e);
+		const missing = await relationships().execute(treeId, addChild('@I1@', 'no-such-union'), ctx()).catch((e) => e);
+		expect(hidden).toBeInstanceOf(Error);
+		expect(hidden.constructor).toBe(missing.constructor);
+		expect(hidden.message.replace(unionId, 'ID')).toBe(missing.message.replace('no-such-union', 'ID'));
+		expect(leaks(hidden.message)).toEqual([]);
 	});
 
 	it('plans and writes a change among people it can see, with nothing private in the answer', async () => {

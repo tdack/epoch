@@ -121,7 +121,9 @@ export class UnionPageService {
 		// A partnership with a private partner answers as a missing one: its marriage facts and its
 		// children are facts about that partner (ADR-015).
 		const seen = scope.isRestricted ? await visibleAmong(this.repo.client, treeId, [...partnerIds, ...linkRows.map((l) => l.row.childId)], scope) : null;
-		if (seen && partnerIds.some((id) => !seen.has(id))) throw new NotFoundError('Partnership', unionId);
+		const hasPrivatePartner = seen !== null && partnerIds.some((id) => !seen.has(id));
+		// Omitting private people means omitting their partnerships; with placeholders the page stands, minus its facts.
+		if (hasPrivatePartner && !scope.shouldShowPrivateStructure) throw new NotFoundError('Partnership', unionId);
 		// A private child is left out, or shown as a placeholder, as the tree's setting says.
 		const isChildShown = (id: string) => !seen || seen.has(id) || scope.shouldShowPrivateStructure;
 		const links = linkRows.sort((a, b) => a.rid - b.rid).map((l) => l.row).filter((l) => isChildShown(l.childId));
@@ -137,7 +139,8 @@ export class UnionPageService {
 		const partners = partnerIds.map((id) => people.get(id)!);
 		const nameOf = (id: string) => people.get(id)?.displayName ?? 'Unknown';
 
-		const events: UnionEventDto[] = eventRows
+		// A marriage date and place are facts about the private partner too.
+		const events: UnionEventDto[] = (hasPrivatePartner ? [] : eventRows)
 			.sort((a, b) => a.rid - b.rid)
 			.map(({ row }) => ({
 				...privacyOf(row),
