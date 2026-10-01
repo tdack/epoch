@@ -15,6 +15,7 @@
   import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
   import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
   import { DATA_KEY } from '#lib/services/load-helpers.js';
+  import { isManagerOrAbove } from '#lib/shared/roles.js';
   import type { LayoutData } from './$types';
 
   interface Props {
@@ -24,6 +25,7 @@
 
   let { data, children }: Props = $props();
 
+  const role = $derived(data.trees.find((t) => t.id === data.summary.tree.id)?.role);
   const treePath = (id: string) => `/trees/${encodeURIComponent(id)}`;
   const personPath = (treeId: string, personId: string) => `${treePath(treeId)}/people/${encodeURIComponent(personId)}`;
 
@@ -76,12 +78,13 @@
     onopenAddPerson={editor.openAddPerson}
     onfileSelect={shell.selectFile}
     onexportGedcom={shell.exportGedcom}
+    canExport={isManagerOrAbove(role)}
   />
 
   <main class="flex-1 p-6 flex flex-col space-y-4 max-w-7xl w-full mx-auto">
     <TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
     <TreeStatsBanner treeName={data.summary.tree.name} people={data.summary.counts.people} unions={data.summary.counts.unions} />
-    <TreeNav treeId={data.summary.tree.id} />
+    <TreeNav treeId={data.summary.tree.id} {role} />
     <MarksStrip treeId={data.summary.tree.id} {marks} />
     {@render children()}
   </main>

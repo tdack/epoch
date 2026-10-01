@@ -11,6 +11,7 @@ export const ROLE_HIERARCHY: Record<TreeRole, number> = {
   manager: 4,
   owner: 5
 };
+// The order lives in `shared/roles.ts` too, for the screens; a test holds the two the same.
 
 export type TreeAction =
   | 'tree:view'

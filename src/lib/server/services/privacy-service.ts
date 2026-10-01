@@ -10,13 +10,9 @@ import type { AuthenticatedContext } from '../domain/identity';
 import { describeCommand } from '../domain/command-summary';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { PERSON_PRIVACY_VALUES, type PersonPrivacy } from '../../shared/privacy';
+import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS, PERSON_PRIVACY_VALUES, type PersonPrivacy } from '../../shared/privacy';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import { requireTreeAction } from './tree-access';
-
-/** Bounds on the tree's threshold: below this living people would be shown; above it nothing is ever old enough. */
-export const MIN_MAX_ALIVE_YEARS = 50;
-export const MAX_MAX_ALIVE_YEARS = 150;
 
 export interface PrivacySettingsDto {
 	maxAliveYears: number;

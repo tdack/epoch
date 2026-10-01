@@ -1,7 +1,11 @@
+import type { TreeRole } from '#lib/shared/roles.js';
+
 export interface TreeSummary {
   id: string;
   name: string;
   description: string | null;
+  /** The caller's role in the tree; the tree list always carries it. */
+  role?: TreeRole;
 }
 
 export interface TreeDetails {

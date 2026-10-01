@@ -1,5 +1,6 @@
 <script lang="ts">
   import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from 'lucide-svelte';
+  import PersonLink from '#lib/components/PersonLink.svelte';
   import { getTreeContext } from '#lib/components/tree/tree-context.js';
   import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
   import type { PageData } from './$types';
@@ -15,6 +16,8 @@
   const treeId = $derived(data.summary.tree.id);
   const treeHref = $derived(`/trees/${encodeURIComponent(treeId)}`);
   const personHref = (id: string) => `${treeHref}/people/${encodeURIComponent(id)}`;
+  /** A placeholder has no page for this viewer, so the chronology names them without a link. */
+  const privateIds = $derived(new Set([...dto.partners, ...dto.children.map((c) => c.person)].filter((p) => p.isPrivate).map((p) => p.id)));
   const unionHref = (id: string) => `${treeHref}/unions/${encodeURIComponent(id)}`;
   const title = $derived(dto.partners.map((p) => p.displayName).join(' and ') || 'Partnership');
 
@@ -88,7 +91,7 @@
       <ul class="mt-2 space-y-1 text-sm" data-testid="partners">
         {#each dto.partners as partner (partner.id)}
           <li>
-            <a class="link" href={personHref(partner.id)}>{partner.displayName}</a>
+            <PersonLink person={partner} href={personHref(partner.id)} />
             <span class="text-xs text-stone-500">{partner.birthDate ?? ''}{partner.isDeceased ? ` – ${partner.deathDate ?? 'deceased'}` : ''}</span>
           </li>
         {/each}
@@ -115,7 +118,7 @@
       <ul class="mt-2 space-y-1.5 text-sm" data-testid="union-children">
         {#each dto.children as child (child.person.id)}
           <li>
-            <a class="link" href={personHref(child.person.id)}>{child.person.displayName}</a>
+            <PersonLink person={child.person} href={personHref(child.person.id)} />
             <span class="text-xs text-stone-500">{child.person.birthDate ?? ''}</span>
             <span class="block text-xs text-stone-500">{child.links.map((l) => `${l.parentName}: ${l.type}`).join(' · ')}</span>
           </li>
@@ -133,7 +136,7 @@
           <li class="flex gap-3">
             <span class="w-28 shrink-0 text-xs text-stone-500">{entry.dateText ?? 'undated'}</span>
             <span class={entry.kind === 'union_event' ? 'font-semibold text-emerald-900' : ''}>
-              {#if entry.personId}<a class="link" href={personHref(entry.personId)}>{entry.label}</a>{:else}{entry.label}{/if}
+              {#if entry.personId && !privateIds.has(entry.personId)}<a class="link" href={personHref(entry.personId)}>{entry.label}</a>{:else}{entry.label}{/if}
             </span>
           </li>
         {/each}

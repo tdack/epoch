@@ -19,6 +19,8 @@ import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { SearchResponse } from '#lib/shared/search.js';
 import type { MarksDto } from '#lib/shared/marks.js';
+import type { PersonPrivacy } from '#lib/shared/privacy.js';
+import type { PrivacySettingsDto } from '#lib/server/services/privacy-service.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -389,6 +391,19 @@ export async function reorderNamesApi(treeId: string, personId: string, orderedN
 
 export async function setPreferredNameApi(treeId: string, personId: string, nameId: string, version?: number): Promise<{ change: ChangeSummary | null }> {
 	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/preferred`, json('POST', { nameId, version }), 'Failed to choose the preferred name');
+}
+
+/** Force a person public or private, or let their dates decide (`auto`). A manager's action. */
+export async function setPersonPrivacyApi(treeId: string, personId: string, privacy: PersonPrivacy, version?: number): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/privacy`, json('PUT', { privacy, version }), 'Failed to change the privacy of the person');
+}
+
+export async function fetchPrivacySettings(treeId: string, fetcher: typeof fetch = fetch): Promise<PrivacySettingsDto> {
+	return call(`/api/trees/${enc(treeId)}/privacy`, { method: 'GET' }, 'Failed to load the privacy settings', fetcher);
+}
+
+export async function savePrivacySettings(treeId: string, patch: Partial<PrivacySettingsDto>): Promise<PrivacySettingsDto> {
+	return call(`/api/trees/${enc(treeId)}/privacy`, json('PUT', patch), 'Failed to save the privacy settings');
 }
 
 export type NameImpactRequest =
