@@ -39,3 +39,22 @@ Assign every existing tree an owner before enforcement; block rollout if ownersh
 - A viewer cannot infer protected data through search, charts, counts, media URLs or exports.
 - Managers can review contributor suggestions and audit/revert changes.
 - Access identity failure is fail-closed; local development uses an explicit, non-production identity adapter.
+
+## Status against the work items
+
+Slice S8 (2026-10-01) did the privacy foundation; see the [S8 status](./improvement-plan.md#s8-privacy-foundation).
+
+| Work item | Status |
+|---|---|
+| 1. Invitations and membership administration | Waiting. There is no way to add a member except the database. |
+| 2. Capabilities by role | Partly: `person:set_privacy`, `media:manage`, `media:view` added; `tree:export` raised to manager. Suggestions and evidence capabilities wait. |
+| 3. One authorization policy | Partly: one `ViewerScope` and `canSeePrivatePeople`; every read service and the mutation runner use it. Jobs: the export workflow re-checks. |
+| 4. Living people private by default | Done (ADR-015). |
+| 5. Privacy on records, facts, unions | Done for people, their names and facts, partnerships and links. Notes, citations and media follow the person only. |
+| 6. Privacy-safe placeholders | Done, per tree, graph and family lists. |
+| 7. Audit | Waiting (the change log is the start of it). |
+| 8. Suggestions and approval | Waiting. |
+| 9. History, revert, conflict review | Waiting. |
+| 10. Exports, logs, caches, R2, errors | Partly: export is manager-only, media reads are checked and `private`-cached, a private id answers as a missing one. A filtered export and log review wait. |
+
+Exit criteria: "Living and indeterminate people are private by default" and "a viewer cannot infer protected data through search, charts, counts, media URLs or exports" are met for the transports in `src/routes/privacy-matrix.test.ts`. "Managers can review suggestions and audit/revert" waits. "Access identity failure is fail-closed; local development uses an explicit adapter" was already so (`ACCESS_BYPASS_DEV`).
