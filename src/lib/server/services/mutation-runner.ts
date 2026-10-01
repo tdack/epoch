@@ -6,7 +6,9 @@
 
 import type { DbClient } from '../db';
 import { isActionAllowed, type TreeAction } from '../auth/authorization';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import {
 	OP_KINDS,
@@ -23,6 +25,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { makeLabeler } from '../domain/tree-labels';
 import { buildPlanOps } from '../domain/tree-ops';
+import { maskRows, opsTouchPrivate } from '../domain/privacy-mask';
 
 export interface MutationClock {
 	now: () => number;
@@ -50,6 +53,7 @@ export function actionForOps(ops: RowOp[]): TreeAction {
 export class MutationRunner {
 	readonly store: ChangeStore;
 	private userRepo: UserRepository;
+	private treeRepo: TreeRepository;
 
 	constructor(
 		db: DbClient,
@@ -57,6 +61,7 @@ export class MutationRunner {
 	) {
 		this.store = new ChangeStore(db);
 		this.userRepo = new UserRepository(db);
+		this.treeRepo = new TreeRepository(db);
 	}
 
 	async requireAccess(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<void> {
@@ -66,15 +71,58 @@ export class MutationRunner {
 		}
 	}
 
+	/** The action check plus what the caller may see of private people (ADR-015). */
+	scopeFor(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<ViewerScope> {
+		return requireTreeScope(this.userRepo, this.treeRepo, treeId, context, action, new Date(this.clock.now()));
+	}
+
 	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[]): RowOp[] {
 		return buildPlanOps(rows, commands, { treeId, now: this.clock.now(), newId: this.clock.newId });
 	}
 
-	/** Read-only: what these commands would write, described. Nothing is saved. */
-	async preview(treeId: string, context: AuthenticatedContext, commands: RelationshipCommand[], headline: string): Promise<ImpactSummary> {
-		await this.requireAccess(treeId, context, 'tree:view');
+	/**
+	 * Rows as the caller may see them: a restricted viewer's have private people omitted (never
+	 * placeholders, which a planner could write back). Everyone else's are the rows themselves.
+	 */
+	visibleRows(rows: TreeRows, scope: ViewerScope): TreeRows {
+		return scope.isRestricted ? maskRows(rows, scope.cutoff, false).rows : rows;
+	}
+
+	/**
+	 * Plan for a caller with this scope. A restricted viewer's commands are first planned over the
+	 * rows they can see, so naming a private person fails exactly as naming a missing one does; the
+	 * real ops are then planned over every row, and refused if they would read or write anything of
+	 * a private person (ADR-015). The refusal reads as a missing permission, not as a reason.
+	 */
+	planFor(treeId: string, rows: TreeRows, commands: RelationshipCommand[], scope: ViewerScope): RowOp[] {
+		if (!scope.isRestricted) return this.plan(treeId, rows, commands);
+		this.plan(treeId, this.visibleRows(rows, scope), commands);
+		const ops = this.plan(treeId, rows, commands);
+		if (opsTouchPrivate(ops, rows, scope.cutoff)) {
+			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`);
+		}
+		return ops;
+	}
+
+	/**
+	 * Plan as `run` would, without writing: the rows, what the caller may see of them, and the ops.
+	 * A preview names the records it would touch, so it needs the rights the change itself needs, not
+	 * just `tree:view`.
+	 */
+	async planned(treeId: string, context: AuthenticatedContext, commands: RelationshipCommand[]): Promise<{ rows: TreeRows; visible: TreeRows; ops: RowOp[] }> {
+		// `record:create` first, the weakest right any change needs: a role that can change nothing is
+		// refused before planning, so it cannot tell a private record from a missing one by the error.
+		const scope = await this.scopeFor(treeId, context, 'record:create');
 		const rows = await this.store.loadRows(treeId);
-		return describeImpact(headline, rows, this.plan(treeId, rows, commands));
+		const ops = this.planFor(treeId, rows, commands, scope);
+		await this.requireAccess(treeId, context, actionForOps(ops));
+		return { rows, visible: this.visibleRows(rows, scope), ops };
+	}
+
+	/** Read-only: what these commands would write, described. Nothing is saved. */
+	async preview(treeId: string, context: AuthenticatedContext, commands: RelationshipCommand[], headline: (rows: TreeRows) => string): Promise<ImpactSummary> {
+		const { visible, ops } = await this.planned(treeId, context, commands);
+		return describeImpact(headline(visible), visible, ops);
 	}
 
 	/**
@@ -87,16 +135,18 @@ export class MutationRunner {
 		change: { kind: string; summary: (rows: TreeRows) => string; commands: RelationshipCommand[] },
 		rows?: TreeRows
 	): Promise<MutationResult> {
-		await this.requireAccess(treeId, context, 'tree:view');
+		const scope = await this.scopeFor(treeId, context, 'record:create');
 		const snapshot = rows ?? (await this.store.loadRows(treeId));
-		const ops = this.plan(treeId, snapshot, change.commands);
+		const ops = this.planFor(treeId, snapshot, change.commands, scope);
 		await this.requireAccess(treeId, context, actionForOps(ops));
-		const affected = describeOps(ops, makeLabeler(snapshot, ops));
+		// What is logged and shown back is written from the rows the caller may see.
+		const seen = this.visibleRows(snapshot, scope);
+		const affected = describeOps(ops, makeLabeler(seen, ops));
 		const committed = await this.store.commit({
 			treeId,
 			actorId: context.user.id,
 			kind: change.kind,
-			summary: change.summary(snapshot),
+			summary: change.summary(seen),
 			ops,
 			changes: affected,
 			isUndoable: true,

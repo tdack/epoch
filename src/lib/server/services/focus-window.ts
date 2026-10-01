@@ -20,6 +20,7 @@
 
 import { NotFoundError } from '../domain/errors';
 import type { TreeRows, EventRow, IndividualRow, ParentChildRow, PersonNameRow, UnionPartnerRow, UnionRow } from '../domain/change-log';
+import { maskRows, privatePeople } from '../domain/privacy-mask';
 import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
 import { resolveStubTokens } from '../../shared/stub-tokens';
 import { selectFocusSubgraph } from '../../tree-layout/select';
@@ -31,6 +32,14 @@ const MAX_ROUNDS = 64;
 
 /** The event types a graph person carries: birth and death text, and whether they are deceased. */
 const GRAPH_PERSON_EVENT_TYPES = ['BIRT', 'DEAT'] as const;
+/** What privacy needs beyond the vitals: a burial or a christening also says whether someone is living. */
+const PRIVACY_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as const;
+
+/** Set for a viewer who may not see private people (ADR-015); the window then never holds them. */
+export interface WindowPrivacy {
+	cutoff: string;
+	shouldShowPrivateStructure: boolean;
+}
 
 export interface FocusWindowOptions extends Omit<FocusViewOptions, 'expandedStubIds'> {
 	/** Opened stubs as URL tokens; resolved here so the generation an opened stub reveals is loaded. */
@@ -47,6 +56,8 @@ export interface FocusWindow {
 }
 
 class WindowState {
+	constructor(private privacy?: WindowPrivacy) {}
+
 	individuals = new Map<string, Ranked<IndividualRow>>();
 	unions = new Map<string, Ranked<UnionRow>>();
 	partners = new Map<string, Ranked<UnionPartnerRow>>();
@@ -77,17 +88,18 @@ class WindowState {
 
 	/** Every id the loaded rows mention, drawn or not: the candidates a stub token may name. */
 	personIds(): string[] {
-		const ids = new Set(this.individuals.keys());
-		for (const { row } of this.partners.values()) ids.add(row.personId);
-		for (const { row } of this.links.values()) {
+		const { rows } = this.rows();
+		const ids = new Set(rows.individuals.map((i) => i.id));
+		for (const row of rows.unionPartners) ids.add(row.personId);
+		for (const row of rows.parentChild) {
 			ids.add(row.parentId);
 			ids.add(row.childId);
 		}
 		return [...ids];
 	}
 
-	/** The loaded rows in table insertion order, shaped like a whole-tree load. */
-	rows(): TreeRows {
+	/** The loaded rows in table insertion order, shaped like a whole-tree load, before any privacy mask. */
+	private unmaskedRows(): TreeRows {
 		const inOrder = <T>(map: Map<string, Ranked<T>>) => [...map.values()].sort((a, b) => a.rid - b.rid).map((r) => r.row);
 		// A partner row is only kept for a union that is loaded, so a half-loaded union never leaks.
 		return {
@@ -101,8 +113,19 @@ class WindowState {
 		};
 	}
 
+	/** Everyone in the loaded rows whom the viewer may not see; empty when no privacy applies. */
+	hiddenPersonIds(): Set<string> {
+		return this.privacy ? privatePeople(this.unmaskedRows(), this.privacy.cutoff) : new Set();
+	}
+
+	rows(): { rows: TreeRows; placeholderIds: Set<string> } {
+		const rows = this.unmaskedRows();
+		return this.privacy ? maskRows(rows, this.privacy.cutoff, this.privacy.shouldShowPrivateStructure) : { rows, placeholderIds: new Set() };
+	}
+
 	graph(): RelationshipGraph {
-		const graph = graphFromRows(this.rows());
+		const { rows, placeholderIds } = this.rows();
+		const graph = graphFromRows(rows, placeholderIds);
 		return {
 			...graph,
 			people: graph.people.map((p) => (this.complete.has(p.id) ? p : { ...p, isPartial: true as const }))
@@ -114,9 +137,11 @@ export async function loadFocusWindow(
 	repo: GraphWindowRepository,
 	treeId: string,
 	focusPersonId: string,
-	options: FocusWindowOptions = {}
+	options: FocusWindowOptions = {},
+	privacy?: WindowPrivacy
 ): Promise<FocusWindow> {
-	const state = new WindowState();
+	const state = new WindowState(privacy);
+	const personEventTypes = privacy ? PRIVACY_EVENT_TYPES : GRAPH_PERSON_EVENT_TYPES;
 	const { expandedStubTokens = [], ...viewOptions } = options;
 
 	const [focus] = await repo.run(repo.individualsIn(treeId, [focusPersonId]));
@@ -162,12 +187,15 @@ export async function loadFocusWindow(
 		const named = new Set<string>(people);
 		for (const p of partnerRows) named.add(p.row.personId);
 		for (const l of asChild) named.add(l.row.parentId);
+		// Without privacy a child is loaded when the view draws them. With it, every link's far end
+		// must be loaded now, or a private child would still be counted in a stub before being seen.
+		if (privacy) for (const l of [...asParent, ...unionLinks]) named.add(l.row.childId);
 		const missing = [...named].filter((id) => !state.individuals.has(id));
 		const withoutVitals = [...named].filter((id) => !state.hasVitals.has(id));
 		const withoutNames = [...named].filter((id) => !state.hasNames.has(id));
 		const [records, personEvents, personNameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
-			repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, GRAPH_PERSON_EVENT_TYPES),
+			repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, personEventTypes),
 			repo.namesOf(withoutNames)
 		);
 		state.addIndividuals(records);
@@ -181,13 +209,15 @@ export async function loadFocusWindow(
 	let roundCount = 0;
 	await expand([focusPersonId]);
 	roundCount++;
+	// A private focus answers exactly as a missing one does.
+	if (state.hiddenPersonIds().has(focusPersonId)) throw new NotFoundError('Person', focusPersonId);
 
 	for (; roundCount <= MAX_ROUNDS; roundCount++) {
 		const graph = state.graph();
 		const expandedStubIds = resolveStubTokens(
 			expandedStubTokens,
 			state.personIds(),
-			[...state.unions.keys()]
+			state.rows().rows.unions.map((u) => u.id)
 		);
 		const selection = selectFocusSubgraph(graph, focusPersonId, { ...viewOptions, expandedStubIds });
 		if (!selection) throw new NotFoundError('Person', focusPersonId);

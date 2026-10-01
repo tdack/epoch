@@ -78,7 +78,14 @@
 		pressTimer = undefined;
 	}
 
+	/**
+	 * A private placeholder (ADR-015) is drawn so the structure reads, but has no page, no tree of its
+	 * own and no relationships a viewer may add to, so nothing on the card acts.
+	 */
+	const isPrivate = $derived(person.isPrivate === true);
+
 	function onPress(event: PointerEvent) {
+		if (isPrivate) return;
 		onPointerDown(event, node.id);
 		if (event.button !== 0) return;
 		didLongPress = false;
@@ -99,6 +106,7 @@
 	}
 
 	function onClick() {
+		if (isPrivate) return;
 		if (didLongPress) {
 			didLongPress = false;
 			return;
@@ -107,6 +115,7 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
+		if (isPrivate) return;
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			if (event.shiftKey) onOpen(node.id);
@@ -119,6 +128,8 @@
 	class="card sex-{sexClass(person.sex)}"
 	class:is-focus={isFocus}
 	class:is-selected={isSelected}
+	class:is-private={isPrivate}
+	aria-disabled={isPrivate ? 'true' : undefined}
 	data-person-id={node.id}
 	data-level={level}
 	transform="translate({node.x}, {node.y})"
@@ -127,10 +138,13 @@
 	aria-label={accessibleName(node, relation)}
 	aria-current={isFocus ? 'true' : undefined}
 	onclick={onClick}
-	ondblclick={() => onOpen(node.id)}
+	ondblclick={() => {
+		if (!isPrivate) onOpen(node.id);
+	}}
 	oncontextmenu={(event) => {
 		cancelPress();
-		onContextMenu(event, node);
+		if (isPrivate) event.preventDefault();
+		else onContextMenu(event, node);
 	}}
 	onpointerdown={onPress}
 	onpointermove={onPressMove}
@@ -206,6 +220,21 @@
 	}
 	.card:hover .frame {
 		stroke-width: 3;
+	}
+	.is-private {
+		cursor: default;
+		opacity: 0.7;
+	}
+	.is-private .frame {
+		stroke-dasharray: 6 4;
+	}
+	.is-private:hover .frame {
+		stroke-width: 1.75;
+	}
+	.is-private .name,
+	.is-private .name-compact {
+		font-style: italic;
+		font-weight: 500;
 	}
 	.is-focus .frame {
 		stroke-width: 3.5;

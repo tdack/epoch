@@ -141,7 +141,9 @@ describe('handle hook', () => {
     const event = {
       request: new Request('https://epoch.example.com/api/trees', { headers }),
       url: new URL('https://epoch.example.com/api/trees'),
-      locals: {} as Record<string, unknown>
+      locals: {} as Record<string, unknown>,
+      // SvelteKit's cookie jar, reduced to a read of the request's own `cookie` header.
+      cookies: { get: (name: string) => new RegExp(`(?:^|; )${name}=([^;]*)`).exec(headers.cookie ?? '')?.[1] }
     };
     await handle({ event, resolve: async () => new Response('ok') } as never);
     return event.locals.user as { accessSub: string } | null;
@@ -167,5 +169,13 @@ describe('handle hook', () => {
   it('gives a tokenless request the dev user only with the flag', async () => {
     expect((await run({ env: 'true' }))?.accessSub).toBe('dev-local-user');
     expect((await run({ binding: 'true' }))?.accessSub).toBe('dev-local-user');
+  });
+
+  it('takes a second dev identity from a header or a cookie, and only with the flag', async () => {
+    const asCookie = { cookie: 'x-dev-user-sub=second-user' };
+    expect((await run({ env: 'true' }, { 'x-dev-user-sub': 'header-user' }))?.accessSub).toBe('header-user');
+    expect((await run({ env: 'true' }, asCookie))?.accessSub).toBe('second-user');
+    // Without the flag a cookie, like a header, buys nothing: the request stays anonymous.
+    expect(await run({}, asCookie)).toBeNull();
   });
 });

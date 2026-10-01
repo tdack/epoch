@@ -18,25 +18,6 @@ export class TreeRepository {
   constructor(private db: DbClient) {}
 
   async listForUser(userId: string): Promise<TreeSummary[]> {
-    // 1. Backfill memberships for any existing unassigned trees (e.g. legacy D1 data)
-    // Find trees that have no memberships at all and assign them to this user as owner.
-    const allTrees = await this.db.select().from(trees).all();
-    const existingMemberships = await this.db.select().from(treeMemberships).all();
-    const treesWithMembers = new Set(existingMemberships.map((m) => m.treeId));
-
-    for (const tree of allTrees) {
-      if (!treesWithMembers.has(tree.id)) {
-        await this.db.insert(treeMemberships).values({
-          id: crypto.randomUUID(),
-          treeId: tree.id,
-          userId,
-          role: 'owner',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }).onConflictDoNothing();
-      }
-    }
-
     const records = await this.db
       .select({
         id: trees.id,
@@ -57,6 +38,20 @@ export class TreeRepository {
       ...r,
       role: r.role as TreeRole
     }));
+  }
+
+  /** The per-tree privacy settings (ADR-015); null when the tree does not exist. */
+  async privacySettings(treeId: string): Promise<{ maxAliveYears: number; shouldShowPrivateStructure: boolean } | null> {
+    const record = await this.db
+      .select({ maxAliveYears: trees.maxAliveYears, shouldShowPrivateStructure: trees.shouldShowPrivateStructure })
+      .from(trees)
+      .where(eq(trees.id, treeId))
+      .get();
+    return record ?? null;
+  }
+
+  async updatePrivacySettings(treeId: string, patch: { maxAliveYears?: number; shouldShowPrivateStructure?: boolean }): Promise<void> {
+    await this.db.update(trees).set({ ...patch, updatedAt: new Date() }).where(eq(trees.id, treeId));
   }
 
   async findById(treeId: string): Promise<TreeSummary | null> {

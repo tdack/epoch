@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { SEX_VALUES } from '../../../shared/sex';
+import { PERSON_PRIVACY_VALUES } from '../../../shared/privacy';
 import { trees } from './trees';
 
 // Individuals (@I123@)
@@ -11,6 +12,9 @@ export const individuals = sqliteTable('individuals', {
   givenName: text('given_name'),
   surname: text('surname'),
   sex: text('sex', { enum: SEX_VALUES }).default('U'),
+  // ADR-015. `auto` derives living state from the person's facts; an owner or manager can force
+  // `public` or `private`. Imported GEDCOM `RESN privacy` lands here, not in gedcom_preserved.
+  privacy: text('privacy', { enum: PERSON_PRIVACY_VALUES }).notNull().default('auto'),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())

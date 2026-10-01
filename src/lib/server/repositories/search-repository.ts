@@ -15,6 +15,10 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { dateBound } from '../../shared/search';
+import type { ViewerScope } from '../services/tree-access';
+import { andVisible, isVisibleOf } from './visibility';
+
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff'>;
 
 export interface SearchHit {
 	personId: string;
@@ -68,6 +72,17 @@ function factCondition(place: string, from: string, to: string): SQL {
 	return sql.join(parts, sql` and `);
 }
 
+/**
+ * A partnership's own facts (a marriage date and place) are facts about every partner, so a restricted
+ * viewer may match on them only when every partner is visible (ADR-015); otherwise a search for the
+ * year of a private couple's wedding would find the visible one and name the date.
+ */
+function allPartnersVisible(unionColumn: string, scope: Scope): SQL {
+	return scope.isRestricted
+		? sql` and not exists (select 1 from union_partners other join individuals p on p.id = other.person_id where other.union_id = ${sql.raw(unionColumn)} and not ${isVisibleOf('p', scope)})`
+		: sql``;
+}
+
 const hasFactFilter = (f: SearchFilters) => Boolean(f.place || dateBound(f.from, 'start') || dateBound(f.to, 'end'));
 
 /** The stored forms an XREF typed as `I4`, `i4` or `@I4@` could take. */
@@ -81,20 +96,20 @@ export function xrefCandidates(text: string): string[] {
 export class SearchRepository {
 	constructor(private db: DbClient) {}
 
-	xrefSql(treeId: string, candidates: string[]): SQL {
+	xrefSql(treeId: string, candidates: string[], scope: Scope): SQL {
 		// Named, because SQLite picks the tree index when both can serve and then reads the whole tree.
-		return sql`select id from individuals indexed by idx_ind_xref where tree_id = ${treeId} and xref_id in (${sql.join(candidates.map((c) => sql`${c}`), sql`, `)}) order by rowid`;
+		return sql`select i.id as id from individuals i indexed by idx_ind_xref where i.tree_id = ${treeId} and i.xref_id in (${sql.join(candidates.map((c) => sql`${c}`), sql`, `)})${andVisible('i', scope)} order by i.rowid`;
 	}
 
 	/** People whose XREF is exactly this, with or without the `@`s (the importer stores them with). */
-	async byXref(treeId: string, text: string): Promise<string[]> {
+	async byXref(treeId: string, text: string, scope: Scope): Promise<string[]> {
 		const candidates = xrefCandidates(text);
 		if (candidates.length === 0) return [];
-		return (await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates))).map((r) => r.id);
+		return (await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates, scope))).map((r) => r.id);
 	}
 
-	async find(treeId: string, filters: SearchFilters): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string; name_id: string | null }>(this.findSql(treeId, filters));
+	async find(treeId: string, filters: SearchFilters, scope: Scope): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
+		const rows = await this.db.all<{ id: string; name_id: string | null }>(this.findSql(treeId, filters, scope));
 		return {
 			hits: rows.slice(0, filters.limit).map((r) => ({ personId: r.id, nameId: r.name_id })),
 			hasMore: rows.length > filters.limit
@@ -102,20 +117,20 @@ export class SearchRepository {
 	}
 
 	/** The search statement, unrun: the plan test measures exactly what `find` sends. */
-	findSql(treeId: string, filters: SearchFilters): SQL {
+	findSql(treeId: string, filters: SearchFilters, scope: Scope): SQL {
 		const { words, limit, offset } = filters;
 		const factFilter = hasFactFilter(filters)
 			? sql` and (exists (select 1 from events e where e.entity_type = 'INDIVIDUAL' and e.entity_id = i.id and ${factCondition(filters.place, filters.from, filters.to)})
-				or exists (select 1 from union_partners up where up.person_id = i.id and exists (select 1 from events e where e.entity_type = 'FAMILY' and e.entity_id = up.union_id and ${factCondition(filters.place, filters.from, filters.to)})))`
+				or exists (select 1 from union_partners up where up.person_id = i.id and exists (select 1 from events e where e.entity_type = 'FAMILY' and e.entity_id = up.union_id and ${factCondition(filters.place, filters.from, filters.to)})${allPartnersVisible('up.union_id', scope)}))`
 			: sql``;
 		// One more than asked for, so the caller can say whether there is another page.
 		const page = sql`limit ${limit + 1} offset ${offset}`;
 		return words.length === 0
 			? sql`
 				select i.id as id, null as name_id from individuals i
-				where i.tree_id = ${treeId}${factFilter}
+				where i.tree_id = ${treeId}${factFilter}${andVisible('i', scope)}
 				order by lower(i.surname), lower(i.given_name), i.id ${page}`
-			: this.rankedNames(treeId, words, factFilter, page);
+			: this.rankedNames(treeId, words, sql`${factFilter}${andVisible('i', scope)}`, page);
 	}
 
 	private rankedNames(treeId: string, words: string[], factFilter: SQL, page: SQL): SQL {
@@ -152,7 +167,7 @@ export class SearchRepository {
 	}
 
 	/** The facts that made these people match the place and date filter, for saying why. */
-	async factsMatching(personIds: string[], place: string, from: string, to: string): Promise<FactHit[]> {
+	async factsMatching(personIds: string[], place: string, from: string, to: string, scope: Scope): Promise<FactHit[]> {
 		if (personIds.length === 0 || !hasFactFilter({ words: [], place, from, to, limit: 0, offset: 0 })) return [];
 		const ids = sql.join(personIds.map((id) => sql`${id}`), sql`, `);
 		const condition = factCondition(place, from, to);
@@ -162,7 +177,7 @@ export class SearchRepository {
 			union all
 			select e.id, up.person_id, e.type, e.place, e.date_raw, 1
 			from union_partners up join events e on e.entity_type = 'FAMILY' and e.entity_id = up.union_id
-			where up.person_id in (${ids}) and ${condition}`);
+			where up.person_id in (${ids}) and ${condition}${allPartnersVisible('up.union_id', scope)}`);
 		return rows.map((r) => ({
 			factId: r.fact_id,
 			personId: r.person_id,

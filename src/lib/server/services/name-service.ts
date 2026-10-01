@@ -28,9 +28,7 @@ export class NameService {
 
 	/** What a name change would write, without writing it. */
 	async preview(treeId: string, command: NameCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
-		const rows = await this.runner.store.loadRows(treeId);
-		return describeImpact(describeCommand(command, rows), rows, this.runner.plan(treeId, rows, [command]));
+		return this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows));
 	}
 
 	async create(treeId: string, personId: string, name: NameInput, isPreferred: boolean, context: AuthenticatedContext): Promise<{ nameId: string } & MutationResult> {

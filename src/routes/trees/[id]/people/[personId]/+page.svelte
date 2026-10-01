@@ -2,10 +2,13 @@
   import { ArrowDown, ArrowUp, Cross, GitBranch, MapPin, Pencil, Plus, Star, Trash2, UserPlus } from 'lucide-svelte';
   import FactDialog from '#lib/components/modals/FactDialog.svelte';
   import NameDialog from '#lib/components/modals/NameDialog.svelte';
+  import PersonLink from '#lib/components/PersonLink.svelte';
   import { getTreeContext } from '#lib/components/tree/tree-context.js';
+  import { isManagerOrAbove } from '#lib/shared/roles.js';
+  import type { PersonPrivacy } from '#lib/shared/privacy.js';
   import { sexLabel } from '#lib/shared/sex.js';
   import type { FactDto, NameDto, PersonSummaryDto } from '#lib/server/services/person-page-service.js';
-  import { deleteFactApi, deleteNameApi, previewFactApi, previewNameApi, recordRecentApi, reorderFactsApi, reorderNamesApi, setFavoriteApi, setPreferredNameApi } from '#lib/services/tree-api.js';
+  import { deleteFactApi, deleteNameApi, previewFactApi, previewNameApi, recordRecentApi, reorderFactsApi, reorderNamesApi, setFavoriteApi, setPersonPrivacyApi, setPreferredNameApi } from '#lib/services/tree-api.js';
   import { NAME_TYPE_LABELS, formatFullName } from '#lib/shared/name-types.js';
   import type { PageData } from './$types';
 
@@ -47,6 +50,37 @@
       marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
     } catch (cause) {
       toasts.push((cause as Error).message || 'Could not change the favourite', { tone: 'error' });
+    }
+  }
+
+  // ---- Privacy (managers and owners) ----
+  const canSetPrivacy = $derived(isManagerOrAbove(data.trees.find((t) => t.id === treeId)?.role) && dto.privacy !== null);
+  const PRIVACY_CHOICES: Array<{ value: PersonPrivacy; label: string }> = [
+    { value: 'auto', label: 'Automatic: follow their dates' },
+    { value: 'public', label: 'Always public' },
+    { value: 'private', label: 'Always private' }
+  ];
+  /** What contributors and viewers get, in a sentence, so the setting's effect is not a guess. */
+  const privacyEffect = $derived.by(() => {
+    if (!dto.privacy) return '';
+    if (dto.privacy.setting === 'public') return 'Contributors and viewers can see them.';
+    if (dto.privacy.setting === 'private') return 'Hidden from contributors and viewers.';
+    return dto.privacy.isLikelyLiving
+      ? 'Hidden from contributors and viewers: no death is recorded and no birth is old enough.'
+      : 'Visible to contributors and viewers: a death is recorded or their birth is old enough.';
+  });
+  let isSavingPrivacy = $state(false);
+
+  async function changePrivacy(event: Event) {
+    const privacy = (event.currentTarget as HTMLSelectElement).value as PersonPrivacy;
+    isSavingPrivacy = true;
+    try {
+      const { change } = await setPersonPrivacyApi(treeId, dto.person.id, privacy, dto.person.version);
+      await editor.afterChange(change, 'Privacy changed');
+    } catch (cause) {
+      toasts.push((cause as Error).message || 'Could not change the privacy', { tone: 'error' });
+    } finally {
+      isSavingPrivacy = false;
     }
   }
 
@@ -196,6 +230,19 @@
   </div>
 </header>
 
+{#if canSetPrivacy && dto.privacy}
+  <section aria-labelledby="privacy-heading" class="card" data-testid="privacy-panel">
+    <h3 id="privacy-heading" class="heading">Privacy</h3>
+    <div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
+      <label for="person-privacy" class="sr-only">Who may see this person</label>
+      <select id="person-privacy" value={dto.privacy.setting} onchange={changePrivacy} disabled={isSavingPrivacy} class="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-sm">
+        {#each PRIVACY_CHOICES as choice (choice.value)}<option value={choice.value}>{choice.label}</option>{/each}
+      </select>
+      <p class="text-xs text-stone-600" data-testid="privacy-effect">{privacyEffect}</p>
+    </div>
+  </section>
+{/if}
+
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
   <div class="space-y-6">
     <section aria-labelledby="names-heading" class="card">
@@ -319,7 +366,7 @@
       {#each dto.parentFamilies as family (family.unionId ?? 'direct')}
         <ul class="mt-2 space-y-1 text-sm" data-testid="parents">
           {#each family.parents as parent (parent.person.id + parent.type)}
-            <li><a class="link" href={personHref(parent.person.id)}>{parent.person.displayName}</a> <span class="text-xs text-stone-500">{parent.type === 'biological' ? '' : parent.type}</span></li>
+            <li><PersonLink person={parent.person} href={personHref(parent.person.id)} /> <span class="text-xs text-stone-500">{parent.type === 'biological' ? '' : parent.type}</span></li>
           {/each}
           {#if family.unionId}<li class="text-xs"><a class="link" href={unionHref(family.unionId)}>{family.label?.full ?? 'Their partnership'}</a></li>{/if}
         </ul>
@@ -338,14 +385,14 @@
           </p>
           <ul class="mt-1 space-y-0.5 text-sm">
             {#each union.partners as partner (partner.id)}
-              <li><a class="link" href={personHref(partner.id)}>{partner.displayName}</a>{#if partner.isDeceased} <span class="text-xs text-stone-500">(deceased)</span>{/if}</li>
+              <li><PersonLink person={partner} href={personHref(partner.id)} />{#if partner.isDeceased} <span class="text-xs text-stone-500">(deceased)</span>{/if}</li>
             {/each}
           </ul>
           {#if union.children.length > 0}
             <p class="mt-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500">Children</p>
             <ul class="space-y-0.5 text-sm">
               {#each childrenOf(union.children) as child (child.id)}
-                <li><a class="link" href={personHref(child.id)}>{child.displayName}</a></li>
+                <li><PersonLink person={child} href={personHref(child.id)} /></li>
               {/each}
             </ul>
           {/if}
@@ -355,7 +402,7 @@
         <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-stone-500">Children (no partnership recorded)</p>
         <ul class="space-y-0.5 text-sm">
           {#each childrenOf(dto.directChildren) as child (child.id)}
-            <li><a class="link" href={personHref(child.id)}>{child.displayName}</a></li>
+            <li><PersonLink person={child} href={personHref(child.id)} /></li>
           {/each}
         </ul>
       {/if}
@@ -365,8 +412,8 @@
       <h3 id="siblings-heading" class="heading">Siblings</h3>
       {#if dto.siblings.full.length === 0 && dto.siblings.half.length === 0}<p class="mt-2 text-xs italic text-stone-500">None recorded.</p>{/if}
       <ul class="mt-2 space-y-0.5 text-sm" data-testid="siblings">
-        {#each dto.siblings.full as sibling (sibling.id)}<li><a class="link" href={personHref(sibling.id)}>{sibling.displayName}</a></li>{/each}
-        {#each dto.siblings.half as sibling (sibling.id)}<li><a class="link" href={personHref(sibling.id)}>{sibling.displayName}</a> <span class="text-xs text-stone-500">half-sibling</span></li>{/each}
+        {#each dto.siblings.full as sibling (sibling.id)}<li><PersonLink person={sibling} href={personHref(sibling.id)} /></li>{/each}
+        {#each dto.siblings.half as sibling (sibling.id)}<li><PersonLink person={sibling} href={personHref(sibling.id)} /> <span class="text-xs text-stone-500">half-sibling</span></li>{/each}
       </ul>
     </section>
 
@@ -374,8 +421,8 @@
       <section aria-labelledby="steps-heading" class="card">
         <h3 id="steps-heading" class="heading">Step relatives</h3>
         <ul class="mt-2 space-y-0.5 text-sm" data-testid="step-relatives">
-          {#each dto.stepParents as step (step.person.id)}<li><a class="link" href={personHref(step.person.id)}>{step.person.displayName}</a> <span class="text-xs text-stone-500">step-parent</span></li>{/each}
-          {#each dto.stepChildren as step (step.person.id)}<li><a class="link" href={personHref(step.person.id)}>{step.person.displayName}</a> <span class="text-xs text-stone-500">step-child, via {step.via.displayName}</span></li>{/each}
+          {#each dto.stepParents as step (step.person.id)}<li><PersonLink person={step.person} href={personHref(step.person.id)} /> <span class="text-xs text-stone-500">step-parent</span></li>{/each}
+          {#each dto.stepChildren as step (step.person.id)}<li><PersonLink person={step.person} href={personHref(step.person.id)} /> <span class="text-xs text-stone-500">step-child, via {step.via.displayName}</span></li>{/each}
         </ul>
       </section>
     {/if}

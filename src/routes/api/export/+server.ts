@@ -30,8 +30,7 @@ export const GET: RequestHandler = async ({ url, locals, platform }) => {
   try {
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
-    // Verifies tree access
-    await service.getTree(treeId, {
+    await service.requireExport(treeId, {
       user: locals.user,
       correlationId: locals.correlationId
     });
@@ -67,7 +66,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   try {
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
-    await service.getTree(treeId, {
+    await service.requireExport(treeId, {
       user: locals.user,
       correlationId: locals.correlationId
     });
@@ -75,7 +74,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     // Trigger Cloudflare Workflow if binding exists
     if (platform?.env?.GEDCOM_EXPORT_WORKFLOW) {
       const instance = await platform.env.GEDCOM_EXPORT_WORKFLOW.create({
-        params: { treeId, format }
+        params: { treeId, format, userId: locals.user.id }
       });
       return Response.json({ status: 'started', instanceId: instance.id });
     }

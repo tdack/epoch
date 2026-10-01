@@ -77,11 +77,12 @@ describe('facts through the mutation runner', () => {
 		await expect(stale).rejects.toMatchObject({ details: { entity: 'fact', currentVersion: 2, current: { place: 'Hull' } } });
 	});
 
-	it('lets an editor write and a viewer read only', async () => {
+	it('lets an editor write and refuses a viewer both the change and its preview', async () => {
 		const { treeId, person, facts } = await setup();
 		const viewer = await createTestUser(t.db, 'viewer');
 		await addTestMember(t.db, treeId, viewer, 'viewer');
 		await expect(facts.create(treeId, person.id, { ...blank, type: 'OCCU' }, viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(facts.preview(treeId, { kind: 'delete_fact', factId: 'x' }, viewer.context)).rejects.not.toBeInstanceOf(UnauthorizedError);
+		// A preview names the records it would touch, so it needs the rights the change needs.
+		await expect(facts.preview(treeId, { kind: 'delete_fact', factId: 'x' }, viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 });

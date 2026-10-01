@@ -8,6 +8,7 @@ import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { ListRepository } from '../repositories/list-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { privacyOf } from '../../shared/privacy';
 import {
@@ -21,9 +22,8 @@ import {
 	type UnionListItem
 } from '../../shared/lists';
 import { isSex } from '../../shared/sex';
-import { filterForViewer } from './privacy-seam';
 import { personSummaries, summaryOfRows } from './person-summaries';
-import { requireTreeAction } from './tree-access';
+import { requireTreeScope } from './tree-access';
 
 const clampPage = (query: { offset?: number; limit?: number }) => ({
 	offset: Math.max(0, query.offset ?? 0),
@@ -37,18 +37,23 @@ export class ListService {
 	private lists: ListRepository;
 	private graphRepo: GraphWindowRepository;
 	private users: UserRepository;
+	private trees: TreeRepository;
 
-	constructor(db: DbClient) {
+	constructor(
+		db: DbClient,
+		private now: () => Date = () => new Date()
+	) {
 		this.lists = new ListRepository(db);
 		this.graphRepo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
+		this.trees = new TreeRepository(db);
 	}
 
 	async individuals(treeId: string, query: Partial<IndividualListQuery>, context: AuthenticatedContext): Promise<Page<IndividualListItem>> {
-		await requireTreeAction(this.users, treeId, context, 'tree:view');
+		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const page = clampPage(query);
 		const sort = query.sort ?? INDIVIDUAL_SORTS.SURNAME;
-		const { ids, hasMore } = await this.lists.individualIds(treeId, sort, (query.surname ?? '').trim(), page);
+		const { ids, hasMore } = await this.lists.individualIds(treeId, sort, (query.surname ?? '').trim(), page, scope);
 		const [people, vitals, names] = await this.graphRepo.run(
 			this.graphRepo.individualsIn(treeId, ids),
 			this.graphRepo.eventsOf(treeId, 'INDIVIDUAL', ids, ['BIRT', 'DEAT']),
@@ -77,13 +82,13 @@ export class ListService {
 				isDeceased: summary.isDeceased
 			});
 		}
-		return { items: filterForViewer(items, context), hasMore, ...page };
+		return { items, hasMore, ...page };
 	}
 
 	async unions(treeId: string, query: { offset?: number; limit?: number }, context: AuthenticatedContext): Promise<Page<UnionListItem>> {
-		await requireTreeAction(this.users, treeId, context, 'tree:view');
+		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const page = clampPage(query);
-		const { ids, hasMore } = await this.lists.unionIds(treeId, page);
+		const { ids, hasMore } = await this.lists.unionIds(treeId, page, scope);
 		const [unionRows, partnerRows, familyEvents] = await this.graphRepo.run(
 			this.graphRepo.unionsIn(treeId, ids),
 			this.graphRepo.partnerRowsOfUnions(treeId, ids),
@@ -112,14 +117,14 @@ export class ListService {
 				endDate: end?.dateRaw ?? null
 			});
 		}
-		return { items: filterForViewer(items, context), hasMore, ...page };
+		return { items, hasMore, ...page };
 	}
 
 	async surnames(treeId: string, query: { offset?: number; limit?: number }, context: AuthenticatedContext): Promise<Page<SurnameListItem>> {
-		await requireTreeAction(this.users, treeId, context, 'tree:view');
+		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const page = clampPage(query);
-		const { rows, hasMore } = await this.lists.surnames(treeId, page);
+		const { rows, hasMore } = await this.lists.surnames(treeId, page, scope);
 		const items = rows.map((r) => ({ ...privacyOf(r), surname: r.surname, people: r.people }));
-		return { items: filterForViewer(items, context), hasMore, ...page };
+		return { items, hasMore, ...page };
 	}
 }

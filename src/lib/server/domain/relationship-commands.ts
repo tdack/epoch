@@ -4,6 +4,7 @@
  * and the preview sentence; `tree-ops.ts` turns those commands into row operations.
  */
 
+import type { PersonPrivacy } from '../../shared/privacy';
 import { eventDateValue } from './date-columns';
 import { parseDateValue } from '../../shared/date-value';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
@@ -52,6 +53,7 @@ export type RelationshipCommand =
 			deathPlace?: string | null;
 	  }
 	| { kind: 'delete_person'; personId: string; expectedVersion?: number }
+	| { kind: 'set_person_privacy'; personId: string; privacy: PersonPrivacy; expectedVersion?: number }
 	| {
 			kind: 'record_death';
 			personId: string;

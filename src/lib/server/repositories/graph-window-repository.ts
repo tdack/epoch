@@ -88,6 +88,11 @@ function ranked<T>(table: SQLiteTable, rows: Array<Record<string, unknown> & { r
 export class GraphWindowRepository {
 	constructor(private db: DbClient) {}
 
+	/** For the visibility reads (`visibility.ts`), which share this connection. */
+	get client(): DbClient {
+		return this.db;
+	}
+
 	/** Send several reads in as few round trips as possible and hand back each one's result. */
 	async run<const Reads extends readonly Read<unknown>[]>(...reads: Reads): Promise<Results<Reads>> {
 		const statements = reads.flatMap((r) => r.queries);

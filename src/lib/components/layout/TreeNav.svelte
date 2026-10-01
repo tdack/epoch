@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 
 	interface Props {
 		/** The tree these links belong to. */
 		treeId: string;
+		/** The viewer's role; managers and owners also get the privacy settings. */
+		role?: TreeRole;
 	}
 
-	let { treeId }: Props = $props();
+	let { treeId, role }: Props = $props();
 
 	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
 	const links = $derived([
@@ -14,7 +17,8 @@
 		{ href: `${base}/search`, label: 'Search', isActive: page.url.pathname.startsWith(`${base}/search`) },
 		{ href: `${base}/people`, label: 'People', isActive: page.url.pathname === `${base}/people` },
 		{ href: `${base}/unions`, label: 'Partnerships', isActive: page.url.pathname === `${base}/unions` },
-		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) }
+		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) },
+		...(isManagerOrAbove(role) ? [{ href: `${base}/privacy`, label: 'Privacy', isActive: page.url.pathname.startsWith(`${base}/privacy`) }] : [])
 	]);
 </script>
 

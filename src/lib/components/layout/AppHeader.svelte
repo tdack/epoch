@@ -12,6 +12,8 @@
     onopenAddPerson: () => void;
     onfileSelect: (e: Event) => void;
     onexportGedcom: () => void;
+    /** Export carries every person, living ones included, so it is offered to managers and owners only. */
+    canExport?: boolean;
   }
 
   let {
@@ -23,7 +25,8 @@
     onopenDeleteTree,
     onopenAddPerson,
     onfileSelect,
-    onexportGedcom
+    onexportGedcom,
+    canExport = false
   }: Props = $props();
 </script>
 
@@ -101,7 +104,7 @@
     </label>
 
     <!-- Export GEDCOM -->
-    {#if selectedTreeId}
+    {#if selectedTreeId && canExport}
       <button
         type="button"
         onclick={onexportGedcom}

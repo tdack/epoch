@@ -15,7 +15,8 @@ let otherTree: string;
 let clock = 1_000;
 let service: MarkService;
 
-const INDIS = Array.from({ length: MAX_RECENTS + 5 }, (_, i) => `0 @I${i}@ INDI\n1 NAME P${i} /Person/`).join('\n');
+// Deceased, so a viewer may see them; a person with no facts is private to one (ADR-015).
+const INDIS = Array.from({ length: MAX_RECENTS + 5 }, (_, i) => `0 @I${i}@ INDI\n1 NAME P${i} /Person/\n1 DEAT`).join('\n');
 const FIXTURE = `0 HEAD\n${INDIS}\n0 TRLR`;
 const id = (n: number, tree = treeId) => `${tree}:@I${n}@`;
 

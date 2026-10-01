@@ -6,27 +6,29 @@
  */
 
 import type { DbClient } from '../db';
-import { isActionAllowed } from '../auth/authorization';
-import { NotFoundError, UnauthorizedError } from '../domain/errors';
+import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType, ParentChildType, UnionStatus } from '../domain/genealogy-model';
 import type { GraphUnionEvent, RelationshipGraph, RelationshipGraphPerson } from '../domain/relationship-graph';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { CONFLICT_KINDS, findFactConflicts, sortTimeline, type FactConflict } from '../../shared/fact-timeline';
 import { FACT_KINDS, factTypeInfo, factLabel, type FactKind } from '../../shared/fact-types';
 import { displayNameWith, formatFullName } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
 import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
-import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
+import { privacyOf, type PersonPrivacy, type PrivacyFlag } from '../../shared/privacy';
+import { isLikelyLiving } from '../domain/living-state';
 import { relativesOf } from '../../shared/relatives';
 import { isSex, type Sex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
 import { widowhoods } from '../../shared/widowhood';
 import { loadFocusWindow } from './focus-window';
 import { personSummaries, type PersonSummaryDto } from './person-summaries';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
 export const RECENT_CHANGES_SHOWN = 15;
@@ -122,7 +124,16 @@ export interface PlaceholderDto {
 	items: [];
 }
 
+export interface PersonPrivacyDto {
+	/** The manager's override: `auto` follows the dates. */
+	setting: PersonPrivacy;
+	/** What the dates alone say, so a manager sees why someone is hidden from viewers. */
+	isLikelyLiving: boolean;
+}
+
 export interface PersonPageDto extends PrivacyFlag {
+	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
+	privacy: PersonPrivacyDto | null;
 	person: {
 		id: string;
 		xrefId: string | null;
@@ -237,28 +248,31 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 export class PersonPageService {
 	private repo: GraphWindowRepository;
 	private users: UserRepository;
+	private trees: TreeRepository;
 
-	constructor(db: DbClient) {
+	constructor(
+		db: DbClient,
+		private now: () => Date = () => new Date()
+	) {
 		this.repo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
+		this.trees = new TreeRepository(db);
 	}
 
-	private async requireView(treeId: string, context: AuthenticatedContext): Promise<void> {
-		const membership = await this.users.getMembership(treeId, context.user.id);
-		if (!membership || !isActionAllowed(membership.role, 'tree:view')) {
-			throw new UnauthorizedError("Forbidden: insufficient privileges for action 'tree:view'");
-		}
+	private requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
+		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 	}
 
 	async getPerson(treeId: string, personId: string, context: AuthenticatedContext): Promise<PersonPageDto> {
-		await this.requireView(treeId, context);
+		const scope = await this.requireView(treeId, context);
 
-		const window = await loadFocusWindow(this.repo, treeId, personId, {
-			ancestorDepth: 1,
-			descendantDepth: 1,
-			shouldIncludeSiblings: true,
-			shouldIncludeStepFamilies: true
-		});
+		const window = await loadFocusWindow(
+			this.repo,
+			treeId,
+			personId,
+			{ ancestorDepth: 1, descendantDepth: 1, shouldIncludeSiblings: true, shouldIncludeStepFamilies: true },
+			scope.isRestricted ? scope : undefined
+		);
 		const { graph } = window;
 		const relatives = relativesOf(graph, personId);
 
@@ -280,7 +294,7 @@ export class PersonPageService {
 			...relatives.stepParents.map((s) => s.personId),
 			...relatives.stepChildren.flatMap((s) => [s.personId, s.viaPartnerId])
 		];
-		const summaries = await personSummaries(this.repo, treeId, graph, wanted);
+		const summaries = await personSummaries(this.repo, treeId, graph, wanted, scope);
 		const summary = (id: string): PersonSummaryDto => summaries.get(id)!;
 
 		// ---- Facts ----
@@ -341,11 +355,14 @@ export class PersonPageService {
 		});
 
 		// ---- History ----
-		const recent = await this.repo.recentChanges(treeId, [personId, ...rows.map((r) => r.id)], RECENT_CHANGES_SHOWN);
+		// A change's summary is prose naming everyone it touched ("Added Liv as a child of Gran"), so a
+		// restricted viewer gets no history rather than text that could name a private person.
+		const recent = scope.isRestricted ? [] : await this.repo.recentChanges(treeId, [personId, ...rows.map((r) => r.id)], RECENT_CHANGES_SHOWN);
 		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
 
 		return {
 			...privacyOf(self.row),
+			privacy: scope.isRestricted ? null : { setting: self.row.privacy, isLikelyLiving: isLikelyLiving(rows.map((r) => ({ type: r.type, dateSortEnd: r.dateSortEnd })), scope.cutoff) },
 			person: {
 				id: self.row.id,
 				xrefId: self.row.xrefId,

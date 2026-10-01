@@ -304,6 +304,7 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		givenName: cleanText(command.givenName),
 		surname: cleanText(command.surname),
 		sex: command.sex,
+		privacy: 'auto',
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now
@@ -342,6 +343,13 @@ function updatePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	// The form's name fields are the preferred name row's; editing one edits the other (ADR-013).
 	const nameOps = preferredNameOps(rows, ctx, person.id, { givenName: after.givenName, surname: after.surname });
 	return [{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) }, ...nameOps, ...eventOps];
+}
+
+function setPersonPrivacy(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'set_person_privacy' }>): RowOp[] {
+	const person = requirePerson(rows, command.personId);
+	checkPersonVersion(rows, person, command.expectedVersion);
+	if (person.privacy === command.privacy) return [];
+	return [{ table: 'individuals', id: person.id, before: person, after: touch({ ...person, privacy: command.privacy }, ctx) }];
 }
 
 function recordDeath(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'record_death' }>): RowOp[] {
@@ -688,6 +696,8 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 			return updatePerson(rows, ctx, command);
 		case 'delete_person':
 			return deletePerson(rows, ctx, command);
+		case 'set_person_privacy':
+			return setPersonPrivacy(rows, ctx, command);
 		case 'record_death':
 			return recordDeath(rows, ctx, command);
 		case 'create_union':

@@ -7,7 +7,6 @@ import { UnauthorizedError, NotFoundError, ValidationError } from '../domain/err
 import type { AuthenticatedContext } from '../domain/identity';
 import { describeCommand } from '../domain/command-summary';
 import type { ImpactSummary } from '../domain/impact';
-import { describeImpact } from '../domain/impact';
 import { MutationRunner, type MutationClock } from './mutation-runner';
 import type { Sex } from '../../shared/sex';
 
@@ -37,7 +36,8 @@ export class GenealogyService {
   }
 
   async getTree(treeId: string, context: AuthenticatedContext) {
-    await this.verifyTreeAccess(treeId, context, 'tree:view');
+    // Every record of the tree, private people included, so only roles that see everyone (ADR-015).
+    await this.verifyTreeAccess(treeId, context, 'record:edit');
     const tree = await this.treeRepo.findById(treeId);
     if (!tree) throw new NotFoundError('Tree', treeId);
     const data = await this.genealogyRepo.getTreeData(treeId);
@@ -45,6 +45,14 @@ export class GenealogyService {
       tree,
       ...data
     };
+  }
+
+  /**
+   * Throws unless the caller may export this tree. The export carries every person, living ones
+   * included, so it is a manager's action until exports can be filtered per viewer (ADR-015).
+   */
+  async requireExport(treeId: string, context: AuthenticatedContext): Promise<void> {
+    await this.verifyTreeAccess(treeId, context, 'tree:export');
   }
 
   async createTree(name: string, description: string | null, context: AuthenticatedContext) {
@@ -117,7 +125,7 @@ export class GenealogyService {
   }
 
   async getIndividual(treeId: string, individualId: string, context: AuthenticatedContext) {
-    await this.verifyTreeAccess(treeId, context, 'tree:view');
+    await this.verifyTreeAccess(treeId, context, 'record:edit');
     const individual = await this.genealogyRepo.getIndividual(treeId, individualId);
     if (!individual) throw new NotFoundError('Individual', individualId);
     return individual;
@@ -125,10 +133,8 @@ export class GenealogyService {
 
   /** What deleting this person would remove and change, listed exactly. Nothing is saved. */
   async previewDeleteIndividual(treeId: string, individualId: string, context: AuthenticatedContext): Promise<ImpactSummary> {
-    await this.verifyTreeAccess(treeId, context, 'tree:view');
-    const rows = await this.runner.store.loadRows(treeId);
     const command = { kind: 'delete_person' as const, personId: individualId };
-    return describeImpact(describeCommand(command, rows), rows, this.runner.plan(treeId, rows, [command]));
+    return this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows));
   }
 
   async deleteIndividual(treeId: string, individualId: string, context: AuthenticatedContext, expectedVersion?: number) {
@@ -143,7 +149,7 @@ export class GenealogyService {
 
   /** Counts of everything deleting a tree would erase. Deleting a tree is not undoable. */
   async previewDeleteTree(treeId: string, context: AuthenticatedContext) {
-    await this.verifyTreeAccess(treeId, context, 'tree:view');
+    await this.verifyTreeAccess(treeId, context, 'tree:delete');
     const rows = await this.runner.store.loadRows(treeId);
     return {
       people: rows.individuals.length,

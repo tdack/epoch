@@ -13,3 +13,11 @@ export interface PrivacyFlag {
 export function privacyOf(_record?: unknown): PrivacyFlag {
 	return { isPrivate: false };
 }
+
+/** What an owner or manager can set on a person (ADR-015); `auto` follows the derived living state. */
+export const PERSON_PRIVACY_VALUES = ['auto', 'public', 'private'] as const;
+export type PersonPrivacy = (typeof PERSON_PRIVACY_VALUES)[number];
+
+/** Bounds on a tree's threshold: below this living people would be shown; above it nothing is ever old enough. */
+export const MIN_MAX_ALIVE_YEARS = 50;
+export const MAX_MAX_ALIVE_YEARS = 150;

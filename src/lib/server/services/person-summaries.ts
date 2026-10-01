@@ -4,9 +4,12 @@
  * shows a bare id for someone the window happened not to include.
  */
 
+import { PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
+import type { ViewerScope } from './tree-access';
 import type { EventRow, IndividualRow, PersonNameRow } from '../domain/change-log';
 import type { RelationshipGraph, RelationshipGraphPerson } from '../domain/relationship-graph';
 import type { GraphWindowRepository } from '../repositories/graph-window-repository';
+import { visibleAmong } from '../repositories/visibility';
 import { displayNameWith } from '../../shared/name-types';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
 import { isSex, type Sex } from '../../shared/sex';
@@ -56,10 +59,17 @@ export async function personSummaries(
 	repo: GraphWindowRepository,
 	treeId: string,
 	graph: RelationshipGraph | undefined,
-	ids: readonly string[]
+	ids: readonly string[],
+	scope?: Pick<ViewerScope, 'isRestricted' | 'cutoff'>
 ): Promise<Map<string, PersonSummaryDto>> {
 	const summaries = new Map((graph?.people ?? []).map((p) => [p.id, summaryOfGraphPerson(p)]));
-	const missing = [...new Set(ids)].filter((id) => !summaries.has(id));
+	const notInGraph = [...new Set(ids)].filter((id) => !summaries.has(id));
+	// Someone the graph did not carry and the viewer may not see reads as a placeholder, never by name.
+	const seen = scope?.isRestricted ? await visibleAmong(repo.client, treeId, notInGraph, scope) : null;
+	const missing = seen ? notInGraph.filter((id) => seen.has(id)) : notInGraph;
+	for (const id of notInGraph) {
+		if (seen && !seen.has(id)) summaries.set(id, { isPrivate: true, id, displayName: PRIVATE_PLACEHOLDER_NAME, sex: null, birthDate: null, deathDate: null, isDeceased: false });
+	}
 	if (missing.length > 0) {
 		const [records, vitalEvents, nameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
