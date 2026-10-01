@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
-import { RelationshipService } from '#lib/server/services/relationship-service.js';
+import { SearchService } from '#lib/server/services/search-service.js';
+import { parseSearchParams } from '#lib/shared/search.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
 
 export const GET: RequestHandler = async ({ params, url, locals, platform }) => {
@@ -17,17 +18,11 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 	}
 
-	const query = url.searchParams.get('q') ?? '';
-
 	try {
 		const db = getDb(platform.env.DB);
-		const service = new RelationshipService(db);
-
-		const people = await service.searchPeople(treeId, query, {
-			user: locals.user,
-			correlationId: locals.correlationId
-		});
-
+		// The focus box and relationship dialog ask for names only, so place and dates are not read.
+		const { text, limit } = parseSearchParams(url.searchParams);
+		const { people } = await new SearchService(db).search(treeId, { text, limit }, { user: locals.user, correlationId: locals.correlationId });
 		return Response.json({ people });
 	} catch (err) {
 		return errorResponse(err, 'Failed to search people');

@@ -14,9 +14,20 @@
 		onChange: (change: Partial<TreeViewState>) => void;
 		/** Refocus the tree on a person picked from the search results. */
 		onPickFocus: (personId: string) => void;
+		/** Offered before anything is typed: the people the user favourited and opened lately. */
+		suggestions?: { favorites: Array<{ id: string; displayName: string }>; recents: Array<{ id: string; displayName: string }> };
 	}
 
-	let { view, searchPeople, onChange, onPickFocus }: Props = $props();
+	let { view, searchPeople, onChange, onPickFocus, suggestions = { favorites: [], recents: [] } }: Props = $props();
+
+	interface Option {
+		id: string;
+		label: string;
+		/** Set when the person was found through a name they are not shown by. */
+		alias?: string;
+		/** Set on a suggestion, to say why it is offered. */
+		group?: string;
+	}
 
 	const SEARCH_DEBOUNCE_MS = 200;
 
@@ -33,12 +44,27 @@
 		return [person.givenName, person.surname].filter(Boolean).join(' ') || person.id;
 	}
 
+	// A favourite is listed once, under Favourites, and not again among the recents.
+	const suggestionOptions = $derived<Option[]>([
+		...suggestions.favorites.map((p) => ({ id: p.id, label: p.displayName, group: 'Favourite' })),
+		...suggestions.recents.filter((r) => !suggestions.favorites.some((f) => f.id === r.id)).map((p) => ({ id: p.id, label: p.displayName, group: 'Recent' }))
+	]);
+	const options = $derived<Option[]>(query.trim() ? results.map((r) => ({ id: r.id, label: label(r), alias: r.matchedName })) : suggestionOptions);
+
+	function onFocus() {
+		if (!query.trim() && suggestionOptions.length > 0) {
+			highlighted = 0;
+			isOpen = true;
+		}
+	}
+
 	function onInput() {
 		clearTimeout(timer);
 		hasSearchFailed = false;
 		if (!query.trim()) {
 			results = [];
-			isOpen = false;
+			highlighted = 0;
+			isOpen = suggestionOptions.length > 0;
 			return;
 		}
 		timer = setTimeout(async () => {
@@ -59,7 +85,7 @@
 		}, SEARCH_DEBOUNCE_MS);
 	}
 
-	function pick(person: PeopleSearchResult) {
+	function pick(person: { id: string }) {
 		query = '';
 		results = [];
 		isOpen = false;
@@ -67,16 +93,16 @@
 	}
 
 	function onSearchKeydown(event: KeyboardEvent) {
-		if (event.key === 'ArrowDown' && results.length > 0) {
+		if (event.key === 'ArrowDown' && options.length > 0) {
 			event.preventDefault();
 			isOpen = true;
-			highlighted = (highlighted + 1) % results.length;
-		} else if (event.key === 'ArrowUp' && results.length > 0) {
+			highlighted = (highlighted + 1) % options.length;
+		} else if (event.key === 'ArrowUp' && options.length > 0) {
 			event.preventDefault();
-			highlighted = (highlighted - 1 + results.length) % results.length;
-		} else if (event.key === 'Enter' && isOpen && results[highlighted]) {
+			highlighted = (highlighted - 1 + options.length) % options.length;
+		} else if (event.key === 'Enter' && isOpen && options[highlighted]) {
 			event.preventDefault();
-			pick(results[highlighted]);
+			pick(options[highlighted]);
 		} else if (event.key === 'Escape' && isOpen) {
 			event.stopPropagation();
 			isOpen = false;
@@ -121,15 +147,16 @@
 			aria-expanded={isOpen}
 			aria-controls="tree-focus-results"
 			aria-autocomplete="list"
-			aria-activedescendant={isOpen && results[highlighted] ? `tree-focus-result-${highlighted}` : undefined}
+			aria-activedescendant={isOpen && options[highlighted] ? `tree-focus-result-${highlighted}` : undefined}
 			bind:value={query}
 			oninput={onInput}
 			onkeydown={onSearchKeydown}
+			onfocus={onFocus}
 			onblur={() => setTimeout(() => (isOpen = false), 120)}
 		/>
 		{#if isOpen}
 			<ul id="tree-focus-results" class="results" role="listbox" aria-label="People">
-				{#each results as person, i (person.id)}
+				{#each options as option, i (option.id)}
 					<li
 						id="tree-focus-result-{i}"
 						role="option"
@@ -137,10 +164,16 @@
 						class:active={i === highlighted}
 						onmousedown={(event) => {
 							event.preventDefault();
-							pick(person);
+							pick(option);
 						}}
 					>
-						{label(person)}
+						{option.label}
+						{#if option.group}
+							<span class="aka">{option.group}</span>
+						{/if}
+						{#if option.alias}
+							<span class="aka">also known as {option.alias}</span>
+						{/if}
 					</li>
 				{:else}
 					<li class="none" role="option" aria-selected="false" aria-disabled="true">No matching people</li>
@@ -236,6 +269,11 @@
 	.results li.active,
 	.results li:hover {
 		background: #f5f5f4;
+	}
+	.aka {
+		display: block;
+		font-size: 11px;
+		color: #78716c;
 	}
 	.results li.none {
 		color: #78716c;

@@ -10,7 +10,7 @@
 
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { DbClient } from '../db';
-import { events, individuals, parentChild, unionPartners, unions } from '../db/schema';
+import { events, individuals, parentChild, personNames, unionPartners, unions } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
 
 export interface CorpusOptions {
@@ -20,7 +20,19 @@ export interface CorpusOptions {
 	/** Founding couples in the first generation; each grows into its own lineage. */
 	lineages?: number;
 	generations?: number;
+	/**
+	 * Give people the things a search needs: varied names, stored name rows (preferred, married,
+	 * nicknames), XREFs and birth places. Off by default so the structural corpus, and every test
+	 * that compares layouts over it, stays exactly as it was. Drawn from a second random stream, so
+	 * turning it on never changes who is related to whom.
+	 */
+	shouldNameThePeople?: boolean;
 }
+
+const GIVEN_NAMES = ['Ann', 'Bede', 'Clara', 'Dougal', 'Edith', 'Fergus', 'Grace', 'Hugh', 'Isla', 'Jonas', 'Kitty', 'Leo', 'Maud', 'Nora', 'Owen', 'Petra', 'Quentin', 'Rose', 'Silas', 'Thea', 'Una', 'Victor', 'Wilma', 'Xavier', 'Yvette', 'Zachary'];
+const SURNAME_STEMS = ['Ash', 'Brown', 'Cole', 'Dunn', 'Ellis', 'Finch', 'Gray', 'Hale', 'Ives', 'Judd', 'Kerr', 'Lane', 'Marsh', 'Nash', 'Orr', 'Platt', 'Quill', 'Reeve', 'Shaw', 'Tate', 'Vane', 'Webb', 'Yates'];
+const SURNAME_ENDS = ['', 'ton', 'by', 'ford', 'man'];
+const PLACES = ['Hobart, Tasmania', 'Launceston, Tasmania', 'Sydney, New South Wales', 'Melbourne, Victoria', 'Cork, Ireland', 'Leeds, Yorkshire, England', 'Truro, Cornwall, England', 'Aberdeen, Scotland', 'Cardiff, Wales', 'Hamburg, Germany'];
 
 export interface CorpusSummary {
 	people: number;
@@ -161,21 +173,50 @@ export async function insertCorpus(db: DbClient, treeId: string, options: Corpus
 		for (let i = 0; i < rows.length; i += perStatement) pending.push(write(rows.slice(i, i + perStatement)));
 	};
 
+	// A second stream for everything the search adds, so the first stream (the tree's shape) is
+	// identical whether or not names are on.
+	const nameRand = random(seed ^ 0x9e3779b9);
+	const nameOf = new Map<string, { given: string; surname: string }>();
+	for (const p of people) {
+		nameOf.set(p.id, options.shouldNameThePeople
+			? {
+					given: GIVEN_NAMES[Math.floor(nameRand() * GIVEN_NAMES.length)]!,
+					// A lineage keeps a handful of surnames, so the surname list has real counts to show.
+					surname: SURNAME_STEMS[(p.lineage * 3 + Math.floor(nameRand() * 3)) % SURNAME_STEMS.length]! + SURNAME_ENDS[Math.floor(nameRand() * SURNAME_ENDS.length)]!
+				}
+			: { given: `Given${p.id.split('-p')[1]}`, surname: `Line${p.lineage}` });
+	}
 	insertAll(people, 9, (chunk) =>
 		db.insert(individuals).values(
 			chunk.map((p) => ({
 				id: p.id,
 				treeId,
-				givenName: `Given${p.id.split('-p')[1]}`,
-				surname: `Line${p.lineage}`,
+				givenName: nameOf.get(p.id)!.given,
+				surname: nameOf.get(p.id)!.surname,
 				sex: p.sex,
 				createdAt: new Date(0),
 				updatedAt: new Date(0),
-				xrefId: null,
+				xrefId: options.shouldNameThePeople ? `@I${p.id.split('-p')[1]}@` : null,
 				version: 1
 			}))
 		)
 	);
+	if (options.shouldNameThePeople) {
+		const nameRows: Array<typeof personNames.$inferInsert> = [];
+		for (const p of people) {
+			const { given, surname } = nameOf.get(p.id)!;
+			const base = { personId: p.id, createdAt: new Date(0), updatedAt: new Date(0), version: 1 };
+			nameRows.push({ ...base, id: `${p.id}-n0`, type: 'birth', givenName: given, surname, isPreferred: true, order: 0 });
+			// Women take a married name in a fifth of cases: the person is found by either.
+			if (p.sex === 'F' && nameRand() < 0.2) {
+				nameRows.push({ ...base, id: `${p.id}-n1`, type: 'married', givenName: given, surname: SURNAME_STEMS[Math.floor(nameRand() * SURNAME_STEMS.length)] + 'son', isPreferred: false, order: 1 });
+			}
+			if (nameRand() < 0.05) {
+				nameRows.push({ ...base, id: `${p.id}-n2`, type: 'aka', givenName: given, surname, nickname: `Nick${p.id.split('-p')[1]}`, isPreferred: false, order: 2 });
+			}
+		}
+		insertAll(nameRows, 6, (chunk) => db.insert(personNames).values(chunk));
+	}
 	insertAll(unionRows, 6, (chunk) =>
 		db.insert(unions).values(chunk.map((u) => ({ id: u.id, treeId, status: u.status, createdAt: new Date(0), updatedAt: new Date(0) })))
 	);
@@ -195,19 +236,21 @@ export async function insertCorpus(db: DbClient, treeId: string, options: Corpus
 			entityType: 'INDIVIDUAL' as const,
 			entityId: e.personId,
 			type: e.type,
-			dateRaw: String(e.year)
+			dateRaw: String(e.year),
+			place: options.shouldNameThePeople && e.type === 'BIRT' ? PLACES[Math.floor(nameRand() * PLACES.length)]! : null
 		})),
 		...unionRows.map((u, i) => ({
 			id: `${prefix}-m${i}`,
 			entityType: 'FAMILY' as const,
 			entityId: u.id,
 			type: 'MARR',
-			dateRaw: String(u.year)
+			dateRaw: String(u.year),
+			place: options.shouldNameThePeople ? PLACES[Math.floor(nameRand() * PLACES.length)]! : null
 		}))
 	];
 	insertAll(eventRows, 4, (chunk) =>
 		db.insert(events).values(
-			chunk.map((e) => ({ ...e, treeId, ...dateColumnsFor(e.dateRaw), place: null, description: null, createdAt: new Date(0), updatedAt: new Date(0) }))
+			chunk.map((e) => ({ ...e, treeId, ...dateColumnsFor(e.dateRaw), description: null, createdAt: new Date(0), updatedAt: new Date(0) }))
 		)
 	);
 

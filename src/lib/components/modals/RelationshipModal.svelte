@@ -500,6 +500,9 @@
                     class="w-full text-left px-3 py-2 rounded-lg border text-sm cursor-pointer {selected?.id === r.id ? 'bg-emerald-100 border-emerald-400' : 'bg-white border-stone-200'}"
                   >
                     {personName(r)}
+                    {#if r.matchedName}
+                      <span class="block text-xs text-stone-500">also known as {r.matchedName}</span>
+                    {/if}
                   </button>
                 </li>
               {/each}

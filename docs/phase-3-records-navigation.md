@@ -41,7 +41,7 @@ Redirect old routes to stable deep links and remove legacy aggregate DTOs only a
 
 ## Status against the exit criteria
 
-Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names. The rest is listed as waiting.
+Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
 
 | Work item | Status | Evidence |
 |---|---|---|
@@ -50,21 +50,23 @@ Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person nam
 | 3. Union page (participants, events, children, chronology, warnings) | Met | `UnionPageService` tests, `e2e/routes.spec.ts` |
 | 4. Generic repeatable fact editor | Met | `fact-ops`, `fact-service` and `e2e/facts.spec.ts`; ADR-012 |
 | 4a. Person names: several per person, GEDCOM round-trip, add/edit/reorder/remove/undo, "(née …)" display, optional from-date and partnership (S6) | Met | `names.test.ts`, `name-ops.test.ts`, `name-service.test.ts`, `name-display.test.ts`, `e2e/names.spec.ts`; ADR-013 |
-| 5. Search by name variants, surname, place, dates, XREF; individual, union and surname lists | Partly | Name search matches every stored name and every word of "Given Surname" (S6); surname, place, date and XREF search, and the lists, wait |
-| 6. Recent people, favourites, breadcrumbs, focus navigation | Partly | Breadcrumbs and a remembered focus exist; recents and favourites wait |
-| 7. Query-specific endpoints and measured indexes | Met for reads | Bounded graph, person and union endpoints; plans in `query-plans.md`; no index needed. Writes still load the whole tree |
+| 5. Search by name variants, surname, place, dates, XREF; individual, union and surname lists | Met | `/trees/[id]/search` ranks every stored name, XREF, place and year range and says why; `/people`, `/unions`, `/surnames` page on the server (S7); `search-service.test.ts`, `list-service.test.ts`, `e2e/search-lists.spec.ts`. Phonetic search and non-ASCII folding wait |
+| 6. Recent people, favourites, breadcrumbs, focus navigation | Met | Per-user, per-tree recents and favourites in D1 (ADR-014), in the tree strip, the focus box and the person page; `mark-service.test.ts`, `e2e/marks.spec.ts` |
+| 7. Query-specific endpoints and measured indexes | Met for reads | Bounded graph, person, union, search and list endpoints; plans in `query-plans.md`; two name-order indexes added with numbers (S7). Writes still load the whole tree |
 | 8. Relationship calculator | Waiting on a later slice | |
 | 9. Ancestor, descendant and interactive views on one graph-query layer | Partly | The interactive tree runs on the window loader; ancestor and descendant chart views wait |
 
 | Exit criterion | Status | Note |
 |---|---|---|
-| Common records are reachable in a few predictable actions from search or graph | Partly | Graph to person is a double-click, the menu's Details or a link; there is no search-to-record path beyond the focus box |
+| Common records are reachable in a few predictable actions from search or graph | Met | Search, the lists, the surname list, favourites and recents each link to the person page; graph to person is a double-click, the menu's Details or a link |
 | Repeatable and conflicting facts are retained and displayed rather than overwritten | Met | Two births are both kept and flagged; editing one leaves the other; the person form flags that it edits only the first |
 | Test corpora do not require a whole-tree response | Met for reads | A 4,000-person corpus; the window, person and union reads never call `loadRows`. Writes and the header counts are linear in the tree |
 | Browser history, deep links and refresh preserve context | Met | `e2e/routes.spec.ts`, `e2e/history.spec.ts`; imported ids with `:` and `@` deep-link |
 | Privacy placeholders are supported in DTOs | Met | `isPrivate` on every record DTO, always false (`shared/privacy.ts`) |
 
-S6 deferred or departing from the plan: see the S6 status in [improvement-plan.md](./improvement-plan.md#person-names) (name lines stored on the name row, `_MARNM` unconfirmed, no migration of pre-S6 imports, search UI does not show which name matched).
+S7 deferred or departing from the plan: see the S7 status in [improvement-plan.md](./improvement-plan.md#s7-search-lists-recents-and-favourites) (linear-in-tree search cost, ASCII-only case folding, unsurnamed people first, recents not recorded on double-click refocus).
+
+S6 deferred or departing from the plan: see the S6 status in [improvement-plan.md](./improvement-plan.md#person-names) (name lines stored on the name row, `_MARNM` unconfirmed, no migration of pre-S6 imports; the search UI gap was closed in S7).
 
 Deferred or contradicting the plan: `depth=` became `up=`/`down=`; the unfocused `/graph` and `/api/trees/:id` still exist for tests
 and go with their last consumer; fact history omits removed facts; old imported descriptions are not

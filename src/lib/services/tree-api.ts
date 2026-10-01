@@ -17,6 +17,9 @@ import type { PersonPageDto } from '#lib/server/services/person-page-service.js'
 import type { UnionPageDto } from '#lib/server/services/union-page-service.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
+import type { SearchResponse } from '#lib/shared/search.js';
+import type { MarksDto } from '#lib/shared/marks.js';
+import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -269,6 +272,33 @@ export async function searchPeopleApi(treeId: string, query: string): Promise<Pe
 	return data.people || [];
 }
 
+/** The search page's results for its own URL parameters (`q`, `place`, `from`, `to`, `offset`). */
+export function searchTreeApi(treeId: string, params: URLSearchParams, fetchFn: typeof fetch = fetch): Promise<SearchResponse> {
+	return call(`/api/trees/${treeId}/search?${params}`, undefined, 'Failed to search the tree', fetchFn);
+}
+
+/** One page of a list, for the list page's own URL parameters. */
+export function fetchList<T extends IndividualListItem | UnionListItem | SurnameListItem>(
+	treeId: string,
+	list: 'individuals' | 'unions' | 'surnames',
+	params: URLSearchParams,
+	fetchFn: typeof fetch = fetch
+): Promise<Page<T>> {
+	return call(`/api/trees/${treeId}/lists/${list}?${params}`, undefined, 'Failed to load the list', fetchFn);
+}
+
+export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks`, undefined, 'Failed to load favourites and recents', fetchFn);
+}
+
+/** Record a visit; answers with the user's marks as they now stand. */
+export function recordRecentApi(treeId: string, personId: string): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks/recents`, json('POST', { personId }), 'Failed to record the visit');
+}
+
+export function setFavoriteApi(treeId: string, personId: string, isFavorite: boolean): Promise<MarksDto> {
+	return call(`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`, { method: isFavorite ? 'PUT' : 'DELETE' }, 'Failed to change the favourite');
+}
 
 // ---- Bounded reads (Phase 3) ----
 // These take the `fetch` a SvelteKit load function hands them, so a server render forwards the

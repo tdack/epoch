@@ -6,14 +6,17 @@ import { importGedcomToDb } from '../gedcom/importer';
 import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
-import { RelationshipRepository } from '../repositories/relationship-repository';
-import { createTestDatabase, type TestDatabase } from '../testing/d1';
+import { SearchService } from './search-service';
+import { treeMemberships } from '../db/schema';
+import { createTestDatabase, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
 import { loadFocusWindow } from './focus-window';
 import { personSummaries } from './person-summaries';
 
 let t: TestDatabase;
+let actor: TestActor;
 beforeAll(async () => {
 	t = await createTestDatabase();
+	actor = await createTestUser(t.db);
 });
 afterAll(async () => {
 	await t.dispose();
@@ -23,6 +26,7 @@ afterAll(async () => {
 async function married() {
 	const treeId = crypto.randomUUID();
 	await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
+	await t.db.insert(treeMemberships).values({ id: crypto.randomUUID(), treeId, userId: actor.userId, role: 'owner' });
 	const rows = await t.db.select().from(personNames).where(eq(personNames.personId, `${treeId}:@I1@`)).all();
 	await t.db.update(personNames).set({ isPreferred: false }).where(eq(personNames.id, rows.find((r) => r.type === 'birth')!.id));
 	await t.db.update(personNames).set({ isPreferred: true }).where(eq(personNames.id, rows.find((r) => r.type === 'married')!.id));
@@ -63,22 +67,22 @@ describe('the display name says "(née …)"', () => {
 describe('search matches every name', () => {
 	it('finds a person by a name they no longer go by, and by "Given Surname"', async () => {
 		const treeId = await married();
-		const search = new RelationshipRepository(t.db);
-		expect((await search.searchPeople(treeId, 'Simpson')).map((p) => p.id)).toContain(`${treeId}:@I1@`);
-		expect((await search.searchPeople(treeId, 'Jessica Wren')).map((p) => p.id)).toEqual([`${treeId}:@I1@`]);
+		const search = new SearchService(t.db);
+		expect((await search.search(treeId, { text: 'Simpson' }, actor.context)).people.map((p) => p.id)).toContain(`${treeId}:@I1@`);
+		expect((await search.search(treeId, { text: 'Jessica Wren' }, actor.context)).people.map((p) => p.id)).toEqual([`${treeId}:@I1@`]);
 
 		// Smith is the display name now; the same person by the old name matches through the row.
-		const viaOld = await search.searchPeople(treeId, 'Jessica Louise Lovejoy');
+		const viaOld = (await search.search(treeId, { text: 'Jessica Louise Lovejoy' }, actor.context)).people;
 		expect(viaOld).toMatchObject([{ id: `${treeId}:@I1@`, matchedName: 'Jessica Louise Lovejoy' }]);
-		expect((await search.searchPeople(treeId, 'Carter')).map((p) => p.id)).toEqual([`${treeId}:@I3@`]);
+		expect((await search.search(treeId, { text: 'Carter' }, actor.context)).people.map((p) => p.id)).toEqual([`${treeId}:@I3@`]);
 	});
 
 	it('does not leak across trees, and treats % and _ as text', async () => {
 		const a = await married();
 		const b = await married();
-		const search = new RelationshipRepository(t.db);
-		expect((await search.searchPeople(a, 'Carter')).every((p) => p.id.startsWith(a))).toBe(true);
-		expect(await search.searchPeople(b, '%')).toEqual([]);
-		expect(await search.searchPeople(b, 'Sharl_en')).toEqual([]);
+		const search = new SearchService(t.db);
+		expect(((await search.search(a, { text: 'Carter' }, actor.context)).people).every((p) => p.id.startsWith(a))).toBe(true);
+		expect((await search.search(b, { text: '%' }, actor.context)).people).toEqual([]);
+		expect((await search.search(b, { text: 'Sharl_en' }, actor.context)).people).toEqual([]);
 	});
 });

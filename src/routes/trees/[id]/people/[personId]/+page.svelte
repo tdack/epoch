@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, Cross, GitBranch, MapPin, Pencil, Plus, Trash2, UserPlus } from 'lucide-svelte';
+  import { ArrowDown, ArrowUp, Cross, GitBranch, MapPin, Pencil, Plus, Star, Trash2, UserPlus } from 'lucide-svelte';
   import FactDialog from '#lib/components/modals/FactDialog.svelte';
   import NameDialog from '#lib/components/modals/NameDialog.svelte';
   import { getTreeContext } from '#lib/components/tree/tree-context.js';
   import { sexLabel } from '#lib/shared/sex.js';
   import type { FactDto, NameDto, PersonSummaryDto } from '#lib/server/services/person-page-service.js';
-  import { deleteFactApi, deleteNameApi, previewFactApi, previewNameApi, reorderFactsApi, reorderNamesApi, setPreferredNameApi } from '#lib/services/tree-api.js';
+  import { deleteFactApi, deleteNameApi, previewFactApi, previewNameApi, recordRecentApi, reorderFactsApi, reorderNamesApi, setFavoriteApi, setPreferredNameApi } from '#lib/services/tree-api.js';
   import { NAME_TYPE_LABELS, formatFullName } from '#lib/shared/name-types.js';
   import type { PageData } from './$types';
 
@@ -14,7 +14,7 @@
   }
 
   let { data }: Props = $props();
-  const { editor, toasts } = getTreeContext();
+  const { editor, toasts, marks } = getTreeContext();
 
   const dto = $derived(data.person);
   const treeId = $derived(data.summary.tree.id);
@@ -27,6 +27,28 @@
     editor.graph = dto.graph;
     return () => (editor.graph = null);
   });
+
+  // ---- Favourite and recent ----
+  const isFavorite = $derived(marks.favorites.some((f) => f.id === dto.person.id));
+
+  // An explicit POST from the page, not a load: links preload on hover, and a preload is not a visit.
+  // Effects never run on the server, so a server render records nothing either.
+  $effect(() => {
+    const personId = dto.person.id;
+    void recordRecentApi(treeId, personId)
+      .then((updated) => marks.set(updated))
+      .catch(() => {
+        // Recents are a convenience; a failed record is not worth a message.
+      });
+  });
+
+  async function toggleFavorite() {
+    try {
+      marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
+    } catch (cause) {
+      toasts.push((cause as Error).message || 'Could not change the favourite', { tone: 'error' });
+    }
+  }
 
   // ---- Names ----
   let nameDialog = $state<{ name: NameDto | null } | null>(null);
@@ -149,7 +171,7 @@
 <nav aria-label="Breadcrumb" class="text-xs text-stone-600">
   <a href={treeHref} class="font-semibold text-emerald-800 hover:underline">{data.summary.tree.name}</a>
   <span aria-hidden="true"> › </span>
-  <span>People</span>
+  <a href={`${treeHref}/people`} class="font-semibold text-emerald-800 hover:underline">People</a>
   <span aria-hidden="true"> › </span>
   <span aria-current="page">{dto.person.displayName}</span>
 </nav>
@@ -164,6 +186,9 @@
     <p class="mt-1 text-xs"><a href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`} class="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"><GitBranch class="h-3 w-3" />Show in the tree</a></p>
   </div>
   <div class="flex flex-wrap gap-2">
+    <button type="button" onclick={toggleFavorite} aria-pressed={isFavorite} class="btn" data-testid="favorite-toggle">
+      <Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite ? 'Favourite' : 'Add to favourites'}
+    </button>
     <button type="button" onclick={() => void editor.openEditPerson(dto.person.id)} class="btn"><Pencil class="h-3.5 w-3.5" />Edit</button>
     <button type="button" onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))} class="btn"><UserPlus class="h-3.5 w-3.5" />Relationship</button>
     <button type="button" onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id), { kind: 'record_death' })} class="btn"><Cross class="h-3.5 w-3.5" />Record death</button>

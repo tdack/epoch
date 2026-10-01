@@ -5,7 +5,8 @@
  */
 
 import type { DbClient } from '../db';
-import { RelationshipRepository } from '../repositories/relationship-repository';
+import { SearchRepository } from '../repositories/search-repository';
+import { searchWords } from '../../shared/search';
 import { pastTense, describeCommand } from '../domain/command-summary';
 import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
@@ -41,11 +42,11 @@ export interface MergePreview {
 }
 
 export class RelationshipService {
-	private repo: RelationshipRepository;
+	private search: SearchRepository;
 	readonly runner: MutationRunner;
 
 	constructor(db: DbClient, clock?: MutationClock) {
-		this.repo = new RelationshipRepository(db);
+		this.search = new SearchRepository(db);
 		this.runner = new MutationRunner(db, clock);
 	}
 
@@ -137,11 +138,6 @@ export class RelationshipService {
 		});
 	}
 
-	async searchPeople(treeId: string, query: string, context: AuthenticatedContext) {
-		await this.runner.requireAccess(treeId, context, 'tree:view');
-		return this.repo.searchPeople(treeId, query);
-	}
-
 	async getGraph(treeId: string, context: AuthenticatedContext) {
 		await this.runner.requireAccess(treeId, context, 'tree:view');
 		return graphFromRows(await this.runner.store.loadRows(treeId));
@@ -167,9 +163,9 @@ export class RelationshipService {
 		}
 		const name = ref.givenName ?? ref.surname;
 		if (!name?.trim()) return false;
-		const matches = await this.repo.searchPeople(treeId, name);
+		const { hits } = await this.search.find(treeId, { words: searchWords(name), place: '', from: '', to: '', limit: 25, offset: 0 });
 		// A match is a duplicate cue when it is a different person than the one being linked. A
 		// person being created has no id yet, so any match is a cue.
-		return matches.some((m) => ref.isNew || m.id !== ref.id);
+		return hits.some((h) => ref.isNew || h.personId !== ref.id);
 	}
 }

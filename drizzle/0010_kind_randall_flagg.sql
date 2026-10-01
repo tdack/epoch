@@ -1,0 +1,2 @@
+CREATE INDEX `idx_ind_tree_surname` ON `individuals` (`tree_id`,"surname" collate nocase,"given_name" collate nocase,`id`);--> statement-breakpoint
+CREATE INDEX `idx_ind_tree_given` ON `individuals` (`tree_id`,"given_name" collate nocase,"surname" collate nocase,`id`);

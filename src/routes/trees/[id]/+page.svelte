@@ -18,7 +18,7 @@
     type TreeViewState
   } from '#lib/components/tree/tree-url.js';
   import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
-  import { fetchPersonPage, searchPeopleApi } from '#lib/services/tree-api.js';
+  import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
   import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
   import { rememberedFocusKey } from '#lib/services/load-helpers.js';
   import type { PageData } from './$types';
@@ -28,7 +28,7 @@
   }
 
   let { data }: Props = $props();
-  const { editor } = getTreeContext();
+  const { editor, marks } = getTreeContext();
   const historyCoalescer = createHistoryCoalescer();
 
   const treeId = $derived(page.params.id!);
@@ -129,6 +129,16 @@
     });
   }
 
+  /** Picking someone in the focus box is opening them: it refocuses and counts as a recent. */
+  function pickFocus(id: string) {
+    navigate({ focusId: id }, { kind: HISTORY_KINDS.FOCUS });
+    void recordRecentApi(treeId, id)
+      .then((updated) => marks.set(updated))
+      .catch(() => {
+        // Recents are a convenience; a failed record is not worth a message.
+      });
+  }
+
   function setFocus(id: string) {
     try {
       localStorage.setItem(rememberedFocusKey(treeId), id);
@@ -207,7 +217,8 @@
         {view}
         searchPeople={(q) => searchPeopleApi(treeId, q)}
         onChange={(change) => navigate(change, { kind: HISTORY_KINDS.ADJUST })}
-        onPickFocus={(id) => navigate({ focusId: id }, { kind: HISTORY_KINDS.FOCUS })}
+        onPickFocus={pickFocus}
+        suggestions={marks}
       />
     </div>
     <TreeCanvas

@@ -154,3 +154,115 @@ reads `SCAN n` (every name of every tree) then `SEARCH i USING INDEX sqlite_auto
 with a plain `tree_id = ?` it reads `SEARCH i USING INDEX idx_ind_tree` then
 `SEARCH n USING INDEX idx_person_name_person`, so the work is bounded by one tree. The plain form is
 used. Search is still linear in the tree's people, which is fine for this phase's corpora.
+
+## Search (S7)
+
+Recorded 2026-10-01 by `src/lib/server/repositories/search-plans.test.ts`. It inserts **two** trees
+into one database (5,324 people and 419 people, both with stored names, XREFs and places from
+`insertCorpus(..., { shouldNameThePeople: true })`) and runs each query against both. The small tree
+is the witness: on one tree a query that scans every tree and one that scans a single tree read the
+same rows, but a query that read the big tree to answer the small one would read far more than the
+small tree holds. The test asserts rows read stays within `6 × (people + names + events)` of the
+tree asked about, and that no plan line is a scan of a table (a CTE's own scan is not one).
+
+Regenerate with `WRITE_QUERY_PLANS=plans.txt npx vitest run --project server src/lib/server/repositories/search-plans.test.ts`.
+
+### What the measurement found
+
+- **Baseline (S6 `searchPeople`, tree of 9,809 people):** the display-name half read 9,810 rows and
+  the stored-name half read 30,930. Linear in the tree, correctly bounded to it.
+- **The first version of the place and date filter read 951,241 rows to answer a 419-person tree**
+  and 12.8 million for the big one. The partnership branch was written as a join
+  `union_partners up join events e on e.entity_type = 'FAMILY' and e.entity_id = up.union_id`, and
+  SQLite drove it from `events` by `(entity_type = ?)` alone: every family event of every tree, for
+  every person. `EXPLAIN QUERY PLAN` called it `SEARCH e USING INDEX idx_event_entity (entity_type=?)`,
+  not a scan. The fix is structural: `exists (select 1 from union_partners up where up.person_id =
+  i.id and exists (select 1 from events e where e.entity_type = 'FAMILY' and e.entity_id =
+  up.union_id and …))`, so the partner index leads and the event lookup uses both index columns.
+  Now 2,784 rows for the small tree.
+- **The XREF lookup read 419 rows** (the whole small tree) because SQLite chose `idx_ind_tree` over
+  `idx_ind_xref` for `tree_id = ? and xref_id in (…)`. `indexed by idx_ind_xref` makes it 5 rows.
+- **No index was added.** Every name, place and date search is linear in one tree's people, names and
+  events (about four to eight rows read per person), which is the same order as the S6 search it
+  replaces and acceptable at the sizes this phase targets. A `LIKE '%…%'` cannot use an index, and
+  an index on `events.place` or on the date bounds would not help the partnership branch or the
+  substring match.
+
+### Plans and rows read
+
+| Query | Small tree (419 people) returned / read | Big tree (5,324 people) returned / read |
+|---|---|---|
+| name, two words | 6 / 1,768 | 2 / 22,079 |
+| name, one letter | 26 / 3,035 | 26 / 40,325 |
+| surname with a stored married name | 5 / 1,758 | 26 / 22,198 |
+| place | 26 / 2,784 | 26 / 35,560 |
+| year range | 26 / 2,124 | 26 / 35,153 |
+| place and year range | 21 / 2,916 | 26 / 38,033 |
+| name, place and year range | 0 / 1,869 | 2 / 23,854 |
+| XREF | 1 / 5 | |
+
+Name queries plan as `SEARCH i USING INDEX idx_ind_tree (tree_id=?)` (the display-name candidates),
+`UNION ALL`, `SEARCH i USING INDEX idx_ind_tree` then `SEARCH n USING INDEX idx_person_name_person
+(person_id=?)` (the stored names), a `GROUP BY` over the candidates for each person's best name, and
+a temp B-tree for the order. Place and date queries add `CORRELATED SCALAR SUBQUERY` lines for
+`SEARCH e USING INDEX idx_event_entity (entity_type=? AND entity_id=?)` and, for partnership facts,
+`SEARCH up USING INDEX idx_union_partner_person (person_id=?)` with an `EXISTS` event search.
+
+### Known cost
+
+Search ranks every candidate in the tree before `LIMIT`, because ranking after a capped fetch would
+drop the exact match of a short query ("a"). That is linear in the tree per keystroke (debounced in
+the UI). Past tens of thousands of people it needs an indexed, normalised name column; that is a
+Phase 8 decision with numbers, not a guess now.
+
+## Lists (S7)
+
+Recorded by `src/lib/server/repositories/list-plans.test.ts` on the same two-tree setup as search
+(small tree 419 people and 484 stored names, about 900 rows; big tree 5,324 people, about 11,400
+rows). Regenerate with `WRITE_QUERY_PLANS=plans.txt npx vitest run --project server src/lib/server/repositories/list-plans.test.ts`.
+
+### Indexes decided with numbers
+
+| Query | Without a new index | With it |
+|---|---|---|
+| individuals by surname, any page | 10,648 rows read (`USE TEMP B-TREE FOR ORDER BY`: the page sorts the whole tree, at every offset) | 51 at offset 0; `offset + 51` deeper |
+| individuals by given name | 10,648, same reason | 51 |
+
+Migration 0010 (expand-only, two `CREATE INDEX`es, no table rebuild) adds
+`idx_ind_tree_surname (tree_id, surname COLLATE NOCASE, given_name COLLATE NOCASE, id)` and
+`idx_ind_tree_given (tree_id, given_name COLLATE NOCASE, surname COLLATE NOCASE, id)`. `id` ends each
+so the order is total (stable pages) and the index covers the page query; `COLLATE NOCASE` because a
+list sorted "Brown, brown, Browns" by byte order is wrong and an index only serves an `ORDER BY` with
+the same collation. Each costs one extra index write per person written.
+
+**Rejected:** an index on `person_names (surname COLLATE NOCASE, person_id)` for the surname filter.
+It made the filter fast, but `person_names` has no `tree_id`, so it reads every tree's rows for a
+common surname; the filter instead joins through `individuals` to keep to one tree.
+
+### Plans and rows read
+
+| Query | Small tree returned / read | Big tree returned / read |
+|---|---|---|
+| individuals by surname, first page | 51 / 51 | 51 / 51 |
+| individuals by given name, first page | 51 / 51 | 51 / 51 |
+| individuals by surname, page 100 (offset 4,950) | 0 / 420 | 51 / 5,001 |
+| individuals of one surname (filter) | 19 / 1,743 | 51 / 17,194 |
+| surname list | 51 / 3,119 | 51 / 34,898 |
+| partnership list, first page | 51 / 51 | 51 / 51 |
+
+First pages are `SEARCH i USING COVERING INDEX idx_ind_tree_surname (tree_id=?)` with no sort step
+(the test asserts no `TEMP B-TREE FOR ORDER BY`); the partnership list reads the tree index in rowid
+order. Then the person records for the page come from the bounded id reads.
+
+### Known costs
+
+- **Offset pagination is linear in the offset.** A deep page reads `offset + 51` index entries (5,001
+  for offset 4,950), never more than the tree. A keyset cursor on `(surname, given_name, id)` would
+  read 51, but `NULL` surnames compare false and the cursor would need encoding; the offset form is
+  simple and bounded, so it stays until a tree is large enough to notice.
+- **The surname filter and the surname list are linear in one tree** (3.2x and 6.5x the tree's
+  people read), because the distinct surnames and their per-person counts have to be computed across
+  every stored name. No list loads the tree or returns more than a page; the aggregate is the price
+  of "every stored name". Denormalised surname counters are Phase 8 if a tree needs them.
+- Unsurnamed people sort first (`NULL` first in the index), not last, because an expression in the
+  `ORDER BY` would lose the index.
