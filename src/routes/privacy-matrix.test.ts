@@ -32,6 +32,7 @@ const READS = 'services/privacy-reads.test.ts';
 const RECORDS = 'services/privacy-records.test.ts';
 const WRITES = 'services/privacy-writes.test.ts';
 const ACCESS = 'services/privacy-access.test.ts';
+const MEMBERS = 'services/member-service.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
@@ -47,6 +48,10 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/individuals/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/individuals/[individualId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/trees/[id]/invitations/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
+	[`${API}/trees/[id]/invitations/[invitationId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
+	[`${API}/trees/[id]/members/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
+	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/individuals/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/lists/surnames/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: { kind: 'paged-sql', covers: READS },
@@ -75,7 +80,7 @@ const ENTRIES: Record<string, Entry> = {
 };
 
 /** Page and layout loads fetch the endpoints above and hold no data of their own. */
-const LOADS = ['./+page.ts', './trees/[id]/+layout.ts', './trees/[id]/+page.ts', './trees/[id]/people/+page.ts', './trees/[id]/people/[personId]/+page.ts', './trees/[id]/privacy/+page.ts', './trees/[id]/search/+page.ts', './trees/[id]/surnames/+page.ts', './trees/[id]/unions/+page.ts', './trees/[id]/unions/[unionId]/+page.ts'];
+const LOADS = ['./+page.ts', './trees/[id]/+layout.ts', './trees/[id]/+page.ts', './trees/[id]/members/+page.ts', './trees/[id]/people/+page.ts', './trees/[id]/people/[personId]/+page.ts', './trees/[id]/privacy/+page.ts', './trees/[id]/search/+page.ts', './trees/[id]/surnames/+page.ts', './trees/[id]/unions/+page.ts', './trees/[id]/unions/[unionId]/+page.ts'];
 
 const endpoints = Object.keys(import.meta.glob('./**/+server.ts')).sort();
 const loads = Object.keys(import.meta.glob(['./**/+page.ts', './**/+layout.ts', './**/+page.server.ts', './**/+layout.server.ts'])).sort();
