@@ -43,6 +43,12 @@ function nameKind(rows: TreeRows, nameId: string, type?: NameType): string {
 	return NAME_TYPE_LABELS[type ?? (rows.personNames.find((n) => n.id === nameId)?.type as NameType | undefined) ?? 'other'].toLowerCase();
 }
 
+const PRIVACY_SENTENCES = {
+	auto: (name: string) => `Set the privacy of ${name} to follow their dates`,
+	public: (name: string) => `Made ${name} always public`,
+	private: (name: string) => `Made ${name} always private`
+} as const;
+
 export function describeCommand(command: RelationshipCommand, rows: TreeRows): string {
 	switch (command.kind) {
 		case 'create_fact':
@@ -69,6 +75,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Edited ${nameOf(rows, command.personId)}`;
 		case 'delete_person':
 			return `Deleted ${nameOf(rows, command.personId)}`;
+		case 'set_person_privacy':
+			return PRIVACY_SENTENCES[command.privacy](nameOf(rows, command.personId));
 		case 'record_death':
 			return `Recorded the death of ${nameOf(rows, command.personId)}`;
 		case 'create_union':

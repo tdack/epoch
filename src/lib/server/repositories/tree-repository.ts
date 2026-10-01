@@ -50,6 +50,10 @@ export class TreeRepository {
     return record ?? null;
   }
 
+  async updatePrivacySettings(treeId: string, patch: { maxAliveYears?: number; shouldShowPrivateStructure?: boolean }): Promise<void> {
+    await this.db.update(trees).set({ ...patch, updatedAt: new Date() }).where(eq(trees.id, treeId));
+  }
+
   async findById(treeId: string): Promise<TreeSummary | null> {
     const record = await this.db.select().from(trees).where(eq(trees.id, treeId)).get();
     if (!record) return null;

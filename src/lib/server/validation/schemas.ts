@@ -8,6 +8,7 @@
  * normalization stay in the service).
  */
 
+import { PERSON_PRIVACY_VALUES } from '../../shared/privacy';
 import { z } from 'zod';
 import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
 import { SEX_VALUES } from '../../shared/sex';
@@ -292,3 +293,10 @@ export const nameImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('delete_name'), nameId: idSchema, version: versionSchema.optional() }),
 	z.object({ kind: z.literal('set_preferred_name'), personId: idSchema, nameId: idSchema, version: versionSchema.optional() })
 ]);
+
+/** A manager's override on one person, and the tree's privacy settings (ADR-015). */
+export const personPrivacySchema = z.object({ privacy: z.enum(PERSON_PRIVACY_VALUES), version: versionSchema.optional() });
+export const privacySettingsSchema = z
+	.object({ maxAliveYears: z.number().int().min(50).max(150), shouldShowPrivateStructure: z.boolean() })
+	.partial()
+	.refine((v) => v.maxAliveYears !== undefined || v.shouldShowPrivateStructure !== undefined, 'Nothing to change');

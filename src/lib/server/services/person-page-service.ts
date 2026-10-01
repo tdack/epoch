@@ -20,7 +20,8 @@ import { FACT_KINDS, factTypeInfo, factLabel, type FactKind } from '../../shared
 import { displayNameWith, formatFullName } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
 import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
-import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
+import { privacyOf, type PersonPrivacy, type PrivacyFlag } from '../../shared/privacy';
+import { isLikelyLiving } from '../domain/living-state';
 import { relativesOf } from '../../shared/relatives';
 import { isSex, type Sex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
@@ -123,7 +124,16 @@ export interface PlaceholderDto {
 	items: [];
 }
 
+export interface PersonPrivacyDto {
+	/** The manager's override: `auto` follows the dates. */
+	setting: PersonPrivacy;
+	/** What the dates alone say, so a manager sees why someone is hidden from viewers. */
+	isLikelyLiving: boolean;
+}
+
 export interface PersonPageDto extends PrivacyFlag {
+	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
+	privacy: PersonPrivacyDto | null;
 	person: {
 		id: string;
 		xrefId: string | null;
@@ -352,6 +362,7 @@ export class PersonPageService {
 
 		return {
 			...privacyOf(self.row),
+			privacy: scope.isRestricted ? null : { setting: self.row.privacy, isLikelyLiving: isLikelyLiving(rows.map((r) => ({ type: r.type, dateSortEnd: r.dateSortEnd })), scope.cutoff) },
 			person: {
 				id: self.row.id,
 				xrefId: self.row.xrefId,

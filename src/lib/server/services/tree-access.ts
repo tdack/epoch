@@ -1,7 +1,7 @@
 import { canSeePrivatePeople, isActionAllowed, type TreeAction } from '../auth/authorization';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { AuthenticatedContext, TreeRole } from '../domain/identity';
-import { DEFAULT_MAX_ALIVE_YEARS, livingCutoff } from '../domain/living-state';
+import { livingCutoff } from '../domain/living-state';
 import type { TreeRepository } from '../repositories/tree-repository';
 import type { UserRepository } from '../repositories/user-repository';
 
@@ -38,8 +38,9 @@ async function membershipRole(users: UserRepository, treeId: string, context: Au
 }
 
 /**
- * The action check plus the viewer's scope. A role that sees everyone needs no tree read, so the
- * owner's and editor's reads cost what they did before privacy existed.
+ * The action check plus the viewer's scope. One primary-key read of the tree's settings, so even a
+ * role that sees everyone is shown the living state the tree's own threshold gives (a manager's
+ * "Private" badge must agree with what a viewer is hidden).
  */
 export async function requireTreeScope(
 	users: UserRepository,
@@ -50,10 +51,12 @@ export async function requireTreeScope(
 	now: Date = new Date()
 ): Promise<ViewerScope> {
 	const role = await membershipRole(users, treeId, context, action);
-	if (canSeePrivatePeople(role)) {
-		return { role, isRestricted: false, cutoff: livingCutoff(now, DEFAULT_MAX_ALIVE_YEARS), shouldShowPrivateStructure: true };
-	}
 	const settings = await trees.privacySettings(treeId);
 	if (!settings) throw new NotFoundError('Tree', treeId);
-	return { role, isRestricted: true, cutoff: livingCutoff(now, settings.maxAliveYears), shouldShowPrivateStructure: settings.shouldShowPrivateStructure };
+	return {
+		role,
+		isRestricted: !canSeePrivatePeople(role),
+		cutoff: livingCutoff(now, settings.maxAliveYears),
+		shouldShowPrivateStructure: settings.shouldShowPrivateStructure
+	};
 }

@@ -345,6 +345,13 @@ function updatePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	return [{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) }, ...nameOps, ...eventOps];
 }
 
+function setPersonPrivacy(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'set_person_privacy' }>): RowOp[] {
+	const person = requirePerson(rows, command.personId);
+	checkPersonVersion(rows, person, command.expectedVersion);
+	if (person.privacy === command.privacy) return [];
+	return [{ table: 'individuals', id: person.id, before: person, after: touch({ ...person, privacy: command.privacy }, ctx) }];
+}
+
 function recordDeath(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'record_death' }>): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
@@ -689,6 +696,8 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 			return updatePerson(rows, ctx, command);
 		case 'delete_person':
 			return deletePerson(rows, ctx, command);
+		case 'set_person_privacy':
+			return setPersonPrivacy(rows, ctx, command);
 		case 'record_death':
 			return recordDeath(rows, ctx, command);
 		case 'create_union':
