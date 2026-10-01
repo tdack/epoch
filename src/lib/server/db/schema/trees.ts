@@ -6,6 +6,11 @@ export const trees = sqliteTable('trees', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
+  // ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
+  maxAliveYears: integer('max_alive_years').notNull().default(120),
+  // Whether viewers see a private person as a "Private" placeholder in the graph and on partnerships;
+  // off omits them. Off by default so the safe behaviour needs no action.
+  shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' }).notNull().default(false),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())

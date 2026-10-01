@@ -4,6 +4,10 @@
  * SQL, and a test holds the two to the same answers.
  */
 
+import type { PersonPrivacy } from '../../shared/privacy';
+
+export type { PersonPrivacy };
+
 export const DEFAULT_MAX_ALIVE_YEARS = 120;
 
 /** Any of these, dated or not, means the person has died. */
@@ -11,8 +15,7 @@ export const DEATH_EVENT_TYPES = ['DEAT', 'BURI', 'CREM'] as const;
 /** The facts that say when someone was born; the latest upper bound among them is used. */
 export const BIRTH_EVENT_TYPES = ['BIRT', 'CHR', 'BAPM'] as const;
 
-export const PERSON_PRIVACY = { AUTO: 'auto', PUBLIC: 'public', PRIVATE: 'private' } as const;
-export type PersonPrivacy = (typeof PERSON_PRIVACY)[keyof typeof PERSON_PRIVACY];
+export const PERSON_PRIVACY = { AUTO: 'auto', PUBLIC: 'public', PRIVATE: 'private' } as const satisfies Record<string, PersonPrivacy>;
 
 export interface LivingFact {
 	type: string;

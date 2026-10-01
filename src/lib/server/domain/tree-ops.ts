@@ -304,6 +304,7 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		givenName: cleanText(command.givenName),
 		surname: cleanText(command.surname),
 		sex: command.sex,
+		privacy: 'auto',
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now
