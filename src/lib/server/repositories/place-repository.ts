@@ -6,9 +6,11 @@
  * (the S8 search leak, again).
  */
 
-import { sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNotNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
+import { events, places } from '../db/schema';
 import type { ViewerScope } from '../services/tree-access';
+import { placeKey } from '../../shared/places';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -22,6 +24,7 @@ export interface PlaceFactRow {
 }
 
 export interface PlaceAggregateRow {
+	id: string;
 	name: string;
 	facts: number;
 	people: number;
@@ -36,13 +39,37 @@ function visibleFacts(treeId: string, scope: Scope, match: SQL): SQL {
 		? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
 		: sql``;
 	return sql`
-		select e.id as id, e.place as place, e.entity_type as entity_type, e.entity_id as entity_id, e.type as type, e.date_raw as date_raw, e.date_sort as date_sort
+		select e.id as id, e.place as place, e.place_id as place_id, e.entity_type as entity_type, e.entity_id as entity_id, e.type as type, e.date_raw as date_raw, e.date_sort as date_sort
 		from events e join individuals i on i.id = e.entity_id
-		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place is not null and e.place <> ''${match}${andVisible('i', scope)}
+		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place_id is not null${match}${andVisible('i', scope)}
 		union all
-		select e.id, e.place, e.entity_type, e.entity_id, e.type, e.date_raw, e.date_sort
+		select e.id, e.place, e.place_id, e.entity_type, e.entity_id, e.type, e.date_raw, e.date_sort
 		from events e join unions u on u.id = e.entity_id
-		where e.tree_id = ${treeId} and e.entity_type = 'FAMILY' and e.place is not null and e.place <> ''${match}${partnersVisible}`;
+		where e.tree_id = ${treeId} and e.entity_type = 'FAMILY' and e.place_id is not null${match}${partnersVisible}`;
+}
+
+/** The place record's id for the text an event row carries; null when it has none. */
+export const placeIdOfEvent = sql`(select p.id from places p where p.tree_id = events.tree_id and p.name_key = lower(events.place))`;
+
+/**
+ * Statements that give every fact of the tree a place record for its text (ADR-019), set-based, for
+ * the writers that insert events in bulk (import, test corpora). The change store does the same for
+ * the facts one change writes. Run in order; safe to repeat, and in merge mode facts already pointing
+ * at a record keep it because the key is the same. Batchable, unlike `db.run`.
+ */
+export function pointFactsAtPlaces(db: DbClient, treeId: string) {
+	const insert = (db.insert(places) as unknown as { select: (query: SQL) => { onConflictDoNothing: () => never } }).select(
+		sql`select lower(hex(randomblob(16))), tree_id, lower(place), unixepoch() from events
+			where tree_id = ${treeId} and place is not null and place <> ''
+			group by lower(place)`
+	);
+	return [
+		insert.onConflictDoNothing(),
+		db
+			.update(events)
+			.set({ placeId: placeIdOfEvent })
+			.where(and(eq(events.treeId, treeId), isNotNull(events.place), ne(events.place, '')))
+	] as const;
 }
 
 export class PlaceRepository {
@@ -51,10 +78,10 @@ export class PlaceRepository {
 	listSql(treeId: string, query: string, page: { offset: number; limit: number }, scope: Scope): SQL {
 		const match = query ? sql` and e.place like ${likePattern(query)} escape '\\'` : sql``;
 		return sql`
-			select min(f.place) as name, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
+			select f.place_id as id, min(f.place) as name, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
 			from (${visibleFacts(treeId, scope, match)}) f
-			group by f.place collate nocase
-			order by f.place collate nocase
+			group by f.place_id
+			order by min(f.place) collate nocase, f.place_id
 			limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
@@ -64,15 +91,15 @@ export class PlaceRepository {
 	}
 
 	factsSql(treeId: string, name: string, page: { offset: number; limit: number }, scope: Scope): SQL {
-		const match = sql` and e.place = ${name} collate nocase`;
-		return sql`select f.id as id, f.place as place, f.entity_type as entityType, f.entity_id as entityId, f.type as type, f.date_raw as dateRaw
+		const match = sql` and e.place_id = (select id from places where tree_id = ${treeId} and name_key = ${placeKey(name)})`;
+		return sql`select f.id as id, f.place as place, min(f.place) over () as name, f.place_id as placeId, f.entity_type as entityType, f.entity_id as entityId, f.type as type, f.date_raw as dateRaw
 			from (${visibleFacts(treeId, scope, match)}) f
 			order by f.date_sort is null, f.date_sort, f.id
 			limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async facts(treeId: string, name: string, page: { offset: number; limit: number }, scope: Scope): Promise<{ rows: Array<PlaceFactRow & { place: string }>; hasMore: boolean }> {
-		const rows = await this.db.all<PlaceFactRow & { place: string }>(this.factsSql(treeId, name, page, scope));
+	async facts(treeId: string, name: string, page: { offset: number; limit: number }, scope: Scope): Promise<{ rows: Array<PlaceFactRow & { name: string; placeId: string }>; hasMore: boolean }> {
+		const rows = await this.db.all<PlaceFactRow & { name: string; placeId: string }>(this.factsSql(treeId, name, page, scope));
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}
 }

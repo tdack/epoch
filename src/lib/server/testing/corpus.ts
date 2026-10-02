@@ -12,6 +12,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import type { DbClient } from '../db';
 import { events, individuals, parentChild, personNames, unionPartners, unions } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
+import { pointFactsAtPlaces } from '../repositories/place-repository';
 
 export interface CorpusOptions {
 	/** Scopes every id, so several corpora can share one test database. */
@@ -253,6 +254,8 @@ export async function insertCorpus(db: DbClient, treeId: string, options: Corpus
 			chunk.map((e) => ({ ...e, treeId, ...dateColumnsFor(e.dateRaw), description: null, createdAt: new Date(0), updatedAt: new Date(0) }))
 		)
 	);
+
+	pending.push(...pointFactsAtPlaces(db, treeId));
 
 	for (let i = 0; i < pending.length; i += 50) {
 		await db.batch(pending.slice(i, i + 50) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);

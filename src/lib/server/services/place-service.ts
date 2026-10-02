@@ -45,7 +45,7 @@ export class PlaceService {
 		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const page = clampPage(query);
 		const { rows, hasMore } = await this.places.list(treeId, placeText(query.q ?? ''), page, scope);
-		return { items: rows.map((r) => ({ name: r.name, facts: r.facts, people: r.people })), hasMore, ...page };
+		return { items: rows.map((r) => ({ id: r.id, name: r.name, facts: r.facts, people: r.people })), hasMore, ...page };
 	}
 
 	async detail(treeId: string, name: string, query: { offset?: number; limit?: number }, context: AuthenticatedContext): Promise<PlaceDto> {
@@ -77,6 +77,6 @@ export class PlaceService {
 			entityId: r.entityId,
 			entityName: r.entityType === 'INDIVIDUAL' ? (names.get(r.entityId) ?? r.entityId) : ([...(partners.get(r.entityId) ?? [])].sort().join(' & ') || 'Partnership')
 		}));
-		return { name: rows[0]?.place ?? placeText(name), facts, hasMore, ...page };
+		return { id: rows[0]!.placeId, name: rows[0]?.name ?? placeText(name), facts, hasMore, ...page };
 	}
 }

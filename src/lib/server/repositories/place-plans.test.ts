@@ -79,7 +79,7 @@ describe('the place queries, against two trees of different size', () => {
 			const size = plan.name.endsWith('(small)') ? smallEvents : bigEvents;
 			// One tree's events at most: a restricted viewer looks up each fact's person on top (ADR-015).
 			expect(plan.rowsRead, plan.name).toBeLessThanOrEqual((plan.name.includes('restricted') ? 12 : 4) * size);
-			if (plan.name.startsWith('facts at one place')) expect(plan.details.join(' '), plan.name).toContain('idx_event_place');
+			if (plan.name.startsWith('facts at one place')) expect(plan.details.join(' '), plan.name).toContain('idx_event_place_id');
 		}
 	}, 240_000);
 });

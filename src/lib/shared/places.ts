@@ -9,7 +9,15 @@
 
 export const MAX_PLACE_SUGGESTIONS = 10;
 
+/**
+ * The most facts one rename or merge rewrites. The change log keeps the whole change as one JSON
+ * value, and a D1 row is capped at 2 MB; a fact's two images are about 1 KB, so this leaves room.
+ */
+export const MAX_PLACE_REWRITE_FACTS = 500;
+
 export interface PlaceListItem {
+	/** The place record, which a rename or a merge names. */
+	id: string;
 	/** The text as first written (in index order) among the facts that group here. */
 	name: string;
 	/** Facts the viewer may see that carry this place. */
@@ -30,6 +38,7 @@ export interface PlaceFactDto {
 }
 
 export interface PlaceDto {
+	id: string;
 	name: string;
 	facts: PlaceFactDto[];
 	hasMore: boolean;
@@ -40,4 +49,13 @@ export interface PlaceDto {
 /** The text of a place as stored: only the surrounding spaces are insignificant. */
 export function placeText(value: string): string {
 	return value.replace(/^ +| +$/g, '');
+}
+
+/**
+ * The key a place record is found by: the text as stored, in ASCII lower case, as SQLite's
+ * `lower()` and `nocase` read it. Not `toLowerCase()`, which also folds letters SQLite leaves
+ * alone and would put two keys on one record.
+ */
+export function placeKey(value: string): string {
+	return value.replace(/[A-Z]/g, (c) => c.toLowerCase());
 }

@@ -333,7 +333,7 @@ pages, not in the queries. A pedigree of eight generations can hold 255 people a
 chart of a prolific founder more; the 3,000 ceiling bounds the worst case and the chart then says
 more lies beyond.
 
-## Places (S10, ADR-018)
+## Places (S10, ADR-018; records S11, ADR-019)
 
 The new index `idx_event_place` did not move any earlier read: the list and search tables above were
 re-measured with it in place and are unchanged (it did change the unspecified order of the two
@@ -349,9 +349,11 @@ identical. Small tree: 769 events; big: 9,591 (`place-plans.test.ts`).
 
 | Read | Everyone, small / big | Restricted, small / big |
 |---|---|---|
-| Place list, first page | 2,776 / 35,030 | 6,467 / 79,830 |
-| Place list, filtered by a substring | 1,694 / 20,840 | 2,111 / 25,545 |
-| Facts at one place, first page (the commonest place) | 312 / 3,314 | 729 / 8,019 |
+| Place list, first page | 2,788 / 35,038 | 6,482 / 79,837 |
+| Place list, filtered by a substring | 1,697 / 20,839 | 2,116 / 25,544 |
+| Facts at one place, first page (the commonest place) | 473 / 4,973 | 892 / 9,422 |
+
+Since S11 a place is its record (`events.place_id`): the list groups by it and a place page reads `idx_event_place_id` after one lookup of the record by `idx_place_key`, which is why the facts read cost about 1.5 times what it did. The list is unchanged in cost.
 
 The facts read is in proportion to the facts at that place, not the tree: the page orders them by
 date, so every fact at the place is read to return a page. The restricted list pays about 2.3 times
