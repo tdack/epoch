@@ -21,10 +21,10 @@ export const MAX_WINDOW_PEOPLE = 3000;
 export interface KinWindowRequest {
 	treeId: string;
 	startIds: readonly string[];
-	/** Generations of parents to load above every start person. */
-	ancestorGenerations: number;
-	/** Generations of children to load below every start person. */
-	descendantGenerations: number;
+	/** Generations of parents to load above every start person; null loads none and does not look. */
+	ancestorGenerations: number | null;
+	/** Generations of children to load below every start person; null loads none and does not look. */
+	descendantGenerations: number | null;
 	/** Load no partners, those of the start people only, or those of everyone loaded (a descendant chart shows couples). */
 	partnersOf: 'none' | 'starts' | 'all';
 }
@@ -33,8 +33,12 @@ export interface KinWindow {
 	rows: TreeRows;
 	/** The people asked for that exist in the tree. */
 	foundStartIds: string[];
-	/** True when a generation or total limit cut the load short, so absence is not proof. */
-	isTruncated: boolean;
+	/** True when parents exist beyond the ancestor generations loaded. */
+	hasMoreAbove: boolean;
+	/** True when children exist beyond the descendant generations loaded. */
+	hasMoreBelow: boolean;
+	/** True when the total limit cut the load short, so absence is not proof. */
+	isCapped: boolean;
 }
 
 const rowsOf = <T>(ranked: Array<Ranked<T>>) => [...ranked].sort((a, b) => a.rid - b.rid).map((r) => r.row);
@@ -43,17 +47,23 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 	const { treeId } = request;
 	const people = new Set<string>(request.startIds);
 	const links = new Map<string, Ranked<ParentChildRow>>();
-	let isTruncated = false;
+	let hasMoreAbove = false;
+	let hasMoreBelow = false;
+	let isCapped = false;
 
 	// Generation by generation outwards; a link found twice (as someone's parent link and another's child link) is kept once.
-	async function walk(direction: 'child' | 'parent', generations: number) {
+	async function walk(direction: 'child' | 'parent', generations: number | null) {
+		if (generations === null) return;
 		let frontier = [...request.startIds];
 		const seen = new Set(frontier);
 		for (let depth = 0; frontier.length > 0; depth++) {
 			if (depth >= generations) {
 				// One more look says whether the limit hid anything, so a chart can say "more above".
 				const [beyond] = await repo.run(repo.linksBy(treeId, direction, frontier));
-				if (beyond.length > 0) isTruncated = true;
+				if (beyond.length > 0) {
+					if (direction === 'child') hasMoreAbove = true;
+					else hasMoreBelow = true;
+				}
 				return;
 			}
 			const [found] = await repo.run(repo.linksBy(treeId, direction, frontier));
@@ -69,7 +79,7 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 				}
 			}
 			if (people.size > MAX_WINDOW_PEOPLE) {
-				isTruncated = true;
+				isCapped = true;
 				return;
 			}
 			frontier = next;
@@ -103,6 +113,8 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 			mediaItems: []
 		},
 		foundStartIds: request.startIds.filter((id) => existing.has(id)),
-		isTruncated
+		hasMoreAbove,
+		hasMoreBelow,
+		isCapped
 	};
 }

@@ -63,6 +63,14 @@ describe('the pedigree', () => {
 	it('says when the generation limit hides more', async () => {
 		expect((await charts().pedigree(treeId, idOf(4), 2, actors.owner.context)).hasMoreAbove).toBe(true);
 	});
+	it('does not say more lies above because the person has children, or below because they have parents', async () => {
+		// Gran has descendants and no ancestors; Cuz has ancestors and no descendants.
+		expect((await charts().pedigree(treeId, idOf(1), 4, actors.owner.context)).hasMoreAbove).toBe(false);
+		expect((await charts().descendants(treeId, idOf(5), 4, actors.owner.context)).hasMoreBelow).toBe(false);
+		// One generation is only the person, and both directions have more.
+		expect((await charts().pedigree(treeId, idOf(4), 1, actors.owner.context)).hasMoreAbove).toBe(true);
+		expect((await charts().descendants(treeId, idOf(1), 1, actors.owner.context)).hasMoreBelow).toBe(true);
+	});
 	it('leaves a private ancestor out for a viewer, without a trace', async () => {
 		const dto = await charts().pedigree(treeId, idOf(4), 3, actors.viewer.context);
 		expect(dto.slots.map((s) => s?.name ?? null)).toEqual(['Me Oldman', 'Dad Oldman', null, 'Gran Oldman', null, null, null]);

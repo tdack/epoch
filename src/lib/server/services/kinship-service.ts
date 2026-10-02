@@ -52,7 +52,7 @@ export class KinshipService {
 		const unionIds = [...new Set(ownPartnerships.map((p) => p.row.unionId))];
 		const [partnerRows] = await this.repo.run(this.repo.partnerRowsOfUnions(treeId, unionIds));
 		const startIds = [...new Set([fromId, toId, ...partnerRows.map((p) => p.row.personId)])];
-		const window = await loadKinWindow(this.repo, { treeId, startIds, ancestorGenerations: MAX_GENERATIONS, descendantGenerations: 0, partnersOf: 'starts' });
+		const window = await loadKinWindow(this.repo, { treeId, startIds, ancestorGenerations: MAX_GENERATIONS, descendantGenerations: null, partnersOf: 'starts' });
 
 		// A private or missing person answers alike.
 		const hidden = scope.isRestricted ? privatePeople(window.rows, scope.cutoff, scope.creatorId) : new Set<string>();
@@ -74,6 +74,6 @@ export class KinshipService {
 			viaNames: r.viaIds.map((id) => ref(id).name),
 			nonBiologicalTypes: r.nonBiologicalTypes
 		}));
-		return { from: ref(fromId), to: ref(toId), routes, isIncomplete: result.isIncomplete || window.isTruncated };
+		return { from: ref(fromId), to: ref(toId), routes, isIncomplete: result.isIncomplete || window.hasMoreAbove || window.isCapped };
 	}
 }

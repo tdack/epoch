@@ -44,18 +44,18 @@ export class ChartService {
 	async pedigree(treeId: string, personId: string, generations: number, context: AuthenticatedContext): Promise<PedigreeDto> {
 		clamp(generations, MAX_PEDIGREE_GENERATIONS);
 		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
-		const window = await loadKinWindow(this.repo, { treeId, startIds: [personId], ancestorGenerations: generations - 1, descendantGenerations: 0, partnersOf: 'none' });
+		const window = await loadKinWindow(this.repo, { treeId, startIds: [personId], ancestorGenerations: generations - 1, descendantGenerations: null, partnersOf: 'none' });
 		const dto = buildPedigree(await this.visible(window, personId, scope), personId, generations);
 		if (!dto) throw new NotFoundError('Person', personId);
-		return { ...dto, hasMoreAbove: dto.hasMoreAbove || window.isTruncated };
+		return { ...dto, hasMoreAbove: dto.hasMoreAbove || window.hasMoreAbove || window.isCapped };
 	}
 
 	async descendants(treeId: string, personId: string, generations: number, context: AuthenticatedContext): Promise<DescendantsDto> {
 		clamp(generations, MAX_DESCENDANT_GENERATIONS);
 		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
-		const window = await loadKinWindow(this.repo, { treeId, startIds: [personId], ancestorGenerations: 0, descendantGenerations: generations - 1, partnersOf: 'all' });
+		const window = await loadKinWindow(this.repo, { treeId, startIds: [personId], ancestorGenerations: null, descendantGenerations: generations - 1, partnersOf: 'all' });
 		const built = buildDescendants(await this.visible(window, personId, scope), personId, generations);
 		if (!built) throw new NotFoundError('Person', personId);
-		return { root: built.root, generations, hasMoreBelow: built.hasMoreBelow || window.isTruncated };
+		return { root: built.root, generations, hasMoreBelow: built.hasMoreBelow || window.hasMoreBelow || window.isCapped };
 	}
 }
