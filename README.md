@@ -33,6 +33,20 @@ The bypass is opt-in only. It is never inferred from `NODE_ENV`, and without the
 request without a valid Access token is rejected with 401. Never set the flag in a deployed
 environment. `.dev.vars` is git-ignored.
 
+### Public welcome page
+
+`/welcome` is the only page served to someone Access has not identified: a splash with a
+sign-in link, also used as the link preview. Signed-out page loads redirect there. For it to be
+reachable in a deployment, add a second Access application with a **Bypass** policy (Include:
+Everyone) covering `/welcome`, `/_app/*`, `/brand/*`, `/favicon.svg` and `/favicon.ico` on the
+app's host. See ADR-022 in [docs/decisions.md](./docs/decisions.md).
+
+### Brand assets
+
+The icons are SVGs in `static/` and `static/brand/`. After changing one, run
+`npm run brand:render` to regenerate the PNGs and `favicon.ico`, and commit the output. Set
+`CHROMIUM_PATH` if the installed Chromium is not the build Playwright expects.
+
 ### Seed data
 
 With the dev server running:
