@@ -1,0 +1,11 @@
+# Generated, vendored or prose: formatting them would only add churn.
+.svelte-kit
+build
+node_modules
+drizzle
+docs
+static
+.agents
+worker-configuration.d.ts
+package-lock.json
+*.md
