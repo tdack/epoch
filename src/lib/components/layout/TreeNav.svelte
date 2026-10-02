@@ -20,6 +20,7 @@
 		{ href: `${base}/places`, label: 'Places', isActive: page.url.pathname.startsWith(`${base}/place`) },
 		{ href: `${base}/relationship`, label: 'Relationship', isActive: page.url.pathname.startsWith(`${base}/relationship`) },
 		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) },
+		{ href: `${base}/quality`, label: 'Quality', isActive: page.url.pathname.startsWith(`${base}/quality`) },
 		...(isManagerOrAbove(role)
 			? [
 					{ href: `${base}/members`, label: 'Members', isActive: page.url.pathname.startsWith(`${base}/members`) },

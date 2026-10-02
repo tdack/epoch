@@ -8,6 +8,7 @@
  * normalization stay in the service).
  */
 
+import { MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { TREE_ROLES } from '../../shared/roles';
 import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS, PERSON_PRIVACY_VALUES } from '../../shared/privacy';
 import { z } from 'zod';
@@ -256,6 +257,9 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 
 /** The text every fact at a place will carry; a name another place has makes it a merge into that place. */
 export const placeRewriteSchema = z.object({ name: z.string().trim().min(1).max(200) });
+
+/** Dismissing a data-quality finding: the finding's key, and why it is fine. */
+export const qualityDismissSchema = z.object({ key: z.string().min(1).max(2000), reason: z.string().trim().min(1).max(MAX_DISMISSAL_REASON_LENGTH) });
 
 // ---- Names (Phase 3, S6) ----
 

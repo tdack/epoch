@@ -7,3 +7,4 @@ export * from './media';
 export * from './gedcom';
 export * from './change-log';
 export * from './marks';
+export * from './quality';

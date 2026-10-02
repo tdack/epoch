@@ -25,6 +25,7 @@ import type { InvitationDto, MemberDto, MembersDto } from '#lib/server/services/
 import type { TreeRole } from '#lib/shared/roles.js';
 import type { RelationshipDto } from '#lib/shared/kinship.js';
 import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
+import type { QualityReport } from '#lib/shared/quality.js';
 import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
@@ -469,6 +470,18 @@ export async function rewritePlaceApi(treeId: string, placeId: string, name: str
 export async function previewPlaceRewriteApi(treeId: string, placeId: string, name: string): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/places/${enc(placeId)}/impact`, json('POST', { name }), 'Failed to preview the change');
 	return data.impact;
+}
+
+export async function fetchQuality(treeId: string, fetcher: typeof fetch = fetch): Promise<QualityReport> {
+	return call(`/api/trees/${enc(treeId)}/quality`, { method: 'GET' }, 'Failed to load the report', fetcher);
+}
+
+export async function dismissFindingApi(treeId: string, key: string, reason: string): Promise<void> {
+	await call(`/api/trees/${enc(treeId)}/quality`, json('PUT', { key, reason }), 'Failed to dismiss the finding');
+}
+
+export async function restoreFindingApi(treeId: string, key: string): Promise<void> {
+	await call(`/api/trees/${enc(treeId)}/quality?key=${enc(key)}`, { method: 'DELETE' }, 'Failed to restore the finding');
 }
 
 export type NameImpactRequest =
