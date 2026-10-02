@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { events } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
@@ -43,6 +43,8 @@ async function factsOf(treeId: string) {
 		.select()
 		.from(events)
 		.where(and(eq(events.treeId, treeId), eq(events.entityType, 'INDIVIDUAL')))
+		// Insertion order, said outright: the facts are read back in the order they were written.
+		.orderBy(sql`${events}.rowid`)
 		.all();
 }
 

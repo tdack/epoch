@@ -5,7 +5,7 @@
   import { checkDateText } from '#lib/shared/date-value.js';
   import { FACT_KINDS, FACT_TYPE_LIST, factTypeInfo, type FactInput } from '#lib/shared/fact-types.js';
   import type { FactDto } from '#lib/server/services/person-page-service.js';
-  import { createFactApi, isConflict, previewFactApi, updateFactApi } from '#lib/services/tree-api.js';
+  import { createFactApi, isConflict, previewFactApi, suggestPlacesApi, updateFactApi } from '#lib/services/tree-api.js';
   import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -41,6 +41,24 @@
   let isSaving = $state(false);
   let typeSelect = $state<HTMLSelectElement | null>(null);
   let previewRequest = 0;
+  // Places already on the tree's facts, offered as the user types so one place keeps one spelling.
+  // A suggestion fills in the text only; what is saved is whatever the field holds.
+  let placeOptions = $state<string[]>([]);
+  $effect(() => {
+    const typed = place.trim();
+    if (!show || typed.length < 2) {
+      placeOptions = [];
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        placeOptions = await suggestPlacesApi(treeId, typed);
+      } catch {
+        placeOptions = [];
+      }
+    }, PREVIEW_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
 
   const isEdit = $derived(fact !== null);
   const isAttribute = $derived(factTypeInfo(type)?.kind === FACT_KINDS.ATTRIBUTE);
@@ -172,7 +190,8 @@
         </div>
         <div>
           <label for="fact-place" class="mb-1 block text-xs font-semibold text-stone-700">Place</label>
-          <input id="fact-place" type="text" bind:value={place} class={field} placeholder="e.g. Leeds, Yorkshire" />
+          <input id="fact-place" type="text" bind:value={place} list="fact-place-options" autocomplete="off" class={field} placeholder="e.g. Leeds, Yorkshire" />
+          <datalist id="fact-place-options">{#each placeOptions as option (option)}<option value={option}></option>{/each}</datalist>
         </div>
       </div>
 

@@ -42,6 +42,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/trees/[id]/charts/descendants/+server.ts`]: { kind: 'masked-rows', covers: 'services/chart-service.test.ts' },
+	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: { kind: 'masked-rows', covers: 'services/chart-service.test.ts' },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
@@ -60,6 +62,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/marks/recents/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/names/[nameId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/names/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	[`${API}/trees/[id]/places/+server.ts`]: { kind: 'paged-sql', covers: 'services/place-service.test.ts' },
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/people/[personId]/facts/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
@@ -72,6 +75,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/relationships/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/relationships/plan/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/relationships/remove/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	[`${API}/trees/[id]/relationship/+server.ts`]: { kind: 'masked-rows', covers: 'services/kinship-service.test.ts' },
 	[`${API}/trees/[id]/search/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
@@ -80,7 +84,7 @@ const ENTRIES: Record<string, Entry> = {
 };
 
 /** Page and layout loads fetch the endpoints above and hold no data of their own. */
-const LOADS = ['./+page.ts', './trees/[id]/+layout.ts', './trees/[id]/+page.ts', './trees/[id]/members/+page.ts', './trees/[id]/people/+page.ts', './trees/[id]/people/[personId]/+page.ts', './trees/[id]/privacy/+page.ts', './trees/[id]/search/+page.ts', './trees/[id]/surnames/+page.ts', './trees/[id]/unions/+page.ts', './trees/[id]/unions/[unionId]/+page.ts'];
+const LOADS = ['./+page.ts', './trees/[id]/+layout.ts', './trees/[id]/+page.ts', './trees/[id]/members/+page.ts', './trees/[id]/people/+page.ts', './trees/[id]/place/+page.ts', './trees/[id]/places/+page.ts', './trees/[id]/people/[personId]/+page.ts', './trees/[id]/people/[personId]/descendants/+page.ts', './trees/[id]/people/[personId]/pedigree/+page.ts', './trees/[id]/privacy/+page.ts', './trees/[id]/relationship/+page.ts', './trees/[id]/search/+page.ts', './trees/[id]/surnames/+page.ts', './trees/[id]/unions/+page.ts', './trees/[id]/unions/[unionId]/+page.ts'];
 
 const endpoints = Object.keys(import.meta.glob('./**/+server.ts')).sort();
 const loads = Object.keys(import.meta.glob(['./**/+page.ts', './**/+layout.ts', './**/+page.server.ts', './**/+layout.server.ts'])).sort();

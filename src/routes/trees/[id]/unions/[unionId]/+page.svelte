@@ -105,7 +105,7 @@
         {#each dto.events as event (event.id)}
           <li>
             <span class="font-medium">{event.label}</span>
-            <span class="text-xs text-stone-600">{event.dateText ?? 'Date unknown'}{event.place ? ` · ${event.place}` : ''}</span>
+            <span class="text-xs text-stone-600">{event.dateText ?? 'Date unknown'}{#if event.place}{' · '}<a href="/trees/{encodeURIComponent(data.summary.tree.id)}/place?name={encodeURIComponent(event.place)}" class="hover:underline">{event.place}</a>{/if}</span>
             {#if event.notes}<span class="block text-xs text-stone-500">{event.notes}</span>{/if}
           </li>
         {/each}

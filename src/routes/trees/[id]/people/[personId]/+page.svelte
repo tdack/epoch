@@ -217,7 +217,7 @@
       {sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true"> · </span><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}
       {#if dto.vitals.hasConflict}<span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900">dates disagree</span>{/if}
     </p>
-    <p class="mt-1 text-xs"><a href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`} class="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"><GitBranch class="h-3 w-3" />Show in the tree</a></p>
+    <p class="mt-1 text-xs"><a href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`} class="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"><GitBranch class="h-3 w-3" />Show in the tree</a> <span aria-hidden="true">·</span> <a href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/pedigree`} class="font-semibold text-emerald-800 hover:underline">Ancestors</a> <span aria-hidden="true">·</span> <a href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/descendants`} class="font-semibold text-emerald-800 hover:underline">Descendants</a> <span aria-hidden="true">·</span> <a href={`${treeHref}/relationship?from=${encodeURIComponent(dto.person.id)}`} class="font-semibold text-emerald-800 hover:underline">Relationship to…</a></p>
   </div>
   <div class="flex flex-wrap gap-2">
     <button type="button" onclick={toggleFavorite} aria-pressed={isFavorite} class="btn" data-testid="favorite-toggle">
@@ -308,7 +308,7 @@
                 <span class="text-sm font-semibold text-emerald-900">{fact.label}{#if fact.value}: <span class="text-stone-900">{fact.value}</span>{/if}</span>
                 <span class="text-xs text-stone-600">{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate} <span class="text-stone-400">(approximate)</span>{/if}</span>
               </div>
-              {#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600"><MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" />{fact.place}</p>{/if}
+              {#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600"><MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" /><a href={`${treeHref}/place?name=${encodeURIComponent(fact.place)}`} class="hover:underline">{fact.place}</a></p>{/if}
               {#if fact.cause || fact.age}
                 <p class="mt-1 text-xs text-stone-600">{[fact.cause && `Cause: ${fact.cause}`, fact.age && `Age: ${fact.age}`].filter(Boolean).join(' · ')}</p>
               {/if}

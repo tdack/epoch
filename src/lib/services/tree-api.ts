@@ -23,6 +23,9 @@ import type { PersonPrivacy } from '#lib/shared/privacy.js';
 import type { PrivacySettingsDto } from '#lib/server/services/privacy-service.js';
 import type { InvitationDto, MemberDto, MembersDto } from '#lib/server/services/member-service.js';
 import type { TreeRole } from '#lib/shared/roles.js';
+import type { RelationshipDto } from '#lib/shared/kinship.js';
+import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
+import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -428,6 +431,34 @@ export async function changeMemberRoleApi(treeId: string, userId: string, role: 
 
 export async function removeMemberApi(treeId: string, userId: string, version: number): Promise<void> {
 	await call(`/api/trees/${enc(treeId)}/members/${enc(userId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the member');
+}
+
+export async function fetchRelationship(treeId: string, fromId: string, toId: string, fetcher: typeof fetch = fetch): Promise<RelationshipDto> {
+	return call(`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`, { method: 'GET' }, 'Failed to work out the relationship', fetcher);
+}
+
+export async function fetchPedigree(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<PedigreeDto> {
+	return call(`/api/trees/${enc(treeId)}/charts/pedigree?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the pedigree', fetcher);
+}
+
+export async function fetchDescendants(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<DescendantsDto> {
+	return call(`/api/trees/${enc(treeId)}/charts/descendants?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the descendants', fetcher);
+}
+
+export async function fetchPlaces(treeId: string, params: URLSearchParams, fetcher: typeof fetch = fetch): Promise<Page<PlaceListItem>> {
+	return call(`/api/trees/${enc(treeId)}/places?${params}`, { method: 'GET' }, 'Failed to list the places', fetcher);
+}
+
+export async function fetchPlace(treeId: string, name: string, params: URLSearchParams, fetcher: typeof fetch = fetch): Promise<PlaceDto> {
+	const query = new URLSearchParams(params);
+	query.set('name', name);
+	return call(`/api/trees/${enc(treeId)}/places?${query}`, { method: 'GET' }, 'Failed to load the place', fetcher);
+}
+
+/** Places whose text contains `text`, for the fact editor's suggestions. */
+export async function suggestPlacesApi(treeId: string, text: string): Promise<string[]> {
+	const data = await fetchPlaces(treeId, new URLSearchParams({ q: text, limit: String(MAX_PLACE_SUGGESTIONS) }));
+	return data.items.map((p) => p.name);
 }
 
 export type NameImpactRequest =
