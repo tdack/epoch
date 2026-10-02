@@ -53,7 +53,7 @@ describe('describeRelationshipIntent', () => {
 			unionLabel: 'Alex Walker–Jordan Lee'
 		});
 		expect(sentence).toBe(
-			'Sam Smith will be recorded as Alex Walker\'s biological child in the Alex Walker–Jordan Lee family.'
+			"Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Jordan Lee family."
 		);
 	});
 
@@ -114,10 +114,18 @@ describe('describeRelationshipIntent', () => {
 
 	it('takes the family from the resolved facts rather than the client label', () => {
 		const sentence = describeRelationshipIntent(
-			{ kind: 'add_child', parent: alex, child: jordan, type: 'biological', unionLabel: 'client says so' },
+			{
+				kind: 'add_child',
+				parent: alex,
+				child: jordan,
+				type: 'biological',
+				unionLabel: 'client says so'
+			},
 			{ unionPhrase: 'Alex Walker–Sam Smith family' }
 		);
-		expect(sentence).toBe("Jordan Lee will be recorded as Alex Walker's biological child in the Alex Walker–Sam Smith family.");
+		expect(sentence).toBe(
+			"Jordan Lee will be recorded as Alex Walker's biological child in the Alex Walker–Sam Smith family."
+		);
 	});
 
 	it('names a repeated partnership by its position', () => {

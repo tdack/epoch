@@ -2,7 +2,10 @@ import { expect, open, test } from './support';
 
 const SHOTS = process.env.E2E_SHOTS ?? 'test-results';
 
-test('an owner invites an address, sees the offer waiting, and withdraws it', async ({ api, page }) => {
+test('an owner invites an address, sees the offer waiting, and withdraws it', async ({
+	api,
+	page
+}) => {
 	await open(page, `/trees/${api.treeId}/members`);
 	await expect(page.getByTestId('member')).toHaveCount(1);
 	await expect(page.getByText('does not let them past Cloudflare Access')).toBeVisible();

@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { RELATIONSHIP_STYLES, MIXED_STYLE, SEX_SYMBOLS, DEATH_MARK, type LineStyle } from './tree-view.js';
+	import {
+		RELATIONSHIP_STYLES,
+		MIXED_STYLE,
+		SEX_SYMBOLS,
+		DEATH_MARK,
+		type LineStyle
+	} from './tree-view.js';
 
 	const lineStyles: LineStyle[] = [...Object.values(RELATIONSHIP_STYLES), MIXED_STYLE];
 	const sexes = [
@@ -53,7 +59,15 @@
 	</div>
 	<div class="row">
 		<svg width="34" height="8" aria-hidden="true">
-			<line x1="2" y1="4" x2="32" y2="4" stroke="var(--partner-line)" stroke-width="2.25" stroke-dasharray="7 5" />
+			<line
+				x1="2"
+				y1="4"
+				x2="32"
+				y2="4"
+				stroke="var(--partner-line)"
+				stroke-width="2.25"
+				stroke-dasharray="7 5"
+			/>
 		</svg>
 		<span>Separated, divorced or ended</span>
 	</div>

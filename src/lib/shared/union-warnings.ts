@@ -77,16 +77,32 @@ export interface UnionWarningInput {
 	hasTwin: boolean;
 }
 
-const START_TYPES: string[] = [UNION_EVENT_TYPES.ENGAGEMENT, UNION_EVENT_TYPES.PARTNERSHIP_START, UNION_EVENT_TYPES.MARRIAGE];
-const END_TYPES: string[] = [UNION_EVENT_TYPES.SEPARATION, UNION_EVENT_TYPES.DIVORCE, UNION_EVENT_TYPES.ANNULMENT];
+const START_TYPES: string[] = [
+	UNION_EVENT_TYPES.ENGAGEMENT,
+	UNION_EVENT_TYPES.PARTNERSHIP_START,
+	UNION_EVENT_TYPES.MARRIAGE
+];
+const END_TYPES: string[] = [
+	UNION_EVENT_TYPES.SEPARATION,
+	UNION_EVENT_TYPES.DIVORCE,
+	UNION_EVENT_TYPES.ANNULMENT
+];
 
 export function unionWarnings(input: UnionWarningInput): UnionWarning[] {
 	const found: UnionWarning[] = [];
-	const add = (code: UnionWarningCode, severity: WarningSeverity, message: string, subjectIds: string[] = []) =>
-		found.push({ code, severity, message, subjectIds });
+	const add = (
+		code: UnionWarningCode,
+		severity: WarningSeverity,
+		message: string,
+		subjectIds: string[] = []
+	) => found.push({ code, severity, message, subjectIds });
 
 	if (input.partners.length === 0) {
-		add(UNION_WARNING_CODES.NO_PARTNERS, WARNING_SEVERITIES.WARNING, 'This partnership has no recorded partners.');
+		add(
+			UNION_WARNING_CODES.NO_PARTNERS,
+			WARNING_SEVERITIES.WARNING,
+			'This partnership has no recorded partners.'
+		);
 	} else if (input.partners.length === 1) {
 		add(
 			UNION_WARNING_CODES.SINGLE_PARTNER,

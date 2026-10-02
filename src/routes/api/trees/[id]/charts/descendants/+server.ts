@@ -9,13 +9,19 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const treeId = params.id;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 	const person = url.searchParams.get('person');
 	if (!person) return Response.json({ error: 'person is required' }, { status: 400 });
 	const generations = Number(url.searchParams.get('generations') ?? DEFAULT_CHART_GENERATIONS);
 
 	try {
-		return Response.json(await new ChartService(getDb(platform.env.DB)).descendants(treeId, person, generations, { user: locals.user, correlationId: locals.correlationId }));
+		return Response.json(
+			await new ChartService(getDb(platform.env.DB)).descendants(treeId, person, generations, {
+				user: locals.user,
+				correlationId: locals.correlationId
+			})
+		);
 	} catch (err) {
 		return errorResponse(err, 'Failed to load the chart');
 	}

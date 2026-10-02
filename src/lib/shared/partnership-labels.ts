@@ -37,9 +37,21 @@ export function ordinal(n: number): string {
 	return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
 }
 
-const START_TYPES = [UNION_EVENT_TYPES.ENGAGEMENT, UNION_EVENT_TYPES.PARTNERSHIP_START, UNION_EVENT_TYPES.MARRIAGE] as string[];
-const SUMMARY_START = [UNION_EVENT_TYPES.MARRIAGE, UNION_EVENT_TYPES.PARTNERSHIP_START, UNION_EVENT_TYPES.ENGAGEMENT] as string[];
-const SUMMARY_END = [UNION_EVENT_TYPES.DIVORCE, UNION_EVENT_TYPES.ANNULMENT, UNION_EVENT_TYPES.SEPARATION] as string[];
+const START_TYPES = [
+	UNION_EVENT_TYPES.ENGAGEMENT,
+	UNION_EVENT_TYPES.PARTNERSHIP_START,
+	UNION_EVENT_TYPES.MARRIAGE
+] as string[];
+const SUMMARY_START = [
+	UNION_EVENT_TYPES.MARRIAGE,
+	UNION_EVENT_TYPES.PARTNERSHIP_START,
+	UNION_EVENT_TYPES.ENGAGEMENT
+] as string[];
+const SUMMARY_END = [
+	UNION_EVENT_TYPES.DIVORCE,
+	UNION_EVENT_TYPES.ANNULMENT,
+	UNION_EVENT_TYPES.SEPARATION
+] as string[];
 
 /** The earliest sort key among the events that begin a partnership; null when none is dated. */
 export function startSort(union: LabelableUnion): string | null {
@@ -62,7 +74,9 @@ function firstDated(union: LabelableUnion, types: string[]) {
 export function datesOf(union: LabelableUnion): string | null {
 	const part = (types: string[]) => {
 		const event = firstDated(union, types);
-		return event && isUnionEventType(event.type) ? `${UNION_EVENT_ABBREVIATIONS[event.type]} ${event.dateText}` : null;
+		return event && isUnionEventType(event.type)
+			? `${UNION_EVENT_ABBREVIATIONS[event.type]} ${event.dateText}`
+			: null;
 	};
 	const parts = [part(SUMMARY_START), part(SUMMARY_END)].filter(Boolean);
 	return parts.length > 0 ? parts.join(' – ') : null;
@@ -90,7 +104,8 @@ export function partnershipLabels(unions: LabelableUnion[]): Map<string, Partner
 			const [sa, sb] = [startSort(a), startSort(b)];
 			if (sa && sb) return sa === sb ? a.id.localeCompare(b.id) : sa.localeCompare(sb);
 			if (sa || sb) return sa ? -1 : 1;
-			if (a.createdAt != null && b.createdAt != null && a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+			if (a.createdAt != null && b.createdAt != null && a.createdAt !== b.createdAt)
+				return a.createdAt - b.createdAt;
 			return a.id.localeCompare(b.id);
 		});
 		ordered.forEach((union, index) => {

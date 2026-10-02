@@ -79,8 +79,12 @@ export function unionLabelText(union: RelationshipGraphUnion): string {
 	const begin =
 		union.marriageDate ||
 		union.marriagePlace ||
-		(start ? [UNION_EVENT_ABBREVIATIONS[start.type], start.dateText].filter(Boolean).join(' ') : '');
-	const end = END_EVENT_TYPES.map((type) => events.find((e) => e.type === type)).find((e) => e?.dateText);
+		(start
+			? [UNION_EVENT_ABBREVIATIONS[start.type], start.dateText].filter(Boolean).join(' ')
+			: '');
+	const end = END_EVENT_TYPES.map((type) => events.find((e) => e.type === type)).find(
+		(e) => e?.dateText
+	);
 	const ending = end ? `${UNION_EVENT_ABBREVIATIONS[end.type]} ${end.dateText}` : '';
 	return [begin, ending].filter(Boolean).join(' – ');
 }
@@ -306,20 +310,28 @@ function nearestTo(candidates: PlacedPerson[], from: PlacedPerson): PlacedPerson
  * left/right to the nearest partner or sibling in that direction, falling back to whoever is
  * next on the row. Returns null when nothing lies that way.
  */
-export function neighbourOf(layout: TreeLayout, fromId: string, direction: NavDirection): string | null {
+export function neighbourOf(
+	layout: TreeLayout,
+	fromId: string,
+	direction: NavDirection
+): string | null {
 	const people = new Map(layout.people.map((p) => [p.id, p]));
 	const from = people.get(fromId);
 	if (!from) return null;
 	const unions = new Map(layout.unions.map((u) => [u.id, u]));
 	const childEdges = layout.edges.filter((e): e is ChildEdge => e.kind === 'child');
 	const partnersOfUnion = (unionId: string) =>
-		(unions.get(unionId)?.union.partnerIds ?? []).map((id) => people.get(id)).filter((p): p is PlacedPerson => !!p);
+		(unions.get(unionId)?.union.partnerIds ?? [])
+			.map((id) => people.get(id))
+			.filter((p): p is PlacedPerson => !!p);
 
 	if (direction === NAV_DIRECTIONS.UP) {
 		const parents: PlacedPerson[] = [];
 		for (const e of childEdges.filter((e) => e.childId === fromId && !e.isSecondaryPath)) {
 			if (e.unionId) parents.push(...partnersOfUnion(e.unionId));
-			else for (const a of e.assertions) if (people.has(a.parentId)) parents.push(people.get(a.parentId)!);
+			else
+				for (const a of e.assertions)
+					if (people.has(a.parentId)) parents.push(people.get(a.parentId)!);
 		}
 		const above = parents.filter((p) => p.id !== fromId && p.y < from.y);
 		return nearestTo(above, from)?.id ?? null;
@@ -344,7 +356,10 @@ export function neighbourOf(layout: TreeLayout, fromId: string, direction: NavDi
 	}
 	for (const mine of childEdges.filter((e) => e.childId === fromId && !e.isSecondaryPath)) {
 		for (const other of childEdges) {
-			if (other.unionId === mine.unionId && (mine.unionId || other.assertions[0]?.parentId === mine.assertions[0]?.parentId)) {
+			if (
+				other.unionId === mine.unionId &&
+				(mine.unionId || other.assertions[0]?.parentId === mine.assertions[0]?.parentId)
+			) {
 				related.add(other.childId);
 			}
 		}
@@ -352,8 +367,17 @@ export function neighbourOf(layout: TreeLayout, fromId: string, direction: NavDi
 	related.delete(fromId);
 
 	const sign = direction === NAV_DIRECTIONS.LEFT ? -1 : 1;
-	const sameRow = layout.people.filter((p) => p.y === from.y && p.id !== fromId && Math.sign(p.x - from.x) === sign);
-	return (nearestTo(sameRow.filter((p) => related.has(p.id)), from) ?? nearestTo(sameRow, from))?.id ?? null;
+	const sameRow = layout.people.filter(
+		(p) => p.y === from.y && p.id !== fromId && Math.sign(p.x - from.x) === sign
+	);
+	return (
+		(
+			nearestTo(
+				sameRow.filter((p) => related.has(p.id)),
+				from
+			) ?? nearestTo(sameRow, from)
+		)?.id ?? null
+	);
 }
 
 // ---- Contrast ----
@@ -366,7 +390,11 @@ function channel(value: number): number {
 export function contrastRatio(foreground: string, background: string): number {
 	const luminance = (hex: string) => {
 		const n = Number.parseInt(hex.replace('#', ''), 16);
-		return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+		return (
+			0.2126 * channel((n >> 16) & 255) +
+			0.7152 * channel((n >> 8) & 255) +
+			0.0722 * channel(n & 255)
+		);
 	};
 	const [a, b] = [luminance(foreground), luminance(background)].sort((x, y) => y - x);
 	return (a + 0.05) / (b + 0.05);

@@ -30,7 +30,10 @@ await build({
 const { backfillStatements, UNBACKFILLED_EVENTS_SQL } = await import(pathToFileURL(bundle).href);
 
 const wrangler = (...args) =>
-	execFileSync('npx', ['wrangler', 'd1', 'execute', DATABASE, target, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+	execFileSync('npx', ['wrangler', 'd1', 'execute', DATABASE, target, ...args], {
+		encoding: 'utf8',
+		maxBuffer: 256 * 1024 * 1024
+	});
 
 const [{ results }] = JSON.parse(wrangler('--json', '--command', UNBACKFILLED_EVENTS_SQL));
 if (results.length === 0) {
@@ -41,4 +44,6 @@ if (results.length === 0) {
 const file = join(dir, 'backfill.sql');
 writeFileSync(file, backfillStatements(results).join('\n') + '\n');
 wrangler('--file', file);
-console.log(`Backfilled ${results.length} event date${results.length === 1 ? '' : 's'} (${target.slice(2)}).`);
+console.log(
+	`Backfilled ${results.length} event date${results.length === 1 ? '' : 's'} (${target.slice(2)}).`
+);

@@ -51,7 +51,8 @@ function requirePerson(rows: TreeRows, id: string): IndividualRow {
 
 function requireFact(rows: TreeRows, id: string): EventRow {
 	const fact = rows.events.find((e) => e.id === id);
-	if (!fact || fact.entityType !== 'INDIVIDUAL' || isUnionEventType(fact.type)) throw new NotFoundError('Fact', id);
+	if (!fact || fact.entityType !== 'INDIVIDUAL' || isUnionEventType(fact.type))
+		throw new NotFoundError('Fact', id);
 	return fact;
 }
 
@@ -76,7 +77,14 @@ function checkVersion(fact: EventRow, expected: number | undefined): void {
 	if (expected === undefined || fact.version === expected) return;
 	throw new ConcurrencyConflictError(
 		`This fact was changed by someone else (you had version ${expected}, it is now ${fact.version}).`,
-		{ reason: 'STALE_VERSION', entity: 'fact', id: fact.id, expectedVersion: expected, currentVersion: fact.version, current: factSnapshot(fact) }
+		{
+			reason: 'STALE_VERSION',
+			entity: 'fact',
+			id: fact.id,
+			expectedVersion: expected,
+			currentVersion: fact.version,
+			current: factSnapshot(fact)
+		}
 	);
 }
 
@@ -87,10 +95,21 @@ function touch(row: EventRow, ctx: FactContext): EventRow {
 /** The person's version moves when a vital changes, exactly as `record_death` does. */
 function bumpPerson(rows: TreeRows, personId: string, ctx: FactContext): RowOp[] {
 	const person = requirePerson(rows, personId);
-	return [{ table: 'individuals', id: person.id, before: person, after: { ...person, version: person.version + 1, updatedAt: ctx.now } }];
+	return [
+		{
+			table: 'individuals',
+			id: person.id,
+			before: person,
+			after: { ...person, version: person.version + 1, updatedAt: ctx.now }
+		}
+	];
 }
 
-function createFact(rows: TreeRows, ctx: FactContext, command: Extract<FactCommand, { kind: 'create_fact' }>): RowOp[] {
+function createFact(
+	rows: TreeRows,
+	ctx: FactContext,
+	command: Extract<FactCommand, { kind: 'create_fact' }>
+): RowOp[] {
 	requirePerson(rows, command.personId);
 	requireKnownType(command.fact.type);
 	const dateText = clean(command.fact.dateText);
@@ -117,7 +136,11 @@ function createFact(rows: TreeRows, ctx: FactContext, command: Extract<FactComma
 	return [{ table: 'events', id: row.id, before: null, after: row }, ...vitals];
 }
 
-function updateFact(rows: TreeRows, ctx: FactContext, command: Extract<FactCommand, { kind: 'update_fact' }>): RowOp[] {
+function updateFact(
+	rows: TreeRows,
+	ctx: FactContext,
+	command: Extract<FactCommand, { kind: 'update_fact' }>
+): RowOp[] {
 	const before = requireFact(rows, command.factId);
 	checkVersion(before, command.expectedVersion);
 	const patch = command.fact;
@@ -139,30 +162,50 @@ function updateFact(rows: TreeRows, ctx: FactContext, command: Extract<FactComma
 	// A legacy description is the imported cause, note or value in one. Once the fact is edited its
 	// text lives in the field that says what it is, and `notes` must not repeat it on export.
 	if (patch.notes !== undefined || patch.value !== undefined || patch.cause !== undefined) {
-		after.notes = patch.notes !== undefined ? clean(patch.notes) : (before.notes ?? before.description);
+		after.notes =
+			patch.notes !== undefined ? clean(patch.notes) : (before.notes ?? before.description);
 		after.description = null;
 	}
 	if (JSON.stringify(after) === JSON.stringify(before)) return [];
 	const isVital = VITAL_TYPES.has(before.type) || VITAL_TYPES.has(after.type);
-	return [{ table: 'events', id: before.id, before, after: touch(after, ctx) }, ...(isVital ? bumpPerson(rows, before.entityId, ctx) : [])];
+	return [
+		{ table: 'events', id: before.id, before, after: touch(after, ctx) },
+		...(isVital ? bumpPerson(rows, before.entityId, ctx) : [])
+	];
 }
 
-function deleteFact(rows: TreeRows, ctx: FactContext, command: Extract<FactCommand, { kind: 'delete_fact' }>): RowOp[] {
+function deleteFact(
+	rows: TreeRows,
+	ctx: FactContext,
+	command: Extract<FactCommand, { kind: 'delete_fact' }>
+): RowOp[] {
 	const before = requireFact(rows, command.factId);
 	checkVersion(before, command.expectedVersion);
 	const vitals = VITAL_TYPES.has(before.type) ? bumpPerson(rows, before.entityId, ctx) : [];
 	return [{ table: 'events', id: before.id, before, after: null }, ...vitals];
 }
 
-function reorderFacts(rows: TreeRows, ctx: FactContext, command: Extract<FactCommand, { kind: 'reorder_facts' }>): RowOp[] {
+function reorderFacts(
+	rows: TreeRows,
+	ctx: FactContext,
+	command: Extract<FactCommand, { kind: 'reorder_facts' }>
+): RowOp[] {
 	requirePerson(rows, command.personId);
 	const ids = command.orderedFactIds;
-	if (new Set(ids).size !== ids.length) throw new ValidationError('A fact appears twice in the new order');
+	if (new Set(ids).size !== ids.length)
+		throw new ValidationError('A fact appears twice in the new order');
 	const ops: RowOp[] = [];
 	ids.forEach((id, index) => {
 		const fact = requireFact(rows, id);
-		if (fact.entityId !== command.personId) throw new ValidationError('A fact in the new order belongs to someone else');
-		if (fact.sortOrder !== index) ops.push({ table: 'events', id, before: fact, after: touch({ ...fact, sortOrder: index }, ctx) });
+		if (fact.entityId !== command.personId)
+			throw new ValidationError('A fact in the new order belongs to someone else');
+		if (fact.sortOrder !== index)
+			ops.push({
+				table: 'events',
+				id,
+				before: fact,
+				after: touch({ ...fact, sortOrder: index }, ctx)
+			});
 	});
 	return ops;
 }

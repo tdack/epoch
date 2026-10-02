@@ -43,18 +43,33 @@ export function buildPlaceOps(rows: TreeRows, command: PlaceCommand, ctx: PlaceC
 	// One change is one atomic batch and one log row (see the limit's comment), so a place too big for
 	// one is refused rather than half done.
 	if (facts.length > MAX_PLACE_REWRITE_FACTS) {
-		throw new ValidationError(`This place is on ${facts.length} facts; renaming or merging works on at most ${MAX_PLACE_REWRITE_FACTS} at a time`);
+		throw new ValidationError(
+			`This place is on ${facts.length} facts; renaming or merging works on at most ${MAX_PLACE_REWRITE_FACTS} at a time`
+		);
 	}
 
 	const ops: RowOp[] = [];
 	const bumped = new Set<string>();
 	for (const fact of facts) {
 		if (fact.place === to) continue;
-		ops.push({ table: 'events', id: fact.id, before: fact, after: { ...fact, place: to, version: fact.version + 1, updatedAt: ctx.now } });
-		const person = fact.entityType === 'INDIVIDUAL' && VITAL_TYPES.has(fact.type) ? rows.individuals.find((p) => p.id === fact.entityId) : undefined;
+		ops.push({
+			table: 'events',
+			id: fact.id,
+			before: fact,
+			after: { ...fact, place: to, version: fact.version + 1, updatedAt: ctx.now }
+		});
+		const person =
+			fact.entityType === 'INDIVIDUAL' && VITAL_TYPES.has(fact.type)
+				? rows.individuals.find((p) => p.id === fact.entityId)
+				: undefined;
 		if (person && !bumped.has(person.id)) {
 			bumped.add(person.id);
-			ops.push({ table: 'individuals', id: person.id, before: person, after: { ...person, version: person.version + 1, updatedAt: ctx.now } });
+			ops.push({
+				table: 'individuals',
+				id: person.id,
+				before: person,
+				after: { ...person, version: person.version + 1, updatedAt: ctx.now }
+			});
 		}
 	}
 	return ops;

@@ -37,7 +37,12 @@ export async function requireTreeAction(
 	await membershipRole(users, treeId, context, action);
 }
 
-async function membershipRole(users: UserRepository, treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<TreeRole> {
+async function membershipRole(
+	users: UserRepository,
+	treeId: string,
+	context: AuthenticatedContext,
+	action: TreeAction
+): Promise<TreeRole> {
 	const membership = await users.getMembership(treeId, context.user.id);
 	if (!membership || !isActionAllowed(membership.role, action)) {
 		throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);

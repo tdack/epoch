@@ -5,14 +5,20 @@ import { findRelationships, kinLabel, type KinGraph } from './relationship-calcu
 
 /** `spec`: people as `id:sex`, links as `parent>child[:type]`, partners as `a+b`. */
 function graph(spec: { people: string[]; links?: string[]; partners?: string[] }): KinGraph {
-	const people = new Map(spec.people.map((p) => {
-		const [id, sex] = p.split(':');
-		return [id!, { name: id!, sex: (sex as Sex | undefined) ?? null, isPrivate: false }];
-	}));
+	const people = new Map(
+		spec.people.map((p) => {
+			const [id, sex] = p.split(':');
+			return [id!, { name: id!, sex: (sex as Sex | undefined) ?? null, isPrivate: false }];
+		})
+	);
 	const links = (spec.links ?? []).map((l) => {
 		const [pair, type] = l.split(':');
 		const [parentId, childId] = pair!.split('>');
-		return { parentId: parentId!, childId: childId!, type: (type ?? 'biological') as ParentChildType };
+		return {
+			parentId: parentId!,
+			childId: childId!,
+			type: (type ?? 'biological') as ParentChildType
+		};
 	});
 	const partners = new Map<string, string[]>();
 	for (const pair of spec.partners ?? []) {
@@ -22,7 +28,8 @@ function graph(spec: { people: string[]; links?: string[]; partners?: string[] }
 	}
 	return { people, links, partners };
 }
-const labels = (g: KinGraph, a: string, b: string) => findRelationships(a, b, g).routes.map((r) => r.label);
+const labels = (g: KinGraph, a: string, b: string) =>
+	findRelationships(a, b, g).routes.map((r) => r.label);
 
 describe('kinship words', () => {
 	it.each([
@@ -58,7 +65,19 @@ describe('kinship words', () => {
 
 const FAMILY = graph({
 	people: ['gp1:M', 'gp2:F', 'dad:M', 'unc:M', 'mum:F', 'me', 'sis:F', 'cuz', 'kid:F', 'gkid'],
-	links: ['gp1>dad', 'gp2>dad', 'gp1>unc', 'gp2>unc', 'dad>me', 'mum>me', 'dad>sis', 'mum>sis', 'unc>cuz', 'me>kid', 'kid>gkid'],
+	links: [
+		'gp1>dad',
+		'gp2>dad',
+		'gp1>unc',
+		'gp2>unc',
+		'dad>me',
+		'mum>me',
+		'dad>sis',
+		'mum>sis',
+		'unc>cuz',
+		'me>kid',
+		'kid>gkid'
+	],
 	partners: ['gp1+gp2', 'dad+mum']
 });
 
@@ -81,18 +100,40 @@ describe('blood relationships', () => {
 	});
 	it('lists the steps from the first person up to the ancestor and down to the second', () => {
 		const [route] = findRelationships('me', 'cuz', FAMILY).routes;
-		expect(route!.steps.map((s) => [s.personId, s.relation])).toEqual([['me', null], ['dad', 'parent'], ['gp1', 'parent'], ['unc', 'child'], ['cuz', 'child']]);
+		expect(route!.steps.map((s) => [s.personId, s.relation])).toEqual([
+			['me', null],
+			['dad', 'parent'],
+			['gp1', 'parent'],
+			['unc', 'child'],
+			['cuz', 'child']
+		]);
 		expect(route!.viaIds.sort()).toEqual(['gp1', 'gp2']);
 	});
 	it('reports a couple as one route, and a single shared parent as a half-sibling', () => {
 		expect(findRelationships('me', 'sis', FAMILY).routes).toHaveLength(1);
-		const half = graph({ people: ['a', 'b:F', 'p', 'q', 'r'], links: ['p>a', 'q>a', 'p>b', 'r>b'] });
+		const half = graph({
+			people: ['a', 'b:F', 'p', 'q', 'r'],
+			links: ['p>a', 'q>a', 'p>b', 'r>b']
+		});
 		expect(labels(half, 'a', 'b')).toEqual(['half-sister']);
 	});
 	it('reports every route, so a double cousin or a pedigree loop is not hidden', () => {
 		const double = graph({
 			people: ['g1', 'g2', 'h1', 'h2', 's1', 's2', 't1', 't2', 'x', 'y'],
-			links: ['g1>s1', 'g2>s1', 'g1>s2', 'g2>s2', 'h1>t1', 'h2>t1', 'h1>t2', 'h2>t2', 's1>x', 't1>x', 's2>y', 't2>y']
+			links: [
+				'g1>s1',
+				'g2>s1',
+				'g1>s2',
+				'g2>s2',
+				'h1>t1',
+				'h2>t1',
+				'h1>t2',
+				'h2>t2',
+				's1>x',
+				't1>x',
+				's2>y',
+				't2>y'
+			]
 		});
 		const result = findRelationships('x', 'y', double).routes;
 		expect(result.map((r) => r.label)).toEqual(['1st cousin', '1st cousin']);
@@ -106,7 +147,9 @@ describe('blood relationships', () => {
 		expect(route!.steps[1]!.linkType).toBe('adoptive');
 	});
 	it('ignores an ancestor above a lower common one', () => {
-		expect(findRelationships('me', 'sis', FAMILY).routes.every((r) => !r.viaIds.includes('gp1'))).toBe(true);
+		expect(
+			findRelationships('me', 'sis', FAMILY).routes.every((r) => !r.viaIds.includes('gp1'))
+		).toBe(true);
 	});
 	it('finds nothing for unrelated people and does not say it was cut short', () => {
 		const apart = graph({ people: ['a', 'b'] });
@@ -117,7 +160,11 @@ describe('blood relationships', () => {
 describe('partners', () => {
 	it('lists a partnership as its own route, then any blood route as well', () => {
 		expect(labels(FAMILY, 'dad', 'mum')).toEqual(['partner']);
-		const cousins = graph({ people: ['gp', 'a', 'b', 'x', 'y'], links: ['gp>a', 'gp>b', 'a>x', 'b>y'], partners: ['x+y'] });
+		const cousins = graph({
+			people: ['gp', 'a', 'b', 'x', 'y'],
+			links: ['gp>a', 'gp>b', 'a>x', 'b>y'],
+			partners: ['x+y']
+		});
 		expect(labels(cousins, 'x', 'y')).toEqual(['partner', '1st cousin']);
 	});
 	it('offers a relative of a partner, or a partner of a relative, beside blood routes, but not for a direct-line relative', () => {
@@ -133,7 +180,11 @@ describe('partners', () => {
 		expect(labels(g, 'sibwife', 'mum')).toEqual(['parent-in-law']);
 		expect(labels(g, 'sibwife', 'bro')).toEqual(['sibling-in-law']);
 		expect(labels(g, 'mum', 'sibwife')).toEqual(['child-in-law']);
-		expect(findRelationships('me', 'step', g).routes[0]!.steps.map((s) => s.relation)).toEqual([null, 'parent', 'partner']);
+		expect(findRelationships('me', 'step', g).routes[0]!.steps.map((s) => s.relation)).toEqual([
+			null,
+			'parent',
+			'partner'
+		]);
 	});
 	it('shows a step-parent who is also a cousin by both routes, and never a real parent as a step-parent', () => {
 		const g = graph({
@@ -142,11 +193,15 @@ describe('partners', () => {
 			partners: ['mum+step']
 		});
 		expect(labels(g, 'me', 'step')).toEqual(['1st cousin', 'step-parent']);
-		const parents = graph({ people: ['me', 'mum:F', 'dad:M'], links: ['mum>me', 'dad>me'], partners: ['mum+dad'] });
+		const parents = graph({
+			people: ['me', 'mum:F', 'dad:M'],
+			links: ['mum>me', 'dad>me'],
+			partners: ['mum+dad']
+		});
 		expect(labels(parents, 'me', 'dad')).toEqual(['father']);
 		expect(labels(parents, 'dad', 'me')).toEqual(['child']);
 	});
-	it('calls a partner\'s child a step-child', () => {
+	it("calls a partner's child a step-child", () => {
 		const g = graph({ people: ['a', 'b', 'kid'], links: ['b>kid'], partners: ['a+b'] });
 		expect(labels(g, 'a', 'kid')).toEqual(['step-child']);
 	});

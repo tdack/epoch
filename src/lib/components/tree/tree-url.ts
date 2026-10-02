@@ -10,7 +10,13 @@ import { MAX_VIEW_DEPTH, STUB_TOKEN } from '#lib/shared/stub-tokens.js';
 export { compactStubId, resolveStubTokens } from '#lib/shared/stub-tokens.js';
 
 /** Every parent-child type, in legend order. The server module holding the values is not importable here. */
-export const ALL_PARENT_CHILD_TYPES = ['biological', 'adoptive', 'foster', 'guardian', 'unknown'] as const satisfies readonly ParentChildType[];
+export const ALL_PARENT_CHILD_TYPES = [
+	'biological',
+	'adoptive',
+	'foster',
+	'guardian',
+	'unknown'
+] as const satisfies readonly ParentChildType[];
 export const MAX_DEPTH = MAX_VIEW_DEPTH;
 
 export interface TreeViewState {
@@ -57,7 +63,10 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 		ancestorDepth: depth(params.get('up'), DEFAULT_VIEW_STATE.ancestorDepth),
 		descendantDepth: depth(params.get('down'), DEFAULT_VIEW_STATE.descendantDepth),
 		shouldIncludeSiblings: flag(params.get('siblings'), DEFAULT_VIEW_STATE.shouldIncludeSiblings),
-		shouldIncludeStepFamilies: flag(params.get('step'), DEFAULT_VIEW_STATE.shouldIncludeStepFamilies),
+		shouldIncludeStepFamilies: flag(
+			params.get('step'),
+			DEFAULT_VIEW_STATE.shouldIncludeStepFamilies
+		),
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
@@ -70,14 +79,16 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	if (state.treeId) params.set('tree', state.treeId);
 	if (state.focusId) params.set('focus', state.focusId);
 	if (state.ancestorDepth !== d.ancestorDepth) params.set('up', String(state.ancestorDepth));
-	if (state.descendantDepth !== d.descendantDepth) params.set('down', String(state.descendantDepth));
+	if (state.descendantDepth !== d.descendantDepth)
+		params.set('down', String(state.descendantDepth));
 	if (state.shouldIncludeSiblings !== d.shouldIncludeSiblings) {
 		params.set('siblings', state.shouldIncludeSiblings ? '1' : '0');
 	}
 	if (state.shouldIncludeStepFamilies !== d.shouldIncludeStepFamilies) {
 		params.set('step', state.shouldIncludeStepFamilies ? '1' : '0');
 	}
-	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length) params.set('types', state.types.join(','));
+	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)
+		params.set('types', state.types.join(','));
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }

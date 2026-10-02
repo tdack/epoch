@@ -9,7 +9,15 @@
  * which needs the birth and death events this always includes.
  */
 
-import type { EventRow, IndividualRow, ParentChildRow, PersonNameRow, TreeRows, UnionPartnerRow, UnionRow } from '../domain/change-log';
+import type {
+	EventRow,
+	IndividualRow,
+	ParentChildRow,
+	PersonNameRow,
+	TreeRows,
+	UnionPartnerRow,
+	UnionRow
+} from '../domain/change-log';
 import type { GraphWindowRepository, Ranked } from '../repositories/graph-window-repository';
 
 /** What privacy and a chart card both need: vitals and the facts that say someone has died. */
@@ -41,9 +49,13 @@ export interface KinWindow {
 	isCapped: boolean;
 }
 
-const rowsOf = <T>(ranked: Array<Ranked<T>>) => [...ranked].sort((a, b) => a.rid - b.rid).map((r) => r.row);
+const rowsOf = <T>(ranked: Array<Ranked<T>>) =>
+	[...ranked].sort((a, b) => a.rid - b.rid).map((r) => r.row);
 
-export async function loadKinWindow(repo: GraphWindowRepository, request: KinWindowRequest): Promise<KinWindow> {
+export async function loadKinWindow(
+	repo: GraphWindowRepository,
+	request: KinWindowRequest
+): Promise<KinWindow> {
 	const { treeId } = request;
 	const people = new Set<string>(request.startIds);
 	const links = new Map<string, Ranked<ParentChildRow>>();
@@ -88,10 +100,18 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 	await walk('child', request.ancestorGenerations);
 	await walk('parent', request.descendantGenerations);
 
-	const partnerOwners = request.partnersOf === 'all' ? [...people] : request.partnersOf === 'starts' ? [...request.startIds] : [];
+	const partnerOwners =
+		request.partnersOf === 'all'
+			? [...people]
+			: request.partnersOf === 'starts'
+				? [...request.startIds]
+				: [];
 	const [ownPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, partnerOwners));
 	const unionIds = [...new Set(ownPartnerships.map((p) => p.row.unionId))];
-	const [partnerRows, unionRows] = await repo.run(repo.partnerRowsOfUnions(treeId, unionIds), repo.unionsIn(treeId, unionIds));
+	const [partnerRows, unionRows] = await repo.run(
+		repo.partnerRowsOfUnions(treeId, unionIds),
+		repo.unionsIn(treeId, unionIds)
+	);
 	for (const p of partnerRows) people.add(p.row.personId);
 
 	const ids = [...people];
@@ -108,7 +128,9 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 			unions: rowsOf<UnionRow>(unionRows),
 			unionPartners: rowsOf<UnionPartnerRow>(partnerRows),
 			// A link whose far end is not in the tree (or another tree) is not a relationship here.
-			parentChild: rowsOf([...links.values()]).filter((l) => existing.has(l.parentId) && existing.has(l.childId)),
+			parentChild: rowsOf([...links.values()]).filter(
+				(l) => existing.has(l.parentId) && existing.has(l.childId)
+			),
 			events: rowsOf<EventRow>(events),
 			mediaItems: []
 		},

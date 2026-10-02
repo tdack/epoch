@@ -25,7 +25,10 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	}
 
 	try {
-		const { isPreview, ...body } = parseBody(unionMergeSchema, await request.json().catch(() => ({})));
+		const { isPreview, ...body } = parseBody(
+			unionMergeSchema,
+			await request.json().catch(() => ({}))
+		);
 		const service = new RelationshipService(getDb(platform.env.DB));
 		const context = { user: locals.user, correlationId: locals.correlationId };
 		const command = { kind: 'merge_unions' as const, ...body };

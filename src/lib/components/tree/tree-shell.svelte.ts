@@ -121,14 +121,22 @@ export class TreeShell {
 		}
 	}
 
-	confirmImport = async (mode: 'replace' | 'merge', options: { shouldMergeDuplicateFamilies: boolean }) => {
+	confirmImport = async (
+		mode: 'replace' | 'merge',
+		options: { shouldMergeDuplicateFamilies: boolean }
+	) => {
 		if (!this.pendingImportFile) return;
 		this.isConfirmingImport = true;
 		this.importConfirmError = null;
 		this.isImporting = true;
 		this.importStatus = 'Importing GEDCOM records into Cloudflare D1...';
 		try {
-			const result = await submitGedcomImport(this.pendingImportFile, mode, this.options.treeId(), options);
+			const result = await submitGedcomImport(
+				this.pendingImportFile,
+				mode,
+				this.options.treeId(),
+				options
+			);
 			this.importStatus = `Import complete: ${result.individualsCount || 0} individuals, ${result.familiesCount || 0} families${result.mergedFamiliesCount ? ` (${result.mergedFamiliesCount} duplicate families merged)` : ''}.`;
 			this.showImportConfirmModal = false;
 			this.pendingImportFile = null;

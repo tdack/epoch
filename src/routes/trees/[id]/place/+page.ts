@@ -11,7 +11,14 @@ export const load: PageLoad = async ({ params, url, fetch, depends }) => {
 	if (!name) error(404, 'Place not found');
 	const { offset, limit } = parseListParams(url.searchParams);
 	try {
-		return { place: await fetchPlace(params.id, name, new URLSearchParams({ offset: String(offset), limit: String(limit) }), fetch) };
+		return {
+			place: await fetchPlace(
+				params.id,
+				name,
+				new URLSearchParams({ offset: String(offset), limit: String(limit) }),
+				fetch
+			)
+		};
 	} catch (cause) {
 		rethrowAsPageError(cause);
 	}

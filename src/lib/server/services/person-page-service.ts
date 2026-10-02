@@ -11,11 +11,20 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType, ParentChildType, UnionStatus } from '../domain/genealogy-model';
-import type { GraphUnionEvent, RelationshipGraph, RelationshipGraphPerson } from '../domain/relationship-graph';
+import type {
+	GraphUnionEvent,
+	RelationshipGraph,
+	RelationshipGraphPerson
+} from '../domain/relationship-graph';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { CONFLICT_KINDS, findFactConflicts, sortTimeline, type FactConflict } from '../../shared/fact-timeline';
+import {
+	CONFLICT_KINDS,
+	findFactConflicts,
+	sortTimeline,
+	type FactConflict
+} from '../../shared/fact-timeline';
 import { FACT_KINDS, factTypeInfo, factLabel, type FactKind } from '../../shared/fact-types';
 import { displayNameWith, formatFullName } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
@@ -145,7 +154,12 @@ export interface PersonPageDto extends PrivacyFlag {
 		isDeceased: boolean;
 	};
 	names: NameDto[];
-	vitals: { birth: FactDto | null; death: FactDto | null; lifespan: string | null; hasConflict: boolean };
+	vitals: {
+		birth: FactDto | null;
+		death: FactDto | null;
+		lifespan: string | null;
+		hasConflict: boolean;
+	};
 	/** Every fact, in timeline order. */
 	facts: FactDto[];
 	parentFamilies: ParentFamilyDto[];
@@ -222,27 +236,37 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 			}
 		];
 	}
-	return [...rows]
-		.sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
-		// A row the pre-S6 person form left stale reads as the person's own fields, as export does (ADR-013).
-		.map((n) => (n.isPreferred ? { ...n, givenName: person.givenName, surname: person.surname } : n))
-		.map((n) => ({
-			...privacyOf(n),
-			id: n.id,
-			version: n.version,
-			type: n.type as NameType,
-			gedcomType: n.gedcomType,
-			givenName: n.givenName,
-			surname: n.surname,
-			prefix: n.namePrefix,
-			suffix: n.nameSuffix,
-			nickname: n.nickname,
-			surnamePrefix: n.surnamePrefix,
-			dateText: n.dateRaw,
-			unionId: n.unionId,
-			displayName: formatFullName({ prefix: n.namePrefix, givenName: n.givenName, surnamePrefix: n.surnamePrefix, surname: n.surname, suffix: n.nameSuffix }),
-			isPreferred: n.isPreferred
-		}));
+	return (
+		[...rows]
+			.sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred) || a.order - b.order)
+			// A row the pre-S6 person form left stale reads as the person's own fields, as export does (ADR-013).
+			.map((n) =>
+				n.isPreferred ? { ...n, givenName: person.givenName, surname: person.surname } : n
+			)
+			.map((n) => ({
+				...privacyOf(n),
+				id: n.id,
+				version: n.version,
+				type: n.type as NameType,
+				gedcomType: n.gedcomType,
+				givenName: n.givenName,
+				surname: n.surname,
+				prefix: n.namePrefix,
+				suffix: n.nameSuffix,
+				nickname: n.nickname,
+				surnamePrefix: n.surnamePrefix,
+				dateText: n.dateRaw,
+				unionId: n.unionId,
+				displayName: formatFullName({
+					prefix: n.namePrefix,
+					givenName: n.givenName,
+					surnamePrefix: n.surnamePrefix,
+					surname: n.surname,
+					suffix: n.nameSuffix
+				}),
+				isPreferred: n.isPreferred
+			}))
+	);
 }
 
 export class PersonPageService {
@@ -263,14 +287,23 @@ export class PersonPageService {
 		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 	}
 
-	async getPerson(treeId: string, personId: string, context: AuthenticatedContext): Promise<PersonPageDto> {
+	async getPerson(
+		treeId: string,
+		personId: string,
+		context: AuthenticatedContext
+	): Promise<PersonPageDto> {
 		const scope = await this.requireView(treeId, context);
 
 		const window = await loadFocusWindow(
 			this.repo,
 			treeId,
 			personId,
-			{ ancestorDepth: 1, descendantDepth: 1, shouldIncludeSiblings: true, shouldIncludeStepFamilies: true },
+			{
+				ancestorDepth: 1,
+				descendantDepth: 1,
+				shouldIncludeSiblings: true,
+				shouldIncludeStepFamilies: true
+			},
 			scope.isRestricted ? scope : undefined
 		);
 		const { graph } = window;
@@ -287,7 +320,10 @@ export class PersonPageService {
 		// Half-siblings and the like are named by the graph only if the window drew them; fetch the rest.
 		const wanted = [
 			...relatives.parentFamilies.flatMap((f) => f.parents.map((p) => p.personId)),
-			...relatives.partnerships.flatMap((p) => [...p.partnerIds, ...p.children.map((c) => c.personId)]),
+			...relatives.partnerships.flatMap((p) => [
+				...p.partnerIds,
+				...p.children.map((c) => c.personId)
+			]),
 			...relatives.directChildren.map((c) => c.personId),
 			...relatives.siblings.full,
 			...relatives.siblings.half,
@@ -322,7 +358,9 @@ export class PersonPageService {
 		const vitals = {
 			birth,
 			death,
-			lifespan: lifespanParts.some(Boolean) ? `${lifespanParts[0] ?? '?'} – ${lifespanParts[1] ?? ''}`.trim() : null,
+			lifespan: lifespanParts.some(Boolean)
+				? `${lifespanParts[0] ?? '?'} – ${lifespanParts[1] ?? ''}`.trim()
+				: null,
 			hasConflict: [birth, death].some((f) => f?.conflict?.kind === CONFLICT_KINDS.CONFLICT)
 		};
 
@@ -331,12 +369,18 @@ export class PersonPageService {
 		const mergeable = mergeableUnionIds(graph.unions);
 		const deceased = new Set(graph.people.filter((p) => p.isDeceased).map((p) => p.id));
 		const widowed = new Set(
-			widowhoods(graph.unions.map((u) => ({ id: u.id, status: u.status, partnerIds: u.partnerIds })), deceased)
+			widowhoods(
+				graph.unions.map((u) => ({ id: u.id, status: u.status, partnerIds: u.partnerIds })),
+				deceased
+			)
 				.filter((w) => w.widowId === personId)
 				.map((w) => w.unionId)
 		);
 		const unionById = new Map(graph.unions.map((u) => [u.id, u]));
-		const childEntry = (c: { personId: string; types: ParentChildType[] }) => ({ person: summary(c.personId), types: c.types });
+		const childEntry = (c: { personId: string; types: ParentChildType[] }) => ({
+			person: summary(c.personId),
+			types: c.types
+		});
 
 		const partnerships: PartnershipDto[] = relatives.partnerships.map((p) => {
 			const union = unionById.get(p.unionId)!;
@@ -357,12 +401,26 @@ export class PersonPageService {
 		// ---- History ----
 		// A change's summary is prose naming everyone it touched ("Added Liv as a child of Gran"), so a
 		// restricted viewer gets no history rather than text that could name a private person.
-		const recent = scope.isRestricted ? [] : await this.repo.recentChanges(treeId, [personId, ...rows.map((r) => r.id)], RECENT_CHANGES_SHOWN);
+		const recent = scope.isRestricted
+			? []
+			: await this.repo.recentChanges(
+					treeId,
+					[personId, ...rows.map((r) => r.id)],
+					RECENT_CHANGES_SHOWN
+				);
 		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
 
 		return {
 			...privacyOf(self.row),
-			privacy: scope.isRestricted ? null : { setting: self.row.privacy, isLikelyLiving: isLikelyLiving(rows.map((r) => ({ type: r.type, dateSortEnd: r.dateSortEnd })), scope.cutoff) },
+			privacy: scope.isRestricted
+				? null
+				: {
+						setting: self.row.privacy,
+						isLikelyLiving: isLikelyLiving(
+							rows.map((r) => ({ type: r.type, dateSortEnd: r.dateSortEnd })),
+							scope.cutoff
+						)
+					},
 			person: {
 				id: self.row.id,
 				xrefId: self.row.xrefId,
@@ -370,10 +428,16 @@ export class PersonPageService {
 				sex: isSex(self.row.sex) ? self.row.sex : 'U',
 				givenName: self.row.givenName,
 				surname: self.row.surname,
-				displayName: displayNameWith(self.row, nameRows.map((n) => n.row)),
+				displayName: displayNameWith(
+					self.row,
+					nameRows.map((n) => n.row)
+				),
 				isDeceased: death !== null
 			},
-			names: nameDtos(self.row, nameRows.map((n) => n.row)),
+			names: nameDtos(
+				self.row,
+				nameRows.map((n) => n.row)
+			),
 			vitals,
 			facts,
 			parentFamilies: relatives.parentFamilies.map((f) => ({
@@ -383,10 +447,26 @@ export class PersonPageService {
 			})),
 			partnerships,
 			directChildren: relatives.directChildren.map(childEntry),
-			siblings: { full: relatives.siblings.full.map(summary), half: relatives.siblings.half.map(summary) },
-			stepParents: relatives.stepParents.map((s) => ({ person: summary(s.personId), unionId: s.unionId })),
-			stepChildren: relatives.stepChildren.map((s) => ({ person: summary(s.personId), via: summary(s.viaPartnerId), unionId: s.unionId })),
-			media: mediaRows.map(({ row }: { row: MediaRow }) => ({ ...privacyOf(row), id: row.id, title: row.title, mimeType: row.mimeType, r2ObjectKey: row.r2ObjectKey })),
+			siblings: {
+				full: relatives.siblings.full.map(summary),
+				half: relatives.siblings.half.map(summary)
+			},
+			stepParents: relatives.stepParents.map((s) => ({
+				person: summary(s.personId),
+				unionId: s.unionId
+			})),
+			stepChildren: relatives.stepChildren.map((s) => ({
+				person: summary(s.personId),
+				via: summary(s.viaPartnerId),
+				unionId: s.unionId
+			})),
+			media: mediaRows.map(({ row }: { row: MediaRow }) => ({
+				...privacyOf(row),
+				id: row.id,
+				title: row.title,
+				mimeType: row.mimeType,
+				r2ObjectKey: row.r2ObjectKey
+			})),
 			notes: PLACEHOLDER,
 			evidence: PLACEHOLDER,
 			changes: {

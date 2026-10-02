@@ -24,9 +24,17 @@ export interface PersonSummaryDto extends PrivacyFlag {
 }
 
 /** Birth and death text of the first such fact, in the order the graph reads them. */
-function vitalsOf(rows: EventRow[]): { birthDate: string | null; deathDate: string | null; isDeceased: boolean } {
+function vitalsOf(rows: EventRow[]): {
+	birthDate: string | null;
+	deathDate: string | null;
+	isDeceased: boolean;
+} {
 	const first = (type: string) => rows.find((e) => e.type === type);
-	return { birthDate: first('BIRT')?.dateRaw ?? null, deathDate: first('DEAT')?.dateRaw ?? null, isDeceased: first('DEAT') !== undefined };
+	return {
+		birthDate: first('BIRT')?.dateRaw ?? null,
+		deathDate: first('DEAT')?.dateRaw ?? null,
+		isDeceased: first('DEAT') !== undefined
+	};
 }
 
 function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto {
@@ -41,7 +49,11 @@ function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto
 	};
 }
 
-export function summaryOfRows(person: IndividualRow, events: EventRow[], names: PersonNameRow[] = []): PersonSummaryDto {
+export function summaryOfRows(
+	person: IndividualRow,
+	events: EventRow[],
+	names: PersonNameRow[] = []
+): PersonSummaryDto {
 	return {
 		...privacyOf(person),
 		id: person.id,
@@ -65,10 +77,21 @@ export async function personSummaries(
 	const summaries = new Map((graph?.people ?? []).map((p) => [p.id, summaryOfGraphPerson(p)]));
 	const notInGraph = [...new Set(ids)].filter((id) => !summaries.has(id));
 	// Someone the graph did not carry and the viewer may not see reads as a placeholder, never by name.
-	const seen = scope?.isRestricted ? await visibleAmong(repo.client, treeId, notInGraph, scope) : null;
+	const seen = scope?.isRestricted
+		? await visibleAmong(repo.client, treeId, notInGraph, scope)
+		: null;
 	const missing = seen ? notInGraph.filter((id) => seen.has(id)) : notInGraph;
 	for (const id of notInGraph) {
-		if (seen && !seen.has(id)) summaries.set(id, { isPrivate: true, id, displayName: PRIVATE_PLACEHOLDER_NAME, sex: null, birthDate: null, deathDate: null, isDeceased: false });
+		if (seen && !seen.has(id))
+			summaries.set(id, {
+				isPrivate: true,
+				id,
+				displayName: PRIVATE_PLACEHOLDER_NAME,
+				sex: null,
+				birthDate: null,
+				deathDate: null,
+				isDeceased: false
+			});
 	}
 	if (missing.length > 0) {
 		const [records, vitalEvents, nameRows] = await repo.run(
@@ -79,13 +102,25 @@ export async function personSummaries(
 		for (const { row } of records) {
 			summaries.set(
 				row.id,
-				summaryOfRows(row, vitalEvents.filter((e) => e.row.entityId === row.id).map((e) => e.row), nameRows.filter((n) => n.row.personId === row.id).map((n) => n.row))
+				summaryOfRows(
+					row,
+					vitalEvents.filter((e) => e.row.entityId === row.id).map((e) => e.row),
+					nameRows.filter((n) => n.row.personId === row.id).map((n) => n.row)
+				)
 			);
 		}
 	}
 	for (const id of ids) {
 		if (!summaries.has(id)) {
-			summaries.set(id, { ...privacyOf(), id, displayName: 'Unknown', sex: null, birthDate: null, deathDate: null, isDeceased: false });
+			summaries.set(id, {
+				...privacyOf(),
+				id,
+				displayName: 'Unknown',
+				sex: null,
+				birthDate: null,
+				deathDate: null,
+				isDeceased: false
+			});
 		}
 	}
 	return summaries;

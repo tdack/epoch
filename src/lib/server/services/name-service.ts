@@ -18,7 +18,11 @@ export class NameService {
 		this.runner = new MutationRunner(db, clock);
 	}
 
-	private run(treeId: string, command: NameCommand, context: AuthenticatedContext): Promise<MutationResult> {
+	private run(
+		treeId: string,
+		command: NameCommand,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
 		return this.runner.run(treeId, context, {
 			kind: command.kind,
 			summary: (rows) => describeCommand(command, rows),
@@ -27,29 +31,71 @@ export class NameService {
 	}
 
 	/** What a name change would write, without writing it. */
-	async preview(treeId: string, command: NameCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
-		return this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows));
+	async preview(
+		treeId: string,
+		command: NameCommand,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		return this.runner.preview(treeId, context, [command], (rows) =>
+			describeCommand(command, rows)
+		);
 	}
 
-	async create(treeId: string, personId: string, name: NameInput, isPreferred: boolean, context: AuthenticatedContext): Promise<{ nameId: string } & MutationResult> {
+	async create(
+		treeId: string,
+		personId: string,
+		name: NameInput,
+		isPreferred: boolean,
+		context: AuthenticatedContext
+	): Promise<{ nameId: string } & MutationResult> {
 		const nameId = this.runner.clock.newId();
-		const result = await this.run(treeId, { kind: 'create_name', personId, nameId, name, isPreferred }, context);
+		const result = await this.run(
+			treeId,
+			{ kind: 'create_name', personId, nameId, name, isPreferred },
+			context
+		);
 		return { nameId, ...result };
 	}
 
-	update(treeId: string, nameId: string, name: Partial<NameInput>, expectedVersion: number, context: AuthenticatedContext) {
+	update(
+		treeId: string,
+		nameId: string,
+		name: Partial<NameInput>,
+		expectedVersion: number,
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'update_name', nameId, expectedVersion, name }, context);
 	}
 
-	remove(treeId: string, nameId: string, expectedVersion: number | undefined, context: AuthenticatedContext) {
+	remove(
+		treeId: string,
+		nameId: string,
+		expectedVersion: number | undefined,
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'delete_name', nameId, expectedVersion }, context);
 	}
 
-	reorder(treeId: string, personId: string, orderedNameIds: string[], context: AuthenticatedContext) {
+	reorder(
+		treeId: string,
+		personId: string,
+		orderedNameIds: string[],
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'reorder_names', personId, orderedNameIds }, context);
 	}
 
-	setPreferred(treeId: string, personId: string, nameId: string, expectedVersion: number | undefined, context: AuthenticatedContext) {
-		return this.run(treeId, { kind: 'set_preferred_name', personId, nameId, expectedVersion }, context);
+	setPreferred(
+		treeId: string,
+		personId: string,
+		nameId: string,
+		expectedVersion: number | undefined,
+		context: AuthenticatedContext
+	) {
+		return this.run(
+			treeId,
+			{ kind: 'set_preferred_name', personId, nameId, expectedVersion },
+			context
+		);
 	}
 }

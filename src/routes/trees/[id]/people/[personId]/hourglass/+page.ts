@@ -5,7 +5,9 @@ import type { PageLoad } from './$types';
 
 const depth = (value: string | null) => {
 	const asked = Number(value);
-	return Number.isInteger(asked) && asked > 0 ? Math.min(asked, MAX_HOURGLASS_GENERATIONS) : DEFAULT_CHART_GENERATIONS - 1;
+	return Number.isInteger(asked) && asked > 0
+		? Math.min(asked, MAX_HOURGLASS_GENERATIONS)
+		: DEFAULT_CHART_GENERATIONS - 1;
 };
 
 /**

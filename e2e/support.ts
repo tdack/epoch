@@ -1,4 +1,10 @@
-import { test as base, expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import {
+	test as base,
+	expect,
+	type APIRequestContext,
+	type Locator,
+	type Page
+} from '@playwright/test';
 
 /** A person as the API returns it after creation. */
 export interface Person {
@@ -9,8 +15,20 @@ export interface Person {
 }
 
 export interface GraphView {
-	people: Array<{ id: string; displayName: string; isDeceased: boolean; deathDate: string | null; version?: number }>;
-	unions: Array<{ id: string; status: string; partnerIds: string[]; version?: number; events?: Array<{ type: string; dateText: string | null; place: string | null }> }>;
+	people: Array<{
+		id: string;
+		displayName: string;
+		isDeceased: boolean;
+		deathDate: string | null;
+		version?: number;
+	}>;
+	unions: Array<{
+		id: string;
+		status: string;
+		partnerIds: string[];
+		version?: number;
+		events?: Array<{ type: string; dateText: string | null; place: string | null }>;
+	}>;
 	parentChild: Array<{ parentId: string; childId: string; type: string; unionId: string | null }>;
 }
 
@@ -20,29 +38,55 @@ export class Api {
 		readonly treeId: string
 	) {}
 
-	async addPerson(givenName: string, surname: string | null = null, extra: Record<string, unknown> = {}): Promise<Person> {
-		const res = await this.request.post(`/api/trees/${this.treeId}/individuals`, { data: { givenName, surname, ...extra } });
+	async addPerson(
+		givenName: string,
+		surname: string | null = null,
+		extra: Record<string, unknown> = {}
+	): Promise<Person> {
+		const res = await this.request.post(`/api/trees/${this.treeId}/individuals`, {
+			data: { givenName, surname, ...extra }
+		});
 		expect(res.ok()).toBe(true);
 		return (await res.json()).individual;
 	}
 
 	async relate(intent: Record<string, unknown>) {
-		const res = await this.request.post(`/api/trees/${this.treeId}/relationships`, { data: { intent } });
+		const res = await this.request.post(`/api/trees/${this.treeId}/relationships`, {
+			data: { intent }
+		});
 		expect(res.ok(), await res.text()).toBe(true);
 	}
 
 	private ref = (p: Person) => ({ id: p.id, givenName: p.givenName, surname: p.surname });
 
 	partner(a: Person, b: Person) {
-		return this.relate({ kind: 'add_partner', person: this.ref(a), partner: this.ref(b), unionLabel: null });
+		return this.relate({
+			kind: 'add_partner',
+			person: this.ref(a),
+			partner: this.ref(b),
+			unionLabel: null
+		});
 	}
 
 	child(parent: Person, child: Person) {
-		return this.relate({ kind: 'add_child', parent: this.ref(parent), child: this.ref(child), type: 'biological', unionLabel: null });
+		return this.relate({
+			kind: 'add_child',
+			parent: this.ref(parent),
+			child: this.ref(child),
+			type: 'biological',
+			unionLabel: null
+		});
 	}
 
 	parent(child: Person, parent: Person) {
-		return this.relate({ kind: 'add_parent', child: this.ref(child), parent: this.ref(parent), type: 'biological', role: 'parent', unionLabel: null });
+		return this.relate({
+			kind: 'add_parent',
+			child: this.ref(child),
+			parent: this.ref(parent),
+			type: 'biological',
+			role: 'parent',
+			unionLabel: null
+		});
 	}
 
 	async graph(): Promise<GraphView> {
@@ -54,7 +98,9 @@ export class Api {
 /** A fresh, uniquely named tree per test, deleted afterwards. */
 export const test = base.extend<{ api: Api }>({
 	api: async ({ request }, use) => {
-		const created = await request.post('/api/trees', { data: { name: `e2e ${Date.now()}-${Math.random().toString(36).slice(2, 7)}` } });
+		const created = await request.post('/api/trees', {
+			data: { name: `e2e ${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }
+		});
 		expect(created.ok()).toBe(true);
 		const treeId = (await created.json()).tree.id as string;
 		await use(new Api(request, treeId));
@@ -114,7 +160,12 @@ export interface RelationshipForm {
  * Add a parent, child or partner the way a person would: from the card's menu, through the
  * relationship dialog, waiting for the preview sentence before saving. Nothing here touches the API.
  */
-export async function addRelationship(page: Page, anchor: string, kind: 'Add parent' | 'Add child' | 'Add partner', form: RelationshipForm) {
+export async function addRelationship(
+	page: Page,
+	anchor: string,
+	kind: 'Add parent' | 'Add child' | 'Add partner',
+	form: RelationshipForm
+) {
 	const unionsBefore = await page.locator('[data-union-id]').count();
 	await openMenuByKeyboard(page, anchor);
 	await chooseMenuItem(page, 'Add relationship');
@@ -128,9 +179,17 @@ export async function addRelationship(page: Page, anchor: string, kind: 'Add par
 	} else if (form.existing) {
 		await dialog.getByLabel('Search people by name').fill(form.existing);
 		await dialog.getByLabel('Search people by name').press('Enter');
-		await dialog.getByRole('list', { name: 'Search results' }).getByRole('button', { name: new RegExp(form.existing) }).first().click();
+		await dialog
+			.getByRole('list', { name: 'Search results' })
+			.getByRole('button', { name: new RegExp(form.existing) })
+			.first()
+			.click();
 	}
-	if (form.partnership) await dialog.getByTestId('union-chooser').getByRole('radio', { name: form.partnership }).check();
+	if (form.partnership)
+		await dialog
+			.getByTestId('union-chooser')
+			.getByRole('radio', { name: form.partnership })
+			.check();
 	// The preview is the promise of what will be saved; wait for it, then save.
 	await expect(dialog.getByText(/will be recorded as/)).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
@@ -138,7 +197,8 @@ export async function addRelationship(page: Page, anchor: string, kind: 'Add par
 	// The canvas redraws after the save; wait for it so the next step starts from what is shown.
 	const other = form.newGiven ?? form.existing;
 	if (other) await expect(card(page, other)).toBeVisible();
-	if (kind === 'Add partner') await expect(page.locator('[data-union-id]')).toHaveCount(unionsBefore + 1);
+	if (kind === 'Add partner')
+		await expect(page.locator('[data-union-id]')).toHaveCount(unionsBefore + 1);
 }
 
 /**

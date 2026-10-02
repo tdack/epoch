@@ -117,15 +117,21 @@ export function withoutNoOps(ops: RowOp[]): RowOp[] {
 /** Creates first (parents before children), then updates, then deletes (children before parents). */
 export function orderForApply(ops: RowOp[]): RowOp[] {
 	const rank = (op: RowOp) => TABLE_RANK[op.table];
-	const creates = ops.filter((op) => opKind(op) === OP_KINDS.CREATE).sort((a, b) => rank(a) - rank(b));
+	const creates = ops
+		.filter((op) => opKind(op) === OP_KINDS.CREATE)
+		.sort((a, b) => rank(a) - rank(b));
 	const updates = ops.filter((op) => opKind(op) === OP_KINDS.UPDATE);
-	const deletes = ops.filter((op) => opKind(op) === OP_KINDS.DELETE).sort((a, b) => rank(b) - rank(a));
+	const deletes = ops
+		.filter((op) => opKind(op) === OP_KINDS.DELETE)
+		.sort((a, b) => rank(b) - rank(a));
 	return [...creates, ...updates, ...deletes];
 }
 
 /** The ops that revert `ops`: images swapped, and the order reversed. */
 export function invertOps(ops: RowOp[]): RowOp[] {
-	return [...ops].reverse().map((op) => ({ table: op.table, id: op.id, before: op.after, after: op.before }));
+	return [...ops]
+		.reverse()
+		.map((op) => ({ table: op.table, id: op.id, before: op.after, after: op.before }));
 }
 
 export interface AffectedRecordRef {
@@ -150,7 +156,11 @@ export function versionOf(image: RowImage | null): number | null {
 
 // ---- What a change did, in words ----
 
-export const RECORD_ACTIONS = { CREATED: 'created', UPDATED: 'updated', DELETED: 'deleted' } as const;
+export const RECORD_ACTIONS = {
+	CREATED: 'created',
+	UPDATED: 'updated',
+	DELETED: 'deleted'
+} as const;
 export type RecordAction = (typeof RECORD_ACTIONS)[keyof typeof RECORD_ACTIONS];
 
 export interface FieldChange {
@@ -190,7 +200,10 @@ function changedFields(before: RowImage, after: RowImage): FieldChange[] {
  * Describe each op as a record change. `labelOf` names a row ("Homer Simpson", "Homer and Marge's
  * partnership"); it gets the row as it exists after the change, or before it when deleted.
  */
-export function describeOps(ops: RowOp[], labelOf: (table: RecordTable, image: RowImage) => string): RecordChange[] {
+export function describeOps(
+	ops: RowOp[],
+	labelOf: (table: RecordTable, image: RowImage) => string
+): RecordChange[] {
 	return withoutNoOps(ops).map((op) => {
 		const kind = opKind(op);
 		const image = (op.after ?? op.before)!;
@@ -233,7 +246,9 @@ export type UndoRefusalReason = (typeof UNDO_REFUSALS)[keyof typeof UNDO_REFUSAL
 export function matchesImage(current: RowImage | null, expected: RowImage | null): boolean {
 	if (current === null || expected === null) return current === expected;
 	const strip = (image: RowImage) =>
-		JSON.stringify(Object.fromEntries(Object.entries(image).filter(([key]) => !HOUSEKEEPING_FIELDS.has(key))));
+		JSON.stringify(
+			Object.fromEntries(Object.entries(image).filter(([key]) => !HOUSEKEEPING_FIELDS.has(key)))
+		);
 	return strip(current) === strip(expected);
 }
 
@@ -256,7 +271,8 @@ export function rebaseInverse(
 	const ops: RowOp[] = [];
 	for (const op of inverse) {
 		const current = currentImage(op.table, op.id);
-		if (!matchesImage(current, op.before)) return { isOk: false, mismatch: { table: op.table, id: op.id } };
+		if (!matchesImage(current, op.before))
+			return { isOk: false, mismatch: { table: op.table, id: op.id } };
 		let after = op.after;
 		if (after) {
 			const previous = versionOf(current) ?? versionOf(after);
@@ -278,10 +294,19 @@ export function rebaseInverse(
  * partnership or event that someone attached to Sam afterwards. Those rows are not among the
  * records the original change wrote, so the touched-later lookup cannot see them.
  */
-export function dependentsOfDeletions(rows: TreeRows, ops: RowOp[]): Array<{ table: RecordTable; row: RowImage }> {
-	const deleting = new Set(ops.filter((op) => op.after === null).map((op) => `${op.table}:${op.id}`));
-	const deletedPeople = new Set(ops.filter((op) => op.table === 'individuals' && op.after === null).map((op) => op.id));
-	const deletedUnions = new Set(ops.filter((op) => op.table === 'unions' && op.after === null).map((op) => op.id));
+export function dependentsOfDeletions(
+	rows: TreeRows,
+	ops: RowOp[]
+): Array<{ table: RecordTable; row: RowImage }> {
+	const deleting = new Set(
+		ops.filter((op) => op.after === null).map((op) => `${op.table}:${op.id}`)
+	);
+	const deletedPeople = new Set(
+		ops.filter((op) => op.table === 'individuals' && op.after === null).map((op) => op.id)
+	);
+	const deletedUnions = new Set(
+		ops.filter((op) => op.table === 'unions' && op.after === null).map((op) => op.id)
+	);
 	if (deletedPeople.size === 0 && deletedUnions.size === 0) return [];
 
 	const found: Array<{ table: RecordTable; row: RowImage }> = [];
@@ -289,22 +314,35 @@ export function dependentsOfDeletions(rows: TreeRows, ops: RowOp[]): Array<{ tab
 		if (!deleting.has(`${table}:${row.id}`)) found.push({ table, row: row as RowImage });
 	};
 	for (const link of rows.parentChild) {
-		if (deletedPeople.has(link.parentId) || deletedPeople.has(link.childId) || (link.unionId && deletedUnions.has(link.unionId))) {
+		if (
+			deletedPeople.has(link.parentId) ||
+			deletedPeople.has(link.childId) ||
+			(link.unionId && deletedUnions.has(link.unionId))
+		) {
 			add('parent_child', link);
 		}
 	}
 	for (const partner of rows.unionPartners) {
-		if (deletedPeople.has(partner.personId) || deletedUnions.has(partner.unionId)) add('union_partners', partner);
+		if (deletedPeople.has(partner.personId) || deletedUnions.has(partner.unionId))
+			add('union_partners', partner);
 	}
 	for (const event of rows.events) {
-		const isOwnerDeleted = event.entityType === 'INDIVIDUAL' ? deletedPeople.has(event.entityId) : deletedUnions.has(event.entityId);
+		const isOwnerDeleted =
+			event.entityType === 'INDIVIDUAL'
+				? deletedPeople.has(event.entityId)
+				: deletedUnions.has(event.entityId);
 		if (isOwnerDeleted) add('events', event);
 	}
 	for (const name of rows.personNames) {
 		// No foreign key holds a name's partnership (a cascade would change it outside the log), so undoing a
 		// created partnership would leave a name pointing at nothing; refuse it as for links and events.
-		if (deletedPeople.has(name.personId) || (name.unionId !== null && deletedUnions.has(name.unionId))) add('person_names', name);
+		if (
+			deletedPeople.has(name.personId) ||
+			(name.unionId !== null && deletedUnions.has(name.unionId))
+		)
+			add('person_names', name);
 	}
-	for (const media of rows.mediaItems) if (deletedPeople.has(media.entityId)) add('media_items', media);
+	for (const media of rows.mediaItems)
+		if (deletedPeople.has(media.entityId)) add('media_items', media);
 	return found;
 }

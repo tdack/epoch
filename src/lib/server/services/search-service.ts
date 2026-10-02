@@ -30,7 +30,8 @@ import { requireTreeScope } from './tree-access';
 /** Facts listed per person; a person with forty births in Cork needs no forty lines. */
 const FACTS_SHOWN_PER_PERSON = 3;
 
-const sameText = (a: string, b: string) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+const sameText = (a: string, b: string) =>
+	a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
 
 export class SearchService {
 	private repo: SearchRepository;
@@ -48,8 +49,19 @@ export class SearchService {
 		this.trees = new TreeRepository(db);
 	}
 
-	async search(treeId: string, query: Partial<SearchQuery>, context: AuthenticatedContext): Promise<SearchResponse> {
-		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
+	async search(
+		treeId: string,
+		query: Partial<SearchQuery>,
+		context: AuthenticatedContext
+	): Promise<SearchResponse> {
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
 		const text = (query.text ?? '').trim();
 		const place = (query.place ?? '').trim();
 		const limit = Math.min(Math.max(query.limit ?? DEFAULT_SEARCH_LIMIT, 1), MAX_SEARCH_LIMIT);
@@ -60,15 +72,22 @@ export class SearchService {
 
 		// An XREF is exact and is checked on the first page only; it leads, then the name hits.
 		const xrefIds = offset === 0 ? await this.repo.byXref(treeId, text, scope) : [];
-		const { hits, hasMore } = await this.repo.find(treeId, { words, place, from, to, limit, offset }, scope);
-		if (words.length === 0 && !place && !from && !to && xrefIds.length === 0) return { people: [], hasMore: false };
+		const { hits, hasMore } = await this.repo.find(
+			treeId,
+			{ words, place, from, to, limit, offset },
+			scope
+		);
+		if (words.length === 0 && !place && !from && !to && xrefIds.length === 0)
+			return { people: [], hasMore: false };
 
 		const nameIdOf = new Map(hits.map((h) => [h.personId, h.nameId]));
 		// An XREF names one person; a place or year range narrows, so it keeps them only when one of
 		// their facts passes the same filter the name hits already went through in SQL.
 		const isNarrowed = Boolean(place || from || to);
 		const xrefKept = isNarrowed
-			? new Set((await this.repo.factsMatching(xrefIds, place, from, to, scope)).map((f) => f.personId))
+			? new Set(
+					(await this.repo.factsMatching(xrefIds, place, from, to, scope)).map((f) => f.personId)
+				)
 			: new Set(xrefIds);
 		const keptXrefIds = xrefIds.filter((id) => xrefKept.has(id));
 		const ids = [...new Set([...keptXrefIds, ...hits.map((h) => h.personId)])];
@@ -82,8 +101,10 @@ export class SearchService {
 			this.repo.factsMatching(ids, place, from, to, scope)
 		]);
 		const people = new Map(individuals.map(({ row }) => [row.id, row]));
-		const eventsOfPerson = (id: string) => vitalEvents.filter((e) => e.row.entityId === id).map((e) => e.row);
-		const namesOfPerson = (id: string): PersonNameRow[] => nameRows.filter((n) => n.row.personId === id).map((n) => n.row);
+		const eventsOfPerson = (id: string) =>
+			vitalEvents.filter((e) => e.row.entityId === id).map((e) => e.row);
+		const namesOfPerson = (id: string): PersonNameRow[] =>
+			nameRows.filter((n) => n.row.personId === id).map((n) => n.row);
 
 		const results: SearchResultDto[] = [];
 		for (const id of ids) {
@@ -99,11 +120,25 @@ export class SearchService {
 				const matched = names.find((n) => n.id === nameIdOf.get(id));
 				if (matched) {
 					const isDisplayName = sameText(personName(matched), personName(row));
-					const match: SearchMatch = { kind: 'name', text: formatFullName({ ...matched, prefix: matched.namePrefix, suffix: matched.nameSuffix }), nameType: matched.type, isDisplayName };
+					const match: SearchMatch = {
+						kind: 'name',
+						text: formatFullName({
+							...matched,
+							prefix: matched.namePrefix,
+							suffix: matched.nameSuffix
+						}),
+						nameType: matched.type,
+						isDisplayName
+					};
 					matches.push(match);
 					if (!isDisplayName) matchedName = personName(matched);
 				} else {
-					matches.push({ kind: 'name', text: personName(row), nameType: names.find((n) => n.isPreferred)?.type ?? 'birth', isDisplayName: true });
+					matches.push({
+						kind: 'name',
+						text: personName(row),
+						nameType: names.find((n) => n.isPreferred)?.type ?? 'birth',
+						isDisplayName: true
+					});
 				}
 			}
 			for (const fact of facts.filter((f) => f.personId === id).slice(0, FACTS_SHOWN_PER_PERSON)) {

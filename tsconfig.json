@@ -4,12 +4,7 @@
 		"rewriteRelativeImportExtensions": true,
 		"sourceMap": true,
 		"strict": true,
-		"types": [
-			"@cloudflare/workers-types",
-			"$app/types"
-		]
+		"types": ["@cloudflare/workers-types", "$app/types"]
 	},
-	"include": [
-		"src"
-	]
+	"include": ["src"]
 }

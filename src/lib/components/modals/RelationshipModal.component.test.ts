@@ -33,7 +33,15 @@ afterEach(() => {
 	plan.mockReset();
 });
 
-const person = (id: string, displayName: string) => ({ id, displayName, sex: 'U' as const, isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [] });
+const person = (id: string, displayName: string) => ({
+	id,
+	displayName,
+	sex: 'U' as const,
+	isDeceased: false,
+	parentsByUnion: {},
+	unionIds: [],
+	stepParents: []
+});
 const union = (id: string, partnerIds: string[], childIds: string[] = []) => ({
 	id,
 	status: 'active' as const,
@@ -42,10 +50,16 @@ const union = (id: string, partnerIds: string[], childIds: string[] = []) => ({
 	partnerIds,
 	version: 1,
 	events: [],
-	children: childIds.map((childId) => ({ childId, parentId: partnerIds[0], type: 'biological' as const }))
+	children: childIds.map((childId) => ({
+		childId,
+		parentId: partnerIds[0],
+		type: 'biological' as const
+	}))
 });
 
-const people = ['homer', 'marge', 'lisa', 'sam'].map((id) => person(id, id[0].toUpperCase() + id.slice(1)));
+const people = ['homer', 'marge', 'lisa', 'sam'].map((id) =>
+	person(id, id[0].toUpperCase() + id.slice(1))
+);
 const graphOf = (unions: ReturnType<typeof union>[]) => ({ people, unions, parentChild: [] });
 
 async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' | 'add_partner') {
@@ -53,7 +67,12 @@ async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' 
 		sentence: 'Sam will be recorded as …',
 		commands: [{}],
 		warnings: [],
-		unionChoice: { unionId: 'u1', isDefault: true, reason: 'Chosen because it has the most children recorded (1). Pick another if that is not the family you mean.' }
+		unionChoice: {
+			unionId: 'u1',
+			isDefault: true,
+			reason:
+				'Chosen because it has the most children recorded (1). Pick another if that is not the family you mean.'
+		}
 	});
 	component = mount(RelationshipModal, {
 		target: document.body,
@@ -78,16 +97,24 @@ const radios = () => [...document.querySelectorAll<HTMLInputElement>('input[name
 
 describe('RelationshipModal partnership chooser', () => {
 	it('lists every partnership when there are several, preselects the server default and says why', async () => {
-		await open(graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]), 'add_child');
+		await open(
+			graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]),
+			'add_child'
+		);
 		expect(document.querySelector('fieldset legend')!.textContent).toBe('Which partnership');
 		expect(radios().map((r) => r.dataset.unionId)).toEqual(['u1', 'u2']);
 		expect(radios().map((r) => r.checked)).toEqual([true, false]);
-		expect(document.querySelector('[data-testid="union-reason"]')!.textContent).toContain('most children');
+		expect(document.querySelector('[data-testid="union-reason"]')!.textContent).toContain(
+			'most children'
+		);
 		expect(document.querySelector('fieldset')!.textContent).toContain('1st partnership');
 	});
 
 	it('sends the picked partnership with the next preview and stops showing the default reason', async () => {
-		await open(graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]), 'add_child');
+		await open(
+			graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]),
+			'add_child'
+		);
 		radios()[1].click();
 		radios()[1].dispatchEvent(new Event('change', { bubbles: true }));
 		flushSync();
@@ -105,6 +132,8 @@ describe('RelationshipModal partnership chooser', () => {
 	it('offers a new partnership beside the ones waiting for a partner when adding a partner', async () => {
 		await open(graphOf([union('u1', ['homer']), union('u2', ['homer'])]), 'add_partner');
 		expect(radios().map((r) => r.dataset.unionId)).toEqual(['u1', 'u2', 'new']);
-		expect(document.querySelector('fieldset legend')!.textContent).toBe('Which partnership to fill');
+		expect(document.querySelector('fieldset legend')!.textContent).toBe(
+			'Which partnership to fill'
+		);
 	});
 });

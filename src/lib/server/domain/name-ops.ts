@@ -16,7 +16,13 @@ import { ConcurrencyConflictError, NotFoundError, ValidationError } from './erro
 import { isNameType, NAME_TYPES, type NameInput } from '../../shared/name-types';
 
 export type NameCommand =
-	| { kind: 'create_name'; personId: string; nameId: string; name: NameInput; isPreferred?: boolean }
+	| {
+			kind: 'create_name';
+			personId: string;
+			nameId: string;
+			name: NameInput;
+			isPreferred?: boolean;
+	  }
 	| {
 			kind: 'update_name';
 			nameId: string;
@@ -72,14 +78,37 @@ function checkVersion(name: PersonNameRow, expected: number | undefined): void {
 	if (expected === undefined || name.version === expected) return;
 	throw new ConcurrencyConflictError(
 		`This name was changed by someone else (you had version ${expected}, it is now ${name.version}).`,
-		{ reason: 'STALE_VERSION', entity: 'name', id: name.id, expectedVersion: expected, currentVersion: name.version, current: nameSnapshot(name) }
+		{
+			reason: 'STALE_VERSION',
+			entity: 'name',
+			id: name.id,
+			expectedVersion: expected,
+			currentVersion: name.version,
+			current: nameSnapshot(name)
+		}
 	);
 }
 
-const touch = (row: PersonNameRow, ctx: NameContext): PersonNameRow => ({ ...row, version: row.version + 1, updatedAt: ctx.now });
+const touch = (row: PersonNameRow, ctx: NameContext): PersonNameRow => ({
+	...row,
+	version: row.version + 1,
+	updatedAt: ctx.now
+});
 
-function hasContent(name: Pick<PersonNameRow, 'givenName' | 'surname' | 'namePrefix' | 'nameSuffix' | 'nickname' | 'surnamePrefix'>): boolean {
-	return Boolean(name.givenName || name.surname || name.namePrefix || name.nameSuffix || name.nickname || name.surnamePrefix);
+function hasContent(
+	name: Pick<
+		PersonNameRow,
+		'givenName' | 'surname' | 'namePrefix' | 'nameSuffix' | 'nickname' | 'surnamePrefix'
+	>
+): boolean {
+	return Boolean(
+		name.givenName ||
+		name.surname ||
+		name.namePrefix ||
+		name.nameSuffix ||
+		name.nickname ||
+		name.surnamePrefix
+	);
 }
 
 /** The union must exist and name the person as a partner; a name cannot come from someone else's marriage. */
@@ -134,14 +163,18 @@ function withInput(row: PersonNameRow, input: Partial<NameInput>): PersonNameRow
 	if (input.surnamePrefix !== undefined) next.surnamePrefix = clean(input.surnamePrefix);
 	// Unchanged text keeps its columns, so re-saving a form is not a write.
 	if (input.dateText !== undefined && clean(input.dateText) !== row.dateRaw) {
-		Object.assign(next, { dateRaw: clean(input.dateText), ...dateColumnsFor(clean(input.dateText)) });
+		Object.assign(next, {
+			dateRaw: clean(input.dateText),
+			...dateColumnsFor(clean(input.dateText))
+		});
 	}
 	if (input.unionId !== undefined) next.unionId = input.unionId || null;
 	return next;
 }
 
 function checkInput(input: Partial<NameInput>): void {
-	if (input.type !== undefined && !isNameType(input.type)) throw new ValidationError(`'${input.type}' is not a name type`);
+	if (input.type !== undefined && !isNameType(input.type))
+		throw new ValidationError(`'${input.type}' is not a name type`);
 }
 
 /**
@@ -157,7 +190,13 @@ function displaySyncOps(person: IndividualRow, after: PersonNameRow[], ctx: Name
 			table: 'individuals',
 			id: person.id,
 			before: person,
-			after: { ...person, givenName: preferred.givenName, surname: preferred.surname, version: person.version + 1, updatedAt: ctx.now }
+			after: {
+				...person,
+				givenName: preferred.givenName,
+				surname: preferred.surname,
+				version: person.version + 1,
+				updatedAt: ctx.now
+			}
 		}
 	];
 }
@@ -191,25 +230,48 @@ function applyNameOps(current: PersonNameRow[], ops: RowOp[]): PersonNameRow[] {
 function demoteOthers(names: PersonNameRow[], except: string, ctx: NameContext): RowOp[] {
 	return names
 		.filter((n) => n.isPreferred && n.id !== except)
-		.map((n) => ({ table: 'person_names' as const, id: n.id, before: n, after: touch({ ...n, isPreferred: false }, ctx) }));
+		.map((n) => ({
+			table: 'person_names' as const,
+			id: n.id,
+			before: n,
+			after: touch({ ...n, isPreferred: false }, ctx)
+		}));
 }
 
-function createName(rows: TreeRows, ctx: NameContext, command: Extract<NameCommand, { kind: 'create_name' }>): RowOp[] {
+function createName(
+	rows: TreeRows,
+	ctx: NameContext,
+	command: Extract<NameCommand, { kind: 'create_name' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkInput(command.name);
-	if (rows.personNames.some((n) => n.id === command.nameId)) throw new ValidationError('That name already exists');
+	if (rows.personNames.some((n) => n.id === command.nameId))
+		throw new ValidationError('That name already exists');
 	const existing = materialisedRow(rows, ctx, person);
 	const current = applyNameOps(namesOf(rows, person.id), existing);
-	const row = withInput({ ...blankRow(ctx, command.nameId, person.id), order: current.reduce((max, n) => Math.max(max, n.order), -1) + 1 }, command.name);
+	const row = withInput(
+		{
+			...blankRow(ctx, command.nameId, person.id),
+			order: current.reduce((max, n) => Math.max(max, n.order), -1) + 1
+		},
+		command.name
+	);
 	if (!hasContent(row)) throw new ValidationError('A name needs at least one part');
 	checkUnionLink(rows, person.id, row.unionId);
 	row.isPreferred = Boolean(command.isPreferred);
-	const ops: RowOp[] = [...existing, { table: 'person_names', id: row.id, before: null, after: row }];
+	const ops: RowOp[] = [
+		...existing,
+		{ table: 'person_names', id: row.id, before: null, after: row }
+	];
 	if (row.isPreferred) ops.push(...demoteOthers(current, row.id, ctx));
 	return [...ops, ...displaySyncOps(person, applyNameOps(current, ops), ctx)];
 }
 
-function updateName(rows: TreeRows, ctx: NameContext, command: Extract<NameCommand, { kind: 'update_name' }>): RowOp[] {
+function updateName(
+	rows: TreeRows,
+	ctx: NameContext,
+	command: Extract<NameCommand, { kind: 'update_name' }>
+): RowOp[] {
 	const before = requireName(rows, command.nameId);
 	checkVersion(before, command.expectedVersion);
 	checkInput(command.name);
@@ -222,36 +284,63 @@ function updateName(rows: TreeRows, ctx: NameContext, command: Extract<NameComma
 	return [...ops, ...displaySyncOps(person, applyNameOps(namesOf(rows, person.id), ops), ctx)];
 }
 
-function deleteName(rows: TreeRows, ctx: NameContext, command: Extract<NameCommand, { kind: 'delete_name' }>): RowOp[] {
+function deleteName(
+	rows: TreeRows,
+	ctx: NameContext,
+	command: Extract<NameCommand, { kind: 'delete_name' }>
+): RowOp[] {
 	const before = requireName(rows, command.nameId);
 	checkVersion(before, command.expectedVersion);
 	const person = requirePerson(rows, before.personId);
 	const all = namesOf(rows, person.id);
-	if (all.length === 1) throw new ValidationError('A person needs a name; edit it instead of removing it');
+	if (all.length === 1)
+		throw new ValidationError('A person needs a name; edit it instead of removing it');
 	const ops: RowOp[] = [{ table: 'person_names', id: before.id, before, after: null }];
 	if (before.isPreferred) {
 		// The next name in order takes over, so there is always exactly one preferred name.
 		const next = all.find((n) => n.id !== before.id)!;
-		ops.push({ table: 'person_names', id: next.id, before: next, after: touch({ ...next, isPreferred: true }, ctx) });
+		ops.push({
+			table: 'person_names',
+			id: next.id,
+			before: next,
+			after: touch({ ...next, isPreferred: true }, ctx)
+		});
 	}
 	return [...ops, ...displaySyncOps(person, applyNameOps(all, ops), ctx)];
 }
 
-function reorderNames(rows: TreeRows, ctx: NameContext, command: Extract<NameCommand, { kind: 'reorder_names' }>): RowOp[] {
+function reorderNames(
+	rows: TreeRows,
+	ctx: NameContext,
+	command: Extract<NameCommand, { kind: 'reorder_names' }>
+): RowOp[] {
 	requirePerson(rows, command.personId);
 	const ids = command.orderedNameIds;
-	if (new Set(ids).size !== ids.length) throw new ValidationError('A name appears twice in the new order');
-	if (ids.length !== namesOf(rows, command.personId).length) throw new ValidationError('The new order must list every name of the person');
+	if (new Set(ids).size !== ids.length)
+		throw new ValidationError('A name appears twice in the new order');
+	if (ids.length !== namesOf(rows, command.personId).length)
+		throw new ValidationError('The new order must list every name of the person');
 	const ops: RowOp[] = [];
 	ids.forEach((id, index) => {
 		const name = requireName(rows, id);
-		if (name.personId !== command.personId) throw new ValidationError('A name in the new order belongs to someone else');
-		if (name.order !== index) ops.push({ table: 'person_names', id, before: name, after: touch({ ...name, order: index }, ctx) });
+		if (name.personId !== command.personId)
+			throw new ValidationError('A name in the new order belongs to someone else');
+		if (name.order !== index)
+			ops.push({
+				table: 'person_names',
+				id,
+				before: name,
+				after: touch({ ...name, order: index }, ctx)
+			});
 	});
 	return ops;
 }
 
-function setPreferredName(rows: TreeRows, ctx: NameContext, command: Extract<NameCommand, { kind: 'set_preferred_name' }>): RowOp[] {
+function setPreferredName(
+	rows: TreeRows,
+	ctx: NameContext,
+	command: Extract<NameCommand, { kind: 'set_preferred_name' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	const name = requireName(rows, command.nameId);
 	if (name.personId !== person.id) throw new ValidationError('That name belongs to someone else');
@@ -260,7 +349,12 @@ function setPreferredName(rows: TreeRows, ctx: NameContext, command: Extract<Nam
 	const all = namesOf(rows, person.id);
 	const ops: RowOp[] = [
 		...demoteOthers(all, name.id, ctx),
-		{ table: 'person_names', id: name.id, before: name, after: touch({ ...name, isPreferred: true }, ctx) }
+		{
+			table: 'person_names',
+			id: name.id,
+			before: name,
+			after: touch({ ...name, isPreferred: true }, ctx)
+		}
 	];
 	return [...ops, ...displaySyncOps(person, applyNameOps(all, ops), ctx)];
 }
@@ -277,13 +371,32 @@ export function preferredNameOps(
 	fields: { givenName: string | null; surname: string | null }
 ): RowOp[] {
 	const preferred = namesOf(rows, personId).find((n) => n.isPreferred);
-	if (!preferred || (preferred.givenName === fields.givenName && preferred.surname === fields.surname)) return [];
-	return [{ table: 'person_names', id: preferred.id, before: preferred, after: { ...preferred, ...fields, version: preferred.version + 1, updatedAt: ctx.now } }];
+	if (
+		!preferred ||
+		(preferred.givenName === fields.givenName && preferred.surname === fields.surname)
+	)
+		return [];
+	return [
+		{
+			table: 'person_names',
+			id: preferred.id,
+			before: preferred,
+			after: { ...preferred, ...fields, version: preferred.version + 1, updatedAt: ctx.now }
+		}
+	];
 }
 
 /** The row an editor-created person is given, so every person has a name row from the start. */
-export function initialNameOp(ctx: NameContext, personId: string, fields: { givenName: string | null; surname: string | null }): RowOp {
-	const row: PersonNameRow = { ...blankRow(ctx, ctx.newId(), personId), ...fields, isPreferred: true };
+export function initialNameOp(
+	ctx: NameContext,
+	personId: string,
+	fields: { givenName: string | null; surname: string | null }
+): RowOp {
+	const row: PersonNameRow = {
+		...blankRow(ctx, ctx.newId(), personId),
+		...fields,
+		isPreferred: true
+	};
 	return { table: 'person_names', id: row.id, before: null, after: row };
 }
 

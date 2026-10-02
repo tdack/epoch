@@ -10,7 +10,9 @@ test('ending a union shows the ended connector', async ({ page, api }) => {
 	await chooseMenuItem(page, 'End partnership…');
 	const dialog = page.getByRole('dialog', { name: 'End partnership' });
 	// One partnership, so it is chosen already; the status defaults to divorced with a divorce event.
-	await expect(dialog.getByText('The partnership between Ann and Ben will be recorded as divorced.')).toBeVisible();
+	await expect(
+		dialog.getByText('The partnership between Ann and Ben will be recorded as divorced.')
+	).toBeVisible();
 	await dialog.getByLabel('Date', { exact: true }).fill('12 MAR 1999');
 	await expect(dialog.getByText('recorded as divorced (12 MAR 1999)')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
@@ -24,7 +26,11 @@ test('ending a union shows the ended connector', async ({ page, api }) => {
 });
 
 test('with several partnerships the person must choose which one to end', async ({ page, api }) => {
-	const [a, b, c] = [await api.addPerson('Ann'), await api.addPerson('Ben'), await api.addPerson('Cal')];
+	const [a, b, c] = [
+		await api.addPerson('Ann'),
+		await api.addPerson('Ben'),
+		await api.addPerson('Cal')
+	];
 	await api.partner(a, b);
 	await api.partner(a, c);
 	await openTree(page, api, a);
@@ -38,11 +44,19 @@ test('with several partnerships the person must choose which one to end', async 
 	await dialog.getByRole('radio', { name: /with Cal/ }).check();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect.poll(async () => (await api.graph()).unions.map((u) => u.status).sort()).toEqual(['active', 'divorced']);
+	await expect
+		.poll(async () => (await api.graph()).unions.map((u) => u.status).sort())
+		.toEqual(['active', 'divorced']);
 });
 
-test('recording a death shows the dagger and explains the widowhood before saving', async ({ page, api }) => {
-	const [homer, marge] = [await api.addPerson('Homer', 'Simpson'), await api.addPerson('Marge', 'Simpson')];
+test('recording a death shows the dagger and explains the widowhood before saving', async ({
+	page,
+	api
+}) => {
+	const [homer, marge] = [
+		await api.addPerson('Homer', 'Simpson'),
+		await api.addPerson('Marge', 'Simpson')
+	];
 	await api.partner(homer, marge);
 	await openTree(page, api, homer);
 
@@ -51,12 +65,19 @@ test('recording a death shows the dagger and explains the widowhood before savin
 	const dialog = page.getByRole('dialog', { name: 'Record death' });
 	await dialog.getByLabel('Date of death').fill('3 MAR 2001');
 	await dialog.getByLabel('Place of death').fill('Brisbane');
-	await expect(dialog.getByText('Marge Simpson will be shown as widowed in their partnership with Homer Simpson.')).toBeVisible();
+	await expect(
+		dialog.getByText(
+			'Marge Simpson will be shown as widowed in their partnership with Homer Simpson.'
+		)
+	).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(card(page, 'Homer')).toContainText('†');
 	const graph = await api.graph();
-	expect(graph.people.find((p) => p.id === homer.id)).toMatchObject({ isDeceased: true, deathDate: '3 MAR 2001' });
+	expect(graph.people.find((p) => p.id === homer.id)).toMatchObject({
+		isDeceased: true,
+		deathDate: '3 MAR 2001'
+	});
 	// Death did not touch the partnership.
 	expect(graph.unions[0].status).toBe('active');
 

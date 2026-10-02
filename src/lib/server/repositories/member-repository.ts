@@ -31,7 +31,13 @@ export class MemberRepository {
 
 	async listMembers(treeId: string): Promise<MemberRow[]> {
 		const rows = await this.db
-			.select({ userId: treeMemberships.userId, email: users.email, name: users.name, role: treeMemberships.role, version: treeMemberships.version })
+			.select({
+				userId: treeMemberships.userId,
+				email: users.email,
+				name: users.name,
+				role: treeMemberships.role,
+				version: treeMemberships.version
+			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
 			.where(eq(treeMemberships.treeId, treeId));
@@ -40,7 +46,13 @@ export class MemberRepository {
 
 	async getMember(treeId: string, userId: string): Promise<MemberRow | null> {
 		const rows = await this.db
-			.select({ userId: treeMemberships.userId, email: users.email, name: users.name, role: treeMemberships.role, version: treeMemberships.version })
+			.select({
+				userId: treeMemberships.userId,
+				email: users.email,
+				name: users.name,
+				role: treeMemberships.role,
+				version: treeMemberships.version
+			})
 			.from(treeMemberships)
 			.innerJoin(users, eq(users.id, treeMemberships.userId))
 			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)));
@@ -51,7 +63,13 @@ export class MemberRepository {
 	 * Set a member's role if their version is still `expectedVersion` and the change leaves the tree
 	 * an owner. False means one of those failed; the caller reads the row to say which.
 	 */
-	async changeRole(treeId: string, userId: string, role: TreeRole, expectedVersion: number, now: Date): Promise<boolean> {
+	async changeRole(
+		treeId: string,
+		userId: string,
+		role: TreeRole,
+		expectedVersion: number,
+		now: Date
+	): Promise<boolean> {
 		const changed = await this.db
 			.update(treeMemberships)
 			.set({ role, version: sql`${treeMemberships.version} + 1`, updatedAt: now })
@@ -94,29 +112,52 @@ export class MemberRepository {
 	}
 
 	async listInvitations(treeId: string): Promise<InvitationRow[]> {
-		return (await this.db.select().from(treeInvitations).where(eq(treeInvitations.treeId, treeId))) as InvitationRow[];
+		return (await this.db
+			.select()
+			.from(treeInvitations)
+			.where(eq(treeInvitations.treeId, treeId))) as InvitationRow[];
 	}
 
 	async getInvitation(treeId: string, invitationId: string): Promise<InvitationRow | null> {
-		const rows = await this.db.select().from(treeInvitations).where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
+		const rows = await this.db
+			.select()
+			.from(treeInvitations)
+			.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
 		return (rows[0] as InvitationRow | undefined) ?? null;
 	}
 
 	/** One pending offer per tree and address: inviting again replaces the role and restarts the clock. */
-	async upsertInvitation(invitation: InvitationRow & { invitedBy: string; now: Date }): Promise<InvitationRow> {
+	async upsertInvitation(
+		invitation: InvitationRow & { invitedBy: string; now: Date }
+	): Promise<InvitationRow> {
 		const rows = await this.db
 			.insert(treeInvitations)
-			.values({ id: invitation.id, treeId: invitation.treeId, email: invitation.email, role: invitation.role, invitedBy: invitation.invitedBy, expiresAt: invitation.expiresAt, createdAt: invitation.now })
+			.values({
+				id: invitation.id,
+				treeId: invitation.treeId,
+				email: invitation.email,
+				role: invitation.role,
+				invitedBy: invitation.invitedBy,
+				expiresAt: invitation.expiresAt,
+				createdAt: invitation.now
+			})
 			.onConflictDoUpdate({
 				target: [treeInvitations.treeId, treeInvitations.email],
-				set: { role: invitation.role, invitedBy: invitation.invitedBy, expiresAt: invitation.expiresAt, createdAt: invitation.now }
+				set: {
+					role: invitation.role,
+					invitedBy: invitation.invitedBy,
+					expiresAt: invitation.expiresAt,
+					createdAt: invitation.now
+				}
 			})
 			.returning();
 		return rows[0] as InvitationRow;
 	}
 
 	async deleteInvitation(treeId: string, invitationId: string): Promise<void> {
-		await this.db.delete(treeInvitations).where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
+		await this.db
+			.delete(treeInvitations)
+			.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
 	}
 
 	/**
@@ -129,11 +170,23 @@ export class MemberRepository {
 		const pending = await this.db
 			.select()
 			.from(treeInvitations)
-			.where(and(eq(treeInvitations.email, email.trim().toLowerCase()), gt(treeInvitations.expiresAt, now)));
+			.where(
+				and(
+					eq(treeInvitations.email, email.trim().toLowerCase()),
+					gt(treeInvitations.expiresAt, now)
+				)
+			);
 		for (const invitation of pending) {
 			await this.db
 				.insert(treeMemberships)
-				.values({ id: crypto.randomUUID(), treeId: invitation.treeId, userId, role: invitation.role, createdAt: now, updatedAt: now })
+				.values({
+					id: crypto.randomUUID(),
+					treeId: invitation.treeId,
+					userId,
+					role: invitation.role,
+					createdAt: now,
+					updatedAt: now
+				})
 				.onConflictDoNothing();
 			await this.db.delete(treeInvitations).where(eq(treeInvitations.id, invitation.id));
 		}

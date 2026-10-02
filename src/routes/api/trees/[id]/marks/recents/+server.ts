@@ -12,10 +12,12 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const { id: treeId } = params;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 	try {
 		const body = (await request.json().catch(() => null)) as { personId?: unknown } | null;
-		if (typeof body?.personId !== 'string' || !body.personId) return Response.json({ error: 'personId required' }, { status: 400 });
+		if (typeof body?.personId !== 'string' || !body.personId)
+			return Response.json({ error: 'personId required' }, { status: 400 });
 		const service = new MarkService(getDb(platform.env.DB));
 		const context = { user: locals.user, correlationId: locals.correlationId };
 		await service.recordRecent(treeId, body.personId, context);

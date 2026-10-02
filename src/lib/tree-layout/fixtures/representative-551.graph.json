@@ -18,9 +18,7 @@
 			"sex": "M",
 			"isDeceased": true,
 			"parentsByUnion": {},
-			"unionIds": [
-				"3b1a80ca-d3ff-41c5-9953-9c289e2b5033:@F_WALKER_SMITH@"
-			],
+			"unionIds": ["3b1a80ca-d3ff-41c5-9953-9c289e2b5033:@F_WALKER_SMITH@"],
 			"stepParents": []
 		},
 		{
@@ -29,9 +27,7 @@
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {},
-			"unionIds": [
-				"3b1a80ca-d3ff-41c5-9953-9c289e2b5033:@F_WALKER_JONES@"
-			],
+			"unionIds": ["3b1a80ca-d3ff-41c5-9953-9c289e2b5033:@F_WALKER_JONES@"],
 			"stepParents": []
 		},
 		{

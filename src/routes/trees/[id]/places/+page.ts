@@ -8,7 +8,14 @@ export const load: PageLoad = async ({ params, url, fetch, depends }) => {
 	const { offset, limit } = parseListParams(url.searchParams);
 	const q = url.searchParams.get('q') ?? '';
 	try {
-		return { q, page: await fetchPlaces(params.id, new URLSearchParams({ q, offset: String(offset), limit: String(limit) }), fetch) };
+		return {
+			q,
+			page: await fetchPlaces(
+				params.id,
+				new URLSearchParams({ q, offset: String(offset), limit: String(limit) }),
+				fetch
+			)
+		};
 	} catch (cause) {
 		rethrowAsPageError(cause);
 	}

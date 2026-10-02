@@ -2,8 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { CARD, layoutHourglass } from './chart-layout';
 import type { ChartPerson, DescendantNode } from '../shared/charts';
 
-const p = (id: string): ChartPerson => ({ id, name: id, isPrivate: false, birth: null, death: null });
-const node = (id: string, children: DescendantNode[] = []): DescendantNode => ({ person: p(id), partners: [], children });
+const p = (id: string): ChartPerson => ({
+	id,
+	name: id,
+	isPrivate: false,
+	birth: null,
+	death: null
+});
+const node = (id: string, children: DescendantNode[] = []): DescendantNode => ({
+	person: p(id),
+	partners: [],
+	children
+});
 
 // Me, with two parents and one grandparent above, two children and a grandchild below.
 const slots = [p('me'), p('dad'), p('mum'), p('gpa'), null, null, null];
@@ -34,7 +44,8 @@ describe('the hourglass layout', () => {
 
 	it('joins every card to the person through its edges, the person standing in for the first slot', () => {
 		const keyOf = (id: string) => at(id).key;
-		const has = (from: string, to: string) => layout.edges.some((e) => e.from === keyOf(from) && e.to === keyOf(to));
+		const has = (from: string, to: string) =>
+			layout.edges.some((e) => e.from === keyOf(from) && e.to === keyOf(to));
 		expect(has('me', 'dad')).toBe(true);
 		expect(has('me', 'mum')).toBe(true);
 		expect(has('dad', 'gpa')).toBe(true);
@@ -53,6 +64,8 @@ describe('the hourglass layout', () => {
 	it('is the descendants chart mirrored when nobody is recorded above', () => {
 		const alone = layoutHourglass([p('me'), null, null], 2, root);
 		expect(alone.cards).toHaveLength(4);
-		expect(alone.cards.find((c) => c.person.id === 'me')!.x).toBe(Math.max(...alone.cards.map((c) => c.x)));
+		expect(alone.cards.find((c) => c.person.id === 'me')!.x).toBe(
+			Math.max(...alone.cards.map((c) => c.x))
+		);
 	});
 });

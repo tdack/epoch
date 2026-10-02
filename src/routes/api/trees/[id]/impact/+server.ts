@@ -34,7 +34,11 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 			return Response.json({ treeImpact: counts });
 		}
 		if (request_.kind === 'delete_person') {
-			const impact = await new GenealogyService(db).previewDeleteIndividual(treeId, request_.personId, context);
+			const impact = await new GenealogyService(db).previewDeleteIndividual(
+				treeId,
+				request_.personId,
+				context
+			);
 			return Response.json({ impact });
 		}
 		const impact = await new RelationshipService(db).previewRemoval(treeId, request_, context);

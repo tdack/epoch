@@ -105,7 +105,11 @@ export class UnionPageService {
 		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 	}
 
-	async getUnion(treeId: string, unionId: string, context: AuthenticatedContext): Promise<UnionPageDto> {
+	async getUnion(
+		treeId: string,
+		unionId: string,
+		context: AuthenticatedContext
+	): Promise<UnionPageDto> {
 		const scope = await this.requireView(treeId, context);
 
 		const [[unionRecord], partnerRows, linkRows, eventRows] = await this.repo.run(
@@ -117,25 +121,52 @@ export class UnionPageService {
 		if (!unionRecord) throw new NotFoundError('Partnership', unionId);
 		const union = unionRecord.row;
 
-		const partnerIds = partnerRows.sort((a, b) => a.row.order - b.row.order || a.rid - b.rid).map((p) => p.row.personId);
+		const partnerIds = partnerRows
+			.sort((a, b) => a.row.order - b.row.order || a.rid - b.rid)
+			.map((p) => p.row.personId);
 		// A partnership with a private partner answers as a missing one: its marriage facts and its
 		// children are facts about that partner (ADR-015).
-		const seen = scope.isRestricted ? await visibleAmong(this.repo.client, treeId, [...partnerIds, ...linkRows.map((l) => l.row.childId)], scope) : null;
+		const seen = scope.isRestricted
+			? await visibleAmong(
+					this.repo.client,
+					treeId,
+					[...partnerIds, ...linkRows.map((l) => l.row.childId)],
+					scope
+				)
+			: null;
 		const hasPrivatePartner = seen !== null && partnerIds.some((id) => !seen.has(id));
 		// Omitting private people means omitting their partnerships; with placeholders the page stands, minus its facts.
-		if (hasPrivatePartner && !scope.shouldShowPrivateStructure) throw new NotFoundError('Partnership', unionId);
+		if (hasPrivatePartner && !scope.shouldShowPrivateStructure)
+			throw new NotFoundError('Partnership', unionId);
 		// A private child is left out, or shown as a placeholder, as the tree's setting says.
 		const isChildShown = (id: string) => !seen || seen.has(id) || scope.shouldShowPrivateStructure;
-		const links = linkRows.sort((a, b) => a.rid - b.rid).map((l) => l.row).filter((l) => isChildShown(l.childId));
+		const links = linkRows
+			.sort((a, b) => a.rid - b.rid)
+			.map((l) => l.row)
+			.filter((l) => isChildShown(l.childId));
 		const childIds = [...new Set(links.map((l) => l.childId))];
 
 		// The window around the first partner brings the labels, the twins and the dialogs' graph.
 		const graph = partnerIds[0]
-			? (await loadFocusWindow(this.repo, treeId, partnerIds[0], { ancestorDepth: 1, descendantDepth: 1, shouldIncludeStepFamilies: true }, scope.isRestricted ? scope : undefined)).graph
+			? (
+					await loadFocusWindow(
+						this.repo,
+						treeId,
+						partnerIds[0],
+						{ ancestorDepth: 1, descendantDepth: 1, shouldIncludeStepFamilies: true },
+						scope.isRestricted ? scope : undefined
+					)
+				).graph
 			: EMPTY_GRAPH;
 		const labels = partnershipLabels(graph.unions);
 
-		const people = await personSummaries(this.repo, treeId, graph, [...partnerIds, ...childIds], scope);
+		const people = await personSummaries(
+			this.repo,
+			treeId,
+			graph,
+			[...partnerIds, ...childIds],
+			scope
+		);
 		const partners = partnerIds.map((id) => people.get(id)!);
 		const nameOf = (id: string) => people.get(id)?.displayName ?? 'Unknown';
 
@@ -157,11 +188,22 @@ export class UnionPageService {
 
 		const children: UnionChildDto[] = childIds.map((childId) => ({
 			person: people.get(childId)!,
-			links: links.filter((l) => l.childId === childId).map((l) => ({ parentId: l.parentId, parentName: nameOf(l.parentId), type: l.type as ParentChildType }))
+			links: links
+				.filter((l) => l.childId === childId)
+				.map((l) => ({
+					parentId: l.parentId,
+					parentName: nameOf(l.parentId),
+					type: l.type as ParentChildType
+				}))
 		}));
 
 		// ---- Chronology: the partnership's events beside the people's own dates ----
-		const entry = (kind: ChronologyKind, label: string, dateText: string | null, personId: string | null): ChronologyEntryDto => ({
+		const entry = (
+			kind: ChronologyKind,
+			label: string,
+			dateText: string | null,
+			personId: string | null
+		): ChronologyEntryDto => ({
 			kind,
 			label,
 			dateText,
@@ -169,12 +211,33 @@ export class UnionPageService {
 			personId
 		});
 		const chronology = [
-			...events.map((e): ChronologyEntryDto => ({ kind: CHRONOLOGY_KINDS.UNION_EVENT, label: e.label, dateText: e.dateText, sortStart: e.sortStart, personId: null })),
+			...events.map((e): ChronologyEntryDto => ({
+				kind: CHRONOLOGY_KINDS.UNION_EVENT,
+				label: e.label,
+				dateText: e.dateText,
+				sortStart: e.sortStart,
+				personId: null
+			})),
 			...partners.flatMap((p) => [
-				...(p.birthDate ? [entry(CHRONOLOGY_KINDS.PARTNER_BIRTH, `Birth of ${p.displayName}`, p.birthDate, p.id)] : []),
-				...(p.isDeceased ? [entry(CHRONOLOGY_KINDS.PARTNER_DEATH, `Death of ${p.displayName}`, p.deathDate, p.id)] : [])
+				...(p.birthDate
+					? [entry(CHRONOLOGY_KINDS.PARTNER_BIRTH, `Birth of ${p.displayName}`, p.birthDate, p.id)]
+					: []),
+				...(p.isDeceased
+					? [entry(CHRONOLOGY_KINDS.PARTNER_DEATH, `Death of ${p.displayName}`, p.deathDate, p.id)]
+					: [])
 			]),
-			...children.flatMap((c) => (c.person.birthDate ? [entry(CHRONOLOGY_KINDS.CHILD_BIRTH, `Birth of ${c.person.displayName}`, c.person.birthDate, c.person.id)] : []))
+			...children.flatMap((c) =>
+				c.person.birthDate
+					? [
+							entry(
+								CHRONOLOGY_KINDS.CHILD_BIRTH,
+								`Birth of ${c.person.displayName}`,
+								c.person.birthDate,
+								c.person.id
+							)
+						]
+					: []
+			)
 		]
 			.map((item, index) => ({ item, index }))
 			.sort((a, b) => {
@@ -187,20 +250,38 @@ export class UnionPageService {
 		// ---- Twins and warnings ----
 		const key = partnerIds.length > 0 ? partnerSetKey(partnerIds) : null;
 		const twins = key
-			? graph.unions.filter((u) => u.id !== unionId && partnerSetKey(u.partnerIds) === key).map((u) => ({ unionId: u.id, label: labels.get(u.id) ?? null }))
+			? graph.unions
+					.filter((u) => u.id !== unionId && partnerSetKey(u.partnerIds) === key)
+					.map((u) => ({ unionId: u.id, label: labels.get(u.id) ?? null }))
 			: [];
-		const warningPerson = (p: PersonSummaryDto) => ({ id: p.id, name: p.displayName, birth: boundsOf(p.birthDate), death: p.isDeceased ? boundsOf(p.deathDate) ?? { earliest: null, latest: null } : null });
+		const warningPerson = (p: PersonSummaryDto) => ({
+			id: p.id,
+			name: p.displayName,
+			birth: boundsOf(p.birthDate),
+			death: p.isDeceased ? (boundsOf(p.deathDate) ?? { earliest: null, latest: null }) : null
+		});
 		const warnings = unionWarnings({
 			status: union.status,
 			partners: partners.map(warningPerson),
-			events: events.map((e) => ({ id: e.id, type: e.type, label: e.label, date: boundsOf(e.dateText) })),
+			events: events.map((e) => ({
+				id: e.id,
+				type: e.type,
+				label: e.label,
+				date: boundsOf(e.dateText)
+			})),
 			children: children.map((c) => warningPerson(c.person)),
 			hasTwin: twins.length > 0
 		});
 
 		// ---- History ----
 		// See the person page: a change's summary is prose that can name a private person.
-		const recent = scope.isRestricted ? [] : await this.repo.recentChanges(treeId, [unionId, ...events.map((e) => e.id)], RECENT_CHANGES_SHOWN);
+		const recent = scope.isRestricted
+			? []
+			: await this.repo.recentChanges(
+					treeId,
+					[unionId, ...events.map((e) => e.id)],
+					RECENT_CHANGES_SHOWN
+				);
 		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
 
 		return {

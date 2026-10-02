@@ -16,7 +16,9 @@ describe.skipIf(process.env.RECORD_CROSSING_BASELINE !== '1')('record crossing b
 		for (const { name, graph } of allTestGraphs()) {
 			graph.people.forEach((person, index) => {
 				for (const config of CROSSING_CONFIGS) {
-					baseline[crossingKey(name, index, config)] = countCrossings(layoutFocusView(graph, person.id, config));
+					baseline[crossingKey(name, index, config)] = countCrossings(
+						layoutFocusView(graph, person.id, config)
+					);
 				}
 			});
 		}

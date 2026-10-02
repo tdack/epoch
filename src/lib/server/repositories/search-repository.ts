@@ -51,7 +51,9 @@ const like = (column: SQL, pattern: string) => sql`${column} like ${pattern} esc
 const NAME_HAY = sql.raw(
 	`lower(rtrim(coalesce(n.name_prefix || ' ', '') || coalesce(n.given_name || ' ', '') || coalesce(n.nickname || ' ', '') || coalesce(n.surname_prefix || ' ', '') || coalesce(n.surname || ' ', '') || coalesce(n.name_suffix, '')))`
 );
-const OWN_HAY = sql.raw(`lower(rtrim(coalesce(i.given_name || ' ', '') || coalesce(i.surname, '')))`);
+const OWN_HAY = sql.raw(
+	`lower(rtrim(coalesce(i.given_name || ' ', '') || coalesce(i.surname, '')))`
+);
 
 /**
  * A fact of the person's own, or of a partnership they are in, that has this place and overlaps
@@ -83,7 +85,8 @@ function allPartnersVisible(unionColumn: string, scope: Scope): SQL {
 		: sql``;
 }
 
-const hasFactFilter = (f: SearchFilters) => Boolean(f.place || dateBound(f.from, 'start') || dateBound(f.to, 'end'));
+const hasFactFilter = (f: SearchFilters) =>
+	Boolean(f.place || dateBound(f.from, 'start') || dateBound(f.to, 'end'));
 
 /** The stored forms an XREF typed as `I4`, `i4` or `@I4@` could take. */
 export function xrefCandidates(text: string): string[] {
@@ -98,18 +101,29 @@ export class SearchRepository {
 
 	xrefSql(treeId: string, candidates: string[], scope: Scope): SQL {
 		// Named, because SQLite picks the tree index when both can serve and then reads the whole tree.
-		return sql`select i.id as id from individuals i indexed by idx_ind_xref where i.tree_id = ${treeId} and i.xref_id in (${sql.join(candidates.map((c) => sql`${c}`), sql`, `)})${andVisible('i', scope)} order by i.rowid`;
+		return sql`select i.id as id from individuals i indexed by idx_ind_xref where i.tree_id = ${treeId} and i.xref_id in (${sql.join(
+			candidates.map((c) => sql`${c}`),
+			sql`, `
+		)})${andVisible('i', scope)} order by i.rowid`;
 	}
 
 	/** People whose XREF is exactly this, with or without the `@`s (the importer stores them with). */
 	async byXref(treeId: string, text: string, scope: Scope): Promise<string[]> {
 		const candidates = xrefCandidates(text);
 		if (candidates.length === 0) return [];
-		return (await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates, scope))).map((r) => r.id);
+		return (await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates, scope))).map(
+			(r) => r.id
+		);
 	}
 
-	async find(treeId: string, filters: SearchFilters, scope: Scope): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string; name_id: string | null }>(this.findSql(treeId, filters, scope));
+	async find(
+		treeId: string,
+		filters: SearchFilters,
+		scope: Scope
+	): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
+		const rows = await this.db.all<{ id: string; name_id: string | null }>(
+			this.findSql(treeId, filters, scope)
+		);
 		return {
 			hits: rows.slice(0, filters.limit).map((r) => ({ personId: r.id, nameId: r.name_id })),
 			hasMore: rows.length > filters.limit
@@ -167,11 +181,31 @@ export class SearchRepository {
 	}
 
 	/** The facts that made these people match the place and date filter, for saying why. */
-	async factsMatching(personIds: string[], place: string, from: string, to: string, scope: Scope): Promise<FactHit[]> {
-		if (personIds.length === 0 || !hasFactFilter({ words: [], place, from, to, limit: 0, offset: 0 })) return [];
-		const ids = sql.join(personIds.map((id) => sql`${id}`), sql`, `);
+	async factsMatching(
+		personIds: string[],
+		place: string,
+		from: string,
+		to: string,
+		scope: Scope
+	): Promise<FactHit[]> {
+		if (
+			personIds.length === 0 ||
+			!hasFactFilter({ words: [], place, from, to, limit: 0, offset: 0 })
+		)
+			return [];
+		const ids = sql.join(
+			personIds.map((id) => sql`${id}`),
+			sql`, `
+		);
 		const condition = factCondition(place, from, to);
-		const rows = await this.db.all<{ fact_id: string; person_id: string; type: string; place: string | null; date_raw: string | null; is_partnership: number }>(sql`
+		const rows = await this.db.all<{
+			fact_id: string;
+			person_id: string;
+			type: string;
+			place: string | null;
+			date_raw: string | null;
+			is_partnership: number;
+		}>(sql`
 			select e.id as fact_id, e.entity_id as person_id, e.type, e.place, e.date_raw, 0 as is_partnership
 			from events e where e.entity_type = 'INDIVIDUAL' and e.entity_id in (${ids}) and ${condition}
 			union all
@@ -188,4 +222,3 @@ export class SearchRepository {
 		}));
 	}
 }
-

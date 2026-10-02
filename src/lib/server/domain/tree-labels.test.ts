@@ -16,8 +16,22 @@ describe('partnership labels in previews', () => {
 				{ id: 'early', partners: ['a', 'b'], marriage: '1980' }
 			],
 			events: [
-				{ id: 'm-late', entityType: 'FAMILY', entityId: 'late', type: 'MARR', dateRaw: '2001', dateSort: '2001-01-01' },
-				{ id: 'm-early', entityType: 'FAMILY', entityId: 'early', type: 'MARR', dateRaw: '1980', dateSort: '1980-01-01' }
+				{
+					id: 'm-late',
+					entityType: 'FAMILY',
+					entityId: 'late',
+					type: 'MARR',
+					dateRaw: '2001',
+					dateSort: '2001-01-01'
+				},
+				{
+					id: 'm-early',
+					entityType: 'FAMILY',
+					entityId: 'early',
+					type: 'MARR',
+					dateRaw: '1980',
+					dateSort: '1980-01-01'
+				}
 			]
 		});
 		// treeRows also adds MARR events from `marriage`; drop those so only the dated ones above count.

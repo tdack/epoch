@@ -37,7 +37,12 @@ export interface KinGraph {
 	partners: ReadonlyMap<string, readonly string[]>;
 }
 
-export const ROUTE_KINDS = { SELF: 'self', PARTNER: 'partner', BLOOD: 'blood', BY_PARTNERSHIP: 'by-partnership' } as const;
+export const ROUTE_KINDS = {
+	SELF: 'self',
+	PARTNER: 'partner',
+	BLOOD: 'blood',
+	BY_PARTNERSHIP: 'by-partnership'
+} as const;
 export type RouteKind = (typeof ROUTE_KINDS)[keyof typeof ROUTE_KINDS];
 
 export const STEP_RELATIONS = { PARENT: 'parent', CHILD: 'child', PARTNER: 'partner' } as const;
@@ -115,15 +120,24 @@ function ancestorsAbove(id: string, parentsOf: Map<string, KinLink[]>): Set<stri
 	return seen;
 }
 
-const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
+const ordinal = (n: number) =>
+	`${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
 const greats = (n: number) => 'great-'.repeat(Math.max(0, n));
 
 /** A direct line: B is `n` generations above (`isUp`) or below A. */
 function lineLabel(n: number, isUp: boolean, sex: Sex | null): string {
 	const [base, grand] = isUp
-		? sex === 'M' ? ['father', 'grandfather'] : sex === 'F' ? ['mother', 'grandmother'] : ['parent', 'grandparent']
-		: sex === 'M' ? ['son', 'grandson'] : sex === 'F' ? ['daughter', 'granddaughter'] : ['child', 'grandchild'];
+		? sex === 'M'
+			? ['father', 'grandfather']
+			: sex === 'F'
+				? ['mother', 'grandmother']
+				: ['parent', 'grandparent']
+		: sex === 'M'
+			? ['son', 'grandson']
+			: sex === 'F'
+				? ['daughter', 'granddaughter']
+				: ['child', 'grandchild'];
 	if (n === 1) return base!;
 	return `${greats(n - 2)}${grand}`;
 }
@@ -133,7 +147,12 @@ function lineLabel(n: number, isUp: boolean, sex: Sex | null): string {
  * `fromSecond`. A sex of M or F gives the gendered word; anything else the neutral one, because the
  * model records sex as a fact and not as a role.
  */
-export function kinLabel(fromFirst: number, fromSecond: number, sexOfSecond: Sex | null, isFull = true): string {
+export function kinLabel(
+	fromFirst: number,
+	fromSecond: number,
+	sexOfSecond: Sex | null,
+	isFull = true
+): string {
 	if (fromFirst === 0 && fromSecond === 0) return 'the same person';
 	if (fromSecond === 0) return lineLabel(fromFirst, true, sexOfSecond);
 	if (fromFirst === 0) return lineLabel(fromSecond, false, sexOfSecond);
@@ -170,20 +189,23 @@ interface Chain {
 function upChain(startId: string, topId: string, ancestry: Ancestry): Chain {
 	const reversed: RouteStep[] = [];
 	const types: ParentChildType[] = [];
-	for (let id = topId; id !== startId; ) {
+	for (let id = topId; id !== startId;) {
 		const link = ancestry.via.get(id)!;
 		reversed.push({ personId: id, relation: STEP_RELATIONS.PARENT, linkType: link.type });
 		types.push(link.type);
 		id = link.childId;
 	}
-	return { steps: [{ personId: startId, relation: null, linkType: null }, ...reversed.reverse()], types };
+	return {
+		steps: [{ personId: startId, relation: null, linkType: null }, ...reversed.reverse()],
+		types
+	};
 }
 
 /** The same chain walked the other way, from `topId` down to `startId`: each step a child step. */
 function downChain(startId: string, topId: string, ancestry: Ancestry): Chain {
 	const steps: RouteStep[] = [];
 	const types: ParentChildType[] = [];
-	for (let id = topId; id !== startId; ) {
+	for (let id = topId; id !== startId;) {
 		const link = ancestry.via.get(id)!;
 		steps.push({ personId: link.childId, relation: STEP_RELATIONS.CHILD, linkType: link.type });
 		types.push(link.type);
@@ -193,17 +215,30 @@ function downChain(startId: string, topId: string, ancestry: Ancestry): Chain {
 }
 
 /** Blood routes from `firstId` to `secondId`; empty when they share no ancestor within the limit. */
-function bloodRoutes(firstId: string, secondId: string, graph: KinGraph, parentsOf: Map<string, KinLink[]>, childrenOf: Map<string, Set<string>>): Route[] {
+function bloodRoutes(
+	firstId: string,
+	secondId: string,
+	graph: KinGraph,
+	parentsOf: Map<string, KinLink[]>,
+	childrenOf: Map<string, Set<string>>
+): Route[] {
 	const first = ancestryOf(firstId, parentsOf);
 	const second = ancestryOf(secondId, parentsOf);
 	const common = [...first.distance.keys()].filter((id) => second.distance.has(id));
 	// Only the lowest: a common ancestor that is an ancestor of another common ancestor is the same
 	// relationship, seen from further up.
 	const dominated = new Set<string>();
-	for (const id of common) for (const above of ancestorsAbove(id, parentsOf)) if (common.includes(above)) dominated.add(above);
+	for (const id of common)
+		for (const above of ancestorsAbove(id, parentsOf))
+			if (common.includes(above)) dominated.add(above);
 	const lowest = common
 		.filter((id) => !dominated.has(id))
-		.sort((x, y) => first.distance.get(x)! + second.distance.get(x)! - (first.distance.get(y)! + second.distance.get(y)!) || x.localeCompare(y));
+		.sort(
+			(x, y) =>
+				first.distance.get(x)! +
+					second.distance.get(x)! -
+					(first.distance.get(y)! + second.distance.get(y)!) || x.localeCompare(y)
+		);
 
 	const routes: Route[] = [];
 	const used = new Set<string>();
@@ -213,14 +248,27 @@ function bloodRoutes(firstId: string, secondId: string, graph: KinGraph, parents
 		const fromFirst = first.distance.get(id)!;
 		const fromSecond = second.distance.get(id)!;
 		// Two lowest ancestors at the same distance who share a child are one couple: one route.
-		const partner = lowest.find((other) => !used.has(other) && first.distance.get(other) === fromFirst && second.distance.get(other) === fromSecond && [...(childrenOf.get(id) ?? [])].some((c) => childrenOf.get(other)?.has(c)));
+		const partner = lowest.find(
+			(other) =>
+				!used.has(other) &&
+				first.distance.get(other) === fromFirst &&
+				second.distance.get(other) === fromSecond &&
+				[...(childrenOf.get(id) ?? [])].some((c) => childrenOf.get(other)?.has(c))
+		);
 		if (partner) used.add(partner);
 		const up = upChain(firstId, id, first);
 		const down = downChain(secondId, id, second);
-		const nonBiological = [...new Set([...up.types, ...down.types].filter((t) => !isBiological(t)))];
+		const nonBiological = [
+			...new Set([...up.types, ...down.types].filter((t) => !isBiological(t)))
+		];
 		routes.push({
 			kind: ROUTE_KINDS.BLOOD,
-			label: kinLabel(fromFirst, fromSecond, graph.people.get(secondId)?.sex ?? null, partner !== undefined || !(fromFirst === 1 && fromSecond === 1)),
+			label: kinLabel(
+				fromFirst,
+				fromSecond,
+				graph.people.get(secondId)?.sex ?? null,
+				partner !== undefined || !(fromFirst === 1 && fromSecond === 1)
+			),
 			steps: [...up.steps, ...down.steps],
 			viaIds: partner ? [id, partner] : [id],
 			nonBiologicalTypes: nonBiological,
@@ -236,15 +284,33 @@ function bloodRoutes(firstId: string, secondId: string, graph: KinGraph, parents
  * a relative, unless the second person is a direct-line relative of the first.
  * `isIncomplete` is set when a pedigree reached the generation limit.
  */
-export function findRelationships(firstId: string, secondId: string, graph: KinGraph): RelationshipResult {
+export function findRelationships(
+	firstId: string,
+	secondId: string,
+	graph: KinGraph
+): RelationshipResult {
 	if (firstId === secondId) {
-		return { routes: [{ kind: ROUTE_KINDS.SELF, label: 'the same person', steps: [{ personId: firstId, relation: null, linkType: null }], viaIds: [], nonBiologicalTypes: [], generations: null }], isIncomplete: false };
+		return {
+			routes: [
+				{
+					kind: ROUTE_KINDS.SELF,
+					label: 'the same person',
+					steps: [{ personId: firstId, relation: null, linkType: null }],
+					viaIds: [],
+					nonBiologicalTypes: [],
+					generations: null
+				}
+			],
+			isIncomplete: false
+		};
 	}
 	const parentsOf = new Map<string, KinLink[]>();
 	const childrenOf = new Map<string, Set<string>>();
 	for (const link of graph.links) {
 		(parentsOf.get(link.childId) ?? parentsOf.set(link.childId, []).get(link.childId)!).push(link);
-		(childrenOf.get(link.parentId) ?? childrenOf.set(link.parentId, new Set()).get(link.parentId)!).add(link.childId);
+		(
+			childrenOf.get(link.parentId) ?? childrenOf.set(link.parentId, new Set()).get(link.parentId)!
+		).add(link.childId);
 	}
 	const routes: Route[] = [];
 
@@ -252,39 +318,96 @@ export function findRelationships(firstId: string, secondId: string, graph: KinG
 		routes.push({
 			kind: ROUTE_KINDS.PARTNER,
 			label: 'partner',
-			steps: [{ personId: firstId, relation: null, linkType: null }, { personId: secondId, relation: STEP_RELATIONS.PARTNER, linkType: null }],
+			steps: [
+				{ personId: firstId, relation: null, linkType: null },
+				{ personId: secondId, relation: STEP_RELATIONS.PARTNER, linkType: null }
+			],
 			viaIds: [],
 			nonBiologicalTypes: [],
 			generations: null
 		});
 	}
 
-	const blood = bloodRoutes(firstId, secondId, graph, parentsOf, childrenOf).sort((a, b) => a.generations!.fromFirst + a.generations!.fromSecond - (b.generations!.fromFirst + b.generations!.fromSecond));
+	const blood = bloodRoutes(firstId, secondId, graph, parentsOf, childrenOf).sort(
+		(a, b) =>
+			a.generations!.fromFirst +
+			a.generations!.fromSecond -
+			(b.generations!.fromFirst + b.generations!.fromSecond)
+	);
 	routes.push(...blood);
 
 	// A relative in a direct line is already a parent's, grandparent's or child's partner by being one,
 	// and a step-parent is a parent's partner who is *not* a parent, so a direct-line relative must not
 	// also be reported by partnership. Every other route by partnership is offered beside any blood route.
-	const isDirectLine = blood.some((r) => r.generations!.fromFirst === 0 || r.generations!.fromSecond === 0);
+	const isDirectLine = blood.some(
+		(r) => r.generations!.fromFirst === 0 || r.generations!.fromSecond === 0
+	);
 	if (!isDirectLine) {
 		const sexOf = (id: string) => graph.people.get(id)?.sex ?? null;
-		const viaSecond = (graph.partners.get(secondId) ?? []).filter((p) => p !== firstId).flatMap((partnerId) =>
-			bloodRoutes(firstId, partnerId, graph, parentsOf, childrenOf).map((route): Route => {
-				const kin = kinLabel(route.generations!.fromFirst, route.generations!.fromSecond, sexOf(partnerId), true);
-				const label = kin === 'parent' || kin === 'father' || kin === 'mother' ? 'step-parent' : kin === 'child' || kin === 'son' || kin === 'daughter' ? 'child-in-law' : /^(brother|sister|sibling)$/.test(kin) ? 'sibling-in-law' : `partner of ${kin}`;
-				return { ...route, kind: ROUTE_KINDS.BY_PARTNERSHIP, label, steps: [...route.steps, { personId: secondId, relation: STEP_RELATIONS.PARTNER, linkType: null }] };
-			})
-		);
-		const viaFirst = (graph.partners.get(firstId) ?? []).filter((p) => p !== secondId).flatMap((partnerId) =>
-			bloodRoutes(partnerId, secondId, graph, parentsOf, childrenOf).map((route): Route => {
-				const kin = kinLabel(route.generations!.fromFirst, route.generations!.fromSecond, sexOf(secondId), true);
-				const label = kin === 'parent' || kin === 'father' || kin === 'mother' ? 'parent-in-law' : kin === 'child' || kin === 'son' || kin === 'daughter' ? 'step-child' : /^(brother|sister|sibling)$/.test(kin) ? 'sibling-in-law' : `${kin} of partner`;
-				return { ...route, kind: ROUTE_KINDS.BY_PARTNERSHIP, label, steps: [{ personId: firstId, relation: null, linkType: null }, { personId: partnerId, relation: STEP_RELATIONS.PARTNER, linkType: null }, ...route.steps.slice(1)] };
-			})
-		);
+		const viaSecond = (graph.partners.get(secondId) ?? [])
+			.filter((p) => p !== firstId)
+			.flatMap((partnerId) =>
+				bloodRoutes(firstId, partnerId, graph, parentsOf, childrenOf).map((route): Route => {
+					const kin = kinLabel(
+						route.generations!.fromFirst,
+						route.generations!.fromSecond,
+						sexOf(partnerId),
+						true
+					);
+					const label =
+						kin === 'parent' || kin === 'father' || kin === 'mother'
+							? 'step-parent'
+							: kin === 'child' || kin === 'son' || kin === 'daughter'
+								? 'child-in-law'
+								: /^(brother|sister|sibling)$/.test(kin)
+									? 'sibling-in-law'
+									: `partner of ${kin}`;
+					return {
+						...route,
+						kind: ROUTE_KINDS.BY_PARTNERSHIP,
+						label,
+						steps: [
+							...route.steps,
+							{ personId: secondId, relation: STEP_RELATIONS.PARTNER, linkType: null }
+						]
+					};
+				})
+			);
+		const viaFirst = (graph.partners.get(firstId) ?? [])
+			.filter((p) => p !== secondId)
+			.flatMap((partnerId) =>
+				bloodRoutes(partnerId, secondId, graph, parentsOf, childrenOf).map((route): Route => {
+					const kin = kinLabel(
+						route.generations!.fromFirst,
+						route.generations!.fromSecond,
+						sexOf(secondId),
+						true
+					);
+					const label =
+						kin === 'parent' || kin === 'father' || kin === 'mother'
+							? 'parent-in-law'
+							: kin === 'child' || kin === 'son' || kin === 'daughter'
+								? 'step-child'
+								: /^(brother|sister|sibling)$/.test(kin)
+									? 'sibling-in-law'
+									: `${kin} of partner`;
+					return {
+						...route,
+						kind: ROUTE_KINDS.BY_PARTNERSHIP,
+						label,
+						steps: [
+							{ personId: firstId, relation: null, linkType: null },
+							{ personId: partnerId, relation: STEP_RELATIONS.PARTNER, linkType: null },
+							...route.steps.slice(1)
+						]
+					};
+				})
+			);
 		routes.push(...[...viaSecond, ...viaFirst].sort((a, b) => a.steps.length - b.steps.length));
 	}
 
-	const reachedLimit = [firstId, secondId].some((id) => Math.max(...ancestryOf(id, parentsOf).distance.values()) >= MAX_GENERATIONS);
+	const reachedLimit = [firstId, secondId].some(
+		(id) => Math.max(...ancestryOf(id, parentsOf).distance.values()) >= MAX_GENERATIONS
+	);
 	return { routes: routes.slice(0, MAX_ROUTES), isIncomplete: routes.length === 0 && reachedLimit };
 }

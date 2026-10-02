@@ -26,7 +26,12 @@ import type { TreeRole } from '#lib/shared/roles.js';
 import type { RelationshipDto } from '#lib/shared/kinship.js';
 import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
 import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
-import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
+import type {
+	IndividualListItem,
+	Page,
+	SurnameListItem,
+	UnionListItem
+} from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
 export class ApiError extends Error {
@@ -65,7 +70,12 @@ export function isConflict(error: unknown): error is ConflictError {
 	return error instanceof ConflictError;
 }
 
-async function call<T>(url: string, init: RequestInit | undefined, failure: string, fetchFn: typeof fetch = fetch): Promise<T> {
+async function call<T>(
+	url: string,
+	init: RequestInit | undefined,
+	failure: string,
+	fetchFn: typeof fetch = fetch
+): Promise<T> {
 	const res = await fetchFn(url, init);
 	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
 	if (!res.ok) {
@@ -87,7 +97,11 @@ const json = (method: string, body: unknown): RequestInit => ({
 });
 
 export async function fetchTrees(): Promise<TreeSummary[]> {
-	const data = await call<{ trees?: TreeSummary[] }>('/api/trees', undefined, 'Failed to load trees');
+	const data = await call<{ trees?: TreeSummary[] }>(
+		'/api/trees',
+		undefined,
+		'Failed to load trees'
+	);
 	return data.trees || [];
 }
 
@@ -95,8 +109,15 @@ export async function fetchTreeDetails(treeId: string): Promise<TreeDetails> {
 	return call<TreeDetails>(`/api/trees/${treeId}`, undefined, 'Failed to fetch tree details');
 }
 
-export async function createTreeApi(payload: { name: string; description?: string }): Promise<{ id: string; name: string }> {
-	const data = await call<{ tree: { id: string; name: string } }>('/api/trees', json('POST', payload), 'Failed to create tree');
+export async function createTreeApi(payload: {
+	name: string;
+	description?: string;
+}): Promise<{ id: string; name: string }> {
+	const data = await call<{ tree: { id: string; name: string } }>(
+		'/api/trees',
+		json('POST', payload),
+		'Failed to create tree'
+	);
 	return data.tree;
 }
 
@@ -145,7 +166,10 @@ export async function deleteIndividualApi(
 	return { change: res.change };
 }
 
-export async function previewGedcomImport(file: File, treeId?: string | null): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
+export async function previewGedcomImport(
+	file: File,
+	treeId?: string | null
+): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
 	// Without a tree the server still analyses the file, so the duplicate families are listed for a new tree too.
 	const fd = new FormData();
 	fd.append('file', file);
@@ -158,7 +182,12 @@ export async function submitGedcomImport(
 	mode: 'replace' | 'merge',
 	treeId?: string | null,
 	options: { shouldMergeDuplicateFamilies?: boolean } = {}
-): Promise<{ individualsCount?: number; familiesCount?: number; mergedFamiliesCount?: number; treeId?: string }> {
+): Promise<{
+	individualsCount?: number;
+	familiesCount?: number;
+	mergedFamiliesCount?: number;
+	treeId?: string;
+}> {
 	const fd = new FormData();
 	fd.append('file', file);
 	fd.append('mode', mode);
@@ -170,7 +199,10 @@ export async function submitGedcomImport(
 }
 
 /** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
-export async function planRelationshipApi(treeId: string, intent: RelationshipIntent): Promise<RelationshipPlan> {
+export async function planRelationshipApi(
+	treeId: string,
+	intent: RelationshipIntent
+): Promise<RelationshipPlan> {
 	const data = await call<{ plan: RelationshipPlan }>(
 		`/api/trees/${treeId}/relationships/plan`,
 		json('POST', { intent }),
@@ -183,12 +215,21 @@ export async function applyRelationshipApi(
 	treeId: string,
 	intent: RelationshipIntent
 ): Promise<{ plan: RelationshipPlan; change: ChangeSummary | null }> {
-	return call(`/api/trees/${treeId}/relationships`, json('POST', { intent }), 'Failed to apply relationship');
+	return call(
+		`/api/trees/${treeId}/relationships`,
+		json('POST', { intent }),
+		'Failed to apply relationship'
+	);
 }
 
 export type RelationshipDeleteCommand =
 	| { kind: 'remove_parent_child'; parentId: string; childId: string; type: ParentChildType }
-	| { kind: 'remove_partner_from_union'; unionId: string; personId: string; expectedVersion?: number }
+	| {
+			kind: 'remove_partner_from_union';
+			unionId: string;
+			personId: string;
+			expectedVersion?: number;
+	  }
 	| { kind: 'destroy_union'; unionId: string; expectedVersion?: number };
 
 export async function removeRelationshipApi(
@@ -206,8 +247,15 @@ export async function removeRelationshipApi(
 export type ImpactRequest = RelationshipDeleteCommand | { kind: 'delete_person'; personId: string };
 
 /** What a destructive action would delete or change, listed exactly. Saves nothing. */
-export async function previewImpactApi(treeId: string, request: ImpactRequest): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${treeId}/impact`, json('POST', request), 'Failed to preview the impact');
+export async function previewImpactApi(
+	treeId: string,
+	request: ImpactRequest
+): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(
+		`/api/trees/${treeId}/impact`,
+		json('POST', request),
+		'Failed to preview the impact'
+	);
 	return data.impact;
 }
 
@@ -220,7 +268,11 @@ export interface TreeImpact {
 }
 
 export async function previewTreeDeletionApi(treeId: string): Promise<TreeImpact> {
-	const data = await call<{ treeImpact: TreeImpact }>(`/api/trees/${treeId}/impact`, json('POST', { kind: 'delete_tree' }), 'Failed to preview the impact');
+	const data = await call<{ treeImpact: TreeImpact }>(
+		`/api/trees/${treeId}/impact`,
+		json('POST', { kind: 'delete_tree' }),
+		'Failed to preview the impact'
+	);
 	return data.treeImpact;
 }
 
@@ -251,26 +303,49 @@ export interface MergePreviewResponse {
 	impact: ImpactSummary | null;
 }
 
-export async function previewUnionMergeApi(treeId: string, request: MergeUnionsRequest): Promise<MergePreviewResponse> {
-	return call(`/api/trees/${treeId}/unions/merge`, json('POST', { ...request, isPreview: true }), 'Failed to preview the merge');
+export async function previewUnionMergeApi(
+	treeId: string,
+	request: MergeUnionsRequest
+): Promise<MergePreviewResponse> {
+	return call(
+		`/api/trees/${treeId}/unions/merge`,
+		json('POST', { ...request, isPreview: true }),
+		'Failed to preview the merge'
+	);
 }
 
-export async function mergeUnionsApi(treeId: string, request: MergeUnionsRequest): Promise<{ change: ChangeSummary | null }> {
-	const res = await call<{ change: ChangeSummary | null }>(`/api/trees/${treeId}/unions/merge`, json('POST', request), 'Failed to merge the partnerships');
+export async function mergeUnionsApi(
+	treeId: string,
+	request: MergeUnionsRequest
+): Promise<{ change: ChangeSummary | null }> {
+	const res = await call<{ change: ChangeSummary | null }>(
+		`/api/trees/${treeId}/unions/merge`,
+		json('POST', request),
+		'Failed to merge the partnerships'
+	);
 	return { change: res.change };
 }
 
 /** Undo the signed-in user's most recent change. Refusals (a later change touched it) come back as ApiError. */
-export async function undoApi(treeId: string): Promise<{ undone: { id: string; summary: string } }> {
+export async function undoApi(
+	treeId: string
+): Promise<{ undone: { id: string; summary: string } }> {
 	return call(`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
 }
 
 export async function fetchRelationshipGraph(treeId: string): Promise<RelationshipGraph> {
-	const data = await call<{ graph: RelationshipGraph }>(`/api/trees/${treeId}/graph`, undefined, 'Failed to load relationship graph');
+	const data = await call<{ graph: RelationshipGraph }>(
+		`/api/trees/${treeId}/graph`,
+		undefined,
+		'Failed to load relationship graph'
+	);
 	return data.graph;
 }
 
-export async function searchPeopleApi(treeId: string, query: string): Promise<PeopleSearchResult[]> {
+export async function searchPeopleApi(
+	treeId: string,
+	query: string
+): Promise<PeopleSearchResult[]> {
 	const data = await call<{ people?: PeopleSearchResult[] }>(
 		`/api/trees/${treeId}/people-search?q=${encodeURIComponent(query)}`,
 		undefined,
@@ -280,8 +355,17 @@ export async function searchPeopleApi(treeId: string, query: string): Promise<Pe
 }
 
 /** The search page's results for its own URL parameters (`q`, `place`, `from`, `to`, `offset`). */
-export function searchTreeApi(treeId: string, params: URLSearchParams, fetchFn: typeof fetch = fetch): Promise<SearchResponse> {
-	return call(`/api/trees/${treeId}/search?${params}`, undefined, 'Failed to search the tree', fetchFn);
+export function searchTreeApi(
+	treeId: string,
+	params: URLSearchParams,
+	fetchFn: typeof fetch = fetch
+): Promise<SearchResponse> {
+	return call(
+		`/api/trees/${treeId}/search?${params}`,
+		undefined,
+		'Failed to search the tree',
+		fetchFn
+	);
 }
 
 /** One page of a list, for the list page's own URL parameters. */
@@ -291,20 +375,42 @@ export function fetchList<T extends IndividualListItem | UnionListItem | Surname
 	params: URLSearchParams,
 	fetchFn: typeof fetch = fetch
 ): Promise<Page<T>> {
-	return call(`/api/trees/${treeId}/lists/${list}?${params}`, undefined, 'Failed to load the list', fetchFn);
+	return call(
+		`/api/trees/${treeId}/lists/${list}?${params}`,
+		undefined,
+		'Failed to load the list',
+		fetchFn
+	);
 }
 
 export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
-	return call(`/api/trees/${treeId}/marks`, undefined, 'Failed to load favourites and recents', fetchFn);
+	return call(
+		`/api/trees/${treeId}/marks`,
+		undefined,
+		'Failed to load favourites and recents',
+		fetchFn
+	);
 }
 
 /** Record a visit; answers with the user's marks as they now stand. */
 export function recordRecentApi(treeId: string, personId: string): Promise<MarksDto> {
-	return call(`/api/trees/${treeId}/marks/recents`, json('POST', { personId }), 'Failed to record the visit');
+	return call(
+		`/api/trees/${treeId}/marks/recents`,
+		json('POST', { personId }),
+		'Failed to record the visit'
+	);
 }
 
-export function setFavoriteApi(treeId: string, personId: string, isFavorite: boolean): Promise<MarksDto> {
-	return call(`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`, { method: isFavorite ? 'PUT' : 'DELETE' }, 'Failed to change the favourite');
+export function setFavoriteApi(
+	treeId: string,
+	personId: string,
+	isFavorite: boolean
+): Promise<MarksDto> {
+	return call(
+		`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`,
+		{ method: isFavorite ? 'PUT' : 'DELETE' },
+		'Failed to change the favourite'
+	);
 }
 
 // ---- Bounded reads (Phase 3) ----
@@ -322,48 +428,117 @@ export interface FocusGraphQuery {
 	exp?: string[];
 }
 
-export function fetchFocusGraph(treeId: string, focusId: string, query: FocusGraphQuery, fetchFn: typeof fetch = fetch): Promise<FocusGraphDto> {
+export function fetchFocusGraph(
+	treeId: string,
+	focusId: string,
+	query: FocusGraphQuery,
+	fetchFn: typeof fetch = fetch
+): Promise<FocusGraphDto> {
 	const params = new URLSearchParams({ focus: focusId });
 	if (query.up !== undefined) params.set('up', String(query.up));
 	if (query.down !== undefined) params.set('down', String(query.down));
 	if (query.siblings !== undefined) params.set('siblings', query.siblings ? '1' : '0');
 	if (query.step !== undefined) params.set('step', query.step ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
-	return call(`/api/trees/${enc(treeId)}/graph?${params}`, undefined, 'Failed to load the tree', fetchFn);
+	return call(
+		`/api/trees/${enc(treeId)}/graph?${params}`,
+		undefined,
+		'Failed to load the tree',
+		fetchFn
+	);
 }
 
-export function fetchTreeSummary(treeId: string, fetchFn: typeof fetch = fetch): Promise<TreeSummaryDto> {
+export function fetchTreeSummary(
+	treeId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<TreeSummaryDto> {
 	return call(`/api/trees/${enc(treeId)}/summary`, undefined, 'Failed to load the tree', fetchFn);
 }
 
 export function fetchTreeList(fetchFn: typeof fetch = fetch): Promise<TreeSummary[]> {
-	return call<{ trees?: TreeSummary[] }>('/api/trees', undefined, 'Failed to load trees', fetchFn).then((d) => d.trees || []);
+	return call<{ trees?: TreeSummary[] }>(
+		'/api/trees',
+		undefined,
+		'Failed to load trees',
+		fetchFn
+	).then((d) => d.trees || []);
 }
 
-export function fetchPersonPage(treeId: string, personId: string, fetchFn: typeof fetch = fetch): Promise<PersonPageDto> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}`, undefined, 'Failed to load the person', fetchFn);
+export function fetchPersonPage(
+	treeId: string,
+	personId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<PersonPageDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}`,
+		undefined,
+		'Failed to load the person',
+		fetchFn
+	);
 }
 
-export function fetchUnionPage(treeId: string, unionId: string, fetchFn: typeof fetch = fetch): Promise<UnionPageDto> {
-	return call(`/api/trees/${enc(treeId)}/unions/${enc(unionId)}`, undefined, 'Failed to load the partnership', fetchFn);
+export function fetchUnionPage(
+	treeId: string,
+	unionId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<UnionPageDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/unions/${enc(unionId)}`,
+		undefined,
+		'Failed to load the partnership',
+		fetchFn
+	);
 }
 
 // ---- Facts ----
 
-export async function createFactApi(treeId: string, personId: string, fact: FactInput): Promise<{ factId: string; change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts`, json('POST', fact), 'Failed to add the fact');
+export async function createFactApi(
+	treeId: string,
+	personId: string,
+	fact: FactInput
+): Promise<{ factId: string; change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts`,
+		json('POST', fact),
+		'Failed to add the fact'
+	);
 }
 
-export async function updateFactApi(treeId: string, factId: string, fact: Partial<FactInput>, version: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/facts/${enc(factId)}`, json('PUT', { ...fact, version }), 'Failed to save the fact');
+export async function updateFactApi(
+	treeId: string,
+	factId: string,
+	fact: Partial<FactInput>,
+	version: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/facts/${enc(factId)}`,
+		json('PUT', { ...fact, version }),
+		'Failed to save the fact'
+	);
 }
 
-export async function deleteFactApi(treeId: string, factId: string, version: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/facts/${enc(factId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the fact');
+export async function deleteFactApi(
+	treeId: string,
+	factId: string,
+	version: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/facts/${enc(factId)}?version=${version}`,
+		{ method: 'DELETE' },
+		'Failed to remove the fact'
+	);
 }
 
-export async function reorderFactsApi(treeId: string, personId: string, orderedFactIds: string[]): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts/reorder`, json('POST', { orderedFactIds }), 'Failed to reorder the facts');
+export async function reorderFactsApi(
+	treeId: string,
+	personId: string,
+	orderedFactIds: string[]
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts/reorder`,
+		json('POST', { orderedFactIds }),
+		'Failed to reorder the facts'
+	);
 }
 
 export type FactImpactRequest =
@@ -371,103 +546,282 @@ export type FactImpactRequest =
 	| { kind: 'update_fact'; factId: string; version?: number; fact: Partial<FactInput> }
 	| { kind: 'delete_fact'; factId: string; version?: number };
 
-export async function previewFactApi(treeId: string, request: FactImpactRequest): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/facts/impact`, json('POST', request), 'Failed to preview the change');
+export async function previewFactApi(
+	treeId: string,
+	request: FactImpactRequest
+): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(
+		`/api/trees/${enc(treeId)}/facts/impact`,
+		json('POST', request),
+		'Failed to preview the change'
+	);
 	return data.impact;
 }
 
 // ---- Names ----
 
-export async function createNameApi(treeId: string, personId: string, name: NameInput, isPreferred = false): Promise<{ nameId: string; change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names`, json('POST', { ...name, isPreferred }), 'Failed to add the name');
+export async function createNameApi(
+	treeId: string,
+	personId: string,
+	name: NameInput,
+	isPreferred = false
+): Promise<{ nameId: string; change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names`,
+		json('POST', { ...name, isPreferred }),
+		'Failed to add the name'
+	);
 }
 
-export async function updateNameApi(treeId: string, nameId: string, name: Partial<NameInput>, version: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/names/${enc(nameId)}`, json('PUT', { ...name, version }), 'Failed to save the name');
+export async function updateNameApi(
+	treeId: string,
+	nameId: string,
+	name: Partial<NameInput>,
+	version: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/names/${enc(nameId)}`,
+		json('PUT', { ...name, version }),
+		'Failed to save the name'
+	);
 }
 
-export async function deleteNameApi(treeId: string, nameId: string, version: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/names/${enc(nameId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the name');
+export async function deleteNameApi(
+	treeId: string,
+	nameId: string,
+	version: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/names/${enc(nameId)}?version=${version}`,
+		{ method: 'DELETE' },
+		'Failed to remove the name'
+	);
 }
 
-export async function reorderNamesApi(treeId: string, personId: string, orderedNameIds: string[]): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/reorder`, json('POST', { orderedNameIds }), 'Failed to reorder the names');
+export async function reorderNamesApi(
+	treeId: string,
+	personId: string,
+	orderedNameIds: string[]
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/reorder`,
+		json('POST', { orderedNameIds }),
+		'Failed to reorder the names'
+	);
 }
 
-export async function setPreferredNameApi(treeId: string, personId: string, nameId: string, version?: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/preferred`, json('POST', { nameId, version }), 'Failed to choose the preferred name');
+export async function setPreferredNameApi(
+	treeId: string,
+	personId: string,
+	nameId: string,
+	version?: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/preferred`,
+		json('POST', { nameId, version }),
+		'Failed to choose the preferred name'
+	);
 }
 
 /** Force a person public or private, or let their dates decide (`auto`). A manager's action. */
-export async function setPersonPrivacyApi(treeId: string, personId: string, privacy: PersonPrivacy, version?: number): Promise<{ change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/people/${enc(personId)}/privacy`, json('PUT', { privacy, version }), 'Failed to change the privacy of the person');
+export async function setPersonPrivacyApi(
+	treeId: string,
+	personId: string,
+	privacy: PersonPrivacy,
+	version?: number
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/people/${enc(personId)}/privacy`,
+		json('PUT', { privacy, version }),
+		'Failed to change the privacy of the person'
+	);
 }
 
-export async function fetchPrivacySettings(treeId: string, fetcher: typeof fetch = fetch): Promise<PrivacySettingsDto> {
-	return call(`/api/trees/${enc(treeId)}/privacy`, { method: 'GET' }, 'Failed to load the privacy settings', fetcher);
+export async function fetchPrivacySettings(
+	treeId: string,
+	fetcher: typeof fetch = fetch
+): Promise<PrivacySettingsDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/privacy`,
+		{ method: 'GET' },
+		'Failed to load the privacy settings',
+		fetcher
+	);
 }
 
-export async function savePrivacySettings(treeId: string, patch: Partial<PrivacySettingsDto>): Promise<PrivacySettingsDto> {
-	return call(`/api/trees/${enc(treeId)}/privacy`, json('PUT', patch), 'Failed to save the privacy settings');
+export async function savePrivacySettings(
+	treeId: string,
+	patch: Partial<PrivacySettingsDto>
+): Promise<PrivacySettingsDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/privacy`,
+		json('PUT', patch),
+		'Failed to save the privacy settings'
+	);
 }
 
 export type { InvitationDto, MemberDto, MembersDto };
 
-export async function fetchMembers(treeId: string, fetcher: typeof fetch = fetch): Promise<MembersDto> {
-	return call(`/api/trees/${enc(treeId)}/members`, { method: 'GET' }, 'Failed to load the members', fetcher);
+export async function fetchMembers(
+	treeId: string,
+	fetcher: typeof fetch = fetch
+): Promise<MembersDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/members`,
+		{ method: 'GET' },
+		'Failed to load the members',
+		fetcher
+	);
 }
 
-export async function inviteMemberApi(treeId: string, email: string, role: TreeRole): Promise<InvitationDto> {
-	return call(`/api/trees/${enc(treeId)}/invitations`, json('POST', { email, role }), 'Failed to send the invitation');
+export async function inviteMemberApi(
+	treeId: string,
+	email: string,
+	role: TreeRole
+): Promise<InvitationDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/invitations`,
+		json('POST', { email, role }),
+		'Failed to send the invitation'
+	);
 }
 
 export async function withdrawInvitationApi(treeId: string, invitationId: string): Promise<void> {
-	await call(`/api/trees/${enc(treeId)}/invitations/${enc(invitationId)}`, { method: 'DELETE' }, 'Failed to withdraw the invitation');
+	await call(
+		`/api/trees/${enc(treeId)}/invitations/${enc(invitationId)}`,
+		{ method: 'DELETE' },
+		'Failed to withdraw the invitation'
+	);
 }
 
-export async function changeMemberRoleApi(treeId: string, userId: string, role: TreeRole, version: number): Promise<MemberDto> {
-	return call(`/api/trees/${enc(treeId)}/members/${enc(userId)}`, json('PATCH', { role, version }), 'Failed to change the role');
+export async function changeMemberRoleApi(
+	treeId: string,
+	userId: string,
+	role: TreeRole,
+	version: number
+): Promise<MemberDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/members/${enc(userId)}`,
+		json('PATCH', { role, version }),
+		'Failed to change the role'
+	);
 }
 
-export async function removeMemberApi(treeId: string, userId: string, version: number): Promise<void> {
-	await call(`/api/trees/${enc(treeId)}/members/${enc(userId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the member');
+export async function removeMemberApi(
+	treeId: string,
+	userId: string,
+	version: number
+): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}/members/${enc(userId)}?version=${version}`,
+		{ method: 'DELETE' },
+		'Failed to remove the member'
+	);
 }
 
-export async function fetchRelationship(treeId: string, fromId: string, toId: string, fetcher: typeof fetch = fetch): Promise<RelationshipDto> {
-	return call(`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`, { method: 'GET' }, 'Failed to work out the relationship', fetcher);
+export async function fetchRelationship(
+	treeId: string,
+	fromId: string,
+	toId: string,
+	fetcher: typeof fetch = fetch
+): Promise<RelationshipDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
+		{ method: 'GET' },
+		'Failed to work out the relationship',
+		fetcher
+	);
 }
 
-export async function fetchPedigree(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<PedigreeDto> {
-	return call(`/api/trees/${enc(treeId)}/charts/pedigree?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the pedigree', fetcher);
+export async function fetchPedigree(
+	treeId: string,
+	personId: string,
+	generations: number,
+	fetcher: typeof fetch = fetch
+): Promise<PedigreeDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/charts/pedigree?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		{ method: 'GET' },
+		'Failed to load the pedigree',
+		fetcher
+	);
 }
 
-export async function fetchDescendants(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<DescendantsDto> {
-	return call(`/api/trees/${enc(treeId)}/charts/descendants?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the descendants', fetcher);
+export async function fetchDescendants(
+	treeId: string,
+	personId: string,
+	generations: number,
+	fetcher: typeof fetch = fetch
+): Promise<DescendantsDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/charts/descendants?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		{ method: 'GET' },
+		'Failed to load the descendants',
+		fetcher
+	);
 }
 
-export async function fetchPlaces(treeId: string, params: URLSearchParams, fetcher: typeof fetch = fetch): Promise<Page<PlaceListItem>> {
-	return call(`/api/trees/${enc(treeId)}/places?${params}`, { method: 'GET' }, 'Failed to list the places', fetcher);
+export async function fetchPlaces(
+	treeId: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<Page<PlaceListItem>> {
+	return call(
+		`/api/trees/${enc(treeId)}/places?${params}`,
+		{ method: 'GET' },
+		'Failed to list the places',
+		fetcher
+	);
 }
 
-export async function fetchPlace(treeId: string, name: string, params: URLSearchParams, fetcher: typeof fetch = fetch): Promise<PlaceDto> {
+export async function fetchPlace(
+	treeId: string,
+	name: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<PlaceDto> {
 	const query = new URLSearchParams(params);
 	query.set('name', name);
-	return call(`/api/trees/${enc(treeId)}/places?${query}`, { method: 'GET' }, 'Failed to load the place', fetcher);
+	return call(
+		`/api/trees/${enc(treeId)}/places?${query}`,
+		{ method: 'GET' },
+		'Failed to load the place',
+		fetcher
+	);
 }
 
 /** Places whose text contains `text`, for the fact editor's suggestions. */
 export async function suggestPlacesApi(treeId: string, text: string): Promise<string[]> {
-	const data = await fetchPlaces(treeId, new URLSearchParams({ q: text, limit: String(MAX_PLACE_SUGGESTIONS) }));
+	const data = await fetchPlaces(
+		treeId,
+		new URLSearchParams({ q: text, limit: String(MAX_PLACE_SUGGESTIONS) })
+	);
 	return data.items.map((p) => p.name);
 }
 
 /** Rename a place, or merge it into the place that already has `name`; one change, one undo. */
-export async function rewritePlaceApi(treeId: string, placeId: string, name: string): Promise<{ change: ChangeSummary | null; name: string }> {
-	return call(`/api/trees/${enc(treeId)}/places/${enc(placeId)}`, json('PUT', { name }), 'Failed to change the place');
+export async function rewritePlaceApi(
+	treeId: string,
+	placeId: string,
+	name: string
+): Promise<{ change: ChangeSummary | null; name: string }> {
+	return call(
+		`/api/trees/${enc(treeId)}/places/${enc(placeId)}`,
+		json('PUT', { name }),
+		'Failed to change the place'
+	);
 }
 
-export async function previewPlaceRewriteApi(treeId: string, placeId: string, name: string): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/places/${enc(placeId)}/impact`, json('POST', { name }), 'Failed to preview the change');
+export async function previewPlaceRewriteApi(
+	treeId: string,
+	placeId: string,
+	name: string
+): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(
+		`/api/trees/${enc(treeId)}/places/${enc(placeId)}/impact`,
+		json('POST', { name }),
+		'Failed to preview the change'
+	);
 	return data.impact;
 }
 
@@ -477,7 +831,14 @@ export type NameImpactRequest =
 	| { kind: 'delete_name'; nameId: string; version?: number }
 	| { kind: 'set_preferred_name'; personId: string; nameId: string; version?: number };
 
-export async function previewNameApi(treeId: string, request: NameImpactRequest): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/names/impact`, json('POST', request), 'Failed to preview the change');
+export async function previewNameApi(
+	treeId: string,
+	request: NameImpactRequest
+): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(
+		`/api/trees/${enc(treeId)}/names/impact`,
+		json('POST', request),
+		'Failed to preview the change'
+	);
 	return data.impact;
 }

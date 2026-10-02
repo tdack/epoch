@@ -25,7 +25,12 @@ export interface RowsSpec {
 		marriage?: string;
 		xrefAliases?: string[];
 	}>;
-	links?: Array<{ parentId: string; childId: string; type?: ParentChildType; unionId?: string | null }>;
+	links?: Array<{
+		parentId: string;
+		childId: string;
+		type?: ParentChildType;
+		unionId?: string | null;
+	}>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
 }
@@ -40,7 +45,9 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		events: [],
 		mediaItems: []
 	};
-	const event = (partial: Partial<EventRow> & { id: string; entityId: string; type: string }): EventRow => ({
+	const event = (
+		partial: Partial<EventRow> & { id: string; entityId: string; type: string }
+	): EventRow => ({
 		treeId: TEST_TREE_ID,
 		entityType: 'INDIVIDUAL',
 		dateRaw: null,
@@ -76,10 +83,18 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			createdAt: T0,
 			updatedAt: T0
 		});
-		if (p.birth) rows.events.push(event({ id: `birt-${p.id}`, entityId: p.id, type: 'BIRT', dateRaw: p.birth }));
+		if (p.birth)
+			rows.events.push(
+				event({ id: `birt-${p.id}`, entityId: p.id, type: 'BIRT', dateRaw: p.birth })
+			);
 		if (p.death) {
 			rows.events.push(
-				event({ id: `deat-${p.id}`, entityId: p.id, type: 'DEAT', dateRaw: p.death === true ? null : p.death })
+				event({
+					id: `deat-${p.id}`,
+					entityId: p.id,
+					type: 'DEAT',
+					dateRaw: p.death === true ? null : p.death
+				})
 			);
 		}
 	}
@@ -94,10 +109,24 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			updatedAt: T0
 		});
 		u.partners.forEach((personId, order) =>
-			rows.unionPartners.push({ id: `${u.id}-p${order}`, unionId: u.id, personId, order, createdAt: T0 })
+			rows.unionPartners.push({
+				id: `${u.id}-p${order}`,
+				unionId: u.id,
+				personId,
+				order,
+				createdAt: T0
+			})
 		);
 		if (u.marriage) {
-			rows.events.push(event({ id: `marr-${u.id}`, entityType: 'FAMILY', entityId: u.id, type: 'MARR', dateRaw: u.marriage }));
+			rows.events.push(
+				event({
+					id: `marr-${u.id}`,
+					entityType: 'FAMILY',
+					entityId: u.id,
+					type: 'MARR',
+					dateRaw: u.marriage
+				})
+			);
 		}
 	}
 	for (const [index, l] of (spec.links ?? []).entries()) {

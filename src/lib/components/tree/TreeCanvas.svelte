@@ -76,7 +76,11 @@
 		/** Remove one parent's link from a merged (union, child) edge. */
 		onRemoveAssertion?: (edge: ChildEdge, assertion: ChildAssertion) => void;
 		/** Change one parent's link to another type. */
-		onChangeLinkType?: (edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) => void;
+		onChangeLinkType?: (
+			edge: ChildEdge,
+			assertion: ChildAssertion,
+			toType: ParentChildType
+		) => void;
 		onRemoveUnion?: (unionId: string) => void;
 		/** "Merge duplicate partnerships…", offered only for a partnership that has a twin. */
 		onMergeUnion?: (unionId: string) => void;
@@ -166,18 +170,25 @@
 				.filter((e) =>
 					e.kind === 'partner'
 						? e.personId === activeId
-						: e.kind === 'child' && (e.childId === activeId || e.assertions.some((a) => a.parentId === activeId))
+						: e.kind === 'child' &&
+							(e.childId === activeId || e.assertions.some((a) => a.parentId === activeId))
 				)
 				.map((e) => e.id)
 		)
 	);
 	const tabbableUnionIds = $derived(
-		new Set(layout.unions.filter((u) => activeId && u.union.partnerIds.includes(activeId)).map((u) => u.id))
+		new Set(
+			layout.unions
+				.filter((u) => activeId && u.union.partnerIds.includes(activeId))
+				.map((u) => u.id)
+		)
 	);
 	const collapsedIds = $derived(new Set(layout.collapsedPersonIds));
 	const nonAdjacentIds = $derived(new Set(layout.nonAdjacentUnionIds));
 	const popoverEdge = $derived(
-		popover ? layout.edges.find((e): e is ChildEdge => e.id === popover!.edgeId && e.kind === 'child') : undefined
+		popover
+			? layout.edges.find((e): e is ChildEdge => e.id === popover!.edgeId && e.kind === 'child')
+			: undefined
 	);
 
 	function nameOf(personId: string): string {
@@ -188,7 +199,9 @@
 	function edgeLabel(edge: LayoutEdge): string {
 		if (edge.kind === 'partner') {
 			const union = unionById.get(edge.unionId);
-			const names = union ? union.union.partnerIds.map(nameOf).join(' and ') : nameOf(edge.personId);
+			const names = union
+				? union.union.partnerIds.map(nameOf).join(' and ')
+				: nameOf(edge.personId);
 			const ordinalTitle = partnershipLabels?.get(edge.unionId)?.title;
 			return `Partnership line of ${names}${ordinalTitle ? `, ${ordinalTitle}` : ''}. Press Enter for actions.`;
 		}
@@ -201,7 +214,9 @@
 	// ---- Viewport ----
 
 	function prefersReducedMotion(): boolean {
-		return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+		return (
+			typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+		);
 	}
 
 	/**
@@ -222,7 +237,11 @@
 		animationTarget = null;
 		if (options.isAnimated && canAnimate()) {
 			animationTarget = target;
-			selection.transition().duration(options.durationMs ?? ANIMATION_MS).ease(d3.easeCubicOut).call(zoomBehavior.transform, target);
+			selection
+				.transition()
+				.duration(options.durationMs ?? ANIMATION_MS)
+				.ease(d3.easeCubicOut)
+				.call(zoomBehavior.transform, target);
 		} else {
 			selection.call(zoomBehavior.transform, target);
 		}
@@ -236,11 +255,17 @@
 			MAX_FIT_ZOOM,
 			Math.max(
 				MIN_ZOOM,
-				Math.min((size.width - FIT_PADDING_PX * 2) / width, (size.height - FIT_PADDING_PX * 2) / height)
+				Math.min(
+					(size.width - FIT_PADDING_PX * 2) / width,
+					(size.height - FIT_PADDING_PX * 2) / height
+				)
 			)
 		);
 		return d3.zoomIdentity
-			.translate(size.width / 2 - ((minX + maxX) / 2) * k, size.height / 2 - ((minY + maxY) / 2) * k)
+			.translate(
+				size.width / 2 - ((minX + maxX) / 2) * k,
+				size.height / 2 - ((minY + maxY) / 2) * k
+			)
 			.scale(k);
 	}
 
@@ -257,7 +282,10 @@
 		const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, base.k * factor));
 		const centre: [number, number] = [size.width / 2, size.height / 2];
 		const [px, py] = base.invert(centre);
-		moveTo(d3.zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), { isAnimated: true, durationMs: ZOOM_BUTTON_MS });
+		moveTo(d3.zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), {
+			isAnimated: true,
+			durationMs: ZOOM_BUTTON_MS
+		});
 	}
 
 	function fit(isAnimated = true) {
@@ -275,7 +303,9 @@
 			.filter((event: Event) => {
 				if (event.type === 'wheel') return true;
 				const target = event.target as Element | null;
-				const isOnControl = target?.closest?.('[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id], [data-union-id]');
+				const isOnControl = target?.closest?.(
+					'[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id], [data-union-id]'
+				);
 				return !(event as MouseEvent).button && !isOnControl;
 			})
 			.on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
@@ -313,13 +343,18 @@
 			if (!zoomBehavior) return;
 			const isFirst = lastFitKey === null;
 			if (key !== lastFitKey) {
-				const anchor = current.focusPersonId ? previousPositions.get(current.focusPersonId) : undefined;
+				const anchor = current.focusPersonId
+					? previousPositions.get(current.focusPersonId)
+					: undefined;
 				if (!isFirst && anchor && canAnimate()) {
 					const screen = transform.apply([anchor.x, anchor.y]);
-					moveTo(d3.zoomIdentity.translate(screen[0], screen[1]).scale(transform.k), { isAnimated: false });
-					containerElement
-						?.querySelector('.scene')
-						?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: ANIMATION_MS, easing: 'ease-out' });
+					moveTo(d3.zoomIdentity.translate(screen[0], screen[1]).scale(transform.k), {
+						isAnimated: false
+					});
+					containerElement?.querySelector('.scene')?.animate([{ opacity: 0.35 }, { opacity: 1 }], {
+						duration: ANIMATION_MS,
+						easing: 'ease-out'
+					});
 				}
 				moveTo(fitTransform(current), { isAnimated: !isFirst });
 				lastFitKey = key;
@@ -340,8 +375,10 @@
 		const halfW = (LAYOUT_METRICS.cardWidth / 2) * transform.k + 16;
 		const halfH = (LAYOUT_METRICS.cardHeight / 2) * transform.k + 16;
 		const dx = sx - halfW < 0 ? halfW - sx : sx + halfW > size.width ? size.width - halfW - sx : 0;
-		const dy = sy - halfH < 0 ? halfH - sy : sy + halfH > size.height ? size.height - halfH - sy : 0;
-		if (dx !== 0 || dy !== 0) moveTo(transform.translate(dx / transform.k, dy / transform.k), { isAnimated: true });
+		const dy =
+			sy - halfH < 0 ? halfH - sy : sy + halfH > size.height ? size.height - halfH - sy : 0;
+		if (dx !== 0 || dy !== 0)
+			moveTo(transform.translate(dx / transform.k, dy / transform.k), { isAnimated: true });
 	}
 
 	// ---- Menus, selection and popover ----
@@ -350,18 +387,25 @@
 	function containerPoint(event: Event): { x: number; y: number } {
 		const rect = containerElement?.getBoundingClientRect();
 		const mouse = event as MouseEvent;
-		if (typeof mouse.clientX === 'number' && (mouse.clientX !== 0 || mouse.clientY !== 0 || event.type === 'click')) {
+		if (
+			typeof mouse.clientX === 'number' &&
+			(mouse.clientX !== 0 || mouse.clientY !== 0 || event.type === 'click')
+		) {
 			return { x: mouse.clientX - (rect?.left ?? 0), y: mouse.clientY - (rect?.top ?? 0) };
 		}
 		const element = (event.currentTarget ?? event.target) as Element | null;
 		const box = element?.getBoundingClientRect();
 		if (!box) return { x: 16, y: 16 };
-		return { x: box.left + box.width / 2 - (rect?.left ?? 0), y: box.top + box.height / 2 - (rect?.top ?? 0) };
+		return {
+			x: box.left + box.width / 2 - (rect?.left ?? 0),
+			y: box.top + box.height / 2 - (rect?.top ?? 0)
+		};
 	}
 
 	function rememberOpener() {
 		const active = document.activeElement;
-		overlayOpener = active && containerElement?.contains(active) && active !== containerElement ? active : null;
+		overlayOpener =
+			active && containerElement?.contains(active) && active !== containerElement ? active : null;
 	}
 
 	/** Hand focus back to what opened the overlay, or to the card holding the cursor if that is gone. */
@@ -370,7 +414,9 @@
 		overlayOpener = null;
 		const target = opener?.isConnected
 			? (opener as HTMLElement | SVGElement)
-			: containerElement?.querySelector<SVGGElement>(`[data-person-id="${CSS.escape(activeId ?? '')}"]`);
+			: containerElement?.querySelector<SVGGElement>(
+					`[data-person-id="${CSS.escape(activeId ?? '')}"]`
+				);
 		target?.focus({ preventScroll: true });
 	}
 
@@ -387,12 +433,19 @@
 		const items: MenuItem[] = [];
 		if (onOpenPerson) items.push({ label: 'Show details', onClick: () => onOpenPerson(person.id) });
 		if (onEditPerson) items.push({ label: 'Edit person', onClick: () => onEditPerson(person.id) });
-		if (onAddRelationship) items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
-		if (onRecordDeath) items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
+		if (onAddRelationship)
+			items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
+		if (onRecordDeath)
+			items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
 		if (onEndPartnership && node.person.unionIds.length > 0) {
 			items.push({ label: 'End partnership…', onClick: () => onEndPartnership(person.id) });
 		}
-		if (onDeletePerson) items.push({ label: 'Delete person…', isDanger: true, onClick: () => onDeletePerson(person.id) });
+		if (onDeletePerson)
+			items.push({
+				label: 'Delete person…',
+				isDanger: true,
+				onClick: () => onDeletePerson(person.id)
+			});
 		popover = null;
 		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
@@ -402,12 +455,18 @@
 		event.preventDefault();
 		popover = null;
 		const items: MenuItem[] = [];
-		if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
+		if (onEditUnion)
+			items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
 		if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(union.id) });
 		if (onMergeUnion && mergeableUnionIds?.has(union.id)) {
 			items.push({ label: 'Merge duplicate partnerships…', onClick: () => onMergeUnion(union.id) });
 		}
-		if (onRemoveUnion) items.push({ label: 'Delete partnership…', isDanger: true, onClick: () => onRemoveUnion(union.id) });
+		if (onRemoveUnion)
+			items.push({
+				label: 'Delete partnership…',
+				isDanger: true,
+				onClick: () => onRemoveUnion(union.id)
+			});
 		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
 	}
@@ -420,9 +479,16 @@
 		const at = containerPoint(event);
 		const items: MenuItem[] = [];
 		if (edge.kind === 'partner') {
-			if (onEditUnion) items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(edge.unionId) });
-			if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(edge.unionId) });
-			if (onRemoveLink) items.push({ label: 'Remove this partner…', isDanger: true, onClick: () => onRemoveLink(edge) });
+			if (onEditUnion)
+				items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(edge.unionId) });
+			if (onEndUnion)
+				items.push({ label: 'End partnership…', onClick: () => onEndUnion(edge.unionId) });
+			if (onRemoveLink)
+				items.push({
+					label: 'Remove this partner…',
+					isDanger: true,
+					onClick: () => onRemoveLink(edge)
+				});
 		} else {
 			items.push({
 				label: 'Review parent links…',
@@ -432,7 +498,11 @@
 				}
 			});
 			if (onRemoveAssertion && edge.assertions.length === 1) {
-				items.push({ label: 'Remove this link…', isDanger: true, onClick: () => onRemoveAssertion(edge, edge.assertions[0]) });
+				items.push({
+					label: 'Remove this link…',
+					isDanger: true,
+					onClick: () => onRemoveAssertion(edge, edge.assertions[0])
+				});
 			}
 		}
 		popover = null;
@@ -472,7 +542,12 @@
 	}
 
 	function onCanvasClick(event: MouseEvent) {
-		if ((event.target as Element).closest?.('[data-edge-id], [data-person-id], [data-union-id], [data-stub-id], [data-collapser-id]')) return;
+		if (
+			(event.target as Element).closest?.(
+				'[data-edge-id], [data-person-id], [data-union-id], [data-stub-id], [data-collapser-id]'
+			)
+		)
+			return;
 		selectedEdgeId = null;
 		closeOverlays();
 	}
@@ -513,7 +588,9 @@
 	async function moveActive(toId: string) {
 		keyboardCursor = { focusId: layout.focusPersonId, personId: toId };
 		await tick();
-		containerElement?.querySelector<SVGGElement>(`[data-person-id="${CSS.escape(toId)}"]`)?.focus({ preventScroll: true });
+		containerElement
+			?.querySelector<SVGGElement>(`[data-person-id="${CSS.escape(toId)}"]`)
+			?.focus({ preventScroll: true });
 		ensureVisible(toId);
 	}
 
@@ -556,7 +633,9 @@
 			return;
 		}
 		const direction = ARROW_KEYS[event.key];
-		const fromId = (event.target as Element).closest?.('[data-person-id]')?.getAttribute('data-person-id');
+		const fromId = (event.target as Element)
+			.closest?.('[data-person-id]')
+			?.getAttribute('data-person-id');
 		if (direction && fromId) {
 			event.preventDefault();
 			const next = neighbourOf(layout, fromId, direction);
@@ -599,7 +678,9 @@
 					{edge}
 					{stub}
 					isFromUnion={stub ? stub.unionId !== null : false}
-					isUnionEnded={unionId ? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active') : false}
+					isUnionEnded={unionId
+						? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active')
+						: false}
 					isSelected={selectedEdgeId === edge.id}
 				/>
 			{/each}
@@ -642,7 +723,9 @@
 						{edge}
 						part="target"
 						isTabbable={tabbableEdgeIds.has(edge.id)}
-						isUnionEnded={unionId ? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active') : false}
+						isUnionEnded={unionId
+							? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active')
+							: false}
 						label={edgeLabel(edge)}
 						onSelect={onEdgeSelect}
 						onContextMenu={openEdgeMenu}
@@ -674,7 +757,13 @@
 					transform="translate({stub.x}, {stub.y})"
 					role="button"
 					tabindex="0"
-					aria-label="Show {stub.count} more {stub.kind === 'ancestors' ? (stub.count === 1 ? 'parent' : 'ancestors') : stub.count === 1 ? 'child' : 'children'}"
+					aria-label="Show {stub.count} more {stub.kind === 'ancestors'
+						? stub.count === 1
+							? 'parent'
+							: 'ancestors'
+						: stub.count === 1
+							? 'child'
+							: 'children'}"
 					onclick={(event) => {
 						event.stopPropagation();
 						onExpandStub?.(stub.id);
@@ -694,7 +783,9 @@
 						rx={LAYOUT_METRICS.stubHeight / 2}
 					/>
 					<text text-anchor="middle" y="5">+{stub.count}</text>
-					<title>Show {stub.count} more {stub.kind === 'ancestors' ? 'ancestors' : 'children'}</title>
+					<title
+						>Show {stub.count} more {stub.kind === 'ancestors' ? 'ancestors' : 'children'}</title
+					>
 				</g>
 			{/each}
 
@@ -731,24 +822,44 @@
 		</div>
 	{/if}
 
-	<div class="absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)]">
+	<div class="absolute top-4 left-4 z-20 max-h-[calc(100%-2rem)]">
 		<TreeLegend />
 	</div>
 
 	<div
-		class="absolute bottom-6 right-6 z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
+		class="absolute right-6 bottom-6 z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
 		style="background: var(--tree-panel);"
 	>
-		<button type="button" title="Zoom in" aria-label="Zoom in" onclick={() => zoomBy(ZOOM_STEP)} class="control">
+		<button
+			type="button"
+			title="Zoom in"
+			aria-label="Zoom in"
+			onclick={() => zoomBy(ZOOM_STEP)}
+			class="control"
+		>
 			<ZoomIn class="h-4 w-4" />
 		</button>
-		<button type="button" title="Zoom out" aria-label="Zoom out" onclick={() => zoomBy(1 / ZOOM_STEP)} class="control">
+		<button
+			type="button"
+			title="Zoom out"
+			aria-label="Zoom out"
+			onclick={() => zoomBy(1 / ZOOM_STEP)}
+			class="control"
+		>
 			<ZoomOut class="h-4 w-4" />
 		</button>
-		<button type="button" title="Fit to view" aria-label="Fit to view" onclick={() => fit()} class="control">
+		<button
+			type="button"
+			title="Fit to view"
+			aria-label="Fit to view"
+			onclick={() => fit()}
+			class="control"
+		>
 			<Maximize2 class="h-4 w-4" />
 		</button>
-		<span class="px-1 text-[11px] tabular-nums text-stone-500" aria-live="off">{Math.round(transform.k * 100)}%</span>
+		<span class="px-1 text-[11px] text-stone-500 tabular-nums" aria-live="off"
+			>{Math.round(transform.k * 100)}%</span
+		>
 	</div>
 
 	{#if menu}

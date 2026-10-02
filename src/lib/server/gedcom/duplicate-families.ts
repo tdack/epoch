@@ -16,7 +16,8 @@ export const POSSIBLE_DUPLICATE_REASONS = {
 	SUBSET_OF_FULL_FAMILY: 'subset_of_full_family',
 	SAME_SINGLE_PARTNER: 'same_single_partner'
 } as const;
-export type PossibleDuplicateReason = (typeof POSSIBLE_DUPLICATE_REASONS)[keyof typeof POSSIBLE_DUPLICATE_REASONS];
+export type PossibleDuplicateReason =
+	(typeof POSSIBLE_DUPLICATE_REASONS)[keyof typeof POSSIBLE_DUPLICATE_REASONS];
 
 export interface ExactDuplicateGroup {
 	/** The family that stays, then the ones merged into it. */
@@ -38,10 +39,18 @@ export interface DuplicateFamilyReport {
 	possible: PossibleDuplicateGroup[];
 }
 
-const partnersOf = (fam: ParsedFamily) => [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
+const partnersOf = (fam: ParsedFamily) =>
+	[fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
 
 const factsOf = (events: ParsedEvent[]) =>
-	events.map((e) => factKey({ type: e.type, dateText: e.dateRaw ?? null, place: e.place ?? null, description: e.description ?? null }));
+	events.map((e) =>
+		factKey({
+			type: e.type,
+			dateText: e.dateRaw ?? null,
+			place: e.place ?? null,
+			description: e.description ?? null
+		})
+	);
 
 const signatureOf = (fam: ParsedFamily) => factsOf(fam.events).sort().join('\n');
 
@@ -98,12 +107,17 @@ function analyse(parsed: ParsedGedcomData): Analysis {
 		// One partner is not enough to say two records are one family: they may be different, unrecorded,
 		// other parents. Report them; never merge them on their own.
 		if (partners.length < 2) {
-			possible.push({ familyIds: group.map((f) => f.id), reason: POSSIBLE_DUPLICATE_REASONS.SAME_SINGLE_PARTNER, partners: partnerNames(group[0]) });
+			possible.push({
+				familyIds: group.map((f) => f.id),
+				reason: POSSIBLE_DUPLICATE_REASONS.SAME_SINGLE_PARTNER,
+				partners: partnerNames(group[0])
+			});
 			continue;
 		}
 
 		const bySignature = new Map<string, ParsedFamily[]>();
-		for (const fam of group) bySignature.set(signatureOf(fam), [...(bySignature.get(signatureOf(fam)) ?? []), fam]);
+		for (const fam of group)
+			bySignature.set(signatureOf(fam), [...(bySignature.get(signatureOf(fam)) ?? []), fam]);
 
 		const representatives: ParsedFamily[] = [];
 		for (const cluster of bySignature.values()) {
@@ -112,7 +126,11 @@ function analyse(parsed: ParsedGedcomData): Analysis {
 				continue;
 			}
 			if (hasChildConflict(cluster)) {
-				possible.push({ familyIds: cluster.map((f) => f.id), reason: POSSIBLE_DUPLICATE_REASONS.DIFFERENT_CHILD_RECORDS, partners: partnerNames(cluster[0]) });
+				possible.push({
+					familyIds: cluster.map((f) => f.id),
+					reason: POSSIBLE_DUPLICATE_REASONS.DIFFERENT_CHILD_RECORDS,
+					partners: partnerNames(cluster[0])
+				});
 				representatives.push(cluster[0]);
 				continue;
 			}
@@ -128,7 +146,11 @@ function analyse(parsed: ParsedGedcomData): Analysis {
 		}
 		// Same people, but the records state different facts (or one states a fact the other lacks).
 		if (bySignature.size > 1) {
-			possible.push({ familyIds: representatives.map((f) => f.id), reason: POSSIBLE_DUPLICATE_REASONS.DIFFERENT_FACTS, partners: partnerNames(group[0]) });
+			possible.push({
+				familyIds: representatives.map((f) => f.id),
+				reason: POSSIBLE_DUPLICATE_REASONS.DIFFERENT_FACTS,
+				partners: partnerNames(group[0])
+			});
 		}
 	}
 
@@ -144,7 +166,11 @@ function analyse(parsed: ParsedGedcomData): Analysis {
 				[...children].every((id) => other.children.some((c) => c.childId === id))
 		);
 		if (fuller.length > 0) {
-			possible.push({ familyIds: [fam.id, ...fuller.map((f) => f.id)], reason: POSSIBLE_DUPLICATE_REASONS.SUBSET_OF_FULL_FAMILY, partners: partnerNames(fam) });
+			possible.push({
+				familyIds: [fam.id, ...fuller.map((f) => f.id)],
+				reason: POSSIBLE_DUPLICATE_REASONS.SUBSET_OF_FULL_FAMILY,
+				partners: partnerNames(fam)
+			});
 		}
 	}
 
@@ -159,7 +185,10 @@ export function detectDuplicateFamilies(parsed: ParsedGedcomData): DuplicateFami
  * The parsed data with every exact duplicate folded into its survivor: children and events are
  * combined without repeats, and each merged XREF becomes an alias of the survivor.
  */
-export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): { parsed: ParsedGedcomData; mergedCount: number } {
+export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
+	parsed: ParsedGedcomData;
+	mergedCount: number;
+} {
 	const { clusters } = analyse(parsed);
 	if (clusters.length === 0) return { parsed, mergedCount: 0 };
 
@@ -171,7 +200,8 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): { parsed:
 		const events = new Map<string, ParsedEvent>();
 		const aliases = new Set<string>(survivor.aliases ?? []);
 		for (const fam of [survivor, ...cluster.filter((f) => f !== survivor)]) {
-			for (const child of fam.children) if (!children.has(child.childId)) children.set(child.childId, child);
+			for (const child of fam.children)
+				if (!children.has(child.childId)) children.set(child.childId, child);
 			for (const event of fam.events) {
 				const key = factsOf([event])[0];
 				if (!events.has(key)) events.set(key, event);
@@ -193,7 +223,9 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): { parsed:
 	return {
 		parsed: {
 			...parsed,
-			families: parsed.families.filter((f) => !removed.has(f.id)).map((f) => replacement.get(f.id) ?? f)
+			families: parsed.families
+				.filter((f) => !removed.has(f.id))
+				.map((f) => replacement.get(f.id) ?? f)
 		},
 		mergedCount: removed.size
 	};
@@ -225,9 +257,11 @@ export function foldIntoExistingAliases(
 		}
 		// Two records now name one union: keep everything either says, without repeating a child or a fact.
 		const children = new Map(existing.children.map((c) => [c.childId, c] as const));
-		for (const child of fam.children) if (!children.has(child.childId)) children.set(child.childId, child);
+		for (const child of fam.children)
+			if (!children.has(child.childId)) children.set(child.childId, child);
 		const events = new Map(existing.events.map((e) => [factsOf([e])[0], e] as const));
-		for (const event of fam.events) if (!events.has(factsOf([event])[0])) events.set(factsOf([event])[0], event);
+		for (const event of fam.events)
+			if (!events.has(factsOf([event])[0])) events.set(factsOf([event])[0], event);
 		families.set(target, {
 			...existing,
 			husbandId: existing.husbandId ?? fam.husbandId,
@@ -237,7 +271,8 @@ export function foldIntoExistingAliases(
 		});
 	}
 
-	const remap = (ids: string[] | undefined) => (ids ? [...new Set(ids.map((id) => survivorOfAlias.get(id) ?? id))] : ids);
+	const remap = (ids: string[] | undefined) =>
+		ids ? [...new Set(ids.map((id) => survivorOfAlias.get(id) ?? id))] : ids;
 	return {
 		parsed: {
 			...parsed,
@@ -246,7 +281,10 @@ export function foldIntoExistingAliases(
 				...ind,
 				famc: remap(ind.famc),
 				fams: remap(ind.fams),
-				famcLinks: ind.famcLinks?.map((link) => ({ ...link, familyId: survivorOfAlias.get(link.familyId) ?? link.familyId }))
+				famcLinks: ind.famcLinks?.map((link) => ({
+					...link,
+					familyId: survivorOfAlias.get(link.familyId) ?? link.familyId
+				}))
 			}))
 		},
 		foldedCount

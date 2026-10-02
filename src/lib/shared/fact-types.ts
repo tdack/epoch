@@ -19,8 +19,18 @@ export interface FactTypeInfo {
 	isSingular: boolean;
 }
 
-const event = (code: string, label: string, isSingular = false): FactTypeInfo => ({ code, label, kind: FACT_KINDS.EVENT, isSingular });
-const attribute = (code: string, label: string, isSingular = false): FactTypeInfo => ({ code, label, kind: FACT_KINDS.ATTRIBUTE, isSingular });
+const event = (code: string, label: string, isSingular = false): FactTypeInfo => ({
+	code,
+	label,
+	kind: FACT_KINDS.EVENT,
+	isSingular
+});
+const attribute = (code: string, label: string, isSingular = false): FactTypeInfo => ({
+	code,
+	label,
+	kind: FACT_KINDS.ATTRIBUTE,
+	isSingular
+});
 
 export const FACT_TYPE_LIST: readonly FactTypeInfo[] = [
 	event('BIRT', 'Birth', true),
@@ -90,4 +100,11 @@ export interface FactInput {
 	notes: string | null;
 }
 
-export const FACT_TEXT_FIELDS = ['dateText', 'place', 'value', 'cause', 'age', 'notes'] as const satisfies ReadonlyArray<keyof FactInput>;
+export const FACT_TEXT_FIELDS = [
+	'dateText',
+	'place',
+	'value',
+	'cause',
+	'age',
+	'notes'
+] as const satisfies ReadonlyArray<keyof FactInput>;

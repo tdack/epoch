@@ -68,17 +68,23 @@
 	const messageId = $derived(`${id}-message`);
 
 	/** Monday-first, matching the region this is used in; the blanks pad the first week. */
-	const leadingBlanks = $derived((new Date(Date.UTC(viewYear, viewMonth - 1, 1)).getUTCDay() + 6) % 7);
+	const leadingBlanks = $derived(
+		(new Date(Date.UTC(viewYear, viewMonth - 1, 1)).getUTCDay() + 6) % 7
+	);
 	const dayCount = $derived(daysInMonthOf(viewYear, viewMonth));
 
 	function placePicker() {
 		if (!wrapper) return;
 		const rect = wrapper.getBoundingClientRect();
-		const left = Math.min(Math.max(rect.right - PICKER_WIDTH_PX, VIEWPORT_MARGIN_PX), window.innerWidth - PICKER_WIDTH_PX - VIEWPORT_MARGIN_PX);
+		const left = Math.min(
+			Math.max(rect.right - PICKER_WIDTH_PX, VIEWPORT_MARGIN_PX),
+			window.innerWidth - PICKER_WIDTH_PX - VIEWPORT_MARGIN_PX
+		);
 		const below = rect.bottom + 4;
 		// Open upwards when there is no room below and more room above.
 		const isRoomBelow = below + PICKER_HEIGHT_PX <= window.innerHeight - VIEWPORT_MARGIN_PX;
-		const top = isRoomBelow || rect.top < PICKER_HEIGHT_PX ? below : rect.top - PICKER_HEIGHT_PX - 4;
+		const top =
+			isRoomBelow || rect.top < PICKER_HEIGHT_PX ? below : rect.top - PICKER_HEIGHT_PX - 4;
 		pickerPosition = { left, top: Math.max(VIEWPORT_MARGIN_PX, top) };
 	}
 
@@ -166,7 +172,14 @@
 			onclick={() => (isPickerOpen ? (isPickerOpen = false) : openPicker())}
 			class="shrink-0 cursor-pointer rounded-lg border border-stone-300 bg-white px-2 text-stone-600 hover:bg-stone-100 disabled:opacity-50"
 		>
-			<svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+			<svg
+				viewBox="0 0 20 20"
+				class="h-4 w-4"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				aria-hidden="true"
+			>
 				<rect x="3" y="4.5" width="14" height="12" rx="2" />
 				<path d="M3 8.5h14M7 3v3M13 3v3" stroke-linecap="round" />
 			</svg>
@@ -188,7 +201,9 @@
 			class="fixed z-20 w-64 space-y-2 rounded-xl border border-stone-300 bg-white p-3 text-stone-800 shadow-xl"
 		>
 			<div class="flex items-center gap-1">
-				<button type="button" aria-label="Previous year" onclick={() => shiftYear(-1)} class="nav">‹</button>
+				<button type="button" aria-label="Previous year" onclick={() => shiftYear(-1)} class="nav"
+					>‹</button
+				>
 				<input
 					type="number"
 					min="1"
@@ -198,10 +213,17 @@
 					oninput={onYearInput}
 					class="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-center text-sm"
 				/>
-				<button type="button" aria-label="Next year" onclick={() => shiftYear(1)} class="nav">›</button>
+				<button type="button" aria-label="Next year" onclick={() => shiftYear(1)} class="nav"
+					>›</button
+				>
 			</div>
 			<div class="flex items-center gap-1">
-				<button type="button" aria-label="Previous decade" onclick={() => shiftYear(-10)} class="nav text-[11px]">−10</button>
+				<button
+					type="button"
+					aria-label="Previous decade"
+					onclick={() => shiftYear(-10)}
+					class="nav text-[11px]">−10</button
+				>
 				<select
 					aria-label="Month"
 					bind:value={viewMonth}
@@ -211,7 +233,12 @@
 						<option value={i + 1}>{name}</option>
 					{/each}
 				</select>
-				<button type="button" aria-label="Next decade" onclick={() => shiftYear(10)} class="nav text-[11px]">+10</button>
+				<button
+					type="button"
+					aria-label="Next decade"
+					onclick={() => shiftYear(10)}
+					class="nav text-[11px]">+10</button
+				>
 			</div>
 
 			<div class="grid grid-cols-7 gap-0.5 text-center text-[11px]">
@@ -223,13 +250,16 @@
 				{/each}
 				{#each { length: dayCount } as _, i (i)}
 					{@const day = i + 1}
-					{@const isPicked = pickedYear === viewYear && pickedMonth === viewMonth && pickedDay === day}
+					{@const isPicked =
+						pickedYear === viewYear && pickedMonth === viewMonth && pickedDay === day}
 					<button
 						type="button"
 						aria-label="{day} {MONTH_NAMES[viewMonth - 1]} {viewYear}"
 						aria-pressed={isPicked}
 						onclick={() => commit({ year: viewYear, month: viewMonth, day })}
-						class="cursor-pointer rounded-md py-1 text-xs hover:bg-emerald-100 {isPicked ? 'bg-emerald-700 text-white hover:bg-emerald-700' : ''}"
+						class="cursor-pointer rounded-md py-1 text-xs hover:bg-emerald-100 {isPicked
+							? 'bg-emerald-700 text-white hover:bg-emerald-700'
+							: ''}"
 					>
 						{day}
 					</button>
@@ -237,10 +267,19 @@
 			</div>
 
 			<div class="flex gap-1 border-t border-stone-200 pt-2 text-[11px]">
-				<button type="button" onclick={() => commit({ year: viewYear, month: viewMonth, day: null })} class="action">
-					{MONTH_ABBREVIATIONS[viewMonth - 1]} {viewYear} only
+				<button
+					type="button"
+					onclick={() => commit({ year: viewYear, month: viewMonth, day: null })}
+					class="action"
+				>
+					{MONTH_ABBREVIATIONS[viewMonth - 1]}
+					{viewYear} only
 				</button>
-				<button type="button" onclick={() => commit({ year: viewYear, month: null, day: null })} class="action">
+				<button
+					type="button"
+					onclick={() => commit({ year: viewYear, month: null, day: null })}
+					class="action"
+				>
 					{viewYear} only
 				</button>
 			</div>

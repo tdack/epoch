@@ -11,7 +11,14 @@ import { individuals, trees } from '../db/schema';
 import { NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { GraphQueryService } from './graph-query-service';
 import { PersonPageService } from './person-page-service';
 import { UnionPageService } from './union-page-service';
@@ -84,7 +91,16 @@ const FIXTURE = `0 HEAD
 0 TRLR`;
 
 /** Strings that exist only in records a restricted viewer may not see. */
-const SECRETS = ['Livia', 'Aliveson', 'Zetaman', 'Perthville', 'Marriageton', 'Tottie', 'Youngling', 'SEPTEMBER'];
+const SECRETS = [
+	'Livia',
+	'Aliveson',
+	'Zetaman',
+	'Perthville',
+	'Marriageton',
+	'Tottie',
+	'Youngling',
+	'SEPTEMBER'
+];
 
 let t: TestDatabase;
 let treeId: string;
@@ -93,7 +109,12 @@ let idOf: (xref: string) => string;
 let unionOf: (personXref: string, other: string) => Promise<string>;
 const now = () => NOW;
 
-const OPTIONS = { ancestorDepth: 3, descendantDepth: 3, shouldIncludeSiblings: true, shouldIncludeStepFamilies: true };
+const OPTIONS = {
+	ancestorDepth: 3,
+	descendantDepth: 3,
+	shouldIncludeSiblings: true,
+	shouldIncludeStepFamilies: true
+};
 const graph = () => new GraphQueryService(t.db, now);
 const persons = () => new PersonPageService(t.db, now);
 const unionsPage = () => new UnionPageService(t.db, now);
@@ -103,7 +124,10 @@ async function setPlaceholders(isOn: boolean) {
 }
 // Names and places, and the ids of the private people: an id left in a link, a partner list or a stub is a leak too.
 // A placeholder keeps its id so the structure can be drawn, so the ids are only secrets when people are omitted.
-const leaks = (value: unknown, areIdsSecret = true) => [...SECRETS, ...(areIdsSecret ? [idOf('@I2@'), idOf('@I5@')] : [])].filter((s) => JSON.stringify(value).includes(s));
+const leaks = (value: unknown, areIdsSecret = true) =>
+	[...SECRETS, ...(areIdsSecret ? [idOf('@I2@'), idOf('@I5@')] : [])].filter((s) =>
+		JSON.stringify(value).includes(s)
+	);
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -114,12 +138,17 @@ beforeAll(async () => {
 		await addTestMember(t.db, treeId, actors[role], role);
 	}
 	await importGedcomToDb(t.d1, treeId, FIXTURE, 'Records');
-	const rows = await t.db.select({ id: individuals.id, xref: individuals.xrefId }).from(individuals).where(eq(individuals.treeId, treeId));
+	const rows = await t.db
+		.select({ id: individuals.id, xref: individuals.xrefId })
+		.from(individuals)
+		.where(eq(individuals.treeId, treeId));
 	const byXref = new Map(rows.map((r) => [r.xref, r.id]));
 	idOf = (xref) => byXref.get(xref)!;
 	unionOf = async (a, b) => {
 		const r = await t.d1
-			.prepare('select u.id id from unions u join union_partners x on x.union_id = u.id join union_partners y on y.union_id = u.id where x.person_id = ?1 and y.person_id = ?2')
+			.prepare(
+				'select u.id id from unions u join union_partners x on x.union_id = u.id join union_partners y on y.union_id = u.id where x.person_id = ?1 and y.person_id = ?2'
+			)
 			.bind(idOf(a), idOf(b))
 			.first<{ id: string }>();
 		return r!.id;
@@ -130,37 +159,51 @@ afterAll(async () => {
 });
 
 describe('the control: roles that see everyone', () => {
-	it.each(['owner', 'editor'] as const)('%s reads the private people and their facts', async (role) => {
-		const r = await graph().focusGraph(treeId, idOf('@I1@'), OPTIONS, actors[role].context);
-		expect(r.graph.people.map((p) => p.displayName).join('|')).toContain('Livia');
-		const union = await unionsPage().getUnion(treeId, await unionOf('@I1@', '@I2@'), actors[role].context);
-		expect(union.events.map((e) => e.dateText).join()).toContain('1990');
-		expect((await graph().summary(treeId, actors[role].context)).counts.people).toBe(7);
-	});
+	it.each(['owner', 'editor'] as const)(
+		'%s reads the private people and their facts',
+		async (role) => {
+			const r = await graph().focusGraph(treeId, idOf('@I1@'), OPTIONS, actors[role].context);
+			expect(r.graph.people.map((p) => p.displayName).join('|')).toContain('Livia');
+			const union = await unionsPage().getUnion(
+				treeId,
+				await unionOf('@I1@', '@I2@'),
+				actors[role].context
+			);
+			expect(union.events.map((e) => e.dateText).join()).toContain('1990');
+			expect((await graph().summary(treeId, actors[role].context)).counts.people).toBe(7);
+		}
+	);
 });
 
 describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceholders) => {
 	beforeAll(() => setPlaceholders(hasPlaceholders));
 
-	it.each(['contributor', 'viewer'] as const)('%s: the focus graph carries nothing private', async (role) => {
-		const r = await graph().focusGraph(treeId, idOf('@I1@'), OPTIONS, actors[role].context);
-		expect(leaks(r, !hasPlaceholders)).toEqual([]);
-		const ids = r.graph.people.map((p) => p.id);
-		expect(ids).toContain(idOf('@I3@'));
-		if (hasPlaceholders) {
-			const livia = r.graph.people.find((p) => p.id === idOf('@I2@'))!;
-			expect(livia).toMatchObject({ displayName: 'Private', isPrivate: true });
-		} else {
-			expect(ids).not.toContain(idOf('@I2@'));
-			expect(ids).not.toContain(idOf('@I5@'));
+	it.each(['contributor', 'viewer'] as const)(
+		'%s: the focus graph carries nothing private',
+		async (role) => {
+			const r = await graph().focusGraph(treeId, idOf('@I1@'), OPTIONS, actors[role].context);
+			expect(leaks(r, !hasPlaceholders)).toEqual([]);
+			const ids = r.graph.people.map((p) => p.id);
+			expect(ids).toContain(idOf('@I3@'));
+			if (hasPlaceholders) {
+				const livia = r.graph.people.find((p) => p.id === idOf('@I2@'))!;
+				expect(livia).toMatchObject({ displayName: 'Private', isPrivate: true });
+			} else {
+				expect(ids).not.toContain(idOf('@I2@'));
+				expect(ids).not.toContain(idOf('@I5@'));
+			}
+			// The marriage of a private person is withheld in both modes.
+			expect(JSON.stringify(r)).not.toContain('1990');
 		}
-		// The marriage of a private person is withheld in both modes.
-		expect(JSON.stringify(r)).not.toContain('1990');
-	});
+	);
 
 	it('counts a private child in a stub only when placeholders are on', async () => {
 		const options = { ...OPTIONS, descendantDepth: 0 };
-		const stubTotal = async (role: TreeRole) => (await graph().focusGraph(treeId, idOf('@I1@'), options, actors[role].context)).stubs.reduce((n, s) => n + s.count, 0);
+		const stubTotal = async (role: TreeRole) =>
+			(await graph().focusGraph(treeId, idOf('@I1@'), options, actors[role].context)).stubs.reduce(
+				(n, s) => n + s.count,
+				0
+			);
 		const everyone = await stubTotal('owner');
 		expect(everyone).toBeGreaterThan(0);
 		// Tottie is Grandar's private child: omitted, nobody is counted for her.
@@ -169,21 +212,38 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 
 	it('answers for a private person exactly as for one that does not exist', async () => {
 		const ctx = actors.viewer.context;
-		const hidden = await graph().focusGraph(treeId, idOf('@I2@'), OPTIONS, ctx).catch((e) => e);
-		const missing = await graph().focusGraph(treeId, 'no-such-person', OPTIONS, ctx).catch((e) => e);
+		const hidden = await graph()
+			.focusGraph(treeId, idOf('@I2@'), OPTIONS, ctx)
+			.catch((e) => e);
+		const missing = await graph()
+			.focusGraph(treeId, 'no-such-person', OPTIONS, ctx)
+			.catch((e) => e);
 		expect(hidden).toBeInstanceOf(NotFoundError);
 		expect(missing).toBeInstanceOf(NotFoundError);
-		expect(hidden.message.replace(idOf('@I2@'), 'ID')).toBe(missing.message.replace('no-such-person', 'ID'));
-		const page = await persons().getPerson(treeId, idOf('@I2@'), ctx).catch((e) => e);
-		const missingPage = await persons().getPerson(treeId, 'no-such-person', ctx).catch((e) => e);
+		expect(hidden.message.replace(idOf('@I2@'), 'ID')).toBe(
+			missing.message.replace('no-such-person', 'ID')
+		);
+		const page = await persons()
+			.getPerson(treeId, idOf('@I2@'), ctx)
+			.catch((e) => e);
+		const missingPage = await persons()
+			.getPerson(treeId, 'no-such-person', ctx)
+			.catch((e) => e);
 		expect(page).toBeInstanceOf(NotFoundError);
-		expect(page.message.replace(idOf('@I2@'), 'ID')).toBe(missingPage.message.replace('no-such-person', 'ID'));
-		const union = await unionsPage().getUnion(treeId, await unionOf('@I1@', '@I2@'), ctx).catch((e) => e);
+		expect(page.message.replace(idOf('@I2@'), 'ID')).toBe(
+			missingPage.message.replace('no-such-person', 'ID')
+		);
+		const union = await unionsPage()
+			.getUnion(treeId, await unionOf('@I1@', '@I2@'), ctx)
+			.catch((e) => e);
 		if (hasPlaceholders) {
 			// The structure stands, as placeholders, and the wedding's facts stay withheld.
 			expect(union.events).toEqual([]);
 			expect(leaks(union, false)).toEqual([]);
-			expect(union.partners.map((p: { displayName: string }) => p.displayName).sort()).toEqual(['Grandar Oldman', 'Private']);
+			expect(union.partners.map((p: { displayName: string }) => p.displayName).sort()).toEqual([
+				'Grandar Oldman',
+				'Private'
+			]);
 		} else {
 			expect(union).toBeInstanceOf(NotFoundError);
 			expect(union.message).toContain('Partnership');
@@ -198,14 +258,18 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 		expect(linked.includes(unionId)).toBe(hasPlaceholders);
 	});
 
-	it('shows a visible person\'s page without the private people around them', async () => {
+	it("shows a visible person's page without the private people around them", async () => {
 		const page = await persons().getPerson(treeId, idOf('@I3@'), actors.viewer.context);
 		expect(leaks(page, !hasPlaceholders)).toEqual([]);
 		expect(page.changes.recent).toEqual([]);
 	});
 
 	it('shows a partnership with no private partner, and withholds a private child', async () => {
-		const page = await unionsPage().getUnion(treeId, await unionOf('@I1@', '@I4@'), actors.viewer.context);
+		const page = await unionsPage().getUnion(
+			treeId,
+			await unionOf('@I1@', '@I4@'),
+			actors.viewer.context
+		);
 		expect(leaks(page, !hasPlaceholders)).toEqual([]);
 		expect(page.partners.map((p) => p.displayName)).toEqual(['Grandar Oldman', 'Samuel Passed']);
 	});
@@ -215,6 +279,8 @@ describe.each([false, true])('a restricted viewer, placeholders %s', (hasPlaceho
 		// Grandar, Kitt, Samuel, Orla and Parnell are visible; Livia and Tottie are private.
 		expect(summary.counts.people).toBe(5);
 		expect(summary.counts.unions).toBe(2);
-		expect([idOf('@I1@'), idOf('@I3@'), idOf('@I4@'), idOf('@I6@'), idOf('@I7@')]).toContain(summary.defaultFocusPersonId);
+		expect([idOf('@I1@'), idOf('@I3@'), idOf('@I4@'), idOf('@I6@'), idOf('@I7@')]).toContain(
+			summary.defaultFocusPersonId
+		);
 	});
 });

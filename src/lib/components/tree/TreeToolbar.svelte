@@ -15,10 +15,19 @@
 		/** Refocus the tree on a person picked from the search results. */
 		onPickFocus: (personId: string) => void;
 		/** Offered before anything is typed: the people the user favourited and opened lately. */
-		suggestions?: { favorites: Array<{ id: string; displayName: string }>; recents: Array<{ id: string; displayName: string }> };
+		suggestions?: {
+			favorites: Array<{ id: string; displayName: string }>;
+			recents: Array<{ id: string; displayName: string }>;
+		};
 	}
 
-	let { view, searchPeople, onChange, onPickFocus, suggestions = { favorites: [], recents: [] } }: Props = $props();
+	let {
+		view,
+		searchPeople,
+		onChange,
+		onPickFocus,
+		suggestions = { favorites: [], recents: [] }
+	}: Props = $props();
 
 	interface Option {
 		id: string;
@@ -47,9 +56,15 @@
 	// A favourite is listed once, under Favourites, and not again among the recents.
 	const suggestionOptions = $derived<Option[]>([
 		...suggestions.favorites.map((p) => ({ id: p.id, label: p.displayName, group: 'Favourite' })),
-		...suggestions.recents.filter((r) => !suggestions.favorites.some((f) => f.id === r.id)).map((p) => ({ id: p.id, label: p.displayName, group: 'Recent' }))
+		...suggestions.recents
+			.filter((r) => !suggestions.favorites.some((f) => f.id === r.id))
+			.map((p) => ({ id: p.id, label: p.displayName, group: 'Recent' }))
 	]);
-	const options = $derived<Option[]>(query.trim() ? results.map((r) => ({ id: r.id, label: label(r), alias: r.matchedName })) : suggestionOptions);
+	const options = $derived<Option[]>(
+		query.trim()
+			? results.map((r) => ({ id: r.id, label: label(r), alias: r.matchedName }))
+			: suggestionOptions
+	);
 
 	function onFocus() {
 		if (!query.trim() && suggestionOptions.length > 0) {
@@ -117,18 +132,32 @@
 		const isShown = view.types.includes(type);
 		// Hiding the last type would draw no parentage at all, so one always stays on.
 		if (isShown && view.types.length === 1) return;
-		onChange({ types: ALL_PARENT_CHILD_TYPES.filter((t) => (t === type ? !isShown : view.types.includes(t))) });
+		onChange({
+			types: ALL_PARENT_CHILD_TYPES.filter((t) => (t === type ? !isShown : view.types.includes(t)))
+		});
 	}
 </script>
 
 {#snippet stepper(name: string, field: 'ancestorDepth' | 'descendantDepth')}
 	<div class="group" role="group" aria-label="{name} generations">
 		<span class="caption">{name}</span>
-		<button type="button" class="step" aria-label="Fewer {name.toLowerCase()} generations" disabled={view[field] <= 0} onclick={() => setDepth(field, view[field] - 1)}>
+		<button
+			type="button"
+			class="step"
+			aria-label="Fewer {name.toLowerCase()} generations"
+			disabled={view[field] <= 0}
+			onclick={() => setDepth(field, view[field] - 1)}
+		>
 			<Minus class="h-3.5 w-3.5" />
 		</button>
 		<output class="value" aria-live="polite">{view[field]}</output>
-		<button type="button" class="step" aria-label="More {name.toLowerCase()} generations" disabled={view[field] >= MAX_DEPTH} onclick={() => setDepth(field, view[field] + 1)}>
+		<button
+			type="button"
+			class="step"
+			aria-label="More {name.toLowerCase()} generations"
+			disabled={view[field] >= MAX_DEPTH}
+			onclick={() => setDepth(field, view[field] + 1)}
+		>
 			<Plus class="h-3.5 w-3.5" />
 		</button>
 	</div>
@@ -147,7 +176,9 @@
 			aria-expanded={isOpen}
 			aria-controls="tree-focus-results"
 			aria-autocomplete="list"
-			aria-activedescendant={isOpen && options[highlighted] ? `tree-focus-result-${highlighted}` : undefined}
+			aria-activedescendant={isOpen && options[highlighted]
+				? `tree-focus-result-${highlighted}`
+				: undefined}
 			bind:value={query}
 			oninput={onInput}
 			onkeydown={onSearchKeydown}
@@ -176,7 +207,9 @@
 						{/if}
 					</li>
 				{:else}
-					<li class="none" role="option" aria-selected="false" aria-disabled="true">No matching people</li>
+					<li class="none" role="option" aria-selected="false" aria-disabled="true">
+						No matching people
+					</li>
 				{/each}
 			</ul>
 		{/if}
@@ -191,11 +224,22 @@
 	{@render stepper('Descendants', 'descendantDepth')}
 
 	<label class="toggle">
-		<input type="checkbox" checked={view.shouldIncludeSiblings} onchange={(e) => onChange({ shouldIncludeSiblings: e.currentTarget.checked })} />
+		<input
+			type="checkbox"
+			checked={view.shouldIncludeSiblings}
+			onchange={(e) => onChange({ shouldIncludeSiblings: e.currentTarget.checked })}
+		/>
 		Siblings
 	</label>
-	<label class="toggle" title="Draw each partner's other families, such as the focus person's step-children">
-		<input type="checkbox" checked={view.shouldIncludeStepFamilies} onchange={(e) => onChange({ shouldIncludeStepFamilies: e.currentTarget.checked })} />
+	<label
+		class="toggle"
+		title="Draw each partner's other families, such as the focus person's step-children"
+	>
+		<input
+			type="checkbox"
+			checked={view.shouldIncludeStepFamilies}
+			onchange={(e) => onChange({ shouldIncludeStepFamilies: e.currentTarget.checked })}
+		/>
 		Step-family
 	</label>
 
@@ -204,9 +248,22 @@
 		{#each ALL_PARENT_CHILD_TYPES as type (type)}
 			{@const style = RELATIONSHIP_STYLES[type]}
 			<label class="toggle">
-				<input type="checkbox" checked={view.types.includes(type)} onchange={() => toggleType(type)} />
+				<input
+					type="checkbox"
+					checked={view.types.includes(type)}
+					onchange={() => toggleType(type)}
+				/>
 				<svg width="22" height="8" aria-hidden="true">
-					<line x1="1" y1="4" x2="21" y2="4" stroke={`var(${style.colorVar})`} stroke-width="2" stroke-dasharray={style.dash ?? undefined} stroke-linecap={style.isRound ? 'round' : undefined} />
+					<line
+						x1="1"
+						y1="4"
+						x2="21"
+						y2="4"
+						stroke={`var(${style.colorVar})`}
+						stroke-width="2"
+						stroke-dasharray={style.dash ?? undefined}
+						stroke-linecap={style.isRound ? 'round' : undefined}
+					/>
 				</svg>
 				{style.label}
 			</label>

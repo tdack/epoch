@@ -6,7 +6,12 @@ import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
 import { GraphWindowRepository, type Read } from '../repositories/graph-window-repository';
 import { compactStubId, resolveStubTokens } from '../../shared/stub-tokens';
-import { filterParentChildTypes, layoutFocusView, type FocusViewOptions, type ParentChildType } from '../../tree-layout/index';
+import {
+	filterParentChildTypes,
+	layoutFocusView,
+	type FocusViewOptions,
+	type ParentChildType
+} from '../../tree-layout/index';
 import { NotFoundError } from '../domain/errors';
 import { insertCorpus, type CorpusSummary } from '../testing/corpus';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
@@ -37,10 +42,15 @@ class CountingRepository extends GraphWindowRepository {
 
 function firstDifference(a: unknown, b: unknown, path = '$'): string | null {
 	if (Object.is(a, b)) return null;
-	if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return `${path}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`;
+	if (typeof a !== 'object' || typeof b !== 'object' || !a || !b)
+		return `${path}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`;
 	const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
 	for (const key of keys) {
-		const diff = firstDifference((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], `${path}.${key}`);
+		const diff = firstDifference(
+			(a as Record<string, unknown>)[key],
+			(b as Record<string, unknown>)[key],
+			`${path}.${key}`
+		);
 		if (diff) return diff;
 	}
 	return null;
@@ -51,10 +61,17 @@ const OPTION_SETS: Array<[string, FocusWindowOptions]> = [
 	['no generations', { ancestorDepth: 0, descendantDepth: 0 }],
 	['one each way', { ancestorDepth: 1, descendantDepth: 1 }],
 	['deep, no siblings', { ancestorDepth: 6, descendantDepth: 6, shouldIncludeSiblings: false }],
-	['mixed, step families', { ancestorDepth: 2, descendantDepth: 1, shouldIncludeStepFamilies: true }]
+	[
+		'mixed, step families',
+		{ ancestorDepth: 2, descendantDepth: 1, shouldIncludeStepFamilies: true }
+	]
 ];
 
-const TYPE_FILTERS: Array<ParentChildType[] | null> = [null, ['biological'], ['biological', 'adoptive']];
+const TYPE_FILTERS: Array<ParentChildType[] | null> = [
+	null,
+	['biological'],
+	['biological', 'adoptive']
+];
 
 async function wholeGraph(treeId: string) {
 	return graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
@@ -102,42 +119,80 @@ describe.each([
 		whole = await wholeGraph(treeId);
 	});
 
-	it('draws exactly what the whole tree draws, for every person as focus and every option set', async () => {
-		for (const person of whole.people) {
-			for (const [, options] of OPTION_SETS) {
-				await expectSameLayout(treeId, person.id, options, null, whole);
+	it(
+		'draws exactly what the whole tree draws, for every person as focus and every option set',
+		async () => {
+			for (const person of whole.people) {
+				for (const [, options] of OPTION_SETS) {
+					await expectSameLayout(treeId, person.id, options, null, whole);
+				}
 			}
-		}
-	}, EXHAUSTIVE_MS);
+		},
+		EXHAUSTIVE_MS
+	);
 
-	it('does the same with opened stubs and with parent-child type filters', async () => {
-		for (const person of whole.people) {
-			const base = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, { ancestorDepth: 1, descendantDepth: 1 });
-			const tokens = base.selection.stubs.map((s) => compactStubId(s.id)).filter((x): x is string => x !== null);
-			// Every stub opened at once, and the first alone.
-			for (const opened of [tokens, tokens.slice(0, 1)]) {
-				if (opened.length === 0) continue;
-				await expectSameLayout(treeId, person.id, { ancestorDepth: 1, descendantDepth: 1, expandedStubTokens: opened }, null, whole);
+	it(
+		'does the same with opened stubs and with parent-child type filters',
+		async () => {
+			for (const person of whole.people) {
+				const base = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, {
+					ancestorDepth: 1,
+					descendantDepth: 1
+				});
+				const tokens = base.selection.stubs
+					.map((s) => compactStubId(s.id))
+					.filter((x): x is string => x !== null);
+				// Every stub opened at once, and the first alone.
+				for (const opened of [tokens, tokens.slice(0, 1)]) {
+					if (opened.length === 0) continue;
+					await expectSameLayout(
+						treeId,
+						person.id,
+						{ ancestorDepth: 1, descendantDepth: 1, expandedStubTokens: opened },
+						null,
+						whole
+					);
+				}
+				for (const types of TYPE_FILTERS.slice(1))
+					await expectSameLayout(
+						treeId,
+						person.id,
+						{ ancestorDepth: 2, descendantDepth: 2 },
+						types,
+						whole
+					);
 			}
-			for (const types of TYPE_FILTERS.slice(1)) await expectSameLayout(treeId, person.id, { ancestorDepth: 2, descendantDepth: 2 }, types, whole);
-		}
-	}, EXHAUSTIVE_MS);
+		},
+		EXHAUSTIVE_MS
+	);
 
-	it('returns the same stub counts the whole-tree selection computes', async () => {
-		for (const person of whole.people) {
-			const window = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, { ancestorDepth: 1, descendantDepth: 1 });
-			const layout = layoutFocusView(whole, person.id, { ancestorDepth: 1, descendantDepth: 1 });
-			const byId = (a: [string, number], b: [string, number]) => a[0].localeCompare(b[0]);
-			const counts = (stubs: Array<{ id: string; count: number }>) => stubs.map((s): [string, number] => [s.id, s.count]).sort(byId);
-			expect(counts(window.selection.stubs)).toEqual(counts(layout.stubs));
-		}
-	}, EXHAUSTIVE_MS);
+	it(
+		'returns the same stub counts the whole-tree selection computes',
+		async () => {
+			for (const person of whole.people) {
+				const window = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, {
+					ancestorDepth: 1,
+					descendantDepth: 1
+				});
+				const layout = layoutFocusView(whole, person.id, { ancestorDepth: 1, descendantDepth: 1 });
+				const byId = (a: [string, number], b: [string, number]) => a[0].localeCompare(b[0]);
+				const counts = (stubs: Array<{ id: string; count: number }>) =>
+					stubs.map((s): [string, number] => [s.id, s.count]).sort(byId);
+				expect(counts(window.selection.stubs)).toEqual(counts(layout.stubs));
+			}
+		},
+		EXHAUSTIVE_MS
+	);
 
 	it('answers 404 for a person who is not in this tree', async () => {
 		const otherTree = await importTree(REPRESENTATIVE_GEDCOM_FIXTURE, 'other');
 		const otherPerson = (await wholeGraph(otherTree)).people[0]!.id;
-		await expect(loadFocusWindow(new GraphWindowRepository(t.db), treeId, otherPerson)).rejects.toBeInstanceOf(NotFoundError);
-		await expect(loadFocusWindow(new GraphWindowRepository(t.db), treeId, 'nobody')).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			loadFocusWindow(new GraphWindowRepository(t.db), treeId, otherPerson)
+		).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			loadFocusWindow(new GraphWindowRepository(t.db), treeId, 'nobody')
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });
 
@@ -163,23 +218,37 @@ describe('a window into a large tree', () => {
 	it('draws exactly what the whole tree draws, from the root, the leaves and the middle', async () => {
 		const sample = [corpus.rootPersonId, corpus.leafPersonId, corpus.remarriedPersonId];
 		for (const person of sample) {
-			for (const [, options] of OPTION_SETS) await expectSameLayout(treeId, person, options, null, whole);
+			for (const [, options] of OPTION_SETS)
+				await expectSameLayout(treeId, person, options, null, whole);
 		}
 		for (const person of whole.people.filter((_, i) => i % 401 === 0)) {
-			await expectSameLayout(treeId, person.id, { ancestorDepth: 3, descendantDepth: 2 }, null, whole);
+			await expectSameLayout(
+				treeId,
+				person.id,
+				{ ancestorDepth: 3, descendantDepth: 2 },
+				null,
+				whole
+			);
 		}
 	}, 120_000);
 
-	it('names step-parents behind a hidden parent, the case a small fixture never reaches', async () => {
-		const withStepParent = whole.people.filter((p) => p.stepParents.length > 0);
-		expect(withStepParent.length).toBeGreaterThan(20);
-		for (const person of withStepParent.slice(0, 6)) {
-			for (const [, options] of OPTION_SETS) await expectSameLayout(treeId, person.id, options, null, whole);
-			const window = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, { ancestorDepth: 0 });
-			const drawn = window.graph.people.find((p) => p.id === person.id)!;
-			expect(drawn.stepParents).toEqual(person.stepParents);
-		}
-	}, EXHAUSTIVE_MS);
+	it(
+		'names step-parents behind a hidden parent, the case a small fixture never reaches',
+		async () => {
+			const withStepParent = whole.people.filter((p) => p.stepParents.length > 0);
+			expect(withStepParent.length).toBeGreaterThan(20);
+			for (const person of withStepParent.slice(0, 6)) {
+				for (const [, options] of OPTION_SETS)
+					await expectSameLayout(treeId, person.id, options, null, whole);
+				const window = await loadFocusWindow(new GraphWindowRepository(t.db), treeId, person.id, {
+					ancestorDepth: 0
+				});
+				const drawn = window.graph.people.find((p) => p.id === person.id)!;
+				expect(drawn.stepParents).toEqual(person.stepParents);
+			}
+		},
+		EXHAUSTIVE_MS
+	);
 
 	it('never reads the whole tree: a default view reads a small fraction of its rows', async () => {
 		const loadRows = vi.spyOn(ChangeStore.prototype, 'loadRows');
@@ -201,7 +270,10 @@ describe('a window into a large tree', () => {
 	it('grows with the depth asked for, not with the size of the tree', async () => {
 		const read = async (depth: number) => {
 			const repo = new CountingRepository(t.db);
-			await loadFocusWindow(repo, treeId, corpus.remarriedPersonId, { ancestorDepth: depth, descendantDepth: depth });
+			await loadFocusWindow(repo, treeId, corpus.remarriedPersonId, {
+				ancestorDepth: depth,
+				descendantDepth: depth
+			});
 			return repo.rowsRead;
 		};
 		const [shallow, deep] = [await read(1), await read(4)];

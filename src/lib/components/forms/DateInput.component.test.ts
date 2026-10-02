@@ -56,7 +56,9 @@ describe('DateInput', () => {
 		year.value = '1850';
 		year.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
-		[...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === '1850 only')!.click();
+		[...document.querySelectorAll('button')]
+			.find((b) => b.textContent?.trim() === '1850 only')!
+			.click();
 		flushSync();
 		expect(props.value).toBe('1850');
 	});

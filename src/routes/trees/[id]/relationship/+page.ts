@@ -13,7 +13,12 @@ export const load: PageLoad = async ({ params, url, fetch, depends }) => {
 			const named = from ? (await fetchPersonPage(params.id, from, fetch)).person : null;
 			return { from, to, fromName: named?.displayName ?? null, result: null };
 		}
-		return { from, to, fromName: null, result: await fetchRelationship(params.id, from, to, fetch) };
+		return {
+			from,
+			to,
+			fromName: null,
+			result: await fetchRelationship(params.id, from, to, fetch)
+		};
 	} catch (cause) {
 		rethrowAsPageError(cause);
 	}

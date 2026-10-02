@@ -29,7 +29,8 @@ export interface MergeChoices {
 	events?: Record<string, string>;
 }
 
-const normalise = (value: string | null | undefined) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+const normalise = (value: string | null | undefined) =>
+	(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 /** Two facts are the same fact when their type, date, place and description read the same. */
 export function factKey(fact: MergeFact): string {
@@ -53,7 +54,10 @@ export function findMergeConflicts(unions: MergeableUnion[]): MergeConflict[] {
 	const conflicts: MergeConflict[] = [];
 
 	if (new Set(unions.map((u) => u.status)).size > 1) {
-		conflicts.push({ kind: 'status', options: unions.map((u) => ({ unionId: u.id, status: u.status })) });
+		conflicts.push({
+			kind: 'status',
+			options: unions.map((u) => ({ unionId: u.id, status: u.status }))
+		});
 	}
 
 	const types = [...new Set(unions.flatMap((u) => u.facts.map((f) => f.type)))].sort();
@@ -69,16 +73,21 @@ export function findMergeConflicts(unions: MergeableUnion[]): MergeConflict[] {
 }
 
 /** The conflicts `choices` does not settle: no choice, or a choice of a union that has nothing to keep. */
-export function unresolvedConflicts(conflicts: MergeConflict[], choices: MergeChoices | undefined): MergeConflict[] {
+export function unresolvedConflicts(
+	conflicts: MergeConflict[],
+	choices: MergeChoices | undefined
+): MergeConflict[] {
 	return conflicts.filter((conflict) => {
-		const chosen = conflict.kind === 'status' ? choices?.status : choices?.events?.[conflict.eventType];
+		const chosen =
+			conflict.kind === 'status' ? choices?.status : choices?.events?.[conflict.eventType];
 		return !chosen || !conflict.options.some((option) => option.unionId === chosen);
 	});
 }
 
-
 /** Ids of every union that has at least one twin with exactly the same partners, one recorded partner included. */
-export function mergeableUnionIds(unions: ReadonlyArray<{ id: string; partnerIds: string[] }>): Set<string> {
+export function mergeableUnionIds(
+	unions: ReadonlyArray<{ id: string; partnerIds: string[] }>
+): Set<string> {
 	const groups = new Map<string, string[]>();
 	for (const union of unions) {
 		if (union.partnerIds.length === 0) continue;

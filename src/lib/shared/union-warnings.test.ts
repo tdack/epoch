@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { boundsOf, unionWarnings, UNION_WARNING_CODES as C, type UnionWarningInput } from './union-warnings';
+import {
+	boundsOf,
+	unionWarnings,
+	UNION_WARNING_CODES as C,
+	type UnionWarningInput
+} from './union-warnings';
 
 const person = (id: string, birth: string | null = null, death: string | null = null) => ({
 	id,
@@ -7,7 +12,12 @@ const person = (id: string, birth: string | null = null, death: string | null = 
 	birth: boundsOf(birth),
 	death: boundsOf(death)
 });
-const event = (id: string, type: string, date: string | null, label = type) => ({ id, type, label, date: boundsOf(date) });
+const event = (id: string, type: string, date: string | null, label = type) => ({
+	id,
+	type,
+	label,
+	date: boundsOf(date)
+});
 const input = (over: Partial<UnionWarningInput>): UnionWarningInput => ({
 	status: 'active',
 	partners: [person('a'), person('b')],
@@ -41,31 +51,52 @@ describe('unionWarnings', () => {
 	});
 
 	it('notes a death in an active partnership, but not in one that has ended', () => {
-		expect(codes(input({ partners: [person('a'), person('b', '1900', '1950')] }))).toEqual([C.PARTNER_DIED]);
-		expect(codes(input({ status: 'divorced', partners: [person('a'), person('b', '1900', '1950')] }))).toEqual([]);
+		expect(codes(input({ partners: [person('a'), person('b', '1900', '1950')] }))).toEqual([
+			C.PARTNER_DIED
+		]);
+		expect(
+			codes(input({ status: 'divorced', partners: [person('a'), person('b', '1900', '1950')] }))
+		).toEqual([]);
 	});
 
 	it('warns when an event is certainly before a partner’s birth, and not when it might not be', () => {
 		const partners = [person('a', '1901'), person('b')];
-		expect(codes(input({ partners, events: [event('m', 'MARR', '1899', 'Marriage')] }))).toEqual([C.EVENT_BEFORE_BIRTH]);
+		expect(codes(input({ partners, events: [event('m', 'MARR', '1899', 'Marriage')] }))).toEqual([
+			C.EVENT_BEFORE_BIRTH
+		]);
 		expect(codes(input({ partners, events: [event('m', 'MARR', 'ABT 1901')] }))).toEqual([]);
 		expect(codes(input({ partners, events: [event('m', 'MARR', 'BEF 1905')] }))).toEqual([]);
 	});
 
 	it('warns when a marriage is dated after a partner died, but not a divorce', () => {
 		const partners = [person('a', '1880', '1910'), person('b')];
-		expect(codes(input({ partners, events: [event('m', 'MARR', '1920')] }))).toEqual([C.PARTNER_DIED, C.START_AFTER_DEATH]);
-		expect(codes(input({ partners, events: [event('d', 'DIV', '1920')] }))).toEqual([C.PARTNER_DIED]);
+		expect(codes(input({ partners, events: [event('m', 'MARR', '1920')] }))).toEqual([
+			C.PARTNER_DIED,
+			C.START_AFTER_DEATH
+		]);
+		expect(codes(input({ partners, events: [event('d', 'DIV', '1920')] }))).toEqual([
+			C.PARTNER_DIED
+		]);
 	});
 
 	it('warns when an end is dated before the start', () => {
 		const events = [event('m', 'MARR', '1950', 'Marriage'), event('d', 'DIV', '1940', 'Divorce')];
 		const warnings = unionWarnings(input({ events, status: 'divorced' }));
-		expect(warnings.map((w) => [w.code, w.message])).toEqual([[C.END_BEFORE_START, 'Divorce is dated before Marriage.']]);
+		expect(warnings.map((w) => [w.code, w.message])).toEqual([
+			[C.END_BEFORE_START, 'Divorce is dated before Marriage.']
+		]);
 	});
 
 	it('warns when a child is recorded as born before a parent', () => {
-		expect(codes(input({ partners: [person('a', '1950'), person('b')], children: [person('kid', '1940')] }))).toEqual([C.CHILD_BEFORE_PARENT]);
-		expect(codes(input({ partners: [person('a', '1950'), person('b')], children: [person('kid', '1950')] }))).toEqual([]);
+		expect(
+			codes(
+				input({ partners: [person('a', '1950'), person('b')], children: [person('kid', '1940')] })
+			)
+		).toEqual([C.CHILD_BEFORE_PARENT]);
+		expect(
+			codes(
+				input({ partners: [person('a', '1950'), person('b')], children: [person('kid', '1950')] })
+			)
+		).toEqual([]);
 	});
 });

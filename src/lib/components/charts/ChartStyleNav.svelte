@@ -17,7 +17,9 @@
 		<a
 			href={hrefFor(style.id)}
 			aria-current={style.id === current ? 'page' : undefined}
-			class="rounded-lg border px-3 py-1 font-semibold {style.id === current ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-stone-300 text-emerald-900 hover:bg-stone-100'}"
-		>{style.label}</a>
+			class="rounded-lg border px-3 py-1 font-semibold {style.id === current
+				? 'border-emerald-700 bg-emerald-700 text-white'
+				: 'border-stone-300 text-emerald-900 hover:bg-stone-100'}">{style.label}</a
+		>
 	{/each}
 </nav>

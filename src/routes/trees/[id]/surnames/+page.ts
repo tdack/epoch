@@ -7,7 +7,14 @@ export const load: PageLoad = async ({ params, url, fetch, depends }) => {
 	depends(DATA_KEY);
 	const { offset, limit } = parseListParams(url.searchParams);
 	try {
-		return { page: await fetchList<SurnameListItem>(params.id, 'surnames', new URLSearchParams({ offset: String(offset), limit: String(limit) }), fetch) };
+		return {
+			page: await fetchList<SurnameListItem>(
+				params.id,
+				'surnames',
+				new URLSearchParams({ offset: String(offset), limit: String(limit) }),
+				fetch
+			)
+		};
 	} catch (cause) {
 		rethrowAsPageError(cause);
 	}

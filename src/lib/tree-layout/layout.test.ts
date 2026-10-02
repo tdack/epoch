@@ -52,7 +52,10 @@ describe('layout contract sweeps', () => {
 					expect(allContractViolations(graph, layout), ctx).toEqual([]);
 					expect(layout.misplacedPersonIds, ctx).toEqual([]);
 					if (!EXPECTED_NON_ADJACENT.has(name)) expect(layout.nonAdjacentUnionIds, ctx).toEqual([]);
-					expect(layout.people.find((p) => p.id === focus.id), ctx).toMatchObject({ x: 0, y: 0, role: 'focus' });
+					expect(
+						layout.people.find((p) => p.id === focus.id),
+						ctx
+					).toMatchObject({ x: 0, y: 0, role: 'focus' });
 
 					// Bounds enclose everything drawn.
 					for (const p of layout.people) {
@@ -66,7 +69,10 @@ describe('layout contract sweeps', () => {
 		it(`${name}: output is deterministic`, () => {
 			for (const focus of graph.people) {
 				const a = layoutFocusView(graph, focus.id, { ancestorDepth: 3, descendantDepth: 3 });
-				const b = layoutFocusView(structuredClone(graph), focus.id, { ancestorDepth: 3, descendantDepth: 3 });
+				const b = layoutFocusView(structuredClone(graph), focus.id, {
+					ancestorDepth: 3,
+					descendantDepth: 3
+				});
 				expect(JSON.stringify(b)).toBe(JSON.stringify(a));
 			}
 		});
@@ -94,8 +100,12 @@ describe('known bugs from the plan', () => {
 		const edna = layout.people.find((p) => p.person.displayName === 'Rosalind Fairfax')!;
 		expect(edna).toBeDefined();
 		expect(edna.y).toBe(ned.y);
-		expect(Math.abs(edna.x - ned.x)).toBe(LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap);
-		const union = layout.unions.find((u) => u.union.partnerIds.includes(ned.id) && u.union.partnerIds.includes(edna.id))!;
+		expect(Math.abs(edna.x - ned.x)).toBe(
+			LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap
+		);
+		const union = layout.unions.find(
+			(u) => u.union.partnerIds.includes(ned.id) && u.union.partnerIds.includes(edna.id)
+		)!;
 		expect(union.x).toBeCloseTo((ned.x + edna.x) / 2);
 		expect(union.y).toBe(ned.y);
 	});
@@ -103,15 +113,19 @@ describe('known bugs from the plan', () => {
 	it('focusing Homer Simpson or Marjorie Bouvier draws Maude Flanders beside Maggie', () => {
 		for (const focus of ['Homer Jay Simpson', 'Marjorie Jacqueline Bouvier']) {
 			const layout = layoutFor(simpsons, focus);
-			const maggie = layout.people.find((p) => p.person.displayName === 'Maggie Louise Simpson')!;
+			const maggie = layout.people.find(
+				(p) => p.person.displayName === 'Maggie Louise Simpson'
+			)!;
 			const maude = layout.people.find((p) => p.person.displayName === 'Maude Flanders')!;
 			expect(maude, focus).toBeDefined();
 			expect(maude.y).toBe(maggie.y);
-			expect(Math.abs(maude.x - maggie.x)).toBe(LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap);
+			expect(Math.abs(maude.x - maggie.x)).toBe(
+				LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap
+			);
 		}
 	});
 
-	it('draws one edge per (union, child), carrying both parents\' assertions', () => {
+	it("draws one edge per (union, child), carrying both parents' assertions", () => {
 		const layout = layoutFor(simpsons, 'Homer Jay Simpson');
 		const hannah = layoutFor(simpsons, 'Homer Jay Simpson', { descendantDepth: 3 });
 		const hayleyId = personByName(simpsons, 'Hannah Flanders').id;
@@ -133,7 +147,7 @@ describe('known bugs from the plan', () => {
 		expect(layout.edges.some((e) => e.kind === 'stub' && e.stubId === stub.id)).toBe(true);
 	});
 
-	it('stubs a partner\'s undrawn family under the partner (focus Bart: Jessica\'s 3 children)', () => {
+	it("stubs a partner's undrawn family under the partner (focus Bart: Jessica's 3 children)", () => {
 		const layout = layoutFor(simpsons, 'Bartholomew Jojo Simpson');
 		const jessica = layout.people.find((p) => p.person.displayName === 'Jessica Louise Lovejoy')!;
 		const stub = layout.stubs.find((s) => s.personId === jessica.id)!;
@@ -185,7 +199,9 @@ describe('structures beyond the Simpsons', () => {
 		const emily = personByName(rep, 'Emily /Foster-Child/').id;
 		expect(childEdges(layout).find((e) => e.childId === emily)?.types).toEqual(['foster']);
 		const david = personByName(rep, 'David /Smith/').id;
-		const davidTypes = childEdges(layout).filter((e) => e.childId === david).map((e) => e.types.join());
+		const davidTypes = childEdges(layout)
+			.filter((e) => e.childId === david)
+			.map((e) => e.types.join());
 		expect(davidTypes.sort()).toEqual(['adoptive', 'biological']);
 	});
 
@@ -235,7 +251,7 @@ describe('structures beyond the Simpsons', () => {
 		expect(direct.find((e) => e.childId === 'Kid2')?.types).toEqual(['adoptive']);
 	});
 
-	it('orders a person\'s unions chronologically around them and reports the one that cannot be adjacent', () => {
+	it("orders a person's unions chronologically around them and reports the one that cannot be adjacent", () => {
 		const layout = layoutFocusView(synthetic('three-unions'), 'Pat');
 		const x = (id: string) => layout.people.find((p) => p.id === id)!.x;
 		expect(x('Q1')).toBeLessThan(x('Pat'));

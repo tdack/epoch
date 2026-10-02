@@ -25,7 +25,11 @@ export interface MaskedRows {
 }
 
 /** Everyone in these rows who is private, from their override and the facts the rows hold for them. */
-export function privatePeople(rows: TreeRows, cutoff: string, creatorId: string | null = null): Set<string> {
+export function privatePeople(
+	rows: TreeRows,
+	cutoff: string,
+	creatorId: string | null = null
+): Set<string> {
 	const factsOf = new Map<string, LivingFact[]>();
 	for (const e of rows.events) {
 		if (e.entityType !== 'INDIVIDUAL') continue;
@@ -33,24 +37,58 @@ export function privatePeople(rows: TreeRows, cutoff: string, creatorId: string 
 		facts.push({ type: e.type, dateSortEnd: e.dateSortEnd });
 		factsOf.set(e.entityId, facts);
 	}
-	return new Set(rows.individuals.filter((i) => isPersonPrivate(i.privacy, factsOf.get(i.id) ?? [], cutoff, creatorId !== null && i.createdBy === creatorId)).map((i) => i.id));
+	return new Set(
+		rows.individuals
+			.filter((i) =>
+				isPersonPrivate(
+					i.privacy,
+					factsOf.get(i.id) ?? [],
+					cutoff,
+					creatorId !== null && i.createdBy === creatorId
+				)
+			)
+			.map((i) => i.id)
+	);
 }
 
-const placeholderOf = (row: IndividualRow): IndividualRow => ({ ...row, xrefId: null, givenName: PRIVATE_PLACEHOLDER_NAME, surname: null, sex: 'U' });
+const placeholderOf = (row: IndividualRow): IndividualRow => ({
+	...row,
+	xrefId: null,
+	givenName: PRIVATE_PLACEHOLDER_NAME,
+	surname: null,
+	sex: 'U'
+});
 
-export function maskRows(rows: TreeRows, cutoff: string, shouldShowStructure: boolean, creatorId: string | null = null): MaskedRows {
+export function maskRows(
+	rows: TreeRows,
+	cutoff: string,
+	shouldShowStructure: boolean,
+	creatorId: string | null = null
+): MaskedRows {
 	const hidden = privatePeople(rows, cutoff, creatorId);
 	if (hidden.size === 0) return { rows, placeholderIds: new Set() };
 
-	const unionsWithHiddenPartner = new Set(rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId));
-	const events = rows.events.filter((e) => (e.entityType === 'INDIVIDUAL' ? !hidden.has(e.entityId) : !unionsWithHiddenPartner.has(e.entityId)));
+	const unionsWithHiddenPartner = new Set(
+		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
+	);
+	const events = rows.events.filter((e) =>
+		e.entityType === 'INDIVIDUAL'
+			? !hidden.has(e.entityId)
+			: !unionsWithHiddenPartner.has(e.entityId)
+	);
 	const personNames = rows.personNames.filter((n) => !hidden.has(n.personId));
 	// Media of a private person is theirs; the window never carries media, but a reader that does must not show it.
 	const mediaItems = rows.mediaItems.filter((m) => !hidden.has(m.entityId));
 
 	if (shouldShowStructure) {
 		return {
-			rows: { ...rows, individuals: rows.individuals.map((i) => (hidden.has(i.id) ? placeholderOf(i) : i)), personNames, events, mediaItems },
+			rows: {
+				...rows,
+				individuals: rows.individuals.map((i) => (hidden.has(i.id) ? placeholderOf(i) : i)),
+				personNames,
+				events,
+				mediaItems
+			},
 			placeholderIds: hidden
 		};
 	}
@@ -58,7 +96,9 @@ export function maskRows(rows: TreeRows, cutoff: string, shouldShowStructure: bo
 	// A partnership with a private partner is not left standing with the partner who remains: its page,
 	// its facts and the list all treat it as absent, so a link to it from a page would be a dead end
 	// that also says something is there. Its children keep their parent and lose the partnership.
-	const unionPartners = rows.unionPartners.filter((p) => !hidden.has(p.personId) && !unionsWithHiddenPartner.has(p.unionId));
+	const unionPartners = rows.unionPartners.filter(
+		(p) => !hidden.has(p.personId) && !unionsWithHiddenPartner.has(p.unionId)
+	);
 	const keptUnions = new Set(unionPartners.map((p) => p.unionId));
 	return {
 		rows: {
@@ -82,10 +122,17 @@ export function maskRows(rows: TreeRows, cutoff: string, shouldShowStructure: bo
  * A restricted viewer's mutation is refused if it does (ADR-015), because the result would carry
  * or change something they may not see.
  */
-export function opsTouchPrivate(ops: readonly RowOp[], rows: TreeRows, cutoff: string, creatorId: string | null = null): boolean {
+export function opsTouchPrivate(
+	ops: readonly RowOp[],
+	rows: TreeRows,
+	cutoff: string,
+	creatorId: string | null = null
+): boolean {
 	const hidden = privatePeople(rows, cutoff, creatorId);
 	if (hidden.size === 0) return false;
-	const hiddenUnions = new Set(rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId));
+	const hiddenUnions = new Set(
+		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
+	);
 	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions));
 }
 
@@ -103,9 +150,15 @@ function touchesHidden(op: RowOp, hidden: Set<string>, hiddenUnions: Set<string>
 			case 'union_partners':
 				return hidden.has(r.personId ?? '') || hiddenUnions.has(r.unionId ?? '');
 			case 'parent_child':
-				return hidden.has(r.parentId ?? '') || hidden.has(r.childId ?? '') || hiddenUnions.has(r.unionId ?? '');
+				return (
+					hidden.has(r.parentId ?? '') ||
+					hidden.has(r.childId ?? '') ||
+					hiddenUnions.has(r.unionId ?? '')
+				);
 			case 'events':
-				return r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId ?? '') : hiddenUnions.has(r.entityId ?? '');
+				return r.entityType === 'INDIVIDUAL'
+					? hidden.has(r.entityId ?? '')
+					: hiddenUnions.has(r.entityId ?? '');
 			case 'media_items':
 				return hidden.has(r.entityId ?? '');
 			default:

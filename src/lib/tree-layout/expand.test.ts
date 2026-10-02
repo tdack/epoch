@@ -44,7 +44,8 @@ describe('stub expansion', () => {
 					rounds.forEach((layout, i) => {
 						expectClean(graph, layout, `${ctx} round ${i}`);
 						const now = new Set(layout.people.map((p) => p.id));
-						for (const id of previous) expect(now.has(id), `${ctx} round ${i} lost ${id}`).toBe(true);
+						for (const id of previous)
+							expect(now.has(id), `${ctx} round ${i} lost ${id}`).toBe(true);
 						previous = now;
 					});
 					expect(rounds.at(-1)!.stubs, `${ctx} still has stubs`).toEqual([]);
@@ -57,8 +58,14 @@ describe('stub expansion', () => {
 				const base = { ancestorDepth: 1, descendantDepth: 1 };
 				const before = layoutFocusView(graph, focus.id, base);
 				if (before.stubs.length === 0) continue;
-				const expanded = layoutFocusView(graph, focus.id, { ...base, expandedStubIds: [before.stubs[0].id] });
-				expect(expanded.collapsers.map((c) => c.stubId), focus.displayName).toContain(before.stubs[0].id);
+				const expanded = layoutFocusView(graph, focus.id, {
+					...base,
+					expandedStubIds: [before.stubs[0].id]
+				});
+				expect(
+					expanded.collapsers.map((c) => c.stubId),
+					focus.displayName
+				).toContain(before.stubs[0].id);
 				const collapsed = layoutFocusView(graph, focus.id, { ...base, expandedStubIds: [] });
 				expect(JSON.stringify(collapsed)).toBe(JSON.stringify(before));
 			}
@@ -83,7 +90,9 @@ describe('stub expansion', () => {
 		const simpsons = captured('simpsons');
 		const focus = personByName(simpsons, 'Jessica Louise Lovejoy');
 		const plain = layoutFocusView(simpsons, focus.id);
-		const bogus = layoutFocusView(simpsons, focus.id, { expandedStubIds: ['stub:ancestors:nobody'] });
+		const bogus = layoutFocusView(simpsons, focus.id, {
+			expandedStubIds: ['stub:ancestors:nobody']
+		});
 		expect(JSON.stringify(bogus)).toBe(JSON.stringify(plain));
 	});
 });
@@ -95,7 +104,10 @@ describe('step families', () => {
 		it(`${name}: every person as focus honours the contract with step families on`, () => {
 			for (const base of DEPTHS) {
 				for (const focus of graph.people) {
-					const layout = layoutFocusView(graph, focus.id, { ...base, shouldIncludeStepFamilies: true });
+					const layout = layoutFocusView(graph, focus.id, {
+						...base,
+						shouldIncludeStepFamilies: true
+					});
 					expectClean(graph, layout, `${name} focus=${focus.displayName} ${JSON.stringify(base)}`);
 				}
 			}
@@ -113,7 +125,8 @@ describe('step families', () => {
 		expectClean(simpsons, on, 'bart step on');
 		const jessicaCard = on.people.find((p) => p.id === jessica.id)!;
 		const children = on.edges.filter(
-			(e): e is ChildEdge => e.kind === 'child' && e.assertions.some((a) => a.parentId === jessica.id)
+			(e): e is ChildEdge =>
+				e.kind === 'child' && e.assertions.some((a) => a.parentId === jessica.id)
 		);
 		expect(children.length).toBeGreaterThanOrEqual(3);
 		for (const edge of children) expect(edge.target.y).toBeGreaterThan(jessicaCard.y);
@@ -154,7 +167,13 @@ describe('relationship type filter', () => {
 	});
 
 	it('is the identity when every type is allowed', () => {
-		const all = filterParentChildTypes(simpsons, ['biological', 'adoptive', 'foster', 'guardian', 'unknown']);
+		const all = filterParentChildTypes(simpsons, [
+			'biological',
+			'adoptive',
+			'foster',
+			'guardian',
+			'unknown'
+		]);
 		expect(all.parentChild).toEqual(simpsons.parentChild);
 	});
 });

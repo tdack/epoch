@@ -20,7 +20,9 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 
 	try {
 		const service = new GraphQueryService(getDb(platform.env.DB));
-		return Response.json(await service.summary(treeId, { user: locals.user, correlationId: locals.correlationId }));
+		return Response.json(
+			await service.summary(treeId, { user: locals.user, correlationId: locals.correlationId })
+		);
 	} catch (err) {
 		return errorResponse(err, 'Failed to load the tree summary');
 	}

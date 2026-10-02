@@ -33,7 +33,13 @@ const ORDER: Record<IndividualSort, SQL> = {
 export class ListRepository {
 	constructor(private db: DbClient) {}
 
-	individualsSql(treeId: string, sort: IndividualSort, surname: string, page: PageRequest, scope: Scope): SQL {
+	individualsSql(
+		treeId: string,
+		sort: IndividualSort,
+		surname: string,
+		page: PageRequest,
+		scope: Scope
+	): SQL {
 		// The surname filter is the surname list's own rule (see `surnamesSql`): the display surname,
 		// or any stored name's. The stored-name half joins through individuals to bound it to this
 		// tree; person_names has no tree_id, and an index on its surname would read other trees' rows.
@@ -43,8 +49,16 @@ export class ListRepository {
 		return sql`select i.id as id from individuals i where i.tree_id = ${treeId}${filter}${andVisible('i', scope)} order by ${ORDER[sort]} limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async individualIds(treeId: string, sort: IndividualSort, surname: string, page: PageRequest, scope: Scope): Promise<{ ids: string[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string }>(this.individualsSql(treeId, sort, surname, page, scope));
+	async individualIds(
+		treeId: string,
+		sort: IndividualSort,
+		surname: string,
+		page: PageRequest,
+		scope: Scope
+	): Promise<{ ids: string[]; hasMore: boolean }> {
+		const rows = await this.db.all<{ id: string }>(
+			this.individualsSql(treeId, sort, surname, page, scope)
+		);
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
 
@@ -58,7 +72,11 @@ export class ListRepository {
 		return sql`select u.id as id from unions u where u.tree_id = ${treeId}${allPartnersVisible} order by u.rowid limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async unionIds(treeId: string, page: PageRequest, scope: Scope): Promise<{ ids: string[]; hasMore: boolean }> {
+	async unionIds(
+		treeId: string,
+		page: PageRequest,
+		scope: Scope
+	): Promise<{ ids: string[]; hasMore: boolean }> {
 		const rows = await this.db.all<{ id: string }>(this.unionsSql(treeId, page, scope));
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
@@ -82,7 +100,11 @@ export class ListRepository {
 			group by shown collate nocase order by shown collate nocase limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
-	async surnames(treeId: string, page: PageRequest, scope: Scope): Promise<{ rows: SurnameCount[]; hasMore: boolean }> {
+	async surnames(
+		treeId: string,
+		page: PageRequest,
+		scope: Scope
+	): Promise<{ rows: SurnameCount[]; hasMore: boolean }> {
 		const rows = await this.db.all<SurnameCount>(this.surnamesSql(treeId, page, scope));
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}

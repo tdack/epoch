@@ -28,7 +28,8 @@
 		return `M${x1} ${y1} H${mid} V${y2} H${x2}`;
 	}
 
-	const dates = (birth: string | null, death: string | null) => (birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '');
+	const dates = (birth: string | null, death: string | null) =>
+		birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
 </script>
 
 <div class="overflow-auto rounded-xl border border-stone-200 bg-white" tabindex="-1">
@@ -49,15 +50,45 @@
 			{@const person = card.person}
 			{@const partners = card.partners ?? []}
 			{#snippet face()}
-				<rect width={CARD.width} height={CARD.height} rx="8" class={person.isPrivate ? 'fill-stone-50 stroke-stone-300' : 'fill-emerald-50 stroke-emerald-300'} stroke-width="1.2" stroke-dasharray={person.isPrivate ? '4 3' : undefined} />
-				<text x="10" y="19" class="fill-stone-900 text-[12px] font-semibold" font-style={person.isPrivate ? 'italic' : undefined}>{person.name.length > 24 ? `${person.name.slice(0, 23)}…` : person.name}</text>
-				<text x="10" y="34" class="fill-stone-600 text-[10px]">{dates(person.birth, person.death)}{#if partners.length > 0}{dates(person.birth, person.death) ? ' · ' : ''}with {partners.map((p) => p.name).join(', ').slice(0, 22)}{/if}</text>
+				<rect
+					width={CARD.width}
+					height={CARD.height}
+					rx="8"
+					class={person.isPrivate
+						? 'fill-stone-50 stroke-stone-300'
+						: 'fill-emerald-50 stroke-emerald-300'}
+					stroke-width="1.2"
+					stroke-dasharray={person.isPrivate ? '4 3' : undefined}
+				/>
+				<text
+					x="10"
+					y="19"
+					class="fill-stone-900 text-[12px] font-semibold"
+					font-style={person.isPrivate ? 'italic' : undefined}
+					>{person.name.length > 24 ? `${person.name.slice(0, 23)}…` : person.name}</text
+				>
+				<text x="10" y="34" class="fill-stone-600 text-[10px]"
+					>{dates(person.birth, person.death)}{#if partners.length > 0}{dates(
+							person.birth,
+							person.death
+						)
+							? ' · '
+							: ''}with {partners
+							.map((p) => p.name)
+							.join(', ')
+							.slice(0, 22)}{/if}</text
+				>
 			{/snippet}
 			<g transform="translate({card.x} {card.y})" data-testid="chart-card">
 				{#if person.isPrivate}
 					{@render face()}
 				{:else}
-					<a href={hrefFor(person.id)} aria-label="{person.name}{dates(person.birth, person.death) ? `, ${dates(person.birth, person.death)}` : ''}. Chart this person">
+					<a
+						href={hrefFor(person.id)}
+						aria-label="{person.name}{dates(person.birth, person.death)
+							? `, ${dates(person.birth, person.death)}`
+							: ''}. Chart this person"
+					>
 						{@render face()}
 					</a>
 				{/if}

@@ -10,7 +10,11 @@ import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRows } from '../domain/change-log';
 import { maskRows, privatePeople, PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
-import { findRelationships, MAX_GENERATIONS, type KinGraph } from '../domain/relationship-calculator';
+import {
+	findRelationships,
+	MAX_GENERATIONS,
+	type KinGraph
+} from '../domain/relationship-calculator';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -19,16 +23,24 @@ import { loadKinWindow } from './kin-window';
 import { requireTreeScope } from './tree-access';
 
 /** Display name for a card or a sentence: "Given Surname", or the id when a person has neither. */
-export function personName(row: { id: string; givenName: string | null; surname: string | null }): string {
+export function personName(row: {
+	id: string;
+	givenName: string | null;
+	surname: string | null;
+}): string {
 	return [row.givenName, row.surname].filter(Boolean).join(' ') || row.id;
 }
 
 export function partnersFromRows(rows: TreeRows): Map<string, string[]> {
 	const byUnion = new Map<string, string[]>();
-	for (const p of rows.unionPartners) byUnion.set(p.unionId, [...(byUnion.get(p.unionId) ?? []), p.personId]);
+	for (const p of rows.unionPartners)
+		byUnion.set(p.unionId, [...(byUnion.get(p.unionId) ?? []), p.personId]);
 	const partners = new Map<string, string[]>();
 	for (const members of byUnion.values()) {
-		for (const a of members) for (const b of members) if (a !== b && !partners.get(a)?.includes(b)) partners.set(a, [...(partners.get(a) ?? []), b]);
+		for (const a of members)
+			for (const b of members)
+				if (a !== b && !partners.get(a)?.includes(b))
+					partners.set(a, [...(partners.get(a) ?? []), b]);
 	}
 	return partners;
 }
@@ -38,42 +50,93 @@ export class KinshipService {
 	private users: UserRepository;
 	private trees: TreeRepository;
 
-	constructor(db: DbClient, private now: () => Date = () => new Date()) {
+	constructor(
+		db: DbClient,
+		private now: () => Date = () => new Date()
+	) {
 		this.repo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
 
-	async relationship(treeId: string, fromId: string, toId: string, context: AuthenticatedContext): Promise<RelationshipDto> {
-		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
+	async relationship(
+		treeId: string,
+		fromId: string,
+		toId: string,
+		context: AuthenticatedContext
+	): Promise<RelationshipDto> {
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
 
 		// Partners are start people too: a relative of a partner is a route by partnership.
-		const [ownPartnerships] = await this.repo.run(this.repo.partnerRowsOfPersons(treeId, [fromId, toId]));
+		const [ownPartnerships] = await this.repo.run(
+			this.repo.partnerRowsOfPersons(treeId, [fromId, toId])
+		);
 		const unionIds = [...new Set(ownPartnerships.map((p) => p.row.unionId))];
 		const [partnerRows] = await this.repo.run(this.repo.partnerRowsOfUnions(treeId, unionIds));
 		const startIds = [...new Set([fromId, toId, ...partnerRows.map((p) => p.row.personId)])];
-		const window = await loadKinWindow(this.repo, { treeId, startIds, ancestorGenerations: MAX_GENERATIONS, descendantGenerations: null, partnersOf: 'starts' });
+		const window = await loadKinWindow(this.repo, {
+			treeId,
+			startIds,
+			ancestorGenerations: MAX_GENERATIONS,
+			descendantGenerations: null,
+			partnersOf: 'starts'
+		});
 
 		// A private or missing person answers alike.
-		const hidden = scope.isRestricted ? privatePeople(window.rows, scope.cutoff, scope.creatorId) : new Set<string>();
-		for (const id of [fromId, toId]) if (!window.foundStartIds.includes(id) || hidden.has(id)) throw new NotFoundError('Person', id);
+		const hidden = scope.isRestricted
+			? privatePeople(window.rows, scope.cutoff, scope.creatorId)
+			: new Set<string>();
+		for (const id of [fromId, toId])
+			if (!window.foundStartIds.includes(id) || hidden.has(id))
+				throw new NotFoundError('Person', id);
 
-		const { rows, placeholderIds } = scope.isRestricted ? maskRows(window.rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId) : { rows: window.rows, placeholderIds: new Set<string>() };
-		const people = new Map(rows.individuals.map((i) => [i.id, { name: personName(i), sex: i.sex, isPrivate: placeholderIds.has(i.id) }]));
+		const { rows, placeholderIds } = scope.isRestricted
+			? maskRows(window.rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId)
+			: { rows: window.rows, placeholderIds: new Set<string>() };
+		const people = new Map(
+			rows.individuals.map((i) => [
+				i.id,
+				{ name: personName(i), sex: i.sex, isPrivate: placeholderIds.has(i.id) }
+			])
+		);
 		const graph: KinGraph = {
 			people,
-			links: rows.parentChild.map((l) => ({ parentId: l.parentId, childId: l.childId, type: l.type })),
+			links: rows.parentChild.map((l) => ({
+				parentId: l.parentId,
+				childId: l.childId,
+				type: l.type
+			})),
 			partners: partnersFromRows(rows)
 		};
 		const result = findRelationships(fromId, toId, graph);
-		const ref = (id: string) => ({ id, name: people.get(id)?.isPrivate ? PRIVATE_PLACEHOLDER_NAME : (people.get(id)?.name ?? id), isPrivate: people.get(id)?.isPrivate ?? false });
+		const ref = (id: string) => ({
+			id,
+			name: people.get(id)?.isPrivate ? PRIVATE_PLACEHOLDER_NAME : (people.get(id)?.name ?? id),
+			isPrivate: people.get(id)?.isPrivate ?? false
+		});
 		const routes: KinRouteDto[] = result.routes.map((r) => ({
 			kind: r.kind,
 			label: r.label,
-			steps: r.steps.map((s) => ({ ...ref(s.personId), relation: s.relation, linkType: s.linkType })),
+			steps: r.steps.map((s) => ({
+				...ref(s.personId),
+				relation: s.relation,
+				linkType: s.linkType
+			})),
 			viaNames: r.viaIds.map((id) => ref(id).name),
 			nonBiologicalTypes: r.nonBiologicalTypes
 		}));
-		return { from: ref(fromId), to: ref(toId), routes, isIncomplete: result.isIncomplete || window.hasMoreAbove || window.isCapped };
+		return {
+			from: ref(fromId),
+			to: ref(toId),
+			routes,
+			isIncomplete: result.isIncomplete || window.hasMoreAbove || window.isCapped
+		};
 	}
 }

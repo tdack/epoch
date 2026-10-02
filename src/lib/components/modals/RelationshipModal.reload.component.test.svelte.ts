@@ -3,7 +3,12 @@ import { flushSync, mount, unmount } from 'svelte';
 
 vi.mock('#lib/services/tree-api.js', () => ({
 	searchPeopleApi: vi.fn(),
-	planRelationshipApi: vi.fn().mockResolvedValue({ sentence: 'x will be recorded as y', commands: [{}], warnings: [], unionChoice: null }),
+	planRelationshipApi: vi.fn().mockResolvedValue({
+		sentence: 'x will be recorded as y',
+		commands: [{}],
+		warnings: [],
+		unionChoice: null
+	}),
 	applyRelationshipApi: vi.fn(),
 	isConflict: () => false
 }));
@@ -28,7 +33,16 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-const person = (id: string) => ({ id, displayName: id, sex: 'U' as const, isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [], version: 1 });
+const person = (id: string) => ({
+	id,
+	displayName: id,
+	sex: 'U' as const,
+	isDeceased: false,
+	parentsByUnion: {},
+	unionIds: [],
+	stepParents: [],
+	version: 1
+});
 
 it('keeps what the person has typed when the graph reloads behind the open dialog', async () => {
 	// The graph reloads after every save, and can land while the next dialog is already open.
@@ -45,9 +59,14 @@ it('keeps what the person has typed when the graph reloads behind the open dialo
 	flushSync();
 
 	const buttons = () => [...document.querySelectorAll('button')];
-	buttons().find((b) => b.textContent?.trim() === 'New person')!.click();
+	buttons()
+		.find((b) => b.textContent?.trim() === 'New person')!
+		.click();
 	flushSync();
-	const given = document.querySelector('#new-given') as unknown as { value: string; dispatchEvent(e: Event): boolean };
+	const given = document.querySelector('#new-given') as unknown as {
+		value: string;
+		dispatchEvent(e: Event): boolean;
+	};
 	given.value = 'Wren';
 	given.dispatchEvent(new Event('input', { bubbles: true }));
 	flushSync();

@@ -56,7 +56,8 @@ describe('selectFocusSubgraph contract sweeps', () => {
 							if (p.generation > descendantDepth || p.generation < -ancestorDepth) {
 								throw new Error(`${ctx}: ${p.id} is outside the depth limits`);
 							}
-							const isDescendantSide = p.role === PERSON_ROLES.FOCUS || p.role === PERSON_ROLES.DESCENDANT;
+							const isDescendantSide =
+								p.role === PERSON_ROLES.FOCUS || p.role === PERSON_ROLES.DESCENDANT;
 							if (isDescendantSide) {
 								for (const union of index.unionsOfPerson.get(p.id) ?? []) {
 									expect(drawnUnions.has(union.id), `${ctx}: ${p.id} union ${union.id}`).toBe(true);
@@ -65,7 +66,9 @@ describe('selectFocusSubgraph contract sweeps', () => {
 									if (p.generation < descendantDepth) {
 										expect(hidden, `${ctx}: children of ${union.id}`).toEqual([]);
 									} else {
-										expect(stubFor(`stub:children:${union.id}`)?.count ?? 0, ctx).toBe(hidden.length);
+										expect(stubFor(`stub:children:${union.id}`)?.count ?? 0, ctx).toBe(
+											hidden.length
+										);
 									}
 								}
 							}
@@ -89,7 +92,10 @@ describe('selectFocusSubgraph contract sweeps', () => {
 							}
 						}
 						if (!shouldIncludeSiblings) {
-							expect(s.people.some((p) => p.role === PERSON_ROLES.SIBLING), ctx).toBe(false);
+							expect(
+								s.people.some((p) => p.role === PERSON_ROLES.SIBLING),
+								ctx
+							).toBe(false);
 						}
 					}
 				}
@@ -113,9 +119,12 @@ describe('selectFocusSubgraph contract sweeps', () => {
 describe('known layout bugs', () => {
 	const simpsons = CAPTURED_GRAPHS.find((g) => g.name === 'simpsons')!.graph;
 	const peopleOf = (focus: string, options?: FocusViewOptions) =>
-		names(simpsons, select(simpsons, personByName(simpsons, focus).id, options ?? {}).people.map((p) => p.id));
+		names(
+			simpsons,
+			select(simpsons, personByName(simpsons, focus).id, options ?? {}).people.map((p) => p.id)
+		);
 
-	it('focusing Jessica Lovejoy includes Rosalind Fairfax, Ned Lovejoy\'s partner', () => {
+	it("focusing Jessica Lovejoy includes Rosalind Fairfax, Ned Lovejoy's partner", () => {
 		expect(peopleOf('Jessica Louise Lovejoy')).toContain('Rosalind Fairfax');
 		expect(peopleOf('Jessica Louise Lovejoy')).toContain('Ned Dermot Lovejoy');
 	});
@@ -125,21 +134,39 @@ describe('known layout bugs', () => {
 		expect(peopleOf('Marjorie Jacqueline Bouvier')).toContain('Maude Flanders');
 	});
 
-	it('keeps the partner at the depth boundary and stubs only the couple\'s children', () => {
+	it("keeps the partner at the depth boundary and stubs only the couple's children", () => {
 		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
 		const s = select(simpsons, jessica.id, { descendantDepth: 1 });
-		expect(names(simpsons, s.people.map((p) => p.id))).toContain('Rosalind Fairfax');
-		const stub = s.stubs.find((st) => st.kind === 'children' && st.personId === personByName(simpsons, 'Ned Dermot Lovejoy').id);
+		expect(
+			names(
+				simpsons,
+				s.people.map((p) => p.id)
+			)
+		).toContain('Rosalind Fairfax');
+		const stub = s.stubs.find(
+			(st) =>
+				st.kind === 'children' && st.personId === personByName(simpsons, 'Ned Dermot Lovejoy').id
+		);
 		expect(stub?.count).toBe(2);
-		expect(names(simpsons, s.people.map((p) => p.id))).not.toContain('Magnus Lovejoy');
+		expect(
+			names(
+				simpsons,
+				s.people.map((p) => p.id)
+			)
+		).not.toContain('Magnus Lovejoy');
 
 		const homer = personByName(simpsons, 'Homer Jay Simpson');
 		const t = select(simpsons, homer.id, { descendantDepth: 1 });
-		expect(names(simpsons, t.people.map((p) => p.id))).toContain('Maude Flanders');
+		expect(
+			names(
+				simpsons,
+				t.people.map((p) => p.id)
+			)
+		).toContain('Maude Flanders');
 		expect(t.stubs.find((st) => st.kind === 'children')?.count).toBe(2);
 	});
 
-	it('stubs a partner\'s undrawn family instead of dropping it (focus Bart, Jessica\'s children)', () => {
+	it("stubs a partner's undrawn family instead of dropping it (focus Bart, Jessica's children)", () => {
 		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
 		const s = select(simpsons, bart.id, {});
 		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
@@ -149,9 +176,15 @@ describe('known layout bugs', () => {
 
 	it('includes siblings only when asked', () => {
 		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
-		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: true })).toContain('Lenora Marie Simpson');
-		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: false })).not.toContain('Lenora Marie Simpson');
-		expect(select(simpsons, bart.id, {}).people.find((p) => p.id === bart.id)?.role).toBe(PERSON_ROLES.FOCUS);
+		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: true })).toContain(
+			'Lenora Marie Simpson'
+		);
+		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: false })).not.toContain(
+			'Lenora Marie Simpson'
+		);
+		expect(select(simpsons, bart.id, {}).people.find((p) => p.id === bart.id)?.role).toBe(
+			PERSON_ROLES.FOCUS
+		);
 	});
 });
 
@@ -184,23 +217,31 @@ describe('pedigree collapse and shared parents', () => {
 		const alice = personByName(graph, 'Alice /Walker/');
 		expect(s.people.filter((p) => p.id === alice.id)).toHaveLength(1);
 		expect(s.unions).toHaveLength(2);
-		expect(names(graph, s.people.map((p) => p.id))).toEqual(
-			expect.arrayContaining(['Bob /Smith/', 'Carol /Jones/', 'Emily /Foster-Child/'])
-		);
+		expect(
+			names(
+				graph,
+				s.people.map((p) => p.id)
+			)
+		).toEqual(expect.arrayContaining(['Bob /Smith/', 'Carol /Jones/', 'Emily /Foster-Child/']));
 	});
 
 	it('walks direct links with no union', () => {
 		const s = select(synthetic('direct-links-only'), 'Kid1', {});
 		expect(s.people.map((p) => [p.id, p.generation])).toEqual(
-			expect.arrayContaining([['Parent', -1], ['Grand', -2]])
+			expect.arrayContaining([
+				['Parent', -1],
+				['Grand', -2]
+			])
 		);
 		const down = select(synthetic('direct-links-only'), 'Parent', { descendantDepth: 0 });
 		expect(down.stubs.find((st) => st.unionId === null)?.count).toBe(2);
 	});
 
-	it('draws a person\'s three unions with all their partners', () => {
+	it("draws a person's three unions with all their partners", () => {
 		const s = select(synthetic('three-unions'), 'Pat', {});
 		expect(s.unions).toHaveLength(3);
-		expect(s.people.map((p) => p.id)).toEqual(expect.arrayContaining(['Q1', 'Q2', 'Q3', 'K1', 'K2', 'K3']));
+		expect(s.people.map((p) => p.id)).toEqual(
+			expect.arrayContaining(['Q1', 'Q2', 'Q3', 'K1', 'K2', 'K3'])
+		);
 	});
 });

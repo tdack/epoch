@@ -12,7 +12,14 @@ import type { TreeRole } from '../domain/identity';
 import { isPersonPrivate, livingCutoff } from '../domain/living-state';
 import { importGedcomToDb } from '../gedcom/importer';
 import { visibleAmong } from '../repositories/visibility';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { ListService } from './list-service';
 import { MarkService } from './mark-service';
 import { SearchService } from './search-service';
@@ -101,11 +108,20 @@ beforeAll(async () => {
 		await addTestMember(t.db, treeId, actors[role], role);
 	}
 	await importGedcomToDb(t.d1, treeId, FIXTURE, 'Privacy');
-	const rows = await t.db.select({ id: individuals.id, xref: individuals.xrefId }).from(individuals).where(eq(individuals.treeId, treeId));
+	const rows = await t.db
+		.select({ id: individuals.id, xref: individuals.xrefId })
+		.from(individuals)
+		.where(eq(individuals.treeId, treeId));
 	const byXref = new Map(rows.map((r) => [r.xref, r.id]));
 	idOf = (xref) => byXref.get(xref)!;
-	await t.db.update(individuals).set({ privacy: 'public' }).where(eq(individuals.id, idOf('@I5@')));
-	await t.db.update(individuals).set({ privacy: 'private' }).where(eq(individuals.id, idOf('@I6@')));
+	await t.db
+		.update(individuals)
+		.set({ privacy: 'public' })
+		.where(eq(individuals.id, idOf('@I5@')));
+	await t.db
+		.update(individuals)
+		.set({ privacy: 'private' })
+		.where(eq(individuals.id, idOf('@I6@')));
 }, 60_000);
 afterAll(async () => {
 	await t.dispose();
@@ -121,8 +137,13 @@ describe('the SQL predicate and the pure rule', () => {
 		for (const [xref, expected] of Object.entries(VISIBLE)) {
 			const id = idOf(xref);
 			const person = (await t.db.select().from(individuals).where(eq(individuals.id, id)))[0]!;
-			const facts = (await t.db.select().from(events).where(eq(events.entityId, id))).map((e) => ({ type: e.type, dateSortEnd: e.dateSortEnd }));
-			expect(!isPersonPrivate(person.privacy, facts, CUTOFF), `pure rule for ${xref}`).toBe(expected);
+			const facts = (await t.db.select().from(events).where(eq(events.entityId, id))).map((e) => ({
+				type: e.type,
+				dateSortEnd: e.dateSortEnd
+			}));
+			expect(!isPersonPrivate(person.privacy, facts, CUTOFF), `pure rule for ${xref}`).toBe(
+				expected
+			);
 			expect(visible.has(id), `SQL for ${xref}`).toBe(expected);
 		}
 	});
@@ -134,42 +155,68 @@ describe('search', () => {
 		expect(xrefsOf(people(r)).sort()).toEqual(['@I3@', '@I9@']);
 	});
 
-	it.each(['contributor', 'viewer'] as const)('hides a private person, their other names and their XREF from a %s', async (role) => {
-		const ctx = actors[role].context;
-		expect(xrefsOf(people(await search().search(treeId, { text: 'Livingston' }, ctx)))).toEqual(['@I9@']);
-		// A married name and an XREF are other doors to the same person.
-		expect((await search().search(treeId, { text: 'Zeta' }, ctx)).people).toEqual([]);
-		expect((await search().search(treeId, { text: '@I3@' }, ctx)).people).toEqual([]);
-		expect((await search().search(treeId, { place: 'Perth' }, ctx)).people).toEqual([]);
-		expect(xrefsOf(people(await search().search(treeId, { text: '@I2@' }, ctx)))).toEqual(['@I2@']);
-	});
+	it.each(['contributor', 'viewer'] as const)(
+		'hides a private person, their other names and their XREF from a %s',
+		async (role) => {
+			const ctx = actors[role].context;
+			expect(xrefsOf(people(await search().search(treeId, { text: 'Livingston' }, ctx)))).toEqual([
+				'@I9@'
+			]);
+			// A married name and an XREF are other doors to the same person.
+			expect((await search().search(treeId, { text: 'Zeta' }, ctx)).people).toEqual([]);
+			expect((await search().search(treeId, { text: '@I3@' }, ctx)).people).toEqual([]);
+			expect((await search().search(treeId, { place: 'Perth' }, ctx)).people).toEqual([]);
+			expect(xrefsOf(people(await search().search(treeId, { text: '@I2@' }, ctx)))).toEqual([
+				'@I2@'
+			]);
+		}
+	);
 
 	// A contributor's predicate has a third term (their own people); it must not turn "private" into "unknown".
-	it.each(['viewer', 'contributor'] as const)('does not let a private couple\'s wedding find, or be quoted for, the visible partner of a %s', async (role) => {
-		const owner = actors.owner.context;
-		const viewer = actors[role].context;
-		// Dora's partner Liv is private, so the marriage is a fact about Liv too.
-		const asOwner = await search().search(treeId, { place: 'Marriageton' }, owner);
-		expect(xrefsOf(people(asOwner)).sort()).toEqual(['@I1@', '@I3@']);
-		expect(asOwner.people.flatMap((p) => p.matches).some((m) => m.kind === 'fact' && m.isPartnershipFact)).toBe(true);
-		for (const query of [{ place: 'Marriageton' }, { text: 'Deadly', place: 'Marriageton' }, { text: '@I1@', place: 'Marriageton' }]) {
-			const found = await search().search(treeId, query, viewer);
-			expect(JSON.stringify(found), JSON.stringify(query)).not.toContain('Marriageton');
-			expect(found.people, JSON.stringify(query)).toEqual([]);
+	it.each(['viewer', 'contributor'] as const)(
+		"does not let a private couple's wedding find, or be quoted for, the visible partner of a %s",
+		async (role) => {
+			const owner = actors.owner.context;
+			const viewer = actors[role].context;
+			// Dora's partner Liv is private, so the marriage is a fact about Liv too.
+			const asOwner = await search().search(treeId, { place: 'Marriageton' }, owner);
+			expect(xrefsOf(people(asOwner)).sort()).toEqual(['@I1@', '@I3@']);
+			expect(
+				asOwner.people
+					.flatMap((p) => p.matches)
+					.some((m) => m.kind === 'fact' && m.isPartnershipFact)
+			).toBe(true);
+			for (const query of [
+				{ place: 'Marriageton' },
+				{ text: 'Deadly', place: 'Marriageton' },
+				{ text: '@I1@', place: 'Marriageton' }
+			]) {
+				const found = await search().search(treeId, query, viewer);
+				expect(JSON.stringify(found), JSON.stringify(query)).not.toContain('Marriageton');
+				expect(found.people, JSON.stringify(query)).toEqual([]);
+			}
+			// 1990 is also the year Pia (forced public) was born, so she may match; the wedding must not be what finds Dora.
+			const byYear = await search().search(treeId, { from: '1990', to: '1990' }, viewer);
+			expect(xrefsOf(people(byYear))).not.toContain('@I1@');
+			expect(
+				byYear.people
+					.flatMap((p) => p.matches)
+					.filter((m) => m.kind === 'fact' && m.isPartnershipFact)
+			).toEqual([]);
+			// A couple who are both visible still match, and say why.
+			const visibleCouple = await search().search(treeId, { place: 'Hobartville' }, viewer);
+			expect(xrefsOf(people(visibleCouple)).sort()).toEqual(['@I1@', '@I2@']);
+			expect(
+				visibleCouple.people
+					.flatMap((p) => p.matches)
+					.some((m) => m.kind === 'fact' && m.isPartnershipFact)
+			).toBe(true);
 		}
-		// 1990 is also the year Pia (forced public) was born, so she may match; the wedding must not be what finds Dora.
-		const byYear = await search().search(treeId, { from: '1990', to: '1990' }, viewer);
-		expect(xrefsOf(people(byYear))).not.toContain('@I1@');
-		expect(byYear.people.flatMap((p) => p.matches).filter((m) => m.kind === 'fact' && m.isPartnershipFact)).toEqual([]);
-		// A couple who are both visible still match, and say why.
-		const visibleCouple = await search().search(treeId, { place: 'Hobartville' }, viewer);
-		expect(xrefsOf(people(visibleCouple)).sort()).toEqual(['@I1@', '@I2@']);
-		expect(visibleCouple.people.flatMap((p) => p.matches).some((m) => m.kind === 'fact' && m.isPartnershipFact)).toBe(true);
-	});
+	);
 
 	it('computes hasMore and page fill over what the viewer may see', async () => {
 		const ctx = actors.viewer.context;
-		const all = await search().search(treeId, { text: 'a' , limit: 50 }, ctx);
+		const all = await search().search(treeId, { text: 'a', limit: 50 }, ctx);
 		const visibleCount = all.people.length;
 		expect(visibleCount).toBeGreaterThan(1);
 		const first = await search().search(treeId, { text: 'a', limit: visibleCount - 1 }, ctx);
@@ -185,16 +232,22 @@ describe('lists', () => {
 		const owner = await lists().individuals(treeId, { limit: 100 }, actors.owner.context);
 		const viewer = await lists().individuals(treeId, { limit: 100 }, actors.viewer.context);
 		expect(owner.items).toHaveLength(9);
-		expect(xrefsOf(viewer.items.map((p) => p.id)).sort()).toEqual(Object.entries(VISIBLE).filter(([, v]) => v).map(([x]) => x).sort());
+		expect(xrefsOf(viewer.items.map((p) => p.id)).sort()).toEqual(
+			Object.entries(VISIBLE)
+				.filter(([, v]) => v)
+				.map(([x]) => x)
+				.sort()
+		);
 		const paged = await lists().individuals(treeId, { limit: 2, offset: 0 }, actors.viewer.context);
 		expect(paged.items).toHaveLength(2);
 		expect(paged.hasMore).toBe(true);
 	});
 
-	it('drops a private person\'s surname from the surname list and discounts the count', async () => {
+	it("drops a private person's surname from the surname list and discounts the count", async () => {
 		const owner = await lists().surnames(treeId, { limit: 100 }, actors.owner.context);
 		const viewer = await lists().surnames(treeId, { limit: 100 }, actors.viewer.context);
-		const count = (page: typeof owner, name: string) => page.items.find((s) => s.surname === name)?.people;
+		const count = (page: typeof owner, name: string) =>
+			page.items.find((s) => s.surname === name)?.people;
 		expect(count(owner, 'Livingston')).toBe(2);
 		expect(count(viewer, 'Livingston')).toBe(1);
 		for (const hidden of ['Nofacts', 'Privateforced', 'Afterman', 'Zeta']) {
@@ -202,7 +255,11 @@ describe('lists', () => {
 			expect(count(viewer, hidden), `viewer sees ${hidden}`).toBeUndefined();
 		}
 		// The count equals the rows of the filtered list, for the viewer too.
-		const filtered = await lists().individuals(treeId, { surname: 'Livingston', limit: 100 }, actors.viewer.context);
+		const filtered = await lists().individuals(
+			treeId,
+			{ surname: 'Livingston', limit: 100 },
+			actors.viewer.context
+		);
 		expect(filtered.items).toHaveLength(1);
 	});
 
@@ -223,19 +280,30 @@ describe('favourites and recents', () => {
 		const missing = await marks.addFavorite(treeId, 'no-such-person', ctx).catch((e) => e);
 		expect(hidden).toBeInstanceOf(NotFoundError);
 		expect(missing).toBeInstanceOf(NotFoundError);
-		expect({ ...hidden, message: hidden.message.replace(idOf('@I3@'), 'ID') }).toEqual({ ...missing, message: missing.message.replace('no-such-person', 'ID') });
+		expect({ ...hidden, message: hidden.message.replace(idOf('@I3@'), 'ID') }).toEqual({
+			...missing,
+			message: missing.message.replace('no-such-person', 'ID')
+		});
 	});
 
-	it('drop a person who became private from a contributor\'s list but keep them for an owner', async () => {
+	it("drop a person who became private from a contributor's list but keep them for an owner", async () => {
 		const marks = new MarkService(t.db, () => Date.now());
 		const owner = actors.owner.context;
 		const contributor = actors.contributor.context;
 		await marks.addFavorite(treeId, idOf('@I2@'), contributor);
 		await marks.addFavorite(treeId, idOf('@I2@'), owner);
-		expect((await marks.get(treeId, contributor)).favorites.map((p) => p.id)).toContain(idOf('@I2@'));
-		await t.db.update(individuals).set({ privacy: 'private' }).where(eq(individuals.id, idOf('@I2@')));
+		expect((await marks.get(treeId, contributor)).favorites.map((p) => p.id)).toContain(
+			idOf('@I2@')
+		);
+		await t.db
+			.update(individuals)
+			.set({ privacy: 'private' })
+			.where(eq(individuals.id, idOf('@I2@')));
 		expect((await marks.get(treeId, contributor)).favorites).toEqual([]);
 		expect((await marks.get(treeId, owner)).favorites.map((p) => p.id)).toContain(idOf('@I2@'));
-		await t.db.update(individuals).set({ privacy: 'auto' }).where(eq(individuals.id, idOf('@I2@')));
+		await t.db
+			.update(individuals)
+			.set({ privacy: 'auto' })
+			.where(eq(individuals.id, idOf('@I2@')));
 	});
 });

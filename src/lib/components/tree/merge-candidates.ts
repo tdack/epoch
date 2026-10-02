@@ -18,7 +18,8 @@ export interface MergeCandidate {
 	version: number;
 }
 
-const childCountOf = (union: RelationshipGraphUnion) => new Set(union.children.map((c) => c.childId)).size;
+const childCountOf = (union: RelationshipGraphUnion) =>
+	new Set(union.children.map((c) => c.childId)).size;
 
 /**
  * The union itself and every other union with exactly the same partners, oldest first. Empty when

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CONFLICT_KINDS, findFactConflicts, sortTimeline, type TimelineFact } from './fact-timeline';
+import {
+	CONFLICT_KINDS,
+	findFactConflicts,
+	sortTimeline,
+	type TimelineFact
+} from './fact-timeline';
 
 const fact = (id: string, type: string, extra: Partial<TimelineFact> = {}): TimelineFact => ({
 	id,
@@ -53,12 +58,25 @@ describe('findFactConflicts', () => {
 	});
 
 	it('does not call two residences or occupations a conflict, which a person often has', () => {
-		expect(findFactConflicts([fact('r1', 'RESI', { place: 'Leeds' }), fact('r2', 'RESI', { place: 'Hull' })]).size).toBe(0);
-		expect(findFactConflicts([fact('o1', 'OCCU', { value: 'Joiner' }), fact('o2', 'OCCU', { value: 'Teacher' })]).size).toBe(0);
+		expect(
+			findFactConflicts([
+				fact('r1', 'RESI', { place: 'Leeds' }),
+				fact('r2', 'RESI', { place: 'Hull' })
+			]).size
+		).toBe(0);
+		expect(
+			findFactConflicts([
+				fact('o1', 'OCCU', { value: 'Joiner' }),
+				fact('o2', 'OCCU', { value: 'Teacher' })
+			]).size
+		).toBe(0);
 	});
 
 	it('flags identical facts as repeats, whatever the type, ignoring case and spacing', () => {
-		const flags = findFactConflicts([fact('r1', 'RESI', { place: 'Leeds' }), fact('r2', 'RESI', { place: ' leeds ' })]);
+		const flags = findFactConflicts([
+			fact('r1', 'RESI', { place: 'Leeds' }),
+			fact('r2', 'RESI', { place: ' leeds ' })
+		]);
 		expect(flags.get('r1')?.kind).toBe(CONFLICT_KINDS.REPEAT);
 		expect(flags.get('r2')?.otherIds).toEqual(['r1']);
 	});

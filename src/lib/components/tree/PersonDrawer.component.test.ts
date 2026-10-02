@@ -10,13 +10,35 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-const summary = (id: string, displayName: string): PersonSummaryDto => ({ id, displayName, sex: 'U', birthDate: null, deathDate: null, isDeceased: false, isPrivate: false });
+const summary = (id: string, displayName: string): PersonSummaryDto => ({
+	id,
+	displayName,
+	sex: 'U',
+	birthDate: null,
+	deathDate: null,
+	isDeceased: false,
+	isPrivate: false
+});
 
 /** Only what the drawer reads; the rest of the DTO is irrelevant to it. */
-function pageOf(id: string, name: string, extra: Partial<PersonPageDto> = {}, sex: PersonPageDto['person']['sex'] | undefined = 'U'): PersonPageDto {
+function pageOf(
+	id: string,
+	name: string,
+	extra: Partial<PersonPageDto> = {},
+	sex: PersonPageDto['person']['sex'] | undefined = 'U'
+): PersonPageDto {
 	return {
 		isPrivate: false,
-		person: { id, displayName: name, sex: sex as PersonPageDto['person']['sex'], xrefId: null, version: 1, givenName: name, surname: null, isDeceased: false },
+		person: {
+			id,
+			displayName: name,
+			sex: sex as PersonPageDto['person']['sex'],
+			xrefId: null,
+			version: 1,
+			givenName: name,
+			surname: null,
+			isDeceased: false
+		},
 		vitals: { birth: null, death: null, lifespan: null, hasConflict: false },
 		facts: [],
 		parentFamilies: [],
@@ -32,7 +54,10 @@ function pageOf(id: string, name: string, extra: Partial<PersonPageDto> = {}, se
 
 function open(page: PersonPageDto) {
 	const onSelectPerson = vi.fn();
-	component = mount(PersonDrawer, { target: document.body, props: { page, treeId: 't', onClose: vi.fn(), onSelectPerson } });
+	component = mount(PersonDrawer, {
+		target: document.body,
+		props: { page, treeId: 't', onClose: vi.fn(), onSelectPerson }
+	});
 	flushSync();
 	return { onSelectPerson };
 }
@@ -47,7 +72,11 @@ describe('PersonDrawer step relatives', () => {
 	});
 
 	it('lists the partner’s child as a step-child, and selecting one navigates', () => {
-		const { onSelectPerson } = open(pageOf('dee', 'Dee', { stepChildren: [{ person: summary('cal', 'Cal'), via: summary('ann', 'Ann'), unionId: 'u1' }] }));
+		const { onSelectPerson } = open(
+			pageOf('dee', 'Dee', {
+				stepChildren: [{ person: summary('cal', 'Cal'), via: summary('ann', 'Ann'), unionId: 'u1' }]
+			})
+		);
 		expect(steps()!.textContent).toContain('step-child, via Ann');
 		steps()!.querySelector('button')!.click();
 		expect(onSelectPerson).toHaveBeenCalledWith('cal');
@@ -60,7 +89,13 @@ describe('PersonDrawer step relatives', () => {
 });
 
 describe('PersonDrawer', () => {
-	it.each([['M', 'Male'], ['F', 'Female'], ['X', 'Other'], ['U', 'Unknown'], [undefined, 'Unknown']])('labels sex %s as %s', (sex, label) => {
+	it.each([
+		['M', 'Male'],
+		['F', 'Female'],
+		['X', 'Other'],
+		['U', 'Unknown'],
+		[undefined, 'Unknown']
+	])('labels sex %s as %s', (sex, label) => {
 		open(pageOf('ben', 'Ben', {}, sex as PersonPageDto['person']['sex'] | undefined));
 		expect(document.body.textContent).toContain(`Sex: ${label}`);
 	});
@@ -68,7 +103,17 @@ describe('PersonDrawer', () => {
 	it('links to the full page and marks a fact that disagrees with another', () => {
 		open(
 			pageOf('ben', 'Ben', {
-				facts: [{ id: 'b1', label: 'Birth', dateText: '1900', place: null, value: null, notes: null, conflict: { kind: 'conflict', otherIds: ['b2'] } } as never]
+				facts: [
+					{
+						id: 'b1',
+						label: 'Birth',
+						dateText: '1900',
+						place: null,
+						value: null,
+						notes: null,
+						conflict: { kind: 'conflict', otherIds: ['b2'] }
+					} as never
+				]
 			})
 		);
 		expect(document.querySelector('a[href="/trees/t/people/ben"]')).not.toBeNull();
@@ -76,7 +121,11 @@ describe('PersonDrawer', () => {
 	});
 
 	it('lists siblings with half-siblings marked', () => {
-		open(pageOf('cat', 'Cat', { siblings: { full: [summary('dan', 'Dan')], half: [summary('fay', 'Fay')] } }));
+		open(
+			pageOf('cat', 'Cat', {
+				siblings: { full: [summary('dan', 'Dan')], half: [summary('fay', 'Fay')] }
+			})
+		);
 		const text = document.querySelector('[data-testid="siblings"]')!.textContent!;
 		expect(text).toContain('Dan');
 		expect(text).toContain('Fay');
@@ -107,6 +156,8 @@ describe('PersonDrawer header', () => {
 
 	it('has no relationship button in the header block', () => {
 		open(pageOf('p', 'Pat'));
-		expect([...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Relationship')).toBe(false);
+		expect(
+			[...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Relationship')
+		).toBe(false);
 	});
 });

@@ -1,102 +1,102 @@
 <script lang="ts">
-  import { Plus, RefreshCw } from 'lucide-svelte';
-  import BaseModal from './BaseModal.svelte';
+	import { Plus, RefreshCw } from 'lucide-svelte';
+	import BaseModal from './BaseModal.svelte';
 
-  interface Props {
-    show: boolean;
-    isCreating?: boolean;
-    error?: string | null;
-    onclose: () => void;
-    oncreate: (data: { name: string; description?: string }) => void;
-  }
+	interface Props {
+		show: boolean;
+		isCreating?: boolean;
+		error?: string | null;
+		onclose: () => void;
+		oncreate: (data: { name: string; description?: string }) => void;
+	}
 
-  let { show, isCreating = false, error = null, onclose, oncreate }: Props = $props();
+	let { show, isCreating = false, error = null, onclose, oncreate }: Props = $props();
 
-  let name = $state('');
-  let description = $state('');
-  let localError = $state<string | null>(null);
+	let name = $state('');
+	let description = $state('');
+	let localError = $state<string | null>(null);
 
-  $effect(() => {
-    if (show) {
-      name = '';
-      description = '';
-      localError = null;
-    }
-  });
+	$effect(() => {
+		if (show) {
+			name = '';
+			description = '';
+			localError = null;
+		}
+	});
 
-  function handleSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) {
-      localError = 'Please enter a name for your tree.';
-      return;
-    }
-    localError = null;
-    oncreate({ name: trimmed, description: description.trim() || undefined });
-  }
+	function handleSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		const trimmed = name.trim();
+		if (!trimmed) {
+			localError = 'Please enter a name for your tree.';
+			return;
+		}
+		localError = null;
+		oncreate({ name: trimmed, description: description.trim() || undefined });
+	}
 </script>
 
 <BaseModal
-  {show}
-  title="Create New Genealogy Tree"
-  icon={Plus}
-  iconBgClass="bg-emerald-100"
-  iconBorderClass="border-emerald-300"
-  iconTextClass="text-emerald-800"
-  error={error || localError}
-  {onclose}
+	{show}
+	title="Create New Genealogy Tree"
+	icon={Plus}
+	iconBgClass="bg-emerald-100"
+	iconBorderClass="border-emerald-300"
+	iconTextClass="text-emerald-800"
+	error={error || localError}
+	{onclose}
 >
-  <form onsubmit={handleSubmit} class="space-y-4">
-    <div class="space-y-3.5">
-      <div>
-        <label for="tree-name-input" class="text-xs font-semibold text-stone-700 block mb-1">
-          Tree Name <span class="text-orange-600">*</span>
-        </label>
-        <input
-          id="tree-name-input"
-          type="text"
-          bind:value={name}
-          placeholder="e.g. Smith Ancestry"
-          disabled={isCreating}
-          class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-        />
-      </div>
-      <div>
-        <label for="tree-desc-input" class="text-xs font-semibold text-stone-700 block mb-1">
-          Description (Optional)
-        </label>
-        <textarea
-          id="tree-desc-input"
-          bind:value={description}
-          placeholder="Lineage notes or family history details..."
-          rows="3"
-          disabled={isCreating}
-          class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-        ></textarea>
-      </div>
-    </div>
+	<form onsubmit={handleSubmit} class="space-y-4">
+		<div class="space-y-3.5">
+			<div>
+				<label for="tree-name-input" class="mb-1 block text-xs font-semibold text-stone-700">
+					Tree Name <span class="text-orange-600">*</span>
+				</label>
+				<input
+					id="tree-name-input"
+					type="text"
+					bind:value={name}
+					placeholder="e.g. Smith Ancestry"
+					disabled={isCreating}
+					class="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
+				/>
+			</div>
+			<div>
+				<label for="tree-desc-input" class="mb-1 block text-xs font-semibold text-stone-700">
+					Description (Optional)
+				</label>
+				<textarea
+					id="tree-desc-input"
+					bind:value={description}
+					placeholder="Lineage notes or family history details..."
+					rows="3"
+					disabled={isCreating}
+					class="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
+				></textarea>
+			</div>
+		</div>
 
-    <div class="flex justify-end space-x-2 pt-2 border-t border-stone-200">
-      <button
-        type="button"
-        onclick={onclose}
-        disabled={isCreating}
-        class="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer disabled:opacity-50"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={isCreating}
-        class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-amber-50 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-      >
-        {#if isCreating}
-          <RefreshCw class="w-3.5 h-3.5 animate-spin mr-1" />
-          <span>Creating...</span>
-        {:else}
-          <span>Create Tree</span>
-        {/if}
-      </button>
-    </div>
-  </form>
+		<div class="flex justify-end space-x-2 border-t border-stone-200 pt-2">
+			<button
+				type="button"
+				onclick={onclose}
+				disabled={isCreating}
+				class="cursor-pointer rounded-lg px-4 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-200/60 hover:text-stone-900 disabled:opacity-50"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				disabled={isCreating}
+				class="inline-flex cursor-pointer items-center space-x-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-amber-50 shadow-xs transition-colors hover:bg-emerald-700 disabled:opacity-50"
+			>
+				{#if isCreating}
+					<RefreshCw class="mr-1 h-3.5 w-3.5 animate-spin" />
+					<span>Creating...</span>
+				{:else}
+					<span>Create Tree</span>
+				{/if}
+			</button>
+		</div>
+	</form>
 </BaseModal>

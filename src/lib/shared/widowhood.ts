@@ -19,7 +19,10 @@ export interface Widowhood {
 	deceasedId: string;
 }
 
-export function widowhoods(unions: WidowhoodUnion[], deceasedIds: ReadonlySet<string>): Widowhood[] {
+export function widowhoods(
+	unions: WidowhoodUnion[],
+	deceasedIds: ReadonlySet<string>
+): Widowhood[] {
 	const found: Widowhood[] = [];
 	for (const union of unions) {
 		// An ended union stays ended: a divorced partner's death does not make anyone a widow.
@@ -37,7 +40,11 @@ export function widowhoods(unions: WidowhoodUnion[], deceasedIds: ReadonlySet<st
 }
 
 /** The widowhoods that recording `personId` as deceased would newly create. */
-export function newWidowhoods(unions: WidowhoodUnion[], deceasedIds: ReadonlySet<string>, personId: string): Widowhood[] {
+export function newWidowhoods(
+	unions: WidowhoodUnion[],
+	deceasedIds: ReadonlySet<string>,
+	personId: string
+): Widowhood[] {
 	if (deceasedIds.has(personId)) return [];
 	const key = (w: Widowhood) => `${w.unionId}|${w.widowId}|${w.deceasedId}`;
 	const before = new Set(widowhoods(unions, deceasedIds).map(key));

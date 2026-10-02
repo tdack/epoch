@@ -4,7 +4,14 @@ import { individuals } from '../db/schema';
 import { UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { PersonPageService } from './person-page-service';
 import { PrivacyService } from './privacy-service';
@@ -30,9 +37,11 @@ let t: TestDatabase;
 let treeId: string;
 const actors = {} as Record<TreeRole, TestActor>;
 let idOf: (xref: string) => string;
-const service = () => new PrivacyService(t.db, { now: () => NOW.getTime(), newId: () => crypto.randomUUID() });
+const service = () =>
+	new PrivacyService(t.db, { now: () => NOW.getTime(), newId: () => crypto.randomUUID() });
 const search = () => new SearchService(t.db, () => NOW);
-const found = async (text: string) => (await search().search(treeId, { text }, actors.viewer.context)).people.length;
+const found = async (text: string) =>
+	(await search().search(treeId, { text }, actors.viewer.context)).people.length;
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -43,7 +52,10 @@ beforeAll(async () => {
 		await addTestMember(t.db, treeId, actors[role], role);
 	}
 	await importGedcomToDb(t.d1, treeId, FIXTURE, 'Privacy service');
-	const rows = await t.db.select({ id: individuals.id, xref: individuals.xrefId }).from(individuals).where(eq(individuals.treeId, treeId));
+	const rows = await t.db
+		.select({ id: individuals.id, xref: individuals.xrefId })
+		.from(individuals)
+		.where(eq(individuals.treeId, treeId));
 	const byXref = new Map(rows.map((r) => [r.xref, r.id]));
 	idOf = (xref) => byXref.get(xref)!;
 }, 60_000);
@@ -55,20 +67,43 @@ describe("a person's override", () => {
 	it('lets a manager hide an old person and show a young one, and an undo puts it back', async () => {
 		expect(await found('Olda')).toBe(1);
 		expect(await found('Younga')).toBe(0);
-		await service().setPersonPrivacy(treeId, idOf('@I1@'), 'private', undefined, actors.manager.context);
-		await service().setPersonPrivacy(treeId, idOf('@I3@'), 'public', undefined, actors.manager.context);
+		await service().setPersonPrivacy(
+			treeId,
+			idOf('@I1@'),
+			'private',
+			undefined,
+			actors.manager.context
+		);
+		await service().setPersonPrivacy(
+			treeId,
+			idOf('@I3@'),
+			'public',
+			undefined,
+			actors.manager.context
+		);
 		expect(await found('Olda')).toBe(0);
 		expect(await found('Younga')).toBe(1);
 
-		const undo = new ChangeLogService(t.db, { now: () => NOW.getTime(), newId: () => crypto.randomUUID() });
+		const undo = new ChangeLogService(t.db, {
+			now: () => NOW.getTime(),
+			newId: () => crypto.randomUUID()
+		});
 		await undo.undoLast(treeId, actors.manager.context);
 		expect(await found('Younga')).toBe(0);
-		await service().setPersonPrivacy(treeId, idOf('@I1@'), 'auto', undefined, actors.manager.context);
+		await service().setPersonPrivacy(
+			treeId,
+			idOf('@I1@'),
+			'auto',
+			undefined,
+			actors.manager.context
+		);
 		expect(await found('Olda')).toBe(1);
 	});
 
 	it.each(['editor', 'contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
-		await expect(service().setPersonPrivacy(treeId, idOf('@I1@'), 'private', undefined, actors[role].context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			service().setPersonPrivacy(treeId, idOf('@I1@'), 'private', undefined, actors[role].context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 
 	it('shows a manager the setting and what the dates alone say, and a viewer neither', async () => {
@@ -84,10 +119,17 @@ describe("a person's override", () => {
 
 describe('the tree settings', () => {
 	it('are read and changed by a manager only', async () => {
-		expect(await service().getSettings(treeId, actors.manager.context)).toEqual({ maxAliveYears: 120, shouldShowPrivateStructure: false });
+		expect(await service().getSettings(treeId, actors.manager.context)).toEqual({
+			maxAliveYears: 120,
+			shouldShowPrivateStructure: false
+		});
 		for (const role of ['editor', 'contributor', 'viewer'] as const) {
-			await expect(service().getSettings(treeId, actors[role].context)).rejects.toBeInstanceOf(UnauthorizedError);
-			await expect(service().updateSettings(treeId, { maxAliveYears: 100 }, actors[role].context)).rejects.toBeInstanceOf(UnauthorizedError);
+			await expect(service().getSettings(treeId, actors[role].context)).rejects.toBeInstanceOf(
+				UnauthorizedError
+			);
+			await expect(
+				service().updateSettings(treeId, { maxAliveYears: 100 }, actors[role].context)
+			).rejects.toBeInstanceOf(UnauthorizedError);
 		}
 	});
 
@@ -102,7 +144,9 @@ describe('the tree settings', () => {
 
 	it('refuse an age that would show the living or hide everyone', async () => {
 		for (const bad of [10, 49, 151, 1000, 80.5]) {
-			await expect(service().updateSettings(treeId, { maxAliveYears: bad }, actors.manager.context)).rejects.toBeInstanceOf(ValidationError);
+			await expect(
+				service().updateSettings(treeId, { maxAliveYears: bad }, actors.manager.context)
+			).rejects.toBeInstanceOf(ValidationError);
 		}
 	});
 });

@@ -35,7 +35,10 @@ describe('buildRelationshipGraph', () => {
 
 		const child = graph.people.find((p) => p.id === 'child')!;
 		expect(child.parentsByUnion['u1']).toHaveLength(2);
-		expect(child.parentsByUnion['u1'].map((p) => p.type).sort()).toEqual(['adoptive', 'biological']);
+		expect(child.parentsByUnion['u1'].map((p) => p.type).sort()).toEqual([
+			'adoptive',
+			'biological'
+		]);
 	});
 
 	it('derives step parents from a parent\u2019s union', () => {
@@ -80,7 +83,15 @@ describe('person life dates', () => {
 	it('carries the original birth and death text, defaulting to null', () => {
 		const graph = buildRelationshipGraph({
 			people: [
-				{ id: 'a', givenName: 'Alex', surname: null, sex: 'M', isDeceased: true, birthDate: 'ABT 1900', deathDate: '3 MAR 1970' },
+				{
+					id: 'a',
+					givenName: 'Alex',
+					surname: null,
+					sex: 'M',
+					isDeceased: true,
+					birthDate: 'ABT 1900',
+					deathDate: '3 MAR 1970'
+				},
 				{ id: 'b', givenName: 'Bob', surname: null, sex: 'M', isDeceased: false }
 			],
 			unions: [],

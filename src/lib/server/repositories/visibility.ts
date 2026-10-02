@@ -44,22 +44,39 @@ export function isVisibleOf(alias: string, scope: Viewer): SQL {
  * ` and <visible>` to append to a where clause on `individuals` aliased `alias`; empty when the
  * viewer sees everyone. `alias` is a literal from the calling query, never user input.
  */
-export function andVisible(alias: string, scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>): SQL {
+export function andVisible(
+	alias: string,
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+): SQL {
 	return scope.isRestricted ? sql` and ${isVisibleSql(alias, scope)}` : sql``;
 }
 
 /** Which of these people exist in the tree and the viewer may see: a private person is exactly as absent as a missing one. */
-export async function visibleAmong(db: DbClient, treeId: string, personIds: readonly string[], scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>): Promise<Set<string>> {
+export async function visibleAmong(
+	db: DbClient,
+	treeId: string,
+	personIds: readonly string[],
+	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
+): Promise<Set<string>> {
 	if (personIds.length === 0) return new Set();
-	const ids = sql.join(personIds.map((id) => sql`${id}`), sql`, `);
-	const rows = await db.all<{ id: string }>(sql`select i.id as id from individuals i where i.tree_id = ${treeId} and i.id in (${ids})${andVisible('i', scope)}`);
+	const ids = sql.join(
+		personIds.map((id) => sql`${id}`),
+		sql`, `
+	);
+	const rows = await db.all<{ id: string }>(
+		sql`select i.id as id from individuals i where i.tree_id = ${treeId} and i.id in (${ids})${andVisible('i', scope)}`
+	);
 	return new Set(rows.map((r) => r.id));
 }
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
 
 /** The header counts a restricted viewer may see: visible people, and partnerships whose every partner is visible (as in the list). */
-export async function visibleCounts(db: DbClient, treeId: string, scope: Scope): Promise<{ people: number; unions: number }> {
+export async function visibleCounts(
+	db: DbClient,
+	treeId: string,
+	scope: Scope
+): Promise<{ people: number; unions: number }> {
 	const row = await db.all<{ people: number; unions: number }>(sql`
 		select
 			(select count(*) from individuals i where i.tree_id = ${treeId}${andVisible('i', scope)}) as people,
@@ -69,7 +86,13 @@ export async function visibleCounts(db: DbClient, treeId: string, scope: Scope):
 }
 
 /** The first visible person in creation order: the default focus, which must not be a private person. */
-export async function firstVisiblePersonId(db: DbClient, treeId: string, scope: Scope): Promise<string | null> {
-	const rows = await db.all<{ id: string }>(sql`select i.id as id from individuals i where i.tree_id = ${treeId}${andVisible('i', scope)} order by i.rowid limit 1`);
+export async function firstVisiblePersonId(
+	db: DbClient,
+	treeId: string,
+	scope: Scope
+): Promise<string | null> {
+	const rows = await db.all<{ id: string }>(
+		sql`select i.id as id from individuals i where i.tree_id = ${treeId}${andVisible('i', scope)} order by i.rowid limit 1`
+	);
 	return rows[0]?.id ?? null;
 }

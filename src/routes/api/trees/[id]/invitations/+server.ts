@@ -13,11 +13,15 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const treeId = params.id;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const body = parseBody(inviteMemberSchema, await request.json().catch(() => ({})));
-		const invitation = await new MemberService(getDb(platform.env.DB)).invite(treeId, body, { user: locals.user, correlationId: locals.correlationId });
+		const invitation = await new MemberService(getDb(platform.env.DB)).invite(treeId, body, {
+			user: locals.user,
+			correlationId: locals.correlationId
+		});
 		return Response.json(invitation, { status: 201 });
 	} catch (err) {
 		return errorResponse(err, 'Failed to invite');

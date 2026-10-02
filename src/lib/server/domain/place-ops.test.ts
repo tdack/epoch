@@ -5,7 +5,12 @@ import { MAX_PLACE_REWRITE_FACTS } from '../../shared/places';
 import { treeRows } from '../testing/rows';
 
 const ctx = { now: 2_000_000 };
-const rewrite = (fromKey: string, to: string) => ({ kind: 'rewrite_place' as const, placeId: 'record-1', fromKey, to });
+const rewrite = (fromKey: string, to: string) => ({
+	kind: 'rewrite_place' as const,
+	placeId: 'record-1',
+	fromKey,
+	to
+});
 
 const rows = treeRows({
 	people: [{ id: 'p1' }, { id: 'p2' }],
@@ -25,7 +30,15 @@ describe('rewriting a place', () => {
 
 	it('writes the new text on each, and bumps a person once for their vitals', () => {
 		const ops = buildPlaceOps(rows, rewrite('cork', 'Cork, Ireland'), ctx);
-		expect(ops.filter((o) => o.table === 'events').map((o) => [o.id, (o.after as { place: string }).place, (o.after as { version: number }).version])).toEqual([
+		expect(
+			ops
+				.filter((o) => o.table === 'events')
+				.map((o) => [
+					o.id,
+					(o.after as { place: string }).place,
+					(o.after as { version: number }).version
+				])
+		).toEqual([
 			['e1', 'Cork, Ireland', 2],
 			['e2', 'Cork, Ireland', 2],
 			['e3', 'Cork, Ireland', 2]
@@ -44,7 +57,12 @@ describe('rewriting a place', () => {
 		expect(() => buildPlaceOps(rows, rewrite('atlantis', 'X'), ctx)).toThrow(NotFoundError);
 		const many = treeRows({
 			people: [{ id: 'p1' }],
-			events: Array.from({ length: MAX_PLACE_REWRITE_FACTS + 1 }, (_, i) => ({ id: `e${i}`, entityId: 'p1', type: 'RESI', place: 'Cork' }))
+			events: Array.from({ length: MAX_PLACE_REWRITE_FACTS + 1 }, (_, i) => ({
+				id: `e${i}`,
+				entityId: 'p1',
+				type: 'RESI',
+				place: 'Cork'
+			}))
 		});
 		expect(() => buildPlaceOps(many, rewrite('cork', 'X'), ctx)).toThrow(/at most 200/);
 	});

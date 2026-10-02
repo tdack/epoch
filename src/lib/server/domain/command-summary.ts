@@ -16,7 +16,11 @@ function nameOf(rows: TreeRows, id: string): string {
 
 function partnershipOf(rows: TreeRows, unionId: string): string {
 	const names = partnerIdsOf(rows, unionId).map((id) => nameOf(rows, id));
-	return names.length >= 2 ? `the partnership between ${names.join(' and ')}` : names.length === 1 ? `${names[0]}'s partnership` : 'a partnership';
+	return names.length >= 2
+		? `the partnership between ${names.join(' and ')}`
+		: names.length === 1
+			? `${names[0]}'s partnership`
+			: 'a partnership';
 }
 
 /** "Alex will be recorded as Sam's parent." becomes "Alex was recorded as Sam's parent." */
@@ -41,7 +45,9 @@ function nameOwner(rows: TreeRows, nameId: string): string {
 
 /** "married name" for the name a command names, whether it exists yet or not. */
 function nameKind(rows: TreeRows, nameId: string, type?: NameType): string {
-	return NAME_TYPE_LABELS[type ?? (rows.personNames.find((n) => n.id === nameId)?.type as NameType | undefined) ?? 'other'].toLowerCase();
+	return NAME_TYPE_LABELS[
+		type ?? (rows.personNames.find((n) => n.id === nameId)?.type as NameType | undefined) ?? 'other'
+	].toLowerCase();
 }
 
 const PRIVACY_SENTENCES = {
@@ -106,4 +112,3 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Merged ${command.mergedIds.length + 1} partnerships into ${partnershipOf(rows, command.survivorId)}`;
 	}
 }
-

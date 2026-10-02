@@ -7,11 +7,22 @@
  */
 
 import type { DbClient } from '../db';
-import { dependentsOfDeletions, describeOps, rebaseInverse, recordsOf, UNDO_REFUSALS } from '../domain/change-log';
+import {
+	dependentsOfDeletions,
+	describeOps,
+	rebaseInverse,
+	recordsOf,
+	UNDO_REFUSALS
+} from '../domain/change-log';
 import { UndoRefusedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
-import { actionForOps, MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
+import {
+	actionForOps,
+	MutationRunner,
+	type MutationClock,
+	type MutationResult
+} from './mutation-runner';
 
 export interface UndoResult extends MutationResult {
 	/** The change that was reverted. */
@@ -38,7 +49,11 @@ export class ChangeLogService {
 
 		const target = await store.latestUndoable(treeId, context.user.id);
 		if (!target?.inverse) {
-			throw new UndoRefusedError('There is nothing of yours to undo.', UNDO_REFUSALS.NOTHING_TO_UNDO, 404);
+			throw new UndoRefusedError(
+				'There is nothing of yours to undo.',
+				UNDO_REFUSALS.NOTHING_TO_UNDO,
+				404
+			);
 		}
 
 		const later = await store.firstTouchedAfter(treeId, target.seq, recordsOf(target.inverse));
@@ -51,7 +66,11 @@ export class ChangeLogService {
 		}
 
 		const current = await store.currentImages(target.inverse);
-		const rebased = rebaseInverse(target.inverse, (table, id) => current.get(`${table}:${id}`) ?? null, this.runner.clock.now());
+		const rebased = rebaseInverse(
+			target.inverse,
+			(table, id) => current.get(`${table}:${id}`) ?? null,
+			this.runner.clock.now()
+		);
 		if (!rebased.isOk) {
 			throw new UndoRefusedError(
 				`Can't undo "${target.summary}" because the records it changed have been changed since.`,

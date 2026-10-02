@@ -66,7 +66,10 @@ export function layoutFocusView(
 	const misplaced: string[] = [];
 	for (const p of selection.people) {
 		if (havePerson.has(p.id)) continue;
-		const x = (rowRight.get(p.generation) ?? -m.siblingGap - m.cardWidth / 2) + m.siblingGap + m.cardWidth / 2;
+		const x =
+			(rowRight.get(p.generation) ?? -m.siblingGap - m.cardWidth / 2) +
+			m.siblingGap +
+			m.cardWidth / 2;
 		rowRight.set(p.generation, x + m.cardWidth / 2);
 		items.push({ t: 'person', id: p.id, gen: p.generation, x });
 		misplaced.push(p.id);
@@ -74,7 +77,9 @@ export function layoutFocusView(
 	const haveUnion = new Set(items.filter((i) => i.t === 'union').map((i) => i.id));
 	for (const u of selection.unions) {
 		if (haveUnion.has(u.id)) continue;
-		const partnerXs = items.filter((i) => i.t === 'person' && index.unionById.get(u.id)!.partnerIds.includes(i.id)).map((i) => i.x);
+		const partnerXs = items
+			.filter((i) => i.t === 'person' && index.unionById.get(u.id)!.partnerIds.includes(i.id))
+			.map((i) => i.x);
 		const x = partnerXs.length > 0 ? partnerXs.reduce((a, b) => a + b, 0) / partnerXs.length : 0;
 		items.push({ t: 'union', id: u.id, gen: u.generation, x, isHanging: true });
 		nonAdjacent.add(u.id);

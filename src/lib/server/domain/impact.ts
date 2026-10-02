@@ -11,7 +11,11 @@ import { makeLabeler } from './tree-labels';
 export { groupRecords };
 import { displayNameOf, personName } from './tree-ops';
 
-export const PERSON_ROLES_IN_IMPACT = { DELETED: 'deleted', CREATED: 'created', AFFECTED: 'affected' } as const;
+export const PERSON_ROLES_IN_IMPACT = {
+	DELETED: 'deleted',
+	CREATED: 'created',
+	AFFECTED: 'affected'
+} as const;
 export type ImpactPersonRole = (typeof PERSON_ROLES_IN_IMPACT)[keyof typeof PERSON_ROLES_IN_IMPACT];
 
 export interface ImpactPerson {
@@ -60,7 +64,7 @@ function peopleOf(op: RowOp, partnersOf: (unionId: string) => string[]): string[
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
 		case 'media_items':
 			return [row.entityId];
-		}
+	}
 }
 
 export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): ImpactSummary {
@@ -70,11 +74,13 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 	);
 
 	const names = new Map(rows.individuals.map((p) => [p.id, displayNameOf(rows, p.id)]));
-	for (const op of ops) if (op.table === 'individuals' && op.after) names.set(op.id, personName(op.after as any));
+	for (const op of ops)
+		if (op.table === 'individuals' && op.after) names.set(op.id, personName(op.after as any));
 
 	// Partners as they are before the change plus those it adds, so a deleted partnership still names them.
 	const partnerIds = new Map<string, string[]>();
-	for (const p of rows.unionPartners) partnerIds.set(p.unionId, [...(partnerIds.get(p.unionId) ?? []), p.personId]);
+	for (const p of rows.unionPartners)
+		partnerIds.set(p.unionId, [...(partnerIds.get(p.unionId) ?? []), p.personId]);
 	for (const op of ops) {
 		if (op.table === 'union_partners' && op.before === null) {
 			const row = op.after as { unionId: string; personId: string };
@@ -85,15 +91,19 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 
 	const roles = new Map<string, ImpactPersonRole>();
 	for (const op of ops) {
-		if (op.table === 'individuals' && op.before === null) roles.set(op.id, PERSON_ROLES_IN_IMPACT.CREATED);
-		else if (op.table === 'individuals' && op.after === null) roles.set(op.id, PERSON_ROLES_IN_IMPACT.DELETED);
+		if (op.table === 'individuals' && op.before === null)
+			roles.set(op.id, PERSON_ROLES_IN_IMPACT.CREATED);
+		else if (op.table === 'individuals' && op.after === null)
+			roles.set(op.id, PERSON_ROLES_IN_IMPACT.DELETED);
 	}
 	for (const op of ops) {
-		for (const id of peopleOf(op, partnersOf)) if (!roles.has(id)) roles.set(id, PERSON_ROLES_IN_IMPACT.AFFECTED);
+		for (const id of peopleOf(op, partnersOf))
+			if (!roles.has(id)) roles.set(id, PERSON_ROLES_IN_IMPACT.AFFECTED);
 	}
 	const people = [...roles].map(([id, role]) => ({ id, name: names.get(id) ?? 'Unknown', role }));
 
-	const unionLabel = (id: unknown) => (typeof id === 'string' ? labeler('unions', { id }) : 'no partnership');
+	const unionLabel = (id: unknown) =>
+		typeof id === 'string' ? labeler('unions', { id }) : 'no partnership';
 	const moves: ImpactMove[] = [];
 	for (const op of ops) {
 		if (!op.before || !op.after) continue;

@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { importGedcomToDb } from '../gedcom/importer';
 import { UnauthorizedError } from '../domain/errors';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { SearchService } from './search-service';
 
 let t: TestDatabase;
@@ -89,7 +96,9 @@ describe('searching by name', () => {
 		// Whichever of the two is the display name, the other is explained as "also known as".
 		const all = [byBirth.people[0]!, byMarried.people[0]!];
 		expect(all.filter((p) => p.matchedName)).toHaveLength(1);
-		expect(all.flatMap((p) => p.matches).filter((m) => m.kind === 'name' && !m.isDisplayName)).toHaveLength(1);
+		expect(
+			all.flatMap((p) => p.matches).filter((m) => m.kind === 'name' && !m.isDisplayName)
+		).toHaveLength(1);
 	});
 
 	it('matches a nickname, a surname alone and any word order', async () => {
@@ -99,7 +108,10 @@ describe('searching by name', () => {
 	});
 
 	it('ranks exact over whole word over prefix, and a short query keeps its exact match under a limit', async () => {
-		expect(ids(await service.search(treeId, { text: 'Ann Brown' }, ctx()))).toEqual(['@I2@', '@I3@']);
+		expect(ids(await service.search(treeId, { text: 'Ann Brown' }, ctx()))).toEqual([
+			'@I2@',
+			'@I3@'
+		]);
 		expect(ids(await service.search(treeId, { text: 'Brown' }, ctx()))).toEqual(['@I2@', '@I3@']);
 		const one = await service.search(treeId, { text: 'a', limit: 1 }, ctx());
 		expect(ids(one)).toEqual(['@I6@']);
@@ -130,7 +142,9 @@ describe('searching by XREF', () => {
 
 describe('an XREF with a filter', () => {
 	it('keeps the person only when one of their facts passes the filter', async () => {
-		expect(ids(await service.search(treeId, { text: '@I2@', place: 'Cork' }, ctx()))).toEqual(['@I2@']);
+		expect(ids(await service.search(treeId, { text: '@I2@', place: 'Cork' }, ctx()))).toEqual([
+			'@I2@'
+		]);
 		expect(ids(await service.search(treeId, { text: '@I2@', place: 'Leeds' }, ctx()))).toEqual([]);
 	});
 });
@@ -140,14 +154,21 @@ describe('searching by place and date', () => {
 		const r = await service.search(treeId, { place: 'cork' }, ctx());
 		expect(ids(r).sort()).toEqual(['@I2@', '@I3@', '@I8@']);
 		expect(r.people.find((p) => p.id.endsWith('@I2@'))!.matches).toEqual([
-			expect.objectContaining({ kind: 'fact', factType: 'BIRT', placeText: 'Cork, Ireland', isPartnershipFact: false })
+			expect.objectContaining({
+				kind: 'fact',
+				factType: 'BIRT',
+				placeText: 'Cork, Ireland',
+				isPartnershipFact: false
+			})
 		]);
 	});
 
 	it('reaches both partners through a partnership fact and says so', async () => {
 		const r = await service.search(treeId, { place: 'Launceston' }, ctx());
 		expect(ids(r).sort()).toEqual(['@I1@', '@I4@']);
-		expect(r.people[0]!.matches).toEqual([expect.objectContaining({ factType: 'MARR', isPartnershipFact: true })]);
+		expect(r.people[0]!.matches).toEqual([
+			expect.objectContaining({ factType: 'MARR', isPartnershipFact: true })
+		]);
 	});
 
 	it('reads a year range from the stored bounds, treating BEF as open below and undated as no match', async () => {
@@ -155,21 +176,43 @@ describe('searching by place and date', () => {
 		// I2 born 12 JUN 1852, I3 ABT 1851, and I2 also died BEF 1900 (open below, so it overlaps).
 		expect(ids(between).sort()).toEqual(['@I2@', '@I3@']);
 		// Tom's birth has no date: he never matches a date filter, even with his place.
-		expect(ids(await service.search(treeId, { from: '1800', to: '2100', place: 'Hobart' }, ctx()))).toEqual(['@I1@']);
+		expect(
+			ids(await service.search(treeId, { from: '1800', to: '2100', place: 'Hobart' }, ctx()))
+		).toEqual(['@I1@']);
 		// Only a lower bound: everything from 1960 on, which includes AFT-free exact years.
-		expect(ids(await service.search(treeId, { from: '1960' }, ctx())).sort()).toEqual(['@I1@', '@I4@', '@I8@']);
+		expect(ids(await service.search(treeId, { from: '1960' }, ctx())).sort()).toEqual([
+			'@I1@',
+			'@I4@',
+			'@I8@'
+		]);
 	});
 
 	it('requires place and date to hold on the same fact', async () => {
 		// Cora was born in Cork in 1900 and died in Leeds in 1960. "Cork in 1960" is not her.
-		expect(ids(await service.search(treeId, { place: 'Cork', from: '1960', to: '1960' }, ctx()))).toEqual([]);
-		expect(ids(await service.search(treeId, { place: 'Leeds', from: '1960', to: '1960' }, ctx()))).toEqual(['@I8@']);
-		expect(ids(await service.search(treeId, { place: 'Cork', from: '1900', to: '1900' }, ctx()))).toEqual(['@I8@']);
+		expect(
+			ids(await service.search(treeId, { place: 'Cork', from: '1960', to: '1960' }, ctx()))
+		).toEqual([]);
+		expect(
+			ids(await service.search(treeId, { place: 'Leeds', from: '1960', to: '1960' }, ctx()))
+		).toEqual(['@I8@']);
+		expect(
+			ids(await service.search(treeId, { place: 'Cork', from: '1900', to: '1900' }, ctx()))
+		).toEqual(['@I8@']);
 	});
 
 	it('combines with a name', async () => {
-		expect(ids(await service.search(treeId, { text: 'Ann', place: 'Cork', from: '1851', to: '1852' }, ctx()))).toEqual(['@I2@', '@I3@']);
-		expect(ids(await service.search(treeId, { text: 'Brownlow', place: 'Dublin' }, ctx()))).toEqual([]);
+		expect(
+			ids(
+				await service.search(
+					treeId,
+					{ text: 'Ann', place: 'Cork', from: '1851', to: '1852' },
+					ctx()
+				)
+			)
+		).toEqual(['@I2@', '@I3@']);
+		expect(ids(await service.search(treeId, { text: 'Brownlow', place: 'Dublin' }, ctx()))).toEqual(
+			[]
+		);
 	});
 
 	it('returns nothing for an empty query', async () => {
@@ -185,6 +228,8 @@ describe('who may search', () => {
 		expect((await service.search(treeId, { text: 'Cora' }, viewer.context)).people).toHaveLength(1);
 		expect((await service.search(treeId, { text: 'Tom' }, viewer.context)).people).toHaveLength(0);
 		const stranger = await createTestUser(t.db, 'stranger');
-		await expect(service.search(treeId, { text: 'Tom' }, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(service.search(treeId, { text: 'Tom' }, stranger.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
 	});
 });

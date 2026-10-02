@@ -15,7 +15,11 @@ export const DEATH_EVENT_TYPES = ['DEAT', 'BURI', 'CREM'] as const;
 /** The facts that say when someone was born; the latest upper bound among them is used. */
 export const BIRTH_EVENT_TYPES = ['BIRT', 'CHR', 'BAPM'] as const;
 
-export const PERSON_PRIVACY = { AUTO: 'auto', PUBLIC: 'public', PRIVATE: 'private' } as const satisfies Record<string, PersonPrivacy>;
+export const PERSON_PRIVACY = {
+	AUTO: 'auto',
+	PUBLIC: 'public',
+	PRIVATE: 'private'
+} as const satisfies Record<string, PersonPrivacy>;
 
 export interface LivingFact {
 	type: string;
@@ -59,7 +63,12 @@ export function isLikelyLiving(facts: readonly LivingFact[], cutoff: string): bo
  * are shown: `isOwn` is true when the viewer is a contributor who created this person. A manager's
  * `private` still hides them.
  */
-export function isPersonPrivate(privacy: PersonPrivacy, facts: readonly LivingFact[], cutoff: string, isOwn = false): boolean {
+export function isPersonPrivate(
+	privacy: PersonPrivacy,
+	facts: readonly LivingFact[],
+	cutoff: string,
+	isOwn = false
+): boolean {
 	if (privacy === PERSON_PRIVACY.PRIVATE) return true;
 	if (privacy === PERSON_PRIVACY.PUBLIC) return false;
 	if (isOwn) return false;

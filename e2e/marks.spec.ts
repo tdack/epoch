@@ -1,6 +1,9 @@
 import { expect, open, test } from './support';
 
-test('favourites and recents survive a reload, are offered in the focus box before typing, and are scoped to the tree', async ({ page, api }) => {
+test('favourites and recents survive a reload, are offered in the focus box before typing, and are scoped to the tree', async ({
+	page,
+	api
+}) => {
 	const ann = await api.addPerson('Ann', 'Brown');
 	const bede = await api.addPerson('Bede', 'Cole');
 	const other = await api.addPerson('Cora', 'Dunn');

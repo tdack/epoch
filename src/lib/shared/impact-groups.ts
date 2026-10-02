@@ -2,10 +2,21 @@
 
 import type { RecordChange } from '../server/domain/change-log';
 
-export const ENTITY_ORDER = ['person', 'name', 'union', 'partner', 'link', 'event', 'media'] as const;
+export const ENTITY_ORDER = [
+	'person',
+	'name',
+	'union',
+	'partner',
+	'link',
+	'event',
+	'media'
+] as const;
 
-export function groupRecords(records: RecordChange[]): Array<{ entityType: string; records: RecordChange[] }> {
-	return ENTITY_ORDER.map((entityType) => ({ entityType, records: records.filter((r) => r.entityType === entityType) })).filter(
-		(g) => g.records.length > 0
-	);
+export function groupRecords(
+	records: RecordChange[]
+): Array<{ entityType: string; records: RecordChange[] }> {
+	return ENTITY_ORDER.map((entityType) => ({
+		entityType,
+		records: records.filter((r) => r.entityType === entityType)
+	})).filter((g) => g.records.length > 0);
 }

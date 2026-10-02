@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RecordChange, TreeRows } from '../domain/change-log';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestDatabase
+} from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { GenealogyService } from './genealogy-service';
 import { RelationshipService, type MergeUnionsCommand } from './relationship-service';
@@ -25,19 +31,25 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 	const log = new ChangeLogService(t.db);
 	const ctx = actor.context;
 
-	const add = async (givenName: string) => (await people.createIndividual(treeId, { givenName, surname: 'Simpson' }, ctx)).individual;
-	const [homer, marge, bart, lisa] = [await add('Homer'), await add('Marge'), await add('Bart'), await add('Lisa')];
+	const add = async (givenName: string) =>
+		(await people.createIndividual(treeId, { givenName, surname: 'Simpson' }, ctx)).individual;
+	const [homer, marge, bart, lisa] = [
+		await add('Homer'),
+		await add('Marge'),
+		await add('Bart'),
+		await add('Lisa')
+	];
 
 	const unionIds = [1, 2, 3].map((n) => `${treeId}:@F${n}@`);
-	await relationships.runner.run(
-		treeId,
-		ctx,
-		{
-			kind: 'create_union',
-			summary: () => 'Imported',
-			commands: unionIds.map((unionId) => ({ kind: 'create_union' as const, unionId, personIds: [homer.id, marge.id] }))
-		}
-	);
+	await relationships.runner.run(treeId, ctx, {
+		kind: 'create_union',
+		summary: () => 'Imported',
+		commands: unionIds.map((unionId) => ({
+			kind: 'create_union' as const,
+			unionId,
+			personIds: [homer.id, marge.id]
+		}))
+	});
 	const link = (childId: string, unionId: string) =>
 		relationships.runner.run(treeId, ctx, {
 			kind: 'assert_parent_child',
@@ -64,13 +76,20 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 		const existing = union.events?.find((e) => e.type === 'MARR');
 		await relationships.updateUnion(
 			treeId,
-			{ kind: 'update_union', unionId, expectedVersion: union.version!, events: [{ id: existing?.id ?? null, type: 'MARR', dateText, place }] },
+			{
+				kind: 'update_union',
+				unionId,
+				expectedVersion: union.version!,
+				events: [{ id: existing?.id ?? null, type: 'MARR', dateText, place }]
+			},
 			ctx
 		);
 	}
 
 	const rows = (): Promise<TreeRows> => relationships.runner.store.loadRows(treeId);
-	const command = async (overrides: Partial<MergeUnionsCommand> = {}): Promise<MergeUnionsCommand> => {
+	const command = async (
+		overrides: Partial<MergeUnionsCommand> = {}
+	): Promise<MergeUnionsCommand> => {
 		const graph = await relationships.getGraph(treeId, ctx);
 		return {
 			kind: 'merge_unions',
@@ -80,7 +99,21 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 			...overrides
 		};
 	};
-	return { actor, treeId, relationships, log, ctx, homer, marge, bart, lisa, unionIds, rows, command, setMarriage };
+	return {
+		actor,
+		treeId,
+		relationships,
+		log,
+		ctx,
+		homer,
+		marge,
+		bart,
+		lisa,
+		unionIds,
+		rows,
+		command,
+		setMarriage
+	};
 }
 
 /** Every row of the tree, without the fields any write moves, in a stable order. */
@@ -92,12 +125,15 @@ function canonical(rows: TreeRows) {
 	return Object.fromEntries(
 		Object.entries(rows).map(([table, list]) => [
 			table,
-			(list as Array<Record<string, unknown>>).map(strip).sort((a, b) => String(a.id).localeCompare(String(b.id)))
+			(list as Array<Record<string, unknown>>)
+				.map(strip)
+				.sort((a, b) => String(a.id).localeCompare(String(b.id)))
 		])
 	);
 }
 
-const shape = (records: RecordChange[]) => records.map((r) => `${r.action} ${r.entityType} ${r.label}`).sort();
+const shape = (records: RecordChange[]) =>
+	records.map((r) => `${r.action} ${r.entityType} ${r.label}`).sort();
 
 describe('merging partnerships between the same people', () => {
 	it('moves links and events onto the survivor, deletes the others and keeps every XREF as an alias', async () => {
@@ -114,13 +150,23 @@ describe('merging partnerships between the same people', () => {
 		expect(rows.parentChild.every((l) => l.unionId === s.unionIds[0])).toBe(true);
 		// The two identical marriages became one.
 		const marriages = rows.events.filter((e) => e.entityType === 'FAMILY');
-		expect(marriages.map((e) => [e.entityId, e.type, e.dateRaw])).toEqual([[s.unionIds[0], 'MARR', '3 Nov 2014']]);
+		expect(marriages.map((e) => [e.entityId, e.type, e.dateRaw])).toEqual([
+			[s.unionIds[0], 'MARR', '3 Nov 2014']
+		]);
 	});
 
 	it('carries aliases transitively when a union that was itself a survivor is merged', async () => {
 		const s = await setup();
-		await s.relationships.mergeUnions(s.treeId, await s.command({ mergedIds: [s.unionIds[1]] }), s.ctx);
-		await s.relationships.mergeUnions(s.treeId, await s.command({ survivorId: s.unionIds[2], mergedIds: [s.unionIds[0]] }), s.ctx);
+		await s.relationships.mergeUnions(
+			s.treeId,
+			await s.command({ mergedIds: [s.unionIds[1]] }),
+			s.ctx
+		);
+		await s.relationships.mergeUnions(
+			s.treeId,
+			await s.command({ survivorId: s.unionIds[2], mergedIds: [s.unionIds[0]] }),
+			s.ctx
+		);
 		const [only] = (await s.rows()).unions;
 		expect(only.id).toBe(s.unionIds[2]);
 		expect(only.xrefAliases).toEqual(['@F1@', '@F2@']);
@@ -136,10 +182,16 @@ describe('merging partnerships between the same people', () => {
 		expect(impact!.isDestructive).toBe(true);
 
 		// The two Homer–Marge partnerships share a name, so the labels carry the chronology.
-		const deletedUnions = impact!.records.filter((r) => r.entityType === 'union' && r.action === 'deleted').map((r) => r.label);
+		const deletedUnions = impact!.records
+			.filter((r) => r.entityType === 'union' && r.action === 'deleted')
+			.map((r) => r.label);
 		expect(deletedUnions).toHaveLength(2);
 		expect(new Set(deletedUnions).size).toBe(2);
-		expect(deletedUnions.every((label) => /Homer Simpson–Marge Simpson partnership \(\d(st|nd|rd) of 3/.test(label))).toBe(true);
+		expect(
+			deletedUnions.every((label) =>
+				/Homer Simpson–Marge Simpson partnership \(\d(st|nd|rd) of 3/.test(label)
+			)
+		).toBe(true);
 
 		// The child moved out of the second partnership is listed as a move.
 		expect(impact!.moves.length).toBeGreaterThan(0);
@@ -194,20 +246,35 @@ describe('merging partnerships between the same people', () => {
 	it('refuses a choice that names a union with nothing to keep', async () => {
 		const s = await setup({ marriages: ['1975', '1980', null] });
 		const command = await s.command({ keep: { events: { MARR: s.unionIds[2] } } });
-		await expect(s.relationships.mergeUnions(s.treeId, command, s.ctx)).rejects.toMatchObject({ code: 'UNION_MERGE_CONFLICT' });
+		await expect(s.relationships.mergeUnions(s.treeId, command, s.ctx)).rejects.toMatchObject({
+			code: 'UNION_MERGE_CONFLICT'
+		});
 	});
 
 	it('treats differing statuses as a conflict that needs a choice, and applies it', async () => {
 		const s = await setup({ marriages: [null, null, null] });
 		const graph = await s.relationships.getGraph(s.treeId, s.ctx);
 		const second = graph.unions.find((u) => u.id === s.unionIds[1])!;
-		await s.relationships.updateUnion(s.treeId, { kind: 'update_union', unionId: second.id, expectedVersion: second.version!, status: 'divorced' }, s.ctx);
+		await s.relationships.updateUnion(
+			s.treeId,
+			{
+				kind: 'update_union',
+				unionId: second.id,
+				expectedVersion: second.version!,
+				status: 'divorced'
+			},
+			s.ctx
+		);
 
 		const open = await s.relationships.previewMerge(s.treeId, await s.command(), s.ctx);
 		expect(open.impact).toBeNull();
 		expect(open.conflicts).toMatchObject([{ kind: 'status' }]);
 
-		await s.relationships.mergeUnions(s.treeId, await s.command({ keep: { status: s.unionIds[1] } }), s.ctx);
+		await s.relationships.mergeUnions(
+			s.treeId,
+			await s.command({ keep: { status: s.unionIds[1] } }),
+			s.ctx
+		);
 		expect((await s.rows()).unions.map((u) => u.status)).toEqual(['divorced']);
 	});
 
@@ -220,7 +287,9 @@ describe('merging partnerships between the same people', () => {
 
 	it('refuses to merge partnerships between different people', async () => {
 		const s = await setup();
-		const other = (await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Sam' }, s.ctx)).individual;
+		const other = (
+			await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Sam' }, s.ctx)
+		).individual;
 		const strange = crypto.randomUUID();
 		await s.relationships.runner.run(s.treeId, s.ctx, {
 			kind: 'create_union',
@@ -247,14 +316,18 @@ describe('merging partnerships between the same people', () => {
 		const s = await setup();
 		const viewer = await createTestUser(t.db, 'viewer');
 		await addTestMember(t.db, s.treeId, viewer, 'viewer');
-		await expect(s.relationships.mergeUnions(s.treeId, await s.command(), viewer.context)).rejects.toMatchObject({ status: 403 });
+		await expect(
+			s.relationships.mergeUnions(s.treeId, await s.command(), viewer.context)
+		).rejects.toMatchObject({ status: 403 });
 		expect((await s.rows()).unions).toHaveLength(3);
 	});
 
 	it('undoes newest first: the child linked to the merged partnership, the person, then the merge', async () => {
 		const s = await setup();
 		await s.relationships.mergeUnions(s.treeId, await s.command(), s.ctx);
-		const extra = (await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Ash' }, s.ctx)).individual;
+		const extra = (
+			await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Ash' }, s.ctx)
+		).individual;
 		await s.relationships.execute(
 			s.treeId,
 			{
@@ -268,7 +341,9 @@ describe('merging partnerships between the same people', () => {
 		);
 		expect((await s.log.undoLast(s.treeId, s.ctx)).undone.summary).toMatch(/Ash/);
 		expect((await s.log.undoLast(s.treeId, s.ctx)).undone.summary).toBe('Added Ash');
-		expect((await s.log.undoLast(s.treeId, s.ctx)).undone.summary).toMatch(/^Merged 3 partnerships/);
+		expect((await s.log.undoLast(s.treeId, s.ctx)).undone.summary).toMatch(
+			/^Merged 3 partnerships/
+		);
 		expect((await s.rows()).unions).toHaveLength(3);
 	});
 });

@@ -10,11 +10,15 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	}
 	const { id: treeId } = params;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const service = new ChangeLogService(getDb(platform.env.DB));
-		const next = await service.peekUndo(treeId, { user: locals.user, correlationId: locals.correlationId });
+		const next = await service.peekUndo(treeId, {
+			user: locals.user,
+			correlationId: locals.correlationId
+		});
 		return Response.json({ next });
 	} catch (err) {
 		return errorResponse(err, 'Failed to look up undo');
@@ -28,7 +32,8 @@ export const POST: RequestHandler = async ({ params, locals, platform }) => {
 	}
 	const { id: treeId } = params;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const service = new ChangeLogService(getDb(platform.env.DB));

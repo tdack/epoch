@@ -2,9 +2,21 @@ import { expect, open, test } from './support';
 
 const SHOTS = process.env.E2E_SHOTS ?? 'test-results';
 
-test('places are listed once however their case varies, open onto their facts, and are suggested while typing', async ({ api, page }) => {
-	const one = await api.addPerson('Corky', 'Placed', { birthDate: '1850', birthPlace: 'Cork, Ireland', deathDate: '1920', deathPlace: 'Hobart' });
-	await api.addPerson('Corkette', 'Placed', { birthDate: '1852', birthPlace: 'cork, ireland', deathDate: '1925' });
+test('places are listed once however their case varies, open onto their facts, and are suggested while typing', async ({
+	api,
+	page
+}) => {
+	const one = await api.addPerson('Corky', 'Placed', {
+		birthDate: '1850',
+		birthPlace: 'Cork, Ireland',
+		deathDate: '1920',
+		deathPlace: 'Hobart'
+	});
+	await api.addPerson('Corkette', 'Placed', {
+		birthDate: '1852',
+		birthPlace: 'cork, ireland',
+		deathDate: '1925'
+	});
 
 	await open(page, `/trees/${api.treeId}/places`);
 	await expect(page.getByTestId('places-list').getByRole('listitem')).toHaveCount(2);
@@ -32,10 +44,16 @@ test('places are listed once however their case varies, open onto their facts, a
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	await page.getByRole('dialog', { name: 'Add a fact' }).getByLabel('Place').fill('cork');
 	await expect(page.locator('#fact-place-options option')).toHaveCount(1);
-	await expect(page.locator('#fact-place-options option').first()).toHaveAttribute('value', 'Cork, Ireland');
+	await expect(page.locator('#fact-place-options option').first()).toHaveAttribute(
+		'value',
+		'Cork, Ireland'
+	);
 });
 
-test('a place is renamed, merged into another and put back with one undo each', async ({ api, page }) => {
+test('a place is renamed, merged into another and put back with one undo each', async ({
+	api,
+	page
+}) => {
 	await api.addPerson('Renny', 'Placed', { birthDate: '1850', birthPlace: 'Corke' });
 	await api.addPerson('Merry', 'Placed', { birthDate: '1852', birthPlace: 'Cork' });
 

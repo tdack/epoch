@@ -28,7 +28,9 @@ export const load: PageLoad = async ({ params, url, fetch, parent, depends }) =>
 	const { summary } = await parent();
 	// Read only the parameters that change what is fetched, so toggling a relationship type redraws
 	// without a request.
-	const view = parseViewState({ get: (key) => (FETCHED_PARAMS.has(key) ? url.searchParams.get(key) : null) });
+	const view = parseViewState({
+		get: (key) => (FETCHED_PARAMS.has(key) ? url.searchParams.get(key) : null)
+	});
 	const query = {
 		up: view.ancestorDepth,
 		down: view.descendantDepth,
@@ -37,15 +39,20 @@ export const load: PageLoad = async ({ params, url, fetch, parent, depends }) =>
 		exp: view.expandedStubs
 	};
 
-	const candidates = [view.focusId, rememberedFocus(params.id), summary.defaultFocusPersonId].filter(
-		(id, index, all): id is string => id !== null && all.indexOf(id) === index
-	);
+	const candidates = [
+		view.focusId,
+		rememberedFocus(params.id),
+		summary.defaultFocusPersonId
+	].filter((id, index, all): id is string => id !== null && all.indexOf(id) === index);
 	try {
 		for (const [index, focusId] of candidates.entries()) {
 			try {
 				// `applied` is what this graph was fetched for. The canvas draws with it, not with the
 				// address, which runs ahead of the data while a request is in flight.
-				return { focusGraph: await fetchFocusGraph(params.id, focusId, query, fetch), applied: view };
+				return {
+					focusGraph: await fetchFocusGraph(params.id, focusId, query, fetch),
+					applied: view
+				};
 			} catch (cause) {
 				const isLast = index === candidates.length - 1;
 				if (!(cause instanceof ApiError && cause.status === 404) || isLast) throw cause;

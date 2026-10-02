@@ -35,7 +35,8 @@ test('a refused undo tells the person why', async ({ page, api }) => {
 					status: 409,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						error: 'Can\'t undo "Edited Ann" because a later change ("Edited Ann") also changed those records.',
+						error:
+							'Can\'t undo "Edited Ann" because a later change ("Edited Ann") also changed those records.',
 						code: 'UNDO_REFUSED',
 						details: { reason: 'touched_later' }
 					})
@@ -48,11 +49,19 @@ test('a refused undo tells the person why', async ({ page, api }) => {
 	const form = page.getByRole('dialog', { name: 'Edit Person Details' });
 	await form.getByLabel('Surname').fill('Archer');
 	await form.getByRole('button', { name: /Save/ }).click();
-	await page.getByRole('status').filter({ hasText: 'Edited Ann' }).getByRole('button', { name: 'Undo' }).click();
+	await page
+		.getByRole('status')
+		.filter({ hasText: 'Edited Ann' })
+		.getByRole('button', { name: 'Undo' })
+		.click();
 	await expect(page.getByRole('alert').filter({ hasText: "Can't undo" })).toBeVisible();
 });
 
-test('a concurrent edit opens the conflict dialog and never overwrites silently', async ({ page, request, api }) => {
+test('a concurrent edit opens the conflict dialog and never overwrites silently', async ({
+	page,
+	request,
+	api
+}) => {
 	const ann = await api.addPerson('Ann', 'Archer');
 	await openTree(page, api, ann);
 	await card(page, 'Ann').click({ button: 'right' });
@@ -64,7 +73,9 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	await expect(form).toBeVisible();
 
 	// While the form is open, someone else saves a different change to the same person.
-	const res = await request.put(`/api/trees/${api.treeId}/individuals/${ann.id}`, { data: { givenName: 'Anna', version: ann.version } });
+	const res = await request.put(`/api/trees/${api.treeId}/individuals/${ann.id}`, {
+		data: { givenName: 'Anna', version: ann.version }
+	});
 	expect(res.ok()).toBe(true);
 
 	await form.getByLabel('Surname').fill('Archer-Bell');
@@ -81,5 +92,8 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	await conflict.getByRole('button', { name: 'Re-apply my changes' }).click();
 	await expect(page.getByRole('status').filter({ hasText: 'Edited' })).toBeVisible();
 	const after = await request.get(`/api/trees/${api.treeId}/individuals/${ann.id}`);
-	expect((await after.json()).individual).toMatchObject({ givenName: 'Anna', surname: 'Archer-Bell' });
+	expect((await after.json()).individual).toMatchObject({
+		givenName: 'Anna',
+		surname: 'Archer-Bell'
+	});
 });

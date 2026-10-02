@@ -41,11 +41,19 @@ export function compactStubId(stubId: string): string | null {
 }
 
 /** The full stub ids the tokens stand for, out of every stub the graph could have. */
-export function resolveStubTokens(tokens: readonly string[], personIds: readonly string[], unionIds: readonly string[]): string[] {
+export function resolveStubTokens(
+	tokens: readonly string[],
+	personIds: readonly string[],
+	unionIds: readonly string[]
+): string[] {
 	if (tokens.length === 0) return [];
 	const wanted = new Set(tokens);
 	const candidates = [
-		...personIds.flatMap((id) => [`stub:ancestors:${id}`, `stub:children:direct:${id}`, `stub:children:other:${id}`]),
+		...personIds.flatMap((id) => [
+			`stub:ancestors:${id}`,
+			`stub:children:direct:${id}`,
+			`stub:children:other:${id}`
+		]),
 		...unionIds.map((id) => `stub:children:${id}`)
 	];
 	return candidates.filter((id) => {

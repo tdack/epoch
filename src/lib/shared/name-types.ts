@@ -59,7 +59,11 @@ interface NameParts {
 
 /** The whole name written out: "Dr Julius Hibbert Jr". */
 export function formatFullName(name: NameParts): string {
-	return [name.prefix, name.givenName, name.surnamePrefix, name.surname, name.suffix].filter(Boolean).join(' ') || 'Unknown';
+	return (
+		[name.prefix, name.givenName, name.surnamePrefix, name.surname, name.suffix]
+			.filter(Boolean)
+			.join(' ') || 'Unknown'
+	);
 }
 
 const sameSurname = (a: string | null | undefined, b: string | null | undefined) =>
@@ -70,7 +74,14 @@ export function birthSurnameOf(
 	preferredSurname: string | null | undefined,
 	names: ReadonlyArray<{ type: string; surname: string | null; isPreferred?: boolean }>
 ): string | null {
-	const candidates = (type: NameType) => names.filter((n) => n.type === type && !n.isPreferred && n.surname?.trim() && !sameSurname(n.surname, preferredSurname));
+	const candidates = (type: NameType) =>
+		names.filter(
+			(n) =>
+				n.type === type &&
+				!n.isPreferred &&
+				n.surname?.trim() &&
+				!sameSurname(n.surname, preferredSurname)
+		);
 	return (candidates('maiden')[0] ?? candidates('birth')[0])?.surname?.trim() ?? null;
 }
 
@@ -94,7 +105,12 @@ const BIRTH_SUFFIX = /^(.*) \(née (.+)\)$/;
  * The inverse of `displayNameWith`, for the views that draw the two halves apart (a card puts
  * "née Simpson" on its own line). It lives beside the formatter so the format is written once.
  */
-export function splitDisplayName(displayName: string): { name: string; birthSurname: string | null } {
+export function splitDisplayName(displayName: string): {
+	name: string;
+	birthSurname: string | null;
+} {
 	const match = BIRTH_SUFFIX.exec(displayName);
-	return match ? { name: match[1]!, birthSurname: match[2]! } : { name: displayName, birthSurname: null };
+	return match
+		? { name: match[1]!, birthSurname: match[2]! }
+		: { name: displayName, birthSurname: null };
 }

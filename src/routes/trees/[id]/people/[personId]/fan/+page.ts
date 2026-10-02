@@ -8,7 +8,10 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async ({ params, url, fetch, depends }) => {
 	depends(DATA_KEY);
 	const asked = Number(url.searchParams.get('generations'));
-	const generations = Number.isInteger(asked) && asked > 0 ? Math.min(asked, MAX_FAN_GENERATIONS) : DEFAULT_CHART_GENERATIONS;
+	const generations =
+		Number.isInteger(asked) && asked > 0
+			? Math.min(asked, MAX_FAN_GENERATIONS)
+			: DEFAULT_CHART_GENERATIONS;
 	try {
 		return { chart: await fetchPedigree(params.id, params.personId, generations, fetch) };
 	} catch (cause) {

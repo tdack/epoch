@@ -1,6 +1,9 @@
 import { expect, open, test } from './support';
 
-test('a person keeps two conflicting births, edits one, and undo restores it', async ({ page, api }) => {
+test('a person keeps two conflicting births, edits one, and undo restores it', async ({
+	page,
+	api
+}) => {
 	const wren = await api.addPerson('Wren', 'Ash', { birthDate: '4 MAR 1900', birthPlace: 'Leeds' });
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
 	const facts = page.getByTestId('fact');
@@ -59,10 +62,16 @@ test('removing a fact lists what goes, and undo brings it back', async ({ page, 
 	await expect(page.getByTestId('fact')).toContainText('Occupation: Carpenter');
 });
 
-test('an invalid date blocks the save with a reason, and same-date facts can be reordered', async ({ page, api }) => {
+test('an invalid date blocks the save with a reason, and same-date facts can be reordered', async ({
+	page,
+	api
+}) => {
 	const wren = await api.addPerson('Wren', 'Ash');
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
-	for (const [type, value] of [['OCCU', 'Joiner'], ['RESI', 'Hull']] as const) {
+	for (const [type, value] of [
+		['OCCU', 'Joiner'],
+		['RESI', 'Hull']
+	] as const) {
 		await page.getByRole('button', { name: 'Add fact' }).click();
 		const dialog = page.getByRole('dialog', { name: 'Add a fact' });
 		await dialog.getByLabel('Type').selectOption(type);
@@ -83,7 +92,10 @@ test('an invalid date blocks the save with a reason, and same-date facts can be 
 	await expect(dialog.getByRole('button', { name: 'Add fact', exact: true })).toBeDisabled();
 });
 
-test('the date picker opens fully inside the fact dialog, even for a field near its bottom edge', async ({ page, api }) => {
+test('the date picker opens fully inside the fact dialog, even for a field near its bottom edge', async ({
+	page,
+	api
+}) => {
 	const wren = await api.addPerson('Wren', 'Ash');
 	await page.setViewportSize({ width: 1280, height: 600 });
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
@@ -102,7 +114,10 @@ test('the date picker opens fully inside the fact dialog, even for a field near 
 	await expect(dialog.getByRole('textbox', { name: 'Date' })).toHaveValue(/^15 [A-Z]{3} \d{4}$/);
 });
 
-test('the date picker stays open when the window resizes, as a phone keyboard does', async ({ page, api }) => {
+test('the date picker stays open when the window resizes, as a phone keyboard does', async ({
+	page,
+	api
+}) => {
 	const wren = await api.addPerson('Wren', 'Ash');
 	await page.setViewportSize({ width: 375, height: 700 });
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);

@@ -2,7 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getDb } from '../db';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { insertCorpus, type CorpusSummary } from '../testing/corpus';
-import { createTestDatabase, createTestTree, createTestUser, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestDatabase
+} from '../testing/d1';
 import { loadKinWindow } from './kin-window';
 
 let t: TestDatabase;
@@ -30,7 +35,13 @@ function counting(d1: D1Database) {
 		new Proxy(statement, {
 			get(target, prop) {
 				if (prop === 'bind') return (...args: unknown[]) => wrap(target.bind(...args));
-				if (prop === 'all' || prop === 'run') return async () => add(await (target as never as Record<string, () => Promise<{ meta?: { rows_read?: number } }>>)[prop]!());
+				if (prop === 'all' || prop === 'run')
+					return async () =>
+						add(
+							await (
+								target as never as Record<string, () => Promise<{ meta?: { rows_read?: number } }>>
+							)[prop]!()
+						);
 				const value = Reflect.get(target, prop, target);
 				return typeof value === 'function' ? value.bind(target) : value;
 			}
@@ -55,11 +66,18 @@ function counting(d1: D1Database) {
 
 /** The founder's descendant furthest down, so the ancestor reads have the longest line to follow. */
 async function deepestDescendant(): Promise<string> {
-	const window = await loadKinWindow(new GraphWindowRepository(t.db), { treeId, startIds: [corpus.rootPersonId], ancestorGenerations: null, descendantGenerations: 20, partnersOf: 'none' });
+	const window = await loadKinWindow(new GraphWindowRepository(t.db), {
+		treeId,
+		startIds: [corpus.rootPersonId],
+		ancestorGenerations: null,
+		descendantGenerations: 20,
+		partnersOf: 'none'
+	});
 	const children = new Map<string, string[]>();
-	for (const l of window.rows.parentChild) children.set(l.parentId, [...(children.get(l.parentId) ?? []), l.childId]);
+	for (const l of window.rows.parentChild)
+		children.set(l.parentId, [...(children.get(l.parentId) ?? []), l.childId]);
 	let deepest = corpus.rootPersonId;
-	for (let frontier = [corpus.rootPersonId]; frontier.length > 0; ) {
+	for (let frontier = [corpus.rootPersonId]; frontier.length > 0;) {
 		deepest = frontier[0]!;
 		frontier = frontier.flatMap((id) => children.get(id) ?? []);
 	}
@@ -68,10 +86,42 @@ async function deepestDescendant(): Promise<string> {
 let deep = '';
 
 const SCENARIOS = [
-	['ancestors of one person, 20 generations (relationship)', () => ({ startIds: [deep], ancestorGenerations: 20, descendantGenerations: null, partnersOf: 'starts' as const })],
-	['ancestors of two people, 20 generations (relationship)', () => ({ startIds: [deep, corpus.remarriedPersonId], ancestorGenerations: 20, descendantGenerations: null, partnersOf: 'starts' as const })],
-	['pedigree, 8 generations', () => ({ startIds: [deep], ancestorGenerations: 7, descendantGenerations: null, partnersOf: 'none' as const })],
-	['descendants of a founder, 8 generations, with partners', () => ({ startIds: [corpus.rootPersonId], ancestorGenerations: null, descendantGenerations: 7, partnersOf: 'all' as const })]
+	[
+		'ancestors of one person, 20 generations (relationship)',
+		() => ({
+			startIds: [deep],
+			ancestorGenerations: 20,
+			descendantGenerations: null,
+			partnersOf: 'starts' as const
+		})
+	],
+	[
+		'ancestors of two people, 20 generations (relationship)',
+		() => ({
+			startIds: [deep, corpus.remarriedPersonId],
+			ancestorGenerations: 20,
+			descendantGenerations: null,
+			partnersOf: 'starts' as const
+		})
+	],
+	[
+		'pedigree, 8 generations',
+		() => ({
+			startIds: [deep],
+			ancestorGenerations: 7,
+			descendantGenerations: null,
+			partnersOf: 'none' as const
+		})
+	],
+	[
+		'descendants of a founder, 8 generations, with partners',
+		() => ({
+			startIds: [corpus.rootPersonId],
+			ancestorGenerations: null,
+			descendantGenerations: 7,
+			partnersOf: 'all' as const
+		})
+	]
 ] as const;
 
 describe('the kin window, against a large tree', () => {
@@ -80,9 +130,14 @@ describe('the kin window, against a large tree', () => {
 		const report: string[] = [];
 		for (const [name, request] of SCENARIOS) {
 			const { d1, tally } = counting(t.d1);
-			const window = await loadKinWindow(new GraphWindowRepository(getDb(d1)), { treeId, ...request() });
+			const window = await loadKinWindow(new GraphWindowRepository(getDb(d1)), {
+				treeId,
+				...request()
+			});
 			const people = window.rows.individuals.length;
-			report.push(`${name}: ${people} people loaded, ${tally.batches} batches, ${tally.statements} statements, rows read ${tally.rowsRead}`);
+			report.push(
+				`${name}: ${people} people loaded, ${tally.batches} batches, ${tally.statements} statements, rows read ${tally.rowsRead}`
+			);
 			// Each loaded person costs a handful of index rows (their record, links, events, names).
 			expect(tally.rowsRead, name).toBeLessThanOrEqual(40 * people + 200);
 			expect(people, name).toBeLessThan(corpus.people);

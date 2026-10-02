@@ -8,7 +8,10 @@ export const load: LayoutLoad = async ({ params, fetch, depends }) => {
 	try {
 		// Shortcuts are a convenience: a failure to load them must not take the tree page down.
 		const marks = fetchMarks(params.id, fetch).catch(() => ({ favorites: [], recents: [] }));
-		const [trees, summary] = await Promise.all([fetchTreeList(fetch), fetchTreeSummary(params.id, fetch)]);
+		const [trees, summary] = await Promise.all([
+			fetchTreeList(fetch),
+			fetchTreeSummary(params.id, fetch)
+		]);
 		return { trees, summary, marks: await marks };
 	} catch (cause) {
 		rethrowAsPageError(cause);

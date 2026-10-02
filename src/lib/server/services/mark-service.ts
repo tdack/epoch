@@ -42,22 +42,49 @@ export class MarkService {
 		// "Unknown"; so is one the viewer may not see, which is how a person made private drops out of a
 		// contributor's favourites without a trace.
 		const present = await visibleAmong(this.db, treeId, ids, scope);
-		const summaries = await personSummaries(this.graphRepo, treeId, undefined, ids.filter((id) => present.has(id)));
+		const summaries = await personSummaries(
+			this.graphRepo,
+			treeId,
+			undefined,
+			ids.filter((id) => present.has(id))
+		);
 		const named = (list: string[]): MarkedPersonDto[] =>
-			list.filter((id) => present.has(id)).map((id) => {
-				const s = summaries.get(id)!;
-				return { isPrivate: s.isPrivate, id, displayName: s.displayName, birthDate: s.birthDate, deathDate: s.deathDate, isDeceased: s.isDeceased };
-			});
+			list
+				.filter((id) => present.has(id))
+				.map((id) => {
+					const s = summaries.get(id)!;
+					return {
+						isPrivate: s.isPrivate,
+						id,
+						displayName: s.displayName,
+						birthDate: s.birthDate,
+						deathDate: s.deathDate,
+						isDeceased: s.isDeceased
+					};
+				});
 		return { favorites: named(favoriteIds), recents: named(recentIds) };
 	}
 
 	private scope(treeId: string, context: AuthenticatedContext) {
-		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', new Date(this.now()));
+		return requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			new Date(this.now())
+		);
 	}
 
-	private async mark(treeId: string, personId: string, kind: MarkKind, context: AuthenticatedContext): Promise<void> {
+	private async mark(
+		treeId: string,
+		personId: string,
+		kind: MarkKind,
+		context: AuthenticatedContext
+	): Promise<void> {
 		const scope = await this.scope(treeId, context);
-		if (!(await visibleAmong(this.db, treeId, [personId], scope)).has(personId)) throw new NotFoundError('Person', personId);
+		if (!(await visibleAmong(this.db, treeId, [personId], scope)).has(personId))
+			throw new NotFoundError('Person', personId);
 		await this.marks.touch(context.user.id, treeId, personId, kind, this.now());
 	}
 
@@ -69,7 +96,11 @@ export class MarkService {
 		return this.mark(treeId, personId, 'favorite', context);
 	}
 
-	async removeFavorite(treeId: string, personId: string, context: AuthenticatedContext): Promise<void> {
+	async removeFavorite(
+		treeId: string,
+		personId: string,
+		context: AuthenticatedContext
+	): Promise<void> {
 		await this.scope(treeId, context);
 		await this.marks.remove(context.user.id, treeId, personId, 'favorite');
 	}

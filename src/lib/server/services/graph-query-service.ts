@@ -60,7 +60,13 @@ export class GraphQueryService {
 		context: AuthenticatedContext
 	): Promise<FocusGraphDto> {
 		const scope = await this.requireView(treeId, context);
-		const window = await loadFocusWindow(this.repo, treeId, focusPersonId, options, scope.isRestricted ? scope : undefined);
+		const window = await loadFocusWindow(
+			this.repo,
+			treeId,
+			focusPersonId,
+			options,
+			scope.isRestricted ? scope : undefined
+		);
 		return {
 			focusPersonId,
 			graph: window.graph,
@@ -82,7 +88,12 @@ export class GraphQueryService {
 				: [this.repo.counts(treeId), this.repo.firstPersonId(treeId)]
 		);
 		return {
-			tree: { id: tree.id, name: tree.name, description: tree.description ?? null, version: tree.version },
+			tree: {
+				id: tree.id,
+				name: tree.name,
+				description: tree.description ?? null,
+				version: tree.version
+			},
 			counts,
 			defaultFocusPersonId
 		};

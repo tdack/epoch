@@ -14,11 +14,15 @@ export const MAX_OPENED_STUBS = 64;
 function depth(params: Pick<URLSearchParams, 'get'>, name: 'up' | 'down'): number | undefined {
 	const value = params.get(name);
 	if (value === null || value === '') return undefined;
-	if (!/^\d{1,3}$/.test(value)) throw new ValidationError(`${name}: must be a whole number from 0 to ${MAX_VIEW_DEPTH}`);
+	if (!/^\d{1,3}$/.test(value))
+		throw new ValidationError(`${name}: must be a whole number from 0 to ${MAX_VIEW_DEPTH}`);
 	return Math.min(MAX_VIEW_DEPTH, Number(value));
 }
 
-function flag(params: Pick<URLSearchParams, 'get'>, name: 'siblings' | 'step'): boolean | undefined {
+function flag(
+	params: Pick<URLSearchParams, 'get'>,
+	name: 'siblings' | 'step'
+): boolean | undefined {
 	const value = params.get(name);
 	if (value === null || value === '') return undefined;
 	if (value !== '0' && value !== '1') throw new ValidationError(`${name}: must be 0 or 1`);
@@ -34,12 +38,17 @@ export interface FocusQuery {
 export function parseFocusQuery(params: Pick<URLSearchParams, 'get'>): FocusQuery {
 	const focus = params.get('focus');
 	const tokens = (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token));
-	if (tokens.length > MAX_OPENED_STUBS) throw new ValidationError(`exp: at most ${MAX_OPENED_STUBS} opened stubs`);
+	if (tokens.length > MAX_OPENED_STUBS)
+		throw new ValidationError(`exp: at most ${MAX_OPENED_STUBS} opened stubs`);
 	const options: FocusWindowOptions = {
 		...(depth(params, 'up') === undefined ? {} : { ancestorDepth: depth(params, 'up') }),
 		...(depth(params, 'down') === undefined ? {} : { descendantDepth: depth(params, 'down') }),
-		...(flag(params, 'siblings') === undefined ? {} : { shouldIncludeSiblings: flag(params, 'siblings') }),
-		...(flag(params, 'step') === undefined ? {} : { shouldIncludeStepFamilies: flag(params, 'step') }),
+		...(flag(params, 'siblings') === undefined
+			? {}
+			: { shouldIncludeSiblings: flag(params, 'siblings') }),
+		...(flag(params, 'step') === undefined
+			? {}
+			: { shouldIncludeStepFamilies: flag(params, 'step') }),
 		...(tokens.length > 0 ? { expandedStubTokens: tokens } : {})
 	};
 	return { focusPersonId: focus ? focus : null, options };

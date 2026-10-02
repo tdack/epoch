@@ -5,12 +5,26 @@
  * runs off a phone-sized screen.
  */
 import AxeBuilder from '@axe-core/playwright';
-import { addRelationship, card, chooseMenuItem, expect, openMenuByKeyboard, openTree, test, type Api, type Person } from './support';
+import {
+	addRelationship,
+	card,
+	chooseMenuItem,
+	expect,
+	openMenuByKeyboard,
+	openTree,
+	test,
+	type Api,
+	type Person
+} from './support';
 import type { Page } from '@playwright/test';
 
 /** Homer with two partnerships, so the chooser appears. */
 async function family(api: Api) {
-	const [homer, marge, kit] = [await api.addPerson('Homer', 'Simpson'), await api.addPerson('Marge', 'Simpson'), await api.addPerson('Kit', 'Simpson')];
+	const [homer, marge, kit] = [
+		await api.addPerson('Homer', 'Simpson'),
+		await api.addPerson('Marge', 'Simpson'),
+		await api.addPerson('Kit', 'Simpson')
+	];
 	await api.partner(homer, marge);
 	await api.child(homer, kit);
 	return { homer, marge, kit };
@@ -19,17 +33,25 @@ async function family(api: Api) {
 async function violations(page: Page, scope?: string) {
 	const builder = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
 	const result = await (scope ? builder.include(scope) : builder).analyze();
-	return result.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) ${v.nodes[0]?.target?.join(' ')}`);
+	return result.violations.map(
+		(v) => `${v.id}: ${v.help} (${v.nodes.length}) ${v.nodes[0]?.target?.join(' ')}`
+	);
 }
 
 test.describe('screen reader', () => {
-	test('the tree page has no automatically detectable accessibility violations', async ({ page, api }) => {
+	test('the tree page has no automatically detectable accessibility violations', async ({
+		page,
+		api
+	}) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
 		expect(await violations(page)).toEqual([]);
 	});
 
-	test('the relationship dialog is announced, groups its choices and describes the result in a live region', async ({ page, api }) => {
+	test('the relationship dialog is announced, groups its choices and describes the result in a live region', async ({
+		page,
+		api
+	}) => {
 		const { homer } = await family(api);
 		await api.addPerson('Second', 'Partner').then((p) => api.partner(homer, p));
 		await openTree(page, api, homer);
@@ -53,7 +75,9 @@ test.describe('screen reader', () => {
 	test('a failed preview is announced as an alert', async ({ page, api }) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
-		await page.route('**/relationships/plan', (route) => route.fulfill({ status: 400, json: { error: 'That did not work', code: 'VALIDATION_ERROR' } }));
+		await page.route('**/relationships/plan', (route) =>
+			route.fulfill({ status: 400, json: { error: 'That did not work', code: 'VALIDATION_ERROR' } })
+		);
 		await openMenuByKeyboard(page, 'Homer');
 		await chooseMenuItem(page, 'Add relationship');
 		const dialog = page.getByRole('dialog', { name: 'Add relationship' });
@@ -71,7 +95,10 @@ test.describe('screen reader', () => {
 		await expect(status.getByRole('button', { name: 'Undo' })).toBeVisible();
 	});
 
-	test('cards and links have names that say who they are and how they relate', async ({ page, api }) => {
+	test('cards and links have names that say who they are and how they relate', async ({
+		page,
+		api
+	}) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
 		await expect(page.getByRole('application', { name: 'Family tree' })).toBeVisible();
@@ -80,7 +107,10 @@ test.describe('screen reader', () => {
 		await expect(page.getByRole('button', { name: /Parent link to Kit/ })).toBeAttached();
 	});
 
-	test('the person drawer is reachable by keyboard and has no violations', async ({ page, api }) => {
+	test('the person drawer is reachable by keyboard and has no violations', async ({
+		page,
+		api
+	}) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
 		await card(page, 'Homer').dblclick();
@@ -94,9 +124,13 @@ test.describe('screen reader', () => {
 test.describe('phone-sized screen', () => {
 	test.use({ viewport: { width: 375, height: 700 } });
 
-	const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+	const fitsWidth = (page: Page) =>
+		page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
-	test('the page does not scroll sideways and the dialog fits the screen', async ({ page, api }) => {
+	test('the page does not scroll sideways and the dialog fits the screen', async ({
+		page,
+		api
+	}) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
 		expect(await fitsWidth(page)).toBe(true);
@@ -126,11 +160,17 @@ test.describe('phone-sized screen', () => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
 		const small: string[] = [];
-		for (const control of await page.locator('button:visible, [role="button"]:visible, select:visible, input:visible').all()) {
+		for (const control of await page
+			.locator('button:visible, [role="button"]:visible, select:visible, input:visible')
+			.all()) {
 			// A checkbox or radio is operated through its label, which is what a finger lands on.
 			const label = control.locator('xpath=ancestor::label[1]');
-			const box = (await label.count()) > 0 ? await label.boundingBox() : await control.boundingBox();
-			if (box && (box.width < 24 || box.height < 24)) small.push(`${(await control.getAttribute('aria-label')) ?? (await control.textContent())?.trim()} ${Math.round(box.width)}x${Math.round(box.height)}`);
+			const box =
+				(await label.count()) > 0 ? await label.boundingBox() : await control.boundingBox();
+			if (box && (box.width < 24 || box.height < 24))
+				small.push(
+					`${(await control.getAttribute('aria-label')) ?? (await control.textContent())?.trim()} ${Math.round(box.width)}x${Math.round(box.height)}`
+				);
 		}
 		// WCAG 2.2 target size (minimum): 24 by 24 CSS pixels.
 		expect(small).toEqual([]);

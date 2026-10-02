@@ -131,7 +131,10 @@ function arrangeChain(
 		cards,
 		unions: unions.map((union) => {
 			const partners = unique(union.partnerIds);
-			const cardIdxs = partners.map((id) => cards.indexOf(id)).filter((i) => i >= 0).sort((a, b) => a - b);
+			const cardIdxs = partners
+				.map((id) => cards.indexOf(id))
+				.filter((i) => i >= 0)
+				.sort((a, b) => a - b);
 			const hasMissingPartner = cardIdxs.length < partners.length;
 			const isAdjacent = cardIdxs.every((idx, i) => i === 0 || idx === cardIdxs[i - 1] + 1);
 			if (hasMissingPartner || (cardIdxs.length >= 2 && !isAdjacent)) ctx.nonAdjacent.add(union.id);
@@ -147,7 +150,8 @@ function arrangeChain(
  */
 function chainUnions(ctx: Context, anchorId: string) {
 	const row = ctx.genOf.get(anchorId)!;
-	const drawn = (id: string) => (ctx.index.unionsOfPerson.get(id) ?? []).filter((u) => ctx.unionIds.has(u.id));
+	const drawn = (id: string) =>
+		(ctx.index.unionsOfPerson.get(id) ?? []).filter((u) => ctx.unionIds.has(u.id));
 	const unions = drawn(anchorId);
 	const seenUnions = new Set(unions.map((u) => u.id));
 	const viaPartner = new Map<string, string>();
@@ -173,7 +177,9 @@ function chainUnions(ctx: Context, anchorId: string) {
 }
 
 /** Which unions sit between two adjacent cards; repeated unions past the first hang below. */
-function classifyUnions(chain: Chain): Array<{ id: string; cardIdxs: number[]; gapIdx: number | null }> {
+function classifyUnions(
+	chain: Chain
+): Array<{ id: string; cardIdxs: number[]; gapIdx: number | null }> {
 	const usedGaps = new Set<number>();
 	return chain.unions.map(({ union, cardIdxs, hasMissingPartner }) => {
 		const isPair = cardIdxs.length === 2 && cardIdxs[1] === cardIdxs[0] + 1 && !hasMissingPartner;
@@ -185,7 +191,12 @@ function classifyUnions(chain: Chain): Array<{ id: string; cardIdxs: number[]; g
 	});
 }
 
-function cardPositions(count: number, anchorIdx: number, gaps: number[], m: LayoutMetrics): number[] {
+function cardPositions(
+	count: number,
+	anchorIdx: number,
+	gaps: number[],
+	m: LayoutMetrics
+): number[] {
 	const xs = [0];
 	for (let j = 1; j < count; j++) xs.push(xs[j - 1] + m.cardWidth + gaps[j - 1]);
 	const shift = xs[anchorIdx];
@@ -227,11 +238,27 @@ function buildSlot(
 	const groupAnchor = subs.length > 0 ? (offsets[0] + offsets[offsets.length - 1]) / 2 : 0;
 	const contour: Contour = new Map();
 	subs.forEach((sub, i) => contourMerge(contour, sub.contour, offsets[i] - groupAnchor));
-	return { order, unionId, gapIdx, cardIdxs, hasNode, subs, offsets, groupAnchor, contour, shift: 0 };
+	return {
+		order,
+		unionId,
+		gapIdx,
+		cardIdxs,
+		hasNode,
+		subs,
+		offsets,
+		groupAnchor,
+		contour,
+		shift: 0
+	};
 }
 
 /** Children of a parent that this block is allowed to place under itself. */
-function claimChildren(ctx: Context, childIds: string[], row: number, edgeKey: (childId: string) => string) {
+function claimChildren(
+	ctx: Context,
+	childIds: string[],
+	row: number,
+	edgeKey: (childId: string) => string
+) {
 	const claimed: string[] = [];
 	for (const childId of childIds) {
 		if (!ctx.genOf.has(childId)) continue;
@@ -262,7 +289,12 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 		stubId: string | null;
 	}> = [];
 	for (const pu of placedUnions) {
-		const childIds = claimChildren(ctx, ctx.index.childIdsOfUnion.get(pu.id) ?? [], row, (c) => `${pu.id}|${c}`);
+		const childIds = claimChildren(
+			ctx,
+			ctx.index.childIdsOfUnion.get(pu.id) ?? [],
+			row,
+			(c) => `${pu.id}|${c}`
+		);
 		const stubId = `stub:children:${pu.id}`;
 		groups.push({
 			unionId: pu.id,
@@ -293,7 +325,14 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 	chain.cards.forEach((cardId, idx) => {
 		const otherStub = `stub:children:other:${cardId}`;
 		if (ctx.stubIds.has(otherStub)) {
-			groups.push({ unionId: null, gapIdx: null, cardIdxs: [idx], hasNode: false, childIds: [], stubId: otherStub });
+			groups.push({
+				unionId: null,
+				gapIdx: null,
+				cardIdxs: [idx],
+				hasNode: false,
+				childIds: [],
+				stubId: otherStub
+			});
 		}
 	});
 
@@ -326,7 +365,8 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 			const hasB = b.subs.length > 0;
 			let need = 0;
 			if (hasA && hasB) need = contourSeparation(a.contour, b.contour, m.siblingGap);
-			else if (a.hasNode && b.hasNode && a.gapIdx === null && b.gapIdx === null) need = nodeClearance;
+			else if (a.hasNode && b.hasNode && a.gapIdx === null && b.gapIdx === null)
+				need = nodeClearance;
 			const deficit = need - (slotX(b, xs) - slotX(a, xs));
 			if (need > 0 && deficit > 1e-6) {
 				if (b.gapIdx !== null) gaps[b.gapIdx] += 2 * deficit;
@@ -407,7 +447,8 @@ function layoutParents(ctx: Context, personId: string): Sub | null {
 	const blocks: Array<{ cards: string[]; chain: Chain }> = [];
 	for (const component of unionComponents(parentUnions)) {
 		const counts = new Map<string, number>();
-		for (const u of component) for (const id of unique(u.partnerIds)) counts.set(id, (counts.get(id) ?? 0) + 1);
+		for (const u of component)
+			for (const id of unique(u.partnerIds)) counts.set(id, (counts.get(id) ?? 0) + 1);
 		const candidates = unique(component.flatMap((u) => u.partnerIds)).filter(
 			(id) => !ctx.placed.has(id) && ctx.genOf.get(id) === row
 		);
@@ -415,7 +456,9 @@ function layoutParents(ctx: Context, personId: string): Sub | null {
 			for (const u of component) ctx.nonAdjacent.add(u.id);
 			continue;
 		}
-		const anchor = candidates.reduce((best, id) => ((counts.get(id) ?? 0) > (counts.get(best) ?? 0) ? id : best));
+		const anchor = candidates.reduce((best, id) =>
+			(counts.get(id) ?? 0) > (counts.get(best) ?? 0) ? id : best
+		);
 		ctx.placed.add(anchor);
 		const chain = arrangeChain(ctx, anchor, component, 'right');
 		blocks.push({ cards: chain.cards, chain });
@@ -469,10 +512,14 @@ function layoutParents(ctx: Context, personId: string): Sub | null {
 
 	// Blocks are compared by their whole contours but referenced by their centres.
 	const blockOffsets = sequenceOffsets(
-		blockSubs.map((b, i) => ({ items: b.items, contour: shiftedContour(b.contour, -blockCentres[i]) })),
+		blockSubs.map((b, i) => ({
+			items: b.items,
+			contour: shiftedContour(b.contour, -blockCentres[i])
+		})),
 		m.siblingGap
 	);
-	const centre = blockSubs.length > 0 ? (blockOffsets[0] + blockOffsets[blockOffsets.length - 1]) / 2 : 0;
+	const centre =
+		blockSubs.length > 0 ? (blockOffsets[0] + blockOffsets[blockOffsets.length - 1]) / 2 : 0;
 	const items: Item[] = [];
 	const contour: Contour = new Map();
 	blockSubs.forEach((b, i) => {
@@ -516,7 +563,10 @@ export function placeHourglass(
 		if (!ctx.unionIds.has(unionId)) continue;
 		for (const childId of index.childIdsOfUnion.get(unionId) ?? []) {
 			const role = selection.people.find((p) => p.id === childId)?.role;
-			if (!rowIds.includes(childId) && (role === PERSON_ROLES.FOCUS || role === PERSON_ROLES.SIBLING)) {
+			if (
+				!rowIds.includes(childId) &&
+				(role === PERSON_ROLES.FOCUS || role === PERSON_ROLES.SIBLING)
+			) {
 				rowIds.push(childId);
 			}
 		}
@@ -524,7 +574,9 @@ export function placeHourglass(
 	if (!rowIds.includes(focusId)) rowIds.push(focusId);
 	for (const id of rowIds) ctx.placed.add(id);
 
-	const rowSubs = rowIds.map((id, i) => layoutDescendantBlock(ctx, id, rowIds.length > 1 && i === 0 ? 'left' : 'right'));
+	const rowSubs = rowIds.map((id, i) =>
+		layoutDescendantBlock(ctx, id, rowIds.length > 1 && i === 0 ? 'left' : 'right')
+	);
 	const rowOffsets = sequenceOffsets(rowSubs, m.siblingGap);
 	const items: Item[] = [];
 	rowSubs.forEach((sub, i) => items.push(...shiftItems(sub.items, rowOffsets[i])));
@@ -534,10 +586,14 @@ export function placeHourglass(
 	for (const unionId of index.parentUnionIdsOfChild.get(focusId) ?? []) {
 		if (!ctx.claimedParentUnions.has(unionId)) continue;
 		for (const childId of rowIds) {
-			if (index.childIdsOfUnion.get(unionId)?.includes(childId)) ctx.primaryEdgeKeys.add(`${unionId}|${childId}`);
+			if (index.childIdsOfUnion.get(unionId)?.includes(childId))
+				ctx.primaryEdgeKeys.add(`${unionId}|${childId}`);
 		}
 	}
-	if (ancestors) items.push(...shiftItems(ancestors.items, (rowOffsets[0] + rowOffsets[rowOffsets.length - 1]) / 2));
+	if (ancestors)
+		items.push(
+			...shiftItems(ancestors.items, (rowOffsets[0] + rowOffsets[rowOffsets.length - 1]) / 2)
+		);
 
 	const focusX = items.find((it) => it.t === 'person' && it.id === focusId)!.x;
 	return {

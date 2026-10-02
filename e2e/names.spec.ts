@@ -1,6 +1,10 @@
 import { card, expect, open, openTree, test } from './support';
 
-test('a married name is previewed, shown as (née …) on the page and the card, edited, undone and survives export and re-import', async ({ page, api, request }) => {
+test('a married name is previewed, shown as (née …) on the page and the card, edited, undone and survives export and re-import', async ({
+	page,
+	api,
+	request
+}) => {
 	const jessica = await api.addPerson('Jessica', 'Simpson');
 	const nick = await api.addPerson('Nick', 'Smith');
 	await api.partner(jessica, nick);
@@ -26,7 +30,9 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	await expect(names).toHaveCount(2);
 	// The preferred name is listed and exported first, so it cannot move and nothing moves above it.
 	await expect(page.getByRole('button', { name: /^Move .* (up|down)$/ })).toHaveCount(0);
-	await expect(names.filter({ hasText: 'Married name' }).getByTestId('name-context')).toContainText('In use from 8 OCT 2001, taken through Partnership with Nick Smith');
+	await expect(names.filter({ hasText: 'Married name' }).getByTestId('name-context')).toContainText(
+		'In use from 8 OCT 2001, taken through Partnership with Nick Smith'
+	);
 
 	// The card in the tree says the same.
 	await openTree(page, api, jessica);
@@ -37,7 +43,9 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	await page.getByRole('button', { name: 'Edit Married name' }).click();
 	const edit = page.getByRole('dialog', { name: 'Edit name' });
 	await edit.getByLabel('Surname', { exact: true }).fill('Smith-Smith');
-	await expect(edit.getByText('Changed Married name Jessica Wren-Smith of Jessica Wren (née Lovejoy)')).toBeVisible();
+	await expect(
+		edit.getByText('Changed Married name Jessica Wren-Smith of Jessica Wren (née Lovejoy)')
+	).toBeVisible();
 	await edit.getByRole('button', { name: 'Save name' }).click();
 	await expect(edit).toBeHidden();
 	await expect(page.getByTestId('person-name')).toHaveText('Jessica Wren-Smith (née Simpson)');
@@ -48,12 +56,17 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	const exported = await (await request.get(`/api/export?treeId=${api.treeId}`)).text();
 	expect(exported).toContain('Name in use from 8 OCT 2001, through family');
 	const imported = await request.post('/api/import', {
-		multipart: { file: { name: 'names.ged', mimeType: 'text/plain', buffer: Buffer.from(exported) }, treeName: `e2e reimport ${Date.now()}` }
+		multipart: {
+			file: { name: 'names.ged', mimeType: 'text/plain', buffer: Buffer.from(exported) },
+			treeName: `e2e reimport ${Date.now()}`
+		}
 	});
 	expect(imported.ok()).toBe(true);
 	const newTreeId = (await imported.json()).treeId as string;
 	try {
-		const search = await (await request.get(`/api/trees/${newTreeId}/people-search?q=Simpson`)).json();
+		const search = await (
+			await request.get(`/api/trees/${newTreeId}/people-search?q=Simpson`)
+		).json();
 		expect(search.people).toHaveLength(1);
 		await open(page, `/trees/${newTreeId}/people/${encodeURIComponent(search.people[0].id)}`);
 		await expect(page.getByTestId('person-name')).toHaveText('Jessica Wren (née Lovejoy)');
@@ -66,7 +79,9 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 
 test('search finds a person by a name they no longer go by', async ({ api, request }) => {
 	const ann = await api.addPerson('Ann', 'Carter');
-	const res = await request.post(`/api/trees/${api.treeId}/people/${ann.id}/names`, { data: { type: 'birth', givenName: 'Ann', surname: 'Brown' } });
+	const res = await request.post(`/api/trees/${api.treeId}/people/${ann.id}/names`, {
+		data: { type: 'birth', givenName: 'Ann', surname: 'Brown' }
+	});
 	expect(res.ok(), await res.text()).toBe(true);
 	const found = await (await request.get(`/api/trees/${api.treeId}/people-search?q=Brown`)).json();
 	expect(found.people).toMatchObject([{ id: ann.id, matchedName: 'Ann Brown' }]);

@@ -4,10 +4,18 @@ import { activate, chooseMenuItem, expect, openMenuByKeyboard, test } from './su
 const DIRTY_GED = readFileSync('docs/The_Simpsons.ged');
 const TERRY = '@I_937df8d1@';
 
-test('adding a child to Homer, who has several copies of one partnership, asks which and honours the choice', async ({ page, request, api }) => {
+test('adding a child to Homer, who has several copies of one partnership, asks which and honours the choice', async ({
+	page,
+	request,
+	api
+}) => {
 	// Imported without merging, so Homer and Marge's family exists several times over.
 	const imported = await request.post('/api/import', {
-		multipart: { file: { name: 'The_Simpsons.ged', mimeType: 'text/plain', buffer: DIRTY_GED }, treeId: api.treeId, mode: 'replace' }
+		multipart: {
+			file: { name: 'The_Simpsons.ged', mimeType: 'text/plain', buffer: DIRTY_GED },
+			treeId: api.treeId,
+			mode: 'replace'
+		}
 	});
 	expect(imported.ok(), await imported.text()).toBe(true);
 	const homerId = `${api.treeId}:${TERRY}`;
@@ -27,14 +35,20 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 	await expect(chooser.getByRole('radio', { checked: true })).toHaveCount(1);
 	await expect(dialog.getByTestId('union-reason')).toContainText('most children');
 	await expect(chooser.getByText(/1st partnership · 0 children/)).toBeVisible();
-	const defaultId = await chooser.getByRole('radio', { checked: true }).getAttribute('data-union-id');
+	const defaultId = await chooser
+		.getByRole('radio', { checked: true })
+		.getAttribute('data-union-id');
 
 	// Choose a different copy: the sentence names it by chronology and the reason goes away.
 	const other = chooser.locator(`input[type="radio"]:not([data-union-id="${defaultId}"])`).first();
 	const otherId = await other.getAttribute('data-union-id');
 	await other.check();
 	await expect(dialog.getByTestId('union-reason')).toHaveCount(0);
-	await expect(dialog.getByText(/in the (1st|2nd|3rd) partnership of Homer Jay Simpson and Marjorie Jacqueline Bouvier|in the Homer Jay Simpson family/)).toBeVisible();
+	await expect(
+		dialog.getByText(
+			/in the (1st|2nd|3rd) partnership of Homer Jay Simpson and Marjorie Jacqueline Bouvier|in the Homer Jay Simpson family/
+		)
+	).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page.getByRole('status').filter({ hasText: 'Newborn' })).toBeVisible();

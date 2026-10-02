@@ -7,7 +7,13 @@ import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
 import { CHRONOLOGY_KINDS, UnionPageService } from './union-page-service';
 import { UNION_WARNING_CODES } from '../../shared/union-warnings';
-import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { GenealogyService } from './genealogy-service';
 import { RelationshipService } from './relationship-service';
 
@@ -36,7 +42,9 @@ describe('the partnership page of The Simpsons', () => {
 		for (const union of whole.unions) {
 			const page = await service().getUnion(treeId, union.id, actor.context);
 			expect(page.partners.map((p) => p.id)).toEqual(union.partnerIds);
-			expect([...new Set(page.children.map((c) => c.person.id))].sort()).toEqual([...new Set(union.children.map((c) => c.childId))].sort());
+			expect([...new Set(page.children.map((c) => c.person.id))].sort()).toEqual(
+				[...new Set(union.children.map((c) => c.childId))].sort()
+			);
 			expect(page.union.status).toBe(union.status);
 			expect(page.events.map((e) => e.type)).toEqual(union.events?.map((e) => e.type) ?? []);
 		}
@@ -45,7 +53,13 @@ describe('the partnership page of The Simpsons', () => {
 	it('numbers repeated partnerships between the same pair and lists the others as twins, on the dirty file', async () => {
 		const treeId = await importedTree(simpsonsDirty);
 		const whole = graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
-		const twinned = whole.unions.filter((u) => u.partnerIds.length === 2 && whole.unions.filter((v) => v.partnerIds.slice().sort().join() === u.partnerIds.slice().sort().join()).length > 1);
+		const twinned = whole.unions.filter(
+			(u) =>
+				u.partnerIds.length === 2 &&
+				whole.unions.filter(
+					(v) => v.partnerIds.slice().sort().join() === u.partnerIds.slice().sort().join()
+				).length > 1
+		);
 		expect(twinned.length).toBeGreaterThan(1);
 		const page = await service().getUnion(treeId, twinned[0]!.id, actor.context);
 		expect(page.union.label?.title).toMatch(/partnership$/);
@@ -59,10 +73,22 @@ describe('chronology and warnings', () => {
 		const treeId = await createTestTree(t.db, actor);
 		const people = new GenealogyService(t.db);
 		const relationships = new RelationshipService(t.db);
-		const add = async (givenName: string, extra: object = {}) => (await people.createIndividual(treeId, { givenName, ...extra }, actor.context)).individual;
-		const [ann, ben] = [await add('Ann', { birthDate: '1901' }), await add('Ben', { birthDate: '1899', deathDate: '1940' })];
-		const ref = (p: { id: string; givenName: string | null }) => ({ id: p.id, givenName: p.givenName, surname: null });
-		await relationships.execute(treeId, { kind: 'add_partner', person: ref(ann), partner: ref(ben), unionLabel: null }, actor.context);
+		const add = async (givenName: string, extra: object = {}) =>
+			(await people.createIndividual(treeId, { givenName, ...extra }, actor.context)).individual;
+		const [ann, ben] = [
+			await add('Ann', { birthDate: '1901' }),
+			await add('Ben', { birthDate: '1899', deathDate: '1940' })
+		];
+		const ref = (p: { id: string; givenName: string | null }) => ({
+			id: p.id,
+			givenName: p.givenName,
+			surname: null
+		});
+		await relationships.execute(
+			treeId,
+			{ kind: 'add_partner', person: ref(ann), partner: ref(ben), unionLabel: null },
+			actor.context
+		);
 		const graph = await relationships.getGraph(treeId, actor.context);
 		return { treeId, ann, ben, unionId: graph.unions[0]!.id, add, ref, relationships, graph };
 	}
@@ -70,10 +96,29 @@ describe('chronology and warnings', () => {
 	it('puts events, births and deaths in date order with undated ones last', async () => {
 		const { treeId, unionId, ann, add, ref, relationships } = await couple();
 		const kid = await add('Cat', { birthDate: '1925' });
-		await relationships.execute(treeId, { kind: 'add_child', parent: ref(ann), child: ref(kid), type: 'biological', unionLabel: null, unionId }, actor.context);
+		await relationships.execute(
+			treeId,
+			{
+				kind: 'add_child',
+				parent: ref(ann),
+				child: ref(kid),
+				type: 'biological',
+				unionLabel: null,
+				unionId
+			},
+			actor.context
+		);
 		await new RelationshipService(t.db).updateUnion(
 			treeId,
-			{ kind: 'update_union', unionId, expectedVersion: 1, events: [{ id: null, type: 'MARR', dateText: '1922', place: 'Leeds' }, { id: null, type: 'ENGA', dateText: null, place: null }] },
+			{
+				kind: 'update_union',
+				unionId,
+				expectedVersion: 1,
+				events: [
+					{ id: null, type: 'MARR', dateText: '1922', place: 'Leeds' },
+					{ id: null, type: 'ENGA', dateText: null, place: null }
+				]
+			},
 			actor.context
 		);
 		const page = await service().getUnion(treeId, unionId, actor.context);
@@ -91,11 +136,22 @@ describe('chronology and warnings', () => {
 		const { treeId, unionId } = await couple();
 		await new RelationshipService(t.db).updateUnion(
 			treeId,
-			{ kind: 'update_union', unionId, expectedVersion: 1, events: [{ id: null, type: 'MARR', dateText: '1890', place: null }] },
+			{
+				kind: 'update_union',
+				unionId,
+				expectedVersion: 1,
+				events: [{ id: null, type: 'MARR', dateText: '1890', place: null }]
+			},
 			actor.context
 		);
 		const page = await service().getUnion(treeId, unionId, actor.context);
-		expect(page.warnings.map((w) => w.code).sort()).toEqual([UNION_WARNING_CODES.EVENT_BEFORE_BIRTH, UNION_WARNING_CODES.EVENT_BEFORE_BIRTH, UNION_WARNING_CODES.PARTNER_DIED].sort());
+		expect(page.warnings.map((w) => w.code).sort()).toEqual(
+			[
+				UNION_WARNING_CODES.EVENT_BEFORE_BIRTH,
+				UNION_WARNING_CODES.EVENT_BEFORE_BIRTH,
+				UNION_WARNING_CODES.PARTNER_DIED
+			].sort()
+		);
 	});
 
 	it('lists the changes that wrote the partnership, and marks every record not private', async () => {
@@ -110,7 +166,11 @@ describe('chronology and warnings', () => {
 		const first = await couple();
 		const second = await couple();
 		const stranger = await createTestUser(t.db, 'stranger');
-		await expect(service().getUnion(first.treeId, first.unionId, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(service().getUnion(first.treeId, second.unionId, actor.context)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			service().getUnion(first.treeId, first.unionId, stranger.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			service().getUnion(first.treeId, second.unionId, actor.context)
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });

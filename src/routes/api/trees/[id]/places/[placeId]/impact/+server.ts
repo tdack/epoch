@@ -9,13 +9,20 @@ import { parseBody } from '#lib/server/validation/index.js';
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const { id: treeId, placeId } = params;
-	if (!treeId || !placeId) return Response.json({ error: 'Tree ID and place ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!treeId || !placeId)
+		return Response.json({ error: 'Tree ID and place ID required' }, { status: 400 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const { name } = parseBody(placeRewriteSchema, await request.json().catch(() => ({})));
 		const service = new PlaceService(getDb(platform.env.DB));
-		return Response.json({ impact: await service.previewRewrite(treeId, placeId, name, { user: locals.user, correlationId: locals.correlationId }) });
+		return Response.json({
+			impact: await service.previewRewrite(treeId, placeId, name, {
+				user: locals.user,
+				correlationId: locals.correlationId
+			})
+		});
 	} catch (err) {
 		return errorResponse(err, 'Failed to preview the place change');
 	}

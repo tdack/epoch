@@ -92,10 +92,17 @@ describe('parseDateValue', () => {
 	});
 });
 describe('checkDateText', () => {
-	it.each(['', '  ', '1912', 'APR 1912', '14 apr 1912', 'ABT 1900', 'BET 1900 AND 1905', '(about the war)', '29 FEB 1904'])(
-		'accepts %j',
-		(text) => expect(checkDateText(text).isValid).toBe(true)
-	);
+	it.each([
+		'',
+		'  ',
+		'1912',
+		'APR 1912',
+		'14 apr 1912',
+		'ABT 1900',
+		'BET 1900 AND 1905',
+		'(about the war)',
+		'29 FEB 1904'
+	])('accepts %j', (text) => expect(checkDateText(text).isValid).toBe(true));
 
 	it.each(['31 FEB 1900', '29 FEB 1900', 'banana', '14 APR', 'BET 1905 AND 1900', '32 JAN 1900'])(
 		'refuses %j',
@@ -109,7 +116,10 @@ describe('checkDateText', () => {
 
 describe('picker helpers', () => {
 	it('keeps a qualifier and reads the date under it', () => {
-		expect(pickerStateOf('abt 3 mar 1901')).toEqual({ date: { year: 1901, month: 3, day: 3 }, prefix: 'ABT ' });
+		expect(pickerStateOf('abt 3 mar 1901')).toEqual({
+			date: { year: 1901, month: 3, day: 3 },
+			prefix: 'ABT '
+		});
 	});
 
 	it('starts empty for ranges and unreadable text', () => {

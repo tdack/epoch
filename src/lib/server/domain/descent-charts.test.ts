@@ -6,18 +6,30 @@ import { treeRows } from '../testing/rows';
 // Heap order of a 3-generation pedigree: me, father, mother, paternal grandfather and grandmother, maternal ...
 const rows = treeRows({
 	people: [
-		{ id: 'me' }, { id: 'dad', sex: 'M' }, { id: 'mum', sex: 'F' }, { id: 'gpa', sex: 'M' }, { id: 'gma', sex: 'F' }, { id: 'sib' }, { id: 'kid' }, { id: 'adopter', sex: 'F' }
+		{ id: 'me' },
+		{ id: 'dad', sex: 'M' },
+		{ id: 'mum', sex: 'F' },
+		{ id: 'gpa', sex: 'M' },
+		{ id: 'gma', sex: 'F' },
+		{ id: 'sib' },
+		{ id: 'kid' },
+		{ id: 'adopter', sex: 'F' }
 	],
 	links: [
-		{ parentId: 'mum', childId: 'me' }, { parentId: 'dad', childId: 'me' }, { parentId: 'gma', childId: 'dad' }, { parentId: 'gpa', childId: 'dad' },
-		{ parentId: 'dad', childId: 'sib' }, { parentId: 'me', childId: 'kid' }, { parentId: 'adopter', childId: 'me', type: 'adoptive' }
+		{ parentId: 'mum', childId: 'me' },
+		{ parentId: 'dad', childId: 'me' },
+		{ parentId: 'gma', childId: 'dad' },
+		{ parentId: 'gpa', childId: 'dad' },
+		{ parentId: 'dad', childId: 'sib' },
+		{ parentId: 'me', childId: 'kid' },
+		{ parentId: 'adopter', childId: 'me', type: 'adoptive' }
 	]
 } as never);
 const context = { rows, placeholderIds: new Set<string>() };
 const names = (slots: Array<{ name: string } | null>) => slots.map((s) => s?.name ?? null);
 
 describe('the pedigree', () => {
-	it('puts the person first and each person\'s parents at 2i+1 and 2i+2, father before mother', () => {
+	it("puts the person first and each person's parents at 2i+1 and 2i+2, father before mother", () => {
 		const dto = buildPedigree(context, 'me', 3)!;
 		expect(names(dto.slots)).toEqual(['me', 'dad', 'mum', 'gpa', 'gma', null, null]);
 		expect(dto.hasMoreAbove).toBe(false);
@@ -29,13 +41,26 @@ describe('the pedigree', () => {
 		expect(buildPedigree(context, 'me', 2)!.hasMoreAbove).toBe(true);
 	});
 	it('puts a lone mother in the second slot', () => {
-		const only = treeRows({ people: [{ id: 'c' }, { id: 'm', sex: 'F' }], links: [{ parentId: 'm', childId: 'c' }] } as never);
-		expect(names(buildPedigree({ rows: only, placeholderIds: new Set() }, 'c', 2)!.slots)).toEqual(['c', null, 'm']);
+		const only = treeRows({
+			people: [{ id: 'c' }, { id: 'm', sex: 'F' }],
+			links: [{ parentId: 'm', childId: 'c' }]
+		} as never);
+		expect(names(buildPedigree({ rows: only, placeholderIds: new Set() }, 'c', 2)!.slots)).toEqual([
+			'c',
+			null,
+			'm'
+		]);
 	});
 	it('is absent for a person who is not in the rows, and shows a placeholder as Private with nothing else', () => {
 		expect(buildPedigree(context, 'nobody', 3)).toBeNull();
 		const shown = buildPedigree({ rows, placeholderIds: new Set(['dad']) }, 'me', 2)!;
-		expect(shown.slots[1]).toMatchObject({ id: 'dad', isPrivate: true, name: 'Private', birth: null, death: null });
+		expect(shown.slots[1]).toMatchObject({
+			id: 'dad',
+			isPrivate: true,
+			name: 'Private',
+			birth: null,
+			death: null
+		});
 	});
 });
 
@@ -43,7 +68,9 @@ describe('the descendants', () => {
 	it('lists children below their parent, to the depth asked, and says when more lie beyond', () => {
 		const down = buildDescendants(context, 'dad', 3)!;
 		expect(down.root.children.map((c) => c.person.name).sort()).toEqual(['me', 'sib']);
-		expect(down.root.children.find((c) => c.person.name === 'me')!.children.map((c) => c.person.name)).toEqual(['kid']);
+		expect(
+			down.root.children.find((c) => c.person.name === 'me')!.children.map((c) => c.person.name)
+		).toEqual(['kid']);
 		expect(down.hasMoreBelow).toBe(false);
 		expect(buildDescendants(context, 'dad', 2)!.hasMoreBelow).toBe(true);
 	});
@@ -70,7 +97,13 @@ describe('layout', () => {
 		const by = (name: string) => layout.cards.find((c) => c.person.name === name)!;
 		expect(by('dad').x).toBe(0);
 		expect(by('kid').x).toBe(2 * (CARD.width + CARD.columnGap));
-		expect(new Set(layout.cards.filter((c) => c.person.name !== 'dad' && c.person.name !== 'me').map((c) => c.y)).size).toBe(2);
+		expect(
+			new Set(
+				layout.cards
+					.filter((c) => c.person.name !== 'dad' && c.person.name !== 'me')
+					.map((c) => c.y)
+			).size
+		).toBe(2);
 		expect(by('me').y).toBe(by('kid').y);
 		expect(layout.edges).toHaveLength(3);
 	});

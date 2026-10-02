@@ -56,7 +56,9 @@ export interface FactConflict {
 }
 
 const detailsOf = (fact: TimelineFact) =>
-	[fact.dateText, fact.place, fact.value, fact.cause, fact.age, fact.notes].map((part) => (part ?? '').trim().toLowerCase()).join('\u0000');
+	[fact.dateText, fact.place, fact.value, fact.cause, fact.age, fact.notes]
+		.map((part) => (part ?? '').trim().toLowerCase())
+		.join('\u0000');
 
 /**
  * Flags for the facts that disagree. Only types a person has once can conflict (two births);
@@ -73,10 +75,16 @@ export function findFactConflicts(facts: readonly TimelineFact[]): Map<string, F
 		const distinct = new Set(group.map(detailsOf));
 		const isSingular = factTypeInfo(type)?.isSingular ?? false;
 		for (const fact of group) {
-			const same = group.filter((other) => other.id !== fact.id && detailsOf(other) === detailsOf(fact));
-			const differing = group.filter((other) => other.id !== fact.id && detailsOf(other) !== detailsOf(fact));
-			if (same.length > 0) flags.set(fact.id, { kind: CONFLICT_KINDS.REPEAT, otherIds: same.map((o) => o.id) });
-			else if (isSingular && distinct.size > 1) flags.set(fact.id, { kind: CONFLICT_KINDS.CONFLICT, otherIds: differing.map((o) => o.id) });
+			const same = group.filter(
+				(other) => other.id !== fact.id && detailsOf(other) === detailsOf(fact)
+			);
+			const differing = group.filter(
+				(other) => other.id !== fact.id && detailsOf(other) !== detailsOf(fact)
+			);
+			if (same.length > 0)
+				flags.set(fact.id, { kind: CONFLICT_KINDS.REPEAT, otherIds: same.map((o) => o.id) });
+			else if (isSingular && distinct.size > 1)
+				flags.set(fact.id, { kind: CONFLICT_KINDS.CONFLICT, otherIds: differing.map((o) => o.id) });
 		}
 	}
 	return flags;

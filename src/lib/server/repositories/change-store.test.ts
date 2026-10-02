@@ -3,7 +3,13 @@ import { eq } from 'drizzle-orm';
 import { changeLog, changeLogRecords, events, individuals } from '../db/schema';
 import { ConcurrencyConflictError } from '../domain/errors';
 import type { RowOp } from '../domain/change-log';
-import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { ChangeStore } from './change-store';
 
 let t: TestDatabase;
@@ -25,10 +31,27 @@ async function freshTree() {
 }
 
 function person(id: string, givenName: string, version = 1) {
-	return { id, treeId, xrefId: null, givenName, surname: null, sex: 'U', version, createdAt: 1_000, updatedAt: 1_000 };
+	return {
+		id,
+		treeId,
+		xrefId: null,
+		givenName,
+		surname: null,
+		sex: 'U',
+		version,
+		createdAt: 1_000,
+		updatedAt: 1_000
+	};
 }
 
-const base = () => ({ treeId, actorId: actor.userId, kind: 'test', summary: 'test change', changes: [], isUndoable: true });
+const base = () => ({
+	treeId,
+	actorId: actor.userId,
+	kind: 'test',
+	summary: 'test change',
+	changes: [],
+	isUndoable: true
+});
 
 describe('ChangeStore.commit', () => {
 	it('writes the rows, the log entry and its records together', async () => {
@@ -38,46 +61,75 @@ describe('ChangeStore.commit', () => {
 			ops: [{ table: 'individuals', id: 'a1', before: null, after: person('a1', 'Ada') }]
 		});
 		expect(committed).not.toBeNull();
-		expect((await t.db.select().from(individuals).where(eq(individuals.id, 'a1')).get())?.givenName).toBe('Ada');
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.id, 'a1')).get())?.givenName
+		).toBe('Ada');
 		const log = await t.db.select().from(changeLog).where(eq(changeLog.id, committed!.id)).get();
 		expect(log?.summary).toBe('test change');
 		expect(JSON.parse(log!.inverseJson!)).toEqual([
 			{ table: 'individuals', id: 'a1', before: person('a1', 'Ada'), after: null }
 		]);
-		const records = await t.db.select().from(changeLogRecords).where(eq(changeLogRecords.changeId, committed!.id)).all();
+		const records = await t.db
+			.select()
+			.from(changeLogRecords)
+			.where(eq(changeLogRecords.changeId, committed!.id))
+			.all();
 		expect(records).toEqual([{ changeId: committed!.id, entityType: 'person', entityId: 'a1' }]);
 	});
 
 	it('writes nothing for ops that change nothing', async () => {
 		await freshTree();
-		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'b1', before: null, after: person('b1', 'Bea') }] });
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'b1', before: null, after: person('b1', 'Bea') }]
+		});
 		const same = person('b1', 'Bea');
-		const result = await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'b1', before: same, after: { ...same } }] });
+		const result = await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'b1', before: same, after: { ...same } }]
+		});
 		expect(result).toBeNull();
 		expect((await store.listRecent(treeId, 10)).length).toBe(1);
 	});
 
 	it('rejects a stale version and rolls the whole batch back', async () => {
 		await freshTree();
-		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'c1', before: null, after: person('c1', 'Cy') }] });
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'c1', before: null, after: person('c1', 'Cy') }]
+		});
 		const stale: RowOp[] = [
 			{ table: 'individuals', id: 'c2', before: null, after: person('c2', 'Dee') },
-			{ table: 'individuals', id: 'c1', before: person('c1', 'Cy', 7), after: person('c1', 'Cyrus', 8) }
+			{
+				table: 'individuals',
+				id: 'c1',
+				before: person('c1', 'Cy', 7),
+				after: person('c1', 'Cyrus', 8)
+			}
 		];
 		await expect(store.commit({ ...base(), ops: stale })).rejects.toMatchObject({
 			status: 409,
 			details: { reason: 'CONCURRENT_WRITE' }
 		});
-		await expect(store.commit({ ...base(), ops: stale })).rejects.toBeInstanceOf(ConcurrencyConflictError);
-		expect(await t.db.select().from(individuals).where(eq(individuals.id, 'c2')).get()).toBeUndefined();
-		expect((await t.db.select().from(individuals).where(eq(individuals.id, 'c1')).get())?.givenName).toBe('Cy');
+		await expect(store.commit({ ...base(), ops: stale })).rejects.toBeInstanceOf(
+			ConcurrencyConflictError
+		);
+		expect(
+			await t.db.select().from(individuals).where(eq(individuals.id, 'c2')).get()
+		).toBeUndefined();
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.id, 'c1')).get())?.givenName
+		).toBe('Cy');
 		expect((await store.listRecent(treeId, 10)).length).toBe(1);
 	});
 
 	it('refuses to delete a row that is already gone', async () => {
 		await freshTree();
 		await expect(
-			store.commit({ ...base(), ops: [{ table: 'individuals', id: 'gone', before: person('gone', 'Gil'), after: null }] })
+			store.commit({
+				...base(),
+				ops: [{ table: 'individuals', id: 'gone', before: person('gone', 'Gil'), after: null }]
+			})
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
 	});
 });
@@ -86,8 +138,14 @@ describe('ChangeStore undo lookups', () => {
 	it('finds the newest undoable change of the actor and skips changes already undone', async () => {
 		await freshTree();
 		const other = await createTestUser(t.db, 'other');
-		const first = await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'd1', before: null, after: person('d1', 'One') }] });
-		const second = await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'd2', before: null, after: person('d2', 'Two') }] });
+		const first = await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'd1', before: null, after: person('d1', 'One') }]
+		});
+		const second = await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'd2', before: null, after: person('d2', 'Two') }]
+		});
 		await store.commit({
 			...base(),
 			actorId: other.userId,
@@ -107,7 +165,10 @@ describe('ChangeStore undo lookups', () => {
 
 	it('does not let one change be reverted twice', async () => {
 		await freshTree();
-		const change = await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'e1', before: null, after: person('e1', 'Eve') }] });
+		const change = await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'e1', before: null, after: person('e1', 'Eve') }]
+		});
 		await store.commit({
 			...base(),
 			isUndoable: false,
@@ -126,15 +187,27 @@ describe('ChangeStore undo lookups', () => {
 
 	it('reports a later change that wrote the same record, but ignores a later change that was itself undone', async () => {
 		await freshTree();
-		const target = await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'f1', before: null, after: person('f1', 'Fay') }] });
+		const target = await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'f1', before: null, after: person('f1', 'Fay') }]
+		});
 		const targetSeq = (await store.latestUndoable(treeId, actor.userId))!.seq;
 
 		const later = await store.commit({
 			...base(),
 			summary: 'renamed Fay',
-			ops: [{ table: 'individuals', id: 'f1', before: person('f1', 'Fay'), after: person('f1', 'Faye', 2) }]
+			ops: [
+				{
+					table: 'individuals',
+					id: 'f1',
+					before: person('f1', 'Fay'),
+					after: person('f1', 'Faye', 2)
+				}
+			]
 		});
-		expect(await store.firstTouchedAfter(treeId, targetSeq, [{ entityType: 'person', entityId: 'f1' }])).toEqual({
+		expect(
+			await store.firstTouchedAfter(treeId, targetSeq, [{ entityType: 'person', entityId: 'f1' }])
+		).toEqual({
 			summary: 'renamed Fay'
 		});
 
@@ -143,9 +216,18 @@ describe('ChangeStore undo lookups', () => {
 			kind: 'undo',
 			isUndoable: false,
 			revertsChangeId: later!.id,
-			ops: [{ table: 'individuals', id: 'f1', before: person('f1', 'Faye', 2), after: person('f1', 'Fay', 3) }]
+			ops: [
+				{
+					table: 'individuals',
+					id: 'f1',
+					before: person('f1', 'Faye', 2),
+					after: person('f1', 'Fay', 3)
+				}
+			]
 		});
-		expect(await store.firstTouchedAfter(treeId, targetSeq, [{ entityType: 'person', entityId: 'f1' }])).toBeNull();
+		expect(
+			await store.firstTouchedAfter(treeId, targetSeq, [{ entityType: 'person', entityId: 'f1' }])
+		).toBeNull();
 		expect(target).not.toBeNull();
 	});
 });
@@ -169,20 +251,45 @@ describe('event row images and the structured date columns', () => {
 
 	it('carries the bounds, precision and qualifier in the inverse image, so an undo restores them', async () => {
 		await freshTree();
-		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'p1', before: null, after: person('p1', 'Pat') }] });
-		const full = event({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT', datePrecision: 'YEAR', dateCalendar: 'GREGORIAN' });
-		const committed = await store.commit({ ...base(), ops: [{ table: 'events', id: 'e1', before: null, after: full }] });
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'p1', before: null, after: person('p1', 'Pat') }]
+		});
+		const full = event({
+			dateSortEnd: '1900-12-31',
+			dateQualifier: 'ABOUT',
+			datePrecision: 'YEAR',
+			dateCalendar: 'GREGORIAN'
+		});
+		const committed = await store.commit({
+			...base(),
+			ops: [{ table: 'events', id: 'e1', before: null, after: full }]
+		});
 		const stored = await t.db.select().from(events).where(eq(events.id, 'e1')).get();
-		expect(stored).toMatchObject({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT', datePrecision: 'YEAR', dateCalendar: 'GREGORIAN' });
+		expect(stored).toMatchObject({
+			dateSortEnd: '1900-12-31',
+			dateQualifier: 'ABOUT',
+			datePrecision: 'YEAR',
+			dateCalendar: 'GREGORIAN'
+		});
 		const log = await t.db.select().from(changeLog).where(eq(changeLog.id, committed!.id)).get();
-		expect(JSON.parse(log!.inverseJson!)[0].before).toMatchObject({ dateSortEnd: '1900-12-31', dateQualifier: 'ABOUT' });
+		expect(JSON.parse(log!.inverseJson!)[0].before).toMatchObject({
+			dateSortEnd: '1900-12-31',
+			dateQualifier: 'ABOUT'
+		});
 	});
 
 	it('reads an image written before the columns existed as nulls, not as an error', async () => {
 		await freshTree();
-		await store.commit({ ...base(), ops: [{ table: 'individuals', id: 'p2', before: null, after: person('p2', 'Pat') }] });
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 'p2', before: null, after: person('p2', 'Pat') }]
+		});
 		// A log row from before migration 0007 has no date_sort_end, date_qualifier, ...
-		await store.commit({ ...base(), ops: [{ table: 'events', id: 'e2', before: null, after: event({ id: 'e2', entityId: 'p2' }) }] });
+		await store.commit({
+			...base(),
+			ops: [{ table: 'events', id: 'e2', before: null, after: event({ id: 'e2', entityId: 'p2' }) }]
+		});
 		expect(await t.db.select().from(events).where(eq(events.id, 'e2')).get()).toMatchObject({
 			dateRaw: 'ABT 1900',
 			dateSortEnd: null,

@@ -254,7 +254,9 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 	}
 
 	// Single-value qualifiers.
-	const single = body.match(/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/);
+	const single = body.match(
+		/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/
+	);
 	let qualifier: DateQualifier = DATE_QUALIFIERS.EXACT;
 	let dateBody = body;
 	if (single) {
@@ -331,14 +333,20 @@ export function checkDateText(rawInput: string | null | undefined): DateInputChe
 
 	// Two-digit years are refused rather than guessed: 26 could be 1826, 1926 or 2026.
 	if (/[A-Za-z]{3,9}\s+\d{1,2}$/.test(raw)) {
-		return { isValid: false, message: 'Enter the full year, such as 1926. Two-digit years are ambiguous.' };
+		return {
+			isValid: false,
+			message: 'Enter the full year, such as 1926. Two-digit years are ambiguous.'
+		};
 	}
 	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(raw)) {
 		const dayMonthYear = [...raw.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
 		for (const [, day, monthName, year] of dayMonthYear) {
 			const month = parseMonth(monthName);
 			if (month !== null && Number(day) > daysInMonth(Number(year), month)) {
-				return { isValid: false, message: `${monthName.toUpperCase()} ${year} doesn't have a day ${Number(day)}.` };
+				return {
+					isValid: false,
+					message: `${monthName.toUpperCase()} ${year} doesn't have a day ${Number(day)}.`
+				};
 			}
 		}
 	}
@@ -373,7 +381,9 @@ export function daysInMonthOf(year: number, month: number): number {
  */
 export function pickerStateOf(rawInput: string): { date: PickerDate | null; prefix: string } {
 	const raw = rawInput.trim();
-	const single = raw.match(/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/i);
+	const single = raw.match(
+		/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/i
+	);
 	const prefix = single ? `${single[1].toUpperCase()} ` : '';
 	const parts = parseDateParts(single ? single[2] : raw);
 	return { date: parts, prefix };

@@ -22,16 +22,22 @@ describe('tree view URL state', () => {
 			types: ['biological' as const, 'adoptive' as const]
 		};
 		const params = serializeViewState(state);
-		expect(params.toString()).toBe('tree=t1&focus=p9&up=5&down=0&siblings=0&step=1&types=biological%2Cadoptive');
+		expect(params.toString()).toBe(
+			'tree=t1&focus=p9&up=5&down=0&siblings=0&step=1&types=biological%2Cadoptive'
+		);
 		expect(parseViewState(params)).toEqual(state);
 	});
 
 	it('omits defaults', () => {
-		expect(serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' }).toString()).toBe('tree=t1&focus=p1');
+		expect(
+			serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' }).toString()
+		).toBe('tree=t1&focus=p1');
 	});
 
 	it('falls back to defaults for junk input', () => {
-		const parsed = parseViewState(new URLSearchParams('up=-3&down=abc&siblings=maybe&types=nope&focus='));
+		const parsed = parseViewState(
+			new URLSearchParams('up=-3&down=abc&siblings=maybe&types=nope&focus=')
+		);
 		expect(parsed).toEqual(DEFAULT_VIEW_STATE);
 	});
 
@@ -50,9 +56,14 @@ describe('opened stubs in the URL', () => {
 		expect(compactStubId(`stub:children:direct:${personId}`)).toMatch(/^d\./);
 		expect(compactStubId(`stub:children:other:${personId}`)).toMatch(/^o\./);
 		// Ids that share a long prefix (as ids in one tree do) still get different tokens.
-		expect(compactStubId('stub:ancestors:tree-1:@I1@')).not.toBe(compactStubId('stub:ancestors:tree-1:@I2@'));
+		expect(compactStubId('stub:ancestors:tree-1:@I1@')).not.toBe(
+			compactStubId('stub:ancestors:tree-1:@I2@')
+		);
 		expect(compactStubId('something else')).toBeNull();
-		const tokens = [compactStubId(`stub:ancestors:${personId}`)!, compactStubId(`stub:children:${unionId}`)!];
+		const tokens = [
+			compactStubId(`stub:ancestors:${personId}`)!,
+			compactStubId(`stub:children:${unionId}`)!
+		];
 		expect(resolveStubTokens(tokens, [personId], [unionId]).sort()).toEqual(
 			[`stub:ancestors:${personId}`, `stub:children:${unionId}`].sort()
 		);
@@ -62,7 +73,9 @@ describe('opened stubs in the URL', () => {
 		const state = { ...DEFAULT_VIEW_STATE, expandedStubs: ['a.1a2b3c4d', 'u.9f8e7d6c'] };
 		expect(serializeViewState(state).get('exp')).toBe('a.1a2b3c4d,u.9f8e7d6c');
 		expect(parseViewState(serializeViewState(state)).expandedStubs).toEqual(state.expandedStubs);
-		expect(parseViewState(new URLSearchParams('exp=a.ok,zz,../../x,u.9f8e7d6c')).expandedStubs).toEqual(['a.ok', 'u.9f8e7d6c']);
+		expect(
+			parseViewState(new URLSearchParams('exp=a.ok,zz,../../x,u.9f8e7d6c')).expandedStubs
+		).toEqual(['a.ok', 'u.9f8e7d6c']);
 		expect(serializeViewState(DEFAULT_VIEW_STATE).has('exp')).toBe(false);
 	});
 

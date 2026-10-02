@@ -49,21 +49,39 @@ describe('the Drizzle schema and the migrations agree', () => {
 	}
 
 	it('has the same tables', async () => {
-		const tables = (await all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'")).map((r) => r.name);
+		const tables = (
+			await all<{ name: string }>(
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'"
+			)
+		).map((r) => r.name);
 		expect(tables.sort()).toEqual([...declared.keys()].sort());
 	});
 
-	it.each([...declared.keys()])('%s has the same columns, types, nullability and indexes', async (table) => {
-		const actual = await all<{ name: string; type: string; notnull: number; pk: number }>(`PRAGMA table_info('${table}')`);
-		const migrated = actual.map((c) => ({ name: c.name, type: c.type.toLowerCase(), isRequired: c.notnull === 1 || c.pk > 0, isPrimaryKey: c.pk > 0 }));
-		const expected = declared.get(table)!.columns.map((c) => ({ ...c, isRequired: c.isRequired || c.isPrimaryKey }));
-		const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
-		expect(migrated.sort(byName)).toEqual(expected.sort(byName));
+	it.each([...declared.keys()])(
+		'%s has the same columns, types, nullability and indexes',
+		async (table) => {
+			const actual = await all<{ name: string; type: string; notnull: number; pk: number }>(
+				`PRAGMA table_info('${table}')`
+			);
+			const migrated = actual.map((c) => ({
+				name: c.name,
+				type: c.type.toLowerCase(),
+				isRequired: c.notnull === 1 || c.pk > 0,
+				isPrimaryKey: c.pk > 0
+			}));
+			const expected = declared
+				.get(table)!
+				.columns.map((c) => ({ ...c, isRequired: c.isRequired || c.isPrimaryKey }));
+			const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+			expect(migrated.sort(byName)).toEqual(expected.sort(byName));
 
-		const indexes = (await all<{ name: string }>(`PRAGMA index_list('${table}')`)).map((i) => i.name).filter((n) => !n.startsWith('sqlite_autoindex'));
-		// Every index the schema names must exist; the migrations may add unique constraints under generated names.
-		for (const name of declared.get(table)!.indexes) expect(indexes).toContain(name);
-	});
+			const indexes = (await all<{ name: string }>(`PRAGMA index_list('${table}')`))
+				.map((i) => i.name)
+				.filter((n) => !n.startsWith('sqlite_autoindex'));
+			// Every index the schema names must exist; the migrations may add unique constraints under generated names.
+			for (const name of declared.get(table)!.indexes) expect(indexes).toContain(name);
+		}
+	);
 });
 
 describe('schema status', () => {
@@ -73,8 +91,13 @@ describe('schema status', () => {
 	});
 
 	async function recordApplied(names: readonly string[]) {
-		await t.d1.prepare('CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)').run();
-		for (const name of names) await t.d1.prepare('INSERT INTO d1_migrations (name) VALUES (?)').bind(name).run();
+		await t.d1
+			.prepare(
+				'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
+			)
+			.run();
+		for (const name of names)
+			await t.d1.prepare('INSERT INTO d1_migrations (name) VALUES (?)').bind(name).run();
 	}
 
 	it('lists every migration as pending when nothing was applied through Wrangler', async () => {

@@ -100,7 +100,10 @@
 	// A drag (pan or drag-to-relate) is not a press, so movement cancels it.
 	function onPressMove(event: PointerEvent) {
 		if (!pressTimer) return;
-		if (Math.hypot(event.clientX - pressOrigin.x, event.clientY - pressOrigin.y) > LONG_PRESS_MOVE_TOLERANCE_PX) {
+		if (
+			Math.hypot(event.clientX - pressOrigin.x, event.clientY - pressOrigin.y) >
+			LONG_PRESS_MOVE_TOLERANCE_PX
+		) {
 			cancelPress();
 		}
 	}
@@ -161,7 +164,9 @@
 			{surnameInitial(person.displayName)}
 		</text>
 		{#if person.isDeceased}
-			<text class="dagger-block" x={W / 2 - 14} y={-blockHeight / 2 + 30} text-anchor="middle">†</text>
+			<text class="dagger-block" x={W / 2 - 14} y={-blockHeight / 2 + 30} text-anchor="middle"
+				>†</text
+			>
 		{/if}
 	{:else if level === 'compact'}
 		<rect class="frame" x={-W / 2} y={-H / 2} width={W} height={H} rx="12" />
@@ -171,11 +176,15 @@
 		<text class="dates-compact" x="0" y="24" text-anchor="middle">{yearsLine(person)}</text>
 	{:else}
 		<rect class="frame" x={-W / 2} y={-H / 2} width={W} height={H} rx="12" />
-		<text class="symbol" x={-W / 2 + 18} y={-H / 2 + 30} text-anchor="middle">{sexSymbol(person.sex)}</text>
+		<text class="symbol" x={-W / 2 + 18} y={-H / 2 + 30} text-anchor="middle"
+			>{sexSymbol(person.sex)}</text
+		>
 		{#if shown.birthSurname}
 			<!-- Three rows fit the card: the name, the birth surname, then one line of dates. -->
 			<text class="name" x={-W / 2 + 34} y={-H / 2 + 26}>{truncate(shown.name, 22)}</text>
-			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 43}>{truncate(`née ${shown.birthSurname}`, 26)}</text>
+			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 43}
+				>{truncate(`née ${shown.birthSurname}`, 26)}</text
+			>
 			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 60}>{yearsLine(person)}</text>
 		{:else}
 			<text class="name" x={-W / 2 + 34} y={-H / 2 + 30}>{truncate(shown.name, 22)}</text>

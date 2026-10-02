@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { changeMemberRoleApi, fetchMembers, inviteMemberApi, removeMemberApi, withdrawInvitationApi } from '#lib/services/tree-api.js';
+	import {
+		changeMemberRoleApi,
+		fetchMembers,
+		inviteMemberApi,
+		removeMemberApi,
+		withdrawInvitationApi
+	} from '#lib/services/tree-api.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
 
@@ -19,7 +25,12 @@
 	// role did not change and so nothing re-rendered it; keying the list on each reload resets it.
 	let reloads = $state(0);
 
-	const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+	const formatDate = (iso: string) =>
+		new Date(iso).toLocaleDateString(undefined, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		});
 
 	async function run(action: () => Promise<unknown>, done: string) {
 		if (isBusy) return;
@@ -55,41 +66,75 @@
 
 <h2 class="text-2xl font-bold text-stone-900">Members</h2>
 <p class="mt-1 max-w-2xl text-sm text-stone-600">
-	An invitation gives an email address a role here, taken up when that person next signs in. It does not let them past Cloudflare Access: the address must also be allowed by the Access policy for this app.
+	An invitation gives an email address a role here, taken up when that person next signs in. It does
+	not let them past Cloudflare Access: the address must also be allowed by the Access policy for
+	this app.
 </p>
 
-<section class="mt-6 max-w-3xl rounded-xl border border-stone-200 bg-white p-5" aria-labelledby="invite-heading">
+<section
+	class="mt-6 max-w-3xl rounded-xl border border-stone-200 bg-white p-5"
+	aria-labelledby="invite-heading"
+>
 	<h3 id="invite-heading" class="text-sm font-semibold text-stone-800">Invite someone</h3>
 	<form onsubmit={invite} class="mt-3 flex flex-wrap items-end gap-3">
 		<div>
-			<label for="invite-email" class="block text-xs font-semibold text-stone-700">Email address</label>
-			<input id="invite-email" type="email" required bind:value={email} autocomplete="off" class="mt-1 w-72 rounded-lg border border-stone-300 px-2 py-1.5 text-sm" />
+			<label for="invite-email" class="block text-xs font-semibold text-stone-700"
+				>Email address</label
+			>
+			<input
+				id="invite-email"
+				type="email"
+				required
+				bind:value={email}
+				autocomplete="off"
+				class="mt-1 w-72 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+			/>
 		</div>
 		<div>
 			<label for="invite-role" class="block text-xs font-semibold text-stone-700">Role</label>
-			<select id="invite-role" bind:value={inviteRole} class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize">
+			<select
+				id="invite-role"
+				bind:value={inviteRole}
+				class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize"
+			>
 				{#each members.grantableRoles as role (role)}<option value={role}>{role}</option>{/each}
 			</select>
 		</div>
-		<button type="submit" disabled={isBusy || !email.trim()} class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Invite</button>
+		<button
+			type="submit"
+			disabled={isBusy || !email.trim()}
+			class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+			>Invite</button
+		>
 	</form>
 </section>
 
 {#if members.invitations.length > 0}
 	<section class="mt-6 max-w-3xl" aria-labelledby="pending-heading">
-		<h3 id="pending-heading" class="text-sm font-semibold text-stone-800">Waiting to be taken up</h3>
+		<h3 id="pending-heading" class="text-sm font-semibold text-stone-800">
+			Waiting to be taken up
+		</h3>
 		<ul class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 			{#each members.invitations as invitation (invitation.id)}
-				<li class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm" data-testid="invitation">
+				<li
+					class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm"
+					data-testid="invitation"
+				>
 					<span>
 						<span class="font-medium text-stone-900">{invitation.email}</span>
-						<span class="ml-2 capitalize text-stone-600">{invitation.role}</span>
+						<span class="ml-2 text-stone-600 capitalize">{invitation.role}</span>
 						<span class="ml-2 text-xs {invitation.isExpired ? 'text-red-700' : 'text-stone-500'}">
 							{invitation.isExpired ? 'Expired' : 'Expires'}
 							{formatDate(invitation.expiresAt)}
 						</span>
 					</span>
-					<button type="button" disabled={isBusy} onclick={() => run(() => withdrawInvitationApi(treeId, invitation.id), 'Invitation withdrawn')} class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50">
+					<button
+						type="button"
+						disabled={isBusy}
+						onclick={() =>
+							run(() => withdrawInvitationApi(treeId, invitation.id), 'Invitation withdrawn')}
+						class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50"
+					>
 						Withdraw
 					</button>
 				</li>
@@ -102,43 +147,74 @@
 	<h3 id="members-heading" class="text-sm font-semibold text-stone-800">People with access</h3>
 	<ul class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 		{#key reloads}
-		{#each members.members as member (member.userId)}
-			<li class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm" data-testid="member">
-				<span class="min-w-0">
-					<span class="font-medium text-stone-900">{member.name ?? member.email}</span>
-					{#if member.isYou}<span class="ml-1 text-xs text-stone-500">(you)</span>{/if}
-					{#if member.name}<span class="block truncate text-xs text-stone-600">{member.email}</span>{/if}
-				</span>
-				{#if member.canManage}
-					<span class="flex items-center gap-2">
-						<label class="sr-only" for="role-{member.userId}">Role of {member.email}</label>
-						<select
-							id="role-{member.userId}"
-							value={member.role}
-							disabled={isBusy}
-							onchange={(event) => {
-								const role = event.currentTarget.value as TreeRole;
-								void run(() => changeMemberRoleApi(treeId, member.userId, role, member.version), `${member.email} is now ${role}`);
-							}}
-							class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize"
-						>
-							<!-- A member's present role stays listed even when the caller could not give it, so the box reads true. -->
-							{#each [...new Set([member.role, ...members.grantableRoles])] as role (role)}
-								<option value={role} disabled={!members.grantableRoles.includes(role)}>{role}</option>
-							{/each}
-						</select>
-						{#if removing === member.userId}
-							<button type="button" disabled={isBusy} onclick={() => run(() => removeMemberApi(treeId, member.userId, member.version), `Removed ${member.email}`)} class="rounded-lg bg-red-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">Confirm remove</button>
-							<button type="button" onclick={() => (removing = null)} class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700">Cancel</button>
-						{:else}
-							<button type="button" disabled={isBusy} onclick={() => (removing = member.userId)} class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50">Remove</button>
-						{/if}
+			{#each members.members as member (member.userId)}
+				<li
+					class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm"
+					data-testid="member"
+				>
+					<span class="min-w-0">
+						<span class="font-medium text-stone-900">{member.name ?? member.email}</span>
+						{#if member.isYou}<span class="ml-1 text-xs text-stone-500">(you)</span>{/if}
+						{#if member.name}<span class="block truncate text-xs text-stone-600"
+								>{member.email}</span
+							>{/if}
 					</span>
-				{:else}
-					<span class="capitalize text-stone-600">{member.role}</span>
-				{/if}
-			</li>
-		{/each}
+					{#if member.canManage}
+						<span class="flex items-center gap-2">
+							<label class="sr-only" for="role-{member.userId}">Role of {member.email}</label>
+							<select
+								id="role-{member.userId}"
+								value={member.role}
+								disabled={isBusy}
+								onchange={(event) => {
+									const role = event.currentTarget.value as TreeRole;
+									void run(
+										() => changeMemberRoleApi(treeId, member.userId, role, member.version),
+										`${member.email} is now ${role}`
+									);
+								}}
+								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize"
+							>
+								<!-- A member's present role stays listed even when the caller could not give it, so the box reads true. -->
+								{#each [...new Set([member.role, ...members.grantableRoles])] as role (role)}
+									<option value={role} disabled={!members.grantableRoles.includes(role)}
+										>{role}</option
+									>
+								{/each}
+							</select>
+							{#if removing === member.userId}
+								<button
+									type="button"
+									disabled={isBusy}
+									onclick={() =>
+										run(
+											() => removeMemberApi(treeId, member.userId, member.version),
+											`Removed ${member.email}`
+										)}
+									class="rounded-lg bg-red-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+									>Confirm remove</button
+								>
+								<button
+									type="button"
+									onclick={() => (removing = null)}
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700"
+									>Cancel</button
+								>
+							{:else}
+								<button
+									type="button"
+									disabled={isBusy}
+									onclick={() => (removing = member.userId)}
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50"
+									>Remove</button
+								>
+							{/if}
+						</span>
+					{:else}
+						<span class="text-stone-600 capitalize">{member.role}</span>
+					{/if}
+				</li>
+			{/each}
 		{/key}
 	</ul>
 </section>

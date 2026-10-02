@@ -57,10 +57,14 @@ describe('maskRows, omitting', () => {
 	it('drops a partnership with a private partner, with its facts, so no page links to a dead end', () => {
 		expect(masked.unions.map((u) => u.id)).toEqual(['u2']);
 		expect(masked.unionPartners.map((p) => p.unionId).sort()).toEqual(['u2', 'u2']);
-		expect(masked.events.filter((e) => e.entityType === 'FAMILY').map((e) => e.entityId)).toEqual(['u2']);
+		expect(masked.events.filter((e) => e.entityType === 'FAMILY').map((e) => e.entityId)).toEqual([
+			'u2'
+		]);
 	});
 	it('leaves the visible parent a child of the person, without the partnership', () => {
-		expect(masked.parentChild).toEqual([expect.objectContaining({ parentId: 'gran', childId: 'kit', unionId: null })]);
+		expect(masked.parentChild).toEqual([
+			expect.objectContaining({ parentId: 'gran', childId: 'kit', unionId: null })
+		]);
 	});
 	it('drops a partnership with nobody visible left, and unlinks its children', () => {
 		const r = rows();
@@ -76,7 +80,12 @@ describe('maskRows, with placeholders', () => {
 	const { rows: masked, placeholderIds } = maskRows(rows(), CUTOFF, true);
 	it('keeps the structure and blanks the person', () => {
 		const liv = masked.individuals.find((i) => i.id === 'liv')!;
-		expect(liv).toMatchObject({ givenName: PRIVATE_PLACEHOLDER_NAME, surname: null, xrefId: null, sex: 'U' });
+		expect(liv).toMatchObject({
+			givenName: PRIVATE_PLACEHOLDER_NAME,
+			surname: null,
+			xrefId: null,
+			sex: 'U'
+		});
 		expect([...placeholderIds]).toEqual(['liv']);
 		expect(masked.personNames).toEqual([]);
 		expect(masked.events.some((e) => e.entityId === 'liv')).toBe(false);

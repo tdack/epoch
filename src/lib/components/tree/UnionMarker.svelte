@@ -46,7 +46,9 @@
 
 	const R = LAYOUT_METRICS.unionRadius;
 	// At least 24 by 24 on screen (WCAG 2.2 target size), whatever the zoom.
-	const targetRadius = $derived(Math.max(R + 5, (MIN_HIT_TARGET_PX + 1) / 2 / Math.max(zoom, MIN_ZOOM)));
+	const targetRadius = $derived(
+		Math.max(R + 5, (MIN_HIT_TARGET_PX + 1) / 2 / Math.max(zoom, MIN_ZOOM))
+	);
 	const shownLabel = $derived([ordinalTitle?.split(' ')[0], label].filter(Boolean).join(' · '));
 	const description = $derived(
 		`${ordinalTitle ? ordinalTitle.charAt(0).toUpperCase() + ordinalTitle.slice(1) : 'Partnership'}${partnerNames ? ` of ${partnerNames}` : ''}, ${union.union.status}${label ? `, ${label}` : ''}${isNonAdjacent ? ', shown below the row' : ''}`
@@ -77,33 +79,33 @@
 		<circle class="focus-ring" r={R + 5} />
 	</g>
 {:else}
-<g
-	class="union"
-	class:ended={isEnded}
-	transform="translate({union.x}, {union.y})"
-	role="img"
-	aria-hidden="true"
->
-	<circle class="disc" r={R} />
-	<circle class="ring" cx="-3.2" r="4.6" />
-	<circle class="ring" cx="3.2" r="4.6" />
-	{#if isEnded}
-		<!-- End marker: a slash through the rings, matching the dashed connectors. -->
-		<line class="end-mark" x1={-R * 0.7} y1={R * 0.7} x2={R * 0.7} y2={-R * 0.7} />
-	{/if}
-</g>
-{#if shownLabel && level !== 'block'}
-	<!-- A hanging node sits under the card row, with partner connectors arriving level with it on both
-	sides, so its label goes below and to the right where only the child edge's other side is free. -->
-	<text
-		class="label"
-		x={union.isHanging ? union.x + 6 : union.x}
-		y={union.isHanging ? union.y + R + 11 : union.y - LAYOUT_METRICS.cardHeight / 2 - 6}
-		text-anchor={union.isHanging ? 'start' : 'middle'}
+	<g
+		class="union"
+		class:ended={isEnded}
+		transform="translate({union.x}, {union.y})"
+		role="img"
+		aria-hidden="true"
 	>
-		{shownLabel}
-	</text>
-{/if}
+		<circle class="disc" r={R} />
+		<circle class="ring" cx="-3.2" r="4.6" />
+		<circle class="ring" cx="3.2" r="4.6" />
+		{#if isEnded}
+			<!-- End marker: a slash through the rings, matching the dashed connectors. -->
+			<line class="end-mark" x1={-R * 0.7} y1={R * 0.7} x2={R * 0.7} y2={-R * 0.7} />
+		{/if}
+	</g>
+	{#if shownLabel && level !== 'block'}
+		<!-- A hanging node sits under the card row, with partner connectors arriving level with it on both
+	sides, so its label goes below and to the right where only the child edge's other side is free. -->
+		<text
+			class="label"
+			x={union.isHanging ? union.x + 6 : union.x}
+			y={union.isHanging ? union.y + R + 11 : union.y - LAYOUT_METRICS.cardHeight / 2 - 6}
+			text-anchor={union.isHanging ? 'start' : 'middle'}
+		>
+			{shownLabel}
+		</text>
+	{/if}
 {/if}
 
 <style>

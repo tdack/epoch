@@ -6,8 +6,18 @@ export interface ConflictRow {
 }
 
 /** Rows for the fields whose values differ; identical fields are not worth the reader's attention. */
-export function differingRows(fields: Array<{ label: string; yours: string | null | undefined; current: string | null | undefined }>): ConflictRow[] {
+export function differingRows(
+	fields: Array<{
+		label: string;
+		yours: string | null | undefined;
+		current: string | null | undefined;
+	}>
+): ConflictRow[] {
 	return fields
-		.map((f) => ({ label: f.label, yours: (f.yours ?? '').trim(), current: (f.current ?? '').trim() }))
+		.map((f) => ({
+			label: f.label,
+			yours: (f.yours ?? '').trim(),
+			current: (f.current ?? '').trim()
+		}))
 		.filter((row) => row.yours !== row.current);
 }

@@ -28,7 +28,9 @@ export class MediaRepository {
 
 	/** The people in a partnership, for deciding whether its media may be seen. */
 	async partnerIds(unionId: string): Promise<string[]> {
-		const rows = await this.db.all<{ person_id: string }>(sql`select person_id from union_partners where union_id = ${unionId}`);
+		const rows = await this.db.all<{ person_id: string }>(
+			sql`select person_id from union_partners where union_id = ${unionId}`
+		);
 		return rows.map((r) => r.person_id);
 	}
 

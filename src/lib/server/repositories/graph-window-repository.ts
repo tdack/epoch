@@ -16,7 +16,18 @@ import { and, asc, count, desc, eq, getTableColumns, inArray, sql } from 'drizzl
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
-import { changeLog, changeLogRecords, events, individuals, mediaItems, parentChild, personNames, unionPartners, unions, users } from '../db/schema';
+import {
+	changeLog,
+	changeLogRecords,
+	events,
+	individuals,
+	mediaItems,
+	parentChild,
+	personNames,
+	unionPartners,
+	unions,
+	users
+} from '../db/schema';
 import type {
 	EventRow,
 	IndividualRow,
@@ -46,7 +57,9 @@ export interface Read<T> {
 	finish: (results: unknown[][]) => T;
 }
 
-type Results<Reads extends readonly Read<unknown>[]> = { [K in keyof Reads]: Reads[K] extends Read<infer T> ? T : never };
+type Results<Reads extends readonly Read<unknown>[]> = {
+	[K in keyof Reads]: Reads[K] extends Read<infer T> ? T : never;
+};
 
 /** One change that wrote a record, as the person page lists it. */
 export interface ChangeHistoryRow {
@@ -77,11 +90,15 @@ const inTree = (column: SQLiteColumn, treeId: string) => sql`+${column} = ${tree
 function chunked<T>(items: readonly T[]): T[][] {
 	const unique = [...new Set(items)];
 	const chunks: T[][] = [];
-	for (let i = 0; i < unique.length; i += IDS_PER_QUERY) chunks.push(unique.slice(i, i + IDS_PER_QUERY));
+	for (let i = 0; i < unique.length; i += IDS_PER_QUERY)
+		chunks.push(unique.slice(i, i + IDS_PER_QUERY));
 	return chunks;
 }
 
-function ranked<T>(table: SQLiteTable, rows: Array<Record<string, unknown> & { rid: number }>): Array<Ranked<T>> {
+function ranked<T>(
+	table: SQLiteTable,
+	rows: Array<Record<string, unknown> & { rid: number }>
+): Array<Ranked<T>> {
 	return rows.map(({ rid, ...row }) => ({ rid, row: toImage(table, row) as T }));
 }
 
@@ -94,11 +111,16 @@ export class GraphWindowRepository {
 	}
 
 	/** Send several reads in as few round trips as possible and hand back each one's result. */
-	async run<const Reads extends readonly Read<unknown>[]>(...reads: Reads): Promise<Results<Reads>> {
+	async run<const Reads extends readonly Read<unknown>[]>(
+		...reads: Reads
+	): Promise<Results<Reads>> {
 		const statements = reads.flatMap((r) => r.queries);
 		const results: unknown[][] = [];
 		for (let i = 0; i < statements.length; i += STATEMENTS_PER_BATCH) {
-			const batch = statements.slice(i, i + STATEMENTS_PER_BATCH) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]];
+			const batch = statements.slice(i, i + STATEMENTS_PER_BATCH) as [
+				BatchItem<'sqlite'>,
+				...BatchItem<'sqlite'>[]
+			];
 			results.push(...((await this.db.batch(batch)) as unknown[][]));
 		}
 		let offset = 0;
@@ -117,7 +139,8 @@ export class GraphWindowRepository {
 	): Read<Array<Ranked<T>>> {
 		return {
 			queries: chunked(ids).map(build),
-			finish: (results) => ranked<T>(table, results.flat() as Array<Record<string, unknown> & { rid: number }>)
+			finish: (results) =>
+				ranked<T>(table, results.flat() as Array<Record<string, unknown> & { rid: number }>)
 		};
 	}
 
@@ -140,7 +163,10 @@ export class GraphWindowRepository {
 	}
 
 	/** Every partnership row of these people: which unions each is a partner of. */
-	partnerRowsOfPersons(treeId: string, personIds: readonly string[]): Read<Array<Ranked<UnionPartnerRow>>> {
+	partnerRowsOfPersons(
+		treeId: string,
+		personIds: readonly string[]
+	): Read<Array<Ranked<UnionPartnerRow>>> {
 		return this.readIn(unionPartners, personIds, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(unionPartners), rid: sql<number>`${unionPartners}.rowid` })
@@ -151,7 +177,10 @@ export class GraphWindowRepository {
 	}
 
 	/** Every partner row of these unions, so a union is never drawn with a partner missing. */
-	partnerRowsOfUnions(treeId: string, unionIds: readonly string[]): Read<Array<Ranked<UnionPartnerRow>>> {
+	partnerRowsOfUnions(
+		treeId: string,
+		unionIds: readonly string[]
+	): Read<Array<Ranked<UnionPartnerRow>>> {
 		return this.readIn(unionPartners, unionIds, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(unionPartners), rid: sql<number>`${unionPartners}.rowid` })
@@ -162,8 +191,17 @@ export class GraphWindowRepository {
 	}
 
 	/** Parent-child links by the child, the parent or the union they sit in. */
-	linksBy(treeId: string, by: 'child' | 'parent' | 'union', ids: readonly string[]): Read<Array<Ranked<ParentChildRow>>> {
-		const column = by === 'child' ? parentChild.childId : by === 'parent' ? parentChild.parentId : parentChild.unionId;
+	linksBy(
+		treeId: string,
+		by: 'child' | 'parent' | 'union',
+		ids: readonly string[]
+	): Read<Array<Ranked<ParentChildRow>>> {
+		const column =
+			by === 'child'
+				? parentChild.childId
+				: by === 'parent'
+					? parentChild.parentId
+					: parentChild.unionId;
 		return this.readIn(parentChild, ids, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(parentChild), rid: sql<number>`${parentChild}.rowid` })
@@ -235,14 +273,22 @@ export class GraphWindowRepository {
 	}
 
 	/** The latest changes that wrote any of these records, newest first. Imports write no log rows. */
-	async recentChanges(treeId: string, entityIds: readonly string[], limit: number): Promise<ChangeHistoryRow[]> {
+	async recentChanges(
+		treeId: string,
+		entityIds: readonly string[],
+		limit: number
+	): Promise<ChangeHistoryRow[]> {
 		const chunks = chunked(entityIds);
 		if (chunks.length === 0) return [];
 		const results = (await this.db.batch(
-			chunks.map((chunk) => this.changeHistoryQuery(treeId, chunk, limit)) as [ReturnType<typeof this.changeHistoryQuery>, ...Array<ReturnType<typeof this.changeHistoryQuery>>]
+			chunks.map((chunk) => this.changeHistoryQuery(treeId, chunk, limit)) as [
+				ReturnType<typeof this.changeHistoryQuery>,
+				...Array<ReturnType<typeof this.changeHistoryQuery>>
+			]
 		)) as unknown as Array<Array<Omit<ChangeHistoryRow, 'createdAt'> & { createdAt: Date }>>;
 		const byId = new Map<string, ChangeHistoryRow>();
-		for (const row of results.flat()) byId.set(row.id, { ...row, createdAt: row.createdAt.getTime() });
+		for (const row of results.flat())
+			byId.set(row.id, { ...row, createdAt: row.createdAt.getTime() });
 		return [...byId.values()].sort((a, b) => b.seq - a.seq).slice(0, limit);
 	}
 
@@ -250,7 +296,11 @@ export class GraphWindowRepository {
 	async actorNames(userIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
 		for (const chunk of chunked(userIds)) {
-			for (const row of await this.db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, chunk)).all()) {
+			for (const row of await this.db
+				.select({ id: users.id, name: users.name, email: users.email })
+				.from(users)
+				.where(inArray(users.id, chunk))
+				.all()) {
 				names.set(row.id, row.name || row.email);
 			}
 		}
@@ -279,12 +329,17 @@ export class GraphWindowRepository {
 
 	/** Counting walks a covering index, so this is linear in the tree; see docs/query-plans.md. */
 	async counts(treeId: string): Promise<TreeCounts> {
-		const [people, unionCount] = (await this.db.batch(this.countQueries(treeId))) as unknown as Array<Array<{ n: number }>>;
+		const [people, unionCount] = (await this.db.batch(
+			this.countQueries(treeId)
+		)) as unknown as Array<Array<{ n: number }>>;
 		return { people: people[0]!.n, unions: unionCount[0]!.n };
 	}
 
 	/** Every statement this repository can send for a tree, for the query-plan test to explain. */
-	statementsForPlans(treeId: string, sample: { personIds: string[]; unionIds: string[] }): Record<string, BatchItem<'sqlite'>> {
+	statementsForPlans(
+		treeId: string,
+		sample: { personIds: string[]; unionIds: string[] }
+	): Record<string, BatchItem<'sqlite'>> {
 		const only = <T>(read: Read<T>) => read.queries[0]!;
 		return {
 			'individuals by id': only(this.individualsIn(treeId, sample.personIds)),
@@ -294,7 +349,9 @@ export class GraphWindowRepository {
 			'links by child': only(this.linksBy(treeId, 'child', sample.personIds)),
 			'links by parent': only(this.linksBy(treeId, 'parent', sample.personIds)),
 			'links by union': only(this.linksBy(treeId, 'union', sample.unionIds)),
-			'person events (birth, death)': only(this.eventsOf(treeId, 'INDIVIDUAL', sample.personIds, ['BIRT', 'DEAT'])),
+			'person events (birth, death)': only(
+				this.eventsOf(treeId, 'INDIVIDUAL', sample.personIds, ['BIRT', 'DEAT'])
+			),
 			'union events': only(this.eventsOf(treeId, 'FAMILY', sample.unionIds)),
 			'names of people': only(this.namesOf(sample.personIds)),
 			'media of people': only(this.mediaOf(treeId, sample.personIds)),

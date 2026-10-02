@@ -22,7 +22,10 @@ async function openDrawer(page: Page, api: Api, who: Person) {
 	return drawer;
 }
 
-test('adds a sibling from the drawer, sharing both recorded parents by default', async ({ page, api }) => {
+test('adds a sibling from the drawer, sharing both recorded parents by default', async ({
+	page,
+	api
+}) => {
 	const { kit } = { kit: (await family(api)).kid };
 	const drawer = await openDrawer(page, api, kit);
 
@@ -36,14 +39,20 @@ test('adds a sibling from the drawer, sharing both recorded parents by default',
 
 	await dialog.getByRole('button', { name: 'New person' }).click();
 	await dialog.getByLabel('Given name').fill('Sunny');
-	await expect(dialog.getByText(/will be recorded as Kit Marsh's sibling and a child of Mona Marsh and Dan Marsh/)).toBeVisible();
+	await expect(
+		dialog.getByText(
+			/will be recorded as Kit Marsh's sibling and a child of Mona Marsh and Dan Marsh/
+		)
+	).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(dialog).toBeHidden();
 
 	await expect(drawer.getByTestId('siblings').getByText('Sunny')).toBeVisible();
 	const graph = await api.graph();
 	const sunny = graph.people.find((p) => p.displayName.startsWith('Sunny'))!;
-	expect(graph.parentChild.filter((l) => l.childId === sunny.id && l.type === 'biological')).toHaveLength(2);
+	expect(
+		graph.parentChild.filter((l) => l.childId === sunny.id && l.type === 'biological')
+	).toHaveLength(2);
 });
 
 test('adds a half-sibling through one parent only', async ({ page, api }) => {
@@ -58,7 +67,9 @@ test('adds a half-sibling through one parent only', async ({ page, api }) => {
 	await expect(dialog).toBeHidden();
 	const graph = await api.graph();
 	const half = graph.people.find((p) => p.displayName.startsWith('Half'))!;
-	expect(graph.parentChild.filter((l) => l.childId === half.id).map((l) => l.parentId)).toEqual([graph.people.find((p) => p.displayName.startsWith('Dan'))!.id]);
+	expect(graph.parentChild.filter((l) => l.childId === half.id).map((l) => l.parentId)).toEqual([
+		graph.people.find((p) => p.displayName.startsWith('Dan'))!.id
+	]);
 	await expect(drawer.getByTestId('siblings').getByText('half-sibling')).toBeVisible();
 });
 
@@ -87,7 +98,10 @@ test('adds a child from inside the partnership block', async ({ page, api }) => 
 	await expect(drawer.getByText('Newborn')).toBeVisible();
 });
 
-test('the trash button on a partner asks what happened; "not a partner" previews then removes them', async ({ page, api }) => {
+test('the trash button on a partner asks what happened; "not a partner" previews then removes them', async ({
+	page,
+	api
+}) => {
 	const { mum, dad } = await family(api);
 	const drawer = await openDrawer(page, api, mum);
 	await drawer.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
@@ -102,12 +116,19 @@ test('the trash button on a partner asks what happened; "not a partner" previews
 	await confirm.getByRole('button', { name: 'Remove partner' }).click();
 	await expect(confirm).toBeHidden();
 
-	await expect.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id))).toBe(false);
+	await expect
+		.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id)))
+		.toBe(false);
 	await page.getByRole('button', { name: 'Undo' }).click();
-	await expect.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id))).toBe(true);
+	await expect
+		.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id)))
+		.toBe(true);
 });
 
-test('divorce and death from the trash button open the forms already aimed at the right people', async ({ page, api }) => {
+test('divorce and death from the trash button open the forms already aimed at the right people', async ({
+	page,
+	api
+}) => {
 	const { mum } = await family(api);
 	const drawer = await openDrawer(page, api, mum);
 
@@ -123,15 +144,25 @@ test('divorce and death from the trash button open the forms already aimed at th
 	await expect(death.getByText('Dan Marsh')).toBeVisible();
 });
 
-test('removing a child from a parent, and a parent from a child, unlinks only that link', async ({ page, api }) => {
+test('removing a child from a parent, and a parent from a child, unlinks only that link', async ({
+	page,
+	api
+}) => {
 	const { mum, dad, kid } = await family(api);
 	const drawer = await openDrawer(page, api, kid);
-	await drawer.getByTestId('parents').getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
+	await drawer
+		.getByTestId('parents')
+		.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ })
+		.click();
 	const ask = page.getByRole('dialog', { name: /What happened with Dan Marsh/ });
 	await ask.getByRole('button', { name: /Not related/ }).click();
 	const confirm = page.getByRole('dialog', { name: /Remove Dan Marsh as a parent of Kit Marsh/ });
 	await confirm.getByRole('button', { name: 'Remove link' }).click();
 	await expect(confirm).toBeHidden();
-	await expect.poll(async () => (await api.graph()).parentChild.filter((l) => l.childId === kid.id).map((l) => l.parentId)).toEqual([mum.id]);
+	await expect
+		.poll(async () =>
+			(await api.graph()).parentChild.filter((l) => l.childId === kid.id).map((l) => l.parentId)
+		)
+		.toEqual([mum.id]);
 	expect((await api.graph()).people.some((p) => p.id === dad.id)).toBe(true);
 });

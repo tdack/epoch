@@ -38,19 +38,32 @@ export class MediaService {
 	async requireRead(key: string, context: AuthenticatedContext): Promise<void> {
 		const parsed = parseMediaKey(key);
 		if (!parsed) throw new NotFoundError('Media', key);
-		const scope = await requireTreeScope(this.users, this.trees, parsed.treeId, context, 'media:view', this.now());
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			parsed.treeId,
+			context,
+			'media:view',
+			this.now()
+		);
 		if (!scope.isRestricted) return;
 		const owner = await this.media.ownerOf(parsed.treeId, parsed.entityId);
 		if (!owner) throw new NotFoundError('Media', key);
 		const people = owner.kind === 'person' ? [owner.id] : await this.media.partnerIds(owner.id);
 		const seen = await visibleAmong(this.db, parsed.treeId, people, scope);
-		if (people.length === 0 || people.some((id) => !seen.has(id))) throw new NotFoundError('Media', key);
+		if (people.length === 0 || people.some((id) => !seen.has(id)))
+			throw new NotFoundError('Media', key);
 	}
 
 	/** Throws unless the caller may add media to this record of this tree. */
-	async requireUpload(treeId: string, entityId: string, context: AuthenticatedContext): Promise<void> {
+	async requireUpload(
+		treeId: string,
+		entityId: string,
+		context: AuthenticatedContext
+	): Promise<void> {
 		await requireTreeScope(this.users, this.trees, treeId, context, 'media:manage', this.now());
-		if (!(await this.media.ownerOf(treeId, entityId))) throw new ValidationError('The record to attach media to is not in this tree');
+		if (!(await this.media.ownerOf(treeId, entityId)))
+			throw new ValidationError('The record to attach media to is not in this tree');
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

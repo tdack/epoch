@@ -12,9 +12,16 @@ import { DomainError } from '../domain/errors';
  * @param options.messagePrefix Prepended to an unexpected error's message, for endpoints whose
  *   clients show a generic failure ("Export failed: …").
  */
-export function errorResponse(err: unknown, fallback: string, options: { messagePrefix?: string } = {}): Response {
+export function errorResponse(
+	err: unknown,
+	fallback: string,
+	options: { messagePrefix?: string } = {}
+): Response {
 	if (err instanceof DomainError) {
-		return Response.json({ error: err.message, code: err.code, details: err.details }, { status: err.status });
+		return Response.json(
+			{ error: err.message, code: err.code, details: err.details },
+			{ status: err.status }
+		);
 	}
 	console.error(`${fallback}:`, err);
 	const message = (err as { message?: string } | null)?.message || fallback;

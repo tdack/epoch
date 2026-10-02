@@ -1,6 +1,9 @@
 import { card, expect, openTree, test } from './support';
 
-test('Back undoes a burst of depth clicks in one step, and returns to the previous person', async ({ page, api }) => {
+test('Back undoes a burst of depth clicks in one step, and returns to the previous person', async ({
+	page,
+	api
+}) => {
 	const [a, b] = [await api.addPerson('Ann'), await api.addPerson('Ben')];
 	await api.child(a, b);
 	await openTree(page, api, a);

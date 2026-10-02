@@ -11,7 +11,9 @@ import type {
 	StubEdge
 } from './types.js';
 
-function assertionsOf(entries: Array<{ parentId: string; type: ChildAssertion['type'] }>): ChildAssertion[] {
+function assertionsOf(
+	entries: Array<{ parentId: string; type: ChildAssertion['type'] }>
+): ChildAssertion[] {
 	const seen = new Set<string>();
 	const out: ChildAssertion[] = [];
 	for (const { parentId, type } of entries) {
@@ -60,7 +62,10 @@ export function buildEdges(
 
 		const byChild = new Map<string, Array<{ parentId: string; type: ChildAssertion['type'] }>>();
 		for (const c of union.children) {
-			byChild.set(c.childId, [...(byChild.get(c.childId) ?? []), { parentId: c.parentId, type: c.type }]);
+			byChild.set(c.childId, [
+				...(byChild.get(c.childId) ?? []),
+				{ parentId: c.parentId, type: c.type }
+			]);
 		}
 		for (const [childId, entries] of byChild) {
 			const child = people.get(childId);
@@ -84,7 +89,10 @@ export function buildEdges(
 	for (const link of directLinks) {
 		if (!people.has(link.parentId) || !people.has(link.childId)) continue;
 		const key = `${link.parentId}|${link.childId}`;
-		directByPair.set(key, [...(directByPair.get(key) ?? []), { parentId: link.parentId, type: link.type }]);
+		directByPair.set(key, [
+			...(directByPair.get(key) ?? []),
+			{ parentId: link.parentId, type: link.type }
+		]);
 	}
 	for (const [key, entries] of directByPair) {
 		const [parentId, childId] = key.split('|');

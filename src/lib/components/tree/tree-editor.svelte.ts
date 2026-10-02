@@ -131,7 +131,12 @@ export class TreeEditor {
 	personToEdit = $state<EditablePerson | null>(null);
 	isSubmittingPerson = $state(false);
 	personModalError = $state<string | null>(null);
-	personConflict = $state<{ error: ConflictError; form: PersonFormData; changes: Partial<PersonFormData>; personId: string } | null>(null);
+	personConflict = $state<{
+		error: ConflictError;
+		form: PersonFormData;
+		changes: Partial<PersonFormData>;
+		personId: string;
+	} | null>(null);
 
 	// Relationship dialog
 	showRelationshipModal = $state(false);
@@ -152,7 +157,11 @@ export class TreeEditor {
 	/** "1st partnership" and so on; computed over every partnership the graph holds. */
 	unionLabels = $derived(this.graph ? partnershipLabels(this.graph.unions) : new Map());
 	mergeableIds = $derived(this.graph ? mergeableUnionIds(this.graph.unions) : new Set<string>());
-	mergeCandidates = $derived(this.graph && this.mergingUnionId ? mergeCandidatesFor(this.graph.unions, this.mergingUnionId, this.unionLabels) : []);
+	mergeCandidates = $derived(
+		this.graph && this.mergingUnionId
+			? mergeCandidatesFor(this.graph.unions, this.mergingUnionId, this.unionLabels)
+			: []
+	);
 	mergePartners = $derived(
 		this.graph?.unions
 			.find((u) => u.id === this.mergingUnionId)
@@ -194,7 +203,10 @@ export class TreeEditor {
 			this.toasts.push(`Undid: ${undone.summary}`);
 		} catch (e: any) {
 			// Refusals arrive with a plain-language reason (a later change touched the same records).
-			this.toasts.push(e.message || 'Could not undo', { tone: TOAST_TONES.ERROR, durationMs: 10_000 });
+			this.toasts.push(e.message || 'Could not undo', {
+				tone: TOAST_TONES.ERROR,
+				durationMs: 10_000
+			});
 		}
 	};
 
@@ -214,7 +226,9 @@ export class TreeEditor {
 			const page = await fetchPersonPage(this.treeId, personId);
 			const births = page.facts.filter((f) => f.type === 'BIRT').length;
 			const deaths = page.facts.filter((f) => f.type === 'DEAT').length;
-			const doubled = [births > 1 ? `${births} births` : '', deaths > 1 ? `${deaths} deaths` : ''].filter(Boolean).join(' and ');
+			const doubled = [births > 1 ? `${births} births` : '', deaths > 1 ? `${deaths} deaths` : '']
+				.filter(Boolean)
+				.join(' and ');
 			this.personModalMode = 'edit';
 			this.personToEdit = {
 				id: page.person.id,
@@ -224,15 +238,33 @@ export class TreeEditor {
 				sex: page.person.sex,
 				// The form has one birth and one death field and edits the first of each; the others
 				// are kept untouched and are edited from the person's page.
-				notice: doubled ? `This person has ${doubled} recorded. This form edits the first of each; edit the others from their page.` : null,
+				notice: doubled
+					? `This person has ${doubled} recorded. This form edits the first of each; edit the others from their page.`
+					: null,
 				raw: {
 					version: page.person.version,
 					givenName: page.person.givenName,
 					surname: page.person.surname,
 					sex: page.person.sex,
 					events: [
-						...(page.vitals.birth ? [{ type: 'BIRT', dateRaw: page.vitals.birth.dateText, place: page.vitals.birth.place }] : []),
-						...(page.vitals.death ? [{ type: 'DEAT', dateRaw: page.vitals.death.dateText, place: page.vitals.death.place }] : [])
+						...(page.vitals.birth
+							? [
+									{
+										type: 'BIRT',
+										dateRaw: page.vitals.birth.dateText,
+										place: page.vitals.birth.place
+									}
+								]
+							: []),
+						...(page.vitals.death
+							? [
+									{
+										type: 'DEAT',
+										dateRaw: page.vitals.death.dateText,
+										place: page.vitals.death.place
+									}
+								]
+							: [])
 					]
 				}
 			};
@@ -259,7 +291,10 @@ export class TreeEditor {
 	}
 
 	/** Only what the person actually changed in the form, so re-applying never overwrites what they did not touch. */
-	private changedFields(form: PersonFormData, original: Record<string, string>): Partial<PersonFormData> {
+	private changedFields(
+		form: PersonFormData,
+		original: Record<string, string>
+	): Partial<PersonFormData> {
 		const changes: Record<string, unknown> = {};
 		for (const [key] of PERSON_FIELD_LABELS) {
 			const value = (form[key] ?? '') as string;
@@ -278,7 +313,11 @@ export class TreeEditor {
 			}))
 		);
 
-	private async savePersonEdit(personId: string, formData: Partial<PersonFormData>, version: number) {
+	private async savePersonEdit(
+		personId: string,
+		formData: Partial<PersonFormData>,
+		version: number
+	) {
 		const { change } = await updateIndividualApi(this.treeId, personId, formData, version);
 		this.showPersonModal = false;
 		this.personConflict = null;
@@ -319,7 +358,11 @@ export class TreeEditor {
 		if (!conflict) return;
 		this.isSubmittingPerson = true;
 		try {
-			await this.savePersonEdit(conflict.personId, conflict.changes, conflict.error.details.currentVersion);
+			await this.savePersonEdit(
+				conflict.personId,
+				conflict.changes,
+				conflict.error.details.currentVersion
+			);
 		} catch (err: any) {
 			if (isConflict(err)) this.personConflict = { ...conflict, error: err };
 			else {
@@ -341,7 +384,10 @@ export class TreeEditor {
 
 	// ---- Relationship dialog ----
 
-	openRelationship = (anchor: PersonRef, options: { kind?: RelationshipKind; unionId?: string | null; preselect?: PersonRef | null } = {}) => {
+	openRelationship = (
+		anchor: PersonRef,
+		options: { kind?: RelationshipKind; unionId?: string | null; preselect?: PersonRef | null } = {}
+	) => {
 		this.relationshipAnchor = anchor;
 		this.relationshipPreselect = options.preselect ?? null;
 		this.relationshipKind = options.kind ?? 'add_parent';
@@ -349,12 +395,21 @@ export class TreeEditor {
 		this.showRelationshipModal = true;
 	};
 
-	relationshipSaved = async (change: ChangeSummary | null, plan: { sentence: string; commands: unknown[] }) => {
+	relationshipSaved = async (
+		change: ChangeSummary | null,
+		plan: { sentence: string; commands: unknown[] }
+	) => {
 		this.showRelationshipModal = false;
-		await this.afterChange(change, plan.commands.length === 0 ? 'Nothing was changed' : plan.sentence);
+		await this.afterChange(
+			change,
+			plan.commands.length === 0 ? 'Nothing was changed' : plan.sentence
+		);
 	};
 
-	dragRelate = (relate: { source: { id: string; displayName: string }; target: { id: string; displayName: string } }) => {
+	dragRelate = (relate: {
+		source: { id: string; displayName: string };
+		target: { id: string; displayName: string };
+	}) => {
 		// Anchored on the dragged person with the drop target chosen, so the person only confirms the kind.
 		this.openRelationship(
 			{ id: relate.source.id, givenName: relate.source.displayName, surname: null },
@@ -375,12 +430,21 @@ export class TreeEditor {
 		run: () => Promise<{ change: ChangeSummary | null }>;
 		done: string;
 	}) => {
-		this.pendingImpact = { title: options.title, confirmLabel: options.confirmLabel, impact: null, error: null, isConfirming: false, done: options.done, run: options.run };
+		this.pendingImpact = {
+			title: options.title,
+			confirmLabel: options.confirmLabel,
+			impact: null,
+			error: null,
+			isConfirming: false,
+			done: options.done,
+			run: options.run
+		};
 		try {
 			const impact = await options.preview();
 			if (this.pendingImpact) this.pendingImpact.impact = impact;
 		} catch (e: any) {
-			if (this.pendingImpact) this.pendingImpact.error = e.message || 'Could not check what this affects';
+			if (this.pendingImpact)
+				this.pendingImpact.error = e.message || 'Could not check what this affects';
 		}
 	};
 
@@ -399,14 +463,22 @@ export class TreeEditor {
 				// Changed by someone else after the preview: show the current state rather than delete on stale information.
 				this.pendingImpact = null;
 				await this.refresh();
-				this.toasts.push(`${e.message} Nothing was deleted. Review it and try again.`, { tone: TOAST_TONES.ERROR, durationMs: 10_000 });
+				this.toasts.push(`${e.message} Nothing was deleted. Review it and try again.`, {
+					tone: TOAST_TONES.ERROR,
+					durationMs: 10_000
+				});
 			} else {
 				pending.error = e.message || 'That did not work';
 			}
 		}
 	};
 
-	private requestImpactRemoval(command: RelationshipDeleteCommand, title: string, confirmLabel: string, done: string) {
+	private requestImpactRemoval(
+		command: RelationshipDeleteCommand,
+		title: string,
+		confirmLabel: string,
+		done: string
+	) {
 		const treeId = this.treeId;
 		void this.confirmWithImpact({
 			title,
@@ -433,11 +505,17 @@ export class TreeEditor {
 		});
 	};
 
-	private unionVersion = (unionId: string) => this.graph?.unions.find((u) => u.id === unionId)?.version;
+	private unionVersion = (unionId: string) =>
+		this.graph?.unions.find((u) => u.id === unionId)?.version;
 
 	removeLink = (edge: PartnerEdge) =>
 		this.requestImpactRemoval(
-			{ kind: 'remove_partner_from_union', unionId: edge.unionId, personId: edge.personId, expectedVersion: this.unionVersion(edge.unionId) },
+			{
+				kind: 'remove_partner_from_union',
+				unionId: edge.unionId,
+				personId: edge.personId,
+				expectedVersion: this.unionVersion(edge.unionId)
+			},
 			`Remove ${this.nameOf(edge.personId)} from this partnership?`,
 			'Remove partner',
 			'Partner removed'
@@ -446,7 +524,12 @@ export class TreeEditor {
 	/** Remove one parent's link from a merged (union, child) edge. */
 	removeAssertion = (edge: ChildEdge, assertion: ChildAssertion) =>
 		this.requestImpactRemoval(
-			{ kind: 'remove_parent_child', parentId: assertion.parentId, childId: edge.childId, type: assertion.type },
+			{
+				kind: 'remove_parent_child',
+				parentId: assertion.parentId,
+				childId: edge.childId,
+				type: assertion.type
+			},
 			`Remove ${this.nameOf(assertion.parentId)} as a parent of ${this.nameOf(edge.childId)}?`,
 			'Remove link',
 			'Link removed'
@@ -467,7 +550,8 @@ export class TreeEditor {
 			confirmLabel: 'Change type',
 			preview: async () => {
 				const plan = await planRelationshipApi(treeId, intent);
-				if (plan.commands.length === 0 || !plan.impact) throw new Error(plan.warnings[0]?.message ?? 'Nothing would change.');
+				if (plan.commands.length === 0 || !plan.impact)
+					throw new Error(plan.warnings[0]?.message ?? 'Nothing would change.');
 				return plan.impact;
 			},
 			run: async () => {
@@ -479,7 +563,10 @@ export class TreeEditor {
 	};
 
 	removeUnion = (unionId: string) => {
-		const names = this.graph?.unions.find((u) => u.id === unionId)?.partnerIds.map(this.nameOf).join(' and ');
+		const names = this.graph?.unions
+			.find((u) => u.id === unionId)
+			?.partnerIds.map(this.nameOf)
+			.join(' and ');
 		this.requestImpactRemoval(
 			{ kind: 'destroy_union', unionId, expectedVersion: this.unionVersion(unionId) },
 			`Delete the partnership${names ? ` of ${names}` : ''}?`,
@@ -505,12 +592,19 @@ export class TreeEditor {
 		if (!action) return;
 		const { relation, owner, relative, unionId, type } = action;
 		if (outcome === RELATIVE_OUTCOMES.DELETE) return this.requestDeletePerson(relative.id);
-		if (outcome === RELATIVE_OUTCOMES.DIED) return this.openRelationship(this.anchorFor(relative.id), { kind: 'record_death' });
-		if (outcome === RELATIVE_OUTCOMES.ENDED && unionId) return this.openRelationship(this.anchorFor(owner.id), { kind: 'end_union', unionId });
+		if (outcome === RELATIVE_OUTCOMES.DIED)
+			return this.openRelationship(this.anchorFor(relative.id), { kind: 'record_death' });
+		if (outcome === RELATIVE_OUTCOMES.ENDED && unionId)
+			return this.openRelationship(this.anchorFor(owner.id), { kind: 'end_union', unionId });
 		if (outcome !== RELATIVE_OUTCOMES.REMOVE) return;
 		if (relation === 'partner' && unionId) {
 			this.requestImpactRemoval(
-				{ kind: 'remove_partner_from_union', unionId, personId: relative.id, expectedVersion: this.unionVersion(unionId) },
+				{
+					kind: 'remove_partner_from_union',
+					unionId,
+					personId: relative.id,
+					expectedVersion: this.unionVersion(unionId)
+				},
 				`Remove ${relative.givenName ?? 'this person'} as a partner of ${owner.givenName ?? 'this person'}?`,
 				'Remove partner',
 				'Partner removed'
@@ -518,7 +612,12 @@ export class TreeEditor {
 		} else if ((relation === 'parent' || relation === 'child') && type) {
 			const isParent = relation === 'parent';
 			this.requestImpactRemoval(
-				{ kind: 'remove_parent_child', parentId: isParent ? relative.id : owner.id, childId: isParent ? owner.id : relative.id, type },
+				{
+					kind: 'remove_parent_child',
+					parentId: isParent ? relative.id : owner.id,
+					childId: isParent ? owner.id : relative.id,
+					type
+				},
 				isParent
 					? `Remove ${relative.givenName ?? 'this person'} as a parent of ${owner.givenName ?? 'this person'}?`
 					: `Remove ${relative.givenName ?? 'this person'} as a child of ${owner.givenName ?? 'this person'}?`,
@@ -558,7 +657,10 @@ export class TreeEditor {
 			// A partnership changed after the dialog loaded it: show the current state instead of merging on stale information.
 			this.mergingUnionId = null;
 			await this.refresh();
-			this.toasts.push(`${e.message} Nothing was merged. Review it and try again.`, { tone: TOAST_TONES.ERROR, durationMs: 10_000 });
+			this.toasts.push(`${e.message} Nothing was merged. Review it and try again.`, {
+				tone: TOAST_TONES.ERROR,
+				durationMs: 10_000
+			});
 		}
 	};
 }

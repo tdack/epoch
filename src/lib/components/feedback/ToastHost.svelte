@@ -18,4 +18,3 @@
 		<ToastItem {toast} onDismiss={() => store.dismiss(toast.id)} />
 	{/each}
 </section>
-

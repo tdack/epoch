@@ -2,7 +2,9 @@ import type { D1Database } from '@cloudflare/workers-types';
 import journal from '../../../../drizzle/meta/_journal.json';
 
 /** What Wrangler records in `d1_migrations.name` for each migration in the Drizzle journal. */
-export const EXPECTED_MIGRATIONS: readonly string[] = journal.entries.map((entry) => `${entry.tag}.sql`);
+export const EXPECTED_MIGRATIONS: readonly string[] = journal.entries.map(
+	(entry) => `${entry.tag}.sql`
+);
 
 export const SCHEMA_NOT_MIGRATED_CODE = 'SCHEMA_NOT_MIGRATED';
 

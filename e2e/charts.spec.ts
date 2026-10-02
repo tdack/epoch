@@ -2,7 +2,10 @@ import { expect, open, test } from './support';
 
 const SHOTS = process.env.E2E_SHOTS ?? 'test-results';
 
-test('the pedigree and descendant charts draw the family, and follow a card', async ({ api, page }) => {
+test('the pedigree and descendant charts draw the family, and follow a card', async ({
+	api,
+	page
+}) => {
 	const gran = await api.addPerson('Granny', 'Chartly', { birthDate: '1850', deathDate: '1920' });
 	const gramp = await api.addPerson('Grampy', 'Chartly', { birthDate: '1848', deathDate: '1919' });
 	const dad = await api.addPerson('Dadly', 'Chartly', { birthDate: '1880', deathDate: '1950' });
@@ -29,7 +32,9 @@ test('the pedigree and descendant charts draw the family, and follow a card', as
 	// One generation is only the person; the control is a link, so the depth is in the address.
 	await page.getByRole('link', { name: 'Fewer generations' }).click();
 	await expect(page).toHaveURL(/generations=3/);
-	await page.goto(`/trees/${api.treeId}/people/${encodeURIComponent(me.id)}/pedigree?generations=2`);
+	await page.goto(
+		`/trees/${api.treeId}/people/${encodeURIComponent(me.id)}/pedigree?generations=2`
+	);
 	await expect(page.getByTestId('chart-card')).toHaveCount(3);
 	await expect(page.getByTestId('more')).toContainText('Further ancestors');
 
@@ -44,7 +49,10 @@ test('the pedigree and descendant charts draw the family, and follow a card', as
 	await expect(page.getByRole('heading', { name: 'Ancestors of Minnie Chartly' })).toBeVisible();
 });
 
-test('the fan and hourglass charts draw the same family, link between styles and list the ancestors as text', async ({ api, page }) => {
+test('the fan and hourglass charts draw the same family, link between styles and list the ancestors as text', async ({
+	api,
+	page
+}) => {
 	const gran = await api.addPerson('Granny', 'Fanley', { birthDate: '1850', deathDate: '1920' });
 	const dad = await api.addPerson('Dadly', 'Fanley', { birthDate: '1880', deathDate: '1950' });
 	const mum = await api.addPerson('Mumly', 'Fanley', { birthDate: '1884', deathDate: '1960' });
@@ -72,9 +80,15 @@ test('the fan and hourglass charts draw the same family, link between styles and
 	await expect(outline.nth(3)).toContainText('Granny Fanley');
 
 	// A wedge leads to that person's fan; the style links keep the person and the depth.
-	await page.getByRole('link', { name: /Dadly Fanley/ }).first().click();
+	await page
+		.getByRole('link', { name: /Dadly Fanley/ })
+		.first()
+		.click();
 	await expect(page.getByRole('heading', { name: 'Fan chart of Dadly Fanley' })).toBeVisible();
-	await page.getByRole('navigation', { name: 'Chart style' }).getByRole('link', { name: 'Hourglass' }).click();
+	await page
+		.getByRole('navigation', { name: 'Chart style' })
+		.getByRole('link', { name: 'Hourglass' })
+		.click();
 	await expect(page.getByRole('heading', { name: 'Hourglass of Dadly Fanley' })).toBeVisible();
 	await expect(page).toHaveURL(/up=4&down=4/);
 

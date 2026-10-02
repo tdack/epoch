@@ -22,7 +22,10 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
 	}
 
 	try {
-		const { version, status, events } = parseBody(unionUpdateSchema, await request.json().catch(() => ({})));
+		const { version, status, events } = parseBody(
+			unionUpdateSchema,
+			await request.json().catch(() => ({}))
+		);
 		const service = new RelationshipService(getDb(platform.env.DB));
 
 		const { change } = await service.updateUnion(
@@ -41,12 +44,19 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const { id: treeId, unionId } = params;
-	if (!treeId || !unionId) return Response.json({ error: 'Tree ID and Union ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!treeId || !unionId)
+		return Response.json({ error: 'Tree ID and Union ID required' }, { status: 400 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const service = new UnionPageService(getDb(platform.env.DB));
-		return Response.json(await service.getUnion(treeId, unionId, { user: locals.user, correlationId: locals.correlationId }));
+		return Response.json(
+			await service.getUnion(treeId, unionId, {
+				user: locals.user,
+				correlationId: locals.correlationId
+			})
+		);
 	} catch (err) {
 		return errorResponse(err, 'Failed to load the partnership');
 	}

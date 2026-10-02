@@ -28,7 +28,8 @@ export function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOpt
 	return {
 		ancestorDepth: clamp(options.ancestorDepth, DEFAULT_FOCUS_OPTIONS.ancestorDepth),
 		descendantDepth: clamp(options.descendantDepth, DEFAULT_FOCUS_OPTIONS.descendantDepth),
-		shouldIncludeSiblings: options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
+		shouldIncludeSiblings:
+			options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
 		shouldIncludeStepFamilies:
 			options.shouldIncludeStepFamilies ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeStepFamilies,
 		expandedStubIds: [...new Set(options.expandedStubIds ?? [])].sort()
@@ -100,8 +101,16 @@ export function selectFocusSubgraph(
 			continue;
 		}
 
-		if (generation <= -opts.ancestorDepth && (parentUnionIds.length > 0 || directParentIds.length > 0)) {
-			expansions.push({ stubId: ancestorStubId, kind: STUB_KINDS.ANCESTORS, personId: childId, unionId: null });
+		if (
+			generation <= -opts.ancestorDepth &&
+			(parentUnionIds.length > 0 || directParentIds.length > 0)
+		) {
+			expansions.push({
+				stubId: ancestorStubId,
+				kind: STUB_KINDS.ANCESTORS,
+				personId: childId,
+				unionId: null
+			});
 		}
 
 		for (const unionId of parentUnionIds) {
@@ -190,7 +199,12 @@ export function selectFocusSubgraph(
 					if (opts.shouldIncludeStepFamilies || expanded.has(otherStubId)) {
 						childQueue.push({ id: partnerId, isStepSeed: true });
 						if (!opts.shouldIncludeStepFamilies && hasUndrawnUnion(partnerId)) {
-							expansions.push({ stubId: otherStubId, kind: STUB_KINDS.CHILDREN, personId: partnerId, unionId: null });
+							expansions.push({
+								stubId: otherStubId,
+								kind: STUB_KINDS.CHILDREN,
+								personId: partnerId,
+								unionId: null
+							});
 						}
 					}
 				}

@@ -31,7 +31,10 @@ export interface ChartLayout {
 const columnX = (generation: number) => generation * (CARD.width + CARD.columnGap);
 
 /** Heap-ordered slots on a grid 2^(n-1) rows tall: a person is centred on the rows their own ancestors span. */
-export function layoutPedigree(slots: ReadonlyArray<ChartPerson | null>, generations: number): ChartLayout {
+export function layoutPedigree(
+	slots: ReadonlyArray<ChartPerson | null>,
+	generations: number
+): ChartLayout {
 	const rowHeight = CARD.height + CARD.rowGap;
 	const leafRows = 2 ** (generations - 1);
 	const cards: PlacedCard[] = [];
@@ -41,13 +44,23 @@ export function layoutPedigree(slots: ReadonlyArray<ChartPerson | null>, generat
 		const generation = Math.floor(Math.log2(i + 1));
 		const indexInGeneration = i + 1 - 2 ** generation;
 		const span = leafRows / 2 ** generation;
-		cards.push({ key: `s${i}`, person, x: columnX(generation), y: (indexInGeneration * span + span / 2) * rowHeight - CARD.height / 2 });
+		cards.push({
+			key: `s${i}`,
+			person,
+			x: columnX(generation),
+			y: (indexInGeneration * span + span / 2) * rowHeight - CARD.height / 2
+		});
 		if (i > 0) {
 			const child = Math.floor((i - 1) / 2);
 			if (slots[child]) edges.push({ from: `s${child}`, to: `s${i}` });
 		}
 	});
-	return { cards, edges, width: columnX(generations - 1) + CARD.width, height: leafRows * rowHeight };
+	return {
+		cards,
+		edges,
+		width: columnX(generations - 1) + CARD.width,
+		height: leafRows * rowHeight
+	};
 }
 
 /** Leaves take consecutive rows; a parent is centred on its first and last child. */
@@ -63,13 +76,25 @@ export function layoutDescendants(root: DescendantNode): ChartLayout {
 		const key = `d${counter++}`;
 		deepest = Math.max(deepest, depth);
 		const placed = node.children.map((child) => place(child, depth + 1));
-		const row = placed.length > 0 ? (placed[0]!.row + placed[placed.length - 1]!.row) / 2 : nextRow++;
-		cards.push({ key, person: node.person, partners: node.partners, x: columnX(depth), y: row * rowHeight });
+		const row =
+			placed.length > 0 ? (placed[0]!.row + placed[placed.length - 1]!.row) / 2 : nextRow++;
+		cards.push({
+			key,
+			person: node.person,
+			partners: node.partners,
+			x: columnX(depth),
+			y: row * rowHeight
+		});
 		for (const child of placed) edges.push({ from: key, to: child.key });
 		return { key, row };
 	}
 	place(root, 0);
-	return { cards, edges, width: columnX(deepest) + CARD.width, height: Math.max(nextRow, 1) * rowHeight };
+	return {
+		cards,
+		edges,
+		width: columnX(deepest) + CARD.width,
+		height: Math.max(nextRow, 1) * rowHeight
+	};
 }
 
 /**
@@ -78,7 +103,11 @@ export function layoutDescendants(root: DescendantNode): ChartLayout {
  * shifted until that card is at the same height in both. Edges can therefore run either way along a
  * row; the canvas draws each from the near side of one card to the near side of the other.
  */
-export function layoutHourglass(slots: ReadonlyArray<ChartPerson | null>, ancestorGenerations: number, root: DescendantNode): ChartLayout {
+export function layoutHourglass(
+	slots: ReadonlyArray<ChartPerson | null>,
+	ancestorGenerations: number,
+	root: DescendantNode
+): ChartLayout {
 	const ancestors = layoutPedigree(slots, ancestorGenerations);
 	const descendants = layoutDescendants(root);
 	const subject = descendants.cards.find((c) => c.key === 'd0')!;
@@ -91,7 +120,10 @@ export function layoutHourglass(slots: ReadonlyArray<ChartPerson | null>, ancest
 		...descendants.cards.map((c) => ({ ...c, x: -c.x })),
 		...ancestors.cards.filter((c) => c.key !== 's0').map((c) => ({ ...c, y: c.y + ancestorShift }))
 	];
-	const edges: Edge[] = [...descendants.edges, ...ancestors.edges.map((e) => ({ from: e.from === 's0' ? 'd0' : e.from, to: e.to }))];
+	const edges: Edge[] = [
+		...descendants.edges,
+		...ancestors.edges.map((e) => ({ from: e.from === 's0' ? 'd0' : e.from, to: e.to }))
+	];
 
 	const minX = Math.min(...cards.map((c) => c.x));
 	const minY = Math.min(...cards.map((c) => c.y));

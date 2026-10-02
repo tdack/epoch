@@ -75,7 +75,8 @@ export function findOverlaps(layout: TreeLayout, m: LayoutMetrics = LAYOUT_METRI
 	}
 	for (let i = 0; i < nodes.length; i++) {
 		for (let j = i + 1; j < nodes.length; j++) {
-			if (intersects(nodes[i], nodes[j])) violations.push(`union ${nodes[i].id} overlaps union ${nodes[j].id}`);
+			if (intersects(nodes[i], nodes[j]))
+				violations.push(`union ${nodes[i].id} overlaps union ${nodes[j].id}`);
 		}
 	}
 	return violations;
@@ -111,7 +112,10 @@ export function findMissingPartners(graph: RelationshipGraph, layout: TreeLayout
  * Rule 2: partners share a row and (when they can) sit adjacent with the union node between.
  * Unions the layout itself reported as non-adjacent are only checked for a shared row.
  */
-export function findPartnerViolations(layout: TreeLayout, m: LayoutMetrics = LAYOUT_METRICS): string[] {
+export function findPartnerViolations(
+	layout: TreeLayout,
+	m: LayoutMetrics = LAYOUT_METRICS
+): string[] {
 	const violations: string[] = [];
 	const personById = new Map(layout.people.map((p) => [p.id, p]));
 	const nonAdjacent = new Set(layout.nonAdjacentUnionIds);
@@ -132,7 +136,8 @@ export function findPartnerViolations(layout: TreeLayout, m: LayoutMetrics = LAY
 			const between = layout.people.filter(
 				(p) => p !== a && p !== b && Math.abs(p.y - a.y) < EPSILON && p.x > a.x && p.x < b.x
 			);
-			if (between.length > 0) violations.push(`union ${u.id} partners are separated by ${between[0].id}`);
+			if (between.length > 0)
+				violations.push(`union ${u.id} partners are separated by ${between[0].id}`);
 			if (b.x - a.x < m.cardWidth + m.unionRadius) {
 				violations.push(`union ${u.id} partners are too close for the union node`);
 			}
@@ -147,7 +152,9 @@ export function findEdgeViolations(graph: RelationshipGraph, layout: TreeLayout)
 	const keys = new Map<string, number>();
 	const childEdges = layout.edges.filter((e): e is ChildEdge => e.kind === 'child');
 	for (const e of childEdges) {
-		const key = e.unionId ? `${e.unionId}|${e.childId}` : `direct|${e.assertions[0]?.parentId}|${e.childId}`;
+		const key = e.unionId
+			? `${e.unionId}|${e.childId}`
+			: `direct|${e.assertions[0]?.parentId}|${e.childId}`;
 		keys.set(key, (keys.get(key) ?? 0) + 1);
 	}
 	for (const [key, n] of keys) if (n > 1) violations.push(`edge ${key} is drawn ${n} times`);
@@ -164,11 +171,13 @@ export function findEdgeViolations(graph: RelationshipGraph, layout: TreeLayout)
 		}
 	}
 	for (const key of expected) if (!keys.has(key)) violations.push(`edge ${key} is missing`);
-	for (const key of keys.keys()) if (!expected.has(key)) violations.push(`edge ${key} has no assertion behind it`);
+	for (const key of keys.keys())
+		if (!expected.has(key)) violations.push(`edge ${key} has no assertion behind it`);
 
 	for (const e of childEdges) {
 		const types = [...new Set(e.assertions.map((a) => a.type))].sort();
-		if (types.join() !== e.types.join()) violations.push(`edge ${e.id} types do not match its assertions`);
+		if (types.join() !== e.types.join())
+			violations.push(`edge ${e.id} types do not match its assertions`);
 	}
 	return violations;
 }
@@ -195,7 +204,9 @@ export function findCentringViolations(layout: TreeLayout): string[] {
 			? personById.get(key.slice('direct|'.length))?.x
 			: unionById.get(key)?.x;
 		if (anchorX === undefined) continue;
-		const children = edges.map((e) => personById.get(e.childId)).filter((c): c is NonNullable<typeof c> => !!c);
+		const children = edges
+			.map((e) => personById.get(e.childId))
+			.filter((c): c is NonNullable<typeof c> => !!c);
 		if (children.length === 0) continue;
 		const xs = children.map((c) => c.x);
 		const mid = (Math.min(...xs) + Math.max(...xs)) / 2;

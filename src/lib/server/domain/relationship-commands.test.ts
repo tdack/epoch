@@ -9,17 +9,35 @@ const other = { id: 'p-other', givenName: 'Robin', surname: 'Reed' };
 
 function context(spec: RowsSpec = {}, overrides: Partial<PlanContext> = {}): PlanContext {
 	const people = [alex, sam, other].map((p) => ({ ...p, sex: 'U' as const }));
-	return { rows: treeRows({ people, ...spec }), hasDuplicateName: false, newId: sequentialIds(), ...overrides };
+	return {
+		rows: treeRows({ people, ...spec }),
+		hasDuplicateName: false,
+		newId: sequentialIds(),
+		...overrides
+	};
 }
 
 describe('planRelationshipCommand', () => {
 	it('plans an add_parent as an assert_parent_child command', () => {
 		const plan = planRelationshipCommand(
-			{ kind: 'add_parent', child: sam, parent: alex, type: 'adoptive', role: 'mother', unionLabel: null },
+			{
+				kind: 'add_parent',
+				child: sam,
+				parent: alex,
+				type: 'adoptive',
+				role: 'mother',
+				unionLabel: null
+			},
 			context()
 		);
 		expect(plan.commands).toEqual([
-			{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'p-sam', type: 'adoptive', unionId: null }
+			{
+				kind: 'assert_parent_child',
+				parentId: 'p-alex',
+				childId: 'p-sam',
+				type: 'adoptive',
+				unionId: null
+			}
 		]);
 		expect(plan.sentence).toBe("Alex Walker will be recorded as Sam Smith's adoptive mother.");
 	});
@@ -43,8 +61,13 @@ describe('planRelationshipCommand', () => {
 	});
 
 	it('plans an add_partner as a create_union command when no union exists', () => {
-		const plan = planRelationshipCommand({ kind: 'add_partner', person: alex, partner: sam, unionLabel: null }, context());
-		expect(plan.commands).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
+		const plan = planRelationshipCommand(
+			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
+			context()
+		);
+		expect(plan.commands).toEqual([
+			{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }
+		]);
 	});
 
 	it('completes a partnership that is waiting for its other partner', () => {
@@ -52,7 +75,9 @@ describe('planRelationshipCommand', () => {
 			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
 			context({ unions: [{ id: 'u1', partners: ['p-alex'] }] })
 		);
-		expect(plan.commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }]);
+		expect(plan.commands).toEqual([
+			{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }
+		]);
 	});
 
 	it('starts a new partnership rather than adding a third person to a full one', () => {
@@ -60,7 +85,9 @@ describe('planRelationshipCommand', () => {
 			{ kind: 'add_partner', person: alex, partner: sam, unionLabel: null },
 			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-other'] }] })
 		);
-		expect(plan.commands).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
+		expect(plan.commands).toEqual([
+			{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }
+		]);
 	});
 
 	it('warns when the two people are already partners', () => {
@@ -75,8 +102,13 @@ describe('planRelationshipCommand', () => {
 	it('lets a pair whose partnership ended partner again, as a second partnership', () => {
 		const intent = { kind: 'add_partner', person: alex, partner: sam, unionLabel: null } as const;
 		for (const status of ['divorced', 'separated', 'annulled', 'ended'] as const) {
-			const plan = planRelationshipCommand(intent, context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status }] }));
-			expect(plan.commands, status).toEqual([{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }]);
+			const plan = planRelationshipCommand(
+				intent,
+				context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status }] })
+			);
+			expect(plan.commands, status).toEqual([
+				{ kind: 'create_union', unionId: 'id-1', personIds: ['p-alex', 'p-sam'] }
+			]);
 			expect(plan.warnings.map((w) => w.code)).not.toContain('ALREADY_PARTNERS');
 		}
 	});
@@ -95,22 +127,39 @@ describe('planRelationshipCommand', () => {
 			context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-other'] }] })
 		);
 		expect(plan.commands[0]).toMatchObject({ kind: 'assert_parent_child', unionId: 'u1' });
-		expect(plan.sentence).toBe("Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family.");
+		expect(plan.sentence).toBe(
+			"Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family."
+		);
 	});
 
 	describe('changing the type of a parent link', () => {
-		const withLink = (type = 'biological' as const) => context({ links: [{ parentId: 'p-alex', childId: 'p-sam', type }] });
-		const change = (toType: 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown', fromType: 'biological' | 'adoptive' = 'biological') =>
-			({ kind: 'change_link_type', parent: alex, child: sam, fromType, toType }) as const;
+		const withLink = (type = 'biological' as const) =>
+			context({ links: [{ parentId: 'p-alex', childId: 'p-sam', type }] });
+		const change = (
+			toType: 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown',
+			fromType: 'biological' | 'adoptive' = 'biological'
+		) => ({ kind: 'change_link_type', parent: alex, child: sam, fromType, toType }) as const;
 
 		it('plans one command and says what changes', () => {
 			const plan = planRelationshipCommand(change('adoptive'), withLink());
-			expect(plan.commands).toEqual([{ kind: 'change_parent_child_type', parentId: 'p-alex', childId: 'p-sam', fromType: 'biological', toType: 'adoptive' }]);
-			expect(plan.sentence).toBe("Alex Walker will be recorded as Sam Smith's adoptive parent instead of biological parent.");
+			expect(plan.commands).toEqual([
+				{
+					kind: 'change_parent_child_type',
+					parentId: 'p-alex',
+					childId: 'p-sam',
+					fromType: 'biological',
+					toType: 'adoptive'
+				}
+			]);
+			expect(plan.sentence).toBe(
+				"Alex Walker will be recorded as Sam Smith's adoptive parent instead of biological parent."
+			);
 		});
 
 		it('plans nothing, with a reason, when the type is unchanged or already recorded', () => {
-			expect(planRelationshipCommand(change('biological'), withLink()).warnings.map((w) => w.code)).toEqual(['TYPE_UNCHANGED']);
+			expect(
+				planRelationshipCommand(change('biological'), withLink()).warnings.map((w) => w.code)
+			).toEqual(['TYPE_UNCHANGED']);
 			const both = context({
 				links: [
 					{ parentId: 'p-alex', childId: 'p-sam', type: 'biological' },
@@ -138,15 +187,32 @@ describe('planRelationshipCommand', () => {
 			]
 		});
 		const addSibling = (parentIds: string[], sibling = third) =>
-			planRelationshipCommand({ kind: 'add_sibling', person: sam, sibling, parentIds, type: 'biological' }, family);
+			planRelationshipCommand(
+				{ kind: 'add_sibling', person: sam, sibling, parentIds, type: 'biological' },
+				family
+			);
 
 		it('links the sibling to each chosen parent, in the family the person is in', () => {
 			const plan = addSibling(['p-alex', 'p-other']);
 			expect(plan.commands).toEqual([
-				{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'p-third', type: 'biological', unionId: 'u1' },
-				{ kind: 'assert_parent_child', parentId: 'p-other', childId: 'p-third', type: 'biological', unionId: 'u1' }
+				{
+					kind: 'assert_parent_child',
+					parentId: 'p-alex',
+					childId: 'p-third',
+					type: 'biological',
+					unionId: 'u1'
+				},
+				{
+					kind: 'assert_parent_child',
+					parentId: 'p-other',
+					childId: 'p-third',
+					type: 'biological',
+					unionId: 'u1'
+				}
 			]);
-			expect(plan.sentence).toBe('Third Thorn will be recorded as Sam Smith\'s sibling and a child of Alex Walker and Robin Reed.');
+			expect(plan.sentence).toBe(
+				"Third Thorn will be recorded as Sam Smith's sibling and a child of Alex Walker and Robin Reed."
+			);
 		});
 
 		it('links to one parent only when only that parent is chosen, giving a half-sibling', () => {
@@ -154,7 +220,12 @@ describe('planRelationshipCommand', () => {
 		});
 
 		it('creates a new sibling in the same plan', () => {
-			const plan = addSibling(['p-alex'], { id: 'new', givenName: 'Nia', surname: 'Novak', isNew: true } as typeof third);
+			const plan = addSibling(['p-alex'], {
+				id: 'new',
+				givenName: 'Nia',
+				surname: 'Novak',
+				isNew: true
+			} as typeof third);
 			expect(plan.commands).toMatchObject([
 				{ kind: 'create_person', personId: 'id-1', givenName: 'Nia' },
 				{ kind: 'assert_parent_child', parentId: 'p-alex', childId: 'id-1' }
@@ -178,7 +249,17 @@ describe('planRelationshipCommand', () => {
 			links: [{ parentId: 'p-alex', childId: 'p-third', unionId: 'u2' }]
 		});
 		const addChild = (unionId?: string | null) =>
-			planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId }, two);
+			planRelationshipCommand(
+				{
+					kind: 'add_child',
+					parent: alex,
+					child: sam,
+					type: 'biological',
+					unionLabel: null,
+					unionId
+				},
+				two
+			);
 
 		it('defaults to the fullest partnership and says why', () => {
 			const plan = addChild();
@@ -202,10 +283,30 @@ describe('planRelationshipCommand', () => {
 				]
 			});
 			expect(() =>
-				planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'u2' }, foreign)
+				planRelationshipCommand(
+					{
+						kind: 'add_child',
+						parent: alex,
+						child: sam,
+						type: 'biological',
+						unionLabel: null,
+						unionId: 'u2'
+					},
+					foreign
+				)
 			).toThrow(/does not include this parent/);
 			expect(() =>
-				planRelationshipCommand({ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'nope' }, foreign)
+				planRelationshipCommand(
+					{
+						kind: 'add_child',
+						parent: alex,
+						child: sam,
+						type: 'biological',
+						unionLabel: null,
+						unionId: 'nope'
+					},
+					foreign
+				)
 			).toThrow(ValidationError);
 		});
 
@@ -217,7 +318,14 @@ describe('planRelationshipCommand', () => {
 				]
 			});
 			const plan = planRelationshipCommand(
-				{ kind: 'add_child', parent: alex, child: sam, type: 'biological', unionLabel: null, unionId: 'u2' },
+				{
+					kind: 'add_child',
+					parent: alex,
+					child: sam,
+					type: 'biological',
+					unionLabel: null,
+					unionId: 'u2'
+				},
 				twins
 			);
 			expect(plan.sentence).toBe(
@@ -243,10 +351,21 @@ describe('planRelationshipCommand', () => {
 					{ parentId: 'p-third', childId: 'p-sam', unionId: 'u2' }
 				]
 			});
-			const intent = { kind: 'add_parent', child: sam, parent: alex, type: 'biological', role: 'parent', unionLabel: null } as const;
-			expect(planRelationshipCommand({ ...intent, unionId: 'u2' }, parental).commands[0]).toMatchObject({ unionId: 'u2' });
+			const intent = {
+				kind: 'add_parent',
+				child: sam,
+				parent: alex,
+				type: 'biological',
+				role: 'parent',
+				unionLabel: null
+			} as const;
+			expect(
+				planRelationshipCommand({ ...intent, unionId: 'u2' }, parental).commands[0]
+			).toMatchObject({ unionId: 'u2' });
 			expect(planRelationshipCommand(intent, parental).unionChoice?.isDefault).toBe(true);
-			expect(() => planRelationshipCommand({ ...intent, unionId: 'u3' }, parental)).toThrow(/parental families/);
+			expect(() => planRelationshipCommand({ ...intent, unionId: 'u3' }, parental)).toThrow(
+				/parental families/
+			);
 		});
 
 		it('lets add_partner fill a chosen waiting partnership, or start a new one', () => {
@@ -259,24 +378,49 @@ describe('planRelationshipCommand', () => {
 				links: [{ parentId: 'p-alex', childId: 'p-third', unionId: 'u2' }]
 			});
 			const intent = { kind: 'add_partner', person: alex, partner: sam, unionLabel: null } as const;
-			expect(planRelationshipCommand(intent, waiting).commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u2', personId: 'p-sam' }]);
-			expect(planRelationshipCommand({ ...intent, unionId: 'u1' }, waiting).commands).toEqual([{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }]);
-			expect(planRelationshipCommand({ ...intent, unionId: null }, waiting).commands).toMatchObject([{ kind: 'create_union' }]);
-			expect(() => planRelationshipCommand({ ...intent, unionId: 'u9' }, waiting)).toThrow(/waiting for a partner/);
+			expect(planRelationshipCommand(intent, waiting).commands).toEqual([
+				{ kind: 'add_partner_to_union', unionId: 'u2', personId: 'p-sam' }
+			]);
+			expect(planRelationshipCommand({ ...intent, unionId: 'u1' }, waiting).commands).toEqual([
+				{ kind: 'add_partner_to_union', unionId: 'u1', personId: 'p-sam' }
+			]);
+			expect(planRelationshipCommand({ ...intent, unionId: null }, waiting).commands).toMatchObject(
+				[{ kind: 'create_union' }]
+			);
+			expect(() => planRelationshipCommand({ ...intent, unionId: 'u9' }, waiting)).toThrow(
+				/waiting for a partner/
+			);
 		});
 	});
 
 	it('reuses the child’s existing union when adding a parent', () => {
 		const plan = planRelationshipCommand(
-			{ kind: 'add_parent', child: sam, parent: alex, type: 'adoptive', role: 'mother', unionLabel: null },
-			context({ unions: [{ id: 'u1', partners: ['p-other'] }], links: [{ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' }] })
+			{
+				kind: 'add_parent',
+				child: sam,
+				parent: alex,
+				type: 'adoptive',
+				role: 'mother',
+				unionLabel: null
+			},
+			context({
+				unions: [{ id: 'u1', partners: ['p-other'] }],
+				links: [{ parentId: 'p-other', childId: 'p-sam', unionId: 'u1' }]
+			})
 		);
 		expect(plan.commands[0]).toMatchObject({ kind: 'assert_parent_child', unionId: 'u1' });
 	});
 
 	it('flags a duplicate-name warning', () => {
 		const plan = planRelationshipCommand(
-			{ kind: 'add_parent', child: sam, parent: alex, type: 'biological', role: 'parent', unionLabel: null },
+			{
+				kind: 'add_parent',
+				child: sam,
+				parent: alex,
+				type: 'biological',
+				role: 'parent',
+				unionLabel: null
+			},
 			context({}, { hasDuplicateName: true })
 		);
 		expect(plan.warnings.some((w) => w.code === 'DUPLICATE_PERSON')).toBe(true);
@@ -284,19 +428,37 @@ describe('planRelationshipCommand', () => {
 
 	it('flags a cycle warning when the assertion would close a loop', () => {
 		const plan = planRelationshipCommand(
-			{ kind: 'add_parent', child: alex, parent: sam, type: 'biological', role: 'parent', unionLabel: null },
+			{
+				kind: 'add_parent',
+				child: alex,
+				parent: sam,
+				type: 'biological',
+				role: 'parent',
+				unionLabel: null
+			},
 			context({ links: [{ parentId: 'p-alex', childId: 'p-sam' }] })
 		);
 		expect(plan.warnings.some((w) => w.code === 'CYCLE')).toBe(true);
 	});
 
 	describe('record_death', () => {
-		const death = { kind: 'record_death', person: alex, dateText: '3 MAR 2001', place: 'Brisbane' } as const;
+		const death = {
+			kind: 'record_death',
+			person: alex,
+			dateText: '3 MAR 2001',
+			place: 'Brisbane'
+		} as const;
 
 		it('plans one record_death command carrying the date and place', () => {
 			const plan = planRelationshipCommand(death, context());
 			expect(plan.commands).toEqual([
-				{ kind: 'record_death', personId: 'p-alex', dateText: '3 MAR 2001', place: 'Brisbane', expectedVersion: undefined }
+				{
+					kind: 'record_death',
+					personId: 'p-alex',
+					dateText: '3 MAR 2001',
+					place: 'Brisbane',
+					expectedVersion: undefined
+				}
 			]);
 		});
 
@@ -318,7 +480,10 @@ describe('planRelationshipCommand', () => {
 		it('does not widow a partner who has already died', () => {
 			const plan = planRelationshipCommand(
 				death,
-				context({ people: [alex, { ...sam, death: '1990' }], unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] })
+				context({
+					people: [alex, { ...sam, death: '1990' }],
+					unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }]
+				})
 			);
 			expect(plan.sentence).not.toContain('widowed');
 		});
@@ -329,7 +494,9 @@ describe('planRelationshipCommand', () => {
 				context({ people: [{ ...alex, birth: '1960', death: '1970' }] })
 			);
 			expect(plan.commands).toHaveLength(1);
-			expect(plan.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['ALREADY_DECEASED', 'DEATH_BEFORE_BIRTH']));
+			expect(plan.warnings.map((w) => w.code)).toEqual(
+				expect.arrayContaining(['ALREADY_DECEASED', 'DEATH_BEFORE_BIRTH'])
+			);
 		});
 	});
 
@@ -343,7 +510,10 @@ describe('planRelationshipCommand', () => {
 		} as const;
 
 		it('plans an end_union command for the chosen partnership', () => {
-			const plan = planRelationshipCommand(divorce, context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] }));
+			const plan = planRelationshipCommand(
+				divorce,
+				context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'] }] })
+			);
 			expect(plan.commands).toEqual([
 				{
 					kind: 'end_union',
@@ -373,12 +543,18 @@ describe('planRelationshipCommand', () => {
 		});
 
 		it('picks the only partnership without asking', () => {
-			const plan = planRelationshipCommand({ ...divorce, unionId: null }, context({ unions: [{ id: 'u9', partners: ['p-alex', 'p-sam'] }] }));
+			const plan = planRelationshipCommand(
+				{ ...divorce, unionId: null },
+				context({ unions: [{ id: 'u9', partners: ['p-alex', 'p-sam'] }] })
+			);
 			expect(plan.commands[0]).toMatchObject({ unionId: 'u9' });
 		});
 
 		it('refuses a partnership the person is not in', () => {
-			const plan = planRelationshipCommand(divorce, context({ unions: [{ id: 'u1', partners: ['p-sam', 'p-other'] }] }));
+			const plan = planRelationshipCommand(
+				divorce,
+				context({ unions: [{ id: 'u1', partners: ['p-sam', 'p-other'] }] })
+			);
 			expect(plan.commands).toHaveLength(0);
 			expect(plan.warnings.some((w) => w.code === 'NO_UNION')).toBe(true);
 		});
@@ -386,10 +562,16 @@ describe('planRelationshipCommand', () => {
 		it('warns, without blocking, when the end is dated before the marriage or the union already ended', () => {
 			const plan = planRelationshipCommand(
 				{ ...divorce, event: { type: 'DIV', dateText: '1990', place: null } },
-				context({ unions: [{ id: 'u1', partners: ['p-alex', 'p-sam'], status: 'divorced', marriage: '1995' }] })
+				context({
+					unions: [
+						{ id: 'u1', partners: ['p-alex', 'p-sam'], status: 'divorced', marriage: '1995' }
+					]
+				})
 			);
 			expect(plan.commands).toHaveLength(1);
-			expect(plan.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['END_BEFORE_START', 'UNION_ALREADY_ENDED']));
+			expect(plan.warnings.map((w) => w.code)).toEqual(
+				expect.arrayContaining(['END_BEFORE_START', 'UNION_ALREADY_ENDED'])
+			);
 		});
 	});
 });

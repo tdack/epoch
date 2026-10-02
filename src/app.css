@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
-  body {
-    background-color: #fcf9f2;
-    color: #292524;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
+	body {
+		background-color: #fcf9f2;
+		color: #292524;
+		font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+	}
 }

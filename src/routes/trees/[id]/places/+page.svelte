@@ -20,26 +20,51 @@
 
 <header>
 	<h2 class="text-2xl font-bold text-stone-900">Places</h2>
-	<p class="mt-1 max-w-2xl text-sm text-stone-600">Every place a fact names, written once however its case varies. The text on each fact is kept exactly as entered.</p>
+	<p class="mt-1 max-w-2xl text-sm text-stone-600">
+		Every place a fact names, written once however its case varies. The text on each fact is kept
+		exactly as entered.
+	</p>
 </header>
 
 <form method="get" class="mt-4 flex items-end gap-2" role="search">
 	<div>
-		<label for="place-filter" class="block text-xs font-semibold text-stone-700">Find a place</label>
-		<input id="place-filter" name="q" type="search" value={data.q} autocomplete="off" class="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm" />
+		<label for="place-filter" class="block text-xs font-semibold text-stone-700">Find a place</label
+		>
+		<input
+			id="place-filter"
+			name="q"
+			type="search"
+			value={data.q}
+			autocomplete="off"
+			class="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+		/>
 	</div>
-	<button type="submit" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Find</button>
+	<button type="submit" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
+		>Find</button
+	>
 </form>
 
 <div class="mt-4">
 	{#if page.items.length === 0}
-		<p class="text-sm text-stone-700" data-testid="no-places">{data.q ? 'No place matches.' : 'No places recorded.'}</p>
+		<p class="text-sm text-stone-700" data-testid="no-places">
+			{data.q ? 'No place matches.' : 'No places recorded.'}
+		</p>
 	{:else}
-		<ul class="divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white" data-testid="places-list">
+		<ul
+			class="divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white"
+			data-testid="places-list"
+		>
 			{#each page.items as item (item.name)}
 				<li class="flex items-baseline justify-between px-4 py-2 text-sm">
-					<a href="{base}/place?name={encodeURIComponent(item.name)}" class="font-semibold text-emerald-900 hover:underline">{item.name}</a>
-					<span class="text-stone-600">{item.facts} {item.facts === 1 ? 'fact' : 'facts'}{#if item.people > 0}, {item.people} {item.people === 1 ? 'person' : 'people'}{/if}</span>
+					<a
+						href="{base}/place?name={encodeURIComponent(item.name)}"
+						class="font-semibold text-emerald-900 hover:underline">{item.name}</a
+					>
+					<span class="text-stone-600"
+						>{item.facts}
+						{item.facts === 1 ? 'fact' : 'facts'}{#if item.people > 0}, {item.people}
+							{item.people === 1 ? 'person' : 'people'}{/if}</span
+					>
 				</li>
 			{/each}
 		</ul>

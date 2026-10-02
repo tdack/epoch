@@ -51,7 +51,12 @@ export function isUnionEventType(type: string): type is UnionEventType {
 	return (UNION_EVENT_TYPE_LIST as readonly string[]).includes(type);
 }
 
-export const ENDED_UNION_STATUSES = ['separated', 'divorced', 'annulled', 'ended'] as const satisfies readonly UnionStatus[];
+export const ENDED_UNION_STATUSES = [
+	'separated',
+	'divorced',
+	'annulled',
+	'ended'
+] as const satisfies readonly UnionStatus[];
 export type EndedUnionStatus = (typeof ENDED_UNION_STATUSES)[number];
 
 export const UNION_STATUS_LABELS: Record<UnionStatus, string> = {

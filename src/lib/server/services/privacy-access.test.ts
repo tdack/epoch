@@ -11,7 +11,14 @@ import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { GenealogyService } from './genealogy-service';
 import { MediaService, parseMediaKey } from './media-service';
 
@@ -35,7 +42,14 @@ const media = () => new MediaService(t.db, () => NOW);
 
 async function addMedia(entityId: string): Promise<string> {
 	const key = `media/${treeId}/${entityId}/${crypto.randomUUID()}.jpg`;
-	await t.db.insert(mediaItems).values({ id: crypto.randomUUID(), treeId, entityId, r2ObjectKey: key, title: 'x', mimeType: 'image/jpeg' });
+	await t.db.insert(mediaItems).values({
+		id: crypto.randomUUID(),
+		treeId,
+		entityId,
+		r2ObjectKey: key,
+		title: 'x',
+		mimeType: 'image/jpeg'
+	});
 	return key;
 }
 
@@ -48,7 +62,10 @@ beforeAll(async () => {
 		await addTestMember(t.db, treeId, actors[role], role);
 	}
 	await importGedcomToDb(t.d1, treeId, FIXTURE, 'Access');
-	const rows = await t.db.select({ id: individuals.id, xref: individuals.xrefId }).from(individuals).where(eq(individuals.treeId, treeId));
+	const rows = await t.db
+		.select({ id: individuals.id, xref: individuals.xrefId })
+		.from(individuals)
+		.where(eq(individuals.treeId, treeId));
 	const byXref = new Map(rows.map((r) => [r.xref, r.id]));
 	idOf = (xref) => byXref.get(xref)!;
 }, 60_000);
@@ -63,29 +80,47 @@ describe('ownership', () => {
 		const stranger = await createTestUser(t.db, 'stranger');
 		expect(await new UserRepository(t.db).getMembership(orphan, stranger.userId)).toBeNull();
 		expect(await new TreeRepository(t.db).listForUser(stranger.userId)).toEqual([]);
-		expect(await t.db.select().from(treeMemberships).where(eq(treeMemberships.treeId, orphan))).toEqual([]);
+		expect(
+			await t.db.select().from(treeMemberships).where(eq(treeMemberships.treeId, orphan))
+		).toEqual([]);
 	});
 });
 
 describe('export', () => {
 	it.each(['owner', 'manager'] as const)('is allowed for a %s', async (role) => {
-		await expect(new GenealogyService(t.db).requireExport(treeId, actors[role].context)).resolves.toBeUndefined();
+		await expect(
+			new GenealogyService(t.db).requireExport(treeId, actors[role].context)
+		).resolves.toBeUndefined();
 	});
 	it.each(['editor', 'contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
-		await expect(new GenealogyService(t.db).requireExport(treeId, actors[role].context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			new GenealogyService(t.db).requireExport(treeId, actors[role].context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('does not hand the whole tree to a viewer through the tree or individual reads', async () => {
 		const service = new GenealogyService(t.db);
-		await expect(service.getTree(treeId, actors.viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(service.getIndividual(treeId, idOf('@I1@'), actors.contributor.context)).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(service.previewDeleteTree(treeId, actors.manager.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(service.getTree(treeId, actors.viewer.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
+		await expect(
+			service.getIndividual(treeId, idOf('@I1@'), actors.contributor.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(service.previewDeleteTree(treeId, actors.manager.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
 	});
 });
 
 describe('media keys', () => {
 	it('parses only keys this app writes', () => {
 		expect(parseMediaKey('media/t1/p1/file.jpg')).toEqual({ treeId: 't1', entityId: 'p1' });
-		for (const bad of ['exports/t1-1.ged', 'media/t1/p1', 'media/t1/p1/a/b.jpg', 'media//p1/x.jpg', '../media/t1/p1/x.jpg']) {
+		for (const bad of [
+			'exports/t1-1.ged',
+			'media/t1/p1',
+			'media/t1/p1/a/b.jpg',
+			'media//p1/x.jpg',
+			'../media/t1/p1/x.jpg'
+		]) {
 			expect(parseMediaKey(bad), bad).toBeNull();
 		}
 	});
@@ -94,7 +129,9 @@ describe('media keys', () => {
 describe('reading an object', () => {
 	it('is refused to a non-member', async () => {
 		const stranger = await createTestUser(t.db, 'stranger');
-		await expect(media().requireRead(await addMedia(idOf('@I1@')), stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			media().requireRead(await addMedia(idOf('@I1@')), stranger.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('is allowed for a viewer when the record is visible, and for an owner always', async () => {
 		const visible = await addMedia(idOf('@I1@'));
@@ -103,30 +140,44 @@ describe('reading an object', () => {
 		await expect(media().requireRead(hidden, actors.owner.context)).resolves.toBeUndefined();
 		await expect(media().requireRead(hidden, actors.editor.context)).resolves.toBeUndefined();
 	});
-	it('answers a private person\'s object exactly as a missing one', async () => {
+	it("answers a private person's object exactly as a missing one", async () => {
 		const hidden = await addMedia(idOf('@I2@'));
 		const missing = `media/${treeId}/no-such-person/${crypto.randomUUID()}.jpg`;
-		const a = await media().requireRead(hidden, actors.viewer.context).catch((e) => e);
-		const b = await media().requireRead(missing, actors.viewer.context).catch((e) => e);
+		const a = await media()
+			.requireRead(hidden, actors.viewer.context)
+			.catch((e) => e);
+		const b = await media()
+			.requireRead(missing, actors.viewer.context)
+			.catch((e) => e);
 		expect(a).toBeInstanceOf(NotFoundError);
 		expect(b).toBeInstanceOf(NotFoundError);
 		expect(a.message.replace(hidden, 'KEY')).toBe(b.message.replace(missing, 'KEY'));
 	});
 	it('does not trust a key that names another tree', async () => {
 		const other = await createTestTree(t.db, actors.owner);
-		await expect(media().requireRead(`media/${other}/x/f.jpg`, actors.viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			media().requireRead(`media/${other}/x/f.jpg`, actors.viewer.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 });
 
 describe('adding an object', () => {
 	it.each(['contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
-		await expect(media().requireUpload(treeId, idOf('@I1@'), actors[role].context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			media().requireUpload(treeId, idOf('@I1@'), actors[role].context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('is allowed for an editor, but only onto a record of this tree', async () => {
-		await expect(media().requireUpload(treeId, idOf('@I1@'), actors.editor.context)).resolves.toBeUndefined();
-		await expect(media().requireUpload(treeId, 'not-a-record', actors.editor.context)).rejects.toBeInstanceOf(ValidationError);
+		await expect(
+			media().requireUpload(treeId, idOf('@I1@'), actors.editor.context)
+		).resolves.toBeUndefined();
+		await expect(
+			media().requireUpload(treeId, 'not-a-record', actors.editor.context)
+		).rejects.toBeInstanceOf(ValidationError);
 		const other = await createTestTree(t.db, actors.owner);
 		await addTestMember(t.db, other, actors.editor, 'editor');
-		await expect(media().requireUpload(other, idOf('@I1@'), actors.editor.context)).rejects.toBeInstanceOf(ValidationError);
+		await expect(
+			media().requireUpload(other, idOf('@I1@'), actors.editor.context)
+		).rejects.toBeInstanceOf(ValidationError);
 	});
 });

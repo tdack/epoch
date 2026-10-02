@@ -51,7 +51,10 @@ function addType(types: ParentChildType[], type: ParentChildType): ParentChildTy
 	return types.includes(type) ? types : [...types, type];
 }
 
-function groupChildren(links: Array<{ childId: string; type: ParentChildType }>, except: string): ChildEntry[] {
+function groupChildren(
+	links: Array<{ childId: string; type: ParentChildType }>,
+	except: string
+): ChildEntry[] {
 	const byChild = new Map<string, ParentChildType[]>();
 	for (const link of links) {
 		if (link.childId === except) continue;
@@ -63,10 +66,12 @@ function groupChildren(links: Array<{ childId: string; type: ParentChildType }>,
 export function relativesOf(graph: RelationshipGraph, personId: string): Relatives {
 	const person = graph.people.find((p) => p.id === personId);
 
-	const parentFamilies: ParentFamily[] = Object.entries(person?.parentsByUnion ?? {}).map(([key, parents]) => ({
-		unionId: key === '__direct__' ? null : key,
-		parents: parents.map((p) => ({ personId: p.parentId, type: p.type }))
-	}));
+	const parentFamilies: ParentFamily[] = Object.entries(person?.parentsByUnion ?? {}).map(
+		([key, parents]) => ({
+			unionId: key === '__direct__' ? null : key,
+			parents: parents.map((p) => ({ personId: p.parentId, type: p.type }))
+		})
+	);
 
 	const partnerships: PartnershipRelatives[] = graph.unions
 		.filter((u) => u.partnerIds.includes(personId))
@@ -75,13 +80,18 @@ export function relativesOf(graph: RelationshipGraph, personId: string): Relativ
 			status: u.status,
 			partnerIds: u.partnerIds.filter((id) => id !== personId),
 			children: groupChildren(
-				u.children.filter((c) => c.parentId === personId).map((c) => ({ childId: c.childId, type: c.type })),
+				u.children
+					.filter((c) => c.parentId === personId)
+					.map((c) => ({ childId: c.childId, type: c.type })),
 				personId
 			),
 			events: u.events
 		}))
 		.sort((a, b) => {
-			const [sa, sb] = [startSort({ id: '', partnerIds: [], events: a.events }), startSort({ id: '', partnerIds: [], events: b.events })];
+			const [sa, sb] = [
+				startSort({ id: '', partnerIds: [], events: a.events }),
+				startSort({ id: '', partnerIds: [], events: b.events })
+			];
 			return sa && sb ? sa.localeCompare(sb) : sa ? -1 : sb ? 1 : 0;
 		})
 		.map(({ events: _events, ...rest }) => rest);
@@ -93,11 +103,16 @@ export function relativesOf(graph: RelationshipGraph, personId: string): Relativ
 
 	// Siblings: everyone who shares a recorded parent, split by whether the parents match exactly.
 	const parentsOf = new Map<string, Set<string>>();
-	for (const link of graph.parentChild) parentsOf.set(link.childId, (parentsOf.get(link.childId) ?? new Set()).add(link.parentId));
+	for (const link of graph.parentChild)
+		parentsOf.set(link.childId, (parentsOf.get(link.childId) ?? new Set()).add(link.parentId));
 	const own = parentsOf.get(personId) ?? new Set<string>();
 	const siblings = { full: [] as string[], half: [] as string[] };
 	if (own.size > 0) {
-		const candidates = new Set(graph.parentChild.filter((l) => own.has(l.parentId) && l.childId !== personId).map((l) => l.childId));
+		const candidates = new Set(
+			graph.parentChild
+				.filter((l) => own.has(l.parentId) && l.childId !== personId)
+				.map((l) => l.childId)
+		);
 		for (const id of candidates) {
 			const theirs = parentsOf.get(id)!;
 			const isFull = theirs.size === own.size && [...theirs].every((p) => own.has(p));
@@ -105,5 +120,11 @@ export function relativesOf(graph: RelationshipGraph, personId: string): Relativ
 		}
 	}
 
-	return { parentFamilies, partnerships, directChildren, siblings, ...stepRelativesOf(graph, personId) };
+	return {
+		parentFamilies,
+		partnerships,
+		directChildren,
+		siblings,
+		...stepRelativesOf(graph, personId)
+	};
 }

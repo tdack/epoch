@@ -11,8 +11,12 @@ describe('dependentsOfDeletions', () => {
 		});
 
 	it('names a name that points at a partnership an undo would delete, so the undo is refused', () => {
-		const deleteUnion: RowOp[] = [{ table: 'unions', id: 'u1', before: rows().unions[0]!, after: null }];
-		expect(dependentsOfDeletions(rows(), deleteUnion).map((d) => [d.table, (d.row as { id: string }).id])).toContainEqual(['person_names', 'm']);
+		const deleteUnion: RowOp[] = [
+			{ table: 'unions', id: 'u1', before: rows().unions[0]!, after: null }
+		];
+		expect(
+			dependentsOfDeletions(rows(), deleteUnion).map((d) => [d.table, (d.row as { id: string }).id])
+		).toContainEqual(['person_names', 'm']);
 	});
 
 	it('does not list a name that the same change deletes, or one linked elsewhere', () => {

@@ -177,7 +177,16 @@ function dataOf(ged: string) {
 }
 
 describe('sex X (ADR-010)', () => {
-	const ged = ['0 HEAD', '0 @I1@ INDI', '1 NAME Sam /Xu/', '1 SEX X', '0 @I2@ INDI', '1 NAME Una /Known/', '1 SEX U', '0 TRLR'].join('\n');
+	const ged = [
+		'0 HEAD',
+		'0 @I1@ INDI',
+		'1 NAME Sam /Xu/',
+		'1 SEX X',
+		'0 @I2@ INDI',
+		'1 NAME Una /Known/',
+		'1 SEX U',
+		'0 TRLR'
+	].join('\n');
 
 	it('is parsed as X and never collapsed to U', () => {
 		expect(parseGedcom(ged).individuals.map((i) => i.sex)).toEqual(['X', 'U']);

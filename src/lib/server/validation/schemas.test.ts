@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	relationshipPayloadSchema,
-	individualCreateSchema,
-	treeCreateSchema
-} from './schemas';
+import { relationshipPayloadSchema, individualCreateSchema, treeCreateSchema } from './schemas';
 
 describe('transport validation schemas', () => {
 	it('accepts a valid add_parent intent', () => {

@@ -9,7 +9,8 @@ export interface UnbackfilledEvent {
 export const UNBACKFILLED_EVENTS_SQL =
 	'SELECT id, date_raw FROM events WHERE date_raw IS NOT NULL AND date_qualifier IS NULL';
 
-const quote = (value: string | null) => (value === null ? 'NULL' : `'${value.replaceAll("'", "''")}'`);
+const quote = (value: string | null) =>
+	value === null ? 'NULL' : `'${value.replaceAll("'", "''")}'`;
 
 /**
  * One UPDATE per event, from `date_raw` alone. It deliberately leaves `version` and `updated_at`

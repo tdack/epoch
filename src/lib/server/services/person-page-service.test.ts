@@ -10,7 +10,13 @@ import { relativesOf } from '../../shared/relatives';
 import { eq } from 'drizzle-orm';
 import { personNames, trees, treeMemberships } from '../db/schema';
 import { insertCorpus } from '../testing/corpus';
-import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
 import { GenealogyService } from './genealogy-service';
@@ -42,7 +48,9 @@ function shown(page: PersonPageDto) {
 	return {
 		parents: page.parentFamilies.flatMap((f) => f.parents.map((p) => p.person.id)).sort(),
 		partners: page.partnerships.flatMap((p) => p.partners.map((x) => x.id)).sort(),
-		children: [...page.partnerships.flatMap((p) => p.children), ...page.directChildren].map((c) => c.person.id).sort(),
+		children: [...page.partnerships.flatMap((p) => p.children), ...page.directChildren]
+			.map((c) => c.person.id)
+			.sort(),
 		full: ids(page.siblings.full.map((person) => ({ person }))),
 		half: ids(page.siblings.half.map((person) => ({ person }))),
 		stepParents: ids(page.stepParents),
@@ -55,7 +63,9 @@ function derived(whole: ReturnType<typeof graphFromRows>, personId: string) {
 	return {
 		parents: r.parentFamilies.flatMap((f) => f.parents.map((p) => p.personId)).sort(),
 		partners: r.partnerships.flatMap((p) => p.partnerIds).sort(),
-		children: [...r.partnerships.flatMap((p) => p.children), ...r.directChildren].map((c) => c.personId).sort(),
+		children: [...r.partnerships.flatMap((p) => p.children), ...r.directChildren]
+			.map((c) => c.personId)
+			.sort(),
 		full: [...r.siblings.full].sort(),
 		half: [...r.siblings.half].sort(),
 		stepParents: r.stepParents.map((s) => s.personId).sort(),
@@ -81,10 +91,20 @@ describe('the person page of a large tree', () => {
 	it('shows the same relatives the whole tree derives for a sample, and reads a small part of it', async () => {
 		const treeId = crypto.randomUUID();
 		await t.db.insert(trees).values({ id: treeId, name: 'Corpus' });
-		await t.db.insert(treeMemberships).values({ id: crypto.randomUUID(), treeId, userId: actor.userId, role: 'owner' });
+		await t.db
+			.insert(treeMemberships)
+			.values({ id: crypto.randomUUID(), treeId, userId: actor.userId, role: 'owner' });
 		const corpus = await insertCorpus(t.db, treeId, { prefix: treeId.slice(0, 8) });
 		const whole = graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
-		const sample = [corpus.rootPersonId, corpus.remarriedPersonId, corpus.leafPersonId, ...whole.people.filter((p) => p.stepParents.length > 0).slice(0, 4).map((p) => p.id)];
+		const sample = [
+			corpus.rootPersonId,
+			corpus.remarriedPersonId,
+			corpus.leafPersonId,
+			...whole.people
+				.filter((p) => p.stepParents.length > 0)
+				.slice(0, 4)
+				.map((p) => p.id)
+		];
 		for (const id of sample) {
 			const page = await service().getPerson(treeId, id, actor.context);
 			expect(shown(page), id).toEqual(derived(whole, id));
@@ -97,8 +117,19 @@ describe('facts, names and history on the page', () => {
 	async function fresh() {
 		const treeId = await createTestTree(t.db, actor);
 		const people = new GenealogyService(t.db);
-		const wren = (await people.createIndividual(treeId, { givenName: 'Wren', surname: 'Ash', birthDate: '4 MAR 1900', birthPlace: 'Leeds' }, actor.context)).individual;
-		return { treeId, wren, facts: new FactService(t.db), page: () => service().getPerson(treeId, wren.id, actor.context) };
+		const wren = (
+			await people.createIndividual(
+				treeId,
+				{ givenName: 'Wren', surname: 'Ash', birthDate: '4 MAR 1900', birthPlace: 'Leeds' },
+				actor.context
+			)
+		).individual;
+		return {
+			treeId,
+			wren,
+			facts: new FactService(t.db),
+			page: () => service().getPerson(treeId, wren.id, actor.context)
+		};
 	}
 	const blank = { dateText: null, place: null, value: null, cause: null, age: null, notes: null };
 
@@ -110,11 +141,17 @@ describe('facts, names and history on the page', () => {
 		expect(names[0]!.id).not.toBeNull();
 	});
 
-	it('reads a preferred name row the pre-S6 person form left stale as the person\'s own fields', async () => {
+	it("reads a preferred name row the pre-S6 person form left stale as the person's own fields", async () => {
 		const { page, wren } = await fresh();
-		await t.d1.prepare('UPDATE individuals SET surname = ? WHERE id = ?').bind('Ash-Jones', wren.id).run();
+		await t.d1
+			.prepare('UPDATE individuals SET surname = ? WHERE id = ?')
+			.bind('Ash-Jones', wren.id)
+			.run();
 		const { names } = await page();
-		expect(names.find((n) => n.isPreferred)).toMatchObject({ surname: 'Ash-Jones', displayName: 'Wren Ash-Jones' });
+		expect(names.find((n) => n.isPreferred)).toMatchObject({
+			surname: 'Ash-Jones',
+			displayName: 'Wren Ash-Jones'
+		});
 	});
 
 	it('derives a name for a person with no stored name row (created before names were rows)', async () => {
@@ -122,12 +159,22 @@ describe('facts, names and history on the page', () => {
 		await t.db.delete(personNames).where(eq(personNames.personId, wren.id));
 		const { names } = await page();
 		expect(names).toHaveLength(1);
-		expect(names[0]).toMatchObject({ id: null, type: 'birth', displayName: 'Wren Ash', isPreferred: true });
+		expect(names[0]).toMatchObject({
+			id: null,
+			type: 'birth',
+			displayName: 'Wren Ash',
+			isPreferred: true
+		});
 	});
 
 	it('keeps two births with different details, orders them, and flags them as a conflicting pair', async () => {
 		const { treeId, facts, page } = await fresh();
-		await facts.create(treeId, (await page()).person.id, { ...blank, type: 'BIRT', dateText: '5 MAR 1900', place: 'Hull' }, actor.context);
+		await facts.create(
+			treeId,
+			(await page()).person.id,
+			{ ...blank, type: 'BIRT', dateText: '5 MAR 1900', place: 'Hull' },
+			actor.context
+		);
 		const { facts: shownFacts, vitals } = await page();
 		const births = shownFacts.filter((f) => f.type === 'BIRT');
 		expect(births.map((b) => b.place)).toEqual(['Leeds', 'Hull']);
@@ -140,26 +187,49 @@ describe('facts, names and history on the page', () => {
 		const { treeId, facts, page } = await fresh();
 		const personId = (await page()).person.id;
 		const [a, b] = [
-			await facts.create(treeId, personId, { ...blank, type: 'OCCU', value: 'Joiner' }, actor.context),
+			await facts.create(
+				treeId,
+				personId,
+				{ ...blank, type: 'OCCU', value: 'Joiner' },
+				actor.context
+			),
 			await facts.create(treeId, personId, { ...blank, type: 'RESI', place: 'Hull' }, actor.context)
 		];
-		await facts.create(treeId, personId, { ...blank, type: 'DEAT', dateText: '1 JAN 1980' }, actor.context);
+		await facts.create(
+			treeId,
+			personId,
+			{ ...blank, type: 'DEAT', dateText: '1 JAN 1980' },
+			actor.context
+		);
 		expect((await page()).facts.map((f) => f.type)).toEqual(['BIRT', 'DEAT', 'OCCU', 'RESI']);
 		await facts.reorder(treeId, personId, [b.factId, a.factId], actor.context);
 		expect((await page()).facts.map((f) => f.type)).toEqual(['BIRT', 'DEAT', 'RESI', 'OCCU']);
 	});
 
 	it('shows a legacy description as a note until the fact is edited', async () => {
-		const treeId = await importedTree('0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 OCCU Carpenter\n0 TRLR');
-		const personId = (await new GenealogyService(t.db).getTree(treeId, actor.context)).individuals[0]!.id;
+		const treeId = await importedTree(
+			'0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 OCCU Carpenter\n0 TRLR'
+		);
+		const personId = (await new GenealogyService(t.db).getTree(treeId, actor.context))
+			.individuals[0]!.id;
 		const fact = (await service().getPerson(treeId, personId, actor.context)).facts[0]!;
 		// Imports now keep the line value as a value; a row written before the fact columns keeps the description.
-		expect(fact).toMatchObject({ type: 'OCCU', value: 'Carpenter', notes: null, isLegacyNote: false });
+		expect(fact).toMatchObject({
+			type: 'OCCU',
+			value: 'Carpenter',
+			notes: null,
+			isLegacyNote: false
+		});
 	});
 
 	it('lists the changes that wrote the person or a fact they still have, newest first, with who made them', async () => {
 		const { treeId, wren, facts, page } = await fresh();
-		const { factId } = await facts.create(treeId, wren.id, { ...blank, type: 'OCCU', value: 'Joiner' }, actor.context);
+		const { factId } = await facts.create(
+			treeId,
+			wren.id,
+			{ ...blank, type: 'OCCU', value: 'Joiner' },
+			actor.context
+		);
 		await facts.update(treeId, factId, { value: 'Carpenter' }, 1, actor.context);
 		await new ChangeLogService(t.db).undoLast(treeId, actor.context);
 		const { changes } = await page();
@@ -175,7 +245,12 @@ describe('facts, names and history on the page', () => {
 
 	it('does not list changes to a fact that has since been removed: history is found by record, and its record is gone', async () => {
 		const { treeId, wren, facts, page } = await fresh();
-		const { factId } = await facts.create(treeId, wren.id, { ...blank, type: 'OCCU', value: 'Joiner' }, actor.context);
+		const { factId } = await facts.create(
+			treeId,
+			wren.id,
+			{ ...blank, type: 'OCCU', value: 'Joiner' },
+			actor.context
+		);
 		await facts.remove(treeId, factId, undefined, actor.context);
 		expect((await page()).changes.recent.map((c) => c.summary)).toEqual(['Added Wren Ash']);
 	});
@@ -202,7 +277,11 @@ describe('facts, names and history on the page', () => {
 		const { treeId, wren } = await fresh();
 		const other = await fresh();
 		const stranger = await createTestUser(t.db, 'stranger');
-		await expect(service().getPerson(treeId, wren.id, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(service().getPerson(treeId, other.wren.id, actor.context)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(service().getPerson(treeId, wren.id, stranger.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
+		await expect(service().getPerson(treeId, other.wren.id, actor.context)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
 	});
 });

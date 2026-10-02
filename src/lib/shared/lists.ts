@@ -61,5 +61,8 @@ export function parseListParams(params: { get(key: string): string | null }): Li
 		const n = Number.parseInt(params.get(key) ?? '', 10);
 		return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
 	};
-	return { offset: int('offset', 0, 1_000_000, 0), limit: int('limit', DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, 1) };
+	return {
+		offset: int('offset', 0, 1_000_000, 0),
+		limit: int('limit', DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, 1)
+	};
 }

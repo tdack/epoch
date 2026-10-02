@@ -19,7 +19,15 @@
  */
 
 import { NotFoundError } from '../domain/errors';
-import type { TreeRows, EventRow, IndividualRow, ParentChildRow, PersonNameRow, UnionPartnerRow, UnionRow } from '../domain/change-log';
+import type {
+	TreeRows,
+	EventRow,
+	IndividualRow,
+	ParentChildRow,
+	PersonNameRow,
+	UnionPartnerRow,
+	UnionRow
+} from '../domain/change-log';
 import { maskRows, privatePeople } from '../domain/privacy-mask';
 import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
 import { resolveStubTokens } from '../../shared/stub-tokens';
@@ -77,16 +85,26 @@ class WindowState {
 	hasNames = new Set<string>();
 	names = new Map<string, Ranked<PersonNameRow>>();
 
-	private static inserted<T>(map: Map<string, Ranked<T>>, rows: Array<Ranked<T>>, key: (row: T) => string) {
+	private static inserted<T>(
+		map: Map<string, Ranked<T>>,
+		rows: Array<Ranked<T>>,
+		key: (row: T) => string
+	) {
 		for (const r of rows) map.set(key(r.row), r);
 	}
 
-	addIndividuals = (rows: Array<Ranked<IndividualRow>>) => WindowState.inserted(this.individuals, rows, (r) => r.id);
-	addUnions = (rows: Array<Ranked<UnionRow>>) => WindowState.inserted(this.unions, rows, (r) => r.id);
-	addPartners = (rows: Array<Ranked<UnionPartnerRow>>) => WindowState.inserted(this.partners, rows, (r) => r.id);
-	addLinks = (rows: Array<Ranked<ParentChildRow>>) => WindowState.inserted(this.links, rows, (r) => r.id);
-	addEvents = (rows: Array<Ranked<EventRow>>) => WindowState.inserted(this.events, rows, (r) => r.id);
-	addNames = (rows: Array<Ranked<PersonNameRow>>) => WindowState.inserted(this.names, rows, (r) => r.id);
+	addIndividuals = (rows: Array<Ranked<IndividualRow>>) =>
+		WindowState.inserted(this.individuals, rows, (r) => r.id);
+	addUnions = (rows: Array<Ranked<UnionRow>>) =>
+		WindowState.inserted(this.unions, rows, (r) => r.id);
+	addPartners = (rows: Array<Ranked<UnionPartnerRow>>) =>
+		WindowState.inserted(this.partners, rows, (r) => r.id);
+	addLinks = (rows: Array<Ranked<ParentChildRow>>) =>
+		WindowState.inserted(this.links, rows, (r) => r.id);
+	addEvents = (rows: Array<Ranked<EventRow>>) =>
+		WindowState.inserted(this.events, rows, (r) => r.id);
+	addNames = (rows: Array<Ranked<PersonNameRow>>) =>
+		WindowState.inserted(this.names, rows, (r) => r.id);
 
 	/** Every id the loaded rows mention, drawn or not: the candidates a stub token may name. */
 	personIds(): string[] {
@@ -102,7 +120,8 @@ class WindowState {
 
 	/** The loaded rows in table insertion order, shaped like a whole-tree load, before any privacy mask. */
 	private unmaskedRows(): TreeRows {
-		const inOrder = <T>(map: Map<string, Ranked<T>>) => [...map.values()].sort((a, b) => a.rid - b.rid).map((r) => r.row);
+		const inOrder = <T>(map: Map<string, Ranked<T>>) =>
+			[...map.values()].sort((a, b) => a.rid - b.rid).map((r) => r.row);
 		// A partner row is only kept for a union that is loaded, so a half-loaded union never leaks.
 		return {
 			individuals: inOrder(this.individuals),
@@ -117,12 +136,21 @@ class WindowState {
 
 	/** Everyone in the loaded rows whom the viewer may not see; empty when no privacy applies. */
 	hiddenPersonIds(): Set<string> {
-		return this.privacy ? privatePeople(this.unmaskedRows(), this.privacy.cutoff, this.privacy.creatorId) : new Set();
+		return this.privacy
+			? privatePeople(this.unmaskedRows(), this.privacy.cutoff, this.privacy.creatorId)
+			: new Set();
 	}
 
 	rows(): { rows: TreeRows; placeholderIds: Set<string> } {
 		const rows = this.unmaskedRows();
-		return this.privacy ? maskRows(rows, this.privacy.cutoff, this.privacy.shouldShowPrivateStructure, this.privacy.creatorId) : { rows, placeholderIds: new Set() };
+		return this.privacy
+			? maskRows(
+					rows,
+					this.privacy.cutoff,
+					this.privacy.shouldShowPrivateStructure,
+					this.privacy.creatorId
+				)
+			: { rows, placeholderIds: new Set() };
 	}
 
 	graph(): RelationshipGraph {
@@ -130,7 +158,9 @@ class WindowState {
 		const graph = graphFromRows(rows, placeholderIds);
 		return {
 			...graph,
-			people: graph.people.map((p) => (this.complete.has(p.id) ? p : { ...p, isPartial: true as const }))
+			people: graph.people.map((p) =>
+				this.complete.has(p.id) ? p : { ...p, isPartial: true as const }
+			)
 		};
 	}
 }
@@ -162,7 +192,9 @@ export async function loadFocusWindow(
 		people.forEach((id) => state.hasPartnerships.add(id));
 
 		// A parent's other partnerships make the step-parents; the parents themselves stay partial.
-		const parentIds = asChild.map((l) => l.row.parentId).filter((id) => !state.hasPartnerships.has(id));
+		const parentIds = asChild
+			.map((l) => l.row.parentId)
+			.filter((id) => !state.hasPartnerships.has(id));
 		const [parentPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, parentIds));
 		state.addPartners(parentPartnerships);
 		parentIds.forEach((id) => state.hasPartnerships.add(id));
@@ -221,11 +253,16 @@ export async function loadFocusWindow(
 			state.personIds(),
 			state.rows().rows.unions.map((u) => u.id)
 		);
-		const selection = selectFocusSubgraph(graph, focusPersonId, { ...viewOptions, expandedStubIds });
+		const selection = selectFocusSubgraph(graph, focusPersonId, {
+			...viewOptions,
+			expandedStubIds
+		});
 		if (!selection) throw new NotFoundError('Person', focusPersonId);
 		const needed = selection.people.map((p) => p.id).filter((id) => !state.complete.has(id));
 		if (needed.length === 0) return { focusPersonId, graph, selection, roundCount };
 		await expand(needed);
 	}
-	throw new Error('The focus window did not settle; the tree contains a cycle the selection cannot bound');
+	throw new Error(
+		'The focus window did not settle; the tree contains a cycle the selection cannot bound'
+	);
 }

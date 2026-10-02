@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { importGedcomToDb } from '../gedcom/importer';
 import { UnauthorizedError } from '../domain/errors';
 import { ChangeStore } from '../repositories/change-store';
-import { createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { ListService } from './list-service';
 
 let t: TestDatabase;
@@ -62,7 +68,11 @@ describe('individuals', () => {
 		const first = await service.individuals(treeId, { limit: 2 }, ctx());
 		const second = await service.individuals(treeId, { limit: 2, offset: 2 }, ctx());
 		const third = await service.individuals(treeId, { limit: 2, offset: 4 }, ctx());
-		expect([ids(first), ids(second), ids(third)]).toEqual([['@I5@', '@I3@'], ['@I4@', '@I2@'], ['@I1@']]);
+		expect([ids(first), ids(second), ids(third)]).toEqual([
+			['@I5@', '@I3@'],
+			['@I4@', '@I2@'],
+			['@I1@']
+		]);
 		expect([first.hasMore, second.hasMore, third.hasMore]).toEqual([true, true, false]);
 	});
 
@@ -85,7 +95,9 @@ describe('individuals', () => {
 
 	it('refuses someone who is not a member', async () => {
 		const stranger = await createTestUser(t.db, 'stranger');
-		await expect(service.individuals(treeId, {}, stranger.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(service.individuals(treeId, {}, stranger.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
 	});
 });
 
@@ -107,13 +119,21 @@ describe('surnames', () => {
 			expect(filtered.items, surname).toHaveLength(people);
 		}
 		// A surname only a stored name carries still finds the person, whatever case it is typed in.
-		expect(ids(await service.individuals(treeId, { surname: 'KENNEDY' }, ctx())).sort()).toEqual(['@I1@', '@I2@']);
+		expect(ids(await service.individuals(treeId, { surname: 'KENNEDY' }, ctx())).sort()).toEqual([
+			'@I1@',
+			'@I2@'
+		]);
 	});
 
 	it('pages', async () => {
 		const first = await service.surnames(treeId, { limit: 2 }, ctx());
 		const second = await service.surnames(treeId, { limit: 2, offset: 2 }, ctx());
-		expect([first.items.length, first.hasMore, second.items.length, second.hasMore]).toEqual([2, true, 1, false]);
+		expect([first.items.length, first.hasMore, second.items.length, second.hasMore]).toEqual([
+			2,
+			true,
+			1,
+			false
+		]);
 	});
 });
 
@@ -122,7 +142,10 @@ describe('partnerships', () => {
 		const page = await service.unions(treeId, {}, ctx());
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0]).toMatchObject({
-			partners: [expect.objectContaining({ displayName: 'Tom Smith' }), expect.objectContaining({ displayName: expect.stringContaining('Jessica') })],
+			partners: [
+				expect.objectContaining({ displayName: 'Tom Smith' }),
+				expect.objectContaining({ displayName: expect.stringContaining('Jessica') })
+			],
 			marriageDate: '1975',
 			marriagePlace: 'Launceston',
 			endDate: '1990',

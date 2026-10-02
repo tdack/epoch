@@ -23,7 +23,12 @@ import { dateColumnsFor } from './date-columns';
 import { personName } from '../../shared/person-name';
 import { displayNameWith } from '../../shared/name-types';
 import type { LabelableUnion } from '../../shared/partnership-labels';
-import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
+import {
+	ConcurrencyConflictError,
+	NotFoundError,
+	UnionMergeConflictError,
+	ValidationError
+} from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { buildFactOps } from './fact-ops';
 import { buildPlaceOps } from './place-ops';
@@ -66,7 +71,10 @@ export { personName };
 
 /** "Jessica Wren (née Lovejoy)": the name for a preview, a summary or a sentence, from the rows as they are. */
 export function displayNameOf(rows: TreeRows, personId: string): string {
-	return displayNameWith(rows.individuals.find((p) => p.id === personId), rows.personNames.filter((n) => n.personId === personId));
+	return displayNameWith(
+		rows.individuals.find((p) => p.id === personId),
+		rows.personNames.filter((n) => n.personId === personId)
+	);
 }
 
 const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
@@ -129,7 +137,11 @@ export function labelableUnionsOf(rows: TreeRows): LabelableUnion[] {
 }
 
 export function deceasedIdsOf(rows: TreeRows): Set<string> {
-	return new Set(rows.events.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId));
+	return new Set(
+		rows.events
+			.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT')
+			.map((e) => e.entityId)
+	);
 }
 
 function requirePerson(rows: TreeRows, id: string): IndividualRow {
@@ -144,7 +156,11 @@ function requireUnion(rows: TreeRows, id: string): UnionRow {
 	return union;
 }
 
-function eventsOf(rows: TreeRows, entityType: 'INDIVIDUAL' | 'FAMILY', entityId: string): EventRow[] {
+function eventsOf(
+	rows: TreeRows,
+	entityType: 'INDIVIDUAL' | 'FAMILY',
+	entityId: string
+): EventRow[] {
 	return rows.events.filter((e) => e.entityType === entityType && e.entityId === entityId);
 }
 
@@ -167,7 +183,8 @@ export interface UnionConflictSnapshot {
 }
 
 export function personSnapshot(rows: TreeRows, person: IndividualRow): PersonConflictSnapshot {
-	const eventOf = (type: string) => eventsOf(rows, 'INDIVIDUAL', person.id).find((e) => e.type === type);
+	const eventOf = (type: string) =>
+		eventsOf(rows, 'INDIVIDUAL', person.id).find((e) => e.type === type);
 	return {
 		givenName: person.givenName,
 		surname: person.surname,
@@ -189,7 +206,13 @@ export function unionSnapshot(rows: TreeRows, union: UnionRow): UnionConflictSna
 }
 
 /** Thrown when a client edited from a version that is no longer current; carries what is current. */
-function staleVersion(entity: 'individual' | 'union', id: string, currentVersion: number, expected: number, current: object) {
+function staleVersion(
+	entity: 'individual' | 'union',
+	id: string,
+	currentVersion: number,
+	expected: number,
+	current: object
+) {
 	return new ConcurrencyConflictError(
 		`This ${entity === 'individual' ? 'person' : 'partnership'} was changed by someone else (you had version ${expected}, it is now ${currentVersion}).`,
 		{ reason: 'STALE_VERSION', entity, id, expectedVersion: expected, currentVersion, current }
@@ -198,7 +221,13 @@ function staleVersion(entity: 'individual' | 'union', id: string, currentVersion
 
 function checkPersonVersion(rows: TreeRows, person: IndividualRow, expected: number | undefined) {
 	if (expected !== undefined && person.version !== expected) {
-		throw staleVersion('individual', person.id, person.version, expected, personSnapshot(rows, person));
+		throw staleVersion(
+			'individual',
+			person.id,
+			person.version,
+			expected,
+			personSnapshot(rows, person)
+		);
 	}
 }
 
@@ -213,7 +242,11 @@ function touch<T extends { version: number; updatedAt: number | null }>(row: T, 
 }
 
 /** An op that bumps a person or union's version because something it owns changed. */
-function bump(table: 'individuals' | 'unions', row: IndividualRow | UnionRow, ctx: OpContext): RowOp {
+function bump(
+	table: 'individuals' | 'unions',
+	row: IndividualRow | UnionRow,
+	ctx: OpContext
+): RowOp {
 	return { table, id: row.id, before: row, after: touch(row, ctx) };
 }
 
@@ -291,15 +324,35 @@ function createEvent(
  * Names that say they came from `unionId` (for `personId` only, when given), rewritten to point at
  * `toUnionId`. Done here rather than by a foreign key so the change is logged and undoable.
  */
-function relinkNames(rows: TreeRows, ctx: OpContext, unionId: string[], toUnionId: string | null, personId?: string): RowOp[] {
+function relinkNames(
+	rows: TreeRows,
+	ctx: OpContext,
+	unionId: string[],
+	toUnionId: string | null,
+	personId?: string
+): RowOp[] {
 	return rows.personNames
-		.filter((n) => n.unionId !== null && unionId.includes(n.unionId) && (personId === undefined || n.personId === personId))
-		.map((n) => ({ table: 'person_names' as const, id: n.id, before: n as RowImage, after: touch({ ...n, unionId: toUnionId }, ctx) as RowImage }));
+		.filter(
+			(n) =>
+				n.unionId !== null &&
+				unionId.includes(n.unionId) &&
+				(personId === undefined || n.personId === personId)
+		)
+		.map((n) => ({
+			table: 'person_names' as const,
+			id: n.id,
+			before: n as RowImage,
+			after: touch({ ...n, unionId: toUnionId }, ctx) as RowImage
+		}));
 }
 
 // ---- Builders, one per command ----
 
-function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'create_person' }>): RowOp[] {
+function createPerson(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'create_person' }>
+): RowOp[] {
 	const row: IndividualRow = {
 		id: command.personId,
 		treeId: ctx.treeId,
@@ -315,7 +368,8 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	};
 	const ops: RowOp[] = [{ table: 'individuals', id: row.id, before: null, after: row }];
 	// Every person gets a name row from the start, so the names section has something to edit.
-	if (row.givenName || row.surname) ops.push(initialNameOp(ctx, row.id, { givenName: row.givenName, surname: row.surname }));
+	if (row.givenName || row.surname)
+		ops.push(initialNameOp(ctx, row.id, { givenName: row.givenName, surname: row.surname }));
 	for (const [type, dateText, place] of [
 		['BIRT', command.birthDate, command.birthPlace],
 		['DEAT', command.deathDate, command.deathPlace]
@@ -327,7 +381,11 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	return ops;
 }
 
-function updatePerson(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'update_person' }>): RowOp[] {
+function updatePerson(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'update_person' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
 
@@ -338,25 +396,55 @@ function updatePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		sex: command.sex !== undefined ? command.sex : person.sex
 	};
 	const eventOps = [
-		...upsertEvent(rows, ctx, 'INDIVIDUAL', person.id, 'BIRT', { dateText: command.birthDate, place: command.birthPlace }),
-		...upsertEvent(rows, ctx, 'INDIVIDUAL', person.id, 'DEAT', { dateText: command.deathDate, place: command.deathPlace })
+		...upsertEvent(rows, ctx, 'INDIVIDUAL', person.id, 'BIRT', {
+			dateText: command.birthDate,
+			place: command.birthPlace
+		}),
+		...upsertEvent(rows, ctx, 'INDIVIDUAL', person.id, 'DEAT', {
+			dateText: command.deathDate,
+			place: command.deathPlace
+		})
 	];
 	const isPersonChanged =
-		after.givenName !== person.givenName || after.surname !== person.surname || after.sex !== person.sex;
+		after.givenName !== person.givenName ||
+		after.surname !== person.surname ||
+		after.sex !== person.sex;
 	if (!isPersonChanged && eventOps.length === 0) return [];
 	// The form's name fields are the preferred name row's; editing one edits the other (ADR-013).
-	const nameOps = preferredNameOps(rows, ctx, person.id, { givenName: after.givenName, surname: after.surname });
-	return [{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) }, ...nameOps, ...eventOps];
+	const nameOps = preferredNameOps(rows, ctx, person.id, {
+		givenName: after.givenName,
+		surname: after.surname
+	});
+	return [
+		{ table: 'individuals', id: person.id, before: person, after: touch(after, ctx) },
+		...nameOps,
+		...eventOps
+	];
 }
 
-function setPersonPrivacy(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'set_person_privacy' }>): RowOp[] {
+function setPersonPrivacy(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'set_person_privacy' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
 	if (person.privacy === command.privacy) return [];
-	return [{ table: 'individuals', id: person.id, before: person, after: touch({ ...person, privacy: command.privacy }, ctx) }];
+	return [
+		{
+			table: 'individuals',
+			id: person.id,
+			before: person,
+			after: touch({ ...person, privacy: command.privacy }, ctx)
+		}
+	];
 }
 
-function recordDeath(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'record_death' }>): RowOp[] {
+function recordDeath(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'record_death' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
 	// Only the person and their DEAT event change. Unions are deliberately not read here: a death
@@ -373,14 +461,23 @@ function recordDeath(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	return eventOps.length === 0 ? [] : [bump('individuals', person, ctx), ...eventOps];
 }
 
-function deletePerson(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'delete_person' }>): RowOp[] {
+function deletePerson(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'delete_person' }>
+): RowOp[] {
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
 	const ops: RowOp[] = [];
-	const remove = (table: RecordTable, row: { id: string }) => ops.push({ table, id: row.id, before: row as RowImage, after: null });
+	const remove = (table: RecordTable, row: { id: string }) =>
+		ops.push({ table, id: row.id, before: row as RowImage, after: null });
 
-	rows.personNames.filter((n) => n.personId === person.id).forEach((n) => remove('person_names', n));
-	rows.parentChild.filter((l) => l.parentId === person.id || l.childId === person.id).forEach((l) => remove('parent_child', l));
+	rows.personNames
+		.filter((n) => n.personId === person.id)
+		.forEach((n) => remove('person_names', n));
+	rows.parentChild
+		.filter((l) => l.parentId === person.id || l.childId === person.id)
+		.forEach((l) => remove('parent_child', l));
 	eventsOf(rows, 'INDIVIDUAL', person.id).forEach((e) => remove('events', e));
 	rows.mediaItems.filter((m) => m.entityId === person.id).forEach((m) => remove('media_items', m));
 
@@ -395,8 +492,15 @@ function deletePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 			// Nobody left in it: the union, its own events, and any links still filed under it go too.
 			// Links are kept as direct parent links where the parent is someone other than the deleted person.
 			eventsOf(rows, 'FAMILY', union.id).forEach((e) => remove('events', e));
-			for (const link of rows.parentChild.filter((l) => l.unionId === union.id && l.parentId !== person.id && l.childId !== person.id)) {
-				ops.push({ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, unionId: null }, ctx) });
+			for (const link of rows.parentChild.filter(
+				(l) => l.unionId === union.id && l.parentId !== person.id && l.childId !== person.id
+			)) {
+				ops.push({
+					table: 'parent_child',
+					id: link.id,
+					before: link,
+					after: touch({ ...link, unionId: null }, ctx)
+				});
 			}
 			remove('unions', union);
 		}
@@ -405,7 +509,11 @@ function deletePerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 	return ops;
 }
 
-function createUnion(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'create_union' }>): RowOp[] {
+function createUnion(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'create_union' }>
+): RowOp[] {
 	const personIds = [...new Set(command.personIds)];
 	if (personIds.length < 1) throw new ValidationError('A union requires at least one participant');
 	for (const id of personIds) requirePerson(rows, id);
@@ -427,33 +535,65 @@ function createUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	return ops;
 }
 
-function addPartner(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'add_partner_to_union' }>): RowOp[] {
+function addPartner(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'add_partner_to_union' }>
+): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	requirePerson(rows, command.personId);
 	const members = rows.unionPartners.filter((p) => p.unionId === union.id);
 	if (members.some((p) => p.personId === command.personId)) return [];
 	const id = ctx.newId();
 	const order = members.reduce((max, p) => Math.max(max, p.order), -1) + 1;
-	const partner: UnionPartnerRow = { id, unionId: union.id, personId: command.personId, order, createdAt: ctx.now };
-	return [bump('unions', union, ctx), { table: 'union_partners', id, before: null, after: partner }];
+	const partner: UnionPartnerRow = {
+		id,
+		unionId: union.id,
+		personId: command.personId,
+		order,
+		createdAt: ctx.now
+	};
+	return [
+		bump('unions', union, ctx),
+		{ table: 'union_partners', id, before: null, after: partner }
+	];
 }
 
-function removePartner(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'remove_partner_from_union' }>): RowOp[] {
+function removePartner(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'remove_partner_from_union' }>
+): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	checkUnionVersion(rows, union, command.expectedVersion);
-	const membership = rows.unionPartners.find((p) => p.unionId === union.id && p.personId === command.personId);
+	const membership = rows.unionPartners.find(
+		(p) => p.unionId === union.id && p.personId === command.personId
+	);
 	if (!membership) throw new NotFoundError('Partner', command.personId);
 	// A name that came from this partnership no longer has a partner in it to have come from.
-	return [bump('unions', union, ctx), { table: 'union_partners', id: membership.id, before: membership, after: null }, ...relinkNames(rows, ctx, [union.id], null, command.personId)];
+	return [
+		bump('unions', union, ctx),
+		{ table: 'union_partners', id: membership.id, before: membership, after: null },
+		...relinkNames(rows, ctx, [union.id], null, command.personId)
+	];
 }
 
-function assertParentChild(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'assert_parent_child' }>): RowOp[] {
+function assertParentChild(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'assert_parent_child' }>
+): RowOp[] {
 	requirePerson(rows, command.parentId);
 	requirePerson(rows, command.childId);
 	if (command.unionId) requireUnion(rows, command.unionId);
 	const existing = rows.parentChild.map(asParentChild);
 	const violations = validateParentChildAssertion(
-		{ parentId: command.parentId, childId: command.childId, type: command.type, unionId: command.unionId },
+		{
+			parentId: command.parentId,
+			childId: command.childId,
+			type: command.type,
+			unionId: command.unionId
+		},
 		ctx.treeId,
 		existing,
 		existing
@@ -492,56 +632,121 @@ export function asParentChild(row: ParentChildRow): ParentChild {
 	};
 }
 
-function removeParentChild(rows: TreeRows, _ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'remove_parent_child' }>): RowOp[] {
+function removeParentChild(
+	rows: TreeRows,
+	_ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'remove_parent_child' }>
+): RowOp[] {
 	const link = rows.parentChild.find(
-		(l) => l.parentId === command.parentId && l.childId === command.childId && l.type === command.type
+		(l) =>
+			l.parentId === command.parentId && l.childId === command.childId && l.type === command.type
 	);
 	if (!link) throw new NotFoundError('Parent link');
 	return [{ table: 'parent_child', id: link.id, before: link, after: null }];
 }
 
-function changeParentChildType(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'change_parent_child_type' }>): RowOp[] {
-	const link = rows.parentChild.find((l) => l.parentId === command.parentId && l.childId === command.childId && l.type === command.fromType);
+function changeParentChildType(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'change_parent_child_type' }>
+): RowOp[] {
+	const link = rows.parentChild.find(
+		(l) =>
+			l.parentId === command.parentId &&
+			l.childId === command.childId &&
+			l.type === command.fromType
+	);
 	if (!link) throw new NotFoundError('Parent link');
 	if (command.fromType === command.toType) return [];
-	if (rows.parentChild.some((l) => l.parentId === command.parentId && l.childId === command.childId && l.type === command.toType)) {
+	if (
+		rows.parentChild.some(
+			(l) =>
+				l.parentId === command.parentId &&
+				l.childId === command.childId &&
+				l.type === command.toType
+		)
+	) {
 		throw new ValidationError('That parent is already recorded with this type for this child');
 	}
 	// The raw PEDI word only qualified the old type (sealing, other); it says nothing about the new one.
-	return [{ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, type: command.toType, gedcomPedi: null }, ctx) }];
+	return [
+		{
+			table: 'parent_child',
+			id: link.id,
+			before: link,
+			after: touch({ ...link, type: command.toType, gedcomPedi: null }, ctx)
+		}
+	];
 }
 
-function destroyUnion(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'destroy_union' }>): RowOp[] {
+function destroyUnion(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'destroy_union' }>
+): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	checkUnionVersion(rows, union, command.expectedVersion);
 	const ops: RowOp[] = [];
-	rows.unionPartners.filter((p) => p.unionId === union.id).forEach((p) => ops.push({ table: 'union_partners', id: p.id, before: p, after: null }));
-	eventsOf(rows, 'FAMILY', union.id).forEach((e) => ops.push({ table: 'events', id: e.id, before: e, after: null }));
+	rows.unionPartners
+		.filter((p) => p.unionId === union.id)
+		.forEach((p) => ops.push({ table: 'union_partners', id: p.id, before: p, after: null }));
+	eventsOf(rows, 'FAMILY', union.id).forEach((e) =>
+		ops.push({ table: 'events', id: e.id, before: e, after: null })
+	);
 	// Parentage is a fact about the parent and child, not about the partnership, so the links stay
 	// and only lose their grouping. Deleting them would erase who someone's parents were.
 	for (const link of rows.parentChild.filter((l) => l.unionId === union.id)) {
-		ops.push({ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, unionId: null }, ctx) });
+		ops.push({
+			table: 'parent_child',
+			id: link.id,
+			before: link,
+			after: touch({ ...link, unionId: null }, ctx)
+		});
 	}
 	ops.push(...relinkNames(rows, ctx, [union.id], null));
 	ops.push({ table: 'unions', id: union.id, before: union, after: null });
 	return ops;
 }
 
-function endUnion(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'end_union' }>): RowOp[] {
+function endUnion(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'end_union' }>
+): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	checkUnionVersion(rows, union, command.expectedVersion);
 	if (!(ENDED_UNION_STATUSES as readonly string[]).includes(command.status)) {
 		throw new ValidationError(`'${command.status}' is not an ending status`);
 	}
 	const eventOps = command.event
-		? upsertEvent(rows, ctx, 'FAMILY', union.id, command.event.type, { dateText: command.event.dateText, place: command.event.place }, true)
+		? upsertEvent(
+				rows,
+				ctx,
+				'FAMILY',
+				union.id,
+				command.event.type,
+				{ dateText: command.event.dateText, place: command.event.place },
+				true
+			)
 		: [];
 	const isStatusChanged = union.status !== command.status;
 	if (!isStatusChanged && eventOps.length === 0) return [];
-	return [{ table: 'unions', id: union.id, before: union, after: touch({ ...union, status: command.status }, ctx) }, ...eventOps];
+	return [
+		{
+			table: 'unions',
+			id: union.id,
+			before: union,
+			after: touch({ ...union, status: command.status }, ctx)
+		},
+		...eventOps
+	];
 }
 
-function updateUnion(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'update_union' }>): RowOp[] {
+function updateUnion(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'update_union' }>
+): RowOp[] {
 	const union = requireUnion(rows, command.unionId);
 	checkUnionVersion(rows, union, command.expectedVersion);
 
@@ -550,9 +755,19 @@ function updateUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 		const editable = eventsOf(rows, 'FAMILY', union.id).filter((e) => isUnionEventType(e.type));
 		const submittedIds = new Set(command.events.map((e) => e.id).filter(Boolean));
 		for (const input of command.events) {
-			if (!isUnionEventType(input.type)) throw new ValidationError(`'${input.type}' is not a partnership event`);
+			if (!isUnionEventType(input.type))
+				throw new ValidationError(`'${input.type}' is not a partnership event`);
 			if (!input.id) {
-				eventOps.push(createEvent(ctx, 'FAMILY', union.id, input.type, cleanText(input.dateText), cleanText(input.place)));
+				eventOps.push(
+					createEvent(
+						ctx,
+						'FAMILY',
+						union.id,
+						input.type,
+						cleanText(input.dateText),
+						cleanText(input.place)
+					)
+				);
 				continue;
 			}
 			const existing = editable.find((e) => e.id === input.id);
@@ -564,18 +779,31 @@ function updateUnion(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 				...dateColumnsFor(cleanText(input.dateText)),
 				place: cleanText(input.place)
 			};
-			const isChanged = after.type !== existing.type || after.dateRaw !== existing.dateRaw || after.place !== existing.place;
-			if (isChanged) eventOps.push({ table: 'events', id: existing.id, before: existing, after: touch(after, ctx) });
+			const isChanged =
+				after.type !== existing.type ||
+				after.dateRaw !== existing.dateRaw ||
+				after.place !== existing.place;
+			if (isChanged)
+				eventOps.push({
+					table: 'events',
+					id: existing.id,
+					before: existing,
+					after: touch(after, ctx)
+				});
 		}
 		// An event the editor showed but no longer submits was removed by the person editing.
 		for (const existing of editable) {
-			if (!submittedIds.has(existing.id)) eventOps.push({ table: 'events', id: existing.id, before: existing, after: null });
+			if (!submittedIds.has(existing.id))
+				eventOps.push({ table: 'events', id: existing.id, before: existing, after: null });
 		}
 	}
 
 	const status = command.status ?? (union.status as UnionStatus);
 	if (status === union.status && eventOps.length === 0) return [];
-	return [{ table: 'unions', id: union.id, before: union, after: touch({ ...union, status }, ctx) }, ...eventOps];
+	return [
+		{ table: 'unions', id: union.id, before: union, after: touch({ ...union, status }, ctx) },
+		...eventOps
+	];
 }
 
 /** The union's facts in the shape the merge rules compare. */
@@ -583,9 +811,12 @@ export function mergeableUnion(rows: TreeRows, union: UnionRow): MergeableUnion 
 	return {
 		id: union.id,
 		status: union.status,
-		facts: eventsOf(rows, 'FAMILY', union.id).map(
-			(e): MergeFact => ({ type: e.type, dateText: e.dateRaw, place: e.place, description: e.description })
-		)
+		facts: eventsOf(rows, 'FAMILY', union.id).map((e): MergeFact => ({
+			type: e.type,
+			dateText: e.dateRaw,
+			place: e.place,
+			description: e.description
+		}))
 	};
 }
 
@@ -598,7 +829,9 @@ export function mergeConflictsOf(rows: TreeRows, unionIds: string[]): MergeConfl
 export function samePartnerUnionIds(rows: TreeRows, unionId: string): string[] {
 	const key = partnerSetKey(partnerIdsOf(rows, unionId));
 	if (!key) return [];
-	return rows.unions.filter((u) => u.id !== unionId && partnerSetKey(partnerIdsOf(rows, u.id)) === key).map((u) => u.id);
+	return rows.unions
+		.filter((u) => u.id !== unionId && partnerSetKey(partnerIdsOf(rows, u.id)) === key)
+		.map((u) => u.id);
 }
 
 /** An imported union's id is `<treeId>:<xref>`; anything else was never known by an XREF. */
@@ -607,14 +840,20 @@ function xrefOf(treeId: string, unionId: string): string | null {
 	return unionId.startsWith(prefix) ? unionId.slice(prefix.length) : null;
 }
 
-function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<RelationshipCommand, { kind: 'merge_unions' }>): RowOp[] {
+function mergeUnions(
+	rows: TreeRows,
+	ctx: OpContext,
+	command: Extract<RelationshipCommand, { kind: 'merge_unions' }>
+): RowOp[] {
 	const mergedIds = [...new Set(command.mergedIds)].filter((id) => id !== command.survivorId);
-	if (mergedIds.length === 0) throw new ValidationError('Choose at least two partnerships to merge');
+	if (mergedIds.length === 0)
+		throw new ValidationError('Choose at least two partnerships to merge');
 
 	const survivor = requireUnion(rows, command.survivorId);
 	const merged = mergedIds.map((id) => requireUnion(rows, id));
 	const involved = [survivor, ...merged];
-	for (const union of involved) checkUnionVersion(rows, union, command.expectedVersions?.[union.id]);
+	for (const union of involved)
+		checkUnionVersion(rows, union, command.expectedVersions?.[union.id]);
 
 	const key = partnerSetKey(partnerIdsOf(rows, survivor.id));
 	if (!key || involved.some((u) => partnerSetKey(partnerIdsOf(rows, u.id)) !== key)) {
@@ -622,10 +861,16 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	}
 
 	// Never pick between two different facts on the person's behalf.
-	const conflicts = mergeConflictsOf(rows, involved.map((u) => u.id));
+	const conflicts = mergeConflictsOf(
+		rows,
+		involved.map((u) => u.id)
+	);
 	const unresolved = unresolvedConflicts(conflicts, command.keep);
 	if (unresolved.length > 0) {
-		throw new UnionMergeConflictError('These partnerships record different facts; choose which to keep for each.', unresolved);
+		throw new UnionMergeConflictError(
+			'These partnerships record different facts; choose which to keep for each.',
+			unresolved
+		);
 	}
 	const keptStatusFrom = command.keep?.status ? requireUnion(rows, command.keep.status) : survivor;
 
@@ -638,23 +883,51 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	const seen = new Set<string>();
 	for (const union of involved) {
 		for (const event of eventsOf(rows, 'FAMILY', union.id)) {
-			const chosen = conflicts.some((c) => c.kind === 'event' && c.eventType === event.type) ? chosenFor(event.type) : undefined;
+			const chosen = conflicts.some((c) => c.kind === 'event' && c.eventType === event.type)
+				? chosenFor(event.type)
+				: undefined;
 			const isLoser = chosen !== undefined && chosen !== union.id;
-			const factSeen = seen.has(factKey({ type: event.type, dateText: event.dateRaw, place: event.place, description: event.description }));
+			const factSeen = seen.has(
+				factKey({
+					type: event.type,
+					dateText: event.dateRaw,
+					place: event.place,
+					description: event.description
+				})
+			);
 			if (isLoser || (union.id !== survivor.id && factSeen)) {
 				ops.push({ table: 'events', id: event.id, before: event, after: null });
 				continue;
 			}
-			seen.add(factKey({ type: event.type, dateText: event.dateRaw, place: event.place, description: event.description }));
+			seen.add(
+				factKey({
+					type: event.type,
+					dateText: event.dateRaw,
+					place: event.place,
+					description: event.description
+				})
+			);
 			if (union.id !== survivor.id) {
-				ops.push({ table: 'events', id: event.id, before: event, after: touch({ ...event, entityId: survivor.id }, ctx) });
+				ops.push({
+					table: 'events',
+					id: event.id,
+					before: event,
+					after: touch({ ...event, entityId: survivor.id }, ctx)
+				});
 			}
 		}
 	}
 
 	// Parentage is a fact about parent and child, so every link is kept and only regrouped.
-	for (const link of rows.parentChild.filter((l) => l.unionId !== null && mergedSet.has(l.unionId))) {
-		ops.push({ table: 'parent_child', id: link.id, before: link, after: touch({ ...link, unionId: survivor.id }, ctx) });
+	for (const link of rows.parentChild.filter(
+		(l) => l.unionId !== null && mergedSet.has(l.unionId)
+	)) {
+		ops.push({
+			table: 'parent_child',
+			id: link.id,
+			before: link,
+			after: touch({ ...link, unionId: survivor.id }, ctx)
+		});
 	}
 
 	// The partner rows repeat the survivor's, and (union, person) is unique, so they are deleted, not moved.
@@ -667,7 +940,8 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 	const aliases = [...(survivor.xrefAliases ?? [])];
 	for (const union of merged) {
 		for (const alias of [xrefOf(ctx.treeId, union.id), ...(union.xrefAliases ?? [])]) {
-			if (alias && alias !== xrefOf(ctx.treeId, survivor.id) && !aliases.includes(alias)) aliases.push(alias);
+			if (alias && alias !== xrefOf(ctx.treeId, survivor.id) && !aliases.includes(alias))
+				aliases.push(alias);
 		}
 		ops.push({ table: 'unions', id: union.id, before: union, after: null });
 	}
@@ -675,7 +949,14 @@ function mergeUnions(rows: TreeRows, ctx: OpContext, command: Extract<Relationsh
 		table: 'unions',
 		id: survivor.id,
 		before: survivor,
-		after: touch({ ...survivor, status: keptStatusFrom.status, xrefAliases: aliases.length > 0 ? aliases : null }, ctx)
+		after: touch(
+			{
+				...survivor,
+				status: keptStatusFrom.status,
+				xrefAliases: aliases.length > 0 ? aliases : null
+			},
+			ctx
+		)
 	});
 	return ops;
 }
@@ -730,7 +1011,11 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 }
 
 /** Ops for a whole plan; each command sees the rows the earlier ones produced. */
-export function buildPlanOps(rows: TreeRows, commands: RelationshipCommand[], ctx: OpContext): RowOp[] {
+export function buildPlanOps(
+	rows: TreeRows,
+	commands: RelationshipCommand[],
+	ctx: OpContext
+): RowOp[] {
 	let working = rows;
 	const all: RowOp[] = [];
 	for (const command of commands) {

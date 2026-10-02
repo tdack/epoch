@@ -11,7 +11,11 @@
 import type { PersonNameRow, TreeRows } from './change-log';
 import { birthSurnameOf } from '../../shared/name-types';
 import type { ParentChildType, UnionStatus } from './genealogy-model';
-import { isUnionEventType, UNION_EVENT_TYPE_LIST, type UnionEventType } from '../../shared/union-events';
+import {
+	isUnionEventType,
+	UNION_EVENT_TYPE_LIST,
+	type UnionEventType
+} from '../../shared/union-events';
 import type { Sex } from '../../shared/sex';
 import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
 
@@ -112,7 +116,12 @@ export interface RelationshipGraph {
 	parentChild: GraphParentChildInput[];
 }
 
-function displayName(givenName: string | null, surname: string | null, id: string, names: GraphPersonInput['names'] = []): string {
+function displayName(
+	givenName: string | null,
+	surname: string | null,
+	id: string,
+	names: GraphPersonInput['names'] = []
+): string {
 	const parts = [givenName, surname].filter(Boolean);
 	const base = parts.length > 0 ? parts.join(' ') : id;
 	const birth = parts.length > 0 ? birthSurnameOf(surname, names) : null;
@@ -135,15 +144,23 @@ export function buildRelationshipGraph(input: {
 	const unionById = new Map(input.unions.map((u) => [u.id, u]));
 
 	// Group parent-child assertions by union (and by child for lookup).
-	const childrenByUnion = new Map<string, Array<{ childId: string; parentId: string; type: ParentChildType }>>();
-	const parentsByChild = new Map<string, Array<{ parentId: string; type: ParentChildType; unionId: string | null }>>();
+	const childrenByUnion = new Map<
+		string,
+		Array<{ childId: string; parentId: string; type: ParentChildType }>
+	>();
+	const parentsByChild = new Map<
+		string,
+		Array<{ parentId: string; type: ParentChildType; unionId: string | null }>
+	>();
 	for (const pc of input.parentChild) {
 		const key = pc.unionId ?? '__direct__';
 		if (!childrenByUnion.has(key)) childrenByUnion.set(key, []);
 		childrenByUnion.get(key)!.push({ childId: pc.childId, parentId: pc.parentId, type: pc.type });
 
 		if (!parentsByChild.has(pc.childId)) parentsByChild.set(pc.childId, []);
-		parentsByChild.get(pc.childId)!.push({ parentId: pc.parentId, type: pc.type, unionId: pc.unionId });
+		parentsByChild
+			.get(pc.childId)!
+			.push({ parentId: pc.parentId, type: pc.type, unionId: pc.unionId });
 	}
 
 	const people: RelationshipGraphPerson[] = input.people.map((p) => {
@@ -212,15 +229,24 @@ export function buildRelationshipGraph(input: {
 
 /** True when a union is separated/divorced/annulled/ended (for legend markers). */
 export function isEndedUnionStatus(status: UnionStatus): boolean {
-	return status === 'separated' || status === 'divorced' || status === 'annulled' || status === 'ended';
+	return (
+		status === 'separated' || status === 'divorced' || status === 'annulled' || status === 'ended'
+	);
 }
 
 /**
  * Assemble the graph from a tree snapshot. Reading and drawing use the same rows the mutations
  * plan against, so a graph fetched after a save is exactly what the save produced.
  */
-export function graphFromRows(rows: TreeRows, placeholderIds: ReadonlySet<string> = new Set()): RelationshipGraph {
-	const deceased = new Set(rows.events.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT').map((e) => e.entityId));
+export function graphFromRows(
+	rows: TreeRows,
+	placeholderIds: ReadonlySet<string> = new Set()
+): RelationshipGraph {
+	const deceased = new Set(
+		rows.events
+			.filter((e) => e.entityType === 'INDIVIDUAL' && e.type === 'DEAT')
+			.map((e) => e.entityId)
+	);
 
 	// The first birth and death date text per person, for card labels.
 	const dates = new Map<string, { birth: string | null; death: string | null }>();
@@ -233,7 +259,8 @@ export function graphFromRows(rows: TreeRows, placeholderIds: ReadonlySet<string
 	}
 
 	const namesByPerson = new Map<string, PersonNameRow[]>();
-	for (const n of rows.personNames) namesByPerson.set(n.personId, [...(namesByPerson.get(n.personId) ?? []), n]);
+	for (const n of rows.personNames)
+		namesByPerson.set(n.personId, [...(namesByPerson.get(n.personId) ?? []), n]);
 
 	const partnersByUnion = new Map<string, string[]>();
 	for (const p of [...rows.unionPartners].sort((a, b) => a.order - b.order)) {
@@ -243,10 +270,15 @@ export function graphFromRows(rows: TreeRows, placeholderIds: ReadonlySet<string
 	const eventsByUnion = new Map<string, GraphUnionEvent[]>();
 	for (const e of rows.events) {
 		if (e.entityType !== 'FAMILY' || !isUnionEventType(e.type)) continue;
-		eventsByUnion.set(e.entityId, [...(eventsByUnion.get(e.entityId) ?? []), { id: e.id, type: e.type, dateText: e.dateRaw, dateSort: e.dateSort, place: e.place }]);
+		eventsByUnion.set(e.entityId, [
+			...(eventsByUnion.get(e.entityId) ?? []),
+			{ id: e.id, type: e.type, dateText: e.dateRaw, dateSort: e.dateSort, place: e.place }
+		]);
 	}
 	for (const list of eventsByUnion.values()) {
-		list.sort((a, b) => UNION_EVENT_TYPE_LIST.indexOf(a.type) - UNION_EVENT_TYPE_LIST.indexOf(b.type));
+		list.sort(
+			(a, b) => UNION_EVENT_TYPE_LIST.indexOf(a.type) - UNION_EVENT_TYPE_LIST.indexOf(b.type)
+		);
 	}
 
 	const graph = buildRelationshipGraph({
@@ -286,5 +318,8 @@ export function graphFromRows(rows: TreeRows, placeholderIds: ReadonlySet<string
 	// and a page use to draw "Private" and withhold links to a record they cannot open.
 	return placeholderIds.size === 0
 		? graph
-		: { ...graph, people: graph.people.map((p) => (placeholderIds.has(p.id) ? { ...p, isPrivate: true } : p)) };
+		: {
+				...graph,
+				people: graph.people.map((p) => (placeholderIds.has(p.id) ? { ...p, isPrivate: true } : p))
+			};
 }

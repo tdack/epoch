@@ -148,8 +148,12 @@ const ENDED_STATUS_WORD: Record<EndedUnionStatus, string> = {
  * Produce the graph sentence preview for a relationship intent. `facts` carries what the server
  * resolved, so the sentence describes what will actually be saved rather than what was asked for.
  */
-export function describeRelationshipIntent(intent: RelationshipIntent, facts: SentenceFacts = {}): string {
-	const clientLabel = 'unionLabel' in intent && intent.unionLabel ? `${intent.unionLabel} family` : null;
+export function describeRelationshipIntent(
+	intent: RelationshipIntent,
+	facts: SentenceFacts = {}
+): string {
+	const clientLabel =
+		'unionLabel' in intent && intent.unionLabel ? `${intent.unionLabel} family` : null;
 	const unionLabel = facts.unionPhrase ?? clientLabel;
 	switch (intent.kind) {
 		case 'add_parent':

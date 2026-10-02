@@ -22,7 +22,11 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 		const db = getDb(platform.env.DB);
 		// The focus box and relationship dialog ask for names only, so place and dates are not read.
 		const { text, limit } = parseSearchParams(url.searchParams);
-		const { people } = await new SearchService(db).search(treeId, { text, limit }, { user: locals.user, correlationId: locals.correlationId });
+		const { people } = await new SearchService(db).search(
+			treeId,
+			{ text, limit },
+			{ user: locals.user, correlationId: locals.correlationId }
+		);
 		return Response.json({ people });
 	} catch (err) {
 		return errorResponse(err, 'Failed to search people');

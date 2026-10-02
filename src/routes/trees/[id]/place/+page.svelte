@@ -13,7 +13,8 @@
 
 	const base = $derived(`/trees/${encodeURIComponent(data.summary.tree.id)}`);
 	const place = $derived(data.place);
-	const entityHref = (kind: 'person' | 'partnership', id: string) => `${base}/${kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(id)}`;
+	const entityHref = (kind: 'person' | 'partnership', id: string) =>
+		`${base}/${kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(id)}`;
 	const placeHref = (name: string) => `${base}/place?name=${encodeURIComponent(name)}`;
 	const role = $derived(data.trees.find((t) => t.id === data.summary.tree.id)?.role);
 	const canEdit = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
@@ -35,14 +36,18 @@
 								await goto(placeHref(oldName), { refreshAll: true });
 								toasts.push(`Undid: ${undone.summary}`);
 							} catch (cause: unknown) {
-								toasts.push((cause as Error).message || 'Could not undo', { tone: 'error', durationMs: 10_000 });
+								toasts.push((cause as Error).message || 'Could not undo', {
+									tone: 'error',
+									durationMs: 10_000
+								});
 							}
 						}
 					}
 				: undefined
 		});
 	}
-	const pageHref = (offset: number) => `${base}/place?name=${encodeURIComponent(place.name)}${offset > 0 ? `&offset=${offset}` : ''}`;
+	const pageHref = (offset: number) =>
+		`${base}/place?name=${encodeURIComponent(place.name)}${offset > 0 ? `&offset=${offset}` : ''}`;
 </script>
 
 <svelte:head>
@@ -55,17 +60,28 @@
 <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 	<h2 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h2>
 	{#if canEdit}
-		<button type="button" class="text-sm font-semibold text-emerald-800 hover:underline" data-testid="rename-place" onclick={() => (isRewriting = true)}>Rename or merge</button>
+		<button
+			type="button"
+			class="text-sm font-semibold text-emerald-800 hover:underline"
+			data-testid="rename-place"
+			onclick={() => (isRewriting = true)}>Rename or merge</button
+		>
 	{/if}
 </div>
 
-<ul class="mt-4 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white" data-testid="place-facts">
+<ul
+	class="mt-4 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white"
+	data-testid="place-facts"
+>
 	{#each place.facts as fact (fact.id)}
 		<li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2 text-sm">
 			<span>
 				<span class="font-semibold text-stone-900">{fact.label}</span>
 				<span class="text-stone-600"> of </span>
-				<a href={entityHref(fact.kind, fact.entityId)} class="font-semibold text-emerald-900 hover:underline">{fact.entityName}</a>
+				<a
+					href={entityHref(fact.kind, fact.entityId)}
+					class="font-semibold text-emerald-900 hover:underline">{fact.entityName}</a
+				>
 			</span>
 			<span class="text-stone-600">{fact.dateText ?? 'Date unknown'}</span>
 		</li>
@@ -78,5 +94,12 @@
 />
 
 {#if canEdit}
-	<PlaceRewriteDialog show={isRewriting} treeId={data.summary.tree.id} placeId={place.id} currentName={place.name} onsaved={rewritten} oncancel={() => (isRewriting = false)} />
+	<PlaceRewriteDialog
+		show={isRewriting}
+		treeId={data.summary.tree.id}
+		placeId={place.id}
+		currentName={place.name}
+		onsaved={rewritten}
+		oncancel={() => (isRewriting = false)}
+	/>
 {/if}

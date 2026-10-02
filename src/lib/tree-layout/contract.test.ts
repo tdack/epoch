@@ -23,7 +23,15 @@ function goodLayout(): TreeLayout {
 		y: generation * H,
 		generation,
 		role: 'ancestor' as const,
-		person: { id, displayName: id, sex: 'U' as const, isDeceased: false, parentsByUnion: {}, unionIds: [], stepParents: [] }
+		person: {
+			id,
+			displayName: id,
+			sex: 'U' as const,
+			isDeceased: false,
+			parentsByUnion: {},
+			unionIds: [],
+			stepParents: []
+		}
 	});
 	const gap = W + LAYOUT_METRICS.partnerGap;
 	const union = {
@@ -32,7 +40,14 @@ function goodLayout(): TreeLayout {
 		y: -H,
 		generation: -1,
 		isHanging: false,
-		union: { id: 'u', status: 'active' as const, marriageDate: null, marriagePlace: null, partnerIds: ['a', 'b'], children: [] }
+		union: {
+			id: 'u',
+			status: 'active' as const,
+			marriageDate: null,
+			marriagePlace: null,
+			partnerIds: ['a', 'b'],
+			children: []
+		}
 	};
 	const edge = (kind: 'partner', personId: string, x: number) => ({
 		id: `partner:u:${personId}`,
@@ -59,7 +74,11 @@ function goodLayout(): TreeLayout {
 	return {
 		...EMPTY_LAYOUT,
 		focusPersonId: 'c',
-		people: [person('a', 0, -1), person('b', gap, -1), { ...person('c', gap / 2, 0), role: 'focus' }],
+		people: [
+			person('a', 0, -1),
+			person('b', gap, -1),
+			{ ...person('c', gap / 2, 0), role: 'focus' }
+		],
 		unions: [union],
 		edges: [edge('partner', 'a', 0), edge('partner', 'b', gap), childEdge]
 	};
@@ -97,7 +116,12 @@ describe('contract checkers', () => {
 
 	it('detect edges stacked on the same two points', () => {
 		const layout = goodLayout();
-		const twin = { ...layout.edges[2], id: 'twin', source: layout.edges[2].target, target: layout.edges[2].source };
+		const twin = {
+			...layout.edges[2],
+			id: 'twin',
+			source: layout.edges[2].target,
+			target: layout.edges[2].source
+		};
 		layout.edges.push(twin);
 		expect(findStackedEdges(layout)).toEqual(['edges child:u:c and twin are stacked']);
 		expect(findStackedEdges(goodLayout())).toEqual([]);
@@ -157,7 +181,12 @@ describe('contract checkers', () => {
 	it('detect an unrelated card between siblings', () => {
 		const layout = goodLayout();
 		const sibling = { ...layout.people[2], id: 'c2', x: layout.people[2].x + 3 * W };
-		const outsider = { ...layout.people[2], id: 'z', x: layout.people[2].x + 1.5 * W, role: 'ancestor' as const };
+		const outsider = {
+			...layout.people[2],
+			id: 'z',
+			x: layout.people[2].x + 1.5 * W,
+			role: 'ancestor' as const
+		};
 		layout.people.push(sibling, outsider);
 		layout.edges.push({
 			...(layout.edges[2] as ChildEdge),

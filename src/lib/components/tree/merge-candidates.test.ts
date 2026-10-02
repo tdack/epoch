@@ -3,16 +3,25 @@ import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import type { RelationshipGraphUnion } from '#lib/server/domain/relationship-graph.js';
 import { defaultSurvivor, mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 
-const union = (id: string, partnerIds: string[], childIds: string[] = [], date?: string): RelationshipGraphUnion => ({
+const union = (
+	id: string,
+	partnerIds: string[],
+	childIds: string[] = [],
+	date?: string
+): RelationshipGraphUnion => ({
 	id,
 	status: 'active',
 	marriageDate: null,
 	marriagePlace: null,
 	partnerIds,
 	version: 3,
-	events: date ? [{ id: `e-${id}`, type: 'MARR', dateText: date, dateSort: `${date}-01-01`, place: null }] : [],
+	events: date
+		? [{ id: `e-${id}`, type: 'MARR', dateText: date, dateSort: `${date}-01-01`, place: null }]
+		: [],
 	// One row per parent, as `parent_child` stores it.
-	children: childIds.flatMap((childId) => partnerIds.map((parentId) => ({ childId, parentId, type: 'biological' as const })))
+	children: childIds.flatMap((childId) =>
+		partnerIds.map((parentId) => ({ childId, parentId, type: 'biological' as const }))
+	)
 });
 
 describe('mergeCandidatesFor', () => {
@@ -26,7 +35,11 @@ describe('mergeCandidatesFor', () => {
 	it('lists the union and its twins oldest first, counting each child once', () => {
 		const candidates = mergeCandidatesFor(unions, 'later', labels);
 		expect(candidates.map((c) => c.id)).toEqual(['first', 'later']);
-		expect(candidates[0]).toMatchObject({ title: '1st partnership (m. 1980)', childCount: 2, version: 3 });
+		expect(candidates[0]).toMatchObject({
+			title: '1st partnership (m. 1980)',
+			childCount: 2,
+			version: 3
+		});
 	});
 
 	it('is empty for a partnership with no twin', () => {
@@ -36,7 +49,11 @@ describe('mergeCandidatesFor', () => {
 });
 
 describe('one-partner partnerships', () => {
-	const unions = [union('s2', ['a'], ['k2']), union('s1', ['a'], ['k1']), union('full', ['a', 'b'])];
+	const unions = [
+		union('s2', ['a'], ['k2']),
+		union('s1', ['a'], ['k1']),
+		union('full', ['a', 'b'])
+	];
 	const labels = partnershipLabels(unions);
 
 	it('claim no chronology, but can still be merged, told apart by number', () => {

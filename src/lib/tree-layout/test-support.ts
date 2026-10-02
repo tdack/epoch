@@ -1,6 +1,10 @@
 /** Fixtures and graph builders shared by the layout test suites. Not imported by app code. */
 
-import type { RelationshipGraph, RelationshipGraphPerson, RelationshipGraphUnion } from './types.js';
+import type {
+	RelationshipGraph,
+	RelationshipGraphPerson,
+	RelationshipGraphUnion
+} from './types.js';
 import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
 import { buildRelationshipGraph } from '#lib/server/domain/relationship-graph.js';
 import simpsons from './fixtures/littles.graph.json';
@@ -53,7 +57,12 @@ export function makeGraph(input: {
 		for (const child of u.children ?? []) {
 			const spec = typeof child === 'string' ? { id: child } : child;
 			for (const parentId of spec.parents ?? u.partners) {
-				parentChild.push({ parentId, childId: spec.id, type: spec.type ?? 'biological', unionId: u.id });
+				parentChild.push({
+					parentId,
+					childId: spec.id,
+					type: spec.type ?? 'biological',
+					unionId: u.id
+				});
 			}
 		}
 		return {
@@ -144,8 +153,20 @@ export const SYNTHETIC_GRAPHS: NamedGraph[] = [
 		graph: makeGraph({
 			people: ['A', 'B', 'K'],
 			unions: [
-				{ id: 'u1', partners: ['A', 'B'], marriageDate: '1980', status: 'divorced', children: ['K'] },
-				{ id: 'u2', partners: ['A', 'B'], marriageDate: '1990', status: 'divorced', children: ['K'] },
+				{
+					id: 'u1',
+					partners: ['A', 'B'],
+					marriageDate: '1980',
+					status: 'divorced',
+					children: ['K']
+				},
+				{
+					id: 'u2',
+					partners: ['A', 'B'],
+					marriageDate: '1990',
+					status: 'divorced',
+					children: ['K']
+				},
 				{ id: 'u3', partners: ['A', 'B'], marriageDate: '2000', children: ['K'] }
 			]
 		})
@@ -155,7 +176,13 @@ export const SYNTHETIC_GRAPHS: NamedGraph[] = [
 		graph: makeGraph({
 			people: ['A', 'B', 'K1', 'K2'],
 			unions: [
-				{ id: 'u1', partners: ['A', 'B'], marriageDate: '1980', status: 'divorced', children: ['K1'] },
+				{
+					id: 'u1',
+					partners: ['A', 'B'],
+					marriageDate: '1980',
+					status: 'divorced',
+					children: ['K1']
+				},
 				{ id: 'u2', partners: ['A', 'B'], marriageDate: '1990', children: ['K2'] }
 			]
 		})

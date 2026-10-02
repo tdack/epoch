@@ -10,7 +10,12 @@ import type { AuthenticatedContext } from '../domain/identity';
 import { describeCommand } from '../domain/command-summary';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS, PERSON_PRIVACY_VALUES, type PersonPrivacy } from '../../shared/privacy';
+import {
+	MAX_MAX_ALIVE_YEARS,
+	MIN_MAX_ALIVE_YEARS,
+	PERSON_PRIVACY_VALUES,
+	type PersonPrivacy
+} from '../../shared/privacy';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import { requireTreeAction } from './tree-access';
 
@@ -31,11 +36,22 @@ export class PrivacyService {
 	}
 
 	/** Force a person public or private, or hand them back to the derivation (`auto`). */
-	async setPersonPrivacy(treeId: string, personId: string, privacy: PersonPrivacy, expectedVersion: number | undefined, context: AuthenticatedContext): Promise<MutationResult> {
-		if (!PERSON_PRIVACY_VALUES.includes(privacy)) throw new ValidationError('Privacy must be auto, public or private');
+	async setPersonPrivacy(
+		treeId: string,
+		personId: string,
+		privacy: PersonPrivacy,
+		expectedVersion: number | undefined,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		if (!PERSON_PRIVACY_VALUES.includes(privacy))
+			throw new ValidationError('Privacy must be auto, public or private');
 		await requireTreeAction(this.users, treeId, context, 'person:set_privacy');
 		const command = { kind: 'set_person_privacy' as const, personId, privacy, expectedVersion };
-		return this.runner.run(treeId, context, { kind: command.kind, summary: (rows) => describeCommand(command, rows), commands: [command] });
+		return this.runner.run(treeId, context, {
+			kind: command.kind,
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command]
+		});
 	}
 
 	async getSettings(treeId: string, context: AuthenticatedContext): Promise<PrivacySettingsDto> {
@@ -45,11 +61,22 @@ export class PrivacyService {
 		return settings;
 	}
 
-	async updateSettings(treeId: string, patch: Partial<PrivacySettingsDto>, context: AuthenticatedContext): Promise<PrivacySettingsDto> {
+	async updateSettings(
+		treeId: string,
+		patch: Partial<PrivacySettingsDto>,
+		context: AuthenticatedContext
+	): Promise<PrivacySettingsDto> {
 		await requireTreeAction(this.users, treeId, context, 'tree:update_settings');
 		const { maxAliveYears } = patch;
-		if (maxAliveYears !== undefined && (!Number.isInteger(maxAliveYears) || maxAliveYears < MIN_MAX_ALIVE_YEARS || maxAliveYears > MAX_MAX_ALIVE_YEARS)) {
-			throw new ValidationError(`The age after which someone is assumed to have died must be between ${MIN_MAX_ALIVE_YEARS} and ${MAX_MAX_ALIVE_YEARS} years`);
+		if (
+			maxAliveYears !== undefined &&
+			(!Number.isInteger(maxAliveYears) ||
+				maxAliveYears < MIN_MAX_ALIVE_YEARS ||
+				maxAliveYears > MAX_MAX_ALIVE_YEARS)
+		) {
+			throw new ValidationError(
+				`The age after which someone is assumed to have died must be between ${MIN_MAX_ALIVE_YEARS} and ${MAX_MAX_ALIVE_YEARS} years`
+			);
 		}
 		await this.trees.updatePrivacySettings(treeId, patch);
 		return this.getSettings(treeId, context);

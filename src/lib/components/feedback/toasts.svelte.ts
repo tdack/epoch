@@ -25,12 +25,18 @@ export class ToastStore {
 	items = $state<Toast[]>([]);
 	private nextId = 1;
 
-	push(message: string, options: { tone?: ToastTone; action?: ToastAction; durationMs?: number } = {}): number {
+	push(
+		message: string,
+		options: { tone?: ToastTone; action?: ToastAction; durationMs?: number } = {}
+	): number {
 		const id = this.nextId++;
 		const durationMs = options.durationMs ?? (options.action ? UNDO_TOAST_MS : DEFAULT_TOAST_MS);
 		// One undo offer at a time: it always refers to the latest change, so older offers would mislead.
 		const kept = options.action ? this.items.filter((t) => !t.action) : this.items;
-		this.items = [...kept, { id, message, tone: options.tone ?? TOAST_TONES.SUCCESS, action: options.action, durationMs }];
+		this.items = [
+			...kept,
+			{ id, message, tone: options.tone ?? TOAST_TONES.SUCCESS, action: options.action, durationMs }
+		];
 		return id;
 	}
 

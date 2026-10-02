@@ -1,41 +1,55 @@
 <script lang="ts">
-  import { Database, GitBranch, RefreshCw } from 'lucide-svelte';
-  interface Props {
-    /** Name and counts from the tree summary; the banner never sees the tree's records. */
-    treeName: string;
-    people: number;
-    unions: number;
-  }
+	import { Database, GitBranch, RefreshCw } from 'lucide-svelte';
+	interface Props {
+		/** Name and counts from the tree summary; the banner never sees the tree's records. */
+		treeName: string;
+		people: number;
+		unions: number;
+	}
 
-  let { treeName, people, unions }: Props = $props();
+	let { treeName, people, unions }: Props = $props();
 </script>
 
 <div class="grid grid-cols-3 gap-4">
-  <div class="bg-stone-50/90 border border-stone-200 rounded-xl p-4 flex items-center space-x-3.5 shadow-xs">
-    <div class="w-10 h-10 rounded-lg bg-emerald-100/70 border border-emerald-300/60 flex items-center justify-center text-emerald-800">
-      <Database class="w-5 h-5" />
-    </div>
-    <div>
-      <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Individuals in D1</p>
-      <p class="text-xl font-bold text-stone-900">{people}</p>
-    </div>
-  </div>
-  <div class="bg-stone-50/90 border border-stone-200 rounded-xl p-4 flex items-center space-x-3.5 shadow-xs">
-    <div class="w-10 h-10 rounded-lg bg-orange-100/80 border border-orange-300/60 flex items-center justify-center text-orange-800">
-      <GitBranch class="w-5 h-5" />
-    </div>
-    <div>
-      <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Unions</p>
-      <p class="text-xl font-bold text-stone-900">{unions}</p>
-    </div>
-  </div>
-  <div class="bg-stone-50/90 border border-stone-200 rounded-xl p-4 flex items-center space-x-3.5 shadow-xs">
-    <div class="w-10 h-10 rounded-lg bg-amber-100/80 border border-amber-300/60 flex items-center justify-center text-amber-900">
-      <RefreshCw class="w-5 h-5" />
-    </div>
-    <div class="min-w-0">
-      <p class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Active Tree</p>
-      <p class="text-base font-bold text-stone-900 truncate">{treeName}</p>
-    </div>
-  </div>
+	<div
+		class="flex items-center space-x-3.5 rounded-xl border border-stone-200 bg-stone-50/90 p-4 shadow-xs"
+	>
+		<div
+			class="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-300/60 bg-emerald-100/70 text-emerald-800"
+		>
+			<Database class="h-5 w-5" />
+		</div>
+		<div>
+			<p class="text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+				Individuals in D1
+			</p>
+			<p class="text-xl font-bold text-stone-900">{people}</p>
+		</div>
+	</div>
+	<div
+		class="flex items-center space-x-3.5 rounded-xl border border-stone-200 bg-stone-50/90 p-4 shadow-xs"
+	>
+		<div
+			class="flex h-10 w-10 items-center justify-center rounded-lg border border-orange-300/60 bg-orange-100/80 text-orange-800"
+		>
+			<GitBranch class="h-5 w-5" />
+		</div>
+		<div>
+			<p class="text-[11px] font-semibold tracking-wider text-stone-500 uppercase">Unions</p>
+			<p class="text-xl font-bold text-stone-900">{unions}</p>
+		</div>
+	</div>
+	<div
+		class="flex items-center space-x-3.5 rounded-xl border border-stone-200 bg-stone-50/90 p-4 shadow-xs"
+	>
+		<div
+			class="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-300/60 bg-amber-100/80 text-amber-900"
+		>
+			<RefreshCw class="h-5 w-5" />
+		</div>
+		<div class="min-w-0">
+			<p class="text-[11px] font-semibold tracking-wider text-stone-500 uppercase">Active Tree</p>
+			<p class="truncate text-base font-bold text-stone-900">{treeName}</p>
+		</div>
+	</div>
 </div>

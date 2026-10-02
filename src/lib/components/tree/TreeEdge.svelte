@@ -1,11 +1,6 @@
 <script lang="ts">
 	import type { LayoutEdge, PlacedStub } from '#lib/tree-layout/index.js';
-	import {
-		childEdgePath,
-		childEdgeStyle,
-		partnerEdgePath,
-		stubEdgePath
-	} from './tree-view.js';
+	import { childEdgePath, childEdgeStyle, partnerEdgePath, stubEdgePath } from './tree-view.js';
 
 	interface Props {
 		/** The edge to draw; child edges are styled by their parents' relationship types. */

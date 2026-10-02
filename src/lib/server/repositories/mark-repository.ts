@@ -15,18 +15,33 @@ export class MarkRepository {
 		const rows = await this.db
 			.select({ personId: personMarks.personId })
 			.from(personMarks)
-			.where(and(eq(personMarks.userId, userId), eq(personMarks.treeId, treeId), eq(personMarks.kind, kind)))
+			.where(
+				and(
+					eq(personMarks.userId, userId),
+					eq(personMarks.treeId, treeId),
+					eq(personMarks.kind, kind)
+				)
+			)
 			.orderBy(desc(personMarks.touchedAt), desc(personMarks.id))
 			.all();
 		return rows.map((r) => r.personId);
 	}
 
 	/** Marks the person, or moves an existing mark to the front. Idempotent. */
-	async touch(userId: string, treeId: string, personId: string, kind: MarkKind, now: number): Promise<void> {
+	async touch(
+		userId: string,
+		treeId: string,
+		personId: string,
+		kind: MarkKind,
+		now: number
+	): Promise<void> {
 		await this.db
 			.insert(personMarks)
 			.values({ id: crypto.randomUUID(), userId, treeId, personId, kind, touchedAt: now })
-			.onConflictDoUpdate({ target: [personMarks.userId, personMarks.treeId, personMarks.kind, personMarks.personId], set: { touchedAt: now } });
+			.onConflictDoUpdate({
+				target: [personMarks.userId, personMarks.treeId, personMarks.kind, personMarks.personId],
+				set: { touchedAt: now }
+			});
 		if (kind === 'recent') {
 			// Keep the newest MAX_RECENTS; the list index orders them.
 			await this.db.run(sql`
@@ -38,6 +53,13 @@ export class MarkRepository {
 	async remove(userId: string, treeId: string, personId: string, kind: MarkKind): Promise<void> {
 		await this.db
 			.delete(personMarks)
-			.where(and(eq(personMarks.userId, userId), eq(personMarks.treeId, treeId), eq(personMarks.kind, kind), eq(personMarks.personId, personId)));
+			.where(
+				and(
+					eq(personMarks.userId, userId),
+					eq(personMarks.treeId, treeId),
+					eq(personMarks.kind, kind),
+					eq(personMarks.personId, personId)
+				)
+			);
 	}
 }

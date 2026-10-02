@@ -1,4 +1,8 @@
-import type { RelationshipGraph, RelationshipGraphPerson, RelationshipGraphUnion } from './types.js';
+import type {
+	RelationshipGraph,
+	RelationshipGraphPerson,
+	RelationshipGraphUnion
+} from './types.js';
 
 /**
  * Lookups over a relationship graph, built once per layout. Every list keeps a stable order
@@ -32,7 +36,8 @@ export function rankUnions(unions: RelationshipGraphUnion[]): Map<string, number
 	const keyed = unions.map((u, index) => ({ id: u.id, year: firstYear(u.marriageDate), index }));
 	keyed.sort(
 		(a, b) =>
-			(a.year ?? Number.POSITIVE_INFINITY) - (b.year ?? Number.POSITIVE_INFINITY) || a.index - b.index
+			(a.year ?? Number.POSITIVE_INFINITY) - (b.year ?? Number.POSITIVE_INFINITY) ||
+			a.index - b.index
 	);
 	// Infinity - Infinity is NaN, which `||` treats as falsy, so undated pairs fall through to index.
 	return new Map(keyed.map((k, rank) => [k.id, rank]));

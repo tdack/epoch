@@ -9,12 +9,17 @@ const XREF = { bart: '@I_c2773035@', jessica: '@I_cc833eb7@' } as const;
 
 async function importSimpsons(request: APIRequestContext, api: Api) {
 	const res = await request.post('/api/import', {
-		multipart: { file: { name: 'The_Simpsons_clean.ged', mimeType: 'text/plain', buffer: CLEAN_GED }, treeId: api.treeId, mode: 'replace' }
+		multipart: {
+			file: { name: 'The_Simpsons_clean.ged', mimeType: 'text/plain', buffer: CLEAN_GED },
+			treeId: api.treeId,
+			mode: 'replace'
+		}
 	});
 	expect(res.ok(), await res.text()).toBe(true);
 }
 
-const personPath = (api: Api, xref: string) => `/trees/${api.treeId}/people/${encodeURIComponent(`${api.treeId}:${xref}`)}`;
+const personPath = (api: Api, xref: string) =>
+	`/trees/${api.treeId}/people/${encodeURIComponent(`${api.treeId}:${xref}`)}`;
 
 test('the old address redirects to the tree, keeping the view', async ({ page, request, api }) => {
 	await importSimpsons(request, api);
@@ -33,7 +38,8 @@ test('a tree opens without ever asking for the whole tree', async ({ page, reque
 	await importSimpsons(request, api);
 	const requested: string[] = [];
 	page.on('request', (r) => {
-		if (r.url().includes('/api/')) requested.push(new URL(r.url()).pathname + new URL(r.url()).search);
+		if (r.url().includes('/api/'))
+			requested.push(new URL(r.url()).pathname + new URL(r.url()).search);
 	});
 	await page.goto(`/trees/${api.treeId}`);
 	await expect(card(page, 'Bart')).toBeVisible();
@@ -42,12 +48,17 @@ test('a tree opens without ever asking for the whole tree', async ({ page, reque
 
 	const graphCalls = requested.filter((r) => r.includes('/graph'));
 	expect(graphCalls.length).toBeGreaterThan(0);
-	for (const call of graphCalls) expect(call, 'every graph request names a focus').toContain('focus=');
+	for (const call of graphCalls)
+		expect(call, 'every graph request names a focus').toContain('focus=');
 	// No whole-tree endpoint: not the tree details, not an unfocused graph.
 	expect(requested.filter((r) => r === `/api/trees/${api.treeId}`)).toEqual([]);
 });
 
-test('a person page deep-links, survives a refresh and follows browser history', async ({ page, request, api }) => {
+test('a person page deep-links, survives a refresh and follows browser history', async ({
+	page,
+	request,
+	api
+}) => {
 	await importSimpsons(request, api);
 	await open(page, personPath(api, XREF.bart));
 	await expect(page.getByTestId('person-name')).toHaveText('Bartholomew Jojo Simpson');
@@ -68,7 +79,11 @@ test('a person page deep-links, survives a refresh and follows browser history',
 	expect(page.url()).toBe(homerUrl);
 });
 
-test('the person page shows partnerships, children, siblings and links to the partnership', async ({ page, request, api }) => {
+test('the person page shows partnerships, children, siblings and links to the partnership', async ({
+	page,
+	request,
+	api
+}) => {
 	await importSimpsons(request, api);
 	await open(page, personPath(api, XREF.bart));
 	await expect(page.getByTestId('partnership')).toHaveCount(1);
@@ -78,10 +93,17 @@ test('the person page shows partnerships, children, siblings and links to the pa
 	await expect(page.getByText('Imported records have no history.')).toBeVisible();
 });
 
-test('a partnership page shows partners, events, children and chronology, and deep-links', async ({ page, request, api }) => {
+test('a partnership page shows partners, events, children and chronology, and deep-links', async ({
+	page,
+	request,
+	api
+}) => {
 	await importSimpsons(request, api);
 	await open(page, personPath(api, XREF.bart));
-	await page.getByTestId('parents').getByRole('link', { name: /partnership/i }).click();
+	await page
+		.getByTestId('parents')
+		.getByRole('link', { name: /partnership/i })
+		.click();
 	await expect(page).toHaveURL(new RegExp(`/trees/${api.treeId}/unions/`));
 	await expect(page.getByTestId('partners')).toContainText('Homer');
 	await expect(page.getByTestId('partners')).toContainText('Marge');
@@ -99,17 +121,29 @@ test('a partnership page shows partners, events, children and chronology, and de
 	await expect(page.getByTestId('person-name')).toHaveText('Bartholomew Jojo Simpson');
 });
 
-test('a person who does not exist shows a not-found page, not a blank screen', async ({ page, api }) => {
+test('a person who does not exist shows a not-found page, not a blank screen', async ({
+	page,
+	api
+}) => {
 	const response = await page.goto(`/trees/${api.treeId}/people/nobody`);
 	expect(response?.status()).toBe(404);
 });
 
-test('a partnership page lists its events and warns only where the dates rule something out', async ({ page, api }) => {
-	const [ann, ben] = [await api.addPerson('Ann', 'Reed', { birthDate: '1901' }), await api.addPerson('Ben', 'Reed', { birthDate: '1899' })];
+test('a partnership page lists its events and warns only where the dates rule something out', async ({
+	page,
+	api
+}) => {
+	const [ann, ben] = [
+		await api.addPerson('Ann', 'Reed', { birthDate: '1901' }),
+		await api.addPerson('Ben', 'Reed', { birthDate: '1899' })
+	];
 	await api.partner(ann, ben);
 	const union = (await api.graph()).unions[0]!;
 	const put = await page.request.put(`/api/trees/${api.treeId}/unions/${union.id}`, {
-		data: { version: union.version, events: [{ id: null, type: 'MARR', dateText: '1890', place: 'Leeds' }] }
+		data: {
+			version: union.version,
+			events: [{ id: null, type: 'MARR', dateText: '1890', place: 'Leeds' }]
+		}
 	});
 	expect(put.ok(), await put.text()).toBe(true);
 

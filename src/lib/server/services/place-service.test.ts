@@ -4,7 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
-import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
 import { PlaceService } from './place-service';
 
 const FIXTURE = `0 HEAD
@@ -54,7 +61,8 @@ let t: TestDatabase;
 let treeId: string;
 const actors = {} as Record<TreeRole, TestActor>;
 const places = () => new PlaceService(t.db, () => NOW);
-const names = async (who: TreeRole, q = '') => (await places().list(treeId, { q, limit: 100 }, actors[who].context)).items.map((p) => p.name);
+const names = async (who: TreeRole, q = '') =>
+	(await places().list(treeId, { q, limit: 100 }, actors[who].context)).items.map((p) => p.name);
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -73,8 +81,18 @@ afterAll(async () => {
 describe('for someone who sees everyone', () => {
 	it('lists every place once, whatever the case, in order, with counts', async () => {
 		const page = await places().list(treeId, {}, actors.owner.context);
-		expect(page.items.map((p) => p.name)).toEqual(['100% Hobart_Town', 'Chapelton', 'Cork, Ireland', 'Hobart, Tasmania', 'Perthville', 'Secretstown']);
-		expect(page.items.find((p) => p.name === 'Cork, Ireland')).toMatchObject({ facts: 2, people: 2 });
+		expect(page.items.map((p) => p.name)).toEqual([
+			'100% Hobart_Town',
+			'Chapelton',
+			'Cork, Ireland',
+			'Hobart, Tasmania',
+			'Perthville',
+			'Secretstown'
+		]);
+		expect(page.items.find((p) => p.name === 'Cork, Ireland')).toMatchObject({
+			facts: 2,
+			people: 2
+		});
 		// A partnership's fact is a fact and not a person.
 		expect(page.items.find((p) => p.name === 'Chapelton')).toMatchObject({ facts: 1, people: 0 });
 	});
@@ -92,28 +110,48 @@ describe('for someone who sees everyone', () => {
 	});
 	it('lists the facts at a place, in date order, whichever case it is asked for in', async () => {
 		const dto = await places().detail(treeId, 'CORK, IRELAND', {}, actors.owner.context);
-		expect(dto.facts.map((f) => [f.label, f.dateText, f.entityName])).toEqual([['Birth', '1848', 'Bob Dead'], ['Birth', '1850', 'Alice Dead']]);
+		expect(dto.facts.map((f) => [f.label, f.dateText, f.entityName])).toEqual([
+			['Birth', '1848', 'Bob Dead'],
+			['Birth', '1850', 'Alice Dead']
+		]);
 		const marriage = await places().detail(treeId, 'Chapelton', {}, actors.owner.context);
-		expect(marriage.facts[0]).toMatchObject({ kind: 'partnership', entityName: 'Alice Dead & Bob Dead', label: 'Marriage' });
+		expect(marriage.facts[0]).toMatchObject({
+			kind: 'partnership',
+			entityName: 'Alice Dead & Bob Dead',
+			label: 'Marriage'
+		});
 	});
 	it('answers a page past the end as not found, not as a crash', async () => {
-		await expect(places().detail(treeId, 'Chapelton', { offset: 50 }, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			places().detail(treeId, 'Chapelton', { offset: 50 }, actors.owner.context)
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 	it('answers an unknown place as not found', async () => {
-		await expect(places().detail(treeId, 'Atlantis', {}, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			places().detail(treeId, 'Atlantis', {}, actors.owner.context)
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });
 
 describe.each(['viewer', 'contributor'] as const)('for a %s', (role) => {
 	it('leaves out a place only a private person, or a couple with a private partner, gives', async () => {
-		expect(await names(role)).toEqual(['100% Hobart_Town', 'Chapelton', 'Cork, Ireland', 'Hobart, Tasmania']);
+		expect(await names(role)).toEqual([
+			'100% Hobart_Town',
+			'Chapelton',
+			'Cork, Ireland',
+			'Hobart, Tasmania'
+		]);
 		expect(await names(role, 'perth')).toEqual([]);
 		expect(await names(role, 'secret')).toEqual([]);
 	});
 	it('answers such a place as one nobody wrote', async () => {
 		for (const place of ['Perthville', 'Secretstown']) {
-			const hidden = await places().detail(treeId, place, {}, actors[role].context).catch((e) => e);
-			const missing = await places().detail(treeId, 'Atlantis', {}, actors[role].context).catch((e) => e);
+			const hidden = await places()
+				.detail(treeId, place, {}, actors[role].context)
+				.catch((e) => e);
+			const missing = await places()
+				.detail(treeId, 'Atlantis', {}, actors[role].context)
+				.catch((e) => e);
 			expect(hidden).toBeInstanceOf(NotFoundError);
 			expect(hidden.message.replace(place, 'X')).toBe(missing.message.replace('Atlantis', 'X'));
 		}
@@ -122,6 +160,8 @@ describe.each(['viewer', 'contributor'] as const)('for a %s', (role) => {
 		// Bob's marriage to Livia is at Secretstown; his own birth at Cork is visible.
 		const cork = await places().detail(treeId, 'Cork, Ireland', {}, actors[role].context);
 		expect(cork.facts).toHaveLength(2);
-		expect(JSON.stringify(await places().list(treeId, { limit: 100 }, actors[role].context))).not.toMatch(/Perthville|Secretstown|Livia/);
+		expect(
+			JSON.stringify(await places().list(treeId, { limit: 100 }, actors[role].context))
+		).not.toMatch(/Perthville|Secretstown|Livia/);
 	});
 });

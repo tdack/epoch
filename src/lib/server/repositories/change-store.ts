@@ -62,7 +62,9 @@ type ColumnMap = Record<string, { dataType: string }>;
 const DERIVED_COLUMNS = new Set(['placeId']);
 
 function columnsOf(table: SQLiteTable): ColumnMap {
-	return Object.fromEntries(Object.entries(getTableColumns(table)).filter(([key]) => !DERIVED_COLUMNS.has(key))) as unknown as ColumnMap;
+	return Object.fromEntries(
+		Object.entries(getTableColumns(table)).filter(([key]) => !DERIVED_COLUMNS.has(key))
+	) as unknown as ColumnMap;
 }
 
 /** A row as JSON-safe values: timestamps become epoch milliseconds. */
@@ -119,8 +121,18 @@ export class ChangeStore {
 	async loadRows(treeId: string): Promise<TreeRows> {
 		const { db } = this;
 		const [inds, unionRows, partners, pcs, evs, media, names] = await Promise.all([
-			db.select().from(individuals).where(eq(individuals.treeId, treeId)).orderBy(sql`${individuals}.rowid`).all(),
-			db.select().from(unions).where(eq(unions.treeId, treeId)).orderBy(sql`${unions}.rowid`).all(),
+			db
+				.select()
+				.from(individuals)
+				.where(eq(individuals.treeId, treeId))
+				.orderBy(sql`${individuals}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(unions)
+				.where(eq(unions.treeId, treeId))
+				.orderBy(sql`${unions}.rowid`)
+				.all(),
 			db
 				.select(getTableColumns(unionPartners))
 				.from(unionPartners)
@@ -128,9 +140,24 @@ export class ChangeStore {
 				.where(eq(unions.treeId, treeId))
 				.orderBy(sql`${unionPartners}.rowid`)
 				.all(),
-			db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).orderBy(sql`${parentChild}.rowid`).all(),
-			db.select().from(events).where(eq(events.treeId, treeId)).orderBy(sql`${events}.rowid`).all(),
-			db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).orderBy(sql`${mediaItems}.rowid`).all(),
+			db
+				.select()
+				.from(parentChild)
+				.where(eq(parentChild.treeId, treeId))
+				.orderBy(sql`${parentChild}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(events)
+				.where(eq(events.treeId, treeId))
+				.orderBy(sql`${events}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(mediaItems)
+				.where(eq(mediaItems.treeId, treeId))
+				.orderBy(sql`${mediaItems}.rowid`)
+				.all(),
 			db
 				.select(getTableColumns(personNames))
 				.from(personNames)
@@ -187,12 +214,20 @@ export class ChangeStore {
 		];
 
 		try {
-			await db.batch(statements as unknown as [(typeof statements)[number], ...(typeof statements)[number][]]);
+			await db.batch(
+				statements as unknown as [(typeof statements)[number], ...(typeof statements)[number][]]
+			);
 		} catch (error) {
 			throw translateBatchError(error);
 		}
 
-		return { id: changeId, kind: input.kind, summary: input.summary, changes: input.changes, isUndoable: input.isUndoable };
+		return {
+			id: changeId,
+			kind: input.kind,
+			summary: input.summary,
+			changes: input.changes,
+			isUndoable: input.isUndoable
+		};
 	}
 
 	/**
@@ -228,13 +263,21 @@ export class ChangeStore {
 		}
 		const { db } = this;
 		const upserts = [...keys].map((key) =>
-			db.insert(places).values({ id: crypto.randomUUID(), treeId, nameKey: key, createdAt: new Date() }).onConflictDoNothing()
+			db
+				.insert(places)
+				.values({ id: crypto.randomUUID(), treeId, nameKey: key, createdAt: new Date() })
+				.onConflictDoNothing()
 		);
 		const points = chunk(written, PLACE_IDS_PER_UPDATE).map((group) =>
 			db
 				.update(events)
 				.set({ placeId: placeIdOfEvent })
-				.where(inArray(events.id, group.map((op) => op.id)))
+				.where(
+					inArray(
+						events.id,
+						group.map((op) => op.id)
+					)
+				)
 		);
 		return [...upserts, ...points];
 	}
@@ -311,7 +354,10 @@ export class ChangeStore {
 					and(
 						eq(changeLog.treeId, treeId),
 						gt(changeLog.seq, seq),
-						inArray(changeLogRecords.entityId, part.map((ref) => ref.entityId)),
+						inArray(
+							changeLogRecords.entityId,
+							part.map((ref) => ref.entityId)
+						),
 						sql`not exists (select 1 from ${changeLog} as later where later.reverts_change_id = ${changeLog.id})`,
 						sql`(${changeLog.revertsChangeId} is null or ${changeLog.revertsChangeId} not in (select id from ${changeLog} as target where target.seq > ${seq}))`
 					)
@@ -370,16 +416,21 @@ const GUARD_FAILURE = /NOT NULL constraint failed: change_log\./;
 const ALREADY_REVERTED = /UNIQUE constraint failed: change_log\.reverts_change_id/;
 
 function translateBatchError(error: unknown): unknown {
-	const message = `${(error as Error)?.message ?? ''} ${((error as { cause?: Error })?.cause?.message) ?? ''}`;
+	const message = `${(error as Error)?.message ?? ''} ${(error as { cause?: Error })?.cause?.message ?? ''}`;
 	if (GUARD_FAILURE.test(message)) {
 		// No `current` snapshot here: the batch only knows a row moved, not which entity the person was editing.
 		// The version pre-check in the op builders is what produces the detailed STALE_VERSION conflict.
-		return new ConcurrencyConflictError('Someone else changed this while you were saving it. Reload and try again.', {
-			reason: 'CONCURRENT_WRITE'
-		});
+		return new ConcurrencyConflictError(
+			'Someone else changed this while you were saving it. Reload and try again.',
+			{
+				reason: 'CONCURRENT_WRITE'
+			}
+		);
 	}
 	if (ALREADY_REVERTED.test(message)) {
-		return new ConcurrencyConflictError('That change was already undone.', { reason: 'ALREADY_UNDONE' });
+		return new ConcurrencyConflictError('That change was already undone.', {
+			reason: 'ALREADY_UNDONE'
+		});
 	}
 	return error;
 }

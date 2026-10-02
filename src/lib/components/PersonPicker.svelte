@@ -26,7 +26,8 @@
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let latest = 0;
 
-	const nameOf = (p: PeopleSearchResult) => [p.givenName, p.surname].filter(Boolean).join(' ') || p.id;
+	const nameOf = (p: PeopleSearchResult) =>
+		[p.givenName, p.surname].filter(Boolean).join(' ') || p.id;
 
 	function onInput() {
 		clearTimeout(timer);
@@ -77,7 +78,9 @@
 
 <div class="relative">
 	<label for="{uid}-input" class="block text-xs font-semibold text-stone-700">{label}</label>
-	<p class="mt-0.5 text-sm font-medium text-stone-900" data-testid="picked-{label.toLowerCase()}">{picked ? picked.name : 'Nobody chosen'}</p>
+	<p class="mt-0.5 text-sm font-medium text-stone-900" data-testid="picked-{label.toLowerCase()}">
+		{picked ? picked.name : 'Nobody chosen'}
+	</p>
 	<input
 		id="{uid}-input"
 		type="text"
@@ -90,11 +93,18 @@
 		aria-expanded={isOpen}
 		aria-controls="{uid}-results"
 		aria-autocomplete="list"
-		aria-activedescendant={isOpen && results[highlighted] ? `${uid}-option-${highlighted}` : undefined}
+		aria-activedescendant={isOpen && results[highlighted]
+			? `${uid}-option-${highlighted}`
+			: undefined}
 		class="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
 	/>
 	{#if isOpen}
-		<ul id="{uid}-results" role="listbox" aria-label="{label} results" class="absolute z-10 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-stone-200 bg-white shadow">
+		<ul
+			id="{uid}-results"
+			role="listbox"
+			aria-label="{label} results"
+			class="absolute z-10 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-stone-200 bg-white shadow"
+		>
 			{#each results as option, i (option.id)}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<li
@@ -105,10 +115,19 @@
 					onmouseenter={() => (highlighted = i)}
 					class="cursor-pointer px-3 py-1.5 text-sm {i === highlighted ? 'bg-emerald-50' : ''}"
 				>
-					{option.name}{#if option.alias}<span class="block text-xs text-stone-500">also {option.alias}</span>{/if}
+					{option.name}{#if option.alias}<span class="block text-xs text-stone-500"
+							>also {option.alias}</span
+						>{/if}
 				</li>
 			{:else}
-				<li role="option" aria-selected="false" aria-disabled="true" class="px-3 py-1.5 text-sm text-stone-500">No matching people</li>
+				<li
+					role="option"
+					aria-selected="false"
+					aria-disabled="true"
+					class="px-3 py-1.5 text-sm text-stone-500"
+				>
+					No matching people
+				</li>
 			{/each}
 		</ul>
 	{/if}

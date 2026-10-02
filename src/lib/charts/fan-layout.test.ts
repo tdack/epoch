@@ -2,14 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { FAN, layoutFan } from './fan-layout';
 import type { ChartPerson } from '../shared/charts';
 
-const person = (name: string, birth: string | null = null, death: string | null = null): ChartPerson => ({ id: name, name, isPrivate: false, birth, death });
+const person = (
+	name: string,
+	birth: string | null = null,
+	death: string | null = null
+): ChartPerson => ({ id: name, name, isPrivate: false, birth, death });
 const ring = (g: number) => Array.from({ length: 2 ** g }, (_, k) => person(`g${g}-${k}`));
 const full = (generations: number) => Array.from({ length: generations }, (_, g) => ring(g)).flat();
 
 describe('the fan layout', () => {
 	it('draws one segment per recorded ancestor and none for an empty slot', () => {
 		const slots = [person('me'), person('dad'), null, person('gpa'), null, null, null];
-		expect(layoutFan(slots, 3).segments.map((s) => [s.slot, s.generation])).toEqual([[0, 0], [1, 1], [3, 2]]);
+		expect(layoutFan(slots, 3).segments.map((s) => [s.slot, s.generation])).toEqual([
+			[0, 0],
+			[1, 1],
+			[3, 2]
+		]);
 	});
 
 	it('sizes the canvas to the outer ring, centred at the bottom', () => {

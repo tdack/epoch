@@ -9,9 +9,17 @@
  */
 
 import { TREE_ROLES } from '../../shared/roles';
-import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS, PERSON_PRIVACY_VALUES } from '../../shared/privacy';
+import {
+	MAX_MAX_ALIVE_YEARS,
+	MIN_MAX_ALIVE_YEARS,
+	PERSON_PRIVACY_VALUES
+} from '../../shared/privacy';
 import { z } from 'zod';
-import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
+import {
+	END_EVENT_TYPES,
+	ENDED_UNION_STATUSES,
+	UNION_EVENT_TYPE_LIST
+} from '../../shared/union-events';
 import { SEX_VALUES } from '../../shared/sex';
 import { isFactType } from '../../shared/fact-types';
 import { isNameType } from '../../shared/name-types';
@@ -192,11 +200,9 @@ export const individualCreateSchema = z.object({
 	deathPlace: optionalText
 });
 
-export const individualUpdateSchema = individualCreateSchema
-	.partial()
-	.extend({
-		version: versionSchema
-	});
+export const individualUpdateSchema = individualCreateSchema.partial().extend({
+	version: versionSchema
+});
 
 export const exportBodySchema = z.object({
 	treeId: idSchema,
@@ -213,7 +219,6 @@ export type ImpactRequestInput = z.infer<typeof impactRequestSchema>;
 export type UnionMergeInput = z.infer<typeof unionMergeSchema>;
 export type UnionUpdateInput = z.infer<typeof unionUpdateSchema>;
 export type ExportBodyInput = z.infer<typeof exportBodySchema>;
-
 
 // ---- Facts (Phase 3 fact editor) ----
 
@@ -247,10 +252,14 @@ export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).ma
 /** A preview of a fact change: the same commands the writes take, minus the ids the server mints. */
 export const factImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('create_fact'), personId: idSchema, fact: factCreateSchema }),
-	z.object({ kind: z.literal('update_fact'), factId: idSchema, version: versionSchema.optional(), fact: factUpdateSchema.omit({ version: true }) }),
+	z.object({
+		kind: z.literal('update_fact'),
+		factId: idSchema,
+		version: versionSchema.optional(),
+		fact: factUpdateSchema.omit({ version: true })
+	}),
 	z.object({ kind: z.literal('delete_fact'), factId: idSchema, version: versionSchema.optional() })
 ]);
-
 
 // ---- Places (ADR-019) ----
 
@@ -290,24 +299,49 @@ export const nameUpdateSchema = z.object({
 });
 
 export const nameReorderSchema = z.object({ orderedNameIds: z.array(idSchema).max(200) });
-export const namePreferredSchema = z.object({ nameId: idSchema, version: versionSchema.optional() });
+export const namePreferredSchema = z.object({
+	nameId: idSchema,
+	version: versionSchema.optional()
+});
 
 /** A preview of a name change: the same commands the writes take, minus the ids the server mints. */
 export const nameImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('create_name'), personId: idSchema, name: nameCreateSchema }),
-	z.object({ kind: z.literal('update_name'), nameId: idSchema, version: versionSchema.optional(), name: nameUpdateSchema.omit({ version: true }) }),
+	z.object({
+		kind: z.literal('update_name'),
+		nameId: idSchema,
+		version: versionSchema.optional(),
+		name: nameUpdateSchema.omit({ version: true })
+	}),
 	z.object({ kind: z.literal('delete_name'), nameId: idSchema, version: versionSchema.optional() }),
-	z.object({ kind: z.literal('set_preferred_name'), personId: idSchema, nameId: idSchema, version: versionSchema.optional() })
+	z.object({
+		kind: z.literal('set_preferred_name'),
+		personId: idSchema,
+		nameId: idSchema,
+		version: versionSchema.optional()
+	})
 ]);
 
 /** A manager's override on one person, and the tree's privacy settings (ADR-015). */
-export const personPrivacySchema = z.object({ privacy: z.enum(PERSON_PRIVACY_VALUES), version: versionSchema.optional() });
+export const personPrivacySchema = z.object({
+	privacy: z.enum(PERSON_PRIVACY_VALUES),
+	version: versionSchema.optional()
+});
 export const privacySettingsSchema = z
-	.object({ maxAliveYears: z.number().int().min(MIN_MAX_ALIVE_YEARS).max(MAX_MAX_ALIVE_YEARS), shouldShowPrivateStructure: z.boolean() })
+	.object({
+		maxAliveYears: z.number().int().min(MIN_MAX_ALIVE_YEARS).max(MAX_MAX_ALIVE_YEARS),
+		shouldShowPrivateStructure: z.boolean()
+	})
 	.partial()
-	.refine((v) => v.maxAliveYears !== undefined || v.shouldShowPrivateStructure !== undefined, 'Nothing to change');
+	.refine(
+		(v) => v.maxAliveYears !== undefined || v.shouldShowPrivateStructure !== undefined,
+		'Nothing to change'
+	);
 
 /** Member administration (ADR-016). The role is checked against the caller's own in the service. */
 const memberRoleSchema = z.enum(TREE_ROLES);
-export const inviteMemberSchema = z.object({ email: z.string().trim().min(3).max(254), role: memberRoleSchema });
+export const inviteMemberSchema = z.object({
+	email: z.string().trim().min(3).max(254),
+	role: memberRoleSchema
+});
 export const changeMemberRoleSchema = z.object({ role: memberRoleSchema, version: versionSchema });

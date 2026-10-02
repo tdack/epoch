@@ -18,7 +18,11 @@ describe('isLikelyLiving', () => {
 		['an undated death', [{ type: 'DEAT', dateSortEnd: null }], false],
 		['a burial alone', [{ type: 'BURI', dateSortEnd: null }], false],
 		['a cremation alone', [{ type: 'CREM', dateSortEnd: null }], false],
-		['a death beside a recent birth', [birth('2001-05-05'), { type: 'DEAT', dateSortEnd: null }], false],
+		[
+			'a death beside a recent birth',
+			[birth('2001-05-05'), { type: 'DEAT', dateSortEnd: null }],
+			false
+		],
 		['a birth long ago', [birth('1850-12-31')], false],
 		['a birth the day before the cutoff', [birth('1906-09-30')], false],
 		['a birth on the cutoff day', [birth('1906-10-01')], true],
@@ -29,7 +33,11 @@ describe('isLikelyLiving', () => {
 		['a christening only, recent', [birth('2000-01-01', 'CHR')], true],
 		['an old birth and an undated birth', [birth('1850-01-01'), birth(null)], true],
 		['two old births', [birth('1850-01-01'), birth('1851-01-01', 'CHR')], false],
-		['only facts that are not about birth or death', [{ type: 'OCCU', dateSortEnd: '1700-01-01' }], true]
+		[
+			'only facts that are not about birth or death',
+			[{ type: 'OCCU', dateSortEnd: '1700-01-01' }],
+			true
+		]
 	] as const)('%s', (_name, facts, expected) => {
 		expect(isLikelyLiving(facts, cutoff)).toBe(expected);
 	});

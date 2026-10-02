@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { parentChild } from '../db/schema';
-import { addTestMember, createTestDatabase, createTestUser, type TestDatabase } from '../testing/d1';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestUser,
+	type TestDatabase
+} from '../testing/d1';
 import { RelationshipService } from '../services/relationship-service';
 import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
 import { getTreeExportData, importGedcomToDb } from './importer';
@@ -23,11 +28,20 @@ async function roundTrip(ged: string) {
 	const data = await getTreeExportData(t.d1, treeId);
 	const text551 = buildGedcom551String(data);
 	const text7 = buildGedcom7String(data);
-	return { treeId, data, text551, text7, again551: parseGedcom(text551), again7: parseGedcom(text7) };
+	return {
+		treeId,
+		data,
+		text551,
+		text7,
+		again551: parseGedcom(text551),
+		again7: parseGedcom(text7)
+	};
 }
 
 const pedigreesOf = (parsed: ReturnType<typeof parseGedcom>, familyId = '@F1@') =>
-	Object.fromEntries(parsed.families.find((f) => f.id === familyId)!.children.map((c) => [c.childId, c.pedigree]));
+	Object.fromEntries(
+		parsed.families.find((f) => f.id === familyId)!.children.map((c) => [c.childId, c.pedigree])
+	);
 
 describe('PEDI on FAMC', () => {
 	const ged = `0 HEAD
@@ -59,13 +73,23 @@ ${people(['I1', 'I2'])}
 0 TRLR`;
 
 	it('is read from the child’s FAMC, not only from CHIL', () => {
-		expect(pedigreesOf(parseGedcom(ged))).toEqual({ '@I3@': 'adopted', '@I4@': 'foster', '@I5@': 'sealing', '@I6@': 'birth' });
+		expect(pedigreesOf(parseGedcom(ged))).toEqual({
+			'@I3@': 'adopted',
+			'@I4@': 'foster',
+			'@I5@': 'sealing',
+			'@I6@': 'birth'
+		});
 	});
 
 	it('becomes per-parent link types, keeping sealing as unknown with its PEDI word', async () => {
 		const { treeId } = await roundTrip(ged);
 		const links = await t.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all();
-		const summary = links.map((l) => `${l.parentId.split(':')[1]}>${l.childId.split(':')[1]}:${l.type}:${l.gedcomPedi ?? '-'}`).sort();
+		const summary = links
+			.map(
+				(l) =>
+					`${l.parentId.split(':')[1]}>${l.childId.split(':')[1]}:${l.type}:${l.gedcomPedi ?? '-'}`
+			)
+			.sort();
 		expect(summary).toEqual([
 			'@I1@>@I3@:adoptive:-',
 			'@I1@>@I4@:foster:-',
@@ -83,14 +107,24 @@ ${people(['I1', 'I2'])}
 		expect(text551).toContain('1 FAMC @F1@\r\n2 PEDI adopted');
 		expect(text551).toContain('2 PEDI sealing');
 		expect(text551).not.toMatch(/1 CHIL @I\d@\r\n2 PEDI/);
-		expect(pedigreesOf(again551)).toEqual({ '@I3@': 'adopted', '@I4@': 'foster', '@I5@': 'sealing', '@I6@': 'birth' });
+		expect(pedigreesOf(again551)).toEqual({
+			'@I3@': 'adopted',
+			'@I4@': 'foster',
+			'@I5@': 'sealing',
+			'@I6@': 'birth'
+		});
 	});
 
 	it('writes uppercase values in GEDCOM 7 and reads them back', async () => {
 		const { text7, again7 } = await roundTrip(ged);
 		expect(text7).toContain('2 PEDI ADOPTED');
 		expect(text7).toContain('2 PEDI FOSTER');
-		expect(pedigreesOf(again7)).toEqual({ '@I3@': 'adopted', '@I4@': 'foster', '@I5@': 'sealing', '@I6@': 'birth' });
+		expect(pedigreesOf(again7)).toEqual({
+			'@I3@': 'adopted',
+			'@I4@': 'foster',
+			'@I5@': 'sealing',
+			'@I6@': 'birth'
+		});
 	});
 
 	it('keeps OTHER in GEDCOM 7, and drops it from 5.5.1, which has no such value', async () => {
@@ -111,7 +145,10 @@ ${people(['I1', 'I3', 'I4'])}
 2 PEDI adopted
 1 CHIL @I4@
 2 PEDI foster
-0 TRLR`.replace('0 @I4@ INDI\n1 NAME I4 /Test/', '0 @I4@ INDI\n1 NAME I4 /Test/\n1 FAMC @F1@\n2 PEDI adopted');
+0 TRLR`.replace(
+			'0 @I4@ INDI\n1 NAME I4 /Test/',
+			'0 @I4@ INDI\n1 NAME I4 /Test/\n1 FAMC @F1@\n2 PEDI adopted'
+		);
 		expect(pedigreesOf(parseGedcom(legacy))).toEqual({ '@I3@': 'adopted', '@I4@': 'adopted' });
 	});
 });
@@ -134,7 +171,10 @@ ${people(['I1', 'I2'])}
 	it('imports as two links of different types and exports them back', async () => {
 		const { treeId, text551, again551, again7 } = await roundTrip(ged);
 		const links = await t.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all();
-		expect(links.map((l) => `${l.parentId.split(':')[1]}:${l.type}`).sort()).toEqual(['@I1@:biological', '@I2@:adoptive']);
+		expect(links.map((l) => `${l.parentId.split(':')[1]}:${l.type}`).sort()).toEqual([
+			'@I1@:biological',
+			'@I2@:adoptive'
+		]);
 
 		expect(text551).toContain('1 FAMC @F1@\r\n2 _PEDI_PARENT @I2@\r\n3 PEDI adopted');
 		for (const again of [again551, again7]) {
@@ -179,10 +219,12 @@ ${people(['I1', 'I2'])}
 	});
 
 	it('re-imports the aliases onto the union', async () => {
-		const withAlias = ged.replace('0 @F2@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 NOTE copy two note\n', '').replace(
-			'0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n',
-			'0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 REFN F2\n2 TYPE epoch-merged-family\n'
-		);
+		const withAlias = ged
+			.replace('0 @F2@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 NOTE copy two note\n', '')
+			.replace(
+				'0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n',
+				'0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 REFN F2\n2 TYPE epoch-merged-family\n'
+			);
 		const { treeId, data } = await roundTrip(withAlias);
 		expect(data.families).toHaveLength(1);
 		expect(data.families[0]).toMatchObject({ id: '@F1@', aliases: ['@F2@'] });
@@ -208,12 +250,30 @@ ${people(['I1', 'I2'])}
 1 CHIL @I3@
 0 TRLR`;
 
-	const famcBlock = (text: string) => text.split(/\r?\n/).join('\n').match(/1 FAMC @F1@\n(?:[2-9] .*\n?)*/)![0].trim().split('\n');
+	const famcBlock = (text: string) =>
+		text
+			.split(/\r?\n/)
+			.join('\n')
+			.match(/1 FAMC @F1@\n(?:[2-9] .*\n?)*/)![0]
+			.trim()
+			.split('\n');
 
 	it('keeps STAT and NOTE under the same FAMC, next to the PEDI, in both dialects', async () => {
 		const { text551, text7 } = await roundTrip(ged);
-		expect(famcBlock(text551)).toEqual(['1 FAMC @F1@', '2 PEDI adopted', '2 STAT challenged', '2 NOTE Disputed by a cousin', '3 CONC , see the letter']);
-		expect(famcBlock(text7)).toEqual(['1 FAMC @F1@', '2 PEDI ADOPTED', '2 STAT challenged', '2 NOTE Disputed by a cousin', '3 CONC , see the letter']);
+		expect(famcBlock(text551)).toEqual([
+			'1 FAMC @F1@',
+			'2 PEDI adopted',
+			'2 STAT challenged',
+			'2 NOTE Disputed by a cousin',
+			'3 CONC , see the letter'
+		]);
+		expect(famcBlock(text7)).toEqual([
+			'1 FAMC @F1@',
+			'2 PEDI ADOPTED',
+			'2 STAT challenged',
+			'2 NOTE Disputed by a cousin',
+			'3 CONC , see the letter'
+		]);
 	});
 
 	it('does not write the extras a second time after the record, and is stable over a second round trip', async () => {
@@ -246,7 +306,9 @@ ${people(['I1', 'I2'])}
 1 CHIL @I3@
 0 TRLR`;
 		const treeId = crypto.randomUUID();
-		await importGedcomToDb(t.d1, treeId, merged, 'Merged', 'replace', { shouldMergeDuplicateFamilies: true });
+		await importGedcomToDb(t.d1, treeId, merged, 'Merged', 'replace', {
+			shouldMergeDuplicateFamilies: true
+		});
 		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
 		expect(famcBlock(text)).toEqual(['1 FAMC @F1@', '2 STAT proven', '2 NOTE second copy']);
 	});

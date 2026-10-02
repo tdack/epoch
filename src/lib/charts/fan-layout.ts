@@ -40,12 +40,26 @@ export interface FanLayout {
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
-const point = (cx: number, cy: number, radius: number, angle: number) => ({ x: round(cx + radius * Math.cos(angle)), y: round(cy - radius * Math.sin(angle)) });
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text);
-const dates = (birth: string | null, death: string | null) => (birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '');
+const point = (cx: number, cy: number, radius: number, angle: number) => ({
+	x: round(cx + radius * Math.cos(angle)),
+	y: round(cy - radius * Math.sin(angle))
+});
+const clip = (text: string, max: number) =>
+	text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
+const dates = (birth: string | null, death: string | null) =>
+	birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
 
 /** Room for a label in characters: radial text has one ring's width, and horizontal text a chord. */
-function labelFor(person: ChartPerson, generation: number, cx: number, cy: number, inner: number, outer: number, start: number, end: number): FanLabel {
+function labelFor(
+	person: ChartPerson,
+	generation: number,
+	cx: number,
+	cy: number,
+	inner: number,
+	outer: number,
+	start: number,
+	end: number
+): FanLabel {
 	const mid = (start + end) / 2;
 	const radius = (inner + outer) / 2;
 	const { x, y } = point(cx, cy, radius, mid);
@@ -60,7 +74,10 @@ function labelFor(person: ChartPerson, generation: number, cx: number, cy: numbe
 	return { x, y, rotate, lines: [clip(person.name, room)] };
 }
 
-export function layoutFan(slots: ReadonlyArray<ChartPerson | null>, generations: number): FanLayout {
+export function layoutFan(
+	slots: ReadonlyArray<ChartPerson | null>,
+	generations: number
+): FanLayout {
 	const outer = FAN.centreRadius + (generations - 1) * FAN.ringWidth;
 	const cx = outer + FAN.padding;
 	const cy = outer + FAN.padding;
@@ -87,10 +104,25 @@ export function layoutFan(slots: ReadonlyArray<ChartPerson | null>, generations:
 		}
 		const label =
 			generation === 0
-				? { x: cx, y: round(cy - FAN.centreRadius / 2), rotate: 0, lines: [clip(person.name, 14), ...(dates(person.birth, person.death) ? [clip(dates(person.birth, person.death), 14)] : [])] }
+				? {
+						x: cx,
+						y: round(cy - FAN.centreRadius / 2),
+						rotate: 0,
+						lines: [
+							clip(person.name, 14),
+							...(dates(person.birth, person.death)
+								? [clip(dates(person.birth, person.death), 14)]
+								: [])
+						]
+					}
 				: labelFor(person, generation, cx, cy, inner, outerRadius, start, end);
 		segments.push({ key: `f${i}`, slot: i, generation, person, path, label });
 	});
 
-	return { segments, width: round(2 * cx), height: round(cy + FAN.padding), centre: { x: cx, y: cy } };
+	return {
+		segments,
+		width: round(2 * cx),
+		height: round(cy + FAN.padding),
+		centre: { x: cx, y: cy }
+	};
 }

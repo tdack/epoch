@@ -14,16 +14,44 @@
 	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
 	const links = $derived([
 		{ href: base, label: 'Tree', isActive: page.url.pathname === base },
-		{ href: `${base}/search`, label: 'Search', isActive: page.url.pathname.startsWith(`${base}/search`) },
+		{
+			href: `${base}/search`,
+			label: 'Search',
+			isActive: page.url.pathname.startsWith(`${base}/search`)
+		},
 		{ href: `${base}/people`, label: 'People', isActive: page.url.pathname === `${base}/people` },
-		{ href: `${base}/unions`, label: 'Partnerships', isActive: page.url.pathname === `${base}/unions` },
-		{ href: `${base}/places`, label: 'Places', isActive: page.url.pathname.startsWith(`${base}/place`) },
-		{ href: `${base}/relationship`, label: 'Relationship', isActive: page.url.pathname.startsWith(`${base}/relationship`) },
-		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) },
+		{
+			href: `${base}/unions`,
+			label: 'Partnerships',
+			isActive: page.url.pathname === `${base}/unions`
+		},
+		{
+			href: `${base}/places`,
+			label: 'Places',
+			isActive: page.url.pathname.startsWith(`${base}/place`)
+		},
+		{
+			href: `${base}/relationship`,
+			label: 'Relationship',
+			isActive: page.url.pathname.startsWith(`${base}/relationship`)
+		},
+		{
+			href: `${base}/surnames`,
+			label: 'Surnames',
+			isActive: page.url.pathname.startsWith(`${base}/surnames`)
+		},
 		...(isManagerOrAbove(role)
 			? [
-					{ href: `${base}/members`, label: 'Members', isActive: page.url.pathname.startsWith(`${base}/members`) },
-					{ href: `${base}/privacy`, label: 'Privacy', isActive: page.url.pathname.startsWith(`${base}/privacy`) }
+					{
+						href: `${base}/members`,
+						label: 'Members',
+						isActive: page.url.pathname.startsWith(`${base}/members`)
+					},
+					{
+						href: `${base}/privacy`,
+						label: 'Privacy',
+						isActive: page.url.pathname.startsWith(`${base}/privacy`)
+					}
 				]
 			: [])
 	]);
@@ -34,7 +62,9 @@
 		<a
 			href={link.href}
 			aria-current={link.isActive ? 'page' : undefined}
-			class="rounded-lg px-3 py-1.5 font-semibold {link.isActive ? 'bg-emerald-800 text-white' : 'text-stone-700 hover:bg-stone-200'}"
+			class="rounded-lg px-3 py-1.5 font-semibold {link.isActive
+				? 'bg-emerald-800 text-white'
+				: 'text-stone-700 hover:bg-stone-200'}"
 		>
 			{link.label}
 		</a>

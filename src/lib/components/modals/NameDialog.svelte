@@ -1,219 +1,289 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
-  import ImpactDialog from './ImpactDialog.svelte';
-  import DateInput from '#lib/components/forms/DateInput.svelte';
-  import { checkDateText } from '#lib/shared/date-value.js';
-  import { NAME_TYPE_LABELS, NAME_TYPE_LIST, isNameType, type NameInput, type NameType } from '#lib/shared/name-types.js';
-  import type { NameDto } from '#lib/server/services/person-page-service.js';
-  import { createNameApi, isConflict, previewNameApi, updateNameApi } from '#lib/services/tree-api.js';
-  import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
+	import { tick, untrack } from 'svelte';
+	import ImpactDialog from './ImpactDialog.svelte';
+	import DateInput from '#lib/components/forms/DateInput.svelte';
+	import { checkDateText } from '#lib/shared/date-value.js';
+	import {
+		NAME_TYPE_LABELS,
+		NAME_TYPE_LIST,
+		isNameType,
+		type NameInput,
+		type NameType
+	} from '#lib/shared/name-types.js';
+	import type { NameDto } from '#lib/server/services/person-page-service.js';
+	import {
+		createNameApi,
+		isConflict,
+		previewNameApi,
+		updateNameApi
+	} from '#lib/services/tree-api.js';
+	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
-  interface Props {
-    show: boolean;
-    treeId: string;
-    personId: string;
-    /** The name being edited, or null to add one. A derived name (no id) is edited on the person form, not here. */
-    name: NameDto | null;
-    /** The partnerships this person is in, for "came from a partnership". */
-    partnerships: Array<{ unionId: string; label: string }>;
-    /** Called after a save, with the change so the caller can offer Undo. */
-    onsaved: (change: ChangeSummary | null) => void | Promise<void>;
-    /** Called when the name changed under the person; the caller reloads and reopens with what is stored. */
-    onstale: (message: string) => void | Promise<void>;
-    oncancel: () => void;
-  }
+	interface Props {
+		show: boolean;
+		treeId: string;
+		personId: string;
+		/** The name being edited, or null to add one. A derived name (no id) is edited on the person form, not here. */
+		name: NameDto | null;
+		/** The partnerships this person is in, for "came from a partnership". */
+		partnerships: Array<{ unionId: string; label: string }>;
+		/** Called after a save, with the change so the caller can offer Undo. */
+		onsaved: (change: ChangeSummary | null) => void | Promise<void>;
+		/** Called when the name changed under the person; the caller reloads and reopens with what is stored. */
+		onstale: (message: string) => void | Promise<void>;
+		oncancel: () => void;
+	}
 
-  let { show, treeId, personId, name, partnerships, onsaved, onstale, oncancel }: Props = $props();
+	let { show, treeId, personId, name, partnerships, onsaved, onstale, oncancel }: Props = $props();
 
-  const PREVIEW_DELAY_MS = 250;
+	const PREVIEW_DELAY_MS = 250;
 
-  let type = $state<NameType>('married');
-  let prefix = $state('');
-  let givenName = $state('');
-  let surnamePrefix = $state('');
-  let surname = $state('');
-  let suffix = $state('');
-  let nickname = $state('');
-  let dateText = $state('');
-  let unionId = $state('');
-  let isPreferred = $state(false);
+	let type = $state<NameType>('married');
+	let prefix = $state('');
+	let givenName = $state('');
+	let surnamePrefix = $state('');
+	let surname = $state('');
+	let suffix = $state('');
+	let nickname = $state('');
+	let dateText = $state('');
+	let unionId = $state('');
+	let isPreferred = $state(false);
 
-  let impact = $state<ImpactSummary | null>(null);
-  let previewError = $state<string | null>(null);
-  let saveError = $state<string | null>(null);
-  let isSaving = $state(false);
-  let typeSelect = $state<HTMLSelectElement | null>(null);
-  let previewRequest = 0;
+	let impact = $state<ImpactSummary | null>(null);
+	let previewError = $state<string | null>(null);
+	let saveError = $state<string | null>(null);
+	let isSaving = $state(false);
+	let typeSelect = $state<HTMLSelectElement | null>(null);
+	let previewRequest = 0;
 
-  const isEdit = $derived(name?.id != null);
-  const isDateValid = $derived(checkDateText(dateText).isValid);
-  const hasContent = $derived([prefix, givenName, surnamePrefix, surname, suffix, nickname].some((part) => part.trim() !== ''));
-  const isReady = $derived(isDateValid && hasContent);
-  const field = 'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600';
+	const isEdit = $derived(name?.id != null);
+	const isDateValid = $derived(checkDateText(dateText).isValid);
+	const hasContent = $derived(
+		[prefix, givenName, surnamePrefix, surname, suffix, nickname].some((part) => part.trim() !== '')
+	);
+	const isReady = $derived(isDateValid && hasContent);
+	const field =
+		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600';
 
-  const toInput = (): NameInput => ({
-    type,
-    prefix: prefix.trim() || null,
-    givenName: givenName.trim() || null,
-    surnamePrefix: surnamePrefix.trim() || null,
-    surname: surname.trim() || null,
-    suffix: suffix.trim() || null,
-    nickname: nickname.trim() || null,
-    dateText: dateText.trim() || null,
-    unionId: unionId || null
-  });
+	const toInput = (): NameInput => ({
+		type,
+		prefix: prefix.trim() || null,
+		givenName: givenName.trim() || null,
+		surnamePrefix: surnamePrefix.trim() || null,
+		surname: surname.trim() || null,
+		suffix: suffix.trim() || null,
+		nickname: nickname.trim() || null,
+		dateText: dateText.trim() || null,
+		unionId: unionId || null
+	});
 
-  // Fill the form only when the dialog opens, for the reason FactDialog does: a reload of the page
-  // data underneath must not wipe what has been typed.
-  $effect(() => {
-    if (!show) return;
-    const source = untrack(() => name);
-    type = source && isNameType(source.type) ? source.type : 'married';
-    prefix = source?.prefix ?? '';
-    givenName = source?.givenName ?? '';
-    surnamePrefix = source?.surnamePrefix ?? '';
-    surname = source?.surname ?? '';
-    suffix = source?.suffix ?? '';
-    nickname = source?.nickname ?? '';
-    dateText = source?.dateText ?? '';
-    unionId = source?.unionId ?? '';
-    isPreferred = false;
-    impact = null;
-    previewError = null;
-    saveError = null;
-    void tick().then(() => typeSelect?.focus());
-  });
+	// Fill the form only when the dialog opens, for the reason FactDialog does: a reload of the page
+	// data underneath must not wipe what has been typed.
+	$effect(() => {
+		if (!show) return;
+		const source = untrack(() => name);
+		type = source && isNameType(source.type) ? source.type : 'married';
+		prefix = source?.prefix ?? '';
+		givenName = source?.givenName ?? '';
+		surnamePrefix = source?.surnamePrefix ?? '';
+		surname = source?.surname ?? '';
+		suffix = source?.suffix ?? '';
+		nickname = source?.nickname ?? '';
+		dateText = source?.dateText ?? '';
+		unionId = source?.unionId ?? '';
+		isPreferred = false;
+		impact = null;
+		previewError = null;
+		saveError = null;
+		void tick().then(() => typeSelect?.focus());
+	});
 
-  // What the save would write, refreshed as the form changes. Planned on the server, so the list is
-  // the same operations the save runs.
-  $effect(() => {
-    if (!show) return;
-    const input = toInput();
-    const preferred = isPreferred;
-    const isValid = isReady;
-    const source = untrack(() => name);
-    const timer = setTimeout(async () => {
-      const request = ++previewRequest;
-      if (!isValid) {
-        impact = null;
-        return;
-      }
-      try {
-        const next = source?.id
-          ? await previewNameApi(treeId, { kind: 'update_name', nameId: source.id, version: source.version ?? undefined, name: input })
-          : await previewNameApi(treeId, { kind: 'create_name', personId, name: { ...input, isPreferred: preferred } });
-        if (request !== previewRequest) return;
-        impact = next;
-        previewError = null;
-      } catch (cause: unknown) {
-        if (request !== previewRequest) return;
-        impact = null;
-        previewError = (cause as Error).message;
-      }
-    }, PREVIEW_DELAY_MS);
-    return () => clearTimeout(timer);
-  });
+	// What the save would write, refreshed as the form changes. Planned on the server, so the list is
+	// the same operations the save runs.
+	$effect(() => {
+		if (!show) return;
+		const input = toInput();
+		const preferred = isPreferred;
+		const isValid = isReady;
+		const source = untrack(() => name);
+		const timer = setTimeout(async () => {
+			const request = ++previewRequest;
+			if (!isValid) {
+				impact = null;
+				return;
+			}
+			try {
+				const next = source?.id
+					? await previewNameApi(treeId, {
+							kind: 'update_name',
+							nameId: source.id,
+							version: source.version ?? undefined,
+							name: input
+						})
+					: await previewNameApi(treeId, {
+							kind: 'create_name',
+							personId,
+							name: { ...input, isPreferred: preferred }
+						});
+				if (request !== previewRequest) return;
+				impact = next;
+				previewError = null;
+			} catch (cause: unknown) {
+				if (request !== previewRequest) return;
+				impact = null;
+				previewError = (cause as Error).message;
+			}
+		}, PREVIEW_DELAY_MS);
+		return () => clearTimeout(timer);
+	});
 
-  async function save() {
-    if (!isReady) {
-      saveError = hasContent ? 'Fix the highlighted date before saving.' : 'Give the name at least one part.';
-      return;
-    }
-    isSaving = true;
-    saveError = null;
-    try {
-      const input = toInput();
-      const { change } = name?.id ? await updateNameApi(treeId, name.id, input, name.version ?? 0) : await createNameApi(treeId, personId, input, isPreferred);
-      await onsaved(change);
-    } catch (cause: unknown) {
-      if (isConflict(cause)) await onstale(cause.message);
-      else saveError = (cause as Error).message || 'Could not save the name';
-    } finally {
-      isSaving = false;
-    }
-  }
+	async function save() {
+		if (!isReady) {
+			saveError = hasContent
+				? 'Fix the highlighted date before saving.'
+				: 'Give the name at least one part.';
+			return;
+		}
+		isSaving = true;
+		saveError = null;
+		try {
+			const input = toInput();
+			const { change } = name?.id
+				? await updateNameApi(treeId, name.id, input, name.version ?? 0)
+				: await createNameApi(treeId, personId, input, isPreferred);
+			await onsaved(change);
+		} catch (cause: unknown) {
+			if (isConflict(cause)) await onstale(cause.message);
+			else saveError = (cause as Error).message || 'Could not save the name';
+		} finally {
+			isSaving = false;
+		}
+	}
 </script>
 
 <ImpactDialog
-  {show}
-  title={isEdit ? 'Edit name' : 'Add a name'}
-  {impact}
-  isLoading={show && impact === null && previewError === null && isReady}
-  isConfirming={isSaving}
-  error={saveError ?? previewError}
-  confirmLabel={isEdit ? 'Save name' : 'Add name'}
-  idleMessage={hasContent ? 'Fix the date to see what will change.' : 'Enter a name to see what will change.'}
-  isConfirmBlocked={!isReady}
-  onconfirm={save}
-  {oncancel}
+	{show}
+	title={isEdit ? 'Edit name' : 'Add a name'}
+	{impact}
+	isLoading={show && impact === null && previewError === null && isReady}
+	isConfirming={isSaving}
+	error={saveError ?? previewError}
+	confirmLabel={isEdit ? 'Save name' : 'Add name'}
+	idleMessage={hasContent
+		? 'Fix the date to see what will change.'
+		: 'Enter a name to see what will change.'}
+	isConfirmBlocked={!isReady}
+	onconfirm={save}
+	{oncancel}
 >
-  {#snippet controls()}
-    <form
-      class="space-y-3"
-      data-testid="name-form"
-      onsubmit={(event) => {
-        event.preventDefault();
-        void save();
-      }}
-    >
-      <div>
-        <label for="name-type" class="mb-1 block text-xs font-semibold text-stone-700">Type</label>
-        <select id="name-type" bind:this={typeSelect} bind:value={type} class={field}>
-          {#each NAME_TYPE_LIST as code (code)}<option value={code}>{NAME_TYPE_LABELS[code]}</option>{/each}
-        </select>
-      </div>
+	{#snippet controls()}
+		<form
+			class="space-y-3"
+			data-testid="name-form"
+			onsubmit={(event) => {
+				event.preventDefault();
+				void save();
+			}}
+		>
+			<div>
+				<label for="name-type" class="mb-1 block text-xs font-semibold text-stone-700">Type</label>
+				<select id="name-type" bind:this={typeSelect} bind:value={type} class={field}>
+					{#each NAME_TYPE_LIST as code (code)}<option value={code}>{NAME_TYPE_LABELS[code]}</option
+						>{/each}
+				</select>
+			</div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label for="name-given" class="mb-1 block text-xs font-semibold text-stone-700">Given names</label>
-          <input id="name-given" type="text" bind:value={givenName} class={field} placeholder="e.g. Jessica Louise" />
-        </div>
-        <div>
-          <label for="name-surname" class="mb-1 block text-xs font-semibold text-stone-700">Surname</label>
-          <input id="name-surname" type="text" bind:value={surname} class={field} placeholder="e.g. Smith" />
-        </div>
-      </div>
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label for="name-given" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Given names</label
+					>
+					<input
+						id="name-given"
+						type="text"
+						bind:value={givenName}
+						class={field}
+						placeholder="e.g. Jessica Louise"
+					/>
+				</div>
+				<div>
+					<label for="name-surname" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Surname</label
+					>
+					<input
+						id="name-surname"
+						type="text"
+						bind:value={surname}
+						class={field}
+						placeholder="e.g. Smith"
+					/>
+				</div>
+			</div>
 
-      <div class="grid grid-cols-3 gap-3">
-        <div>
-          <label for="name-prefix" class="mb-1 block text-xs font-semibold text-stone-700">Prefix</label>
-          <input id="name-prefix" type="text" bind:value={prefix} class={field} placeholder="Dr" />
-        </div>
-        <div>
-          <label for="name-surname-prefix" class="mb-1 block text-xs font-semibold text-stone-700">Surname prefix</label>
-          <input id="name-surname-prefix" type="text" bind:value={surnamePrefix} class={field} placeholder="de la" />
-        </div>
-        <div>
-          <label for="name-suffix" class="mb-1 block text-xs font-semibold text-stone-700">Suffix</label>
-          <input id="name-suffix" type="text" bind:value={suffix} class={field} placeholder="Jr" />
-        </div>
-      </div>
+			<div class="grid grid-cols-3 gap-3">
+				<div>
+					<label for="name-prefix" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Prefix</label
+					>
+					<input id="name-prefix" type="text" bind:value={prefix} class={field} placeholder="Dr" />
+				</div>
+				<div>
+					<label for="name-surname-prefix" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Surname prefix</label
+					>
+					<input
+						id="name-surname-prefix"
+						type="text"
+						bind:value={surnamePrefix}
+						class={field}
+						placeholder="de la"
+					/>
+				</div>
+				<div>
+					<label for="name-suffix" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Suffix</label
+					>
+					<input id="name-suffix" type="text" bind:value={suffix} class={field} placeholder="Jr" />
+				</div>
+			</div>
 
-      <div>
-        <label for="name-nickname" class="mb-1 block text-xs font-semibold text-stone-700">Nickname <span class="font-normal text-stone-500">(optional)</span></label>
-        <input id="name-nickname" type="text" bind:value={nickname} class={field} />
-      </div>
+			<div>
+				<label for="name-nickname" class="mb-1 block text-xs font-semibold text-stone-700"
+					>Nickname <span class="font-normal text-stone-500">(optional)</span></label
+				>
+				<input id="name-nickname" type="text" bind:value={nickname} class={field} />
+			</div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label for="name-date" class="mb-1 block text-xs font-semibold text-stone-700">In use from <span class="font-normal text-stone-500">(optional)</span></label>
-          <DateInput id="name-date" bind:value={dateText} inputClass={field} />
-        </div>
-        <div>
-          <label for="name-union" class="mb-1 block text-xs font-semibold text-stone-700">Taken through <span class="font-normal text-stone-500">(optional)</span></label>
-          <select id="name-union" bind:value={unionId} class={field}>
-            <option value="">No partnership</option>
-            {#each partnerships as partnership (partnership.unionId)}<option value={partnership.unionId}>{partnership.label}</option>{/each}
-          </select>
-        </div>
-      </div>
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label for="name-date" class="mb-1 block text-xs font-semibold text-stone-700"
+						>In use from <span class="font-normal text-stone-500">(optional)</span></label
+					>
+					<DateInput id="name-date" bind:value={dateText} inputClass={field} />
+				</div>
+				<div>
+					<label for="name-union" class="mb-1 block text-xs font-semibold text-stone-700"
+						>Taken through <span class="font-normal text-stone-500">(optional)</span></label
+					>
+					<select id="name-union" bind:value={unionId} class={field}>
+						<option value="">No partnership</option>
+						{#each partnerships as partnership (partnership.unionId)}<option
+								value={partnership.unionId}>{partnership.label}</option
+							>{/each}
+					</select>
+				</div>
+			</div>
 
-      {#if !isEdit}
-        <label class="flex items-center gap-2 text-sm text-stone-800">
-          <input type="checkbox" bind:checked={isPreferred} class="h-4 w-4 rounded border-stone-300" />
-          Show this person by this name
-        </label>
-      {/if}
-    </form>
-  {/snippet}
+			{#if !isEdit}
+				<label class="flex items-center gap-2 text-sm text-stone-800">
+					<input
+						type="checkbox"
+						bind:checked={isPreferred}
+						class="h-4 w-4 rounded border-stone-300"
+					/>
+					Show this person by this name
+				</label>
+			{/if}
+		</form>
+	{/snippet}
 </ImpactDialog>

@@ -31,7 +31,9 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 		const { focusPersonId, options } = parseFocusQuery(url.searchParams);
 
 		if (focusPersonId) {
-			return Response.json(await new GraphQueryService(db).focusGraph(treeId, focusPersonId, options, context));
+			return Response.json(
+				await new GraphQueryService(db).focusGraph(treeId, focusPersonId, options, context)
+			);
 		}
 		return Response.json({ graph: await new RelationshipService(db).getGraph(treeId, context) });
 	} catch (err) {

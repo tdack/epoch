@@ -1,9 +1,18 @@
 import { expect, open, test } from './support';
 
-test('search finds a person by a former name and by place and years, says why, and keeps the query in the URL', async ({ page, api, request }) => {
-	const ann = await api.addPerson('Ann', 'Carter', { birthDate: '12 JUN 1852', birthPlace: 'Cork, Ireland' });
+test('search finds a person by a former name and by place and years, says why, and keeps the query in the URL', async ({
+	page,
+	api,
+	request
+}) => {
+	const ann = await api.addPerson('Ann', 'Carter', {
+		birthDate: '12 JUN 1852',
+		birthPlace: 'Cork, Ireland'
+	});
 	await api.addPerson('Bede', 'Brown', { birthDate: '1900', birthPlace: 'Leeds, England' });
-	const res = await request.post(`/api/trees/${api.treeId}/people/${ann.id}/names`, { data: { type: 'birth', givenName: 'Ann', surname: 'Brown' } });
+	const res = await request.post(`/api/trees/${api.treeId}/people/${ann.id}/names`, {
+		data: { type: 'birth', givenName: 'Ann', surname: 'Brown' }
+	});
 	expect(res.ok(), await res.text()).toBe(true);
 
 	await open(page, `/trees/${api.treeId}/search`);
@@ -29,8 +38,12 @@ test('search finds a person by a former name and by place and years, says why, a
 	await expect(page.getByTestId('person-name')).toContainText('Ann Carter');
 });
 
-test('the individuals list pages on the server and the surnames list links to it', async ({ page, api }) => {
-	for (let i = 0; i < 53; i++) await api.addPerson(`P${String(i).padStart(2, '0')}`, i % 2 ? 'Odd' : 'Even');
+test('the individuals list pages on the server and the surnames list links to it', async ({
+	page,
+	api
+}) => {
+	for (let i = 0; i < 53; i++)
+		await api.addPerson(`P${String(i).padStart(2, '0')}`, i % 2 ? 'Odd' : 'Even');
 	await open(page, `/trees/${api.treeId}/people`);
 	const rows = page.getByTestId('people-list').locator('tbody tr');
 	await expect(rows).toHaveCount(50);

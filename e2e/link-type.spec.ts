@@ -1,7 +1,14 @@
 import { card, expect, openTree, test } from './support';
 
-test('changing one parent’s link to adoptive previews the change, leaves the other parent, and undoes', async ({ page, api }) => {
-	const [a, b, c] = [await api.addPerson('Ann'), await api.addPerson('Ben'), await api.addPerson('Cal')];
+test('changing one parent’s link to adoptive previews the change, leaves the other parent, and undoes', async ({
+	page,
+	api
+}) => {
+	const [a, b, c] = [
+		await api.addPerson('Ann'),
+		await api.addPerson('Ben'),
+		await api.addPerson('Cal')
+	];
 	await api.partner(a, b);
 	await api.child(a, c);
 	await api.parent(c, b);
@@ -21,7 +28,9 @@ test('changing one parent’s link to adoptive previews the change, leaves the o
 	await expect(page.getByRole('status').filter({ hasText: 'Ben' })).toBeVisible();
 
 	const types = async () =>
-		Object.fromEntries((await api.graph()).parentChild.map((l) => [l.parentId === a.id ? 'ann' : 'ben', l.type]));
+		Object.fromEntries(
+			(await api.graph()).parentChild.map((l) => [l.parentId === a.id ? 'ann' : 'ben', l.type])
+		);
 	expect(await types()).toEqual({ ann: 'biological', ben: 'adoptive' });
 
 	await page.getByRole('button', { name: 'Undo' }).click();

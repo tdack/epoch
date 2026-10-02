@@ -82,9 +82,7 @@
 					}
 				]
 			},
-			"unionIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@F_62448547@"
-			],
+			"unionIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@F_62448547@"],
 			"stepParents": []
 		},
 		{
@@ -133,9 +131,7 @@
 			"sex": "M",
 			"isDeceased": false,
 			"parentsByUnion": {},
-			"unionIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@F_62448547@"
-			],
+			"unionIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@F_62448547@"],
 			"stepParents": []
 		},
 		{
@@ -356,9 +352,7 @@
 			"status": "active",
 			"marriageDate": null,
 			"marriagePlace": null,
-			"partnerIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_937df8d1@"
-			],
+			"partnerIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_937df8d1@"],
 			"children": []
 		},
 		{
@@ -366,9 +360,7 @@
 			"status": "active",
 			"marriageDate": null,
 			"marriagePlace": null,
-			"partnerIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_7fb420f0@"
-			],
+			"partnerIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_7fb420f0@"],
 			"children": []
 		},
 		{
@@ -408,9 +400,7 @@
 			"status": "active",
 			"marriageDate": null,
 			"marriagePlace": null,
-			"partnerIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_cc833eb7@"
-			],
+			"partnerIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_cc833eb7@"],
 			"children": [
 				{
 					"childId": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_1c2e929c@",
@@ -424,9 +414,7 @@
 			"status": "active",
 			"marriageDate": null,
 			"marriagePlace": null,
-			"partnerIds": [
-				"8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_cc833eb7@"
-			],
+			"partnerIds": ["8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_cc833eb7@"],
 			"children": [
 				{
 					"childId": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_040480da@",

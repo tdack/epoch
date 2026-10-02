@@ -18,7 +18,11 @@ export class FactService {
 		this.runner = new MutationRunner(db, clock);
 	}
 
-	private run(treeId: string, command: FactCommand, context: AuthenticatedContext): Promise<MutationResult> {
+	private run(
+		treeId: string,
+		command: FactCommand,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
 		return this.runner.run(treeId, context, {
 			kind: command.kind,
 			summary: (rows) => describeCommand(command, rows),
@@ -27,25 +31,52 @@ export class FactService {
 	}
 
 	/** What a fact change would write, without writing it. */
-	async preview(treeId: string, command: FactCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
-		return this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows));
+	async preview(
+		treeId: string,
+		command: FactCommand,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		return this.runner.preview(treeId, context, [command], (rows) =>
+			describeCommand(command, rows)
+		);
 	}
 
-	async create(treeId: string, personId: string, fact: FactInput, context: AuthenticatedContext): Promise<{ factId: string } & MutationResult> {
+	async create(
+		treeId: string,
+		personId: string,
+		fact: FactInput,
+		context: AuthenticatedContext
+	): Promise<{ factId: string } & MutationResult> {
 		const factId = this.runner.clock.newId();
 		const result = await this.run(treeId, { kind: 'create_fact', personId, factId, fact }, context);
 		return { factId, ...result };
 	}
 
-	update(treeId: string, factId: string, fact: Partial<FactInput>, expectedVersion: number, context: AuthenticatedContext) {
+	update(
+		treeId: string,
+		factId: string,
+		fact: Partial<FactInput>,
+		expectedVersion: number,
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'update_fact', factId, expectedVersion, fact }, context);
 	}
 
-	remove(treeId: string, factId: string, expectedVersion: number | undefined, context: AuthenticatedContext) {
+	remove(
+		treeId: string,
+		factId: string,
+		expectedVersion: number | undefined,
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'delete_fact', factId, expectedVersion }, context);
 	}
 
-	reorder(treeId: string, personId: string, orderedFactIds: string[], context: AuthenticatedContext) {
+	reorder(
+		treeId: string,
+		personId: string,
+		orderedFactIds: string[],
+		context: AuthenticatedContext
+	) {
 		return this.run(treeId, { kind: 'reorder_facts', personId, orderedFactIds }, context);
 	}
 }

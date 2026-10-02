@@ -13,7 +13,8 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
 	const { id: treeId } = params;
 	if (!treeId) return Response.json({ error: 'Tree ID required' }, { status: 400 });
-	if (!platform?.env?.DB) return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB)
+		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
 
 	try {
 		const service = new PlaceService(getDb(platform.env.DB));
@@ -21,7 +22,9 @@ export const GET: RequestHandler = async ({ params, url, locals, platform }) => 
 		const page = parseListParams(url.searchParams);
 		const name = url.searchParams.get('name');
 		if (name) return Response.json(await service.detail(treeId, name, page, context));
-		return Response.json(await service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, context));
+		return Response.json(
+			await service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, context)
+		);
 	} catch (err) {
 		return errorResponse(err, 'Failed to list places');
 	}

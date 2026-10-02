@@ -24,11 +24,33 @@ describe('partnershipLabels', () => {
 
 	it('orders a pair’s partnerships by when they began, with dates', () => {
 		const labels = partnershipLabels([
-			{ id: 'remarriage', partnerIds: ['b', 'a'], events: [marriage('2001', '2001-01-01'), { type: 'DIV', dateText: '2005', dateSort: '2005-01-01' }] },
-			{ id: 'first', partnerIds: ['a', 'b'], events: [marriage('11 Oct 1980', '1980-10-11'), { type: 'DIV', dateText: '1990', dateSort: '1990-01-01' }] }
+			{
+				id: 'remarriage',
+				partnerIds: ['b', 'a'],
+				events: [
+					marriage('2001', '2001-01-01'),
+					{ type: 'DIV', dateText: '2005', dateSort: '2005-01-01' }
+				]
+			},
+			{
+				id: 'first',
+				partnerIds: ['a', 'b'],
+				events: [
+					marriage('11 Oct 1980', '1980-10-11'),
+					{ type: 'DIV', dateText: '1990', dateSort: '1990-01-01' }
+				]
+			}
 		]);
-		expect(labels.get('first')).toMatchObject({ position: 1, total: 2, title: '1st partnership', full: '1st partnership (m. 11 Oct 1980 – div. 1990)' });
-		expect(labels.get('remarriage')).toMatchObject({ position: 2, full: '2nd partnership (m. 2001 – div. 2005)' });
+		expect(labels.get('first')).toMatchObject({
+			position: 1,
+			total: 2,
+			title: '1st partnership',
+			full: '1st partnership (m. 11 Oct 1980 – div. 1990)'
+		});
+		expect(labels.get('remarriage')).toMatchObject({
+			position: 2,
+			full: '2nd partnership (m. 2001 – div. 2005)'
+		});
 	});
 
 	it('puts undated partnerships after dated ones, in a stable order', () => {
@@ -37,7 +59,8 @@ describe('partnershipLabels', () => {
 			{ id: 'dated', partnerIds: ['a', 'b'], events: [marriage('1990', '1990-01-01')] },
 			{ id: 'y', partnerIds: ['a', 'b'] }
 		];
-		const positions = (list: typeof unions) => [...partnershipLabels(list)].map(([id, l]) => `${id}:${l.position}`).sort();
+		const positions = (list: typeof unions) =>
+			[...partnershipLabels(list)].map(([id, l]) => `${id}:${l.position}`).sort();
 		expect(positions(unions)).toEqual(['dated:1', 'y:2', 'z:3']);
 		expect(positions([...unions].reverse())).toEqual(['dated:1', 'y:2', 'z:3']);
 	});
@@ -74,4 +97,3 @@ describe('undated repeated partnerships', () => {
 		expect(labels.get('a')!.position).toBe(1);
 	});
 });
-

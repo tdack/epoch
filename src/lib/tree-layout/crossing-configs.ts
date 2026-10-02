@@ -8,6 +8,10 @@ export const CROSSING_CONFIGS: FocusViewOptions[] = [
 	{ ancestorDepth: 8, descendantDepth: 8, shouldIncludeSiblings: true }
 ];
 
-export function crossingKey(graphName: string, personIndex: number, config: FocusViewOptions): string {
+export function crossingKey(
+	graphName: string,
+	personIndex: number,
+	config: FocusViewOptions
+): string {
 	return `${graphName}|${personIndex}|${config.ancestorDepth}-${config.descendantDepth}-${config.shouldIncludeSiblings ? 's' : 'n'}`;
 }

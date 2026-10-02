@@ -29,7 +29,17 @@ const edge = {
 } as unknown as ChildEdge;
 
 function render(overrides: Record<string, unknown> = {}) {
-	const props = { edge, childName: 'Cal', nameOf: (id: string) => ({ a: 'Ann', b: 'Ben' })[id] ?? id, x: 0, y: 0, onRemove: vi.fn(), onChangeType: vi.fn(), onClose: vi.fn(), ...overrides };
+	const props = {
+		edge,
+		childName: 'Cal',
+		nameOf: (id: string) => ({ a: 'Ann', b: 'Ben' })[id] ?? id,
+		x: 0,
+		y: 0,
+		onRemove: vi.fn(),
+		onChangeType: vi.fn(),
+		onClose: vi.fn(),
+		...overrides
+	};
 	component = mount(ParentLinkPopover, { target: document.body, props });
 	// bind:this and onMount run in effects; flush them the way the browser's microtask would.
 	flushSync();
@@ -43,13 +53,23 @@ describe('ParentLinkPopover', () => {
 		expect(dialog.getAttribute('aria-modal')).toBe('true');
 		expect(dialog.getAttribute('aria-label')).toBe('Parent links to Cal');
 		expect(dialog.querySelectorAll('li')).toHaveLength(2);
-		expect(dialog.querySelector('button.remove')!.getAttribute('aria-label')).toBe('Remove biological link from Ann…');
+		expect(dialog.querySelector('button.remove')!.getAttribute('aria-label')).toBe(
+			'Remove biological link from Ann…'
+		);
 	});
 
 	it('offers every type except the current one, and reports the chosen change without altering the row', () => {
 		const props = render();
-		const select = document.querySelector('select[aria-label*="from Ben"]') as unknown as SelectLike;
-		expect([...select.options].map((o) => o.value)).toEqual(['', 'biological', 'foster', 'guardian', 'unknown']);
+		const select = document.querySelector(
+			'select[aria-label*="from Ben"]'
+		) as unknown as SelectLike;
+		expect([...select.options].map((o) => o.value)).toEqual([
+			'',
+			'biological',
+			'foster',
+			'guardian',
+			'unknown'
+		]);
 		select.value = 'foster';
 		select.dispatchEvent(new Event('change', { bubbles: true }));
 		expect(props.onChangeType).toHaveBeenCalledWith(edge, edge.assertions[1], 'foster');
@@ -66,7 +86,9 @@ describe('ParentLinkPopover', () => {
 		document.activeElement!.dispatchEvent(tab);
 		expect(tab.defaultPrevented).toBe(true);
 		expect(document.activeElement).toBe(focusable[0]);
-		document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		document.activeElement!.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+		);
 		flushSync();
 		expect(props.onClose).toHaveBeenCalled();
 	});

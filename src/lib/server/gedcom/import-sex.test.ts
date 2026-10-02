@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { individuals } from '../db/schema';
-import { createTestDatabase, createTestTree, createTestUser, type TestDatabase } from '../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestDatabase
+} from '../testing/d1';
 import { GenealogyService } from '../services/genealogy-service';
 import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
 import { getTreeExportData, importGedcomToDb } from './importer';
@@ -15,7 +20,10 @@ afterAll(async () => {
 });
 
 const ged = ['0 HEAD', '0 @I1@ INDI', '1 NAME Sam /Xu/', '1 SEX X', '0 TRLR'].join('\n');
-const sexesOf = async (treeId: string) => (await t.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all()).map((i) => i.sex);
+const sexesOf = async (treeId: string) =>
+	(await t.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all()).map(
+		(i) => i.sex
+	);
 
 describe('sex X end to end (ADR-010)', () => {
 	it('is stored as X on import, not as U', async () => {
@@ -40,9 +48,19 @@ describe('sex X end to end (ADR-010)', () => {
 		const actor = await createTestUser(t.db);
 		const treeId = await createTestTree(t.db, actor);
 		const service = new GenealogyService(t.db);
-		const { individual } = await service.createIndividual(treeId, { givenName: 'Sam', sex: 'X' }, actor.context);
+		const { individual } = await service.createIndividual(
+			treeId,
+			{ givenName: 'Sam', sex: 'X' },
+			actor.context
+		);
 		expect(await sexesOf(treeId)).toEqual(['X']);
-		await service.updateIndividual(treeId, individual.id, individual.version, { sex: 'U' }, actor.context);
+		await service.updateIndividual(
+			treeId,
+			individual.id,
+			individual.version,
+			{ sex: 'U' },
+			actor.context
+		);
 		expect(await sexesOf(treeId)).toEqual(['U']);
 	});
 });

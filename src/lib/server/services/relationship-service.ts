@@ -13,7 +13,11 @@ import type { AuthenticatedContext } from '../domain/identity';
 import { describeImpact, type ImpactSummary } from '../domain/impact';
 import { maskRows } from '../domain/privacy-mask';
 import { graphFromRows } from '../domain/relationship-graph';
-import { planRelationshipCommand, type RelationshipCommand, type RelationshipPlan } from '../domain/relationship-commands';
+import {
+	planRelationshipCommand,
+	type RelationshipCommand,
+	type RelationshipPlan
+} from '../domain/relationship-commands';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { TreeRows } from '../domain/change-log';
 import { mergeConflictsOf } from '../domain/tree-ops';
@@ -67,7 +71,11 @@ export class RelationshipService {
 	}
 
 	/** Produce a preview for an intent without writing anything. */
-	async plan(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<PreviewedPlan> {
+	async plan(
+		treeId: string,
+		intent: RelationshipIntent,
+		context: AuthenticatedContext
+	): Promise<PreviewedPlan> {
 		const { rows, visible, scope, plan } = await this.planFor(treeId, intent, context);
 		const ops = this.runner.planFor(treeId, rows, plan.commands, scope);
 		return { ...plan, impact: describeImpact(plan.sentence, visible, ops) };
@@ -77,7 +85,11 @@ export class RelationshipService {
 	 * Apply an intent. Re-plans against the latest state, so invariants are checked at the moment
 	 * of writing, not when the preview was shown.
 	 */
-	async execute(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext): Promise<ExecutedPlan> {
+	async execute(
+		treeId: string,
+		intent: RelationshipIntent,
+		context: AuthenticatedContext
+	): Promise<ExecutedPlan> {
 		const { rows, plan } = await this.planFor(treeId, intent, context);
 		const result = await this.runner.run(
 			treeId,
@@ -93,16 +105,27 @@ export class RelationshipService {
 	}
 
 	/** What removing something would write, without writing it. Destructive actions show this first. */
-	async previewRemoval(treeId: string, command: RemovalCommand, context: AuthenticatedContext): Promise<ImpactSummary> {
-		return this.runner.preview(treeId, context, [command], (rows) => this.removalHeadline(rows, command));
+	async previewRemoval(
+		treeId: string,
+		command: RemovalCommand,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		return this.runner.preview(treeId, context, [command], (rows) =>
+			this.removalHeadline(rows, command)
+		);
 	}
 
 	/**
 	 * Apply a concrete removal from the canvas: a parent link, a partner, or a whole union. Never
 	 * deletes people; deleting a person goes through the person service.
 	 */
-	async removeRelationship(treeId: string, command: RemovalCommand, context: AuthenticatedContext): Promise<MutationResult> {
-		if (command.kind === 'delete_person') throw new ValidationError('Use the person endpoint to delete a person');
+	async removeRelationship(
+		treeId: string,
+		command: RemovalCommand,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		if (command.kind === 'delete_person')
+			throw new ValidationError('Use the person endpoint to delete a person');
 		return this.runner.run(treeId, context, {
 			kind: command.kind,
 			summary: (rows) => describeCommand(command, rows),
@@ -124,18 +147,31 @@ export class RelationshipService {
 	}
 
 	/** Preview a merge without writing. Open conflicts come back as data, not as an error. */
-	async previewMerge(treeId: string, command: MergeUnionsCommand, context: AuthenticatedContext): Promise<MergePreview> {
+	async previewMerge(
+		treeId: string,
+		command: MergeUnionsCommand,
+		context: AuthenticatedContext
+	): Promise<MergePreview> {
 		// Conflicts are read first, from the rows the caller may see; planning (and its rights check)
 		// follows only once none is left open, as before.
 		const scope = await this.runner.scopeFor(treeId, context, 'record:delete');
 		const visible = this.runner.visibleRows(await this.runner.store.loadRows(treeId), scope);
 		const conflicts = mergeConflictsOf(visible, [command.survivorId, ...command.mergedIds]);
 		if (unresolvedConflicts(conflicts, command.keep).length > 0) return { conflicts, impact: null };
-		return { conflicts, impact: await this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows)) };
+		return {
+			conflicts,
+			impact: await this.runner.preview(treeId, context, [command], (rows) =>
+				describeCommand(command, rows)
+			)
+		};
 	}
 
 	/** Merge partnerships between the same people into one. Refuses while a conflict has no choice. */
-	async mergeUnions(treeId: string, command: MergeUnionsCommand, context: AuthenticatedContext): Promise<MutationResult> {
+	async mergeUnions(
+		treeId: string,
+		command: MergeUnionsCommand,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
 		return this.runner.run(treeId, context, {
 			kind: 'merge_unions',
 			summary: (rows) => describeCommand(command, rows),
@@ -148,13 +184,22 @@ export class RelationshipService {
 		const rows = await this.runner.store.loadRows(treeId);
 		// The whole-tree graph is masked like the window is: placeholders when the tree allows structure.
 		if (!scope.isRestricted) return graphFromRows(rows);
-		const { rows: masked, placeholderIds } = maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId);
+		const { rows: masked, placeholderIds } = maskRows(
+			rows,
+			scope.cutoff,
+			scope.shouldShowPrivateStructure,
+			scope.creatorId
+		);
 		return graphFromRows(masked, placeholderIds);
 	}
 
 	// A restricted viewer's cue ignores private people, or "this name already exists" would tell a
 	// contributor that a private person has it (ADR-015).
-	private async hasDuplicate(treeId: string, intent: RelationshipIntent, scope: ViewerScope): Promise<boolean> {
+	private async hasDuplicate(
+		treeId: string,
+		intent: RelationshipIntent,
+		scope: ViewerScope
+	): Promise<boolean> {
 		let ref;
 		switch (intent.kind) {
 			case 'add_parent':
@@ -174,7 +219,11 @@ export class RelationshipService {
 		}
 		const name = ref.givenName ?? ref.surname;
 		if (!name?.trim()) return false;
-		const { hits } = await this.search.find(treeId, { words: searchWords(name), place: '', from: '', to: '', limit: 25, offset: 0 }, scope);
+		const { hits } = await this.search.find(
+			treeId,
+			{ words: searchWords(name), place: '', from: '', to: '', limit: 25, offset: 0 },
+			scope
+		);
 		// A match is a duplicate cue when it is a different person than the one being linked. A
 		// person being created has no id yet, so any match is a cue.
 		return hits.some((h) => ref.isNew || h.personId !== ref.id);

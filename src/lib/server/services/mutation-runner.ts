@@ -64,7 +64,11 @@ export class MutationRunner {
 		this.treeRepo = new TreeRepository(db);
 	}
 
-	async requireAccess(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<void> {
+	async requireAccess(
+		treeId: string,
+		context: AuthenticatedContext,
+		action: TreeAction
+	): Promise<void> {
 		const membership = await this.userRepo.getMembership(treeId, context.user.id);
 		if (!membership || !isActionAllowed(membership.role, action)) {
 			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
@@ -72,13 +76,34 @@ export class MutationRunner {
 	}
 
 	/** The action check plus what the caller may see of private people (ADR-015). */
-	scopeFor(treeId: string, context: AuthenticatedContext, action: TreeAction): Promise<ViewerScope> {
-		return requireTreeScope(this.userRepo, this.treeRepo, treeId, context, action, new Date(this.clock.now()));
+	scopeFor(
+		treeId: string,
+		context: AuthenticatedContext,
+		action: TreeAction
+	): Promise<ViewerScope> {
+		return requireTreeScope(
+			this.userRepo,
+			this.treeRepo,
+			treeId,
+			context,
+			action,
+			new Date(this.clock.now())
+		);
 	}
 
 	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
-	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[], actorId: string | null): RowOp[] {
-		return buildPlanOps(rows, commands, { treeId, now: this.clock.now(), newId: this.clock.newId, actorId });
+	plan(
+		treeId: string,
+		rows: TreeRows,
+		commands: RelationshipCommand[],
+		actorId: string | null
+	): RowOp[] {
+		return buildPlanOps(rows, commands, {
+			treeId,
+			now: this.clock.now(),
+			newId: this.clock.newId,
+			actorId
+		});
 	}
 
 	/**
@@ -95,12 +120,19 @@ export class MutationRunner {
 	 * real ops are then planned over every row, and refused if they would read or write anything of
 	 * a private person (ADR-015). The refusal reads as a missing permission, not as a reason.
 	 */
-	planFor(treeId: string, rows: TreeRows, commands: RelationshipCommand[], scope: ViewerScope): RowOp[] {
+	planFor(
+		treeId: string,
+		rows: TreeRows,
+		commands: RelationshipCommand[],
+		scope: ViewerScope
+	): RowOp[] {
 		if (!scope.isRestricted) return this.plan(treeId, rows, commands, scope.userId);
 		this.plan(treeId, this.visibleRows(rows, scope), commands, scope.userId);
 		const ops = this.plan(treeId, rows, commands, scope.userId);
 		if (opsTouchPrivate(ops, rows, scope.cutoff, scope.creatorId)) {
-			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`);
+			throw new UnauthorizedError(
+				`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`
+			);
 		}
 		return ops;
 	}
@@ -110,7 +142,11 @@ export class MutationRunner {
 	 * A preview names the records it would touch, so it needs the rights the change itself needs, not
 	 * just `tree:view`.
 	 */
-	async planned(treeId: string, context: AuthenticatedContext, commands: RelationshipCommand[]): Promise<{ rows: TreeRows; visible: TreeRows; ops: RowOp[] }> {
+	async planned(
+		treeId: string,
+		context: AuthenticatedContext,
+		commands: RelationshipCommand[]
+	): Promise<{ rows: TreeRows; visible: TreeRows; ops: RowOp[] }> {
 		// `record:create` first, the weakest right any change needs: a role that can change nothing is
 		// refused before planning, so it cannot tell a private record from a missing one by the error.
 		const scope = await this.scopeFor(treeId, context, 'record:create');
@@ -121,7 +157,12 @@ export class MutationRunner {
 	}
 
 	/** Read-only: what these commands would write, described. Nothing is saved. */
-	async preview(treeId: string, context: AuthenticatedContext, commands: RelationshipCommand[], headline: (rows: TreeRows) => string): Promise<ImpactSummary> {
+	async preview(
+		treeId: string,
+		context: AuthenticatedContext,
+		commands: RelationshipCommand[],
+		headline: (rows: TreeRows) => string
+	): Promise<ImpactSummary> {
 		const { visible, ops } = await this.planned(treeId, context, commands);
 		return describeImpact(headline(visible), visible, ops);
 	}

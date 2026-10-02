@@ -1,12 +1,27 @@
 import { expect, open, test } from './support';
 
-test('the depth and link-type controls change what the tree draws, and live in the address', async ({ api, page }) => {
+test('the depth and link-type controls change what the tree draws, and live in the address', async ({
+	api,
+	page
+}) => {
 	const parent = await api.addPerson('Perry', 'Controls', { birthDate: '1880', deathDate: '1950' });
 	const bio = await api.addPerson('Bio', 'Controls', { birthDate: '1910', deathDate: '1990' });
-	const adopted = await api.addPerson('Addie', 'Controls', { birthDate: '1912', deathDate: '1992' });
-	const grand = await api.addPerson('Grandkid', 'Controls', { birthDate: '1940', deathDate: '2000' });
+	const adopted = await api.addPerson('Addie', 'Controls', {
+		birthDate: '1912',
+		deathDate: '1992'
+	});
+	const grand = await api.addPerson('Grandkid', 'Controls', {
+		birthDate: '1940',
+		deathDate: '2000'
+	});
 	await api.child(parent, bio);
-	await api.relate({ kind: 'add_child', parent: { id: parent.id, givenName: parent.givenName, surname: parent.surname }, child: { id: adopted.id, givenName: adopted.givenName, surname: adopted.surname }, type: 'adoptive', unionLabel: null });
+	await api.relate({
+		kind: 'add_child',
+		parent: { id: parent.id, givenName: parent.givenName, surname: parent.surname },
+		child: { id: adopted.id, givenName: adopted.givenName, surname: adopted.surname },
+		type: 'adoptive',
+		unionLabel: null
+	});
 	await api.child(bio, grand);
 
 	const card = (name: string) => page.locator('[data-person-id]').filter({ hasText: name });

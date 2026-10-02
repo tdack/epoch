@@ -1,4 +1,12 @@
-import { activate, card, chooseMenuItem, expect, openMenuByKeyboard, openTree, test } from './support';
+import {
+	activate,
+	card,
+	chooseMenuItem,
+	expect,
+	openMenuByKeyboard,
+	openTree,
+	test
+} from './support';
 
 test('a keyboard-only flow adds a parent and a partner', async ({ page, api }) => {
 	const sam = await api.addPerson('Sam', 'Smith');
@@ -15,10 +23,14 @@ test('a keyboard-only flow adds a parent and a partner', async ({ page, api }) =
 	await page.keyboard.type('Nia');
 	await dialog.getByLabel('Surname').focus();
 	await page.keyboard.type('Novak');
-	await expect(dialog.getByText("Nia Novak will be recorded as Sam Smith's biological parent.")).toBeVisible();
+	await expect(
+		dialog.getByText("Nia Novak will be recorded as Sam Smith's biological parent.")
+	).toBeVisible();
 	await activate(dialog.getByRole('button', { name: 'Save', exact: true }));
 
-	await expect(page.getByRole('status').filter({ hasText: 'Nia Novak was recorded' })).toBeVisible();
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Nia Novak was recorded' })
+	).toBeVisible();
 	await expect(card(page, 'Nia')).toBeVisible();
 	// Closing a dialog hands focus back to where it came from.
 	await expect(card(page, 'Sam')).toBeFocused();
@@ -43,8 +55,15 @@ test('a keyboard-only flow adds a parent and a partner', async ({ page, api }) =
 	expect([...graph.unions[0].partnerIds].sort()).toEqual([sam.id, byName('Pat').id].sort());
 });
 
-test('Tab from a person reaches its edges and partnership, and Enter opens them', async ({ page, api }) => {
-	const [a, b, c] = [await api.addPerson('Ann'), await api.addPerson('Ben'), await api.addPerson('Cal')];
+test('Tab from a person reaches its edges and partnership, and Enter opens them', async ({
+	page,
+	api
+}) => {
+	const [a, b, c] = [
+		await api.addPerson('Ann'),
+		await api.addPerson('Ben'),
+		await api.addPerson('Cal')
+	];
 	await api.partner(a, b);
 	await api.child(a, c);
 	await api.parent(c, b);
@@ -77,7 +96,8 @@ test('a partnership node is reachable by Tab and Enter opens its editor', async 
 
 	await card(page, 'Ann').focus();
 	const union = page.locator('[data-union-id]');
-	for (let i = 0; i < 6 && !(await union.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab');
+	for (let i = 0; i < 6 && !(await union.evaluate((el) => el === document.activeElement)); i++)
+		await page.keyboard.press('Tab');
 	await expect(union).toBeFocused();
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('dialog', { name: 'Edit partnership' })).toBeVisible();
@@ -88,5 +108,7 @@ test('the card menu opens the details drawer', async ({ page, api }) => {
 	await openTree(page, api, homer);
 	await openMenuByKeyboard(page, 'Homer');
 	await chooseMenuItem(page, 'Show details');
-	await expect(page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })).toBeVisible();
+	await expect(
+		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })
+	).toBeVisible();
 });

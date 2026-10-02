@@ -21,17 +21,25 @@ export interface StepRelatives {
 export function stepRelativesOf(graph: GraphLike, personId: string): StepRelatives {
 	const seenParents = new Set<string>();
 	const stepParents = (graph.people.find((p) => p.id === personId)?.stepParents ?? [])
-		.filter((s) => s.stepParentId !== personId && !seenParents.has(s.stepParentId) && seenParents.add(s.stepParentId))
+		.filter(
+			(s) =>
+				s.stepParentId !== personId &&
+				!seenParents.has(s.stepParentId) &&
+				seenParents.add(s.stepParentId)
+		)
 		.map((s) => ({ personId: s.stepParentId, unionId: s.unionId }));
 
-	const own = new Set(graph.parentChild.filter((l) => l.parentId === personId).map((l) => l.childId));
+	const own = new Set(
+		graph.parentChild.filter((l) => l.parentId === personId).map((l) => l.childId)
+	);
 	const seenChildren = new Set<string>();
 	const stepChildren: StepRelatives['stepChildren'] = [];
 	for (const union of graph.unions.filter((u) => u.partnerIds.includes(personId))) {
 		for (const partnerId of union.partnerIds.filter((id) => id !== personId)) {
 			// The partner's children from any partnership, not only this one: a step-child is usually from an earlier one.
 			for (const link of graph.parentChild.filter((l) => l.parentId === partnerId)) {
-				if (link.childId === personId || own.has(link.childId) || seenChildren.has(link.childId)) continue;
+				if (link.childId === personId || own.has(link.childId) || seenChildren.has(link.childId))
+					continue;
 				seenChildren.add(link.childId);
 				stepChildren.push({ personId: link.childId, viaPartnerId: partnerId, unionId: union.id });
 			}

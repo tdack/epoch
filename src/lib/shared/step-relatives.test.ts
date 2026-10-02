@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { buildRelationshipGraph } from '../server/domain/relationship-graph';
 import { stepRelativesOf } from './step-relatives';
 
-const person = (id: string) => ({ id, givenName: id, surname: null, sex: 'U' as const, isDeceased: false });
+const person = (id: string) => ({
+	id,
+	givenName: id,
+	surname: null,
+	sex: 'U' as const,
+	isDeceased: false
+});
 
 describe('stepRelativesOf', () => {
 	// Ann and Ben have Cal. Ann later partners with Dee, who is not Cal's parent.
@@ -20,7 +26,9 @@ describe('stepRelativesOf', () => {
 
 	it('lists a parent’s new partner as the child’s step-parent, and the child as theirs', () => {
 		expect(stepRelativesOf(graph, 'cal').stepParents).toEqual([{ personId: 'dee', unionId: 'u2' }]);
-		expect(stepRelativesOf(graph, 'dee').stepChildren).toEqual([{ personId: 'cal', viaPartnerId: 'ann', unionId: 'u2' }]);
+		expect(stepRelativesOf(graph, 'dee').stepChildren).toEqual([
+			{ personId: 'cal', viaPartnerId: 'ann', unionId: 'u2' }
+		]);
 	});
 
 	it('does not call a parent’s own co-parent, or a person’s own child, a step relative', () => {

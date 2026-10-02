@@ -80,11 +80,7 @@ export class NeutralGenealogyRepository {
 	}
 
 	async getUnion(treeId: string, unionId: string): Promise<UnionDto | null> {
-		const union = await this.db
-			.select()
-			.from(unions)
-			.where(eq(unions.id, unionId))
-			.get();
+		const union = await this.db.select().from(unions).where(eq(unions.id, unionId)).get();
 		if (!union) return null;
 
 		const partners = await this.db
@@ -112,11 +108,7 @@ export class NeutralGenealogyRepository {
 	}
 
 	async listUnions(treeId: string): Promise<UnionDto[]> {
-		const unionRows = await this.db
-			.select()
-			.from(unions)
-			.where(eq(unions.treeId, treeId))
-			.all();
+		const unionRows = await this.db.select().from(unions).where(eq(unions.treeId, treeId)).all();
 
 		return Promise.all(unionRows.map((u) => this.getUnion(treeId, u.id) as Promise<UnionDto>));
 	}
