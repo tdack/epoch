@@ -331,3 +331,24 @@ pages, not in the queries. A pedigree of eight generations can hold 255 people a
 chart of a prolific founder more; the 3,000 ceiling bounds the worst case and the chart then says
 more lies beyond.
 
+## Places (S10, ADR-018)
+
+A place is the text on a fact, grouped without regard to ASCII case, so the place list is an
+aggregate over the tree's events (linear in the tree, like the surname list) and a place page is a
+lookup on `idx_event_place (tree_id, place collate nocase)` (migration 0015). Visibility comes from
+`andVisible` for a person's fact and an all-partners-visible test for a partnership's, so a place
+only private people or a couple with a private partner give is absent. The viewer and the contributor
+(whose predicate has the creator term) are measured separately and compared; their answers are
+identical. Small tree: 769 events; big: 9,591 (`place-plans.test.ts`).
+
+| Read | Everyone, small / big | Restricted, small / big |
+|---|---|---|
+| Place list, first page | 2,776 / 35,030 | 6,467 / 79,830 |
+| Place list, filtered by a substring | 1,694 / 20,840 | 2,111 / 25,545 |
+| Facts at one place, first page (the commonest place) | 312 / 3,314 | 729 / 8,019 |
+
+The facts read is in proportion to the facts at that place, not the tree: the page orders them by
+date, so every fact at the place is read to return a page. The restricted list pays about 2.3 times
+for looking up each fact's person; the plan test bounds it at 12 rows per event, and the corpus has
+only ten distinct places, so a real tree's list has more rows and the same cost.
+

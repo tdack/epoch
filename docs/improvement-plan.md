@@ -188,10 +188,10 @@ screenshots.
 | 0 | Correlation IDs, typed errors | Present. Handlers still repeat try/catch and `DomainError` mapping in every route, so a shared `handleError` helper would help. |
 | 1 | ADR-004 dates with bounds, precision and qualifier | [date-value.ts](../src/lib/shared/date-value.ts) parses these, but `events` stores only `date_raw` and `date_sort`. The bounds, precision and qualifier are discarded at persistence. |
 | 1 | Neutral sex marker | The graph domain uses `'X'`, but `individuals.sex` allows only `M`, `F` and `U`. |
-| 1 | `place_ref` | Only a literal `place` text column exists. |
+| 1 | `place_ref` | Departure, recorded in ADR-018 (S10): no stored reference. A place is the fact's own text, grouped without regard to case, with a places list, a place page and editor suggestions. |
 | 2 | Intent-based editor covering marriage, separation, divorce, death, end and remove | The modal offers only add parent, add child and add partner. The domain already has `record_death` and `end_union` intents that the UI doesn't expose. Union status and union events (marriage date and place) can't be edited. |
 | 2 | Impact summaries for destructive actions; conflict display | Uses `window.confirm` and `window.alert` ([+page.svelte:331](../src/routes/+page.svelte)). No 409 conflict UI exists. `undoLast` exists server-side but has no UI. |
-| 2 | Depth and relationship-type controls on the graph | Not built. |
+| 2 | Depth and relationship-type controls on the graph | Built (the toolbar's generation steppers and link-type checkboxes, kept in the address); proved in S10 by `e2e/controls.spec.ts`. The row said "not built" after they were. |
 | 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `89cd0c2`). The real problem is duplicate FAMs from import, such as `The_Simpsons.ged`. See [Duplicate unions](#duplicate-unions). |
 | 2 | Keyboard and screen-reader support | Nodes are focusable, but there is no arrow-key navigation, no text alternative to the graph and no focus management in the drawer. |
 
@@ -199,7 +199,7 @@ Phase 2 was reopened when this plan was written. It closed when slices S1–S4 b
 before Phase 3 starts.
 
 After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
-`place_ref` (Phase 1) is still open and belongs to Phase 3 places work.
+`place_ref` (Phase 1) was settled in S10 by ADR-018, which has no stored reference; hierarchy, merging and maps stay Phase 7.
 
 ### Duplicate unions
 
@@ -294,7 +294,8 @@ number prefix can overlap.
 | S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
-| S9 | Members and invitations (done, not deployed) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S10 | Kinship, charts and places (done, local) | A relationship calculator reporting every route, pedigree and descendant charts, the depth and link-type controls proved, and places as the text on a fact. See ADR-017, ADR-018 and [S10 status](#s10-kinship-charts-and-places). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
@@ -354,7 +355,7 @@ Left open or departing from the plan:
 
 ### S8: privacy foundation
 
-**S8 status (2026-10-01): done on `feat/phase-4-s8`, not merged or deployed.** Phase 4 items 3, 4, 5 (people, facts, partnerships), 6 and the read side of 10. See [ADR-015](./decisions.md), [s8-privacy-foundation-prompt.md](./s8-privacy-foundation-prompt.md) and [query-plans.md](./query-plans.md#visibility-s8-adr-015).
+**S8 status (2026-10-01): done, merged and deployed 2026-10-02 (migrations 0012 to 0014 applied remotely, owner check clean).** Phase 4 items 3, 4, 5 (people, facts, partnerships), 6 and the read side of 10. See [ADR-015](./decisions.md), [s8-privacy-foundation-prompt.md](./s8-privacy-foundation-prompt.md) and [query-plans.md](./query-plans.md#visibility-s8-adr-015).
 
 - **Who is private.** A person with a death, burial or cremation fact, or whose latest birth or baptism upper bound is before a cutoff, is not living. The cutoff is 120 years by default, set per tree, computed from an injected `now`. Anyone else, including anyone with no dated fact, is private. `individuals.privacy` (`auto`/`public`/`private`, migration 0012) overrides it; `RESN privacy|confidential` imports as `private` and exports back as `RESN privacy`, and `public` travels as `_EPOCH_PRIVACY public`.
 - **Where it is decided.** One `ViewerScope` per request (`requireTreeScope`); owners, managers and editors see everyone, contributors and viewers do not. The paged reads carry a visibility predicate beside `tree_id`, so totals, `hasMore`, page fill, surname counts and order are computed over what the viewer may see. The reads that load rows mask them (`maskRows`), and the focus window never loads a private person. `filterForViewer` is gone.
@@ -366,7 +367,7 @@ Left open or departing from the plan:
 
 Left open or departing from the plan:
 
-- **Not deployed.** Migration 0012 is applied locally only. Before a deploy: every tree must have an owner (the old request-time grant is gone, so a tree with no member is unreachable); `select t.id from trees t where not exists (select 1 from tree_memberships m where m.tree_id = t.id and m.role = 'owner')` must return nothing remotely.
+- **Deployed 2026-10-02.** Migration 0012 is now applied remotely. The preconditions were: every tree must have an owner (the old request-time grant is gone, so a tree with no member is unreachable); `select t.id from trees t where not exists (select 1 from tree_memberships m where m.tree_id = t.id and m.role = 'owner')` must return nothing remotely.
 - **A contributor's new living person disappears from their own view** until a manager gives a death or a birth date, because uncertain means private. The create forms take dates, but a person added with none is hidden from the person who added them.
 - **Editors see everyone.** An editor can change any record, so hiding one from them only hides what they can already alter. Say if editors should be restricted.
 - **A partnership with any private partner is hidden from a restricted viewer** along with its marriage facts: gone from the lists, the person page and the graph when private people are omitted, and shown with its partners as placeholders and no facts when they are not. A contributor naming such a partnership in a command is answered as if it did not exist.
@@ -379,7 +380,7 @@ Left open or departing from the plan:
 
 ### S9: members and invitations
 
-**S9 status (2026-10-01): done on `feat/phase-4-s9`, not merged or deployed.** Phase 4 item 1, and two decisions about S8. See [ADR-016](./decisions.md).
+**S9 status (2026-10-01): done, merged and deployed 2026-10-02.** Phase 4 item 1, and two decisions about S8. See [ADR-016](./decisions.md).
 
 - **Decided about S8:** editors keep seeing everyone; a contributor sees the people they created while they are private (`individuals.created_by`, migration 0013), and a manager's `private` still hides them.
 - **Members screen** (managers and owners): invite an address with a role, see the offers waiting (with expiry), withdraw one, change a member's role, remove a member with a confirmation.
@@ -389,11 +390,29 @@ Left open or departing from the plan:
 
 Left open:
 
-- **Not deployed.** Migrations 0013 and 0014 are applied locally only. The ownership check in the S8 section still has to be run against the remote database first.
+- **Deployed 2026-10-02.** Migrations 0013 and 0014 are applied remotely, after the S8 ownership check (clean).
 - **Cloudflare Access is separate.** The invited address must also be allowed by the Access policy; the app cannot edit it.
 - **No audit of membership changes,** no invitation email (the manager tells the person), no "leave this tree", and no transfer wizard (an owner makes another owner and steps down).
 - **Contributor-created people:** the creator test first leaked a private partner's partnership to contributors through three-valued logic (`null = x`); found by comparing a contributor's and a viewer's answers, fixed with `is`, and both shapes are now measured and compared in the plan tests.
 - **Flake:** `union-choice.spec.ts` failed once in a full run and passed three times alone.
+
+### S10: kinship, charts and places
+
+**S10 status (2026-10-02): done on `feat/phase-3-s10`.** Phase 3 items 8 and 9, Phase 2's depth and link-type controls (already built; now tested) and Phase 1's `place_ref` (by ADR-018, not as a column). See [ADR-017](./decisions.md), [ADR-018](./decisions.md) and [query-plans.md](./query-plans.md#kin-window-s10-relationship-pedigree-and-descendants).
+
+- **Relationship calculator** (`/relationship?from=&to=`, `domain/relationship-calculator.ts`): every route between two people (the same person, a partnership, blood routes, routes by partnership), each with the people it runs through and any non-biological link named; "1st cousin once removed", gendered words when sex is recorded and neutral ones otherwise; masked for the viewer in memory, so a private person is absent or a "Private" step. Linked from the person page and the tree navigation.
+- **Pedigree and descendant charts** (`/people/[id]/pedigree`, `/descendants`): SVG cards with dates, depth in the address (default 4, at most 8), a card leads to that person's chart, "more above or below" shown when a limit hid people. One bounded kin loader shared with the calculator (about 9 to 13 rows per person).
+- **Places** (`/places`, `/place?name=`): the places a tree's facts name, counts, the facts at a place, a substring search, links from the person and partnership pages and place suggestions in the fact editor. No stored reference: ADR-018.
+- **Tested.** The calculator table (labels, couples, double cousins, step routes, adoption), the services over a real database as owner, viewer and contributor in both placeholder modes, the matrix, the plans on the big tree, and Playwright (relationship, charts, controls, places).
+
+Left open or departing from the plan:
+
+- **No `place_ref` column** (ADR-018): no merge of spellings, rename across facts, hierarchy or maps; Phase 7.
+- **Relationships through a private ancestor are hidden** from a restricted viewer when private people are omitted, with no sign they exist; with placeholders on they show as "Private".
+- **Charts have no separate text outline**; the cards are links in a grouped SVG. A pedigree slot holds two parents (biological first); the person page lists all.
+- **Descendants** list a person's children across partnerships together, in birth order.
+- **Place list cost** is one pass over the tree's events, like the surname list.
+- **Not built:** relationship paths longer than 20 generations or through more than 3,000 people say "stopped at its limit"; fan and hourglass chart styles; place-based search by hierarchy.
 
 ## Decisions (2026-09-29)
 

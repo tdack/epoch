@@ -41,7 +41,7 @@ Redirect old routes to stable deep links and remove legacy aggregate DTOs only a
 
 ## Status against the exit criteria
 
-Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
+Slice S10 (2026-10-02) closed items 8 and 9 and settled `place_ref` (ADR-018). Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
 
 | Work item | Status | Evidence |
 |---|---|---|
@@ -53,8 +53,8 @@ Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person nam
 | 5. Search by name variants, surname, place, dates, XREF; individual, union and surname lists | Met | `/trees/[id]/search` ranks every stored name, XREF, place and year range and says why; `/people`, `/unions`, `/surnames` page on the server (S7); `search-service.test.ts`, `list-service.test.ts`, `e2e/search-lists.spec.ts`. Phonetic search and non-ASCII folding wait |
 | 6. Recent people, favourites, breadcrumbs, focus navigation | Met | Per-user, per-tree recents and favourites in D1 (ADR-014), in the tree strip, the focus box and the person page; `mark-service.test.ts`, `e2e/marks.spec.ts` |
 | 7. Query-specific endpoints and measured indexes | Met for reads | Bounded graph, person, union, search and list endpoints; plans in `query-plans.md`; two name-order indexes added with numbers (S7). Writes still load the whole tree |
-| 8. Relationship calculator | Waiting on a later slice | |
-| 9. Ancestor, descendant and interactive views on one graph-query layer | Partly | The interactive tree runs on the window loader; ancestor and descendant chart views wait |
+| 8. Relationship calculator | Met (S10) | `relationship-calculator.test.ts`, `kinship-service.test.ts`, `e2e/relationship.spec.ts`; ADR-017 |
+| 9. Ancestor, descendant and interactive views on one graph-query layer | Met (S10) | The interactive tree runs on the window loader; the pedigree and descendant charts on the kin loader (`chart-service.test.ts`, `e2e/charts.spec.ts`) |
 
 | Exit criterion | Status | Note |
 |---|---|---|
