@@ -48,8 +48,8 @@ function depth(value: string | null, fallback: number): number {
 	return Math.min(MAX_VIEW_DEPTH, Number(value));
 }
 
-function flag(value: string | null, fallback: boolean): boolean {
-	return value === '1' ? true : value === '0' ? false : fallback;
+function flag(value: string | null, isDefault: boolean): boolean {
+	return value === '1' ? true : value === '0' ? false : isDefault;
 }
 
 export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewState {

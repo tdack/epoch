@@ -422,8 +422,8 @@ const enc = encodeURIComponent;
 export interface FocusGraphQuery {
 	up?: number;
 	down?: number;
-	siblings?: boolean;
-	step?: boolean;
+	shouldIncludeSiblings?: boolean;
+	shouldIncludeStepFamilies?: boolean;
 	/** Opened stubs as URL tokens. */
 	exp?: string[];
 }
@@ -437,8 +437,10 @@ export function fetchFocusGraph(
 	const params = new URLSearchParams({ focus: focusId });
 	if (query.up !== undefined) params.set('up', String(query.up));
 	if (query.down !== undefined) params.set('down', String(query.down));
-	if (query.siblings !== undefined) params.set('siblings', query.siblings ? '1' : '0');
-	if (query.step !== undefined) params.set('step', query.step ? '1' : '0');
+	if (query.shouldIncludeSiblings !== undefined)
+		params.set('siblings', query.shouldIncludeSiblings ? '1' : '0');
+	if (query.shouldIncludeStepFamilies !== undefined)
+		params.set('step', query.shouldIncludeStepFamilies ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
 	return call(
 		`/api/trees/${enc(treeId)}/graph?${params}`,

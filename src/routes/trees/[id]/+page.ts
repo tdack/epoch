@@ -4,6 +4,8 @@ import { ApiError, fetchFocusGraph } from '#lib/services/tree-api.js';
 import type { PageLoad } from './$types';
 
 // The remembered focus lives in localStorage, and the canvas needs the browser anyway.
+// SvelteKit reads this exact name, so it cannot take the boolean prefix.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const ssr = false;
 
 /** The URL parameters that shape the request. `types` is deliberately absent: it filters the drawing, not the fetch. */
@@ -34,8 +36,8 @@ export const load: PageLoad = async ({ params, url, fetch, parent, depends }) =>
 	const query = {
 		up: view.ancestorDepth,
 		down: view.descendantDepth,
-		siblings: view.shouldIncludeSiblings,
-		step: view.shouldIncludeStepFamilies,
+		shouldIncludeSiblings: view.shouldIncludeSiblings,
+		shouldIncludeStepFamilies: view.shouldIncludeStepFamilies,
 		exp: view.expandedStubs
 	};
 
