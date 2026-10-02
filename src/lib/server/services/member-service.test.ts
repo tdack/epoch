@@ -244,7 +244,7 @@ describe('taking up an invitation', () => {
 
 	it('does not take up an expired offer, nor give anything to another address', async () => {
 		const { treeId, actors } = await tree();
-		clockNow = new Date(Date.now() - (INVITATION_TTL_DAYS + 1) * 24 * 60 * 60 * 1000);
+		clockNow = new Date(NOW.getTime() - (INVITATION_TTL_DAYS + 1) * 24 * 60 * 60 * 1000);
 		await service().invite(
 			treeId,
 			{ email: 'late@example.com', role: 'viewer' },
