@@ -412,7 +412,7 @@ Left open or departing from the plan:
 
 - **No `place_ref` column in S10** (ADR-018); S11 added the records, rename and merge (ADR-019). Hierarchy and maps stay Phase 7.
 - **Relationships through a private ancestor are hidden** from a restricted viewer when private people are omitted, with no sign they exist; with placeholders on they show as "Private".
-- **Text outline:** S12 (ADR-020) added a numbered list under the pedigree and fan charts; the descendants and hourglass charts still have none. A pedigree slot holds two parents (biological first); the person page lists all.
+- **Text outline:** S12 (ADR-020) added a numbered list under the pedigree and fan charts, and a nested list of descendants now sits under the descendants chart; the hourglass page carries both. A pedigree slot holds two parents (biological first); the person page lists all.
 - **Descendants** list a person's children across partnerships together, in birth order.
 - **Place list cost** is one pass over the tree's events, like the surname list.
 - **Not built:** relationship paths longer than 20 generations or through more than 3,000 people say "stopped at its limit"; place-based search by hierarchy.

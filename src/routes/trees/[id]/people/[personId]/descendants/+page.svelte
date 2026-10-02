@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ChartCanvas from '#lib/components/charts/ChartCanvas.svelte';
+	import DescendantOutline from '#lib/components/charts/DescendantOutline.svelte';
 	import ChartStyleNav from '#lib/components/charts/ChartStyleNav.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import { layoutDescendants } from '#lib/charts/chart-layout.js';
@@ -35,3 +36,4 @@
 <div class="mt-4">
 	<ChartCanvas {layout} label="Descendants of {subject.name}, {data.chart.generations} generations" hrefFor={(id) => address(id)} />
 </div>
+<DescendantOutline root={data.chart.root} hrefFor={(id) => address(id)} />

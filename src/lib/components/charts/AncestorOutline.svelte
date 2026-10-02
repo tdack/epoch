@@ -6,9 +6,13 @@
 		slots: ReadonlyArray<ChartPerson | null>;
 		/** Where a name leads: the chart of that person. Not called for a "Private" entry. */
 		hrefFor: (personId: string) => string;
+		/** The disclosure's label; the hourglass shows two lists on one page and needs them told apart. */
+		summary?: string;
+		/** Test hook; the hourglass has two lists. */
+		testId?: string;
 	}
 
-	let { slots, hrefFor }: Props = $props();
+	let { slots, hrefFor, summary = 'The same ancestors as a list', testId = 'outline' }: Props = $props();
 
 	const dates = (birth: string | null, death: string | null) => (birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '');
 	const entries = $derived(slots.flatMap((person, i) => (person ? [{ number: i + 1, person }] : [])));
@@ -16,8 +20,8 @@
 	const relation = (n: number) => (n === 1 ? 'the person' : `${n % 2 === 0 ? 'first' : 'second'} parent of ${Math.floor(n / 2)}`);
 </script>
 
-<details class="mt-4 rounded-xl border border-stone-200 bg-white p-3 text-sm" data-testid="outline">
-	<summary class="cursor-pointer font-semibold text-stone-800">The same ancestors as a list</summary>
+<details class="mt-4 rounded-xl border border-stone-200 bg-white p-3 text-sm" data-testid={testId}>
+	<summary class="cursor-pointer font-semibold text-stone-800">{summary}</summary>
 	<p class="mt-2 text-xs text-stone-600">Numbered so that a person's first parent is twice their number and the second is twice plus one.</p>
 	<ol class="mt-2 space-y-1">
 		{#each entries as entry (entry.number)}
