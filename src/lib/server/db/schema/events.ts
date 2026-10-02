@@ -1,6 +1,20 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { trees } from './trees';
+
+// A place record (ADR-019): an identity for the place a fact's text names. The text on the fact stays
+// the authority and `name_key` is derived from it, so a record is found by its text and never
+// edited on its own. Records are not deleted when their last fact moves away: an undo then finds
+// the same record, and the same id, waiting for it.
+export const places = sqliteTable('places', {
+  id: text('id').primaryKey(),
+  treeId: text('tree_id').notNull().references(() => trees.id, { onDelete: 'cascade' }),
+  // The place text in ASCII lower case, which is what SQLite's `nocase` and `lower()` both mean.
+  nameKey: text('name_key').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
+}, (table) => ({
+  keyIdx: uniqueIndex('idx_place_key').on(table.treeId, table.nameKey)
+}));
 
 // Events (Births, Deaths, Marriages, Burials, and extensible GEDCOM types)
 export const events = sqliteTable('events', {
@@ -24,6 +38,9 @@ export const events = sqliteTable('events', {
     enum: ['GREGORIAN', 'JULIAN', 'HEBREW', 'FRENCH_REPUBLICAN', 'UNKNOWN']
   }),
   place: text('place'),
+  // The record for `place`, set by the change store and the importer from the text, never by a
+  // command, so no writer has it to keep in step (ADR-019). Null when the fact names no place.
+  placeId: text('place_id').references(() => places.id, { onDelete: 'set null' }),
   // Written before the fact fields below existed: an imported CAUS, NOTE or line value, which
   // could not be told apart. New facts leave it null and use the specific columns; a fact edited
   // in the editor folds it into `notes` (see fact-commands).
@@ -45,5 +62,6 @@ export const events = sqliteTable('events', {
   treeIdx: index('idx_event_tree').on(table.treeId),
   // A place is the text on a fact, grouped and looked up without regard to case (ADR-018); the
   // place page finds its facts by this, and the place list scans it in order.
+  placeRecordIdx: index('idx_event_place_id').on(table.placeId),
   placeIdx: index('idx_event_place').on(table.treeId, sql`${table.place} collate nocase`)
 }));

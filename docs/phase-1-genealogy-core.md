@@ -17,7 +17,7 @@ Phase 0 identity, migration and service boundaries; reviewed relationship and GE
 - `parent_child`: a direct assertion between two people with type (`biological`, `adoptive`, `foster`, `guardian`, `unknown/other`), optional union context, status, dates, notes and evidence links.
 - `event`: typed, repeatable facts for a person or union (`birth`, `death`, `marriage`, `partnership`, `separation`, `divorce`, `annulment`, burial and extensible GEDCOM types).
 - `date_value`: retain original GEDCOM text plus parsed lower/upper bounds, precision, calendar and qualifier; never convert `1900` or `ABT 1900` to a fabricated exact day.
-- `place_ref` plus literal place text, initially allowing unresolved places. (S10 decided against a stored reference: a place is the fact's own text, grouped without regard to case. See ADR-018.)
+- `place_ref` plus literal place text, initially allowing unresolved places. (S10 shipped places as the fact's own text, grouped without regard to case, ADR-018; S11 added place records and `events.place_id`, derived from that text, with rename and merge, ADR-019.)
 - Stable ordering and record versions.
 
 Step relationships are derived from a parent's relevant union and are not stored as biological parentage. Widowhood is derived from partner death and union history. Death does not delete or rewrite a union. Multiple unions between the same people remain distinct.

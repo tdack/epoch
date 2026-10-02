@@ -29,7 +29,12 @@ export type PersonNameRow = Imaged<typeof personNames.$inferSelect>;
 export type UnionRow = Imaged<typeof unions.$inferSelect>;
 export type UnionPartnerRow = Imaged<typeof unionPartners.$inferSelect>;
 export type ParentChildRow = Imaged<typeof parentChild.$inferSelect>;
-export type EventRow = Imaged<typeof events.$inferSelect>;
+/**
+ * `placeId` is left out of the image on purpose (ADR-019): it is derived from `place` by the change
+ * store and the importer. In an image it would have to match the stored row for an undo to accept
+ * the row as unchanged, which would make every writer responsible for keeping it right.
+ */
+export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
 export type MediaRow = Imaged<typeof mediaItems.$inferSelect>;
 
 /** Every row a tree owns that a mutation can touch. */

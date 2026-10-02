@@ -461,6 +461,16 @@ export async function suggestPlacesApi(treeId: string, text: string): Promise<st
 	return data.items.map((p) => p.name);
 }
 
+/** Rename a place, or merge it into the place that already has `name`; one change, one undo. */
+export async function rewritePlaceApi(treeId: string, placeId: string, name: string): Promise<{ change: ChangeSummary | null; name: string }> {
+	return call(`/api/trees/${enc(treeId)}/places/${enc(placeId)}`, json('PUT', { name }), 'Failed to change the place');
+}
+
+export async function previewPlaceRewriteApi(treeId: string, placeId: string, name: string): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(`/api/trees/${enc(treeId)}/places/${enc(placeId)}/impact`, json('POST', { name }), 'Failed to preview the change');
+	return data.impact;
+}
+
 export type NameImpactRequest =
 	| { kind: 'create_name'; personId: string; name: NameInput & { isPreferred?: boolean } }
 	| { kind: 'update_name'; nameId: string; version?: number; name: Partial<NameInput> }

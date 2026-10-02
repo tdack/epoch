@@ -1,12 +1,47 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Pager from '#lib/components/lists/Pager.svelte';
+	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
+	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import { undoApi } from '#lib/services/tree-api.js';
+	import { hasMinimumRole } from '#lib/shared/roles.js';
+	import type { ChangeSummary } from '#lib/types/genealogy.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+	const { toasts } = getTreeContext();
 
 	const base = $derived(`/trees/${encodeURIComponent(data.summary.tree.id)}`);
 	const place = $derived(data.place);
 	const entityHref = (kind: 'person' | 'partnership', id: string) => `${base}/${kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(id)}`;
+	const placeHref = (name: string) => `${base}/place?name=${encodeURIComponent(name)}`;
+	const role = $derived(data.trees.find((t) => t.id === data.summary.tree.id)?.role);
+	const canEdit = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
+	let isRewriting = $state(false);
+
+	// The address of a place is its text, so a rename moves to the new address; Undo moves back. The
+	// shared editor's undo reloads the current address, which after a rename names no place.
+	async function rewritten(change: ChangeSummary | null, name: string) {
+		const oldName = place.name;
+		isRewriting = false;
+		await goto(placeHref(name), { refreshAll: true });
+		toasts.push(change?.summary ?? 'Place changed', {
+			action: change?.isUndoable
+				? {
+						label: 'Undo',
+						run: async () => {
+							try {
+								const { undone } = await undoApi(data.summary.tree.id);
+								await goto(placeHref(oldName), { refreshAll: true });
+								toasts.push(`Undid: ${undone.summary}`);
+							} catch (cause: unknown) {
+								toasts.push((cause as Error).message || 'Could not undo', { tone: 'error', durationMs: 10_000 });
+							}
+						}
+					}
+				: undefined
+		});
+	}
 	const pageHref = (offset: number) => `${base}/place?name=${encodeURIComponent(place.name)}${offset > 0 ? `&offset=${offset}` : ''}`;
 </script>
 
@@ -17,7 +52,12 @@
 <nav aria-label="Breadcrumb" class="text-sm text-stone-600">
 	<a href="{base}/places" class="font-semibold text-emerald-800 hover:underline">Places</a>
 </nav>
-<h2 class="mt-1 text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h2>
+<div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+	<h2 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h2>
+	{#if canEdit}
+		<button type="button" class="text-sm font-semibold text-emerald-800 hover:underline" data-testid="rename-place" onclick={() => (isRewriting = true)}>Rename or merge</button>
+	{/if}
+</div>
 
 <ul class="mt-4 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white" data-testid="place-facts">
 	{#each place.facts as fact (fact.id)}
@@ -36,3 +76,7 @@
 	previousHref={place.offset > 0 ? pageHref(Math.max(0, place.offset - place.limit)) : null}
 	nextHref={place.hasMore ? pageHref(place.offset + place.limit) : null}
 />
+
+{#if canEdit}
+	<PlaceRewriteDialog show={isRewriting} treeId={data.summary.tree.id} placeId={place.id} currentName={place.name} onsaved={rewritten} oncancel={() => (isRewriting = false)} />
+{/if}

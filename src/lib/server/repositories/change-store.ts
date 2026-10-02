@@ -13,6 +13,7 @@ import {
 	changeLogRecords,
 	events,
 	individuals,
+	places,
 	mediaItems,
 	parentChild,
 	personNames,
@@ -36,6 +37,8 @@ import {
 	type TreeRows
 } from '../domain/change-log';
 import { ConcurrencyConflictError } from '../domain/errors';
+import { placeKey } from '../../shared/places';
+import { placeIdOfEvent } from './place-repository';
 
 const TABLES: Record<RecordTable, SQLiteTable> = {
 	individuals,
@@ -50,10 +53,16 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */
 const RECORDS_PER_INSERT = 30;
 
+/** Event ids bound to one place-pointing update, under the same 100-parameter cap. */
+const PLACE_IDS_PER_UPDATE = 90;
+
 type ColumnMap = Record<string, { dataType: string }>;
 
+/** Columns the store derives rather than records; see `EventRow`. */
+const DERIVED_COLUMNS = new Set(['placeId']);
+
 function columnsOf(table: SQLiteTable): ColumnMap {
-	return getTableColumns(table) as unknown as ColumnMap;
+	return Object.fromEntries(Object.entries(getTableColumns(table)).filter(([key]) => !DERIVED_COLUMNS.has(key))) as unknown as ColumnMap;
 }
 
 /** A row as JSON-safe values: timestamps become epoch milliseconds. */
@@ -160,6 +169,7 @@ export class ChangeStore {
 		const statements = [
 			...applied.filter((op) => op.before !== null).map((op) => this.guard(op)),
 			...applied.map((op) => this.statementFor(op)),
+			...this.placeStatements(input.treeId, applied),
 			db.insert(changeLog).values({
 				id: changeId,
 				treeId: input.treeId,
@@ -200,6 +210,33 @@ export class ChangeStore {
 		return (this.db.insert(changeLog) as unknown as { select: (query: unknown) => never }).select(
 			sql`select ${nulls} where not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch})`
 		);
+	}
+
+	/**
+	 * Point every written fact at the record for its place text (ADR-019), in the same batch. Doing
+	 * it here, from the text, is what lets commands, a union merge and an undo of a change logged
+	 * before `place_id` existed all come out right without any of them knowing about records: the
+	 * image an op carries has an old or empty `place_id`, and this overwrites it from the text.
+	 */
+	private placeStatements(treeId: string, ops: RowOp[]) {
+		const written = ops.filter((op) => op.table === 'events' && op.after !== null);
+		if (written.length === 0) return [];
+		const keys = new Set<string>();
+		for (const op of written) {
+			const place = (op.after as { place?: string | null }).place;
+			if (place) keys.add(placeKey(place));
+		}
+		const { db } = this;
+		const upserts = [...keys].map((key) =>
+			db.insert(places).values({ id: crypto.randomUUID(), treeId, nameKey: key, createdAt: new Date() }).onConflictDoNothing()
+		);
+		const points = chunk(written, PLACE_IDS_PER_UPDATE).map((group) =>
+			db
+				.update(events)
+				.set({ placeId: placeIdOfEvent })
+				.where(inArray(events.id, group.map((op) => op.id)))
+		);
+		return [...upserts, ...points];
 	}
 
 	private statementFor(op: RowOp) {
@@ -262,24 +299,29 @@ export class ChangeStore {
 		seq: number,
 		refs: AffectedRecordRef[]
 	): Promise<{ summary: string } | null> {
-		if (refs.length === 0) return null;
-		const row = await this.db
-			.select({ summary: changeLog.summary })
-			.from(changeLog)
-			.innerJoin(changeLogRecords, eq(changeLogRecords.changeId, changeLog.id))
-			.where(
-				and(
-					eq(changeLog.treeId, treeId),
-					gt(changeLog.seq, seq),
-					inArray(changeLogRecords.entityId, refs.map((ref) => ref.entityId)),
-					sql`not exists (select 1 from ${changeLog} as later where later.reverts_change_id = ${changeLog.id})`,
-					sql`(${changeLog.revertsChangeId} is null or ${changeLog.revertsChangeId} not in (select id from ${changeLog} as target where target.seq > ${seq}))`
+		// D1 binds at most 100 variables a statement and a change can name hundreds of records (a place
+		// rename does), so ask a chunk at a time and keep the earliest answer.
+		let first: { summary: string; seq: number } | null = null;
+		for (const part of chunk(refs, 80)) {
+			const row = await this.db
+				.select({ summary: changeLog.summary, seq: changeLog.seq })
+				.from(changeLog)
+				.innerJoin(changeLogRecords, eq(changeLogRecords.changeId, changeLog.id))
+				.where(
+					and(
+						eq(changeLog.treeId, treeId),
+						gt(changeLog.seq, seq),
+						inArray(changeLogRecords.entityId, part.map((ref) => ref.entityId)),
+						sql`not exists (select 1 from ${changeLog} as later where later.reverts_change_id = ${changeLog.id})`,
+						sql`(${changeLog.revertsChangeId} is null or ${changeLog.revertsChangeId} not in (select id from ${changeLog} as target where target.seq > ${seq}))`
+					)
 				)
-			)
-			.orderBy(sql`${changeLog.seq} asc`)
-			.limit(1)
-			.get();
-		return row ?? null;
+				.orderBy(sql`${changeLog.seq} asc`)
+				.limit(1)
+				.get();
+			if (row && (first === null || row.seq < first.seq)) first = row;
+		}
+		return first ? { summary: first.summary } : null;
 	}
 
 	/** Current images of specific rows, for checking whether an undo still applies. */

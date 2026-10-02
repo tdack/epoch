@@ -34,3 +34,24 @@ test('places are listed once however their case varies, open onto their facts, a
 	await expect(page.locator('#fact-place-options option')).toHaveCount(1);
 	await expect(page.locator('#fact-place-options option').first()).toHaveAttribute('value', 'Cork, Ireland');
 });
+
+test('a place is renamed, merged into another and put back with one undo each', async ({ api, page }) => {
+	await api.addPerson('Renny', 'Placed', { birthDate: '1850', birthPlace: 'Corke' });
+	await api.addPerson('Merry', 'Placed', { birthDate: '1852', birthPlace: 'Cork' });
+
+	await open(page, `/trees/${api.treeId}/place?name=Corke`);
+	await page.getByTestId('rename-place').click();
+	const dialog = page.getByRole('dialog', { name: 'Rename or merge this place' });
+	await dialog.getByLabel('Name on every fact at this place').fill('Cork');
+	await expect(dialog).toContainText('Birth of Renny Placed');
+	await page.screenshot({ path: `${SHOTS}/place-merge.png` });
+	await dialog.getByRole('button', { name: 'Change place' }).click();
+
+	// Merging moved the facts, and the address with them.
+	await expect(page).toHaveURL(/name=Cork$/);
+	await expect(page.getByTestId('place-facts').getByRole('listitem')).toHaveCount(2);
+
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(page).toHaveURL(/name=Corke$/);
+	await expect(page.getByTestId('place-facts').getByRole('listitem')).toHaveCount(1);
+});

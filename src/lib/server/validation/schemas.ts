@@ -252,6 +252,11 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 ]);
 
 
+// ---- Places (ADR-019) ----
+
+/** The text every fact at a place will carry; a name another place has makes it a merge into that place. */
+export const placeRewriteSchema = z.object({ name: z.string().trim().min(1).max(200) });
+
 // ---- Names (Phase 3, S6) ----
 
 const nameTypeSchema = z.string().refine(isNameType, { message: 'not a name type' });

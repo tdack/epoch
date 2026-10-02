@@ -26,6 +26,7 @@ import type { LabelableUnion } from '../../shared/partnership-labels';
 import { ConcurrencyConflictError, NotFoundError, UnionMergeConflictError, ValidationError } from './errors';
 import type { ParentChild, UnionStatus } from './genealogy-model';
 import { buildFactOps } from './fact-ops';
+import { buildPlaceOps } from './place-ops';
 import { buildNameOps, initialNameOp, preferredNameOps } from './name-ops';
 import { validateParentChildAssertion } from './invariants';
 import type { RelationshipCommand } from './relationship-commands';
@@ -693,6 +694,8 @@ export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpCo
 		case 'reorder_names':
 		case 'set_preferred_name':
 			return buildNameOps(rows, command, ctx);
+		case 'rewrite_place':
+			return buildPlaceOps(rows, command, ctx);
 		case 'create_person':
 			return createPerson(rows, ctx, command);
 		case 'update_person':

@@ -5,6 +5,7 @@
 
 import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
+import { factsAtPlace } from './place-ops';
 import { displayNameOf, partnerIdsOf, personName } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
@@ -59,6 +60,10 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Removed the ${factName(rows, command.factId)} of ${factOwner(rows, command.factId)}`;
 		case 'reorder_facts':
 			return `Reordered the facts of ${nameOf(rows, command.personId)}`;
+		case 'rewrite_place': {
+			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
+			return `Changed the place ${from} to ${command.to.trim()}`;
+		}
 		case 'create_name':
 			return `Added ${nameKind(rows, command.nameId, command.name.type)} ${formatFullName(command.name)} to ${nameOf(rows, command.personId)}`;
 		case 'update_name':
