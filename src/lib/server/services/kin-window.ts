@@ -1,0 +1,108 @@
+/**
+ * A bounded slice of a tree around some people, for the reads that follow descent: the
+ * relationship calculator (ancestors of two people and their partners) and the pedigree and
+ * descendant charts. Like the focus window it follows relationships outwards instead of reading
+ * the whole tree, one query per generation, and it stops at a generation limit and at a total, so a
+ * wide or deep tree costs a bounded number of reads.
+ *
+ * It loads rows and decides nothing about privacy: the caller masks the result for its viewer,
+ * which needs the birth and death events this always includes.
+ */
+
+import type { EventRow, IndividualRow, ParentChildRow, PersonNameRow, TreeRows, UnionPartnerRow, UnionRow } from '../domain/change-log';
+import type { GraphWindowRepository, Ranked } from '../repositories/graph-window-repository';
+
+/** What privacy and a chart card both need: vitals and the facts that say someone has died. */
+const VITAL_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as const;
+
+/** Most people one window loads. A pedigree of 20 generations could be a million; this is a ceiling. */
+export const MAX_WINDOW_PEOPLE = 3000;
+
+export interface KinWindowRequest {
+	treeId: string;
+	startIds: readonly string[];
+	/** Generations of parents to load above every start person. */
+	ancestorGenerations: number;
+	/** Generations of children to load below every start person. */
+	descendantGenerations: number;
+	/** Load partners of the start people only, or of everyone loaded (a descendant chart shows couples). */
+	partnersOf: 'starts' | 'all';
+}
+
+export interface KinWindow {
+	rows: TreeRows;
+	/** The people asked for that exist in the tree. */
+	foundStartIds: string[];
+	/** True when a generation or total limit cut the load short, so absence is not proof. */
+	isTruncated: boolean;
+}
+
+const rowsOf = <T>(ranked: Array<Ranked<T>>) => [...ranked].sort((a, b) => a.rid - b.rid).map((r) => r.row);
+
+export async function loadKinWindow(repo: GraphWindowRepository, request: KinWindowRequest): Promise<KinWindow> {
+	const { treeId } = request;
+	const people = new Set<string>(request.startIds);
+	const links = new Map<string, Ranked<ParentChildRow>>();
+	let isTruncated = false;
+
+	// Generation by generation outwards; a link found twice (as someone's parent link and another's child link) is kept once.
+	async function walk(direction: 'child' | 'parent', generations: number) {
+		let frontier = [...request.startIds];
+		const seen = new Set(frontier);
+		for (let depth = 0; frontier.length > 0; depth++) {
+			if (depth >= generations) {
+				// One more look says whether the limit hid anything, so a chart can say "more above".
+				const [beyond] = await repo.run(repo.linksBy(treeId, direction, frontier));
+				if (beyond.length > 0) isTruncated = true;
+				return;
+			}
+			const [found] = await repo.run(repo.linksBy(treeId, direction, frontier));
+			const next: string[] = [];
+			for (const link of found) {
+				links.set(link.row.id, link);
+				const other = direction === 'child' ? link.row.parentId : link.row.childId;
+				people.add(link.row.parentId);
+				people.add(link.row.childId);
+				if (!seen.has(other)) {
+					seen.add(other);
+					next.push(other);
+				}
+			}
+			if (people.size > MAX_WINDOW_PEOPLE) {
+				isTruncated = true;
+				return;
+			}
+			frontier = next;
+		}
+	}
+	await walk('child', request.ancestorGenerations);
+	await walk('parent', request.descendantGenerations);
+
+	const partnerOwners = request.partnersOf === 'all' ? [...people] : [...request.startIds];
+	const [ownPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, partnerOwners));
+	const unionIds = [...new Set(ownPartnerships.map((p) => p.row.unionId))];
+	const [partnerRows, unionRows] = await repo.run(repo.partnerRowsOfUnions(treeId, unionIds), repo.unionsIn(treeId, unionIds));
+	for (const p of partnerRows) people.add(p.row.personId);
+
+	const ids = [...people];
+	const [individuals, events, names] = await repo.run(
+		repo.individualsIn(treeId, ids),
+		repo.eventsOf(treeId, 'INDIVIDUAL', ids, VITAL_EVENT_TYPES),
+		repo.namesOf(ids)
+	);
+	const existing = new Set(individuals.map((i) => i.row.id));
+	return {
+		rows: {
+			individuals: rowsOf<IndividualRow>(individuals),
+			personNames: rowsOf<PersonNameRow>(names),
+			unions: rowsOf<UnionRow>(unionRows),
+			unionPartners: rowsOf<UnionPartnerRow>(partnerRows),
+			// A link whose far end is not in the tree (or another tree) is not a relationship here.
+			parentChild: rowsOf([...links.values()]).filter((l) => existing.has(l.parentId) && existing.has(l.childId)),
+			events: rowsOf<EventRow>(events),
+			mediaItems: []
+		},
+		foundStartIds: request.startIds.filter((id) => existing.has(id)),
+		isTruncated
+	};
+}
