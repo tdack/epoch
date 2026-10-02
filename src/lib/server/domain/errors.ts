@@ -6,6 +6,7 @@ export type ErrorCode =
   | 'CONCURRENCY_CONFLICT'
   | 'UNDO_REFUSED'
   | 'UNION_MERGE_CONFLICT'
+  | 'PERSON_MERGE_CONFLICT'
   | 'INTERNAL_ERROR'
   | 'BAD_REQUEST';
 
@@ -63,6 +64,14 @@ export class UndoRefusedError extends DomainError {
   constructor(message: string, reason: string, status = 409) {
     super(message, 'UNDO_REFUSED', status, { reason });
     this.name = 'UndoRefusedError';
+  }
+}
+
+/** Two people disagree on a field a merge cannot keep both of; `details.conflicts` lists every one. */
+export class PersonMergeConflictError extends DomainError {
+  constructor(message: string, conflicts: unknown[]) {
+    super(message, 'PERSON_MERGE_CONFLICT', 409, { reason: 'MERGE_CONFLICT', conflicts });
+    this.name = 'PersonMergeConflictError';
   }
 }
 

@@ -9,6 +9,10 @@ export const individuals = sqliteTable('individuals', {
   id: text('id').primaryKey(), // UUID
   treeId: text('tree_id').notNull().references(() => trees.id, { onDelete: 'cascade' }),
   xrefId: text('xref_id'), // Preserved GEDCOM XREF (@I1@)
+  // XREFs of people merged into this one, kept so export can still resolve what other records and
+  // preserved lines say about them (ADR-022). A column on the surviving row rather than a table, so an
+  // undo restores it with the row, as for partnerships (ADR-008).
+  xrefAliases: text('xref_aliases', { mode: 'json' }).$type<string[]>(),
   givenName: text('given_name'),
   surname: text('surname'),
   sex: text('sex', { enum: SEX_VALUES }).default('U'),

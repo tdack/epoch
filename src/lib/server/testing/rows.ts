@@ -67,6 +67,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			id: p.id,
 			treeId: TEST_TREE_ID,
 			xrefId: `@${p.id}@`,
+			xrefAliases: null,
 			givenName: p.givenName ?? p.id,
 			surname: p.surname ?? null,
 			sex: p.sex ?? 'U',

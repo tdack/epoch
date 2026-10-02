@@ -16,6 +16,8 @@ import { findingKey, QUALITY_RULE_BY_CODE, type FindingSubject, type QualityFind
 import type { EventRow, IndividualRow, TreeRows } from './change-log';
 import { personName } from './tree-ops';
 
+/** A group of namesakes is listed up to this many people; the finding still counts them all. */
+const MAX_DUPLICATE_SUBJECTS = 10;
 const MIN_PARENT_AGE_YEARS = 12;
 const MAX_LIFESPAN_YEARS = 120;
 /** A father can die before a child is born; a year is well past any pregnancy, and a late record is still odd. */
@@ -131,6 +133,32 @@ export function checkQuality(rows: TreeRows): QualityFinding[] {
 	}
 	for (const [childId, parents] of parentsOfChild) {
 		if (parents.size === 1) add('one_parent_recorded', [childId], `${name(childId)} has only one parent recorded.`, [person(childId)]);
+	}
+
+	// ---- Possible duplicates ----
+	// A finding for a group of people sharing a name, not one for every pair: twenty people called
+	// "John Smith" would otherwise be 190 findings. Only people with a dated birth that could match
+	// another's are included, so a name alone never raises one.
+	const byName = new Map<string, string[]>();
+	for (const p of rows.individuals) {
+		const key = `${(p.givenName ?? '').trim().toLowerCase()}|${(p.surname ?? '').trim().toLowerCase()}`;
+		if (key === '|' || !p.givenName?.trim() || !p.surname?.trim()) continue;
+		byName.set(key, [...(byName.get(key) ?? []), p.id]);
+	}
+	for (const ids of byName.values()) {
+		if (ids.length < 2) continue;
+		const matched = new Set<string>();
+		for (let i = 0; i < ids.length; i++) {
+			for (let j = i + 1; j < ids.length; j++) {
+				const [a, b] = [birthOf.get(ids[i]!) ?? null, birthOf.get(ids[j]!) ?? null];
+				if (!a || !b || isCertainlyBefore(a, b) || isCertainlyBefore(b, a)) continue;
+				matched.add(ids[i]!);
+				matched.add(ids[j]!);
+			}
+		}
+		if (matched.size < 2) continue;
+		const members = [...matched].sort();
+		add('possible_duplicate_person', members, `${members.length} people are called ${name(members[0]!)} and could have been born together.`, members.slice(0, MAX_DUPLICATE_SUBJECTS).map(person));
 	}
 
 	// ---- Partnerships ----

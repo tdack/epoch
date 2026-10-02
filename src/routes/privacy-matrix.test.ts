@@ -50,6 +50,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/individuals/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/individuals/[individualId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/trees/[id]/individuals/[individualId]/merge/+server.ts`]: { kind: 'guarded-write', covers: 'services/person-merge-service.test.ts' },
+	[`${API}/trees/[id]/individuals/[individualId]/merge/impact/+server.ts`]: { kind: 'guarded-write', covers: 'services/person-merge-service.test.ts' },
 	[`${API}/trees/[id]/invitations/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/invitations/[invitationId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/members/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },

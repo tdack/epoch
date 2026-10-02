@@ -1,0 +1,1 @@
+ALTER TABLE `individuals` ADD `xref_aliases` text;
