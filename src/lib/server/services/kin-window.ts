@@ -25,8 +25,8 @@ export interface KinWindowRequest {
 	ancestorGenerations: number;
 	/** Generations of children to load below every start person. */
 	descendantGenerations: number;
-	/** Load partners of the start people only, or of everyone loaded (a descendant chart shows couples). */
-	partnersOf: 'starts' | 'all';
+	/** Load no partners, those of the start people only, or those of everyone loaded (a descendant chart shows couples). */
+	partnersOf: 'none' | 'starts' | 'all';
 }
 
 export interface KinWindow {
@@ -78,7 +78,7 @@ export async function loadKinWindow(repo: GraphWindowRepository, request: KinWin
 	await walk('child', request.ancestorGenerations);
 	await walk('parent', request.descendantGenerations);
 
-	const partnerOwners = request.partnersOf === 'all' ? [...people] : [...request.startIds];
+	const partnerOwners = request.partnersOf === 'all' ? [...people] : request.partnersOf === 'starts' ? [...request.startIds] : [];
 	const [ownPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, partnerOwners));
 	const unionIds = [...new Set(ownPartnerships.map((p) => p.row.unionId))];
 	const [partnerRows, unionRows] = await repo.run(repo.partnerRowsOfUnions(treeId, unionIds), repo.unionsIn(treeId, unionIds));

@@ -42,6 +42,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/trees/[id]/charts/descendants/+server.ts`]: { kind: 'masked-rows', covers: 'services/chart-service.test.ts' },
+	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: { kind: 'masked-rows', covers: 'services/chart-service.test.ts' },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },

@@ -24,6 +24,7 @@ import type { PrivacySettingsDto } from '#lib/server/services/privacy-service.js
 import type { InvitationDto, MemberDto, MembersDto } from '#lib/server/services/member-service.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import type { RelationshipDto } from '#lib/shared/kinship.js';
+import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -433,6 +434,14 @@ export async function removeMemberApi(treeId: string, userId: string, version: n
 
 export async function fetchRelationship(treeId: string, fromId: string, toId: string, fetcher: typeof fetch = fetch): Promise<RelationshipDto> {
 	return call(`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`, { method: 'GET' }, 'Failed to work out the relationship', fetcher);
+}
+
+export async function fetchPedigree(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<PedigreeDto> {
+	return call(`/api/trees/${enc(treeId)}/charts/pedigree?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the pedigree', fetcher);
+}
+
+export async function fetchDescendants(treeId: string, personId: string, generations: number, fetcher: typeof fetch = fetch): Promise<DescendantsDto> {
+	return call(`/api/trees/${enc(treeId)}/charts/descendants?person=${encodeURIComponent(personId)}&generations=${generations}`, { method: 'GET' }, 'Failed to load the descendants', fetcher);
 }
 
 export type NameImpactRequest =
