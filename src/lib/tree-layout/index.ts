@@ -80,6 +80,13 @@ export function layoutFocusView(
 		nonAdjacent.add(u.id);
 	}
 
+	// The focus loader's selection deliberately names people it has not loaded yet, to learn what to
+	// fetch. A view that draws such a graph (a window read while rows were still arriving) must not
+	// draw a card with no record behind it.
+	for (let i = items.length - 1; i >= 0; i--) {
+		if (items[i].t === 'person' && !index.personById.has(items[i].id)) items.splice(i, 1);
+	}
+
 	const roleOf = new Map(selection.people.map((p) => [p.id, p.role]));
 	const people: PlacedPerson[] = [];
 	const unions: PlacedUnion[] = [];
