@@ -34,7 +34,7 @@
 <header class="min-h-16 border-b border-stone-200/80 bg-[#fdfbf7]/90 backdrop-blur-md px-3 py-2 sm:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 shadow-xs">
   <div class="flex items-center space-x-3">
     <div class="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center shadow-md shadow-emerald-900/15">
-      <EpochMark size={22} ink="#fffbeb" ancestryOpacity={0.5} />
+      <EpochMark size={26} ink="#fffbeb" ancestryOpacity={0.5} />
     </div>
     <div>
       <h1 class="text-base font-bold text-stone-900 tracking-tight">
