@@ -1,18 +1,20 @@
 /**
  * Place records (ADR-019): every fact with a place points at the record for its text, however it
- * was written.
+ * was written, and renaming or merging a place is one undoable change that keeps record ids.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq, sql } from 'drizzle-orm';
 import migration from '../../../../drizzle/0016_uneven_sue_storm.sql?raw';
 import { events, places } from '../db/schema';
+import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
 import { addTestMember, createTestDatabase, createTestTree, createTestUser, type TestActor, type TestDatabase } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
 import { GenealogyService } from './genealogy-service';
+import { PlaceService } from './place-service';
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
@@ -57,6 +59,7 @@ const blank = { dateText: null, place: null, value: null, cause: null, age: null
 let t: TestDatabase;
 let treeId: string;
 const actors = {} as Record<TreeRole, TestActor>;
+const placeService = () => new PlaceService(t.db);
 
 /** Every fact's record is the one for its text, no text has two records, and no fact without text has one. */
 async function expectConsistent(tree = treeId) {
@@ -70,6 +73,12 @@ async function expectConsistent(tree = treeId) {
 	const keys = await t.db.select({ key: places.nameKey }).from(places).where(eq(places.treeId, tree)).all();
 	expect(new Set(keys.map((k) => k.key)).size).toBe(keys.length);
 }
+
+const idOf = async (name: string, who: TreeRole = 'owner') => {
+	const page = await placeService().list(treeId, { q: name, limit: 100 }, actors[who].context);
+	return page.items.find((p) => p.name.toLowerCase() === name.toLowerCase())!.id;
+};
+const textsAt = async (name: string) => (await placeService().detail(treeId, name, {}, actors.owner.context)).facts.length;
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -158,4 +167,96 @@ describe('the migration backfill', () => {
 		expect(rows.find((r) => r.id === 'b3')!.placeId).not.toBe(rows.find((r) => r.id === 'b1')!.placeId);
 		expect(rows.filter((r) => r.placeId !== null)).toHaveLength(3);
 	});
+});
+
+describe('renaming and merging', () => {
+	it('renames a place across its facts, in one undoable change; undo finds the old record again', async () => {
+		const id = await idOf('Hobart, Tasmania');
+		const { change, name } = await placeService().rewrite(treeId, id, 'Hobart, TAS', actors.owner.context);
+		expect(name).toBe('Hobart, TAS');
+		expect(change?.summary).toBe('Changed the place Hobart, Tasmania to Hobart, TAS');
+		// A place is its text, so a new text is a new record; the old one waits, empty, for an undo.
+		expect((await placeService().detail(treeId, 'hobart, tas', {}, actors.owner.context)).id).not.toBe(id);
+		await expect(placeService().detail(treeId, 'Hobart, Tasmania', {}, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+		await expectConsistent();
+
+		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
+		expect((await placeService().detail(treeId, 'Hobart, Tasmania', {}, actors.owner.context)).id).toBe(id);
+		await expectConsistent();
+	});
+
+	it('changes only the case of a place when asked to', async () => {
+		const id = await idOf('Perthville');
+		expect((await placeService().rewrite(treeId, id, 'PERTHVILLE', actors.owner.context)).name).toBe('PERTHVILLE');
+		expect((await placeService().detail(treeId, 'perthville', {}, actors.owner.context)).name).toBe('PERTHVILLE');
+		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
+	});
+
+	it('merges into the place that has the name, in that place\'s spelling, and one undo splits them again', async () => {
+		const chapelton = await idOf('Chapelton');
+		const cork = await idOf('Cork, Ireland');
+		const preview = await placeService().previewRewrite(treeId, chapelton, 'CORK, IRELAND', actors.owner.context);
+		expect(preview.headline).toBe('Changed the place Chapelton to Cork, Ireland');
+
+		const { name } = await placeService().rewrite(treeId, chapelton, 'CORK, IRELAND', actors.owner.context);
+		expect(name).toBe('Cork, Ireland');
+		expect(await textsAt('Cork, Ireland')).toBe(3);
+		await expect(placeService().detail(treeId, 'Chapelton', {}, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+		expect((await placeService().list(treeId, { q: 'chapel' }, actors.owner.context)).items).toEqual([]);
+		await expectConsistent();
+
+		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
+		expect(await textsAt('Cork, Ireland')).toBe(2);
+		expect((await placeService().detail(treeId, 'Chapelton', {}, actors.owner.context)).id).toBe(chapelton);
+		expect(await idOf('Cork, Ireland')).toBe(cork);
+		await expectConsistent();
+	});
+
+	it('refuses an empty name, an unknown place, and a place of another tree', async () => {
+		const id = await idOf('Chapelton');
+		await expect(placeService().rewrite(treeId, id, '   ', actors.owner.context)).rejects.toBeDefined();
+		await expect(placeService().rewrite(treeId, 'nope', 'X', actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+		const other = await createTestUser(t.db);
+		const otherTree = await createTestTree(t.db, other);
+		await expect(placeService().rewrite(otherTree, id, 'X', other.context)).rejects.toBeInstanceOf(NotFoundError);
+	});
+
+	it('bumps a person\'s version when their birth place changes, so a stale form conflicts', async () => {
+		const carl = await t.db.all<{ version: number }>(sql`select version from individuals where tree_id = ${treeId} and given_name = 'Carl'`);
+		await placeService().rewrite(treeId, await idOf('Hobart, Tasmania'), 'Hobart', actors.owner.context);
+		const after = await t.db.all<{ version: number }>(sql`select version from individuals where tree_id = ${treeId} and given_name = 'Carl'`);
+		expect(after[0]!.version).toBe(carl[0]!.version + 1);
+		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
+	});
+});
+
+describe('who may change a place', () => {
+	it('refuses a viewer', async () => {
+		const id = await idOf('Chapelton');
+		await expect(placeService().rewrite(treeId, id, 'X', actors.viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(placeService().previewRewrite(treeId, id, 'X', actors.viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('answers a contributor naming a private person\'s place as it answers a place nobody wrote', async () => {
+		// A contributor cannot edit at all, so the only thing a rewrite could leak is whether the place
+		// exists: a visible one is refused as unauthorised, a hidden one is as missing as no place.
+		const perthville = await idOf('Perthville');
+		const hidden = await placeService().rewrite(treeId, perthville, 'X', actors.contributor.context).catch((e) => e);
+		const missing = await placeService().rewrite(treeId, 'nope', 'X', actors.contributor.context).catch((e) => e);
+		expect(hidden).toBeInstanceOf(NotFoundError);
+		expect(hidden.message.replace(perthville, 'ID')).toBe(missing.message.replace('nope', 'ID'));
+		expect(hidden.message).not.toMatch(/perthville/i);
+		expect(await placeService().rewrite(treeId, await idOf('Cork, Ireland'), 'X', actors.contributor.context).catch((e) => e)).toBeInstanceOf(UnauthorizedError);
+		await expectConsistent();
+	});
+
+	it('lets an editor, who sees everyone, change a private person\'s place', async () => {
+		const editor = await createTestUser(t.db, 'editor');
+		await addTestMember(t.db, treeId, editor, 'editor');
+		const { change } = await placeService().rewrite(treeId, await idOf('Perthville'), 'Perth', editor.context);
+		expect(change?.summary).toBe('Changed the place Perthville to Perth');
+		await new ChangeLogService(t.db).undoLast(treeId, editor.context);
+		await expectConsistent();
+	});
+
 });

@@ -63,6 +63,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/names/[nameId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/names/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/places/+server.ts`]: { kind: 'paged-sql', covers: 'services/place-service.test.ts' },
+	[`${API}/trees/[id]/places/[placeId]/+server.ts`]: { kind: 'guarded-write', covers: 'services/place-service.test.ts' },
+	[`${API}/trees/[id]/places/[placeId]/impact/+server.ts`]: { kind: 'guarded-write', covers: 'services/place-service.test.ts' },
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/people/[personId]/facts/+server.ts`]: { kind: 'guarded-write', covers: WRITES },

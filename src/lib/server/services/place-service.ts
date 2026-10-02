@@ -7,7 +7,10 @@
 
 import { and, eq, inArray } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { individuals, unionPartners } from '../db/schema';
+import { individuals, places as placeTable, unionPartners } from '../db/schema';
+import { describeCommand } from '../domain/command-summary';
+import type { ImpactSummary } from '../domain/impact';
+import type { PlaceCommand } from '../domain/place-ops';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventLabel } from '../domain/tree-labels';
@@ -15,9 +18,10 @@ import { PlaceRepository } from '../repositories/place-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, type Page } from '../../shared/lists';
-import { placeText, type PlaceDto, type PlaceFactDto, type PlaceListItem } from '../../shared/places';
+import { placeKey, placeText, type PlaceDto, type PlaceFactDto, type PlaceListItem } from '../../shared/places';
 import { personName } from './kinship-service';
-import { requireTreeScope } from './tree-access';
+import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 
 const IDS_PER_QUERY = 80;
 const chunks = <T>(items: readonly T[]): T[][] => Array.from({ length: Math.ceil(items.length / IDS_PER_QUERY) }, (_, i) => items.slice(i * IDS_PER_QUERY, (i + 1) * IDS_PER_QUERY));
@@ -31,10 +35,14 @@ export class PlaceService {
 	private users: UserRepository;
 	private trees: TreeRepository;
 
+	readonly runner: MutationRunner;
+
 	constructor(
 		private db: DbClient,
-		private now: () => Date = () => new Date()
+		private now: () => Date = () => new Date(),
+		clock?: MutationClock
 	) {
+		this.runner = new MutationRunner(db, clock);
 		this.places = new PlaceRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
@@ -78,5 +86,38 @@ export class PlaceService {
 			entityName: r.entityType === 'INDIVIDUAL' ? (names.get(r.entityId) ?? r.entityId) : ([...(partners.get(r.entityId) ?? [])].sort().join(' & ') || 'Partnership')
 		}));
 		return { id: rows[0]!.placeId, name: rows[0]?.name ?? placeText(name), facts, hasMore, ...page };
+	}
+
+	/**
+	 * The command that gives a place the text `name`. A name that another place already has is a
+	 * merge into it, so the facts take that place's own spelling and not the case just typed; only
+	 * places the caller can see count, so the answer never shows that a hidden place exists.
+	 */
+	private async rewriteCommand(treeId: string, placeId: string, name: string, scope: ViewerScope): Promise<PlaceCommand> {
+		const [source] = await this.db.select({ nameKey: placeTable.nameKey }).from(placeTable).where(and(eq(placeTable.treeId, treeId), eq(placeTable.id, placeId))).limit(1);
+		if (!source) throw new NotFoundError('Place', placeId);
+		const typed = placeText(name);
+		const [existing] = await this.db.select({ id: placeTable.id }).from(placeTable).where(and(eq(placeTable.treeId, treeId), eq(placeTable.nameKey, placeKey(typed)))).limit(1);
+		let to = typed;
+		if (existing && existing.id !== placeId) {
+			const { rows } = await this.places.facts(treeId, typed, { offset: 0, limit: 1 }, scope);
+			if (rows[0]) to = rows[0].name;
+		}
+		return { kind: 'rewrite_place', placeId, fromKey: source.nameKey, to };
+	}
+
+	/** What renaming or merging a place would write, without writing it. */
+	async previewRewrite(treeId: string, placeId: string, name: string, context: AuthenticatedContext): Promise<ImpactSummary> {
+		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
+		const command = await this.rewriteCommand(treeId, placeId, name, scope);
+		return this.runner.preview(treeId, context, [command], (rows) => describeCommand(command, rows));
+	}
+
+	/** Give a place a new name, or merge it into the place that has that name. One change, one undo. */
+	async rewrite(treeId: string, placeId: string, name: string, context: AuthenticatedContext): Promise<MutationResult & { name: string }> {
+		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
+		const command = await this.rewriteCommand(treeId, placeId, name, scope);
+		const result = await this.runner.run(treeId, context, { kind: command.kind, summary: (rows) => describeCommand(command, rows), commands: [command] });
+		return { ...result, name: command.to };
 	}
 }
