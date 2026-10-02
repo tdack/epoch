@@ -17,7 +17,7 @@
 
 	interface Props {
 		/** Whether the dialog is open. */
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		/** The partnership being edited, as the graph has it now (with its version and events). */
 		union: RelationshipGraphUnion | null;
@@ -31,7 +31,16 @@
 		onrefresh: () => Promise<void>;
 	}
 
-	let { show, treeId, union, label = null, nameOf, onclose, onsaved, onrefresh }: Props = $props();
+	let {
+		isOpen,
+		treeId,
+		union,
+		label = null,
+		nameOf,
+		onclose,
+		onsaved,
+		onrefresh
+	}: Props = $props();
 
 	interface EventRow {
 		key: number;
@@ -76,7 +85,7 @@
 	}
 
 	$effect(() => {
-		if (show) load();
+		if (isOpen) load();
 	});
 
 	function addRow() {
@@ -177,7 +186,7 @@
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title="Edit partnership"
 	subtitle={title}
 	icon={Heart}
@@ -316,7 +325,7 @@
 </BaseModal>
 
 <ConflictDialog
-	show={conflict !== null}
+	isOpen={conflict !== null}
 	subject={title}
 	rows={conflictRows}
 	isWorking={isSubmitting}

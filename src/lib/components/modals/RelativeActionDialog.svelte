@@ -72,7 +72,7 @@
 </script>
 
 <BaseModal
-	show={action !== null}
+	isOpen={action !== null}
 	title={`What happened with ${relative}?`}
 	subtitle={action ? `Listed as ${owner}’s ${action.relation}` : null}
 	icon={Trash2}

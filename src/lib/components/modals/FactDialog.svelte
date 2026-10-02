@@ -20,7 +20,7 @@
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		personId: string;
 		/** The fact being edited, or null to add one. */
@@ -32,7 +32,7 @@
 		oncancel: () => void;
 	}
 
-	let { show, treeId, personId, fact, onsaved, onstale, oncancel }: Props = $props();
+	let { isOpen, treeId, personId, fact, onsaved, onstale, oncancel }: Props = $props();
 
 	const PREVIEW_DELAY_MS = 250;
 	const EVENT_TYPES = FACT_TYPE_LIST.filter((t) => t.kind === FACT_KINDS.EVENT);
@@ -57,7 +57,7 @@
 	let placeOptions = $state<string[]>([]);
 	$effect(() => {
 		const typed = place.trim();
-		if (!show || typed.length < 2) {
+		if (!isOpen || typed.length < 2) {
 			placeOptions = [];
 			return;
 		}
@@ -90,7 +90,7 @@
 	// Fill the form only when the dialog opens: reading `fact` inside the effect that also watches the
 	// fields would wipe what has been typed whenever the page data reloads underneath it.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const source = untrack(() => fact);
 		type = source?.type ?? 'OCCU';
 		dateText = source?.dateText ?? '';
@@ -108,7 +108,7 @@
 	// What the save would write, refreshed as the form changes. Planned on the server, so the list is
 	// the same operations the save runs.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const input = toInput();
 		const isValid = isDateValid;
 		const source = untrack(() => fact);
@@ -162,10 +162,10 @@
 </script>
 
 <ImpactDialog
-	{show}
+	{isOpen}
 	title={isEdit ? 'Edit fact' : 'Add a fact'}
 	{impact}
-	isLoading={show && impact === null && previewError === null && isDateValid}
+	isLoading={isOpen && impact === null && previewError === null && isDateValid}
 	isConfirming={isSaving}
 	error={saveError ?? previewError}
 	confirmLabel={isEdit ? 'Save fact' : 'Add fact'}

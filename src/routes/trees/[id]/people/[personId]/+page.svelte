@@ -707,7 +707,7 @@
 </div>
 
 <NameDialog
-	show={nameDialog !== null}
+	isOpen={nameDialog !== null}
 	{treeId}
 	personId={dto.person.id}
 	name={nameDialog?.name ?? null}
@@ -718,7 +718,7 @@
 />
 
 <FactDialog
-	show={factDialog !== null}
+	isOpen={factDialog !== null}
 	{treeId}
 	personId={dto.person.id}
 	fact={factDialog?.fact ?? null}

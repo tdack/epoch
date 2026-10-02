@@ -4,7 +4,7 @@
 	import type { ImportPreviewData, PossibleDuplicateGroup } from '#lib/types/genealogy.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		treeName?: string;
 		hasSelectedTree: boolean;
 		preview: ImportPreviewData | null;
@@ -20,7 +20,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		treeName = 'this tree',
 		hasSelectedTree,
 		preview,
@@ -35,7 +35,7 @@
 	let shouldMergeDuplicateFamilies = $state(true);
 	// Each opening starts from the default, not from what the last file's review left behind.
 	$effect(() => {
-		if (show) shouldMergeDuplicateFamilies = true;
+		if (isOpen) shouldMergeDuplicateFamilies = true;
 	});
 
 	const REASON_TEXT: Record<PossibleDuplicateGroup['reason'], string> = {
@@ -114,7 +114,7 @@
 {/snippet}
 
 <BaseModal
-	{show}
+	{isOpen}
 	title="Import GEDCOM"
 	icon={Upload}
 	iconBgClass="bg-amber-100"

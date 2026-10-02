@@ -4,7 +4,7 @@
 	import { previewTreeDeletionApi, type TreeImpact } from '#lib/services/tree-api.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		treeName: string;
 		isDeleting?: boolean;
@@ -14,7 +14,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		treeId,
 		treeName,
 		isDeleting = false,
@@ -29,7 +29,7 @@
 
 	// The counts come from the server, so the dialog lists what will really go rather than what the page happens to hold.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		confirmText = '';
 		impact = null;
 		previewError = null;
@@ -50,7 +50,7 @@
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title="Delete Tree Permanently"
 	icon={Trash2}
 	iconBgClass="bg-red-100"

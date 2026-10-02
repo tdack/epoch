@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		title: string;
 		icon?: any;
 		iconBgClass?: string;
@@ -17,7 +17,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		title,
 		icon: IconComponent,
 		iconBgClass = 'bg-emerald-100',
@@ -38,12 +38,12 @@
 	// opened it when it closes, which a div overlay would each need reimplementing.
 	$effect(() => {
 		if (!dialogElement) return;
-		if (show && !dialogElement.open) dialogElement.showModal();
-		else if (!show && dialogElement.open) dialogElement.close();
+		if (isOpen && !dialogElement.open) dialogElement.showModal();
+		else if (!isOpen && dialogElement.open) dialogElement.close();
 	});
 
 	function onCancel(event: Event) {
-		// Escape: let the owner decide, so `show` stays the single source of truth.
+		// Escape: let the owner decide, so `isOpen` stays the single source of truth.
 		event.preventDefault();
 		onclose();
 	}
@@ -55,7 +55,7 @@
 	oncancel={onCancel}
 	class="m-auto w-full {maxWidthClass} max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-300/90 bg-[#fcfaf5] p-0 text-stone-800 shadow-2xl backdrop:bg-stone-950/40 backdrop:backdrop-blur-xs"
 >
-	{#if show}
+	{#if isOpen}
 		<div class="space-y-4 p-6">
 			<div class="flex items-center space-x-2.5">
 				{#if IconComponent}

@@ -95,7 +95,7 @@
 
 {#if canEdit}
 	<PlaceRewriteDialog
-		show={isRewriting}
+		isOpen={isRewriting}
 		treeId={data.summary.tree.id}
 		placeId={place.id}
 		currentName={place.name}

@@ -77,7 +77,7 @@ async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' 
 	component = mount(RelationshipModal, {
 		target: document.body,
 		props: {
-			show: true,
+			isOpen: true,
 			treeId: 't',
 			anchor: { id: 'homer', givenName: 'Homer', surname: null },
 			graph,

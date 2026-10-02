@@ -19,7 +19,7 @@
 </script>
 
 <PersonModal
-	show={editor.showPersonModal}
+	isOpen={editor.showPersonModal}
 	mode={editor.personModalMode}
 	initialPerson={editor.personToEdit}
 	isSubmitting={editor.isSubmittingPerson}
@@ -30,7 +30,7 @@
 
 {#if editor.relationshipAnchor && graph}
 	<RelationshipModal
-		show={editor.showRelationshipModal}
+		isOpen={editor.showRelationshipModal}
 		treeId={editor.treeId}
 		anchor={editor.relationshipAnchor}
 		{graph}
@@ -44,7 +44,7 @@
 {/if}
 
 <UnionEditorModal
-	show={editor.editingUnion !== null}
+	isOpen={editor.editingUnion !== null}
 	treeId={editor.treeId}
 	union={editor.editingUnion}
 	label={editor.editingUnion ? (editor.unionLabels.get(editor.editingUnion.id) ?? null) : null}
@@ -61,7 +61,7 @@
 />
 
 <ImpactDialog
-	show={editor.pendingImpact !== null}
+	isOpen={editor.pendingImpact !== null}
 	title={editor.pendingImpact?.title ?? ''}
 	impact={editor.pendingImpact?.impact ?? null}
 	isLoading={editor.pendingImpact !== null &&
@@ -75,7 +75,7 @@
 />
 
 <UnionMergeDialog
-	show={editor.mergingUnionId !== null && editor.mergeCandidates.length >= 2}
+	isOpen={editor.mergingUnionId !== null && editor.mergeCandidates.length >= 2}
 	partners={editor.mergePartners}
 	candidates={editor.mergeCandidates}
 	onpreview={(request) => previewUnionMergeApi(editor.treeId, request)}
@@ -84,7 +84,7 @@
 />
 
 <ConflictDialog
-	show={editor.personConflict !== null}
+	isOpen={editor.personConflict !== null}
 	subject={editor.personToEdit?.name ?? ''}
 	rows={editor.personConflict
 		? editor.personFormRows(

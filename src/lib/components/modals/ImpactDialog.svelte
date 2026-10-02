@@ -7,7 +7,7 @@
 
 	interface Props {
 		/** Whether the dialog is open. */
-		show: boolean;
+		isOpen: boolean;
 		/** Dialog title, e.g. "Delete Homer Simpson?". */
 		title: string;
 		/** What the server says the action would change; null while it is being fetched. */
@@ -31,7 +31,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		title,
 		impact,
 		isLoading = false,
@@ -79,12 +79,12 @@
 
 	// Cancel takes focus first: a destructive dialog should not be confirmed by a stray Enter.
 	$effect(() => {
-		if (show && cancelButton) cancelButton.focus();
+		if (isOpen && cancelButton) cancelButton.focus();
 	});
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	{title}
 	icon={isDestructive ? TriangleAlert : Info}
 	iconBgClass={isDestructive ? 'bg-red-100' : 'bg-emerald-100'}

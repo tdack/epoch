@@ -12,10 +12,10 @@
 
 	interface Props {
 		/** Whether the dialog is open. */
-		show: boolean;
+		isOpen: boolean;
 		/** The shared partners, e.g. "Homer Simpson and Marge Simpson". */
 		partners: string;
-		/** The partnerships that could be merged, oldest first. At least two while `show` is true. */
+		/** The partnerships that could be merged, oldest first. At least two while `isOpen` is true. */
 		candidates: MergeCandidate[];
 		/** Ask the server what a merge would do. Rejects with a message that is shown in the dialog. */
 		onpreview: (request: MergeUnionsRequest) => Promise<MergePreviewResponse>;
@@ -24,7 +24,7 @@
 		oncancel: () => void;
 	}
 
-	let { show, partners, candidates, onpreview, onconfirm, oncancel }: Props = $props();
+	let { isOpen, partners, candidates, onpreview, onconfirm, oncancel }: Props = $props();
 
 	let selectedIds = $state<string[]>([]);
 	let survivorId = $state('');
@@ -80,7 +80,7 @@
 	// Start each opening from every candidate selected and the fullest partnership kept, with no choices.
 	// Only opening resets: reading the selection here would re-run this on every toggle and undo it.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		untrack(() => {
 			selectedIds = candidates.map((c) => c.id);
 			survivorId = defaultSurvivor(candidates);
@@ -202,7 +202,7 @@
 {/snippet}
 
 <ImpactDialog
-	{show}
+	{isOpen}
 	title="Merge duplicate partnerships?"
 	impact={preview?.impact ?? null}
 	{isLoading}

@@ -10,7 +10,7 @@
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		/** The place being changed: its record and the name it has now. */
 		placeId: string;
@@ -20,7 +20,7 @@
 		oncancel: () => void;
 	}
 
-	let { show, treeId, placeId, currentName, onsaved, oncancel }: Props = $props();
+	let { isOpen, treeId, placeId, currentName, onsaved, oncancel }: Props = $props();
 
 	const PREVIEW_DELAY_MS = 250;
 	const field =
@@ -39,7 +39,7 @@
 	const isUnchanged = $derived(name.trim() === '' || name.trim() === currentName);
 
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		name = currentName;
 		impact = null;
 		previewError = null;
@@ -49,7 +49,7 @@
 
 	$effect(() => {
 		const typed = name.trim();
-		if (!show || typed.length < 2) {
+		if (!isOpen || typed.length < 2) {
 			placeOptions = [];
 			return;
 		}
@@ -65,7 +65,7 @@
 
 	// What the change would write, planned on the server, so the list is the one the save runs.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const typed = name.trim();
 		const isIdle = isUnchanged;
 		const timer = setTimeout(async () => {
@@ -107,10 +107,10 @@
 </script>
 
 <ImpactDialog
-	{show}
+	{isOpen}
 	title="Rename or merge this place"
 	{impact}
-	isLoading={show && !isUnchanged && impact === null && previewError === null}
+	isLoading={isOpen && !isUnchanged && impact === null && previewError === null}
 	isConfirming={isSaving}
 	error={saveError ?? previewError}
 	confirmLabel="Change place"

@@ -20,7 +20,7 @@
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		personId: string;
 		/** The name being edited, or null to add one. A derived name (no id) is edited on the person form, not here. */
@@ -34,7 +34,8 @@
 		oncancel: () => void;
 	}
 
-	let { show, treeId, personId, name, partnerships, onsaved, onstale, oncancel }: Props = $props();
+	let { isOpen, treeId, personId, name, partnerships, onsaved, onstale, oncancel }: Props =
+		$props();
 
 	const PREVIEW_DELAY_MS = 250;
 
@@ -80,7 +81,7 @@
 	// Fill the form only when the dialog opens, for the reason FactDialog does: a reload of the page
 	// data underneath must not wipe what has been typed.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const source = untrack(() => name);
 		type = source && isNameType(source.type) ? source.type : 'married';
 		prefix = source?.prefix ?? '';
@@ -101,7 +102,7 @@
 	// What the save would write, refreshed as the form changes. Planned on the server, so the list is
 	// the same operations the save runs.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const input = toInput();
 		const preferred = isPreferred;
 		const isValid = isReady;
@@ -162,10 +163,10 @@
 </script>
 
 <ImpactDialog
-	{show}
+	{isOpen}
 	title={isEdit ? 'Edit name' : 'Add a name'}
 	{impact}
-	isLoading={show && impact === null && previewError === null && isReady}
+	isLoading={isOpen && impact === null && previewError === null && isReady}
 	isConfirming={isSaving}
 	error={saveError ?? previewError}
 	confirmLabel={isEdit ? 'Save name' : 'Add name'}

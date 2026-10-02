@@ -5,7 +5,7 @@
 
 	interface Props {
 		/** Whether the dialog is open. */
-		show: boolean;
+		isOpen: boolean;
 		/** What was being edited, e.g. "Homer Simpson". */
 		subject: string;
 		/** Only the fields that differ; identical fields are left out. */
@@ -19,11 +19,11 @@
 		oncancel: () => void;
 	}
 
-	let { show, subject, rows, isWorking = false, onreload, onreapply, oncancel }: Props = $props();
+	let { isOpen, subject, rows, isWorking = false, onreload, onreapply, oncancel }: Props = $props();
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title="Someone else changed this"
 	subtitle={subject}
 	icon={GitCompare}

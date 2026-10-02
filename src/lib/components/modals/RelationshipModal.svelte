@@ -37,7 +37,7 @@
 
 	interface Props {
 		/** Whether the dialog is open. */
-		show: boolean;
+		isOpen: boolean;
 		treeId: string;
 		/** The person who is the anchor/subject of this relationship edit. */
 		anchor: { id: string; givenName: string | null; surname: string | null };
@@ -57,7 +57,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		treeId,
 		anchor,
 		graph,
@@ -285,7 +285,7 @@
 	// Reset only when the dialog opens. Reading the graph inside `reset` must not make it re-run: the
 	// graph reloads after every save, and a late reload would wipe what the person has typed.
 	$effect(() => {
-		if (show) untrack(reset);
+		if (isOpen) untrack(reset);
 	});
 
 	function pickStatus(status: EndedUnionStatus) {
@@ -372,7 +372,7 @@
 
 	// Preview from the server, so the sentence and records shown are the ones the save will write.
 	$effect(() => {
-		if (!show) return;
+		if (!isOpen) return;
 		const intent = buildIntent();
 		if (!intent) {
 			plan = null;
@@ -480,7 +480,7 @@
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title={kind === 'record_death'
 		? 'Record death'
 		: kind === 'end_union'
@@ -882,7 +882,7 @@
 </BaseModal>
 
 <ConflictDialog
-	show={conflict !== null}
+	isOpen={conflict !== null}
 	subject={kind === 'record_death'
 		? personName(anchor)
 		: chosenUnion

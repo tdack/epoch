@@ -47,7 +47,7 @@ const person = (id: string) => ({
 it('keeps what the person has typed when the graph reloads behind the open dialog', async () => {
 	// The graph reloads after every save, and can land while the next dialog is already open.
 	const props = $state({
-		show: true,
+		isOpen: true,
 		treeId: 't',
 		anchor: { id: 'a', givenName: 'A', surname: null },
 		graph: { people: [person('a')], unions: [], parentChild: [] },

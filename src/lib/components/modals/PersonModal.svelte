@@ -7,7 +7,7 @@
 	import type { PersonFormData } from '#lib/types/genealogy.js';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		mode: 'add' | 'edit';
 		initialPerson?: any | null;
 		isSubmitting?: boolean;
@@ -17,7 +17,7 @@
 	}
 
 	let {
-		show,
+		isOpen,
 		mode,
 		initialPerson = null,
 		isSubmitting = false,
@@ -36,7 +36,7 @@
 	let localError = $state<string | null>(null);
 
 	$effect(() => {
-		if (show) {
+		if (isOpen) {
 			if (!checkDateText(birthDate).isValid || !checkDateText(deathDate).isValid) {
 				localError = 'Fix the highlighted date before saving.';
 				return;
@@ -89,7 +89,7 @@
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title={mode === 'edit' ? 'Edit Person Details' : 'Add Individual'}
 	icon={mode === 'edit' ? Pencil : UserPlus}
 	iconBgClass="bg-emerald-100"

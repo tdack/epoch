@@ -3,21 +3,21 @@
 	import BaseModal from './BaseModal.svelte';
 
 	interface Props {
-		show: boolean;
+		isOpen: boolean;
 		isCreating?: boolean;
 		error?: string | null;
 		onclose: () => void;
 		oncreate: (data: { name: string; description?: string }) => void;
 	}
 
-	let { show, isCreating = false, error = null, onclose, oncreate }: Props = $props();
+	let { isOpen, isCreating = false, error = null, onclose, oncreate }: Props = $props();
 
 	let name = $state('');
 	let description = $state('');
 	let localError = $state<string | null>(null);
 
 	$effect(() => {
-		if (show) {
+		if (isOpen) {
 			name = '';
 			description = '';
 			localError = null;
@@ -37,7 +37,7 @@
 </script>
 
 <BaseModal
-	{show}
+	{isOpen}
 	title="Create New Genealogy Tree"
 	icon={Plus}
 	iconBgClass="bg-emerald-100"
