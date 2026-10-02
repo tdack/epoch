@@ -299,24 +299,29 @@ export class ChangeStore {
 		seq: number,
 		refs: AffectedRecordRef[]
 	): Promise<{ summary: string } | null> {
-		if (refs.length === 0) return null;
-		const row = await this.db
-			.select({ summary: changeLog.summary })
-			.from(changeLog)
-			.innerJoin(changeLogRecords, eq(changeLogRecords.changeId, changeLog.id))
-			.where(
-				and(
-					eq(changeLog.treeId, treeId),
-					gt(changeLog.seq, seq),
-					inArray(changeLogRecords.entityId, refs.map((ref) => ref.entityId)),
-					sql`not exists (select 1 from ${changeLog} as later where later.reverts_change_id = ${changeLog.id})`,
-					sql`(${changeLog.revertsChangeId} is null or ${changeLog.revertsChangeId} not in (select id from ${changeLog} as target where target.seq > ${seq}))`
+		// D1 binds at most 100 variables a statement and a change can name hundreds of records (a place
+		// rename does), so ask a chunk at a time and keep the earliest answer.
+		let first: { summary: string; seq: number } | null = null;
+		for (const part of chunk(refs, 80)) {
+			const row = await this.db
+				.select({ summary: changeLog.summary, seq: changeLog.seq })
+				.from(changeLog)
+				.innerJoin(changeLogRecords, eq(changeLogRecords.changeId, changeLog.id))
+				.where(
+					and(
+						eq(changeLog.treeId, treeId),
+						gt(changeLog.seq, seq),
+						inArray(changeLogRecords.entityId, part.map((ref) => ref.entityId)),
+						sql`not exists (select 1 from ${changeLog} as later where later.reverts_change_id = ${changeLog.id})`,
+						sql`(${changeLog.revertsChangeId} is null or ${changeLog.revertsChangeId} not in (select id from ${changeLog} as target where target.seq > ${seq}))`
+					)
 				)
-			)
-			.orderBy(sql`${changeLog.seq} asc`)
-			.limit(1)
-			.get();
-		return row ?? null;
+				.orderBy(sql`${changeLog.seq} asc`)
+				.limit(1)
+				.get();
+			if (row && (first === null || row.seq < first.seq)) first = row;
+		}
+		return first ? { summary: first.summary } : null;
 	}
 
 	/** Current images of specific rows, for checking whether an undo still applies. */
