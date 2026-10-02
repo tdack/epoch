@@ -10,8 +10,9 @@
  * lowest count (one that is not itself an ancestor of another common ancestor), because anything
  * above them is the same relationship seen from further away. Two lowest ancestors who are parents
  * of the same child are one couple and one route, which is what makes a sibling "full" and not "half".
- * A partner of the other person's relative is a route by partnership, and is only offered when there
- * is no blood route or direct partnership, or a step-parent would be reported for a real parent.
+ * A partner of the other person's relative, or a relative of their partner, is a route by
+ * partnership. It is withheld only for a direct-line relative (a grandfather is his wife's partner, but
+ * that says nothing new); a step-parent who is also a cousin has both routes.
  */
 
 import type { Sex } from '../../shared/sex';
@@ -231,8 +232,9 @@ function bloodRoutes(firstId: string, secondId: string, graph: KinGraph, parents
 
 /**
  * Every way `secondId` is related to `firstId`, best first: the same person, a partner, blood
- * relatives (nearest first), and only when there are none, a relative of a partner or a partner of
- * a relative. `isIncomplete` is set when a pedigree reached the generation limit.
+ * relatives (nearest first), then a relative of a partner or a partner of
+ * a relative, unless the second person is a direct-line relative of the first.
+ * `isIncomplete` is set when a pedigree reached the generation limit.
  */
 export function findRelationships(firstId: string, secondId: string, graph: KinGraph): RelationshipResult {
 	if (firstId === secondId) {
@@ -260,7 +262,11 @@ export function findRelationships(firstId: string, secondId: string, graph: KinG
 	const blood = bloodRoutes(firstId, secondId, graph, parentsOf, childrenOf).sort((a, b) => a.generations!.fromFirst + a.generations!.fromSecond - (b.generations!.fromFirst + b.generations!.fromSecond));
 	routes.push(...blood);
 
-	if (blood.length === 0 && routes.length === 0) {
+	// A relative in a direct line is already a parent's, grandparent's or child's partner by being one,
+	// and a step-parent is a parent's partner who is *not* a parent, so a direct-line relative must not
+	// also be reported by partnership. Every other route by partnership is offered beside any blood route.
+	const isDirectLine = blood.some((r) => r.generations!.fromFirst === 0 || r.generations!.fromSecond === 0);
+	if (!isDirectLine) {
 		const sexOf = (id: string) => graph.people.get(id)?.sex ?? null;
 		const viaSecond = (graph.partners.get(secondId) ?? []).filter((p) => p !== firstId).flatMap((partnerId) =>
 			bloodRoutes(firstId, partnerId, graph, parentsOf, childrenOf).map((route): Route => {

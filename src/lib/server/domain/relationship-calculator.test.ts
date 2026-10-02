@@ -120,7 +120,7 @@ describe('partners', () => {
 		const cousins = graph({ people: ['gp', 'a', 'b', 'x', 'y'], links: ['gp>a', 'gp>b', 'a>x', 'b>y'], partners: ['x+y'] });
 		expect(labels(cousins, 'x', 'y')).toEqual(['partner', '1st cousin']);
 	});
-	it('offers a relative of a partner, or a partner of a relative, only when there is no blood route', () => {
+	it('offers a relative of a partner, or a partner of a relative, beside blood routes, but not for a direct-line relative', () => {
 		expect(labels(FAMILY, 'me', 'mum')).toEqual(['mother']);
 		expect(labels(FAMILY, 'sis', 'gp1')).toEqual(['grandfather']);
 		const g = graph({
@@ -134,6 +134,17 @@ describe('partners', () => {
 		expect(labels(g, 'sibwife', 'bro')).toEqual(['sibling-in-law']);
 		expect(labels(g, 'mum', 'sibwife')).toEqual(['child-in-law']);
 		expect(findRelationships('me', 'step', g).routes[0]!.steps.map((s) => s.relation)).toEqual([null, 'parent', 'partner']);
+	});
+	it('shows a step-parent who is also a cousin by both routes, and never a real parent as a step-parent', () => {
+		const g = graph({
+			people: ['me', 'mum:F', 'step:M', 'gp', 'aunt'],
+			links: ['mum>me', 'gp>mum', 'gp>aunt', 'aunt>step'],
+			partners: ['mum+step']
+		});
+		expect(labels(g, 'me', 'step')).toEqual(['1st cousin', 'step-parent']);
+		const parents = graph({ people: ['me', 'mum:F', 'dad:M'], links: ['mum>me', 'dad>me'], partners: ['mum+dad'] });
+		expect(labels(parents, 'me', 'dad')).toEqual(['father']);
+		expect(labels(parents, 'dad', 'me')).toEqual(['child']);
 	});
 	it('calls a partner\'s child a step-child', () => {
 		const g = graph({ people: ['a', 'b', 'kid'], links: ['b>kid'], partners: ['a+b'] });

@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
+	import { routeSentence } from '#lib/shared/kinship.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -51,7 +52,7 @@
 				{#each result.routes as route, index (index)}
 					<li class="rounded-xl border border-stone-200 bg-white p-4" data-testid="route">
 						<p class="text-lg font-semibold text-stone-900" data-testid="route-label">
-							{#if route.kind === 'self'}{result.from.name} is the same person.{:else}{result.to.name} is {result.from.name}'s {route.label}.{/if}
+							{routeSentence(result.from.name, result.to.name, route)}
 						</p>
 						{#if route.viaNames.length > 0}<p class="text-sm text-stone-600">Through {route.viaNames.join(' and ')}.</p>{/if}
 						{#if route.nonBiologicalTypes.length > 0}<p class="text-sm text-amber-800">Includes {route.nonBiologicalTypes.join(' and ')} links.</p>{/if}

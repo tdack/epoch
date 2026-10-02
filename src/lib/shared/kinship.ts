@@ -32,3 +32,19 @@ export interface RelationshipDto {
 	/** The search hit its generation or size limit; "not related" cannot be concluded. */
 	isIncomplete: boolean;
 }
+
+const OF_A_PARTNER = / of partner$/;
+
+/**
+ * The sentence a route is shown as. A blood or partner label reads as "Y is X's 1st cousin"; a
+ * route by partnership has two shapes ("partner of 1st cousin", "1st cousin of partner") that
+ * would read wrongly in that frame, and the fixed terms (step-parent, sibling-in-law) read fine in it.
+ */
+export function routeSentence(fromName: string, toName: string, route: Pick<KinRouteDto, 'kind' | 'label'>): string {
+	if (route.kind === 'self') return `${fromName} is the same person.`;
+	if (route.kind === 'by-partnership') {
+		if (route.label.startsWith('partner of ')) return `${toName} is the partner of ${fromName}'s ${route.label.slice('partner of '.length)}.`;
+		if (OF_A_PARTNER.test(route.label)) return `${toName} is the ${route.label.replace(OF_A_PARTNER, '')} of ${fromName}'s partner.`;
+	}
+	return `${toName} is ${fromName}'s ${route.label}.`;
+}

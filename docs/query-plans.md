@@ -299,7 +299,7 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
 - **The surname list pays most** (about 12 rows per person on the big tree, against 6.5 before),
   because it aggregates over every person. If a tree outgrows that, the stored-column alternative in
   ADR-015 is the next step, and only the predicate changes.
-- **The partnership list's first page** costs 306 rows instead of 51: each union row looks up both
+- **The partnership list's first page** costs 650 rows instead of 51: each union row looks up both
   partners' events.
 - **A contributor's predicate has a third term** (`created_by is <them>`, their own people stay
   visible, ADR-015) and is measured as a second restricted shape beside the viewer's. The numbers
@@ -308,3 +308,26 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
   first form of the term, `created_by = <them>`, was null for a person with no author and turned
   "private" into "unknown" under `not`: it read fewer rows only because it let a private partner's
   partnership through, which `privacy-reads.test.ts` now covers for a contributor too.
+
+## Kin window (S10): relationship, pedigree and descendants
+
+`loadKinWindow` (`services/kin-window.ts`) follows parent links outwards one generation per round,
+then loads people, birth and death events, names and partnerships for the people it found. It reads
+through the same lookups as the focus window (`linksBy`, `individualsIn`, `eventsOf`, `namesOf`,
+`partnerRowsOf*`), each already plan-tested as index-proportional, and stops at a generation limit
+and at 3,000 people. `kin-plans.test.ts` runs it against the big tree (5,324 people, nine
+generations) with a counting D1 and holds the cost to 40 rows per person loaded.
+
+| Read | People loaded | Statements | Rows read |
+|---|---|---|---|
+| Ancestors of one person, 20 generations (relationship) | 18 | 16 | 161 |
+| Ancestors of two people and their partners (relationship) | 29 | 16 | 284 |
+| Pedigree, 8 generations | 15 | 12 | 132 |
+| Descendants of a founder, 8 generations, with partners | 42 | 15 | 552 |
+
+About 9 to 13 rows per person, a handful of batches, and no read of another tree. The restricted
+viewer pays nothing extra here: privacy is applied in memory to the rows loaded, as for the record
+pages, not in the queries. A pedigree of eight generations can hold 255 people and a descendant
+chart of a prolific founder more; the 3,000 ceiling bounds the worst case and the chart then says
+more lies beyond.
+
