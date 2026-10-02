@@ -80,9 +80,10 @@ export function layoutFocusView(
 		nonAdjacent.add(u.id);
 	}
 
-	// The focus loader's selection deliberately names people it has not loaded yet, to learn what to
-	// fetch. A view that draws such a graph (a window read while rows were still arriving) must not
-	// draw a card with no record behind it.
+	// A graph read while an import was still writing can name a person whose row has not arrived
+	// (seen in the browser; the served window is consistent once the import ends, and the next read
+	// replaces this one). Drawing a card with no record behind it throws, so leave that person out.
+	// Not done in `selectFocusSubgraph`: the window loader relies on it naming people not yet loaded.
 	for (let i = items.length - 1; i >= 0; i--) {
 		if (items[i].t === 'person' && !index.personById.has(items[i].id)) items.splice(i, 1);
 	}

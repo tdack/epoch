@@ -265,6 +265,15 @@ describe('a relationship that names someone the graph has no record of', () => {
 
 			expect(layout.people.map((p) => p.id)).not.toContain(dropped);
 			expect(layout.people.every((p) => p.person !== undefined)).toBe(true);
+
+			// Nothing else may point at the missing card: the canvas looks every endpoint up by id.
+			const placed = new Set(layout.people.map((p) => p.id));
+			for (const edge of layout.edges) {
+				if (edge.kind === 'partner') expect(placed.has(edge.personId), `partner edge to ${edge.personId}`).toBe(true);
+				if (edge.kind === 'child') expect(placed.has(edge.childId), `child edge to ${edge.childId}`).toBe(true);
+			}
+			for (const stub of layout.stubs) if (stub.personId) expect(placed.has(stub.personId), `stub of ${stub.personId}`).toBe(true);
+			for (const collapser of layout.collapsers) expect(placed.has(collapser.personId), `collapser of ${collapser.personId}`).toBe(true);
 		});
 	}
 });
