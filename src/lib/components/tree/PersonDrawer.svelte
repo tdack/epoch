@@ -105,7 +105,7 @@
 		};
 	}
 
-	let uploading = $state(false);
+	let isUploading = $state(false);
 	let uploadError = $state<string | null>(null);
 	let fileInput: HTMLInputElement | null = $state(null);
 	async function handleFileUpload(e: Event) {
@@ -113,7 +113,7 @@
 		if (!target.files || target.files.length === 0 || !person) return;
 
 		const file = target.files[0];
-		uploading = true;
+		isUploading = true;
 		uploadError = null;
 
 		try {
@@ -137,7 +137,7 @@
 		} catch (err: any) {
 			uploadError = err.message;
 		} finally {
-			uploading = false;
+			isUploading = false;
 			if (fileInput) fileInput.value = '';
 		}
 	}
@@ -503,7 +503,7 @@
 					</label>
 				</div>
 
-				{#if uploading}
+				{#if isUploading}
 					<p class="animate-pulse text-xs font-medium text-emerald-800">
 						Uploading to Cloudflare R2 storage...
 					</p>

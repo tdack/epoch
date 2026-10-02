@@ -69,7 +69,7 @@
 	// Red is for deleting. A dialog that only adds or edits (a fact) is not styled as a warning, and
 	// says a person's record changes, not their relationships, when no link or partnership does.
 	const isDestructive = $derived(impact?.isDestructive ?? true);
-	const changesRelationships = $derived(
+	const hasRelationshipChanges = $derived(
 		(impact?.records ?? []).some(
 			(r) => r.entityType === 'link' || r.entityType === 'partner' || r.entityType === 'union'
 		)
@@ -121,7 +121,7 @@
 										? 'will be deleted'
 										: person.role === 'created'
 											? 'will be added'
-											: changesRelationships
+											: hasRelationshipChanges
 												? 'stays, and their relationships change'
 												: 'stays, and their record changes'}
 								</span>

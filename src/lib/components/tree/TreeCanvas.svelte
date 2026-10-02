@@ -421,10 +421,10 @@
 	}
 
 	function closeOverlays() {
-		const hadOverlay = menu !== null || popover !== null;
+		const wasOverlayOpen = menu !== null || popover !== null;
 		menu = null;
 		popover = null;
-		if (hadOverlay) restoreFocus();
+		if (wasOverlayOpen) restoreFocus();
 	}
 
 	function openPersonMenu(event: Event, node: PlacedPerson) {

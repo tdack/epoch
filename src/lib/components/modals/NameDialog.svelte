@@ -104,7 +104,7 @@
 	$effect(() => {
 		if (!isOpen) return;
 		const input = toInput();
-		const preferred = isPreferred;
+		const isNamePreferred = isPreferred;
 		const isValid = isReady;
 		const source = untrack(() => name);
 		const timer = setTimeout(async () => {
@@ -124,7 +124,7 @@
 					: await previewNameApi(treeId, {
 							kind: 'create_name',
 							personId,
-							name: { ...input, isPreferred: preferred }
+							name: { ...input, isPreferred: isNamePreferred }
 						});
 				if (request !== previewRequest) return;
 				impact = next;

@@ -77,7 +77,7 @@
 	let selected = $state<PeopleSearchResult | null>(null);
 	let newGivenName = $state('');
 	let newSurname = $state('');
-	let useNewPerson = $state(false);
+	let isAddingNewPerson = $state(false);
 	let deathDate = $state('');
 	let deathPlace = $state('');
 	let chosenUnionId = $state<string | null>(null);
@@ -180,7 +180,7 @@
 		}
 		return [];
 	});
-	const showUnionChooser = $derived(
+	const shouldShowUnionChooser = $derived(
 		kind === 'add_partner' ? unionOptions.length > 0 : unionOptions.length > 1
 	);
 	const selectedUnionId = $derived(
@@ -236,7 +236,7 @@
 					detail: 'A half-sibling: one shared parent'
 				}))
 			);
-		return [...whole.map(({ isBiological: _, ...option }) => option), ...halves];
+		return [...whole.map(({ isBiological: _isBiological, ...option }) => option), ...halves];
 	});
 	const effectiveSiblingKey = $derived(siblingOptionKey ?? siblingOptions[0]?.key ?? null);
 	const siblingOption = $derived(siblingOptions.find((o) => o.key === effectiveSiblingKey) ?? null);
@@ -261,7 +261,7 @@
 			: null;
 		newGivenName = '';
 		newSurname = '';
-		useNewPerson = false;
+		isAddingNewPerson = false;
 		deathDate = anchorPerson?.deathDate ?? '';
 		deathPlace = '';
 		// With several partnerships the person must pick, never a default.
@@ -309,7 +309,7 @@
 	}
 
 	function otherPerson() {
-		if (useNewPerson) {
+		if (isAddingNewPerson) {
 			if (!newGivenName.trim() && !newSurname.trim()) return null;
 			return {
 				id: 'new',
@@ -543,9 +543,9 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					onclick={() => (useNewPerson = false)}
-					aria-pressed={!useNewPerson}
-					class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium {!useNewPerson
+					onclick={() => (isAddingNewPerson = false)}
+					aria-pressed={!isAddingNewPerson}
+					class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium {!isAddingNewPerson
 						? 'border-emerald-400 bg-emerald-100 text-emerald-900'
 						: 'border-stone-300 bg-white text-stone-600'}"
 				>
@@ -553,9 +553,9 @@
 				</button>
 				<button
 					type="button"
-					onclick={() => (useNewPerson = true)}
-					aria-pressed={useNewPerson}
-					class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium {useNewPerson
+					onclick={() => (isAddingNewPerson = true)}
+					aria-pressed={isAddingNewPerson}
+					class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium {isAddingNewPerson
 						? 'border-emerald-400 bg-emerald-100 text-emerald-900'
 						: 'border-stone-300 bg-white text-stone-600'}"
 				>
@@ -563,7 +563,7 @@
 				</button>
 			</div>
 
-			{#if useNewPerson}
+			{#if isAddingNewPerson}
 				<div class="space-y-2">
 					<label class="block text-xs font-semibold text-stone-700" for="new-given"
 						>Given name</label
@@ -682,7 +682,7 @@
 			{/if}
 		{/if}
 
-		{#if showUnionChooser}
+		{#if shouldShowUnionChooser}
 			<fieldset class="space-y-1.5" data-testid="union-chooser">
 				<legend class="text-xs font-semibold text-stone-700">{unionChooserLegend}</legend>
 				{#each unionOptions as option (option.id ?? 'new')}
