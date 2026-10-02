@@ -41,6 +41,7 @@ export const QUALITY_RULES = [
 	{ code: 'duplicate_parent_link', severity: 'warning', title: 'The same parent recorded twice', why: 'Two links say the same person is the same kind of parent of the same child.' },
 	{ code: 'conflicting_births', severity: 'suggestion', title: 'More than one birth', why: 'A person has two or more births with different dates. Both are kept; a source would say which is right.' },
 	{ code: 'conflicting_deaths', severity: 'suggestion', title: 'More than one death', why: 'A person has two or more deaths with different dates. Both are kept; a source would say which is right.' },
+	{ code: 'possible_duplicate_person', severity: 'suggestion', title: 'Possibly the same person', why: 'Two or more people have the same name and birth dates that could be the same. A name and a date are never enough to merge on: compare the records, and merge from either person’s page if they are one.' },
 	{ code: 'one_parent_recorded', severity: 'suggestion', title: 'Only one parent recorded', why: 'A child has a single parent on record. The other parent may be worth finding.' }
 ] as const satisfies readonly QualityRule[];
 

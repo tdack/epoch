@@ -100,6 +100,32 @@ describe('checks on parents and children', () => {
 	});
 });
 
+describe('possible duplicate people', () => {
+	const twinsWith = (a: string | undefined, b: string | undefined) =>
+		treeRows({ people: [{ id: 'a', givenName: 'Ann', surname: 'Ash', birth: a }, { id: 'b', givenName: 'ann', surname: 'ASH', birth: b }] });
+
+	it('needs the same name and births that could match, and never a name alone', () => {
+		expect(rulesOf(twinsWith('1900', '1900'))).toContain('possible_duplicate_person');
+		expect(rulesOf(twinsWith('1900', 'ABT 1900'))).toContain('possible_duplicate_person');
+		expect(rulesOf(twinsWith('1900', '1920'))).not.toContain('possible_duplicate_person');
+		expect(rulesOf(twinsWith(undefined, '1900'))).not.toContain('possible_duplicate_person');
+		expect(rulesOf(twinsWith(undefined, undefined))).not.toContain('possible_duplicate_person');
+	});
+
+	it('is one finding for a group of namesakes, naming only those who could be the same', () => {
+		const people = Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, givenName: 'John', surname: 'Smith', birth: String(1700 + i * 10) }));
+		const found = checkQuality(treeRows({ people: [...people, { id: 'twin', givenName: 'John', surname: 'Smith', birth: '1700' }] })).filter((f) => f.rule === 'possible_duplicate_person');
+		expect(found).toHaveLength(1);
+		expect(found[0]!.subjects.map((s) => s.id).sort()).toEqual(['p0', 'twin']);
+		expect(found[0]!.severity).toBe('suggestion');
+	});
+
+	it('does not suggest a person is their own duplicate across different names', () => {
+		const rows = treeRows({ people: [{ id: 'a', givenName: 'Ann', surname: 'Ash', birth: '1900' }, { id: 'b', givenName: 'Ann', surname: 'Birch', birth: '1900' }] });
+		expect(rulesOf(rows)).not.toContain('possible_duplicate_person');
+	});
+});
+
 describe('partnerships and cycles', () => {
 	it('suggests a look at two partnerships with the same partners, in either order, and never for different ones', () => {
 		const rows = treeRows({ people: [{ id: 'a' }, { id: 'b' }, { id: 'c' }], unions: [{ id: 'u1', partners: ['a', 'b'] }, { id: 'u2', partners: ['b', 'a'] }, { id: 'u3', partners: ['a', 'c'] }] });
