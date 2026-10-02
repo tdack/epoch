@@ -97,6 +97,7 @@ function createFact(rows: TreeRows, ctx: FactContext, command: Extract<FactComma
 	const row: EventRow = {
 		id: command.factId,
 		treeId: ctx.treeId,
+		gedcomExtra: null,
 		entityType: 'INDIVIDUAL',
 		entityId: command.personId,
 		type: command.fact.type,

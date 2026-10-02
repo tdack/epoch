@@ -10,7 +10,7 @@
  * pair.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { individuals, unions, unionPartners, parentChild, personNames, gedcomPreserved } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
@@ -166,8 +166,16 @@ export async function importNeutralModel(
 	}
 
 	// 3. Preserve unmodeled GEDCOM structures verbatim for lossless export.
-	let order = 0;
+	// A merge import meets structures it kept the last time; the same lines under the same owner are
+	// not kept twice, or a root record would be written twice and its XREF would repeat.
+	const kept = new Set(
+		(await db.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines }).from(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId)).all()).map((r) => JSON.stringify([r.owner, r.lines]))
+	);
+	let order = (await db.select({ n: sql<number>`coalesce(max(${gedcomPreserved.order}), -1) + 1` }).from(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId)).get())?.n ?? 0;
 	for (const entry of parsed.preserved) {
+		const key = JSON.stringify([entry.xref, entry.lines]);
+		if (kept.has(key)) continue;
+		kept.add(key);
 		await db
 			.insert(gedcomPreserved)
 			.values({

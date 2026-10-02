@@ -51,6 +51,11 @@ export const events = sqliteTable('events', {
   cause: text('cause'),
   age: text('age'),
   notes: text('notes'),
+  // Sub-lines of the fact's GEDCOM structure that the model has no column for (a citation, a second
+  // note, a custom tag), verbatim from level 2 down and in file order, so export writes them back
+  // inside the same fact. A column rather than gedcom_preserved so they follow the row through
+  // edits, a merge and undo, as a name's do (ADR-013). Null when there are none.
+  gedcomExtra: text('gedcom_extra', { mode: 'json' }).$type<string[]>(),
   // Manual order among facts that sort together (same date, or both undated). Never a substitute
   // for the date: the timeline is date first.
   sortOrder: integer('sort_order').notNull().default(0),
