@@ -114,6 +114,7 @@ export class GenealogyRepository {
       .select()
       .from(events)
       .where(and(eq(events.treeId, treeId), eq(events.entityId, individualId)))
+      .orderBy(sql`${events}.rowid`)
       .all();
 
     return {
