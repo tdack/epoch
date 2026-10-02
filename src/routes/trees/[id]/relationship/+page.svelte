@@ -9,7 +9,7 @@
 	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
 
 	type Picked = { id: string; name: string } | null;
-	let first = $state<Picked>(untrack(() => (data.result ? { id: data.result.from.id, name: data.result.from.name } : null)));
+	let first = $state<Picked>(untrack(() => (data.result ? { id: data.result.from.id, name: data.result.from.name } : data.from && data.fromName ? { id: data.from, name: data.fromName } : null)));
 	let second = $state<Picked>(untrack(() => (data.result ? { id: data.result.to.id, name: data.result.to.name } : null)));
 
 	// Choosing the second person asks the question: the address changes, and the load answers it.
