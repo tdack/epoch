@@ -96,6 +96,9 @@ describe('for someone who sees everyone', () => {
 		const marriage = await places().detail(treeId, 'Chapelton', {}, actors.owner.context);
 		expect(marriage.facts[0]).toMatchObject({ kind: 'partnership', entityName: 'Alice Dead & Bob Dead', label: 'Marriage' });
 	});
+	it('answers a page past the end as not found, not as a crash', async () => {
+		await expect(places().detail(treeId, 'Chapelton', { offset: 50 }, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
+	});
 	it('answers an unknown place as not found', async () => {
 		await expect(places().detail(treeId, 'Atlantis', {}, actors.owner.context)).rejects.toBeInstanceOf(NotFoundError);
 	});

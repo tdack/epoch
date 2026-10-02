@@ -60,7 +60,10 @@ export class PlaceService {
 		const scope = await requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
 		const page = clampPage(query);
 		const { rows, hasMore } = await this.places.facts(treeId, placeText(name), page, scope);
-		if (rows.length === 0 && page.offset === 0) throw new NotFoundError('Place', name);
+		// An empty page is not found at any offset: the id below is the record's, which a place with no
+		// fact the viewer may see must not give away, and a stale link past the end (after a rename moved
+		// the facts) has nothing to show.
+		if (rows.length === 0) throw new NotFoundError('Place', name);
 
 		const personIds = [...new Set(rows.filter((r) => r.entityType === 'INDIVIDUAL').map((r) => r.entityId))];
 		const unionIds = [...new Set(rows.filter((r) => r.entityType === 'FAMILY').map((r) => r.entityId))];
@@ -85,7 +88,7 @@ export class PlaceService {
 			entityId: r.entityId,
 			entityName: r.entityType === 'INDIVIDUAL' ? (names.get(r.entityId) ?? r.entityId) : ([...(partners.get(r.entityId) ?? [])].sort().join(' & ') || 'Partnership')
 		}));
-		return { id: rows[0]!.placeId, name: rows[0]?.name ?? placeText(name), facts, hasMore, ...page };
+		return { id: rows[0]!.placeId, name: rows[0]!.name, facts, hasMore, ...page };
 	}
 
 	/**

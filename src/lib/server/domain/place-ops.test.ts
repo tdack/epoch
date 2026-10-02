@@ -46,6 +46,6 @@ describe('rewriting a place', () => {
 			people: [{ id: 'p1' }],
 			events: Array.from({ length: MAX_PLACE_REWRITE_FACTS + 1 }, (_, i) => ({ id: `e${i}`, entityId: 'p1', type: 'RESI', place: 'Cork' }))
 		});
-		expect(() => buildPlaceOps(many, rewrite('cork', 'X'), ctx)).toThrow(/at most 500/);
+		expect(() => buildPlaceOps(many, rewrite('cork', 'X'), ctx)).toThrow(/at most 200/);
 	});
 });

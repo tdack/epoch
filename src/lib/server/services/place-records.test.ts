@@ -15,6 +15,8 @@ import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
 import { GenealogyService } from './genealogy-service';
 import { PlaceService } from './place-service';
+import { pointFactsAtPlaces } from '../repositories/place-repository';
+import { MAX_PLACE_REWRITE_FACTS } from '../../shared/places';
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
@@ -228,6 +230,33 @@ describe('renaming and merging', () => {
 		expect(after[0]!.version).toBe(carl[0]!.version + 1);
 		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
 	});
+});
+
+describe('the size of one change', () => {
+	it('commits a rename of as many facts as the limit allows, and one undo reverts them all', async () => {
+		const actor = await createTestUser(t.db);
+		const tree = await createTestTree(t.db, actor);
+		const ctx = actor.context;
+		const person = (await new GenealogyService(t.db).createIndividual(tree, { givenName: 'Wren', surname: 'Ash' }, ctx)).individual;
+		// Each fact is a birth, the dearest kind: it also moves the person's version.
+		const rows = Array.from({ length: MAX_PLACE_REWRITE_FACTS }, (_, i) => ({ id: `cap-${i}`, tree, person: person.id }));
+		// D1 binds at most 100 variables a statement, and each row here binds about seven.
+		for (let i = 0; i < rows.length; i += 10) {
+			await t.db.insert(events).values(rows.slice(i, i + 10).map((r) => ({ id: r.id, treeId: r.tree, entityType: 'INDIVIDUAL' as const, entityId: r.person, type: 'BIRT', place: 'Leeds' })));
+		}
+		await t.db.batch(pointFactsAtPlaces(t.db, tree));
+
+		const service = new PlaceService(t.db);
+		const id = (await service.list(tree, {}, ctx)).items[0]!.id;
+		const { change } = await service.rewrite(tree, id, 'Leeds, Yorkshire', ctx);
+		expect(change).not.toBeNull();
+		await expectConsistent(tree);
+		expect((await service.detail(tree, 'Leeds, Yorkshire', { limit: 1 }, ctx)).id).not.toBe(id);
+
+		await new ChangeLogService(t.db).undoLast(tree, ctx);
+		await expectConsistent(tree);
+		expect((await service.detail(tree, 'Leeds', { limit: 1 }, ctx)).id).toBe(id);
+	}, 60_000);
 });
 
 describe('who may change a place', () => {

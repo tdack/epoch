@@ -10,10 +10,12 @@
 export const MAX_PLACE_SUGGESTIONS = 10;
 
 /**
- * The most facts one rename or merge rewrites. The change log keeps the whole change as one JSON
- * value, and a D1 row is capped at 2 MB; a fact's two images are about 1 KB, so this leaves room.
+ * The most facts one rename or merge rewrites. D1 counts every statement of a batch as a query,
+ * with 1,000 allowed per invocation, and a fact costs up to four (its version guard, its update,
+ * and a person's guard and update for a birth or death), so 200 leaves room for the reads and the
+ * log. The change log also keeps a change as one JSON value, and a D1 row is capped at 2 MB.
  */
-export const MAX_PLACE_REWRITE_FACTS = 500;
+export const MAX_PLACE_REWRITE_FACTS = 200;
 
 export interface PlaceListItem {
 	/** The place record, which a rename or a merge names. */

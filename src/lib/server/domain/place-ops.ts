@@ -40,8 +40,8 @@ export function buildPlaceOps(rows: TreeRows, command: PlaceCommand, ctx: PlaceC
 	if (to === '') throw new ValidationError('A place needs a name');
 	const facts = factsAtPlace(rows, command.fromKey);
 	if (facts.length === 0) throw new NotFoundError('Place', command.placeId);
-	// A change set is logged whole (D1 rows are capped at 2 MB), so a place too big to log in one is
-	// refused rather than half done.
+	// One change is one atomic batch and one log row (see the limit's comment), so a place too big for
+	// one is refused rather than half done.
 	if (facts.length > MAX_PLACE_REWRITE_FACTS) {
 		throw new ValidationError(`This place is on ${facts.length} facts; renaming or merging works on at most ${MAX_PLACE_REWRITE_FACTS} at a time`);
 	}
