@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { trees } from './trees';
 
@@ -41,5 +42,8 @@ export const events = sqliteTable('events', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 }, (table) => ({
   entityIdx: index('idx_event_entity').on(table.entityType, table.entityId),
-  treeIdx: index('idx_event_tree').on(table.treeId)
+  treeIdx: index('idx_event_tree').on(table.treeId),
+  // A place is the text on a fact, grouped and looked up without regard to case (ADR-018); the
+  // place page finds its facts by this, and the place list scans it in order.
+  placeIdx: index('idx_event_place').on(table.treeId, sql`${table.place} collate nocase`)
 }));

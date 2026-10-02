@@ -308,7 +308,7 @@
                 <span class="text-sm font-semibold text-emerald-900">{fact.label}{#if fact.value}: <span class="text-stone-900">{fact.value}</span>{/if}</span>
                 <span class="text-xs text-stone-600">{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate} <span class="text-stone-400">(approximate)</span>{/if}</span>
               </div>
-              {#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600"><MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" />{fact.place}</p>{/if}
+              {#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600"><MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" /><a href={`${treeHref}/place?name=${encodeURIComponent(fact.place)}`} class="hover:underline">{fact.place}</a></p>{/if}
               {#if fact.cause || fact.age}
                 <p class="mt-1 text-xs text-stone-600">{[fact.cause && `Cause: ${fact.cause}`, fact.age && `Age: ${fact.age}`].filter(Boolean).join(' · ')}</p>
               {/if}

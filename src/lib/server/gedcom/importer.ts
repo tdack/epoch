@@ -396,7 +396,7 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
     .from(parentChild)
     .where(eq(parentChild.treeId, treeId))
     .all();
-  const treeEvents = await db.select().from(events).where(eq(events.treeId, treeId)).all();
+  const treeEvents = await db.select().from(events).where(eq(events.treeId, treeId)).orderBy(sql`${events}.rowid`).all();
   const treeNames = await db
     .select(getTableColumns(personNames))
     .from(personNames)

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_event_place` ON `events` (`tree_id`,"place" collate nocase);

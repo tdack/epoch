@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import { individuals, unions, unionPartners, parentChild, events, mediaItems } from '../db/schema';
-import { eq, and, getTableColumns } from 'drizzle-orm';
+import { eq, and, getTableColumns, sql } from 'drizzle-orm';
 
 /** Map a neutral parent-child type to the legacy family-wide pedigree value. */
 const TYPE_TO_PEDIGREE: Record<string, string> = {
@@ -26,7 +26,9 @@ export class GenealogyRepository {
         .where(eq(unions.treeId, treeId))
         .all(),
       this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
-      this.db.select().from(events).where(eq(events.treeId, treeId)).all(),
+      // Insertion order, said outright: export writes conflicting births in it, and without it the
+      // plan picks whichever index it likes (adding `idx_event_place` once reordered them).
+      this.db.select().from(events).where(eq(events.treeId, treeId)).orderBy(sql`${events}.rowid`).all(),
       this.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all()
     ]);
 

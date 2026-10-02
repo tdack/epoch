@@ -106,6 +106,13 @@
       "when": 1790855268767,
       "tag": "0014_fine_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1790912919756,
+      "tag": "0015_steady_purifiers",
+      "breakpoints": true
     }
   ]
 }
