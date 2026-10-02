@@ -126,7 +126,7 @@ export class TreeEditor {
 	graph = $state<RelationshipGraph | null>(null);
 
 	// Person form
-	showPersonModal = $state(false);
+	isPersonModalOpen = $state(false);
 	personModalMode = $state<'add' | 'edit'>('add');
 	personToEdit = $state<EditablePerson | null>(null);
 	isSubmittingPerson = $state(false);
@@ -139,7 +139,7 @@ export class TreeEditor {
 	} | null>(null);
 
 	// Relationship dialog
-	showRelationshipModal = $state(false);
+	isRelationshipModalOpen = $state(false);
 	relationshipAnchor = $state<PersonRef | null>(null);
 	relationshipPreselect = $state<PersonRef | null>(null);
 	relationshipKind = $state<RelationshipKind>('add_parent');
@@ -217,7 +217,7 @@ export class TreeEditor {
 		this.personToEdit = null;
 		this.personModalError = null;
 		this.isSubmittingPerson = false;
-		this.showPersonModal = true;
+		this.isPersonModalOpen = true;
 	};
 
 	/** Open the form on the person as stored now, so the version it sends is current. */
@@ -270,7 +270,7 @@ export class TreeEditor {
 			};
 			this.personModalError = null;
 			this.isSubmittingPerson = false;
-			this.showPersonModal = true;
+			this.isPersonModalOpen = true;
 		} catch (e: any) {
 			this.toasts.push(e.message || 'Could not open the person', { tone: TOAST_TONES.ERROR });
 		}
@@ -319,7 +319,7 @@ export class TreeEditor {
 		version: number
 	) {
 		const { change } = await updateIndividualApi(this.treeId, personId, formData, version);
-		this.showPersonModal = false;
+		this.isPersonModalOpen = false;
 		this.personConflict = null;
 		await this.afterChange(change, 'Person saved');
 	}
@@ -330,7 +330,7 @@ export class TreeEditor {
 		try {
 			if (this.personModalMode === 'add') {
 				const created = await createIndividualApi(this.treeId, formData);
-				this.showPersonModal = false;
+				this.isPersonModalOpen = false;
 				await this.afterChange(created.change, 'Person added');
 				this.options.onPersonCreated?.(created.id);
 			} else if (this.personToEdit) {
@@ -378,7 +378,7 @@ export class TreeEditor {
 		const conflict = this.personConflict;
 		this.personConflict = null;
 		if (!conflict) return;
-		this.showPersonModal = false;
+		this.isPersonModalOpen = false;
 		await this.openEditPerson(conflict.personId);
 	};
 
@@ -392,14 +392,14 @@ export class TreeEditor {
 		this.relationshipPreselect = options.preselect ?? null;
 		this.relationshipKind = options.kind ?? 'add_parent';
 		this.relationshipUnionId = options.unionId ?? null;
-		this.showRelationshipModal = true;
+		this.isRelationshipModalOpen = true;
 	};
 
 	relationshipSaved = async (
 		change: ChangeSummary | null,
 		plan: { sentence: string; commands: unknown[] }
 	) => {
-		this.showRelationshipModal = false;
+		this.isRelationshipModalOpen = false;
 		await this.afterChange(
 			change,
 			plan.commands.length === 0 ? 'Nothing was changed' : plan.sentence

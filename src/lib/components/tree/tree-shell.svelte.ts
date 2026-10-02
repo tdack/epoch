@@ -25,19 +25,19 @@ export interface TreeShellOptions {
 
 export class TreeShell {
 	// New tree
-	showNewTreeModal = $state(false);
+	isNewTreeModalOpen = $state(false);
 	isCreatingTree = $state(false);
 	createTreeError = $state<string | null>(null);
 
 	// Delete tree
-	showDeleteTreeModal = $state(false);
+	isDeleteTreeModalOpen = $state(false);
 	isDeletingTree = $state(false);
 	deleteTreeError = $state<string | null>(null);
 
 	// Import
 	importStatus = $state<string | null>(null);
 	isImporting = $state(false);
-	showImportConfirmModal = $state(false);
+	isImportConfirmModalOpen = $state(false);
 	pendingImportFile = $state<File | null>(null);
 	importPreview = $state<ImportPreviewData | null>(null);
 	isLoadingPreview = $state(false);
@@ -49,7 +49,7 @@ export class TreeShell {
 	openNewTree = () => {
 		this.createTreeError = null;
 		this.isCreatingTree = false;
-		this.showNewTreeModal = true;
+		this.isNewTreeModalOpen = true;
 	};
 
 	createTree = async (data: { name: string; description?: string }) => {
@@ -57,7 +57,7 @@ export class TreeShell {
 		this.isCreatingTree = true;
 		try {
 			const created = await createTreeApi(data);
-			this.showNewTreeModal = false;
+			this.isNewTreeModalOpen = false;
 			await this.options.reload();
 			if (created?.id) this.options.goTo(created.id);
 		} catch (e: any) {
@@ -71,7 +71,7 @@ export class TreeShell {
 	openDeleteTree = () => {
 		this.deleteTreeError = null;
 		this.isDeletingTree = false;
-		this.showDeleteTreeModal = true;
+		this.isDeleteTreeModalOpen = true;
 	};
 
 	deleteTree = async () => {
@@ -81,7 +81,7 @@ export class TreeShell {
 		this.deleteTreeError = null;
 		try {
 			await deleteTreeApi(treeId);
-			this.showDeleteTreeModal = false;
+			this.isDeleteTreeModalOpen = false;
 			this.options.toasts.push('Tree deleted');
 			// The landing page opens the next tree, or offers to create one.
 			this.options.goTo(null);
@@ -109,7 +109,7 @@ export class TreeShell {
 
 	private async openImportConfirm() {
 		if (!this.pendingImportFile) return;
-		this.showImportConfirmModal = true;
+		this.isImportConfirmModalOpen = true;
 		this.isLoadingPreview = true;
 		this.importConfirmError = null;
 		try {
@@ -138,7 +138,7 @@ export class TreeShell {
 				options
 			);
 			this.importStatus = `Import complete: ${result.individualsCount || 0} individuals, ${result.familiesCount || 0} families${result.mergedFamiliesCount ? ` (${result.mergedFamiliesCount} duplicate families merged)` : ''}.`;
-			this.showImportConfirmModal = false;
+			this.isImportConfirmModalOpen = false;
 			this.pendingImportFile = null;
 			this.importPreview = null;
 			await this.options.reload();
@@ -153,7 +153,7 @@ export class TreeShell {
 	};
 
 	cancelImport = () => {
-		this.showImportConfirmModal = false;
+		this.isImportConfirmModalOpen = false;
 		this.pendingImportFile = null;
 		this.importPreview = null;
 		this.importConfirmError = null;

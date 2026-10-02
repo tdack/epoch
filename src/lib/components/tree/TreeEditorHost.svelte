@@ -19,25 +19,25 @@
 </script>
 
 <PersonModal
-	isOpen={editor.showPersonModal}
+	isOpen={editor.isPersonModalOpen}
 	mode={editor.personModalMode}
 	initialPerson={editor.personToEdit}
 	isSubmitting={editor.isSubmittingPerson}
 	error={editor.personModalError}
-	onclose={() => (editor.showPersonModal = false)}
+	onclose={() => (editor.isPersonModalOpen = false)}
 	onsubmit={editor.savePerson}
 />
 
 {#if editor.relationshipAnchor && graph}
 	<RelationshipModal
-		isOpen={editor.showRelationshipModal}
+		isOpen={editor.isRelationshipModalOpen}
 		treeId={editor.treeId}
 		anchor={editor.relationshipAnchor}
 		{graph}
 		preselect={editor.relationshipPreselect}
 		initialKind={editor.relationshipKind}
 		initialUnionId={editor.relationshipUnionId}
-		onclose={() => (editor.showRelationshipModal = false)}
+		onclose={() => (editor.isRelationshipModalOpen = false)}
 		onsaved={editor.relationshipSaved}
 		onrefresh={editor.refresh}
 	/>

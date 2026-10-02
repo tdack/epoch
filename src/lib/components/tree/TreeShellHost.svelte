@@ -33,27 +33,27 @@
 {/if}
 
 <NewTreeModal
-	isOpen={shell.showNewTreeModal}
+	isOpen={shell.isNewTreeModalOpen}
 	isCreating={shell.isCreatingTree}
 	error={shell.createTreeError}
-	onclose={() => (shell.showNewTreeModal = false)}
+	onclose={() => (shell.isNewTreeModalOpen = false)}
 	oncreate={shell.createTree}
 />
 
 {#if tree}
 	<DeleteTreeModal
-		isOpen={shell.showDeleteTreeModal}
+		isOpen={shell.isDeleteTreeModalOpen}
 		treeId={tree.id}
 		treeName={tree.name}
 		isDeleting={shell.isDeletingTree}
 		error={shell.deleteTreeError}
-		onclose={() => (shell.showDeleteTreeModal = false)}
+		onclose={() => (shell.isDeleteTreeModalOpen = false)}
 		ondelete={shell.deleteTree}
 	/>
 {/if}
 
 <ImportConfirmModal
-	isOpen={shell.showImportConfirmModal}
+	isOpen={shell.isImportConfirmModalOpen}
 	treeName={tree?.name}
 	hasSelectedTree={tree !== null}
 	preview={shell.importPreview}
