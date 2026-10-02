@@ -64,6 +64,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;
 		}
+		case 'merge_people':
+			return `Merged ${nameOf(rows, command.mergedId)} into ${nameOf(rows, command.survivorId)}`;
 		case 'create_name':
 			return `Added ${nameKind(rows, command.nameId, command.name.type)} ${formatFullName(command.name)} to ${nameOf(rows, command.personId)}`;
 		case 'update_name':

@@ -25,12 +25,14 @@ import { newWidowhoods } from '../../shared/widowhood';
 import type { Sex } from '../../shared/sex';
 import type { FactCommand } from './fact-ops';
 import type { NameCommand } from './name-ops';
+import type { PersonMergeCommand } from './person-merge';
 import type { PlaceCommand } from './place-ops';
 
 export type RelationshipCommand =
 	| FactCommand
 	| NameCommand
 	| PlaceCommand
+	| PersonMergeCommand
 	| {
 			kind: 'create_person';
 			personId: string;
