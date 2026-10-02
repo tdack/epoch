@@ -42,3 +42,24 @@ export interface DescendantsDto {
 	/** True when there are more descendants below the last generation drawn, or the load hit its size limit. */
 	hasMoreBelow: boolean;
 }
+
+/** The ways a person's family can be drawn, in the order the style links list them. */
+export const CHART_STYLES = [
+	{ id: 'pedigree', label: 'Ancestors', path: 'pedigree' },
+	{ id: 'fan', label: 'Fan', path: 'fan' },
+	{ id: 'descendants', label: 'Descendants', path: 'descendants' },
+	{ id: 'hourglass', label: 'Hourglass', path: 'hourglass' }
+] as const;
+export type ChartStyle = (typeof CHART_STYLES)[number]['id'];
+
+/** Each side of an hourglass: both halves are drawn on one canvas, so each stops sooner. */
+export const MAX_HOURGLASS_GENERATIONS = 6;
+
+/**
+ * The address of a person's chart in a style. A style that has no such depth (the hourglass has
+ * two) takes the same number for both of its halves, so moving between styles keeps the depth.
+ */
+export function chartAddress(treeId: string, personId: string, style: ChartStyle, generations: number): string {
+	const base = `/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(personId)}/${style}`;
+	return style === 'hourglass' ? `${base}?up=${generations}&down=${generations}` : `${base}?generations=${generations}`;
+}
