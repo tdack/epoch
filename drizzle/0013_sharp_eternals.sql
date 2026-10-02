@@ -1,0 +1,1 @@
+ALTER TABLE `individuals` ADD `created_by` text;

@@ -50,6 +50,8 @@ export interface OpContext {
 	/** Epoch milliseconds, stamped on every row written. */
 	now: number;
 	newId: () => string;
+	/** The user making the change, recorded as the author of a person it creates. */
+	actorId: string | null;
 }
 
 // ---- Small helpers ----
@@ -305,6 +307,7 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		surname: cleanText(command.surname),
 		sex: command.sex,
 		privacy: 'auto',
+		createdBy: ctx.actorId ?? null,
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now

@@ -76,8 +76,9 @@ export class MutationRunner {
 		return requireTreeScope(this.userRepo, this.treeRepo, treeId, context, action, new Date(this.clock.now()));
 	}
 
-	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[]): RowOp[] {
-		return buildPlanOps(rows, commands, { treeId, now: this.clock.now(), newId: this.clock.newId });
+	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
+	plan(treeId: string, rows: TreeRows, commands: RelationshipCommand[], actorId: string | null): RowOp[] {
+		return buildPlanOps(rows, commands, { treeId, now: this.clock.now(), newId: this.clock.newId, actorId });
 	}
 
 	/**
@@ -85,7 +86,7 @@ export class MutationRunner {
 	 * placeholders, which a planner could write back). Everyone else's are the rows themselves.
 	 */
 	visibleRows(rows: TreeRows, scope: ViewerScope): TreeRows {
-		return scope.isRestricted ? maskRows(rows, scope.cutoff, false).rows : rows;
+		return scope.isRestricted ? maskRows(rows, scope.cutoff, false, scope.creatorId).rows : rows;
 	}
 
 	/**
@@ -95,10 +96,10 @@ export class MutationRunner {
 	 * a private person (ADR-015). The refusal reads as a missing permission, not as a reason.
 	 */
 	planFor(treeId: string, rows: TreeRows, commands: RelationshipCommand[], scope: ViewerScope): RowOp[] {
-		if (!scope.isRestricted) return this.plan(treeId, rows, commands);
-		this.plan(treeId, this.visibleRows(rows, scope), commands);
-		const ops = this.plan(treeId, rows, commands);
-		if (opsTouchPrivate(ops, rows, scope.cutoff)) {
+		if (!scope.isRestricted) return this.plan(treeId, rows, commands, scope.userId);
+		this.plan(treeId, this.visibleRows(rows, scope), commands, scope.userId);
+		const ops = this.plan(treeId, rows, commands, scope.userId);
+		if (opsTouchPrivate(ops, rows, scope.cutoff, scope.creatorId)) {
 			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`);
 		}
 		return ops;

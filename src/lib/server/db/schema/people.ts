@@ -15,6 +15,10 @@ export const individuals = sqliteTable('individuals', {
   // ADR-015. `auto` derives living state from the person's facts; an owner or manager can force
   // `public` or `private`. Imported GEDCOM `RESN privacy` lands here, not in gedcom_preserved.
   privacy: text('privacy', { enum: PERSON_PRIVACY_VALUES }).notNull().default('auto'),
+  // The user who created the person, so a contributor still sees someone they added before any
+  // dated fact makes them visible (ADR-015). No foreign key: a deleted user must not cascade to
+  // people, and imported or earlier people have none.
+  createdBy: text('created_by'),
   version: integer('version').notNull().default(1),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())

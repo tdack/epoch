@@ -116,7 +116,7 @@ const lists = () => new ListService(t.db, NOW_FN);
 
 describe('the SQL predicate and the pure rule', () => {
 	it('agree for every fixture person', async () => {
-		const scope = { isRestricted: true, cutoff: CUTOFF };
+		const scope = { isRestricted: true, cutoff: CUTOFF, creatorId: null };
 		const visible = await visibleAmong(t.db, treeId, Object.keys(VISIBLE).map(idOf), scope);
 		for (const [xref, expected] of Object.entries(VISIBLE)) {
 			const id = idOf(xref);
@@ -144,9 +144,10 @@ describe('search', () => {
 		expect(xrefsOf(people(await search().search(treeId, { text: '@I2@' }, ctx)))).toEqual(['@I2@']);
 	});
 
-	it('does not let a private couple\'s wedding find, or be quoted for, the visible partner', async () => {
+	// A contributor's predicate has a third term (their own people); it must not turn "private" into "unknown".
+	it.each(['viewer', 'contributor'] as const)('does not let a private couple\'s wedding find, or be quoted for, the visible partner of a %s', async (role) => {
 		const owner = actors.owner.context;
-		const viewer = actors.viewer.context;
+		const viewer = actors[role].context;
 		// Dora's partner Liv is private, so the marriage is a fact about Liv too.
 		const asOwner = await search().search(treeId, { place: 'Marriageton' }, owner);
 		expect(xrefsOf(people(asOwner)).sort()).toEqual(['@I1@', '@I3@']);

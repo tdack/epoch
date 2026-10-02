@@ -148,7 +148,7 @@ export class RelationshipService {
 		const rows = await this.runner.store.loadRows(treeId);
 		// The whole-tree graph is masked like the window is: placeholders when the tree allows structure.
 		if (!scope.isRestricted) return graphFromRows(rows);
-		const { rows: masked, placeholderIds } = maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure);
+		const { rows: masked, placeholderIds } = maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId);
 		return graphFromRows(masked, placeholderIds);
 	}
 

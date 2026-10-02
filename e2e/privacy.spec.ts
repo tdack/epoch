@@ -3,8 +3,7 @@ import { expect, open, test } from './support';
 
 /**
  * A contributor or viewer never sees a living person; a manager does, and decides. The viewer is a
- * second identity (the dev bypass reads `x-dev-user-sub`) given a membership through the local D1,
- * since there is no member administration yet.
+ * second identity (the dev bypass reads `x-dev-user-sub`) invited by the owner and taken up on first sign-in.
  */
 
 const SHOTS = process.env.E2E_SHOTS ?? 'test-results';
@@ -13,7 +12,7 @@ function sql(statement: string) {
 	execFileSync('npx', ['wrangler', 'd1', 'execute', 'epoch-genealogy-db', '--local', '--command', statement], { stdio: 'ignore' });
 }
 
-test('a viewer is shown the dead and never the living, and a manager can change that', async ({ api, page, browser }) => {
+test('a viewer is shown the dead and never the living, and a manager can change that', async ({ api, page, browser, request }) => {
 	// Many pages and a second identity: well past the default 30 seconds.
 	test.setTimeout(120_000);
 	const sub = `e2e-viewer-${Date.now()}`;
@@ -28,9 +27,10 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 	const viewerContext = await browser.newContext({ extraHTTPHeaders: identity });
 	await viewerContext.addCookies(Object.entries(identity).map(([name, value]) => ({ name, value: encodeURIComponent(value), url: 'http://localhost:5179' })));
 	try {
-		// The first request creates the identity; the membership is then granted from the database.
-		await viewerContext.request.get('/api/trees');
-		sql(`insert into tree_memberships (id, tree_id, user_id, role, created_at, updated_at) select lower(hex(randomblob(16))), '${api.treeId}', id, 'viewer', unixepoch(), unixepoch() from users where access_sub = '${sub}'`);
+		// The owner invites the address; the viewer's first request creates the identity and takes it up.
+		const invited = await request.post(`/api/trees/${api.treeId}/invitations`, { data: { email: identity['x-dev-user-email'], role: 'viewer' } });
+		expect(invited.status()).toBe(201);
+		expect((await viewerContext.request.get('/api/trees')).ok()).toBe(true);
 
 		const viewer = await viewerContext.newPage();
 		const base = `/trees/${api.treeId}`;
@@ -67,6 +67,8 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 		await expect(viewer.getByRole('button', { name: /Export/ })).toHaveCount(0);
 		expect((await viewer.request.get(`/api/export?treeId=${api.treeId}`)).status()).toBe(403);
 		await expect(viewer.getByRole('link', { name: 'Privacy' })).toHaveCount(0);
+		await expect(viewer.getByRole('link', { name: 'Members' })).toHaveCount(0);
+		expect((await viewer.request.get(`/api/trees/${api.treeId}/members`)).status()).toBe(403);
 
 		// The owner turns placeholders on.
 		await open(page, `${base}/privacy`);

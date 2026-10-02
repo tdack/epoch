@@ -66,7 +66,7 @@
     if (dto.privacy.setting === 'public') return 'Contributors and viewers can see them.';
     if (dto.privacy.setting === 'private') return 'Hidden from contributors and viewers.';
     return dto.privacy.isLikelyLiving
-      ? 'Hidden from contributors and viewers: no death is recorded and no birth is old enough.'
+      ? 'Hidden from contributors and viewers, except the contributor who added them: no death is recorded and no birth is old enough.'
       : 'Visible to contributors and viewers: a death is recorded or their birth is old enough.';
   });
   let isSavingPrivacy = $state(false);

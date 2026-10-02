@@ -15,8 +15,10 @@ afterAll(async () => {
 });
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
-const EVERYONE = { isRestricted: false, cutoff: '1906-10-01' };
-const RESTRICTED = { isRestricted: true, cutoff: '1906-10-01' };
+const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
+// A viewer has no creator test; a contributor's predicate also asks `created_by`, so both are measured.
+const VIEWER: { isRestricted: boolean; cutoff: string; creatorId: string | null } = { isRestricted: true, cutoff: '1906-10-01', creatorId: null };
+const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
 
 const dialect = new SQLiteSyncDialect();
 interface Plan {
@@ -30,6 +32,10 @@ async function measure(name: string, statement: SQL): Promise<Plan> {
 	const plan = await t.d1.prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...params).all<{ detail: string }>();
 	const run = await t.d1.prepare(sql).bind(...params).run();
 	return { name, details: plan.results.map((r) => r.detail), returned: run.results.length, rowsRead: run.meta.rows_read };
+}
+async function resultOf(statement: SQL): Promise<unknown[]> {
+	const { sql, params } = dialect.sqlToQuery(statement);
+	return (await t.d1.prepare(sql).bind(...params).all()).results;
 }
 /** A CTE or subquery's own scan is not a table scan. */
 const tableScans = (details: string[]) => details.filter((d) => /^SCAN (?!pairs|\(subquery)/.test(d));
@@ -57,7 +63,7 @@ describe('the list queries, against two trees of different size', () => {
 		const repo = new ListRepository(t.db);
 		const page = { offset: 0, limit: 50 };
 		const plans: Plan[] = [];
-		for (const [viewer, scope] of [['', EVERYONE], [', restricted viewer', RESTRICTED]] as const) {
+		for (const [viewer, scope] of [['', EVERYONE], [', restricted viewer', VIEWER], [', restricted contributor', CONTRIBUTOR]] as const) {
 			for (const [label, treeId] of [['small', small], ['big', big]] as const) {
 				const at = `${viewer} (${label})`;
 				plans.push(await measure(`individuals by surname, first page${at}`, repo.individualsSql(treeId, 'surname', '', page, scope)));
@@ -84,7 +90,7 @@ describe('the list queries, against two trees of different size', () => {
 			const size = isSmall ? smallSize : bigSize;
 			// The visibility predicate looks up each person's events (ADR-015): a few rows per person
 			// examined, so a restricted viewer's bounds are wider, and still one tree's worth.
-			const k = plan.name.includes('restricted viewer') ? 4 : 1;
+			const k = plan.name.includes('restricted') ? 4 : 1;
 			if (plan.name.includes('first page')) {
 				// An index in the page's own order: a page costs a page, not the tree.
 				// A partnership page looks up both partners' events per row, about a dozen rows each.
@@ -94,6 +100,18 @@ describe('the list queries, against two trees of different size', () => {
 			} else {
 				// Deep pages and a surname filter still walk up to one tree, never more.
 				expect(plan.rowsRead, plan.name).toBeLessThanOrEqual(k * 3 * size);
+			}
+		}
+
+		// Nobody in these trees was created by the contributor, so the creator test must change nothing
+		// but the cost: it measured fewer rows read, which is only believable if the answers are the same.
+		for (const treeId of [small, big]) {
+			for (const read of [
+				(scope: typeof VIEWER) => repo.individualsSql(treeId, 'surname', '', page, scope),
+				(scope: typeof VIEWER) => repo.surnamesSql(treeId, page, scope),
+				(scope: typeof VIEWER) => repo.unionsSql(treeId, page, scope)
+			]) {
+				expect(await resultOf(read(CONTRIBUTOR))).toEqual(await resultOf(read(VIEWER)));
 			}
 		}
 	}, 240_000);

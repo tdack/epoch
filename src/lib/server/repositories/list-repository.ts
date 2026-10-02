@@ -12,7 +12,7 @@ import { INDIVIDUAL_SORTS, type IndividualSort } from '../../shared/lists';
 import type { ViewerScope } from '../services/tree-access';
 import { andVisible, isVisibleOf } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
 
 export interface PageRequest {
 	offset: number;

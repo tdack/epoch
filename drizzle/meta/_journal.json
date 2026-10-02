@@ -92,6 +92,20 @@
       "when": 1790834069360,
       "tag": "0012_solid_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790854340016,
+      "tag": "0013_sharp_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790855268767,
+      "tag": "0014_fine_forge",
+      "breakpoints": true
     }
   ]
 }

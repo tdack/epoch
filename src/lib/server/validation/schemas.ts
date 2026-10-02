@@ -8,6 +8,7 @@
  * normalization stay in the service).
  */
 
+import { TREE_ROLES } from '../../shared/roles';
 import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS, PERSON_PRIVACY_VALUES } from '../../shared/privacy';
 import { z } from 'zod';
 import { END_EVENT_TYPES, ENDED_UNION_STATUSES, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
@@ -300,3 +301,8 @@ export const privacySettingsSchema = z
 	.object({ maxAliveYears: z.number().int().min(MIN_MAX_ALIVE_YEARS).max(MAX_MAX_ALIVE_YEARS), shouldShowPrivateStructure: z.boolean() })
 	.partial()
 	.refine((v) => v.maxAliveYears !== undefined || v.shouldShowPrivateStructure !== undefined, 'Nothing to change');
+
+/** Member administration (ADR-016). The role is checked against the caller's own in the service. */
+const memberRoleSchema = z.enum(TREE_ROLES);
+export const inviteMemberSchema = z.object({ email: z.string().trim().min(3).max(254), role: memberRoleSchema });
+export const changeMemberRoleSchema = z.object({ role: memberRoleSchema, version: versionSchema });

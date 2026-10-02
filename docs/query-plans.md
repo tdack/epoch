@@ -299,5 +299,12 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
 - **The surname list pays most** (about 12 rows per person on the big tree, against 6.5 before),
   because it aggregates over every person. If a tree outgrows that, the stored-column alternative in
   ADR-015 is the next step, and only the predicate changes.
-- **The partnership list's first page** costs 650 rows instead of 51: each union row looks up both
+- **The partnership list's first page** costs 306 rows instead of 51: each union row looks up both
   partners' events.
+- **A contributor's predicate has a third term** (`created_by is <them>`, their own people stay
+  visible, ADR-015) and is measured as a second restricted shape beside the viewer's. The numbers
+  above are the same for both, to the row, and `list-plans.test.ts` and `search-plans.test.ts` hold
+  the answers of the two identical on trees where nobody is a creator. That check exists because the
+  first form of the term, `created_by = <them>`, was null for a person with no author and turned
+  "private" into "unknown" under `not`: it read fewer rows only because it let a private partner's
+  partnership through, which `privacy-reads.test.ts` now covers for a contributor too.
