@@ -50,6 +50,38 @@ export class MarkRepository {
 		}
 	}
 
+	/**
+	 * Gives `toId` every mark `fromId` has, for every user, and leaves the originals. Marks are not in
+	 * the change log, so a merge cannot undo a move of them; copying means an undo brings the other
+	 * person back with their own marks and the survivor merely keeps a copy.
+	 */
+	async copyPerson(treeId: string, fromId: string, toId: string): Promise<void> {
+		const rows = await this.db
+			.select({
+				userId: personMarks.userId,
+				kind: personMarks.kind,
+				touchedAt: personMarks.touchedAt
+			})
+			.from(personMarks)
+			.where(and(eq(personMarks.treeId, treeId), eq(personMarks.personId, fromId)))
+			.all();
+		for (let i = 0; i < rows.length; i += 10) {
+			await this.db
+				.insert(personMarks)
+				.values(
+					rows.slice(i, i + 10).map((r) => ({
+						id: crypto.randomUUID(),
+						treeId,
+						personId: toId,
+						userId: r.userId,
+						kind: r.kind,
+						touchedAt: r.touchedAt
+					}))
+				)
+				.onConflictDoNothing();
+		}
+	}
+
 	async remove(userId: string, treeId: string, personId: string, kind: MarkKind): Promise<void> {
 		await this.db
 			.delete(personMarks)

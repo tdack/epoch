@@ -40,6 +40,11 @@
 			label: 'Surnames',
 			isActive: page.url.pathname.startsWith(`${base}/surnames`)
 		},
+		{
+			href: `${base}/quality`,
+			label: 'Quality',
+			isActive: page.url.pathname.startsWith(`${base}/quality`)
+		},
 		...(isManagerOrAbove(role)
 			? [
 					{

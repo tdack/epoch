@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<title>Epoch</title>
+	<style>
+		.ink { color: #065f46; }
+		.focus { fill: #b45309; }
+		@media (prefers-color-scheme: dark) {
+			.ink { color: #6ee7b7; }
+			.focus { fill: #fbbf24; }
+		}
+	</style>
+	<g class="ink" fill="none" stroke="currentColor" stroke-linecap="round">
+		<path d="M3.5 5H10.5M7 5V15M21.5 5H28.5M25 5V15" stroke-width="2.4" stroke-opacity="0.55" />
+		<path d="M7 15H25M16 15V22" stroke-width="2.6" />
+		<circle cx="7" cy="15" r="3.8" fill="currentColor" stroke="none" />
+		<circle cx="25" cy="15" r="3.8" fill="currentColor" stroke="none" />
+	</g>
+	<circle class="focus" cx="16" cy="25" r="4" />
+</svg>

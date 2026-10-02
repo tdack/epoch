@@ -1,5 +1,7 @@
 <script lang="ts">
 	import ChartCanvas from '#lib/components/charts/ChartCanvas.svelte';
+	import AncestorOutline from '#lib/components/charts/AncestorOutline.svelte';
+	import DescendantOutline from '#lib/components/charts/DescendantOutline.svelte';
 	import ChartStyleNav from '#lib/components/charts/ChartStyleNav.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import { layoutHourglass } from '#lib/charts/chart-layout.js';
@@ -70,3 +72,14 @@
 		hrefFor={(id) => address(id)}
 	/>
 </div>
+<DescendantOutline
+	root={data.descendants.root}
+	hrefFor={(id) => address(id)}
+	summary="Descendants as a list"
+	testId="descendant-outline"
+/>
+<AncestorOutline
+	slots={data.ancestors.slots}
+	hrefFor={(id) => address(id)}
+	summary="Ancestors as a list"
+/>

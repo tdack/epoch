@@ -10,7 +10,7 @@
  * pair.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import {
 	individuals,
@@ -74,6 +74,10 @@ export async function importNeutralModel(
 ): Promise<void> {
 	const scoped = (xrefOrId: string) =>
 		xrefOrId.startsWith(`${treeId}:`) ? xrefOrId : `${treeId}:${xrefOrId}`;
+	// One moment for every partnership of the file. Stored in whole seconds, a per-row default would
+	// split copies of one family across a second boundary and, with their dates tied, decide which
+	// is the "1st partnership" by the clock instead of by where they stand in the file.
+	const importedAt = new Date();
 
 	// 1. person_names: every NAME of the file, in file order; the first is the preferred one.
 	// A merge import meets people who already have names, so a name is skipped when the person
@@ -160,6 +164,7 @@ export async function importNeutralModel(
 			.values({
 				id: unionId,
 				treeId,
+				createdAt: importedAt,
 				status: deriveUnionStatus(fam),
 				xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
 			})
@@ -200,8 +205,29 @@ export async function importNeutralModel(
 	}
 
 	// 3. Preserve unmodeled GEDCOM structures verbatim for lossless export.
-	let order = 0;
+	// A merge import meets structures it kept the last time; the same lines under the same owner are
+	// not kept twice, or a root record would be written twice and its XREF would repeat.
+	const kept = new Set(
+		(
+			await db
+				.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines })
+				.from(gedcomPreserved)
+				.where(eq(gedcomPreserved.treeId, treeId))
+				.all()
+		).map((r) => JSON.stringify([r.owner, r.lines]))
+	);
+	let order =
+		(
+			await db
+				.select({ n: sql<number>`coalesce(max(${gedcomPreserved.order}), -1) + 1` })
+				.from(gedcomPreserved)
+				.where(eq(gedcomPreserved.treeId, treeId))
+				.get()
+		)?.n ?? 0;
 	for (const entry of parsed.preserved) {
+		const key = JSON.stringify([entry.xref, entry.lines]);
+		if (kept.has(key)) continue;
+		kept.add(key);
 		await db
 			.insert(gedcomPreserved)
 			.values({

@@ -1,0 +1,95 @@
+/**
+ * Evidence in a file (Phase 5, ADR-023): sources, repositories, shared notes and citations are not
+ * modelled yet, and the rule meanwhile is the project's own: every structure a file carries comes
+ * back in the file Epoch writes. This is the baseline that rule is held to, at every level a
+ * citation or note can sit, and that a second import and a second export change nothing.
+ */
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import FIXTURE from './fixtures/evidence.ged?raw';
+import { createTestDatabase, type TestDatabase } from '../testing/d1';
+import { buildGedcom551String, buildGedcom7String } from './index';
+import { getTreeExportData, importGedcomToDb } from './importer';
+
+let t: TestDatabase;
+beforeAll(async () => {
+	t = await createTestDatabase();
+});
+afterAll(async () => {
+	await t.dispose();
+});
+
+const lines = (text: string) => text.replace(/\r\n/g, '\n').split('\n').filter(Boolean);
+/** The header describes the file Epoch writes, not the tree, so it is Epoch's own. */
+const withoutHeader = (all: string[]) =>
+	all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 ')));
+const exportOf = async (treeId: string, format: '551' | '7' = '551') => {
+	const data = await getTreeExportData(t.d1, treeId);
+	return lines(format === '551' ? buildGedcom551String(data) : buildGedcom7String(data));
+};
+
+describe('every structure the fixture carries comes back', () => {
+	it('writes every non-header line of the file, at every level', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
+		const body = new Set(withoutHeader(await exportOf(treeId)));
+		expect(withoutHeader(lines(FIXTURE)).filter((line) => !body.has(line))).toEqual([]);
+	});
+
+	it('keeps a citation and a note inside the fact, the name and the family they were under', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
+		const text = (await exportOf(treeId)).join('\n');
+		expect(text).toMatch(/1 BIRT\n2 DATE 1900[\s\S]*?2 SOUR @S1@\n3 PAGE birth page\n3 QUAY 2/);
+		expect(text).toContain('2 NOTE birth inline note');
+		expect(text).toContain('2 _EVCUSTOM y');
+		expect(text).toMatch(/1 MARR\n2 DATE 1925\n2 SOUR @S1@\n3 PAGE marr page/);
+		expect(text).toMatch(/1 NAME Ann \/Ash\/[\s\S]*?2 SOUR @S1@\n3 PAGE p 5/);
+		expect(text).toMatch(/1 FAMC @F1@\n2 SOUR @S1@\n3 PAGE famc page/);
+		// A citation of a record that is not in the file is kept as written, not dropped or invented.
+		expect(text).toMatch(/1 DEAT\n2 DATE 1950\n2 SOUR @MISSING@/);
+	});
+
+	it('writes each root record once, in both versions', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
+		for (const format of ['551', '7'] as const) {
+			const out = await exportOf(treeId, format);
+			for (const record of [
+				'0 @S1@ SOUR',
+				'0 @R1@ REPO',
+				'0 @N1@ NOTE Shared note text',
+				'0 @M1@ OBJE'
+			]) {
+				expect(
+					out.filter((line) => line === record),
+					`${format}: ${record}`
+				).toHaveLength(1);
+			}
+			expect(out.at(-1)).toBe('0 TRLR');
+		}
+	});
+});
+
+describe('importing again changes nothing', () => {
+	it('exports the same file after a second import over the first, and a third in merge mode', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
+		const first = withoutHeader(await exportOf(treeId));
+
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence', 'replace');
+		expect(withoutHeader(await exportOf(treeId))).toEqual(first);
+
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence', 'merge');
+		expect(withoutHeader(await exportOf(treeId))).toEqual(first);
+	});
+
+	it('exports the same file when its own export is imported', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
+		const firstText = (await exportOf(treeId)).join('\n');
+		const again = crypto.randomUUID();
+		await importGedcomToDb(t.d1, again, firstText, 'Evidence');
+		expect(withoutHeader(await exportOf(again))).toEqual(withoutHeader(firstText.split('\n')));
+	});
+});

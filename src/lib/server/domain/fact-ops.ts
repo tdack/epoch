@@ -116,6 +116,7 @@ function createFact(
 	const row: EventRow = {
 		id: command.factId,
 		treeId: ctx.treeId,
+		gedcomExtra: null,
 		entityType: 'INDIVIDUAL',
 		entityId: command.personId,
 		type: command.fact.type,

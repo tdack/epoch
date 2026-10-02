@@ -85,6 +85,14 @@ export function layoutFocusView(
 		nonAdjacent.add(u.id);
 	}
 
+	// A graph read while an import was still writing can name a person whose row has not arrived
+	// (seen in the browser; the served window is consistent once the import ends, and the next read
+	// replaces this one). Drawing a card with no record behind it throws, so leave that person out.
+	// Not done in `selectFocusSubgraph`: the window loader relies on it naming people not yet loaded.
+	for (let i = items.length - 1; i >= 0; i--) {
+		if (items[i].t === 'person' && !index.personById.has(items[i].id)) items.splice(i, 1);
+	}
+
 	const roleOf = new Map(selection.people.map((p) => [p.id, p.role]));
 	const people: PlacedPerson[] = [];
 	const unions: PlacedUnion[] = [];

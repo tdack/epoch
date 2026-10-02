@@ -49,6 +49,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		partial: Partial<EventRow> & { id: string; entityId: string; type: string }
 	): EventRow => ({
 		treeId: TEST_TREE_ID,
+		gedcomExtra: null,
 		entityType: 'INDIVIDUAL',
 		dateRaw: null,
 		dateSort: null,
@@ -74,6 +75,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			id: p.id,
 			treeId: TEST_TREE_ID,
 			xrefId: `@${p.id}@`,
+			xrefAliases: null,
 			givenName: p.givenName ?? p.id,
 			surname: p.surname ?? null,
 			sex: p.sex ?? 'U',

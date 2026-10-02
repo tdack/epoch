@@ -59,6 +59,14 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: ACCESS
 	},
+	[`${API}/trees/[id]/individuals/[individualId]/merge/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/person-merge-service.test.ts'
+	},
+	[`${API}/trees/[id]/individuals/[individualId]/merge/impact/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/person-merge-service.test.ts'
+	},
 	[`${API}/trees/[id]/invitations/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/invitations/[invitationId]/+server.ts`]: {
 		kind: 'role-gated',
@@ -74,6 +82,10 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/marks/recents/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/names/[nameId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/names/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	[`${API}/trees/[id]/quality/+server.ts`]: {
+		kind: 'masked-rows',
+		covers: 'services/quality-service.test.ts'
+	},
 	[`${API}/trees/[id]/places/+server.ts`]: {
 		kind: 'paged-sql',
 		covers: 'services/place-service.test.ts'
@@ -145,6 +157,7 @@ const LOADS = [
 	'./trees/[id]/people/[personId]/hourglass/+page.ts',
 	'./trees/[id]/people/[personId]/pedigree/+page.ts',
 	'./trees/[id]/privacy/+page.ts',
+	'./trees/[id]/quality/+page.ts',
 	'./trees/[id]/relationship/+page.ts',
 	'./trees/[id]/search/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
@@ -161,6 +174,9 @@ const loads = Object.keys(
 		'./**/+layout.server.ts'
 	])
 ).sort();
+/** Loads that read no tree at all, so there is no person in them to hide. */
+const NO_RECORD_LOADS = ['./welcome/+page.server.ts'];
+
 const proofs = new Set(
 	Object.keys(import.meta.glob('../lib/server/**/*.test.ts')).map((k) =>
 		k.replace('../lib/server/', '')
@@ -179,6 +195,6 @@ describe('the privacy matrix covers every transport', () => {
 	});
 
 	it('has an entry for every page and layout load, and none that fetch nothing it lists', () => {
-		expect(loads).toEqual([...LOADS].sort());
+		expect(loads).toEqual([...LOADS, ...NO_RECORD_LOADS].sort());
 	});
 });

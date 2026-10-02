@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `gedcom_extra` text;

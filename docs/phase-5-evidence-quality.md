@@ -14,9 +14,9 @@ Phase 1 GEDCOM/domain foundations, Phase 3 record UI and Phase 4 privacy/audit s
 2. Attach citations and notes to people, unions, relationships, names and individual facts/events.
 3. Citation fields include source, page/locator, transcription/text, access date, quality/assessment and linked media.
 4. Show evidence alongside each assertion and distinguish sourced, unsourced and conflicting claims.
-5. Build duplicate-person comparison and explicit merge with field-by-field review, relationship impact preview and reversible audit history.
-6. Add data-quality checks: impossible/implausible chronology, dangling pointers, duplicate relationships, cycles, event ordering, missing parent context, unsourced key facts and privacy leaks.
-7. Classify checks as errors, warnings or research suggestions. Do not reject unusual histories merely because they are statistically unlikely.
+5. (Built in S14, ADR-022.) Build duplicate-person comparison and explicit merge with field-by-field review, relationship impact preview and reversible audit history.
+6. (Built in S13, ADR-021, except unsourced facts and privacy leaks.) Add data-quality checks: impossible/implausible chronology, dangling pointers, duplicate relationships, cycles, event ordering, missing parent context, unsourced key facts and privacy leaks.
+7. (Built in S13.) Classify checks as errors, warnings or research suggestions. Do not reject unusual histories merely because they are statistically unlikely.
 8. Add research tasks/to-do items attached to records and quality findings.
 9. Extend GEDCOM import/export and conformance tests for sources, citations, repositories and notes.
 

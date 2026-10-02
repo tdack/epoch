@@ -265,3 +265,37 @@ describe('structures beyond the Simpsons', () => {
 		expect(layoutFocusView(captured('simpsons'), null).people).toEqual([]);
 	});
 });
+
+describe('a relationship that names someone the graph has no record of', () => {
+	// A window can arrive while rows are still being written; a card needs the record, so the layout
+	// leaves that person out instead of drawing a card that throws.
+	for (const { name, graph } of SYNTHETIC_GRAPHS) {
+		it(`${name}: draws only people the graph holds`, () => {
+			const focus = graph.people[0];
+			const options = { ancestorDepth: 3, descendantDepth: 3 };
+			const dropped = layoutFocusView(graph, focus.id, options).people.find(
+				(p) => p.id !== focus.id
+			)?.id;
+			if (!dropped) return;
+
+			const partial = { ...graph, people: graph.people.filter((p) => p.id !== dropped) };
+			const layout = layoutFocusView(partial, focus.id, options);
+
+			expect(layout.people.map((p) => p.id)).not.toContain(dropped);
+			expect(layout.people.every((p) => p.person !== undefined)).toBe(true);
+
+			// Nothing else may point at the missing card: the canvas looks every endpoint up by id.
+			const placed = new Set(layout.people.map((p) => p.id));
+			for (const edge of layout.edges) {
+				if (edge.kind === 'partner')
+					expect(placed.has(edge.personId), `partner edge to ${edge.personId}`).toBe(true);
+				if (edge.kind === 'child')
+					expect(placed.has(edge.childId), `child edge to ${edge.childId}`).toBe(true);
+			}
+			for (const stub of layout.stubs)
+				if (stub.personId) expect(placed.has(stub.personId), `stub of ${stub.personId}`).toBe(true);
+			for (const collapser of layout.collapsers)
+				expect(placed.has(collapser.personId), `collapser of ${collapser.personId}`).toBe(true);
+		});
+	}
+});

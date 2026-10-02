@@ -360,3 +360,20 @@ date, so every fact at the place is read to return a page. The restricted list p
 for looking up each fact's person; the plan test bounds it at 12 rows per event, and the corpus has
 only ten distinct places, so a real tree's list has more rows and the same cost.
 
+## Data-quality report (S13, ADR-021)
+
+The report is not a paged read: it loads every row of the tree once (`ChangeStore.loadRows`, seven
+indexed reads by `tree_id`, the same as an export or a mutation) and runs the rules in memory, so its
+cost is linear in the tree and independent of the number of findings. The only other query is the
+tree's dismissals, one indexed read on `idx_quality_dismissal_key (tree_id, finding_key)`. Dismissing
+runs the report's checks first (to refuse a key that is not a current finding) and then one upsert.
+The longest rule is the loop check, an iterative Tarjan over the parent links, linear in them and
+tested on a 20,000-link chain.
+
+## Person merge (S14, ADR-022)
+
+A review, a preview and a merge each load the tree's rows once (`ChangeStore.loadRows`), as every
+command does, and plan in memory; nothing new is read per record. The write is one batch of at most
+300 row operations (`MAX_PERSON_MERGE_OPS`), plus the place-record statements for moved facts, and
+the mark copy is one read and chunked inserts on `idx_uq_person_mark`. The possible-duplicates rule
+groups the tree's people by name in one pass and compares birth spans only inside a group.

@@ -107,6 +107,8 @@ export interface ParsedEvent {
 	age?: string;
 	/** `2 NOTE` */
 	notes?: string;
+	/** Every other line under the event, verbatim and in order (`gedcomExtra`). */
+	extra?: string[];
 }
 
 export interface ParsedGedcomData {
@@ -509,6 +511,18 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 						child.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
 
+					// The first plain NOTE is the fact's note. A note with continuation lines, a second note,
+					// a citation, an OBJE or a custom tag has no column and is kept verbatim (ADR-023).
+					const noteNode = child.children.find((c) => c.tag === 'NOTE' && c.children.length === 0);
+					const modelled = new Set([
+						dateNode,
+						placNode,
+						child.children.find((c) => c.tag === 'CAUS'),
+						child.children.find((c) => c.tag === 'AGE'),
+						noteNode
+					]);
+					const extra = child.children.filter((c) => !modelled.has(c)).flatMap(collectLines);
+
 					// Each piece keeps its own column, so a cause is not written back as a note and a
 					// repeated fact stays a fact. `description` is left for family events and old rows.
 					events.push({
@@ -520,7 +534,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 						value: child.value?.trim() || undefined,
 						cause: textOf('CAUS'),
 						age: textOf('AGE'),
-						notes: textOf('NOTE')
+						notes: noteNode?.value?.trim() || undefined,
+						...(extra.length > 0 ? { extra } : {})
 					});
 				} else {
 					// Preserve unmodeled individual-level structures (CHAN, NOTE, SOUR,
@@ -575,13 +590,17 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
 
+					const extra = child.children
+						.filter((c) => c !== dateNode && c !== placNode)
+						.flatMap(collectLines);
 					events.push({
 						type: child.tag,
 						dateRaw: raw,
 						dateSort: sort,
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
-						description: child.value?.trim()
+						description: child.value?.trim(),
+						...(extra.length > 0 ? { extra } : {})
 					});
 				} else {
 					// Preserve unmodeled family-level structures verbatim.
@@ -664,6 +683,8 @@ export interface GedcomExportPayload {
 			cause?: string | null;
 			age?: string | null;
 			notes?: string | null;
+			/** Lines with no column, written back inside the fact. */
+			gedcomExtra?: string[] | null;
 		}>;
 		famc?: string[];
 		fams?: string[];
@@ -685,6 +706,7 @@ export interface GedcomExportPayload {
 			dateRaw: string | null;
 			place: string | null;
 			description: string | null;
+			gedcomExtra?: string[] | null;
 		}>;
 	}>;
 	/** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
@@ -713,6 +735,7 @@ function individualEventLines(
 	if (ev.age) lines.push(`2 AGE ${ev.age}`);
 	const note = ev.notes ?? ev.description;
 	if (note) lines.push(`2 NOTE ${note}`);
+	lines.push(...(ev.gedcomExtra ?? []));
 	return lines;
 }
 
@@ -879,6 +902,20 @@ function appendPreserved(
 }
 
 /**
+ * Root records the file carried that Epoch has no model for (a source, a repository, a shared note,
+ * a media record, a submitter), each starting at level 0 with its own XREF. They belong to no
+ * person or family, so they are written after the last record, where a reader expects them.
+ */
+function appendRootRecords(
+	lines: string[],
+	preserved: Array<{ xref: string | null; lines: string[] }> | undefined
+): void {
+	for (const entry of preserved ?? []) {
+		if (entry.xref !== null && entry.lines[0]?.startsWith('0 ')) lines.push(...entry.lines);
+	}
+}
+
+/**
  * Builds GEDCOM 5.5.1 standard text output from tree database models
  */
 export function buildGedcom551String(data: GedcomExportPayload): string {
@@ -951,12 +988,14 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
 				if (ev.place) lines.push(`2 PLAC ${ev.place}`);
 				if (ev.description) lines.push(`2 NOTE ${ev.description}`);
+				lines.push(...(ev.gedcomExtra ?? []));
 			}
 		}
 		appendPreserved(lines, data.preserved, xref);
 	}
 
 	appendPreserved(lines, data.preserved, null);
+	appendRootRecords(lines, data.preserved);
 
 	// Trailer
 	lines.push('0 TRLR');
@@ -1036,12 +1075,14 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
 				if (ev.place) lines.push(`2 PLAC ${ev.place}`);
 				if (ev.description) lines.push(`2 NOTE ${ev.description}`);
+				lines.push(...(ev.gedcomExtra ?? []));
 			}
 		}
 		appendPreserved(lines, data.preserved, xref);
 	}
 
 	appendPreserved(lines, data.preserved, null);
+	appendRootRecords(lines, data.preserved);
 
 	// Trailer
 	lines.push('0 TRLR');

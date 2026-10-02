@@ -43,6 +43,16 @@ test('the pedigree and descendant charts draw the family, and follow a card', as
 	await expect(page.getByTestId('chart-card')).toHaveCount(3);
 	await page.screenshot({ path: `${SHOTS}/descendants.png` });
 
+	// The list nests each child under their parent: Minnie and Sibley are Dadly's children.
+	await page.getByText('The same descendants as a list').click();
+	const tree = page.getByTestId('descendant-outline');
+	await expect(tree.getByRole('listitem')).toHaveCount(3);
+	await expect(tree.getByRole('listitem').first()).toContainText('Dadly Chartly');
+	await expect(
+		tree.getByRole('listitem').first().getByRole('list').getByRole('listitem')
+	).toHaveCount(2);
+	await expect(tree.getByRole('link', { name: 'Minnie Chartly' })).toBeVisible();
+
 	// The person page links to both.
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(me.id)}`);
 	await page.getByRole('link', { name: 'Ancestors', exact: true }).click();
@@ -98,6 +108,13 @@ test('the fan and hourglass charts draw the same family, link between styles and
 	// Granny, Dadly, Mumly, Minnie once, and Kiddo.
 	await expect(page.getByTestId('chart-card')).toHaveCount(5);
 	await page.screenshot({ path: `${SHOTS}/hourglass.png` });
+
+	// Both halves are also lists: Minnie's own line, then the ancestors.
+	await page.getByText('Descendants as a list').click();
+	await page.getByText('Ancestors as a list').click();
+	await expect(page.getByTestId('descendant-outline').getByRole('listitem')).toHaveCount(2);
+	await expect(page.getByTestId('descendant-outline')).toContainText('Kiddo');
+	await expect(page.getByTestId('outline').getByRole('listitem')).toHaveCount(4);
 
 	await page.getByRole('link', { name: 'Fewer descendants' }).click();
 	await expect(page).toHaveURL(/up=3&down=2/);

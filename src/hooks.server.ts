@@ -7,6 +7,7 @@ import {
 	isDevBypassEnabled,
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
+import { shouldRedirectToWelcome, WELCOME_PATH } from '#lib/server/auth/public-routes.js';
 import { getDb } from '#lib/server/db/index.js';
 import {
 	isSchemaCurrent,
@@ -116,6 +117,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 				name: devName
 			};
 		}
+	}
+
+	// Access normally stops a signed-out visitor before the Worker. This catches the cases it does
+	// not (a bypassed or misconfigured path, a token that failed validation) with a page that offers
+	// a sign-in, instead of an error from the first API call the page makes.
+	if (
+		shouldRedirectToWelcome({
+			pathname: event.url.pathname,
+			method: event.request.method,
+			isDataRequest: event.isDataRequest,
+			hasUser: event.locals.user !== null
+		})
+	) {
+		return new Response(null, {
+			status: 303,
+			headers: { location: WELCOME_PATH, 'x-correlation-id': correlationId }
+		});
 	}
 
 	const response = await resolve(event);

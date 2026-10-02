@@ -89,7 +89,7 @@ These are the highest-value things to remember and are all established in the pl
 - **ESLint** (flat config; typescript-eslint and eslint-plugin-svelte) and **knip** (`knip.jsonc`,
   unused files, exports and dependencies; warnings until Phase B of `docs/architecture-review.md`).
   `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools
-  and what would change it is ADR-021.
+  and what would change it is ADR-025.
 - **Svelte components:** declare a `Props` interface with TSDoc per prop, destructure from
   `$props()`. No reaching into globals/stores not received.
 

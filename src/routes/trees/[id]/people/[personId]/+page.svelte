@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import {
 		ArrowDown,
 		ArrowUp,
+		Combine,
 		Cross,
 		GitBranch,
 		MapPin,
@@ -11,11 +13,12 @@
 		Trash2,
 		UserPlus
 	} from 'lucide-svelte';
+	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
 	import FactDialog from '#lib/components/modals/FactDialog.svelte';
 	import NameDialog from '#lib/components/modals/NameDialog.svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { isManagerOrAbove } from '#lib/shared/roles.js';
+	import { hasMinimumRole, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PersonPrivacy } from '#lib/shared/privacy.js';
 	import { sexLabel } from '#lib/shared/sex.js';
 	import type {
@@ -24,6 +27,7 @@
 		PersonSummaryDto
 	} from '#lib/server/services/person-page-service.js';
 	import {
+		undoApi,
 		deleteFactApi,
 		deleteNameApi,
 		previewFactApi,
@@ -77,6 +81,37 @@
 		} catch (cause) {
 			toasts.push((cause as Error).message || 'Could not change the favourite', { tone: 'error' });
 		}
+	}
+
+	// ---- Merge (editors and above: it deletes a record) ----
+	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
+	const canMerge = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
+	let isMerging = $state(false);
+
+	// The record that goes may be the one on screen, so the page moves to the one that stays, and Undo moves back.
+	async function merged(change: Parameters<typeof editor.afterChange>[0], survivorId: string) {
+		const here = dto.person.id;
+		isMerging = false;
+		await goto(personHref(survivorId), { refreshAll: true });
+		toasts.push(change?.summary ?? 'People merged', {
+			action: change?.isUndoable
+				? {
+						label: 'Undo',
+						run: async () => {
+							try {
+								const { undone } = await undoApi(treeId);
+								await goto(personHref(here), { refreshAll: true });
+								toasts.push(`Undid: ${undone.summary}`);
+							} catch (cause: unknown) {
+								toasts.push((cause as Error).message || 'Could not undo', {
+									tone: 'error',
+									durationMs: 10_000
+								});
+							}
+						}
+					}
+				: undefined
+		});
 	}
 
 	// ---- Privacy (managers and owners) ----
@@ -329,6 +364,14 @@
 				editor.openRelationship(editor.anchorFor(dto.person.id), { kind: 'record_death' })}
 			class="btn"><Cross class="h-3.5 w-3.5" />Record death</button
 		>
+		{#if canMerge}
+			<button
+				type="button"
+				onclick={() => (isMerging = true)}
+				class="btn"
+				data-testid="merge-person"><Combine class="h-3.5 w-3.5" />Merge…</button
+			>
+		{/if}
 		<button
 			type="button"
 			onclick={() => editor.requestDeletePerson(dto.person.id)}
@@ -726,6 +769,16 @@
 	onstale={factStale}
 	oncancel={() => (factDialog = null)}
 />
+
+{#if canMerge}
+	<PersonMergeDialog
+		isOpen={isMerging}
+		{treeId}
+		person={{ id: dto.person.id, name: dto.person.displayName }}
+		onmerged={merged}
+		oncancel={() => (isMerging = false)}
+	/>
+{/if}
 
 <style>
 	.card {
