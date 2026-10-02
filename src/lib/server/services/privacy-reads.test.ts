@@ -134,7 +134,7 @@ describe('the SQL predicate and the pure rule', () => {
 	it('agree for every fixture person', async () => {
 		const scope = { isRestricted: true, cutoff: CUTOFF, creatorId: null };
 		const visible = await visibleAmong(t.db, treeId, Object.keys(VISIBLE).map(idOf), scope);
-		for (const [xref, expected] of Object.entries(VISIBLE)) {
+		for (const [xref, isVisible] of Object.entries(VISIBLE)) {
 			const id = idOf(xref);
 			const person = (await t.db.select().from(individuals).where(eq(individuals.id, id)))[0]!;
 			const facts = (await t.db.select().from(events).where(eq(events.entityId, id))).map((e) => ({
@@ -142,9 +142,9 @@ describe('the SQL predicate and the pure rule', () => {
 				dateSortEnd: e.dateSortEnd
 			}));
 			expect(!isPersonPrivate(person.privacy, facts, CUTOFF), `pure rule for ${xref}`).toBe(
-				expected
+				isVisible
 			);
-			expect(visible.has(id), `SQL for ${xref}`).toBe(expected);
+			expect(visible.has(id), `SQL for ${xref}`).toBe(isVisible);
 		}
 	});
 });
@@ -234,7 +234,7 @@ describe('lists', () => {
 		expect(owner.items).toHaveLength(9);
 		expect(xrefsOf(viewer.items.map((p) => p.id)).sort()).toEqual(
 			Object.entries(VISIBLE)
-				.filter(([, v]) => v)
+				.filter(([, isVisible]) => isVisible)
 				.map(([x]) => x)
 				.sort()
 		);

@@ -38,8 +38,8 @@ describe('isLikelyLiving', () => {
 			[{ type: 'OCCU', dateSortEnd: '1700-01-01' }],
 			true
 		]
-	] as const)('%s', (_name, facts, expected) => {
-		expect(isLikelyLiving(facts, cutoff)).toBe(expected);
+	] as const)('%s', (_name, facts, isExpected) => {
+		expect(isLikelyLiving(facts, cutoff)).toBe(isExpected);
 	});
 });
 

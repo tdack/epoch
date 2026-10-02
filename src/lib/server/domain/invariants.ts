@@ -52,10 +52,10 @@ export function validateParentChildAssertion(
 	}
 
 	// Duplicate identical assertion: same parent, child and type.
-	const duplicate = existing.some(
+	const isDuplicate = existing.some(
 		(a) => a.parentId === input.parentId && a.childId === input.childId && a.type === input.type
 	);
-	if (duplicate) {
+	if (isDuplicate) {
 		violations.push({
 			code: 'DUPLICATE_ASSERTION',
 			message: 'This parent-child assertion already exists'
@@ -64,8 +64,8 @@ export function validateParentChildAssertion(
 
 	// Cross-tree links are detected by the caller passing only same-tree rows;
 	// this guard is a defensive check for callers that pass a mixed set.
-	const crossTree = existing.some((a) => a.treeId !== treeId);
-	if (crossTree) {
+	const isCrossTree = existing.some((a) => a.treeId !== treeId);
+	if (isCrossTree) {
 		violations.push({
 			code: 'CROSS_TREE_LINK',
 			message: 'Parent-child assertions cannot span trees'

@@ -887,7 +887,7 @@ function mergeUnions(
 				? chosenFor(event.type)
 				: undefined;
 			const isLoser = chosen !== undefined && chosen !== union.id;
-			const factSeen = seen.has(
+			const isFactSeen = seen.has(
 				factKey({
 					type: event.type,
 					dateText: event.dateRaw,
@@ -895,7 +895,7 @@ function mergeUnions(
 					description: event.description
 				})
 			);
-			if (isLoser || (union.id !== survivor.id && factSeen)) {
+			if (isLoser || (union.id !== survivor.id && isFactSeen)) {
 				ops.push({ table: 'events', id: event.id, before: event, after: null });
 				continue;
 			}

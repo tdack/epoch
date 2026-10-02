@@ -205,14 +205,14 @@ export function parseGedcomNameValue(value: string): { givenName?: string; surna
 
 export function detectGedcomVersion(rawContent: string): GedcomVersion {
 	const lines = rawContent.split(/\r?\n/);
-	let inGedc = false;
+	let isInGedc = false;
 	for (const line of lines) {
 		const trimmed = line.trim();
 		if (/^1\s+GEDC$/.test(trimmed)) {
-			inGedc = true;
+			isInGedc = true;
 			continue;
 		}
-		if (inGedc) {
+		if (isInGedc) {
 			const vers = trimmed.match(/^2\s+VERS\s+(.+)$/);
 			if (vers) {
 				return vers[1].trim().startsWith('7') ? '7.0' : '5.5.1';

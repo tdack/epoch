@@ -406,8 +406,11 @@ export function findRelationships(
 		routes.push(...[...viaSecond, ...viaFirst].sort((a, b) => a.steps.length - b.steps.length));
 	}
 
-	const reachedLimit = [firstId, secondId].some(
+	const isLimitReached = [firstId, secondId].some(
 		(id) => Math.max(...ancestryOf(id, parentsOf).distance.values()) >= MAX_GENERATIONS
 	);
-	return { routes: routes.slice(0, MAX_ROUTES), isIncomplete: routes.length === 0 && reachedLimit };
+	return {
+		routes: routes.slice(0, MAX_ROUTES),
+		isIncomplete: routes.length === 0 && isLimitReached
+	};
 }
