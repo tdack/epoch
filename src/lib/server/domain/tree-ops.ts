@@ -269,6 +269,7 @@ function createEvent(
 	const row: EventRow = {
 		id,
 		treeId: ctx.treeId,
+		gedcomExtra: null,
 		entityType,
 		entityId,
 		type,

@@ -232,8 +232,14 @@ export type UndoRefusalReason = (typeof UNDO_REFUSALS)[keyof typeof UNDO_REFUSAL
  */
 export function matchesImage(current: RowImage | null, expected: RowImage | null): boolean {
 	if (current === null || expected === null) return current === expected;
+	// Compared by key, not by the order the keys were written in: a row built by a command and the
+	// same row read from the table list their columns differently.
 	const strip = (image: RowImage) =>
-		JSON.stringify(Object.fromEntries(Object.entries(image).filter(([key]) => !HOUSEKEEPING_FIELDS.has(key))));
+		JSON.stringify(
+			Object.entries(image)
+				.filter(([key]) => !HOUSEKEEPING_FIELDS.has(key))
+				.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		);
 	return strip(current) === strip(expected);
 }
 

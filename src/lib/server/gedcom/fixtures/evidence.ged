@@ -1,0 +1,70 @@
+0 HEAD
+1 SOUR EPOCH_TEST
+1 NOTE header note
+0 @S1@ SOUR
+1 TITL Parish register
+2 CONT second line
+1 AUTH Rev A
+1 PUBL Published 1900
+1 TEXT Source text
+2 CONC ual concat
+1 REPO @R1@
+2 CALN 123
+3 MEDI Book
+1 NOTE @N1@
+1 _CUSTOM src custom
+0 @R1@ REPO
+1 NAME Records Office
+1 ADDR 1 High St
+2 CITY York
+0 @N1@ NOTE Shared note text
+1 CONT more
+1 CONC tail
+0 @I1@ INDI
+1 NAME Ann /Ash/
+2 SOUR @S1@
+3 PAGE p 5
+1 SEX F
+1 SOUR @S1@
+2 PAGE p. 12
+2 QUAY 3
+2 DATA
+3 TEXT As written
+3 DATE 1 JAN 1900
+2 OBJE @M1@
+2 _CITCUSTOM x
+1 SOUR inline citation text
+1 NOTE @N1@
+1 NOTE inline person note
+2 CONT more
+1 BIRT
+2 DATE 1900
+2 SOUR @S1@
+3 PAGE birth page
+3 QUAY 2
+2 NOTE @N1@
+2 NOTE birth inline note
+2 OBJE @M1@
+2 _EVCUSTOM y
+1 DEAT
+2 DATE 1950
+2 SOUR @MISSING@
+1 FAMC @F1@
+2 SOUR @S1@
+3 PAGE famc page
+0 @I2@ INDI
+1 NAME Bob /Ash/
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 CHIL @I1@
+1 MARR
+2 DATE 1925
+2 SOUR @S1@
+3 PAGE marr page
+1 SOUR @S1@
+2 PAGE fam page
+0 @M1@ OBJE
+1 FILE a.png
+0 TRLR
