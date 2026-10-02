@@ -58,6 +58,10 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	await card(page, 'Ann').click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Edit person' }).click();
 	const form = page.getByRole('dialog', { name: 'Edit Person Details' });
+	// The form opens only once it has fetched the person, and its version is the one that one fetch
+	// saw. Changing the person before it is visible lets the fetch see the change, and there is then
+	// nothing to conflict with (this was the test's intermittent failure).
+	await expect(form).toBeVisible();
 
 	// While the form is open, someone else saves a different change to the same person.
 	const res = await request.put(`/api/trees/${api.treeId}/individuals/${ann.id}`, { data: { givenName: 'Anna', version: ann.version } });
