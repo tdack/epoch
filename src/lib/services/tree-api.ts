@@ -26,6 +26,7 @@ import type { TreeRole } from '#lib/shared/roles.js';
 import type { RelationshipDto } from '#lib/shared/kinship.js';
 import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
 import type { QualityReport } from '#lib/shared/quality.js';
+import type { PersonMergeChoices, PersonMergeReviewDto } from '#lib/shared/person-merge.js';
 import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
@@ -482,6 +483,21 @@ export async function dismissFindingApi(treeId: string, key: string, reason: str
 
 export async function restoreFindingApi(treeId: string, key: string): Promise<void> {
 	await call(`/api/trees/${enc(treeId)}/quality?key=${enc(key)}`, { method: 'DELETE' }, 'Failed to restore the finding');
+}
+
+export interface PersonMergeBody {
+	mergedId: string;
+	keep?: PersonMergeChoices;
+	expectedVersions?: Record<string, number>;
+}
+
+/** Both records side by side, and what the merge needs decided first. Writes nothing. */
+export async function reviewPersonMergeApi(treeId: string, survivorId: string, body: PersonMergeBody): Promise<{ review: PersonMergeReviewDto; impact: ImpactSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/individuals/${enc(survivorId)}/merge/impact`, json('POST', body), 'Failed to review the merge');
+}
+
+export async function mergePeopleApi(treeId: string, survivorId: string, body: PersonMergeBody): Promise<{ change: ChangeSummary | null }> {
+	return call(`/api/trees/${enc(treeId)}/individuals/${enc(survivorId)}/merge`, json('POST', body), 'Failed to merge the people');
 }
 
 export type NameImpactRequest =
