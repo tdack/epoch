@@ -320,18 +320,24 @@ generations) with a counting D1 and holds the cost to 40 rows per person loaded.
 
 | Read | People loaded | Statements | Rows read |
 |---|---|---|---|
-| Ancestors of one person, 20 generations (relationship) | 18 | 16 | 161 |
-| Ancestors of two people and their partners (relationship) | 29 | 16 | 284 |
-| Pedigree, 8 generations | 15 | 12 | 132 |
-| Descendants of a founder, 8 generations, with partners | 42 | 15 | 552 |
+| Ancestors of one person, 20 generations (relationship) | 18 | 15 | 161 |
+| Ancestors of two people and their partners (relationship) | 29 | 15 | 276 |
+| Pedigree, 8 generations | 15 | 11 | 132 |
+| Descendants of a founder, 8 generations, with partners | 42 | 14 | 552 |
 
-About 9 to 13 rows per person, a handful of batches, and no read of another tree. The restricted
+About 9 to 13 rows per person, a handful of batches, and no read of another tree. A read that wants
+only one direction does not look in the other, which is why they are one statement lighter than
+when the window checked both. The restricted
 viewer pays nothing extra here: privacy is applied in memory to the rows loaded, as for the record
 pages, not in the queries. A pedigree of eight generations can hold 255 people and a descendant
 chart of a prolific founder more; the 3,000 ceiling bounds the worst case and the chart then says
 more lies beyond.
 
 ## Places (S10, ADR-018)
+
+The new index `idx_event_place` did not move any earlier read: the list and search tables above were
+re-measured with it in place and are unchanged (it did change the unspecified order of the two
+whole-tree event loads that had no `ORDER BY`, now stated as insertion order).
 
 A place is the text on a fact, grouped without regard to ASCII case, so the place list is an
 aggregate over the tree's events (linear in the tree, like the surname list) and a place page is a
