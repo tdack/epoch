@@ -188,7 +188,7 @@ screenshots.
 | 0 | Correlation IDs, typed errors | Present. Handlers still repeat try/catch and `DomainError` mapping in every route, so a shared `handleError` helper would help. |
 | 1 | ADR-004 dates with bounds, precision and qualifier | [date-value.ts](../src/lib/shared/date-value.ts) parses these, but `events` stores only `date_raw` and `date_sort`. The bounds, precision and qualifier are discarded at persistence. |
 | 1 | Neutral sex marker | The graph domain uses `'X'`, but `individuals.sex` allows only `M`, `F` and `U`. |
-| 1 | `place_ref` | Departure, recorded in ADR-018 (S10): no stored reference. A place is the fact's own text, grouped without regard to case, with a places list, a place page and editor suggestions. |
+| 1 | `place_ref` | Built in S11 (ADR-019): a place record per tree and text, `events.place_id` derived from the fact's text, rename and merge as one undoable change. S10 had shipped the list, page and suggestions over grouped text (ADR-018). |
 | 2 | Intent-based editor covering marriage, separation, divorce, death, end and remove | The modal offers only add parent, add child and add partner. The domain already has `record_death` and `end_union` intents that the UI doesn't expose. Union status and union events (marriage date and place) can't be edited. |
 | 2 | Impact summaries for destructive actions; conflict display | Uses `window.confirm` and `window.alert` ([+page.svelte:331](../src/routes/+page.svelte)). No 409 conflict UI exists. `undoLast` exists server-side but has no UI. |
 | 2 | Depth and relationship-type controls on the graph | Built (the toolbar's generation steppers and link-type checkboxes, kept in the address); proved in S10 by `e2e/controls.spec.ts`. The row said "not built" after they were. |
@@ -199,7 +199,7 @@ Phase 2 was reopened when this plan was written. It closed when slices S1–S4 b
 before Phase 3 starts.
 
 After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [phase-2-relationship-editor.md](./phase-2-relationship-editor.md#status-against-the-exit-criteria).
-`place_ref` (Phase 1) was settled in S10 by ADR-018, which has no stored reference; hierarchy, merging and maps stay Phase 7.
+`place_ref` (Phase 1) was built in S11 by ADR-019 (records derived from the fact's text, rename and merge); hierarchy and maps stay Phase 7.
 
 ### Duplicate unions
 
@@ -295,6 +295,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S11 | Place records, rename and merge (in progress) | Records derived from the fact's text, rename and merge as one undoable change. See ADR-019. |
 | S10 | Kinship, charts and places (done, deployed 2026-10-02) | A relationship calculator reporting every route, pedigree and descendant charts, the depth and link-type controls proved, and places as the text on a fact. See ADR-017, ADR-018 and [S10 status](#s10-kinship-charts-and-places). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
@@ -407,7 +408,7 @@ Left open:
 
 Left open or departing from the plan:
 
-- **No `place_ref` column** (ADR-018): no merge of spellings, rename across facts, hierarchy or maps; Phase 7.
+- **No `place_ref` column in S10** (ADR-018); S11 added the records, rename and merge (ADR-019). Hierarchy and maps stay Phase 7.
 - **Relationships through a private ancestor are hidden** from a restricted viewer when private people are omitted, with no sign they exist; with placeholders on they show as "Private".
 - **Charts have no separate text outline**; the cards are links in a grouped SVG. A pedigree slot holds two parents (biological first); the person page lists all.
 - **Descendants** list a person's children across partnerships together, in birth order.

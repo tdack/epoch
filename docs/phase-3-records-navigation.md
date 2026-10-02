@@ -41,7 +41,7 @@ Redirect old routes to stable deep links and remove legacy aggregate DTOs only a
 
 ## Status against the exit criteria
 
-Slice S10 (2026-10-02) closed items 8 and 9 and settled `place_ref` (ADR-018). Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
+Slice S10 (2026-10-02) closed items 8 and 9 and settled `place_ref` (ADR-018); slice S11 added place records, rename and merge (ADR-019). Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
 
 | Work item | Status | Evidence |
 |---|---|---|
