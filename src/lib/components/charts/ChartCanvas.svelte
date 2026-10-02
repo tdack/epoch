@@ -15,13 +15,14 @@
 	const PADDING = 8;
 	const byKey = $derived(new Map(layout.cards.map((c) => [c.key, c])));
 
-	/** An elbow from the right edge of one card to the left edge of the next. */
+	/** An elbow between the near edges of two cards: right to left going right, left to right going left (an hourglass has both). */
 	function path(from: string, to: string): string {
 		const a = byKey.get(from)!;
 		const b = byKey.get(to)!;
-		const x1 = a.x + CARD.width;
+		const isLeftward = b.x < a.x;
+		const x1 = isLeftward ? a.x : a.x + CARD.width;
 		const y1 = a.y + CARD.height / 2;
-		const x2 = b.x;
+		const x2 = isLeftward ? b.x + CARD.width : b.x;
 		const y2 = b.y + CARD.height / 2;
 		const mid = (x1 + x2) / 2;
 		return `M${x1} ${y1} H${mid} V${y2} H${x2}`;

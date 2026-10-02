@@ -13,7 +13,7 @@ Stable graph queries, privacy policy, evidence model and GEDCOM conformance corp
 1. Production-grade GEDCOM import/export jobs with progress, cancellation, diagnostics, downloadable reports and retained job history.
 2. Ancestor/pedigree and descendant charts with configurable generations and relationship-type filters.
 3. Relationship chart explaining one or more paths between two people.
-4. Fan and hourglass/compact views.
+4. Fan and hourglass/compact views. (S12 built the fan and the hourglass, ADR-020; compact remains.)
 5. Timeline/lifespan view.
 6. Printable family group, individual summary, ancestor and descendant reports.
 7. Birth/death/marriage anniversaries, recent changes and basic statistics.

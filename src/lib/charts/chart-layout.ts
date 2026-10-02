@@ -71,3 +71,35 @@ export function layoutDescendants(root: DescendantNode): ChartLayout {
 	place(root, 0);
 	return { cards, edges, width: columnX(deepest) + CARD.width, height: Math.max(nextRow, 1) * rowHeight };
 }
+
+/**
+ * Ancestors to the right of the person and descendants to the left, in one picture. The person is
+ * one card, taken from the descendants chart so their partners show, and the two halves are
+ * shifted until that card is at the same height in both. Edges can therefore run either way along a
+ * row; the canvas draws each from the near side of one card to the near side of the other.
+ */
+export function layoutHourglass(slots: ReadonlyArray<ChartPerson | null>, ancestorGenerations: number, root: DescendantNode): ChartLayout {
+	const ancestors = layoutPedigree(slots, ancestorGenerations);
+	const descendants = layoutDescendants(root);
+	const subject = descendants.cards.find((c) => c.key === 'd0')!;
+	const subjectSlot = ancestors.cards.find((c) => c.key === 's0');
+	// An empty pedigree has no first slot only when the person is missing, which a chart never is; the
+	// fallback keeps the arithmetic total rather than throwing in a render.
+	const ancestorShift = subjectSlot ? subject.y - subjectSlot.y : 0;
+
+	const cards: PlacedCard[] = [
+		...descendants.cards.map((c) => ({ ...c, x: -c.x })),
+		...ancestors.cards.filter((c) => c.key !== 's0').map((c) => ({ ...c, y: c.y + ancestorShift }))
+	];
+	const edges: Edge[] = [...descendants.edges, ...ancestors.edges.map((e) => ({ from: e.from === 's0' ? 'd0' : e.from, to: e.to }))];
+
+	const minX = Math.min(...cards.map((c) => c.x));
+	const minY = Math.min(...cards.map((c) => c.y));
+	const shifted = cards.map((c) => ({ ...c, x: c.x - minX, y: c.y - minY }));
+	return {
+		cards: shifted,
+		edges,
+		width: Math.max(...shifted.map((c) => c.x)) + CARD.width,
+		height: Math.max(...shifted.map((c) => c.y)) + CARD.height
+	};
+}
