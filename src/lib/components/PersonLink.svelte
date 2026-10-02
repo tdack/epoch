@@ -1,7 +1,7 @@
 <script lang="ts">
 	interface Props {
 		/** Who to name; a private placeholder is named but not linked, since their page does not exist for this viewer. */
-		person: { id: string; displayName: string; isPrivate: boolean };
+		person: { displayName: string; isPrivate: boolean };
 		/** Where the person's page is. */
 		href: string;
 	}
