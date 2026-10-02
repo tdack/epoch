@@ -1,0 +1,28 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	// SvelteKit, Vite, Vitest and Playwright are picked up by their plugins; these are what
+	// nothing imports but something else runs.
+	"entry": [
+		// The deploy script passes it to wrangler, so no source file imports it.
+		"workers/entry.ts",
+		// SvelteKit 3 reads typed env vars from this file.
+		"src/env.ts",
+		"scripts/*.mjs",
+		// Test support is consumed by specs; its own exports are not dead.
+		"e2e/support.ts",
+		"src/lib/server/testing/*.ts"
+	],
+	// CSS is included so `@import 'tailwindcss'` counts as a use of that package.
+	"project": ["src/**/*.{ts,svelte,css}", "e2e/**/*.ts", "workers/**/*.ts", "scripts/*.mjs"],
+	// `cloudflare:workers` is a runtime module that looks like a package named `cloudflare`.
+	"ignoreDependencies": ["cloudflare"],
+	// Phase B of docs/architecture-review.md removes what these report. They warn until then so
+	// `npm run lint` can pass; delete this block when B lands so new dead code fails the gate.
+	"rules": {
+		"files": "warn",
+		"dependencies": "warn",
+		"devDependencies": "warn",
+		"exports": "warn",
+		"types": "warn"
+	}
+}
