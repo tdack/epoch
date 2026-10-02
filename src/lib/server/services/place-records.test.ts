@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq, sql } from 'drizzle-orm';
 import migration from '../../../../drizzle/0016_uneven_sue_storm.sql?raw';
 import { events, places } from '../db/schema';
+import { UndoRefusedError } from '../domain/errors';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
@@ -256,6 +257,35 @@ describe('the size of one change', () => {
 		await new ChangeLogService(t.db).undoLast(tree, ctx);
 		await expectConsistent(tree);
 		expect((await service.detail(tree, 'Leeds', { limit: 1 }, ctx)).id).toBe(id);
+	}, 60_000);
+});
+
+describe('undoing a change that a later edit touched', () => {
+	it('is refused when the later edit was to a record beyond the first chunk checked', async () => {
+		const actor = await createTestUser(t.db);
+		const tree = await createTestTree(t.db, actor);
+		const ctx = actor.context;
+		const person = (await new GenealogyService(t.db).createIndividual(tree, { givenName: 'Wren', surname: 'Ash' }, ctx)).individual;
+		for (let i = 0; i < MAX_PLACE_REWRITE_FACTS; i += 10) {
+			await t.db.insert(events).values(Array.from({ length: 10 }, (_, k) => ({ id: `late-${i + k}`, treeId: tree, entityType: 'INDIVIDUAL' as const, entityId: person.id, type: 'RESI', place: 'Hull' })));
+		}
+		await t.db.batch(pointFactsAtPlaces(t.db, tree));
+		const service = new PlaceService(t.db);
+		const id = (await service.list(tree, {}, ctx)).items[0]!.id;
+		await service.rewrite(tree, id, 'Hull, Yorkshire', ctx);
+
+		// Undo is per person, so the later edit is someone else's. The inverse names its records in
+		// reverse, so the first fact written is the last the lookup reaches, well past its first 80.
+		const other = await createTestUser(t.db, 'editor');
+		await addTestMember(t.db, tree, other, 'editor');
+		const last = (await t.db.select().from(events).where(eq(events.id, 'late-0')).get())!;
+		await new FactService(t.db).update(tree, last.id, { notes: 'Edited later' }, last.version, other.context);
+
+		const refused = await new ChangeLogService(t.db).undoLast(tree, ctx).catch((e) => e);
+		expect(refused).toBeInstanceOf(UndoRefusedError);
+		expect(refused.message).toContain('Edited the residence');
+		// Nothing was reverted.
+		expect((await new PlaceService(t.db).list(tree, {}, ctx)).items.map((p) => p.name)).toEqual(['Hull, Yorkshire']);
 	}, 60_000);
 });
 
