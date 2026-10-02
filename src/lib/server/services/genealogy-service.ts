@@ -3,6 +3,7 @@ import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { isActionAllowed } from '../auth/authorization';
+import { requireTreeAction } from './tree-access';
 import { UnauthorizedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { describeCommand } from '../domain/command-summary';
@@ -53,6 +54,11 @@ export class GenealogyService {
    */
   async requireExport(treeId: string, context: AuthenticatedContext): Promise<void> {
     await this.verifyTreeAccess(treeId, context, 'tree:export');
+  }
+
+  /** Throws unless the caller may import into this tree. Reads only the caller's membership, never the tree. */
+  async requireImport(treeId: string, context: AuthenticatedContext): Promise<void> {
+    await requireTreeAction(this.userRepo, treeId, context, 'tree:import');
   }
 
   async createTree(name: string, description: string | null, context: AuthenticatedContext) {

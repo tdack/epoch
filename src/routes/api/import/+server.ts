@@ -28,9 +28,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
 
-    // If importing into existing tree, verify 'gedcom:import' permission
     if (treeId) {
-      await service.getTree(treeId, {
+      await service.requireImport(treeId, {
         user: locals.user,
         correlationId: locals.correlationId
       });
@@ -118,8 +117,8 @@ export const PUT: RequestHandler = async ({ request, locals, platform }) => {
   try {
     const db = getDb(platform.env.DB);
     const service = new GenealogyService(db);
-    // Verify tree view permission
-    await service.getTree(treeId, {
+    // The preview reads the tree's rows to compare against, so it needs the same right as the import.
+    await service.requireImport(treeId, {
       user: locals.user,
       correlationId: locals.correlationId
     });
