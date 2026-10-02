@@ -6,7 +6,7 @@
 import type { DbClient } from '../db';
 import { describeCommand } from '../domain/command-summary';
 import type { AuthenticatedContext } from '../domain/identity';
-import { describeImpact, type ImpactSummary } from '../domain/impact';
+import type { ImpactSummary } from '../domain/impact';
 import type { NameCommand } from '../domain/name-ops';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import type { NameInput } from '../../shared/name-types';

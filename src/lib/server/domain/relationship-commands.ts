@@ -22,7 +22,6 @@ import {
 	labelableUnionsOf,
 	partnerIdsOf,
 	unionIdsOf,
-	personName,
 	displayNameOf
 } from './tree-ops';
 import { ValidationError } from './errors';

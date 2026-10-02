@@ -551,10 +551,10 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
 
 	// Map stored XREFs to export IDs so preserved lines re-attach to their owner.
 	const xrefToExportId = new Map<string, string>();
-	for (const [id, xref] of indXrefMap) {
+	for (const xref of indXrefMap.values()) {
 		if (xref) xrefToExportId.set(xref, xref);
 	}
-	for (const [id, xref] of famXrefMap) {
+	for (const xref of famXrefMap.values()) {
 		if (xref) xrefToExportId.set(xref, xref);
 	}
 	// Structures preserved under a merged-away family re-attach to the family that absorbed it.

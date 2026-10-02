@@ -8,7 +8,6 @@ import {
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
-	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';

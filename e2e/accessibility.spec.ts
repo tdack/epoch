@@ -13,8 +13,7 @@ import {
 	openMenuByKeyboard,
 	openTree,
 	test,
-	type Api,
-	type Person
+	type Api
 } from './support';
 import type { Page } from '@playwright/test';
 

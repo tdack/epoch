@@ -141,7 +141,6 @@ export function buildRelationshipGraph(input: {
 	parentChild: GraphParentChildInput[];
 }): RelationshipGraph {
 	const personById = new Map(input.people.map((p) => [p.id, p]));
-	const unionById = new Map(input.unions.map((u) => [u.id, u]));
 
 	// Group parent-child assertions by union (and by child for lookup).
 	const childrenByUnion = new Map<

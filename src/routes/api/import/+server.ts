@@ -2,8 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import {
 	importGedcomToDb,
 	previewGedcomFile,
-	previewGedcomImport,
-	type ImportMode
+	previewGedcomImport
 } from '#lib/server/gedcom/importer.js';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';

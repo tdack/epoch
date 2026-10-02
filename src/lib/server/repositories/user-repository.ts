@@ -2,7 +2,6 @@ import type { DbClient } from '../db';
 import { users, treeMemberships } from '../db/schema';
 import type { UserIdentity, TreeRole, TreeMembership } from '../domain/identity';
 import { eq, and } from 'drizzle-orm';
-import { NotFoundError } from '../domain/errors';
 import { MemberRepository } from './member-repository';
 
 export class UserRepository {

@@ -2,9 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
 	parseGedcom,
 	buildGedcom551String,
-	buildGedcom7String,
-	buildGedcomString,
-	detectGedcomVersion,
 	normalizeGedcomDate,
 	parseGedcomNameValue
 } from './index';

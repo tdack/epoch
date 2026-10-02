@@ -11,11 +11,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType, ParentChildType, UnionStatus } from '../domain/genealogy-model';
-import type {
-	GraphUnionEvent,
-	RelationshipGraph,
-	RelationshipGraphPerson
-} from '../domain/relationship-graph';
+import type { GraphUnionEvent, RelationshipGraph } from '../domain/relationship-graph';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
