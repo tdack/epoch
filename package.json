@@ -16,6 +16,7 @@
 		"db:migrate:local": "wrangler d1 migrations apply epoch-genealogy-db --local",
 		"db:backfill:dates": "node scripts/backfill-event-dates.mjs",
 		"seed": "node scripts/seed.mjs",
+		"brand:render": "node scripts/render-brand-assets.mjs",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"deploy": "npm run db:migrate && npm run build && wrangler deploy workers/entry.ts",

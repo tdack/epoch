@@ -3,6 +3,7 @@ import { CF_ACCESS_TEAM_DOMAIN } from '$app/env/public';
 import { CF_ACCESS_AUD, ACCESS_BYPASS_DEV } from '$app/env/private';
 import { getPlatformBindings } from '#lib/server/platform.js';
 import { extractAccessJwt, isDevBypassEnabled, validateAccessJwt } from '#lib/server/auth/access.js';
+import { shouldRedirectToWelcome, WELCOME_PATH } from '#lib/server/auth/public-routes.js';
 import { getDb } from '#lib/server/db/index.js';
 import { isSchemaCurrent, SCHEMA_NOT_MIGRATED_CODE, SCHEMA_NOT_MIGRATED_MESSAGE } from '#lib/server/db/schema-status.js';
 import { UserRepository } from '#lib/server/repositories/user-repository.js';
@@ -90,6 +91,20 @@ export const handle: Handle = async ({ event, resolve }) => {
         name: devName
       };
     }
+  }
+
+  // Access normally stops a signed-out visitor before the Worker. This catches the cases it does
+  // not (a bypassed or misconfigured path, a token that failed validation) with a page that offers
+  // a sign-in, instead of an error from the first API call the page makes.
+  if (
+    shouldRedirectToWelcome({
+      pathname: event.url.pathname,
+      method: event.request.method,
+      isDataRequest: event.isDataRequest,
+      hasUser: event.locals.user !== null
+    })
+  ) {
+    return new Response(null, { status: 303, headers: { location: WELCOME_PATH, 'x-correlation-id': correlationId } });
   }
 
   const response = await resolve(event);

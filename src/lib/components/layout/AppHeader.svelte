@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { GitBranch, Plus, Trash2, UserPlus, Upload, Download } from 'lucide-svelte';
+  import { Plus, Trash2, UserPlus, Upload, Download } from 'lucide-svelte';
+  import EpochMark from '#lib/components/brand/EpochMark.svelte';
   import type { TreeSummary } from '#lib/types/genealogy.js';
 
   interface Props {
@@ -32,14 +33,14 @@
 
 <header class="min-h-16 border-b border-stone-200/80 bg-[#fdfbf7]/90 backdrop-blur-md px-3 py-2 sm:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 shadow-xs">
   <div class="flex items-center space-x-3">
-    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-700 flex items-center justify-center shadow-md shadow-emerald-900/15">
-      <GitBranch class="w-5 h-5 text-amber-50" />
+    <div class="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center shadow-md shadow-emerald-900/15">
+      <EpochMark size={26} ink="#fffbeb" ancestryOpacity={0.5} />
     </div>
     <div>
       <h1 class="text-base font-bold text-stone-900 tracking-tight">
-        Epoch Genealogy
+        Epoch
       </h1>
-      <p class="text-[10px] text-stone-500 font-medium tracking-wide">Cloudflare D1 &amp; R2 Architecture</p>
+      <p class="text-[10px] text-stone-500 font-medium tracking-wide">Family history</p>
     </div>
   </div>
 
