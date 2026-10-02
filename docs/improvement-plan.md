@@ -242,7 +242,8 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 | Family page | 3 | None |
 | Edit any fact or event, add name variants | 3 | Birth and death only; name variants modelled but not editable |
 | Interactive tree, pedigree, descendancy, hourglass | 2/3/6 | One canvas (see above) |
-| Fan, compact, family book, timeline, lifespan charts | 6 | None |
+| Fan, hourglass | 6 | Built in S12 (ADR-020) |
+| Compact, family book, timeline, lifespan charts | 6 | None |
 | Relationship chart ("how are X and Y related") | 3/6 | None. `relationship-sentence.ts` is the save-preview sentence, not a path calculator. |
 | Lists: individuals, families, surnames, places | 3 | None; search endpoint only |
 | Search: general, advanced, phonetic (Soundex/DM) | 3 | Basic name search |
@@ -295,6 +296,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S12 | Fan and hourglass charts (in progress) | Two more chart styles over the existing reads, style links and a text list of ancestors. See ADR-020. |
 | S11 | Place records, rename and merge (done, deployed 2026-10-02, version `2ba62213-0d33-4d15-9197-0dd664233afc`, migration 0016 applied remotely) | Records derived from the fact's text, rename and merge as one undoable change. See ADR-019. |
 | S10 | Kinship, charts and places (done, deployed 2026-10-02) | A relationship calculator reporting every route, pedigree and descendant charts, the depth and link-type controls proved, and places as the text on a fact. See ADR-017, ADR-018 and [S10 status](#s10-kinship-charts-and-places). |
 
@@ -410,10 +412,10 @@ Left open or departing from the plan:
 
 - **No `place_ref` column in S10** (ADR-018); S11 added the records, rename and merge (ADR-019). Hierarchy and maps stay Phase 7.
 - **Relationships through a private ancestor are hidden** from a restricted viewer when private people are omitted, with no sign they exist; with placeholders on they show as "Private".
-- **Charts have no separate text outline**; the cards are links in a grouped SVG. A pedigree slot holds two parents (biological first); the person page lists all.
+- **Text outline:** S12 (ADR-020) added a numbered list under the pedigree and fan charts; the descendants and hourglass charts still have none. A pedigree slot holds two parents (biological first); the person page lists all.
 - **Descendants** list a person's children across partnerships together, in birth order.
 - **Place list cost** is one pass over the tree's events, like the surname list.
-- **Not built:** relationship paths longer than 20 generations or through more than 3,000 people say "stopped at its limit"; fan and hourglass chart styles; place-based search by hierarchy.
+- **Not built:** relationship paths longer than 20 generations or through more than 3,000 people say "stopped at its limit"; place-based search by hierarchy.
 
 ## Decisions (2026-09-29)
 
