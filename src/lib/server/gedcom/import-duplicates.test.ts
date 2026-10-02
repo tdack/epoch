@@ -112,9 +112,9 @@ describe('when partnerships are created', () => {
 		const RealDate = Date;
 		let tick = 0;
 		globalThis.Date = class extends RealDate {
-			constructor(...args: ConstructorParameters<DateConstructor>) {
+			constructor(...args: unknown[]) {
 				if (args.length === 0) super(RealDate.now() + 1000 * tick++);
-				else super(...args);
+				else super(...(args as [number]));
 			}
 		} as DateConstructor;
 		try {
