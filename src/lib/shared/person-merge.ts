@@ -32,3 +32,29 @@ export const PERSON_MERGE_REFUSALS = {
 	ANCESTOR: 'One of them is recorded as an ancestor of the other, so they cannot be the same person.',
 	SAME_PARTNERSHIP: 'They are the two partners of one partnership, so they cannot be the same person.'
 } as const;
+
+/** One of the two records, as the review dialog shows it beside the other. */
+export interface MergeSideDto {
+	id: string;
+	name: string;
+	sex: Sex | null;
+	/** Sent back with the merge, so a person changed meanwhile is a conflict and not a silent overwrite. */
+	version: number;
+	names: Array<{ text: string; type: string; isPreferred: boolean }>;
+	facts: Array<{ label: string; text: string }>;
+	parents: Array<{ id: string; name: string; type: string }>;
+	partnerships: Array<{ id: string; partners: string; childCount: number }>;
+	children: Array<{ id: string; name: string }>;
+	mediaCount: number;
+}
+
+export interface PersonMergeReviewDto {
+	survivor: MergeSideDto;
+	merged: MergeSideDto;
+	/** Why these two cannot be merged; the dialog shows it instead of a preview. */
+	refusal: string | null;
+	/** What must be chosen before a preview exists. */
+	conflicts: PersonMergeConflict[];
+	/** What the result will have that deserves a second look, in sentences. */
+	notes: string[];
+}
