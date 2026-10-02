@@ -23,6 +23,7 @@ import type { PersonPrivacy } from '#lib/shared/privacy.js';
 import type { PrivacySettingsDto } from '#lib/server/services/privacy-service.js';
 import type { InvitationDto, MemberDto, MembersDto } from '#lib/server/services/member-service.js';
 import type { TreeRole } from '#lib/shared/roles.js';
+import type { RelationshipDto } from '#lib/shared/kinship.js';
 import type { IndividualListItem, Page, SurnameListItem, UnionListItem } from '#lib/shared/lists.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -428,6 +429,10 @@ export async function changeMemberRoleApi(treeId: string, userId: string, role: 
 
 export async function removeMemberApi(treeId: string, userId: string, version: number): Promise<void> {
 	await call(`/api/trees/${enc(treeId)}/members/${enc(userId)}?version=${version}`, { method: 'DELETE' }, 'Failed to remove the member');
+}
+
+export async function fetchRelationship(treeId: string, fromId: string, toId: string, fetcher: typeof fetch = fetch): Promise<RelationshipDto> {
+	return call(`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`, { method: 'GET' }, 'Failed to work out the relationship', fetcher);
 }
 
 export type NameImpactRequest =

@@ -17,6 +17,7 @@
 		{ href: `${base}/search`, label: 'Search', isActive: page.url.pathname.startsWith(`${base}/search`) },
 		{ href: `${base}/people`, label: 'People', isActive: page.url.pathname === `${base}/people` },
 		{ href: `${base}/unions`, label: 'Partnerships', isActive: page.url.pathname === `${base}/unions` },
+		{ href: `${base}/relationship`, label: 'Relationship', isActive: page.url.pathname.startsWith(`${base}/relationship`) },
 		{ href: `${base}/surnames`, label: 'Surnames', isActive: page.url.pathname.startsWith(`${base}/surnames`) },
 		...(isManagerOrAbove(role)
 			? [
