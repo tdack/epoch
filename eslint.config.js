@@ -39,7 +39,9 @@ export default ts.config(
 			'@typescript-eslint/no-explicit-any': 'warn',
 			// The rule is for state that must react. Every hit builds a throwaway URLSearchParams,
 			// Map or Set inside a function, where a reactive copy would add cost and no behaviour.
-			'svelte/prefer-svelte-reactivity': 'off'
+			'svelte/prefer-svelte-reactivity': 'off',
+			// prettier-plugin-svelte writes `{' '}` itself to keep a space it would otherwise collapse.
+			'svelte/no-useless-mustaches': 'off'
 		}
 	},
 	{
