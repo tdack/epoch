@@ -295,7 +295,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
-| S10 | Kinship, charts and places (done, local) | A relationship calculator reporting every route, pedigree and descendant charts, the depth and link-type controls proved, and places as the text on a fact. See ADR-017, ADR-018 and [S10 status](#s10-kinship-charts-and-places). |
+| S10 | Kinship, charts and places (done, deployed 2026-10-02) | A relationship calculator reporting every route, pedigree and descendant charts, the depth and link-type controls proved, and places as the text on a fact. See ADR-017, ADR-018 and [S10 status](#s10-kinship-charts-and-places). |
 
 After S5, continue with Phases 3–7 as written. Phase 4 (privacy) must land before sharing the tree
 with any collaborator. The current model has no living-person protection.
@@ -398,7 +398,7 @@ Left open:
 
 ### S10: kinship, charts and places
 
-**S10 status (2026-10-02): done on `feat/phase-3-s10`.** Phase 3 items 8 and 9, Phase 2's depth and link-type controls (already built; now tested) and Phase 1's `place_ref` (by ADR-018, not as a column). See [ADR-017](./decisions.md), [ADR-018](./decisions.md) and [query-plans.md](./query-plans.md#kin-window-s10-relationship-pedigree-and-descendants).
+**S10 status (2026-10-02): done, merged and deployed (version `f1e30f1c-0674-4759-8f90-56d1a4e5f4c0`, migration 0015 applied remotely).** Phase 3 items 8 and 9, Phase 2's depth and link-type controls (already built; now tested) and Phase 1's `place_ref` (by ADR-018, not as a column). See [ADR-017](./decisions.md), [ADR-018](./decisions.md) and [query-plans.md](./query-plans.md#kin-window-s10-relationship-pedigree-and-descendants).
 
 - **Relationship calculator** (`/relationship?from=&to=`, `domain/relationship-calculator.ts`): every route between two people (the same person, a partnership, blood routes, routes by partnership), each with the people it runs through and any non-biological link named; "1st cousin once removed", gendered words when sex is recorded and neutral ones otherwise; masked for the viewer in memory, so a private person is absent or a "Private" step. Linked from the person page and the tree navigation.
 - **Pedigree and descendant charts** (`/people/[id]/pedigree`, `/descendants`): SVG cards with dates, depth in the address (default 4, at most 8), a card leads to that person's chart, "more above or below" shown when a limit hid people. One bounded kin loader shared with the calculator (about 9 to 13 rows per person).
