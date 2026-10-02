@@ -504,9 +504,12 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
   for (const [id, xref] of famXrefMap) {
     if (xref) xrefToExportId.set(xref, xref);
   }
-  // Structures preserved under a merged-away family re-attach to the family that absorbed it.
+  // Structures preserved under a merged-away family or person re-attach to the record that absorbed it.
   for (const u of treeUnions) {
     for (const alias of u.xrefAliases ?? []) xrefToExportId.set(alias, famXrefMap.get(u.id) ?? u.id);
+  }
+  for (const ind of treeInds) {
+    for (const alias of ind.xrefAliases ?? []) xrefToExportId.set(alias, indXrefMap.get(ind.id) || ind.id);
   }
 
   return {
@@ -566,12 +569,12 @@ export async function getTreeExportData(d1: D1Database, treeId: string) {
       .slice()
       .sort((a, b) => a.order - b.order)
       .map((p) => {
-        const lines = p.lines as unknown as string[];
-        // Extras kept under a FAMC follow the family that absorbed it, so they land on the FAMC that is written.
-        const famc = lines[0]?.trim().match(/^(1 FAMC\s+)(\S+)$/);
+        // Every pointer in a retained line (a FAMC, an ASSO, a custom tag) follows the record that
+        // absorbed the one it names, so export never writes a pointer to a record that is gone.
+        const remap = (line: string) => line.replace(/@[^@\s]+@/g, (token) => xrefToExportId.get(token) ?? token);
         return {
           xref: p.ownerXref ? xrefToExportId.get(p.ownerXref) ?? p.ownerXref : null,
-          lines: famc ? [`${famc[1]}${xrefToExportId.get(famc[2]) ?? famc[2]}`, ...lines.slice(1)] : lines
+          lines: (p.lines as unknown as string[]).map(remap)
         };
       })
   };

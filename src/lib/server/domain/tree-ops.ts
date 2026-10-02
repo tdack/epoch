@@ -304,6 +304,7 @@ function createPerson(rows: TreeRows, ctx: OpContext, command: Extract<Relations
 		id: command.personId,
 		treeId: ctx.treeId,
 		xrefId: `@I_${command.personId.slice(0, 8)}@`,
+		xrefAliases: null,
 		givenName: cleanText(command.givenName),
 		surname: cleanText(command.surname),
 		sex: command.sex,
