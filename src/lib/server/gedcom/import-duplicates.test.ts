@@ -105,3 +105,25 @@ describe('re-importing a dirty file in merge mode after it was merged', () => {
 		expect(await unionsOf(treeId)).toHaveLength(8);
 	});
 });
+
+describe('when partnerships are created', () => {
+	it('gives every partnership of one import the same moment, even if the clock ticks over a second mid-import', async () => {
+		// Each `new Date()` is a second later than the last, as if the import straddled many boundaries.
+		const RealDate = Date;
+		let tick = 0;
+		globalThis.Date = class extends RealDate {
+			constructor(...args: ConstructorParameters<DateConstructor>) {
+				if (args.length === 0) super(RealDate.now() + 1000 * tick++);
+				else super(...args);
+			}
+		} as DateConstructor;
+		try {
+			const treeId = crypto.randomUUID();
+			await importGedcomToDb(t.d1, treeId, dirty, 'Clock');
+			const stamps = new Set((await unionsOf(treeId)).map((u) => u.createdAt?.getTime()));
+			expect(stamps.size).toBe(1);
+		} finally {
+			globalThis.Date = RealDate;
+		}
+	});
+});

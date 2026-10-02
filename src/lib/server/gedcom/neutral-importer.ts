@@ -58,6 +58,10 @@ export async function importNeutralModel(
 ): Promise<void> {
 	const scoped = (xrefOrId: string) =>
 		xrefOrId.startsWith(`${treeId}:`) ? xrefOrId : `${treeId}:${xrefOrId}`;
+	// One moment for every partnership of the file. Stored in whole seconds, a per-row default would
+	// split copies of one family across a second boundary and, with their dates tied, decide which
+	// is the "1st partnership" by the clock instead of by where they stand in the file.
+	const importedAt = new Date();
 
 	// 1. person_names: every NAME of the file, in file order; the first is the preferred one.
 	// A merge import meets people who already have names, so a name is skipped when the person
@@ -121,6 +125,7 @@ export async function importNeutralModel(
 			.values({
 				id: unionId,
 				treeId,
+				createdAt: importedAt,
 				status: deriveUnionStatus(fam),
 				xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
 			})
