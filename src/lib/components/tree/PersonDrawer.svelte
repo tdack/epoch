@@ -10,6 +10,7 @@
 		Cross,
 		ExternalLink
 	} from 'lucide-svelte';
+	import { restartSignIn } from '#lib/services/tree-api.js';
 	import type { RelativeAction } from './tree-editor.svelte.js';
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
 	import type { ParentChildType, RelationshipKind } from '#lib/types/genealogy.js';
@@ -128,6 +129,7 @@
 				body: fd
 			});
 
+			if (res.status === 401) restartSignIn();
 			if (!res.ok) {
 				const err = (await res.json().catch(() => ({}))) as { error?: string };
 				throw new Error(err.error || 'Upload failed');

@@ -1,3 +1,4 @@
+import { browser } from '$app/env';
 import type {
 	TreeSummary,
 	TreeDetails,
@@ -72,6 +73,18 @@ export function isConflict(error: unknown): error is ConflictError {
 	return error instanceof ConflictError;
 }
 
+/**
+ * Send the browser through `/login` after the session expired. It must be a full navigation, not
+ * `goto`: only Access, which sees the request, can renew the cookie, and `/login` is the one path
+ * it covers. Does nothing outside the browser.
+ */
+export function restartSignIn(): void {
+	if (!browser) return;
+	window.location.assign(
+		`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+	);
+}
+
 async function call<T>(
 	url: string,
 	init: RequestInit | undefined,
@@ -81,6 +94,8 @@ async function call<T>(
 	const res = await fetchFn(url, init);
 	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
 	if (!res.ok) {
+		// The error is still thrown, so callers stop while the page navigates away.
+		if (res.status === 401) restartSignIn();
 		const message = data.error || failure;
 		// Only a conflict that carries the stored values can be shown as a comparison; a bare
 		// CONCURRENT_WRITE (a race inside the save) is reported as a plain error.
