@@ -18,10 +18,10 @@ parameter:
 
 - **Flat stays the default.** The last stage makes the default configurable, so either 3D mode
   could become the default later without removing flat.
-- **Both 3D modes share one model.** Every drawn person gets a **band**: their collateral distance
-  from the direct line. Moving to a parent or a child is free; stepping sideways to a sibling costs
-  one band. `layers` turns a band into a plane; `floors` turns it into a row on a generation floor.
-  Left–right always means "whose side": each partner's relatives stay on that partner's side.
+- **Both 3D modes share one model.** Every drawn person gets a **band**: how far they sit off the
+  direct line (the table below). `layers` turns a band into a plane; `floors` turns it into a row on
+  a generation floor. Left–right always means "whose side": each partner's relatives stay on that
+  partner's side.
 
 ## Placement rules shared by every view
 
@@ -30,13 +30,18 @@ so the same person lands in the same place relative to their family whatever the
 
 ### Bands
 
-| Who | Band |
-|---|---|
-| Focus person, their partners, ancestors, descendants and descendants' partners | 0 |
-| Siblings; parents' siblings (aunts and uncles); the focus union partners' parents and siblings in `layers` | 1 |
-| Siblings' children and their lines (cousins of the household) | 2 |
-| Further collaterals (optional) | 3+ |
+| Band | Who | Name |
+|---|---|---|
+| 0 | The **direct line**: the focus person, their ancestors and descendants, and every partner of a band-0 person | direct line |
+| 1 | **Siblings of the line**: any other child of a band-0 union, so the focus person's siblings and aunts and uncles at any height, plus their partners | sibling line |
+| 2 | **Descendants of the sibling line**, plus their partners: nieces, nephews, cousins and their children | cousin line |
 
+- Band 2 is the furthest band. Anyone who would be further back is counted in a "+N" stub on the
+  nearest drawn person.
+- A partner takes the band of the person they partner. A person qualifying for two bands takes the
+  lower one.
+- The band is a property of the selection, not of the view. It is computed once and every mode
+  reads it, flat included (for step-children, below).
 - In `layers`, the focus union partners' parents sit on plane 1 with their siblings. That is
   where the board puts them: they are the hub of the sibling group, and plane 0 is "the union and
   its descendants". This is the one place `layers` differs from the pure band count, and the
@@ -76,7 +81,7 @@ inherits that parent's group:
   them.
 - **Large sibling sets** fold to a "+N" stack in any band other than 0. Band 0 never folds.
 
-## Rendering decision (to record as ADR-028)
+## Rendering decision (to record as the next free ADR, ADR-029 at the time of writing)
 
 Use **CSS 3D transforms over HTML planes**, not WebGL (Three.js/Threlte), with one shared
 `PlaneStack` primitive:
@@ -106,7 +111,7 @@ Use **CSS 3D transforms over HTML planes**, not WebGL (Three.js/Threlte), with o
   - SVG text sharpness under `preserve-3d`, and blur when zoomed.
   - Clicks and focus landing on the right card through the transforms.
   - Frame time while panning with every card visible.
-- **Exit:** ADR-028 (renderer, `mode` parameter, band model, step-child rule, what is deferred)
+- **Exit:** the ADR (renderer, `mode` parameter, band model, step-child rule, what is deferred)
   accepted in `docs/decisions.md`; the spike is discarded.
 
 ## Stage 1: shared placement rules, applied to flat
@@ -292,3 +297,20 @@ This is the only stage that changes the default view, and only for step-children
 - Printing or exporting either 3D view.
 - Drawing cousins in the flat hourglass (stage 4 makes it possible; deciding to do it is
   separate).
+
+## Status
+
+Updated by each implementing session at a stage boundary: what is done, what is pushed, and anything
+the next session must know.
+
+| Stage | State | Notes |
+|---|---|---|
+| 0 | Not started | |
+| 1 | Not started | |
+| 2 | Not started | |
+| 3 | Not started | |
+| 4 | Not started | |
+| 5 | Not started | |
+| 6 | Not started | |
+| 7 | Not started | |
+| 8 | Not started | |
