@@ -4,7 +4,18 @@
  */
 
 /** The name a table's rows go by in the log and in previews. */
-export type EntityType = 'person' | 'name' | 'union' | 'partner' | 'link' | 'event' | 'media';
+export type EntityType =
+	| 'person'
+	| 'name'
+	| 'union'
+	| 'partner'
+	| 'link'
+	| 'event'
+	| 'media'
+	| 'source'
+	| 'repository'
+	| 'source_link'
+	| 'citation';
 
 export const RECORD_ACTIONS = {
 	CREATED: 'created',
@@ -63,4 +74,6 @@ export interface ImpactSummary {
 	people: ImpactPerson[];
 	/** True when the change deletes any record. */
 	isDestructive: boolean;
+	/** For a merge: how many citations of the record folded away end up on the one that remains. */
+	carriedCitations?: number;
 }

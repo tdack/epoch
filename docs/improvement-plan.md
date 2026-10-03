@@ -241,7 +241,7 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 
 | webtrees capability | Owning phase | Current state |
 |---|---|---|
-| Individual page (facts, relatives tabs, sources, notes, media) | 3 | Built (S5 to S6): names, facts, parents, partnerships, siblings, step relatives, history, media. Sources and notes wait for Phase 5. |
+| Individual page (facts, relatives tabs, sources, notes, media) | 3 | Built (S5 to S6): names, facts, parents, partnerships, siblings, step relatives, history, media. Sources and evidence are built (S15b); notes wait for S15c. |
 | Family page | 3 | Built: the partnership page (partners, events, children, chronology, same-partner twins, warnings, history) |
 | Edit any fact or event, add name variants | 3 | Built (S5 facts, S6 names), each with a preview and one undo |
 | Interactive tree, pedigree, descendancy, hourglass | 2/3/6 | One canvas (see above) |
@@ -250,7 +250,8 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 | Relationship chart ("how are X and Y related") | 3/6 | Built in S10 (ADR-017): every route, nearest first |
 | Lists: individuals, families, surnames, places | 3 | Built (S7, S10, S11) |
 | Search: general, advanced, phonetic (Soundex/DM) | 3 | Basic name search |
-| Sources, repositories, citations, shared notes | 5 | No tables |
+| Sources, repositories, citations | 5 | Built (S15b): records, GEDCOM both ways, UI beside the facts, privacy-aware. See ADR-028. |
+| Shared notes, research tasks | 5 | Not started (S15c); notes stay retained lines. |
 | Find duplicates, merge records | 5 | Built: partnership merge (S5), person merge and a possible-duplicates suggestion (S14, ADR-022) |
 | Check-tree / data-quality report | 5 | Built in S13 (ADR-021), except unsourced facts and privacy leaks |
 | Research tasks (`_TODO`) | 5 | None |
@@ -299,6 +300,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S15b | Sources, repositories and citations (done on branch `feat/s15b-sources-citations`, not yet deployed; migration 0020 then `npm run db:backfill:evidence`) | Sources, repositories and citations as records, read and written through GEDCOM 5.5.1 and 7.0 in order; edited with preview, log and undo; carried by person and partnership merges; shown beside the facts they support as sourced, unsourced or conflicting; sources list and page; privacy follows the people supported; "unsourced key fact" research suggestions. See ADR-028 and [S15b status](#s15b-sources-repositories-and-citations). |
 | S15a | Lossless evidence round trip (done, deployed 2026-10-02, migration 0019 applied remotely; the remote tree held no retained lines to convert) | Root `SOUR`/`REPO`/`NOTE`/`OBJE` records written back, event sub-lines kept, repeat imports stable. The baseline S15b models on. See ADR-023. |
 | S14 | Person merge (done, deployed 2026-10-02, version `36188638-0087-42f5-a488-d57348f4c02b`, migration 0018 applied remotely) | Side-by-side review, exact preview and one undoable merge of two records of one person, XREF aliases on people, a possible-duplicates suggestion in the quality report. See ADR-022. |
 | S13 | Data-quality report (done, deployed 2026-10-02, version `4eaedf37-57e8-407c-8976-fe0bf677aada`, migration 0017 applied remotely) | Checks for impossible or implausible history, classed as errors, warnings and research suggestions, each with a reason; dismissals with a reason stored per tree. Computed on demand over the rows the viewer may see. See ADR-021. |
@@ -404,6 +406,17 @@ Left open:
 - **No audit of membership changes,** no invitation email (the manager tells the person), no "leave this tree", and no transfer wizard (an owner makes another owner and steps down).
 - **Contributor-created people:** the creator test first leaked a private partner's partnership to contributors through three-valued logic (`null = x`); found by comparing a contributor's and a viewer's answers, fixed with `is`, and both shapes are now measured and compared in the plan tests.
 - **Flake:** `union-choice.spec.ts` failed once in a full run and passed three times alone.
+
+### S15b: sources, repositories and citations
+
+Done on `feat/s15b-sources-citations`: tables (migration 0020, expand-only), import and export in both
+GEDCOM versions with `evidence-roundtrip.test.ts` unchanged, a backfill for trees imported before it
+(`npm run db:backfill:evidence`, run after the migration), commands with previews and undo, merges that
+carry citations, privacy (reads, writes, matrix), the person view and partnership page, the sources
+pages, and the unsourced-key-fact suggestion. e2e: `e2e/sources.spec.ts`.
+
+Not done, by design: shared and inline notes as records and research tasks (S15c); media records
+(`OBJE` stays retained); a source merge or delete that touches more than 300 records is refused.
 
 ### S10: kinship, charts and places
 

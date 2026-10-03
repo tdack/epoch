@@ -3,18 +3,25 @@
 	import FactDialog from '#lib/components/modals/FactDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
+	import CitationList from '#lib/components/evidence/CitationList.svelte';
+	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
+	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import { deleteFactApi, previewFactApi, reorderFactsApi } from '#lib/services/tree-api.js';
+	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
+	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { FactDto, PersonPageDto } from '#lib/shared/person-page.js';
 	import { treePath } from './person-paths.js';
 
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, editor, toasts }: Props = $props();
+	let { dto, treeId, role, editor, toasts }: Props = $props();
 
 	let factDialog = $state<{ fact: FactDto | null } | null>(null);
 
@@ -106,6 +113,25 @@
 							: `Disagrees with ${fact.conflict.otherIds.length} other recorded ${fact.label.toLowerCase()}${fact.conflict.otherIds.length > 1 ? 's' : ''}. All are kept.`}
 					</p>
 				{/if}
+				<CitationsDisclosure
+					citationCount={fact.citationCount}
+					isConflicting={fact.conflict?.kind === CONFLICT_KINDS.CONFLICT}
+					label={`the ${fact.label.toLowerCase()}`}
+				>
+					<CitationList
+						{treeId}
+						{role}
+						{editor}
+						{toasts}
+						subjectLabel={`the ${fact.label.toLowerCase()}`}
+						subject={{ kind: CITATION_SUBJECT_KINDS.EVENT, id: fact.id }}
+						citations={citationsOfSubject(
+							dto.evidence.citations,
+							CITATION_SUBJECT_KINDS.EVENT,
+							fact.id
+						)}
+					/>
+				</CitationsDisclosure>
 				<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
 					<button
 						type="button"

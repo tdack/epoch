@@ -33,6 +33,7 @@ const RECORDS = 'services/privacy-records.test.ts';
 const WRITES = 'services/privacy-writes.test.ts';
 const ACCESS = 'services/privacy-access.test.ts';
 const MEMBERS = 'services/member-service.test.ts';
+const EVIDENCE = 'services/privacy-evidence.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
@@ -50,6 +51,12 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'masked-rows',
 		covers: 'services/chart-service.test.ts'
 	},
+	[`${API}/trees/[id]/citations/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/[citationId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/citations/reorder/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
@@ -62,6 +69,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/members/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/individuals/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
+	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/surnames/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/marks/+server.ts`]: { kind: 'own-data', covers: READS },
@@ -133,7 +142,29 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'masked-rows',
 		covers: 'services/kinship-service.test.ts'
 	},
+	[`${API}/trees/[id]/repositories/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/repositories/[repositoryId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
 	[`${API}/trees/[id]/search/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/source-links/[linkId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	// The GET is a masked read (a source is listed and served only for a viewer who sees something it
+	// supports); the PUT and DELETE are the more dangerous half, so the entry names the write kind.
+	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/sources/[sourceId]/merge/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/[sourceId]/repositories/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/impact/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
@@ -158,6 +189,8 @@ const LOADS = [
 	'./trees/[id]/quality/+page.ts',
 	'./trees/[id]/relationship/+page.ts',
 	'./trees/[id]/search/+page.ts',
+	'./trees/[id]/sources/+page.ts',
+	'./trees/[id]/sources/[sourceId]/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
 	'./trees/[id]/unions/+page.ts',
 	'./trees/[id]/unions/[unionId]/+page.ts'

@@ -9,16 +9,21 @@
  */
 
 import type {
+	citations,
 	events,
 	gedcomPreserved,
 	individuals,
 	parentChild,
 	personNames,
+	repositories,
+	sourceRepositories,
+	sources,
 	trees,
 	unionPartners,
 	unions
 } from '../db';
-import type { GedcomExportPayload } from './serializer';
+import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
+import type { ExportCitation, GedcomExportPayload } from './serializer';
 
 /** Every row of one tree the export needs, as the repository reads them. */
 export interface ExportRows {
@@ -32,6 +37,16 @@ export interface ExportRows {
 	/** In insertion order, so names keep the order they were written in. */
 	names: Array<typeof personNames.$inferSelect>;
 	preserved: Array<typeof gedcomPreserved.$inferSelect>;
+	sources: Array<typeof sources.$inferSelect>;
+	repositories: Array<typeof repositories.$inferSelect>;
+	/** In link order within each source. */
+	sourceRepositories: Array<typeof sourceRepositories.$inferSelect>;
+	citations: Array<typeof citations.$inferSelect>;
+}
+
+/** A retained entry that is a whole level-0 record, not a structure kept under a person or family. */
+function isRootRecord(entry: { lines: unknown }): boolean {
+	return (entry.lines as string[])[0]?.startsWith('0 ') ?? false;
 }
 
 export function exportPayloadFrom(
@@ -164,10 +179,55 @@ export function exportPayloadFrom(
 	// record that absorbed the one it names, so export never writes a pointer to a record that is gone.
 	const remap = (line: string) =>
 		line.replace(/@[^@\s]+@/g, (token) => xrefToExportId.get(token) ?? token);
+	// ---- Evidence (ADR-028) ----
+	const sourceXrefs = new Map(rows.sources.map((s) => [s.id, s.xref ?? `@${s.id}@`] as const));
+	const repositoryXrefs = new Map(
+		rows.repositories.map((r) => [r.id, r.xref ?? `@${r.id}@`] as const)
+	);
+	const citationsOf = new Map<string, ExportCitation[]>();
+	for (const c of [...rows.citations].sort((a, b) => a.sortOrder - b.sortOrder)) {
+		const key = `${c.subjectKind}|${c.subjectId}`;
+		const list = citationsOf.get(key) ?? [];
+		list.push({
+			pointer: c.sourceId ? (sourceXrefs.get(c.sourceId) ?? null) : c.sourceRef,
+			description: c.description,
+			page: c.page,
+			quality: c.quality,
+			entryDate: c.entryDateRaw,
+			text: c.text,
+			layout: c.gedcomLayout,
+			extra: c.gedcomExtra?.map(remap) ?? null
+		});
+		citationsOf.set(key, list);
+	}
+	const citationsFor = (kind: CitationSubjectKind, id: string) =>
+		citationsOf.get(`${kind}|${id}`) ?? [];
+	/** A child's FAMC is one link held on one row per parent: write each distinct citation once. */
+	const linkCitations = (links: Array<{ id: string }>) => {
+		const seen = new Set<string>();
+		return links
+			.flatMap((l) => citationsFor(CITATION_SUBJECT_KINDS.PARENT_CHILD, l.id))
+			.filter((c) => {
+				const key = JSON.stringify(c);
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			});
+	};
+	const linksOfSource = new Map<string, typeof rows.sourceRepositories>();
+	for (const link of [...rows.sourceRepositories].sort((a, b) => a.sortOrder - b.sortOrder))
+		linksOfSource.set(link.sourceId, [...(linksOfSource.get(link.sourceId) ?? []), link]);
+	// A record kept as lines before it was modelled is superseded by its row, so it is never written twice.
+	const modelledXrefs = new Set(
+		[...rows.sources, ...rows.repositories].flatMap((r) => (r.xref ? [r.xref] : []))
+	);
+
 	const withKeptLines = (list: typeof treeEvents) =>
-		list.map((ev) =>
-			ev.gedcomExtra?.length ? { ...ev, gedcomExtra: ev.gedcomExtra.map(remap) } : ev
-		);
+		list.map((ev) => ({
+			...ev,
+			...(ev.gedcomExtra?.length ? { gedcomExtra: ev.gedcomExtra.map(remap) } : {}),
+			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id)
+		}));
 
 	return {
 		treeName: tree?.name || 'Family Tree',
@@ -197,10 +257,12 @@ export function exportPayloadFrom(
 						surnamePrefix: n.surnamePrefix,
 						dateText: n.dateRaw,
 						unionXref: n.unionId ? (famXrefMap.get(n.unionId) ?? null) : null,
-						extra: n.gedcomExtra?.map(remap) ?? null
+						extra: n.gedcomExtra?.map(remap) ?? null,
+						citations: citationsFor(CITATION_SUBJECT_KINDS.NAME, n.id)
 					})),
 				sex: ind.sex,
 				privacy: ind.privacy,
+				citations: citationsFor(CITATION_SUBJECT_KINDS.PERSON, ind.id),
 				events: withKeptLines(eventsByEntity[ind.id] || []),
 				famc: (famcByChild[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid),
 				fams: (famsByInd[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid)
@@ -218,15 +280,42 @@ export function exportPayloadFrom(
 				children: (childrenByUnion.get(u.id) || []).map((c) => ({
 					childId: indXrefMap.get(c.childId) || c.childId,
 					pedigree: c.pedigree,
-					...(c.parentPedigrees ? { parentPedigrees: c.parentPedigrees } : {})
+					...(c.parentPedigrees ? { parentPedigrees: c.parentPedigrees } : {}),
+					citations: linkCitations(linksByChildUnion.get(`${u.id}|${c.childId}`) ?? [])
 				})),
 				...(u.xrefAliases && u.xrefAliases.length > 0 ? { aliases: u.xrefAliases } : {}),
-				events: withKeptLines(eventsByEntity[u.id] || [])
+				events: withKeptLines(eventsByEntity[u.id] || []),
+				citations: citationsFor(CITATION_SUBJECT_KINDS.UNION, u.id)
 			};
 		}),
+		sources: rows.sources.map((s) => ({
+			xref: sourceXrefs.get(s.id)!,
+			title: s.title,
+			author: s.author,
+			publication: s.publication,
+			abbreviation: s.abbreviation,
+			text: s.text,
+			layout: s.gedcomLayout,
+			extra: s.gedcomExtra?.map(remap) ?? null,
+			repositories: (linksOfSource.get(s.id) ?? []).map((link) => ({
+				pointer: link.repositoryId
+					? (repositoryXrefs.get(link.repositoryId) ?? null)
+					: link.repositoryRef,
+				callNumber: link.callNumber,
+				extra: link.gedcomExtra?.map(remap) ?? null
+			}))
+		})),
+		repositories: rows.repositories.map((r) => ({
+			xref: repositoryXrefs.get(r.id)!,
+			name: r.name,
+			address: r.address,
+			layout: r.gedcomLayout,
+			extra: r.gedcomExtra?.map(remap) ?? null
+		})),
 		preserved: treePreserved
 			.slice()
 			.sort((a, b) => a.order - b.order)
+			.filter((p) => !(p.ownerXref !== null && modelledXrefs.has(p.ownerXref) && isRootRecord(p)))
 			.map((p) => {
 				return {
 					xref: p.ownerXref ? (xrefToExportId.get(p.ownerXref) ?? p.ownerXref) : null,

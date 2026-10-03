@@ -9,6 +9,24 @@ import { factsAtPlace } from './place-ops';
 import { displayNameOf, partnerIdsOf, personName } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
+import { subjectLabel } from './evidence-labels';
+import { sourceLabel } from '../../shared/evidence';
+
+/** “Parish register” for the source a command names, whether it exists yet or not. */
+function sourceName(rows: TreeRows, id: string, input?: { title?: string | null }): string {
+	const row = rows.sources.find((s) => s.id === id);
+	return `“${row ? sourceLabel(row) : input?.title?.trim() || 'a source'}”`;
+}
+
+function repositoryName(rows: TreeRows, id: string, name?: string | null): string {
+	return `“${rows.repositories.find((r) => r.id === id)?.name ?? name?.trim() ?? 'a repository'}”`;
+}
+
+/** What a citation supports, from the citation itself or the subject the command names. */
+function citedSubject(rows: TreeRows, citationId: string): string {
+	const citation = rows.citations.find((c) => c.id === citationId);
+	return citation ? subjectLabel(rows, citation.subjectKind, citation.subjectId) : 'a record';
+}
 
 function nameOf(rows: TreeRows, id: string): string {
 	return displayNameOf(rows, id);
@@ -66,6 +84,42 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Removed the ${factName(rows, command.factId)} of ${factOwner(rows, command.factId)}`;
 		case 'reorder_facts':
 			return `Reordered the facts of ${nameOf(rows, command.personId)}`;
+		case 'create_source':
+			return `Added the source ${sourceName(rows, command.sourceId, command.source)}`;
+		case 'update_source':
+			return `Edited the source ${sourceName(rows, command.sourceId)}`;
+		case 'delete_source': {
+			const count = rows.citations.filter((c) => c.sourceId === command.sourceId).length;
+			return `Deleted the source ${sourceName(rows, command.sourceId)}${count > 0 ? ` and its ${count} ${count === 1 ? 'citation' : 'citations'}` : ''}`;
+		}
+		case 'merge_sources':
+			return `Merged ${command.mergedIds.length + 1} sources into ${sourceName(rows, command.survivorId)}`;
+		case 'create_repository':
+			return `Added the repository ${repositoryName(rows, command.repositoryId, command.repository.name)}`;
+		case 'update_repository':
+			return `Edited the repository ${repositoryName(rows, command.repositoryId)}`;
+		case 'delete_repository':
+			return `Deleted the repository ${repositoryName(rows, command.repositoryId)}`;
+		case 'link_repository':
+			return `Linked the source ${sourceName(rows, command.sourceId)} to the repository ${repositoryName(rows, command.repositoryId)}`;
+		case 'update_source_repository':
+		case 'unlink_repository': {
+			const link = rows.sourceRepositories.find((l) => l.id === command.linkId);
+			const where = link
+				? `${sourceName(rows, link.sourceId)} at ${link.repositoryId ? repositoryName(rows, link.repositoryId) : 'a repository'}`
+				: 'a source';
+			return command.kind === 'unlink_repository'
+				? `Unlinked ${where}`
+				: `Changed the call number of ${where}`;
+		}
+		case 'add_citation':
+			return `Cited ${sourceName(rows, command.citation.sourceId ?? '')} for ${subjectLabel(rows, command.subject.kind, command.subject.id)}`;
+		case 'update_citation':
+			return `Edited a citation of ${citedSubject(rows, command.citationId)}`;
+		case 'remove_citation':
+			return `Removed a citation of ${citedSubject(rows, command.citationId)}`;
+		case 'reorder_citations':
+			return `Reordered the citations of ${subjectLabel(rows, command.subject.kind, command.subject.id)}`;
 		case 'rewrite_place': {
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;

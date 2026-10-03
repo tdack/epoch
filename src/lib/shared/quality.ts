@@ -116,6 +116,12 @@ export const QUALITY_RULES = [
 		why: 'Two or more people have the same name and birth dates that could be the same. A name and a date are never enough to merge on: compare the records, and merge from either person’s page if they are one.'
 	},
 	{
+		code: 'unsourced_key_fact',
+		severity: 'suggestion',
+		title: 'A key fact with no source',
+		why: 'A birth, death or marriage has no citation. Citing the record it came from lets anyone, including you later, check it; nothing is wrong with the fact itself.'
+	},
+	{
 		code: 'one_parent_recorded',
 		severity: 'suggestion',
 		title: 'Only one parent recorded',

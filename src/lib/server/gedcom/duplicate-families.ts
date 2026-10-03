@@ -8,7 +8,12 @@
  */
 
 import { factKey, partnerSetKey } from '../../shared/union-merge';
-import type { ParsedEvent, ParsedFamily, ParsedGedcomData } from './parser';
+import {
+	mergeCitations,
+	type ParsedEvent,
+	type ParsedFamily,
+	type ParsedGedcomData
+} from './parser';
 import {
 	type DuplicateFamilyReport,
 	type ExactDuplicateGroup,
@@ -176,12 +181,28 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 		const children = new Map<string, ParsedFamily['children'][number]>();
 		const events = new Map<string, ParsedEvent>();
 		const aliases = new Set<string>(survivor.aliases ?? []);
+		let familyCitations = survivor.citations;
 		for (const fam of [survivor, ...cluster.filter((f) => f !== survivor)]) {
-			for (const child of fam.children)
-				if (!children.has(child.childId)) children.set(child.childId, child);
+			// What a repeated record cites is evidence, and is kept on the record that absorbs it.
+			familyCitations = mergeCitations(familyCitations, fam.citations);
+			for (const child of fam.children) {
+				const kept = children.get(child.childId);
+				if (!kept) children.set(child.childId, child);
+				else if (child.citations)
+					children.set(child.childId, {
+						...kept,
+						citations: mergeCitations(kept.citations ?? [], child.citations)
+					});
+			}
 			for (const event of fam.events) {
 				const key = factsOf([event])[0];
-				if (!events.has(key)) events.set(key, event);
+				const kept = events.get(key);
+				if (!kept) events.set(key, event);
+				else if (event.citations)
+					events.set(key, {
+						...kept,
+						citations: mergeCitations(kept.citations ?? [], event.citations)
+					});
 			}
 			if (fam !== survivor) {
 				aliases.add(fam.id);
@@ -193,6 +214,7 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 			...survivor,
 			children: [...children.values()],
 			events: [...events.values()],
+			citations: familyCitations,
 			...(aliases.size > 0 ? { aliases: [...aliases] } : {})
 		});
 	}
@@ -234,17 +256,33 @@ export function foldIntoExistingAliases(
 		}
 		// Two records now name one union: keep everything either says, without repeating a child or a fact.
 		const children = new Map(existing.children.map((c) => [c.childId, c] as const));
-		for (const child of fam.children)
-			if (!children.has(child.childId)) children.set(child.childId, child);
+		for (const child of fam.children) {
+			const kept = children.get(child.childId);
+			if (!kept) children.set(child.childId, child);
+			else if (child.citations)
+				children.set(child.childId, {
+					...kept,
+					citations: mergeCitations(kept.citations ?? [], child.citations)
+				});
+		}
 		const events = new Map(existing.events.map((e) => [factsOf([e])[0], e] as const));
-		for (const event of fam.events)
-			if (!events.has(factsOf([event])[0])) events.set(factsOf([event])[0], event);
+		for (const event of fam.events) {
+			const key = factsOf([event])[0];
+			const kept = events.get(key);
+			if (!kept) events.set(key, event);
+			else if (event.citations)
+				events.set(key, {
+					...kept,
+					citations: mergeCitations(kept.citations ?? [], event.citations)
+				});
+		}
 		families.set(target, {
 			...existing,
 			husbandId: existing.husbandId ?? fam.husbandId,
 			wifeId: existing.wifeId ?? fam.wifeId,
 			children: [...children.values()],
-			events: [...events.values()]
+			events: [...events.values()],
+			citations: mergeCitations(existing.citations, fam.citations)
 		});
 	}
 

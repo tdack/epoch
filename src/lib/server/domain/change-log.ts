@@ -10,11 +10,15 @@
  */
 
 import type {
+	citations,
 	events,
 	individuals,
 	mediaItems,
 	parentChild,
 	personNames,
+	repositories,
+	sourceRepositories,
+	sources,
 	unionPartners,
 	unions
 } from '../db/schema';
@@ -43,6 +47,10 @@ export type ParentChildRow = Imaged<typeof parentChild.$inferSelect>;
  */
 export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
 export type MediaRow = Imaged<typeof mediaItems.$inferSelect>;
+export type SourceRow = Imaged<typeof sources.$inferSelect>;
+export type RepositoryRow = Imaged<typeof repositories.$inferSelect>;
+export type SourceRepositoryRow = Imaged<typeof sourceRepositories.$inferSelect>;
+export type CitationRow = Imaged<typeof citations.$inferSelect>;
 
 /** Every row a tree owns that a mutation can touch. */
 export interface TreeRows {
@@ -53,6 +61,10 @@ export interface TreeRows {
 	parentChild: ParentChildRow[];
 	events: EventRow[];
 	mediaItems: MediaRow[];
+	sources: SourceRow[];
+	repositories: RepositoryRow[];
+	sourceRepositories: SourceRepositoryRow[];
+	citations: CitationRow[];
 }
 
 export type RecordTable =
@@ -62,7 +74,11 @@ export type RecordTable =
 	| 'union_partners'
 	| 'parent_child'
 	| 'events'
-	| 'media_items';
+	| 'media_items'
+	| 'sources'
+	| 'repositories'
+	| 'source_repositories'
+	| 'citations';
 
 /** Parents before children: creates run in this order and deletes in reverse, so no foreign key is ever dangling. */
 const TABLE_RANK: Record<RecordTable, number> = {
@@ -72,7 +88,13 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	union_partners: 3,
 	parent_child: 4,
 	events: 5,
-	media_items: 6
+	media_items: 6,
+	// Evidence points at the rows above and at each other: a citation at its source and its subject,
+	// a link at its source and repository.
+	sources: 7,
+	repositories: 8,
+	source_repositories: 9,
+	citations: 10
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -83,7 +105,11 @@ const ENTITY_TYPES = {
 	union_partners: 'partner',
 	parent_child: 'link',
 	events: 'event',
-	media_items: 'media'
+	media_items: 'media',
+	sources: 'source',
+	repositories: 'repository',
+	source_repositories: 'source_link',
+	citations: 'citation'
 } as const satisfies Record<RecordTable, EntityType>;
 
 export type RowImage = Record<string, unknown>;
@@ -291,7 +317,10 @@ export function dependentsOfDeletions(
 	const deletedUnions = new Set(
 		ops.filter((op) => op.table === 'unions' && op.after === null).map((op) => op.id)
 	);
-	if (deletedPeople.size === 0 && deletedUnions.size === 0) return [];
+	const deletedIds = (table: RecordTable) =>
+		new Set(ops.filter((op) => op.table === table && op.after === null).map((op) => op.id));
+	const deletedSources = deletedIds('sources');
+	const deletedRepositories = deletedIds('repositories');
 
 	const found: Array<{ table: RecordTable; row: RowImage }> = [];
 	const add = (table: RecordTable, row: { id: string }) => {
@@ -328,5 +357,41 @@ export function dependentsOfDeletions(
 	}
 	for (const media of rows.mediaItems)
 		if (deletedPeople.has(media.entityId)) add('media_items', media);
+	// Evidence: a citation of a subject or source that is going, and a repository link of a source or
+	// repository that is going, would be left pointing at nothing.
+	const isSubjectDeleted = (kind: string, id: string) => {
+		switch (kind) {
+			case 'person':
+				return deletedPeople.has(id);
+			case 'union':
+				return deletedUnions.has(id);
+			case 'name':
+				return deleting.has(`person_names:${id}`);
+			case 'event':
+				return deleting.has(`events:${id}`);
+			default:
+				return deleting.has(`parent_child:${id}`);
+		}
+	};
+	// A citation the undo moves away from a record that is going (a merge's undo hands it back) is not
+	// left behind, so what counts is where it will be, not where it is.
+	const citationAfter = new Map(
+		ops.filter((op) => op.table === 'citations' && op.after).map((op) => [op.id, op.after!])
+	);
+	for (const citation of rows.citations) {
+		const kept = (citationAfter.get(citation.id) ?? citation) as typeof citation;
+		if (
+			isSubjectDeleted(kept.subjectKind, kept.subjectId) ||
+			(kept.sourceId !== null && deletedSources.has(kept.sourceId))
+		)
+			add('citations', citation);
+	}
+	for (const link of rows.sourceRepositories) {
+		if (
+			deletedSources.has(link.sourceId) ||
+			(link.repositoryId !== null && deletedRepositories.has(link.repositoryId))
+		)
+			add('source_repositories', link);
+	}
 	return found;
 }

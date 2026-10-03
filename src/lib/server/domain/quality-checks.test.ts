@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { addYears, checkQuality, cyclesOf } from './quality-checks';
 import { treeRows } from '../testing/rows';
 
-const rulesOf = (rows: ReturnType<typeof treeRows>) => checkQuality(rows).map((f) => f.rule);
+/**
+ * What the date rules found. The rows here carry no citations, so every key fact is also an
+ * unsourced one; that rule has its own tests below and would only add noise to these.
+ */
+const rulesOf = (rows: ReturnType<typeof treeRows>) =>
+	checkQuality(rows)
+		.map((f) => f.rule)
+		.filter((rule) => rule !== 'unsourced_key_fact');
 
 describe('addYears', () => {
 	it('moves the year and keeps the rest, so day strings still compare', () => {
@@ -274,5 +281,69 @@ describe('findings are stable', () => {
 		const reversed = checkQuality(treeRows({ ...spec, people: [...spec.people].reverse() }));
 		expect(reversed).toEqual(forward);
 		expect(new Set(forward.map((f) => f.key)).size).toBe(forward.length);
+	});
+});
+
+describe('unsourced key facts', () => {
+	const unsourced = (rows: ReturnType<typeof treeRows>) =>
+		checkQuality(rows).filter((f) => f.rule === 'unsourced_key_fact');
+
+	it('suggests a source for a birth, a death and a marriage that nothing cites', () => {
+		const findings = unsourced(
+			treeRows({
+				people: [
+					{ id: 'a', birth: '1900', death: '1970' },
+					{ id: 'b', birth: '1902' }
+				],
+				unions: [{ id: 'u', partners: ['a', 'b'], marriage: '1925' }]
+			})
+		);
+		expect(findings.map((f) => f.message).sort()).toEqual([
+			'The birth of a has no citation.',
+			'The birth of b has no citation.',
+			'The death of a has no citation.',
+			'The marriage of a and b has no citation.'
+		]);
+		expect(findings.every((f) => f.severity === 'suggestion')).toBe(true);
+		expect(findings.find((f) => f.message.includes('marriage'))?.subjects).toEqual([
+			{ kind: 'partnership', id: 'u', name: 'a and b' }
+		]);
+	});
+
+	it('is quiet for a fact with a citation, however many, and for facts that are not key', () => {
+		const rows = treeRows({
+			people: [{ id: 'a', birth: '1900' }],
+			events: [{ id: 'job', entityId: 'a', type: 'OCCU', value: 'Weaver' }],
+			citations: [{ subjectKind: 'event', subjectId: 'birt-a' }]
+		});
+		expect(unsourced(rows)).toEqual([]);
+	});
+
+	it('is not satisfied by a citation of the person or the name, which say nothing of the fact', () => {
+		const rows = treeRows({
+			people: [{ id: 'a', birth: '1900' }],
+			citations: [{ subjectKind: 'person', subjectId: 'a' }]
+		});
+		expect(unsourced(rows)).toHaveLength(1);
+	});
+
+	it('flags each of two conflicting births that nothing cites, and only the one left uncited', () => {
+		const rows = (isCited: boolean) =>
+			treeRows({
+				people: [{ id: 'a', birth: '1900' }],
+				events: [{ id: 'second', entityId: 'a', type: 'BIRT', dateRaw: '1901' }],
+				citations: isCited ? [{ subjectKind: 'event', subjectId: 'birt-a' }] : []
+			});
+		expect(unsourced(rows(false)).map((f) => f.key)).toEqual([
+			'unsourced_key_fact:birt-a',
+			'unsourced_key_fact:second'
+		]);
+		expect(unsourced(rows(true)).map((f) => f.key)).toEqual(['unsourced_key_fact:second']);
+	});
+
+	it('keeps a finding’s key across reloads, so a dismissal keeps matching', () => {
+		const rows = treeRows({ people: [{ id: 'a', birth: '1900' }] });
+		expect(unsourced(rows)[0]!.key).toBe('unsourced_key_fact:birt-a');
+		expect(checkQuality(rows)).toEqual(checkQuality(rows));
 	});
 });

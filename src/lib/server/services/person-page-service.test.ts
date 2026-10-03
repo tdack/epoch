@@ -257,7 +257,7 @@ describe('facts, names and history on the page', () => {
 		expect((await page()).changes.recent.map((c) => c.summary)).toEqual(['Added Wren Ash']);
 	});
 
-	it('carries a privacy flag that is false on every record, and empty notes and evidence sections', async () => {
+	it('carries a privacy flag that is false on every record, an empty notes section and no evidence', async () => {
 		const { page } = await fresh();
 		const dto = await page();
 		const flags: unknown[] = [];
@@ -272,7 +272,7 @@ describe('facts, names and history on the page', () => {
 		expect(flags.length).toBeGreaterThan(3);
 		expect(flags.every((f) => f === false)).toBe(true);
 		expect(dto.notes).toEqual({ isSupported: false, items: [] });
-		expect(dto.evidence).toEqual({ isSupported: false, items: [] });
+		expect(dto.evidence).toEqual({ citations: [], links: [] });
 	});
 
 	it('refuses a stranger and answers 404 for a person in another tree', async () => {

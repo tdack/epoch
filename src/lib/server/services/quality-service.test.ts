@@ -17,6 +17,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
+import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
 import { QualityService } from './quality-service';
 import { MAX_FINDINGS_PER_RULE } from '../../shared/quality';
@@ -110,6 +111,62 @@ describe('the report', () => {
 		await expect(service().report(treeId, stranger.context)).rejects.toBeInstanceOf(
 			UnauthorizedError
 		);
+	});
+});
+
+describe('unsourced key facts', () => {
+	const unsourced = async (who: TreeRole) =>
+		(await service().report(treeId, actors[who].context)).findings.filter(
+			(f) => f.rule === 'unsourced_key_fact'
+		);
+
+	it('are a research suggestion, not a warning, and are the same on every read', async () => {
+		const first = await unsourced('owner');
+		expect(first.length).toBeGreaterThan(0);
+		expect(first.every((f) => f.severity === 'suggestion')).toBe(true);
+		expect(await unsourced('owner')).toEqual(first);
+	});
+
+	it('name nobody a restricted viewer may not see', async () => {
+		const owner = (await unsourced('owner')).map((f) => f.message);
+		expect(owner.some((m) => m.includes('Secret Hidden'))).toBe(true);
+		for (const who of ['viewer', 'contributor'] as const) {
+			const seen = await unsourced(who);
+			expect(JSON.stringify(seen)).not.toContain('Secret');
+			expect(seen.length).toBeGreaterThan(0);
+		}
+	});
+
+	it('go once the fact is cited, and a citation of something else does not remove them', async () => {
+		const birth = (
+			await t.db
+				.select()
+				.from(events)
+				.where(and(eq(events.treeId, treeId), eq(events.entityId, `${treeId}:@I3@`)))
+				.all()
+		).find((e) => e.type === 'BIRT')!;
+		const before = (await unsourced('owner')).filter((f) => f.key.endsWith(birth.id));
+		expect(before).toHaveLength(1);
+		const evidence = new EvidenceService(t.db);
+		const { sourceId } = await evidence.createSource(
+			treeId,
+			{ title: 'Birth register' },
+			actors.owner.context
+		);
+		await evidence.addCitation(
+			treeId,
+			{ kind: 'person', id: `${treeId}:@I3@` },
+			{ sourceId },
+			actors.owner.context
+		);
+		expect((await unsourced('owner')).filter((f) => f.key.endsWith(birth.id))).toHaveLength(1);
+		await evidence.addCitation(
+			treeId,
+			{ kind: 'event', id: birth.id },
+			{ sourceId },
+			actors.owner.context
+		);
+		expect((await unsourced('owner')).filter((f) => f.key.endsWith(birth.id))).toHaveLength(0);
 	});
 });
 

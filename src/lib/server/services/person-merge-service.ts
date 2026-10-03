@@ -23,6 +23,7 @@ import {
 } from '../domain/person-merge';
 import { eventLabel } from '../domain/tree-labels';
 import { applyOpsToRows, personName } from '../domain/tree-ops';
+import { citationsOfPerson } from '../domain/evidence-carry';
 import { MarkRepository } from '../repositories/mark-repository';
 import { formatFullName } from '../../shared/name-types';
 import type {
@@ -104,10 +105,15 @@ function sideOf(rows: TreeRows, personId: string): MergeSideDto {
 }
 
 /** What the result will hold that is worth a second look; computed from the rows the merge would leave. */
-function notesFor(rows: TreeRows, ops: RowOp[], survivorId: string): string[] {
+function notesFor(rows: TreeRows, ops: RowOp[], survivorId: string, mergedId: string): string[] {
 	const after = applyOpsToRows(rows, ops);
 	const name = personName(after.individuals.find((p) => p.id === survivorId)!);
 	const notes: string[] = [];
+	const carried = citationsOfPerson(rows, mergedId);
+	if (carried > 0)
+		notes.push(
+			`${carried} ${carried === 1 ? 'citation' : 'citations'} of the other record will stay with the facts, names and links they support.`
+		);
 	for (const [type, word] of [
 		['BIRT', 'births'],
 		['DEAT', 'deaths']
@@ -166,7 +172,7 @@ export class PersonMergeService {
 			merged: sideOf(visible, request.mergedId),
 			refusal,
 			conflicts,
-			notes: ops ? notesFor(visible, ops, request.survivorId) : []
+			notes: ops ? notesFor(visible, ops, request.survivorId, request.mergedId) : []
 		};
 	}
 

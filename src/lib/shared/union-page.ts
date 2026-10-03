@@ -3,6 +3,7 @@
  * server; only the shapes live here.
  */
 
+import type { UnionEvidenceDto } from './evidence';
 import type { PartnershipLabel } from './partnership-labels';
 import type { PersonSummaryDto, ChangeEntryDto } from './person-page';
 import type { PrivacyFlag } from './privacy';
@@ -22,6 +23,8 @@ export interface UnionEventDto extends PrivacyFlag {
 	/** The union editor can change events of this type; others (a census, say) are shown as recorded. */
 	isEditable: boolean;
 	version: number;
+	/** How many citations support this fact; 0 is unsourced (ADR-028). */
+	citationCount: number;
 }
 
 export const CHRONOLOGY_KINDS = {
@@ -65,6 +68,8 @@ export interface UnionPageDto extends PrivacyFlag {
 	warnings: UnionWarning[];
 	/** Other partnerships with exactly the same partners. */
 	twins: Array<{ unionId: string; label: PartnershipLabel | null }>;
+	/** Citations of the partnership, its facts and the parent links shown above. */
+	evidence: UnionEvidenceDto;
 	changes: { recent: ChangeEntryDto[]; createdAt: number | null; updatedAt: number | null };
 	/** The window around the first partner, for the editing dialogs. */
 	graph: RelationshipGraph;

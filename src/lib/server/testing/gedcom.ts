@@ -2,6 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { getDb } from '../db';
 import { previewNewTree, type ImportMode, type ImportOptions } from '../gedcom/import-preview';
 import { parseGedcom } from '../gedcom/parser';
+import { GedcomRepository } from '../repositories/gedcom-repository';
 import { GedcomService } from '../services/gedcom-service';
 
 /** Seeds a tree from GEDCOM text with no authorization, as a queued import does. */
@@ -29,4 +30,18 @@ export function previewGedcomImport(d1: D1Database, treeId: string, rawGedcom: s
 /** What importing this text as a new tree would show. */
 export function previewGedcomFile(rawGedcom: string) {
 	return previewNewTree(parseGedcom(rawGedcom));
+}
+
+/**
+ * Seeds a tree the way an import did before sources, repositories and citations were records: their
+ * lines are kept, not modelled. It is what the evidence backfill is tested against.
+ */
+export function importGedcomAsRetainedLines(d1: D1Database, treeId: string, rawGedcom: string) {
+	return new GedcomRepository(getDb(d1)).writeImport({
+		treeId,
+		treeName: 'Retained',
+		parsed: parseGedcom(rawGedcom, { isEvidenceModelled: false }),
+		mode: 'replace',
+		isExistingTree: false
+	});
 }

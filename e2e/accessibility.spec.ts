@@ -10,6 +10,7 @@ import {
 	card,
 	chooseMenuItem,
 	expect,
+	open,
 	openMenuByKeyboard,
 	openTree,
 	test,
@@ -44,6 +45,50 @@ test.describe('screen reader', () => {
 	}) => {
 		const { homer } = await family(api);
 		await openTree(page, api, homer);
+		expect(await violations(page)).toEqual([]);
+	});
+
+	test('the sources list, a source page, the evidence on a person and the citation dialog have no detectable violations', async ({
+		page,
+		api,
+		request
+	}) => {
+		const wren = await api.addPerson('Wren', 'Ash', { birthDate: '4 MAR 1900' });
+		const body = await (
+			await request.get(`/api/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`)
+		).json();
+		const birthId = body.facts.find((f: { type: string }) => f.type === 'BIRT').id as string;
+		const made = await request.post(`/api/trees/${api.treeId}/sources`, {
+			data: { title: 'Parish register', author: 'Rev A' }
+		});
+		const sourceId = (await made.json()).sourceId as string;
+		await request.post(`/api/trees/${api.treeId}/citations`, {
+			data: {
+				subject: { kind: 'event', id: birthId },
+				sourceId,
+				page: 'page 12',
+				quality: 3,
+				entryDate: 'ABT 1901'
+			}
+		});
+		const base = `/trees/${api.treeId}`;
+
+		await open(page, `${base}/sources`);
+		expect(await violations(page)).toEqual([]);
+		await open(page, `${base}/sources/${encodeURIComponent(sourceId)}`);
+		expect(await violations(page)).toEqual([]);
+
+		// The person page with its citations open, then the dialog that adds one.
+		await open(page, `${base}/people/${encodeURIComponent(wren.id)}`);
+		await page.getByTestId('fact').first().getByText('Sourced').click();
+		expect(await violations(page)).toEqual([]);
+		await page
+			.getByTestId('fact')
+			.first()
+			.getByRole('button', { name: 'Add a citation for the birth' })
+			.click();
+		const dialog = page.getByRole('dialog', { name: 'Add a citation' });
+		await expect(dialog).toBeVisible();
 		expect(await violations(page)).toEqual([]);
 	});
 

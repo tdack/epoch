@@ -7,6 +7,7 @@
 import {
 	type EventRow,
 	type IndividualRow,
+	type SourceRow,
 	type PersonNameRow,
 	type RecordTable,
 	type RowImage,
@@ -20,6 +21,7 @@ import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
+import { CITATION_SUBJECT_KINDS, sourceLabel } from '../../shared/evidence';
 
 export function eventLabel(type: string): string {
 	if (isUnionEventType(type)) return UNION_EVENT_LABELS[type];
@@ -71,6 +73,34 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 		return `${name} (${ordinalOf(label.position)} of ${label.total}${label.dates ? `, ${label.dates}` : ''})`;
 	};
 
+	// What a citation supports. A name, fact or link that a change deletes is named from the rows before it.
+	const subjectOf = (kind: string, id: string): string => {
+		switch (kind) {
+			case CITATION_SUBJECT_KINDS.PERSON:
+				return person(id);
+			case CITATION_SUBJECT_KINDS.UNION:
+				return union(id);
+			case CITATION_SUBJECT_KINDS.NAME: {
+				const name = known.personNames.find((n) => n.id === id);
+				return name
+					? `${NAME_TYPE_LABELS[(name.type as NameType) ?? 'other']} of ${person(name.personId)}`
+					: 'a name';
+			}
+			case CITATION_SUBJECT_KINDS.EVENT: {
+				const event = known.events.find((e) => e.id === id);
+				return event
+					? `${eventLabel(event.type)} of ${event.entityType === 'FAMILY' ? union(event.entityId) : person(event.entityId)}`
+					: 'a fact';
+			}
+			default: {
+				const link = known.parentChild.find((l) => l.id === id);
+				return link
+					? `${person(link.parentId)} as parent of ${person(link.childId)}`
+					: 'a parent link';
+			}
+		}
+	};
+
 	return (table, image) => {
 		const row = image as Record<string, any>;
 		switch (table) {
@@ -96,6 +126,20 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			}
 			case 'media_items':
 				return `Attachment of ${person(row.entityId)}`;
+			case 'sources':
+				return `Source “${sourceLabel(row as SourceRow)}”`;
+			case 'repositories':
+				return `Repository “${row.name ?? 'Unnamed'}”`;
+			case 'source_repositories': {
+				const source = known.sources.find((s) => s.id === row.sourceId);
+				const repository = known.repositories.find((r) => r.id === row.repositoryId);
+				return `${source ? sourceLabel(source) : 'Source'} at ${repository?.name ?? 'a repository'}`;
+			}
+			case 'citations': {
+				const source = known.sources.find((s) => s.id === row.sourceId);
+				const page = row.page ? `, ${row.page}` : '';
+				return `Citation of “${source ? sourceLabel(source) : (row.description ?? 'a source')}”${page} for ${subjectOf(row.subjectKind, row.subjectId)}`;
+			}
 		}
 	};
 }

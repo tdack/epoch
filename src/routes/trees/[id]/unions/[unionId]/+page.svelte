@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from 'lucide-svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
+	import CitationList from '#lib/components/evidence/CitationList.svelte';
+	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
+	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
 	import type { PageData } from './$types';
 
@@ -10,10 +14,11 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor } = getTreeContext();
+	const { editor, toasts } = getTreeContext();
 
 	const dto = $derived(data.union);
 	const treeId = $derived(data.summary.tree.id);
+	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const treeHref = $derived(`/trees/${encodeURIComponent(treeId)}`);
 	const personHref = (id: string) => `${treeHref}/people/${encodeURIComponent(id)}`;
 	/** A placeholder has no page for this viewer, so the chronology names them without a link. */
@@ -152,9 +157,75 @@
 								>{/if}</span
 						>
 						{#if event.notes}<span class="block text-xs text-stone-500">{event.notes}</span>{/if}
+						<CitationsDisclosure
+							citationCount={event.citationCount}
+							label={`the ${event.label.toLowerCase()}`}
+						>
+							<CitationList
+								{treeId}
+								{role}
+								{editor}
+								{toasts}
+								subjectLabel={`the ${event.label.toLowerCase()}`}
+								subject={{ kind: CITATION_SUBJECT_KINDS.EVENT, id: event.id }}
+								citations={citationsOfSubject(
+									dto.evidence.citations,
+									CITATION_SUBJECT_KINDS.EVENT,
+									event.id
+								)}
+							/>
+						</CitationsDisclosure>
 					</li>
 				{/each}
 			</ul>
+		</section>
+
+		<section
+			aria-labelledby="union-evidence-heading"
+			class="section-card"
+			data-testid="union-evidence"
+		>
+			<h3 id="union-evidence-heading" class="section-heading">Sources and evidence</h3>
+			<p class="mt-1 text-xs text-stone-600">
+				The partnership itself{dto.evidence.links.length > 0
+					? ' and the parent links shown below'
+					: ''}. Each relationship event has its own citations above.
+			</p>
+			<div class="mt-2">
+				<CitationList
+					{treeId}
+					{role}
+					{editor}
+					{toasts}
+					subjectLabel="this partnership"
+					subject={{ kind: CITATION_SUBJECT_KINDS.UNION, id: dto.union.id }}
+					citations={citationsOfSubject(
+						dto.evidence.citations,
+						CITATION_SUBJECT_KINDS.UNION,
+						dto.union.id
+					)}
+				/>
+			</div>
+			{#each dto.evidence.links as link (link.id)}
+				<div class="mt-3 border-t border-stone-200 pt-2">
+					<h4 class="text-xs font-bold text-stone-700">{link.label}</h4>
+					<div class="mt-1">
+						<CitationList
+							{treeId}
+							{role}
+							{editor}
+							{toasts}
+							subjectLabel={link.label}
+							subject={{ kind: CITATION_SUBJECT_KINDS.PARENT_CHILD, id: link.id }}
+							citations={citationsOfSubject(
+								dto.evidence.citations,
+								CITATION_SUBJECT_KINDS.PARENT_CHILD,
+								link.id
+							)}
+						/>
+					</div>
+				</div>
+			{/each}
 		</section>
 
 		<section aria-labelledby="children-heading" class="section-card">

@@ -1,0 +1,53 @@
+0 HEAD
+1 GEDC
+2 VERS 7.0
+0 @S1@ SOUR
+1 TITL Parish register
+1 ABBR PR
+1 REPO @R1@
+2 CALN A-1
+0 @S2@ SOUR
+1 TITL Census 1901
+0 @R1@ REPO
+1 NAME County Archive
+1 ADDR 1 High St
+2 CONT York
+0 @I1@ INDI
+1 NAME Ann /Ash/
+2 SOUR @S2@
+3 PAGE name page
+1 SEX F
+1 SOUR @S1@
+2 PAGE 12
+2 QUAY 3
+2 DATA
+3 DATE ABT 1901
+3 TEXT As written
+1 SOUR @S2@
+2 PAGE 99
+1 BIRT
+2 DATE 1900
+2 SOUR @S2@
+3 PAGE first
+2 SOUR @S1@
+3 PAGE second
+3 QUAY 1
+2 SOUR @S2@
+3 PAGE third
+1 FAMC @F1@
+2 SOUR @S1@
+3 PAGE link page
+0 @I2@ INDI
+1 NAME Bob /Ash/
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 CHIL @I1@
+1 MARR
+2 DATE 1925
+2 SOUR @S1@
+3 PAGE marr page
+1 SOUR @S2@
+2 PAGE fam page
+0 TRLR
