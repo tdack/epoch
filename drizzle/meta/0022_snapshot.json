@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5035578e-2727-4273-9efd-d4e56917add1",
-  "prevId": "c36c8489-04c1-4074-914f-583fcfc1e9ee",
+  "id": "4f5e365b-76c1-412e-b78d-4e1e9cef16f8",
+  "prevId": "eb0adc35-bb70-44f9-9f51-2862ba9f0a98",
   "tables": {
     "users": {
       "name": "users",
@@ -2608,6 +2608,7 @@
         "idx_note_attachment_subject": {
           "name": "idx_note_attachment_subject",
           "columns": [
+            "tree_id",
             "subject_kind",
             "subject_id",
             "sort_order"
@@ -2617,14 +2618,8 @@
         "idx_note_attachment_note": {
           "name": "idx_note_attachment_note",
           "columns": [
+            "tree_id",
             "note_id"
-          ],
-          "isUnique": false
-        },
-        "idx_note_attachment_tree": {
-          "name": "idx_note_attachment_tree",
-          "columns": [
-            "tree_id"
           ],
           "isUnique": false
         }

@@ -260,15 +260,27 @@ export function andNoteVisible(alias: string, scope: Scope): SQL {
 /**
  * ` and <visible>` for a research task row (aliased `alias`): it is about no record, or about one
  * the viewer may see (ADR-029). A record that is not there at all hides nothing, as in the row
- * filter. The statement must start with `withVisibleNoteScope`. Empty for a viewer who sees everyone.
+ * filter. Empty for a viewer who sees everyone.
+ *
+ * A person, a fact and a partnership are tested by looking up that one record and its people, task
+ * by task, because a list of tasks is short and the visible sets of a whole tree are not: through
+ * the named sets the same list read about a hundred and twenty thousand rows for twenty-six tasks.
+ * A source and a shared note are visible through the sets (`withVisibleNoteScope`, which the
+ * statement must start with); those are read only when a task about one is met.
  */
 export function andTaskVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
 	const t = sql.raw(alias);
+	const hiddenPerson = (id: SQL) =>
+		sql`exists (select 1 from individuals hp where hp.id = ${id} and not ${isVisibleSql('hp', scope)})`;
+	const hiddenPartner = (unionId: SQL) =>
+		sql`exists (select 1 from union_partners hup join individuals hpp on hpp.id = hup.person_id where hup.union_id = ${unionId} and not ${isVisibleSql('hpp', scope)})`;
 	return sql` and (${t}.subject_kind is null or (case ${t}.subject_kind
-		when 'person' then ${t}.subject_id not in (select i.id from individuals i where i.tree_id = ${treeId} and i.id not in (select id from vp))
-		when 'union' then ${t}.subject_id not in (select id from hu)
-		when 'event' then ${t}.subject_id not in (select e.id from events e where e.tree_id = ${treeId} and e.id not in (select id from ve))
+		when 'person' then not ${hiddenPerson(sql`${t}.subject_id`)}
+		when 'union' then not ${hiddenPartner(sql`${t}.subject_id`)}
+		when 'event' then not exists (select 1 from events he where he.id = ${t}.subject_id and he.tree_id = ${treeId} and (
+			(he.entity_type = 'INDIVIDUAL' and ${hiddenPerson(sql`he.entity_id`)})
+			or (he.entity_type = 'FAMILY' and ${hiddenPartner(sql`he.entity_id`)})))
 		when 'source' then ${t}.subject_id in (select id from vs)
 		when 'note' then ${t}.subject_id in (select id from vo)
 		else 0

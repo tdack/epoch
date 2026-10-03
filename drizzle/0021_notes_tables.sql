@@ -17,9 +17,8 @@ CREATE TABLE `note_attachments` (
 	FOREIGN KEY (`note_id`) REFERENCES `notes`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `idx_note_attachment_subject` ON `note_attachments` (`subject_kind`,`subject_id`,`sort_order`);--> statement-breakpoint
-CREATE INDEX `idx_note_attachment_note` ON `note_attachments` (`note_id`);--> statement-breakpoint
-CREATE INDEX `idx_note_attachment_tree` ON `note_attachments` (`tree_id`);--> statement-breakpoint
+CREATE INDEX `idx_note_attachment_subject` ON `note_attachments` (`tree_id`,`subject_kind`,`subject_id`,`sort_order`);--> statement-breakpoint
+CREATE INDEX `idx_note_attachment_note` ON `note_attachments` (`tree_id`,`note_id`);--> statement-breakpoint
 CREATE TABLE `notes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tree_id` text NOT NULL,

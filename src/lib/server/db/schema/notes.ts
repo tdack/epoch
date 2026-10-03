@@ -74,12 +74,16 @@ export const noteAttachments = sqliteTable(
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 	},
 	(table) => ({
+		// Led by the tree, so a record's own notes and a shared note's uses read through these and not
+		// through a scan of the tree's attachments, which is what the planner picks for a bare
+		// `subject_kind, subject_id` key beside a `tree_id =` test. The tree-wide load (`tree_id =`) is
+		// a prefix of both, so no index of the tree alone is kept.
 		subjectIdx: index('idx_note_attachment_subject').on(
+			table.treeId,
 			table.subjectKind,
 			table.subjectId,
 			table.sortOrder
 		),
-		noteIdx: index('idx_note_attachment_note').on(table.noteId),
-		treeIdx: index('idx_note_attachment_tree').on(table.treeId)
+		noteIdx: index('idx_note_attachment_note').on(table.treeId, table.noteId)
 	})
 );

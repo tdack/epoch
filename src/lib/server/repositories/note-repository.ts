@@ -84,6 +84,13 @@ export class NoteRepository {
 		return (await this.notesByIds(treeId, [noteId]))[0];
 	}
 
+	useCountsSql(treeId: string, noteIds: readonly string[], scope: Scope): SQL {
+		return sql`${withVisibleNoteScope(treeId, scope)}select a.note_id as id, count(*) as n from note_attachments a where a.tree_id = ${treeId} and a.note_id in (${sql.join(
+			noteIds.map((id) => sql`${id}`),
+			sql`, `
+		)})${andNoteAttachmentVisible('a', scope, treeId)} group by a.note_id`;
+	}
+
 	/** How many attachments of each shared note the viewer may see. */
 	async visibleUseCounts(
 		treeId: string,
@@ -93,10 +100,7 @@ export class NoteRepository {
 		const counts = new Map<string, number>();
 		for (const chunk of chunksOf(noteIds)) {
 			const rows = await this.db.all<{ id: string; n: number }>(
-				sql`${withVisibleNoteScope(treeId, scope)}select a.note_id as id, count(*) as n from note_attachments a where a.tree_id = ${treeId} and a.note_id in (${sql.join(
-					chunk.map((id) => sql`${id}`),
-					sql`, `
-				)})${andNoteAttachmentVisible('a', scope, treeId)} group by a.note_id`
+				this.useCountsSql(treeId, chunk, scope)
 			);
 			for (const row of rows) counts.set(row.id, row.n);
 		}

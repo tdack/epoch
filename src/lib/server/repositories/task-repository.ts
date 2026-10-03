@@ -102,6 +102,10 @@ export class TaskRepository {
 		return (await this.tasksByIds(treeId, [taskId]))[0];
 	}
 
+	statusCountsSql(treeId: string, filter: Omit<TaskFilter, 'status'>, scope: Scope): SQL {
+		return sql`${withVisibleNoteScope(treeId, scope)}select t.status as status, count(*) as n from research_tasks t where t.tree_id = ${treeId}${filterSql(filter)}${andTaskVisible('t', scope, treeId)} group by t.status`;
+	}
+
 	/** How many tasks of each status the viewer may see, for the filter tabs. The status filter is not applied. */
 	async statusCounts(
 		treeId: string,
@@ -109,7 +113,7 @@ export class TaskRepository {
 		scope: Scope
 	): Promise<Record<TaskStatus, number>> {
 		const rows = await this.db.all<{ status: TaskStatus; n: number }>(
-			sql`${withVisibleNoteScope(treeId, scope)}select t.status as status, count(*) as n from research_tasks t where t.tree_id = ${treeId}${filterSql(filter)}${andTaskVisible('t', scope, treeId)} group by t.status`
+			this.statusCountsSql(treeId, filter, scope)
 		);
 		const counts = Object.fromEntries(TASK_STATUS_VALUES.map((s) => [s, 0])) as Record<
 			TaskStatus,
