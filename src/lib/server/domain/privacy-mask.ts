@@ -286,14 +286,18 @@ export function opsTouchPrivate(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
 	const hiddenKeys = hiddenSubjectKeys(rows, hidden, hiddenUnions);
-	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions, hiddenKeys));
+	const hiddenCitations = new Set(
+		rows.citations.filter((c) => hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)).map((c) => c.id)
+	);
+	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations));
 }
 
 function touchesHidden(
 	op: RowOp,
 	hidden: Set<string>,
 	hiddenUnions: Set<string>,
-	hiddenKeys: Set<string>
+	hiddenKeys: Set<string>,
+	hiddenCitations: Set<string>
 ): boolean {
 	return [op.before, op.after].some((image) => {
 		if (!image) return false;
@@ -320,6 +324,11 @@ function touchesHidden(
 			case 'media_items':
 				return hidden.has(r.entityId ?? '');
 			case 'citations':
+				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
+			case 'note_attachments':
+				// A note on a citation is as private as the citation's own subject; one on a source or
+				// repository belongs to no person, like the record itself.
+				if (r.subjectKind === 'citation') return hiddenCitations.has(r.subjectId ?? '');
 				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
 			default:
 				// A source, a repository and the link between them belong to no person; what cites them is checked above.

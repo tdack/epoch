@@ -9,7 +9,7 @@ import { factsAtPlace } from './place-ops';
 import { displayNameOf, partnerIdsOf, personName } from './tree-ops';
 import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
-import { subjectLabel } from './evidence-labels';
+import { noteSubjectLabel, sharedNoteLabel, subjectLabel } from './evidence-labels';
 import { sourceLabel } from '../../shared/evidence';
 
 /** “Parish register” for the source a command names, whether it exists yet or not. */
@@ -120,6 +120,36 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Removed a citation of ${citedSubject(rows, command.citationId)}`;
 		case 'reorder_citations':
 			return `Reordered the citations of ${subjectLabel(rows, command.subject.kind, command.subject.id)}`;
+		case 'add_note':
+			return `Added a note to ${noteSubjectLabel(rows, command.subject.kind, command.subject.id)}`;
+		case 'update_note':
+		case 'remove_note': {
+			const attachment = rows.noteAttachments.find((a) => a.id === command.attachmentId);
+			const on = attachment
+				? noteSubjectLabel(rows, attachment.subjectKind, attachment.subjectId)
+				: 'a record';
+			return command.kind === 'update_note'
+				? `Edited a note on ${on}`
+				: `Removed a note from ${on}`;
+		}
+		case 'reorder_notes':
+			return `Reordered the notes of ${noteSubjectLabel(rows, command.subject.kind, command.subject.id)}`;
+		case 'share_note': {
+			const attachment = rows.noteAttachments.find((a) => a.id === command.attachmentId);
+			return `Shared a note of ${attachment ? noteSubjectLabel(rows, attachment.subjectKind, attachment.subjectId) : 'a record'}`;
+		}
+		case 'attach_note':
+			return `Attached the shared note ${sharedNoteLabel(rows, command.noteId)} to ${noteSubjectLabel(rows, command.subject.kind, command.subject.id)}`;
+		case 'create_note':
+			return `Added the shared note ${sharedNoteLabel(rows, command.noteId, command.note.text)}`;
+		case 'update_shared_note':
+			return `Edited the shared note ${sharedNoteLabel(rows, command.noteId)}`;
+		case 'delete_shared_note': {
+			const uses = rows.noteAttachments.filter((a) => a.noteId === command.noteId).length;
+			return `Deleted the shared note ${sharedNoteLabel(rows, command.noteId)}${uses > 0 ? ` and detached it from ${uses} ${uses === 1 ? 'record' : 'records'}` : ''}`;
+		}
+		case 'merge_notes':
+			return `Merged ${command.mergedIds.length + 1} shared notes into ${sharedNoteLabel(rows, command.survivorId)}`;
 		case 'rewrite_place': {
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;

@@ -38,12 +38,14 @@ import type { Sex } from '../../shared/sex';
 import type { EvidenceCommand } from './evidence-ops';
 import type { FactCommand } from './fact-ops';
 import type { NameCommand } from './name-ops';
+import type { NoteCommand } from './note-ops';
 import type { PersonMergeCommand } from './person-merge';
 import type { PlaceCommand } from './place-ops';
 
 export type RelationshipCommand =
 	| FactCommand
 	| EvidenceCommand
+	| NoteCommand
 	| NameCommand
 	| PlaceCommand
 	| PersonMergeCommand

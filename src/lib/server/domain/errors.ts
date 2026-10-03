@@ -8,6 +8,7 @@ export type ErrorCode =
 	| 'UNION_MERGE_CONFLICT'
 	| 'PERSON_MERGE_CONFLICT'
 	| 'SOURCE_IN_USE'
+	| 'NOTE_IN_USE'
 	| 'INTERNAL_ERROR'
 	| 'BAD_REQUEST';
 
@@ -97,5 +98,13 @@ export class SourceInUseError extends DomainError {
 	constructor(message: string, citationCount: number) {
 		super(message, 'SOURCE_IN_USE', 409, { reason: 'SOURCE_IN_USE', citationCount });
 		this.name = 'SourceInUseError';
+	}
+}
+
+/** A shared note cannot be deleted while records use it; `details.useCount` says how many. */
+export class NoteInUseError extends DomainError {
+	constructor(message: string, useCount: number) {
+		super(message, 'NOTE_IN_USE', 409, { reason: 'NOTE_IN_USE', useCount });
+		this.name = 'NoteInUseError';
 	}
 }

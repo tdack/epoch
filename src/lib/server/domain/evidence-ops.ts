@@ -22,6 +22,8 @@ import {
 	SourceInUseError,
 	ValidationError
 } from './errors';
+import { makeNoteMover } from './note-ops';
+import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import {
 	CITATION_SUBJECT_KINDS,
 	MAX_EVIDENCE_OPS,
@@ -318,6 +320,16 @@ function mergeSources(
 			after: touch({ ...citation, sourceId: survivor.id }, ctx)
 		});
 	}
+
+	// Notes on a source are about the source: they follow it to the survivor, in the order they had.
+	const notes = makeNoteMover(rows, ctx);
+	for (const id of mergedIds)
+		ops.push(
+			...notes.move(
+				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id },
+				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id: survivor.id }
+			)
+		);
 
 	// A repository the survivor already links stays linked once; a new one moves over with its call number.
 	const linked = new Set(
@@ -690,24 +702,24 @@ export function citationCascadeOps(rows: TreeRows, ops: RowOp[]): RowOp[] {
 }
 
 /**
- * Moves citations from one subject to another, after the ones the target has and in their own
- * order, for the commands that fold one record into another. State is kept across calls so two
- * records folded into one survivor do not collide.
+ * Moves what a subject owns, its citations and its notes, to another subject: after the ones the
+ * target has and in their own order, for the commands that fold one record into another. State is
+ * kept across calls so two records folded into one survivor do not collide.
  */
-export function makeCitationMover(rows: TreeRows, ctx: Pick<EvidenceContext, 'now'>) {
+export function makeEvidenceMover(rows: TreeRows, ctx: Pick<EvidenceContext, 'now'>) {
 	const next = new Map<string, number>();
 	for (const c of rows.citations) {
 		const key = `${c.subjectKind}|${c.subjectId}`;
 		next.set(key, Math.max(next.get(key) ?? 0, c.sortOrder + 1));
 	}
-	/** How many citations a move would carry, for previews. */
+	const notes = makeNoteMover(rows, ctx);
 	return {
 		move(from: CitationSubjectRef, to: CitationSubjectRef): RowOp[] {
 			const moved = rows.citations
 				.filter((c) => c.subjectKind === from.kind && c.subjectId === from.id)
 				.sort((a, b) => a.sortOrder - b.sortOrder);
 			const toKey = `${to.kind}|${to.id}`;
-			return moved.map((citation) => {
+			const citationOps = moved.map((citation): RowOp => {
 				const sortOrder = next.get(toKey) ?? 0;
 				next.set(toKey, sortOrder + 1);
 				return {
@@ -724,6 +736,7 @@ export function makeCitationMover(rows: TreeRows, ctx: Pick<EvidenceContext, 'no
 					}
 				};
 			});
+			return [...citationOps, ...notes.move(from, to)];
 		}
 	};
 }

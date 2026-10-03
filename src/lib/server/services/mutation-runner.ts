@@ -21,7 +21,7 @@ import {
 import { type RecordChange } from '../../shared/impact';
 import { UnauthorizedError } from '../domain/errors';
 import { describeImpact } from '../domain/impact';
-import { carriedCitations } from '../domain/evidence-carry';
+import { carriedCitations, carriedNotes } from '../domain/evidence-carry';
 import { type ImpactSummary } from '../../shared/impact';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
@@ -164,9 +164,11 @@ export class MutationRunner {
 	): Promise<ImpactSummary> {
 		const { visible, ops } = await this.planned(treeId, context, commands);
 		const carried = carriedCitations(visible, commands);
+		const carriedNote = carriedNotes(visible, commands);
 		return {
 			...describeImpact(headline(visible), visible, ops),
-			...(carried ? { carriedCitations: carried } : {})
+			...(carried ? { carriedCitations: carried } : {}),
+			...(carriedNote ? { carriedNotes: carriedNote } : {})
 		};
 	}
 

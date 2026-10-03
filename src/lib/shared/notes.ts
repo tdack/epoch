@@ -88,6 +88,8 @@ export interface NoteDto {
 	text: string;
 	/** True when the note is a shared record that other records use too. */
 	isShared: boolean;
+	/** True for a pointer at a note record the file did not have: shown, never editable. */
+	isMissing: boolean;
 	/** For a shared note: how many records the viewer can see using it, this one included. */
 	usedBy: number;
 	mime: string | null;

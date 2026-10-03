@@ -108,8 +108,13 @@ export async function firstVisiblePersonId(
  * exceeded SQLite's expression depth (100), and it is cheaper this way as well.
  */
 export function isCitationVisibleOf(alias: string, scope: Viewer, treeId: string): SQL {
-	const c = sql.raw(alias);
 	const people = sql`(select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)})`;
+	return citationVisibleWith(alias, people);
+}
+
+/** The citation test over a given set of visible people: inline for one citation, `vp` inside a note's test. */
+function citationVisibleWith(alias: string, people: SQL): SQL {
+	const c = sql.raw(alias);
 	const unionOk = (column: SQL) =>
 		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
 	return sql`(case ${c}.subject_kind
@@ -183,4 +188,45 @@ export function andRepositoryVisible(alias: string, scope: Scope, treeId: string
 			? sql``
 			: sql` or vl.source_id in (select os.id from sources os where os.tree_id = ${treeId} and os.created_by = ${scope.creatorId})`;
 	return sql` and (${isOwn}${r}.id in (select vl.repository_id from source_repositories vl where vl.repository_id is not null and (vl.source_id in (${visibleCitedSourceIds(treeId)})${ownSources})))`;
+}
+
+/**
+ * A note attachment row (aliased `alias`) whose subject the viewer may see: the SQL form of
+ * `visibleEvidence` in `domain/privacy-mask.ts`, held to the same answers by a test (ADR-029). The
+ * first five kinds are the citation's; a note on a citation is as visible as the citation, and a
+ * note on a source or a repository as visible as that record is to this viewer. The statement must
+ * start with `withVisiblePeople`.
+ */
+export function isNoteAttachmentVisibleOf(alias: string, scope: Scope, treeId: string): SQL {
+	const a = sql.raw(alias);
+	const people = sql`(select id from vp)`;
+	const isOwn = (row: string) =>
+		scope.creatorId === null ? sql`` : sql`${sql.raw(row)}.created_by is ${scope.creatorId} or `;
+	const ownSources =
+		scope.creatorId === null
+			? sql``
+			: sql` or vl.source_id in (select os.id from sources os where os.tree_id = ${treeId} and os.created_by = ${scope.creatorId})`;
+	return sql`(case ${a}.subject_kind
+		when 'citation' then exists (select 1 from citations vc where vc.id = ${a}.subject_id and ${citationVisibleWith('vc', people)})
+		when 'source' then exists (select 1 from sources vs where vs.id = ${a}.subject_id and (${isOwn('vs')}vs.id in (${visibleCitedSourceIds(treeId)})))
+		when 'repository' then exists (select 1 from repositories vr where vr.id = ${a}.subject_id and (${isOwn('vr')}vr.id in (select vl.repository_id from source_repositories vl where vl.repository_id is not null and (vl.source_id in (${visibleCitedSourceIds(treeId)})${ownSources}))))
+		else ${citationVisibleWith(alias, people)}
+	end)`;
+}
+
+/** ` and <visible>` for an attachment row; empty for a viewer who sees everyone. */
+export function andNoteAttachmentVisible(alias: string, scope: Scope, treeId: string): SQL {
+	return scope.isRestricted ? sql` and ${isNoteAttachmentVisibleOf(alias, scope, treeId)}` : sql``;
+}
+
+/**
+ * ` and <visible>` for a shared note row (aliased `alias`): a visible attachment uses it, or the
+ * viewer made it; otherwise it is as absent as a private person (ADR-029). Empty for a viewer who
+ * sees everyone. The statement must start with `withVisiblePeople`.
+ */
+export function andNoteVisible(alias: string, scope: Scope, treeId: string): SQL {
+	if (!scope.isRestricted) return sql``;
+	const n = sql.raw(alias);
+	const isOwn = scope.creatorId === null ? sql`` : sql`${n}.created_by is ${scope.creatorId} or `;
+	return sql` and (${isOwn}exists (select 1 from note_attachments na where na.note_id = ${n}.id and ${isNoteAttachmentVisibleOf('na', scope, treeId)}))`;
 }

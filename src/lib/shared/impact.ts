@@ -78,4 +78,6 @@ export interface ImpactSummary {
 	isDestructive: boolean;
 	/** For a merge: how many citations of the record folded away end up on the one that remains. */
 	carriedCitations?: number;
+	/** For a merge: how many notes of the record folded away end up on the one that remains (ADR-029). */
+	carriedNotes?: number;
 }
