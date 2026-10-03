@@ -339,7 +339,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Consequences:** `TreeRows` carries the four tables, so every mutation loads them. S15c models shared notes and tasks on this footing.
 
 ## ADR-029: 3D tree views are CSS 3D over HTML planes, chosen by `mode` (S16)
-- **Status:** proposed. Stage 0 measured Chromium only; WebKit and Firefox are still to be measured before this is accepted (see `docs/3d-tree-views-plan.md`, Status).
+- **Status:** accepted, on Chromium evidence only. WebKit and Firefox were not measured (the cached builds would not launch); the owner chose to proceed. Re-check them before stage 7's cross-browser exit.
 - **Context:** two optional views beside the flat hourglass: `layers` (upright planes, one per band) and `floors` (one per generation). Plan: `docs/3d-tree-views-plan.md`.
 - **Decision:**
   - **Renderer: CSS 3D transforms over HTML planes** (`perspective` and `transform-style: preserve-3d`), not WebGL. Each plane holds its own `<svg>` with the existing `PersonCard`, `UnionMarker` and `TreeEdge`, so cards stay real DOM: the browser hit-tests them, and roving tabindex, `aria-label`s, the context menu and the drawer work as today. One shared `PlaneStack` primitive; depth connectors are thin elements rotated into Z.
