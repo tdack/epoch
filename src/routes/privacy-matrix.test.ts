@@ -34,6 +34,7 @@ const WRITES = 'services/privacy-writes.test.ts';
 const ACCESS = 'services/privacy-access.test.ts';
 const MEMBERS = 'services/member-service.test.ts';
 const EVIDENCE = 'services/privacy-evidence.test.ts';
+const NOTES = 'services/privacy-notes.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
@@ -76,6 +77,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/marks/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/marks/favorites/[personId]/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/marks/recents/+server.ts`]: { kind: 'own-data', covers: READS },
+	[`${API}/trees/[id]/lists/notes/+server.ts`]: { kind: 'paged-sql', covers: NOTES },
 	[`${API}/trees/[id]/names/[nameId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/names/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/quality/+server.ts`]: {
@@ -95,6 +97,20 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/place-service.test.ts'
 	},
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/note-links/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	[`${API}/trees/[id]/note-links/[linkId]/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	[`${API}/trees/[id]/note-links/[linkId]/share/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: NOTES
+	},
+	[`${API}/trees/[id]/note-links/reorder/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	// The GET is a masked read (a shared note is listed and served only for a viewer who sees a record
+	// that uses it, or who made it); the PUT and DELETE are the more dangerous half, so the entry names
+	// the write kind.
+	[`${API}/trees/[id]/notes/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	[`${API}/trees/[id]/notes/[noteId]/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	[`${API}/trees/[id]/notes/[noteId]/merge/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
+	[`${API}/trees/[id]/notes/impact/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/people/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	// The GET is a masked read (proved by RECORDS); the PUT and DELETE are writes, which is the more
 	// dangerous half, so the entry names the write proof.
@@ -178,6 +194,8 @@ const LOADS = [
 	'./trees/[id]/+page.ts',
 	'./trees/[id]/members/+page.ts',
 	'./trees/[id]/people/+page.ts',
+	'./trees/[id]/notes/+page.ts',
+	'./trees/[id]/notes/[noteId]/+page.ts',
 	'./trees/[id]/place/+page.ts',
 	'./trees/[id]/places/+page.ts',
 	'./trees/[id]/people/[personId]/+page.ts',

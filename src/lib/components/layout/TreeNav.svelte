@@ -31,6 +31,11 @@
 			isActive: page.url.pathname.startsWith(`${base}/sources`)
 		},
 		{
+			href: `${base}/notes`,
+			label: 'Notes',
+			isActive: page.url.pathname.startsWith(`${base}/notes`)
+		},
+		{
 			href: `${base}/places`,
 			label: 'Places',
 			isActive: page.url.pathname.startsWith(`${base}/place`)

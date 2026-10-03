@@ -271,7 +271,8 @@ describe('facts, names and history on the page', () => {
 		walk(dto);
 		expect(flags.length).toBeGreaterThan(3);
 		expect(flags.every((f) => f === false)).toBe(true);
-		expect(dto.notes).toEqual({ isSupported: false, items: [] });
+		expect(dto.notes).toEqual([]);
+		expect(dto.linkNotes).toEqual([]);
 		expect(dto.evidence).toEqual({ citations: [], links: [] });
 	});
 

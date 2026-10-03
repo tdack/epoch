@@ -195,9 +195,10 @@ function updateFact(
 	if (JSON.stringify(after) === JSON.stringify(before) && noteOps.length === 0) return [];
 	const isVital = VITAL_TYPES.has(before.type) || VITAL_TYPES.has(after.type);
 	return [
-		...(JSON.stringify(after) === JSON.stringify(before)
-			? []
-			: [{ table: 'events' as const, id: before.id, before, after: touch(after, ctx) }]),
+		// The fact editor's save writes the fact with its note, so a change of only the note still
+		// bumps the fact: a stale form conflicts, and the log says the fact was edited (the note is
+		// a row of its own, which would otherwise hide that).
+		{ table: 'events' as const, id: before.id, before, after: touch(after, ctx) },
 		...noteOps,
 		...(isVital ? bumpPerson(rows, before.entityId, ctx) : [])
 	];

@@ -17,7 +17,6 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
-import { ChangeStore } from '../repositories/change-store';
 import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
 import { NameService } from './name-service';

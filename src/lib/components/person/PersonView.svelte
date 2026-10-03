@@ -74,7 +74,9 @@
 {/snippet}
 
 {#snippet notes()}
-	<PersonSection id="notes" title="Notes" {layout}><PersonNotes /></PersonSection>
+	<PersonSection id="notes" title="Notes" {layout}>
+		<PersonNotes {dto} {treeId} {role} {editor} {toasts} />
+	</PersonSection>
 {/snippet}
 
 {#snippet evidence()}
