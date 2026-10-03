@@ -190,10 +190,11 @@ test('approximate, before, after, range and phrase dates are kept exactly as ent
 		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 		await expect(dialog).toBeHidden();
 	}
-	const graph = await api.graph();
-	expect(
-		dates.map((_, i) => graph.people.find((p) => p.displayName === `Dee${i}`)!.deathDate)
-	).toEqual(dates);
+	// Nobody is related to anybody, so each person is a window of their own.
+	const deaths = await Promise.all(
+		people.map(async (person) => (await api.graph(person.id)).people[0]!.deathDate)
+	);
+	expect(deaths).toEqual(dates);
 });
 
 test('a death dated before the birth is flagged before saving, but can still be saved', async ({
