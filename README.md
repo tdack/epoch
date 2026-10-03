@@ -33,13 +33,27 @@ The bypass is opt-in only. It is never inferred from `NODE_ENV`, and without the
 request without a valid Access token is rejected with 401. Never set the flag in a deployed
 environment. `.dev.vars` is git-ignored.
 
-### Public welcome page
+### Sign-in and the welcome page
 
-`/welcome` is the only page served to someone Access has not identified: a splash with a
-sign-in link, also used as the link preview. Signed-out page loads redirect there. For it to be
-reachable in a deployment, add a second Access application with a **Bypass** policy (Include:
-Everyone) covering `/welcome`, `/_app/*`, `/brand/*`, `/favicon.svg` and `/favicon.ico` on the
-app's host. See ADR-024 in [docs/decisions.md](./docs/decisions.md).
+Epoch uses **one** Cloudflare Access application, covering only `<host>/login`. Every other path
+is plain Worker traffic and the Worker is the gate: a signed-out page load is redirected to
+`/welcome?next=…`, whose "Sign in" button goes to `/login?next=…`. Access authenticates the
+visitor there and sets the `CF_Authorization` cookie, then `/login` redirects to `next`. See
+ADR-026 in [docs/decisions.md](./docs/decisions.md).
+
+Application settings: path `/login` only, an Allow policy for your invitees, **Cookie Path
+Attribute off** (otherwise the cookie is not sent on other paths) and Binding Cookie off.
+
+Migrating a deployment that has the whole host behind Access plus a Bypass application:
+
+1. Deploy this code first. It works under the old whole-host setup too.
+2. **Edit the existing Access application's path to `/login`** rather than creating a new one. That
+   keeps its AUD tag, so the `CF_ACCESS_AUD` secret does not change. If you create a new
+   application instead, update the secret to its AUD tag.
+3. Delete the Bypass application.
+
+Verify on first deploy: that signing in returns you to the page you wanted, and that API calls
+after sign-in authenticate from the cookie alone.
 
 ### Brand assets
 
