@@ -13,6 +13,9 @@ import { eventDateValue } from '../domain/date-columns';
 import type { NameType } from '../domain/genealogy-model';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { EvidenceRepository } from '../repositories/evidence-repository';
+import { NoteRepository } from '../repositories/note-repository';
+import { visibleAmong } from '../repositories/visibility';
+import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -39,18 +42,31 @@ import type {
 	NameDto,
 	PartnershipDto,
 	PersonPageDto,
-	PersonSummaryDto,
-	PlaceholderDto
+	PersonSummaryDto
 } from '../../shared/person-page';
 import { citationDto, inSubjectOrder } from './evidence-dto';
+import { loadNoteDtos, notesOf } from './note-dto';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
 export const RECENT_CHANGES_SHOWN = 15;
 
-const PLACEHOLDER: PlaceholderDto = { isSupported: false, items: [] };
+/**
+ * The note a fact's form shows: its first note written on the fact itself, or the legacy imported
+ * description while the fact has no note of its own. The column `events.notes` is not read (ADR-029).
+ */
+function factNoteText(row: EventRow, noteItems: NoteDto[]): string | null {
+	const own = noteItems.find((n) => !n.isShared && !n.isMissing);
+	if (own) return own.text;
+	return noteItems.length === 0 ? row.description : null;
+}
 
-function factDto(row: EventRow, conflict: FactConflict | null, citationCount: number): FactDto {
+function factDto(
+	row: EventRow,
+	conflict: FactConflict | null,
+	citationCount: number,
+	noteItems: NoteDto[]
+): FactDto {
 	const date = eventDateValue(row);
 	const info = factTypeInfo(row.type);
 	return {
@@ -66,19 +82,21 @@ function factDto(row: EventRow, conflict: FactConflict | null, citationCount: nu
 		value: row.value,
 		cause: row.cause,
 		age: row.age,
-		notes: row.notes ?? row.description,
-		isLegacyNote: row.notes === null && row.description !== null,
+		notes: factNoteText(row, noteItems),
+		isLegacyNote: noteItems.length === 0 && row.description !== null,
 		sortOrder: row.sortOrder,
 		version: row.version,
 		conflict,
-		citationCount
+		citationCount,
+		noteItems
 	};
 }
 
 function nameDtos(
 	person: IndividualRow,
 	rows: PersonNameRow[],
-	citationCounts: ReadonlyMap<string, number>
+	citationCounts: ReadonlyMap<string, number>,
+	notes: ReadonlyMap<string, NoteDto[]>
 ): NameDto[] {
 	if (rows.length === 0) {
 		// Editor-created people have no stored name row; their name fields are their only name.
@@ -99,7 +117,8 @@ function nameDtos(
 				unionId: null,
 				displayName: personName(person),
 				isPreferred: true,
-				citationCount: 0
+				citationCount: 0,
+				notes: []
 			}
 		];
 	}
@@ -132,7 +151,8 @@ function nameDtos(
 					suffix: n.nameSuffix
 				}),
 				isPreferred: n.isPreferred,
-				citationCount: citationCounts.get(n.id) ?? 0
+				citationCount: citationCounts.get(n.id) ?? 0,
+				notes: notesOf(notes, NOTE_SUBJECT_KINDS.NAME, n.id)
 			}))
 	);
 }
@@ -140,6 +160,7 @@ function nameDtos(
 export class PersonPageService {
 	private repo: GraphWindowRepository;
 	private evidence: EvidenceRepository;
+	private notes: NoteRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
@@ -149,6 +170,7 @@ export class PersonPageService {
 	) {
 		this.repo = new GraphWindowRepository(db);
 		this.evidence = new EvidenceRepository(db);
+		this.notes = new NoteRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
@@ -202,6 +224,26 @@ export class PersonPageService {
 		for (const c of cited.rows)
 			citationCounts.set(c.subjectId, (citationCounts.get(c.subjectId) ?? 0) + 1);
 
+		// Notes (ADR-029): on the person, their names and facts, the links they are the child in and the
+		// citations shown here. A note is visible when its subject is, and each of these is the viewer's
+		// already, except a link whose parent is private.
+		const [childLinks] = await this.repo.run(this.repo.linksBy(treeId, 'child', [personId]));
+		const seenParents = await visibleAmong(
+			this.repo.client,
+			treeId,
+			[...new Set(childLinks.map((l) => l.row.parentId))],
+			scope
+		);
+		const links = childLinks.map((l) => l.row).filter((l) => seenParents.has(l.parentId));
+		const noteRows = await this.notes.attachmentsOf(treeId, {
+			[NOTE_SUBJECT_KINDS.PERSON]: [personId],
+			[NOTE_SUBJECT_KINDS.NAME]: nameRows.map((n) => n.row.id),
+			[NOTE_SUBJECT_KINDS.EVENT]: factRows.map((f) => f.row.id),
+			[NOTE_SUBJECT_KINDS.PARENT_CHILD]: links.map((l) => l.id),
+			[NOTE_SUBJECT_KINDS.CITATION]: cited.rows.map((c) => c.id)
+		});
+		const noteItems = await loadNoteDtos(this.notes, treeId, noteRows, scope);
+
 		// Half-siblings and the like are named by the graph only if the window drew them; fetch the rest.
 		const wanted = [
 			...relatives.parentFamilies.flatMap((f) => f.parents.map((p) => p.personId)),
@@ -230,14 +272,19 @@ export class PersonPageService {
 				value: row.value,
 				cause: row.cause,
 				age: row.age,
-				notes: row.notes ?? row.description,
+				notes: factNoteText(row, notesOf(noteItems, NOTE_SUBJECT_KINDS.EVENT, row.id)),
 				sortOrder: row.sortOrder
 			}))
 		);
 		const conflicts = findFactConflicts(timeline);
 		const rowById = new Map(rows.map((row) => [row.id, row]));
 		const facts = timeline.map((t) =>
-			factDto(rowById.get(t.id)!, conflicts.get(t.id) ?? null, citationCounts.get(t.id) ?? 0)
+			factDto(
+				rowById.get(t.id)!,
+				conflicts.get(t.id) ?? null,
+				citationCounts.get(t.id) ?? 0,
+				notesOf(noteItems, NOTE_SUBJECT_KINDS.EVENT, t.id)
+			)
 		);
 		const birth = facts.find((f) => f.type === 'BIRT') ?? null;
 		const death = facts.find((f) => f.type === 'DEAT') ?? null;
@@ -324,7 +371,8 @@ export class PersonPageService {
 			names: nameDtos(
 				self.row,
 				nameRows.map((n) => n.row),
-				citationCounts
+				citationCounts,
+				noteItems
 			),
 			vitals,
 			facts,
@@ -355,9 +403,23 @@ export class PersonPageService {
 				mimeType: row.mimeType,
 				r2ObjectKey: row.r2ObjectKey
 			})),
-			notes: PLACEHOLDER,
+			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.PERSON, personId),
+			linkNotes: links.flatMap((l) => {
+				const own = notesOf(noteItems, NOTE_SUBJECT_KINDS.PARENT_CHILD, l.id);
+				return own.length > 0
+					? [
+							{
+								id: l.id,
+								label: `${summaries.get(l.parentId)?.displayName ?? 'A parent'} as parent`,
+								notes: own
+							}
+						]
+					: [];
+			}),
 			evidence: {
-				citations: inSubjectOrder(cited.rows).map((c) => citationDto(c, sourcesById)),
+				citations: inSubjectOrder(cited.rows).map((c) =>
+					citationDto(c, sourcesById, notesOf(noteItems, NOTE_SUBJECT_KINDS.CITATION, c.id))
+				),
 				links: [...cited.linkParents].map(([id, parentId]) => ({
 					id,
 					label: `${summaries.get(parentId)?.displayName ?? 'A parent'} as parent`

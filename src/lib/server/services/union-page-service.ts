@@ -13,6 +13,8 @@ import type { ParentChildType, UnionStatus } from '../../shared/relationship-mod
 import type { RelationshipGraph } from '../../shared/relationship-graph';
 import { eventLabel } from '../domain/tree-labels';
 import { EvidenceRepository } from '../repositories/evidence-repository';
+import { NoteRepository } from '../repositories/note-repository';
+import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -23,6 +25,7 @@ import { partnerSetKey } from '../../shared/union-merge';
 import { isUnionEventType } from '../../shared/union-events';
 import { boundsOf, unionWarnings } from '../../shared/union-warnings';
 import { citationDto, inSubjectOrder } from './evidence-dto';
+import { loadNoteDtos, notesOf } from './note-dto';
 import { loadFocusWindow } from './focus-window';
 import { RECENT_CHANGES_SHOWN } from './person-page-service';
 import { personSummaries } from './person-summaries';
@@ -42,6 +45,7 @@ const EMPTY_GRAPH: RelationshipGraph = { people: [], unions: [], parentChild: []
 export class UnionPageService {
 	private repo: GraphWindowRepository;
 	private evidence: EvidenceRepository;
+	private notes: NoteRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
@@ -51,6 +55,7 @@ export class UnionPageService {
 	) {
 		this.repo = new GraphWindowRepository(db);
 		this.evidence = new EvidenceRepository(db);
+		this.notes = new NoteRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
@@ -145,6 +150,24 @@ export class UnionPageService {
 		for (const c of cited.rows)
 			citationCounts.set(c.subjectId, (citationCounts.get(c.subjectId) ?? 0) + 1);
 
+		// Notes (ADR-029): on the partnership, its facts, the links filed under it and the citations shown.
+		// A link to a private child is not shown with its notes, even where the child stands as a placeholder.
+		const noteLinks = links.filter((l) => !seen || seen.has(l.childId));
+		const noteItems = await loadNoteDtos(
+			this.notes,
+			treeId,
+			hasPrivatePartner
+				? []
+				: await this.notes.attachmentsOf(treeId, {
+						[NOTE_SUBJECT_KINDS.UNION]: [unionId],
+						[NOTE_SUBJECT_KINDS.EVENT]: eventRows.map((e) => e.row.id),
+						[NOTE_SUBJECT_KINDS.PARENT_CHILD]: noteLinks.map((l) => l.id),
+						[NOTE_SUBJECT_KINDS.CITATION]: cited.rows.map((c) => c.id)
+					}),
+			scope
+		);
+		const eventNotes = (id: string): NoteDto[] => notesOf(noteItems, NOTE_SUBJECT_KINDS.EVENT, id);
+
 		// A marriage date and place are facts about the private partner too.
 		const events: UnionEventDto[] = (hasPrivatePartner ? [] : eventRows)
 			.sort((a, b) => a.rid - b.rid)
@@ -156,10 +179,12 @@ export class UnionPageService {
 				dateText: row.dateRaw,
 				sortStart: eventDateValue(row).sortStart,
 				place: row.place,
-				notes: row.notes ?? row.description,
+				// A family event's line value is kept in `description` and is not a note of its own (ADR-029).
+				notes: row.description,
 				isEditable: isUnionEventType(row.type),
 				version: row.version,
-				citationCount: citationCounts.get(row.id) ?? 0
+				citationCount: citationCounts.get(row.id) ?? 0,
+				noteItems: eventNotes(row.id)
 			}));
 
 		const children: UnionChildDto[] = childIds.map((childId) => ({
@@ -275,8 +300,23 @@ export class UnionPageService {
 			chronology,
 			warnings,
 			twins,
+			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.UNION, unionId),
+			linkNotes: noteLinks.flatMap((l) => {
+				const own = notesOf(noteItems, NOTE_SUBJECT_KINDS.PARENT_CHILD, l.id);
+				return own.length > 0
+					? [
+							{
+								id: l.id,
+								label: `${nameOf(l.parentId)} as parent of ${nameOf(l.childId)}`,
+								notes: own
+							}
+						]
+					: [];
+			}),
 			evidence: {
-				citations: inSubjectOrder(cited.rows).map((c) => citationDto(c, sourcesById)),
+				citations: inSubjectOrder(cited.rows).map((c) =>
+					citationDto(c, sourcesById, notesOf(noteItems, NOTE_SUBJECT_KINDS.CITATION, c.id))
+				),
 				links: [...cited.linkParents].map(([id, parentId]) => ({
 					id,
 					label: `${nameOf(parentId)} as parent of ${nameOf(cited.linkChildren.get(id) ?? '')}`
