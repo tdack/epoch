@@ -23,6 +23,8 @@ import {
 import { dateColumnsFor } from '../domain/date-columns';
 import type { ParsedGedcomData } from '../gedcom/parser';
 import { treeScopedId } from '../gedcom/import-preview';
+import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import type { CitationTarget } from './gedcom-evidence-writer';
 import { chunkByParamLimit } from './param-chunks';
 
 /**
@@ -68,12 +70,16 @@ function nameContentKey(
 /**
  * Persist neutral-model rows for a parsed GEDCOM tree.
  * Callers are responsible for tree scoping IDs before invoking.
+ *
+ * Answers the citations of the names and child links it wrote, each against the stored row that now
+ * holds it: a name or link a merge-mode import already had is the row its citations join.
  */
 export async function importNeutralModel(
 	db: DbClient,
 	treeId: string,
 	parsed: ParsedGedcomData
-): Promise<void> {
+): Promise<CitationTarget[]> {
+	const targets: CitationTarget[] = [];
 	const scoped = (xrefOrId: string) => treeScopedId(treeId, xrefOrId);
 	// One moment for every partnership of the file. Stored in whole seconds, a per-row default would
 	// split copies of one family across a second boundary and, with their dates tied, decide which
@@ -83,9 +89,10 @@ export async function importNeutralModel(
 	// 1. person_names: every NAME of the file, in file order; the first is the preferred one.
 	// A merge import meets people who already have names, so a name is skipped when the person
 	// already has one with the same content, and nobody gains a second preferred name.
-	const known = new Map<string, Set<string>>();
+	const known = new Map<string, Map<string, string>>();
 	for (const row of await db
 		.select({
+			id: personNames.id,
 			personId: personNames.personId,
 			type: personNames.type,
 			givenName: personNames.givenName,
@@ -99,8 +106,8 @@ export async function importNeutralModel(
 		.innerJoin(individuals, eq(personNames.personId, individuals.id))
 		.where(eq(individuals.treeId, treeId))
 		.all()) {
-		const keys = known.get(row.personId) ?? new Set<string>();
-		keys.add(nameContentKey(row.type, row));
+		const keys = known.get(row.personId) ?? new Map<string, string>();
+		keys.set(nameContentKey(row.type, row), row.id);
 		known.set(row.personId, keys);
 	}
 
@@ -127,10 +134,20 @@ export async function importNeutralModel(
 				nickname: name.nickname,
 				surnamePrefix: name.surnamePrefix
 			});
-			if (existing?.has(key)) continue;
-			existing?.add(key);
+			const knownId = existing?.get(key);
+			if (knownId) {
+				targets.push({
+					kind: CITATION_SUBJECT_KINDS.NAME,
+					id: knownId,
+					citations: name.citations
+				});
+				continue;
+			}
+			const nameId = crypto.randomUUID();
+			existing?.set(key, nameId);
+			targets.push({ kind: CITATION_SUBJECT_KINDS.NAME, id: nameId, citations: name.citations });
 			nameRows.push({
-				id: crypto.randomUUID(),
+				id: nameId,
 				personId,
 				type: name.type,
 				givenName: name.givenName || null,
@@ -156,6 +173,12 @@ export async function importNeutralModel(
 	}
 
 	// 2. unions + union_partners + parent_child per family
+	const linkCitations: Array<{
+		parentId: string;
+		childId: string;
+		type: string;
+		citations: NonNullable<ParsedGedcomData['families'][number]['children'][number]['citations']>;
+	}> = [];
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
 		const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
@@ -184,6 +207,17 @@ export async function importNeutralModel(
 		// Per-parent assertions: expand family-wide pedigree into per-parent type.
 		for (const child of fam.children) {
 			const childId = scoped(child.childId);
+			if (participants.length > 0 && (child.citations?.length ?? 0) > 0) {
+				// The child's `FAMC` is one link to the family; its citations belong to the first parent's row.
+				linkCitations.push({
+					parentId: scoped(participants[0]),
+					childId,
+					type: PEDIGREE_TO_TYPE[
+						child.parentPedigrees?.[participants[0]] ?? child.pedigree ?? 'birth'
+					],
+					citations: child.citations!
+				});
+			}
 
 			for (const parentId of participants) {
 				// PEDI is per link to the family; Epoch's `_PEDI_PARENT` refines it for one parent.
@@ -202,6 +236,29 @@ export async function importNeutralModel(
 					})
 					.onConflictDoNothing();
 			}
+		}
+	}
+
+	if (linkCitations.length > 0) {
+		// The row that holds each link now: a merge-mode import may have found it already stored.
+		const stored = new Map(
+			(
+				await db
+					.select({
+						id: parentChild.id,
+						parentId: parentChild.parentId,
+						childId: parentChild.childId,
+						type: parentChild.type
+					})
+					.from(parentChild)
+					.where(eq(parentChild.treeId, treeId))
+					.all()
+			).map((row) => [`${row.parentId}|${row.childId}|${row.type}`, row.id])
+		);
+		for (const link of linkCitations) {
+			const id = stored.get(`${link.parentId}|${link.childId}|${link.type}`);
+			if (id)
+				targets.push({ kind: CITATION_SUBJECT_KINDS.PARENT_CHILD, id, citations: link.citations });
 		}
 	}
 
@@ -240,4 +297,5 @@ export async function importNeutralModel(
 			})
 			.onConflictDoNothing();
 	}
+	return targets;
 }

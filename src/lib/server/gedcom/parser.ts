@@ -9,6 +9,19 @@ import {
 	NAME_CHANGE_NOTE,
 	SEX_X_TAG
 } from './tags';
+import { buildGedcomTree, collectLines, type GedcomNode } from './node';
+import {
+	mergeCitations,
+	parseCitation,
+	parseRepositoryRecord,
+	parseSourceRecord,
+	type ParsedCitation,
+	type ParsedRepository,
+	type ParsedSource
+} from './evidence-parse';
+
+export type { ParsedCitation } from './evidence-parse';
+export { mergeCitations };
 
 export type GedcomVersion = '5.5.1' | '7.0';
 
@@ -24,6 +37,8 @@ interface ParsedFamcLink {
 	pedigree?: Pedigree;
 	/** Parent XREF to the pedigree that differs from `pedigree`, from `_PEDI_PARENT`. */
 	parentPedigrees?: Record<string, Pedigree>;
+	/** The `SOUR` citations under this `FAMC`. */
+	citations: ParsedCitation[];
 }
 
 /** `RESN` words that mean "keep this person from viewers": they become the private override. */
@@ -48,6 +63,8 @@ interface ParsedName {
 	changeNoteLine?: string;
 	/** Sub-structures with no column (NOTE, SOUR, FONE, ROMN, custom tags), verbatim, written back inside this NAME. */
 	extra: string[];
+	/** The `SOUR` citations under this `NAME`, in file order. */
+	citations: ParsedCitation[];
 }
 
 interface ParsedIndividual {
@@ -63,14 +80,24 @@ interface ParsedIndividual {
 	famcLinks?: ParsedFamcLink[];
 	fams?: string[]; // Family where person is spouse
 	events: ParsedEvent[];
+	/** The `SOUR` citations on the person themself, in file order. */
+	citations: ParsedCitation[];
 }
 
 export interface ParsedFamily {
 	id: string; // e.g. @F1@ or F1
 	husbandId?: string;
 	wifeId?: string;
-	children: { childId: string; pedigree?: Pedigree; parentPedigrees?: Record<string, Pedigree> }[];
+	children: {
+		childId: string;
+		pedigree?: Pedigree;
+		parentPedigrees?: Record<string, Pedigree>;
+		/** The citations under the child's own `FAMC` for this family. */
+		citations?: ParsedCitation[];
+	}[];
 	events: ParsedEvent[];
+	/** The `SOUR` citations on the family record. */
+	citations: ParsedCitation[];
 	/** XREFs of families merged into this one, from `REFN` records typed `epoch-merged-family`. */
 	aliases?: string[];
 }
@@ -94,6 +121,8 @@ export interface ParsedEvent {
 	notes?: string;
 	/** Every other line under the event, verbatim and in order (`gedcomExtra`). */
 	extra?: string[];
+	/** The `SOUR` citations under the event, in file order. */
+	citations?: ParsedCitation[];
 }
 
 export interface ParsedGedcomData {
@@ -107,6 +136,18 @@ export interface ParsedGedcomData {
 	 * tree/header-level records).
 	 */
 	preserved: Array<{ xref: string | null; lines: string[] }>;
+	/** Root `SOUR` records (ADR-028). Empty when the file is read with `isEvidenceModelled` off. */
+	sources: ParsedSource[];
+	/** Root `REPO` records. */
+	repositories: ParsedRepository[];
+}
+
+export interface ParseOptions {
+	/**
+	 * Read sources, repositories and citations into records. Off keeps them as retained lines, as
+	 * a tree imported before ADR-028 holds them; only the backfill's tests need that.
+	 */
+	isEvidenceModelled?: boolean;
 }
 
 /** Individual-level event tags shared by GEDCOM 5.5.1 and 7.0. */
@@ -219,15 +260,6 @@ function parsePedigree(value: string | undefined): Pedigree | undefined {
 		: 'other';
 }
 
-interface GedcomNode {
-	level: number;
-	tag: string;
-	xref?: string;
-	value?: string;
-	rawLine: string;
-	children: GedcomNode[];
-}
-
 /**
  * Standardize a GEDCOM date into sortable bounds without fabricating exact
  * days from partial dates. Delegates to the domain date parser so that
@@ -245,31 +277,6 @@ export function normalizeGedcomDate(dateStr?: string): {
 		sort: value.sortStart ?? undefined,
 		sortEnd: value.sortEnd ?? null
 	};
-}
-
-/**
- * Parse a GEDCOM line into tokens, supporting both 5.5.1 and 7.0 syntax.
- *
- * GEDCOM 7 payloads may contain unescaped `@` characters (e.g. email
- * addresses), so the xref is only captured when it appears immediately after
- * the level on a record-bearing line (`0 @I1@ INDI`). Custom tags may exceed
- * the alphanumeric set, so the tag pattern is widened to `[^\s]+`.
- */
-function parseGedcomLine(
-	line: string
-): { level: number; xref?: string; tag: string; value?: string } | null {
-	const trimmed = line.trim();
-	if (!trimmed) return null;
-
-	const match = trimmed.match(/^(\d+)(?:\s+(@[^@]+@))?(?:\s+([^\s]+))?(?:\s+(.*))?$/);
-	if (!match) return null;
-
-	const level = parseInt(match[1], 10);
-	const xref = match[2];
-	const tag = match[3]?.toUpperCase();
-	if (!tag) return null;
-
-	return { level, xref, tag, value: match[4] };
 }
 
 const NAME_TYPE_BY_WORD: Record<string, NameType> = Object.fromEntries(
@@ -301,7 +308,8 @@ const MODELLED_NAME_TAGS = new Set(['TYPE', 'NPFX', 'GIVN', 'NICK', 'SPFX', 'SUR
 function parseNameNode(
 	node: GedcomNode,
 	collect: (n: GedcomNode) => string[],
-	isPrimary: boolean
+	isPrimary: boolean,
+	isEvidenceModelled: boolean
 ): ParsedName {
 	const sub = (tag: string) => node.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
 	const value = node.value ?? '';
@@ -342,8 +350,16 @@ function parseNameNode(
 		...(change?.[2] ? { unionXref: change[2] } : {}),
 		...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),
 		extra: node.children
-			.filter((c) => !MODELLED_NAME_TAGS.has(c.tag) && c !== changeNode)
-			.flatMap(collect)
+			.filter(
+				(c) =>
+					!MODELLED_NAME_TAGS.has(c.tag) &&
+					c !== changeNode &&
+					!(isEvidenceModelled && c.tag === 'SOUR')
+			)
+			.flatMap(collect),
+		citations: isEvidenceModelled
+			? node.children.filter((c) => c.tag === 'SOUR').map(parseCitation)
+			: []
 	};
 }
 
@@ -353,55 +369,33 @@ function parseLegacyMarriedName(value: string, primary: ParsedName | undefined):
 	const parts = hasSlashes
 		? parseGedcomNameValue(value)
 		: { givenName: primary?.givenName, surname: value.trim() || undefined };
-	return { type: NAME_TYPES.MARRIED, gedcomType: LEGACY_MARRIED_NAME_TAG, ...parts, extra: [] };
+	return {
+		type: NAME_TYPES.MARRIED,
+		gedcomType: LEGACY_MARRIED_NAME_TAG,
+		...parts,
+		extra: [],
+		citations: []
+	};
 }
 
 /**
  * Parses raw GEDCOM string into hierarchical records
  */
-export function parseGedcom(rawContent: string): ParsedGedcomData {
-	const lines = rawContent.split(/\r?\n/);
-	const rootNodes: GedcomNode[] = [];
-	const stack: GedcomNode[] = [];
-
-	for (const line of lines) {
-		const parsed = parseGedcomLine(line);
-		if (!parsed) continue;
-
-		const node: GedcomNode = {
-			level: parsed.level,
-			tag: parsed.tag,
-			xref: parsed.xref,
-			value: parsed.value,
-			rawLine: line,
-			children: []
-		};
-
-		if (node.level === 0) {
-			rootNodes.push(node);
-			stack.length = 0;
-			stack.push(node);
-		} else {
-			while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
-				stack.pop();
-			}
-			if (stack.length > 0) {
-				stack[stack.length - 1].children.push(node);
-			}
-			stack.push(node);
-		}
-	}
+export function parseGedcom(rawContent: string, options: ParseOptions = {}): ParsedGedcomData {
+	const isEvidenceModelled = options.isEvidenceModelled ?? true;
+	const rootNodes = buildGedcomTree(rawContent.split(/\r?\n/));
 
 	const individuals: ParsedIndividual[] = [];
 	const families: ParsedFamily[] = [];
+	const sources: ParsedSource[] = [];
+	const repositories: ParsedRepository[] = [];
 	const preserved: ParsedGedcomData['preserved'] = [];
 	let treeName = 'Imported Family Tree';
 
-	const collectLines = (node: GedcomNode): string[] => {
-		const out = [node.rawLine];
-		for (const c of node.children) out.push(...collectLines(c));
-		return out;
-	};
+	/** The citations among these nodes, or none when the file is read the retained way. */
+	const citationsOf = (nodes: GedcomNode[]) =>
+		isEvidenceModelled ? nodes.filter((n) => n.tag === 'SOUR').map(parseCitation) : [];
+	const isCitation = (n: GedcomNode) => isEvidenceModelled && n.tag === 'SOUR';
 
 	for (const node of rootNodes) {
 		if (node.tag === 'HEAD') {
@@ -420,10 +414,11 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 			const famcLinks: ParsedFamcLink[] = [];
 			const fams: string[] = [];
 			const events: ParsedEvent[] = [];
+			const citations: ParsedCitation[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'NAME') {
-					names.push(parseNameNode(child, collectLines, names.length === 0));
+					names.push(parseNameNode(child, collectLines, names.length === 0, isEvidenceModelled));
 				} else if (child.tag === LEGACY_MARRIED_NAME_TAG && child.value?.trim()) {
 					legacyMarried.push(child.value);
 				} else if (child.tag === 'SEX') {
@@ -464,14 +459,15 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 					// STAT, NOTE and the like under FAMC have no model. Keep them, headed by their FAMC line,
 					// so export writes them back under the same link (ADR-009).
 					const extras = child.children.filter(
-						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG
+						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG && !isCitation(sub)
 					);
 					if (extras.length > 0)
 						preserved.push({ xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] });
 					famcLinks.push({
 						familyId,
 						pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
-						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {})
+						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}),
+						citations: citationsOf(child.children)
 					});
 				} else if (child.tag === 'FAMS' && child.value) {
 					fams.push(child.value.trim());
@@ -492,7 +488,9 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 						child.children.find((c) => c.tag === 'AGE'),
 						noteNode
 					]);
-					const extra = child.children.filter((c) => !modelled.has(c)).flatMap(collectLines);
+					const extra = child.children
+						.filter((c) => !modelled.has(c) && !isCitation(c))
+						.flatMap(collectLines);
 
 					// Each piece keeps its own column, so a cause is not written back as a note and a
 					// repeated fact stays a fact. `description` is left for family events and old rows.
@@ -506,11 +504,14 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 						cause: textOf('CAUS'),
 						age: textOf('AGE'),
 						notes: noteNode?.value?.trim() || undefined,
-						...(extra.length > 0 ? { extra } : {})
+						...(extra.length > 0 ? { extra } : {}),
+						citations: citationsOf(child.children)
 					});
+				} else if (isCitation(child)) {
+					citations.push(parseCitation(child));
 				} else {
-					// Preserve unmodeled individual-level structures (CHAN, NOTE, SOUR,
-					// OBJE, REFN, ASSO, custom tags, etc.) verbatim.
+					// Preserve unmodeled individual-level structures (CHAN, NOTE, OBJE, REFN, ASSO, custom
+					// tags, etc.) verbatim. A citation is one only while evidence is read the retained way.
 					preserved.push({ xref: id, lines: collectLines(child) });
 				}
 			}
@@ -528,7 +529,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 				famc,
 				famcLinks,
 				fams,
-				events
+				events,
+				citations
 			});
 		} else if (node.tag === 'FAM') {
 			const id = node.xref || crypto.randomUUID();
@@ -537,6 +539,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 			const children: ParsedFamily['children'] = [];
 			const aliases: string[] = [];
 			const events: ParsedEvent[] = [];
+			const citations: ParsedCitation[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'HUSB' && child.value) {
@@ -562,7 +565,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
 
 					const extra = child.children
-						.filter((c) => c !== dateNode && c !== placNode)
+						.filter((c) => c !== dateNode && c !== placNode && !isCitation(c))
 						.flatMap(collectLines);
 					events.push({
 						type: child.tag,
@@ -571,8 +574,11 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
 						description: child.value?.trim(),
-						...(extra.length > 0 ? { extra } : {})
+						...(extra.length > 0 ? { extra } : {}),
+						citations: citationsOf(child.children)
 					});
+				} else if (isCitation(child)) {
+					citations.push(parseCitation(child));
 				} else {
 					// Preserve unmodeled family-level structures verbatim.
 					preserved.push({ xref: id, lines: collectLines(child) });
@@ -585,11 +591,16 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 				wifeId,
 				children,
 				events,
+				citations,
 				...(aliases.length > 0 ? { aliases } : {})
 			});
+		} else if (isEvidenceModelled && node.tag === 'SOUR' && node.xref) {
+			sources.push(parseSourceRecord(node));
+		} else if (isEvidenceModelled && node.tag === 'REPO' && node.xref) {
+			repositories.push(parseRepositoryRecord(node));
 		} else if (node.tag !== 'TRLR') {
-			// Preserve unrecognized root-level records (NOTE, SOUR, SUBM, REPO, OBJE,
-			// custom records) so they are retained for export.
+			// Preserve unrecognized root-level records (NOTE, SUBM, OBJE, custom records) so they are
+			// retained for export. A root SOUR or REPO without an XREF cannot be pointed at, so it stays too.
 			preserved.push({ xref: node.xref ?? null, lines: collectLines(node) });
 		}
 	}
@@ -598,11 +609,27 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 	const linkOf = new Map<string, ParsedFamcLink>();
 	for (const ind of individuals)
 		for (const link of ind.famcLinks ?? []) linkOf.set(`${ind.id}|${link.familyId}`, link);
+	const attached = new Set<ParsedFamcLink>();
 	for (const fam of families) {
 		for (const child of fam.children) {
 			const link = linkOf.get(`${child.childId}|${fam.id}`);
 			if (link?.pedigree) child.pedigree = link.pedigree;
 			if (link?.parentPedigrees) child.parentPedigrees = link.parentPedigrees;
+			if (link && link.citations.length > 0) {
+				child.citations = link.citations;
+				attached.add(link);
+			}
+		}
+	}
+	// A `FAMC` whose family does not list the child has nowhere to hang its citations in the model.
+	// They stay under the link as retained lines, as a link's other extras always have (ADR-009).
+	for (const ind of individuals) {
+		for (const link of ind.famcLinks ?? []) {
+			if (link.citations.length === 0 || attached.has(link)) continue;
+			preserved.push({
+				xref: ind.id,
+				lines: [`1 FAMC ${link.familyId}`, ...link.citations.flatMap((c) => c.raw)]
+			});
 		}
 	}
 
@@ -611,6 +638,8 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
 		individuals,
 		families,
 		treeName,
-		preserved
+		preserved,
+		sources,
+		repositories
 	};
 }

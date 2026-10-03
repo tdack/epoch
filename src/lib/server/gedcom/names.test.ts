@@ -38,9 +38,10 @@ describe('parsing every NAME', () => {
 		expect(jessica.surname).toBe('Simpson');
 	});
 
-	it('reads the name parts, and keeps NOTE and SOUR under the NAME', () => {
+	it('reads the name parts, keeps NOTE under the NAME and reads its SOUR as a citation', () => {
 		const [, married] = people['@I1@'].names!;
-		expect(married.extra).toEqual(["2 NOTE Took Nick's surname", '2 SOUR @S1@', '3 PAGE 12']);
+		expect(married.extra).toEqual(["2 NOTE Took Nick's surname"]);
+		expect(married.citations).toMatchObject([{ pointer: '@S1@', page: '12' }]);
 		const [nick] = people['@I2@'].names!;
 		expect(nick).toMatchObject({
 			prefix: 'Dr',
