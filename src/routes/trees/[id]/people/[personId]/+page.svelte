@@ -133,19 +133,11 @@
 	async function changePrivacy(event: Event) {
 		const privacy = (event.currentTarget as HTMLSelectElement).value as PersonPrivacy;
 		isSavingPrivacy = true;
-		try {
-			const { change } = await setPersonPrivacyApi(
-				treeId,
-				dto.person.id,
-				privacy,
-				dto.person.version
-			);
-			await editor.afterChange(change, 'Privacy changed');
-		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not change the privacy', { tone: 'error' });
-		} finally {
-			isSavingPrivacy = false;
-		}
+		await editor.mutate(
+			() => setPersonPrivacyApi(treeId, dto.person.id, privacy, dto.person.version),
+			{ done: 'Privacy changed', failure: 'Could not change the privacy' }
+		);
+		isSavingPrivacy = false;
 	}
 
 	// ---- Names ----
@@ -202,19 +194,11 @@
 
 	async function makePreferred(name: NameDto) {
 		if (name.id === null) return;
-		try {
-			const { change } = await setPreferredNameApi(
-				treeId,
-				dto.person.id,
-				name.id,
-				name.version ?? undefined
-			);
-			await editor.afterChange(change, 'Preferred name changed');
-		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not change the preferred name', {
-				tone: 'error'
-			});
-		}
+		const nameId = name.id;
+		await editor.mutate(
+			() => setPreferredNameApi(treeId, dto.person.id, nameId, name.version ?? undefined),
+			{ done: 'Preferred name changed', failure: 'Could not change the preferred name' }
+		);
 	}
 
 	/** The preferred name is always listed and exported first, so it cannot move and nothing can move above it. */
@@ -226,12 +210,10 @@
 	async function moveName(index: number, by: -1 | 1) {
 		const order = dto.names.map((n) => n.id).filter((id): id is string => id !== null);
 		[order[index], order[index + by]] = [order[index + by]!, order[index]!];
-		try {
-			const { change } = await reorderNamesApi(treeId, dto.person.id, order);
-			await editor.afterChange(change, 'Names reordered');
-		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not reorder', { tone: 'error' });
-		}
+		await editor.mutate(() => reorderNamesApi(treeId, dto.person.id, order), {
+			done: 'Names reordered',
+			failure: 'Could not reorder'
+		});
 	}
 
 	// ---- Facts ----
@@ -266,12 +248,10 @@
 	async function move(index: number, by: -1 | 1) {
 		const order = dto.facts.map((f) => f.id);
 		[order[index], order[index + by]] = [order[index + by]!, order[index]!];
-		try {
-			const { change } = await reorderFactsApi(treeId, dto.person.id, order);
-			await editor.afterChange(change, 'Facts reordered');
-		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not reorder', { tone: 'error' });
-		}
+		await editor.mutate(() => reorderFactsApi(treeId, dto.person.id, order), {
+			done: 'Facts reordered',
+			failure: 'Could not reorder'
+		});
 	}
 
 	const when = (ms: number | null) => (ms ? new Date(ms).toLocaleString() : 'unknown');

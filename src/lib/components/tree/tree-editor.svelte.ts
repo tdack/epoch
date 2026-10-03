@@ -196,6 +196,26 @@ export class TreeEditor {
 		});
 	};
 
+	/**
+	 * Run a change and report it: reload and toast what happened (with Undo) on success, and the
+	 * server's own words as an error toast on failure. Answers whether it worked, for a caller that
+	 * has more to do afterwards. A conflict here is only reported; the dialogs that can show a
+	 * comparison handle theirs themselves.
+	 */
+	mutate = async (
+		run: () => Promise<{ change: ChangeSummary | null }>,
+		options: { done: string; failure: string }
+	): Promise<boolean> => {
+		try {
+			const { change } = await run();
+			await this.afterChange(change, options.done);
+			return true;
+		} catch (cause) {
+			this.toasts.push((cause as Error).message || options.failure, { tone: TOAST_TONES.ERROR });
+			return false;
+		}
+	};
+
 	undoLast = async () => {
 		try {
 			const { undone } = await undoApi(this.treeId);
