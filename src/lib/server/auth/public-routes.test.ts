@@ -67,9 +67,9 @@ describe('public routes', () => {
 	it('leaves API calls to answer 401, even with an invalid token', () => {
 		for (const hasInvalidToken of [false, true]) {
 			expect(signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: '/api' })).toBe(null);
-			expect(
-				signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: '/api/trees' })
-			).toBe(null);
+			expect(signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: '/api/trees' })).toBe(
+				null
+			);
 		}
 	});
 

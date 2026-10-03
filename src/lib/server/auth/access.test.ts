@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-	validateAccessJwt,
-	extractAccessJwt,
-	isDevBypassEnabled,
-	isLocalHostname
-} from './access';
+import { validateAccessJwt, extractAccessJwt, isDevBypassEnabled, isLocalHostname } from './access';
 import { isActionAllowed, hasMinimumRole } from './authorization';
 
 function createMockJwt(

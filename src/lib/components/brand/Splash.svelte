@@ -1,6 +1,7 @@
 <script lang="ts" module>
 	/** Shown on the splash and reused as the welcome page's meta description. */
-	export const SPLASH_TAGLINE = 'A private family history, shared with the people who help keep it.';
+	export const SPLASH_TAGLINE =
+		'A private family history, shared with the people who help keep it.';
 </script>
 
 <script lang="ts">
