@@ -15,6 +15,7 @@
 
 import { isPersonPrivate, type LivingFact } from './living-state';
 import type { IndividualRow, RowOp, TreeRows } from './change-log';
+import { NotFoundError } from './errors';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
 
@@ -114,6 +115,47 @@ export function maskRows(
 		},
 		placeholderIds: new Set()
 	};
+}
+
+/** The part of a viewer's scope that decides what they see of private people; a `ViewerScope` has it. */
+export interface MaskScope {
+	isRestricted: boolean;
+	cutoff: string;
+	creatorId: string | null;
+	shouldShowPrivateStructure: boolean;
+}
+
+/** The rows as this viewer may see them: untouched for roles that see everyone, else masked as the tree is set to. */
+export function maskForScope(rows: TreeRows, scope: MaskScope): MaskedRows {
+	return scope.isRestricted
+		? maskRows(rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId)
+		: { rows, placeholderIds: new Set() };
+}
+
+/**
+ * The rows with private people omitted, never shown as placeholders. For readers whose output
+ * could be written back (a planner) or that have no use for a placeholder (the quality report).
+ */
+export function omitForScope(rows: TreeRows, scope: MaskScope): TreeRows {
+	return scope.isRestricted ? maskRows(rows, scope.cutoff, false, scope.creatorId).rows : rows;
+}
+
+/**
+ * Masks a loaded window for the viewer, first checking that every subject was found and is theirs
+ * to see. A private subject answers as a missing one does, so asking for a person never says they
+ * exist (ADR-015).
+ */
+export function requireVisibleSubject(
+	window: { rows: TreeRows; foundStartIds: readonly string[] },
+	personIds: string | readonly string[],
+	scope: MaskScope
+): MaskedRows {
+	const hidden = scope.isRestricted
+		? privatePeople(window.rows, scope.cutoff, scope.creatorId)
+		: new Set<string>();
+	for (const id of typeof personIds === 'string' ? [personIds] : personIds)
+		if (!window.foundStartIds.includes(id) || hidden.has(id)) throw new NotFoundError('Person', id);
+	return maskForScope(window.rows, scope);
 }
 
 /**

@@ -11,7 +11,7 @@
 import type { DbClient } from '../db';
 import { NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import { maskRows } from '../domain/privacy-mask';
+import { omitForScope } from '../domain/privacy-mask';
 import { checkQuality } from '../domain/quality-checks';
 import { ChangeStore } from '../repositories/change-store';
 import { QualityRepository } from '../repositories/quality-repository';
@@ -63,10 +63,7 @@ export class QualityService {
 			new Date(this.now())
 		);
 		const rows = await this.store.loadRows(treeId);
-		const visible = scope.isRestricted
-			? maskRows(rows, scope.cutoff, false, scope.creatorId).rows
-			: rows;
-		return checkQuality(visible).sort(
+		return checkQuality(omitForScope(rows, scope)).sort(
 			(a, b) =>
 				(SEVERITY_ORDER.get(a.severity) ?? 0) - (SEVERITY_ORDER.get(b.severity) ?? 0) ||
 				(RULE_ORDER.get(a.rule) ?? 0) - (RULE_ORDER.get(b.rule) ?? 0) ||

@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
-import { maskRows } from '../domain/privacy-mask';
+import { maskForScope } from '../domain/privacy-mask';
 import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
 import { MutationRunner } from '../services/mutation-runner';
 
@@ -17,12 +17,6 @@ export async function wholeGraph(
 	const runner = new MutationRunner(db);
 	const scope = await runner.scopeFor(treeId, context, 'tree:view');
 	const rows = await runner.store.loadRows(treeId);
-	if (!scope.isRestricted) return graphFromRows(rows);
-	const { rows: masked, placeholderIds } = maskRows(
-		rows,
-		scope.cutoff,
-		scope.shouldShowPrivateStructure,
-		scope.creatorId
-	);
+	const { rows: masked, placeholderIds } = maskForScope(rows, scope);
 	return graphFromRows(masked, placeholderIds);
 }

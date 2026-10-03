@@ -6,10 +6,9 @@
  */
 
 import type { DbClient } from '../db';
-import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRows } from '../domain/change-log';
-import { maskRows, privatePeople, PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
+import { PRIVATE_PLACEHOLDER_NAME, requireVisibleSubject } from '../domain/privacy-mask';
 import {
 	findRelationships,
 	MAX_GENERATIONS,
@@ -89,17 +88,7 @@ export class KinshipService {
 			partnersOf: 'starts'
 		});
 
-		// A private or missing person answers alike.
-		const hidden = scope.isRestricted
-			? privatePeople(window.rows, scope.cutoff, scope.creatorId)
-			: new Set<string>();
-		for (const id of [fromId, toId])
-			if (!window.foundStartIds.includes(id) || hidden.has(id))
-				throw new NotFoundError('Person', id);
-
-		const { rows, placeholderIds } = scope.isRestricted
-			? maskRows(window.rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId)
-			: { rows: window.rows, placeholderIds: new Set<string>() };
+		const { rows, placeholderIds } = requireVisibleSubject(window, [fromId, toId], scope);
 		const people = new Map(
 			rows.individuals.map((i) => [
 				i.id,

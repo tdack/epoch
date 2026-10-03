@@ -9,7 +9,7 @@ import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { buildDescendants, buildPedigree } from '../domain/descent-charts';
-import { maskRows, privatePeople } from '../domain/privacy-mask';
+import { requireVisibleSubject } from '../domain/privacy-mask';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -20,8 +20,8 @@ import {
 	type PedigreeDto
 } from '../../shared/charts';
 import { ValidationError } from '../domain/errors';
-import { loadKinWindow, type KinWindow } from './kin-window';
-import { requireTreeScope, type ViewerScope } from './tree-access';
+import { loadKinWindow } from './kin-window';
+import { requireTreeScope } from './tree-access';
 
 const clamp = (generations: number, max: number) => {
 	if (!Number.isInteger(generations) || generations < 1 || generations > max)
@@ -41,18 +41,6 @@ export class ChartService {
 		this.repo = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
-	}
-
-	/** The window masked for the viewer; throws as a missing person does when the subject is not theirs to see. */
-	private async visible(window: KinWindow, personId: string, scope: ViewerScope) {
-		const hidden = scope.isRestricted
-			? privatePeople(window.rows, scope.cutoff, scope.creatorId)
-			: new Set<string>();
-		if (!window.foundStartIds.includes(personId) || hidden.has(personId))
-			throw new NotFoundError('Person', personId);
-		return scope.isRestricted
-			? maskRows(window.rows, scope.cutoff, scope.shouldShowPrivateStructure, scope.creatorId)
-			: { rows: window.rows, placeholderIds: new Set<string>() };
 	}
 
 	async pedigree(
@@ -77,7 +65,11 @@ export class ChartService {
 			descendantGenerations: null,
 			partnersOf: 'none'
 		});
-		const dto = buildPedigree(await this.visible(window, personId, scope), personId, generations);
+		const dto = buildPedigree(
+			requireVisibleSubject(window, personId, scope),
+			personId,
+			generations
+		);
 		if (!dto) throw new NotFoundError('Person', personId);
 		return { ...dto, hasMoreAbove: dto.hasMoreAbove || window.hasMoreAbove || window.isCapped };
 	}
@@ -105,7 +97,7 @@ export class ChartService {
 			partnersOf: 'all'
 		});
 		const built = buildDescendants(
-			await this.visible(window, personId, scope),
+			requireVisibleSubject(window, personId, scope),
 			personId,
 			generations
 		);

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { treeRows } from '../testing/rows';
 import { livingCutoff } from './living-state';
-import { PRIVATE_PLACEHOLDER_NAME, maskRows, privatePeople } from './privacy-mask';
+import { NotFoundError } from './errors';
+import {
+	PRIVATE_PLACEHOLDER_NAME,
+	maskForScope,
+	maskRows,
+	omitForScope,
+	privatePeople,
+	requireVisibleSubject,
+	type MaskScope
+} from './privacy-mask';
 
 const CUTOFF = livingCutoff(new Date('2026-10-01T12:00:00Z'));
 
@@ -102,5 +111,55 @@ describe('maskRows with nobody private', () => {
 		const r = rows();
 		r.individuals.find((i) => i.id === 'liv')!.privacy = 'public';
 		expect(maskRows(r, CUTOFF, false).rows).toBe(r);
+	});
+});
+
+const scopeOf = (overrides: Partial<MaskScope> = {}): MaskScope => ({
+	isRestricted: true,
+	cutoff: CUTOFF,
+	creatorId: null,
+	shouldShowPrivateStructure: false,
+	...overrides
+});
+
+describe('maskForScope and omitForScope', () => {
+	it('hand a role that sees everyone the rows themselves', () => {
+		const all = rows();
+		const open = scopeOf({ isRestricted: false });
+		expect(maskForScope(all, open)).toEqual({ rows: all, placeholderIds: new Set() });
+		expect(omitForScope(all, open)).toBe(all);
+	});
+
+	it('mask a restricted viewer as the tree is set to', () => {
+		const omitted = maskForScope(rows(), scopeOf());
+		expect(omitted.rows.individuals.map((i) => i.id)).not.toContain('liv');
+		const shown = maskForScope(rows(), scopeOf({ shouldShowPrivateStructure: true }));
+		expect(shown.placeholderIds).toEqual(new Set(['liv']));
+	});
+
+	it('omitForScope never leaves a placeholder, even where the tree shows structure', () => {
+		const omitted = omitForScope(rows(), scopeOf({ shouldShowPrivateStructure: true }));
+		expect(omitted.individuals.map((i) => i.id)).not.toContain('liv');
+		expect(omitted.individuals.some((i) => i.givenName === PRIVATE_PLACEHOLDER_NAME)).toBe(false);
+	});
+});
+
+describe('requireVisibleSubject', () => {
+	const window = { rows: rows(), foundStartIds: ['gran', 'liv'] };
+
+	it('masks the window once every subject is found and visible', () => {
+		const { rows: masked } = requireVisibleSubject(window, 'gran', scopeOf());
+		expect(masked.individuals.map((i) => i.id)).not.toContain('liv');
+	});
+
+	it('answers a private subject as a missing one', () => {
+		expect(() => requireVisibleSubject(window, ['gran', 'liv'], scopeOf())).toThrow(NotFoundError);
+		expect(() => requireVisibleSubject(window, 'kit', scopeOf())).toThrow(NotFoundError);
+	});
+
+	it('lets a role that sees everyone ask for a private subject', () => {
+		expect(() =>
+			requireVisibleSubject(window, 'liv', scopeOf({ isRestricted: false }))
+		).not.toThrow();
 	});
 });

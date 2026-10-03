@@ -25,7 +25,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { makeLabeler } from '../domain/tree-labels';
 import { buildPlanOps } from '../domain/tree-ops';
-import { maskRows, opsTouchPrivate } from '../domain/privacy-mask';
+import { omitForScope, opsTouchPrivate } from '../domain/privacy-mask';
 
 export interface MutationClock {
 	now: () => number;
@@ -108,7 +108,7 @@ export class MutationRunner {
 	 * placeholders, which a planner could write back). Everyone else's are the rows themselves.
 	 */
 	visibleRows(rows: TreeRows, scope: ViewerScope): TreeRows {
-		return scope.isRestricted ? maskRows(rows, scope.cutoff, false, scope.creatorId).rows : rows;
+		return omitForScope(rows, scope);
 	}
 
 	/**
