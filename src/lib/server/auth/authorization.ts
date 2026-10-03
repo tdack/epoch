@@ -1,17 +1,4 @@
-import type { TreeRole } from '../../shared/roles';
-
-/**
- * Role hierarchy levels for permission comparisons:
- * viewer (1) < contributor (2) < editor (3) < manager (4) < owner (5)
- */
-export const ROLE_HIERARCHY: Record<TreeRole, number> = {
-	viewer: 1,
-	contributor: 2,
-	editor: 3,
-	manager: 4,
-	owner: 5
-};
-// The order lives in `shared/roles.ts` too, for the screens; a test holds the two the same.
+import { hasMinimumRole, type TreeRole } from '../../shared/roles';
 
 export type TreeAction =
 	| 'tree:view'
@@ -43,10 +30,6 @@ const ACTION_MIN_ROLES: Record<TreeAction, TreeRole> = {
 	'tree:manage_members': 'manager',
 	'tree:delete': 'owner'
 };
-
-export function hasMinimumRole(actualRole: TreeRole, requiredRole: TreeRole): boolean {
-	return ROLE_HIERARCHY[actualRole] >= ROLE_HIERARCHY[requiredRole];
-}
 
 export function isActionAllowed(
 	actualRole: TreeRole | undefined | null,
