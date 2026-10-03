@@ -22,10 +22,7 @@ export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.i
 }
 
 /** Parse a query string against a schema; the values are strings, so the schema coerces. */
-export function parseQuery<T extends z.ZodTypeAny>(
-	schema: T,
-	params: URLSearchParams
-): z.infer<T> {
+export function parseQuery<T extends z.ZodTypeAny>(schema: T, params: URLSearchParams): z.infer<T> {
 	return parseBody(schema, Object.fromEntries(params));
 }
 

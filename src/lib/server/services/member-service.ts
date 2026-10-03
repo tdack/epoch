@@ -6,7 +6,6 @@
  */
 
 import type { DbClient } from '../db';
-import { isActionAllowed } from '../auth/authorization';
 import { grantableRoles, canManageMemberOf } from '../../shared/membership-policy';
 import {
 	ConcurrencyConflictError,
@@ -15,6 +14,7 @@ import {
 	ValidationError
 } from '../domain/errors';
 import type { AuthenticatedContext, TreeRole } from '../domain/identity';
+import { requireTreeAction } from './tree-access';
 import { MemberRepository } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
 
@@ -61,14 +61,8 @@ export class MemberService {
 	}
 
 	/** The caller's role if it allows managing members; otherwise the same refusal as any other action. */
-	private async requireManager(treeId: string, context: AuthenticatedContext): Promise<TreeRole> {
-		const membership = await this.users.getMembership(treeId, context.user.id);
-		if (!membership || !isActionAllowed(membership.role, 'tree:manage_members')) {
-			throw new UnauthorizedError(
-				"Forbidden: insufficient privileges for action 'tree:manage_members'"
-			);
-		}
-		return membership.role;
+	private requireManager(treeId: string, context: AuthenticatedContext): Promise<TreeRole> {
+		return requireTreeAction(this.users, treeId, context, 'tree:manage_members');
 	}
 
 	async list(treeId: string, context: AuthenticatedContext): Promise<MembersDto> {

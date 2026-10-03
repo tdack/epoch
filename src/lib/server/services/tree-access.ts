@@ -27,23 +27,28 @@ export interface ViewerScope {
 	shouldShowPrivateStructure: boolean;
 }
 
-/** Throws unless the caller's role in this tree allows the action; the one check every read service starts with. */
+/**
+ * Throws unless the caller's role in this tree allows the action, and answers that role. The one
+ * membership check: every service and the export workflow come through here, so a refusal reads
+ * the same wherever it happens.
+ */
 export async function requireTreeAction(
 	users: UserRepository,
 	treeId: string,
 	context: AuthenticatedContext,
 	action: TreeAction
-): Promise<void> {
-	await membershipRole(users, treeId, context, action);
+): Promise<TreeRole> {
+	return requireMemberAction(users, treeId, context.user.id, action);
 }
 
-async function membershipRole(
+/** The same check for a job that knows the requester's id but holds no request context. */
+export async function requireMemberAction(
 	users: UserRepository,
 	treeId: string,
-	context: AuthenticatedContext,
+	userId: string,
 	action: TreeAction
 ): Promise<TreeRole> {
-	const membership = await users.getMembership(treeId, context.user.id);
+	const membership = await users.getMembership(treeId, userId);
 	if (!membership || !isActionAllowed(membership.role, action)) {
 		throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
 	}
@@ -63,7 +68,7 @@ export async function requireTreeScope(
 	action: TreeAction,
 	now: Date = new Date()
 ): Promise<ViewerScope> {
-	const role = await membershipRole(users, treeId, context, action);
+	const role = await requireTreeAction(users, treeId, context, action);
 	const settings = await trees.privacySettings(treeId);
 	if (!settings) throw new NotFoundError('Tree', treeId);
 	return {

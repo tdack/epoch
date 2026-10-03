@@ -5,10 +5,10 @@
  */
 
 import type { DbClient } from '../db';
-import { isActionAllowed, type TreeAction } from '../auth/authorization';
+import type { TreeAction } from '../auth/authorization';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { requireTreeScope, type ViewerScope } from './tree-access';
+import { requireTreeAction, requireTreeScope, type ViewerScope } from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import {
 	OP_KINDS,
@@ -69,10 +69,7 @@ export class MutationRunner {
 		context: AuthenticatedContext,
 		action: TreeAction
 	): Promise<void> {
-		const membership = await this.userRepo.getMembership(treeId, context.user.id);
-		if (!membership || !isActionAllowed(membership.role, action)) {
-			throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
-		}
+		await requireTreeAction(this.userRepo, treeId, context, action);
 	}
 
 	/** The action check plus what the caller may see of private people (ADR-015). */
