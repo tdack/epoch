@@ -47,3 +47,35 @@ describe('a 401 from the API', () => {
 		expect(assign).not.toHaveBeenCalled();
 	});
 });
+
+describe('uploadMediaApi', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('posts the file with its tree and person, and titles it by its name', async () => {
+		const { uploadMediaApi } = await loadApi(false);
+		const fetchMock = vi.fn(async () => Response.json({ success: true }, { status: 201 }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await uploadMediaApi('t1', 'p1', new File(['x'], 'portrait.png', { type: 'image/png' }));
+
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('/api/media/upload');
+		expect(init.method).toBe('POST');
+		const body = init.body as FormData;
+		expect([body.get('treeId'), body.get('entityId'), body.get('title')]).toEqual([
+			't1',
+			'p1',
+			'portrait.png'
+		]);
+		expect((body.get('file') as File).name).toBe('portrait.png');
+	});
+
+	it('throws the server’s reason when it refuses', async () => {
+		const { uploadMediaApi } = await loadApi(false);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => Response.json({ error: 'Forbidden' }, { status: 403 }))
+		);
+		await expect(uploadMediaApi('t1', 'p1', new File(['x'], 'a.png'))).rejects.toThrow('Forbidden');
+	});
+});

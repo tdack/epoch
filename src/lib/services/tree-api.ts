@@ -169,6 +169,16 @@ export async function deletePersonApi(
 	return { change: res.change };
 }
 
+/** Attach a photo or document to a person; the server checks the caller may add media to them. */
+export async function uploadMediaApi(treeId: string, personId: string, file: File): Promise<void> {
+	const body = new FormData();
+	body.append('file', file);
+	body.append('treeId', treeId);
+	body.append('entityId', personId);
+	body.append('title', file.name);
+	await call('/api/media/upload', { method: 'POST', body }, 'Upload failed');
+}
+
 export async function previewGedcomImport(
 	file: File,
 	treeId?: string | null

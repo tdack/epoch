@@ -10,7 +10,7 @@
 		Cross,
 		ExternalLink
 	} from 'lucide-svelte';
-	import { restartSignIn } from '#lib/services/tree-api.js';
+	import { uploadMediaApi } from '#lib/services/tree-api.js';
 	import type { RelativeAction } from './tree-editor.svelte.js';
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
@@ -119,23 +119,7 @@
 		uploadError = null;
 
 		try {
-			const fd = new FormData();
-			fd.append('file', file);
-			fd.append('treeId', treeId);
-			fd.append('entityId', person.id);
-			fd.append('title', file.name);
-
-			const res = await fetch('/api/media/upload', {
-				method: 'POST',
-				body: fd
-			});
-
-			if (res.status === 401) restartSignIn();
-			if (!res.ok) {
-				const err = (await res.json().catch(() => ({}))) as { error?: string };
-				throw new Error(err.error || 'Upload failed');
-			}
-
+			await uploadMediaApi(treeId, person.id, file);
 			onMediaUploaded?.();
 		} catch (err: any) {
 			uploadError = err.message;
@@ -484,7 +468,7 @@
 			<div class="space-y-3">
 				<div class="flex items-center justify-between">
 					<h3 class="text-xs font-bold tracking-wider text-stone-600 uppercase">
-						Attached Media (R2)
+						Photos and documents
 					</h3>
 					<label
 						class="inline-flex cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
@@ -502,9 +486,7 @@
 				</div>
 
 				{#if isUploading}
-					<p class="animate-pulse text-xs font-medium text-emerald-800">
-						Uploading to Cloudflare R2 storage...
-					</p>
+					<p class="animate-pulse text-xs font-medium text-emerald-800">Uploading...</p>
 				{/if}
 				{#if uploadError}
 					<p class="text-xs font-medium text-orange-700">{uploadError}</p>
