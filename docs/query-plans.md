@@ -377,3 +377,13 @@ command does, and plan in memory; nothing new is read per record. The write is o
 300 row operations (`MAX_PERSON_MERGE_OPS`), plus the place-record statements for moved facts, and
 the mark copy is one read and chunked inserts on `idx_uq_person_mark`. The possible-duplicates rule
 groups the tree's people by name in one pass and compares birth spans only inside a group.
+
+## Evidence (ADR-028)
+
+A person's citations are four bounded reads in one batch (the person, their names, their facts and
+the links where they are the child), each led by `idx_citation_subject (subject_kind, subject_id,
+sort_order)` and joined by primary key; sources for their labels are one `id IN (...)` read. A source's
+citations are paged by `idx_citation_source`. The sources list pages on `idx_source_title`. For a
+viewer who sees everyone these are the whole cost. For a restricted viewer the list and counts also
+evaluate `with vp` (the visible people of the tree, as the tree summary counts do) once per request.
+These were not run against the 5,300-person corpus; the plan test there does not yet cover them.
