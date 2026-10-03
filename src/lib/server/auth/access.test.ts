@@ -224,8 +224,8 @@ describe('isLocalHostname', () => {
 		['localhost.evil.example', false],
 		['127.0.0.1.evil.example', false],
 		['', false]
-	])('%s -> %s', (hostname, expected) => {
-		expect(isLocalHostname(hostname)).toBe(expected);
+	])('%s -> %s', (hostname, isLocal) => {
+		expect(isLocalHostname(hostname)).toBe(isLocal);
 	});
 
 	it('matches what URL.hostname reports', () => {
