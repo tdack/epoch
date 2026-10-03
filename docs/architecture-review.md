@@ -334,6 +334,23 @@ independent.
 | E7 | `refactor(media): uploadMediaApi; drop the R2 wording in the UI` | e2e |
 | E8 | Review `RelationshipModal` after E4, and split per intent if it is still large | e2e relationship and partnership |
 
+### Status
+
+Kept up to date on branch `refactor/architecture-b-e`; a new session resumes from the first row that
+is not done. Commits are named by subject because hashes change on rebase.
+
+| # | State | Commit or reason |
+|---|---|---|
+| A1 to A4 | already done before this branch | Phase A landed before the branch |
+| B1 | done | `refactor(server): delete NeutralGenealogyRepository and domain/genealogy.ts` |
+| B2 | done | `refactor(client): delete fetchTrees, fetchTreeDetails and their GET endpoint`. `GenealogyService.getTree` stays: three service tests read a whole tree back through it |
+| B3 | done | `test: move whole-graph assertions…` and `refactor: delete the unfocused graph endpoint and getGraph`. `GET /graph` now answers 400 without `focus` |
+| B4 | done | `refactor: delete unused helpers`. `RelationshipPlanWarning` is still used by `RelationshipPlan`; it went in B5 as an unexport. Also removed the empty `src/lib/index.ts` and the bare `#lib` import alias |
+| B5 | done | `refactor: unexport module-private symbols` |
+| B6 | done | `build(deps): drop adapter-auto and d3-hierarchy; narrow d3…`. The bundle moved by 139 bytes, since it was already tree-shaken |
+| B7 | done, except archiving the prompt | `docs: archive shipped slice prompts and screenshots…`. `docs/architecture-b-e-prompt.md` is archived last |
+| knip rules block | done | `chore(tooling): make knip findings fail npm run lint` |
+
 ### Expected outcome
 
 - The API layer goes from about 1,735 lines to about 600, and every endpoint gets the same denial
