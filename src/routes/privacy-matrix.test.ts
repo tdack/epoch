@@ -189,6 +189,8 @@ const LOADS = [
 	'./trees/[id]/quality/+page.ts',
 	'./trees/[id]/relationship/+page.ts',
 	'./trees/[id]/search/+page.ts',
+	'./trees/[id]/sources/+page.ts',
+	'./trees/[id]/sources/[sourceId]/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
 	'./trees/[id]/unions/+page.ts',
 	'./trees/[id]/unions/[unionId]/+page.ts'

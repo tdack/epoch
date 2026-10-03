@@ -26,6 +26,11 @@
 			isActive: page.url.pathname === `${base}/unions`
 		},
 		{
+			href: `${base}/sources`,
+			label: 'Sources',
+			isActive: page.url.pathname.startsWith(`${base}/sources`)
+		},
+		{
 			href: `${base}/places`,
 			label: 'Places',
 			isActive: page.url.pathname.startsWith(`${base}/place`)

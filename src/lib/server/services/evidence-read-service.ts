@@ -109,7 +109,17 @@ export class EvidenceReadService {
 		const byId = new Map(rows.map((r) => [r.id, r]));
 		const items = ids.flatMap((id) => {
 			const r = byId.get(id);
-			return r ? [{ id, name: r.name, sourceCount: counts.get(id) ?? 0 }] : [];
+			return r
+				? [
+						{
+							id,
+							version: r.version,
+							name: r.name,
+							address: r.address,
+							sourceCount: counts.get(id) ?? 0
+						}
+					]
+				: [];
 		});
 		return { items, hasMore, ...page };
 	}
