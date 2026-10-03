@@ -7,6 +7,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { events, individuals, sources } from '../db/schema';
+import { NotFoundError } from '../domain/errors';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -18,6 +19,13 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
+import { maskRows } from '../domain/privacy-mask';
+import { ChangeStore } from '../repositories/change-store';
+import { EvidenceReadService } from './evidence-read-service';
+import { EvidenceRepository } from '../repositories/evidence-repository';
+import { PersonPageService } from './person-page-service';
+import { UnionPageService } from './union-page-service';
+import { livingCutoff } from '../domain/living-state';
 import { EvidenceService } from './evidence-service';
 
 const FIXTURE = `0 HEAD
@@ -43,6 +51,14 @@ const FIXTURE = `0 HEAD
 2 DATE 1985
 2 SOUR @S1@
 3 PAGE 7
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1990
+2 SOUR @S1@
+3 PAGE marriage
 0 TRLR`;
 
 const SECRETS = ['Livia', 'Aliveson'];
@@ -173,5 +189,116 @@ describe('an editor writing evidence', () => {
 			actors.editor.context
 		);
 		expect(added.citationId).toBeTruthy();
+	});
+});
+
+const NOW = new Date('2026-10-01T12:00:00Z');
+const reads = () => new EvidenceReadService(t.db, () => NOW);
+
+describe('reading evidence as a contributor', () => {
+	const ctx = () => actors.contributor.context;
+
+	it('lists only the sources that support someone they can see', async () => {
+		const page = await reads().listSources(treeId, {}, ctx());
+		expect(page.items.map((s) => s.title)).toEqual(['Census 1851']);
+		expect(leaks(page)).toEqual([]);
+		const found = await reads().listSources(treeId, { q: 'Livia' }, ctx());
+		expect(found.items).toEqual([]);
+	});
+
+	it('answers a source that supports only private people as one that is not there', async () => {
+		const hidden = await reads()
+			.getSource(treeId, ids['@S1@'], {}, ctx())
+			.catch((e) => e);
+		const missing = await reads()
+			.getSource(treeId, 'no-such-source', {}, ctx())
+			.catch((e) => e);
+		expect(hidden).toBeInstanceOf(NotFoundError);
+		expect(hidden.constructor).toBe(missing.constructor);
+		expect(hidden.message.replace(ids['@S1@'], 'ID')).toBe(
+			missing.message.replace('no-such-source', 'ID')
+		);
+	});
+
+	it('shows a visible source with only the citations they may see', async () => {
+		const source = await reads().getSource(treeId, ids['@S2@'], {}, ctx());
+		expect(source.title).toBe('Census 1851');
+		expect(source.groups.flatMap((g) => g.citations.map((c) => c.page)).sort()).toEqual([
+			'4',
+			'mine'
+		]);
+		expect(leaks(source)).toEqual([]);
+	});
+
+	it('does not list a repository kept only for a source they cannot see', async () => {
+		const page = await reads().listRepositories(treeId, {}, ctx());
+		expect(page.items).toEqual([]);
+		expect(leaks(page)).toEqual([]);
+	});
+
+	it('is told nothing of a private person’s evidence by their page', async () => {
+		const people = new PersonPageService(t.db, () => NOW);
+		const hidden = await people.getPerson(treeId, ids['@I2@'], ctx()).catch((e) => e);
+		expect(hidden).toBeInstanceOf(NotFoundError);
+		const grandar = await people.getPerson(treeId, ids['@I1@'], ctx());
+		expect(grandar.evidence.citations.map((c) => c.page).sort()).toEqual(['4', 'mine']);
+		expect(grandar.facts.find((f) => f.type === 'BIRT')?.citationCount).toBe(2);
+		expect(leaks(grandar)).toEqual([]);
+	});
+
+	it('is told nothing of the evidence of a partnership with a private partner', async () => {
+		const unions = new UnionPageService(t.db, () => NOW);
+		const unionId = `${treeId}:@F1@`;
+		const page = await unions.getUnion(treeId, unionId, ctx()).catch((e) => e);
+		expect(leaks(page instanceof Error ? page.message : page)).toEqual([]);
+		if (!(page instanceof Error)) expect(page.evidence.citations).toEqual([]);
+	});
+});
+
+describe('reading evidence as an editor', () => {
+	it('sees every source, repository and citation', async () => {
+		const ctx = actors.editor.context;
+		const page = await reads().listSources(treeId, {}, ctx);
+		expect(page.items.map((s) => s.title).sort()).toEqual([
+			'Birth certificate of Livia Aliveson',
+			'Census 1851'
+		]);
+		const livia = await reads().getSource(treeId, ids['@S1@'], {}, ctx);
+		expect(livia.repositories).toMatchObject([
+			{ name: 'Aliveson family archive', callNumber: 'LIVIA-1' }
+		]);
+		expect(livia.citationCount).toBeGreaterThanOrEqual(4);
+		expect((await reads().listRepositories(treeId, {}, ctx)).items).toHaveLength(1);
+		const person = await new PersonPageService(t.db, () => NOW).getPerson(treeId, ids['@I2@'], ctx);
+		expect(person.facts.find((f) => f.type === 'BIRT')?.citationCount).toBeGreaterThanOrEqual(1);
+	});
+});
+
+describe('the SQL and the row filters agree on what evidence a viewer sees', () => {
+	it.each(['contributor', 'viewer'] as const)('for a %s', async (role) => {
+		const rows = await new ChangeStore(t.db).loadRows(treeId);
+		const scope = {
+			isRestricted: true,
+			cutoff: livingCutoff(NOW, 110),
+			creatorId: role === 'contributor' ? actors.contributor.userId : null
+		};
+		const masked = maskRows(rows, scope.cutoff, false, scope.creatorId).rows;
+		const repo = new EvidenceRepository(t.db);
+		const sourceIdsSql = (await repo.sourceIds(treeId, '', { offset: 0, limit: 100 }, scope)).ids;
+		expect(sourceIdsSql.sort()).toEqual(masked.sources.map((s) => s.id).sort());
+		const repositoryIdsSql = (
+			await repo.repositoryIds(treeId, '', { offset: 0, limit: 100 }, scope)
+		).ids;
+		expect(repositoryIdsSql.sort()).toEqual(masked.repositories.map((r) => r.id).sort());
+		const counts = await repo.visibleCitationCounts(
+			treeId,
+			rows.sources.map((s) => s.id),
+			scope
+		);
+		for (const source of rows.sources) {
+			expect(counts.get(source.id) ?? 0, source.title ?? '').toBe(
+				masked.citations.filter((c) => c.sourceId === source.id).length
+			);
+		}
 	});
 });

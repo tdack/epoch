@@ -3,6 +3,7 @@
  * The services that build these stay on the server; only the shapes live here.
  */
 
+import type { PersonEvidenceDto } from './evidence';
 import type { FactConflict } from './fact-timeline';
 import type { FactKind } from './fact-types';
 import type { NameType } from './name-types';
@@ -44,6 +45,8 @@ export interface FactDto extends PrivacyFlag {
 	version: number;
 	/** Set when another fact of the same type disagrees with, or repeats, this one. */
 	conflict: FactConflict | null;
+	/** How many citations support this fact; 0 is unsourced (ADR-028). */
+	citationCount: number;
 }
 
 export interface NameDto extends PrivacyFlag {
@@ -65,6 +68,8 @@ export interface NameDto extends PrivacyFlag {
 	unionId: string | null;
 	displayName: string;
 	isPreferred: boolean;
+	/** How many citations support this name; 0 is unsourced. Always 0 for a derived name. */
+	citationCount: number;
 }
 
 interface ParentFamilyDto {
@@ -148,7 +153,7 @@ export interface PersonPageDto extends PrivacyFlag {
 	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
 	media: MediaDto[];
 	notes: PlaceholderDto;
-	evidence: PlaceholderDto;
+	evidence: PersonEvidenceDto;
 	changes: {
 		/**
 		 * Changes that wrote the person or a fact they still have. Changes to a fact that was later

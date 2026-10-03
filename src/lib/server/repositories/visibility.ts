@@ -96,3 +96,91 @@ export async function firstVisiblePersonId(
 	);
 	return rows[0]?.id ?? null;
 }
+
+/**
+ * A citation row (aliased `alias`) whose subject the viewer may see: the SQL form of
+ * `hiddenSubjectKeys` in `domain/privacy-mask.ts`, held to the same answers by a test. A name,
+ * fact or parent link is its person's (or both of the link's people); a partnership, and the facts
+ * of one, need every partner visible (ADR-015, ADR-028).
+ *
+ * The visible people are one uncorrelated subquery that SQLite evaluates once and reuses, not the
+ * person predicate repeated inside each branch: nested that way a source's or repository's test
+ * exceeded SQLite's expression depth (100), and it is cheaper this way as well.
+ */
+export function isCitationVisibleOf(alias: string, scope: Viewer, treeId: string): SQL {
+	const c = sql.raw(alias);
+	const people = sql`(select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)})`;
+	const unionOk = (column: SQL) =>
+		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
+	return sql`(case ${c}.subject_kind
+		when 'person' then ${c}.subject_id in ${people}
+		when 'name' then exists (select 1 from person_names n where n.id = ${c}.subject_id and n.person_id in ${people})
+		when 'event' then exists (select 1 from events e where e.id = ${c}.subject_id and (
+			(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
+			or (e.entity_type = 'FAMILY' and ${unionOk(sql`e.entity_id`)})))
+		when 'union' then exists (select 1 from unions u where u.id = ${c}.subject_id) and ${unionOk(sql`${c}.subject_id`)}
+		else exists (select 1 from parent_child l where l.id = ${c}.subject_id
+			and l.parent_id in ${people} and l.child_id in ${people}
+			and (l.union_id is null or ${unionOk(sql`l.union_id`)}))
+	end)`;
+}
+
+/**
+ * `with vp(id) as (...)` for a statement that tests sources or repositories: the people the viewer
+ * may see, computed once. Empty for a viewer who sees everyone. It goes at the very start of the
+ * statement, because the person test nested inside the source test inside the repository test is
+ * deeper than the 100 levels of expression D1 allows, and one definition used by name is not.
+ */
+export function withVisiblePeople(treeId: string, scope: Scope): SQL {
+	if (!scope.isRestricted) return sql``;
+	return sql`with vp(id) as (select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)}) `;
+}
+
+/**
+ * The ids of the sources that cite something the viewer may see, as one compound select (five
+ * terms, the most D1 allows): a branch per kind of subject. Needs `withVisiblePeople` before it.
+ */
+function visibleCitedSourceIds(treeId: string): SQL {
+	const people = sql`(select id from vp)`;
+	const unionOk = (column: SQL) =>
+		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
+	const from = sql`from citations vc where vc.tree_id = ${treeId} and vc.source_id is not null`;
+	return sql`
+		select vc.source_id as id ${from} and vc.subject_kind = 'person' and vc.subject_id in ${people}
+		union select vc.source_id ${from} and vc.subject_kind = 'name'
+			and vc.subject_id in (select n.id from person_names n where n.person_id in ${people})
+		union select vc.source_id ${from} and vc.subject_kind = 'event' and vc.subject_id in (
+			select e.id from events e where e.tree_id = ${treeId} and (
+				(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
+				or (e.entity_type = 'FAMILY' and ${unionOk(sql`e.entity_id`)})))
+		union select vc.source_id ${from} and vc.subject_kind = 'union' and vc.subject_id in (
+			select u.id from unions u where u.tree_id = ${treeId} and ${unionOk(sql`u.id`)})
+		union select vc.source_id ${from} and vc.subject_kind = 'parent_child' and vc.subject_id in (
+			select l.id from parent_child l where l.tree_id = ${treeId}
+				and l.parent_id in ${people} and l.child_id in ${people}
+				and (l.union_id is null or ${unionOk(sql`l.union_id`)}))`;
+}
+
+/**
+ * ` and <visible>` for a source row (aliased `alias`): it supports a citation the viewer can see,
+ * or they made it. Empty for a viewer who sees everyone. The statement must start with
+ * `withVisiblePeople`.
+ */
+export function andSourceVisible(alias: string, scope: Scope, treeId: string): SQL {
+	if (!scope.isRestricted) return sql``;
+	const s = sql.raw(alias);
+	const isOwn = scope.creatorId === null ? sql`` : sql`${s}.created_by is ${scope.creatorId} or `;
+	return sql` and (${isOwn}${s}.id in (${visibleCitedSourceIds(treeId)}))`;
+}
+
+/** The same for a repository row: one of their visible sources is kept there, or they made it. */
+export function andRepositoryVisible(alias: string, scope: Scope, treeId: string): SQL {
+	if (!scope.isRestricted) return sql``;
+	const r = sql.raw(alias);
+	const isOwn = scope.creatorId === null ? sql`` : sql`${r}.created_by is ${scope.creatorId} or `;
+	const ownSources =
+		scope.creatorId === null
+			? sql``
+			: sql` or vl.source_id in (select os.id from sources os where os.tree_id = ${treeId} and os.created_by = ${scope.creatorId})`;
+	return sql` and (${isOwn}${r}.id in (select vl.repository_id from source_repositories vl where vl.repository_id is not null and (vl.source_id in (${visibleCitedSourceIds(treeId)})${ownSources})))`;
+}

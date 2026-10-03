@@ -12,6 +12,7 @@ import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType } from '../domain/genealogy-model';
 import type { ParentChildType } from '../../shared/relationship-model';
+import { EvidenceRepository } from '../repositories/evidence-repository';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -41,6 +42,7 @@ import type {
 	PersonSummaryDto,
 	PlaceholderDto
 } from '../../shared/person-page';
+import { citationDto, inSubjectOrder } from './evidence-dto';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
@@ -48,7 +50,7 @@ export const RECENT_CHANGES_SHOWN = 15;
 
 const PLACEHOLDER: PlaceholderDto = { isSupported: false, items: [] };
 
-function factDto(row: EventRow, conflict: FactConflict | null): FactDto {
+function factDto(row: EventRow, conflict: FactConflict | null, citationCount: number): FactDto {
 	const date = eventDateValue(row);
 	const info = factTypeInfo(row.type);
 	return {
@@ -68,11 +70,16 @@ function factDto(row: EventRow, conflict: FactConflict | null): FactDto {
 		isLegacyNote: row.notes === null && row.description !== null,
 		sortOrder: row.sortOrder,
 		version: row.version,
-		conflict
+		conflict,
+		citationCount
 	};
 }
 
-function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
+function nameDtos(
+	person: IndividualRow,
+	rows: PersonNameRow[],
+	citationCounts: ReadonlyMap<string, number>
+): NameDto[] {
 	if (rows.length === 0) {
 		// Editor-created people have no stored name row; their name fields are their only name.
 		return [
@@ -91,7 +98,8 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 				dateText: null,
 				unionId: null,
 				displayName: personName(person),
-				isPreferred: true
+				isPreferred: true,
+				citationCount: 0
 			}
 		];
 	}
@@ -123,13 +131,15 @@ function nameDtos(person: IndividualRow, rows: PersonNameRow[]): NameDto[] {
 					surname: n.surname,
 					suffix: n.nameSuffix
 				}),
-				isPreferred: n.isPreferred
+				isPreferred: n.isPreferred,
+				citationCount: citationCounts.get(n.id) ?? 0
 			}))
 	);
 }
 
 export class PersonPageService {
 	private repo: GraphWindowRepository;
+	private evidence: EvidenceRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
@@ -138,6 +148,7 @@ export class PersonPageService {
 		private now: () => Date = () => new Date()
 	) {
 		this.repo = new GraphWindowRepository(db);
+		this.evidence = new EvidenceRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
@@ -176,6 +187,21 @@ export class PersonPageService {
 		);
 		if (!self) throw new NotFoundError('Person', personId);
 
+		// Evidence: every citation of the person and of what they have, in one batch, then the sources
+		// those name. A fact or name that none cites is unsourced.
+		const cited = await this.evidence.citationsOfPerson(treeId, personId, scope);
+		const sourcesById = new Map(
+			(
+				await this.evidence.sourcesByIds(
+					treeId,
+					cited.rows.flatMap((c) => (c.sourceId ? [c.sourceId] : []))
+				)
+			).map((s) => [s.id, s])
+		);
+		const citationCounts = new Map<string, number>();
+		for (const c of cited.rows)
+			citationCounts.set(c.subjectId, (citationCounts.get(c.subjectId) ?? 0) + 1);
+
 		// Half-siblings and the like are named by the graph only if the window drew them; fetch the rest.
 		const wanted = [
 			...relatives.parentFamilies.flatMap((f) => f.parents.map((p) => p.personId)),
@@ -210,7 +236,9 @@ export class PersonPageService {
 		);
 		const conflicts = findFactConflicts(timeline);
 		const rowById = new Map(rows.map((row) => [row.id, row]));
-		const facts = timeline.map((t) => factDto(rowById.get(t.id)!, conflicts.get(t.id) ?? null));
+		const facts = timeline.map((t) =>
+			factDto(rowById.get(t.id)!, conflicts.get(t.id) ?? null, citationCounts.get(t.id) ?? 0)
+		);
 		const birth = facts.find((f) => f.type === 'BIRT') ?? null;
 		const death = facts.find((f) => f.type === 'DEAT') ?? null;
 		const lifespanParts = [birth?.dateText, death?.dateText];
@@ -295,7 +323,8 @@ export class PersonPageService {
 			},
 			names: nameDtos(
 				self.row,
-				nameRows.map((n) => n.row)
+				nameRows.map((n) => n.row),
+				citationCounts
 			),
 			vitals,
 			facts,
@@ -327,7 +356,13 @@ export class PersonPageService {
 				r2ObjectKey: row.r2ObjectKey
 			})),
 			notes: PLACEHOLDER,
-			evidence: PLACEHOLDER,
+			evidence: {
+				citations: inSubjectOrder(cited.rows).map((c) => citationDto(c, sourcesById)),
+				links: [...cited.linkParents].map(([id, parentId]) => ({
+					id,
+					label: `${summaries.get(parentId)?.displayName ?? 'A parent'} as parent`
+				}))
+			},
 			changes: {
 				recent: recent.map((c) => ({
 					id: c.id,

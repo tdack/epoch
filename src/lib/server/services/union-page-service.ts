@@ -12,6 +12,7 @@ import { eventDateValue } from '../domain/date-columns';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { RelationshipGraph } from '../../shared/relationship-graph';
 import { eventLabel } from '../domain/tree-labels';
+import { EvidenceRepository } from '../repositories/evidence-repository';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -21,6 +22,7 @@ import { privacyOf } from '../../shared/privacy';
 import { partnerSetKey } from '../../shared/union-merge';
 import { isUnionEventType } from '../../shared/union-events';
 import { boundsOf, unionWarnings } from '../../shared/union-warnings';
+import { citationDto, inSubjectOrder } from './evidence-dto';
 import { loadFocusWindow } from './focus-window';
 import { RECENT_CHANGES_SHOWN } from './person-page-service';
 import { personSummaries } from './person-summaries';
@@ -39,6 +41,7 @@ const EMPTY_GRAPH: RelationshipGraph = { people: [], unions: [], parentChild: []
 
 export class UnionPageService {
 	private repo: GraphWindowRepository;
+	private evidence: EvidenceRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
@@ -47,6 +50,7 @@ export class UnionPageService {
 		private now: () => Date = () => new Date()
 	) {
 		this.repo = new GraphWindowRepository(db);
+		this.evidence = new EvidenceRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
@@ -120,6 +124,27 @@ export class UnionPageService {
 		const partners = partnerIds.map((id) => people.get(id)!);
 		const nameOf = (id: string) => people.get(id)?.displayName ?? 'Unknown';
 
+		// A partnership with a private partner has no facts or evidence to show (ADR-015, ADR-028); the
+		// citation reads are filtered the same way in SQL, and this keeps the two in step.
+		const cited = hasPrivatePartner
+			? {
+					rows: [],
+					linkParents: new Map<string, string>(),
+					linkChildren: new Map<string, string>()
+				}
+			: await this.evidence.citationsOfUnion(treeId, unionId, scope);
+		const sourcesById = new Map(
+			(
+				await this.evidence.sourcesByIds(
+					treeId,
+					cited.rows.flatMap((c) => (c.sourceId ? [c.sourceId] : []))
+				)
+			).map((s) => [s.id, s])
+		);
+		const citationCounts = new Map<string, number>();
+		for (const c of cited.rows)
+			citationCounts.set(c.subjectId, (citationCounts.get(c.subjectId) ?? 0) + 1);
+
 		// A marriage date and place are facts about the private partner too.
 		const events: UnionEventDto[] = (hasPrivatePartner ? [] : eventRows)
 			.sort((a, b) => a.rid - b.rid)
@@ -133,7 +158,8 @@ export class UnionPageService {
 				place: row.place,
 				notes: row.notes ?? row.description,
 				isEditable: isUnionEventType(row.type),
-				version: row.version
+				version: row.version,
+				citationCount: citationCounts.get(row.id) ?? 0
 			}));
 
 		const children: UnionChildDto[] = childIds.map((childId) => ({
@@ -249,6 +275,13 @@ export class UnionPageService {
 			chronology,
 			warnings,
 			twins,
+			evidence: {
+				citations: inSubjectOrder(cited.rows).map((c) => citationDto(c, sourcesById)),
+				links: [...cited.linkParents].map(([id, parentId]) => ({
+					id,
+					label: `${nameOf(parentId)} as parent of ${nameOf(cited.linkChildren.get(id) ?? '')}`
+				}))
+			},
 			changes: {
 				recent: recent.map((c) => ({
 					id: c.id,

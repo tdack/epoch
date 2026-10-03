@@ -1,6 +1,23 @@
 import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
+import { EvidenceReadService } from '#lib/server/services/evidence-read-service.js';
 import { EvidenceService } from '#lib/server/services/evidence-service.js';
+import { parseListParams } from '#lib/shared/lists.js';
 import { sourceUpdateSchema } from '#lib/server/validation/schemas.js';
+
+/**
+ * A source, its repositories and a page of the records that cite it (`?offset=&limit=`). A source
+ * that supports nothing the viewer may see answers 404, as a private person does.
+ */
+export const GET = treeHandler(
+	{ failure: 'Failed to load the source', params: ['sourceId'] },
+	({ db, ctx, treeId, params, url }) =>
+		new EvidenceReadService(db).getSource(
+			treeId,
+			params.sourceId,
+			parseListParams(url.searchParams),
+			ctx
+		)
+);
 
 export const PUT = treeHandler(
 	{ failure: 'Failed to save the source', params: ['sourceId'], body: sourceUpdateSchema },

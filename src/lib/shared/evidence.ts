@@ -108,3 +108,102 @@ export function sourceLabel(source: {
 		: null;
 	return source.title || source.abbreviation || text || 'Untitled source';
 }
+
+// ---- What the pages read ----
+
+/** One citation as the pages show it. */
+export interface CitationDto {
+	id: string;
+	/** Send this back when editing; a newer stored version is a conflict. */
+	version: number;
+	sortOrder: number;
+	subject: CitationSubjectRef;
+	/** Null for a citation with no source record (inline text, or a pointer the file did not resolve). */
+	sourceId: string | null;
+	/** The source's title, or the words the citation carries instead. */
+	sourceLabel: string;
+	page: string | null;
+	quality: CitationQuality | null;
+	/** `DATA.DATE` as written. */
+	entryDate: string | null;
+	text: string | null;
+}
+
+/** What the person page lists as a person's evidence: every citation of them and of what they have. */
+export interface PersonEvidenceDto {
+	/** In the order each record's own are kept; the page groups them by `subject`. */
+	citations: CitationDto[];
+	/** The parent links the person is in, named, so a citation of one reads as something. */
+	links: Array<{ id: string; label: string }>;
+}
+
+/** The evidence on a partnership page: the partnership, its facts and the links shown there. */
+export interface UnionEvidenceDto {
+	citations: CitationDto[];
+	links: Array<{ id: string; label: string }>;
+}
+
+export interface SourceListItem {
+	id: string;
+	xref: string | null;
+	title: string | null;
+	author: string | null;
+	abbreviation: string | null;
+	/** Citations the viewer may see. */
+	citationCount: number;
+}
+
+export interface RepositoryListItem {
+	id: string;
+	name: string | null;
+	sourceCount: number;
+}
+
+/** A source's place in a repository. */
+export interface SourceRepositoryDto {
+	linkId: string;
+	version: number;
+	repositoryId: string | null;
+	/** The repository's name; the pointer the file named when there is no record for it. */
+	name: string;
+	address: string | null;
+	callNumber: string | null;
+}
+
+/** The citations of a source that support one record, for the source's page. */
+export interface SourceCitationGroup {
+	subject: CitationSubjectRef;
+	/** "Ann Ash", "the birth of Ann Ash", "the partnership of Ann Ash and Bob Ash". */
+	label: string;
+	/** Where the group links to: the person or the partnership it is about. */
+	personId: string | null;
+	unionId: string | null;
+	citations: CitationDto[];
+}
+
+export interface SourceDto {
+	id: string;
+	xref: string | null;
+	version: number;
+	title: string | null;
+	author: string | null;
+	publication: string | null;
+	abbreviation: string | null;
+	text: string | null;
+	repositories: SourceRepositoryDto[];
+	/** Citations of this source the viewer may see, all pages. */
+	citationCount: number;
+	groups: SourceCitationGroup[];
+	hasMore: boolean;
+	offset: number;
+	limit: number;
+}
+
+/** The claim state of a fact or name, from its citations and whether another fact disagrees (ADR-028). */
+export function claimStateOf(options: {
+	citationCount: number;
+	isConflicting: boolean;
+}): ClaimState {
+	if (options.isConflicting) return CLAIM_STATES.CONFLICTING;
+	return options.citationCount > 0 ? CLAIM_STATES.SOURCED : CLAIM_STATES.UNSOURCED;
+}

@@ -69,6 +69,8 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/members/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/individuals/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
+	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/surnames/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/marks/+server.ts`]: { kind: 'own-data', covers: READS },
@@ -151,6 +153,8 @@ const ENTRIES: Record<string, Entry> = {
 		covers: EVIDENCE
 	},
 	[`${API}/trees/[id]/sources/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	// The GET is a masked read (a source is listed and served only for a viewer who sees something it
+	// supports); the PUT and DELETE are the more dangerous half, so the entry names the write kind.
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/sources/[sourceId]/merge/+server.ts`]: {
 		kind: 'guarded-write',
