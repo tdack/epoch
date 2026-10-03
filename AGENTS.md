@@ -5,6 +5,10 @@ This file provides guidance to LLMs when working with code in this repository.
 ## Project status
 This repository is an initial proof of concept implementation of webtrees.net using more contemporary frameworks, particularly svelte, sveltekit and cloudflare workers, D1, queues and other resources.
 
+Phase status lives only in the table in `docs/roadmap.md`; slice status (S0 … S16) lives in the
+delivery-slices table and status sections of `docs/improvement-plan.md`. Each phase document carries
+its own status against its exit criteria. Update those, not this file, when a slice lands.
+
 ## Architecture
 
 Epoch is a private, single-owner family-tree application with invited collaborators, inspired by
@@ -87,7 +91,7 @@ These are the highest-value things to remember and are all established in the pl
   format:check` verifies. `.git-blame-ignore-revs` hides the one-off reformat; run `git config
   blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.
 - **ESLint** (flat config; typescript-eslint and eslint-plugin-svelte) and **knip** (`knip.jsonc`,
-  unused files, exports and dependencies; warnings until Phase B of `docs/architecture-review.md`).
+  unused files, exports and dependencies; findings fail `npm run lint`).
   `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools
   and what would change it is ADR-025.
 - **Svelte components:** declare a `Props` interface with TSDoc per prop, destructure from

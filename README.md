@@ -2,8 +2,9 @@
 
 A private family-tree application for one owner and invited collaborators, inspired by webtrees
 capabilities. Built with Svelte 5, SvelteKit 3, Cloudflare Workers, D1 (Drizzle), R2, Queues and
-Workflows. See [CLAUDE.md](./CLAUDE.md) for architecture and conventions and
-[docs/roadmap.md](./docs/roadmap.md) for direction.
+Workflows. See [AGENTS.md](./AGENTS.md) for architecture and conventions,
+[docs/roadmap.md](./docs/roadmap.md) for direction and phase status, and the slice table in
+[docs/improvement-plan.md](./docs/improvement-plan.md#delivery-slices) for what each slice shipped.
 
 ## Setup
 
@@ -123,8 +124,16 @@ Simpsons" and any other data in your local database are left alone. Stop `npm ru
 |---|---|
 | `/` | Opens the latest tree; the old `/?tree=…&focus=…` form redirects to the tree with the rest of the query kept |
 | `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it |
-| `/trees/:id/people/:personId` | A person: names, facts (add, edit, remove, reorder), family, history |
-| `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, warnings |
+| `/trees/:id/people/:personId` | A person: names, facts (add, edit, remove, reorder), family, evidence, media, history |
+| `/trees/:id/people/:personId/pedigree`, `/descendants`, `/fan`, `/hourglass` | Charts centred on a person, with a text outline |
+| `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, evidence, warnings |
+| `/trees/:id/search?q=&place=&from=&to=` | Ranked search over names, XREFs, places and years, saying why each person matched |
+| `/trees/:id/people`, `/unions`, `/surnames` | Server-paged lists |
+| `/trees/:id/relationship?from=&to=` | Every route between two people |
+| `/trees/:id/places`, `/place?name=` | Places named by facts, and the facts at one place |
+| `/trees/:id/sources`, `/sources/:sourceId` | Sources the viewer may see, and what each one supports |
+| `/trees/:id/quality` | The data-quality report, with dismissals |
+| `/trees/:id/members`, `/privacy` | Members and invitations; the tree's privacy settings (managers) |
 
 Person ids from an import look like `<treeId>:@I1@`; build links with `encodeURIComponent`. The tree
 reads a bounded window (`GET /api/trees/:id/graph?focus=…`) rather than the whole tree; see
