@@ -392,13 +392,13 @@ is not done. Commits are named by subject because hashes change on rebase.
 
 - The API layer (`src/routes/api/**/+server.ts`) went from 2,118 lines to 1,018, a drop of 1,100. The
   review's 1,735 figure was taken before S13 to S15a added endpoints. Media, import and export keep
-  the most code; the 36 endpoints that use `treeHandler` average about 15 lines.
+  the most code; the 47 files that use `treeHandler` or `apiHandler` average 19 lines.
 - Client pages and components (`src/routes/trees`, `login`, `welcome` and `src/lib/components`,
   excluding tests and `+page.server.ts`) went from 13,266 lines to 13,062, a drop of 204. The review
   expected 500 to 700; E5 (skipped) was most of the difference.
 - All non-test source under `src/` went from 38,502 to 37,587 lines, a drop of 915, after adding the
   handler, the GEDCOM service and repository, the shared DTO modules, the viewport and keyboard
-  modules, and the load helpers. Tests grew by about 70 cases.
+  modules, and the load helpers. Tests grew by about 80 cases, to 1,178.
 - Dependencies: `@sveltejs/adapter-auto`, `d3-hierarchy` and `@types/d3-hierarchy` are gone, and
   `d3` and `@types/d3` give way to `d3-zoom`, `d3-selection`, `d3-transition`, `d3-ease` and their
   types. The client bundle moved by 139 bytes, since it was already tree-shaken.
