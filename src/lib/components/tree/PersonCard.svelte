@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isActivationKey } from './activate-on-key.js';
 	import { LAYOUT_METRICS, type PlacedPerson } from '#lib/tree-layout/index.js';
 	import {
 		accessibleName,
@@ -119,7 +120,7 @@
 
 	function onKeydown(event: KeyboardEvent) {
 		if (isPrivate) return;
-		if (event.key === 'Enter' || event.key === ' ') {
+		if (isActivationKey(event)) {
 			event.preventDefault();
 			if (event.shiftKey) onOpen(node.id);
 			else onSelect(node.id);

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { activateOnKey } from './activate-on-key.js';
 	import type { LayoutEdge, PlacedStub } from '#lib/tree-layout/index.js';
 	import { childEdgePath, childEdgeStyle, partnerEdgePath, stubEdgePath } from './tree-view.js';
 
@@ -91,12 +92,7 @@
 		aria-label={label ?? title}
 		onclick={(event) => onSelect?.(edge, event)}
 		oncontextmenu={(event) => onContextMenu?.(edge, event)}
-		onkeydown={(event) => {
-			if (event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault();
-				onSelect?.(edge, event as unknown as MouseEvent);
-			}
-		}}
+		onkeydown={activateOnKey((event) => onSelect?.(edge, event as unknown as MouseEvent))}
 	>
 		<title>{title}</title>
 	</path>

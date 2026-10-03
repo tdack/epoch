@@ -1,16 +1,5 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { easeCubicOut } from 'd3-ease';
-	import { select } from 'd3-selection';
-	// Imported for its side effect: it adds `transition` and `interrupt` to selections.
-	import 'd3-transition';
-	import {
-		zoom,
-		zoomIdentity,
-		type D3ZoomEvent,
-		type ZoomBehavior,
-		type ZoomTransform
-	} from 'd3-zoom';
 	import { Maximize2, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import {
 		LAYOUT_METRICS,
@@ -20,7 +9,6 @@
 		type PartnerEdge,
 		type PlacedPerson,
 		type PlacedUnion,
-		type Point,
 		type TreeLayout
 	} from '#lib/tree-layout/index.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
@@ -32,18 +20,16 @@
 	import UnionMarker from './UnionMarker.svelte';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
+	import { activateOnKey } from './activate-on-key.js';
+	import { keyIntentOf } from './tree-keyboard.js';
+	import { TreeViewport } from './tree-viewport.svelte.js';
 	import {
-		MAX_FIT_ZOOM,
-		MAX_ZOOM,
-		MIN_ZOOM,
-		NAV_DIRECTIONS,
 		isEndedUnion,
 		levelOfDetail,
 		neighbourOf,
 		relationLabel,
 		unionLabelText,
-		type MenuItem,
-		type NavDirection
+		type MenuItem
 	} from './tree-view.js';
 
 	interface PersonRef {
@@ -132,16 +118,13 @@
 		onCollapseStub
 	}: Props = $props();
 
-	const FIT_PADDING_PX = 56;
-	const ANIMATION_MS = 380;
-	const ZOOM_BUTTON_MS = 220;
 	const ZOOM_STEP = 1.35;
 
 	let containerElement: HTMLDivElement | null = $state(null);
 	let svgElement: SVGSVGElement | null = $state(null);
-	let transform = $state(zoomIdentity);
-	let size = $state({ width: 1000, height: 600 });
-	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
+	const viewport = new TreeViewport();
+	const transform = $derived(viewport.transform);
+	const size = $derived(viewport.size);
 
 	let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
 	let selectedEdgeId = $state<string | null>(null);
@@ -223,171 +206,23 @@
 
 	// ---- Viewport ----
 
-	function prefersReducedMotion(): boolean {
-		return (
-			typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-		);
-	}
-
-	/**
-	 * Animation needs requestAnimationFrame, which a hidden tab never delivers: a d3 transition
-	 * started there advances one tick and freezes. Jump straight to the end when nobody can see it.
-	 */
-	function canAnimate(): boolean {
-		return !prefersReducedMotion() && !document.hidden;
-	}
-
-	/** Where the running animation is heading, so a second click builds on it instead of on a mid-flight frame. */
-	let animationTarget: ZoomTransform | null = null;
-
-	function moveTo(target: ZoomTransform, options: { isAnimated: boolean; durationMs?: number }) {
-		if (!svgElement || !zoomBehavior) return;
-		const selection = select(svgElement);
-		selection.interrupt();
-		animationTarget = null;
-		if (options.isAnimated && canAnimate()) {
-			animationTarget = target;
-			selection
-				.transition()
-				.duration(options.durationMs ?? ANIMATION_MS)
-				.ease(easeCubicOut)
-				.call(zoomBehavior.transform, target);
-		} else {
-			selection.call(zoomBehavior.transform, target);
-		}
-	}
-
-	function fitTransform(forLayout: TreeLayout): ZoomTransform {
-		const { minX, maxX, minY, maxY } = forLayout.bounds;
-		const width = Math.max(1, maxX - minX);
-		const height = Math.max(1, maxY - minY);
-		const k = Math.min(
-			MAX_FIT_ZOOM,
-			Math.max(
-				MIN_ZOOM,
-				Math.min(
-					(size.width - FIT_PADDING_PX * 2) / width,
-					(size.height - FIT_PADDING_PX * 2) / height
-				)
-			)
-		);
-		return zoomIdentity
-			.translate(
-				size.width / 2 - ((minX + maxX) / 2) * k,
-				size.height / 2 - ((minY + maxY) / 2) * k
-			)
-			.scale(k);
-	}
-
-	function isBoundsVisible(forLayout: TreeLayout): boolean {
-		const { minX, maxX, minY, maxY } = forLayout.bounds;
-		const [left, top] = transform.apply([minX, minY]);
-		const [right, bottom] = transform.apply([maxX, maxY]);
-		return left >= 0 && top >= 0 && right <= size.width && bottom <= size.height;
-	}
-
-	/** Zoom about the centre of the view. */
-	function zoomBy(factor: number) {
-		const base = animationTarget ?? transform;
-		const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, base.k * factor));
-		const centre: [number, number] = [size.width / 2, size.height / 2];
-		const [px, py] = base.invert(centre);
-		moveTo(zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), {
-			isAnimated: true,
-			durationMs: ZOOM_BUTTON_MS
-		});
-	}
-
-	function fit(isAnimated = true) {
-		if (layout.people.length > 0) moveTo(fitTransform(layout), { isAnimated });
-	}
-
 	onMount(() => {
 		if (!svgElement || !containerElement) return;
-		size = { width: svgElement.clientWidth || 1000, height: svgElement.clientHeight || 600 };
-
-		zoomBehavior = zoom<SVGSVGElement, unknown>()
-			.scaleExtent([MIN_ZOOM, MAX_ZOOM])
-			// Dragging a card starts drag-to-relate, not a pan; the wheel still zooms everywhere.
-			.filter((event: Event) => {
-				if (event.type === 'wheel') return true;
-				const target = event.target as Element | null;
-				const isOnControl = target?.closest?.(
-					'[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id], [data-union-id]'
-				);
-				return !(event as MouseEvent).button && !isOnControl;
-			})
-			.on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
-				transform = event.transform;
-			})
-			.on('end', () => {
-				animationTarget = null;
-			});
-		select(svgElement).call(zoomBehavior).on('dblclick.zoom', null);
-
-		const observer = new ResizeObserver(([entry]) => {
-			const { width, height } = entry.contentRect;
-			if (width === size.width && height === size.height) return;
-			size = { width, height };
-			fit(false);
-		});
-		observer.observe(svgElement);
-		return () => {
-			observer.disconnect();
-			if (svgElement) select(svgElement).interrupt().on('.zoom', null);
-		};
+		const detach = viewport.attach(svgElement, () => viewport.fit(layout, false));
+		return detach;
 	});
 
-	let lastFitKey: string | null = null;
-	let previousPositions = new Map<string, Point>();
-	let previousCollapserCount = 0;
-
-	// Re-frame when the key changes. The new focus person stays where it was on screen for the
-	// first frame, then the view glides to the fitted position, so a refocus reads as movement
-	// rather than a jump cut.
+	// Re-frame when the key changes; see `TreeViewport.reframe`.
 	$effect(() => {
 		const key = fitKey;
 		const current = layout;
-		untrack(() => {
-			if (!zoomBehavior) return;
-			const isFirst = lastFitKey === null;
-			if (key !== lastFitKey) {
-				const anchor = current.focusPersonId
-					? previousPositions.get(current.focusPersonId)
-					: undefined;
-				if (!isFirst && anchor && canAnimate()) {
-					const screen = transform.apply([anchor.x, anchor.y]);
-					moveTo(zoomIdentity.translate(screen[0], screen[1]).scale(transform.k), {
-						isAnimated: false
-					});
-					containerElement?.querySelector('.scene')?.animate([{ opacity: 0.35 }, { opacity: 1 }], {
-						duration: ANIMATION_MS,
-						easing: 'ease-out'
-					});
-				}
-				moveTo(fitTransform(current), { isAnimated: !isFirst });
-				lastFitKey = key;
-			} else if (current.collapsers.length > previousCollapserCount && !isBoundsVisible(current)) {
-				// A stub opened onto rows the view does not show; frame them rather than leave them off-screen.
-				moveTo(fitTransform(current), { isAnimated: true });
-			}
-			previousPositions = new Map(current.people.map((p) => [p.id, { x: p.x, y: p.y }]));
-			previousCollapserCount = current.collapsers.length;
-		});
+		untrack(() => viewport.reframe(key, current, containerElement?.querySelector('.scene')));
 	});
 
 	/** Pan just enough to bring a card fully into view. */
 	function ensureVisible(personId: string) {
 		const node = peopleById.get(personId);
-		if (!node || !svgElement) return;
-		const [sx, sy] = transform.apply([node.x, node.y]);
-		const halfW = (LAYOUT_METRICS.cardWidth / 2) * transform.k + 16;
-		const halfH = (LAYOUT_METRICS.cardHeight / 2) * transform.k + 16;
-		const dx = sx - halfW < 0 ? halfW - sx : sx + halfW > size.width ? size.width - halfW - sx : 0;
-		const dy =
-			sy - halfH < 0 ? halfH - sy : sy + halfH > size.height ? size.height - halfH - sy : 0;
-		if (dx !== 0 || dy !== 0)
-			moveTo(transform.translate(dx / transform.k, dy / transform.k), { isAnimated: true });
+		if (node) viewport.ensureVisible(node.x, node.y);
 	}
 
 	// ---- Menus, selection and popover ----
@@ -587,13 +422,6 @@
 
 	// ---- Keyboard ----
 
-	const ARROW_KEYS: Record<string, NavDirection> = {
-		ArrowUp: NAV_DIRECTIONS.UP,
-		ArrowDown: NAV_DIRECTIONS.DOWN,
-		ArrowLeft: NAV_DIRECTIONS.LEFT,
-		ArrowRight: NAV_DIRECTIONS.RIGHT
-	};
-
 	async function moveActive(toId: string) {
 		keyboardCursor = { focusId: layout.focusPersonId, personId: toId };
 		await tick();
@@ -604,51 +432,52 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
-		if ((event.target as Element).closest?.('input, textarea, select')) return;
-		if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
-			// The keyboard's context-menu gesture: open the menu of whatever has focus, next to it.
-			const target = event.target as Element;
-			const personId = target.closest?.('[data-person-id]')?.getAttribute('data-person-id');
-			const unionId = target.closest?.('[data-union-id]')?.getAttribute('data-union-id');
-			const edgeId = target.closest?.('[data-edge-id]')?.getAttribute('data-edge-id');
-			const person = personId ? peopleById.get(personId) : undefined;
-			const union = unionId ? layout.unions.find((u) => u.id === unionId) : undefined;
-			const edge = edgeId ? layout.edges.find((e) => e.id === edgeId) : undefined;
-			if (person) openPersonMenu(event, person);
-			else if (union) openUnionMenu(event, union);
-			else if (edge) openEdgeMenu(edge, event);
-			else return;
-			event.preventDefault();
-			return;
-		}
-		if (event.key === 'Escape') {
-			const hasOverlay = menu !== null || popover !== null || selectedEdgeId !== null;
-			closeOverlays();
-			selectedEdgeId = null;
-			if (!hasOverlay) onClearSelection?.();
-			return;
-		}
-		if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEdgeId) {
-			const edge = layout.edges.find((e) => e.id === selectedEdgeId);
-			if (edge?.kind === 'partner' && onRemoveLink) {
+		const intent = keyIntentOf({
+			key: event.key,
+			shiftKey: event.shiftKey,
+			target: event.target as Element
+		});
+		switch (intent.kind) {
+			case 'context-menu': {
+				// The keyboard's context-menu gesture: open the menu of whatever has focus, next to it.
+				const { personId, unionId, edgeId } = intent.target;
+				const person = personId ? peopleById.get(personId) : undefined;
+				const union = unionId ? layout.unions.find((u) => u.id === unionId) : undefined;
+				const edge = edgeId ? layout.edges.find((e) => e.id === edgeId) : undefined;
+				if (person) openPersonMenu(event, person);
+				else if (union) openUnionMenu(event, union);
+				else if (edge) openEdgeMenu(edge, event);
+				else return;
 				event.preventDefault();
-				onRemoveLink(edge);
-				selectedEdgeId = null;
-			} else if (edge?.kind === 'child') {
-				event.preventDefault();
-				if (edge.assertions.length === 1) onRemoveAssertion?.(edge, edge.assertions[0]);
-				else popover = { edgeId: edge.id, x: size.width / 2 - 160, y: size.height / 2 - 80 };
+				return;
 			}
-			return;
-		}
-		const direction = ARROW_KEYS[event.key];
-		const fromId = (event.target as Element)
-			.closest?.('[data-person-id]')
-			?.getAttribute('data-person-id');
-		if (direction && fromId) {
-			event.preventDefault();
-			const next = neighbourOf(layout, fromId, direction);
-			if (next) void moveActive(next);
+			case 'escape': {
+				const hasOverlay = menu !== null || popover !== null || selectedEdgeId !== null;
+				closeOverlays();
+				selectedEdgeId = null;
+				if (!hasOverlay) onClearSelection?.();
+				return;
+			}
+			case 'delete': {
+				if (!selectedEdgeId) return;
+				const edge = layout.edges.find((e) => e.id === selectedEdgeId);
+				if (edge?.kind === 'partner' && onRemoveLink) {
+					event.preventDefault();
+					onRemoveLink(edge);
+					selectedEdgeId = null;
+				} else if (edge?.kind === 'child') {
+					event.preventDefault();
+					if (edge.assertions.length === 1) onRemoveAssertion?.(edge, edge.assertions[0]);
+					else popover = { edgeId: edge.id, x: size.width / 2 - 160, y: size.height / 2 - 80 };
+				}
+				return;
+			}
+			case 'move': {
+				event.preventDefault();
+				const next = neighbourOf(layout, intent.fromId, intent.direction);
+				if (next) void moveActive(next);
+				return;
+			}
 		}
 	}
 
@@ -777,12 +606,7 @@
 						event.stopPropagation();
 						onExpandStub?.(stub.id);
 					}}
-					onkeydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							event.preventDefault();
-							onExpandStub?.(stub.id);
-						}
-					}}
+					onkeydown={activateOnKey(() => onExpandStub?.(stub.id))}
 				>
 					<rect
 						x={-LAYOUT_METRICS.stubWidth / 2}
@@ -810,12 +634,7 @@
 						event.stopPropagation();
 						onCollapseStub?.(collapser.stubId);
 					}}
-					onkeydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							event.preventDefault();
-							onCollapseStub?.(collapser.stubId);
-						}
-					}}
+					onkeydown={activateOnKey(() => onCollapseStub?.(collapser.stubId))}
 				>
 					<circle r="10" />
 					<line x1="-5" y1="0" x2="5" y2="0" />
@@ -843,7 +662,7 @@
 			type="button"
 			title="Zoom in"
 			aria-label="Zoom in"
-			onclick={() => zoomBy(ZOOM_STEP)}
+			onclick={() => viewport.zoomBy(ZOOM_STEP)}
 			class="control"
 		>
 			<ZoomIn class="h-4 w-4" />
@@ -852,7 +671,7 @@
 			type="button"
 			title="Zoom out"
 			aria-label="Zoom out"
-			onclick={() => zoomBy(1 / ZOOM_STEP)}
+			onclick={() => viewport.zoomBy(1 / ZOOM_STEP)}
 			class="control"
 		>
 			<ZoomOut class="h-4 w-4" />
@@ -861,7 +680,7 @@
 			type="button"
 			title="Fit to view"
 			aria-label="Fit to view"
-			onclick={() => fit()}
+			onclick={() => viewport.fit(layout)}
 			class="control"
 		>
 			<Maximize2 class="h-4 w-4" />

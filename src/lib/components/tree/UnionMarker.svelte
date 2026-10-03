@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { activateOnKey } from './activate-on-key.js';
 	import { LAYOUT_METRICS, type PlacedUnion } from '#lib/tree-layout/index.js';
 	import { MIN_HIT_TARGET_PX, MIN_ZOOM, type LevelOfDetail } from './tree-view.js';
 
@@ -67,12 +68,7 @@
 			event.stopPropagation();
 			onOpen?.(union);
 		}}
-		onkeydown={(event) => {
-			if (event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault();
-				onOpen?.(union);
-			}
-		}}
+		onkeydown={activateOnKey(() => onOpen?.(union))}
 		oncontextmenu={(event) => onContextMenu(event, union)}
 	>
 		<circle r={targetRadius} fill="transparent" />
