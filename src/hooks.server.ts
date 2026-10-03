@@ -8,14 +8,13 @@ import {
 	isLocalHostname,
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
+import { resolveUser } from '#lib/server/auth/resolve-user.js';
 import { signedOutRedirect } from '#lib/server/auth/public-routes.js';
-import { getDb } from '#lib/server/db/index.js';
 import {
 	isSchemaCurrent,
 	SCHEMA_NOT_MIGRATED_CODE,
 	SCHEMA_NOT_MIGRATED_MESSAGE
 } from '#lib/server/db/schema-status.js';
-import { UserRepository } from '#lib/server/repositories/user-repository.js';
 import { Logger } from '#lib/server/logging/logger.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -84,22 +83,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 				allowDevBypass
 			});
 
-			if (bindings.DB) {
-				const db = getDb(bindings.DB);
-				const userRepo = new UserRepository(db);
-				const user = await userRepo.upsertFromAccess(validated);
-				event.locals.user = user;
-			} else {
-				event.locals.user = {
-					id: validated.id || crypto.randomUUID(),
-					accessSub: validated.accessSub,
-					email: validated.email,
-					name: validated.name
-				};
-			}
-		} catch (err: any) {
+			event.locals.user = await resolveUser(
+				bindings.DB,
+				validated,
+				validated.id || crypto.randomUUID()
+			);
+		} catch (err: unknown) {
 			hasInvalidToken = true;
-			requestLogger.warn('Cloudflare Access token validation failed', { error: err?.message });
+			requestLogger.warn('Cloudflare Access token validation failed', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 		}
 	} else if (allowDevBypass) {
 		// Development / test fallback when running locally without active Access tunnel
@@ -111,23 +104,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const devEmail = devValue('x-dev-user-email') || 'developer@epoch.local';
 		const devName = devValue('x-dev-user-name') || 'Local Developer';
 
-		if (bindings.DB) {
-			const db = getDb(bindings.DB);
-			const userRepo = new UserRepository(db);
-			const user = await userRepo.upsertFromAccess({
-				accessSub: devSub,
-				email: devEmail,
-				name: devName
-			});
-			event.locals.user = user;
-		} else {
-			event.locals.user = {
-				id: 'dev-user-id',
-				accessSub: devSub,
-				email: devEmail,
-				name: devName
-			};
-		}
+		event.locals.user = await resolveUser(
+			bindings.DB,
+			{ accessSub: devSub, email: devEmail, name: devName },
+			'dev-user-id'
+		);
 	}
 
 	// Only `/login` sits behind Access, so every other path reaches the Worker signed out and this
