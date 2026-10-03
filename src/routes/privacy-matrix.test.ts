@@ -54,19 +54,6 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
-	[`${API}/trees/[id]/individuals/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
-	[`${API}/trees/[id]/individuals/[individualId]/+server.ts`]: {
-		kind: 'role-gated',
-		covers: ACCESS
-	},
-	[`${API}/trees/[id]/individuals/[individualId]/merge/+server.ts`]: {
-		kind: 'guarded-write',
-		covers: 'services/person-merge-service.test.ts'
-	},
-	[`${API}/trees/[id]/individuals/[individualId]/merge/impact/+server.ts`]: {
-		kind: 'guarded-write',
-		covers: 'services/person-merge-service.test.ts'
-	},
 	[`${API}/trees/[id]/invitations/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/invitations/[invitationId]/+server.ts`]: {
 		kind: 'role-gated',
@@ -99,7 +86,18 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/place-service.test.ts'
 	},
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
-	[`${API}/trees/[id]/people/[personId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
+	[`${API}/trees/[id]/people/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	// The GET is a masked read (proved by RECORDS); the PUT and DELETE are writes, which is the more
+	// dangerous half, so the entry names the write proof.
+	[`${API}/trees/[id]/people/[personId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	[`${API}/trees/[id]/people/[personId]/merge/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/person-merge-service.test.ts'
+	},
+	[`${API}/trees/[id]/people/[personId]/merge/impact/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/person-merge-service.test.ts'
+	},
 	[`${API}/trees/[id]/people/[personId]/facts/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: WRITES

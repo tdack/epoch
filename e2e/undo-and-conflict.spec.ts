@@ -73,7 +73,7 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	await expect(form).toBeVisible();
 
 	// While the form is open, someone else saves a different change to the same person.
-	const res = await request.put(`/api/trees/${api.treeId}/individuals/${ann.id}`, {
+	const res = await request.put(`/api/trees/${api.treeId}/people/${ann.id}`, {
 		data: { givenName: 'Anna', version: ann.version }
 	});
 	expect(res.ok()).toBe(true);
@@ -86,13 +86,13 @@ test('a concurrent edit opens the conflict dialog and never overwrites silently'
 	// Only the field I changed is offered for re-applying; my untouched given name is not in play.
 	await expect(conflict.getByRole('row', { name: /Surname/ })).toContainText('Archer-Bell');
 	await expect(conflict.getByRole('row', { name: /Given names/ })).toHaveCount(0);
-	const stored = await request.get(`/api/trees/${api.treeId}/individuals/${ann.id}`);
-	expect((await stored.json()).individual).toMatchObject({ givenName: 'Anna', surname: 'Archer' });
+	const stored = await request.get(`/api/trees/${api.treeId}/people/${ann.id}`);
+	expect((await stored.json()).person).toMatchObject({ givenName: 'Anna', surname: 'Archer' });
 
 	await conflict.getByRole('button', { name: 'Re-apply my changes' }).click();
 	await expect(page.getByRole('status').filter({ hasText: 'Edited' })).toBeVisible();
-	const after = await request.get(`/api/trees/${api.treeId}/individuals/${ann.id}`);
-	expect((await after.json()).individual).toMatchObject({
+	const after = await request.get(`/api/trees/${api.treeId}/people/${ann.id}`);
+	expect((await after.json()).person).toMatchObject({
 		givenName: 'Anna',
 		surname: 'Archer-Bell'
 	});

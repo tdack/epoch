@@ -43,7 +43,7 @@ export class Api {
 		surname: string | null = null,
 		extra: Record<string, unknown> = {}
 	): Promise<Person> {
-		const res = await this.request.post(`/api/trees/${this.treeId}/individuals`, {
+		const res = await this.request.post(`/api/trees/${this.treeId}/people`, {
 			data: { givenName, surname, ...extra }
 		});
 		expect(res.ok()).toBe(true);

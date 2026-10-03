@@ -128,12 +128,12 @@ export async function deleteTreeApi(treeId: string): Promise<void> {
 	await call(`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }
 
-export async function createIndividualApi(
+export async function createPersonApi(
 	treeId: string,
 	data: PersonFormData
 ): Promise<{ id: string; change: ChangeSummary | null }> {
 	const res = await call<{ individual: { id: string }; change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/individuals`,
+		`/api/trees/${treeId}/people`,
 		json('POST', data),
 		'Failed to add individual.'
 	);
@@ -141,28 +141,28 @@ export async function createIndividualApi(
 }
 
 /** `version` is the person's version when the form was opened; a newer stored version is a conflict. */
-export async function updateIndividualApi(
+export async function updatePersonApi(
 	treeId: string,
-	individualId: string,
+	personId: string,
 	data: Partial<PersonFormData>,
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/individuals/${individualId}`,
+		`/api/trees/${treeId}/people/${personId}`,
 		json('PUT', { ...data, version }),
 		'Failed to update person.'
 	);
 	return { change: res.change };
 }
 
-export async function deleteIndividualApi(
+export async function deletePersonApi(
 	treeId: string,
-	individualId: string,
+	personId: string,
 	version: number | undefined
 ): Promise<{ change: ChangeSummary | null }> {
 	const query = version === undefined ? '' : `?version=${version}`;
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/individuals/${individualId}${query}`,
+		`/api/trees/${treeId}/people/${personId}${query}`,
 		{ method: 'DELETE' },
 		'Failed to delete person'
 	);
@@ -875,7 +875,7 @@ export async function reviewPersonMergeApi(
 	body: PersonMergeBody
 ): Promise<{ review: PersonMergeReviewDto; impact: ImpactSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/individuals/${enc(survivorId)}/merge/impact`,
+		`/api/trees/${enc(treeId)}/people/${enc(survivorId)}/merge/impact`,
 		json('POST', body),
 		'Failed to review the merge'
 	);
@@ -887,7 +887,7 @@ export async function mergePeopleApi(
 	body: PersonMergeBody
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/individuals/${enc(survivorId)}/merge`,
+		`/api/trees/${enc(treeId)}/people/${enc(survivorId)}/merge`,
 		json('POST', body),
 		'Failed to merge the people'
 	);

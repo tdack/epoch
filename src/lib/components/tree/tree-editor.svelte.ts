@@ -17,8 +17,8 @@ import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import { mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 import {
 	applyRelationshipApi,
-	createIndividualApi,
-	deleteIndividualApi,
+	createPersonApi,
+	deletePersonApi,
 	fetchPersonPage,
 	isConflict,
 	mergeUnionsApi,
@@ -26,7 +26,7 @@ import {
 	previewImpactApi,
 	removeRelationshipApi,
 	undoApi,
-	updateIndividualApi,
+	updatePersonApi,
 	type ConflictError,
 	type ImpactRequest,
 	type MergeUnionsRequest,
@@ -318,7 +318,7 @@ export class TreeEditor {
 		formData: Partial<PersonFormData>,
 		version: number
 	) {
-		const { change } = await updateIndividualApi(this.treeId, personId, formData, version);
+		const { change } = await updatePersonApi(this.treeId, personId, formData, version);
 		this.isPersonModalOpen = false;
 		this.personConflict = null;
 		await this.afterChange(change, 'Person saved');
@@ -329,7 +329,7 @@ export class TreeEditor {
 		this.isSubmittingPerson = true;
 		try {
 			if (this.personModalMode === 'add') {
-				const created = await createIndividualApi(this.treeId, formData);
+				const created = await createPersonApi(this.treeId, formData);
 				this.isPersonModalOpen = false;
 				await this.afterChange(created.change, 'Person added');
 				this.options.onPersonCreated?.(created.id);
@@ -497,7 +497,7 @@ export class TreeEditor {
 			confirmLabel: 'Delete person',
 			preview: () => previewImpactApi(treeId, { kind: 'delete_person', personId: id }),
 			run: async () => {
-				const result = await deleteIndividualApi(treeId, id, person?.version);
+				const result = await deletePersonApi(treeId, id, person?.version);
 				await this.options.onPersonDeleted?.(id);
 				return result;
 			},
