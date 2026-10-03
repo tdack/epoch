@@ -21,7 +21,9 @@ import {
 	gedcomPreserved
 } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
-import type { ParsedGedcomData } from './parser';
+import type { ParsedGedcomData } from '../gedcom/parser';
+import { treeScopedId } from '../gedcom/import-preview';
+import { chunkByParamLimit } from './param-chunks';
 
 /**
  * `sealing` and `other` have no neutral type; they become `unknown` and keep the PEDI word in
@@ -72,8 +74,7 @@ export async function importNeutralModel(
 	treeId: string,
 	parsed: ParsedGedcomData
 ): Promise<void> {
-	const scoped = (xrefOrId: string) =>
-		xrefOrId.startsWith(`${treeId}:`) ? xrefOrId : `${treeId}:${xrefOrId}`;
+	const scoped = (xrefOrId: string) => treeScopedId(treeId, xrefOrId);
 	// One moment for every partnership of the file. Stored in whole seconds, a per-row default would
 	// split copies of one family across a second boundary and, with their dates tied, decide which
 	// is the "1st partnership" by the clock instead of by where they stand in the file.
@@ -150,7 +151,7 @@ export async function importNeutralModel(
 		}
 	}
 
-	for (const chunk of chunkRows(nameRows, PERSON_NAME_COLUMNS)) {
+	for (const chunk of chunkByParamLimit(nameRows, PERSON_NAME_COLUMNS)) {
 		await db.insert(personNames).values(chunk).onConflictDoNothing();
 	}
 
@@ -176,7 +177,7 @@ export async function importNeutralModel(
 			personId: scoped(personId),
 			order: index
 		}));
-		for (const chunk of chunkRows(partnerRows, 4)) {
+		for (const chunk of chunkByParamLimit(partnerRows, 4)) {
 			await db.insert(unionPartners).values(chunk).onConflictDoNothing();
 		}
 
@@ -239,14 +240,4 @@ export async function importNeutralModel(
 			})
 			.onConflictDoNothing();
 	}
-}
-
-function chunkRows<T>(rows: T[], columnsPerRow: number): T[][] {
-	const MAX_BOUND_PARAMS = 70;
-	const maxRows = Math.max(1, Math.floor(MAX_BOUND_PARAMS / columnsPerRow));
-	const chunks: T[][] = [];
-	for (let i = 0; i < rows.length; i += maxRows) {
-		chunks.push(rows.slice(i, i + maxRows));
-	}
-	return chunks;
 }
