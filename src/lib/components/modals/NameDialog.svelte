@@ -10,7 +10,7 @@
 		type NameInput,
 		type NameType
 	} from '#lib/shared/name-types.js';
-	import type { NameDto } from '#lib/server/services/person-page-service.js';
+	import type { NameDto } from '#lib/shared/person-page.js';
 	import {
 		createNameApi,
 		isConflict,

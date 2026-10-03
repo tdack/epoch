@@ -9,7 +9,7 @@
 		factTypeInfo,
 		type FactInput
 	} from '#lib/shared/fact-types.js';
-	import type { FactDto } from '#lib/server/services/person-page-service.js';
+	import type { FactDto } from '#lib/shared/person-page.js';
 	import {
 		createFactApi,
 		isConflict,

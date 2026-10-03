@@ -12,7 +12,7 @@
 import { differingRows } from '#lib/components/modals/conflict.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
-import type { RelationshipGraph } from '#lib/server/domain/relationship-graph.js';
+import type { RelationshipGraph } from '#lib/shared/relationship-graph.js';
 import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import { mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 import {

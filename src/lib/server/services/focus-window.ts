@@ -29,7 +29,8 @@ import type {
 	UnionRow
 } from '../domain/change-log';
 import { maskRows, privatePeople } from '../domain/privacy-mask';
-import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
+import { graphFromRows } from '../domain/relationship-graph';
+import { type RelationshipGraph } from '../../shared/relationship-graph';
 import { resolveStubTokens } from '../../shared/stub-tokens';
 import { selectFocusSubgraph } from '../../tree-layout/select';
 import type { FocusSelection, FocusViewOptions } from '../../tree-layout/types';

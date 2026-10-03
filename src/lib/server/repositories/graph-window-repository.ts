@@ -38,6 +38,7 @@ import type {
 	UnionRow
 } from '../domain/change-log';
 import { toImage } from './change-store';
+import { type TreeCounts } from '../../shared/graph-views';
 
 /** Ids per `IN (...)`: 80 leaves room under D1's 100-parameter cap for the tree id and filters. */
 const IDS_PER_QUERY = 80;
@@ -71,11 +72,6 @@ export interface ChangeHistoryRow {
 	/** Epoch milliseconds. */
 	createdAt: number;
 	revertsChangeId: string | null;
-}
-
-export interface TreeCounts {
-	people: number;
-	unions: number;
 }
 
 /**

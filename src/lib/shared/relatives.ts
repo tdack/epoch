@@ -9,7 +9,7 @@
  */
 
 import type { ParentChildType, UnionStatus } from './relationship-model';
-import type { RelationshipGraph } from '../server/domain/relationship-graph';
+import type { RelationshipGraph } from './relationship-graph';
 import { startSort } from './partnership-labels';
 import { stepRelativesOf, type StepRelatives } from './step-relatives';
 

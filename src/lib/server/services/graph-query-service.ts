@@ -6,33 +6,13 @@
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import type { RelationshipGraph } from '../domain/relationship-graph';
-import { GraphWindowRepository, type TreeCounts } from '../repositories/graph-window-repository';
+import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { firstVisiblePersonId, visibleCounts } from '../repositories/visibility';
-import type { SelectionStub } from '../../tree-layout/types';
 import { loadFocusWindow, type FocusWindowOptions } from './focus-window';
 import { requireTreeScope, type ViewerScope } from './tree-access';
-
-/** What `GET /graph?focus=` answers. */
-export interface FocusGraphDto {
-	focusPersonId: string;
-	/** Everything the view can draw, plus the neighbours dialogs need; see `focus-window.ts`. */
-	graph: RelationshipGraph;
-	/** People the view draws from this graph; the rest of `graph.people` are named, not drawn. */
-	drawnPersonIds: string[];
-	drawnUnionIds: string[];
-	/** The "+N" stubs, with the number of people each stands for. */
-	stubs: SelectionStub[];
-}
-
-export interface TreeSummaryDto {
-	tree: { id: string; name: string; description: string | null; version: number };
-	counts: TreeCounts;
-	/** The person the tree opens on when nobody has chosen one; null for an empty tree. */
-	defaultFocusPersonId: string | null;
-}
+import { type FocusGraphDto, type TreeSummaryDto } from '../../shared/graph-views';
 
 export class GraphQueryService {
 	private repo: GraphWindowRepository;

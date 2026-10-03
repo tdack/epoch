@@ -7,21 +7,13 @@
 import { PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
 import type { ViewerScope } from './tree-access';
 import type { EventRow, IndividualRow, PersonNameRow } from '../domain/change-log';
-import type { RelationshipGraph, RelationshipGraphPerson } from '../domain/relationship-graph';
+import type { RelationshipGraph, RelationshipGraphPerson } from '../../shared/relationship-graph';
 import type { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { visibleAmong } from '../repositories/visibility';
 import { displayNameWith } from '../../shared/name-types';
-import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
-import { isSex, type Sex } from '../../shared/sex';
-
-export interface PersonSummaryDto extends PrivacyFlag {
-	id: string;
-	displayName: string;
-	sex: Sex | null;
-	birthDate: string | null;
-	deathDate: string | null;
-	isDeceased: boolean;
-}
+import { privacyOf } from '../../shared/privacy';
+import type { PersonSummaryDto } from '../../shared/person-page';
+import { isSex } from '../../shared/sex';
 
 /** Birth and death text of the first such fact, in the order the graph reads them. */
 function vitalsOf(rows: EventRow[]): {

@@ -30,12 +30,12 @@ import {
 	withoutNoOps,
 	type AffectedRecordRef,
 	type LoggedChange,
-	type RecordChange,
 	type RecordTable,
 	type RowImage,
 	type RowOp,
 	type TreeRows
 } from '../domain/change-log';
+import { type RecordChange } from '../../shared/impact';
 import { ConcurrencyConflictError } from '../domain/errors';
 import { placeKey } from '../../shared/places';
 import { placeIdOfEvent } from './place-repository';

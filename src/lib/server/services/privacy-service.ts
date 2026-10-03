@@ -18,11 +18,7 @@ import {
 } from '../../shared/privacy';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import { requireTreeAction } from './tree-access';
-
-export interface PrivacySettingsDto {
-	maxAliveYears: number;
-	shouldShowPrivateStructure: boolean;
-}
+import { type PrivacySettingsDto } from '../../shared/privacy';
 
 export class PrivacyService {
 	private runner: MutationRunner;

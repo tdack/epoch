@@ -7,7 +7,7 @@ import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 import { partnerSetKey } from '#lib/shared/union-merge.js';
 
 export { mergeableUnionIds } from '#lib/shared/union-merge.js';
-import type { RelationshipGraphUnion } from '#lib/server/domain/relationship-graph.js';
+import type { RelationshipGraphUnion } from '#lib/shared/relationship-graph.js';
 
 export interface MergeCandidate {
 	id: string;

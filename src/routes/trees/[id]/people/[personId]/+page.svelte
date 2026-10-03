@@ -21,11 +21,7 @@
 	import { hasMinimumRole, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PersonPrivacy } from '#lib/shared/privacy.js';
 	import { sexLabel } from '#lib/shared/sex.js';
-	import type {
-		FactDto,
-		NameDto,
-		PersonSummaryDto
-	} from '#lib/server/services/person-page-service.js';
+	import type { FactDto, NameDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 	import {
 		undoApi,
 		deleteFactApi,

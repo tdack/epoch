@@ -20,7 +20,8 @@ import {
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
 import { GenealogyService } from './genealogy-service';
-import { PersonPageService, type PersonPageDto } from './person-page-service';
+import { PersonPageService } from './person-page-service';
+import { type PersonPageDto } from '../../shared/person-page';
 
 let t: TestDatabase;
 let actor: TestActor;

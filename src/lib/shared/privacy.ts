@@ -21,3 +21,8 @@ export type PersonPrivacy = (typeof PERSON_PRIVACY_VALUES)[number];
 /** Bounds on a tree's threshold: below this living people would be shown; above it nothing is ever old enough. */
 export const MIN_MAX_ALIVE_YEARS = 50;
 export const MAX_MAX_ALIVE_YEARS = 150;
+
+export interface PrivacySettingsDto {
+	maxAliveYears: number;
+	shouldShowPrivateStructure: boolean;
+}

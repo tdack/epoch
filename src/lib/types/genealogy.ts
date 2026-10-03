@@ -35,13 +35,13 @@ export interface ImportPreviewData {
 	duplicates: DuplicateFamilyReport;
 }
 
-export type { PossibleDuplicateGroup } from '#lib/server/gedcom/duplicate-families.js';
-import type { DuplicateFamilyReport } from '#lib/server/gedcom/duplicate-families.js';
-export type { ImpactSummary } from '#lib/server/domain/impact.js';
+export type { PossibleDuplicateGroup } from '#lib/shared/duplicate-families.js';
+import type { DuplicateFamilyReport } from '#lib/shared/duplicate-families.js';
+export type { ImpactSummary } from '#lib/shared/impact.js';
 export type { UnionEventInput, UnionEventType } from '#lib/shared/union-events.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { Sex } from '#lib/shared/sex.js';
-import type { ImpactSummary } from '#lib/server/domain/impact.js';
+import type { ImpactSummary } from '#lib/shared/impact.js';
 import type { EndedUnionStatus, UnionEventType } from '#lib/shared/union-events.js';
 
 export interface PersonFormData {
@@ -156,10 +156,7 @@ export interface ChangeSummary {
 }
 
 // The relationship graph types are shared with the server domain (pure, no I/O).
-export type {
-	RelationshipGraph,
-	RelationshipGraphUnion
-} from '#lib/server/domain/relationship-graph.js';
+export type { RelationshipGraph, RelationshipGraphUnion } from '#lib/shared/relationship-graph.js';
 
 export interface PeopleSearchResult {
 	id: string;

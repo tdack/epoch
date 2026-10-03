@@ -1,6 +1,6 @@
 /** Grouping of change records for a list in a dialog, in the order a person reads them. */
 
-import type { RecordChange } from '../server/domain/change-log';
+import type { RecordChange } from './impact';
 
 export const ENTITY_ORDER = [
 	'person',

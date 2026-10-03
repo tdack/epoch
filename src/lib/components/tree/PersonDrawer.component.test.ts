@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import type { PersonPageDto, PersonSummaryDto } from '#lib/server/services/person-page-service.js';
+import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 import PersonDrawer from './PersonDrawer.svelte';
 
 let component: Record<string, unknown> | null = null;

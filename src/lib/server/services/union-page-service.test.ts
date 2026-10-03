@@ -5,7 +5,8 @@ import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
-import { CHRONOLOGY_KINDS, UnionPageService } from './union-page-service';
+import { UnionPageService } from './union-page-service';
+import { CHRONOLOGY_KINDS } from '../../shared/union-page';
 import { UNION_WARNING_CODES } from '../../shared/union-warnings';
 import {
 	createTestDatabase,

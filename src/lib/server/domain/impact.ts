@@ -4,46 +4,17 @@
  * what the save does.
  */
 
-import { describeOps, type RecordChange, type RowOp, type TreeRows } from './change-log';
+import { describeOps, type RowOp, type TreeRows } from './change-log';
+import {
+	PERSON_ROLES_IN_IMPACT,
+	type ImpactMove,
+	type ImpactPersonRole,
+	type ImpactSummary
+} from '../../shared/impact';
 import { ENTITY_ORDER } from '../../shared/impact-groups';
 import { makeLabeler } from './tree-labels';
 
 import { displayNameOf, personName } from './tree-ops';
-
-const PERSON_ROLES_IN_IMPACT = {
-	DELETED: 'deleted',
-	CREATED: 'created',
-	AFFECTED: 'affected'
-} as const;
-type ImpactPersonRole = (typeof PERSON_ROLES_IN_IMPACT)[keyof typeof PERSON_ROLES_IN_IMPACT];
-
-interface ImpactPerson {
-	id: string;
-	name: string;
-	role: ImpactPersonRole;
-}
-
-/** A record that stays and is regrouped under another partnership: shown as a move, not an edit. */
-interface ImpactMove {
-	entityType: 'link' | 'event';
-	entityId: string;
-	label: string;
-	from: string;
-	to: string;
-}
-
-export interface ImpactSummary {
-	/** One line: what is being done. */
-	headline: string;
-	/** Every record written, in the order a person would read them. */
-	records: RecordChange[];
-	/** Links and events that change partnership, so a merge reads "moved from X to Y". */
-	moves: ImpactMove[];
-	/** People deleted or created by the change, and people whose relationships or events change. */
-	people: ImpactPerson[];
-	/** True when the change deletes any record. */
-	isDestructive: boolean;
-}
 
 /** Every person a row belongs to or points at; a partnership belongs to its partners. */
 function peopleOf(op: RowOp, partnersOf: (unionId: string) => string[]): string[] {

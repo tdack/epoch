@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partnershipLabels } from '#lib/shared/partnership-labels.js';
-import type { RelationshipGraphUnion } from '#lib/server/domain/relationship-graph.js';
+import type { RelationshipGraphUnion } from '#lib/shared/relationship-graph.js';
 import { defaultSurvivor, mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 
 const union = (

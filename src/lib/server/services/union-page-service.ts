@@ -10,80 +10,30 @@ import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventDateValue } from '../domain/date-columns';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
-import type { RelationshipGraph } from '../domain/relationship-graph';
+import type { RelationshipGraph } from '../../shared/relationship-graph';
 import { eventLabel } from '../domain/tree-labels';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
-import { partnershipLabels, type PartnershipLabel } from '../../shared/partnership-labels';
-import { privacyOf, type PrivacyFlag } from '../../shared/privacy';
+import { partnershipLabels } from '../../shared/partnership-labels';
+import { privacyOf } from '../../shared/privacy';
 import { partnerSetKey } from '../../shared/union-merge';
 import { isUnionEventType } from '../../shared/union-events';
-import { boundsOf, unionWarnings, type UnionWarning } from '../../shared/union-warnings';
+import { boundsOf, unionWarnings } from '../../shared/union-warnings';
 import { loadFocusWindow } from './focus-window';
-import { RECENT_CHANGES_SHOWN, type ChangeEntryDto } from './person-page-service';
-import { personSummaries, type PersonSummaryDto } from './person-summaries';
+import { RECENT_CHANGES_SHOWN } from './person-page-service';
+import { personSummaries } from './person-summaries';
+import { type PersonSummaryDto } from '../../shared/person-page';
 import { requireTreeScope, type ViewerScope } from './tree-access';
-
-interface UnionEventDto extends PrivacyFlag {
-	id: string;
-	type: string;
-	label: string;
-	dateText: string | null;
-	sortStart: string | null;
-	place: string | null;
-	/** The note or imported description on the event. */
-	notes: string | null;
-	/** The union editor can change events of this type; others (a census, say) are shown as recorded. */
-	isEditable: boolean;
-	version: number;
-}
-
-export const CHRONOLOGY_KINDS = {
-	UNION_EVENT: 'union_event',
-	PARTNER_BIRTH: 'partner_birth',
-	PARTNER_DEATH: 'partner_death',
-	CHILD_BIRTH: 'child_birth'
-} as const;
-type ChronologyKind = (typeof CHRONOLOGY_KINDS)[keyof typeof CHRONOLOGY_KINDS];
-
-interface ChronologyEntryDto {
-	kind: ChronologyKind;
-	label: string;
-	dateText: string | null;
-	sortStart: string | null;
-	/** The person the entry is about, or null for the partnership's own events. */
-	personId: string | null;
-}
-
-interface UnionChildDto {
-	person: PersonSummaryDto;
-	/** One entry per parent link, so a child adopted by one partner reads as such. */
-	links: Array<{ parentId: string; parentName: string; type: ParentChildType }>;
-}
-
-export interface UnionPageDto extends PrivacyFlag {
-	union: {
-		id: string;
-		version: number;
-		status: UnionStatus;
-		label: PartnershipLabel | null;
-		/** XREFs of partnerships merged into this one (ADR-008). */
-		xrefAliases: string[];
-	};
-	partners: PersonSummaryDto[];
-	events: UnionEventDto[];
-	children: UnionChildDto[];
-	/** Events and vitals in date order, undated last. */
-	chronology: ChronologyEntryDto[];
-	warnings: UnionWarning[];
-	/** Other partnerships with exactly the same partners. */
-	twins: Array<{ unionId: string; label: PartnershipLabel | null }>;
-	changes: { recent: ChangeEntryDto[]; createdAt: number | null; updatedAt: number | null };
-	/** The window around the first partner, for the editing dialogs. */
-	graph: RelationshipGraph;
-}
+import {
+	type UnionPageDto,
+	type UnionEventDto,
+	type UnionChildDto,
+	type ChronologyKind,
+	type ChronologyEntryDto,
+	CHRONOLOGY_KINDS
+} from '../../shared/union-page';
 
 const EMPTY_GRAPH: RelationshipGraph = { people: [], unions: [], parentChild: [] };
 

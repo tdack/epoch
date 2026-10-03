@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { RecordChange, TreeRows } from '../domain/change-log';
+import type { TreeRows } from '../domain/change-log';
+import type { RecordChange } from '../../shared/impact';
 import {
 	addTestMember,
 	createTestDatabase,

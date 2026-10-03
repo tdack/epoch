@@ -9,7 +9,7 @@ import type {
 	RelationshipGraph,
 	RelationshipGraphPerson,
 	RelationshipGraphUnion
-} from '#lib/server/domain/relationship-graph.js';
+} from '#lib/shared/relationship-graph.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 
 export type { RelationshipGraph, RelationshipGraphPerson, RelationshipGraphUnion, ParentChildType };

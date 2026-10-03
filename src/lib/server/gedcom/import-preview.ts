@@ -5,7 +5,8 @@
  */
 
 import type { ParsedGedcomData } from './parser';
-import { detectDuplicateFamilies, type DuplicateFamilyReport } from './duplicate-families';
+import { detectDuplicateFamilies } from './duplicate-families';
+import { type DuplicateFamilyReport } from '../../shared/duplicate-families';
 
 export type ImportMode = 'replace' | 'merge';
 

@@ -15,12 +15,13 @@ import {
 	describeOps,
 	opKind,
 	withoutNoOps,
-	type RecordChange,
 	type RowOp,
 	type TreeRows
 } from '../domain/change-log';
+import { type RecordChange } from '../../shared/impact';
 import { UnauthorizedError } from '../domain/errors';
-import { describeImpact, type ImpactSummary } from '../domain/impact';
+import { describeImpact } from '../domain/impact';
+import { type ImpactSummary } from '../../shared/impact';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { makeLabeler } from '../domain/tree-labels';

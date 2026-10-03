@@ -9,7 +9,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { individuals, places as placeTable, unionPartners } from '../db/schema';
 import { describeCommand } from '../domain/command-summary';
-import type { ImpactSummary } from '../domain/impact';
+import type { ImpactSummary } from '../../shared/impact';
 import type { PlaceCommand } from '../domain/place-ops';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';

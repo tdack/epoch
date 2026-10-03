@@ -14,7 +14,7 @@ import { describeCommand } from '../domain/command-summary';
 import type { RowOp, TreeRows } from '../domain/change-log';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import type { ImpactSummary } from '../domain/impact';
+import type { ImpactSummary } from '../../shared/impact';
 import {
 	buildPersonMergeOps,
 	personMergeConflicts,

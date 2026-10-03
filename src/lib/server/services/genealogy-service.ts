@@ -6,7 +6,7 @@ import { requireTreeAction } from './tree-access';
 import { NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { describeCommand } from '../domain/command-summary';
-import type { ImpactSummary } from '../domain/impact';
+import type { ImpactSummary } from '../../shared/impact';
 import { MutationRunner, type MutationClock } from './mutation-runner';
 import type { Sex } from '../../shared/sex';
 

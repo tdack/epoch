@@ -1,0 +1,165 @@
+/**
+ * What the person page, the drawer and the record pages read about someone, as the API answers it.
+ * The services that build these stay on the server; only the shapes live here.
+ */
+
+import type { FactConflict } from './fact-timeline';
+import type { FactKind } from './fact-types';
+import type { NameType } from './name-types';
+import type { PartnershipLabel } from './partnership-labels';
+import type { PersonPrivacy, PrivacyFlag } from './privacy';
+import type { GraphUnionEvent, RelationshipGraph } from './relationship-graph';
+import type { ParentChildType, UnionStatus } from './relationship-model';
+import type { Sex } from './sex';
+
+export interface PersonSummaryDto extends PrivacyFlag {
+	id: string;
+	displayName: string;
+	sex: Sex | null;
+	birthDate: string | null;
+	deathDate: string | null;
+	isDeceased: boolean;
+}
+
+export interface FactDto extends PrivacyFlag {
+	id: string;
+	type: string;
+	label: string;
+	kind: FactKind;
+	/** As typed or imported; never rewritten. */
+	dateText: string | null;
+	/** Inclusive lower bound, for ordering; null when undated or not a date. */
+	sortStart: string | null;
+	isApproximate: boolean;
+	place: string | null;
+	value: string | null;
+	cause: string | null;
+	age: string | null;
+	/** The note, or the imported description on a fact nobody has edited since. */
+	notes: string | null;
+	/** True when `notes` is a legacy imported description (its real role was never recorded). */
+	isLegacyNote: boolean;
+	sortOrder: number;
+	/** Send this back when editing; a newer stored version is a conflict. */
+	version: number;
+	/** Set when another fact of the same type disagrees with, or repeats, this one. */
+	conflict: FactConflict | null;
+}
+
+export interface NameDto extends PrivacyFlag {
+	/** Null for the name derived from the person's own name fields when none is stored. */
+	id: string | null;
+	/** Null with `id`: a derived name has nothing to conflict with. */
+	version: number | null;
+	type: NameType;
+	/** The word of a free-text type, when the type is `other`. */
+	gedcomType: string | null;
+	givenName: string | null;
+	surname: string | null;
+	prefix: string | null;
+	suffix: string | null;
+	nickname: string | null;
+	surnamePrefix: string | null;
+	/** When the name came into use, as typed; the partnership it came from, if recorded. */
+	dateText: string | null;
+	unionId: string | null;
+	displayName: string;
+	isPreferred: boolean;
+}
+
+interface ParentFamilyDto {
+	unionId: string | null;
+	label: PartnershipLabel | null;
+	parents: Array<{ person: PersonSummaryDto; type: ParentChildType }>;
+}
+
+export interface PartnershipDto extends PrivacyFlag {
+	unionId: string;
+	version: number;
+	status: UnionStatus;
+	label: PartnershipLabel | null;
+	/** The person is a widow(er) in this partnership: it has not ended and a partner has died. */
+	isWidowed: boolean;
+	/** Another partnership has exactly the same partners, so the two can be merged. */
+	isMergeable: boolean;
+	partners: PersonSummaryDto[];
+	children: Array<{ person: PersonSummaryDto; types: ParentChildType[] }>;
+	events: GraphUnionEvent[];
+}
+
+interface MediaDto extends PrivacyFlag {
+	id: string;
+	title: string | null;
+	mimeType: string;
+	r2ObjectKey: string;
+}
+
+export interface ChangeEntryDto {
+	id: string;
+	kind: string;
+	summary: string;
+	actorName: string | null;
+	/** Epoch milliseconds. */
+	createdAt: number;
+	isUndo: boolean;
+}
+
+/** A section whose content arrives in a later phase; present so the page and its data have a shape. */
+export interface PlaceholderDto {
+	isSupported: false;
+	items: [];
+}
+
+interface PersonPrivacyDto {
+	/** The manager's override: `auto` follows the dates. */
+	setting: PersonPrivacy;
+	/** What the dates alone say, so a manager sees why someone is hidden from viewers. */
+	isLikelyLiving: boolean;
+}
+
+export interface PersonPageDto extends PrivacyFlag {
+	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
+	privacy: PersonPrivacyDto | null;
+	person: {
+		id: string;
+		xrefId: string | null;
+		version: number;
+		sex: Sex;
+		givenName: string | null;
+		surname: string | null;
+		displayName: string;
+		isDeceased: boolean;
+	};
+	names: NameDto[];
+	vitals: {
+		birth: FactDto | null;
+		death: FactDto | null;
+		lifespan: string | null;
+		hasConflict: boolean;
+	};
+	/** Every fact, in timeline order. */
+	facts: FactDto[];
+	parentFamilies: ParentFamilyDto[];
+	partnerships: PartnershipDto[];
+	/** Children recorded with no partnership. */
+	directChildren: Array<{ person: PersonSummaryDto; types: ParentChildType[] }>;
+	siblings: { full: PersonSummaryDto[]; half: PersonSummaryDto[] };
+	stepParents: Array<{ person: PersonSummaryDto; unionId: string }>;
+	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
+	media: MediaDto[];
+	notes: PlaceholderDto;
+	evidence: PlaceholderDto;
+	changes: {
+		/**
+		 * Changes that wrote the person or a fact they still have. Changes to a fact that was later
+		 * removed are not listed: the log finds a change by the record it wrote, and that record is
+		 * gone. Phase 4's change view reads the log directly and has no such gap.
+		 */
+		recent: ChangeEntryDto[];
+		/** Epoch milliseconds the person's row was created and last written. */
+		createdAt: number | null;
+		updatedAt: number | null;
+	};
+	/** The window the relatives came from, for the editing dialogs (partnerships, versions, labels). */
+	graph: RelationshipGraph;
+}

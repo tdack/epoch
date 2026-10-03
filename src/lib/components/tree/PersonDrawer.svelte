@@ -15,9 +15,9 @@
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { RelationshipKind } from '#lib/types/genealogy.js';
-	import type { PersonSummaryDto } from '#lib/server/services/person-page-service.js';
+	import type { PersonSummaryDto } from '#lib/shared/person-page.js';
 	import { sexLabel } from '#lib/shared/sex.js';
-	import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
+	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
 		/** The person's page data; null while it loads. */

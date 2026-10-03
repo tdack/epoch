@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ValidationError } from '../domain/errors';
-import type { RelationshipGraph } from '../domain/relationship-graph';
+import type { RelationshipGraph } from '../../shared/relationship-graph';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
-import type { RecordChange } from '../domain/change-log';
+import type { RecordChange } from '../../shared/impact';
 import {
 	addTestMember,
 	createTestDatabase,

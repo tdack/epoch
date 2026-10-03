@@ -18,34 +18,9 @@ import type { TreeRole } from '../../shared/roles';
 import { requireTreeAction } from './tree-access';
 import { MemberRepository } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { type InvitationDto, type MemberDto, type MembersDto } from '../../shared/members';
 
 export const INVITATION_TTL_DAYS = 14;
-
-export interface MemberDto {
-	userId: string;
-	email: string;
-	name: string | null;
-	role: TreeRole;
-	version: number;
-	isYou: boolean;
-	/** Whether the caller may change or remove them: lets the screen offer only what would succeed. */
-	canManage: boolean;
-}
-
-export interface InvitationDto {
-	id: string;
-	email: string;
-	role: TreeRole;
-	expiresAt: string;
-	isExpired: boolean;
-}
-
-export interface MembersDto {
-	members: MemberDto[];
-	invitations: InvitationDto[];
-	/** The roles the caller may give. */
-	grantableRoles: TreeRole[];
-}
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

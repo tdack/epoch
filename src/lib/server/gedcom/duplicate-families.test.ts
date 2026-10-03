@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import dirty from '../../../../docs/The_Simpsons.ged?raw';
 import clean from '../../../../docs/The_Simpsons_clean.ged?raw';
-import {
-	detectDuplicateFamilies,
-	mergeExactDuplicateFamilies,
-	POSSIBLE_DUPLICATE_REASONS
-} from './duplicate-families';
+import { detectDuplicateFamilies, mergeExactDuplicateFamilies } from './duplicate-families';
+import { POSSIBLE_DUPLICATE_REASONS } from '../../shared/duplicate-families';
 import { parseGedcom } from './parser';
 
 const fam = (id: string, body: string) => `0 ${id} FAM\n${body}`;

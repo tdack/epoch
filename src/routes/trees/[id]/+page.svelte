@@ -17,7 +17,7 @@
 		type HistoryKind,
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
-	import type { PersonPageDto } from '#lib/server/services/person-page-service.js';
+	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';

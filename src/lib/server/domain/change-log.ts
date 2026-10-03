@@ -18,6 +18,13 @@ import type {
 	unionPartners,
 	unions
 } from '../db/schema';
+import {
+	RECORD_ACTIONS,
+	type EntityType,
+	type FieldChange,
+	type RecordAction,
+	type RecordChange
+} from '../../shared/impact';
 
 /** Timestamps become epoch milliseconds so an image survives JSON. */
 type Imaged<T> = {
@@ -77,8 +84,7 @@ const ENTITY_TYPES = {
 	parent_child: 'link',
 	events: 'event',
 	media_items: 'media'
-} as const satisfies Record<RecordTable, string>;
-type EntityType = (typeof ENTITY_TYPES)[RecordTable];
+} as const satisfies Record<RecordTable, EntityType>;
 
 export type RowImage = Record<string, unknown>;
 
@@ -153,29 +159,6 @@ export function versionOf(image: RowImage | null): number | null {
 }
 
 // ---- What a change did, in words ----
-
-const RECORD_ACTIONS = {
-	CREATED: 'created',
-	UPDATED: 'updated',
-	DELETED: 'deleted'
-} as const;
-type RecordAction = (typeof RECORD_ACTIONS)[keyof typeof RECORD_ACTIONS];
-
-interface FieldChange {
-	field: string;
-	before: unknown;
-	after: unknown;
-}
-
-/** One record's change, in terms a person can read: the summary stored in `change_log.changes_json`. */
-export interface RecordChange {
-	entityType: EntityType;
-	entityId: string;
-	label: string;
-	action: RecordAction;
-	/** Only for updates: the fields whose value differs. */
-	fields: FieldChange[];
-}
 
 const ACTIONS: Record<OpKind, RecordAction> = {
 	create: RECORD_ACTIONS.CREATED,

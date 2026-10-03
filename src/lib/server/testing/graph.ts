@@ -1,7 +1,8 @@
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
 import { maskForScope } from '../domain/privacy-mask';
-import { graphFromRows, type RelationshipGraph } from '../domain/relationship-graph';
+import { graphFromRows } from '../domain/relationship-graph';
+import { type RelationshipGraph } from '../../shared/relationship-graph';
 import { MutationRunner } from '../services/mutation-runner';
 
 /**

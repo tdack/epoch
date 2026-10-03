@@ -10,7 +10,8 @@ import { searchWords } from '../../shared/search';
 import { pastTense, describeCommand } from '../domain/command-summary';
 import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import { describeImpact, type ImpactSummary } from '../domain/impact';
+import { describeImpact } from '../domain/impact';
+import { type ImpactSummary } from '../../shared/impact';
 import {
 	planRelationshipCommand,
 	type RelationshipCommand,
