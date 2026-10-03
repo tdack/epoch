@@ -10,6 +10,7 @@
 import { factKey, partnerSetKey } from '../../shared/union-merge';
 import {
 	mergeCitations,
+	mergeNoteLinks,
 	type ParsedEvent,
 	type ParsedFamily,
 	type ParsedGedcomData
@@ -182,26 +183,30 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 		const events = new Map<string, ParsedEvent>();
 		const aliases = new Set<string>(survivor.aliases ?? []);
 		let familyCitations = survivor.citations;
+		let familyNotes = survivor.notes;
 		for (const fam of [survivor, ...cluster.filter((f) => f !== survivor)]) {
 			// What a repeated record cites is evidence, and is kept on the record that absorbs it.
 			familyCitations = mergeCitations(familyCitations, fam.citations);
+			familyNotes = mergeNoteLinks(familyNotes, fam.notes);
 			for (const child of fam.children) {
 				const kept = children.get(child.childId);
 				if (!kept) children.set(child.childId, child);
-				else if (child.citations)
+				else if (child.citations || child.notes)
 					children.set(child.childId, {
 						...kept,
-						citations: mergeCitations(kept.citations ?? [], child.citations)
+						citations: mergeCitations(kept.citations ?? [], child.citations ?? []),
+						notes: mergeNoteLinks(kept.notes ?? [], child.notes ?? [])
 					});
 			}
 			for (const event of fam.events) {
 				const key = factsOf([event])[0];
 				const kept = events.get(key);
 				if (!kept) events.set(key, event);
-				else if (event.citations)
+				else if (event.citations || event.noteLinks)
 					events.set(key, {
 						...kept,
-						citations: mergeCitations(kept.citations ?? [], event.citations)
+						citations: mergeCitations(kept.citations ?? [], event.citations ?? []),
+						noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? [])
 					});
 			}
 			if (fam !== survivor) {
@@ -215,6 +220,7 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 			children: [...children.values()],
 			events: [...events.values()],
 			citations: familyCitations,
+			notes: familyNotes,
 			...(aliases.size > 0 ? { aliases: [...aliases] } : {})
 		});
 	}
@@ -259,10 +265,11 @@ export function foldIntoExistingAliases(
 		for (const child of fam.children) {
 			const kept = children.get(child.childId);
 			if (!kept) children.set(child.childId, child);
-			else if (child.citations)
+			else if (child.citations || child.notes)
 				children.set(child.childId, {
 					...kept,
-					citations: mergeCitations(kept.citations ?? [], child.citations)
+					citations: mergeCitations(kept.citations ?? [], child.citations ?? []),
+					notes: mergeNoteLinks(kept.notes ?? [], child.notes ?? [])
 				});
 		}
 		const events = new Map(existing.events.map((e) => [factsOf([e])[0], e] as const));
@@ -270,10 +277,11 @@ export function foldIntoExistingAliases(
 			const key = factsOf([event])[0];
 			const kept = events.get(key);
 			if (!kept) events.set(key, event);
-			else if (event.citations)
+			else if (event.citations || event.noteLinks)
 				events.set(key, {
 					...kept,
-					citations: mergeCitations(kept.citations ?? [], event.citations)
+					citations: mergeCitations(kept.citations ?? [], event.citations ?? []),
+					noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? [])
 				});
 		}
 		families.set(target, {
@@ -282,7 +290,8 @@ export function foldIntoExistingAliases(
 			wifeId: existing.wifeId ?? fam.wifeId,
 			children: [...children.values()],
 			events: [...events.values()],
-			citations: mergeCitations(existing.citations, fam.citations)
+			citations: mergeCitations(existing.citations, fam.citations),
+			notes: mergeNoteLinks(existing.notes, fam.notes)
 		});
 	}
 

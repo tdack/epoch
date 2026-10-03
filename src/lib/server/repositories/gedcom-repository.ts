@@ -10,6 +10,8 @@ import {
 	events,
 	gedcomPreserved,
 	individuals,
+	noteAttachments,
+	notes,
 	parentChild,
 	personNames,
 	places,
@@ -37,6 +39,13 @@ import {
 	recordTargets,
 	type CitationTarget
 } from './gedcom-evidence-writer';
+import {
+	importNoteAttachments,
+	importSharedNotes,
+	noteRecordTargets,
+	type NoteTarget
+} from './gedcom-note-writer';
+import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { importNeutralModel } from './gedcom-neutral-writer';
 import { chunkByParamLimit } from './param-chunks';
 import { pointFactsAtPlaces } from './place-repository';
@@ -122,8 +131,11 @@ export class GedcomRepository {
 				updatedAt: new Date()
 			});
 		} else if (mode === 'replace') {
-			// Wipe all existing tree data before re-import. Citations first: they point at sources, and the
-			// links between sources and repositories go with their source.
+			// Wipe all existing tree data before re-import. Notes first, then citations: attachments point
+			// at shared notes and citations at sources, and the links between sources and repositories go
+			// with their source.
+			await db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId));
+			await db.delete(notes).where(eq(notes.treeId, treeId));
 			await db.delete(citations).where(eq(citations.treeId, treeId));
 			await db.delete(sources).where(eq(sources.treeId, treeId));
 			await db.delete(repositories).where(eq(repositories.treeId, treeId));
@@ -162,20 +174,22 @@ export class GedcomRepository {
 		// This is now the single source of truth; the legacy `families`/`family_children`
 		// tables have been expunged.
 		const neutralTargets = await importNeutralModel(db, treeId, parsed);
-		const sourceOf = await importRecords(db, treeId, parsed);
-		const targets: CitationTarget[] = [
-			...recordTargets(parsed, (xref) => treeScopedId(treeId, xref)),
-			...neutralTargets
-		];
+		const { sourceOf, noteTargets: recordNoteTargets } = await importRecords(db, treeId, parsed);
+		const noteOf = await importSharedNotes(db, treeId, parsed);
+		const scoped = (xref: string) => treeScopedId(treeId, xref);
+		const targets: CitationTarget[] = [...recordTargets(parsed, scoped), ...neutralTargets];
+		const noteTargets: NoteTarget[] = [...noteRecordTargets(parsed, scoped), ...recordNoteTargets];
 
 		const eventValues: EventValues[] = [];
 		// What each new event cites, by the id it is about to be given.
 		const eventCitations = new Map<string, ParsedCitation[]>();
+		const eventNotes = new Map<string, ParsedNoteLink[]>();
 		for (const ind of parsed.individuals) {
 			const scopedIndId = treeScopedId(treeId, ind.id);
 			for (const ev of ind.events) {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
+				eventNotes.set(id, ev.noteLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -200,6 +214,7 @@ export class GedcomRepository {
 			for (const ev of fam.events) {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
+				eventNotes.set(id, ev.noteLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -236,7 +251,8 @@ export class GedcomRepository {
 					targets.push({
 						kind: CITATION_SUBJECT_KINDS.EVENT,
 						id: sameFactId,
-						citations: eventCitations.get(ev.id!) ?? []
+						citations: eventCitations.get(ev.id!) ?? [],
+						notes: eventNotes.get(ev.id!) ?? []
 					});
 					continue;
 				}
@@ -250,7 +266,8 @@ export class GedcomRepository {
 			targets.push({
 				kind: CITATION_SUBJECT_KINDS.EVENT,
 				id: ev.id!,
-				citations: eventCitations.get(ev.id!) ?? []
+				citations: eventCitations.get(ev.id!) ?? [],
+				notes: eventNotes.get(ev.id!) ?? []
 			});
 		}
 
@@ -261,7 +278,17 @@ export class GedcomRepository {
 			}
 			await db.batch(pointFactsAtPlaces(db, treeId));
 		}
-		await importCitations(db, treeId, targets, sourceOf);
+		const citationNoteTargets = await importCitations(db, treeId, targets, sourceOf);
+		await importNoteAttachments(
+			db,
+			treeId,
+			[
+				...noteTargets,
+				...citationNoteTargets,
+				...targets.map((t) => ({ kind: t.kind, id: t.id, notes: t.notes ?? [] }))
+			],
+			noteOf
+		);
 
 		return {
 			individualsCount: indValues.length,
@@ -335,6 +362,18 @@ export class GedcomRepository {
 			.where(eq(citations.treeId, treeId))
 			.orderBy(sql`${citations}.rowid`)
 			.all();
+		const treeNotes = await db
+			.select()
+			.from(notes)
+			.where(eq(notes.treeId, treeId))
+			.orderBy(sql`${notes}.rowid`)
+			.all();
+		const treeNoteAttachments = await db
+			.select()
+			.from(noteAttachments)
+			.where(eq(noteAttachments.treeId, treeId))
+			.orderBy(sql`${noteAttachments}.rowid`)
+			.all();
 		return {
 			tree,
 			individuals: treeInds,
@@ -347,7 +386,9 @@ export class GedcomRepository {
 			sources: treeSources,
 			repositories: treeRepositories,
 			sourceRepositories: treeSourceLinks,
-			citations: treeCitations
+			citations: treeCitations,
+			notes: treeNotes,
+			noteAttachments: treeNoteAttachments
 		};
 	}
 }

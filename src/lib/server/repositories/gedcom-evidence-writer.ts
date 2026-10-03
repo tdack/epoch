@@ -13,6 +13,9 @@ import { citations, repositories, sourceRepositories, sources } from '../db/sche
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
 import { treeScopedId } from '../gedcom/import-preview';
 import type { ParsedCitation, ParsedGedcomData } from '../gedcom/parser';
+import type { ParsedNoteLink } from '../gedcom/note-parse';
+import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
+import type { NoteTarget } from './gedcom-note-writer';
 import {
 	citationRow,
 	repositoryRow,
@@ -33,16 +36,22 @@ export interface CitationTarget {
 	kind: CitationSubjectKind;
 	id: string;
 	citations: ParsedCitation[];
+	/** The notes on the same subject; read by `importNoteAttachments`, not here. */
+	notes?: ParsedNoteLink[];
 }
 
 type SourceLookup = (pointer: string | undefined) => string | null;
 
-/** Insert the file's repositories and sources; answers how a pointer to a source resolves. */
+/**
+ * Insert the file's repositories and sources. Answers how a pointer to a source resolves, and the
+ * notes of every source and repository the file has, against the stored row that holds each (a
+ * source a merge-mode import already had is the row its notes join).
+ */
 export async function importRecords(
 	db: DbClient,
 	treeId: string,
 	parsed: ParsedGedcomData
-): Promise<SourceLookup> {
+): Promise<{ sourceOf: SourceLookup; noteTargets: NoteTarget[] }> {
 	const importedAt = new Date();
 	const repositoryIds = new Map<string, string>();
 	for (const row of await db
@@ -101,7 +110,22 @@ export async function importRecords(
 		await db.insert(sourceRepositories).values(chunk).onConflictDoNothing();
 	}
 
-	return (pointer) => (pointer ? (sourceIds.get(pointer) ?? null) : null);
+	const noteTargets: NoteTarget[] = [
+		...parsed.repositories.map((r) => ({
+			kind: NOTE_SUBJECT_KINDS.REPOSITORY,
+			id: repositoryIds.get(r.id)!,
+			notes: r.notes
+		})),
+		...parsed.sources.map((s) => ({
+			kind: NOTE_SUBJECT_KINDS.SOURCE,
+			id: sourceIds.get(s.id)!,
+			notes: s.notes
+		}))
+	];
+	return {
+		sourceOf: (pointer) => (pointer ? (sourceIds.get(pointer) ?? null) : null),
+		noteTargets
+	};
 }
 
 /**
@@ -113,10 +137,10 @@ export async function importCitations(
 	treeId: string,
 	targets: CitationTarget[],
 	sourceOf: SourceLookup
-): Promise<void> {
-	if (targets.every((t) => t.citations.length === 0)) return;
+): Promise<NoteTarget[]> {
+	if (targets.every((t) => t.citations.length === 0)) return [];
 	const importedAt = new Date();
-	const known = new Map<string, { keys: Set<string>; next: number }>();
+	const known = new Map<string, { keys: Map<string, string>; next: number }>();
 	for (const row of await db
 		.select({
 			kind: citations.subjectKind,
@@ -126,21 +150,24 @@ export async function importCitations(
 			sourceRef: citations.sourceRef,
 			description: citations.description,
 			page: citations.page,
-			text: citations.text
+			text: citations.text,
+			id: citations.id
 		})
 		.from(citations)
 		.where(eq(citations.treeId, treeId))
 		.all()) {
-		const entry = known.get(`${row.kind}|${row.subjectId}`) ?? { keys: new Set(), next: 0 };
-		entry.keys.add(storedCitationKey(row));
+		const entry = known.get(`${row.kind}|${row.subjectId}`) ?? { keys: new Map(), next: 0 };
+		entry.keys.set(storedCitationKey(row), row.id);
 		entry.next = Math.max(entry.next, row.sortOrder + 1);
 		known.set(`${row.kind}|${row.subjectId}`, entry);
 	}
 
 	const rows: Array<ReturnType<typeof citationRow>> = [];
+	// What each citation the file has says about itself, against the stored row that holds it.
+	const noteTargets: NoteTarget[] = [];
 	for (const target of targets) {
 		const slot = `${target.kind}|${target.id}`;
-		const entry = known.get(slot) ?? { keys: new Set<string>(), next: 0 };
+		const entry = known.get(slot) ?? { keys: new Map<string, string>(), next: 0 };
 		known.set(slot, entry);
 		for (const citation of target.citations) {
 			const sourceId = sourceOf(citation.pointer);
@@ -151,12 +178,22 @@ export async function importCitations(
 				page: citation.page ?? null,
 				text: citation.text ?? null
 			});
-			if (entry.keys.has(key)) continue;
-			entry.keys.add(key);
+			const storedId = entry.keys.get(key);
+			if (storedId) {
+				noteTargets.push({
+					kind: NOTE_SUBJECT_KINDS.CITATION,
+					id: storedId,
+					notes: citation.notes
+				});
+				continue;
+			}
+			const id = crypto.randomUUID();
+			entry.keys.set(key, id);
+			noteTargets.push({ kind: NOTE_SUBJECT_KINDS.CITATION, id, notes: citation.notes });
 			rows.push(
 				citationRow(
 					treeId,
-					crypto.randomUUID(),
+					id,
 					{ kind: target.kind, id: target.id },
 					citation,
 					sourceId,
@@ -169,6 +206,7 @@ export async function importCitations(
 	for (const chunk of chunkByParamLimit(rows, CITATION_COLUMNS)) {
 		await db.insert(citations).values(chunk).onConflictDoNothing();
 	}
+	return noteTargets;
 }
 
 /** The citation targets a file's people, partnerships and names add up to, before facts and links. */

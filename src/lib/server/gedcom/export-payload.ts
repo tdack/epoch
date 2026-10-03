@@ -13,6 +13,8 @@ import type {
 	events,
 	gedcomPreserved,
 	individuals,
+	noteAttachments,
+	notes,
 	parentChild,
 	personNames,
 	repositories,
@@ -23,7 +25,8 @@ import type {
 	unions
 } from '../db';
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
-import type { ExportCitation, GedcomExportPayload } from './serializer';
+import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
+import type { ExportCitation, ExportNote, GedcomExportPayload } from './serializer';
 
 /** Every row of one tree the export needs, as the repository reads them. */
 export interface ExportRows {
@@ -42,6 +45,8 @@ export interface ExportRows {
 	/** In link order within each source. */
 	sourceRepositories: Array<typeof sourceRepositories.$inferSelect>;
 	citations: Array<typeof citations.$inferSelect>;
+	notes: Array<typeof notes.$inferSelect>;
+	noteAttachments: Array<typeof noteAttachments.$inferSelect>;
 }
 
 /** A retained entry that is a whole level-0 record, not a structure kept under a person or family. */
@@ -179,6 +184,39 @@ export function exportPayloadFrom(
 	// record that absorbed the one it names, so export never writes a pointer to a record that is gone.
 	const remap = (line: string) =>
 		line.replace(/@[^@\s]+@/g, (token) => xrefToExportId.get(token) ?? token);
+	// ---- Notes (ADR-029) ----
+	const noteById = new Map(rows.notes.map((n) => [n.id, n] as const));
+	const noteXrefs = new Map(rows.notes.map((n) => [n.id, n.xref ?? `@${n.id}@`] as const));
+	const notesOf = new Map<string, ExportNote[]>();
+	for (const a of [...rows.noteAttachments].sort((x, y) => x.sortOrder - y.sortOrder)) {
+		const shared = a.noteId ? noteById.get(a.noteId) : undefined;
+		// An attachment of a note that is gone is not written: it could only be a pointer at nothing.
+		if (a.noteId && !shared) continue;
+		const key = `${a.subjectKind}|${a.subjectId}`;
+		const list = notesOf.get(key) ?? [];
+		list.push({
+			pointer: shared ? noteXrefs.get(shared.id)! : a.noteRef,
+			pointerTag: shared ? (shared.gedcomTag ?? 'SNOTE') : (a.gedcomTag ?? 'NOTE'),
+			text: a.text,
+			layout: a.gedcomLayout,
+			extra: a.gedcomExtra?.map(remap) ?? null
+		});
+		notesOf.set(key, list);
+	}
+	const notesFor = (kind: NoteSubjectKind, id: string) => notesOf.get(`${kind}|${id}`) ?? [];
+	/** A child's FAMC is one link held on one row per parent: write each distinct note once. */
+	const linkNotes = (links: Array<{ id: string }>) => {
+		const seen = new Set<string>();
+		return links
+			.flatMap((l) => notesFor(NOTE_SUBJECT_KINDS.PARENT_CHILD, l.id))
+			.filter((n) => {
+				const key = JSON.stringify(n);
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			});
+	};
+
 	// ---- Evidence (ADR-028) ----
 	const sourceXrefs = new Map(rows.sources.map((s) => [s.id, s.xref ?? `@${s.id}@`] as const));
 	const repositoryXrefs = new Map(
@@ -196,7 +234,8 @@ export function exportPayloadFrom(
 			entryDate: c.entryDateRaw,
 			text: c.text,
 			layout: c.gedcomLayout,
-			extra: c.gedcomExtra?.map(remap) ?? null
+			extra: c.gedcomExtra?.map(remap) ?? null,
+			notes: notesFor(NOTE_SUBJECT_KINDS.CITATION, c.id)
 		});
 		citationsOf.set(key, list);
 	}
@@ -219,14 +258,15 @@ export function exportPayloadFrom(
 		linksOfSource.set(link.sourceId, [...(linksOfSource.get(link.sourceId) ?? []), link]);
 	// A record kept as lines before it was modelled is superseded by its row, so it is never written twice.
 	const modelledXrefs = new Set(
-		[...rows.sources, ...rows.repositories].flatMap((r) => (r.xref ? [r.xref] : []))
+		[...rows.sources, ...rows.repositories, ...rows.notes].flatMap((r) => (r.xref ? [r.xref] : []))
 	);
 
 	const withKeptLines = (list: typeof treeEvents) =>
 		list.map((ev) => ({
 			...ev,
 			...(ev.gedcomExtra?.length ? { gedcomExtra: ev.gedcomExtra.map(remap) } : {}),
-			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id)
+			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id),
+			noteLinks: notesFor(NOTE_SUBJECT_KINDS.EVENT, ev.id)
 		}));
 
 	return {
@@ -258,11 +298,13 @@ export function exportPayloadFrom(
 						dateText: n.dateRaw,
 						unionXref: n.unionId ? (famXrefMap.get(n.unionId) ?? null) : null,
 						extra: n.gedcomExtra?.map(remap) ?? null,
-						citations: citationsFor(CITATION_SUBJECT_KINDS.NAME, n.id)
+						citations: citationsFor(CITATION_SUBJECT_KINDS.NAME, n.id),
+						notes: notesFor(NOTE_SUBJECT_KINDS.NAME, n.id)
 					})),
 				sex: ind.sex,
 				privacy: ind.privacy,
 				citations: citationsFor(CITATION_SUBJECT_KINDS.PERSON, ind.id),
+				notes: notesFor(NOTE_SUBJECT_KINDS.PERSON, ind.id),
 				events: withKeptLines(eventsByEntity[ind.id] || []),
 				famc: (famcByChild[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid),
 				fams: (famsByInd[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid)
@@ -281,11 +323,13 @@ export function exportPayloadFrom(
 					childId: indXrefMap.get(c.childId) || c.childId,
 					pedigree: c.pedigree,
 					...(c.parentPedigrees ? { parentPedigrees: c.parentPedigrees } : {}),
-					citations: linkCitations(linksByChildUnion.get(`${u.id}|${c.childId}`) ?? [])
+					citations: linkCitations(linksByChildUnion.get(`${u.id}|${c.childId}`) ?? []),
+					notes: linkNotes(linksByChildUnion.get(`${u.id}|${c.childId}`) ?? [])
 				})),
 				...(u.xrefAliases && u.xrefAliases.length > 0 ? { aliases: u.xrefAliases } : {}),
 				events: withKeptLines(eventsByEntity[u.id] || []),
-				citations: citationsFor(CITATION_SUBJECT_KINDS.UNION, u.id)
+				citations: citationsFor(CITATION_SUBJECT_KINDS.UNION, u.id),
+				notes: notesFor(NOTE_SUBJECT_KINDS.UNION, u.id)
 			};
 		}),
 		sources: rows.sources.map((s) => ({
@@ -297,6 +341,7 @@ export function exportPayloadFrom(
 			text: s.text,
 			layout: s.gedcomLayout,
 			extra: s.gedcomExtra?.map(remap) ?? null,
+			notes: notesFor(NOTE_SUBJECT_KINDS.SOURCE, s.id),
 			repositories: (linksOfSource.get(s.id) ?? []).map((link) => ({
 				pointer: link.repositoryId
 					? (repositoryXrefs.get(link.repositoryId) ?? null)
@@ -310,7 +355,17 @@ export function exportPayloadFrom(
 			name: r.name,
 			address: r.address,
 			layout: r.gedcomLayout,
-			extra: r.gedcomExtra?.map(remap) ?? null
+			extra: r.gedcomExtra?.map(remap) ?? null,
+			notes: notesFor(NOTE_SUBJECT_KINDS.REPOSITORY, r.id)
+		})),
+		notes: rows.notes.map((n) => ({
+			xref: noteXrefs.get(n.id)!,
+			tag: n.gedcomTag ?? ('SNOTE' as const),
+			text: n.text,
+			mime: n.mime,
+			language: n.language,
+			layout: n.gedcomLayout,
+			extra: n.gedcomExtra?.map(remap) ?? null
 		})),
 		preserved: treePreserved
 			.slice()

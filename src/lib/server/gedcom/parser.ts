@@ -20,8 +20,19 @@ import {
 	type ParsedSource
 } from './evidence-parse';
 
+import {
+	isNoteNode,
+	mergeNoteLinks,
+	parseNoteLink,
+	parseNoteRecord,
+	splitNotes,
+	type ParsedNoteLink,
+	type ParsedSharedNote
+} from './note-parse';
+
 export type { ParsedCitation } from './evidence-parse';
-export { mergeCitations };
+export type { ParsedNoteLink, ParsedSharedNote } from './note-parse';
+export { mergeCitations, mergeNoteLinks };
 
 export type GedcomVersion = '5.5.1' | '7.0';
 
@@ -39,6 +50,8 @@ interface ParsedFamcLink {
 	parentPedigrees?: Record<string, Pedigree>;
 	/** The `SOUR` citations under this `FAMC`. */
 	citations: ParsedCitation[];
+	/** The notes under this `FAMC`. */
+	notes: ParsedNoteLink[];
 }
 
 /** `RESN` words that mean "keep this person from viewers": they become the private override. */
@@ -65,6 +78,8 @@ interface ParsedName {
 	extra: string[];
 	/** The `SOUR` citations under this `NAME`, in file order. */
 	citations: ParsedCitation[];
+	/** The notes under this `NAME`, in file order; Epoch's own name-change note is not one. */
+	notes: ParsedNoteLink[];
 }
 
 interface ParsedIndividual {
@@ -82,6 +97,8 @@ interface ParsedIndividual {
 	events: ParsedEvent[];
 	/** The `SOUR` citations on the person themself, in file order. */
 	citations: ParsedCitation[];
+	/** The notes on the person themself, in file order. */
+	notes: ParsedNoteLink[];
 }
 
 export interface ParsedFamily {
@@ -94,10 +111,14 @@ export interface ParsedFamily {
 		parentPedigrees?: Record<string, Pedigree>;
 		/** The citations under the child's own `FAMC` for this family. */
 		citations?: ParsedCitation[];
+		/** The notes under the child's own `FAMC` for this family. */
+		notes?: ParsedNoteLink[];
 	}[];
 	events: ParsedEvent[];
 	/** The `SOUR` citations on the family record. */
 	citations: ParsedCitation[];
+	/** The notes on the family record. */
+	notes: ParsedNoteLink[];
 	/** XREFs of families merged into this one, from `REFN` records typed `epoch-merged-family`. */
 	aliases?: string[];
 }
@@ -117,8 +138,10 @@ export interface ParsedEvent {
 	cause?: string;
 	/** `2 AGE` */
 	age?: string;
-	/** `2 NOTE` */
+	/** `2 NOTE`, read the way a tree imported before ADR-029 holds it: the first plain note's text. */
 	notes?: string;
+	/** The notes under the event, in file order, when notes are read into records. */
+	noteLinks?: ParsedNoteLink[];
 	/** Every other line under the event, verbatim and in order (`gedcomExtra`). */
 	extra?: string[];
 	/** The `SOUR` citations under the event, in file order. */
@@ -140,6 +163,8 @@ export interface ParsedGedcomData {
 	sources: ParsedSource[];
 	/** Root `REPO` records. */
 	repositories: ParsedRepository[];
+	/** Root `NOTE`/`SNOTE` records (ADR-029). Empty when the file is read with `isNotesModelled` off. */
+	notes: ParsedSharedNote[];
 }
 
 export interface ParseOptions {
@@ -148,6 +173,12 @@ export interface ParseOptions {
 	 * a tree imported before ADR-028 holds them; only the backfill's tests need that.
 	 */
 	isEvidenceModelled?: boolean;
+	/**
+	 * Read shared notes and the notes under structures into records (ADR-029). Off keeps them as
+	 * retained lines, and a fact's first plain note in its own text, as a tree imported before
+	 * this change holds them; only the backfill's tests need that.
+	 */
+	isNotesModelled?: boolean;
 }
 
 /** Individual-level event tags shared by GEDCOM 5.5.1 and 7.0. */
@@ -309,7 +340,8 @@ function parseNameNode(
 	node: GedcomNode,
 	collect: (n: GedcomNode) => string[],
 	isPrimary: boolean,
-	isEvidenceModelled: boolean
+	isEvidenceModelled: boolean,
+	isNotesModelled: boolean
 ): ParsedName {
 	const sub = (tag: string) => node.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
 	const value = node.value ?? '';
@@ -336,6 +368,8 @@ function parseNameNode(
 			NAME_CHANGE_NOTE.test(c.value.trim())
 	);
 	const change = changeNode ? NAME_CHANGE_NOTE.exec(changeNode.value!.trim()) : null;
+	// Epoch's own name-change note (ADR-013) is never a user's note; any other note is.
+	const { notes, others } = splitNotes(node.children, isNotesModelled, (c) => c === changeNode);
 	return {
 		...(typeNode
 			? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value)
@@ -349,7 +383,7 @@ function parseNameNode(
 		...(change?.[1] ? { dateText: change[1] } : {}),
 		...(change?.[2] ? { unionXref: change[2] } : {}),
 		...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),
-		extra: node.children
+		extra: others
 			.filter(
 				(c) =>
 					!MODELLED_NAME_TAGS.has(c.tag) &&
@@ -358,8 +392,9 @@ function parseNameNode(
 			)
 			.flatMap(collect),
 		citations: isEvidenceModelled
-			? node.children.filter((c) => c.tag === 'SOUR').map(parseCitation)
-			: []
+			? node.children.filter((c) => c.tag === 'SOUR').map((c) => parseCitation(c, isNotesModelled))
+			: [],
+		notes
 	};
 }
 
@@ -374,7 +409,8 @@ function parseLegacyMarriedName(value: string, primary: ParsedName | undefined):
 		gedcomType: LEGACY_MARRIED_NAME_TAG,
 		...parts,
 		extra: [],
-		citations: []
+		citations: [],
+		notes: []
 	};
 }
 
@@ -383,18 +419,22 @@ function parseLegacyMarriedName(value: string, primary: ParsedName | undefined):
  */
 export function parseGedcom(rawContent: string, options: ParseOptions = {}): ParsedGedcomData {
 	const isEvidenceModelled = options.isEvidenceModelled ?? true;
+	const isNotesModelled = options.isNotesModelled ?? true;
 	const rootNodes = buildGedcomTree(rawContent.split(/\r?\n/));
 
 	const individuals: ParsedIndividual[] = [];
 	const families: ParsedFamily[] = [];
 	const sources: ParsedSource[] = [];
 	const repositories: ParsedRepository[] = [];
+	const sharedNotes: ParsedSharedNote[] = [];
 	const preserved: ParsedGedcomData['preserved'] = [];
 	let treeName = 'Imported Family Tree';
 
 	/** The citations among these nodes, or none when the file is read the retained way. */
 	const citationsOf = (nodes: GedcomNode[]) =>
-		isEvidenceModelled ? nodes.filter((n) => n.tag === 'SOUR').map(parseCitation) : [];
+		isEvidenceModelled
+			? nodes.filter((n) => n.tag === 'SOUR').map((n) => parseCitation(n, isNotesModelled))
+			: [];
 	const isCitation = (n: GedcomNode) => isEvidenceModelled && n.tag === 'SOUR';
 
 	for (const node of rootNodes) {
@@ -415,10 +455,19 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const fams: string[] = [];
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
+			const notes: ParsedNoteLink[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'NAME') {
-					names.push(parseNameNode(child, collectLines, names.length === 0, isEvidenceModelled));
+					names.push(
+						parseNameNode(
+							child,
+							collectLines,
+							names.length === 0,
+							isEvidenceModelled,
+							isNotesModelled
+						)
+					);
 				} else if (child.tag === LEGACY_MARRIED_NAME_TAG && child.value?.trim()) {
 					legacyMarried.push(child.value);
 				} else if (child.tag === 'SEX') {
@@ -458,7 +507,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					}
 					// STAT, NOTE and the like under FAMC have no model. Keep them, headed by their FAMC line,
 					// so export writes them back under the same link (ADR-009).
-					const extras = child.children.filter(
+					const { notes: linkNotes, others: linkOthers } = splitNotes(
+						child.children,
+						isNotesModelled
+					);
+					const extras = linkOthers.filter(
 						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG && !isCitation(sub)
 					);
 					if (extras.length > 0)
@@ -467,7 +520,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						familyId,
 						pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
 						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}),
-						citations: citationsOf(child.children)
+						citations: citationsOf(child.children),
+						notes: linkNotes
 					});
 				} else if (child.tag === 'FAMS' && child.value) {
 					fams.push(child.value.trim());
@@ -480,7 +534,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 
 					// The first plain NOTE is the fact's note. A note with continuation lines, a second note,
 					// a citation, an OBJE or a custom tag has no column and is kept verbatim (ADR-023).
-					const noteNode = child.children.find((c) => c.tag === 'NOTE' && c.children.length === 0);
+					// With notes read into records every note under the fact is one, in file order, and the
+					// column's text is not used; the old reading is kept for the backfill's tests.
+					const noteNode = isNotesModelled
+						? undefined
+						: child.children.find((c) => c.tag === 'NOTE' && c.children.length === 0);
+					const { notes: noteLinks, others: factOthers } = splitNotes(
+						child.children,
+						isNotesModelled
+					);
 					const modelled = new Set([
 						dateNode,
 						placNode,
@@ -488,7 +550,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						child.children.find((c) => c.tag === 'AGE'),
 						noteNode
 					]);
-					const extra = child.children
+					const extra = factOthers
 						.filter((c) => !modelled.has(c) && !isCitation(c))
 						.flatMap(collectLines);
 
@@ -504,11 +566,14 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						cause: textOf('CAUS'),
 						age: textOf('AGE'),
 						notes: noteNode?.value?.trim() || undefined,
+						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						citations: citationsOf(child.children)
 					});
 				} else if (isCitation(child)) {
-					citations.push(parseCitation(child));
+					citations.push(parseCitation(child, isNotesModelled));
+				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
+					notes.push(parseNoteLink(child)!);
 				} else {
 					// Preserve unmodeled individual-level structures (CHAN, NOTE, OBJE, REFN, ASSO, custom
 					// tags, etc.) verbatim. A citation is one only while evidence is read the retained way.
@@ -530,7 +595,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				famcLinks,
 				fams,
 				events,
-				citations
+				citations,
+				notes
 			});
 		} else if (node.tag === 'FAM') {
 			const id = node.xref || crypto.randomUUID();
@@ -540,6 +606,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const aliases: string[] = [];
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
+			const notes: ParsedNoteLink[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'HUSB' && child.value) {
@@ -564,7 +631,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
 
-					const extra = child.children
+					const { notes: noteLinks, others: factOthers } = splitNotes(
+						child.children,
+						isNotesModelled
+					);
+					const extra = factOthers
 						.filter((c) => c !== dateNode && c !== placNode && !isCitation(c))
 						.flatMap(collectLines);
 					events.push({
@@ -574,11 +645,14 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
 						description: child.value?.trim(),
+						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						citations: citationsOf(child.children)
 					});
 				} else if (isCitation(child)) {
-					citations.push(parseCitation(child));
+					citations.push(parseCitation(child, isNotesModelled));
+				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
+					notes.push(parseNoteLink(child)!);
 				} else {
 					// Preserve unmodeled family-level structures verbatim.
 					preserved.push({ xref: id, lines: collectLines(child) });
@@ -592,12 +666,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				children,
 				events,
 				citations,
+				notes,
 				...(aliases.length > 0 ? { aliases } : {})
 			});
 		} else if (isEvidenceModelled && node.tag === 'SOUR' && node.xref) {
-			sources.push(parseSourceRecord(node));
+			sources.push(parseSourceRecord(node, isNotesModelled));
 		} else if (isEvidenceModelled && node.tag === 'REPO' && node.xref) {
-			repositories.push(parseRepositoryRecord(node));
+			repositories.push(parseRepositoryRecord(node, isNotesModelled));
+		} else if (isNotesModelled && isNoteNode(node) && node.xref) {
+			sharedNotes.push(parseNoteRecord(node));
 		} else if (node.tag !== 'TRLR') {
 			// Preserve unrecognized root-level records (NOTE, SUBM, OBJE, custom records) so they are
 			// retained for export. A root SOUR or REPO without an XREF cannot be pointed at, so it stays too.
@@ -619,16 +696,24 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				child.citations = link.citations;
 				attached.add(link);
 			}
+			if (link && link.notes.length > 0) {
+				child.notes = link.notes;
+				attached.add(link);
+			}
 		}
 	}
 	// A `FAMC` whose family does not list the child has nowhere to hang its citations in the model.
 	// They stay under the link as retained lines, as a link's other extras always have (ADR-009).
 	for (const ind of individuals) {
 		for (const link of ind.famcLinks ?? []) {
-			if (link.citations.length === 0 || attached.has(link)) continue;
+			if ((link.citations.length === 0 && link.notes.length === 0) || attached.has(link)) continue;
 			preserved.push({
 				xref: ind.id,
-				lines: [`1 FAMC ${link.familyId}`, ...link.citations.flatMap((c) => c.raw)]
+				lines: [
+					`1 FAMC ${link.familyId}`,
+					...link.citations.flatMap((c) => c.raw),
+					...link.notes.flatMap((n) => n.raw)
+				]
 			});
 		}
 	}
@@ -640,6 +725,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		treeName,
 		preserved,
 		sources,
-		repositories
+		repositories,
+		notes: sharedNotes
 	};
 }

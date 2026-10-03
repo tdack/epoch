@@ -1,0 +1,56 @@
+0 HEAD
+1 GEDC
+2 VERS 7.0
+1 NOTE header note
+0 @N1@ SNOTE Shared note one
+1 CONT second line
+1 CONC  continued
+1 MIME text/html
+1 LANG en-AU
+1 _NCUSTOM kept
+0 @N2@ SNOTE Plain shared note
+0 @S1@ SOUR
+1 TITL Parish register
+1 SNOTE @N1@
+1 NOTE source inline note
+1 _SCUSTOM x
+0 @R1@ REPO
+1 NAME County Archive
+1 NOTE repository note
+0 @I1@ INDI
+1 NAME Ann /Ash/
+2 NOTE name note
+2 SOUR @S1@
+3 PAGE p 1
+3 NOTE note on a citation
+3 SNOTE @N2@
+1 SEX F
+1 NOTE person inline
+2 CONT more words
+2 CONC  and a tail
+1 SOUR @S1@
+2 PAGE person page
+1 SNOTE @N1@
+1 BIRT
+2 DATE 1900
+2 NOTE before the citation
+2 SOUR @S1@
+3 PAGE birth page
+2 SNOTE @N2@
+2 NOTE after the citation
+2 _EVCUSTOM y
+1 FAMC @F1@
+2 NOTE link note
+0 @I2@ INDI
+1 NAME Bob /Ash/
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 CHIL @I1@
+1 NOTE family note
+1 MARR
+2 DATE 1925
+2 NOTE marriage note
+2 SNOTE @N1@
+0 TRLR
