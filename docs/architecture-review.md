@@ -348,7 +348,7 @@ is not done. Commits are named by subject because hashes change on rebase.
 | B4 | done | `refactor: delete unused helpers`. `RelationshipPlanWarning` is still used by `RelationshipPlan`; it went in B5 as an unexport. Also removed the empty `src/lib/index.ts` and the bare `#lib` import alias |
 | B5 | done | `refactor: unexport module-private symbols` |
 | B6 | done | `build(deps): drop adapter-auto and d3-hierarchy; narrow d3…`. The bundle moved by 139 bytes, since it was already tree-shaken |
-| B7 | done, except archiving the prompt | `docs: archive shipped slice prompts and screenshots…`. `docs/architecture-b-e-prompt.md` is archived last |
+| B7 | done | `docs: archive shipped slice prompts and screenshots…`. `docs/architecture-b-e-prompt.md` was archived at the end of Phase E |
 | knip rules block | done | `chore(tooling): make knip findings fail npm run lint` |
 | C1 | done | `feat(http): add treeHandler and apiHandler…`, with tests for the 401 and 409 shapes, the 400, the 500, body and query parsing, `expectedVersion`, `status: 201` and `errorResponse` routing |
 | C2 | done | `refactor(api): use treeHandler in trees/, summary, graph, undo, impact and quality` (the S13 quality endpoint is here) |
@@ -368,6 +368,14 @@ is not done. Commits are named by subject because hashes change on rebase.
 | D3 | done | `refactor(auth): derive the role order from TREE_ROLES; drop the guard test` |
 | D4 | done | `refactor(api): move individuals endpoints to /people`. `GET /individuals/[id]` was dropped, not moved: nothing read it but one e2e check, which now reads the person page |
 | D5 | done | `refactor(server): split PersonService out of GenealogyService (now TreeService)` |
+| E1 | done | `refactor(routes): treeLoad, generationsParam and listQuery helpers in load functions`. The API's chart handlers keep their own parsing: they reject a depth out of range where a page clamps it |
+| E2 | done | `refactor(charts): ChartPage shell for the four chart pages` (each page is about 40 lines, not 15, because the chart and its outline are page-specific) |
+| E3 | done | `style(ui): shared card, heading, btn, link and field classes in app.css`. Named `section-card`, `action-btn`, `row-link` and so on, because four components scope classes called `.card`, `.btn`, `.link` and `.heading`. The Delete and Remove controls now render red as their markup asked: an unlayered scoped rule used to beat the layered utility |
+| E4 | done | `refactor(editor): editor.mutate for change, toast and error`. Four person-page actions use it; the other error toasts return no change summary |
+| E5 | skipped | The drawer and the person page read one DTO but present it differently throughout: buttons that select against links to pages, add and remove actions against none, different wording, spacing and test ids, and different fact detail. A shared component would need a snippet for nearly every line and would change one screen's output. The one real copy, the media upload fetch, went in E7 |
+| E6 | done | `refactor(tree): extract the viewport and keyboard modules from TreeCanvas` (826 to 765 lines; the viewport class and the pure key reading are new modules with tests) |
+| E7 | done | `refactor(media): uploadMediaApi; drop the R2 wording in the UI` |
+| E8 | reviewed, not split | `RelationshipModal` is 864 lines, but its per-intent sections share the anchor, the debounced server preview, the validation and the conflict state with the parent, and each fragment is under 70 lines. Splitting would move state through bindable props without making anything easier to read. Revisit when a new intent is added |
 
 ### Expected outcome
 
@@ -379,3 +387,18 @@ is not done. Commits are named by subject because hashes change on rebase.
 - Client pages and components shrink by about 500–700 lines, with one copy each of the relatives
   view, the chart chrome, the mutation toast and the shared styles.
 - Lint, format and dead-code checks stop the drift from coming back.
+
+**Measured on `refactor/architecture-b-e` against `main` (non-test source lines):**
+
+- The API layer (`src/routes/api/**/+server.ts`) went from 2,118 lines to 1,018, a drop of 1,100. The
+  review's 1,735 figure was taken before S13 to S15a added endpoints. Media, import and export keep
+  the most code; the 36 endpoints that use `treeHandler` average about 15 lines.
+- Client pages and components (`src/routes/trees`, `login`, `welcome` and `src/lib/components`,
+  excluding tests and `+page.server.ts`) went from 13,266 lines to 13,062, a drop of 204. The review
+  expected 500 to 700; E5 (skipped) was most of the difference.
+- All non-test source under `src/` went from 38,502 to 37,587 lines, a drop of 915, after adding the
+  handler, the GEDCOM service and repository, the shared DTO modules, the viewport and keyboard
+  modules, and the load helpers. Tests grew by about 70 cases.
+- Dependencies: `@sveltejs/adapter-auto`, `d3-hierarchy` and `@types/d3-hierarchy` are gone, and
+  `d3` and `@types/d3` give way to `d3-zoom`, `d3-selection`, `d3-transition`, `d3-ease` and their
+  types. The client bundle moved by 139 bytes, since it was already tree-shaken.
