@@ -29,8 +29,7 @@
 			aria-hidden="true"
 		/>
 	{:else}<CircleHelp class="h-3.5 w-3.5" aria-hidden="true" />{/if}
-	{CLAIM_STATE_LABELS[state]}{#if citationCount > 0}
-		<span class="font-normal"
+	{CLAIM_STATE_LABELS[state]}{#if citationCount > 0}{' '}<span class="font-normal"
 			>· {citationCount} {citationCount === 1 ? 'citation' : 'citations'}</span
 		>{/if}
 </span>

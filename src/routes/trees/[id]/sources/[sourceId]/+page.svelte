@@ -53,7 +53,7 @@
 					version: source.version,
 					shouldRemoveCitations: true
 				});
-				await goto(`${base}/sources`, { replaceState: true });
+				await goto(`${base}/sources`, { replace: true });
 				return result;
 			},
 			done: 'Source deleted'

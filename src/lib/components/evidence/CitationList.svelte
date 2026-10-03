@@ -83,7 +83,7 @@
 					{#if citation.sourceId}<a
 							href={`/trees/${encodeURIComponent(treeId)}/sources/${encodeURIComponent(citation.sourceId)}`}
 							class="text-link">{citation.sourceLabel}</a
-						>{:else}{citation.sourceLabel}{/if}{#if citation.page}<span
+						>{:else}{citation.sourceLabel}{/if}{#if citation.page}{' '}<span
 							class="font-normal text-stone-700"
 						>
 							· {citation.page}</span
