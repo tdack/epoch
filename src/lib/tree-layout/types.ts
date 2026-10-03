@@ -60,11 +60,25 @@ export const PERSON_ROLES = {
 } as const;
 export type PersonRole = (typeof PERSON_ROLES)[keyof typeof PERSON_ROLES];
 
+/**
+ * How far a person sits off the direct line: 0 the line and its partners, 1 the siblings of the
+ * line, 2 their descendants. Computed once per selection by `kin-placement.ts`; every view reads it.
+ */
+export type Band = 0 | 1 | 2;
+
 export interface SelectedPerson {
 	id: string;
 	/** Rows relative to the focus: negative above, positive below. */
 	generation: number;
 	role: PersonRole;
+	band: Band;
+	/**
+	 * The drawn parent this person hangs from in every view (`stepChildAnchor`); null when no
+	 * parent is drawn as a card.
+	 */
+	anchorParentId: string | null;
+	/** True when every drawn parent is only a partner of the line, never part of it. */
+	isStepChild: boolean;
 }
 
 export interface SelectedUnion {

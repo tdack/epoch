@@ -1,4 +1,5 @@
 import type {
+	ParentChildType,
 	RelationshipGraph,
 	RelationshipGraphPerson,
 	RelationshipGraphUnion
@@ -21,6 +22,14 @@ export interface GraphIndex {
 	/** Distinct child ids per union, in the order the union lists them. */
 	childIdsOfUnion: Map<string, string[]>;
 	unionRank: Map<string, number>;
+	/** Every parent assertion about a child, union-attached or direct, in input order. */
+	parentLinksOfChild: Map<string, ParentLink[]>;
+}
+
+export interface ParentLink {
+	parentId: string;
+	type: ParentChildType;
+	unionId: string | null;
 }
 
 function firstYear(text: string | null): number | null {
@@ -67,7 +76,11 @@ export function buildIndex(graph: RelationshipGraph): GraphIndex {
 	const parentUnionIdsOfChild = new Map<string, string[]>();
 	const directParentIdsOfChild = new Map<string, string[]>();
 	const directChildIdsOfParent = new Map<string, string[]>();
+	const parentLinksOfChild = new Map<string, ParentLink[]>();
 	for (const pc of graph.parentChild) {
+		const links = parentLinksOfChild.get(pc.childId) ?? [];
+		links.push({ parentId: pc.parentId, type: pc.type, unionId: pc.unionId });
+		parentLinksOfChild.set(pc.childId, links);
 		if (pc.unionId) {
 			pushUnique(parentUnionIdsOfChild, pc.childId, pc.unionId);
 		} else {
@@ -90,6 +103,7 @@ export function buildIndex(graph: RelationshipGraph): GraphIndex {
 		directParentIdsOfChild,
 		directChildIdsOfParent,
 		childIdsOfUnion,
-		unionRank
+		unionRank,
+		parentLinksOfChild
 	};
 }

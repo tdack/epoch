@@ -7,6 +7,7 @@
  */
 
 import { buildIndex, type GraphIndex } from './graph-index.js';
+import { assignBands, stepChildAnchor } from './kin-placement.js';
 import {
 	DEFAULT_FOCUS_OPTIONS,
 	PERSON_ROLES,
@@ -21,6 +22,9 @@ import {
 	type SelectionExpansion,
 	type SelectionStub
 } from './types.js';
+
+/** A person as the walk records them, before the shared placement rules add band and anchor. */
+type WalkedPerson = Pick<SelectedPerson, 'id' | 'generation' | 'role'>;
 
 function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOptions {
 	const clamp = (value: number | undefined, fallback: number) =>
@@ -48,7 +52,7 @@ export function selectFocusSubgraph(
 	if (!index.personById.has(focusPersonId)) return null;
 	const opts = resolveOptions(options);
 
-	const people = new Map<string, SelectedPerson>();
+	const people = new Map<string, WalkedPerson>();
 	const unions = new Map<string, SelectedUnion>();
 	const stubs: SelectionStub[] = [];
 	const collapsed = new Set<string>();
@@ -236,10 +240,19 @@ export function selectFocusSubgraph(
 		}
 	}
 
+	const walked = [...people.values()];
+	const kin = assignBands({ focusPersonId, people: walked, unions: [...unions.values()] }, index);
+	const selected: SelectedPerson[] = walked.map((p) => ({
+		...p,
+		band: kin.bands.get(p.id)!,
+		anchorParentId: stepChildAnchor(p.id, { people: walked }, index, kin.bands),
+		isStepChild: kin.stepChildIds.has(p.id)
+	}));
+
 	return {
 		focusPersonId,
 		options: opts,
-		people: [...people.values()],
+		people: selected,
 		unions: [...unions.values()],
 		stubs,
 		expansions,
