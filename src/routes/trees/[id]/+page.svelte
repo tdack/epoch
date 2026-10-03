@@ -28,7 +28,8 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor, marks } = getTreeContext();
+	const { editor, marks, toasts } = getTreeContext();
+	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const historyCoalescer = createHistoryCoalescer();
 
 	const treeId = $derived(page.params.id!);
@@ -315,16 +316,12 @@
 	<PersonDrawer
 		page={drawerPage}
 		{treeId}
+		{role}
 		error={drawerError}
 		onClose={clearSelection}
-		onMediaUploaded={editor.refresh}
-		onAddRelationship={(id, options) => editor.openRelationship(editor.anchorFor(id), options)}
-		onRemoveRelative={editor.requestRelativeAction}
-		onEditPerson={(id) => void editor.openEditPerson(id)}
-		onDeletePerson={editor.requestDeletePerson}
-		onRecordDeath={(id) => editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
-		onEditUnion={editor.editUnion}
-		onMergeUnion={editor.mergeUnion}
 		onSelectPerson={handleSelectPerson}
+		{editor}
+		{toasts}
+		{marks}
 	/>
 {/if}

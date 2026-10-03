@@ -43,7 +43,10 @@ test('repeated partnerships between one pair are labelled 1st and 2nd, in the ca
 	const drawer = page.locator('div.fixed.inset-y-0');
 	await expect(drawer.getByText('1st partnership (m. 3 Nov 2014)')).toBeVisible();
 	await expect(drawer.getByText('2nd partnership (m. 3 Nov 2014)')).toBeVisible();
-	await expect(drawer.getByRole('button', { name: 'Merge…' })).toHaveCount(2);
+	// The drawer also has a Merge… for the person, so count the partnerships' own.
+	await expect(
+		drawer.getByTestId('partnership').getByRole('button', { name: 'Merge…' })
+	).toHaveCount(2);
 	// Oldest first.
 	const titles = await drawer.getByText(/partnership \(m\./).allTextContents();
 	expect(titles.map((t) => t.trim().slice(0, 3))).toEqual(['1st', '2nd']);
