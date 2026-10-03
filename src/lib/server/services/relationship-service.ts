@@ -11,8 +11,6 @@ import { pastTense, describeCommand } from '../domain/command-summary';
 import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { describeImpact, type ImpactSummary } from '../domain/impact';
-import { maskRows } from '../domain/privacy-mask';
-import { graphFromRows } from '../domain/relationship-graph';
 import {
 	planRelationshipCommand,
 	type RelationshipCommand,
