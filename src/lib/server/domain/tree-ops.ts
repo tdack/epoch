@@ -828,15 +828,6 @@ export function mergeConflictsOf(rows: TreeRows, unionIds: string[]): MergeConfl
 	return findMergeConflicts(unionIds.map((id) => mergeableUnion(rows, requireUnion(rows, id))));
 }
 
-/** Other unions with exactly this union's partners: the candidates for merging it into one. */
-export function samePartnerUnionIds(rows: TreeRows, unionId: string): string[] {
-	const key = partnerSetKey(partnerIdsOf(rows, unionId));
-	if (!key) return [];
-	return rows.unions
-		.filter((u) => u.id !== unionId && partnerSetKey(partnerIdsOf(rows, u.id)) === key)
-		.map((u) => u.id);
-}
-
 /** An imported union's id is `<treeId>:<xref>`; anything else was never known by an XREF. */
 function xrefOf(treeId: string, unionId: string): string | null {
 	const prefix = `${treeId}:`;

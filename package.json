@@ -69,7 +69,6 @@
 		"zod": "^4.6.5"
 	},
 	"imports": {
-		"#lib": "./src/lib/index.js",
 		"#lib/*": "./src/lib/*"
 	}
 }

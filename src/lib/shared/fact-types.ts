@@ -99,12 +99,3 @@ export interface FactInput {
 	age: string | null;
 	notes: string | null;
 }
-
-export const FACT_TEXT_FIELDS = [
-	'dateText',
-	'place',
-	'value',
-	'cause',
-	'age',
-	'notes'
-] as const satisfies ReadonlyArray<keyof FactInput>;

@@ -28,13 +28,3 @@ export function contourSeparation(placed: Contour, next: Contour, gap: number): 
 	}
 	return separation;
 }
-
-export function contourBounds(contour: Contour): { left: number; right: number } {
-	let left = Number.POSITIVE_INFINITY;
-	let right = Number.NEGATIVE_INFINITY;
-	for (const [l, r] of contour.values()) {
-		left = Math.min(left, l);
-		right = Math.max(right, r);
-	}
-	return { left, right };
-}

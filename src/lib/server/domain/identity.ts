@@ -20,7 +20,3 @@ export interface AuthenticatedContext {
 	user: UserIdentity;
 	correlationId: string;
 }
-
-export interface SecurityContext extends AuthenticatedContext {
-	treeRole?: TreeRole;
-}
