@@ -4,11 +4,12 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { individuals, mediaItems, treeMemberships, trees } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { importGedcomToDb } from '../gedcom/importer';
+import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import {
@@ -83,6 +84,34 @@ describe('ownership', () => {
 		expect(
 			await t.db.select().from(treeMemberships).where(eq(treeMemberships.treeId, orphan))
 		).toEqual([]);
+	});
+});
+
+describe('import', () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it.each(['owner', 'manager', 'editor'] as const)('is allowed for a %s', async (role) => {
+		await expect(
+			new GenealogyService(t.db).requireImport(treeId, actors[role].context)
+		).resolves.toBeUndefined();
+	});
+	it.each(['contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
+		await expect(
+			new GenealogyService(t.db).requireImport(treeId, actors[role].context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+	it('is refused to someone who is not a member, whatever the tree holds', async () => {
+		const stranger = await createTestUser(t.db, 'stranger-import');
+		await expect(
+			new GenealogyService(t.db).requireImport(treeId, stranger.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+	it("reads the caller's membership and nothing of the tree", async () => {
+		const readTree = vi.spyOn(TreeRepository.prototype, 'findById');
+		const readRows = vi.spyOn(GenealogyRepository.prototype, 'getTreeData');
+		await new GenealogyService(t.db).requireImport(treeId, actors.owner.context);
+		expect(readTree).not.toHaveBeenCalled();
+		expect(readRows).not.toHaveBeenCalled();
 	});
 });
 
