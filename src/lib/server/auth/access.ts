@@ -41,6 +41,17 @@ export function isDevBypassEnabled(...flags: Array<string | undefined | null>): 
 	return flags.some((flag) => flag === 'true');
 }
 
+const LOCAL_HOSTNAMES: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
+
+/**
+ * Whether a request's hostname (`URL.hostname`, so IPv6 keeps its brackets) is this machine. The
+ * dev bypass is honoured only here: with just `/login` behind Access, a stray flag in production
+ * would otherwise open every other path, and nothing at the edge would catch it.
+ */
+export function isLocalHostname(hostname: string): boolean {
+	return LOCAL_HOSTNAMES.includes(hostname);
+}
+
 let jwksCache: { domain: string; keys: JWK[]; expiresAt: number } | null = null;
 
 function base64UrlDecode(str: string): Uint8Array {

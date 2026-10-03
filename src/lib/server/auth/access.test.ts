@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateAccessJwt, extractAccessJwt, isDevBypassEnabled } from './access';
+import {
+	validateAccessJwt,
+	extractAccessJwt,
+	isDevBypassEnabled,
+	isLocalHostname
+} from './access';
 import { isActionAllowed, hasMinimumRole } from './authorization';
 
 function createMockJwt(
@@ -147,7 +152,8 @@ describe('handle hook', () => {
 
 	async function run(
 		flags: { env?: string; binding?: string },
-		headers: Record<string, string> = {}
+		headers: Record<string, string> = {},
+		origin = 'http://localhost:5173'
 	) {
 		vi.resetModules();
 		vi.doMock('$app/env/public', () => ({ CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com' }));
@@ -160,8 +166,8 @@ describe('handle hook', () => {
 		}));
 		const { handle } = await import('../../../hooks.server');
 		const event = {
-			request: new Request('https://epoch.example.com/api/trees', { headers }),
-			url: new URL('https://epoch.example.com/api/trees'),
+			request: new Request(`${origin}/api/trees`, { headers }),
+			url: new URL(`${origin}/api/trees`),
 			locals: {} as Record<string, unknown>,
 			// SvelteKit's cookie jar, reduced to a read of the request's own `cookie` header.
 			cookies: {
@@ -194,6 +200,15 @@ describe('handle hook', () => {
 		expect((await run({ binding: 'true' }))?.accessSub).toBe('dev-local-user');
 	});
 
+	it('ignores the flag on a host that is not local, and says so', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const origin = 'https://epoch.example.com';
+		expect(await run({ env: 'true' }, {}, origin)).toBeNull();
+		expect(await run({ binding: 'true' }, {}, origin)).toBeNull();
+		expect(warn).toHaveBeenCalled();
+		warn.mockRestore();
+	});
+
 	it('takes a second dev identity from a header or a cookie, and only with the flag', async () => {
 		const asCookie = { cookie: 'x-dev-user-sub=second-user' };
 		expect((await run({ env: 'true' }, { 'x-dev-user-sub': 'header-user' }))?.accessSub).toBe(
@@ -202,5 +217,25 @@ describe('handle hook', () => {
 		expect((await run({ env: 'true' }, asCookie))?.accessSub).toBe('second-user');
 		// Without the flag a cookie, like a header, buys nothing: the request stays anonymous.
 		expect(await run({}, asCookie)).toBeNull();
+	});
+});
+
+describe('isLocalHostname', () => {
+	it.each([
+		['localhost', true],
+		['127.0.0.1', true],
+		['[::1]', true],
+		['epoch.example.com', false],
+		['localhost.evil.example', false],
+		['127.0.0.1.evil.example', false],
+		['', false]
+	])('%s -> %s', (hostname, expected) => {
+		expect(isLocalHostname(hostname)).toBe(expected);
+	});
+
+	it('matches what URL.hostname reports', () => {
+		expect(isLocalHostname(new URL('http://localhost:5173/').hostname)).toBe(true);
+		expect(isLocalHostname(new URL('http://[::1]:5173/').hostname)).toBe(true);
+		expect(isLocalHostname(new URL('https://epoch.example.com/').hostname)).toBe(false);
 	});
 });

@@ -5,6 +5,7 @@ import { getPlatformBindings } from '#lib/server/platform.js';
 import {
 	extractAccessJwt,
 	isDevBypassEnabled,
+	isLocalHostname,
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
 import { signedOutRedirect } from '#lib/server/auth/public-routes.js';
@@ -61,11 +62,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const token = extractAccessJwt(event.request);
 	let hasInvalidToken = false;
 	// Fail closed: the bypass needs an explicit opt-in and never follows NODE_ENV, since the
-	// unbundled server build keeps runtime env checks and would otherwise open production.
-	const allowDevBypass = isDevBypassEnabled(
+	// unbundled server build keeps runtime env checks and would otherwise open production. It also
+	// needs a local hostname, because only `/login` sits behind Access: a flag left set on a
+	// deployment would open every other path.
+	const isBypassFlagSet = isDevBypassEnabled(
 		ACCESS_BYPASS_DEV,
 		(bindings as { ACCESS_BYPASS_DEV?: string }).ACCESS_BYPASS_DEV
 	);
+	const allowDevBypass = isBypassFlagSet && isLocalHostname(event.url.hostname);
+	if (isBypassFlagSet && !allowDevBypass) {
+		requestLogger.warn('ACCESS_BYPASS_DEV is set but ignored: the host is not local', {
+			hostname: event.url.hostname
+		});
+	}
 
 	if (token) {
 		try {
