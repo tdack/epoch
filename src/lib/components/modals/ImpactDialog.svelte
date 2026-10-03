@@ -52,7 +52,11 @@
 		partner: 'Partners in a partnership',
 		link: 'Parent and child links',
 		event: 'Events',
-		media: 'Attachments'
+		media: 'Attachments',
+		source: 'Sources',
+		repository: 'Repositories',
+		source_link: 'Where sources are kept',
+		citation: 'Citations'
 	};
 
 	const ACTION_LABELS = { created: 'Added', updated: 'Changed', deleted: 'Deleted' } as const;
@@ -167,6 +171,16 @@
 					</ul>
 				</section>
 			{/each}
+
+			{#if impact.carriedCitations}
+				<p class="text-sm text-stone-700">
+					{impact.carriedCitations}
+					{impact.carriedCitations === 1 ? 'citation stays' : 'citations stay'} with what {impact.carriedCitations ===
+					1
+						? 'it'
+						: 'they'} support{impact.carriedCitations === 1 ? 's' : ''}. None is lost.
+				</p>
+			{/if}
 
 			{#if groups.length === 0 && moves.length === 0}
 				<p class="text-sm text-stone-600">Nothing would change.</p>

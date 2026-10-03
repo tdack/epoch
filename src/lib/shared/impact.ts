@@ -74,4 +74,6 @@ export interface ImpactSummary {
 	people: ImpactPerson[];
 	/** True when the change deletes any record. */
 	isDestructive: boolean;
+	/** For a merge: how many citations of the record folded away end up on the one that remains. */
+	carriedCitations?: number;
 }

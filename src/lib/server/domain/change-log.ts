@@ -373,10 +373,16 @@ export function dependentsOfDeletions(
 				return deleting.has(`parent_child:${id}`);
 		}
 	};
+	// A citation the undo moves away from a record that is going (a merge's undo hands it back) is not
+	// left behind, so what counts is where it will be, not where it is.
+	const citationAfter = new Map(
+		ops.filter((op) => op.table === 'citations' && op.after).map((op) => [op.id, op.after!])
+	);
 	for (const citation of rows.citations) {
+		const kept = (citationAfter.get(citation.id) ?? citation) as typeof citation;
 		if (
-			isSubjectDeleted(citation.subjectKind, citation.subjectId) ||
-			(citation.sourceId !== null && deletedSources.has(citation.sourceId))
+			isSubjectDeleted(kept.subjectKind, kept.subjectId) ||
+			(kept.sourceId !== null && deletedSources.has(kept.sourceId))
 		)
 			add('citations', citation);
 	}

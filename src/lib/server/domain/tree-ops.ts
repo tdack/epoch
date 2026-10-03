@@ -31,7 +31,8 @@ import {
 import type { ParentChild } from './genealogy-model';
 import type { UnionStatus } from '../../shared/relationship-model';
 import { buildFactOps } from './fact-ops';
-import { buildEvidenceOps, citationCascadeOps } from './evidence-ops';
+import { buildEvidenceOps, citationCascadeOps, makeCitationMover } from './evidence-ops';
+import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { buildPersonMergeOps } from './person-merge';
 import { buildPlaceOps } from './place-ops';
 import { buildNameOps, initialNameOp, preferredNameOps } from './name-ops';
@@ -874,33 +875,37 @@ function mergeUnions(
 	// Events: the survivor's stay; a merged union's move over unless the survivor already states the
 	// same fact, or a conflict was settled in favour of another union.
 	const chosenFor = (type: string) => command.keep?.events?.[type];
-	const seen = new Set<string>();
+	// What a deleted fact cited is evidence, and stays: with the identical fact that is kept, or, when
+	// a different claim was chosen over it, on the partnership itself.
+	const citations = makeCitationMover(rows, ctx);
+	const seen = new Map<string, string>();
 	for (const union of involved) {
 		for (const event of eventsOf(rows, 'FAMILY', union.id)) {
 			const chosen = conflicts.some((c) => c.kind === 'event' && c.eventType === event.type)
 				? chosenFor(event.type)
 				: undefined;
 			const isLoser = chosen !== undefined && chosen !== union.id;
-			const isFactSeen = seen.has(
-				factKey({
-					type: event.type,
-					dateText: event.dateRaw,
-					place: event.place,
-					description: event.description
-				})
-			);
+			const key = factKey({
+				type: event.type,
+				dateText: event.dateRaw,
+				place: event.place,
+				description: event.description
+			});
+			const isFactSeen = seen.has(key);
 			if (isLoser || (union.id !== survivor.id && isFactSeen)) {
 				ops.push({ table: 'events', id: event.id, before: event, after: null });
+				const keptEventId = isLoser ? undefined : seen.get(key);
+				ops.push(
+					...citations.move(
+						{ kind: CITATION_SUBJECT_KINDS.EVENT, id: event.id },
+						keptEventId
+							? { kind: CITATION_SUBJECT_KINDS.EVENT, id: keptEventId }
+							: { kind: CITATION_SUBJECT_KINDS.UNION, id: survivor.id }
+					)
+				);
 				continue;
 			}
-			seen.add(
-				factKey({
-					type: event.type,
-					dateText: event.dateRaw,
-					place: event.place,
-					description: event.description
-				})
-			);
+			seen.set(key, event.id);
 			if (union.id !== survivor.id) {
 				ops.push({
 					table: 'events',
@@ -910,6 +915,16 @@ function mergeUnions(
 				});
 			}
 		}
+	}
+
+	// The partnerships' own citations, in the order they had, follow them to the survivor.
+	for (const union of merged) {
+		ops.push(
+			...citations.move(
+				{ kind: CITATION_SUBJECT_KINDS.UNION, id: union.id },
+				{ kind: CITATION_SUBJECT_KINDS.UNION, id: survivor.id }
+			)
+		);
 	}
 
 	// Parentage is a fact about parent and child, so every link is kept and only regrouped.

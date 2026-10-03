@@ -30,6 +30,8 @@ import {
 	ValidationError
 } from './errors';
 import { factTypeInfo } from '../../shared/fact-types';
+import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import { makeCitationMover } from './evidence-ops';
 import {
 	MAX_PERSON_MERGE_OPS,
 	PERSON_MERGE_REFUSALS,
@@ -181,10 +183,14 @@ export function buildPersonMergeOps(
 	const privacy = merged.privacy === 'private' ? 'private' : survivor.privacy;
 
 	const ops: RowOp[] = [];
+	// Evidence is never dropped: a record that is folded into another (or written anew) hands its
+	// citations to the one that now says the same thing.
+	const citations = makeCitationMover(rows, ctx);
+	const cited = CITATION_SUBJECT_KINDS;
 
 	// ---- Names ----
 	const survivorNames = rows.personNames.filter((n) => n.personId === survivor.id);
-	const known = new Set(survivorNames.map(nameKey));
+	const known = new Map(survivorNames.map((n) => [nameKey(n), n.id] as const));
 	let nextOrder = Math.max(-1, ...survivorNames.map((n) => n.order)) + 1;
 	const mergedNames = rows.personNames
 		.filter((n) => n.personId === merged.id)
@@ -192,9 +198,15 @@ export function buildPersonMergeOps(
 	for (const name of mergedNames) {
 		if (known.has(nameKey(name))) {
 			ops.push({ table: 'person_names', id: name.id, before: name, after: null });
+			ops.push(
+				...citations.move(
+					{ kind: cited.NAME, id: name.id },
+					{ kind: cited.NAME, id: known.get(nameKey(name))! }
+				)
+			);
 			continue;
 		}
-		known.add(nameKey(name));
+		known.set(nameKey(name), name.id);
 		// The survivor's preferred name stays the one the person is shown by.
 		ops.push({
 			table: 'person_names',
@@ -242,15 +254,21 @@ export function buildPersonMergeOps(
 	const survivorFacts = rows.events.filter(
 		(e) => e.entityType === 'INDIVIDUAL' && e.entityId === survivor.id
 	);
-	const stated = new Set(survivorFacts.map(factKey));
+	const stated = new Map(survivorFacts.map((e) => [factKey(e), e.id] as const));
 	for (const fact of rows.events.filter(
 		(e) => e.entityType === 'INDIVIDUAL' && e.entityId === merged.id
 	)) {
 		if (stated.has(factKey(fact))) {
 			ops.push({ table: 'events', id: fact.id, before: fact, after: null });
+			ops.push(
+				...citations.move(
+					{ kind: cited.EVENT, id: fact.id },
+					{ kind: cited.EVENT, id: stated.get(factKey(fact))! }
+				)
+			);
 			continue;
 		}
-		stated.add(factKey(fact));
+		stated.set(factKey(fact), fact.id);
 		if (factTypeInfo(fact.type)?.isSingular) {
 			// The first birth or death on file is the one cards and the person form use, and "first" is
 			// the order rows were written. Written anew, a moved birth lands behind the survivor's own.
@@ -264,6 +282,9 @@ export function buildPersonMergeOps(
 				updatedAt: ctx.now
 			};
 			ops.push({ table: 'events', id: moved.id, before: null, after: moved });
+			ops.push(
+				...citations.move({ kind: cited.EVENT, id: fact.id }, { kind: cited.EVENT, id: moved.id })
+			);
 		} else {
 			ops.push({
 				table: 'events',
@@ -276,9 +297,7 @@ export function buildPersonMergeOps(
 
 	// ---- Parents and children ----
 	const links = rows.parentChild;
-	const hasLink = (parentId: string, childId: string, type: string) =>
-		links.some((l) => l.parentId === parentId && l.childId === childId && l.type === type);
-	const movedLinks = new Set<string>();
+	const movedLinks = new Map<string, string>();
 	for (const link of links.filter((l) => l.parentId === merged.id || l.childId === merged.id)) {
 		const next: ParentChildRow = {
 			...link,
@@ -287,11 +306,22 @@ export function buildPersonMergeOps(
 		};
 		const key = `${next.parentId}>${next.childId}>${next.type}`;
 		// The survivor already asserts this, or an earlier moved link does: one assertion is enough.
-		if (movedLinks.has(key) || hasLink(next.parentId, next.childId, next.type)) {
+		const sameLink =
+			movedLinks.get(key) ??
+			links.find(
+				(l) => l.parentId === next.parentId && l.childId === next.childId && l.type === next.type
+			)?.id;
+		if (sameLink) {
 			ops.push({ table: 'parent_child', id: link.id, before: link, after: null });
+			ops.push(
+				...citations.move(
+					{ kind: cited.PARENT_CHILD, id: link.id },
+					{ kind: cited.PARENT_CHILD, id: sameLink }
+				)
+			);
 			continue;
 		}
-		movedLinks.add(key);
+		movedLinks.set(key, link.id);
 		ops.push({ table: 'parent_child', id: link.id, before: link, after: touch(next, ctx) });
 	}
 
@@ -307,6 +337,14 @@ export function buildPersonMergeOps(
 		// Its partners changed, so a stale partnership editor must conflict (as deleting a person does).
 		if (union) ops.push({ table: 'unions', id: union.id, before: union, after: touch(union, ctx) });
 	}
+
+	// ---- Evidence about the person themself ----
+	ops.push(
+		...citations.move(
+			{ kind: cited.PERSON, id: merged.id },
+			{ kind: cited.PERSON, id: survivor.id }
+		)
+	);
 
 	// ---- Media ----
 	for (const item of rows.mediaItems.filter((m) => m.entityId === merged.id)) {
