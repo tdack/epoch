@@ -328,11 +328,11 @@ describe('unsourced key facts', () => {
 	});
 
 	it('flags each of two conflicting births that nothing cites, and only the one left uncited', () => {
-		const rows = (cited: boolean) =>
+		const rows = (isCited: boolean) =>
 			treeRows({
 				people: [{ id: 'a', birth: '1900' }],
 				events: [{ id: 'second', entityId: 'a', type: 'BIRT', dateRaw: '1901' }],
-				citations: cited ? [{ subjectKind: 'event', subjectId: 'birt-a' }] : []
+				citations: isCited ? [{ subjectKind: 'event', subjectId: 'birt-a' }] : []
 			});
 		expect(unsourced(rows(false)).map((f) => f.key)).toEqual([
 			'unsourced_key_fact:birt-a',
