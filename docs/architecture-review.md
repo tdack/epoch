@@ -363,6 +363,11 @@ is not done. Commits are named by subject because hashes change on rebase.
 | C10 | done | `refactor(gedcom): move export reads and import writes into GedcomRepository`. Parser and the pure preview and export-payload shaping stay in `gedcom/`; the neutral writer moved to `repositories/` |
 | C11 | done | `refactor(gedcom): add GedcomService…`. Export names now use the sanitised tree name for both the download and the stored copy |
 | C12 | done | `refactor(hooks): one resolveUser path for Access and dev bypass` |
+| D1 | done | `refactor(types): make shared/ the home of ParentChildType, UnionStatus and TreeRole` |
+| D2 | done | `refactor(types): move page DTOs to shared/; client stops importing from server/`; the grep output is in the commit body |
+| D3 | done | `refactor(auth): derive the role order from TREE_ROLES; drop the guard test` |
+| D4 | done | `refactor(api): move individuals endpoints to /people`. `GET /individuals/[id]` was dropped, not moved: nothing read it but one e2e check, which now reads the person page |
+| D5 | done | `refactor(server): split PersonService out of GenealogyService (now TreeService)` |
 
 ### Expected outcome
 
