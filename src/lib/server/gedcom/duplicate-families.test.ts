@@ -6,7 +6,7 @@ import {
 	mergeExactDuplicateFamilies,
 	POSSIBLE_DUPLICATE_REASONS
 } from './duplicate-families';
-import { parseGedcom } from './index';
+import { parseGedcom } from './parser';
 
 const fam = (id: string, body: string) => `0 ${id} FAM\n${body}`;
 const file = (...families: string[]) =>

@@ -21,7 +21,7 @@ import {
 	gedcomPreserved
 } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
-import type { ParsedGedcomData } from './index';
+import type { ParsedGedcomData } from './parser';
 
 /**
  * `sealing` and `other` have no neutral type; they become `unknown` and keep the PEDI word in

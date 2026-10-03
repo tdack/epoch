@@ -16,7 +16,7 @@ import {
 	UNBACKFILLED_EVENTS_SQL,
 	type UnbackfilledEvent
 } from '../domain/date-backfill';
-import { normalizeGedcomDate } from './index';
+import { normalizeGedcomDate } from './parser';
 import { importGedcomToDb } from './importer';
 
 let t: TestDatabase;

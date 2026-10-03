@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import dirty from '../../../../docs/The_Simpsons.ged?raw';
 import { parentChild, unions } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { buildGedcom551String, parseGedcom } from './index';
+import { parseGedcom } from './parser';
+import { buildGedcom551String } from './serializer';
 import {
 	getTreeExportData,
 	importGedcomToDb,

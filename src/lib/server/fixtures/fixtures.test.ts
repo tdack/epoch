@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseGedcom, buildGedcom551String } from '../gedcom/index';
+import { parseGedcom } from '../gedcom/parser';
+import { buildGedcom551String } from '../gedcom/serializer';
 import { REPRESENTATIVE_GEDCOM_FIXTURE } from './genealogy-fixtures';
 
 describe('Representative Genealogy Scenarios Fixture', () => {

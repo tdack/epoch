@@ -1,12 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-	parseGedcom,
-	buildGedcom7String,
-	buildGedcom551String,
-	buildGedcomString,
-	detectGedcomVersion,
-	SEX_X_TAG
-} from './index';
+import { parseGedcom, detectGedcomVersion } from './parser';
+import { buildGedcom7String, buildGedcom551String, buildGedcomString } from './serializer';
+import { SEX_X_TAG } from './tags';
 import {
 	REPRESENTATIVE_GEDCOM_7_FIXTURE,
 	REPRESENTATIVE_GEDCOM_FIXTURE

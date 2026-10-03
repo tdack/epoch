@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGedcom } from '../gedcom/index';
+import { parseGedcom } from '../gedcom/parser';
 import { validateParentChildAssertion } from './invariants';
 import type { ParentChild, ParentChildType, Union } from './genealogy-model';
 import {

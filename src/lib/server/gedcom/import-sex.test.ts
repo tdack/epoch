@@ -8,7 +8,8 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { GenealogyService } from '../services/genealogy-service';
-import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
+import { parseGedcom } from './parser';
+import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from './importer';
 
 let t: TestDatabase;

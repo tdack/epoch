@@ -5,7 +5,8 @@ import { UnauthorizedError } from '../domain/errors';
 import { UserRepository } from '../repositories/user-repository';
 import { requireMemberAction } from '../services/tree-access';
 import { getTreeExportData } from '../gedcom/importer';
-import { buildGedcomString, type GedcomFormat } from '../gedcom/index';
+import { buildGedcomString } from '../gedcom/serializer';
+import { type GedcomFormat } from '../gedcom/tags';
 
 interface GedcomExportPayload {
 	treeId: string;

@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { individuals } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { buildGedcom551String } from './index';
+import { buildGedcom551String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from './importer';
 
 const FILE = `0 HEAD

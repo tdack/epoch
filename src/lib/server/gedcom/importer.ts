@@ -13,7 +13,7 @@ import {
 	personNames
 } from '../db';
 import { dateColumnsFor, type EventDateColumns } from '../domain/date-columns';
-import { parseGedcom, type ParsedGedcomData } from './index';
+import { parseGedcom, type ParsedGedcomData } from './parser';
 import { importNeutralModel } from './neutral-importer';
 import {
 	detectDuplicateFamilies,

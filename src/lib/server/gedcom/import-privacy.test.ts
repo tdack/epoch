@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { gedcomPreserved, individuals } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
+import { parseGedcom } from './parser';
+import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from './importer';
 
 let t: TestDatabase;

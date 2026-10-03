@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-	parseGedcom,
-	buildGedcom551String,
-	normalizeGedcomDate,
-	parseGedcomNameValue
-} from './index';
+import { parseGedcom, normalizeGedcomDate, parseGedcomNameValue } from './parser';
+import { buildGedcom551String } from './serializer';
 
 describe('GEDCOM 5.5.1 Parser and Serializer', () => {
 	const sampleGedcom = `0 HEAD

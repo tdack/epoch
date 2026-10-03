@@ -8,7 +8,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import FIXTURE from './fixtures/evidence.ged?raw';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { buildGedcom551String, buildGedcom7String } from './index';
+import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from './importer';
 
 let t: TestDatabase;

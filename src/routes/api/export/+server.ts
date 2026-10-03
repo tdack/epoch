@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getTreeExportData } from '#lib/server/gedcom/importer.js';
-import { buildGedcomString, type GedcomFormat } from '#lib/server/gedcom/index.js';
+import { buildGedcomString } from '#lib/server/gedcom/serializer.js';
+import { type GedcomFormat } from '#lib/server/gedcom/tags.js';
 import { getDb } from '#lib/server/db/index.js';
 import { GenealogyService } from '#lib/server/services/genealogy-service.js';
 import { errorResponse } from '#lib/server/http/error-response.js';

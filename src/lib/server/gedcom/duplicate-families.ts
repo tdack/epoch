@@ -8,7 +8,7 @@
  */
 
 import { factKey, partnerSetKey } from '../../shared/union-merge';
-import type { ParsedEvent, ParsedFamily, ParsedGedcomData } from './index';
+import type { ParsedEvent, ParsedFamily, ParsedGedcomData } from './parser';
 
 export const POSSIBLE_DUPLICATE_REASONS = {
 	DIFFERENT_FACTS: 'different_facts',

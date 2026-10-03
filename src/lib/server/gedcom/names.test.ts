@@ -4,7 +4,8 @@ import namesFixture from '../../../../docs/The_Names_fixture.ged?raw';
 import { personNames } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { buildGedcom551String, buildGedcom7String, parseGedcom } from './index';
+import { parseGedcom } from './parser';
+import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from './importer';
 
 let t: TestDatabase;
