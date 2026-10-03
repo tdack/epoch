@@ -10,6 +10,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { wholeGraph } from '../testing/graph';
 import { ChangeLogService } from './change-log-service';
 import { GenealogyService } from './genealogy-service';
 import { RelationshipService } from './relationship-service';
@@ -33,7 +34,7 @@ async function setup() {
 
 	const addPerson = async (givenName: string, surname: string | null = null, extra: object = {}) =>
 		(await people.createIndividual(treeId, { givenName, surname, ...extra }, ctx)).individual;
-	const graph = (): Promise<RelationshipGraph> => relationships.getGraph(treeId, ctx);
+	const graph = (): Promise<RelationshipGraph> => wholeGraph(t.db, treeId, ctx);
 	const ref = (p: { id: string; givenName?: string | null; surname?: string | null }) => ({
 		id: p.id,
 		givenName: p.givenName ?? null,

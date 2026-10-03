@@ -7,6 +7,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { wholeGraph } from '../testing/graph';
 import { ChangeLogService } from './change-log-service';
 import { GenealogyService } from './genealogy-service';
 import { RelationshipService, type MergeUnionsCommand } from './relationship-service';
@@ -72,7 +73,7 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 	}
 
 	async function setMarriage(unionId: string, dateText: string, place: string | null) {
-		const union = (await relationships.getGraph(treeId, ctx)).unions.find((u) => u.id === unionId)!;
+		const union = (await wholeGraph(t.db, treeId, ctx)).unions.find((u) => u.id === unionId)!;
 		const existing = union.events?.find((e) => e.type === 'MARR');
 		await relationships.updateUnion(
 			treeId,
@@ -90,7 +91,7 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 	const command = async (
 		overrides: Partial<MergeUnionsCommand> = {}
 	): Promise<MergeUnionsCommand> => {
-		const graph = await relationships.getGraph(treeId, ctx);
+		const graph = await wholeGraph(t.db, treeId, ctx);
 		return {
 			kind: 'merge_unions',
 			survivorId: unionIds[0],
@@ -253,7 +254,7 @@ describe('merging partnerships between the same people', () => {
 
 	it('treats differing statuses as a conflict that needs a choice, and applies it', async () => {
 		const s = await setup({ marriages: [null, null, null] });
-		const graph = await s.relationships.getGraph(s.treeId, s.ctx);
+		const graph = await wholeGraph(t.db, s.treeId, s.ctx);
 		const second = graph.unions.find((u) => u.id === s.unionIds[1])!;
 		await s.relationships.updateUnion(
 			s.treeId,

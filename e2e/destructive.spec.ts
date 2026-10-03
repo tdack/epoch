@@ -24,16 +24,20 @@ test('deleting a person lists exactly what goes and needs confirmation', async (
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
 	await page.keyboard.press('Escape');
 	await expect(dialog).toBeHidden();
-	expect((await api.graph()).people).toHaveLength(3);
+	expect((await api.counts()).people).toBe(3);
 
 	await card(page, 'Homer').click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Delete person…' }).click();
 	await dialog.getByRole('button', { name: 'Delete person' }).click();
 
 	await expect(page.getByRole('status').filter({ hasText: 'Deleted Homer Simpson' })).toBeVisible();
-	const graph = await api.graph();
-	expect(graph.people.map((p) => p.displayName).sort()).toEqual(['Marge Simpson', 'Bart Simpson']);
-	expect(graph.parentChild).toEqual([]);
+	// Marge and Bart are no longer connected, so each is its own window.
+	expect((await api.counts()).people).toBe(2);
+	for (const person of [marge, bart]) {
+		const graph = await api.graph(person.id);
+		expect(graph.people.map((p) => p.displayName)).toEqual([`${person.givenName} Simpson`]);
+		expect(graph.parentChild).toEqual([]);
+	}
 });
 
 test('removing a single parent link through the popover leaves the other parent', async ({

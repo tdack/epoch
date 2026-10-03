@@ -14,6 +14,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
+import { wholeGraph } from '../testing/graph';
 import { GenealogyService } from './genealogy-service';
 import { RelationshipService } from './relationship-service';
 
@@ -89,7 +90,7 @@ describe('chronology and warnings', () => {
 			{ kind: 'add_partner', person: ref(ann), partner: ref(ben), unionLabel: null },
 			actor.context
 		);
-		const graph = await relationships.getGraph(treeId, actor.context);
+		const graph = await wholeGraph(t.db, treeId, actor.context);
 		return { treeId, ann, ben, unionId: graph.unions[0]!.id, add, ref, relationships, graph };
 	}
 

@@ -52,7 +52,7 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page.getByRole('status').filter({ hasText: 'Newborn' })).toBeVisible();
-	const graph = await api.graph();
+	const graph = await api.graph(homerId);
 	const newborn = graph.people.find((p) => p.displayName === 'Newborn')!;
 	const link = graph.parentChild.find((l) => l.childId === newborn.id && l.parentId === homerId);
 	expect(link?.unionId).toBe(otherId);
@@ -60,6 +60,6 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 
 	await page.getByRole('button', { name: 'Undo' }).click();
 	await expect
-		.poll(async () => (await api.graph()).parentChild.some((l) => l.childId === newborn.id))
+		.poll(async () => (await api.graph(homerId)).parentChild.some((l) => l.childId === newborn.id))
 		.toBe(false);
 });

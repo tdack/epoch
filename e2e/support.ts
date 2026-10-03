@@ -89,8 +89,26 @@ export class Api {
 		});
 	}
 
-	async graph(): Promise<GraphView> {
-		const res = await this.request.get(`/api/trees/${this.treeId}/graph`);
+	/** How many people and partnerships the tree holds, wherever they sit. */
+	async counts(): Promise<{ people: number; unions: number }> {
+		const res = await this.request.get(`/api/trees/${this.treeId}/summary`);
+		return (await res.json()).counts;
+	}
+
+	/**
+	 * Everyone reachable from the tree's default person, as far as the view allows. No endpoint
+	 * answers the whole tree, so a spec that needs a person outside that reach passes one as `focus`.
+	 */
+	async graph(focus?: string): Promise<GraphView> {
+		let focusId = focus;
+		if (!focusId) {
+			const summary = await this.request.get(`/api/trees/${this.treeId}/summary`);
+			focusId = (await summary.json()).defaultFocusPersonId as string;
+		}
+		const res = await this.request.get(
+			`/api/trees/${this.treeId}/graph?focus=${focusId}&up=8&down=8&siblings=1&step=1`
+		);
+		expect(res.ok(), await res.text()).toBe(true);
 		return (await res.json()).graph;
 	}
 }
