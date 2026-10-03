@@ -49,7 +49,7 @@
 	<form onsubmit={handleSubmit} class="space-y-4">
 		<div class="space-y-3.5">
 			<div>
-				<label for="tree-name-input" class="mb-1 block text-xs font-semibold text-stone-700">
+				<label for="tree-name-input" class="field-label">
 					Tree Name <span class="text-orange-600">*</span>
 				</label>
 				<input
@@ -62,9 +62,7 @@
 				/>
 			</div>
 			<div>
-				<label for="tree-desc-input" class="mb-1 block text-xs font-semibold text-stone-700">
-					Description (Optional)
-				</label>
+				<label for="tree-desc-input" class="field-label"> Description (Optional) </label>
 				<textarea
 					id="tree-desc-input"
 					bind:value={description}

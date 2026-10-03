@@ -127,7 +127,7 @@
 								{#if canDismiss && dismissing !== finding.key}
 									<button
 										type="button"
-										class="text-xs font-semibold text-emerald-800 hover:underline"
+										class="text-link text-xs"
 										onclick={() => startDismissing(finding)}>Dismiss</button
 									>
 								{/if}
@@ -198,7 +198,7 @@
 					{#if canDismiss}
 						<button
 							type="button"
-							class="text-xs font-semibold text-emerald-800 hover:underline"
+							class="text-link text-xs"
 							disabled={isSaving}
 							onclick={() => run(() => restoreFindingApi(treeId, item.key), 'Finding restored')}
 							>Restore</button

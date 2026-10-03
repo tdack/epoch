@@ -49,12 +49,9 @@
 </svelte:head>
 
 <nav aria-label="Breadcrumb" class="text-sm text-stone-600">
-	<a href={base} class="font-semibold text-emerald-800 hover:underline">{treeName}</a>
+	<a href={base} class="text-link">{treeName}</a>
 	/
-	<a
-		href="{base}/people/{encodeURIComponent(subject.id)}"
-		class="font-semibold text-emerald-800 hover:underline">{subject.name}</a
-	>
+	<a href="{base}/people/{encodeURIComponent(subject.id)}" class="text-link">{subject.name}</a>
 </nav>
 <h2 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h2>
 {#if hint}<p class="mt-1 text-sm text-stone-600">{hint}</p>{/if}
@@ -74,10 +71,7 @@
 			hrefFor={stepper.hrefFor}
 		/>
 	{/if}
-	<a
-		href="{base}?focus={encodeURIComponent(subject.id)}"
-		class="font-semibold text-emerald-800 hover:underline">Show in the tree</a
-	>
+	<a href="{base}?focus={encodeURIComponent(subject.id)}" class="text-link">Show in the tree</a>
 </div>
 
 {#if notice}<p class="mt-2 text-sm text-stone-600" data-testid="more">{notice}</p>{/if}

@@ -283,11 +283,9 @@
 </svelte:head>
 
 <nav aria-label="Breadcrumb" class="text-xs text-stone-600">
-	<a href={treeHref} class="font-semibold text-emerald-800 hover:underline"
-		>{data.summary.tree.name}</a
-	>
+	<a href={treeHref} class="text-link">{data.summary.tree.name}</a>
 	<span aria-hidden="true"> › </span>
-	<a href={`${treeHref}/people`} class="font-semibold text-emerald-800 hover:underline">People</a>
+	<a href={`${treeHref}/people`} class="text-link">People</a>
 	<span aria-hidden="true"> › </span>
 	<span aria-current="page">{dto.person.displayName}</span>
 </nav>
@@ -309,28 +307,26 @@
 		<p class="mt-1 text-xs">
 			<a
 				href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`}
-				class="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"
+				class="text-link inline-flex items-center gap-1"
 				><GitBranch class="h-3 w-3" />Show in the tree</a
 			> <span aria-hidden="true">·</span>
-			<a
-				href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/pedigree`}
-				class="font-semibold text-emerald-800 hover:underline">Ancestors</a
+			<a href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/pedigree`} class="text-link"
+				>Ancestors</a
 			> <span aria-hidden="true">·</span>
 			<a
 				href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/descendants`}
-				class="font-semibold text-emerald-800 hover:underline">Descendants</a
+				class="text-link">Descendants</a
 			> <span aria-hidden="true">·</span>
-			<a
-				href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/fan`}
-				class="font-semibold text-emerald-800 hover:underline">Fan</a
+			<a href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/fan`} class="text-link"
+				>Fan</a
 			> <span aria-hidden="true">·</span>
 			<a
 				href={`${treeHref}/people/${encodeURIComponent(dto.person.id)}/hourglass`}
-				class="font-semibold text-emerald-800 hover:underline">Hourglass</a
+				class="text-link">Hourglass</a
 			> <span aria-hidden="true">·</span>
 			<a
 				href={`${treeHref}/relationship?from=${encodeURIComponent(dto.person.id)}`}
-				class="font-semibold text-emerald-800 hover:underline">Relationship to…</a
+				class="text-link">Relationship to…</a
 			>
 		</p>
 	</div>
@@ -339,46 +335,48 @@
 			type="button"
 			onclick={toggleFavorite}
 			aria-pressed={isFavorite}
-			class="btn"
+			class="action-btn"
 			data-testid="favorite-toggle"
 		>
 			<Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite
 				? 'Favourite'
 				: 'Add to favourites'}
 		</button>
-		<button type="button" onclick={() => void editor.openEditPerson(dto.person.id)} class="btn"
-			><Pencil class="h-3.5 w-3.5" />Edit</button
+		<button
+			type="button"
+			onclick={() => void editor.openEditPerson(dto.person.id)}
+			class="action-btn"><Pencil class="h-3.5 w-3.5" />Edit</button
 		>
 		<button
 			type="button"
 			onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
-			class="btn"><UserPlus class="h-3.5 w-3.5" />Relationship</button
+			class="action-btn"><UserPlus class="h-3.5 w-3.5" />Relationship</button
 		>
 		<button
 			type="button"
 			onclick={() =>
 				editor.openRelationship(editor.anchorFor(dto.person.id), { kind: 'record_death' })}
-			class="btn"><Cross class="h-3.5 w-3.5" />Record death</button
+			class="action-btn"><Cross class="h-3.5 w-3.5" />Record death</button
 		>
 		{#if canMerge}
 			<button
 				type="button"
 				onclick={() => (isMerging = true)}
-				class="btn"
+				class="action-btn"
 				data-testid="merge-person"><Combine class="h-3.5 w-3.5" />Merge…</button
 			>
 		{/if}
 		<button
 			type="button"
 			onclick={() => editor.requestDeletePerson(dto.person.id)}
-			class="btn text-red-700"><Trash2 class="h-3.5 w-3.5" />Delete…</button
+			class="action-btn text-red-700"><Trash2 class="h-3.5 w-3.5" />Delete…</button
 		>
 	</div>
 </header>
 
 {#if canSetPrivacy && dto.privacy}
-	<section aria-labelledby="privacy-heading" class="card" data-testid="privacy-panel">
-		<h3 id="privacy-heading" class="heading">Privacy</h3>
+	<section aria-labelledby="privacy-heading" class="section-card" data-testid="privacy-panel">
+		<h3 id="privacy-heading" class="section-heading">Privacy</h3>
 		<div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
 			<label for="person-privacy" class="sr-only">Who may see this person</label>
 			<select
@@ -399,10 +397,10 @@
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 	<div class="space-y-6">
-		<section aria-labelledby="names-heading" class="card">
+		<section aria-labelledby="names-heading" class="section-card">
 			<div class="flex items-center justify-between">
-				<h3 id="names-heading" class="heading">Names</h3>
-				<button type="button" onclick={() => (nameDialog = { name: null })} class="btn"
+				<h3 id="names-heading" class="section-heading">Names</h3>
+				<button type="button" onclick={() => (nameDialog = { name: null })} class="action-btn"
 					><Plus class="h-3.5 w-3.5" />Add name</button
 				>
 			</div>
@@ -428,8 +426,7 @@
 							<p class="mt-1 text-xs text-stone-600" data-testid="name-context">
 								{nameContext(name)}{#if partnershipLabel(name.unionId)}{' '}<a
 										href={unionHref(name.unionId!)}
-										class="font-semibold text-emerald-800 hover:underline"
-										>{partnershipLabel(name.unionId)}</a
+										class="text-link">{partnershipLabel(name.unionId)}</a
 									>{/if}
 							</p>
 						{/if}
@@ -438,14 +435,14 @@
 								<button
 									type="button"
 									onclick={() => (nameDialog = { name })}
-									class="link"
+									class="row-link"
 									aria-label={`Edit ${typeLabel(name)}`}>Edit</button
 								>
 								{#if !name.isPreferred}
 									<button
 										type="button"
 										onclick={() => void makePreferred(name)}
-										class="link"
+										class="row-link"
 										aria-label={`Show as ${name.displayName}`}>Show as this name</button
 									>
 								{/if}
@@ -453,7 +450,7 @@
 									<button
 										type="button"
 										onclick={() => removeName(name)}
-										class="link text-red-700"
+										class="row-link text-red-700"
 										aria-label={`Remove ${typeLabel(name)}`}>Remove</button
 									>
 								{/if}
@@ -461,7 +458,7 @@
 									<button
 										type="button"
 										onclick={() => void moveName(index, -1)}
-										class="link"
+										class="row-link"
 										aria-label={`Move ${typeLabel(name)} up`}
 										><ArrowUp class="inline h-3 w-3" /></button
 									>
@@ -470,7 +467,7 @@
 									<button
 										type="button"
 										onclick={() => void moveName(index, 1)}
-										class="link"
+										class="row-link"
 										aria-label={`Move ${typeLabel(name)} down`}
 										><ArrowDown class="inline h-3 w-3" /></button
 									>
@@ -486,10 +483,10 @@
 			</ol>
 		</section>
 
-		<section aria-labelledby="facts-heading" class="card">
+		<section aria-labelledby="facts-heading" class="section-card">
 			<div class="flex items-center justify-between">
-				<h3 id="facts-heading" class="heading">Facts</h3>
-				<button type="button" onclick={() => (factDialog = { fact: null })} class="btn"
+				<h3 id="facts-heading" class="section-heading">Facts</h3>
+				<button type="button" onclick={() => (factDialog = { fact: null })} class="action-btn"
 					><Plus class="h-3.5 w-3.5" />Add fact</button
 				>
 			</div>
@@ -544,20 +541,20 @@
 								<button
 									type="button"
 									onclick={() => (factDialog = { fact })}
-									class="link"
+									class="row-link"
 									aria-label={`Edit ${fact.label}`}>Edit</button
 								>
 								<button
 									type="button"
 									onclick={() => removeFact(fact)}
-									class="link text-red-700"
+									class="row-link text-red-700"
 									aria-label={`Remove ${fact.label}`}>Remove</button
 								>
 								{#if canSwap(dto.facts[index - 1], fact)}
 									<button
 										type="button"
 										onclick={() => void move(index, -1)}
-										class="link"
+										class="row-link"
 										aria-label={`Move ${fact.label} up`}><ArrowUp class="inline h-3 w-3" /></button
 									>
 								{/if}
@@ -565,7 +562,7 @@
 									<button
 										type="button"
 										onclick={() => void move(index, 1)}
-										class="link"
+										class="row-link"
 										aria-label={`Move ${fact.label} down`}
 										><ArrowDown class="inline h-3 w-3" /></button
 									>
@@ -578,26 +575,26 @@
 		</section>
 
 		<div class="grid gap-6 sm:grid-cols-2">
-			<section aria-labelledby="notes-heading" class="card">
-				<h3 id="notes-heading" class="heading">Notes</h3>
+			<section aria-labelledby="notes-heading" class="section-card">
+				<h3 id="notes-heading" class="section-heading">Notes</h3>
 				<p class="mt-2 text-xs text-stone-500">
 					Notes on a person arrive with sources and evidence in a later phase.
 				</p>
 			</section>
-			<section aria-labelledby="evidence-heading" class="card">
-				<h3 id="evidence-heading" class="heading">Sources and evidence</h3>
+			<section aria-labelledby="evidence-heading" class="section-card">
+				<h3 id="evidence-heading" class="section-heading">Sources and evidence</h3>
 				<p class="mt-2 text-xs text-stone-500">Citations are not recorded yet.</p>
 			</section>
 		</div>
 
 		{#if dto.media.length > 0}
-			<section aria-labelledby="media-heading" class="card">
-				<h3 id="media-heading" class="heading">Media</h3>
+			<section aria-labelledby="media-heading" class="section-card">
+				<h3 id="media-heading" class="section-heading">Media</h3>
 				<ul class="mt-2 space-y-1 text-sm">
 					{#each dto.media as item (item.id)}
 						<li>
 							<a
-								class="link"
+								class="row-link"
 								href={`/api/media/${item.r2ObjectKey}`}
 								target="_blank"
 								rel="noreferrer">{item.title ?? item.r2ObjectKey}</a
@@ -610,8 +607,8 @@
 	</div>
 
 	<aside class="space-y-6" aria-label="Family">
-		<section aria-labelledby="parents-heading" class="card">
-			<h3 id="parents-heading" class="heading">Parents</h3>
+		<section aria-labelledby="parents-heading" class="section-card">
+			<h3 id="parents-heading" class="section-heading">Parents</h3>
 			{#if dto.parentFamilies.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
 					None recorded.
 				</p>{/if}
@@ -626,7 +623,7 @@
 						</li>
 					{/each}
 					{#if family.unionId}<li class="text-xs">
-							<a class="link" href={unionHref(family.unionId)}
+							<a class="row-link" href={unionHref(family.unionId)}
 								>{family.label?.full ?? 'Their partnership'}</a
 							>
 						</li>{/if}
@@ -634,8 +631,8 @@
 			{/each}
 		</section>
 
-		<section aria-labelledby="partners-heading" class="card">
-			<h3 id="partners-heading" class="heading">Partnerships and children</h3>
+		<section aria-labelledby="partners-heading" class="section-card">
+			<h3 id="partners-heading" class="section-heading">Partnerships and children</h3>
 			{#if dto.partnerships.length === 0 && dto.directChildren.length === 0}<p
 					class="mt-2 text-xs text-stone-500 italic"
 				>
@@ -647,7 +644,9 @@
 					data-testid="partnership"
 				>
 					<p class="text-xs font-semibold text-amber-900">
-						<a class="link" href={unionHref(union.unionId)}>{union.label?.full ?? 'Partnership'}</a>
+						<a class="row-link" href={unionHref(union.unionId)}
+							>{union.label?.full ?? 'Partnership'}</a
+						>
 						{#if union.status !== 'active'}<span class="text-red-700"> · {union.status}</span>{/if}
 						{#if union.isWidowed}<span class="text-stone-700"> · widowed</span>{/if}
 					</p>
@@ -686,8 +685,8 @@
 			{/if}
 		</section>
 
-		<section aria-labelledby="siblings-heading" class="card">
-			<h3 id="siblings-heading" class="heading">Siblings</h3>
+		<section aria-labelledby="siblings-heading" class="section-card">
+			<h3 id="siblings-heading" class="section-heading">Siblings</h3>
 			{#if dto.siblings.full.length === 0 && dto.siblings.half.length === 0}<p
 					class="mt-2 text-xs text-stone-500 italic"
 				>
@@ -705,8 +704,8 @@
 		</section>
 
 		{#if dto.stepParents.length > 0 || dto.stepChildren.length > 0}
-			<section aria-labelledby="steps-heading" class="card">
-				<h3 id="steps-heading" class="heading">Step relatives</h3>
+			<section aria-labelledby="steps-heading" class="section-card">
+				<h3 id="steps-heading" class="section-heading">Step relatives</h3>
 				<ul class="mt-2 space-y-0.5 text-sm" data-testid="step-relatives">
 					{#each dto.stepParents as step (step.person.id)}<li>
 							<PersonLink person={step.person} href={personHref(step.person.id)} />
@@ -720,8 +719,8 @@
 			</section>
 		{/if}
 
-		<section aria-labelledby="history-heading" class="card">
-			<h3 id="history-heading" class="heading">History</h3>
+		<section aria-labelledby="history-heading" class="section-card">
+			<h3 id="history-heading" class="section-heading">History</h3>
 			<p class="mt-1 text-xs text-stone-500">
 				Created {when(dto.changes.createdAt)} · last written {when(dto.changes.updatedAt)}
 			</p>
@@ -775,43 +774,3 @@
 		oncancel={() => (isMerging = false)}
 	/>
 {/if}
-
-<style>
-	.card {
-		border-radius: 1rem;
-		border: 1px solid var(--color-stone-200);
-		background: var(--color-stone-50);
-		padding: 1rem;
-	}
-	.heading {
-		font-size: 0.75rem;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-		color: var(--color-stone-600);
-	}
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		cursor: pointer;
-		border-radius: 0.5rem;
-		border: 1px solid var(--color-stone-300);
-		background: var(--color-stone-100);
-		padding: 0.375rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--color-stone-800);
-	}
-	.btn:hover {
-		background: var(--color-stone-200);
-	}
-	.link {
-		cursor: pointer;
-		font-weight: 500;
-		color: var(--color-emerald-800);
-	}
-	.link:hover {
-		text-decoration: underline;
-	}
-</style>

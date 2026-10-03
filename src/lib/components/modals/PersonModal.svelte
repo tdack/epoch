@@ -112,10 +112,7 @@
 			<!-- Names -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="person-given-name-field"
-						class="mb-1 block text-xs font-semibold text-stone-700">Given Names</label
-					>
+					<label for="person-given-name-field" class="field-label">Given Names</label>
 					<input
 						id="person-given-name-field"
 						type="text"
@@ -126,9 +123,7 @@
 					/>
 				</div>
 				<div>
-					<label for="person-surname-field" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Surname</label
-					>
+					<label for="person-surname-field" class="field-label">Surname</label>
 					<input
 						id="person-surname-field"
 						type="text"

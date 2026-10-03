@@ -55,14 +55,14 @@
 </svelte:head>
 
 <nav aria-label="Breadcrumb" class="text-sm text-stone-600">
-	<a href="{base}/places" class="font-semibold text-emerald-800 hover:underline">Places</a>
+	<a href="{base}/places" class="text-link">Places</a>
 </nav>
 <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 	<h2 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h2>
 	{#if canEdit}
 		<button
 			type="button"
-			class="text-sm font-semibold text-emerald-800 hover:underline"
+			class="text-link text-sm"
 			data-testid="rename-place"
 			onclick={() => (isRewriting = true)}>Rename or merge</button
 		>

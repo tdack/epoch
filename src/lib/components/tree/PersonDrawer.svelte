@@ -193,10 +193,7 @@
 			<div>
 				<h2 class="text-xl font-bold text-stone-900">{person.displayName}</h2>
 				<p class="mt-0.5 text-xs text-stone-500">
-					<a
-						href={personHref}
-						class="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"
-					>
+					<a href={personHref} class="text-link inline-flex items-center gap-1">
 						<ExternalLink class="h-3 w-3" />
 						<span>Open full page</span>
 					</a>
@@ -314,22 +311,20 @@
 							<span class="flex items-center gap-2">
 								<a
 									href={`/trees/${encodeURIComponent(treeId)}/unions/${encodeURIComponent(union.unionId)}`}
-									class="text-[11px] font-semibold text-emerald-800 hover:underline">Open</a
+									class="text-link text-[11px]">Open</a
 								>
 								{#if onEditUnion}
 									<button
 										type="button"
 										onclick={() => onEditUnion(union.unionId)}
-										class="cursor-pointer text-[11px] font-semibold text-emerald-800 hover:underline"
-										>Dates &amp; status</button
+										class="text-link cursor-pointer text-[11px]">Dates &amp; status</button
 									>
 								{/if}
 								{#if onMergeUnion && union.isMergeable}
 									<button
 										type="button"
 										onclick={() => onMergeUnion(union.unionId)}
-										class="cursor-pointer text-[11px] font-semibold text-emerald-800 hover:underline"
-										>Merge…</button
+										class="text-link cursor-pointer text-[11px]">Merge…</button
 									>
 								{/if}
 							</span>

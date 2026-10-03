@@ -36,10 +36,7 @@
 		</h2>
 		{#if data.surname}
 			<p class="mt-1 text-sm">
-				<a
-					href={listHref({ surname: '', offset: 0 })}
-					class="font-semibold text-emerald-800 hover:underline">Show everyone</a
-				>
+				<a href={listHref({ surname: '', offset: 0 })} class="text-link">Show everyone</a>
 			</p>
 		{/if}
 	</div>

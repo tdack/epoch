@@ -515,22 +515,14 @@
 				<label class="block text-xs font-semibold text-stone-700" for="rel-type"
 					>Relationship type</label
 				>
-				<select
-					id="rel-type"
-					bind:value={type}
-					class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-				>
+				<select id="rel-type" bind:value={type} class="field-input">
 					{#each typeOptions as t (t.value)}
 						<option value={t.value}>{t.label}</option>
 					{/each}
 				</select>
 				{#if kind === 'add_parent'}
 					<label class="block text-xs font-semibold text-stone-700" for="rel-role">Role</label>
-					<select
-						id="rel-role"
-						bind:value={role}
-						class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-					>
+					<select id="rel-role" bind:value={role} class="field-input">
 						{#each roleOptions as r (r.value)}
 							<option value={r.value}>{r.label}</option>
 						{/each}
@@ -568,20 +560,10 @@
 					<label class="block text-xs font-semibold text-stone-700" for="new-given"
 						>Given name</label
 					>
-					<input
-						id="new-given"
-						type="text"
-						bind:value={newGivenName}
-						class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-					/>
+					<input id="new-given" type="text" bind:value={newGivenName} class="field-input" />
 					<label class="block text-xs font-semibold text-stone-700" for="new-surname">Surname</label
 					>
-					<input
-						id="new-surname"
-						type="text"
-						bind:value={newSurname}
-						class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-					/>
+					<input id="new-surname" type="text" bind:value={newSurname} class="field-input" />
 				</div>
 			{:else}
 				<div class="space-y-2">
@@ -726,12 +708,7 @@
 				<label class="block text-xs font-semibold text-stone-700" for="death-place"
 					>Place of death</label
 				>
-				<input
-					id="death-place"
-					type="text"
-					bind:value={deathPlace}
-					class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-				/>
+				<input id="death-place" type="text" bind:value={deathPlace} class="field-input" />
 				<p class="text-[11px] text-stone-500">
 					Leave both empty to record only that they have died. A death never ends or changes a
 					partnership.
@@ -780,7 +757,7 @@
 							id="end-status"
 							value={endStatus}
 							onchange={(e) => pickStatus(e.currentTarget.value as EndedUnionStatus)}
-							class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
+							class="field-input"
 						>
 							{#each ENDED_UNION_STATUSES as status (status)}
 								<option value={status}>{UNION_STATUS_LABELS[status]}</option>
@@ -791,11 +768,7 @@
 						<label class="block text-xs font-semibold text-stone-700" for="end-event"
 							>Record an event</label
 						>
-						<select
-							id="end-event"
-							bind:value={endEventType}
-							class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-						>
+						<select id="end-event" bind:value={endEventType} class="field-input">
 							<option value="">No event</option>
 							{#each END_EVENT_TYPES as eventType (eventType)}
 								<option value={eventType}>{UNION_EVENT_LABELS[eventType]}</option>
@@ -816,12 +789,7 @@
 						<div>
 							<label class="block text-xs font-semibold text-stone-700" for="end-place">Place</label
 							>
-							<input
-								id="end-place"
-								type="text"
-								bind:value={endPlace}
-								class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-							/>
+							<input id="end-place" type="text" bind:value={endPlace} class="field-input" />
 						</div>
 					</div>
 				{/if}

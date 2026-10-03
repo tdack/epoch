@@ -184,7 +184,7 @@
 			}}
 		>
 			<div>
-				<label for="fact-type" class="mb-1 block text-xs font-semibold text-stone-700">Type</label>
+				<label for="fact-type" class="field-label">Type</label>
 				<select id="fact-type" bind:this={typeSelect} bind:value={type} class={field}>
 					<optgroup label="Events">
 						{#each EVENT_TYPES as info (info.code)}<option value={info.code}>{info.label}</option
@@ -200,9 +200,7 @@
 
 			{#if isAttribute}
 				<div>
-					<label for="fact-value" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Value</label
-					>
+					<label for="fact-value" class="field-label">Value</label>
 					<input
 						id="fact-value"
 						type="text"
@@ -215,14 +213,11 @@
 
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="fact-date" class="mb-1 block text-xs font-semibold text-stone-700">Date</label
-					>
+					<label for="fact-date" class="field-label">Date</label>
 					<DateInput id="fact-date" bind:value={dateText} inputClass={field} />
 				</div>
 				<div>
-					<label for="fact-place" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Place</label
-					>
+					<label for="fact-place" class="field-label">Place</label>
 					<input
 						id="fact-place"
 						type="text"
@@ -241,20 +236,18 @@
 
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="fact-cause" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Cause</label
-					>
+					<label for="fact-cause" class="field-label">Cause</label>
 					<input id="fact-cause" type="text" bind:value={cause} class={field} />
 				</div>
 				<div>
-					<label for="fact-age" class="mb-1 block text-xs font-semibold text-stone-700">Age</label>
+					<label for="fact-age" class="field-label">Age</label>
 					<input id="fact-age" type="text" bind:value={age} class={field} placeholder="e.g. 79y" />
 				</div>
 			</div>
 
 			{#if !isAttribute}
 				<div>
-					<label for="fact-value-event" class="mb-1 block text-xs font-semibold text-stone-700"
+					<label for="fact-value-event" class="field-label"
 						>Value <span class="font-normal text-stone-500">(optional)</span></label
 					>
 					<input id="fact-value-event" type="text" bind:value class={field} />
@@ -262,8 +255,7 @@
 			{/if}
 
 			<div>
-				<label for="fact-notes" class="mb-1 block text-xs font-semibold text-stone-700">Notes</label
-				>
+				<label for="fact-notes" class="field-label">Notes</label>
 				<textarea id="fact-notes" rows="2" bind:value={notes} class={field}></textarea>
 			</div>
 		</form>

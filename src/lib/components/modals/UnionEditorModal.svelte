@@ -222,14 +222,8 @@
 		</section>
 
 		<div>
-			<label for="union-status" class="mb-1 block text-xs font-semibold text-stone-700"
-				>Status</label
-			>
-			<select
-				id="union-status"
-				bind:value={status}
-				class="w-full rounded-lg border border-stone-300 bg-white p-2 text-sm"
-			>
+			<label for="union-status" class="field-label">Status</label>
+			<select id="union-status" bind:value={status} class="field-input">
 				{#each Object.entries(UNION_STATUS_LABELS) as [value, label] (value)}
 					<option {value}>{label}</option>
 				{/each}

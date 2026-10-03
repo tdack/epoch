@@ -187,7 +187,7 @@
 			}}
 		>
 			<div>
-				<label for="name-type" class="mb-1 block text-xs font-semibold text-stone-700">Type</label>
+				<label for="name-type" class="field-label">Type</label>
 				<select id="name-type" bind:this={typeSelect} bind:value={type} class={field}>
 					{#each NAME_TYPE_LIST as code (code)}<option value={code}>{NAME_TYPE_LABELS[code]}</option
 						>{/each}
@@ -196,9 +196,7 @@
 
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="name-given" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Given names</label
-					>
+					<label for="name-given" class="field-label">Given names</label>
 					<input
 						id="name-given"
 						type="text"
@@ -208,9 +206,7 @@
 					/>
 				</div>
 				<div>
-					<label for="name-surname" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Surname</label
-					>
+					<label for="name-surname" class="field-label">Surname</label>
 					<input
 						id="name-surname"
 						type="text"
@@ -223,15 +219,11 @@
 
 			<div class="grid grid-cols-3 gap-3">
 				<div>
-					<label for="name-prefix" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Prefix</label
-					>
+					<label for="name-prefix" class="field-label">Prefix</label>
 					<input id="name-prefix" type="text" bind:value={prefix} class={field} placeholder="Dr" />
 				</div>
 				<div>
-					<label for="name-surname-prefix" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Surname prefix</label
-					>
+					<label for="name-surname-prefix" class="field-label">Surname prefix</label>
 					<input
 						id="name-surname-prefix"
 						type="text"
@@ -241,15 +233,13 @@
 					/>
 				</div>
 				<div>
-					<label for="name-suffix" class="mb-1 block text-xs font-semibold text-stone-700"
-						>Suffix</label
-					>
+					<label for="name-suffix" class="field-label">Suffix</label>
 					<input id="name-suffix" type="text" bind:value={suffix} class={field} placeholder="Jr" />
 				</div>
 			</div>
 
 			<div>
-				<label for="name-nickname" class="mb-1 block text-xs font-semibold text-stone-700"
+				<label for="name-nickname" class="field-label"
 					>Nickname <span class="font-normal text-stone-500">(optional)</span></label
 				>
 				<input id="name-nickname" type="text" bind:value={nickname} class={field} />
@@ -257,13 +247,13 @@
 
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="name-date" class="mb-1 block text-xs font-semibold text-stone-700"
+					<label for="name-date" class="field-label"
 						>In use from <span class="font-normal text-stone-500">(optional)</span></label
 					>
 					<DateInput id="name-date" bind:value={dateText} inputClass={field} />
 				</div>
 				<div>
-					<label for="name-union" class="mb-1 block text-xs font-semibold text-stone-700"
+					<label for="name-union" class="field-label"
 						>Taken through <span class="font-normal text-stone-500">(optional)</span></label
 					>
 					<select id="name-union" bind:value={unionId} class={field}>
