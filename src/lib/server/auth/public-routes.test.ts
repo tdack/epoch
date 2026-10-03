@@ -3,11 +3,17 @@ import {
 	isPublicPagePath,
 	LOGIN_PATH,
 	safeNextPath,
-	shouldRedirectToWelcome,
+	signedOutRedirect,
 	WELCOME_PATH
 } from './public-routes';
 
-const signedOutPage = { method: 'GET', isDataRequest: false, hasUser: false };
+const signedOutPage = {
+	method: 'GET',
+	search: '',
+	isDataRequest: false,
+	hasUser: false,
+	hasInvalidToken: false
+};
 
 describe('public routes', () => {
 	it('lists only the welcome and login pages as public', () => {
@@ -18,36 +24,68 @@ describe('public routes', () => {
 		expect(isPublicPagePath('/trees/t1')).toBe(false);
 	});
 
-	it('sends a signed-out page load to the welcome page', () => {
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: '/' })).toBe(true);
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: '/trees/t1/people' })).toBe(true);
-		expect(shouldRedirectToWelcome({ ...signedOutPage, method: 'HEAD', pathname: '/' })).toBe(true);
+	it('sends a signed-out page load to the welcome page, remembering where it was going', () => {
+		expect(signedOutRedirect({ ...signedOutPage, pathname: '/' })).toBe('/welcome?next=%2F');
+		expect(
+			signedOutRedirect({
+				...signedOutPage,
+				pathname: '/trees/t1/people',
+				search: '?focus=p2&q=a b'
+			})
+		).toBe('/welcome?next=%2Ftrees%2Ft1%2Fpeople%3Ffocus%3Dp2%26q%3Da%20b');
+		expect(signedOutRedirect({ ...signedOutPage, method: 'HEAD', pathname: '/' })).toBe(
+			'/welcome?next=%2F'
+		);
 	});
 
-	it('serves the welcome page itself to a signed-out visitor', () => {
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: WELCOME_PATH })).toBe(false);
+	it('sends a request whose token failed validation to login instead', () => {
+		expect(
+			signedOutRedirect({
+				...signedOutPage,
+				hasInvalidToken: true,
+				pathname: '/trees/t1',
+				search: '?focus=p2'
+			})
+		).toBe('/login?next=%2Ftrees%2Ft1%3Ffocus%3Dp2');
+	});
+
+	it('serves the welcome and login pages themselves', () => {
+		for (const hasInvalidToken of [false, true]) {
+			expect(signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: WELCOME_PATH })).toBe(
+				null
+			);
+			expect(signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: LOGIN_PATH })).toBe(
+				null
+			);
+		}
 	});
 
 	it('never redirects a signed-in user', () => {
-		expect(shouldRedirectToWelcome({ ...signedOutPage, hasUser: true, pathname: '/' })).toBe(false);
+		expect(signedOutRedirect({ ...signedOutPage, hasUser: true, pathname: '/' })).toBe(null);
 	});
 
-	it('leaves API calls to answer 401', () => {
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: '/api' })).toBe(false);
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: '/api/trees' })).toBe(false);
+	it('leaves API calls to answer 401, even with an invalid token', () => {
+		for (const hasInvalidToken of [false, true]) {
+			expect(signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: '/api' })).toBe(null);
+			expect(
+				signedOutRedirect({ ...signedOutPage, hasInvalidToken, pathname: '/api/trees' })
+			).toBe(null);
+		}
 	});
 
 	it('does not mistake a page that starts with "api" for the API', () => {
-		expect(shouldRedirectToWelcome({ ...signedOutPage, pathname: '/apiary' })).toBe(true);
+		expect(signedOutRedirect({ ...signedOutPage, pathname: '/apiary' })).toBe(
+			'/welcome?next=%2Fapiary'
+		);
 	});
 
 	it('leaves client-side data requests and non-GET methods alone', () => {
 		expect(
-			shouldRedirectToWelcome({ ...signedOutPage, isDataRequest: true, pathname: '/trees/t1' })
-		).toBe(false);
-		expect(
-			shouldRedirectToWelcome({ ...signedOutPage, method: 'POST', pathname: '/trees/t1' })
-		).toBe(false);
+			signedOutRedirect({ ...signedOutPage, isDataRequest: true, pathname: '/trees/t1' })
+		).toBe(null);
+		expect(signedOutRedirect({ ...signedOutPage, method: 'POST', pathname: '/trees/t1' })).toBe(
+			null
+		);
 	});
 });
 
