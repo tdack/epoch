@@ -83,12 +83,14 @@
 				><PersonEvidence /></PersonSection
 			>
 		</div>
-		<PersonSection id="media" title="Media" layout="page"><PersonMedia {dto} /></PersonSection>
+		<PersonSection id="media" title="Media" layout="page"
+			><PersonMedia {dto} {treeId} {editor} /></PersonSection
+		>
 	</div>
 
 	<div class="space-y-6">
 		<PersonSection id="family" title="Family" layout="page">
-			<PersonFamily {dto} {treeId} />
+			<PersonFamily {dto} {treeId} {editor} />
 		</PersonSection>
 		<PersonSection id="history" title="History" layout="page">
 			<PersonHistory {dto} />
