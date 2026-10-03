@@ -40,14 +40,21 @@ Do not introduce Durable Objects until a demonstrated coordination need exists. 
 | [0](./phase-0-foundations.md) | Testable architecture, Access identity and authorization boundary | Complete | — | Schema spike, UX prototypes and GEDCOM fixtures can run together |
 | [1](./phase-1-genealogy-core.md) | Correct relationship/event model and lossless supported GEDCOM | Complete | Phase 0 decisions | Schema/domain and parser fixture work can partly run together |
 | [2](./phase-2-relationship-editor.md) | Safe, comprehensible relationship-first editing UX | Complete | Phase 1 contracts | Editor components and graph visualization can run together |
-| [3](./phase-3-records-navigation.md) | Useful person/family records, search and navigation | Planned | Phases 1–2 | Record views, search and date/place UI are parallelizable |
-| [4](./phase-4-collaboration-privacy.md) | Roles, living-person privacy, audit and change review | Planned | Phases 0–3 | Privacy evaluation and audit UI can run together |
-| [5](./phase-5-evidence-quality.md) | Sources, citations, notes and data-quality workflows | Planned | Phases 1, 3–4 | Evidence UI and quality rules can run together |
-| [6](./phase-6-charts-reports-interchange.md) | Broader charts, reports and production-grade interchange | Planned | Phases 1–5 | Each chart/report is mostly independent after shared queries |
+| [3](./phase-3-records-navigation.md) | Useful person/family records, search and navigation | Complete | Phases 1–2 | Record views, search and date/place UI are parallelizable |
+| [4](./phase-4-collaboration-privacy.md) | Roles, living-person privacy, audit and change review | In progress | Phases 0–3 | Privacy evaluation and audit UI can run together |
+| [5](./phase-5-evidence-quality.md) | Sources, citations, notes and data-quality workflows | In progress | Phases 1, 3–4 | Evidence UI and quality rules can run together |
+| [6](./phase-6-charts-reports-interchange.md) | Broader charts, reports and production-grade interchange | In progress | Phases 1–5 | Each chart/report is mostly independent after shared queries |
 | [7](./phase-7-media-places-operations.md) | Media, documents, maps and operational maturity | Planned | Phases 4–5 | Media and place/map streams are independent |
 | [8](./phase-8-release-hardening.md) | Recoverable, accessible and supportable release | Planned | All release-scope phases | Security, accessibility and load testing can overlap |
 
-Update only this table when phase status changes (`Planned`, `In progress`, `Blocked`, `Complete`). Each phase document owns its detailed exit criteria.
+Update only this table when phase status changes (`Planned`, `In progress`, `Blocked`, `Complete`). Each phase document owns its detailed exit criteria and a status section against them. Work is delivered in numbered slices (S0, S1a … S16); the slice table and per-slice status notes are in [improvement-plan.md](./improvement-plan.md#delivery-slices).
+
+Where each open phase stands (2026-10-04):
+
+- **Phase 4:** privacy (S8) and members (S9) are done; audit, contributor suggestions and record history wait.
+- **Phase 5:** person merge (S14), the quality report (S13) and sources, repositories and citations (S15b) are done; notes, research tasks and the privacy-leak check are S15c, in progress on branch `feat/s15c-notes-tasks`.
+- **Phase 6:** pedigree, descendant and relationship charts (S10) and fan and hourglass (S12) are done; the 3D layers and floors views are S16, in progress on branch `feat/3d-tree-views` ([plan](./3d-tree-views-plan.md)). Production-grade import/export jobs, reports, timelines and branch export wait.
+- **Phase 7:** not started as a phase, though S8 put media reads behind the privacy check and S11 added place records with rename and merge.
 
 ## Delivery slices
 
@@ -66,6 +73,8 @@ Update only this table when phase status changes (`Planned`, `In progress`, `Blo
 - Media/maps must not delay the relationship MVP.
 
 ## Current prototype assessment
+
+Written before Phase 0 began. Every item in the replace list below has since been replaced.
 
 Useful starting assets include Svelte 5/SvelteKit, D1/Drizzle, R2 bindings, queue/workflow scaffolding, basic person/family endpoints, GEDCOM tests and a graphical tree. The following should be replaced rather than entrenched:
 
