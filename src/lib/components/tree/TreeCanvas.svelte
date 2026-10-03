@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import * as d3 from 'd3';
+	import { easeCubicOut } from 'd3-ease';
+	import { select } from 'd3-selection';
+	// Imported for its side effect: it adds `transition` and `interrupt` to selections.
+	import 'd3-transition';
+	import {
+		zoom,
+		zoomIdentity,
+		type D3ZoomEvent,
+		type ZoomBehavior,
+		type ZoomTransform
+	} from 'd3-zoom';
 	import { Maximize2, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import {
 		LAYOUT_METRICS,
@@ -129,9 +139,9 @@
 
 	let containerElement: HTMLDivElement | null = $state(null);
 	let svgElement: SVGSVGElement | null = $state(null);
-	let transform = $state(d3.zoomIdentity);
+	let transform = $state(zoomIdentity);
 	let size = $state({ width: 1000, height: 600 });
-	let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
+	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
 
 	let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
 	let selectedEdgeId = $state<string | null>(null);
@@ -228,11 +238,11 @@
 	}
 
 	/** Where the running animation is heading, so a second click builds on it instead of on a mid-flight frame. */
-	let animationTarget: d3.ZoomTransform | null = null;
+	let animationTarget: ZoomTransform | null = null;
 
-	function moveTo(target: d3.ZoomTransform, options: { isAnimated: boolean; durationMs?: number }) {
+	function moveTo(target: ZoomTransform, options: { isAnimated: boolean; durationMs?: number }) {
 		if (!svgElement || !zoomBehavior) return;
-		const selection = d3.select(svgElement);
+		const selection = select(svgElement);
 		selection.interrupt();
 		animationTarget = null;
 		if (options.isAnimated && canAnimate()) {
@@ -240,14 +250,14 @@
 			selection
 				.transition()
 				.duration(options.durationMs ?? ANIMATION_MS)
-				.ease(d3.easeCubicOut)
+				.ease(easeCubicOut)
 				.call(zoomBehavior.transform, target);
 		} else {
 			selection.call(zoomBehavior.transform, target);
 		}
 	}
 
-	function fitTransform(forLayout: TreeLayout): d3.ZoomTransform {
+	function fitTransform(forLayout: TreeLayout): ZoomTransform {
 		const { minX, maxX, minY, maxY } = forLayout.bounds;
 		const width = Math.max(1, maxX - minX);
 		const height = Math.max(1, maxY - minY);
@@ -261,7 +271,7 @@
 				)
 			)
 		);
-		return d3.zoomIdentity
+		return zoomIdentity
 			.translate(
 				size.width / 2 - ((minX + maxX) / 2) * k,
 				size.height / 2 - ((minY + maxY) / 2) * k
@@ -282,7 +292,7 @@
 		const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, base.k * factor));
 		const centre: [number, number] = [size.width / 2, size.height / 2];
 		const [px, py] = base.invert(centre);
-		moveTo(d3.zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), {
+		moveTo(zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), {
 			isAnimated: true,
 			durationMs: ZOOM_BUTTON_MS
 		});
@@ -296,8 +306,7 @@
 		if (!svgElement || !containerElement) return;
 		size = { width: svgElement.clientWidth || 1000, height: svgElement.clientHeight || 600 };
 
-		zoomBehavior = d3
-			.zoom<SVGSVGElement, unknown>()
+		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([MIN_ZOOM, MAX_ZOOM])
 			// Dragging a card starts drag-to-relate, not a pan; the wheel still zooms everywhere.
 			.filter((event: Event) => {
@@ -308,13 +317,13 @@
 				);
 				return !(event as MouseEvent).button && !isOnControl;
 			})
-			.on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+			.on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
 				transform = event.transform;
 			})
 			.on('end', () => {
 				animationTarget = null;
 			});
-		d3.select(svgElement).call(zoomBehavior).on('dblclick.zoom', null);
+		select(svgElement).call(zoomBehavior).on('dblclick.zoom', null);
 
 		const observer = new ResizeObserver(([entry]) => {
 			const { width, height } = entry.contentRect;
@@ -325,7 +334,7 @@
 		observer.observe(svgElement);
 		return () => {
 			observer.disconnect();
-			if (svgElement) d3.select(svgElement).interrupt().on('.zoom', null);
+			if (svgElement) select(svgElement).interrupt().on('.zoom', null);
 		};
 	});
 
@@ -348,7 +357,7 @@
 					: undefined;
 				if (!isFirst && anchor && canAnimate()) {
 					const screen = transform.apply([anchor.x, anchor.y]);
-					moveTo(d3.zoomIdentity.translate(screen[0], screen[1]).scale(transform.k), {
+					moveTo(zoomIdentity.translate(screen[0], screen[1]).scale(transform.k), {
 						isAnimated: false
 					});
 					containerElement?.querySelector('.scene')?.animate([{ opacity: 0.35 }, { opacity: 1 }], {
