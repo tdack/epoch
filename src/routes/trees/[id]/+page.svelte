@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
@@ -126,7 +126,10 @@
 	 * to the previous person, while depth and toggle changes and opened stubs share one entry for as
 	 * long as the clicks keep coming, so Back undoes a burst of stepper clicks in one go.
 	 */
-	function navigate(change: Partial<TreeViewState>, options: { kind?: HistoryKind } = {}) {
+	function navigate(
+		change: Partial<TreeViewState>,
+		options: { kind?: HistoryKind; isReplace?: boolean } = {}
+	) {
 		// Anything but an explicit stub change starts the new view with its stubs closed.
 		const stubs = 'expandedStubs' in change ? {} : { expandedStubs: [] };
 		const query = serializeViewState({
@@ -141,31 +144,32 @@
 		// navigation runs at a time: a second would cancel the first, and "replace the last entry"
 		// would then overwrite the entry the first should have pushed.
 		pendingSearch = query ? `?${query}` : '';
-		if (isNavigating) queuedNavigation = { query, kind: options.kind };
-		else commitNavigation(query, options.kind);
+		if (isNavigating)
+			queuedNavigation = { query, kind: options.kind, isReplace: options.isReplace };
+		else commitNavigation(query, options.kind, options.isReplace);
 	}
 
 	let isNavigating = false;
-	let queuedNavigation: { query: string; kind?: HistoryKind } | null = null;
+	let queuedNavigation: { query: string; kind?: HistoryKind; isReplace?: boolean } | null = null;
 
-	function commitNavigation(query: string, kind?: HistoryKind) {
+	function commitNavigation(query: string, kind?: HistoryKind, isReplace?: boolean) {
 		isNavigating = true;
 		void goto(query ? `?${query}` : page.url.pathname, {
-			replace: kind ? historyCoalescer.shouldReplace(kind) : false,
+			replace: isReplace ?? (kind ? historyCoalescer.shouldReplace(kind) : false),
 			// Leave scroll and the focused element alone; the tree view changes in place.
 			reset: false
 		}).finally(() => {
 			isNavigating = false;
 			const next = queuedNavigation;
 			queuedNavigation = null;
-			if (next) commitNavigation(next.query, next.kind);
+			if (next) commitNavigation(next.query, next.kind, next.isReplace);
 			else pendingSearch = null;
 		});
 	}
 
 	/** Picking someone in the focus box is opening them: it refocuses and counts as a recent. */
 	function pickFocus(id: string) {
-		navigate({ focusId: id }, { kind: HISTORY_KINDS.FOCUS });
+		navigate(withOpenDrawer(id), { kind: HISTORY_KINDS.FOCUS });
 		void recordRecentApi(treeId, id)
 			.then((updated) => marks.set(updated))
 			.catch(() => {
@@ -173,20 +177,33 @@
 			});
 	}
 
-	function setFocus(id: string) {
+	function rememberFocus(id: string) {
 		try {
 			localStorage.setItem(rememberedFocusKey(treeId), id);
 		} catch {
 			// Remembering the focus is a convenience only.
 		}
-		navigate({ focusId: id }, { kind: HISTORY_KINDS.FOCUS });
 	}
 
+	function setFocus(id: string) {
+		rememberFocus(id);
+		navigate(withOpenDrawer(id), { kind: HISTORY_KINDS.FOCUS });
+	}
+
+	/** A new focus takes an open drawer along, so the drawer keeps describing the person at the centre. */
+	const withOpenDrawer = (id: string): Partial<TreeViewState> => ({
+		focusId: id,
+		...(view.personId ? { personId: id } : {})
+	});
+
 	// ---- The details drawer ----
-	let selectedPersonId = $state<string | null>(null);
+	/** The drawer lives in the address, so a reload, Back and a shared link all find it as it was. */
+	const selectedPersonId = $derived(view.personId);
 	let drawerPage = $state<PersonPageDto | null>(null);
 	let drawerError = $state<string | null>(null);
 	let drawerRequest = 0;
+	/** The card the drawer was opened from, so closing it can hand focus back. */
+	let openerCardId: string | null = null;
 
 	$effect(() => {
 		const id = selectedPersonId;
@@ -206,22 +223,23 @@
 			})
 			.catch((cause: Error) => {
 				if (request !== drawerRequest) return;
-				// The person is gone (deleted, or undone away): there is nothing to keep open.
-				selectedPersonId = null;
+				// The person is gone (deleted, undone away, or a stale link): there is nothing to keep
+				// open. Replacing the entry keeps Back from returning to a drawer that cannot open.
+				navigate({ personId: null, expandedStubs: view.expandedStubs }, { isReplace: true });
 				drawerError = cause.message;
 			});
 	});
 
-	// Back and forward change the focus; keep an open drawer on the person now at the centre.
-	$effect(() => {
-		const id = focusPersonId;
-		untrack(() => {
-			if (id && selectedPersonId && selectedPersonId !== id) selectedPersonId = id;
-		});
-	});
-
+	/** Close the drawer; the tree stays as it is, and focus returns to the card that opened it if it is still drawn. */
 	function clearSelection() {
-		selectedPersonId = null;
+		if (!selectedPersonId) return;
+		navigate({ personId: null, expandedStubs: view.expandedStubs }, { kind: HISTORY_KINDS.ADJUST });
+		const card = openerCardId;
+		openerCardId = null;
+		if (!card) return;
+		void tick().then(() =>
+			document.querySelector<SVGGElement>(`[data-person-id="${CSS.escape(card)}"]`)?.focus()
+		);
 	}
 
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
@@ -229,8 +247,9 @@
 
 	/** Canvas double-click or long-press: focus the person and show their details. */
 	function handleOpenPerson(id: string) {
-		setFocus(id);
-		selectedPersonId = id;
+		if (!selectedPersonId) openerCardId = id;
+		rememberFocus(id);
+		navigate({ focusId: id, personId: id }, { kind: HISTORY_KINDS.FOCUS });
 	}
 
 	/** From the drawer: clicking the selected person again closes it; the tree stays focused on them. */
@@ -239,8 +258,8 @@
 			clearSelection();
 			return;
 		}
-		setFocus(id);
-		selectedPersonId = id;
+		rememberFocus(id);
+		navigate({ focusId: id, personId: id }, { kind: HISTORY_KINDS.FOCUS });
 	}
 </script>
 

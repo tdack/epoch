@@ -22,6 +22,8 @@ export const MAX_DEPTH = MAX_VIEW_DEPTH;
 export interface TreeViewState {
 	treeId: string | null;
 	focusId: string | null;
+	/** The person the details drawer is open on; null when it is closed. It never changes what is fetched. */
+	personId: string | null;
 	ancestorDepth: number;
 	descendantDepth: number;
 	shouldIncludeSiblings: boolean;
@@ -35,6 +37,7 @@ export interface TreeViewState {
 export const DEFAULT_VIEW_STATE: TreeViewState = {
 	treeId: null,
 	focusId: null,
+	personId: null,
 	ancestorDepth: DEFAULT_FOCUS_OPTIONS.ancestorDepth,
 	descendantDepth: DEFAULT_FOCUS_OPTIONS.descendantDepth,
 	shouldIncludeSiblings: DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
@@ -60,6 +63,7 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 	return {
 		treeId: params.get('tree') || null,
 		focusId: params.get('focus') || null,
+		personId: params.get('person') || null,
 		ancestorDepth: depth(params.get('up'), DEFAULT_VIEW_STATE.ancestorDepth),
 		descendantDepth: depth(params.get('down'), DEFAULT_VIEW_STATE.descendantDepth),
 		shouldIncludeSiblings: flag(params.get('siblings'), DEFAULT_VIEW_STATE.shouldIncludeSiblings),
@@ -78,6 +82,8 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	const d = DEFAULT_VIEW_STATE;
 	if (state.treeId) params.set('tree', state.treeId);
 	if (state.focusId) params.set('focus', state.focusId);
+	// An absent parameter means the drawer is closed, which keeps the common link short.
+	if (state.personId) params.set('person', state.personId);
 	if (state.ancestorDepth !== d.ancestorDepth) params.set('up', String(state.ancestorDepth));
 	if (state.descendantDepth !== d.descendantDepth)
 		params.set('down', String(state.descendantDepth));

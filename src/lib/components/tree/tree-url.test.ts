@@ -46,6 +46,29 @@ describe('tree view URL state', () => {
 	});
 });
 
+describe('the open drawer in the URL', () => {
+	it('parses the person the drawer is open on', () => {
+		expect(parseViewState(new URLSearchParams('focus=p1&person=p2')).personId).toBe('p2');
+	});
+
+	it('treats a missing or empty person as a closed drawer', () => {
+		expect(parseViewState(new URLSearchParams('focus=p1')).personId).toBeNull();
+		expect(parseViewState(new URLSearchParams('focus=p1&person=')).personId).toBeNull();
+	});
+
+	it('serialises the person beside the focus', () => {
+		const state = { ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1', personId: 'p2' };
+		const params = serializeViewState(state);
+		expect(params.toString()).toBe('tree=t1&focus=p1&person=p2');
+		expect(parseViewState(params)).toEqual(state);
+	});
+
+	it('omits the person when the drawer is closed', () => {
+		const params = serializeViewState({ ...DEFAULT_VIEW_STATE, focusId: 'p1', personId: null });
+		expect(params.has('person')).toBe(false);
+	});
+});
+
 describe('opened stubs in the URL', () => {
 	const personId = '1a2b3c4d-1111-2222-3333-444455556666';
 	const unionId = '9f8e7d6c-aaaa-bbbb-cccc-ddddeeeeffff';
