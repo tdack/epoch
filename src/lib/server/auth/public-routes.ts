@@ -4,8 +4,14 @@
  */
 export const WELCOME_PATH = '/welcome';
 
+/**
+ * The one path the Access application covers. Access authenticates the visitor and sets the
+ * cookie there; Epoch's own route then sends them on.
+ */
+export const LOGIN_PATH = '/login';
+
 /** Pages served without an identified user. Every other page and endpoint denies by default. */
-export const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH];
+export const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH];
 
 export function isPublicPagePath(pathname: string): boolean {
 	return PUBLIC_PAGE_PATHS.includes(pathname);
@@ -33,4 +39,27 @@ export function shouldRedirectToWelcome(request: SignedOutRequest): boolean {
 	if (request.isDataRequest) return false;
 	if (request.pathname === '/api' || request.pathname.startsWith('/api/')) return false;
 	return !isPublicPagePath(request.pathname);
+}
+
+// Never served, only resolved against: it stands in for "this site" so a `next` value can be
+// tested for staying on it without knowing the real host.
+const PLACEHOLDER_ORIGIN = 'https://epoch.invalid';
+
+/**
+ * A same-site path (pathname, search and hash) taken from untrusted input such as `?next=`, or
+ * `/` for anything else. Resolving with `new URL` and comparing origins catches the forms a prefix
+ * check misses (`//host`, `/\host`, other schemes). `/login` and `/welcome` are refused so a
+ * redirect to `next` can never land back on the page that issued it.
+ */
+export function safeNextPath(raw: string | null): string {
+	if (!raw) return '/';
+	let resolved: URL;
+	try {
+		resolved = new URL(raw, PLACEHOLDER_ORIGIN);
+	} catch {
+		return '/';
+	}
+	if (resolved.origin !== PLACEHOLDER_ORIGIN) return '/';
+	if (resolved.pathname === LOGIN_PATH || resolved.pathname === WELCOME_PATH) return '/';
+	return resolved.pathname + resolved.search + resolved.hash;
 }
