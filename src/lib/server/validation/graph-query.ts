@@ -30,7 +30,7 @@ function flag(
 }
 
 export interface FocusQuery {
-	/** Null when the request did not name a focus: the caller asked for the whole-tree aggregate. */
+	/** Null when the request did not name a focus; the endpoint refuses that. */
 	focusPersonId: string | null;
 	options: FocusWindowOptions;
 }

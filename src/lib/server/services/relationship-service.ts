@@ -179,20 +179,6 @@ export class RelationshipService {
 		});
 	}
 
-	async getGraph(treeId: string, context: AuthenticatedContext) {
-		const scope = await this.runner.scopeFor(treeId, context, 'tree:view');
-		const rows = await this.runner.store.loadRows(treeId);
-		// The whole-tree graph is masked like the window is: placeholders when the tree allows structure.
-		if (!scope.isRestricted) return graphFromRows(rows);
-		const { rows: masked, placeholderIds } = maskRows(
-			rows,
-			scope.cutoff,
-			scope.shouldShowPrivateStructure,
-			scope.creatorId
-		);
-		return graphFromRows(masked, placeholderIds);
-	}
-
 	// A restricted viewer's cue ignores private people, or "this name already exists" would tell a
 	// contributor that a private person has it (ADR-015).
 	private async hasDuplicate(

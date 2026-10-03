@@ -1,7 +1,6 @@
 /**
  * Read service for the bounded views: the graph around a focus person and the tree's summary.
- * Nothing here loads a whole tree; `RelationshipService.getGraph` still does and remains only for
- * callers that ask for the aggregate on purpose (the tests' `api.graph()` helper).
+ * Nothing here loads a whole tree.
  */
 
 import type { DbClient } from '../db';
