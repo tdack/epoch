@@ -16,6 +16,7 @@
 import { isPersonPrivate, type LivingFact } from './living-state';
 import type { IndividualRow, RowOp, TreeRows } from './change-log';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import { NotFoundError } from './errors';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
@@ -96,7 +97,10 @@ function visibleEvidence(
 	rows: TreeRows,
 	hiddenKeys: Set<string>,
 	creatorId: string | null
-): Pick<TreeRows, 'sources' | 'repositories' | 'sourceRepositories' | 'citations'> {
+): Pick<
+	TreeRows,
+	'sources' | 'repositories' | 'sourceRepositories' | 'citations' | 'notes' | 'noteAttachments'
+> {
 	const citations = rows.citations.filter(
 		(c) => !hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)
 	);
@@ -109,11 +113,37 @@ function visibleEvidence(
 	const linked = new Set(
 		sourceRepositories.flatMap((l) => (l.repositoryId ? [l.repositoryId] : []))
 	);
+	const repositories = rows.repositories.filter((r) => linked.has(r.id) || isOwn(r));
+
+	// Notes follow what they are on (ADR-029): an attachment is visible only if its subject is, and a
+	// shared note only if a visible attachment uses it or the viewer made it. A note under a source,
+	// a repository or a citation is as visible as that record is to this viewer.
+	const keptCitations = new Set(citations.map((c) => c.id));
+	const keptSourceIds = new Set(sources.map((s) => s.id));
+	const keptRepositories = new Set(repositories.map((r) => r.id));
+	const isSubjectVisible = (kind: string, id: string) => {
+		switch (kind) {
+			case NOTE_SUBJECT_KINDS.SOURCE:
+				return keptSourceIds.has(id);
+			case NOTE_SUBJECT_KINDS.REPOSITORY:
+				return keptRepositories.has(id);
+			case NOTE_SUBJECT_KINDS.CITATION:
+				return keptCitations.has(id);
+			default:
+				return !hiddenKeys.has(`${kind}|${id}`);
+		}
+	};
+	const noteAttachments = rows.noteAttachments.filter((a) =>
+		isSubjectVisible(a.subjectKind, a.subjectId)
+	);
+	const used = new Set(noteAttachments.flatMap((a) => (a.noteId ? [a.noteId] : [])));
 	return {
 		sources,
-		repositories: rows.repositories.filter((r) => linked.has(r.id) || isOwn(r)),
+		repositories,
 		sourceRepositories,
-		citations
+		citations,
+		notes: rows.notes.filter((n) => used.has(n.id) || isOwn(n)),
+		noteAttachments
 	};
 }
 

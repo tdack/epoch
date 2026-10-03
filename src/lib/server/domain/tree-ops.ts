@@ -86,7 +86,9 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	sources: 'sources',
 	repositories: 'repositories',
 	source_repositories: 'sourceRepositories',
-	citations: 'citations'
+	citations: 'citations',
+	notes: 'notes',
+	note_attachments: 'noteAttachments'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */

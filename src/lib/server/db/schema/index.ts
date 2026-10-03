@@ -9,3 +9,4 @@ export * from './change-log';
 export * from './marks';
 export * from './quality';
 export * from './evidence';
+export * from './notes';

@@ -39,11 +39,13 @@ function peopleOf(
 		case 'media_items':
 			return [row.entityId];
 		case 'citations':
+		case 'note_attachments':
 			return subjectPeople(row.subjectKind, row.subjectId);
 		case 'sources':
 		case 'repositories':
 		case 'source_repositories':
-			// Records of the library, not of any person; who they matter to is what cites them.
+		case 'notes':
+			// Records of the library, not of any person; who they matter to is what cites or attaches them.
 			return [];
 	}
 }
@@ -77,10 +79,14 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 	remember('name', rows.personNames);
 	remember('event', rows.events);
 	remember('parent_child', rows.parentChild);
+	remember('citation', rows.citations);
 	for (const op of ops) {
-		const kind = { person_names: 'name', events: 'event', parent_child: 'parent_child' }[
-			op.table as string
-		];
+		const kind = {
+			person_names: 'name',
+			events: 'event',
+			parent_child: 'parent_child',
+			citations: 'citation'
+		}[op.table as string];
 		if (kind && op.after) subjectRows.set(`${kind}|${op.id}`, op.after);
 	}
 	const subjectPeople = (kind: string, id: string): string[] => {
@@ -88,6 +94,8 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		if (kind === 'union') return partnersOf(id);
 		const row = subjectRows.get(`${kind}|${id}`);
 		if (!row) return [];
+		// A note on a citation is about whoever the citation is.
+		if (kind === 'citation') return subjectPeople(row.subjectKind, row.subjectId);
 		if (kind === 'name') return [row.personId];
 		if (kind === 'event')
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
