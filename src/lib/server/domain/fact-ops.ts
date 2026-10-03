@@ -61,7 +61,7 @@ function requireKnownType(type: string): void {
 }
 
 /** What the conflict dialog can show as the stored fact. */
-export function factSnapshot(fact: EventRow): Record<string, unknown> {
+function factSnapshot(fact: EventRow): Record<string, unknown> {
 	return {
 		type: fact.type,
 		dateText: fact.dateRaw,

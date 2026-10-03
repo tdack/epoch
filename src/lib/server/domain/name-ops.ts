@@ -60,7 +60,7 @@ const namesOf = (rows: TreeRows, personId: string) =>
 	rows.personNames.filter((n) => n.personId === personId).sort((a, b) => a.order - b.order);
 
 /** What the conflict dialog can show as the stored name. */
-export function nameSnapshot(name: PersonNameRow): Record<string, unknown> {
+function nameSnapshot(name: PersonNameRow): Record<string, unknown> {
 	return {
 		type: name.type,
 		givenName: name.givenName,

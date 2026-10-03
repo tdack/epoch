@@ -8,7 +8,7 @@ import type { PersonPrivacy } from '../../shared/privacy';
 
 export type { PersonPrivacy };
 
-export const DEFAULT_MAX_ALIVE_YEARS = 120;
+const DEFAULT_MAX_ALIVE_YEARS = 120;
 
 /** Any of these, dated or not, means the person has died. */
 export const DEATH_EVENT_TYPES = ['DEAT', 'BURI', 'CREM'] as const;

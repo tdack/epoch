@@ -13,24 +13,24 @@ import type { RelationshipGraph } from '../server/domain/relationship-graph';
 import { startSort } from './partnership-labels';
 import { stepRelativesOf, type StepRelatives } from './step-relatives';
 
-export interface ParentLink {
+interface ParentLink {
 	personId: string;
 	type: ParentChildType;
 }
 
-export interface ParentFamily {
+interface ParentFamily {
 	/** Null for parents recorded without a partnership. */
 	unionId: string | null;
 	parents: ParentLink[];
 }
 
-export interface ChildEntry {
+interface ChildEntry {
 	personId: string;
 	/** Every type the child is asserted with across the partners in this group, without repeats. */
 	types: ParentChildType[];
 }
 
-export interface PartnershipRelatives {
+interface PartnershipRelatives {
 	unionId: string;
 	status: UnionStatus;
 	/** The other partners, not the person. */

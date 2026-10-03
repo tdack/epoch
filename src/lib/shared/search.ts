@@ -6,7 +6,7 @@
 import type { PrivacyFlag } from './privacy';
 
 /** Words past this are ignored: every word costs bound parameters, and D1 allows 100 a statement. */
-export const MAX_SEARCH_WORDS = 6;
+const MAX_SEARCH_WORDS = 6;
 export const DEFAULT_SEARCH_LIMIT = 25;
 export const MAX_SEARCH_LIMIT = 100;
 

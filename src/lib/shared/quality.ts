@@ -7,12 +7,7 @@
  * possible and is never read as an exact day), and none of them blocks a save.
  */
 
-export const QUALITY_SEVERITIES = {
-	ERROR: 'error',
-	WARNING: 'warning',
-	SUGGESTION: 'suggestion'
-} as const;
-export type QualitySeverity = (typeof QUALITY_SEVERITIES)[keyof typeof QUALITY_SEVERITIES];
+export type QualitySeverity = 'error' | 'warning' | 'suggestion';
 
 /** Most serious first, which is the order the report lists them in. */
 export const QUALITY_SEVERITY_ORDER: readonly QualitySeverity[] = [
@@ -164,7 +159,7 @@ export interface QualityDismissal {
  * the viewer may see, is listed: one left behind by an edit says nothing, and an id in it could
  * belong to someone the viewer may not see.
  */
-export interface DismissedFinding extends QualityDismissal {
+interface DismissedFinding extends QualityDismissal {
 	finding: QualityFinding;
 }
 

@@ -27,7 +27,7 @@ export const MAX_ZOOM = 3;
 /** Fit never enlarges past this, so a two-person tree is not blown up to fill the pane. */
 export const MAX_FIT_ZOOM = 1;
 
-export const LEVELS_OF_DETAIL = { FULL: 'full', COMPACT: 'compact', BLOCK: 'block' } as const;
+const LEVELS_OF_DETAIL = { FULL: 'full', COMPACT: 'compact', BLOCK: 'block' } as const;
 export type LevelOfDetail = (typeof LEVELS_OF_DETAIL)[keyof typeof LEVELS_OF_DETAIL];
 
 /** Zoom scale at which a card drops from full to name-and-years (exclusive), and to a block. */
@@ -65,7 +65,7 @@ export interface MenuItem {
 
 // ---- Card text ----
 
-export function yearOf(text: string | null | undefined): string | null {
+function yearOf(text: string | null | undefined): string | null {
 	return text?.match(/\b(\d{3,4})\b/)?.[1] ?? null;
 }
 

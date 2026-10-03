@@ -35,19 +35,10 @@ export interface ImportPreviewData {
 	duplicates: DuplicateFamilyReport;
 }
 
-export type {
-	DuplicateFamilyReport,
-	ExactDuplicateGroup,
-	PossibleDuplicateGroup
-} from '#lib/server/gedcom/duplicate-families.js';
+export type { PossibleDuplicateGroup } from '#lib/server/gedcom/duplicate-families.js';
 import type { DuplicateFamilyReport } from '#lib/server/gedcom/duplicate-families.js';
-export type { ImpactSummary, ImpactPerson } from '#lib/server/domain/impact.js';
-export type { RecordChange } from '#lib/server/domain/change-log.js';
-export type {
-	UnionEventInput,
-	UnionEventType,
-	EndedUnionStatus
-} from '#lib/shared/union-events.js';
+export type { ImpactSummary } from '#lib/server/domain/impact.js';
+export type { UnionEventInput, UnionEventType } from '#lib/shared/union-events.js';
 import type { Sex } from '#lib/shared/sex.js';
 import type { ImpactSummary } from '#lib/server/domain/impact.js';
 import type { EndedUnionStatus, UnionEventType } from '#lib/shared/union-events.js';
@@ -124,7 +115,7 @@ export type RelationshipIntent =
 export type RelationshipKind =
 	'add_parent' | 'add_child' | 'add_sibling' | 'add_partner' | 'record_death' | 'end_union';
 
-export interface PersonRef {
+interface PersonRef {
 	id: string;
 	givenName: string | null;
 	surname: string | null;
@@ -132,13 +123,13 @@ export interface PersonRef {
 	isNew?: boolean;
 }
 
-export interface RelationshipPlanWarning {
+interface RelationshipPlanWarning {
 	code: string;
 	message: string;
 }
 
 /** Which partnership an add-child, add-parent or add-partner will use, and why. */
-export interface UnionChoice {
+interface UnionChoice {
 	/** Null: no partnership (a single-parent record, or a new partnership for add-partner). */
 	unionId: string | null;
 	/** True when the server picked it because the intent did not name one. */
@@ -167,7 +158,6 @@ export interface ChangeSummary {
 // The relationship graph types are shared with the server domain (pure, no I/O).
 export type {
 	RelationshipGraph,
-	RelationshipGraphPerson,
 	RelationshipGraphUnion
 } from '#lib/server/domain/relationship-graph.js';
 

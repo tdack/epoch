@@ -133,7 +133,7 @@ export type RelationshipCommand =
 			keep?: MergeChoices;
 	  };
 
-export interface PlanWarning {
+interface PlanWarning {
 	code:
 		| 'DUPLICATE_PERSON'
 		| 'MULTIPLE_UNIONS'
@@ -151,7 +151,7 @@ export interface PlanWarning {
 }
 
 /** Which partnership a link will use, and why the planner chose it when the intent did not. */
-export interface UnionChoice {
+interface UnionChoice {
 	/** Null: no partnership (a single-parent record, or a new partnership for add_partner). */
 	unionId: string | null;
 	isDefault: boolean;
@@ -186,7 +186,7 @@ function refOf(rows: TreeRows, id: string): PersonRef {
 }
 
 /** "Homer Simpson–Marge Simpson": how a family is named in a sentence. */
-export function unionLabelOf(rows: TreeRows, unionId: string): string | null {
+function unionLabelOf(rows: TreeRows, unionId: string): string | null {
 	const names = partnerIdsOf(rows, unionId).map((id) => displayNameOf(rows, id));
 	return names.length > 0 ? names.join('–') : null;
 }
@@ -195,7 +195,7 @@ export function unionLabelOf(rows: TreeRows, unionId: string): string | null {
  * What follows "in the" when a sentence names a partnership: "2nd partnership of Homer Simpson and
  * Marge Simpson" when the pair has several, otherwise "Homer Simpson–Marge Simpson family".
  */
-export function unionPhraseOf(rows: TreeRows, unionId: string): string | null {
+function unionPhraseOf(rows: TreeRows, unionId: string): string | null {
 	const label = partnershipLabels(labelableUnionsOf(rows)).get(unionId);
 	const names = partnerIdsOf(rows, unionId).map((id) => displayNameOf(rows, id));
 	if (label && names.length >= 2)

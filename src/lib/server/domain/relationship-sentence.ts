@@ -19,7 +19,7 @@ export interface PersonRef {
 	isNew?: boolean;
 }
 
-export type ParentRole = 'parent' | 'mother' | 'father';
+type ParentRole = 'parent' | 'mother' | 'father';
 
 export type RelationshipIntent =
 	| {

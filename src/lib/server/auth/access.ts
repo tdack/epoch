@@ -1,7 +1,7 @@
 import { UnauthenticatedError } from '../domain/errors';
 import type { UserIdentity } from '../domain/identity';
 
-export interface AccessTokenPayload {
+interface AccessTokenPayload {
 	sub: string;
 	email: string;
 	name?: string;

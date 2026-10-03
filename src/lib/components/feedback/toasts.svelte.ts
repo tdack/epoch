@@ -18,8 +18,8 @@ export interface Toast {
 }
 
 /** Long enough to reach Undo with a keyboard, which is the point of showing it. */
-export const UNDO_TOAST_MS = 12_000;
-export const DEFAULT_TOAST_MS = 6_000;
+const UNDO_TOAST_MS = 12_000;
+const DEFAULT_TOAST_MS = 6_000;
 
 export class ToastStore {
 	items = $state<Toast[]>([]);

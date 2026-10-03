@@ -26,7 +26,7 @@ import { RECENT_CHANGES_SHOWN, type ChangeEntryDto } from './person-page-service
 import { personSummaries, type PersonSummaryDto } from './person-summaries';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
-export interface UnionEventDto extends PrivacyFlag {
+interface UnionEventDto extends PrivacyFlag {
 	id: string;
 	type: string;
 	label: string;
@@ -46,9 +46,9 @@ export const CHRONOLOGY_KINDS = {
 	PARTNER_DEATH: 'partner_death',
 	CHILD_BIRTH: 'child_birth'
 } as const;
-export type ChronologyKind = (typeof CHRONOLOGY_KINDS)[keyof typeof CHRONOLOGY_KINDS];
+type ChronologyKind = (typeof CHRONOLOGY_KINDS)[keyof typeof CHRONOLOGY_KINDS];
 
-export interface ChronologyEntryDto {
+interface ChronologyEntryDto {
 	kind: ChronologyKind;
 	label: string;
 	dateText: string | null;
@@ -57,7 +57,7 @@ export interface ChronologyEntryDto {
 	personId: string | null;
 }
 
-export interface UnionChildDto {
+interface UnionChildDto {
 	person: PersonSummaryDto;
 	/** One entry per parent link, so a child adopted by one partner reads as such. */
 	links: Array<{ parentId: string; parentName: string; type: ParentChildType }>;

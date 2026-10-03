@@ -5,27 +5,26 @@
  */
 
 import { describeOps, type RecordChange, type RowOp, type TreeRows } from './change-log';
-import { ENTITY_ORDER, groupRecords } from '../../shared/impact-groups';
+import { ENTITY_ORDER } from '../../shared/impact-groups';
 import { makeLabeler } from './tree-labels';
 
-export { groupRecords };
 import { displayNameOf, personName } from './tree-ops';
 
-export const PERSON_ROLES_IN_IMPACT = {
+const PERSON_ROLES_IN_IMPACT = {
 	DELETED: 'deleted',
 	CREATED: 'created',
 	AFFECTED: 'affected'
 } as const;
-export type ImpactPersonRole = (typeof PERSON_ROLES_IN_IMPACT)[keyof typeof PERSON_ROLES_IN_IMPACT];
+type ImpactPersonRole = (typeof PERSON_ROLES_IN_IMPACT)[keyof typeof PERSON_ROLES_IN_IMPACT];
 
-export interface ImpactPerson {
+interface ImpactPerson {
 	id: string;
 	name: string;
 	role: ImpactPersonRole;
 }
 
 /** A record that stays and is regrouped under another partnership: shown as a move, not an edit. */
-export interface ImpactMove {
+interface ImpactMove {
 	entityType: 'link' | 'event';
 	entityId: string;
 	label: string;

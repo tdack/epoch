@@ -21,9 +21,7 @@ import {
 } from './types.js';
 
 export * from './types.js';
-export { selectFocusSubgraph } from './select.js';
 export { filterParentChildTypes } from './filter.js';
-export { countCrossings, allContractViolations } from './contract.js';
 
 /** Distance below a card row at which a hanging union node sits. */
 function hangOffset(m: LayoutMetrics): number {

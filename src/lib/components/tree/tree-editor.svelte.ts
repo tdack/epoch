@@ -49,7 +49,7 @@ export interface PersonRef {
 }
 
 /** How a relative is listed on the person they belong to; decides what can be done about them. */
-export type RelativeRelation = 'parent' | 'partner' | 'child' | 'sibling';
+type RelativeRelation = 'parent' | 'partner' | 'child' | 'sibling';
 
 /** What happened to a relative, as the person chooses it from the trash button on their entry. */
 export const RELATIVE_OUTCOMES = {

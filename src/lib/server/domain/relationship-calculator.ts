@@ -18,13 +18,13 @@
 import type { Sex } from '../../shared/sex';
 import type { ParentChildType } from './genealogy-model';
 
-export interface KinLink {
+interface KinLink {
 	parentId: string;
 	childId: string;
 	type: ParentChildType;
 }
 
-export interface KinPerson {
+interface KinPerson {
 	name: string;
 	sex: Sex | null;
 	isPrivate: boolean;
@@ -37,18 +37,18 @@ export interface KinGraph {
 	partners: ReadonlyMap<string, readonly string[]>;
 }
 
-export const ROUTE_KINDS = {
+const ROUTE_KINDS = {
 	SELF: 'self',
 	PARTNER: 'partner',
 	BLOOD: 'blood',
 	BY_PARTNERSHIP: 'by-partnership'
 } as const;
-export type RouteKind = (typeof ROUTE_KINDS)[keyof typeof ROUTE_KINDS];
+type RouteKind = (typeof ROUTE_KINDS)[keyof typeof ROUTE_KINDS];
 
-export const STEP_RELATIONS = { PARENT: 'parent', CHILD: 'child', PARTNER: 'partner' } as const;
-export type StepRelation = (typeof STEP_RELATIONS)[keyof typeof STEP_RELATIONS];
+const STEP_RELATIONS = { PARENT: 'parent', CHILD: 'child', PARTNER: 'partner' } as const;
+type StepRelation = (typeof STEP_RELATIONS)[keyof typeof STEP_RELATIONS];
 
-export interface RouteStep {
+interface RouteStep {
 	personId: string;
 	/** What this person is to the previous one in the route; null for the first person. */
 	relation: StepRelation | null;
@@ -56,7 +56,7 @@ export interface RouteStep {
 	linkType: ParentChildType | null;
 }
 
-export interface Route {
+interface Route {
 	kind: RouteKind;
 	/** What the second person is to the first, e.g. "2nd cousin once removed". */
 	label: string;

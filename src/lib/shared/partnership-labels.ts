@@ -71,7 +71,7 @@ function firstDated(union: LabelableUnion, types: string[]) {
 }
 
 /** "m. 1990 – div. 1995": the start and the end, each only when it has a date. */
-export function datesOf(union: LabelableUnion): string | null {
+function datesOf(union: LabelableUnion): string | null {
 	const part = (types: string[]) => {
 		const event = firstDated(union, types);
 		return event && isUnionEventType(event.type)

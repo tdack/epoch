@@ -11,10 +11,10 @@ export type GedcomFormat = 'gedcom551' | 'gedcom7';
  * A child's relationship to the parents of a family (`PEDI`). `sealing` and `other` have no
  * neutral parent-child type of their own; they are kept so export can write them back.
  */
-export type Pedigree = 'birth' | 'adopted' | 'foster' | 'sealing' | 'other';
+type Pedigree = 'birth' | 'adopted' | 'foster' | 'sealing' | 'other';
 
 /** A child's `FAMC` link with the pedigree it carries; `parentPedigrees` is Epoch's per-parent extension. */
-export interface ParsedFamcLink {
+interface ParsedFamcLink {
 	familyId: string;
 	pedigree?: Pedigree;
 	/** Parent XREF to the pedigree that differs from `pedigree`, from `_PEDI_PARENT`. */
@@ -22,10 +22,10 @@ export interface ParsedFamcLink {
 }
 
 /** Marks a `REFN` on a `FAM` as the XREF of a family that was merged into it. */
-export const FAMILY_ALIAS_REFN_TYPE = 'epoch-merged-family';
+const FAMILY_ALIAS_REFN_TYPE = 'epoch-merged-family';
 
 /** Epoch's per-parent pedigree under `FAMC`; standard `PEDI` cannot differ between two parents. */
-export const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
+const PARENT_PEDIGREE_TAG = '_PEDI_PARENT';
 
 /** Carries an `X` sex through a GEDCOM 5.5.1 export, whose `SEX` cannot hold it (ADR-010). */
 export const SEX_X_TAG = '_EPOCH_SEX';
@@ -34,7 +34,7 @@ export const SEX_X_TAG = '_EPOCH_SEX';
  * and nothing for the opposite, so `public` is carried the way X is (`_EPOCH_SEX`): a custom line
  * Epoch reads back and other programs ignore.
  */
-export const PRIVACY_PUBLIC_TAG = '_EPOCH_PRIVACY';
+const PRIVACY_PUBLIC_TAG = '_EPOCH_PRIVACY';
 /** `RESN` words that mean "keep this person from viewers": they become the private override. */
 const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
 
@@ -42,10 +42,10 @@ const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
  * Marks a name that came from the legacy `_MARNM` tag (ADR-013). It is a married name in the model
  * and is written back as `_MARNM`, not as a second `NAME`, so a round trip does not double it.
  */
-export const LEGACY_MARRIED_NAME_TAG = '_MARNM';
+const LEGACY_MARRIED_NAME_TAG = '_MARNM';
 
 /** One `NAME` record of an individual, in file order. The first is the primary name. */
-export interface ParsedName {
+interface ParsedName {
 	type: NameType;
 	/** The word of a free-text 5.5.1 TYPE (or a 7.0 PHRASE) under `other`; `_MARNM` for the legacy tag. */
 	gedcomType?: string;
@@ -65,7 +65,7 @@ export interface ParsedName {
 	extra: string[];
 }
 
-export interface ParsedIndividual {
+interface ParsedIndividual {
 	id: string; // e.g. @I1@ or I1
 	/** The primary (first) name's given name and surname, kept for callers that want one name. */
 	givenName?: string;
@@ -226,7 +226,7 @@ export function detectGedcomVersion(rawContent: string): GedcomVersion {
 }
 
 /** `PEDI` payloads are lowercase in 5.5.1 and uppercase in 7.0; anything else is `other`. */
-export function parsePedigree(value: string | undefined): Pedigree | undefined {
+function parsePedigree(value: string | undefined): Pedigree | undefined {
 	const text = value?.trim().toLowerCase();
 	if (!text) return undefined;
 	return text === 'birth' || text === 'adopted' || text === 'foster' || text === 'sealing'
@@ -292,7 +292,7 @@ const NAME_TYPE_BY_WORD: Record<string, NameType> = Object.fromEntries(
 );
 
 /** `TYPE` is lowercase in 5.5.1 and uppercase in 7.0; a word that is neither of the known ones is free text. */
-export function parseNameType(
+function parseNameType(
 	value: string | undefined,
 	phrase?: string
 ): { type: NameType; gedcomType?: string } {
@@ -309,7 +309,7 @@ export function parseNameType(
  * The note Epoch writes under a `NAME` to say when it came into use and from which family (ADR-013).
  * GEDCOM has no date on a name, so this is the standard place that still reads as prose in any program.
  */
-export function nameChangeNote(
+function nameChangeNote(
 	dateText: string | null | undefined,
 	unionXref: string | null | undefined
 ): string | null {
@@ -648,7 +648,7 @@ export function parseGedcom(rawContent: string): ParsedGedcomData {
  * Shared payload shape consumed by both the 5.5.1 and 7.0 serializers.
  */
 /** One name to write, as stored. The payload lists them preferred first, because GEDCOM's first `NAME` is the primary. */
-export interface ExportName {
+interface ExportName {
 	type: string;
 	gedcomType?: string | null;
 	givenName: string | null;

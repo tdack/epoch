@@ -16,10 +16,10 @@ export const POSSIBLE_DUPLICATE_REASONS = {
 	SUBSET_OF_FULL_FAMILY: 'subset_of_full_family',
 	SAME_SINGLE_PARTNER: 'same_single_partner'
 } as const;
-export type PossibleDuplicateReason =
+type PossibleDuplicateReason =
 	(typeof POSSIBLE_DUPLICATE_REASONS)[keyof typeof POSSIBLE_DUPLICATE_REASONS];
 
-export interface ExactDuplicateGroup {
+interface ExactDuplicateGroup {
 	/** The family that stays, then the ones merged into it. */
 	familyIds: string[];
 	survivorId: string;

@@ -8,7 +8,6 @@
  */
 
 import {
-	ENTITY_TYPES,
 	type EventRow,
 	type IndividualRow,
 	type ParentChildRow,
@@ -45,12 +44,7 @@ import {
 	type MergeFact,
 	type MergeableUnion
 } from '../../shared/union-merge';
-import {
-	ENDED_UNION_STATUSES,
-	isUnionEventType,
-	type UnionEventInput,
-	type UnionEventType
-} from '../../shared/union-events';
+import { ENDED_UNION_STATUSES, isUnionEventType } from '../../shared/union-events';
 
 export interface OpContext {
 	treeId: string;
@@ -63,7 +57,7 @@ export interface OpContext {
 
 // ---- Small helpers ----
 
-export function cleanText(value: string | null | undefined): string | null {
+function cleanText(value: string | null | undefined): string | null {
 	const trimmed = value?.trim();
 	return trimmed ? trimmed : null;
 }
@@ -100,7 +94,7 @@ export function applyOpsToRows(rows: TreeRows, ops: RowOp[]): TreeRows {
 }
 
 /** Fold ops on the same row into one, so a row is written once however many commands touched it. */
-export function mergeOps(ops: RowOp[]): RowOp[] {
+function mergeOps(ops: RowOp[]): RowOp[] {
 	const merged = new Map<string, RowOp>();
 	for (const op of ops) {
 		const key = `${op.table}:${op.id}`;
@@ -168,7 +162,7 @@ function eventsOf(
 // ---- Conflicts ----
 
 /** What the conflict dialog shows as "current": the editable fields of a person. */
-export interface PersonConflictSnapshot {
+interface PersonConflictSnapshot {
 	givenName: string | null;
 	surname: string | null;
 	sex: string | null;
@@ -178,12 +172,12 @@ export interface PersonConflictSnapshot {
 	deathPlace: string | null;
 }
 
-export interface UnionConflictSnapshot {
+interface UnionConflictSnapshot {
 	status: UnionStatus;
 	events: Array<{ id: string; type: string; dateText: string | null; place: string | null }>;
 }
 
-export function personSnapshot(rows: TreeRows, person: IndividualRow): PersonConflictSnapshot {
+function personSnapshot(rows: TreeRows, person: IndividualRow): PersonConflictSnapshot {
 	const eventOf = (type: string) =>
 		eventsOf(rows, 'INDIVIDUAL', person.id).find((e) => e.type === type);
 	return {
@@ -197,7 +191,7 @@ export function personSnapshot(rows: TreeRows, person: IndividualRow): PersonCon
 	};
 }
 
-export function unionSnapshot(rows: TreeRows, union: UnionRow): UnionConflictSnapshot {
+function unionSnapshot(rows: TreeRows, union: UnionRow): UnionConflictSnapshot {
 	return {
 		status: union.status as UnionStatus,
 		events: eventsOf(rows, 'FAMILY', union.id)
@@ -810,7 +804,7 @@ function updateUnion(
 }
 
 /** The union's facts in the shape the merge rules compare. */
-export function mergeableUnion(rows: TreeRows, union: UnionRow): MergeableUnion {
+function mergeableUnion(rows: TreeRows, union: UnionRow): MergeableUnion {
 	return {
 		id: union.id,
 		status: union.status,
@@ -956,7 +950,7 @@ function mergeUnions(
 }
 
 /** Ops for one command against the tree as it currently is. */
-export function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext): RowOp[] {
+function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext): RowOp[] {
 	switch (command.kind) {
 		case 'create_fact':
 		case 'update_fact':
@@ -1021,6 +1015,3 @@ export function buildPlanOps(
 	}
 	return mergeOps(all);
 }
-
-export { ENTITY_TYPES };
-export type { UnionEventInput, UnionEventType };

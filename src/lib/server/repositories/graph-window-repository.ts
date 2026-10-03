@@ -40,7 +40,7 @@ import type {
 import { toImage } from './change-store';
 
 /** Ids per `IN (...)`: 80 leaves room under D1's 100-parameter cap for the tree id and filters. */
-export const IDS_PER_QUERY = 80;
+const IDS_PER_QUERY = 80;
 
 export interface Ranked<T> {
 	/** SQLite `rowid`: the table's insertion order. */

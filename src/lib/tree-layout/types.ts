@@ -79,7 +79,7 @@ export const STUB_KINDS = {
 	/** Children hidden by the depth limit, or belonging to a partner's undrawn unions. */
 	CHILDREN: 'children'
 } as const;
-export type StubKind = (typeof STUB_KINDS)[keyof typeof STUB_KINDS];
+type StubKind = (typeof STUB_KINDS)[keyof typeof STUB_KINDS];
 
 export interface SelectionStub {
 	id: string;
@@ -157,7 +157,7 @@ export interface PlacedCollapser extends Point {
 	unionId: string | null;
 }
 
-export interface EdgeBase {
+interface EdgeBase {
 	id: string;
 	/** Node centres; the canvas decides how to route between them. */
 	source: Point;

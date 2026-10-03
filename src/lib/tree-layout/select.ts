@@ -22,7 +22,7 @@ import {
 	type SelectionStub
 } from './types.js';
 
-export function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOptions {
+function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOptions {
 	const clamp = (value: number | undefined, fallback: number) =>
 		Number.isFinite(value) ? Math.max(0, Math.floor(value as number)) : fallback;
 	return {

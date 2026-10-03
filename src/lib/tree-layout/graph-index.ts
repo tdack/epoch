@@ -32,7 +32,7 @@ function firstYear(text: string | null): number | null {
  * Chronological rank of each union. The graph has no union dates beyond the marriage text, so
  * unions with a year sort by it and the rest keep input order after them; ties keep input order.
  */
-export function rankUnions(unions: RelationshipGraphUnion[]): Map<string, number> {
+function rankUnions(unions: RelationshipGraphUnion[]): Map<string, number> {
 	const keyed = unions.map((u, index) => ({ id: u.id, year: firstYear(u.marriageDate), index }));
 	keyed.sort(
 		(a, b) =>

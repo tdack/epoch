@@ -35,8 +35,6 @@ export const TREE_TOKENS = {
 	'--partner-line': '#8a5a14'
 } as const;
 
-export type TreeToken = keyof typeof TREE_TOKENS;
-
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
 		.map(([name, value]) => `${name}:${value}`)

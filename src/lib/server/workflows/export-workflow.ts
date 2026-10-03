@@ -7,7 +7,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { getTreeExportData } from '../gedcom/importer';
 import { buildGedcomString, type GedcomFormat } from '../gedcom/index';
 
-export interface GedcomExportPayload {
+interface GedcomExportPayload {
 	treeId: string;
 	userId?: string;
 	format?: GedcomFormat;

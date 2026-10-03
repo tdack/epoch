@@ -7,8 +7,6 @@
  * belong to the import/export layer.
  */
 
-import type { DateValue } from '../../shared/date-value';
-
 export const PARENT_CHILD_TYPES = {
 	BIOLOGICAL: 'biological',
 	ADOPTIVE: 'adoptive',
@@ -18,12 +16,7 @@ export const PARENT_CHILD_TYPES = {
 } as const;
 export type ParentChildType = (typeof PARENT_CHILD_TYPES)[keyof typeof PARENT_CHILD_TYPES];
 
-export const PARENT_CHILD_STATUSES = {
-	ACTIVE: 'active',
-	ENDED: 'ended',
-	DISPUTED: 'disputed'
-} as const;
-export type ParentChildStatus = (typeof PARENT_CHILD_STATUSES)[keyof typeof PARENT_CHILD_STATUSES];
+type ParentChildStatus = 'active' | 'ended' | 'disputed';
 
 export const UNION_STATUSES = {
 	ACTIVE: 'active',
@@ -35,28 +28,6 @@ export const UNION_STATUSES = {
 export type UnionStatus = (typeof UNION_STATUSES)[keyof typeof UNION_STATUSES];
 
 export { NAME_TYPES, type NameType } from '../../shared/name-types';
-import type { NameType } from '../../shared/name-types';
-
-export interface Person {
-	id: string;
-	treeId: string;
-	version: number;
-	createdAt: Date;
-	updatedAt: Date;
-}
-
-export interface PersonName {
-	id: string;
-	personId: string;
-	type: NameType;
-	givenName: string | null;
-	surname: string | null;
-	namePrefix: string | null;
-	nameSuffix: string | null;
-	/** True when this name is the preferred display name for the person. */
-	isPreferred: boolean;
-	order: number;
-}
 
 export interface Union {
 	id: string;
@@ -65,14 +36,6 @@ export interface Union {
 	version: number;
 	createdAt: Date;
 	updatedAt: Date;
-}
-
-export interface UnionPartner {
-	id: string;
-	unionId: string;
-	personId: string;
-	/** Stable ordering of participants within the union. */
-	order: number;
 }
 
 export interface ParentChild {
@@ -84,21 +47,6 @@ export interface ParentChild {
 	status: ParentChildStatus;
 	/** Optional union context; null for a direct assertion outside any union. */
 	unionId: string | null;
-	version: number;
-	createdAt: Date;
-	updatedAt: Date;
-}
-
-export interface Event {
-	id: string;
-	treeId: string;
-	/** The person or union this event belongs to. */
-	entityType: 'PERSON' | 'UNION';
-	entityId: string;
-	type: string;
-	date: DateValue;
-	place: string | null;
-	description: string | null;
 	version: number;
 	createdAt: Date;
 	updatedAt: Date;

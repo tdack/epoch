@@ -24,7 +24,7 @@ import type { GraphWindowRepository, Ranked } from '../repositories/graph-window
 const VITAL_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as const;
 
 /** Most people one window loads. A pedigree of 20 generations could be a million; this is a ceiling. */
-export const MAX_WINDOW_PEOPLE = 3000;
+const MAX_WINDOW_PEOPLE = 3000;
 
 export interface KinWindowRequest {
 	treeId: string;

@@ -11,7 +11,7 @@ export const WELCOME_PATH = '/welcome';
 export const LOGIN_PATH = '/login';
 
 /** Pages served without an identified user. Every other page and endpoint denies by default. */
-export const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH];
+const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH];
 
 export function isPublicPagePath(pathname: string): boolean {
 	return PUBLIC_PAGE_PATHS.includes(pathname);

@@ -47,7 +47,7 @@ export const CONFLICT_KINDS = {
 	/** The same details recorded twice. */
 	REPEAT: 'repeat'
 } as const;
-export type ConflictKind = (typeof CONFLICT_KINDS)[keyof typeof CONFLICT_KINDS];
+type ConflictKind = (typeof CONFLICT_KINDS)[keyof typeof CONFLICT_KINDS];
 
 export interface FactConflict {
 	kind: ConflictKind;

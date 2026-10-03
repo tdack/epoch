@@ -23,7 +23,7 @@ export type Item =
 	| { t: 'union'; id: string; gen: number; x: number; isHanging: boolean }
 	| { t: 'stub'; id: string; gen: number; x: number };
 
-export interface Sub {
+interface Sub {
 	items: Item[];
 	contour: Contour;
 }

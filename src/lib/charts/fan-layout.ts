@@ -12,7 +12,7 @@ export const FAN = { centreRadius: 52, ringWidth: 74, padding: 10 } as const;
 /** The most generations a fan draws: the outermost ring then has 64 wedges about 3 degrees wide. */
 export const MAX_FAN_GENERATIONS = 7;
 
-export interface FanLabel {
+interface FanLabel {
 	x: number;
 	y: number;
 	/** Degrees; text is rotated about (x, y) and centred there. */
@@ -21,7 +21,7 @@ export interface FanLabel {
 	lines: string[];
 }
 
-export interface FanSegment {
+interface FanSegment {
 	key: string;
 	/** The position in the pedigree's heap order, so the segment and its outline entry agree. */
 	slot: number;

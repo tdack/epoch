@@ -26,7 +26,7 @@ import { isFactType } from '../../shared/fact-types';
 import { isNameType } from '../../shared/name-types';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
-export const idSchema = z.string().min(1);
+const idSchema = z.string().min(1);
 
 /** Optional free-text field; empty strings are treated as absent by callers. */
 const optionalText = z.string().trim().nullish();
@@ -48,22 +48,16 @@ const endedStatusSchema = z.enum(ENDED_UNION_STATUSES);
 const endEventTypeSchema = z.enum(END_EVENT_TYPES);
 const unionEventTypeSchema = z.enum(UNION_EVENT_TYPE_LIST);
 
-export const parentRoleSchema = z.enum(['parent', 'mother', 'father']);
+const parentRoleSchema = z.enum(['parent', 'mother', 'father']);
 
 // Literal tuple preserves the union of the five neutral relationship types.
-export const parentChildTypeSchema = z.enum([
-	'biological',
-	'adoptive',
-	'foster',
-	'guardian',
-	'unknown'
-]);
+const parentChildTypeSchema = z.enum(['biological', 'adoptive', 'foster', 'guardian', 'unknown']);
 
 /**
  * Discriminated union over the relationship intents the UI can submit. Field
  * shapes mirror `RelationshipIntent`; `unionLabel` is null or a string.
  */
-export const relationshipIntentSchema = z.discriminatedUnion('kind', [
+const relationshipIntentSchema = z.discriminatedUnion('kind', [
 	z.object({
 		kind: z.literal('add_parent'),
 		child: personRefSchema,
@@ -209,17 +203,6 @@ export const exportBodySchema = z.object({
 	treeId: idSchema,
 	format: z.enum(['gedcom551', 'gedcom7']).optional()
 });
-
-/** Derived TypeScript types for validated payloads. */
-export type TreeCreateInput = z.infer<typeof treeCreateSchema>;
-export type IndividualCreateInput = z.infer<typeof individualCreateSchema>;
-export type IndividualUpdateInput = z.infer<typeof individualUpdateSchema>;
-export type RelationshipPayloadInput = z.infer<typeof relationshipPayloadSchema>;
-export type RelationshipDeleteInput = z.infer<typeof relationshipDeleteSchema>;
-export type ImpactRequestInput = z.infer<typeof impactRequestSchema>;
-export type UnionMergeInput = z.infer<typeof unionMergeSchema>;
-export type UnionUpdateInput = z.infer<typeof unionUpdateSchema>;
-export type ExportBodyInput = z.infer<typeof exportBodySchema>;
 
 // ---- Facts (Phase 3 fact editor) ----
 

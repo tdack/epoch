@@ -86,13 +86,13 @@ export interface NameDto extends PrivacyFlag {
 	isPreferred: boolean;
 }
 
-export interface ParentFamilyDto {
+interface ParentFamilyDto {
 	unionId: string | null;
 	label: PartnershipLabel | null;
 	parents: Array<{ person: PersonSummaryDto; type: ParentChildType }>;
 }
 
-export interface PartnershipDto extends PrivacyFlag {
+interface PartnershipDto extends PrivacyFlag {
 	unionId: string;
 	version: number;
 	status: UnionStatus;
@@ -106,7 +106,7 @@ export interface PartnershipDto extends PrivacyFlag {
 	events: GraphUnionEvent[];
 }
 
-export interface MediaDto extends PrivacyFlag {
+interface MediaDto extends PrivacyFlag {
 	id: string;
 	title: string | null;
 	mimeType: string;
@@ -124,12 +124,12 @@ export interface ChangeEntryDto {
 }
 
 /** A section whose content arrives in a later phase; present so the page and its data have a shape. */
-export interface PlaceholderDto {
+interface PlaceholderDto {
 	isSupported: false;
 	items: [];
 }
 
-export interface PersonPrivacyDto {
+interface PersonPrivacyDto {
 	/** The manager's override: `auto` follows the dates. */
 	setting: PersonPrivacy;
 	/** What the dates alone say, so a manager sees why someone is hidden from viewers. */
@@ -185,7 +185,7 @@ export interface PersonPageDto extends PrivacyFlag {
 
 const PLACEHOLDER: PlaceholderDto = { isSupported: false, items: [] };
 
-export function factDto(row: EventRow, conflict: FactConflict | null): FactDto {
+function factDto(row: EventRow, conflict: FactConflict | null): FactDto {
 	const date = eventDateValue(row);
 	const info = factTypeInfo(row.type);
 	return {

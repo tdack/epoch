@@ -8,7 +8,7 @@ import type { ChartPerson, DescendantNode } from '../shared/charts';
 
 export const CARD = { width: 188, height: 48, columnGap: 36, rowGap: 10 } as const;
 
-export interface PlacedCard {
+interface PlacedCard {
 	key: string;
 	person: ChartPerson;
 	partners?: ChartPerson[];
@@ -16,7 +16,7 @@ export interface PlacedCard {
 	y: number;
 }
 
-export interface Edge {
+interface Edge {
 	from: string;
 	to: string;
 }

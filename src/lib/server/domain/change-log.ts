@@ -20,7 +20,7 @@ import type {
 } from '../db/schema';
 
 /** Timestamps become epoch milliseconds so an image survives JSON. */
-export type Imaged<T> = {
+type Imaged<T> = {
 	[K in keyof T]: T[K] extends Date ? number : T[K] extends Date | null ? number | null : T[K];
 };
 
@@ -48,16 +48,14 @@ export interface TreeRows {
 	mediaItems: MediaRow[];
 }
 
-export const RECORD_TABLES = [
-	'individuals',
-	'person_names',
-	'unions',
-	'union_partners',
-	'parent_child',
-	'events',
-	'media_items'
-] as const;
-export type RecordTable = (typeof RECORD_TABLES)[number];
+export type RecordTable =
+	| 'individuals'
+	| 'person_names'
+	| 'unions'
+	| 'union_partners'
+	| 'parent_child'
+	| 'events'
+	| 'media_items';
 
 /** Parents before children: creates run in this order and deletes in reverse, so no foreign key is ever dangling. */
 const TABLE_RANK: Record<RecordTable, number> = {
@@ -71,7 +69,7 @@ const TABLE_RANK: Record<RecordTable, number> = {
 };
 
 /** The name a table's rows go by in the log and in previews. */
-export const ENTITY_TYPES = {
+const ENTITY_TYPES = {
 	individuals: 'person',
 	person_names: 'name',
 	unions: 'union',
@@ -80,7 +78,7 @@ export const ENTITY_TYPES = {
 	events: 'event',
 	media_items: 'media'
 } as const satisfies Record<RecordTable, string>;
-export type EntityType = (typeof ENTITY_TYPES)[RecordTable];
+type EntityType = (typeof ENTITY_TYPES)[RecordTable];
 
 export type RowImage = Record<string, unknown>;
 
@@ -156,14 +154,14 @@ export function versionOf(image: RowImage | null): number | null {
 
 // ---- What a change did, in words ----
 
-export const RECORD_ACTIONS = {
+const RECORD_ACTIONS = {
 	CREATED: 'created',
 	UPDATED: 'updated',
 	DELETED: 'deleted'
 } as const;
-export type RecordAction = (typeof RECORD_ACTIONS)[keyof typeof RECORD_ACTIONS];
+type RecordAction = (typeof RECORD_ACTIONS)[keyof typeof RECORD_ACTIONS];
 
-export interface FieldChange {
+interface FieldChange {
 	field: string;
 	before: unknown;
 	after: unknown;
@@ -236,7 +234,6 @@ export const UNDO_REFUSALS = {
 	STATE_CHANGED: 'state_changed',
 	HAS_DEPENDENTS: 'has_dependents'
 } as const;
-export type UndoRefusalReason = (typeof UNDO_REFUSALS)[keyof typeof UNDO_REFUSALS];
 
 /**
  * Whether a row still looks the way a change left it. Version and timestamps are ignored: any

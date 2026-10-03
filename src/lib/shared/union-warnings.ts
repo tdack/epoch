@@ -20,10 +20,10 @@ export const UNION_WARNING_CODES = {
 	END_BEFORE_START: 'end_before_start',
 	CHILD_BEFORE_PARENT: 'child_before_parent'
 } as const;
-export type UnionWarningCode = (typeof UNION_WARNING_CODES)[keyof typeof UNION_WARNING_CODES];
+type UnionWarningCode = (typeof UNION_WARNING_CODES)[keyof typeof UNION_WARNING_CODES];
 
-export const WARNING_SEVERITIES = { WARNING: 'warning', INFO: 'info' } as const;
-export type WarningSeverity = (typeof WARNING_SEVERITIES)[keyof typeof WARNING_SEVERITIES];
+const WARNING_SEVERITIES = { WARNING: 'warning', INFO: 'info' } as const;
+type WarningSeverity = (typeof WARNING_SEVERITIES)[keyof typeof WARNING_SEVERITIES];
 
 export interface UnionWarning {
 	code: UnionWarningCode;
@@ -55,14 +55,14 @@ export function isCertainlyBefore(a: DateBounds | null, b: DateBounds | null): b
 	return a?.latest != null && b?.earliest != null && a.latest < b.earliest;
 }
 
-export interface WarningPerson {
+interface WarningPerson {
 	id: string;
 	name: string;
 	birth: DateBounds | null;
 	death: DateBounds | null;
 }
 
-export interface WarningEvent {
+interface WarningEvent {
 	id: string;
 	type: string;
 	label: string;

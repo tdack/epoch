@@ -1,13 +1,13 @@
 /** What the relationship calculator answers, as the screen reads it. */
 
-export interface KinPersonRef {
+interface KinPersonRef {
 	id: string;
 	name: string;
 	/** A placeholder for someone the viewer may not see: no name, nothing to open. */
 	isPrivate: boolean;
 }
 
-export interface KinStepDto extends KinPersonRef {
+interface KinStepDto extends KinPersonRef {
 	/** What this person is to the one before; null for the first. */
 	relation: 'parent' | 'child' | 'partner' | null;
 	/** biological, adoptive, foster, guardian or unknown, for a parent or child step. */

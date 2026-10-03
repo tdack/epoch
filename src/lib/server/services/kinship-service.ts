@@ -31,7 +31,7 @@ export function personName(row: {
 	return [row.givenName, row.surname].filter(Boolean).join(' ') || row.id;
 }
 
-export function partnersFromRows(rows: TreeRows): Map<string, string[]> {
+function partnersFromRows(rows: TreeRows): Map<string, string[]> {
 	const byUnion = new Map<string, string[]>();
 	for (const p of rows.unionPartners)
 		byUnion.set(p.unionId, [...(byUnion.get(p.unionId) ?? []), p.personId]);
