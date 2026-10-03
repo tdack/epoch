@@ -337,3 +337,21 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Quality:** `unsourced_key_fact`, a research suggestion for a birth, death or marriage (`KEY_FACT_TYPES`) that no citation of the fact itself supports, one per fact.
 - **Given up:** structured address parts are dropped when an address is edited (the layout is stale then); a restricted viewer's source list costs the visible-people set per request; the `OBJE` in a citation is retained, not linked.
 - **Consequences:** `TreeRows` carries the four tables, so every mutation loads them. S15c models shared notes and tasks on this footing.
+
+## ADR-029: 3D tree views are CSS 3D over HTML planes, chosen by `mode` (S16)
+- **Status:** proposed. Stage 0 measured Chromium only; WebKit and Firefox are still to be measured before this is accepted (see `docs/3d-tree-views-plan.md`, Status).
+- **Context:** two optional views beside the flat hourglass: `layers` (upright planes, one per band) and `floors` (one per generation). Plan: `docs/3d-tree-views-plan.md`.
+- **Decision:**
+  - **Renderer: CSS 3D transforms over HTML planes** (`perspective` and `transform-style: preserve-3d`), not WebGL. Each plane holds its own `<svg>` with the existing `PersonCard`, `UnionMarker` and `TreeEdge`, so cards stay real DOM: the browser hit-tests them, and roving tabindex, `aria-label`s, the context menu and the drawer work as today. One shared `PlaneStack` primitive; depth connectors are thin elements rotated into Z.
+  - **Camera:** fixed presets only (`layers` rotates the stage a little about Y and X; `floors` tips it about X, around 50°).
+  - **Pan and zoom stay 2D on a wrapper outside the perspective,** so `tree-viewport.svelte.ts` keeps its maths. Zoom must be applied as layout (CSS `zoom`, or sizing the planes), never as `transform: scale()` on that wrapper (see the spike below).
+  - **URL:** `mode` = `flat` (default, omitted) | `layers` | `floors`, in `tree-url.ts`. It is not a fetched parameter, so switching mode refetches nothing.
+  - **Band model and step-child rule:** one pure module in `src/lib/tree-layout/` computes each drawn person's band (0 direct line, 1 sibling line, 2 cousin line) and anchors every step-child to a drawn parent with a view-independent tie-break (lower band, earlier `union_partner`, lower id). Flat uses it too, so the views agree.
+  - **Deferred:** free orbiting, WebGL, printing or exporting the 3D views, and drag-to-relate through the projection (needs an inverse projection; decided at stage 6).
+- **Spike (installed Google Chrome via Playwright, headless, macOS, device scale 2, the Simpsons layout; 294 synthetic cards for timing):**
+  - **Hit-testing:** correct through the transforms once planes are `pointer-events: none` and only cards are `auto`. Without that, a translucent plane in front swallows clicks on cards behind it (35/55 and 45/55 correct). With it: `layers` 55/55; `floors` 53/55, both misses being a card that genuinely overlaps another on a nearer floor (so plane gaps and tilt must keep cards from overlapping).
+  - **Focus:** arrow-key roving focus reached every card in both modes; the focus ring is drawn on the projected card. Cards pushed outside the viewport are the only ones off-screen.
+  - **Text:** crisp at 1×, and at device scale 2 under tilt. At 3× via an outer `scale()` the planes are rasterised once and stretched, so text goes soft. With CSS `zoom` on the wrapper, the same 3× text re-rasterises sharply.
+  - **Frame time panning 294 visible cards** (3 s sine pan, both modes): 60 fps, p95 16.7 ms, max 16.8 ms. Headless and vsync-capped, so it shows no dropped frames on this machine, not headroom on a low-end device; stage 7 measures that.
+- **Given up:** free orbiting; one more stacking-context hazard (a plane in front of another must not catch events); perspective makes far planes smaller, so text legibility falls with depth and back-band fading is a token to tune.
+- **Consequences:** no new dependency, no schema or API change at this stage. Stage 4 adds fetch options (`side`, `origins`) and touches the privacy matrix; stage 8 adds expand-only columns.

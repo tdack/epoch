@@ -305,7 +305,7 @@ the next session must know.
 
 | Stage | State | Notes |
 |---|---|---|
-| 0 | Not started | |
+| 0 | In progress | Chromium done; **WebKit and Firefox not measured**: the Playwright cache holds old builds (chromium-1194, firefox-1495, webkit-2215) that do not launch with Playwright 1.63 (Firefox and WebKit hang at launch), and fetching current ones is a download that needs the owner's say-so (`npx playwright install webkit firefox`). ADR-029 is written as *proposed*; flip it to accepted once WebKit and Firefox repeat the checks in its Spike section (hit-testing with `pointer-events` on planes, focus ring, text under `zoom` vs `scale`, frame time). The spike lived in the session scratchpad and is not committed. No contradiction with the plan so far. Findings that change the plan's wording: zoom must be CSS `zoom`/plane sizing, not an outer `scale()`; planes must be click-through. |
 | 1 | Not started | |
 | 2 | Not started | |
 | 3 | Not started | |
