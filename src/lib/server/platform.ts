@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import type { D1Database, R2Bucket, Queue } from '@cloudflare/workers-types';
-import type { ImportQueueMessage } from './workers/import-consumer.js';
+import type { ImportQueueMessage } from './services/gedcom-service.js';
 
 export interface PlatformBindings {
 	DB: D1Database;

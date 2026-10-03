@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
-import { getTreeExportData, importGedcomToDb } from './importer';
+import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {

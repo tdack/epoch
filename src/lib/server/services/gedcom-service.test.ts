@@ -1,0 +1,201 @@
+import type { R2Bucket } from '@cloudflare/workers-types';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { individuals, trees } from '../db/schema';
+import { UnauthorizedError } from '../domain/errors';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestDatabase
+} from '../testing/d1';
+import { GedcomService, type ImportFile, type ImportQueueMessage } from './gedcom-service';
+
+const FILE = '0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Ben /Fox/\n0 TRLR';
+
+let t: TestDatabase;
+beforeAll(async () => {
+	t = await createTestDatabase();
+});
+afterAll(async () => {
+	await t.dispose();
+});
+
+/** An R2 stand-in that keeps what is put in it. */
+function fakeBucket() {
+	const objects = new Map<string, { value: string; options?: { httpMetadata?: unknown } }>();
+	const bucket = {
+		put: async (key: string, value: string, options?: { httpMetadata?: unknown }) => {
+			objects.set(key, { value, options });
+		},
+		get: async (key: string) => {
+			const found = objects.get(key);
+			return found ? { text: async () => found.value } : null;
+		},
+		delete: async (key: string) => {
+			objects.delete(key);
+		}
+	};
+	return { objects, bucket: bucket as unknown as R2Bucket };
+}
+
+const fileOf = (overrides: Partial<ImportFile> = {}): ImportFile => ({
+	treeId: null,
+	treeName: null,
+	fileName: 'Fox family.ged',
+	text: FILE,
+	sizeBytes: FILE.length,
+	mode: 'replace',
+	shouldMergeDuplicateFamilies: false,
+	...overrides
+});
+
+async function tree(role?: 'viewer' | 'editor') {
+	const owner = await createTestUser(t.db);
+	const treeId = await createTestTree(t.db, owner);
+	const member = await createTestUser(t.db);
+	if (role) await addTestMember(t.db, treeId, member, role);
+	return { owner, member, treeId };
+}
+
+describe('importFile', () => {
+	it('creates a tree for a file with no tree, named from the file, and imports into it', async () => {
+		const caller = await createTestUser(t.db);
+		const outcome = await new GedcomService(t.db).importFile(fileOf(), caller.context);
+		expect(outcome).toMatchObject({ status: 'complete', individualsCount: 2 });
+		const created = await t.db.select().from(trees).where(eq(trees.id, outcome.treeId)).get();
+		expect(created?.name).toBe('Fox family');
+	});
+
+	it('refuses a viewer, and a stranger, before writing anything', async () => {
+		const s = await tree('viewer');
+		const stranger = await createTestUser(t.db);
+		for (const actor of [s.member, stranger]) {
+			await expect(
+				new GedcomService(t.db).importFile(fileOf({ treeId: s.treeId }), actor.context)
+			).rejects.toBeInstanceOf(UnauthorizedError);
+		}
+		expect(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).toEqual(
+			[]
+		);
+	});
+
+	it('lets an editor import into the tree', async () => {
+		const s = await tree('editor');
+		const outcome = await new GedcomService(t.db).importFile(
+			fileOf({ treeId: s.treeId }),
+			s.member.context
+		);
+		expect(outcome).toMatchObject({ status: 'complete', treeId: s.treeId });
+	});
+
+	it('stages a large file in R2 and queues exactly what the consumer will import', async () => {
+		const s = await tree();
+		const { objects, bucket } = fakeBucket();
+		const sent: ImportQueueMessage[] = [];
+		const service = new GedcomService(t.db, {
+			bucket,
+			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+		});
+		const outcome = await service.importFile(
+			fileOf({
+				treeId: s.treeId,
+				treeName: 'Foxes',
+				sizeBytes: 3 * 1024 * 1024,
+				mode: 'merge',
+				shouldMergeDuplicateFamilies: true
+			}),
+			s.owner.context
+		);
+		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).toMatchObject({
+			treeId: s.treeId,
+			treeName: 'Foxes',
+			mode: 'merge',
+			shouldMergeDuplicateFamilies: true
+		});
+		expect(objects.has(sent[0]!.r2ObjectKey)).toBe(true);
+		// Nothing is written until the consumer runs.
+		expect(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).toEqual(
+			[]
+		);
+
+		expect(await service.importStaged(sent[0]!)).toBe(true);
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).length
+		).toBe(2);
+		expect(objects.size).toBe(0);
+	});
+
+	it('imports a large file in the request when the queue is not bound', async () => {
+		const s = await tree();
+		const outcome = await new GedcomService(t.db, { bucket: fakeBucket().bucket }).importFile(
+			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
+			s.owner.context
+		);
+		expect(outcome.status).toBe('complete');
+	});
+
+	it('reports a staged file that is gone, so the consumer can drop the message', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db, { bucket: fakeBucket().bucket });
+		expect(await service.importStaged({ treeId: s.treeId, r2ObjectKey: 'staging/none.ged' })).toBe(
+			false
+		);
+	});
+});
+
+describe('previewImport', () => {
+	it('needs the import right, because it reads the tree to compare', async () => {
+		const s = await tree('viewer');
+		await expect(
+			new GedcomService(t.db).previewImport(s.treeId, FILE, s.member.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(
+			new GedcomService(t.db).previewImport(s.treeId, FILE, s.owner.context)
+		).resolves.toMatchObject({ incoming: { individuals: 2 } });
+	});
+});
+
+describe('export', () => {
+	it('names a download and the stored copy alike, by the tree', async () => {
+		const s = await tree();
+		await t.db.update(trees).set({ name: 'Fox / family: 1900' }).where(eq(trees.id, s.treeId));
+		const { objects, bucket } = fakeBucket();
+		const service = new GedcomService(t.db, { bucket });
+
+		const download = await service.exportDownload(s.treeId, 'gedcom551', s.owner.context);
+		expect(download.filename).toBe('Fox___family__1900.ged');
+		expect(download.content).toContain('0 HEAD');
+
+		const key = await service.exportToStorage(s.treeId, 'gedcom551', s.owner.context);
+		expect(key).toMatch(new RegExp(`^exports/${s.treeId}-\\d+\\.ged$`));
+		expect(objects.get(key)?.options).toMatchObject({
+			httpMetadata: {
+				contentType: 'text/vnd.familysearch.gedcom',
+				contentDisposition: 'attachment; filename="Fox___family__1900.ged"'
+			}
+		});
+	});
+
+	it('is a manager’s action', async () => {
+		const s = await tree('editor');
+		await expect(
+			new GedcomService(t.db).exportDownload(s.treeId, 'gedcom551', s.member.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('refuses a workflow job with no requester, or whose requester lost the role', async () => {
+		const s = await tree('editor');
+		const service = new GedcomService(t.db);
+		await expect(service.requireExporter(s.treeId, undefined)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
+		await expect(service.requireExporter(s.treeId, s.member.userId)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
+		await expect(service.requireExporter(s.treeId, s.owner.userId)).resolves.toBeUndefined();
+	});
+});

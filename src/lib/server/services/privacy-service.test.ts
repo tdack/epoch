@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals } from '../db/schema';
 import { UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import {
 	addTestMember,
 	createTestDatabase,

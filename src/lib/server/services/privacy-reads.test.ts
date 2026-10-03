@@ -10,7 +10,7 @@ import { events, individuals } from '../db/schema';
 import { NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { isPersonPrivate, livingCutoff } from '../domain/living-state';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { visibleAmong } from '../repositories/visibility';
 import {
 	addTestMember,

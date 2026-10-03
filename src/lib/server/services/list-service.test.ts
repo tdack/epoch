@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { UnauthorizedError } from '../domain/errors';
 import { ChangeStore } from '../repositories/change-store';
 import {

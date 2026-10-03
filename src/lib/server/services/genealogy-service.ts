@@ -42,19 +42,6 @@ export class GenealogyService {
 		};
 	}
 
-	/**
-	 * Throws unless the caller may export this tree. The export carries every person, living ones
-	 * included, so it is a manager's action until exports can be filtered per viewer (ADR-015).
-	 */
-	async requireExport(treeId: string, context: AuthenticatedContext): Promise<void> {
-		await requireTreeAction(this.userRepo, treeId, context, 'tree:export');
-	}
-
-	/** Throws unless the caller may import into this tree. Reads only the caller's membership, never the tree. */
-	async requireImport(treeId: string, context: AuthenticatedContext): Promise<void> {
-		await requireTreeAction(this.userRepo, treeId, context, 'tree:import');
-	}
-
 	async createTree(name: string, description: string | null, context: AuthenticatedContext) {
 		if (!name?.trim()) throw new ValidationError('Tree name is required');
 		return this.treeRepo.create(name.trim(), description?.trim() || null, context.user.id);

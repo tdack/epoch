@@ -1,7 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { MessageBatch } from '@cloudflare/workers-types';
 import sveltekitWorker from '../.svelte-kit/cloudflare/_worker.js';
-import importConsumer, { type ImportQueueMessage } from '../src/lib/server/workers/import-consumer';
+import importConsumer from '../src/lib/server/workers/import-consumer';
+import type { ImportQueueMessage } from '../src/lib/server/services/gedcom-service';
 
 // Re-export Workflows and Durable Objects so Wrangler can resolve their class_name
 export { GedcomExportWorkflow } from '../src/lib/server/workflows/export-workflow';

@@ -10,7 +10,7 @@ import {
 import { RelationshipService } from '../services/relationship-service';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
-import { getTreeExportData, importGedcomToDb } from './importer';
+import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {

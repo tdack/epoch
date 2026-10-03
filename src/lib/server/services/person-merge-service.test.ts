@@ -16,7 +16,7 @@ import {
 } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { buildGedcom551String } from '../gedcom/serializer';
-import { getTreeExportData, importGedcomToDb } from '../gedcom/importer';
+import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 import { ChangeStore } from '../repositories/change-store';
 import {
 	addTestMember,

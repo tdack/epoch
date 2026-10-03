@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { trees, personMarks } from '../db/schema';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { MAX_RECENTS } from '../../shared/marks';
 import {

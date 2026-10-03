@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import {
 	addTestMember,
 	createTestDatabase,

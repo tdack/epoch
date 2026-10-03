@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { individuals, mediaItems, treeMemberships, trees } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -20,6 +20,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
+import { GedcomService } from './gedcom-service';
 import { GenealogyService } from './genealogy-service';
 import { MediaService, parseMediaKey } from './media-service';
 
@@ -92,24 +93,24 @@ describe('import', () => {
 
 	it.each(['owner', 'manager', 'editor'] as const)('is allowed for a %s', async (role) => {
 		await expect(
-			new GenealogyService(t.db).requireImport(treeId, actors[role].context)
+			new GedcomService(t.db).requireImport(treeId, actors[role].context)
 		).resolves.toBeUndefined();
 	});
 	it.each(['contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
 		await expect(
-			new GenealogyService(t.db).requireImport(treeId, actors[role].context)
+			new GedcomService(t.db).requireImport(treeId, actors[role].context)
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('is refused to someone who is not a member, whatever the tree holds', async () => {
 		const stranger = await createTestUser(t.db, 'stranger-import');
 		await expect(
-			new GenealogyService(t.db).requireImport(treeId, stranger.context)
+			new GedcomService(t.db).requireImport(treeId, stranger.context)
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it("reads the caller's membership and nothing of the tree", async () => {
 		const readTree = vi.spyOn(TreeRepository.prototype, 'findById');
 		const readRows = vi.spyOn(GenealogyRepository.prototype, 'getTreeData');
-		await new GenealogyService(t.db).requireImport(treeId, actors.owner.context);
+		await new GedcomService(t.db).requireImport(treeId, actors.owner.context);
 		expect(readTree).not.toHaveBeenCalled();
 		expect(readRows).not.toHaveBeenCalled();
 	});
@@ -118,12 +119,12 @@ describe('import', () => {
 describe('export', () => {
 	it.each(['owner', 'manager'] as const)('is allowed for a %s', async (role) => {
 		await expect(
-			new GenealogyService(t.db).requireExport(treeId, actors[role].context)
+			new GedcomService(t.db).requireExport(treeId, actors[role].context)
 		).resolves.toBeUndefined();
 	});
 	it.each(['editor', 'contributor', 'viewer'] as const)('is refused for a %s', async (role) => {
 		await expect(
-			new GenealogyService(t.db).requireExport(treeId, actors[role].context)
+			new GedcomService(t.db).requireExport(treeId, actors[role].context)
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('does not hand the whole tree to a viewer through the tree or individual reads', async () => {

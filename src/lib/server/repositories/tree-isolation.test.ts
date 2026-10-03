@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../fixtures/genealogy-fixtures';
-import { getTreeExportData, importGedcomToDb } from '../gedcom/importer';
+import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 import {
 	createTestDatabase,
 	createTestTree,

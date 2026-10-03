@@ -90,7 +90,7 @@ export function treeScopedId(treeId: string, rawXrefOrId: string): string {
 	return `${treeId}:${rawXrefOrId}`;
 }
 
-export function countIncoming(parsed: ParsedGedcomData): ImportPreview['incoming'] {
+function countIncoming(parsed: ParsedGedcomData): ImportPreview['incoming'] {
 	return {
 		individuals: parsed.individuals.length,
 		families: parsed.families.length,

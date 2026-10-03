@@ -17,7 +17,7 @@ import {
 	type UnbackfilledEvent
 } from '../domain/date-backfill';
 import { normalizeGedcomDate } from './parser';
-import { importGedcomToDb } from './importer';
+import { importGedcomToDb } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {

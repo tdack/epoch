@@ -10,7 +10,7 @@ import {
 	importGedcomToDb,
 	previewGedcomFile,
 	previewGedcomImport
-} from './importer';
+} from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {

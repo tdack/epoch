@@ -1,15 +1,7 @@
 import type { MessageBatch } from '@cloudflare/workers-types';
 import { assertSchemaCurrent } from '../db/schema-status';
-import { importGedcomToDb } from '../gedcom/importer';
-
-export interface ImportQueueMessage {
-	treeId: string;
-	r2ObjectKey: string;
-	treeName?: string;
-	mode?: 'replace' | 'merge';
-	/** Carried through the queue so a large file is merged exactly as the preview promised. */
-	shouldMergeDuplicateFamilies?: boolean;
-}
+import { getDb } from '../db';
+import { GedcomService, type ImportQueueMessage } from '../services/gedcom-service';
 
 /**
  * Cloudflare Queue Consumer for asynchronous large GEDCOM processing.
@@ -29,22 +21,10 @@ export default {
 
 		for (const msg of batch.messages) {
 			try {
-				const { treeId, r2ObjectKey, treeName, mode, shouldMergeDuplicateFamilies } = msg.body;
-				const r2Object = await env.MEDIA_BUCKET.get(r2ObjectKey);
-
-				if (!r2Object) {
-					console.error(`Object not found in R2: ${r2ObjectKey}`);
-					msg.ack();
-					continue;
+				const service = new GedcomService(getDb(env.DB), { bucket: env.MEDIA_BUCKET });
+				if (!(await service.importStaged(msg.body))) {
+					console.error(`Object not found in R2: ${msg.body.r2ObjectKey}`);
 				}
-
-				const rawGedcom = await r2Object.text();
-				await importGedcomToDb(env.DB, treeId, rawGedcom, treeName, mode ?? 'replace', {
-					shouldMergeDuplicateFamilies
-				});
-
-				// Clean up temporary staging file in R2
-				await env.MEDIA_BUCKET.delete(r2ObjectKey);
 
 				msg.ack();
 			} catch (err) {

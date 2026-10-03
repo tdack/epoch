@@ -4,7 +4,7 @@ import { events } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
-import { getTreeExportData, importGedcomToDb, previewGedcomImport } from './importer';
+import { getTreeExportData, importGedcomToDb, previewGedcomImport } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {

@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../domain/identity';
 import { privatePeople } from '../domain/privacy-mask';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { visibleAmong } from '../repositories/visibility';
 import {
 	addTestMember,

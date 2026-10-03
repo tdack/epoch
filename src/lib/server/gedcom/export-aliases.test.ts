@@ -9,7 +9,7 @@ import { eq } from 'drizzle-orm';
 import { individuals } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { buildGedcom551String } from './serializer';
-import { getTreeExportData, importGedcomToDb } from './importer';
+import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 
 const FILE = `0 HEAD
 0 @I1@ INDI

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import simpsonsClean from '../../../../docs/The_Simpsons_clean.ged?raw';
 import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../fixtures/genealogy-fixtures';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';

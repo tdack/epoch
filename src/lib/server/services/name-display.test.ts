@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import namesFixture from '../../../../docs/The_Names_fixture.ged?raw';
 import { personNames } from '../db/schema';
-import { importGedcomToDb } from '../gedcom/importer';
+import { importGedcomToDb } from '../testing/gedcom';
 import { graphFromRows } from '../domain/relationship-graph';
 import { ChangeStore } from '../repositories/change-store';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
