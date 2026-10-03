@@ -47,3 +47,10 @@ Media/document and place/map workstreams are independent behind shared privacy a
 - Historical place labels are never overwritten by geocoding normalization.
 - Maps obey the same privacy policy as records and charts.
 - A documented restore exercise succeeds for D1 and required R2 assets.
+
+## Status
+
+Not started as a phase (the roadmap shows *Planned*). Earlier slices laid groundwork: media upload
+and attach already exist, S8 (ADR-015) made every media read check the tree, the record and
+the viewer's role, and S11 (ADR-019) added place records derived from each fact's text, with rename
+and merge. Place hierarchy, maps, media records (`OBJE` is retained) and the operations work wait.

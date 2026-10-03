@@ -41,7 +41,7 @@ Redirect old routes to stable deep links and remove legacy aggregate DTOs only a
 
 ## Status against the exit criteria
 
-Slice S10 (2026-10-02) closed items 8 and 9 and settled `place_ref` (ADR-018); slice S11 added place records, rename and merge (ADR-019). Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. The rest is listed as waiting.
+Slice S10 (2026-10-02) closed items 8 and 9 and settled `place_ref` (ADR-018); slice S11 added place records, rename and merge (ADR-019). Slice S5 (2026-09-30) started this phase; slice S6 (2026-09-30) added person names; slice S7 (2026-10-01) added search, lists, recents and favourites. Every work item and exit criterion is met, so the roadmap shows Phase 3 as *Complete*; the caveats (writes still load the whole tree, phonetic search and non-ASCII folding) are noted in the rows and pass to Phase 8.
 
 | Work item | Status | Evidence |
 |---|---|---|
@@ -68,6 +68,6 @@ S7 deferred or departing from the plan: see the S7 status in [improvement-plan.m
 
 S6 deferred or departing from the plan: see the S6 status in [improvement-plan.md](./improvement-plan.md#person-names) (name lines stored on the name row, `_MARNM` unconfirmed, no migration of pre-S6 imports; the search UI gap was closed in S7).
 
-Deferred or contradicting the plan: `depth=` became `up=`/`down=`; the unfocused `/graph` and `/api/trees/:id` still exist for tests
-and go with their last consumer; fact history omits removed facts; old imported descriptions are not
+Deferred or contradicting the plan: `depth=` became `up=`/`down=`; the unfocused `/graph` and `GET /api/trees/:id`
+were removed in the architecture review (B3; `/graph` answers 400 without `focus`); fact history omits removed facts; old imported descriptions are not
 backfilled into the new fact columns.

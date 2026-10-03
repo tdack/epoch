@@ -11,8 +11,8 @@ Stable graph queries, privacy policy, evidence model and GEDCOM conformance corp
 ## Priority order
 
 1. Production-grade GEDCOM import/export jobs with progress, cancellation, diagnostics, downloadable reports and retained job history.
-2. Ancestor/pedigree and descendant charts with configurable generations and relationship-type filters.
-3. Relationship chart explaining one or more paths between two people.
+2. Ancestor/pedigree and descendant charts with configurable generations and relationship-type filters. (Built in S10, ADR-017.)
+3. Relationship chart explaining one or more paths between two people. (Built in S10, ADR-017.)
 4. Fan and hourglass/compact views. (S12 built the fan and the hourglass, ADR-020; compact remains.)
 5. Timeline/lifespan view.
 6. Printable family group, individual summary, ancestor and descendant reports.
@@ -45,3 +45,11 @@ After graph query contracts stabilize, each chart/report is an independent strea
 - Generated reports are accessible and printable.
 - Large-corpus performance targets are measured and documented.
 - Exported files pass the project validator and semantic round-trip suite.
+
+## Status
+
+The roadmap shows Phase 6 as *In progress*. Items 2 and 3 were built in S10 and the fan and
+hourglass in S12. Two optional 3D views of the interactive tree (layers and floors) are slice S16,
+in progress on branch `feat/3d-tree-views`; the [plan](./3d-tree-views-plan.md) holds the stages and
+their status. Item 1 has only the existing large-file queue path; items 5 to 8 and the compact view
+have not started.

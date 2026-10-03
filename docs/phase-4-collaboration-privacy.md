@@ -42,15 +42,15 @@ Assign every existing tree an owner before enforcement; block rollout if ownersh
 
 ## Status against the work items
 
-Slice S8 (2026-10-01) did the privacy foundation; see the [S8 status](./improvement-plan.md#s8-privacy-foundation). Slice S9 did member administration; see the [S9 status](./improvement-plan.md#s9-members-and-invitations).
+Slice S8 (2026-10-01) did the privacy foundation; see the [S8 status](./improvement-plan.md#s8-privacy-foundation). Slice S9 did member administration; see the [S9 status](./improvement-plan.md#s9-members-and-invitations). S15b (ADR-028) applied the same rules to sources and citations. The roadmap shows Phase 4 as *In progress*: items 7 to 9 have not started.
 
 | Work item | Status |
 |---|---|
 | 1. Invitations and membership administration | Done in S9 (ADR-016): invite by email, take up on sign-in, change role, remove, last owner protected. No audit entry, no email sent, and Cloudflare Access is still configured outside the app. |
-| 2. Capabilities by role | Partly: `person:set_privacy`, `media:manage`, `media:view` added; `tree:export` raised to manager. Suggestions and evidence capabilities wait. |
+| 2. Capabilities by role | Partly: `person:set_privacy`, `media:manage`, `media:view` added; `tree:export` raised to manager. Evidence commands use `record:create`, `record:edit` and `record:delete` (ADR-028) rather than a separate evidence capability. Suggestions wait. |
 | 3. One authorization policy | Partly: one `ViewerScope` and `canSeePrivatePeople`; every read service and the mutation runner use it. Jobs: the export workflow re-checks. |
 | 4. Living people private by default | Done (ADR-015). |
-| 5. Privacy on records, facts, unions | Done for people, their names and facts, partnerships and links. Notes, citations and media follow the person only. |
+| 5. Privacy on records, facts, unions | Done for people, their names and facts, partnerships and links. Citations follow their subject, and sources and repositories follow the visible citations (S15b, ADR-028). Media follows the person only. Notes are S15c. |
 | 6. Privacy-safe placeholders | Done, per tree, graph and family lists. |
 | 7. Audit | Waiting (the change log is the start of it). |
 | 8. Suggestions and approval | Waiting. |
