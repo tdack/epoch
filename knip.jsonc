@@ -15,14 +15,5 @@
 	// CSS is included so `@import 'tailwindcss'` counts as a use of that package.
 	"project": ["src/**/*.{ts,svelte,css}", "e2e/**/*.ts", "workers/**/*.ts", "scripts/*.mjs"],
 	// `cloudflare:workers` is a runtime module that looks like a package named `cloudflare`.
-	"ignoreDependencies": ["cloudflare"],
-	// Phase B of docs/architecture-review.md removes what these report. They warn until then so
-	// `npm run lint` can pass; delete this block when B lands so new dead code fails the gate.
-	"rules": {
-		"files": "warn",
-		"dependencies": "warn",
-		"devDependencies": "warn",
-		"exports": "warn",
-		"types": "warn"
-	}
+	"ignoreDependencies": ["cloudflare"]
 }
