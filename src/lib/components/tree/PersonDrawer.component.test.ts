@@ -33,6 +33,7 @@ const page = {
 	stepParents: [],
 	stepChildren: [],
 	media: [],
+	evidence: { citations: [], links: [] },
 	changes: { recent: [], createdAt: null, updatedAt: null }
 } as unknown as PersonPageDto;
 

@@ -3,6 +3,11 @@
 	import NameDialog from '#lib/components/modals/NameDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
+	import CitationList from '#lib/components/evidence/CitationList.svelte';
+	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
+	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
+	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
 	import {
 		deleteNameApi,
 		previewNameApi,
@@ -16,11 +21,12 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, editor, toasts }: Props = $props();
+	let { dto, treeId, role, editor, toasts }: Props = $props();
 
 	let nameDialog = $state<{ name: NameDto | null } | null>(null);
 
@@ -130,6 +136,24 @@
 				</p>
 			{/if}
 			{#if name.id !== null}
+				<CitationsDisclosure
+					citationCount={name.citationCount}
+					label={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+				>
+					<CitationList
+						{treeId}
+						{role}
+						{editor}
+						{toasts}
+						subjectLabel={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+						subject={{ kind: CITATION_SUBJECT_KINDS.NAME, id: name.id }}
+						citations={citationsOfSubject(
+							dto.evidence.citations,
+							CITATION_SUBJECT_KINDS.NAME,
+							name.id
+						)}
+					/>
+				</CitationsDisclosure>
 				<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
 					<button
 						type="button"

@@ -52,6 +52,7 @@ function pageOf(
 		stepParents: [],
 		stepChildren: [],
 		media: [],
+		evidence: { citations: [], links: [] },
 		changes: { recent: [], createdAt: null, updatedAt: null },
 		...extra
 	} as unknown as PersonPageDto;
@@ -126,6 +127,7 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 						place: null,
 						value: null,
 						notes: null,
+						citationCount: 0,
 						conflict: { kind: 'conflict', otherIds: ['b2'] }
 					} as never
 				]

@@ -57,13 +57,13 @@
 
 {#snippet facts()}
 	<PersonSection id="facts" title="Facts" {layout} isOpenByDefault>
-		<PersonFacts {dto} {treeId} {editor} {toasts} />
+		<PersonFacts {dto} {treeId} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet names()}
 	<PersonSection id="names" title="Names" {layout}>
-		<PersonNames {dto} {treeId} {editor} {toasts} />
+		<PersonNames {dto} {treeId} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
@@ -79,7 +79,7 @@
 
 {#snippet evidence()}
 	<PersonSection id="evidence" title="Sources and evidence" {layout}>
-		<PersonEvidence />
+		<PersonEvidence {dto} {treeId} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
