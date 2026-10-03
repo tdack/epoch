@@ -175,7 +175,7 @@ const loads = Object.keys(
 	])
 ).sort();
 /** Loads that read no tree at all, so there is no person in them to hide. */
-const NO_RECORD_LOADS = ['./welcome/+page.server.ts'];
+const NO_RECORD_LOADS = ['./login/+page.server.ts', './welcome/+page.server.ts'];
 
 const proofs = new Set(
 	Object.keys(import.meta.glob('../lib/server/**/*.test.ts')).map((k) =>
