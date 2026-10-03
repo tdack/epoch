@@ -132,7 +132,11 @@ export async function loadKinWindow(
 				(l) => existing.has(l.parentId) && existing.has(l.childId)
 			),
 			events: rowsOf<EventRow>(events),
-			mediaItems: []
+			mediaItems: [],
+			sources: [],
+			repositories: [],
+			sourceRepositories: [],
+			citations: []
 		},
 		foundStartIds: request.startIds.filter((id) => existing.has(id)),
 		hasMoreAbove,

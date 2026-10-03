@@ -4,7 +4,18 @@
  */
 
 /** The name a table's rows go by in the log and in previews. */
-export type EntityType = 'person' | 'name' | 'union' | 'partner' | 'link' | 'event' | 'media';
+export type EntityType =
+	| 'person'
+	| 'name'
+	| 'union'
+	| 'partner'
+	| 'link'
+	| 'event'
+	| 'media'
+	| 'source'
+	| 'repository'
+	| 'source_link'
+	| 'citation';
 
 export const RECORD_ACTIONS = {
 	CREATED: 'created',

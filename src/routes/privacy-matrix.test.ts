@@ -33,6 +33,7 @@ const RECORDS = 'services/privacy-records.test.ts';
 const WRITES = 'services/privacy-writes.test.ts';
 const ACCESS = 'services/privacy-access.test.ts';
 const MEMBERS = 'services/member-service.test.ts';
+const EVIDENCE = 'services/privacy-evidence.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
@@ -50,6 +51,12 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'masked-rows',
 		covers: 'services/chart-service.test.ts'
 	},
+	[`${API}/trees/[id]/citations/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/[citationId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/citations/reorder/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
@@ -133,7 +140,27 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'masked-rows',
 		covers: 'services/kinship-service.test.ts'
 	},
+	[`${API}/trees/[id]/repositories/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/repositories/[repositoryId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
 	[`${API}/trees/[id]/search/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/source-links/[linkId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/sources/[sourceId]/merge/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/[sourceId]/repositories/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/sources/impact/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },

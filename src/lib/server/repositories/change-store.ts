@@ -11,12 +11,16 @@ import type { DbClient } from '../db';
 import {
 	changeLog,
 	changeLogRecords,
+	citations,
 	events,
 	individuals,
 	places,
 	mediaItems,
 	parentChild,
 	personNames,
+	repositories,
+	sourceRepositories,
+	sources,
 	unionPartners,
 	unions
 } from '../db/schema';
@@ -47,7 +51,11 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	union_partners: unionPartners,
 	parent_child: parentChild,
 	events,
-	media_items: mediaItems
+	media_items: mediaItems,
+	sources,
+	repositories,
+	source_repositories: sourceRepositories,
+	citations
 };
 
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */
@@ -120,7 +128,19 @@ export class ChangeStore {
 	 */
 	async loadRows(treeId: string): Promise<TreeRows> {
 		const { db } = this;
-		const [inds, unionRows, partners, pcs, evs, media, names] = await Promise.all([
+		const [
+			inds,
+			unionRows,
+			partners,
+			pcs,
+			evs,
+			media,
+			names,
+			sourceRows,
+			repoRows,
+			linkRows,
+			cites
+		] = await Promise.all([
 			db
 				.select()
 				.from(individuals)
@@ -164,6 +184,31 @@ export class ChangeStore {
 				.innerJoin(individuals, eq(personNames.personId, individuals.id))
 				.where(eq(individuals.treeId, treeId))
 				.orderBy(sql`${personNames}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(sources)
+				.where(eq(sources.treeId, treeId))
+				.orderBy(sql`${sources}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(repositories)
+				.where(eq(repositories.treeId, treeId))
+				.orderBy(sql`${repositories}.rowid`)
+				.all(),
+			db
+				.select(getTableColumns(sourceRepositories))
+				.from(sourceRepositories)
+				.innerJoin(sources, eq(sourceRepositories.sourceId, sources.id))
+				.where(eq(sources.treeId, treeId))
+				.orderBy(sql`${sourceRepositories}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(citations)
+				.where(eq(citations.treeId, treeId))
+				.orderBy(sql`${citations}.rowid`)
 				.all()
 		]);
 		const images = <T>(table: SQLiteTable, rows: unknown[]) =>
@@ -175,7 +220,11 @@ export class ChangeStore {
 			parentChild: images(parentChild, pcs),
 			events: images(events, evs),
 			mediaItems: images(mediaItems, media),
-			personNames: images(personNames, names)
+			personNames: images(personNames, names),
+			sources: images(sources, sourceRows),
+			repositories: images(repositories, repoRows),
+			sourceRepositories: images(sourceRepositories, linkRows),
+			citations: images(citations, cites)
 		};
 	}
 

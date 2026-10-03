@@ -7,6 +7,7 @@ export type ErrorCode =
 	| 'UNDO_REFUSED'
 	| 'UNION_MERGE_CONFLICT'
 	| 'PERSON_MERGE_CONFLICT'
+	| 'SOURCE_IN_USE'
 	| 'INTERNAL_ERROR'
 	| 'BAD_REQUEST';
 
@@ -88,5 +89,13 @@ export class UnionMergeConflictError extends DomainError {
 	constructor(message: string, conflicts: unknown[]) {
 		super(message, 'UNION_MERGE_CONFLICT', 409, { reason: 'MERGE_CONFLICT', conflicts });
 		this.name = 'UnionMergeConflictError';
+	}
+}
+
+/** A source cannot be deleted while records cite it; `details.citationCount` says how many. */
+export class SourceInUseError extends DomainError {
+	constructor(message: string, citationCount: number) {
+		super(message, 'SOURCE_IN_USE', 409, { reason: 'SOURCE_IN_USE', citationCount });
+		this.name = 'SourceInUseError';
 	}
 }

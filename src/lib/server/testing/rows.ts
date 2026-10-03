@@ -43,7 +43,11 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		unionPartners: [],
 		parentChild: [],
 		events: [],
-		mediaItems: []
+		mediaItems: [],
+		sources: [],
+		repositories: [],
+		sourceRepositories: [],
+		citations: []
 	};
 	const event = (
 		partial: Partial<EventRow> & { id: string; entityId: string; type: string }

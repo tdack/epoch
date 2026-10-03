@@ -55,3 +55,56 @@ export const CLAIM_STATE_LABELS: Record<ClaimState, string> = {
 /** The most a source or repository page lists in one response. */
 export const MAX_EVIDENCE_PAGE_SIZE = 100;
 export const DEFAULT_EVIDENCE_PAGE_SIZE = 25;
+
+/** The fields a source is made and edited with. A missing field on an edit is left as it is. */
+export interface SourceInput {
+	title?: string | null;
+	author?: string | null;
+	publication?: string | null;
+	abbreviation?: string | null;
+	/** The words of the source itself, as GEDCOM's source `TEXT`. */
+	text?: string | null;
+}
+
+export interface RepositoryInput {
+	name?: string | null;
+	address?: string | null;
+}
+
+/** The fields a citation is made and edited with. */
+export interface CitationInput {
+	/** The source cited. A citation always has one when made here. */
+	sourceId?: string | null;
+	/** Where in the source: a page, a folio, an entry number. */
+	page?: string | null;
+	/** GEDCOM `QUAY`; null clears it. */
+	quality?: CitationQuality | null;
+	/** When the source recorded it, as date text (`ABT 1901`). */
+	entryDate?: string | null;
+	/** The words of the source that support the claim. */
+	text?: string | null;
+}
+
+export interface CitationSubjectRef {
+	kind: CitationSubjectKind;
+	id: string;
+}
+
+/**
+ * The most rows one evidence change writes. D1 counts each statement of a batch as a query with
+ * 1,000 allowed per invocation, and a row costs a version guard, a write and its log record
+ * (ADR-022 sets the same bound for a person merge). A change over it is refused, not half made.
+ */
+export const MAX_EVIDENCE_OPS = 300;
+
+/** A source's title, else its abbreviation or the start of its words; never empty. */
+export function sourceLabel(source: {
+	title: string | null;
+	abbreviation: string | null;
+	text: string | null;
+}): string {
+	const text = source.text
+		? `${source.text.slice(0, 40)}${source.text.length > 40 ? '…' : ''}`
+		: null;
+	return source.title || source.abbreviation || text || 'Untitled source';
+}

@@ -183,7 +183,7 @@ function indexTrees(input: BackfillInput): Map<string, TreeIndex> {
 export function evidenceBackfillStatements(input: BackfillInput, now = new Date()): string[] {
 	const statements: string[] = [];
 	const trees = indexTrees(input);
-	const nextOrder = new Map(
+	const nextOrder = new Map<string, number>(
 		input.citationOrder.map((c) => [`${c.subject_kind}|${c.subject_id}`, c.next] as const)
 	);
 	const removedPreserved = new Set<string>();

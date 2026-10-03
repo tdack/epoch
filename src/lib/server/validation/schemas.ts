@@ -24,6 +24,7 @@ import {
 import { SEX_VALUES } from '../../shared/sex';
 import { isFactType } from '../../shared/fact-types';
 import { isNameType } from '../../shared/name-types';
+import { CITATION_SUBJECT_KIND_VALUES } from '../../shared/evidence';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 const idSchema = z.string().min(1);
@@ -342,3 +343,109 @@ export const inviteMemberSchema = z.object({
 	role: memberRoleSchema
 });
 export const changeMemberRoleSchema = z.object({ role: memberRoleSchema, version: versionSchema });
+
+// ---- Sources, repositories and citations (ADR-028) ----
+
+const sourceTextSchema = z.string().trim().max(10_000).nullable();
+const shortTextSchema = z.string().trim().max(500).nullable();
+
+/** A source as the form sends it: every field present, empty ones null. */
+export const sourceCreateSchema = z.object({
+	title: shortTextSchema.default(null),
+	author: shortTextSchema.default(null),
+	publication: shortTextSchema.default(null),
+	abbreviation: z.string().trim().max(100).nullable().default(null),
+	text: sourceTextSchema.default(null)
+});
+
+export const sourceUpdateSchema = z.object({
+	version: versionSchema,
+	title: shortTextSchema.optional(),
+	author: shortTextSchema.optional(),
+	publication: shortTextSchema.optional(),
+	abbreviation: z.string().trim().max(100).nullable().optional(),
+	text: sourceTextSchema.optional()
+});
+
+export const sourceMergeSchema = z.object({
+	mergedIds: z.array(idSchema).min(1).max(20),
+	expectedVersions: z.record(z.string(), z.number().int()).optional()
+});
+
+export const repositoryCreateSchema = z.object({
+	name: z.string().trim().min(1).max(500),
+	address: sourceTextSchema.default(null)
+});
+
+export const repositoryUpdateSchema = z.object({
+	version: versionSchema,
+	name: z.string().trim().min(1).max(500).optional(),
+	address: sourceTextSchema.optional()
+});
+
+export const sourceRepositoryLinkSchema = z.object({
+	repositoryId: idSchema,
+	callNumber: shortTextSchema.default(null)
+});
+
+export const sourceRepositoryUpdateSchema = z.object({
+	version: versionSchema,
+	callNumber: shortTextSchema
+});
+
+const citationSubjectSchema = z.object({
+	kind: z.enum(CITATION_SUBJECT_KIND_VALUES),
+	id: idSchema
+});
+
+const citationQualitySchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
+
+/** A citation as the form sends it: a source, and the optional where, how reliable, when and words. */
+export const citationCreateSchema = z.object({
+	subject: citationSubjectSchema,
+	sourceId: idSchema,
+	page: shortTextSchema.default(null),
+	quality: citationQualitySchema.nullable().default(null),
+	entryDate: z.string().trim().max(200).nullable().default(null),
+	text: sourceTextSchema.default(null)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears it. */
+export const citationUpdateSchema = z.object({
+	version: versionSchema,
+	sourceId: idSchema.optional(),
+	page: shortTextSchema.optional(),
+	quality: citationQualitySchema.nullable().optional(),
+	entryDate: z.string().trim().max(200).nullable().optional(),
+	text: sourceTextSchema.optional()
+});
+
+export const citationReorderSchema = z.object({
+	subject: citationSubjectSchema,
+	orderedCitationIds: z.array(idSchema).max(500)
+});
+
+/** A preview of an evidence change: the commands the writes take, minus the ids the server mints. */
+export const evidenceImpactSchema = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('delete_source'),
+		sourceId: idSchema,
+		version: versionSchema.optional(),
+		shouldRemoveCitations: z.boolean().optional()
+	}),
+	z.object({
+		kind: z.literal('merge_sources'),
+		survivorId: idSchema,
+		mergedIds: z.array(idSchema).min(1).max(20)
+	}),
+	z.object({
+		kind: z.literal('remove_citation'),
+		citationId: idSchema,
+		version: versionSchema.optional()
+	}),
+	z.object({
+		kind: z.literal('delete_repository'),
+		repositoryId: idSchema,
+		version: versionSchema.optional()
+	})
+]);

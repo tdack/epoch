@@ -31,6 +31,7 @@ import {
 import type { ParentChild } from './genealogy-model';
 import type { UnionStatus } from '../../shared/relationship-model';
 import { buildFactOps } from './fact-ops';
+import { buildEvidenceOps, citationCascadeOps } from './evidence-ops';
 import { buildPersonMergeOps } from './person-merge';
 import { buildPlaceOps } from './place-ops';
 import { buildNameOps, initialNameOp, preferredNameOps } from './name-ops';
@@ -80,7 +81,11 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	union_partners: 'unionPartners',
 	parent_child: 'parentChild',
 	events: 'events',
-	media_items: 'mediaItems'
+	media_items: 'mediaItems',
+	sources: 'sources',
+	repositories: 'repositories',
+	source_repositories: 'sourceRepositories',
+	citations: 'citations'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
@@ -964,6 +969,21 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'reorder_names':
 		case 'set_preferred_name':
 			return buildNameOps(rows, command, ctx);
+		case 'create_source':
+		case 'update_source':
+		case 'delete_source':
+		case 'merge_sources':
+		case 'create_repository':
+		case 'update_repository':
+		case 'delete_repository':
+		case 'link_repository':
+		case 'update_source_repository':
+		case 'unlink_repository':
+		case 'add_citation':
+		case 'update_citation':
+		case 'remove_citation':
+		case 'reorder_citations':
+			return buildEvidenceOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
 		case 'merge_people':
@@ -1010,7 +1030,9 @@ export function buildPlanOps(
 	let working = rows;
 	const all: RowOp[] = [];
 	for (const command of commands) {
-		const ops = buildOps(working, command, ctx);
+		const planned = buildOps(working, command, ctx);
+		// A command that removes a person, name, fact, partnership or link takes its citations with it.
+		const ops = [...planned, ...citationCascadeOps(working, planned)];
 		all.push(...ops);
 		working = applyOpsToRows(working, ops);
 	}

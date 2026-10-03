@@ -9,7 +9,11 @@ export const ENTITY_ORDER = [
 	'partner',
 	'link',
 	'event',
-	'media'
+	'media',
+	'source',
+	'repository',
+	'source_link',
+	'citation'
 ] as const;
 
 export function groupRecords(

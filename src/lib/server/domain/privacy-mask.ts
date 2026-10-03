@@ -15,6 +15,7 @@
 
 import { isPersonPrivate, type LivingFact } from './living-state';
 import type { IndividualRow, RowOp, TreeRows } from './change-log';
+import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { NotFoundError } from './errors';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
@@ -52,6 +53,70 @@ export function privatePeople(
 	);
 }
 
+/**
+ * The records a viewer may not see, as `kind|id` keys, for deciding which citations are theirs to see.
+ * A citation is visible only if its subject is; a partnership with a private partner has no facts
+ * to cite, in either mode, so its own citations go with them.
+ */
+export function hiddenSubjectKeys(
+	rows: TreeRows,
+	hidden: Set<string>,
+	unionsWithHiddenPartner: Set<string>
+): Set<string> {
+	const keys = new Set<string>();
+	for (const id of hidden) keys.add(`${CITATION_SUBJECT_KINDS.PERSON}|${id}`);
+	for (const id of unionsWithHiddenPartner) keys.add(`${CITATION_SUBJECT_KINDS.UNION}|${id}`);
+	for (const n of rows.personNames)
+		if (hidden.has(n.personId)) keys.add(`${CITATION_SUBJECT_KINDS.NAME}|${n.id}`);
+	for (const e of rows.events) {
+		if (
+			e.entityType === 'INDIVIDUAL'
+				? hidden.has(e.entityId)
+				: unionsWithHiddenPartner.has(e.entityId)
+		)
+			keys.add(`${CITATION_SUBJECT_KINDS.EVENT}|${e.id}`);
+	}
+	for (const l of rows.parentChild) {
+		if (
+			hidden.has(l.parentId) ||
+			hidden.has(l.childId) ||
+			(l.unionId !== null && unionsWithHiddenPartner.has(l.unionId))
+		)
+			keys.add(`${CITATION_SUBJECT_KINDS.PARENT_CHILD}|${l.id}`);
+	}
+	return keys;
+}
+
+/**
+ * The evidence a restricted viewer may see (ADR-028): citations of subjects they can see, the
+ * sources and repositories those support, and what they made themselves. A source that supports
+ * only private people is exactly as absent as one that does not exist.
+ */
+function visibleEvidence(
+	rows: TreeRows,
+	hiddenKeys: Set<string>,
+	creatorId: string | null
+): Pick<TreeRows, 'sources' | 'repositories' | 'sourceRepositories' | 'citations'> {
+	const citations = rows.citations.filter(
+		(c) => !hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)
+	);
+	const cited = new Set(citations.flatMap((c) => (c.sourceId ? [c.sourceId] : [])));
+	const isOwn = (row: { createdBy: string | null }) =>
+		creatorId !== null && row.createdBy === creatorId;
+	const sources = rows.sources.filter((s) => cited.has(s.id) || isOwn(s));
+	const keptSources = new Set(sources.map((s) => s.id));
+	const sourceRepositories = rows.sourceRepositories.filter((l) => keptSources.has(l.sourceId));
+	const linked = new Set(
+		sourceRepositories.flatMap((l) => (l.repositoryId ? [l.repositoryId] : []))
+	);
+	return {
+		sources,
+		repositories: rows.repositories.filter((r) => linked.has(r.id) || isOwn(r)),
+		sourceRepositories,
+		citations
+	};
+}
+
 const placeholderOf = (row: IndividualRow): IndividualRow => ({
 	...row,
 	xrefId: null,
@@ -67,11 +132,24 @@ export function maskRows(
 	creatorId: string | null = null
 ): MaskedRows {
 	const hidden = privatePeople(rows, cutoff, creatorId);
-	if (hidden.size === 0) return { rows, placeholderIds: new Set() };
-
 	const unionsWithHiddenPartner = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
+	const evidence = visibleEvidence(
+		rows,
+		hiddenSubjectKeys(rows, hidden, unionsWithHiddenPartner),
+		creatorId
+	);
+	if (hidden.size === 0) {
+		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
+		const isEvidenceWhole = (Object.keys(evidence) as Array<keyof typeof evidence>).every(
+			(key) => evidence[key].length === rows[key].length
+		);
+		return {
+			rows: isEvidenceWhole ? rows : { ...rows, ...evidence },
+			placeholderIds: new Set()
+		};
+	}
 	const events = rows.events.filter((e) =>
 		e.entityType === 'INDIVIDUAL'
 			? !hidden.has(e.entityId)
@@ -88,7 +166,8 @@ export function maskRows(
 				individuals: rows.individuals.map((i) => (hidden.has(i.id) ? placeholderOf(i) : i)),
 				personNames,
 				events,
-				mediaItems
+				mediaItems,
+				...evidence
 			},
 			placeholderIds: hidden
 		};
@@ -111,7 +190,8 @@ export function maskRows(
 				.filter((l) => !hidden.has(l.parentId) && !hidden.has(l.childId))
 				.map((l) => (l.unionId && !keptUnions.has(l.unionId) ? { ...l, unionId: null } : l)),
 			events: events.filter((e) => e.entityType === 'INDIVIDUAL' || keptUnions.has(e.entityId)),
-			mediaItems
+			mediaItems,
+			...evidence
 		},
 		placeholderIds: new Set()
 	};
@@ -175,10 +255,16 @@ export function opsTouchPrivate(
 	const hiddenUnions = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
-	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions));
+	const hiddenKeys = hiddenSubjectKeys(rows, hidden, hiddenUnions);
+	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions, hiddenKeys));
 }
 
-function touchesHidden(op: RowOp, hidden: Set<string>, hiddenUnions: Set<string>): boolean {
+function touchesHidden(
+	op: RowOp,
+	hidden: Set<string>,
+	hiddenUnions: Set<string>,
+	hiddenKeys: Set<string>
+): boolean {
 	return [op.before, op.after].some((image) => {
 		if (!image) return false;
 		const r = image as Record<string, string | undefined>;
@@ -203,7 +289,10 @@ function touchesHidden(op: RowOp, hidden: Set<string>, hiddenUnions: Set<string>
 					: hiddenUnions.has(r.entityId ?? '');
 			case 'media_items':
 				return hidden.has(r.entityId ?? '');
+			case 'citations':
+				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
 			default:
+				// A source, a repository and the link between them belong to no person; what cites them is checked above.
 				return false;
 		}
 	});
