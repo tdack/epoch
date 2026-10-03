@@ -13,15 +13,16 @@
 	let { dto, treeId, relativeTarget = LINK_TARGET }: Props = $props();
 
 	const childrenOf = (list: Array<{ person: PersonSummaryDto }>) => list.map((c) => c.person);
+	const subheading = 'text-[11px] font-semibold tracking-wide text-stone-500 uppercase';
 </script>
 
-<section aria-labelledby="parents-heading" class="section-card">
-	<h3 id="parents-heading" class="section-heading">Parents</h3>
-	{#if dto.parentFamilies.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+<div class="space-y-2">
+	<h4 class={subheading}>Parents</h4>
+	{#if dto.parentFamilies.length === 0}<p class="text-xs text-stone-500 italic">
 			None recorded.
 		</p>{/if}
 	{#each dto.parentFamilies as family (family.unionId ?? 'direct')}
-		<ul class="mt-2 space-y-1 text-sm" data-testid="parents">
+		<ul class="space-y-1 text-sm" data-testid="parents">
 			{#each family.parents as parent (parent.person.id + parent.type)}
 				<li>
 					<PersonLink
@@ -41,23 +42,23 @@
 				</li>{/if}
 		</ul>
 	{/each}
-</section>
+</div>
 
-<section aria-labelledby="partners-heading" class="section-card">
-	<h3 id="partners-heading" class="section-heading">Partnerships and children</h3>
+<div class="space-y-2">
+	<h4 class={subheading}>Partnerships and children</h4>
 	{#if dto.partnerships.length === 0 && dto.directChildren.length === 0}<p
-			class="mt-2 text-xs text-stone-500 italic"
+			class="text-xs text-stone-500 italic"
 		>
 			None recorded.
 		</p>{/if}
 	{#each dto.partnerships as union (union.unionId)}
-		<div
-			class="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5"
-			data-testid="partnership"
-		>
+		<div class="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5" data-testid="partnership">
 			<p class="text-xs font-semibold text-amber-900">
 				<a class="row-link" href={unionPath(treeId, union.unionId)}
-					>{union.label?.full ?? 'Partnership'}</a
+					>{union.label?.full ??
+						(union.partners.length > 0
+							? 'Partner & Children'
+							: 'Children, other parent not recorded')}</a
 				>
 				{#if union.status !== 'active'}<span class="text-red-700"> · {union.status}</span>{/if}
 				{#if union.isWidowed}<span class="text-stone-700"> · widowed</span>{/if}
@@ -89,7 +90,7 @@
 		</div>
 	{/each}
 	{#if dto.directChildren.length > 0}
-		<p class="mt-3 text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
+		<p class="text-[11px] font-semibold tracking-wide text-stone-500 uppercase">
 			Children (no partnership recorded)
 		</p>
 		<ul class="space-y-0.5 text-sm">
@@ -98,16 +99,16 @@
 			{/each}
 		</ul>
 	{/if}
-</section>
+</div>
 
-<section aria-labelledby="siblings-heading" class="section-card">
-	<h3 id="siblings-heading" class="section-heading">Siblings</h3>
+<div class="space-y-2">
+	<h4 class={subheading}>Siblings</h4>
 	{#if dto.siblings.full.length === 0 && dto.siblings.half.length === 0}<p
-			class="mt-2 text-xs text-stone-500 italic"
+			class="text-xs text-stone-500 italic"
 		>
 			None recorded.
 		</p>{/if}
-	<ul class="mt-2 space-y-0.5 text-sm" data-testid="siblings">
+	<ul class="space-y-0.5 text-sm" data-testid="siblings">
 		{#each dto.siblings.full as sibling (sibling.id)}<li>
 				<PersonLink person={sibling} href={personPath(treeId, sibling.id)} {relativeTarget} />
 			</li>{/each}
@@ -116,12 +117,12 @@
 				<span class="text-xs text-stone-500">half-sibling</span>
 			</li>{/each}
 	</ul>
-</section>
+</div>
 
 {#if dto.stepParents.length > 0 || dto.stepChildren.length > 0}
-	<section aria-labelledby="steps-heading" class="section-card">
-		<h3 id="steps-heading" class="section-heading">Step relatives</h3>
-		<ul class="mt-2 space-y-0.5 text-sm" data-testid="step-relatives">
+	<div class="space-y-2">
+		<h4 class={subheading}>Step relatives</h4>
+		<ul class="space-y-0.5 text-sm" data-testid="step-relatives">
 			{#each dto.stepParents as step (step.person.id)}<li>
 					<PersonLink
 						person={step.person}
@@ -139,5 +140,5 @@
 					<span class="text-xs text-stone-500">step-child, via {step.via.displayName}</span>
 				</li>{/each}
 		</ul>
-	</section>
+	</div>
 {/if}

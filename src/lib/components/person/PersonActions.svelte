@@ -6,7 +6,8 @@
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { setFavoriteApi, undoApi } from '#lib/services/tree-api.js';
-	import { hasMinimumRole, type TreeRole } from '#lib/shared/roles.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
+	import { canMergePerson } from './person-permissions.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { personPath, treePath } from './person-paths.js';
 	import { LINK_TARGET, type RelativeTarget } from './relative-target.js';
@@ -38,7 +39,7 @@
 		}
 	}
 
-	const canMerge = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
+	const canMerge = $derived(canMergePerson(role));
 	let isMerging = $state(false);
 
 	async function showPerson(id: string) {

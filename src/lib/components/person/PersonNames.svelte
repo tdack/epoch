@@ -98,88 +98,85 @@
 	}
 </script>
 
-<section aria-labelledby="names-heading" class="section-card">
-	<div class="flex items-center justify-between">
-		<h3 id="names-heading" class="section-heading">Names</h3>
-		<button type="button" onclick={() => (nameDialog = { name: null })} class="action-btn"
-			><Plus class="h-3.5 w-3.5" />Add name</button
+<div class="flex justify-end">
+	<button type="button" onclick={() => (nameDialog = { name: null })} class="action-btn"
+		><Plus class="h-3.5 w-3.5" />Add name</button
+	>
+</div>
+<ol class="space-y-2" data-testid="names">
+	{#each dto.names as name, index (name.id ?? 'derived')}
+		<li
+			class="rounded-xl border border-stone-200 bg-white p-3"
+			data-testid="name"
+			data-name-type={name.type}
+			data-preferred={name.isPreferred}
 		>
-	</div>
-	<ol class="mt-3 space-y-2" data-testid="names">
-		{#each dto.names as name, index (name.id ?? 'derived')}
-			<li
-				class="rounded-xl border border-stone-200 bg-white p-3"
-				data-testid="name"
-				data-name-type={name.type}
-				data-preferred={name.isPreferred}
-			>
-				<div class="flex flex-wrap items-baseline justify-between gap-x-3">
-					<span class="text-sm font-semibold text-stone-900"
-						>{name.displayName}{#if name.nickname}
-							<span class="font-normal text-stone-600">“{name.nickname}”</span>{/if}</span
+			<div class="flex flex-wrap items-baseline justify-between gap-x-3">
+				<span class="text-sm font-semibold text-stone-900"
+					>{name.displayName}{#if name.nickname}
+						<span class="font-normal text-stone-600">“{name.nickname}”</span>{/if}</span
+				>
+				<span class="text-xs text-stone-600">
+					{typeLabel(name)}{#if name.isPreferred}
+						· <span class="font-semibold text-emerald-800">shown as</span>{/if}
+				</span>
+			</div>
+			{#if name.dateText || partnershipLabel(name.unionId)}
+				<p class="mt-1 text-xs text-stone-600" data-testid="name-context">
+					{nameContext(name)}{#if partnershipLabel(name.unionId)}{' '}<a
+							href={unionPath(treeId, name.unionId!)}
+							class="text-link">{partnershipLabel(name.unionId)}</a
+						>{/if}
+				</p>
+			{/if}
+			{#if name.id !== null}
+				<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
+					<button
+						type="button"
+						onclick={() => (nameDialog = { name })}
+						class="row-link"
+						aria-label={`Edit ${typeLabel(name)}`}>Edit</button
 					>
-					<span class="text-xs text-stone-600">
-						{typeLabel(name)}{#if name.isPreferred}
-							· <span class="font-semibold text-emerald-800">shown as</span>{/if}
-					</span>
-				</div>
-				{#if name.dateText || partnershipLabel(name.unionId)}
-					<p class="mt-1 text-xs text-stone-600" data-testid="name-context">
-						{nameContext(name)}{#if partnershipLabel(name.unionId)}{' '}<a
-								href={unionPath(treeId, name.unionId!)}
-								class="text-link">{partnershipLabel(name.unionId)}</a
-							>{/if}
-					</p>
-				{/if}
-				{#if name.id !== null}
-					<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
+					{#if !name.isPreferred}
 						<button
 							type="button"
-							onclick={() => (nameDialog = { name })}
+							onclick={() => void makePreferred(name)}
 							class="row-link"
-							aria-label={`Edit ${typeLabel(name)}`}>Edit</button
+							aria-label={`Show as ${name.displayName}`}>Show as this name</button
 						>
-						{#if !name.isPreferred}
-							<button
-								type="button"
-								onclick={() => void makePreferred(name)}
-								class="row-link"
-								aria-label={`Show as ${name.displayName}`}>Show as this name</button
-							>
-						{/if}
-						{#if dto.names.length > 1}
-							<button
-								type="button"
-								onclick={() => removeName(name)}
-								class="row-link text-red-700"
-								aria-label={`Remove ${typeLabel(name)}`}>Remove</button
-							>
-						{/if}
-						{#if canMoveName(index, -1)}
-							<button
-								type="button"
-								onclick={() => void moveName(index, -1)}
-								class="row-link"
-								aria-label={`Move ${typeLabel(name)} up`}><ArrowUp class="inline h-3 w-3" /></button
-							>
-						{/if}
-						{#if canMoveName(index, 1)}
-							<button
-								type="button"
-								onclick={() => void moveName(index, 1)}
-								class="row-link"
-								aria-label={`Move ${typeLabel(name)} down`}
-								><ArrowDown class="inline h-3 w-3" /></button
-							>
-						{/if}
-					</div>
-				{:else}
-					<p class="mt-1 text-xs text-stone-500">Edit this name from the person's Edit button.</p>
-				{/if}
-			</li>
-		{/each}
-	</ol>
-</section>
+					{/if}
+					{#if dto.names.length > 1}
+						<button
+							type="button"
+							onclick={() => removeName(name)}
+							class="row-link text-red-700"
+							aria-label={`Remove ${typeLabel(name)}`}>Remove</button
+						>
+					{/if}
+					{#if canMoveName(index, -1)}
+						<button
+							type="button"
+							onclick={() => void moveName(index, -1)}
+							class="row-link"
+							aria-label={`Move ${typeLabel(name)} up`}><ArrowUp class="inline h-3 w-3" /></button
+						>
+					{/if}
+					{#if canMoveName(index, 1)}
+						<button
+							type="button"
+							onclick={() => void moveName(index, 1)}
+							class="row-link"
+							aria-label={`Move ${typeLabel(name)} down`}
+							><ArrowDown class="inline h-3 w-3" /></button
+						>
+					{/if}
+				</div>
+			{:else}
+				<p class="mt-1 text-xs text-stone-500">Edit this name from the person's Edit button.</p>
+			{/if}
+		</li>
+	{/each}
+</ol>
 
 <NameDialog
 	isOpen={nameDialog !== null}

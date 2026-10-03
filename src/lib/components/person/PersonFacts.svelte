@@ -54,95 +54,92 @@
 	}
 </script>
 
-<section aria-labelledby="facts-heading" class="section-card">
-	<div class="flex items-center justify-between">
-		<h3 id="facts-heading" class="section-heading">Facts</h3>
-		<button type="button" onclick={() => (factDialog = { fact: null })} class="action-btn"
-			><Plus class="h-3.5 w-3.5" />Add fact</button
-		>
-	</div>
-	{#if dto.facts.length === 0}
-		<p class="mt-2 text-sm text-stone-500 italic">No facts recorded.</p>
-	{:else}
-		<ol class="mt-3 space-y-2" data-testid="facts">
-			{#each dto.facts as fact, index (fact.id)}
-				<li
-					class="rounded-xl border bg-white p-3 {fact.conflict
-						? 'border-amber-400'
-						: 'border-stone-200'}"
-					data-testid="fact"
-					data-fact-type={fact.type}
-					data-conflict={fact.conflict?.kind ?? ''}
-				>
-					<div class="flex flex-wrap items-baseline justify-between gap-2">
-						<span class="text-sm font-semibold text-emerald-900"
-							>{fact.label}{#if fact.value}: <span class="text-stone-900">{fact.value}</span
-								>{/if}</span
+<div class="flex justify-end">
+	<button type="button" onclick={() => (factDialog = { fact: null })} class="action-btn"
+		><Plus class="h-3.5 w-3.5" />Add fact</button
+	>
+</div>
+{#if dto.facts.length === 0}
+	<p class="text-sm text-stone-500 italic">No facts recorded.</p>
+{:else}
+	<ol class="space-y-2" data-testid="facts">
+		{#each dto.facts as fact, index (fact.id)}
+			<li
+				class="rounded-xl border bg-white p-3 {fact.conflict
+					? 'border-amber-400'
+					: 'border-stone-200'}"
+				data-testid="fact"
+				data-fact-type={fact.type}
+				data-conflict={fact.conflict?.kind ?? ''}
+			>
+				<div class="flex flex-wrap items-baseline justify-between gap-2">
+					<span class="text-sm font-semibold text-emerald-900"
+						>{fact.label}{#if fact.value}: <span class="text-stone-900">{fact.value}</span
+							>{/if}</span
+					>
+					<span class="text-xs text-stone-600"
+						>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}
+							<span class="text-stone-400">(approximate)</span>{/if}</span
+					>
+				</div>
+				{#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600">
+						<MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" /><a
+							href={`${treePath(treeId)}/place?name=${encodeURIComponent(fact.place)}`}
+							class="hover:underline">{fact.place}</a
 						>
-						<span class="text-xs text-stone-600"
-							>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}
-								<span class="text-stone-400">(approximate)</span>{/if}</span
-						>
-					</div>
-					{#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600">
-							<MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" /><a
-								href={`${treePath(treeId)}/place?name=${encodeURIComponent(fact.place)}`}
-								class="hover:underline">{fact.place}</a
-							>
-						</p>{/if}
-					{#if fact.cause || fact.age}
-						<p class="mt-1 text-xs text-stone-600">
-							{[fact.cause && `Cause: ${fact.cause}`, fact.age && `Age: ${fact.age}`]
-								.filter(Boolean)
-								.join(' · ')}
-						</p>
-					{/if}
-					{#if fact.notes}<p class="mt-1 text-xs text-stone-700">
-							{fact.notes}{#if fact.isLegacyNote}
-								<span class="text-stone-400">(imported note)</span>{/if}
-						</p>{/if}
-					{#if fact.conflict}
-						<p class="mt-1 text-xs font-semibold text-amber-800" role="note">
-							{fact.conflict.kind === 'repeat'
-								? `Recorded ${fact.conflict.otherIds.length + 1} times with the same details.`
-								: `Disagrees with ${fact.conflict.otherIds.length} other recorded ${fact.label.toLowerCase()}${fact.conflict.otherIds.length > 1 ? 's' : ''}. All are kept.`}
-						</p>
-					{/if}
-					<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
+					</p>{/if}
+				{#if fact.cause || fact.age}
+					<p class="mt-1 text-xs text-stone-600">
+						{[fact.cause && `Cause: ${fact.cause}`, fact.age && `Age: ${fact.age}`]
+							.filter(Boolean)
+							.join(' · ')}
+					</p>
+				{/if}
+				{#if fact.notes}<p class="mt-1 text-xs text-stone-700">
+						{fact.notes}{#if fact.isLegacyNote}
+							<span class="text-stone-400">(imported note)</span>{/if}
+					</p>{/if}
+				{#if fact.conflict}
+					<p class="mt-1 text-xs font-semibold text-amber-800" role="note">
+						{fact.conflict.kind === 'repeat'
+							? `Recorded ${fact.conflict.otherIds.length + 1} times with the same details.`
+							: `Disagrees with ${fact.conflict.otherIds.length} other recorded ${fact.label.toLowerCase()}${fact.conflict.otherIds.length > 1 ? 's' : ''}. All are kept.`}
+					</p>
+				{/if}
+				<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
+					<button
+						type="button"
+						onclick={() => (factDialog = { fact })}
+						class="row-link"
+						aria-label={`Edit ${fact.label}`}>Edit</button
+					>
+					<button
+						type="button"
+						onclick={() => removeFact(fact)}
+						class="row-link text-red-700"
+						aria-label={`Remove ${fact.label}`}>Remove</button
+					>
+					{#if canSwap(dto.facts[index - 1], fact)}
 						<button
 							type="button"
-							onclick={() => (factDialog = { fact })}
+							onclick={() => void move(index, -1)}
 							class="row-link"
-							aria-label={`Edit ${fact.label}`}>Edit</button
+							aria-label={`Move ${fact.label} up`}><ArrowUp class="inline h-3 w-3" /></button
 						>
+					{/if}
+					{#if canSwap(fact, dto.facts[index + 1])}
 						<button
 							type="button"
-							onclick={() => removeFact(fact)}
-							class="row-link text-red-700"
-							aria-label={`Remove ${fact.label}`}>Remove</button
+							onclick={() => void move(index, 1)}
+							class="row-link"
+							aria-label={`Move ${fact.label} down`}><ArrowDown class="inline h-3 w-3" /></button
 						>
-						{#if canSwap(dto.facts[index - 1], fact)}
-							<button
-								type="button"
-								onclick={() => void move(index, -1)}
-								class="row-link"
-								aria-label={`Move ${fact.label} up`}><ArrowUp class="inline h-3 w-3" /></button
-							>
-						{/if}
-						{#if canSwap(fact, dto.facts[index + 1])}
-							<button
-								type="button"
-								onclick={() => void move(index, 1)}
-								class="row-link"
-								aria-label={`Move ${fact.label} down`}><ArrowDown class="inline h-3 w-3" /></button
-							>
-						{/if}
-					</div>
-				</li>
-			{/each}
-		</ol>
-	{/if}
-</section>
+					{/if}
+				</div>
+			</li>
+		{/each}
+	</ol>
+{/if}
 
 <FactDialog
 	isOpen={factDialog !== null}

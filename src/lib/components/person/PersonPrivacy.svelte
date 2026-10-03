@@ -1,22 +1,17 @@
 <script lang="ts">
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { setPersonPrivacyApi } from '#lib/services/tree-api.js';
-	import { isManagerOrAbove } from '#lib/shared/roles.js';
-	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { PersonPrivacy } from '#lib/shared/privacy.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
-		/** The viewer's role in this tree; only managers and owners see the panel. */
-		role: TreeRole | undefined;
 		editor: TreeEditor;
 	}
 
-	let { dto, treeId, role, editor }: Props = $props();
+	let { dto, treeId, editor }: Props = $props();
 
-	const canSetPrivacy = $derived(isManagerOrAbove(role) && dto.privacy !== null);
 	const PRIVACY_CHOICES: Array<{ value: PersonPrivacy; label: string }> = [
 		{ value: 'auto', label: 'Automatic: follow their dates' },
 		{ value: 'public', label: 'Always public' },
@@ -44,23 +39,20 @@
 	}
 </script>
 
-{#if canSetPrivacy && dto.privacy}
-	<section aria-labelledby="privacy-heading" class="section-card" data-testid="privacy-panel">
-		<h3 id="privacy-heading" class="section-heading">Privacy</h3>
-		<div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
-			<label for="person-privacy" class="sr-only">Who may see this person</label>
-			<select
-				id="person-privacy"
-				value={dto.privacy.setting}
-				onchange={changePrivacy}
-				disabled={isSavingPrivacy}
-				class="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-sm"
-			>
-				{#each PRIVACY_CHOICES as choice (choice.value)}<option value={choice.value}
-						>{choice.label}</option
-					>{/each}
-			</select>
-			<p class="text-xs text-stone-600" data-testid="privacy-effect">{privacyEffect}</p>
-		</div>
-	</section>
+{#if dto.privacy}
+	<div class="flex flex-wrap items-center gap-3 text-sm">
+		<label for="person-privacy" class="sr-only">Who may see this person</label>
+		<select
+			id="person-privacy"
+			value={dto.privacy.setting}
+			onchange={changePrivacy}
+			disabled={isSavingPrivacy}
+			class="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-sm"
+		>
+			{#each PRIVACY_CHOICES as choice (choice.value)}<option value={choice.value}
+					>{choice.label}</option
+				>{/each}
+		</select>
+		<p class="text-xs text-stone-600" data-testid="privacy-effect">{privacyEffect}</p>
+	</div>
 {/if}

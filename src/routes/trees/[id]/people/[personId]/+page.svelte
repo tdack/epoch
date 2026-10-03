@@ -8,7 +8,9 @@
 	import PersonNames from '#lib/components/person/PersonNames.svelte';
 	import PersonNotes from '#lib/components/person/PersonNotes.svelte';
 	import PersonPrivacy from '#lib/components/person/PersonPrivacy.svelte';
+	import PersonSection from '#lib/components/person/PersonSection.svelte';
 	import PersonSummary from '#lib/components/person/PersonSummary.svelte';
+	import { canSetPrivacy } from '#lib/components/person/person-permissions.js';
 	import { treePath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { recordRecentApi } from '#lib/services/tree-api.js';
@@ -61,21 +63,35 @@
 	<PersonActions {dto} {treeId} {role} {editor} {toasts} {marks} />
 </header>
 
-<PersonPrivacy {dto} {treeId} {role} {editor} />
+{#if canSetPrivacy(role, dto)}
+	<PersonSection id="privacy" title="Privacy" layout="page" testId="privacy-panel">
+		<PersonPrivacy {dto} {treeId} {editor} />
+	</PersonSection>
+{/if}
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 	<div class="space-y-6">
-		<PersonNames {dto} {treeId} {editor} {toasts} />
-		<PersonFacts {dto} {treeId} {editor} {toasts} />
+		<PersonSection id="names" title="Names" layout="page">
+			<PersonNames {dto} {treeId} {editor} {toasts} />
+		</PersonSection>
+		<PersonSection id="facts" title="Facts" layout="page">
+			<PersonFacts {dto} {treeId} {editor} {toasts} />
+		</PersonSection>
 		<div class="grid gap-6 sm:grid-cols-2">
-			<PersonNotes />
-			<PersonEvidence />
+			<PersonSection id="notes" title="Notes" layout="page"><PersonNotes /></PersonSection>
+			<PersonSection id="evidence" title="Sources and evidence" layout="page"
+				><PersonEvidence /></PersonSection
+			>
 		</div>
-		<PersonMedia {dto} />
+		<PersonSection id="media" title="Media" layout="page"><PersonMedia {dto} /></PersonSection>
 	</div>
 
-	<aside class="space-y-6" aria-label="Family">
-		<PersonFamily {dto} {treeId} />
-		<PersonHistory {dto} />
-	</aside>
+	<div class="space-y-6">
+		<PersonSection id="family" title="Family" layout="page">
+			<PersonFamily {dto} {treeId} />
+		</PersonSection>
+		<PersonSection id="history" title="History" layout="page">
+			<PersonHistory {dto} />
+		</PersonSection>
+	</div>
 </div>
