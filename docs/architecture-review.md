@@ -350,6 +350,19 @@ is not done. Commits are named by subject because hashes change on rebase.
 | B6 | done | `build(deps): drop adapter-auto and d3-hierarchy; narrow d3…`. The bundle moved by 139 bytes, since it was already tree-shaken |
 | B7 | done, except archiving the prompt | `docs: archive shipped slice prompts and screenshots…`. `docs/architecture-b-e-prompt.md` is archived last |
 | knip rules block | done | `chore(tooling): make knip findings fail npm run lint` |
+| C1 | done | `feat(http): add treeHandler and apiHandler…`, with tests for the 401 and 409 shapes, the 400, the 500, body and query parsing, `expectedVersion`, `status: 201` and `errorResponse` routing |
+| C2 | done | `refactor(api): use treeHandler in trees/, summary, graph, undo, impact and quality` (the S13 quality endpoint is here) |
+| C3 | done | `…individuals, people, names and facts/…`, with the S14 person-merge endpoints |
+| C4 | done | `…unions/ and relationships/` |
+| C5 | done | `…lists, marks, search and charts` and `…members, invitations, privacy and places`: two commits, since there were five groups |
+| C2 to C5, not converted | skipped | `media/upload` and `media/[...key]`: they check the R2 binding as well as D1, answer through SvelteKit's `error()`, and one streams a body, so the wrapper would need options only they use. `import` and `export` went with C11 |
+| C6 | done | `refactor(auth): route every membership check through requireTreeAction`, plus `requireMemberAction` for the workflow |
+| C7 | done | `refactor(privacy): add maskForScope, omitForScope and requireVisibleSubject`. The focus window keeps its own optional-privacy shape |
+| C8 | already done before this branch | the fix is `6b0568b`; this branch added `test(import): pin tree:import authorization…`, which refuses a viewer and fails if the check goes back to loading the tree |
+| C9 | done | `refactor(gedcom): split index.ts into parser and serializer`, with a shared `tags.ts` |
+| C10 | done | `refactor(gedcom): move export reads and import writes into GedcomRepository`. Parser and the pure preview and export-payload shaping stay in `gedcom/`; the neutral writer moved to `repositories/` |
+| C11 | done | `refactor(gedcom): add GedcomService…`. Export names now use the sanitised tree name for both the download and the stored copy |
+| C12 | done | `refactor(hooks): one resolveUser path for Access and dev bypass` |
 
 ### Expected outcome
 
