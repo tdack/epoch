@@ -14,7 +14,7 @@ import {
 	UnauthorizedError,
 	ValidationError
 } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { buildGedcom551String } from '../gedcom/serializer';
 import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
 import { ChangeStore } from '../repositories/change-store';

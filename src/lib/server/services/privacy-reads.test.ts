@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { events, individuals } from '../db/schema';
 import { NotFoundError } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { isPersonPrivate, livingCutoff } from '../domain/living-state';
 import { importGedcomToDb } from '../testing/gedcom';
 import { visibleAmong } from '../repositories/visibility';

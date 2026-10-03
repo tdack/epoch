@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { ChildAssertion, ChildEdge } from '#lib/tree-layout/index.js';
-	import type { ParentChildType } from '#lib/types/genealogy.js';
+	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {

@@ -8,7 +8,7 @@
  * "full" when they share exactly the same recorded parents, "half" when they share some.
  */
 
-import type { ParentChildType, UnionStatus } from '../server/domain/genealogy-model';
+import type { ParentChildType, UnionStatus } from './relationship-model';
 import type { RelationshipGraph } from '../server/domain/relationship-graph';
 import { startSort } from './partnership-labels';
 import { stepRelativesOf, type StepRelatives } from './step-relatives';

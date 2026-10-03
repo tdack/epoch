@@ -13,7 +13,8 @@
 	import { restartSignIn } from '#lib/services/tree-api.js';
 	import type { RelativeAction } from './tree-editor.svelte.js';
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
-	import type { ParentChildType, RelationshipKind } from '#lib/types/genealogy.js';
+	import type { ParentChildType } from '#lib/shared/relationship-model.js';
+	import type { RelationshipKind } from '#lib/types/genealogy.js';
 	import type { PersonSummaryDto } from '#lib/server/services/person-page-service.js';
 	import { sexLabel } from '#lib/shared/sex.js';
 	import type { PersonPageDto } from '#lib/server/services/person-page-service.js';

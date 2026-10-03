@@ -7,26 +7,9 @@
  * belong to the import/export layer.
  */
 
-export const PARENT_CHILD_TYPES = {
-	BIOLOGICAL: 'biological',
-	ADOPTIVE: 'adoptive',
-	FOSTER: 'foster',
-	GUARDIAN: 'guardian',
-	UNKNOWN: 'unknown'
-} as const;
-export type ParentChildType = (typeof PARENT_CHILD_TYPES)[keyof typeof PARENT_CHILD_TYPES];
-
 type ParentChildStatus = 'active' | 'ended' | 'disputed';
 
-export const UNION_STATUSES = {
-	ACTIVE: 'active',
-	SEPARATED: 'separated',
-	DIVORCED: 'divorced',
-	ANNULLED: 'annulled',
-	ENDED: 'ended'
-} as const;
-export type UnionStatus = (typeof UNION_STATUSES)[keyof typeof UNION_STATUSES];
-
+import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 export { NAME_TYPES, type NameType } from '../../shared/name-types';
 
 export interface Union {

@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { individuals, mediaItems, treeMemberships, trees } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { TreeRepository } from '../repositories/tree-repository';

@@ -23,10 +23,10 @@ import {
 } from './tree-view';
 import { CAPTURED_GRAPHS, personByName } from '#lib/tree-layout/test-support.js';
 import { LAYOUT_METRICS, layoutFocusView } from '#lib/tree-layout/index.js';
-import { UNION_STATUSES } from '#lib/server/domain/genealogy-model.js';
+import { UNION_STATUSES } from '#lib/shared/relationship-model.js';
 import { isEndedUnionStatus } from '#lib/server/domain/relationship-graph.js';
 import { ALL_PARENT_CHILD_TYPES } from './tree-url';
-import { PARENT_CHILD_TYPES } from '#lib/server/domain/genealogy-model.js';
+import { PARENT_CHILD_TYPES } from '#lib/shared/relationship-model.js';
 
 function token(name: keyof typeof TREE_TOKENS): string {
 	return TREE_TOKENS[name];

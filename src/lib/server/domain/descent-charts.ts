@@ -10,7 +10,7 @@
 
 import type { EventRow, TreeRows } from './change-log';
 import type { ChartPerson, DescendantNode, PedigreeDto } from '../../shared/charts';
-import type { ParentChildType } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 import { PRIVATE_PLACEHOLDER_NAME } from './privacy-mask';
 
 const TYPE_ORDER: Record<ParentChildType, number> = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Sex } from '../../shared/sex';
-import type { ParentChildType } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 import { findRelationships, kinLabel, type KinGraph } from './relationship-calculator';
 
 /** `spec`: people as `id:sex`, links as `parent>child[:type]`, partners as `a+b`. */

@@ -1,4 +1,4 @@
-export type TreeRole = 'owner' | 'manager' | 'editor' | 'contributor' | 'viewer';
+import type { TreeRole } from '../../shared/roles';
 
 export interface UserIdentity {
 	id: string; // Internal User ID (UUID)

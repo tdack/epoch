@@ -10,7 +10,7 @@
 
 import type { PersonNameRow, TreeRows } from './change-log';
 import { birthSurnameOf } from '../../shared/name-types';
-import type { ParentChildType, UnionStatus } from './genealogy-model';
+import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import {
 	isUnionEventType,
 	UNION_EVENT_TYPE_LIST,

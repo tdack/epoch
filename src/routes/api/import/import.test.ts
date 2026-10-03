@@ -5,7 +5,7 @@
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { TreeRole } from '#lib/server/domain/identity.js';
+import type { TreeRole } from '../../../lib/shared/roles';
 import {
 	addTestMember,
 	createTestDatabase,

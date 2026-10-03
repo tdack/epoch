@@ -6,7 +6,8 @@
  * tested and reused by both the service layer and import validation.
  */
 
-import type { ParentChild, ParentChildType } from './genealogy-model';
+import type { ParentChild } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 
 export interface ParentChildInput {
 	parentId: string;

@@ -3,7 +3,7 @@
  * view. Defaults are omitted to keep links short.
  */
 
-import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import { DEFAULT_FOCUS_OPTIONS } from '#lib/tree-layout/index.js';
 import { MAX_VIEW_DEPTH, STUB_TOKEN } from '#lib/shared/stub-tokens.js';
 

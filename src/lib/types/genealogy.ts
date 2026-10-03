@@ -39,6 +39,7 @@ export type { PossibleDuplicateGroup } from '#lib/server/gedcom/duplicate-famili
 import type { DuplicateFamilyReport } from '#lib/server/gedcom/duplicate-families.js';
 export type { ImpactSummary } from '#lib/server/domain/impact.js';
 export type { UnionEventInput, UnionEventType } from '#lib/shared/union-events.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { Sex } from '#lib/shared/sex.js';
 import type { ImpactSummary } from '#lib/server/domain/impact.js';
 import type { EndedUnionStatus, UnionEventType } from '#lib/shared/union-events.js';
@@ -53,7 +54,6 @@ export interface PersonFormData {
 	deathPlace?: string | null;
 }
 
-export type ParentChildType = 'biological' | 'adoptive' | 'foster' | 'guardian' | 'unknown';
 export type ParentRole = 'parent' | 'mother' | 'father';
 
 export type RelationshipIntent =

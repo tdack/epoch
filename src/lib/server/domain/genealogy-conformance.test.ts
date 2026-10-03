@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseGedcom } from '../gedcom/parser';
 import { validateParentChildAssertion } from './invariants';
-import type { ParentChild, ParentChildType, Union } from './genealogy-model';
+import type { ParentChild, Union } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 import {
 	REPRESENTATIVE_GEDCOM_FIXTURE,
 	REPRESENTATIVE_GEDCOM_7_FIXTURE

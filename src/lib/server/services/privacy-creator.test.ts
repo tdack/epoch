@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { NotFoundError } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { privatePeople } from '../domain/privacy-mask';
 import { importGedcomToDb } from '../testing/gedcom';
 import { visibleAmong } from '../repositories/visibility';

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
-	import type { UnionStatus } from '#lib/server/domain/genealogy-model.js';
+	import type { UnionStatus } from '#lib/shared/relationship-model.js';
 	import type { PageData } from './$types';
 
 	interface Props {

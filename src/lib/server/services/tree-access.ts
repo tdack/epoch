@@ -1,6 +1,7 @@
 import { canSeePrivatePeople, isActionAllowed, type TreeAction } from '../auth/authorization';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
-import type { AuthenticatedContext, TreeRole } from '../domain/identity';
+import type { AuthenticatedContext } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { livingCutoff } from '../domain/living-state';
 import type { TreeRepository } from '../repositories/tree-repository';
 import type { UserRepository } from '../repositories/user-repository';

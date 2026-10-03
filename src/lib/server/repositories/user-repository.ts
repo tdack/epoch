@@ -1,6 +1,7 @@
 import type { DbClient } from '../db';
 import { users, treeMemberships } from '../db/schema';
-import type { UserIdentity, TreeRole, TreeMembership } from '../domain/identity';
+import type { UserIdentity, TreeMembership } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { eq, and } from 'drizzle-orm';
 import { MemberRepository } from './member-repository';
 

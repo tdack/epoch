@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
 	addTestMember,

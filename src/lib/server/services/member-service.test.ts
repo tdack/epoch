@@ -12,7 +12,7 @@ import {
 	UnauthorizedError,
 	ValidationError
 } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { UserRepository } from '../repositories/user-repository';
 import {
 	addTestMember,

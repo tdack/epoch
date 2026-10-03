@@ -9,7 +9,7 @@ import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventDateValue } from '../domain/date-columns';
-import type { ParentChildType, UnionStatus } from '../domain/genealogy-model';
+import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { RelationshipGraph } from '../domain/relationship-graph';
 import { eventLabel } from '../domain/tree-labels';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';

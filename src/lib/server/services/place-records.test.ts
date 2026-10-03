@@ -9,7 +9,7 @@ import migration from '../../../../drizzle/0016_uneven_sue_storm.sql?raw';
 import { events, places } from '../db/schema';
 import { UndoRefusedError } from '../domain/errors';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
 	addTestMember,

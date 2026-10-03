@@ -6,11 +6,11 @@ import type {
 	RelationshipPlan,
 	RelationshipGraph,
 	PeopleSearchResult,
-	ParentChildType,
 	ChangeSummary,
 	ImpactSummary,
 	UnionEventInput
 } from '#lib/types/genealogy.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 import type { FocusGraphDto, TreeSummaryDto } from '#lib/server/services/graph-query-service.js';
 import type { PersonPageDto } from '#lib/server/services/person-page-service.js';

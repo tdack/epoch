@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { TREE_ROLES, hasMinimumRole as hasMinimumRoleShared } from '../../shared/roles';
 import {
 	ROLE_HIERARCHY,

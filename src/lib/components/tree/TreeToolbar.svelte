@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Minus, Plus, Search } from 'lucide-svelte';
-	import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
+	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 	import { ALL_PARENT_CHILD_TYPES, MAX_DEPTH, type TreeViewState } from './tree-url.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';

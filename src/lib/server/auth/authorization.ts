@@ -1,4 +1,4 @@
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 
 /**
  * Role hierarchy levels for permission comparisons:

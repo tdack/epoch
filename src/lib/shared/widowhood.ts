@@ -4,7 +4,7 @@
  * ended when another partner has died and they have not.
  */
 
-import type { UnionStatus } from '../server/domain/genealogy-model';
+import type { UnionStatus } from './relationship-model';
 
 export interface WidowhoodUnion {
 	id: string;

@@ -32,10 +32,10 @@ import {
 	type MergeUnionsRequest,
 	type RelationshipDeleteCommand
 } from '#lib/services/tree-api.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type {
 	ChangeSummary,
 	ImpactSummary,
-	ParentChildType,
 	PersonFormData,
 	RelationshipIntent,
 	RelationshipKind

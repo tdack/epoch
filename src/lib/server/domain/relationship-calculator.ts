@@ -16,7 +16,7 @@
  */
 
 import type { Sex } from '../../shared/sex';
-import type { ParentChildType } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 
 interface KinLink {
 	parentId: string;

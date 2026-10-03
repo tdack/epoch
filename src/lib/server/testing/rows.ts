@@ -1,7 +1,7 @@
 /** Builds `TreeRows` snapshots for pure tests of planning and ops, without a database. */
 
 import type { EventRow, PersonNameRow, TreeRows } from '../domain/change-log';
-import type { ParentChildType, UnionStatus } from '../domain/genealogy-model';
+import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { Sex } from '../../shared/sex';
 
 export const TEST_TREE_ID = 'tree-1';

@@ -4,7 +4,7 @@
  * come from the layout module so the two can never drift apart.
  */
 
-import type { UnionStatus } from '#lib/server/domain/genealogy-model.js';
+import type { UnionStatus } from '#lib/shared/relationship-model.js';
 import { END_EVENT_TYPES, UNION_EVENT_ABBREVIATIONS } from '#lib/shared/union-events.js';
 import { splitDisplayName } from '#lib/shared/name-types.js';
 import {

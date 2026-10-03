@@ -10,7 +10,7 @@ import type {
 	RelationshipGraphPerson,
 	RelationshipGraphUnion
 } from '#lib/server/domain/relationship-graph.js';
-import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 
 export type { RelationshipGraph, RelationshipGraphPerson, RelationshipGraphUnion, ParentChildType };
 

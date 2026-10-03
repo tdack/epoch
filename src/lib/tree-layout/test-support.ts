@@ -5,7 +5,7 @@ import type {
 	RelationshipGraphPerson,
 	RelationshipGraphUnion
 } from './types.js';
-import type { ParentChildType } from '#lib/server/domain/genealogy-model.js';
+import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import { buildRelationshipGraph } from '#lib/server/domain/relationship-graph.js';
 import simpsons from './fixtures/littles.graph.json';
 import simpsonsDirty from './fixtures/littles-dirty.graph.json';

@@ -28,7 +28,8 @@ import {
 	UnionMergeConflictError,
 	ValidationError
 } from './errors';
-import type { ParentChild, UnionStatus } from './genealogy-model';
+import type { ParentChild } from './genealogy-model';
+import type { UnionStatus } from '../../shared/relationship-model';
 import { buildFactOps } from './fact-ops';
 import { buildPersonMergeOps } from './person-merge';
 import { buildPlaceOps } from './place-ops';

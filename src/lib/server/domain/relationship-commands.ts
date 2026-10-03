@@ -7,7 +7,7 @@
 import type { PersonPrivacy } from '../../shared/privacy';
 import { eventDateValue } from './date-columns';
 import { parseDateValue } from '../../shared/date-value';
-import type { ParentChildType, UnionStatus } from './genealogy-model';
+import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { TreeRows } from './change-log';
 import { validateParentChildAssertion } from './invariants';
 import {

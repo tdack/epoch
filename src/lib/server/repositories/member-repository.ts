@@ -1,7 +1,7 @@
 import { and, eq, gt, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { treeInvitations, treeMemberships, users } from '../db/schema';
-import type { TreeRole } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 
 export interface MemberRow {
 	userId: string;

@@ -8,7 +8,7 @@
  * and sex/gender separate.
  */
 
-import type { ParentChildType } from './genealogy-model';
+import type { ParentChildType } from '../../shared/relationship-model';
 import type { EndedUnionStatus, UnionEventType } from '../../shared/union-events';
 
 export interface PersonRef {

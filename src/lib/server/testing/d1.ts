@@ -8,7 +8,8 @@ import { getPlatformProxy } from 'wrangler';
 import type { D1Database } from '@cloudflare/workers-types';
 import { getDb, type DbClient } from '../db';
 import { trees, treeMemberships, users } from '../db/schema';
-import type { AuthenticatedContext, TreeRole } from '../domain/identity';
+import type { AuthenticatedContext } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import journal from '../../../../drizzle/meta/_journal.json';
 
 /** Migration SQL keyed by path, inlined by Vite so no filesystem types are needed. */

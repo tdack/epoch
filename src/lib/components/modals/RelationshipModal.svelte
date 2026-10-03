@@ -23,11 +23,11 @@
 		UNION_STATUS_LABELS,
 		type EndedUnionStatus
 	} from '#lib/shared/union-events.js';
+	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type {
 		ChangeSummary,
 		RelationshipGraph,
 		RelationshipIntent,
-		ParentChildType,
 		ParentRole,
 		PeopleSearchResult,
 		RelationshipKind,

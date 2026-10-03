@@ -23,7 +23,7 @@
 		type Point,
 		type TreeLayout
 	} from '#lib/tree-layout/index.js';
-	import type { ParentChildType } from '#lib/types/genealogy.js';
+	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import ParentLinkPopover from './ParentLinkPopover.svelte';
 	import PersonCard from './PersonCard.svelte';
 	import TreeContextMenu from './TreeContextMenu.svelte';

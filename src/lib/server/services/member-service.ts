@@ -13,7 +13,8 @@ import {
 	UnauthorizedError,
 	ValidationError
 } from '../domain/errors';
-import type { AuthenticatedContext, TreeRole } from '../domain/identity';
+import type { AuthenticatedContext } from '../domain/identity';
+import type { TreeRole } from '../../shared/roles';
 import { requireTreeAction } from './tree-access';
 import { MemberRepository } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
