@@ -1,16 +1,5 @@
 <script lang="ts">
-	import PersonActions from '#lib/components/person/PersonActions.svelte';
-	import PersonEvidence from '#lib/components/person/PersonEvidence.svelte';
-	import PersonFacts from '#lib/components/person/PersonFacts.svelte';
-	import PersonFamily from '#lib/components/person/PersonFamily.svelte';
-	import PersonHistory from '#lib/components/person/PersonHistory.svelte';
-	import PersonMedia from '#lib/components/person/PersonMedia.svelte';
-	import PersonNames from '#lib/components/person/PersonNames.svelte';
-	import PersonNotes from '#lib/components/person/PersonNotes.svelte';
-	import PersonPrivacy from '#lib/components/person/PersonPrivacy.svelte';
-	import PersonSection from '#lib/components/person/PersonSection.svelte';
-	import PersonSummary from '#lib/components/person/PersonSummary.svelte';
-	import { canSetPrivacy } from '#lib/components/person/person-permissions.js';
+	import PersonView from '#lib/components/person/PersonView.svelte';
 	import { treePath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { recordRecentApi } from '#lib/services/tree-api.js';
@@ -58,42 +47,4 @@
 	<span aria-current="page">{dto.person.displayName}</span>
 </nav>
 
-<header class="flex flex-wrap items-start justify-between gap-3">
-	<PersonSummary {dto} />
-	<PersonActions {dto} {treeId} {role} {editor} {toasts} {marks} />
-</header>
-
-{#if canSetPrivacy(role, dto)}
-	<PersonSection id="privacy" title="Privacy" layout="page" testId="privacy-panel">
-		<PersonPrivacy {dto} {treeId} {editor} />
-	</PersonSection>
-{/if}
-
-<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-	<div class="space-y-6">
-		<PersonSection id="names" title="Names" layout="page">
-			<PersonNames {dto} {treeId} {editor} {toasts} />
-		</PersonSection>
-		<PersonSection id="facts" title="Facts" layout="page">
-			<PersonFacts {dto} {treeId} {editor} {toasts} />
-		</PersonSection>
-		<div class="grid gap-6 sm:grid-cols-2">
-			<PersonSection id="notes" title="Notes" layout="page"><PersonNotes /></PersonSection>
-			<PersonSection id="evidence" title="Sources and evidence" layout="page"
-				><PersonEvidence /></PersonSection
-			>
-		</div>
-		<PersonSection id="media" title="Media" layout="page"
-			><PersonMedia {dto} {treeId} {editor} /></PersonSection
-		>
-	</div>
-
-	<div class="space-y-6">
-		<PersonSection id="family" title="Family" layout="page">
-			<PersonFamily {dto} {treeId} {editor} />
-		</PersonSection>
-		<PersonSection id="history" title="History" layout="page">
-			<PersonHistory {dto} />
-		</PersonSection>
-	</div>
-</div>
+<PersonView {dto} {treeId} {role} {editor} {toasts} {marks} layout="page" />
