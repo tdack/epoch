@@ -11,7 +11,7 @@ import {
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -28,11 +28,7 @@ async function setup() {
 	const treeId = await createTestTree(t.db, actor);
 	const ctx = actor.context;
 	const person = (
-		await new GenealogyService(t.db).createIndividual(
-			treeId,
-			{ givenName: 'Wren', surname: 'Ash' },
-			ctx
-		)
+		await new PersonService(t.db).create(treeId, { givenName: 'Wren', surname: 'Ash' }, ctx)
 	).individual;
 	const facts = new FactService(t.db);
 	const rowsOf = async (personId = person.id) =>

@@ -21,7 +21,7 @@ import {
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { PlaceService } from './place-service';
 import { pointFactsAtPlaces } from '../repositories/place-repository';
 import { MAX_PLACE_REWRITE_FACTS } from '../../shared/places';
@@ -154,11 +154,7 @@ describe('records follow the text, whoever wrote it', () => {
 		const tree = await createTestTree(t.db, actor);
 		const ctx = actor.context;
 		const person = (
-			await new GenealogyService(t.db).createIndividual(
-				tree,
-				{ givenName: 'Wren', surname: 'Ash' },
-				ctx
-			)
+			await new PersonService(t.db).create(tree, { givenName: 'Wren', surname: 'Ash' }, ctx)
 		).individual;
 		const facts = new FactService(t.db);
 		const log = new ChangeLogService(t.db);
@@ -341,11 +337,7 @@ describe('the size of one change', () => {
 		const tree = await createTestTree(t.db, actor);
 		const ctx = actor.context;
 		const person = (
-			await new GenealogyService(t.db).createIndividual(
-				tree,
-				{ givenName: 'Wren', surname: 'Ash' },
-				ctx
-			)
+			await new PersonService(t.db).create(tree, { givenName: 'Wren', surname: 'Ash' }, ctx)
 		).individual;
 		// Each fact is a birth, the dearest kind: it also moves the person's version.
 		const rows = Array.from({ length: MAX_PLACE_REWRITE_FACTS }, (_, i) => ({
@@ -387,11 +379,7 @@ describe('undoing a change that a later edit touched', () => {
 		const tree = await createTestTree(t.db, actor);
 		const ctx = actor.context;
 		const person = (
-			await new GenealogyService(t.db).createIndividual(
-				tree,
-				{ givenName: 'Wren', surname: 'Ash' },
-				ctx
-			)
+			await new PersonService(t.db).create(tree, { givenName: 'Wren', surname: 'Ash' }, ctx)
 		).individual;
 		for (let i = 0; i < MAX_PLACE_REWRITE_FACTS; i += 10) {
 			await t.db.insert(events).values(

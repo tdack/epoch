@@ -7,7 +7,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
-import { GenealogyService } from '../services/genealogy-service';
+import { PersonService } from '../services/person-service';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
@@ -48,20 +48,14 @@ describe('sex X end to end (ADR-010)', () => {
 	it('can be created and edited through the service', async () => {
 		const actor = await createTestUser(t.db);
 		const treeId = await createTestTree(t.db, actor);
-		const service = new GenealogyService(t.db);
-		const { individual } = await service.createIndividual(
+		const service = new PersonService(t.db);
+		const { individual } = await service.create(
 			treeId,
 			{ givenName: 'Sam', sex: 'X' },
 			actor.context
 		);
 		expect(await sexesOf(treeId)).toEqual(['X']);
-		await service.updateIndividual(
-			treeId,
-			individual.id,
-			individual.version,
-			{ sex: 'U' },
-			actor.context
-		);
+		await service.update(treeId, individual.id, individual.version, { sex: 'U' }, actor.context);
 		expect(await sexesOf(treeId)).toEqual(['U']);
 	});
 });

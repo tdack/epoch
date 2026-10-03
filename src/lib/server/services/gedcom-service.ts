@@ -26,7 +26,7 @@ import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomRepository } from '../repositories/gedcom-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { GenealogyService } from './genealogy-service';
+import { TreeService } from './tree-service';
 import { requireMemberAction, requireTreeAction } from './tree-access';
 
 /** Above this a file is staged in R2 and imported by the queue consumer, when both are bound. */
@@ -150,7 +150,7 @@ export class GedcomService {
 		if (treeId) {
 			await this.requireImport(treeId, context);
 		} else {
-			const created = await new GenealogyService(this.db).createTree(
+			const created = await new TreeService(this.db).createTree(
 				file.treeName || baseName || 'Imported Tree',
 				null,
 				context

@@ -1,5 +1,5 @@
 import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
-import { GenealogyService } from '#lib/server/services/genealogy-service.js';
+import { PersonService } from '#lib/server/services/person-service.js';
 import { PersonPageService } from '#lib/server/services/person-page-service.js';
 import { individualUpdateSchema } from '#lib/server/validation/schemas.js';
 
@@ -13,7 +13,7 @@ export const PUT = treeHandler(
 	{ failure: 'Failed to update individual', params: ['personId'], body: individualUpdateSchema },
 	async ({ db, ctx, treeId, params, body }) => {
 		const { givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace, version } = body;
-		const { individual, change } = await new GenealogyService(db).updateIndividual(
+		const { individual, change } = await new PersonService(db).update(
 			treeId,
 			params.personId,
 			version,
@@ -27,7 +27,7 @@ export const PUT = treeHandler(
 export const DELETE = treeHandler(
 	{ failure: 'Failed to delete individual', params: ['personId'] },
 	async ({ db, ctx, treeId, params, url }) => {
-		const { change } = await new GenealogyService(db).deleteIndividual(
+		const { change } = await new PersonService(db).remove(
 			treeId,
 			params.personId,
 			ctx,

@@ -9,7 +9,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { GraphQueryService } from './graph-query-service';
 import { RelationshipService } from './relationship-service';
 
@@ -24,10 +24,10 @@ afterAll(async () => {
 async function setup() {
 	const owner = await createTestUser(t.db, 'owner');
 	const treeId = await createTestTree(t.db, owner);
-	const people = new GenealogyService(t.db);
+	const people = new PersonService(t.db);
 	const relationships = new RelationshipService(t.db);
 	const add = async (givenName: string) =>
-		(await people.createIndividual(treeId, { givenName }, owner.context)).individual;
+		(await people.create(treeId, { givenName }, owner.context)).individual;
 	const [ann, ben, cat] = [await add('Ann'), await add('Ben'), await add('Cat')];
 	const ref = (p: { id: string; givenName: string | null }) => ({
 		id: p.id,

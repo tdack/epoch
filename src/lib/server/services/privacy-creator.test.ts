@@ -20,7 +20,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { GraphQueryService } from './graph-query-service';
 import { FactService } from './fact-service';
 import { ListService } from './list-service';
@@ -162,7 +162,7 @@ describe('a person with no dated fact, created by a contributor', () => {
 	});
 
 	it('is recorded for a person made by the Add person form too, not only by a relationship', async () => {
-		const { individual } = await new GenealogyService(t.db, clock()).createIndividual(
+		const { individual } = await new PersonService(t.db, clock()).create(
 			treeId,
 			{ givenName: 'Formed', surname: 'Direct' },
 			actors.contributor.context

@@ -9,7 +9,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
-import { GenealogyService } from '../services/genealogy-service';
+import { PersonService } from '../services/person-service';
 import { ChangeLogService } from '../services/change-log-service';
 import {
 	backfillStatements,
@@ -102,7 +102,7 @@ describe('editing dates and undoing the edit', () => {
 		return {
 			treeId,
 			ctx: actor.context,
-			people: new GenealogyService(t.db),
+			people: new PersonService(t.db),
 			log: new ChangeLogService(t.db)
 		};
 	}
@@ -119,7 +119,7 @@ describe('editing dates and undoing the edit', () => {
 
 	it('writes the columns on create and on edit, and an undo restores every one of them', async () => {
 		const s = await setup();
-		const { individual } = await s.people.createIndividual(
+		const { individual } = await s.people.create(
 			s.treeId,
 			{ givenName: 'Ada', birthDate: '1815' },
 			s.ctx
@@ -133,7 +133,7 @@ describe('editing dates and undoing the edit', () => {
 			dateQualifier: 'EXACT'
 		});
 
-		await s.people.updateIndividual(
+		await s.people.update(
 			s.treeId,
 			individual.id,
 			individual.version,
@@ -152,13 +152,13 @@ describe('editing dates and undoing the edit', () => {
 
 	it('an undone deletion brings the event back with its structured date', async () => {
 		const s = await setup();
-		const { individual } = await s.people.createIndividual(
+		const { individual } = await s.people.create(
 			s.treeId,
 			{ givenName: 'Ada', birthDate: 'BET 1810 AND 1815' },
 			s.ctx
 		);
 		const before = columns(await birthOf(s.treeId));
-		await s.people.deleteIndividual(s.treeId, individual.id, s.ctx);
+		await s.people.remove(s.treeId, individual.id, s.ctx);
 		expect(await eventsOf(s.treeId)).toHaveLength(0);
 		await s.log.undoLast(s.treeId, s.ctx);
 		expect(columns(await birthOf(s.treeId))).toEqual(before);

@@ -10,7 +10,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { NameService } from './name-service';
 
 let t: TestDatabase;
@@ -26,11 +26,7 @@ async function setup() {
 	const treeId = await createTestTree(t.db, actor);
 	const ctx = actor.context;
 	const person = (
-		await new GenealogyService(t.db).createIndividual(
-			treeId,
-			{ givenName: 'Jessica', surname: 'Simpson' },
-			ctx
-		)
+		await new PersonService(t.db).create(treeId, { givenName: 'Jessica', surname: 'Simpson' }, ctx)
 	).individual;
 	const names = new NameService(t.db);
 	const display = async () => {
@@ -100,7 +96,7 @@ describe('names through the mutation runner', () => {
 
 	it('editing the person form edits the preferred name row, so they never drift', async () => {
 		const { treeId, ctx, person, rows } = await setup();
-		await new GenealogyService(t.db).updateIndividual(
+		await new PersonService(t.db).update(
 			treeId,
 			person.id,
 			person.version,

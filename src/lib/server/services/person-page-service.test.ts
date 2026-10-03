@@ -19,7 +19,8 @@ import {
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
+import { TreeService } from './tree-service';
 import { PersonPageService } from './person-page-service';
 import { type PersonPageDto } from '../../shared/person-page';
 
@@ -117,9 +118,9 @@ describe('the person page of a large tree', () => {
 describe('facts, names and history on the page', () => {
 	async function fresh() {
 		const treeId = await createTestTree(t.db, actor);
-		const people = new GenealogyService(t.db);
+		const people = new PersonService(t.db);
 		const wren = (
-			await people.createIndividual(
+			await people.create(
 				treeId,
 				{ givenName: 'Wren', surname: 'Ash', birthDate: '4 MAR 1900', birthPlace: 'Leeds' },
 				actor.context
@@ -211,8 +212,8 @@ describe('facts, names and history on the page', () => {
 		const treeId = await importedTree(
 			'0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 OCCU Carpenter\n0 TRLR'
 		);
-		const personId = (await new GenealogyService(t.db).getTree(treeId, actor.context))
-			.individuals[0]!.id;
+		const personId = (await new TreeService(t.db).getTree(treeId, actor.context)).individuals[0]!
+			.id;
 		const fact = (await service().getPerson(treeId, personId, actor.context)).facts[0]!;
 		// Imports now keep the line value as a value; a row written before the fact columns keeps the description.
 		expect(fact).toMatchObject({

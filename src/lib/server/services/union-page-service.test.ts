@@ -16,7 +16,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { wholeGraph } from '../testing/graph';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { RelationshipService } from './relationship-service';
 
 let t: TestDatabase;
@@ -73,10 +73,10 @@ describe('the partnership page of The Simpsons', () => {
 describe('chronology and warnings', () => {
 	async function couple() {
 		const treeId = await createTestTree(t.db, actor);
-		const people = new GenealogyService(t.db);
+		const people = new PersonService(t.db);
 		const relationships = new RelationshipService(t.db);
 		const add = async (givenName: string, extra: object = {}) =>
-			(await people.createIndividual(treeId, { givenName, ...extra }, actor.context)).individual;
+			(await people.create(treeId, { givenName, ...extra }, actor.context)).individual;
 		const [ann, ben] = [
 			await add('Ann', { birthDate: '1901' }),
 			await add('Ben', { birthDate: '1899', deathDate: '1940' })

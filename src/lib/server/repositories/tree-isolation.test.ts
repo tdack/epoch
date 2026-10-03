@@ -7,7 +7,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
-import { GenealogyService } from '../services/genealogy-service';
+import { TreeService } from '../services/tree-service';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -38,7 +38,7 @@ describe('one tree never reads another tree’s partners', () => {
 		const treeId = await createTestTree(t.db, actor);
 		await importGedcomToDb(t.d1, treeId, TWO_PEOPLE, 'A');
 		await importGedcomToDb(t.d1, crypto.randomUUID(), REPRESENTATIVE_GEDCOM_FIXTURE, 'B');
-		const details = await new GenealogyService(t.db).getTree(treeId, actor.context);
+		const details = await new TreeService(t.db).getTree(treeId, actor.context);
 		expect(details.families).toHaveLength(1);
 		expect(details.families[0]!.partner1Id).toContain('I1');
 		expect(details.families[0]!.partner2Id).toContain('I2');

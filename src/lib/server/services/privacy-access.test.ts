@@ -21,7 +21,8 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { GedcomService } from './gedcom-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
+import { TreeService } from './tree-service';
 import { MediaService, parseMediaKey } from './media-service';
 
 const FIXTURE = `0 HEAD
@@ -128,14 +129,14 @@ describe('export', () => {
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 	it('does not hand the whole tree to a viewer through the tree or individual reads', async () => {
-		const service = new GenealogyService(t.db);
-		await expect(service.getTree(treeId, actors.viewer.context)).rejects.toBeInstanceOf(
+		const trees = new TreeService(t.db);
+		await expect(trees.getTree(treeId, actors.viewer.context)).rejects.toBeInstanceOf(
 			UnauthorizedError
 		);
 		await expect(
-			service.getIndividual(treeId, idOf('@I1@'), actors.contributor.context)
+			new PersonService(t.db).get(treeId, idOf('@I1@'), actors.contributor.context)
 		).rejects.toBeInstanceOf(UnauthorizedError);
-		await expect(service.previewDeleteTree(treeId, actors.manager.context)).rejects.toBeInstanceOf(
+		await expect(trees.previewDeleteTree(treeId, actors.manager.context)).rejects.toBeInstanceOf(
 			UnauthorizedError
 		);
 	});

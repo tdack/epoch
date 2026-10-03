@@ -12,7 +12,7 @@ import {
 } from '../testing/d1';
 import { wholeGraph } from '../testing/graph';
 import { ChangeLogService } from './change-log-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { RelationshipService } from './relationship-service';
 
 let t: TestDatabase;
@@ -28,12 +28,12 @@ async function setup() {
 	const actor = await createTestUser(t.db);
 	const treeId = await createTestTree(t.db, actor);
 	const relationships = new RelationshipService(t.db);
-	const people = new GenealogyService(t.db);
+	const people = new PersonService(t.db);
 	const log = new ChangeLogService(t.db);
 	const ctx = actor.context;
 
 	const addPerson = async (givenName: string, surname: string | null = null, extra: object = {}) =>
-		(await people.createIndividual(treeId, { givenName, surname, ...extra }, ctx)).individual;
+		(await people.create(treeId, { givenName, surname, ...extra }, ctx)).individual;
 	const graph = (): Promise<RelationshipGraph> => wholeGraph(t.db, treeId, ctx);
 	const ref = (p: { id: string; givenName?: string | null; surname?: string | null }) => ({
 		id: p.id,
@@ -563,7 +563,7 @@ describe('deleting a person', () => {
 			s.ctx
 		);
 
-		const impact = await s.people.previewDeleteIndividual(s.treeId, homer.id, s.ctx);
+		const impact = await s.people.previewDelete(s.treeId, homer.id, s.ctx);
 		expect(impact.isDestructive).toBe(true);
 		expect(impact.people).toEqual(
 			expect.arrayContaining([
@@ -576,7 +576,7 @@ describe('deleting a person', () => {
 		expect(impact.people.some((p) => p.id === jessica.id)).toBe(false);
 
 		const before = await s.graph();
-		const { affected } = await s.people.deleteIndividual(s.treeId, homer.id, s.ctx);
+		const { affected } = await s.people.remove(s.treeId, homer.id, s.ctx);
 		expect(shape(affected)).toEqual(shape(impact.records));
 
 		const after = await s.graph();
@@ -604,12 +604,12 @@ describe('deleting a person', () => {
 		);
 		const union = (await s.graph()).unions[0];
 		const other = union.partnerIds.find((id) => id !== solo.id)!;
-		await s.people.deleteIndividual(s.treeId, other, s.ctx);
-		const impact = await s.people.previewDeleteIndividual(s.treeId, solo.id, s.ctx);
+		await s.people.remove(s.treeId, other, s.ctx);
+		const impact = await s.people.previewDelete(s.treeId, solo.id, s.ctx);
 		expect(impact.records.filter((r) => r.entityType === 'union').map((r) => r.action)).toEqual([
 			'deleted'
 		]);
-		await s.people.deleteIndividual(s.treeId, solo.id, s.ctx);
+		await s.people.remove(s.treeId, solo.id, s.ctx);
 		expect((await s.graph()).unions).toEqual([]);
 	});
 });
@@ -712,13 +712,7 @@ describe('the change log and undo', () => {
 	it('every mutation writes a log entry with the summary a toast can show', async () => {
 		const s = await setup();
 		const person = await s.addPerson('Ada', 'Lovelace');
-		await s.people.updateIndividual(
-			s.treeId,
-			person.id,
-			person.version,
-			{ givenName: 'Augusta' },
-			s.ctx
-		);
+		await s.people.update(s.treeId, person.id, person.version, { givenName: 'Augusta' }, s.ctx);
 		const kinds = (await s.log.listRecent(s.treeId, s.ctx)).map((c) => `${c.kind}: ${c.summary}`);
 		expect(kinds).toEqual([
 			'update_person: Edited Ada Lovelace',
@@ -771,14 +765,14 @@ describe('the change log and undo', () => {
 			s.ctx
 		);
 		const before = await s.graph();
-		const individualBefore = await s.people.getIndividual(s.treeId, homer.id, s.ctx);
+		const individualBefore = await s.people.get(s.treeId, homer.id, s.ctx);
 
-		await s.people.deleteIndividual(s.treeId, homer.id, s.ctx);
+		await s.people.remove(s.treeId, homer.id, s.ctx);
 		expect((await s.graph()).people).toHaveLength(2);
 		await s.log.undoLast(s.treeId, s.ctx);
 
 		expect(canonical(await s.graph())).toEqual(canonical(before));
-		const restored = await s.people.getIndividual(s.treeId, homer.id, s.ctx);
+		const restored = await s.people.get(s.treeId, homer.id, s.ctx);
 		expect(restored.events.map((e) => [e.type, e.dateRaw, e.place])).toEqual(
 			individualBefore.events.map((e) => [e.type, e.dateRaw, e.place])
 		);
@@ -832,8 +826,8 @@ describe('the change log and undo', () => {
 		const other = await createTestUser(t.db, 'other');
 		await addTestMember(t.db, s.treeId, other, 'editor');
 		await s.addPerson('Mine');
-		const theirs = new GenealogyService(t.db);
-		await theirs.createIndividual(s.treeId, { givenName: 'Theirs' }, other.context);
+		const theirs = new PersonService(t.db);
+		await theirs.create(s.treeId, { givenName: 'Theirs' }, other.context);
 
 		await s.log.undoLast(s.treeId, s.ctx);
 		expect((await s.graph()).people.map((p) => p.displayName)).toEqual(['Theirs']);
@@ -845,7 +839,7 @@ describe('the change log and undo', () => {
 		const other = await createTestUser(t.db, 'other');
 		await addTestMember(t.db, s.treeId, other, 'editor');
 		const person = await s.addPerson('Ada');
-		await new GenealogyService(t.db).updateIndividual(
+		await new PersonService(t.db).update(
 			s.treeId,
 			person.id,
 			person.version,
@@ -869,11 +863,7 @@ describe('the change log and undo', () => {
 		// The other collaborator hangs a new child off Pat, who I created.
 		const theirs = new RelationshipService(t.db);
 		const child = (
-			await new GenealogyService(t.db).createIndividual(
-				s.treeId,
-				{ givenName: 'Kit' },
-				other.context
-			)
+			await new PersonService(t.db).create(s.treeId, { givenName: 'Kit' }, other.context)
 		).individual;
 		await theirs.execute(
 			s.treeId,
@@ -906,11 +896,7 @@ describe('the change log and undo', () => {
 		const [a, b] = [await s.addPerson('Ann'), await s.addPerson('Ben')];
 		await s.partner(a, b);
 		const kit = (
-			await new GenealogyService(t.db).createIndividual(
-				s.treeId,
-				{ givenName: 'Kit' },
-				other.context
-			)
+			await new PersonService(t.db).create(s.treeId, { givenName: 'Kit' }, other.context)
 		).individual;
 		await new RelationshipService(t.db).execute(
 			s.treeId,
@@ -949,8 +935,8 @@ describe('the change log and undo', () => {
 			userId: contributor.userId,
 			role: 'contributor'
 		});
-		const service = new GenealogyService(t.db);
-		await service.createIndividual(s.treeId, { givenName: 'Cara' }, contributor.context);
+		const service = new PersonService(t.db);
+		await service.create(s.treeId, { givenName: 'Cara' }, contributor.context);
 		const undone = await new ChangeLogService(t.db)
 			.undoLast(s.treeId, contributor.context)
 			.catch((e) => e);
@@ -963,21 +949,9 @@ describe('optimistic concurrency', () => {
 	it('rejects a stale person edit and returns what is current', async () => {
 		const s = await setup();
 		const person = await s.addPerson('Ada', 'Lovelace', { birthDate: '1815' });
-		await s.people.updateIndividual(
-			s.treeId,
-			person.id,
-			person.version,
-			{ surname: 'King' },
-			s.ctx
-		);
+		await s.people.update(s.treeId, person.id, person.version, { surname: 'King' }, s.ctx);
 		await expect(
-			s.people.updateIndividual(
-				s.treeId,
-				person.id,
-				person.version,
-				{ givenName: 'Augusta' },
-				s.ctx
-			)
+			s.people.update(s.treeId, person.id, person.version, { givenName: 'Augusta' }, s.ctx)
 		).rejects.toMatchObject({
 			status: 409,
 			details: {
@@ -1025,13 +999,7 @@ describe('optimistic concurrency', () => {
 	it('a death recorded from a stale person version is a conflict, not an overwrite', async () => {
 		const s = await setup();
 		const person = await s.addPerson('Ada');
-		await s.people.updateIndividual(
-			s.treeId,
-			person.id,
-			person.version,
-			{ surname: 'King' },
-			s.ctx
-		);
+		await s.people.update(s.treeId, person.id, person.version, { surname: 'King' }, s.ctx);
 		await expect(
 			s.relationships.execute(
 				s.treeId,

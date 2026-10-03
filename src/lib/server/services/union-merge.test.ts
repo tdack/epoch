@@ -10,7 +10,7 @@ import {
 } from '../testing/d1';
 import { wholeGraph } from '../testing/graph';
 import { ChangeLogService } from './change-log-service';
-import { GenealogyService } from './genealogy-service';
+import { PersonService } from './person-service';
 import { RelationshipService, type MergeUnionsCommand } from './relationship-service';
 
 let t: TestDatabase;
@@ -29,12 +29,12 @@ async function setup(options: { marriages?: [string | null, string | null, strin
 	const actor = await createTestUser(t.db);
 	const treeId = await createTestTree(t.db, actor);
 	const relationships = new RelationshipService(t.db);
-	const people = new GenealogyService(t.db);
+	const people = new PersonService(t.db);
 	const log = new ChangeLogService(t.db);
 	const ctx = actor.context;
 
 	const add = async (givenName: string) =>
-		(await people.createIndividual(treeId, { givenName, surname: 'Simpson' }, ctx)).individual;
+		(await people.create(treeId, { givenName, surname: 'Simpson' }, ctx)).individual;
 	const [homer, marge, bart, lisa] = [
 		await add('Homer'),
 		await add('Marge'),
@@ -289,9 +289,8 @@ describe('merging partnerships between the same people', () => {
 
 	it('refuses to merge partnerships between different people', async () => {
 		const s = await setup();
-		const other = (
-			await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Sam' }, s.ctx)
-		).individual;
+		const other = (await new PersonService(t.db).create(s.treeId, { givenName: 'Sam' }, s.ctx))
+			.individual;
 		const strange = crypto.randomUUID();
 		await s.relationships.runner.run(s.treeId, s.ctx, {
 			kind: 'create_union',
@@ -327,9 +326,8 @@ describe('merging partnerships between the same people', () => {
 	it('undoes newest first: the child linked to the merged partnership, the person, then the merge', async () => {
 		const s = await setup();
 		await s.relationships.mergeUnions(s.treeId, await s.command(), s.ctx);
-		const extra = (
-			await new GenealogyService(t.db).createIndividual(s.treeId, { givenName: 'Ash' }, s.ctx)
-		).individual;
+		const extra = (await new PersonService(t.db).create(s.treeId, { givenName: 'Ash' }, s.ctx))
+			.individual;
 		await s.relationships.execute(
 			s.treeId,
 			{

@@ -1,5 +1,5 @@
 import { treeHandler } from '#lib/server/http/handler.js';
-import { GenealogyService } from '#lib/server/services/genealogy-service.js';
+import { PersonService } from '#lib/server/services/person-service.js';
 import { individualCreateSchema } from '#lib/server/validation/schemas.js';
 
 export const POST = treeHandler(
@@ -13,7 +13,7 @@ export const POST = treeHandler(
 		if (!givenName?.trim() && !surname?.trim()) {
 			return Response.json({ error: 'Given name or surname is required' }, { status: 400 });
 		}
-		const { individual, change } = await new GenealogyService(db).createIndividual(
+		const { individual, change } = await new PersonService(db).create(
 			treeId,
 			{
 				givenName: givenName?.trim() || null,
