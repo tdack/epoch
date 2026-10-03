@@ -1,5 +1,5 @@
 import { parseViewState } from '#lib/components/tree/tree-url.js';
-import { DATA_KEY, rememberedFocusKey, rethrowAsPageError } from '#lib/services/load-helpers.js';
+import { rememberedFocusKey, treeLoad } from '#lib/services/load-helpers.js';
 import { ApiError, fetchFocusGraph } from '#lib/services/tree-api.js';
 import type { PageLoad } from './$types';
 
@@ -25,8 +25,7 @@ function rememberedFocus(treeId: string): string | null {
  * first. A remembered or requested person who no longer exists falls back to the default rather
  * than showing an error page for a stale bookmark.
  */
-export const load: PageLoad = async ({ params, url, fetch, parent, depends }) => {
-	depends(DATA_KEY);
+export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) => {
 	const { summary } = await parent();
 	// Read only the parameters that change what is fetched, so toggling a relationship type redraws
 	// without a request.
@@ -46,22 +45,18 @@ export const load: PageLoad = async ({ params, url, fetch, parent, depends }) =>
 		rememberedFocus(params.id),
 		summary.defaultFocusPersonId
 	].filter((id, index, all): id is string => id !== null && all.indexOf(id) === index);
-	try {
-		for (const [index, focusId] of candidates.entries()) {
-			try {
-				// `applied` is what this graph was fetched for. The canvas draws with it, not with the
-				// address, which runs ahead of the data while a request is in flight.
-				return {
-					focusGraph: await fetchFocusGraph(params.id, focusId, query, fetch),
-					applied: view
-				};
-			} catch (cause) {
-				const isLast = index === candidates.length - 1;
-				if (!(cause instanceof ApiError && cause.status === 404) || isLast) throw cause;
-			}
+	for (const [index, focusId] of candidates.entries()) {
+		try {
+			// `applied` is what this graph was fetched for. The canvas draws with it, not with the
+			// address, which runs ahead of the data while a request is in flight.
+			return {
+				focusGraph: await fetchFocusGraph(params.id, focusId, query, fetch),
+				applied: view
+			};
+		} catch (cause) {
+			const isLast = index === candidates.length - 1;
+			if (!(cause instanceof ApiError && cause.status === 404) || isLast) throw cause;
 		}
-		return { focusGraph: null, applied: view };
-	} catch (cause) {
-		rethrowAsPageError(cause);
 	}
-};
+	return { focusGraph: null, applied: view };
+});
