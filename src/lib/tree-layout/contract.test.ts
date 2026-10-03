@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+	allContractViolations,
 	countCrossings,
 	findCentringViolations,
 	findDuplicatePeople,
@@ -11,6 +12,7 @@ import {
 	findStackedEdges
 } from './contract';
 import { EMPTY_LAYOUT, LAYOUT_METRICS, type ChildEdge, type TreeLayout } from './types';
+import { layoutFocusView } from './index';
 import { makeGraph } from './test-support';
 
 const { cardWidth: W, rowHeight: H } = LAYOUT_METRICS;
@@ -207,5 +209,32 @@ describe('contract checkers', () => {
 		});
 		layout.edges = [mk('e1', 0, 100), mk('e2', 100, 0), mk('e3', 200, 300)];
 		expect(countCrossings(layout)).toBe(1);
+	});
+});
+
+describe('step-children hang from their anchor parent in flat', () => {
+	// K is the adoptive child of F and R (union uf) and the biological child of P and Q (union u2).
+	// P is also F's partner, so u2 is drawn as P's other family. uf comes first in the chain, so
+	// first come would hang K from F's union; the anchor is the biological parent P.
+	const graph = makeGraph({
+		people: ['F', 'R', 'P', 'Q', 'K'],
+		unions: [
+			{ id: 'uf', partners: ['F', 'R'], children: [{ id: 'K', type: 'adoptive' }] },
+			{ id: 'uf2', partners: ['F', 'P'] },
+			{ id: 'u2', partners: ['P', 'Q'], children: ['K'] }
+		]
+	});
+
+	it('draws the anchor’s edge as the tree edge and the other as the dashed extra link', () => {
+		const layout = layoutFocusView(graph, 'F', { shouldIncludeStepFamilies: true });
+		const edges = layout.edges.filter(
+			(e): e is ChildEdge => e.kind === 'child' && e.childId === 'K'
+		);
+		expect(edges.map((e) => [e.unionId, e.isSecondaryPath]).sort()).toEqual([
+			['u2', false],
+			['uf', true]
+		]);
+		expect(allContractViolations(graph, layout)).toEqual([]);
+		expect(layout.misplacedPersonIds).toEqual([]);
 	});
 });
