@@ -7,7 +7,7 @@ import {
 	isDevBypassEnabled,
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
-import { shouldRedirectToWelcome, WELCOME_PATH } from '#lib/server/auth/public-routes.js';
+import { signedOutRedirect } from '#lib/server/auth/public-routes.js';
 import { getDb } from '#lib/server/db/index.js';
 import {
 	isSchemaCurrent,
@@ -59,6 +59,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 
 	const token = extractAccessJwt(event.request);
+	let hasInvalidToken = false;
 	// Fail closed: the bypass needs an explicit opt-in and never follows NODE_ENV, since the
 	// unbundled server build keeps runtime env checks and would otherwise open production.
 	const allowDevBypass = isDevBypassEnabled(
@@ -88,6 +89,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				};
 			}
 		} catch (err: any) {
+			hasInvalidToken = true;
 			requestLogger.warn('Cloudflare Access token validation failed', { error: err?.message });
 		}
 	} else if (allowDevBypass) {
@@ -119,20 +121,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// Access normally stops a signed-out visitor before the Worker. This catches the cases it does
-	// not (a bypassed or misconfigured path, a token that failed validation) with a page that offers
-	// a sign-in, instead of an error from the first API call the page makes.
-	if (
-		shouldRedirectToWelcome({
-			pathname: event.url.pathname,
-			method: event.request.method,
-			isDataRequest: event.isDataRequest,
-			hasUser: event.locals.user !== null
-		})
-	) {
+	// Only `/login` sits behind Access, so every other path reaches the Worker signed out and this
+	// is the gate. A page load goes to the splash (or to `/login` when a token failed validation);
+	// an API call keeps its 401.
+	const redirectTo = signedOutRedirect({
+		pathname: event.url.pathname,
+		search: event.url.search,
+		method: event.request.method,
+		isDataRequest: event.isDataRequest,
+		hasUser: event.locals.user !== null,
+		hasInvalidToken
+	});
+	if (redirectTo) {
 		return new Response(null, {
 			status: 303,
-			headers: { location: WELCOME_PATH, 'x-correlation-id': correlationId }
+			headers: { location: redirectTo, 'x-correlation-id': correlationId }
 		});
 	}
 
