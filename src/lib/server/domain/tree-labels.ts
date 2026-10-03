@@ -166,6 +166,8 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			}
 			case 'notes':
 				return `Shared note “${noteTitle(row.text, 40)}”`;
+			case 'research_tasks':
+				return `Task “${String(row.title ?? '').slice(0, 60)}”`;
 			case 'note_attachments': {
 				const shared = row.noteId ? known.notes.find((n) => n.id === row.noteId) : undefined;
 				const what = row.noteId ? `Shared note “${noteTitle(shared?.text ?? null, 40)}”` : 'Note';

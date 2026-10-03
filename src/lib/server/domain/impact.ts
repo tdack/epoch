@@ -45,6 +45,7 @@ function peopleOf(
 		case 'repositories':
 		case 'source_repositories':
 		case 'notes':
+		case 'research_tasks':
 			// Records of the library, not of any person; who they matter to is what cites or attaches them.
 			return [];
 	}

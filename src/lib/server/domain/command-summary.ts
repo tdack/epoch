@@ -150,6 +150,19 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		}
 		case 'merge_notes':
 			return `Merged ${command.mergedIds.length + 1} shared notes into ${sharedNoteLabel(rows, command.survivorId)}`;
+		case 'create_task':
+			return `Added the task “${command.task.title.trim().slice(0, 60)}”`;
+		case 'update_task': {
+			const task = rows.researchTasks.find((t) => t.id === command.taskId);
+			const status = command.task.status;
+			const name = `“${(task?.title ?? 'a task').slice(0, 60)}”`;
+			if (status === 'done' && task?.status !== 'done') return `Completed the task ${name}`;
+			if (status === 'dropped' && task?.status !== 'dropped') return `Dropped the task ${name}`;
+			if (status === 'open' && task && task.status !== 'open') return `Reopened the task ${name}`;
+			return `Edited the task ${name}`;
+		}
+		case 'delete_task':
+			return `Deleted the task “${(rows.researchTasks.find((t) => t.id === command.taskId)?.title ?? 'a task').slice(0, 60)}”`;
 		case 'rewrite_place': {
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;

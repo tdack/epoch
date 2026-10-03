@@ -17,6 +17,7 @@ import {
 	type NoteSubjectRef,
 	type SharedNoteInput
 } from '../../shared/notes';
+import { makeTaskMover } from './task-ops';
 
 export type NoteCommand =
 	| { kind: 'add_note'; attachmentId: string; subject: NoteSubjectRef; text: string }
@@ -458,6 +459,10 @@ function mergeNotes(
 
 	const ops: RowOp[] = [];
 	const mergedSet = new Set(mergedIds);
+	// A task about a note that is folded away is about the survivor now.
+	const tasks = makeTaskMover(rows, ctx);
+	for (const id of mergedIds)
+		ops.push(...tasks.move({ kind: 'note', id }, { kind: 'note', id: survivor.id }));
 	// Every use moves to the survivor; a record that would then point at it twice keeps one pointer.
 	const pointing = new Set(
 		rows.noteAttachments

@@ -5,6 +5,7 @@
 
 import type { PersonEvidenceDto } from './evidence';
 import type { NoteDto } from './notes';
+import type { PersonTasksDto } from './tasks';
 import type { FactConflict } from './fact-timeline';
 import type { FactKind } from './fact-types';
 import type { NameType } from './name-types';
@@ -156,6 +157,8 @@ export interface PersonPageDto extends PrivacyFlag {
 	/** The notes on the parent links the person is the child in, each link named by the parent. */
 	linkNotes: Array<{ id: string; label: string; notes: NoteDto[] }>;
 	evidence: PersonEvidenceDto;
+	/** The research tasks about the person and their facts (ADR-029). */
+	tasks: PersonTasksDto;
 	changes: {
 		/**
 		 * Changes that wrote the person or a fact they still have. Changes to a fact that was later

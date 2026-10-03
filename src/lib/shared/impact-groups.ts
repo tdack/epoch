@@ -15,7 +15,8 @@ export const ENTITY_ORDER = [
 	'source_link',
 	'citation',
 	'note',
-	'note_link'
+	'note_link',
+	'task'
 ] as const;
 
 export function groupRecords(

@@ -46,6 +46,7 @@ import type {
 } from '../../shared/person-page';
 import { citationDto, inSubjectOrder } from './evidence-dto';
 import { loadNoteDtos, notesOf } from './note-dto';
+import { TaskReadService } from './task-read-service';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
@@ -158,19 +159,20 @@ function nameDtos(
 }
 
 export class PersonPageService {
+	private now: () => Date;
 	private repo: GraphWindowRepository;
 	private evidence: EvidenceRepository;
 	private notes: NoteRepository;
+	private tasks: TaskReadService;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
-	constructor(
-		db: DbClient,
-		private now: () => Date = () => new Date()
-	) {
+	constructor(db: DbClient, now: () => Date = () => new Date()) {
+		this.now = now;
 		this.repo = new GraphWindowRepository(db);
 		this.evidence = new EvidenceRepository(db);
 		this.notes = new NoteRepository(db);
+		this.tasks = new TaskReadService(db, now);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 	}
@@ -416,6 +418,12 @@ export class PersonPageService {
 						]
 					: [];
 			}),
+			tasks: await this.tasks.tasksOfPerson(
+				treeId,
+				personId,
+				factRows.map((f) => f.row.id),
+				scope
+			),
 			evidence: {
 				citations: inSubjectOrder(cited.rows).map((c) =>
 					citationDto(c, sourcesById, notesOf(noteItems, NOTE_SUBJECT_KINDS.CITATION, c.id))

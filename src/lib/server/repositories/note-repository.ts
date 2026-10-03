@@ -49,7 +49,7 @@ export class NoteRepository {
 
 	noteIdsSql(treeId: string, query: string, page: PageRequest, scope: Scope): SQL {
 		const search = query ? sql` and n.text like ${likePattern(query)} escape '\\'` : sql``;
-		return sql`${withVisibleNoteScope(treeId, scope)}select n.id as id from notes n where n.tree_id = ${treeId}${search}${andNoteVisible('n', scope, treeId)} order by n.text collate nocase, n.id limit ${page.limit + 1} offset ${page.offset}`;
+		return sql`${withVisibleNoteScope(treeId, scope)}select n.id as id from notes n where n.tree_id = ${treeId}${search}${andNoteVisible('n', scope)} order by n.text collate nocase, n.id limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
 	async noteIds(
@@ -78,7 +78,7 @@ export class NoteRepository {
 	/** One shared note, or undefined when it is not in the tree or the viewer may not see it. */
 	async visibleNote(treeId: string, noteId: string, scope: Scope): Promise<NoteRow | undefined> {
 		const rows = await this.db.all<{ id: string }>(
-			sql`${withVisibleNoteScope(treeId, scope)}select n.id as id from notes n where n.tree_id = ${treeId} and n.id = ${noteId}${andNoteVisible('n', scope, treeId)}`
+			sql`${withVisibleNoteScope(treeId, scope)}select n.id as id from notes n where n.tree_id = ${treeId} and n.id = ${noteId}${andNoteVisible('n', scope)}`
 		);
 		if (rows.length === 0) return undefined;
 		return (await this.notesByIds(treeId, [noteId]))[0];

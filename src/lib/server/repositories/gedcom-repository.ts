@@ -4,7 +4,7 @@
  * only place those modules meet D1.
  */
 
-import { eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import {
 	citations,
 	events,
@@ -16,6 +16,7 @@ import {
 	personNames,
 	places,
 	repositories,
+	researchTasks,
 	sourceRepositories,
 	sources,
 	trees,
@@ -134,6 +135,13 @@ export class GedcomRepository {
 			// Wipe all existing tree data before re-import. Notes first, then citations: attachments point
 			// at shared notes and citations at sources, and the links between sources and repositories go
 			// with their source.
+			// A task about a fact would point at a record the new file gives another id; it stays, with
+			// its link cleared. Tasks about people, partnerships, sources and notes keep theirs: those
+			// records are given the same ids again from the file's XREFs.
+			await db
+				.update(researchTasks)
+				.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
+				.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')));
 			await db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId));
 			await db.delete(notes).where(eq(notes.treeId, treeId));
 			await db.delete(citations).where(eq(citations.treeId, treeId));

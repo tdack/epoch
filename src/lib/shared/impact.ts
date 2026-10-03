@@ -17,7 +17,8 @@ export type EntityType =
 	| 'source_link'
 	| 'citation'
 	| 'note'
-	| 'note_link';
+	| 'note_link'
+	| 'task';
 
 export const RECORD_ACTIONS = {
 	CREATED: 'created',

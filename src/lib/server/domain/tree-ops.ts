@@ -33,6 +33,7 @@ import type { UnionStatus } from '../../shared/relationship-model';
 import { buildFactOps } from './fact-ops';
 import { buildEvidenceOps, citationCascadeOps, makeEvidenceMover } from './evidence-ops';
 import { buildNoteOps, noteCascadeOps } from './note-ops';
+import { buildTaskOps, taskCascadeOps } from './task-ops';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { buildPersonMergeOps } from './person-merge';
 import { buildPlaceOps } from './place-ops';
@@ -89,7 +90,8 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	source_repositories: 'sourceRepositories',
 	citations: 'citations',
 	notes: 'notes',
-	note_attachments: 'noteAttachments'
+	note_attachments: 'noteAttachments',
+	research_tasks: 'researchTasks'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
@@ -1013,6 +1015,10 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'delete_shared_note':
 		case 'merge_notes':
 			return buildNoteOps(rows, command, ctx);
+		case 'create_task':
+		case 'update_task':
+		case 'delete_task':
+			return buildTaskOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
 		case 'merge_people':
@@ -1063,7 +1069,9 @@ export function buildPlanOps(
 		// A command that removes a person, name, fact, partnership or link takes its citations, and the
 		// notes on all of those, with it.
 		const withCitations = [...planned, ...citationCascadeOps(working, planned)];
-		const ops = [...withCitations, ...noteCascadeOps(working, withCitations)];
+		const withNotes = [...withCitations, ...noteCascadeOps(working, withCitations)];
+		// A task about a record that goes is kept, with its link cleared.
+		const ops = [...withNotes, ...taskCascadeOps(working, withNotes, ctx)];
 		all.push(...ops);
 		working = applyOpsToRows(working, ops);
 	}

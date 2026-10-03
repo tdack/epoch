@@ -218,7 +218,8 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
 			or (c.subject_kind = 'union' and c.subject_id in (select u.id from unions u where u.tree_id = ${treeId}) and c.subject_id not in (select id from hu))
 			or (c.subject_kind = 'parent_child' and c.subject_id in (select id from vl)))),
 		vs(id) as (select s.id from sources s where s.tree_id = ${treeId} and (${isOwn('s')}s.id in (select vsc.source_id from citations vsc where vsc.tree_id = ${treeId} and vsc.source_id is not null and vsc.id in (select id from vc)))),
-		vr(id) as (select r.id from repositories r where r.tree_id = ${treeId} and (${isOwn('r')}r.id in (select vl2.repository_id from source_repositories vl2 where vl2.repository_id is not null and vl2.source_id in (select id from vs)))) `;
+		vr(id) as (select r.id from repositories r where r.tree_id = ${treeId} and (${isOwn('r')}r.id in (select vl2.repository_id from source_repositories vl2 where vl2.repository_id is not null and vl2.source_id in (select id from vs)))),
+		vo(id) as (select n.id from notes n where n.tree_id = ${treeId} and (${isOwn('n')}n.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null and ${isNoteAttachmentVisibleOf('na', treeId)}))) `;
 }
 
 /**
@@ -252,9 +253,24 @@ export function andNoteAttachmentVisible(alias: string, scope: Scope, treeId: st
  * viewer made it; otherwise it is as absent as a private person (ADR-029). Empty for a viewer who
  * sees everyone. The statement must start with `withVisibleNoteScope`.
  */
-export function andNoteVisible(alias: string, scope: Scope, treeId: string): SQL {
+export function andNoteVisible(alias: string, scope: Scope): SQL {
+	return scope.isRestricted ? sql` and ${sql.raw(alias)}.id in (select id from vo)` : sql``;
+}
+
+/**
+ * ` and <visible>` for a research task row (aliased `alias`): it is about no record, or about one
+ * the viewer may see (ADR-029). A record that is not there at all hides nothing, as in the row
+ * filter. The statement must start with `withVisibleNoteScope`. Empty for a viewer who sees everyone.
+ */
+export function andTaskVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
-	const n = sql.raw(alias);
-	const isOwn = scope.creatorId === null ? sql`` : sql`${n}.created_by is ${scope.creatorId} or `;
-	return sql` and (${isOwn}${n}.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null and ${isNoteAttachmentVisibleOf('na', treeId)}))`;
+	const t = sql.raw(alias);
+	return sql` and (${t}.subject_kind is null or (case ${t}.subject_kind
+		when 'person' then ${t}.subject_id not in (select i.id from individuals i where i.tree_id = ${treeId} and i.id not in (select id from vp))
+		when 'union' then ${t}.subject_id not in (select id from hu)
+		when 'event' then ${t}.subject_id not in (select e.id from events e where e.tree_id = ${treeId} and e.id not in (select id from ve))
+		when 'source' then ${t}.subject_id in (select id from vs)
+		when 'note' then ${t}.subject_id in (select id from vo)
+		else 0
+	end))`;
 }

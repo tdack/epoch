@@ -19,6 +19,7 @@ import type {
 	parentChild,
 	personNames,
 	repositories,
+	researchTasks,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -55,6 +56,7 @@ export type SourceRepositoryRow = Imaged<typeof sourceRepositories.$inferSelect>
 export type CitationRow = Imaged<typeof citations.$inferSelect>;
 export type NoteRow = Imaged<typeof notes.$inferSelect>;
 export type NoteAttachmentRow = Imaged<typeof noteAttachments.$inferSelect>;
+export type ResearchTaskRow = Imaged<typeof researchTasks.$inferSelect>;
 
 /** Every row a tree owns that a mutation can touch. */
 export interface TreeRows {
@@ -71,6 +73,7 @@ export interface TreeRows {
 	citations: CitationRow[];
 	notes: NoteRow[];
 	noteAttachments: NoteAttachmentRow[];
+	researchTasks: ResearchTaskRow[];
 }
 
 export type RecordTable =
@@ -86,7 +89,8 @@ export type RecordTable =
 	| 'source_repositories'
 	| 'citations'
 	| 'notes'
-	| 'note_attachments';
+	| 'note_attachments'
+	| 'research_tasks';
 
 /** Parents before children: creates run in this order and deletes in reverse, so no foreign key is ever dangling. */
 const TABLE_RANK: Record<RecordTable, number> = {
@@ -106,7 +110,9 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	// Notes point at the rows above (an attachment at its subject, whichever table that is) and at
 	// each other: an attachment at its shared note.
 	notes: 11,
-	note_attachments: 12
+	note_attachments: 12,
+	// A task points at a record of any of the above and nothing points at it.
+	research_tasks: 13
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -123,7 +129,8 @@ const ENTITY_TYPES = {
 	source_repositories: 'source_link',
 	citations: 'citation',
 	notes: 'note',
-	note_attachments: 'note_link'
+	note_attachments: 'note_link',
+	research_tasks: 'task'
 } as const satisfies Record<RecordTable, EntityType>;
 
 export type RowImage = Record<string, unknown>;
@@ -431,6 +438,29 @@ export function dependentsOfDeletions(
 			(kept.noteId !== null && deletedNotes.has(kept.noteId))
 		)
 			add('note_attachments', attachment);
+	}
+	// Tasks: one about a record that is going would be left pointing at nothing.
+	const taskAfter = new Map(
+		ops.filter((op) => op.table === 'research_tasks' && op.after).map((op) => [op.id, op.after!])
+	);
+	const isTaskSubjectDeleted = (kind: string | null, id: string | null) => {
+		if (kind === null || id === null) return false;
+		switch (kind) {
+			case 'person':
+				return deletedPeople.has(id);
+			case 'union':
+				return deletedUnions.has(id);
+			case 'event':
+				return deleting.has(`events:${id}`);
+			case 'source':
+				return deletedSources.has(id);
+			default:
+				return deletedNotes.has(id);
+		}
+	};
+	for (const task of rows.researchTasks) {
+		const kept = (taskAfter.get(task.id) ?? task) as typeof task;
+		if (isTaskSubjectDeleted(kept.subjectKind, kept.subjectId)) add('research_tasks', task);
 	}
 	return found;
 }

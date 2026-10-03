@@ -35,6 +35,7 @@ const ACCESS = 'services/privacy-access.test.ts';
 const MEMBERS = 'services/member-service.test.ts';
 const EVIDENCE = 'services/privacy-evidence.test.ts';
 const NOTES = 'services/privacy-notes.test.ts';
+const TASKS = 'services/privacy-tasks.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
@@ -182,6 +183,10 @@ const ENTRIES: Record<string, Entry> = {
 	},
 	[`${API}/trees/[id]/sources/impact/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
+	// The GET lists tasks in SQL with the visibility predicate beside `tree_id`; the POST, PUT and
+	// DELETE are the more dangerous half, so the entries name the write kind.
+	[`${API}/trees/[id]/tasks/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
+	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/unions/merge/+server.ts`]: { kind: 'guarded-write', covers: WRITES }
@@ -210,6 +215,7 @@ const LOADS = [
 	'./trees/[id]/sources/+page.ts',
 	'./trees/[id]/sources/[sourceId]/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
+	'./trees/[id]/tasks/+page.ts',
 	'./trees/[id]/unions/+page.ts',
 	'./trees/[id]/unions/[unionId]/+page.ts'
 ];

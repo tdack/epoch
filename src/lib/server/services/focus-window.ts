@@ -137,7 +137,8 @@ class WindowState {
 			sourceRepositories: [],
 			citations: [],
 			notes: [],
-			noteAttachments: []
+			noteAttachments: [],
+			researchTasks: []
 		};
 	}
 

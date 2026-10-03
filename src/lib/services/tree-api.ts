@@ -30,6 +30,7 @@ import type {
 	SharedNoteDto,
 	SharedNoteInput
 } from '#lib/shared/notes.js';
+import type { TaskDto, TaskInput, TaskPageDto, TaskSubjectRef } from '#lib/shared/tasks.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { SearchResponse } from '#lib/shared/search.js';
@@ -80,7 +81,8 @@ export class ConflictError extends ApiError {
 				| 'citation'
 				| 'source_link'
 				| 'note'
-				| 'note_link';
+				| 'note_link'
+				| 'task';
 			id: string;
 			expectedVersion: number;
 			currentVersion: number;
@@ -1343,5 +1345,65 @@ export async function reorderNotesApi(
 		`/api/trees/${enc(treeId)}/note-links/reorder`,
 		json('POST', { subject, orderedAttachmentIds }),
 		'Failed to reorder the notes'
+	);
+}
+
+// ---- Research tasks (ADR-029) ----
+
+export async function fetchTasks(
+	treeId: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<TaskPageDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/tasks?${params}`,
+		{ method: 'GET' },
+		'Failed to list the tasks',
+		fetcher
+	);
+}
+
+export async function fetchTask(treeId: string, taskId: string): Promise<TaskDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/tasks/${enc(taskId)}`,
+		{ method: 'GET' },
+		'Failed to load the task'
+	);
+}
+
+export async function createTaskApi(
+	treeId: string,
+	task: TaskInput & { title: string },
+	link: { subject?: TaskSubjectRef | null; findingKey?: string | null } = {}
+): Promise<{ taskId: string; change: ChangeSummary | null }> {
+	return call(
+		`/api/trees/${enc(treeId)}/tasks`,
+		json('POST', { ...task, subject: link.subject ?? null, findingKey: link.findingKey ?? null }),
+		'Failed to add the task'
+	);
+}
+
+export async function updateTaskApi(
+	treeId: string,
+	taskId: string,
+	task: TaskInput,
+	version: number
+): Promise<Changed> {
+	return call(
+		`/api/trees/${enc(treeId)}/tasks/${enc(taskId)}`,
+		json('PUT', { ...task, version }),
+		'Failed to save the task'
+	);
+}
+
+export async function deleteTaskApi(
+	treeId: string,
+	taskId: string,
+	version: number
+): Promise<Changed> {
+	return call(
+		`/api/trees/${enc(treeId)}/tasks/${enc(taskId)}?version=${version}`,
+		{ method: 'DELETE' },
+		'Failed to delete the task'
 	);
 }

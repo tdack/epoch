@@ -54,7 +54,8 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		sourceRepositories: [],
 		citations: [],
 		notes: [],
-		noteAttachments: []
+		noteAttachments: [],
+		researchTasks: []
 	};
 	for (const [index, c] of (spec.citations ?? []).entries()) {
 		rows.citations.push({

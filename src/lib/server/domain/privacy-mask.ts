@@ -147,6 +147,38 @@ function visibleEvidence(
 	};
 }
 
+/**
+ * The tasks a restricted viewer may see (ADR-029): an unlinked task is visible to every member, and
+ * one about a record only if that record is. A task's title is the author's own words and can name
+ * the person it is about, so a task about a private person is as absent as the person.
+ */
+function visibleTasks(
+	rows: TreeRows,
+	hidden: Set<string>,
+	unionsWithHiddenPartner: Set<string>,
+	hiddenKeys: Set<string>,
+	evidence: Pick<TreeRows, 'sources' | 'notes'>
+): TreeRows['researchTasks'] {
+	const sources = new Set(evidence.sources.map((s) => s.id));
+	const notes = new Set(evidence.notes.map((n) => n.id));
+	return rows.researchTasks.filter((t) => {
+		switch (t.subjectKind) {
+			case null:
+				return true;
+			case 'person':
+				return !hidden.has(t.subjectId ?? '');
+			case 'union':
+				return !unionsWithHiddenPartner.has(t.subjectId ?? '');
+			case 'event':
+				return !hiddenKeys.has(`event|${t.subjectId}`);
+			case 'source':
+				return sources.has(t.subjectId ?? '');
+			default:
+				return notes.has(t.subjectId ?? '');
+		}
+	});
+}
+
 const placeholderOf = (row: IndividualRow): IndividualRow => ({
 	...row,
 	xrefId: null,
@@ -165,11 +197,12 @@ export function maskRows(
 	const unionsWithHiddenPartner = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
-	const evidence = visibleEvidence(
-		rows,
-		hiddenSubjectKeys(rows, hidden, unionsWithHiddenPartner),
-		creatorId
-	);
+	const hiddenKeys = hiddenSubjectKeys(rows, hidden, unionsWithHiddenPartner);
+	const visible = visibleEvidence(rows, hiddenKeys, creatorId);
+	const evidence = {
+		...visible,
+		researchTasks: visibleTasks(rows, hidden, unionsWithHiddenPartner, hiddenKeys, visible)
+	};
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
 		const isEvidenceWhole = (Object.keys(evidence) as Array<keyof typeof evidence>).every(
@@ -289,7 +322,16 @@ export function opsTouchPrivate(
 	const hiddenCitations = new Set(
 		rows.citations.filter((c) => hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)).map((c) => c.id)
 	);
-	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations));
+	const visible = visibleEvidence(rows, hiddenKeys, creatorId);
+	const keptSources = new Set(visible.sources.map((src) => src.id));
+	const keptNotes = new Set(visible.notes.map((n) => n.id));
+	const hiddenRecords = {
+		sources: new Set(rows.sources.filter((src) => !keptSources.has(src.id)).map((src) => src.id)),
+		notes: new Set(rows.notes.filter((n) => !keptNotes.has(n.id)).map((n) => n.id))
+	};
+	return ops.some((op) =>
+		touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations, hiddenRecords)
+	);
 }
 
 function touchesHidden(
@@ -297,7 +339,8 @@ function touchesHidden(
 	hidden: Set<string>,
 	hiddenUnions: Set<string>,
 	hiddenKeys: Set<string>,
-	hiddenCitations: Set<string>
+	hiddenCitations: Set<string>,
+	hiddenRecords: { sources: Set<string>; notes: Set<string> }
 ): boolean {
 	return [op.before, op.after].some((image) => {
 		if (!image) return false;
@@ -330,6 +373,22 @@ function touchesHidden(
 				// repository belongs to no person, like the record itself.
 				if (r.subjectKind === 'citation') return hiddenCitations.has(r.subjectId ?? '');
 				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
+			case 'research_tasks':
+				// A task about a record the viewer cannot see is hidden with it, however it is changed.
+				switch (r.subjectKind) {
+					case 'person':
+						return hidden.has(r.subjectId ?? '');
+					case 'union':
+						return hiddenUnions.has(r.subjectId ?? '');
+					case 'event':
+						return hiddenKeys.has(`event|${r.subjectId}`);
+					case 'source':
+						return hiddenRecords.sources.has(r.subjectId ?? '');
+					case 'note':
+						return hiddenRecords.notes.has(r.subjectId ?? '');
+					default:
+						return false;
+				}
 			default:
 				// A source, a repository and the link between them belong to no person; what cites them is checked above.
 				return false;

@@ -26,6 +26,13 @@ import { isFactType } from '../../shared/fact-types';
 import { isNameType } from '../../shared/name-types';
 import { CITATION_SUBJECT_KIND_VALUES } from '../../shared/evidence';
 import { NOTE_SUBJECT_KIND_VALUES } from '../../shared/notes';
+import {
+	MAX_TASK_DETAILS_LENGTH,
+	MAX_TASK_TITLE_LENGTH,
+	TASK_STATUS_VALUES,
+	TASK_SUBJECT_KIND_VALUES,
+	isDueDate
+} from '../../shared/tasks';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 const idSchema = z.string().min(1);
@@ -513,3 +520,46 @@ export const noteImpactSchema = z.discriminatedUnion('kind', [
 		version: versionSchema.optional()
 	})
 ]);
+
+// ---- Research tasks (ADR-029) ----
+
+const taskTitleSchema = z.string().trim().min(1, 'A task needs a title').max(MAX_TASK_TITLE_LENGTH);
+const taskDetailsSchema = z.string().trim().max(MAX_TASK_DETAILS_LENGTH).nullable();
+const taskDueSchema = z
+	.string()
+	.refine(isDueDate, { message: 'A due date is a calendar date, such as 2027-03-31' })
+	.nullable();
+
+/** A task as the form sends it: a title, and the optional rest; it may be about one record and one finding. */
+export const taskCreateSchema = z.object({
+	title: taskTitleSchema,
+	details: taskDetailsSchema.default(null),
+	status: z.enum(TASK_STATUS_VALUES).default('open'),
+	assigneeId: idSchema.nullable().default(null),
+	dueDate: taskDueSchema.default(null),
+	subject: z
+		.object({ kind: z.enum(TASK_SUBJECT_KIND_VALUES), id: idSchema })
+		.nullable()
+		.default(null),
+	findingKey: z.string().min(1).max(2000).nullable().default(null)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears an optional one. */
+export const taskUpdateSchema = z.object({
+	version: versionSchema,
+	title: taskTitleSchema.optional(),
+	details: taskDetailsSchema.optional(),
+	status: z.enum(TASK_STATUS_VALUES).optional(),
+	assigneeId: idSchema.nullable().optional(),
+	dueDate: taskDueSchema.optional()
+});
+
+/** The tasks page's filters, all optional: open tasks by default. */
+export const taskListQuerySchema = z.object({
+	status: z.enum([...TASK_STATUS_VALUES, 'all']).optional(),
+	mine: z.enum(['true', 'false']).optional(),
+	subjectKind: z.enum(TASK_SUBJECT_KIND_VALUES).optional(),
+	subjectId: idSchema.optional(),
+	offset: z.string().optional(),
+	limit: z.string().optional()
+});

@@ -23,6 +23,7 @@ import {
 	ValidationError
 } from './errors';
 import { makeNoteMover } from './note-ops';
+import { makeTaskMover } from './task-ops';
 import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import {
 	CITATION_SUBJECT_KINDS,
@@ -326,6 +327,16 @@ function mergeSources(
 	for (const id of mergedIds)
 		ops.push(
 			...notes.move(
+				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id },
+				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id: survivor.id }
+			)
+		);
+
+	// A task about a source follows it to the survivor.
+	const tasks = makeTaskMover(rows, ctx);
+	for (const id of mergedIds)
+		ops.push(
+			...tasks.move(
 				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id },
 				{ kind: NOTE_SUBJECT_KINDS.SOURCE, id: survivor.id }
 			)
@@ -702,7 +713,7 @@ export function citationCascadeOps(rows: TreeRows, ops: RowOp[]): RowOp[] {
 }
 
 /**
- * Moves what a subject owns, its citations and its notes, to another subject: after the ones the
+ * Moves what a subject owns, its citations, its notes and the tasks about it, to another subject: after the ones the
  * target has and in their own order, for the commands that fold one record into another. State is
  * kept across calls so two records folded into one survivor do not collide.
  */
@@ -713,6 +724,7 @@ export function makeEvidenceMover(rows: TreeRows, ctx: Pick<EvidenceContext, 'no
 		next.set(key, Math.max(next.get(key) ?? 0, c.sortOrder + 1));
 	}
 	const notes = makeNoteMover(rows, ctx);
+	const tasks = makeTaskMover(rows, ctx);
 	return {
 		move(from: CitationSubjectRef, to: CitationSubjectRef): RowOp[] {
 			const moved = rows.citations
@@ -736,7 +748,7 @@ export function makeEvidenceMover(rows: TreeRows, ctx: Pick<EvidenceContext, 'no
 					}
 				};
 			});
-			return [...citationOps, ...notes.move(from, to)];
+			return [...citationOps, ...notes.move(from, to), ...tasks.move(from, to)];
 		}
 	};
 }
