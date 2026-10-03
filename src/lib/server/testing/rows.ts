@@ -33,6 +33,11 @@ export interface RowsSpec {
 	}>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
+	/** Citations of the facts, names, people or partnerships above, by what they support. */
+	citations?: Array<{
+		subjectKind: 'person' | 'name' | 'event' | 'union' | 'parent_child';
+		subjectId: string;
+	}>;
 }
 
 export function treeRows(spec: RowsSpec = {}): TreeRows {
@@ -49,6 +54,32 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		sourceRepositories: [],
 		citations: []
 	};
+	for (const [index, c] of (spec.citations ?? []).entries()) {
+		rows.citations.push({
+			id: `cite-${index}`,
+			treeId: TEST_TREE_ID,
+			subjectKind: c.subjectKind,
+			subjectId: c.subjectId,
+			sortOrder: index,
+			sourceId: null,
+			sourceRef: null,
+			description: 'a register',
+			page: null,
+			quality: null,
+			entryDateRaw: null,
+			entryDateSort: null,
+			entryDateSortEnd: null,
+			entryDateQualifier: null,
+			entryDatePrecision: null,
+			entryDateCalendar: null,
+			text: null,
+			gedcomExtra: null,
+			gedcomLayout: null,
+			version: 1,
+			createdAt: T0,
+			updatedAt: T0
+		});
+	}
 	const event = (
 		partial: Partial<EventRow> & { id: string; entityId: string; type: string }
 	): EventRow => ({

@@ -35,7 +35,10 @@ export function isCitationQuality(value: unknown): value is CitationQuality {
 	return value === 0 || value === 1 || value === 2 || value === 3;
 }
 
-/** The facts a researcher is expected to be able to source; an unsourced one earns a suggestion (ADR-028). */
+/**
+ * The facts a researcher is expected to be able to source: a person's birth and death and a
+ * partnership's marriage. An uncited one earns a research suggestion, never a warning (ADR-028).
+ */
 export const KEY_FACT_TYPES = ['BIRT', 'DEAT', 'MARR'] as const;
 
 /** A claim's evidence state, in words, so colour is never the only signal. */
@@ -155,7 +158,10 @@ export interface SourceListItem {
 
 export interface RepositoryListItem {
 	id: string;
+	/** Send this back when editing; a newer stored version is a conflict. */
+	version: number;
 	name: string | null;
+	address: string | null;
 	sourceCount: number;
 }
 

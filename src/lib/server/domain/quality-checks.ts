@@ -19,6 +19,7 @@ import {
 	type QualityFinding,
 	type QualityRuleCode
 } from '../../shared/quality';
+import { KEY_FACT_TYPES } from '../../shared/evidence';
 import type { EventRow, IndividualRow, TreeRows } from './change-log';
 import { personName } from './tree-ops';
 
@@ -59,6 +60,11 @@ export function checkQuality(rows: TreeRows): QualityFinding[] {
 	const unionIds = new Set(rows.unions.map((u) => u.id));
 	const name = (id: string) => (people.has(id) ? personName(people.get(id)!) : 'Someone');
 	const person = (id: string): FindingSubject => ({ kind: 'person', id, name: name(id) });
+	const partnerIdsOfUnion = new Map<string, string[]>();
+	for (const p of rows.unionPartners)
+		partnerIdsOfUnion.set(p.unionId, [...(partnerIdsOfUnion.get(p.unionId) ?? []), p.personId]);
+	const partnersLabel = (unionId: string) =>
+		(partnerIdsOfUnion.get(unionId) ?? []).map(name).join(' and ') || 'a partnership';
 
 	function add(
 		rule: QualityRuleCode,
@@ -74,6 +80,12 @@ export function checkQuality(rows: TreeRows): QualityFinding[] {
 			subjects
 		});
 	}
+
+	// A key fact nobody cites is a prompt to research, not a fault; "cited" is any citation at all.
+	const citedEvents = new Set(
+		rows.citations.filter((c) => c.subjectKind === 'event').map((c) => c.subjectId)
+	);
+	const keyFactTypes: ReadonlySet<string> = new Set(KEY_FACT_TYPES);
 
 	const eventsOfPerson = new Map<string, EventRow[]>();
 	for (const e of rows.events) {
@@ -91,6 +103,24 @@ export function checkQuality(rows: TreeRows): QualityFinding[] {
 				`A ${e.type} fact belongs to ${e.entityType === 'INDIVIDUAL' ? 'a person' : 'a partnership'} who is not in the tree.`,
 				[]
 			);
+		else if (keyFactTypes.has(e.type) && !citedEvents.has(e.id)) {
+			// A person's birth or death, or a partnership's marriage: the type decides which, so a
+			// marriage recorded on a person, or a birth on a partnership, is nobody's key fact.
+			const isOfPerson = e.entityType === 'INDIVIDUAL';
+			if (isOfPerson === (e.type !== 'MARR')) {
+				const label = factTypeInfo(e.type)?.label ?? e.type;
+				add(
+					'unsourced_key_fact',
+					[e.id],
+					isOfPerson
+						? `The ${label.toLowerCase()} of ${name(e.entityId)} has no citation.`
+						: `The marriage of ${partnersLabel(e.entityId)} has no citation.`,
+					isOfPerson
+						? [person(e.entityId)]
+						: [{ kind: 'partnership', id: e.entityId, name: partnersLabel(e.entityId) }]
+				);
+			}
+		}
 	}
 
 	const birthOf = new Map<string, DateBounds | null>();
