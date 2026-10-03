@@ -1,5 +1,8 @@
 # Improvement plan: gap analysis and tree rendering (2026-09-29)
 
+> Historical. The slices below have shipped; the diagnosis of the old tree layout ("Root causes")
+> describes code that no longer exists. Open work is tracked in [roadmap.md](./roadmap.md).
+
 This plan compares the running app with [roadmap.md](./roadmap.md), the phase documents and the
 webtrees capability baseline. It proposes an ordered set of small, commit-sized slices. Every
 finding below was verified against the code or the running app, using `The_Simpsons_clean.ged`
@@ -65,7 +68,7 @@ A probe that ran the layout for every person as focus on the Simpsons tree found
 ### Root causes
 
 1. **Included unions don't bring their partners.** Both BFS loops in `selectFocusedGraph`
-   ([neutral-graph-layout.ts:111-129](../src/lib/components/tree/neutral-graph-layout.ts)) call
+   (`neutral-graph-layout.ts` lines 111 to 129, since replaced by `src/lib/tree-layout/`) call
    `includedUnions.add(pc.unionId)` without adding that union's other partners. Only the focus
    person's own unions add partners (line 132). The fix is one rule: when a union is included,
    include all its partners, or a stub for each.
@@ -78,7 +81,7 @@ A probe that ran the layout for every person as focus on the Simpsons tree found
 5. **Edges are emitted per assertion, not per visual relationship.** Line 308 emits one edge per
    `(parent, child)` assertion rather than one per `(union, child)`.
 6. **The existing test encodes the bug.** The `selectFocusedGraph` test at
-   [neutral-graph-layout.test.ts:101](../src/lib/components/tree/neutral-graph-layout.test.ts)
+   `neutral-graph-layout.test.ts` line 101 (also removed)
    asserts that `p2`, a partner of an included parent, is excluded. Change this test as part of
    the fix.
 
@@ -292,7 +295,7 @@ number prefix can overlap.
 | S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
 | S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start (done) | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]` with the old `/?tree=` address redirecting; person and partnership pages; a repeatable fact editor; the bounded `/graph?focus=` endpoint (`up`/`down` in place of `depth`), proved equal to the whole-tree layout. See ADR-011 and ADR-012 and [query-plans.md](./query-plans.md). |
-| S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./s6-person-names-prompt.md). |
+| S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./archive/s6-person-names-prompt.md). |
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
@@ -321,7 +324,7 @@ date to the marriage event or a note. Legacy programs write `_MARNM` for a marri
 Decision for S6: keep every name; add an optional "from" date and an optional partnership link on
 a name in Epoch's own columns, and export them as a `NOTE` under the `NAME` so nothing is lost on a
 round trip. The display name follows the preferred name. Full scope, non-goals and process rules
-are in [s6-person-names-prompt.md](./s6-person-names-prompt.md).
+are in [s6-person-names-prompt.md](./archive/s6-person-names-prompt.md).
 
 **S6 status (2026-09-30): done.** Departures from this plan and things left open:
 
@@ -361,7 +364,7 @@ Left open or departing from the plan:
 
 ### S8: privacy foundation
 
-**S8 status (2026-10-01): done, merged and deployed 2026-10-02 (migrations 0012 to 0014 applied remotely, owner check clean).** Phase 4 items 3, 4, 5 (people, facts, partnerships), 6 and the read side of 10. See [ADR-015](./decisions.md), [s8-privacy-foundation-prompt.md](./s8-privacy-foundation-prompt.md) and [query-plans.md](./query-plans.md#visibility-s8-adr-015).
+**S8 status (2026-10-01): done, merged and deployed 2026-10-02 (migrations 0012 to 0014 applied remotely, owner check clean).** Phase 4 items 3, 4, 5 (people, facts, partnerships), 6 and the read side of 10. See [ADR-015](./decisions.md), [s8-privacy-foundation-prompt.md](./archive/s8-privacy-foundation-prompt.md) and [query-plans.md](./query-plans.md#visibility-s8-adr-015).
 
 - **Who is private.** A person with a death, burial or cremation fact, or whose latest birth or baptism upper bound is before a cutoff, is not living. The cutoff is 120 years by default, set per tree, computed from an injected `now`. Anyone else, including anyone with no dated fact, is private. `individuals.privacy` (`auto`/`public`/`private`, migration 0012) overrides it; `RESN privacy|confidential` imports as `private` and exports back as `RESN privacy`, and `public` travels as `_EPOCH_PRIVACY public`.
 - **Where it is decided.** One `ViewerScope` per request (`requireTreeScope`); owners, managers and editors see everyone, contributors and viewers do not. The paged reads carry a visibility predicate beside `tree_id`, so totals, `hasMore`, page fill, surname counts and order are computed over what the viewer may see. The reads that load rows mask them (`maskRows`), and the focus window never loads a private person. `filterForViewer` is gone.
