@@ -21,6 +21,14 @@ export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.i
 	return result.data as z.infer<T>;
 }
 
+/** Parse a query string against a schema; the values are strings, so the schema coerces. */
+export function parseQuery<T extends z.ZodTypeAny>(
+	schema: T,
+	params: URLSearchParams
+): z.infer<T> {
+	return parseBody(schema, Object.fromEntries(params));
+}
+
 /** Flatten a Zod issue into a single readable line for the client. */
 function flattenZodError(error: z.ZodError): string {
 	const field = error.issues[0]?.path?.filter((p) => typeof p === 'string').join('.');
