@@ -16,6 +16,7 @@ import { ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { requireTask, type TaskCommand } from '../domain/task-ops';
 import { MemberRepository } from '../repositories/member-repository';
+import type { ImpactSummary } from '../../shared/impact';
 import type { TaskInput, TaskSubjectRef } from '../../shared/tasks';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 
@@ -50,6 +51,20 @@ export class TaskService {
 			commands: [command],
 			requiredAction
 		});
+	}
+
+	/** What deleting a task would write, without writing it. */
+	async previewDelete(
+		treeId: string,
+		taskId: string,
+		expectedVersion: number | undefined,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		await this.runner.requireAccess(treeId, context, 'record:delete');
+		const command: TaskCommand = { kind: 'delete_task', taskId, expectedVersion };
+		return this.runner.preview(treeId, context, [command], (rows) =>
+			describeCommand(command, rows)
+		);
 	}
 
 	async createTask(

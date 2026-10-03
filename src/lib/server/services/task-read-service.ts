@@ -72,7 +72,8 @@ export class TaskReadService {
 		const page = clampPage(query);
 		const base: Omit<TaskFilter, 'status'> = {
 			...(query.isMine ? { assigneeId: context.user.id } : {}),
-			...(query.subject ? { subject: query.subject } : {})
+			...(query.subject ? { subject: query.subject } : {}),
+			...(query.linked ? { linked: query.linked } : {})
 		};
 		const status = query.status ?? TASK_STATUSES.OPEN;
 		const filter: TaskFilter = { ...base, ...(status === 'all' ? {} : { status }) };
@@ -91,6 +92,11 @@ export class TaskReadService {
 			counts,
 			members: members.map(memberChoice)
 		};
+	}
+
+	/** The people a task may be given to: current members, by name only. */
+	async memberChoices(treeId: string): Promise<Array<{ id: string; name: string }>> {
+		return (await this.members.listMembers(treeId)).map(memberChoice);
 	}
 
 	async getTask(treeId: string, taskId: string, context: AuthenticatedContext): Promise<TaskDto> {

@@ -187,6 +187,7 @@ const ENTRIES: Record<string, Entry> = {
 	// DELETE are the more dangerous half, so the entries name the write kind.
 	[`${API}/trees/[id]/tasks/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
+	[`${API}/trees/[id]/tasks/impact/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/unions/merge/+server.ts`]: { kind: 'guarded-write', covers: WRITES }

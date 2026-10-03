@@ -108,6 +108,8 @@ export interface TaskDto extends PrivacyFlag {
 	 * with its link cleared, and says so.
 	 */
 	clearedLinkKind: TaskSubjectKind | null;
+	/** The viewer may edit it: an editor or above, or a contributor who made it. */
+	canEdit: boolean;
 	createdBy: string | null;
 	createdByName: string | null;
 	/** Epoch milliseconds. */
@@ -122,6 +124,8 @@ export interface TaskListQuery {
 	isMine: boolean;
 	/** Only tasks about this record. */
 	subject: TaskSubjectRef | null;
+	/** Only tasks about a record of this kind, or `none` for tasks about no record. */
+	linked: TaskSubjectKind | 'none' | null;
 	offset: number;
 	limit: number;
 }

@@ -15,6 +15,7 @@
 	import PersonPrivacy from './PersonPrivacy.svelte';
 	import PersonSection from './PersonSection.svelte';
 	import PersonSummary from './PersonSummary.svelte';
+	import PersonTasks from './PersonTasks.svelte';
 	import { canSetPrivacy } from './person-permissions.js';
 	import type { RelativeTarget } from './relative-target.js';
 	import { LINK_TARGET } from './relative-target.js';
@@ -79,6 +80,12 @@
 	</PersonSection>
 {/snippet}
 
+{#snippet tasks()}
+	<PersonSection id="tasks" title="Tasks" {layout}>
+		<PersonTasks {dto} {treeId} {role} {editor} {toasts} />
+	</PersonSection>
+{/snippet}
+
 {#snippet evidence()}
 	<PersonSection id="evidence" title="Sources and evidence" {layout}>
 		<PersonEvidence {dto} {treeId} {role} {editor} {toasts} />
@@ -110,6 +117,7 @@
 				{@render facts()}
 				{@render notes()}
 				{@render evidence()}
+				{@render tasks()}
 				{@render media()}
 			</div>
 			<div class="space-y-6">
@@ -127,6 +135,7 @@
 			{@render privacy()}
 			{@render notes()}
 			{@render evidence()}
+			{@render tasks()}
 			{@render history()}
 		</div>
 	{/if}

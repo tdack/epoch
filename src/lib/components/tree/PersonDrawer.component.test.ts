@@ -35,6 +35,7 @@ const page = {
 	media: [],
 	notes: [],
 	linkNotes: [],
+	tasks: { items: [], members: [] },
 	evidence: { citations: [], links: [] },
 	changes: { recent: [], createdAt: null, updatedAt: null }
 } as unknown as PersonPageDto;

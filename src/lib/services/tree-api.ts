@@ -1407,3 +1407,16 @@ export async function deleteTaskApi(
 		'Failed to delete the task'
 	);
 }
+
+export async function previewDeleteTaskApi(
+	treeId: string,
+	taskId: string,
+	version: number
+): Promise<ImpactSummary> {
+	const data = await call<{ impact: ImpactSummary }>(
+		`/api/trees/${enc(treeId)}/tasks/impact`,
+		json('POST', { taskId, version }),
+		'Failed to preview the change'
+	);
+	return data.impact;
+}

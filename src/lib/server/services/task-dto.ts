@@ -12,6 +12,7 @@ import type { GraphWindowRepository } from '../repositories/graph-window-reposit
 import type { EvidenceRepository } from '../repositories/evidence-repository';
 import type { NoteRepository } from '../repositories/note-repository';
 import type { MemberRow } from '../repositories/member-repository';
+import { hasMinimumRole } from '../../shared/roles';
 import { TASK_SUBJECT_KINDS, type TaskDto, type TaskSubjectKind } from '../../shared/tasks';
 import { personSummaries } from './person-summaries';
 import type { ViewerScope } from './tree-access';
@@ -152,6 +153,9 @@ export async function loadTaskDtos(
 			findingKey: task.findingKey,
 			// A link to a record that is no longer there reads as cleared, whichever way it went.
 			clearedLinkKind: subject === null ? (task.linkClearedKind ?? task.subjectKind) : null,
+			canEdit:
+				hasMinimumRole(scope.role, 'editor') ||
+				(scope.role === 'contributor' && task.createdBy === scope.userId),
 			createdBy: task.createdBy,
 			createdByName: task.createdBy ? (memberName.get(task.createdBy) ?? null) : null,
 			createdAt: task.createdAt,

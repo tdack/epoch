@@ -560,6 +560,10 @@ export const taskListQuerySchema = z.object({
 	mine: z.enum(['true', 'false']).optional(),
 	subjectKind: z.enum(TASK_SUBJECT_KIND_VALUES).optional(),
 	subjectId: idSchema.optional(),
+	linked: z.enum([...TASK_SUBJECT_KIND_VALUES, 'none']).optional(),
 	offset: z.string().optional(),
 	limit: z.string().optional()
 });
+
+/** A preview of deleting a task. */
+export const taskImpactSchema = z.object({ taskId: idSchema, version: versionSchema.optional() });
