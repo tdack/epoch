@@ -29,13 +29,13 @@ describe('editor.mutate', () => {
 
 	it('shows the server’s message as an error and answers false, without reloading', async () => {
 		const { editor, toasts, refresh } = setup();
-		const ok = await editor.mutate(
+		const didWork = await editor.mutate(
 			async () => {
 				throw new Error('Someone else changed this');
 			},
 			{ done: 'Done', failure: 'Could not reorder' }
 		);
-		expect(ok).toBe(false);
+		expect(didWork).toBe(false);
 		expect(refresh).not.toHaveBeenCalled();
 		expect(toasts.items).toMatchObject([{ message: 'Someone else changed this', tone: 'error' }]);
 	});
