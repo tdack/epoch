@@ -1,7 +1,6 @@
 import { browser } from '$app/env';
 import type {
 	TreeSummary,
-	TreeDetails,
 	PersonFormData,
 	RelationshipIntent,
 	RelationshipPlan,
@@ -112,19 +111,6 @@ const json = (method: string, body: unknown): RequestInit => ({
 	headers: { 'Content-Type': 'application/json' },
 	body: JSON.stringify(body)
 });
-
-export async function fetchTrees(): Promise<TreeSummary[]> {
-	const data = await call<{ trees?: TreeSummary[] }>(
-		'/api/trees',
-		undefined,
-		'Failed to load trees'
-	);
-	return data.trees || [];
-}
-
-export async function fetchTreeDetails(treeId: string): Promise<TreeDetails> {
-	return call<TreeDetails>(`/api/trees/${treeId}`, undefined, 'Failed to fetch tree details');
-}
 
 export async function createTreeApi(payload: {
 	name: string;

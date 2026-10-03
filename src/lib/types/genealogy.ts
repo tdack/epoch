@@ -8,18 +8,6 @@ export interface TreeSummary {
 	role?: TreeRole;
 }
 
-export interface TreeDetails {
-	tree: {
-		id: string;
-		name: string;
-		description?: string | null;
-		createdAt?: string;
-		updatedAt?: string;
-	};
-	individuals: any[];
-	families: any[];
-}
-
 export interface ImportPreviewData {
 	mode: 'replace' | 'merge';
 	deleteCounts?: {
