@@ -194,6 +194,7 @@
 	.stage :global([data-union-id]),
 	.stage :global([data-ghost-id]),
 	.stage :global([data-stub-id]),
+	.stage :global([data-fold-id]),
 	.stage :global([data-collapser-id]) {
 		pointer-events: auto;
 	}

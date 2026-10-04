@@ -24,7 +24,7 @@ const ZOOM_BUTTON_MS = 220;
 
 /** Elements that start their own gesture, so a drag on them must not pan the canvas. */
 const OWN_GESTURE_SELECTOR =
-	'[data-person-id], [data-stub-id], [data-collapser-id], [data-edge-id], [data-union-id]';
+	'[data-person-id], [data-stub-id], [data-fold-id], [data-collapser-id], [data-edge-id], [data-union-id]';
 
 function prefersReducedMotion(): boolean {
 	return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

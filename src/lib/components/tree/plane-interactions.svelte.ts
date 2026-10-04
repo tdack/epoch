@@ -40,6 +40,15 @@ export class PlaneInteractions {
 		this.#config = config;
 	}
 
+	/**
+	 * The card the keys last moved to while the chart is still centred on the same person. Unlike
+	 * `activeId` it does not look at the drawn cards, so a view that folds cards can protect it.
+	 */
+	get cursorPersonId(): string | null {
+		const cursor = this.#cursor;
+		return cursor && cursor.focusId === this.#config.focusPersonId() ? cursor.personId : null;
+	}
+
 	/** The one card in the tab order: the keyboard cursor while it is valid, else the focus person. */
 	activeId = $derived.by(() => {
 		const cursor = this.#cursor;

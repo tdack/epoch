@@ -3,6 +3,7 @@
 	import { LAYOUT_METRICS, type PlacedPerson, type PlacedUnion } from '#lib/tree-layout/index.js';
 	import type { FloorPerson, FloorsLayout } from '#lib/tree-layout/floors.js';
 	import CollapserMark from './CollapserMark.svelte';
+	import FoldMark from './FoldMark.svelte';
 	import PersonCard from './PersonCard.svelte';
 	import PlaneStack, { type ConnectorSpec, type PlaneSpec } from './PlaneStack.svelte';
 	import StubMark from './StubMark.svelte';
@@ -11,7 +12,8 @@
 	import TreeLegend from './TreeLegend.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import ZoomControls from './ZoomControls.svelte';
-	import { BAND_OPACITY, bandRowY, floorPoint, framingLayout } from './plane-stack.js';
+	import { bandRowY, floorPoint, framingLayout, planeScreenBox } from './plane-stack.js';
+	import { foldWideRows, isBoxInView, type FoldMark as FoldMarkSpec } from './plane-scale.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { childLinks, type PlaneNav } from './plane-keyboard.js';
 	import { PlaneInteractions } from './plane-interactions.svelte.js';
@@ -21,7 +23,7 @@
 		type PersonRef,
 		type TreeEditActions
 	} from './tree-actions.js';
-	import { treeTokenStyle } from './tree-tokens.js';
+	import { BAND_FADE, CAMERA_TOKENS, treeTokenStyle } from './tree-tokens.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
 	import {
 		childEdgeStyle,
@@ -72,6 +74,10 @@
 
 	const M = LAYOUT_METRICS;
 	const ZOOM_STEP = 1.35;
+	/** A back row with more cards than this folds the far ones into a "+N" mark. */
+	const FOLD_LIMIT_CARDS = 10;
+	/** A floor this far off the canvas is still drawn, so a pan does not wait for it to mount. */
+	const CULL_MARGIN_PX = 240;
 	const PLANE_PADDING_PX = 40;
 	/** Floors this many generations from the focus drop a level of detail, so the far ones stay light. */
 	const FAR_FLOOR_GENERATIONS = 2;
@@ -96,9 +102,63 @@
 			: ''
 	);
 
+	/** Open rows stay open until the chart is redrawn around someone else. */
+	let openRowKeys = $state<string[]>([]);
+	$effect(() => {
+		void fitKey;
+		untrack(() => (openRowKeys = []));
+	});
+	const fold: ReturnType<typeof foldWideRows> = $derived.by(() => {
+		const focus = peopleById.get(layout.focusPersonId ?? '');
+		return foldWideRows(
+			layout.people.map((p) => ({ id: p.id, group: p.band, generation: p.generation, x: p.x })),
+			{
+				limit: FOLD_LIMIT_CARDS,
+				centreX: focus?.x ?? 0,
+				// Whoever holds the focus, the keyboard cursor or the drawer must stay a card.
+				protectedIds: new Set(
+					[layout.focusPersonId, selectedPersonId, interactions.cursorPersonId].filter(
+						(id): id is string => !!id
+					)
+				),
+				openRowKeys: new Set(openRowKeys)
+			}
+		);
+	});
+	/** The layout without the folded cards and everything that hung from them. */
+	const drawn = $derived.by(() => {
+		const gone = fold.hiddenIds;
+		const isGone = (id: string) => gone.has(id);
+		const hiddenUnionIds = new Set(
+			layout.unions.filter((u) => u.union.partnerIds.some(isGone)).map((u) => u.id)
+		);
+		const stubIsGone = (stubId: string) => {
+			const stub = stubById.get(stubId);
+			return !stub || isGone(stub.personId);
+		};
+		return {
+			people: layout.people.filter((p) => !isGone(p.id)),
+			unions: layout.unions.filter((u) => !hiddenUnionIds.has(u.id)),
+			stubs: layout.stubs.filter((st) => !isGone(st.personId)),
+			collapsers: layout.collapsers.filter((c) => !isGone(c.personId)),
+			floorEdges: layout.floorEdges.filter(
+				(e) => !isGone(e.personId) && !hiddenUnionIds.has(e.unionId)
+			),
+			drops: layout.drops.filter(
+				(d) =>
+					!isGone(d.childId) &&
+					!(d.parentId && isGone(d.parentId)) &&
+					!(d.unionId && hiddenUnionIds.has(d.unionId))
+			),
+			stubLinks: layout.stubLinks.filter((l) => !stubIsGone(l.stubId))
+		};
+	});
+	/** The mark's row, named as its cards are. */
+	const rowNameOf = (mark: FoldMarkSpec) => BAND_NAMES[mark.group as 0 | 1 | 2];
+
 	/** What the arrow keys walk: every person by floor and band, and the lines between floors. */
 	const nav = $derived<PlaneNav>({
-		people: layout.people.map((p) => ({
+		people: drawn.people.map((p) => ({
 			id: p.id,
 			group: p.band,
 			generation: p.generation,
@@ -107,7 +167,7 @@
 		links: childLinks(layout.drops, new Map(layout.unions.map((u) => [u.id, u.union.partnerIds]))),
 		unionPartners: layout.unions.map((u) => u.union.partnerIds)
 	});
-	const interactions = new PlaneInteractions({
+	const interactions: PlaneInteractions = new PlaneInteractions({
 		container: () => containerElement,
 		focusPersonId: () => layout.focusPersonId,
 		nav: () => nav,
@@ -165,6 +225,39 @@
 		})
 	);
 
+	/**
+	 * Floors nobody can see for this pan and zoom draw no cards. The floor holding the focus, the
+	 * keyboard cursor or the open drawer is always drawn, so focus never lands on nothing.
+	 */
+	const culledFloorKeys = $derived.by(() => {
+		const { rotateXDeg, rotateYDeg } = CAMERA_TOKENS.floors;
+		const keep = new Set(
+			[layout.focusPersonId, selectedPersonId, activeId]
+				.map((id) => (id ? peopleById.get(id)?.generation : undefined))
+				.filter((generation) => generation !== undefined)
+				.map(String)
+		);
+		return new Set(
+			planes
+				.filter(
+					(spec) =>
+						!keep.has(spec.key) &&
+						!isBoxInView(
+							planeScreenBox(spec.bounds, { x: 0, y: 0, z: spec.z }, rotateXDeg, rotateYDeg),
+							transform,
+							viewport.size,
+							CULL_MARGIN_PX
+						)
+				)
+				.map((spec) => spec.key)
+		);
+	});
+
+	/** Front row first; none at all for a floor that is out of view. */
+	function bandsOf(floorKey: string): readonly (0 | 1 | 2)[] {
+		return culledFloorKeys.has(floorKey) ? [] : [0, 1, 2];
+	}
+
 	/** Distance below a card row at which a hanging union node sits; matches the flat layout. */
 	const HANG_OFFSET_PX = M.cardHeight / 2 + M.unionRadius + 4;
 
@@ -216,7 +309,7 @@
 	/** Lines that leave one floor and land on another: parent to child, and a "+N" stub to its owner. */
 	const connectors = $derived.by<ConnectorSpec[]>(() => {
 		const found: ConnectorSpec[] = [];
-		for (const drop of layout.drops) {
+		for (const drop of drawn.drops) {
 			const style = childEdgeStyle(drop.types);
 			found.push({
 				id: drop.id,
@@ -232,7 +325,7 @@
 				opacity: drop.isSecondaryPath ? 0.6 : 1
 			});
 		}
-		for (const link of layout.stubLinks) {
+		for (const link of drawn.stubLinks) {
 			const stub = stubById.get(link.stubId);
 			if (!stub) continue;
 			const isAncestors = stub.kind === 'ancestors';
@@ -306,15 +399,15 @@
 			{#snippet plane(spec)}
 				{@const generation = Number(spec.key)}
 				{@const level = levelOf(generation)}
-				{#each [0, 1, 2] as const as band (band)}
+				{#each bandsOf(spec.key) as band (band)}
 					<g
 						class="band"
 						data-band={band}
 						role="group"
 						aria-label={BAND_LABELS[band]}
-						style:opacity={BAND_OPACITY[band]}
+						style:opacity={BAND_FADE[band]}
 					>
-						{#each layout.floorEdges.filter((e) => e.generation === generation && e.band === band) as edge (edge.id)}
+						{#each drawn.floorEdges.filter((e) => e.generation === generation && e.band === band) as edge (edge.id)}
 							{@const union = unionById.get(edge.unionId)}
 							{#if union}
 								<TreeEdge
@@ -331,7 +424,7 @@
 							{/if}
 						{/each}
 
-						{#each layout.unions.filter((u) => u.generation === generation && u.band === band) as union (union.id)}
+						{#each drawn.unions.filter((u) => u.generation === generation && u.band === band) as union (union.id)}
 							<UnionMarker
 								union={placedUnion(union)}
 								{level}
@@ -344,7 +437,7 @@
 							/>
 						{/each}
 
-						{#each layout.people.filter((p) => p.generation === generation && p.band === band) as person (person.id)}
+						{#each drawn.people.filter((p) => p.generation === generation && p.band === band) as person (person.id)}
 							<PersonCard
 								node={placedPerson(person)}
 								{level}
@@ -362,7 +455,7 @@
 						{/each}
 
 						<!-- Hit targets follow the cards, so Tab reaches a person's partnerships right after the person. -->
-						{#each layout.unions.filter((u) => u.generation === generation && u.band === band) as union (union.id)}
+						{#each drawn.unions.filter((u) => u.generation === generation && u.band === band) as union (union.id)}
 							<UnionMarker
 								union={placedUnion(union)}
 								{level}
@@ -381,7 +474,7 @@
 							/>
 						{/each}
 
-						{#each layout.stubs.filter((s) => s.generation === generation && s.band === band) as stub (stub.id)}
+						{#each drawn.stubs.filter((s) => s.generation === generation && s.band === band) as stub (stub.id)}
 							<StubMark
 								{stub}
 								x={stub.x}
@@ -390,13 +483,23 @@
 							/>
 						{/each}
 
-						{#each layout.collapsers.filter((c) => c.generation === generation && c.band === band) as collapser (collapser.stubId)}
+						{#each drawn.collapsers.filter((c) => c.generation === generation && c.band === band) as collapser (collapser.stubId)}
 							{@const at = collapserAt(collapser)}
 							<CollapserMark
 								stubId={collapser.stubId}
 								x={at.x}
 								y={at.y}
 								onCollapse={(id) => onCollapseStub?.(id)}
+							/>
+						{/each}
+
+						{#each fold.marks.filter((m) => m.generation === generation && m.group === band) as mark (mark.id)}
+							<FoldMark
+								{mark}
+								x={mark.x}
+								y={bandRowY(band)}
+								rowName={rowNameOf(mark)}
+								onOpen={() => (openRowKeys = [...openRowKeys, mark.rowKey])}
 							/>
 						{/each}
 					</g>
