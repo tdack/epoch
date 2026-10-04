@@ -16,6 +16,7 @@
 import { isPersonPrivate, type LivingFact } from './living-state';
 import type { IndividualRow, RowOp, TreeRows } from './change-log';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import { NotFoundError } from './errors';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
@@ -96,7 +97,10 @@ function visibleEvidence(
 	rows: TreeRows,
 	hiddenKeys: Set<string>,
 	creatorId: string | null
-): Pick<TreeRows, 'sources' | 'repositories' | 'sourceRepositories' | 'citations'> {
+): Pick<
+	TreeRows,
+	'sources' | 'repositories' | 'sourceRepositories' | 'citations' | 'notes' | 'noteAttachments'
+> {
 	const citations = rows.citations.filter(
 		(c) => !hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)
 	);
@@ -109,12 +113,70 @@ function visibleEvidence(
 	const linked = new Set(
 		sourceRepositories.flatMap((l) => (l.repositoryId ? [l.repositoryId] : []))
 	);
+	const repositories = rows.repositories.filter((r) => linked.has(r.id) || isOwn(r));
+
+	// Notes follow what they are on (ADR-029): an attachment is visible only if its subject is, and a
+	// shared note only if a visible attachment uses it or the viewer made it. A note under a source,
+	// a repository or a citation is as visible as that record is to this viewer.
+	const keptCitations = new Set(citations.map((c) => c.id));
+	const keptSourceIds = new Set(sources.map((s) => s.id));
+	const keptRepositories = new Set(repositories.map((r) => r.id));
+	const isSubjectVisible = (kind: string, id: string) => {
+		switch (kind) {
+			case NOTE_SUBJECT_KINDS.SOURCE:
+				return keptSourceIds.has(id);
+			case NOTE_SUBJECT_KINDS.REPOSITORY:
+				return keptRepositories.has(id);
+			case NOTE_SUBJECT_KINDS.CITATION:
+				return keptCitations.has(id);
+			default:
+				return !hiddenKeys.has(`${kind}|${id}`);
+		}
+	};
+	const noteAttachments = rows.noteAttachments.filter((a) =>
+		isSubjectVisible(a.subjectKind, a.subjectId)
+	);
+	const used = new Set(noteAttachments.flatMap((a) => (a.noteId ? [a.noteId] : [])));
 	return {
 		sources,
-		repositories: rows.repositories.filter((r) => linked.has(r.id) || isOwn(r)),
+		repositories,
 		sourceRepositories,
-		citations
+		citations,
+		notes: rows.notes.filter((n) => used.has(n.id) || isOwn(n)),
+		noteAttachments
 	};
+}
+
+/**
+ * The tasks a restricted viewer may see (ADR-029): an unlinked task is visible to every member, and
+ * one about a record only if that record is. A task's title is the author's own words and can name
+ * the person it is about, so a task about a private person is as absent as the person.
+ */
+function visibleTasks(
+	rows: TreeRows,
+	hidden: Set<string>,
+	unionsWithHiddenPartner: Set<string>,
+	hiddenKeys: Set<string>,
+	evidence: Pick<TreeRows, 'sources' | 'notes'>
+): TreeRows['researchTasks'] {
+	const sources = new Set(evidence.sources.map((s) => s.id));
+	const notes = new Set(evidence.notes.map((n) => n.id));
+	return rows.researchTasks.filter((t) => {
+		switch (t.subjectKind) {
+			case null:
+				return true;
+			case 'person':
+				return !hidden.has(t.subjectId ?? '');
+			case 'union':
+				return !unionsWithHiddenPartner.has(t.subjectId ?? '');
+			case 'event':
+				return !hiddenKeys.has(`event|${t.subjectId}`);
+			case 'source':
+				return sources.has(t.subjectId ?? '');
+			default:
+				return notes.has(t.subjectId ?? '');
+		}
+	});
 }
 
 const placeholderOf = (row: IndividualRow): IndividualRow => ({
@@ -135,11 +197,12 @@ export function maskRows(
 	const unionsWithHiddenPartner = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
-	const evidence = visibleEvidence(
-		rows,
-		hiddenSubjectKeys(rows, hidden, unionsWithHiddenPartner),
-		creatorId
-	);
+	const hiddenKeys = hiddenSubjectKeys(rows, hidden, unionsWithHiddenPartner);
+	const visible = visibleEvidence(rows, hiddenKeys, creatorId);
+	const evidence = {
+		...visible,
+		researchTasks: visibleTasks(rows, hidden, unionsWithHiddenPartner, hiddenKeys, visible)
+	};
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
 		const isEvidenceWhole = (Object.keys(evidence) as Array<keyof typeof evidence>).every(
@@ -256,14 +319,28 @@ export function opsTouchPrivate(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
 	const hiddenKeys = hiddenSubjectKeys(rows, hidden, hiddenUnions);
-	return ops.some((op) => touchesHidden(op, hidden, hiddenUnions, hiddenKeys));
+	const hiddenCitations = new Set(
+		rows.citations.filter((c) => hiddenKeys.has(`${c.subjectKind}|${c.subjectId}`)).map((c) => c.id)
+	);
+	const visible = visibleEvidence(rows, hiddenKeys, creatorId);
+	const keptSources = new Set(visible.sources.map((src) => src.id));
+	const keptNotes = new Set(visible.notes.map((n) => n.id));
+	const hiddenRecords = {
+		sources: new Set(rows.sources.filter((src) => !keptSources.has(src.id)).map((src) => src.id)),
+		notes: new Set(rows.notes.filter((n) => !keptNotes.has(n.id)).map((n) => n.id))
+	};
+	return ops.some((op) =>
+		touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations, hiddenRecords)
+	);
 }
 
 function touchesHidden(
 	op: RowOp,
 	hidden: Set<string>,
 	hiddenUnions: Set<string>,
-	hiddenKeys: Set<string>
+	hiddenKeys: Set<string>,
+	hiddenCitations: Set<string>,
+	hiddenRecords: { sources: Set<string>; notes: Set<string> }
 ): boolean {
 	return [op.before, op.after].some((image) => {
 		if (!image) return false;
@@ -291,6 +368,27 @@ function touchesHidden(
 				return hidden.has(r.entityId ?? '');
 			case 'citations':
 				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
+			case 'note_attachments':
+				// A note on a citation is as private as the citation's own subject; one on a source or
+				// repository belongs to no person, like the record itself.
+				if (r.subjectKind === 'citation') return hiddenCitations.has(r.subjectId ?? '');
+				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
+			case 'research_tasks':
+				// A task about a record the viewer cannot see is hidden with it, however it is changed.
+				switch (r.subjectKind) {
+					case 'person':
+						return hidden.has(r.subjectId ?? '');
+					case 'union':
+						return hiddenUnions.has(r.subjectId ?? '');
+					case 'event':
+						return hiddenKeys.has(`event|${r.subjectId}`);
+					case 'source':
+						return hiddenRecords.sources.has(r.subjectId ?? '');
+					case 'note':
+						return hiddenRecords.notes.has(r.subjectId ?? '');
+					default:
+						return false;
+				}
 			default:
 				// A source, a repository and the link between them belong to no person; what cites them is checked above.
 				return false;

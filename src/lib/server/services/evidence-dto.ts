@@ -1,6 +1,7 @@
 /** Citations as the pages show them (ADR-028): the row, with its source's words. Pure. */
 
 import type { CitationRow, SourceRow } from '../domain/change-log';
+import type { NoteDto } from '../../shared/notes';
 import {
 	sourceLabel,
 	isCitationQuality,
@@ -16,7 +17,8 @@ function fallbackLabel(row: CitationRow): string {
 
 export function citationDto(
 	row: CitationRow,
-	sourcesById: ReadonlyMap<string, SourceRow>
+	sourcesById: ReadonlyMap<string, SourceRow>,
+	notes: NoteDto[] = []
 ): CitationDto {
 	const source = row.sourceId ? sourcesById.get(row.sourceId) : undefined;
 	return {
@@ -29,7 +31,8 @@ export function citationDto(
 		page: row.page,
 		quality: isCitationQuality(row.quality) ? row.quality : null,
 		entryDate: row.entryDateRaw,
-		text: row.text
+		text: row.text,
+		notes
 	};
 }
 

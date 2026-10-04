@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq, sql } from 'drizzle-orm';
-import { events } from '../db/schema';
+import { events, noteAttachments } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
@@ -66,13 +66,20 @@ describe('individual facts through import and export', () => {
 			'Teacher'
 		]);
 		const death = facts.find((f) => f.type === 'DEAT')!;
+		// The note is a note record (ADR-029); the column that held it is no longer written.
 		expect([death.cause, death.age, death.notes, death.value, death.description]).toEqual([
 			'Pneumonia',
 			'79y',
-			'Died at home',
+			null,
 			null,
 			null
 		]);
+		const deathNotes = await t.db
+			.select()
+			.from(noteAttachments)
+			.where(eq(noteAttachments.subjectId, death.id))
+			.all();
+		expect(deathNotes.map((n) => [n.subjectKind, n.text])).toEqual([['event', 'Died at home']]);
 		expect(facts.every((f) => f.sortOrder === 0)).toBe(true);
 	});
 

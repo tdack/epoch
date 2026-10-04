@@ -136,7 +136,10 @@ export async function loadKinWindow(
 			sources: [],
 			repositories: [],
 			sourceRepositories: [],
-			citations: []
+			citations: [],
+			notes: [],
+			noteAttachments: [],
+			researchTasks: []
 		},
 		foundStartIds: request.startIds.filter((id) => existing.has(id)),
 		hasMoreAbove,

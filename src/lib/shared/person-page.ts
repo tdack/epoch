@@ -4,6 +4,8 @@
  */
 
 import type { PersonEvidenceDto } from './evidence';
+import type { NoteDto } from './notes';
+import type { PersonTasksDto } from './tasks';
 import type { FactConflict } from './fact-timeline';
 import type { FactKind } from './fact-types';
 import type { NameType } from './name-types';
@@ -47,6 +49,8 @@ export interface FactDto extends PrivacyFlag {
 	conflict: FactConflict | null;
 	/** How many citations support this fact; 0 is unsourced (ADR-028). */
 	citationCount: number;
+	/** Every note on the fact, in order, inline or shared (ADR-029). */
+	noteItems: NoteDto[];
 }
 
 export interface NameDto extends PrivacyFlag {
@@ -70,6 +74,8 @@ export interface NameDto extends PrivacyFlag {
 	isPreferred: boolean;
 	/** How many citations support this name; 0 is unsourced. Always 0 for a derived name. */
 	citationCount: number;
+	/** The notes on the name; Epoch's own name-change note is not one (ADR-013, ADR-029). */
+	notes: NoteDto[];
 }
 
 interface ParentFamilyDto {
@@ -109,12 +115,6 @@ export interface ChangeEntryDto {
 	isUndo: boolean;
 }
 
-/** A section whose content arrives in a later phase; present so the page and its data have a shape. */
-export interface PlaceholderDto {
-	isSupported: false;
-	items: [];
-}
-
 interface PersonPrivacyDto {
 	/** The manager's override: `auto` follows the dates. */
 	setting: PersonPrivacy;
@@ -152,8 +152,13 @@ export interface PersonPageDto extends PrivacyFlag {
 	stepParents: Array<{ person: PersonSummaryDto; unionId: string }>;
 	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
 	media: MediaDto[];
-	notes: PlaceholderDto;
+	/** The notes on the person themself, in order (ADR-029). */
+	notes: NoteDto[];
+	/** The notes on the parent links the person is the child in, each link named by the parent. */
+	linkNotes: Array<{ id: string; label: string; notes: NoteDto[] }>;
 	evidence: PersonEvidenceDto;
+	/** The research tasks about the person and their facts (ADR-029). */
+	tasks: PersonTasksDto;
 	changes: {
 		/**
 		 * Changes that wrote the person or a fact they still have. Changes to a fact that was later

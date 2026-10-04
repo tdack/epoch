@@ -33,7 +33,14 @@ describe('facts as row operations', () => {
 			},
 			ctx
 		);
-		expect(ops).toHaveLength(1);
+		// The fact, and its note as a note record (ADR-029): the column is not written.
+		expect(ops).toHaveLength(2);
+		expect(ops.find((op) => op.table === 'note_attachments')?.after).toMatchObject({
+			subjectKind: 'event',
+			subjectId: 'f1',
+			text: 'Rented',
+			sortOrder: 0
+		});
 		expect(after(ops, 'f1')).toMatchObject({
 			entityType: 'INDIVIDUAL',
 			entityId: 'wren',
@@ -41,7 +48,7 @@ describe('facts as row operations', () => {
 			dateRaw: 'ABT 1920',
 			dateQualifier: 'ABOUT',
 			place: '12 High St',
-			notes: 'Rented',
+			notes: null,
 			description: null,
 			sortOrder: 0,
 			version: 1
@@ -105,8 +112,14 @@ describe('facts as row operations', () => {
 		);
 		expect(after(ops, 'o1')).toMatchObject({
 			value: 'Joiner',
-			notes: 'Carpenter',
+			notes: null,
 			description: null
+		});
+		// What was a description becomes the fact's first note, so it is still shown and written.
+		expect(ops.find((op) => op.table === 'note_attachments')?.after).toMatchObject({
+			subjectKind: 'event',
+			subjectId: 'o1',
+			text: 'Carpenter'
 		});
 		const cleared = buildFactOps(
 			wren(),

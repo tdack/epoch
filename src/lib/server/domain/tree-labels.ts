@@ -22,6 +22,7 @@ import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/na
 import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events';
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
 import { CITATION_SUBJECT_KINDS, sourceLabel } from '../../shared/evidence';
+import { NOTE_SUBJECT_KINDS, noteTitle } from '../../shared/notes';
 
 export function eventLabel(type: string): string {
 	if (isUnionEventType(type)) return UNION_EVENT_LABELS[type];
@@ -101,6 +102,29 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 		}
 	};
 
+	// What a note is attached to: the subjects a citation can have, and the library records and
+	// citations that notes can also sit on.
+	const noteSubjectOf = (kind: string, id: string): string => {
+		switch (kind) {
+			case NOTE_SUBJECT_KINDS.SOURCE: {
+				const source = known.sources.find((s) => s.id === id);
+				return source ? `source “${sourceLabel(source)}”` : 'a source';
+			}
+			case NOTE_SUBJECT_KINDS.REPOSITORY: {
+				const repository = known.repositories.find((r) => r.id === id);
+				return repository ? `repository “${repository.name ?? 'Unnamed'}”` : 'a repository';
+			}
+			case NOTE_SUBJECT_KINDS.CITATION: {
+				const citation = known.citations.find((c) => c.id === id);
+				if (!citation) return 'a citation';
+				const source = known.sources.find((s) => s.id === citation.sourceId);
+				return `a citation of “${source ? sourceLabel(source) : (citation.description ?? 'a source')}”`;
+			}
+			default:
+				return subjectOf(kind, id);
+		}
+	};
+
 	return (table, image) => {
 		const row = image as Record<string, any>;
 		switch (table) {
@@ -139,6 +163,15 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				const source = known.sources.find((s) => s.id === row.sourceId);
 				const page = row.page ? `, ${row.page}` : '';
 				return `Citation of “${source ? sourceLabel(source) : (row.description ?? 'a source')}”${page} for ${subjectOf(row.subjectKind, row.subjectId)}`;
+			}
+			case 'notes':
+				return `Shared note “${noteTitle(row.text, 40)}”`;
+			case 'research_tasks':
+				return `Task “${String(row.title ?? '').slice(0, 60)}”`;
+			case 'note_attachments': {
+				const shared = row.noteId ? known.notes.find((n) => n.id === row.noteId) : undefined;
+				const what = row.noteId ? `Shared note “${noteTitle(shared?.text ?? null, 40)}”` : 'Note';
+				return `${what} on ${noteSubjectOf(row.subjectKind, row.subjectId)}`;
 			}
 		}
 	};

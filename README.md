@@ -88,6 +88,7 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 | `npm run db:migrate` | Apply migrations to the remote D1 database |
 | `npm run db:backfill:dates` | Fill structured date columns for events written before migration 0007 (add `-- --remote` for the deployed database) |
 | `npm run db:backfill:evidence` | Move sources, repositories and citations a tree kept as retained GEDCOM lines (imported before migration 0020) into records; add `-- --remote` for the deployed database. Run it after the migration |
+| `npm run db:backfill:notes` | Move notes a tree kept as retained GEDCOM lines, in extra lines, or in a fact's `notes` column (imported before migration 0021) into note records; add `-- --remote` for the deployed database. Run it after migration 0021 **and after** `db:backfill:evidence` |
 | `npm run deploy` | Migrate, build and deploy the Worker |
 
 ### Browser tests

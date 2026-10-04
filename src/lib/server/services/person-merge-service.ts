@@ -23,7 +23,7 @@ import {
 } from '../domain/person-merge';
 import { eventLabel } from '../domain/tree-labels';
 import { applyOpsToRows, personName } from '../domain/tree-ops';
-import { citationsOfPerson } from '../domain/evidence-carry';
+import { citationsOfPerson, notesOfPerson } from '../domain/evidence-carry';
 import { MarkRepository } from '../repositories/mark-repository';
 import { formatFullName } from '../../shared/name-types';
 import type {
@@ -113,6 +113,11 @@ function notesFor(rows: TreeRows, ops: RowOp[], survivorId: string, mergedId: st
 	if (carried > 0)
 		notes.push(
 			`${carried} ${carried === 1 ? 'citation' : 'citations'} of the other record will stay with the facts, names and links they support.`
+		);
+	const carriedNote = notesOfPerson(rows, mergedId);
+	if (carriedNote > 0)
+		notes.push(
+			`${carriedNote} ${carriedNote === 1 ? 'note' : 'notes'} of the other record will stay with the facts, names and links they are on.`
 		);
 	for (const [type, word] of [
 		['BIRT', 'births'],

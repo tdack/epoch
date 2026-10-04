@@ -241,7 +241,7 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 
 | webtrees capability | Owning phase | Current state |
 |---|---|---|
-| Individual page (facts, relatives tabs, sources, notes, media) | 3 | Built (S5 to S6): names, facts, parents, partnerships, siblings, step relatives, history, media. Sources and evidence are built (S15b); notes wait for S15c. |
+| Individual page (facts, relatives tabs, sources, notes, media) | 3 | Built (S5 to S6): names, facts, parents, partnerships, siblings, step relatives, history, media. Sources and evidence (S15b), notes and tasks (S15c) are built. |
 | Family page | 3 | Built: the partnership page (partners, events, children, chronology, same-partner twins, warnings, history) |
 | Edit any fact or event, add name variants | 3 | Built (S5 facts, S6 names), each with a preview and one undo |
 | Interactive tree, pedigree, descendancy, hourglass | 2/3/6 | One canvas (see above) |
@@ -251,10 +251,10 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 | Lists: individuals, families, surnames, places | 3 | Built (S7, S10, S11) |
 | Search: general, advanced, phonetic (Soundex/DM) | 3 | Basic name search |
 | Sources, repositories, citations | 5 | Built (S15b): records, GEDCOM both ways, UI beside the facts, privacy-aware. See ADR-028. |
-| Shared notes, research tasks | 5 | Not started (S15c); notes stay retained lines. |
+| Shared notes, research tasks | 5 | Built (S15c): notes are records, GEDCOM both ways; tasks on records and findings. See ADR-029. |
 | Find duplicates, merge records | 5 | Built: partnership merge (S5), person merge and a possible-duplicates suggestion (S14, ADR-022) |
-| Check-tree / data-quality report | 5 | Built in S13 (ADR-021), except unsourced facts and privacy leaks |
-| Research tasks (`_TODO`) | 5 | None |
+| Check-tree / data-quality report | 5 | Built in S13 (ADR-021), with unsourced key facts (S15b) and privacy leaks (S15c). Phase 5 is complete. |
+| Research tasks (`_TODO`) | 5 | Built (S15c): Epoch's own, not exported; an imported `_TODO` stays retained. |
 | Privacy: living people, restrictions, relationship privacy | 4 | Built in S8 (ADR-015) |
 | Pending changes, moderation, change history | 4 | No audit table |
 | Members, invitations, roles UI | 4 | Built in S9 |
@@ -300,6 +300,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S15c | Notes and research tasks (done, deployed 2026-10-04, version `eeed2ab4-c136-4d16-9e9d-e198c9727606`, migrations 0021 and 0022 applied remotely; both backfills ran and found nothing to move) | Shared and inline notes as records read and written through GEDCOM 5.5.1 and 7.0; notes on every record kind, shown beside what they describe, shared with a page of where they are used; research tasks on records and quality findings with a tasks page; privacy-leak checks for managers. See ADR-029 and [S15c status](#s15c-notes-and-research-tasks). |
 | S15b | Sources, repositories and citations (done on branch `feat/s15b-sources-citations`, not yet deployed; migration 0020 then `npm run db:backfill:evidence`) | Sources, repositories and citations as records, read and written through GEDCOM 5.5.1 and 7.0 in order; edited with preview, log and undo; carried by person and partnership merges; shown beside the facts they support as sourced, unsourced or conflicting; sources list and page; privacy follows the people supported; "unsourced key fact" research suggestions. See ADR-028 and [S15b status](#s15b-sources-repositories-and-citations). |
 | S15a | Lossless evidence round trip (done, deployed 2026-10-02, migration 0019 applied remotely; the remote tree held no retained lines to convert) | Root `SOUR`/`REPO`/`NOTE`/`OBJE` records written back, event sub-lines kept, repeat imports stable. The baseline S15b models on. See ADR-023. |
 | S14 | Person merge (done, deployed 2026-10-02, version `36188638-0087-42f5-a488-d57348f4c02b`, migration 0018 applied remotely) | Side-by-side review, exact preview and one undoable merge of two records of one person, XREF aliases on people, a possible-duplicates suggestion in the quality report. See ADR-022. |
@@ -417,6 +418,27 @@ pages, and the unsourced-key-fact suggestion. e2e: `e2e/sources.spec.ts`.
 
 Not done, by design: shared and inline notes as records and research tasks (S15c); media records
 (`OBJE` stays retained); a source merge or delete that touches more than 300 records is refused.
+
+### S15c: notes and research tasks
+
+Done on `feat/s15c-notes-tasks`: notes as records (migration 0021, expand-only) with GEDCOM import and
+export in both versions, `evidence-roundtrip.test.ts` and the other round-trip tests unchanged in what
+they expect (four tests that asserted the old internal shape, `events.notes` and a name's note in its
+kept lines, were updated); a backfill (`npm run db:backfill:notes`, after the evidence backfill);
+commands with previews and undo; merges and deletes that carry notes; privacy; notes on facts, names,
+citations, the person, partnerships and sources; `/trees/[id]/notes` and its page; research tasks
+(migration 0022) with `/trees/[id]/tasks`, a Tasks section on the person view and Create task on a
+quality finding; and the three privacy-leak rules. e2e: `notes.spec.ts`, `tasks.spec.ts`, and the new
+pages in `accessibility.spec.ts`; the facts, names, sources, quality, privacy, accessibility,
+person-view and partnership specs pass.
+
+Deployed 2026-10-04 (version `eeed2ab4-c136-4d16-9e9d-e198c9727606`): `npm run deploy` applied
+migrations 0021 and 0022, then `db:backfill:evidence` and `db:backfill:notes` (both `--remote`) ran and
+found nothing retained to move; a second run of the notes backfill also found nothing.
+
+Not done, by design: media records (`OBJE` stays retained); exporting tasks; dropping `events.notes`
+(a later contract migration, with the one export read of it); notification of task assignment; a notes
+screen for repositories. Phase 5 is complete.
 
 ### S10: kinship, charts and places
 

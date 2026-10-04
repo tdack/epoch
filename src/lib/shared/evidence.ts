@@ -3,6 +3,8 @@
  * screens so a label or a subject kind has one spelling.
  */
 
+import type { NoteDto } from './notes';
+
 /** What a citation supports. A citation is owned by exactly one of these, never shared. */
 export const CITATION_SUBJECT_KINDS = {
 	PERSON: 'person',
@@ -130,6 +132,8 @@ export interface CitationDto {
 	/** `DATA.DATE` as written. */
 	entryDate: string | null;
 	text: string | null;
+	/** The notes on this citation (ADR-029). */
+	notes: NoteDto[];
 }
 
 /** What the person page lists as a person's evidence: every citation of them and of what they have. */
@@ -196,6 +200,8 @@ export interface SourceDto {
 	publication: string | null;
 	abbreviation: string | null;
 	text: string | null;
+	/** The notes on the source itself (ADR-029). */
+	notes: NoteDto[];
 	repositories: SourceRepositoryDto[];
 	/** Citations of this source the viewer may see, all pages. */
 	citationCount: number;

@@ -25,6 +25,14 @@ import { SEX_VALUES } from '../../shared/sex';
 import { isFactType } from '../../shared/fact-types';
 import { isNameType } from '../../shared/name-types';
 import { CITATION_SUBJECT_KIND_VALUES } from '../../shared/evidence';
+import { NOTE_SUBJECT_KIND_VALUES } from '../../shared/notes';
+import {
+	MAX_TASK_DETAILS_LENGTH,
+	MAX_TASK_TITLE_LENGTH,
+	TASK_STATUS_VALUES,
+	TASK_SUBJECT_KIND_VALUES,
+	isDueDate
+} from '../../shared/tasks';
 
 /** A tree-scoped record id (opaque, but must be a non-empty string). */
 const idSchema = z.string().min(1);
@@ -449,3 +457,113 @@ export const evidenceImpactSchema = z.discriminatedUnion('kind', [
 		version: versionSchema.optional()
 	})
 ]);
+
+// ---- Notes (ADR-029) ----
+
+const noteSubjectSchema = z.object({ kind: z.enum(NOTE_SUBJECT_KIND_VALUES), id: idSchema });
+const noteTextSchema = z.string().trim().min(1, 'A note needs some text').max(20_000);
+
+/** A note on a record: its words written there, or an existing shared note to attach. */
+export const noteLinkCreateSchema = z
+	.object({
+		subject: noteSubjectSchema,
+		text: noteTextSchema.optional(),
+		noteId: idSchema.optional()
+	})
+	.refine((v) => (v.text === undefined) !== (v.noteId === undefined), {
+		message: 'Send either the words of the note or the shared note to attach'
+	});
+
+export const noteLinkUpdateSchema = z.object({ version: versionSchema, text: noteTextSchema });
+export const noteLinkShareSchema = z.object({ version: versionSchema.optional() });
+
+export const noteReorderSchema = z.object({
+	subject: noteSubjectSchema,
+	orderedAttachmentIds: z.array(idSchema).max(500)
+});
+
+export const sharedNoteCreateSchema = z.object({
+	text: noteTextSchema,
+	mime: z.string().trim().max(100).nullable().default(null),
+	language: z.string().trim().max(35).nullable().default(null)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears it. */
+export const sharedNoteUpdateSchema = z.object({
+	version: versionSchema,
+	text: noteTextSchema.optional(),
+	mime: z.string().trim().max(100).nullable().optional(),
+	language: z.string().trim().max(35).nullable().optional()
+});
+
+export const noteMergeSchema = z.object({
+	mergedIds: z.array(idSchema).min(1).max(20),
+	expectedVersions: z.record(z.string(), z.number().int()).optional()
+});
+
+/** A preview of a note change: the commands the writes take, minus the ids the server mints. */
+export const noteImpactSchema = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('delete_shared_note'),
+		noteId: idSchema,
+		version: versionSchema.optional(),
+		shouldDetach: z.boolean().optional()
+	}),
+	z.object({
+		kind: z.literal('merge_notes'),
+		survivorId: idSchema,
+		mergedIds: z.array(idSchema).min(1).max(20)
+	}),
+	z.object({
+		kind: z.literal('remove_note'),
+		attachmentId: idSchema,
+		version: versionSchema.optional()
+	})
+]);
+
+// ---- Research tasks (ADR-029) ----
+
+const taskTitleSchema = z.string().trim().min(1, 'A task needs a title').max(MAX_TASK_TITLE_LENGTH);
+const taskDetailsSchema = z.string().trim().max(MAX_TASK_DETAILS_LENGTH).nullable();
+const taskDueSchema = z
+	.string()
+	.refine(isDueDate, { message: 'A due date is a calendar date, such as 2027-03-31' })
+	.nullable();
+
+/** A task as the form sends it: a title, and the optional rest; it may be about one record and one finding. */
+export const taskCreateSchema = z.object({
+	title: taskTitleSchema,
+	details: taskDetailsSchema.default(null),
+	status: z.enum(TASK_STATUS_VALUES).default('open'),
+	assigneeId: idSchema.nullable().default(null),
+	dueDate: taskDueSchema.default(null),
+	subject: z
+		.object({ kind: z.enum(TASK_SUBJECT_KIND_VALUES), id: idSchema })
+		.nullable()
+		.default(null),
+	findingKey: z.string().min(1).max(2000).nullable().default(null)
+});
+
+/** Only the fields to change; absent leaves a field alone, null clears an optional one. */
+export const taskUpdateSchema = z.object({
+	version: versionSchema,
+	title: taskTitleSchema.optional(),
+	details: taskDetailsSchema.optional(),
+	status: z.enum(TASK_STATUS_VALUES).optional(),
+	assigneeId: idSchema.nullable().optional(),
+	dueDate: taskDueSchema.optional()
+});
+
+/** The tasks page's filters, all optional: open tasks by default. */
+export const taskListQuerySchema = z.object({
+	status: z.enum([...TASK_STATUS_VALUES, 'all']).optional(),
+	mine: z.enum(['true', 'false']).optional(),
+	subjectKind: z.enum(TASK_SUBJECT_KIND_VALUES).optional(),
+	subjectId: idSchema.optional(),
+	linked: z.enum([...TASK_SUBJECT_KIND_VALUES, 'none']).optional(),
+	offset: z.string().optional(),
+	limit: z.string().optional()
+});
+
+/** A preview of deleting a task. */
+export const taskImpactSchema = z.object({ taskId: idSchema, version: versionSchema.optional() });
