@@ -133,7 +133,9 @@ Simpsons" and any other data in your local database are left alone. Stop `npm ru
 | `/trees/:id/relationship?from=&to=` | Every route between two people |
 | `/trees/:id/places`, `/place?name=` | Places named by facts, and the facts at one place |
 | `/trees/:id/sources`, `/sources/:sourceId` | Sources the viewer may see, and what each one supports |
-| `/trees/:id/quality` | The data-quality report, with dismissals |
+| `/trees/:id/notes`, `/notes/:noteId` | Shared notes, and where each one is used |
+| `/trees/:id/tasks` | Research tasks, open by default, with filters |
+| `/trees/:id/quality` | The data-quality report, with dismissals; managers also see privacy leaks |
 | `/trees/:id/members`, `/privacy` | Members and invitations; the tree's privacy settings (managers) |
 
 Person ids from an import look like `<treeId>:@I1@`; build links with `encodeURIComponent`. The tree
