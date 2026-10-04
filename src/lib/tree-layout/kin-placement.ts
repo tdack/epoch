@@ -9,7 +9,7 @@
  */
 
 import type { GraphIndex, ParentLink } from './graph-index.js';
-import type { Band, FocusSelection } from './types.js';
+import { PERSON_ROLES, type Band, type FocusSelection, type PersonRole } from './types.js';
 
 /** The part of a selection the rules read, so tests can pass hand-built selections. */
 export interface KinInput {
@@ -182,4 +182,40 @@ export function stepChildAnchor(
 		(a, b) => a.band - b.band || a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 	);
 	return candidates[0].id;
+}
+
+/**
+ * Which plane of the `layers` view each person stands on. It is the band, with one override: the
+ * focus person's ancestors (and a step-parent who only partners them) move from the direct line to
+ * plane 1, because plane 0 is "the focus union and its descendants" and the families it came from
+ * are the sibling group behind it. Kept here, beside the band rules, so layers is a reading of the
+ * same selection rather than a fork of it (ADR-029).
+ */
+export function assignLayerPlanes(
+	selection: Pick<KinInput, 'unions'> & {
+		people: Array<{ id: string; role: PersonRole; band: Band }>;
+	},
+	index: GraphIndex
+): Map<string, Band> {
+	const drawnUnions = new Set(selection.unions.map((u) => u.id));
+	const planes = new Map<string, Band>();
+	for (const p of selection.people) {
+		planes.set(p.id, p.role === PERSON_ROLES.ANCESTOR && p.band === 0 ? 1 : p.band);
+	}
+	const partnersOf = (id: string): string[] =>
+		(index.unionsOfPerson.get(id) ?? [])
+			.filter((u) => drawnUnions.has(u.id))
+			.flatMap((u) => u.partnerIds)
+			.filter((partnerId) => partnerId !== id && planes.has(partnerId));
+	for (const p of selection.people) {
+		if (p.role !== PERSON_ROLES.PARTNER || p.band !== 0) continue;
+		const partners = partnersOf(p.id);
+		const isOnlyAncestorsPartner =
+			partners.length > 0 &&
+			partners.every(
+				(id) => selection.people.find((q) => q.id === id)?.role === PERSON_ROLES.ANCESTOR
+			);
+		if (isOnlyAncestorsPartner) planes.set(p.id, 1);
+	}
+	return planes;
 }

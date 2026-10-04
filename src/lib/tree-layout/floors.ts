@@ -10,6 +10,7 @@
 
 import { buildIndex } from './graph-index.js';
 import { layoutFocusView } from './index.js';
+import { compactRows, type RowItem } from './row-placement.js';
 import { selectFocusSubgraph } from './select.js';
 import {
 	LAYOUT_METRICS,
@@ -148,64 +149,9 @@ const EMPTY_FLOORS: FloorsLayout = {
 	bounds: { minX: 0, maxX: 0, minGeneration: 0, maxGeneration: 0 }
 };
 
-interface RowItem {
-	key: string;
-	x: number;
-	width: number;
-	generation: number;
-	band: Band;
-}
-
 function clean(value: number): number {
 	const rounded = Math.round(value * 1000) / 1000;
 	return rounded === 0 ? 0 : rounded;
-}
-
-/**
- * New x for every row item. Walking each (generation, band) row left to right, a gap that held
- * other bands' cards in the flat row shrinks by the width those cards took, never below the
- * spacing flat already uses between neighbours. Gaps that held nothing foreign stay as they were,
- * which keeps children under their parents wherever the bands agree.
- */
-function compact(
-	items: RowItem[],
-	partnerPairs: Set<string>,
-	m: LayoutMetrics
-): Map<string, number> {
-	const moved = new Map<string, number>();
-	const byGeneration = new Map<number, RowItem[]>();
-	for (const item of items) {
-		const list = byGeneration.get(item.generation) ?? [];
-		list.push(item);
-		byGeneration.set(item.generation, list);
-	}
-	for (const flatRow of byGeneration.values()) {
-		flatRow.sort((a, b) => a.x - b.x || (a.key < b.key ? -1 : 1));
-		for (const band of [0, 1, 2] as const) {
-			const row = flatRow.filter((i) => i.band === band);
-			let shift = 0;
-			row.forEach((item, i) => {
-				if (i > 0) {
-					const prev = row[i - 1];
-					const gap = item.x - prev.x;
-					const pairKey = [prev.key, item.key].sort().join('|');
-					const natural =
-						(prev.width + item.width) / 2 +
-						(partnerPairs.has(pairKey) ? m.partnerGap : m.siblingGap);
-					let foreign = 0;
-					for (const other of flatRow) {
-						if (other.band !== band && other.x > prev.x && other.x < item.x) {
-							foreign += other.width + m.siblingGap;
-						}
-					}
-					const target = Math.max(natural, gap - foreign);
-					shift -= Math.max(0, gap - target);
-				}
-				moved.set(item.key, item.x + shift);
-			});
-		}
-	}
-	return moved;
 }
 
 /**
@@ -241,14 +187,14 @@ export function layoutFloors(
 			x: p.x,
 			width: m.cardWidth,
 			generation: p.generation,
-			band: bandOf(p.id)
+			group: bandOf(p.id)
 		})),
 		...flat.stubs.map((s) => ({
 			key: `s:${s.id}`,
 			x: s.x,
 			width: m.stubWidth,
 			generation: s.generation,
-			band: stubBand(s)
+			group: stubBand(s)
 		}))
 	];
 	const partnerPairs = new Set<string>();
@@ -258,7 +204,7 @@ export function layoutFloors(
 			partnerPairs.add([`p:${ids[i]}`, `p:${ids[i + 1]}`].sort().join('|'));
 		}
 	}
-	const moved = compact(items, partnerPairs, m);
+	const moved = compactRows(items, [0, 1, 2], partnerPairs, m);
 
 	const people: FloorPerson[] = flat.people.map((p: PlacedPerson) => ({
 		id: p.id,
