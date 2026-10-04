@@ -5,6 +5,10 @@ This file provides guidance to LLMs when working with code in this repository.
 ## Project status
 This repository is an initial proof of concept implementation of webtrees.net using more contemporary frameworks, particularly svelte, sveltekit and cloudflare workers, D1, queues and other resources.
 
+Phase status lives only in the table in `docs/roadmap.md`; slice status (S0 … S16) lives in the
+delivery-slices table and status sections of `docs/improvement-plan.md`. Each phase document carries
+its own status against its exit criteria. Update those, not this file, when a slice lands.
+
 ## Architecture
 
 Epoch is a private, single-owner family-tree application with invited collaborators, inspired by
@@ -87,7 +91,7 @@ These are the highest-value things to remember and are all established in the pl
   format:check` verifies. `.git-blame-ignore-revs` hides the one-off reformat; run `git config
   blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.
 - **ESLint** (flat config; typescript-eslint and eslint-plugin-svelte) and **knip** (`knip.jsonc`,
-  unused files, exports and dependencies; warnings until Phase B of `docs/architecture-review.md`).
+  unused files, exports and dependencies; findings fail `npm run lint`).
   `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools
   and what would change it is ADR-025.
 - **Svelte components:** declare a `Props` interface with TSDoc per prop, destructure from
@@ -106,7 +110,14 @@ later. `wrangler rollback` restores code, never schema.
 - Commit messages follow the Conventional Commits style enforced by the repo's git-commit skill
   (see `.agents/skills/git-commit/SKILL.md`): `<type>[scope]: <description>`, imperative mood,
   under 72 chars, one logical change per commit.
-- Every commit made by an agent carries a `Co-Author: <model> <noreply@github.com>` trailer, where
-  `<model>` is the committing agent's model identifier (e.g.
-  `Co-Author: claude-sonnet-4-5 <noreply@github.com>`). Commits made directly by the human operator
-  omit the trailer.
+- Every commit made by an agent ends with a `Co-Authored-By: <model> <noreply@<provider>>` trailer:
+  `<model>` is the committing agent's model name, and `<provider>` is its vendor's domain. For
+  example:
+  - `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`
+  - `Co-Authored-By: Gemini Flash <noreply@google.com>`
+  - `Co-Authored-By: GPT-5 <noreply@openai.com>`
+
+  Spell the key `Co-Authored-By` (GitHub and GitLab match it case-insensitively); tools ignore
+  any other spelling, such as `Co-Author`. If the agent's harness supplies its own trailer of this
+  form, keep it rather than adding a second. Commits made directly by the human operator omit the
+  trailer.
