@@ -9,7 +9,8 @@ const OPTIONS: FocusViewOptions[] = [
 	{},
 	{ ancestorDepth: 1, descendantDepth: 1 },
 	{ ancestorDepth: 4, descendantDepth: 4, shouldIncludeStepFamilies: true },
-	{ ancestorDepth: 2, descendantDepth: 2, shouldIncludeSiblings: false }
+	{ ancestorDepth: 2, descendantDepth: 2, shouldIncludeSiblings: false },
+	{ collateralDepth: 2, shouldIncludePartnerOrigins: true }
 ];
 
 const { cardWidth, stubWidth } = LAYOUT_METRICS;
@@ -51,8 +52,17 @@ describe('layoutFloors contract', () => {
 					// Everyone is placed exactly once, in the band selection gave them.
 					const ids = layout.people.map((p) => p.id);
 					expect(new Set(ids).size, label).toBe(ids.length);
-					expect(layout.misplacedPersonIds, label).toEqual([]);
 					const expected = new Map(selection.people.map((p) => [p.id, p]));
+					// The hourglass has no place for the wider groups yet, so they are appended to their
+					// row; nobody on the line or in the narrow selection may be.
+					const isWide = options.collateralDepth || options.shouldIncludePartnerOrigins;
+					if (isWide) {
+						for (const id of layout.misplacedPersonIds) {
+							expect(expected.get(id)?.band, `${label}: misplaced ${id}`).toBeGreaterThan(0);
+						}
+					} else {
+						expect(layout.misplacedPersonIds, label).toEqual([]);
+					}
 					for (const p of layout.people) {
 						expect(p.band, `${label} band of ${p.id}`).toBe(expected.get(p.id)?.band);
 						expect(p.generation, `${label} generation of ${p.id}`).toBe(

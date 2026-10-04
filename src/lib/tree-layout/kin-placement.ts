@@ -28,8 +28,8 @@ const MAX_BAND: Band = 2;
 
 /**
  * Bands: 0 the direct line (focus, drawn ancestors and descendants) and every partner of it, 1
- * other children of a line person's union and their partners, 2 descendants of band 1 and their
- * partners. A person qualifying for two bands takes the lower, which is why the levels are
+ * other children of a line person's union and their partners (and the parents of a partner), 2
+ * descendants of band 1 and their partners. A person qualifying for two bands takes the lower, which is why the levels are
  * closed in order. Band 2 is the furthest: anyone further back is a "+N" stub, not a card.
  */
 export function assignBands(selection: KinInput, index: GraphIndex): KinBands {
@@ -100,6 +100,12 @@ export function assignBands(selection: KinInput, index: GraphIndex): KinBands {
 			for (const partnerId of partnersOf(personId)) {
 				if (!bands.has(partnerId)) partneredWith.set(partnerId, personId);
 				take(partnerId, false);
+			}
+			// A partner's own parents are an origin: one step off the line, so the next band, and
+			// the parents' other children (the partner's siblings) one further.
+			if (!blood.has(personId)) {
+				for (const parentId of parentsOf(personId))
+					if (!bands.has(parentId)) nextSeeds.push(parentId);
 			}
 			for (const childId of childrenOf.get(personId) ?? []) {
 				if (bands.has(childId)) continue;

@@ -10,6 +10,7 @@ import { buildIndex, type GraphIndex } from './graph-index.js';
 import { assignBands, stepChildAnchor } from './kin-placement.js';
 import {
 	DEFAULT_FOCUS_OPTIONS,
+	MAX_COLLATERAL_DEPTH,
 	PERSON_ROLES,
 	STUB_KINDS,
 	type FocusSelection,
@@ -36,6 +37,12 @@ function resolveOptions(options: FocusViewOptions = {}): ResolvedFocusOptions {
 			options.shouldIncludeSiblings ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
 		shouldIncludeStepFamilies:
 			options.shouldIncludeStepFamilies ?? DEFAULT_FOCUS_OPTIONS.shouldIncludeStepFamilies,
+		collateralDepth: Math.min(
+			MAX_COLLATERAL_DEPTH,
+			clamp(options.collateralDepth, DEFAULT_FOCUS_OPTIONS.collateralDepth)
+		),
+		shouldIncludePartnerOrigins:
+			options.shouldIncludePartnerOrigins ?? DEFAULT_FOCUS_OPTIONS.shouldIncludePartnerOrigins,
 		expandedStubIds: [...new Set(options.expandedStubIds ?? [])].sort()
 	};
 }
@@ -76,64 +83,72 @@ export function selectFocusSubgraph(
 	place(focusPersonId, 0, PERSON_ROLES.FOCUS);
 
 	// ---- Ancestors: both parents of every union a drawn person is a child of ----
-	const parentQueue = [focusPersonId];
-	while (parentQueue.length > 0) {
-		const childId = parentQueue.shift()!;
-		const generation = people.get(childId)!.generation;
-		const parentUnionIds = index.parentUnionIdsOfChild.get(childId) ?? [];
-		const directParentIds = index.directParentIdsOfChild.get(childId) ?? [];
+	/**
+	 * Walk up from `rootId`, drawing parents until a generation at or above `lastGeneration`, where
+	 * a "+N" stub stands for the rest. A partner's origins stop one row up, not at the focus
+	 * person's own depth limit, so they get their own floor.
+	 */
+	function walkAncestors(rootId: string, lastGeneration: number) {
+		const parentQueue = [rootId];
+		while (parentQueue.length > 0) {
+			const childId = parentQueue.shift()!;
+			const generation = people.get(childId)!.generation;
+			const parentUnionIds = index.parentUnionIdsOfChild.get(childId) ?? [];
+			const directParentIds = index.directParentIdsOfChild.get(childId) ?? [];
 
-		const ancestorStubId = `stub:ancestors:${childId}`;
-		if (generation <= -opts.ancestorDepth && !expanded.has(ancestorStubId)) {
-			const hidden = new Set<string>();
-			for (const unionId of parentUnionIds) {
-				for (const partnerId of index.unionById.get(unionId)?.partnerIds ?? []) {
-					if (!people.has(partnerId)) hidden.add(partnerId);
+			const ancestorStubId = `stub:ancestors:${childId}`;
+			if (generation <= lastGeneration && !expanded.has(ancestorStubId)) {
+				const hidden = new Set<string>();
+				for (const unionId of parentUnionIds) {
+					for (const partnerId of index.unionById.get(unionId)?.partnerIds ?? []) {
+						if (!people.has(partnerId)) hidden.add(partnerId);
+					}
 				}
-			}
-			for (const parentId of directParentIds) if (!people.has(parentId)) hidden.add(parentId);
-			if (hidden.size > 0) {
-				stubs.push({
-					id: `stub:ancestors:${childId}`,
-					kind: STUB_KINDS.ANCESTORS,
-					personId: childId,
-					unionId: null,
-					count: hidden.size,
-					generation: generation - 1
-				});
-			}
-			continue;
-		}
-
-		if (
-			generation <= -opts.ancestorDepth &&
-			(parentUnionIds.length > 0 || directParentIds.length > 0)
-		) {
-			expansions.push({
-				stubId: ancestorStubId,
-				kind: STUB_KINDS.ANCESTORS,
-				personId: childId,
-				unionId: null
-			});
-		}
-
-		for (const unionId of parentUnionIds) {
-			const union = index.unionById.get(unionId);
-			if (!union) continue;
-			if (unions.has(unionId)) {
-				// A second child reaches an already drawn union: pedigree collapse.
-				for (const partnerId of union.partnerIds) collapsed.add(partnerId);
+				for (const parentId of directParentIds) if (!people.has(parentId)) hidden.add(parentId);
+				if (hidden.size > 0) {
+					stubs.push({
+						id: `stub:ancestors:${childId}`,
+						kind: STUB_KINDS.ANCESTORS,
+						personId: childId,
+						unionId: null,
+						count: hidden.size,
+						generation: generation - 1
+					});
+				}
 				continue;
 			}
-			unions.set(unionId, { id: unionId, generation: generation - 1 });
-			for (const partnerId of union.partnerIds) {
-				if (assign(partnerId, generation - 1, PERSON_ROLES.ANCESTOR)) parentQueue.push(partnerId);
+
+			if (
+				generation <= lastGeneration &&
+				(parentUnionIds.length > 0 || directParentIds.length > 0)
+			) {
+				expansions.push({
+					stubId: ancestorStubId,
+					kind: STUB_KINDS.ANCESTORS,
+					personId: childId,
+					unionId: null
+				});
+			}
+
+			for (const unionId of parentUnionIds) {
+				const union = index.unionById.get(unionId);
+				if (!union) continue;
+				if (unions.has(unionId)) {
+					// A second child reaches an already drawn union: pedigree collapse.
+					for (const partnerId of union.partnerIds) collapsed.add(partnerId);
+					continue;
+				}
+				unions.set(unionId, { id: unionId, generation: generation - 1 });
+				for (const partnerId of union.partnerIds) {
+					if (assign(partnerId, generation - 1, PERSON_ROLES.ANCESTOR)) parentQueue.push(partnerId);
+				}
+			}
+			for (const parentId of directParentIds) {
+				if (assign(parentId, generation - 1, PERSON_ROLES.ANCESTOR)) parentQueue.push(parentId);
 			}
 		}
-		for (const parentId of directParentIds) {
-			if (assign(parentId, generation - 1, PERSON_ROLES.ANCESTOR)) parentQueue.push(parentId);
-		}
 	}
+	walkAncestors(focusPersonId, -opts.ancestorDepth);
 
 	// ---- Siblings: other children of the focus person's drawn parent unions ----
 	if (opts.shouldIncludeSiblings) {
@@ -216,6 +231,85 @@ export function selectFocusSubgraph(
 			visit(union.id, index.childIdsOfUnion.get(union.id) ?? []);
 		}
 		visit(null, index.directChildIdsOfParent.get(parentId) ?? []);
+	}
+
+	// ---- Collateral: the sibling line and its children (bands 1 and 2) ----
+	if (opts.collateralDepth > 0) {
+		// Siblings of every drawn ancestor. Only through a drawn parent union: an ancestor at the depth
+		// limit has none drawn, so the aunts and uncles of the topmost row are not reachable.
+		for (const person of [...people.values()]) {
+			if (person.role !== PERSON_ROLES.ANCESTOR) continue;
+			for (const unionId of index.parentUnionIdsOfChild.get(person.id) ?? []) {
+				if (!unions.has(unionId)) continue;
+				for (const siblingId of index.childIdsOfUnion.get(unionId) ?? []) {
+					place(siblingId, person.generation, PERSON_ROLES.SIBLING);
+				}
+			}
+		}
+
+		// Each sibling's partnerships, and their children when the depth reaches them; a child opened
+		// from its stub shows one generation more, as the hourglass's stubs do.
+		const sideQueue = [...people.values()]
+			.filter((p) => p.role === PERSON_ROLES.SIBLING)
+			.map((p) => ({ id: p.id, level: 1 }));
+		while (sideQueue.length > 0) {
+			const { id: parentId, level } = sideQueue.shift()!;
+			const generation = people.get(parentId)!.generation;
+			const showChildren = (stubId: string) => level < opts.collateralDepth || expanded.has(stubId);
+			const visit = (unionId: string | null, childIds: string[]) => {
+				const stubId = unionId ? `stub:children:${unionId}` : `stub:children:direct:${parentId}`;
+				const hidden = new Set<string>();
+				for (const childId of childIds) {
+					if (showChildren(stubId)) {
+						if (assign(childId, generation + 1, PERSON_ROLES.DESCENDANT)) {
+							sideQueue.push({ id: childId, level: level + 1 });
+						}
+					} else if (!people.has(childId)) {
+						hidden.add(childId);
+					}
+				}
+				if (!showChildren(stubId) && hidden.size > 0) {
+					stubs.push({
+						id: stubId,
+						kind: STUB_KINDS.CHILDREN,
+						personId: parentId,
+						unionId,
+						count: hidden.size,
+						generation: generation + 1
+					});
+				} else if (expanded.has(stubId) && childIds.length > 0) {
+					expansions.push({ stubId, kind: STUB_KINDS.CHILDREN, personId: parentId, unionId });
+				}
+			};
+			for (const union of index.unionsOfPerson.get(parentId) ?? []) {
+				// A partnership drawn from the other side, or by the hourglass, is not drawn twice.
+				if (unions.has(union.id)) continue;
+				unions.set(union.id, { id: union.id, generation });
+				for (const partnerId of union.partnerIds)
+					place(partnerId, generation, PERSON_ROLES.PARTNER);
+				visit(union.id, index.childIdsOfUnion.get(union.id) ?? []);
+			}
+			visit(null, index.directChildIdsOfParent.get(parentId) ?? []);
+		}
+	}
+
+	// ---- Partner origins: the parents and siblings of the focus person's partners ----
+	if (opts.shouldIncludePartnerOrigins) {
+		const partnerIds = new Set<string>();
+		for (const union of index.unionsOfPerson.get(focusPersonId) ?? []) {
+			for (const id of union.partnerIds) if (id !== focusPersonId) partnerIds.add(id);
+		}
+		for (const partnerId of partnerIds) {
+			if (!people.has(partnerId)) continue;
+			// One row up: their parents are origins, and what lies above them is a stub.
+			walkAncestors(partnerId, people.get(partnerId)!.generation - 1);
+			for (const unionId of index.parentUnionIdsOfChild.get(partnerId) ?? []) {
+				if (!unions.has(unionId)) continue;
+				for (const siblingId of index.childIdsOfUnion.get(unionId) ?? []) {
+					place(siblingId, people.get(partnerId)!.generation, PERSON_ROLES.SIBLING);
+				}
+			}
+		}
 	}
 
 	// ---- Partners' other families are not drawn, but their children are counted ----
