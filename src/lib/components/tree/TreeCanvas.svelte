@@ -22,6 +22,12 @@
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
 	import { keyIntentOf } from './tree-keyboard.js';
+	import {
+		personMenuItems,
+		unionMenuItems,
+		type PersonRef,
+		type TreeEditActions
+	} from './tree-actions.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
 	import {
 		isEndedUnion,
@@ -31,11 +37,6 @@
 		unionLabelText,
 		type MenuItem
 	} from './tree-view.js';
-
-	interface PersonRef {
-		id: string;
-		displayName: string;
-	}
 
 	interface Props {
 		/** Positioned people, unions, stubs and edges from `layoutFocusView`. */
@@ -271,25 +272,28 @@
 		if (wasOverlayOpen) restoreFocus();
 	}
 
+	/** The page's editing actions as one object, for the menu entries shared with the 3D views. */
+	const actions = $derived<TreeEditActions>({
+		onOpenPerson,
+		onEditPerson,
+		onDeletePerson,
+		onAddRelationship,
+		onRecordDeath,
+		onEndPartnership,
+		onEditUnion,
+		onEndUnion,
+		onRemoveUnion,
+		onMergeUnion,
+		mergeableUnionIds
+	});
+
 	function openPersonMenu(event: Event, node: PlacedPerson) {
 		event.preventDefault();
-		const person = { id: node.id, displayName: node.person.displayName };
-		const items: MenuItem[] = [];
-		if (onOpenPerson) items.push({ label: 'Show details', onClick: () => onOpenPerson(person.id) });
-		if (onEditPerson) items.push({ label: 'Edit person', onClick: () => onEditPerson(person.id) });
-		if (onAddRelationship)
-			items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
-		if (onRecordDeath)
-			items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
-		if (onEndPartnership && node.person.unionIds.length > 0) {
-			items.push({ label: 'End partnership…', onClick: () => onEndPartnership(person.id) });
-		}
-		if (onDeletePerson)
-			items.push({
-				label: 'Delete person…',
-				isDanger: true,
-				onClick: () => onDeletePerson(person.id)
-			});
+		const items = personMenuItems(
+			{ id: node.id, displayName: node.person.displayName },
+			node.person.unionIds.length > 0,
+			actions
+		);
 		popover = null;
 		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
@@ -298,19 +302,7 @@
 	function openUnionMenu(event: Event, union: PlacedUnion) {
 		event.preventDefault();
 		popover = null;
-		const items: MenuItem[] = [];
-		if (onEditUnion)
-			items.push({ label: 'Edit partnership…', onClick: () => onEditUnion(union.id) });
-		if (onEndUnion) items.push({ label: 'End partnership…', onClick: () => onEndUnion(union.id) });
-		if (onMergeUnion && mergeableUnionIds?.has(union.id)) {
-			items.push({ label: 'Merge duplicate partnerships…', onClick: () => onMergeUnion(union.id) });
-		}
-		if (onRemoveUnion)
-			items.push({
-				label: 'Delete partnership…',
-				isDanger: true,
-				onClick: () => onRemoveUnion(union.id)
-			});
+		const items = unionMenuItems(union.id, actions);
 		rememberOpener();
 		menu = items.length > 0 ? { ...containerPoint(event), items } : null;
 	}
@@ -435,6 +427,7 @@
 		const intent = keyIntentOf({
 			key: event.key,
 			shiftKey: event.shiftKey,
+			altKey: event.altKey,
 			target: event.target as Element
 		});
 		switch (intent.kind) {
