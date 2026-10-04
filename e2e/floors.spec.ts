@@ -52,7 +52,8 @@ test('the floors view switches in place, survives reload and Back, and opens the
 	await expect(page).toHaveURL(new RegExp(`person=${mum.id}`));
 	await expect(page.getByRole('dialog').or(page.getByRole('complementary')).first()).toBeVisible();
 	await mode('Flat').click();
-	await expect(page).not.toHaveURL(/mode=/);
+	// Flat is written into the address too, so a default that says otherwise cannot flip a reload.
+	await expect(page).toHaveURL(/mode=flat/);
 	await expect(page).toHaveURL(new RegExp(`person=${mum.id}`));
 	await expect(page.getByRole('application', { name: 'Family tree', exact: true })).toBeVisible();
 

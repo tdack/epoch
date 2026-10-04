@@ -92,7 +92,8 @@ test('the layers view puts each family on its own plane, keeps each side on its 
 	await card('Mum').dblclick();
 	await expect(page).toHaveURL(new RegExp(`person=${mum.id}`));
 	await mode('Flat').click();
-	await expect(page).not.toHaveURL(/mode=|side=|origins=|union=/);
+	await expect(page).toHaveURL(/mode=flat/);
+	await expect(page).not.toHaveURL(/side=|origins=|union=/);
 	await expect(page).toHaveURL(new RegExp(`person=${mum.id}`));
 	await expect(page.getByRole('application', { name: 'Family tree', exact: true })).toBeVisible();
 	await page.goBack();
