@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { layoutFloors } from '#lib/tree-layout/floors.js';
+import { layoutLayers } from '#lib/tree-layout/layers.js';
+import { LAYOUT_METRICS } from '#lib/tree-layout/index.js';
 import { makeGraph } from '#lib/tree-layout/test-support.js';
 import {
 	BAND_ROW_PX,
 	FLOOR_GAP_PX,
+	LAYER_STAGGER_PX,
+	LAYER_VIEWS,
 	bandRowY,
 	cameraTransform,
 	connectorStyle,
 	floorZ,
 	framingLayout,
+	layerCamera,
+	layerOffset,
+	layerPoint,
+	layersFraming,
 	projectToScreen
 } from './plane-stack';
 
@@ -99,5 +107,71 @@ describe('framingLayout', () => {
 
 	it('is empty for an empty layout', () => {
 		expect(framingLayout(layoutFloors(graph, 'nobody')).people).toEqual([]);
+	});
+});
+
+describe('layers geometry', () => {
+	it('puts each plane further back and staggers it across and up', () => {
+		expect(layerOffset(0, 'angled')).toEqual({ x: 0, y: 0, z: 0 });
+		expect(layerOffset(1, 'angled')).toEqual({
+			x: LAYER_STAGGER_PX.x,
+			y: -LAYER_STAGGER_PX.y,
+			z: -200
+		});
+		expect(layerOffset(2, 'exploded').z).toBe(-760);
+		// Pulling the planes apart changes only their depth.
+		expect(layerOffset(2, 'front').x).toBe(layerOffset(2, 'exploded').x);
+	});
+
+	it('never lets two cards of different planes overlap on screen', () => {
+		const { cardWidth, cardHeight, rowHeight } = LAYOUT_METRICS;
+		for (const [a, b] of [
+			[0, 1],
+			[1, 2],
+			[0, 2]
+		] as const) {
+			for (let rowA = -4; rowA <= 4; rowA++) {
+				for (let rowB = -4; rowB <= 4; rowB++) {
+					const dy = layerPoint(b, rowB, 0, 'front').y - layerPoint(a, rowA, 0, 'front').y;
+					const dx = layerPoint(b, rowB, 0, 'front').x - layerPoint(a, rowA, 0, 'front').x;
+					// Same x in the plane is the worst case; the stagger must keep them apart in x or y.
+					expect(
+						Math.abs(dy) >= cardHeight || Math.abs(dx) >= cardWidth,
+						`${a}/${rowA} ${b}/${rowB}`
+					).toBe(true);
+					expect(rowHeight).toBe(170);
+				}
+			}
+		}
+	});
+
+	it('names a camera for every view', () => {
+		for (const view of Object.values(LAYER_VIEWS)) {
+			expect(cameraTransform(layerCamera(view))).toMatch(/^rotateX\(.+deg\) rotateY\(.+deg\)$/);
+		}
+	});
+
+	it('turns about Y before tilting about X', () => {
+		const point = { x: 100, y: 50, z: 0 };
+		expect(projectToScreen(point, 0, 0)).toEqual({ x: 100, y: 50 });
+		expect(projectToScreen(point, 0, 90).x).toBeCloseTo(0, 6);
+		expect(projectToScreen({ x: 0, y: 0, z: 100 }, 0, 90).x).toBeCloseTo(100, 6);
+	});
+
+	it('frames what is shown and leaves hidden planes out', () => {
+		const graph = makeGraph({
+			people: ['dad', 'mum', 'me', 'wife', 'kid'],
+			unions: [
+				{ id: 'u1', partners: ['dad', 'mum'], children: ['me'] },
+				{ id: 'u2', partners: ['me', 'wife'], children: ['kid'] }
+			]
+		});
+		const layout = layoutLayers(graph, 'me', null);
+		const all = layersFraming(layout, 'angled');
+		const front = layersFraming(layout, 'angled', new Set([1]));
+		expect(all.people.map((p) => p.id).sort()).toEqual(['dad', 'kid', 'me', 'mum', 'wife']);
+		expect(front.people.map((p) => p.id).sort()).toEqual(['kid', 'me', 'wife']);
+		expect(all.bounds.minY).toBeLessThan(front.bounds.minY);
+		expect(layersFraming(layout, 'front', new Set([0, 1, 2])).people).toEqual([]);
 	});
 });

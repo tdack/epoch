@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { Maximize2, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import { LAYOUT_METRICS, type PlacedPerson, type PlacedUnion } from '#lib/tree-layout/index.js';
 	import type { FloorPerson, FloorsLayout } from '#lib/tree-layout/floors.js';
+	import CollapserMark from './CollapserMark.svelte';
 	import PersonCard from './PersonCard.svelte';
 	import PlaneStack, { type ConnectorSpec, type PlaneSpec } from './PlaneStack.svelte';
+	import StubMark from './StubMark.svelte';
 	import TreeEdge from './TreeEdge.svelte';
 	import TreeLegend from './TreeLegend.svelte';
 	import UnionMarker from './UnionMarker.svelte';
-	import { activateOnKey } from './activate-on-key.js';
+	import ZoomControls from './ZoomControls.svelte';
 	import { BAND_OPACITY, bandRowY, floorPoint, framingLayout } from './plane-stack.js';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
@@ -295,54 +296,22 @@
 						{/each}
 
 						{#each layout.stubs.filter((s) => s.generation === generation && s.band === band) as stub (stub.id)}
-							<g
-								class="stub"
-								data-stub-id={stub.id}
-								transform="translate({stub.x}, {bandRowY(stub.band)})"
-								role="button"
-								tabindex="0"
-								aria-label="Show {stub.count} more {stub.kind === 'ancestors'
-									? stub.count === 1
-										? 'parent'
-										: 'ancestors'
-									: stub.count === 1
-										? 'child'
-										: 'children'}"
-								onclick={(event) => {
-									event.stopPropagation();
-									onExpandStub?.(stub.id);
-								}}
-								onkeydown={activateOnKey(() => onExpandStub?.(stub.id))}
-							>
-								<rect
-									x={-M.stubWidth / 2}
-									y={-M.stubHeight / 2}
-									width={M.stubWidth}
-									height={M.stubHeight}
-									rx={M.stubHeight / 2}
-								/>
-								<text text-anchor="middle" y="5">+{stub.count}</text>
-							</g>
+							<StubMark
+								{stub}
+								x={stub.x}
+								y={bandRowY(stub.band)}
+								onExpand={(id) => onExpandStub?.(id)}
+							/>
 						{/each}
 
 						{#each layout.collapsers.filter((c) => c.generation === generation && c.band === band) as collapser (collapser.stubId)}
 							{@const at = collapserAt(collapser)}
-							<g
-								class="collapser"
-								data-collapser-id={collapser.stubId}
-								transform="translate({at.x}, {at.y})"
-								role="button"
-								tabindex="0"
-								aria-label="Collapse this branch"
-								onclick={(event) => {
-									event.stopPropagation();
-									onCollapseStub?.(collapser.stubId);
-								}}
-								onkeydown={activateOnKey(() => onCollapseStub?.(collapser.stubId))}
-							>
-								<circle r="10" />
-								<line x1="-5" y1="0" x2="5" y2="0" />
-							</g>
+							<CollapserMark
+								stubId={collapser.stubId}
+								x={at.x}
+								y={at.y}
+								onCollapse={(id) => onCollapseStub?.(id)}
+							/>
 						{/each}
 					</g>
 				{/each}
@@ -367,90 +336,12 @@
 		<TreeLegend />
 	</div>
 
-	<div
-		class="absolute right-6 bottom-6 z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
-		style="background: var(--tree-panel);"
-	>
-		<button
-			type="button"
-			title="Zoom in"
-			aria-label="Zoom in"
-			onclick={() => viewport.zoomBy(ZOOM_STEP)}
-			class="control"
-		>
-			<ZoomIn class="h-4 w-4" />
-		</button>
-		<button
-			type="button"
-			title="Zoom out"
-			aria-label="Zoom out"
-			onclick={() => viewport.zoomBy(1 / ZOOM_STEP)}
-			class="control"
-		>
-			<ZoomOut class="h-4 w-4" />
-		</button>
-		<button
-			type="button"
-			title="Fit to view"
-			aria-label="Fit to view"
-			onclick={() => viewport.fit(framing)}
-			class="control"
-		>
-			<Maximize2 class="h-4 w-4" />
-		</button>
-		<span class="px-1 text-[11px] text-stone-500 tabular-nums" aria-live="off"
-			>{Math.round(transform.k * 100)}%</span
-		>
-	</div>
+	<ZoomControls
+		scale={transform.k}
+		onZoomIn={() => viewport.zoomBy(ZOOM_STEP)}
+		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
+		onFit={() => viewport.fit(framing)}
+	/>
 
 	<p class="sr-only" aria-live="polite">{announcement}</p>
 </div>
-
-<!-- The stub and collapser styles repeat `TreeCanvas`'s; they move to a shared component when a third canvas needs them. -->
-<style>
-	.control {
-		padding: 0.5rem;
-		border-radius: 0.5rem;
-		color: #57534e;
-		cursor: pointer;
-	}
-	.control:hover {
-		background: rgb(231 229 228 / 0.6);
-		color: #1c1917;
-	}
-	.control:focus-visible {
-		outline: 2px solid var(--tree-focus-ring);
-	}
-	.stub,
-	.collapser {
-		cursor: pointer;
-		outline: none;
-	}
-	.stub rect {
-		fill: var(--tree-panel);
-		stroke: var(--tree-ink-muted);
-		stroke-width: 1.5;
-	}
-	.stub text {
-		fill: var(--tree-ink);
-		font-size: 13px;
-		font-weight: 700;
-	}
-	.collapser circle {
-		fill: var(--tree-panel);
-		stroke: var(--tree-ink-muted);
-		stroke-width: 1.5;
-	}
-	.collapser line {
-		stroke: var(--tree-ink);
-		stroke-width: 2;
-		stroke-linecap: round;
-	}
-	.stub:hover rect,
-	.stub:focus-visible rect,
-	.collapser:hover circle,
-	.collapser:focus-visible circle {
-		stroke: var(--tree-focus-ring);
-		stroke-width: 3;
-	}
-</style>

@@ -45,6 +45,20 @@ describe('tree view URL state', () => {
 		);
 	});
 
+	it('carries the focus union, and leaves it out when absent', () => {
+		const layers = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			layoutMode: 'layers' as const,
+			unionId: 'u2'
+		};
+		expect(serializeViewState(layers).toString()).toBe('tree=t1&focus=p1&mode=layers&union=u2');
+		expect(parseViewState(serializeViewState(layers))).toEqual(layers);
+		expect(parseViewState(new URLSearchParams('union=')).unionId).toBeNull();
+		expect(serializeViewState(DEFAULT_VIEW_STATE).has('union')).toBe(false);
+	});
+
 	it('carries the wider groups, and leaves their defaults out', () => {
 		const wide = {
 			...DEFAULT_VIEW_STATE,

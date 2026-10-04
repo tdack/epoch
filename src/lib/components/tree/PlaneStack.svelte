@@ -5,6 +5,8 @@
 		key: string;
 		/** Offset toward the viewer before the camera tilts the stage. */
 		z: number;
+		/** Where the plane stands across and down in the stage; the origin when absent. */
+		offset?: { x: number; y: number };
 		/** The plane's drawn extent, in its own coordinates. */
 		bounds: { minX: number; maxX: number; minY: number; maxY: number };
 		/** Name of the plane, read out for the group and drawn in its corner. */
@@ -65,7 +67,10 @@
 	<div class="perspective" style:perspective="{PERSPECTIVE_PX}px">
 		<div class="stage" style:transform={cameraTransform(camera)}>
 			{#each planes as spec (spec.key)}
-				<div class="plane" style:transform="translateZ({spec.z}px)">
+				<div
+					class="plane"
+					style:transform="translate3d({spec.offset?.x ?? 0}px, {spec.offset?.y ?? 0}px, {spec.z}px)"
+				>
 					<div
 						class="sheet"
 						style:left="{spec.bounds.minX}px"
@@ -158,6 +163,7 @@
 		pointer-events: none;
 	}
 	.stage :global([data-person-id]),
+	.stage :global([data-ghost-id]),
 	.stage :global([data-stub-id]),
 	.stage :global([data-collapser-id]) {
 		pointer-events: auto;

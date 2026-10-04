@@ -17,6 +17,10 @@
 		view: TreeViewState;
 		/** Search the tree's people by name. */
 		searchPeople: (query: string) => Promise<PeopleSearchResult[]>;
+		/** The focus person's unions, when `layers` can be centred on any of them. */
+		unionChoices?: Array<{ id: string; label: string }>;
+		/** The union `layers` is centred on now. */
+		focusUnionId?: string | null;
 		/** Merge these fields into the view. */
 		onChange: (change: Partial<TreeViewState>) => void;
 		/** Refocus the tree on a person picked from the search results. */
@@ -31,6 +35,8 @@
 	let {
 		view,
 		searchPeople,
+		unionChoices = [],
+		focusUnionId = null,
 		onChange,
 		onPickFocus,
 		suggestions = { favorites: [], recents: [] }
@@ -41,8 +47,6 @@
 		layers: 'Layers',
 		floors: 'Floors'
 	};
-	/** Layers arrives with its own layout (stage 5); until then its button is shown but cannot be pressed. */
-	const UNAVAILABLE_MODES: ReadonlySet<LayoutMode> = new Set([LAYOUT_MODES.LAYERS]);
 
 	interface Option {
 		id: string;
@@ -242,8 +246,6 @@
 				type="button"
 				class="mode"
 				aria-pressed={view.layoutMode === mode}
-				disabled={UNAVAILABLE_MODES.has(mode)}
-				title={UNAVAILABLE_MODES.has(mode) ? 'Coming soon' : undefined}
 				onclick={() => onChange({ layoutMode: mode })}
 			>
 				{MODE_LABELS[mode]}
@@ -253,6 +255,22 @@
 
 	{@render stepper('Ancestors', 'ancestorDepth')}
 	{@render stepper('Descendants', 'descendantDepth')}
+
+	{#if view.layoutMode === LAYOUT_MODES.LAYERS && unionChoices.length > 1}
+		<label class="group" title="Which of their partnerships the layers are centred on">
+			<span class="caption">Centred on</span>
+			<select
+				class="select"
+				aria-label="Partnership"
+				value={focusUnionId}
+				onchange={(e) => onChange({ unionId: e.currentTarget.value })}
+			>
+				{#each unionChoices as choice (choice.id)}
+					<option value={choice.id}>{choice.label}</option>
+				{/each}
+			</select>
+		</label>
+	{/if}
 
 	{#if view.layoutMode !== LAYOUT_MODES.FLAT}
 		<div class="group" role="group" aria-label="Relatives off the direct line">
@@ -441,9 +459,16 @@
 		border-color: #1c1917;
 		color: #fdfbf7;
 	}
-	.mode:disabled {
-		opacity: 0.4;
-		cursor: default;
+	.select {
+		padding: 4px 8px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+		max-width: 16rem;
+	}
+	.select:focus-visible {
+		outline: 2px solid #0f172a;
+		outline-offset: 1px;
 	}
 	.mode:focus-visible {
 		outline: 2px solid #0f172a;

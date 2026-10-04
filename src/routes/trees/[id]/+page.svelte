@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
+	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -24,6 +25,7 @@
 	import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
+	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import type { PageData } from './$types';
 
@@ -33,6 +35,8 @@
 
 	let { data }: Props = $props();
 	const { editor, marks, toasts } = getTreeContext();
+	/** Layers shows the cousin line, so it asks for side branches two steps out. */
+	const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const historyCoalescer = createHistoryCoalescer();
 
@@ -68,14 +72,7 @@
 			? filterParentChildTypes(graph, view.types)
 			: graph
 	);
-	/**
-	 * The view that draws. Layers has no layout yet, so its address draws flat, and the toolbar shows
-	 * what is drawn.
-	 */
-	const mode = $derived(
-		view.layoutMode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLOORS : LAYOUT_MODES.FLAT
-	);
-	const shownView = $derived({ ...view, layoutMode: mode });
+	const mode = $derived(view.layoutMode);
 	const focusOptions = $derived({
 		ancestorDepth: applied.ancestorDepth,
 		descendantDepth: applied.descendantDepth,
@@ -101,6 +98,36 @@
 			? layoutFloors(graphForLayout, focusPersonId, focusOptions)
 			: null
 	);
+	const layersLayout = $derived(
+		graphForLayout && mode === LAYOUT_MODES.LAYERS
+			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
+			: null
+	);
+
+	/**
+	 * Layers draws cousins and a partner's family, so it asks for them unless the address already
+	 * says. Done once on arrival: a viewer who then turns them off is not asked again.
+	 */
+	let hasDefaultedLayers = false;
+	$effect(() => {
+		if (mode !== LAYOUT_MODES.LAYERS) {
+			hasDefaultedLayers = false;
+			return;
+		}
+		if (hasDefaultedLayers) return;
+		hasDefaultedLayers = true;
+		untrack(() => {
+			if (view.collateralDepth > 0 || view.shouldIncludePartnerOrigins) return;
+			navigate(
+				{
+					collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+					shouldIncludePartnerOrigins: true,
+					expandedStubs: view.expandedStubs
+				},
+				{ isReplace: true }
+			);
+		});
+	});
 
 	/** Re-frame the canvas when this changes. Opening a stub is deliberately not part of it. */
 	const viewSignature = $derived(
@@ -114,7 +141,9 @@
 			applied.collateralDepth,
 			applied.shouldIncludePartnerOrigins,
 			view.types,
-			mode
+			mode,
+			// Another union recentres the planes, so it re-frames like a new focus.
+			layersLayout?.focusUnionId ?? null
 		])
 	);
 	/** Bumped when the data reloads without the person having opened a stub, so an edit re-frames the canvas. */
@@ -161,11 +190,16 @@
 	) {
 		// Anything but an explicit stub change starts the new view with its stubs closed.
 		const stubs = 'expandedStubs' in change ? {} : { expandedStubs: [] };
+		const currentFocus = view.focusId ?? focusPersonId;
+		// A union belongs to the person it was picked for, so another focus starts from their first.
+		const isRefocus = 'focusId' in change && change.focusId !== currentFocus;
+		const union = isRefocus && !('unionId' in change) ? { unionId: null } : {};
 		const query = serializeViewState({
 			...view,
 			treeId: null,
-			focusId: view.focusId ?? focusPersonId,
+			focusId: currentFocus,
 			...stubs,
+			...union,
 			...change
 		}).toString();
 		// The address only changes once the new graph has loaded, so a second click straight after the
@@ -271,6 +305,23 @@
 		);
 	}
 
+	function expandStub(id: string) {
+		const token = compactStubId(id);
+		if (token)
+			navigate(
+				{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
+				{ kind: HISTORY_KINDS.ADJUST }
+			);
+	}
+
+	function collapseStub(id: string) {
+		const token = compactStubId(id);
+		navigate(
+			{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
+			{ kind: HISTORY_KINDS.ADJUST }
+		);
+	}
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	const handleFocusPerson = (id: string) => setFocus(id);
 
@@ -296,7 +347,9 @@
 	{#if graph}
 		<div class="mb-3">
 			<TreeToolbar
-				view={shownView}
+				{view}
+				unionChoices={layersLayout?.unionChoices ?? []}
+				focusUnionId={layersLayout?.focusUnionId ?? null}
 				searchPeople={(q) => searchPeopleApi(treeId, q)}
 				onChange={(change) =>
 					navigate(
@@ -311,6 +364,15 @@
 												collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
 												shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
 											}
+										: {}),
+									// Layers shows the cousin line, so arriving at it asks for the wider groups.
+									...(change.layoutMode === LAYOUT_MODES.LAYERS &&
+									view.collateralDepth === 0 &&
+									!view.shouldIncludePartnerOrigins
+										? {
+												collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+												shouldIncludePartnerOrigins: true
+											}
 										: {})
 								}
 							: change,
@@ -320,7 +382,18 @@
 				suggestions={marks}
 			/>
 		</div>
-		{#if floorsLayout}
+		{#if layersLayout}
+			<LayersCanvas
+				layout={layersLayout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
+			/>
+		{:else if floorsLayout}
 			<FloorsCanvas
 				layout={floorsLayout}
 				{fitKey}
@@ -328,21 +401,8 @@
 				onSelectPerson={handleFocusPerson}
 				onOpenPerson={handleOpenPerson}
 				onClearSelection={clearSelection}
-				onExpandStub={(id) => {
-					const token = compactStubId(id);
-					if (token)
-						navigate(
-							{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
-							{ kind: HISTORY_KINDS.ADJUST }
-						);
-				}}
-				onCollapseStub={(id) => {
-					const token = compactStubId(id);
-					navigate(
-						{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
-						{ kind: HISTORY_KINDS.ADJUST }
-					);
-				}}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
 			/>
 		{:else}
 			<TreeCanvas
@@ -370,21 +430,8 @@
 				mergeableUnionIds={editor.mergeableIds}
 				partnershipLabels={editor.unionLabels}
 				onDragRelate={editor.dragRelate}
-				onExpandStub={(id) => {
-					const token = compactStubId(id);
-					if (token)
-						navigate(
-							{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
-							{ kind: HISTORY_KINDS.ADJUST }
-						);
-				}}
-				onCollapseStub={(id) => {
-					const token = compactStubId(id);
-					navigate(
-						{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
-						{ kind: HISTORY_KINDS.ADJUST }
-					);
-				}}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
 			/>
 		{/if}
 	{:else}

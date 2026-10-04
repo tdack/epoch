@@ -41,6 +41,11 @@ export interface TreeViewState {
 	types: ParentChildType[];
 	/** Which view draws the graph. It never changes what is fetched. */
 	layoutMode: LayoutMode;
+	/**
+	 * The union `layers` is centred on, one of the focus person's. Null means their first. It never
+	 * changes what is fetched, and a new focus person starts again from their first.
+	 */
+	unionId: string | null;
 	/** Stubs the user opened, as compact tokens (see `compactStubId`); resolved against the graph by the page. */
 	expandedStubs: string[];
 }
@@ -57,6 +62,7 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 	shouldIncludePartnerOrigins: DEFAULT_FOCUS_OPTIONS.shouldIncludePartnerOrigins,
 	types: [...ALL_PARENT_CHILD_TYPES],
 	layoutMode: LAYOUT_MODES.FLAT,
+	unionId: null,
 	expandedStubs: []
 };
 
@@ -102,6 +108,7 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		layoutMode: layoutMode(params.get('mode')),
+		unionId: params.get('union') || null,
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
 }
@@ -130,6 +137,7 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)
 		params.set('types', state.types.join(','));
 	if (state.layoutMode !== d.layoutMode) params.set('mode', state.layoutMode);
+	if (state.unionId) params.set('union', state.unionId);
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }

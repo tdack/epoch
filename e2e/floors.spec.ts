@@ -24,7 +24,7 @@ test('the floors view switches in place, survives reload and Back, and opens the
 	await expect(card('Kid')).toBeVisible();
 	await expect(page.getByRole('application', { name: 'Family tree' })).toBeVisible();
 	await expect(mode('Flat')).toHaveAttribute('aria-pressed', 'true');
-	await expect(mode('Layers')).toBeDisabled();
+	await expect(mode('Layers')).toBeEnabled();
 
 	// Switching keeps the focus and depth, and draws every person once on a floor.
 	await mode('Floors').click();
