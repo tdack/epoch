@@ -15,7 +15,7 @@ Phase 1 GEDCOM/domain foundations, Phase 3 record UI and Phase 4 privacy/audit s
 3. Citation fields include source, page/locator, transcription/text, access date, quality/assessment and linked media.
 4. Show evidence alongside each assertion and distinguish sourced, unsourced and conflicting claims.
 5. (Built in S14, ADR-022.) Build duplicate-person comparison and explicit merge with field-by-field review, relationship impact preview and reversible audit history.
-6. (Built in S13, ADR-021; unsourced key facts added in S15b, ADR-028; privacy leaks are S15c.) Add data-quality checks: impossible/implausible chronology, dangling pointers, duplicate relationships, cycles, event ordering, missing parent context, unsourced key facts and privacy leaks.
+6. (Built in S13, ADR-021; unsourced key facts added in S15b, ADR-028; privacy leaks in S15c, ADR-029.) Add data-quality checks: impossible/implausible chronology, dangling pointers, duplicate relationships, cycles, event ordering, missing parent context, unsourced key facts and privacy leaks.
 7. (Built in S13.) Classify checks as errors, warnings or research suggestions. Do not reject unusual histories merely because they are statistically unlikely.
 8. Add research tasks/to-do items attached to records and quality findings.
 9. Extend GEDCOM import/export and conformance tests for sources, citations, repositories and notes.
@@ -41,20 +41,20 @@ Convert existing free-text notes without inventing source links. Preserve import
 
 ## Status against the work items
 
-S13 (quality report), S14 (person merge), S15a (lossless evidence round trip) and S15b (sources,
-repositories and citations) are done; see ADR-021, ADR-022, ADR-023 and ADR-028 and the
-[S15b status](./improvement-plan.md#s15b-sources-repositories-and-citations). S15c (notes, research
-tasks and the privacy-leak check) is in progress on branch `feat/s15c-notes-tasks`. The roadmap
-shows Phase 5 as *In progress* until S15c lands.
+Complete (2026-10-04); the roadmap shows Phase 5 as *Complete*. S13 (quality report), S14 (person
+merge), S15a (lossless evidence round trip), S15b (sources, repositories and citations) and S15c
+(notes, research tasks and privacy leaks) are done and deployed; see ADR-021, ADR-022, ADR-023,
+ADR-028 and ADR-029 and the [S15b](./improvement-plan.md#s15b-sources-repositories-and-citations)
+and [S15c](./improvement-plan.md#s15c-notes-and-research-tasks) status sections.
 
 | Work item | Status |
 |---|---|
-| 1. Source, repository, citation and note records | Sources, repositories and citations done (S15b). Notes, including shared notes, are S15c. |
-| 2. Citations and notes on people, unions, relationships, names and facts | Citations done for all five subjects (S15b). Notes are S15c. |
+| 1. Source, repository, citation and note records | Done: sources, repositories and citations (S15b); notes, inline and shared (S15c). |
+| 2. Citations and notes on people, unions, relationships, names and facts | Done: citations on all five subjects (S15b); notes on those and on sources, repositories and citations (S15c). Repositories have no notes screen yet. |
 | 3. Citation fields | Source, page, quality, data date and text done (S15b). A citation's `OBJE` is retained, not linked to media. |
 | 4. Evidence beside each assertion; sourced, unsourced and conflicting | Done (S15b), in the person view and on the partnership page. |
-| 5. Duplicate-person comparison and merge | Done (S14); merges carry citations (S15b). |
-| 6. Data-quality checks | Done (S13), with unsourced key facts (S15b). Privacy leaks are S15c. |
+| 5. Duplicate-person comparison and merge | Done (S14); merges carry citations (S15b), notes and tasks (S15c). |
+| 6. Data-quality checks | Done (S13), with unsourced key facts (S15b) and privacy leaks for managers (S15c). |
 | 7. Errors, warnings and research suggestions | Done (S13). |
-| 8. Research tasks | S15c. |
-| 9. GEDCOM import/export for evidence | Sources, repositories and citations modelled in 5.5.1 and 7.0 (S15b); everything else retained losslessly (S15a). Notes are S15c. |
+| 8. Research tasks | Done (S15c): on records and quality findings, privacy-aware; Epoch's own and not exported (an imported `_TODO` stays retained). |
+| 9. GEDCOM import/export for evidence | Done: sources, repositories, citations (S15b) and notes (S15c) in 5.5.1 and 7.0; everything else retained losslessly (S15a). |
