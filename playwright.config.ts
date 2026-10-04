@@ -9,7 +9,12 @@ const PORT = 5179;
  *
  * They drive the installed Google Chrome (`channel: 'chrome'`) so no browser download is needed;
  * on a machine without Chrome run `npx playwright install chromium` and remove the channel.
+ *
+ * The 3D tree views lean on browser-specific CSS (3D transforms, `zoom`), so their specs also run
+ * in WebKit and Firefox (`npx playwright install webkit firefox`). Run one with `--project`.
  */
+const THREE_D_SPECS = /(floors|layers|keyboard-3d|scale-3d)\.spec\.ts/;
+
 export default defineConfig({
 	testDir: 'e2e',
 	fullyParallel: false,
@@ -18,10 +23,14 @@ export default defineConfig({
 	reporter: [['list']],
 	use: {
 		baseURL: `http://localhost:${PORT}`,
-		channel: 'chrome',
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure'
 	},
+	projects: [
+		{ name: 'chrome', use: { channel: 'chrome' } },
+		{ name: 'webkit', use: { browserName: 'webkit' }, testMatch: THREE_D_SPECS },
+		{ name: 'firefox', use: { browserName: 'firefox' }, testMatch: THREE_D_SPECS }
+	],
 	webServer: {
 		command: `npm run dev -- --port ${PORT} --strictPort`,
 		url: `http://localhost:${PORT}`,
