@@ -26,7 +26,7 @@ import {
 	type RelationshipGraphPerson
 } from './types.js';
 
-interface FloorPerson {
+export interface FloorPerson {
 	id: string;
 	x: number;
 	generation: number;
@@ -59,17 +59,15 @@ interface FloorStub {
 	band: Band;
 }
 
-/** A segment drawn within one floor row: a partner to its union, or a "+N" stub to its owner. */
+/** A partner's line to its union, drawn within one floor row. */
 interface FloorEdge {
 	id: string;
-	kind: 'partner' | 'stub';
 	generation: number;
 	band: Band;
 	fromX: number;
 	toX: number;
-	unionId: string | null;
-	personId: string | null;
-	stubId: string | null;
+	unionId: string;
+	personId: string;
 }
 
 interface DropEnd {
@@ -95,6 +93,25 @@ interface FloorDrop {
 	lands: DropEnd;
 }
 
+/** A "+N" stub's dashed line to the person or union it stands in for; it crosses floors. */
+interface FloorStubLink {
+	id: string;
+	stubId: string;
+	owner: DropEnd;
+	stub: DropEnd;
+}
+
+/** The control that collapses an expanded stub, at the card or union it belongs to. */
+interface FloorCollapser {
+	stubId: string;
+	kind: PlacedStub['kind'];
+	personId: string;
+	unionId: string | null;
+	generation: number;
+	band: Band;
+	x: number;
+}
+
 interface Floor {
 	generation: number;
 	/** Bands that hold something on this floor, ascending. */
@@ -109,6 +126,8 @@ export interface FloorsLayout {
 	stubs: FloorStub[];
 	floorEdges: FloorEdge[];
 	drops: FloorDrop[];
+	stubLinks: FloorStubLink[];
+	collapsers: FloorCollapser[];
 	collapsedPersonIds: string[];
 	misplacedPersonIds: string[];
 	bounds: { minX: number; maxX: number; minGeneration: number; maxGeneration: number };
@@ -122,6 +141,8 @@ const EMPTY_FLOORS: FloorsLayout = {
 	stubs: [],
 	floorEdges: [],
 	drops: [],
+	stubLinks: [],
+	collapsers: [],
 	collapsedPersonIds: [],
 	misplacedPersonIds: [],
 	bounds: { minX: 0, maxX: 0, minGeneration: 0, maxGeneration: 0 }
@@ -282,6 +303,14 @@ export function layoutFloors(
 
 	const floorEdges: FloorEdge[] = [];
 	const drops: FloorDrop[] = [];
+	const stubLinks: FloorStubLink[] = [];
+	/** The union a stub hangs from, else the person. */
+	const ownerEnd = (stub: FloorStub): DropEnd | null => {
+		const union = stub.unionId ? unionAt.get(stub.unionId) : undefined;
+		if (union) return { generation: union.generation, band: union.band, x: union.x };
+		const person = personAt.get(stub.personId);
+		return person ? { generation: person.generation, band: person.band, x: person.x } : null;
+	};
 	for (const e of flat.edges) {
 		if (e.kind === 'partner') {
 			const union = unionAt.get(e.unionId);
@@ -289,33 +318,24 @@ export function layoutFloors(
 			if (!union || !person) continue;
 			floorEdges.push({
 				id: e.id,
-				kind: 'partner',
 				generation: person.generation,
 				band: person.band,
 				fromX: person.x,
 				toX: union.x,
 				unionId: e.unionId,
-				personId: e.personId,
-				stubId: null
+				personId: e.personId
 			});
 		} else if (e.kind === 'stub') {
 			const stub = stubAt.get(e.stubId);
-			if (!stub) continue;
-			const owner = personAt.get(stub.personId);
-			const union = stub.unionId ? unionAt.get(stub.unionId) : undefined;
-			const ownerX = union?.x ?? owner?.x;
-			if (ownerX === undefined) continue;
-			floorEdges.push({
-				id: e.id,
-				kind: 'stub',
-				generation: stub.generation,
-				band: stub.band,
-				fromX: ownerX,
-				toX: stub.x,
-				unionId: stub.unionId,
-				personId: stub.personId,
-				stubId: stub.id
-			});
+			const owner = stub && ownerEnd(stub);
+			if (stub && owner) {
+				stubLinks.push({
+					id: e.id,
+					stubId: stub.id,
+					owner,
+					stub: { generation: stub.generation, band: stub.band, x: stub.x }
+				});
+			}
 		} else {
 			const child = personAt.get(e.childId);
 			if (!child) continue;
@@ -351,6 +371,17 @@ export function layoutFloors(
 		}
 	}
 
+	const collapsers: FloorCollapser[] = [];
+	for (const c of flat.collapsers) {
+		const person = personAt.get(c.personId);
+		const union = c.unionId ? unionAt.get(c.unionId) : undefined;
+		const at =
+			c.kind === 'ancestors' || !union
+				? person && { generation: person.generation, band: person.band, x: person.x }
+				: { generation: union.generation, band: union.band, x: union.x };
+		if (at) collapsers.push({ ...c, ...at });
+	}
+
 	const bandsByGeneration = new Map<number, Set<Band>>();
 	const note = (generation: number, band: Band) => {
 		const set = bandsByGeneration.get(generation) ?? new Set<Band>();
@@ -374,6 +405,8 @@ export function layoutFloors(
 		stubs,
 		floorEdges,
 		drops,
+		stubLinks,
+		collapsers,
 		collapsedPersonIds: flat.collapsedPersonIds,
 		misplacedPersonIds: flat.misplacedPersonIds,
 		bounds: {
