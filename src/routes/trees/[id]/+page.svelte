@@ -23,11 +23,18 @@
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
-	import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
+	import {
+		fetchPersonPage,
+		recordRecentApi,
+		saveDefaultViewMode,
+		saveViewMode,
+		searchPeopleApi
+	} from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
+	import { resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -48,7 +55,28 @@
 	 * The view (focus, depths, toggles, opened stubs) lives in the URL so reloads, back/forward and
 	 * shared links restore it. Everything below derives from it rather than keeping a second copy.
 	 */
-	const view = $derived(parseViewState(new URLSearchParams(pendingSearch ?? page.url.search)));
+	/**
+	 * The view saved for this tree: what the viewer chose, else what the owner set. A change made
+	 * here shows at once; a reload reads the same from the tree list. Reset when the tree changes.
+	 */
+	let savedViews = $state<{ treeId: string; member?: LayoutMode | null; tree?: LayoutMode | null }>(
+		{ treeId: '' }
+	);
+	const savedFor = $derived(savedViews.treeId === treeId ? savedViews : { treeId });
+	const memberTree = $derived(data.trees.find((t) => t.id === treeId));
+	const savedMemberMode = $derived(
+		'member' in savedFor ? (savedFor.member ?? null) : (memberTree?.viewMode ?? null)
+	);
+	const savedTreeMode = $derived(
+		'tree' in savedFor ? (savedFor.tree ?? null) : (memberTree?.defaultViewMode ?? null)
+	);
+	/** A link with no `mode` opens here; the address wins when it names one. */
+	const startingMode = $derived(
+		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode, fromTree: savedTreeMode })
+	);
+	const view = $derived(
+		parseViewState(new URLSearchParams(pendingSearch ?? page.url.search), startingMode)
+	);
 	/** What the graph on screen was fetched for. The canvas draws with this, and the toolbar shows `view`. */
 	const applied = $derived(data.applied);
 	const graph = $derived(data.focusGraph?.graph ?? null);
@@ -183,7 +211,7 @@
 		if (!resolved || page.url.searchParams.get('focus') === resolved) return;
 		untrack(() => {
 			const query = serializeViewState({
-				...parseViewState(page.url.searchParams),
+				...parseViewState(page.url.searchParams, startingMode),
 				treeId: null,
 				focusId: resolved
 			}).toString();
@@ -355,6 +383,22 @@
 		mergeableUnionIds: editor.mergeableIds
 	});
 
+	/** Save a default view, showing it at once and saying so when the save fails. */
+	async function setDefaultView(scope: 'member' | 'tree', mode: LayoutMode | null) {
+		const before = savedFor;
+		savedViews = { ...savedFor, [scope]: mode };
+		try {
+			if (scope === 'member') await saveViewMode(treeId, mode);
+			else await saveDefaultViewMode(treeId, mode);
+		} catch (cause) {
+			savedViews = before;
+			toasts.push(cause instanceof Error ? cause.message : 'Could not save the default view', {
+				tone: 'error',
+				durationMs: 10_000
+			});
+		}
+	}
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	const handleFocusPerson = (id: string) => setFocus(id);
 
@@ -383,6 +427,13 @@
 				{view}
 				unionChoices={layersLayout?.unionChoices ?? []}
 				focusUnionId={layersLayout?.focusUnionId ?? null}
+				defaults={{
+					member: savedMemberMode,
+					tree: savedTreeMode,
+					canSetTree: role === 'owner'
+				}}
+				onSetMemberDefault={(mode) => void setDefaultView('member', mode)}
+				onSetTreeDefault={(mode) => void setDefaultView('tree', mode)}
 				searchPeople={(q) => searchPeopleApi(treeId, q)}
 				onChange={(change) =>
 					navigate(

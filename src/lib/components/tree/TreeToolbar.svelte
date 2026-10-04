@@ -21,6 +21,15 @@
 		unionChoices?: Array<{ id: string; label: string }>;
 		/** The union `layers` is centred on now. */
 		focusUnionId?: string | null;
+		/**
+		 * The saved defaults the view starts from, when they can be changed here: the viewer's own,
+		 * the tree's, and whether the viewer may set the tree's (the owner).
+		 */
+		defaults?: { member: LayoutMode | null; tree: LayoutMode | null; canSetTree: boolean };
+		/** Save the viewer's own default view; null clears it so the tree's applies. */
+		onSetMemberDefault?: (mode: LayoutMode | null) => void;
+		/** Save the tree's default view for everyone with no choice of their own. */
+		onSetTreeDefault?: (mode: LayoutMode | null) => void;
 		/** Merge these fields into the view. */
 		onChange: (change: Partial<TreeViewState>) => void;
 		/** Refocus the tree on a person picked from the search results. */
@@ -37,6 +46,9 @@
 		searchPeople,
 		unionChoices = [],
 		focusUnionId = null,
+		defaults,
+		onSetMemberDefault,
+		onSetTreeDefault,
 		onChange,
 		onPickFocus,
 		suggestions = { favorites: [], recents: [] }
@@ -253,6 +265,45 @@
 		{/each}
 	</div>
 
+	{#if defaults}
+		<details class="defaults">
+			<summary>Default view</summary>
+			<div class="defaults-body">
+				<label class="field">
+					<span class="caption">Mine</span>
+					<select
+						aria-label="My default view"
+						value={defaults.member ?? ''}
+						onchange={(event) =>
+							onSetMemberDefault?.((event.currentTarget.value || null) as LayoutMode | null)}
+					>
+						<option value=""
+							>Tree default ({MODE_LABELS[defaults.tree ?? LAYOUT_MODES.FLAT]})</option
+						>
+						{#each Object.values(LAYOUT_MODES) as mode (mode)}
+							<option value={mode}>{MODE_LABELS[mode]}</option>
+						{/each}
+					</select>
+				</label>
+				{#if defaults.canSetTree}
+					<label class="field">
+						<span class="caption">Everyone</span>
+						<select
+							aria-label="Default view for everyone"
+							value={defaults.tree ?? LAYOUT_MODES.FLAT}
+							onchange={(event) => onSetTreeDefault?.(event.currentTarget.value as LayoutMode)}
+						>
+							{#each Object.values(LAYOUT_MODES) as mode (mode)}
+								<option value={mode}>{MODE_LABELS[mode]}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
+				<p class="note">Links that name a view still open in it.</p>
+			</div>
+		</details>
+	{/if}
+
 	{@render stepper('Ancestors', 'ancestorDepth')}
 	{@render stepper('Descendants', 'descendantDepth')}
 
@@ -434,6 +485,49 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
+	}
+	.defaults {
+		position: relative;
+	}
+	.defaults summary {
+		cursor: pointer;
+		font-weight: 600;
+		color: #57534e;
+	}
+	.defaults summary:focus-visible {
+		outline: 2px solid var(--tree-focus-ring, #0f172a);
+		outline-offset: 2px;
+	}
+	.defaults-body {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 0;
+		z-index: 40;
+		display: grid;
+		gap: 8px;
+		min-width: 15rem;
+		padding: 10px 12px;
+		background: white;
+		border: 1px solid #d6d3d1;
+		border-radius: 8px;
+		box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+	}
+	.defaults-body .field {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.defaults-body select {
+		padding: 4px 6px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+	}
+	.defaults-body .note {
+		margin: 0;
+		font-size: 12px;
+		color: #57534e;
 	}
 	.caption {
 		font-weight: 600;
