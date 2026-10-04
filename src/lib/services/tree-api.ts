@@ -13,6 +13,7 @@ import type {
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 import type { FocusGraphDto, TreeSummaryDto } from '#lib/shared/graph-views.js';
+import type { LayoutMode } from '#lib/shared/view-mode.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
 import type {
@@ -705,6 +706,24 @@ export async function savePrivacySettings(
 		`/api/trees/${enc(treeId)}/privacy`,
 		json('PUT', patch),
 		'Failed to save the privacy settings'
+	);
+}
+
+/** The caller's own view in this tree; `null` clears it so the tree's default applies. */
+export async function saveViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}/view-mode`,
+		json('PUT', { mode }),
+		'Failed to save the view'
+	);
+}
+
+/** The view members with no choice of their own get; the owner's to set. */
+export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}/default-view`,
+		json('PUT', { mode }),
+		'Failed to save the default view'
 	);
 }
 

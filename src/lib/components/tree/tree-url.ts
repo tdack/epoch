@@ -81,11 +81,14 @@ function flag(value: string | null, isDefault: boolean): boolean {
 	return value === '1' ? true : value === '0' ? false : isDefault;
 }
 
-function layoutMode(value: string | null): LayoutMode {
-	return Object.values(LAYOUT_MODES).find((mode) => mode === value) ?? LAYOUT_MODES.FLAT;
-}
-
-export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewState {
+/**
+ * `fallbackMode` is what a link with no `mode` opens in: the viewer's own default, else the tree's,
+ * else flat (S16 stage 8). The address wins over both.
+ */
+export function parseViewState(
+	params: Pick<URLSearchParams, 'get'>,
+	fallbackMode: LayoutMode = LAYOUT_MODES.FLAT
+): TreeViewState {
 	const requested = params.get('types');
 	const types = requested
 		? ALL_PARENT_CHILD_TYPES.filter((t) => requested.split(',').includes(t))
@@ -108,7 +111,7 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 		),
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
-		layoutMode: layoutMode(params.get('mode')),
+		layoutMode: parseLayoutMode(params.get('mode')) ?? fallbackMode,
 		unionId: params.get('union') || null,
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
@@ -137,7 +140,9 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	}
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)
 		params.set('types', state.types.join(','));
-	if (state.layoutMode !== d.layoutMode) params.set('mode', state.layoutMode);
+	// Always written, flat included: a link without it opens in the reader's own default, so the
+	// address has to say what this view is for a reload, Back and a shared link to land the same.
+	params.set('mode', state.layoutMode);
 	if (state.unionId) params.set('union', state.unionId);
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
