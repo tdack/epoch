@@ -74,13 +74,29 @@
 			: graph
 	);
 	const mode = $derived(view.layoutMode);
+	/**
+	 * A tilted stack needs width to read. Under this many pixels Layers shows one plane at a time
+	 * and Floors draws the flat view, with a note, rather than a tilt too small to use.
+	 */
+	const PHONE_MAX_WIDTH_PX = 639;
+	let isPhone = $state(false);
+	$effect(() => {
+		const query = matchMedia(`(max-width: ${PHONE_MAX_WIDTH_PX}px)`);
+		isPhone = query.matches;
+		const onChange = (event: MediaQueryListEvent) => (isPhone = event.matches);
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
+	/** What is drawn: the address says Floors, a phone gets the hourglass. */
+	const drawnMode = $derived(isPhone && mode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLAT : mode);
+	const isFloorsOnPhone = $derived(drawnMode !== mode);
 	const focusOptions = $derived({
 		ancestorDepth: applied.ancestorDepth,
 		descendantDepth: applied.descendantDepth,
 		shouldIncludeSiblings: applied.shouldIncludeSiblings,
 		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
 		// Flat draws the hourglass it always has; the wider groups are for the 3D views.
-		...(mode === LAYOUT_MODES.FLAT
+		...(drawnMode === LAYOUT_MODES.FLAT
 			? {}
 			: {
 					collateralDepth: applied.collateralDepth,
@@ -90,17 +106,17 @@
 	});
 	// Only the chosen view is laid out, so switching mode costs one layout and no request.
 	const layout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.FLAT
+		graphForLayout && drawnMode === LAYOUT_MODES.FLAT
 			? layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
 	);
 	const floorsLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.FLOORS
+		graphForLayout && drawnMode === LAYOUT_MODES.FLOORS
 			? layoutFloors(graphForLayout, focusPersonId, focusOptions)
 			: null
 	);
 	const layersLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.LAYERS
+		graphForLayout && drawnMode === LAYOUT_MODES.LAYERS
 			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
 			: null
 	);
@@ -142,7 +158,7 @@
 			applied.collateralDepth,
 			applied.shouldIncludePartnerOrigins,
 			view.types,
-			mode,
+			drawnMode,
 			// Another union recentres the planes, so it re-frames like a new focus.
 			layersLayout?.focusUnionId ?? null
 		])
@@ -399,6 +415,11 @@
 				suggestions={marks}
 			/>
 		</div>
+		{#if isFloorsOnPhone}
+			<p class="mb-2 text-sm text-stone-600" role="note">
+				Floors needs a wider screen, so this shows the flat view.
+			</p>
+		{/if}
 		{#if layersLayout}
 			<LayersCanvas
 				layout={layersLayout}
@@ -412,6 +433,7 @@
 				{actions}
 				partnershipLabels={editor.unionLabels}
 				onDragRelate={editor.dragRelate}
+				isSinglePlane={isPhone}
 			/>
 		{:else if floorsLayout}
 			<FloorsCanvas
