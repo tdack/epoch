@@ -27,6 +27,8 @@ export interface TaskFilter {
 	assigneeId?: string;
 	/** Only tasks about this record. */
 	subject?: TaskSubjectRef;
+	/** Only tasks about a record of this kind, or `none` for tasks about no record. */
+	linked?: TaskSubjectKind | 'none';
 }
 
 export interface PageRequest {
@@ -55,6 +57,12 @@ function filterSql(filter: TaskFilter): SQL {
 		filter.subject
 			? sql` and t.subject_kind = ${filter.subject.kind} and t.subject_id = ${filter.subject.id}`
 			: sql``
+	}${
+		filter.linked === 'none'
+			? sql` and t.subject_kind is null`
+			: filter.linked
+				? sql` and t.subject_kind = ${filter.linked}`
+				: sql``
 	}`;
 }
 
