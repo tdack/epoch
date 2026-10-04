@@ -110,7 +110,14 @@ later. `wrangler rollback` restores code, never schema.
 - Commit messages follow the Conventional Commits style enforced by the repo's git-commit skill
   (see `.agents/skills/git-commit/SKILL.md`): `<type>[scope]: <description>`, imperative mood,
   under 72 chars, one logical change per commit.
-- Every commit made by an agent carries a `Co-Author: <model> <noreply@github.com>` trailer, where
-  `<model>` is the committing agent's model identifier (e.g.
-  `Co-Author: claude-sonnet-4-5 <noreply@github.com>`). Commits made directly by the human operator
-  omit the trailer.
+- Every commit made by an agent ends with a `Co-Authored-By: <model> <noreply@<provider>>` trailer:
+  `<model>` is the committing agent's model name, and `<provider>` is its vendor's domain. For
+  example:
+  - `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`
+  - `Co-Authored-By: Gemini Flash <noreply@google.com>`
+  - `Co-Authored-By: GPT-5 <noreply@openai.com>`
+
+  Spell the key `Co-Authored-By` (GitHub and GitLab match it case-insensitively); tools ignore
+  any other spelling, such as `Co-Author`. If the agent's harness supplies its own trailer of this
+  form, keep it rather than adding a second. Commits made directly by the human operator omit the
+  trailer.
