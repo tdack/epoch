@@ -28,6 +28,23 @@ describe('tree view URL state', () => {
 		expect(parseViewState(params)).toEqual(state);
 	});
 
+	it('carries the layout mode, and leaves the default out', () => {
+		const floors = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			layoutMode: 'floors' as const
+		};
+		expect(serializeViewState(floors).toString()).toBe('tree=t1&focus=p1&mode=floors');
+		expect(parseViewState(serializeViewState(floors)).layoutMode).toBe('floors');
+		expect(parseViewState(new URLSearchParams('mode=layers')).layoutMode).toBe('layers');
+		expect(parseViewState(new URLSearchParams('mode=flat')).layoutMode).toBe('flat');
+		expect(parseViewState(new URLSearchParams('mode=sideways')).layoutMode).toBe('flat');
+		expect(serializeViewState({ ...DEFAULT_VIEW_STATE, layoutMode: 'flat' }).has('mode')).toBe(
+			false
+		);
+	});
+
 	it('omits defaults', () => {
 		expect(
 			serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' }).toString()

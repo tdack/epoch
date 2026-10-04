@@ -19,6 +19,10 @@ export const ALL_PARENT_CHILD_TYPES = [
 ] as const satisfies readonly ParentChildType[];
 export const MAX_DEPTH = MAX_VIEW_DEPTH;
 
+/** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-029). */
+export const LAYOUT_MODES = { FLAT: 'flat', LAYERS: 'layers', FLOORS: 'floors' } as const;
+export type LayoutMode = (typeof LAYOUT_MODES)[keyof typeof LAYOUT_MODES];
+
 export interface TreeViewState {
 	treeId: string | null;
 	focusId: string | null;
@@ -30,6 +34,8 @@ export interface TreeViewState {
 	shouldIncludeStepFamilies: boolean;
 	/** Parent-child types drawn; all five by default. */
 	types: ParentChildType[];
+	/** Which view draws the graph. It never changes what is fetched. */
+	layoutMode: LayoutMode;
 	/** Stubs the user opened, as compact tokens (see `compactStubId`); resolved against the graph by the page. */
 	expandedStubs: string[];
 }
@@ -43,6 +49,7 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 	shouldIncludeSiblings: DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
 	shouldIncludeStepFamilies: DEFAULT_FOCUS_OPTIONS.shouldIncludeStepFamilies,
 	types: [...ALL_PARENT_CHILD_TYPES],
+	layoutMode: LAYOUT_MODES.FLAT,
 	expandedStubs: []
 };
 
@@ -53,6 +60,10 @@ function depth(value: string | null, fallback: number): number {
 
 function flag(value: string | null, isDefault: boolean): boolean {
 	return value === '1' ? true : value === '0' ? false : isDefault;
+}
+
+function layoutMode(value: string | null): LayoutMode {
+	return Object.values(LAYOUT_MODES).find((mode) => mode === value) ?? LAYOUT_MODES.FLAT;
 }
 
 export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewState {
@@ -73,6 +84,7 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 		),
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
+		layoutMode: layoutMode(params.get('mode')),
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
 }
@@ -95,6 +107,7 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	}
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)
 		params.set('types', state.types.join(','));
+	if (state.layoutMode !== d.layoutMode) params.set('mode', state.layoutMode);
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }
