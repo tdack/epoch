@@ -3,14 +3,17 @@
 	import {
 		LAYOUT_METRICS,
 		type Band,
+		type ChildEdge,
 		type PlacedPerson,
 		type PlacedUnion
 	} from '#lib/tree-layout/index.js';
 	import type { LayerPerson, LayersLayout } from '#lib/tree-layout/layers.js';
 	import CollapserMark from './CollapserMark.svelte';
+	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import PersonCard from './PersonCard.svelte';
 	import PlaneStack, { type ConnectorSpec, type PlaneSpec } from './PlaneStack.svelte';
 	import StubMark from './StubMark.svelte';
+	import TreeContextMenu from './TreeContextMenu.svelte';
 	import TreeEdge from './TreeEdge.svelte';
 	import TreeLegend from './TreeLegend.svelte';
 	import UnionMarker from './UnionMarker.svelte';
@@ -24,12 +27,21 @@
 		layersFraming,
 		type LayerView
 	} from './plane-stack.js';
+	import { childLinks, type PlaneNav } from './plane-keyboard.js';
+	import { PlaneInteractions } from './plane-interactions.svelte.js';
+	import {
+		personMenuItems,
+		unionMenuItems,
+		type PersonRef,
+		type TreeEditActions
+	} from './tree-actions.js';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
 	import {
 		isEndedUnion,
 		levelOfDetail,
 		truncate,
+		unionLabelText,
 		yearsLine,
 		type LevelOfDetail
 	} from './tree-view.js';
@@ -51,6 +63,12 @@
 		onExpandStub?: (stubId: string) => void;
 		/** A collapse control was activated; the caller removes the id. */
 		onCollapseStub?: (stubId: string) => void;
+		/** What the context menus can do; an absent action leaves its entry out. */
+		actions?: TreeEditActions;
+		/** Chronological labels for repeated partnerships between the same people, by union id. */
+		partnershipLabels?: Map<string, PartnershipLabel>;
+		/** User dragged one person onto another. */
+		onDragRelate?: (relate: { source: PersonRef; target: PersonRef }) => void;
 	}
 
 	let {
@@ -61,7 +79,10 @@
 		onOpenPerson,
 		onClearSelection,
 		onExpandStub,
-		onCollapseStub
+		onCollapseStub,
+		actions = {},
+		partnershipLabels,
+		onDragRelate
 	}: Props = $props();
 
 	const M = LAYOUT_METRICS;
@@ -81,12 +102,18 @@
 	/** Distance below a card row at which a hanging union node sits; matches the flat layout. */
 	const HANG_OFFSET_PX = M.cardHeight / 2 + M.unionRadius + 4;
 
-	let layerView = $state<LayerView>(LAYER_VIEWS.ANGLED);
+	// The flattest camera for a viewer who asked for less motion; the angled one shows the depth.
+	let layerView = $state<LayerView>(
+		typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+			? LAYER_VIEWS.FRONT
+			: LAYER_VIEWS.ANGLED
+	);
 	/** Planes the viewer has switched off, so a plane in front can be cleared away to read the one behind. */
 	let hiddenPlaneList = $state<Band[]>([]);
 	const hiddenPlanes = $derived(new Set(hiddenPlaneList));
 	const isShown = (plane: Band) => !hiddenPlanes.has(plane);
 
+	let containerElement: HTMLDivElement | null = $state(null);
 	let surfaceElement: HTMLDivElement | null = $state(null);
 	const viewport = new TreeViewport();
 	const transform = $derived(viewport.transform);
@@ -98,12 +125,50 @@
 	const unionById = $derived(new Map(layout.unions.map((u) => [u.id, u])));
 	const stubById = $derived(new Map(layout.stubs.map((s) => [s.id, s])));
 	const collapsedIds = $derived(new Set(layout.collapsedPersonIds));
-	const activeId = $derived(layout.focusPersonId);
 	const announcement = $derived(
 		layout.focusPersonId
 			? `Tree focused on ${peopleById.get(layout.focusPersonId)?.person.displayName ?? 'unknown'}, shown as layers. ${layout.people.length} people shown.`
 			: ''
 	);
+
+	/** What the arrow keys walk: the planes in view, and the lines that join their people. */
+	const nav = $derived<PlaneNav>({
+		people: layout.people
+			.filter((p) => isShown(p.plane))
+			.map((p) => ({ id: p.id, group: p.plane, generation: p.generation, x: p.x })),
+		links: childLinks(
+			layout.edges.filter((e): e is ChildEdge & { plane: Band } => e.kind === 'child'),
+			new Map(layout.unions.map((u) => [u.id, u.union.partnerIds]))
+		),
+		unionPartners: layout.unions.map((u) => u.union.partnerIds)
+	});
+	const interactions = new PlaneInteractions({
+		container: () => containerElement,
+		focusPersonId: () => layout.focusPersonId,
+		nav: () => nav,
+		personMenu: (id) => {
+			const found = peopleById.get(id);
+			return found
+				? personMenuItems(
+						{ id, displayName: found.person.displayName },
+						found.person.unionIds.length > 0,
+						actions
+					)
+				: [];
+		},
+		unionMenu: (id) => unionMenuItems(id, actions),
+		ensureVisible: (id) => {
+			const at = framing.people.find((p) => p.id === id);
+			if (at) viewport.ensureVisible(at.x, at.y);
+		},
+		personRef: (id) => {
+			const found = peopleById.get(id);
+			return found ? { id, displayName: found.person.displayName } : null;
+		},
+		onClearSelection: () => onClearSelection?.(),
+		onDragRelate: (relate) => onDragRelate?.(relate)
+	});
+	const activeId = $derived(interactions.activeId);
 
 	function levelOf(plane: Band): LevelOfDetail {
 		return zoomLevel === 'full' && plane === 2 ? 'compact' : zoomLevel;
@@ -189,27 +254,20 @@
 		const current = framing;
 		untrack(() => viewport.reframe(key, current, surfaceElement));
 	});
-
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') onClearSelection?.();
-	}
-
-	const noop = () => {};
-	// There is no menu or drag-to-relate in this preview; the browser's own menu should not open on a card.
-	function ignoreContextMenu(event: MouseEvent) {
-		event.preventDefault();
-	}
 </script>
 
 <!-- Arrow-key handling is delegated from the focusable cards inside; the container itself is not a tab stop. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
+	bind:this={containerElement}
 	class="tree-canvas layers-canvas relative h-[max(28rem,calc(100vh-22rem))] w-full overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
 	style="{treeTokenStyle()}; background: var(--tree-bg);"
 	role="application"
 	aria-label="Family tree, layers view"
 	tabindex="-1"
-	onkeydown={onKeydown}
+	onkeydown={interactions.onKeydown}
+	onpointerup={interactions.onPointerUp}
+	onpointercancel={interactions.onPointerCancel}
 >
 	<div
 		class="pointer-events-none absolute inset-0 opacity-40"
@@ -220,7 +278,13 @@
 		bind:this={surfaceElement}
 		class="scene surface relative z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
 	>
-		<PlaneStack {planes} {connectors} camera={layerCamera(layerView)} {transform}>
+		<PlaneStack
+			{planes}
+			{connectors}
+			camera={layerCamera(layerView)}
+			{transform}
+			settleKey={fitKey}
+		>
 			{#snippet plane(spec)}
 				{@const band = Number(spec.key) as Band}
 				{@const level = levelOf(band)}
@@ -242,8 +306,10 @@
 							{level}
 							isEnded={isEndedUnion(union.union.status)}
 							isNonAdjacent={false}
+							label={unionLabelText(union.union)}
+							ordinalTitle={partnershipLabels?.get(union.id)?.title}
 							zoom={transform.k}
-							onContextMenu={ignoreContextMenu}
+							onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
 						/>
 					{/each}
 
@@ -292,8 +358,28 @@
 							relation={relationOf(person)}
 							onSelect={(id) => onSelectPerson?.(id)}
 							onOpen={(id) => onOpenPerson?.(id)}
-							onContextMenu={ignoreContextMenu}
-							onPointerDown={noop}
+							onContextMenu={(event, node) => interactions.openPersonMenu(event, node.id)}
+							onPointerDown={interactions.onCardPointerDown}
+						/>
+					{/each}
+
+					<!-- Hit targets follow the cards, so Tab reaches a person's partnerships right after the person. -->
+					{#each layout.unions.filter((u) => u.plane === band) as union (union.id)}
+						<UnionMarker
+							union={placedUnion(union)}
+							{level}
+							part="target"
+							isEnded={isEndedUnion(union.union.status)}
+							isNonAdjacent={false}
+							isTabbable={!!activeId && union.union.partnerIds.includes(activeId)}
+							partnerNames={union.union.partnerIds
+								.map((id) => peopleById.get(id)?.person.displayName ?? id)
+								.join(' and ')}
+							label={unionLabelText(union.union)}
+							ordinalTitle={partnershipLabels?.get(union.id)?.title}
+							zoom={transform.k}
+							onOpen={(u) => actions.onEditUnion?.(u.id)}
+							onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
 						/>
 					{/each}
 
@@ -324,13 +410,6 @@
 			<p class="text-base font-medium text-stone-700">No people in this tree yet.</p>
 		</div>
 	{/if}
-
-	<p
-		class="absolute top-4 right-4 z-20 rounded-full border border-stone-300 px-2.5 py-0.5 text-xs font-semibold text-stone-600"
-		style="background: var(--tree-panel);"
-	>
-		Preview
-	</p>
 
 	<div class="absolute top-4 left-4 z-20 max-h-[calc(100%-2rem)]">
 		<TreeLegend />
@@ -373,6 +452,15 @@
 		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
 		onFit={() => viewport.fit(framing)}
 	/>
+
+	{#if interactions.menu}
+		<TreeContextMenu
+			items={interactions.menu.items}
+			x={interactions.menu.x}
+			y={interactions.menu.y}
+			onClose={interactions.closeMenu}
+		/>
+	{/if}
 
 	<p class="sr-only" aria-live="polite">{announcement}</p>
 </div>

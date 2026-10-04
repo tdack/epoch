@@ -25,7 +25,7 @@
 </script>
 
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import {
 		CONNECTOR_WIDTH_PX,
 		PERSPECTIVE_PX,
@@ -43,11 +43,38 @@
 		camera: CameraPresetName;
 		/** Pan and zoom, from `TreeViewport`; the same maths as the flat canvas. */
 		transform: { x: number; y: number; k: number };
+		/**
+		 * Changes when the chart is redrawn around someone else. The planes then settle in with a short
+		 * fade; the first draw and a viewer who prefers reduced motion get none.
+		 */
+		settleKey?: string;
 		/** The content of one plane: SVG elements in the plane's own coordinates. */
 		plane: Snippet<[PlaneSpec]>;
 	}
 
-	let { planes, connectors, camera, transform, plane }: Props = $props();
+	let { planes, connectors, camera, transform, settleKey, plane }: Props = $props();
+
+	const SETTLE_MS = 320;
+	let rootElement: HTMLDivElement | null = $state(null);
+	let lastSettleKey: string | undefined;
+
+	// Cards sit in per-plane SVGs, so one that changes plane is a new element and cannot slide from
+	// one to the other; a fade of everything keeps the change from reading as a jump instead.
+	$effect(() => {
+		const key = settleKey;
+		untrack(() => {
+			const isFirst = lastSettleKey === undefined;
+			lastSettleKey = key;
+			if (isFirst || !rootElement || typeof matchMedia !== 'function') return;
+			if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+			for (const el of rootElement.querySelectorAll('.content, .connector')) {
+				el.animate([{ opacity: 0.25 }, { opacity: 1 }], {
+					duration: SETTLE_MS,
+					easing: 'ease-out'
+				});
+			}
+		});
+	});
 
 	const connectorStyles = $derived(
 		connectors.map((c) => ({ spec: c, style: connectorStyle(c.from, c.to) }))
@@ -60,6 +87,7 @@
 	The pan is a translate in zoomed units, hence the division by k.
 -->
 <div
+	bind:this={rootElement}
 	class="pan"
 	style:zoom={transform.k}
 	style:transform="translate({transform.x / transform.k}px, {transform.y / transform.k}px)"
@@ -163,6 +191,7 @@
 		pointer-events: none;
 	}
 	.stage :global([data-person-id]),
+	.stage :global([data-union-id]),
 	.stage :global([data-ghost-id]),
 	.stage :global([data-stub-id]),
 	.stage :global([data-collapser-id]) {

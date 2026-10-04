@@ -7,6 +7,7 @@
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
+	import type { TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
@@ -322,6 +323,22 @@
 		);
 	}
 
+	/** What the 3D canvases' context menus can do; the flat canvas takes the same actions one by one. */
+	const actions = $derived<TreeEditActions>({
+		onOpenPerson: handleOpenPerson,
+		onEditPerson: (id) => void editor.openEditPerson(id),
+		onDeletePerson: editor.requestDeletePerson,
+		onAddRelationship: (anchor) =>
+			editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null }),
+		onRecordDeath: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' }),
+		onEndPartnership: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' }),
+		onEditUnion: editor.editUnion,
+		onEndUnion: editor.endUnion,
+		onRemoveUnion: editor.removeUnion,
+		onMergeUnion: editor.mergeUnion,
+		mergeableUnionIds: editor.mergeableIds
+	});
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	const handleFocusPerson = (id: string) => setFocus(id);
 
@@ -392,6 +409,9 @@
 				onClearSelection={clearSelection}
 				onExpandStub={expandStub}
 				onCollapseStub={collapseStub}
+				{actions}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
 			/>
 		{:else if floorsLayout}
 			<FloorsCanvas
@@ -403,6 +423,9 @@
 				onClearSelection={clearSelection}
 				onExpandStub={expandStub}
 				onCollapseStub={collapseStub}
+				{actions}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
 			/>
 		{:else}
 			<TreeCanvas
