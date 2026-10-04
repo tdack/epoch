@@ -339,7 +339,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Consequences:** `TreeRows` carries the four tables, so every mutation loads them. S15c models shared notes and tasks on this footing.
 
 ## ADR-030: 3D tree views are CSS 3D over HTML planes, chosen by `mode` (S16)
-- **Status:** accepted, on Chromium evidence only. WebKit and Firefox were not measured (the cached builds would not launch); the owner chose to proceed. Re-check them before stage 7's cross-browser exit.
+- **Status:** accepted. Measured on Chromium at the spike; **WebKit re-checked at stage 7** (the 3D e2e specs pass and pan frame times match Chrome: see the plan's Status row 7). **Firefox is still unmeasured**: the downloaded builds do not start in the development environment, so it needs checking on a machine where it does (`npx playwright test --project=firefox`).
 - **Context:** two optional views beside the flat hourglass: `layers` (upright planes, one per band) and `floors` (one per generation). Plan: `docs/3d-tree-views-plan.md`.
 - **Decision:**
   - **Renderer: CSS 3D transforms over HTML planes** (`perspective` and `transform-style: preserve-3d`), not WebGL. Each plane holds its own `<svg>` with the existing `PersonCard`, `UnionMarker` and `TreeEdge`, so cards stay real DOM: the browser hit-tests them, and roving tabindex, `aria-label`s, the context menu and the drawer work as today. One shared `PlaneStack` primitive; depth connectors are thin elements rotated into Z.
@@ -352,7 +352,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **Hit-testing:** correct through the transforms once planes are `pointer-events: none` and only cards are `auto`. Without that, a translucent plane in front swallows clicks on cards behind it (35/55 and 45/55 correct). With it: `layers` 55/55; `floors` 53/55, both misses being a card that genuinely overlaps another on a nearer floor (so plane gaps and tilt must keep cards from overlapping).
   - **Focus:** arrow-key roving focus reached every card in both modes; the focus ring is drawn on the projected card. Cards pushed outside the viewport are the only ones off-screen.
   - **Text:** crisp at 1×, and at device scale 2 under tilt. At 3× via an outer `scale()` the planes are rasterised once and stretched, so text goes soft. With CSS `zoom` on the wrapper, the same 3× text re-rasterises sharply.
-  - **Frame time panning 294 visible cards** (3 s sine pan, both modes): 60 fps, p95 16.7 ms, max 16.8 ms. Headless and vsync-capped, so it shows no dropped frames on this machine, not headroom on a low-end device; stage 7 measures that.
+  - **Frame time panning 294 visible cards** (3 s sine pan, both modes): 60 fps, p95 16.7 ms, max 16.8 ms. Headless and vsync-capped, so it shows no dropped frames on this machine, not headroom on a low-end device. Stage 7 repeated it on 322 cards in Chrome and WebKit (60 fps, p95 under 20 ms) and found the spike's band 2 fade (0.78) below AA for muted text; it is 0.88 now, as a token.
 - **Given up:** free orbiting; one more stacking-context hazard (a plane in front of another must not catch events); perspective makes far planes smaller, so text legibility falls with depth and back-band fading is a token to tune.
 - **Consequences:** no new dependency, no schema or API change at this stage. Stage 4 adds fetch options (`side`, `origins`) and touches the privacy matrix; stage 8 adds expand-only columns.
 
