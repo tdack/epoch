@@ -205,6 +205,20 @@ export class EvidenceRepository {
 		return counts;
 	}
 
+	/** Citations by id, as the mutation snapshot has them, for naming what a note on one is about. */
+	async citationsByIds(treeId: string, ids: readonly string[]): Promise<CitationRow[]> {
+		const out: CitationRow[] = [];
+		for (const chunk of chunksOf(ids)) {
+			const rows = await this.db
+				.select()
+				.from(citations)
+				.where(and(eq(citations.treeId, treeId), inArray(citations.id, chunk)))
+				.all();
+			out.push(...rows.map(citationImage));
+		}
+		return out;
+	}
+
 	/** A source's repository links, in order, with the repositories they name. */
 	async linksOfSource(sourceId: string) {
 		return this.db

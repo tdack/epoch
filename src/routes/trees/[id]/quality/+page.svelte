@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
+	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/services/load-helpers.js';
 	import { dismissFindingApi, restoreFindingApi } from '#lib/services/tree-api.js';
@@ -17,13 +19,30 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	const { toasts } = getTreeContext();
+	const { editor, toasts } = getTreeContext();
 
 	const treeId = $derived(data.summary.tree.id);
 	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
 	const report = $derived(data.report);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const canDismiss = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
+
+	/** The finding a task is being made from. */
+	let taskFor = $state<QualityFinding | null>(null);
+
+	/** The record a task from a finding is about: the finding's first person or partnership, if it has one. */
+	const taskSubjectOf = (finding: QualityFinding) => {
+		const first = finding.subjects[0];
+		return first
+			? {
+					ref: {
+						kind: first.kind === 'person' ? ('person' as const) : ('union' as const),
+						id: first.id
+					},
+					label: first.name
+				}
+			: null;
+	};
 
 	/** The finding whose reason is being written; one at a time keeps the page quiet. */
 	let dismissing = $state<string | null>(null);
@@ -124,14 +143,34 @@
 									>{finding.message}
 									<span class="text-xs text-stone-500">{@render subjectLinks(finding)}</span></span
 								>
-								{#if canDismiss && dismissing !== finding.key}
-									<button
-										type="button"
-										class="text-link text-xs"
-										onclick={() => startDismissing(finding)}>Dismiss</button
-									>
-								{/if}
+								<span class="flex items-baseline gap-3">
+									{#if canAddTask(role) && !finding.task}
+										<button
+											type="button"
+											class="text-link text-xs"
+											onclick={() => (taskFor = finding)}
+											aria-label={`Create a task for: ${finding.message}`}>Create task</button
+										>
+									{/if}
+									{#if canDismiss && dismissing !== finding.key}
+										<button
+											type="button"
+											class="text-link text-xs"
+											onclick={() => startDismissing(finding)}>Dismiss</button
+										>
+									{/if}
+								</span>
 							</div>
+							{#if finding.task}
+								<p class="mt-1 text-xs text-stone-600" data-testid="finding-task">
+									Has a task:
+									<a
+										href={`${base}/tasks?status=${finding.task.status}#task-${finding.task.id}`}
+										class="text-link">{finding.task.title}</a
+									>
+									({finding.task.status})
+								</p>
+							{/if}
 							{#if dismissing === finding.key}
 								<form
 									class="mt-2 flex flex-wrap items-end gap-2"
@@ -209,3 +248,22 @@
 		</ul>
 	</section>
 {/if}
+
+<TaskDialog
+	isOpen={taskFor !== null}
+	{treeId}
+	task={null}
+	subject={taskFor ? taskSubjectOf(taskFor) : null}
+	findingKey={taskFor?.key ?? null}
+	suggestedTitle={taskFor?.message ?? ''}
+	members={report.members}
+	onsaved={async (change) => {
+		taskFor = null;
+		await editor.afterChange(change, 'Task added');
+	}}
+	onstale={async () => {
+		taskFor = null;
+		await editor.refresh();
+	}}
+	oncancel={() => (taskFor = null)}
+/>

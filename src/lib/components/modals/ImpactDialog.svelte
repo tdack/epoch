@@ -182,6 +182,16 @@
 				</p>
 			{/if}
 
+			{#if impact.carriedNotes}
+				<p class="text-sm text-stone-700">
+					{impact.carriedNotes}
+					{impact.carriedNotes === 1 ? 'note stays' : 'notes stay'} with what {impact.carriedNotes ===
+					1
+						? 'it is'
+						: 'they are'} on. None is lost.
+				</p>
+			{/if}
+
 			{#if groups.length === 0 && moves.length === 0}
 				<p class="text-sm text-stone-600">Nothing would change.</p>
 			{/if}

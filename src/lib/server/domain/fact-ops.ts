@@ -11,6 +11,12 @@
 import type { EventRow, IndividualRow, RowOp, TreeRows } from './change-log';
 import { dateColumnsFor } from './date-columns';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
+import {
+	factDescriptionToNoteOps,
+	factNoteOps,
+	isInlineAttachment,
+	type NoteContext
+} from './note-ops';
 import { isFactType, type FactInput } from '../../shared/fact-types';
 import { isUnionEventType } from '../../shared/union-events';
 
@@ -32,11 +38,15 @@ export type FactCommand =
 			orderedFactIds: string[];
 	  };
 
-interface FactContext {
-	treeId: string;
-	/** Epoch milliseconds, stamped on every row written. */
-	now: number;
-}
+/** A fact change needs the clock and tree; a note it writes is given an id by `newId` when the caller has one. */
+type FactContext = Pick<NoteContext, 'treeId' | 'now'> &
+	Partial<Pick<NoteContext, 'newId' | 'actorId'>>;
+
+const noteContext = (ctx: FactContext): NoteContext => ({
+	...ctx,
+	newId: ctx.newId ?? (() => crypto.randomUUID()),
+	actorId: ctx.actorId ?? null
+});
 
 const clean = (value: string | null | undefined): string | null => value?.trim() || null;
 
@@ -61,7 +71,11 @@ function requireKnownType(type: string): void {
 }
 
 /** What the conflict dialog can show as the stored fact. */
-function factSnapshot(fact: EventRow): Record<string, unknown> {
+function factSnapshot(rows: TreeRows, fact: EventRow): Record<string, unknown> {
+	const own = rows.noteAttachments
+		.filter((a) => a.subjectKind === 'event' && a.subjectId === fact.id)
+		.sort((a, b) => a.sortOrder - b.sortOrder)
+		.find(isInlineAttachment);
 	return {
 		type: fact.type,
 		dateText: fact.dateRaw,
@@ -69,11 +83,11 @@ function factSnapshot(fact: EventRow): Record<string, unknown> {
 		value: fact.value,
 		cause: fact.cause,
 		age: fact.age,
-		notes: fact.notes ?? fact.description
+		notes: own?.text ?? fact.description
 	};
 }
 
-function checkVersion(fact: EventRow, expected: number | undefined): void {
+function checkVersion(rows: TreeRows, fact: EventRow, expected: number | undefined): void {
 	if (expected === undefined || fact.version === expected) return;
 	throw new ConcurrencyConflictError(
 		`This fact was changed by someone else (you had version ${expected}, it is now ${fact.version}).`,
@@ -83,7 +97,7 @@ function checkVersion(fact: EventRow, expected: number | undefined): void {
 			id: fact.id,
 			expectedVersion: expected,
 			currentVersion: fact.version,
-			current: factSnapshot(fact)
+			current: factSnapshot(rows, fact)
 		}
 	);
 }
@@ -127,14 +141,19 @@ function createFact(
 		value: clean(command.fact.value),
 		cause: clean(command.fact.cause),
 		age: clean(command.fact.age),
-		notes: clean(command.fact.notes),
+		// The fact's note is a note record (ADR-029); the column that held it is no longer written.
+		notes: null,
 		sortOrder: 0,
 		version: 1,
 		createdAt: ctx.now,
 		updatedAt: ctx.now
 	};
 	const vitals = VITAL_TYPES.has(row.type) ? bumpPerson(rows, command.personId, ctx) : [];
-	return [{ table: 'events', id: row.id, before: null, after: row }, ...vitals];
+	return [
+		{ table: 'events', id: row.id, before: null, after: row },
+		...factNoteOps(rows, noteContext(ctx), row.id, command.fact.notes),
+		...vitals
+	];
 }
 
 function updateFact(
@@ -143,7 +162,7 @@ function updateFact(
 	command: Extract<FactCommand, { kind: 'update_fact' }>
 ): RowOp[] {
 	const before = requireFact(rows, command.factId);
-	checkVersion(before, command.expectedVersion);
+	checkVersion(rows, before, command.expectedVersion);
 	const patch = command.fact;
 	if (patch.type !== undefined) requireKnownType(patch.type);
 
@@ -157,20 +176,30 @@ function updateFact(
 		place: patch.place !== undefined ? clean(patch.place) : before.place,
 		value: patch.value !== undefined ? clean(patch.value) : before.value,
 		cause: patch.cause !== undefined ? clean(patch.cause) : before.cause,
-		age: patch.age !== undefined ? clean(patch.age) : before.age,
-		notes: patch.notes !== undefined ? clean(patch.notes) : before.notes
+		age: patch.age !== undefined ? clean(patch.age) : before.age
 	};
 	// A legacy description is the imported cause, note or value in one. Once the fact is edited its
-	// text lives in the field that says what it is, and `notes` must not repeat it on export.
-	if (patch.notes !== undefined || patch.value !== undefined || patch.cause !== undefined) {
-		after.notes =
-			patch.notes !== undefined ? clean(patch.notes) : (before.notes ?? before.description);
-		after.description = null;
-	}
-	if (JSON.stringify(after) === JSON.stringify(before)) return [];
+	// text lives in the field that says what it is: the note field when it is a note, which is a
+	// note record now, so the description becomes one unless the edit writes the note itself.
+	const isFolding =
+		patch.notes !== undefined || patch.value !== undefined || patch.cause !== undefined;
+	const noteOps = isFolding
+		? [
+				...(patch.notes === undefined
+					? factDescriptionToNoteOps(rows, noteContext(ctx), before.id)
+					: []),
+				...factNoteOps(rows, noteContext(ctx), before.id, patch.notes)
+			]
+		: [];
+	if (isFolding) after.description = null;
+	if (JSON.stringify(after) === JSON.stringify(before) && noteOps.length === 0) return [];
 	const isVital = VITAL_TYPES.has(before.type) || VITAL_TYPES.has(after.type);
 	return [
-		{ table: 'events', id: before.id, before, after: touch(after, ctx) },
+		// The fact editor's save writes the fact with its note, so a change of only the note still
+		// bumps the fact: a stale form conflicts, and the log says the fact was edited (the note is
+		// a row of its own, which would otherwise hide that).
+		{ table: 'events' as const, id: before.id, before, after: touch(after, ctx) },
+		...noteOps,
 		...(isVital ? bumpPerson(rows, before.entityId, ctx) : [])
 	];
 }
@@ -181,7 +210,7 @@ function deleteFact(
 	command: Extract<FactCommand, { kind: 'delete_fact' }>
 ): RowOp[] {
 	const before = requireFact(rows, command.factId);
-	checkVersion(before, command.expectedVersion);
+	checkVersion(rows, before, command.expectedVersion);
 	const vitals = VITAL_TYPES.has(before.type) ? bumpPerson(rows, before.entityId, ctx) : [];
 	return [{ table: 'events', id: before.id, before, after: null }, ...vitals];
 }

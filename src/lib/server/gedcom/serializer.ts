@@ -27,6 +27,33 @@ interface ExportName {
 	unionXref?: string | null;
 	extra?: string[] | null;
 	citations?: ExportCitation[];
+	notes?: ExportNote[];
+}
+
+/**
+ * One note on a structure as it is written: a pointer at a shared note, or the inline text, and the
+ * lines kept under it (ADR-029). `pointerTag` is the tag a 7.0 file writes a pointer with; 5.5.1
+ * has only `NOTE`.
+ */
+export interface ExportNote {
+	/** The shared note's XREF, or the pointer the file named that is not a record here; null for inline. */
+	pointer: string | null;
+	pointerTag?: 'NOTE' | 'SNOTE';
+	text?: string | null;
+	layout?: Record<string, string[]> | null;
+	extra?: string[] | null;
+}
+
+/** A shared note record as written. */
+interface ExportSharedNote {
+	xref: string;
+	/** The root tag a 7.0 file writes the record with; 5.5.1 always writes `NOTE`. */
+	tag: 'NOTE' | 'SNOTE';
+	text?: string | null;
+	mime?: string | null;
+	language?: string | null;
+	layout?: Record<string, string[]> | null;
+	extra?: string[] | null;
 }
 
 /** One citation as it is written: its pointer, the fields the model holds, and the lines it keeps. */
@@ -40,6 +67,7 @@ export interface ExportCitation {
 	text?: string | null;
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
+	notes?: ExportNote[];
 }
 
 /** A source record as written. */
@@ -52,6 +80,7 @@ interface ExportSource {
 	text?: string | null;
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
+	notes?: ExportNote[];
 	/** `REPO` links in order: the pointer (or none), the call number, and the lines kept under the link. */
 	repositories: Array<{
 		pointer: string | null;
@@ -67,6 +96,7 @@ interface ExportRepository {
 	address?: string | null;
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
+	notes?: ExportNote[];
 }
 
 export interface GedcomExportPayload {
@@ -92,9 +122,13 @@ export interface GedcomExportPayload {
 			/** Lines with no column, written back inside the fact. */
 			gedcomExtra?: string[] | null;
 			citations?: ExportCitation[];
+			/** The notes under the fact, written before its citations. */
+			noteLinks?: ExportNote[];
 		}>;
 		/** Citations of the person themself. */
 		citations?: ExportCitation[];
+		/** Notes on the person themself. */
+		notes?: ExportNote[];
 		famc?: string[];
 		fams?: string[];
 	}>;
@@ -109,6 +143,8 @@ export interface GedcomExportPayload {
 			parentPedigrees?: Record<string, string>;
 			/** Citations of the link, written under the child's `FAMC`. */
 			citations?: ExportCitation[];
+			/** Notes of the link, written under the child's `FAMC`. */
+			notes?: ExportNote[];
 		}>;
 		/** XREFs of families merged into this one; each is written as a typed `REFN`. */
 		aliases?: string[];
@@ -119,13 +155,17 @@ export interface GedcomExportPayload {
 			description: string | null;
 			gedcomExtra?: string[] | null;
 			citations?: ExportCitation[];
+			noteLinks?: ExportNote[];
 		}>;
 		/** Citations of the family record. */
 		citations?: ExportCitation[];
+		/** Notes on the family record. */
+		notes?: ExportNote[];
 	}>;
-	/** Root `SOUR` and `REPO` records, written after the last family. */
+	/** Root `SOUR`, `REPO` and shared note records, written after the last family. */
 	sources?: ExportSource[];
 	repositories?: ExportRepository[];
+	notes?: ExportSharedNote[];
 	/** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
 	preserved?: Array<{ xref: string | null; lines: string[] }>;
 }
@@ -143,25 +183,74 @@ function privacyLines(privacy: string | null | undefined, restrictionWord: strin
 }
 
 function individualEventLines(
-	ev: NonNullable<GedcomExportPayload['individuals'][number]['events']>[number]
+	ev: NonNullable<GedcomExportPayload['individuals'][number]['events']>[number],
+	format: GedcomFormat
 ): string[] {
 	const lines = [ev.value ? `1 ${ev.type} ${ev.value}` : `1 ${ev.type}`];
 	if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
 	if (ev.place) lines.push(`2 PLAC ${ev.place}`);
 	if (ev.cause) lines.push(`2 CAUS ${ev.cause}`);
 	if (ev.age) lines.push(`2 AGE ${ev.age}`);
-	const note = ev.notes ?? ev.description;
+	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
+	// written until the backfill moves it, so no export loses it. The legacy description stands in for
+	// a note only when the fact has none of its own.
+	const hasNoteRecords = (ev.noteLinks?.length ?? 0) > 0;
+	const note = ev.notes ?? (hasNoteRecords ? null : ev.description);
 	if (note) lines.push(`2 NOTE ${note}`);
-	lines.push(...citationLines(2, ev.citations));
+	lines.push(...citationLines(2, ev.citations, format));
 	lines.push(...(ev.gedcomExtra ?? []));
+	lines.push(...noteLines(2, ev.noteLinks, format));
 	return lines;
+}
+
+/**
+ * Notes at `level`, in order. A pointer is written with the tag the format has for one (`SNOTE` in
+ * 7.0, `NOTE` in 5.5.1); an inline note carries its text, with the file's own line split while it
+ * still says the same text.
+ */
+function noteLines(
+	level: number,
+	notes: ExportNote[] | undefined | null,
+	format: GedcomFormat
+): string[] {
+	const lines: string[] = [];
+	for (const n of notes ?? []) {
+		if (n.pointer) {
+			const tag = format === 'gedcom7' ? (n.pointerTag ?? 'SNOTE') : 'NOTE';
+			lines.push(`${level} ${tag} ${n.pointer}`);
+		} else {
+			lines.push(...fieldLines(level, 'NOTE', n.text, n.layout?.NOTE));
+		}
+		lines.push(...keptLines(level + 1, n.extra));
+	}
+	return lines;
+}
+
+/** A shared note record: its text, `MIME` and `LANG`, then every line kept beside them. */
+function sharedNoteLines(note: ExportSharedNote, format: GedcomFormat): string[] {
+	const tag = format === 'gedcom7' ? note.tag : 'NOTE';
+	// The text is written at level 0 as `NOTE` and the line's tag and XREF put in after, so the
+	// file's own continuation split survives whichever tag a format has.
+	const body = fieldLines(0, 'NOTE', note.text, note.layout?.NOTE);
+	const head = body[0]?.replace(/^0 \S+/, `0 ${note.xref} ${tag}`) ?? `0 ${note.xref} ${tag}`;
+	return [
+		head,
+		...body.slice(1),
+		...(note.mime ? [`1 MIME ${note.mime}`] : []),
+		...(note.language ? [`1 LANG ${note.language}`] : []),
+		...keptLines(1, note.extra)
+	];
 }
 
 /**
  * Citations as `SOUR` lines at `level`, in order. A pointer is written as it is; a citation with no
  * pointer carries its inline text. The `DATA` structure is written only when it has something to say.
  */
-function citationLines(level: number, citations: ExportCitation[] | undefined): string[] {
+function citationLines(
+	level: number,
+	citations: ExportCitation[] | undefined,
+	format: GedcomFormat
+): string[] {
 	const lines: string[] = [];
 	for (const c of citations ?? []) {
 		if (c.pointer) lines.push(`${level} SOUR ${c.pointer}`);
@@ -179,12 +268,13 @@ function citationLines(level: number, citations: ExportCitation[] | undefined): 
 		}
 		if (c.quality !== null && c.quality !== undefined) lines.push(`${level + 1} QUAY ${c.quality}`);
 		lines.push(...keptLines(level + 1, c.extra));
+		lines.push(...noteLines(level + 1, c.notes, format));
 	}
 	return lines;
 }
 
 /** A source record: its fields, its `REPO` links, then every line kept beside them. */
-function sourceRecordLines(source: ExportSource): string[] {
+function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[] {
 	const lines = [`0 ${source.xref} SOUR`];
 	lines.push(...fieldLines(1, 'TITL', source.title, source.layout?.TITL));
 	lines.push(...fieldLines(1, 'AUTH', source.author, source.layout?.AUTH));
@@ -197,15 +287,17 @@ function sourceRecordLines(source: ExportSource): string[] {
 		lines.push(...(link.extra ?? []));
 	}
 	lines.push(...(source.extra ?? []));
+	lines.push(...noteLines(1, source.notes, format));
 	return lines;
 }
 
-function repositoryRecordLines(repository: ExportRepository): string[] {
+function repositoryRecordLines(repository: ExportRepository, format: GedcomFormat): string[] {
 	return [
 		`0 ${repository.xref} REPO`,
 		...fieldLines(1, 'NAME', repository.name, repository.layout?.NAME),
 		...fieldLines(1, 'ADDR', repository.address, repository.layout?.ADDR),
-		...(repository.extra ?? [])
+		...(repository.extra ?? []),
+		...noteLines(1, repository.notes, format)
 	];
 }
 
@@ -263,8 +355,9 @@ function nameLines(
 		if (name.suffix) lines.push(`2 NSFX ${name.suffix}`);
 		const note = nameChangeNote(name.dateText, name.unionXref);
 		if (note) lines.push(`2 NOTE ${note}`);
-		lines.push(...citationLines(2, name.citations));
+		lines.push(...citationLines(2, name.citations, format));
 		lines.push(...(name.extra ?? []));
+		lines.push(...noteLines(2, name.notes, format));
 		isFirst = false;
 	}
 	return lines;
@@ -319,7 +412,7 @@ function famcLines(
 		const token = pedigreeToken(parentPedigree, format, true);
 		if (token) lines.push(`2 ${PARENT_PEDIGREE_TAG} ${asXref(parentId)}`, `3 PEDI ${token}`);
 	}
-	lines.push(...citationLines(2, link?.citations));
+	lines.push(...citationLines(2, link?.citations, format));
 	// A child linked to a merged family once per copy has several blocks for one link; write each line once.
 	const written = new Set<string>();
 	for (const entry of preserved ?? []) {
@@ -335,6 +428,7 @@ function famcLines(
 			lines.push(line);
 		}
 	}
+	lines.push(...noteLines(2, link?.notes, format));
 	return lines;
 }
 
@@ -378,10 +472,11 @@ function appendPreserved(
  * a media record, a submitter), each starting at level 0 with its own XREF. They belong to no
  * person or family, so they are written after the last record, where a reader expects them.
  */
-function appendRootRecords(lines: string[], data: GedcomExportPayload): void {
-	for (const source of data.sources ?? []) lines.push(...sourceRecordLines(source));
+function appendRootRecords(lines: string[], data: GedcomExportPayload, format: GedcomFormat): void {
+	for (const source of data.sources ?? []) lines.push(...sourceRecordLines(source, format));
 	for (const repository of data.repositories ?? [])
-		lines.push(...repositoryRecordLines(repository));
+		lines.push(...repositoryRecordLines(repository, format));
+	for (const note of data.notes ?? []) lines.push(...sharedNoteLines(note, format));
 	for (const entry of data.preserved ?? []) {
 		if (entry.xref !== null && entry.lines[0]?.startsWith('0 ')) lines.push(...entry.lines);
 	}
@@ -421,9 +516,9 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 		lines.push(...privacyLines(ind.privacy, 'privacy'));
 
 		if (ind.events) {
-			for (const ev of ind.events) lines.push(...individualEventLines(ev));
+			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom551'));
 		}
-		lines.push(...citationLines(1, ind.citations));
+		lines.push(...citationLines(1, ind.citations, 'gedcom551'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
@@ -437,6 +532,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			}
 		}
 		appendPreserved(lines, data.preserved, xref);
+		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
 	}
 
 	// Families
@@ -461,16 +557,18 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
 				if (ev.place) lines.push(`2 PLAC ${ev.place}`);
 				if (ev.description) lines.push(`2 NOTE ${ev.description}`);
-				lines.push(...citationLines(2, ev.citations));
+				lines.push(...citationLines(2, ev.citations, 'gedcom551'));
 				lines.push(...(ev.gedcomExtra ?? []));
+				lines.push(...noteLines(2, ev.noteLinks, 'gedcom551'));
 			}
 		}
-		lines.push(...citationLines(1, fam.citations));
+		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
 		appendPreserved(lines, data.preserved, xref);
+		lines.push(...noteLines(1, fam.notes, 'gedcom551'));
 	}
 
 	appendPreserved(lines, data.preserved, null);
-	appendRootRecords(lines, data);
+	appendRootRecords(lines, data, 'gedcom551');
 
 	// Trailer
 	lines.push('0 TRLR');
@@ -511,9 +609,9 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 		lines.push(...privacyLines(ind.privacy, 'PRIVACY'));
 
 		if (ind.events) {
-			for (const ev of ind.events) lines.push(...individualEventLines(ev));
+			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom7'));
 		}
-		lines.push(...citationLines(1, ind.citations));
+		lines.push(...citationLines(1, ind.citations, 'gedcom7'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
@@ -527,6 +625,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			}
 		}
 		appendPreserved(lines, data.preserved, xref);
+		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
 	}
 
 	// Families
@@ -551,16 +650,18 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				if (ev.dateRaw) lines.push(`2 DATE ${ev.dateRaw}`);
 				if (ev.place) lines.push(`2 PLAC ${ev.place}`);
 				if (ev.description) lines.push(`2 NOTE ${ev.description}`);
-				lines.push(...citationLines(2, ev.citations));
+				lines.push(...citationLines(2, ev.citations, 'gedcom7'));
 				lines.push(...(ev.gedcomExtra ?? []));
+				lines.push(...noteLines(2, ev.noteLinks, 'gedcom7'));
 			}
 		}
-		lines.push(...citationLines(1, fam.citations));
+		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
 		appendPreserved(lines, data.preserved, xref);
+		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
 	}
 
 	appendPreserved(lines, data.preserved, null);
-	appendRootRecords(lines, data);
+	appendRootRecords(lines, data, 'gedcom7');
 
 	// Trailer
 	lines.push('0 TRLR');

@@ -10,6 +10,9 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { CitationRow, SourceRow } from '../domain/change-log';
 import { eventLabel } from '../domain/tree-labels';
 import { EvidenceRepository } from '../repositories/evidence-repository';
+import { NoteRepository } from '../repositories/note-repository';
+import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
+import { loadNoteDtos, notesOf } from './note-dto';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -35,6 +38,7 @@ const clampPage = (query: { offset?: number; limit?: number }) => ({
 
 export class EvidenceReadService {
 	private evidence: EvidenceRepository;
+	private notes: NoteRepository;
 	private graph: GraphWindowRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
@@ -44,6 +48,7 @@ export class EvidenceReadService {
 		private now: () => Date = () => new Date()
 	) {
 		this.evidence = new EvidenceRepository(db);
+		this.notes = new NoteRepository(db);
 		this.graph = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
@@ -139,6 +144,17 @@ export class EvidenceReadService {
 			this.evidence.citationsOfSource(treeId, sourceId, page, scope),
 			this.evidence.visibleCitationCounts(treeId, [sourceId], scope)
 		]);
+		// Notes (ADR-029): the source's own, and those on the citations listed here. The source is the
+		// viewer's to see, so its notes are; a citation's are visible as the citation is.
+		const noteItems = await loadNoteDtos(
+			this.notes,
+			treeId,
+			await this.notes.attachmentsOf(treeId, {
+				[NOTE_SUBJECT_KINDS.SOURCE]: [sourceId],
+				[NOTE_SUBJECT_KINDS.CITATION]: cited.rows.map((c) => c.id)
+			}),
+			scope
+		);
 		return {
 			id: source.id,
 			xref: source.xref,
@@ -148,6 +164,7 @@ export class EvidenceReadService {
 			publication: source.publication,
 			abbreviation: source.abbreviation,
 			text: source.text,
+			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.SOURCE, sourceId),
 			repositories: links.map(({ link, repository }) => ({
 				linkId: link.id,
 				version: link.version,
@@ -157,7 +174,7 @@ export class EvidenceReadService {
 				callNumber: link.callNumber
 			})),
 			citationCount: counts.get(sourceId) ?? 0,
-			groups: await this.groupBySubject(treeId, cited.rows, source, scope),
+			groups: await this.groupBySubject(treeId, cited.rows, source, scope, noteItems),
 			hasMore: cited.hasMore,
 			offset: page.offset,
 			limit: page.limit
@@ -169,7 +186,8 @@ export class EvidenceReadService {
 		treeId: string,
 		rows: CitationRow[],
 		source: SourceRow,
-		scope: ViewerScope
+		scope: ViewerScope,
+		noteItems: ReadonlyMap<string, NoteDto[]>
 	): Promise<SourceCitationGroup[]> {
 		const idsOf = (kind: string) =>
 			rows.filter((r) => r.subjectKind === kind).map((r) => r.subjectId);
@@ -256,7 +274,9 @@ export class EvidenceReadService {
 				}
 				groups.set(key, group);
 			}
-			group.citations.push(citationDto(row, sourcesById));
+			group.citations.push(
+				citationDto(row, sourcesById, notesOf(noteItems, NOTE_SUBJECT_KINDS.CITATION, row.id))
+			);
 		}
 		return [...groups.values()];
 	}

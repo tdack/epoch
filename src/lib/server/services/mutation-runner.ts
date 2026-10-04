@@ -21,7 +21,7 @@ import {
 import { type RecordChange } from '../../shared/impact';
 import { UnauthorizedError } from '../domain/errors';
 import { describeImpact } from '../domain/impact';
-import { carriedCitations } from '../domain/evidence-carry';
+import { carriedCitations, carriedNotes } from '../domain/evidence-carry';
 import { type ImpactSummary } from '../../shared/impact';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
@@ -164,9 +164,11 @@ export class MutationRunner {
 	): Promise<ImpactSummary> {
 		const { visible, ops } = await this.planned(treeId, context, commands);
 		const carried = carriedCitations(visible, commands);
+		const carriedNote = carriedNotes(visible, commands);
 		return {
 			...describeImpact(headline(visible), visible, ops),
-			...(carried ? { carriedCitations: carried } : {})
+			...(carried ? { carriedCitations: carried } : {}),
+			...(carriedNote ? { carriedNotes: carriedNote } : {})
 		};
 	}
 
@@ -177,13 +179,26 @@ export class MutationRunner {
 	async run(
 		treeId: string,
 		context: AuthenticatedContext,
-		change: { kind: string; summary: (rows: TreeRows) => string; commands: RelationshipCommand[] },
+		change: {
+			kind: string;
+			summary: (rows: TreeRows) => string;
+			commands: RelationshipCommand[];
+			/**
+			 * The right the change needs, when it is not what its ops say: a contributor edits a task
+			 * they made, which is an update and would otherwise need an editor (ADR-029).
+			 */
+			requiredAction?: (rows: TreeRows) => TreeAction;
+		},
 		rows?: TreeRows
 	): Promise<MutationResult> {
 		const scope = await this.scopeFor(treeId, context, 'record:create');
 		const snapshot = rows ?? (await this.store.loadRows(treeId));
 		const ops = this.planFor(treeId, snapshot, change.commands, scope);
-		await this.requireAccess(treeId, context, actionForOps(ops));
+		await this.requireAccess(
+			treeId,
+			context,
+			change.requiredAction ? change.requiredAction(snapshot) : actionForOps(ops)
+		);
 		// What is logged and shown back is written from the rows the caller may see.
 		const seen = this.visibleRows(snapshot, scope);
 		const affected = describeOps(ops, makeLabeler(seen, ops));

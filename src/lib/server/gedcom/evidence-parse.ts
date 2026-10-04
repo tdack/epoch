@@ -9,6 +9,7 @@
 
 import { collectLines, type GedcomNode } from './node';
 import { fieldLayout, isContinuation, isPlainText, logicalText } from './evidence-lines';
+import { splitNotes, type ParsedNoteLink } from './note-parse';
 
 const POINTER = /^@[^@\s]+@$/;
 
@@ -26,6 +27,8 @@ export interface ParsedCitation {
 	text?: string;
 	/** The file's own lines for a text field whose split differs from the canonical one. */
 	layout?: Record<string, string[]>;
+	/** The notes under the citation, in order. */
+	notes: ParsedNoteLink[];
 	/** Every other line under the citation, verbatim and in order. */
 	extra: string[];
 	/** The whole structure as written, for a place that cannot model it. */
@@ -48,6 +51,7 @@ export interface ParsedSource {
 	text?: string;
 	layout?: Record<string, string[]>;
 	repositories: ParsedSourceRepository[];
+	notes: ParsedNoteLink[];
 	extra: string[];
 }
 
@@ -56,6 +60,7 @@ export interface ParsedRepository {
 	name?: string;
 	address?: string;
 	layout?: Record<string, string[]>;
+	notes: ParsedNoteLink[];
 	extra: string[];
 }
 
@@ -88,7 +93,7 @@ function isModellableData(node: GedcomNode): boolean {
 	);
 }
 
-export function parseCitation(node: GedcomNode): ParsedCitation {
+export function parseCitation(node: GedcomNode, isNotesModelled = true): ParsedCitation {
 	const value = node.value?.trim();
 	const pointer = isPointer(value) ? value : undefined;
 	const layout: Record<string, string[]> = {};
@@ -102,7 +107,8 @@ export function parseCitation(node: GedcomNode): ParsedCitation {
 	let entryDate: string | undefined;
 	let text: string | undefined;
 	let isDataTaken = false;
-	for (const child of node.children) {
+	const { notes, others } = splitNotes(node.children, isNotesModelled);
+	for (const child of others) {
 		// Continuation lines of the inline text were read with it; under a pointer they are strays.
 		if (!pointer && isContinuation(child)) continue;
 		if (child.tag === 'PAGE' && page === undefined && isPlainText(child) && logicalText(child)) {
@@ -132,6 +138,7 @@ export function parseCitation(node: GedcomNode): ParsedCitation {
 		...(entryDate ? { entryDate } : {}),
 		...(text ? { text } : {}),
 		...(Object.keys(layout).length > 0 ? { layout } : {}),
+		notes,
 		extra,
 		raw: collectLines(node)
 	};
@@ -181,12 +188,13 @@ const SOURCE_FIELDS = {
 	TEXT: 'text'
 } as const;
 
-export function parseSourceRecord(node: GedcomNode): ParsedSource {
+export function parseSourceRecord(node: GedcomNode, isNotesModelled = true): ParsedSource {
 	const layout: Record<string, string[]> = {};
 	const fields: Partial<Record<(typeof SOURCE_FIELDS)[keyof typeof SOURCE_FIELDS], string>> = {};
 	const repositories: ParsedSourceRepository[] = [];
 	const extra: string[] = [];
-	for (const child of node.children) {
+	const { notes, others } = splitNotes(node.children, isNotesModelled);
+	for (const child of others) {
 		const field = SOURCE_FIELDS[child.tag as keyof typeof SOURCE_FIELDS];
 		if (field && fields[field] === undefined && isPlainText(child) && logicalText(child)) {
 			fields[field] = takeText(child, layout, child.tag);
@@ -201,16 +209,18 @@ export function parseSourceRecord(node: GedcomNode): ParsedSource {
 		...fields,
 		...(Object.keys(layout).length > 0 ? { layout } : {}),
 		repositories,
+		notes,
 		extra
 	};
 }
 
-export function parseRepositoryRecord(node: GedcomNode): ParsedRepository {
+export function parseRepositoryRecord(node: GedcomNode, isNotesModelled = true): ParsedRepository {
 	const layout: Record<string, string[]> = {};
 	const extra: string[] = [];
 	let name: string | undefined;
 	let address: string | undefined;
-	for (const child of node.children) {
+	const { notes, others } = splitNotes(node.children, isNotesModelled);
+	for (const child of others) {
 		if (child.tag === 'NAME' && name === undefined && isPlainText(child) && logicalText(child)) {
 			name = takeText(child, layout, 'NAME');
 		} else if (child.tag === 'ADDR' && address === undefined && logicalText(child)) {
@@ -224,6 +234,7 @@ export function parseRepositoryRecord(node: GedcomNode): ParsedRepository {
 		...(name ? { name } : {}),
 		...(address ? { address } : {}),
 		...(Object.keys(layout).length > 0 ? { layout } : {}),
+		notes,
 		extra
 	};
 }

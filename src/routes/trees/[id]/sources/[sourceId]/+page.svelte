@@ -6,6 +6,8 @@
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';
 	import SourceMergeDialog from '#lib/components/evidence/SourceMergeDialog.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
+	import NoteList from '#lib/components/notes/NoteList.svelte';
+	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		deleteSourceApi,
@@ -20,7 +22,7 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	const { editor } = getTreeContext();
+	const { editor, toasts } = getTreeContext();
 
 	const source = $derived(data.source);
 	const treeId = $derived(data.summary.tree.id);
@@ -156,6 +158,10 @@
 										.join(' · ') || 'No page or detail'}
 									{#if citation.text}<span class="block text-stone-600">“{citation.text}”</span
 										>{/if}
+									{#each citation.notes as note (note.id)}<span
+											class="block whitespace-pre-line text-stone-500"
+											data-testid="citation-note">Note: {note.text}</span
+										>{/each}
 								</li>
 							{/each}
 						</ul>
@@ -217,6 +223,21 @@
 					{/each}
 				</ul>
 			{/if}
+		</section>
+
+		<section aria-labelledby="source-notes-heading" class="section-card" data-testid="source-notes">
+			<h3 id="source-notes-heading" class="section-heading">Notes</h3>
+			<div class="mt-2">
+				<NoteList
+					{treeId}
+					{role}
+					{editor}
+					{toasts}
+					subjectLabel="this source"
+					subject={{ kind: NOTE_SUBJECT_KINDS.SOURCE, id: source.id }}
+					notes={source.notes}
+				/>
+			</div>
 		</section>
 
 		{#if source.xref}

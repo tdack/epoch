@@ -387,3 +387,33 @@ citations are paged by `idx_citation_source`. The sources list pages on `idx_sou
 viewer who sees everyone these are the whole cost. For a restricted viewer the list and counts also
 evaluate `with vp` (the visible people of the tree, as the tree summary counts do) once per request.
 These were not run against the 5,300-person corpus; the plan test there does not yet cover them.
+
+## Notes and research tasks (ADR-029)
+
+Measured by `src/lib/server/repositories/note-task-plans.test.ts` over the 5,300-person corpus ("big")
+and a small tree beside it, with one inline note on every third of up to 1,500 people, a shared note
+for about every thirty of them (five uses each) and a task for about every twelfth. Rows read:
+
+| Read | Everyone, small / big | Restricted (viewer or contributor), small / big |
+|---|---|---|
+| A person's own notes (one subject) | 3 / 3 | not filtered: a visible person's notes are visible |
+| Shared notes list, first page | 13 / 26 | 1,949 / 23,863 |
+| Use counts of five shared notes | 35 / 35 | 1,853 / 23,345 |
+| Open tasks, first page | 36 / 127 | 92 / 330 |
+| Tasks assigned to me | 14 / 51 | 41 / 138 |
+| Task counts by status | 34 / 126 | 140 / 516 |
+| Tasks about one person | 2 / 2 | not filtered |
+
+- **Indexes led by the tree.** With the subject index as `(subject_kind, subject_id, sort_order)` and a
+  separate `tree_id` index, SQLite chose the tree index for a person's own notes and read 751 rows of
+  the big tree. Both note indexes now start with `tree_id`, and the tree-wide load uses them as a prefix.
+- **Tasks are judged by lookup.** A task's person, fact or partnership is looked up and its people
+  tested with the person predicate, task by task. Through the named visible sets the same restricted
+  list read 123,244 rows for 26 tasks. Only a task about a source or a shared note reads the sets.
+- **Notes for a restricted viewer cost a pass over the visible sets** (people, names, facts, links,
+  citations, sources, repositories, notes: CTEs, evaluated once per request), about 24,000 rows on the
+  big tree, as the sources list does. They are named sets because the per-record form nested past D1's
+  100 levels of expression. A person page pays it only when it shows a shared note.
+- **Mutations** load the notes, attachments and tasks tables with the rest of the tree
+  (`ChangeStore.loadRows`, two more indexed reads by `tree_id`); a fact's note and a task are each
+  one row, so the planning work is unchanged. The 300-record limit applies to note changes.

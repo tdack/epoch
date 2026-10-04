@@ -7,6 +7,8 @@
  * possible and is never read as an exact day), and none of them blocks a save.
  */
 
+import type { FindingTaskDto } from './tasks';
+
 export type QualitySeverity = 'error' | 'warning' | 'suggestion';
 
 /** Most serious first, which is the order the report lists them in. */
@@ -28,6 +30,11 @@ export interface QualityRule {
 	title: string;
 	/** Why this is flagged, so a finding can be judged without reading the code. */
 	why: string;
+	/**
+	 * Only managers and owners are shown it: the finding names the private person it is about, so
+	 * showing it to a role that cannot see them would be the leak it looks for (ADR-029).
+	 */
+	isManagerOnly?: boolean;
 }
 
 export const QUALITY_RULES = [
@@ -122,6 +129,27 @@ export const QUALITY_RULES = [
 		why: 'A birth, death or marriage has no citation. Citing the record it came from lets anyone, including you later, check it; nothing is wrong with the fact itself.'
 	},
 	{
+		code: 'public_override_likely_living',
+		severity: 'warning',
+		title: 'Always public, but probably still living',
+		why: 'A person is set to always public, and their dates do not show that they have died or were born long enough ago to be dead: no death, burial or cremation is recorded, and no birth is dated before the tree’s living-person cut-off. The override is yours to make; this only asks whether it was meant.',
+		isManagerOnly: true
+	},
+	{
+		code: 'note_names_private_person',
+		severity: 'warning',
+		title: 'A note others can see names a private person',
+		why: 'The words of a note that viewers can read (a note on a record they may see, or a shared note one of those records uses) contain the full name of a person who is private to them, who is not what the note is on. Only the full given name and surname together, as a whole phrase, count.',
+		isManagerOnly: true
+	},
+	{
+		code: 'source_names_private_person',
+		severity: 'warning',
+		title: 'A source others can see names a private person',
+		why: 'The title, author, publication, abbreviation or words of a source that viewers can see (it supports a record they may see) contain the full name of a person who is private to them. Only the full given name and surname together, as a whole phrase, count.',
+		isManagerOnly: true
+	},
+	{
 		code: 'one_parent_recorded',
 		severity: 'suggestion',
 		title: 'Only one parent recorded',
@@ -150,6 +178,8 @@ export interface QualityFinding {
 	severity: QualitySeverity;
 	message: string;
 	subjects: FindingSubject[];
+	/** The research task made from this finding, when there is one: the open one, else the latest. */
+	task?: FindingTaskDto;
 }
 
 export interface QualityDismissal {
@@ -176,6 +206,8 @@ export interface QualityReport {
 	dismissed: DismissedFinding[];
 	/** True for a rule whose list was cut at `MAX_FINDINGS_PER_RULE`. */
 	truncatedRules: string[];
+	/** Current members of the tree, for the assignee choice when a task is made from a finding. */
+	members: Array<{ id: string; name: string }>;
 }
 
 /** A rule on a badly tangled tree can fire thousands of times; the page and the response stay readable. */

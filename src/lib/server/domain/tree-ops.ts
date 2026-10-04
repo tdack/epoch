@@ -31,7 +31,9 @@ import {
 import type { ParentChild } from './genealogy-model';
 import type { UnionStatus } from '../../shared/relationship-model';
 import { buildFactOps } from './fact-ops';
-import { buildEvidenceOps, citationCascadeOps, makeCitationMover } from './evidence-ops';
+import { buildEvidenceOps, citationCascadeOps, makeEvidenceMover } from './evidence-ops';
+import { buildNoteOps, noteCascadeOps } from './note-ops';
+import { buildTaskOps, taskCascadeOps } from './task-ops';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { buildPersonMergeOps } from './person-merge';
 import { buildPlaceOps } from './place-ops';
@@ -86,7 +88,10 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	sources: 'sources',
 	repositories: 'repositories',
 	source_repositories: 'sourceRepositories',
-	citations: 'citations'
+	citations: 'citations',
+	notes: 'notes',
+	note_attachments: 'noteAttachments',
+	research_tasks: 'researchTasks'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
@@ -877,7 +882,7 @@ function mergeUnions(
 	const chosenFor = (type: string) => command.keep?.events?.[type];
 	// What a deleted fact cited is evidence, and stays: with the identical fact that is kept, or, when
 	// a different claim was chosen over it, on the partnership itself.
-	const citations = makeCitationMover(rows, ctx);
+	const citations = makeEvidenceMover(rows, ctx);
 	const seen = new Map<string, string>();
 	for (const union of involved) {
 		for (const event of eventsOf(rows, 'FAMILY', union.id)) {
@@ -999,6 +1004,21 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'remove_citation':
 		case 'reorder_citations':
 			return buildEvidenceOps(rows, command, ctx);
+		case 'add_note':
+		case 'update_note':
+		case 'remove_note':
+		case 'reorder_notes':
+		case 'share_note':
+		case 'attach_note':
+		case 'create_note':
+		case 'update_shared_note':
+		case 'delete_shared_note':
+		case 'merge_notes':
+			return buildNoteOps(rows, command, ctx);
+		case 'create_task':
+		case 'update_task':
+		case 'delete_task':
+			return buildTaskOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
 		case 'merge_people':
@@ -1046,8 +1066,12 @@ export function buildPlanOps(
 	const all: RowOp[] = [];
 	for (const command of commands) {
 		const planned = buildOps(working, command, ctx);
-		// A command that removes a person, name, fact, partnership or link takes its citations with it.
-		const ops = [...planned, ...citationCascadeOps(working, planned)];
+		// A command that removes a person, name, fact, partnership or link takes its citations, and the
+		// notes on all of those, with it.
+		const withCitations = [...planned, ...citationCascadeOps(working, planned)];
+		const withNotes = [...withCitations, ...noteCascadeOps(working, withCitations)];
+		// A task about a record that goes is kept, with its link cleared.
+		const ops = [...withNotes, ...taskCascadeOps(working, withNotes, ctx)];
 		all.push(...ops);
 		working = applyOpsToRows(working, ops);
 	}

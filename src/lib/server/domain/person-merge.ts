@@ -31,7 +31,7 @@ import {
 } from './errors';
 import { factTypeInfo } from '../../shared/fact-types';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
-import { makeCitationMover } from './evidence-ops';
+import { makeEvidenceMover } from './evidence-ops';
 import {
 	MAX_PERSON_MERGE_OPS,
 	PERSON_MERGE_REFUSALS,
@@ -185,7 +185,7 @@ export function buildPersonMergeOps(
 	const ops: RowOp[] = [];
 	// Evidence is never dropped: a record that is folded into another (or written anew) hands its
 	// citations to the one that now says the same thing.
-	const citations = makeCitationMover(rows, ctx);
+	const citations = makeEvidenceMover(rows, ctx);
 	const cited = CITATION_SUBJECT_KINDS;
 
 	// ---- Names ----

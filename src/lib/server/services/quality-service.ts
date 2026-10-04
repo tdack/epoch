@@ -13,6 +13,9 @@ import { NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { omitForScope } from '../domain/privacy-mask';
 import { checkQuality } from '../domain/quality-checks';
+import { checkPrivacyLeaks } from '../domain/quality-privacy';
+import { isManagerOrAbove } from '../../shared/roles';
+import { TaskReadService } from './task-read-service';
 import { ChangeStore } from '../repositories/change-store';
 import { QualityRepository } from '../repositories/quality-repository';
 import { TreeRepository } from '../repositories/tree-repository';
@@ -25,7 +28,7 @@ import {
 	type QualityFinding,
 	type QualityReport
 } from '../../shared/quality';
-import { requireTreeScope } from './tree-access';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 
 const RULE_ORDER = new Map<string, number>(QUALITY_RULES.map((rule, i) => [rule.code, i]));
 const SEVERITY_ORDER = new Map<string, number>(
@@ -35,6 +38,7 @@ const SEVERITY_ORDER = new Map<string, number>(
 export class QualityService {
 	private store: ChangeStore;
 	private dismissals: QualityRepository;
+	private tasks: TaskReadService;
 	private users: UserRepository;
 	private trees: TreeRepository;
 
@@ -42,6 +46,7 @@ export class QualityService {
 		db: DbClient,
 		private now: () => number = () => Date.now()
 	) {
+		this.tasks = new TaskReadService(db, () => new Date(this.now()));
 		this.store = new ChangeStore(db);
 		this.dismissals = new QualityRepository(db);
 		this.users = new UserRepository(db);
@@ -53,7 +58,7 @@ export class QualityService {
 		treeId: string,
 		context: AuthenticatedContext,
 		action: 'tree:view' | 'record:edit'
-	): Promise<QualityFinding[]> {
+	): Promise<{ findings: QualityFinding[]; scope: ViewerScope }> {
 		const scope = await requireTreeScope(
 			this.users,
 			this.trees,
@@ -63,19 +68,26 @@ export class QualityService {
 			new Date(this.now())
 		);
 		const rows = await this.store.loadRows(treeId);
-		return checkQuality(omitForScope(rows, scope)).sort(
+		// The privacy-leak checks read every row and name the private person they are about, so only a
+		// manager or owner is shown them (ADR-029).
+		const leaks = isManagerOrAbove(scope.role) ? checkPrivacyLeaks(rows, scope.cutoff) : [];
+		const findings = [...checkQuality(omitForScope(rows, scope)), ...leaks].sort(
 			(a, b) =>
 				(SEVERITY_ORDER.get(a.severity) ?? 0) - (SEVERITY_ORDER.get(b.severity) ?? 0) ||
 				(RULE_ORDER.get(a.rule) ?? 0) - (RULE_ORDER.get(b.rule) ?? 0) ||
 				a.key.localeCompare(b.key)
 		);
+		return { findings, scope };
 	}
 
 	async report(treeId: string, context: AuthenticatedContext): Promise<QualityReport> {
-		const [all, dismissals] = await Promise.all([
+		const [{ findings: all, scope }, dismissals] = await Promise.all([
 			this.visibleFindings(treeId, context, 'tree:view'),
 			this.dismissals.list(treeId)
 		]);
+		// A finding that has a task says so; completing the task does not dismiss the finding, and
+		// dismissing the finding does not touch the task: they are separate decisions (ADR-029).
+		const taskOf = await this.tasks.tasksByFinding(treeId, scope);
 		const byKey = new Map(all.map((f) => [f.key, f]));
 		const reasonOf = new Map(dismissals.map((d) => [d.key, d]));
 
@@ -84,9 +96,11 @@ export class QualityService {
 		for (const finding of all) {
 			if (reasonOf.has(finding.key)) continue;
 			counts[finding.rule] = (counts[finding.rule] ?? 0) + 1;
-			if (counts[finding.rule]! <= MAX_FINDINGS_PER_RULE) findings.push(finding);
+			if (counts[finding.rule]! <= MAX_FINDINGS_PER_RULE)
+				findings.push(taskOf[finding.key] ? { ...finding, task: taskOf[finding.key] } : finding);
 		}
 		return {
+			members: await this.tasks.memberChoices(treeId),
 			findings,
 			counts,
 			truncatedRules: Object.keys(counts).filter((rule) => counts[rule]! > MAX_FINDINGS_PER_RULE),
@@ -109,7 +123,7 @@ export class QualityService {
 			throw new ValidationError(
 				`The reason can be at most ${MAX_DISMISSAL_REASON_LENGTH} characters.`
 			);
-		const all = await this.visibleFindings(treeId, context, 'record:edit');
+		const { findings: all } = await this.visibleFindings(treeId, context, 'record:edit');
 		if (!all.some((f) => f.key === findingKey)) throw new NotFoundError('Finding', findingKey);
 		await this.dismissals.dismiss(treeId, findingKey, trimmed, context.user.id, this.now());
 	}

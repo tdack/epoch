@@ -4,7 +4,12 @@
  */
 
 import type { TreeRows } from './change-log';
-import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
+import {
+	CITATION_SUBJECT_KINDS,
+	sourceLabel,
+	type CitationSubjectKind
+} from '../../shared/evidence';
+import { NOTE_SUBJECT_KINDS, noteTitle, type NoteSubjectKind } from '../../shared/notes';
 import { displayNameOf, partnerIdsOf } from './tree-ops';
 import { eventLabel } from './tree-labels';
 import { NAME_TYPE_LABELS, type NameType } from '../../shared/name-types';
@@ -42,4 +47,32 @@ export function subjectLabel(rows: TreeRows, kind: CitationSubjectKind, id: stri
 				: 'a parent link';
 		}
 	}
+}
+
+/** What a note is attached to, in words: the subjects a citation can have, and a source, a repository or a citation. */
+export function noteSubjectLabel(rows: TreeRows, kind: NoteSubjectKind, id: string): string {
+	switch (kind) {
+		case NOTE_SUBJECT_KINDS.SOURCE: {
+			const source = rows.sources.find((s) => s.id === id);
+			return source ? `the source “${sourceLabel(source)}”` : 'a source';
+		}
+		case NOTE_SUBJECT_KINDS.REPOSITORY: {
+			const repository = rows.repositories.find((r) => r.id === id);
+			return repository ? `the repository “${repository.name ?? 'Unnamed'}”` : 'a repository';
+		}
+		case NOTE_SUBJECT_KINDS.CITATION: {
+			const citation = rows.citations.find((c) => c.id === id);
+			return citation
+				? `a citation of ${subjectLabel(rows, citation.subjectKind, citation.subjectId)}`
+				: 'a citation';
+		}
+		default:
+			return subjectLabel(rows, kind as CitationSubjectKind, id);
+	}
+}
+
+/** “A shared note about Parish register”: how a shared note is named in a summary. */
+export function sharedNoteLabel(rows: TreeRows, id: string, text?: string | null): string {
+	const row = rows.notes.find((n) => n.id === id);
+	return `“${noteTitle(row?.text ?? text ?? null, 40)}”`;
 }
