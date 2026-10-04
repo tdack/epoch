@@ -64,3 +64,75 @@ test('the floors view switches in place, survives reload and Back, and opens the
 	await expect(page.getByRole('application', { name: 'Family tree, floors view' })).toBeVisible();
 	await expect(card('Mum')).toHaveCount(1);
 });
+
+test('side branches and the partner’s family are fetched for floors, and flat stops asking', async ({
+	api,
+	page
+}) => {
+	const gran = await api.addPerson('Gran', 'Wide', { birthDate: '1900', deathDate: '1980' });
+	const mum = await api.addPerson('Mum', 'Wide', { birthDate: '1930', deathDate: '2000' });
+	const aunt = await api.addPerson('Aunt', 'Wide', { birthDate: '1932', deathDate: '2001' });
+	const cousin = await api.addPerson('Cousin', 'Wide', { birthDate: '1958' });
+	const me = await api.addPerson('Me', 'Wide', { birthDate: '1960' });
+	const wife = await api.addPerson('Wife', 'Wide', { birthDate: '1961' });
+	const inLaw = await api.addPerson('InLaw', 'Wide', { birthDate: '1935', deathDate: '2010' });
+	// Every parent has a partner, so each child belongs to a partnership; side branches and origins
+	// follow partnerships, as the focus person's siblings always have.
+	const grandpa = await api.addPerson('Grandpa', 'Wide', { birthDate: '1899', deathDate: '1970' });
+	const dad = await api.addPerson('Dad', 'Wide', { birthDate: '1928', deathDate: '1999' });
+	const uncle = await api.addPerson('Uncle', 'Wide', { birthDate: '1930', deathDate: '1995' });
+	const inLawPartner = await api.addPerson('InLawPartner', 'Wide', { birthDate: '1936' });
+	await api.partner(gran, grandpa);
+	await api.partner(mum, dad);
+	await api.partner(aunt, uncle);
+	await api.partner(inLaw, inLawPartner);
+	await api.child(gran, mum);
+	await api.child(gran, aunt);
+	await api.child(aunt, cousin);
+	await api.child(mum, me);
+	await api.partner(me, wife);
+	await api.child(inLaw, wife);
+
+	// "Gran" must not match "Grandpa", so the given name is matched whole.
+	const card = (name: string) =>
+		page.locator('[data-person-id]').filter({ hasText: new RegExp(`\\b${name} Wide`) });
+	const mode = (name: string) =>
+		page.getByRole('group', { name: 'Layout' }).getByRole('button', { name });
+	const graphRequests: string[] = [];
+	page.on('request', (r) => {
+		if (r.url().includes('/graph?')) graphRequests.push(r.url());
+	});
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&up=2`);
+	await expect(card('Gran')).toHaveCount(1);
+	// The flat toolbar has no wider-group controls, and flat draws neither group.
+	await expect(page.getByRole('group', { name: 'Relatives off the direct line' })).toHaveCount(0);
+	await expect(card('Aunt')).toHaveCount(0);
+
+	await mode('Floors').click();
+	await expect(page.getByRole('application', { name: 'Family tree, floors view' })).toBeVisible();
+	await expect(card('Aunt')).toHaveCount(0);
+	const more = page.getByRole('button', { name: 'More side branches' });
+	await more.click();
+	await expect(page).toHaveURL(/side=1/);
+	await expect(card('Aunt')).toHaveCount(1);
+	await expect(card('Cousin')).toHaveCount(0);
+	expect(graphRequests.at(-1)).toContain('side=1');
+	await more.click();
+	await expect(page).toHaveURL(/side=2/);
+	await expect(card('Cousin')).toHaveCount(1);
+
+	await page.getByRole('checkbox', { name: 'Partner’s family' }).check();
+	await expect(page).toHaveURL(/origins=1/);
+	await expect(card('InLaw')).toHaveCount(1);
+	// Both are part of the address, so a reload draws the same.
+	await page.reload();
+	await expect(card('InLaw')).toHaveCount(1);
+	await expect(card('Cousin')).toHaveCount(1);
+
+	// Back in flat the wider groups go, and the request stops asking for them.
+	await mode('Flat').click();
+	await expect(page).not.toHaveURL(/side=|origins=/);
+	await expect(card('Aunt')).toHaveCount(0);
+	expect(graphRequests.at(-1)).toContain('side=0&origins=0');
+});

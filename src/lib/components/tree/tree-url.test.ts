@@ -45,6 +45,25 @@ describe('tree view URL state', () => {
 		);
 	});
 
+	it('carries the wider groups, and leaves their defaults out', () => {
+		const wide = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			collateralDepth: 2,
+			shouldIncludePartnerOrigins: true
+		};
+		expect(serializeViewState(wide).toString()).toBe('tree=t1&focus=p1&side=2&origins=1');
+		expect(parseViewState(serializeViewState(wide))).toEqual(wide);
+		expect(parseViewState(new URLSearchParams('side=7')).collateralDepth).toBe(2);
+		expect(parseViewState(new URLSearchParams('side=x&origins=maybe'))).toMatchObject({
+			collateralDepth: 0,
+			shouldIncludePartnerOrigins: false
+		});
+		const flat = serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' });
+		expect(flat.has('side') || flat.has('origins')).toBe(false);
+	});
+
 	it('omits defaults', () => {
 		expect(
 			serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' }).toString()

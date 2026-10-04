@@ -5,6 +5,7 @@
 	import {
 		ALL_PARENT_CHILD_TYPES,
 		LAYOUT_MODES,
+		MAX_COLLATERAL_DEPTH,
 		MAX_DEPTH,
 		type LayoutMode,
 		type TreeViewState
@@ -252,6 +253,41 @@
 
 	{@render stepper('Ancestors', 'ancestorDepth')}
 	{@render stepper('Descendants', 'descendantDepth')}
+
+	{#if view.layoutMode !== LAYOUT_MODES.FLAT}
+		<div class="group" role="group" aria-label="Relatives off the direct line">
+			<span class="caption" title="How far to draw aunts, uncles, cousins and their partners">
+				Side branches
+			</span>
+			<button
+				type="button"
+				class="step"
+				aria-label="Fewer side branches"
+				disabled={view.collateralDepth <= 0}
+				onclick={() => onChange({ collateralDepth: view.collateralDepth - 1 })}
+			>
+				<Minus class="h-3.5 w-3.5" />
+			</button>
+			<output class="value" aria-live="polite">{view.collateralDepth}</output>
+			<button
+				type="button"
+				class="step"
+				aria-label="More side branches"
+				disabled={view.collateralDepth >= MAX_COLLATERAL_DEPTH}
+				onclick={() => onChange({ collateralDepth: view.collateralDepth + 1 })}
+			>
+				<Plus class="h-3.5 w-3.5" />
+			</button>
+		</div>
+		<label class="toggle" title="Draw the parents and siblings of the focus person's partners">
+			<input
+				type="checkbox"
+				checked={view.shouldIncludePartnerOrigins}
+				onchange={(e) => onChange({ shouldIncludePartnerOrigins: e.currentTarget.checked })}
+			/>
+			Partner’s family
+		</label>
+	{/if}
 
 	<label class="toggle">
 		<input

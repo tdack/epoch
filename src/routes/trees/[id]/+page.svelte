@@ -9,6 +9,7 @@
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
+		DEFAULT_VIEW_STATE,
 		HISTORY_KINDS,
 		LAYOUT_MODES,
 		compactStubId,
@@ -80,6 +81,13 @@
 		descendantDepth: applied.descendantDepth,
 		shouldIncludeSiblings: applied.shouldIncludeSiblings,
 		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
+		// Flat draws the hourglass it always has; the wider groups are for the 3D views.
+		...(mode === LAYOUT_MODES.FLAT
+			? {}
+			: {
+					collateralDepth: applied.collateralDepth,
+					shouldIncludePartnerOrigins: applied.shouldIncludePartnerOrigins
+				}),
 		expandedStubIds
 	});
 	// Only the chosen view is laid out, so switching mode costs one layout and no request.
@@ -103,6 +111,8 @@
 			applied.descendantDepth,
 			applied.shouldIncludeSiblings,
 			applied.shouldIncludeStepFamilies,
+			applied.collateralDepth,
+			applied.shouldIncludePartnerOrigins,
 			view.types,
 			mode
 		])
@@ -290,8 +300,20 @@
 				searchPeople={(q) => searchPeopleApi(treeId, q)}
 				onChange={(change) =>
 					navigate(
-						// Switching view redraws the same graph, so what the person opened stays open.
-						'layoutMode' in change ? { ...change, expandedStubs: view.expandedStubs } : change,
+						// Switching view redraws the same graph, so what the person opened stays open. Flat
+						// ignores the wider groups, so going back to it also stops fetching them.
+						'layoutMode' in change
+							? {
+									...change,
+									expandedStubs: view.expandedStubs,
+									...(change.layoutMode === LAYOUT_MODES.FLAT
+										? {
+												collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
+												shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
+											}
+										: {})
+								}
+							: change,
 						{ kind: HISTORY_KINDS.ADJUST }
 					)}
 				onPickFocus={pickFocus}

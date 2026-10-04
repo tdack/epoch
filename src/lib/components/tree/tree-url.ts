@@ -4,7 +4,7 @@
  */
 
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
-import { DEFAULT_FOCUS_OPTIONS } from '#lib/tree-layout/index.js';
+import { DEFAULT_FOCUS_OPTIONS, MAX_COLLATERAL_DEPTH } from '#lib/tree-layout/index.js';
 import { MAX_VIEW_DEPTH, STUB_TOKEN } from '#lib/shared/stub-tokens.js';
 
 export { compactStubId, resolveStubTokens } from '#lib/shared/stub-tokens.js';
@@ -18,6 +18,7 @@ export const ALL_PARENT_CHILD_TYPES = [
 	'unknown'
 ] as const satisfies readonly ParentChildType[];
 export const MAX_DEPTH = MAX_VIEW_DEPTH;
+export { MAX_COLLATERAL_DEPTH };
 
 /** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-029). */
 export const LAYOUT_MODES = { FLAT: 'flat', LAYERS: 'layers', FLOORS: 'floors' } as const;
@@ -32,6 +33,10 @@ export interface TreeViewState {
 	descendantDepth: number;
 	shouldIncludeSiblings: boolean;
 	shouldIncludeStepFamilies: boolean;
+	/** Steps off the direct line fetched and drawn by the 3D views, 0 to 2; flat ignores it. */
+	collateralDepth: number;
+	/** Fetch and draw the focus person's partners' parents and siblings; flat ignores it. */
+	shouldIncludePartnerOrigins: boolean;
 	/** Parent-child types drawn; all five by default. */
 	types: ParentChildType[];
 	/** Which view draws the graph. It never changes what is fetched. */
@@ -48,6 +53,8 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 	descendantDepth: DEFAULT_FOCUS_OPTIONS.descendantDepth,
 	shouldIncludeSiblings: DEFAULT_FOCUS_OPTIONS.shouldIncludeSiblings,
 	shouldIncludeStepFamilies: DEFAULT_FOCUS_OPTIONS.shouldIncludeStepFamilies,
+	collateralDepth: DEFAULT_FOCUS_OPTIONS.collateralDepth,
+	shouldIncludePartnerOrigins: DEFAULT_FOCUS_OPTIONS.shouldIncludePartnerOrigins,
 	types: [...ALL_PARENT_CHILD_TYPES],
 	layoutMode: LAYOUT_MODES.FLAT,
 	expandedStubs: []
@@ -56,6 +63,11 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 function depth(value: string | null, fallback: number): number {
 	if (value === null || !/^\d+$/.test(value)) return fallback;
 	return Math.min(MAX_VIEW_DEPTH, Number(value));
+}
+
+function collateralDepth(value: string | null, fallback: number): number {
+	if (value === null || !/^\d+$/.test(value)) return fallback;
+	return Math.min(MAX_COLLATERAL_DEPTH, Number(value));
 }
 
 function flag(value: string | null, isDefault: boolean): boolean {
@@ -82,6 +94,11 @@ export function parseViewState(params: Pick<URLSearchParams, 'get'>): TreeViewSt
 			params.get('step'),
 			DEFAULT_VIEW_STATE.shouldIncludeStepFamilies
 		),
+		collateralDepth: collateralDepth(params.get('side'), DEFAULT_VIEW_STATE.collateralDepth),
+		shouldIncludePartnerOrigins: flag(
+			params.get('origins'),
+			DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
+		),
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		layoutMode: layoutMode(params.get('mode')),
@@ -104,6 +121,11 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	}
 	if (state.shouldIncludeStepFamilies !== d.shouldIncludeStepFamilies) {
 		params.set('step', state.shouldIncludeStepFamilies ? '1' : '0');
+	}
+	if (state.collateralDepth !== d.collateralDepth)
+		params.set('side', String(state.collateralDepth));
+	if (state.shouldIncludePartnerOrigins !== d.shouldIncludePartnerOrigins) {
+		params.set('origins', state.shouldIncludePartnerOrigins ? '1' : '0');
 	}
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)
 		params.set('types', state.types.join(','));
