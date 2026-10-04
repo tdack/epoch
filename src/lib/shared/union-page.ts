@@ -4,6 +4,7 @@
  */
 
 import type { UnionEvidenceDto } from './evidence';
+import type { NoteDto } from './notes';
 import type { PartnershipLabel } from './partnership-labels';
 import type { PersonSummaryDto, ChangeEntryDto } from './person-page';
 import type { PrivacyFlag } from './privacy';
@@ -25,6 +26,8 @@ export interface UnionEventDto extends PrivacyFlag {
 	version: number;
 	/** How many citations support this fact; 0 is unsourced (ADR-028). */
 	citationCount: number;
+	/** Every note on the event, in order, inline or shared (ADR-029). */
+	noteItems: NoteDto[];
 }
 
 export const CHRONOLOGY_KINDS = {
@@ -70,6 +73,10 @@ export interface UnionPageDto extends PrivacyFlag {
 	twins: Array<{ unionId: string; label: PartnershipLabel | null }>;
 	/** Citations of the partnership, its facts and the parent links shown above. */
 	evidence: UnionEvidenceDto;
+	/** The notes on the partnership itself, in order (ADR-029). */
+	notes: NoteDto[];
+	/** The notes on the parent links filed under it, each named by parent and child. */
+	linkNotes: Array<{ id: string; label: string; notes: NoteDto[] }>;
 	changes: { recent: ChangeEntryDto[]; createdAt: number | null; updatedAt: number | null };
 	/** The window around the first partner, for the editing dialogs. */
 	graph: RelationshipGraph;

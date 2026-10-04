@@ -20,7 +20,7 @@ export const ALL_PARENT_CHILD_TYPES = [
 export const MAX_DEPTH = MAX_VIEW_DEPTH;
 export { MAX_COLLATERAL_DEPTH };
 
-/** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-029). */
+/** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-030). */
 export const LAYOUT_MODES = { FLAT: 'flat', LAYERS: 'layers', FLOORS: 'floors' } as const;
 export type LayoutMode = (typeof LAYOUT_MODES)[keyof typeof LAYOUT_MODES];
 

@@ -1,7 +1,7 @@
 /**
  * The geometry behind the 3D views: camera presets, where a floor's rows sit, and the CSS that
  * turns a line between two points in the stage into a thin element rotated into place. Pure, so
- * the maths is tested without a browser (ADR-029).
+ * the maths is tested without a browser (ADR-030).
  *
  * Stage coordinates are the plane's own: x across, y down the plane, z toward the viewer before
  * the camera tilts the stage.

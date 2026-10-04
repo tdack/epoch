@@ -13,6 +13,10 @@
 		reorderCitationsApi
 	} from '#lib/services/tree-api.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
+	import NoteList from '#lib/components/notes/NoteList.svelte';
+	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';
+	import { canAddNote } from '#lib/components/notes/note-permissions.js';
+	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationDialog from './CitationDialog.svelte';
 	import { canChangeEvidence, canCite } from './evidence-permissions.js';
 
@@ -102,6 +106,21 @@
 				{#if citation.text}<blockquote class="mt-1 border-l-2 border-stone-300 pl-2 text-stone-700">
 						{citation.text}
 					</blockquote>{/if}
+				<NotesDisclosure
+					noteCount={citation.notes.length}
+					canAdd={canAddNote(role)}
+					label={`the citation of ${citation.sourceLabel}`}
+				>
+					<NoteList
+						{treeId}
+						{role}
+						{editor}
+						{toasts}
+						subjectLabel={`the citation of ${citation.sourceLabel}`}
+						subject={{ kind: NOTE_SUBJECT_KINDS.CITATION, id: citation.id }}
+						notes={citation.notes}
+					/>
+				</NotesDisclosure>
 				{#if canChangeEvidence(role)}
 					<div class="mt-1.5 flex flex-wrap items-center gap-3 font-semibold">
 						<button

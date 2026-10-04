@@ -4,6 +4,10 @@
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
+	import NoteList from '#lib/components/notes/NoteList.svelte';
+	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';
+	import { canAddNote } from '#lib/components/notes/note-permissions.js';
+	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
 	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import { deleteFactApi, previewFactApi, reorderFactsApi } from '#lib/services/tree-api.js';
@@ -102,9 +106,9 @@
 							.join(' · ')}
 					</p>
 				{/if}
-				{#if fact.notes}<p class="mt-1 text-xs text-stone-700">
-						{fact.notes}{#if fact.isLegacyNote}
-							<span class="text-stone-400">(imported note)</span>{/if}
+				{#if fact.isLegacyNote && fact.notes}<p class="mt-1 text-xs text-stone-700">
+						{fact.notes}
+						<span class="text-stone-400">(imported note)</span>
 					</p>{/if}
 				{#if fact.conflict}
 					<p class="mt-1 text-xs font-semibold text-amber-800" role="note">
@@ -132,6 +136,21 @@
 						)}
 					/>
 				</CitationsDisclosure>
+				<NotesDisclosure
+					noteCount={fact.noteItems.length}
+					canAdd={canAddNote(role)}
+					label={`the ${fact.label.toLowerCase()}`}
+				>
+					<NoteList
+						{treeId}
+						{role}
+						{editor}
+						{toasts}
+						subjectLabel={`the ${fact.label.toLowerCase()}`}
+						subject={{ kind: NOTE_SUBJECT_KINDS.EVENT, id: fact.id }}
+						notes={fact.noteItems}
+					/>
+				</NotesDisclosure>
 				<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
 					<button
 						type="button"

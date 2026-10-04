@@ -4,7 +4,7 @@
  * line), plane 2 the cousin line. Within a plane, rows are generations, drawn in the same
  * coordinates as the flat hourglass. Left to right always means whose side: the first partner of
  * the union and their relatives to the left, the second partner and theirs to the right, in
- * `union_partner` order and never by sex (ADR-029).
+ * `union_partner` order and never by sex (ADR-030).
  *
  * x starts from the flat hourglass so switching view does not reshuffle anyone. Splitting
  * generations into planes leaves holes, which `compactRows` closes; people the hourglass has no

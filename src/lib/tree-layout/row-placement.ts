@@ -2,7 +2,7 @@
  * Placement along one row of a 3D view, shared by `floors` and `layers`. The hourglass gives most
  * people an x; a view that splits a generation into bands or planes then needs to close the holes
  * the split leaves, and to find a place for people the hourglass has no slot for (aunts, cousins
- * and a partner's family) (ADR-029).
+ * and a partner's family) (ADR-030).
  */
 
 import type { LayoutMetrics } from './types.js';

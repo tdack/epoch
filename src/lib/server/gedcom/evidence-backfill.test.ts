@@ -20,6 +20,11 @@ import {
 	evidenceBackfillStatements,
 	type BackfillInput
 } from './evidence-backfill';
+import {
+	NOTE_BACKFILL_QUERIES,
+	noteBackfillStatements,
+	type NoteBackfillInput
+} from './note-backfill';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
 
 let t: TestDatabase;
@@ -40,13 +45,26 @@ const exportOf = async (treeId: string, format: '551' | '7') => {
 	);
 };
 
+/**
+ * The tree here is as it was before sources and notes were records, so both backfills run, the
+ * evidence first (a note under a source can only be reached once the source is a record).
+ */
 async function runBackfill(): Promise<number> {
-	const input = {} as Record<string, unknown[]>;
-	for (const [name, sql] of Object.entries(BACKFILL_QUERIES))
-		input[name] = (await t.d1.prepare(sql).all()).results;
-	const statements = evidenceBackfillStatements(input as unknown as BackfillInput);
-	for (const statement of statements) await t.d1.prepare(statement).run();
-	return statements.length;
+	const read = async (queries: Record<string, string>) => {
+		const input = {} as Record<string, unknown[]>;
+		for (const [name, sql] of Object.entries(queries))
+			input[name] = (await t.d1.prepare(sql).all()).results;
+		return input;
+	};
+	const evidence = evidenceBackfillStatements(
+		(await read(BACKFILL_QUERIES)) as unknown as BackfillInput
+	);
+	for (const statement of evidence) await t.d1.prepare(statement).run();
+	const notes = noteBackfillStatements(
+		(await read(NOTE_BACKFILL_QUERIES)) as unknown as NoteBackfillInput
+	);
+	for (const statement of notes) await t.d1.prepare(statement).run();
+	return evidence.length + notes.length;
 }
 
 /** The records of a tree without the ids that differ between two trees. */

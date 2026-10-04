@@ -1,6 +1,6 @@
 import { and, eq, gt, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { treeInvitations, treeMemberships, users } from '../db/schema';
+import { researchTasks, treeInvitations, treeMemberships, users } from '../db/schema';
 import type { TreeRole } from '../../shared/roles';
 
 export interface MemberRow {
@@ -85,19 +85,34 @@ export class MemberRepository {
 		return changed.length > 0;
 	}
 
-	/** Remove a member under the same two conditions as `changeRole`. */
+	/**
+	 * Remove a member under the same two conditions as `changeRole`. Their tasks stay and become
+	 * unassigned in the same batch, and only if the removal happened (ADR-029).
+	 */
 	async remove(treeId: string, userId: string, expectedVersion: number): Promise<boolean> {
-		const removed = await this.db
-			.delete(treeMemberships)
-			.where(
-				and(
-					eq(treeMemberships.treeId, treeId),
-					eq(treeMemberships.userId, userId),
-					eq(treeMemberships.version, expectedVersion),
-					sql`(${treeMemberships.role} <> 'owner' or ${keepsAnOwner(treeId)})`
+		const [removed] = await this.db.batch([
+			this.db
+				.delete(treeMemberships)
+				.where(
+					and(
+						eq(treeMemberships.treeId, treeId),
+						eq(treeMemberships.userId, userId),
+						eq(treeMemberships.version, expectedVersion),
+						sql`(${treeMemberships.role} <> 'owner' or ${keepsAnOwner(treeId)})`
+					)
 				)
-			)
-			.returning({ id: treeMemberships.id });
+				.returning({ id: treeMemberships.id }),
+			this.db
+				.update(researchTasks)
+				.set({ assigneeId: null })
+				.where(
+					and(
+						eq(researchTasks.treeId, treeId),
+						eq(researchTasks.assigneeId, userId),
+						sql`not exists (select 1 from tree_memberships m where m.tree_id = ${treeId} and m.user_id = ${userId})`
+					)
+				)
+		]);
 		return removed.length > 0;
 	}
 

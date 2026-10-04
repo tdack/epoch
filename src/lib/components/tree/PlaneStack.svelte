@@ -56,7 +56,7 @@
 
 <!--
 	Zoom is CSS `zoom` on this wrapper, never scale(): scale() rasterises the planes once and
-	stretches them, so text goes soft, while zoom lays them out again at the new size (ADR-029).
+	stretches them, so text goes soft, while zoom lays them out again at the new size (ADR-030).
 	The pan is a translate in zoomed units, hence the division by k.
 -->
 <div

@@ -52,6 +52,9 @@ function pageOf(
 		stepParents: [],
 		stepChildren: [],
 		media: [],
+		notes: [],
+		linkNotes: [],
+		tasks: { items: [], members: [] },
 		evidence: { citations: [], links: [] },
 		changes: { recent: [], createdAt: null, updatedAt: null },
 		...extra
@@ -128,6 +131,7 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 						value: null,
 						notes: null,
 						citationCount: 0,
+						noteItems: [],
 						conflict: { kind: 'conflict', otherIds: ['b2'] }
 					} as never
 				]

@@ -115,7 +115,7 @@ change, if they are available.
   - Tab across cards and check the focus ring lands on visible cards.
   - Record frame timings while panning, with `performance.now()` around
     `requestAnimationFrame`.
-- **Write the ADR** at the next free number (check `docs/decisions.md`; the plan's "ADR-029" may be
+- **Write the ADR** at the next free number (check `docs/decisions.md`; the plan's "ADR-030" may be
   taken). Cover the renderer, the `mode` parameter, the band model, the step-child rule, and what
   is deferred.
 - **If the spike contradicts the plan, stop.** For example: CSS 3D text is unreadable in a

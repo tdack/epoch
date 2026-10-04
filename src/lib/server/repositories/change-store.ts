@@ -16,9 +16,12 @@ import {
 	individuals,
 	places,
 	mediaItems,
+	noteAttachments,
+	notes,
 	parentChild,
 	personNames,
 	repositories,
+	researchTasks,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -55,7 +58,10 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	sources,
 	repositories,
 	source_repositories: sourceRepositories,
-	citations
+	citations,
+	notes,
+	note_attachments: noteAttachments,
+	research_tasks: researchTasks
 };
 
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */
@@ -139,7 +145,10 @@ export class ChangeStore {
 			sourceRows,
 			repoRows,
 			linkRows,
-			cites
+			cites,
+			noteRows,
+			attachmentRows,
+			taskRows
 		] = await Promise.all([
 			db
 				.select()
@@ -209,6 +218,24 @@ export class ChangeStore {
 				.from(citations)
 				.where(eq(citations.treeId, treeId))
 				.orderBy(sql`${citations}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(notes)
+				.where(eq(notes.treeId, treeId))
+				.orderBy(sql`${notes}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(noteAttachments)
+				.where(eq(noteAttachments.treeId, treeId))
+				.orderBy(sql`${noteAttachments}.rowid`)
+				.all(),
+			db
+				.select()
+				.from(researchTasks)
+				.where(eq(researchTasks.treeId, treeId))
+				.orderBy(sql`${researchTasks}.rowid`)
 				.all()
 		]);
 		const images = <T>(table: SQLiteTable, rows: unknown[]) =>
@@ -224,7 +251,10 @@ export class ChangeStore {
 			sources: images(sources, sourceRows),
 			repositories: images(repositories, repoRows),
 			sourceRepositories: images(sourceRepositories, linkRows),
-			citations: images(citations, cites)
+			citations: images(citations, cites),
+			notes: images(notes, noteRows),
+			noteAttachments: images(noteAttachments, attachmentRows),
+			researchTasks: images(researchTasks, taskRows)
 		};
 	}
 

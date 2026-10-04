@@ -4,8 +4,12 @@
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
 	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
+	import NoteList from '#lib/components/notes/NoteList.svelte';
+	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';
+	import { canAddNote } from '#lib/components/notes/note-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
+	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
 	import type { PageData } from './$types';
 
@@ -156,7 +160,9 @@
 									class="hover:underline">{event.place}</a
 								>{/if}</span
 						>
-						{#if event.notes}<span class="block text-xs text-stone-500">{event.notes}</span>{/if}
+						{#if event.notes && event.noteItems.length === 0}<span
+								class="block text-xs text-stone-500">{event.notes}</span
+							>{/if}
 						<CitationsDisclosure
 							citationCount={event.citationCount}
 							label={`the ${event.label.toLowerCase()}`}
@@ -175,9 +181,56 @@
 								)}
 							/>
 						</CitationsDisclosure>
+						<NotesDisclosure
+							noteCount={event.noteItems.length}
+							canAdd={canAddNote(role)}
+							label={`the ${event.label.toLowerCase()}`}
+						>
+							<NoteList
+								{treeId}
+								{role}
+								{editor}
+								{toasts}
+								subjectLabel={`the ${event.label.toLowerCase()}`}
+								subject={{ kind: NOTE_SUBJECT_KINDS.EVENT, id: event.id }}
+								notes={event.noteItems}
+							/>
+						</NotesDisclosure>
 					</li>
 				{/each}
 			</ul>
+		</section>
+
+		<section aria-labelledby="union-notes-heading" class="section-card" data-testid="union-notes">
+			<h3 id="union-notes-heading" class="section-heading">Notes</h3>
+			<div class="mt-2">
+				<NoteList
+					{treeId}
+					{role}
+					{editor}
+					{toasts}
+					subjectLabel="this partnership"
+					subject={{ kind: NOTE_SUBJECT_KINDS.UNION, id: dto.union.id }}
+					notes={dto.notes}
+				/>
+			</div>
+			{#each dto.linkNotes as link (link.id)}
+				<div class="mt-3 border-t border-stone-200 pt-2">
+					<h4 class="text-xs font-bold text-stone-700">{link.label}</h4>
+					<div class="mt-1">
+						<NoteList
+							{treeId}
+							{role}
+							{editor}
+							{toasts}
+							subjectLabel={link.label}
+							subject={{ kind: NOTE_SUBJECT_KINDS.PARENT_CHILD, id: link.id }}
+							notes={link.notes}
+							isQuiet
+						/>
+					</div>
+				</div>
+			{/each}
 		</section>
 
 		<section

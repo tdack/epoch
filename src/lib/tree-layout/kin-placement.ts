@@ -1,7 +1,7 @@
 /**
  * Placement rules every view shares: which band each drawn person sits in, and which drawn
  * parent a child hangs from. Flat, layers and floors all read these, so the same person lands in
- * the same place relative to their family whatever the mode (ADR-029).
+ * the same place relative to their family whatever the mode (ADR-030).
  *
  * The rules are applied to every child, not only step-children: for an ordinary child both
  * parents share one union and the anchor is just the tie-break between them. Special-casing
@@ -189,7 +189,7 @@ export function stepChildAnchor(
  * focus person's ancestors (and a step-parent who only partners them) move from the direct line to
  * plane 1, because plane 0 is "the focus union and its descendants" and the families it came from
  * are the sibling group behind it. Kept here, beside the band rules, so layers is a reading of the
- * same selection rather than a fork of it (ADR-029).
+ * same selection rather than a fork of it (ADR-030).
  */
 export function assignLayerPlanes(
 	selection: Pick<KinInput, 'unions'> & {

@@ -92,6 +92,59 @@ test.describe('screen reader', () => {
 		expect(await violations(page)).toEqual([]);
 	});
 
+	test('the notes list, a note page, the tasks page, and the notes and tasks on a person have no detectable violations', async ({
+		page,
+		api,
+		request
+	}) => {
+		const wren = await api.addPerson('Wren', 'Ash', { birthDate: '4 MAR 1900' });
+		const base = `/trees/${api.treeId}`;
+		const made = await request.post(`/api/trees/${api.treeId}/notes`, {
+			data: { text: 'The Ash family came from Cork.' }
+		});
+		const noteId = (await made.json()).noteId as string;
+		await request.post(`/api/trees/${api.treeId}/note-links`, {
+			data: { subject: { kind: 'person', id: wren.id }, noteId }
+		});
+		await request.post(`/api/trees/${api.treeId}/note-links`, {
+			data: { subject: { kind: 'person', id: wren.id }, text: 'Written on the person.' }
+		});
+		await request.post(`/api/trees/${api.treeId}/tasks`, {
+			data: {
+				title: 'Find the birth certificate',
+				dueDate: '2027-03-31',
+				subject: { kind: 'person', id: wren.id }
+			}
+		});
+
+		await open(page, `${base}/notes`);
+		expect(await violations(page)).toEqual([]);
+		await open(page, `${base}/notes/${encodeURIComponent(noteId)}`);
+		expect(await violations(page)).toEqual([]);
+		await open(page, `${base}/tasks`);
+		expect(await violations(page)).toEqual([]);
+
+		// The person page with its notes and tasks, then the dialogs that add one.
+		await open(page, `${base}/people/${encodeURIComponent(wren.id)}`);
+		expect(await violations(page)).toEqual([]);
+		await page.getByTestId('fact').first().getByText('Add a note').click();
+		expect(await violations(page)).toEqual([]);
+		await page
+			.getByTestId('fact')
+			.first()
+			.getByRole('button', { name: 'Add a note to the birth' })
+			.click();
+		await expect(page.getByRole('dialog', { name: 'Add a note' })).toBeVisible();
+		expect(await violations(page)).toEqual([]);
+		await page
+			.getByRole('dialog', { name: 'Add a note' })
+			.getByRole('button', { name: 'Cancel' })
+			.click();
+		await page.getByRole('button', { name: 'Add a task about Wren Ash' }).click();
+		await expect(page.getByRole('dialog', { name: 'Add a research task' })).toBeVisible();
+		expect(await violations(page)).toEqual([]);
+	});
+
 	test('the relationship dialog is announced, groups its choices and describes the result in a live region', async ({
 		page,
 		api

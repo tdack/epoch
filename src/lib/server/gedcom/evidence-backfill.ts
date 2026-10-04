@@ -80,7 +80,7 @@ export interface BackfillInput {
 	citationOrder: Array<{ subject_kind: string; subject_id: string; next: number }>;
 }
 
-const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+export const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
 /** A value as SQL text, in the form Drizzle stores it: timestamps in whole seconds, JSON as text. */
 function literal(value: unknown, columnType: string): string {
@@ -92,7 +92,7 @@ function literal(value: unknown, columnType: string): string {
 	return quote(String(value));
 }
 
-function insertStatement(table: SQLiteTable, row: Record<string, unknown>): string {
+export function insertStatement(table: SQLiteTable, row: Record<string, unknown>): string {
 	const columns = getTableColumns(table) as Record<string, { name: string; columnType: string }>;
 	const keys = Object.keys(row).filter((key) => row[key] !== undefined && columns[key]);
 	return (
@@ -102,7 +102,7 @@ function insertStatement(table: SQLiteTable, row: Record<string, unknown>): stri
 	);
 }
 
-const jsonList = (text: string | null): string[] => {
+export const jsonList = (text: string | null): string[] => {
 	if (!text) return [];
 	try {
 		const parsed: unknown = JSON.parse(text);
@@ -113,7 +113,7 @@ const jsonList = (text: string | null): string[] => {
 };
 
 /** A tree's lookups, built once from the rows. */
-interface TreeIndex {
+export interface TreeIndex {
 	personByXref: Map<string, string>;
 	unionByXref: Map<string, string>;
 	sourceByXref: Map<string, string>;
@@ -124,7 +124,12 @@ interface TreeIndex {
 	linkOf: Map<string, string>;
 }
 
-function indexTrees(input: BackfillInput): Map<string, TreeIndex> {
+export function indexTrees(
+	input: Pick<
+		BackfillInput,
+		'individuals' | 'unions' | 'partners' | 'links' | 'sources' | 'repositories'
+	>
+): Map<string, TreeIndex> {
 	const trees = new Map<string, TreeIndex>();
 	const of = (treeId: string) => {
 		let index = trees.get(treeId);
@@ -238,7 +243,10 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 			const id = treeScopedId(treeId, node.xref!);
 			index.repositoryByXref.set(node.xref!, id);
 			statements.push(
-				insertStatement(repositories, repositoryRow(treeId, id, parseRepositoryRecord(node), now))
+				insertStatement(
+					repositories,
+					repositoryRow(treeId, id, parseRepositoryRecord(node, false), now)
+				)
 			);
 		}
 		for (const { entry, node } of rootsOf('SOUR')) {
@@ -246,7 +254,7 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 			if (index.sourceByXref.has(node.xref!)) continue;
 			const id = treeScopedId(treeId, node.xref!);
 			index.sourceByXref.set(node.xref!, id);
-			const parsed = parseSourceRecord(node);
+			const parsed = parseSourceRecord(node, false);
 			statements.push(insertStatement(sources, sourceRow(treeId, id, parsed, now)));
 			parsed.repositories.forEach((link, order) =>
 				statements.push(
@@ -281,7 +289,7 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 				if (!subject) continue;
 				const [node] = buildGedcomTree(lines, 1);
 				if (!node) continue;
-				store(treeId, index, subject[0], subject[1], [parseCitation(node)]);
+				store(treeId, index, subject[0], subject[1], [parseCitation(node, false)]);
 				removedPreserved.add(entry.id);
 			} else if (personId && /^1 FAMC\s+\S+/.test(head)) {
 				const [famc] = buildGedcomTree(lines, 1);
@@ -295,7 +303,13 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 					? index.linkOf.get(`${familyUnion}|${personId}|${firstParent}`)
 					: undefined;
 				if (!linkId) continue;
-				store(treeId, index, CITATION_SUBJECT_KINDS.PARENT_CHILD, linkId, sour.map(parseCitation));
+				store(
+					treeId,
+					index,
+					CITATION_SUBJECT_KINDS.PARENT_CHILD,
+					linkId,
+					sour.map((c) => parseCitation(c, false))
+				);
 				const rest = famc.children.filter((c) => c.tag !== 'SOUR').flatMap(collectLines);
 				if (rest.length === 0) {
 					removedPreserved.add(entry.id);
@@ -322,7 +336,13 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 		const nodes: GedcomNode[] = buildGedcomTree(lines, 2);
 		const sour = nodes.filter((n) => n.tag === 'SOUR');
 		if (!index || sour.length === 0) return;
-		store(row.tree_id, index, kind, row.id, sour.map(parseCitation));
+		store(
+			row.tree_id,
+			index,
+			kind,
+			row.id,
+			sour.map((c) => parseCitation(c, false))
+		);
 		const rest = nodes.filter((n) => n.tag !== 'SOUR').flatMap(collectLines);
 		statements.push(
 			`UPDATE ${table} SET gedcom_extra = ${rest.length > 0 ? quote(JSON.stringify(rest)) : 'NULL'} WHERE id = ${quote(row.id)};`

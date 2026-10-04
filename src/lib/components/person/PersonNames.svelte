@@ -4,6 +4,10 @@
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
+	import NoteList from '#lib/components/notes/NoteList.svelte';
+	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';
+	import { canAddNote } from '#lib/components/notes/note-permissions.js';
+	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
 	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
@@ -154,6 +158,21 @@
 						)}
 					/>
 				</CitationsDisclosure>
+				<NotesDisclosure
+					noteCount={name.notes.length}
+					canAdd={canAddNote(role)}
+					label={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+				>
+					<NoteList
+						{treeId}
+						{role}
+						{editor}
+						{toasts}
+						subjectLabel={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+						subject={{ kind: NOTE_SUBJECT_KINDS.NAME, id: name.id }}
+						notes={name.notes}
+					/>
+				</NotesDisclosure>
 				<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
 					<button
 						type="button"

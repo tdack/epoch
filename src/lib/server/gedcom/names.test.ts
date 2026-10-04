@@ -40,7 +40,9 @@ describe('parsing every NAME', () => {
 
 	it('reads the name parts, keeps NOTE under the NAME and reads its SOUR as a citation', () => {
 		const [, married] = people['@I1@'].names!;
-		expect(married.extra).toEqual(["2 NOTE Took Nick's surname"]);
+		// A note is a note record now (ADR-029): read as one, and no longer a kept line.
+		expect(married.extra).toEqual([]);
+		expect(married.notes).toMatchObject([{ text: "Took Nick's surname" }]);
 		expect(married.citations).toMatchObject([{ pointer: '@S1@', page: '12' }]);
 		const [nick] = people['@I2@'].names!;
 		expect(nick).toMatchObject({
@@ -199,7 +201,7 @@ describe('when a name came into use, and from which partnership', () => {
 			dateQualifier: 'ABOUT',
 			unionId: `${other}:@F1@`
 		});
-		expect(back.gedcomExtra).not.toContain(
+		expect(back.gedcomExtra ?? []).not.toContain(
 			'2 NOTE Name in use from ABT 1998, through family @F1@.'
 		);
 		expect(namesOf(buildGedcom551String(await getTreeExportData(t.d1, other)))).toEqual(

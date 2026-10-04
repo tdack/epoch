@@ -139,13 +139,19 @@ export async function importNeutralModel(
 				targets.push({
 					kind: CITATION_SUBJECT_KINDS.NAME,
 					id: knownId,
-					citations: name.citations
+					citations: name.citations,
+					notes: name.notes
 				});
 				continue;
 			}
 			const nameId = crypto.randomUUID();
 			existing?.set(key, nameId);
-			targets.push({ kind: CITATION_SUBJECT_KINDS.NAME, id: nameId, citations: name.citations });
+			targets.push({
+				kind: CITATION_SUBJECT_KINDS.NAME,
+				id: nameId,
+				citations: name.citations,
+				notes: name.notes
+			});
 			nameRows.push({
 				id: nameId,
 				personId,
@@ -178,6 +184,7 @@ export async function importNeutralModel(
 		childId: string;
 		type: string;
 		citations: NonNullable<ParsedGedcomData['families'][number]['children'][number]['citations']>;
+		notes: NonNullable<ParsedGedcomData['families'][number]['children'][number]['notes']>;
 	}> = [];
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
@@ -207,15 +214,19 @@ export async function importNeutralModel(
 		// Per-parent assertions: expand family-wide pedigree into per-parent type.
 		for (const child of fam.children) {
 			const childId = scoped(child.childId);
-			if (participants.length > 0 && (child.citations?.length ?? 0) > 0) {
-				// The child's `FAMC` is one link to the family; its citations belong to the first parent's row.
+			if (
+				participants.length > 0 &&
+				((child.citations?.length ?? 0) > 0 || (child.notes?.length ?? 0) > 0)
+			) {
+				// The child's `FAMC` is one link to the family; its citations and notes belong to the first parent's row.
 				linkCitations.push({
 					parentId: scoped(participants[0]),
 					childId,
 					type: PEDIGREE_TO_TYPE[
 						child.parentPedigrees?.[participants[0]] ?? child.pedigree ?? 'birth'
 					],
-					citations: child.citations!
+					citations: child.citations ?? [],
+					notes: child.notes ?? []
 				});
 			}
 
@@ -258,7 +269,12 @@ export async function importNeutralModel(
 		for (const link of linkCitations) {
 			const id = stored.get(`${link.parentId}|${link.childId}|${link.type}`);
 			if (id)
-				targets.push({ kind: CITATION_SUBJECT_KINDS.PARENT_CHILD, id, citations: link.citations });
+				targets.push({
+					kind: CITATION_SUBJECT_KINDS.PARENT_CHILD,
+					id,
+					citations: link.citations,
+					notes: link.notes
+				});
 		}
 	}
 
