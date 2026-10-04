@@ -21,8 +21,9 @@ export const MAX_DEPTH = MAX_VIEW_DEPTH;
 export { MAX_COLLATERAL_DEPTH };
 
 /** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-030). */
-export const LAYOUT_MODES = { FLAT: 'flat', LAYERS: 'layers', FLOORS: 'floors' } as const;
-export type LayoutMode = (typeof LAYOUT_MODES)[keyof typeof LAYOUT_MODES];
+import { LAYOUT_MODES, parseLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
+
+export { LAYOUT_MODES, type LayoutMode };
 
 export interface TreeViewState {
 	treeId: string | null;
