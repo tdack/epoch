@@ -309,6 +309,36 @@ The plan tests measure both viewers on the same two trees (small: 419 people, 90
   "private" into "unknown" under `not`: it read fewer rows only because it let a private partner's
   partnership through, which `privacy-reads.test.ts` now covers for a contributor too.
 
+## Wider focus window (S16, ADR-029): `side` and `origins`
+
+The 3D views ask the focus window for two more groups: `side` (`collateralDepth`, 0 to 2) draws
+the siblings of every drawn ancestor with their partners, and their children at 2; `origins`
+(`shouldIncludePartnerOrigins`) draws the focus person's partners' parents and siblings. They add
+**no lookup and no index**. `loadFocusWindow` already runs the selection over what it has loaded and
+loads the neighbourhood of every person the selection draws that it has not loaded, so a wider
+selection only means more rounds over the same statements (`individualsIn`, `partnerRowsOf*`,
+`linksBy`, `eventsOf`, `namesOf`), each already plan-tested above as index-proportional.
+`focus-window.test.ts` holds three things:
+
+- the window's layout equals the whole tree's for the new option sets, on every fixture and on
+  sample people of the 5,324-person tree;
+- a window with both options on reads under a fifth of the tree's rows and settles in under 12
+  rounds;
+- the privacy matrix covers both options (`privacy-wide-focus.test.ts`): privacy is applied in
+  memory to the loaded rows, as everywhere else, so a restricted viewer pays nothing extra and is
+  sent nothing more than through the hourglass.
+
+Measured on the 5,324-person tree (rows read, D1 round trips), default view against both options on:
+
+| Focus | Default view | `side=2&origins=1` |
+|---|---|---|
+| The root person | 104 rows, 21 trips | 104 rows, 21 trips |
+| A remarried person in the middle | 1,117 rows, 21 trips | 1,183 rows, 21 trips |
+| A leaf | 26 rows, 9 trips | 53 rows, 13 trips |
+
+The root has no ancestors, so there are no aunts and no partner origins to add. The cost is the
+extra rows of the people drawn; it does not grow with the size of the tree.
+
 ## Kin window (S10): relationship, pedigree and descendants
 
 `loadKinWindow` (`services/kin-window.ts`) follows parent links outwards one generation per round,

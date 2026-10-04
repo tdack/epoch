@@ -64,6 +64,13 @@ const OPTION_SETS: Array<[string, FocusWindowOptions]> = [
 	[
 		'mixed, step families',
 		{ ancestorDepth: 2, descendantDepth: 1, shouldIncludeStepFamilies: true }
+	],
+	// The wider groups of the 3D views: the loader must fetch whatever they select, no more.
+	['side branches one deep', { ancestorDepth: 3, descendantDepth: 2, collateralDepth: 1 }],
+	['side branches two deep', { ancestorDepth: 4, descendantDepth: 3, collateralDepth: 2 }],
+	[
+		'partner origins and side branches',
+		{ ancestorDepth: 2, descendantDepth: 2, collateralDepth: 2, shouldIncludePartnerOrigins: true }
 	]
 ];
 
@@ -264,6 +271,18 @@ describe('a window into a large tree', () => {
 			}
 		} finally {
 			loadRows.mockRestore();
+		}
+	}, 60_000);
+
+	it('reads a small fraction of the tree for the wider 3D groups too', async () => {
+		const totalRows = corpus.people + corpus.unions + corpus.links + corpus.events;
+		const wide = { collateralDepth: 2, shouldIncludePartnerOrigins: true };
+		for (const person of [corpus.rootPersonId, corpus.remarriedPersonId, corpus.leafPersonId]) {
+			const repo = new CountingRepository(t.db);
+			const window = await loadFocusWindow(repo, treeId, person, wide);
+			expect(window.graph.people.length).toBeLessThan(corpus.people / 5);
+			expect(repo.rowsRead).toBeLessThan(totalRows / 5);
+			expect(window.roundCount).toBeLessThan(12);
 		}
 	}, 60_000);
 

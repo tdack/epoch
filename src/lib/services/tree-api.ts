@@ -447,6 +447,10 @@ export interface FocusGraphQuery {
 	down?: number;
 	shouldIncludeSiblings?: boolean;
 	shouldIncludeStepFamilies?: boolean;
+	/** Steps off the direct line to fetch, 0 to 2 (`side`). */
+	collateralDepth?: number;
+	/** Fetch the focus person's partners' parents and siblings (`origins`). */
+	shouldIncludePartnerOrigins?: boolean;
 	/** Opened stubs as URL tokens. */
 	exp?: string[];
 }
@@ -464,6 +468,9 @@ export function fetchFocusGraph(
 		params.set('siblings', query.shouldIncludeSiblings ? '1' : '0');
 	if (query.shouldIncludeStepFamilies !== undefined)
 		params.set('step', query.shouldIncludeStepFamilies ? '1' : '0');
+	if (query.collateralDepth !== undefined) params.set('side', String(query.collateralDepth));
+	if (query.shouldIncludePartnerOrigins !== undefined)
+		params.set('origins', query.shouldIncludePartnerOrigins ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
 	return call(
 		`/api/trees/${enc(treeId)}/graph?${params}`,
