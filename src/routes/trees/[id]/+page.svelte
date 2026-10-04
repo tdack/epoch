@@ -3,12 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
+	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
 		HISTORY_KINDS,
+		LAYOUT_MODES,
 		compactStubId,
 		createHistoryCoalescer,
 		parseViewState,
@@ -20,6 +22,7 @@
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
+	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import type { PageData } from './$types';
 
@@ -64,16 +67,31 @@
 			? filterParentChildTypes(graph, view.types)
 			: graph
 	);
+	/**
+	 * The view that draws. Layers has no layout yet, so its address draws flat, and the toolbar shows
+	 * what is drawn.
+	 */
+	const mode = $derived(
+		view.layoutMode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLOORS : LAYOUT_MODES.FLAT
+	);
+	const shownView = $derived({ ...view, layoutMode: mode });
+	const focusOptions = $derived({
+		ancestorDepth: applied.ancestorDepth,
+		descendantDepth: applied.descendantDepth,
+		shouldIncludeSiblings: applied.shouldIncludeSiblings,
+		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
+		expandedStubIds
+	});
+	// Only the chosen view is laid out, so switching mode costs one layout and no request.
 	const layout = $derived(
-		graphForLayout
-			? layoutFocusView(graphForLayout, focusPersonId, {
-					ancestorDepth: applied.ancestorDepth,
-					descendantDepth: applied.descendantDepth,
-					shouldIncludeSiblings: applied.shouldIncludeSiblings,
-					shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
-					expandedStubIds
-				})
+		graphForLayout && mode === LAYOUT_MODES.FLAT
+			? layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
+	);
+	const floorsLayout = $derived(
+		graphForLayout && mode === LAYOUT_MODES.FLOORS
+			? layoutFloors(graphForLayout, focusPersonId, focusOptions)
+			: null
 	);
 
 	/** Re-frame the canvas when this changes. Opening a stub is deliberately not part of it. */
@@ -85,7 +103,8 @@
 			applied.descendantDepth,
 			applied.shouldIncludeSiblings,
 			applied.shouldIncludeStepFamilies,
-			view.types
+			view.types,
+			mode
 		])
 	);
 	/** Bumped when the data reloads without the person having opened a stub, so an edit re-frames the canvas. */
@@ -267,54 +286,85 @@
 	{#if graph}
 		<div class="mb-3">
 			<TreeToolbar
-				{view}
+				view={shownView}
 				searchPeople={(q) => searchPeopleApi(treeId, q)}
-				onChange={(change) => navigate(change, { kind: HISTORY_KINDS.ADJUST })}
+				onChange={(change) =>
+					navigate(
+						// Switching view redraws the same graph, so what the person opened stays open.
+						'layoutMode' in change ? { ...change, expandedStubs: view.expandedStubs } : change,
+						{ kind: HISTORY_KINDS.ADJUST }
+					)}
 				onPickFocus={pickFocus}
 				suggestions={marks}
 			/>
 		</div>
-		<TreeCanvas
-			{layout}
-			{fitKey}
-			{selectedPersonId}
-			onSelectPerson={handleFocusPerson}
-			onOpenPerson={handleOpenPerson}
-			onClearSelection={clearSelection}
-			onEditPerson={(id) => void editor.openEditPerson(id)}
-			onDeletePerson={editor.requestDeletePerson}
-			onAddRelationship={(anchor) =>
-				editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null })}
-			onRemoveLink={editor.removeLink}
-			onRecordDeath={(id) =>
-				editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
-			onEndPartnership={(id) =>
-				editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
-			onEditUnion={editor.editUnion}
-			onEndUnion={editor.endUnion}
-			onRemoveAssertion={editor.removeAssertion}
-			onChangeLinkType={editor.changeLinkType}
-			onRemoveUnion={editor.removeUnion}
-			onMergeUnion={editor.mergeUnion}
-			mergeableUnionIds={editor.mergeableIds}
-			partnershipLabels={editor.unionLabels}
-			onDragRelate={editor.dragRelate}
-			onExpandStub={(id) => {
-				const token = compactStubId(id);
-				if (token)
+		{#if floorsLayout}
+			<FloorsCanvas
+				layout={floorsLayout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onExpandStub={(id) => {
+					const token = compactStubId(id);
+					if (token)
+						navigate(
+							{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
+							{ kind: HISTORY_KINDS.ADJUST }
+						);
+				}}
+				onCollapseStub={(id) => {
+					const token = compactStubId(id);
 					navigate(
-						{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
+						{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
 						{ kind: HISTORY_KINDS.ADJUST }
 					);
-			}}
-			onCollapseStub={(id) => {
-				const token = compactStubId(id);
-				navigate(
-					{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
-					{ kind: HISTORY_KINDS.ADJUST }
-				);
-			}}
-		/>
+				}}
+			/>
+		{:else}
+			<TreeCanvas
+				{layout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onEditPerson={(id) => void editor.openEditPerson(id)}
+				onDeletePerson={editor.requestDeletePerson}
+				onAddRelationship={(anchor) =>
+					editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null })}
+				onRemoveLink={editor.removeLink}
+				onRecordDeath={(id) =>
+					editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
+				onEndPartnership={(id) =>
+					editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
+				onEditUnion={editor.editUnion}
+				onEndUnion={editor.endUnion}
+				onRemoveAssertion={editor.removeAssertion}
+				onChangeLinkType={editor.changeLinkType}
+				onRemoveUnion={editor.removeUnion}
+				onMergeUnion={editor.mergeUnion}
+				mergeableUnionIds={editor.mergeableIds}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
+				onExpandStub={(id) => {
+					const token = compactStubId(id);
+					if (token)
+						navigate(
+							{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
+							{ kind: HISTORY_KINDS.ADJUST }
+						);
+				}}
+				onCollapseStub={(id) => {
+					const token = compactStubId(id);
+					navigate(
+						{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
+						{ kind: HISTORY_KINDS.ADJUST }
+					);
+				}}
+			/>
+		{/if}
 	{:else}
 		<div
 			class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-stone-200 bg-stone-100/60 p-10 text-center"

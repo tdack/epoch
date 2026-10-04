@@ -42,8 +42,8 @@ export class TreeViewport {
 	transform = $state(zoomIdentity);
 	size = $state({ width: 1000, height: 600 });
 
-	private svg: SVGSVGElement | null = null;
-	private zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
+	private svg: Element | null = null;
+	private zoomBehavior: ZoomBehavior<Element, unknown> | null = null;
 	/** Where the running animation is heading, so a second click builds on it instead of on a mid-flight frame. */
 	private animationTarget: ZoomTransform | null = null;
 	private lastFitKey: string | null = null;
@@ -59,11 +59,11 @@ export class TreeViewport {
 	 * Install pan and zoom on the svg and watch its size. `onResize` runs when the box changes size,
 	 * after `size` is updated, so the canvas can re-fit. Returns the cleanup.
 	 */
-	attach(svg: SVGSVGElement, onResize: () => void): () => void {
+	attach(svg: Element, onResize: () => void): () => void {
 		this.svg = svg;
 		this.size = { width: svg.clientWidth || 1000, height: svg.clientHeight || 600 };
 
-		this.zoomBehavior = zoom<SVGSVGElement, unknown>()
+		this.zoomBehavior = zoom<Element, unknown>()
 			.scaleExtent([MIN_ZOOM, MAX_ZOOM])
 			// Dragging a card starts drag-to-relate, not a pan; the wheel still zooms everywhere.
 			.filter((event: Event) => {
@@ -72,7 +72,7 @@ export class TreeViewport {
 				const isOnControl = target?.closest?.(OWN_GESTURE_SELECTOR);
 				return !(event as MouseEvent).button && !isOnControl;
 			})
-			.on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
+			.on('zoom', (event: D3ZoomEvent<Element, unknown>) => {
 				this.transform = event.transform;
 			})
 			.on('end', () => {

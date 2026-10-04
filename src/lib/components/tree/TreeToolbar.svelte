@@ -2,7 +2,13 @@
 	import { Minus, Plus, Search } from 'lucide-svelte';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
-	import { ALL_PARENT_CHILD_TYPES, MAX_DEPTH, type TreeViewState } from './tree-url.js';
+	import {
+		ALL_PARENT_CHILD_TYPES,
+		LAYOUT_MODES,
+		MAX_DEPTH,
+		type LayoutMode,
+		type TreeViewState
+	} from './tree-url.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {
@@ -28,6 +34,14 @@
 		onPickFocus,
 		suggestions = { favorites: [], recents: [] }
 	}: Props = $props();
+
+	const MODE_LABELS: Record<LayoutMode, string> = {
+		flat: 'Flat',
+		layers: 'Layers',
+		floors: 'Floors'
+	};
+	/** Layers arrives with its own layout (stage 5); until then its button is shown but cannot be pressed. */
+	const UNAVAILABLE_MODES: ReadonlySet<LayoutMode> = new Set([LAYOUT_MODES.LAYERS]);
 
 	interface Option {
 		id: string;
@@ -220,6 +234,22 @@
 		{/if}
 	</div>
 
+	<div class="group" role="group" aria-label="Layout">
+		<span class="caption">View</span>
+		{#each Object.values(LAYOUT_MODES) as mode (mode)}
+			<button
+				type="button"
+				class="mode"
+				aria-pressed={view.layoutMode === mode}
+				disabled={UNAVAILABLE_MODES.has(mode)}
+				title={UNAVAILABLE_MODES.has(mode) ? 'Coming soon' : undefined}
+				onclick={() => onChange({ layoutMode: mode })}
+			>
+				{MODE_LABELS[mode]}
+			</button>
+		{/each}
+	</div>
+
 	{@render stepper('Ancestors', 'ancestorDepth')}
 	{@render stepper('Descendants', 'descendantDepth')}
 
@@ -362,6 +392,26 @@
 		border-radius: 6px;
 		background: white;
 		cursor: pointer;
+	}
+	.mode {
+		padding: 4px 10px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+		cursor: pointer;
+	}
+	.mode[aria-pressed='true'] {
+		background: #1c1917;
+		border-color: #1c1917;
+		color: #fdfbf7;
+	}
+	.mode:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+	.mode:focus-visible {
+		outline: 2px solid #0f172a;
+		outline-offset: 1px;
 	}
 	.step:disabled {
 		opacity: 0.4;
