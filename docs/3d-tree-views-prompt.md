@@ -108,7 +108,7 @@ change, if they are available.
 
 - **Build the spike outside the committed tree.** Use a scratch route or page in a local-only
   commit you drop, or a file under a git-ignored folder. It must not reach the branch.
-- **Measure, don't guess.** Use Playwright in Chromium, WebKit and Firefox, if installed, against
+- **Measure, don't guess.** Use Playwright in Chromium and WebKit (Firefox is not required) against
   the dev server on the Simpsons fixture:
   - Screenshot each mode's tilt and judge text sharpness.
   - Click three cards through the transform and check the right `data-person-id` was hit.

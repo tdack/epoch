@@ -11,7 +11,8 @@ const PORT = 5179;
  * on a machine without Chrome run `npx playwright install chromium` and remove the channel.
  *
  * The 3D tree views lean on browser-specific CSS (3D transforms, `zoom`), so their specs also run
- * in WebKit and Firefox (`npx playwright install webkit firefox`). Run one with `--project`.
+ * in WebKit (`npx playwright install webkit`). Run one with `--project`. Firefox is not tested:
+ * the owner dropped it after its builds would not start here (S16 stage 8).
  */
 const THREE_D_SPECS = /(floors|layers|keyboard-3d|scale-3d)\.spec\.ts/;
 
@@ -28,8 +29,7 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: 'chrome', use: { channel: 'chrome' } },
-		{ name: 'webkit', use: { browserName: 'webkit' }, testMatch: THREE_D_SPECS },
-		{ name: 'firefox', use: { browserName: 'firefox' }, testMatch: THREE_D_SPECS }
+		{ name: 'webkit', use: { browserName: 'webkit' }, testMatch: THREE_D_SPECS }
 	],
 	webServer: {
 		command: `npm run dev -- --port ${PORT} --strictPort`,
