@@ -14,19 +14,16 @@ import {
 	type LayoutMetrics,
 	type TreeLayout
 } from '#lib/tree-layout/index.js';
+import { CAMERA_TOKENS } from './tree-tokens.js';
 import type { FloorsLayout } from '#lib/tree-layout/floors.js';
 import type { LayersLayout } from '#lib/tree-layout/layers.js';
 
-/** Tilt of the whole stage about X for `floors`; 0 would face the planes straight on. */
-const FLOOR_TILT_DEG = 50;
 /** Distance between two neighbouring floors along Z. */
 export const FLOOR_GAP_PX = 260;
 /** Vertical space one band row takes on a floor; holds a card and a union hanging below it. */
 export const BAND_ROW_PX = 170;
 /** How far the camera sits from the stage; a larger value flattens perspective. */
 export const PERSPECTIVE_PX = 2400;
-/** Opacity of a band's row, so the sibling and cousin lines recede behind the direct line. */
-export const BAND_OPACITY: Record<Band, number> = { 0: 1, 1: 0.9, 2: 0.78 };
 /** Thickness of a depth connector. */
 export const CONNECTOR_WIDTH_PX = 2;
 
@@ -45,20 +42,14 @@ const LAYER_GAP_PX: Record<LayerView, number> = { front: 120, angled: 200, explo
  */
 export const LAYER_STAGGER_PX = { x: 130, y: 85 } as const;
 
-const CAMERA_PRESETS = {
-	floors: { rotateXDeg: FLOOR_TILT_DEG, rotateYDeg: 0 },
-	'layers-front': { rotateXDeg: 4, rotateYDeg: -6 },
-	'layers-angled': { rotateXDeg: 10, rotateYDeg: -26 },
-	'layers-exploded': { rotateXDeg: 14, rotateYDeg: -34 }
-} as const;
-export type CameraPresetName = keyof typeof CAMERA_PRESETS;
+export type CameraPresetName = keyof typeof CAMERA_TOKENS;
 
 export function layerCamera(view: LayerView): CameraPresetName {
 	return `layers-${view}`;
 }
 
 export function cameraTransform(name: CameraPresetName): string {
-	const { rotateXDeg, rotateYDeg } = CAMERA_PRESETS[name];
+	const { rotateXDeg, rotateYDeg } = CAMERA_TOKENS[name];
 	return `rotateX(${rotateXDeg}deg) rotateY(${rotateYDeg}deg)`;
 }
 
@@ -105,7 +96,11 @@ export interface StagePoint {
  * `rotateXDeg` (CSS applies the right-hand transform first). Perspective is left out: this frames
  * the view and keeps a card in sight, and a few percent of error there only shifts the margin.
  */
-export function projectToScreen(point: StagePoint, rotateXDeg = FLOOR_TILT_DEG, rotateYDeg = 0) {
+export function projectToScreen(
+	point: StagePoint,
+	rotateXDeg: number = CAMERA_TOKENS.floors.rotateXDeg,
+	rotateYDeg = 0
+) {
 	const tilt = (rotateXDeg * Math.PI) / 180;
 	const turn = (rotateYDeg * Math.PI) / 180;
 	const turnedX = point.x * Math.cos(turn) + point.z * Math.sin(turn);
@@ -113,6 +108,32 @@ export function projectToScreen(point: StagePoint, rotateXDeg = FLOOR_TILT_DEG, 
 	return {
 		x: turnedX,
 		y: point.y * Math.cos(tilt) - turnedZ * Math.sin(tilt)
+	};
+}
+
+/**
+ * The box a plane covers on screen: its bounds (in its own coordinates) stood where the plane
+ * stands in the stage and seen through the camera. Used to skip planes nobody can see.
+ */
+export function planeScreenBox(
+	bounds: { minX: number; maxX: number; minY: number; maxY: number },
+	offset: { x: number; y: number; z: number },
+	rotateXDeg: number,
+	rotateYDeg: number
+) {
+	const corners = [
+		[bounds.minX, bounds.minY],
+		[bounds.maxX, bounds.minY],
+		[bounds.minX, bounds.maxY],
+		[bounds.maxX, bounds.maxY]
+	].map(([x, y]) =>
+		projectToScreen({ x: x + offset.x, y: y + offset.y, z: offset.z }, rotateXDeg, rotateYDeg)
+	);
+	return {
+		minX: Math.min(...corners.map((c) => c.x)),
+		maxX: Math.max(...corners.map((c) => c.x)),
+		minY: Math.min(...corners.map((c) => c.y)),
+		maxY: Math.max(...corners.map((c) => c.y))
 	};
 }
 
@@ -182,7 +203,7 @@ export function layersFraming(
 	hiddenPlanes: ReadonlySet<Band> = new Set(),
 	m: LayoutMetrics = LAYOUT_METRICS
 ): TreeLayout {
-	const { rotateXDeg, rotateYDeg } = CAMERA_PRESETS[layerCamera(view)];
+	const { rotateXDeg, rotateYDeg } = CAMERA_TOKENS[layerCamera(view)];
 	const project = (plane: Band, generation: number, x: number) =>
 		projectToScreen(layerPoint(plane, generation, x, view, m), rotateXDeg, rotateYDeg);
 	const people = layout.people

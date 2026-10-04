@@ -35,6 +35,24 @@ export const TREE_TOKENS = {
 	'--partner-line': '#8a5a14'
 } as const;
 
+/**
+ * How the 3D views look at the stage: the fixed cameras and how far each band recedes. Tokens, not
+ * constants in the geometry module, so the contrast test reads the exact fade the page draws.
+ * Rotations are degrees: X tips the stage back, Y turns it about the vertical.
+ */
+export const CAMERA_TOKENS = {
+	floors: { rotateXDeg: 50, rotateYDeg: 0 },
+	'layers-front': { rotateXDeg: 4, rotateYDeg: -6 },
+	'layers-angled': { rotateXDeg: 10, rotateYDeg: -26 },
+	'layers-exploded': { rotateXDeg: 14, rotateYDeg: -34 }
+} as const;
+
+/**
+ * Opacity of a band's cards, so the sibling and cousin lines recede behind the direct line. Text
+ * fades with its card, so the contrast test blends it over the canvas before it measures.
+ */
+export const BAND_FADE = { 0: 1, 1: 0.9, 2: 0.88 } as const;
+
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
 		.map(([name, value]) => `${name}:${value}`)

@@ -17,6 +17,7 @@ import {
 	layerOffset,
 	layerPoint,
 	layersFraming,
+	planeScreenBox,
 	projectToScreen
 } from './plane-stack';
 
@@ -173,5 +174,24 @@ describe('layers geometry', () => {
 		expect(front.people.map((p) => p.id).sort()).toEqual(['kid', 'me', 'wife']);
 		expect(all.bounds.minY).toBeLessThan(front.bounds.minY);
 		expect(layersFraming(layout, 'front', new Set([0, 1, 2])).people).toEqual([]);
+	});
+});
+
+describe('planeScreenBox', () => {
+	it('is the bounds shifted by the offset of the plane when the camera looks straight on', () => {
+		const box = planeScreenBox(
+			{ minX: 0, maxX: 100, minY: 10, maxY: 50 },
+			{ x: 5, y: -2, z: 0 },
+			0,
+			0
+		);
+		expect(box).toEqual({ minX: 5, maxX: 105, minY: 8, maxY: 48 });
+	});
+
+	it('lifts a plane up the screen as it moves toward the viewer when the stage tips back', () => {
+		const bounds = { minX: 0, maxX: 100, minY: 0, maxY: 100 };
+		const level = planeScreenBox(bounds, { x: 0, y: 0, z: 0 }, 50, 0);
+		const raised = planeScreenBox(bounds, { x: 0, y: 0, z: 260 }, 50, 0);
+		expect(raised.minY).toBeLessThan(level.minY);
 	});
 });
