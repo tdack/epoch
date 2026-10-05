@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
+	import { Loader2 } from 'lucide-svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
@@ -118,6 +119,12 @@
 	/** What is drawn: the address says Floors, a phone gets the hourglass. */
 	const drawnMode = $derived(isPhone && mode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLAT : mode);
 	const isFloorsOnPhone = $derived(drawnMode !== mode);
+	/**
+	 * A new focus, depth or option waits on the server for its graph, and the 3D views then lay it
+	 * out, so the chart on screen is stale for a moment. The address is ahead of the load while this
+	 * is true; the badge says so instead of leaving a click looking ignored.
+	 */
+	const isLoading = $derived(pendingSearch !== null || navigating.to !== null);
 	const focusOptions = $derived({
 		ancestorDepth: applied.ancestorDepth,
 		descendantDepth: applied.descendantDepth,
@@ -471,65 +478,85 @@
 				Floors needs a wider screen, so this shows the flat view.
 			</p>
 		{/if}
-		{#if layersLayout}
-			<LayersCanvas
-				layout={layersLayout}
-				{fitKey}
-				{selectedPersonId}
-				onSelectPerson={handleFocusPerson}
-				onOpenPerson={handleOpenPerson}
-				onClearSelection={clearSelection}
-				onExpandStub={expandStub}
-				onCollapseStub={collapseStub}
-				{actions}
-				partnershipLabels={editor.unionLabels}
-				onDragRelate={editor.dragRelate}
-				isSinglePlane={isPhone}
-			/>
-		{:else if floorsLayout}
-			<FloorsCanvas
-				layout={floorsLayout}
-				{fitKey}
-				{selectedPersonId}
-				onSelectPerson={handleFocusPerson}
-				onOpenPerson={handleOpenPerson}
-				onClearSelection={clearSelection}
-				onExpandStub={expandStub}
-				onCollapseStub={collapseStub}
-				{actions}
-				partnershipLabels={editor.unionLabels}
-				onDragRelate={editor.dragRelate}
-			/>
-		{:else}
-			<TreeCanvas
-				{layout}
-				{fitKey}
-				{selectedPersonId}
-				onSelectPerson={handleFocusPerson}
-				onOpenPerson={handleOpenPerson}
-				onClearSelection={clearSelection}
-				onEditPerson={(id) => void editor.openEditPerson(id)}
-				onDeletePerson={editor.requestDeletePerson}
-				onAddRelationship={(anchor) =>
-					editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null })}
-				onRemoveLink={editor.removeLink}
-				onRecordDeath={(id) =>
-					editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
-				onEndPartnership={(id) =>
-					editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
-				onEditUnion={editor.editUnion}
-				onEndUnion={editor.endUnion}
-				onRemoveAssertion={editor.removeAssertion}
-				onChangeLinkType={editor.changeLinkType}
-				onRemoveUnion={editor.removeUnion}
-				onMergeUnion={editor.mergeUnion}
-				mergeableUnionIds={editor.mergeableIds}
-				partnershipLabels={editor.unionLabels}
-				onDragRelate={editor.dragRelate}
-				onExpandStub={expandStub}
-				onCollapseStub={collapseStub}
-			/>
-		{/if}
+		<div class="relative flex flex-1 flex-col" aria-busy={isLoading}>
+			{#if layersLayout}
+				<LayersCanvas
+					layout={layersLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+					onExpandStub={expandStub}
+					onCollapseStub={collapseStub}
+					{actions}
+					partnershipLabels={editor.unionLabels}
+					onDragRelate={editor.dragRelate}
+					isSinglePlane={isPhone}
+				/>
+			{:else if floorsLayout}
+				<FloorsCanvas
+					layout={floorsLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+					onExpandStub={expandStub}
+					onCollapseStub={collapseStub}
+					{actions}
+					partnershipLabels={editor.unionLabels}
+					onDragRelate={editor.dragRelate}
+				/>
+			{:else}
+				<TreeCanvas
+					{layout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+					onEditPerson={(id) => void editor.openEditPerson(id)}
+					onDeletePerson={editor.requestDeletePerson}
+					onAddRelationship={(anchor) =>
+						editor.openRelationship({
+							id: anchor.id,
+							givenName: anchor.displayName,
+							surname: null
+						})}
+					onRemoveLink={editor.removeLink}
+					onRecordDeath={(id) =>
+						editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
+					onEndPartnership={(id) =>
+						editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
+					onEditUnion={editor.editUnion}
+					onEndUnion={editor.endUnion}
+					onRemoveAssertion={editor.removeAssertion}
+					onChangeLinkType={editor.changeLinkType}
+					onRemoveUnion={editor.removeUnion}
+					onMergeUnion={editor.mergeUnion}
+					mergeableUnionIds={editor.mergeableIds}
+					partnershipLabels={editor.unionLabels}
+					onDragRelate={editor.dragRelate}
+					onExpandStub={expandStub}
+					onCollapseStub={collapseStub}
+				/>
+			{/if}
+			{#if isLoading}
+				<!-- Held back a beat by the animation delay, so a quick load never flashes it. -->
+				<div
+					class="loading pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
+					role="status"
+				>
+					<span
+						class="flex items-center gap-2 rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm font-medium text-stone-700 shadow-md"
+					>
+						<Loader2 class="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
+						Loading…
+					</span>
+				</div>
+			{/if}
+		</div>
 	{:else}
 		<div
 			class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-stone-200 bg-stone-100/60 p-10 text-center"
@@ -559,3 +586,14 @@
 		{marks}
 	/>
 {/if}
+
+<style>
+	.loading {
+		animation: loading-in 150ms ease-out 200ms backwards;
+	}
+	@keyframes loading-in {
+		from {
+			opacity: 0;
+		}
+	}
+</style>
