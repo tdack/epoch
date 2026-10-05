@@ -52,7 +52,7 @@ Update only this table when phase status changes (`Planned`, `In progress`, `Blo
 Where each open phase stands (2026-10-04):
 
 - **Phase 4:** privacy (S8) and members (S9) are done; audit, contributor suggestions and record history wait.
-- **Phase 6:** pedigree, descendant and relationship charts (S10) and fan and hourglass (S12) are done; the 3D layers and floors views are S16, in progress on branch `feat/3d-tree-views` ([plan](./3d-tree-views-plan.md)). Production-grade import/export jobs, reports, timelines and branch export wait.
+- **Phase 6:** pedigree, descendant and relationship charts (S10) and fan and hourglass (S12) are done; the 3D layers and floors views (S16, ADR-030) are built, merged and deployed, with flat still the product default until the promotion checklist in the [plan](./3d-tree-views-plan.md) is met. Production-grade import/export jobs, reports, timelines and branch export wait.
 - **Phase 7:** not started as a phase, though S8 put media reads behind the privacy check and S11 added place records with rename and merge.
 
 ## Delivery slices

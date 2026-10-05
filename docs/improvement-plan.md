@@ -246,7 +246,7 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 | Individual page (facts, relatives tabs, sources, notes, media) | 3 | Built (S5 to S6): names, facts, parents, partnerships, siblings, step relatives, history, media. Sources and evidence (S15b), notes and tasks (S15c) are built. |
 | Family page | 3 | Built: the partnership page (partners, events, children, chronology, same-partner twins, warnings, history) |
 | Edit any fact or event, add name variants | 3 | Built (S5 facts, S6 names), each with a preview and one undo |
-| Interactive tree, pedigree, descendancy, hourglass | 2/3/6 | The focus-centred canvas (S1), pedigree and descendant charts (S10). 3D layers and floors views are S16, in progress |
+| Interactive tree, pedigree, descendancy, hourglass | 2/3/6 | The focus-centred canvas (S1), pedigree and descendant charts (S10), fan and hourglass (S12), and the 3D layers and floors views (S16, ADR-030; flat stays the default) |
 | Fan, hourglass | 6 | Built in S12 (ADR-020) |
 | Compact, family book, timeline, lifespan charts | 6 | None |
 | Relationship chart ("how are X and Y related") | 3/6 | Built in S10 (ADR-017): every route, nearest first |

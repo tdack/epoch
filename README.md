@@ -124,7 +124,7 @@ Simpsons" and any other data in your local database are left alone. Stop `npm ru
 | Address | Shows |
 |---|---|
 | `/` | Opens the latest tree; the old `/?tree=…&focus=…` form redirects to the tree with the rest of the query kept |
-| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it |
+| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=&side=&origins=&mode=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it. `mode` is `flat`, `layers` or `floors` (ADR-030); a link without it opens in the viewer's default view, then the tree's, then flat |
 | `/trees/:id/people/:personId` | A person: names, facts (add, edit, remove, reorder), family, evidence, media, history |
 | `/trees/:id/people/:personId/pedigree`, `/descendants`, `/fan`, `/hourglass` | Charts centred on a person, with a text outline |
 | `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, evidence, warnings |
