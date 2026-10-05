@@ -19,7 +19,16 @@
 	let { actionLabel, actionHref, message }: Props = $props();
 </script>
 
-<main class="flex min-h-dvh items-center justify-center bg-emerald-900 px-6 py-16 text-amber-50">
+<!-- The photograph is decoration, so it lives in CSS rather than an <img> a screen reader would
+announce. The emerald wash keeps the cream text above contrast over the brightest spines. -->
+<main
+	class="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-emerald-900 bg-cover bg-center px-6 py-16 text-amber-50"
+	style="background-image: image-set(url('/brand/splash-library.webp') type('image/webp'), url('/brand/splash-library.jpg') type('image/jpeg'))"
+>
+	<div
+		aria-hidden="true"
+		class="absolute inset-0 -z-10 bg-linear-to-br from-emerald-950/90 via-emerald-900/80 to-emerald-950/70"
+	></div>
 	<div
 		class="flex w-full max-w-4xl flex-col items-center gap-10 text-center md:flex-row md:gap-14 md:text-left"
 	>
