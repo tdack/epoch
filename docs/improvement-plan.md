@@ -197,7 +197,7 @@ screenshots.
 | 2 | Intent-based editor covering marriage, separation, divorce, death, end and remove | The modal offers only add parent, add child and add partner. The domain already has `record_death` and `end_union` intents that the UI doesn't expose. Union status and union events (marriage date and place) can't be edited. |
 | 2 | Impact summaries for destructive actions; conflict display | Uses `window.confirm` and `window.alert` ([+page.svelte:331](../src/routes/+page.svelte)). No 409 conflict UI exists. `undoLast` exists server-side but has no UI. |
 | 2 | Depth and relationship-type controls on the graph | Built (the toolbar's generation steppers and link-type checkboxes, kept in the address); proved in S10 by `e2e/controls.spec.ts`. The row said "not built" after they were. |
-| 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `89cd0c2`). The real problem is duplicate FAMs from import, such as `The_Simpsons.ged`. See [Duplicate unions](#duplicate-unions). |
+| 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `096fb88`). The real problem is duplicate FAMs from import, such as `The_Simpsons.ged`. See [Duplicate unions](#duplicate-unions). |
 | 2 | Keyboard and screen-reader support | Nodes are focusable, but there is no arrow-key navigation, no text alternative to the graph and no focus management in the drawer. |
 
 Phase 2 was reopened when this plan was written. It closed when slices S1–S4 below were done,
@@ -216,7 +216,7 @@ After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [
 
 The importer correctly creates one union per `FAM`, so the tree gets several identical
 Homer–Marge unions.
-Commit `89cd0c2` hides the empty copies in the drawer only. The canvas still draws every copy, and
+Commit `096fb88` hides the empty copies in the drawer only. The canvas still draws every copy, and
 the data stays duplicated.
 
 The model must still allow two genuinely separate unions between the same pair, such as a divorce
@@ -471,6 +471,6 @@ Left open or departing from the plan:
    hand-written for determinism and testability.
 4. **Duplicate unions are handled in the data, not hidden in the UI.** Exact duplicates are merged
    at import, with preview. Existing duplicates are merged by an explicit command. The drawer
-   dedupe from `89cd0c2` is removed. See [Duplicate unions](#duplicate-unions).
+   dedupe from `096fb88` is removed. See [Duplicate unions](#duplicate-unions).
 5. **Cards show sex with a symbol and a muted pastel fill:** blue for M, pink for F, neutral grey
    for X and unknown. Relationship types use line style and non-blue, non-pink hues.

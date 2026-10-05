@@ -1,6 +1,6 @@
 # Architecture review: dead code, DRY and succinctness (2026-10-02)
 
-A review of the code as of `e8adc88` (S12 deployed). It looks for code to cull, repetition to fold
+A review of the code as of `9856ef4` (S12 deployed). It looks for code to cull, repetition to fold
 into one place, and routes, pages and components that are longer than they need to be. Every
 finding below was checked against the source. Line counts exclude tests and layout fixtures.
 
@@ -358,7 +358,7 @@ is not done. Commits are named by subject because hashes change on rebase.
 | C2 to C5, not converted | skipped | `media/upload` and `media/[...key]`: they check the R2 binding as well as D1, answer through SvelteKit's `error()`, and one streams a body, so the wrapper would need options only they use. `import` and `export` went with C11 |
 | C6 | done | `refactor(auth): route every membership check through requireTreeAction`, plus `requireMemberAction` for the workflow |
 | C7 | done | `refactor(privacy): add maskForScope, omitForScope and requireVisibleSubject`. The focus window keeps its own optional-privacy shape |
-| C8 | already done before this branch | the fix is `6b0568b`; this branch added `test(import): pin tree:import authorization…`, which refuses a viewer and fails if the check goes back to loading the tree |
+| C8 | already done before this branch | the fix is `752556b`; this branch added `test(import): pin tree:import authorization…`, which refuses a viewer and fails if the check goes back to loading the tree |
 | C9 | done | `refactor(gedcom): split index.ts into parser and serializer`, with a shared `tags.ts` |
 | C10 | done | `refactor(gedcom): move export reads and import writes into GedcomRepository`. Parser and the pure preview and export-payload shaping stay in `gedcom/`; the neutral writer moved to `repositories/` |
 | C11 | done | `refactor(gedcom): add GedcomService…`. Export names now use the sanitised tree name for both the download and the stored copy |
