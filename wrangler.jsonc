@@ -51,7 +51,7 @@
 		"logs": {
 			"enabled": true
 		},
-		"issue_detection": {
+		"issues": {
 			"enabled": true
 		}
 	}
