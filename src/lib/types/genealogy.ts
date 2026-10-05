@@ -1,4 +1,5 @@
 import type { TreeRole } from '#lib/shared/roles.js';
+import type { LayoutMode } from '#lib/shared/view-mode.js';
 
 export interface TreeSummary {
 	id: string;
@@ -6,6 +7,10 @@ export interface TreeSummary {
 	description: string | null;
 	/** The caller's role in the tree; the tree list always carries it. */
 	role?: TreeRole;
+	/** The caller's own choice of view in this tree; null until they make one. */
+	viewMode?: LayoutMode | null;
+	/** The view for members with no choice of their own; null is flat. */
+	defaultViewMode?: LayoutMode | null;
 }
 
 export interface ImportPreviewData {

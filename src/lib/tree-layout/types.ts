@@ -27,17 +27,33 @@ export interface FocusViewOptions {
 	 */
 	shouldIncludeStepFamilies?: boolean;
 	/**
+	 * How many steps off the direct line to draw, 0 to 2: 1 adds the siblings of every drawn
+	 * ancestor (aunts and uncles) with their partners, 2 adds those siblings' children (and, for the
+	 * focus person's own siblings, theirs) with their partners. What lies further is a "+N" stub.
+	 * Default 0, which draws only the focus person's own siblings, as the hourglass always has.
+	 */
+	collateralDepth?: number;
+	/**
+	 * Draw the origins of the focus person's partners: their parents and siblings. Default false.
+	 */
+	shouldIncludePartnerOrigins?: boolean;
+	/**
 	 * Stub ids to expand in place. Each raises the depth limit by one generation for that branch
 	 * only; ids that are not at a limit are ignored.
 	 */
 	expandedStubIds?: string[];
 }
 
+/** The furthest `collateralDepth`: band 2 is the last band any view draws. */
+export const MAX_COLLATERAL_DEPTH = 2;
+
 export interface ResolvedFocusOptions {
 	ancestorDepth: number;
 	descendantDepth: number;
 	shouldIncludeSiblings: boolean;
 	shouldIncludeStepFamilies: boolean;
+	collateralDepth: number;
+	shouldIncludePartnerOrigins: boolean;
 	expandedStubIds: string[];
 }
 
@@ -46,6 +62,8 @@ export const DEFAULT_FOCUS_OPTIONS: ResolvedFocusOptions = {
 	descendantDepth: 3,
 	shouldIncludeSiblings: true,
 	shouldIncludeStepFamilies: false,
+	collateralDepth: 0,
+	shouldIncludePartnerOrigins: false,
 	expandedStubIds: []
 };
 
@@ -60,11 +78,25 @@ export const PERSON_ROLES = {
 } as const;
 export type PersonRole = (typeof PERSON_ROLES)[keyof typeof PERSON_ROLES];
 
+/**
+ * How far a person sits off the direct line: 0 the line and its partners, 1 the siblings of the
+ * line, 2 their descendants. Computed once per selection by `kin-placement.ts`; every view reads it.
+ */
+export type Band = 0 | 1 | 2;
+
 export interface SelectedPerson {
 	id: string;
 	/** Rows relative to the focus: negative above, positive below. */
 	generation: number;
 	role: PersonRole;
+	band: Band;
+	/**
+	 * The drawn parent this person hangs from in every view (`stepChildAnchor`); null when no
+	 * parent is drawn as a card.
+	 */
+	anchorParentId: string | null;
+	/** True when every drawn parent is only a partner of the line, never part of it. */
+	isStepChild: boolean;
 }
 
 export interface SelectedUnion {

@@ -3,6 +3,7 @@ import { trees, treeMemberships } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
+import { parseLayoutMode, type LayoutMode } from '../../shared/view-mode';
 
 export interface TreeSummary {
 	id: string;
@@ -10,6 +11,8 @@ export interface TreeSummary {
 	description: string | null;
 	version: number;
 	role?: TreeRole;
+	viewMode?: LayoutMode | null;
+	defaultViewMode?: LayoutMode | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 }
@@ -25,6 +28,8 @@ export class TreeRepository {
 				description: trees.description,
 				version: trees.version,
 				role: treeMemberships.role,
+				viewMode: treeMemberships.viewMode,
+				defaultViewMode: trees.defaultViewMode,
 				createdAt: trees.createdAt,
 				updatedAt: trees.updatedAt
 			})
@@ -36,7 +41,10 @@ export class TreeRepository {
 
 		return records.map((r) => ({
 			...r,
-			role: r.role as TreeRole
+			role: r.role as TreeRole,
+			// A column holds text, so a value that is not a mode (a hand edit) reads as unset.
+			viewMode: parseLayoutMode(r.viewMode),
+			defaultViewMode: parseLayoutMode(r.defaultViewMode)
 		}));
 	}
 
@@ -63,6 +71,28 @@ export class TreeRepository {
 			.update(trees)
 			.set({ ...patch, updatedAt: new Date() })
 			.where(eq(trees.id, treeId));
+	}
+
+	/**
+	 * A member's own view setting. It leaves `version` and `updatedAt` alone: they guard role edits
+	 * and order the tree list, and a display choice is neither. False when the user is no member.
+	 */
+	async setMemberViewMode(
+		userId: string,
+		treeId: string,
+		mode: LayoutMode | null
+	): Promise<boolean> {
+		const updated = await this.db
+			.update(treeMemberships)
+			.set({ viewMode: mode })
+			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
+			.returning({ id: treeMemberships.id });
+		return updated.length > 0;
+	}
+
+	/** The tree's default view; `version` stays, as it guards the name and description. */
+	async setDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
+		await this.db.update(trees).set({ defaultViewMode: mode }).where(eq(trees.id, treeId));
 	}
 
 	async findById(treeId: string): Promise<TreeSummary | null> {

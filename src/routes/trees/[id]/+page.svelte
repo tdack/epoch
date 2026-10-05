@@ -3,12 +3,17 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
+	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
+	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
+	import type { TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
+		DEFAULT_VIEW_STATE,
 		HISTORY_KINDS,
+		LAYOUT_MODES,
 		compactStubId,
 		createHistoryCoalescer,
 		parseViewState,
@@ -18,9 +23,18 @@
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
-	import { fetchPersonPage, recordRecentApi, searchPeopleApi } from '#lib/services/tree-api.js';
+	import {
+		fetchPersonPage,
+		recordRecentApi,
+		saveDefaultViewMode,
+		saveViewMode,
+		searchPeopleApi
+	} from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
+	import { layoutFloors } from '#lib/tree-layout/floors.js';
+	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
+	import { resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -29,6 +43,8 @@
 
 	let { data }: Props = $props();
 	const { editor, marks, toasts } = getTreeContext();
+	/** Layers shows the cousin line, so it asks for side branches two steps out. */
+	const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const historyCoalescer = createHistoryCoalescer();
 
@@ -39,7 +55,28 @@
 	 * The view (focus, depths, toggles, opened stubs) lives in the URL so reloads, back/forward and
 	 * shared links restore it. Everything below derives from it rather than keeping a second copy.
 	 */
-	const view = $derived(parseViewState(new URLSearchParams(pendingSearch ?? page.url.search)));
+	/**
+	 * The view saved for this tree: what the viewer chose, else what the owner set. A change made
+	 * here shows at once; a reload reads the same from the tree list. Reset when the tree changes.
+	 */
+	let savedViews = $state<{ treeId: string; member?: LayoutMode | null; tree?: LayoutMode | null }>(
+		{ treeId: '' }
+	);
+	const savedFor = $derived(savedViews.treeId === treeId ? savedViews : { treeId });
+	const memberTree = $derived(data.trees.find((t) => t.id === treeId));
+	const savedMemberMode = $derived(
+		'member' in savedFor ? (savedFor.member ?? null) : (memberTree?.viewMode ?? null)
+	);
+	const savedTreeMode = $derived(
+		'tree' in savedFor ? (savedFor.tree ?? null) : (memberTree?.defaultViewMode ?? null)
+	);
+	/** A link with no `mode` opens here; the address wins when it names one. */
+	const startingMode = $derived(
+		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode, fromTree: savedTreeMode })
+	);
+	const view = $derived(
+		parseViewState(new URLSearchParams(pendingSearch ?? page.url.search), startingMode)
+	);
 	/** What the graph on screen was fetched for. The canvas draws with this, and the toolbar shows `view`. */
 	const applied = $derived(data.applied);
 	const graph = $derived(data.focusGraph?.graph ?? null);
@@ -64,17 +101,78 @@
 			? filterParentChildTypes(graph, view.types)
 			: graph
 	);
+	const mode = $derived(view.layoutMode);
+	/**
+	 * A tilted stack needs width to read. Under this many pixels Layers shows one plane at a time
+	 * and Floors draws the flat view, with a note, rather than a tilt too small to use.
+	 */
+	const PHONE_MAX_WIDTH_PX = 639;
+	let isPhone = $state(false);
+	$effect(() => {
+		const query = matchMedia(`(max-width: ${PHONE_MAX_WIDTH_PX}px)`);
+		isPhone = query.matches;
+		const onChange = (event: MediaQueryListEvent) => (isPhone = event.matches);
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
+	/** What is drawn: the address says Floors, a phone gets the hourglass. */
+	const drawnMode = $derived(isPhone && mode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLAT : mode);
+	const isFloorsOnPhone = $derived(drawnMode !== mode);
+	const focusOptions = $derived({
+		ancestorDepth: applied.ancestorDepth,
+		descendantDepth: applied.descendantDepth,
+		shouldIncludeSiblings: applied.shouldIncludeSiblings,
+		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
+		// Flat draws the hourglass it always has; the wider groups are for the 3D views.
+		...(drawnMode === LAYOUT_MODES.FLAT
+			? {}
+			: {
+					collateralDepth: applied.collateralDepth,
+					shouldIncludePartnerOrigins: applied.shouldIncludePartnerOrigins
+				}),
+		expandedStubIds
+	});
+	// Only the chosen view is laid out, so switching mode costs one layout and no request.
 	const layout = $derived(
-		graphForLayout
-			? layoutFocusView(graphForLayout, focusPersonId, {
-					ancestorDepth: applied.ancestorDepth,
-					descendantDepth: applied.descendantDepth,
-					shouldIncludeSiblings: applied.shouldIncludeSiblings,
-					shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
-					expandedStubIds
-				})
+		graphForLayout && drawnMode === LAYOUT_MODES.FLAT
+			? layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
 	);
+	const floorsLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.FLOORS
+			? layoutFloors(graphForLayout, focusPersonId, focusOptions)
+			: null
+	);
+	const layersLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.LAYERS
+			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
+			: null
+	);
+
+	/**
+	 * Layers draws cousins and a partner's family, so it asks for them unless the address already
+	 * says. Done once on arrival: a viewer who then turns them off is not asked again.
+	 */
+	let hasDefaultedLayers = false;
+	$effect(() => {
+		if (mode !== LAYOUT_MODES.LAYERS) {
+			hasDefaultedLayers = false;
+			return;
+		}
+		if (hasDefaultedLayers) return;
+		hasDefaultedLayers = true;
+		untrack(() => {
+			if (view.collateralDepth > 0 || view.shouldIncludePartnerOrigins) return;
+			navigate(
+				{
+					collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+					shouldIncludePartnerOrigins: true,
+					expandedStubs: view.expandedStubs
+				},
+				{ isReplace: true }
+			);
+		});
+	});
 
 	/** Re-frame the canvas when this changes. Opening a stub is deliberately not part of it. */
 	const viewSignature = $derived(
@@ -85,7 +183,12 @@
 			applied.descendantDepth,
 			applied.shouldIncludeSiblings,
 			applied.shouldIncludeStepFamilies,
-			view.types
+			applied.collateralDepth,
+			applied.shouldIncludePartnerOrigins,
+			view.types,
+			drawnMode,
+			// Another union recentres the planes, so it re-frames like a new focus.
+			layersLayout?.focusUnionId ?? null
 		])
 	);
 	/** Bumped when the data reloads without the person having opened a stub, so an edit re-frames the canvas. */
@@ -108,7 +211,7 @@
 		if (!resolved || page.url.searchParams.get('focus') === resolved) return;
 		untrack(() => {
 			const query = serializeViewState({
-				...parseViewState(page.url.searchParams),
+				...parseViewState(page.url.searchParams, startingMode),
 				treeId: null,
 				focusId: resolved
 			}).toString();
@@ -132,11 +235,16 @@
 	) {
 		// Anything but an explicit stub change starts the new view with its stubs closed.
 		const stubs = 'expandedStubs' in change ? {} : { expandedStubs: [] };
+		const currentFocus = view.focusId ?? focusPersonId;
+		// A union belongs to the person it was picked for, so another focus starts from their first.
+		const isRefocus = 'focusId' in change && change.focusId !== currentFocus;
+		const union = isRefocus && !('unionId' in change) ? { unionId: null } : {};
 		const query = serializeViewState({
 			...view,
 			treeId: null,
-			focusId: view.focusId ?? focusPersonId,
+			focusId: currentFocus,
 			...stubs,
+			...union,
 			...change
 		}).toString();
 		// The address only changes once the new graph has loaded, so a second click straight after the
@@ -242,6 +350,55 @@
 		);
 	}
 
+	function expandStub(id: string) {
+		const token = compactStubId(id);
+		if (token)
+			navigate(
+				{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
+				{ kind: HISTORY_KINDS.ADJUST }
+			);
+	}
+
+	function collapseStub(id: string) {
+		const token = compactStubId(id);
+		navigate(
+			{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
+			{ kind: HISTORY_KINDS.ADJUST }
+		);
+	}
+
+	/** What the 3D canvases' context menus can do; the flat canvas takes the same actions one by one. */
+	const actions = $derived<TreeEditActions>({
+		onOpenPerson: handleOpenPerson,
+		onEditPerson: (id) => void editor.openEditPerson(id),
+		onDeletePerson: editor.requestDeletePerson,
+		onAddRelationship: (anchor) =>
+			editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null }),
+		onRecordDeath: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' }),
+		onEndPartnership: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' }),
+		onEditUnion: editor.editUnion,
+		onEndUnion: editor.endUnion,
+		onRemoveUnion: editor.removeUnion,
+		onMergeUnion: editor.mergeUnion,
+		mergeableUnionIds: editor.mergeableIds
+	});
+
+	/** Save a default view, showing it at once and saying so when the save fails. */
+	async function setDefaultView(scope: 'member' | 'tree', mode: LayoutMode | null) {
+		const before = savedFor;
+		savedViews = { ...savedFor, [scope]: mode };
+		try {
+			if (scope === 'member') await saveViewMode(treeId, mode);
+			else await saveDefaultViewMode(treeId, mode);
+		} catch (cause) {
+			savedViews = before;
+			toasts.push(cause instanceof Error ? cause.message : 'Could not save the default view', {
+				tone: 'error',
+				durationMs: 10_000
+			});
+		}
+	}
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	const handleFocusPerson = (id: string) => setFocus(id);
 
@@ -268,53 +425,111 @@
 		<div class="mb-3">
 			<TreeToolbar
 				{view}
+				unionChoices={layersLayout?.unionChoices ?? []}
+				focusUnionId={layersLayout?.focusUnionId ?? null}
+				defaults={{
+					member: savedMemberMode,
+					tree: savedTreeMode,
+					canSetTree: role === 'owner'
+				}}
+				onSetMemberDefault={(mode) => void setDefaultView('member', mode)}
+				onSetTreeDefault={(mode) => void setDefaultView('tree', mode)}
 				searchPeople={(q) => searchPeopleApi(treeId, q)}
-				onChange={(change) => navigate(change, { kind: HISTORY_KINDS.ADJUST })}
+				onChange={(change) =>
+					navigate(
+						// Switching view redraws the same graph, so what the person opened stays open. Flat
+						// ignores the wider groups, so going back to it also stops fetching them.
+						'layoutMode' in change
+							? {
+									...change,
+									expandedStubs: view.expandedStubs,
+									...(change.layoutMode === LAYOUT_MODES.FLAT
+										? {
+												collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
+												shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
+											}
+										: {}),
+									// Layers shows the cousin line, so arriving at it asks for the wider groups.
+									...(change.layoutMode === LAYOUT_MODES.LAYERS &&
+									view.collateralDepth === 0 &&
+									!view.shouldIncludePartnerOrigins
+										? {
+												collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+												shouldIncludePartnerOrigins: true
+											}
+										: {})
+								}
+							: change,
+						{ kind: HISTORY_KINDS.ADJUST }
+					)}
 				onPickFocus={pickFocus}
 				suggestions={marks}
 			/>
 		</div>
-		<TreeCanvas
-			{layout}
-			{fitKey}
-			{selectedPersonId}
-			onSelectPerson={handleFocusPerson}
-			onOpenPerson={handleOpenPerson}
-			onClearSelection={clearSelection}
-			onEditPerson={(id) => void editor.openEditPerson(id)}
-			onDeletePerson={editor.requestDeletePerson}
-			onAddRelationship={(anchor) =>
-				editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null })}
-			onRemoveLink={editor.removeLink}
-			onRecordDeath={(id) =>
-				editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
-			onEndPartnership={(id) =>
-				editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
-			onEditUnion={editor.editUnion}
-			onEndUnion={editor.endUnion}
-			onRemoveAssertion={editor.removeAssertion}
-			onChangeLinkType={editor.changeLinkType}
-			onRemoveUnion={editor.removeUnion}
-			onMergeUnion={editor.mergeUnion}
-			mergeableUnionIds={editor.mergeableIds}
-			partnershipLabels={editor.unionLabels}
-			onDragRelate={editor.dragRelate}
-			onExpandStub={(id) => {
-				const token = compactStubId(id);
-				if (token)
-					navigate(
-						{ expandedStubs: [...new Set([...view.expandedStubs, token])] },
-						{ kind: HISTORY_KINDS.ADJUST }
-					);
-			}}
-			onCollapseStub={(id) => {
-				const token = compactStubId(id);
-				navigate(
-					{ expandedStubs: view.expandedStubs.filter((t) => t !== token) },
-					{ kind: HISTORY_KINDS.ADJUST }
-				);
-			}}
-		/>
+		{#if isFloorsOnPhone}
+			<p class="mb-2 text-sm text-stone-600" role="note">
+				Floors needs a wider screen, so this shows the flat view.
+			</p>
+		{/if}
+		{#if layersLayout}
+			<LayersCanvas
+				layout={layersLayout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
+				{actions}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
+				isSinglePlane={isPhone}
+			/>
+		{:else if floorsLayout}
+			<FloorsCanvas
+				layout={floorsLayout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
+				{actions}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
+			/>
+		{:else}
+			<TreeCanvas
+				{layout}
+				{fitKey}
+				{selectedPersonId}
+				onSelectPerson={handleFocusPerson}
+				onOpenPerson={handleOpenPerson}
+				onClearSelection={clearSelection}
+				onEditPerson={(id) => void editor.openEditPerson(id)}
+				onDeletePerson={editor.requestDeletePerson}
+				onAddRelationship={(anchor) =>
+					editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null })}
+				onRemoveLink={editor.removeLink}
+				onRecordDeath={(id) =>
+					editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
+				onEndPartnership={(id) =>
+					editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
+				onEditUnion={editor.editUnion}
+				onEndUnion={editor.endUnion}
+				onRemoveAssertion={editor.removeAssertion}
+				onChangeLinkType={editor.changeLinkType}
+				onRemoveUnion={editor.removeUnion}
+				onMergeUnion={editor.mergeUnion}
+				mergeableUnionIds={editor.mergeableIds}
+				partnershipLabels={editor.unionLabels}
+				onDragRelate={editor.dragRelate}
+				onExpandStub={expandStub}
+				onCollapseStub={collapseStub}
+			/>
+		{/if}
 	{:else}
 		<div
 			class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-stone-200 bg-stone-100/60 p-10 text-center"

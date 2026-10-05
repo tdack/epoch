@@ -162,6 +162,20 @@
       "when": 1791068953723,
       "tag": "0022_research_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1791148942424,
+      "tag": "0023_member_view_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791148943008,
+      "tag": "0024_tree_default_view_mode",
+      "breakpoints": true
     }
   ]
 }

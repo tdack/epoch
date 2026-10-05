@@ -13,6 +13,7 @@ import type {
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 import type { FocusGraphDto, TreeSummaryDto } from '#lib/shared/graph-views.js';
+import type { LayoutMode } from '#lib/shared/view-mode.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
 import type {
@@ -463,6 +464,10 @@ export interface FocusGraphQuery {
 	down?: number;
 	shouldIncludeSiblings?: boolean;
 	shouldIncludeStepFamilies?: boolean;
+	/** Steps off the direct line to fetch, 0 to 2 (`side`). */
+	collateralDepth?: number;
+	/** Fetch the focus person's partners' parents and siblings (`origins`). */
+	shouldIncludePartnerOrigins?: boolean;
 	/** Opened stubs as URL tokens. */
 	exp?: string[];
 }
@@ -480,6 +485,9 @@ export function fetchFocusGraph(
 		params.set('siblings', query.shouldIncludeSiblings ? '1' : '0');
 	if (query.shouldIncludeStepFamilies !== undefined)
 		params.set('step', query.shouldIncludeStepFamilies ? '1' : '0');
+	if (query.collateralDepth !== undefined) params.set('side', String(query.collateralDepth));
+	if (query.shouldIncludePartnerOrigins !== undefined)
+		params.set('origins', query.shouldIncludePartnerOrigins ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
 	return call(
 		`/api/trees/${enc(treeId)}/graph?${params}`,
@@ -698,6 +706,24 @@ export async function savePrivacySettings(
 		`/api/trees/${enc(treeId)}/privacy`,
 		json('PUT', patch),
 		'Failed to save the privacy settings'
+	);
+}
+
+/** The caller's own view in this tree; `null` clears it so the tree's default applies. */
+export async function saveViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}/view-mode`,
+		json('PUT', { mode }),
+		'Failed to save the view'
+	);
+}
+
+/** The view members with no choice of their own get; the owner's to set. */
+export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}/default-view`,
+		json('PUT', { mode }),
+		'Failed to save the default view'
 	);
 }
 

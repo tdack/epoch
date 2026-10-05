@@ -1,0 +1,1 @@
+ALTER TABLE `tree_memberships` ADD `view_mode` text;
