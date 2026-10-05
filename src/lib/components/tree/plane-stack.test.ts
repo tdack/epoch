@@ -62,7 +62,7 @@ describe('plane stack geometry', () => {
 	});
 
 	it('writes the camera as a transform', () => {
-		expect(cameraTransform('floors')).toBe('rotateX(50deg) rotateY(0deg)');
+		expect(cameraTransform('floors')).toBe('rotateX(33deg) rotateY(0deg)');
 	});
 
 	it('aims a connector from one point to the other in every direction', () => {

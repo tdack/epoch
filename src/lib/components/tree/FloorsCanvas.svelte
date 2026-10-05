@@ -207,9 +207,19 @@
 		return `${steps} ${steps === 1 ? 'generation' : 'generations'} ${generation < 0 ? 'up' : 'down'}`;
 	}
 
+	/**
+	 * Every floor is as tall as the tallest, so the stack reads as one building. Width already is:
+	 * all floors share the layout's x range.
+	 */
+	const bandSpan = $derived.by(() => {
+		const all = layout.floors.flatMap((floor) => floor.bands);
+		return all.length > 0
+			? { highest: Math.max(...all) as 0 | 1 | 2, lowest: Math.min(...all) as 0 | 1 | 2 }
+			: { highest: 0 as const, lowest: 0 as const };
+	});
+
 	const planes = $derived<PlaneSpec[]>(
 		layout.floors.map((floor) => {
-			const bands = floor.bands;
 			return {
 				key: String(floor.generation),
 				z: floorPoint(floor.generation, 0, 0).z,
@@ -217,9 +227,9 @@
 				bounds: {
 					minX: layout.bounds.minX - PLANE_PADDING_PX,
 					maxX: layout.bounds.maxX + PLANE_PADDING_PX,
-					minY: bandRowY(Math.max(...bands) as 0 | 1 | 2) - M.cardHeight / 2 - 36,
+					minY: bandRowY(bandSpan.highest) - M.cardHeight / 2 - 36,
 					// Room under the lowest row for a union hanging below it.
-					maxY: bandRowY(Math.min(...bands) as 0 | 1 | 2) + M.cardHeight / 2 + 56
+					maxY: bandRowY(bandSpan.lowest) + M.cardHeight / 2 + 56
 				}
 			};
 		})

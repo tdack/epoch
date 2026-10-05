@@ -19,11 +19,11 @@ import type { FloorsLayout } from '#lib/tree-layout/floors.js';
 import type { LayersLayout } from '#lib/tree-layout/layers.js';
 
 /** Distance between two neighbouring floors along Z. */
-export const FLOOR_GAP_PX = 260;
+export const FLOOR_GAP_PX = 400;
 /** Vertical space one band row takes on a floor; holds a card and a union hanging below it. */
 export const BAND_ROW_PX = 170;
 /** How far the camera sits from the stage; a larger value flattens perspective. */
-export const PERSPECTIVE_PX = 2400;
+export const PERSPECTIVE_PX = 3600;
 /** Thickness of a depth connector. */
 export const CONNECTOR_WIDTH_PX = 2;
 

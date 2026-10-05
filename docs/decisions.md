@@ -343,7 +343,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Context:** two optional views beside the flat hourglass: `layers` (upright planes, one per band) and `floors` (one per generation). Plan: `docs/3d-tree-views-plan.md`.
 - **Decision:**
   - **Renderer: CSS 3D transforms over HTML planes** (`perspective` and `transform-style: preserve-3d`), not WebGL. Each plane holds its own `<svg>` with the existing `PersonCard`, `UnionMarker` and `TreeEdge`, so cards stay real DOM: the browser hit-tests them, and roving tabindex, `aria-label`s, the context menu and the drawer work as today. One shared `PlaneStack` primitive; depth connectors are thin elements rotated into Z.
-  - **Camera:** fixed presets only (`layers` rotates the stage a little about Y and X; `floors` tips it about X, around 50°).
+  - **Camera:** fixed presets only (`layers` rotates the stage a little about Y and X; `floors` tips it about X, 33° (first 50°, eased at the owner’s request)).
   - **Pan and zoom stay 2D on a wrapper outside the perspective,** so `tree-viewport.svelte.ts` keeps its maths. Zoom must be applied as layout (CSS `zoom`, or sizing the planes), never as `transform: scale()` on that wrapper (see the spike below).
   - **URL:** `mode` = `flat` (default, omitted) | `layers` | `floors`, in `tree-url.ts`. It is not a fetched parameter, so switching mode refetches nothing.
   - **Band model and step-child rule:** one pure module in `src/lib/tree-layout/` computes each drawn person's band (0 direct line, 1 sibling line, 2 cousin line) and anchors every step-child to a drawn parent with a view-independent tie-break (lower band, earlier `union_partner`, lower id). Flat uses it too, so the views agree.
