@@ -50,7 +50,7 @@
 	"observability": {
 		"logs": {
 			"enabled": true
-		}
+		},
 		"issue_detection": {
 			"enabled": true
 		}
