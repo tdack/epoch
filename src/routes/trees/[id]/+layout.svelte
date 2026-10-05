@@ -26,6 +26,7 @@
 	let { data, children }: Props = $props();
 
 	const role = $derived(data.trees.find((t) => t.id === data.summary.tree.id)?.role);
+	const isChartPage = $derived(page.route.id === '/trees/[id]');
 	const treePath = (id: string) => `/trees/${encodeURIComponent(id)}`;
 	const personPath = (treeId: string, personId: string) =>
 		`${treePath(treeId)}/people/${encodeURIComponent(personId)}`;
@@ -83,7 +84,12 @@
 		canExport={isManagerOrAbove(role)}
 	/>
 
-	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col space-y-4 p-6">
+	<!-- The chart is the one page that wants the whole window; the lists and forms stay readable at 7xl. -->
+	<main
+		class="mx-auto flex w-full flex-1 flex-col space-y-4 p-6 {isChartPage
+			? 'max-w-none'
+			: 'max-w-7xl'}"
+	>
 		<TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
 		<TreeStatsBanner
 			treeName={data.summary.tree.name}
