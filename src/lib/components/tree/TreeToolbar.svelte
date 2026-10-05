@@ -2,7 +2,14 @@
 	import { Minus, Plus, Search } from 'lucide-svelte';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
-	import { ALL_PARENT_CHILD_TYPES, MAX_DEPTH, type TreeViewState } from './tree-url.js';
+	import {
+		ALL_PARENT_CHILD_TYPES,
+		LAYOUT_MODES,
+		MAX_COLLATERAL_DEPTH,
+		MAX_DEPTH,
+		type LayoutMode,
+		type TreeViewState
+	} from './tree-url.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {
@@ -10,6 +17,19 @@
 		view: TreeViewState;
 		/** Search the tree's people by name. */
 		searchPeople: (query: string) => Promise<PeopleSearchResult[]>;
+		/** The focus person's unions, when `layers` can be centred on any of them. */
+		unionChoices?: Array<{ id: string; label: string }>;
+		/** The union `layers` is centred on now. */
+		focusUnionId?: string | null;
+		/**
+		 * The saved defaults the view starts from, when they can be changed here: the viewer's own,
+		 * the tree's, and whether the viewer may set the tree's (the owner).
+		 */
+		defaults?: { member: LayoutMode | null; tree: LayoutMode | null; canSetTree: boolean };
+		/** Save the viewer's own default view; null clears it so the tree's applies. */
+		onSetMemberDefault?: (mode: LayoutMode | null) => void;
+		/** Save the tree's default view for everyone with no choice of their own. */
+		onSetTreeDefault?: (mode: LayoutMode | null) => void;
 		/** Merge these fields into the view. */
 		onChange: (change: Partial<TreeViewState>) => void;
 		/** Refocus the tree on a person picked from the search results. */
@@ -24,10 +44,21 @@
 	let {
 		view,
 		searchPeople,
+		unionChoices = [],
+		focusUnionId = null,
+		defaults,
+		onSetMemberDefault,
+		onSetTreeDefault,
 		onChange,
 		onPickFocus,
 		suggestions = { favorites: [], recents: [] }
 	}: Props = $props();
+
+	const MODE_LABELS: Record<LayoutMode, string> = {
+		flat: 'Flat',
+		layers: 'Layers',
+		floors: 'Floors'
+	};
 
 	interface Option {
 		id: string;
@@ -220,8 +251,112 @@
 		{/if}
 	</div>
 
+	<div class="group" role="group" aria-label="Layout">
+		<span class="caption">View</span>
+		{#each Object.values(LAYOUT_MODES) as mode (mode)}
+			<button
+				type="button"
+				class="mode"
+				aria-pressed={view.layoutMode === mode}
+				onclick={() => onChange({ layoutMode: mode })}
+			>
+				{MODE_LABELS[mode]}
+			</button>
+		{/each}
+	</div>
+
+	{#if defaults}
+		<details class="defaults">
+			<summary>Default view</summary>
+			<div class="defaults-body">
+				<label class="field">
+					<span class="caption">Mine</span>
+					<select
+						aria-label="My default view"
+						value={defaults.member ?? ''}
+						onchange={(event) =>
+							onSetMemberDefault?.((event.currentTarget.value || null) as LayoutMode | null)}
+					>
+						<option value=""
+							>Tree default ({MODE_LABELS[defaults.tree ?? LAYOUT_MODES.FLAT]})</option
+						>
+						{#each Object.values(LAYOUT_MODES) as mode (mode)}
+							<option value={mode}>{MODE_LABELS[mode]}</option>
+						{/each}
+					</select>
+				</label>
+				{#if defaults.canSetTree}
+					<label class="field">
+						<span class="caption">Everyone</span>
+						<select
+							aria-label="Default view for everyone"
+							value={defaults.tree ?? LAYOUT_MODES.FLAT}
+							onchange={(event) => onSetTreeDefault?.(event.currentTarget.value as LayoutMode)}
+						>
+							{#each Object.values(LAYOUT_MODES) as mode (mode)}
+								<option value={mode}>{MODE_LABELS[mode]}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
+				<p class="note">Links that name a view still open in it.</p>
+			</div>
+		</details>
+	{/if}
+
 	{@render stepper('Ancestors', 'ancestorDepth')}
 	{@render stepper('Descendants', 'descendantDepth')}
+
+	{#if view.layoutMode === LAYOUT_MODES.LAYERS && unionChoices.length > 1}
+		<label class="group" title="Which of their partnerships the layers are centred on">
+			<span class="caption">Centred on</span>
+			<select
+				class="select"
+				aria-label="Partnership"
+				value={focusUnionId}
+				onchange={(e) => onChange({ unionId: e.currentTarget.value })}
+			>
+				{#each unionChoices as choice (choice.id)}
+					<option value={choice.id}>{choice.label}</option>
+				{/each}
+			</select>
+		</label>
+	{/if}
+
+	{#if view.layoutMode !== LAYOUT_MODES.FLAT}
+		<div class="group" role="group" aria-label="Relatives off the direct line">
+			<span class="caption" title="How far to draw aunts, uncles, cousins and their partners">
+				Side branches
+			</span>
+			<button
+				type="button"
+				class="step"
+				aria-label="Fewer side branches"
+				disabled={view.collateralDepth <= 0}
+				onclick={() => onChange({ collateralDepth: view.collateralDepth - 1 })}
+			>
+				<Minus class="h-3.5 w-3.5" />
+			</button>
+			<output class="value" aria-live="polite">{view.collateralDepth}</output>
+			<button
+				type="button"
+				class="step"
+				aria-label="More side branches"
+				disabled={view.collateralDepth >= MAX_COLLATERAL_DEPTH}
+				onclick={() => onChange({ collateralDepth: view.collateralDepth + 1 })}
+			>
+				<Plus class="h-3.5 w-3.5" />
+			</button>
+		</div>
+		<label class="toggle" title="Draw the parents and siblings of the focus person's partners">
+			<input
+				type="checkbox"
+				checked={view.shouldIncludePartnerOrigins}
+				onchange={(e) => onChange({ shouldIncludePartnerOrigins: e.currentTarget.checked })}
+			/>
+			Partner’s family
+		</label>
+	{/if}
 
 	<label class="toggle">
 		<input
@@ -351,6 +486,49 @@
 		padding: 0;
 		margin: 0;
 	}
+	.defaults {
+		position: relative;
+	}
+	.defaults summary {
+		cursor: pointer;
+		font-weight: 600;
+		color: #57534e;
+	}
+	.defaults summary:focus-visible {
+		outline: 2px solid var(--tree-focus-ring, #0f172a);
+		outline-offset: 2px;
+	}
+	.defaults-body {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 0;
+		z-index: 40;
+		display: grid;
+		gap: 8px;
+		min-width: 15rem;
+		padding: 10px 12px;
+		background: white;
+		border: 1px solid #d6d3d1;
+		border-radius: 8px;
+		box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+	}
+	.defaults-body .field {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.defaults-body select {
+		padding: 4px 6px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+	}
+	.defaults-body .note {
+		margin: 0;
+		font-size: 12px;
+		color: #57534e;
+	}
 	.caption {
 		font-weight: 600;
 		color: #57534e;
@@ -362,6 +540,33 @@
 		border-radius: 6px;
 		background: white;
 		cursor: pointer;
+	}
+	.mode {
+		padding: 4px 10px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+		cursor: pointer;
+	}
+	.mode[aria-pressed='true'] {
+		background: #1c1917;
+		border-color: #1c1917;
+		color: #fdfbf7;
+	}
+	.select {
+		padding: 4px 8px;
+		border: 1px solid #d6d3d1;
+		border-radius: 6px;
+		background: white;
+		max-width: 16rem;
+	}
+	.select:focus-visible {
+		outline: 2px solid #0f172a;
+		outline-offset: 1px;
+	}
+	.mode:focus-visible {
+		outline: 2px solid #0f172a;
+		outline-offset: 1px;
 	}
 	.step:disabled {
 		opacity: 0.4;

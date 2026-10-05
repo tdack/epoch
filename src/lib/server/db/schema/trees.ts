@@ -13,6 +13,9 @@ export const trees = sqliteTable('trees', {
 	shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
 		.notNull()
 		.default(false),
+	// The view a member with no setting of their own sees (`flat`, `layers` or `floors`); null is flat.
+	// Set by the owner; changing it does not bump `version`, which guards the name and description.
+	defaultViewMode: text('default_view_mode'),
 	version: integer('version').notNull().default(1),
 	createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
@@ -32,6 +35,10 @@ export const treeMemberships = sqliteTable(
 		role: text('role', { enum: ['owner', 'manager', 'editor', 'contributor', 'viewer'] })
 			.notNull()
 			.default('viewer'),
+		// How this member likes the tree drawn (`flat`, `layers` or `floors`); null means they have not
+		// chosen and the tree's default applies (S16 stage 8). Their own setting, so changing it neither
+		// bumps `version` (that guards role edits) nor needs a manager.
+		viewMode: text('view_mode'),
 		// Two managers can change the same member at once; the second sees a conflict, not a silent overwrite.
 		version: integer('version').notNull().default(1),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

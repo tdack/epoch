@@ -1,0 +1,1 @@
+ALTER TABLE `trees` ADD `default_view_mode` text;

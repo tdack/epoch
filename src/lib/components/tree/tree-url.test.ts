@@ -23,15 +23,72 @@ describe('tree view URL state', () => {
 		};
 		const params = serializeViewState(state);
 		expect(params.toString()).toBe(
-			'tree=t1&focus=p9&up=5&down=0&siblings=0&step=1&types=biological%2Cadoptive'
+			'tree=t1&focus=p9&up=5&down=0&siblings=0&step=1&types=biological%2Cadoptive&mode=flat'
 		);
 		expect(parseViewState(params)).toEqual(state);
+	});
+
+	it('carries the layout mode, flat included, and falls back to the default of the viewer without one', () => {
+		const floors = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			layoutMode: 'floors' as const
+		};
+		expect(serializeViewState(floors).toString()).toBe('tree=t1&focus=p1&mode=floors');
+		expect(parseViewState(serializeViewState(floors)).layoutMode).toBe('floors');
+		expect(parseViewState(new URLSearchParams('mode=layers')).layoutMode).toBe('layers');
+		expect(parseViewState(new URLSearchParams('mode=flat')).layoutMode).toBe('flat');
+		expect(parseViewState(new URLSearchParams('mode=sideways')).layoutMode).toBe('flat');
+		// A link without a mode opens in the reader's default; the address wins over it.
+		expect(parseViewState(new URLSearchParams(''), 'layers').layoutMode).toBe('layers');
+		expect(parseViewState(new URLSearchParams('mode=flat'), 'layers').layoutMode).toBe('flat');
+		expect(parseViewState(new URLSearchParams('mode=sideways'), 'floors').layoutMode).toBe(
+			'floors'
+		);
+		// Flat is written too, so a reload cannot be flipped by a default that says otherwise.
+		expect(serializeViewState({ ...DEFAULT_VIEW_STATE, layoutMode: 'flat' }).get('mode')).toBe(
+			'flat'
+		);
+	});
+
+	it('carries the focus union, and leaves it out when absent', () => {
+		const layers = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			layoutMode: 'layers' as const,
+			unionId: 'u2'
+		};
+		expect(serializeViewState(layers).toString()).toBe('tree=t1&focus=p1&mode=layers&union=u2');
+		expect(parseViewState(serializeViewState(layers))).toEqual(layers);
+		expect(parseViewState(new URLSearchParams('union=')).unionId).toBeNull();
+		expect(serializeViewState(DEFAULT_VIEW_STATE).has('union')).toBe(false);
+	});
+
+	it('carries the wider groups, and leaves their defaults out', () => {
+		const wide = {
+			...DEFAULT_VIEW_STATE,
+			treeId: 't1',
+			focusId: 'p1',
+			collateralDepth: 2,
+			shouldIncludePartnerOrigins: true
+		};
+		expect(serializeViewState(wide).toString()).toBe('tree=t1&focus=p1&side=2&origins=1&mode=flat');
+		expect(parseViewState(serializeViewState(wide))).toEqual(wide);
+		expect(parseViewState(new URLSearchParams('side=7')).collateralDepth).toBe(2);
+		expect(parseViewState(new URLSearchParams('side=x&origins=maybe'))).toMatchObject({
+			collateralDepth: 0,
+			shouldIncludePartnerOrigins: false
+		});
+		const flat = serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' });
+		expect(flat.has('side') || flat.has('origins')).toBe(false);
 	});
 
 	it('omits defaults', () => {
 		expect(
 			serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' }).toString()
-		).toBe('tree=t1&focus=p1');
+		).toBe('tree=t1&focus=p1&mode=flat');
 	});
 
 	it('falls back to defaults for junk input', () => {
@@ -59,7 +116,7 @@ describe('the open drawer in the URL', () => {
 	it('serialises the person beside the focus', () => {
 		const state = { ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1', personId: 'p2' };
 		const params = serializeViewState(state);
-		expect(params.toString()).toBe('tree=t1&focus=p1&person=p2');
+		expect(params.toString()).toBe('tree=t1&focus=p1&person=p2&mode=flat');
 		expect(parseViewState(params)).toEqual(state);
 	});
 

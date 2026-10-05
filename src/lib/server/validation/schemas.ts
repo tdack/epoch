@@ -16,6 +16,7 @@ import {
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
+import { LAYOUT_MODE_VALUES } from '../../shared/view-mode';
 import {
 	END_EVENT_TYPES,
 	ENDED_UNION_STATUSES,
@@ -333,6 +334,8 @@ export const personPrivacySchema = z.object({
 	privacy: z.enum(PERSON_PRIVACY_VALUES),
 	version: versionSchema.optional()
 });
+/** A view setting, or null to clear it. */
+export const viewModeSchema = z.object({ mode: z.enum(LAYOUT_MODE_VALUES).nullable() });
 export const privacySettingsSchema = z
 	.object({
 		maxAliveYears: z.number().int().min(MIN_MAX_ALIVE_YEARS).max(MAX_MAX_ALIVE_YEARS),

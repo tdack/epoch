@@ -48,6 +48,10 @@ interface Context {
 	claimedParentUnions: Set<string>;
 	primaryEdgeKeys: Set<string>;
 	nonAdjacent: Set<string>;
+	/** Anchor parent of each drawn child (`stepChildAnchor`); the group holding it claims the child. */
+	anchorOf: Map<string, string>;
+	/** Anchors that can never claim children because ancestor cards are placed by `layoutParents`. */
+	ancestorIds: Set<string>;
 }
 
 function shiftItems(items: Item[], dx: number): Item[] {
@@ -252,18 +256,37 @@ function buildSlot(
 	};
 }
 
+/**
+ * Whether the group made of `groupParentIds` may take `childId`. The anchor's own group always
+ * can; any other waits for it, unless the anchor's group could never claim the child (an
+ * ancestor card, another row, or a union that is not drawn), when first come keeps the old rule.
+ */
+function groupMayClaim(ctx: Context, childId: string, groupParentIds: string[]): boolean {
+	const anchor = ctx.anchorOf.get(childId);
+	if (anchor === undefined || groupParentIds.includes(anchor)) return true;
+	if (ctx.ancestorIds.has(anchor)) return true;
+	if (ctx.genOf.get(anchor) !== ctx.genOf.get(childId)! - 1) return true;
+	const isHeldByAnchor = (ctx.index.parentLinksOfChild.get(childId) ?? []).some(
+		(link) => link.parentId === anchor && (link.unionId === null || ctx.unionIds.has(link.unionId))
+	);
+	return !isHeldByAnchor;
+}
+
 /** Children of a parent that this block is allowed to place under itself. */
 function claimChildren(
 	ctx: Context,
 	childIds: string[],
 	row: number,
-	edgeKey: (childId: string) => string
+	edgeKey: (childId: string) => string,
+	groupParentIds: string[]
 ) {
 	const claimed: string[] = [];
 	for (const childId of childIds) {
 		if (!ctx.genOf.has(childId)) continue;
-		// A child in two drawn unions is placed under the first; the other edge is secondary.
+		// A child in two drawn groups hangs from the one holding its anchor parent, never from
+		// whichever block happened to be laid out first; the other edge is secondary.
 		if (ctx.placed.has(childId) || ctx.genOf.get(childId) !== row + 1) continue;
+		if (!groupMayClaim(ctx, childId, groupParentIds)) continue;
 		ctx.placed.add(childId);
 		claimed.push(childId);
 		ctx.primaryEdgeKeys.add(edgeKey(childId));
@@ -293,7 +316,8 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 			ctx,
 			ctx.index.childIdsOfUnion.get(pu.id) ?? [],
 			row,
-			(c) => `${pu.id}|${c}`
+			(c) => `${pu.id}|${c}`,
+			unique(ctx.index.unionById.get(pu.id)?.partnerIds ?? [])
 		);
 		const stubId = `stub:children:${pu.id}`;
 		groups.push({
@@ -309,7 +333,8 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 		ctx,
 		ctx.index.directChildIdsOfParent.get(anchorId) ?? [],
 		row,
-		(c) => `direct|${anchorId}|${c}`
+		(c) => `direct|${anchorId}|${c}`,
+		[anchorId]
 	);
 	const directStub = `stub:children:direct:${anchorId}`;
 	if (directIds.length > 0 || ctx.stubIds.has(directStub)) {
@@ -553,7 +578,13 @@ export function placeHourglass(
 		placed: new Set(),
 		claimedParentUnions: new Set(),
 		primaryEdgeKeys: new Set(),
-		nonAdjacent: new Set()
+		nonAdjacent: new Set(),
+		anchorOf: new Map(
+			selection.people.flatMap((p) => (p.anchorParentId ? [[p.id, p.anchorParentId] as const] : []))
+		),
+		ancestorIds: new Set(
+			selection.people.filter((p) => p.role === PERSON_ROLES.ANCESTOR).map((p) => p.id)
+		)
 	};
 
 	// The focus row: children of the focus person's parent unions, so siblings stay contiguous.

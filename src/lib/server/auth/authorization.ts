@@ -7,6 +7,7 @@ export type TreeAction =
 	| 'tree:manage_members'
 	| 'tree:delete'
 	| 'tree:update_settings'
+	| 'tree:set_default_view'
 	| 'person:set_privacy'
 	| 'media:manage'
 	| 'media:view'
@@ -24,6 +25,8 @@ const ACTION_MIN_ROLES: Record<TreeAction, TreeRole> = {
 	'record:delete': 'editor',
 	'tree:import': 'editor',
 	'tree:update_settings': 'manager',
+	// Decides how everyone's link without a `mode` opens, so it is the owner's alone (S16 stage 8).
+	'tree:set_default_view': 'owner',
 	'person:set_privacy': 'manager',
 	'media:manage': 'editor',
 	'media:view': 'viewer',

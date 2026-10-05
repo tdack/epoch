@@ -2,6 +2,7 @@ import type { DbClient } from '../db';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
+import type { LayoutMode } from '../../shared/view-mode';
 import { requireTreeAction } from './tree-access';
 import { NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
@@ -51,6 +52,23 @@ export class TreeService {
 	) {
 		await requireTreeAction(this.userRepo, treeId, context, 'tree:update_settings');
 		return this.treeRepo.update(treeId, expectedVersion, data);
+	}
+
+	/**
+	 * The caller's own choice of view in this tree; null clears it so the tree's default applies. A
+	 * display setting of their own, so any member may set it and it is not logged or undoable.
+	 */
+	async setViewMode(treeId: string, mode: LayoutMode | null, context: AuthenticatedContext) {
+		await requireTreeAction(this.userRepo, treeId, context, 'tree:view');
+		await this.treeRepo.setMemberViewMode(context.user.id, treeId, mode);
+		return { viewMode: mode };
+	}
+
+	/** The view members with no choice of their own get; the owner's to set. */
+	async setDefaultViewMode(treeId: string, mode: LayoutMode | null, context: AuthenticatedContext) {
+		await requireTreeAction(this.userRepo, treeId, context, 'tree:set_default_view');
+		await this.treeRepo.setDefaultViewMode(treeId, mode);
+		return { defaultViewMode: mode };
 	}
 
 	async deleteTree(treeId: string, context: AuthenticatedContext) {

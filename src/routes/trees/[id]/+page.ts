@@ -9,7 +9,16 @@ import type { PageLoad } from './$types';
 export const ssr = false;
 
 /** The URL parameters that shape the request. `types` is deliberately absent: it filters the drawing, not the fetch. */
-const FETCHED_PARAMS = new Set(['focus', 'up', 'down', 'siblings', 'step', 'exp']);
+const FETCHED_PARAMS = new Set([
+	'focus',
+	'up',
+	'down',
+	'siblings',
+	'step',
+	'side',
+	'origins',
+	'exp'
+]);
 
 function rememberedFocus(treeId: string): string | null {
 	try {
@@ -37,6 +46,8 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 		down: view.descendantDepth,
 		shouldIncludeSiblings: view.shouldIncludeSiblings,
 		shouldIncludeStepFamilies: view.shouldIncludeStepFamilies,
+		collateralDepth: view.collateralDepth,
+		shouldIncludePartnerOrigins: view.shouldIncludePartnerOrigins,
 		exp: view.expandedStubs
 	};
 
