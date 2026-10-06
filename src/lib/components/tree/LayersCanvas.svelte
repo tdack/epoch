@@ -350,7 +350,7 @@
 
 	onMount(() => {
 		if (!surfaceElement) return;
-		return viewport.attach(surfaceElement, () => viewport.fit(framing, false));
+		return viewport.attach(surfaceElement, () => viewport.frame(framing, false));
 	});
 
 	// Re-frame when the key changes; see `TreeViewport.reframe`.
@@ -539,51 +539,54 @@
 	<div
 		class="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex flex-col-reverse items-start gap-2 sm:inset-x-6 sm:bottom-6 sm:flex-row sm:items-end sm:justify-between"
 	>
-		<div
-			class="pointer-events-auto flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-stone-300 p-2 text-xs shadow-md"
-			style="background: var(--tree-panel);"
-		>
-			{#if isSinglePlane}
-				<div class="flex items-center gap-1" role="group" aria-label="Plane">
-					{#each layout.planes as p (p.plane)}
-						<button
-							type="button"
-							class="view"
-							aria-pressed={activePlane === p.plane}
-							onclick={() => (tabPlane = p.plane)}
-						>
-							{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
-						</button>
-					{/each}
-				</div>
-			{:else}
-				<div class="flex items-center gap-1" role="group" aria-label="Camera">
-					{#each Object.values(LAYER_VIEWS) as option (option)}
-						<button
-							type="button"
-							class="view"
-							aria-pressed={chosenView === option}
-							onclick={() => (chosenView = option)}
-						>
-							{VIEW_LABELS[option]}
-						</button>
-					{/each}
-				</div>
-				<div class="flex items-center gap-2" role="group" aria-label="Planes shown">
-					{#each layout.planes as p (p.plane)}
-						<label class="flex cursor-pointer items-center gap-1 text-stone-700">
-							<input
-								type="checkbox"
-								checked={isShown(p.plane)}
-								onchange={() => toggleVisible(p.plane)}
-								aria-label="Show {PLANE_NAMES[p.plane].toLowerCase()}"
-							/>
-							{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
-						</label>
-					{/each}
-				</div>
-			{/if}
-		</div>
+		<!-- With one plane there is nothing to choose between; a lone tab read as a stray control. -->
+		{#if !isSinglePlane || layout.planes.length > 1}
+			<div
+				class="pointer-events-auto flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-stone-300 p-2 text-xs shadow-md"
+				style="background: var(--tree-panel);"
+			>
+				{#if isSinglePlane}
+					<div class="flex items-center gap-1" role="group" aria-label="Plane">
+						{#each layout.planes as p (p.plane)}
+							<button
+								type="button"
+								class="view"
+								aria-pressed={activePlane === p.plane}
+								onclick={() => (tabPlane = p.plane)}
+							>
+								{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<div class="flex items-center gap-1" role="group" aria-label="Camera">
+						{#each Object.values(LAYER_VIEWS) as option (option)}
+							<button
+								type="button"
+								class="view"
+								aria-pressed={chosenView === option}
+								onclick={() => (chosenView = option)}
+							>
+								{VIEW_LABELS[option]}
+							</button>
+						{/each}
+					</div>
+					<div class="flex items-center gap-2" role="group" aria-label="Planes shown">
+						{#each layout.planes as p (p.plane)}
+							<label class="flex cursor-pointer items-center gap-1 text-stone-700">
+								<input
+									type="checkbox"
+									checked={isShown(p.plane)}
+									onchange={() => toggleVisible(p.plane)}
+									aria-label="Show {PLANE_NAMES[p.plane].toLowerCase()}"
+								/>
+								{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
+							</label>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<ZoomControls
 			scale={transform.k}

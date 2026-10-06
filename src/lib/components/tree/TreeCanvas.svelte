@@ -209,7 +209,7 @@
 
 	onMount(() => {
 		if (!svgElement || !containerElement) return;
-		const detach = viewport.attach(svgElement, () => viewport.fit(layout, false));
+		const detach = viewport.attach(svgElement, () => viewport.frame(layout, false));
 		return detach;
 	});
 

@@ -18,7 +18,9 @@ import {
 	relationLabel,
 	sexClass,
 	sexSymbol,
-	surnameInitial,
+	blockLabel,
+	boundsOfPeople,
+	immediateFamilyIds,
 	yearsLine,
 	unionLabelText
 } from './tree-view';
@@ -84,11 +86,13 @@ describe('card text', () => {
 		expect(yearsLine(person({}))).toBe('');
 	});
 
-	it('takes the surname initial from the last word', () => {
-		expect(surnameInitial('Jessica Louise Lovejoy')).toBe('L');
-		expect(surnameInitial('  cher ')).toBe('C');
-		// The birth surname is not part of the name the block is initialled from.
-		expect(surnameInitial('Jessica Wren (née Lovejoy)')).toBe('K');
+	it('labels a block with the first given name, cut to fit', () => {
+		expect(blockLabel('Jessica Louise Lovejoy')).toBe('Sharl…');
+		expect(blockLabel('Ann Simpson')).toBe('Ann');
+		expect(blockLabel('  cher ')).toBe('cher');
+		expect(blockLabel('   ')).toBe('?');
+		// Siblings who share a surname still read apart.
+		expect(blockLabel('David Simpson')).not.toBe(blockLabel('Daniel Simpson'));
 	});
 });
 
@@ -336,5 +340,34 @@ describe('unionLabelText', () => {
 				})
 			)
 		).toBe('1975');
+	});
+});
+
+describe('readable framing', () => {
+	it('picks the focus person, their parents, partners and children, and no one further out', () => {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id, {
+			ancestorDepth: 3,
+			descendantDepth: 3
+		});
+		const ids = immediateFamilyIds(layout);
+		const focus = layout.focusPersonId!;
+		expect(ids.has(focus)).toBe(true);
+		const generations = layout.people.filter((p) => ids.has(p.id)).map((p) => p.generation);
+		expect(Math.min(...generations)).toBeGreaterThanOrEqual(-1);
+		expect(Math.max(...generations)).toBeLessThanOrEqual(1);
+		expect(ids.size).toBeGreaterThan(1);
+		expect(ids.size).toBeLessThan(layout.people.length);
+	});
+
+	it('bounds only the chosen cards, and nothing when none is placed', () => {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id);
+		const focus = layout.people.find((p) => p.id === layout.focusPersonId)!;
+		expect(boundsOfPeople(layout, new Set([focus.id]))).toEqual({
+			minX: focus.x - LAYOUT_METRICS.cardWidth / 2,
+			maxX: focus.x + LAYOUT_METRICS.cardWidth / 2,
+			minY: focus.y - LAYOUT_METRICS.cardHeight / 2,
+			maxY: focus.y + LAYOUT_METRICS.cardHeight / 2
+		});
+		expect(boundsOfPeople(layout, new Set(['nobody']))).toBeNull();
 	});
 });

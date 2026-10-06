@@ -16,9 +16,24 @@ import {
 	type ZoomTransform
 } from 'd3-zoom';
 import { LAYOUT_METRICS, type Point, type TreeLayout } from '#lib/tree-layout/index.js';
-import { MAX_FIT_ZOOM, MAX_ZOOM, MIN_ZOOM } from './tree-view.js';
+import {
+	MAX_FIT_ZOOM,
+	MAX_ZOOM,
+	MIN_ZOOM,
+	READABLE_FIT_ZOOM,
+	boundsOfPeople,
+	immediateFamilyIds
+} from './tree-view.js';
 
 const FIT_PADDING_PX = 56;
+/** Side padding never takes more than this share of a narrow canvas's width. */
+const FIT_PADDING_SHARE = 0.06;
+const MIN_FIT_PADDING_PX = 16;
+/** Clears the legend toggle pinned to the top and the zoom bar pinned to the bottom. */
+const FIT_PADDING_TOP_PX = 56;
+const FIT_PADDING_BOTTOM_PX = 72;
+
+type Bounds = TreeLayout['bounds'];
 const ANIMATION_MS = 380;
 const ZOOM_BUTTON_MS = 220;
 
@@ -110,26 +125,55 @@ export class TreeViewport {
 		}
 	}
 
+	/** The scale that fits `bounds` in the padded canvas, before any clamping. */
+	private scaleFor({ minX, maxX, minY, maxY }: Bounds): number {
+		const side = Math.max(
+			MIN_FIT_PADDING_PX,
+			Math.min(FIT_PADDING_PX, this.size.width * FIT_PADDING_SHARE)
+		);
+		return Math.min(
+			(this.size.width - side * 2) / Math.max(1, maxX - minX),
+			(this.size.height - FIT_PADDING_TOP_PX - FIT_PADDING_BOTTOM_PX) / Math.max(1, maxY - minY)
+		);
+	}
+
+	/** Scale `k`, centred on (cx, cy) in layout space, inside the padded canvas. */
+	private centredOn(cx: number, cy: number, k: number): ZoomTransform {
+		const midY =
+			FIT_PADDING_TOP_PX + (this.size.height - FIT_PADDING_TOP_PX - FIT_PADDING_BOTTOM_PX) / 2;
+		return zoomIdentity.translate(this.size.width / 2 - cx * k, midY - cy * k).scale(k);
+	}
+
+	/** The whole tree, however small that makes it: what the Fit button asks for. */
 	private fitTransform(layout: TreeLayout): ZoomTransform {
 		const { minX, maxX, minY, maxY } = layout.bounds;
-		const width = Math.max(1, maxX - minX);
-		const height = Math.max(1, maxY - minY);
-		const k = Math.min(
-			MAX_FIT_ZOOM,
-			Math.max(
-				MIN_ZOOM,
-				Math.min(
-					(this.size.width - FIT_PADDING_PX * 2) / width,
-					(this.size.height - FIT_PADDING_PX * 2) / height
-				)
-			)
-		);
-		return zoomIdentity
-			.translate(
-				this.size.width / 2 - ((minX + maxX) / 2) * k,
-				this.size.height / 2 - ((minY + maxY) / 2) * k
-			)
-			.scale(k);
+		const k = Math.min(MAX_FIT_ZOOM, Math.max(MIN_ZOOM, this.scaleFor(layout.bounds)));
+		return this.centredOn((minX + maxX) / 2, (minY + maxY) / 2, k);
+	}
+
+	/** Whether the whole tree fits at a scale its names can still be read at. */
+	private isWholeFitReadable(layout: TreeLayout): boolean {
+		return this.scaleFor(layout.bounds) >= READABLE_FIT_ZOOM;
+	}
+
+	/**
+	 * The automatic framing: the whole tree when it can be read that way, otherwise the focus person's
+	 * immediate family at a readable scale. A family too wide even for that stays centred on the
+	 * focus person, so the one card the view is about is never pushed off the edge.
+	 */
+	private frameTransform(layout: TreeLayout): ZoomTransform {
+		if (this.isWholeFitReadable(layout)) return this.fitTransform(layout);
+		const familyIds = immediateFamilyIds(layout);
+		const family = boundsOfPeople(layout, familyIds);
+		const focus = layout.people.find((p) => p.id === layout.focusPersonId);
+		if (!family || !focus) return this.fitTransform(layout);
+		const familyK = this.scaleFor(family);
+		// The 3D framings carry no edges, so the family there is the focus card alone; filling the
+		// screen with it would hide everyone around it, so it gets the readable floor instead.
+		const ceiling = familyIds.size > 1 ? MAX_FIT_ZOOM : READABLE_FIT_ZOOM;
+		const k = Math.min(ceiling, Math.max(READABLE_FIT_ZOOM, familyK));
+		const cx = familyK >= READABLE_FIT_ZOOM ? (family.minX + family.maxX) / 2 : focus.x;
+		return this.centredOn(cx, (family.minY + family.maxY) / 2, k);
 	}
 
 	private isBoundsVisible(layout: TreeLayout): boolean {
@@ -153,6 +197,11 @@ export class TreeViewport {
 
 	fit(layout: TreeLayout, isAnimated = true) {
 		if (layout.people.length > 0) this.moveTo(this.fitTransform(layout), { isAnimated });
+	}
+
+	/** Frame the tree as a refocus or a resize does; see `frameTransform`. */
+	frame(layout: TreeLayout, isAnimated = true) {
+		if (layout.people.length > 0) this.moveTo(this.frameTransform(layout), { isAnimated });
 	}
 
 	/** Pan just enough to bring a card centred at (x, y) fully into view. */
@@ -191,13 +240,16 @@ export class TreeViewport {
 					easing: 'ease-out'
 				});
 			}
-			this.moveTo(this.fitTransform(layout), { isAnimated: !isFirst });
+			this.moveTo(this.frameTransform(layout), { isAnimated: !isFirst });
 			this.lastFitKey = fitKey;
 		} else if (
 			layout.collapsers.length > this.previousCollapserCount &&
-			!this.isBoundsVisible(layout)
+			!this.isBoundsVisible(layout) &&
+			this.isWholeFitReadable(layout)
 		) {
-			// A stub opened onto rows the view does not show; frame them rather than leave them off-screen.
+			// A stub opened onto rows the view does not show; frame them rather than leave them
+			// off-screen. Not when that would shrink the names past reading: the opened stub is on screen
+			// and its rows grow from it, so a pan reaches them.
 			this.moveTo(this.fitTransform(layout), { isAnimated: true });
 		}
 		this.previousPositions = new Map(layout.people.map((p) => [p.id, { x: p.x, y: p.y }]));

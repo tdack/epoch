@@ -360,7 +360,7 @@
 
 	onMount(() => {
 		if (!surfaceElement) return;
-		return viewport.attach(surfaceElement, () => viewport.fit(framing, false));
+		return viewport.attach(surfaceElement, () => viewport.frame(framing, false));
 	});
 
 	// Re-frame when the key changes; see `TreeViewport.reframe`.

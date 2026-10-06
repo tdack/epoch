@@ -40,6 +40,45 @@ export function levelOfDetail(zoom: number): LevelOfDetail {
 	return LEVELS_OF_DETAIL.BLOCK;
 }
 
+/**
+ * The smallest scale an automatic framing may use. Below it a compact card's name drops under about
+ * 11px on screen, so a phone that fits a whole tree shows a field of unreadable blocks; the framing
+ * closes in on the focus person's immediate family instead and leaves the rest a pan away.
+ */
+export const READABLE_FIT_ZOOM = 0.45;
+
+/** The focus person with their parents, partners and children: what a narrow screen frames first. */
+export function immediateFamilyIds(layout: TreeLayout): Set<string> {
+	const focusId = layout.focusPersonId;
+	if (!focusId) return new Set();
+	const ids = new Set([focusId]);
+	for (const edge of layout.edges) {
+		if (edge.kind !== 'child') continue;
+		if (edge.childId === focusId) for (const a of edge.assertions) ids.add(a.parentId);
+		else if (edge.assertions.some((a) => a.parentId === focusId)) ids.add(edge.childId);
+	}
+	for (const placed of layout.unions) {
+		if (placed.union.partnerIds.includes(focusId))
+			for (const partnerId of placed.union.partnerIds) ids.add(partnerId);
+	}
+	return ids;
+}
+
+/** Card bounds of the placed people in `ids`; null when none of them is placed. */
+export function boundsOfPeople(
+	layout: Pick<TreeLayout, 'people'>,
+	ids: ReadonlySet<string>
+): TreeLayout['bounds'] | null {
+	const placed = layout.people.filter((p) => ids.has(p.id));
+	if (placed.length === 0) return null;
+	return {
+		minX: Math.min(...placed.map((p) => p.x)) - M.cardWidth / 2,
+		maxX: Math.max(...placed.map((p) => p.x)) + M.cardWidth / 2,
+		minY: Math.min(...placed.map((p) => p.y)) - M.cardHeight / 2,
+		maxY: Math.max(...placed.map((p) => p.y)) + M.cardHeight / 2
+	};
+}
+
 /** Smallest on-screen size a click target keeps, whatever the zoom. */
 export const MIN_HIT_TARGET_PX = 24;
 
@@ -127,10 +166,13 @@ export function truncate(text: string, maxChars: number): string {
 	return text.length <= maxChars ? text : `${text.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
 }
 
-/** First letter of the last word of the name, for the block shown below the compact zoom. */
-export function surnameInitial(displayName: string): string {
-	const words = splitDisplayName(displayName).name.trim().split(/\s+/);
-	return (words.at(-1) ?? '?').charAt(0).toUpperCase() || '?';
+/**
+ * The first given name, cut to fit a block drawn below the compact zoom. Siblings share a surname,
+ * so its initial alone made a row of children read "L L L L"; a given name tells them apart.
+ */
+export function blockLabel(displayName: string, maxChars = 6): string {
+	const first = splitDisplayName(displayName).name.trim().split(/\s+/)[0] ?? '';
+	return first ? truncate(first, maxChars) : '?';
 }
 
 // ---- Accessible names ----

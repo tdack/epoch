@@ -7,7 +7,7 @@
 		hitSize,
 		sexClass,
 		sexSymbol,
-		surnameInitial,
+		blockLabel,
 		truncate,
 		yearsLine,
 		type LevelOfDetail
@@ -162,7 +162,7 @@
 	{#if level === 'block'}
 		<rect class="frame" x={-W / 2} y={-blockHeight / 2} width={W} height={blockHeight} rx="14" />
 		<text class="initial" y="0" text-anchor="middle" dominant-baseline="central">
-			{surnameInitial(person.displayName)}
+			{blockLabel(person.displayName)}
 		</text>
 		{#if person.isDeceased}
 			<text class="dagger-block" x={W / 2 - 14} y={-blockHeight / 2 + 30} text-anchor="middle"
@@ -282,7 +282,7 @@
 	}
 	.initial {
 		fill: var(--tree-ink);
-		font-size: 56px;
+		font-size: 48px;
 		font-weight: 700;
 	}
 	.dagger-block {

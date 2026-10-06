@@ -71,6 +71,16 @@
 		return () => query.removeEventListener('change', onQueryChange);
 	});
 
+	/**
+	 * Floors is not offered on a phone: the tilted floors need width, and the page draws the flat view
+	 * in its place, so offering it there only led to a refusal. An address that already says Floors
+	 * keeps its button lit, so the choice in force stays visible.
+	 */
+	const shownModes = $derived(
+		Object.values(LAYOUT_MODES).filter(
+			(mode) => !isNarrow || mode !== LAYOUT_MODES.FLOORS || view.layoutMode === mode
+		)
+	);
 	const isLayers = $derived(view.layoutMode === LAYOUT_MODES.LAYERS);
 	const hasPartnerChoice = $derived(isLayers && unionChoices.length > 1);
 	const partnerLabel = $derived(
@@ -142,7 +152,7 @@
 		role="group"
 		aria-label="Layout"
 	>
-		{#each Object.values(LAYOUT_MODES) as mode (mode)}
+		{#each shownModes as mode (mode)}
 			<button
 				type="button"
 				class="cursor-pointer px-3 text-[13px] font-semibold focus-ring-inset {isNarrow
