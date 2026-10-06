@@ -51,7 +51,11 @@
 		if (!menuElement?.contains(event.relatedTarget as Node | null)) onClose();
 	}}
 >
-	{#each items as item (item.label)}
+	{#each items as item, index (item.label)}
+		<!-- Destructive entries sit apart from the rest, so a slip down the list does not land on one. -->
+		{#if item.isDanger && index > 0 && !items[index - 1].isDanger}
+			<div class="divider" role="separator"></div>
+		{/if}
 		<button type="button" role="menuitem" class:danger={item.isDanger} onclick={() => run(item)}>
 			{item.label}
 		</button>
@@ -85,5 +89,10 @@
 	}
 	button.danger {
 		color: #b91c1c;
+	}
+	.divider {
+		height: 1px;
+		margin: 4px 0;
+		background: var(--tree-panel-border);
 	}
 </style>
