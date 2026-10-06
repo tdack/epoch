@@ -77,4 +77,17 @@ describe('TreeNav', () => {
 		expect(document.querySelector('[role="menu"]')).toBeNull();
 		expect(document.activeElement).toBe(trigger);
 	});
+
+	it('hands focus back to the trigger after an item is chosen', async () => {
+		render({ role: 'editor' });
+		const trigger = openMore();
+		const first = document.querySelector<HTMLAnchorElement>('[role="menuitem"]')!;
+		await vi.waitFor(() => expect(document.activeElement).toBe(first));
+		// jsdom cannot navigate; the click must still reach the Popover's handler.
+		first.addEventListener('click', (event) => event.preventDefault());
+		first.click();
+		flushSync();
+		expect(document.querySelector('[role="menu"]')).toBeNull();
+		expect(document.activeElement).toBe(trigger);
+	});
 });

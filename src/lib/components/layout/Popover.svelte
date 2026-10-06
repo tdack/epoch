@@ -84,7 +84,10 @@
 		if (!isSheet) place();
 		if (role === 'menu') {
 			const list = items();
-			(focusItem === 'last' ? list[list.length - 1] : list[0])?.focus();
+			// A radio menu opens on what is chosen now, so the keyboard starts where the user already is;
+			// ArrowUp still means "from the end", so it ignores the checked item.
+			const checked = list.find((el) => el.getAttribute('aria-checked') === 'true');
+			(focusItem === 'last' ? list[list.length - 1] : (checked ?? list[0]))?.focus();
 		} else {
 			(panel?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? panel)?.focus();
 		}
@@ -152,7 +155,9 @@
 			target.closest('[role^="menuitem"]') &&
 			!target.closest('[data-keep-open]')
 		)
-			close();
+			// Focus goes back to the trigger so it is not stranded on <body>; a link or dialog opened by
+			// the item moves it on afterwards.
+			close(true);
 	}
 
 	function onFocusOut(event: FocusEvent) {
