@@ -11,6 +11,7 @@
 		type LayoutMode,
 		type TreeViewState
 	} from './tree-url.js';
+	import { treeTokenStyle } from './tree-tokens.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {
@@ -332,13 +333,18 @@
 	class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-[13px] text-stone-900"
 	role="toolbar"
 	aria-label="Tree view controls"
+	style={treeTokenStyle()}
 >
-	<Popover label="Focus person" panelClass="w-72 max-w-[calc(100vw-1.5rem)] py-1">
+	<Popover
+		label="Focus person"
+		class={isNarrow ? 'min-w-0 flex-1' : ''}
+		panelClass="w-72 max-w-[calc(100vw-1.5rem)] py-1"
+	>
 		{#snippet trigger(attrs)}
 			<button
 				type="button"
 				{...attrs}
-				class="{controlClass} max-w-[16rem] {isNarrow ? 'min-h-11' : ''}"
+				class="{controlClass} {isNarrow ? 'min-h-11 w-full justify-between' : 'max-w-[16rem]'}"
 			>
 				<span class="min-w-0 truncate">
 					<span class="font-semibold">{focusPerson?.name ?? 'Choose a focus person'}</span>
@@ -397,6 +403,7 @@
 		bind:isOpen={isDisplayOpen}
 		role="dialog"
 		align="end"
+		class="ml-auto"
 		isSheet={isNarrow}
 		label={isNarrow ? 'View options' : 'Display options'}
 		panelClass={isNarrow ? '' : 'w-[22rem] max-w-[calc(100vw-1.5rem)] max-h-[75vh] overflow-y-auto'}
