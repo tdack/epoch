@@ -345,7 +345,7 @@
 >
 	<Popover
 		label="Focus person"
-		class="min-w-0 {isNarrow ? 'flex-1' : 'shrink'}"
+		class="min-w-0 {isNarrow ? 'flex-1' : 'max-w-[18rem] shrink'}"
 		panelClass="w-72 max-w-[calc(100vw-1.5rem)] py-1"
 	>
 		{#snippet trigger(attrs)}
@@ -402,7 +402,11 @@
 		<!-- Its own wrapping group: the chip shrinks and this wraps, so Display never drops alone onto a row. -->
 		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
 			{@render layoutControl()}
-			<div class="flex items-center gap-3" role="group" aria-label="Generations">
+			<div
+				class="flex flex-wrap items-center gap-x-3 gap-y-2"
+				role="group"
+				aria-label="Generations"
+			>
 				<span class={captionClass}>Generations</span>
 				{@render stepper('Ancestors', 'ancestorDepth')}
 				{@render stepper('Descendants', 'descendantDepth')}
