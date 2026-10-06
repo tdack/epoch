@@ -487,7 +487,9 @@
 				Floors needs a wider screen, so this shows the flat view.
 			</p>
 		{/if}
-		<div class="relative flex flex-1 flex-col" aria-busy={isLoading}>
+		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
+		     otherwise reach the browser and zoom the whole page instead of the chart. -->
+		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
 			{#if layersLayout}
 				<LayersCanvas
 					layout={layersLayout}
