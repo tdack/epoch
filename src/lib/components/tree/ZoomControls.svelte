@@ -7,13 +7,24 @@
 		onZoomIn: () => void;
 		onZoomOut: () => void;
 		onFit: () => void;
+		/**
+		 * Where the bar sits. The default pins it to the bottom-right corner; a canvas with its own
+		 * bottom controls passes a flow position instead so the two cannot overlap on a phone.
+		 */
+		class?: string;
 	}
 
-	let { scale, onZoomIn, onZoomOut, onFit }: Props = $props();
+	let {
+		scale,
+		onZoomIn,
+		onZoomOut,
+		onFit,
+		class: placement = 'absolute right-6 bottom-6'
+	}: Props = $props();
 </script>
 
 <div
-	class="absolute right-6 bottom-6 z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
+	class="{placement} z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
 	style="background: var(--tree-panel);"
 >
 	<button type="button" title="Zoom in" aria-label="Zoom in" onclick={onZoomIn} class="control">

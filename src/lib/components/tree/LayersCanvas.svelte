@@ -532,58 +532,67 @@
 		<TreeLegend />
 	</div>
 
+	<!--
+		One bottom bar for both overlays. Pinned apart they ran under each other at 375px; here the
+		zoom bar stacks above the plane controls on a phone and sits opposite them from sm up.
+	-->
 	<div
-		class="absolute bottom-6 left-6 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-stone-300 p-2 text-xs shadow-md"
-		style="background: var(--tree-panel);"
+		class="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex flex-col-reverse items-start gap-2 sm:inset-x-6 sm:bottom-6 sm:flex-row sm:items-end sm:justify-between"
 	>
-		{#if isSinglePlane}
-			<div class="flex items-center gap-1" role="group" aria-label="Plane">
-				{#each layout.planes as p (p.plane)}
-					<button
-						type="button"
-						class="view"
-						aria-pressed={activePlane === p.plane}
-						onclick={() => (tabPlane = p.plane)}
-					>
-						{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
-					</button>
-				{/each}
-			</div>
-		{:else}
-			<div class="flex items-center gap-1" role="group" aria-label="Camera">
-				{#each Object.values(LAYER_VIEWS) as option (option)}
-					<button
-						type="button"
-						class="view"
-						aria-pressed={chosenView === option}
-						onclick={() => (chosenView = option)}
-					>
-						{VIEW_LABELS[option]}
-					</button>
-				{/each}
-			</div>
-			<div class="flex items-center gap-2" role="group" aria-label="Planes shown">
-				{#each layout.planes as p (p.plane)}
-					<label class="flex cursor-pointer items-center gap-1 text-stone-700">
-						<input
-							type="checkbox"
-							checked={isShown(p.plane)}
-							onchange={() => toggleVisible(p.plane)}
-							aria-label="Show {PLANE_NAMES[p.plane].toLowerCase()}"
-						/>
-						{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
-					</label>
-				{/each}
-			</div>
-		{/if}
-	</div>
+		<div
+			class="pointer-events-auto flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-stone-300 p-2 text-xs shadow-md"
+			style="background: var(--tree-panel);"
+		>
+			{#if isSinglePlane}
+				<div class="flex items-center gap-1" role="group" aria-label="Plane">
+					{#each layout.planes as p (p.plane)}
+						<button
+							type="button"
+							class="view"
+							aria-pressed={activePlane === p.plane}
+							onclick={() => (tabPlane = p.plane)}
+						>
+							{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
+						</button>
+					{/each}
+				</div>
+			{:else}
+				<div class="flex items-center gap-1" role="group" aria-label="Camera">
+					{#each Object.values(LAYER_VIEWS) as option (option)}
+						<button
+							type="button"
+							class="view"
+							aria-pressed={chosenView === option}
+							onclick={() => (chosenView = option)}
+						>
+							{VIEW_LABELS[option]}
+						</button>
+					{/each}
+				</div>
+				<div class="flex items-center gap-2" role="group" aria-label="Planes shown">
+					{#each layout.planes as p (p.plane)}
+						<label class="flex cursor-pointer items-center gap-1 text-stone-700">
+							<input
+								type="checkbox"
+								checked={isShown(p.plane)}
+								onchange={() => toggleVisible(p.plane)}
+								aria-label="Show {PLANE_NAMES[p.plane].toLowerCase()}"
+							/>
+							{p.plane === 0 ? 'Union' : p.plane === 1 ? 'Families' : 'Cousins'}
+						</label>
+					{/each}
+				</div>
+			{/if}
+		</div>
 
-	<ZoomControls
-		scale={transform.k}
-		onZoomIn={() => viewport.zoomBy(ZOOM_STEP)}
-		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
-		onFit={() => viewport.fit(framing)}
-	/>
+		<ZoomControls
+			scale={transform.k}
+			onZoomIn={() => viewport.zoomBy(ZOOM_STEP)}
+			onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
+			onFit={() => viewport.fit(framing)}
+			class="pointer-events-auto relative shrink-0 self-end"
+		/>
+	</div>
 
 	{#if interactions.menu}
 		<TreeContextMenu
