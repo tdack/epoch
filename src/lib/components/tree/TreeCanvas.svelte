@@ -378,9 +378,11 @@
 	}
 
 	function onCanvasClick(event: MouseEvent) {
+		// The popover and menu are drawn inside this container, so their own clicks bubble here; one
+		// on the popover's type <select> would otherwise close it before a new type could be picked.
 		if (
 			(event.target as Element).closest?.(
-				'[data-edge-id], [data-person-id], [data-union-id], [data-stub-id], [data-collapser-id]'
+				'[data-edge-id], [data-person-id], [data-union-id], [data-stub-id], [data-collapser-id], [role="dialog"], [role="menu"]'
 			)
 		)
 			return;
