@@ -30,8 +30,9 @@ test('a task is made from a quality finding, shown on it, and completed without 
 	// The tasks page lists it, about the person, open by default.
 	await page
 		.getByRole('navigation', { name: 'Tree sections' })
-		.getByRole('link', { name: 'Tasks' })
+		.getByRole('button', { name: 'More' })
 		.click();
+	await page.getByRole('menuitem', { name: 'Tasks' }).click();
 	const task = page.getByTestId('task').first();
 	await expect(task).toContainText('Check the death date against the register');
 	await expect(task).toContainText('Due 2027-03-31');
