@@ -51,6 +51,9 @@ export interface TreeViewState {
 	expandedStubs: string[];
 }
 
+/** Layers shows the cousin line, so arriving at it asks for side branches two steps out. */
+export const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
+
 export const DEFAULT_VIEW_STATE: TreeViewState = {
 	treeId: null,
 	focusId: null,

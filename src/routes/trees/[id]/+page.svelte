@@ -14,6 +14,7 @@
 		ALL_PARENT_CHILD_TYPES,
 		DEFAULT_VIEW_STATE,
 		HISTORY_KINDS,
+		LAYERS_DEFAULT_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
 		compactStubId,
 		createHistoryCoalescer,
@@ -28,8 +29,7 @@
 		fetchPersonPage,
 		recordRecentApi,
 		saveDefaultViewMode,
-		saveViewMode,
-		searchPeopleApi
+		saveViewMode
 	} from '#lib/services/tree-api.js';
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
@@ -43,9 +43,7 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor, marks, toasts } = getTreeContext();
-	/** Layers shows the cousin line, so it asks for side branches two steps out. */
-	const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
+	const { editor, marks, toasts, finder } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const historyCoalescer = createHistoryCoalescer();
 
@@ -88,6 +86,10 @@
 	});
 
 	const focusPersonId = $derived(data.focusGraph?.focusPersonId ?? null);
+	const focusPerson = $derived.by(() => {
+		const person = graph?.people.find((p) => p.id === focusPersonId);
+		return person ? { id: person.id, name: person.displayName } : null;
+	});
 	const expandedStubIds = $derived(
 		graph
 			? resolveStubTokens(
@@ -282,7 +284,7 @@
 		});
 	}
 
-	/** Picking someone in the focus box is opening them: it refocuses and counts as a recent. */
+	/** Picking someone in the header finder is opening them: it refocuses and counts as a recent. */
 	function pickFocus(id: string) {
 		navigate(withOpenDrawer(id), { kind: HISTORY_KINDS.FOCUS });
 		void recordRecentApi(treeId, id)
@@ -291,6 +293,12 @@
 				// Recents are a convenience; a failed record is not worth a message.
 			});
 	}
+
+	// The header's finder refocuses the chart through this while the chart is on screen.
+	$effect(() => {
+		finder.pickFocus = pickFocus;
+		return () => (finder.pickFocus = null);
+	});
 
 	function rememberFocus(id: string) {
 		try {
@@ -441,7 +449,10 @@
 				}}
 				onSetMemberDefault={(mode) => void setDefaultView('member', mode)}
 				onSetTreeDefault={(mode) => void setDefaultView('tree', mode)}
-				searchPeople={(q) => searchPeopleApi(treeId, q)}
+				{focusPerson}
+				onchangeFocus={() => finder.focusInput?.()}
+				onopenProfile={(id) =>
+					void goto(`/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(id)}`)}
 				onChange={(change) =>
 					navigate(
 						// Switching view redraws the same graph, so what the person opened stays open. Flat
@@ -469,8 +480,6 @@
 							: change,
 						{ kind: HISTORY_KINDS.ADJUST }
 					)}
-				onPickFocus={pickFocus}
-				suggestions={marks}
 			/>
 		</div>
 		{#if isFloorsOnPhone}
