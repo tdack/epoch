@@ -32,6 +32,8 @@ const MIN_FIT_PADDING_PX = 16;
 /** Clears the legend toggle pinned to the top and the zoom bar pinned to the bottom. */
 const FIT_PADDING_TOP_PX = 56;
 const FIT_PADDING_BOTTOM_PX = 72;
+/** Canvases narrower than this (a phone, or a narrow window) frame a readable family, not the whole tree. */
+const NARROW_CANVAS_PX = 640;
 
 type Bounds = TreeLayout['bounds'];
 const ANIMATION_MS = 380;
@@ -151,27 +153,27 @@ export class TreeViewport {
 		return this.centredOn((minX + maxX) / 2, (minY + maxY) / 2, k);
 	}
 
-	/** Whether the whole tree fits at a scale its names can still be read at. */
-	private isWholeFitReadable(layout: TreeLayout): boolean {
-		return this.scaleFor(layout.bounds) >= READABLE_FIT_ZOOM;
+	/**
+	 * Whether an automatic framing shows the whole tree. A wide canvas always does: a small overview
+	 * there still shows the shape of the family beside room to zoom. A narrow one does only while the
+	 * names stay readable, since a phone that fits everything shows nothing anyone can read.
+	 */
+	private shouldFrameWhole(layout: TreeLayout): boolean {
+		return this.size.width >= NARROW_CANVAS_PX || this.scaleFor(layout.bounds) >= READABLE_FIT_ZOOM;
 	}
 
 	/**
-	 * The automatic framing: the whole tree when it can be read that way, otherwise the focus person's
-	 * immediate family at a readable scale. A family too wide even for that stays centred on the
-	 * focus person, so the one card the view is about is never pushed off the edge.
+	 * The automatic framing: the whole tree where `shouldFrameWhole` allows, otherwise the focus
+	 * person's immediate family at a readable scale. A family too wide even for that stays centred
+	 * on the focus person, so the one card the view is about is never pushed off the edge.
 	 */
 	private frameTransform(layout: TreeLayout): ZoomTransform {
-		if (this.isWholeFitReadable(layout)) return this.fitTransform(layout);
-		const familyIds = immediateFamilyIds(layout);
-		const family = boundsOfPeople(layout, familyIds);
+		if (this.shouldFrameWhole(layout)) return this.fitTransform(layout);
+		const family = boundsOfPeople(layout, immediateFamilyIds(layout));
 		const focus = layout.people.find((p) => p.id === layout.focusPersonId);
 		if (!family || !focus) return this.fitTransform(layout);
 		const familyK = this.scaleFor(family);
-		// The 3D framings carry no edges, so the family there is the focus card alone; filling the
-		// screen with it would hide everyone around it, so it gets the readable floor instead.
-		const ceiling = familyIds.size > 1 ? MAX_FIT_ZOOM : READABLE_FIT_ZOOM;
-		const k = Math.min(ceiling, Math.max(READABLE_FIT_ZOOM, familyK));
+		const k = Math.min(MAX_FIT_ZOOM, Math.max(READABLE_FIT_ZOOM, familyK));
 		const cx = familyK >= READABLE_FIT_ZOOM ? (family.minX + family.maxX) / 2 : focus.x;
 		return this.centredOn(cx, (family.minY + family.maxY) / 2, k);
 	}
@@ -245,7 +247,7 @@ export class TreeViewport {
 		} else if (
 			layout.collapsers.length > this.previousCollapserCount &&
 			!this.isBoundsVisible(layout) &&
-			this.isWholeFitReadable(layout)
+			this.shouldFrameWhole(layout)
 		) {
 			// A stub opened onto rows the view does not show; frame them rather than leave them
 			// off-screen. Not when that would shrink the names past reading: the opened stub is on screen

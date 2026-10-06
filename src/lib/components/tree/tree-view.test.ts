@@ -359,6 +359,17 @@ describe('readable framing', () => {
 		expect(ids.size).toBeLessThan(layout.people.length);
 	});
 
+	it('falls back to the generations either side of the focus when a framing has no edges', () => {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id, {
+			ancestorDepth: 3,
+			descendantDepth: 3
+		});
+		const focus = layout.people.find((p) => p.id === layout.focusPersonId)!;
+		const ids = immediateFamilyIds({ ...layout, edges: [], unions: [] });
+		const expected = layout.people.filter((p) => Math.abs(p.generation - focus.generation) <= 1);
+		expect([...ids].sort()).toEqual(expected.map((p) => p.id).sort());
+	});
+
 	it('bounds only the chosen cards, and nothing when none is placed', () => {
 		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id);
 		const focus = layout.people.find((p) => p.id === layout.focusPersonId)!;

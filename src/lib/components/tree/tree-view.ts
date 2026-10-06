@@ -47,10 +47,21 @@ export function levelOfDetail(zoom: number): LevelOfDetail {
  */
 export const READABLE_FIT_ZOOM = 0.45;
 
-/** The focus person with their parents, partners and children: what a narrow screen frames first. */
+/**
+ * The focus person with their parents, partners and children: what a narrow screen frames first.
+ * The 3D views frame a projection that carries no edges, so there it is everyone a generation
+ * either side of the focus person, which holds the same people and a few of their row-mates.
+ */
 export function immediateFamilyIds(layout: TreeLayout): Set<string> {
 	const focusId = layout.focusPersonId;
 	if (!focusId) return new Set();
+	if (layout.edges.length === 0) {
+		const focus = layout.people.find((p) => p.id === focusId);
+		if (!focus) return new Set();
+		return new Set(
+			layout.people.filter((p) => Math.abs(p.generation - focus.generation) <= 1).map((p) => p.id)
+		);
+	}
 	const ids = new Set([focusId]);
 	for (const edge of layout.edges) {
 		if (edge.kind !== 'child') continue;
