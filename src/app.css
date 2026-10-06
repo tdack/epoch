@@ -12,6 +12,53 @@
 	}
 }
 
+/* Any touch screen, whatever its width: an iPad is wider than the phone breakpoint but still needs 44px targets. */
+@custom-variant coarse (@media (pointer: coarse));
+
+/*
+ * The one keyboard-focus style of the app chrome. Utilities rather than repeated class strings so
+ * the colour and offset change in one place. `focus-ring-inset` is for controls inside a scroll
+ * container or a clipped group, where an outset ring would be cut off.
+ */
+@utility focus-ring {
+	&:focus-visible {
+		outline: 2px solid var(--color-emerald-700);
+		outline-offset: 2px;
+	}
+}
+@utility focus-ring-inset {
+	&:focus-visible {
+		outline: 2px solid var(--color-emerald-700);
+		outline-offset: -2px;
+	}
+}
+@utility focus-input {
+	&:focus {
+		border-color: var(--color-emerald-700);
+		box-shadow: 0 0 0 1px var(--color-emerald-700);
+		outline: none;
+	}
+}
+/*
+ * A row of a menu or listbox. Hover stays subtle; the keyboard-focused row, or a combobox's
+ * `aria-activedescendant` option (which never takes real focus, hence aria-selected), gets a tint
+ * and an inset outline that stay visible on white.
+ */
+@utility menu-item {
+	&:hover {
+		background-color: var(--color-stone-100);
+	}
+	&:focus-visible,
+	&[aria-selected='true'] {
+		background-color: var(--color-emerald-50);
+		outline: 2px solid var(--color-emerald-700);
+		outline-offset: -2px;
+	}
+	@media (pointer: coarse) {
+		min-height: 2.75rem;
+	}
+}
+
 @layer base {
 	body {
 		background-color: #fcf9f2;
