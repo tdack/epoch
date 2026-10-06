@@ -343,7 +343,7 @@
 		}
 		popover = null;
 		rememberOpener();
-		menu = { ...at, items };
+		menu = items.length > 0 ? { ...at, items } : null;
 	}
 
 	function onEdgeSelect(edge: LayoutEdge, event: Event) {
@@ -696,8 +696,8 @@
 			{nameOf}
 			x={Math.max(8, Math.min(popover.x, size.width - 336))}
 			y={Math.max(8, Math.min(popover.y, size.height - 40 - popoverEdge.assertions.length * 44))}
-			onRemove={removeAssertion}
-			onChangeType={changeLinkType}
+			onRemove={onRemoveAssertion ? removeAssertion : undefined}
+			onChangeType={onChangeLinkType ? changeLinkType : undefined}
 			onClose={closeOverlays}
 		/>
 	{/if}

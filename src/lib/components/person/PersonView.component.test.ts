@@ -157,10 +157,52 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 		const labels = [...document.querySelectorAll('button')].map(
 			(b) => b.getAttribute('aria-label') ?? b.textContent?.trim()
 		);
-		expect(labels).toContain('Remove Mum, or record what happened');
+		expect(labels).toContain('Options for Mum: record what happened, or remove');
 		expect(labels).toContain('+ Add parent');
 		expect(labels).toContain('+ Add sibling');
 		expect(document.querySelector('input[type="file"]')).not.toBeNull();
+	});
+
+	it('shows a viewer the family without the controls that would change it', () => {
+		open(
+			pageOf('kid', 'Kid', {
+				parentFamilies: [
+					{
+						unionId: 'u',
+						label: null,
+						parents: [{ person: summary('mum', 'Mum'), type: 'biological' }]
+					} as never
+				]
+			}),
+			{ layout, role: 'viewer' }
+		);
+		const labels = [...document.querySelectorAll('button')].map(
+			(b) => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? ''
+		);
+		expect(document.body.textContent).toContain('Mum');
+		for (const hidden of ['Options for Mum', '+ Add parent', 'Edit', 'Delete…', 'Record death'])
+			expect(labels.some((label) => label.startsWith(hidden))).toBe(false);
+	});
+
+	it('lets a contributor add relatives but not change or remove them', () => {
+		open(
+			pageOf('kid', 'Kid', {
+				parentFamilies: [
+					{
+						unionId: 'u',
+						label: null,
+						parents: [{ person: summary('mum', 'Mum'), type: 'biological' }]
+					} as never
+				]
+			}),
+			{ layout, role: 'contributor' }
+		);
+		const labels = [...document.querySelectorAll('button')].map(
+			(b) => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? ''
+		);
+		expect(labels).toContain('+ Add parent');
+		expect(labels.some((label) => label.startsWith('Options for Mum'))).toBe(false);
+		expect(labels).not.toContain('Delete…');
 	});
 });
 

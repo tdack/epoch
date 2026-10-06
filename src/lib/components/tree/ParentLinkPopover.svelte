@@ -13,10 +13,10 @@
 		/** Position in pixels inside the canvas container. */
 		x: number;
 		y: number;
-		/** Remove exactly one parent's link; the others on the edge stay. */
-		onRemove: (edge: ChildEdge, assertion: ChildAssertion) => void;
+		/** Remove exactly one parent's link; the others on the edge stay. Absent for a read-only role. */
+		onRemove?: (edge: ChildEdge, assertion: ChildAssertion) => void;
 		/** Ask to change one parent's link to another type; the caller previews it and confirms. */
-		onChangeType: (edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) => void;
+		onChangeType?: (edge: ChildEdge, assertion: ChildAssertion, toType: ParentChildType) => void;
 		/** Escape or the Close button. */
 		onClose: () => void;
 	}
@@ -84,28 +84,30 @@
 					{nameOf(assertion.parentId)}
 					<span class="type">{style.label}</span>
 				</span>
-				<select
-					class="change"
-					aria-label="Change {style.label.toLowerCase()} link from {nameOf(assertion.parentId)} to…"
-					onchange={(event) => {
-						const toType = event.currentTarget.value as ParentChildType;
-						event.currentTarget.value = '';
-						if (toType) onChangeType(edge, assertion, toType);
-					}}
-				>
-					<option value="">Change…</option>
-					{#each TYPES.filter((t) => t !== assertion.type) as t (t)}
-						<option value={t}>{RELATIONSHIP_STYLES[t].label}</option>
-					{/each}
-				</select>
-				<button
-					type="button"
-					class="remove"
-					aria-label="Remove {style.label.toLowerCase()} link from {nameOf(assertion.parentId)}…"
-					onclick={() => onRemove(edge, assertion)}
-				>
-					Remove
-				</button>
+				{#if onChangeType}<select
+						class="change"
+						aria-label="Change {style.label.toLowerCase()} link from {nameOf(
+							assertion.parentId
+						)} to…"
+						onchange={(event) => {
+							const toType = event.currentTarget.value as ParentChildType;
+							event.currentTarget.value = '';
+							if (toType) onChangeType?.(edge, assertion, toType);
+						}}
+					>
+						<option value="">Change…</option>
+						{#each TYPES.filter((t) => t !== assertion.type) as t (t)}
+							<option value={t}>{RELATIONSHIP_STYLES[t].label}</option>
+						{/each}
+					</select>{/if}
+				{#if onRemove}<button
+						type="button"
+						class="remove"
+						aria-label="Remove {style.label.toLowerCase()} link from {nameOf(assertion.parentId)}…"
+						onclick={() => onRemove?.(edge, assertion)}
+					>
+						Remove
+					</button>{/if}
 			</li>
 		{/each}
 	</ul>

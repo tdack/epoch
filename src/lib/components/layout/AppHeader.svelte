@@ -14,7 +14,8 @@
 		onselectTree: (id: string) => void;
 		onopenNewTree: () => void;
 		onopenDeleteTree: () => void;
-		onopenAddPerson: () => void;
+		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
+		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
 		onexportGedcom: () => void;
 		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
@@ -73,7 +74,7 @@
 		{@render finder?.()}
 	</div>
 
-	{#if selectedTreeId}
+	{#if selectedTreeId && onopenAddPerson}
 		<button
 			type="button"
 			onclick={onopenAddPerson}

@@ -8,7 +8,7 @@
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
-	import type { TreeEditActions } from '#lib/components/tree/tree-actions.js';
+	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
@@ -36,6 +36,7 @@
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import { resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
+	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -45,6 +46,9 @@
 	let { data }: Props = $props();
 	const { editor, marks, toasts, finder } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
+	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
+	const canCreate = $derived(canCreateRecords(role));
+	const canChange = $derived(canChangeRecords(role));
 	const historyCoalescer = createHistoryCoalescer();
 
 	const treeId = $derived(page.params.id!);
@@ -385,18 +389,34 @@
 	/** What the 3D canvases' context menus can do; the flat canvas takes the same actions one by one. */
 	const actions = $derived<TreeEditActions>({
 		onOpenPerson: handleOpenPerson,
-		onEditPerson: (id) => void editor.openEditPerson(id),
-		onDeletePerson: editor.requestDeletePerson,
-		onAddRelationship: (anchor) =>
-			editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null }),
-		onRecordDeath: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' }),
-		onEndPartnership: (id) => editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' }),
-		onEditUnion: editor.editUnion,
-		onEndUnion: editor.endUnion,
-		onRemoveUnion: editor.removeUnion,
-		onMergeUnion: editor.mergeUnion,
-		mergeableUnionIds: editor.mergeableIds
+		...(canCreate ? { onAddRelationship: addRelationship } : {}),
+		...(canChange
+			? {
+					onEditPerson: editPerson,
+					onDeletePerson: editor.requestDeletePerson,
+					onRecordDeath: recordDeath,
+					onEndPartnership: endPartnership,
+					onEditUnion: editor.editUnion,
+					onEndUnion: editor.endUnion,
+					onRemoveUnion: editor.removeUnion,
+					onMergeUnion: editor.mergeUnion,
+					mergeableUnionIds: editor.mergeableIds
+				}
+			: {})
 	});
+
+	function editPerson(id: string) {
+		void editor.openEditPerson(id);
+	}
+	function addRelationship(anchor: PersonRef) {
+		editor.openRelationship({ id: anchor.id, givenName: anchor.displayName, surname: null });
+	}
+	function recordDeath(id: string) {
+		editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' });
+	}
+	function endPartnership(id: string) {
+		editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' });
+	}
 
 	/** Save a default view, showing it at once and saying so when the save fails. */
 	async function setDefaultView(scope: 'member' | 'tree', mode: LayoutMode | null) {
@@ -502,7 +522,7 @@
 					onCollapseStub={collapseStub}
 					{actions}
 					partnershipLabels={editor.unionLabels}
-					onDragRelate={editor.dragRelate}
+					onDragRelate={canCreate ? editor.dragRelate : undefined}
 					isSinglePlane={isPhone}
 				/>
 			{:else if floorsLayout}
@@ -517,7 +537,7 @@
 					onCollapseStub={collapseStub}
 					{actions}
 					partnershipLabels={editor.unionLabels}
-					onDragRelate={editor.dragRelate}
+					onDragRelate={canCreate ? editor.dragRelate : undefined}
 				/>
 			{:else}
 				<TreeCanvas
@@ -527,28 +547,21 @@
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}
-					onEditPerson={(id) => void editor.openEditPerson(id)}
-					onDeletePerson={editor.requestDeletePerson}
-					onAddRelationship={(anchor) =>
-						editor.openRelationship({
-							id: anchor.id,
-							givenName: anchor.displayName,
-							surname: null
-						})}
-					onRemoveLink={editor.removeLink}
-					onRecordDeath={(id) =>
-						editor.openRelationship(editor.anchorFor(id), { kind: 'record_death' })}
-					onEndPartnership={(id) =>
-						editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' })}
-					onEditUnion={editor.editUnion}
-					onEndUnion={editor.endUnion}
-					onRemoveAssertion={editor.removeAssertion}
-					onChangeLinkType={editor.changeLinkType}
-					onRemoveUnion={editor.removeUnion}
-					onMergeUnion={editor.mergeUnion}
+					onEditPerson={actions.onEditPerson}
+					onDeletePerson={actions.onDeletePerson}
+					onAddRelationship={actions.onAddRelationship}
+					onRemoveLink={canChange ? editor.removeLink : undefined}
+					onRecordDeath={actions.onRecordDeath}
+					onEndPartnership={actions.onEndPartnership}
+					onEditUnion={actions.onEditUnion}
+					onEndUnion={actions.onEndUnion}
+					onRemoveAssertion={canChange ? editor.removeAssertion : undefined}
+					onChangeLinkType={canChange ? editor.changeLinkType : undefined}
+					onRemoveUnion={actions.onRemoveUnion}
+					onMergeUnion={actions.onMergeUnion}
 					mergeableUnionIds={editor.mergeableIds}
 					partnershipLabels={editor.unionLabels}
-					onDragRelate={editor.dragRelate}
+					onDragRelate={canCreate ? editor.dragRelate : undefined}
 					onExpandStub={expandStub}
 					onCollapseStub={collapseStub}
 				/>
@@ -573,13 +586,13 @@
 			class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-stone-200 bg-stone-100/60 p-10 text-center"
 		>
 			<p class="text-sm text-stone-700">This tree has no people yet.</p>
-			<button
-				type="button"
-				onclick={editor.openAddPerson}
-				class="mt-4 cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-emerald-700"
-			>
-				Add the first person
-			</button>
+			{#if canCreate}<button
+					type="button"
+					onclick={editor.openAddPerson}
+					class="mt-4 cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-emerald-700"
+				>
+					Add the first person
+				</button>{/if}
 		</div>
 	{/if}
 </div>

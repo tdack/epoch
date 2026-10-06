@@ -104,7 +104,9 @@ test('the trash button on a partner asks what happened; "not a partner" previews
 }) => {
 	const { mum, dad } = await family(api);
 	const drawer = await openDrawer(page, api, mum);
-	await drawer.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
+	await drawer
+		.getByRole('button', { name: /Options for Dan Marsh: record what happened, or remove/ })
+		.click();
 
 	const ask = page.getByRole('dialog', { name: /What happened with Dan Marsh/ });
 	await expect(ask.getByRole('button', { name: /Divorced or separated/ })).toBeVisible();
@@ -132,13 +134,17 @@ test('divorce and death from the trash button open the forms already aimed at th
 	const { mum } = await family(api);
 	const drawer = await openDrawer(page, api, mum);
 
-	await drawer.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
+	await drawer
+		.getByRole('button', { name: /Options for Dan Marsh: record what happened, or remove/ })
+		.click();
 	await page.getByRole('button', { name: /Divorced or separated/ }).click();
 	const end = page.getByRole('dialog', { name: 'End partnership' });
 	await expect(end.getByLabel('Status')).toHaveValue('divorced');
 	await end.getByRole('button', { name: 'Cancel' }).click();
 
-	await drawer.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
+	await drawer
+		.getByRole('button', { name: /Options for Dan Marsh: record what happened, or remove/ })
+		.click();
 	await page.getByRole('button', { name: /^Died/ }).click();
 	const death = page.getByRole('dialog', { name: 'Record death' });
 	await expect(death.getByText('Dan Marsh')).toBeVisible();
@@ -152,7 +158,7 @@ test('removing a child from a parent, and a parent from a child, unlinks only th
 	const drawer = await openDrawer(page, api, kid);
 	await drawer
 		.getByTestId('parents')
-		.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ })
+		.getByRole('button', { name: /Options for Dan Marsh: record what happened, or remove/ })
 		.click();
 	const ask = page.getByRole('dialog', { name: /What happened with Dan Marsh/ });
 	await ask.getByRole('button', { name: /Not related/ }).click();

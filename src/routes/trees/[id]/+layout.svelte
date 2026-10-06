@@ -15,7 +15,7 @@
 	import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import { DATA_KEY } from '#lib/services/load-helpers.js';
 	import { searchPeopleApi } from '#lib/services/tree-api.js';
-	import { isManagerOrAbove } from '#lib/shared/roles.js';
+	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 
 	interface Props {
@@ -85,7 +85,7 @@
 		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
-		onopenAddPerson={editor.openAddPerson}
+		onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
 		onfileSelect={shell.selectFile}
 		onexportGedcom={shell.exportGedcom}
 		canExport={isManagerOrAbove(role)}

@@ -1,26 +1,32 @@
 <script lang="ts">
-	import { Trash2 } from 'lucide-svelte';
+	import { Ellipsis } from 'lucide-svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import type { RelativeAction, TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 	import type { RelationshipKind } from '#lib/types/genealogy.js';
+	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { LINK_TARGET, type RelativeTarget } from './relative-target.js';
 	import { personPath, unionPath } from './person-paths.js';
 
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The viewer's role; a viewer sees the family without the controls that change it. */
+		role: TreeRole | undefined;
 		/** Every relative action (add, remove, edit or merge a partnership) goes through the editor's dialogs. */
 		editor: TreeEditor;
 		relativeTarget?: RelativeTarget;
 	}
 
-	let { dto, treeId, editor, relativeTarget = LINK_TARGET }: Props = $props();
+	let { dto, treeId, role, editor, relativeTarget = LINK_TARGET }: Props = $props();
+
+	const canAdd = $derived(canCreateRecords(role));
+	const canChange = $derived(canChangeRecords(role));
 
 	const subheading = 'text-[11px] font-semibold tracking-wide text-stone-500 uppercase';
 
-	/** What the trash button on a relative's row hands to the editor. */
+	/** What the options button on a relative's row hands to the editor. */
 	function removal(
 		relation: RelativeAction['relation'],
 		relative: PersonSummaryDto,
@@ -54,28 +60,29 @@
 			<PersonLink {person} href={personPath(treeId, person.id)} {relativeTarget} />
 			{#if note}<span class="text-xs text-stone-500">({note})</span>{/if}
 		</span>
-		{#if remove}
+		{#if remove && canChange}
+			<!-- Opens a choice (record a death or separation, or remove the link), so it is not drawn as
+			     a trash can: most of what it leads to deletes nothing. -->
 			<button
 				type="button"
 				onclick={() => editor.requestRelativeAction(remove)}
-				title="Remove, or record what happened"
-				aria-label={`Remove ${person.displayName}, or record what happened`}
-				class="shrink-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-2 py-1 text-stone-400 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+				aria-label={`Options for ${person.displayName}: record what happened, or remove`}
+				class="shrink-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-2 py-1 text-stone-500 focus-ring transition-colors hover:bg-stone-100 hover:text-stone-800 coarse:min-h-11 coarse:min-w-11"
 			>
-				<Trash2 class="h-3.5 w-3.5" />
+				<Ellipsis class="h-3.5 w-3.5" aria-hidden="true" />
 			</button>
 		{/if}
 	</li>
 {/snippet}
 
 {#snippet addLink(label: string, kind: RelationshipKind, unionId?: string)}
-	<button
-		type="button"
-		onclick={() => add(kind, unionId)}
-		class="cursor-pointer text-left text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline"
-	>
-		+ {label}
-	</button>
+	{#if canAdd}<button
+			type="button"
+			onclick={() => add(kind, unionId)}
+			class="cursor-pointer text-left text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline"
+		>
+			+ {label}
+		</button>{/if}
 {/snippet}
 
 <div class="space-y-2">
@@ -129,20 +136,20 @@
 					{#if union.status !== 'active'}<span class="text-red-700"> · {union.status}</span>{/if}
 					{#if union.isWidowed}<span class="text-stone-700"> · widowed</span>{/if}
 				</p>
-				<span class="flex items-center gap-2 text-[11px]">
-					<button
-						type="button"
-						onclick={() => editor.editUnion(union.unionId)}
-						class="text-link cursor-pointer">Dates &amp; status</button
-					>
-					{#if union.isMergeable}
+				{#if canChange}<span class="flex items-center gap-2 text-[11px]">
 						<button
 							type="button"
-							onclick={() => editor.mergeUnion(union.unionId)}
-							class="text-link cursor-pointer">Merge…</button
+							onclick={() => editor.editUnion(union.unionId)}
+							class="text-link cursor-pointer">Dates &amp; status</button
 						>
-					{/if}
-				</span>
+						{#if union.isMergeable}
+							<button
+								type="button"
+								onclick={() => editor.mergeUnion(union.unionId)}
+								class="text-link cursor-pointer">Merge…</button
+							>
+						{/if}
+					</span>{/if}
 			</div>
 			<ul class="space-y-1">
 				{#each union.partners as partner (partner.id)}
@@ -221,10 +228,10 @@
 	</div>
 {/if}
 
-<button
-	type="button"
-	onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
-	class="w-full cursor-pointer rounded-lg border border-stone-200 bg-stone-100/70 px-2 py-1.5 text-left text-xs font-medium text-emerald-800 transition-colors hover:bg-white hover:text-emerald-950"
->
-	+ Add a parent, partner, child or sibling
-</button>
+{#if canAdd}<button
+		type="button"
+		onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
+		class="w-full cursor-pointer rounded-lg border border-stone-200 bg-stone-100/70 px-2 py-1.5 text-left text-xs font-medium text-emerald-800 transition-colors hover:bg-white hover:text-emerald-950"
+	>
+		+ Add a parent, partner, child or sibling
+	</button>{/if}

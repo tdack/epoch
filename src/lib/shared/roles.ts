@@ -15,3 +15,16 @@ export function hasMinimumRole(actual: TreeRole, required: TreeRole): boolean {
 export function isManagerOrAbove(role: TreeRole | undefined): boolean {
 	return role !== undefined && hasMinimumRole(role, 'manager');
 }
+
+/**
+ * Contributors and up add people and relationships (`record:create`). Mirrors the server's action
+ * table so a screen does not offer what would answer 403; the server still decides.
+ */
+export function canCreateRecords(role: TreeRole | undefined): boolean {
+	return role !== undefined && hasMinimumRole(role, 'contributor');
+}
+
+/** Editors and up change and delete records (`record:edit`, `record:delete`). */
+export function canChangeRecords(role: TreeRole | undefined): boolean {
+	return role !== undefined && hasMinimumRole(role, 'editor');
+}

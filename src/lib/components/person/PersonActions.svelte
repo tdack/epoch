@@ -6,7 +6,7 @@
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { setFavoriteApi, undoApi } from '#lib/services/tree-api.js';
-	import type { TreeRole } from '#lib/shared/roles.js';
+	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { canMergePerson } from './person-permissions.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { personPath, treePath } from './person-paths.js';
@@ -40,6 +40,8 @@
 	}
 
 	const canMerge = $derived(canMergePerson(role));
+	const canAdd = $derived(canCreateRecords(role));
+	const canChange = $derived(canChangeRecords(role));
 	let isMerging = $state(false);
 
 	async function showPerson(id: string) {
@@ -90,22 +92,22 @@
 				? 'Favourite'
 				: 'Add to favourites'}
 		</button>
-		<button
-			type="button"
-			onclick={() => void editor.openEditPerson(dto.person.id)}
-			class="action-btn"><Pencil class="h-3.5 w-3.5" />Edit</button
-		>
-		<button
-			type="button"
-			onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
-			class="action-btn"><UserPlus class="h-3.5 w-3.5" />Relationship</button
-		>
-		<button
-			type="button"
-			onclick={() =>
-				editor.openRelationship(editor.anchorFor(dto.person.id), { kind: 'record_death' })}
-			class="action-btn"><Cross class="h-3.5 w-3.5" />Record death</button
-		>
+		{#if canChange}<button
+				type="button"
+				onclick={() => void editor.openEditPerson(dto.person.id)}
+				class="action-btn"><Pencil class="h-3.5 w-3.5" />Edit</button
+			>{/if}
+		{#if canAdd}<button
+				type="button"
+				onclick={() => editor.openRelationship(editor.anchorFor(dto.person.id))}
+				class="action-btn"><UserPlus class="h-3.5 w-3.5" />Relationship</button
+			>{/if}
+		{#if canChange}<button
+				type="button"
+				onclick={() =>
+					editor.openRelationship(editor.anchorFor(dto.person.id), { kind: 'record_death' })}
+				class="action-btn"><Cross class="h-3.5 w-3.5" />Record death</button
+			>{/if}
 		{#if canMerge}
 			<button
 				type="button"
@@ -114,11 +116,11 @@
 				data-testid="merge-person"><Combine class="h-3.5 w-3.5" />Merge…</button
 			>
 		{/if}
-		<button
-			type="button"
-			onclick={() => editor.requestDeletePerson(dto.person.id)}
-			class="action-btn text-red-700"><Trash2 class="h-3.5 w-3.5" />Delete…</button
-		>
+		{#if canChange}<button
+				type="button"
+				onclick={() => editor.requestDeletePerson(dto.person.id)}
+				class="action-btn text-red-700"><Trash2 class="h-3.5 w-3.5" />Delete…</button
+			>{/if}
 	</div>
 	<p class="text-xs">
 		<a

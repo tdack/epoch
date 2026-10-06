@@ -46,7 +46,9 @@ test('a relative is removed and a file uploaded from the person page', async ({ 
 	await api.partner(mum, dad);
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(mum.id)}`);
 
-	await page.getByRole('button', { name: /Remove Dan Marsh, or record what happened/ }).click();
+	await page
+		.getByRole('button', { name: /Options for Dan Marsh: record what happened, or remove/ })
+		.click();
 	await page
 		.getByRole('dialog', { name: /What happened with Dan Marsh/ })
 		.getByRole('button', { name: /Not a partner/ })

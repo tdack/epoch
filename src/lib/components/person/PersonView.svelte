@@ -52,7 +52,7 @@
 
 {#snippet family()}
 	<PersonSection id="family" title="Family" {layout} isOpenByDefault>
-		<PersonFamily {dto} {treeId} {editor} {relativeTarget} />
+		<PersonFamily {dto} {treeId} {role} {editor} {relativeTarget} />
 	</PersonSection>
 {/snippet}
 
