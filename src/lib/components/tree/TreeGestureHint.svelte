@@ -55,7 +55,7 @@
 		<button
 			type="button"
 			onclick={dismiss}
-			class="shrink-0 cursor-pointer rounded-md px-1.5 py-0.5 font-semibold text-emerald-800 focus-ring hover:bg-emerald-50 hover:text-emerald-700 coarse:min-h-11"
+			class="min-h-8 shrink-0 cursor-pointer rounded-md px-2 font-semibold text-emerald-800 focus-ring hover:bg-emerald-50 hover:text-emerald-700 coarse:min-h-11"
 		>
 			Got it
 		</button>

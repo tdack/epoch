@@ -210,10 +210,10 @@
 	<div
 		class={rowClass}
 		role="group"
-		aria-labelledby="{uid}-side-branches"
+		aria-label="Relatives off the direct line"
 		aria-describedby="{uid}-side-branches-hint"
 	>
-		<span class={captionClass} id="{uid}-side-branches">Side branches</span>
+		<span class={captionClass}>Side branches</span>
 		<button
 			type="button"
 			class={stepClass}
