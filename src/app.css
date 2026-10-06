@@ -1,5 +1,17 @@
 @import 'tailwindcss';
 
+/*
+ * iOS Safari zooms the page whenever a field under 16px takes focus, which is every dialog that
+ * focuses its first input. Unlayered so it outranks the text-xs/text-sm utilities on the fields.
+ */
+@media (pointer: coarse) {
+	input,
+	select,
+	textarea {
+		font-size: max(16px, 1em);
+	}
+}
+
 @layer base {
 	body {
 		background-color: #fcf9f2;
