@@ -31,13 +31,17 @@ test('the depth and link-type controls change what the tree draws, and live in t
 	await expect(card('Grandkid')).toBeVisible();
 
 	// Hiding adoptive links removes the adopted child, and the choice is in the address.
+	await page.getByRole('button', { name: /^Display/ }).click();
 	await page.getByRole('checkbox', { name: /Adoptive/ }).uncheck();
+	await page.keyboard.press('Escape');
 	await expect(card('Addie')).toHaveCount(0);
 	await expect(card('Bio')).toBeVisible();
 	await expect(page).toHaveURL(/types=/);
 	await page.reload();
 	await expect(card('Addie')).toHaveCount(0);
+	await page.getByRole('button', { name: /^Display/ }).click();
 	await page.getByRole('checkbox', { name: /Adoptive/ }).check();
+	await page.keyboard.press('Escape');
 	await expect(card('Addie')).toBeVisible();
 
 	// One generation down leaves the grandchild behind a stub.

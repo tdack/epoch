@@ -75,14 +75,16 @@ test('the layers view puts each family on its own plane, keeps each side on its 
 	expect(page.url()).toBe(url);
 
 	// A second partnership offers a picker; choosing it recentres, survives reload, and a new focus resets it.
-	const picker = page.getByRole('combobox', { name: 'Partnership' });
-	await expect(picker.locator('option')).toHaveCount(2);
-	const exUnion = await picker.locator('option', { hasText: /^Ex/ }).getAttribute('value');
-	await picker.selectOption(exUnion!);
-	await expect(page).toHaveURL(new RegExp(`union=${exUnion}`));
+	const chip = page.getByRole('toolbar').locator('button[aria-haspopup="menu"]').first();
+	await chip.click();
+	const choices = page.getByRole('menuitemradio');
+	await expect(choices).toHaveCount(2);
+	await choices.filter({ hasText: /^Ex/ }).click();
+	await expect(page).toHaveURL(/union=/);
 	await expect(card('ExKid')).toHaveCount(1);
+	await expect(chip).toContainText('with Ex');
 	await page.reload();
-	await expect(picker).toHaveValue(exUnion!);
+	await expect(chip).toContainText('with Ex');
 	await expect(card('ExKid')).toHaveCount(1);
 	await card('Kid').click();
 	await expect(page).toHaveURL(new RegExp(`focus=${kid.id}`));
