@@ -48,9 +48,10 @@
 		>
 			<EpochMark size={26} ink="#fffbeb" ancestryOpacity={0.5} />
 		</div>
-		<div class="hidden lg:block">
+		<!-- sr-only below lg, not hidden: the page keeps its h1 where the wordmark has no room. -->
+		<div class="sr-only lg:not-sr-only">
 			<h1 class="text-base font-bold tracking-tight text-stone-900">Epoch</h1>
-			<p class="text-[10px] font-medium tracking-wide text-stone-500">Family history</p>
+			<p class="text-xs font-medium tracking-wide text-stone-500">Family history</p>
 		</div>
 	</div>
 
@@ -77,7 +78,7 @@
 			type="button"
 			onclick={onopenAddPerson}
 			aria-label="Add person"
-			class="ml-auto inline-flex min-h-9 cursor-pointer items-center space-x-1.5 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-amber-50 shadow-sm shadow-emerald-900/15 transition-colors hover:bg-emerald-700 sm:px-3"
+			class="ml-auto inline-flex min-h-9 cursor-pointer items-center space-x-1.5 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-amber-50 shadow-sm shadow-emerald-900/15 focus-ring transition-colors hover:bg-emerald-700 sm:px-3 coarse:min-h-11"
 		>
 			<UserPlus class="h-3.5 w-3.5" />
 			<span class="hidden sm:inline">Add person</span>

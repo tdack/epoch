@@ -52,11 +52,11 @@
 	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
-		`shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap ${
+		`focus-ring-inset shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap coarse:inline-flex coarse:min-h-11 coarse:items-center ${
 			isActive ? 'bg-emerald-800 text-white' : 'text-stone-700 hover:bg-stone-200'
 		}`;
 	const itemClass = (isActive: boolean) =>
-		`block px-3 py-2 text-xs font-medium hover:bg-stone-100 focus:bg-stone-100 focus:outline-none ${
+		`menu-item flex items-center px-3 py-2 text-xs font-medium ${
 			isActive ? 'font-semibold text-emerald-900' : ''
 		}`;
 </script>
@@ -80,7 +80,7 @@
 			<button
 				type="button"
 				{...attrs}
-				class="{tabClass(!!activeInMore)} flex cursor-pointer items-center gap-1"
+				class="{tabClass(!!activeInMore)} inline-flex cursor-pointer items-center gap-1"
 			>
 				{activeInMore ? `More: ${activeInMore.label}` : 'More'}
 				<ChevronDown class="h-3.5 w-3.5" aria-hidden="true" />

@@ -37,7 +37,7 @@
 	const selected = $derived(trees.find((t) => t.id === selectedTreeId));
 	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 	const itemClass =
-		'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-stone-100 focus:bg-stone-100 focus:outline-none aria-disabled:cursor-default aria-disabled:opacity-50';
+		'flex w-full cursor-pointer items-center gap-2 menu-item px-3 py-2 text-left text-xs font-medium aria-disabled:cursor-default aria-disabled:opacity-50';
 </script>
 
 <!-- Always mounted, outside the menu, so a file can be chosen without the menu being open. -->
@@ -57,14 +57,14 @@
 		<button
 			type="button"
 			{...attrs}
-			class="flex max-w-[11rem] cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-stone-50 px-3 py-1 text-left shadow-xs transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-emerald-700 sm:max-w-xs"
+			class="flex max-w-[11rem] cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-stone-50 px-3 py-1 text-left shadow-xs focus-ring transition-colors hover:bg-stone-100 sm:max-w-xs coarse:min-h-11"
 		>
 			<span class="min-w-0">
 				<span class="block truncate text-xs font-semibold text-stone-900">
 					{selected?.name ?? 'Trees'}
 				</span>
 				{#if counts}
-					<span class="hidden truncate text-[11px] text-stone-500 sm:block">
+					<span class="hidden truncate text-xs text-stone-500 sm:block">
 						{plural(counts.people, 'person', 'people')} · {plural(
 							counts.unions,
 							'partnership',

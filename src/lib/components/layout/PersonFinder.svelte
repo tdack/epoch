@@ -218,7 +218,7 @@
 			isFocused = false;
 			setTimeout(() => (isOpen = false), 120);
 		}}
-		class="w-full rounded-lg border border-stone-300 bg-white py-1.5 pr-9 pl-8 text-xs text-stone-900 shadow-xs placeholder:text-stone-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+		class="w-full rounded-lg border focus-input border-stone-300 bg-white py-1.5 pr-9 pl-8 text-xs text-stone-900 shadow-xs placeholder:text-stone-500 coarse:min-h-11"
 	/>
 	{#if !isFocused && !query}
 		<kbd
@@ -238,8 +238,7 @@
 					id="{uid}-option-{i}"
 					role="option"
 					aria-selected={i === highlighted}
-					class="cursor-pointer px-3 py-2 {i === highlighted ? 'bg-stone-100' : ''} {option.kind ===
-					'search'
+					class="menu-item cursor-pointer px-3 py-2 {option.kind === 'search'
 						? 'flex items-center gap-1.5 border-t border-stone-200 font-medium text-emerald-900'
 						: ''}"
 					onmousedown={(event) => {
@@ -252,10 +251,10 @@
 						<ArrowRight class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
 					{:else}
 						{#if option.group}
-							<span class="block text-[11px] text-stone-500">{option.group}</span>
+							<span class="block text-xs text-stone-500">{option.group}</span>
 						{/if}
 						{#if option.alias}
-							<span class="block text-[11px] text-stone-500">also known as {option.alias}</span>
+							<span class="block text-xs text-stone-500">also known as {option.alias}</span>
 						{/if}
 					{/if}
 				</li>
