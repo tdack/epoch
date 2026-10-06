@@ -94,17 +94,19 @@
 
 	// One shared size per breakpoint: 44px touch targets in the sheet, compact beside the chart.
 	const stepClass = $derived(
-		`inline-flex cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white hover:bg-stone-100 disabled:cursor-default disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-stone-900 ${
-			isNarrow ? 'h-11 w-11' : 'h-7 w-7'
+		`inline-flex cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white hover:bg-stone-100 focus-ring disabled:cursor-default disabled:opacity-40 ${
+			isNarrow ? 'h-11 w-11' : 'h-7 w-7 coarse:h-11 coarse:w-11'
 		}`
 	);
-	const rowClass = $derived(`flex items-center gap-2 ${isNarrow ? 'min-h-11' : 'min-h-7'}`);
+	const rowClass = $derived(
+		`flex items-center gap-2 ${isNarrow ? 'min-h-11' : 'min-h-7 coarse:min-h-11'}`
+	);
 	const controlClass =
-		'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-stone-900';
+		'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-ring coarse:min-h-11';
 	const captionClass = 'text-[13px] font-semibold text-stone-600';
 	const headingClass = 'text-[11px] font-semibold tracking-wider text-stone-500 uppercase';
 	const itemClass =
-		'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-stone-100 focus:bg-stone-100 focus:outline-none';
+		'menu-item flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs font-medium';
 </script>
 
 {#snippet stepper(name: string, field: 'ancestorDepth' | 'descendantDepth')}
@@ -143,9 +145,9 @@
 		{#each Object.values(LAYOUT_MODES) as mode (mode)}
 			<button
 				type="button"
-				class="cursor-pointer px-3 text-[13px] font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-stone-900 {isNarrow
+				class="cursor-pointer px-3 text-[13px] font-semibold focus-ring-inset {isNarrow
 					? 'min-h-11 flex-1'
-					: 'py-1.5'} {view.layoutMode === mode
+					: 'py-1.5 coarse:min-h-11'} {view.layoutMode === mode
 					? 'bg-stone-900 text-[#fdfbf7]'
 					: 'text-stone-800 hover:bg-stone-100'}"
 				aria-pressed={view.layoutMode === mode}
@@ -166,7 +168,7 @@
 	<label class="{rowClass} cursor-pointer text-[13px]" title={hint}>
 		<input
 			type="checkbox"
-			class={isNarrow ? 'h-5 w-5' : ''}
+			class="focus-ring {isNarrow ? 'h-5 w-5' : 'coarse:h-5 coarse:w-5'}"
 			checked={isChecked}
 			onchange={(e) => onToggle(e.currentTarget.checked)}
 		/>
@@ -240,7 +242,11 @@
 		</section>
 
 		<details open={!isNarrow} class="grid gap-0.5">
-			<summary class="{headingClass} {isNarrow ? 'min-h-11 leading-[2.75rem]' : ''} cursor-pointer">
+			<summary
+				class="{headingClass} {isNarrow
+					? 'min-h-11 leading-[2.75rem]'
+					: ''} cursor-pointer focus-ring"
+			>
 				Parent links
 			</summary>
 			<div class="grid gap-0.5">
@@ -249,7 +255,7 @@
 					<label class="{rowClass} cursor-pointer">
 						<input
 							type="checkbox"
-							class={isNarrow ? 'h-5 w-5' : ''}
+							class="focus-ring {isNarrow ? 'h-5 w-5' : 'coarse:h-5 coarse:w-5'}"
 							checked={view.types.includes(type)}
 							onchange={() => toggleType(type)}
 						/>
@@ -274,7 +280,9 @@
 		{#if defaults}
 			<details open={!isNarrow} class="grid gap-1">
 				<summary
-					class="{headingClass} {isNarrow ? 'min-h-11 leading-[2.75rem]' : ''} cursor-pointer"
+					class="{headingClass} {isNarrow
+						? 'min-h-11 leading-[2.75rem]'
+						: ''} cursor-pointer focus-ring"
 				>
 					Default view
 				</summary>
@@ -282,7 +290,7 @@
 					<span class={captionClass}>Mine</span>
 					<select
 						aria-label="My default view"
-						class="rounded-md border border-stone-300 bg-white px-1.5 py-1 {isNarrow
+						class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
 							? 'min-h-11'
 							: ''}"
 						value={defaults.member ?? ''}
@@ -302,7 +310,7 @@
 						<span class={captionClass}>Everyone</span>
 						<select
 							aria-label="Default view for everyone"
-							class="rounded-md border border-stone-300 bg-white px-1.5 py-1 {isNarrow
+							class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
 								? 'min-h-11'
 								: ''}"
 							value={defaults.tree ?? LAYOUT_MODES.FLAT}
@@ -330,21 +338,21 @@
 {/snippet}
 
 <div
-	class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-[13px] text-stone-900"
+	class="flex items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-[13px] text-stone-900"
 	role="toolbar"
 	aria-label="Tree view controls"
 	style={treeTokenStyle()}
 >
 	<Popover
 		label="Focus person"
-		class={isNarrow ? 'min-w-0 flex-1' : ''}
+		class="min-w-0 {isNarrow ? 'flex-1' : 'shrink'}"
 		panelClass="w-72 max-w-[calc(100vw-1.5rem)] py-1"
 	>
 		{#snippet trigger(attrs)}
 			<button
 				type="button"
 				{...attrs}
-				class="{controlClass} {isNarrow ? 'min-h-11 w-full justify-between' : 'max-w-[16rem]'}"
+				class="{controlClass} {isNarrow ? 'min-h-11 w-full justify-between' : 'max-w-full'}"
 			>
 				<span class="min-w-0 truncate">
 					<span class="font-semibold">{focusPerson?.name ?? 'Choose a focus person'}</span>
@@ -391,11 +399,14 @@
 	</Popover>
 
 	{#if !isNarrow}
-		{@render layoutControl()}
-		<div class="flex items-center gap-3" role="group" aria-label="Generations">
-			<span class={captionClass}>Generations</span>
-			{@render stepper('Ancestors', 'ancestorDepth')}
-			{@render stepper('Descendants', 'descendantDepth')}
+		<!-- Its own wrapping group: the chip shrinks and this wraps, so Display never drops alone onto a row. -->
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+			{@render layoutControl()}
+			<div class="flex items-center gap-3" role="group" aria-label="Generations">
+				<span class={captionClass}>Generations</span>
+				{@render stepper('Ancestors', 'ancestorDepth')}
+				{@render stepper('Descendants', 'descendantDepth')}
+			</div>
 		</div>
 	{/if}
 
@@ -403,7 +414,7 @@
 		bind:isOpen={isDisplayOpen}
 		role="dialog"
 		align="end"
-		class="ml-auto"
+		class="ml-auto shrink-0"
 		isSheet={isNarrow}
 		label={isNarrow ? 'View options' : 'Display options'}
 		panelClass={isNarrow ? '' : 'w-[22rem] max-w-[calc(100vw-1.5rem)] max-h-[75vh] overflow-y-auto'}
