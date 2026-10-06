@@ -132,8 +132,8 @@ test('the import preview lists duplicate families, merges exact ones by default,
 }) => {
 	// Into the test's own tree, so "replace" cannot touch anyone's real data.
 	await page.goto(`/trees/${api.treeId}`);
-	// The tree banner only appears once the page has hydrated and loaded the tree; a file chosen sooner is ignored.
-	await expect(page.getByText('Active Tree')).toBeVisible();
+	// A file chosen before the page has hydrated is ignored.
+	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
 	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });
@@ -158,8 +158,8 @@ test('the import preview lists duplicate families, merges exact ones by default,
 
 test('unticking the merge option imports the file exactly as written', async ({ page, api }) => {
 	await page.goto(`/trees/${api.treeId}`);
-	// The tree banner only appears once the page has hydrated and loaded the tree; a file chosen sooner is ignored.
-	await expect(page.getByText('Active Tree')).toBeVisible();
+	// A file chosen before the page has hydrated is ignored.
+	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
 	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });

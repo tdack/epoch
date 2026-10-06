@@ -3,18 +3,18 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
-	import MarksStrip from '#lib/components/layout/MarksStrip.svelte';
+	import PersonFinder from '#lib/components/layout/PersonFinder.svelte';
 	import TreeNav from '#lib/components/layout/TreeNav.svelte';
-	import TreeStatsBanner from '#lib/components/layout/TreeStatsBanner.svelte';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TreeEditorHost from '#lib/components/tree/TreeEditorHost.svelte';
 	import TreeShellHost from '#lib/components/tree/TreeShellHost.svelte';
-	import { setTreeContext } from '#lib/components/tree/tree-context.js';
+	import { setTreeContext, type FinderBridge } from '#lib/components/tree/tree-context.js';
 	import { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
 	import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import { DATA_KEY } from '#lib/services/load-helpers.js';
+	import { searchPeopleApi } from '#lib/services/tree-api.js';
 	import { isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 
@@ -56,7 +56,13 @@
 	const marks = new MarksStore(untrack(() => data.marks));
 	// A reload of the layout (after an edit, say) brings the server's lists; adopt them.
 	$effect(() => marks.set(data.marks));
-	setTreeContext({ toasts, editor, marks });
+	const finderBridge: FinderBridge = { pickFocus: null, focusInput: null };
+	let personFinder: PersonFinder | undefined = $state();
+	$effect(() => {
+		finderBridge.focusInput = () => personFinder?.focus();
+		return () => (finderBridge.focusInput = null);
+	});
+	setTreeContext({ toasts, editor, marks, finder: finderBridge });
 
 	// Pages under a tree are rendered on the server, so a button can be seen before it works. This
 	// marks the moment the page is interactive, for tests and for anything that must not click early.
@@ -76,13 +82,32 @@
 		selectedTreeId={data.summary.tree.id}
 		isImporting={shell.isImporting}
 		onselectTree={(id) => void goto(treePath(id))}
+		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
 		onopenAddPerson={editor.openAddPerson}
 		onfileSelect={shell.selectFile}
 		onexportGedcom={shell.exportGedcom}
 		canExport={isManagerOrAbove(role)}
-	/>
+	>
+		{#snippet finder()}
+			<PersonFinder
+				bind:this={personFinder}
+				treeId={data.summary.tree.id}
+				searchPeople={(q) => searchPeopleApi(data.summary.tree.id, q)}
+				suggestions={marks}
+				onpickFocus={isChartPage
+					? (id) =>
+							// The chart registers itself while it is mounted; with no chart to refocus (an empty
+							// tree), the person's profile is the next best place to go.
+							finderBridge.pickFocus
+								? finderBridge.pickFocus(id)
+								: void goto(personPath(data.summary.tree.id, id))
+					: undefined}
+				onnavigate={(href) => void goto(href)}
+			/>
+		{/snippet}
+	</AppHeader>
 
 	<!-- The chart is the one page that wants the whole window; the lists and forms stay readable at 7xl. -->
 	<main
@@ -91,13 +116,7 @@
 			: 'max-w-7xl'}"
 	>
 		<TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
-		<TreeStatsBanner
-			treeName={data.summary.tree.name}
-			people={data.summary.counts.people}
-			unions={data.summary.counts.unions}
-		/>
-		<TreeNav treeId={data.summary.tree.id} {role} />
-		<MarksStrip treeId={data.summary.tree.id} {marks} />
+		<TreeNav treeId={data.summary.tree.id} {role} pathname={page.url.pathname} />
 		{@render children()}
 	</main>
 </div>

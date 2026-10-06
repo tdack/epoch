@@ -96,10 +96,17 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 		await viewer.screenshot({ path: `${SHOTS}/privacy-viewer-tree-omitted.png` });
 
 		// Export is not offered to a viewer, and the endpoint refuses.
-		await expect(viewer.getByRole('button', { name: /Export/ })).toHaveCount(0);
+		await viewer.locator('header button[aria-haspopup="menu"]').click();
+		await expect(viewer.getByRole('menuitem', { name: /Export/ })).toHaveCount(0);
+		await viewer.keyboard.press('Escape');
 		expect((await viewer.request.get(`/api/export?treeId=${api.treeId}`)).status()).toBe(403);
-		await expect(viewer.getByRole('link', { name: 'Privacy' })).toHaveCount(0);
-		await expect(viewer.getByRole('link', { name: 'Members' })).toHaveCount(0);
+		await viewer
+			.getByRole('navigation', { name: 'Tree sections' })
+			.getByRole('button', { name: 'More' })
+			.click();
+		await expect(viewer.getByRole('menuitem', { name: 'Privacy' })).toHaveCount(0);
+		await expect(viewer.getByRole('menuitem', { name: 'Members' })).toHaveCount(0);
+		await viewer.keyboard.press('Escape');
 		expect((await viewer.request.get(`/api/trees/${api.treeId}/members`)).status()).toBe(403);
 
 		// The owner turns placeholders on.
