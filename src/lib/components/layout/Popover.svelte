@@ -5,7 +5,7 @@
 	interface PopoverTriggerAttrs {
 		id: string;
 		'aria-haspopup': 'menu' | 'dialog';
-		'aria-expanded': boolean;
+		'aria-expanded': 'true' | 'false';
 		'aria-controls': string | undefined;
 		'data-popover-trigger': '';
 		onclick: () => void;
@@ -74,7 +74,7 @@
 	const attrs: PopoverTriggerAttrs = $derived({
 		id: triggerId,
 		'aria-haspopup': role,
-		'aria-expanded': isOpen,
+		'aria-expanded': isOpen ? 'true' : 'false',
 		'aria-controls': isOpen ? panelId : undefined,
 		'data-popover-trigger': '',
 		onclick: () => (isOpen ? close() : void open()),
@@ -160,7 +160,6 @@
 				onclick={() => close(true)}
 			></button>
 		{/if}
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			bind:this={panel}
 			id={panelId}

@@ -86,21 +86,21 @@ describe('PersonFinder', () => {
 	it('takes focus on "/" unless a field is being typed in', () => {
 		const { input } = render();
 		const other = document.createElement('input');
-		document.body.append(other);
+		document.body.appendChild(other);
 		other.focus();
 		press(other, '/');
-		expect(document.activeElement).toBe(other);
+		expect(document.activeElement === other).toBe(true);
 		other.blur();
 		press(document.body, '/');
-		expect(document.activeElement).toBe(input);
+		expect(document.activeElement === input).toBe(true);
 	});
 
 	it('takes focus on Ctrl+K from anywhere', () => {
 		const { input } = render();
 		const other = document.createElement('input');
-		document.body.append(other);
+		document.body.appendChild(other);
 		other.focus();
 		press(other, 'k', { ctrlKey: true });
-		expect(document.activeElement).toBe(input);
+		expect(document.activeElement === input).toBe(true);
 	});
 });
