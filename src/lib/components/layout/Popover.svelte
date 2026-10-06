@@ -25,6 +25,8 @@
 		isSheet?: boolean;
 		/** Extra classes for the panel, for width and padding. */
 		panelClass?: string;
+		/** Extra classes for the wrapper, for its place in the caller's layout. */
+		class?: string;
 		/** The button that opens the panel; spread `attrs` onto it. */
 		trigger: Snippet<[PopoverTriggerAttrs]>;
 		children: Snippet<[{ close: () => void }]>;
@@ -37,6 +39,7 @@
 		align = 'start',
 		isSheet = false,
 		panelClass = '',
+		class: rootClass = '',
 		trigger,
 		children
 	}: Props = $props();
@@ -50,6 +53,9 @@
 
 	let root: HTMLDivElement | undefined = $state();
 	let panel: HTMLDivElement | undefined = $state();
+	// The trigger can wrap to either side of a toolbar, so the requested edge is a preference: the
+	// panel takes the other edge when the requested one would push it off the screen.
+	let placedAlign: 'start' | 'end' = $state('start');
 
 	const triggerElement = () => root?.querySelector<HTMLElement>('[data-popover-trigger]');
 	const items = () => [...(panel?.querySelectorAll<HTMLElement>(ITEM_SELECTOR) ?? [])];
@@ -60,9 +66,22 @@
 		if (shouldRestoreFocus) triggerElement()?.focus();
 	}
 
+	function place() {
+		placedAlign = align;
+		const trigger = triggerElement();
+		const width = panel?.offsetWidth;
+		if (!trigger || !width) return;
+		const rect = trigger.getBoundingClientRect();
+		const isStartOverflowing = rect.left + width > window.innerWidth;
+		const isEndOverflowing = rect.right - width < 0;
+		if (align === 'start' && isStartOverflowing && !isEndOverflowing) placedAlign = 'end';
+		else if (align === 'end' && isEndOverflowing && !isStartOverflowing) placedAlign = 'start';
+	}
+
 	async function open(focusItem: 'first' | 'last' = 'first') {
 		isOpen = true;
 		await tick();
+		if (!isSheet) place();
 		if (role === 'menu') {
 			const list = items();
 			(focusItem === 'last' ? list[list.length - 1] : list[0])?.focus();
@@ -148,7 +167,7 @@
 	}}
 />
 
-<div bind:this={root} class="relative inline-block" onfocusout={onFocusOut}>
+<div bind:this={root} class="relative inline-block {rootClass}" onfocusout={onFocusOut}>
 	{@render trigger(attrs)}
 	{#if isOpen}
 		{#if isSheet}
@@ -171,7 +190,7 @@
 			onclick={onPanelClick}
 			class="border border-stone-300 bg-white text-stone-800 shadow-lg shadow-stone-900/10 focus:outline-none {isSheet
 				? 'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl p-4'
-				: `absolute top-full z-40 mt-1.5 rounded-xl ${align === 'end' ? 'right-0' : 'left-0'}`} {panelClass}"
+				: `absolute top-full z-40 mt-1.5 rounded-xl ${placedAlign === 'end' ? 'right-0' : 'left-0'}`} {panelClass}"
 		>
 			{@render children({ close: () => close(true) })}
 		</div>
