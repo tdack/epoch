@@ -12,10 +12,22 @@ import type { TreeEditor } from './tree-editor.svelte.js';
 
 const KEY = Symbol('epoch-tree-context');
 
+/**
+ * How the chart page and the header's person finder reach each other. Plain mutable fields, not
+ * state: both sides read them at event time, so nothing needs to re-render when they change.
+ */
+export interface FinderBridge {
+	/** Set by the chart page while it is mounted: refocus the chart on a person picked in the header. */
+	pickFocus: ((personId: string) => void) | null;
+	/** Set by the header: move keyboard focus into the finder's input. */
+	focusInput: (() => void) | null;
+}
+
 export interface TreeContext {
 	toasts: ToastStore;
 	editor: TreeEditor;
 	marks: MarksStore;
+	finder: FinderBridge;
 }
 
 export function setTreeContext(context: TreeContext): void {
