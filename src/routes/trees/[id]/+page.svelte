@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { Loader2 } from 'lucide-svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
+	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
@@ -434,8 +435,31 @@
 		}
 	}
 
+	/**
+	 * A click on a card re-centres the chart, which on a large tree can read as nothing happening, or
+	 * as the tree jumping. A short cue names who it is now centred on once the new view has drawn.
+	 */
+	const RECENTRE_CUE_MS = 1800;
+	let recentreTargetId = $state<string | null>(null);
+	let recentreCue = $state<string | null>(null);
+	// Not the effect's cleanup: clearing the target re-runs the effect, which would cancel it at once.
+	let recentreTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		if (!recentreTargetId || isLoading || !focusPerson || focusPerson.id !== recentreTargetId)
+			return;
+		recentreCue = focusPerson.name;
+		recentreTargetId = null;
+		clearTimeout(recentreTimer);
+		recentreTimer = setTimeout(() => (recentreCue = null), RECENTRE_CUE_MS);
+	});
+	onDestroy(() => clearTimeout(recentreTimer));
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
-	const handleFocusPerson = (id: string) => setFocus(id);
+	function handleFocusPerson(id: string) {
+		recentreCue = null;
+		if (id !== focusPersonId) recentreTargetId = id;
+		setFocus(id);
+	}
 
 	/** Canvas double-click or long-press: focus the person and show their details. */
 	function handleOpenPerson(id: string) {
@@ -471,6 +495,7 @@
 				onSetTreeDefault={(mode) => void setDefaultView('tree', mode)}
 				{focusPerson}
 				onchangeFocus={() => finder.focusInput?.()}
+				onshowDetails={handleOpenPerson}
 				onopenProfile={(id) =>
 					void goto(`/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(id)}`)}
 				onChange={(change) =>
@@ -502,6 +527,7 @@
 					)}
 			/>
 		</div>
+		<TreeGestureHint canRelate={canCreate} />
 		{#if isFloorsOnPhone}
 			<p class="mb-2 text-sm text-stone-600" role="note">
 				Floors needs a wider screen, so this shows the flat view.
@@ -566,6 +592,19 @@
 					onCollapseStub={collapseStub}
 				/>
 			{/if}
+			{#if recentreCue && !isLoading}
+				<!-- Hidden from screen readers: the canvas already announces the new focus. -->
+				<div
+					class="cue pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
+					aria-hidden="true"
+				>
+					<span
+						class="max-w-[calc(100%-2rem)] truncate rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm text-stone-700 shadow-md"
+					>
+						Centred on <span class="font-semibold text-stone-900">{recentreCue}</span>
+					</span>
+				</div>
+			{/if}
 			{#if isLoading}
 				<!-- Held back a beat by the animation delay, so a quick load never flashes it. -->
 				<div
@@ -618,6 +657,38 @@
 	@keyframes loading-in {
 		from {
 			opacity: 0;
+		}
+	}
+	.cue {
+		animation: cue 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+	}
+	@keyframes cue {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		12%,
+		80% {
+			opacity: 1;
+			transform: none;
+		}
+		to {
+			opacity: 0;
+		}
+	}
+	@keyframes cue-fade {
+		from,
+		to {
+			opacity: 0;
+		}
+		12%,
+		80% {
+			opacity: 1;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.cue {
+			animation-name: cue-fade;
 		}
 	}
 </style>

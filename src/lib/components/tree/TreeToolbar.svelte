@@ -23,6 +23,11 @@
 		onchangeFocus: () => void;
 		/** Open the focus person's profile page. */
 		onopenProfile: (personId: string) => void;
+		/**
+		 * Open the focus person's details beside the chart. The canvas reaches them by double-click or
+		 * long-press; this is the route that needs neither, and that a touch screen can see.
+		 */
+		onshowDetails?: (personId: string) => void;
 		/** The focus person's unions, when `layers` can be centred on any of them. */
 		unionChoices?: Array<{ id: string; label: string }>;
 		/** The union `layers` is centred on now. */
@@ -45,6 +50,7 @@
 		focusPerson = null,
 		onchangeFocus,
 		onopenProfile,
+		onshowDetails,
 		unionChoices = [],
 		focusUnionId = null,
 		defaults,
@@ -58,6 +64,15 @@
 		layers: 'Layers',
 		floors: 'Floors'
 	};
+	/** What each layout draws, in a relative's words: the labels alone were the tool's own names. */
+	const MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
+		flat: 'Everyone on one page: ancestors above, descendants below.',
+		layers:
+			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
+		floors: 'One floor for each generation, the oldest at the top.'
+	};
+	const uid = $props.id();
+	const hintId = (title: string) => `${uid}-${title.replace(/\W+/g, '-')}-hint`;
 	/** Below this width the toolbar is a focus chip and a View button; the rest moves into a sheet. */
 	const PHONE_MAX_WIDTH_PX = 639;
 
@@ -115,6 +130,7 @@
 		'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-ring coarse:min-h-11';
 	const captionClass = 'text-[13px] font-semibold text-stone-600';
 	const headingClass = 'text-[11px] font-semibold tracking-wider text-stone-500 uppercase';
+	const hintClass = 'pb-1 text-xs leading-snug text-stone-600';
 	const itemClass =
 		'menu-item flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs font-medium';
 </script>
@@ -175,22 +191,29 @@
 	onToggle: (checked: boolean) => void,
 	hint?: string
 )}
-	<label class="{rowClass} cursor-pointer text-[13px]" title={hint}>
+	<label class="{rowClass} cursor-pointer text-[13px]">
 		<input
 			type="checkbox"
 			class="focus-ring {isNarrow ? 'h-5 w-5' : 'coarse:h-5 coarse:w-5'}"
 			checked={isChecked}
 			onchange={(e) => onToggle(e.currentTarget.checked)}
+			aria-describedby={hint ? hintId(title) : undefined}
 		/>
 		{title}
 	</label>
+	{#if hint}
+		<p id={hintId(title)} class="{hintClass} pl-7">{hint}</p>
+	{/if}
 {/snippet}
 
 {#snippet sideBranches()}
-	<div class={rowClass} role="group" aria-label="Relatives off the direct line">
-		<span class={captionClass} title="How far to draw aunts, uncles, cousins and their partners">
-			Side branches
-		</span>
+	<div
+		class={rowClass}
+		role="group"
+		aria-labelledby="{uid}-side-branches"
+		aria-describedby="{uid}-side-branches-hint"
+	>
+		<span class={captionClass} id="{uid}-side-branches">Side branches</span>
 		<button
 			type="button"
 			class={stepClass}
@@ -213,6 +236,9 @@
 			<Plus class="h-3.5 w-3.5" />
 		</button>
 	</div>
+	<p id="{uid}-side-branches-hint" class={hintClass}>
+		How far out to draw aunts, uncles, cousins and their partners.
+	</p>
 {/snippet}
 
 {#snippet displayPanel()}
@@ -221,12 +247,20 @@
 			<section class="grid gap-1">
 				<h3 class={headingClass}>Layout</h3>
 				{@render layoutControl()}
+				<p class={hintClass}>{MODE_DESCRIPTIONS[view.layoutMode]}</p>
 			</section>
 			<section class="grid gap-1">
 				<h3 class={headingClass}>Generations</h3>
 				{@render stepper('Ancestors', 'ancestorDepth')}
 				{@render stepper('Descendants', 'descendantDepth')}
 			</section>
+		{/if}
+
+		{#if !isNarrow}
+			<p class={hintClass}>
+				<span class="font-semibold text-stone-800">{MODE_LABELS[view.layoutMode]}:</span>
+				{MODE_DESCRIPTIONS[view.layoutMode]}
+			</p>
 		{/if}
 
 		<section class="grid gap-0.5">
@@ -396,6 +430,16 @@
 		<button type="button" role="menuitem" class={itemClass} onclick={onchangeFocus}>
 			Change focus person…
 		</button>
+		{#if focusPerson && onshowDetails}
+			<button
+				type="button"
+				role="menuitem"
+				class={itemClass}
+				onclick={() => onshowDetails(focusPerson.id)}
+			>
+				<span class="truncate">Show {focusPerson.name}’s details</span>
+			</button>
+		{/if}
 		{#if focusPerson}
 			<button
 				type="button"
