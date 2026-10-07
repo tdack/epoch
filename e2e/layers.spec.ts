@@ -153,4 +153,13 @@ test('layers moves a generation back into either partner’s family and forward 
 	await page.goBack();
 	await expectFocus(me.id);
 	await expect(rail.getByRole('button', { name: /generation forward/ })).toHaveCount(0);
+
+	// With less motion asked for, a move cuts straight to the new family and the next one follows.
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await card('Me').focus();
+	await page.keyboard.press('PageUp');
+	await expectFocus(mum.id);
+	await card('Mum').focus();
+	await page.keyboard.press('PageDown');
+	await expectFocus(me.id);
 });
