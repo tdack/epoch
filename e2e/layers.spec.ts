@@ -39,11 +39,11 @@ test('the layers view puts each family on its own plane, keeps each side on its 
 	await expect(card('Me')).toBeVisible();
 	await expect(mode('Layers')).toBeEnabled();
 
-	// Arriving asks for the wider groups, and keeps the focus and depth.
+	// Arriving asks for the wider groups, and keeps the focus and depth. Layers' own defaults stay
+	// out of the address, so a direct ?mode=layers link and this click are the same view.
 	await mode('Layers').click();
 	await expect(page).toHaveURL(/mode=layers/);
-	await expect(page).toHaveURL(/side=2/);
-	await expect(page).toHaveURL(/origins=1/);
+	await expect(page).not.toHaveURL(/side=|origins=/);
 	await expect(page).toHaveURL(/up=2/);
 	await expect(canvas).toBeVisible();
 	await expect(mode('Layers')).toHaveAttribute('aria-pressed', 'true');
