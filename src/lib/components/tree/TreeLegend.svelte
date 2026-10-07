@@ -85,7 +85,7 @@
 		padding: 8px 12px;
 		font-size: 0.75rem;
 		color: var(--tree-ink);
-		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+		box-shadow: var(--shadow-md);
 		max-height: 100%;
 		overflow-y: auto;
 	}
@@ -116,7 +116,7 @@
 		justify-content: center;
 		border-radius: 6px;
 		border: 1.5px solid;
-		font-size: 13px;
+		font-size: 0.75rem;
 	}
 	.chip.m {
 		background: var(--sex-m);
@@ -134,10 +134,9 @@
 	.chip.stub {
 		border-color: var(--tree-panel-border);
 		background: var(--tree-panel);
-		font-size: 12px;
 	}
 	.chip.stub {
-		border-radius: 9px;
+		border-radius: 9999px;
 		font-weight: 600;
 	}
 </style>

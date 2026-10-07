@@ -123,9 +123,9 @@
 		padding: 10px 12px;
 		background: white;
 		border: 1px solid var(--tree-panel-border);
-		border-radius: 10px;
-		box-shadow: 0 6px 18px rgb(0 0 0 / 0.2);
-		font-size: 13px;
+		border-radius: 12px;
+		box-shadow: var(--shadow-md);
+		font-size: 0.875rem;
 		color: var(--tree-ink);
 	}
 	.title {
@@ -142,7 +142,7 @@
 		align-items: center;
 		gap: 8px;
 		padding: 4px 0;
-		border-top: 1px solid #f0efed;
+		border-top: 1px solid var(--color-stone-200);
 	}
 	.who {
 		flex: 1;
@@ -159,21 +159,23 @@
 		padding: 3px 4px;
 		border: 1px solid var(--tree-panel-border);
 		background: white;
-		font-size: 12px;
+		font-size: 0.75rem;
 	}
 	button {
 		cursor: pointer;
+		font-size: 0.75rem;
+		font-weight: 600;
 		border-radius: 6px;
 		padding: 3px 8px;
 		border: 1px solid var(--tree-panel-border);
 	}
 	.remove {
-		color: #b91c1c;
-		border-color: #fecaca;
+		color: var(--color-red-700);
+		border-color: var(--color-red-200);
 	}
 	.remove:hover,
 	.close:hover {
-		background: #f5f5f4;
+		background: var(--color-stone-100);
 	}
 	button:focus-visible {
 		outline: 2px solid var(--tree-focus-ring);
