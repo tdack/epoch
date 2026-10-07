@@ -30,6 +30,8 @@ vite.config.ts.timestamp-*
 *.code-workspace
 .vscode/
 
+# Cloudflare config & generated files
+.cloudflare/
 
 # Local Worker secrets/vars
 .dev.vars
