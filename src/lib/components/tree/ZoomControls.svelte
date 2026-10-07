@@ -61,4 +61,14 @@
 	.control:focus-visible {
 		outline: 2px solid var(--tree-focus-ring);
 	}
+	/* 44px on touch, whatever the width, as the rest of the chrome does (DESIGN.md, coarse variant). */
+	@media (pointer: coarse) {
+		.control {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 2.75rem;
+			min-height: 2.75rem;
+		}
+	}
 </style>

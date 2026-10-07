@@ -81,7 +81,9 @@
 		font-size: 0.875rem;
 	}
 	button {
-		display: block;
+		/* Flex, not block, so the label stays centred in the taller row `menu-item` gives on touch. */
+		display: flex;
+		align-items: center;
 		width: 100%;
 		padding: 6px 12px;
 		text-align: left;
