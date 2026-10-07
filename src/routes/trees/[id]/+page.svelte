@@ -22,6 +22,7 @@
 		parseViewState,
 		resolveStubTokens,
 		serializeViewState,
+		shouldResetStubs,
 		type HistoryKind,
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
@@ -222,9 +223,9 @@
 		change: Partial<TreeViewState>,
 		options: { kind?: HistoryKind; isReplace?: boolean } = {}
 	) {
-		// Anything but an explicit stub change starts the new view with its stubs closed.
-		const stubs = 'expandedStubs' in change ? {} : { expandedStubs: [] };
 		const currentFocus = view.focusId ?? focusPersonId;
+		// Opened branches belong to the person they were opened around, so only a new focus closes them.
+		const stubs = shouldResetStubs(change, currentFocus) ? { expandedStubs: [] } : {};
 		// A union belongs to the person it was picked for, so another focus starts from their first.
 		const isRefocus = 'focusId' in change && change.focusId !== currentFocus;
 		const union = isRefocus && !('unionId' in change) ? { unionId: null } : {};
@@ -431,8 +432,11 @@
 
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	function handleFocusPerson(id: string) {
+		// The first click of a double-click lands here too; re-centring on the person already at the
+		// centre would only flash the cue and, before stubs were kept, wipe the branches just opened.
+		if (id === (view.focusId ?? focusPersonId)) return;
 		recentreCue = null;
-		if (id !== focusPersonId) recentreTargetId = id;
+		recentreTargetId = id;
 		setFocus(id);
 	}
 

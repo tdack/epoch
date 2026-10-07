@@ -6,7 +6,8 @@ import {
 	HISTORY_COALESCE_MS,
 	parseViewState,
 	resolveStubTokens,
-	serializeViewState
+	serializeViewState,
+	shouldResetStubs
 } from './tree-url';
 
 describe('tree view URL state', () => {
@@ -232,5 +233,23 @@ describe('history coalescing', () => {
 		coalescer.shouldReplace('focus');
 		clock += 100;
 		expect(coalescer.shouldReplace('adjust')).toBe(false);
+	});
+});
+
+describe('when a change closes the opened stubs', () => {
+	it('closes them only when the focus person changes', () => {
+		expect(shouldResetStubs({ focusId: 'p2' }, 'p1')).toBe(true);
+		expect(shouldResetStubs({ focusId: 'p2', personId: 'p2' }, 'p1')).toBe(true);
+		expect(shouldResetStubs({ focusId: 'p1', personId: 'p1' }, 'p1')).toBe(false);
+		expect(shouldResetStubs({ ancestorDepth: 3 }, 'p1')).toBe(false);
+		expect(shouldResetStubs({ personId: null }, 'p1')).toBe(false);
+	});
+
+	it('leaves stubs the change names itself alone', () => {
+		expect(shouldResetStubs({ focusId: 'p2', expandedStubs: ['a'] }, 'p1')).toBe(false);
+	});
+
+	it('treats a first focus, when none was set, as a change', () => {
+		expect(shouldResetStubs({ focusId: 'p1' }, null)).toBe(true);
 	});
 });

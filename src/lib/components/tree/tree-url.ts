@@ -137,6 +137,17 @@ export function parseViewState(
 	};
 }
 
+/**
+ * Whether a change starts the new view with its opened stubs closed. Stubs belong to the person
+ * they were opened around, so only a different focus drops them; depth, toggles, the drawer and a
+ * second click on the person already at the centre keep what was opened. A change that names its
+ * own stubs is never overridden.
+ */
+export function shouldResetStubs(change: Partial<TreeViewState>, currentFocusId: string | null) {
+	if ('expandedStubs' in change) return false;
+	return 'focusId' in change && change.focusId !== currentFocusId;
+}
+
 export function serializeViewState(state: TreeViewState): URLSearchParams {
 	const params = new URLSearchParams();
 	const d = DEFAULT_VIEW_STATE;
