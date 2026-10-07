@@ -9,3 +9,5 @@ static
 worker-configuration.d.ts
 package-lock.json
 *.md
+skills-lock.json
+.impeccable/
