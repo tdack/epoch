@@ -1,5 +1,6 @@
 import { parseViewState } from '#lib/components/tree/tree-url.js';
 import { rememberedFocusKey, treeLoad } from '#lib/services/load-helpers.js';
+import { resolveLayoutMode } from '#lib/shared/view-mode.js';
 import { ApiError, fetchFocusGraph } from '#lib/services/tree-api.js';
 import type { PageLoad } from './$types';
 
@@ -17,7 +18,9 @@ const FETCHED_PARAMS = new Set([
 	'step',
 	'side',
 	'origins',
-	'exp'
+	'exp',
+	// The wider groups default on in Layers, so the mode decides what a bare address fetches.
+	'mode'
 ]);
 
 function rememberedFocus(treeId: string): string | null {
@@ -35,12 +38,19 @@ function rememberedFocus(treeId: string): string | null {
  * than showing an error page for a stale bookmark.
  */
 export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) => {
-	const { summary } = await parent();
+	const { summary, trees } = await parent();
 	// Read only the parameters that change what is fetched, so toggling a relationship type redraws
 	// without a request.
-	const view = parseViewState({
-		get: (key) => (FETCHED_PARAMS.has(key) ? url.searchParams.get(key) : null)
-	});
+	const saved = trees.find((t) => t.id === params.id);
+	const view = parseViewState(
+		{ get: (key) => (FETCHED_PARAMS.has(key) ? url.searchParams.get(key) : null) },
+		// Same fallback as the page, or a link without a mode would fetch for one view and draw another.
+		resolveLayoutMode({
+			fromAddress: null,
+			fromMember: saved?.viewMode ?? null,
+			fromTree: saved?.defaultViewMode ?? null
+		})
+	);
 	const query = {
 		up: view.ancestorDepth,
 		down: view.descendantDepth,

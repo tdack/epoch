@@ -7,10 +7,10 @@
 import {
 	ALL_PARENT_CHILD_TYPES,
 	DEFAULT_VIEW_STATE,
-	LAYERS_DEFAULT_COLLATERAL_DEPTH,
 	LAYOUT_MODES,
 	type LayoutMode,
-	type TreeViewState
+	type TreeViewState,
+	wideGroupDefaults
 } from './tree-url.js';
 
 type DisplayFields = Pick<
@@ -24,14 +24,11 @@ type DisplayFields = Pick<
 
 /** What the Display settings are when nobody has touched them, in this view. */
 export function displayDefaults(mode: LayoutMode): DisplayFields {
-	const isLayers = mode === LAYOUT_MODES.LAYERS;
+	const wide = wideGroupDefaults(mode);
 	return {
 		shouldIncludeSiblings: DEFAULT_VIEW_STATE.shouldIncludeSiblings,
 		shouldIncludeStepFamilies: DEFAULT_VIEW_STATE.shouldIncludeStepFamilies,
-		collateralDepth: isLayers
-			? LAYERS_DEFAULT_COLLATERAL_DEPTH
-			: DEFAULT_VIEW_STATE.collateralDepth,
-		shouldIncludePartnerOrigins: isLayers ? true : DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins,
+		...wide,
 		types: [...ALL_PARENT_CHILD_TYPES]
 	};
 }

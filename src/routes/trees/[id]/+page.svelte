@@ -163,31 +163,6 @@
 			: null
 	);
 
-	/**
-	 * Layers draws cousins and a partner's family, so it asks for them unless the address already
-	 * says. Done once on arrival: a viewer who then turns them off is not asked again.
-	 */
-	let hasDefaultedLayers = false;
-	$effect(() => {
-		if (mode !== LAYOUT_MODES.LAYERS) {
-			hasDefaultedLayers = false;
-			return;
-		}
-		if (hasDefaultedLayers) return;
-		hasDefaultedLayers = true;
-		untrack(() => {
-			if (view.collateralDepth > 0 || view.shouldIncludePartnerOrigins) return;
-			navigate(
-				{
-					collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
-					shouldIncludePartnerOrigins: true,
-					expandedStubs: view.expandedStubs
-				},
-				{ isReplace: true }
-			);
-		});
-	});
-
 	/** Re-frame the canvas when this changes. Opening a stub is deliberately not part of it. */
 	const viewSignature = $derived(
 		JSON.stringify([

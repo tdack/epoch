@@ -54,6 +54,24 @@ export interface TreeViewState {
 /** Layers shows the cousin line, so arriving at it asks for side branches two steps out. */
 export const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
 
+/**
+ * What the wider groups are when the address says nothing, in this view. Layers asks for them, the
+ * other views do not. Worked out while parsing so the first render is already right: applying it in
+ * an effect afterwards drew one frame without them and left the Display button counting changes
+ * nobody made.
+ */
+export function wideGroupDefaults(mode: LayoutMode): {
+	collateralDepth: number;
+	shouldIncludePartnerOrigins: boolean;
+} {
+	return mode === LAYOUT_MODES.LAYERS
+		? { collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH, shouldIncludePartnerOrigins: true }
+		: {
+				collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
+				shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
+			};
+}
+
 export const DEFAULT_VIEW_STATE: TreeViewState = {
 	treeId: null,
 	focusId: null,
@@ -96,6 +114,8 @@ export function parseViewState(
 	const types = requested
 		? ALL_PARENT_CHILD_TYPES.filter((t) => requested.split(',').includes(t))
 		: [...ALL_PARENT_CHILD_TYPES];
+	const layoutMode = parseLayoutMode(params.get('mode')) ?? fallbackMode;
+	const wide = wideGroupDefaults(layoutMode);
 	return {
 		treeId: params.get('tree') || null,
 		focusId: params.get('focus') || null,
@@ -107,14 +127,11 @@ export function parseViewState(
 			params.get('step'),
 			DEFAULT_VIEW_STATE.shouldIncludeStepFamilies
 		),
-		collateralDepth: collateralDepth(params.get('side'), DEFAULT_VIEW_STATE.collateralDepth),
-		shouldIncludePartnerOrigins: flag(
-			params.get('origins'),
-			DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
-		),
+		collateralDepth: collateralDepth(params.get('side'), wide.collateralDepth),
+		shouldIncludePartnerOrigins: flag(params.get('origins'), wide.shouldIncludePartnerOrigins),
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
-		layoutMode: parseLayoutMode(params.get('mode')) ?? fallbackMode,
+		layoutMode,
 		unionId: params.get('union') || null,
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
@@ -123,6 +140,9 @@ export function parseViewState(
 export function serializeViewState(state: TreeViewState): URLSearchParams {
 	const params = new URLSearchParams();
 	const d = DEFAULT_VIEW_STATE;
+	// Compared with this view's own defaults: Layers omits side=2, so a viewer who turns the groups
+	// off has to be written out, or parsing would give them back.
+	const wide = wideGroupDefaults(state.layoutMode);
 	if (state.treeId) params.set('tree', state.treeId);
 	if (state.focusId) params.set('focus', state.focusId);
 	// An absent parameter means the drawer is closed, which keeps the common link short.
@@ -136,9 +156,9 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	if (state.shouldIncludeStepFamilies !== d.shouldIncludeStepFamilies) {
 		params.set('step', state.shouldIncludeStepFamilies ? '1' : '0');
 	}
-	if (state.collateralDepth !== d.collateralDepth)
+	if (state.collateralDepth !== wide.collateralDepth)
 		params.set('side', String(state.collateralDepth));
-	if (state.shouldIncludePartnerOrigins !== d.shouldIncludePartnerOrigins) {
+	if (state.shouldIncludePartnerOrigins !== wide.shouldIncludePartnerOrigins) {
 		params.set('origins', state.shouldIncludePartnerOrigins ? '1' : '0');
 	}
 	if (state.types.length !== ALL_PARENT_CHILD_TYPES.length)

@@ -58,6 +58,8 @@ describe('tree view URL state', () => {
 			treeId: 't1',
 			focusId: 'p1',
 			layoutMode: 'layers' as const,
+			collateralDepth: 2,
+			shouldIncludePartnerOrigins: true,
 			unionId: 'u2'
 		};
 		expect(serializeViewState(layers).toString()).toBe('tree=t1&focus=p1&mode=layers&union=u2');
@@ -83,6 +85,45 @@ describe('tree view URL state', () => {
 		});
 		const flat = serializeViewState({ ...DEFAULT_VIEW_STATE, treeId: 't1', focusId: 'p1' });
 		expect(flat.has('side') || flat.has('origins')).toBe(false);
+	});
+
+	it('opens Layers with the wider groups on, straight from the address', () => {
+		const layers = parseViewState(new URLSearchParams('mode=layers'));
+		expect(layers).toMatchObject({ collateralDepth: 2, shouldIncludePartnerOrigins: true });
+		// A link with no mode that falls back to Layers gets the same, so the first render is right.
+		expect(parseViewState(new URLSearchParams(''), 'layers')).toMatchObject({
+			collateralDepth: 2,
+			shouldIncludePartnerOrigins: true
+		});
+		expect(parseViewState(new URLSearchParams('mode=flat'), 'layers')).toMatchObject({
+			collateralDepth: 0,
+			shouldIncludePartnerOrigins: false
+		});
+		expect(parseViewState(new URLSearchParams('mode=floors'))).toMatchObject({
+			collateralDepth: 0,
+			shouldIncludePartnerOrigins: false
+		});
+		// What the address says wins over the Layers defaults.
+		expect(parseViewState(new URLSearchParams('mode=layers&side=1&origins=0'))).toMatchObject({
+			collateralDepth: 1,
+			shouldIncludePartnerOrigins: false
+		});
+	});
+
+	it('writes out a Layers view with the wider groups turned off, so it survives a reload', () => {
+		const off = {
+			...DEFAULT_VIEW_STATE,
+			layoutMode: 'layers' as const,
+			collateralDepth: 0,
+			shouldIncludePartnerOrigins: false
+		};
+		const params = serializeViewState(off);
+		expect(params.get('side')).toBe('0');
+		expect(params.get('origins')).toBe('0');
+		expect(parseViewState(params)).toEqual(off);
+		const defaults = { ...off, collateralDepth: 2, shouldIncludePartnerOrigins: true };
+		expect(serializeViewState(defaults).toString()).toBe('mode=layers');
+		expect(parseViewState(serializeViewState(defaults))).toEqual(defaults);
 	});
 
 	it('omits defaults', () => {
