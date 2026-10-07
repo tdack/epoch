@@ -102,3 +102,55 @@ test('the layers view puts each family on its own plane, keeps each side on its 
 	await expect(page).toHaveURL(/mode=layers/);
 	await expect(canvas).toBeVisible();
 });
+
+test('layers moves a generation back into either partner’s family and forward again', async ({
+	api,
+	page
+}) => {
+	const me = await api.addPerson('Me', 'Dive', { birthDate: '1960' });
+	const wife = await api.addPerson('Wife', 'Dive', { birthDate: '1961' });
+	const mum = await api.addPerson('Mum', 'Dive', { birthDate: '1930' });
+	const dad = await api.addPerson('Dad', 'Dive', { birthDate: '1928' });
+	const inLaw = await api.addPerson('InLaw', 'Dive', { birthDate: '1935' });
+	const inLawPartner = await api.addPerson('InLawPartner', 'Dive', { birthDate: '1936' });
+	await api.partner(me, wife);
+	await api.partner(mum, dad);
+	await api.partner(inLaw, inLawPartner);
+	await api.child(mum, me);
+	await api.child(inLaw, wife);
+
+	const canvas = page.getByRole('application', { name: 'Family tree, layers view' });
+	const rail = canvas.getByRole('list', { name: 'Generations, earliest first' });
+	const card = (name: string) =>
+		page.locator('[data-person-id]').filter({ hasText: new RegExp(`\\b${name} Dive`) });
+	const expectFocus = (id: string) =>
+		expect.poll(() => new URL(page.url()).searchParams.get('focus')).toBe(id);
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&up=2&mode=layers`);
+	await expect(card('Me')).toHaveCount(1);
+	await expect(rail.locator('[aria-current="step"]')).toContainText('Me Dive & Wife Dive');
+
+	// Page Up dives into the cursor's side, and lands on the parents' partnership, not just a parent.
+	await card('Me').focus();
+	await page.keyboard.press('PageUp');
+	await expectFocus(mum.id);
+	await expect(page).toHaveURL(/union=/);
+	await expect(rail.locator('[aria-current="step"]')).toContainText('Mum Dive & Dad Dive');
+	await expect(canvas.locator('[aria-live="polite"]')).toContainText('Back one generation.');
+
+	// Page Down surfaces to where the dive started.
+	await card('Mum').focus();
+	await page.keyboard.press('PageDown');
+	await expectFocus(me.id);
+	await expect(rail.locator('[aria-current="step"]')).toContainText('Me Dive & Wife Dive');
+
+	// The rail reaches the other partner's family, and Back retraces the move.
+	await rail.getByRole('button', { name: /InLaw Dive & InLawPartner Dive/ }).click();
+	await expectFocus(inLaw.id);
+	await expect(rail.getByRole('button', { name: /One generation forward/ })).toContainText(
+		'Me Dive & Wife Dive'
+	);
+	await page.goBack();
+	await expectFocus(me.id);
+	await expect(rail.getByRole('button', { name: /generation forward/ })).toHaveCount(0);
+});

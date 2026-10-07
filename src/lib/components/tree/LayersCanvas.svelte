@@ -9,6 +9,7 @@
 	} from '#lib/tree-layout/index.js';
 	import type { LayerPerson, LayersLayout } from '#lib/tree-layout/layers.js';
 	import CollapserMark from './CollapserMark.svelte';
+	import GenerationRail from './GenerationRail.svelte';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import FoldMark from './FoldMark.svelte';
 	import PersonCard from './PersonCard.svelte';
@@ -26,11 +27,23 @@
 		layerPoint,
 		layersFraming,
 		planeScreenBox,
+		projectToScreen,
 		type LayerView
 	} from './plane-stack.js';
 	import { foldWideRows, isBoxInView, type FoldMark as FoldMarkSpec } from './plane-scale.js';
 	import { CAMERA_TOKENS } from './tree-tokens.js';
 	import { childLinks, type PlaneNav } from './plane-keyboard.js';
+	import {
+		DIVE_DIRECTIONS,
+		DiveIntent,
+		currentFamily,
+		parentFamilies,
+		reconcileTrail,
+		wheelZoomLog2,
+		type DiveDirection,
+		type DiveTarget,
+		type TrailEntry
+	} from './dive.js';
 	import { PlaneInteractions } from './plane-interactions.svelte.js';
 	import {
 		personMenuItems,
@@ -74,11 +87,13 @@
 		onDragRelate?: (relate: { source: PersonRef; target: PersonRef }) => void;
 		/** On a phone one plane fills the screen and tabs choose it, instead of a tilted stack. */
 		isSinglePlane?: boolean;
+		/** Move a generation back or forward: re-centre on this person and partnership. */
+		onTravel?: (to: { focusId: string; unionId: string | null }) => void;
 	}
 
 	let {
-		layout,
-		fitKey,
+		layout: incomingLayout,
+		fitKey: incomingFitKey,
 		selectedPersonId = null,
 		onSelectPerson,
 		onOpenPerson,
@@ -88,8 +103,17 @@
 		actions = {},
 		partnershipLabels,
 		onDragRelate,
-		isSinglePlane = false
+		isSinglePlane = false,
+		onTravel
 	}: Props = $props();
+
+	/**
+	 * The view on screen while a move by generation flies out. A fast load would otherwise swap the
+	 * new family in mid-flight; held, it waits for the exit to finish and then arrives whole.
+	 */
+	let held = $state.raw<{ layout: LayersLayout; fitKey: string } | null>(null);
+	const layout = $derived(held?.layout ?? incomingLayout);
+	const fitKey = $derived(held?.fitKey ?? incomingFitKey);
 
 	const M = LAYOUT_METRICS;
 	const ZOOM_STEP = 1.35;
@@ -111,6 +135,19 @@
 	};
 	/** Distance below a card row at which a hanging union node sits; matches the flat layout. */
 	const HANG_OFFSET_PX = M.cardHeight / 2 + M.unionRadius + 4;
+	/**
+	 * Layers stops zooming here rather than at the flat view's limit: cards read well before it, and
+	 * pushing on past it is what dives a generation back.
+	 */
+	const LAYERS_MAX_ZOOM = 2;
+	/** How long the pushed-past-the-limit hint stays after the wheel stops. */
+	const PUSH_HINT_MS = 1400;
+	const TRAVEL_EXIT_MS = 460;
+	const TRAVEL_ARRIVE_MS = 620;
+	/** The new view is asked for this far into the exit, so most of the load hides behind it. */
+	const TRAVEL_REQUEST_SHARE = 0.55;
+	/** A move that has not landed by then (a failed load) unwinds rather than hang mid-flight. */
+	const TRAVEL_GIVE_UP_MS = 8000;
 
 	// The flattest camera for a viewer who asked for less motion; the angled one shows the depth.
 	let chosenView = $state<LayerView>(
@@ -146,9 +183,11 @@
 	const unionById = $derived(new Map(layout.unions.map((u) => [u.id, u])));
 	const stubById = $derived(new Map(layout.stubs.map((s) => [s.id, s])));
 	const collapsedIds = $derived(new Set(layout.collapsedPersonIds));
+	/** Read out with the new focus, so a move is announced as one. */
+	let travelNote = $state('');
 	const announcement = $derived(
 		layout.focusPersonId
-			? `Tree focused on ${peopleById.get(layout.focusPersonId)?.person.displayName ?? 'unknown'}, shown as layers. ${layout.people.length} people shown.`
+			? `${travelNote ? `${travelNote} ` : ''}Tree focused on ${peopleById.get(layout.focusPersonId)?.person.displayName ?? 'unknown'}, shown as layers. ${layout.people.length} people shown.`
 			: ''
 	);
 
@@ -239,6 +278,333 @@
 		onDragRelate: (relate) => onDragRelate?.(relate)
 	});
 	const activeId = $derived(interactions.activeId);
+
+	// ---- Travelling by generation (see `dive.ts`) ----
+	let rigElement: HTMLDivElement | null = $state(null);
+	const families = $derived(parentFamilies(layout));
+	const here = $derived(currentFamily(layout));
+	/** Families dived out of, oldest dive first; the last is one generation forward. */
+	let trail = $state<TrailEntry[]>([]);
+	const later = $derived([...trail].reverse());
+	/** Set from the start of a move until the new view is in place. */
+	let travel = $state<{ direction: DiveDirection } | null>(null);
+	let pendingDive: { target: DiveTarget; from: TrailEntry } | null = null;
+	let exitAnimations: Animation[] = [];
+	let arrival: Animation | null = null;
+	let travelTimers: ReturnType<typeof setTimeout>[] = [];
+
+	const intent = new DiveIntent();
+	let pushDirection = $state<DiveDirection | null>(null);
+	let pushProgress = $state(0);
+	let pushFamilyIndex = $state(0);
+	let pushHintUntil = 0;
+	let pushFrame = 0;
+
+	const focusId = $derived(layout.focusPersonId);
+	$effect(() => {
+		const id = focusId;
+		untrack(() => {
+			trail = reconcileTrail(trail, id, pendingDive);
+			pendingDive = null;
+			if (!travel) travelNote = '';
+		});
+	});
+
+	// Stop at the fit going out, so pushing on past it can surface; see `LAYERS_MAX_ZOOM` for in.
+	$effect(() => {
+		void viewport.size;
+		viewport.setZoomLimits(viewport.fitScale(framing), LAYERS_MAX_ZOOM);
+	});
+
+	function canAnimate(): boolean {
+		return (
+			typeof matchMedia === 'function' &&
+			!matchMedia('(prefers-reduced-motion: reduce)').matches &&
+			!document.hidden
+		);
+	}
+
+	/** Where a point of a plane lands in the canvas, through the camera, the pan and the zoom. */
+	function screenOf(at: { plane: Band; generation: number; x: number }, dy = 0) {
+		const { rotateXDeg, rotateYDeg } = CAMERA_TOKENS[layerCamera(layerView)];
+		const p = projectToScreen(
+			layerPoint(at.plane, at.generation, at.x, layerView, M, dy),
+			rotateXDeg,
+			rotateYDeg
+		);
+		const [x, y] = transform.apply([p.x, p.y]);
+		return { x, y };
+	}
+
+	/** The family behind the front plane nearest a point of the canvas. */
+	function nearestFamily(point: { x: number; y: number }): number {
+		let best = 0;
+		let bestDistance = Infinity;
+		families.forEach((family, i) => {
+			const at = screenOf(family.at);
+			const distance = Math.hypot(at.x - point.x, at.y - point.y);
+			if (distance < bestDistance) [best, bestDistance] = [i, distance];
+		});
+		return best;
+	}
+
+	/** The family the keyboard dives to: the side the cursor stands on, else the first partner's. */
+	function keyboardFamily(): DiveTarget | undefined {
+		const cursor = activeId;
+		return (
+			families.find((f) => f.childId === cursor) ??
+			families.find((f) => {
+				const union = f.unionId ? unionById.get(f.unionId) : undefined;
+				return f.focusId === cursor || !!union?.union.partnerIds.includes(cursor ?? '');
+			}) ??
+			families[0]
+		);
+	}
+
+	function clearTravelTimers() {
+		for (const timer of travelTimers) clearTimeout(timer);
+		travelTimers = [];
+	}
+
+	function unwindTravel() {
+		clearTravelTimers();
+		for (const animation of exitAnimations) animation.cancel();
+		exitAnimations = [];
+		pendingDive = null;
+		held = null;
+		travel = null;
+	}
+
+	/**
+	 * Fly a generation back (through the front plane, toward `origin`) or forward (pulling back from
+	 * it), then ask for the new view. The flight holds its last frame until the view arrives, so the
+	 * load reads as part of the move.
+	 */
+	function travelTo(
+		direction: DiveDirection,
+		to: { focusId: string; unionId: string | null },
+		origin: { x: number; y: number }
+	) {
+		if (travel || !onTravel) return;
+		arrival?.cancel();
+		arrival = null;
+		travel = { direction };
+		travelNote =
+			direction === DIVE_DIRECTIONS.IN ? 'Back one generation.' : 'Forward one generation.';
+		intent.reset();
+		pushDirection = null;
+		pushProgress = 0;
+		const rig = rigElement;
+		if (!rig || !canAnimate()) {
+			onTravel(to);
+		} else {
+			rig.style.transformOrigin = `${origin.x}px ${origin.y}px`;
+			const timing = { duration: TRAVEL_EXIT_MS, fill: 'forwards' as const };
+			const front = rig.querySelector('[data-plane-key="0"]');
+			const back = rig.querySelectorAll('.plane:not([data-plane-key="0"])');
+			if (direction === DIVE_DIRECTIONS.IN) {
+				// Accelerate into the front plane and through it: it swells, blurs and is gone, and the
+				// family behind is what is left in view.
+				exitAnimations = [
+					rig.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.7)' }], {
+						...timing,
+						easing: 'cubic-bezier(0.55, 0, 0.75, 0.2)'
+					}),
+					...(front
+						? [
+								front.animate(
+									[
+										{ opacity: 1, filter: 'blur(0px)' },
+										{ opacity: 0, filter: 'blur(10px)' }
+									],
+									{ ...timing, duration: TRAVEL_EXIT_MS * 0.7, easing: 'ease-in' }
+								)
+							]
+						: []),
+					...[...rig.querySelectorAll('.connector')].map((line) =>
+						line.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, duration: 200 })
+					)
+				];
+			} else {
+				// Pull back from the front plane: the stack shrinks away and the planes behind it go first.
+				exitAnimations = [
+					rig.animate(
+						[
+							{ transform: 'scale(1)', opacity: 1 },
+							{ transform: 'scale(0.62)', opacity: 0.55 }
+						],
+						{ ...timing, easing: 'cubic-bezier(0.55, 0, 0.75, 0.2)' }
+					),
+					...[...back].map((plane) =>
+						plane.animate([{ opacity: 1 }, { opacity: 0 }], {
+							...timing,
+							duration: TRAVEL_EXIT_MS * 0.6
+						})
+					)
+				];
+			}
+			held = { layout: incomingLayout, fitKey: incomingFitKey };
+			void Promise.all(exitAnimations.map((a) => a.finished)).then(
+				() => (held = null),
+				() => undefined
+			);
+			travelTimers.push(setTimeout(() => onTravel(to), TRAVEL_EXIT_MS * TRAVEL_REQUEST_SHARE));
+		}
+		travelTimers.push(setTimeout(unwindTravel, TRAVEL_GIVE_UP_MS));
+	}
+
+	/**
+	 * The new view is on screen (the exit has finished: until then `held` kept the old one). Drop the
+	 * exit's last frame and bring the new stack in from the far side in the same frame.
+	 */
+	function arrive() {
+		const direction = travel?.direction;
+		clearTravelTimers();
+		const rig = rigElement;
+		for (const animation of exitAnimations) animation.cancel();
+		exitAnimations = [];
+		if (rig && direction && canAnimate()) {
+			rig.style.transformOrigin = '50% 45%';
+			const entering =
+				direction === DIVE_DIRECTIONS.IN
+					? { transform: 'scale(0.8)', opacity: 0, filter: 'blur(6px)' }
+					: { transform: 'scale(1.3)', opacity: 0, filter: 'blur(6px)' };
+			arrival = rig.animate(
+				[entering, { transform: 'scale(1)', opacity: 1, filter: 'blur(0px)' }],
+				{ duration: TRAVEL_ARRIVE_MS, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
+			);
+		}
+		// The new family is in place: the next move may start while it is still settling.
+		travel = null;
+	}
+
+	function diveTo(target: DiveTarget) {
+		const from = here;
+		if (!from) return;
+		pendingDive = { target, from };
+		travelTo(DIVE_DIRECTIONS.IN, target, screenOf(target.at));
+	}
+
+	/** Surface to `later[index]`: the nearest family dived out of is index 0. */
+	function surfaceTo(index: number) {
+		const entry = later[index];
+		if (!entry) return;
+		const card = peopleById.get(entry.focusId);
+		travelTo(
+			DIVE_DIRECTIONS.OUT,
+			entry,
+			card ? screenOf(card) : { x: viewport.size.width / 2, y: viewport.size.height / 2 }
+		);
+	}
+
+	function tickPush() {
+		const now = performance.now();
+		pushProgress = intent.progressAt(now);
+		if (now > pushHintUntil && pushProgress === 0) {
+			pushDirection = null;
+			pushFrame = 0;
+			return;
+		}
+		pushFrame = requestAnimationFrame(tickPush);
+	}
+
+	/**
+	 * The wheel past the end of the zoom. d3-zoom ignores a wheel event once the zoom is at its limit,
+	 * so this listens first (in the capture phase) and only takes the events d3 would drop.
+	 */
+	function onWheel(event: WheelEvent) {
+		if (travel) {
+			event.preventDefault();
+			return;
+		}
+		const zoomLog2 = wheelZoomLog2(event);
+		if (zoomLog2 === 0 || !onTravel) return;
+		const direction = zoomLog2 > 0 ? DIVE_DIRECTIONS.IN : DIVE_DIRECTIONS.OUT;
+		const { min, max } = viewport.zoomLimits;
+		const k = viewport.transform.k;
+		const isAtLimit =
+			direction === DIVE_DIRECTIONS.IN
+				? families.length > 0 && k >= max * 0.995
+				: trail.length > 0 && k <= min * 1.005;
+		const now = performance.now();
+		if (isAtLimit) {
+			// The page must not scroll, nor a pinch zoom the whole page, while the push gathers.
+			event.preventDefault();
+			if (direction === DIVE_DIRECTIONS.IN) {
+				const box = containerElement?.getBoundingClientRect();
+				pushFamilyIndex = nearestFamily({
+					x: event.clientX - (box?.left ?? 0),
+					y: event.clientY - (box?.top ?? 0)
+				});
+			}
+			pushDirection = direction;
+			pushHintUntil = now + PUSH_HINT_MS;
+			if (!pushFrame) pushFrame = requestAnimationFrame(tickPush);
+		}
+		const go = intent.push(now, zoomLog2, isAtLimit);
+		if (go === DIVE_DIRECTIONS.IN) diveTo(families[pushFamilyIndex] ?? families[0]);
+		else if (go === DIVE_DIRECTIONS.OUT) surfaceTo(0);
+	}
+
+	/** Page Up dives a generation back and Page Down surfaces, wherever the zoom stands. */
+	function onKeydown(event: KeyboardEvent) {
+		const target = event.target as Element | null;
+		const isTyping = !!target?.closest?.('input, textarea, select, [contenteditable="true"]');
+		if (!isTyping && !event.altKey && !event.ctrlKey && !event.metaKey) {
+			if (event.key === 'PageUp') {
+				event.preventDefault();
+				const family = keyboardFamily();
+				if (family) diveTo(family);
+				return;
+			}
+			if (event.key === 'PageDown') {
+				event.preventDefault();
+				surfaceTo(0);
+				return;
+			}
+		}
+		interactions.onKeydown(event);
+	}
+
+	/** What the push past the limit is about to do, drawn on the family it will land on. */
+	const pushHalo = $derived.by(() => {
+		if (!pushDirection) return null;
+		if (pushDirection === DIVE_DIRECTIONS.IN) {
+			const family = families[pushFamilyIndex];
+			if (!family) return null;
+			const union = family.unionId ? unionById.get(family.unionId) : undefined;
+			return {
+				direction: pushDirection,
+				label: family.label,
+				plane: family.at.plane,
+				shape: union ? ('ring' as const) : ('card' as const),
+				x: family.at.x,
+				y: union ? unionY(union) : family.at.generation * M.rowHeight
+			};
+		}
+		const entry = later[0];
+		const card = entry ? peopleById.get(entry.focusId) : undefined;
+		if (!entry) return null;
+		return {
+			direction: pushDirection,
+			label: entry.label,
+			plane: card?.plane ?? null,
+			shape: 'card' as const,
+			x: card?.x ?? 0,
+			y: (card?.generation ?? 0) * M.rowHeight
+		};
+	});
+
+	onMount(() => {
+		const element = containerElement;
+		if (!element) return;
+		element.addEventListener('wheel', onWheel, { capture: true, passive: false });
+		return () => {
+			element.removeEventListener('wheel', onWheel, { capture: true });
+			cancelAnimationFrame(pushFrame);
+			clearTravelTimers();
+		};
+	});
 
 	function levelOf(plane: Band): LevelOfDetail {
 		return zoomLevel === 'full' && plane === 2 ? 'compact' : zoomLevel;
@@ -353,11 +719,15 @@
 		return viewport.attach(surfaceElement, () => viewport.frame(framing, false));
 	});
 
-	// Re-frame when the key changes; see `TreeViewport.reframe`.
+	// Re-frame when the key changes; see `TreeViewport.reframe`. A move by generation brings in its
+	// own stack, so the re-frame's fade is left out of it.
 	$effect(() => {
 		const key = fitKey;
 		const current = framing;
-		untrack(() => viewport.reframe(key, current, surfaceElement));
+		untrack(() => {
+			viewport.reframe(key, current, travel ? null : surfaceElement);
+			if (travel) arrive();
+		});
 	});
 </script>
 
@@ -370,7 +740,7 @@
 	role="application"
 	aria-label="Family tree, layers view"
 	tabindex="-1"
-	onkeydown={interactions.onKeydown}
+	onkeydown={onKeydown}
 	onpointerup={interactions.onPointerUp}
 	onpointercancel={interactions.onPointerCancel}
 >
@@ -383,144 +753,218 @@
 		bind:this={surfaceElement}
 		class="scene surface absolute inset-0 z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
 	>
-		<PlaneStack
-			{planes}
-			{connectors}
-			camera={layerCamera(layerView)}
-			{transform}
-			settleKey={fitKey}
-		>
-			{#snippet plane(spec)}
-				{@const band = Number(spec.key) as Band}
-				{@const level = levelOf(band)}
-				<g class="plane-content" data-plane={band} style:opacity={BAND_FADE[band]}>
-					{#if !culledPlaneKeys.has(spec.key)}
-						{#each drawn.edges.filter((e) => e.plane === band) as edge (edge.id)}
-							{@const stub = edge.kind === 'stub' ? stubById.get(edge.stubId) : undefined}
-							{@const union = edge.kind === 'partner' ? unionById.get(edge.unionId) : undefined}
-							<TreeEdge
-								{edge}
-								{stub}
-								isFromUnion={stub ? stub.unionId !== null : false}
-								isUnionEnded={union ? isEndedUnion(union.union.status) : false}
-							/>
-						{/each}
-
-						{#each drawn.unions.filter((u) => u.plane === band) as union (union.id)}
-							<UnionMarker
-								union={placedUnion(union)}
-								{level}
-								isEnded={isEndedUnion(union.union.status)}
-								isNonAdjacent={false}
-								label={unionLabelText(union.union)}
-								ordinalTitle={partnershipLabels?.get(union.id)?.title}
-								zoom={transform.k}
-								onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
-							/>
-						{/each}
-
-						{#each drawn.ghosts.filter((g) => g.plane === band) as ghost (ghost.id)}
-							{@const real = peopleById.get(ghost.personId)}
-							<g
-								class="ghost"
-								data-ghost-id={ghost.id}
-								transform="translate({ghost.x}, {ghost.generation * M.rowHeight})"
-								role="button"
-								tabindex="-1"
-								aria-label="{ghost.person.displayName}, also shown on {real
-									? PLANE_NAMES[real.plane].toLowerCase()
-									: 'another plane'}"
-								onclick={() => onSelectPerson?.(ghost.personId)}
-								onkeydown={(event) => {
-									if (event.key === 'Enter' || event.key === ' ') {
-										event.preventDefault();
-										onSelectPerson?.(ghost.personId);
-									}
-								}}
-							>
-								<rect
-									x={-M.cardWidth / 2}
-									y={-M.cardHeight / 2}
-									width={M.cardWidth}
-									height={M.cardHeight}
-									rx="10"
+		<div bind:this={rigElement} class="rig">
+			<PlaneStack
+				{planes}
+				{connectors}
+				camera={layerCamera(layerView)}
+				{transform}
+				settleKey={fitKey}
+				shouldSettle={!travel}
+			>
+				{#snippet plane(spec)}
+					{@const band = Number(spec.key) as Band}
+					{@const level = levelOf(band)}
+					<g class="plane-content" data-plane={band} style:opacity={BAND_FADE[band]}>
+						{#if !culledPlaneKeys.has(spec.key)}
+							{#each drawn.edges.filter((e) => e.plane === band) as edge (edge.id)}
+								{@const stub = edge.kind === 'stub' ? stubById.get(edge.stubId) : undefined}
+								{@const union = edge.kind === 'partner' ? unionById.get(edge.unionId) : undefined}
+								<TreeEdge
+									{edge}
+									{stub}
+									isFromUnion={stub ? stub.unionId !== null : false}
+									isUnionEnded={union ? isEndedUnion(union.union.status) : false}
 								/>
-								<text text-anchor="middle" y="-2" class="name"
-									>{truncate(ghost.person.displayName, 26)}</text
+							{/each}
+
+							{#each drawn.unions.filter((u) => u.plane === band) as union (union.id)}
+								<UnionMarker
+									union={placedUnion(union)}
+									{level}
+									isEnded={isEndedUnion(union.union.status)}
+									isNonAdjacent={false}
+									label={unionLabelText(union.union)}
+									ordinalTitle={partnershipLabels?.get(union.id)?.title}
+									zoom={transform.k}
+									onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
+								/>
+							{/each}
+
+							{#each drawn.ghosts.filter((g) => g.plane === band) as ghost (ghost.id)}
+								{@const real = peopleById.get(ghost.personId)}
+								<g
+									class="ghost"
+									data-ghost-id={ghost.id}
+									transform="translate({ghost.x}, {ghost.generation * M.rowHeight})"
+									role="button"
+									tabindex="-1"
+									aria-label="{ghost.person.displayName}, also shown on {real
+										? PLANE_NAMES[real.plane].toLowerCase()
+										: 'another plane'}"
+									onclick={() => onSelectPerson?.(ghost.personId)}
+									onkeydown={(event) => {
+										if (event.key === 'Enter' || event.key === ' ') {
+											event.preventDefault();
+											onSelectPerson?.(ghost.personId);
+										}
+									}}
 								>
-								<text text-anchor="middle" y="16" class="years">{yearsLine(ghost.person)}</text>
-							</g>
-						{/each}
+									<rect
+										x={-M.cardWidth / 2}
+										y={-M.cardHeight / 2}
+										width={M.cardWidth}
+										height={M.cardHeight}
+										rx="10"
+									/>
+									<text text-anchor="middle" y="-2" class="name"
+										>{truncate(ghost.person.displayName, 26)}</text
+									>
+									<text text-anchor="middle" y="16" class="years">{yearsLine(ghost.person)}</text>
+								</g>
+							{/each}
 
-						{#each drawn.people.filter((p) => p.plane === band) as person (person.id)}
-							<PersonCard
-								node={placedPerson(person)}
-								{level}
-								zoom={level === 'block' ? transform.k : 1}
-								isFocus={person.id === layout.focusPersonId}
-								isSelected={person.id === selectedPersonId}
-								isActive={person.id === activeId}
-								hasMultiplePaths={collapsedIds.has(person.id)}
-								relation={relationOf(person)}
-								onSelect={(id) => onSelectPerson?.(id)}
-								onOpen={(id) => onOpenPerson?.(id)}
-								onContextMenu={(event, node) => interactions.openPersonMenu(event, node.id)}
-								onPointerDown={interactions.onCardPointerDown}
-							/>
-						{/each}
+							{#each drawn.people.filter((p) => p.plane === band) as person (person.id)}
+								<PersonCard
+									node={placedPerson(person)}
+									{level}
+									zoom={level === 'block' ? transform.k : 1}
+									isFocus={person.id === layout.focusPersonId}
+									isSelected={person.id === selectedPersonId}
+									isActive={person.id === activeId}
+									hasMultiplePaths={collapsedIds.has(person.id)}
+									relation={relationOf(person)}
+									onSelect={(id) => onSelectPerson?.(id)}
+									onOpen={(id) => onOpenPerson?.(id)}
+									onContextMenu={(event, node) => interactions.openPersonMenu(event, node.id)}
+									onPointerDown={interactions.onCardPointerDown}
+								/>
+							{/each}
 
-						<!-- Hit targets follow the cards, so Tab reaches a person's partnerships right after the person. -->
-						{#each drawn.unions.filter((u) => u.plane === band) as union (union.id)}
-							<UnionMarker
-								union={placedUnion(union)}
-								{level}
-								part="target"
-								isEnded={isEndedUnion(union.union.status)}
-								isNonAdjacent={false}
-								isTabbable={!!activeId && union.union.partnerIds.includes(activeId)}
-								partnerNames={union.union.partnerIds
-									.map((id) => peopleById.get(id)?.person.displayName ?? id)
-									.join(' and ')}
-								label={unionLabelText(union.union)}
-								ordinalTitle={partnershipLabels?.get(union.id)?.title}
-								zoom={transform.k}
-								onOpen={(u) => actions.onEditUnion?.(u.id)}
-								onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
-							/>
-						{/each}
+							<!-- Hit targets follow the cards, so Tab reaches a person's partnerships right after the person. -->
+							{#each drawn.unions.filter((u) => u.plane === band) as union (union.id)}
+								<UnionMarker
+									union={placedUnion(union)}
+									{level}
+									part="target"
+									isEnded={isEndedUnion(union.union.status)}
+									isNonAdjacent={false}
+									isTabbable={!!activeId && union.union.partnerIds.includes(activeId)}
+									partnerNames={union.union.partnerIds
+										.map((id) => peopleById.get(id)?.person.displayName ?? id)
+										.join(' and ')}
+									label={unionLabelText(union.union)}
+									ordinalTitle={partnershipLabels?.get(union.id)?.title}
+									zoom={transform.k}
+									onOpen={(u) => actions.onEditUnion?.(u.id)}
+									onContextMenu={(event, u) => interactions.openUnionMenu(event, u.id)}
+								/>
+							{/each}
 
-						{#each drawn.stubs.filter((s) => s.plane === band) as stub (stub.id)}
-							<StubMark
-								{stub}
-								x={stub.x}
-								y={stub.generation * M.rowHeight}
-								onExpand={(id) => onExpandStub?.(id)}
-							/>
-						{/each}
+							{#each drawn.stubs.filter((s) => s.plane === band) as stub (stub.id)}
+								<StubMark
+									{stub}
+									x={stub.x}
+									y={stub.generation * M.rowHeight}
+									onExpand={(id) => onExpandStub?.(id)}
+								/>
+							{/each}
 
-						{#each drawn.collapsers.filter((c) => c.plane === band) as collapser (collapser.stubId)}
-							<CollapserMark
-								stubId={collapser.stubId}
-								x={collapser.x}
-								y={collapser.y}
-								onCollapse={(id) => onCollapseStub?.(id)}
-							/>
-						{/each}
+							{#each drawn.collapsers.filter((c) => c.plane === band) as collapser (collapser.stubId)}
+								<CollapserMark
+									stubId={collapser.stubId}
+									x={collapser.x}
+									y={collapser.y}
+									onCollapse={(id) => onCollapseStub?.(id)}
+								/>
+							{/each}
 
-						{#each fold.marks.filter((m) => m.group === band) as mark (mark.id)}
-							<FoldMark
-								{mark}
-								x={mark.x}
-								y={mark.generation * M.rowHeight}
-								rowName={rowNameOf(mark)}
-								onOpen={() => (openRowKeys = [...openRowKeys, mark.rowKey])}
-							/>
-						{/each}
-					{/if}
-				</g>
-			{/snippet}
-		</PlaneStack>
+							{#each fold.marks.filter((m) => m.group === band) as mark (mark.id)}
+								<FoldMark
+									{mark}
+									x={mark.x}
+									y={mark.generation * M.rowHeight}
+									rowName={rowNameOf(mark)}
+									onOpen={() => (openRowKeys = [...openRowKeys, mark.rowKey])}
+								/>
+							{/each}
+
+							{#if pushHalo && pushHalo.plane === band}
+								<g
+									class="push-halo"
+									class:out={pushHalo.direction === DIVE_DIRECTIONS.OUT}
+									transform="translate({pushHalo.x}, {pushHalo.y})"
+									aria-hidden="true"
+								>
+									{#if pushHalo.shape === 'ring'}
+										<circle class="track" r={30 + pushProgress * 6} />
+										<circle
+											class="fill"
+											r={30 + pushProgress * 6}
+											pathLength="1"
+											stroke-dasharray="{pushProgress} 1"
+											transform="rotate(-90)"
+										/>
+									{:else}
+										<rect
+											class="track"
+											x={-M.cardWidth / 2 - 8}
+											y={-M.cardHeight / 2 - 8}
+											width={M.cardWidth + 16}
+											height={M.cardHeight + 16}
+											rx="16"
+										/>
+										<rect
+											class="fill"
+											x={-M.cardWidth / 2 - 8}
+											y={-M.cardHeight / 2 - 8}
+											width={M.cardWidth + 16}
+											height={M.cardHeight + 16}
+											rx="16"
+											pathLength="1"
+											stroke-dasharray="{pushProgress} 1"
+										/>
+									{/if}
+								</g>
+							{/if}
+						{/if}
+					</g>
+				{/snippet}
+			</PlaneStack>
+		</div>
 	</div>
+
+	{#if pushHalo}
+		<!-- Hidden from screen readers: Page Up and Page Down do the same, and the move is announced. -->
+		<div
+			class="pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center px-4"
+			aria-hidden="true"
+		>
+			<span class="push-hint">
+				<span class="truncate"
+					>{pushHalo.direction === DIVE_DIRECTIONS.IN
+						? 'Keep zooming in to go back to'
+						: 'Keep zooming out to return to'}
+					<span class="font-semibold text-stone-900">{pushHalo.label}</span></span
+				>
+				<span class="meter" style:transform="scaleX({pushProgress})"></span>
+			</span>
+		</div>
+	{/if}
+
+	{#if onTravel && (families.length > 0 || trail.length > 0)}
+		<div class="absolute top-4 right-4 z-20">
+			<GenerationRail
+				earlier={families}
+				current={here}
+				{later}
+				nameOf={(id) => peopleById.get(id)?.person.displayName ?? 'someone not shown'}
+				onBack={diveTo}
+				onForward={surfaceTo}
+				isTravelling={!!travel}
+			/>
+		</div>
+	{/if}
 
 	{#if layout.people.length === 0}
 		<div class="absolute inset-0 z-10 flex items-center justify-center">
@@ -627,6 +1071,53 @@
 	.view:focus-visible {
 		outline: 2px solid var(--tree-focus-ring);
 		outline-offset: 2px;
+	}
+	.rig {
+		position: absolute;
+		inset: 0;
+	}
+	.push-halo {
+		pointer-events: none;
+	}
+	.push-halo .track,
+	.push-halo .fill {
+		fill: none;
+		stroke: var(--union-ink);
+	}
+	.push-halo .track {
+		stroke-width: 1.5;
+		stroke-dasharray: 4 5;
+		opacity: 0.55;
+	}
+	.push-halo .fill {
+		stroke-width: 4;
+		stroke-linecap: round;
+	}
+	.push-halo.out .track,
+	.push-halo.out .fill {
+		stroke: var(--color-emerald-800);
+	}
+	.push-hint {
+		position: relative;
+		display: flex;
+		max-width: 100%;
+		overflow: hidden;
+		border: 1px solid var(--tree-panel-border);
+		border-radius: 9999px;
+		background: var(--tree-panel);
+		padding: 0.25rem 0.875rem;
+		font-size: 0.875rem;
+		color: #44403c;
+		box-shadow: var(--shadow-md);
+	}
+	.push-hint .meter {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 3px;
+		background: var(--union-ink);
+		transform-origin: 0 50%;
 	}
 	.ghost {
 		cursor: pointer;

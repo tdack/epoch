@@ -440,6 +440,15 @@
 		setFocus(id);
 	}
 
+	/**
+	 * Layers moved a generation back or forward. The partnership goes along: without it a parent with
+	 * more than one would be centred on their first, which may not be the one the viewer dived into.
+	 */
+	function handleTravel(to: { focusId: string; unionId: string | null }) {
+		rememberFocus(to.focusId);
+		navigate({ ...withOpenDrawer(to.focusId), unionId: to.unionId }, { kind: HISTORY_KINDS.FOCUS });
+	}
+
 	/** Canvas double-click or long-press: focus the person and show their details. */
 	function handleOpenPerson(id: string) {
 		if (!selectedPersonId) openerCardId = id;
@@ -534,6 +543,7 @@
 					onClearSelection={clearSelection}
 					onExpandStub={expandStub}
 					onCollapseStub={collapseStub}
+					onTravel={handleTravel}
 					{actions}
 					partnershipLabels={editor.unionLabels}
 					onDragRelate={canCreate ? editor.dragRelate : undefined}
