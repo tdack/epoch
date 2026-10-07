@@ -83,7 +83,7 @@
 				type="button"
 				onclick={onClose}
 				aria-label="Close details"
-				class="cursor-pointer rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-200/60 hover:text-stone-800"
+				class="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-stone-500 focus-ring transition-colors hover:bg-stone-200/60 hover:text-stone-800 coarse:min-h-11 coarse:min-w-11"
 			>
 				<X class="h-5 w-5" />
 			</button>
@@ -110,7 +110,8 @@
 			type="button"
 			onclick={onClose}
 			aria-label="Close details"
-			class="float-right text-stone-400 hover:text-stone-800"><X class="h-5 w-5" /></button
+			class="float-right inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-stone-500 focus-ring hover:text-stone-800 coarse:min-h-11 coarse:min-w-11"
+			><X class="h-5 w-5" /></button
 		>
 		<p class="text-sm text-red-800">{error}</p>
 	</div>
