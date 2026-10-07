@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { Maximize2, ZoomIn, ZoomOut } from '@lucide/svelte';
 	import {
 		LAYOUT_METRICS,
 		type ChildAssertion,
@@ -19,6 +18,7 @@
 	import TreeEdge from './TreeEdge.svelte';
 	import TreeLegend from './TreeLegend.svelte';
 	import UnionMarker from './UnionMarker.svelte';
+	import ZoomControls from './ZoomControls.svelte';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
@@ -672,41 +672,13 @@
 		<TreeLegend />
 	</div>
 
-	<div
-		class="absolute right-6 bottom-6 z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
-		style="background: var(--tree-panel);"
-	>
-		<button
-			type="button"
-			title="Zoom in"
-			aria-label="Zoom in"
-			onclick={() => viewport.zoomBy(ZOOM_STEP)}
-			class="control"
-		>
-			<ZoomIn class="h-4 w-4" />
-		</button>
-		<button
-			type="button"
-			title="Zoom out"
-			aria-label="Zoom out"
-			onclick={() => viewport.zoomBy(1 / ZOOM_STEP)}
-			class="control"
-		>
-			<ZoomOut class="h-4 w-4" />
-		</button>
-		<button
-			type="button"
-			title={fitLabel}
-			aria-label={fitLabel}
-			onclick={() => viewport.fitStep(layout)}
-			class="control"
-		>
-			<Maximize2 class="h-4 w-4" />
-		</button>
-		<span class="px-1 text-xs text-stone-600 tabular-nums" aria-live="off"
-			>{Math.round(transform.k * 100)}%</span
-		>
-	</div>
+	<ZoomControls
+		scale={transform.k}
+		{fitLabel}
+		onZoomIn={() => viewport.zoomBy(ZOOM_STEP)}
+		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
+		onFit={() => viewport.fitStep(layout)}
+	/>
 
 	<OffscreenMarkers {markers} onPan={panToward} />
 
@@ -731,29 +703,6 @@
 </div>
 
 <style>
-	.control {
-		padding: 0.5rem;
-		border-radius: 0.5rem;
-		color: #57534e;
-		cursor: pointer;
-	}
-	.control:hover {
-		background: rgb(231 229 228 / 0.6);
-		color: #1c1917;
-	}
-	.control:focus-visible {
-		outline: 2px solid var(--tree-focus-ring);
-	}
-	/* 44px on touch, whatever the width, as the rest of the chrome does (DESIGN.md, coarse variant). */
-	@media (pointer: coarse) {
-		.control {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			min-width: 2.75rem;
-			min-height: 2.75rem;
-		}
-	}
 	.stub {
 		cursor: pointer;
 		outline: none;

@@ -8,6 +8,11 @@
 		onZoomOut: () => void;
 		onFit: () => void;
 		/**
+		 * Accessible name and tooltip of the Fit button. A canvas whose Fit alternates between two
+		 * framings (the Flat view on a phone) names the next one here.
+		 */
+		fitLabel?: string;
+		/**
 		 * Where the bar sits. The default pins it to the bottom-right corner; a canvas with its own
 		 * bottom controls passes a flow position instead so the two cannot overlap on a phone.
 		 */
@@ -19,6 +24,7 @@
 		onZoomIn,
 		onZoomOut,
 		onFit,
+		fitLabel = 'Fit to view',
 		class: placement = 'absolute right-6 bottom-6'
 	}: Props = $props();
 </script>
@@ -33,13 +39,7 @@
 	<button type="button" title="Zoom out" aria-label="Zoom out" onclick={onZoomOut} class="control">
 		<ZoomOut class="h-4 w-4" />
 	</button>
-	<button
-		type="button"
-		title="Fit to view"
-		aria-label="Fit to view"
-		onclick={onFit}
-		class="control"
-	>
+	<button type="button" title={fitLabel} aria-label={fitLabel} onclick={onFit} class="control">
 		<Maximize2 class="h-4 w-4" />
 	</button>
 	<span class="px-1 text-xs text-stone-600 tabular-nums" aria-live="off"
