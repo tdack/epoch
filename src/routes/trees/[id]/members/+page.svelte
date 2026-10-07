@@ -32,12 +32,13 @@
 			year: 'numeric'
 		});
 
+	/** `done` is the toast on success, unless the action returns its own message. */
 	async function run(action: () => Promise<unknown>, done: string) {
 		if (isBusy) return;
 		isBusy = true;
 		try {
-			await action();
-			toasts.push(done);
+			const result = await action();
+			toasts.push(typeof result === 'string' ? result : done);
 		} catch (cause) {
 			toasts.push((cause as Error).message || 'That did not work', { tone: 'error' });
 		} finally {
@@ -54,8 +55,11 @@
 		const address = email.trim();
 		if (!address) return;
 		void run(async () => {
-			await inviteMemberApi(treeId, address, inviteRole);
+			const invitation = await inviteMemberApi(treeId, address, inviteRole);
 			email = '';
+			return invitation.wasEmailSent
+				? `Invited ${address} — email sent`
+				: `Invited ${address} — the email could not be sent; let them know yourself`;
 		}, `Invited ${address}`);
 	}
 </script>
@@ -66,9 +70,9 @@
 
 <h2 class="text-2xl font-bold text-stone-900">Members</h2>
 <p class="mt-1 max-w-2xl text-sm text-stone-600">
-	An invitation gives an email address a role here, taken up when that person next signs in. It does
-	not let them past Cloudflare Access: the address must also be allowed by the Access policy for
-	this app.
+	An invitation gives an email address a role here and is emailed to that address. The role is taken
+	up when that person next signs in with it. Cloudflare Access is a separate gate: the address must
+	also be allowed by the Access policy for this app.
 </p>
 
 <section
