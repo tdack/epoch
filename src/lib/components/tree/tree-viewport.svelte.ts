@@ -24,6 +24,7 @@ import {
 	boundsOfPeople,
 	immediateFamilyIds
 } from './tree-view.js';
+import { FIT_ACTIONS, chooseFitAction, isNearTransform, type FitAction } from './view-geometry.js';
 
 const FIT_PADDING_PX = 56;
 /** Side padding never takes more than this share of a narrow canvas's width. */
@@ -199,6 +200,32 @@ export class TreeViewport {
 
 	fit(layout: TreeLayout, isAnimated = true) {
 		if (layout.people.length > 0) this.moveTo(this.fitTransform(layout), { isAnimated });
+	}
+
+	/** Whether the whole tree would be too small to read on this canvas, so Fit has two steps. */
+	isWholeUnreadable(layout: TreeLayout): boolean {
+		return this.size.width < NARROW_CANVAS_PX && !this.shouldFrameWhole(layout);
+	}
+
+	/**
+	 * What the next press of Fit does. Reads `transform`, so a label derived from it follows the view.
+	 * Where the whole tree is unreadable, the readable framing comes first: Fit that only ever showed
+	 * the unreadable overview left a phone user with no way back except refocusing.
+	 */
+	nextFitAction(layout: TreeLayout): FitAction {
+		const isWholeUnreadable = this.isWholeUnreadable(layout);
+		return chooseFitAction({
+			isWholeUnreadable,
+			isAtFrame:
+				isWholeUnreadable &&
+				isNearTransform(this.animationTarget ?? this.transform, this.frameTransform(layout))
+		});
+	}
+
+	/** The Fit button: do what `nextFitAction` says. */
+	fitStep(layout: TreeLayout) {
+		if (this.nextFitAction(layout) === FIT_ACTIONS.FRAME) this.frame(layout);
+		else this.fit(layout);
 	}
 
 	/** Frame the tree as a refocus or a resize does; see `frameTransform`. */

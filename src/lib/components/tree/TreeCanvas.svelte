@@ -29,6 +29,7 @@
 		type TreeEditActions
 	} from './tree-actions.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
+	import { FIT_ACTIONS } from './view-geometry.js';
 	import {
 		isEndedUnion,
 		levelOfDetail,
@@ -126,6 +127,14 @@
 	const viewport = new TreeViewport();
 	const transform = $derived(viewport.transform);
 	const size = $derived(viewport.size);
+	/** Names what Fit will do next, since on a phone it alternates between two framings. */
+	const fitLabel = $derived(
+		!viewport.isWholeUnreadable(layout)
+			? 'Fit to view'
+			: viewport.nextFitAction(layout) === FIT_ACTIONS.FRAME
+				? 'Zoom to a readable view'
+				: 'Show the whole tree'
+	);
 
 	let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
 	let selectedEdgeId = $state<string | null>(null);
@@ -673,9 +682,9 @@
 		</button>
 		<button
 			type="button"
-			title="Fit to view"
-			aria-label="Fit to view"
-			onclick={() => viewport.fit(layout)}
+			title={fitLabel}
+			aria-label={fitLabel}
+			onclick={() => viewport.fitStep(layout)}
 			class="control"
 		>
 			<Maximize2 class="h-4 w-4" />
