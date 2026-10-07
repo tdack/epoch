@@ -174,8 +174,9 @@
 	);
 	const relations = $derived(new Map(layout.people.map((p) => [p.id, relationLabel(p, layout)])));
 	/**
-	 * Only the edges and partnerships of the person holding the keyboard cursor are in the tab order,
-	 * so Tab walks the card, then its lines, then on to the next control, instead of visiting every line.
+	 * Only the edges, partnerships, "+N" stubs and collapsers of the person holding the keyboard cursor
+	 * are in the tab order, so Tab walks the card, then its lines, then on to the next control, instead
+	 * of visiting every line and stub. The stubs stay clickable and reachable once the cursor arrives.
 	 */
 	const tabbableEdgeIds = $derived(
 		new Set(
@@ -612,7 +613,7 @@
 					data-stub-id={stub.id}
 					transform="translate({stub.x}, {stub.y})"
 					role="button"
-					tabindex="0"
+					tabindex={stub.personId === activeId ? 0 : -1}
 					aria-label="Show {stub.count} more {stub.kind === 'ancestors'
 						? stub.count === 1
 							? 'parent'
@@ -646,7 +647,7 @@
 					data-collapser-id={collapser.stubId}
 					transform="translate({collapser.x}, {collapser.y})"
 					role="button"
-					tabindex="0"
+					tabindex={collapser.personId === activeId ? 0 : -1}
 					aria-label="Collapse this branch"
 					onclick={(event) => {
 						event.stopPropagation();
