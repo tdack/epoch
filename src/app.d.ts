@@ -1,4 +1,4 @@
-import type { D1Database, R2Bucket, Queue } from '@cloudflare/workers-types';
+import type { D1Database, R2Bucket, Queue, SendEmail } from '@cloudflare/workers-types';
 import type { UserIdentity } from '#lib/server/domain/identity.js';
 
 declare global {
@@ -13,6 +13,8 @@ declare global {
 				MEDIA_BUCKET: R2Bucket;
 				GEDCOM_IMPORT_QUEUE?: Queue<any>;
 				GEDCOM_EXPORT_WORKFLOW?: any;
+				/** Absent in unit tests and bare previews; invitations are then saved but not emailed. */
+				EMAIL?: SendEmail;
 				CF_IMAGES_TOKEN?: string;
 				CF_ACCOUNT_ID?: string;
 				CF_ACCESS_TEAM_DOMAIN?: string;

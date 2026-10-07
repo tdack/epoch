@@ -4,6 +4,7 @@
 interface __BaseEnv_Env {
 	MEDIA_BUCKET: R2Bucket;
 	DB: D1Database;
+	EMAIL: SendEmail;
 	GEDCOM_IMPORT_QUEUE: Queue;
 	ASSETS: Fetcher;
 	CF_ACCESS_TEAM_DOMAIN: "your-team.cloudflareaccess.com";
