@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowDown, ArrowUp, MapPin, Plus } from 'lucide-svelte';
+	import { ArrowDown, ArrowUp, MapPin, Plus } from '@lucide/svelte';
 	import FactDialog from '#lib/components/modals/FactDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';

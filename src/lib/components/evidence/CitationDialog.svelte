@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { Quote } from 'lucide-svelte';
+	import { Quote } from '@lucide/svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import {

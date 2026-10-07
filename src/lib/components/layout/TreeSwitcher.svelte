@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, ChevronDown, Download, Plus, Trash2, Upload } from 'lucide-svelte';
+	import { Check, ChevronDown, Download, Plus, Trash2, Upload } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { Maximize2, ZoomIn, ZoomOut } from 'lucide-svelte';
+	import { Maximize2, ZoomIn, ZoomOut } from '@lucide/svelte';
 	import {
 		LAYOUT_METRICS,
 		type ChildAssertion,

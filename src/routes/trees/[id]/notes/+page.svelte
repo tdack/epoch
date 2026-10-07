@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import SharedNoteDialog from '#lib/components/notes/SharedNoteDialog.svelte';
 	import { canAddNote } from '#lib/components/notes/note-permissions.js';

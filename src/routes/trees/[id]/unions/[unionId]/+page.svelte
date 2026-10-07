@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from 'lucide-svelte';
+	import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from '@lucide/svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Info, TriangleAlert } from 'lucide-svelte';
+	import { Info, TriangleAlert } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import { groupRecords } from '#lib/shared/impact-groups.js';
 	import type { ImpactSummary } from '#lib/types/genealogy.js';

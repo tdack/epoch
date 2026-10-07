@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { StickyNote } from 'lucide-svelte';
+	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSharedNoteApi, isConflict, updateSharedNoteApi } from '#lib/services/tree-api.js';
 	import type { SharedNoteDto } from '#lib/shared/notes.js';

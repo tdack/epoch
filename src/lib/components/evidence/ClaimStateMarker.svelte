@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CircleAlert, CircleCheck, CircleHelp } from 'lucide-svelte';
+	import { CircleAlert, CircleCheck, CircleHelp } from '@lucide/svelte';
 	import { CLAIM_STATE_LABELS, CLAIM_STATES, type ClaimState } from '#lib/shared/evidence.js';
 
 	interface Props {

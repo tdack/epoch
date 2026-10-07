@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { X, ExternalLink } from 'lucide-svelte';
+	import { X, ExternalLink } from '@lucide/svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import PersonView from '#lib/components/person/PersonView.svelte';

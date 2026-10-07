@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowDown, ArrowUp, Plus } from 'lucide-svelte';
+	import { ArrowDown, ArrowUp, Plus } from '@lucide/svelte';
 	import NameDialog from '#lib/components/modals/NameDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';

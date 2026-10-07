@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { BookOpen } from 'lucide-svelte';
+	import { BookOpen } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSourceApi, isConflict, updateSourceApi } from '#lib/services/tree-api.js';
 	import type { SourceDto } from '#lib/shared/evidence.js';

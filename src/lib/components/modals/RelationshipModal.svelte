@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { UserPlus, Baby, Heart, Search, Sparkles, Cross, HeartCrack, Users } from 'lucide-svelte';
+	import { UserPlus, Baby, Heart, Search, Sparkles, Cross, HeartCrack, Users } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows, type ConflictRow } from './conflict.js';

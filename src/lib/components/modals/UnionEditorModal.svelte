@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Heart, Plus, Trash2 } from 'lucide-svelte';
+	import { Heart, Plus, Trash2 } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows } from './conflict.js';

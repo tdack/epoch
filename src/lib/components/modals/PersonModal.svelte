@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UserPlus, Pencil, RefreshCw } from 'lucide-svelte';
+	import { UserPlus, Pencil, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateText } from '#lib/shared/date-value.js';

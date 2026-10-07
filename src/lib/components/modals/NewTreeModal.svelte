@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, RefreshCw } from 'lucide-svelte';
+	import { Plus, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 
 	interface Props {

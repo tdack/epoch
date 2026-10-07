@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Ellipsis } from 'lucide-svelte';
+	import { Ellipsis } from '@lucide/svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import type { RelativeAction, TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';

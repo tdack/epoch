@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { Landmark } from 'lucide-svelte';
+	import { Landmark } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createRepositoryApi, isConflict, updateRepositoryApi } from '#lib/services/tree-api.js';
 	import type { RepositoryListItem } from '#lib/shared/evidence.js';

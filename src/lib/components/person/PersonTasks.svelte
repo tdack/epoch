@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
 	import TaskList from '#lib/components/tasks/TaskList.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { GitMerge, Pencil, Trash2 } from 'lucide-svelte';
+	import { GitMerge, Pencil, Trash2 } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import NoteMergeDialog from '#lib/components/notes/NoteMergeDialog.svelte';
 	import SharedNoteDialog from '#lib/components/notes/SharedNoteDialog.svelte';

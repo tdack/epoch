@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Maximize2, ZoomIn, ZoomOut } from 'lucide-svelte';
+	import { Maximize2, ZoomIn, ZoomOut } from '@lucide/svelte';
 
 	interface Props {
 		/** Current zoom scale, shown as a percentage. */

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { TOAST_TONES, type Toast } from './toasts.svelte.js';
 
 	interface Props {

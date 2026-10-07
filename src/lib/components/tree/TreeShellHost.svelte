@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Sparkles } from 'lucide-svelte';
+	import { Sparkles } from '@lucide/svelte';
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
 	import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';

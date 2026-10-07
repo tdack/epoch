@@ -65,12 +65,12 @@
     "wrangler": "^4.131.1"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.5.2",
     "d3-ease": "^3.0.1",
     "d3-selection": "^3.0.0",
     "d3-transition": "^3.0.1",
     "d3-zoom": "^3.0.0",
     "drizzle-orm": "^0.45.2",
-    "lucide-svelte": "^1.0.1",
     "zod": "^4.6.5"
   },
   "imports": {

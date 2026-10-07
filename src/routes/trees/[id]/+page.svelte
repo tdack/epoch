@@ -2,7 +2,7 @@
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { Loader2 } from 'lucide-svelte';
+	import { Loader2 } from '@lucide/svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';

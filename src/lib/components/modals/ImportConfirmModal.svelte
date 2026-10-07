@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Upload, RefreshCw } from 'lucide-svelte';
+	import { Upload, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import type { ImportPreviewData, PossibleDuplicateGroup } from '#lib/types/genealogy.js';
 

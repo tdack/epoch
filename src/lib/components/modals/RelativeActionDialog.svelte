@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trash2 } from 'lucide-svelte';
+	import { Trash2 } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import {
 		RELATIVE_OUTCOMES,

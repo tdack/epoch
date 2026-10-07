@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import { canCite, canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import RepositoryDialog from '#lib/components/evidence/RepositoryDialog.svelte';
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { GitCompare } from 'lucide-svelte';
+	import { GitCompare } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import type { ConflictRow } from './conflict.js';
 

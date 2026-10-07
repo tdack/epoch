@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { ListTodo } from 'lucide-svelte';
+	import { ListTodo } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createTaskApi, isConflict, updateTaskApi } from '#lib/services/tree-api.js';
 	import {

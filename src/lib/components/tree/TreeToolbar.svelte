@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, Minus, Plus, SlidersHorizontal } from 'lucide-svelte';
+	import { ChevronDown, Minus, Plus, SlidersHorizontal } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import { countDisplayChanges, displayDefaults } from './display-settings.js';

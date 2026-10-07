@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { StickyNote } from 'lucide-svelte';
+	import { StickyNote } from '@lucide/svelte';
 
 	interface Props {
 		/** How many notes the record has. */

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UserPlus } from 'lucide-svelte';
+	import { UserPlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import EpochMark from '#lib/components/brand/EpochMark.svelte';
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';

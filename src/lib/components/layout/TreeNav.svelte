@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Combine, Cross, GitBranch, Pencil, Star, Trash2, UserPlus } from 'lucide-svelte';
+	import { Combine, Cross, GitBranch, Pencil, Star, Trash2, UserPlus } from '@lucide/svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';

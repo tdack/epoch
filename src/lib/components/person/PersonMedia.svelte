@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileText, Image as ImageIcon, Upload } from 'lucide-svelte';
+	import { FileText, Image as ImageIcon, Upload } from '@lucide/svelte';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { uploadMediaApi } from '#lib/services/tree-api.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { lifeDates } from '#lib/shared/life-dates.js';
 	import { NAME_TYPE_LABELS, isNameType } from '#lib/shared/name-types.js';

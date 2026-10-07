@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowRight, Search } from 'lucide-svelte';
+	import { ArrowRight, Search } from '@lucide/svelte';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 
 	interface Props {
