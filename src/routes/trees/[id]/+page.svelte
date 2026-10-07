@@ -460,7 +460,7 @@
 
 <div class="flex min-h-[600px] flex-1 flex-col">
 	{#if graph}
-		<div class="mb-3">
+		<div class="mb-2 sm:mb-3">
 			<TreeToolbar
 				{view}
 				unionChoices={layersLayout?.unionChoices ?? []}
@@ -506,7 +506,7 @@
 					)}
 			/>
 		</div>
-		<TreeGestureHint canRelate={canCreate} />
+		{#if !isPhone}<TreeGestureHint canRelate={canCreate} />{/if}
 		{#if isFloorsOnPhone}
 			<p class="mb-2 text-sm text-stone-600" role="note">
 				Floors needs a wider screen, so this shows the flat view.
@@ -515,6 +515,8 @@
 		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
+			<!-- Before the canvases so the legend, drawn later, stays above it. -->
+			{#if isPhone}<TreeGestureHint canRelate={canCreate} isOverlay />{/if}
 			{#if layersLayout}
 				<LayersCanvas
 					layout={layersLayout}

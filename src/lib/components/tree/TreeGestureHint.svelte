@@ -4,9 +4,14 @@
 	interface Props {
 		/** Whether the viewer may relate two people, so the drag gesture is worth mentioning. */
 		canRelate: boolean;
+		/**
+		 * Float over the top of the chart as one line instead of taking a row above it. On a phone that
+		 * row is height the chart needs, and the hint matters only until it is read once.
+		 */
+		isOverlay?: boolean;
 	}
 
-	let { canRelate }: Props = $props();
+	let { canRelate, isOverlay = false }: Props = $props();
 
 	const STORAGE_KEY = 'epoch.tree-gesture-hint.dismissed';
 
@@ -39,10 +44,15 @@
 
 {#if isShown}
 	<div
-		class="mb-2 flex items-start gap-3 rounded-lg border border-stone-200 bg-[#fdfbf7] px-3 py-2 text-xs leading-relaxed text-stone-700"
+		class="flex gap-3 rounded-lg border border-stone-200 bg-[#fdfbf7] text-xs leading-relaxed text-stone-700 {isOverlay
+			? 'absolute inset-x-3 top-[4.25rem] z-20 items-center py-0.5 pl-3 shadow-md'
+			: 'mb-2 items-start px-3 py-2'}"
 	>
 		<p class="min-w-0 flex-1">
-			{#if isTouch}
+			{#if isTouch && isOverlay}
+				<strong class="font-semibold text-stone-900">Tap</strong> to centre.
+				<strong class="font-semibold text-stone-900">Hold</strong> for details.
+			{:else if isTouch}
 				<strong class="font-semibold text-stone-900">Tap</strong> a person to centre the tree on
 				them. <strong class="font-semibold text-stone-900">Press and hold</strong> to see their details.
 			{:else}
