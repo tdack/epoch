@@ -311,9 +311,18 @@
 	});
 
 	// Stop at the fit going out, so pushing on past it can surface; see `LAYERS_MAX_ZOOM` for in.
+	// Never above the zoom on screen: a fit that grew (a plane hidden, a flatter camera) would
+	// otherwise make Zoom out jump in. Untracked, or every frame of a pan would re-run this.
 	$effect(() => {
 		void viewport.size;
-		viewport.setZoomLimits(viewport.fitScale(framing), LAYERS_MAX_ZOOM);
+		const fit = viewport.fitScale(framing);
+		viewport.setZoomLimits(
+			Math.min(
+				fit,
+				untrack(() => viewport.transform.k)
+			),
+			LAYERS_MAX_ZOOM
+		);
 	});
 
 	function canAnimate(): boolean {
@@ -474,8 +483,9 @@
 				{ duration: TRAVEL_ARRIVE_MS, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
 			);
 		}
-		// The new family is in place: the next move may start while it is still settling.
-		travel = null;
+		// The new family is in place: the next move may start while it is still settling. Cleared a
+		// task later, so the plane stack's own settle (which runs after this) still sees the move.
+		setTimeout(() => (travel = null));
 	}
 
 	function diveTo(target: DiveTarget) {
@@ -513,6 +523,8 @@
 	 * so this listens first (in the capture phase) and only takes the events d3 would drop.
 	 */
 	function onWheel(event: WheelEvent) {
+		// The legend, the rail and the controls scroll as they always did.
+		if (!surfaceElement?.contains(event.target as Node)) return;
 		if (travel) {
 			event.preventDefault();
 			return;
