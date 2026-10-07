@@ -66,6 +66,20 @@
 	/** Blocks grow a little when zoomed far out so they stay a target, but never touch the next row. */
 	const blockHeight = $derived(Math.min(H * 1.6, Math.max(H, 22 / Math.max(zoom, 0.01))));
 
+	/**
+	 * Line weights and the focus mark are drawn in layout units, so a card seen at 0.3x would carry a
+	 * hairline. The multiplier tracks the level (whose type sizes already scale the same way) to keep
+	 * the focus mark about as heavy on screen at every zoom.
+	 */
+	const scale = $derived(level === 'block' ? 3 : level === 'compact' ? 2 : 1);
+	const frameHeight = $derived(level === 'block' ? blockHeight : H);
+	const frameRadius = $derived(level === 'block' ? 14 : 12);
+	/**
+	 * The second rule sits outside the frame: inside it collides with the sex symbol and a long name,
+	 * which already run close to the edge at every level.
+	 */
+	const ruleOutset = $derived(4 * scale);
+
 	const LONG_PRESS_MS = 500;
 	const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 
@@ -136,6 +150,7 @@
 	aria-disabled={isPrivate ? 'true' : undefined}
 	data-person-id={node.id}
 	data-level={level}
+	style="--scale: {scale}"
 	transform="translate({node.x}, {node.y})"
 	role="button"
 	tabindex={isActive ? 0 : -1}
@@ -214,6 +229,28 @@
 			</g>
 		{/if}
 	{/if}
+	{#if isFocus}
+		<!-- Drawn as marks of their own, not as a restyled frame: hover and selection both restyle the
+		     frame, and the focus person must still read when either applies. Decorative because
+		     aria-current already says it. -->
+		<rect
+			class="focus-rule"
+			x={-W / 2 - ruleOutset}
+			y={-frameHeight / 2 - ruleOutset}
+			width={W + ruleOutset * 2}
+			height={frameHeight + ruleOutset * 2}
+			rx={frameRadius + ruleOutset}
+			aria-hidden="true"
+		/>
+		<g
+			class="focus-tab"
+			transform="translate(0, {-frameHeight / 2 - ruleOutset})"
+			aria-hidden="true"
+		>
+			<rect x={-34 * scale} y={-17 * scale} width={68 * scale} height={20 * scale} rx={4 * scale} />
+			<text y={-3 * scale} text-anchor="middle" style="font-size: {11 * scale}px">Focus</text>
+		</g>
+	{/if}
 	<title>{accessibleName(node, relation)}</title>
 </g>
 
@@ -259,12 +296,35 @@
 		font-style: italic;
 		font-weight: 500;
 	}
-	.is-focus .frame {
-		stroke-width: 3.5;
+	/* The heavier ink frame is half of the focus mark (the outer rule and tab are the rest). The
+	   :hover twin is needed because the plain hover rule outranks this one and would thin the frame. */
+	.is-focus .frame,
+	.is-focus:hover .frame {
+		stroke: var(--tree-ink);
+		stroke-width: calc(3 * var(--scale));
 	}
-	.is-selected .frame {
+	.is-selected .frame,
+	.is-selected:hover .frame {
 		stroke: var(--tree-accent);
-		stroke-width: 3.5;
+		stroke-width: calc(3.5 * var(--scale));
+	}
+	.focus-rule {
+		fill: none;
+		stroke: var(--tree-ink);
+		stroke-width: calc(1.25 * var(--scale));
+		pointer-events: none;
+	}
+	.focus-tab {
+		pointer-events: none;
+	}
+	.focus-tab rect {
+		fill: var(--tree-ink);
+	}
+	.focus-tab text {
+		fill: var(--tree-bg);
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 	}
 	.card:focus-visible .frame {
 		stroke: var(--tree-focus-ring);

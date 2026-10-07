@@ -434,7 +434,10 @@ orange or amber notice.
 The unit of the tree. An SVG card tinted by the muted sex palette with a darker edge and a symbol at
 the top left, the name in 14px bold ink, then the birth surname and one line of dates in 12px muted
 ink. Hover thickens the edge from 1.75px to 3px; selection turns the edge teal at 3.5px; keyboard
-focus draws a 4px near-black edge. A private person is shown honestly as a dashed edge, italic name
+focus draws a 4px near-black edge. The focus person (the centre of the tree) is told by line and
+shape alone: a 3px stone-ink frame, a second ink rule just outside it (a mounted-print double rule)
+and a small ink "Focus" tab on the top edge. The marks are separate from the frame, so selection
+(teal) and hover change the frame without erasing them. Line weights scale with the level of detail. A private person is shown honestly as a dashed edge, italic name
 and 70% opacity, never removed without a trace. Zoomed out, the card compacts to a larger name and
 dates, then to a single initial.
 
