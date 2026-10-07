@@ -201,7 +201,11 @@
 			display: none;
 		}
 	}
+	/* A pinch never dives, so a touch screen is not told to keep zooming; the rail is the way. */
 	@media (pointer: coarse) {
+		.tip {
+			display: none;
+		}
 		.move {
 			min-height: 2.75rem;
 			justify-content: center;
