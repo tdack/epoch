@@ -31,6 +31,13 @@ describe('OffscreenMarkers', () => {
 		expect(names).toEqual(['3 relatives to the right, show them', '1 relative below, show them']);
 	});
 
+	it('places a side marker at its offset and leaves the others to their edge classes', () => {
+		render([{ ...right, offset: 420 }, below]);
+		const [side, bottom] = [...document.querySelectorAll('button')];
+		expect(side.style.top).toBe('420px');
+		expect(bottom.style.top).toBe('');
+	});
+
 	it('hands the marker back when activated', () => {
 		const onPan = render([right]);
 		document.querySelector('button')!.click();

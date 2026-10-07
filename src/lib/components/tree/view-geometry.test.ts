@@ -13,10 +13,10 @@ describe('offscreenMarkers', () => {
 	it('counts a card wholly outside, and ignores one that still shows a sliver', () => {
 		const people = [
 			{ x: 480, y: 300 }, // left edge at 430: wholly right of the 400px view
-			{ x: 440, y: 300 } // left edge at 390: ten pixels show
+			{ x: 440, y: 300 } // left edge at 390: ten pixels show, so the marker steps below it
 		];
 		expect(offscreenMarkers(people, identity, size, card)).toEqual([
-			{ direction: 'right', count: 1, pan: { x: 200 - 480, y: 0 } }
+			{ direction: 'right', count: 1, pan: { x: 200 - 480, y: 0 }, offset: 354 }
 		]);
 	});
 
@@ -51,6 +51,35 @@ describe('offscreenMarkers', () => {
 		expect(markers[0].direction).toBe('down');
 		// Outside on both axes, so the pan brings it in on both.
 		expect(markers[0].pan).toEqual({ x: 200 - 500, y: 300 - 1500 });
+	});
+
+	it('leaves the side marker at mid-height when no card shows beside that edge', () => {
+		const markers = offscreenMarkers([{ x: 600, y: 300 }], identity, size, card);
+		expect(markers[0].offset).toBe(300);
+	});
+
+	it('moves a side marker off a card that shows beside its edge', () => {
+		const people = [
+			{ x: 600, y: 300 }, // off to the right
+			{ x: 340, y: 300 } // on screen, spanning x 290 to 390 and y 275 to 325
+		];
+		const marker = offscreenMarkers(people, identity, size, card).find(
+			(m) => m.direction === 'right'
+		);
+		const offset = marker!.offset!;
+		// The marker needs 52px along the edge; none of it may fall on the card's 275..325.
+		expect(offset - 26).toBeGreaterThanOrEqual(325);
+	});
+
+	it('ignores cards that are not near the marker edge', () => {
+		const people = [
+			{ x: 600, y: 300 },
+			{ x: 150, y: 300 } // spans x 100 to 200, well clear of the right edge band
+		];
+		const marker = offscreenMarkers(people, identity, size, card).find(
+			(m) => m.direction === 'right'
+		);
+		expect(marker!.offset).toBe(300);
 	});
 
 	it('breaks a tie toward the horizontal axis', () => {

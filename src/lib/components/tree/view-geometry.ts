@@ -23,6 +23,70 @@ export interface OffscreenMarker {
 	count: number;
 	/** Screen pixels to add to the transform's x and y to bring the nearest of them into view. */
 	pan: { x: number; y: number };
+	/**
+	 * Left and right markers only: the screen y (px from the canvas top) of the marker's centre,
+	 * chosen to sit between the cards that show near that edge rather than on one.
+	 */
+	offset?: number;
+}
+
+/** Height a marker needs along its edge, with a gap each side; the touch size is the larger one. */
+const MARKER_SPAN_PX = 52;
+/** How far a left or right marker reaches in from its edge, including the inset. */
+const MARKER_DEPTH_PX = 56;
+/** Corners the chrome owns: the legend at the top left and the zoom bar at the bottom right. */
+const RESERVED_TOP_PX = 64;
+const RESERVED_BOTTOM_PX = 88;
+const OFFSET_STEP_PX = 8;
+
+/**
+ * Where on a vertical edge a marker covers the least of the cards that show beside it. A card
+ * under the marker loses its name, and the old fixed mid-height put it over whoever stood there.
+ * Falls back to the middle when nothing is free, which is the position the marker always had.
+ */
+function clearOffset(
+	side: 'left' | 'right',
+	centres: readonly { x: number; y: number }[],
+	transform: ViewTransform,
+	size: { width: number; height: number },
+	card: { width: number; height: number }
+): number {
+	const halfW = (card.width / 2) * transform.k;
+	const halfH = (card.height / 2) * transform.k;
+	const bandStart = side === 'left' ? 0 : size.width - MARKER_DEPTH_PX;
+	const bandEnd = bandStart + MARKER_DEPTH_PX;
+	const covered: [number, number][] = [];
+	for (const centre of centres) {
+		const sx = transform.x + centre.x * transform.k;
+		const sy = transform.y + centre.y * transform.k;
+		const isInBand = sx + halfW > bandStart && sx - halfW < bandEnd;
+		const isOnScreen = sy + halfH > 0 && sy - halfH < size.height;
+		if (isInBand && isOnScreen) covered.push([sy - halfH, sy + halfH]);
+	}
+
+	const middle = size.height / 2;
+	const lowest = RESERVED_TOP_PX + MARKER_SPAN_PX / 2;
+	const highest = size.height - RESERVED_BOTTOM_PX - MARKER_SPAN_PX / 2;
+	if (covered.length === 0 || highest < lowest) return middle;
+
+	let best = middle;
+	let bestOverlap = Infinity;
+	for (let y = lowest; y <= highest; y += OFFSET_STEP_PX) {
+		const top = y - MARKER_SPAN_PX / 2;
+		const bottom = y + MARKER_SPAN_PX / 2;
+		const overlap = covered.reduce(
+			(sum, [from, to]) => sum + Math.max(0, Math.min(bottom, to) - Math.max(top, from)),
+			0
+		);
+		const isBetter =
+			overlap < bestOverlap ||
+			(overlap === bestOverlap && Math.abs(y - middle) < Math.abs(best - middle));
+		if (isBetter) {
+			best = y;
+			bestOverlap = overlap;
+		}
+	}
+	return best;
 }
 
 const DIRECTION_ORDER: readonly EdgeDirection[] = [
@@ -92,7 +156,16 @@ export function offscreenMarkers(
 
 	return DIRECTION_ORDER.flatMap((direction) => {
 		const group = groups.get(direction);
-		return group ? [{ direction, count: group.count, pan: group.pan }] : [];
+		if (!group) return [];
+		const isSide = direction === EDGE_DIRECTIONS.LEFT || direction === EDGE_DIRECTIONS.RIGHT;
+		return [
+			{
+				direction,
+				count: group.count,
+				pan: group.pan,
+				...(isSide ? { offset: clearOffset(direction, centres, transform, size, card) } : {})
+			}
+		];
 	});
 }
 
