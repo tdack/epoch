@@ -372,7 +372,9 @@
 
 		<button
 			type="button"
-			class="{controlClass} justify-center {isNarrow ? 'min-h-11' : ''}"
+			class="{controlClass} justify-center disabled:cursor-default disabled:opacity-50 disabled:hover:bg-white {isNarrow
+				? 'min-h-11'
+				: ''}"
 			disabled={changeCount === 0}
 			onclick={() => onChange(displayDefaults(view.layoutMode))}
 		>
