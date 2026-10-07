@@ -1,6 +1,6 @@
 import { and, eq, gt, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { researchTasks, treeInvitations, treeMemberships, users } from '../db/schema';
+import { researchTasks, treeInvitations, treeMemberships, trees, users } from '../db/schema';
 import type { TreeRole } from '../../shared/roles';
 
 export interface MemberRow {
@@ -114,6 +114,15 @@ export class MemberRepository {
 				)
 		]);
 		return removed.length > 0;
+	}
+
+	async getTreeName(treeId: string): Promise<string | null> {
+		const rows = await this.db
+			.select({ name: trees.name })
+			.from(trees)
+			.where(eq(trees.id, treeId))
+			.limit(1);
+		return rows[0]?.name ?? null;
 	}
 
 	async isMemberEmail(treeId: string, email: string): Promise<boolean> {

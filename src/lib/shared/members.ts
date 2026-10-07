@@ -16,12 +16,18 @@ export interface MemberDto {
 	canManage: boolean;
 }
 
-export interface InvitationDto {
+interface InvitationDto {
 	id: string;
 	email: string;
 	role: TreeRole;
 	expiresAt: string;
 	isExpired: boolean;
+}
+
+/** What inviting answers: the offer, and whether the email telling them about it was sent. */
+export interface InvitationSentDto extends InvitationDto {
+	/** False when there is no mailer or the send failed; the invitation exists either way. */
+	wasEmailSent: boolean;
 }
 
 export interface MembersDto {

@@ -38,7 +38,7 @@ import type { SearchResponse } from '#lib/shared/search.js';
 import type { MarksDto } from '#lib/shared/marks.js';
 import type { PersonPrivacy } from '#lib/shared/privacy.js';
 import type { PrivacySettingsDto } from '#lib/shared/privacy.js';
-import type { InvitationDto, MemberDto, MembersDto } from '#lib/shared/members.js';
+import type { InvitationSentDto, MemberDto, MembersDto } from '#lib/shared/members.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import type { RelationshipDto } from '#lib/shared/kinship.js';
 import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
@@ -727,7 +727,7 @@ export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | nul
 	);
 }
 
-export type { InvitationDto, MemberDto, MembersDto };
+export type { InvitationSentDto, MemberDto, MembersDto };
 
 export async function fetchMembers(
 	treeId: string,
@@ -745,7 +745,7 @@ export async function inviteMemberApi(
 	treeId: string,
 	email: string,
 	role: TreeRole
-): Promise<InvitationDto> {
+): Promise<InvitationSentDto> {
 	return call(
 		`/api/trees/${enc(treeId)}/invitations`,
 		json('POST', { email, role }),

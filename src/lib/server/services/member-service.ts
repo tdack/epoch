@@ -18,7 +18,9 @@ import type { TreeRole } from '../../shared/roles';
 import { requireTreeAction } from './tree-access';
 import { MemberRepository } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { type InvitationDto, type MemberDto, type MembersDto } from '../../shared/members';
+import { type InvitationSentDto, type MemberDto, type MembersDto } from '../../shared/members';
+import { Logger } from '../logging/logger';
+import type { InvitationMailer } from './invitation-mailer';
 
 export const INVITATION_TTL_DAYS = 14;
 
@@ -30,7 +32,9 @@ export class MemberService {
 
 	constructor(
 		db: DbClient,
-		private now: () => Date = () => new Date()
+		private now: () => Date = () => new Date(),
+		/** Absent where nothing can send (unit tests, a bare preview); invitations are then only saved. */
+		private mailer?: InvitationMailer
 	) {
 		this.members = new MemberRepository(db);
 		this.users = new UserRepository(db);
@@ -69,12 +73,16 @@ export class MemberService {
 		};
 	}
 
-	/** Offer `role` to an email address; replaces an earlier offer to the same address. */
+	/**
+	 * Offer `role` to an email address; replaces an earlier offer to the same address. The email is
+	 * sent after the offer is saved and a failure to send never undoes it: the manager is told and
+	 * can let the person know another way (ADR-031).
+	 */
 	async invite(
 		treeId: string,
 		input: { email: string; role: TreeRole },
 		context: AuthenticatedContext
-	): Promise<InvitationDto> {
+	): Promise<InvitationSentDto> {
 		const actor = await this.requireManager(treeId, context);
 		const email = input.email.trim().toLowerCase();
 		if (!EMAIL_PATTERN.test(email)) throw new ValidationError('Enter a valid email address');
@@ -93,13 +101,42 @@ export class MemberService {
 			expiresAt,
 			now
 		});
+		const wasEmailSent = await this.sendInvitationEmail(treeId, saved, context);
 		return {
 			id: saved.id,
 			email: saved.email,
 			role: saved.role,
 			expiresAt: saved.expiresAt.toISOString(),
-			isExpired: false
+			isExpired: false,
+			wasEmailSent
 		};
+	}
+
+	private async sendInvitationEmail(
+		treeId: string,
+		saved: { email: string; role: TreeRole; expiresAt: Date },
+		context: AuthenticatedContext
+	): Promise<boolean> {
+		if (!this.mailer) return false;
+		try {
+			await this.mailer.sendInvitation({
+				to: saved.email,
+				inviterName: context.user.name?.trim() || context.user.email,
+				treeId,
+				treeName: (await this.members.getTreeName(treeId)) ?? 'a family tree',
+				role: saved.role,
+				expiresAt: saved.expiresAt
+			});
+			return true;
+		} catch (cause) {
+			// The address is left out of the log: it is personal data and the code says what went wrong.
+			new Logger({ correlationId: context.correlationId, treeId }).error(
+				'Invitation email was not sent',
+				cause,
+				{ code: (cause as { code?: unknown } | null)?.code }
+			);
+			return false;
+		}
 	}
 
 	async revokeInvitation(

@@ -4,7 +4,7 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { treeInvitations, treeMemberships } from '../db/schema';
 import {
 	ConcurrencyConflictError,
@@ -23,6 +23,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { ListService } from './list-service';
+import type { InvitationEmail, InvitationMailer } from './invitation-mailer';
 import { INVITATION_TTL_DAYS, MemberService } from './member-service';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
@@ -188,6 +189,90 @@ describe('inviting', () => {
 		await expect(
 			service().revokeInvitation(other.treeId, big.id, other.actors.owner.context)
 		).rejects.toBeInstanceOf(NotFoundError);
+	});
+});
+
+describe('emailing an invitation', () => {
+	const pendingFor = async (email: string) =>
+		(await t.db.select().from(treeInvitations).where(eq(treeInvitations.email, email))).length;
+
+	it('sends it after saving, to the invited address, with the offer and who made it', async () => {
+		const { treeId, actors } = await tree();
+		const sent: InvitationEmail[] = [];
+		const mailer: InvitationMailer = {
+			sendInvitation: async (invitation) => {
+				// Saved before it is sent, so a failure here could never take the offer with it.
+				expect(await pendingFor('mail1@example.com')).toBe(1);
+				sent.push(invitation);
+			}
+		};
+		const dto = await new MemberService(t.db, () => clockNow, mailer).invite(
+			treeId,
+			{ email: ' Mail1@Example.com ', role: 'editor' },
+			actors.manager.context
+		);
+		expect(dto.wasEmailSent).toBe(true);
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).toMatchObject({
+			to: 'mail1@example.com',
+			inviterName: 'manager',
+			treeId,
+			role: 'editor',
+			expiresAt: new Date(NOW.getTime() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000)
+		});
+		expect(sent[0]!.treeName).toMatch(/^Test tree /);
+	});
+
+	it('sends again on a re-invite, with the replacing role', async () => {
+		const { treeId, actors } = await tree();
+		const roles: TreeRole[] = [];
+		const mailer: InvitationMailer = { sendInvitation: async (i) => void roles.push(i.role) };
+		const svc = new MemberService(t.db, () => clockNow, mailer);
+		await svc.invite(
+			treeId,
+			{ email: 'mail2@example.com', role: 'viewer' },
+			actors.manager.context
+		);
+		await svc.invite(
+			treeId,
+			{ email: 'mail2@example.com', role: 'editor' },
+			actors.manager.context
+		);
+		expect(roles).toEqual(['viewer', 'editor']);
+		expect(await pendingFor('mail2@example.com')).toBe(1);
+	});
+
+	it('keeps the invitation when the email fails, and says it was not sent', async () => {
+		const { treeId, actors } = await tree();
+		const mailer: InvitationMailer = {
+			sendInvitation: async () => {
+				throw Object.assign(new Error('nope'), { code: 'E_SENDER_NOT_VERIFIED' });
+			}
+		};
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const dto = await new MemberService(t.db, () => clockNow, mailer).invite(
+			treeId,
+			{ email: 'mail3@example.com', role: 'viewer' },
+			actors.manager.context
+		);
+		expect(dto.wasEmailSent).toBe(false);
+		expect(await pendingFor('mail3@example.com')).toBe(1);
+		const logged = errors.mock.calls.map((c) => String(c[0])).join('\n');
+		expect(logged).toContain('E_SENDER_NOT_VERIFIED');
+		expect(logged).toContain(actors.manager.context.correlationId);
+		expect(logged).not.toContain('mail3@example.com');
+		errors.mockRestore();
+	});
+
+	it('only saves it when there is no mailer', async () => {
+		const { treeId, actors } = await tree();
+		const dto = await service().invite(
+			treeId,
+			{ email: 'mail4@example.com', role: 'viewer' },
+			actors.manager.context
+		);
+		expect(dto.wasEmailSent).toBe(false);
+		expect(await pendingFor('mail4@example.com')).toBe(1);
 	});
 });
 
