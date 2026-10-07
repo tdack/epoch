@@ -48,11 +48,21 @@
 		 * fade; the first draw and a viewer who prefers reduced motion get none.
 		 */
 		settleKey?: string;
+		/** False while the caller animates the change itself, so the two motions do not stack. */
+		shouldSettle?: boolean;
 		/** The content of one plane: SVG elements in the plane's own coordinates. */
 		plane: Snippet<[PlaneSpec]>;
 	}
 
-	let { planes, connectors, camera, transform, settleKey, plane }: Props = $props();
+	let {
+		planes,
+		connectors,
+		camera,
+		transform,
+		settleKey,
+		shouldSettle = true,
+		plane
+	}: Props = $props();
 
 	const SETTLE_MS = 320;
 	let rootElement: HTMLDivElement | null = $state(null);
@@ -65,7 +75,7 @@
 		untrack(() => {
 			const isFirst = lastSettleKey === undefined;
 			lastSettleKey = key;
-			if (isFirst || !rootElement || typeof matchMedia !== 'function') return;
+			if (isFirst || !shouldSettle || !rootElement || typeof matchMedia !== 'function') return;
 			if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 			for (const el of rootElement.querySelectorAll('.content, .connector')) {
 				el.animate([{ opacity: 0.25 }, { opacity: 1 }], {
@@ -97,6 +107,7 @@
 			{#each planes as spec (spec.key)}
 				<div
 					class="plane"
+					data-plane-key={spec.key}
 					style:transform="translate3d({spec.offset?.x ?? 0}px, {spec.offset?.y ?? 0}px, {spec.z}px)"
 				>
 					<div
