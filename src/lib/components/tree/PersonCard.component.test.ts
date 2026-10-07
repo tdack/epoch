@@ -21,8 +21,8 @@ const node = {
 } as unknown as PlacedPerson;
 
 function render(level: LevelOfDetail, isFocus: boolean, isSelected = false) {
-	const target = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-	document.body.append(target);
+	document.body.innerHTML = '<svg></svg>';
+	const target = document.querySelector('svg')!;
 	component = mount(PersonCard, {
 		target,
 		props: {
