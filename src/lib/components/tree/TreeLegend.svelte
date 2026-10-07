@@ -17,7 +17,7 @@
 </script>
 
 <details class="legend">
-	<summary>Legend</summary>
+	<summary class="focus-ring">Legend</summary>
 
 	<p class="heading">Sex</p>
 	{#each sexes as sex (sex.name)}
@@ -83,7 +83,7 @@
 		border: 1px solid var(--tree-panel-border);
 		border-radius: 12px;
 		padding: 8px 12px;
-		font-size: 11px;
+		font-size: 0.75rem;
 		color: var(--tree-ink);
 		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
 		max-height: 100%;
@@ -93,8 +93,8 @@
 		cursor: pointer;
 		font-weight: 700;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		font-size: 10px;
+		letter-spacing: 0.05em;
+		font-size: 0.75rem;
 		color: var(--tree-ink-muted);
 	}
 	.heading {

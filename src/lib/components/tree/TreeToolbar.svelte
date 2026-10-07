@@ -127,9 +127,9 @@
 		`flex items-center gap-2 ${isNarrow ? 'min-h-11' : 'min-h-7 coarse:min-h-11'}`
 	);
 	const controlClass =
-		'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-ring coarse:min-h-11';
-	const captionClass = 'text-[13px] font-semibold text-stone-600';
-	const headingClass = 'text-[11px] font-semibold tracking-wider text-stone-500 uppercase';
+		'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-ring coarse:min-h-11';
+	const captionClass = 'text-xs font-semibold text-stone-600';
+	const headingClass = 'text-xs font-bold tracking-wide text-stone-600 uppercase';
 	const hintClass = 'pb-1 text-xs leading-snug text-stone-600';
 	const itemClass =
 		'menu-item flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs font-medium';
@@ -171,10 +171,10 @@
 		{#each shownModes as mode (mode)}
 			<button
 				type="button"
-				class="cursor-pointer px-3 text-[13px] font-semibold focus-ring-inset {isNarrow
+				class="cursor-pointer px-3 text-xs font-semibold focus-ring-inset {isNarrow
 					? 'min-h-11 flex-1'
 					: 'py-1.5 coarse:min-h-11'} {view.layoutMode === mode
-					? 'bg-stone-900 text-[#fdfbf7]'
+					? 'bg-emerald-800 text-amber-50 focus-visible:outline-amber-50'
 					: 'text-stone-800 hover:bg-stone-100'}"
 				aria-pressed={view.layoutMode === mode}
 				onclick={() => onChange({ layoutMode: mode })}
@@ -191,7 +191,7 @@
 	onToggle: (checked: boolean) => void,
 	hint?: string
 )}
-	<label class="{rowClass} cursor-pointer text-[13px]">
+	<label class="{rowClass} cursor-pointer text-xs">
 		<input
 			type="checkbox"
 			class="focus-ring {isNarrow ? 'h-5 w-5' : 'coarse:h-5 coarse:w-5'}"
@@ -242,7 +242,7 @@
 {/snippet}
 
 {#snippet displayPanel()}
-	<div class="grid gap-3 text-[13px] {isNarrow ? '' : 'p-3'}">
+	<div class="grid gap-3 text-xs {isNarrow ? '' : 'p-3'}">
 		{#if isNarrow}
 			<section class="grid gap-1">
 				<h3 class={headingClass}>Layout</h3>
@@ -382,7 +382,7 @@
 {/snippet}
 
 <div
-	class="flex items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-[13px] text-stone-900"
+	class="flex items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-xs text-stone-900"
 	role="toolbar"
 	aria-label="Tree view controls"
 	style={treeTokenStyle()}

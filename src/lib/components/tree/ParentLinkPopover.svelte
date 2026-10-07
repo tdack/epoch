@@ -150,7 +150,7 @@
 	}
 	.type {
 		display: block;
-		font-size: 11px;
+		font-size: 0.75rem;
 		color: var(--tree-ink-muted);
 	}
 	select {

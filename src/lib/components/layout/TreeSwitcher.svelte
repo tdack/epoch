@@ -78,7 +78,7 @@
 	{/snippet}
 
 	{#if trees.length > 0}
-		<p class="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+		<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
 			Your trees
 		</p>
 		{#each trees as t (t.id)}

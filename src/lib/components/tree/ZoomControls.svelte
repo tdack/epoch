@@ -42,7 +42,7 @@
 	>
 		<Maximize2 class="h-4 w-4" />
 	</button>
-	<span class="px-1 text-[11px] text-stone-500 tabular-nums" aria-live="off"
+	<span class="px-1 text-xs text-stone-600 tabular-nums" aria-live="off"
 		>{Math.round(scale * 100)}%</span
 	>
 </div>

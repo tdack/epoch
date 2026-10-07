@@ -87,7 +87,7 @@
 			</button>
 		{/snippet}
 		<div role="group" aria-label="Research">
-			<p class="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+			<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
 				Research
 			</p>
 			{#each research as link (link.href)}
@@ -101,9 +101,7 @@
 		</div>
 		{#if manage.length > 0}
 			<div role="group" aria-label="Manage" class="mt-1 border-t border-stone-200">
-				<p
-					class="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-stone-500 uppercase"
-				>
+				<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
 					Manage
 				</p>
 				{#each manage as link (link.href)}

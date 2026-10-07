@@ -56,7 +56,13 @@
 		{#if item.isDanger && index > 0 && !items[index - 1].isDanger}
 			<div class="divider" role="separator"></div>
 		{/if}
-		<button type="button" role="menuitem" class:danger={item.isDanger} onclick={() => run(item)}>
+		<button
+			type="button"
+			role="menuitem"
+			class="menu-item"
+			class:danger={item.isDanger}
+			onclick={() => run(item)}
+		>
 			{item.label}
 		</button>
 	{/each}
@@ -68,11 +74,11 @@
 		z-index: 30;
 		min-width: 11rem;
 		padding: 4px 0;
-		background: white;
+		background: var(--tree-panel);
 		border: 1px solid var(--tree-panel-border);
 		border-radius: 8px;
 		box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
-		font-size: 14px;
+		font-size: 0.875rem;
 	}
 	button {
 		display: block;
@@ -81,11 +87,6 @@
 		text-align: left;
 		color: var(--tree-ink);
 		cursor: pointer;
-	}
-	button:hover,
-	button:focus-visible {
-		background: #f5f5f4;
-		outline: none;
 	}
 	button.danger {
 		color: #b91c1c;

@@ -483,7 +483,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={containerElement}
-	class="tree-canvas relative h-[max(28rem,calc(100vh-22rem))] w-full overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
+	class="tree-canvas relative min-h-[28rem] w-full flex-1 overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
 	style="{treeTokenStyle()}; background: var(--tree-bg);"
 	role="application"
 	aria-label="Family tree"
@@ -498,7 +498,7 @@
 
 	<svg
 		bind:this={svgElement}
-		class="relative z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
+		class="absolute inset-0 z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
 		aria-hidden={layout.people.length === 0 ? 'true' : undefined}
 		onpointerup={onSvgPointerUp}
 		onpointercancel={() => (dragSourceId = null)}
@@ -680,7 +680,7 @@
 		>
 			<Maximize2 class="h-4 w-4" />
 		</button>
-		<span class="px-1 text-[11px] text-stone-500 tabular-nums" aria-live="off"
+		<span class="px-1 text-xs text-stone-600 tabular-nums" aria-live="off"
 			>{Math.round(transform.k * 100)}%</span
 		>
 	</div>

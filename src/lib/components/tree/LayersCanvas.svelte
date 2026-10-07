@@ -365,7 +365,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={containerElement}
-	class="tree-canvas layers-canvas relative h-[max(28rem,calc(100vh-22rem))] w-full overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
+	class="tree-canvas layers-canvas relative min-h-[28rem] w-full flex-1 overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
 	style="{treeTokenStyle()}; background: var(--tree-bg);"
 	role="application"
 	aria-label="Family tree, layers view"
@@ -381,7 +381,7 @@
 
 	<div
 		bind:this={surfaceElement}
-		class="scene surface relative z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
+		class="scene surface absolute inset-0 z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
 	>
 		<PlaneStack
 			{planes}
@@ -618,10 +618,11 @@
 		font-weight: 600;
 		cursor: pointer;
 	}
+	/* The same selected state as the toolbar's layout buttons: emerald marks what is chosen. */
 	.view[aria-pressed='true'] {
-		background: var(--tree-ink);
-		border-color: var(--tree-ink);
-		color: var(--tree-panel);
+		background: var(--color-emerald-800);
+		border-color: var(--color-emerald-800);
+		color: var(--color-amber-50);
 	}
 	.view:focus-visible {
 		outline: 2px solid var(--tree-focus-ring);
