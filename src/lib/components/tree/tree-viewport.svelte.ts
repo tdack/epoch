@@ -233,6 +233,12 @@ export class TreeViewport {
 		if (layout.people.length > 0) this.moveTo(this.frameTransform(layout), { isAnimated });
 	}
 
+	/** Slide the view by screen pixels, building on a running animation so repeated taps walk on. */
+	panBy(dx: number, dy: number) {
+		const base = this.animationTarget ?? this.transform;
+		this.moveTo(base.translate(dx / base.k, dy / base.k), { isAnimated: true });
+	}
+
 	/** Pan just enough to bring a card centred at (x, y) fully into view. */
 	ensureVisible(x: number, y: number) {
 		if (!this.svg) return;

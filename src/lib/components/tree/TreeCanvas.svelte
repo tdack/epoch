@@ -12,6 +12,7 @@
 		type TreeLayout
 	} from '#lib/tree-layout/index.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
+	import OffscreenMarkers from './OffscreenMarkers.svelte';
 	import ParentLinkPopover from './ParentLinkPopover.svelte';
 	import PersonCard from './PersonCard.svelte';
 	import TreeContextMenu from './TreeContextMenu.svelte';
@@ -29,7 +30,7 @@
 		type TreeEditActions
 	} from './tree-actions.js';
 	import { TreeViewport } from './tree-viewport.svelte.js';
-	import { FIT_ACTIONS } from './view-geometry.js';
+	import { FIT_ACTIONS, offscreenMarkers, type OffscreenMarker } from './view-geometry.js';
 	import {
 		isEndedUnion,
 		levelOfDetail,
@@ -145,6 +146,15 @@
 	/** Card the user last moved to with the arrow keys, remembered for the focus it was chosen under. */
 	let keyboardCursor = $state<{ focusId: string | null; personId: string } | null>(null);
 
+	const markers = $derived(
+		layout.people.length > 0
+			? offscreenMarkers(layout.people, transform, size, {
+					width: LAYOUT_METRICS.cardWidth,
+					height: LAYOUT_METRICS.cardHeight
+				})
+			: []
+	);
+
 	const level = $derived(levelOfDetail(transform.k));
 	const peopleById = $derived(new Map(layout.people.map((p) => [p.id, p])));
 	const unionById = $derived(new Map(layout.unions.map((u) => [u.id, u])));
@@ -228,6 +238,10 @@
 		const current = layout;
 		untrack(() => viewport.reframe(key, current, containerElement?.querySelector('.scene')));
 	});
+
+	function panToward(marker: OffscreenMarker) {
+		viewport.panBy(marker.pan.x, marker.pan.y);
+	}
 
 	/** Pan just enough to bring a card fully into view. */
 	function ensureVisible(personId: string) {
@@ -693,6 +707,8 @@
 			>{Math.round(transform.k * 100)}%</span
 		>
 	</div>
+
+	<OffscreenMarkers {markers} onPan={panToward} />
 
 	{#if menu}
 		<TreeContextMenu items={menu.items} x={menu.x} y={menu.y} onClose={closeMenu} />
