@@ -164,6 +164,15 @@
 		<text class="initial" y="0" text-anchor="middle" dominant-baseline="central">
 			{blockLabel(person.displayName)}
 		</text>
+		<!-- Mirrors the dagger: sex is told by a symbol as well as the tint (Line Before Hue). Decorative
+		     because the card's name already carries everything the symbol does for a screen reader. -->
+		<text
+			class="symbol-block"
+			x={-W / 2 + 15}
+			y={-blockHeight / 2 + 24}
+			text-anchor="middle"
+			aria-hidden="true">{sexSymbol(person.sex)}</text
+		>
 		{#if person.isDeceased}
 			<text class="dagger-block" x={W / 2 - 14} y={-blockHeight / 2 + 30} text-anchor="middle"
 				>†</text
@@ -175,6 +184,10 @@
 			{truncate(shown.name, 15)}
 		</text>
 		<text class="dates-compact" x="0" y="24" text-anchor="middle">{yearsLine(person)}</text>
+		<!-- On the dates row: the name can run the card's full width, the years rarely do. -->
+		<text class="symbol-compact" x={-W / 2 + 20} y="24" text-anchor="middle" aria-hidden="true"
+			>{sexSymbol(person.sex)}</text
+		>
 	{:else}
 		<rect class="frame" x={-W / 2} y={-H / 2} width={W} height={H} rx="12" />
 		<text class="symbol" x={-W / 2 + 18} y={-H / 2 + 30} text-anchor="middle"
@@ -284,6 +297,15 @@
 		fill: var(--tree-ink);
 		font-size: 48px;
 		font-weight: 700;
+	}
+	.symbol-compact {
+		fill: var(--tree-ink-muted);
+		font-size: 22px;
+	}
+	.symbol-block {
+		fill: var(--tree-ink-muted);
+		/* Smaller than the dagger and set higher, so a six-letter initial still clears it. */
+		font-size: 24px;
 	}
 	.dagger-block {
 		fill: var(--tree-ink-muted);
