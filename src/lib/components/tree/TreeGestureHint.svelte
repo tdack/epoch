@@ -5,13 +5,18 @@
 		/** Whether the viewer may relate two people, so the drag gesture is worth mentioning. */
 		canRelate: boolean;
 		/**
+		 * Whether the context menu offers anything beyond "Show details", which double-click already
+		 * does. A viewer's menu holds only that, so the hint does not send them to it.
+		 */
+		hasMenuActions: boolean;
+		/**
 		 * Float over the top of the chart as one line instead of taking a row above it. On a phone that
 		 * row is height the chart needs, and the hint matters only until it is read once.
 		 */
 		isOverlay?: boolean;
 	}
 
-	let { canRelate, isOverlay = false }: Props = $props();
+	let { canRelate, hasMenuActions, isOverlay = false }: Props = $props();
 
 	const STORAGE_KEY = 'epoch.tree-gesture-hint.dismissed';
 
@@ -58,7 +63,8 @@
 			{:else}
 				<strong class="font-semibold text-stone-900">Click</strong> a person to centre the tree on
 				them. <strong class="font-semibold text-stone-900">Double-click</strong> to see their
-				details, or <strong class="font-semibold text-stone-900">right-click</strong> for more.
+				details{#if hasMenuActions}, or
+					<strong class="font-semibold text-stone-900">right-click</strong> for more{/if}.
 				{#if canRelate}Drag one person onto another to relate them.{/if}
 			{/if}
 		</p>

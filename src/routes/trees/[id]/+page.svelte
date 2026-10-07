@@ -506,7 +506,10 @@
 					)}
 			/>
 		</div>
-		{#if !isPhone}<TreeGestureHint canRelate={canCreate} />{/if}
+		{#if !isPhone}<TreeGestureHint
+				canRelate={canCreate}
+				hasMenuActions={canCreate || canChange}
+			/>{/if}
 		{#if isFloorsOnPhone}
 			<p class="mb-2 text-sm text-stone-600" role="note">
 				Floors needs a wider screen, so this shows the flat view.
@@ -516,7 +519,11 @@
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
 			<!-- Before the canvases so the legend, drawn later, stays above it. -->
-			{#if isPhone}<TreeGestureHint canRelate={canCreate} isOverlay />{/if}
+			{#if isPhone}<TreeGestureHint
+					canRelate={canCreate}
+					hasMenuActions={canCreate || canChange}
+					isOverlay
+				/>{/if}
 			{#if layersLayout}
 				<LayersCanvas
 					layout={layersLayout}
