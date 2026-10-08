@@ -76,11 +76,35 @@ export const RING_TOKENS = {
 /** How far an unlit sphere and line fade, and how see-through a generation's disc is. */
 export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as const;
 
+/**
+ * Colours and sizes of the Ball view, the unit ball of calendar time.
+ * Owned by the Ball view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const POINCARE_TOKENS = {
+	stage: TREE_TOKENS['--tree-bg']
+} as const;
+
 /** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */
 export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5 } as const;
+
+/**
+ * Colours and sizes of the Ribbons view, lineages as tubes meeting at union knots.
+ * Owned by the Ribbons view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const RIBBON_TOKENS = {
+	stage: TREE_TOKENS['--tree-bg']
+} as const;
 
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
 		.map(([name, value]) => `${name}:${value}`)
 		.join(';');
 }
+
+/**
+ * Colours and sizes of the Orrery view, a star cluster of partners and their children.
+ * Owned by the Orrery view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const ORRERY_TOKENS = {
+	stage: TREE_TOKENS['--tree-bg']
+} as const;
