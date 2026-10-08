@@ -70,8 +70,8 @@ The current brand is settled and must be kept:
 
 ## Evidence on Hand
 
-- Fixture trees: `docs/The_Simpsons.ged`, `docs/The_Simpsons_clean.ged` (seeded as "The Simpsons"),
-  `docs/The_Names_fixture.ged`.
+- Fixture trees: `docs/gedcom-data/The_Simpsons.ged`, `docs/gedcom-data/The_Simpsons_clean.ged` (seeded as "The Simpsons"),
+  `docs/gedcom-data/The_Names_fixture.ged`.
 - Brand assets in `static/brand/` (icons, maskable and monochrome icons, Open Graph image, splash
   photograph, web manifest).
 - Architecture decisions in `docs/decisions.md` (ADR-001 onward).

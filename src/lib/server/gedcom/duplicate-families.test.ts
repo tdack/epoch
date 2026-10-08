@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import dirty from '../../../../docs/The_Simpsons.ged?raw';
-import clean from '../../../../docs/The_Simpsons_clean.ged?raw';
+import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
+import clean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
 import { detectDuplicateFamilies, mergeExactDuplicateFamilies } from './duplicate-families';
 import { POSSIBLE_DUPLICATE_REASONS } from '../../shared/duplicate-families';
 import { parseGedcom } from './parser';

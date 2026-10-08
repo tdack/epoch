@@ -11,7 +11,12 @@
 		type LayoutMode,
 		type TreeViewState
 	} from './tree-url.js';
-	import { layoutModeChoices } from '#lib/shared/view-mode.js';
+	import {
+		VIEW_MODE_TRAITS,
+		WEBGL_LAYOUT_MODES,
+		layoutModeChoices,
+		parseLayoutMode
+	} from '#lib/shared/view-mode.js';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
@@ -64,7 +69,10 @@
 		flat: 'Flat',
 		layers: 'Layers',
 		floors: 'Floors',
-		rings: 'Rings'
+		rings: 'Rings',
+		poincare: 'Ball',
+		ribbons: 'Ribbons',
+		orrery: 'Orrery'
 	};
 	/** What each layout draws, in a relative's words: the labels alone were the tool's own names. */
 	const MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
@@ -73,7 +81,13 @@
 			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
 		floors: 'One floor for each generation, the oldest at the top.',
 		rings:
-			'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.'
+			'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.',
+		poincare:
+			'A glass ball with the family inside it. Height is the calendar, the oldest at the top; the wider a generation, the nearer its people sit to the glass.',
+		ribbons:
+			'Each person is a ribbon of descent. A couple’s ribbons meet at a glowing knot, and their children’s ribbons branch out from it like a river delta.',
+		orrery:
+			'A star cluster. Partners circle each other as a pair of stars, and their children circle the pair.'
 	};
 	const uid = $props.id();
 	const hintId = (title: string) => `${uid}-${title.replace(/\W+/g, '-')}-hint`;
@@ -96,13 +110,42 @@
 	 * visible and can be left.
 	 */
 	const shownModes = $derived(layoutModeChoices(view.layoutMode));
+	/** Flat, plus a withdrawn view while it is in force: the segments beside the 3D button. */
+	const plainModes = $derived(shownModes.filter((mode) => !VIEW_MODE_TRAITS[mode].isWebGl));
+	const webGlModes = $derived(shownModes.filter((mode) => VIEW_MODE_TRAITS[mode].isWebGl));
+
+	const LAST_3D_KEY = 'epoch:last-3d-view';
+	/** The 3D view the 3D button returns to: the one in force, else the last one used, else Rings. */
+	let rememberedMode = $state<LayoutMode>(LAYOUT_MODES.RINGS);
+	let isPickerOpen = $state(false);
+	$effect(() => {
+		try {
+			const stored = parseLayoutMode(localStorage.getItem(LAST_3D_KEY));
+			if (stored && WEBGL_LAYOUT_MODES.includes(stored)) rememberedMode = stored;
+		} catch {
+			// Storage can be blocked; the 3D button then simply starts at Rings.
+		}
+	});
+	const threeDMode = $derived(
+		VIEW_MODE_TRAITS[view.layoutMode].isWebGl ? view.layoutMode : rememberedMode
+	);
+	function chooseThreeD(mode: LayoutMode) {
+		rememberedMode = mode;
+		try {
+			localStorage.setItem(LAST_3D_KEY, mode);
+		} catch {
+			// The choice still applies for this visit.
+		}
+		isPickerOpen = false;
+		onChange({ layoutMode: mode });
+	}
 	const isLayers = $derived(view.layoutMode === LAYOUT_MODES.LAYERS);
 	const hasPartnerChoice = $derived(isLayers && unionChoices.length > 1);
 	const partnerLabel = $derived(
 		hasPartnerChoice ? unionChoices.find((c) => c.id === focusUnionId)?.label : undefined
 	);
 	const changeCount = $derived(countDisplayChanges(view));
-	const canShowWiderGroups = $derived(view.layoutMode !== LAYOUT_MODES.FLAT);
+	const canShowWiderGroups = $derived(VIEW_MODE_TRAITS[view.layoutMode].hasWiderGroups);
 
 	function setDepth(field: 'ancestorDepth' | 'descendantDepth', value: number) {
 		onChange({ [field]: Math.min(MAX_DEPTH, Math.max(0, value)) });
@@ -163,25 +206,92 @@
 {/snippet}
 
 {#snippet layoutControl()}
+	{@const segmentClass = (isOn: boolean) =>
+		`cursor-pointer px-3 text-xs font-semibold focus-ring-inset ${
+			isNarrow ? 'min-h-11 flex-1' : 'py-1.5 coarse:min-h-11'
+		} ${
+			isOn
+				? 'bg-emerald-800 text-amber-50 focus-visible:outline-amber-50'
+				: 'text-stone-800 hover:bg-stone-100'
+		}`}
+	<!-- Focus leaving the whole control closes the picker; Escape closes it without closing a sheet. -->
 	<div
-		class="inline-flex overflow-hidden rounded-lg border border-stone-300 bg-white"
-		role="group"
-		aria-label="Layout"
+		class="relative {isNarrow ? 'w-full' : ''}"
+		role="presentation"
+		onfocusout={(event) => {
+			if (!event.currentTarget.contains(event.relatedTarget as Node | null)) isPickerOpen = false;
+		}}
+		onkeydown={(event) => {
+			if (event.key === 'Escape' && isPickerOpen) {
+				event.stopPropagation();
+				isPickerOpen = false;
+			}
+		}}
 	>
-		{#each shownModes as mode (mode)}
+		<div
+			class="inline-flex overflow-hidden rounded-lg border border-stone-300 bg-white {isNarrow
+				? 'flex w-full'
+				: ''}"
+			role="group"
+			aria-label="Layout"
+		>
+			{#each plainModes as mode (mode)}
+				<button
+					type="button"
+					class={segmentClass(view.layoutMode === mode)}
+					aria-pressed={view.layoutMode === mode}
+					onclick={() => onChange({ layoutMode: mode })}
+				>
+					{MODE_LABELS[mode]}
+				</button>
+			{/each}
 			<button
 				type="button"
-				class="cursor-pointer px-3 text-xs font-semibold focus-ring-inset {isNarrow
-					? 'min-h-11 flex-1'
-					: 'py-1.5 coarse:min-h-11'} {view.layoutMode === mode
-					? 'bg-emerald-800 text-amber-50 focus-visible:outline-amber-50'
-					: 'text-stone-800 hover:bg-stone-100'}"
-				aria-pressed={view.layoutMode === mode}
-				onclick={() => onChange({ layoutMode: mode })}
+				class="{segmentClass(VIEW_MODE_TRAITS[view.layoutMode].isWebGl)} {isNarrow
+					? 'flex-[2]'
+					: ''}"
+				aria-pressed={VIEW_MODE_TRAITS[view.layoutMode].isWebGl}
+				onclick={() => chooseThreeD(threeDMode)}
 			>
-				{MODE_LABELS[mode]}
+				3D · {MODE_LABELS[threeDMode]}
 			</button>
-		{/each}
+			<button
+				type="button"
+				class="{segmentClass(false)} border-l border-stone-300 px-2"
+				aria-label="Choose the 3D view"
+				aria-expanded={isPickerOpen}
+				onclick={() => (isPickerOpen = !isPickerOpen)}
+			>
+				<ChevronDown class="h-3.5 w-3.5" aria-hidden="true" />
+			</button>
+		</div>
+		{#if isPickerOpen}
+			<div
+				class="z-30 mt-1 grid gap-0.5 rounded-lg border border-stone-300 bg-[#fdfbf7] p-1 shadow-md {isNarrow
+					? ''
+					: 'absolute top-full left-0 w-72 max-w-[calc(100vw-1.5rem)]'}"
+				role="group"
+				aria-label="3D view"
+			>
+				{#each webGlModes as mode (mode)}
+					<button
+						type="button"
+						class="flex menu-item w-full cursor-pointer flex-col rounded-md px-2.5 text-left focus-ring {isNarrow
+							? 'min-h-11 py-1.5'
+							: 'py-1.5 coarse:min-h-11'}"
+						aria-pressed={view.layoutMode === mode}
+						onclick={() => chooseThreeD(mode)}
+					>
+						<span class="text-xs font-semibold text-stone-900"
+							>{MODE_LABELS[mode]}{view.layoutMode === mode ? ' ✓' : ''}</span
+						>
+						<span class="text-xs leading-snug font-normal text-stone-600"
+							>{MODE_DESCRIPTIONS[mode]}</span
+						>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/snippet}
 

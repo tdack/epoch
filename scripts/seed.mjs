@@ -1,11 +1,11 @@
-// Imports docs/The_Simpsons_clean.ged into the local dev database through the running dev
+// Imports docs/gedcom-data/The_Simpsons_clean.ged into the local dev database through the running dev
 // server, so the seed exercises the same importer and auth path as the app. Going through HTTP
 // (rather than writing SQL) keeps this script from becoming a second implementation of import.
 import { readFile } from 'node:fs/promises';
 
 const baseUrl = (process.env.SEED_URL ?? 'http://localhost:5173').replace(/\/$/, '');
 const treeName = 'The Simpsons';
-const gedcomPath = new URL('../docs/The_Simpsons_clean.ged', import.meta.url);
+const gedcomPath = new URL('../docs/gedcom-data/The_Simpsons_clean.ged', import.meta.url);
 
 async function main() {
 	let trees;

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import simpsonsClean from '../../../../docs/The_Simpsons_clean.ged?raw';
-import namesFixture from '../../../../docs/The_Names_fixture.ged?raw';
+import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
+import namesFixture from '../../../../docs/gedcom-data/The_Names_fixture.ged?raw';
 import { personNames } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { activate, chooseMenuItem, expect, openMenuByKeyboard, test } from './support';
 
-const DIRTY_GED = readFileSync('docs/The_Simpsons.ged');
+const DIRTY_GED = readFileSync('docs/gedcom-data/The_Simpsons.ged');
 const TERRY = '@I_937df8d1@';
 
 test('adding a child to Homer, who has several copies of one partnership, asks which and honours the choice', async ({

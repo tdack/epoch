@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-const PORT = 5179;
+/**
+ * `E2E_PORT` lets parallel worktrees each run their own server: with one fixed port,
+ * `reuseExistingServer` silently tested whichever worktree started first.
+ */
+const PORT = Number(process.env.E2E_PORT ?? 5179);
 
 /**
  * Browser tests run against a real dev server and its local D1. Each spec creates its own

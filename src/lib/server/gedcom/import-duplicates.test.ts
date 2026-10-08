@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import dirty from '../../../../docs/The_Simpsons.ged?raw';
+import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
 import { parentChild, unions } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';

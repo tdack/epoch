@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { chooseMenuItem, expect, test, type Api } from './support';
 
-const DIRTY_GED = readFileSync('docs/The_Simpsons.ged');
+const DIRTY_GED = readFileSync('docs/gedcom-data/The_Simpsons.ged');
 const XREF = { bart: '@I_c2773035@', jessica: '@I_cc833eb7@' } as const;
 
 /** The dirty file, imported as written into the test's own tree: duplicates and all. */
@@ -134,7 +134,7 @@ test('the import preview lists duplicate families, merges exact ones by default,
 	await page.goto(`/trees/${api.treeId}`);
 	// A file chosen before the page has hydrated is ignored.
 	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
-	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
+	await page.setInputFiles('input[type="file"]', 'docs/gedcom-data/The_Simpsons.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });
 	await expect(dialog.getByText('Duplicate families', { exact: true })).toBeVisible();
@@ -160,7 +160,7 @@ test('unticking the merge option imports the file exactly as written', async ({ 
 	await page.goto(`/trees/${api.treeId}`);
 	// A file chosen before the page has hydrated is ignored.
 	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
-	await page.setInputFiles('input[type="file"]', 'docs/The_Simpsons.ged');
+	await page.setInputFiles('input[type="file"]', 'docs/gedcom-data/The_Simpsons.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });
 	await dialog.getByRole('checkbox', { name: /Merge duplicate families/ }).uncheck();

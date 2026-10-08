@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import clean from '../../../../docs/The_Simpsons_clean.ged?raw';
-import dirty from '../../../../docs/The_Simpsons.ged?raw';
+import clean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
+import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
 import { events } from '../db/schema';
 import {
 	createTestDatabase,

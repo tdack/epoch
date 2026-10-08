@@ -331,11 +331,20 @@ export function layoutRings(
 }
 
 /**
+ * What a lineage walk needs of a layout, so the other WebGL views can use it as long as they keep
+ * these two lists: the lines up to parents, and the partners of each union.
+ */
+export interface LineageSource {
+	childLinks: Array<{ childId: string; parentIds: string[] }>;
+	unions: Array<{ partnerIds: string[] }>;
+}
+
+/**
  * The focus person's own line on the rings: everyone they descend from, everyone descended from
  * them, and their partners. The canvas lights these and names them; everyone else stays quiet.
  */
 export function ringLineage(
-	layout: RingsLayout,
+	layout: LineageSource,
 	personId: string
 ): { ancestorIds: Set<string>; descendantIds: Set<string>; partnerIds: Set<string> } {
 	const parentsOf = new Map<string, string[]>();

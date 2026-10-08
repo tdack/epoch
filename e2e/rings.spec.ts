@@ -71,6 +71,17 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	// Names follow the scene a frame behind the camera, and frames are drawn only when something
 	// moved, so read Gran's name after two frames have passed. A miss lands on someone else, so the
 	// whole step is retried from a fresh reading.
+	// Hovering a sphere shows its card: recorded facts only, beside the pointer.
+	await expect(async () => {
+		await page.evaluate(
+			() =>
+				new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))))
+		);
+		const box = (await name('Gran').boundingBox())!;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height + 10);
+		await expect(rings.getByTestId('hover-card')).toContainText('Gran', { timeout: 2000 });
+	}).toPass({ timeout: 15000 });
+	await expect(rings.getByTestId('hover-card')).toContainText('Ancestor');
 	await expect(async () => {
 		await page.evaluate(
 			() =>
@@ -86,4 +97,41 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	await mode('Flat').click();
 	await expect(page).toHaveURL(/mode=flat/);
 	await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`));
+});
+
+test('clearing the highlight keeps everyone in place, and a name or the switch lights it again', async ({
+	api,
+	page
+}) => {
+	const mum = await api.addPerson('Mum', 'Quiet');
+	const me = await api.addPerson('Me', 'Quiet');
+	await api.child(mum, me);
+	const rings = page.getByRole('group', { name: 'Generation rings' });
+	const name = (given: string) =>
+		rings.getByRole('button', { name: new RegExp(`^${given} Quiet\\b`) });
+	const focusLine = rings.getByRole('button', { name: 'Focus line' });
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&mode=rings`);
+	await expect(name('Mum')).toBeVisible();
+	await expect(focusLine).toHaveAttribute('aria-pressed', 'true');
+	const before = page.url();
+
+	// Empty space, away from the legend and the controls: nothing is under it.
+	const box = (await rings.boundingBox())!;
+	await page.mouse.click(box.x + box.width - 24, box.y + 72);
+	await expect(focusLine).toHaveAttribute('aria-pressed', 'false');
+	await expect(name('Mum')).toHaveCount(0);
+	expect(page.url()).toBe(before);
+
+	// The switch lights the line again; Escape clears it when no drawer is open.
+	await focusLine.click();
+	await expect(name('Mum')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(focusLine).toHaveAttribute('aria-pressed', 'false');
+
+	// "All names" still reaches everyone, and a name refocuses and lights the line.
+	await rings.getByRole('button', { name: 'All names' }).click();
+	await name('Mum').click();
+	await expect(page).toHaveURL(new RegExp(`focus=${mum.id}`));
+	await expect(focusLine).toHaveAttribute('aria-pressed', 'true');
 });

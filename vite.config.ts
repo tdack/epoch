@@ -17,13 +17,19 @@ export default defineConfig({
 	test: {
 		// Browser specs run under Playwright (`npm run test:e2e`), outside the commit gate.
 		// Component tests need Svelte's client build and a DOM, which would change how every
-		// server-side module resolves, so they run as their own project.
+		// server-side module resolves, so they run as their own project. Agent worktrees live under
+		// `.claude/worktrees/`, and the default include would test every one of them as well.
 		projects: [
 			{
 				extends: true,
 				test: {
 					name: 'server',
-					exclude: [...defaultExclude, 'e2e/**', 'src/**/*.component.test.{ts,svelte.ts}']
+					exclude: [
+						...defaultExclude,
+						'.claude/**',
+						'e2e/**',
+						'src/**/*.component.test.{ts,svelte.ts}'
+					]
 				}
 			},
 			{
