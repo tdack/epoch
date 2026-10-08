@@ -195,6 +195,11 @@ export const treeCreateSchema = z.object({
 	description: optionalText
 });
 
+export const treeRenameSchema = z.object({
+	name: z.string().trim().min(1, 'Tree name is required').max(200),
+	version: versionSchema
+});
+
 export const individualCreateSchema = z.object({
 	givenName: optionalText,
 	surname: optionalText,

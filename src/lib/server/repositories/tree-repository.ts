@@ -160,7 +160,7 @@ export class TreeRepository {
 		const now = new Date();
 		const nextVersion = current.version + 1;
 
-		await this.db
+		const updated = await this.db
 			.update(trees)
 			.set({
 				name: data.name !== undefined ? data.name.trim() : current.name,
@@ -168,7 +168,11 @@ export class TreeRepository {
 				version: nextVersion,
 				updatedAt: now
 			})
-			.where(and(eq(trees.id, treeId), eq(trees.version, expectedVersion)));
+			.where(and(eq(trees.id, treeId), eq(trees.version, expectedVersion)))
+			.returning({ id: trees.id });
+		// The read above can pass for two writers at once; only the statement knows which one won.
+		if (updated.length === 0)
+			throw new ConcurrencyConflictError(`Tree '${treeId}' was modified concurrently`);
 
 		return {
 			id: treeId,

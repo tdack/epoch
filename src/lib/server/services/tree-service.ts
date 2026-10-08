@@ -51,6 +51,8 @@ export class TreeService {
 		context: AuthenticatedContext
 	) {
 		await requireTreeAction(this.userRepo, treeId, context, 'tree:update_settings');
+		if (data.name !== undefined && !data.name.trim())
+			throw new ValidationError('Tree name is required');
 		return this.treeRepo.update(treeId, expectedVersion, data);
 	}
 
