@@ -132,5 +132,34 @@ export function treeTokenStyle(): string {
  * Owned by the Orrery view alone: it adds its colours and sizes here, and no other view edits this block.
  */
 export const ORRERY_TOKENS = {
-	stage: TREE_TOKENS['--tree-bg']
+	/** Night sky: the glow sprites are additive, so they only read against a dark stage. */
+	stage: '#090d1b',
+	/** Star colours by sex, lighter than the cards' borders because a star glows rather than fills. */
+	male: '#8dbbff',
+	female: '#ff9cc2',
+	unknownSex: '#e8e1d2',
+	private: '#7b8296',
+	/** Descent lines and tethers on the focus person's line, and everyone else's. */
+	lineLit: '#ffe0a0',
+	lineDim: '#56648c',
+	/** The accretion ring at a union's barycentre, and the pulse that runs along a tether. */
+	accretion: '#a9bdf0',
+	pulse: '#ffffff',
+	focusHalo: '#ffffff',
+	/** The legend sits on the light panel, where a white halo would vanish. */
+	legendHalo: TREE_TOKENS['--tree-ink'],
+	starRadiusUnits: 0.42,
+	focusScale: 1.5,
+	/** A glow sprite's width as a multiple of the star's radius. */
+	glowScale: 7,
+	/** How bright a star, its glow and its lines are when off the focus line, 0 to 1. */
+	dimStar: 0.55,
+	dimGlow: 0.3,
+	dimLine: 0.35,
+	litLinePx: 3,
+	dimLinePx: 1.6,
+	tetherPx: 3.4,
+	/** Seconds for a tether's pulse to run from one partner to the other. */
+	pulseSeconds: 4,
+	accretionOpacity: 0.2
 } as const;

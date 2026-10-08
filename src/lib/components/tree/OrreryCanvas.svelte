@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { OrreryLayout } from '#lib/tree-layout/orrery.js';
 	import { ORRERY_CAMERAS, type OrreryScene } from './orrery-scene.js';
-	import { RING_TOKENS } from './tree-tokens.js';
+	import { ORRERY_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
 	import { lineageRoles } from './webgl-tree.js';
 
@@ -34,11 +34,16 @@
 		{ id: ORRERY_CAMERAS.SIDE, label: 'Side' }
 	];
 	const LEGEND = [
-		{ kind: 'dot', colour: RING_TOKENS.male, label: 'Male' },
-		{ kind: 'dot', colour: RING_TOKENS.female, label: 'Female' },
-		{ kind: 'dot', colour: RING_TOKENS.unknownSex, label: 'Other or unknown' },
-		{ kind: 'halo', colour: RING_TOKENS.focus, label: 'Focus' }
+		{ kind: 'dot', colour: ORRERY_TOKENS.male, label: 'Male' },
+		{ kind: 'dot', colour: ORRERY_TOKENS.female, label: 'Female' },
+		{ kind: 'dot', colour: ORRERY_TOKENS.unknownSex, label: 'Other or unknown' },
+		{ kind: 'halo', colour: ORRERY_TOKENS.legendHalo, label: 'Focus' }
 	] as const;
+
+	let scene = $state<OrreryScene | null>(null);
+	let shouldReduceMotion = $state(false);
+	// The shell reads the media query; the scene decides what to stop (drift and the tether pulse).
+	$effect(() => scene?.setReducedMotion(shouldReduceMotion));
 
 	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
@@ -57,6 +62,8 @@
 	subject="the orrery"
 	{announcement}
 	{fitKey}
+	bind:scene
+	bind:shouldReduceMotion
 	cameras={CAMERAS}
 	legend={[...LEGEND]}
 	{selectedPersonId}
