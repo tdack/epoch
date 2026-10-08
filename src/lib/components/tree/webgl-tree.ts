@@ -5,6 +5,7 @@
  */
 
 import { ringLineage, type LineageSource } from '#lib/tree-layout/rings.js';
+import { sexLabel } from '#lib/shared/sex.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 
 /** One line of the legend: a sex dot, the focus halo, or a sample of a line. */
@@ -67,6 +68,49 @@ export function lineageRoles(
 	for (const id of lineage.ancestorIds) roles.set(id, 'ancestor');
 	roles.set(layout.focusPersonId, 'focus');
 	return roles;
+}
+
+const ROLE_LABELS: Record<TreeRole, string> = {
+	focus: 'Focus person',
+	ancestor: 'Ancestor',
+	descendant: 'Descendant',
+	partner: 'Partner'
+};
+
+/** What the hover card says about a person. Counts are of who is in view, not the whole tree. */
+export interface HoverCard {
+	name: string;
+	sex: string;
+	/** Where they stand on the focus line; null for everyone off it. */
+	roleLabel: string | null;
+	partnershipCount: number;
+	childrenInView: number;
+}
+
+/**
+ * The hover card for one person. Only recorded facts: the Ball's estimated eras place people but
+ * are never shown, and private people get no card (they cannot be picked).
+ */
+export function hoverCard(
+	person: RelationshipGraphPerson,
+	people: readonly ShellPerson[],
+	role: TreeRole | null
+): HoverCard {
+	let childrenInView = 0;
+	for (const other of people)
+		if (
+			Object.values(other.person.parentsByUnion).some((parents) =>
+				parents.some((parent) => parent.parentId === person.id)
+			)
+		)
+			childrenInView++;
+	return {
+		name: person.displayName,
+		sex: sexLabel(person.sex),
+		roleLabel: role ? ROLE_LABELS[role] : null,
+		partnershipCount: person.unionIds.length,
+		childrenInView
+	};
 }
 
 /** What `WebGlTreeShell` calls on a mode's scene. `ThreeStage.handle` implements all of it. */

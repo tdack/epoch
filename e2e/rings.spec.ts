@@ -71,6 +71,17 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	// Names follow the scene a frame behind the camera, and frames are drawn only when something
 	// moved, so read Gran's name after two frames have passed. A miss lands on someone else, so the
 	// whole step is retried from a fresh reading.
+	// Hovering a sphere shows its card: recorded facts only, beside the pointer.
+	await expect(async () => {
+		await page.evaluate(
+			() =>
+				new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))))
+		);
+		const box = (await name('Gran').boundingBox())!;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height + 10);
+		await expect(rings.getByTestId('hover-card')).toContainText('Gran', { timeout: 2000 });
+	}).toPass({ timeout: 15000 });
+	await expect(rings.getByTestId('hover-card')).toContainText('Ancestor');
 	await expect(async () => {
 		await page.evaluate(
 			() =>

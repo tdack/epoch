@@ -3,7 +3,13 @@
 	import { clearLabels, labelRank, type LabelBox } from './ring-labels.js';
 	import { RING_TOKENS, treeTokenStyle } from './tree-tokens.js';
 	import { yearsLine } from './tree-view.js';
-	import type { LegendEntry, ShellPerson, TreeRole, WebGlTreeScene } from './webgl-tree.js';
+	import {
+		hoverCard,
+		type LegendEntry,
+		type ShellPerson,
+		type TreeRole,
+		type WebGlTreeScene
+	} from './webgl-tree.js';
 
 	/**
 	 * The DOM half of every WebGL tree view: the person buttons over the canvas, announcements,
@@ -85,6 +91,8 @@
 	const NAME_LIFT_PX = 10;
 	/** Pointer travel under which a press counts as a click rather than the start of an orbit. */
 	const CLICK_SLOP_PX = 5;
+	/** How far the hover card sits from the pointer, in CSS pixels. */
+	const CARD_OFFSET_PX = 14;
 
 	let host = $state<HTMLDivElement>();
 	let didFail = $state(false);
@@ -92,6 +100,38 @@
 	let isSpinning = $state(false);
 	let shouldShowAllNames = $state(false);
 	let hoveredId = $state<string | null>(null);
+	/** The pointer inside the canvas, in CSS pixels; null while orbiting or off the canvas. */
+	let pointerAt = $state<{ x: number; y: number } | null>(null);
+	let shellWidth = $state(0);
+	let shellHeight = $state(0);
+	let cardWidth = $state(0);
+	let cardHeight = $state(0);
+
+	const personById = $derived(new Map(people.map((p) => [p.id, p])));
+	const hovered = $derived(hoveredId ? personById.get(hoveredId) : undefined);
+	const card = $derived(
+		hovered && hovered.person.isPrivate !== true
+			? hoverCard(hovered.person, people, roles.get(hovered.id) ?? null)
+			: null
+	);
+	/** Below and right of the pointer, flipped to the other side where it would leave the view. */
+	const cardAt = $derived.by(() => {
+		if (!pointerAt) return null;
+		const x =
+			pointerAt.x + CARD_OFFSET_PX + cardWidth > shellWidth
+				? pointerAt.x - CARD_OFFSET_PX - cardWidth
+				: pointerAt.x + CARD_OFFSET_PX;
+		const y =
+			pointerAt.y + CARD_OFFSET_PX + cardHeight > shellHeight
+				? pointerAt.y - CARD_OFFSET_PX - cardHeight
+				: pointerAt.y + CARD_OFFSET_PX;
+		return { x: Math.max(4, x), y: Math.max(4, y) };
+	});
+	function sexColourOf(person: ShellPerson['person']): string {
+		if (person.sex === 'M') return RING_TOKENS.male;
+		if (person.sex === 'F') return RING_TOKENS.female;
+		return RING_TOKENS.unknownSex;
+	}
 
 	/**
 	 * Names on screen: the focus line, whoever the pointer is over and the open drawer. Every name at
@@ -222,6 +262,13 @@
 	function onPointerMove(event: PointerEvent) {
 		// Touch has no hover; a name appearing under a finger mid-orbit only gets in the way.
 		if (event.pointerType !== 'mouse' || !scene) return;
+		// A pressed button is an orbit or a pan; a card chasing the drag hides the scene it moves.
+		if (event.buttons !== 0) {
+			pointerAt = null;
+			return;
+		}
+		const bounds = host!.getBoundingClientRect();
+		pointerAt = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
 		const id = scene.pick(event.clientX, event.clientY);
 		if (id !== untrack(() => hoveredId)) hoveredId = id;
 	}
@@ -240,6 +287,8 @@
 	style="{treeTokenStyle()};--ring-partner:{RING_TOKENS.partner};background:{RING_TOKENS.stage}"
 	role="group"
 	aria-label={label}
+	bind:clientWidth={shellWidth}
+	bind:clientHeight={shellHeight}
 >
 	<!-- Pointer only: the names below are the keyboard route to everyone in the view. -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -250,7 +299,10 @@
 		onpointerdown={onPointerDown}
 		onpointerup={onPointerUp}
 		onpointermove={onPointerMove}
-		onpointerleave={() => (hoveredId = null)}
+		onpointerleave={() => {
+			hoveredId = null;
+			pointerAt = null;
+		}}
 		ondblclick={onDoubleClick}
 	></div>
 
@@ -276,6 +328,34 @@
 					{p.person.displayName}
 				</button>
 			{/each}
+		</div>
+	{/if}
+
+	{#if card && hovered && cardAt}
+		{@const years = yearsLine(hovered.person)}
+		<!-- Pointer only, so hidden from assistive tech: a name's own label carries its years. -->
+		<div
+			class="hover-card pointer-events-none absolute top-0 left-0 z-30"
+			style="translate:{cardAt.x}px {cardAt.y}px"
+			aria-hidden="true"
+			data-testid="hover-card"
+			bind:offsetWidth={cardWidth}
+			bind:offsetHeight={cardHeight}
+		>
+			<p class="name">{card.name}</p>
+			{#if years}<p class="years">{years}</p>{/if}
+			<p class="meta">
+				<i style="background:{sexColourOf(hovered.person)}"></i>{card.sex}{#if card.roleLabel}<span
+						class="sep">·</span
+					>{card.roleLabel}{/if}
+			</p>
+			<p class="meta">
+				{card.partnershipCount}
+				{card.partnershipCount === 1 ? 'partnership' : 'partnerships'}<span class="sep">·</span
+				>{card.childrenInView}
+				{card.childrenInView === 1 ? 'child' : 'children'} in view
+			</p>
+			<p class="hint">Click to centre · double-click for details</p>
 		</div>
 	{/if}
 
@@ -402,6 +482,47 @@
 		outline: 2px solid var(--tree-focus-ring);
 		outline-offset: 2px;
 		z-index: 1;
+	}
+	.hover-card {
+		max-width: 16rem;
+		border: 1px solid var(--tree-panel-border);
+		border-left: 3px solid var(--color-emerald-800);
+		border-radius: 0.625rem;
+		background: var(--tree-panel);
+		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+		line-height: 1.35;
+		color: var(--tree-ink-muted);
+		box-shadow: 0 8px 24px -8px rgb(28 25 23 / 0.35);
+	}
+	.hover-card .name {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--tree-ink);
+	}
+	.hover-card .years {
+		color: var(--tree-ink);
+	}
+	.hover-card .meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		margin-top: 0.125rem;
+	}
+	.hover-card .meta i {
+		display: inline-block;
+		width: 0.5rem;
+		height: 0.5rem;
+		margin-right: 0.3125rem;
+		border-radius: 9999px;
+	}
+	.hover-card .sep {
+		margin: 0 0.3125rem;
+	}
+	.hover-card .hint {
+		margin-top: 0.3125rem;
+		font-size: 0.6875rem;
+		color: var(--color-emerald-800);
 	}
 	.legend {
 		display: flex;
