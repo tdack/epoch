@@ -7,6 +7,9 @@
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
+	import OrreryCanvas from '#lib/components/tree/OrreryCanvas.svelte';
+	import PoincareCanvas from '#lib/components/tree/PoincareCanvas.svelte';
+	import RibbonsCanvas from '#lib/components/tree/RibbonsCanvas.svelte';
 	import RingsCanvas from '#lib/components/tree/RingsCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
@@ -37,6 +40,9 @@
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
+	import { layoutOrrery } from '#lib/tree-layout/orrery.js';
+	import { layoutPoincare } from '#lib/tree-layout/poincare.js';
+	import { layoutRibbons } from '#lib/tree-layout/ribbons.js';
 	import { layoutRings } from '#lib/tree-layout/rings.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
@@ -172,6 +178,21 @@
 	const ringsLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.RINGS
 			? layoutRings(graphForLayout, focusPersonId, focusOptions)
+			: null
+	);
+	const poincareLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.POINCARE
+			? layoutPoincare(graphForLayout, focusPersonId, focusOptions)
+			: null
+	);
+	const ribbonsLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.RIBBONS
+			? layoutRibbons(graphForLayout, focusPersonId, focusOptions)
+			: null
+	);
+	const orreryLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.ORRERY
+			? layoutOrrery(graphForLayout, focusPersonId, focusOptions)
 			: null
 	);
 
@@ -563,6 +584,33 @@
 			{#if ringsLayout}
 				<RingsCanvas
 					layout={ringsLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+				/>
+			{:else if poincareLayout}
+				<PoincareCanvas
+					layout={poincareLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+				/>
+			{:else if ribbonsLayout}
+				<RibbonsCanvas
+					layout={ribbonsLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+				/>
+			{:else if orreryLayout}
+				<OrreryCanvas
+					layout={orreryLayout}
 					{fitKey}
 					{selectedPersonId}
 					onSelectPerson={handleFocusPerson}
