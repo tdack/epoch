@@ -62,22 +62,25 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	);
 	expect(page.url()).toBe(before);
 
-	// Clicking the sphere under a name picks that person, through the WebGL scene. Gran's name is
-	// the only one near her sphere from above, so the click cannot land on another name.
+	// Clicking the sphere under a name picks that person, through the WebGL scene. From the side
+	// Gran stands alone on the bottom ring, so nothing else is in front of her sphere.
 	await page.keyboard.press('Escape');
 	// Closing the drawer is a navigation of its own; a click during it would be overtaken.
 	await expect(page).not.toHaveURL(/person=/);
-	// Names follow the scene a frame behind the camera, so wait until Gran's has stopped moving.
-	let box = (await name('Gran').boundingBox())!;
+	await rings.getByRole('button', { name: 'Side' }).click();
+	// Names follow the scene a frame behind the camera, and frames are drawn only when something
+	// moved, so read Gran's name after two frames have passed. A miss lands on someone else, so the
+	// whole step is retried from a fresh reading.
 	await expect(async () => {
-		const next = (await name('Gran').boundingBox())!;
-		const hasSettled = next.x === box.x && next.y === box.y;
-		box = next;
-		expect(hasSettled).toBe(true);
-	}).toPass({ intervals: [100, 100, 200] });
-	// The name sits 10px above its sphere's centre.
-	await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
-	await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`));
+		await page.evaluate(
+			() =>
+				new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))))
+		);
+		const box = (await name('Gran').boundingBox())!;
+		// The name sits 10px above its sphere's centre.
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
+		await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`), { timeout: 2000 });
+	}).toPass({ timeout: 15000 });
 
 	// Back to flat keeps the focus.
 	await mode('Flat').click();

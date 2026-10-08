@@ -73,7 +73,7 @@
 			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
 		floors: 'One floor for each generation, the oldest at the top.',
 		rings:
-			'An overview to turn and explore: one ring for each generation, the oldest at the top, with lines down to the children.'
+			'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.'
 	};
 	const uid = $props.id();
 	const hintId = (title: string) => `${uid}-${title.replace(/\W+/g, '-')}-hint`;
