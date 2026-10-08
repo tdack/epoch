@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { type APIRequestContext } from '@playwright/test';
 import { card, expect, open, test, type Api } from './support';
 
-const CLEAN_GED = readFileSync('docs/The_Simpsons_clean.ged');
+const CLEAN_GED = readFileSync('docs/gedcom-data/The_Simpsons_clean.ged');
 
 /** Imported ids are `<treeId>:@I_…@`, which is what makes a link need encoding. */
 const XREF = { bart: '@I_c2773035@', jessica: '@I_cc833eb7@' } as const;

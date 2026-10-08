@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import simpsonsDirty from '../../../../docs/The_Simpsons.ged?raw';
-import simpsonsClean from '../../../../docs/The_Simpsons_clean.ged?raw';
+import simpsonsDirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
+import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
 import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { graphFromRows } from '../domain/relationship-graph';

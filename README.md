@@ -70,7 +70,7 @@ With the dev server running:
 npm run seed
 ```
 
-This imports [docs/The_Simpsons_clean.ged](./docs/The_Simpsons_clean.ged) as a tree named "The
+This imports [docs/gedcom-data/The_Simpsons_clean.ged](./docs/gedcom-data/The_Simpsons_clean.ged) as a tree named "The
 Simpsons". It does nothing if that tree already exists. If the dev server is on another port, set
 `SEED_URL`, for example `SEED_URL=http://localhost:5178 npm run seed`.
 
@@ -152,7 +152,7 @@ records. See ADR-007 in [docs/decisions.md](./docs/decisions.md).
 
 ### Duplicate families and merging partnerships
 
-A dirty GEDCOM can carry one family several times ([docs/The_Simpsons.ged](./docs/The_Simpsons.ged) does;
+A dirty GEDCOM can carry one family several times ([docs/gedcom-data/The_Simpsons.ged](./docs/gedcom-data/The_Simpsons.ged) does;
 never seed from it). The import preview lists **Duplicate families** (same two partners, identical
 facts, no disagreement about a child) with a default-on option to merge them, and **Possible
 duplicates** for review only. A merged family keeps every original XREF as an alias, and export

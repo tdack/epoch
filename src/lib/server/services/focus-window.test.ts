@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import simpsonsClean from '../../../../docs/The_Simpsons_clean.ged?raw';
+import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
 import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../fixtures/genealogy-fixtures';
 import { importGedcomToDb } from '../testing/gedcom';
 import { graphFromRows } from '../domain/relationship-graph';

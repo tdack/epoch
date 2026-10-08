@@ -46,7 +46,7 @@ tokens with any `sub`.
   `npm run db:migrate:local`.
 - [README.md](../README.md) is still the `sv` boilerplate.
 - **Fix:** document setup (Node version, `db:migrate:local`, dev identity, seeding a fixture). Add
-  an `npm run seed` script that imports `docs/The_Simpsons_clean.ged` and the
+  an `npm run seed` script that imports `docs/gedcom-data/The_Simpsons_clean.ged` and the
   [genealogy fixtures](../src/lib/server/fixtures/genealogy-fixtures.ts).
 
 ## Tree rendering
