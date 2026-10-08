@@ -124,9 +124,13 @@ Why this order:
 
 **Requested `cf` scopes** (narrowed with `--scopes`; exact names *(spike)*):
 
-- **Always:** `account:read`, `user:read`, `zone.read`, `d1.write`, `workers-r2.write`,
-  `queues.write`, `workers-scripts.read`, `access-org.read`, `access-org.write`, `access-app.write`,
-  `access-policy.write`, `access-idp.read`, `access-tag.write` and `email-sending.read`.
+- **Always:** `account:read`, `user:read`, `zone.read`, `dns.read`, `d1.write`,
+  `workers-r2.write`, `queues.write`, `workers-scripts.write`, `workers-routes.read`,
+  `access-org.read`, `access-org.write`, `access-app.write`, `access-policy.write`,
+  `access-group.write`, `access-idp.write`, `access-tag.write` and `email-sending.read`.
+  - `dns.read` and `workers-routes.read` are for the hostname collision check.
+  - `access-idp.write` is for creating One-time PIN.
+  - `workers-scripts.write` is for the secrets fallback.
 - **With `--deploy-auth=ephemeral` only:** `account_api_tokens:create`.
 
 After login, the tool reads the granted scopes. If any is missing, it stops before touching
@@ -148,7 +152,7 @@ done, and writes its result back, so an interrupted run resumes.
 
 ```
 preflight → sign in → collect → reconcile (ownership) → show plan → confirm
-         → provision → configure → migrate → Zero Trust → deploy → verify → hand-off
+         → provision → Zero Trust → write config → migrate → mark → deploy → verify → hand-off
 ```
 
 ### 1. Preflight (local, no network)
@@ -156,8 +160,9 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 - Node ≥ 24, `npm ci` done, pinned `cf` and wrangler resolvable.
 - `CLOUDFLARE_API_TOKEN` in the environment or `.env`? Pick the mode as above.
 - Ask for the **install slug**, defaulting to `epoch`. It names the profiles and resources
-  (`<slug>-db`, `<slug>-media`, `<slug>-import-queue`, Worker `<slug>`). One checkout is one
-  install.
+  (`<slug>-db`, `<slug>-media`, `<slug>-import-queue`, `<slug>-export-workflow`, Worker
+  `<slug>`). Workflow names are per account too, so it is derived from the slug as well. One
+  checkout is one install.
 - If `.epoch/install.json` exists, show it. A re-run means resume or update, never a fresh
   install.
 
@@ -186,8 +191,8 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 | Owner email | `cf auth whoami` | Confirm only |
 | Zero Trust team domain | `cf zero-trust organization get` | Never. No org → see step 7 |
 | Identity provider | `cf zero-trust access identity-providers list` | More than one exists. None → offer One-time PIN |
-| Invitation sender | Email Sending domains on the zone | Only if the user wants emailed invitations (ADR-031). An unverified domain → warn and continue: invites still work, `wasEmailSent: false` |
-| Data location | Default: D1 location hint and R2 jurisdiction nearest the user | Offered, not required. Recorded because neither can be changed later |
+| Invitation sender | Email Sending domains on the zone | Only if the user wants emailed invitations (ADR-031). If the domain is not verified, the generated config **leaves out the `send_email` binding**. The app already treats a missing binding as "not sent" (`wasEmailSent: false`), and a binding naming an unverified sender may fail the deploy *(spike)*. Re-running setup after verification adds it |
+| Data location | D1 location hint (`oc` suits Australia); R2 location hint, and optionally an R2 jurisdiction (`eu` or `fedramp`; there is no Australian one) | Offered, not required. Recorded because neither can be changed after creation. A chosen jurisdiction is also written to the R2 binding (`jurisdiction`) |
 
 ### 4. Reconcile: is an existing resource really ours?
 
@@ -199,9 +204,14 @@ first**:
 | `absent` | Nothing by that name | Create it |
 | `ours` | Its id is in the manifest **and** it carries this install's marker | Reuse it silently |
 | `unmarked` | It exists, with no marker and not in the manifest (a hand-made install, or the old script) | Show a fingerprint; adopt only after the user types the resource name |
-| `foreign` | It carries a **different** install's marker | Refuse. Suggest another slug. No override flag: release it from the other checkout instead |
+| `orphaned` | There is **no manifest** (a fresh clone, a new laptop), and the markers it finds all carry one install UUID | Offer to re-attach to install `<uuid>`. After the user types the resource names, rebuild the manifest from what was found and keep that UUID |
+| `foreign` | A manifest exists and the marker carries a **different** UUID, or the markers found disagree with each other | Refuse. Suggest another slug. No override flag: release it from the other checkout instead |
 
-**Markers** are written only after the user confirms. Each is cheap and can be checked later:
+Re-attaching is how a lost checkout gets back to its data. The data always lives in Cloudflare,
+and the manifest is only a cache of what reconcile can rediscover.
+
+**Markers** are written only after the user confirms. The D1 marker is written after migrations
+(step 9), because its table comes from a migration. Each marker is cheap and can be checked later:
 
 | Resource | Marker | Fingerprint shown before adopting |
 | --- | --- | --- |
@@ -209,36 +219,25 @@ first**:
 | R2 | Object `.epoch/install.json` | Object count, total size, a few sample keys |
 | Worker | Var `EPOCH_INSTALL_ID` | Last deployment date; whether its D1, R2 and queue bindings point at the resources above. A Worker bound to a *different* D1 is a strong "not ours" |
 | Queue | None possible | Its consumer: our Worker, someone else's, or none |
-| Access app | Tag `epoch-install:<uuid>` and the name `Epoch (<slug>)` | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
+| Access app | Tag `epoch-install:<uuid>` and the name `Epoch (<slug>)`. Also looked up by domain `<host>/login`, because a hand-made app has another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
 | Access policy | Name `Epoch <slug> owners`, referenced by our app | Its include rules |
 
 Adoption is also how **this repository's own live install moves under the tool.** Run setup with
 `--slug epoch-genealogy`. Every resource comes back `unmarked`, the user confirms each one, and the
 markers are written. Nothing is recreated, and the Access app keeps its AUD.
 
+On that install `CF_ACCESS_AUD` is already a **secret**. Wrangler may refuse a var with the same
+name *(spike)*. If it does, adopted installs keep the secret, and only new installs use a var.
+
 ### 5. Show the plan, then confirm
 
 Print a Terraform-style list grouped by create, adopt and unchanged, with the hostname, owner and
 data location. `--plan` stops here and changes nothing. Otherwise the user types `yes`.
 
-### 6. Provision and configure
+### 6. Provision
 
-1. Create or adopt D1, R2 and the queue. Write each id to the manifest as soon as it exists.
-2. **Generate the Wrangler config.** Owner-specific values must not live in the tracked file. They
-   are the D1 id, `CF_ACCESS_TEAM_DOMAIN`, the sender address, the route and the install id.
-   - **Proposed:** move today's file to a tracked `wrangler.template.jsonc` with placeholders, and
-     have the tool write a git-ignored `wrangler.jsonc` beside it.
-   - The generated file keeps `main` at the adapter default (Important Note 1), and adds
-     `routes: [{ pattern: <host>, custom_domain: true }]`, `migrations_dir`, the vars and the
-     bindings.
-   - A separate `-c` file was rejected: the adapter reads `wrangler.jsonc` at build time, so
-     the build and the deploy would see different configs. *(Open question 1.)*
-3. **`CF_ACCESS_AUD` becomes a var, not a secret.**
-   - The AUD is an audience identifier, not a credential. A var lets one deploy carry it without
-     an ordering dance.
-   - `src/env.ts` reads it from the private env either way. *(spike: confirm SvelteKit 3's
-     `$app/env/private` sees `vars`.)*
-   - If it stays a secret: `cf workers secrets bulk` after the first deploy.
+Create or adopt D1, R2 and the queue. Write each id to the manifest as soon as it exists, and
+the R2 marker object once the bucket is ours.
 
 ### 7. Zero Trust
 
@@ -247,8 +246,16 @@ data location. `--plan` stops here and changes nothing. Otherwise the user types
    the dashboard and a plan choice; *spike*), print the dashboard link, save progress, and exit.
    A re-run resumes here.
 2. Identity provider: reuse the chosen one, or create One-time PIN.
-3. **Reusable policy** `Epoch <slug> owners`: Allow, include the owner email. Invitees are added
-   later from the app or the dashboard (ADR-016); the tool never manages them.
+3. **Who Access lets through to `/login`.** The app never edits Access: ADR-031 keeps Access a
+   separate gate, and nothing in `src/lib/server` calls the Access API. So an emailed invitee who
+   is not in the policy is turned away at `/login`. This is an owner decision *(open question 2)*:
+   - **Owner-only policy.** Every invitee is added by hand in the dashboard.
+   - **Proposed: an Access group `Epoch <slug> members`.** It starts with the owner email, and the
+     reusable Allow policy includes it. The hand-off says how to add an invitee to the group.
+     Later, the app could do this itself.
+   - **Allow any identity the chosen IdP verifies** (for example, any One-time PIN email). Epoch's
+     deny-by-default membership check is then the only authorisation gate, which ADR-026 already
+     accepts for every path except `/login`.
 4. **Access app** `Epoch (<slug>)`, created or updated:
    - `type: self_hosted` and `domain: <host>/login`.
    - Only that policy, `allowed_idps` set to the chosen one, and `auto_redirect_to_identity`
@@ -257,25 +264,71 @@ data location. `--plan` stops here and changes nothing. Otherwise the user types
      ADR-026 require.
    - The `epoch-install:<uuid>` tag.
    - Record its `aud`.
-5. **Never touch the other apps or policies in the account.** Updates go by id from the manifest,
-   never by name.
+5. **Never touch the other apps, groups or policies in the account.** Updates go by id from the
+   manifest, never by name.
 
 Zero Trust runs **before** the deploy, so the first deploy already has the right AUD and
 `/login` is protected the moment the domain goes live. There is never a window in which the
 Worker serves the host without its Access app.
 
-### 8. Migrate, build, deploy
+### 8. Write the deploy config
 
-1. `wrangler d1 migrations apply <db> --remote` under the wrangler profile or the ephemeral
-   token. It applies every pending migration in order, unlike the old script.
-   `cf d1 migrations apply` is wire-compatible and takes the database id; it is the fallback if
-   wrangler auth is the problem.
-2. `npm run build`, then `wrangler deploy workers/entry.ts`. This creates the Worker, the
-   custom domain, the workflow and the queue consumer.
-3. With an ephemeral token: delete it in a `finally`. On every run, sweep any leftover token
-   named `epoch-<slug>-setup-*`.
+**Owner-specific values move out of the tracked `wrangler.jsonc`.** They are the D1 id,
+`CF_ACCESS_TEAM_DOMAIN`, the sender address, the route and the install id.
 
-### 9. Verify (read-only, against the live host)
+- **The tracked `wrangler.jsonc` stays, and stays usable on a fresh clone.** It keeps every binding
+  with a placeholder D1 id and no route.
+  - `vite dev`, `getPlatformProxy` in `server/testing/d1.ts` and the local migrations need only
+    the binding shapes.
+  - A fresh clone still builds, type-checks and tests without running setup.
+- **The tool writes a git-ignored `wrangler.deploy.jsonc` in the repository root**, so relative
+  paths resolve the same way. It is the tracked file plus:
+  - the real ids;
+  - `routes: [{ pattern: <host>, custom_domain: true }]`;
+  - the vars;
+  - the slug-derived resource names;
+  - the `send_email` binding, only when the sender domain is verified;
+  - R2 `jurisdiction`, when one was chosen.
+- **Deploy and remote commands pass it with `-c`.** `wrangler deploy workers/entry.ts -c
+  wrangler.deploy.jsonc`.
+- **The build still reads the tracked file, and that is safe.** `adapter-cloudflare` reads only
+  `main`, `assets` (directory, binding, `not_found_handling`) and `pages_build_output_dir` from the
+  wrangler config, so bindings never reach the build output.
+  - The tool asserts that both files agree on those fields.
+  - `main` stays at the adapter default (Important Note 1).
+- **`CF_ACCESS_AUD` becomes a var, not a secret.**
+  - The AUD is an audience identifier, not a credential. A var lets the first deploy carry it.
+  - `src/env.ts` reads it from the private env either way. *(spike: confirm SvelteKit 3's
+    `$app/env/private` sees `vars`.)*
+  - Where it stays a secret (adopted installs, see step 4): `cf workers secrets bulk` after the
+    deploy.
+
+### 9. Migrate, mark, deploy
+
+1. **Migrate.** `wrangler d1 migrations apply DB --remote -c wrangler.deploy.jsonc`, under the
+   wrangler profile or the ephemeral token.
+   - It applies every pending migration in order, unlike the old script.
+   - `cf d1 migrations apply` is wire-compatible and takes the database id; it is the fallback if
+     wrangler auth is the problem.
+2. **Write the markers** confirmed in step 5. The D1 `install_meta` row can only go in now; the
+   R2 object and the Access tag were written already.
+3. **Deploy.** `npm run build`, then `wrangler deploy workers/entry.ts -c wrangler.deploy.jsonc`.
+   This creates the Worker, the custom domain, the workflow and the queue consumer.
+4. **Clean up an ephemeral token.** Delete it in a `finally`. On every run, sweep any leftover
+   token named `epoch-<slug>-setup-*`.
+
+**Later `npm run deploy` must use the same config.** Today `package.json` hardcodes
+`epoch-genealogy-db` in `db:migrate` and `db:migrate:local`, and so do the three
+`scripts/backfill-*.mjs`. The fix:
+
+- Those scripts and `deploy` move to the binding name `DB`, plus `-c wrangler.deploy.jsonc` for
+  the remote commands. *(spike: confirm `wrangler d1 migrations apply` and `d1 execute` accept a
+  binding name.)*
+- Failing that, they read the database name from the deploy config.
+- This is delivery step 1. Until it lands, the hand-off **must not** claim that `npm run deploy`
+  works.
+
+### 10. Verify (read-only, against the live host)
 
 Each check prints pass or fail with the fix:
 
@@ -288,13 +341,14 @@ Each check prints pass or fail with the fix:
 | Deployed `CF_ACCESS_AUD` | Equals the app's `aud` |
 | Certificate | The custom domain's certificate has been issued (it can take minutes; poll with a timeout) |
 
-### 10. Hand-off
+### 11. Hand-off
 
 Print:
 
 - the URL and the sign-in steps;
-- that the owner email is the only one allowed in, and how to invite people;
-- the commands for later (`npm run deploy` now just works in this directory);
+- who Access lets in, and how to let an invitee through Access as well as inviting them in Epoch;
+- the commands for later. Once delivery step 1 has landed, `npm run deploy` works in this
+  directory under the bound profiles;
 - where the manifest is.
 
 Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
@@ -319,11 +373,17 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - Wrangler profiles plus `wrangler whoami`.
    - `cf accounts tokens create` permission-group ids.
    - `vars` reaching `$app/env/private`.
+   - A var named `CF_ACCESS_AUD` deploying over an existing secret of that name.
+   - A `send_email` binding naming an unverified sender: does the deploy fail?
+   - `wrangler d1 migrations apply` and `d1 execute` taking the binding name `DB`.
    - `CLOUDFLARE_CF_AUTH` with `wrangler deploy --dry-run` (expected: ignored).
 
    Record the results in an ADR (next number after ADR-033). Adjust this plan where they differ.
-1. Template config, generated `wrangler.jsonc`, `.epoch/` git-ignored, `install_meta` migration
-   (expand-only).
+1. **Config and scripts:**
+   - Strip the owner values from the tracked `wrangler.jsonc`.
+   - Git-ignore `wrangler.deploy.jsonc` and `.epoch/`.
+   - Move `db:migrate`, `deploy` and the backfill scripts to the binding name and `-c`.
+   - Add the `install_meta` migration (expand-only).
 2. The manifest module and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
    errors). Unit tests use recorded `cf` output.
 3. Preflight, sign-in and collect.
@@ -336,11 +396,16 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 
 ## Open questions for the owner
 
-1. **Tracked `wrangler.jsonc` versus a generated, git-ignored one.** This plan proposes generating
-   it. That changes the workflow for this repository's own deploy, which runs once through
-   adoption, and for anyone who forks.
-2. **Default deploy auth:** a second OAuth consent for a wrangler profile (proposed), or the
+1. **Config layout.** Proposed: a tracked, dev-safe `wrangler.jsonc` without owner values, plus a
+   generated, git-ignored `wrangler.deploy.jsonc`.
+   - **The cost:** this repository's live values leave git. The live install is re-created locally
+     once, through adoption, and remote commands need `-c`.
+   - **The alternative:** keep owner values in the tracked file. That is simpler for a single
+     owner, but every fork inherits someone else's ids.
+2. **Who Access admits to `/login`:** owner-only, a members group (proposed), or anyone the IdP
+   verifies (step 7.3).
+3. **Default deploy auth:** a second OAuth consent for a wrangler profile (proposed), or the
    single-consent ephemeral token.
-3. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
-4. **Email Sending:** should setup try to onboard the sender domain, or only report its status?
+4. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
+5. **Email Sending:** should setup try to onboard the sender domain, or only report its status?
    Report only is proposed, because domain verification touches DNS.
