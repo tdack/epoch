@@ -18,7 +18,6 @@
 		HISTORY_KINDS,
 		LAYERS_DEFAULT_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
-		RINGS_ARRIVAL_DEPTH,
 		compactStubId,
 		createHistoryCoalescer,
 		parseViewState,
@@ -40,7 +39,7 @@
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { layoutRings } from '#lib/tree-layout/rings.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
-	import { resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
+	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
 
@@ -128,7 +127,11 @@
 		return () => query.removeEventListener('change', onChange);
 	});
 	/** What is drawn: the address says Floors, a phone gets the hourglass. */
-	const drawnMode = $derived(isPhone && mode === LAYOUT_MODES.FLOORS ? LAYOUT_MODES.FLAT : mode);
+	const drawnMode = $derived(
+		isPhone && VIEW_MODE_TRAITS[mode].isPhoneFallbackToFlat ? LAYOUT_MODES.FLAT : mode
+	);
+	/** The overviews do not edit, so the gesture hints leave out the drag and menu actions there. */
+	const canEditDrawn = $derived(VIEW_MODE_TRAITS[drawnMode].canEdit);
 	const isFloorsOnPhone = $derived(drawnMode !== mode);
 	/**
 	 * A new focus, depth or option waits on the server for its graph, and the 3D views then lay it
@@ -171,6 +174,42 @@
 			? layoutRings(graphForLayout, focusPersonId, focusOptions)
 			: null
 	);
+
+	/**
+	 * A view switch redraws the same graph, so what the person opened stays open. Flat ignores the
+	 * wider groups, so going back to it also stops fetching them; the other views ask for the groups
+	 * and depth their traits name, unless the person already set some.
+	 */
+	function arrivingAt(
+		layoutMode: LayoutMode | undefined,
+		change: Partial<TreeViewState>
+	): Partial<TreeViewState> {
+		if (layoutMode === undefined) return change;
+		const traits = VIEW_MODE_TRAITS[layoutMode];
+		const hasNoWiderGroups = view.collateralDepth === 0 && !view.shouldIncludePartnerOrigins;
+		return {
+			...change,
+			expandedStubs: view.expandedStubs,
+			...(layoutMode === LAYOUT_MODES.FLAT
+				? {
+						collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
+						shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
+					}
+				: {}),
+			...(traits.shouldAskWiderGroups && hasNoWiderGroups
+				? {
+						collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+						shouldIncludePartnerOrigins: true
+					}
+				: {}),
+			...(traits.arrivalDepth !== null
+				? {
+						ancestorDepth: Math.max(view.ancestorDepth, traits.arrivalDepth),
+						descendantDepth: Math.max(view.descendantDepth, traits.arrivalDepth)
+					}
+				: {})
+		};
+	}
 
 	/** Re-frame the canvas when this changes. Opening a stub is deliberately not part of it. */
 	const viewSignature = $derived(
@@ -498,42 +537,14 @@
 					navigate(
 						// Switching view redraws the same graph, so what the person opened stays open. Flat
 						// ignores the wider groups, so going back to it also stops fetching them.
-						'layoutMode' in change
-							? {
-									...change,
-									expandedStubs: view.expandedStubs,
-									...(change.layoutMode === LAYOUT_MODES.FLAT
-										? {
-												collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
-												shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
-											}
-										: {}),
-									// Layers and Rings show the cousin line, so arriving at either asks for the wider groups.
-									...((change.layoutMode === LAYOUT_MODES.LAYERS ||
-										change.layoutMode === LAYOUT_MODES.RINGS) &&
-									view.collateralDepth === 0 &&
-									!view.shouldIncludePartnerOrigins
-										? {
-												collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
-												shouldIncludePartnerOrigins: true
-											}
-										: {}),
-									// Rings is an overview of the family's depth, so arriving at it asks for more of it.
-									...(change.layoutMode === LAYOUT_MODES.RINGS
-										? {
-												ancestorDepth: Math.max(view.ancestorDepth, RINGS_ARRIVAL_DEPTH),
-												descendantDepth: Math.max(view.descendantDepth, RINGS_ARRIVAL_DEPTH)
-											}
-										: {})
-								}
-							: change,
+						'layoutMode' in change ? arrivingAt(change.layoutMode, change) : change,
 						{ kind: HISTORY_KINDS.ADJUST }
 					)}
 			/>
 		</div>
 		{#if !isPhone}<TreeGestureHint
-				canRelate={canCreate && !ringsLayout}
-				hasMenuActions={(canCreate || canChange) && !ringsLayout}
+				canRelate={canCreate && canEditDrawn}
+				hasMenuActions={(canCreate || canChange) && canEditDrawn}
 			/>{/if}
 		{#if isFloorsOnPhone}
 			<p class="mb-2 text-sm text-stone-600" role="note">
@@ -545,8 +556,8 @@
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
 			<!-- Before the canvases so the legend, drawn later, stays above it. -->
 			{#if isPhone}<TreeGestureHint
-					canRelate={canCreate && !ringsLayout}
-					hasMenuActions={(canCreate || canChange) && !ringsLayout}
+					canRelate={canCreate && canEditDrawn}
+					hasMenuActions={(canCreate || canChange) && canEditDrawn}
 					isOverlay
 				/>{/if}
 			{#if ringsLayout}

@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { LAYOUT_MODES, layoutModeChoices, parseLayoutMode, resolveLayoutMode } from './view-mode';
+import {
+	LAYOUT_MODES,
+	LAYOUT_MODE_VALUES,
+	RINGS_ARRIVAL_DEPTH,
+	VIEW_MODE_TRAITS,
+	WEBGL_LAYOUT_MODES,
+	layoutModeChoices,
+	parseLayoutMode,
+	resolveLayoutMode
+} from './view-mode';
 
 describe('parseLayoutMode', () => {
-	it('accepts the four modes and nothing else', () => {
+	it('accepts the seven modes and nothing else', () => {
 		expect(parseLayoutMode('flat')).toBe('flat');
 		expect(parseLayoutMode('layers')).toBe('layers');
 		expect(parseLayoutMode('floors')).toBe('floors');
 		expect(parseLayoutMode('rings')).toBe('rings');
+		expect(parseLayoutMode('poincare')).toBe('poincare');
+		expect(parseLayoutMode('ribbons')).toBe('ribbons');
+		expect(parseLayoutMode('orrery')).toBe('orrery');
 		expect(parseLayoutMode('orbit')).toBeNull();
 		expect(parseLayoutMode(null)).toBeNull();
 		expect(parseLayoutMode(undefined)).toBeNull();
@@ -31,13 +43,36 @@ describe('resolveLayoutMode', () => {
 });
 
 describe('layoutModeChoices', () => {
-	it('offers flat and rings, keeping layers and floors off the controls', () => {
-		expect(layoutModeChoices(null)).toEqual(['flat', 'rings']);
-		expect(layoutModeChoices('rings')).toEqual(['flat', 'rings']);
+	const offered = ['flat', 'rings', 'poincare', 'ribbons', 'orrery'];
+
+	it('offers flat and the WebGL views, keeping layers and floors off the controls', () => {
+		expect(layoutModeChoices(null)).toEqual(offered);
+		expect(layoutModeChoices('rings')).toEqual(offered);
 	});
 
 	it('still lists a withdrawn view while it is the one in force', () => {
-		expect(layoutModeChoices('layers')).toEqual(['flat', 'layers', 'rings']);
-		expect(layoutModeChoices('floors')).toEqual(['flat', 'floors', 'rings']);
+		expect(layoutModeChoices('layers')).toEqual(['flat', 'layers', ...offered.slice(1)]);
+		expect(layoutModeChoices('floors')).toEqual(['flat', 'floors', ...offered.slice(1)]);
+	});
+});
+
+describe('VIEW_MODE_TRAITS', () => {
+	it('has a row for every mode', () => {
+		expect(Object.keys(VIEW_MODE_TRAITS).sort()).toEqual([...LAYOUT_MODE_VALUES].sort());
+	});
+
+	it('keeps the existing views as they were', () => {
+		const wider = LAYOUT_MODE_VALUES.filter((mode) => VIEW_MODE_TRAITS[mode].shouldAskWiderGroups);
+		expect(wider).toEqual(['layers', 'rings', 'poincare', 'ribbons', 'orrery']);
+		expect(VIEW_MODE_TRAITS.rings.arrivalDepth).toBe(RINGS_ARRIVAL_DEPTH);
+		expect(VIEW_MODE_TRAITS.layers.arrivalDepth).toBeNull();
+		expect(
+			LAYOUT_MODE_VALUES.filter((mode) => VIEW_MODE_TRAITS[mode].isPhoneFallbackToFlat)
+		).toEqual(['floors']);
+	});
+
+	it('draws the WebGL views read-only', () => {
+		expect(WEBGL_LAYOUT_MODES).toEqual(['rings', 'poincare', 'ribbons', 'orrery']);
+		for (const mode of WEBGL_LAYOUT_MODES) expect(VIEW_MODE_TRAITS[mode].canEdit).toBe(false);
 	});
 });
