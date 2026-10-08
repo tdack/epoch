@@ -47,12 +47,12 @@ Do not introduce Durable Objects until a demonstrated coordination need exists. 
 | [7](./phase-7-media-places-operations.md) | Media, documents, maps and operational maturity | Planned | Phases 4–5 | Media and place/map streams are independent |
 | [8](./phase-8-release-hardening.md) | Recoverable, accessible and supportable release | Planned | All release-scope phases | Security, accessibility and load testing can overlap |
 
-Update only this table when phase status changes (`Planned`, `In progress`, `Blocked`, `Complete`). Each phase document owns its detailed exit criteria and a status section against them. Work is delivered in numbered slices (S0, S1a … S16); the slice table and per-slice status notes are in [improvement-plan.md](./improvement-plan.md#delivery-slices).
+Update only this table when phase status changes (`Planned`, `In progress`, `Blocked`, `Complete`). Each phase document owns its detailed exit criteria and a status section against them. Work is delivered in numbered slices (S0, S1a … S17); the slice table and per-slice status notes are in [improvement-plan.md](./improvement-plan.md#delivery-slices).
 
 Where each open phase stands (2026-10-04):
 
 - **Phase 4:** privacy (S8) and members (S9) are done; audit, contributor suggestions and record history wait.
-- **Phase 6:** pedigree, descendant and relationship charts (S10) and fan and hourglass (S12) are done; the 3D layers and floors views (S16, ADR-030) are built, merged and deployed, with flat still the product default until the promotion checklist in the [plan](./3d-tree-views-plan.md) is met. Production-grade import/export jobs, reports, timelines and branch export wait.
+- **Phase 6:** pedigree, descendant and relationship charts (S10) and fan and hourglass (S12) are done; the 3D layers and floors views (S16, ADR-030) are built, merged and deployed, but withdrawn from the controls while the owner decides on them (ADR-032); the rings overview (S17, ADR-032) is offered beside flat, which stays the product default. Production-grade import/export jobs, reports, timelines and branch export wait.
 - **Phase 7:** not started as a phase, though S8 put media reads behind the privacy check and S11 added place records with rename and merge.
 
 ## Delivery slices

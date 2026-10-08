@@ -1,6 +1,6 @@
 # 3D tree views: layers and floors — staged plan
 
-**Status:** built through stage 8; the product default is still flat (see the promotion checklist in Status row 8). The session prompt is archived in `docs/archive/3d-tree-views-prompt.md`. **Design:** the
+**Status:** built through stage 8; the product default is still flat (see the promotion checklist in Status row 8). **Withdrawn from the controls (ADR-032, 2026-10-08):** the toolbar and default-view pickers no longer offer Layers or Floors while the owner decides on them; a link or saved default naming one still opens it, and every stage below stays built and tested. The session prompt is archived in `docs/archive/3d-tree-views-prompt.md`. **Design:** the
 [3D Family Tree canvas](https://claude.ai/artifact/Pn1kMK4Aw6AM8ygmFee6Xv): board A is "Layered
 household" and board B is "Generation floors". The canvas is private, so share it from its Share
 menu before linking it anywhere else.
