@@ -1,4 +1,4 @@
-import { expect, open, test } from './support';
+import { expect, open, openWithdrawnMode, test } from './support';
 
 test('the layers view puts each family on its own plane, keeps each side on its side, and centres on a chosen union', async ({
 	api,
@@ -37,11 +37,12 @@ test('the layers view puts each family on its own plane, keeps each side on its 
 
 	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&up=2&down=1`);
 	await expect(card('Me')).toBeVisible();
-	await expect(mode('Layers')).toBeEnabled();
+	// Layers is off the toolbar (ADR-032), but a link naming it still opens it.
+	await expect(mode('Layers')).toHaveCount(0);
 
 	// Arriving asks for the wider groups, and keeps the focus and depth. Layers' own defaults stay
-	// out of the address, so a direct ?mode=layers link and this click are the same view.
-	await mode('Layers').click();
+	// out of the address, so a bare ?mode=layers link draws them.
+	await openWithdrawnMode(page, 'layers');
 	await expect(page).toHaveURL(/mode=layers/);
 	await expect(page).not.toHaveURL(/side=|origins=/);
 	await expect(page).toHaveURL(/up=2/);

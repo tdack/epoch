@@ -1,4 +1,4 @@
-import { expect, open, test } from './support';
+import { expect, open, openWithdrawnMode, test } from './support';
 
 test('the floors view switches in place, survives reload and Back, and opens the drawer from a floor', async ({
 	api,
@@ -24,10 +24,12 @@ test('the floors view switches in place, survives reload and Back, and opens the
 	await expect(card('Kid')).toBeVisible();
 	await expect(page.getByRole('application', { name: 'Family tree' })).toBeVisible();
 	await expect(mode('Flat')).toHaveAttribute('aria-pressed', 'true');
-	await expect(mode('Layers')).toBeEnabled();
+	// Floors is off the toolbar (ADR-032), but a link naming it still opens it.
+	await expect(mode('Floors')).toHaveCount(0);
+	await expect(mode('Layers')).toHaveCount(0);
 
 	// Switching keeps the focus and depth, and draws every person once on a floor.
-	await mode('Floors').click();
+	await openWithdrawnMode(page, 'floors');
 	await expect(page).toHaveURL(/mode=floors/);
 	await expect(page).toHaveURL(/down=1/);
 	await expect(page.getByRole('application', { name: 'Family tree, floors view' })).toBeVisible();
@@ -110,7 +112,7 @@ test('side branches and the partner’s family are fetched for floors, and flat 
 	await expect(page.getByRole('group', { name: 'Relatives off the direct line' })).toHaveCount(0);
 	await expect(card('Aunt')).toHaveCount(0);
 
-	await mode('Floors').click();
+	await openWithdrawnMode(page, 'floors');
 	await expect(page.getByRole('application', { name: 'Family tree, floors view' })).toBeVisible();
 	await expect(card('Aunt')).toHaveCount(0);
 	const more = page.getByRole('button', { name: 'More side branches' });
