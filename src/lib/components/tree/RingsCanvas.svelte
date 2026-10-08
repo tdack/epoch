@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { ringLineage, type RingsLayout } from '#lib/tree-layout/rings.js';
+	import { clearLabels, labelRank, type LabelBox } from './ring-labels.js';
 	import type { RingCamera, RingRole, RingsScene } from './rings-scene.js';
 	import { RING_TOKENS, treeTokenStyle } from './tree-tokens.js';
 	import { yearsLine } from './tree-view.js';
@@ -34,6 +35,8 @@
 		side: 'Side',
 		above: 'Above'
 	};
+	/** How far a name sits above its sphere's centre, in CSS pixels. */
+	const NAME_LIFT_PX = 10;
 	/** Pointer travel under which a press counts as a click rather than the start of an orbit. */
 	const CLICK_SLOP_PX = 5;
 
@@ -74,20 +77,52 @@
 	);
 
 	const tags = new Map<string, HTMLElement>();
+	/** Name sizes, measured once: the text never changes while the element lives. */
+	const sizes = new WeakMap<HTMLElement, { width: number; height: number }>();
+	const generationOf = $derived(new Map(layout.people.map((p) => [p.id, p.generation])));
 	/** Keeps a name's element where the frame loop can move it with its sphere. */
 	function tracked(id: string) {
 		return (element: HTMLElement) => {
 			tags.set(id, element);
-			place(id, element);
+			scene?.requestFrame();
 			return () => {
 				if (tags.get(id) === element) tags.delete(id);
+				scene?.requestFrame();
 			};
 		};
 	}
-	function place(id: string, element: HTMLElement) {
-		const at = scene?.project(id);
-		element.style.visibility = at ? 'visible' : 'hidden';
-		if (at) element.style.translate = `calc(${at.x}px - 50%) calc(${at.y}px - 100% - 10px)`;
+	/**
+	 * Moves every name to its sphere, then hides those that would cover a more important one. A
+	 * hidden name stays in the tab order and shows while focused, so the keyboard still reaches it.
+	 */
+	function placeNames() {
+		if (!scene) return;
+		const boxes: Array<LabelBox & { rank: number }> = [];
+		for (const [id, element] of tags) {
+			const at = scene.project(id);
+			element.style.visibility = at ? 'visible' : 'hidden';
+			if (!at) continue;
+			let size = sizes.get(element);
+			if (!size) {
+				size = { width: element.offsetWidth, height: element.offsetHeight };
+				sizes.set(element, size);
+			}
+			const left = at.x - size.width / 2;
+			const top = at.y - size.height - NAME_LIFT_PX;
+			element.style.translate = `${left}px ${top}px`;
+			boxes.push({
+				id,
+				left,
+				top,
+				...size,
+				rank: labelRank(roles.get(id) ?? null, generationOf.get(id) ?? 0, {
+					isHovered: id === hoveredId,
+					isSelected: id === selectedPersonId
+				})
+			});
+		}
+		const shown = clearLabels(boxes.sort((a, b) => a.rank - b.rank));
+		for (const { id } of boxes) tags.get(id)?.classList.toggle('is-crowded', !shown.has(id));
 	}
 
 	onMount(() => {
@@ -110,9 +145,7 @@
 					didFail = true;
 					return;
 				}
-				created.onFrame(() => {
-					for (const [id, element] of tags) place(id, element);
-				});
+				created.onFrame(placeNames);
 				scene = created;
 			})
 			.catch(() => (didFail = true));
@@ -132,6 +165,12 @@
 	});
 	$effect(() => {
 		scene?.setCamera(camera);
+	});
+	// The pointer and the drawer win a crowded spot, so a change to either re-sorts the names.
+	$effect(() => {
+		void hoveredId;
+		void selectedPersonId;
+		scene?.requestFrame();
 	});
 	$effect(() => {
 		scene?.setSpinning(isSpinning && !shouldReduceMotion);
@@ -312,6 +351,15 @@
 		border-color: var(--tree-ink);
 		color: var(--tree-panel);
 		font-weight: 600;
+	}
+	/* Crowded out by a more important name (set from the frame loop, hence global); focus brings it
+	   back so the keyboard still finds it. */
+	.tag:global(.is-crowded) {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.tag:global(.is-crowded):focus-visible {
+		opacity: 1;
 	}
 	.tag.is-selected {
 		box-shadow: 0 0 0 2px var(--tree-focus-ring);
