@@ -53,6 +53,26 @@ export const CAMERA_TOKENS = {
  */
 export const BAND_FADE = { 0: 1, 1: 0.9, 2: 0.88 } as const;
 
+/**
+ * Colours of the rings overview (ADR-032). Lineage, not sex: the focus person's ancestors,
+ * descendants and partners are lit and everyone else recedes, because a sphere has no room for the
+ * sex fill and symbol a card carries. Hex strings, since WebGL reads them directly.
+ */
+export const RING_TOKENS = {
+	stage: TREE_TOKENS['--tree-bg'],
+	focus: TREE_TOKENS['--tree-ink'],
+	ancestor: TREE_TOKENS['--union-ink'],
+	descendant: TREE_TOKENS['--tree-accent'],
+	partner: '#7c3a72',
+	other: '#a8a29e',
+	private: '#d6d3d1',
+	ring: '#cfc6b6',
+	line: '#b5aea4'
+} as const;
+
+/** How far an unlit sphere and line fade, so the focus line reads first. */
+export const RING_FADE = { person: 0.4, line: 0.28, ring: 0.7 } as const;
+
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
 		.map(([name, value]) => `${name}:${value}`)
