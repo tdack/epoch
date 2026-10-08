@@ -385,7 +385,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Consequences:** Deploying needs the sender domain verified in Email Sending. A message accepted for delivery can still bounce; the app does not learn of that.
 
 ## ADR-032: The rings overview is WebGL with free orbiting; Layers and Floors leave the controls (amends ADR-030)
-- **Status:** accepted by the owner, who accepted the departure from ADR-030 and the weaker accessibility of this one view. Built on 2026-10-08; checked in Chromium only (headless, SwiftShader WebGL).
+- **Status:** accepted by the owner, who accepted the departure from ADR-030 and the weaker accessibility of this one view. Built and deployed on 2026-10-08; checked in Chromium only (headless, SwiftShader WebGL).
 - **Context:** the owner proposed a view that stacks generations as rings, oldest at the top, with each person a sphere and parental lines branching down to the next ring, seen from any angle. A prototype on the Simpsons fixture and a generated 170-person family showed what it is good at (a repeated ancestor is one sphere with converging lines; seen from above it is a fan chart; the whole depth of a family at once) and where it struggles (names crowd on a full ring, wide generations make huge rings, it cannot be a real-DOM card view). The owner is not yet sold on Layers and Floors and wants them out of sight, not deleted.
 - **Decision:**
   - **`mode=rings`**, a fourth `LAYOUT_MODES` value, stored in the same `view_mode` columns (no migration: they are text, and the value list is shared).
