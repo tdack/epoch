@@ -3,14 +3,7 @@
 	import { clearLabels, labelRank, type LabelBox } from './ring-labels.js';
 	import { RING_TOKENS, treeTokenStyle } from './tree-tokens.js';
 	import { yearsLine } from './tree-view.js';
-	import type { ShellPerson, TreeRole, WebGlTreeScene } from './webgl-tree.js';
-
-	/** One line of the legend: a sex dot, the focus halo, or a sample of a line. */
-	interface LegendEntry {
-		kind: 'dot' | 'halo' | 'line';
-		colour: string;
-		label: string;
-	}
+	import type { LegendEntry, ShellPerson, TreeRole, WebGlTreeScene } from './webgl-tree.js';
 
 	/**
 	 * The DOM half of every WebGL tree view: the person buttons over the canvas, announcements,

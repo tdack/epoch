@@ -7,6 +7,45 @@
 import { ringLineage, type LineageSource } from '#lib/tree-layout/rings.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 
+/** One line of the legend: a sex dot, the focus halo, or a sample of a line. */
+export interface LegendEntry {
+	kind: 'dot' | 'halo' | 'line';
+	colour: string;
+	label: string;
+}
+
+/** The legend's sex dots, which every view shows, in the view's own shades. */
+export function sexLegend(tokens: {
+	male: string;
+	female: string;
+	unknownSex: string;
+}): LegendEntry[] {
+	return [
+		{ kind: 'dot', colour: tokens.male, label: 'Male' },
+		{ kind: 'dot', colour: tokens.female, label: 'Female' },
+		{ kind: 'dot', colour: tokens.unknownSex, label: 'Other or unknown' }
+	];
+}
+
+/**
+ * What the page passes every WebGL view's canvas. A canvas keeps `layout` and hands the rest
+ * straight to `WebGlTreeShell`, so the page can switch views without knowing which it draws.
+ */
+export interface WebGlCanvasProps<TLayout> {
+	/** People and lines from the view's pure layout module. */
+	layout: TLayout;
+	/** Changes when the view should be re-framed; see `TreeCanvas`. */
+	fitKey: string;
+	/** Person whose details are open in the drawer, if any. */
+	selectedPersonId?: string | null;
+	/** A sphere or name was clicked or activated with Enter: refocus the view on them. */
+	onSelectPerson?: (id: string) => void;
+	/** Double-click or Shift+Enter on a person: open their details. */
+	onOpenPerson?: (id: string) => void;
+	/** Escape: drop the selection. */
+	onClearSelection?: () => void;
+}
+
 /** What a sphere or line stands for on the focus person's line; absent is everyone else. */
 export type TreeRole = 'focus' | 'ancestor' | 'descendant' | 'partner';
 

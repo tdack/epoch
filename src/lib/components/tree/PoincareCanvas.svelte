@@ -3,31 +3,14 @@
 	import { POINCARE_CAMERAS, type PoincareScene } from './poincare-scene.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import { lineageRoles } from './webgl-tree.js';
+	import {
+		lineageRoles,
+		sexLegend,
+		type LegendEntry,
+		type WebGlCanvasProps
+	} from './webgl-tree.js';
 
-	interface Props {
-		/** People and lines from `layoutPoincare`. */
-		layout: PoincareLayout;
-		/** Changes when the view should be re-framed; see `TreeCanvas`. */
-		fitKey: string;
-		/** Person whose details are open in the drawer, if any. */
-		selectedPersonId?: string | null;
-		/** A sphere or name was clicked or activated with Enter: refocus the view on them. */
-		onSelectPerson?: (id: string) => void;
-		/** Double-click or Shift+Enter on a person: open their details. */
-		onOpenPerson?: (id: string) => void;
-		/** Escape: drop the selection. */
-		onClearSelection?: () => void;
-	}
-
-	let {
-		layout,
-		fitKey,
-		selectedPersonId = null,
-		onSelectPerson,
-		onOpenPerson,
-		onClearSelection
-	}: Props = $props();
+	let { layout, ...shellProps }: WebGlCanvasProps<PoincareLayout> = $props();
 
 	const CAMERAS = [
 		{ id: POINCARE_CAMERAS.ANGLED, label: 'Angled' },
@@ -35,11 +18,9 @@
 		{ id: POINCARE_CAMERAS.POLE, label: 'Pole' }
 	];
 	const LEGEND = [
-		{ kind: 'dot', colour: RING_TOKENS.male, label: 'Male' },
-		{ kind: 'dot', colour: RING_TOKENS.female, label: 'Female' },
-		{ kind: 'dot', colour: RING_TOKENS.unknownSex, label: 'Other or unknown' },
+		...sexLegend(RING_TOKENS),
 		{ kind: 'halo', colour: RING_TOKENS.focus, label: 'Focus' }
-	] as const;
+	] satisfies LegendEntry[];
 
 	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
@@ -67,13 +48,9 @@
 	viewName="Ball"
 	subject="the ball"
 	{announcement}
-	{fitKey}
 	cameras={CAMERAS}
-	legend={[...LEGEND]}
-	{selectedPersonId}
-	{onSelectPerson}
-	{onOpenPerson}
-	{onClearSelection}
+	legend={LEGEND}
+	{...shellProps}
 	{controls}
 	createScene={async (host) => (await import('./poincare-scene.js')).createPoincareScene(host)}
 	applyLayout={(scene: PoincareScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
