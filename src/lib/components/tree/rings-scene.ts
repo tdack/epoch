@@ -71,6 +71,8 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 	);
 
 	function setLayout(layout: RingsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
+		const isQuiet = roles.size === 0;
 		const world = stage.resetWorld();
 		const positions = new Map<string, Vector3>();
 
@@ -106,8 +108,8 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 					color: sexColour(p.person),
 					roughness: 0.55,
 					metalness: 0.05,
-					transparent: role === null,
-					opacity: role === null ? RING_FADE.person : 1
+					transparent: role === null && !isQuiet,
+					opacity: role === null && !isQuiet ? RING_FADE.person : 1
 				})
 			);
 			mesh.position.copy(position);
@@ -148,7 +150,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 					stage.thickLine(
 						points,
 						isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-						isLit ? 1 : RING_FADE.line,
+						isLit || isQuiet ? 1 : RING_FADE.line,
 						isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 					)
 				);
@@ -157,8 +159,8 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				knot,
 				new MeshStandardMaterial({
 					color: isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-					transparent: !isLit,
-					opacity: isLit ? 1 : RING_FADE.line
+					transparent: !isLit && !isQuiet,
+					opacity: isLit || isQuiet ? 1 : RING_FADE.line
 				})
 			);
 			marker.position.copy(at);
@@ -193,7 +195,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 						: childRole === 'descendant'
 							? RING_TOKENS.descendant
 							: RING_TOKENS.ancestor,
-					isLit ? 1 : RING_FADE.line,
+					isLit || isQuiet ? 1 : RING_FADE.line,
 					isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 				)
 			);

@@ -46,5 +46,6 @@
 	legend={LEGEND}
 	{...shellProps}
 	createScene={async (host) => (await import('./rings-scene.js')).createRingsScene(host)}
-	applyLayout={(scene: RingsScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
+	applyLayout={(scene: RingsScene, shown, shouldRefit) =>
+		scene.setLayout(layout, shown, shouldRefit)}
 />

@@ -295,6 +295,8 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 	});
 
 	function setLayout(layout: OrreryLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
+		const isQuiet = roles.size === 0;
 		const world = stage.resetWorld();
 		for (const material of glowMaterials) material.dispose();
 		glowMaterials = [];
@@ -316,7 +318,7 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		for (const p of layout.people) {
 			const role = roles.get(p.id) ?? null;
 			const isPrivate = p.person.isPrivate === true;
-			const isLit = role !== null;
+			const isLit = isQuiet || role !== null;
 			const colour = starColour(p.person);
 			const at = shown.get(p.id)!;
 			const mesh = new Mesh(
@@ -413,7 +415,7 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 			descents.push({
 				from,
 				to: link.childId,
-				brightness: isLit ? 1 : T.dimLine,
+				brightness: isLit || isQuiet ? 1 : T.dimLine,
 				colour: new Color(isLit ? T.lineLit : T.lineDim)
 			});
 		}

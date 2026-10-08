@@ -95,11 +95,13 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 	}
 
 	function setLayout(layout: RibbonsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
+		const isQuiet = roles.size === 0;
 		freeExtras();
 		const world = stage.resetWorld();
 
 		const personById = new Map(layout.people.map((p) => [p.id, p]));
-		const isLitPerson = (id: string) => roles.has(id);
+		const isLitPerson = (id: string) => isQuiet || roles.has(id);
 		const ys = layout.people.map((p) => p.y);
 		const top = ys.length > 0 ? Math.max(...ys) : 0;
 		const bottom = ys.length > 0 ? Math.min(...ys) : 0;

@@ -41,10 +41,11 @@
 		createScene: (host: HTMLElement) => Promise<TScene>;
 		/**
 		 * Draws the layout into the scene. Runs whenever the scene appears and whenever anything it
-		 * reads changes, so read the layout and roles inside it. `shouldRefit` is true when `fitKey`
+		 * reads changes, so read the layout inside it. `roles` are the ones to light: the view's own,
+		 * or none when the viewer has cleared the highlight. `shouldRefit` is true when `fitKey`
 		 * changed.
 		 */
-		applyLayout: (scene: TScene, shouldRefit: boolean) => void;
+		applyLayout: (scene: TScene, roles: Map<string, TreeRole>, shouldRefit: boolean) => void;
 		/** The scene once created; null before then and after a failure. */
 		scene?: TScene | null;
 		/** True under prefers-reduced-motion; a scene that animates anything decorative reads this. */
@@ -80,7 +81,7 @@
 		shouldReduceMotion = $bindable(false),
 		selectedPersonId = null,
 		legend = [],
-		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · double-click for details',
+		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click for details',
 		controls,
 		onSelectPerson,
 		onOpenPerson,
@@ -100,6 +101,18 @@
 	let isSpinning = $state(false);
 	let shouldShowAllNames = $state(false);
 	let hoveredId = $state<string | null>(null);
+	/**
+	 * The roles the viewer cleared the highlight on. Clearing keeps everyone where they are and only
+	 * stops lighting the focus line; a new focus (a new roles map) lights its line again.
+	 */
+	let clearedRoles = $state.raw<Map<string, TreeRole> | null>(null);
+	const isHighlightCleared = $derived(clearedRoles === roles);
+	const NO_ROLES = new Map<string, TreeRole>();
+	/** The roles the scene and the names show. */
+	const shownRoles = $derived(isHighlightCleared ? NO_ROLES : roles);
+	function clearHighlight() {
+		clearedRoles = roles;
+	}
 	/** The pointer inside the canvas, in CSS pixels; null while orbiting or off the canvas. */
 	let pointerAt = $state<{ x: number; y: number } | null>(null);
 	let shellWidth = $state(0);
@@ -111,7 +124,7 @@
 	const hovered = $derived(hoveredId ? personById.get(hoveredId) : undefined);
 	const card = $derived(
 		hovered && hovered.person.isPrivate !== true
-			? hoverCard(hovered.person, people, roles.get(hovered.id) ?? null)
+			? hoverCard(hovered.person, people, shownRoles.get(hovered.id) ?? null)
 			: null
 	);
 	/** Below and right of the pointer, flipped to the other side where it would leave the view. */
@@ -141,7 +154,10 @@
 		people.filter(
 			(p) =>
 				p.person.isPrivate !== true &&
-				(shouldShowAllNames || roles.has(p.id) || p.id === hoveredId || p.id === selectedPersonId)
+				(shouldShowAllNames ||
+					shownRoles.has(p.id) ||
+					p.id === hoveredId ||
+					p.id === selectedPersonId)
 		)
 	);
 
@@ -184,7 +200,7 @@
 				left,
 				top,
 				...size,
-				rank: labelRank(roles.get(id) ?? null, generationOf.get(id) ?? 0, {
+				rank: labelRank(shownRoles.get(id) ?? null, generationOf.get(id) ?? 0, {
 					isHovered: id === hoveredId,
 					isSelected: id === selectedPersonId
 				})
@@ -227,7 +243,7 @@
 		if (!scene) return;
 		const shouldRefit = fitKey !== lastFitKey;
 		lastFitKey = fitKey;
-		applyLayout(scene, shouldRefit);
+		applyLayout(scene, shownRoles, shouldRefit);
 	});
 	$effect(() => {
 		scene?.setCamera(camera);
@@ -253,7 +269,8 @@
 	function onPointerUp(event: PointerEvent) {
 		if (!scene || !isClick(event) || event.button !== 0) return;
 		const id = scene.pick(event.clientX, event.clientY);
-		if (id) onSelectPerson?.(id);
+		if (id) selectPerson(id);
+		else clearHighlight();
 	}
 	function onDoubleClick(event: MouseEvent) {
 		const id = scene?.pick(event.clientX, event.clientY);
@@ -272,6 +289,10 @@
 		const id = scene.pick(event.clientX, event.clientY);
 		if (id !== untrack(() => hoveredId)) hoveredId = id;
 	}
+	function selectPerson(id: string) {
+		clearedRoles = null;
+		onSelectPerson?.(id);
+	}
 	function onTagKey(event: KeyboardEvent, id: string) {
 		if (event.key === 'Enter' && event.shiftKey) {
 			event.preventDefault();
@@ -280,7 +301,14 @@
 	}
 </script>
 
-<svelte:window onkeydown={(event) => event.key === 'Escape' && onClearSelection?.()} />
+<svelte:window
+	onkeydown={(event) => {
+		if (event.key !== 'Escape') return;
+		// One step back at a time: an open drawer closes first, then the highlight clears.
+		if (selectedPersonId) onClearSelection?.();
+		else clearHighlight();
+	}}
+/>
 
 <div
 	class="webgl-shell relative flex-1 overflow-hidden rounded-2xl border border-[var(--tree-panel-border)]"
@@ -309,7 +337,7 @@
 	{#if scene}
 		<div class="pointer-events-none absolute inset-0 z-10">
 			{#each named as p (p.id)}
-				{@const role = roles.get(p.id) ?? null}
+				{@const role = shownRoles.get(p.id) ?? null}
 				{@const years = yearsLine(p.person)}
 				<button
 					type="button"
@@ -320,7 +348,7 @@
 					class:is-partner={role === 'partner'}
 					class:is-selected={p.id === selectedPersonId}
 					aria-label="{p.person.displayName}{years ? `, ${years}` : ''}. Centre {subject} on them."
-					onclick={() => onSelectPerson?.(p.id)}
+					onclick={() => selectPerson(p.id)}
 					ondblclick={() => onOpenPerson?.(p.id)}
 					onkeydown={(event) => onTagKey(event, p.id)}
 					{@attach tracked(p.id)}
@@ -413,6 +441,14 @@
 			>
 				All names
 			</button>
+			<button
+				type="button"
+				class="view"
+				aria-pressed={!isHighlightCleared}
+				onclick={() => (isHighlightCleared ? (clearedRoles = null) : clearHighlight())}
+			>
+				Focus line
+			</button>
 			{#if !shouldReduceMotion}
 				<button
 					type="button"
@@ -432,7 +468,9 @@
 		</p>
 	</div>
 
-	<p class="sr-only" aria-live="polite">{announcement}</p>
+	<p class="sr-only" aria-live="polite">
+		{isHighlightCleared ? 'Highlight cleared: everyone is shown alike.' : announcement}
+	</p>
 </div>
 
 <style>

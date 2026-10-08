@@ -77,5 +77,6 @@
 	legend={LEGEND}
 	{...shellProps}
 	createScene={async (host) => (await import('./orrery-scene.js')).createOrreryScene(host)}
-	applyLayout={(scene: OrreryScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
+	applyLayout={(scene: OrreryScene, shown, shouldRefit) =>
+		scene.setLayout(layout, shown, shouldRefit)}
 />

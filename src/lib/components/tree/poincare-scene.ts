@@ -138,6 +138,8 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 	}
 
 	function setLayout(layout: PoincareLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
+		const isQuiet = roles.size === 0;
 		freeLabels();
 		const world = stage.resetWorld();
 		const scale = (v: { x: number; y: number; z: number }) =>
@@ -210,8 +212,8 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 					color: sexColour(p.person),
 					roughness: 0.55,
 					metalness: 0.05,
-					transparent: role === null,
-					opacity: role === null ? RING_FADE.person : 1
+					transparent: role === null && !isQuiet,
+					opacity: role === null && !isQuiet ? RING_FADE.person : 1
 				})
 			);
 			mesh.position.copy(position);
@@ -250,7 +252,7 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 						stage.thickLine(
 							geodesic(unitOf(u.partnerIds[0]), unitOf(u.partnerIds[i])),
 							isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-							isLit ? 1 : RING_FADE.line,
+							isLit || isQuiet ? 1 : RING_FADE.line,
 							isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 						)
 					);
@@ -258,8 +260,8 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 				knot,
 				new MeshStandardMaterial({
 					color: isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-					transparent: !isLit,
-					opacity: isLit ? 1 : RING_FADE.line
+					transparent: !isLit && !isQuiet,
+					opacity: isLit || isQuiet ? 1 : RING_FADE.line
 				})
 			);
 			marker.position.copy(scale(u));
@@ -287,7 +289,7 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 						: childRole === 'descendant'
 							? RING_TOKENS.descendant
 							: RING_TOKENS.ancestor,
-					isLit ? 1 : RING_FADE.line,
+					isLit || isQuiet ? 1 : RING_FADE.line,
 					isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 				)
 			);

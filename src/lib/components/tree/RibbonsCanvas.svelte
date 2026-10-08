@@ -43,5 +43,6 @@
 	legend={LEGEND}
 	{...shellProps}
 	createScene={async (host) => (await import('./ribbons-scene.js')).createRibbonsScene(host)}
-	applyLayout={(scene: RibbonsScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
+	applyLayout={(scene: RibbonsScene, shown, shouldRefit) =>
+		scene.setLayout(layout, shown, shouldRefit)}
 />

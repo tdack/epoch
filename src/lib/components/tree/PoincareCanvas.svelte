@@ -53,5 +53,6 @@
 	{...shellProps}
 	{controls}
 	createScene={async (host) => (await import('./poincare-scene.js')).createPoincareScene(host)}
-	applyLayout={(scene: PoincareScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
+	applyLayout={(scene: PoincareScene, shown, shouldRefit) =>
+		scene.setLayout(layout, shown, shouldRefit)}
 />
