@@ -65,7 +65,16 @@ test('rings opens from the toolbar, asks for more generations, and refocuses fro
 	// Clicking the sphere under a name picks that person, through the WebGL scene. Gran's name is
 	// the only one near her sphere from above, so the click cannot land on another name.
 	await page.keyboard.press('Escape');
-	const box = (await name('Gran').boundingBox())!;
+	// Closing the drawer is a navigation of its own; a click during it would be overtaken.
+	await expect(page).not.toHaveURL(/person=/);
+	// Names follow the scene a frame behind the camera, so wait until Gran's has stopped moving.
+	let box = (await name('Gran').boundingBox())!;
+	await expect(async () => {
+		const next = (await name('Gran').boundingBox())!;
+		const hasSettled = next.x === box.x && next.y === box.y;
+		box = next;
+		expect(hasSettled).toBe(true);
+	}).toPass({ intervals: [100, 100, 200] });
 	// The name sits 10px above its sphere's centre.
 	await page.mouse.click(box.x + box.width / 2, box.y + box.height + 10);
 	await expect(page).toHaveURL(new RegExp(`focus=${gran.id}`));
