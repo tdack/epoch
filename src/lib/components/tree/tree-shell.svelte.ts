@@ -1,12 +1,13 @@
 /**
- * The operations on trees as a whole, as opposed to on the people in one: create, delete, import
- * and export. Used by the tree screens' shared header and by the landing page when no tree exists
+ * The operations on trees as a whole, as opposed to on the people in one: create, rename, delete,
+ * import and export. Used by the tree screens' shared header and by the landing page when no tree exists
  * yet, so both offer the same actions with the same dialogs.
  */
 
 import {
 	createTreeApi,
 	deleteTreeApi,
+	renameTreeApi,
 	previewGedcomImport,
 	submitGedcomImport
 } from '#lib/services/tree-api.js';
@@ -28,6 +29,11 @@ export class TreeShell {
 	isNewTreeModalOpen = $state(false);
 	isCreatingTree = $state(false);
 	createTreeError = $state<string | null>(null);
+
+	// Rename tree
+	isRenameTreeModalOpen = $state(false);
+	isRenamingTree = $state(false);
+	renameTreeError = $state<string | null>(null);
 
 	// Delete tree
 	isDeleteTreeModalOpen = $state(false);
@@ -65,6 +71,30 @@ export class TreeShell {
 			this.createTreeError = e?.message || 'Failed to create tree';
 		} finally {
 			this.isCreatingTree = false;
+		}
+	};
+
+	openRenameTree = () => {
+		this.renameTreeError = null;
+		this.isRenamingTree = false;
+		this.isRenameTreeModalOpen = true;
+	};
+
+	/** `version` is the tree's as the dialog was opened, so a rename made meanwhile answers 409. */
+	renameTree = async (name: string, version: number) => {
+		const treeId = this.options.treeId();
+		if (!treeId) return;
+		this.isRenamingTree = true;
+		this.renameTreeError = null;
+		try {
+			await renameTreeApi(treeId, name, version);
+			this.isRenameTreeModalOpen = false;
+			this.options.toasts.push('Tree renamed');
+			await this.options.reload();
+		} catch (err) {
+			this.renameTreeError = (err as Error).message || 'Failed to rename tree';
+		} finally {
+			this.isRenamingTree = false;
 		}
 	};
 

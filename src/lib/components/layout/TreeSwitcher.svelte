@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, ChevronDown, Download, Plus, Trash2, Upload } from '@lucide/svelte';
+	import { Check, ChevronDown, Download, Pencil, Plus, Trash2, Upload } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 
@@ -13,6 +13,8 @@
 		onselectTree: (id: string) => void;
 		onopenNewTree: () => void;
 		onopenDeleteTree: () => void;
+		/** Absent below manager, who may not rename (`tree:update_settings`), so the item is not shown. */
+		onopenRenameTree?: () => void;
 		onfileSelect: (e: Event) => void;
 		onexportGedcom: () => void;
 		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
@@ -27,6 +29,7 @@
 		onselectTree,
 		onopenNewTree,
 		onopenDeleteTree,
+		onopenRenameTree,
 		onfileSelect,
 		onexportGedcom,
 		canExport = false
@@ -121,6 +124,12 @@
 	{/if}
 	{#if selectedTreeId}
 		<div role="separator" class="my-1 border-t border-stone-200"></div>
+		{#if onopenRenameTree}
+			<button type="button" role="menuitem" class={itemClass} onclick={onopenRenameTree}>
+				<Pencil class="h-3.5 w-3.5 shrink-0 text-stone-600" aria-hidden="true" />
+				Rename this tree…
+			</button>
+		{/if}
 		<button
 			type="button"
 			role="menuitem"

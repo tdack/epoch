@@ -85,6 +85,7 @@
 		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
+		onopenRenameTree={isManagerOrAbove(role) ? shell.openRenameTree : undefined}
 		onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
 		onfileSelect={shell.selectFile}
 		onexportGedcom={shell.exportGedcom}
@@ -115,7 +116,14 @@
 			? 'max-w-none'
 			: 'max-w-7xl'}"
 	>
-		<TreeShellHost {shell} tree={{ id: data.summary.tree.id, name: data.summary.tree.name }} />
+		<TreeShellHost
+			{shell}
+			tree={{
+				id: data.summary.tree.id,
+				name: data.summary.tree.name,
+				version: data.summary.tree.version
+			}}
+		/>
 		<TreeNav treeId={data.summary.tree.id} {role} pathname={page.url.pathname} />
 		{@render children()}
 	</main>
