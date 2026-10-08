@@ -33,11 +33,11 @@ test('the owner’s tree default, a member’s own choice and an explicit link o
 	await open(page, bare);
 	await expect(flatCanvas(page)).toBeVisible();
 
-	// Only Flat and Rings are offered; Layers and Floors are withdrawn (ADR-032).
+	// Flat and the four WebGL views are offered; Layers and Floors are withdrawn (ADR-032).
 	await withDisplay(page, () =>
 		expect(
 			page.getByRole('combobox', { name: 'Default view for everyone' }).locator('option')
-		).toHaveText(['Flat', 'Rings'])
+		).toHaveText(['Flat', 'Rings', 'Ball', 'Ribbons', 'Orrery'])
 	);
 
 	// The owner sets the tree's default, and a link with no mode now opens in it.

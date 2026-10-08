@@ -7,11 +7,11 @@
 import {
 	ALL_PARENT_CHILD_TYPES,
 	DEFAULT_VIEW_STATE,
-	LAYOUT_MODES,
 	type LayoutMode,
 	type TreeViewState,
 	wideGroupDefaults
 } from './tree-url.js';
+import { VIEW_MODE_TRAITS } from '#lib/shared/view-mode.js';
 
 type DisplayFields = Pick<
 	TreeViewState,
@@ -39,7 +39,7 @@ export function displayDefaults(mode: LayoutMode): DisplayFields {
  */
 export function countDisplayChanges(view: TreeViewState): number {
 	const d = displayDefaults(view.layoutMode);
-	const hasWiderGroups = view.layoutMode !== LAYOUT_MODES.FLAT;
+	const { hasWiderGroups } = VIEW_MODE_TRAITS[view.layoutMode];
 	return [
 		view.shouldIncludeSiblings !== d.shouldIncludeSiblings,
 		view.shouldIncludeStepFamilies !== d.shouldIncludeStepFamilies,

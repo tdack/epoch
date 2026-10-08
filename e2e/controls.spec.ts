@@ -51,3 +51,35 @@ test('the depth and link-type controls change what the tree draws, and live in t
 	await expect(card('Grandkid')).toHaveCount(0);
 	await expect(card('Bio')).toBeVisible();
 });
+
+test('the 3D picker chooses the WebGL view, and the 3D button returns to the last one', async ({
+	api,
+	page
+}) => {
+	const homer = await api.addPerson('Homer', 'Picker');
+	const kit = await api.addPerson('Kit', 'Picker');
+	await api.child(homer, kit);
+	const layout = page.getByRole('group', { name: 'Layout' });
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}`);
+	await expect(layout.getByRole('button', { name: 'Flat' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await layout.getByRole('button', { name: 'Choose the 3D view' }).click();
+	await page
+		.getByRole('group', { name: '3D view' })
+		.getByRole('button', { name: /^Ribbons/ })
+		.click();
+	await expect(page).toHaveURL(/mode=ribbons/);
+	await expect(layout.getByRole('button', { name: '3D · Ribbons' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+
+	// Back to Flat and then the 3D button: it returns to Ribbons, not to the first view in the list.
+	await layout.getByRole('button', { name: 'Flat' }).click();
+	await expect(page).toHaveURL(/mode=flat/);
+	await layout.getByRole('button', { name: '3D · Ribbons' }).click();
+	await expect(page).toHaveURL(/mode=ribbons/);
+});

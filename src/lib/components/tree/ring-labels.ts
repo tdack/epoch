@@ -5,7 +5,7 @@
  * hidden; it shows again when the camera turns it clear, or when it takes keyboard focus.
  */
 
-import type { RingRole } from './rings-scene.js';
+import type { TreeRole } from './webgl-tree.js';
 
 export interface LabelBox {
 	id: string;
@@ -24,7 +24,7 @@ const LABEL_GAP_PX = 2;
  * the focus line from the nearest generation outwards, then everyone else the same way.
  */
 export function labelRank(
-	role: RingRole,
+	role: TreeRole | null,
 	generation: number,
 	special: { isHovered: boolean; isSelected: boolean }
 ): number {

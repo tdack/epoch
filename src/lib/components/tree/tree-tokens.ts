@@ -76,11 +76,90 @@ export const RING_TOKENS = {
 /** How far an unlit sphere and line fade, and how see-through a generation's disc is. */
 export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as const;
 
+/**
+ * Colours and sizes of the Ball view, the unit ball of calendar time.
+ * Owned by the Ball view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const POINCARE_TOKENS = {
+	stage: TREE_TOKENS['--tree-bg'],
+	/** The glass shell and the fresnel rim that brightens its edge. */
+	glass: '#6f8fae',
+	glassOpacity: { base: 0.05, rim: 0.42 },
+	/** Latitude rings and the time axis, drawn as hairlines. */
+	latitude: '#8f9aa6',
+	latitudeOpacity: { decade: 0.2, major: 0.5, axis: 0.35 },
+	/** Calendar years on the rings: real years, never anyone's estimated era. */
+	yearInk: '#57534e'
+} as const;
+
 /** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */
 export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5 } as const;
+
+/**
+ * Colours and sizes of the Ribbons view, lineages as tubes meeting at union knots.
+ * Owned by the Ribbons view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const RIBBON_TOKENS = {
+	// Dark, because the knots' glow is additive and would vanish on the cream the other views use.
+	stage: '#10141f',
+	// Light where RING_TOKENS.focus is dark ink, which would disappear on the dark stage.
+	focus: '#f4eedc',
+	knot: '#ffe7ad',
+	glow: '#ffbd5c'
+} as const;
+
+/** How faint an unlit ribbon, knot and glow are, as a fraction of the lit ones. */
+export const RIBBON_FADE = { person: 0.4, knot: 0.55, glow: 0.4 } as const;
+
+/** Sizes of the Ribbons view in scene units: tube radii taper from the oldest row to the youngest. */
+export const RIBBON_SIZES = {
+	tubeOldest: 0.2,
+	tubeYoungest: 0.09,
+	node: 0.46,
+	knot: 0.42,
+	glow: 4.2,
+	braid: 0.34
+} as const;
 
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
 		.map(([name, value]) => `${name}:${value}`)
 		.join(';');
 }
+
+/**
+ * Colours and sizes of the Orrery view, a star cluster of partners and their children.
+ * Owned by the Orrery view alone: it adds its colours and sizes here, and no other view edits this block.
+ */
+export const ORRERY_TOKENS = {
+	/** Night sky: the glow sprites are additive, so they only read against a dark stage. */
+	stage: '#090d1b',
+	/** Star colours by sex, lighter than the cards' borders because a star glows rather than fills. */
+	male: '#8dbbff',
+	female: '#ff9cc2',
+	unknownSex: '#e8e1d2',
+	private: '#7b8296',
+	/** Descent lines and tethers on the focus person's line, and everyone else's. */
+	lineLit: '#ffe0a0',
+	lineDim: '#56648c',
+	/** The accretion ring at a union's barycentre, and the pulse that runs along a tether. */
+	accretion: '#a9bdf0',
+	pulse: '#ffffff',
+	focusHalo: '#ffffff',
+	/** The legend sits on the light panel, where a white halo would vanish. */
+	legendHalo: TREE_TOKENS['--tree-ink'],
+	starRadiusUnits: 0.42,
+	focusScale: 1.5,
+	/** A glow sprite's width as a multiple of the star's radius. */
+	glowScale: 7,
+	/** How bright a star, its glow and its lines are when off the focus line, 0 to 1. */
+	dimStar: 0.55,
+	dimGlow: 0.3,
+	dimLine: 0.35,
+	litLinePx: 3,
+	dimLinePx: 1.6,
+	tetherPx: 3.4,
+	/** Seconds for a tether's pulse to run from one partner to the other. */
+	pulseSeconds: 4,
+	accretionOpacity: 0.2
+} as const;
