@@ -8,6 +8,7 @@
 		removeMemberApi,
 		withdrawInvitationApi
 	} from '#lib/services/tree-api.js';
+	import { describeRole } from '#lib/shared/membership-policy.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
 
@@ -99,6 +100,7 @@
 			<select
 				id="invite-role"
 				bind:value={inviteRole}
+				aria-describedby="invite-role-detail"
 				class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize"
 			>
 				{#each members.grantableRoles as role (role)}<option value={role}>{role}</option>{/each}
@@ -111,6 +113,9 @@
 			>Invite</button
 		>
 	</form>
+	<p id="invite-role-detail" class="mt-3 max-w-2xl text-sm text-stone-600" aria-live="polite">
+		{describeRole(inviteRole, data.summary.tree.name)}
+	</p>
 </section>
 
 {#if members.invitations.length > 0}
