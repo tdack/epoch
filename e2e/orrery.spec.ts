@@ -121,3 +121,33 @@ test('orrery draws the stars moving, and holds still when motion is reduced', as
 	await page.waitForTimeout(1200);
 	expect(await nameBox()).toBe(held);
 });
+
+test('the Motion switch holds the orrery still, and stays off after a reload', async ({
+	api,
+	page
+}) => {
+	const mum = await api.addPerson('Mum', 'Still');
+	const dad = await api.addPerson('Dad', 'Still');
+	const me = await api.addPerson('Me', 'Still');
+	await api.partner(mum, dad);
+	await api.child(mum, me);
+	const orrery = page.getByRole('group', { name: 'Orrery view' });
+	const nameBox = async () =>
+		JSON.stringify(await orrery.getByRole('button', { name: /^Me Still\b/ }).boundingBox());
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(me.id)}&mode=orrery`);
+	const motion = orrery.getByRole('button', { name: 'Motion' });
+	await expect(motion).toHaveAttribute('aria-pressed', 'true');
+	await motion.click();
+	await expect(motion).toHaveAttribute('aria-pressed', 'false');
+	await page.waitForTimeout(300);
+	const held = await nameBox();
+	await page.waitForTimeout(1200);
+	expect(await nameBox()).toBe(held);
+
+	await page.reload();
+	await expect(orrery.getByRole('button', { name: 'Motion' })).toHaveAttribute(
+		'aria-pressed',
+		'false'
+	);
+});

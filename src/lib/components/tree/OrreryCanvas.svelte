@@ -21,10 +21,30 @@
 		{ kind: 'halo', colour: ORRERY_TOKENS.legendHalo, label: 'Focus' }
 	] satisfies LegendEntry[];
 
+	/** Remembers a viewer's choice to hold the orrery still; per browser, not per tree. */
+	const MOTION_STORAGE_KEY = 'epoch.orrery.isMoving';
+
 	let scene = $state<OrreryScene | null>(null);
 	let shouldReduceMotion = $state(false);
+	let isMoving = $state(readIsMoving());
 	// The shell reads the media query; the scene decides what to stop (drift and the tether pulse).
-	$effect(() => scene?.setReducedMotion(shouldReduceMotion));
+	$effect(() => scene?.setReducedMotion(shouldReduceMotion || !isMoving));
+
+	function readIsMoving(): boolean {
+		try {
+			return localStorage.getItem(MOTION_STORAGE_KEY) !== 'false';
+		} catch {
+			return true;
+		}
+	}
+	function toggleMotion() {
+		isMoving = !isMoving;
+		try {
+			localStorage.setItem(MOTION_STORAGE_KEY, String(isMoving));
+		} catch {
+			// Private windows can refuse storage; the switch still works for this visit.
+		}
+	}
 
 	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
@@ -35,6 +55,14 @@
 	);
 </script>
 
+{#snippet controls()}
+	{#if !shouldReduceMotion}
+		<button type="button" class="view" aria-pressed={isMoving} onclick={toggleMotion}>
+			Motion
+		</button>
+	{/if}
+{/snippet}
+
 <WebGlTreeShell
 	people={layout.people}
 	{roles}
@@ -44,6 +72,7 @@
 	{announcement}
 	bind:scene
 	bind:shouldReduceMotion
+	{controls}
 	cameras={CAMERAS}
 	legend={LEGEND}
 	{...shellProps}
