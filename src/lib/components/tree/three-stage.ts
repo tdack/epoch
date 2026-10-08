@@ -17,9 +17,11 @@ import {
 	Line,
 	LineBasicMaterial,
 	Mesh,
+	Points,
 	PerspectiveCamera,
 	Raycaster,
 	Scene,
+	Sprite,
 	Vector2,
 	Vector3,
 	WebGLRenderer,
@@ -151,9 +153,18 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 
 	function disposeWorld() {
 		world.traverse((object) => {
-			if (!(object instanceof Mesh || object instanceof Line)) return;
+			if (!(
+				object instanceof Mesh ||
+				object instanceof Line ||
+				object instanceof Points ||
+				object instanceof Sprite
+			))
+				return;
 			const material = object.material as Material | Material[];
 			for (const m of Array.isArray(material) ? material : [material]) m.dispose();
+			// Every sprite draws three.js's one module-level quad, so freeing it would pull it from
+			// under the sprites of the next world.
+			if (object instanceof Sprite) return;
 			if (!sharedGeometries.has(object.geometry)) object.geometry.dispose();
 		});
 		scene.remove(world);
