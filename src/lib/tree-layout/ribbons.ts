@@ -22,12 +22,12 @@ import type {
 } from './types.js';
 
 /** Distance between neighbours in a row across the flow, and between generations along it. */
-export const RIBBON_SLOT_UNITS = 2.6;
-export const RIBBON_ROW_UNITS = 8;
+const RIBBON_SLOT_UNITS = 2.6;
+const RIBBON_ROW_UNITS = 8;
 /** How far below its lowest partner a union's knot hangs, so the children's lines have room to fan. */
-export const RIBBON_KNOT_DROP_UNITS = 2.6;
+const RIBBON_KNOT_DROP_UNITS = 2.6;
 /** The length of the ribbon above a person with no drawn parents. */
-export const RIBBON_ENTRY_STUB_UNITS = 3.2;
+const RIBBON_ENTRY_STUB_UNITS = 3.2;
 /** Depth (z) between siblings' households, and the spread of households with no drawn parents. */
 const LANE_UNITS = 2.4;
 const ROOT_LANE_UNITS = 5;
@@ -45,7 +45,7 @@ export const RIBBON_STRAND_KINDS = {
 	/** From the person to a knot of a union they are a partner in. */
 	JOIN: 'join'
 } as const;
-export type RibbonStrandKind = (typeof RIBBON_STRAND_KINDS)[keyof typeof RIBBON_STRAND_KINDS];
+type RibbonStrandKind = (typeof RIBBON_STRAND_KINDS)[keyof typeof RIBBON_STRAND_KINDS];
 
 interface Vec3 {
 	x: number;

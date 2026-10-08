@@ -176,15 +176,15 @@ describe('layoutRibbons', () => {
 	it('crossings on a large interlocking dynasty are no worse than the unordered baseline', () => {
 		const { graph, focusIds } = dynasty();
 		const index = buildIndex(graph);
-		let sawBetter = false;
+		let didImprove = false;
 		for (const focusId of focusIds) {
 			const options = WIDE;
 			const ordered = countRibbonCrossings(layoutRibbons(graph, focusId, options, index));
 			const baseline = countRibbonCrossings(layoutRibbons(graph, focusId, options, index, 'input'));
 			expect(ordered).toBeLessThanOrEqual(baseline);
-			if (ordered < baseline) sawBetter = true;
+			if (ordered < baseline) didImprove = true;
 		}
-		expect(sawBetter).toBe(true);
+		expect(didImprove).toBe(true);
 	});
 
 	it('lays out a 200-person tree promptly', () => {
