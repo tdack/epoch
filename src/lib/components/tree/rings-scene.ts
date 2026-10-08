@@ -35,8 +35,8 @@ const FOCUS_SCALE = 1.45;
 /** How far the knot a partnership's lines leave from hangs below its partners. */
 const UNION_DROP_UNITS = 0.45;
 const TAU = Math.PI * 2;
-/** Room left round the rings when framing, as a multiple of what they need. */
-const FRAME_MARGIN = 1.2;
+/** How much of the canvas the framed rings may fill, in clip space (1 is edge to edge). */
+const FRAME_FILL = 0.88;
 const RING_MIN_FRAME_UNITS = 3;
 
 export const RING_CAMERAS = { ANGLED: 'angled', SIDE: 'side', ABOVE: 'above' } as const;
@@ -64,6 +64,8 @@ export interface RingsScene {
 	project(personId: string): { x: number; y: number } | null;
 	/** Called after each drawn frame, so the component can move its DOM names with the scene. */
 	onFrame(callback: () => void): void;
+	/** Draw the next frame even if nothing moved, as after names were added. */
+	requestFrame(): void;
 	dispose(): void;
 }
 
@@ -86,7 +88,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 
 	const scene = new Scene();
 	scene.background = new Color(RING_TOKENS.stage);
-	const camera = new PerspectiveCamera(42, 1, 0.1, 2000);
+	const camera = new PerspectiveCamera(42, 1, 0.1, 5000);
 	const controls = new OrbitControls(camera, renderer.domElement);
 	controls.enableDamping = true;
 	controls.dampingFactor = 0.08;
@@ -106,6 +108,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 	let bounds = { top: 0, bottom: 0, radius: RING_MIN_FRAME_UNITS };
 	let preset: RingCamera = RING_CAMERAS.ANGLED;
 	const frameCallbacks: Array<() => void> = [];
+	let isDirty = true;
 
 	function disposeWorld() {
 		world.traverse((object) => {
@@ -138,21 +141,40 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 	}
 
 	/**
-	 * Frames every ring, not just the focus person's: the target is the middle of the stack, and the
-	 * distance is the larger of what the height and the widest ring need through this lens.
+	 * Frames every ring, not just the focus person's: aims at the middle of the stack and finds, by
+	 * halving, the nearest distance at which the outline of the top and bottom rings still fits the
+	 * canvas. A closed form over-framed badly once the stack was taller than it was wide.
 	 */
 	function fit() {
-		const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
-		const halfHeight = (bounds.top - bounds.bottom) / 2;
-		const fitWidth = (bounds.radius * FRAME_MARGIN) / (tanHalf * camera.aspect);
-		const distance =
-			preset === RING_CAMERAS.ABOVE
-				? Math.max((bounds.radius * FRAME_MARGIN) / tanHalf, fitWidth) + halfHeight
-				: Math.max(((halfHeight + bounds.radius * 0.5) * FRAME_MARGIN) / tanHalf, fitWidth) +
-					bounds.radius;
 		controls.target.set(0, (bounds.top + bounds.bottom) / 2, 0);
-		camera.position.copy(controls.target).addScaledVector(CAMERA_DIRECTIONS[preset], distance);
+		const outline: Vector3[] = [];
+		for (const y of [bounds.top, bounds.bottom])
+			for (let i = 0; i < 16; i++) {
+				const a = (i / 16) * TAU;
+				outline.push(new Vector3(Math.cos(a) * bounds.radius, y, Math.sin(a) * bounds.radius));
+			}
+		const probe = new Vector3();
+		const fits = (distance: number) => {
+			camera.position.copy(controls.target).addScaledVector(CAMERA_DIRECTIONS[preset], distance);
+			camera.lookAt(controls.target);
+			camera.updateMatrixWorld();
+			return outline.every((point) => {
+				probe.copy(point).project(camera);
+				return probe.z < 1 && Math.abs(probe.x) <= FRAME_FILL && Math.abs(probe.y) <= FRAME_FILL;
+			});
+		};
+		// Searched inside the camera's far plane: beyond it nothing "fits", which would push the
+		// search the wrong way.
+		let near = 1;
+		let far = camera.far * 0.9;
+		for (let i = 0; i < 40; i++) {
+			const mid = (near + far) / 2;
+			if (fits(mid)) far = mid;
+			else near = mid;
+		}
+		fits(far);
 		controls.update();
+		isDirty = true;
 	}
 
 	function setLayout(layout: RingsLayout, roles: Map<string, RingRole>, shouldRefit: boolean) {
@@ -265,6 +287,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 			radius: Math.max(RING_MIN_FRAME_UNITS, ...layout.rings.map((r) => r.radius))
 		};
 		if (shouldRefit) fit();
+		isDirty = true;
 	}
 
 	const raycaster = new Raycaster();
@@ -302,15 +325,20 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		renderer.setSize(width, height);
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
+		isDirty = true;
 	}
 	const observer = new ResizeObserver(resize);
 	observer.observe(host);
 	resize();
 
+	// Drawn only when something moved: a still scene costs nothing, and the names (DOM, moved by the
+	// frame callbacks) are repositioned only when their spheres could have.
 	let frame = 0;
 	const loop = () => {
 		frame = requestAnimationFrame(loop);
-		controls.update();
+		const didMove = controls.update();
+		if (!didMove && !isDirty) return;
+		isDirty = false;
 		renderer.render(scene, camera);
 		for (const callback of frameCallbacks) callback();
 	};
@@ -324,6 +352,9 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		},
 		setSpinning(isSpinning) {
 			controls.autoRotate = isSpinning;
+		},
+		requestFrame() {
+			isDirty = true;
 		},
 		pick,
 		project,
