@@ -92,7 +92,25 @@ export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5 } as const;
  * Owned by the Ribbons view alone: it adds its colours and sizes here, and no other view edits this block.
  */
 export const RIBBON_TOKENS = {
-	stage: TREE_TOKENS['--tree-bg']
+	// Dark, because the knots' glow is additive and would vanish on the cream the other views use.
+	stage: '#10141f',
+	// Light where RING_TOKENS.focus is dark ink, which would disappear on the dark stage.
+	focus: '#f4eedc',
+	knot: '#ffe7ad',
+	glow: '#ffbd5c'
+} as const;
+
+/** How faint an unlit ribbon, knot and glow are, as a fraction of the lit ones. */
+export const RIBBON_FADE = { person: 0.4, knot: 0.55, glow: 0.4 } as const;
+
+/** Sizes of the Ribbons view in scene units: tube radii taper from the oldest row to the youngest. */
+export const RIBBON_SIZES = {
+	tubeOldest: 0.2,
+	tubeYoungest: 0.09,
+	node: 0.46,
+	knot: 0.42,
+	glow: 4.2,
+	braid: 0.34
 } as const;
 
 export function treeTokenStyle(): string {
