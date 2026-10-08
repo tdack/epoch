@@ -42,6 +42,15 @@ function axisFor(id: string): Vec3 {
 	return { x: x / length, y: 1 / length, z: z / length };
 }
 
+/** The layout's people by id, kept per layout so a frame of the animation builds no map. */
+const restCache = new WeakMap<OrreryLayout, Map<string, Vec3>>();
+
+function restOf(layout: OrreryLayout): Map<string, Vec3> {
+	const rest = new Map<string, Vec3>(layout.people.map((p) => [p.id, p]));
+	restCache.set(layout, rest);
+	return rest;
+}
+
 export function buildOrbitPlan(layout: OrreryLayout): OrbitPlan {
 	// Households by union-find over the drawn unions.
 	const parent = new Map(layout.people.map((p) => [p.id, p.id]));
@@ -120,12 +129,15 @@ export function orbitPositions(
 	timeSeconds: number,
 	out: Map<string, Vec3>
 ): void {
-	const rest = new Map(layout.people.map((p) => [p.id, p]));
+	const rest = restCache.get(layout) ?? restOf(layout);
 	const at = (id: string): Vec3 => out.get(id) ?? rest.get(id)!;
 	for (const group of plan.groups) {
 		const driver = group.driver;
 		if (!driver) {
-			for (const id of group.memberIds) set(out, id, rest.get(id)!);
+			for (const id of group.memberIds) {
+				const r = rest.get(id)!;
+				set(out, id, r.x, r.y, r.z);
+			}
 			continue;
 		}
 		// Barycentre of the anchors, at rest and as displayed.
@@ -161,16 +173,16 @@ export function orbitPositions(
 		// The whole household moves by the driver's displacement, so its binaries stay rigid.
 		for (const id of group.memberIds) {
 			const r = rest.get(id)!;
-			set(out, id, { x: r.x + dx, y: r.y + dy, z: r.z + dz });
+			set(out, id, r.x + dx, r.y + dy, r.z + dz);
 		}
 	}
 }
 
-function set(out: Map<string, Vec3>, id: string, to: Vec3): void {
+function set(out: Map<string, Vec3>, id: string, x: number, y: number, z: number): void {
 	const existing = out.get(id);
 	if (existing) {
-		existing.x = to.x;
-		existing.y = to.y;
-		existing.z = to.z;
-	} else out.set(id, { x: to.x, y: to.y, z: to.z });
+		existing.x = x;
+		existing.y = y;
+		existing.z = z;
+	} else out.set(id, { x, y, z });
 }
