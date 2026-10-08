@@ -31,7 +31,8 @@
 
 	const CAMERAS = [
 		{ id: POINCARE_CAMERAS.ANGLED, label: 'Angled' },
-		{ id: POINCARE_CAMERAS.SIDE, label: 'Side' }
+		{ id: POINCARE_CAMERAS.SIDE, label: 'Side' },
+		{ id: POINCARE_CAMERAS.POLE, label: 'Pole' }
 	];
 	const LEGEND = [
 		{ kind: 'dot', colour: RING_TOKENS.male, label: 'Male' },
@@ -44,10 +45,20 @@
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
 	const announcement = $derived(
 		focus
-			? `Ball centred on ${focus.person.displayName}: ${layout.people.length} people shown.`
+			? `Ball centred on ${focus.person.displayName}: ${layout.people.length} people shown.${
+					layout.hasDates ? '' : ' No dates were found, so height follows generations.'
+				}`
 			: ''
 	);
 </script>
+
+{#snippet controls()}
+	{#if !layout.hasDates && layout.people.length > 0}
+		<span class="px-2 text-[var(--tree-ink-muted)]" data-testid="ball-no-dates">
+			No dates found: height follows generations.
+		</span>
+	{/if}
+{/snippet}
 
 <WebGlTreeShell
 	people={layout.people}
@@ -63,6 +74,7 @@
 	{onSelectPerson}
 	{onOpenPerson}
 	{onClearSelection}
+	{controls}
 	createScene={async (host) => (await import('./poincare-scene.js')).createPoincareScene(host)}
 	applyLayout={(scene: PoincareScene, shouldRefit) => scene.setLayout(layout, roles, shouldRefit)}
 />

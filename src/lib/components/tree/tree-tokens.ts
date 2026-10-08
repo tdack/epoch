@@ -81,7 +81,15 @@ export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as co
  * Owned by the Ball view alone: it adds its colours and sizes here, and no other view edits this block.
  */
 export const POINCARE_TOKENS = {
-	stage: TREE_TOKENS['--tree-bg']
+	stage: TREE_TOKENS['--tree-bg'],
+	/** The glass shell and the fresnel rim that brightens its edge. */
+	glass: '#6f8fae',
+	glassOpacity: { base: 0.05, rim: 0.42 },
+	/** Latitude rings and the time axis, drawn as hairlines. */
+	latitude: '#8f9aa6',
+	latitudeOpacity: { decade: 0.2, major: 0.5, axis: 0.35 },
+	/** Calendar years on the rings: real years, never anyone's estimated era. */
+	yearInk: '#57534e'
 } as const;
 
 /** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */

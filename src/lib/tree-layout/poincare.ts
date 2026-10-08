@@ -25,7 +25,7 @@ import type {
  * Euclidean radius of a sphere in unit-ball coordinates is `POINCARE_SPHERE_K · (1 − |p|²)`: the
  * conformal factor of the Poincaré ball, so a person near the glass is smaller, as if further off.
  */
-export const POINCARE_SPHERE_K = 0.05;
+export const POINCARE_SPHERE_K = 0.08;
 /** Gap between neighbouring spheres, as a multiple of their diameters. */
 const SPACING = 1.35;
 /** The highest and lowest latitude a person can stand at: the poles are too small to stand on. */
