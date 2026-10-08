@@ -19,7 +19,7 @@ const BOOLEAN_PREFIXES = [
 ];
 
 export default ts.config(
-	{ ignores: ['.svelte-kit/', 'build/', 'drizzle/', 'static/', 'worker-configuration.d.ts'] },
+	{ ignores: ['.svelte-kit/', 'build/', 'drizzle/', 'static/', 'worker-configuration.d.ts', '.claude/'] },
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
