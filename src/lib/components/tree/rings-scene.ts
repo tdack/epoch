@@ -93,6 +93,9 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 	controls.enableDamping = true;
 	controls.dampingFactor = 0.08;
 	controls.autoRotateSpeed = 0.6;
+	// Zoom and pan are applied inside the controls' own event handlers, so the loop's update() then
+	// sees nothing left to do; without this they waited for the damping tail to be drawn.
+	controls.addEventListener('change', () => (isDirty = true));
 	scene.add(new HemisphereLight(0xffffff, 0x8a8478, 1.1));
 	const sun = new DirectionalLight(0xffffff, 0.9);
 	sun.position.set(10, 30, 20);
