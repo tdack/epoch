@@ -28,6 +28,11 @@ import type { TreeRole, WebGlTreeScene } from './webgl-tree.js';
 
 /** Radius of the glass ball in scene units; the layout's unit ball is scaled up to it. */
 const BALL_RADIUS_UNITS = 14;
+/**
+ * Spheres draw at this share of the radius the layout spaced them for. At full size the ones near
+ * the axis crowded the opening view; the layout's spacing is kept, so they only gain air.
+ */
+const SPHERE_DRAW_SCALE = 0.5;
 /** A sphere never draws smaller than this, so a person at the glass can still be seen and picked. */
 const MIN_SPHERE_RADIUS_UNITS = 0.13;
 const FOCUS_SCALE = 1.45;
@@ -195,7 +200,10 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 		for (const p of layout.people) {
 			const position = scale(p);
 			const role = roles.get(p.id) ?? null;
-			const radius = Math.max(p.radius * BALL_RADIUS_UNITS, MIN_SPHERE_RADIUS_UNITS);
+			const radius = Math.max(
+				p.radius * BALL_RADIUS_UNITS * SPHERE_DRAW_SCALE,
+				MIN_SPHERE_RADIUS_UNITS
+			);
 			const mesh = new Mesh(
 				sphere,
 				new MeshStandardMaterial({
@@ -256,7 +264,9 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 			);
 			marker.position.copy(scale(u));
 			const conformal = 1 - (u.x * u.x + u.y * u.y + u.z * u.z);
-			marker.scale.setScalar(Math.max(0.5 * conformal * BALL_RADIUS_UNITS * 0.1, 0.06));
+			marker.scale.setScalar(
+				Math.max(0.5 * conformal * BALL_RADIUS_UNITS * 0.1 * SPHERE_DRAW_SCALE, 0.06)
+			);
 			world.add(marker);
 		}
 
