@@ -11,6 +11,7 @@
 		type LayoutMode,
 		type TreeViewState
 	} from './tree-url.js';
+	import { layoutModeChoices } from '#lib/shared/view-mode.js';
 	import { treeTokenStyle } from './tree-tokens.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
@@ -62,14 +63,17 @@
 	const MODE_LABELS: Record<LayoutMode, string> = {
 		flat: 'Flat',
 		layers: 'Layers',
-		floors: 'Floors'
+		floors: 'Floors',
+		rings: 'Rings'
 	};
 	/** What each layout draws, in a relative's words: the labels alone were the tool's own names. */
 	const MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
 		flat: 'Everyone on one page: ancestors above, descendants below.',
 		layers:
 			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
-		floors: 'One floor for each generation, the oldest at the top.'
+		floors: 'One floor for each generation, the oldest at the top.',
+		rings:
+			'An overview to turn and explore: one ring for each generation, the oldest at the top, with lines down to the children.'
 	};
 	const uid = $props.id();
 	const hintId = (title: string) => `${uid}-${title.replace(/\W+/g, '-')}-hint`;
@@ -87,15 +91,11 @@
 	});
 
 	/**
-	 * Floors is not offered on a phone: the tilted floors need width, and the page draws the flat view
-	 * in its place, so offering it there only led to a refusal. An address that already says Floors
-	 * keeps its button lit, so the choice in force stays visible.
+	 * Flat and Rings are offered; Layers and Floors are withdrawn while the owner decides on them
+	 * (ADR-032), and show only when the address already names one, so the choice in force stays
+	 * visible and can be left.
 	 */
-	const shownModes = $derived(
-		Object.values(LAYOUT_MODES).filter(
-			(mode) => !isNarrow || mode !== LAYOUT_MODES.FLOORS || view.layoutMode === mode
-		)
-	);
+	const shownModes = $derived(layoutModeChoices(view.layoutMode));
 	const isLayers = $derived(view.layoutMode === LAYOUT_MODES.LAYERS);
 	const hasPartnerChoice = $derived(isLayers && unionChoices.length > 1);
 	const partnerLabel = $derived(
@@ -344,7 +344,7 @@
 						<option value=""
 							>Tree default ({MODE_LABELS[defaults.tree ?? LAYOUT_MODES.FLAT]})</option
 						>
-						{#each Object.values(LAYOUT_MODES) as mode (mode)}
+						{#each layoutModeChoices(defaults.member) as mode (mode)}
 							<option value={mode}>{MODE_LABELS[mode]}</option>
 						{/each}
 					</select>
@@ -360,7 +360,7 @@
 							value={defaults.tree ?? LAYOUT_MODES.FLAT}
 							onchange={(event) => onSetTreeDefault?.(event.currentTarget.value as LayoutMode)}
 						>
-							{#each Object.values(LAYOUT_MODES) as mode (mode)}
+							{#each layoutModeChoices(defaults.tree) as mode (mode)}
 								<option value={mode}>{MODE_LABELS[mode]}</option>
 							{/each}
 						</select>

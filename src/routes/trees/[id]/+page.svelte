@@ -7,6 +7,7 @@
 	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
+	import RingsCanvas from '#lib/components/tree/RingsCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
@@ -17,6 +18,7 @@
 		HISTORY_KINDS,
 		LAYERS_DEFAULT_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
+		RINGS_ARRIVAL_DEPTH,
 		compactStubId,
 		createHistoryCoalescer,
 		parseViewState,
@@ -36,6 +38,7 @@
 	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
+	import { layoutRings } from '#lib/tree-layout/rings.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import { resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
@@ -161,6 +164,11 @@
 	const layersLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.LAYERS
 			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
+			: null
+	);
+	const ringsLayout = $derived(
+		graphForLayout && drawnMode === LAYOUT_MODES.RINGS
+			? layoutRings(graphForLayout, focusPersonId, focusOptions)
 			: null
 	);
 
@@ -500,13 +508,21 @@
 												shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
 											}
 										: {}),
-									// Layers shows the cousin line, so arriving at it asks for the wider groups.
-									...(change.layoutMode === LAYOUT_MODES.LAYERS &&
+									// Layers and Rings show the cousin line, so arriving at either asks for the wider groups.
+									...((change.layoutMode === LAYOUT_MODES.LAYERS ||
+										change.layoutMode === LAYOUT_MODES.RINGS) &&
 									view.collateralDepth === 0 &&
 									!view.shouldIncludePartnerOrigins
 										? {
 												collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
 												shouldIncludePartnerOrigins: true
+											}
+										: {}),
+									// Rings is an overview of the family's depth, so arriving at it asks for more of it.
+									...(change.layoutMode === LAYOUT_MODES.RINGS
+										? {
+												ancestorDepth: Math.max(view.ancestorDepth, RINGS_ARRIVAL_DEPTH),
+												descendantDepth: Math.max(view.descendantDepth, RINGS_ARRIVAL_DEPTH)
 											}
 										: {})
 								}
@@ -516,8 +532,8 @@
 			/>
 		</div>
 		{#if !isPhone}<TreeGestureHint
-				canRelate={canCreate}
-				hasMenuActions={canCreate || canChange}
+				canRelate={canCreate && !ringsLayout}
+				hasMenuActions={(canCreate || canChange) && !ringsLayout}
 			/>{/if}
 		{#if isFloorsOnPhone}
 			<p class="mb-2 text-sm text-stone-600" role="note">
@@ -529,11 +545,20 @@
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
 			<!-- Before the canvases so the legend, drawn later, stays above it. -->
 			{#if isPhone}<TreeGestureHint
-					canRelate={canCreate}
-					hasMenuActions={canCreate || canChange}
+					canRelate={canCreate && !ringsLayout}
+					hasMenuActions={(canCreate || canChange) && !ringsLayout}
 					isOverlay
 				/>{/if}
-			{#if layersLayout}
+			{#if ringsLayout}
+				<RingsCanvas
+					layout={ringsLayout}
+					{fitKey}
+					{selectedPersonId}
+					onSelectPerson={handleFocusPerson}
+					onOpenPerson={handleOpenPerson}
+					onClearSelection={clearSelection}
+				/>
+			{:else if layersLayout}
 				<LayersCanvas
 					layout={layersLayout}
 					{fitKey}

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { LAYOUT_MODES, parseLayoutMode, resolveLayoutMode } from './view-mode';
+import { LAYOUT_MODES, layoutModeChoices, parseLayoutMode, resolveLayoutMode } from './view-mode';
 
 describe('parseLayoutMode', () => {
-	it('accepts the three modes and nothing else', () => {
+	it('accepts the four modes and nothing else', () => {
 		expect(parseLayoutMode('flat')).toBe('flat');
 		expect(parseLayoutMode('layers')).toBe('layers');
 		expect(parseLayoutMode('floors')).toBe('floors');
+		expect(parseLayoutMode('rings')).toBe('rings');
 		expect(parseLayoutMode('orbit')).toBeNull();
 		expect(parseLayoutMode(null)).toBeNull();
 		expect(parseLayoutMode(undefined)).toBeNull();
@@ -26,5 +27,17 @@ describe('resolveLayoutMode', () => {
 		expect(
 			resolveLayoutMode({ fromAddress: 'flat', fromMember: 'layers', fromTree: 'floors' })
 		).toBe('flat');
+	});
+});
+
+describe('layoutModeChoices', () => {
+	it('offers flat and rings, keeping layers and floors off the controls', () => {
+		expect(layoutModeChoices(null)).toEqual(['flat', 'rings']);
+		expect(layoutModeChoices('rings')).toEqual(['flat', 'rings']);
+	});
+
+	it('still lists a withdrawn view while it is the one in force', () => {
+		expect(layoutModeChoices('layers')).toEqual(['flat', 'layers', 'rings']);
+		expect(layoutModeChoices('floors')).toEqual(['flat', 'floors', 'rings']);
 	});
 });

@@ -20,7 +20,7 @@ export const ALL_PARENT_CHILD_TYPES = [
 export const MAX_DEPTH = MAX_VIEW_DEPTH;
 export { MAX_COLLATERAL_DEPTH };
 
-/** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-030). */
+/** How the tree is drawn: today's hourglass, or one of the 3D views (ADR-030, ADR-032). */
 import { LAYOUT_MODES, parseLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 
 export { LAYOUT_MODES, type LayoutMode };
@@ -55,8 +55,15 @@ export interface TreeViewState {
 export const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
 
 /**
- * What the wider groups are when the address says nothing, in this view. Layers asks for them, the
- * other views do not. Worked out while parsing so the first render is already right: applying it in
+ * Generations each way that arriving at Rings asks for, when fewer are set. The overview is for the
+ * depth of the family, which three generations each way barely shows; a later change in the
+ * steppers is kept.
+ */
+export const RINGS_ARRIVAL_DEPTH = 5;
+
+/**
+ * What the wider groups are when the address says nothing, in this view. Layers and Rings ask for
+ * them, the other views do not. Worked out while parsing so the first render is already right: applying it in
  * an effect afterwards drew one frame without them and left the Display button counting changes
  * nobody made.
  */
@@ -64,7 +71,7 @@ export function wideGroupDefaults(mode: LayoutMode): {
 	collateralDepth: number;
 	shouldIncludePartnerOrigins: boolean;
 } {
-	return mode === LAYOUT_MODES.LAYERS
+	return mode === LAYOUT_MODES.LAYERS || mode === LAYOUT_MODES.RINGS
 		? { collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH, shouldIncludePartnerOrigins: true }
 		: {
 				collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
