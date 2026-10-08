@@ -445,11 +445,11 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		stage.frame(rest, centre, shouldRefit);
 	}
 
-	function setReducedMotion(next: boolean) {
-		if (next === isReduced) return;
-		isReduced = next;
+	function setReducedMotion(isNowReduced: boolean) {
+		if (isNowReduced === isReduced) return;
+		isReduced = isNowReduced;
 		if (live) {
-			if (next) {
+			if (isNowReduced) {
 				// Hold at the laid-out picture rather than wherever the drift had reached.
 				for (const p of live.layout.people) live.shown.get(p.id)!.set(p.x, p.y, p.z);
 				placeEverything();
