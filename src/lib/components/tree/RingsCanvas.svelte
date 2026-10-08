@@ -267,11 +267,13 @@
 	{/if}
 
 	<div class="legend absolute top-4 left-4 z-20" aria-hidden="true">
-		<span><i style="background:{RING_TOKENS.focus}"></i>Focus</span>
-		<span><i style="background:{RING_TOKENS.ancestor}"></i>Ancestors</span>
-		<span><i style="background:{RING_TOKENS.descendant}"></i>Descendants</span>
-		<span><i style="background:{RING_TOKENS.partner}"></i>Partners</span>
-		<span><i style="background:{RING_TOKENS.other}"></i>Everyone else</span>
+		<span><i style="background:{RING_TOKENS.male}"></i>Male</span>
+		<span><i style="background:{RING_TOKENS.female}"></i>Female</span>
+		<span><i style="background:{RING_TOKENS.unknownSex}"></i>Other or unknown</span>
+		<span><i class="halo" style="border-color:{RING_TOKENS.focus}"></i>Focus</span>
+		<span><b style="background:{RING_TOKENS.ancestor}"></b>Ancestor line</span>
+		<span><b style="background:{RING_TOKENS.descendant}"></b>Descendant line</span>
+		<span><b style="background:{RING_TOKENS.partner}"></b>Partnership</span>
 	</div>
 
 	<div
@@ -380,6 +382,18 @@
 		padding: 0.375rem 0.625rem;
 		font-size: 0.75rem;
 		color: var(--tree-ink-muted);
+	}
+	.legend i.halo {
+		background: transparent;
+		border: 2px solid;
+	}
+	.legend b {
+		display: inline-block;
+		width: 1rem;
+		height: 0.1875rem;
+		margin-right: 0.3125rem;
+		border-radius: 9999px;
+		vertical-align: 0.1875rem;
 	}
 	.legend i {
 		display: inline-block;

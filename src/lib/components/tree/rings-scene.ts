@@ -6,6 +6,7 @@
 
 import {
 	BufferGeometry,
+	CircleGeometry,
 	Color,
 	CubicBezierCurve3,
 	DirectionalLight,
@@ -14,6 +15,7 @@ import {
 	Line,
 	LineBasicMaterial,
 	Mesh,
+	MeshBasicMaterial,
 	MeshStandardMaterial,
 	PerspectiveCamera,
 	Raycaster,
@@ -21,19 +23,26 @@ import {
 	SphereGeometry,
 	TorusGeometry,
 	Vector2,
+	DoubleSide,
 	Vector3,
 	WebGLRenderer
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 import type { RingsLayout } from '#lib/tree-layout/rings.js';
-import { RING_FADE, RING_TOKENS } from './tree-tokens.js';
+import { RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
 
 /** Vertical distance between two generation rings, in scene units. */
 export const RING_GAP_UNITS = 6.5;
 const SPHERE_RADIUS_UNITS = 0.34;
 const FOCUS_SCALE = 1.45;
-/** How far the knot a partnership's lines leave from hangs below its partners. */
-const UNION_DROP_UNITS = 0.45;
+/** How far above its partners the knot sits that a partnership's lines to its children leave from. */
+const UNION_LIFT_UNITS = 0.45;
+/** A generation's disc reaches this far past the circle its people stand on, as a multiple. */
+const DISC_OVERHANG = 1.12;
 const TAU = Math.PI * 2;
 /** How much of the canvas the framed rings may fill, in clip space (1 is edge to edge). */
 const FRAME_FILL = 0.88;
@@ -69,12 +78,22 @@ export interface RingsScene {
 	dispose(): void;
 }
 
+/** Height of a generation's ring: the youngest at the top, the most distant ancestors at the bottom. */
+function ringHeight(generation: number): number {
+	return generation * RING_GAP_UNITS;
+}
+
 export function ringPosition(generation: number, radius: number, angle: number): Vector3 {
-	return new Vector3(
-		Math.cos(angle) * radius,
-		-generation * RING_GAP_UNITS,
-		Math.sin(angle) * radius
-	);
+	return new Vector3(Math.cos(angle) * radius, ringHeight(generation), Math.sin(angle) * radius);
+}
+
+function sexColour(person: RelationshipGraphPerson): string {
+	if (person.isPrivate === true) return RING_TOKENS.private;
+	return person.sex === 'M'
+		? RING_TOKENS.male
+		: person.sex === 'F'
+			? RING_TOKENS.female
+			: RING_TOKENS.unknownSex;
 }
 
 /**
@@ -103,6 +122,9 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 
 	const sphere = new SphereGeometry(SPHERE_RADIUS_UNITS, 24, 16);
 	const knot = new TorusGeometry(0.16, 0.05, 8, 20);
+	const halo = new TorusGeometry(SPHERE_RADIUS_UNITS * FOCUS_SCALE * 1.45, 0.06, 8, 40);
+	/** Fat-line materials draw in pixels, so each needs the canvas size and is told on resize. */
+	const lineMaterials = new Set<LineMaterial>();
 	let world = new Group();
 	scene.add(world);
 	const meshes = new Map<string, Mesh>();
@@ -117,30 +139,40 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		world.traverse((object) => {
 			if (object instanceof Mesh || object instanceof Line) {
 				(object.material as LineBasicMaterial).dispose();
-				if (object.geometry !== sphere && object.geometry !== knot) object.geometry.dispose();
+				if (object.geometry !== sphere && object.geometry !== knot && object.geometry !== halo)
+					object.geometry.dispose();
 			}
 		});
 		scene.remove(world);
 		meshes.clear();
 		positions.clear();
+		lineMaterials.clear();
 	}
 
-	const tint = (role: RingRole) =>
-		role === 'focus'
-			? RING_TOKENS.focus
-			: role === 'ancestor'
-				? RING_TOKENS.ancestor
-				: role === 'descendant'
-					? RING_TOKENS.descendant
-					: role === 'partner'
-						? RING_TOKENS.partner
-						: RING_TOKENS.other;
-
-	function line(points: Vector3[], colour: string, opacity: number): Line {
+	/** A thin, single-pixel line; used only for the discs' rims. */
+	function hairline(points: Vector3[], colour: string, opacity: number): Line {
 		return new Line(
 			new BufferGeometry().setFromPoints(points),
 			new LineBasicMaterial({ color: colour, transparent: opacity < 1, opacity })
 		);
+	}
+
+	/**
+	 * A line drawn `widthPx` wide whatever the distance. WebGL draws plain lines one pixel wide on
+	 * most platforms, too thin for the partnership and parent lines that carry the focus line.
+	 */
+	function thickLine(points: Vector3[], colour: string, opacity: number, widthPx: number): Line2 {
+		const geometry = new LineGeometry();
+		geometry.setPositions(points.flatMap((p) => [p.x, p.y, p.z]));
+		const material = new LineMaterial({
+			color: colour,
+			linewidth: widthPx,
+			transparent: opacity < 1,
+			opacity
+		});
+		material.resolution.set(host.clientWidth, host.clientHeight);
+		lineMaterials.add(material);
+		return new Line2(geometry, material);
 	}
 
 	/**
@@ -185,11 +217,26 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		world = new Group();
 		scene.add(world);
 
+		// Each generation stands on a see-through disc a little wider than its circle of people.
 		for (const ring of layout.rings) {
-			const points: Vector3[] = [];
+			const discRadius = ring.radius * DISC_OVERHANG;
+			const disc = new Mesh(
+				new CircleGeometry(discRadius, 96),
+				new MeshBasicMaterial({
+					color: RING_TOKENS.disc,
+					transparent: true,
+					opacity: RING_FADE.disc,
+					side: DoubleSide,
+					depthWrite: false
+				})
+			);
+			disc.rotation.x = -Math.PI / 2;
+			disc.position.y = ringHeight(ring.generation);
+			world.add(disc);
+			const rim: Vector3[] = [];
 			for (let i = 0; i <= 128; i++)
-				points.push(ringPosition(ring.generation, ring.radius, (i / 128) * TAU));
-			world.add(line(points, RING_TOKENS.ring, RING_FADE.ring));
+				rim.push(ringPosition(ring.generation, discRadius, (i / 128) * TAU));
+			world.add(hairline(rim, RING_TOKENS.disc, RING_FADE.rim));
 		}
 
 		for (const p of layout.people) {
@@ -199,7 +246,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 			const mesh = new Mesh(
 				sphere,
 				new MeshStandardMaterial({
-					color: isPrivate ? RING_TOKENS.private : tint(role),
+					color: sexColour(p.person),
 					roughness: 0.55,
 					metalness: 0.05,
 					transparent: role === null,
@@ -207,7 +254,14 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				})
 			);
 			mesh.position.copy(position);
-			if (role === 'focus') mesh.scale.setScalar(FOCUS_SCALE);
+			if (role === 'focus') {
+				mesh.scale.setScalar(FOCUS_SCALE);
+				// Colour now says sex, so the focus is marked by size and a dark halo round it.
+				const focusHalo = new Mesh(halo, new MeshBasicMaterial({ color: RING_TOKENS.focus }));
+				focusHalo.position.copy(position);
+				focusHalo.rotation.x = Math.PI / 2;
+				world.add(focusHalo);
+			}
 			if (!isPrivate) mesh.userData.personId = p.id;
 			world.add(mesh);
 			meshes.set(p.id, mesh);
@@ -221,7 +275,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		const unionAt = new Map<string, Vector3>();
 		for (const u of layout.unions) {
 			const at = ringPosition(u.generation, u.radius, u.angle).add(
-				new Vector3(0, -UNION_DROP_UNITS, 0)
+				new Vector3(0, UNION_LIFT_UNITS, 0)
 			);
 			unionAt.set(u.id, at);
 			const isLit = u.partnerIds.some(isOnLine);
@@ -235,7 +289,12 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				for (let i = 0; i <= 12; i++)
 					points.push(ringPosition(a.generation, a.radius, a.angle + ((to - a.angle) * i) / 12));
 				world.add(
-					line(points, isLit ? RING_TOKENS.partner : RING_TOKENS.line, isLit ? 1 : RING_FADE.line)
+					thickLine(
+						points,
+						isLit ? RING_TOKENS.partner : RING_TOKENS.line,
+						isLit ? 1 : RING_FADE.line,
+						isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
+					)
 				);
 			}
 			const marker = new Mesh(
@@ -263,31 +322,32 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				(childRole === 'descendant' && link.parentIds.some(isOnLine)) ||
 				((childRole === 'focus' || childRole === 'ancestor') &&
 					link.parentIds.some((id) => roles.get(id) === 'ancestor'));
-			const drop = (to.y - from.y) / 2;
+			const rise = (to.y - from.y) / 2;
 			const curve = new CubicBezierCurve3(
 				from,
-				from.clone().add(new Vector3(0, drop, 0)),
-				to.clone().add(new Vector3(0, -drop, 0)),
+				from.clone().add(new Vector3(0, rise, 0)),
+				to.clone().add(new Vector3(0, -rise, 0)),
 				to
 			);
 			world.add(
-				line(
+				thickLine(
 					curve.getPoints(24),
 					!isLit
 						? RING_TOKENS.line
 						: childRole === 'descendant'
 							? RING_TOKENS.descendant
 							: RING_TOKENS.ancestor,
-					isLit ? 1 : RING_FADE.line
+					isLit ? 1 : RING_FADE.line,
+					isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 				)
 			);
 		}
 
-		const ys = layout.rings.map((r) => -r.generation * RING_GAP_UNITS);
+		const ys = layout.rings.map((r) => ringHeight(r.generation));
 		bounds = {
 			top: ys.length > 0 ? Math.max(...ys) : 0,
 			bottom: ys.length > 0 ? Math.min(...ys) : 0,
-			radius: Math.max(RING_MIN_FRAME_UNITS, ...layout.rings.map((r) => r.radius))
+			radius: Math.max(RING_MIN_FRAME_UNITS, ...layout.rings.map((r) => r.radius * DISC_OVERHANG))
 		};
 		if (shouldRefit) fit();
 		isDirty = true;
@@ -328,6 +388,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		renderer.setSize(width, height);
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
+		for (const material of lineMaterials) material.resolution.set(width, height);
 		isDirty = true;
 	}
 	const observer = new ResizeObserver(resize);
@@ -370,6 +431,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 			disposeWorld();
 			sphere.dispose();
 			knot.dispose();
+			halo.dispose();
 			controls.dispose();
 			renderer.dispose();
 			renderer.domElement.remove();

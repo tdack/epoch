@@ -1,7 +1,7 @@
 /**
  * The rings overview (ADR-032): each generation of the focus selection is a horizontal ring, the
- * oldest at the top, and each person stands once on their ring at an angle. Lines run from a
- * partnership down to its children on the ring below. Pure: the WebGL canvas turns angles and
+ * youngest at the top, and each person stands once on their ring at an angle. Lines run from a
+ * partnership up to its children on the ring above. Pure: the WebGL canvas turns angles and
  * radii into 3D positions, so everything here can be tested without a browser.
  *
  * The same selection feeds every view (`selectFocusSubgraph`), so Rings draws exactly who Flat or
@@ -263,8 +263,8 @@ export function layoutRings(
 		}
 	};
 
-	// Top down: each household stands under the partnerships its members came from, so lines drop
-	// rather than wrap round the trunk.
+	// Oldest generation first: each household lines up with the partnerships its members came
+	// from, so the lines between rings run straight rather than wrapping round the trunk.
 	for (const generation of generations) {
 		const members = selection.people.filter((p) => p.generation === generation).map((p) => p.id);
 		const houses = households(members, generationOf, partnersOf);

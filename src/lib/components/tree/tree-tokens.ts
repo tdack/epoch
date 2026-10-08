@@ -54,24 +54,30 @@ export const CAMERA_TOKENS = {
 export const BAND_FADE = { 0: 1, 1: 0.9, 2: 0.88 } as const;
 
 /**
- * Colours of the rings overview (ADR-032). Lineage, not sex: the focus person's ancestors,
- * descendants and partners are lit and everyone else recedes, because a sphere has no room for the
- * sex fill and symbol a card carries. Hex strings, since WebGL reads them directly.
+ * Colours of the rings overview (ADR-032). A sphere is coloured by sex, as a card is, using the
+ * card borders' stronger shades so a small sphere still reads; the focus person's line is carried
+ * by the lines (ancestors, descendants, partnerships), a halo on the focus, and fading everyone
+ * else. Hex strings, since WebGL reads them directly.
  */
 export const RING_TOKENS = {
 	stage: TREE_TOKENS['--tree-bg'],
 	focus: TREE_TOKENS['--tree-ink'],
+	male: TREE_TOKENS['--sex-m-border'],
+	female: TREE_TOKENS['--sex-f-border'],
+	unknownSex: TREE_TOKENS['--sex-u-border'],
 	ancestor: TREE_TOKENS['--union-ink'],
 	descendant: TREE_TOKENS['--tree-accent'],
 	partner: '#7c3a72',
-	other: '#a8a29e',
 	private: '#d6d3d1',
-	ring: '#cfc6b6',
+	disc: '#cfc6b6',
 	line: '#b5aea4'
 } as const;
 
-/** How far an unlit sphere and line fade, so the focus line reads first. */
-export const RING_FADE = { person: 0.4, line: 0.28, ring: 0.7 } as const;
+/** How far an unlit sphere and line fade, and how see-through a generation's disc is. */
+export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as const;
+
+/** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */
+export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5 } as const;
 
 export function treeTokenStyle(): string {
 	return Object.entries(TREE_TOKENS)
