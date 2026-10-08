@@ -1,6 +1,6 @@
 # 3D alternatives: Ball, Ribbons and Orrery — staged plan
 
-**Status:** planned 2026-10-08. Nothing built yet.
+**Status:** built 2026-10-08 (ADR-033); stages 0–4 done, not deployed.
 
 Three more WebGL views beside Rings (ADR-032), chosen from the same layout control. Each one is an
 experiment the owner wants to compare with Rings. None of them edits; Flat and the drawer remain the
