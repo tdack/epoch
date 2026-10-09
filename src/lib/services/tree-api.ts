@@ -901,6 +901,28 @@ export async function rewritePlaceApi(
 	);
 }
 
+/** The dates that would take their standard spelling, before and after. Saves nothing. */
+export async function previewStandardiseDatesApi(
+	treeId: string
+): Promise<import('#lib/shared/date-tidy.js').DateTidyPreview> {
+	return call(
+		`/api/trees/${enc(treeId)}/dates/standardise`,
+		{},
+		'Failed to preview standardising the dates'
+	);
+}
+
+/** Give those dates their standard spelling: one change, one undo. */
+export async function standardiseDatesApi(
+	treeId: string
+): Promise<{ change: ChangeSummary | null; remaining: number }> {
+	return call(
+		`/api/trees/${enc(treeId)}/dates/standardise`,
+		{ method: 'POST' },
+		'Failed to standardise the dates'
+	);
+}
+
 export async function previewPlaceRewriteApi(
 	treeId: string,
 	placeId: string,

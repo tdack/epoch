@@ -42,6 +42,7 @@ import type { NoteCommand } from './note-ops';
 import type { TaskCommand } from './task-ops';
 import type { PersonMergeCommand } from './person-merge';
 import type { PlaceCommand } from './place-ops';
+import type { DateCommand } from './date-ops';
 
 export type RelationshipCommand =
 	| FactCommand
@@ -50,6 +51,7 @@ export type RelationshipCommand =
 	| TaskCommand
 	| NameCommand
 	| PlaceCommand
+	| DateCommand
 	| PersonMergeCommand
 	| {
 			kind: 'create_person';

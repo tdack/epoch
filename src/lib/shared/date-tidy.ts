@@ -98,3 +98,24 @@ export function tidyDateText(raw: string): string {
 	if (phrase === -1) return tidyWords(text);
 	return `${tidyWords(text.slice(0, phrase))} ${text.slice(phrase).trim()}`;
 }
+
+/**
+ * How many dates one "standardise dates" change rewrites. One change is one atomic batch and one
+ * log row, as for a place rewrite (`MAX_PLACE_REWRITE_FACTS`); a tree with more is done in turns.
+ */
+export const MAX_DATE_REWRITES = 200;
+
+/** One date the standardise action would rewrite, as the preview lists it. */
+export interface DateTidyChange {
+	/** What the date is on, such as "Death of Wilbur Clancy Bouvier". */
+	label: string;
+	before: string;
+	after: string;
+}
+
+export interface DateTidyPreview {
+	/** The dates this turn would rewrite, at most `MAX_DATE_REWRITES`. */
+	changes: DateTidyChange[];
+	/** Dates beyond this turn, for the next one. */
+	remaining: number;
+}
