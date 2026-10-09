@@ -49,9 +49,12 @@ const FRAME_SEARCH_STEPS = 40;
 const LINE_PICK_RADIUS_PX = 6;
 const COARSE_LINE_PICK_RADIUS_PX = 12;
 /**
- * Spheres and partnership markers are solid, so the nearer wins; a line is picked only where no
- * solid is under the pointer, because its pick band is several pixels wide and a click on a sphere
- * that a line runs into must pick the sphere.
+ * Spheres and partnership markers are solid, so they win over lines; a line is picked only where
+ * no solid is under the pointer, because its pick band is several pixels wide and a click on a
+ * sphere that a line runs into must pick the sphere. Among solids under the pointer, the one whose
+ * centre is nearest the pointer on screen wins, not the one nearest the camera: a partnership's
+ * marker sits at its partners' midpoint, and a large star in front of it (the focus, or a partner
+ * orbiting past) would otherwise take every click aimed squarely at the marker.
  */
 const PICK_PRIORITY: Record<PickTarget['kind'], number> = { person: 0, union: 0, link: 1 };
 
@@ -253,16 +256,25 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 		raycaster.params.Line2 = {
 			threshold: 2 * (options.isCoarse ? COARSE_LINE_PICK_RADIUS_PX : LINE_PICK_RADIUS_PX)
 		};
-		let best: { target: PickTarget; distance: number } | null = null;
+		const pointerX = clientX - rect.left;
+		const pointerY = clientY - rect.top;
+		/** Screen distance from the pointer to the target's centre; depth breaks ties for lines. */
+		const offsetOf = (target: PickTarget, depth: number) => {
+			if (target.kind === 'link') return depth;
+			const at = project(target);
+			return at ? Math.hypot(at.x - pointerX, at.y - pointerY) : Number.POSITIVE_INFINITY;
+		};
+		let best: { target: PickTarget; offset: number } | null = null;
 		for (const hit of raycaster.intersectObjects([...pickables.values()], true)) {
 			const target = targetOf(hit.object);
 			if (!target) continue;
+			const offset = offsetOf(target, hit.distance);
 			if (
 				!best ||
 				PICK_PRIORITY[target.kind] < PICK_PRIORITY[best.target.kind] ||
-				(target.kind === best.target.kind && hit.distance < best.distance)
+				(PICK_PRIORITY[target.kind] === PICK_PRIORITY[best.target.kind] && offset < best.offset)
 			)
-				best = { target, distance: hit.distance };
+				best = { target, offset };
 		}
 		return best?.target ?? null;
 	}
