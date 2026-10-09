@@ -3,12 +3,13 @@
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
 	import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
+	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
 	import type { TreeShell } from './tree-shell.svelte.js';
 
 	interface Props {
 		shell: TreeShell;
-		/** The tree in view, for the delete and import dialogs; null on the landing page. */
-		tree: { id: string; name: string } | null;
+		/** The tree in view, for the rename, delete and import dialogs; null on the landing page. */
+		tree: { id: string; name: string; version: number } | null;
 	}
 
 	let { shell, tree }: Props = $props();
@@ -41,6 +42,15 @@
 />
 
 {#if tree}
+	<RenameTreeModal
+		isOpen={shell.isRenameTreeModalOpen}
+		treeName={tree.name}
+		treeVersion={tree.version}
+		isRenaming={shell.isRenamingTree}
+		error={shell.renameTreeError}
+		onclose={() => (shell.isRenameTreeModalOpen = false)}
+		onrename={shell.renameTree}
+	/>
 	<DeleteTreeModal
 		isOpen={shell.isDeleteTreeModalOpen}
 		treeId={tree.id}

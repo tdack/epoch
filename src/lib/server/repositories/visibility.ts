@@ -228,7 +228,7 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
  * test. A note on a citation is as visible as the citation, and a note on a source or a repository
  * as visible as that record is to this viewer. The statement must start with `withVisibleNoteScope`.
  */
-export function isNoteAttachmentVisibleOf(alias: string, treeId: string): SQL {
+function isNoteAttachmentVisibleOf(alias: string, treeId: string): SQL {
 	const a = sql.raw(alias);
 	return sql`(case ${a}.subject_kind
 		when 'person' then ${a}.subject_id in (select id from vp)

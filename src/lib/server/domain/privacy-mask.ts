@@ -59,7 +59,7 @@ export function privatePeople(
  * A citation is visible only if its subject is; a partnership with a private partner has no facts
  * to cite, in either mode, so its own citations go with them.
  */
-export function hiddenSubjectKeys(
+function hiddenSubjectKeys(
 	rows: TreeRows,
 	hidden: Set<string>,
 	unionsWithHiddenPartner: Set<string>

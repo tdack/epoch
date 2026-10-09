@@ -14,6 +14,8 @@
 		onselectTree: (id: string) => void;
 		onopenNewTree: () => void;
 		onopenDeleteTree: () => void;
+		/** Absent below manager, who may not rename the tree, so the menu item is not shown. */
+		onopenRenameTree?: () => void;
 		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
 		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
@@ -32,6 +34,7 @@
 		onselectTree,
 		onopenNewTree,
 		onopenDeleteTree,
+		onopenRenameTree,
 		onopenAddPerson,
 		onfileSelect,
 		onexportGedcom,
@@ -64,6 +67,7 @@
 		{onselectTree}
 		{onopenNewTree}
 		{onopenDeleteTree}
+		{onopenRenameTree}
 		{onfileSelect}
 		{onexportGedcom}
 		{canExport}

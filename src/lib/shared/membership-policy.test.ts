@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canManageMemberOf, grantableRoles } from './membership-policy';
+import { canManageMemberOf, describeRole, grantableRoles } from './membership-policy';
 import { TREE_ROLES } from './roles';
 
 describe('the roles a person may give', () => {
@@ -33,5 +33,15 @@ describe('whose membership a person may change or remove', () => {
 	});
 	it.each(['editor', 'contributor', 'viewer'] as const)('lets a %s act on nobody', (actor) => {
 		for (const target of TREE_ROLES) expect(canManageMemberOf(actor, target)).toBe(false);
+	});
+});
+
+describe('what a role is described as allowing', () => {
+	it('names the tree for every role', () => {
+		for (const role of TREE_ROLES) expect(describeRole(role, 'Simpson')).toContain('the Simpson tree');
+	});
+
+	it('tells a viewer they may only look', () => {
+		expect(describeRole('viewer', 'Simpson')).toBe('View the Simpson tree and its media.');
 	});
 });

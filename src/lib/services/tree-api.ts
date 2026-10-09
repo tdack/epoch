@@ -151,6 +151,14 @@ export async function createTreeApi(payload: {
 	return data.tree;
 }
 
+export async function renameTreeApi(treeId: string, name: string, version: number): Promise<void> {
+	await call(
+		`/api/trees/${enc(treeId)}`,
+		json('PATCH', { name, version }),
+		'Failed to rename tree'
+	);
+}
+
 export async function deleteTreeApi(treeId: string): Promise<void> {
 	await call(`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }

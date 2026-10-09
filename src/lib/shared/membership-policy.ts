@@ -28,3 +28,23 @@ export function canManageMemberOf(actor: TreeRole, target: TreeRole): boolean {
 	if (actor === 'manager') return rank(target) < rank(actor);
 	return false;
 }
+
+/**
+ * What `role` may do in the tree called `treeName`, as one sentence for whoever is choosing a role
+ * to give. It restates `auth/authorization.ts`'s action table and the privacy rule (ADR-015) in
+ * words, so a change to either needs one here too.
+ */
+export function describeRole(role: TreeRole, treeName: string): string {
+	switch (role) {
+		case 'viewer':
+			return `View the ${treeName} tree and its media.`;
+		case 'contributor':
+			return `View the ${treeName} tree and add people, relationships, sources, citations and notes. Private living people stay hidden, apart from those they add.`;
+		case 'editor':
+			return `Add, edit, delete and merge any record in the ${treeName} tree, import GEDCOM and manage media. Private living people are visible.`;
+		case 'manager':
+			return `Everything an editor can do in the ${treeName} tree, plus export GEDCOM, change settings, set privacy, and invite and manage editors, contributors and viewers.`;
+		case 'owner':
+			return `Full control of the ${treeName} tree: everything a manager can do, plus manage any member, set the default view and delete the tree.`;
+	}
+}
