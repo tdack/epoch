@@ -28,8 +28,7 @@ import {
 	HIGHLIGHT_TOKENS,
 	POINCARE_TOKENS,
 	RING_FADE,
-	RING_LINE_WIDTH_PX,
-	RING_TOKENS
+	RING_LINE_WIDTH_PX
 } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 
