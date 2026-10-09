@@ -26,15 +26,17 @@ export interface StoredDateRow {
 
 /**
  * Rows that may be stale: dated with no structured columns yet (written before migration 0007),
- * or a dual date, which sorted on its earlier year until the parser was corrected. Only the
- * dual-date parse ever yields JULIAN, so the calendar finds exactly those rows.
+ * a dual date, which sorted on its earlier year until the parser was corrected (only the dual-date
+ * parse ever yields JULIAN, so the calendar finds exactly those rows), or a date stored as unreadable
+ * that the reader has since learned to read (`3 RD DECEMBER 1996`, ADR-037). One still unreadable
+ * computes the same columns and writes nothing.
  */
 export function staleDatesSql({ table, prefix: p }: DatedTable): string {
 	return (
 		`SELECT id, ${p}_raw AS date_raw, ${p}_sort AS date_sort, ${p}_sort_end AS date_sort_end, ` +
 		`${p}_qualifier AS date_qualifier, ${p}_precision AS date_precision, ` +
 		`${p}_calendar AS date_calendar FROM ${table} ` +
-		`WHERE ${p}_raw IS NOT NULL AND (${p}_qualifier IS NULL OR ${p}_calendar = 'JULIAN')`
+		`WHERE ${p}_raw IS NOT NULL AND (${p}_qualifier IS NULL OR ${p}_qualifier = 'UNKNOWN' OR ${p}_calendar = 'JULIAN')`
 	);
 }
 
