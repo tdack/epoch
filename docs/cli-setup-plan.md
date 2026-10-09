@@ -475,6 +475,12 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - **Option B: add an install owner to the app.** The owner email that setup confirms is
      written to `install_meta`, and `tree:create` (and later, other install-wide actions) is
      limited to that owner and to people who already hold a membership.
+     - **A signed-in person who is not admitted is sent back to `/welcome`.** Admitted means the
+       install owner, someone holding any membership, or someone whose invitation was just
+       redeemed. A page load from anyone else gets a 303 to `/welcome?reason=not-invited`, and an
+       API call gets a 403. The welcome page then says who they are signed in as, tells them to
+       ask the owner for an invitation, and offers sign-out (`/cdn-cgi/access/logout`), not
+       "Continue". The redirect can't loop, because `/welcome` is public.
      - Then a broad Access policy is safe, and invitations become the only gate, as ADR-016
        intended.
      - That is app work, with an ADR, outside this tool.
