@@ -19,6 +19,24 @@ describe('addYears', () => {
 	});
 });
 
+describe('dates Epoch cannot read', () => {
+	it('flags them, reading the text afresh, and not a loosely typed date it can read', () => {
+		const rows = treeRows({
+			people: [{ id: 'a', birth: '1900' }],
+			events: [
+				{ id: 'e1', entityId: 'a', type: 'DEAT', dateRaw: '01 MAR 191503 08 1912' },
+				{ id: 'e2', entityId: 'a', type: 'BURI', dateRaw: '3 RD DECEMBER 1996' },
+				{ id: 'e3', entityId: 'a', type: 'RESI', dateRaw: '(after the war)' }
+			]
+		});
+		const found = checkQuality(rows).filter((f) => f.rule === 'unreadable_date');
+		expect(found.map((f) => f.message)).toEqual([
+			'The death of a is dated “01 MAR 191503 08 1912”.'
+		]);
+		expect(found[0].subjects).toMatchObject([{ kind: 'person', id: 'a' }]);
+	});
+});
+
 describe('checks on one person', () => {
 	it('flags a death certainly before the birth, and not one that merely might be', () => {
 		const early = rulesOf(treeRows({ people: [{ id: 'a', birth: '1900', death: '1899' }] }));

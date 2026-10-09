@@ -10,6 +10,7 @@
  * Callers pass the rows the viewer may see, so a finding can name nobody they cannot.
  */
 
+import { DATE_QUALIFIERS, parseDateValue } from '../../shared/date-value';
 import { boundsOf, isCertainlyBefore, type DateBounds } from '../../shared/union-warnings';
 import { factTypeInfo, FACT_KINDS } from '../../shared/fact-types';
 import {
@@ -121,6 +122,34 @@ export function checkQuality(rows: TreeRows): QualityFinding[] {
 				);
 			}
 		}
+	}
+
+	// The text is read afresh rather than from the stored columns: a date the reader has since learned
+	// to read (`3 RD DECEMBER 1996`) was stored as unknown, and is not a finding.
+	const isUnreadable = (text: string | null) =>
+		!!text?.trim() && parseDateValue(text).qualifier === DATE_QUALIFIERS.UNKNOWN;
+	for (const e of rows.events) {
+		if (!isUnreadable(e.dateRaw)) continue;
+		const label = (factTypeInfo(e.type)?.label ?? e.type).toLowerCase();
+		const isOfPerson = e.entityType === 'INDIVIDUAL';
+		if (isOfPerson ? !people.has(e.entityId) : !unionIds.has(e.entityId)) continue;
+		add(
+			'unreadable_date',
+			[e.id],
+			`The ${label} of ${isOfPerson ? name(e.entityId) : partnersLabel(e.entityId)} is dated “${e.dateRaw!.trim()}”.`,
+			isOfPerson
+				? [person(e.entityId)]
+				: [{ kind: 'partnership', id: e.entityId, name: partnersLabel(e.entityId) }]
+		);
+	}
+	for (const n of rows.personNames) {
+		if (!isUnreadable(n.dateRaw) || !people.has(n.personId)) continue;
+		add(
+			'unreadable_date',
+			[n.id],
+			`A name of ${name(n.personId)} is dated “${n.dateRaw!.trim()}”.`,
+			[person(n.personId)]
+		);
 	}
 
 	const birthOf = new Map<string, DateBounds | null>();

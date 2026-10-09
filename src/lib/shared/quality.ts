@@ -45,6 +45,12 @@ export const QUALITY_RULES = [
 		why: 'Following parent links from a person leads back to them, which no family can do.'
 	},
 	{
+		code: 'unreadable_date',
+		severity: 'warning',
+		title: 'A date Epoch cannot read',
+		why: 'The date is kept exactly as it was written, but Epoch cannot tell when it was, so it does not sort, and none of the other date checks can use it. It often came from another program: a mistyped month, a day that does not exist, or two dates run together. Edit it to a date such as 14 APR 1912, or put the words in brackets to keep them as a phrase.'
+	},
+	{
 		code: 'orphan_fact',
 		severity: 'error',
 		title: 'A fact belongs to nobody',
