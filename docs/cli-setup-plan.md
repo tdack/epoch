@@ -164,6 +164,61 @@ anything and prints the re-run command with `--force`.
 either stops with an explanation, or, with `--api-token-env`, runs in mode 3 and checks the
 token's permissions up front.
 
+## Command line and terminal UX
+
+**Libraries** (devDependencies, exact versions pinned; checked 2026-10-09):
+
+| Need | Choice | Why |
+| --- | --- | --- |
+| Commands and flags | **commander** 15 | No dependencies, typed, and subcommands (`setup`, `doctor`, `allow`, `disallow`, `teardown`) with generated `--help`. yargs 18 does the same with six dependencies and more API than this needs |
+| Prompts, spinners, layout | **@clack/prompts** 1.8 | Four small dependencies. It gives `intro`/`outro`, `select`, `multiselect`, `text` with `validate`, `confirm`, `spinner`, `tasks`, `note`, `log.*` and `isCancel` |
+| Colour | **`node:util` `styleText`** | Built into Node 24, honours `NO_COLOR` and non-TTY output, and adds no dependency. clack 1.x no longer bundles picocolors. chalk would work, but would add a package for what Node already does |
+
+**How it looks:**
+
+- **One `intro` and one `outro` per run.** Each flow step is a clack group with a heading such as
+  "Sign in" or "Reconcile", so the run reads as the numbered steps in this document.
+- **Spinners around every `cf` and wrangler call.** The child's stdout is parsed as JSON. Its
+  stderr goes to a log file, `.epoch/logs/<timestamp>.log`, never the screen.
+  - On failure the tool shows a mapped, one-line reason, the log path, and the exact command to
+    re-run.
+  - `--verbose` streams the child output instead.
+- **The device login code is shown in a `note` box.** It holds the URL and the one-time code, in
+  large type, with "Opened in your browser" or "Open this on any device".
+  - `cf` prints these itself. The tool reads them from its stderr and re-renders them *(spike:
+    the output format; otherwise, pass it through untouched)*.
+- **Pickers are `select` and `multiselect`,** with the discovered default first and a hint line.
+  The account, zone, identity providers and Access policies use `multiselect`, with each
+  policy's include rules and the apps using it as the hint.
+- **Dangerous confirmations are typed.** Adopting an `unmarked` resource and the teardown steps use
+  `text` with a `validate` that requires the exact resource name, not `confirm`.
+- **The plan screen (step 5)** groups create, adopt, reference and unchanged, with the colour on
+  the symbol (`+`, `~`, `=`, `→`) so it still reads with `NO_COLOR`. It ends in one `confirm`.
+- **Ctrl-C at any prompt** (`isCancel`) exits with "Nothing was changed after `<last completed
+  step>`; re-run to resume", which is true because every step writes the manifest before the
+  next begins. An ephemeral token is still deleted, from the `finally`.
+- **The verify step uses `tasks`,** one line per check, ticked or crossed. The `outro` holds the
+  URL and the next steps.
+
+**Running without prompts** (CI, or a second run with known answers):
+
+- `--yes` accepts every discovered default. It still refuses anything that needs a typed
+  confirmation: adopting unmarked resources, `foreign`, and teardown.
+- Every prompt has a matching flag: `--account`, `--zone`, `--hostname`, `--policy <id…>` or
+  `--new-policy`, `--idp <id…>`, and `--d1-location`.
+- With no TTY, a missing answer is an error that names the flag; the tool never hangs.
+- `--json` prints one result object (the manifest plus the verify results) on stdout, with the
+  progress on stderr, matching `cf`'s own convention.
+
+**Code shape.** `scripts/setup/`:
+
+- `cli.ts`: the commander definitions.
+- `steps/*.ts`: one module per flow step. Each is a pure function from the manifest and the
+  answers to an updated manifest. No prompts live inside a step: the answers are collected
+  first, so tests drive steps without a terminal.
+- `ui.ts`: the only module that imports clack.
+- `run.ts`: the typed `cf` and wrangler wrapper.
+
 ## The flow
 
 The tool is a Node 24 script, `scripts/setup/` (TypeScript run with `node --experimental-strip-types`
@@ -451,7 +506,8 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - Git-ignore `wrangler.deploy.jsonc` and `.epoch/`.
    - Move `db:migrate`, `deploy` and the backfill scripts to the binding name and `-c`.
    - Add the `install_meta` migration (expand-only).
-2. The manifest module and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
+2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `scripts/setup/cli.ts`
+   added as a knip entry), and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
    errors). Unit tests use recorded `cf` output.
 3. Preflight, sign-in and collect.
 4. Reconcile, plan and confirm. These carry the most tests: every state in the table above,
