@@ -1,8 +1,8 @@
 import type { StepContext } from '../context.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
 import { AUTH_MODES, newManifest, loadManifest, withStepDone, type Manifest } from '../manifest.ts';
-import { assertValidSlug } from '../names.ts';
-import { DEFAULT_SLUG, DEPLOY_AUTHS, type SetupFlags } from '../options.ts';
+import { assertValidWorkerName } from '../names.ts';
+import { DEFAULT_WORKER_NAME, DEPLOY_AUTHS, type SetupFlags } from '../options.ts';
 
 export type TokenSource = 'shell' | '.env';
 
@@ -87,21 +87,29 @@ export function preflight(ctx: StepContext, flags: SetupFlags): PreflightResult 
 			}
 		);
 	}
-	const existing = loadManifest(ctx.fs, ctx.paths.manifestFile);
-	if (existing && flags.slug && flags.slug !== existing.slug) {
+	const onDisk = loadManifest(ctx.fs, ctx.paths.manifestFile);
+	// Choosing another name after finding the first taken: nothing was created yet, so the record of
+	// the abandoned name is replaced rather than treated as a second install.
+	const hasNothingYet =
+		onDisk !== null &&
+		Object.values(onDisk.resources).every((resource) => resource === null) &&
+		!onDisk.completedSteps.includes('provision');
+	const existing =
+		onDisk && flags.name && flags.name !== onDisk.workerName && hasNothingYet ? null : onDisk;
+	if (existing && flags.name && flags.name !== existing.workerName) {
 		throw new SetupError(
 			ERROR_CODES.usage,
-			`This checkout is install "${existing.slug}"; one checkout is one install`,
+			`This checkout is install "${existing.workerName}"; one checkout is one install`,
 			{
-				flag: '--slug',
+				flag: '--name',
 				hint: 'Use another clone for a second install.'
 			}
 		);
 	}
-	const slug = existing?.slug ?? flags.slug ?? DEFAULT_SLUG;
-	assertValidSlug(slug);
+	const workerName = existing?.workerName ?? flags.name ?? DEFAULT_WORKER_NAME;
+	assertValidWorkerName(workerName);
 
-	const base = existing ?? newManifest(slug, ctx.now());
+	const base = existing ?? newManifest(workerName, ctx.now());
 	const authMode = flags.isApiTokenEnv ? AUTH_MODES.envToken : AUTH_MODES.profile;
 	const manifest = ctx.save(withStepDone({ ...base, authMode }, 'preflight'));
 	return { manifest, isResume: existing !== null, tokenSource };

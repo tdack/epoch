@@ -16,6 +16,8 @@ export interface InstallPaths {
 	deployConfigFile: string;
 	trackedConfigFile: string;
 	envFile: string;
+	/** Shipped copy of the tracked wrangler.jsonc, for a checkout that has none. */
+	templateFile: string;
 	spikeDir: string;
 	/** `cf`'s binary, from this tool's own dependencies. */
 	cfBinary: string;
@@ -33,6 +35,7 @@ export function installPaths(root: string = REPO_ROOT): InstallPaths {
 		deployConfigFile: join(root, 'wrangler.deploy.jsonc'),
 		trackedConfigFile: join(root, 'wrangler.jsonc'),
 		envFile: join(root, '.env'),
+		templateFile: join(TOOL_DIR, 'templates', 'wrangler.template.jsonc'),
 		spikeDir: join(epochDir, 'spike'),
 		cfBinary: join(TOOL_DIR, 'node_modules', '.bin', 'cf'),
 		wranglerBinary: join(root, 'node_modules', '.bin', 'wrangler')

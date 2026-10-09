@@ -5,7 +5,7 @@ import { runDoctor } from './doctor.ts';
 import { CommandError, ERROR_CODES, SetupError } from './errors.ts';
 import { resumeNote, runSetup } from './flow.ts';
 import { readManifest } from './manifest.ts';
-import { DEFAULT_FLAGS, DEPLOY_AUTHS, type SetupFlags } from './options.ts';
+import { DEFAULT_FLAGS, DEPLOY_AUTHS, HOSTINGS, type SetupFlags } from './options.ts';
 import { installPaths } from './paths.ts';
 import { runSpike } from './spike.ts';
 import { runTeardown } from './teardown.ts';
@@ -21,6 +21,8 @@ interface RawOptions {
 	force?: boolean;
 	account?: string;
 	zone?: string;
+	hosting?: SetupFlags['hosting'];
+	keepWorkersDev?: boolean;
 	hostname?: string;
 	policy?: string[];
 	newPolicy?: boolean;
@@ -34,7 +36,7 @@ interface RawOptions {
 	apiTokenEnv?: boolean;
 	browser?: boolean;
 	device?: boolean;
-	slug?: string;
+	name?: string;
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -47,6 +49,8 @@ export function toFlags(raw: RawOptions): SetupFlags {
 		isForce: raw.force ?? DEFAULT_FLAGS.isForce,
 		account: raw.account,
 		zone: raw.zone,
+		hosting: raw.hosting,
+		isKeepWorkersDev: raw.keepWorkersDev,
 		hostname: raw.hostname,
 		policy: raw.policy,
 		isNewPolicy: raw.newPolicy ?? DEFAULT_FLAGS.isNewPolicy,
@@ -60,7 +64,7 @@ export function toFlags(raw: RawOptions): SetupFlags {
 		isApiTokenEnv: raw.apiTokenEnv ?? DEFAULT_FLAGS.isApiTokenEnv,
 		isBrowser: raw.browser ?? DEFAULT_FLAGS.isBrowser,
 		isDevice: raw.device ?? DEFAULT_FLAGS.isDevice,
-		slug: raw.slug
+		name: raw.name
 	};
 }
 
@@ -80,10 +84,19 @@ function addSetupOptions(command: Command): Command {
 		.option('--plan', 'reconcile and print the plan, then stop; changes nothing')
 		.option('--force', 'sign in again even if a valid sign-in exists')
 		.option('--account <id>', 'Cloudflare account id or name')
-		.option('--zone <id>', 'zone (domain) id or name')
+		.addOption(
+			new Option('--hosting <where>', 'serve on workers.dev only, or on a custom domain').choices(
+				Object.values(HOSTINGS)
+			)
+		)
+		.option(
+			'--keep-workers-dev',
+			'custom domain: keep the workers.dev URL on as well (default off)'
+		)
+		.option('--zone <id>', 'zone (domain) id or name; custom domain only')
 		.option('--hostname <host>', 'hostname for Epoch, on that zone')
 		.option('--policy <ids...>', 'existing Allow policy ids to attach; they are never edited')
-		.option('--new-policy', 'create "Epoch <slug> sign-in" (Allow: your email only) instead')
+		.option('--new-policy', 'create "Epoch <name> sign-in" (Allow: your email only) instead')
 		.option('--idp <ids...>', 'identity provider ids the sign-in offers')
 		.option(
 			'--d1-location <hint>',
@@ -107,7 +120,10 @@ function addSetupOptions(command: Command): Command {
 		.option('--api-token-env', 'use CLOUDFLARE_API_TOKEN for everything instead of signing in')
 		.option('--no-browser', 'print the sign-in link instead of opening it (SSH)')
 		.option('--no-device', 'sign in with a localhost callback instead of a device code')
-		.option('--slug <slug>', 'install slug; names the resources and profiles (default: epoch)');
+		.option(
+			'--name <name>',
+			'the Worker name; every resource and profile is named from it (default: epoch)'
+		);
 }
 
 /** Runs `work`, printing a one-line reason and exiting non-zero on a SetupError. */

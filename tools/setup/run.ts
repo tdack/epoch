@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { CommandError, SetupError, ERROR_CODES } from './errors.ts';
 import type { InstallPaths } from './paths.ts';
 
-type Tool = 'cf' | 'wrangler' | 'npm';
+type Tool = 'cf' | 'wrangler' | 'npm' | 'node';
 
 export interface ExecRequest {
 	tool: Tool;
@@ -61,6 +61,7 @@ interface RealExecOptions {
 function binaryFor(tool: Tool, paths: InstallPaths): string {
 	if (tool === 'cf') return paths.cfBinary;
 	if (tool === 'wrangler') return paths.wranglerBinary;
+	if (tool === 'node') return process.execPath;
 	return 'npm';
 }
 

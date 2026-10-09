@@ -52,7 +52,7 @@ export interface Manifest {
 	version: 1;
 	/** Written into D1, R2 and the Worker as proof that a resource belongs to this install. */
 	installId: string;
-	slug: string;
+	workerName: string;
 	createdAt: string;
 	updatedAt: string;
 	completedSteps: StepName[];
@@ -60,6 +60,8 @@ export interface Manifest {
 	account: { id: string; name: string } | null;
 	ownerEmail: string | null;
 	zone: { id: string; name: string } | null;
+	hosting: 'workers-dev' | 'custom' | null;
+	isWorkersDevKept: boolean;
 	hostname: string | null;
 	teamDomain: string | null;
 	locations: { d1Hint: string | null; r2Hint: string | null; r2Jurisdiction: string | null };
@@ -82,12 +84,12 @@ export interface Manifest {
 	isAudSecret: boolean;
 }
 
-export function newManifest(slug: string, now: Date = new Date()): Manifest {
+export function newManifest(workerName: string, now: Date = new Date()): Manifest {
 	const stamp = now.toISOString();
 	return {
 		version: 1,
 		installId: randomUUID(),
-		slug,
+		workerName,
 		createdAt: stamp,
 		updatedAt: stamp,
 		completedSteps: [],
@@ -95,6 +97,8 @@ export function newManifest(slug: string, now: Date = new Date()): Manifest {
 		account: null,
 		ownerEmail: null,
 		zone: null,
+		hosting: null,
+		isWorkersDevKept: false,
 		hostname: null,
 		teamDomain: null,
 		locations: { d1Hint: null, r2Hint: null, r2Jurisdiction: null },
@@ -140,7 +144,7 @@ export function parseManifest(text: string): Manifest {
 		!isRecord(value) ||
 		value.version !== 1 ||
 		typeof value.installId !== 'string' ||
-		typeof value.slug !== 'string' ||
+		typeof value.workerName !== 'string' ||
 		!Array.isArray(value.completedSteps) ||
 		!isRecord(value.resources) ||
 		!isRecord(value.access)
