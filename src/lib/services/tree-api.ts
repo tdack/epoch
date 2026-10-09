@@ -12,7 +12,7 @@ import type {
 } from '#lib/types/genealogy.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
-import type { FocusGraphDto, TreeSummaryDto } from '#lib/shared/graph-views.js';
+import type { FocusGraphDto, TreeSummaryDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import type { LayoutMode } from '#lib/shared/view-mode.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
@@ -499,6 +499,19 @@ export function fetchFocusGraph(
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
 	return call(
 		`/api/trees/${enc(treeId)}/graph?${params}`,
+		undefined,
+		'Failed to load the tree',
+		fetchFn
+	);
+}
+
+/** Everyone the viewer may see, capped, with no focus (`scope=all`). */
+export function fetchWholeTreeGraph(
+	treeId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<WholeTreeGraphDto> {
+	return call(
+		`/api/trees/${enc(treeId)}/graph?scope=all`,
 		undefined,
 		'Failed to load the tree',
 		fetchFn

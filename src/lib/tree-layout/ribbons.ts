@@ -12,13 +12,15 @@
  */
 
 import { buildIndex, type GraphIndex } from './graph-index.js';
+import { linkKey } from './highlight.js';
 import { selectFocusSubgraph } from './select.js';
 import type {
 	Band,
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /** Distance between neighbours in a row across the flow, and between generations along it. */
@@ -91,6 +93,11 @@ export interface RibbonStrand {
 	fromPersonId: string | null;
 	/** True for an entry from above with no drawn parent: a short stub, not a link. */
 	isStub: boolean;
+	/**
+	 * The `linkKey` of the parent-child line an entry or extra entry draws; null for a stub or a
+	 * join. It is how the scene finds a tube's mark and its pick proxy.
+	 */
+	linkKey: string | null;
 	from: Vec3;
 	to: Vec3;
 	/** For a join: this person's place among the union's partners, which sets the braid's phase. */
@@ -99,7 +106,8 @@ export interface RibbonStrand {
 }
 
 export interface RibbonsLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	people: RibbonsPerson[];
 	unions: RibbonsUnion[];
 	childLinks: RibbonsChildLink[];
@@ -109,7 +117,7 @@ export interface RibbonsLayout {
 }
 
 const EMPTY_RIBBONS_LAYOUT: RibbonsLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	people: [],
 	unions: [],
 	childLinks: [],
@@ -269,10 +277,11 @@ export function layoutRibbons(
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
 	index: GraphIndex = buildIndex(graph),
-	ordering: RibbonsOrdering = 'sweep'
+	ordering: RibbonsOrdering = 'sweep',
+	given?: TreeSelection
 ): RibbonsLayout {
-	if (!focusPersonId) return EMPTY_RIBBONS_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
+	if (!given && !focusPersonId) return EMPTY_RIBBONS_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
 	if (!selection) return EMPTY_RIBBONS_LAYOUT;
 
 	const generationOf = new Map(selection.people.map((p) => [p.id, p.generation]));
@@ -447,6 +456,7 @@ export function layoutRibbons(
 					unionId: null,
 					fromPersonId: null,
 					isStub: true,
+					linkKey: null,
 					from: { x: to.x, y: to.y + RIBBON_ENTRY_STUB_UNITS, z: to.z },
 					to,
 					braidIndex: 0,
@@ -460,6 +470,7 @@ export function layoutRibbons(
 					unionId: line.fromUnionId,
 					fromPersonId: line.fromPersonId,
 					isStub: false,
+					linkKey: linkKey(line),
 					from:
 						line.fromUnionId !== null
 							? placed.unions.get(line.fromUnionId)!
@@ -478,6 +489,7 @@ export function layoutRibbons(
 					unionId,
 					fromPersonId: null,
 					isStub: false,
+					linkKey: null,
 					from: to,
 					to: placed.unions.get(unionId)!,
 					braidIndex: partners.indexOf(p.id),
@@ -486,7 +498,7 @@ export function layoutRibbons(
 			}
 		}
 		return {
-			focusPersonId: focusPersonId!,
+			focusPersonId: selection!.focusPersonId,
 			people,
 			unions,
 			childLinks,

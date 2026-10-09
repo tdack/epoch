@@ -18,7 +18,8 @@ import type {
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /**
@@ -86,7 +87,8 @@ interface PoincareTick {
 }
 
 export interface PoincareLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	people: PoincarePerson[];
 	unions: PoincareUnion[];
 	childLinks: PoincareChildLink[];
@@ -97,7 +99,7 @@ export interface PoincareLayout {
 }
 
 const EMPTY_POINCARE_LAYOUT: PoincareLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	people: [],
 	unions: [],
 	childLinks: [],
@@ -195,10 +197,11 @@ export function layoutPoincare(
 	graph: RelationshipGraph,
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
-	index: GraphIndex = buildIndex(graph)
+	index: GraphIndex = buildIndex(graph),
+	given?: TreeSelection
 ): PoincareLayout {
-	if (!focusPersonId) return EMPTY_POINCARE_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
+	if (!given && !focusPersonId) return EMPTY_POINCARE_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
 	if (!selection) return EMPTY_POINCARE_LAYOUT;
 
 	const generationOf = new Map(selection.people.map((p) => [p.id, p.generation]));
@@ -397,16 +400,57 @@ export function layoutPoincare(
 	});
 	const sphereRadius = (s: Spot) => POINCARE_SPHERE_K * (1 - s.y * s.y - s.r * s.r);
 	const coordinates = (s: Spot) => [s.r * Math.cos(s.angle), s.y, s.r * Math.sin(s.angle)] as const;
+	// Two spheres can only touch when their centres are within the largest sphere's diameter times
+	// SPACING, so a grid of that cell size leaves each pair test to the 27 cells round a sphere. A
+	// full O(n²) scan took 8 s at 3,000 people; the grid is rebuilt each sweep because angles move.
+	const CELL = 2 * POINCARE_SPHERE_K * SPACING + 1e-3;
+	const keyOf = (cx: number, cy: number, cz: number) => (cx * 1024 + cy) * 1024 + cz;
+	const xs = new Float64Array(spots.length);
+	const ys = new Float64Array(spots.length);
+	const zs = new Float64Array(spots.length);
+	const radii = new Float64Array(spots.length);
 	for (let sweep = 0; sweep < 30; sweep++) {
 		let didMove = false;
-		for (let i = 0; i < spots.length; i++)
-			for (let j = i + 1; j < spots.length; j++) {
-				const a = spots[i];
+		const cells = new Map<number, number[]>();
+		const cellCoords = new Int32Array(spots.length * 3);
+		for (let i = 0; i < spots.length; i++) {
+			const s = spots[i];
+			xs[i] = s.r * Math.cos(s.angle);
+			ys[i] = s.y;
+			zs[i] = s.r * Math.sin(s.angle);
+			radii[i] = sphereRadius(s);
+			const cx = Math.floor((xs[i] + 1) / CELL);
+			const cy = Math.floor((ys[i] + 1) / CELL);
+			const cz = Math.floor((zs[i] + 1) / CELL);
+			cellCoords.set([cx, cy, cz], i * 3);
+			const key = keyOf(cx, cy, cz);
+			const list = cells.get(key);
+			if (list) list.push(i);
+			else cells.set(key, [i]);
+		}
+		const near: number[] = [];
+		for (let i = 0; i < spots.length; i++) {
+			const cx = cellCoords[i * 3];
+			const cy = cellCoords[i * 3 + 1];
+			const cz = cellCoords[i * 3 + 2];
+			near.length = 0;
+			for (let dx = -1; dx <= 1; dx++)
+				for (let dy = -1; dy <= 1; dy++)
+					for (let dz = -1; dz <= 1; dz++)
+						for (const j of cells.get(keyOf(cx + dx, cy + dy, cz + dz)) ?? [])
+							if (j > i) near.push(j);
+			// Ascending, so the pairs are met in the order a full scan met them.
+			near.sort((p, q) => p - q);
+			const a = spots[i];
+			for (const j of near) {
 				const b = spots[j];
-				const [ax, ay, az] = coordinates(a);
-				const [bx, by, bz] = coordinates(b);
-				const distance = Math.hypot(ax - bx, ay - by, az - bz);
-				const needed = (sphereRadius(a) + sphereRadius(b)) * SPACING;
+				// The grid is a sweep old; the angles it was built from may have moved a little since.
+				const ax = a.r * Math.cos(a.angle);
+				const az = a.r * Math.sin(a.angle);
+				const bx = b.r * Math.cos(b.angle);
+				const bz = b.r * Math.sin(b.angle);
+				const distance = Math.hypot(ax - bx, a.y - b.y, az - bz);
+				const needed = (radii[i] + radii[j]) * SPACING;
 				if (distance >= needed || a.r + b.r < 1e-6) continue;
 				const push = (needed - distance + 1e-4) / (a.r + b.r);
 				// Opposite ways round the axis; the order of the pair breaks exact ties.
@@ -415,6 +459,7 @@ export function layoutPoincare(
 				b.angle -= direction * push * (a.r / (a.r + b.r));
 				didMove = true;
 			}
+		}
 		if (!didMove) break;
 	}
 
@@ -465,7 +510,7 @@ export function layoutPoincare(
 	}
 
 	return {
-		focusPersonId,
+		focusPersonId: selection.focusPersonId,
 		people,
 		unions,
 		childLinks: childLinks.filter(

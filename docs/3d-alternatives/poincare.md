@@ -46,3 +46,19 @@ No Simpson GEDCOM exists in this checkout, so these are synthetic full binary pe
 - `ThreeStage.resetWorld` / `dispose` only free `Mesh` and `Line`. A `Sprite`'s material, and any `map` texture, leak. The Ball tracks and frees its own label sprites; if other modes want labels, move that into the stage.
 - `playwright.config.ts` hard-codes port 5179; with a sibling session's server already on it, `npx playwright test` fails to start. I ran the specs through a throw-away config on another port. Worth an env override.
 - The worktree's `node_modules` was stale (no `three`); `npm install` fixed it. `.dev.vars` (`ACCESS_BYPASS_DEV=true`) was missing too, so the preview 401'd.
+
+## Stage B (highlights)
+
+Done:
+- Dark stage (`POINCARE_TOKENS.stage`), glass opacity base 0.05 to 0.012 and rim 0.42 to 0.14, year labels and latitude rings recoloured.
+- Scene lights from the `Highlight`: line colours from marks, `softOpacity` for soft marks, shared marks drawn at `sharedLinePx`, sprite halos in the mark colour (second ring in the intersection colour when shared). The sex fill stays.
+- `trackUnion` with an invisible hit sphere at least as big as the largest partner; `trackLink` on each geodesic (never for private people).
+- Layout: the collision pass uses a spatial grid. Whole tree on a 3,140-person synthetic tree (Simpson x10): about 8 s before, about 0.6 to 2.5 s after (machine was loaded). Simpson (314): about 80 to 200 ms.
+- Looked at in the browser: Simpsons focus view and Simpson whole tree (legible). Not looked at: trace mode, the 3,000-person render (the browser pane was hidden), the Side and Pole cameras on the dark stage.
+
+Not done:
+- `e2e/poincare.spec.ts` union and line picking and whole-tree cases, and the e2e runs.
+- `npm test` and `npm run lint` over the whole repo (only my files were linted).
+- Rendering cost at 3,000: every line is its own `Line2`, so thousands of draw calls. Unmeasured.
+
+Needs from Stage A: nothing so far.

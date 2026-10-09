@@ -1,6 +1,7 @@
 /**
  * Read service for the bounded views: the graph around a focus person and the tree's summary.
- * Nothing here loads a whole tree.
+ * Nothing here loads a whole tree, except `wholeTreeGraph`: the one bounded exception, which a
+ * viewer asks for by name and which is capped (ADR-035; see `whole-tree-window.ts`).
  */
 
 import type { DbClient } from '../db';
@@ -12,7 +13,12 @@ import { UserRepository } from '../repositories/user-repository';
 import { firstVisiblePersonId, visibleCounts } from '../repositories/visibility';
 import { loadFocusWindow, type FocusWindowOptions } from './focus-window';
 import { requireTreeScope, type ViewerScope } from './tree-access';
-import { type FocusGraphDto, type TreeSummaryDto } from '../../shared/graph-views';
+import {
+	type FocusGraphDto,
+	type TreeSummaryDto,
+	type WholeTreeGraphDto
+} from '../../shared/graph-views';
+import { loadWholeTreeWindow } from './whole-tree-window';
 
 export class GraphQueryService {
 	private repo: GraphWindowRepository;
@@ -52,6 +58,28 @@ export class GraphQueryService {
 			drawnPersonIds: window.selection.people.map((p) => p.id),
 			drawnUnionIds: window.selection.unions.map((u) => u.id),
 			stubs: window.selection.stubs
+		};
+	}
+
+	/** Everyone the viewer may see, up to the cap, with no focus. */
+	async wholeTreeGraph(treeId: string, context: AuthenticatedContext): Promise<WholeTreeGraphDto> {
+		const scope = await this.requireView(treeId, context);
+		const window = await loadWholeTreeWindow(
+			this.repo,
+			treeId,
+			scope.isRestricted ? scope : undefined
+		);
+		const drawn = new Set(window.personIds);
+		return {
+			focusPersonId: null,
+			isWholeTree: true,
+			isTruncated: window.isTruncated,
+			graph: window.graph,
+			drawnPersonIds: window.personIds,
+			drawnUnionIds: window.graph.unions
+				.filter((u) => u.partnerIds.some((id) => drawn.has(id)))
+				.map((u) => u.id),
+			stubs: []
 		};
 	}
 

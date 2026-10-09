@@ -5,12 +5,15 @@ import { parseFocusQuery } from '#lib/server/validation/graph-query.js';
 
 /**
  * `?focus=<person>` answers the bounded graph the focus view draws (see `FocusGraphDto`); `up`,
- * `down`, `siblings`, `step` and `exp` shape it as they shape the page.
+ * `down`, `siblings`, `step` and `exp` shape it as they shape the page. `?scope=all` answers
+ * everyone the viewer may see, capped, anchored to no one (see `WholeTreeGraphDto`) and ignores
+ * the other parameters.
  */
 export const GET = treeHandler(
 	{ failure: 'Failed to load relationship graph' },
 	({ db, ctx, treeId, url }) => {
-		const { focusPersonId, options } = parseFocusQuery(url.searchParams);
+		const { focusPersonId, options, isWholeTree } = parseFocusQuery(url.searchParams);
+		if (isWholeTree) return new GraphQueryService(db).wholeTreeGraph(treeId, ctx);
 		if (!focusPersonId) throw new ValidationError('focus: a person to centre the graph on');
 		return new GraphQueryService(db).focusGraph(treeId, focusPersonId, options, ctx);
 	}

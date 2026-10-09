@@ -4,6 +4,7 @@ import { layoutOrrery, ORRERY_BINARY_UNITS, ORRERY_ITERATIONS, type OrreryLayout
 import { buildOrbitPlan, orbitPositions } from './orrery-orbit';
 import type { Vec3 } from './orrery-simulation';
 import { selectFocusSubgraph } from './select';
+import { selectWholeTree } from './whole-tree';
 import { allTestGraphs, makeGraph, personByName } from './test-support';
 import type { FocusViewOptions } from './types';
 
@@ -196,6 +197,82 @@ describe('layoutOrrery', () => {
 		// The target is 100 ms; this bound is loose so a loaded CI machine does not flake.
 		expect(ms).toBeLessThan(1000);
 	});
+});
+
+describe('the whole tree (no focus)', () => {
+	/** Two families nothing links, so only gravity keeps them together. */
+	function twoFamilies() {
+		const graph = dynasty(5);
+		const other = makeGraph({
+			people: ['x0', 'y0', 'xc'],
+			unions: [{ id: 'ux', partners: ['x0', 'y0'], children: ['xc'] }]
+		});
+		return {
+			people: [...graph.people, ...other.people],
+			unions: [...graph.unions, ...other.unions],
+			parentChild: [...graph.parentChild, ...other.parentChild]
+		} as typeof graph;
+	}
+
+	it('draws everyone once with nobody as the focus, the same way every time', () => {
+		const graph = twoFamilies();
+		const selection = selectWholeTree(graph);
+		const first = layoutOrrery(graph, null, {}, undefined, {}, selection);
+		expect(first.focusPersonId).toBeNull();
+		expect(first.people).toHaveLength(graph.people.length);
+		expect(layoutOrrery(graph, null, {}, undefined, {}, selection)).toEqual(first);
+		const tree = layoutOrrery(graph, null, {}, undefined, { barnesHutThreshold: 0 }, selection);
+		expect(layoutOrrery(graph, null, {}, undefined, { barnesHutThreshold: 0 }, selection)).toEqual(
+			tree
+		);
+	});
+
+	it('pulls toward the centroid, which sits at the origin', () => {
+		const graph = twoFamilies();
+		const layout = layoutOrrery(graph, null, {}, undefined, {}, selectWholeTree(graph));
+		const n = layout.people.length;
+		for (const axis of ['x', 'y', 'z'] as const)
+			expect(layout.people.reduce((sum, p) => sum + p[axis], 0) / n).toBeCloseTo(0, 1);
+		// An unlinked family stays in the same cluster instead of drifting off alone.
+		const reach = (people: typeof layout.people) =>
+			Math.max(...people.map((p) => Math.hypot(p.x, p.y, p.z)));
+		const isLone = (id: string) => id.startsWith('x') || id.startsWith('y');
+		expect(reach(layout.people.filter((p) => isLone(p.id)))).toBeLessThan(
+			reach(layout.people.filter((p) => !isLone(p.id))) * 1.5
+		);
+	});
+
+	it('is not anchored to the oldest person', () => {
+		const graph = twoFamilies();
+		const layout = layoutOrrery(graph, null, {}, undefined, {}, selectWholeTree(graph));
+		const oldest = layout.people.find((p) => p.id === 'a0')!;
+		expect(Math.hypot(oldest.x, oldest.z)).toBeGreaterThan(0.5);
+	});
+
+	it('lays out a 3,000-person tree and records its time', () => {
+		const graph = dynasty(11);
+		const selection = selectWholeTree(graph);
+		const started = performance.now();
+		const layout = layoutOrrery(graph, null, {}, undefined, {}, selection);
+		const ms = performance.now() - started;
+		console.info(
+			`orrery whole tree: ${layout.people.length} people, ${layout.iterations} iterations, ${Math.round(ms)} ms`
+		);
+		expect(layout.people.length).toBeGreaterThan(2000);
+		expect(layout.iterations).toBeLessThan(ORRERY_ITERATIONS);
+		// Fewer iterations must still hold the binaries: the median within about half, and none more than quadrupled. The
+		// worst stretch is the children's pull on a deep tree, not the budget.
+		const at = byId(layout);
+		const stretches = layout.unions
+			.map((union) => {
+				const [a, b] = union.partnerIds.map((id) => at.get(id)!);
+				return Math.abs(distance(a, b) - union.distance) / union.distance;
+			})
+			.sort((x, y) => x - y);
+		expect(stretches[Math.floor(stretches.length / 2)]).toBeLessThan(0.6);
+		expect(stretches.at(-1)).toBeLessThan(3);
+		expect(ms).toBeLessThan(15000);
+	}, 30000);
 });
 
 describe('orbital drift', () => {

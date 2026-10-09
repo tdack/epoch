@@ -237,3 +237,34 @@ export async function openWithdrawnMode(page: Page, mode: 'layers' | 'floors') {
 	url.searchParams.set('mode', mode);
 	await open(page, `${url.pathname}${url.search}`);
 }
+
+/**
+ * Where a partnership marker or a parent-child line lands on screen, for the WebGL views, where
+ * neither has a name button. Under automation the shell renders an invisible anchor for each one
+ * the scene tracks (`data-pick-kind`, `data-pick-id`). A link's id starts with its child's id.
+ */
+export async function pickPoint(
+	shell: Locator,
+	kind: 'union' | 'link',
+	id: string,
+	options: { isPrefix?: boolean } = {}
+): Promise<{ x: number; y: number }> {
+	const anchor = shell.locator(
+		`[data-pick-kind="${kind}"][data-pick-id${options.isPrefix ? '^' : ''}="${id}"]`
+	);
+	await expect.poll(async () => anchor.first().boundingBox(), { timeout: 10_000 }).not.toBeNull();
+	const box = (await anchor.first().boundingBox())!;
+	return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Click a partnership marker or line in a WebGL view; see {@link pickPoint}. */
+export async function clickPick(
+	page: Page,
+	shell: Locator,
+	kind: 'union' | 'link',
+	id: string,
+	options: { isPrefix?: boolean } = {}
+) {
+	const { x, y } = await pickPoint(shell, kind, id, options);
+	await page.mouse.click(x, y);
+}
