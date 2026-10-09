@@ -15,6 +15,8 @@ describe('toGedcom7Date', () => {
 		['44 B.C.', '44 BCE'],
 		['ABOUT 12 March 1850', 'ABT 12 MAR 1850'],
 		['circa 1937', 'ABT 1937'],
+		['3 RD DECEMBER 1996', '3 DEC 1996'],
+		['29 JANUAY 1959', '29 JAN 1959'],
 		['JULIAN 1 JAN 1700', 'JULIAN 1 JAN 1700']
 	])('writes %s as %s', (stored, value) => {
 		expect(toGedcom7Date(stored)).toEqual({ value });

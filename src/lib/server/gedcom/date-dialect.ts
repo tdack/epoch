@@ -8,6 +8,8 @@
  * a 5.5.1 export writes anyway.
  */
 
+import { tidyDateText } from '../../shared/date-tidy';
+
 const MONTHS: Record<string, readonly string[]> = {
 	GREGORIAN: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
 	JULIAN: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
@@ -50,31 +52,6 @@ const ESCAPE_TO_CALENDAR: Record<string, string> = {
 	'FRENCH R': 'FRENCH_R'
 };
 
-const FULL_MONTHS: Record<string, string> = {
-	JANUARY: 'JAN',
-	FEBRUARY: 'FEB',
-	MARCH: 'MAR',
-	APRIL: 'APR',
-	JUNE: 'JUN',
-	JULY: 'JUL',
-	AUGUST: 'AUG',
-	SEPT: 'SEP',
-	SEPTEMBER: 'SEP',
-	OCTOBER: 'OCT',
-	NOVEMBER: 'NOV',
-	DECEMBER: 'DEC'
-};
-
-const LONG_KEYWORDS: Record<string, string> = {
-	ABOUT: 'ABT',
-	CIRCA: 'ABT',
-	ESTIMATED: 'EST',
-	CALCULATED: 'CAL',
-	BEFORE: 'BEF',
-	AFTER: 'AFT',
-	BETWEEN: 'BET'
-};
-
 /** One calendar date in 7.0 syntax: `[calendar] [[day] month] year [BCE]`. */
 function isDate7(text: string): boolean {
 	const m = text.match(
@@ -104,7 +81,8 @@ function isDateValue7(text: string): boolean {
  */
 function convertTo7(stored: string): { value: string; isLossy: boolean } | null {
 	let isLossy = false;
-	let text = stored.toUpperCase().replace(/\s+/g, ' ').trim();
+	// The loose spellings Epoch reads (`3 RD DECEMBER`, `CIRCA`) in their standard form first.
+	let text = tidyDateText(stored);
 	let isUnknownCalendar = false;
 	text = text.replace(/@#D([A-Z ]+?)@ ?/g, (_, name: string) => {
 		const calendar = ESCAPE_TO_CALENDAR[name.trim()];
@@ -115,7 +93,6 @@ function convertTo7(stored: string): { value: string; isLossy: boolean } | null 
 	if (isUnknownCalendar) return null;
 	text = text
 		.replace(/\b(\d+) ?B\.? ?C\.?(?=$| )/g, '$1 BCE')
-		.replace(/\b[A-Z]+\b/g, (word) => FULL_MONTHS[word] ?? LONG_KEYWORDS[word] ?? word)
 		.replace(/\b(\d{3,4})\/(\d{1,2})\b/g, (_, first: string, tail: string) => {
 			isLossy = true;
 			let year = Number(first.slice(0, first.length - tail.length) + tail);
