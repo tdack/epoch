@@ -29,11 +29,12 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { unitFromId, type OrreryLayout } from '#lib/tree-layout/orrery.js';
-import type { Highlight } from '#lib/tree-layout/highlight.js';
+import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
 import { buildOrbitPlan, orbitPositions } from '#lib/tree-layout/orrery-orbit.js';
+import { LinkPickProxy } from './orrery-link-pick.js';
 import { createThreeStage } from './three-stage.js';
-import { ORRERY_TOKENS as T } from './tree-tokens.js';
-import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
+import { HIGHLIGHT_TOKENS, ORRERY_TOKENS as T } from './tree-tokens.js';
+import type { WebGlTreeScene } from './webgl-tree.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 
 export const ORRERY_CAMERAS = { ANGLED: 'angled', SIDE: 'side' } as const;
@@ -72,6 +73,30 @@ function glowTexture(): CanvasTexture {
 	context.fillStyle = gradient;
 	context.fillRect(0, 0, SOFT_EDGE_PIXELS, SOFT_EDGE_PIXELS);
 	return new CanvasTexture(canvas);
+}
+
+/** Items drawn together as one batch, because they share a line width. */
+interface Group<T> {
+	batch: SegmentBatch;
+	items: T[];
+}
+
+/** One batch per distinct width: a width is a material property, so it cannot vary in a batch. */
+function groupByWidth<T extends { widthPx: number }>(
+	items: T[],
+	segmentsEach: number,
+	size: { width: number; height: number }
+): Array<Group<T>> {
+	const byWidth = new Map<number, T[]>();
+	for (const item of items) {
+		const list = byWidth.get(item.widthPx);
+		if (list) list.push(item);
+		else byWidth.set(item.widthPx, [item]);
+	}
+	return [...byWidth].map(([widthPx, list]) => ({
+		batch: segmentBatch(list.length * segmentsEach, widthPx, size),
+		items: list
+	}));
 }
 
 /**
@@ -128,6 +153,48 @@ function segmentBatch(
 	};
 }
 
+/** A tether between two partners; colours and width come from the partnership's mark. */
+interface Tether {
+	a: string;
+	b: string;
+	phase: number;
+	colourA: Color;
+	colourB: Color;
+	brightness: number;
+	widthPx: number;
+}
+
+/** A line from a partnership's barycentre (or a lone parent) to a child. */
+interface Descent {
+	from: string[];
+	to: string;
+	brightness: number;
+	colour: Color;
+	widthPx: number;
+	/** Null when the child or a parent is private: such a line is never picked. */
+	proxy: LinkPickProxy | null;
+	/** The line's midpoint, kept by reference by the stage for names and tests. */
+	anchor: Vector3;
+}
+
+interface StarParts {
+	mesh: Mesh;
+	sprite: Sprite | null;
+	halos: Mesh[];
+}
+
+interface UnionParts {
+	/** The barycentre, kept by reference by the stage. */
+	at: Vector3;
+	partnerIds: string[];
+	/** Absent for a union with one drawn partner, which has no binary to ring. */
+	ring: Mesh | null;
+	knot: Mesh | null;
+	hit: Mesh | null;
+}
+
+const WHITE = new Color('#ffffff');
+
 /**
  * @throws when the browser cannot give a WebGL context; the shell shows a message instead.
  */
@@ -141,7 +208,13 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 	});
 	const star = stage.share(new SphereGeometry(T.starRadiusUnits, 24, 16));
 	const halo = stage.share(new TorusGeometry(T.starRadiusUnits * T.focusScale * 1.5, 0.05, 8, 40));
+	// Unit-radius: scaled per star, so the halo's tube thickens with it (a focus star's is larger).
+	const markHalo = stage.share(
+		new TorusGeometry(T.starRadiusUnits * T.haloScale, T.haloTube, 8, 40)
+	);
 	const accretion = stage.share(new RingGeometry(0.97, 1, 96));
+	const knotGeometry = stage.share(new SphereGeometry(T.knotRadiusUnits, 12, 8));
+	const unionHit = stage.share(new SphereGeometry(T.starRadiusUnits * T.unionHitScale, 8, 6));
 	const glow = glowTexture();
 
 	// The plain (non-fat) lines of the stage re-read the canvas size on resize; these do it here.
@@ -160,20 +233,36 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		layout: OrreryLayout;
 		plan: ReturnType<typeof buildOrbitPlan>;
 		shown: Map<string, Vector3>;
-		stars: Map<string, { mesh: Mesh; sprite: Sprite | null; halo: Mesh | null }>;
-		rings: Array<{ mesh: Mesh; partnerIds: string[] }>;
-		tethers: Array<{ a: string; b: string; phase: number; colourA: Color; colourB: Color }>;
-		descents: Array<{ from: string[]; to: string; brightness: number; colour: Color }>;
-		tetherBatch: SegmentBatch | null;
-		descentBatch: SegmentBatch | null;
+		stars: Map<string, StarParts>;
+		unions: UnionParts[];
+		tetherGroups: Array<Group<Tether>>;
+		descentGroups: Array<Group<Descent>>;
 	} | null = null;
 	let elapsedSeconds = 0;
 	let lastTimeMs: number | null = null;
 
 	const scratchA = new Vector3();
-	const scratchB = new Vector3();
 	const scratchColour = new Color();
 	const pulseColour = new Color(T.pulse);
+	const litColours = new Map<string, Color>();
+
+	/** A mark's colour as the dark stage draws it; see {@link T.markLighten}. */
+	function litColour(colour: string): Color {
+		let result = litColours.get(colour);
+		if (!result) {
+			result = new Color(colour).lerp(WHITE, T.markLighten);
+			litColours.set(colour, result);
+		}
+		return result;
+	}
+
+	/** How strongly a mark draws: the upstream path is lighter, and a shared mark brighter. */
+	function strengthOf(mark: Mark): number {
+		return (
+			(mark.strength === 'soft' ? HIGHLIGHT_TOKENS.softOpacity : 1) *
+			(mark.isShared ? T.sharedBoost : 1)
+		);
+	}
 
 	function barycentre(ids: string[], shown: Map<string, Vector3>, into: Vector3): Vector3 {
 		into.set(0, 0, 0);
@@ -182,101 +271,115 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 	}
 
 	function writeTethers() {
-		if (!live?.tetherBatch) return;
-		const { tethers, shown, tetherBatch } = live;
-		let at = 0;
-		for (const t of tethers) {
-			const a = shown.get(t.a)!;
-			const b = shown.get(t.b)!;
-			for (let i = 0; i < TETHER_SEGMENTS; i++) {
-				const f0 = i / TETHER_SEGMENTS;
-				const f1 = (i + 1) / TETHER_SEGMENTS;
-				tetherBatch.positions[at] = a.x + (b.x - a.x) * f0;
-				tetherBatch.positions[at + 1] = a.y + (b.y - a.y) * f0;
-				tetherBatch.positions[at + 2] = a.z + (b.z - a.z) * f0;
-				tetherBatch.positions[at + 3] = a.x + (b.x - a.x) * f1;
-				tetherBatch.positions[at + 4] = a.y + (b.y - a.y) * f1;
-				tetherBatch.positions[at + 5] = a.z + (b.z - a.z) * f1;
-				at += 6;
+		if (!live) return;
+		const { shown } = live;
+		for (const { batch, items } of live.tetherGroups) {
+			let at = 0;
+			for (const t of items) {
+				const a = shown.get(t.a)!;
+				const b = shown.get(t.b)!;
+				for (let i = 0; i < TETHER_SEGMENTS; i++) {
+					const f0 = i / TETHER_SEGMENTS;
+					const f1 = (i + 1) / TETHER_SEGMENTS;
+					batch.positions[at] = a.x + (b.x - a.x) * f0;
+					batch.positions[at + 1] = a.y + (b.y - a.y) * f0;
+					batch.positions[at + 2] = a.z + (b.z - a.z) * f0;
+					batch.positions[at + 3] = a.x + (b.x - a.x) * f1;
+					batch.positions[at + 4] = a.y + (b.y - a.y) * f1;
+					batch.positions[at + 5] = a.z + (b.z - a.z) * f1;
+					at += 6;
+				}
 			}
+			batch.flush({ isPositionChanged: true, isColourChanged: false });
 		}
-		tetherBatch.flush({ isPositionChanged: true, isColourChanged: false });
 	}
 
 	/** The gradient between the partners' colours, with a bright pulse unless motion is reduced. */
 	function writeTetherColours() {
-		if (!live?.tetherBatch) return;
-		const { tethers, tetherBatch } = live;
-		let at = 0;
-		for (const t of tethers) {
-			const centre = (elapsedSeconds / T.pulseSeconds + t.phase) % 1;
-			for (let i = 0; i < TETHER_SEGMENTS; i++) {
-				for (const edge of [i, i + 1]) {
-					const f = edge / TETHER_SEGMENTS;
-					scratchColour.copy(t.colourA).lerp(t.colourB, f).multiplyScalar(0.7);
-					if (!isReduced) {
-						const away = f - centre;
-						scratchColour.lerp(pulseColour, Math.exp(-(away * away) / PULSE_WIDTH) * 0.85);
+		if (!live) return;
+		for (const { batch, items } of live.tetherGroups) {
+			let at = 0;
+			for (const t of items) {
+				const centre = (elapsedSeconds / T.pulseSeconds + t.phase) % 1;
+				for (let i = 0; i < TETHER_SEGMENTS; i++) {
+					for (const edge of [i, i + 1]) {
+						const f = edge / TETHER_SEGMENTS;
+						scratchColour.copy(t.colourA).lerp(t.colourB, f).multiplyScalar(t.brightness);
+						if (!isReduced) {
+							const away = f - centre;
+							scratchColour.lerp(pulseColour, Math.exp(-(away * away) / PULSE_WIDTH) * 0.85);
+						}
+						batch.colours[at++] = scratchColour.r;
+						batch.colours[at++] = scratchColour.g;
+						batch.colours[at++] = scratchColour.b;
 					}
-					tetherBatch.colours[at++] = scratchColour.r;
-					tetherBatch.colours[at++] = scratchColour.g;
-					tetherBatch.colours[at++] = scratchColour.b;
 				}
 			}
+			batch.flush({ isPositionChanged: false, isColourChanged: true });
 		}
-		tetherBatch.flush({ isPositionChanged: false, isColourChanged: true });
 	}
 
 	function writeDescents() {
-		if (!live?.descentBatch) return;
-		const { descents, shown, descentBatch } = live;
-		let at = 0;
-		for (const d of descents) {
-			const from = barycentre(d.from, shown, scratchA);
-			const to = shown.get(d.to)!;
-			for (let i = 0; i < DESCENT_SEGMENTS; i++) {
-				const f0 = i / DESCENT_SEGMENTS;
-				const f1 = (i + 1) / DESCENT_SEGMENTS;
-				descentBatch.positions[at] = from.x + (to.x - from.x) * f0;
-				descentBatch.positions[at + 1] = from.y + (to.y - from.y) * f0;
-				descentBatch.positions[at + 2] = from.z + (to.z - from.z) * f0;
-				descentBatch.positions[at + 3] = from.x + (to.x - from.x) * f1;
-				descentBatch.positions[at + 4] = from.y + (to.y - from.y) * f1;
-				descentBatch.positions[at + 5] = from.z + (to.z - from.z) * f1;
-				at += 6;
+		if (!live) return;
+		const { shown } = live;
+		for (const { batch, items } of live.descentGroups) {
+			let at = 0;
+			for (const d of items) {
+				const from = barycentre(d.from, shown, scratchA);
+				const to = shown.get(d.to)!;
+				for (let i = 0; i < DESCENT_SEGMENTS; i++) {
+					const f0 = i / DESCENT_SEGMENTS;
+					const f1 = (i + 1) / DESCENT_SEGMENTS;
+					batch.positions[at] = from.x + (to.x - from.x) * f0;
+					batch.positions[at + 1] = from.y + (to.y - from.y) * f0;
+					batch.positions[at + 2] = from.z + (to.z - from.z) * f0;
+					batch.positions[at + 3] = from.x + (to.x - from.x) * f1;
+					batch.positions[at + 4] = from.y + (to.y - from.y) * f1;
+					batch.positions[at + 5] = from.z + (to.z - from.z) * f1;
+					at += 6;
+				}
+				// The pick band and the anchor follow the drift by sharing the drawn end points.
+				d.proxy?.start.copy(from);
+				d.proxy?.end.copy(to);
+				d.anchor.lerpVectors(from, to, 0.5);
 			}
+			batch.flush({ isPositionChanged: true, isColourChanged: false });
 		}
-		descentBatch.flush({ isPositionChanged: true, isColourChanged: false });
 	}
 
 	function writeDescentColours() {
-		if (!live?.descentBatch) return;
-		const { descents, descentBatch } = live;
-		let at = 0;
-		for (const d of descents)
-			for (let i = 0; i < DESCENT_SEGMENTS; i++)
-				for (const edge of [i, i + 1]) {
-					// Bright where the line leaves the barycentre, fading toward the child.
-					const f = 1 - (edge / DESCENT_SEGMENTS) * 0.65;
-					scratchColour.copy(d.colour).multiplyScalar(d.brightness * f);
-					descentBatch.colours[at++] = scratchColour.r;
-					descentBatch.colours[at++] = scratchColour.g;
-					descentBatch.colours[at++] = scratchColour.b;
-				}
-		descentBatch.flush({ isPositionChanged: false, isColourChanged: true });
+		if (!live) return;
+		for (const { batch, items } of live.descentGroups) {
+			let at = 0;
+			for (const d of items)
+				for (let i = 0; i < DESCENT_SEGMENTS; i++)
+					for (const edge of [i, i + 1]) {
+						// Bright where the line leaves the barycentre, fading toward the child.
+						const f = 1 - (edge / DESCENT_SEGMENTS) * 0.65;
+						scratchColour.copy(d.colour).multiplyScalar(d.brightness * f);
+						batch.colours[at++] = scratchColour.r;
+						batch.colours[at++] = scratchColour.g;
+						batch.colours[at++] = scratchColour.b;
+					}
+			batch.flush({ isPositionChanged: false, isColourChanged: true });
+		}
 	}
 
-	/** Moves every mesh, ring and line to the positions in `live.shown`. */
+	/** Moves every mesh, marker and line to the positions in `live.shown`. */
 	function placeEverything() {
 		if (!live) return;
 		for (const [id, parts] of live.stars) {
 			const at = live.shown.get(id)!;
 			parts.mesh.position.copy(at);
 			parts.sprite?.position.copy(at);
-			parts.halo?.position.copy(at);
+			for (const h of parts.halos) h.position.copy(at);
 		}
-		for (const ring of live.rings)
-			ring.mesh.position.copy(barycentre(ring.partnerIds, live.shown, scratchB));
+		for (const u of live.unions) {
+			barycentre(u.partnerIds, live.shown, u.at);
+			u.ring?.position.copy(u.at);
+			u.knot?.position.copy(u.at);
+			u.hit?.position.copy(u.at);
+		}
 		writeTethers();
 		writeDescents();
 	}
@@ -296,7 +399,6 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 	});
 
 	function setLayout(layout: OrreryLayout, highlight: Highlight, shouldRefit: boolean) {
-		const roles = highlightRoles(highlight);
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
 		const isQuiet = highlight.isQuiet;
 		const world = stage.resetWorld();
@@ -304,10 +406,6 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		glowMaterials = [];
 		batches = [];
 		const size = stage.size();
-		const isOnLine = (id: string) => {
-			const role = roles.get(id);
-			return role === 'focus' || role === 'ancestor' || role === 'descendant';
-		};
 
 		const shown = new Map<string, Vector3>();
 		for (const p of layout.people) shown.set(p.id, new Vector3(p.x, p.y, p.z));
@@ -315,30 +413,70 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		// At the current time, so a rebuild under a running drift does not snap back to rest.
 		if (!isReduced) orbitPositions(layout, plan, elapsedSeconds, shown);
 
+		const personById = new Map(layout.people.map((p) => [p.id, p]));
+		const isPrivate = (id: string) => personById.get(id)?.person.isPrivate === true;
+		const unionById = new Map(layout.unions.map((u) => [u.id, u]));
+
+		// Many stars share a look, and with a whole tree that is thousands of identical materials.
+		const starMaterials = new Map<string, MeshStandardMaterial>();
+		const haloMaterials = new Map<string, MeshBasicMaterial>();
 		const glowBy = new Map<string, SpriteMaterial>();
-		const stars = new Map<string, { mesh: Mesh; sprite: Sprite | null; halo: Mesh | null }>();
+		const starMaterial = (colour: string, emissiveIntensity: number) => {
+			const key = `${colour}:${emissiveIntensity}`;
+			let material = starMaterials.get(key);
+			if (!material) {
+				material = new MeshStandardMaterial({
+					color: colour,
+					emissive: colour,
+					emissiveIntensity,
+					roughness: 0.4,
+					metalness: 0
+				});
+				starMaterials.set(key, material);
+			}
+			return material;
+		};
+		const haloMaterial = (colour: Color, opacity: number) => {
+			const key = `${colour.getHexString()}:${opacity}`;
+			let material = haloMaterials.get(key);
+			if (!material) {
+				material = new MeshBasicMaterial({
+					color: colour,
+					transparent: opacity < 1,
+					opacity,
+					depthWrite: false
+				});
+				haloMaterials.set(key, material);
+			}
+			return material;
+		};
+
+		const stars = new Map<string, StarParts>();
 		for (const p of layout.people) {
-			const role = roles.get(p.id) ?? null;
-			const isPrivate = p.person.isPrivate === true;
-			const isLit = isQuiet || role !== null;
+			const mark = highlight.people.get(p.id);
+			const isPrivatePerson = p.person.isPrivate === true;
+			// The focus person (a focus source, not a partnership or trace item) keeps the larger
+			// star and the white ring it has always had.
+			const isFocus =
+				mark?.kind === 'self' && highlight.sources[mark.sourceIndexes[0]]?.source.kind === 'focus';
+			const isLit = isQuiet || mark !== undefined;
+			const isSoft = mark?.strength === 'soft';
 			const colour = starColour(p.person);
 			const at = shown.get(p.id)!;
 			const mesh = new Mesh(
 				star,
-				new MeshStandardMaterial({
-					color: colour,
-					emissive: colour,
-					emissiveIntensity: isPrivate ? 0.25 : isLit ? 1.15 : T.dimStar,
-					roughness: 0.4,
-					metalness: 0
-				})
+				starMaterial(
+					colour,
+					isPrivatePerson ? 0.25 : isSoft ? T.softStar : isLit ? 1.15 : T.dimStar
+				)
 			);
-			if (role === 'focus') mesh.scale.setScalar(T.focusScale);
+			if (isFocus) mesh.scale.setScalar(T.focusScale);
 			world.add(mesh);
 
 			let sprite: Sprite | null = null;
-			if (!isPrivate) {
-				const key = `${colour}:${isLit}`;
+			if (!isPrivatePerson) {
+				const opacity = isSoft ? T.softGlow : isLit ? 0.85 : T.dimGlow;
+				const key = `${colour}:${opacity}`;
 				let material = glowBy.get(key);
 				if (!material) {
 					material = new SpriteMaterial({
@@ -347,39 +485,71 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 						blending: AdditiveBlending,
 						transparent: true,
 						depthWrite: false,
-						opacity: isLit ? 0.85 : T.dimGlow
+						opacity
 					});
 					glowBy.set(key, material);
 					glowMaterials.push(material);
 				}
 				sprite = new Sprite(material);
-				sprite.scale.setScalar(
-					T.starRadiusUnits * T.glowScale * (role === 'focus' ? T.focusScale : 1)
-				);
+				sprite.scale.setScalar(T.starRadiusUnits * T.glowScale * (isFocus ? T.focusScale : 1));
 				world.add(sprite);
 			}
-			let focusHalo: Mesh | null = null;
-			if (role === 'focus') {
-				focusHalo = new Mesh(halo, new MeshBasicMaterial({ color: T.focusHalo }));
-				focusHalo.rotation.x = Math.PI / 2;
-				world.add(focusHalo);
+
+			// Highlights show as halos in the mark's colour, never as a sex colour: the star keeps
+			// its own. A star on two or more paths gets a second, larger halo.
+			const halos: Mesh[] = [];
+			if (mark && !isPrivatePerson) {
+				const opacity = isSoft ? HIGHLIGHT_TOKENS.softOpacity : 1;
+				const markColour = litColour(mark.colour);
+				const ring = new Mesh(markHalo, haloMaterial(markColour, opacity));
+				ring.rotation.x = Math.PI / 2;
+				if (isFocus) ring.scale.setScalar(T.focusScale * 1.4);
+				halos.push(ring);
+				if (mark.isShared) {
+					const outer = new Mesh(markHalo, haloMaterial(markColour, opacity));
+					outer.rotation.x = Math.PI / 2;
+					outer.scale.setScalar(
+						(isFocus ? T.focusScale * 1.4 : 1) * (T.sharedHaloScale / T.haloScale)
+					);
+					halos.push(outer);
+				}
 			}
-			stars.set(p.id, { mesh, sprite, halo: focusHalo });
-			stage.track(p.id, at, isPrivate ? null : mesh);
+			if (isFocus) {
+				const focusHalo = new Mesh(halo, new MeshBasicMaterial({ color: T.focusHalo }));
+				focusHalo.rotation.x = Math.PI / 2;
+				halos.push(focusHalo);
+			}
+			for (const h of halos) world.add(h);
+			stars.set(p.id, { mesh, sprite, halos });
+			stage.track(p.id, at, isPrivatePerson ? null : mesh);
 		}
 
-		const personById = new Map(layout.people.map((p) => [p.id, p]));
-		const rings: NonNullable<typeof live>['rings'] = [];
-		const tethers: NonNullable<typeof live>['tethers'] = [];
+		const unionParts: UnionParts[] = [];
+		const tethers: Tether[] = [];
 		for (const u of layout.unions) {
-			if (u.partnerIds.length < 2) continue;
-			const isLit = u.partnerIds.some(isOnLine);
+			const mark = highlight.unions.get(u.id);
+			const at = new Vector3();
+			const parts: UnionParts = {
+				at,
+				partnerIds: u.partnerIds,
+				ring: null,
+				knot: null,
+				hit: null
+			};
+			unionParts.push(parts);
+			if (u.partnerIds.length < 2) {
+				// One drawn partner: the children's lines leave that star, so there is no binary to
+				// mark and nothing to hit that the star does not already answer for.
+				stage.trackUnion(u.id, at, null);
+				continue;
+			}
+			const opacityFactor = mark ? strengthOf(mark) : isQuiet ? 1 : T.dimTether;
 			const ring = new Mesh(
 				accretion,
 				new MeshBasicMaterial({
-					color: T.accretion,
+					color: mark ? litColour(mark.colour) : T.accretion,
 					transparent: true,
-					opacity: T.accretionOpacity * (isLit ? 1.6 : 1),
+					opacity: T.accretionOpacity * (mark ? 2.4 * opacityFactor : isQuiet ? 1 : 0.6),
 					blending: AdditiveBlending,
 					side: DoubleSide,
 					depthWrite: false
@@ -389,54 +559,80 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 			ring.rotation.x = -Math.PI / 2;
 			ring.scale.setScalar(u.distance / 2);
 			world.add(ring);
-			rings.push({ mesh: ring, partnerIds: u.partnerIds });
+			// The partnership's visible marker: a small bright knot at the barycentre, with a hit
+			// target as large as a star because the knot alone is too small to click.
+			const knot = new Mesh(
+				knotGeometry,
+				new MeshBasicMaterial({
+					color: mark ? litColour(mark.colour) : T.accretion,
+					transparent: !mark,
+					opacity: mark ? 1 : isQuiet ? 0.9 : 0.5
+				})
+			);
+			if (mark) knot.scale.setScalar(mark.isShared ? 1.9 : 1.5);
+			world.add(knot);
+			const hit = new Mesh(unionHit, new MeshBasicMaterial({ visible: false }));
+			world.add(hit);
+			parts.ring = ring;
+			parts.knot = knot;
+			parts.hit = hit;
+			stage.trackUnion(u.id, at, u.partnerIds.some(isPrivate) ? null : hit);
+
 			for (let i = 0; i + 1 < u.partnerIds.length; i++) {
 				const a = personById.get(u.partnerIds[i])!;
 				const b = personById.get(u.partnerIds[i + 1])!;
+				// A marked partnership's tether runs between its partners' own mark colours (their
+				// ancestors' palette), else the union's; a shared one is the intersection colour.
+				const markOf = (id: string) =>
+					mark && !mark.isShared ? (highlight.people.get(id)?.colour ?? mark.colour) : mark?.colour;
+				const colourOf = (person: typeof a) => {
+					const colour = markOf(person.id);
+					return colour ? litColour(colour).clone() : new Color(starColour(person.person));
+				};
 				tethers.push({
 					a: a.id,
 					b: b.id,
 					phase: unitFromId(`${u.id}:${i}`, 11),
-					colourA: new Color(starColour(a.person)),
-					colourB: new Color(starColour(b.person))
+					colourA: colourOf(a),
+					colourB: colourOf(b),
+					brightness: mark ? 0.7 * strengthOf(mark) : isQuiet ? 0.7 : 0.7 * T.dimTether,
+					widthPx: mark ? (mark.isShared ? T.sharedTetherPx : T.markedTetherPx) : T.tetherPx
 				});
 			}
 		}
 
-		const descents: NonNullable<typeof live>['descents'] = [];
+		const descents: Descent[] = [];
 		for (const link of layout.childLinks) {
 			const from =
 				link.fromUnionId !== null
-					? layout.unions.find((u) => u.id === link.fromUnionId)!.partnerIds
+					? unionById.get(link.fromUnionId)!.partnerIds
 					: [link.fromPersonId!];
-			const childRole = roles.get(link.childId) ?? null;
-			const isLit =
-				(childRole === 'descendant' && link.parentIds.some(isOnLine)) ||
-				((childRole === 'focus' || childRole === 'ancestor') &&
-					link.parentIds.some((id) => roles.get(id) === 'ancestor'));
+			const key = linkKey(link);
+			const mark = highlight.links.get(key);
+			const widthPx = mark ? (mark.isShared ? T.sharedLinePx : T.markedLinePx) : T.plainLinePx;
+			const isHidden = isPrivate(link.childId) || link.parentIds.some(isPrivate);
+			const proxy = isHidden ? null : new LinkPickProxy(widthPx, () => stage.size());
+			const anchor = new Vector3();
 			descents.push({
 				from,
 				to: link.childId,
-				brightness: isLit || isQuiet ? 1 : T.dimLine,
-				colour: new Color(isLit ? T.lineLit : T.lineDim)
+				brightness: mark ? strengthOf(mark) : isQuiet ? 1 : T.dimLine,
+				colour: mark ? litColour(mark.colour) : new Color(T.lineDim),
+				widthPx,
+				proxy,
+				anchor
 			});
+			stage.trackLink(key, anchor, proxy);
 		}
 
-		let tetherBatch: SegmentBatch | null = null;
-		if (tethers.length > 0) {
-			tetherBatch = segmentBatch(tethers.length * TETHER_SEGMENTS, T.tetherPx, size);
-			world.add(tetherBatch.line);
-			batches.push(tetherBatch);
-		}
-		let descentBatch: SegmentBatch | null = null;
-		if (descents.length > 0) {
-			// One width for the batch: the focus line is told apart by brightness, not thickness.
-			descentBatch = segmentBatch(descents.length * DESCENT_SEGMENTS, T.litLinePx - 1, size);
-			world.add(descentBatch.line);
-			batches.push(descentBatch);
+		const tetherGroups = groupByWidth(tethers, TETHER_SEGMENTS, size);
+		const descentGroups = groupByWidth(descents, DESCENT_SEGMENTS, size);
+		for (const { batch } of [...tetherGroups, ...descentGroups]) {
+			world.add(batch.line);
+			batches.push(batch);
 		}
 
-		live = { layout, plan, shown, stars, rings, tethers, descents, tetherBatch, descentBatch };
+		live = { layout, plan, shown, stars, unions: unionParts, tetherGroups, descentGroups };
 		placeEverything();
 		writeTetherColours();
 		writeDescentColours();
