@@ -145,6 +145,16 @@ export interface FocusSelection {
 	collapsedPersonIds: string[];
 }
 
+/**
+ * What the WebGL layouts draw from: a focus selection, or the whole tree (`selectWholeTree`), which
+ * has no focus. `FocusSelection` is assignable to it, so Flat, Layers and Floors keep their
+ * stricter type.
+ */
+export type TreeSelection = Omit<FocusSelection, 'focusPersonId'> & {
+	/** Null for the whole tree. No person in a null-focus selection has the role `focus`. */
+	focusPersonId: string | null;
+};
+
 // ---- Placement ----
 
 export interface Point {
