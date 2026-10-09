@@ -22,6 +22,8 @@ export interface WranglerApi {
 	migrate(configFile: string): Promise<void>;
 	deploy(configFile: string): Promise<void>;
 	deleteWorker(name: string): Promise<void>;
+	/** The OAuth or API token wrangler would send, for the one read-only call `cf` cannot make. SPIKE: output format. */
+	getAuthToken(): Promise<string>;
 	putObject(bucket: string, key: string, body: string): Promise<void>;
 	getObject(bucket: string, key: string): Promise<string | null>;
 }
@@ -71,6 +73,26 @@ export function createWranglerApi(runner: Runner, auth: WranglerAuth): WranglerA
 				args: ['deploy', 'workers/entry.ts', '-c', configFile],
 				env: env()
 			});
+		},
+		// `wrangler auth token` prints the current credential; JSON with a token field, or the bare token (SPIKE).
+		async getAuthToken() {
+			const out = (
+				await runner.text({
+					tool: 'wrangler',
+					args: ['auth', 'token'],
+					env: env(),
+					hasSecretOutput: true
+				})
+			).trim();
+			try {
+				const parsed = JSON.parse(out) as Record<string, unknown>;
+				for (const key of ['token', 'oauth_token', 'api_token']) {
+					if (typeof parsed[key] === 'string') return parsed[key];
+				}
+			} catch {
+				// Not JSON: the output is the token itself.
+			}
+			return out;
 		},
 		async deleteWorker(name) {
 			await runner.text({

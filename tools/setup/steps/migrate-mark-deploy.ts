@@ -1,4 +1,5 @@
 import type { StepContext } from '../context.ts';
+import { readEnvToken } from '../env-token.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
 import {
 	insertMarkerSql,
@@ -13,15 +14,6 @@ import type { WranglerApi, WranglerAuth } from '../wrangler.ts';
 import { R2_MARKER_KEY } from './reconcile.ts';
 
 const EPHEMERAL_TOKEN_LIFETIME_MS = 60 * 60 * 1000;
-
-function envTokenOf(ctx: StepContext): string | null {
-	if (ctx.env.CLOUDFLARE_API_TOKEN) return ctx.env.CLOUDFLARE_API_TOKEN;
-	if (!ctx.fs.exists(ctx.paths.envFile)) return null;
-	const match = /^\s*(?:export\s+)?CLOUDFLARE_API_TOKEN\s*=\s*['"]?([^'"\n]+)/m.exec(
-		ctx.fs.read(ctx.paths.envFile)
-	);
-	return match?.[1]?.trim() ?? null;
-}
 
 /** Tokens left by an earlier interrupted run. Needs the broad scope, so it only runs when we have it. */
 async function sweepStaleTokens(ctx: StepContext, prefix: string): Promise<void> {
@@ -45,7 +37,7 @@ async function withDeployAuth<T>(
 		return use(ctx.makeWrangler({ kind: 'profile', accountId }));
 	}
 	if (manifest.authMode === AUTH_MODES.envToken) {
-		const token = envTokenOf(ctx);
+		const token = readEnvToken(ctx.env, ctx.fs, ctx.paths.envFile);
 		if (!token)
 			throw new SetupError(ERROR_CODES.environmentToken, 'CLOUDFLARE_API_TOKEN has gone missing');
 		return use(ctx.makeWrangler({ kind: 'token', token, accountId }));
@@ -53,7 +45,8 @@ async function withDeployAuth<T>(
 	await sweepStaleTokens(ctx, names.ephemeralTokenPrefix);
 	const minted = await ctx.cf.mintDeployToken(
 		`${names.ephemeralTokenPrefix}${ctx.now().getTime()}`,
-		new Date(ctx.now().getTime() + EPHEMERAL_TOKEN_LIFETIME_MS)
+		new Date(ctx.now().getTime() + EPHEMERAL_TOKEN_LIFETIME_MS),
+		manifest.zone?.id ?? ''
 	);
 	// Ctrl-C kills the process before a `finally` runs, so the registry also deletes it from a signal handler.
 	const forget = ctx.cleanup.add('delete the minted deploy token', () =>

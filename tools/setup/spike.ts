@@ -3,6 +3,7 @@ import { createContext } from './app.ts';
 import { createCloudflareApi } from './cloudflare.ts';
 import type { Reporter, StepContext } from './context.ts';
 import { FINDING_LEVELS, type Finding } from './doctor.ts';
+import { isMissingTable } from './install-meta.ts';
 import { loadManifest } from './manifest.ts';
 import { installPaths } from './paths.ts';
 import { createExec, createRedactor, type Exec, type ExecResult } from './run.ts';
@@ -111,7 +112,7 @@ const CHECKS: Check[] = [
 	{
 		id: 'install-meta-readable',
 		claim:
-			'The install_meta marker reads back through `cf d1 query`; "no such table" maps to marker pending',
+			'The install_meta marker reads back through `cf d1 query`; a missing table is the only error treated as "marker pending"',
 		async run(ctx, state) {
 			if (!state.d1Id) throw new Skip('no D1 to read');
 			try {
@@ -121,35 +122,56 @@ const CHECKS: Check[] = [
 				);
 				return `table exists, ${rows.length} row(s)`;
 			} catch (error) {
-				if (
-					/no such table/i.test(String((error as Error).message)) ||
-					/did not print JSON|failed|error/i.test(String((error as Error).message))
-				) {
-					return `table absent or unreadable (${(error as Error).message}); the code treats this as marker pending`;
-				}
+				// Only the SQLite message for a missing table counts; any other failure is a real failure.
+				if (isMissingTable(String((error as Error).message)))
+					return 'no install_meta table yet (marker pending, as the code expects)';
 				throw error;
 			}
 		}
 	},
 	{
-		id: 'r2-queues-workers',
-		claim: 'r2 buckets, queues and Worker settings list in the shapes the reconcile observers read',
+		id: 'worker-settings-read',
+		claim:
+			'GET /accounts/{id}/workers/scripts/{name}/settings (the only way to read a Worker) returns bindings including the d1 id and EPOCH_INSTALL_ID, using `wrangler auth token`',
 		async run(ctx) {
 			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
-			const parts: string[] = [];
-			parts.push(
-				`r2 ${(await ctx.cf.findR2Bucket(manifest?.resources.r2?.name ?? 'epoch-spike-none')) ? 'found' : 'not found (list parsed)'}`
-			);
-			parts.push(
-				`queue ${(await ctx.cf.findQueue(manifest?.resources.queue?.name ?? 'epoch-spike-none')) ? 'found' : 'not found (list parsed)'}`
-			);
-			const worker = await ctx.cf.getWorker(manifest?.resources.worker?.name ?? 'epoch-spike-none');
-			parts.push(
-				worker
-					? `worker bindings d1=${worker.boundD1Id ?? 'none'} marker=${worker.markerInstallId ?? 'none'}`
-					: 'worker not found'
-			);
-			return parts.join('; ');
+			const name = manifest?.resources.worker?.name ?? 'epoch-genealogy';
+			const worker = await ctx.cf.getWorker(name);
+			if (!worker)
+				throw new Skip(
+					`no Worker named ${name} to read (the 404 path parsed); name an existing one by running after an install`
+				);
+			if (worker.boundD1Id === null)
+				throw new Error(`${name} read back with no D1 binding; the bindings shape differs`);
+			return `d1 ${worker.boundD1Id}, marker ${worker.markerInstallId ?? 'none'}`;
+		}
+	},
+	{
+		id: 'r2-and-queues',
+		claim:
+			'`cf r2 buckets list` and `cf queues list` print the shapes the reconcile observers read',
+		async run(ctx) {
+			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
+			const bucket = manifest?.resources.r2?.name;
+			const queue = manifest?.resources.queue?.name;
+			if (!bucket || !queue)
+				throw new Skip('no install in the manifest to look up; run after an install');
+			if (!(await ctx.cf.findR2Bucket(bucket)))
+				throw new Error(`bucket ${bucket} not found: list shape differs`);
+			if (!(await ctx.cf.findQueue(queue)))
+				throw new Error(`queue ${queue} not found: list shape differs`);
+			return 'both found';
+		}
+	},
+	{
+		id: 'permission-groups',
+		claim:
+			'The token permission group names the (currently disabled) ephemeral deploy token needs all exist',
+		async run(ctx) {
+			const missing = await ctx.cf.missingDeployPermissionGroups();
+			if (missing.length > 0)
+				throw new Error(`not offered under these names: ${missing.join(', ')}`);
+			return 'every group name resolves';
 		}
 	},
 	{
@@ -169,7 +191,7 @@ const CHECKS: Check[] = [
 	},
 	{
 		id: 'email-sending',
-		claim: 'An Email Sending domains command exists and reports verification',
+		claim: '`cf email-sending subdomains list --zone` reports which sender subdomains are verified',
 		async run(ctx) {
 			const zones = await ctx.cf.listActiveZones();
 			if (!zones[0]) throw new Skip('no active zone');

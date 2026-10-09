@@ -363,7 +363,7 @@ describe('applyAdoptions', () => {
 });
 
 describe('observe, from recorded cf and wrangler output', () => {
-	function rules(workerSettings: string) {
+	function rules() {
 		return [
 			{ match: 'cf d1 list', stdout: fixture('d1-list.json') },
 			{
@@ -384,15 +384,21 @@ describe('observe, from recorded cf and wrangler output', () => {
 			{ match: 'wrangler r2 object get', stdout: JSON.stringify({ installId: OURS }) },
 			{ match: 'cf queues list', stdout: fixture('queues-list.json') },
 			{ match: 'cf queues consumers list', stdout: fixture('queue-consumers-ours.json') },
-			{ match: 'cf workers scripts settings get', stdout: fixture(workerSettings) },
 			{ match: 'cf zero-trust access applications list', stdout: fixture('access-apps.json') },
 			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
 		];
 	}
 
 	it('a complete install reads as ours end to end', async () => {
-		const exec = fakeExec(rules('worker-settings-ours.json'));
-		const { ctx } = testContext({ exec, fs: memoryFs(baseFiles()) });
+		const exec = fakeExec(rules());
+		const { ctx } = testContext({
+			exec,
+			fs: memoryFs(baseFiles()),
+			raw: () => ({
+				status: 200,
+				body: { success: true, result: fixture('worker-settings-ours.json') }
+			})
+		});
 		ctx.cf.useAccount('acc');
 		const manifest = manifestWithAll();
 		const observed = await observe(ctx, manifest, HOST);
@@ -404,8 +410,14 @@ describe('observe, from recorded cf and wrangler output', () => {
 	});
 
 	it('a Worker of that name bound to a different D1 is foreign', async () => {
-		const exec = fakeExec(rules('worker-settings-other-d1.json'));
-		const { ctx } = testContext({ exec });
+		const exec = fakeExec(rules());
+		const { ctx } = testContext({
+			exec,
+			raw: () => ({
+				status: 200,
+				body: { success: true, result: fixture('worker-settings-other-d1.json') }
+			})
+		});
 		ctx.cf.useAccount('acc');
 		const observed = await observe(ctx, testManifest(), HOST);
 		const result = reconcile({ manifest: null, names, hostname: HOST, observed });
@@ -413,7 +425,7 @@ describe('observe, from recorded cf and wrangler output', () => {
 	});
 
 	it('sets the account in the environment, never on argv', async () => {
-		const exec = fakeExec(rules('worker-settings-ours.json'));
+		const exec = fakeExec(rules());
 		const api = createCloudflareApi(testContext({ exec }).ctx.runner, {});
 		api.useAccount('acc0000000000000000000000000001');
 		await api.findD1('epoch-db');

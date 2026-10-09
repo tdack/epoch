@@ -75,16 +75,18 @@ export function preflight(ctx: StepContext, flags: SetupFlags): PreflightResult 
 			}
 		);
 	}
-	if (flags.isApiTokenEnv && flags.deployAuth === DEPLOY_AUTHS.ephemeral) {
+	if (flags.deployAuth === DEPLOY_AUTHS.ephemeral) {
+		// Reconcile must read the existing Worker's bindings, which `cf` cannot do, so it needs a wrangler
+		// login before any deploy token could exist. Refused rather than left to fail halfway.
 		throw new SetupError(
 			ERROR_CODES.usage,
-			'--deploy-auth=ephemeral cannot be combined with --api-token-env',
+			'--deploy-auth=ephemeral is not available yet: setup needs a wrangler sign-in to inspect an existing Worker',
 			{
-				flag: '--deploy-auth'
+				flag: '--deploy-auth',
+				hint: 'Use the default, a wrangler profile. The minting code is in place for when cf can read Workers.'
 			}
 		);
 	}
-
 	const existing = loadManifest(ctx.fs, ctx.paths.manifestFile);
 	if (existing && flags.slug && flags.slug !== existing.slug) {
 		throw new SetupError(
@@ -100,11 +102,7 @@ export function preflight(ctx: StepContext, flags: SetupFlags): PreflightResult 
 	assertValidSlug(slug);
 
 	const base = existing ?? newManifest(slug, ctx.now());
-	const authMode = flags.isApiTokenEnv
-		? AUTH_MODES.envToken
-		: flags.deployAuth === DEPLOY_AUTHS.ephemeral
-			? AUTH_MODES.ephemeral
-			: AUTH_MODES.profile;
+	const authMode = flags.isApiTokenEnv ? AUTH_MODES.envToken : AUTH_MODES.profile;
 	const manifest = ctx.save(withStepDone({ ...base, authMode }, 'preflight'));
 	return { manifest, isResume: existing !== null, tokenSource };
 }

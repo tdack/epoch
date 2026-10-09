@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { createCloudflareApi } from './cloudflare.ts';
+import { createCloudflareApi, type RawGet } from './cloudflare.ts';
+import { readEnvToken } from './env-token.ts';
 import {
 	createCleanup,
 	type Cleanup,
@@ -42,11 +43,28 @@ export function createContext(options: AppOptions): StepContext & {
 		options.exec ?? createExec({ paths, logFile, isVerbose: options.isVerbose, redactor });
 	const runner = createRunner(exec, logFile);
 	const cleanup = createCleanup();
+
+	// `cf` cannot read a Worker's bindings, so those reads go to the API directly with whichever
+	// credential is in use: the environment token, else the wrangler profile's.
+	let cachedToken: string | null = null;
+	const rawGet: RawGet = async (path) => {
+		if (cachedToken === null) {
+			cachedToken =
+				readEnvToken(process.env, realFileSystem, paths.envFile) ??
+				(await createWranglerApi(runner, { kind: 'profile', accountId: '' }).getAuthToken());
+			redactor.add(cachedToken);
+		}
+		const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+			headers: { authorization: `Bearer ${cachedToken}` }
+		});
+		return { status: response.status, body: await response.json().catch(() => null) };
+	};
+
 	return {
 		paths,
 		logFile,
 		runner,
-		cf: createCloudflareApi(runner, {}),
+		cf: createCloudflareApi(runner, { rawGet }),
 		makeWrangler(auth) {
 			if (auth.kind === 'token') redactor.add(auth.token);
 			return createWranglerApi(runner, auth);

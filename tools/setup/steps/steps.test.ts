@@ -87,6 +87,14 @@ describe('preflight', () => {
 		);
 	});
 
+	it('refuses --deploy-auth=ephemeral, which cannot work until cf can read Workers', async () => {
+		const error = await failure(() =>
+			preflight(testContext().ctx, flags({ deployAuth: 'ephemeral' }))
+		);
+		expect(error.flag).toBe('--deploy-auth');
+		expect(error.message).toContain('not available yet');
+	});
+
 	it('rejects a slug that cannot name a resource', async () => {
 		expect(
 			(await failure(() => preflight(testContext().ctx, flags({ slug: 'Bad Slug!' })))).flag

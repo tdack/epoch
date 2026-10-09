@@ -92,7 +92,8 @@ export function createExec(options: RealExecOptions): Exec {
 			const child = spawn(binaryFor(request.tool, paths), request.args, {
 				cwd: paths.root,
 				env,
-				stdio: request.isInteractive ? ['inherit', 'pipe', 'inherit'] : ['pipe', 'pipe', 'pipe']
+				// Interactive commands print their own link and code on stdout as well as stderr, so all three are inherited.
+				stdio: request.isInteractive ? 'inherit' : ['pipe', 'pipe', 'pipe']
 			});
 			let stdout = '';
 			let stderr = '';

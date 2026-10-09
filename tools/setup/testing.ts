@@ -104,6 +104,8 @@ interface ContextOptions {
 	nodeVersion?: string;
 	wrangler?: Partial<WranglerApi>;
 	fetch?: typeof fetch;
+	/** Answers for the raw API reads (a Worker's settings). Anything unlisted is a 404. */
+	raw?: (path: string) => { status: number; body: unknown };
 }
 
 export function testContext(options: ContextOptions = {}) {
@@ -116,7 +118,15 @@ export function testContext(options: ContextOptions = {}) {
 	const ctx: StepContext = {
 		paths: installPaths(TEST_ROOT),
 		runner,
-		cf: options.cf ?? createCloudflareApi(runner, {}),
+		cf:
+			options.cf ??
+			createCloudflareApi(runner, {
+				rawGet: async (path) =>
+					(
+						options.raw ??
+						(() => ({ status: 404, body: { success: false, errors: [{ code: 10007 }] } }))
+					)(path)
+			}),
 		makeWrangler: () => ({
 			...createWranglerApi(runner, { kind: 'profile', accountId: 'acc' }),
 			...options.wrangler
