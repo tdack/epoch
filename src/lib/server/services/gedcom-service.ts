@@ -78,7 +78,7 @@ export interface ExportOptions {
 }
 
 export interface ExportFile {
-	content: string | Uint8Array;
+	content: string | Uint8Array<ArrayBuffer>;
 	filename: string;
 	contentType: string;
 }

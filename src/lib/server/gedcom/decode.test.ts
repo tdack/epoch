@@ -21,7 +21,7 @@ const file = (charset: string | null, version = '5.5') =>
 const bytes = (...parts: (string | number[])[]) =>
 	new Uint8Array(parts.flatMap((p) => (typeof p === 'string' ? [...strToU8(p)] : p)));
 
-const nameOf = (text: string) => parseGedcom(text).individuals[0].names[0].givenName;
+const nameOf = (text: string) => parseGedcom(text).individuals[0]?.names?.[0]?.givenName;
 
 describe('decodeGedcomFile', () => {
 	it('reads ANSEL, moving each diacritic after its letter', () => {
