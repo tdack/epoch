@@ -25,14 +25,17 @@ clear message if it is missing:
 | --- | --- |
 | **A paid Workers plan**, needed for Queues and Workflows | Not checked up front: that needs a billing scope. A plan error from queue creation or deploy is mapped to "this needs Workers Paid" |
 | **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust access identity-providers list` |
-| **A domain on Cloudflare**: an active zone in the account | `cf zones list`, active zones only |
+| **Somewhere to serve it**, either one of: | Asked in step 3 |
+| the account's workers.dev subdomain (`<account>.workers.dev`) | `GET /accounts/{id}/workers/subdomain`. If none is set, stop: choosing it is account configuration |
+| or an active zone, for a custom domain | `cf zones list`, active zones only |
 
 **The tool never creates or changes account-level configuration.** That includes the Zero Trust
 organisation, identity providers, Access groups, Access tags, zones and DNS (beyond the record the
 Worker custom domain manages for itself), and Email Sending domains. Its Cloudflare footprint is:
 
 - D1, R2, the queue and the Worker (with its workflow and queue consumer);
-- **one Worker custom domain** on the chosen zone, through the deploy config;
+- the Worker's hostname: either its workers.dev address (`workers_dev: true`) or **one Worker
+  custom domain** on the chosen zone, both set through the deploy config;
 - **one Access application** on `<host>/login`;
 - **one reusable Access policy**, used only by that application.
 
@@ -106,13 +109,16 @@ recreates resources blindly.
 
 ### Cloudflare Access
 
-- **A self-hosted application protects a hostname and path.** The hostname must be on an active
-  zone in the account.
+- **A self-hosted application protects a hostname and path,** and the hostname can be a
+  workers.dev address. The docs were inconsistent on this, but the owner's account settles it.
+  Its live Epoch install has a self-hosted app on `epoch-genealogy.example.workers.dev/login` (read
+  2026-10-09, read-only), as do other apps on `*.workers.dev/<path>`. Hosts on a custom domain
+  need an active zone.
 - **The Worker's own "Protect this Worker" Access toggle does not fit.** It works on `workers.dev`,
   but it protects the whole Worker or only its previews, never one path. ADR-026 needs exactly
   `/login`.
-- **So a custom domain on an active zone is a hard prerequisite.** An install on `workers.dev`
-  alone is not supported.
+- **So both hosting choices work with ADR-026:** a workers.dev address or a custom domain, each
+  with one self-hosted app on `<host>/login`.
 - **App create:** `POST /accounts/{id}/access/apps` with `type: "self_hosted"`, `domain`, `name`,
   `policies` (reusable policy ids with `precedence`), `path_cookie_attribute`,
   `enable_binding_cookie`, `allowed_idps`, `auto_redirect_to_identity` and
@@ -123,8 +129,8 @@ recreates resources blindly.
 
 | Rank | Mode | Used for | User handles a token? | Status |
 | --- | --- | --- | --- | --- |
-| 1 | **`cf` profile** `epoch-<slug>` (OAuth, device flow), bound to the checkout | Discovery, D1/R2/queue, Zero Trust, zone and Email Sending checks | No | Default |
-| 2a | **Wrangler profile** `epoch-<slug>` (OAuth), bound to the checkout | Migrations, build, `wrangler deploy` now and every later `npm run deploy` | No | Default for the deploy half |
+| 1 | **`cf` profile** `epoch-<name>` (OAuth, device flow), bound to the checkout | Discovery, D1/R2/queue, Zero Trust, zone and Email Sending checks | No | Default |
+| 2a | **Wrangler profile** `epoch-<name>` (OAuth), bound to the checkout | Migrations, build, `wrangler deploy` now and every later `npm run deploy` | No | Default for the deploy half |
 | 2b | **Short-lived token the tool mints** via `cf accounts tokens create`: account-owned, limited to this account and zone, expiring in 1 hour, passed to wrangler only through its environment, deleted in a `finally` | Deploy only, when the user wants one consent or wrangler profiles misbehave | No (never shown or written) | `--deploy-auth=ephemeral` |
 | 2c | `CLOUDFLARE_CF_AUTH` bridge: wrangler reuses the `cf` profile | Everything | No | Not possible in 4.148; adopt when wrangler deploy honours it |
 | 3 | **User-supplied `CLOUDFLARE_API_TOKEN`** | Everything (CI, headless, IP-challenged shells) | Yes | `--api-token-env`, never the default |
@@ -204,7 +210,7 @@ token's permissions up front.
 
 - `--yes` accepts every discovered default. It still refuses anything that needs a typed
   confirmation: adopting unmarked resources, `foreign`, and teardown.
-- Every prompt has a matching flag: `--account`, `--zone`, `--hostname`, `--policy <id…>` or
+- Every prompt has a matching flag: `--name`, `--hosting workers-dev|custom`, `--account`, `--zone`, `--hostname`, `--policy <id…>` or
   `--new-policy`, `--idp <id…>`, and `--d1-location`.
 - With no TTY, a missing answer is an error that names the flag; the tool never hangs.
 - `--json` prints one result object (the manifest plus the verify results) on stdout, with the
@@ -224,7 +230,7 @@ token's permissions up front.
 The tool is a Node 24 script, `scripts/setup/` (TypeScript run with `node --experimental-strip-types`
 or `tsx`; decide in step 1), exposed as `npm run setup`. It shells out to the pinned `cf` and
 wrangler and parses their JSON. It keeps its state in a git-ignored **install manifest**,
-`.epoch/install.json`, holding the account id, slug, every resource id, the Access app and policy
+`.epoch/install.json`, holding the account id, Worker name, every resource id, the Access app and policy
 ids, and an install UUID. Every step reads the manifest, does nothing if its work is already
 done, and writes its result back, so an interrupted run resumes.
 
@@ -237,24 +243,29 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 
 - Node ≥ 24, `npm ci` done, pinned `cf` and wrangler resolvable.
 - `CLOUDFLARE_API_TOKEN` in the environment or `.env`? Pick the mode as above.
-- Ask for the **install slug**, defaulting to `epoch`. It names the profiles and resources
-  (`<slug>-db`, `<slug>-media`, `<slug>-import-queue`, `<slug>-export-workflow`, Worker
-  `<slug>`). Workflow names are per account too, so it is derived from the slug as well. One
-  checkout is one install.
+- Ask for the **Worker name**, defaulting to `epoch` (or the name in an existing deploy config).
+  - It is the base for everything else: D1 `<name>-db`, R2 `<name>-media`, queue
+    `<name>-import-queue`, workflow `<name>-export-workflow` (workflow names are per account
+    too), profiles `epoch-<name>`, Access app `Epoch (<name>)` and the workers.dev host
+    `<name>.<account>.workers.dev`.
+  - The derived names are shown under the prompt as it is typed.
+  - Validated against Worker name rules (lower case, digits, `-`, at most 63 characters).
+  - Whether a Worker by that name already exists is checked after sign-in (step 4).
+  - One checkout is one install.
 - If `.epoch/install.json` exists, show it. A re-run means resume or update, never a fresh
   install.
 
 ### 2. Sign in
 
-1. **`cf` profile.** Run `cf auth create epoch-<slug> --scopes … [--no-browser] [--no-device]`,
-   then `cf auth activate epoch-<slug> .`.
+1. **`cf` profile.** Run `cf auth create epoch-<name> --scopes … [--no-browser] [--no-device]`,
+   then `cf auth activate epoch-<name> .`.
    - The tool passes `--browser`/`--no-browser` and `--device`/`--no-device` straight through.
    - The device flow is the default, because it works over SSH: the link and code can be opened
      on another machine.
    - Skip this if the profile exists and `cf auth whoami` succeeds.
 2. **Check scopes.** Fail fast if any is missing, as described above.
-3. **Wrangler profile.** Run `wrangler auth create epoch-<slug>`, then
-   `wrangler auth activate epoch-<slug> .`. Fall back to `wrangler login` if profiles are
+3. **Wrangler profile.** Run `wrangler auth create epoch-<name>`, then
+   `wrangler auth activate epoch-<name> .`. Fall back to `wrangler login` if profiles are
    unavailable *(spike: profiles are experimental)*.
    - Skipped with `--deploy-auth=ephemeral`.
 4. **Cross-check identity.** Compare `cf` with wrangler. Stop on a mismatch.
@@ -264,8 +275,10 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 | Input | Source | Asked only when |
 | --- | --- | --- |
 | Account | `cf accounts list` | More than one account |
-| Zone | `cf zones list`, active zones only | More than one active zone. None → stop (prerequisite) |
-| Hostname | Default `<slug>.<zone>` | Always, with that default. Refused if a DNS record or another Worker already serves it, unless the manifest says it is ours |
+| Hosting | workers.dev subdomain and active zones | Always: **"workers.dev only"** (`<name>.<account>.workers.dev`) or **"a custom domain"**. Only the choices the account supports are offered |
+| Zone | `cf zones list`, active zones only | Custom domain chosen and more than one active zone |
+| Hostname | Default `<name>.<zone>` | Custom domain chosen. Refused if a DNS record or another Worker already serves it, unless the manifest says it is ours |
+| Keep workers.dev on as well? | — | Custom domain chosen. Default **off** (`workers_dev: false`, `preview_urls: false`). The Access app covers only the chosen host, so a second, unprotected `/login` on workers.dev would only ever show the "could not verify" message, but there is no reason to serve it. Switching from workers.dev to a custom domain later is a re-run that moves the Access app's domain |
 | Owner email | `cf auth whoami` | Confirm only |
 | Zero Trust team domain | `cf zero-trust organization get` | Never. No organisation → stop (prerequisite) |
 | Identity providers for the app | `cf zero-trust access identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
@@ -283,7 +296,38 @@ first**:
 | `ours` | Its id is in the manifest **and** it carries this install's marker | Reuse it silently |
 | `unmarked` | It exists, with no marker and not in the manifest (a hand-made install, or the old script) | Show a fingerprint; adopt only after the user types the resource name |
 | `orphaned` | There is **no manifest** (a fresh clone, a new laptop), and the markers it finds all carry one install UUID | Offer to re-attach to install `<uuid>`. After the user types the resource names, rebuild the manifest from what was found and keep that UUID |
-| `foreign` | A manifest exists and the marker carries a **different** UUID, or the markers found disagree with each other | Refuse. Suggest another slug. No override flag: release it from the other checkout instead |
+| `foreign` | A manifest exists and the marker carries a **different** UUID, or the markers found disagree with each other | Refuse. Ask for another Worker name. No override flag: release it from the other checkout instead |
+
+**An existing Worker with the chosen name** that is not `ours` or `orphaned` gets its own prompt.
+The fingerprint (last deploy, bindings, whether it looks like Epoch) comes first, then three
+choices:
+
+1. **Choose another name** (the default). Back to the name prompt, with a free suggestion.
+2. **Adopt it.** It is an earlier Epoch install. Keep its data and deploy over it: the `unmarked`
+   path, with every resource shown.
+3. **Replace it.** Deploy a new Epoch over that Worker, with **new** resources.
+
+Choices 2 and 3 show a "this is what will happen" panel before any confirmation. For example:
+
+```
+Replacing Worker "epoch" (last deployed 2026-09-30, not an Epoch install)
+
+  ~ Worker epoch             its code, bindings, vars and routes are overwritten
+                             its secrets are kept unless listed here: (none)
+  ~ Route   epoch.example.com  now served by Epoch
+  - Bound   D1 shop-db       no longer bound to this Worker; NOT deleted, data kept
+  + Create  D1 epoch-db, R2 epoch-media, queue epoch-import-queue
+  ! Access  /login on epoch.example.com is protected from this deploy on
+
+  Nothing is deleted. Undo: redeploy the previous version with `wrangler rollback`
+  (code only; the bindings go back with it, the new resources stay).
+```
+
+- **Then two confirmations:** type the Worker name, then a separate `confirm` whose wording
+  repeats the action ("Overwrite Worker epoch?").
+- `--yes` never satisfies either.
+- **Nothing is ever deleted as part of replace or adopt.** Only `teardown` deletes, and only
+  resources marked as this install's.
 
 Re-attaching is how a lost checkout gets back to its data. The data always lives in Cloudflare,
 and the manifest is only a cache of what reconcile can rediscover.
@@ -297,12 +341,14 @@ and the manifest is only a cache of what reconcile can rediscover.
 | R2 | Object `.epoch/install.json` | Object count, total size, a few sample keys |
 | Worker | Var `EPOCH_INSTALL_ID` | Last deployment date; whether its D1, R2 and queue bindings point at the resources above. A Worker bound to a *different* D1 is a strong "not ours" |
 | Queue | None possible | Its consumer: our Worker, someone else's, or none |
-| Access app | None written: tags are account-level objects, which are out of scope. It is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<slug>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
-| Access policy | None written. A policy the user picked from the existing ones is **referenced, never owned**: the tool attaches it and never edits it. A policy the tool created is ours when its id is in the manifest and it is named `Epoch <slug> sign-in` | Its decision, its include rules, and every app that uses it |
+| Access app | None written: tags are account-level objects, which are out of scope. It is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<name>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
+| Access policy | None written. A policy the user picked from the existing ones is **referenced, never owned**: the tool attaches it and never edits it. A policy the tool created is ours when its id is in the manifest and it is named `Epoch <name> sign-in` | Its decision, its include rules, and every app that uses it |
 
 Adoption is also how **this repository's own live install moves under the tool.** Run setup with
-`--slug epoch-genealogy`. Every resource comes back `unmarked`, the user confirms each one, and the
-markers are written. Nothing is recreated, and the Access app keeps its AUD.
+Worker name `epoch-genealogy` and hosting "workers.dev only". Every resource comes back `unmarked`, the user confirms each one, and the
+markers are written. Nothing is recreated, and the Access app keeps its AUD. Its existing app (`epoch-genealogy -
+Cloudflare Workers`, on `epoch-genealogy.example.workers.dev/login`) is found by domain, and its
+existing policy is offered in the picker as the default.
 
 On that install `CF_ACCESS_AUD` is already a **secret**. Wrangler may refuse a var with the same
 name *(spike)*. If it does, adopted installs keep the secret, and only new installs use a var.
@@ -349,7 +395,7 @@ Which Access policy should decide who can sign in to Epoch?
   1. Family (Allow): emails a@example.com, b@example.com. Used by: Photos, Wiki
   2. Example staff (Allow): email domain example.com. Used by: Grafana
   3. Everyone with One-time PIN (Allow): everyone. Used by: (none)
-  4. Create a new policy "Epoch <slug> sign-in" (Allow: your email only)
+  4. Create a new policy "Epoch <name> sign-in" (Allow: your email only)
 
   More than one can be chosen (for example 1,2). Policies that Block or Bypass are not listed.
 ```
@@ -373,7 +419,7 @@ Which Access policy should decide who can sign in to Epoch?
   - Otherwise it reads the include rules for email, email domain and everyone, and warns when a
     rule (a group or an identity-provider rule) cannot be checked locally.
 
-**Step 2: create or update the Access app** `Epoch (<slug>)`:
+**Step 2: create or update the Access app** `Epoch (<name>)`:
    - `type: self_hosted` and `domain: <host>/login`.
    - The chosen policies, in the order given.
    - `allowed_idps` set to the chosen providers, and `auto_redirect_to_identity` when there is
@@ -390,6 +436,17 @@ Worker serves the host without its Access app.
 
 ### 8. Write the deploy config
 
+**Starting point.** The tool must work from nothing:
+
+- **The template is the tracked `wrangler.jsonc`.** If it is missing, empty or unparseable, the
+  tool uses a copy shipped in `tools/setup/templates/wrangler.template.jsonc`. A test keeps that
+  copy's binding shapes equal to the tracked file's.
+- **An existing `wrangler.deploy.jsonc` is read first,** whether written by hand or by an earlier
+  run. Its values (Worker name, ids, host, vars) become the prompts' defaults and feed reconcile.
+- **An empty or missing deploy file** simply means no defaults.
+- **The tool always writes the whole file.** It regenerates it from the template plus the
+  answers and shows a diff against the old one before writing.
+
 **Owner-specific values move out of the tracked `wrangler.jsonc`.** They are the D1 id,
 `CF_ACCESS_TEAM_DOMAIN`, the sender address, the route and the install id.
 
@@ -401,9 +458,12 @@ Worker serves the host without its Access app.
 - **The tool writes a git-ignored `wrangler.deploy.jsonc` in the repository root**, so relative
   paths resolve the same way. It is the tracked file plus:
   - the real ids;
-  - `routes: [{ pattern: <host>, custom_domain: true }]`;
+  - the Worker `name`;
+  - for a custom domain, `routes: [{ pattern: <host>, custom_domain: true }]` and `workers_dev`
+    as chosen;
+  - for workers.dev only, `workers_dev: true` and no routes;
   - the vars;
-  - the slug-derived resource names;
+  - the resource names derived from the Worker name;
   - the `send_email` binding, only when the sender domain is verified;
   - R2 `jurisdiction`, when one was chosen.
 - **Deploy and remote commands pass it with `-c`.** `wrangler deploy workers/entry.ts -c
@@ -432,7 +492,7 @@ Worker serves the host without its Access app.
 3. **Deploy.** `npm run build`, then `wrangler deploy workers/entry.ts -c wrangler.deploy.jsonc`.
    This creates the Worker, the custom domain, the workflow and the queue consumer.
 4. **Clean up an ephemeral token.** Delete it in a `finally`. On every run, sweep any leftover
-   token named `epoch-<slug>-setup-*`.
+   token named `epoch-<name>-setup-*`.
 
 **Later `npm run deploy` must use the same config.** Today `package.json` hardcodes
 `epoch-genealogy-db` in `db:migrate` and `db:migrate:local`, and so do the three
@@ -482,7 +542,7 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 - `npm run setup -- allow <email>` and `-- disallow <email>` edit the policy the tool created. They
   refuse to touch a policy the user picked from the existing ones.
 - `npm run setup -- teardown` deletes **only** resources whose marker matches the manifest. The
-  user types the slug, and D1 and R2 need a second, separate confirmation, because a family tree
+  user types the Worker name, and D1 and R2 need a second, separate confirmation, because a family tree
   cannot be recovered. It never runs as part of setup, and setup never rolls back by deleting.
 
 ## Delivery
