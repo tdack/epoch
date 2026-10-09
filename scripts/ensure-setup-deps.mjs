@@ -16,7 +16,8 @@ if (!isCurrent) {
 		'npm',
 		['ci', '--prefix', toolDir, '--no-audit', '--no-fund', '--loglevel=error'],
 		{
-			stdio: 'inherit'
+			// stdout too goes to stderr: `npm run setup -- … --json` must keep stdout for the result.
+			stdio: [0, 2, 2]
 		}
 	);
 	process.exit(result.status ?? 1);

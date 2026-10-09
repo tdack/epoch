@@ -40,7 +40,8 @@ create.
 
 Later: `npm run setup -- doctor` reports drift, `allow <email>` and `disallow <email>` edit the
 policy setup created, and `teardown` deletes only what this install made. `npm run setup -- --help`
-lists every flag, including the ones that answer each prompt for CI. State lives in
+lists every flag, including the ones that answer each prompt for CI. With `--json` use
+`npm run -s setup -- …` so npm’s own banner stays off stdout. State lives in
 `.epoch/install.json` and the generated `wrangler.deploy.jsonc`; both are git-ignored. See
 [docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
 real account (`npm run setup -- spike`).

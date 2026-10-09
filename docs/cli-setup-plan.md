@@ -560,6 +560,19 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
   `--deploy-auth=ephemeral`. With an ephemeral token the R2 marker cannot be read during reconcile, so
   such a bucket reads as unmarked until the next run.
 - **Identity providers** are `cf zero-trust identity-providers list`, not under `access`.
+- **Reading a Worker has no `cf` command** (`cf schema --list` has only deployments and secrets for
+  Workers), so its bindings, the `EPOCH_INSTALL_ID` var and the custom-domain check are one raw
+  `GET` each against the API, with the wrangler (or environment) token. They fail closed: only a 404 or
+  error 10007 means "absent", so a broken call can never read as "no Worker" and let a deploy overwrite
+  one.
+- **`--deploy-auth=ephemeral` is refused for now.** Reconcile needs that wrangler token to inspect an
+  existing Worker, which a minted deploy token (created later) cannot provide. The minting code
+  (permission groups resolved by name, deleted in a `finally` and on a signal) is in place and tested
+  but unreachable.
+- **Account scope.** Access applications, the organisation and identity providers take
+  `accounts <id>` positionals; D1, R2, queues, policies and tokens read `CLOUDFLARE_ACCOUNT_ID`.
+- **R2 jurisdiction** is applied by `wrangler r2 bucket create` because `cf`'s create body has no
+  jurisdiction field. **Email Sending** is per subdomain: `cf email-sending subdomains list --zone`.
 - **`--force`** signs in again; the scope-failure message points at it.
 - **`spike`** (`npm run setup -- spike`) runs the read-only checks, sends writes with `--dry-run`,
   and saves each raw response under `.epoch/spike/` for replacing the synthesized fixtures.
