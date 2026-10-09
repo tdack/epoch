@@ -9,11 +9,9 @@ import { expect, open, test } from './support';
 const SHOTS = process.env.E2E_SHOTS ?? 'test-results';
 
 function sql(statement: string) {
-	execFileSync(
-		'npx',
-		['wrangler', 'd1', 'execute', 'epoch-genealogy-db', '--local', '--command', statement],
-		{ stdio: 'ignore' }
-	);
+	execFileSync('npx', ['wrangler', 'd1', 'execute', 'DB', '--local', '--command', statement], {
+		stdio: 'ignore'
+	});
 }
 
 test('a viewer is shown the dead and never the living, and a manager can change that', async ({
