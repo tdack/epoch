@@ -12,7 +12,7 @@ export async function provision(
 	manifest: Manifest,
 	answers: Answers
 ): Promise<Manifest> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	let current = manifest;
 
 	if (!current.resources.d1) {

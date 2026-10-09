@@ -99,7 +99,7 @@ export async function verify(
 		);
 	} else {
 		const deployed = await ctx.cf
-			.readWorkerVar(resourceNames(manifest.slug).worker, 'CF_ACCESS_AUD')
+			.readWorkerVar(resourceNames(manifest.workerName).worker, 'CF_ACCESS_AUD')
 			.catch(() => null);
 		add(
 			'Deployed CF_ACCESS_AUD matches',

@@ -112,7 +112,7 @@ export function createUi(options: { isJson: boolean }): Ui {
 		showExisting(manifest: Manifest) {
 			clack.note(
 				[
-					`slug ${manifest.slug}`,
+					`workerName ${manifest.workerName}`,
 					`host ${manifest.hostname ?? 'not chosen yet'}`,
 					`steps done: ${manifest.completedSteps.join(', ') || 'none'}`
 				].join('\n'),

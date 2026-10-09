@@ -22,7 +22,7 @@ export interface TeardownItem {
 export async function planTeardown(ctx: StepContext, manifest: Manifest): Promise<TeardownItem[]> {
 	if (!manifest.account || !manifest.hostname) return [];
 	ctx.cf.useAccount(manifest.account.id);
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	const observed = await observe(ctx, manifest, manifest.hostname);
 	const result = reconcile({ manifest, names, hostname: manifest.hostname, observed });
 	const items: TeardownItem[] = [];
@@ -46,7 +46,7 @@ export async function planTeardown(ctx: StepContext, manifest: Manifest): Promis
 }
 
 /**
- * The slug is typed once for the whole teardown; D1 and R2 each need their own name typed because a
+ * The workerName is typed once for the whole teardown; D1 and R2 each need their own name typed because a
  * family tree cannot be recovered. `--yes` is refused by `resolveTypedConfirmation`. Never part of
  * setup, and setup never rolls back by deleting.
  */
@@ -60,11 +60,12 @@ export async function runTeardown(
 	const items = await planTeardown(ctx, manifest);
 	if (items.length === 0) return [];
 
-	if (resolveTypedConfirmation(manifest.slug, undefined, mode) === 'ask') {
+	if (resolveTypedConfirmation(manifest.workerName, undefined, mode) === 'ask') {
 		ctx.report.info(`Will delete: ${items.map((i) => i.name).join(', ')}`);
 		await asker.text({
-			message: `Type the slug "${manifest.slug}" to continue`,
-			validate: (v) => (v.trim() === manifest.slug ? undefined : `Type exactly ${manifest.slug}`)
+			message: `Type the workerName "${manifest.workerName}" to continue`,
+			validate: (v) =>
+				v.trim() === manifest.workerName ? undefined : `Type exactly ${manifest.workerName}`
 		});
 	}
 	for (const item of items.filter((i) => i.isIrreversible)) {

@@ -40,7 +40,7 @@ export async function signIn(
 	manifest: Manifest,
 	flags: SetupFlags
 ): Promise<{ manifest: Manifest; identity: Identity }> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 
 	if (manifest.authMode === AUTH_MODES.envToken) {
 		const identity = await ctx.cf.whoami();

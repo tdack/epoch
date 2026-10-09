@@ -32,7 +32,7 @@ async function withDeployAuth<T>(
 	use: (wrangler: WranglerApi) => Promise<T>
 ): Promise<T> {
 	const accountId = manifest.account?.id ?? '';
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	if (manifest.authMode === AUTH_MODES.profile) {
 		return use(ctx.makeWrangler({ kind: 'profile', accountId }));
 	}
@@ -75,7 +75,7 @@ async function writeD1Marker(ctx: StepContext, manifest: Manifest): Promise<bool
 				ERROR_CODES.foreign,
 				`${d1.name} already holds a marker for install ${stored?.installId ?? 'unknown'}`,
 				{
-					hint: 'It belongs to another install; use another --slug.'
+					hint: 'It belongs to another install; use another --name.'
 				}
 			);
 		}
@@ -95,7 +95,7 @@ async function writeD1Marker(ctx: StepContext, manifest: Manifest): Promise<bool
 
 /** Plan step 9: migrate, mark, build, deploy. The only step that changes the live Worker. */
 export async function migrateMarkDeploy(ctx: StepContext, manifest: Manifest): Promise<Manifest> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	const r2 = manifest.resources.r2;
 	let current = manifest;
 
@@ -107,7 +107,7 @@ export async function migrateMarkDeploy(ctx: StepContext, manifest: Manifest): P
 			await wrangler.putObject(
 				r2.name,
 				R2_MARKER_KEY,
-				JSON.stringify({ installId: current.installId, slug: current.slug })
+				JSON.stringify({ installId: current.installId, workerName: current.workerName })
 			);
 			current = ctx.save(withMarker(current, 'r2', true));
 		}

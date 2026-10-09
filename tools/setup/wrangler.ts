@@ -58,7 +58,7 @@ export function createWranglerApi(runner: Runner, auth: WranglerAuth): WranglerA
 		async build() {
 			await runner.text({ tool: 'npm', args: ['run', 'build'], env: env() });
 		},
-		// `DB` is the binding name, so the command works whatever the slug made the database.
+		// `DB` is the binding name, so the command works whatever the workerName made the database.
 		async migrate(configFile) {
 			await runner.text({
 				tool: 'wrangler',

@@ -91,6 +91,10 @@ export function baseFiles(): Record<string, string> {
 	return {
 		[paths.cfBinary]: '',
 		[paths.wranglerBinary]: '',
+		[paths.templateFile]: readFileSync(
+			join(import.meta.dirname, 'templates', 'wrangler.template.jsonc'),
+			'utf8'
+		),
 		[`${TEST_ROOT}/drizzle/0000_init.sql`]: '',
 		[`${TEST_ROOT}/drizzle/0001_more.sql`]: ''
 	};

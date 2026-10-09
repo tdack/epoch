@@ -77,12 +77,15 @@ describe('preflight', () => {
 		expect(() => preflight(testContext().ctx, flags({ isApiTokenEnv: true }))).toThrow('not set');
 	});
 
-	it('uses the existing install’s slug and refuses a different one: one checkout is one install', async () => {
-		const existing = JSON.stringify(newManifest('family'));
+	it('uses the existing install’s workerName and refuses a different one: one checkout is one install', async () => {
+		const existing = JSON.stringify({
+			...newManifest('family'),
+			resources: { d1: { id: 'x', name: 'family-db' }, r2: null, queue: null, worker: null }
+		});
 		const fs = memoryFs({ ...baseFiles(), [`${TEST_ROOT}/.epoch/install.json`]: existing });
 		const { ctx } = testContext({ fs });
-		expect(preflight(ctx, flags()).manifest.slug).toBe('family');
-		expect((await failure(() => preflight(ctx, flags({ slug: 'other' })))).message).toContain(
+		expect(preflight(ctx, flags()).manifest.workerName).toBe('family');
+		expect((await failure(() => preflight(ctx, flags({ name: 'other' })))).message).toContain(
 			'one checkout is one install'
 		);
 	});
@@ -95,10 +98,10 @@ describe('preflight', () => {
 		expect(error.message).toContain('not available yet');
 	});
 
-	it('rejects a slug that cannot name a resource', async () => {
+	it('rejects a workerName that cannot name a resource', async () => {
 		expect(
-			(await failure(() => preflight(testContext().ctx, flags({ slug: 'Bad Slug!' })))).flag
-		).toBe('--slug');
+			(await failure(() => preflight(testContext().ctx, flags({ name: 'Bad Slug!' })))).flag
+		).toBe('--name');
 	});
 });
 
@@ -173,6 +176,7 @@ describe('collect', () => {
 			listAccounts: async () => [{ id: 'acc', name: 'Account' }],
 			listActiveZones: async () => [{ id: 'zone1', name: 'example.com' }],
 			getTeamDomain: async () => 'team.cloudflareaccess.com',
+			getWorkersSubdomain: async () => 'me',
 			listIdentityProviders: async () => [{ id: 'idp1', name: 'OTP', type: 'onetimepin' }],
 			findHostnameUse: async () => null,
 			listPolicies: async () => policies,
@@ -188,7 +192,7 @@ describe('collect', () => {
 		scopes: []
 	};
 
-	it('--yes accepts the discovered defaults: one account, one zone, <slug>.<zone>, an existing policy that admits the owner', async () => {
+	it('--yes accepts the discovered defaults: one account, one zone, <name>.<zone>, an existing policy that admits the owner', async () => {
 		const { ctx } = testContext({ cf: api() });
 		const { answers } = await collect(
 			ctx,
@@ -218,7 +222,14 @@ describe('collect', () => {
 			})
 		});
 		const error = await failure(() =>
-			collect(ctx, testManifest(), flags(), identity, NO_TTY, NO_ASKER as Asker)
+			collect(
+				ctx,
+				testManifest(),
+				flags({ hosting: 'custom' }),
+				identity,
+				NO_TTY,
+				NO_ASKER as Asker
+			)
 		);
 		expect(error.code).toBe(ERROR_CODES.missingAnswer);
 		expect(error.flag).toBe('--zone');
@@ -243,7 +254,11 @@ describe('collect', () => {
 	});
 
 	it.each([
-		['no active zone', { listActiveZones: async () => [] }, 'No active zone'],
+		[
+			'no hosting at all',
+			{ listActiveZones: async () => [], getWorkersSubdomain: async () => null },
+			'nowhere to serve'
+		],
 		[
 			'no Zero Trust organisation',
 			{ getTeamDomain: async () => null },
@@ -388,7 +403,7 @@ describe('typed adoption', () => {
 describe('access', () => {
 	const policies = (fixture('access-policies.json') as any[]).map((p) => ({ ...p, appNames: [] }));
 	const base = {
-		slug: 'epoch',
+		workerName: 'epoch',
 		hostname: 'epoch.example.com',
 		ownerEmail: 'a@example.com',
 		idpIds: ['idp1']
@@ -766,6 +781,7 @@ describe('the whole flow', () => {
 			listAccounts: async () => [{ id: 'acc', name: 'Account' }],
 			listActiveZones: async () => [{ id: 'zone1', name: 'example.com' }],
 			getTeamDomain: async () => 'team.cloudflareaccess.com',
+			getWorkersSubdomain: async () => 'me',
 			listIdentityProviders: async () => [{ id: 'idp1', name: 'OTP', type: 'onetimepin' }],
 			findHostnameUse: async () => null,
 			listPolicies: async () => policies,
@@ -802,6 +818,9 @@ describe('the whole flow', () => {
 			runSetup(
 				ctx,
 				flags({
+					name: 'epoch',
+					hosting: 'custom',
+					isKeepWorkersDev: false,
 					account: 'acc',
 					zone: 'example.com',
 					hostname: 'epoch.example.com',

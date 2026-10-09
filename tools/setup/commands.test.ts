@@ -226,7 +226,7 @@ describe('teardown', () => {
 		expect(items.map((i) => i.key)).not.toContain('d1');
 	});
 
-	it('asks for the slug and then each irreversible name before deleting anything', async () => {
+	it('asks for the workerName and then each irreversible name before deleting anything', async () => {
 		const asked: string[] = [];
 		const deleted: string[] = [];
 		const asker = {
@@ -247,7 +247,7 @@ describe('teardown', () => {
 		});
 		await runTeardown(ctx, { isYes: false, isInteractive: true }, asker);
 		expect(asked).toHaveLength(3);
-		expect(asked[0]).toContain('slug');
+		expect(asked[0]).toContain('workerName');
 		expect(deleted).toEqual([
 			'deleteAccessApp app00000-0000-4000-8000-000000000002',
 			'worker epoch',
@@ -271,7 +271,7 @@ describe('command line', () => {
 				d1Location: 'oc',
 				policy: ['a'],
 				idp: ['i'],
-				slug: 's',
+				name: 's',
 				account: 'a',
 				zone: 'z',
 				hostname: 'h'
@@ -286,7 +286,7 @@ describe('command line', () => {
 			d1Location: 'oc',
 			policy: ['a'],
 			idp: ['i'],
-			slug: 's',
+			name: 's',
 			account: 'a',
 			zone: 'z',
 			hostname: 'h'
@@ -319,7 +319,7 @@ describe('command line', () => {
 			'--api-token-env',
 			'--no-browser',
 			'--no-device',
-			'--slug'
+			'--name'
 		]) {
 			expect(help).toContain(word);
 		}

@@ -109,7 +109,7 @@ export function describePolicy(policy: AccessPolicy): string {
 export interface PolicyChoice {
 	/** Existing policy ids to attach, in precedence order. They are never edited. */
 	existingIds: string[];
-	/** Create `Epoch <slug> sign-in` with the owner's email only. */
+	/** Create `Epoch <name> sign-in` with the owner's email only. */
 	isNewPolicy: boolean;
 }
 

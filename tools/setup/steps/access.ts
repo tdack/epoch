@@ -15,7 +15,7 @@ export async function access(
 	manifest: Manifest,
 	answers: Answers
 ): Promise<Manifest> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	let current = manifest;
 
 	// Referenced policies are attached as they are. They stay `referenced` in the manifest so
