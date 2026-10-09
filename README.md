@@ -86,11 +86,28 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 | `npm run build` | Production build |
 | `npm run db:generate` | Generate a Drizzle migration from schema changes |
 | `npm run db:migrate:local` | Apply migrations to the local D1 database |
-| `npm run db:migrate` | Apply migrations to the remote D1 database |
+| `npm run db:migrate` | Apply migrations to the remote D1 database, using `wrangler.deploy.jsonc` |
 | `npm run db:backfill:dates` | Fill structured date columns for events written before migration 0007 (add `-- --remote` for the deployed database) |
 | `npm run db:backfill:evidence` | Move sources, repositories and citations a tree kept as retained GEDCOM lines (imported before migration 0020) into records; add `-- --remote` for the deployed database. Run it after the migration |
 | `npm run db:backfill:notes` | Move notes a tree kept as retained GEDCOM lines, in extra lines, or in a fact's `notes` column (imported before migration 0021) into note records; add `-- --remote` for the deployed database. Run it after migration 0021 **and after** `db:backfill:evidence` |
-| `npm run deploy` | Migrate, build and deploy the Worker |
+| `node scripts/deploy-config.mjs` | Check that `wrangler.deploy.jsonc` exists and agrees with `wrangler.jsonc` on the fields the build reads (`deploy` runs it first) |
+| `npm run deploy` | Check the deploy config, migrate, build and deploy the Worker using `wrangler.deploy.jsonc` |
+
+### Deploy configuration
+
+The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
+none of the owner's values (team domain, email sender, route). Remote commands (`db:migrate`,
+`deploy`, and the backfill scripts with `--remote`) use a generated, git-ignored
+`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, the route and the vars.
+[`wrangler.deploy.example.jsonc`](wrangler.deploy.example.jsonc) shows its shape. Without it those
+commands stop and say to run `npm run setup`.
+
+The build still reads the tracked file. `adapter-cloudflare` takes only `main` and `assets` from it, so
+`deploy` fails if the deploy file differs on those fields. Keep `main` at the adapter default and
+pass `workers/entry.ts` to `wrangler deploy` directly.
+
+Local state is keyed by the D1 id, so the placeholder id starts a fresh local database: run
+`npm run db:migrate:local` once after pulling this change.
 
 ### Browser tests
 
