@@ -12,6 +12,7 @@
  */
 
 import { buildIndex, type GraphIndex } from './graph-index.js';
+import { linkKey } from './highlight.js';
 import { selectFocusSubgraph } from './select.js';
 import type {
 	Band,
@@ -92,6 +93,11 @@ export interface RibbonStrand {
 	fromPersonId: string | null;
 	/** True for an entry from above with no drawn parent: a short stub, not a link. */
 	isStub: boolean;
+	/**
+	 * The `linkKey` of the parent-child line an entry or extra entry draws; null for a stub or a
+	 * join. It is how the scene finds a tube's mark and its pick proxy.
+	 */
+	linkKey: string | null;
 	from: Vec3;
 	to: Vec3;
 	/** For a join: this person's place among the union's partners, which sets the braid's phase. */
@@ -450,6 +456,7 @@ export function layoutRibbons(
 					unionId: null,
 					fromPersonId: null,
 					isStub: true,
+					linkKey: null,
 					from: { x: to.x, y: to.y + RIBBON_ENTRY_STUB_UNITS, z: to.z },
 					to,
 					braidIndex: 0,
@@ -463,6 +470,7 @@ export function layoutRibbons(
 					unionId: line.fromUnionId,
 					fromPersonId: line.fromPersonId,
 					isStub: false,
+					linkKey: linkKey(line),
 					from:
 						line.fromUnionId !== null
 							? placed.unions.get(line.fromUnionId)!
@@ -481,6 +489,7 @@ export function layoutRibbons(
 					unionId,
 					fromPersonId: null,
 					isStub: false,
+					linkKey: null,
 					from: to,
 					to: placed.unions.get(unionId)!,
 					braidIndex: partners.indexOf(p.id),
