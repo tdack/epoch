@@ -21,7 +21,6 @@ import {
 	PointsMaterial,
 	SRGBColorSpace,
 	SphereGeometry,
-	TorusGeometry,
 	Vector3
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -30,16 +29,21 @@ import {
 	type RibbonStrand,
 	type RibbonsLayout
 } from '#lib/tree-layout/ribbons.js';
-import type { Highlight } from '#lib/tree-layout/highlight.js';
-import { nodeGeometry, strandGeometry } from './ribbons-tubes.js';
+import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import type { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { haloGeometry, nodeGeometry, strandCentreline, strandGeometry } from './ribbons-tubes.js';
 import { createThreeStage, sexColour } from './three-stage.js';
-import { RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
-import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
+import { HIGHLIGHT_TOKENS, RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
+import type { WebGlTreeScene } from './webgl-tree.js';
 
 const FOCUS_SCALE = 1.45;
 const PICK_RADIUS_UNITS = 0.95;
 /** Extra lines for a person's further parent links are drawn at this fraction of the radius. */
 const EXTRA_ENTRY_THINNING = 0.5;
+/** The sample of a strand's centreline where its link is anchored: the middle, exactly on the polyline. */
+const LINK_ANCHOR_SAMPLE = 8;
 
 export const RIBBONS_CAMERAS = { ANGLED: 'angled', SIDE: 'side', EDGE: 'edge' } as const;
 
@@ -84,7 +88,6 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 			[RIBBONS_CAMERAS.EDGE]: new Vector3(1, 0.03, 0)
 		}
 	});
-	const halo = stage.share(new TorusGeometry(RIBBON_SIZES.node * FOCUS_SCALE * 1.5, 0.05, 8, 40));
 	const pickProxy = stage.share(new SphereGeometry(PICK_RADIUS_UNITS, 8, 6));
 	const glow = glowTexture();
 	// Points and the glow texture are not freed by `resetWorld`, so they are tracked here.
@@ -96,14 +99,13 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 	}
 
 	function setLayout(layout: RibbonsLayout, highlight: Highlight, shouldRefit: boolean) {
-		const roles = highlightRoles(highlight);
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
 		const isQuiet = highlight.isQuiet;
 		freeExtras();
 		const world = stage.resetWorld();
 
 		const personById = new Map(layout.people.map((p) => [p.id, p]));
-		const isLitPerson = (id: string) => isQuiet || roles.has(id);
+		const isPrivate = (id: string) => personById.get(id)?.person.isPrivate === true;
 		const ys = layout.people.map((p) => p.y);
 		const top = ys.length > 0 ? Math.max(...ys) : 0;
 		const bottom = ys.length > 0 ? Math.min(...ys) : 0;
@@ -114,31 +116,70 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 		const knotColour = new Color(RIBBON_TOKENS.knot);
 		const colourOf = (id: string) => new Color(sexColour(personById.get(id)!.person));
 
-		const lit: BufferGeometry[] = [];
-		const faded: BufferGeometry[] = [];
-		const add = (isLit: boolean, geometry: BufferGeometry) => (isLit ? lit : faded).push(geometry);
+		/** A mark's opacity: the upstream half is lighter, and what is off every path fades. */
+		const opacityOf = (mark: Mark | undefined, fade: number) =>
+			mark ? (mark.strength === 'soft' ? HIGHLIGHT_TOKENS.softOpacity : 1) : isQuiet ? 1 : fade;
+
+		// Unions whose parent-child lines are marked: an ancestor's join into one is on the path.
+		const unionsWithMarkedLine = new Set<string>();
+		for (const link of layout.childLinks)
+			if (link.fromUnionId !== null && highlight.links.has(linkKey(link)))
+				unionsWithMarkedLine.add(link.fromUnionId);
+
+		/** What lights a strand: a line's mark for an entry, and for a join the person's or knot's. */
+		function markOfStrand(s: RibbonStrand): Mark | undefined {
+			if (s.linkKey !== null) return highlight.links.get(s.linkKey);
+			if (s.kind !== RIBBON_STRAND_KINDS.JOIN) return highlight.people.get(s.personId);
+			const own = highlight.people.get(s.personId);
+			const union = highlight.unions.get(s.unionId!);
+			if (own && union) return own.isShared || !union.isShared ? own : union;
+			// A focus walk marks no unions, so an ancestor's join counts only into a union on the path.
+			if (own)
+				return own.kind !== 'ancestor' || unionsWithMarkedLine.has(s.unionId!) ? own : undefined;
+			return union;
+		}
+
+		// Tubes, spheres and knots are merged by opacity, not by person: opaque, and everything else
+		// with alpha in the vertex colour. The draw-call count does not grow with the selection.
+		const solid: BufferGeometry[] = [];
+		const fading: BufferGeometry[] = [];
+		const add = (alpha: number, geometry: BufferGeometry) =>
+			(alpha >= 1 ? solid : fading).push(geometry);
+		const halos: BufferGeometry[] = [];
 
 		const mid = new Color();
-		for (const s of layout.strands as RibbonStrand[]) {
-			const isLit = isLitPerson(s.personId);
+		const markColour = new Color();
+		for (const s of layout.strands) {
+			const mark = markOfStrand(s);
+			const alpha = opacityOf(mark, RIBBON_FADE.person);
 			const own = colourOf(s.personId);
 			const from = new Vector3(s.from.x, s.from.y, s.from.z);
 			const to = new Vector3(s.to.x, s.to.y, s.to.z);
 			const thin = s.kind === RIBBON_STRAND_KINDS.EXTRA_ENTRY ? EXTRA_ENTRY_THINNING : 1;
+			const scale = thin * (mark?.isShared ? RIBBON_SIZES.sharedScale : 1);
 			const isJoin = s.kind === RIBBON_STRAND_KINDS.JOIN;
-			// An entry starts at the knot's warm light and settles into the person's own colour; a
-			// join does the reverse. The knot colour never depends on a partner's sex.
-			mid.copy(own).lerp(knotColour, 0.55);
+			let colourFrom: Color;
+			let colourTo: Color;
+			if (mark) {
+				// A highlight paints the whole tube its mark's colour; sex shows on the node.
+				colourFrom = colourTo = markColour.set(mark.colour).clone();
+			} else {
+				// An entry starts at the knot's warm light and settles into the person's own colour; a
+				// join does the reverse. The knot colour never depends on a partner's sex.
+				mid.copy(own).lerp(knotColour, 0.55);
+				colourFrom = isJoin ? own : s.isStub ? own : mid.clone();
+				colourTo = isJoin ? mid.clone() : own;
+			}
 			add(
-				isLit,
+				alpha,
 				strandGeometry({
 					from,
 					to,
-					radiusFrom: radiusAt(from.y) * thin,
-					radiusTo: radiusAt(to.y) * thin,
-					colourFrom: isJoin ? own : s.isStub ? own : mid.clone(),
-					colourTo: isJoin ? mid.clone() : own,
-					alpha: isLit ? 1 : RIBBON_FADE.person,
+					radiusFrom: radiusAt(from.y) * scale,
+					radiusTo: radiusAt(to.y) * scale,
+					colourFrom,
+					colourTo,
+					alpha,
 					braid: isJoin
 						? { index: s.braidIndex, count: s.braidCount, radius: RIBBON_SIZES.braid }
 						: null
@@ -149,69 +190,103 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 		const proxyMaterial = new MeshBasicMaterial({ visible: false });
 		for (const p of layout.people) {
 			const position = new Vector3(p.x, p.y, p.z);
-			const isLit = isLitPerson(p.id);
-			const isFocus = roles.get(p.id) === 'focus';
-			add(
-				isLit,
-				nodeGeometry(
-					position,
-					RIBBON_SIZES.node * (isFocus ? FOCUS_SCALE : 1),
-					colourOf(p.id),
-					isLit ? 1 : RIBBON_FADE.person
-				)
-			);
-			if (isFocus) {
-				const ring = new Mesh(halo, new MeshBasicMaterial({ color: RIBBON_TOKENS.focus }));
-				ring.position.copy(position);
-				ring.rotation.x = Math.PI / 2;
-				world.add(ring);
+			const mark = highlight.people.get(p.id);
+			const isFocus = p.id === layout.focusPersonId;
+			const alpha = mark ? 1 : opacityOf(undefined, RIBBON_FADE.person);
+			const radius = RIBBON_SIZES.node * (isFocus ? FOCUS_SCALE : 1);
+			add(alpha, nodeGeometry(position, radius, colourOf(p.id), alpha));
+			if (mark && !isQuiet) {
+				// The focus keeps its light ring; every other lit person is ringed in their mark's colour,
+				// twice when on several paths. Merged into one mesh below.
+				const ringColour = new Color(isFocus ? RIBBON_TOKENS.focus : mark.colour);
+				const ringAlpha = mark.strength === 'soft' ? HIGHLIGHT_TOKENS.softOpacity : 1;
+				halos.push(
+					haloGeometry(
+						position,
+						RIBBON_SIZES.node * RIBBON_SIZES.haloRadius * (isFocus ? FOCUS_SCALE : 1),
+						RIBBON_SIZES.haloTube,
+						ringColour,
+						ringAlpha
+					)
+				);
+				if (mark.isShared)
+					halos.push(
+						haloGeometry(
+							position,
+							RIBBON_SIZES.node * RIBBON_SIZES.haloSecondRadius,
+							RIBBON_SIZES.haloTube,
+							ringColour,
+							ringAlpha
+						)
+					);
 			}
-			const isPrivate = p.person.isPrivate === true;
 			const proxy = new Mesh(pickProxy, proxyMaterial);
 			proxy.position.copy(position);
 			world.add(proxy);
-			stage.track(p.id, position, isPrivate ? null : proxy);
+			stage.track(p.id, position, isPrivate(p.id) ? null : proxy);
 		}
 
-		const addMerged = (parts: BufferGeometry[], isLit: boolean) => {
+		const addMerged = (parts: BufferGeometry[], isOpaque: boolean, isStandard: boolean) => {
 			if (parts.length === 0) return;
 			const merged = mergeGeometries(parts, false);
 			for (const part of parts) part.dispose();
+			const parameters = {
+				vertexColors: true,
+				transparent: !isOpaque,
+				depthWrite: isOpaque
+			};
 			world.add(
 				new Mesh(
 					merged,
-					new MeshStandardMaterial({
-						vertexColors: true,
-						roughness: 0.5,
-						metalness: 0.08,
-						transparent: !isLit,
-						depthWrite: isLit
-					})
+					isStandard
+						? new MeshStandardMaterial({ ...parameters, roughness: 0.5, metalness: 0.08 })
+						: new MeshBasicMaterial(parameters)
 				)
 			);
 		};
-		addMerged(lit, true);
-		addMerged(faded, false);
+		addMerged(solid, true, true);
+		addMerged(fading, false, true);
+		addMerged(halos, false, false);
 
-		// Knots: emissive spheres (merged) and an additive glow (one Points draw).
-		const knotLit: BufferGeometry[] = [];
-		const knotFaded: BufferGeometry[] = [];
+		// Knots are the partnership markers: tinted by the union's mark, with an additive glow, and
+		// an invisible proxy as big as a person's so they can be picked.
+		const knotSolid: BufferGeometry[] = [];
+		const knotFading: BufferGeometry[] = [];
 		const glowPositions: number[] = [];
 		const glowColours: number[] = [];
 		const glowColour = new Color(RIBBON_TOKENS.glow);
+		const lit = new Color();
 		for (const u of layout.unions) {
-			const isLit = u.partnerIds.some(isLitPerson);
+			const mark = highlight.unions.get(u.id);
+			// A focus walk marks no unions: a knot is lit plainly when one of its partners is.
+			const isPlainLit = !mark && u.partnerIds.some((id) => highlight.people.has(id));
+			const alpha = isPlainLit ? 1 : opacityOf(mark, RIBBON_FADE.knot);
 			const at = new Vector3(u.x, u.y, u.z);
-			(isLit ? knotLit : knotFaded).push(
-				nodeGeometry(at, RIBBON_SIZES.knot, knotColour, isLit ? 1 : RIBBON_FADE.knot)
+			const scale = mark
+				? mark.isShared
+					? RIBBON_SIZES.sharedScale
+					: RIBBON_SIZES.litKnotScale
+				: 1;
+			(alpha >= 1 ? knotSolid : knotFading).push(
+				nodeGeometry(
+					at,
+					RIBBON_SIZES.knot * scale,
+					mark ? lit.set(mark.colour).clone() : knotColour,
+					alpha
+				)
 			);
 			glowPositions.push(u.x, u.y, u.z);
-			const strength = isLit ? 1 : RIBBON_FADE.glow;
-			glowColours.push(glowColour.r * strength, glowColour.g * strength, glowColour.b * strength);
+			const strength = mark || isPlainLit || isQuiet ? alpha : RIBBON_FADE.glow;
+			const tint = mark ? lit.set(mark.colour) : glowColour;
+			glowColours.push(tint.r * strength, tint.g * strength, tint.b * strength);
+			const proxy = new Mesh(pickProxy, proxyMaterial);
+			proxy.position.copy(at);
+			world.add(proxy);
+			stage.trackUnion(u.id, at, u.partnerIds.some(isPrivate) ? null : proxy);
 		}
-		for (const [parts, isLit] of [
-			[knotLit, true],
-			[knotFaded, false]
+		for (const [parts, isOpaque] of [
+			[knotSolid, true],
+			[knotFading, false]
 		] as const) {
 			if (parts.length === 0) continue;
 			const merged = mergeGeometries(parts, false);
@@ -219,7 +294,11 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 			world.add(
 				new Mesh(
 					merged,
-					new MeshBasicMaterial({ vertexColors: true, transparent: !isLit, depthWrite: isLit })
+					new MeshBasicMaterial({
+						vertexColors: true,
+						transparent: !isOpaque,
+						depthWrite: isOpaque
+					})
 				)
 			);
 		}
@@ -238,6 +317,35 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 			});
 			disposables.push(geometry, material);
 			world.add(new Points(geometry, material));
+		}
+
+		// Links: the tubes are merged, so each parent-child line gets an invisible `Line2` along its
+		// centreline to be picked through. They share one material and are never drawn.
+		const linkByKey = new Map(layout.childLinks.map((link) => [linkKey(link), link]));
+		let proxyMaterialLine: LineMaterial | null = null;
+		for (const s of layout.strands) {
+			if (s.linkKey === null) continue;
+			const link = linkByKey.get(s.linkKey)!;
+			const centreline = strandCentreline(
+				new Vector3(s.from.x, s.from.y, s.from.z),
+				new Vector3(s.to.x, s.to.y, s.to.z),
+				null
+			);
+			// An extra entry shares its child's `linkKey` with no one else, so keys never collide.
+			const anchor = centreline[LINK_ANCHOR_SAMPLE];
+			let line: Line2;
+			if (proxyMaterialLine === null) {
+				line = stage.thickLine(centreline, '#000000', 1, 1);
+				proxyMaterialLine = line.material;
+				proxyMaterialLine.visible = false;
+			} else {
+				const geometry = new LineGeometry();
+				geometry.setPositions(centreline.flatMap((v) => [v.x, v.y, v.z]));
+				line = new Line2(geometry, proxyMaterialLine);
+			}
+			world.add(line);
+			const isHidden = isPrivate(link.childId) || link.parentIds.some(isPrivate);
+			stage.trackLink(s.linkKey, anchor, isHidden ? null : line);
 		}
 
 		const points = [

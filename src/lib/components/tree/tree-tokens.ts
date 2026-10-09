@@ -118,7 +118,15 @@ export const RIBBON_SIZES = {
 	node: 0.46,
 	knot: 0.42,
 	glow: 4.2,
-	braid: 0.34
+	braid: 0.34,
+	/** A tube on two or more traced paths is drawn this many times as thick, and its knot as big. */
+	sharedScale: 1.7,
+	/** A lit knot is a little bigger than a plain one, so a selected partnership reads from afar. */
+	litKnotScale: 1.3,
+	/** The halo round a lit person, as a multiple of the node radius; a shared mark adds a second. */
+	haloRadius: 1.5,
+	haloSecondRadius: 1.95,
+	haloTube: 0.055
 } as const;
 
 export function treeTokenStyle(): string {
