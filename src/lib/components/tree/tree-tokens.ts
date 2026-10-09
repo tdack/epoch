@@ -69,12 +69,29 @@ export const RING_TOKENS = {
 	descendant: TREE_TOKENS['--tree-accent'],
 	partner: '#7c3a72',
 	private: '#d6d3d1',
-	disc: '#cfc6b6',
-	line: '#b5aea4'
+	line: '#b5aea4',
+	/**
+	 * The dark stage Rings draws on (Ribbons and Orrery are dark too). The keys above stay as they
+	 * are because the Ball and the legend panel, which is light, still read them; these are what the
+	 * Rings scene uses. Each highlight colour is a lifted shade of its light-stage namesake, since
+	 * the browns and purples of the focus line vanish on navy.
+	 */
+	dark: {
+		stage: '#10141f',
+		/** A generation's disc and its rim, quiet enough that the spheres stay the brightest thing. */
+		disc: '#8d9bc4',
+		rim: '#6f7ca3',
+		/** Plain parent-child and partnership lines, nobody highlighted. */
+		line: '#8791b0',
+		focus: '#f4eedc',
+		ancestor: '#f0b955',
+		descendant: '#45cdb8',
+		partner: '#e196d6'
+	}
 } as const;
 
 /** How far an unlit sphere and line fade, and how see-through a generation's disc is. */
-export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as const;
+export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.07, rim: 0.5 } as const;
 
 /**
  * Colours and sizes of the Ball view, the unit ball of calendar time.
@@ -92,8 +109,8 @@ export const POINCARE_TOKENS = {
 	yearInk: '#57534e'
 } as const;
 
-/** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */
-export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5 } as const;
+/** Line widths on the rings, in CSS pixels: a lit line, everyone else's, and a line on two or more paths. */
+export const RING_LINE_WIDTH_PX = { lit: 3, unlit: 1.5, shared: 5 } as const;
 
 /**
  * Colours and sizes of the Ribbons view, lineages as tubes meeting at union knots.
