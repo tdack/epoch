@@ -9,6 +9,8 @@ interface GedcomExportPayload {
 	treeId: string;
 	userId?: string;
 	format?: GedcomFormat;
+	/** Package as GEDZip. Optional, so an instance queued before it existed still runs. */
+	shouldCompress?: boolean;
 }
 
 export class GedcomExportWorkflow extends WorkflowEntrypoint<
@@ -16,7 +18,9 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<
 	GedcomExportPayload
 > {
 	async run(event: WorkflowEvent<GedcomExportPayload>, step: WorkflowStep) {
+		// An instance queued before 7.0 became the default named no format and meant 5.5.1.
 		const format = event.payload.format ?? 'gedcom551';
+		const shouldCompress = event.payload.shouldCompress ?? false;
 		const { treeId, userId } = event.payload;
 		const gedcom = new GedcomService(getDb(this.env.DB), { bucket: this.env.MEDIA_BUCKET });
 
@@ -33,10 +37,11 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<
 			return buildGedcomString(data, format);
 		});
 
+		// Packed in the step that stores it: a step's result is serialized, and bytes do not survive that.
 		const fileKey = await step.do('write-r2-export', () =>
-			gedcom.storeExport(treeId, data.treeName, gedcomContent)
+			gedcom.storeExport(treeId, data.treeName, gedcomContent, shouldCompress)
 		);
 
-		return { status: 'complete', fileKey, format };
+		return { status: 'complete', fileKey, format, shouldCompress };
 	}
 }
