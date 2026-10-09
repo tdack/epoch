@@ -66,8 +66,8 @@ export interface FocusWindow {
 	roundCount: number;
 }
 
-class WindowState {
-	constructor(private privacy?: WindowPrivacy) {}
+export class WindowState {
+	constructor(readonly privacy?: WindowPrivacy) {}
 
 	individuals = new Map<string, Ranked<IndividualRow>>();
 	unions = new Map<string, Ranked<UnionRow>>();
@@ -173,6 +173,76 @@ class WindowState {
 	}
 }
 
+/**
+ * Load the neighbourhood of these people into the window; see the module comment for what that
+ * covers. Shared with the whole-tree read, which pages through every person in the tree.
+ */
+export async function loadNeighbourhood(
+	state: WindowState,
+	repo: GraphWindowRepository,
+	treeId: string,
+	people: string[]
+): Promise<void> {
+	const { privacy } = state;
+	const personEventTypes = privacy ? PRIVACY_EVENT_TYPES : GRAPH_PERSON_EVENT_TYPES;
+	const [ownPartnerships, asChild, asParent] = await repo.run(
+		repo.partnerRowsOfPersons(treeId, people),
+		repo.linksBy(treeId, 'child', people),
+		repo.linksBy(treeId, 'parent', people)
+	);
+	state.addPartners(ownPartnerships);
+	state.addLinks([...asChild, ...asParent]);
+	people.forEach((id) => state.hasPartnerships.add(id));
+
+	// A parent's other partnerships make the step-parents; the parents themselves stay partial.
+	const parentIds = asChild
+		.map((l) => l.row.parentId)
+		.filter((id) => !state.hasPartnerships.has(id));
+	const [parentPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, parentIds));
+	state.addPartners(parentPartnerships);
+	parentIds.forEach((id) => state.hasPartnerships.add(id));
+
+	const unionIds = new Set<string>();
+	for (const p of [...ownPartnerships, ...parentPartnerships]) unionIds.add(p.row.unionId);
+	for (const l of [...asChild, ...asParent]) if (l.row.unionId) unionIds.add(l.row.unionId);
+	const newUnionIds = [...unionIds].filter((id) => !state.completeUnions.has(id));
+
+	const [unionRows, partnerRows, unionLinks, unionEvents] = await repo.run(
+		repo.unionsIn(treeId, newUnionIds),
+		repo.partnerRowsOfUnions(treeId, newUnionIds),
+		repo.linksBy(treeId, 'union', newUnionIds),
+		repo.eventsOf(treeId, 'FAMILY', newUnionIds)
+	);
+	state.addUnions(unionRows);
+	state.addPartners(partnerRows);
+	state.addLinks(unionLinks);
+	state.addEvents(unionEvents);
+	newUnionIds.forEach((id) => state.completeUnions.add(id));
+
+	// Records for everyone a loaded union or link names next to a drawn person, so cards and
+	// dialogs have names; only the people asked for become complete.
+	const named = new Set<string>(people);
+	for (const p of partnerRows) named.add(p.row.personId);
+	for (const l of asChild) named.add(l.row.parentId);
+	// Without privacy a child is loaded when the view draws them. With it, every link's far end
+	// must be loaded now, or a private child would still be counted in a stub before being seen.
+	if (privacy) for (const l of [...asParent, ...unionLinks]) named.add(l.row.childId);
+	const missing = [...named].filter((id) => !state.individuals.has(id));
+	const withoutVitals = [...named].filter((id) => !state.hasVitals.has(id));
+	const withoutNames = [...named].filter((id) => !state.hasNames.has(id));
+	const [records, personEvents, personNameRows] = await repo.run(
+		repo.individualsIn(treeId, missing),
+		repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, personEventTypes),
+		repo.namesOf(withoutNames)
+	);
+	state.addIndividuals(records);
+	state.addEvents(personEvents);
+	state.addNames(personNameRows);
+	withoutNames.forEach((id) => state.hasNames.add(id));
+	withoutVitals.forEach((id) => state.hasVitals.add(id));
+	people.forEach((id) => state.complete.add(id));
+}
+
 export async function loadFocusWindow(
 	repo: GraphWindowRepository,
 	treeId: string,
@@ -181,75 +251,14 @@ export async function loadFocusWindow(
 	privacy?: WindowPrivacy
 ): Promise<FocusWindow> {
 	const state = new WindowState(privacy);
-	const personEventTypes = privacy ? PRIVACY_EVENT_TYPES : GRAPH_PERSON_EVENT_TYPES;
 	const { expandedStubTokens = [], ...viewOptions } = options;
 
 	const [focus] = await repo.run(repo.individualsIn(treeId, [focusPersonId]));
 	if (focus.length === 0) throw new NotFoundError('Person', focusPersonId);
 	state.addIndividuals(focus);
 
-	/** Load the neighbourhood of these people; see the module comment for what that covers. */
-	async function expand(people: string[]): Promise<void> {
-		const [ownPartnerships, asChild, asParent] = await repo.run(
-			repo.partnerRowsOfPersons(treeId, people),
-			repo.linksBy(treeId, 'child', people),
-			repo.linksBy(treeId, 'parent', people)
-		);
-		state.addPartners(ownPartnerships);
-		state.addLinks([...asChild, ...asParent]);
-		people.forEach((id) => state.hasPartnerships.add(id));
-
-		// A parent's other partnerships make the step-parents; the parents themselves stay partial.
-		const parentIds = asChild
-			.map((l) => l.row.parentId)
-			.filter((id) => !state.hasPartnerships.has(id));
-		const [parentPartnerships] = await repo.run(repo.partnerRowsOfPersons(treeId, parentIds));
-		state.addPartners(parentPartnerships);
-		parentIds.forEach((id) => state.hasPartnerships.add(id));
-
-		const unionIds = new Set<string>();
-		for (const p of [...ownPartnerships, ...parentPartnerships]) unionIds.add(p.row.unionId);
-		for (const l of [...asChild, ...asParent]) if (l.row.unionId) unionIds.add(l.row.unionId);
-		const newUnionIds = [...unionIds].filter((id) => !state.completeUnions.has(id));
-
-		const [unionRows, partnerRows, unionLinks, unionEvents] = await repo.run(
-			repo.unionsIn(treeId, newUnionIds),
-			repo.partnerRowsOfUnions(treeId, newUnionIds),
-			repo.linksBy(treeId, 'union', newUnionIds),
-			repo.eventsOf(treeId, 'FAMILY', newUnionIds)
-		);
-		state.addUnions(unionRows);
-		state.addPartners(partnerRows);
-		state.addLinks(unionLinks);
-		state.addEvents(unionEvents);
-		newUnionIds.forEach((id) => state.completeUnions.add(id));
-
-		// Records for everyone a loaded union or link names next to a drawn person, so cards and
-		// dialogs have names; only the people asked for become complete.
-		const named = new Set<string>(people);
-		for (const p of partnerRows) named.add(p.row.personId);
-		for (const l of asChild) named.add(l.row.parentId);
-		// Without privacy a child is loaded when the view draws them. With it, every link's far end
-		// must be loaded now, or a private child would still be counted in a stub before being seen.
-		if (privacy) for (const l of [...asParent, ...unionLinks]) named.add(l.row.childId);
-		const missing = [...named].filter((id) => !state.individuals.has(id));
-		const withoutVitals = [...named].filter((id) => !state.hasVitals.has(id));
-		const withoutNames = [...named].filter((id) => !state.hasNames.has(id));
-		const [records, personEvents, personNameRows] = await repo.run(
-			repo.individualsIn(treeId, missing),
-			repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, personEventTypes),
-			repo.namesOf(withoutNames)
-		);
-		state.addIndividuals(records);
-		state.addEvents(personEvents);
-		state.addNames(personNameRows);
-		withoutNames.forEach((id) => state.hasNames.add(id));
-		withoutVitals.forEach((id) => state.hasVitals.add(id));
-		people.forEach((id) => state.complete.add(id));
-	}
-
 	let roundCount = 0;
-	await expand([focusPersonId]);
+	await loadNeighbourhood(state, repo, treeId, [focusPersonId]);
 	roundCount++;
 	// A private focus answers exactly as a missing one does.
 	if (state.hiddenPersonIds().has(focusPersonId)) throw new NotFoundError('Person', focusPersonId);
@@ -268,7 +277,7 @@ export async function loadFocusWindow(
 		if (!selection) throw new NotFoundError('Person', focusPersonId);
 		const needed = selection.people.map((p) => p.id).filter((id) => !state.complete.has(id));
 		if (needed.length === 0) return { focusPersonId, graph, selection, roundCount };
-		await expand(needed);
+		await loadNeighbourhood(state, repo, treeId, needed);
 	}
 	throw new Error(
 		'The focus window did not settle; the tree contains a cycle the selection cannot bound'

@@ -29,3 +29,22 @@ export interface TreeCounts {
 	people: number;
 	unions: number;
 }
+
+/**
+ * What `GET /graph?scope=all` answers: everyone the viewer may see, up to a cap, anchored to no one.
+ * `graph.people` holds the people it draws completely and may also name a few it did not load
+ * (`isPartial`) just past the cap; a view draws only the former.
+ */
+export interface WholeTreeGraphDto {
+	focusPersonId: null;
+	isWholeTree: true;
+	/** The viewer could see more people than the cap allowed, so the picture stops short. */
+	isTruncated: boolean;
+	graph: RelationshipGraph;
+	drawnPersonIds: string[];
+	drawnUnionIds: string[];
+	stubs: [];
+}
+
+/** Either answer of the graph endpoint; `isWholeTree` tells them apart. */
+export type TreeGraphDto = (FocusGraphDto & { isWholeTree?: false }) | WholeTreeGraphDto;

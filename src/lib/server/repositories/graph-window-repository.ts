@@ -303,6 +303,29 @@ export class GraphWindowRepository {
 		return names;
 	}
 
+	private personIdsAfterQuery(treeId: string, afterRowId: number, limit: number) {
+		// Not `inTree`: here the tree filter should lead, then walk its rows in rowid order and stop
+		// at the limit, which is what the (tree_id) index gives for free.
+		return this.db
+			.select({ id: individuals.id, rid: sql<number>`${individuals}.rowid` })
+			.from(individuals)
+			.where(and(eq(individuals.treeId, treeId), sql`${individuals}.rowid > ${afterRowId}`))
+			.orderBy(asc(sql`${individuals}.rowid`))
+			.limit(limit);
+	}
+
+	/**
+	 * The next `limit` people of the tree in insertion order, after the row with this `rowid` (0 for
+	 * the first page). The whole-tree read pages through the tree with it, so no statement is large.
+	 */
+	async personIdsAfter(
+		treeId: string,
+		afterRowId: number,
+		limit: number
+	): Promise<Array<{ id: string; rid: number }>> {
+		return this.personIdsAfterQuery(treeId, afterRowId, limit).all();
+	}
+
 	private firstPersonQuery(treeId: string) {
 		return this.db
 			.select({ id: individuals.id })
@@ -352,6 +375,7 @@ export class GraphWindowRepository {
 			'names of people': only(this.namesOf(sample.personIds)),
 			'media of people': only(this.mediaOf(treeId, sample.personIds)),
 			'changes touching records': this.changeHistoryQuery(treeId, sample.personIds, 15),
+			'person ids in order': this.personIdsAfterQuery(treeId, 0, 3),
 			'first person': this.firstPersonQuery(treeId),
 			'count people': this.countQueries(treeId)[0],
 			'count unions': this.countQueries(treeId)[1]

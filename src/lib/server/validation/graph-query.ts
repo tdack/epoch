@@ -39,12 +39,17 @@ function flag(
 }
 
 export interface FocusQuery {
-	/** Null when the request did not name a focus; the endpoint refuses that. */
+	/** Null when the request did not name a focus; the endpoint refuses that unless it is the whole tree. */
 	focusPersonId: string | null;
 	options: FocusWindowOptions;
+	/** `scope=all` asks for everyone the viewer may see, capped; no focus is needed or used. */
+	isWholeTree: boolean;
 }
 
 export function parseFocusQuery(params: Pick<URLSearchParams, 'get'>): FocusQuery {
+	const scope = params.get('scope');
+	if (scope !== null && scope !== '' && scope !== 'all')
+		throw new ValidationError('scope: must be all');
 	const focus = params.get('focus');
 	const tokens = (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token));
 	if (tokens.length > MAX_OPENED_STUBS)
@@ -64,5 +69,5 @@ export function parseFocusQuery(params: Pick<URLSearchParams, 'get'>): FocusQuer
 			: { shouldIncludePartnerOrigins: flag(params, 'origins') }),
 		...(tokens.length > 0 ? { expandedStubTokens: tokens } : {})
 	};
-	return { focusPersonId: focus ? focus : null, options };
+	return { focusPersonId: focus ? focus : null, options, isWholeTree: scope === 'all' };
 }

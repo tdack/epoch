@@ -7,7 +7,7 @@ const parse = (query: string) => parseFocusQuery(new URLSearchParams(query));
 
 describe('parseFocusQuery', () => {
 	it('reads the focus and leaves every option to the defaults when none is given', () => {
-		expect(parse('focus=abc')).toEqual({ focusPersonId: 'abc', options: {} });
+		expect(parse('focus=abc')).toEqual({ focusPersonId: 'abc', options: {}, isWholeTree: false });
 	});
 
 	it('treats a request with no focus as the whole-tree aggregate', () => {
@@ -61,5 +61,11 @@ describe('parseFocusQuery', () => {
 		expect(parse('focus=a&exp=nonsense,x.1').options.expandedStubTokens).toBeUndefined();
 		const many = Array.from({ length: MAX_OPENED_STUBS + 1 }, (_, i) => `a.${i}`).join(',');
 		expect(() => parse(`focus=a&exp=${many}`)).toThrow(ValidationError);
+	});
+
+	it('reads scope=all as the whole tree, needing no focus, and refuses any other scope', () => {
+		expect(parse('scope=all')).toMatchObject({ isWholeTree: true, focusPersonId: null });
+		expect(parse('focus=a').isWholeTree).toBe(false);
+		expect(() => parse('scope=everyone')).toThrow(ValidationError);
 	});
 });
