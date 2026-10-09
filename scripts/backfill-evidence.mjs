@@ -13,9 +13,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import { DEPLOY_CONFIG, requireDeployConfig } from './deploy-config.mjs';
 
-const DATABASE = 'epoch-genealogy-db';
-const target = process.argv.includes('--remote') ? '--remote' : '--local';
+const isRemote = process.argv.includes('--remote');
+const target = isRemote ? '--remote' : '--local';
+if (isRemote) requireDeployConfig();
 const dir = mkdtempSync(join(tmpdir(), 'epoch-backfill-evidence-'));
 
 const bundle = join(dir, 'evidence-backfill.mjs');
@@ -30,10 +32,22 @@ await build({
 const { BACKFILL_QUERIES, evidenceBackfillStatements } = await import(pathToFileURL(bundle).href);
 
 const wrangler = (...args) =>
-	execFileSync('npx', ['wrangler', 'd1', 'execute', DATABASE, target, ...args], {
-		encoding: 'utf8',
-		maxBuffer: 512 * 1024 * 1024
-	});
+	execFileSync(
+		'npx',
+		[
+			'wrangler',
+			'd1',
+			'execute',
+			'DB',
+			target,
+			...(isRemote ? ['-c', DEPLOY_CONFIG] : []),
+			...args
+		],
+		{
+			encoding: 'utf8',
+			maxBuffer: 512 * 1024 * 1024
+		}
+	);
 
 const input = {};
 for (const [name, sql] of Object.entries(BACKFILL_QUERIES)) {

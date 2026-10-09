@@ -13,9 +13,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import { DEPLOY_CONFIG, requireDeployConfig } from './deploy-config.mjs';
 
-const DATABASE = 'epoch-genealogy-db';
-const target = process.argv.includes('--remote') ? '--remote' : '--local';
+const isRemote = process.argv.includes('--remote');
+const target = isRemote ? '--remote' : '--local';
+if (isRemote) requireDeployConfig();
 const dir = mkdtempSync(join(tmpdir(), 'epoch-backfill-'));
 
 const bundle = join(dir, 'date-backfill.mjs');
@@ -30,10 +32,22 @@ await build({
 const { backfillStatements, UNBACKFILLED_EVENTS_SQL } = await import(pathToFileURL(bundle).href);
 
 const wrangler = (...args) =>
-	execFileSync('npx', ['wrangler', 'd1', 'execute', DATABASE, target, ...args], {
-		encoding: 'utf8',
-		maxBuffer: 256 * 1024 * 1024
-	});
+	execFileSync(
+		'npx',
+		[
+			'wrangler',
+			'd1',
+			'execute',
+			'DB',
+			target,
+			...(isRemote ? ['-c', DEPLOY_CONFIG] : []),
+			...args
+		],
+		{
+			encoding: 'utf8',
+			maxBuffer: 256 * 1024 * 1024
+		}
+	);
 
 const [{ results }] = JSON.parse(wrangler('--json', '--command', UNBACKFILLED_EVENTS_SQL));
 if (results.length === 0) {

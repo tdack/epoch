@@ -4,9 +4,6 @@
 	"main": ".svelte-kit/cloudflare/_worker.js",
 	"compatibility_date": "2026-01-01",
 	"compatibility_flags": ["nodejs_compat"],
-	"vars": {
-		"CF_ACCESS_TEAM_DOMAIN": "your-team.cloudflareaccess.com"
-	},
 	"assets": {
 		"directory": ".svelte-kit/cloudflare",
 		"binding": "ASSETS"
@@ -49,8 +46,7 @@
 	],
 	"send_email": [
 		{
-			"name": "EMAIL",
-			"allowed_sender_addresses": ["welcome@epoch.example.com"]
+			"name": "EMAIL"
 		}
 	],
 	"observability": {
