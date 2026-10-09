@@ -1,7 +1,7 @@
 import { parseViewState } from '#lib/components/tree/tree-url.js';
 import { rememberedFocusKey, treeLoad } from '#lib/services/load-helpers.js';
 import { resolveLayoutMode } from '#lib/shared/view-mode.js';
-import { ApiError, fetchFocusGraph } from '#lib/services/tree-api.js';
+import { ApiError, fetchFocusGraph, fetchWholeTreeGraph } from '#lib/services/tree-api.js';
 import type { PageLoad } from './$types';
 
 // The remembered focus lives in localStorage, and the canvas needs the browser anyway.
@@ -20,7 +20,9 @@ const FETCHED_PARAMS = new Set([
 	'origins',
 	'exp',
 	// The wider groups default on in Layers, so the mode decides what a bare address fetches.
-	'mode'
+	'mode',
+	// The whole tree is a different request; see the load.
+	'scope'
 ]);
 
 function rememberedFocus(treeId: string): string | null {
@@ -42,14 +44,24 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 	// Read only the parameters that change what is fetched, so toggling a relationship type redraws
 	// without a request.
 	const saved = trees.find((t) => t.id === params.id);
+	// Same fallback as the page, or a link without a mode would fetch for one view and draw another.
+	const fallbackMode = resolveLayoutMode({
+		fromAddress: null,
+		fromMember: saved?.viewMode ?? null,
+		fromTree: saved?.defaultViewMode ?? null
+	});
+	const modeAndScope = parseViewState(
+		{ get: (key) => (key === 'mode' || key === 'scope' ? url.searchParams.get(key) : null) },
+		fallbackMode
+	);
+	if (modeAndScope.isWholeTree) {
+		// Everyone the viewer may see, anchored to no one. Reading only `mode` and `scope` above is
+		// deliberate: a new focus, depth or option then does not re-run this load or refetch.
+		return { focusGraph: await fetchWholeTreeGraph(params.id, fetch), applied: modeAndScope };
+	}
 	const view = parseViewState(
 		{ get: (key) => (FETCHED_PARAMS.has(key) ? url.searchParams.get(key) : null) },
-		// Same fallback as the page, or a link without a mode would fetch for one view and draw another.
-		resolveLayoutMode({
-			fromAddress: null,
-			fromMember: saved?.viewMode ?? null,
-			fromTree: saved?.defaultViewMode ?? null
-		})
+		fallbackMode
 	);
 	const query = {
 		up: view.ancestorDepth,

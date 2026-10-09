@@ -3,12 +3,7 @@
 	import { RING_CAMERAS, type RingsScene } from './rings-scene.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import {
-		lineageRoles,
-		sexLegend,
-		type LegendEntry,
-		type WebGlCanvasProps
-	} from './webgl-tree.js';
+	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let { layout, ...shellProps }: WebGlCanvasProps<RingsLayout> = $props();
 
@@ -25,19 +20,21 @@
 		{ kind: 'line', colour: RING_TOKENS.partner, label: 'Partnership' }
 	] satisfies LegendEntry[];
 
-	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
-	const lineage = $derived(ringLineage(layout, layout.focusPersonId));
+	const lineage = $derived(ringLineage(layout, layout.focusPersonId ?? ''));
 	const announcement = $derived(
 		focus
 			? `Rings centred on ${focus.person.displayName}: ${lineage.ancestorIds.size} ancestors and ${lineage.descendantIds.size} descendants shown across ${layout.rings.length} generations.`
-			: ''
+			: layout.focusPersonId === null && layout.people.length > 0
+				? `Rings: the whole tree, ${layout.people.length} people shown.`
+				: ''
 	);
 </script>
 
 <WebGlTreeShell
 	people={layout.people}
-	{roles}
+	kin={layout}
+	focusPersonId={layout.focusPersonId}
 	label="Generation rings"
 	viewName="Rings"
 	subject="the rings"
@@ -46,6 +43,6 @@
 	legend={LEGEND}
 	{...shellProps}
 	createScene={async (host) => (await import('./rings-scene.js')).createRingsScene(host)}
-	applyLayout={(scene: RingsScene, shown, shouldRefit) =>
-		scene.setLayout(layout, shown, shouldRefit)}
+	applyLayout={(scene: RingsScene, highlight, shouldRefit) =>
+		scene.setLayout(layout, highlight, shouldRefit)}
 />

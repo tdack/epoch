@@ -3,12 +3,7 @@
 	import { POINCARE_CAMERAS, type PoincareScene } from './poincare-scene.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import {
-		lineageRoles,
-		sexLegend,
-		type LegendEntry,
-		type WebGlCanvasProps
-	} from './webgl-tree.js';
+	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let { layout, ...shellProps }: WebGlCanvasProps<PoincareLayout> = $props();
 
@@ -22,14 +17,15 @@
 		{ kind: 'halo', colour: RING_TOKENS.focus, label: 'Focus' }
 	] satisfies LegendEntry[];
 
-	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
 	const announcement = $derived(
 		focus
 			? `Ball centred on ${focus.person.displayName}: ${layout.people.length} people shown.${
 					layout.hasDates ? '' : ' No dates were found, so height follows generations.'
 				}`
-			: ''
+			: layout.focusPersonId === null && layout.people.length > 0
+				? `Ball: the whole tree, ${layout.people.length} people shown.`
+				: ''
 	);
 </script>
 
@@ -43,7 +39,8 @@
 
 <WebGlTreeShell
 	people={layout.people}
-	{roles}
+	kin={layout}
+	focusPersonId={layout.focusPersonId}
 	label="Ball view"
 	viewName="Ball"
 	subject="the ball"
@@ -53,6 +50,6 @@
 	{...shellProps}
 	{controls}
 	createScene={async (host) => (await import('./poincare-scene.js')).createPoincareScene(host)}
-	applyLayout={(scene: PoincareScene, shown, shouldRefit) =>
-		scene.setLayout(layout, shown, shouldRefit)}
+	applyLayout={(scene: PoincareScene, highlight, shouldRefit) =>
+		scene.setLayout(layout, highlight, shouldRefit)}
 />

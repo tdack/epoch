@@ -44,6 +44,7 @@
 	import { layoutPoincare } from '#lib/tree-layout/poincare.js';
 	import { layoutRibbons } from '#lib/tree-layout/ribbons.js';
 	import { layoutRings } from '#lib/tree-layout/rings.js';
+	import { selectWholeTree } from '#lib/tree-layout/whole-tree.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
@@ -100,6 +101,11 @@
 	});
 
 	const focusPersonId = $derived(data.focusGraph?.focusPersonId ?? null);
+	/** The graph on screen is the whole tree (`scope=all`), which has no focus. */
+	const isWholeTreeDrawn = $derived(data.focusGraph?.isWholeTree === true);
+	const isWholeTreeTruncated = $derived(
+		data.focusGraph?.isWholeTree === true && data.focusGraph.isTruncated
+	);
 	const focusPerson = $derived.by(() => {
 		const person = graph?.people.find((p) => p.id === focusPersonId);
 		return person ? { id: person.id, name: person.displayName } : null;
@@ -175,24 +181,44 @@
 			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
 			: null
 	);
+	/** The whole tree as a selection, worked out once for whichever WebGL view draws it. */
+	const wholeSelection = $derived(
+		graphForLayout && isWholeTreeDrawn && VIEW_MODE_TRAITS[drawnMode].isWebGl
+			? selectWholeTree(graphForLayout)
+			: undefined
+	);
 	const ringsLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.RINGS
-			? layoutRings(graphForLayout, focusPersonId, focusOptions)
+			? layoutRings(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
 			: null
 	);
 	const poincareLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.POINCARE
-			? layoutPoincare(graphForLayout, focusPersonId, focusOptions)
+			? layoutPoincare(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
 			: null
 	);
 	const ribbonsLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.RIBBONS
-			? layoutRibbons(graphForLayout, focusPersonId, focusOptions)
+			? layoutRibbons(
+					graphForLayout,
+					focusPersonId,
+					focusOptions,
+					undefined,
+					undefined,
+					wholeSelection
+				)
 			: null
 	);
 	const orreryLayout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.ORRERY
-			? layoutOrrery(graphForLayout, focusPersonId, focusOptions)
+			? layoutOrrery(
+					graphForLayout,
+					focusPersonId,
+					focusOptions,
+					undefined,
+					undefined,
+					wholeSelection
+				)
 			: null
 	);
 
@@ -244,6 +270,7 @@
 			applied.collateralDepth,
 			applied.shouldIncludePartnerOrigins,
 			view.types,
+			isWholeTreeDrawn,
 			drawnMode,
 			// Another union recentres the planes, so it re-frames like a new focus.
 			layersLayout?.focusUnionId ?? null
@@ -333,9 +360,12 @@
 		});
 	}
 
-	/** Picking someone in the header finder is opening them: it refocuses and counts as a recent. */
+	/**
+	 * Picking someone in the header finder is opening them: it refocuses and counts as a recent. In
+	 * the whole tree that means leaving it, or the choice would change nothing on screen.
+	 */
 	function pickFocus(id: string) {
-		navigate(withOpenDrawer(id), { kind: HISTORY_KINDS.FOCUS });
+		navigate({ ...withOpenDrawer(id), isWholeTree: false }, { kind: HISTORY_KINDS.FOCUS });
 		void recordRecentApi(treeId, id)
 			.then((updated) => marks.set(updated))
 			.catch(() => {
@@ -498,6 +528,11 @@
 	});
 	onDestroy(() => clearTimeout(recentreTimer));
 
+	/** The Whole tree button: everyone the viewer may see, or back to the focus view. */
+	function toggleWholeTree() {
+		navigate({ isWholeTree: !view.isWholeTree }, { kind: HISTORY_KINDS.ADJUST });
+	}
+
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	function handleFocusPerson(id: string) {
 		// The first click of a double-click lands here too; re-centring on the person already at the
@@ -586,6 +621,9 @@
 					layout={ringsLayout}
 					{fitKey}
 					{selectedPersonId}
+					isWholeTree={isWholeTreeDrawn}
+					isTruncated={isWholeTreeTruncated}
+					onToggleWholeTree={toggleWholeTree}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}
@@ -595,6 +633,9 @@
 					layout={poincareLayout}
 					{fitKey}
 					{selectedPersonId}
+					isWholeTree={isWholeTreeDrawn}
+					isTruncated={isWholeTreeTruncated}
+					onToggleWholeTree={toggleWholeTree}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}
@@ -604,6 +645,9 @@
 					layout={ribbonsLayout}
 					{fitKey}
 					{selectedPersonId}
+					isWholeTree={isWholeTreeDrawn}
+					isTruncated={isWholeTreeTruncated}
+					onToggleWholeTree={toggleWholeTree}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}
@@ -613,6 +657,9 @@
 					layout={orreryLayout}
 					{fitKey}
 					{selectedPersonId}
+					isWholeTree={isWholeTreeDrawn}
+					isTruncated={isWholeTreeTruncated}
+					onToggleWholeTree={toggleWholeTree}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}

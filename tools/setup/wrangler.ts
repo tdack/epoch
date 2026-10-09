@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ERROR_CODES, SetupError } from './errors.ts';
 import type { Runner } from './run.ts';
 
 /**
@@ -74,25 +75,16 @@ export function createWranglerApi(runner: Runner, auth: WranglerAuth): WranglerA
 				env: env()
 			});
 		},
-		// `wrangler auth token` prints the current credential; JSON with a token field, or the bare token (SPIKE).
+		// `wrangler auth token --json`: plain stdout starts with a "wrangler x.y.z" banner, which once ended up
+		// in an Authorization header and made Node refuse the request.
 		async getAuthToken() {
-			const out = (
-				await runner.text({
-					tool: 'wrangler',
-					args: ['auth', 'token'],
-					env: env(),
-					hasSecretOutput: true
-				})
-			).trim();
-			try {
-				const parsed = JSON.parse(out) as Record<string, unknown>;
-				for (const key of ['token', 'oauth_token', 'api_token']) {
-					if (typeof parsed[key] === 'string') return parsed[key];
-				}
-			} catch {
-				// Not JSON: the output is the token itself.
-			}
-			return out;
+			const out = await runner.text({
+				tool: 'wrangler',
+				args: ['auth', 'token', '--json'],
+				env: env(),
+				hasSecretOutput: true
+			});
+			return extractToken(out);
 		},
 		async deleteWorker(name) {
 			await runner.text({
@@ -134,4 +126,36 @@ export function createWranglerApi(runner: Runner, auth: WranglerAuth): WranglerA
 			return result.exitCode === 0 ? result.stdout : null;
 		}
 	};
+}
+
+const TOKEN_PATTERN = /^[\x21-\x7e]{20,}$/;
+
+/** The token from `wrangler auth token` output, ignoring any banner, and only if it looks like one. */
+export function extractToken(output: string): string {
+	const candidates: string[] = [];
+	const start = output.indexOf('{');
+	const end = output.lastIndexOf('}');
+	if (start !== -1 && end > start) {
+		try {
+			const parsed = JSON.parse(output.slice(start, end + 1)) as Record<string, unknown>;
+			for (const key of ['token', 'oauth_token', 'api_token', 'apiToken']) {
+				if (typeof parsed[key] === 'string') candidates.push(parsed[key]);
+			}
+		} catch {
+			// Fall through to the plain-text lines.
+		}
+	}
+	candidates.push(
+		...output
+			.split('\n')
+			.map((line) => line.trim())
+			.reverse()
+	);
+	const token = candidates.find((candidate) => TOKEN_PATTERN.test(candidate));
+	if (!token) {
+		throw new SetupError(ERROR_CODES.command, 'wrangler did not print a usable token', {
+			hint: 'Sign in with `npm run setup -- --force`, or use --api-token-env.'
+		});
+	}
+	return token;
 }

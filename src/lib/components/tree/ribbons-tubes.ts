@@ -10,6 +10,7 @@ import {
 	Color,
 	CatmullRomCurve3,
 	SphereGeometry,
+	TorusGeometry,
 	TubeGeometry,
 	Vector3
 } from 'three';
@@ -46,12 +47,8 @@ function paint(geometry: BufferGeometry, colourAt: (vertex: number) => [Color, n
 	geometry.setAttribute('color', new BufferAttribute(colours, 4));
 }
 
-/**
- * A strand runs down the flow with vertical ends, so strands meet knots and nodes head-on and
- * fan between them like a delta.
- */
-export function strandGeometry(spec: TubeSpec): BufferGeometry {
-	const { from, to } = spec;
+/** The sampled centreline of a strand: what the tube follows, and what a pick proxy traces. */
+export function strandCentreline(from: Vector3, to: Vector3, braid: TubeSpec['braid']): Vector3[] {
 	const handle = Math.max(Math.abs(from.y - to.y) * 0.45, 0.6);
 	const c1 = from.clone().add(new Vector3(0, -handle, 0));
 	const c2 = to.clone().add(new Vector3(0, handle, 0));
@@ -70,14 +67,22 @@ export function strandGeometry(spec: TubeSpec): BufferGeometry {
 			.addScaledVector(c1, 3 * u * u * t)
 			.addScaledVector(c2, 3 * u * t * t)
 			.addScaledVector(to, t * t * t);
-		if (spec.braid && spec.braid.count > 1) {
-			const phase =
-				(Math.PI * 2 * spec.braid.index) / spec.braid.count + BRAID_TURNS * Math.PI * 2 * t;
-			const r = spec.braid.radius * smoothstep(0.3, 0.6, t) * (1 - smoothstep(0.88, 1, t));
+		if (braid && braid.count > 1) {
+			const phase = (Math.PI * 2 * braid.index) / braid.count + BRAID_TURNS * Math.PI * 2 * t;
+			const r = braid.radius * smoothstep(0.3, 0.6, t) * (1 - smoothstep(0.88, 1, t));
 			p.addScaledVector(side, Math.cos(phase) * r).addScaledVector(up, Math.sin(phase) * r);
 		}
 		points.push(p);
 	}
+	return points;
+}
+
+/**
+ * A strand runs down the flow with vertical ends, so strands meet knots and nodes head-on and
+ * fan between them like a delta.
+ */
+export function strandGeometry(spec: TubeSpec): BufferGeometry {
+	const points = strandCentreline(spec.from, spec.to, spec.braid);
 	const curve = new CatmullRomCurve3(points, false, 'centripetal');
 	const tubularSegments = CURVE_SAMPLES * 2;
 	const tube = new TubeGeometry(curve, tubularSegments, 1, RADIAL_SEGMENTS, false);
@@ -116,4 +121,19 @@ export function nodeGeometry(
 	sphere.translate(at.x, at.y, at.z);
 	paint(sphere, () => [colour, alpha]);
 	return sphere;
+}
+
+/** A flat ring about a node, to merge into the one halo mesh (a mesh per lit person would not scale). */
+export function haloGeometry(
+	at: Vector3,
+	radius: number,
+	tube: number,
+	colour: Color,
+	alpha: number
+): BufferGeometry {
+	const ring = new TorusGeometry(radius, tube, 6, 36);
+	ring.rotateX(Math.PI / 2);
+	ring.translate(at.x, at.y, at.z);
+	paint(ring, () => [colour, alpha]);
+	return ring;
 }

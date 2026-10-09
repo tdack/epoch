@@ -30,6 +30,8 @@ interface AppOptions {
 	exec?: Exec;
 	/** `--deploy-auth`. Ephemeral has no credential for the Workers reads that reconcile needs before deploy. */
 	deployAuth?: string;
+	/** Sees every raw API read, for the spike to save. */
+	onRawResponse?: (path: string, status: number, body: unknown) => void;
 }
 
 /** Wires the real world to the steps. Tests build a `StepContext` by hand instead. */
@@ -67,7 +69,9 @@ export function createContext(options: AppOptions): StepContext & {
 		const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
 			headers: { authorization: `Bearer ${cachedToken}` }
 		});
-		return { status: response.status, body: await response.json().catch(() => null) };
+		const body = await response.json().catch(() => null);
+		options.onRawResponse?.(path, response.status, body);
+		return { status: response.status, body };
 	};
 
 	return {

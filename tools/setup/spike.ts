@@ -5,6 +5,8 @@ import type { Reporter, StepContext } from './context.ts';
 import { FINDING_LEVELS, type Finding } from './doctor.ts';
 import { isMissingTable } from './install-meta.ts';
 import { loadManifest } from './manifest.ts';
+import { resourceNames, type ResourceNames } from './names.ts';
+import { readDeployDefaults } from './steps/name.ts';
 import { installPaths } from './paths.ts';
 import { createExec, createRedactor, type Exec, type ExecResult } from './run.ts';
 import { BASE_SCOPES } from './scopes.ts';
@@ -17,7 +19,8 @@ import { BASE_SCOPES } from './scopes.ts';
 interface SpikeState {
 	accountId: string | null;
 	d1Id: string | null;
-	workerName: string | null;
+	/** Whose resources the checks look for: --name, the manifest, the deploy config, then the live install. */
+	names: ResourceNames;
 	lastResult: ExecResult | null;
 }
 
@@ -27,6 +30,9 @@ interface Check {
 	claim: string;
 	run(ctx: StepContext, state: SpikeState): Promise<string>;
 }
+
+/** The live install this repository's owner runs, used when nothing else says whose resources to look for. */
+const LIVE_INSTALL_NAME = 'epoch-genealogy';
 
 class Skip extends Error {}
 
@@ -96,14 +102,9 @@ const CHECKS: Check[] = [
 		id: 'd1-list-and-query',
 		claim: '`cf d1 list --name` reads CLOUDFLARE_ACCOUNT_ID; `cf d1 query <id> --sql` returns rows',
 		async run(ctx, state) {
-			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
-			const name = manifest?.resources.d1?.name;
-			if (!name)
-				throw new Skip(
-					'no D1 in the manifest; run after an install, or this proves only the list shape'
-				);
+			const name = state.names.d1;
 			const db = await ctx.cf.findD1(name);
-			if (!db) throw new Error(`${name} not found`);
+			if (!db) throw new Skip(`no D1 named ${name}; pass --name for an existing install`);
 			state.d1Id = db.id;
 			const rows = await ctx.cf.queryD1(db.id, 'SELECT 1 AS n');
 			return `found ${db.id}, SELECT 1 returned ${JSON.stringify(rows)}`;
@@ -133,9 +134,8 @@ const CHECKS: Check[] = [
 		id: 'worker-settings-read',
 		claim:
 			'GET /accounts/{id}/workers/scripts/{name}/settings (the only way to read a Worker) returns bindings including the d1 id and EPOCH_INSTALL_ID, using `wrangler auth token`',
-		async run(ctx) {
-			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
-			const name = manifest?.resources.worker?.name ?? 'epoch-genealogy';
+		async run(ctx, state) {
+			const name = state.names.worker;
 			const worker = await ctx.cf.getWorker(name);
 			if (!worker)
 				throw new Skip(
@@ -150,16 +150,12 @@ const CHECKS: Check[] = [
 		id: 'r2-and-queues',
 		claim:
 			'`cf r2 buckets list` and `cf queues list` print the shapes the reconcile observers read',
-		async run(ctx) {
-			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
-			const bucket = manifest?.resources.r2?.name;
-			const queue = manifest?.resources.queue?.name;
-			if (!bucket || !queue)
-				throw new Skip('no install in the manifest to look up; run after an install');
+		async run(ctx, state) {
+			const { r2: bucket, queue } = state.names;
 			if (!(await ctx.cf.findR2Bucket(bucket)))
-				throw new Error(`bucket ${bucket} not found: list shape differs`);
+				throw new Skip(`no bucket ${bucket}; pass --name for an existing install`);
 			if (!(await ctx.cf.findQueue(queue)))
-				throw new Error(`queue ${queue} not found: list shape differs`);
+				throw new Skip(`no queue ${queue}; pass --name for an existing install`);
 			return 'both found';
 		}
 	},
@@ -168,7 +164,12 @@ const CHECKS: Check[] = [
 		claim:
 			'The token permission group names the (currently disabled) ephemeral deploy token needs all exist',
 		async run(ctx) {
-			const missing = await ctx.cf.missingDeployPermissionGroups();
+			// A login without the token scope cannot even list the groups; that is a SKIP, not a failure.
+			const missing = await ctx.cf.missingDeployPermissionGroups().catch((error: Error) => {
+				if (/lacks (the|a) permission/i.test(error.message))
+					throw new Skip(`scope not granted to this login (${error.message})`);
+				throw error;
+			});
 			if (missing.length > 0)
 				throw new Error(`not offered under these names: ${missing.join(', ')}`);
 			return 'every group name resolves';
@@ -275,12 +276,14 @@ const CHECKS: Check[] = [
 			'`wrangler d1 migrations list DB --remote -c wrangler.deploy.jsonc` accepts the binding name',
 		async run(ctx) {
 			if (!ctx.fs.exists(ctx.paths.deployConfigFile))
-				throw new Skip('no wrangler.deploy.jsonc yet; run a real setup first');
+				throw new Skip(
+					'no wrangler.deploy.jsonc yet, so the remote half cannot run (the local half, `npm run db:migrate:local` with binding DB, is already verified)'
+				);
 			await ctx.runner.text({
 				tool: 'wrangler',
 				args: ['d1', 'migrations', 'list', 'DB', '--remote', '-c', ctx.paths.deployConfigFile]
 			});
-			return 'accepted';
+			return 'remote accepts the binding name (local half already verified)';
 		}
 	}
 ];
@@ -299,7 +302,8 @@ const MANUAL_ITEMS = [
 
 export async function runSpike(
 	reporter: Reporter,
-	isVerbose: boolean
+	isVerbose: boolean,
+	nameFlag?: string
 ): Promise<{ findings: Finding[]; directory: string }> {
 	const paths = installPaths();
 	mkdirSync(paths.spikeDir, { recursive: true });
@@ -310,7 +314,12 @@ export async function runSpike(
 		isVerbose,
 		redactor
 	});
-	const state: SpikeState = { accountId: null, d1Id: null, workerName: null, lastResult: null };
+	const state: SpikeState = {
+		accountId: null,
+		d1Id: null,
+		names: resourceNames(LIVE_INSTALL_NAME),
+		lastResult: null
+	};
 	let sequence = 0;
 	const recording: Exec = async (request) => {
 		const result = await real(request);
@@ -338,7 +347,24 @@ export async function runSpike(
 		}
 		return result;
 	};
-	const ctx = createContext({ reporter, isVerbose, isReadOnly: true, exec: recording });
+	const ctx = createContext({
+		reporter,
+		isVerbose,
+		isReadOnly: true,
+		exec: recording,
+		onRawResponse(path, status, body) {
+			sequence += 1;
+			const slug = path.replace(/[^a-z0-9]+/gi, '_').slice(0, 60);
+			writeFileSync(
+				`${paths.spikeDir}/${String(sequence).padStart(2, '0')}-api-${slug}.json`,
+				JSON.stringify({ tool: 'api', path, status, body }, null, 2)
+			);
+		}
+	});
+	const installed = loadManifest(ctx.fs, ctx.paths.manifestFile);
+	state.names = resourceNames(
+		nameFlag ?? installed?.workerName ?? readDeployDefaults(ctx).workerName ?? LIVE_INSTALL_NAME
+	);
 	// The recording exec must be the one the context's runner uses; createContext honours `exec`.
 	const findings: Finding[] = [];
 	for (const check of CHECKS) {
@@ -357,5 +383,7 @@ export async function runSpike(
 	}
 	for (const item of MANUAL_ITEMS)
 		findings.push({ level: FINDING_LEVELS.warn, text: `MANUAL ${item}` });
+	// Kept on disk so nothing is lost when the terminal closes.
+	writeFileSync(`${paths.spikeDir}/summary.txt`, `${findings.map((f) => f.text).join('\n')}\n`);
 	return { findings, directory: paths.spikeDir };
 }

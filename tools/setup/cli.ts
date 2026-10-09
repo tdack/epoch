@@ -217,7 +217,7 @@ const DEFAULT_HANDLERS: Handlers = {
 		const flags = toFlags(raw);
 		await guarded(flags, async (ui) => {
 			ui.intro('Epoch setup spike');
-			const outcome = await runSpike(ui.reporter, flags.isVerbose);
+			const outcome = await runSpike(ui.reporter, flags.isVerbose, flags.name);
 			ui.showFindings(outcome.findings);
 			ui.outro(`Raw responses are in ${outcome.directory}. Send back the pass/fail list above.`);
 			return outcome;
@@ -273,6 +273,10 @@ export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 
 	program
 		.command('spike')
+		.option(
+			'--name <name>',
+			'whose resources to look for (default: the install here, then the deploy config, then epoch-genealogy)'
+		)
 		.description(
 			'Check the assumptions that need a real account, read-only, and save the raw responses under .epoch/spike'
 		)

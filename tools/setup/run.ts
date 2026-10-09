@@ -129,17 +129,21 @@ export function createExec(options: RealExecOptions): Exec {
  * One line a person can read, from a failed command's output. Order matters: the specific
  * Cloudflare conditions come before the generic network ones.
  */
-export function mapFailure(output: string): string {
+export function mapFailure(output: string, command?: string): string {
 	const text = output.trim();
+	// Permission comes before sign-in: a 403 (code 9109) is a valid login without the right scope, and
+	// its text also says "Unauthorized".
 	const rules: [RegExp, string][] = [
 		[/workers paid|paid plan|upgrade.*plan|requires.*paid/i, 'This needs a Workers Paid plan'],
 		[
-			/not logged in|not authenticated|unauthori[sz]ed|\b401\b|expired/i,
-			'Not signed in, or the sign-in has expired'
+			/\b403\b|forbidden|\b9109\b|scope|permission/i,
+			command
+				? `This login lacks the permission for \`${command}\``
+				: 'This login lacks a permission this step needs'
 		],
 		[
-			/scope|forbidden|\b403\b|not authori[sz]ed|permission/i,
-			'The sign-in lacks a permission this step needs'
+			/not logged in|not authenticated|unauthori[sz]ed|\b401\b|expired/i,
+			'Not signed in, or the sign-in has expired'
 		],
 		[
 			/rate limit|\b429\b|too many requests/i,
@@ -178,7 +182,7 @@ export function createRunner(exec: Exec, logPath?: string): Runner {
 		const result = await exec(request);
 		if (result.exitCode !== 0) {
 			throw new CommandError(
-				mapFailure(`${result.stderr}\n${result.stdout}`),
+				mapFailure(`${result.stderr}\n${result.stdout}`, describeCommand(request)),
 				describeCommand(request),
 				logPath
 			);

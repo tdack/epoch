@@ -17,6 +17,7 @@ import {
 	Line,
 	LineBasicMaterial,
 	Mesh,
+	Object3D,
 	Points,
 	PerspectiveCamera,
 	Raycaster,
@@ -32,7 +33,7 @@ import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
-import type { WebGlTreeScene } from './webgl-tree.js';
+import type { PickOptions, PickTarget, WebGlTreeScene } from './webgl-tree.js';
 import { RING_TOKENS } from './tree-tokens.js';
 
 /** How much of the canvas the framed content may fill, in clip space (1 is edge to edge). */
@@ -41,6 +42,21 @@ const FIELD_OF_VIEW_DEGREES = 42;
 const FAR_PLANE_UNITS = 5000;
 /** Halvings of the framing search; 40 narrows the far plane's range far below a pixel. */
 const FRAME_SEARCH_STEPS = 40;
+/**
+ * How near a pointer must come to a parent-child line to pick it, in CSS pixels either side of the
+ * line's centre. A fingertip is far less exact than a mouse, so coarse pointers get twice that.
+ */
+const LINE_PICK_RADIUS_PX = 6;
+const COARSE_LINE_PICK_RADIUS_PX = 12;
+/**
+ * Spheres and partnership markers are solid, so they win over lines; a line is picked only where
+ * no solid is under the pointer, because its pick band is several pixels wide and a click on a
+ * sphere that a line runs into must pick the sphere. Among solids under the pointer, the one whose
+ * centre is nearest the pointer on screen wins, not the one nearest the camera: a partnership's
+ * marker sits at its partners' midpoint, and a large star in front of it (the focus, or a partner
+ * orbiting past) would otherwise take every click aimed squarely at the marker.
+ */
+const PICK_PRIORITY: Record<PickTarget['kind'], number> = { person: 0, union: 0, link: 1 };
 
 /** Colour of a person's sphere or tube: by sex, with private people a plain neutral. */
 export function sexColour(person: RelationshipGraphPerson): string {
@@ -87,6 +103,20 @@ export interface ThreeStage {
 	 * vector is followed without calling this again.
 	 */
 	track(personId: string, position: Vector3, pickable: Mesh | null): void;
+	/**
+	 * Makes a partnership's marker pickable and projectable, like {@link ThreeStage.track}. Opt in:
+	 * a scene that never calls this has no pickable partnerships. `pickable` may be any object
+	 * (a group of meshes, an invisible proxy for a merged draw call), and null makes it unpickable,
+	 * as it must be when a private person is a partner.
+	 */
+	trackUnion(unionId: string, position: Vector3, pickable: Object3D | null): void;
+	/**
+	 * Makes a parent-child line pickable; `key` is the layout's `linkKey`. `anchor` is a point on the
+	 * line (its midpoint, say) where tests can find it, and `pickable` is the `Line2` from
+	 * {@link ThreeStage.thickLine}, or any proxy object when the line is merged into a larger draw.
+	 * Pass null when the child or a parent is private: such a line is never picked.
+	 */
+	trackLink(key: string, anchor: Vector3, pickable: Object3D | null): void;
 	/** A thin, single-pixel line; the rim of a disc, say. */
 	hairline(points: Vector3[], colour: string, opacity: number): Line;
 	/**
@@ -146,7 +176,8 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 	let world = new Group();
 	scene.add(world);
 	const positions = new Map<string, Vector3>();
-	const pickables = new Map<string, Mesh>();
+	/** Keyed by `kind:id`, so a person, a partnership and a line never collide. */
+	const pickables = new Map<string, Object3D>();
 	const frameCallbacks: Array<() => void> = [];
 	const animators: Array<(timeMs: number) => boolean> = [];
 	let isDirty = true;
@@ -204,24 +235,54 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 
 	const raycaster = new Raycaster();
 	const pointer = new Vector2();
-	/** The person under a viewport point, or null. Private people are never picked. */
-	function pick(clientX: number, clientY: number): string | null {
+	const targetOf = (object: Object3D | null): PickTarget | null => {
+		for (let node = object; node; node = node.parent)
+			if (node.userData.pick) return node.userData.pick as PickTarget;
+		return null;
+	};
+	/**
+	 * What is under a viewport point, or null: the nearest sphere or partnership marker, else a line. Private people are never picked. The
+	 * order matters because a line's pick band is several pixels wide, and clicking a sphere that a
+	 * line runs into must pick the sphere.
+	 */
+	function pick(clientX: number, clientY: number, options: PickOptions = {}): PickTarget | null {
 		const rect = renderer.domElement.getBoundingClientRect();
 		pointer.set(
 			((clientX - rect.left) / rect.width) * 2 - 1,
 			-((clientY - rect.top) / rect.height) * 2 + 1
 		);
 		raycaster.setFromCamera(pointer, camera);
-		const hit = raycaster
-			.intersectObjects([...pickables.values()], false)
-			.find((h) => h.object.userData.personId !== undefined);
-		return hit ? (hit.object.userData.personId as string) : null;
+		// Line2 reads its threshold as extra width in pixels, of which half falls either side.
+		raycaster.params.Line2 = {
+			threshold: 2 * (options.isCoarse ? COARSE_LINE_PICK_RADIUS_PX : LINE_PICK_RADIUS_PX)
+		};
+		const pointerX = clientX - rect.left;
+		const pointerY = clientY - rect.top;
+		/** Screen distance from the pointer to the target's centre; depth breaks ties for lines. */
+		const offsetOf = (target: PickTarget, depth: number) => {
+			if (target.kind === 'link') return depth;
+			const at = project(target);
+			return at ? Math.hypot(at.x - pointerX, at.y - pointerY) : Number.POSITIVE_INFINITY;
+		};
+		let best: { target: PickTarget; offset: number } | null = null;
+		for (const hit of raycaster.intersectObjects([...pickables.values()], true)) {
+			const target = targetOf(hit.object);
+			if (!target) continue;
+			const offset = offsetOf(target, hit.distance);
+			if (
+				!best ||
+				PICK_PRIORITY[target.kind] < PICK_PRIORITY[best.target.kind] ||
+				(PICK_PRIORITY[target.kind] === PICK_PRIORITY[best.target.kind] && offset < best.offset)
+			)
+				best = { target, offset };
+		}
+		return best?.target ?? null;
 	}
 
 	const projected = new Vector3();
 	/** Where a person lands in the canvas, in CSS pixels; null when behind the camera or off it. */
-	function project(personId: string): { x: number; y: number } | null {
-		const position = positions.get(personId);
+	function project(target: PickTarget): { x: number; y: number } | null {
+		const position = positions.get(`${target.kind}:${target.id}`);
 		if (!position) return null;
 		projected.copy(position).project(camera);
 		if (projected.z > 1 || Math.abs(projected.x) > 1.05 || Math.abs(projected.y) > 1.05)
@@ -275,6 +336,11 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 		},
 		pick,
 		project,
+		targets() {
+			return [...pickables.values()]
+				.map((object) => object.userData.pick as PickTarget)
+				.filter((target) => target.kind !== 'person');
+		},
 		onFrame(callback) {
 			frameCallbacks.push(callback);
 		},
@@ -307,10 +373,24 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 			return geometry;
 		},
 		track(personId, position, mesh) {
-			positions.set(personId, position);
+			positions.set(`person:${personId}`, position);
 			if (mesh) {
-				mesh.userData.personId = personId;
-				pickables.set(personId, mesh);
+				mesh.userData.pick = { kind: 'person', id: personId } satisfies PickTarget;
+				pickables.set(`person:${personId}`, mesh);
+			}
+		},
+		trackUnion(unionId, position, object) {
+			positions.set(`union:${unionId}`, position);
+			if (object) {
+				object.userData.pick = { kind: 'union', id: unionId } satisfies PickTarget;
+				pickables.set(`union:${unionId}`, object);
+			}
+		},
+		trackLink(key, anchor, object) {
+			positions.set(`link:${key}`, anchor);
+			if (object) {
+				object.userData.pick = { kind: 'link', id: key } satisfies PickTarget;
+				pickables.set(`link:${key}`, object);
 			}
 		},
 		hairline(points, colour, opacity) {

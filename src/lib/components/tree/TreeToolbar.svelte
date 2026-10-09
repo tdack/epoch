@@ -185,7 +185,7 @@
 			type="button"
 			class={stepClass}
 			aria-label="Fewer {name.toLowerCase()} generations"
-			disabled={view[field] <= 0}
+			disabled={view.isWholeTree || view[field] <= 0}
 			onclick={() => setDepth(field, view[field] - 1)}
 		>
 			<Minus class="h-3.5 w-3.5" />
@@ -197,7 +197,7 @@
 			type="button"
 			class={stepClass}
 			aria-label="More {name.toLowerCase()} generations"
-			disabled={view[field] >= MAX_DEPTH}
+			disabled={view.isWholeTree || view[field] >= MAX_DEPTH}
 			onclick={() => setDepth(field, view[field] + 1)}
 		>
 			<Plus class="h-3.5 w-3.5" />
@@ -363,6 +363,7 @@
 				<h3 class={headingClass}>Generations</h3>
 				{@render stepper('Ancestors', 'ancestorDepth')}
 				{@render stepper('Descendants', 'descendantDepth')}
+				{#if view.isWholeTree}<p class={hintClass}>The whole tree shows every generation.</p>{/if}
 			</section>
 		{/if}
 
@@ -576,6 +577,8 @@
 				<span class={captionClass}>Generations</span>
 				{@render stepper('Ancestors', 'ancestorDepth')}
 				{@render stepper('Descendants', 'descendantDepth')}
+				{#if view.isWholeTree}<span class={hintClass}>The whole tree shows every generation.</span
+					>{/if}
 			</div>
 		</div>
 	{/if}

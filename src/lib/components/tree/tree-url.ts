@@ -52,6 +52,13 @@ export interface TreeViewState {
 	 * changes what is fetched, and a new focus person starts again from their first.
 	 */
 	unionId: string | null;
+	/**
+	 * Draw everyone the viewer may see, anchored to no one (`scope=all`). Only the WebGL views have
+	 * it: a link naming it with Flat, or leaving for Flat, drops it. While it is set `focus` stays in
+	 * the address (leaving returns there) but, with the depths and the wider groups, no longer
+	 * changes what is fetched.
+	 */
+	isWholeTree: boolean;
 	/** Stubs the user opened, as compact tokens (see `compactStubId`); resolved against the graph by the page. */
 	expandedStubs: string[];
 }
@@ -90,6 +97,7 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 	types: [...ALL_PARENT_CHILD_TYPES],
 	layoutMode: LAYOUT_MODES.FLAT,
 	unionId: null,
+	isWholeTree: false,
 	expandedStubs: []
 };
 
@@ -138,6 +146,7 @@ export function parseViewState(
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		layoutMode,
 		unionId: params.get('union') || null,
+		isWholeTree: params.get('scope') === 'all' && VIEW_MODE_TRAITS[layoutMode].isWebGl,
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
 }
@@ -183,6 +192,7 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	// address has to say what this view is for a reload, Back and a shared link to land the same.
 	params.set('mode', state.layoutMode);
 	if (state.unionId) params.set('union', state.unionId);
+	if (state.isWholeTree && VIEW_MODE_TRAITS[state.layoutMode].isWebGl) params.set('scope', 'all');
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }
