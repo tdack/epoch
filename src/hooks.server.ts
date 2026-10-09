@@ -9,7 +9,9 @@ import {
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
-import { signedOutRedirect } from '#lib/server/auth/public-routes.js';
+import { notAdmittedOutcome, signedOutRedirect } from '#lib/server/auth/public-routes.js';
+import { NotAdmittedError } from '#lib/server/domain/errors.js';
+import { errorResponse } from '#lib/server/http/error-response.js';
 import {
 	isSchemaCurrent,
 	SCHEMA_NOT_MIGRATED_CODE,
@@ -17,10 +19,14 @@ import {
 } from '#lib/server/db/schema-status.js';
 import { Logger } from '#lib/server/logging/logger.js';
 
+/** Who the dev bypass is without `x-dev-user-*`, and the install owner on a local database with no `install_meta` row. */
+const DEV_BYPASS_EMAIL = 'developer@epoch.local';
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const correlationId = event.request.headers.get('x-correlation-id') || crypto.randomUUID();
 	event.locals.correlationId = correlationId;
 	event.locals.user = null;
+	event.locals.notAdmitted = null;
 
 	const bindings = getPlatformBindings();
 
@@ -75,6 +81,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
+	// Only the bypass may stand in for setup: anywhere else, an install with no owner recorded admits
+	// members and invitees only, never whoever signs in first (ADR-034).
+	const fallbackOwnerEmail = allowDevBypass ? DEV_BYPASS_EMAIL : null;
+
 	if (token) {
 		try {
 			const validated = await validateAccessJwt(token, {
@@ -83,11 +93,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 				allowDevBypass
 			});
 
-			event.locals.user = await resolveUser(
-				bindings.DB,
-				validated,
-				validated.id || crypto.randomUUID()
-			);
+			const admission = await resolveUser(bindings.DB, validated, {
+				fallbackId: validated.id || crypto.randomUUID(),
+				fallbackOwnerEmail
+			});
+			event.locals.user = admission.user;
+			event.locals.notAdmitted = admission.notAdmitted;
 		} catch (err: unknown) {
 			hasInvalidToken = true;
 			requestLogger.warn('Cloudflare Access token validation failed', {
@@ -101,14 +112,37 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// the same user on the server render as in the browser. Reachable only with the bypass on.
 		const devValue = (name: string) => event.request.headers.get(name) || event.cookies.get(name);
 		const devSub = devValue('x-dev-user-sub') || 'dev-local-user';
-		const devEmail = devValue('x-dev-user-email') || 'developer@epoch.local';
+		const devEmail = devValue('x-dev-user-email') || DEV_BYPASS_EMAIL;
 		const devName = devValue('x-dev-user-name') || 'Local Developer';
 
-		event.locals.user = await resolveUser(
+		const admission = await resolveUser(
 			bindings.DB,
 			{ accessSub: devSub, email: devEmail, name: devName },
-			'dev-user-id'
+			{ fallbackId: 'dev-user-id', fallbackOwnerEmail }
 		);
+		event.locals.user = admission.user;
+		event.locals.notAdmitted = admission.notAdmitted;
+	}
+
+	// Someone Access named but Epoch does not admit has no user, so nothing past here would serve
+	// them anyway; this says so plainly, before the signed-out rules would send a page load to the
+	// splash and an API call to a 401 that invites signing in again.
+	const turnAway = notAdmittedOutcome({
+		pathname: event.url.pathname,
+		method: event.request.method,
+		isDataRequest: event.isDataRequest,
+		isNotAdmitted: event.locals.notAdmitted !== null
+	});
+	if (turnAway?.status === 303) {
+		return new Response(null, {
+			status: 303,
+			headers: { location: turnAway.location, 'x-correlation-id': correlationId }
+		});
+	}
+	if (turnAway?.status === 403) {
+		const refusal = errorResponse(new NotAdmittedError(), 'Not admitted');
+		refusal.headers.set('x-correlation-id', correlationId);
+		return refusal;
 	}
 
 	// Only `/login` sits behind Access, so every other path reaches the Worker signed out and this
