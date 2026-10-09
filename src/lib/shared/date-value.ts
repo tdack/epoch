@@ -267,7 +267,9 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 		else if (prefix === 'CAL' || prefix === 'CALCULATED') qualifier = DATE_QUALIFIERS.CALCULATED;
 		else if (prefix === 'BEF' || prefix === 'BEFORE') qualifier = DATE_QUALIFIERS.BEFORE;
 		else if (prefix === 'AFT' || prefix === 'AFTER') qualifier = DATE_QUALIFIERS.AFTER;
-		// INT (interpreted) is a real date; treat as exact.
+		// INT (interpreted) is a real date; treat as exact. Its phrase follows in parentheses and
+		// does not sort; a 7.0 import stores a dated `PHRASE` this way.
+		else dateBody = dateBody.replace(/\s*\(.*\)$/, '');
 	}
 
 	const parts = parseDateParts(dateBody);

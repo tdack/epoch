@@ -1,5 +1,8 @@
+import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 import { fieldLines, keptLines } from './evidence-lines';
 import {
+	DEFAULT_GEDCOM_FORMAT,
+	EXTENSION_TAG_URIS,
 	FAMILY_ALIAS_REFN_TYPE,
 	type GedcomFormat,
 	LEGACY_MARRIED_NAME_TAG,
@@ -572,15 +575,17 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 
 	// Trailer
 	lines.push('0 TRLR');
-	return lines.join('\r\n') + '\r\n';
+	return toGedcom551Lines(lines).join('\r\n') + '\r\n';
 }
 
 /**
  * Builds GEDCOM 7.0 text output.
  *
  * GEDCOM 7 differences honored here: `GEDC.VERS` is `7.0`, the header omits
- * `CHAR` (UTF-8 is mandatory) and uses the `SCHMA` tag, and `SEX` permits the
- * `X` (non-binary) value. Records and structure otherwise mirror 5.5.1.
+ * `CHAR` (UTF-8 is mandatory) and documents Epoch's extension tags in `SCHMA`,
+ * and `SEX` permits the `X` (non-binary) value. Records and structure otherwise
+ * mirror 5.5.1; `toGedcom7Lines` then converts what 7.0 changed at the line
+ * level (`CONC`, dates, `@` escaping), in kept lines as much as built ones.
  */
 export function buildGedcom7String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
@@ -590,9 +595,6 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	lines.push('0 HEAD');
 	lines.push('1 GEDC');
 	lines.push('2 VERS 7.0');
-	lines.push('1 SCHMA');
-	lines.push('2 TAG FAM');
-	lines.push('2 TAG INDI');
 	lines.push('1 SOUR EPOCH_GENEALOGY');
 	lines.push('2 VERS 1.0');
 	if (data.treeName) {
@@ -665,7 +667,21 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
 	// Trailer
 	lines.push('0 TRLR');
-	return lines.join('\r\n') + '\r\n';
+	const converted = toGedcom7Lines(lines);
+	// After `GEDC`, which is lines 1 and 2.
+	converted.splice(3, 0, ...schemaLines(converted));
+	return converted.join('\r\n') + '\r\n';
+}
+
+/** `SCHMA` for the extension tags Epoch defines that these lines use; none when they use none. */
+function schemaLines(lines: readonly string[]): string[] {
+	const used = new Set<string>();
+	for (const line of lines) {
+		const tag = line.match(/^\d+ (?:@[^@\s]+@ )?(_\S+)/)?.[1];
+		if (tag && EXTENSION_TAG_URIS[tag]) used.add(tag);
+	}
+	if (used.size === 0) return [];
+	return ['1 SCHMA', ...[...used].sort().map((tag) => `2 TAG ${tag} ${EXTENSION_TAG_URIS[tag]}`)];
 }
 
 /**
@@ -673,7 +689,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
  */
 export function buildGedcomString(
 	data: GedcomExportPayload,
-	format: GedcomFormat = 'gedcom551'
+	format: GedcomFormat = DEFAULT_GEDCOM_FORMAT
 ): string {
 	return format === 'gedcom7' ? buildGedcom7String(data) : buildGedcom551String(data);
 }
