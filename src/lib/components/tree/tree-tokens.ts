@@ -163,3 +163,30 @@ export const ORRERY_TOKENS = {
 	pulseSeconds: 4,
 	accretionOpacity: 0.2
 } as const;
+
+/**
+ * Colours shared by every WebGL view's highlights (trace mode, partnership and line selection).
+ * Sex colours belong to the spheres, so none of these is pink, blue or grey: a highlight shows as
+ * halos and line colours, never as a sex. The trace palette follows the Okabe-Ito set, which stays
+ * apart for the common colour-vision differences, and every entry reads on both the cream stage
+ * and the dark ones.
+ */
+export const HIGHLIGHT_TOKENS = {
+	/** One per traced item, in the order items were added. */
+	trace: ['#e69f00', '#00a57a', '#d55e00', '#f0e442', '#7b5fd1', '#2f6fd0'],
+	/** Where two or more traced paths meet. */
+	intersection: '#c026d3',
+	/** The focus line, which stays what it has always been. */
+	focus: {
+		ancestor: RING_TOKENS.ancestor,
+		descendant: RING_TOKENS.descendant,
+		partner: RING_TOKENS.partner
+	},
+	/** The partnership selected, and what is downstream of a selected line or partnership. */
+	descendant: RING_TOKENS.descendant,
+	/** What is upstream of a selected line, which has no partner of its own to take a colour from. */
+	ancestor: RING_TOKENS.ancestor,
+	partner: RING_TOKENS.partner,
+	/** Opacity of a `soft` mark (the upstream path) as a fraction of a `full` one. */
+	softOpacity: 0.5
+} as const;
