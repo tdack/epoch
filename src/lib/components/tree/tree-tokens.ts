@@ -81,15 +81,26 @@ export const RING_FADE = { person: 0.4, line: 0.35, disc: 0.22, rim: 0.6 } as co
  * Owned by the Ball view alone: it adds its colours and sizes here, and no other view edits this block.
  */
 export const POINCARE_TOKENS = {
-	stage: TREE_TOKENS['--tree-bg'],
+	// Dark like Ribbons and Orrery: the glass is a faint blue veil there, where on cream it was a
+	// bright blue shell that outshone the people inside it.
+	stage: '#10141f',
 	/** The glass shell and the fresnel rim that brightens its edge. */
 	glass: '#6f8fae',
-	glassOpacity: { base: 0.05, rim: 0.42 },
+	glassOpacity: { base: 0.012, rim: 0.14 },
 	/** Latitude rings and the time axis, drawn as hairlines. */
-	latitude: '#8f9aa6',
-	latitudeOpacity: { decade: 0.2, major: 0.5, axis: 0.35 },
+	latitude: '#8aa0bd',
+	latitudeOpacity: { decade: 0.14, major: 0.38, axis: 0.28 },
 	/** Calendar years on the rings: real years, never anyone's estimated era. */
-	yearInk: '#57534e'
+	yearInk: '#b6c3d6',
+	/** The focus halo: light, where RING_TOKENS.focus is dark ink that would vanish on this stage. */
+	focus: '#f4eedc',
+	/** Parent-child and partnership lines that nothing lights. */
+	line: '#7886a3',
+	/** Width in CSS pixels of a line on two or more traced paths, one step above a lit line. */
+	sharedLinePx: 4.5,
+	/** A mark's halo is a ring this many sphere radii across; a shared mark adds a second one. */
+	haloScale: 2.9,
+	sharedHaloScale: 4.1
 } as const;
 
 /** Line widths on the rings, in CSS pixels: the focus line, and everyone else's. */
