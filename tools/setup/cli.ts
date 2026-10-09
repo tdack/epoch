@@ -288,7 +288,8 @@ async function runDefault(raw: RawOptions): Promise<void> {
 		const ctx = createContext({
 			reporter: ui.reporter,
 			isVerbose: flags.isVerbose,
-			isReadOnly: flags.isPlanOnly
+			isReadOnly: flags.isPlanOnly,
+			deployAuth: flags.deployAuth
 		});
 		// A signal skips `finally`, so the deploy token's deletion also hangs off the signal handlers.
 		for (const signal of ['SIGINT', 'SIGTERM'] as const) {

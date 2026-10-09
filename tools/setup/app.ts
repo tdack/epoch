@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createCloudflareApi, type RawGet } from './cloudflare.ts';
+import { ERROR_CODES, SetupError } from './errors.ts';
 import { readEnvToken } from './env-token.ts';
 import {
 	createCleanup,
@@ -27,6 +28,8 @@ interface AppOptions {
 	isReadOnly: boolean;
 	root?: string;
 	exec?: Exec;
+	/** `--deploy-auth`. Ephemeral has no credential for the Workers reads that reconcile needs before deploy. */
+	deployAuth?: string;
 }
 
 /** Wires the real world to the steps. Tests build a `StepContext` by hand instead. */
@@ -48,6 +51,13 @@ export function createContext(options: AppOptions): StepContext & {
 	// credential is in use: the environment token, else the wrangler profile's.
 	let cachedToken: string | null = null;
 	const rawGet: RawGet = async (path) => {
+		if (options.deployAuth === 'ephemeral') {
+			throw new SetupError(
+				ERROR_CODES.usage,
+				'--deploy-auth=ephemeral has no credential to read Workers with before the deploy',
+				{ flag: '--deploy-auth', hint: 'Use the default, a wrangler profile.' }
+			);
+		}
 		if (cachedToken === null) {
 			cachedToken =
 				readEnvToken(process.env, realFileSystem, paths.envFile) ??
