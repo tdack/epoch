@@ -1,6 +1,6 @@
 # Plan: `npm run setup`, a CLI that installs Epoch into a Cloudflare account
 
-Status: **Planned.** Nothing here is built. Research done 2026-10-08 against `cf` 1.0.0-beta.13
+Status: **Built, not yet run against a real account.** The tool is in `tools/setup/`; the "Built" section at the end lists where it differs from this plan. Every claim marked *(spike)* is still open until `npm run setup -- spike` has been run. Research done 2026-10-08 against `cf` 1.0.0-beta.13
 and wrangler 4.148.0. Every claim marked *(spike)* was read from docs or the tools' source but not
 run against a real account; step 0 checks them before any code is written.
 
@@ -637,3 +637,15 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
   and saves each raw response under `.epoch/spike/` for replacing the synthesized fixtures.
 - Extra flags beyond the plan: `--r2-location`, `--r2-jurisdiction`, `--email-sender`,
   `--owner-email`.
+- **Worker name, hosting, existing Worker, template** (the later scope change) are all implemented as
+  steps 1, 3, 4 and 8 describe. `--name` replaces `--slug`; `--hosting workers-dev|custom` and
+  `--keep-workers-dev` are new. The manifest still calls the name `workerName`.
+- **Adopt is only offered when the Worker's own database is the one this install would use**; a Worker
+  bound to another D1 can be renamed away from or replaced. Replace does not record the Worker as
+  ours, so its AUD secret is not inherited.
+- **Choosing another name** after a taken one overwrites the empty record of the abandoned name; once
+  anything has been created, a different name is "a second install in one checkout" and is refused.
+- **The build-field agreement check** runs the deploy-config-split session's
+  `scripts/deploy-config.mjs`, not a copy.
+- **New `cf`/API calls for the spike:** `GET /accounts/{id}/workers/subdomain` (raw API, no `cf`
+  command exists); the check is `workers-subdomain`.

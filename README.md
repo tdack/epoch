@@ -32,9 +32,9 @@ npm run setup             # sign in, create the resources, the Access applicatio
 
 Setup signs in through your browser (no API token to create), asks only what it cannot discover, and
 proves that any resource it finds by name belongs to this install before using it. It assumes your
-account already has a paid Workers plan, a Zero Trust organisation with an identity provider, and an
-active domain; it never creates those. Everything else it needs is the D1 database, R2 bucket, queue
-and Worker, one custom domain, and one Access application on `<host>/login` with an Allow policy
+account already has a paid Workers plan and a Zero Trust organisation with an identity provider, and
+somewhere to serve from (a workers.dev subdomain, or an active domain); it never creates those. Everything else it needs is the D1 database, R2 bucket, queue
+and Worker, a workers.dev URL or one custom domain, and one Access application on `<host>/login` with an Allow policy
 (chosen from your existing ones, or a new one for your email). It never edits a policy it did not
 create.
 
