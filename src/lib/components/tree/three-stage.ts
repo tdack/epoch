@@ -48,8 +48,12 @@ const FRAME_SEARCH_STEPS = 40;
  */
 const LINE_PICK_RADIUS_PX = 6;
 const COARSE_LINE_PICK_RADIUS_PX = 12;
-/** Who wins when one point is over several things: a sphere, then a partnership's marker, then a line. */
-const PICK_PRIORITY: Record<PickTarget['kind'], number> = { person: 0, union: 1, link: 2 };
+/**
+ * Spheres and partnership markers are solid, so the nearer wins; a line is picked only where no
+ * solid is under the pointer, because its pick band is several pixels wide and a click on a sphere
+ * that a line runs into must pick the sphere.
+ */
+const PICK_PRIORITY: Record<PickTarget['kind'], number> = { person: 0, union: 0, link: 1 };
 
 /** Colour of a person's sphere or tube: by sex, with private people a plain neutral. */
 export function sexColour(person: RelationshipGraphPerson): string {
@@ -234,8 +238,7 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 		return null;
 	};
 	/**
-	 * What is under a viewport point, or null: a person's sphere, else a partnership's marker, else
-	 * a line, whatever is nearer the camera within each kind. Private people are never picked. The
+	 * What is under a viewport point, or null: the nearest sphere or partnership marker, else a line. Private people are never picked. The
 	 * order matters because a line's pick band is several pixels wide, and clicking a sphere that a
 	 * line runs into must pick the sphere.
 	 */

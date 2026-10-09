@@ -160,7 +160,11 @@
 		clearedKin = kin;
 	}
 	const labelOf = (source: HighlightSource) => sourceLabel(kin, source);
-	const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+	/** "the partnership of A and B" as a title: "Partnership of A and B". */
+	const capitalised = (text: string) => {
+		const bare = text.replace(/^the /, '');
+		return bare.charAt(0).toUpperCase() + bare.slice(1);
+	};
 	function sourceFor(target: PickTarget): HighlightSource {
 		if (target.kind === 'person') return { kind: 'person', personId: target.id };
 		if (target.kind === 'union')
@@ -687,9 +691,9 @@
 				{#if notice}<span class="px-1 font-medium text-stone-900" role="status">{notice}</span>{/if}
 			</div>
 		{/if}
-		<div class="flex flex-wrap items-end justify-between gap-2">
+		<div class="flex flex-wrap items-end justify-between gap-2 sm:flex-nowrap">
 			<div
-				class="pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] p-1.5 text-xs shadow-md"
+				class="pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] p-1.5 text-xs shadow-md sm:shrink-0"
 			>
 				<div class="flex items-center gap-1" role="group" aria-label="Camera">
 					{#each cameras as option (option.id)}
@@ -747,7 +751,7 @@
 				{@render controls?.()}
 			</div>
 			<p
-				class="hidden rounded-full border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] px-3 py-1 text-xs text-stone-600 shadow-sm sm:block"
+				class="hidden min-w-0 truncate rounded-full border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] px-3 py-1 text-xs text-stone-600 shadow-sm sm:block"
 			>
 				{isTracing
 					? 'Trace: click people, partnerships or lines to add or remove them · Esc ends the trace'

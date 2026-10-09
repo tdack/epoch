@@ -245,18 +245,24 @@ export function computeHighlight(
 	}
 
 	/** Marks everything downstream of these lines (and of the people who are their parents). */
-	function walkDown(seedLinks: KinLink[], walker: number, isFocus: boolean) {
+	function walkDown(
+		seedLinks: KinLink[],
+		walker: number,
+		isFocus: boolean,
+		shouldMarkSeedUnions = true
+	) {
 		const colour = walkers[walker].colour;
 		const seenLinks = new Set<string>();
 		const seenPeople = new Set<string>();
 		const stack = [...seedLinks];
+		const seedKeys = new Set(seedLinks.map(linkKey));
 		while (stack.length > 0) {
 			const link = stack.pop()!;
 			const key = linkKey(link);
 			if (seenLinks.has(key) || graph.isPrivate(link.childId)) continue;
 			seenLinks.add(key);
 			add(links, key, { walker, kind: 'descendant', strength: 'full', colour });
-			if (link.fromUnionId !== null && !isFocus)
+			if (link.fromUnionId !== null && !isFocus && (shouldMarkSeedUnions || !seedKeys.has(key)))
 				add(unions, link.fromUnionId, { walker, kind: 'descendant', strength: 'full', colour });
 			if (seenPeople.has(link.childId)) continue;
 			seenPeople.add(link.childId);
@@ -379,7 +385,8 @@ export function computeHighlight(
 					});
 					walkUp(parentId, up, 'soft', false);
 				}
-				walkDown([link], down, false);
+				// The line's own partnership is upstream of it, already marked by the upward walk.
+				walkDown([link], down, false, false);
 				break;
 			}
 		}

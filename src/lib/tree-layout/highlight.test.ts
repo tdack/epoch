@@ -112,6 +112,16 @@ describe('a parent-child line', () => {
 	const kin = kinOf();
 	const key = linkKey(kin.childLinks.find((l) => l.childId === 'K1')!);
 
+	it('marks its own partnership once, as upstream, so it is not shared with itself', () => {
+		const h = computeHighlight(kin, [{ kind: 'link', key }]);
+		const union = kin.childLinks.find((l) => l.childId === 'K1')!.fromUnionId!;
+		expect(h.unions.get(union)).toMatchObject({
+			kind: 'ancestor',
+			strength: 'soft',
+			isShared: false
+		});
+	});
+
 	it('is full downstream and soft upstream', () => {
 		const h = computeHighlight(kin, [{ kind: 'link', key }]);
 		expect(h.links.get(key)).toMatchObject({ kind: 'self', strength: 'full' });

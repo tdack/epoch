@@ -213,8 +213,7 @@ export interface WebGlTreeScene {
 	setCamera(presetId: string): void;
 	setSpinning(isSpinning: boolean): void;
 	/**
-	 * What is under a viewport point, or null: a person first, then a partnership marker, then a
-	 * line. Private people are never picked. `isCoarse` widens the line's pick band for a finger.
+	 * What is under a viewport point, or null: the nearest person or partnership marker, else a line. Private people are never picked. `isCoarse` widens the line's pick band for a finger.
 	 */
 	pick(clientX: number, clientY: number, options?: PickOptions): PickTarget | null;
 	/** Where a tracked person, partnership or line lands in the canvas, in CSS pixels; null when behind the camera or off it. */
