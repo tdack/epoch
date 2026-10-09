@@ -6,9 +6,12 @@ import {
 	ringLineage,
 	RING_MIN_RADIUS_UNITS,
 	RING_SLOT_UNITS,
+	separate,
+	type Arc,
 	type RingsLayout
 } from './rings';
 import { selectFocusSubgraph } from './select';
+import { selectWholeTree } from './whole-tree';
 import { allTestGraphs, makeGraph } from './test-support';
 import type { FocusViewOptions } from './types';
 
@@ -212,5 +215,89 @@ describe('circularMean', () => {
 	it('is null when the angles cancel out', () => {
 		expect(circularMean([0, Math.PI])).toBeNull();
 		expect(circularMean([])).toBeNull();
+	});
+});
+
+describe('separate', () => {
+	const arc = (want: number, members: number): Arc => ({
+		members: Array.from({ length: members }, (_, i) => `${want}:${i}`),
+		want,
+		at: want,
+		span: members * 0.1
+	});
+	const gaps = (arcs: Arc[]) =>
+		arcs.map((a, i) => {
+			const b = arcs[(i + 1) % arcs.length];
+			return b.at - a.at + (i === arcs.length - 1 ? TAU : 0) - (a.span + b.span) / 2;
+		});
+
+	it('leaves arcs that already fit exactly where they want to be', () => {
+		const arcs = [arc(1, 2), arc(3, 2), arc(5, 2)];
+		separate(arcs);
+		expect(arcs.map((a) => a.at)).toEqual([1, 3, 5]);
+	});
+
+	it('spreads a pile of arcs wanting one spot, centred on it', () => {
+		const arcs = Array.from({ length: 5 }, () => arc(2, 1));
+		separate(arcs);
+		for (const gap of gaps(arcs)) expect(gap).toBeGreaterThanOrEqual(-1e-9);
+		expect(arcs.reduce((sum, a) => sum + a.at, 0) / 5).toBeCloseTo(2, 5);
+	});
+
+	it('packs a ring that has no room to spare, across the seam too', () => {
+		// 62 arcs of 0.1 nearly fill the circle (6.2 of 2π), all wanting to sit in one half of it.
+		const arcs = Array.from({ length: 62 }, (_, i) => arc((i / 62) * Math.PI, 1));
+		separate(arcs);
+		for (const gap of gaps(arcs)) expect(gap).toBeGreaterThanOrEqual(-1e-6);
+	});
+});
+
+describe('layoutRings of the whole tree', () => {
+	for (const { name, graph } of allTestGraphs()) {
+		it(`${name}: draws everyone once, nobody is the focus, nobody crowds`, () => {
+			const layout = layoutRings(graph, null, {}, buildIndex(graph), selectWholeTree(graph));
+			expect(layout.focusPersonId).toBeNull();
+			expect(layout.people.map((p) => p.id).sort()).toEqual(graph.people.map((p) => p.id).sort());
+			expect(crowding(layout)).toEqual([]);
+		});
+	}
+
+	/** A dynasty of `count` cousins on each of six rows, every row marrying out of the next. */
+	function wide(count: number) {
+		const people: string[] = [];
+		const unions: Array<{ id: string; partners: string[]; children: string[] }> = [];
+		let previous: string[] = [];
+		for (let row = 0; row < 6; row++) {
+			const current: string[] = [];
+			for (let i = 0; i < count; i++) current.push(`r${row}-${i}`);
+			people.push(...current);
+			// Pairs on the previous row each have a few children on this one.
+			const perPair = Math.ceil(count / Math.max(1, previous.length / 2));
+			for (let i = 0; i + 1 < previous.length; i += 2)
+				unions.push({
+					id: `u${row}-${i}`,
+					partners: [previous[i], previous[i + 1]],
+					children: current.slice((i / 2) * perPair, (i / 2 + 1) * perPair)
+				});
+			previous = current;
+		}
+		return makeGraph({ people, unions });
+	}
+
+	it('stays quick and uncrowded at 3,000 people', () => {
+		const graph = wide(500);
+		const index = buildIndex(graph);
+		const selection = selectWholeTree(graph);
+		let best = Infinity;
+		let layout = layoutRings(graph, null, {}, index, selection);
+		for (let i = 0; i < 3; i++) {
+			const started = performance.now();
+			layout = layoutRings(graph, null, {}, index, selection);
+			best = Math.min(best, performance.now() - started);
+		}
+		expect(layout.people).toHaveLength(3000);
+		expect(crowding(layout)).toEqual([]);
+		// Measured at about 20 ms; the margin is for a loaded CI machine, not a slow layout.
+		expect(best).toBeLessThan(100);
 	});
 });

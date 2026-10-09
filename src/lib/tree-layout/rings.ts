@@ -118,6 +118,7 @@ function households(
 	const seen = new Set<string>();
 	const result: string[][] = [];
 	const onRing = (id: string, generation: number) => generationOf.get(id) === generation;
+	const order = new Map(members.map((id, i) => [id, i]));
 	for (const start of members) {
 		if (seen.has(start)) continue;
 		const generation = generationOf.get(start)!;
@@ -133,9 +134,9 @@ function households(
 		}
 		// Walk the chain from an end (the member with fewest partners on this ring), keeping the
 		// selection's order between equals so the result is deterministic.
-		const order = new Map(members.map((id, i) => [id, i]));
+		const inComponent = new Set(component);
 		const degree = (id: string) =>
-			(partnersOf.get(id) ?? []).filter((o) => component.includes(o)).length;
+			(partnersOf.get(id) ?? []).filter((o) => inComponent.has(o)).length;
 		const byEnd = [...component].sort(
 			(a, b) => degree(a) - degree(b) || order.get(a)! - order.get(b)!
 		);
@@ -144,7 +145,7 @@ function households(
 		while (current !== undefined && !chain.includes(current)) {
 			chain.push(current);
 			current = (partnersOf.get(current) ?? []).find(
-				(o) => component.includes(o) && !chain.includes(o)
+				(o) => inComponent.has(o) && !chain.includes(o)
 			);
 		}
 		// A partnership triangle cannot be a chain; whoever is left joins the end.
@@ -154,7 +155,7 @@ function households(
 	return result;
 }
 
-interface Arc {
+export interface Arc {
 	members: string[];
 	want: number;
 	at: number;
@@ -162,21 +163,74 @@ interface Arc {
 }
 
 /**
- * Pushes neighbouring arcs apart until none overlap, keeping each as close to where it wants to be
- * as the others allow. The ring's radius already fits everyone, so this always settles; the sweep
- * cap only guards against float dust.
+ * Moves arcs apart until none overlap, each as close to where it wants to be as the others allow.
+ * `arcs` must be sorted by `want`; it comes back in ring order, starting after the widest slack.
+ *
+ * The line is solved exactly (pool-adjacent-violators on the shifted wants) and the seam where the
+ * ring closes is then relaxed by sweeps. Sweeps alone move an arc half an overlap per pass, so a
+ * ring of hundreds (the whole tree) ran out of passes and left people on top of each other.
  */
-function separate(arcs: Arc[]): void {
-	if (arcs.length < 2) return;
+export function separate(arcs: Arc[]): void {
+	const n = arcs.length;
+	if (n < 2) return;
+	const need = (i: number) => (arcs[i].span + arcs[(i + 1) % n].span) / 2;
+	// Cut the ring where it has the most room, so the line has the least to disagree about.
+	let cut = 0;
+	let roomiest = -Infinity;
+	for (let i = 0; i < n; i++) {
+		const gap = arcs[(i + 1) % n].want - arcs[i].want + (i === n - 1 ? TAU : 0);
+		if (gap - need(i) > roomiest + 1e-12) {
+			roomiest = gap - need(i);
+			cut = (i + 1) % n;
+		}
+	}
+	const wants = arcs.map((a, i) => (i < cut ? a.want + TAU : a.want));
+	const ordered = [...arcs.slice(cut), ...arcs.slice(0, cut)];
+	const shifted = [...wants.slice(cut), ...wants.slice(0, cut)];
+	// y = position minus the distance every earlier arc forces; the answer is y non-decreasing.
+	const offset: number[] = [0];
+	for (let k = 1; k < n; k++)
+		offset.push(offset[k - 1] + (ordered[k - 1].span + ordered[k].span) / 2);
+	const blocks: Array<{ sum: number; count: number }> = [];
+	for (let k = 0; k < n; k++) {
+		blocks.push({ sum: shifted[k] - offset[k], count: 1 });
+		while (blocks.length > 1) {
+			const last = blocks[blocks.length - 1];
+			const before = blocks[blocks.length - 2];
+			if (before.sum / before.count <= last.sum / last.count) break;
+			before.sum += last.sum;
+			before.count += last.count;
+			blocks.pop();
+		}
+	}
+	let k = 0;
+	for (const block of blocks)
+		for (let i = 0; i < block.count; i++, k++) ordered[k].at = block.sum / block.count + offset[k];
+	// The line may spill past the seam. Its slack (room beyond the tightest packing) is shrunk
+	// evenly to what the ring has left, which keeps every gap at least what it needs.
+	const allowedSlack = Math.max(
+		0,
+		TAU - (ordered[n - 1].span + ordered[0].span) / 2 - offset[n - 1]
+	);
+	const slack = ordered[n - 1].at - ordered[0].at - offset[n - 1];
+	if (slack > allowedSlack) {
+		const first = ordered[0].at;
+		const shrink = allowedSlack / slack;
+		for (let i = 1; i < n; i++)
+			ordered[i].at = first + offset[i] + (ordered[i].at - first - offset[i]) * shrink;
+	}
+	arcs.splice(0, n, ...ordered);
+
+	// Float dust, or a ring too full for its people, which the sweeps share out as best they can.
 	for (let sweep = 0; sweep < 200; sweep++) {
 		let didMove = false;
-		for (let i = 0; i < arcs.length; i++) {
+		for (let i = 0; i < n; i++) {
 			const a = arcs[i];
-			const b = arcs[(i + 1) % arcs.length];
-			const gap = b.at - a.at + (i === arcs.length - 1 ? TAU : 0);
-			const need = (a.span + b.span) / 2;
-			if (gap < need - 1e-9) {
-				const push = (need - gap) / 2;
+			const b = arcs[(i + 1) % n];
+			const gap = b.at - a.at + (i === n - 1 ? TAU : 0);
+			const required = (a.span + b.span) / 2;
+			if (gap < required - 1e-9) {
+				const push = (required - gap) / 2;
 				a.at -= push;
 				b.at += push;
 				didMove = true;
