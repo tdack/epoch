@@ -2,7 +2,7 @@
 	import { UserPlus, Pencil, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
-	import { checkDateText } from '#lib/shared/date-value.js';
+	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
 	import type { PersonFormData } from '#lib/types/genealogy.js';
 
@@ -33,11 +33,17 @@
 	let birthPlace = $state('');
 	let deathDate = $state('');
 	let deathPlace = $state('');
+	// The dates as saved, so one Epoch cannot read does not stop the rest of the person being edited.
+	let savedBirthDate = $state('');
+	let savedDeathDate = $state('');
 	let localError = $state<string | null>(null);
 
 	$effect(() => {
 		if (isOpen) {
-			if (!checkDateText(birthDate).isValid || !checkDateText(deathDate).isValid) {
+			if (
+				!checkDateEdit(birthDate, savedBirthDate).isValid ||
+				!checkDateEdit(deathDate, savedDeathDate).isValid
+			) {
 				localError = 'Fix the highlighted date before saving.';
 				return;
 			}
@@ -53,16 +59,20 @@
 				const deathEvent = events.find((e: any) => e.type === 'DEAT');
 
 				birthDate = birthEvent?.dateRaw || '';
+				savedBirthDate = birthDate;
 				birthPlace = birthEvent?.place || '';
 				deathDate = deathEvent?.dateRaw || '';
+				savedDeathDate = deathDate;
 				deathPlace = deathEvent?.place || '';
 			} else {
 				givenName = '';
 				surname = '';
 				sex = 'U';
 				birthDate = '';
+				savedBirthDate = '';
 				birthPlace = '';
 				deathDate = '';
+				savedDeathDate = '';
 				deathPlace = '';
 			}
 		}
@@ -167,6 +177,7 @@
 						<DateInput
 							id="person-birth-date-field"
 							bind:value={birthDate}
+							savedValue={savedBirthDate}
 							isDisabled={isSubmitting}
 							inputClass="bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
 						/>
@@ -200,6 +211,7 @@
 						<DateInput
 							id="person-death-date-field"
 							bind:value={deathDate}
+							savedValue={savedDeathDate}
 							isDisabled={isSubmitting}
 							inputClass="bg-stone-50 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
 						/>

@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
-	import { checkDateText } from '#lib/shared/date-value.js';
+	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
 		FACT_KINDS,
 		FACT_TYPE_LIST,
@@ -73,7 +73,7 @@
 
 	const isEdit = $derived(fact !== null);
 	const isAttribute = $derived(factTypeInfo(type)?.kind === FACT_KINDS.ATTRIBUTE);
-	const isDateValid = $derived(checkDateText(dateText).isValid);
+	const isDateValid = $derived(checkDateEdit(dateText, fact?.dateText).isValid);
 	const field =
 		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600';
 
@@ -214,7 +214,12 @@
 			<div class="grid grid-cols-2 gap-3">
 				<div>
 					<label for="fact-date" class="field-label">Date</label>
-					<DateInput id="fact-date" bind:value={dateText} inputClass={field} />
+					<DateInput
+						id="fact-date"
+						bind:value={dateText}
+						savedValue={fact?.dateText}
+						inputClass={field}
+					/>
 				</div>
 				<div>
 					<label for="fact-place" class="field-label">Place</label>

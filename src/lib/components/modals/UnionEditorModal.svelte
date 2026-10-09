@@ -12,7 +12,7 @@
 	} from '#lib/shared/union-events.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
-	import { checkDateText } from '#lib/shared/date-value.js';
+	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import type { ChangeSummary, RelationshipGraphUnion } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -47,6 +47,8 @@
 		id: string | null;
 		type: UnionEventType;
 		dateText: string;
+		/** The date as saved, so one Epoch cannot read is kept rather than refused. */
+		savedDateText: string;
 		place: string;
 	}
 
@@ -77,6 +79,7 @@
 			id: e.id,
 			type: e.type,
 			dateText: e.dateText ?? '',
+			savedDateText: e.dateText ?? '',
 			place: e.place ?? ''
 		}));
 		error = null;
@@ -90,7 +93,10 @@
 
 	function addRow() {
 		if (!addType) return;
-		rows = [...rows, { key: nextKey++, id: null, type: addType, dateText: '', place: '' }];
+		rows = [
+			...rows,
+			{ key: nextKey++, id: null, type: addType, dateText: '', savedDateText: '', place: '' }
+		];
 		addType = '';
 	}
 
@@ -127,7 +133,9 @@
 		return { version, status, events };
 	}
 
-	const hasDateProblem = $derived(rows.some((r) => !checkDateText(r.dateText).isValid));
+	const hasDateProblem = $derived(
+		rows.some((r) => !checkDateEdit(r.dateText, r.savedDateText).isValid)
+	);
 
 	async function save(mergeOnto?: ConflictError) {
 		if (!union) return;
@@ -251,6 +259,7 @@
 						<DateInput
 							id="ev-date-{row.key}"
 							bind:value={row.dateText}
+							savedValue={row.savedDateText}
 							placeholder="e.g. 12 MAR 1999"
 							inputClass="w-full rounded-md border border-stone-300 p-1.5 text-sm"
 						/>

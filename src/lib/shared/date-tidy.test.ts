@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tidyDateText } from './date-tidy';
-import { parseDateValue, standardDateText } from './date-value';
+import { checkDateEdit, parseDateValue, standardDateText } from './date-value';
 
 describe('tidyDateText', () => {
 	it.each([
@@ -60,5 +60,18 @@ describe('standardDateText', () => {
 	it('gives text that needs no further tidying', () => {
 		const once = standardDateText('3 RD DECEMBER 1996')!;
 		expect(standardDateText(once)).toBeNull();
+	});
+});
+
+describe('checkDateEdit', () => {
+	it('lets an unreadable saved date stand, and refuses one typed now', () => {
+		const saved = '01 MAR 191503 08 1912';
+		expect(checkDateEdit(saved, saved)).toMatchObject({ isValid: true, isKept: true });
+		expect(checkDateEdit('01 MAR 1915 03', saved).isValid).toBe(false);
+		expect(checkDateEdit(saved, null).isValid).toBe(false);
+	});
+
+	it('is checkDateText for a readable date', () => {
+		expect(checkDateEdit('3 RD DECEMBER 1996', '3 RD DECEMBER 1996')).toEqual({ isValid: true });
 	});
 });

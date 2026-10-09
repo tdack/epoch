@@ -10,7 +10,7 @@
 		isConflict,
 		updateCitationApi
 	} from '#lib/services/tree-api.js';
-	import { checkDateText } from '#lib/shared/date-value.js';
+	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
 		CITATION_QUALITY_LABELS,
 		isCitationQuality,
@@ -53,12 +53,13 @@
 	let page = $state('');
 	let quality = $state<string>('');
 	let entryDate = $state('');
+	let savedEntryDate = $state<string | null>(null);
 	let text = $state('');
 	let error = $state<string | null>(null);
 	let isSaving = $state(false);
 	let searchInput = $state<HTMLInputElement | null>(null);
 
-	const isDateValid = $derived(checkDateText(entryDate).isValid);
+	const isDateValid = $derived(checkDateEdit(entryDate, savedEntryDate).isValid);
 	const field =
 		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600';
 	const QUALITY_CHOICES = (Object.keys(CITATION_QUALITY_LABELS) as unknown as string[])
@@ -81,6 +82,7 @@
 		page = from?.page ?? '';
 		quality = from?.quality === null || from?.quality === undefined ? '' : String(from.quality);
 		entryDate = from?.entryDate ?? '';
+		savedEntryDate = from?.entryDate ?? null;
 		text = from?.text ?? '';
 		error = null;
 		void tick().then(() => searchInput?.focus());
@@ -275,7 +277,12 @@
 			</div>
 			<div>
 				<label for="citation-date" class="field-label">Recorded on</label>
-				<DateInput id="citation-date" bind:value={entryDate} inputClass={field} />
+				<DateInput
+					id="citation-date"
+					bind:value={entryDate}
+					savedValue={savedEntryDate}
+					inputClass={field}
+				/>
 			</div>
 		</div>
 		<div>

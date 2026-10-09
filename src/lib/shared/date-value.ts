@@ -400,6 +400,25 @@ export function checkDateText(rawInput: string | null | undefined): DateInputChe
 	return { isValid: true };
 }
 
+/**
+ * Check a date field that may hold a saved date. A date Epoch cannot read but that is unchanged from
+ * what was saved (an imported `01 MAR 191503 08 1912`) does not block the save: the rest of the
+ * record can still be edited, and the date stays as written until someone fixes it. `isKept` says
+ * so, for a field to warn rather than refuse.
+ */
+export function checkDateEdit(
+	rawInput: string | null | undefined,
+	saved: string | null | undefined
+): DateInputCheck & { isKept?: boolean } {
+	const check = checkDateText(rawInput);
+	if (check.isValid || (rawInput?.trim() ?? '') !== (saved?.trim() ?? '')) return check;
+	return {
+		isValid: true,
+		isKept: true,
+		message: `Epoch can't read this date, so it is kept as written. ${DATE_FORMAT_HELP}`
+	};
+}
+
 export interface PickerDate {
 	year: number;
 	/** 1-12, or null for a year-only date. */
