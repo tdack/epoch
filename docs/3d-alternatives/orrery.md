@@ -78,6 +78,60 @@ within the 100 ms target even cold. Check it on the real tree at integration.
 - `LineMaterial` resolution for the two merged line batches is kept by a `ResizeObserver` in the
   scene, since the stage only tracks lines made by `thickLine`.
 
+## Highlights (3D highlights plan, Stage B)
+
+Lit from the `Highlight` the shell computes (`docs/3d-highlights-plan.md`); `highlightRoles` is no
+longer used here.
+
+- **Colours.** A mark's colour is mixed `ORRERY_TOKENS.markLighten` (40%) toward white, because the
+  focus line's brown and teal are made for the cream stage and vanish under additive blending. The
+  hue is kept.
+- **Descent lines** take their link's mark colour. `soft` marks draw at `softOpacity`; a shared mark
+  takes the intersection colour, is `sharedBoost` brighter and the widest (5.4 px). A marked line is
+  3.6 px, a plain one 2 px. Width is a material property, so lines are grouped into one batch per
+  width (`groupByWidth`). With something lit, unmarked lines fall to `dimLine`.
+- **Tethers** run between the two partners' *mark* colours when the partnership is marked (so a
+  selected partnership shows each partner's own palette colour), the intersection colour when
+  shared, and the sex gradient otherwise. Marked tethers are thicker; unmarked ones dim to
+  `dimTether` while something is lit.
+- **Stars** keep their sex colour and glow. A marked star gets a horizontal halo ring in its mark's
+  colour (`softOpacity` when soft) and, when shared, a second larger ring. The focus star keeps its
+  size and white ring.
+- **Partnership marker.** A small knot at the barycentre (the accretion ring brightens with the
+  mark), with an invisible hit sphere 1.4 star radii across, tracked by `trackUnion`. A union with
+  one drawn partner has no binary and no marker; the children's lines leave that star.
+- **Line picking.** The descents are merged into a few draws and drift every frame, so a per-line
+  `Line2` would be rewritten as often as the lines move. `orrery-link-pick.ts` is an invisible
+  `Object3D` per line holding the two live end points; its `raycast` measures the pointer's pixel
+  distance to the segment as drawn now, with the same band as `Line2` (`threshold` plus the width).
+  Its end points and the anchor are rewritten with the lines each frame, so picking, hover cards
+  and names follow the drift.
+- **Materials are shared** by look (colour and intensity) rather than made per star, which matters
+  on a whole tree.
+
+## Whole tree (no focus)
+
+- `layoutOrrery(graph, null, options, index, tuning, selection)`: with no focus, `gravityTo` is
+  `null` and the simulation pulls to the **centroid of the bodies**, recomputed every iteration, so
+  an unconnected family stays in the cluster instead of drifting away and no person (the oldest, say)
+  is an arbitrary anchor. The output is translated so the centroid is the origin.
+- Still deterministic: the same seeded start, the same fixed iterations, and the centroid is a pure
+  function of the positions. Tested twice over, exact and Barnes–Hut.
+- **Budget:** up to 1,000 bodies 260 iterations, beyond that `260 × 1000 / n` down to a floor of 120
+  (`iterationsFor`). Barnes–Hut engages above 700 bodies as before.
+- **Timings** (vitest on the author's laptop, noisy because sibling sessions share the machine;
+  synthetic dynasties, whole tree):
+
+  | People | Iterations | Time |
+  |---|---|---|
+  | 510 | 260 | 0.6 s (exact) |
+  | 1,022 | 120 to 260 | 1.7 s to 3.2 s |
+  | 4,094 | 120 | 0.9 s to 1.3 s |
+
+  Only the 4,094 case uses the trimmed budget in production (past 1,000 people), at 120 iterations.
+  At that size the median binary is stretched about 50% and the worst about 2×: the children's pull
+  on a deep tree, not the iteration count (180 and 260 iterations stretch the same).
+
 ## Tests
 
 - `orrery.test.ts`: every test graph draws exactly the selection once each; identical output on a

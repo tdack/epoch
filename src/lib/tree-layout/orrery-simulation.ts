@@ -38,8 +38,12 @@ export interface SimOptions {
 	iterations: number;
 	/** Body pairs that do not repel each other: the bound partners of a union. */
 	boundPairs: Array<[number, number]>;
-	/** The body gravity pulls toward. */
-	gravityTo: number;
+	/**
+	 * The body gravity pulls toward, or null to pull toward the bodies' centroid (the whole tree,
+	 * where nobody is the centre). The centroid is recomputed each iteration, so it stays a pure
+	 * function of the positions and the run stays deterministic.
+	 */
+	gravityTo: number | null;
 	/** Past this many bodies repulsion uses a Barnes–Hut octree. */
 	barnesHutThreshold: number;
 }
@@ -176,7 +180,8 @@ export function runSimulation(
 	const fy = new Float64Array(n);
 	const fz = new Float64Array(n);
 	const scratch: Vec3 = { x: 0, y: 0, z: 0 };
-	const gravityTo = bodies[options.gravityTo];
+	const anchor = options.gravityTo === null ? null : bodies[options.gravityTo];
+	const centre: Vec3 = { x: 0, y: 0, z: 0 };
 	const px = new Float64Array(n);
 	const py = new Float64Array(n);
 	const pz = new Float64Array(n);
@@ -291,6 +296,18 @@ export function runSimulation(
 		}
 
 		let maxStep = 0;
+		if (anchor === null) {
+			centre.x = centre.y = centre.z = 0;
+			for (let i = 0; i < n; i++) {
+				centre.x += bodies[i].x;
+				centre.y += bodies[i].y;
+				centre.z += bodies[i].z;
+			}
+			centre.x /= n;
+			centre.y /= n;
+			centre.z /= n;
+		}
+		const gravityTo = anchor ?? centre;
 		for (let i = 0; i < n; i++) {
 			const b = bodies[i];
 			fx[i] -= (b.x - gravityTo.x) * GRAVITY;

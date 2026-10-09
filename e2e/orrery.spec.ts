@@ -3,7 +3,7 @@
  * are not in the accessibility tree, so these tests drive the names and the camera controls, and
  * click a star through its name's position.
  */
-import { expect, open, test } from './support';
+import { activate, clickPick, expect, open, pickPoint, test } from './support';
 
 test('orrery opens from the address and names the focus person', async ({ api, page }) => {
 	const mum = await api.addPerson('Mum', 'Orrery', { birthDate: '1930' });
@@ -150,4 +150,117 @@ test('the Motion switch holds the orrery still, and stays off after a reload', a
 		'aria-pressed',
 		'false'
 	);
+});
+
+/** Gran and Gran2 had Mum; Mum and Dad had Me and Sib. Names carry a tag so one tree's text is unique. */
+async function family(api: Parameters<Parameters<typeof test>[2]>[0]['api'], tag: string) {
+	const gran = await api.addPerson('Gran', tag);
+	const gran2 = await api.addPerson('Gran2', tag);
+	const mum = await api.addPerson('Mum', tag);
+	const dad = await api.addPerson('Dad', tag);
+	const me = await api.addPerson('Me', tag);
+	const sib = await api.addPerson('Sib', tag);
+	await api.partner(gran, gran2);
+	await api.child(gran, mum);
+	await api.partner(mum, dad);
+	await api.child(mum, me);
+	await api.child(mum, sib);
+	const graph = await api.graph(me.id);
+	const unionOf = (a: { id: string }, b: { id: string }) =>
+		graph.unions.find((u) => u.partnerIds.includes(a.id) && u.partnerIds.includes(b.id))!.id;
+	return { gran, gran2, mum, dad, me, sib, parents: unionOf(mum, dad) };
+}
+
+// Motion stays on in the next two tests: the stars drift, and the markers and lines must be hit
+// where they are drawn now, not where the layout put them.
+test('a partnership and a line can be picked while the orrery drifts', async ({ api, page }) => {
+	const f = await family(api, 'Pick');
+	const orrery = page.getByRole('group', { name: 'Orrery view' });
+	const name = (given: string) =>
+		orrery.getByRole('button', { name: new RegExp(`^${given} Pick\\b`) });
+	const status = orrery.locator('p[aria-live]');
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(f.me.id)}&mode=orrery`);
+	await expect(name('Me')).toBeVisible();
+	await expect(name('Dad')).toHaveCount(0);
+
+	const before = page.url();
+	await clickPick(page, orrery, 'union', f.parents);
+	await expect(status).toContainText('Selected the partnership of Mum Pick and Dad Pick');
+	await expect(name('Dad')).toBeVisible();
+	await expect(name('Gran')).toBeVisible();
+	await expect(name('Sib')).toBeVisible();
+	expect(page.url()).toBe(before);
+
+	await clickPick(page, orrery, 'link', f.sib.id, { isPrefix: true });
+	await expect(status).toContainText('Selected the line to Sib Pick');
+	await expect(name('Sib')).toBeVisible();
+	await expect(name('Mum')).toBeVisible();
+	expect(page.url()).toBe(before);
+
+	// The marker is a hit target, and its anchor moves with the stars.
+	const first = await pickPoint(orrery, 'union', f.parents);
+	await page.mouse.move(first.x, first.y);
+	await expect(orrery.getByTestId('hover-card')).toContainText(
+		'Partnership of Mum Pick and Dad Pick'
+	);
+	await expect
+		.poll(async () => JSON.stringify(await pickPoint(orrery, 'union', f.parents)), {
+			timeout: 8000
+		})
+		.not.toBe(JSON.stringify(first));
+
+	await page.keyboard.press('Escape');
+	await expect(status).toContainText('Highlight cleared');
+});
+
+test('trace mode in the orrery marks where two paths meet', async ({ api, page }) => {
+	const f = await family(api, 'Trace');
+	const orrery = page.getByRole('group', { name: 'Orrery view' });
+	const name = (given: string) =>
+		orrery.getByRole('button', { name: new RegExp(`^${given} Trace\\b`) });
+	const status = orrery.locator('p[aria-live]');
+	const trace = orrery.getByRole('button', { name: 'Trace', exact: true });
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(f.me.id)}&mode=orrery`);
+	await orrery.getByRole('button', { name: 'All names' }).click();
+	await trace.click();
+	await activate(name('Gran'));
+	await expect(orrery.getByTestId('trace-chip')).toHaveCount(1);
+	await clickPick(page, orrery, 'union', f.parents);
+	await expect(orrery.getByTestId('trace-chip')).toHaveCount(2);
+	await expect(status).toContainText('on more than one path');
+	await clickPick(page, orrery, 'link', f.sib.id, { isPrefix: true });
+	await expect(orrery.getByTestId('trace-chip')).toHaveCount(3);
+	await page.keyboard.press('Escape');
+	await expect(trace).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('the whole tree in the orrery draws unconnected families and leaves cleanly', async ({
+	api,
+	page
+}) => {
+	const f = await family(api, 'Whole');
+	const max = await api.addPerson('Max', 'Marrow', { birthDate: '1905' });
+	const moe = await api.addPerson('Moe', 'Marrow', { birthDate: '1935' });
+	await api.child(max, moe);
+	const orrery = page.getByRole('group', { name: 'Orrery view' });
+	const whole = orrery.getByRole('button', { name: 'Whole tree' });
+	const marrow = (given: string) =>
+		orrery.getByRole('button', { name: new RegExp(`^${given} Marrow\\b`) });
+
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(f.me.id)}&mode=orrery`);
+	await orrery.getByRole('button', { name: 'All names' }).click();
+	await expect(marrow('Max')).toHaveCount(0);
+	await whole.click();
+	await expect(page).toHaveURL(/scope=all/);
+	await expect(marrow('Max')).toBeVisible();
+	await expect(marrow('Moe')).toBeVisible();
+	await expect(orrery.locator('p[aria-live]')).toContainText('the whole tree');
+	// Partnerships and lines can still be picked with nobody as the focus.
+	await clickPick(page, orrery, 'union', f.parents);
+	await expect(orrery.locator('p[aria-live]')).toContainText('Selected the partnership');
+	await whole.click();
+	await expect(page).not.toHaveURL(/scope=all/);
+	await expect(marrow('Max')).toHaveCount(0);
 });

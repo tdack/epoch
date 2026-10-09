@@ -197,7 +197,35 @@ export const ORRERY_TOKENS = {
 	tetherPx: 3.4,
 	/** Seconds for a tether's pulse to run from one partner to the other. */
 	pulseSeconds: 4,
-	accretionOpacity: 0.2
+	accretionOpacity: 0.2,
+	/**
+	 * Highlight colours are made for the cream stage and the legend; on a dark stage with additive
+	 * blending the darker ones (the focus line's brown and teal) would vanish. A mark's colour is
+	 * mixed this far toward white, which keeps its hue.
+	 */
+	markLighten: 0.4,
+	/** Descent lines: plain, on a mark, and on two or more paths. */
+	plainLinePx: 2,
+	markedLinePx: 3.6,
+	sharedLinePx: 5.4,
+	/** Tethers on a mark, and on two or more paths. */
+	markedTetherPx: 4.8,
+	sharedTetherPx: 6.2,
+	/** A shared mark is drawn this much brighter than its colour alone. */
+	sharedBoost: 1.3,
+	/** How bright an unmarked tether is while something else is lit. */
+	dimTether: 0.45,
+	/** A marked star's halo, as a multiple of the star's radius; shared adds a second, larger one. */
+	haloScale: 1.7,
+	sharedHaloScale: 2.3,
+	haloTube: 0.04,
+	/** A partnership's hit target, as a multiple of a star's radius: at least a star's size. */
+	unionHitScale: 1.4,
+	/** The knot at a partnership's barycentre, which is the marker the viewer sees and clicks. */
+	knotRadiusUnits: 0.2,
+	/** Emissive and glow of a star on a soft mark (the upstream path), against a full one. */
+	softStar: 0.85,
+	softGlow: 0.55
 } as const;
 
 /**
