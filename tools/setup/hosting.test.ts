@@ -427,3 +427,40 @@ describe('writing the deploy config from nothing', () => {
 		);
 	});
 });
+
+describe('the raw Workers reads and the deploy config hint', () => {
+	it('under --deploy-auth=ephemeral they fail early and clearly, without ever asking for a token', async () => {
+		const { createContext } = await import('./app.ts');
+		const { fakeExec } = await import('./testing.ts');
+		const exec = fakeExec([]);
+		const ctx = createContext({
+			reporter: testContext().report,
+			isVerbose: false,
+			isReadOnly: true,
+			exec,
+			deployAuth: 'ephemeral',
+			root: TEST_ROOT
+		});
+		ctx.cf.useAccount('acc');
+		const error = await failure(() => ctx.cf.getWorker('epoch'));
+		expect(error.flag).toBe('--deploy-auth');
+		expect(exec.calls).toEqual([]);
+	});
+
+	it('warns about a database the deploy config names that setup would not use', async () => {
+		const { reconcileStep } = await import('./steps/reconcile.ts');
+		const cf = stubApi({
+			findD1: async () => null,
+			getD1: async () => ({ id: 'old', name: 'shop-db', createdAt: null, sizeBytes: null }),
+			findR2Bucket: async () => null,
+			getWorker: async () => null,
+			findQueue: async () => null,
+			listAccessApps: async () => [],
+			listPolicies: async () => []
+		});
+		const { ctx, report } = testContext({ cf });
+		const answers = { hostname: 'epoch.example.com', typedAdoptions: {} } as Answers;
+		await reconcileStep(ctx, testManifest(), answers, false, 'old');
+		expect(report.warnings.join('\n')).toContain('points at database shop-db (old)');
+	});
+});

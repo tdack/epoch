@@ -66,7 +66,7 @@ export async function runSetup(
 
 	presenter.stage('Reconcile');
 	const reconciled = await presenter.task('Checking what already exists', () =>
-		reconcileStep(ctx, manifest, answers, pre.isResume)
+		reconcileStep(ctx, manifest, answers, pre.isResume, defaults.d1Id)
 	);
 	manifest = reconciled.manifest;
 	let isWorkerReplaced = false;

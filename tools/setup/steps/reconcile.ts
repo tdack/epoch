@@ -160,7 +160,9 @@ export async function reconcileStep(
 	ctx: StepContext,
 	manifest: Manifest,
 	answers: Answers,
-	hasManifest: boolean
+	hasManifest: boolean,
+	/** The database id in an existing wrangler.deploy.jsonc, if any. */
+	d1Hint: string | null = null
 ): Promise<{
 	manifest: Manifest;
 	result: ReconcileResult;
@@ -195,6 +197,15 @@ export async function reconcileStep(
 				hint: 'Choose another install with --name, or release them from the checkout that owns them. There is no override.'
 			}
 		);
+	}
+	if (d1Hint && !observed.d1 && manifest.resources.d1?.id !== d1Hint) {
+		const hinted = await ctx.cf.getD1(d1Hint);
+		if (hinted) {
+			// A hint, never a claim: the database may be named differently on purpose, so it is only reported.
+			result.warnings.push(
+				`wrangler.deploy.jsonc points at database ${hinted.name} (${hinted.id}), not ${result.reports.d1.name}; setup will create ${result.reports.d1.name} unless you rename the Worker to match`
+			);
+		}
 	}
 	for (const warning of result.warnings) ctx.report.warn(warning);
 	return {

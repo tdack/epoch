@@ -83,6 +83,8 @@ export interface CloudflareApi {
 	listIdentityProviders(): Promise<IdpInfo[]>;
 
 	findD1(name: string): Promise<D1Info | null>;
+	/** By id, for the deploy config's hint. Null when it does not exist. */
+	getD1(id: string): Promise<D1Info | null>;
 	createD1(name: string, locationHint: string | null): Promise<D1Info>;
 	queryD1(databaseId: string, sql: string): Promise<unknown[]>;
 
@@ -359,6 +361,14 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 		async findD1(name) {
 			const found = asList(await cf(['d1', 'list', '--name', name]), 'result').map(toD1);
 			return found.find((db) => db.name === name) ?? null;
+		},
+		// `cf d1 get <database-id>`; a failure is "cannot confirm", which only costs the hint.
+		async getD1(id) {
+			try {
+				return toD1(requireRec(await cf(['d1', 'get', id]), 'd1 get'));
+			} catch {
+				return null;
+			}
 		},
 		async createD1(name, locationHint) {
 			const args = ['d1', 'create', '--name', name];
