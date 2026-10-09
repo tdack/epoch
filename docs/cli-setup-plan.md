@@ -11,9 +11,30 @@ One command, run from the checkout the app will be deployed from. It:
 1. signs the user in to Cloudflare in a browser, **without the user creating an API token**;
 2. asks only what it cannot discover from the account;
 3. proves that any resource it finds by name belongs to *this* install before using it;
-4. creates the D1 database, R2 bucket, queue, Worker, custom domain and the Zero Trust config
-   (one Access application on `<host>/login` and its Allow policy, per ADR-026);
+4. creates the D1 database, R2 bucket, queue, Worker and its custom domain, plus one Access
+   application on `<host>/login` and its Allow policy (ADR-026). It does not set up Zero Trust or
+   the domain themselves (see "Assumptions and scope");
 5. deploys, checks the result, and can be re-run safely at any point.
+
+## Assumptions and scope
+
+The tool assumes the account already has these. It checks each one read-only, and stops with a
+clear message if it is missing:
+
+| Prerequisite | How the tool checks |
+| --- | --- |
+| **A paid Workers plan**, needed for Queues and Workflows | Not checked up front: that needs a billing scope. A plan error from queue creation or deploy is mapped to "this needs Workers Paid" |
+| **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust access identity-providers list` |
+| **A domain on Cloudflare**: an active zone in the account | `cf zones list`, active zones only |
+
+**The tool never creates or changes account-level configuration.** That includes the Zero Trust
+organisation, identity providers, Access groups, Access tags, zones and DNS (beyond the record the
+Worker custom domain manages for itself), and Email Sending domains. Its Cloudflare footprint is:
+
+- D1, R2, the queue and the Worker (with its workflow and queue consumer);
+- **one Worker custom domain** on the chosen zone, through the deploy config;
+- **one Access application** on `<host>/login`;
+- **one reusable Access policy**, used only by that application.
 
 It replaces `scripts/setup-cloudflare.sh`, which is stale: it applies only the newest migration,
 overwrites `src/app.d.ts`, drops `migrations_dir`, ignores Access and Email Sending, and
@@ -29,7 +50,7 @@ recreates resources blindly.
   JSON on stdout and progress on stderr. `cf cli search "<task>"` finds commands; `cf schema <cmd>`
   shows the request.
   - **Commands this tool uses:** `cf accounts list`, `cf zones list`, `cf d1 create`,
-    `cf r2 buckets create`, `cf queues create`, `cf zero-trust organization get|create`,
+    `cf r2 buckets create`, `cf queues create`, `cf zero-trust organization get`,
     `cf zero-trust access applications create|update`,
     `cf zero-trust access policies create|update`, `cf accounts tokens create|delete`,
     `cf workers secrets bulk` and `cf d1 migrations apply`.
@@ -126,10 +147,11 @@ Why this order:
 
 - **Always:** `account:read`, `user:read`, `zone.read`, `dns.read`, `d1.write`,
   `workers-r2.write`, `queues.write`, `workers-scripts.write`, `workers-routes.read`,
-  `access-org.read`, `access-org.write`, `access-app.write`, `access-policy.write`,
-  `access-group.write`, `access-idp.write`, `access-tag.write` and `email-sending.read`.
+  `access-org.read`, `access-idp.read`, `access-app.write`, `access-policy.write` and
+  `email-sending.read`.
+  - The Zero Trust scopes are read-only, except for apps and policies, so the token cannot change
+    the organisation, identity providers or groups even by mistake.
   - `dns.read` and `workers-routes.read` are for the hostname collision check.
-  - `access-idp.write` is for creating One-time PIN.
   - `workers-scripts.write` is for the secrets fallback.
 - **With `--deploy-auth=ephemeral` only:** `account_api_tokens:create`.
 
@@ -152,7 +174,7 @@ done, and writes its result back, so an interrupted run resumes.
 
 ```
 preflight → sign in → collect → reconcile (ownership) → show plan → confirm
-         → provision → Zero Trust → write config → migrate → mark → deploy → verify → hand-off
+         → provision → Access app and policy → write config → migrate → mark → deploy → verify → hand-off
 ```
 
 ### 1. Preflight (local, no network)
@@ -186,11 +208,11 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 | Input | Source | Asked only when |
 | --- | --- | --- |
 | Account | `cf accounts list` | More than one account |
-| Zone | `cf zones list`, active zones only | Always; it is the user's choice. Zero active zones → stop with "add a domain to Cloudflare first" |
+| Zone | `cf zones list`, active zones only | More than one active zone. None → stop (prerequisite) |
 | Hostname | Default `<slug>.<zone>` | Always, with that default. Refused if a DNS record or another Worker already serves it, unless the manifest says it is ours |
 | Owner email | `cf auth whoami` | Confirm only |
-| Zero Trust team domain | `cf zero-trust organization get` | Never. No org → see step 7 |
-| Identity provider | `cf zero-trust access identity-providers list` | More than one exists. None → offer One-time PIN |
+| Zero Trust team domain | `cf zero-trust organization get` | Never. No organisation → stop (prerequisite) |
+| Identity providers for the app | `cf zero-trust access identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
 | Invitation sender | Email Sending domains on the zone | Only if the user wants emailed invitations (ADR-031). If the domain is not verified, the generated config **leaves out the `send_email` binding**. The app already treats a missing binding as "not sent" (`wasEmailSent: false`), and a binding naming an unverified sender may fail the deploy *(spike)*. Re-running setup after verification adds it |
 | Data location | D1 location hint (`oc` suits Australia); R2 location hint, and optionally an R2 jurisdiction (`eu` or `fedramp`; there is no Australian one) | Offered, not required. Recorded because neither can be changed after creation. A chosen jurisdiction is also written to the R2 binding (`jurisdiction`) |
 
@@ -219,8 +241,8 @@ and the manifest is only a cache of what reconcile can rediscover.
 | R2 | Object `.epoch/install.json` | Object count, total size, a few sample keys |
 | Worker | Var `EPOCH_INSTALL_ID` | Last deployment date; whether its D1, R2 and queue bindings point at the resources above. A Worker bound to a *different* D1 is a strong "not ours" |
 | Queue | None possible | Its consumer: our Worker, someone else's, or none |
-| Access app | Tag `epoch-install:<uuid>` and the name `Epoch (<slug>)`. Also looked up by domain `<host>/login`, because a hand-made app has another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
-| Access policy | Name `Epoch <slug> owners`, referenced by our app | Its include rules |
+| Access app | None written: tags are account-level objects, which are out of scope. It is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<slug>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
+| Access policy | None written. It is ours when its id is in the manifest, or when our app is its only user | Its include rules, and every app that uses it. A policy shared with another app is never edited: the tool creates its own |
 
 Adoption is also how **this repository's own live install moves under the tool.** Run setup with
 `--slug epoch-genealogy`. Every resource comes back `unmarked`, the user confirms each one, and the
@@ -239,35 +261,36 @@ data location. `--plan` stops here and changes nothing. Otherwise the user types
 Create or adopt D1, R2 and the queue. Write each id to the manifest as soon as it exists, and
 the R2 marker object once the bucket is ours.
 
-### 7. Zero Trust
+### 7. Access application and policy
 
-1. `cf zero-trust organization get`. If there is none, try `organization create` with a team
-   name the user chooses. If the API refuses (accounts that never onboarded Zero Trust may need
-   the dashboard and a plan choice; *spike*), print the dashboard link, save progress, and exit.
-   A re-run resumes here.
-2. Identity provider: reuse the chosen one, or create One-time PIN.
-3. **Who Access lets through to `/login`.** The app never edits Access: ADR-031 keeps Access a
-   separate gate, and nothing in `src/lib/server` calls the Access API. So an emailed invitee who
-   is not in the policy is turned away at `/login`. This is an owner decision *(open question 2)*:
-   - **Owner-only policy.** Every invitee is added by hand in the dashboard.
-   - **Proposed: an Access group `Epoch <slug> members`.** It starts with the owner email, and the
-     reusable Allow policy includes it. The hand-off says how to add an invitee to the group.
-     Later, the app could do this itself.
-   - **Allow any identity the chosen IdP verifies** (for example, any One-time PIN email). Epoch's
-     deny-by-default membership check is then the only authorisation gate, which ADR-026 already
-     accepts for every path except `/login`.
-4. **Access app** `Epoch (<slug>)`, created or updated:
+The organisation and identity providers already exist (see the prerequisites). The tool adds one
+policy and one application, and changes nothing else in Zero Trust.
+
+1. **Reusable policy** `Epoch <slug> sign-in`: Allow. Who it includes is the owner's choice
+   *(open question 2)*:
+   - **Proposed: an explicit email list**, starting with the owner email.
+     `npm run setup -- allow <email>` and `-- disallow <email>` edit **this policy only**. The
+     Members page's "invite" hint tells the manager to run it, or to add the email in the
+     dashboard.
+   - **Anyone the chosen identity providers verify.** Epoch's deny-by-default membership check is
+     then the only authorisation gate, which ADR-026 already accepts for every path except
+     `/login`. No per-invitee step at all, but anyone with a verifiable email reaches the
+     (empty) app shell.
+   - Either way, the app itself never edits Access. ADR-031 keeps Access a separate gate, and
+     nothing in `src/lib/server` calls the Access API. So with an email list, an invitee who is
+     not on it is turned away at `/login`.
+2. **Access app** `Epoch (<slug>)`, created or updated:
    - `type: self_hosted` and `domain: <host>/login`.
-   - Only that policy, `allowed_idps` set to the chosen one, and `auto_redirect_to_identity`
-     when there is exactly one.
+   - Only that policy.
+   - `allowed_idps` set to the chosen providers, and `auto_redirect_to_identity` when there is
+     exactly one.
    - **`path_cookie_attribute: false` and `enable_binding_cookie: false`**, as the README and
      ADR-026 require.
-   - The `epoch-install:<uuid>` tag.
    - Record its `aud`.
-5. **Never touch the other apps, groups or policies in the account.** Updates go by id from the
+3. **Never touch any other app, policy, group or identity provider.** Updates go by id from the
    manifest, never by name.
 
-Zero Trust runs **before** the deploy, so the first deploy already has the right AUD and
+The Access app is created **before** the deploy, so the first deploy already has the right AUD and
 `/login` is protected the moment the domain goes live. There is never a window in which the
 Worker serves the host without its Access app.
 
@@ -311,7 +334,7 @@ Worker serves the host without its Access app.
    - `cf d1 migrations apply` is wire-compatible and takes the database id; it is the fallback if
      wrangler auth is the problem.
 2. **Write the markers** confirmed in step 5. The D1 `install_meta` row can only go in now; the
-   R2 object and the Access tag were written already.
+   R2 object went in at step 6, and the Worker's `EPOCH_INSTALL_ID` var ships with the deploy.
 3. **Deploy.** `npm run build`, then `wrangler deploy workers/entry.ts -c wrangler.deploy.jsonc`.
    This creates the Worker, the custom domain, the workflow and the queue consumer.
 4. **Clean up an ephemeral token.** Delete it in a `finally`. On every run, sweep any leftover
@@ -346,7 +369,8 @@ Each check prints pass or fail with the fix:
 Print:
 
 - the URL and the sign-in steps;
-- who Access lets in, and how to let an invitee through Access as well as inviting them in Epoch;
+- who Access lets in, and how to let an invitee through Access as well as inviting them in Epoch
+  (`npm run setup -- allow <email>` under the proposed policy);
 - the commands for later. Once delivery step 1 has landed, `npm run deploy` works in this
   directory under the bound profiles;
 - where the manifest is.
@@ -356,8 +380,11 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 ## Other commands
 
 - `npm run setup -- --plan` reconciles and prints the plan, read-only.
-- `npm run setup -- doctor` re-runs sign-in checks, reconcile and verify, then reports drift. Drift
-  includes the Access app's cookie settings having been changed in the dashboard.
+- `npm run setup -- doctor` re-runs the prerequisite and sign-in checks, reconcile and verify,
+  then reports drift. Drift includes the Access app's cookie settings having been changed in the
+  dashboard.
+- `npm run setup -- allow <email>` and `-- disallow <email>` edit the tool's own Access policy
+  (if the email-list option is chosen).
 - `npm run setup -- teardown` deletes **only** resources whose marker matches the manifest. The
   user types the slug, and D1 and R2 need a second, separate confirmation, because a family tree
   cannot be recovered. It never runs as part of setup, and setup never rolls back by deleting.
@@ -369,7 +396,6 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - Granted-scope readback after unticking one.
    - The Access endpoints accepting the `cf` OAuth token.
    - `aud` in the create response.
-   - `organization create` on a fresh account.
    - Wrangler profiles plus `wrangler whoami`.
    - `cf accounts tokens create` permission-group ids.
    - `vars` reaching `$app/env/private`.
@@ -402,8 +428,8 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
      once, through adoption, and remote commands need `-c`.
    - **The alternative:** keep owner values in the tracked file. That is simpler for a single
      owner, but every fork inherits someone else's ids.
-2. **Who Access admits to `/login`:** owner-only, a members group (proposed), or anyone the IdP
-   verifies (step 7.3).
+2. **Who Access admits to `/login`:** an email list in the tool's own policy, managed with
+   `setup allow` (proposed), or anyone the chosen identity providers verify (step 7.1).
 3. **Default deploy auth:** a second OAuth consent for a wrangler profile (proposed), or the
    single-consent ephemeral token.
 4. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
