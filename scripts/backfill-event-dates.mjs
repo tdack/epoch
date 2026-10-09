@@ -1,12 +1,16 @@
-// Fills events.date_sort_end, date_qualifier, date_precision and date_calendar from date_raw for
-// rows written before migration 0007 (ADR-004). Run it after the migration is applied:
+// Keeps the stored date columns (ADR-004) in step with the parser. It fills events.date_sort_end,
+// date_qualifier, date_precision and date_calendar for rows written before migration 0007, and it
+// re-sorts dual dates (`30 JAN 1648/49`) in events, person names and citations, which were stored
+// on their earlier year before the parser sorted them on the later one. Run it after a migration
+// or a deploy that changes the parser:
 //
 //   node scripts/backfill-event-dates.mjs            # local database
 //   node scripts/backfill-event-dates.mjs --remote   # deployed database
 //
-// It is idempotent and only touches rows whose date_qualifier is still null. Reads never depend
-// on it (they parse date_raw as a fallback); it exists so sorting and filtering by date can use
-// the stored bounds. The parsing is bundled from the app's own code, so there is one parser.
+// It is idempotent: it only writes rows whose columns differ from what their date text derives.
+// Reads never depend on it for undated columns (they parse date_raw as a fallback), but they do
+// trust stored columns, so a stored dual date keeps its old sort until this runs. The parsing is
+// bundled from the app's own code, so there is one parser.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,7 +33,9 @@ await build({
 	platform: 'node',
 	logLevel: 'error'
 });
-const { backfillStatements, UNBACKFILLED_EVENTS_SQL } = await import(pathToFileURL(bundle).href);
+const { backfillStatements, staleDatesSql, DATED_TABLES } = await import(
+	pathToFileURL(bundle).href
+);
 
 const wrangler = (...args) =>
 	execFileSync(
@@ -49,15 +55,21 @@ const wrangler = (...args) =>
 		}
 	);
 
-const [{ results }] = JSON.parse(wrangler('--json', '--command', UNBACKFILLED_EVENTS_SQL));
-if (results.length === 0) {
-	console.log('Nothing to backfill: every dated event already has its structured date.');
+const statements = [];
+for (const dated of DATED_TABLES) {
+	const [{ results }] = JSON.parse(wrangler('--json', '--command', staleDatesSql(dated)));
+	const updates = backfillStatements(dated, results);
+	if (updates.length > 0) console.log(`${dated.table}: ${updates.length} to update.`);
+	statements.push(...updates);
+}
+if (statements.length === 0) {
+	console.log('Nothing to backfill: every stored date already matches its date text.');
 	process.exit(0);
 }
 
 const file = join(dir, 'backfill.sql');
-writeFileSync(file, backfillStatements(results).join('\n') + '\n');
+writeFileSync(file, statements.join('\n') + '\n');
 wrangler('--file', file);
 console.log(
-	`Backfilled ${results.length} event date${results.length === 1 ? '' : 's'} (${target.slice(2)}).`
+	`Backfilled ${statements.length} date${statements.length === 1 ? '' : 's'} (${target.slice(2)}).`
 );
