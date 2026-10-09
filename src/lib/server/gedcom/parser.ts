@@ -34,7 +34,8 @@ export type { ParsedCitation } from './evidence-parse';
 export type { ParsedNoteLink, ParsedSharedNote } from './note-parse';
 export { mergeCitations, mergeNoteLinks };
 
-export type GedcomVersion = '5.5.1' | '7.0';
+/** The dialects an import reads. 5.5 is read as 5.5.1, of which it is very nearly a subset. */
+export type GedcomVersion = '5.5' | '5.5.1' | '7.0';
 
 /**
  * A child's relationship to the parents of a family (`PEDI`). `sealing` and `other` have no
@@ -238,10 +239,6 @@ const FAMILY_EVENT_TAGS = new Set([
 ]);
 
 /**
- * Detect the GEDCOM version from the `GEDC.VERS` value in the header.
- * Defaults to 5.5.1 when the version cannot be determined.
- */
-/**
  * Split a GEDCOM `NAME` value ("Given /Surname/ Suffix") into parts. A lazy-prefix regex here
  * once matched an empty prefix and left the slashes inside the given name whenever the record
  * had no GIVN/SURN children.
@@ -262,6 +259,10 @@ export function parseGedcomNameValue(value: string): { givenName?: string; surna
 	};
 }
 
+/**
+ * Detect the GEDCOM version from the `GEDC.VERS` value in the header.
+ * Defaults to 5.5.1 when the version cannot be determined.
+ */
 export function detectGedcomVersion(rawContent: string): GedcomVersion {
 	const lines = rawContent.split(/\r?\n/);
 	let isInGedc = false;
@@ -274,7 +275,9 @@ export function detectGedcomVersion(rawContent: string): GedcomVersion {
 		if (isInGedc) {
 			const vers = trimmed.match(/^2\s+VERS\s+(.+)$/);
 			if (vers) {
-				return vers[1].trim().startsWith('7') ? '7.0' : '5.5.1';
+				const version = vers[1].trim();
+				if (version.startsWith('7')) return '7.0';
+				return version === '5.5' ? '5.5' : '5.5.1';
 			}
 			if (/^\d+\s+\S/.test(trimmed)) break;
 		}
