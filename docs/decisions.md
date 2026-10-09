@@ -100,6 +100,13 @@
 - **Undo.** Row-op images are generated from the Drizzle columns, so the new columns are in every before and after image. An image written before the migration lacks them and restores as null.
 - **Deploy order.** The columns are nullable and defaulted, so the migration is safe before the code. The reverse order is not: the new code inserts the columns. The `deploy` script migrates first, and the request-time check (see `db/schema-status.ts`) answers 503 until every migration in the journal has been applied, so a mis-ordered deploy fails clearly instead of writing to columns that are not there.
 
+## ADR-004 addendum: dual dates sort on their later year
+- **Context:** A 5.5.1 dual date such as `30 JAN 1648/49` gives the year twice: first as the Old Style year, which began on 25 March, then the last digits of the year counted from 1 January. The parser sorted on the first, and its comment called that the Gregorian year. It is not: GEDCOM 7.0 writes the same date as `30 JAN 1649` (ADR-035's export does), so a tree round-tripped through 7.0 sorted every January-to-March dual date a year later than the original.
+- **Decision:**
+  - `parseDateValue` sorts a dual date on its later year. The suffix replaces the last digits of the first year, and the century rolls over when the result would not be later: `1648/49` is 1649, `1648/9` is 1649, and `1699/00` is 1700. The day is checked against that year, so `29 FEB 1647/48` is a date and `checkDateText` accepts it. Days are not converted between calendars. The calendar is still stored as `JULIAN`, and `date_raw` is still verbatim.
+  - **Stored bounds move through the backfill.** `eventDateValue` trusts stored columns, so a dual date stored before this change keeps its old sort until `npm run db:backfill:dates` runs (`-- --remote` for the deployed database, after the deploy). The script now re-derives every `JULIAN` row in `events`, `person_names` and `citations` (only the dual-date parse yields `JULIAN`) as well as rows with no columns yet, writes only rows whose columns change, matches on the date text so a concurrent edit is left alone, and leaves `version` and `updated_at` alone.
+- **Consequences:** Until the backfill runs, a stored dual date and a newly saved copy of it sort a year apart. Sorting, range filters, and anything computed from the bounds (ages, living-state spans, quality checks) move dual dates by one year. The date text shown on the page does not change.
+
 
 ## ADR-011: The bounded graph and the record pages (Phase 3, S5)
 - **Context:** Every screen loaded the whole tree: the page fetched the tree details and an unfocused graph, and the drawer, dialogs and stats read from them. Phase 3 requires that test corpora do not need a whole-tree response.
