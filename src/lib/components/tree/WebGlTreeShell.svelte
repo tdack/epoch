@@ -853,7 +853,6 @@
 	.hover-card {
 		max-width: 16rem;
 		border: 1px solid var(--tree-panel-border);
-		border-left: 3px solid var(--color-emerald-800);
 		border-radius: 0.625rem;
 		background: var(--tree-panel);
 		padding: 0.5rem 0.75rem;
