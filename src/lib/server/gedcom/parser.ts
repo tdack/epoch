@@ -32,7 +32,6 @@ import {
 } from './note-parse';
 
 export type { ParsedCitation } from './evidence-parse';
-export type { ParsedNoteLink, ParsedSharedNote } from './note-parse';
 export { mergeCitations, mergeNoteLinks };
 
 /** The dialects an import reads. 5.5 is read as 5.5.1, of which it is very nearly a subset. */

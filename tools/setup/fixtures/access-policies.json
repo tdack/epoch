@@ -1,0 +1,29 @@
+[
+	{
+		"id": "pol00000-0000-4000-8000-000000000001",
+		"name": "Family",
+		"decision": "allow",
+		"include": [
+			{ "email": { "email": "a@example.com" } },
+			{ "email": { "email": "b@example.com" } }
+		],
+		"exclude": [],
+		"require": []
+	},
+	{
+		"id": "pol00000-0000-4000-8000-000000000002",
+		"name": "Everyone with OTP",
+		"decision": "allow",
+		"include": [{ "everyone": {} }],
+		"exclude": [],
+		"require": []
+	},
+	{
+		"id": "pol00000-0000-4000-8000-000000000003",
+		"name": "Bypass the world",
+		"decision": "bypass",
+		"include": [{ "everyone": {} }],
+		"exclude": [],
+		"require": []
+	}
+]

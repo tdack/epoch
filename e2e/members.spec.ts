@@ -8,7 +8,7 @@ test('an owner invites an address, sees the offer waiting, and withdraws it', as
 }) => {
 	await open(page, `/trees/${api.treeId}/members`);
 	await expect(page.getByTestId('member')).toHaveCount(1);
-	await expect(page.getByText('does not let them past Cloudflare Access')).toBeVisible();
+	await expect(page.getByText('Cloudflare Access is a separate gate')).toBeVisible();
 
 	await page.getByLabel('Email address').fill('Cousin@Example.com');
 	await page.getByLabel('Role', { exact: true }).selectOption('editor');

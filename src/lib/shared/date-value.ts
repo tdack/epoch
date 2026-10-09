@@ -178,6 +178,23 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
 	return PRECISION_ORDER[a] >= PRECISION_ORDER[b] ? a : b;
 }
 
+/** A date followed by the last digits of its later year: `30 JAN 1648/49`. */
+const DUAL_DATE = /^(.+?)\s*\/\s*(\d{1,2})$/;
+
+/**
+ * Replace the year that ends `body` with the later year of a dual date, read from its last digits:
+ * `1648` and `49` give `1649`, and `1699` and `00` roll the century over to `1700`.
+ */
+function withLaterDualYear(body: string, suffix: string): string {
+	const year = body.match(/(\d{3,4})$/);
+	if (!year) return body;
+	const first = Number(year[1]);
+	const modulus = 10 ** suffix.length;
+	let later = first - (first % modulus) + Number(suffix);
+	if (later <= first) later += modulus;
+	return body.slice(0, year.index) + later;
+}
+
 /**
  * Parse a GEDCOM-style date string into a {@link DateValue}.
  *
@@ -214,11 +231,13 @@ function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 
 	const upper = raw.toUpperCase();
 
-	// Dual dates (e.g. `15 JAN 1900/01`) carry a Julian/Gregorian pair; sort on
-	// the first (Gregorian) component and record the calendar as JULIAN.
-	const dual = upper.match(/^(.+?)\s*\/\s*(\d{1,2})$/);
+	// Dual dates (e.g. `30 JAN 1648/49`) carry the year twice: the first is the Old Style year,
+	// which began on 25 March, and the suffix is the year as reckoned from 1 January. Sort on the
+	// later one, as GEDCOM 7.0 does when it writes the same date as `30 JAN 1649`; sorting on the
+	// first put every January-to-March date a year early. The calendar is recorded as JULIAN.
+	const dual = upper.match(DUAL_DATE);
 	const calendar = dual ? CALENDARS.JULIAN : CALENDARS.GREGORIAN;
-	const body = dual ? dual[1].trim() : raw;
+	const body = dual ? withLaterDualYear(dual[1].trim(), dual[2]) : raw;
 
 	// Ranged qualifiers.
 	const between = body.match(/^BET(?:WEEN)?\s+(.+?)\s+AND\s+(.+)$/);
@@ -377,8 +396,11 @@ export function checkDateText(rawInput: string | null | undefined): DateInputChe
 			message: 'Enter the full year, such as 1926. Two-digit years are ambiguous.'
 		};
 	}
-	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(raw)) {
-		const dayMonthYear = [...raw.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
+	// A dual date's day is checked against its later year, the one it sorts on: `29 FEB 1647/48`.
+	const dual = raw.match(DUAL_DATE);
+	const dayText = dual ? withLaterDualYear(dual[1].trim(), dual[2]) : raw;
+	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(dayText)) {
+		const dayMonthYear = [...dayText.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
 		for (const [, day, monthName, year] of dayMonthYear) {
 			const month = parseMonth(monthName);
 			if (month !== null && Number(day) > daysInMonth(Number(year), month)) {

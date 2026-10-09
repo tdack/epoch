@@ -277,8 +277,17 @@ describe('emailing an invitation', () => {
 });
 
 describe('taking up an invitation', () => {
-	const signIn = (email: string, sub = `sub-${email}`) =>
-		new UserRepository(t.db).upsertFromAccess({ accessSub: sub, email, name: 'Newcomer' });
+	const admit = (email: string, sub = `sub-${email}`) =>
+		new UserRepository(t.db).admitFromAccess(
+			{ accessSub: sub, email, name: 'Newcomer' },
+			null,
+			new Date()
+		);
+	const signIn = async (email: string) => {
+		const user = await admit(email);
+		if (!user) throw new Error(`${email} was not admitted`);
+		return user;
+	};
 
 	it('gives the role on the first sign-in with that address, whatever its case, and uses the offer up', async () => {
 		const { treeId, actors } = await tree();
@@ -341,8 +350,8 @@ describe('taking up an invitation', () => {
 			{ email: 'someone@example.com', role: 'viewer' },
 			actors.owner.context
 		);
-		const late = await signIn('late@example.com');
-		expect(await new UserRepository(t.db).getMembership(treeId, late.id)).toBeNull();
+		// Nothing else admits them, so they are turned away without a user (ADR-034).
+		expect(await admit('late@example.com')).toBeNull();
 		const listed = await service().list(treeId, actors.owner.context);
 		expect(listed.invitations.map((i) => [i.email, i.isExpired])).toEqual([
 			['late@example.com', true],

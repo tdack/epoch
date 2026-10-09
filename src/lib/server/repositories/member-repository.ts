@@ -184,6 +184,22 @@ export class MemberRepository {
 			.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
 	}
 
+	/** Whether an unexpired invitation waits for this address, in any tree. */
+	async hasPendingFor(email: string, now: Date): Promise<boolean> {
+		const row = await this.db
+			.select({ id: treeInvitations.id })
+			.from(treeInvitations)
+			.where(
+				and(
+					eq(treeInvitations.email, email.trim().toLowerCase()),
+					gt(treeInvitations.expiresAt, now)
+				)
+			)
+			.limit(1)
+			.get();
+		return row !== undefined;
+	}
+
 	/**
 	 * Turn every unexpired invitation to this address into a membership, then delete it. Run on each
 	 * authenticated request, so a person invited to a second tree gets it on their next one. A person

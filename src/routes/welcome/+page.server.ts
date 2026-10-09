@@ -7,13 +7,32 @@ import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const csr = false;
 
-export const load: PageServerLoad = ({ locals, url }) => {
+type WelcomeState = 'signed-in' | 'signed-out' | 'not-invited';
+
+/** Ends the Access session for the whole team domain; a page of Epoch's own could not. */
+const ACCESS_LOGOUT_PATH = '/cdn-cgi/access/logout';
+
+export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
+	// The not-invited state names the visitor, so no cache may replay it to someone else.
+	setHeaders({ 'cache-control': 'no-store' });
 	const next = safeNextPath(url.searchParams.get('next'));
-	const isSignedIn = locals.user !== null;
-	return {
-		isSignedIn,
+	// Decided from who is asking, never from `?reason=`, so a crafted link cannot show it to anyone else.
+	const state: WelcomeState = locals.user
+		? 'signed-in'
+		: locals.notAdmitted
+			? 'not-invited'
+			: 'signed-out';
+	const actionHrefs: Record<WelcomeState, string> = {
 		// Signed in, there is nothing for Access to do; signed out, `/login` is the one path it covers.
-		actionHref: isSignedIn ? next : `${LOGIN_PATH}?next=${encodeURIComponent(next)}`,
+		'signed-in': next,
+		'signed-out': `${LOGIN_PATH}?next=${encodeURIComponent(next)}`,
+		// "Continue" would come straight back here, and signing in again names the same person.
+		'not-invited': ACCESS_LOGOUT_PATH
+	};
+	return {
+		state,
+		actionHref: actionHrefs[state],
+		notAdmittedEmail: locals.notAdmitted?.email ?? null,
 		// Link unfurlers need absolute URLs, and the host differs between preview and production.
 		pageUrl: new URL(url.pathname, url.origin).href,
 		imageUrl: new URL('/brand/og-image.png', url.origin).href

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	isPublicPagePath,
 	LOGIN_PATH,
+	NOT_INVITED_PATH,
+	notAdmittedOutcome,
 	safeNextPath,
 	signedOutRedirect,
 	WELCOME_PATH
@@ -121,5 +123,48 @@ describe('safeNextPath', () => {
 	it('does not treat a longer path as login or welcome', () => {
 		expect(safeNextPath('/welcome/extra')).toBe('/welcome/extra');
 		expect(safeNextPath('/loginx')).toBe('/loginx');
+	});
+});
+
+const notAdmittedPage = { method: 'GET', isDataRequest: false, isNotAdmitted: true };
+
+describe('turning away a visitor Epoch does not admit (ADR-034)', () => {
+	it('sends a page load, GET or HEAD, to the not-invited welcome page', () => {
+		expect(notAdmittedOutcome({ ...notAdmittedPage, pathname: '/' })).toEqual({
+			status: 303,
+			location: '/welcome?reason=not-invited'
+		});
+		expect(
+			notAdmittedOutcome({ ...notAdmittedPage, pathname: '/trees/t1', method: 'HEAD' })
+		).toEqual({ status: 303, location: NOT_INVITED_PATH });
+	});
+
+	it('answers an API call with 403, whatever its method', () => {
+		for (const method of ['GET', 'POST', 'DELETE']) {
+			expect(notAdmittedOutcome({ ...notAdmittedPage, pathname: '/api/trees', method })).toEqual({
+				status: 403
+			});
+		}
+		expect(notAdmittedOutcome({ ...notAdmittedPage, pathname: '/api' })).toEqual({ status: 403 });
+	});
+
+	it('leaves data requests and submissions to fail as they do signed out', () => {
+		expect(
+			notAdmittedOutcome({ ...notAdmittedPage, pathname: '/trees/t1', isDataRequest: true })
+		).toBeNull();
+		expect(
+			notAdmittedOutcome({ ...notAdmittedPage, pathname: '/trees/t1', method: 'POST' })
+		).toBeNull();
+	});
+
+	it('serves the welcome and login pages, so the redirect cannot loop', () => {
+		expect(notAdmittedOutcome({ ...notAdmittedPage, pathname: WELCOME_PATH })).toBeNull();
+		expect(notAdmittedOutcome({ ...notAdmittedPage, pathname: LOGIN_PATH })).toBeNull();
+	});
+
+	it('does nothing for an admitted or a signed-out request', () => {
+		expect(
+			notAdmittedOutcome({ ...notAdmittedPage, pathname: '/', isNotAdmitted: false })
+		).toBeNull();
 	});
 });

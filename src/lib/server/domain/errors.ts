@@ -1,6 +1,7 @@
 export type ErrorCode =
 	| 'UNAUTHENTICATED'
 	| 'UNAUTHORIZED'
+	| 'NOT_ADMITTED'
 	| 'NOT_FOUND'
 	| 'VALIDATION_ERROR'
 	| 'CONCURRENCY_CONFLICT'
@@ -42,6 +43,18 @@ export class UnauthorizedError extends DomainError {
 	constructor(message = 'Access denied', details?: Record<string, unknown>) {
 		super(message, 'UNAUTHORIZED', 403, details);
 		this.name = 'UnauthorizedError';
+	}
+}
+
+/**
+ * The caller is not admitted to this install: not its owner, and holding no membership (ADR-034).
+ * Distinct from `UnauthorizedError`, which is about one tree, so a client can tell "ask for an
+ * invitation" from "ask for a higher role".
+ */
+export class NotAdmittedError extends DomainError {
+	constructor(message = 'Ask the owner of this Epoch for an invitation') {
+		super(message, 'NOT_ADMITTED', 403);
+		this.name = 'NotAdmittedError';
 	}
 }
 

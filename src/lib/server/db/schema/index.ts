@@ -11,3 +11,4 @@ export * from './quality';
 export * from './evidence';
 export * from './notes';
 export * from './tasks';
+export * from './install';

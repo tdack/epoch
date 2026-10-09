@@ -13,7 +13,7 @@ import type { NoteDto, NoteSubjectKind } from '../../shared/notes';
 const missingText = (ref: string | null) =>
 	`Note ${ref ?? ''} (not in this tree)`.replace('  ', ' ');
 
-export function noteDto(
+function noteDto(
 	row: NoteAttachmentRow,
 	shared: ReadonlyMap<string, NoteRow>,
 	useCounts: ReadonlyMap<string, number>
