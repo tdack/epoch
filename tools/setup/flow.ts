@@ -5,6 +5,8 @@ import { ERROR_CODES, SetupError } from './errors.ts';
 import { lastCompletedStep, withStepDone, type Manifest } from './manifest.ts';
 import type { SetupFlags } from './options.ts';
 import { access } from './steps/access.ts';
+import { WORKER_CHOICES, resolveExistingWorker } from './steps/existing-worker.ts';
+import { chooseWorkerName, readDeployDefaults } from './steps/name.ts';
 import { collect } from './steps/collect.ts';
 import { handOff } from './steps/hand-off.ts';
 import { migrateMarkDeploy } from './steps/migrate-mark-deploy.ts';
@@ -45,7 +47,9 @@ export async function runSetup(
 	presenter: Presenter
 ): Promise<SetupResult> {
 	presenter.stage('Preflight');
-	const pre = preflight(ctx, flags);
+	const defaults = readDeployDefaults(ctx);
+	const name = await chooseWorkerName(ctx, flags, mode, asker, defaults);
+	const pre = preflight(ctx, { ...flags, name });
 	let manifest = pre.manifest;
 	if (pre.isResume) presenter.showExisting(manifest);
 
@@ -56,7 +60,7 @@ export async function runSetup(
 	manifest = signed.manifest;
 
 	presenter.stage('Collect');
-	const collected = await collect(ctx, manifest, flags, signed.identity, mode, asker);
+	const collected = await collect(ctx, manifest, flags, signed.identity, mode, asker, defaults);
 	manifest = collected.manifest;
 	let { answers } = collected;
 
@@ -65,6 +69,24 @@ export async function runSetup(
 		reconcileStep(ctx, manifest, answers, pre.isResume)
 	);
 	manifest = reconciled.manifest;
+	let isWorkerReplaced = false;
+	if (reconciled.existingWorker) {
+		const outcome = await resolveExistingWorker(
+			reconciled.existingWorker,
+			reconciled.observed,
+			reconciled.result,
+			answers,
+			mode,
+			asker,
+			ctx.report
+		);
+		if (outcome.choice === WORKER_CHOICES.rename) {
+			// Nothing has been created, so start again under the new name.
+			return runSetup(ctx, { ...flags, name: outcome.newName }, mode, asker, presenter);
+		}
+		answers = outcome.answers;
+		isWorkerReplaced = outcome.choice === WORKER_CHOICES.replace;
+	}
 	answers = await confirmAdoptions(reconciled.result, answers, mode, asker, ctx.report);
 
 	presenter.stage('Plan');
@@ -89,7 +111,10 @@ export async function runSetup(
 		}
 	}
 	manifest = ctx.save(
-		withStepDone(applyAdoptions(manifest, reconciled.result, reconciled.observed), 'plan')
+		withStepDone(
+			applyAdoptions(manifest, reconciled.result, reconciled.observed, isWorkerReplaced),
+			'plan'
+		)
 	);
 
 	presenter.stage('Provision');
@@ -103,7 +128,7 @@ export async function runSetup(
 	);
 
 	presenter.stage('Deploy');
-	manifest = writeConfig(ctx, manifest);
+	manifest = await writeConfig(ctx, manifest);
 	manifest = await presenter.task('Migrating, marking and deploying', () =>
 		migrateMarkDeploy(ctx, manifest)
 	);

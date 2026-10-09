@@ -10,6 +10,7 @@ import {
 	type Observed,
 	type ObservedD1,
 	type ObservedR2,
+	type ObservedWorker,
 	type ReconcileResult
 } from '../reconcile.ts';
 import { listPoliciesWithApps } from './collect.ts';
@@ -109,7 +110,7 @@ export async function observe(
 	manifest: Manifest,
 	hostname: string
 ): Promise<Observed> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	const [d1, r2, worker, queue, apps, policies] = await Promise.all([
 		observeD1(ctx, names.d1),
 		observeR2(ctx, manifest, names.r2),
@@ -160,27 +161,48 @@ export async function reconcileStep(
 	manifest: Manifest,
 	answers: Answers,
 	hasManifest: boolean
-): Promise<{ manifest: Manifest; result: ReconcileResult; observed: Observed }> {
+): Promise<{
+	manifest: Manifest;
+	result: ReconcileResult;
+	observed: Observed;
+	/** A Worker of this name that is not ours; the flow asks what to do with it (rename, adopt, replace). */
+	existingWorker: ObservedWorker | null;
+}> {
 	const observed = await observe(ctx, manifest, answers.hostname);
 	// A manifest created in this very run has no history, so a resource of that name is not "ours"
 	// just because the file exists; only a manifest read from disk counts as evidence.
 	const result = reconcile({
 		manifest: hasManifest ? manifest : null,
-		names: resourceNames(manifest.slug),
+		names: resourceNames(manifest.workerName),
 		hostname: answers.hostname,
 		observed
 	});
-	if (result.refusals.length > 0) {
+	const workerState = result.reports.worker.state;
+	const existingWorker =
+		observed.worker &&
+		(workerState === RESOURCE_STATES.unmarked || workerState === RESOURCE_STATES.foreign)
+			? observed.worker
+			: null;
+	// The Worker's own refusal is the existing-Worker prompt's to handle; anything else still stops here.
+	const refusals = existingWorker
+		? result.refusals.filter((line) => !line.startsWith(`${result.reports.worker.name}: `))
+		: result.refusals;
+	if (refusals.length > 0) {
 		throw new SetupError(
 			ERROR_CODES.foreign,
-			`Setup will not use resources that belong to something else:\n  ${result.refusals.join('\n  ')}`,
+			`Setup will not use resources that belong to something else:\n  ${refusals.join('\n  ')}`,
 			{
-				hint: 'Choose another install with --slug, or release them from the checkout that owns them. There is no override.'
+				hint: 'Choose another install with --name, or release them from the checkout that owns them. There is no override.'
 			}
 		);
 	}
 	for (const warning of result.warnings) ctx.report.warn(warning);
-	return { manifest: ctx.save(withStepDone(manifest, 'reconcile')), result, observed };
+	return {
+		manifest: ctx.save(withStepDone(manifest, 'reconcile')),
+		result,
+		observed,
+		existingWorker
+	};
 }
 
 /**
@@ -190,7 +212,9 @@ export async function reconcileStep(
 export function applyAdoptions(
 	manifest: Manifest,
 	result: ReconcileResult,
-	observed: Observed
+	observed: Observed,
+	/** The existing Worker is being replaced, not adopted: it is not recorded as ours and its AUD secret is not inherited. */
+	isWorkerReplaced = false
 ): Manifest {
 	let next: Manifest = structuredClone(manifest);
 	const isOrphaned = Object.values(result.reports).some(
@@ -207,7 +231,7 @@ export function applyAdoptions(
 		next.resources.r2 = { name: observed.r2.name };
 		next = withMarker(next, 'r2', observed.r2.markerInstallId === next.installId);
 	}
-	if (observed.worker && usable('worker')) {
+	if (observed.worker && usable('worker') && !isWorkerReplaced) {
 		next.resources.worker = { name: observed.worker.name };
 		next = withMarker(next, 'worker', observed.worker.markerInstallId === next.installId);
 	}
@@ -221,7 +245,7 @@ export function applyAdoptions(
 		};
 	}
 	// An adopted install's CF_ACCESS_AUD is already a secret; a var of the same name may be refused (SPIKE).
-	if (isOrphaned || result.reports.worker.state === RESOURCE_STATES.unmarked)
+	if (isOrphaned || (result.reports.worker.state === RESOURCE_STATES.unmarked && !isWorkerReplaced))
 		next.isAudSecret = true;
 	return next;
 }
