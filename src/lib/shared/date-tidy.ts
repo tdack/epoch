@@ -106,7 +106,7 @@ export function tidyDateText(raw: string): string {
 export const MAX_DATE_REWRITES = 200;
 
 /** One date the standardise action would rewrite, as the preview lists it. */
-export interface DateTidyChange {
+interface DateTidyChange {
 	/** What the date is on, such as "Death of Wilbur Clancy Bouvier". */
 	label: string;
 	before: string;
