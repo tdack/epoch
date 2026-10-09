@@ -8,6 +8,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
 import NOTES7 from './fixtures/notes7.ged?raw';
+import { toGedcom7Lines } from './dialect';
 import {
 	citations,
 	events,
@@ -132,7 +133,8 @@ describe('a GEDCOM 7 file with SNOTE, MIME and LANG', () => {
 		await importGedcomToDb(t.d1, treeId, NOTES7, 'Notes');
 		const out = await exportOf(treeId, '7');
 		const body = new Set(withoutHeader(out));
-		const missing = withoutHeader(lines(NOTES7)).filter(
+		// The fixture splits two notes with CONC, which 7.0 does not have; the export folds them.
+		const missing = withoutHeader(toGedcom7Lines(lines(NOTES7))).filter(
 			(line) => line !== '1 NOTE header note' && !body.has(line)
 		);
 		expect(missing).toEqual([]);
@@ -141,12 +143,21 @@ describe('a GEDCOM 7 file with SNOTE, MIME and LANG', () => {
 		expect(out).not.toContain('0 @N1@ NOTE Shared note one');
 	});
 
-	it('keeps a note’s CONT and CONC exactly as the file split it', async () => {
+	it('keeps a note’s CONT and CONC exactly as the file split it, in 5.5.1', async () => {
 		const treeId = crypto.randomUUID();
 		await importGedcomToDb(t.d1, treeId, NOTES7, 'Notes');
-		const out = (await exportOf(treeId)).join('\n');
-		expect(out).toContain('0 @N1@ SNOTE Shared note one\n1 CONT second line\n1 CONC  continued\n');
+		const out = (await exportOf(treeId, '551')).join('\n');
+		expect(out).toContain('0 @N1@ NOTE Shared note one\n1 CONT second line\n1 CONC  continued\n');
 		expect(out).toContain('1 NOTE person inline\n2 CONT more words\n2 CONC  and a tail');
+	});
+
+	it('folds a CONC into the line it continues in 7.0, which has none', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, NOTES7, 'Notes');
+		const out = (await exportOf(treeId, '7')).join('\n');
+		expect(out).toContain('0 @N1@ SNOTE Shared note one\n1 CONT second line continued\n');
+		expect(out).toContain('1 NOTE person inline\n2 CONT more words and a tail');
+		expect(out).not.toMatch(/^\d+ CONC/m);
 	});
 
 	it('writes a pointer as NOTE in 5.5.1 and SNOTE in 7.0, to the one record', async () => {

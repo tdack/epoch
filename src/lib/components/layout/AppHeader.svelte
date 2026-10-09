@@ -3,6 +3,7 @@
 	import type { Snippet } from 'svelte';
 	import EpochMark from '#lib/components/brand/EpochMark.svelte';
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
+	import type { GedcomExportChoice } from '#lib/services/tree-api.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -19,7 +20,7 @@
 		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
 		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
-		onexportGedcom: () => void;
+		onexportGedcom: (choice: GedcomExportChoice) => void;
 		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
 		canExport?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */

@@ -3,6 +3,8 @@
  * change log and shown in the undo toast.
  */
 
+import { dateRewrites } from './date-ops';
+import { MAX_DATE_REWRITES } from '../../shared/date-tidy';
 import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
 import { factsAtPlace } from './place-ops';
@@ -163,6 +165,10 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		}
 		case 'delete_task':
 			return `Deleted the task “${(rows.researchTasks.find((t) => t.id === command.taskId)?.title ?? 'a task').slice(0, 60)}”`;
+		case 'standardise_dates': {
+			const count = Math.min(dateRewrites(rows).length, MAX_DATE_REWRITES);
+			return `Standardised ${count === 1 ? '1 date' : `${count} dates`}`;
+		}
 		case 'rewrite_place': {
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;

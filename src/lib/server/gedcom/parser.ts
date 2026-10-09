@@ -9,6 +9,7 @@ import {
 	NAME_CHANGE_NOTE,
 	SEX_X_TAG
 } from './tags';
+import { fromGedcom7Date } from './date-dialect';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
 import {
 	mergeCitations,
@@ -33,7 +34,8 @@ import {
 export type { ParsedCitation } from './evidence-parse';
 export { mergeCitations, mergeNoteLinks };
 
-export type GedcomVersion = '5.5.1' | '7.0';
+/** The dialects an import reads. 5.5 is read as 5.5.1, of which it is very nearly a subset. */
+export type GedcomVersion = '5.5' | '5.5.1' | '7.0';
 
 /**
  * A child's relationship to the parents of a family (`PEDI`). `sealing` and `other` have no
@@ -237,10 +239,6 @@ const FAMILY_EVENT_TAGS = new Set([
 ]);
 
 /**
- * Detect the GEDCOM version from the `GEDC.VERS` value in the header.
- * Defaults to 5.5.1 when the version cannot be determined.
- */
-/**
  * Split a GEDCOM `NAME` value ("Given /Surname/ Suffix") into parts. A lazy-prefix regex here
  * once matched an empty prefix and left the slashes inside the given name whenever the record
  * had no GIVN/SURN children.
@@ -261,6 +259,10 @@ export function parseGedcomNameValue(value: string): { givenName?: string; surna
 	};
 }
 
+/**
+ * Detect the GEDCOM version from the `GEDC.VERS` value in the header.
+ * Defaults to 5.5.1 when the version cannot be determined.
+ */
 export function detectGedcomVersion(rawContent: string): GedcomVersion {
 	const lines = rawContent.split(/\r?\n/);
 	let isInGedc = false;
@@ -273,7 +275,9 @@ export function detectGedcomVersion(rawContent: string): GedcomVersion {
 		if (isInGedc) {
 			const vers = trimmed.match(/^2\s+VERS\s+(.+)$/);
 			if (vers) {
-				return vers[1].trim().startsWith('7') ? '7.0' : '5.5.1';
+				const version = vers[1].trim();
+				if (version.startsWith('7')) return '7.0';
+				return version === '5.5' ? '5.5' : '5.5.1';
 			}
 			if (/^\d+\s+\S/.test(trimmed)) break;
 		}
@@ -307,6 +311,23 @@ export function normalizeGedcomDate(dateStr?: string): {
 		sort: value.sortStart ?? undefined,
 		sortEnd: value.sortEnd ?? null
 	};
+}
+
+/**
+ * The date text of a `DATE` node as Epoch stores it. A 7.0 date's `PHRASE` is folded into the
+ * text the 5.5.1 way, so the phrase is not lost and a 7.0 export splits it out again.
+ */
+function dateTextOf(dateNode: GedcomNode | undefined, version: GedcomVersion): string | undefined {
+	if (!dateNode || version !== '7.0') return dateNode?.value;
+	return fromGedcom7Date(dateNode.value, dateNode.children.find((c) => c.tag === 'PHRASE')?.value);
+}
+
+/** 7.0 doubles a payload's leading `@` so it does not read as a pointer; the model holds the text itself. */
+function unescapeGedcom7(nodes: GedcomNode[]): void {
+	for (const node of nodes) {
+		if (node.value?.startsWith('@@')) node.value = node.value.slice(1);
+		unescapeGedcom7(node.children);
+	}
 }
 
 const NAME_TYPE_BY_WORD: Record<string, NameType> = Object.fromEntries(
@@ -419,7 +440,10 @@ function parseLegacyMarriedName(value: string, primary: ParsedName | undefined):
 export function parseGedcom(rawContent: string, options: ParseOptions = {}): ParsedGedcomData {
 	const isEvidenceModelled = options.isEvidenceModelled ?? true;
 	const isNotesModelled = options.isNotesModelled ?? true;
+	const version = detectGedcomVersion(rawContent);
 	const rootNodes = buildGedcomTree(rawContent.split(/\r?\n/));
+	// Only the parsed values: kept lines are written back as the file had them, escape and all.
+	if (version === '7.0') unescapeGedcom7(rootNodes);
 
 	const individuals: ParsedIndividual[] = [];
 	const families: ParsedFamily[] = [];
@@ -529,7 +553,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const textOf = (tag: string) =>
 						child.children.find((c) => c.tag === tag)?.value?.trim() || undefined;
-					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
+					const { raw, sort, sortEnd } = normalizeGedcomDate(dateTextOf(dateNode, version));
 
 					// The first plain NOTE is the fact's note. A note with continuation lines, a second note,
 					// a citation, an OBJE or a custom tag has no column and is kept verbatim (ADR-023).
@@ -628,7 +652,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				} else if (FAMILY_EVENT_TAGS.has(child.tag)) {
 					const dateNode = child.children.find((c) => c.tag === 'DATE');
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
-					const { raw, sort, sortEnd } = normalizeGedcomDate(dateNode?.value);
+					const { raw, sort, sortEnd } = normalizeGedcomDate(dateTextOf(dateNode, version));
 
 					const { notes: noteLinks, others: factOthers } = splitNotes(
 						child.children,
@@ -718,7 +742,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	}
 
 	return {
-		version: detectGedcomVersion(rawContent),
+		version,
 		individuals,
 		families,
 		treeName,

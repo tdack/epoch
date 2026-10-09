@@ -85,10 +85,38 @@ describe('parseDateValue', () => {
 		expect(parseDateValue('gibberish').qualifier).toBe(DATE_QUALIFIERS.UNKNOWN);
 	});
 
-	it('handles dual Julian/Gregorian dates', () => {
-		const v = parseDateValue('15 JAN 1900/01');
+	it('sorts a dual date on its later (Gregorian) year', () => {
+		const v = parseDateValue('30 JAN 1648/49');
 		expect(v.calendar).toBe('JULIAN');
-		expect(v.sortStart).toBe('1900-01-15');
+		expect(v.qualifier).toBe(DATE_QUALIFIERS.EXACT);
+		expect(v.sortStart).toBe('1649-01-30');
+		expect(v.sortEnd).toBe('1649-01-30');
+		expect(v.raw).toBe('30 JAN 1648/49');
+	});
+
+	it.each([
+		['15 JAN 1900/01', '1901-01-15', '1901-01-15'],
+		['FEB 1648/49', '1649-02-01', '1649-02-28'],
+		['1648/9', '1649-01-01', '1649-12-31'],
+		['1699/00', '1700-01-01', '1700-12-31'],
+		['MAR 1709/0', '1710-03-01', '1710-03-31'],
+		['ABT 1648/49', '1649-01-01', '1649-12-31'],
+		['BET 1640 AND 1648/49', '1640-01-01', '1649-12-31']
+	])('dual date %s sorts from %s to %s', (raw, start, end) => {
+		const v = parseDateValue(raw);
+		expect(v.calendar).toBe('JULIAN');
+		expect([v.sortStart, v.sortEnd]).toEqual([start, end]);
+	});
+
+	it('bounds BEF and AFT dual dates by the later year', () => {
+		expect(parseDateValue('BEF 1 FEB 1648/49').sortEnd).toBe('1649-01-31');
+		expect(parseDateValue('AFT 1 FEB 1648/49').sortStart).toBe('1649-02-02');
+	});
+
+	it('checks a dual date day against its later year', () => {
+		expect(parseDateValue('29 FEB 1647/48').sortStart).toBe('1648-02-29');
+		expect(checkDateText('29 FEB 1647/48').isValid).toBe(true);
+		expect(checkDateText('29 FEB 1648/49').isValid).toBe(false);
 	});
 });
 describe('checkDateText', () => {

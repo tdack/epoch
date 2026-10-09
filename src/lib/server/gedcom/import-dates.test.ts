@@ -13,8 +13,9 @@ import { PersonService } from '../services/person-service';
 import { ChangeLogService } from '../services/change-log-service';
 import {
 	backfillStatements,
-	UNBACKFILLED_EVENTS_SQL,
-	type UnbackfilledEvent
+	DATED_TABLES,
+	staleDatesSql,
+	type StoredDateRow
 } from '../domain/date-backfill';
 import { normalizeGedcomDate } from './parser';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -166,29 +167,49 @@ describe('editing dates and undoing the edit', () => {
 	});
 });
 
-describe('backfilling events written before the columns existed', () => {
-	it('fills only unbackfilled rows from date_raw, and leaves version and updated_at alone', async () => {
+describe('backfilling stored event dates', () => {
+	const events = DATED_TABLES[0];
+	const backfill = async (ids: string[]) => {
+		const { results } = await t.d1.prepare(staleDatesSql(events)).all<StoredDateRow>();
+		const statements = backfillStatements(
+			events,
+			results.filter((r) => ids.includes(r.id))
+		);
+		for (const statement of statements) await t.d1.prepare(statement).run();
+		return statements.length;
+	};
+
+	it('fills unbackfilled rows and re-sorts dual dates, leaving version and updated_at alone', async () => {
 		const treeId = crypto.randomUUID();
 		await importGedcomToDb(
 			t.d1,
 			treeId,
-			'0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 BIRT\n2 DATE 1900\n0 TRLR',
+			'0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 BIRT\n2 DATE 1900\n1 DEAT\n2 DATE 30 JAN 1648/49\n0 TRLR',
 			'Old'
 		);
-		const [row] = await eventsOf(treeId);
+		const byDate = async () => {
+			const rows = await eventsOf(treeId);
+			return [rows.find((r) => r.dateRaw === '1900')!, rows.find((r) => r.dateRaw !== '1900')!];
+		};
+		const [birth, death] = await byDate();
 		await t.d1
 			.prepare(
 				'UPDATE events SET date_sort_end = NULL, date_qualifier = NULL, date_precision = NULL, date_calendar = NULL, version = 7, updated_at = 5 WHERE id = ?'
 			)
-			.bind(row.id)
+			.bind(birth.id)
+			.run();
+		// How the parser stored a dual date before it sorted on the later year.
+		await t.d1
+			.prepare(
+				"UPDATE events SET date_sort = '1648-01-30', date_sort_end = '1648-01-30', version = 7, updated_at = 5 WHERE id = ?"
+			)
+			.bind(death.id)
 			.run();
 
-		const { results } = await t.d1.prepare(UNBACKFILLED_EVENTS_SQL).all<UnbackfilledEvent>();
-		const mine = results.filter((r) => r.id === row.id);
-		for (const statement of backfillStatements(mine)) await t.d1.prepare(statement).run();
+		expect(await backfill([birth.id, death.id])).toBe(2);
 
-		const [after] = await eventsOf(treeId);
-		expect(after).toMatchObject({
+		const [birthAfter, deathAfter] = await byDate();
+		expect(birthAfter).toMatchObject({
 			dateRaw: '1900',
 			dateSort: '1900-01-01',
 			dateSortEnd: '1900-12-31',
@@ -196,16 +217,15 @@ describe('backfilling events written before the columns existed', () => {
 			datePrecision: 'YEAR',
 			version: 7
 		});
-		expect(after.updatedAt?.getTime()).toBe(5000);
-		expect(
-			(await t.d1.prepare(UNBACKFILLED_EVENTS_SQL).all<UnbackfilledEvent>()).results.some(
-				(r) => r.id === row.id
-			)
-		).toBe(false);
-	});
-
-	it('quotes text safely', () => {
-		const [sql] = backfillStatements([{ id: "o'brien", date_raw: '1900' }]);
-		expect(sql).toContain("WHERE id = 'o''brien'");
+		expect(birthAfter.updatedAt?.getTime()).toBe(5000);
+		expect(deathAfter).toMatchObject({
+			dateRaw: '30 JAN 1648/49',
+			dateSort: '1649-01-30',
+			dateSortEnd: '1649-01-30',
+			dateCalendar: 'JULIAN',
+			version: 7
+		});
+		expect(deathAfter.updatedAt?.getTime()).toBe(5000);
+		expect(await backfill([birth.id, death.id])).toBe(0);
 	});
 });

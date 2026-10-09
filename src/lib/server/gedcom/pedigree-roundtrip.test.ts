@@ -268,12 +268,12 @@ ${people(['I1', 'I2'])}
 			'2 NOTE Disputed by a cousin',
 			'3 CONC , see the letter'
 		]);
+		// 7.0 has no CONC, so the split is folded back into the note's line, and STAT is in capitals.
 		expect(famcBlock(text7)).toEqual([
 			'1 FAMC @F1@',
 			'2 PEDI ADOPTED',
-			'2 STAT challenged',
-			'2 NOTE Disputed by a cousin',
-			'3 CONC , see the letter'
+			'2 STAT CHALLENGED',
+			'2 NOTE Disputed by a cousin, see the letter'
 		]);
 	});
 

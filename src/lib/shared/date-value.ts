@@ -8,6 +8,8 @@
  * only derives inclusive sort bounds for indexing and chronological filtering.
  */
 
+import { tidyDateText } from './date-tidy';
+
 export const DATE_QUALIFIERS = {
 	EXACT: 'EXACT',
 	ABOUT: 'ABOUT',
@@ -176,6 +178,23 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
 	return PRECISION_ORDER[a] >= PRECISION_ORDER[b] ? a : b;
 }
 
+/** A date followed by the last digits of its later year: `30 JAN 1648/49`. */
+const DUAL_DATE = /^(.+?)\s*\/\s*(\d{1,2})$/;
+
+/**
+ * Replace the year that ends `body` with the later year of a dual date, read from its last digits:
+ * `1648` and `49` give `1649`, and `1699` and `00` roll the century over to `1700`.
+ */
+function withLaterDualYear(body: string, suffix: string): string {
+	const year = body.match(/(\d{3,4})$/);
+	if (!year) return body;
+	const first = Number(year[1]);
+	const modulus = 10 ** suffix.length;
+	let later = first - (first % modulus) + Number(suffix);
+	if (later <= first) later += modulus;
+	return body.slice(0, year.index) + later;
+}
+
 /**
  * Parse a GEDCOM-style date string into a {@link DateValue}.
  *
@@ -183,7 +202,7 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
  * precision with `1900-01-01`..`1900-12-31` bounds, and `ABT 1900` keeps its
  * approximate qualifier rather than collapsing to a false exact day.
  */
-export function parseDateValue(rawInput: string | null | undefined): DateValue {
+function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 	const raw = rawInput?.trim() ?? '';
 	if (!raw) {
 		return {
@@ -212,11 +231,13 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 
 	const upper = raw.toUpperCase();
 
-	// Dual dates (e.g. `15 JAN 1900/01`) carry a Julian/Gregorian pair; sort on
-	// the first (Gregorian) component and record the calendar as JULIAN.
-	const dual = upper.match(/^(.+?)\s*\/\s*(\d{1,2})$/);
+	// Dual dates (e.g. `30 JAN 1648/49`) carry the year twice: the first is the Old Style year,
+	// which began on 25 March, and the suffix is the year as reckoned from 1 January. Sort on the
+	// later one, as GEDCOM 7.0 does when it writes the same date as `30 JAN 1649`; sorting on the
+	// first put every January-to-March date a year early. The calendar is recorded as JULIAN.
+	const dual = upper.match(DUAL_DATE);
 	const calendar = dual ? CALENDARS.JULIAN : CALENDARS.GREGORIAN;
-	const body = dual ? dual[1].trim() : raw;
+	const body = dual ? withLaterDualYear(dual[1].trim(), dual[2]) : raw;
 
 	// Ranged qualifiers.
 	const between = body.match(/^BET(?:WEEN)?\s+(.+?)\s+AND\s+(.+)$/);
@@ -267,7 +288,9 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 		else if (prefix === 'CAL' || prefix === 'CALCULATED') qualifier = DATE_QUALIFIERS.CALCULATED;
 		else if (prefix === 'BEF' || prefix === 'BEFORE') qualifier = DATE_QUALIFIERS.BEFORE;
 		else if (prefix === 'AFT' || prefix === 'AFTER') qualifier = DATE_QUALIFIERS.AFTER;
-		// INT (interpreted) is a real date; treat as exact.
+		// INT (interpreted) is a real date; treat as exact. Its phrase follows in parentheses and
+		// does not sort; a 7.0 import stores a dated `PHRASE` this way.
+		else dateBody = dateBody.replace(/\s*\(.*\)$/, '');
 	}
 
 	const parts = parseDateParts(dateBody);
@@ -310,6 +333,41 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 	};
 }
 
+/**
+ * Parse a date as {@link parseStrictDateValue} does, reading a loosely typed one (`3 RD DECEMBER
+ * 1996`, `CIRCA 1937`) through its standard spelling when the text itself cannot be read. `raw`
+ * is always the text as given: the standard form is offered (`standardDateText`), never imposed.
+ */
+export function parseDateValue(rawInput: string | null | undefined): DateValue {
+	const strict = parseStrictDateValue(rawInput);
+	if (strict.qualifier !== DATE_QUALIFIERS.UNKNOWN) return strict;
+	const tidy = tidyDateText(strict.raw);
+	if (tidy === strict.raw) return strict;
+	const lenient = parseStrictDateValue(tidy);
+	return lenient.qualifier === DATE_QUALIFIERS.UNKNOWN ? strict : { ...lenient, raw: strict.raw };
+}
+
+/**
+ * The standard GEDCOM spelling of a date, when it differs from the text and still reads as the
+ * same date: `14 August 1975` is `14 AUG 1975`. Null when the text is already standard, or when
+ * Epoch cannot read it either way, so a caller never rewrites a date it does not understand.
+ */
+export function standardDateText(rawInput: string | null | undefined): string | null {
+	const raw = rawInput?.trim() ?? '';
+	if (!raw) return null;
+	const tidy = tidyDateText(raw);
+	if (tidy === raw) return null;
+	const before = parseDateValue(raw);
+	const after = parseStrictDateValue(tidy);
+	if (after.qualifier === DATE_QUALIFIERS.UNKNOWN) return null;
+	// A phrase stays a phrase, and a readable date must keep its meaning: same kind and same bounds.
+	const isSameDate =
+		before.qualifier === after.qualifier &&
+		before.sortStart === after.sortStart &&
+		before.sortEnd === after.sortEnd;
+	return isSameDate ? tidy : null;
+}
+
 /** GEDCOM month abbreviations in calendar order. */
 export const MONTH_ABBREVIATIONS = Object.keys(MONTHS);
 
@@ -338,8 +396,11 @@ export function checkDateText(rawInput: string | null | undefined): DateInputChe
 			message: 'Enter the full year, such as 1926. Two-digit years are ambiguous.'
 		};
 	}
-	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(raw)) {
-		const dayMonthYear = [...raw.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
+	// A dual date's day is checked against its later year, the one it sorts on: `29 FEB 1647/48`.
+	const dual = raw.match(DUAL_DATE);
+	const dayText = dual ? withLaterDualYear(dual[1].trim(), dual[2]) : raw;
+	if (/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{3,4}\b/.test(dayText)) {
+		const dayMonthYear = [...dayText.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})\b/g)];
 		for (const [, day, monthName, year] of dayMonthYear) {
 			const month = parseMonth(monthName);
 			if (month !== null && Number(day) > daysInMonth(Number(year), month)) {
@@ -359,6 +420,25 @@ export function checkDateText(rawInput: string | null | undefined): DateInputChe
 		return { isValid: false, message: 'The range ends before it starts.' };
 	}
 	return { isValid: true };
+}
+
+/**
+ * Check a date field that may hold a saved date. A date Epoch cannot read but that is unchanged from
+ * what was saved (an imported `01 MAR 191503 08 1912`) does not block the save: the rest of the
+ * record can still be edited, and the date stays as written until someone fixes it. `isKept` says
+ * so, for a field to warn rather than refuse.
+ */
+export function checkDateEdit(
+	rawInput: string | null | undefined,
+	saved: string | null | undefined
+): DateInputCheck & { isKept?: boolean } {
+	const check = checkDateText(rawInput);
+	if (check.isValid || (rawInput?.trim() ?? '') !== (saved?.trim() ?? '')) return check;
+	return {
+		isValid: true,
+		isKept: true,
+		message: `Epoch can't read this date, so it is kept as written. ${DATE_FORMAT_HELP}`
+	};
 }
 
 export interface PickerDate {

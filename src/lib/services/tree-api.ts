@@ -246,6 +246,20 @@ export async function submitGedcomImport(
 	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
 }
 
+/** How a tree is exported: the GEDCOM version and whether to package it as a `.gdz`. */
+export interface GedcomExportChoice {
+	format: 'gedcom7' | 'gedcom551';
+	/** Only meaningful for 7.0: GEDZip is defined for 7.0 alone. */
+	shouldCompress: boolean;
+}
+
+/** The download address for a tree's export. A plain navigation, so the browser saves the file. */
+export function gedcomExportUrl(treeId: string, choice: GedcomExportChoice): string {
+	const params = new URLSearchParams({ treeId, format: choice.format });
+	if (choice.shouldCompress && choice.format === 'gedcom7') params.set('package', 'gdz');
+	return `/api/export?${params}`;
+}
+
 /** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
 export async function planRelationshipApi(
 	treeId: string,
@@ -897,6 +911,28 @@ export async function rewritePlaceApi(
 		`/api/trees/${enc(treeId)}/places/${enc(placeId)}`,
 		json('PUT', { name }),
 		'Failed to change the place'
+	);
+}
+
+/** The dates that would take their standard spelling, before and after. Saves nothing. */
+export async function previewStandardiseDatesApi(
+	treeId: string
+): Promise<import('#lib/shared/date-tidy.js').DateTidyPreview> {
+	return call(
+		`/api/trees/${enc(treeId)}/dates/standardise`,
+		{},
+		'Failed to preview standardising the dates'
+	);
+}
+
+/** Give those dates their standard spelling: one change, one undo. */
+export async function standardiseDatesApi(
+	treeId: string
+): Promise<{ change: ChangeSummary | null; remaining: number }> {
+	return call(
+		`/api/trees/${enc(treeId)}/dates/standardise`,
+		{ method: 'POST' },
+		'Failed to standardise the dates'
 	);
 }
 

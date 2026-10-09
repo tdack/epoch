@@ -216,7 +216,8 @@ export const individualUpdateSchema = individualCreateSchema.partial().extend({
 
 export const exportBodySchema = z.object({
 	treeId: idSchema,
-	format: z.enum(['gedcom551', 'gedcom7']).optional()
+	format: z.enum(['gedcom551', 'gedcom7']).optional(),
+	shouldCompress: z.boolean().optional()
 });
 
 // ---- Facts (Phase 3 fact editor) ----

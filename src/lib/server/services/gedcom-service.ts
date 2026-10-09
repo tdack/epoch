@@ -10,10 +10,11 @@
 
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
-import { UnauthorizedError } from '../domain/errors';
+import { UnauthorizedError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { foldIntoExistingAliases, mergeExactDuplicateFamilies } from '../gedcom/duplicate-families';
 import { exportPayloadFrom } from '../gedcom/export-payload';
+import { GEDZIP_CONTENT_TYPE, packGedzip } from '../gedcom/gedzip';
 import {
 	previewAgainstTree,
 	previewNewTree,
@@ -69,18 +70,43 @@ export interface ImportFile {
 export type ImportOutcome =
 	{ status: 'queued'; treeId: string } | ({ status: 'complete'; treeId: string } & ImportCounts);
 
+/** How a tree is exported. */
+export interface ExportOptions {
+	format: GedcomFormat;
+	/** Package the file as a GEDZip (`.gdz`) archive. GEDZip is defined for 7.0 only. */
+	shouldCompress?: boolean;
+}
+
 export interface ExportFile {
-	content: string;
+	content: string | Uint8Array<ArrayBuffer>;
 	filename: string;
+	contentType: string;
+}
+
+const GEDCOM_CONTENT_TYPE = 'text/vnd.familysearch.gedcom';
+
+/** GEDZip's version is the dataset's, and 7.0 was its first, so a 5.5.1 file has no archive form. */
+function assertExportable({ format, shouldCompress }: ExportOptions): void {
+	if (shouldCompress && format !== 'gedcom7') {
+		throw new ValidationError('A .gdz archive can only hold a GEDCOM 7.0 file');
+	}
 }
 
 /**
- * The name an export is downloaded and stored under: the tree's name, reduced to characters that are
- * safe in a header and a file system. The R2 copy once used the tree's id instead; a person who
+ * The file an export is downloaded and stored as, named after the tree: reduced to characters that
+ * are safe in a header and a file system. The R2 copy once used the tree's id instead; a person who
  * opens either file wants to know which tree it is, so both use the name now.
  */
-function exportFilename(treeName: string): string {
-	return `${treeName.replace(/[^a-zA-Z0-9_-]/g, '_')}.ged`;
+function exportFile(treeName: string, gedcom: string, shouldCompress = false): ExportFile {
+	const base = treeName.replace(/[^a-zA-Z0-9_-]/g, '_');
+	return shouldCompress
+		? { content: packGedzip(gedcom), filename: `${base}.gdz`, contentType: GEDZIP_CONTENT_TYPE }
+		: { content: gedcom, filename: `${base}.ged`, contentType: GEDCOM_CONTENT_TYPE };
+}
+
+/** The name an import makes a tree under when none is given: the file's, without its extension. */
+function treeNameOf(fileName: string): string {
+	return fileName.replace(/\.(ged|gedcom|gdz)$/i, '');
 }
 
 export class GedcomService {
@@ -145,7 +171,7 @@ export class GedcomService {
 	 * the queue consumer when both are bound, and imported in the request otherwise.
 	 */
 	async importFile(file: ImportFile, context: AuthenticatedContext): Promise<ImportOutcome> {
-		const baseName = file.fileName.replace(/\.ged$/i, '');
+		const baseName = treeNameOf(file.fileName);
 		let treeId = file.treeId;
 		if (treeId) {
 			await this.requireImport(treeId, context);
@@ -228,29 +254,40 @@ export class GedcomService {
 		return exportPayloadFrom(treeId, await this.repo.loadExportRows(treeId));
 	}
 
-	/** The GEDCOM text of a tree, for a download. */
+	/** A tree's GEDCOM file, for a download. */
 	async exportDownload(
 		treeId: string,
-		format: GedcomFormat,
+		options: ExportOptions,
 		context: AuthenticatedContext
 	): Promise<ExportFile> {
+		assertExportable(options);
 		await this.requireExport(treeId, context);
 		const data = await this.loadExport(treeId);
-		return { content: buildGedcomString(data, format), filename: exportFilename(data.treeName) };
+		return exportFile(
+			data.treeName,
+			buildGedcomString(data, options.format),
+			options.shouldCompress
+		);
 	}
 
 	/**
-	 * Put serialized GEDCOM in R2 and answer its key. The key carries the tree's id and the time so
-	 * two exports never collide; the download name is the tree's name.
+	 * Put serialized GEDCOM in R2, packaged as GEDZip when asked, and answer its key. The key carries
+	 * the tree's id and the time so two exports never collide; the download name is the tree's name.
 	 */
-	async storeExport(treeId: string, treeName: string, content: string): Promise<string> {
+	async storeExport(
+		treeId: string,
+		treeName: string,
+		gedcom: string,
+		shouldCompress = false
+	): Promise<string> {
 		const bucket = this.bindings.bucket;
 		if (!bucket) throw new Error('Storage binding unavailable');
-		const key = `exports/${treeId}-${Date.now()}.ged`;
-		await bucket.put(key, content, {
+		const file = exportFile(treeName, gedcom, shouldCompress);
+		const key = `exports/${treeId}-${Date.now()}.${shouldCompress ? 'gdz' : 'ged'}`;
+		await bucket.put(key, file.content, {
 			httpMetadata: {
-				contentType: 'text/vnd.familysearch.gedcom',
-				contentDisposition: `attachment; filename="${exportFilename(treeName)}"`
+				contentType: file.contentType,
+				contentDisposition: `attachment; filename="${file.filename}"`
 			}
 		});
 		return key;
@@ -259,11 +296,17 @@ export class GedcomService {
 	/** Export straight to R2 in the request, when no workflow is bound. */
 	async exportToStorage(
 		treeId: string,
-		format: GedcomFormat,
+		options: ExportOptions,
 		context: AuthenticatedContext
 	): Promise<string> {
+		assertExportable(options);
 		await this.requireExport(treeId, context);
 		const data = await this.loadExport(treeId);
-		return this.storeExport(treeId, data.treeName, buildGedcomString(data, format));
+		return this.storeExport(
+			treeId,
+			data.treeName,
+			buildGedcomString(data, options.format),
+			options.shouldCompress
+		);
 	}
 }

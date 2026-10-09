@@ -1,8 +1,9 @@
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
+import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, trees } from '../db/schema';
-import { UnauthorizedError, NotAdmittedError } from '../domain/errors';
+import { NotAdmittedError, UnauthorizedError, ValidationError } from '../domain/errors';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -24,9 +25,12 @@ afterAll(async () => {
 
 /** An R2 stand-in that keeps what is put in it. */
 function fakeBucket() {
-	const objects = new Map<string, { value: string; options?: { httpMetadata?: unknown } }>();
+	const objects = new Map<
+		string,
+		{ value: string | Uint8Array; options?: { httpMetadata?: unknown } }
+	>();
 	const bucket = {
-		put: async (key: string, value: string, options?: { httpMetadata?: unknown }) => {
+		put: async (key: string, value: string | Uint8Array, options?: { httpMetadata?: unknown }) => {
 			objects.set(key, { value, options });
 		},
 		get: async (key: string) => {
@@ -174,11 +178,15 @@ describe('export', () => {
 		const { objects, bucket } = fakeBucket();
 		const service = new GedcomService(t.db, { bucket });
 
-		const download = await service.exportDownload(s.treeId, 'gedcom551', s.owner.context);
+		const download = await service.exportDownload(
+			s.treeId,
+			{ format: 'gedcom551' },
+			s.owner.context
+		);
 		expect(download.filename).toBe('Fox___family__1900.ged');
 		expect(download.content).toContain('0 HEAD');
 
-		const key = await service.exportToStorage(s.treeId, 'gedcom551', s.owner.context);
+		const key = await service.exportToStorage(s.treeId, { format: 'gedcom551' }, s.owner.context);
 		expect(key).toMatch(new RegExp(`^exports/${s.treeId}-\\d+\\.ged$`));
 		expect(objects.get(key)?.options).toMatchObject({
 			httpMetadata: {
@@ -188,10 +196,42 @@ describe('export', () => {
 		});
 	});
 
+	it('packages a 7.0 file as GEDZip with gedcom.ged inside, in a download and in R2', async () => {
+		const s = await tree();
+		await t.db.update(trees).set({ name: 'Fox' }).where(eq(trees.id, s.treeId));
+		const { objects, bucket } = fakeBucket();
+		const service = new GedcomService(t.db, { bucket });
+		const options = { format: 'gedcom7', shouldCompress: true } as const;
+
+		const download = await service.exportDownload(s.treeId, options, s.owner.context);
+		expect(download.filename).toBe('Fox.gdz');
+		expect(download.contentType).toBe('application/vnd.familysearch.gedcom+zip');
+		const entries = unzipSync(download.content as Uint8Array);
+		expect(Object.keys(entries)).toEqual(['gedcom.ged']);
+		expect(strFromU8(entries['gedcom.ged'])).toContain('2 VERS 7.0');
+
+		const key = await service.exportToStorage(s.treeId, options, s.owner.context);
+		expect(key).toMatch(new RegExp(`^exports/${s.treeId}-\\d+\\.gdz$`));
+		expect(objects.get(key)?.options).toMatchObject({
+			httpMetadata: { contentDisposition: 'attachment; filename="Fox.gdz"' }
+		});
+	});
+
+	it('refuses a GEDZip of a 5.5.1 file, which the format does not define', async () => {
+		const s = await tree();
+		await expect(
+			new GedcomService(t.db).exportDownload(
+				s.treeId,
+				{ format: 'gedcom551', shouldCompress: true },
+				s.owner.context
+			)
+		).rejects.toBeInstanceOf(ValidationError);
+	});
+
 	it('is a manager’s action', async () => {
 		const s = await tree('editor');
 		await expect(
-			new GedcomService(t.db).exportDownload(s.treeId, 'gedcom551', s.member.context)
+			new GedcomService(t.db).exportDownload(s.treeId, { format: 'gedcom7' }, s.member.context)
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 

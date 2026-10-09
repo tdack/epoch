@@ -36,6 +36,7 @@ import { buildNoteOps, noteCascadeOps } from './note-ops';
 import { buildTaskOps, taskCascadeOps } from './task-ops';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { buildPersonMergeOps } from './person-merge';
+import { buildDateOps } from './date-ops';
 import { buildPlaceOps } from './place-ops';
 import { buildNameOps, initialNameOp, preferredNameOps } from './name-ops';
 import { validateParentChildAssertion } from './invariants';
@@ -1021,6 +1022,8 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 			return buildTaskOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
+		case 'standardise_dates':
+			return buildDateOps(rows, command, ctx);
 		case 'merge_people':
 			return buildPersonMergeOps(rows, command, ctx);
 		case 'create_person':

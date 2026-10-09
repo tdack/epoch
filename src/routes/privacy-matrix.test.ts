@@ -105,6 +105,11 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
 	},
+	// Sweeps every date, private people's included, so it is a manager's alone.
+	[`${API}/trees/[id]/dates/standardise/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/date-service.test.ts'
+	},
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/note-links/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/note-links/[linkId]/+server.ts`]: { kind: 'guarded-write', covers: NOTES },

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import {
 		MONTH_ABBREVIATIONS,
-		checkDateText,
+		checkDateEdit,
 		daysInMonthOf,
 		formatPickerDate,
-		pickerStateOf
+		pickerStateOf,
+		standardDateText
 	} from '#lib/shared/date-value.js';
 
 	interface Props {
@@ -16,6 +17,11 @@
 		inputClass?: string;
 		placeholder?: string;
 		isDisabled?: boolean;
+		/**
+		 * The date as saved, when editing one. An unreadable date left as it was is warned about rather
+		 * than refused, so an imported date Epoch cannot read never locks the rest of the record.
+		 */
+		savedValue?: string | null;
 	}
 
 	let {
@@ -23,7 +29,8 @@
 		id,
 		inputClass = '',
 		placeholder = 'e.g. 14 APR 1912',
-		isDisabled = false
+		isDisabled = false,
+		savedValue = null
 	}: Props = $props();
 
 	const MONTH_NAMES = [
@@ -63,8 +70,10 @@
 	const PICKER_HEIGHT_PX = 340;
 	const VIEWPORT_MARGIN_PX = 8;
 
-	const check = $derived(checkDateText(value));
+	const check = $derived(checkDateEdit(value, savedValue));
 	const problem = $derived(wasTouched && !check.isValid ? check.message : undefined);
+	const keptNote = $derived(check.isKept ? check.message : undefined);
+	const suggestion = $derived(standardDateText(value));
 	const messageId = $derived(`${id}-message`);
 
 	/** Monday-first, matching the region this is used in; the blanks pad the first week. */
@@ -157,7 +166,7 @@
 			autocomplete="off"
 			spellcheck="false"
 			aria-invalid={problem ? 'true' : undefined}
-			aria-describedby={problem ? messageId : undefined}
+			aria-describedby={problem || keptNote || suggestion ? messageId : undefined}
 			onblur={() => (wasTouched = true)}
 			class="{inputClass} min-w-0 flex-1 {problem ? 'border-red-500!' : ''}"
 		/>
@@ -188,6 +197,20 @@
 
 	{#if problem}
 		<p id={messageId} class="mt-1 text-[11px] text-red-700" role="alert">{problem}</p>
+	{:else if keptNote}
+		<p id={messageId} class="mt-1 text-[11px] text-amber-800">{keptNote}</p>
+	{:else if suggestion}
+		<p id={messageId} class="mt-1 flex flex-wrap items-center gap-x-1 text-[11px] text-stone-600">
+			Standard form:
+			<button
+				type="button"
+				disabled={isDisabled}
+				onclick={() => (value = suggestion)}
+				class="cursor-pointer rounded font-medium text-emerald-800 underline decoration-emerald-800/40 underline-offset-2 hover:decoration-emerald-800 disabled:cursor-default"
+			>
+				Use {suggestion}
+			</button>
+		</p>
 	{/if}
 
 	{#if isPickerOpen}

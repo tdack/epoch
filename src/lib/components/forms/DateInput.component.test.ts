@@ -9,10 +9,11 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(value: string) {
+function render(value: string, savedValue?: string) {
 	// Accessors stand in for the parent's `bind:value`; runes aren't available outside .svelte files.
 	const props = {
 		id: 'd',
+		savedValue,
 		get value() {
 			return value;
 		},
@@ -26,6 +27,26 @@ function render(value: string) {
 }
 
 describe('DateInput', () => {
+	it('warns about a saved date it cannot read, rather than refusing it', () => {
+		const saved = '01 MAR 191503 08 1912';
+		render(saved, saved);
+		document.querySelector('input')!.dispatchEvent(new FocusEvent('blur'));
+		flushSync();
+		expect(document.querySelector('[role="alert"]')).toBeNull();
+		expect(document.querySelector('input')!.getAttribute('aria-invalid')).toBeNull();
+		expect(document.getElementById('d-message')!.textContent).toMatch(/kept as written/);
+	});
+
+	it('offers the standard form of a loosely typed date, and uses it on a click', () => {
+		const props = render('3 RD DECEMBER 1996');
+		const use = [...document.querySelectorAll('button')].find(
+			(b) => b.textContent?.trim() === 'Use 3 DEC 1996'
+		)!;
+		use.click();
+		flushSync();
+		expect(props.value).toBe('3 DEC 1996');
+	});
+
 	it('shows the expected format until something is typed', () => {
 		render('');
 		expect(document.querySelector('input')!.placeholder).toBe('e.g. 14 APR 1912');

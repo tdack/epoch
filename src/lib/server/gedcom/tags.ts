@@ -6,6 +6,9 @@
 /** Supported GEDCOM dialect labels used by the export `format` parameter. */
 export type GedcomFormat = 'gedcom551' | 'gedcom7';
 
+/** What an export writes when no format is asked for. 5.5.1 is kept for programs that cannot read 7.0. */
+export const DEFAULT_GEDCOM_FORMAT: GedcomFormat = 'gedcom7';
+
 /** Marks a `REFN` on a `FAM` as the XREF of a family that was merged into it. */
 export const FAMILY_ALIAS_REFN_TYPE = 'epoch-merged-family';
 
@@ -40,3 +43,15 @@ export function nameChangeNote(
 }
 
 export const NAME_CHANGE_NOTE = /^Name in use(?: from (.+?))?(?:,? through family (@[^@\s]+@))?\.$/;
+
+const EXTENSIONS_DOC = 'https://github.com/tdack/epoch/blob/main/docs/gedcom-extensions.md';
+
+/**
+ * Where each extension tag Epoch defines is documented, for a 7.0 header's `SCHMA`. Tags kept from
+ * another program's file are not listed: Epoch does not know their URIs, and 7.0 allows an
+ * undocumented extension tag. `_EPOCH_SEX` is absent because only a 5.5.1 export writes it.
+ */
+export const EXTENSION_TAG_URIS: Readonly<Record<string, string>> = {
+	[PARENT_PEDIGREE_TAG]: `${EXTENSIONS_DOC}#_pedi_parent`,
+	[PRIVACY_PUBLIC_TAG]: `${EXTENSIONS_DOC}#_epoch_privacy`
+};

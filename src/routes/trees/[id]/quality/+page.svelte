@@ -4,7 +4,13 @@
 	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/services/load-helpers.js';
-	import { dismissFindingApi, restoreFindingApi } from '#lib/services/tree-api.js';
+	import {
+		dismissFindingApi,
+		previewStandardiseDatesApi,
+		restoreFindingApi,
+		standardiseDatesApi
+	} from '#lib/services/tree-api.js';
+	import type { DateTidyPreview } from '#lib/shared/date-tidy.js';
 	import {
 		MAX_DISMISSAL_REASON_LENGTH,
 		MAX_FINDINGS_PER_RULE,
@@ -15,7 +21,7 @@
 		type FindingSubject,
 		type QualityFinding
 	} from '#lib/shared/quality.js';
-	import { hasMinimumRole } from '#lib/shared/roles.js';
+	import { hasMinimumRole, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -26,6 +32,43 @@
 	const report = $derived(data.report);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const canDismiss = $derived(role !== undefined && hasMinimumRole(role, 'editor'));
+
+	// Standardising sweeps every date in the tree, private people's included, so it is a manager's.
+	const canStandardise = $derived(role !== undefined && isManagerOrAbove(role));
+	let datePreview = $state<DateTidyPreview | null>(null);
+	let isCheckingDates = $state(false);
+	let isStandardising = $state(false);
+
+	async function checkDates() {
+		isCheckingDates = true;
+		try {
+			datePreview = await previewStandardiseDatesApi(treeId);
+		} catch (cause: unknown) {
+			toasts.push((cause as Error).message || 'Could not check the dates', {
+				tone: 'error',
+				durationMs: 10_000
+			});
+		} finally {
+			isCheckingDates = false;
+		}
+	}
+
+	async function standardiseDates() {
+		isStandardising = true;
+		try {
+			const { change, remaining } = await standardiseDatesApi(treeId);
+			await editor.afterChange(change, 'Dates standardised');
+			// What is left is for another turn; show it rather than make the manager check again.
+			datePreview = remaining > 0 ? await previewStandardiseDatesApi(treeId) : null;
+		} catch (cause: unknown) {
+			toasts.push((cause as Error).message || 'Could not standardise the dates', {
+				tone: 'error',
+				durationMs: 10_000
+			});
+		} finally {
+			isStandardising = false;
+		}
+	}
 
 	/** The finding a task is being made from. */
 	let taskFor = $state<QualityFinding | null>(null);
@@ -108,6 +151,78 @@
 		? `, ${report.dismissed.length} dismissed`
 		: ''}
 </p>
+
+{#if canStandardise}
+	<section
+		class="mt-6 rounded-xl border border-stone-200 bg-white px-4 py-3"
+		aria-labelledby="date-spellings"
+		data-testid="date-spellings"
+	>
+		<h3 id="date-spellings" class="text-sm font-semibold text-stone-900">Date spellings</h3>
+		<p class="mt-1 max-w-2xl text-xs text-stone-600">
+			Dates from other programs are often spelt loosely, such as 3 RD DECEMBER 1996 or CIRCA 1937.
+			Epoch reads them, but other programs may not. Standardising gives each one its GEDCOM
+			spelling, without changing what it says. A date Epoch cannot read is never changed.
+		</p>
+		{#if datePreview === null}
+			<button
+				type="button"
+				class="text-link mt-2 text-sm"
+				disabled={isCheckingDates}
+				onclick={checkDates}
+			>
+				{isCheckingDates ? 'Checking…' : 'Check date spellings'}
+			</button>
+		{:else if datePreview.changes.length === 0}
+			<p class="mt-2 text-sm text-stone-800" aria-live="polite">
+				Every date is already in its standard spelling.
+			</p>
+		{:else}
+			<p class="mt-2 text-sm text-stone-800" aria-live="polite">
+				{datePreview.changes.length}
+				{datePreview.changes.length === 1 ? 'date' : 'dates'} would change{datePreview.remaining > 0
+					? `, and ${datePreview.remaining} more after that`
+					: ''}:
+			</p>
+			<div class="mt-2 max-h-72 overflow-y-auto rounded-lg border border-stone-200">
+				<table class="w-full text-left text-xs">
+					<thead class="sticky top-0 bg-stone-50 text-stone-600">
+						<tr>
+							<th scope="col" class="px-3 py-1.5 font-medium">On</th>
+							<th scope="col" class="px-3 py-1.5 font-medium">Now</th>
+							<th scope="col" class="px-3 py-1.5 font-medium">Becomes</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-stone-100">
+						{#each datePreview.changes as row, i (i)}
+							<tr>
+								<td class="px-3 py-1.5 text-stone-800">{row.label}</td>
+								<td class="px-3 py-1.5 font-mono text-stone-600">{row.before}</td>
+								<td class="px-3 py-1.5 font-mono text-emerald-900">{row.after}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			<div class="mt-2 flex flex-wrap items-center gap-3">
+				<button
+					type="button"
+					class="rounded-lg bg-emerald-800 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+					disabled={isStandardising}
+					onclick={standardiseDates}
+				>
+					{isStandardising
+						? 'Standardising…'
+						: `Standardise ${datePreview.changes.length === 1 ? '1 date' : `${datePreview.changes.length} dates`}`}
+				</button>
+				<button type="button" class="text-link text-sm" onclick={() => (datePreview = null)}>
+					Not now
+				</button>
+				<span class="text-xs text-stone-500">One change: you can undo it straight afterwards.</span>
+			</div>
+		{/if}
+	</section>
+{/if}
 
 {#snippet subjectLinks(finding: QualityFinding)}
 	{#each finding.subjects as subject, i (subject.id)}{i > 0 ? ', ' : ''}<a

@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
-	import { checkDateText } from '#lib/shared/date-value.js';
+	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
 		NAME_TYPE_LABELS,
 		NAME_TYPE_LIST,
@@ -58,7 +58,7 @@
 	let previewRequest = 0;
 
 	const isEdit = $derived(name?.id != null);
-	const isDateValid = $derived(checkDateText(dateText).isValid);
+	const isDateValid = $derived(checkDateEdit(dateText, name?.dateText).isValid);
 	const hasContent = $derived(
 		[prefix, givenName, surnamePrefix, surname, suffix, nickname].some((part) => part.trim() !== '')
 	);
@@ -250,7 +250,12 @@
 					<label for="name-date" class="field-label"
 						>In use from <span class="font-normal text-stone-500">(optional)</span></label
 					>
-					<DateInput id="name-date" bind:value={dateText} inputClass={field} />
+					<DateInput
+						id="name-date"
+						bind:value={dateText}
+						savedValue={name?.dateText}
+						inputClass={field}
+					/>
 				</div>
 				<div>
 					<label for="name-union" class="field-label"

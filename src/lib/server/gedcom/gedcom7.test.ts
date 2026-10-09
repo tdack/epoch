@@ -36,7 +36,7 @@ describe('GEDCOM 7.0 support', () => {
 		expect(birth?.dateSortEnd).toBe('2002-12-31');
 	});
 
-	it('builds a GEDCOM 7.0 string with SCHMA and no CHAR', () => {
+	it('builds a GEDCOM 7.0 string with no CHAR', () => {
 		const parsed = parseGedcom(REPRESENTATIVE_GEDCOM_7_FIXTURE);
 
 		const generated = buildGedcom7String({
@@ -70,7 +70,8 @@ describe('GEDCOM 7.0 support', () => {
 		});
 
 		expect(generated).toContain('2 VERS 7.0');
-		expect(generated).toContain('1 SCHMA');
+		// SCHMA documents extension tags only, and this tree uses none of Epoch's.
+		expect(generated).not.toContain('1 SCHMA');
 		expect(generated).not.toContain('1 CHAR');
 		expect(generated).toContain('1 SEX X');
 
@@ -117,10 +118,10 @@ describe('GEDCOM 7.0 support', () => {
 
 		expect(v551).toContain('2 VERS 5.5.1');
 		expect(v7).toContain('2 VERS 7.0');
-		expect(buildGedcomString(payload)).toBe(v551);
+		expect(buildGedcomString(payload)).toBe(v7);
 	});
 
-	it('buildGedcom551String remains the default 5.5.1 output', () => {
+	it('buildGedcom551String writes 5.5.1 output', () => {
 		const parsed = parseGedcom(REPRESENTATIVE_GEDCOM_FIXTURE);
 		const generated = buildGedcom551String({
 			individuals: parsed.individuals.map((ind) => ({
