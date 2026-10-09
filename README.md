@@ -96,9 +96,9 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 ### Deploy configuration
 
 The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
-none of the owner's values (team domain, email sender, route). Remote commands (`db:migrate`,
+none of the owner's values (team domain, email sender, route or workers.dev setting). Remote commands (`db:migrate`,
 `deploy`, and the backfill scripts with `--remote`) use a generated, git-ignored
-`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, the route and the vars.
+`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, how the Worker is served (`workers_dev` or a custom-domain route) and the vars.
 [`wrangler.deploy.example.jsonc`](wrangler.deploy.example.jsonc) shows its shape. Without it those
 commands stop and say to run `npm run setup`.
 
