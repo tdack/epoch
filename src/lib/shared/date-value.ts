@@ -8,6 +8,8 @@
  * only derives inclusive sort bounds for indexing and chronological filtering.
  */
 
+import { tidyDateText } from './date-tidy';
+
 export const DATE_QUALIFIERS = {
 	EXACT: 'EXACT',
 	ABOUT: 'ABOUT',
@@ -183,7 +185,7 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
  * precision with `1900-01-01`..`1900-12-31` bounds, and `ABT 1900` keeps its
  * approximate qualifier rather than collapsing to a false exact day.
  */
-export function parseDateValue(rawInput: string | null | undefined): DateValue {
+function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 	const raw = rawInput?.trim() ?? '';
 	if (!raw) {
 		return {
@@ -310,6 +312,41 @@ export function parseDateValue(rawInput: string | null | undefined): DateValue {
 			qualifier === DATE_QUALIFIERS.ESTIMATED ||
 			qualifier === DATE_QUALIFIERS.CALCULATED
 	};
+}
+
+/**
+ * Parse a date as {@link parseStrictDateValue} does, reading a loosely typed one (`3 RD DECEMBER
+ * 1996`, `CIRCA 1937`) through its standard spelling when the text itself cannot be read. `raw`
+ * is always the text as given: the standard form is offered (`standardDateText`), never imposed.
+ */
+export function parseDateValue(rawInput: string | null | undefined): DateValue {
+	const strict = parseStrictDateValue(rawInput);
+	if (strict.qualifier !== DATE_QUALIFIERS.UNKNOWN) return strict;
+	const tidy = tidyDateText(strict.raw);
+	if (tidy === strict.raw) return strict;
+	const lenient = parseStrictDateValue(tidy);
+	return lenient.qualifier === DATE_QUALIFIERS.UNKNOWN ? strict : { ...lenient, raw: strict.raw };
+}
+
+/**
+ * The standard GEDCOM spelling of a date, when it differs from the text and still reads as the
+ * same date: `14 August 1975` is `14 AUG 1975`. Null when the text is already standard, or when
+ * Epoch cannot read it either way, so a caller never rewrites a date it does not understand.
+ */
+export function standardDateText(rawInput: string | null | undefined): string | null {
+	const raw = rawInput?.trim() ?? '';
+	if (!raw) return null;
+	const tidy = tidyDateText(raw);
+	if (tidy === raw) return null;
+	const before = parseDateValue(raw);
+	const after = parseStrictDateValue(tidy);
+	if (after.qualifier === DATE_QUALIFIERS.UNKNOWN) return null;
+	// A phrase stays a phrase, and a readable date must keep its meaning: same kind and same bounds.
+	const isSameDate =
+		before.qualifier === after.qualifier &&
+		before.sortStart === after.sortStart &&
+		before.sortEnd === after.sortEnd;
+	return isSameDate ? tidy : null;
 }
 
 /** GEDCOM month abbreviations in calendar order. */
