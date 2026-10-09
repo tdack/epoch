@@ -18,8 +18,37 @@ const BOOLEAN_PREFIXES = [
 	'needs'
 ];
 
+/** AGENTS.md: booleans carry a prefix. Not object-literal properties: those are mostly options of platform and framework APIs, and a property we own is declared in a type. */
+const BOOLEAN_NAMING = [
+	'error',
+	{
+		selector: [
+			'variable',
+			'parameter',
+			'typeProperty',
+			'classProperty',
+			'parameterProperty',
+			'accessor'
+		],
+		leadingUnderscore: 'allow',
+		types: ['boolean'],
+		format: ['PascalCase'],
+		prefix: BOOLEAN_PREFIXES
+	}
+];
+
 export default ts.config(
-	{ ignores: ['.svelte-kit/', 'build/', 'drizzle/', 'static/', 'worker-configuration.d.ts', '.claude/'] },
+	{
+		ignores: [
+			'.svelte-kit/',
+			'build/',
+			'drizzle/',
+			'static/',
+			'worker-configuration.d.ts',
+			'.claude/',
+			'tools/setup/node_modules/'
+		]
+	},
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
@@ -66,25 +95,18 @@ export default ts.config(
 			parserOptions: { projectService: true, extraFileExtensions: ['.svelte'] }
 		},
 		rules: {
-			'@typescript-eslint/naming-convention': [
-				'error',
-				{
-					// Not object-literal properties: those are mostly options of platform and framework APIs
-					// (`bubbles`, `replace`, `preventScroll`), and a property we own is declared in a type.
-					selector: [
-						'variable',
-						'parameter',
-						'typeProperty',
-						'classProperty',
-						'parameterProperty',
-						'accessor'
-					],
-					leadingUnderscore: 'allow',
-					types: ['boolean'],
-					format: ['PascalCase'],
-					prefix: BOOLEAN_PREFIXES
-				}
-			]
+			'@typescript-eslint/naming-convention': BOOLEAN_NAMING
+		}
+	},
+	{
+		// The setup CLI has its own package.json and tsconfig; the project service finds that tsconfig
+		// for each file, so the type-aware rules see its Node types and not the Worker ones.
+		files: ['tools/setup/**/*.ts'],
+		languageOptions: { parserOptions: { projectService: true } },
+		rules: {
+			'@typescript-eslint/naming-convention': BOOLEAN_NAMING,
+			// Explicit `any` appears only where a recorded cf response is read in a test.
+			'@typescript-eslint/no-explicit-any': 'off'
 		}
 	}
 );
