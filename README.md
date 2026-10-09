@@ -30,6 +30,10 @@ Identity normally comes from Cloudflare Access. For local development, `.dev.var
 (`dev-local-user`, `developer@epoch.local`). Override the identity per request with the
 `x-dev-user-sub`, `x-dev-user-email` and `x-dev-user-name` headers.
 
+While the local database has no `install_meta` row, the default developer stands in for the install
+owner, so a fresh database works without setup. Any other dev identity must be invited to a tree
+first, as for a real visitor; add an `install_meta` row to try the not-invited page locally.
+
 The bypass is opt-in only. It is never inferred from `NODE_ENV`, and without the flag every
 request without a valid Access token is rejected with 401. Never set the flag in a deployed
 environment. `.dev.vars` is git-ignored.
@@ -44,6 +48,21 @@ ADR-026 in [docs/decisions.md](./docs/decisions.md).
 
 Application settings: path `/login` only, an Allow policy for your invitees, **Cookie Path
 Attribute off** (otherwise the cookie is not sent on other paths) and Binding Cookie off.
+
+Getting past Access is not enough to use Epoch (ADR-034). The Worker admits only the install owner,
+people who hold a membership in any tree, and people with an unexpired invitation, which is taken
+up on that same request. Anyone else is sent to `/welcome?reason=not-invited`, which names the
+address they signed in with, asks them to get an invitation from the owner and offers sign-out;
+API calls from them get a 403. Epoch stores nothing about them. Only the install owner and members
+may start a tree, so a broad Access policy (for example, everyone at your email domain) is safe.
+
+The install owner is the `install_meta` row. Until the setup tool writes it, an install has no
+owner and admits only members and invitees. To add the row by hand, use a lower-case address and
+a lower-case UUID, which the setup tool will later read as this install's marker:
+
+```bash
+npx wrangler d1 execute epoch-genealogy-db --remote --command "INSERT INTO install_meta (install_id, owner_email, created_at) VALUES ('$(uuidgen | tr A-Z a-z)', 'you@example.com', unixepoch())"
+```
 
 Migrating a deployment that has the whole host behind Access plus a Bypass application:
 
