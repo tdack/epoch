@@ -31,7 +31,6 @@ import {
 } from './note-parse';
 
 export type { ParsedCitation } from './evidence-parse';
-export type { ParsedNoteLink, ParsedSharedNote } from './note-parse';
 export { mergeCitations, mergeNoteLinks };
 
 export type GedcomVersion = '5.5.1' | '7.0';

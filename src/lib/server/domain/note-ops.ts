@@ -101,13 +101,13 @@ function checkVersion(
 	);
 }
 
-export function requireNote(rows: TreeRows, id: string): NoteRow {
+function requireNote(rows: TreeRows, id: string): NoteRow {
 	const note = rows.notes.find((n) => n.id === id);
 	if (!note) throw new NotFoundError('Note', id);
 	return note;
 }
 
-export function requireAttachment(rows: TreeRows, id: string): NoteAttachmentRow {
+function requireAttachment(rows: TreeRows, id: string): NoteAttachmentRow {
 	const attachment = rows.noteAttachments.find((a) => a.id === id);
 	if (!attachment) throw new NotFoundError('Note', id);
 	return attachment;

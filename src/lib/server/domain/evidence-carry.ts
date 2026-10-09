@@ -44,7 +44,7 @@ export function citationsOfPerson(rows: TreeRows, personId: string): number {
 }
 
 /** Citations on a partnership, its facts and the parent links filed under it. */
-export function citationsOfUnion(rows: TreeRows, unionId: string): number {
+function citationsOfUnion(rows: TreeRows, unionId: string): number {
 	return citationsIn(rows, subjectKeysOfUnion(rows, unionId));
 }
 
@@ -54,7 +54,7 @@ export function notesOfPerson(rows: TreeRows, personId: string): number {
 }
 
 /** Notes on a partnership, its facts and the parent links filed under it. */
-export function notesOfUnion(rows: TreeRows, unionId: string): number {
+function notesOfUnion(rows: TreeRows, unionId: string): number {
 	return notesIn(rows, subjectKeysOfUnion(rows, unionId));
 }
 
