@@ -99,7 +99,7 @@ function addSetupOptions(command: Command): Command {
 		.addOption(
 			new Option(
 				'--deploy-auth <mode>',
-				'wrangler profile (two consents), or one minted short-lived token'
+				'wrangler profile (two consents); "ephemeral" is not available yet'
 			)
 				.choices(Object.values(DEPLOY_AUTHS))
 				.default(DEPLOY_AUTHS.wrangler)
@@ -141,41 +141,97 @@ async function guarded(
 	}
 }
 
-export function buildProgram(): Command {
+/** What each command does. Injectable so a test can check which one runs, and with which flags. */
+export interface Handlers {
+	setup(raw: RawOptions): Promise<void>;
+	doctor(raw: RawOptions): Promise<void>;
+	allow(action: 'add' | 'remove', email: string, raw: RawOptions): Promise<void>;
+	teardown(raw: RawOptions): Promise<void>;
+	spike(raw: RawOptions): Promise<void>;
+}
+
+function readOnlyContext(ui: ReturnType<typeof createUi>, flags: SetupFlags) {
+	return createContext({ reporter: ui.reporter, isVerbose: flags.isVerbose, isReadOnly: true });
+}
+
+const DEFAULT_HANDLERS: Handlers = {
+	setup: runDefault,
+	async doctor(raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			const ctx = readOnlyContext(ui, flags);
+			ui.intro('Epoch doctor');
+			const { findings } = await ui.presenter.task('Checking the install', () => runDoctor(ctx));
+			const hasFailure = findings.some((f) => f.level === 'fail');
+			ui.showFindings(findings);
+			if (hasFailure) process.exitCode = 1;
+			ui.outro(hasFailure ? 'Drift found.' : 'No drift.');
+			return { findings };
+		});
+	},
+	async allow(action, email, raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			const ctx = readOnlyContext(ui, flags);
+			const done = await ui.presenter.task(
+				`${action === 'add' ? 'Allowing' : 'Removing'} ${email}`,
+				() => changeAllowedEmail(ctx, action, email)
+			);
+			ui.outro(
+				`${done.email} ${action === 'add' ? 'is now admitted by' : 'is no longer admitted by'} "${done.policyName}".`
+			);
+			return done;
+		});
+	},
+	async teardown(raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			const ctx = readOnlyContext(ui, flags);
+			ui.intro('Epoch teardown');
+			const deleted = await runTeardown(ctx, modeOf(flags), ui.asker);
+			ui.outro(
+				deleted.length === 0
+					? 'Nothing here is provably ours; nothing was deleted.'
+					: `Deleted ${deleted.map((d) => d.name).join(', ')}.`
+			);
+			return { deleted };
+		});
+	},
+	async spike(raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			ui.intro('Epoch setup spike');
+			const outcome = await runSpike(ui.reporter, flags.isVerbose);
+			ui.showFindings(outcome.findings);
+			ui.outro(`Raw responses are in ${outcome.directory}. Send back the pass/fail list above.`);
+			return outcome;
+		});
+	}
+};
+
+export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 	const program = new Command();
 	program
 		.name('npm run setup --')
 		.description(
 			'Install Epoch into your Cloudflare account, or check and change an install. With no command it runs setup.'
 		)
+		// Without this the program, which has the setup flags too, would swallow `--json`, `--yes` and
+		// `--plan` that belong to a subcommand: `setup --plan` would apply, and `teardown --yes` would be ignored.
+		.enablePositionalOptions()
 		.showHelpAfterError();
-	addSetupOptions(program).action(async (raw: RawOptions) => runDefault(raw));
+	addSetupOptions(program).action((raw: RawOptions) => handlers.setup(raw));
 
 	addSetupOptions(
 		program.command('setup').description('Create or update the install (the default command)')
-	).action(async (raw: RawOptions) => runDefault(raw));
+	).action((raw: RawOptions) => handlers.setup(raw));
 
 	program
 		.command('doctor')
 		.description('Re-run the checks and report drift; changes nothing')
 		.option('--json', 'print one JSON result on stdout')
 		.option('--verbose', 'stream the cf and wrangler output')
-		.action(async (raw: RawOptions) => {
-			const flags = toFlags(raw);
-			await guarded(flags, async (ui) => {
-				const ctx = createContext({
-					reporter: ui.reporter,
-					isVerbose: flags.isVerbose,
-					isReadOnly: true
-				});
-				ui.intro('Epoch doctor');
-				const { findings } = await ui.presenter.task('Checking the install', () => runDoctor(ctx));
-				ui.showFindings(findings);
-				if (findings.some((f) => f.level === 'fail')) process.exitCode = 1;
-				ui.outro(findings.some((f) => f.level === 'fail') ? 'Drift found.' : 'No drift.');
-				return { findings };
-			});
-		});
+		.action((raw: RawOptions) => handlers.doctor(raw));
 
 	for (const [name, action] of [
 		['allow', 'add'],
@@ -189,24 +245,7 @@ export function buildProgram(): Command {
 					: 'Stop admitting an address (only on the policy setup created)'
 			)
 			.option('--verbose', 'stream the cf output')
-			.action(async (email: string, raw: RawOptions) => {
-				const flags = toFlags(raw);
-				await guarded(flags, async (ui) => {
-					const ctx = createContext({
-						reporter: ui.reporter,
-						isVerbose: flags.isVerbose,
-						isReadOnly: true
-					});
-					const done = await ui.presenter.task(
-						`${action === 'add' ? 'Allowing' : 'Removing'} ${email}`,
-						() => changeAllowedEmail(ctx, action, email)
-					);
-					ui.outro(
-						`${done.email} ${action === 'add' ? 'is now admitted by' : 'is no longer admitted by'} "${done.policyName}".`
-					);
-					return done;
-				});
-			});
+			.action((email: string, raw: RawOptions) => handlers.allow(action, email, raw));
 	}
 
 	program
@@ -214,24 +253,7 @@ export function buildProgram(): Command {
 		.description('Delete only what this install made, after typed confirmations')
 		.option('--yes', 'refused: teardown always needs typed names')
 		.option('--verbose', 'stream the cf and wrangler output')
-		.action(async (raw: RawOptions) => {
-			const flags = toFlags(raw);
-			await guarded(flags, async (ui) => {
-				const ctx = createContext({
-					reporter: ui.reporter,
-					isVerbose: flags.isVerbose,
-					isReadOnly: true
-				});
-				ui.intro('Epoch teardown');
-				const deleted = await runTeardown(ctx, modeOf(flags), ui.asker);
-				ui.outro(
-					deleted.length === 0
-						? 'Nothing here is provably ours; nothing was deleted.'
-						: `Deleted ${deleted.map((d) => d.name).join(', ')}.`
-				);
-				return { deleted };
-			});
-		});
+		.action((raw: RawOptions) => handlers.teardown(raw));
 
 	program
 		.command('spike')
@@ -239,16 +261,7 @@ export function buildProgram(): Command {
 			'Check the assumptions that need a real account, read-only, and save the raw responses under .epoch/spike'
 		)
 		.option('--verbose', 'stream the cf and wrangler output')
-		.action(async (raw: RawOptions) => {
-			const flags = toFlags(raw);
-			await guarded(flags, async (ui) => {
-				ui.intro('Epoch setup spike');
-				const outcome = await runSpike(ui.reporter, flags.isVerbose);
-				ui.showFindings(outcome.findings);
-				ui.outro(`Raw responses are in ${outcome.directory}. Send back the pass/fail list above.`);
-				return outcome;
-			});
-		});
+		.action((raw: RawOptions) => handlers.spike(raw));
 
 	return program;
 }

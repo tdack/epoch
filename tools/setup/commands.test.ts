@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { changeAllowedEmail } from './allow.ts';
 import type { Asker } from './asker.ts';
-import { buildProgram, toFlags } from './cli.ts';
+import { buildProgram, toFlags, type Handlers } from './cli.ts';
 import { runDoctor } from './doctor.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
 import { AUTH_MODES, OWNERSHIPS, type Manifest } from './manifest.ts';
@@ -118,7 +118,6 @@ describe('doctor', () => {
 			{ match: 'cf d1 list', stdout: [] },
 			{ match: 'cf r2 buckets list', stdout: [] },
 			{ match: 'cf queues list', stdout: [] },
-			{ match: 'cf workers scripts settings get', exitCode: 1, stderr: 'not found' },
 			{ match: 'cf zero-trust access applications list', stdout: drifted },
 			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
 		]);
@@ -149,6 +148,11 @@ describe('doctor', () => {
 		expect(text).toContain('ok: Access application: Binding Cookie is off');
 		expect(text).toContain('is now bypass, so it admits nobody');
 	});
+});
+
+const ourWorker = () => ({
+	status: 200,
+	body: { success: true, result: fixture('worker-settings-ours.json') }
 });
 
 describe('teardown', () => {
@@ -182,14 +186,17 @@ describe('teardown', () => {
 			{ match: 'wrangler r2 object get', stdout: JSON.stringify({ installId: OURS }) },
 			{ match: 'cf queues list', stdout: fixture('queues-list.json') },
 			{ match: 'cf queues consumers list', stdout: fixture('queue-consumers-ours.json') },
-			{ match: 'cf workers scripts settings get', stdout: fixture('worker-settings-ours.json') },
 			{ match: 'cf zero-trust access applications list', stdout: fixture('access-apps.json') },
 			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
 		];
 	}
 
 	it('--yes and non-interactive runs are refused: teardown always needs typed names', async () => {
-		const { ctx } = testContext({ fs: withManifest(manifest), exec: fakeExec(rules(OURS)) });
+		const { ctx } = testContext({
+			fs: withManifest(manifest),
+			exec: fakeExec(rules(OURS)),
+			raw: ourWorker
+		});
 		for (const mode of [
 			{ isYes: true, isInteractive: false },
 			{ isYes: false, isInteractive: false }
@@ -201,7 +208,7 @@ describe('teardown', () => {
 	});
 
 	it('plans to delete only what its marker proves is ours', async () => {
-		const { ctx } = testContext({ exec: fakeExec(rules(OURS)) });
+		const { ctx } = testContext({ exec: fakeExec(rules(OURS)), raw: ourWorker });
 		const items = await planTeardown(ctx, manifest);
 		expect(items.map((i) => i.key).sort()).toEqual(['accessApp', 'd1', 'queue', 'r2', 'worker']);
 		expect(
@@ -214,7 +221,7 @@ describe('teardown', () => {
 
 	it('leaves a database whose marker names another install', async () => {
 		const other = '22222222-2222-4222-8222-222222222222';
-		const { ctx } = testContext({ exec: fakeExec(rules(other)) });
+		const { ctx } = testContext({ exec: fakeExec(rules(other)), raw: ourWorker });
 		const items = await planTeardown(ctx, manifest);
 		expect(items.map((i) => i.key)).not.toContain('d1');
 	});
@@ -229,6 +236,7 @@ describe('teardown', () => {
 		const { ctx } = testContext({
 			fs: withManifest(manifest),
 			exec: fakeExec(rules(OURS)),
+			raw: ourWorker,
 			wrangler: { deleteWorker: async (n) => void deleted.push(`worker ${n}`) }
 		});
 		ctx.cf = new Proxy(ctx.cf, {
@@ -335,6 +343,58 @@ describe('command line', () => {
 			zone: 'example.com',
 			browser: false,
 			policy: ['a', 'b']
+		});
+	});
+
+	describe('which command gets which flags', () => {
+		function spied() {
+			const calls: { command: string; args: unknown[] }[] = [];
+			const record =
+				(command: string) =>
+				async (...args: unknown[]) =>
+					void calls.push({ command, args });
+			const handlers = {
+				setup: record('setup'),
+				doctor: record('doctor'),
+				allow: record('allow'),
+				teardown: record('teardown'),
+				spike: record('spike')
+			} as unknown as Handlers;
+			return { calls, program: buildProgram(handlers) };
+		}
+		const run = (argv: string[]) => {
+			const { calls, program } = spied();
+			return program.parseAsync(argv, { from: 'user' }).then(() => calls);
+		};
+
+		it('`setup --plan` plans: the flag reaches the setup command, not the program', async () => {
+			const [call] = await run(['setup', '--plan', '--zone', 'example.com']);
+			expect(call?.command).toBe('setup');
+			expect(call?.args[0]).toMatchObject({ plan: true, zone: 'example.com' });
+		});
+
+		it('with no command, setup flags reach the default action', async () => {
+			const [call] = await run(['--plan', '--yes']);
+			expect(call?.command).toBe('setup');
+			expect(call?.args[0]).toMatchObject({ plan: true, yes: true });
+		});
+
+		it('`doctor --json` and `teardown --yes` keep their flags', async () => {
+			expect((await run(['doctor', '--json']))[0]?.args[0]).toMatchObject({ json: true });
+			const teardown = (await run(['teardown', '--yes']))[0];
+			expect(teardown?.command).toBe('teardown');
+			expect(teardown?.args[0]).toMatchObject({ yes: true });
+		});
+
+		it('allow and disallow pass the action and the address', async () => {
+			expect((await run(['allow', 'b@example.com']))[0]?.args.slice(0, 2)).toEqual([
+				'add',
+				'b@example.com'
+			]);
+			expect((await run(['disallow', 'b@example.com']))[0]?.args.slice(0, 2)).toEqual([
+				'remove',
+				'b@example.com'
+			]);
 		});
 	});
 });
