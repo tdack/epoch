@@ -176,6 +176,13 @@
       "when": 1791148943008,
       "tag": "0024_tree_default_view_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1791527708747,
+      "tag": "0025_install_meta",
+      "breakpoints": true
     }
   ]
 }

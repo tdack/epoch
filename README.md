@@ -23,12 +23,39 @@ Without `npm run db:migrate:local` (or after pulling new migrations) every reque
 that says to run it, rather than a `no such table` error. The check compares Wrangler's
 `d1_migrations` record with the migration journal, so it also catches a partly applied set.
 
+### Installing into Cloudflare
+
+```sh
+npm run setup -- --plan   # reconcile with your account and print what would change; read-only
+npm run setup             # sign in, create the resources, the Access application, deploy, verify
+```
+
+Setup signs in through your browser (no API token to create), asks only what it cannot discover, and
+proves that any resource it finds by name belongs to this install before using it. It assumes your
+account already has a paid Workers plan and a Zero Trust organisation with an identity provider, and
+somewhere to serve from (a workers.dev subdomain, or an active domain); it never creates those. Everything else it needs is the D1 database, R2 bucket, queue
+and Worker, a workers.dev URL or one custom domain, and one Access application on `<host>/login` with an Allow policy
+(chosen from your existing ones, or a new one for your email). It never edits a policy it did not
+create.
+
+Later: `npm run setup -- doctor` reports drift, `allow <email>` and `disallow <email>` edit the
+policy setup created, and `teardown` deletes only what this install made. `npm run setup -- --help`
+lists every flag, including the ones that answer each prompt for CI. With `--json` use
+`npm run -s setup -- …` so npm’s own banner stays off stdout. State lives in
+`.epoch/install.json` and the generated `wrangler.deploy.jsonc`; both are git-ignored. See
+[docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
+real account (`npm run setup -- spike`).
+
 ### Dev identity
 
 Identity normally comes from Cloudflare Access. For local development, `.dev.vars` sets
 `ACCESS_BYPASS_DEV=true`, which lets requests without a token act as a local developer
 (`dev-local-user`, `developer@epoch.local`). Override the identity per request with the
 `x-dev-user-sub`, `x-dev-user-email` and `x-dev-user-name` headers.
+
+While the local database has no `install_meta` row, the default developer stands in for the install
+owner, so a fresh database works without setup. Any other dev identity must be invited to a tree
+first, as for a real visitor; add an `install_meta` row to try the not-invited page locally.
 
 The bypass is opt-in only. It is never inferred from `NODE_ENV`, and without the flag every
 request without a valid Access token is rejected with 401. Never set the flag in a deployed
@@ -44,6 +71,21 @@ ADR-026 in [docs/decisions.md](./docs/decisions.md).
 
 Application settings: path `/login` only, an Allow policy for your invitees, **Cookie Path
 Attribute off** (otherwise the cookie is not sent on other paths) and Binding Cookie off.
+
+Getting past Access is not enough to use Epoch (ADR-034). The Worker admits only the install owner,
+people who hold a membership in any tree, and people with an unexpired invitation, which is taken
+up on that same request. Anyone else is sent to `/welcome?reason=not-invited`, which names the
+address they signed in with, asks them to get an invitation from the owner and offers sign-out;
+API calls from them get a 403. Epoch stores nothing about them. Only the install owner and members
+may start a tree, so a broad Access policy (for example, everyone at your email domain) is safe.
+
+The install owner is the `install_meta` row. Until the setup tool writes it, an install has no
+owner and admits only members and invitees. To add the row by hand, use a lower-case address and
+a lower-case UUID, which the setup tool will later read as this install's marker:
+
+```bash
+npx wrangler d1 execute epoch-genealogy-db --remote --command "INSERT INTO install_meta (install_id, owner_email, created_at) VALUES ('$(uuidgen | tr A-Z a-z)', 'you@example.com', unixepoch())"
+```
 
 Migrating a deployment that has the whole host behind Access plus a Bypass application:
 
@@ -86,11 +128,28 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 | `npm run build` | Production build |
 | `npm run db:generate` | Generate a Drizzle migration from schema changes |
 | `npm run db:migrate:local` | Apply migrations to the local D1 database |
-| `npm run db:migrate` | Apply migrations to the remote D1 database |
+| `npm run db:migrate` | Apply migrations to the remote D1 database, using `wrangler.deploy.jsonc` |
 | `npm run db:backfill:dates` | Fill structured date columns for events written before migration 0007 (add `-- --remote` for the deployed database) |
 | `npm run db:backfill:evidence` | Move sources, repositories and citations a tree kept as retained GEDCOM lines (imported before migration 0020) into records; add `-- --remote` for the deployed database. Run it after the migration |
 | `npm run db:backfill:notes` | Move notes a tree kept as retained GEDCOM lines, in extra lines, or in a fact's `notes` column (imported before migration 0021) into note records; add `-- --remote` for the deployed database. Run it after migration 0021 **and after** `db:backfill:evidence` |
-| `npm run deploy` | Migrate, build and deploy the Worker |
+| `node scripts/deploy-config.mjs` | Check that `wrangler.deploy.jsonc` exists and agrees with `wrangler.jsonc` on the fields the build reads (`deploy` runs it first) |
+| `npm run deploy` | Check the deploy config, migrate, build and deploy the Worker using `wrangler.deploy.jsonc` |
+
+### Deploy configuration
+
+The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
+none of the owner's values (team domain, email sender, route or workers.dev setting). Remote commands (`db:migrate`,
+`deploy`, and the backfill scripts with `--remote`) use a generated, git-ignored
+`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, how the Worker is served (`workers_dev` or a custom-domain route) and the vars.
+[`wrangler.deploy.example.jsonc`](wrangler.deploy.example.jsonc) shows its shape. Without it those
+commands stop and say to run `npm run setup`.
+
+The build still reads the tracked file. `adapter-cloudflare` takes only `main` and `assets` from it, so
+`deploy` fails if the deploy file differs on those fields. Keep `main` at the adapter default and
+pass `workers/entry.ts` to `wrangler deploy` directly.
+
+Local state is keyed by the D1 id, so the placeholder id starts a fresh local database: run
+`npm run db:migrate:local` once after pulling this change.
 
 ### Browser tests
 

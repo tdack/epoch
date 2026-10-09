@@ -1,0 +1,7 @@
+{
+	"modified_on": "2026-08-01T00:00:00Z",
+	"bindings": [
+		{ "type": "d1", "name": "DB", "id": "ffffffff-ffff-4fff-8fff-ffffffffffff" },
+		{ "type": "plain_text", "name": "SOMETHING_ELSE", "text": "x" }
+	]
+}

@@ -1,10 +1,13 @@
 import type { D1Database, R2Bucket, Queue, SendEmail } from '@cloudflare/workers-types';
-import type { UserIdentity } from '#lib/server/domain/identity.js';
+import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.js';
 
 declare global {
 	namespace App {
 		interface Locals {
+			/** Set only for someone Epoch admits (ADR-034); null for the signed out and the not admitted alike. */
 			user: UserIdentity | null;
+			/** Who Access named when Epoch did not admit them; kept only for this request, never stored. */
+			notAdmitted: AccessIdentity | null;
 			correlationId: string;
 		}
 		interface Platform {

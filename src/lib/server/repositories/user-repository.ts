@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import { users, treeMemberships } from '../db/schema';
-import type { UserIdentity, TreeMembership } from '../domain/identity';
+import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
 import { eq, and } from 'drizzle-orm';
 import { MemberRepository } from './member-repository';
@@ -9,25 +9,59 @@ export class UserRepository {
 	constructor(private db: DbClient) {}
 
 	/**
-	 * Upsert a user based on stable Cloudflare Access sub.
-	 * Treats email and name as mutable profile attributes.
+	 * The user for who Access says someone is, or null when Epoch does not admit them (ADR-034).
+	 * Admitted means the install owner, someone holding any membership, or someone with an unexpired
+	 * invitation, which is redeemed here: a person invited to a tree takes it up the next time they are
+	 * seen, not only the first (ADR-016).
+	 *
+	 * Admission is decided before anything is written, so a stranger Access lets through leaves no
+	 * `users` row behind: their address is personal data Epoch has no use for. A known user who no
+	 * longer holds a membership keeps their row (change history points at it) but is not updated.
+	 *
+	 * @param ownerEmail The install owner, lower-cased; null when there is none.
 	 */
-	async upsertFromAccess(identity: {
-		accessSub: string;
-		email: string;
-		name?: string | null;
-	}): Promise<UserIdentity> {
+	async admitFromAccess(
+		identity: AccessIdentity,
+		ownerEmail: string | null,
+		now: Date
+	): Promise<UserIdentity | null> {
+		const isInstallOwner =
+			ownerEmail !== null && identity.email.trim().toLowerCase() === ownerEmail;
+		const members = new MemberRepository(this.db);
+		const isAdmitted =
+			isInstallOwner ||
+			(await members.hasPendingFor(identity.email, now)) ||
+			(await this.hasAnyMembershipBySub(identity.accessSub));
+		if (!isAdmitted) return null;
+
 		const user = await this.upsertUser(identity);
-		// A person invited to a tree takes it up the next time they are seen, not only the first (ADR-016).
-		await new MemberRepository(this.db).redeemFor(user.id, user.email, new Date());
-		return user;
+		await members.redeemFor(user.id, user.email, now);
+		return { ...user, isInstallOwner };
 	}
 
-	private async upsertUser(identity: {
-		accessSub: string;
-		email: string;
-		name?: string | null;
-	}): Promise<UserIdentity> {
+	/** Whether this person holds a membership in any tree: what lets a member start a tree of their own. */
+	async hasAnyMembership(userId: string): Promise<boolean> {
+		const row = await this.db
+			.select({ id: treeMemberships.id })
+			.from(treeMemberships)
+			.where(eq(treeMemberships.userId, userId))
+			.limit(1)
+			.get();
+		return row !== undefined;
+	}
+
+	private async hasAnyMembershipBySub(accessSub: string): Promise<boolean> {
+		const row = await this.db
+			.select({ id: treeMemberships.id })
+			.from(treeMemberships)
+			.innerJoin(users, eq(users.id, treeMemberships.userId))
+			.where(eq(users.accessSub, accessSub))
+			.limit(1)
+			.get();
+		return row !== undefined;
+	}
+
+	private async upsertUser(identity: AccessIdentity): Promise<UserIdentity> {
 		const existing = await this.db
 			.select()
 			.from(users)

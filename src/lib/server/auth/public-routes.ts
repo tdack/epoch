@@ -50,6 +50,39 @@ export function signedOutRedirect(request: SignedOutRequest): string | null {
 	return `${request.hasInvalidToken ? LOGIN_PATH : WELCOME_PATH}?next=${next}`;
 }
 
+/** Where a signed-in visitor Epoch does not admit is sent; the welcome page decides its state from `locals`, not from this query. */
+export const NOT_INVITED_PATH = `${WELCOME_PATH}?reason=not-invited`;
+
+export interface NotAdmittedRequest {
+	pathname: string;
+	method: string;
+	/** SvelteKit's `__data.json` fetch made during client-side navigation. */
+	isDataRequest: boolean;
+	/** Access named the visitor, and Epoch did not admit them (ADR-034). */
+	isNotAdmitted: boolean;
+}
+
+/** How to turn away a visitor Epoch does not admit: a redirect, a refusal, or `null` to serve. */
+export type NotAdmittedOutcome = { status: 303; location: string } | { status: 403 } | null;
+
+/**
+ * What to do with a request from someone Access named but Epoch does not admit (ADR-034). Mirrors
+ * `signedOutRedirect`: the visitor has no user, so everything that is not a page load already fails
+ * where it lands, and only the page load needs somewhere to go.
+ *
+ * An API call gets a 403 rather than the 401 the handler would give, since signing in again would
+ * not help; a data request and a submission are left to fail as they do signed out. `/welcome` and
+ * `/login` stay reachable, so the redirect cannot loop.
+ */
+export function notAdmittedOutcome(request: NotAdmittedRequest): NotAdmittedOutcome {
+	if (!request.isNotAdmitted) return null;
+	if (isPublicPagePath(request.pathname)) return null;
+	if (request.pathname === '/api' || request.pathname.startsWith('/api/')) return { status: 403 };
+	if (request.isDataRequest) return null;
+	if (request.method !== 'GET' && request.method !== 'HEAD') return null;
+	return { status: 303, location: NOT_INVITED_PATH };
+}
+
 // Never served, only resolved against: it stands in for "this site" so a `next` value can be
 // tested for staying on it without knowing the real host.
 const PLACEHOLDER_ORIGIN = 'https://epoch.invalid';
