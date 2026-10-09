@@ -103,7 +103,7 @@ describe('whoami', () => {
 describe('argv shapes (from `cf schema`)', () => {
 	const app = { id: 'a', name: 'n', domain: 'h/login', aud: 'x' };
 
-	it('Access applications and Zero Trust reads take `accounts <id>` positionals; policies do not', async () => {
+	it('Zero Trust commands take no scope positionals; the account comes from the environment', async () => {
 		const { cf, exec } = api([
 			{ match: 'cf zero-trust access applications create', stdout: app },
 			{
@@ -140,9 +140,7 @@ describe('argv shapes (from `cf schema`)', () => {
 		await cf.listPolicies();
 		await cf.deletePolicy('p1');
 		const lines = exec.calls.map((c) => c.args.join(' '));
-		expect(lines[0]).toMatch(
-			/^zero-trust access applications create accounts acc0000000000000000000000000001 --body /
-		);
+		expect(lines[0]).toMatch(/^zero-trust access applications create --body /);
 		expect(lines[1]).toMatch(/^zero-trust access policies create --body /);
 		expect(lines[2]).toMatch(/^zero-trust access policies update p1 --body /);
 		expect(lines[3]).toBe('zero-trust access policies list --per-page 100');
@@ -193,5 +191,25 @@ describe('argv shapes (from `cf schema`)', () => {
 		await expect(missing.cf.mintDeployToken('x', new Date(), 'zone1')).rejects.toThrow(
 			'"Workers Scripts Write"'
 		);
+	});
+});
+
+describe('the permission and token fixes from the real spike run', () => {
+	it('a 403 / 9109 is a missing permission, not a sign-in problem', async () => {
+		const { mapFailure } = await import('./run.ts');
+		const stderr =
+			'┌ APIError\n│ [9109] Unauthorized to access requested resource\n│ 403 Forbidden · HTTP /accounts/x/tokens/permission_groups';
+		expect(mapFailure(stderr, 'cf accounts tokens permission-groups list')).toBe(
+			'This login lacks the permission for `cf accounts tokens permission-groups list`'
+		);
+		expect(mapFailure('401 Unauthorized: token expired')).toContain('Not signed in');
+	});
+
+	it('takes the token from banner-plus-token output, and refuses garbage', async () => {
+		const { extractToken } = await import('./wrangler.ts');
+		const token = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd';
+		expect(extractToken(`\n ⛅️ wrangler 4.148.0\n-------------------\n${token}\n`)).toBe(token);
+		expect(extractToken(`⛅️ wrangler 4.148.0\n{"token":"${token}"}`)).toBe(token);
+		expect(() => extractToken('⛅️ wrangler 4.148.0\n')).toThrow('usable token');
 	});
 });

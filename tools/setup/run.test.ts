@@ -10,7 +10,7 @@ describe('mapFailure', () => {
 		['Error 401 Unauthorized', 'Not signed in, or the sign-in has expired'],
 		[
 			'403 Forbidden: missing scope access-app.write',
-			'The sign-in lacks a permission this step needs'
+			'This login lacks a permission this step needs'
 		],
 		['429 Too many requests', 'Cloudflare is rate limiting this account; wait a minute and retry'],
 		['fetch failed: ENOTFOUND api.cloudflare.com', 'Could not reach Cloudflare']

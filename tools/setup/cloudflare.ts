@@ -228,9 +228,13 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			hasSecretOutput: extra.hasSecretOutput
 		});
 	}
-	/** Zero Trust commands take the scope as two positionals: `accounts <id>` (observed on applications create). */
+	/**
+	 * Zero Trust commands take no scope positionals: the real `spike` run showed `accounts <id>` fails
+	 * with "Unknown commands", while a bare `access policies list` works. The account comes from
+	 * CLOUDFLARE_ACCOUNT_ID like every other call (zone scope would be `-z`, which this tool never uses).
+	 */
 	function zeroTrust(args: string[], tail: string[] = []) {
-		return cf(['zero-trust', ...args, 'accounts', account(), ...tail]);
+		return cf(['zero-trust', ...args, ...tail]);
 	}
 
 	async function raw(path: string) {
@@ -498,8 +502,6 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				'access',
 				'applications',
 				'create',
-				'accounts',
-				account(),
 				'--body',
 				appBody(body),
 				...dry
@@ -512,8 +514,6 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				'access',
 				'applications',
 				'update',
-				'accounts',
-				account(),
 				id,
 				'--body',
 				appBody(body),
@@ -564,16 +564,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			await cf(['queues', 'delete', id, ...dry]);
 		},
 		async deleteAccessApp(id) {
-			await cf([
-				'zero-trust',
-				'access',
-				'applications',
-				'delete',
-				'accounts',
-				account(),
-				id,
-				...dry
-			]);
+			await cf(['zero-trust', 'access', 'applications', 'delete', id, ...dry]);
 		},
 		async deletePolicy(id) {
 			await cf(['zero-trust', 'access', 'policies', 'delete', id, ...dry]);
