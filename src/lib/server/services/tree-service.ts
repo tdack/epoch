@@ -4,7 +4,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
 import type { LayoutMode } from '../../shared/view-mode';
 import { requireTreeAction } from './tree-access';
-import { NotFoundError, ValidationError } from '../domain/errors';
+import { NotAdmittedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { MutationRunner, type MutationClock } from './mutation-runner';
 export class TreeService {
@@ -39,7 +39,17 @@ export class TreeService {
 		};
 	}
 
+	/**
+	 * Only the install owner and people already holding a membership may start a tree (ADR-034), so a
+	 * broad Access policy cannot let a stranger use the install for trees of their own. The hook turns
+	 * strangers away first; this holds for every other way in (a GEDCOM import, a member removed from
+	 * their last tree mid-session).
+	 */
 	async createTree(name: string, description: string | null, context: AuthenticatedContext) {
+		if (!context.user.isInstallOwner && !(await this.userRepo.hasAnyMembership(context.user.id)))
+			throw new NotAdmittedError(
+				'Only the owner of this Epoch, and people already in one of its trees, can start a tree'
+			);
 		if (!name?.trim()) throw new ValidationError('Tree name is required');
 		return this.treeRepo.create(name.trim(), description?.trim() || null, context.user.id);
 	}
