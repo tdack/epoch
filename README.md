@@ -23,6 +23,28 @@ Without `npm run db:migrate:local` (or after pulling new migrations) every reque
 that says to run it, rather than a `no such table` error. The check compares Wrangler's
 `d1_migrations` record with the migration journal, so it also catches a partly applied set.
 
+### Installing into Cloudflare
+
+```sh
+npm run setup -- --plan   # reconcile with your account and print what would change; read-only
+npm run setup             # sign in, create the resources, the Access application, deploy, verify
+```
+
+Setup signs in through your browser (no API token to create), asks only what it cannot discover, and
+proves that any resource it finds by name belongs to this install before using it. It assumes your
+account already has a paid Workers plan, a Zero Trust organisation with an identity provider, and an
+active domain; it never creates those. Everything else it needs is the D1 database, R2 bucket, queue
+and Worker, one custom domain, and one Access application on `<host>/login` with an Allow policy
+(chosen from your existing ones, or a new one for your email). It never edits a policy it did not
+create.
+
+Later: `npm run setup -- doctor` reports drift, `allow <email>` and `disallow <email>` edit the
+policy setup created, and `teardown` deletes only what this install made. `npm run setup -- --help`
+lists every flag, including the ones that answer each prompt for CI. State lives in
+`.epoch/install.json` and the generated `wrangler.deploy.jsonc`; both are git-ignored. See
+[docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
+real account (`npm run setup -- spike`).
+
 ### Dev identity
 
 Identity normally comes from Cloudflare Access. For local development, `.dev.vars` sets

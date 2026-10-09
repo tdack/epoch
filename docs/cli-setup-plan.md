@@ -1,6 +1,8 @@
 # Plan: `npm run setup`, a CLI that installs Epoch into a Cloudflare account
 
-Status: **Planned.** Nothing here is built. Research done 2026-10-08 against `cf` 1.0.0-beta.13
+Status: **Built, not yet run against a real account.** The tool is in `tools/setup/`. Every claim
+marked *(spike)* is still open until the owner runs `npm run setup -- spike` (the notes under
+"Built" at the end list what moved). Research done 2026-10-08 against `cf` 1.0.0-beta.13
 and wrangler 4.148.0. Every claim marked *(spike)* was read from docs or the tools' source but not
 run against a real account; step 0 checks them before any code is written.
 
@@ -24,7 +26,7 @@ clear message if it is missing:
 | Prerequisite | How the tool checks |
 | --- | --- |
 | **A paid Workers plan**, needed for Queues and Workflows | Not checked up front: that needs a billing scope. A plan error from queue creation or deploy is mapped to "this needs Workers Paid" |
-| **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust access identity-providers list` |
+| **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust identity-providers list` |
 | **A domain on Cloudflare**: an active zone in the account | `cf zones list`, active zones only |
 
 **The tool never creates or changes account-level configuration.** That includes the Zero Trust
@@ -166,7 +168,7 @@ token's permissions up front.
 
 ## Command line and terminal UX
 
-**Libraries** (devDependencies, exact versions pinned; checked 2026-10-09):
+**Libraries** (dependencies of `tools/setup/package.json`, exact versions pinned; checked 2026-10-09):
 
 | Need | Choice | Why |
 | --- | --- | --- |
@@ -210,7 +212,7 @@ token's permissions up front.
 - `--json` prints one result object (the manifest plus the verify results) on stdout, with the
   progress on stderr, matching `cf`'s own convention.
 
-**Code shape.** `scripts/setup/`:
+**Code shape.** `tools/setup/`, with its own `package.json` so the production build never installs it:
 
 - `cli.ts`: the commander definitions.
 - `steps/*.ts`: one module per flow step. Each is a pure function from the manifest and the
@@ -221,8 +223,8 @@ token's permissions up front.
 
 ## The flow
 
-The tool is a Node 24 script, `scripts/setup/` (TypeScript run with `node --experimental-strip-types`
-or `tsx`; decide in step 1), exposed as `npm run setup`. It shells out to the pinned `cf` and
+The tool is a Node 24 program, `tools/setup/` (TypeScript run directly by Node's type stripping),
+exposed as `npm run setup`. It shells out to the pinned `cf` and
 wrangler and parses their JSON. It keeps its state in a git-ignored **install manifest**,
 `.epoch/install.json`, holding the account id, slug, every resource id, the Access app and policy
 ids, and an install UUID. Every step reads the manifest, does nothing if its work is already
@@ -268,7 +270,7 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 | Hostname | Default `<slug>.<zone>` | Always, with that default. Refused if a DNS record or another Worker already serves it, unless the manifest says it is ours |
 | Owner email | `cf auth whoami` | Confirm only |
 | Zero Trust team domain | `cf zero-trust organization get` | Never. No organisation → stop (prerequisite) |
-| Identity providers for the app | `cf zero-trust access identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
+| Identity providers for the app | `cf zero-trust identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
 | Invitation sender | Email Sending domains on the zone | Only if the user wants emailed invitations (ADR-031). If the domain is not verified, the generated config **leaves out the `send_email` binding**. The app already treats a missing binding as "not sent" (`wasEmailSent: false`), and a binding naming an unverified sender may fail the deploy *(spike)*. Re-running setup after verification adds it |
 | Data location | D1 location hint (`oc` suits Australia); R2 location hint, and optionally an R2 jurisdiction (`eu` or `fedramp`; there is no Australian one) | Offered, not required. Recorded because neither can be changed after creation. A chosen jurisdiction is also written to the R2 binding (`jurisdiction`) |
 
@@ -506,8 +508,7 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - Git-ignore `wrangler.deploy.jsonc` and `.epoch/`.
    - Move `db:migrate`, `deploy` and the backfill scripts to the binding name and `-c`.
    - Add the `install_meta` migration (expand-only).
-2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `scripts/setup/cli.ts`
-   added as a knip entry), and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
+2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `tools/setup` as a knip workspace), and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
    errors). Unit tests use recorded `cf` output.
 3. Preflight, sign-in and collect.
 4. Reconcile, plan and confirm. These carry the most tests: every state in the table above,
@@ -545,3 +546,22 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 4. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
 5. **Email Sending:** should setup try to onboard the sender domain, or only report its status?
    Report only is proposed, because domain verification touches DNS.
+
+## Built
+
+`tools/setup/` implements the flow above. Where it differs from the plan:
+
+- **Layout.** `tools/setup/` has its own `package.json` (commander 15, @clack/prompts 1.8.1, `cf`
+  1.0.0-beta.13, all exact). Root `lint`, `check`, `test` and `setup` run
+  `scripts/ensure-setup-deps.mjs` first through npm `pre` hooks, so a fresh clone needs only the
+  root `npm ci`. The root Vitest runs the tool's tests; `check` also runs `tsc -p tools/setup`.
+- **Markers.** The D1 and R2 markers are both written in the migrate step (the R2 object moved from
+  step 6), because that is the one place a wrangler credential is guaranteed to exist, including with
+  `--deploy-auth=ephemeral`. With an ephemeral token the R2 marker cannot be read during reconcile, so
+  such a bucket reads as unmarked until the next run.
+- **Identity providers** are `cf zero-trust identity-providers list`, not under `access`.
+- **`--force`** signs in again; the scope-failure message points at it.
+- **`spike`** (`npm run setup -- spike`) runs the read-only checks, sends writes with `--dry-run`,
+  and saves each raw response under `.epoch/spike/` for replacing the synthesized fixtures.
+- Extra flags beyond the plan: `--r2-location`, `--r2-jurisdiction`, `--email-sender`,
+  `--owner-email`.
