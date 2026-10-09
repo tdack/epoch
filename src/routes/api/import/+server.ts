@@ -21,6 +21,7 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 	const file = formData.get('file') as File | null;
 	if (!file) return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
 
+	const text = await readGedcom(file);
 	const env = event.platform?.env;
 	const outcome = await new GedcomService(db, {
 		bucket: env?.MEDIA_BUCKET,
@@ -30,8 +31,9 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 			treeId: formData.get('treeId') as string | null,
 			treeName: formData.get('treeName') as string | null,
 			fileName: file.name,
-			text: await readGedcom(file),
-			sizeBytes: file.size,
+			text,
+			// A .gdz is compressed, so its file size understates the import; the text decides the queue.
+			sizeBytes: Math.max(file.size, text.length),
 			mode: (formData.get('mode') as string | null) === 'merge' ? 'merge' : 'replace',
 			shouldMergeDuplicateFamilies: formData.get('mergeDuplicates') === 'true'
 		},

@@ -61,6 +61,11 @@ describe('decodeGedcomFile', () => {
 		expect(nameOf(text)).toBe('Zoë');
 	});
 
+	it('reads a file that says ANSEL or ANSI but was saved as UTF-8 as UTF-8', () => {
+		expect(nameOf(decodeGedcomFile(strToU8(`${file('ANSEL')}José /Ng/\r\n`)))).toBe('José');
+		expect(nameOf(decodeGedcomFile(strToU8(`${file('ANSI')}José /Ng/\r\n`)))).toBe('José');
+	});
+
 	it('falls back to Windows-1252 when a file that says ASCII or nothing is not UTF-8', () => {
 		expect(nameOf(decodeGedcomFile(bytes(file('ASCII'), 'Ren', [0xe9], '\r\n')))).toBe('René');
 		expect(nameOf(decodeGedcomFile(bytes(file(null), 'Ren', [0xe9], '\r\n')))).toBe('René');

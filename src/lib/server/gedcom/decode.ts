@@ -46,12 +46,17 @@ function decodeUtf16(bytes: Uint8Array, isBigEndian: boolean): string {
 	return fromCodeUnits(units);
 }
 
-/** UTF-8, or Windows-1252 when the bytes are not valid UTF-8: a file that says `ASCII` or nothing at all is often really ANSI. */
-function decodeUtf8OrAnsi(bytes: Uint8Array): string {
+/**
+ * UTF-8 when the bytes are valid UTF-8, and the legacy decoder otherwise. Tried first whatever the
+ * header says, because a file that says `ANSI` or `ANSEL` but was saved as UTF-8 is common, and a
+ * real legacy file is almost never valid UTF-8: an accented byte followed by a plain letter is not.
+ * Pure ASCII reads the same either way. A file that says `ASCII` or nothing is often really ANSI.
+ */
+function decodeUtf8Or(bytes: Uint8Array, legacy: (bytes: Uint8Array) => string): string {
 	try {
 		return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 	} catch {
-		return decodeWindows1252(bytes);
+		return legacy(bytes);
 	}
 }
 
@@ -73,7 +78,7 @@ export function decodeGedcomFile(input: Uint8Array): string {
 	const bytes = isZip(input) ? unpackGedzip(input) : input;
 
 	if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-		return decodeUtf8OrAnsi(bytes.subarray(3));
+		return decodeUtf8Or(bytes.subarray(3), decodeWindows1252);
 	}
 	if (bytes[0] === 0xff && bytes[1] === 0xfe) return decodeUtf16(bytes.subarray(2), false);
 	if (bytes[0] === 0xfe && bytes[1] === 0xff) return decodeUtf16(bytes.subarray(2), true);
@@ -81,11 +86,7 @@ export function decodeGedcomFile(input: Uint8Array): string {
 	if (bytes[0] === 0x30 && bytes[1] === 0x00) return decodeUtf16(bytes, false);
 	if (bytes[0] === 0x00 && bytes[1] === 0x30) return decodeUtf16(bytes, true);
 
-	const charset = declaredCharset(bytes);
-	if (charset === 'ANSEL') return decodeAnsel(bytes);
-	if (charset === 'ANSI' || charset === 'WINDOWS-1252' || charset === 'CP1252') {
-		return decodeWindows1252(bytes);
-	}
-	// UTF-8, ASCII, an unnamed set, and the rare ones (IBMPC, MACINTOSH) this does not decode.
-	return decodeUtf8OrAnsi(bytes);
+	// Bytes that are not UTF-8 are ANSEL when the header says so, and Windows-1252 otherwise: ANSI,
+	// ASCII, no set named, and the rare ones (IBMPC, MACINTOSH) this does not decode.
+	return decodeUtf8Or(bytes, declaredCharset(bytes) === 'ANSEL' ? decodeAnsel : decodeWindows1252);
 }
