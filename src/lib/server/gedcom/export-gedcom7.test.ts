@@ -73,6 +73,17 @@ function invalid7Lines(text: string): string[] {
 		if (tag === 'CONC' || tag === 'CHAR') return true;
 		if (tag === 'DATE' && payload && /@#D|\/\d|B\.C\.|\(|^INT /.test(payload)) return true;
 		if (tag === 'TAG' && !payload?.startsWith('_')) return true;
+		if (tag === 'RELA') return true;
+		if (['STAT', 'PEDI', 'RESN', 'MEDI'].includes(tag) && payload !== payload?.toUpperCase())
+			return true;
+		if (tag === 'FORM' && payload && !payload.includes('/')) return true;
+		if (
+			tag === 'MEDI' &&
+			!/^(AUDIO|BOOK|CARD|ELECTRONIC|FICHE|FILM|MAGAZINE|MANUSCRIPT|MAP|NEWSPAPER|PHOTO|TOMBSTONE|VIDEO|OTHER)$/.test(
+				payload ?? ''
+			)
+		)
+			return true;
 		return !!payload?.startsWith('@') && !payload.startsWith('@@') && !/^@[^@\s]+@$/.test(payload);
 	});
 }
