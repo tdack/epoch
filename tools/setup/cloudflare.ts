@@ -423,7 +423,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			if (!queue) return null;
 			const id = str(queue.queue_id) ?? '';
 			// `cf queues consumers list <queue-id>`; the consumer's `script` is the Worker name (SPIKE).
-			const consumers = asList(await cf(['queues', 'consumers', 'list', id]), 'consumers');
+			const consumers = asList(await cf(['queues', 'consumers', 'list', '--queue-id', id]), 'consumers');
 			return {
 				id,
 				name,
