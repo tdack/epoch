@@ -7,7 +7,6 @@ interface __BaseEnv_Env {
 	EMAIL: SendEmail;
 	GEDCOM_IMPORT_QUEUE: Queue;
 	ASSETS: Fetcher;
-	CF_ACCESS_TEAM_DOMAIN: "your-team.cloudflareaccess.com";
 	GEDCOM_EXPORT_WORKFLOW: Workflow /* GedcomExportWorkflow */;
 }
 declare namespace Cloudflare {
