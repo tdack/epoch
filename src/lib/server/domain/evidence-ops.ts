@@ -142,13 +142,13 @@ function checkVersion(
 	);
 }
 
-export function requireSource(rows: TreeRows, id: string): SourceRow {
+function requireSource(rows: TreeRows, id: string): SourceRow {
 	const source = rows.sources.find((s) => s.id === id);
 	if (!source) throw new NotFoundError('Source', id);
 	return source;
 }
 
-export function requireRepository(rows: TreeRows, id: string): RepositoryRow {
+function requireRepository(rows: TreeRows, id: string): RepositoryRow {
 	const repository = rows.repositories.find((r) => r.id === id);
 	if (!repository) throw new NotFoundError('Repository', id);
 	return repository;

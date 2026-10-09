@@ -141,7 +141,7 @@ export function parseNoteRecord(node: GedcomNode): ParsedSharedNote {
  * The identity of a note among a subject's own, for merging two files' notes without repeats: what
  * it says or points at, and which occurrence of that it is (two identical notes are two notes).
  */
-export function noteLinkKey(c: { pointer?: string | null; text?: string | null }): string {
+function noteLinkKey(c: { pointer?: string | null; text?: string | null }): string {
 	return [c.pointer ?? '', c.text ?? ''].join('\u0000');
 }
 
