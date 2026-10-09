@@ -38,7 +38,7 @@ export function buildPlan(
 	result: ReconcileResult,
 	policies: AccessPolicy[]
 ): PlanLine[] {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 	const { reports } = result;
 	const lines: PlanLine[] = [
 		lineFor(
@@ -89,7 +89,9 @@ export function buildPlan(
 		lineFor(
 			reports.worker.state,
 			'Worker',
-			`${names.worker} with custom domain ${answers.hostname}`
+			answers.hosting === 'workers-dev'
+				? `${names.worker} on ${answers.hostname} (workers.dev only)`
+				: `${names.worker} with custom domain ${answers.hostname}${answers.isWorkersDevKept ? ' and workers.dev kept on' : ' (workers.dev off)'}`
 		),
 		{
 			symbol: PLAN_SYMBOLS.create,

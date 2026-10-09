@@ -78,6 +78,8 @@ export interface CloudflareApi {
 	listAccounts(): Promise<AccountInfo[]>;
 	listActiveZones(): Promise<ZoneInfo[]>;
 	getTeamDomain(): Promise<string | null>;
+	/** The account's workers.dev subdomain, or null when none is set. Never set by this tool. */
+	getWorkersSubdomain(): Promise<string | null>;
 	listIdentityProviders(): Promise<IdpInfo[]>;
 
 	findD1(name: string): Promise<D1Info | null>;
@@ -281,6 +283,20 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 	return {
 		useAccount(id) {
 			accountId = id;
+		},
+
+		// `cf` has no command for this (checked in `cf schema --list`), so it is the raw
+		// `GET /accounts/{id}/workers/subdomain`. 404 or no subdomain field means none is set; anything else throws.
+		async getWorkersSubdomain() {
+			const res = await raw(`/accounts/${account()}/workers/subdomain`);
+			if (res.status === 404) return null;
+			if (res.status >= 400 || !isRec(res.body)) {
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not read the workers.dev subdomain (HTTP ${res.status})`
+				);
+			}
+			return isRec(res.body.result) ? str(res.body.result.subdomain) : null;
 		},
 
 		// `cf auth whoami` prints `{ authenticated, authSource, tokenValid, email?, accounts, scopes?,

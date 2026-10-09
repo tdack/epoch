@@ -175,6 +175,15 @@ const CHECKS: Check[] = [
 		}
 	},
 	{
+		id: 'workers-subdomain',
+		claim:
+			'GET /accounts/{id}/workers/subdomain (no cf command) returns result.subdomain, or 404 when none is set',
+		async run(ctx) {
+			const subdomain = await ctx.cf.getWorkersSubdomain();
+			return subdomain ? `subdomain ${subdomain}` : 'none set (the 404 path parsed)';
+		}
+	},
+	{
 		id: 'hostname-checks',
 		claim:
 			'`cf workers domains list` and `cf dns records list --zone --name` answer the collision check',

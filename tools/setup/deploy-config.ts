@@ -1,6 +1,9 @@
 import { ERROR_CODES, SetupError } from './errors.ts';
 import { parseJsonc } from './jsonc.ts';
 import type { ResourceNames } from './names.ts';
+import { HOSTINGS, type Hosting } from './options.ts';
+import type { FileSystem } from './context.ts';
+import type { InstallPaths } from './paths.ts';
 
 /**
  * Plan step 8: `wrangler.deploy.jsonc` is the tracked `wrangler.jsonc` plus this install's
@@ -10,7 +13,11 @@ import type { ResourceNames } from './names.ts';
  */
 export interface DeployValues {
 	names: ResourceNames;
+	hosting: Hosting;
+	/** The host Access protects: the workers.dev host or the custom domain. */
 	hostname: string;
+	/** Custom domain only: keep the workers.dev URL on too. */
+	isWorkersDevKept: boolean;
 	teamDomain: string;
 	installId: string;
 	d1Id: string;
@@ -56,7 +63,16 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 	const { names } = values;
 
 	config.name = names.worker;
-	config.routes = [{ pattern: values.hostname, custom_domain: true }];
+	if (values.hosting === HOSTINGS.workersDev) {
+		config.workers_dev = true;
+		delete config.routes;
+	} else {
+		config.routes = [{ pattern: values.hostname, custom_domain: true }];
+		config.workers_dev = values.isWorkersDevKept;
+		// Preview URLs would be a second, unprotected way in on workers.dev.
+		if (values.isWorkersDevKept) delete config.preview_urls;
+		else config.preview_urls = false;
+	}
 	config.vars = {
 		...(isJson(config.vars) ? config.vars : {}),
 		CF_ACCESS_TEAM_DOMAIN: values.teamDomain,
@@ -99,16 +115,104 @@ export function renderDeployConfig(config: Json): string {
 }
 
 /**
- * `adapter-cloudflare` reads only these from the tracked file at build time, so the two files
- * must agree on them or the build would bundle a different Worker than the one deployed.
+ * The tracked wrangler.jsonc is the template. A checkout with none, an empty one or one that does not
+ * parse (or lacks the Worker's bindings) falls back to the shipped copy, so setup works from nothing.
  */
-export function assertBuildFieldsAgree(tracked: Json, deploy: Json): void {
-	for (const field of ['main', 'assets'] as const) {
-		if (JSON.stringify(tracked[field]) !== JSON.stringify(deploy[field])) {
-			throw new SetupError(
-				ERROR_CODES.usage,
-				`wrangler.jsonc and wrangler.deploy.jsonc disagree on "${field}"`
-			);
+export function loadTemplate(
+	fs: FileSystem,
+	paths: InstallPaths
+): { config: Json; isFallback: boolean } {
+	if (fs.exists(paths.trackedConfigFile)) {
+		try {
+			const tracked = parseTrackedConfig(fs.read(paths.trackedConfigFile));
+			if (Array.isArray(tracked.d1_databases) && typeof tracked.main === 'string') {
+				return { config: tracked, isFallback: false };
+			}
+		} catch {
+			// Fall through to the shipped copy.
 		}
 	}
+	return { config: parseTrackedConfig(fs.read(paths.templateFile)), isFallback: true };
+}
+
+/** What an earlier run, or a hand-written file, already decided. Every field may be absent. */
+export interface DeployDefaults {
+	workerName: string | null;
+	hostname: string | null;
+	hosting: Hosting | null;
+	isWorkersDevKept: boolean | null;
+	d1Id: string | null;
+	teamDomain: string | null;
+	installId: string | null;
+}
+
+export const NO_DEFAULTS: DeployDefaults = {
+	workerName: null,
+	hostname: null,
+	hosting: null,
+	isWorkersDevKept: null,
+	d1Id: null,
+	teamDomain: null,
+	installId: null
+};
+
+/** Empty, missing or unparseable text means no defaults, never an error. */
+export function parseDeployDefaults(text: string | null): DeployDefaults {
+	if (!text || text.trim() === '') return NO_DEFAULTS;
+	let config: unknown;
+	try {
+		config = parseJsonc(text);
+	} catch {
+		return NO_DEFAULTS;
+	}
+	if (!isJson(config)) return NO_DEFAULTS;
+	const str = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
+	const route = Array.isArray(config.routes) ? (config.routes[0] as Json | undefined) : undefined;
+	const vars = isJson(config.vars) ? config.vars : {};
+	const d1 = Array.isArray(config.d1_databases)
+		? (config.d1_databases[0] as Json | undefined)
+		: undefined;
+	const customHost = str(route?.pattern);
+	return {
+		workerName: str(config.name),
+		hostname: customHost,
+		hosting: customHost
+			? HOSTINGS.custom
+			: config.workers_dev === true
+				? HOSTINGS.workersDev
+				: null,
+		isWorkersDevKept: customHost ? config.workers_dev === true : null,
+		d1Id: str(d1?.database_id),
+		teamDomain: str(vars.CF_ACCESS_TEAM_DOMAIN),
+		installId: str(vars.EPOCH_INSTALL_ID)
+	};
+}
+
+/** A small line diff (longest common subsequence) for showing what regenerating the file changes. */
+export function lineDiff(before: string, after: string): string[] {
+	const a = before.split('\n');
+	const b = after.split('\n');
+	const table = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
+	for (let i = a.length - 1; i >= 0; i -= 1) {
+		for (let j = b.length - 1; j >= 0; j -= 1) {
+			table[i]![j] =
+				a[i] === b[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
+		}
+	}
+	const out: string[] = [];
+	let i = 0;
+	let j = 0;
+	while (i < a.length || j < b.length) {
+		if (i < a.length && j < b.length && a[i] === b[j]) {
+			i += 1;
+			j += 1;
+		} else if (j < b.length && (i === a.length || table[i]![j + 1]! > table[i + 1]![j]!)) {
+			out.push(`+ ${b[j]}`);
+			j += 1;
+		} else {
+			out.push(`- ${a[i]}`);
+			i += 1;
+		}
+	}
+	return out;
 }

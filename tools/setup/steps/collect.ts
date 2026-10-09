@@ -3,8 +3,9 @@ import { resolveAnswer, type AnswerMode } from '../answers.ts';
 import type { AccountInfo, Identity, IdpInfo, ZoneInfo } from '../cloudflare.ts';
 import type { StepContext } from '../context.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
+import { NO_DEFAULTS, type DeployDefaults } from '../deploy-config.ts';
 import { withStepDone, type Manifest } from '../manifest.ts';
-import type { Answers, SetupFlags } from '../options.ts';
+import { HOSTINGS, type Answers, type Hosting, type SetupFlags } from '../options.ts';
 import {
 	ADMITS,
 	assertEmail,
@@ -97,9 +98,10 @@ export async function collect(
 	flags: SetupFlags,
 	identity: Identity,
 	mode: AnswerMode,
-	asker: Asker
+	asker: Asker,
+	defaults: DeployDefaults = NO_DEFAULTS
 ): Promise<{ manifest: Manifest; answers: Answers; discovery: Discovery }> {
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 
 	const accounts = await ctx.cf.listAccounts();
 	if (accounts.length === 0) {
@@ -118,21 +120,86 @@ export async function collect(
 	);
 	ctx.cf.useAccount(account.id);
 
+	const subdomain = await ctx.cf.getWorkersSubdomain();
 	const zones = await ctx.cf.listActiveZones();
-	if (zones.length === 0) {
+	const offered: Hosting[] = [
+		...(subdomain ? [HOSTINGS.workersDev] : []),
+		...(zones.length > 0 ? [HOSTINGS.custom] : [])
+	];
+	if (offered.length === 0) {
 		throw prerequisite(
-			'No active zone (domain) in this account',
-			'Add and activate a domain in Cloudflare first; setup never creates zones or DNS.'
+			'This account has no workers.dev subdomain and no active domain, so there is nowhere to serve Epoch',
+			'Set a workers.dev subdomain (Workers & Pages) or add and activate a domain first; setup creates neither.'
 		);
 	}
-	const zone = await chooseOne(
-		zones,
-		flags.zone,
-		'--zone',
-		'Which domain should Epoch live on?',
-		mode,
-		asker
+	if (flags.hosting !== undefined && !offered.includes(flags.hosting)) {
+		throw new SetupError(
+			ERROR_CODES.usage,
+			`--hosting ${flags.hosting} is not possible here (${flags.hosting === HOSTINGS.workersDev ? 'no workers.dev subdomain is set' : 'no active domain'})`,
+			{ flag: '--hosting' }
+		);
+	}
+	const hostingResolution = resolveAnswer<Hosting>(
+		{
+			flag: '--hosting',
+			flagValue: flags.hosting,
+			onlyChoice: offered.length === 1 ? offered[0] : undefined,
+			defaultValue:
+				defaults.hosting && offered.includes(defaults.hosting)
+					? defaults.hosting
+					: offered.includes(HOSTINGS.custom)
+						? HOSTINGS.custom
+						: HOSTINGS.workersDev
+		},
+		mode
 	);
+	const hosting =
+		hostingResolution.status === 'answered'
+			? hostingResolution.value
+			: await asker.select<Hosting>({
+					message: 'Where should Epoch be served?',
+					choices: offered.map((value) => ({
+						value,
+						label:
+							value === HOSTINGS.workersDev
+								? `workers.dev only (${manifest.workerName}.${subdomain}.workers.dev)`
+								: 'A custom domain'
+					}))
+				});
+
+	let zone: ZoneInfo | null = null;
+	let isWorkersDevKept = false;
+	if (hosting === HOSTINGS.custom) {
+		zone = await chooseOne(
+			zones,
+			flags.zone,
+			'--zone',
+			'Which domain should Epoch live on?',
+			mode,
+			asker
+		);
+		const keepResolution = resolveAnswer<boolean>(
+			{
+				flag: '--keep-workers-dev',
+				flagValue: flags.isKeepWorkersDev,
+				defaultValue: defaults.isWorkersDevKept ?? false
+			},
+			mode
+		);
+		isWorkersDevKept =
+			keepResolution.status === 'answered'
+				? keepResolution.value
+				: await asker.confirm({
+						message: 'Keep the workers.dev URL on as well?',
+						isInitiallyYes: false
+					});
+		if (isWorkersDevKept && !subdomain) {
+			throw prerequisite(
+				'There is no workers.dev subdomain to keep on',
+				'Drop --keep-workers-dev, or set a subdomain first.'
+			);
+		}
+	}
 
 	const teamDomain = await ctx.cf.getTeamDomain();
 	if (!teamDomain) {
@@ -202,42 +269,56 @@ export async function collect(
 		}
 	}
 
-	const defaultHost = `${manifest.slug}.${zone.name}`;
-	const hostResolution = resolveAnswer(
-		{ flag: '--hostname', flagValue: flags.hostname, defaultValue: defaultHost },
-		mode
-	);
-	const hostname = (
-		hostResolution.status === 'answered'
-			? hostResolution.value
-			: await asker.text({
-					message: 'Hostname',
-					initial: defaultHost,
-					validate: (v) =>
-						v === zone.name || v.endsWith(`.${zone.name}`)
-							? undefined
-							: `Must be ${zone.name} or a subdomain of it`
-				})
-	).toLowerCase();
-	if (hostname !== zone.name && !hostname.endsWith(`.${zone.name}`)) {
-		throw new SetupError(ERROR_CODES.usage, `${hostname} is not on ${zone.name}`, {
-			flag: '--hostname'
-		});
-	}
-	// Already ours (it is in the manifest, or the Worker serves it): not a clash.
-	if (manifest.hostname !== hostname) {
-		const clash = await ctx.cf.findHostnameUse(zone.id, hostname, names.worker);
-		if (clash)
-			throw prerequisite(
-				`Cannot use ${hostname}: ${clash}`,
-				'Choose another hostname with --hostname.'
-			);
+	let hostname: string;
+	if (hosting === HOSTINGS.workersDev) {
+		// The host is fixed by the Worker name and the account's subdomain; there is nothing to ask or to collide with.
+		hostname = `${manifest.workerName}.${subdomain}.workers.dev`;
+	} else if (zone) {
+		const onZone = (v: string) => v === zone.name || v.endsWith(`.${zone.name}`);
+		const defaultHost =
+			defaults.hostname && onZone(defaults.hostname)
+				? defaults.hostname
+				: `${manifest.workerName}.${zone.name}`;
+		const hostResolution = resolveAnswer(
+			{ flag: '--hostname', flagValue: flags.hostname, defaultValue: defaultHost },
+			mode
+		);
+		hostname = (
+			hostResolution.status === 'answered'
+				? hostResolution.value
+				: await asker.text({
+						message: 'Hostname',
+						initial: defaultHost,
+						validate: (v) => (onZone(v) ? undefined : `Must be ${zone.name} or a subdomain of it`)
+					})
+		).toLowerCase();
+		if (!onZone(hostname)) {
+			throw new SetupError(ERROR_CODES.usage, `${hostname} is not on ${zone.name}`, {
+				flag: '--hostname'
+			});
+		}
+		// Already ours (it is in the manifest, or the Worker serves it): not a clash.
+		if (manifest.hostname !== hostname) {
+			const clash = await ctx.cf.findHostnameUse(zone.id, hostname, names.worker);
+			if (clash)
+				throw prerequisite(
+					`Cannot use ${hostname}: ${clash}`,
+					'Choose another hostname with --hostname.'
+				);
+		}
+	} else {
+		throw new Error('unreachable: custom hosting without a zone');
 	}
 
 	const policies = await listPoliciesWithApps(ctx);
+	// An application already on this host's /login keeps its policies as the default, so adopting an existing install changes nothing.
+	const existingApp = (await ctx.cf.listAccessApps()).find(
+		(app) => app.domain === `${hostname}/login`
+	);
 	const policy = await choosePolicy(
 		ctx,
 		names.accessPolicy,
+		existingApp?.policyIds ?? [],
 		policies,
 		flags,
 		ownerEmail,
@@ -270,13 +351,15 @@ export async function collect(
 		asker
 	);
 
-	const emailSender = await chooseSender(ctx, zone, flags, mode, asker);
+	const emailSender = zone ? await chooseSender(ctx, zone, flags, mode, asker) : null;
 
 	const answers: Answers = {
-		slug: manifest.slug,
+		workerName: manifest.workerName,
 		account,
+		hosting,
 		zone,
 		hostname,
+		isWorkersDevKept,
 		ownerEmail,
 		idpIds,
 		policy,
@@ -292,6 +375,8 @@ export async function collect(
 				...manifest,
 				account,
 				zone,
+				hosting,
+				isWorkersDevKept,
 				hostname,
 				ownerEmail,
 				teamDomain,
@@ -326,9 +411,22 @@ export async function listPoliciesWithApps(ctx: StepContext): Promise<AccessPoli
 	}));
 }
 
+/** The policies already on this host's application when they admit the owner; otherwise the usual default. */
+function preferredChoice(
+	policies: AccessPolicy[],
+	preferredIds: string[],
+	ownerEmail: string
+): PolicyChoice {
+	const kept = policies.filter((p) => preferredIds.includes(p.id) && isOfferable(p));
+	return kept.length > 0 && policiesAdmit(kept, ownerEmail) === ADMITS.yes
+		? { existingIds: kept.map((p) => p.id), isNewPolicy: false }
+		: defaultPolicyChoice(policies, ownerEmail);
+}
+
 async function choosePolicy(
 	ctx: StepContext,
 	newPolicyName: string,
+	preferredIds: string[],
 	policies: AccessPolicy[],
 	flags: SetupFlags,
 	ownerEmail: string,
@@ -360,14 +458,14 @@ async function choosePolicy(
 			{
 				flag: '--policy or --new-policy',
 				flagValue: undefined,
-				defaultValue: defaultPolicyChoice(policies, ownerEmail)
+				defaultValue: preferredChoice(policies, preferredIds, ownerEmail)
 			},
 			mode
 		);
 		if (resolution.status === 'answered') {
 			choice = resolution.value;
 		} else {
-			const fallback = defaultPolicyChoice(policies, ownerEmail);
+			const fallback = preferredChoice(policies, preferredIds, ownerEmail);
 			const picked = await asker.multiselect<string>({
 				message:
 					'Which Access policy decides who can sign in? Existing ones are attached as they are and never edited.',

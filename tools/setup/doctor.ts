@@ -34,7 +34,7 @@ export async function runDoctor(
 	}
 	const findings: Finding[] = [];
 	const add = (level: FindingLevel, text: string) => findings.push({ level, text });
-	const names = resourceNames(manifest.slug);
+	const names = resourceNames(manifest.workerName);
 
 	try {
 		const identity = await ctx.cf.whoami();
@@ -56,11 +56,19 @@ export async function runDoctor(
 		(await ctx.cf.listIdentityProviders()).length > 0 ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
 		'An identity provider exists'
 	);
-	const zones = await ctx.cf.listActiveZones();
-	add(
-		zones.some((z) => z.id === manifest.zone?.id) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
-		`Zone ${manifest.zone?.name ?? ''} is active`
-	);
+	if (manifest.hosting === 'workers-dev') {
+		const subdomain = await ctx.cf.getWorkersSubdomain();
+		add(
+			subdomain ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+			'The account has a workers.dev subdomain'
+		);
+	} else {
+		const zones = await ctx.cf.listActiveZones();
+		add(
+			zones.some((z) => z.id === manifest.zone?.id) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+			`Zone ${manifest.zone?.name ?? ''} is active`
+		);
+	}
 
 	const observed = await observe(ctx, manifest, manifest.hostname);
 	const result = reconcile({ manifest, names, hostname: manifest.hostname, observed });
