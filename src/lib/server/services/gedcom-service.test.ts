@@ -2,7 +2,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, trees } from '../db/schema';
-import { UnauthorizedError } from '../domain/errors';
+import { UnauthorizedError, NotAdmittedError } from '../domain/errors';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -62,10 +62,18 @@ async function tree(role?: 'viewer' | 'editor') {
 describe('importFile', () => {
 	it('creates a tree for a file with no tree, named from the file, and imports into it', async () => {
 		const caller = await createTestUser(t.db);
-		const outcome = await new GedcomService(t.db).importFile(fileOf(), caller.context);
+		const context = { ...caller.context, user: { ...caller.context.user, isInstallOwner: true } };
+		const outcome = await new GedcomService(t.db).importFile(fileOf(), context);
 		expect(outcome).toMatchObject({ status: 'complete', individualsCount: 2 });
 		const created = await t.db.select().from(trees).where(eq(trees.id, outcome.treeId)).get();
 		expect(created?.name).toBe('Fox family');
+	});
+
+	it('refuses to start a tree for someone who may not create one (ADR-034)', async () => {
+		const caller = await createTestUser(t.db);
+		await expect(
+			new GedcomService(t.db).importFile(fileOf(), caller.context)
+		).rejects.toBeInstanceOf(NotAdmittedError);
 	});
 
 	it('refuses a viewer, and a stranger, before writing anything', async () => {

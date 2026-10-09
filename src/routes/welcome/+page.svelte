@@ -2,6 +2,19 @@
 	import Splash, { SPLASH_TAGLINE as description } from '#lib/components/brand/Splash.svelte';
 
 	let { data } = $props();
+
+	const actionLabels = {
+		'signed-in': 'Continue to your trees',
+		'signed-out': 'Sign in',
+		'not-invited': 'Sign out'
+	} as const;
+	const message = $derived(
+		data.state === 'signed-out'
+			? 'Access is by invitation. Sign in with the address your invitation was sent to.'
+			: data.state === 'not-invited'
+				? `You are signed in as ${data.notAdmittedEmail}, which has no invitation here. Ask the owner for an invitation, or sign out and use the address it was sent to.`
+				: undefined
+	);
 </script>
 
 <svelte:head>
@@ -20,10 +33,4 @@
 	<meta name="theme-color" content="#064e3b" />
 </svelte:head>
 
-<Splash
-	actionLabel={data.isSignedIn ? 'Continue to your trees' : 'Sign in'}
-	actionHref={data.actionHref}
-	message={data.isSignedIn
-		? undefined
-		: 'Access is by invitation. Sign in with the address your invitation was sent to.'}
-/>
+<Splash actionLabel={actionLabels[data.state]} actionHref={data.actionHref} {message} />
