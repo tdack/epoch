@@ -197,3 +197,20 @@ Per view:
 4. Write ADR-035 in `docs/decisions.md`. Append after ADR-034 if that has merged by then;
    otherwise resolve the end-of-file conflict when the other branch merges.
 5. Do not push.
+
+## Later (not in this plan)
+
+- **Colour settings** (owner, 2026-10-09). Let people adjust the 3D views' colours: the sex
+  colours (`RING_TOKENS.male`, `.female`, `.unknownSex` and each view's variants) and the trace
+  palette and intersection colour (`HIGHLIGHT_TOKENS`). It could be an app settings page, or a
+  "Colours" entry under More > Manage beside Members and Privacy. Questions to settle first:
+  - **Whose choice is it?** More > Manage is per tree and for managers and owners only. A
+    viewer-level preference would suit people with colour-vision differences better.
+  - **Where is it stored?** Per tree, it is a column on `trees`, which needs an
+    expand-and-contract migration. Per member, it sits beside `view_mode`. Per browser, it is
+    `localStorage`.
+  - **How are choices kept legible?** A picker needs a contrast check against the dark stage,
+    and a check that the trace colours stay distinguishable from each other and from the sex
+    colours. The defaults should stay colour-blind safe, with a reset.
+  - **What does it affect?** Probably the flat view's card borders too, which share the sex
+    shades.
