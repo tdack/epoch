@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildIndex } from './graph-index';
 import { layoutPoincare } from './poincare';
 import { selectFocusSubgraph } from './select';
-import { allTestGraphs } from './test-support';
+import { allTestGraphs, makeGraph } from './test-support';
+import { selectWholeTree } from './whole-tree';
 
 describe('layoutPoincare', () => {
 	for (const { name, graph } of allTestGraphs()) {
@@ -120,5 +121,51 @@ describe('layoutPoincare placement', () => {
 		const strip = (l: typeof a) =>
 			JSON.stringify({ ...l, people: l.people.map(({ person: _p, ...rest }) => rest) });
 		expect(strip(a)).toBe(strip(b));
+	});
+});
+
+describe('layoutPoincare whole tree', () => {
+	it('draws everyone once with no focus, inside the ball, on every fixture', () => {
+		for (const { name, graph } of allTestGraphs()) {
+			const selection = selectWholeTree(graph);
+			const layout = layoutPoincare(graph, null, {}, buildIndex(graph), selection);
+			expect(layout.focusPersonId, name).toBeNull();
+			expect(layout.people.map((p) => p.id).sort(), name).toEqual(
+				graph.people.map((p) => p.id).sort()
+			);
+			for (const p of layout.people) expect(dist(p), `${name} ${p.id}`).toBeLessThan(1);
+		}
+	});
+
+	it('is deterministic for a whole tree', () => {
+		const { graph } = allTestGraphs()[0];
+		const run = () => layoutPoincare(graph, null, {}, buildIndex(graph), selectWholeTree(graph));
+		expect(run()).toEqual(run());
+	});
+
+	it('keeps spheres of a wide tree apart and stays quick', () => {
+		// 150 unconnected families, each two partners and three children: wide rows that collide.
+		const people: string[] = [];
+		const unions: Array<{ id: string; partners: string[]; children: string[] }> = [];
+		for (let f = 0; f < 150; f++) {
+			const ids = ['a', 'b', 'c', 'd', 'e'].map((k) => `${k}${f}`);
+			people.push(...ids);
+			unions.push({ id: `u${f}`, partners: ids.slice(0, 2), children: ids.slice(2) });
+		}
+		const graph = makeGraph({ people, unions });
+		const started = performance.now();
+		const layout = layoutPoincare(graph, null, {}, buildIndex(graph), selectWholeTree(graph));
+		// Generous: the point is that it is not the 8 s a full pair scan took at 3,000 people.
+		expect(performance.now() - started).toBeLessThan(4000);
+		expect(layout.people).toHaveLength(750);
+		let overlaps = 0;
+		for (let i = 0; i < layout.people.length; i++)
+			for (let j = i + 1; j < layout.people.length; j++) {
+				const a = layout.people[i];
+				const b = layout.people[j];
+				if (Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < (a.radius + b.radius) * 0.9) overlaps++;
+			}
+		// The pass is best-effort, 30 sweeps; almost no pair may still be touching.
+		expect(overlaps).toBeLessThan(layout.people.length * 0.02);
 	});
 });
