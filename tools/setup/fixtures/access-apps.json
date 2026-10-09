@@ -1,0 +1,20 @@
+[
+	{
+		"id": "app00000-0000-4000-8000-000000000001",
+		"name": "Photos",
+		"domain": "photos.example.com",
+		"aud": "aud-photos",
+		"policies": [{ "id": "pol00000-0000-4000-8000-000000000001" }],
+		"path_cookie_attribute": false,
+		"enable_binding_cookie": false
+	},
+	{
+		"id": "app00000-0000-4000-8000-000000000002",
+		"name": "Epoch (epoch)",
+		"domain": "epoch.example.com/login",
+		"aud": "aud-epoch",
+		"policies": [{ "id": "pol00000-0000-4000-8000-000000000001" }],
+		"path_cookie_attribute": false,
+		"enable_binding_cookie": false
+	}
+]

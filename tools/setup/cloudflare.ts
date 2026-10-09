@@ -1,0 +1,657 @@
+import { ERROR_CODES, SetupError } from './errors.ts';
+import type { AccessPolicy, AccessRule } from './policy.ts';
+import type { ObservedQueue, ObservedWorker } from './reconcile.ts';
+import type { Runner } from './run.ts';
+
+/**
+ * Every `cf` call this tool makes, one function each, with the argv shape and the output shape
+ * it assumes next to it. Command names were read from `cf cli search` and `cf schema`
+ * (1.0.0-beta.13); flags and output shapes marked SPIKE are read from schemas but not yet seen
+ * against a real account. `npm run setup -- spike` checks them read-only and `--dry-run`s the writes.
+ */
+
+/** Token permission groups a deploy needs, by the names `cf accounts tokens permission-groups list` returns (SPIKE). */
+const DEPLOY_TOKEN_ACCOUNT_GROUPS = [
+	'Workers Scripts Write',
+	'D1 Write',
+	'Workers R2 Storage Write',
+	'Queues Write'
+] as const;
+const DEPLOY_TOKEN_ZONE_GROUPS = ['Workers Routes Write', 'DNS Write', 'Zone Read'] as const;
+
+export interface Identity {
+	email: string | null;
+	userId: string | null;
+	accountIds: string[];
+	/** Granted OAuth scopes, or null when `cf` does not report them (SPIKE). */
+	scopes: string[] | null;
+}
+
+export interface AccountInfo {
+	id: string;
+	name: string;
+}
+export interface ZoneInfo {
+	id: string;
+	name: string;
+}
+export interface IdpInfo {
+	id: string;
+	name: string;
+	type: string;
+}
+
+interface AccessAppInfo {
+	id: string;
+	name: string;
+	domain: string;
+	aud: string;
+	policyIds: string[];
+	/** The two cookie settings ADR-026 needs off; null when the response omits them. */
+	isPathCookieAttributeOn: boolean | null;
+	isBindingCookieOn: boolean | null;
+}
+
+interface AccessAppBody {
+	name: string;
+	domain: string;
+	policyIds: string[];
+	idpIds: string[];
+	isAutoRedirect: boolean;
+}
+
+interface D1Info {
+	id: string;
+	name: string;
+	createdAt: string | null;
+	sizeBytes: number | null;
+}
+interface R2Info {
+	name: string;
+	createdAt: string | null;
+}
+
+export interface CloudflareApi {
+	/** Every account-scoped call uses this id. Set once the account is chosen. */
+	useAccount(accountId: string): void;
+	whoami(): Promise<Identity>;
+	listAccounts(): Promise<AccountInfo[]>;
+	listActiveZones(): Promise<ZoneInfo[]>;
+	getTeamDomain(): Promise<string | null>;
+	/** The account's workers.dev subdomain, or null when none is set. Never set by this tool. */
+	getWorkersSubdomain(): Promise<string | null>;
+	listIdentityProviders(): Promise<IdpInfo[]>;
+
+	findD1(name: string): Promise<D1Info | null>;
+	/** By id, for the deploy config's hint. Null when it does not exist. */
+	getD1(id: string): Promise<D1Info | null>;
+	createD1(name: string, locationHint: string | null): Promise<D1Info>;
+	queryD1(databaseId: string, sql: string): Promise<unknown[]>;
+
+	findR2Bucket(name: string): Promise<R2Info | null>;
+	createR2Bucket(
+		name: string,
+		locationHint: string | null,
+		jurisdiction: string | null
+	): Promise<R2Info>;
+	listR2Objects(
+		bucket: string,
+		limit: number
+	): Promise<{ keys: string[]; sizeBytes: number; isTruncated: boolean }>;
+
+	findQueue(name: string): Promise<ObservedQueue | null>;
+	createQueue(name: string): Promise<{ id: string; name: string }>;
+
+	getWorker(name: string): Promise<ObservedWorker | null>;
+	readWorkerVar(name: string, variable: string): Promise<string | null>;
+	putWorkerSecrets(name: string, secrets: Record<string, string>): Promise<void>;
+	/** Who serves this hostname already: a DNS record or another Worker's custom domain. Null when free. */
+	findHostnameUse(zoneId: string, hostname: string, ownWorker: string): Promise<string | null>;
+
+	listAccessApps(): Promise<AccessAppInfo[]>;
+	createAccessApp(body: AccessAppBody): Promise<AccessAppInfo>;
+	updateAccessApp(id: string, body: AccessAppBody): Promise<AccessAppInfo>;
+	listPolicies(): Promise<AccessPolicy[]>;
+	createPolicy(name: string, include: AccessRule[]): Promise<AccessPolicy>;
+	updatePolicy(policy: AccessPolicy, include: AccessRule[]): Promise<AccessPolicy>;
+
+	/** Email Sending domains on a zone, with whether each is verified (SPIKE: command may differ). */
+	listEmailSenderDomains(zoneId: string): Promise<{ domain: string; isVerified: boolean }[]>;
+
+	/** Teardown only. Each is called for a resource whose marker was proved ours. */
+	deleteD1(id: string): Promise<void>;
+	deleteR2Bucket(name: string): Promise<void>;
+	deleteQueue(id: string): Promise<void>;
+	deleteAccessApp(id: string): Promise<void>;
+	deletePolicy(id: string): Promise<void>;
+
+	/** Names of the deploy-token permission groups this account does not offer; empty when minting can work. */
+	missingDeployPermissionGroups(): Promise<string[]>;
+	/** An account-owned token limited to this account and zone, for `--deploy-auth=ephemeral`. */
+	mintDeployToken(
+		name: string,
+		expiresAt: Date,
+		zoneId: string
+	): Promise<{ id: string; value: string }>;
+	deleteToken(id: string): Promise<void>;
+	listTokens(): Promise<{ id: string; name: string }[]>;
+}
+
+type Rec = Record<string, unknown>;
+
+function isRec(value: unknown): value is Rec {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function str(value: unknown): string | null {
+	return typeof value === 'string' ? value : null;
+}
+function num(value: unknown): number | null {
+	return typeof value === 'number' ? value : null;
+}
+
+/** Lists come back as an array, or wrapped in a named key; accept both so one SPIKE answer fixes it. */
+function asList(value: unknown, ...keys: string[]): Rec[] {
+	if (Array.isArray(value)) return value.filter(isRec);
+	if (isRec(value)) {
+		for (const key of keys) {
+			const inner = value[key];
+			if (Array.isArray(inner)) return inner.filter(isRec);
+		}
+	}
+	return [];
+}
+
+function requireRec(value: unknown, what: string): Rec {
+	if (!isRec(value)) throw new Error(`Unexpected output for ${what}`);
+	return value;
+}
+
+/** A read-only GET against the Cloudflare API itself, for what `cf` has no command for (a Worker's bindings). */
+export type RawGet = (path: string) => Promise<{ status: number; body: unknown }>;
+
+export interface ApiOptions {
+	rawGet?: RawGet;
+	/** Append `--dry-run` to every write, for the spike. */
+	isDryRun?: boolean;
+}
+
+function parsePolicy(raw: Rec): AccessPolicy {
+	const rules = (key: string): AccessRule[] =>
+		Array.isArray(raw[key]) ? (raw[key] as AccessRule[]) : [];
+	return {
+		id: str(raw.id) ?? '',
+		name: str(raw.name) ?? '',
+		decision: str(raw.decision) ?? 'unknown',
+		include: rules('include'),
+		exclude: rules('exclude'),
+		require: rules('require'),
+		appNames: []
+	};
+}
+
+function parseApp(raw: Rec): AccessAppInfo {
+	const policies = Array.isArray(raw.policies) ? (raw.policies as unknown[]) : [];
+	return {
+		id: str(raw.id) ?? '',
+		name: str(raw.name) ?? '',
+		domain: str(raw.domain) ?? '',
+		aud: str(raw.aud) ?? '',
+		policyIds: policies
+			.map((p) => (isRec(p) ? str(p.id) : str(p)))
+			.filter((id): id is string => id !== null),
+		isPathCookieAttributeOn:
+			typeof raw.path_cookie_attribute === 'boolean' ? raw.path_cookie_attribute : null,
+		isBindingCookieOn:
+			typeof raw.enable_binding_cookie === 'boolean' ? raw.enable_binding_cookie : null
+	};
+}
+
+export function createCloudflareApi(runner: Runner, options: ApiOptions): CloudflareApi {
+	let accountId: string | null = null;
+	const dry = options.isDryRun ? ['--dry-run'] : [];
+
+	function account(): string {
+		if (!accountId) throw new Error('No account chosen yet');
+		return accountId;
+	}
+
+	/**
+	 * No `--profile`: the profile is bound to the repository root and `run.ts` runs every child there.
+	 * Account id is not a flag on `d1`, `r2`, `queues` or `workers` commands (SPIKE: read from
+	 * `cf d1 list --help`), so it goes in `CLOUDFLARE_ACCOUNT_ID`.
+	 */
+	function cf(args: string[], extra: { hasSecretOutput?: boolean } = {}) {
+		return runner.json({
+			tool: 'cf',
+			args,
+			env: { CLOUDFLARE_ACCOUNT_ID: accountId ?? undefined },
+			hasSecretOutput: extra.hasSecretOutput
+		});
+	}
+	/** Zero Trust commands take the scope as two positionals: `accounts <id>` (observed on applications create). */
+	function zeroTrust(args: string[], tail: string[] = []) {
+		return cf(['zero-trust', ...args, 'accounts', account(), ...tail]);
+	}
+
+	async function raw(path: string) {
+		if (!options.rawGet) throw new Error('No raw API reader configured');
+		return options.rawGet(path);
+	}
+
+	/** Null only for "no such Worker" (HTTP 404, or error code 10007); every other failure throws. */
+	async function workerSettings(name: string): Promise<Rec | null> {
+		const res = await raw(
+			`/accounts/${account()}/workers/scripts/${encodeURIComponent(name)}/settings`
+		);
+		const errors =
+			isRec(res.body) && Array.isArray(res.body.errors) ? (res.body.errors as Rec[]) : [];
+		if (res.status === 404 || errors.some((e) => e.code === 10007)) return null;
+		if (res.status >= 400 || !isRec(res.body) || !isRec(res.body.result)) {
+			throw new SetupError(
+				ERROR_CODES.command,
+				`Could not read the Worker "${name}" (HTTP ${res.status})`,
+				{
+					hint: 'Setup will not guess whether it exists. Check the sign-in and re-run.'
+				}
+			);
+		}
+		return res.body.result;
+	}
+
+	function toD1(rec: Rec): D1Info {
+		return {
+			id: str(rec.uuid) ?? str(rec.id) ?? '',
+			name: str(rec.name) ?? '',
+			createdAt: str(rec.created_at),
+			sizeBytes: num(rec.file_size)
+		};
+	}
+
+	function appBody(body: AccessAppBody): string {
+		return JSON.stringify({
+			type: 'self_hosted',
+			name: body.name,
+			domain: body.domain,
+			policies: body.policyIds.map((id, index) => ({ id, precedence: index + 1 })),
+			allowed_idps: body.idpIds,
+			auto_redirect_to_identity: body.isAutoRedirect,
+			app_launcher_visible: false,
+			// README and ADR-026: without these the CF_Authorization cookie is not sent on other paths.
+			path_cookie_attribute: false,
+			enable_binding_cookie: false
+		});
+	}
+
+	return {
+		useAccount(id) {
+			accountId = id;
+		},
+
+		// `cf` has no command for this (checked in `cf schema --list`), so it is the raw
+		// `GET /accounts/{id}/workers/subdomain`. 404 or no subdomain field means none is set; anything else throws.
+		async getWorkersSubdomain() {
+			const res = await raw(`/accounts/${account()}/workers/subdomain`);
+			if (res.status === 404) return null;
+			if (res.status >= 400 || !isRec(res.body)) {
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not read the workers.dev subdomain (HTTP ${res.status})`
+				);
+			}
+			return isRec(res.body.result) ? str(res.body.result.subdomain) : null;
+		},
+
+		// `cf auth whoami` prints `{ authenticated, authSource, tokenValid, email?, accounts, scopes?,
+		// expiresAt? }` (read from cf's source). Signed out is `{ authenticated: false }` with exit 0, so
+		// that is checked here; scopes appear only for an OAuth login, never for an API token.
+		async whoami() {
+			const out = await cf(['auth', 'whoami']);
+			const rec = isRec(out) ? out : {};
+			if (rec.authenticated !== true || rec.tokenValid === false) {
+				throw new SetupError(ERROR_CODES.command, 'cf is not signed in', {
+					hint: 'Run `npm run setup -- --force` to sign in again.'
+				});
+			}
+			const user = rec;
+			const accounts = asList(rec.accounts, 'result');
+			const scopes = Array.isArray(rec.scopes)
+				? rec.scopes.filter((s): s is string => typeof s === 'string')
+				: null;
+			return {
+				email: str(user.email),
+				userId: str(user.id) ?? str(user.user_id),
+				accountIds: accounts.map((a) => str(a.id)).filter((id): id is string => id !== null),
+				scopes
+			};
+		},
+
+		async listAccounts() {
+			return asList(await cf(['accounts', 'list', '--per-page', '50']), 'accounts').map((a) => ({
+				id: str(a.id) ?? '',
+				name: str(a.name) ?? ''
+			}));
+		},
+
+		// Active only: Access needs an active zone (plan, Assumptions). Filtered here, not by a flag.
+		async listActiveZones() {
+			return asList(await cf(['zones', 'list', '--per-page', '50']), 'zones')
+				.filter((z) => z.status === 'active')
+				.map((z) => ({ id: str(z.id) ?? '', name: str(z.name) ?? '' }));
+		},
+
+		// SPIKE: `auth_domain` is the API field; null means no Zero Trust organisation.
+		async getTeamDomain() {
+			try {
+				const out = await zeroTrust(['organization', 'get']);
+				return isRec(out) ? str(out.auth_domain) : null;
+			} catch {
+				return null;
+			}
+		},
+
+		// `cf zero-trust identity-providers list` (not `access identity-providers`, as the plan said).
+		async listIdentityProviders() {
+			return asList(await zeroTrust(['identity-providers', 'list']), 'result').map((p) => ({
+				id: str(p.id) ?? '',
+				name: str(p.name) ?? '',
+				type: str(p.type) ?? ''
+			}));
+		},
+
+		async findD1(name) {
+			const found = asList(await cf(['d1', 'list', '--name', name]), 'result').map(toD1);
+			return found.find((db) => db.name === name) ?? null;
+		},
+		// `cf d1 get <database-id>`; a failure is "cannot confirm", which only costs the hint.
+		async getD1(id) {
+			try {
+				return toD1(requireRec(await cf(['d1', 'get', id]), 'd1 get'));
+			} catch {
+				return null;
+			}
+		},
+		async createD1(name, locationHint) {
+			const args = ['d1', 'create', '--name', name];
+			if (locationHint) args.push('--primary-location-hint', locationHint);
+			return toD1(requireRec(await cf([...args, ...dry]), 'd1 create'));
+		},
+		// `cf d1 query <database-id> --sql …`; output is a list of statement results with `results` rows (SPIKE).
+		async queryD1(databaseId, sql) {
+			const out = await cf(['d1', 'query', databaseId, '--sql', sql]);
+			const first = asList(out, 'result')[0];
+			return Array.isArray(first?.results) ? first.results : [];
+		},
+
+		async findR2Bucket(name) {
+			const out = await cf(['r2', 'buckets', 'list']);
+			const list = asList(isRec(out) && Array.isArray(out.buckets) ? out.buckets : out, 'buckets');
+			const found = list.find((b) => b.name === name);
+			return found ? { name, createdAt: str(found.creation_date) } : null;
+		},
+		async createR2Bucket(name, locationHint, jurisdiction) {
+			if (jurisdiction) {
+				// `cf r2 buckets create` has no jurisdiction field (its body is name, location-hint and
+				// storage-class), so a jurisdictional bucket is made with wrangler.
+				const args = ['r2', 'bucket', 'create', name, '--jurisdiction', jurisdiction];
+				if (locationHint) args.push('--location', locationHint);
+				await runner.text({ tool: 'wrangler', args, env: { CLOUDFLARE_ACCOUNT_ID: account() } });
+				return { name, createdAt: null };
+			}
+			const args = ['r2', 'buckets', 'create', '--name', name];
+			if (locationHint) args.push('--location-hint', locationHint);
+			await cf([...args, ...dry]);
+			return { name, createdAt: null };
+		},
+		// `cf r2 objects list <bucket>` (SPIKE: positional and output). Truncated at `limit`.
+		async listR2Objects(bucket, limit) {
+			const out = await cf(['r2', 'objects', 'list', bucket, '--per-page', String(limit)]);
+			const objects = asList(out, 'objects', 'result');
+			return {
+				keys: objects.map((o) => str(o.key)).filter((k): k is string => k !== null),
+				sizeBytes: objects.reduce((sum, o) => sum + (num(o.size) ?? 0), 0),
+				isTruncated: isRec(out) && out.truncated === true
+			};
+		},
+
+		async findQueue(name) {
+			const queues = asList(await cf(['queues', 'list']), 'queues');
+			const queue = queues.find((q) => q.queue_name === name);
+			if (!queue) return null;
+			const id = str(queue.queue_id) ?? '';
+			// `cf queues consumers list <queue-id>`; the consumer's `script` is the Worker name (SPIKE).
+			const consumers = asList(await cf(['queues', 'consumers', 'list', id]), 'consumers');
+			return {
+				id,
+				name,
+				consumerWorker: str(consumers[0]?.script) ?? str(consumers[0]?.script_name)
+			};
+		},
+		async createQueue(name) {
+			const out = requireRec(
+				await cf(['queues', 'create', '--queue-name', name, ...dry]),
+				'queues create'
+			);
+			return { id: str(out.queue_id) ?? '', name };
+		},
+
+		// `cf` has no command that reads a Worker (checked in `cf schema --list`: only deployments and
+		// secrets), so this is `GET /accounts/{id}/workers/scripts/{name}/settings` through `rawGet`.
+		// Only a plain "not found" means absent; any other failure throws, because reading "absent"
+		// from a broken call would let a deploy overwrite a same-named Worker that is not ours.
+		async getWorker(name) {
+			const settings = await workerSettings(name);
+			if (settings === null) return null;
+			const bindings = asList(settings.bindings);
+			const find = (type: string) => bindings.find((b) => b.type === type);
+			return {
+				name,
+				lastDeployedAt: null,
+				markerInstallId: str(bindings.find((b) => b.name === 'EPOCH_INSTALL_ID')?.text),
+				boundD1Id: str(find('d1')?.id),
+				boundR2Name: str(find('r2_bucket')?.bucket_name),
+				boundQueueName: str(find('queue')?.queue_name)
+			};
+		},
+		async readWorkerVar(name, variable) {
+			const settings = await workerSettings(name);
+			const hit = asList(settings?.bindings).find((b) => b.name === variable);
+			return str(hit?.text);
+		},
+		// `cf workers secrets bulk <name> --body '{…}'` (SPIKE: exact body shape).
+		async putWorkerSecrets(name, secrets) {
+			await cf(['workers', 'secrets', 'bulk', name, '--body', JSON.stringify(secrets), ...dry]);
+		},
+		// Our own Worker's custom domain owns a DNS record of its own, so it is checked first and not
+		// counted as a clash. `cf` has no Workers-domains command either, hence `rawGet`.
+		async findHostnameUse(zoneId, hostname, ownWorker) {
+			const res = await raw(
+				`/accounts/${account()}/workers/domains?hostname=${encodeURIComponent(hostname)}`
+			);
+			if (res.status >= 400)
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not list Workers custom domains (HTTP ${res.status})`
+				);
+			const domains = asList(isRec(res.body) ? res.body.result : null);
+			const served = domains.find((d) => d.hostname === hostname);
+			if (served) {
+				return served.service === ownWorker
+					? null
+					: `the Worker "${str(served.service)}" already serves ${hostname}`;
+			}
+			const records = asList(
+				await cf(['dns', 'records', 'list', '--zone', zoneId, '--name', hostname]),
+				'result'
+			);
+			return records.length > 0 ? `a DNS record for ${hostname} already exists` : null;
+		},
+
+		async listAccessApps() {
+			return asList(
+				await zeroTrust(['access', 'applications', 'list'], ['--per-page', '100']),
+				'result'
+			).map(parseApp);
+		},
+		async createAccessApp(body) {
+			const out = await cf([
+				'zero-trust',
+				'access',
+				'applications',
+				'create',
+				'accounts',
+				account(),
+				'--body',
+				appBody(body),
+				...dry
+			]);
+			return parseApp(requireRec(out, 'applications create'));
+		},
+		async updateAccessApp(id, body) {
+			const out = await cf([
+				'zero-trust',
+				'access',
+				'applications',
+				'update',
+				'accounts',
+				account(),
+				id,
+				'--body',
+				appBody(body),
+				...dry
+			]);
+			return parseApp(requireRec(out, 'applications update'));
+		},
+		async listPolicies() {
+			return asList(
+				await cf(['zero-trust', 'access', 'policies', 'list', '--per-page', '100']),
+				'result'
+			).map(parsePolicy);
+		},
+		async createPolicy(name, include) {
+			const body = JSON.stringify({ name, decision: 'allow', include, exclude: [], require: [] });
+			// Policies are account-level, so these take no scope positionals (the account comes from the environment).
+			const out = await cf(['zero-trust', 'access', 'policies', 'create', '--body', body, ...dry]);
+			return parsePolicy(requireRec(out, 'policies create'));
+		},
+		async updatePolicy(policy, include) {
+			const body = JSON.stringify({
+				name: policy.name,
+				decision: policy.decision,
+				include,
+				exclude: policy.exclude,
+				require: policy.require
+			});
+			const out = await cf([
+				'zero-trust',
+				'access',
+				'policies',
+				'update',
+				policy.id,
+				'--body',
+				body,
+				...dry
+			]);
+			return parsePolicy(requireRec(out, 'policies update'));
+		},
+
+		async deleteD1(id) {
+			await cf(['d1', 'delete', id, ...dry]);
+		},
+		async deleteR2Bucket(name) {
+			await cf(['r2', 'buckets', 'delete', name, ...dry]);
+		},
+		async deleteQueue(id) {
+			await cf(['queues', 'delete', id, ...dry]);
+		},
+		async deleteAccessApp(id) {
+			await cf([
+				'zero-trust',
+				'access',
+				'applications',
+				'delete',
+				'accounts',
+				account(),
+				id,
+				...dry
+			]);
+		},
+		async deletePolicy(id) {
+			await cf(['zero-trust', 'access', 'policies', 'delete', id, ...dry]);
+		},
+
+		// Email Sending is per subdomain (`cf email-sending subdomains list --zone`); there is no
+		// "domains" command. SPIKE: which field says verified.
+		async listEmailSenderDomains(zoneId) {
+			const out = await cf(['email-sending', 'subdomains', 'list', '--zone', zoneId]);
+			return asList(out, 'result').map((d) => ({
+				domain: str(d.name) ?? str(d.domain) ?? '',
+				isVerified: d.status === 'verified' || d.verified === true || d.dns_status === 'verified'
+			}));
+		},
+
+		async missingDeployPermissionGroups() {
+			const groups = asList(
+				await cf(['accounts', 'tokens', 'permission-groups', 'list']),
+				'result'
+			);
+			return [...DEPLOY_TOKEN_ACCOUNT_GROUPS, ...DEPLOY_TOKEN_ZONE_GROUPS].filter(
+				(name) => !groups.some((g) => g.name === name)
+			);
+		},
+		// Permission groups are resolved by name from `cf accounts tokens permission-groups list` at mint
+		// time and the mint fails loudly if one is missing: a token without them cannot deploy.
+		// SPIKE: that these names exist and are enough for `wrangler deploy` with a custom domain.
+		async mintDeployToken(name, expiresAt, zoneId) {
+			const groups = asList(
+				await cf(['accounts', 'tokens', 'permission-groups', 'list']),
+				'result'
+			);
+			const resolve = (names: readonly string[]) =>
+				names.map((groupName) => {
+					const found = groups.find((g) => g.name === groupName);
+					if (!found || !str(found.id)) {
+						throw new SetupError(
+							ERROR_CODES.command,
+							`This account has no token permission group named "${groupName}"`,
+							{
+								hint: 'Use the default --deploy-auth (a wrangler sign-in) instead.'
+							}
+						);
+					}
+					return { id: str(found.id) };
+				});
+			const body = JSON.stringify({
+				name,
+				expires_on: expiresAt.toISOString(),
+				policies: [
+					{
+						effect: 'allow',
+						resources: { [`com.cloudflare.api.account.${account()}`]: '*' },
+						permission_groups: resolve(DEPLOY_TOKEN_ACCOUNT_GROUPS)
+					},
+					{
+						effect: 'allow',
+						resources: { [`com.cloudflare.api.account.zone.${zoneId}`]: '*' },
+						permission_groups: resolve(DEPLOY_TOKEN_ZONE_GROUPS)
+					}
+				]
+			});
+			const out = requireRec(
+				await cf(['accounts', 'tokens', 'create', '--body', body, ...dry], {
+					hasSecretOutput: true
+				}),
+				'tokens create'
+			);
+			return { id: str(out.id) ?? '', value: str(out.value) ?? '' };
+		},
+		async deleteToken(id) {
+			await cf(['accounts', 'tokens', 'delete', id]);
+		},
+		async listTokens() {
+			return asList(await cf(['accounts', 'tokens', 'list']), 'result').map((t) => ({
+				id: str(t.id) ?? '',
+				name: str(t.name) ?? ''
+			}));
+		}
+	};
+}

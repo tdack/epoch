@@ -1,0 +1,4 @@
+[
+	{ "id": "zone00000000000000000000000001", "name": "example.com", "status": "active" },
+	{ "id": "zone00000000000000000000000002", "name": "pending.example.org", "status": "pending" }
+]

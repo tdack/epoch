@@ -1,6 +1,6 @@
 # Plan: `npm run setup`, a CLI that installs Epoch into a Cloudflare account
 
-Status: **Planned.** Nothing here is built. Research done 2026-10-08 against `cf` 1.0.0-beta.13
+Status: **Built, not yet run against a real account.** The tool is in `tools/setup/`; the "Built" section at the end lists where it differs from this plan. Every claim marked *(spike)* is still open until `npm run setup -- spike` has been run. Research done 2026-10-08 against `cf` 1.0.0-beta.13
 and wrangler 4.148.0. Every claim marked *(spike)* was read from docs or the tools' source but not
 run against a real account; step 0 checks them before any code is written.
 
@@ -24,7 +24,7 @@ clear message if it is missing:
 | Prerequisite | How the tool checks |
 | --- | --- |
 | **A paid Workers plan**, needed for Queues and Workflows | Not checked up front: that needs a billing scope. A plan error from queue creation or deploy is mapped to "this needs Workers Paid" |
-| **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust access identity-providers list` |
+| **Zero Trust configured**: an organisation (team domain) and at least one identity provider | `cf zero-trust organization get` and `cf zero-trust identity-providers list` |
 | **Somewhere to serve it**, either one of: | Asked in step 3 |
 | the account's workers.dev subdomain (`<account>.workers.dev`) | `GET /accounts/{id}/workers/subdomain`. If none is set, stop: choosing it is account configuration |
 | or an active zone, for a custom domain | `cf zones list`, active zones only |
@@ -216,7 +216,7 @@ token's permissions up front.
 - `--json` prints one result object (the manifest plus the verify results) on stdout, with the
   progress on stderr, matching `cf`'s own convention.
 
-**Code shape.** `scripts/setup/`:
+**Code shape.** `tools/setup/`:
 
 - `cli.ts`: the commander definitions.
 - `steps/*.ts`: one module per flow step. Each is a pure function from the manifest and the
@@ -227,7 +227,7 @@ token's permissions up front.
 
 ## The flow
 
-The tool is a Node 24 script, `scripts/setup/` (TypeScript run with `node --experimental-strip-types`
+The tool is a Node 24 script, `tools/setup/` (TypeScript run with `node --experimental-strip-types`
 or `tsx`; decide in step 1), exposed as `npm run setup`. It shells out to the pinned `cf` and
 wrangler and parses their JSON. It keeps its state in a git-ignored **install manifest**,
 `.epoch/install.json`, holding the account id, Worker name, every resource id, the Access app and policy
@@ -281,7 +281,7 @@ preflight → sign in → collect → reconcile (ownership) → show plan → co
 | Keep workers.dev on as well? | — | Custom domain chosen. Default **off** (`workers_dev: false`, `preview_urls: false`). The Access app covers only the chosen host, so a second, unprotected `/login` on workers.dev would only ever show the "could not verify" message, but there is no reason to serve it. Switching from workers.dev to a custom domain later is a re-run that moves the Access app's domain |
 | Owner email | `cf auth whoami` | Confirm only |
 | Zero Trust team domain | `cf zero-trust organization get` | Never. No organisation → stop (prerequisite) |
-| Identity providers for the app | `cf zero-trust access identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
+| Identity providers for the app | `cf zero-trust identity-providers list` | More than one exists: the user picks which the app offers (default: all). None → stop (prerequisite) |
 | Invitation sender | Email Sending domains on the zone | Only if the user wants emailed invitations (ADR-031). If the domain is not verified, the generated config **leaves out the `send_email` binding**. The app already treats a missing binding as "not sent" (`wasEmailSent: false`), and a binding naming an unverified sender may fail the deploy *(spike)*. Re-running setup after verification adds it |
 | Data location | D1 location hint (`oc` suits Australia); R2 location hint, and optionally an R2 jurisdiction (`eu` or `fedramp`; there is no Australian one) | Offered, not required. Recorded because neither can be changed after creation. A chosen jurisdiction is also written to the R2 binding (`jurisdiction`) |
 
@@ -566,7 +566,7 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    - Git-ignore `wrangler.deploy.jsonc` and `.epoch/`.
    - Move `db:migrate`, `deploy` and the backfill scripts to the binding name and `-c`.
    - Add the `install_meta` migration (expand-only).
-2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `scripts/setup/cli.ts`
+2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `tools/setup/cli.ts`
    added as a knip entry), and a typed wrapper around `cf` and wrangler (JSON in and out, mapped
    errors). Unit tests use recorded `cf` output.
 3. Preflight, sign-in and collect.
@@ -605,3 +605,47 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 4. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
 5. **Email Sending:** should setup try to onboard the sender domain, or only report its status?
    Report only is proposed, because domain verification touches DNS.
+
+## Built
+
+`tools/setup/` implements the flow above. Where it differs from the plan:
+
+- **Layout.** `tools/setup/` has its own `package.json` (commander 15, @clack/prompts 1.8.1, `cf`
+  1.0.0-beta.13, all exact). Root `lint`, `check`, `test` and `setup` run
+  `scripts/ensure-setup-deps.mjs` first through npm `pre` hooks, so a fresh clone needs only the
+  root `npm ci`. The root Vitest runs the tool's tests; `check` also runs `tsc -p tools/setup`.
+- **Markers.** The D1 and R2 markers are both written in the migrate step (the R2 object moved from
+  step 6), because that is the one place a wrangler credential is guaranteed to exist, including with
+  `--deploy-auth=ephemeral`. With an ephemeral token the R2 marker cannot be read during reconcile, so
+  such a bucket reads as unmarked until the next run.
+- **Identity providers** are `cf zero-trust identity-providers list`, not under `access`.
+- **Reading a Worker has no `cf` command** (`cf schema --list` has only deployments and secrets for
+  Workers), so its bindings, the `EPOCH_INSTALL_ID` var and the custom-domain check are one raw
+  `GET` each against the API, with the wrangler (or environment) token. They fail closed: only a 404 or
+  error 10007 means "absent", so a broken call can never read as "no Worker" and let a deploy overwrite
+  one.
+- **`--deploy-auth=ephemeral` is refused for now.** Reconcile needs that wrangler token to inspect an
+  existing Worker, which a minted deploy token (created later) cannot provide. The minting code
+  (permission groups resolved by name, deleted in a `finally` and on a signal) is in place and tested
+  but unreachable.
+- **Account scope.** Access applications, the organisation and identity providers take
+  `accounts <id>` positionals; D1, R2, queues, policies and tokens read `CLOUDFLARE_ACCOUNT_ID`.
+- **R2 jurisdiction** is applied by `wrangler r2 bucket create` because `cf`'s create body has no
+  jurisdiction field. **Email Sending** is per subdomain: `cf email-sending subdomains list --zone`.
+- **`--force`** signs in again; the scope-failure message points at it.
+- **`spike`** (`npm run setup -- spike`) runs the read-only checks, sends writes with `--dry-run`,
+  and saves each raw response under `.epoch/spike/` for replacing the synthesized fixtures.
+- Extra flags beyond the plan: `--r2-location`, `--r2-jurisdiction`, `--email-sender`,
+  `--owner-email`.
+- **Worker name, hosting, existing Worker, template** (the later scope change) are all implemented as
+  steps 1, 3, 4 and 8 describe. `--name` replaces `--slug`; `--hosting workers-dev|custom` and
+  `--keep-workers-dev` are new. The manifest still calls the name `workerName`.
+- **Adopt is only offered when the Worker's own database is the one this install would use**; a Worker
+  bound to another D1 can be renamed away from or replaced. Replace does not record the Worker as
+  ours, so its AUD secret is not inherited.
+- **Choosing another name** after a taken one overwrites the empty record of the abandoned name; once
+  anything has been created, a different name is "a second install in one checkout" and is refused.
+- **The build-field agreement check** runs the deploy-config-split session's
+  `scripts/deploy-config.mjs`, not a copy.
+- **New `cf`/API calls for the spike:** `GET /accounts/{id}/workers/subdomain` (raw API, no `cf`
+  command exists); the check is `workers-subdomain`.
