@@ -127,7 +127,7 @@ export function unitFromId(id: string, salt: number): number {
 }
 
 /** Iterations for a layout of `count` bodies: the full budget, less for the largest trees. */
-export function iterationsFor(count: number): number {
+function iterationsFor(count: number): number {
 	if (count <= FULL_BUDGET_PEOPLE) return ORRERY_ITERATIONS;
 	return Math.max(MIN_ITERATIONS, Math.round((ORRERY_ITERATIONS * FULL_BUDGET_PEOPLE) / count));
 }

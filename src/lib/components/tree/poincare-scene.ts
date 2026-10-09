@@ -24,12 +24,7 @@ import { geodesicPoints, type Vec3 } from '#lib/tree-layout/poincare-geodesic.js
 import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
 import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 import { createThreeStage, sexColour } from './three-stage.js';
-import {
-	HIGHLIGHT_TOKENS,
-	POINCARE_TOKENS,
-	RING_FADE,
-	RING_LINE_WIDTH_PX
-} from './tree-tokens.js';
+import { HIGHLIGHT_TOKENS, POINCARE_TOKENS, RING_FADE, RING_LINE_WIDTH_PX } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 
 /** Radius of the glass ball in scene units; the layout's unit ball is scaled up to it. */
