@@ -18,7 +18,8 @@ import type {
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /** Distance between neighbours in a row across the flow, and between generations along it. */
@@ -99,7 +100,8 @@ export interface RibbonStrand {
 }
 
 export interface RibbonsLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	people: RibbonsPerson[];
 	unions: RibbonsUnion[];
 	childLinks: RibbonsChildLink[];
@@ -109,7 +111,7 @@ export interface RibbonsLayout {
 }
 
 const EMPTY_RIBBONS_LAYOUT: RibbonsLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	people: [],
 	unions: [],
 	childLinks: [],
@@ -269,10 +271,11 @@ export function layoutRibbons(
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
 	index: GraphIndex = buildIndex(graph),
-	ordering: RibbonsOrdering = 'sweep'
+	ordering: RibbonsOrdering = 'sweep',
+	given?: TreeSelection
 ): RibbonsLayout {
-	if (!focusPersonId) return EMPTY_RIBBONS_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
+	if (!given && !focusPersonId) return EMPTY_RIBBONS_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
 	if (!selection) return EMPTY_RIBBONS_LAYOUT;
 
 	const generationOf = new Map(selection.people.map((p) => [p.id, p.generation]));
@@ -486,7 +489,7 @@ export function layoutRibbons(
 			}
 		}
 		return {
-			focusPersonId: focusPersonId!,
+			focusPersonId: selection!.focusPersonId,
 			people,
 			unions,
 			childLinks,

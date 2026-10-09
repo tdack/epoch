@@ -15,7 +15,8 @@ import type {
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /** Arc length one person takes on a ring, in scene units; a ring's radius grows to fit its people. */
@@ -68,7 +69,8 @@ interface Ring {
 }
 
 export interface RingsLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	rings: Ring[];
 	people: RingPerson[];
 	unions: RingUnion[];
@@ -78,7 +80,7 @@ export interface RingsLayout {
 }
 
 const EMPTY_RINGS_LAYOUT: RingsLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	rings: [],
 	people: [],
 	unions: [],
@@ -186,16 +188,18 @@ function separate(arcs: Arc[]): void {
 
 /**
  * Lay out the rings around `focusPersonId`. Returns the empty layout when the person is not in the
- * graph.
+ * graph. A `selection` (the whole tree, say) is drawn instead of selecting around the focus, which
+ * may then be null; `selection` is always a layout function's last parameter.
  */
 export function layoutRings(
 	graph: RelationshipGraph,
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
-	index: GraphIndex = buildIndex(graph)
+	index: GraphIndex = buildIndex(graph),
+	given?: TreeSelection
 ): RingsLayout {
-	if (!focusPersonId) return EMPTY_RINGS_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
+	if (!given && !focusPersonId) return EMPTY_RINGS_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
 	if (!selection) return EMPTY_RINGS_LAYOUT;
 
 	const generationOf = new Map(selection.people.map((p) => [p.id, p.generation]));
@@ -319,7 +323,7 @@ export function layoutRings(
 	const placedUnionIds = new Set(unions.map((u) => u.id));
 
 	return {
-		focusPersonId,
+		focusPersonId: selection.focusPersonId,
 		rings,
 		people,
 		unions,

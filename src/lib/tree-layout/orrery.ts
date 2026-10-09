@@ -26,7 +26,8 @@ import type {
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /** Distance a union's first binary holds its partners at, in scene units. */
@@ -89,7 +90,8 @@ interface OrreryChildLink {
 }
 
 export interface OrreryLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	people: OrreryPerson[];
 	unions: OrreryUnion[];
 	childLinks: OrreryChildLink[];
@@ -98,7 +100,7 @@ export interface OrreryLayout {
 }
 
 const EMPTY_ORRERY_LAYOUT: OrreryLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	people: [],
 	unions: [],
 	childLinks: [],
@@ -135,13 +137,19 @@ export function layoutOrrery(
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
 	index: GraphIndex = buildIndex(graph),
-	tuning: OrreryOptions = {}
+	tuning: OrreryOptions = {},
+	given?: TreeSelection
 ): OrreryLayout {
-	if (!focusPersonId) return EMPTY_ORRERY_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
-	if (!selection) return EMPTY_ORRERY_LAYOUT;
+	if (!given && !focusPersonId) return EMPTY_ORRERY_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
+	if (!selection || selection.people.length === 0) return EMPTY_ORRERY_LAYOUT;
 
 	const slotOf = new Map(selection.people.map((p, i) => [p.id, i]));
+	// With no focus (the whole tree) gravity still needs a centre: the first person of the oldest
+	// row. It only steadies the picture and never marks anyone as the focus.
+	const anchorId =
+		selection.focusPersonId ??
+		selection.people.reduce((a, b) => (b.generation < a.generation ? b : a)).id;
 	const isDrawn = (id: string) => slotOf.has(id);
 	const drawnUnions = selection.unions
 		.map((u) => index.unionById.get(u.id)!)
@@ -242,12 +250,12 @@ export function layoutOrrery(
 	const { iterations } = runSimulation(bodies, springs, links, {
 		iterations: tuning.iterations ?? ORRERY_ITERATIONS,
 		boundPairs,
-		gravityTo: slotOf.get(focusPersonId)!,
+		gravityTo: slotOf.get(anchorId)!,
 		barnesHutThreshold: tuning.barnesHutThreshold ?? BARNES_HUT_THRESHOLD
 	});
 
-	// The focus is the origin, so the camera's target and the names' reading order stay stable.
-	const origin = bodies[slotOf.get(focusPersonId)!];
+	// The anchor is the origin, so the camera's target and the names' reading order stay stable.
+	const origin = bodies[slotOf.get(anchorId)!];
 	const ox = origin.x;
 	const oy = origin.y;
 	const oz = origin.z;
@@ -281,5 +289,5 @@ export function layoutOrrery(
 		};
 	});
 
-	return { focusPersonId, people, unions, childLinks, iterations };
+	return { focusPersonId: selection.focusPersonId, people, unions, childLinks, iterations };
 }

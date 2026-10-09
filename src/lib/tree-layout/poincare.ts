@@ -18,7 +18,8 @@ import type {
 	FocusViewOptions,
 	ParentChildType,
 	RelationshipGraph,
-	RelationshipGraphPerson
+	RelationshipGraphPerson,
+	TreeSelection
 } from './types.js';
 
 /**
@@ -86,7 +87,8 @@ interface PoincareTick {
 }
 
 export interface PoincareLayout {
-	focusPersonId: string;
+	/** Null when the whole tree is drawn; nobody is then the focus. */
+	focusPersonId: string | null;
 	people: PoincarePerson[];
 	unions: PoincareUnion[];
 	childLinks: PoincareChildLink[];
@@ -97,7 +99,7 @@ export interface PoincareLayout {
 }
 
 const EMPTY_POINCARE_LAYOUT: PoincareLayout = {
-	focusPersonId: '',
+	focusPersonId: null,
 	people: [],
 	unions: [],
 	childLinks: [],
@@ -195,10 +197,11 @@ export function layoutPoincare(
 	graph: RelationshipGraph,
 	focusPersonId: string | null | undefined,
 	options: FocusViewOptions = {},
-	index: GraphIndex = buildIndex(graph)
+	index: GraphIndex = buildIndex(graph),
+	given?: TreeSelection
 ): PoincareLayout {
-	if (!focusPersonId) return EMPTY_POINCARE_LAYOUT;
-	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
+	if (!given && !focusPersonId) return EMPTY_POINCARE_LAYOUT;
+	const selection = given ?? selectFocusSubgraph(graph, focusPersonId!, options, index);
 	if (!selection) return EMPTY_POINCARE_LAYOUT;
 
 	const generationOf = new Map(selection.people.map((p) => [p.id, p.generation]));
@@ -465,7 +468,7 @@ export function layoutPoincare(
 	}
 
 	return {
-		focusPersonId,
+		focusPersonId: selection.focusPersonId,
 		people,
 		unions,
 		childLinks: childLinks.filter(

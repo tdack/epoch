@@ -19,7 +19,7 @@ import {
 } from './types.js';
 
 /** How many years one row stands for when lining up families that share no link. */
-export const YEARS_PER_GENERATION = 30;
+const YEARS_PER_GENERATION = 30;
 
 function firstYear(text: string | null | undefined): number | null {
 	const match = text?.match(/\b(\d{4})\b/);
