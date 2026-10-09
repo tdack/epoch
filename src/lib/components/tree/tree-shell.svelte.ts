@@ -7,9 +7,11 @@
 import {
 	createTreeApi,
 	deleteTreeApi,
+	gedcomExportUrl,
 	renameTreeApi,
 	previewGedcomImport,
-	submitGedcomImport
+	submitGedcomImport,
+	type GedcomExportChoice
 } from '#lib/services/tree-api.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';
@@ -122,9 +124,9 @@ export class TreeShell {
 		}
 	};
 
-	exportGedcom = () => {
+	exportGedcom = (choice: GedcomExportChoice) => {
 		const treeId = this.options.treeId();
-		if (treeId) window.location.href = `/api/export?treeId=${encodeURIComponent(treeId)}`;
+		if (treeId) window.location.href = gedcomExportUrl(treeId, choice);
 	};
 
 	selectFile = (e: Event) => {
