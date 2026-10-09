@@ -29,10 +29,11 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { unitFromId, type OrreryLayout } from '#lib/tree-layout/orrery.js';
+import type { Highlight } from '#lib/tree-layout/highlight.js';
 import { buildOrbitPlan, orbitPositions } from '#lib/tree-layout/orrery-orbit.js';
 import { createThreeStage } from './three-stage.js';
 import { ORRERY_TOKENS as T } from './tree-tokens.js';
-import type { TreeRole, WebGlTreeScene } from './webgl-tree.js';
+import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 
 export const ORRERY_CAMERAS = { ANGLED: 'angled', SIDE: 'side' } as const;
@@ -48,7 +49,7 @@ const SOFT_EDGE_PIXELS = 64;
 
 export interface OrreryScene extends WebGlTreeScene {
 	/** Rebuild everything from a new layout. `shouldRefit` also resets the camera distance. */
-	setLayout(layout: OrreryLayout, roles: Map<string, TreeRole>, shouldRefit: boolean): void;
+	setLayout(layout: OrreryLayout, highlight: Highlight, shouldRefit: boolean): void;
 	/** Stops the orbital drift and the tether pulse; the picture holds at its laid-out positions. */
 	setReducedMotion(isReduced: boolean): void;
 }
@@ -294,9 +295,10 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 		return true;
 	});
 
-	function setLayout(layout: OrreryLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+	function setLayout(layout: OrreryLayout, highlight: Highlight, shouldRefit: boolean) {
+		const roles = highlightRoles(highlight);
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
-		const isQuiet = roles.size === 0;
+		const isQuiet = highlight.isQuiet;
 		const world = stage.resetWorld();
 		for (const material of glowMaterials) material.dispose();
 		glowMaterials = [];

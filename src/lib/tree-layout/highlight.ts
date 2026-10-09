@@ -52,7 +52,7 @@ export type HighlightSource =
 	/** A person traced on their own: their ancestors soft, their descendants full. */
 	| { kind: 'person'; personId: string };
 
-export type MarkKind = 'self' | 'ancestor' | 'descendant' | 'partner';
+type MarkKind = 'self' | 'ancestor' | 'descendant' | 'partner';
 
 export interface Mark {
 	colour: string;
@@ -332,9 +332,9 @@ export function computeHighlight(
 					strength: 'full',
 					colour: isTrace ? traceColour : HIGHLIGHT_TOKENS.partner
 				});
-				const split = source.shouldSplitPartners && !isTrace;
+				const isSplit = source.shouldSplitPartners && !isTrace;
 				// One walker per partner when split, so cousins marrying shows as a shared ancestor.
-				const shared = split ? null : newWalker(index, colourOf(HIGHLIGHT_TOKENS.ancestor));
+				const shared = isSplit ? null : newWalker(index, colourOf(HIGHLIGHT_TOKENS.ancestor));
 				for (const partnerId of partnerIds) {
 					const walker =
 						shared ??

@@ -3,12 +3,7 @@
 	import { ORRERY_CAMERAS, type OrreryScene } from './orrery-scene.js';
 	import { ORRERY_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import {
-		lineageRoles,
-		sexLegend,
-		type LegendEntry,
-		type WebGlCanvasProps
-	} from './webgl-tree.js';
+	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let { layout, ...shellProps }: WebGlCanvasProps<OrreryLayout> = $props();
 
@@ -46,12 +41,13 @@
 		}
 	}
 
-	const roles = $derived(lineageRoles(layout));
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
 	const announcement = $derived(
 		focus
 			? `Orrery centred on ${focus.person.displayName}: ${layout.people.length} people shown.`
-			: ''
+			: layout.focusPersonId === null && layout.people.length > 0
+				? `Orrery: the whole tree, ${layout.people.length} people shown.`
+				: ''
 	);
 </script>
 
@@ -65,7 +61,8 @@
 
 <WebGlTreeShell
 	people={layout.people}
-	{roles}
+	kin={layout}
+	focusPersonId={layout.focusPersonId}
 	label="Orrery view"
 	viewName="Orrery"
 	subject="the orrery"
@@ -77,6 +74,6 @@
 	legend={LEGEND}
 	{...shellProps}
 	createScene={async (host) => (await import('./orrery-scene.js')).createOrreryScene(host)}
-	applyLayout={(scene: OrreryScene, shown, shouldRefit) =>
-		scene.setLayout(layout, shown, shouldRefit)}
+	applyLayout={(scene: OrreryScene, highlight, shouldRefit) =>
+		scene.setLayout(layout, highlight, shouldRefit)}
 />

@@ -30,10 +30,11 @@ import {
 	type RibbonStrand,
 	type RibbonsLayout
 } from '#lib/tree-layout/ribbons.js';
+import type { Highlight } from '#lib/tree-layout/highlight.js';
 import { nodeGeometry, strandGeometry } from './ribbons-tubes.js';
 import { createThreeStage, sexColour } from './three-stage.js';
 import { RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
-import type { TreeRole, WebGlTreeScene } from './webgl-tree.js';
+import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
 
 const FOCUS_SCALE = 1.45;
 const PICK_RADIUS_UNITS = 0.95;
@@ -44,7 +45,7 @@ export const RIBBONS_CAMERAS = { ANGLED: 'angled', SIDE: 'side', EDGE: 'edge' } 
 
 export interface RibbonsScene extends WebGlTreeScene {
 	/** Rebuild everything from a new layout. `shouldRefit` also resets the camera distance. */
-	setLayout(layout: RibbonsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean): void;
+	setLayout(layout: RibbonsLayout, highlight: Highlight, shouldRefit: boolean): void;
 }
 
 /** A soft round falloff for the knots' glow, drawn once on a canvas. */
@@ -94,9 +95,10 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 		disposables = [];
 	}
 
-	function setLayout(layout: RibbonsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+	function setLayout(layout: RibbonsLayout, highlight: Highlight, shouldRefit: boolean) {
+		const roles = highlightRoles(highlight);
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
-		const isQuiet = roles.size === 0;
+		const isQuiet = highlight.isQuiet;
 		freeExtras();
 		const world = stage.resetWorld();
 

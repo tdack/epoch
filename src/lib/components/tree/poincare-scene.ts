@@ -21,10 +21,11 @@ import {
 	type Group
 } from 'three';
 import { geodesicPoints, type Vec3 } from '#lib/tree-layout/poincare-geodesic.js';
+import type { Highlight } from '#lib/tree-layout/highlight.js';
 import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 import { createThreeStage, sexColour } from './three-stage.js';
 import { POINCARE_TOKENS, RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
-import type { TreeRole, WebGlTreeScene } from './webgl-tree.js';
+import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
 
 /** Radius of the glass ball in scene units; the layout's unit ball is scaled up to it. */
 const BALL_RADIUS_UNITS = 14;
@@ -53,7 +54,7 @@ const CAMERA_DIRECTIONS = {
 
 export interface PoincareScene extends WebGlTreeScene {
 	/** Rebuild everything from a new layout. `shouldRefit` also resets the camera distance. */
-	setLayout(layout: PoincareLayout, roles: Map<string, TreeRole>, shouldRefit: boolean): void;
+	setLayout(layout: PoincareLayout, highlight: Highlight, shouldRefit: boolean): void;
 }
 
 /** A fresnel-ish shell: nearly clear face-on, brighter towards its silhouette. */
@@ -137,9 +138,10 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 		world.add(sprite);
 	}
 
-	function setLayout(layout: PoincareLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+	function setLayout(layout: PoincareLayout, highlight: Highlight, shouldRefit: boolean) {
+		const roles = highlightRoles(highlight);
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
-		const isQuiet = roles.size === 0;
+		const isQuiet = highlight.isQuiet;
 		freeLabels();
 		const world = stage.resetWorld();
 		const scale = (v: { x: number; y: number; z: number }) =>

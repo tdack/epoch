@@ -15,10 +15,11 @@ import {
 	TorusGeometry,
 	Vector3
 } from 'three';
+import { linkKey, type Highlight } from '#lib/tree-layout/highlight.js';
 import type { RingsLayout } from '#lib/tree-layout/rings.js';
 import { createThreeStage, sexColour } from './three-stage.js';
-import { RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
-import type { TreeRole, WebGlTreeScene } from './webgl-tree.js';
+import { HIGHLIGHT_TOKENS, RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
+import { highlightRoles, type WebGlTreeScene } from './webgl-tree.js';
 
 /** Vertical distance between two generation rings, in scene units. */
 export const RING_GAP_UNITS = 6.5;
@@ -43,7 +44,7 @@ const CAMERA_DIRECTIONS = {
 
 export interface RingsScene extends WebGlTreeScene {
 	/** Rebuild everything from a new layout. `shouldRefit` also resets the camera distance. */
-	setLayout(layout: RingsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean): void;
+	setLayout(layout: RingsLayout, highlight: Highlight, shouldRefit: boolean): void;
 }
 
 /** Height of a generation's ring: the youngest at the top, the most distant ancestors at the bottom. */
@@ -70,9 +71,26 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		new TorusGeometry(SPHERE_RADIUS_UNITS * FOCUS_SCALE * 1.45, 0.06, 8, 40)
 	);
 
-	function setLayout(layout: RingsLayout, roles: Map<string, TreeRole>, shouldRefit: boolean) {
+	/** Hit target for a partnership's marker: as big as a person's sphere, though the knot is small. */
+	const unionHit = stage.share(new SphereGeometry(SPHERE_RADIUS_UNITS, 8, 6));
+
+	function setLayout(layout: RingsLayout, highlight: Highlight, shouldRefit: boolean) {
 		// No highlight (the viewer cleared it): everyone is drawn plainly, nobody faded.
-		const isQuiet = roles.size === 0;
+		const isQuiet = highlight.isQuiet;
+		const roles = highlightRoles(highlight);
+		const isPrivate = (id: string) => privateIds.has(id);
+		const privateIds = new Set(
+			layout.people.filter((p) => p.person.isPrivate === true).map((p) => p.id)
+		);
+		/** A mark's opacity: the soft half of a path is lighter, and everything off it fades. */
+		const opacityOf = (mark: { strength: 'full' | 'soft' } | undefined) =>
+			mark
+				? mark.strength === 'soft'
+					? HIGHLIGHT_TOKENS.softOpacity
+					: 1
+				: isQuiet
+					? 1
+					: RING_FADE.line;
 		const world = stage.resetWorld();
 		const positions = new Map<string, Vector3>();
 
@@ -101,7 +119,6 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 		for (const p of layout.people) {
 			const position = ringPosition(p.generation, p.radius, p.angle);
 			const role = roles.get(p.id) ?? null;
-			const isPrivate = p.person.isPrivate === true;
 			const mesh = new Mesh(
 				sphere,
 				new MeshStandardMaterial({
@@ -122,21 +139,18 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				world.add(focusHalo);
 			}
 			world.add(mesh);
-			stage.track(p.id, position, isPrivate ? null : mesh);
+			stage.track(p.id, position, isPrivate(p.id) ? null : mesh);
 			positions.set(p.id, position);
 		}
 
-		const isOnLine = (id: string) => {
-			const role = roles.get(id);
-			return role === 'focus' || role === 'ancestor' || role === 'descendant';
-		};
 		const unionAt = new Map<string, Vector3>();
 		for (const u of layout.unions) {
 			const at = ringPosition(u.generation, u.radius, u.angle).add(
 				new Vector3(0, UNION_LIFT_UNITS, 0)
 			);
 			unionAt.set(u.id, at);
-			const isLit = u.partnerIds.some(isOnLine);
+			const mark = highlight.unions.get(u.id);
+			const isLit = mark !== undefined;
 			if (u.partnerIds.length > 1) {
 				// The partnership arc follows the ring the short way round between its first two partners.
 				const [a, b] = u.partnerIds.map((id) => layout.people.find((p) => p.id === id)!);
@@ -149,8 +163,8 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				world.add(
 					stage.thickLine(
 						points,
-						isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-						isLit || isQuiet ? 1 : RING_FADE.line,
+						mark ? mark.colour : RING_TOKENS.line,
+						opacityOf(mark),
 						isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 					)
 				);
@@ -158,14 +172,19 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 			const marker = new Mesh(
 				knot,
 				new MeshStandardMaterial({
-					color: isLit ? RING_TOKENS.partner : RING_TOKENS.line,
-					transparent: !isLit && !isQuiet,
-					opacity: isLit || isQuiet ? 1 : RING_FADE.line
+					color: mark ? mark.colour : RING_TOKENS.line,
+					transparent: opacityOf(mark) < 1,
+					opacity: opacityOf(mark)
 				})
 			);
 			marker.position.copy(at);
 			marker.rotation.x = Math.PI / 2;
 			world.add(marker);
+			// The knot is too small to hit, so an invisible sphere the size of a person stands in for it.
+			const hit = new Mesh(unionHit, new MeshBasicMaterial({ visible: false }));
+			hit.position.copy(at);
+			world.add(hit);
+			stage.trackUnion(u.id, at, u.partnerIds.some(isPrivate) ? null : hit);
 		}
 
 		for (const link of layout.childLinks) {
@@ -175,11 +194,9 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 					: positions.get(link.fromPersonId!);
 			const to = positions.get(link.childId);
 			if (!from || !to) continue;
-			const childRole = roles.get(link.childId) ?? null;
-			const isLit =
-				(childRole === 'descendant' && link.parentIds.some(isOnLine)) ||
-				((childRole === 'focus' || childRole === 'ancestor') &&
-					link.parentIds.some((id) => roles.get(id) === 'ancestor'));
+			const key = linkKey(link);
+			const mark = highlight.links.get(key);
+			const isLit = mark !== undefined;
 			const rise = (to.y - from.y) / 2;
 			const curve = new CubicBezierCurve3(
 				from,
@@ -187,18 +204,15 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 				to.clone().add(new Vector3(0, -rise, 0)),
 				to
 			);
-			world.add(
-				stage.thickLine(
-					curve.getPoints(24),
-					!isLit
-						? RING_TOKENS.line
-						: childRole === 'descendant'
-							? RING_TOKENS.descendant
-							: RING_TOKENS.ancestor,
-					isLit || isQuiet ? 1 : RING_FADE.line,
-					isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
-				)
+			const line = stage.thickLine(
+				curve.getPoints(24),
+				mark ? mark.colour : RING_TOKENS.line,
+				opacityOf(mark),
+				isLit ? RING_LINE_WIDTH_PX.lit : RING_LINE_WIDTH_PX.unlit
 			);
+			world.add(line);
+			const isHidden = isPrivate(link.childId) || link.parentIds.some(isPrivate);
+			stage.trackLink(key, curve.getPoint(0.5), isHidden ? null : line);
 		}
 
 		// Frames every ring, not just the focus person's: the outline of the top and bottom rings

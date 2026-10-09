@@ -16,6 +16,9 @@ export interface FocusGraphDto {
 	drawnUnionIds: string[];
 	/** The "+N" stubs, with the number of people each stands for. */
 	stubs: SelectionStub[];
+	/** Set only by {@link WholeTreeGraphDto}, so a page can tell the two answers apart. */
+	isWholeTree?: false;
+	isTruncated?: undefined;
 }
 
 export interface TreeSummaryDto {
@@ -45,6 +48,3 @@ export interface WholeTreeGraphDto {
 	drawnUnionIds: string[];
 	stubs: [];
 }
-
-/** Either answer of the graph endpoint; `isWholeTree` tells them apart. */
-export type TreeGraphDto = (FocusGraphDto & { isWholeTree?: false }) | WholeTreeGraphDto;

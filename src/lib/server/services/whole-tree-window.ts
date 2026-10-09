@@ -18,7 +18,7 @@ import type { GraphWindowRepository } from '../repositories/graph-window-reposit
 import { loadNeighbourhood, WindowState, type WindowPrivacy } from './focus-window';
 
 /** The most people one whole-tree read returns. */
-export const MAX_WHOLE_TREE_PEOPLE = 3000;
+const MAX_WHOLE_TREE_PEOPLE = 3000;
 
 /** People loaded per round; a few queries each, so a full tree is a few dozen round trips. */
 const PAGE_PEOPLE = 250;
