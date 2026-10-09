@@ -6,7 +6,9 @@ import {
 	RIBBON_STRAND_KINDS,
 	type RibbonsLayout
 } from './ribbons';
+import { linkKey } from './highlight';
 import { selectFocusSubgraph } from './select';
+import { selectWholeTree } from './whole-tree';
 import { allTestGraphs, makeGraph, personByName, SYNTHETIC_GRAPHS } from './test-support';
 
 /**
@@ -51,6 +53,25 @@ function dynasty() {
 		graph: makeGraph({ people: shuffle(people), unions: shuffle(unions) }),
 		focusIds: [byGeneration[1][0], byGeneration[2][3], byGeneration[3][5]]
 	};
+}
+
+/** Couples marry within their row, three children each, until there are about `total` people. */
+function wideTree(total: number) {
+	const people: string[] = [];
+	const unions: Array<{ id: string; partners: string[]; children: string[] }> = [];
+	let row = Array.from({ length: 40 }, (_, i) => `r0-${i}`);
+	people.push(...row);
+	for (let g = 1; people.length < total; g++) {
+		const children: string[] = [];
+		for (let i = 0; i + 1 < row.length; i += 2) {
+			const kids = [0, 1, 2].map((k) => `p${g}-${i}-${k}`);
+			unions.push({ id: `u${g}-${i}`, partners: [row[i], row[i + 1]], children: kids });
+			children.push(...kids);
+		}
+		people.push(...children);
+		row = children;
+	}
+	return makeGraph({ people, unions });
 }
 
 const WIDE = {
@@ -197,6 +218,49 @@ describe('layoutRibbons', () => {
 		// The target is 100 ms on the owner's machine; the bound here only catches blow-ups.
 		expect(performance.now() - started).toBeLessThan(500);
 		expect(layout.people.length).toBeGreaterThan(180);
+	});
+
+	for (const { name, graph } of allTestGraphs()) {
+		it(`${name}: every entry strand names a drawn parent-child line, and nothing else does`, () => {
+			const layout = layoutRibbons(graph, graph.people[0].id, WIDE);
+			const keys = new Set(layout.childLinks.map(linkKey));
+			for (const s of layout.strands) {
+				const isLine =
+					!s.isStub &&
+					(s.kind === RIBBON_STRAND_KINDS.ENTRY || s.kind === RIBBON_STRAND_KINDS.EXTRA_ENTRY);
+				if (isLine) expect(keys.has(s.linkKey!)).toBe(true);
+				else expect(s.linkKey).toBeNull();
+			}
+			const drawn = layout.strands.filter((s) => s.linkKey !== null).map((s) => s.linkKey);
+			expect(new Set(drawn).size).toBe(drawn.length);
+		});
+	}
+
+	it('draws a whole tree from row 0 down, with nobody as the focus', () => {
+		const graph = wideTree(300);
+		const layout = layoutRibbons(graph, null, {}, undefined, 'sweep', selectWholeTree(graph));
+		expect(layout.focusPersonId).toBeNull();
+		expect(layout.people).toHaveLength(graph.people.length);
+		const rows = [...new Set(layout.people.map((p) => p.generation))].sort((a, b) => a - b);
+		expect(rows[0]).toBe(0);
+		// Older rows sit higher: y falls as the row number rises.
+		const yOfRow = rows.map((g) => layout.people.find((p) => p.generation === g)!.y);
+		expect(yOfRow).toEqual([...yOfRow].sort((a, b) => b - a));
+		expect(new Set(yOfRow).size).toBe(rows.length);
+		// Every ribbon is stub-fed only in row 0.
+		for (const s of layout.strands.filter((x) => x.isStub))
+			expect(layout.people.find((p) => p.id === s.personId)!.generation).toBe(0);
+	});
+
+	it('lays out a whole tree of about 3,000 people in good time', () => {
+		const graph = wideTree(3000);
+		const selection = selectWholeTree(graph);
+		const started = performance.now();
+		const layout = layoutRibbons(graph, null, {}, undefined, 'sweep', selection);
+		const elapsed = performance.now() - started;
+		expect(layout.people.length).toBeGreaterThanOrEqual(3000);
+		// Measured well inside this on a laptop; the bound only catches a blow-up.
+		expect(elapsed).toBeLessThan(5000);
 	});
 
 	it('is empty without a focus person', () => {
