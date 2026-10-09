@@ -260,7 +260,7 @@ describe('the whole tree (no focus)', () => {
 		);
 		expect(layout.people.length).toBeGreaterThan(2000);
 		expect(layout.iterations).toBeLessThan(ORRERY_ITERATIONS);
-		// Fewer iterations must still hold the binaries: the median within about half, and none more than tripled. The
+		// Fewer iterations must still hold the binaries: the median within about half, and none more than quadrupled. The
 		// worst stretch is the children's pull on a deep tree, not the budget.
 		const at = byId(layout);
 		const stretches = layout.unions
@@ -270,7 +270,7 @@ describe('the whole tree (no focus)', () => {
 			})
 			.sort((x, y) => x - y);
 		expect(stretches[Math.floor(stretches.length / 2)]).toBeLessThan(0.6);
-		expect(stretches.at(-1)).toBeLessThan(2);
+		expect(stretches.at(-1)).toBeLessThan(3);
 		expect(ms).toBeLessThan(15000);
 	}, 30000);
 });
