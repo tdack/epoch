@@ -147,7 +147,8 @@ Why this order:
 
 - **Always:** `account:read`, `user:read`, `zone.read`, `dns.read`, `d1.write`,
   `workers-r2.write`, `queues.write`, `workers-scripts.write`, `workers-routes.read`,
-  `access-org.read`, `access-idp.read`, `access-app.write`, `access-policy.write` and
+  `access-org.read`, `access-idp.read`, `access-app.write`, `access-policy.read`,
+  `access-policy.write` and
   `email-sending.read`.
   - The Zero Trust scopes are read-only, except for apps and policies, so the token cannot change
     the organisation, identity providers or groups even by mistake.
@@ -242,7 +243,7 @@ and the manifest is only a cache of what reconcile can rediscover.
 | Worker | Var `EPOCH_INSTALL_ID` | Last deployment date; whether its D1, R2 and queue bindings point at the resources above. A Worker bound to a *different* D1 is a strong "not ours" |
 | Queue | None possible | Its consumer: our Worker, someone else's, or none |
 | Access app | None written: tags are account-level objects, which are out of scope. It is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<slug>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
-| Access policy | None written. It is ours when its id is in the manifest, or when our app is its only user | Its include rules, and every app that uses it. A policy shared with another app is never edited: the tool creates its own |
+| Access policy | None written. A policy the user picked from the existing ones is **referenced, never owned**: the tool attaches it and never edits it. A policy the tool created is ours when its id is in the manifest and it is named `Epoch <slug> sign-in` | Its decision, its include rules, and every app that uses it |
 
 Adoption is also how **this repository's own live install moves under the tool.** Run setup with
 `--slug epoch-genealogy`. Every resource comes back `unmarked`, the user confirms each one, and the
@@ -264,31 +265,69 @@ the R2 marker object once the bucket is ours.
 ### 7. Access application and policy
 
 The organisation and identity providers already exist (see the prerequisites). The tool adds one
-policy and one application, and changes nothing else in Zero Trust.
+application, attaches existing policies or creates one new policy, and changes nothing else in
+Zero Trust.
 
-1. **Reusable policy** `Epoch <slug> sign-in`: Allow. Who it includes is the owner's choice
-   *(open question 2)*:
-   - **Proposed: an explicit email list**, starting with the owner email.
-     `npm run setup -- allow <email>` and `-- disallow <email>` edit **this policy only**. The
-     Members page's "invite" hint tells the manager to run it, or to add the email in the
-     dashboard.
-   - **Anyone the chosen identity providers verify.** Epoch's deny-by-default membership check is
-     then the only authorisation gate, which ADR-026 already accepts for every path except
-     `/login`. No per-invitee step at all, but anyone with a verifiable email reaches the
-     (empty) app shell.
-   - Either way, the app itself never edits Access. ADR-031 keeps Access a separate gate, and
-     nothing in `src/lib/server` calls the Access API. So with an email list, an invitee who is
-     not on it is turned away at `/login`.
-2. **Access app** `Epoch (<slug>)`, created or updated:
+**What Access decides, and what Epoch decides.** These are two separate gates:
+
+- **Access, at `/login`: who can sign in at all.** Access runs before the Worker sees the request,
+  so an invitation cannot get anyone past it. ADR-016 says so: "the Access application policy must
+  also allow the address".
+- **Epoch, everywhere: what a signed-in person can see.** An invitation is redeemed on the
+  invitee's first authenticated request (ADR-016). A signed-in person with no membership sees no
+  trees.
+- **There is no "first login is owner".** Ownership is per tree: whoever creates a tree owns it
+  (`TreeRepository.create`), and `createTree` asks only that the caller is signed in. Nothing
+  makes one person the owner of the install.
+- **So the Access policy is what limits who can start their own trees.** ADR-016's "intended
+  setup" lets everyone in at Access and relies on invitations. But under that setup any stranger
+  the identity provider verifies can sign in and create (empty) trees of their own. They cannot
+  see anyone else's.
+
+**Step 1: choose the policy.** `cf zero-trust access policies list` returns the account's
+reusable policies, and `cf zero-trust access applications list` shows which apps use each one.
+The tool shows them as numbered options, then offers to create a new one:
+
+```
+Which Access policy should decide who can sign in to Epoch?
+
+  1. Family (Allow): emails a@example.com, b@example.com. Used by: Photos, Wiki
+  2. Example staff (Allow): email domain example.com. Used by: Grafana
+  3. Everyone with One-time PIN (Allow): everyone. Used by: (none)
+  4. Create a new policy "Epoch <slug> sign-in" (Allow: your email only)
+
+  More than one can be chosen (for example 1,2). Policies that Block or Bypass are not listed.
+```
+
+- **Existing policies are attached as they are and never edited.** The user owns them and they
+  may protect other apps. They are recorded in the manifest as referenced, not owned. `doctor`
+  reports if one is deleted or changed to Block.
+- **Only Allow policies are offered.**
+  - A Bypass policy on `/login` would let a request through with no identity, and the Worker
+    could not validate it.
+  - A Block policy admits nobody.
+- **A policy that includes everyone is flagged** with the stranger warning above.
+- **A new policy starts with the owner's email only.** The tool owns it, so
+  `npm run setup -- allow <email>` and `-- disallow <email>` can edit it later. They refuse to
+  edit a policy the tool does not own.
+- **The default choice:** an existing policy that already includes the owner's email, if there is
+  one; otherwise creating a new one. Either way the tool checks that the chosen policies admit the
+  owner's email, so the person running setup can sign in afterwards.
+  - It checks with `cf zero-trust access applications policy-tests` if that works with the OAuth
+    scopes *(spike)*.
+  - Otherwise it reads the include rules for email, email domain and everyone, and warns when a
+    rule (a group or an identity-provider rule) cannot be checked locally.
+
+**Step 2: create or update the Access app** `Epoch (<slug>)`:
    - `type: self_hosted` and `domain: <host>/login`.
-   - Only that policy.
+   - The chosen policies, in the order given.
    - `allowed_idps` set to the chosen providers, and `auto_redirect_to_identity` when there is
      exactly one.
    - **`path_cookie_attribute: false` and `enable_binding_cookie: false`**, as the README and
      ADR-026 require.
    - Record its `aud`.
-3. **Never touch any other app, policy, group or identity provider.** Updates go by id from the
-   manifest, never by name.
+**Never touch any other app, policy, group or identity provider.** Updates go by id from the
+manifest, never by name.
 
 The Access app is created **before** the deploy, so the first deploy already has the right AUD and
 `/login` is protected the moment the domain goes live. There is never a window in which the
@@ -369,8 +408,10 @@ Each check prints pass or fail with the fix:
 Print:
 
 - the URL and the sign-in steps;
-- who Access lets in, and how to let an invitee through Access as well as inviting them in Epoch
-  (`npm run setup -- allow <email>` under the proposed policy);
+- who the chosen policies let in. If they do not include everyone, the tool also says that an
+  invitee must be let through Access as well as invited in Epoch: `npm run setup -- allow <email>`
+  for a policy the tool created, otherwise in the dashboard;
+- the first-run steps: sign in, then create the first tree, which makes you its owner;
 - the commands for later. Once delivery step 1 has landed, `npm run deploy` works in this
   directory under the bound profiles;
 - where the manifest is.
@@ -383,8 +424,8 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 - `npm run setup -- doctor` re-runs the prerequisite and sign-in checks, reconcile and verify,
   then reports drift. Drift includes the Access app's cookie settings having been changed in the
   dashboard.
-- `npm run setup -- allow <email>` and `-- disallow <email>` edit the tool's own Access policy
-  (if the email-list option is chosen).
+- `npm run setup -- allow <email>` and `-- disallow <email>` edit the policy the tool created. They
+  refuse to touch a policy the user picked from the existing ones.
 - `npm run setup -- teardown` deletes **only** resources whose marker matches the manifest. The
   user types the slug, and D1 and R2 need a second, separate confirmation, because a family tree
   cannot be recovered. It never runs as part of setup, and setup never rolls back by deleting.
@@ -428,8 +469,15 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
      once, through adoption, and remote commands need `-c`.
    - **The alternative:** keep owner values in the tracked file. That is simpler for a single
      owner, but every fork inherits someone else's ids.
-2. **Who Access admits to `/login`:** an email list in the tool's own policy, managed with
-   `setup allow` (proposed), or anyone the chosen identity providers verify (step 7.1).
+2. **Who may create trees.** Today any signed-in person can, so a broad Access policy lets
+   strangers start trees of their own.
+   - **Option A: keep Access narrow.** Use the policy picker in step 7 and `setup allow`.
+   - **Option B: add an install owner to the app.** The owner email that setup confirms is
+     written to `install_meta`, and `tree:create` (and later, other install-wide actions) is
+     limited to that owner and to people who already hold a membership.
+     - Then a broad Access policy is safe, and invitations become the only gate, as ADR-016
+       intended.
+     - That is app work, with an ADR, outside this tool.
 3. **Default deploy auth:** a second OAuth consent for a wrangler profile (proposed), or the
    single-consent ephemeral token.
 4. **Pin `cf` as a devDependency** (proposed, reproducible) or require a global install.
