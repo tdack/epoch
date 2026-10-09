@@ -53,4 +53,7 @@ hourglass in S12. Two optional 3D views of the interactive tree (layers and floo
 (ADR-030): all nine stages are built, merged and deployed (2026-10-05). Flat stays the product
 default until the promotion checklist in the [plan](./3d-tree-views-plan.md) is met; members and the
 owner can choose a different default view. Item 1 has only the existing large-file queue path; items 5 to 8 and the compact view
-have not started.
+have not started. Of the GEDCOM operations, import now detects the version (5.5, 5.5.1, 7.0) and the
+character set and reads GEDZip, and export offers GEDCOM 7 (the default, optionally as `.gdz`) and
+5.5.1 compatibility profiles (ADR-034). Extension reporting before import, keeping the original
+upload, the conformance corpus and the semantic diff report have not started.
