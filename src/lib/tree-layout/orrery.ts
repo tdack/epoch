@@ -47,6 +47,10 @@ const DIRECT_STRENGTH = 0.05;
 
 /** The fixed iteration budget; the simulation may stop earlier when it comes to rest. */
 export const ORRERY_ITERATIONS = 260;
+/** Past this many bodies the budget shrinks, so a 3,000-person tree still lays out in about a second. */
+const FULL_BUDGET_PEOPLE = 1000;
+/** The budget never shrinks below this, so binaries and child springs still settle. */
+const MIN_ITERATIONS = 120;
 /** The plan said about 300; measured, the exact pass is still faster up to roughly 700 bodies. */
 const BARNES_HUT_THRESHOLD = 700;
 const ROUND = 1000;
@@ -122,6 +126,12 @@ export function unitFromId(id: string, salt: number): number {
 	return hash(id, salt) / 4294967296;
 }
 
+/** Iterations for a layout of `count` bodies: the full budget, less for the largest trees. */
+export function iterationsFor(count: number): number {
+	if (count <= FULL_BUDGET_PEOPLE) return ORRERY_ITERATIONS;
+	return Math.max(MIN_ITERATIONS, Math.round((ORRERY_ITERATIONS * FULL_BUDGET_PEOPLE) / count));
+}
+
 export interface OrreryOptions {
 	/** Overrides for tests: the iteration budget and the Barnes–Hut cut-over. */
 	iterations?: number;
@@ -145,11 +155,9 @@ export function layoutOrrery(
 	if (!selection || selection.people.length === 0) return EMPTY_ORRERY_LAYOUT;
 
 	const slotOf = new Map(selection.people.map((p, i) => [p.id, i]));
-	// With no focus (the whole tree) gravity still needs a centre: the first person of the oldest
-	// row. It only steadies the picture and never marks anyone as the focus.
-	const anchorId =
-		selection.focusPersonId ??
-		selection.people.reduce((a, b) => (b.generation < a.generation ? b : a)).id;
+	// With no focus (the whole tree) gravity pulls to the centroid instead. Anchoring it to some
+	// person (the oldest, say) would drag a 3,000-person picture toward one arbitrary star.
+	const anchorSlot = selection.focusPersonId === null ? null : slotOf.get(selection.focusPersonId);
 	const isDrawn = (id: string) => slotOf.has(id);
 	const drawnUnions = selection.unions
 		.map((u) => index.unionById.get(u.id)!)
@@ -248,17 +256,29 @@ export function layoutOrrery(
 	}
 
 	const { iterations } = runSimulation(bodies, springs, links, {
-		iterations: tuning.iterations ?? ORRERY_ITERATIONS,
+		iterations: tuning.iterations ?? iterationsFor(count),
 		boundPairs,
-		gravityTo: slotOf.get(anchorId)!,
+		gravityTo: anchorSlot ?? null,
 		barnesHutThreshold: tuning.barnesHutThreshold ?? BARNES_HUT_THRESHOLD
 	});
 
-	// The anchor is the origin, so the camera's target and the names' reading order stay stable.
-	const origin = bodies[slotOf.get(anchorId)!];
-	const ox = origin.x;
-	const oy = origin.y;
-	const oz = origin.z;
+	// The focus (else the centroid) is the origin, so the camera's target and the names' reading
+	// order stay stable.
+	let ox = 0;
+	let oy = 0;
+	let oz = 0;
+	if (anchorSlot !== null && anchorSlot !== undefined) {
+		({ x: ox, y: oy, z: oz } = bodies[anchorSlot]);
+	} else {
+		for (const b of bodies) {
+			ox += b.x;
+			oy += b.y;
+			oz += b.z;
+		}
+		ox /= bodies.length;
+		oy /= bodies.length;
+		oz /= bodies.length;
+	}
 	const round = (value: number) => Math.round(value * ROUND) / ROUND;
 	const people = selection.people.map((p, i) => ({
 		id: p.id,
