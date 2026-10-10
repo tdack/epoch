@@ -10,8 +10,9 @@
 
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
-import { UnauthorizedError, ValidationError } from '../domain/errors';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
+import { isActionAllowed } from '../auth/authorization';
 import { foldIntoExistingAliases, mergeExactDuplicateFamilies } from '../gedcom/duplicate-families';
 import { exportPayloadFrom } from '../gedcom/export-payload';
 import { GEDZIP_CONTENT_TYPE, packGedzip } from '../gedcom/gedzip';
@@ -27,6 +28,7 @@ import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomRepository } from '../repositories/gedcom-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { parseExportInstanceId, type ParsedExportInstance } from '../workflows/export-instance';
 import { TreeService } from './tree-service';
 import { requireMemberAction, requireTreeAction } from './tree-access';
 
@@ -135,6 +137,27 @@ export class GedcomService {
 		if (!userId)
 			throw new UnauthorizedError("Forbidden: insufficient privileges for action 'tree:export'");
 		await requireMemberAction(this.users, treeId, userId, 'tree:export');
+	}
+
+	/**
+	 * Authorise a caller to read an export's status or download, before anything is read from the
+	 * workflow or R2. The instance id is the only thing the client holds, so it is parsed first: an
+	 * id this application never minted, and a tree the caller is not in, answer the same 404, and no
+	 * id is echoed. A member who lacks `tree:export` gets an honest 403 — they know the tree exists.
+	 * This method touches only the caller's membership; it never calls the workflow or R2.
+	 */
+	async requireExportInstance(
+		instanceId: string,
+		context: AuthenticatedContext
+	): Promise<ParsedExportInstance> {
+		const parsed = parseExportInstanceId(instanceId);
+		if (!parsed) throw new NotFoundError('Export');
+		const membership = await this.users.getMembership(parsed.treeId, context.user.id);
+		if (!membership) throw new NotFoundError('Export');
+		if (!isActionAllowed(membership.role, 'tree:export')) {
+			throw new UnauthorizedError("Forbidden: insufficient privileges for action 'tree:export'");
+		}
+		return parsed;
 	}
 
 	/** Throws unless the caller may import into this tree. Reads only the caller's membership, never the tree. */

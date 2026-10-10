@@ -3,7 +3,12 @@ import { eq } from 'drizzle-orm';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, trees } from '../db/schema';
-import { NotAdmittedError, UnauthorizedError, ValidationError } from '../domain/errors';
+import {
+	NotAdmittedError,
+	NotFoundError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -12,6 +17,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { GedcomService, type ImportFile, type ImportQueueMessage } from './gedcom-service';
+import { buildExportInstanceId } from '../workflows/export-instance';
 
 const FILE = '0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Ben /Fox/\n0 TRLR';
 
@@ -245,5 +251,54 @@ describe('export', () => {
 			UnauthorizedError
 		);
 		await expect(service.requireExporter(s.treeId, s.owner.userId)).resolves.toBeUndefined();
+	});
+});
+
+describe('requireExportInstance', () => {
+	it('answers the same 404 for an id it never minted and for a stranger’s tree', async () => {
+		const s = await tree();
+		const stranger = await createTestUser(t.db);
+		const service = new GedcomService(t.db);
+		await expect(
+			service.requireExportInstance('not-an-id', s.owner.context)
+		).rejects.toBeInstanceOf(NotFoundError);
+		const foreign = buildExportInstanceId(
+			crypto.randomUUID(),
+			'gedcom7',
+			false,
+			crypto.randomUUID()
+		);
+		await expect(service.requireExportInstance(foreign, stranger.context)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+		const realTreeId = buildExportInstanceId(s.treeId, 'gedcom7', false, crypto.randomUUID());
+		await expect(
+			service.requireExportInstance(realTreeId, stranger.context)
+		).rejects.toBeInstanceOf(NotFoundError);
+	});
+
+	it('refuses a member who may not export, and never reads R2 to do it', async () => {
+		const s = await tree('editor');
+		const { bucket } = fakeBucket();
+		const explosive = {
+			...bucket,
+			get: async () => {
+				throw new Error('requireExportInstance must not read R2');
+			}
+		} as unknown as R2Bucket;
+		const service = new GedcomService(t.db, { bucket: explosive });
+		const id = buildExportInstanceId(s.treeId, 'gedcom7', false, crypto.randomUUID());
+		await expect(service.requireExportInstance(id, s.member.context)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
+	});
+
+	it('returns the parsed id for a manager', async () => {
+		const s = await tree();
+		const clientUuid = crypto.randomUUID();
+		const id = buildExportInstanceId(s.treeId, 'gedcom7', true, clientUuid);
+		await expect(
+			new GedcomService(t.db).requireExportInstance(id, s.owner.context)
+		).resolves.toMatchObject({ treeId: s.treeId, token: 'g7z', clientUuid, shouldCompress: true });
 	});
 });

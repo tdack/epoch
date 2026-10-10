@@ -10,6 +10,8 @@ export type ErrorCode =
 	| 'PERSON_MERGE_CONFLICT'
 	| 'SOURCE_IN_USE'
 	| 'NOTE_IN_USE'
+	| 'export_expired'
+	| 'export_unavailable'
 	| 'INTERNAL_ERROR'
 	| 'BAD_REQUEST';
 
@@ -127,5 +129,28 @@ export class NoteInUseError extends DomainError {
 	constructor(message: string, useCount: number) {
 		super(message, 'NOTE_IN_USE', 409, { reason: 'NOTE_IN_USE', useCount });
 		this.name = 'NoteInUseError';
+	}
+}
+
+/**
+ * A finished export has outlived its retention window (ADR-015/export): the object was removed and
+ * the client must start a new export. The message is fixed and carries no id, so a caller cannot
+ * learn whether a given instance ever existed.
+ */
+export class ExportExpiredError extends DomainError {
+	constructor() {
+		super('This export has expired. Start a new one.', 'export_expired', 410);
+		this.name = 'ExportExpiredError';
+	}
+}
+
+/**
+ * An export's status or download could not be read: a missing binding, or a workflow call that
+ * failed. A fixed message, so a raw runtime error never reaches the client.
+ */
+export class ExportUnavailableError extends DomainError {
+	constructor() {
+		super('The export service is temporarily unavailable', 'export_unavailable', 503);
+		this.name = 'ExportUnavailableError';
 	}
 }
