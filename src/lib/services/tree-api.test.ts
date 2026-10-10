@@ -158,6 +158,33 @@ describe('startGedcomExport', () => {
 		await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: true });
 		expect(uuidOf(2)).not.toBe(uuidOf(0));
 	});
+
+	it('mints a fresh id once a finished export clears it, so a second export is a new instance', async () => {
+		const store = new Map<string, string>();
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => store.get(key) ?? null,
+			setItem: (key: string, value: string) => void store.set(key, value),
+			removeItem: (key: string) => void store.delete(key)
+		} as unknown as Storage);
+		const { startGedcomExport, clearExportClientUuid } = await loadApi(false);
+		const fetchMock = vi.fn(async () => Response.json({ status: 'started', instanceId: 'i1' }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const uuidOf = (call: number) =>
+			(
+				JSON.parse(
+					(fetchMock.mock.calls[call] as unknown as [string, RequestInit])[1].body as string
+				) as { clientUuid: string }
+			).clientUuid;
+
+		const choice = { format: 'gedcom7', shouldCompress: false } as const;
+		await startGedcomExport('t1', choice);
+		// The completion path clears the id; the next click must not name the finished instance.
+		clearExportClientUuid('t1', choice);
+		await startGedcomExport('t1', choice);
+
+		expect(uuidOf(1)).not.toBe(uuidOf(0));
+	});
 });
 
 describe('the async export helpers', () => {

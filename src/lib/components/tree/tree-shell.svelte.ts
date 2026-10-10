@@ -5,6 +5,7 @@
  */
 
 import {
+	clearExportClientUuid,
 	createTreeApi,
 	deleteTreeApi,
 	exportDownloadUrl,
@@ -191,7 +192,9 @@ export class TreeShell {
 		try {
 			const start = await startGedcomExport(treeId, choice);
 			if (start.status === 'sync') {
-				// Small enough to build in the request: navigate and let the browser save it.
+				// Small enough to build in the request: navigate and let the browser save it. The download
+				// is done, so forget the id: a later export of this choice is a new file, not this one.
+				clearExportClientUuid(treeId, choice);
 				window.location.href = gedcomExportUrl(treeId, choice);
 				return;
 			}
@@ -203,7 +206,7 @@ export class TreeShell {
 			}
 			this.pendingExportInstanceId = start.instanceId;
 			writePendingExport({ treeId, instanceId: start.instanceId, choice });
-			await this.pollExport(start.instanceId);
+			await this.pollExport(start.instanceId, treeId, choice);
 		} catch (err) {
 			this.reportExportFailure(err);
 		} finally {
@@ -220,7 +223,7 @@ export class TreeShell {
 		this.exportError = null;
 		this.pendingExportInstanceId = pending.instanceId;
 		try {
-			await this.pollExport(pending.instanceId);
+			await this.pollExport(pending.instanceId, pending.treeId, pending.choice);
 		} catch (err) {
 			this.reportExportFailure(err);
 		} finally {
@@ -228,7 +231,11 @@ export class TreeShell {
 		}
 	};
 
-	private async pollExport(instanceId: string): Promise<void> {
+	private async pollExport(
+		instanceId: string,
+		treeId: string,
+		choice: GedcomExportChoice
+	): Promise<void> {
 		// One poll in flight: a new attempt abandons whatever the last was waiting on.
 		this.exportAbort?.abort();
 		const controller = new AbortController();
@@ -247,6 +254,8 @@ export class TreeShell {
 			}
 			if (status === 'complete') {
 				writePendingExport(null);
+				// Done: forget the id so the next export of this choice mints a new instance.
+				clearExportClientUuid(treeId, choice);
 				this.pendingExportInstanceId = null;
 				this.exportStatus = null;
 				window.location.href = exportDownloadUrl(instanceId);
@@ -254,6 +263,8 @@ export class TreeShell {
 			}
 			if (status === 'errored') {
 				writePendingExport(null);
+				// Terminal too: a retry must not name this failed instance, so mint a new id next time.
+				clearExportClientUuid(treeId, choice);
 				this.pendingExportInstanceId = null;
 				this.exportStatus = null;
 				this.options.toasts.push('The export failed. Please try again.');

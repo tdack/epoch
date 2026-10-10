@@ -11,6 +11,7 @@ vi.mock('#lib/services/tree-api.js', () => ({
 	submitGedcomImport: vi.fn(),
 	startGedcomExport: vi.fn(),
 	exportStatusApi: vi.fn(),
+	clearExportClientUuid: vi.fn(),
 	exportDownloadUrl: (instanceId: string) => `/api/export/download/${instanceId}`,
 	gedcomExportUrl: (treeId: string, choice: { format: string; shouldCompress: boolean }) =>
 		`/api/export?treeId=${treeId}&format=${choice.format}${
@@ -21,6 +22,7 @@ vi.mock('#lib/services/tree-api.js', () => ({
 const choice = { format: 'gedcom7', shouldCompress: false } as const;
 const start = vi.mocked(api.startGedcomExport);
 const status = vi.mocked(api.exportStatusApi);
+const clearClientUuid = vi.mocked(api.clearExportClientUuid);
 const navigations: string[] = [];
 
 function setup() {
@@ -100,6 +102,33 @@ describe('TreeShell.exportGedcom', () => {
 		expect(navigations).toEqual([]);
 		expect(toasts.items.at(-1)?.message).toContain('failed');
 	});
+
+	it('forgets the client id once an export completes, so a later export is a new instance', async () => {
+		vi.useFakeTimers();
+		const { shell } = setup();
+		start.mockResolvedValue({ status: 'started', instanceId: 'i1' });
+		status.mockResolvedValueOnce({ status: 'complete' });
+
+		const running = shell.exportGedcom(choice);
+		await vi.advanceTimersByTimeAsync(2_000);
+		await running;
+
+		expect(clearClientUuid).toHaveBeenCalledWith('t1', choice);
+	});
+
+	it('keeps the client id when the poll times out, so a resume reuses its instance', async () => {
+		vi.useFakeTimers();
+		const { shell } = setup();
+		start.mockResolvedValue({ status: 'started', instanceId: 'i1' });
+		status.mockResolvedValue({ status: 'running' });
+
+		const running = shell.exportGedcom(choice);
+		await vi.advanceTimersByTimeAsync(200_000);
+		await running;
+
+		expect(shell.pendingExportInstanceId).toBe('i1');
+		expect(clearClientUuid).not.toHaveBeenCalled();
+	});
 });
 
 describe('TreeShell.resumeExport', () => {
@@ -122,5 +151,6 @@ describe('TreeShell.resumeExport', () => {
 
 		expect(navigations).toEqual(['/api/export/download/i1']);
 		expect(shell.pendingExportInstanceId).toBeNull();
+		expect(clearClientUuid).toHaveBeenCalledWith('t1', choice);
 	});
 });

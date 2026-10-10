@@ -281,19 +281,39 @@ function browserSession(): Storage | null {
 	}
 }
 
+/** The sessionStorage key holding one export choice's idempotency id. */
+function exportClientUuidKey(treeId: string, choice: GedcomExportChoice): string {
+	return `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${choice.shouldCompress ? 'gdz' : 'ged'}`;
+}
+
 /**
  * The idempotency id for one export choice, kept for the session, so a retry after a timeout names
  * the same workflow instance instead of starting a second. Keyed by tree, format and packaging, so
  * choosing a different file gets its own id; generated in the browser, never reused across choices.
  */
 function exportClientUuid(treeId: string, choice: GedcomExportChoice): string {
-	const key = `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${choice.shouldCompress ? 'gdz' : 'ged'}`;
+	const key = exportClientUuidKey(treeId, choice);
 	const store = browserSession();
 	const existing = store?.getItem(key);
 	if (existing) return existing;
 	const fresh = crypto.randomUUID();
 	store?.setItem(key, fresh);
 	return fresh;
+}
+
+/**
+ * Forget the idempotency id for one export choice once the export has finished (or been downloaded).
+ * A finished instance's id names an already-built file the server would serve again as "already
+ * started", so the next export of the same tree/format/package must mint a new id and thus a new
+ * instance. A timed-out export is not terminal — it is still running and is resumed by the same id —
+ * so the caller never clears on timeout.
+ */
+export function clearExportClientUuid(treeId: string, choice: GedcomExportChoice): void {
+	try {
+		browserSession()?.removeItem(exportClientUuidKey(treeId, choice));
+	} catch {
+		// A blocked store only costs a fresh id on the next export, never the export itself.
+	}
 }
 
 /**
