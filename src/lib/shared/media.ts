@@ -24,7 +24,11 @@ export type UploadMediaType = (typeof UPLOAD_MEDIA_TYPES)[number];
 /** The upload input's `accept` attribute, built from the same list the server enforces. */
 export const MEDIA_UPLOAD_ACCEPT = UPLOAD_MEDIA_TYPES.join(',');
 
-/** How many bytes an upload may carry. The route rejects a larger body before reading it. */
+/**
+ * How many bytes a stored media file may carry. The upload route counts the request body as it
+ * streams and aborts once that count passes this plus a little multipart framing, so an oversized
+ * body is never buffered whole; the parsed file size is then checked against this exactly.
+ */
 export const MAX_MEDIA_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /** Whether a stored type may be rendered inline on our own origin. */

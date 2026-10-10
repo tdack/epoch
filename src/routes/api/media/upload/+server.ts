@@ -3,10 +3,60 @@ import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
+import { PayloadTooLargeError, ValidationError } from '#lib/server/domain/errors.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
 
 /** Multipart framing around the file (boundaries, headers) costs a little over the file itself. */
 const MULTIPART_SLACK_BYTES = 64 * 1024;
+
+/** The largest request body the route will read: the file cap plus its multipart framing. */
+const MAX_UPLOAD_BODY_BYTES = MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES;
+
+/**
+ * Parse a multipart upload while counting the bytes as they arrive, so an oversized body is aborted
+ * mid-stream rather than buffered whole. This is the authoritative size control: it does not trust
+ * `Content-Length`, which a client may omit (HTTP/2, chunked) or understate to slip a large body
+ * into the isolate before rejection.
+ *
+ * @throws PayloadTooLargeError when the streamed body exceeds {@link MAX_UPLOAD_BODY_BYTES}.
+ * @throws ValidationError when the body is missing or is not valid multipart form data.
+ */
+async function parseUploadForm(request: Request): Promise<FormData> {
+	const body = request.body;
+	if (!body) {
+		throw new ValidationError('Upload body is missing');
+	}
+
+	const contentType = request.headers.get('content-type') ?? '';
+	let totalBytes = 0;
+	let isOverLimit = false;
+	const bounded = body.pipeThrough(
+		new TransformStream<Uint8Array, Uint8Array>({
+			transform(chunk, controller) {
+				totalBytes += chunk.byteLength;
+				if (totalBytes > MAX_UPLOAD_BODY_BYTES) {
+					isOverLimit = true;
+					controller.error(new Error('upload body exceeds the size limit'));
+					return;
+				}
+				controller.enqueue(chunk);
+			}
+		})
+	);
+
+	try {
+		return await new Response(bounded, {
+			headers: { 'content-type': contentType }
+		}).formData();
+	} catch {
+		// A stream error from the limiter is the size cap, not a malformed body; anything else is a
+		// parse failure the caller fixes, so it is a 400 rather than a 500.
+		if (isOverLimit) {
+			throw new PayloadTooLargeError('Upload is too large');
+		}
+		throw new ValidationError('Upload body is not valid multipart form data');
+	}
+}
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	if (!locals.user) {
@@ -16,32 +66,36 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
 	}
 
-	// Refuse a body we already know is oversized before parsing it. This pre-parse check is
-	// best-effort only: HTTP/2 and browser FormData uploads may omit Content-Length (or send a
-	// chunked body), so an absent or unparseable value must not break a legitimate upload. The
-	// authoritative control is assertUploadWithinSizeLimit below, which inspects the parsed size.
+	// Refuse a body whose declared length is already too large before reading anything. This is only
+	// a cheap early exit: the length may be absent (HTTP/2, chunked) or understated, so the byte
+	// count `parseUploadForm` enforces while streaming is what actually bounds the body.
 	const declaredLength = request.headers.get('content-length');
 	if (declaredLength !== null) {
 		const declaredBytes = Number(declaredLength);
-		if (
-			Number.isFinite(declaredBytes) &&
-			declaredBytes > MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES
-		) {
+		if (Number.isFinite(declaredBytes) && declaredBytes > MAX_UPLOAD_BODY_BYTES) {
 			return Response.json({ error: 'Upload is too large' }, { status: 413 });
 		}
 	}
 
-	const formData = await request.formData();
-	const file = formData.get('file') as File | null;
-	const treeId = formData.get('treeId') as string | null;
-	const entityId = formData.get('entityId') as string | null;
-	const title = formData.get('title') as string | null;
-
-	if (!file || !treeId || !entityId) {
-		return Response.json({ error: 'file, treeId, and entityId are required' }, { status: 400 });
-	}
-
 	try {
+		const formData = await parseUploadForm(request);
+		const file = formData.get('file');
+		const treeId = formData.get('treeId');
+		const entityId = formData.get('entityId');
+		const title = formData.get('title');
+
+		// A text field named `file` is not a file; without this its `file.size` is `undefined` and
+		// slips past the size cap below.
+		const isMissingFields =
+			!(file instanceof File) ||
+			typeof treeId !== 'string' ||
+			treeId === '' ||
+			typeof entityId !== 'string' ||
+			entityId === '';
+		if (isMissingFields) {
+			throw new ValidationError('file, treeId, and entityId are required');
+		}
+
 		assertUploadWithinSizeLimit(file.size);
 
 		// Before a byte is stored: the caller must be allowed to add media to this record of this tree.
@@ -67,10 +121,11 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 
 		// Save metadata to D1
 		const mediaId = crypto.randomUUID();
+		const mediaTitle = typeof title === 'string' && title !== '' ? title : file.name;
 		await service.record(treeId, entityId, {
 			id: mediaId,
 			objectKey,
-			title: title || file.name,
+			title: mediaTitle,
 			mimeType
 		});
 
@@ -80,7 +135,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 				media: {
 					id: mediaId,
 					objectKey,
-					title: title || file.name,
+					title: mediaTitle,
 					mimeType
 				}
 			},
