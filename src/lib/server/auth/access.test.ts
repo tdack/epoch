@@ -147,12 +147,21 @@ describe('handle hook', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	async function run(
-		flags: { env?: string; binding?: string; aud?: string; audBinding?: string },
+		flags: {
+			env?: string;
+			binding?: string;
+			aud?: string;
+			audBinding?: string;
+			teamDomain?: string;
+			teamDomainBinding?: string;
+		},
 		headers: Record<string, string> = {},
 		origin = 'http://localhost:5173'
 	) {
 		vi.resetModules();
-		vi.doMock('$app/env/public', () => ({ CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com' }));
+		vi.doMock('$app/env/public', () => ({
+			CF_ACCESS_TEAM_DOMAIN: flags.teamDomain ?? 'team.cloudflareaccess.com'
+		}));
 		vi.doMock('$app/env/private', () => ({
 			CF_ACCESS_AUD: flags.aud ?? 'my-aud',
 			ACCESS_BYPASS_DEV: flags.env ?? ''
@@ -160,7 +169,8 @@ describe('handle hook', () => {
 		vi.doMock('#lib/server/platform.js', () => ({
 			getPlatformBindings: () => ({
 				ACCESS_BYPASS_DEV: flags.binding,
-				CF_ACCESS_AUD: flags.audBinding
+				CF_ACCESS_AUD: flags.audBinding,
+				CF_ACCESS_TEAM_DOMAIN: flags.teamDomainBinding
 			})
 		}));
 		const { handle } = await import('../../../hooks.server');
@@ -240,6 +250,36 @@ describe('handle hook', () => {
 		// Empty from both sources is not a skip: a production token must stay anonymous.
 		const locals = await run({ aud: '', audBinding: '' }, { 'cf-access-jwt-assertion': forged() });
 		expect(locals).toBeNull();
+	});
+
+	it('reads the Access team domain from a binding when the build env omits it', async () => {
+		// The public env is empty, so only the binding's team domain lets the issuer check pass. A
+		// matching issuer then reaches the certs lookup and fails with no keys, where an unset domain
+		// would have thrown before any fetch.
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const token = createMockJwt(
+			{
+				sub: 'user-1',
+				email: 'u@example.com',
+				iss: 'https://team.cloudflareaccess.com',
+				aud: 'my-aud',
+				exp: Math.floor(Date.now() / 1000) + 3600
+			},
+			{ alg: 'RS256', kid: 'x' }
+		);
+
+		await run(
+			{ teamDomain: '', teamDomainBinding: 'team.cloudflareaccess.com' },
+			{ 'cf-access-jwt-assertion': token }
+		);
+		expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('No matching key');
+
+		warn.mockClear();
+		await run({ teamDomain: '' }, { 'cf-access-jwt-assertion': token });
+		expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain(
+			'Access team domain not configured'
+		);
+		warn.mockRestore();
 	});
 });
 

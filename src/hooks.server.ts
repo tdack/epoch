@@ -79,6 +79,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// binding is a fallback for a deployment that wires the audience through `wrangler`/`.dev.vars`
 	// alone. An empty result is not a skip: `validateAccessJwt` still fails closed on a non-dev token.
 	const accessAud = CF_ACCESS_AUD || (bindings as { CF_ACCESS_AUD?: string }).CF_ACCESS_AUD;
+
+	// Same fallback for the team domain: without it a deploy that supplies its config only through
+	// bindings would clear the audience check and then fail here. An empty result still fails closed,
+	// because `validateAccessJwt` refuses a token when the domain is absent.
+	const accessTeamDomain =
+		CF_ACCESS_TEAM_DOMAIN || (bindings as { CF_ACCESS_TEAM_DOMAIN?: string }).CF_ACCESS_TEAM_DOMAIN;
 	const allowDevBypass = isBypassFlagSet && isLocalHostname(event.url.hostname);
 	if (isBypassFlagSet && !allowDevBypass) {
 		requestLogger.warn('ACCESS_BYPASS_DEV is set but ignored: the host is not local', {
@@ -93,7 +99,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (token) {
 		try {
 			const validated = await validateAccessJwt(token, {
-				teamDomain: CF_ACCESS_TEAM_DOMAIN,
+				teamDomain: accessTeamDomain,
 				aud: accessAud,
 				allowDevBypass
 			});
