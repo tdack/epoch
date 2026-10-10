@@ -178,4 +178,11 @@ describe('media revalidation', () => {
 		expect(response.status).not.toBe(304);
 		expect(response.headers.get('cache-control')).toBe('no-store');
 	});
+
+	it('answers a missing object with 404 and no-store', async () => {
+		const response = await fetchMedia(keyFor('absent.png'), null);
+
+		expect(response.status).toBe(404);
+		expect(response.headers.get('cache-control')).toBe('no-store');
+	});
 });

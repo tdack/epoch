@@ -37,8 +37,12 @@ export const GET: RequestHandler = async ({ params, locals, platform, request, s
 
 	const object = await platform.env.MEDIA_BUCKET.get(key);
 	if (!object) {
-		setHeaders({ 'cache-control': 'no-store' });
-		error(404, 'Media object not found');
+		// A direct response, not `error(404)`: relying on SvelteKit's setHeaders-on-thrown-error
+		// behaviour to attach no-store is fragile, and a missing object must never be cached.
+		return Response.json(
+			{ error: 'Media object not found' },
+			{ status: 404, headers: { 'Cache-Control': 'no-store' } }
+		);
 	}
 
 	// The stored content type comes from whoever uploaded the object, so it is never replayed: the
