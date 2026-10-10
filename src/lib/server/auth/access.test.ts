@@ -147,18 +147,21 @@ describe('handle hook', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	async function run(
-		flags: { env?: string; binding?: string },
+		flags: { env?: string; binding?: string; aud?: string; audBinding?: string },
 		headers: Record<string, string> = {},
 		origin = 'http://localhost:5173'
 	) {
 		vi.resetModules();
 		vi.doMock('$app/env/public', () => ({ CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com' }));
 		vi.doMock('$app/env/private', () => ({
-			CF_ACCESS_AUD: 'my-aud',
+			CF_ACCESS_AUD: flags.aud ?? 'my-aud',
 			ACCESS_BYPASS_DEV: flags.env ?? ''
 		}));
 		vi.doMock('#lib/server/platform.js', () => ({
-			getPlatformBindings: () => ({ ACCESS_BYPASS_DEV: flags.binding })
+			getPlatformBindings: () => ({
+				ACCESS_BYPASS_DEV: flags.binding,
+				CF_ACCESS_AUD: flags.audBinding
+			})
 		}));
 		const { handle } = await import('../../../hooks.server');
 		const event = {
@@ -213,6 +216,30 @@ describe('handle hook', () => {
 		expect((await run({ env: 'true' }, asCookie))?.accessSub).toBe('second-user');
 		// Without the flag a cookie, like a header, buys nothing: the request stays anonymous.
 		expect(await run({}, asCookie)).toBeNull();
+	});
+
+	it('reads the Access audience from a binding when the build env omits it', async () => {
+		// The private env is empty, so only the binding's AUD can satisfy the audience check. A dev
+		// token whose `aud` matches the binding is admitted; if the fallback were not applied the
+		// unset AUD would reject it before signature verification.
+		const devToken = createMockJwt({
+			sub: 'dev-user',
+			email: 'dev@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'binding-aud',
+			exp: Math.floor(Date.now() / 1000) + 3600
+		});
+		const locals = await run(
+			{ env: 'true', aud: '', audBinding: 'binding-aud' },
+			{ 'cf-access-jwt-assertion': devToken }
+		);
+		expect(locals?.accessSub).toBe('dev-user');
+	});
+
+	it('still fails closed when neither source sets the audience', async () => {
+		// Empty from both sources is not a skip: a production token must stay anonymous.
+		const locals = await run({ aud: '', audBinding: '' }, { 'cf-access-jwt-assertion': forged() });
+		expect(locals).toBeNull();
 	});
 });
 

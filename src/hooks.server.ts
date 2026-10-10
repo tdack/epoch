@@ -74,6 +74,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		ACCESS_BYPASS_DEV,
 		(bindings as { ACCESS_BYPASS_DEV?: string }).ACCESS_BYPASS_DEV
 	);
+
+	// Mirror the bypass flag: the build-time private env is the primary source, but the Worker
+	// binding is a fallback for a deployment that wires the audience through `wrangler`/`.dev.vars`
+	// alone. An empty result is not a skip: `validateAccessJwt` still fails closed on a non-dev token.
+	const accessAud = CF_ACCESS_AUD || (bindings as { CF_ACCESS_AUD?: string }).CF_ACCESS_AUD;
 	const allowDevBypass = isBypassFlagSet && isLocalHostname(event.url.hostname);
 	if (isBypassFlagSet && !allowDevBypass) {
 		requestLogger.warn('ACCESS_BYPASS_DEV is set but ignored: the host is not local', {
@@ -89,7 +94,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			const validated = await validateAccessJwt(token, {
 				teamDomain: CF_ACCESS_TEAM_DOMAIN,
-				aud: CF_ACCESS_AUD,
+				aud: accessAud,
 				allowDevBypass
 			});
 
