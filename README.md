@@ -42,7 +42,7 @@ Later: `npm run setup -- doctor` reports drift, `allow <email>` and `disallow <e
 policy setup created, and `teardown` deletes only what this install made. `npm run setup -- --help`
 lists every flag, including the ones that answer each prompt for CI. With `--json` use
 `npm run -s setup -- …` so npm’s own banner stays off stdout. State lives in
-`.epoch/install.json` and the generated `wrangler.deploy.jsonc`; both are git-ignored. See
+`.epoch/install.json` (git-ignored) and the tracked `wrangler.deploy.jsonc`. See
 [docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
 real account (`npm run setup -- spike`).
 
@@ -139,10 +139,10 @@ Simpsons". It does nothing if that tree already exists. If the dev server is on 
 
 The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
 none of the owner's values (team domain, email sender, route or workers.dev setting). Remote commands (`db:migrate`,
-`deploy`, and the backfill scripts with `--remote`) use a generated, git-ignored
-`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, how the Worker is served (`workers_dev` or a custom-domain route) and the vars.
-[`wrangler.deploy.example.jsonc`](wrangler.deploy.example.jsonc) shows its shape. Without it those
-commands stop and say to run `npm run setup`.
+`deploy`, and the backfill scripts with `--remote`) use `wrangler.deploy.jsonc` instead, which is the
+tracked file plus the real ids, how the Worker is served (`workers_dev` or a custom-domain route) and
+the vars. It is tracked too (ADR-038: nothing in it is a credential, and push-to-deploy needs it);
+`npm run setup` regenerates it in place, and without it those commands stop and say to run setup.
 
 The build still reads the tracked file. `adapter-cloudflare` takes only `main` and `assets` from it, so
 `deploy` fails if the deploy file differs on those fields. Keep `main` at the adapter default and

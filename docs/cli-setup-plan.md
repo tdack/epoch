@@ -455,8 +455,8 @@ Worker serves the host without its Access app.
   - `vite dev`, `getPlatformProxy` in `server/testing/d1.ts` and the local migrations need only
     the binding shapes.
   - A fresh clone still builds, type-checks and tests without running setup.
-- **The tool writes a git-ignored `wrangler.deploy.jsonc` in the repository root**, so relative
-  paths resolve the same way. It is the tracked file plus:
+- **The tool writes `wrangler.deploy.jsonc` in the repository root**, so relative paths resolve
+  the same way. It is the tracked file plus:
   - the real ids;
   - the Worker `name`;
   - for a custom domain, `routes: [{ pattern: <host>, custom_domain: true }]` and `workers_dev`
@@ -563,7 +563,8 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
    Record the results in an ADR (next number after ADR-033). Adjust this plan where they differ.
 1. **Config and scripts:**
    - Strip the owner values from the tracked `wrangler.jsonc`.
-   - Git-ignore `wrangler.deploy.jsonc` and `.epoch/`.
+   - Git-ignore `.epoch/`. (`wrangler.deploy.jsonc` was git-ignored here; ADR-038 later made it
+     tracked.)
    - Move `db:migrate`, `deploy` and the backfill scripts to the binding name and `-c`.
    - Add the `install_meta` migration (expand-only).
 2. The manifest module, the commander and clack shell (`cli.ts`, `ui.ts`, with `tools/setup/cli.ts`
@@ -580,7 +581,7 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
 ## Open questions for the owner
 
 1. **Config layout.** Proposed: a tracked, dev-safe `wrangler.jsonc` without owner values, plus a
-   generated, git-ignored `wrangler.deploy.jsonc`.
+   generated `wrangler.deploy.jsonc`. (Resolved as ADR-038: the deploy file is tracked too.)
    - **The cost:** this repository's live values leave git. The live install is re-created locally
      once, through adoption, and remote commands need `-c`.
    - **The alternative:** keep owner values in the tracked file. That is simpler for a single
@@ -645,7 +646,6 @@ Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
   ours, so its AUD secret is not inherited.
 - **Choosing another name** after a taken one overwrites the empty record of the abandoned name; once
   anything has been created, a different name is "a second install in one checkout" and is refused.
-- **The build-field agreement check** runs the deploy-config-split session's
-  `scripts/deploy-config.mjs`, not a copy.
+- **The build-field agreement check** runs `scripts/deploy-config.mjs`, not a copy.
 - **New `cf`/API calls for the spike:** `GET /accounts/{id}/workers/subdomain` (raw API, no `cf`
   command exists); the check is `workers-subdomain`.
