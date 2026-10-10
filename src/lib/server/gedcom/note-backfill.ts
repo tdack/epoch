@@ -18,6 +18,7 @@
 import { noteAttachments, notes } from '../db/schema';
 import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
 import { buildGedcomTree, collectLines, levelOfLine, type GedcomNode } from './node';
+import { LINE_BREAK } from './evidence-lines';
 import { isNoteNode, parseNoteLink, parseNoteRecord, type ParsedNoteLink } from './note-parse';
 import { noteAttachmentRow, noteRow } from './note-rows';
 import { treeScopedId } from './import-preview';
@@ -101,7 +102,7 @@ function nodesOf(lines: string[]): GedcomNode[] {
 
 /** A fact's `notes` column as the note line it was read from. */
 function columnNoteNode(text: string): GedcomNode | undefined {
-	const [first, ...rest] = text.split('\n');
+	const [first, ...rest] = text.split(LINE_BREAK);
 	const lines = [
 		first ? `2 NOTE ${first}` : '2 NOTE',
 		...rest.map((l) => (l ? `3 CONT ${l}` : '3 CONT'))

@@ -11,6 +11,7 @@ import {
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
+import { LINE_BREAK } from './evidence-lines';
 import {
 	mergeCitations,
 	parseCitation,
@@ -264,7 +265,7 @@ export function parseGedcomNameValue(value: string): { givenName?: string; surna
  * Defaults to 5.5.1 when the version cannot be determined.
  */
 export function detectGedcomVersion(rawContent: string): GedcomVersion {
-	const lines = rawContent.split(/\r?\n/);
+	const lines = rawContent.split(LINE_BREAK);
 	let isInGedc = false;
 	for (const line of lines) {
 		const trimmed = line.trim();
@@ -441,7 +442,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const isEvidenceModelled = options.isEvidenceModelled ?? true;
 	const isNotesModelled = options.isNotesModelled ?? true;
 	const version = detectGedcomVersion(rawContent);
-	const rootNodes = buildGedcomTree(rawContent.split(/\r?\n/));
+	const rootNodes = buildGedcomTree(rawContent.split(LINE_BREAK));
 	// Only the parsed values: kept lines are written back as the file had them, escape and all.
 	if (version === '7.0') unescapeGedcom7(rootNodes);
 

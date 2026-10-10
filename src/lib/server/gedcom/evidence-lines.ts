@@ -25,9 +25,16 @@ export function isPlainText(node: GedcomNode): boolean {
 	return node.children.every(isContinuation);
 }
 
+/**
+ * A GEDCOM line terminator. A lone `\r` (old Mac) is as valid as `\r\n` and `\n`, so all three split
+ * a value into lines; splitting on `\n` alone leaves a `\r` inside a field, which then emits a line
+ * a reader takes as a new record.
+ */
+export const LINE_BREAK = /\r\n|\r|\n/;
+
 /** The canonical lines for a text: one line, and a `CONT` for each line break. */
 function textLines(level: number, tag: string, text: string): string[] {
-	const [first, ...rest] = text.split('\n');
+	const [first, ...rest] = text.split(LINE_BREAK);
 	return [
 		first ? `${level} ${tag} ${first}` : `${level} ${tag}`,
 		...rest.map((line) => (line ? `${level + 1} CONT ${line}` : `${level + 1} CONT`))

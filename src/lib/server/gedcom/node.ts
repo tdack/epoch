@@ -40,13 +40,31 @@ function parseGedcomLine(
 /**
  * The structures in these lines, nested by level. A node at `rootLevel` starts a new root; a line
  * deeper than the root under it is its descendant, and one with no root above it is dropped.
+ *
+ * A line that is not GEDCOM is not thrown away: a terminator inside a value (a lone `\r`, say)
+ * splits into a segment that no longer matches the line grammar, and that segment is the previous
+ * line's text continued. It is kept as that node's `CONT`, so no text is lost on import.
  */
 export function buildGedcomTree(lines: readonly string[], rootLevel = 0): GedcomNode[] {
 	const roots: GedcomNode[] = [];
 	const stack: GedcomNode[] = [];
+	// The node a stray segment belongs to: the text owner of the last real line, which a `CONT` or
+	// `CONC` line shares with the line it continues.
+	let textOwner: GedcomNode | null = null;
 	for (const line of lines) {
 		const parsed = parseGedcomLine(line);
-		if (!parsed) continue;
+		if (!parsed) {
+			if (line.trim() && textOwner) {
+				textOwner.children.push({
+					level: textOwner.level + 1,
+					tag: 'CONT',
+					value: line,
+					rawLine: `${textOwner.level + 1} CONT ${line}`,
+					children: []
+				});
+			}
+			continue;
+		}
 		const node: GedcomNode = {
 			level: parsed.level,
 			tag: parsed.tag,
@@ -64,6 +82,7 @@ export function buildGedcomTree(lines: readonly string[], rootLevel = 0): Gedcom
 			if (stack.length > 0) stack[stack.length - 1].children.push(node);
 			stack.push(node);
 		}
+		textOwner = node.tag === 'CONT' || node.tag === 'CONC' ? (textOwner ?? node) : node;
 	}
 	return roots;
 }
