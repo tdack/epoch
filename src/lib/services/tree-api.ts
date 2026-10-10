@@ -260,6 +260,103 @@ export function gedcomExportUrl(treeId: string, choice: GedcomExportChoice): str
 	return `/api/export?${params}`;
 }
 
+/** How an export started: built now, running in the workflow, or not available at all. */
+export type GedcomExportStart =
+	{ status: 'sync' } | { status: 'started'; instanceId: string } | { status: 'unavailable' };
+
+/** The status an asynchronous export reports; a closed set the server owns. */
+export interface GedcomExportStatus {
+	status: 'queued' | 'running' | 'complete' | 'errored';
+	code?: string;
+}
+
+const EXPORT_CLIENT_UUID_KEY = 'epoch.export.clientUuid';
+
+/** sessionStorage, or null on the server and when a browser blocks it. */
+function browserSession(): Storage | null {
+	try {
+		return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * The idempotency id for one export choice, kept for the session, so a retry after a timeout names
+ * the same workflow instance instead of starting a second. Keyed by tree, format and packaging, so
+ * choosing a different file gets its own id; generated in the browser, never reused across choices.
+ */
+function exportClientUuid(treeId: string, choice: GedcomExportChoice): string {
+	const key = `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${choice.shouldCompress ? 'gdz' : 'ged'}`;
+	const store = browserSession();
+	const existing = store?.getItem(key);
+	if (existing) return existing;
+	const fresh = crypto.randomUUID();
+	store?.setItem(key, fresh);
+	return fresh;
+}
+
+/**
+ * Ask the server how to make an export. The response is inspected directly rather than through
+ * `call`: a 503 is an answer (`unavailable`), not a failure to throw, so the caller can tell it
+ * apart from a real error and refuse to fall back to a synchronous download.
+ */
+export async function startGedcomExport(
+	treeId: string,
+	choice: GedcomExportChoice
+): Promise<GedcomExportStart> {
+	const response = await fetch('/api/export', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			treeId,
+			clientUuid: exportClientUuid(treeId, choice),
+			format: choice.format,
+			shouldCompress: choice.shouldCompress
+		})
+	});
+	if (response.status === 503) return { status: 'unavailable' };
+	if (!response.ok) {
+		if (response.status === 401) restartSignIn();
+		const data = (await response.json().catch(() => ({}))) as {
+			error?: string;
+			code?: string;
+			details?: Record<string, unknown>;
+		};
+		throw new ApiError(
+			data.error || 'Failed to start the export',
+			response.status,
+			data.code,
+			data.details
+		);
+	}
+	const body = (await response.json().catch(() => ({}))) as {
+		status?: string;
+		instanceId?: string;
+	};
+	if (body.status === 'started' && body.instanceId) {
+		return { status: 'started', instanceId: body.instanceId };
+	}
+	return { status: 'sync' };
+}
+
+/** One poll of a running export. `signal` lets the caller abandon a superseded poll. */
+export function exportStatusApi(
+	instanceId: string,
+	signal?: AbortSignal
+): Promise<GedcomExportStatus> {
+	return call(
+		`/api/export/status/${encodeURIComponent(instanceId)}`,
+		{ signal },
+		'Failed to check the export'
+	);
+}
+
+/** The address a finished export is saved from. A plain navigation, so the browser saves the file. */
+export function exportDownloadUrl(instanceId: string): string {
+	return `/api/export/download/${encodeURIComponent(instanceId)}`;
+}
+
 /** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
 export async function planRelationshipApi(
 	treeId: string,

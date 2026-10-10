@@ -7,14 +7,65 @@
 import {
 	createTreeApi,
 	deleteTreeApi,
+	exportDownloadUrl,
+	exportStatusApi,
 	gedcomExportUrl,
 	renameTreeApi,
 	previewGedcomImport,
+	startGedcomExport,
 	submitGedcomImport,
 	type GedcomExportChoice
 } from '#lib/services/tree-api.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';
+
+/** How long the client polls a running export before handing the instance back to be resumed. */
+const EXPORT_POLL_TIMEOUT_MS = 120_000;
+/** The first gap between polls, and the jitter added to each so a fleet of clients does not synchronise. */
+const EXPORT_POLL_INITIAL_MS = 1_000;
+/** The longest gap between polls. */
+const EXPORT_POLL_MAX_MS = 10_000;
+/** Where a timed-out export is remembered so the person can resume it. */
+const PENDING_EXPORT_KEY = 'epoch.export.pending';
+
+interface PendingExport {
+	treeId: string;
+	instanceId: string;
+	choice: GedcomExportChoice;
+}
+
+/** sessionStorage, or null on the server and when a browser blocks it. */
+function browserSession(): Storage | null {
+	try {
+		return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+	} catch {
+		return null;
+	}
+}
+
+function readPendingExport(): PendingExport | null {
+	try {
+		const raw = browserSession()?.getItem(PENDING_EXPORT_KEY);
+		return raw ? (JSON.parse(raw) as PendingExport) : null;
+	} catch {
+		return null;
+	}
+}
+
+function writePendingExport(pending: PendingExport | null): void {
+	try {
+		const store = browserSession();
+		if (!store) return;
+		if (pending) store.setItem(PENDING_EXPORT_KEY, JSON.stringify(pending));
+		else store.removeItem(PENDING_EXPORT_KEY);
+	} catch {
+		// A blocked store only costs the resume offer, never the export itself.
+	}
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface TreeShellOptions {
 	/** The tree being viewed, or null on the landing page. */
@@ -51,6 +102,14 @@ export class TreeShell {
 	isLoadingPreview = $state(false);
 	isConfirmingImport = $state(false);
 	importConfirmError = $state<string | null>(null);
+
+	// Export
+	isExporting = $state(false);
+	exportStatus = $state<string | null>(null);
+	exportError = $state<string | null>(null);
+	/** The running export a timed-out attempt left behind, so the person can resume it. */
+	pendingExportInstanceId = $state<string | null>(null);
+	private exportAbort: AbortController | null = null;
 
 	constructor(private options: TreeShellOptions) {}
 
@@ -124,10 +183,95 @@ export class TreeShell {
 		}
 	};
 
-	exportGedcom = (choice: GedcomExportChoice) => {
+	exportGedcom = async (choice: GedcomExportChoice) => {
 		const treeId = this.options.treeId();
-		if (treeId) window.location.href = gedcomExportUrl(treeId, choice);
+		if (!treeId || this.isExporting) return;
+		this.isExporting = true;
+		this.exportError = null;
+		try {
+			const start = await startGedcomExport(treeId, choice);
+			if (start.status === 'sync') {
+				// Small enough to build in the request: navigate and let the browser save it.
+				window.location.href = gedcomExportUrl(treeId, choice);
+				return;
+			}
+			if (start.status === 'unavailable') {
+				// There is no synchronous fallback: an export that cannot run asynchronously is offered
+				// again later, never silently replaced by a slower, size-limited download.
+				this.options.toasts.push('Exports are unavailable right now. Please try again later.');
+				return;
+			}
+			this.pendingExportInstanceId = start.instanceId;
+			writePendingExport({ treeId, instanceId: start.instanceId, choice });
+			await this.pollExport(start.instanceId);
+		} catch (err) {
+			this.reportExportFailure(err);
+		} finally {
+			this.isExporting = false;
+		}
 	};
+
+	/** Resume an export a previous attempt left running, if it belongs to the tree being viewed. */
+	resumeExport = async () => {
+		const pending = readPendingExport();
+		const treeId = this.options.treeId();
+		if (!pending || !treeId || pending.treeId !== treeId || this.isExporting) return;
+		this.isExporting = true;
+		this.exportError = null;
+		this.pendingExportInstanceId = pending.instanceId;
+		try {
+			await this.pollExport(pending.instanceId);
+		} catch (err) {
+			this.reportExportFailure(err);
+		} finally {
+			this.isExporting = false;
+		}
+	};
+
+	private async pollExport(instanceId: string): Promise<void> {
+		// One poll in flight: a new attempt abandons whatever the last was waiting on.
+		this.exportAbort?.abort();
+		const controller = new AbortController();
+		this.exportAbort = controller;
+		const deadline = Date.now() + EXPORT_POLL_TIMEOUT_MS;
+		let delay = EXPORT_POLL_INITIAL_MS;
+		while (Date.now() < deadline) {
+			await sleep(delay + Math.random() * EXPORT_POLL_INITIAL_MS);
+			if (controller.signal.aborted) return;
+			let status: string;
+			try {
+				({ status } = await exportStatusApi(instanceId, controller.signal));
+			} catch (err) {
+				if (controller.signal.aborted) return;
+				throw err;
+			}
+			if (status === 'complete') {
+				writePendingExport(null);
+				this.pendingExportInstanceId = null;
+				this.exportStatus = null;
+				window.location.href = exportDownloadUrl(instanceId);
+				return;
+			}
+			if (status === 'errored') {
+				writePendingExport(null);
+				this.pendingExportInstanceId = null;
+				this.exportStatus = null;
+				this.options.toasts.push('The export failed. Please try again.');
+				return;
+			}
+			this.exportStatus = status === 'queued' ? 'Waiting to start…' : 'Preparing the export…';
+			delay = Math.min(delay * 2, EXPORT_POLL_MAX_MS);
+		}
+		// Out of time: keep the instance (and its client id) so the person can resume, never fall back.
+		this.exportStatus = 'Still preparing — you can resume when it finishes.';
+		this.options.toasts.push('The export is taking longer than usual. Resume it when it is ready.');
+	}
+
+	private reportExportFailure(err: unknown): void {
+		const message = (err as Error)?.message || 'Export failed';
+		this.exportError = message;
+		this.options.toasts.push(message);
+	}
 
 	selectFile = (e: Event) => {
 		const input = e.target as HTMLInputElement;

@@ -79,3 +79,104 @@ describe('uploadMediaApi', () => {
 		await expect(uploadMediaApi('t1', 'p1', new File(['x'], 'a.png'))).rejects.toThrow('Forbidden');
 	});
 });
+
+describe('startGedcomExport', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('posts the tree, format, packaging and a client uuid, and reads a sync answer', async () => {
+		const { startGedcomExport } = await loadApi(false);
+		const fetchMock = vi.fn(async () => Response.json({ status: 'sync' }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		expect(await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: false })).toEqual({
+			status: 'sync'
+		});
+
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('/api/export');
+		const body = JSON.parse(init.body as string) as Record<string, unknown>;
+		expect(body).toMatchObject({ treeId: 't1', format: 'gedcom7', shouldCompress: false });
+		expect(body.clientUuid).toMatch(/^[0-9a-f-]{36}$/);
+	});
+
+	it('reads a started answer as the instance id', async () => {
+		const { startGedcomExport } = await loadApi(false);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => Response.json({ status: 'started', instanceId: 'i1' }))
+		);
+		expect(await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: false })).toEqual({
+			status: 'started',
+			instanceId: 'i1'
+		});
+	});
+
+	it('treats a 503 as an answer, not a failure, so the caller can refuse to fall back', async () => {
+		const { startGedcomExport } = await loadApi(false);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => Response.json({ status: 'unavailable' }, { status: 503 }))
+		);
+		expect(await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: false })).toEqual({
+			status: 'unavailable'
+		});
+	});
+
+	it('throws the server’s reason for any other failure', async () => {
+		const { startGedcomExport, ApiError } = await loadApi(false);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => Response.json({ error: 'Forbidden' }, { status: 403 }))
+		);
+		await expect(
+			startGedcomExport('t1', { format: 'gedcom551', shouldCompress: false })
+		).rejects.toBeInstanceOf(ApiError);
+	});
+
+	it('reuses one idempotency id for the same choice, and a fresh one for a different choice', async () => {
+		const store = new Map<string, string>();
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => store.get(key) ?? null,
+			setItem: (key: string, value: string) => void store.set(key, value),
+			removeItem: (key: string) => void store.delete(key)
+		} as unknown as Storage);
+		const { startGedcomExport } = await loadApi(false);
+		const fetchMock = vi.fn(async () => Response.json({ status: 'sync' }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const uuidOf = (call: number) =>
+			(
+				JSON.parse(
+					(fetchMock.mock.calls[call] as unknown as [string, RequestInit])[1].body as string
+				) as { clientUuid: string }
+			).clientUuid;
+
+		await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: false });
+		await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: false });
+		expect(uuidOf(1)).toBe(uuidOf(0));
+
+		await startGedcomExport('t1', { format: 'gedcom7', shouldCompress: true });
+		expect(uuidOf(2)).not.toBe(uuidOf(0));
+	});
+});
+
+describe('the async export helpers', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('polls the status endpoint and returns the closed status', async () => {
+		const { exportStatusApi } = await loadApi(false);
+		const fetchMock = vi.fn(async () =>
+			Response.json({ status: 'running', code: 'export_running' })
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		expect(await exportStatusApi('i1')).toEqual({ status: 'running', code: 'export_running' });
+		expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[0]).toBe(
+			'/api/export/status/i1'
+		);
+	});
+
+	it('builds the download url with the id encoded', async () => {
+		const { exportDownloadUrl } = await loadApi(false);
+		expect(exportDownloadUrl('a b')).toBe('/api/export/download/a%20b');
+	});
+});
