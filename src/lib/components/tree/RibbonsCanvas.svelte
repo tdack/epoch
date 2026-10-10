@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { RibbonsLayout } from '#lib/tree-layout/ribbons.js';
-	import { RIBBONS_CAMERAS, type RibbonsScene } from './ribbons-scene.js';
+	import type { RibbonsScene } from './ribbons-scene.js';
+	import { RIBBONS_CAMERAS } from './webgl-cameras.js';
 	import { RIBBON_TOKENS, RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';

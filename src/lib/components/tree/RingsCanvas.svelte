@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ringLineage, type RingsLayout } from '#lib/tree-layout/rings.js';
-	import { RING_CAMERAS, type RingsScene } from './rings-scene.js';
+	import type { RingsScene } from './rings-scene.js';
+	import { RING_CAMERAS } from './webgl-cameras.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';

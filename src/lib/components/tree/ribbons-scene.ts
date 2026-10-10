@@ -37,6 +37,7 @@ import { haloGeometry, nodeGeometry, strandCentreline, strandGeometry } from './
 import { createThreeStage, sexColour } from './three-stage.js';
 import { HIGHLIGHT_TOKENS, RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
+import { RIBBONS_CAMERAS } from './webgl-cameras.js';
 
 const FOCUS_SCALE = 1.45;
 const PICK_RADIUS_UNITS = 0.95;
@@ -44,8 +45,6 @@ const PICK_RADIUS_UNITS = 0.95;
 const EXTRA_ENTRY_THINNING = 0.5;
 /** The sample of a strand's centreline where its link is anchored: the middle, exactly on the polyline. */
 const LINK_ANCHOR_SAMPLE = 8;
-
-export const RIBBONS_CAMERAS = { ANGLED: 'angled', SIDE: 'side', EDGE: 'edge' } as const;
 
 export interface RibbonsScene extends WebGlTreeScene {
 	/** Rebuild everything from a new layout. `shouldRefit` also resets the camera distance. */

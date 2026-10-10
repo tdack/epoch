@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
-	import { POINCARE_CAMERAS, type PoincareScene } from './poincare-scene.js';
+	import type { PoincareScene } from './poincare-scene.js';
+	import { POINCARE_CAMERAS } from './webgl-cameras.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';

@@ -35,9 +35,8 @@ import { LinkPickProxy } from './orrery-link-pick.js';
 import { createThreeStage } from './three-stage.js';
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS as T } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
+import { ORRERY_CAMERAS } from './webgl-cameras.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
-
-export const ORRERY_CAMERAS = { ANGLED: 'angled', SIDE: 'side' } as const;
 
 /** Segments along a tether, so its gradient and pulse have something to colour. */
 const TETHER_SEGMENTS = 14;

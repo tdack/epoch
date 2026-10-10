@@ -26,6 +26,7 @@ import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 import { createThreeStage, sexColour } from './three-stage.js';
 import { HIGHLIGHT_TOKENS, POINCARE_TOKENS, RING_FADE, RING_LINE_WIDTH_PX } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
+import { POINCARE_CAMERAS } from './webgl-cameras.js';
 
 /** Radius of the glass ball in scene units; the layout's unit ball is scaled up to it. */
 const BALL_RADIUS_UNITS = 14;
@@ -42,8 +43,6 @@ const GEODESIC_SEGMENTS = 24;
 const YEAR_LABEL_ANGLE = Math.PI / 4;
 const LABEL_WIDTH_UNITS = 2.6;
 const TAU = Math.PI * 2;
-
-export const POINCARE_CAMERAS = { ANGLED: 'angled', SIDE: 'side', POLE: 'pole' } as const;
 
 const CAMERA_DIRECTIONS = {
 	[POINCARE_CAMERAS.ANGLED]: new Vector3(0.62, 0.42, 0.62),

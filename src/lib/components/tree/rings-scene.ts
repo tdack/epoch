@@ -24,6 +24,7 @@ import type { RingsLayout } from '#lib/tree-layout/rings.js';
 import { createThreeStage, sexColour } from './three-stage.js';
 import { HIGHLIGHT_TOKENS, RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
+import { RING_CAMERAS } from './webgl-cameras.js';
 
 /** Vertical distance between two generation rings, in scene units; wider rings spread further. */
 export const RING_GAP_UNITS = 6.5;
@@ -43,8 +44,6 @@ const SELF_KNOT_SCALE = 1.5;
 const HALO_WIDTH_SCALE = 4.1;
 const TAU = Math.PI * 2;
 const RING_MIN_FRAME_UNITS = 3;
-
-export const RING_CAMERAS = { ANGLED: 'angled', SIDE: 'side', ABOVE: 'above' } as const;
 
 /** Direction from the target to the camera for each preset; the distance comes from the layout. */
 const CAMERA_DIRECTIONS = {

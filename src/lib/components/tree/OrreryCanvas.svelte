@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { OrreryLayout } from '#lib/tree-layout/orrery.js';
-	import { ORRERY_CAMERAS, type OrreryScene } from './orrery-scene.js';
+	import type { OrreryScene } from './orrery-scene.js';
+	import { ORRERY_CAMERAS } from './webgl-cameras.js';
 	import { ORRERY_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
