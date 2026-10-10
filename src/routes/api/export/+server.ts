@@ -34,20 +34,21 @@ export const GET = apiHandler(options, async ({ db, ctx, event, url }) => {
 	const service = new GedcomService(db);
 	await service.requireExport(treeId, ctx);
 
-	// The download is built in this request, so the size decides before any of it is read: a large
-	// tree must go through the workflow when one is bound, and is refused outright when it is too
-	// large for any synchronous build.
+	// The download is built in this request, so the size decides before any of it is read. The
+	// ceiling is checked first, whatever is bound: a tree too large for any synchronous build is
+	// refused outright, so a bound workflow cannot turn that refusal into a 409 instead. Below the
+	// ceiling, a large tree goes through the workflow when one is bound; a small one never does.
 	const count = await service.countIndividuals(treeId);
-	if (env?.GEDCOM_EXPORT_WORKFLOW && count > LARGE_EXPORT_INDIVIDUALS) {
-		return Response.json(
-			{ error: 'This tree is too large to download directly', code: 'use_async' },
-			{ status: 409 }
-		);
-	}
 	if (count > MAX_SYNC_EXPORT_INDIVIDUALS) {
 		return Response.json(
 			{ error: 'This tree is too large for a direct download', code: 'sync_export_too_large' },
 			{ status: 413 }
+		);
+	}
+	if (env?.GEDCOM_EXPORT_WORKFLOW && count > LARGE_EXPORT_INDIVIDUALS) {
+		return Response.json(
+			{ error: 'This tree is too large to download directly', code: 'use_async' },
+			{ status: 409 }
 		);
 	}
 
@@ -77,13 +78,23 @@ export const POST = apiHandler(
 		const service = new GedcomService(db, { bucket: env?.MEDIA_BUCKET });
 		await service.requireExport(treeId, ctx);
 
-		// Without the workflow there is nothing to run the async half and the sync half is reached
-		// only after this answer says `sync`; the client shows this and does not fall back.
-		const workflow = env?.GEDCOM_EXPORT_WORKFLOW;
-		if (!workflow) return Response.json({ status: 'unavailable' }, { status: 503 });
-
+		// The size decides before the binding does: a tree small enough to build in the request is
+		// always answered `sync`, so it works even with no workflow bound. A tree past the
+		// synchronous ceiling cannot be built here and must not start a workflow either — it would
+		// only OOM and retry — so it is refused outright.
 		const count = await service.countIndividuals(treeId);
 		if (count <= LARGE_EXPORT_INDIVIDUALS) return { status: 'sync' };
+		if (count > MAX_SYNC_EXPORT_INDIVIDUALS) {
+			return Response.json(
+				{ error: 'This tree is too large to export', code: 'export_too_large' },
+				{ status: 413 }
+			);
+		}
+
+		// Only now is a workflow needed: above the small threshold and within the ceiling. Without
+		// the binding there is nothing to run the async half, and there is no sync fallback.
+		const workflow = env?.GEDCOM_EXPORT_WORKFLOW;
+		if (!workflow) return Response.json({ status: 'unavailable' }, { status: 503 });
 
 		// The id is built server-side from the tree, the format and the client's per-click uuid, so a
 		// retry names the same instance and a download can derive the object key from it. The key

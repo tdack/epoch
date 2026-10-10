@@ -69,12 +69,15 @@ async function setup(role?: 'viewer' | 'editor') {
 	return { owner, member, treeId };
 }
 
-/** A step that runs its callback once and records the step names it was asked for. */
-function recordingStep(names: string[]): WorkflowStep {
+/** A step that runs its callback once and records the step names and configs it was asked for. */
+function recordingStep(names: string[], configs: unknown[] = []): WorkflowStep {
 	return {
-		do: async (name: string, callback: () => unknown) => {
+		do: async (name: string, configOrCallback: unknown, maybeCallback?: () => unknown) => {
 			names.push(name);
-			return callback();
+			const isConfigured = typeof configOrCallback !== 'function';
+			configs.push(isConfigured ? configOrCallback : undefined);
+			const callback = isConfigured ? maybeCallback : configOrCallback;
+			return (callback as () => unknown)();
 		}
 	} as unknown as WorkflowStep;
 }
@@ -103,6 +106,7 @@ describe('GedcomExportWorkflow', () => {
 		const clientUuid = crypto.randomUUID();
 		const instanceId = buildExportInstanceId(s.treeId, 'gedcom7', false, clientUuid);
 		const names: string[] = [];
+		const configs: unknown[] = [];
 
 		const result = await workflowWith(bucket).run(
 			eventFor(instanceId, {
@@ -111,10 +115,12 @@ describe('GedcomExportWorkflow', () => {
 				format: 'gedcom7',
 				shouldCompress: false
 			}),
-			recordingStep(names)
+			recordingStep(names, configs)
 		);
 
 		expect(names).toEqual(['build-export']);
+		// The step retries once, not Cloudflare's default handful: a build that OOMs would only OOM again.
+		expect(configs).toEqual([{ retries: { limit: 1 } }]);
 		expect(result).toEqual({
 			fileKey: `exports/${s.treeId}-${clientUuid}.ged`,
 			format: 'gedcom7',

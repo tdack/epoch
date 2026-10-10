@@ -102,10 +102,27 @@ describe('POST /api/export', () => {
 		expect(create).not.toHaveBeenCalled();
 	});
 
-	it('answers `unavailable` when no workflow is bound, with no sync fallback', async () => {
+	it('answers `sync` for a small tree even when no workflow is bound', async () => {
 		const response = await post(owner, { treeId: small, clientUuid: uuid() });
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ status: 'sync' });
+	});
+
+	it('answers `unavailable` for a large tree when no workflow is bound, with no sync fallback', async () => {
+		const response = await post(owner, { treeId: large, clientUuid: uuid() });
 		expect(response.status).toBe(503);
 		expect(await response.json()).toEqual({ status: 'unavailable' });
+	});
+
+	it('refuses a tree beyond the sync ceiling with 413, workflow or not', async () => {
+		const { create, workflow } = fakeWorkflow();
+		const response = await post(owner, { treeId: huge, clientUuid: uuid() }, workflow);
+		expect(response.status).toBe(413);
+		expect((await response.json()) as { code: string }).toMatchObject({
+			code: 'export_too_large'
+		});
+		// A tree above the ceiling must not start a workflow: it would only OOM and retry.
+		expect(create).not.toHaveBeenCalled();
 	});
 
 	it('starts an instance for a large tree and returns only the instance id', async () => {
@@ -212,12 +229,15 @@ describe('GET /api/export', () => {
 		expect((await response.json()) as { code: string }).toMatchObject({ code: 'use_async' });
 	});
 
-	it('refuses a tree beyond the sync ceiling with 413, workflow or not', async () => {
-		const response = await download(owner, `treeId=${huge}`);
-		expect(response.status).toBe(413);
-		expect((await response.json()) as { code: string }).toMatchObject({
+	it('refuses a tree beyond the sync ceiling with 413, whatever is bound', async () => {
+		const unbound = await download(owner, `treeId=${huge}`);
+		expect(unbound.status).toBe(413);
+		expect((await unbound.json()) as { code: string }).toMatchObject({
 			code: 'sync_export_too_large'
 		});
+		// A bound workflow must not turn the ceiling into a 409: the tree cannot be built at all.
+		const bound = await download(owner, `treeId=${huge}`, fakeWorkflow().workflow);
+		expect(bound.status).toBe(413);
 	});
 
 	it('refuses a viewer', async () => {

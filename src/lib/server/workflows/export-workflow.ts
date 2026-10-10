@@ -53,7 +53,10 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<
 			throw new NonRetryableError('Export instance id does not match its payload');
 		}
 
-		return step.do('build-export', async () => {
+		// One retry, not Cloudflare's default handful: a huge build that runs out of memory would
+		// only run out again, so a second attempt is enough to ride out a transient failure and a
+		// third would just waste the instance's budget.
+		return step.do('build-export', { retries: { limit: 1 } }, async () => {
 			const gedcom = new GedcomService(getDb(this.env.DB), { bucket: this.env.MEDIA_BUCKET });
 
 			// The request was authorised when it was made; the job checks again, because it runs later
