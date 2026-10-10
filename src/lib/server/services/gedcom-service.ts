@@ -93,7 +93,7 @@ export interface ExportFile {
 const GEDCOM_CONTENT_TYPE = 'text/vnd.familysearch.gedcom';
 
 /** GEDZip's version is the dataset's, and 7.0 was its first, so a 5.5.1 file has no archive form. */
-function assertExportable({ format, shouldCompress }: ExportOptions): void {
+export function assertExportable({ format, shouldCompress }: ExportOptions): void {
 	if (shouldCompress && format !== 'gedcom7') {
 		throw new ValidationError('A .gdz archive can only hold a GEDCOM 7.0 file');
 	}
