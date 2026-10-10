@@ -1,5 +1,5 @@
-// Shared by `npm run deploy` and the backfill scripts' --remote mode: every remote command must
-// run against the generated, git-ignored wrangler.deploy.jsonc, never the dev-safe tracked file.
+// Shared by `npm run deploy` and the backfill scripts' --remote mode: every remote command runs
+// against the tracked wrangler.deploy.jsonc, never the dev-safe wrangler.jsonc the build reads.
 //
 //   node scripts/deploy-config.mjs   # exits non-zero when the deploy config is missing or disagrees
 import { existsSync } from 'node:fs';
@@ -23,7 +23,9 @@ const BUILD_FIELDS = {
 /** Throws a message fit to print when the deploy config is absent. */
 export function requireDeployConfig() {
 	if (!existsSync(DEPLOY_CONFIG)) {
-		throw new Error(`${DEPLOY_CONFIG} not found. Run \`npm run setup\` to generate it.`);
+		throw new Error(
+			`${DEPLOY_CONFIG} not found. It is tracked, so restore it from git, or re-run \`npm run setup\`.`
+		);
 	}
 }
 

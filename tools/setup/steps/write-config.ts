@@ -12,7 +12,8 @@ import { resourceNames } from '../names.ts';
 /**
  * Plan step 8: the template (the tracked wrangler.jsonc, or the shipped copy) plus this install's
  * values. The whole file is regenerated and the change against the old one is shown before writing.
- * The build-field agreement check is the deploy-config-split session's `scripts/deploy-config.mjs`,
+ * The file is tracked (ADR-038), so on a fresh clone setup is only needed to create the resources;
+ * the build-field agreement check is `scripts/deploy-config.mjs`,
  * run as it would be by `npm run deploy`, rather than a second copy of it.
  */
 export async function writeConfig(ctx: StepContext, manifest: Manifest): Promise<Manifest> {

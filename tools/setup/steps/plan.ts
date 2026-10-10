@@ -85,7 +85,7 @@ export function buildPlan(
 			'Access application',
 			`"${reports.accessApp.name}" on ${answers.hostname}/login`
 		),
-		{ symbol: PLAN_SYMBOLS.create, text: 'write wrangler.deploy.jsonc (git-ignored)' },
+		{ symbol: PLAN_SYMBOLS.create, text: 'write wrangler.deploy.jsonc (tracked)' },
 		lineFor(
 			reports.worker.state,
 			'Worker',
