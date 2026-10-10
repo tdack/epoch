@@ -26,11 +26,16 @@ export function isPlainText(node: GedcomNode): boolean {
 }
 
 /**
- * A GEDCOM line terminator. A lone `\r` (old Mac) is as valid as `\r\n` and `\n`, so all three split
- * a value into lines; splitting on `\n` alone leaves a `\r` inside a field, which then emits a line
- * a reader takes as a new record.
+ * A line terminator. A lone `\r` (old Mac) is as valid as `\r\n` and `\n`, so all three split a
+ * value into lines; splitting on `\n` alone leaves a `\r` inside a field, which then emits a line a
+ * reader takes as a new record. The Unicode line separators split too, the same set `singleLine`
+ * folds: a raw separator inside a value is one hazard whether the field may start a `CONT` with it
+ * or must stay on a single line.
  */
-export const LINE_BREAK = /\r\n|\r|\n/;
+// The C0 separators (`\x1c`–`\x1e`) are exactly what must split, so the usual "hidden typo" the
+// control-character rule guards against does not apply here.
+// eslint-disable-next-line no-control-regex
+export const LINE_BREAK = /\r\n|[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/;
 
 /** The canonical lines for a text: one line, and a `CONT` for each line break. */
 function textLines(level: number, tag: string, text: string): string[] {
