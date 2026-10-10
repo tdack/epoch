@@ -1,4 +1,5 @@
 import { apiHandler } from '#lib/server/http/handler.js';
+import { downloadHeaders } from '#lib/server/http/export-download.js';
 import { ExportUnavailableError } from '#lib/server/domain/errors.js';
 import { assertExportable, GedcomService } from '#lib/server/services/gedcom-service.js';
 import { DEFAULT_GEDCOM_FORMAT, type GedcomFormat } from '#lib/server/gedcom/tags.js';
@@ -22,34 +23,6 @@ const options = { failure: 'Export failed', messagePrefix: 'Export failed: ' };
 
 function resolveFormat(raw: string | null): GedcomFormat {
 	return raw === 'gedcom551' || raw === 'gedcom7' ? raw : DEFAULT_GEDCOM_FORMAT;
-}
-
-/**
- * The one body every export download is served with. Private and non-sniffable: the file holds
- * living people (ADR-015), and a browser must never cache it or second-guess its type. The name is
- * sent twice, an ASCII `filename` for old clients and an RFC 5987 `filename*` for the real one.
- */
-function downloadHeaders(filename: string, contentType: string, isText: boolean): Headers {
-	const headers = new Headers();
-	headers.set('Content-Type', isText ? `${contentType}; charset=utf-8` : contentType);
-	headers.set('Content-Disposition', attachmentDisposition(filename));
-	headers.set('Cache-Control', 'private, no-store');
-	headers.set('X-Content-Type-Options', 'nosniff');
-	return headers;
-}
-
-/** An ASCII `filename` plus an RFC 5987 `filename*`, so a name with spaces or non-ASCII survives. */
-function attachmentDisposition(filename: string): string {
-	const ascii = filename.replace(/[^\x20-\x7e]|["\\]/g, '_');
-	return `attachment; filename="${ascii}"; filename*=UTF-8''${rfc5987Encode(filename)}`;
-}
-
-/** Encode a value for RFC 5987's `ext-value`; `encodeURIComponent` leaves `'()*` unescaped, which are not attr-chars. */
-function rfc5987Encode(value: string): string {
-	return encodeURIComponent(value).replace(
-		/['()*]/g,
-		(character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-	);
 }
 
 export const GET = apiHandler(options, async ({ db, ctx, event, url }) => {

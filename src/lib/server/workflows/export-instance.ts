@@ -115,6 +115,28 @@ export function matchesExportKey(fileKey: string, parsed: ParsedExportInstance):
 }
 
 /**
+ * A stored object's write time: the upload time this application recorded when it wrote the object,
+ * falling back to R2's own `uploaded`. R2's field is reset by a copy or a re-upload, so the recorded
+ * time is the authoritative one and the fallback only covers an object written before it existed.
+ */
+export function exportWriteTime(object: {
+	uploaded: Date;
+	customMetadata?: Record<string, string>;
+}): Date {
+	const recorded = object.customMetadata?.uploadedAt;
+	if (recorded) {
+		const parsed = new Date(recorded);
+		if (!Number.isNaN(parsed.getTime())) return parsed;
+	}
+	return object.uploaded;
+}
+
+/** Whether an export has outlived the retention window, measured from when it was written. */
+export function isExportExpired(writtenAt: Date, now: Date = new Date()): boolean {
+	return now.getTime() - writtenAt.getTime() > EXPORT_TTL_SECONDS * 1000;
+}
+
+/**
  * Cloudflare's workflow status union, as observed by `status()`. `status()` reports only
  * `{ status, error?, output? }`; the params an instance was created with are not readable, which is
  * why the id itself carries everything a download needs.

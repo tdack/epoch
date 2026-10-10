@@ -40,6 +40,8 @@ const TASKS = 'services/privacy-tasks.test.ts';
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
 	[`${API}/export/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/import/+server.ts`]: { kind: 'role-gated', covers: 'auth/authorization.test.ts' },
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },

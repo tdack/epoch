@@ -7,6 +7,8 @@ import {
 	EXPORT_STATES,
 	EXPORT_TTL_SECONDS,
 	exportObjectKey,
+	exportWriteTime,
+	isExportExpired,
 	mapWorkflowStatus,
 	matchesExportKey,
 	parseExportInstanceId,
@@ -136,5 +138,31 @@ describe('mapWorkflowStatus', () => {
 	it('gives every state exactly one code', () => {
 		expect(Object.keys(EXPORT_CODES).sort()).toEqual(Object.keys(EXPORT_STATES).sort());
 		expect(new Set(Object.values(EXPORT_CODES)).size).toBe(Object.keys(EXPORT_CODES).length);
+	});
+});
+
+describe('expiry', () => {
+	const now = new Date('2026-01-02T00:00:00Z');
+	const r2Uploaded = new Date('2025-12-30T00:00:00Z');
+
+	it('prefers the upload time this application recorded over R2’s own', () => {
+		const recorded = new Date('2026-01-01T00:00:00Z');
+		expect(
+			exportWriteTime({
+				uploaded: r2Uploaded,
+				customMetadata: { uploadedAt: recorded.toISOString() }
+			})
+		).toEqual(recorded);
+		// A copy resets R2's `uploaded`; our record is the authority, and an unreadable one falls back.
+		expect(exportWriteTime({ uploaded: r2Uploaded })).toEqual(r2Uploaded);
+		expect(
+			exportWriteTime({ uploaded: r2Uploaded, customMetadata: { uploadedAt: 'not a date' } })
+		).toEqual(r2Uploaded);
+	});
+
+	it('expires strictly after the window', () => {
+		expect(isExportExpired(new Date('2026-01-01T00:00:00Z'), now)).toBe(false);
+		expect(isExportExpired(new Date('2025-12-31T23:59:59Z'), now)).toBe(true);
+		expect(isExportExpired(r2Uploaded, now)).toBe(true);
 	});
 });
