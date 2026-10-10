@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { relationshipPayloadSchema, individualCreateSchema, treeCreateSchema } from './schemas';
+import {
+	citationCreateSchema,
+	factCreateSchema,
+	factUpdateSchema,
+	individualCreateSchema,
+	nameCreateSchema,
+	nameUpdateSchema,
+	noteLinkCreateSchema,
+	relationshipPayloadSchema,
+	sharedNoteCreateSchema,
+	sourceRepositoryLinkSchema,
+	treeCreateSchema,
+	treeRenameSchema
+} from './schemas';
 
 describe('transport validation schemas', () => {
 	it('accepts a valid add_parent intent', () => {
@@ -50,5 +63,67 @@ describe('transport validation schemas', () => {
 	it('defaults individual sex to U', () => {
 		const result = individualCreateSchema.parse({ givenName: 'Jae' });
 		expect(result.sex).toBe('U');
+	});
+});
+
+describe('line terminators at the write boundary', () => {
+	const lf = 'first\nsecond';
+	const cr = 'first\rsecond';
+
+	it('rejects a terminator in every single-line fact field', () => {
+		for (const field of ['dateText', 'place', 'value', 'cause', 'age'] as const) {
+			expect(factCreateSchema.safeParse({ type: 'BIRT', [field]: lf }).success).toBe(false);
+			expect(factUpdateSchema.safeParse({ version: 1, [field]: cr }).success).toBe(false);
+		}
+	});
+
+	it('keeps a fact note multi-line', () => {
+		expect(factCreateSchema.safeParse({ type: 'BIRT', notes: lf }).success).toBe(true);
+	});
+
+	it('rejects a terminator in every name part', () => {
+		const parts = [
+			'givenName',
+			'surname',
+			'prefix',
+			'suffix',
+			'nickname',
+			'surnamePrefix',
+			'dateText'
+		] as const;
+		for (const field of parts) {
+			expect(nameCreateSchema.safeParse({ type: 'birth', [field]: lf }).success).toBe(false);
+			expect(nameUpdateSchema.safeParse({ version: 1, [field]: cr }).success).toBe(false);
+		}
+	});
+
+	it('rejects a terminator in a tree name', () => {
+		expect(treeCreateSchema.safeParse({ name: lf }).success).toBe(false);
+		expect(treeRenameSchema.safeParse({ name: cr, version: 1 }).success).toBe(false);
+	});
+
+	it('rejects a terminator in a citation entry date and a call number', () => {
+		expect(
+			citationCreateSchema.safeParse({
+				subject: { kind: 'person', id: 'p1' },
+				sourceId: 's1',
+				entryDate: lf
+			}).success
+		).toBe(false);
+		expect(
+			sourceRepositoryLinkSchema.safeParse({ repositoryId: 'r1', callNumber: cr }).success
+		).toBe(false);
+	});
+
+	it('rejects a terminator in a shared note MIME or LANG', () => {
+		expect(sharedNoteCreateSchema.safeParse({ text: 'hi', mime: lf }).success).toBe(false);
+		expect(sharedNoteCreateSchema.safeParse({ text: 'hi', language: cr }).success).toBe(false);
+	});
+
+	it('keeps a note and a shared note multi-line', () => {
+		expect(sharedNoteCreateSchema.safeParse({ text: lf }).success).toBe(true);
+		expect(
+			noteLinkCreateSchema.safeParse({ subject: { kind: 'person', id: 'p1' }, text: lf }).success
+		).toBe(true);
 	});
 });

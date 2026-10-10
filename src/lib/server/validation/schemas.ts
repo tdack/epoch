@@ -44,10 +44,24 @@ const optionalText = z.string().trim().nullish();
 /** Nullable free-text field matching a `string | null` domain field. */
 const nullableText = z.string().trim().nullable();
 
+/**
+ * A field GEDCOM writes on one line must not carry a terminator: on export it would forge a second
+ * line, which a reader takes for a new record. Multi-line-capable text (a `NOTE`) keeps its breaks.
+ */
+const hasNoLineBreak = (value: string | null | undefined) =>
+	!/[\r\n\u2028\u2029]/.test(value ?? '');
+const SINGLE_LINE_MESSAGE = 'Line breaks are not allowed in this field';
+
+/** Optional single-line free text; empty strings are treated as absent by callers. */
+const optionalSingleLine = z.string().trim().refine(hasNoLineBreak, SINGLE_LINE_MESSAGE).nullish();
+
+/** Nullable single-line free text matching a `string | null` domain field. */
+const nullableSingleLine = z.string().trim().refine(hasNoLineBreak, SINGLE_LINE_MESSAGE).nullable();
+
 const personRefSchema = z.object({
 	id: idSchema,
-	givenName: nullableText,
-	surname: nullableText,
+	givenName: nullableSingleLine,
+	surname: nullableSingleLine,
 	isNew: z.boolean().optional()
 });
 
@@ -109,8 +123,8 @@ const relationshipIntentSchema = z.discriminatedUnion('kind', [
 	z.object({
 		kind: z.literal('record_death'),
 		person: personRefSchema,
-		dateText: nullableText,
-		place: nullableText,
+		dateText: nullableSingleLine,
+		place: nullableSingleLine,
 		personVersion: versionSchema.optional()
 	}),
 	z.object({
@@ -119,7 +133,7 @@ const relationshipIntentSchema = z.discriminatedUnion('kind', [
 		unionId: idSchema.nullable(),
 		status: endedStatusSchema,
 		event: z
-			.object({ type: endEventTypeSchema, dateText: nullableText, place: nullableText })
+			.object({ type: endEventTypeSchema, dateText: nullableSingleLine, place: nullableSingleLine })
 			.nullable(),
 		unionVersion: versionSchema.optional()
 	})
@@ -169,8 +183,8 @@ export const unionUpdateSchema = z.object({
 			z.object({
 				id: idSchema.nullable(),
 				type: unionEventTypeSchema,
-				dateText: nullableText,
-				place: nullableText
+				dateText: nullableSingleLine,
+				place: nullableSingleLine
 			})
 		)
 		.optional()
@@ -191,23 +205,32 @@ export const unionMergeSchema = z.object({
 });
 
 export const treeCreateSchema = z.object({
-	name: z.string().trim().min(1, 'Tree name is required'),
+	name: z
+		.string()
+		.trim()
+		.min(1, 'Tree name is required')
+		.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE),
 	description: optionalText
 });
 
 export const treeRenameSchema = z.object({
-	name: z.string().trim().min(1, 'Tree name is required').max(200),
+	name: z
+		.string()
+		.trim()
+		.min(1, 'Tree name is required')
+		.max(200)
+		.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE),
 	version: versionSchema
 });
 
 export const individualCreateSchema = z.object({
-	givenName: optionalText,
-	surname: optionalText,
+	givenName: optionalSingleLine,
+	surname: optionalSingleLine,
 	sex: z.enum(SEX_VALUES).default('U'),
-	birthDate: optionalText,
-	birthPlace: optionalText,
-	deathDate: optionalText,
-	deathPlace: optionalText
+	birthDate: optionalSingleLine,
+	birthPlace: optionalSingleLine,
+	deathDate: optionalSingleLine,
+	deathPlace: optionalSingleLine
 });
 
 export const individualUpdateSchema = individualCreateSchema.partial().extend({
@@ -227,11 +250,11 @@ const factTypeSchema = z.string().refine(isFactType, { message: 'not a fact type
 /** A fact as the form sends it: every field present, empty ones null. */
 export const factCreateSchema = z.object({
 	type: factTypeSchema,
-	dateText: nullableText.default(null),
-	place: nullableText.default(null),
-	value: nullableText.default(null),
-	cause: nullableText.default(null),
-	age: nullableText.default(null),
+	dateText: nullableSingleLine.default(null),
+	place: nullableSingleLine.default(null),
+	value: nullableSingleLine.default(null),
+	cause: nullableSingleLine.default(null),
+	age: nullableSingleLine.default(null),
 	notes: nullableText.default(null)
 });
 
@@ -239,11 +262,11 @@ export const factCreateSchema = z.object({
 export const factUpdateSchema = z.object({
 	version: versionSchema,
 	type: factTypeSchema.optional(),
-	dateText: nullableText.optional(),
-	place: nullableText.optional(),
-	value: nullableText.optional(),
-	cause: nullableText.optional(),
-	age: nullableText.optional(),
+	dateText: nullableSingleLine.optional(),
+	place: nullableSingleLine.optional(),
+	value: nullableSingleLine.optional(),
+	cause: nullableSingleLine.optional(),
+	age: nullableSingleLine.optional(),
 	notes: nullableText.optional()
 });
 
@@ -286,13 +309,13 @@ const nameTypeSchema = z.string().refine(isNameType, { message: 'not a name type
 /** A name as the form sends it: every field present, empty ones null. */
 export const nameCreateSchema = z.object({
 	type: nameTypeSchema,
-	givenName: nullableText.default(null),
-	surname: nullableText.default(null),
-	prefix: nullableText.default(null),
-	suffix: nullableText.default(null),
-	nickname: nullableText.default(null),
-	surnamePrefix: nullableText.default(null),
-	dateText: nullableText.default(null),
+	givenName: nullableSingleLine.default(null),
+	surname: nullableSingleLine.default(null),
+	prefix: nullableSingleLine.default(null),
+	suffix: nullableSingleLine.default(null),
+	nickname: nullableSingleLine.default(null),
+	surnamePrefix: nullableSingleLine.default(null),
+	dateText: nullableSingleLine.default(null),
 	unionId: idSchema.nullable().default(null),
 	isPreferred: z.boolean().default(false)
 });
@@ -301,13 +324,13 @@ export const nameCreateSchema = z.object({
 export const nameUpdateSchema = z.object({
 	version: versionSchema,
 	type: nameTypeSchema.optional(),
-	givenName: nullableText.optional(),
-	surname: nullableText.optional(),
-	prefix: nullableText.optional(),
-	suffix: nullableText.optional(),
-	nickname: nullableText.optional(),
-	surnamePrefix: nullableText.optional(),
-	dateText: nullableText.optional(),
+	givenName: nullableSingleLine.optional(),
+	surname: nullableSingleLine.optional(),
+	prefix: nullableSingleLine.optional(),
+	suffix: nullableSingleLine.optional(),
+	nickname: nullableSingleLine.optional(),
+	surnamePrefix: nullableSingleLine.optional(),
+	dateText: nullableSingleLine.optional(),
 	unionId: idSchema.nullable().optional()
 });
 
@@ -365,6 +388,8 @@ export const changeMemberRoleSchema = z.object({ role: memberRoleSchema, version
 
 const sourceTextSchema = z.string().trim().max(10_000).nullable();
 const shortTextSchema = z.string().trim().max(500).nullable();
+/** A short single-line field (`CALN`), where a terminator would forge a line. */
+const singleLineShortTextSchema = shortTextSchema.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE);
 
 /** A source as the form sends it: every field present, empty ones null. */
 export const sourceCreateSchema = z.object({
@@ -402,12 +427,12 @@ export const repositoryUpdateSchema = z.object({
 
 export const sourceRepositoryLinkSchema = z.object({
 	repositoryId: idSchema,
-	callNumber: shortTextSchema.default(null)
+	callNumber: singleLineShortTextSchema.default(null)
 });
 
 export const sourceRepositoryUpdateSchema = z.object({
 	version: versionSchema,
-	callNumber: shortTextSchema
+	callNumber: singleLineShortTextSchema
 });
 
 const citationSubjectSchema = z.object({
@@ -417,13 +442,21 @@ const citationSubjectSchema = z.object({
 
 const citationQualitySchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
 
+/** `DATA.DATE` is one line. */
+const entryDateSchema = z
+	.string()
+	.trim()
+	.max(200)
+	.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE)
+	.nullable();
+
 /** A citation as the form sends it: a source, and the optional where, how reliable, when and words. */
 export const citationCreateSchema = z.object({
 	subject: citationSubjectSchema,
 	sourceId: idSchema,
 	page: shortTextSchema.default(null),
 	quality: citationQualitySchema.nullable().default(null),
-	entryDate: z.string().trim().max(200).nullable().default(null),
+	entryDate: entryDateSchema.default(null),
 	text: sourceTextSchema.default(null)
 });
 
@@ -433,7 +466,7 @@ export const citationUpdateSchema = z.object({
 	sourceId: idSchema.optional(),
 	page: shortTextSchema.optional(),
 	quality: citationQualitySchema.nullable().optional(),
-	entryDate: z.string().trim().max(200).nullable().optional(),
+	entryDate: entryDateSchema.optional(),
 	text: sourceTextSchema.optional()
 });
 
@@ -471,6 +504,19 @@ export const evidenceImpactSchema = z.discriminatedUnion('kind', [
 
 const noteSubjectSchema = z.object({ kind: z.enum(NOTE_SUBJECT_KIND_VALUES), id: idSchema });
 const noteTextSchema = z.string().trim().min(1, 'A note needs some text').max(20_000);
+/** A shared note's `MIME` and `LANG` each sit on one line. */
+const mimeSchema = z
+	.string()
+	.trim()
+	.max(100)
+	.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE)
+	.nullable();
+const languageSchema = z
+	.string()
+	.trim()
+	.max(35)
+	.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE)
+	.nullable();
 
 /** A note on a record: its words written there, or an existing shared note to attach. */
 export const noteLinkCreateSchema = z
@@ -493,16 +539,16 @@ export const noteReorderSchema = z.object({
 
 export const sharedNoteCreateSchema = z.object({
 	text: noteTextSchema,
-	mime: z.string().trim().max(100).nullable().default(null),
-	language: z.string().trim().max(35).nullable().default(null)
+	mime: mimeSchema.default(null),
+	language: languageSchema.default(null)
 });
 
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const sharedNoteUpdateSchema = z.object({
 	version: versionSchema,
 	text: noteTextSchema.optional(),
-	mime: z.string().trim().max(100).nullable().optional(),
-	language: z.string().trim().max(35).nullable().optional()
+	mime: mimeSchema.optional(),
+	language: languageSchema.optional()
 });
 
 export const noteMergeSchema = z.object({
