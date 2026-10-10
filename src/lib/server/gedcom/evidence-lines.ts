@@ -42,6 +42,19 @@ function textLines(level: number, tag: string, text: string): string[] {
 }
 
 /**
+ * The text of a field that must occupy one GEDCOM line: every terminator — `\r\n`, `\r`, `\n` and
+ * the Unicode line separators (`\v`, `\f`, `\x1c`–`\x1e`, `\x85`, `\u2028`, `\u2029`) — folds to a
+ * single space, so the field can never emit a second line. `null` and `undefined` stay absent.
+ */
+export function singleLine(text: string | null | undefined): string | undefined {
+	if (text === null || text === undefined) return undefined;
+	// The C0 separators (`\x1c`–`\x1e`) are exactly what must fold, so the usual "hidden typo" the
+	// control-character rule guards against does not apply here.
+	// eslint-disable-next-line no-control-regex
+	return text.replace(/[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+/g, ' ');
+}
+
+/**
  * The file's lines for a text field when they differ from the canonical ones (a `CONC` split, odd
  * spacing, an address with sub-tags), else undefined. `isWhole` also keeps the children that are not
  * continuations, which an address needs for its `CITY` and `POST`.
