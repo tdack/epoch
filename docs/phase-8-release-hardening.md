@@ -60,14 +60,14 @@ The residuals the review accepted are listed below. The other work items are not
 Accepted by the security review of `fix/security-media-xss-auth` (ADR-039) unless noted. None is a
 release blocker for the current scope.
 
-- **An oversized body with no declared length is buffered before the size check.** A chunked or
-  length-less upload is parsed by `request.formData()` before the parsed `file.size` is checked, so
-  the whole body is buffered first. It is bounded by the platform's request-body limit and reachable
-  only by an authenticated uploader with `media:manage`. The 64 KB slack in the pre-parse
-  `Content-Length` check is not a size bypass: the parsed size is authoritative.
-- **Malformed multipart answers 500.** `request.formData()` in the upload route is called outside
-  the route's `try`, so a body that is not valid multipart surfaces as a 500 rather than a 400.
-  Moving the call inside the `try` and mapping it to a `ValidationError` is the fix.
+- **A legitimate file accompanied by ≥64 KB of other form fields is refused.** The upload body is
+  now bounded while it streams, by a byte-counting `TransformStream` in `parseUploadForm`
+  (`src/routes/api/media/upload/+server.ts`): it aborts once the body passes
+  `MAX_MEDIA_UPLOAD_BYTES + 64 KB` of multipart slack and then parses the bounded stream, so an
+  oversized body with no declared length is no longer buffered whole. A declared `Content-Length`
+  beyond that bound is still refused before the body is read, as a cheap early exit. The 64 KB slack
+  covers multipart framing, so a well-formed file accompanied by ≥64 KB of other form fields is
+  refused with a 413. `assertUploadWithinSizeLimit(file.size)` remains the authoritative *file* cap.
 - **A merged person leaves a stale media key.** Person merge moves `media_items` rows but does not
   rewrite the R2 object key, which embeds the original entity id. A restricted viewer who can see
   the surviving person gets a false 404 on the moved media, because `requireRead` parses the old
