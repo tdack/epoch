@@ -16,18 +16,19 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
 	}
 
-	// Refuse an oversized body before parsing it. A chunked request has no Content-Length, hence the
-	// post-parse check further down, which inspects the actual file size.
+	// Refuse a body we already know is oversized before parsing it. This pre-parse check is
+	// best-effort only: HTTP/2 and browser FormData uploads may omit Content-Length (or send a
+	// chunked body), so an absent or unparseable value must not break a legitimate upload. The
+	// authoritative control is assertUploadWithinSizeLimit below, which inspects the parsed size.
 	const declaredLength = request.headers.get('content-length');
-	if (declaredLength === null) {
-		return Response.json({ error: 'A Content-Length header is required' }, { status: 411 });
-	}
-	const declaredBytes = Number(declaredLength);
-	if (!Number.isFinite(declaredBytes)) {
-		return Response.json({ error: 'A valid Content-Length header is required' }, { status: 411 });
-	}
-	if (declaredBytes > MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES) {
-		return Response.json({ error: 'Upload is too large' }, { status: 413 });
+	if (declaredLength !== null) {
+		const declaredBytes = Number(declaredLength);
+		if (
+			Number.isFinite(declaredBytes) &&
+			declaredBytes > MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES
+		) {
+			return Response.json({ error: 'Upload is too large' }, { status: 413 });
+		}
 	}
 
 	const formData = await request.formData();

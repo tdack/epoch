@@ -149,14 +149,36 @@ describe('media upload size limits', () => {
 		expect(response.status).toBe(413);
 	});
 
-	it('requires a Content-Length header', async () => {
+	it('does not reject a request that omits Content-Length', async () => {
+		// HTTP/2 and browser FormData uploads may omit the header, so parsing must proceed rather
+		// than answer 411. The empty form has no `file`, so the missing-field check answers 400.
 		const request = {
 			headers: new Headers(),
 			formData: async () => new FormData()
 		} as unknown as Request;
 
 		const response = await POST(makeEvent(owner, request));
-		expect(response.status).toBe(411);
+		expect(response.status).toBe(400);
+	});
+
+	it('rejects an over-cap file after parsing when Content-Length is absent', async () => {
+		const form = {
+			get: (name: string) =>
+				name === 'file'
+					? { size: MAX_MEDIA_UPLOAD_BYTES + 1, name: 'big.png', type: 'image/png' }
+					: name === 'treeId'
+						? treeId
+						: name === 'entityId'
+							? personId
+							: null
+		};
+		const request = {
+			headers: new Headers(),
+			formData: async () => form
+		} as unknown as Request;
+
+		const response = await POST(makeEvent(owner, request));
+		expect(response.status).toBe(413);
 	});
 
 	it('rejects a file just over the cap after parsing (no reliable length)', async () => {
