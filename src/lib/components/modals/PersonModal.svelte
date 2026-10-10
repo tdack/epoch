@@ -38,15 +38,10 @@
 	let savedDeathDate = $state('');
 	let localError = $state<string | null>(null);
 
+	// Loads the form when it opens. It must not read the fields it fills: if it did, every keystroke
+	// would re-run it and put the saved values back over what was typed.
 	$effect(() => {
 		if (isOpen) {
-			if (
-				!checkDateEdit(birthDate, savedBirthDate).isValid ||
-				!checkDateEdit(deathDate, savedDeathDate).isValid
-			) {
-				localError = 'Fix the highlighted date before saving.';
-				return;
-			}
 			localError = null;
 			if (mode === 'edit' && initialPerson) {
 				const raw = initialPerson.raw || {};
@@ -58,11 +53,13 @@
 				const birthEvent = events.find((e: any) => e.type === 'BIRT');
 				const deathEvent = events.find((e: any) => e.type === 'DEAT');
 
-				birthDate = birthEvent?.dateRaw || '';
-				savedBirthDate = birthDate;
+				const birthDateRaw = birthEvent?.dateRaw || '';
+				const deathDateRaw = deathEvent?.dateRaw || '';
+				birthDate = birthDateRaw;
+				savedBirthDate = birthDateRaw;
 				birthPlace = birthEvent?.place || '';
-				deathDate = deathEvent?.dateRaw || '';
-				savedDeathDate = deathDate;
+				deathDate = deathDateRaw;
+				savedDeathDate = deathDateRaw;
 				deathPlace = deathEvent?.place || '';
 			} else {
 				givenName = '';
@@ -82,6 +79,13 @@
 		e.preventDefault();
 		if (!givenName.trim() && !surname.trim()) {
 			localError = 'Please provide at least a given name or surname.';
+			return;
+		}
+		if (
+			!checkDateEdit(birthDate, savedBirthDate).isValid ||
+			!checkDateEdit(deathDate, savedDeathDate).isValid
+		) {
+			localError = 'Fix the highlighted date before saving.';
 			return;
 		}
 		localError = null;
