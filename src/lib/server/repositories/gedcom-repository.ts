@@ -79,6 +79,20 @@ export class GedcomRepository {
 		return !!(await this.db.select().from(trees).where(eq(trees.id, treeId)).get());
 	}
 
+	/**
+	 * How many people the tree holds, without loading one of them. `COUNT(*)` over the tree-scoped
+	 * index, so it is cheap even for a tree far too large to export synchronously; the count only
+	 * chooses the route, and the export itself re-reads the rows.
+	 */
+	async countIndividuals(treeId: string): Promise<number> {
+		const row = await this.db
+			.select({ count: sql<number>`count(*)` })
+			.from(individuals)
+			.where(eq(individuals.treeId, treeId))
+			.get();
+		return row?.count ?? 0;
+	}
+
 	/** Alias XREF to surviving XREF for unions already in the tree that absorbed other families. */
 	async aliasesInTree(treeId: string): Promise<Map<string, string>> {
 		const map = new Map<string, string>();

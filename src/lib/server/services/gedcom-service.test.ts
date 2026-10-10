@@ -33,10 +33,17 @@ afterAll(async () => {
 function fakeBucket() {
 	const objects = new Map<
 		string,
-		{ value: string | Uint8Array; options?: { httpMetadata?: unknown } }
+		{
+			value: string | Uint8Array;
+			options?: { httpMetadata?: unknown; customMetadata?: Record<string, string> };
+		}
 	>();
 	const bucket = {
-		put: async (key: string, value: string | Uint8Array, options?: { httpMetadata?: unknown }) => {
+		put: async (
+			key: string,
+			value: string | Uint8Array,
+			options?: { httpMetadata?: unknown; customMetadata?: Record<string, string> }
+		) => {
 			objects.set(key, { value, options });
 		},
 		get: async (key: string) => {
@@ -192,13 +199,21 @@ describe('export', () => {
 		expect(download.filename).toBe('Fox___family__1900.ged');
 		expect(download.content).toContain('0 HEAD');
 
-		const key = await service.exportToStorage(s.treeId, { format: 'gedcom551' }, s.owner.context);
-		expect(key).toMatch(new RegExp(`^exports/${s.treeId}-\\d+\\.ged$`));
+		const clientUuid = crypto.randomUUID();
+		const key = await service.storeExport(
+			s.treeId,
+			'Fox / family: 1900',
+			'0 HEAD\n0 TRLR',
+			'g551',
+			clientUuid
+		);
+		expect(key).toBe(`exports/${s.treeId}-${clientUuid}.ged`);
 		expect(objects.get(key)?.options).toMatchObject({
 			httpMetadata: {
 				contentType: 'text/vnd.familysearch.gedcom',
 				contentDisposition: 'attachment; filename="Fox___family__1900.ged"'
-			}
+			},
+			customMetadata: { uploadedAt: expect.any(String) }
 		});
 	});
 
@@ -216,10 +231,12 @@ describe('export', () => {
 		expect(Object.keys(entries)).toEqual(['gedcom.ged']);
 		expect(strFromU8(entries['gedcom.ged'])).toContain('2 VERS 7.0');
 
-		const key = await service.exportToStorage(s.treeId, options, s.owner.context);
-		expect(key).toMatch(new RegExp(`^exports/${s.treeId}-\\d+\\.gdz$`));
+		const clientUuid = crypto.randomUUID();
+		const key = await service.storeExport(s.treeId, 'Fox', '0 HEAD\n0 TRLR', 'g7z', clientUuid);
+		expect(key).toBe(`exports/${s.treeId}-${clientUuid}.gdz`);
 		expect(objects.get(key)?.options).toMatchObject({
-			httpMetadata: { contentDisposition: 'attachment; filename="Fox.gdz"' }
+			httpMetadata: { contentDisposition: 'attachment; filename="Fox.gdz"' },
+			customMetadata: { uploadedAt: expect.any(String) }
 		});
 	});
 
@@ -300,5 +317,17 @@ describe('requireExportInstance', () => {
 		await expect(
 			new GedcomService(t.db).requireExportInstance(id, s.owner.context)
 		).resolves.toMatchObject({ treeId: s.treeId, token: 'g7z', clientUuid, shouldCompress: true });
+	});
+});
+
+describe('countIndividuals', () => {
+	it('counts the people a tree holds, and nothing from another tree', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db);
+		expect(await service.countIndividuals(s.treeId)).toBe(0);
+		await service.runImport(s.treeId, FILE, 'Fox');
+		expect(await service.countIndividuals(s.treeId)).toBe(2);
+		const other = await tree();
+		expect(await service.countIndividuals(other.treeId)).toBe(0);
 	});
 });

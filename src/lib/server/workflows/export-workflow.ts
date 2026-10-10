@@ -4,6 +4,7 @@ import { assertSchemaCurrent } from '../db/schema-status';
 import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomService } from '../services/gedcom-service';
+import { parseExportInstanceId } from './export-instance';
 
 interface GedcomExportPayload {
 	treeId: string;
@@ -38,8 +39,10 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<
 		});
 
 		// Packed in the step that stores it: a step's result is serialized, and bytes do not survive that.
+		const parsed = parseExportInstanceId(event.instanceId);
+		if (!parsed) throw new Error(`Export instance id was not one we minted: ${event.instanceId}`);
 		const fileKey = await step.do('write-r2-export', () =>
-			gedcom.storeExport(treeId, data.treeName, gedcomContent, shouldCompress)
+			gedcom.storeExport(treeId, data.treeName, gedcomContent, parsed.token, parsed.clientUuid)
 		);
 
 		return { status: 'complete', fileKey, format, shouldCompress };

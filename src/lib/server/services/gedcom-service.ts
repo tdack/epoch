@@ -28,7 +28,12 @@ import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomRepository } from '../repositories/gedcom-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { parseExportInstanceId, type ParsedExportInstance } from '../workflows/export-instance';
+import {
+	parseExportInstanceId,
+	exportObjectKey,
+	type ExportFormatToken,
+	type ParsedExportInstance
+} from '../workflows/export-instance';
 import { TreeService } from './tree-service';
 import { requireMemberAction, requireTreeAction } from './tree-access';
 
@@ -277,6 +282,15 @@ export class GedcomService {
 		return exportPayloadFrom(treeId, await this.repo.loadExportRows(treeId));
 	}
 
+	/**
+	 * How many people the tree holds, for deciding a synchronous export from a queued one and for
+	 * enforcing the synchronous ceiling. Reads a count, never a person, so it needs no viewer scope;
+	 * the caller has already passed `requireExport`.
+	 */
+	async countIndividuals(treeId: string): Promise<number> {
+		return this.repo.countIndividuals(treeId);
+	}
+
 	/** A tree's GEDCOM file, for a download. */
 	async exportDownload(
 		treeId: string,
@@ -294,42 +308,30 @@ export class GedcomService {
 	}
 
 	/**
-	 * Put serialized GEDCOM in R2, packaged as GEDZip when asked, and answer its key. The key carries
-	 * the tree's id and the time so two exports never collide; the download name is the tree's name.
+	 * Put serialized GEDCOM in R2, packaged as GEDZip when the token says so, and answer its key.
+	 * The key comes from the instance's own parts, so a retried step writes the same object rather
+	 * than a second one, and a later download can derive it from the instance id alone. The upload
+	 * time is recorded as custom metadata: R2's `uploaded` is when the runtime saw the object, which
+	 * a copy or a re-upload would reset, whereas the read-time expiry must measure from this write.
 	 */
 	async storeExport(
 		treeId: string,
 		treeName: string,
 		gedcom: string,
-		shouldCompress = false
+		token: ExportFormatToken,
+		clientUuid: string
 	): Promise<string> {
 		const bucket = this.bindings.bucket;
 		if (!bucket) throw new Error('Storage binding unavailable');
-		const file = exportFile(treeName, gedcom, shouldCompress);
-		const key = `exports/${treeId}-${Date.now()}.${shouldCompress ? 'gdz' : 'ged'}`;
+		const file = exportFile(treeName, gedcom, token === 'g7z');
+		const key = exportObjectKey(treeId, token, clientUuid);
 		await bucket.put(key, file.content, {
 			httpMetadata: {
 				contentType: file.contentType,
 				contentDisposition: `attachment; filename="${file.filename}"`
-			}
+			},
+			customMetadata: { uploadedAt: new Date().toISOString() }
 		});
 		return key;
-	}
-
-	/** Export straight to R2 in the request, when no workflow is bound. */
-	async exportToStorage(
-		treeId: string,
-		options: ExportOptions,
-		context: AuthenticatedContext
-	): Promise<string> {
-		assertExportable(options);
-		await this.requireExport(treeId, context);
-		const data = await this.loadExport(treeId);
-		return this.storeExport(
-			treeId,
-			data.treeName,
-			buildGedcomString(data, options.format),
-			options.shouldCompress
-		);
 	}
 }
