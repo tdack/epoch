@@ -2,6 +2,7 @@
 	import { FileText, Image as ImageIcon, Upload } from '@lucide/svelte';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { uploadMediaApi } from '#lib/services/tree-api.js';
+	import { isInlineMediaType, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
@@ -16,6 +17,16 @@
 	let isUploading = $state(false);
 	let uploadError = $state<string | null>(null);
 	let fileInput: HTMLInputElement | null = $state(null);
+
+	/**
+	 * Older media responses were cached as immutable for a year, so a browser keeps them until the
+	 * URL changes. The version query is what evicts them after the serve path changed; bump it when
+	 * the bytes a URL returns can change again.
+	 */
+	const MEDIA_URL_VERSION = 2;
+	function mediaUrl(objectKey: string): string {
+		return `/api/media/${objectKey}?v=${MEDIA_URL_VERSION}`;
+	}
 
 	async function handleFileUpload(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -44,7 +55,7 @@
 		<input
 			bind:this={fileInput}
 			type="file"
-			accept="image/*,application/pdf"
+			accept={MEDIA_UPLOAD_ACCEPT}
 			onchange={handleFileUpload}
 			class="hidden"
 		/>
@@ -69,14 +80,14 @@
 	<div class="grid grid-cols-2 gap-2">
 		{#each dto.media as item (item.id)}
 			<a
-				href={`/api/media/${item.r2ObjectKey}`}
+				href={mediaUrl(item.r2ObjectKey)}
 				target="_blank"
 				rel="noreferrer"
 				class="group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border border-stone-300 bg-stone-100 transition-colors hover:border-emerald-600"
 			>
-				{#if item.mimeType?.startsWith('image/')}
+				{#if isInlineMediaType(item.mimeType)}
 					<img
-						src={`/api/media/${item.r2ObjectKey}`}
+						src={mediaUrl(item.r2ObjectKey)}
 						alt={item.title || 'Media'}
 						class="h-full w-full object-cover transition-transform group-hover:scale-105"
 					/>

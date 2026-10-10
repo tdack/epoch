@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
@@ -30,16 +31,16 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			correlationId: locals.correlationId
 		});
 
-		// The extension lands in an R2 key, so it is reduced to letters and digits.
-		const rawExt = file.name.split('.').pop() ?? '';
-		const fileExt = /^[A-Za-z0-9]{1,8}$/.test(rawExt) ? rawExt : 'dat';
-		const objectKey = `media/${treeId}/${entityId}/${crypto.randomUUID()}.${fileExt}`;
-		const arrayBuffer = await file.arrayBuffer();
+		// The bytes decide the type; the declared type and filename are attacker-controlled and are
+		// ignored. The extension comes from the sniffed type so it cannot disagree with the content.
+		const bytes = new Uint8Array(await file.arrayBuffer());
+		const { mimeType, extension } = validateMediaUpload(file.type, bytes);
+		const objectKey = `media/${treeId}/${entityId}/${crypto.randomUUID()}.${extension}`;
 
 		// Store in Cloudflare R2
-		await platform.env.MEDIA_BUCKET.put(objectKey, arrayBuffer, {
+		await platform.env.MEDIA_BUCKET.put(objectKey, bytes, {
 			httpMetadata: {
-				contentType: file.type || 'application/octet-stream'
+				contentType: mimeType
 			}
 		});
 
@@ -49,7 +50,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			id: mediaId,
 			objectKey,
 			title: title || file.name,
-			mimeType: file.type || 'application/octet-stream'
+			mimeType
 		});
 
 		return Response.json(
@@ -59,7 +60,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 					id: mediaId,
 					objectKey,
 					title: title || file.name,
-					mimeType: file.type
+					mimeType
 				}
 			},
 			{ status: 201 }

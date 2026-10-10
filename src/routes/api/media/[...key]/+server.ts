@@ -1,6 +1,7 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { mediaServeDecision } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
@@ -31,9 +32,18 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		error(404, 'Media object not found');
 	}
 
+	// The stored content type comes from whoever uploaded the object, so it is never replayed: the
+	// response type is chosen from an allowlist. This is what stops an uploaded `text/html` or
+	// `image/svg+xml` from running as script on our own origin.
+	const decision = mediaServeDecision(object.httpMetadata?.contentType, key);
 	const headers = new Headers();
-	object.writeHttpMetadata(headers as any);
+	headers.set('Content-Type', decision.contentType);
+	headers.set('Content-Disposition', decision.contentDisposition);
 	headers.set('etag', object.httpEtag);
+	headers.set('X-Content-Type-Options', 'nosniff');
+	headers.set('Content-Security-Policy', 'sandbox');
+	headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+	headers.set('Referrer-Policy', 'no-referrer');
 	// Private, not public: a shared cache would hand the object to someone who never passed the check above.
 	headers.set('Cache-Control', 'private, max-age=31536000, immutable');
 

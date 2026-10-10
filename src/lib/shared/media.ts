@@ -1,0 +1,49 @@
+/**
+ * What Epoch accepts for uploads and what it will serve inline. Shared between the upload route and
+ * the media component so the client's `accept` list and the server's allowlist cannot drift, and so
+ * the browser is told a file cannot render inline even before the server rejects it.
+ *
+ * The inline set is an exact-match allowlist, never a `startsWith('image/')` test: `image/svg+xml`
+ * carries script and must not qualify.
+ */
+
+export const INLINE_MEDIA_TYPES = [
+	'image/jpeg',
+	'image/png',
+	'image/gif',
+	'image/webp',
+	'image/avif'
+] as const;
+
+export type InlineMediaType = (typeof INLINE_MEDIA_TYPES)[number];
+
+export const UPLOAD_MEDIA_TYPES = [...INLINE_MEDIA_TYPES, 'application/pdf'] as const;
+
+export type UploadMediaType = (typeof UPLOAD_MEDIA_TYPES)[number];
+
+/** The upload input's `accept` attribute, built from the same list the server enforces. */
+export const MEDIA_UPLOAD_ACCEPT = UPLOAD_MEDIA_TYPES.join(',');
+
+/** Whether a stored type may be rendered inline on our own origin. */
+export function isInlineMediaType(mime: string | undefined | null): mime is InlineMediaType {
+	return mime != null && (INLINE_MEDIA_TYPES as readonly string[]).includes(mime);
+}
+
+/** Whether a sniffed type is one an upload is allowed to carry. */
+export function isUploadMediaType(mime: string): mime is UploadMediaType {
+	return (UPLOAD_MEDIA_TYPES as readonly string[]).includes(mime);
+}
+
+const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
+	'image/jpeg': 'jpg',
+	'image/png': 'png',
+	'image/gif': 'gif',
+	'image/webp': 'webp',
+	'image/avif': 'avif',
+	'application/pdf': 'pdf'
+};
+
+/** The key extension for an accepted type, or null when the type is not accepted. */
+export function extensionForMediaType(mime: string): string | null {
+	return EXTENSION_BY_MEDIA_TYPE[mime] ?? null;
+}
