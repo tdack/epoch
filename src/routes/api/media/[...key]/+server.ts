@@ -4,9 +4,12 @@ import { errorResponse } from '#lib/server/http/error-response.js';
 import { mediaServeDecision } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 
-export const GET: RequestHandler = async ({ params, locals, platform }) => {
+export const GET: RequestHandler = async ({ params, locals, platform, request, setHeaders }) => {
 	if (!locals.user) {
-		return Response.json({ error: 'Authentication required' }, { status: 401 });
+		return Response.json(
+			{ error: 'Authentication required' },
+			{ status: 401, headers: { 'Cache-Control': 'no-store' } }
+		);
 	}
 	if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
 		error(500, 'R2 storage binding unavailable');
@@ -17,6 +20,8 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		error(400, 'Media object key required');
 	}
 
+	// Authorization runs before any cacheable answer: a request from a revoked viewer must never
+	// receive a 304, and its failure must not be cached.
 	try {
 		// The key is not a credential: the caller must be able to see the tree and the record it names.
 		await new MediaService(getDb(platform.env.DB)).requireRead(key, {
@@ -24,11 +29,15 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 			correlationId: locals.correlationId
 		});
 	} catch (err) {
-		return errorResponse(err, 'Failed to read media');
+		setHeaders({ 'cache-control': 'no-store' });
+		const response = errorResponse(err, 'Failed to read media');
+		response.headers.set('Cache-Control', 'no-store');
+		return response;
 	}
 
 	const object = await platform.env.MEDIA_BUCKET.get(key);
 	if (!object) {
+		setHeaders({ 'cache-control': 'no-store' });
 		error(404, 'Media object not found');
 	}
 
@@ -44,8 +53,15 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	headers.set('Content-Security-Policy', 'sandbox');
 	headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 	headers.set('Referrer-Policy', 'no-referrer');
-	// Private, not public: a shared cache would hand the object to someone who never passed the check above.
-	headers.set('Cache-Control', 'private, max-age=31536000, immutable');
+	// Private, not public: a shared cache would hand the object to someone who never passed the
+	// check above. No-cache rather than a year of immutable: the bytes may change, so a client must
+	// revalidate (below) instead of reusing a stale private copy.
+	headers.set('Cache-Control', 'private, no-cache');
+
+	// The check above has passed, so an unchanged object answers 304; the ETag is the whole body.
+	if (request.headers.get('if-none-match') === object.httpEtag) {
+		return new Response(null, { status: 304, headers });
+	}
 
 	return new Response(object.body as unknown as ReadableStream, {
 		headers

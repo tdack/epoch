@@ -1,7 +1,8 @@
 /**
  * The serve route must never replay the stored content type. A legacy object uploaded as
  * `text/html` or `image/svg+xml` has to come back as an opaque, non-sniffable attachment, while a
- * real image is still served inline.
+ * real image is still served inline. It also revalidates rather than caching for a year, but never
+ * before the caller has been authorized.
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
@@ -44,15 +45,18 @@ class FakeReadBucket {
 
 const HTML_BYTES = new TextEncoder().encode('<html><body>hi</body></html>');
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_OBJECT: FakeObject = { contentType: 'image/png', body: PNG_BYTES, httpEtag: '"v1"' };
 
 let t: TestDatabase;
 let treeId: string;
 let personId: string;
 let owner: TestActor;
+let stranger: TestActor;
 
 beforeAll(async () => {
 	t = await createTestDatabase();
 	owner = await createTestUser(t.db, 'owner');
+	stranger = await createTestUser(t.db, 'stranger');
 	treeId = await createTestTree(t.db, owner);
 	personId = crypto.randomUUID();
 	await t.db.insert(individuals).values({ id: personId, treeId, givenName: 'Ada' });
@@ -70,11 +74,20 @@ afterAll(async () => {
 	await t.dispose();
 });
 
-function fetchMedia(key: string, object: FakeObject | null) {
+function fetchMedia(
+	key: string,
+	object: FakeObject | null,
+	options: { ifNoneMatch?: string; actor?: TestActor } = {}
+) {
+	const actor = options.actor ?? owner;
 	const event = {
 		params: { key },
-		locals: { user: owner.context.user, correlationId: owner.context.correlationId },
-		platform: { env: { DB: t.d1, MEDIA_BUCKET: new FakeReadBucket(object) } }
+		request: new Request(`http://epoch.test/api/media/${key}`, {
+			headers: options.ifNoneMatch ? { 'if-none-match': options.ifNoneMatch } : {}
+		}),
+		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
+		platform: { env: { DB: t.d1, MEDIA_BUCKET: new FakeReadBucket(object) } },
+		setHeaders: () => {}
 	} as unknown as RequestEvent;
 	return GET(event);
 }
@@ -114,11 +127,7 @@ describe('media serve safety', () => {
 	});
 
 	it('serves a raster image inline', async () => {
-		const response = await fetchMedia(keyFor('photo.png'), {
-			contentType: 'image/png',
-			body: PNG_BYTES,
-			httpEtag: '"png"'
-		});
+		const response = await fetchMedia(keyFor('photo.png'), PNG_OBJECT);
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('image/png');
@@ -135,5 +144,38 @@ describe('media serve safety', () => {
 		for (const [, value] of response.headers) {
 			expect(value).not.toMatch(/[\r\n]/);
 		}
+	});
+});
+
+describe('media revalidation', () => {
+	it('is private, no-cache and revalidated', async () => {
+		const response = await fetchMedia(keyFor('photo.png'), PNG_OBJECT);
+		expect(response.headers.get('cache-control')).toBe('private, no-cache');
+	});
+
+	it('answers 304 with no body when If-None-Match matches', async () => {
+		const response = await fetchMedia(keyFor('photo.png'), PNG_OBJECT, { ifNoneMatch: '"v1"' });
+
+		expect(response.status).toBe(304);
+		expect(await response.text()).toBe('');
+		expect(response.headers.get('etag')).toBe('"v1"');
+		expect(response.headers.get('cache-control')).toBe('private, no-cache');
+	});
+
+	it('answers 200 with the body when If-None-Match differs', async () => {
+		const response = await fetchMedia(keyFor('photo.png'), PNG_OBJECT, { ifNoneMatch: '"other"' });
+
+		expect(response.status).toBe(200);
+		expect((await response.arrayBuffer()).byteLength).toBe(PNG_BYTES.byteLength);
+	});
+
+	it('never answers 304 to a caller who may not read the object', async () => {
+		const response = await fetchMedia(keyFor('photo.png'), PNG_OBJECT, {
+			ifNoneMatch: '"v1"',
+			actor: stranger
+		});
+
+		expect(response.status).not.toBe(304);
+		expect(response.headers.get('cache-control')).toBe('no-store');
 	});
 });
