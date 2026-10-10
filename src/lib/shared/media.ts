@@ -24,6 +24,9 @@ export type UploadMediaType = (typeof UPLOAD_MEDIA_TYPES)[number];
 /** The upload input's `accept` attribute, built from the same list the server enforces. */
 export const MEDIA_UPLOAD_ACCEPT = UPLOAD_MEDIA_TYPES.join(',');
 
+/** How many bytes an upload may carry. The route rejects a larger body before reading it. */
+export const MAX_MEDIA_UPLOAD_BYTES = 25 * 1024 * 1024;
+
 /** Whether a stored type may be rendered inline on our own origin. */
 export function isInlineMediaType(mime: string | undefined | null): mime is InlineMediaType {
 	return mime != null && (INLINE_MEDIA_TYPES as readonly string[]).includes(mime);

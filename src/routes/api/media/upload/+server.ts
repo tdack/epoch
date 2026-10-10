@@ -1,8 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
-import { validateMediaUpload } from '#lib/server/media/media-type.js';
+import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
+import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
+
+/** Multipart framing around the file (boundaries, headers) costs a little over the file itself. */
+const MULTIPART_SLACK_BYTES = 64 * 1024;
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	if (!locals.user) {
@@ -10,6 +14,20 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 	if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
 		return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
+	}
+
+	// Refuse an oversized body before parsing it. A chunked request has no Content-Length, hence the
+	// post-parse check further down, which inspects the actual file size.
+	const declaredLength = request.headers.get('content-length');
+	if (declaredLength === null) {
+		return Response.json({ error: 'A Content-Length header is required' }, { status: 411 });
+	}
+	const declaredBytes = Number(declaredLength);
+	if (!Number.isFinite(declaredBytes)) {
+		return Response.json({ error: 'A valid Content-Length header is required' }, { status: 411 });
+	}
+	if (declaredBytes > MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES) {
+		return Response.json({ error: 'Upload is too large' }, { status: 413 });
 	}
 
 	const formData = await request.formData();
@@ -23,6 +41,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 
 	try {
+		assertUploadWithinSizeLimit(file.size);
+
 		// Before a byte is stored: the caller must be allowed to add media to this record of this tree.
 		const db = getDb(platform.env.DB);
 		const service = new MediaService(db);

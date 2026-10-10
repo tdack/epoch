@@ -72,6 +72,14 @@ export class ValidationError extends DomainError {
 	}
 }
 
+/** A request body was larger than the endpoint allows (HTTP 413). */
+export class PayloadTooLargeError extends DomainError {
+	constructor(message = 'Payload too large') {
+		super(message, 'VALIDATION_ERROR', 413);
+		this.name = 'PayloadTooLargeError';
+	}
+}
+
 export class ConcurrencyConflictError extends DomainError {
 	constructor(
 		message = 'The record was modified by another collaborator. Please refresh and try again.',

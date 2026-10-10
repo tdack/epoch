@@ -4,8 +4,13 @@
  * tests can call it directly.
  */
 
-import { ValidationError } from '../domain/errors';
-import { extensionForMediaType, isInlineMediaType, isUploadMediaType } from '../../shared/media';
+import { PayloadTooLargeError, ValidationError } from '../domain/errors';
+import {
+	extensionForMediaType,
+	isInlineMediaType,
+	isUploadMediaType,
+	MAX_MEDIA_UPLOAD_BYTES
+} from '../../shared/media';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const PDF_MAGIC = '%PDF-';
@@ -70,6 +75,16 @@ export function validateMediaUpload(
 		throw new ValidationError(`No extension for media type: ${sniffed}`);
 	}
 	return { mimeType: sniffed, extension };
+}
+
+/**
+ * Backstop for a body whose size could not be known before parsing: a chunked request carries no
+ * `Content-Length`, so the route checks the parsed file size here as well.
+ */
+export function assertUploadWithinSizeLimit(size: number): void {
+	if (size > MAX_MEDIA_UPLOAD_BYTES) {
+		throw new PayloadTooLargeError(`Upload exceeds the ${MAX_MEDIA_UPLOAD_BYTES} byte limit`);
+	}
 }
 
 /**

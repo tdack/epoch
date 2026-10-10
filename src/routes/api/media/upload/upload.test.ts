@@ -15,6 +15,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
+import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
 import { POST } from './+server.js';
 
 function ascii(text: string): number[] {
@@ -70,17 +71,24 @@ beforeEach(() => {
 	bucket = new FakeMediaBucket();
 });
 
+function makeEvent(actor: TestActor, request: Request) {
+	return {
+		request,
+		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
+		platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket } }
+	} as unknown as RequestEvent;
+}
+
 function upload(actor: TestActor, file: File) {
 	const body = new FormData();
 	body.set('file', file);
 	body.set('treeId', treeId);
 	body.set('entityId', personId);
-	const event = {
-		request: new Request('http://epoch.test/api/media/upload', { method: 'POST', body }),
-		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
-		platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket } }
-	} as unknown as RequestEvent;
-	return POST(event);
+	// Node's Request sizes a multipart body but never exposes Content-Length as a header, which the
+	// route (like a real client) needs. Supply it so parsing is reached.
+	const headers = new Headers();
+	headers.set('content-length', String(file.size + 1024));
+	return POST(makeEvent(actor, { headers, formData: async () => body } as unknown as Request));
 }
 
 describe('media upload type checks', () => {
@@ -123,5 +131,55 @@ describe('media upload type checks', () => {
 			.where(eq(mediaItems.id, body.media.id))
 			.get();
 		expect(row?.mimeType).toBe('image/png');
+	});
+});
+
+describe('media upload size limits', () => {
+	it('rejects an oversized Content-Length before parsing the body', async () => {
+		const headers = new Headers();
+		headers.set('content-length', String(MAX_MEDIA_UPLOAD_BYTES + 1024 * 1024));
+		const request = {
+			headers,
+			formData: async () => {
+				throw new Error('the body must not be parsed');
+			}
+		} as unknown as Request;
+
+		const response = await POST(makeEvent(owner, request));
+		expect(response.status).toBe(413);
+	});
+
+	it('requires a Content-Length header', async () => {
+		const request = {
+			headers: new Headers(),
+			formData: async () => new FormData()
+		} as unknown as Request;
+
+		const response = await POST(makeEvent(owner, request));
+		expect(response.status).toBe(411);
+	});
+
+	it('rejects a file just over the cap after parsing (no reliable length)', async () => {
+		// A declared length inside the slack window passes the pre-check, so the parsed file size is
+		// what stops it. Chunked requests have no length at all and reach the same backstop.
+		const headers = new Headers();
+		headers.set('content-length', String(MAX_MEDIA_UPLOAD_BYTES + 1));
+		const form = {
+			get: (name: string) =>
+				name === 'file'
+					? { size: MAX_MEDIA_UPLOAD_BYTES + 1, name: 'big.png', type: 'image/png' }
+					: name === 'treeId'
+						? treeId
+						: name === 'entityId'
+							? personId
+							: null
+		};
+		const request = {
+			headers,
+			formData: async () => form
+		} as unknown as Request;
+
+		const response = await POST(makeEvent(owner, request));
+		expect(response.status).toBe(413);
 	});
 });
