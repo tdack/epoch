@@ -12,6 +12,7 @@ vi.mock('#lib/services/tree-api.js', () => ({
 	startGedcomExport: vi.fn(),
 	exportStatusApi: vi.fn(),
 	clearExportClientUuid: vi.fn(),
+	isExpiredExportError: vi.fn(),
 	exportDownloadUrl: (instanceId: string) => `/api/export/download/${instanceId}`,
 	gedcomExportUrl: (treeId: string, choice: { format: string; shouldCompress: boolean }) =>
 		`/api/export?treeId=${treeId}&format=${choice.format}${
@@ -23,6 +24,7 @@ const choice = { format: 'gedcom7', shouldCompress: false } as const;
 const start = vi.mocked(api.startGedcomExport);
 const status = vi.mocked(api.exportStatusApi);
 const clearClientUuid = vi.mocked(api.clearExportClientUuid);
+const isExpired = vi.mocked(api.isExpiredExportError);
 const navigations: string[] = [];
 
 function setup() {
@@ -101,6 +103,58 @@ describe('TreeShell.exportGedcom', () => {
 
 		expect(navigations).toEqual([]);
 		expect(toasts.items.at(-1)?.message).toContain('failed');
+	});
+
+	it('forgets the instance and client id when the export has expired, so the next click is new', async () => {
+		vi.useFakeTimers();
+		const { shell } = setup();
+		start.mockResolvedValue({ status: 'started', instanceId: 'i1' });
+		status.mockRejectedValue(new Error('gone'));
+		isExpired.mockReturnValue(true);
+
+		const running = shell.exportGedcom(choice);
+		await vi.advanceTimersByTimeAsync(2_000);
+		await running;
+
+		expect(clearClientUuid).toHaveBeenCalledWith('t1', choice);
+		expect(shell.pendingExportInstanceId).toBeNull();
+		expect(sessionStorage.getItem('epoch.export.pending')).toBeNull();
+	});
+
+	it('keeps the instance and client id on a non-expiry failure, so the next click can resume', async () => {
+		vi.useFakeTimers();
+		const { shell } = setup();
+		start.mockResolvedValue({ status: 'started', instanceId: 'i1' });
+		status.mockRejectedValue(new Error('network'));
+		isExpired.mockReturnValue(false);
+
+		const running = shell.exportGedcom(choice);
+		await vi.advanceTimersByTimeAsync(2_000);
+		await running;
+
+		expect(clearClientUuid).not.toHaveBeenCalled();
+		expect(shell.pendingExportInstanceId).toBe('i1');
+	});
+
+	it('forgets the instance and client id when a resumed export has expired', async () => {
+		vi.useFakeTimers();
+		const { shell } = setup();
+		start.mockResolvedValue({ status: 'started', instanceId: 'i1' });
+		status.mockResolvedValue({ status: 'running' });
+
+		const running = shell.exportGedcom(choice);
+		await vi.advanceTimersByTimeAsync(200_000);
+		await running;
+		expect(shell.pendingExportInstanceId).toBe('i1');
+
+		status.mockRejectedValue(new Error('gone'));
+		isExpired.mockReturnValue(true);
+		const resume = shell.resumeExport();
+		await vi.advanceTimersByTimeAsync(2_000);
+		await resume;
+
+		expect(clearClientUuid).toHaveBeenCalledWith('t1', choice);
+		expect(shell.pendingExportInstanceId).toBeNull();
 	});
 
 	it('forgets the client id once an export completes, so a later export is a new instance', async () => {

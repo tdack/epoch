@@ -11,6 +11,7 @@ import {
 	exportDownloadUrl,
 	exportStatusApi,
 	gedcomExportUrl,
+	isExpiredExportError,
 	renameTreeApi,
 	previewGedcomImport,
 	startGedcomExport,
@@ -208,7 +209,7 @@ export class TreeShell {
 			writePendingExport({ treeId, instanceId: start.instanceId, choice });
 			await this.pollExport(start.instanceId, treeId, choice);
 		} catch (err) {
-			this.reportExportFailure(err);
+			this.handleExportError(err, treeId, choice);
 		} finally {
 			this.isExporting = false;
 		}
@@ -225,7 +226,7 @@ export class TreeShell {
 		try {
 			await this.pollExport(pending.instanceId, pending.treeId, pending.choice);
 		} catch (err) {
-			this.reportExportFailure(err);
+			this.handleExportError(err, pending.treeId, pending.choice);
 		} finally {
 			this.isExporting = false;
 		}
@@ -282,6 +283,21 @@ export class TreeShell {
 		const message = (err as Error)?.message || 'Export failed';
 		this.exportError = message;
 		this.options.toasts.push(message);
+	}
+
+	/**
+	 * Handle a failed export call. When the server says the instance is gone (404) or its file has
+	 * expired (410), forget both the resume offer and the client id, so the next click mints a fresh
+	 * instance instead of retrying a dead one forever. The failure is then reported as usual.
+	 */
+	private handleExportError(err: unknown, treeId: string, choice: GedcomExportChoice): void {
+		if (isExpiredExportError(err)) {
+			writePendingExport(null);
+			this.pendingExportInstanceId = null;
+			this.exportStatus = null;
+			clearExportClientUuid(treeId, choice);
+		}
+		this.reportExportFailure(err);
 	}
 
 	selectFile = (e: Event) => {

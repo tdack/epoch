@@ -60,12 +60,29 @@ function fakeWorkflow() {
 	return { create, get, workflow: { create, get } };
 }
 
+/** A bucket stand-in for the collision path's `head`/`delete`. */
+function fakeBucket(object: unknown) {
+	const head = vi.fn(async () => object);
+	const remove = vi.fn(async () => {});
+	return { bucket: { head, delete: remove }, head, remove };
+}
+
+const freshObject = () => ({
+	uploaded: new Date(),
+	customMetadata: { uploadedAt: new Date().toISOString() }
+});
+const oldObject = () => {
+	const when = new Date(Date.now() - 2 * 86_400_000);
+	return { uploaded: when, customMetadata: { uploadedAt: when.toISOString() } };
+};
+
 function requestEvent(
 	method: string,
 	url: string,
 	actor: TestActor,
 	workflow?: unknown,
-	body?: unknown
+	body?: unknown,
+	bucket?: unknown
 ): RequestEvent {
 	return {
 		request: new Request(url, {
@@ -77,12 +94,18 @@ function requestEvent(
 		url: new URL(url),
 		params: {},
 		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
-		platform: { env: { DB: t.d1, ...(workflow ? { GEDCOM_EXPORT_WORKFLOW: workflow } : {}) } }
+		platform: {
+			env: {
+				DB: t.d1,
+				...(workflow ? { GEDCOM_EXPORT_WORKFLOW: workflow } : {}),
+				...(bucket ? { MEDIA_BUCKET: bucket } : {})
+			}
+		}
 	} as unknown as RequestEvent;
 }
 
-function post(actor: TestActor, body: unknown, workflow?: unknown) {
-	return POST(requestEvent('POST', 'http://epoch.test/api/export', actor, workflow, body));
+function post(actor: TestActor, body: unknown, workflow?: unknown, bucket?: unknown) {
+	return POST(requestEvent('POST', 'http://epoch.test/api/export', actor, workflow, body, bucket));
 }
 
 function download(actor: TestActor, query: string, workflow?: unknown) {
@@ -143,8 +166,56 @@ describe('POST /api/export', () => {
 		expect(create).toHaveBeenCalledWith({
 			id: body.instanceId,
 			params: { treeId: large, userId: owner.userId, format: 'gedcom7', shouldCompress: false },
-			retention: { successRetention: '1 day', errorRetention: '1 day' }
+			retention: { successRetention: '3 days', errorRetention: '7 days' }
 		});
+	});
+
+	it('answers 410 when the collided instance finished but its file is gone', async () => {
+		const clientUuid = uuid();
+		const instanceId = buildExportInstanceId(large, 'gedcom7', false, clientUuid);
+		const create = vi.fn(async () => {
+			throw new Error('instance already exists');
+		});
+		const get = vi.fn(async () => ({
+			id: instanceId,
+			status: async () => ({ status: 'complete' })
+		}));
+		const { bucket } = fakeBucket(null);
+		const response = await post(owner, { treeId: large, clientUuid }, { create, get }, bucket);
+		expect(response.status).toBe(410);
+		expect((await response.json()) as { code: string }).toMatchObject({ code: 'export_expired' });
+	});
+
+	it('deletes an aged-out collided object and answers 410', async () => {
+		const clientUuid = uuid();
+		const instanceId = buildExportInstanceId(large, 'gedcom7', false, clientUuid);
+		const create = vi.fn(async () => {
+			throw new Error('instance already exists');
+		});
+		const get = vi.fn(async () => ({
+			id: instanceId,
+			status: async () => ({ status: 'complete' })
+		}));
+		const { bucket, remove } = fakeBucket(oldObject());
+		const response = await post(owner, { treeId: large, clientUuid }, { create, get }, bucket);
+		expect(response.status).toBe(410);
+		expect(remove).toHaveBeenCalledTimes(1);
+	});
+
+	it('answers started when the collided instance finished and its file is still fresh', async () => {
+		const clientUuid = uuid();
+		const instanceId = buildExportInstanceId(large, 'gedcom7', false, clientUuid);
+		const create = vi.fn(async () => {
+			throw new Error('instance already exists');
+		});
+		const get = vi.fn(async () => ({
+			id: instanceId,
+			status: async () => ({ status: 'complete' })
+		}));
+		const { bucket } = fakeBucket(freshObject());
+		const response = await post(owner, { treeId: large, clientUuid }, { create, get }, bucket);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ status: 'started', instanceId });
 	});
 
 	it('treats a create that failed because our own id is already running as started', async () => {

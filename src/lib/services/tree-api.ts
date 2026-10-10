@@ -100,6 +100,15 @@ export function isConflict(error: unknown): error is ConflictError {
 }
 
 /**
+ * Whether a failed export call means the instance is gone for good: the workflow no longer knows it
+ * (HTTP 404) or its file aged out (HTTP 410). A caller must then forget the instance and its client
+ * id, so the next export starts a new instance rather than resuming one that can never succeed.
+ */
+export function isExpiredExportError(error: unknown): boolean {
+	return error instanceof ApiError && (error.status === 404 || error.status === 410);
+}
+
+/**
  * Send the browser through `/login` after the session expired. It must be a full navigation, not
  * `goto`: only Access, which sees the request, can renew the cookie, and `/login` is the one path
  * it covers. Does nothing outside the browser.

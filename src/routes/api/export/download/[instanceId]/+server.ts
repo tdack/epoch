@@ -31,6 +31,21 @@ async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {
 }
 
 /**
+ * Remove an object whose instance is gone. An instance can be purged independently of its file
+ * (an operator, a deployment, a shorter retention than this app asks for), which would otherwise
+ * strand the object until the lifecycle rule runs. Best effort, and the key comes from the parsed
+ * id, never the client. The lifecycle rule is the backstop if the head or delete fails.
+ */
+async function discardOrphan(bucket: R2Bucket, parsed: ParsedExportInstance): Promise<void> {
+	try {
+		const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
+		if (await bucket.head(fileKey)) await bucket.delete(fileKey);
+	} catch {
+		// The lifecycle rule is the backstop if the head or delete fails.
+	}
+}
+
+/**
  * The finished file of an asynchronous export. It streams only a complete export, derives the
  * object key from the instance id (never from the client), and re-checks the retention window at
  * read time, because the lifecycle rule is a backstop and not a guarantee.
@@ -50,6 +65,9 @@ export const GET = apiHandler(
 		try {
 			instance = await workflow.get(params.instanceId);
 		} catch {
+			// The runtime no longer knows the instance: it has been purged. Its file, if the workflow
+			// wrote one, is now an orphan, so clear it before answering the same 404.
+			await discardOrphan(bucket, parsed);
 			throw new NotFoundError('Export');
 		}
 

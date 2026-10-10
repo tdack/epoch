@@ -206,4 +206,17 @@ describe('the async export helpers', () => {
 		const { exportDownloadUrl } = await loadApi(false);
 		expect(exportDownloadUrl('a b')).toBe('/api/export/download/a%20b');
 	});
+
+	it('treats only a 404 or 410 as an expired export', async () => {
+		const { isExpiredExportError, ApiError } = await loadApi(false);
+		expect(isExpiredExportError(new ApiError('gone', 404, 'NOT_FOUND', undefined))).toBe(true);
+		expect(isExpiredExportError(new ApiError('expired', 410, 'export_expired', undefined))).toBe(
+			true
+		);
+		// Anything else — a refusal, a transient failure, a plain error — is not terminal.
+		expect(isExpiredExportError(new ApiError('forbidden', 403, 'UNAUTHORIZED', undefined))).toBe(
+			false
+		);
+		expect(isExpiredExportError(new Error('network'))).toBe(false);
+	});
 });

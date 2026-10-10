@@ -50,6 +50,13 @@ function bucketWithObject(object: unknown) {
 	return { bucket: { get, delete: remove }, get, remove };
 }
 
+/** A bucket whose `head` a purge/delete test dictates; the download route only heads when cleaning up. */
+function bucketWithHead(object: unknown) {
+	const head = vi.fn(async () => object);
+	const remove = vi.fn(async () => {});
+	return { bucket: { head, delete: remove }, head, remove };
+}
+
 const id = () => buildExportInstanceId(treeId, 'gedcom7', false, crypto.randomUUID());
 const storedObject = () => ({
 	uploaded: new Date(),
@@ -119,5 +126,29 @@ describe('GET /api/export/download/[instanceId]', () => {
 		);
 		expect(response.status).toBe(410);
 		expect(remove).toHaveBeenCalledTimes(1);
+	});
+
+	it('removes an orphaned object and answers 404 when the instance has been purged', async () => {
+		const get = vi.fn(async () => {
+			throw new Error('instance not found');
+		});
+		const { bucket, remove } = bucketWithHead(storedObject());
+		const response = await GET(
+			eventFor(id(), { GEDCOM_EXPORT_WORKFLOW: { get }, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(404);
+		expect(remove).toHaveBeenCalledTimes(1);
+	});
+
+	it('answers 404 without deleting when a purged instance left no object', async () => {
+		const get = vi.fn(async () => {
+			throw new Error('instance not found');
+		});
+		const { bucket, remove } = bucketWithHead(null);
+		const response = await GET(
+			eventFor(id(), { GEDCOM_EXPORT_WORKFLOW: { get }, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(404);
+		expect(remove).not.toHaveBeenCalled();
 	});
 });

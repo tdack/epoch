@@ -1,12 +1,16 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { downloadHeaders } from '#lib/server/http/export-download.js';
-import { ExportUnavailableError } from '#lib/server/domain/errors.js';
+import { ExportExpiredError, ExportUnavailableError } from '#lib/server/domain/errors.js';
+import type { R2Bucket } from '@cloudflare/workers-types';
 import { assertExportable, GedcomService } from '#lib/server/services/gedcom-service.js';
 import { DEFAULT_GEDCOM_FORMAT, type GedcomFormat } from '#lib/server/gedcom/tags.js';
 import { exportBodySchema } from '#lib/server/validation/schemas.js';
 import {
 	buildExportInstanceId,
 	EXPORT_STATES,
+	exportObjectKey,
+	exportWriteTime,
+	isExportExpired,
 	mapWorkflowStatus,
 	parseExportInstanceId
 } from '#lib/server/workflows/export-instance.js';
@@ -19,7 +23,25 @@ const LARGE_EXPORT_INDIVIDUALS = 5000;
 /** The most a synchronous download will ever build, whether or not a workflow is bound. */
 const MAX_SYNC_EXPORT_INDIVIDUALS = 50000;
 
+/**
+ * How long the runtime keeps the instance. Deliberately longer than the object's 24-hour window:
+ * the client reads the file through the instance, so an instance purged first would strand a file
+ * that is still downloadable. Success outlives the file (3 days); an errored instance is kept a
+ * week for diagnosis. This wins over the binding's `default_retention`, which only applies to an
+ * instance created without one — and this route always passes one.
+ */
+const EXPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' };
+
 const options = { failure: 'Export failed', messagePrefix: 'Export failed: ' };
+
+/** Best-effort delete of an object whose instance is gone: the lifecycle rule is the backstop. */
+async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {
+	try {
+		await bucket.delete(fileKey);
+	} catch {
+		// The object is beyond use whether or not the delete lands, so the answer is unchanged.
+	}
+}
 
 function resolveFormat(raw: string | null): GedcomFormat {
 	return raw === 'gedcom551' || raw === 'gedcom7' ? raw : DEFAULT_GEDCOM_FORMAT;
@@ -75,7 +97,8 @@ export const POST = apiHandler(
 		assertExportable({ format, shouldCompress });
 
 		const env = event.platform?.env;
-		const service = new GedcomService(db, { bucket: env?.MEDIA_BUCKET });
+		const bucket = env?.MEDIA_BUCKET;
+		const service = new GedcomService(db, { bucket });
 		await service.requireExport(treeId, ctx);
 
 		// The size decides before the binding does: a tree small enough to build in the request is
@@ -104,24 +127,33 @@ export const POST = apiHandler(
 			await workflow.create({
 				id: instanceId,
 				params: { treeId, userId: ctx.user.id, format, shouldCompress },
-				retention: { successRetention: '1 day', errorRetention: '1 day' }
+				retention: EXPORT_INSTANCE_RETENTION
 			});
 		} catch {
 			// `create` fails for a handful of reasons; the common one is that this exact id already
 			// exists (the client retried, or two clicks raced). Prove it by reading that same id back —
-			// never a client-supplied one — and only an instance that parses to our id and has not
-			// errored counts as already running. The failure's text is never inspected, and nothing is
-			// restarted: for a retry-safe client id, "already there" and "started now" are the same.
+			// never a client-supplied one — and only an instance that parses to our id counts. The
+			// failure's text is never inspected, and nothing is restarted: for a retry-safe client id,
+			// "already there" and "started now" are the same.
 			const existing = await workflow.get(instanceId).catch(() => null);
-			const roundTrip = existing ? parseExportInstanceId(existing.id) : null;
-			const status = existing ? await existing.status().catch(() => null) : null;
-			const isLiveExisting =
-				existing !== null &&
-				existing.id === instanceId &&
-				roundTrip !== null &&
-				status !== null &&
-				mapWorkflowStatus(status.status) !== EXPORT_STATES.errored;
-			if (!isLiveExisting) throw new ExportUnavailableError();
+			const parsed =
+				existing && existing.id === instanceId ? parseExportInstanceId(existing.id) : null;
+			const runtimeStatus = existing ? await existing.status().catch(() => null) : null;
+			if (!parsed || !runtimeStatus) throw new ExportUnavailableError();
+			const state = mapWorkflowStatus(runtimeStatus.status);
+			if (state === EXPORT_STATES.errored) throw new ExportUnavailableError();
+			// A finished instance is only usable while its file is still there and within its window.
+			// An instance whose file is gone or aged out can never be downloaded, so it must not be
+			// answered as started; the object, if it lingers, is cleared now.
+			if (state === EXPORT_STATES.complete) {
+				if (!bucket) throw new ExportUnavailableError();
+				const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
+				const object = await bucket.head(fileKey).catch(() => null);
+				if (!object || isExportExpired(exportWriteTime(object))) {
+					if (object) await discard(bucket, fileKey);
+					throw new ExportExpiredError();
+				}
+			}
 		}
 		return { status: 'started', instanceId };
 	}

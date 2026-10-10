@@ -138,4 +138,28 @@ describe('GET /api/export/status/[instanceId]', () => {
 		expect((await response.json()) as { code: string }).toMatchObject({ code: 'export_expired' });
 		expect(remove).toHaveBeenCalledTimes(1);
 	});
+
+	it('removes an orphaned object and answers 404 when the instance has been purged', async () => {
+		const get = vi.fn(async () => {
+			throw new Error('instance not found');
+		});
+		const { bucket, remove } = bucketWithHead(freshObject());
+		const response = await GET(
+			eventFor(id(), owner, { GEDCOM_EXPORT_WORKFLOW: { get }, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(404);
+		expect(remove).toHaveBeenCalledTimes(1);
+	});
+
+	it('answers 404 without deleting when a purged instance left no object', async () => {
+		const get = vi.fn(async () => {
+			throw new Error('instance not found');
+		});
+		const { bucket, remove } = bucketWithHead(null);
+		const response = await GET(
+			eventFor(id(), owner, { GEDCOM_EXPORT_WORKFLOW: { get }, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(404);
+		expect(remove).not.toHaveBeenCalled();
+	});
 });

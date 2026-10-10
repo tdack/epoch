@@ -43,8 +43,8 @@
 			"binding": "GEDCOM_EXPORT_WORKFLOW",
 			"class_name": "GedcomExportWorkflow",
 			"default_retention": {
-				"success_retention": "1 day",
-				"error_retention": "1 day"
+				"success_retention": "3 days",
+				"error_retention": "7 days"
 			}
 		}
 	],
