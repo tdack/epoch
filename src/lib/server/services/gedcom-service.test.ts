@@ -207,7 +207,7 @@ describe('export', () => {
 			'g551',
 			clientUuid
 		);
-		expect(key).toBe(`exports/${s.treeId}-${clientUuid}.ged`);
+		expect(key).toBe(`exports/${s.treeId}-g551-${clientUuid}.ged`);
 		expect(objects.get(key)?.options).toMatchObject({
 			httpMetadata: {
 				contentType: 'text/vnd.familysearch.gedcom',
@@ -233,7 +233,7 @@ describe('export', () => {
 
 		const clientUuid = crypto.randomUUID();
 		const key = await service.storeExport(s.treeId, 'Fox', '0 HEAD\n0 TRLR', 'g7z', clientUuid);
-		expect(key).toBe(`exports/${s.treeId}-${clientUuid}.gdz`);
+		expect(key).toBe(`exports/${s.treeId}-g7z-${clientUuid}.gdz`);
 		expect(objects.get(key)?.options).toMatchObject({
 			httpMetadata: { contentDisposition: 'attachment; filename="Fox.gdz"' },
 			customMetadata: { uploadedAt: expect.any(String) }

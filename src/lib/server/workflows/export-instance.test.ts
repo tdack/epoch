@@ -90,25 +90,32 @@ describe('parseExportInstanceId', () => {
 describe('exportObjectKey / matchesExportKey', () => {
 	it('derives the key from the same parts, choosing the extension by token', () => {
 		expect(exportObjectKey(TREE, 'g551', CLIENT)).toBe(
-			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-${CLIENT}.ged`
+			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-g551-${CLIENT}.ged`
 		);
 		expect(exportObjectKey(TREE, 'g7', CLIENT)).toBe(
-			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-${CLIENT}.ged`
+			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-g7-${CLIENT}.ged`
 		);
 		expect(exportObjectKey(TREE, 'g7z', CLIENT)).toBe(
-			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-${CLIENT}.gdz`
+			`${EXPORT_LIFECYCLE_PREFIX}${TREE}-g7z-${CLIENT}.gdz`
 		);
 		expect(exportObjectKey(TREE, 'g7z', CLIENT).startsWith(EXPORT_LIFECYCLE_PREFIX)).toBe(true);
+	});
+
+	it('puts the token in the name, so two dialects cannot collide on one key', () => {
+		// A `.ged` file is either 5.5.1 or 7.0: without the token these two exports of the same tree
+		// and client id would name the same object and one would serve the other's bytes.
+		expect(exportObjectKey(TREE, 'g551', CLIENT)).not.toBe(exportObjectKey(TREE, 'g7', CLIENT));
 	});
 
 	it('matches only the exact key the instance names', () => {
 		const parsed = parseExportInstanceId(buildExportInstanceId(TREE, 'gedcom7', false, CLIENT))!;
 		expect(matchesExportKey(exportObjectKey(TREE, 'g7', CLIENT), parsed)).toBe(true);
-		// A different client, another tree, or the compressed form is not this export.
-		expect(matchesExportKey(`exports/${TREE}-${CLIENT}.gdz`, parsed)).toBe(false);
-		expect(matchesExportKey(`exports/${TREE}-${CLIENT}0.ged`, parsed)).toBe(false);
-		expect(matchesExportKey(`exports/${TREE}x-${CLIENT}.ged`, parsed)).toBe(false);
-		expect(matchesExportKey(`media/${TREE}-${CLIENT}.ged`, parsed)).toBe(false);
+		// A different client, another tree, the 5.5.1 form, or the compressed form is not this export.
+		expect(matchesExportKey(`exports/${TREE}-g551-${CLIENT}.ged`, parsed)).toBe(false);
+		expect(matchesExportKey(`exports/${TREE}-g7-${CLIENT}.gdz`, parsed)).toBe(false);
+		expect(matchesExportKey(`exports/${TREE}-g7-${CLIENT}0.ged`, parsed)).toBe(false);
+		expect(matchesExportKey(`exports/${TREE}x-g7-${CLIENT}.ged`, parsed)).toBe(false);
+		expect(matchesExportKey(`media/${TREE}-g7-${CLIENT}.ged`, parsed)).toBe(false);
 	});
 });
 

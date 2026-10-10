@@ -122,7 +122,7 @@ describe('GedcomExportWorkflow', () => {
 		// The step retries once, not Cloudflare's default handful: a build that OOMs would only OOM again.
 		expect(configs).toEqual([{ retries: { limit: 1 } }]);
 		expect(result).toEqual({
-			fileKey: `exports/${s.treeId}-${clientUuid}.ged`,
+			fileKey: `exports/${s.treeId}-g7-${clientUuid}.ged`,
 			format: 'gedcom7',
 			shouldCompress: false
 		});

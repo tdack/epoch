@@ -95,14 +95,18 @@ export function parseExportInstanceId(instanceId: string): ParsedExportInstance 
 	};
 }
 
-/** The R2 key an export's instance writes. The prefix is the lifecycle rule's scope. */
+/**
+ * The R2 key an export's instance writes. The prefix is the lifecycle rule's scope. The format
+ * token sits in the name as well as the extension: a `.ged` file can be 5.5.1 or 7.0, so without
+ * the token a client id reused across two dialects would collide and serve the wrong one.
+ */
 export function exportObjectKey(
 	treeId: string,
 	token: ExportFormatToken,
 	clientUuid: string
 ): string {
 	const extension = token === 'g7z' ? 'gdz' : 'ged';
-	return `${EXPORT_LIFECYCLE_PREFIX}${treeId}-${clientUuid}.${extension}`;
+	return `${EXPORT_LIFECYCLE_PREFIX}${treeId}-${token}-${clientUuid}.${extension}`;
 }
 
 /**
