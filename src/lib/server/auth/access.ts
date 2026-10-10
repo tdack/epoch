@@ -52,7 +52,35 @@ export function isLocalHostname(hostname: string): boolean {
 	return LOCAL_HOSTNAMES.includes(hostname);
 }
 
-let jwksCache: { domain: string; keys: JWK[]; expiresAt: number } | null = null;
+interface JwksCache {
+	domain: string;
+	keys: JWK[];
+	expiresAt: number;
+	/** When these keys were last fetched; the basis for the staleness bound below. */
+	fetchedAt: number;
+}
+
+/** Access rotates signing keys; a copy older than this is refetched on the next request. */
+const JWKS_CACHE_TTL_MS = 10 * 60 * 1000;
+/** A certs request must never hang a request thread; there is deliberately no retry. */
+const JWKS_REQUEST_TIMEOUT_MS = 3_000;
+/**
+ * An unknown `kid` usually means Access rotated to a key we have not seen. We refetch once, but at
+ * most once per this interval: otherwise a flood of tokens naming a bogus `kid` would turn every
+ * verification into a request to the certs endpoint.
+ */
+const JWKS_MIN_FORCE_INTERVAL_MS = 60_000;
+/**
+ * A forced refetch that fails keeps serving the previously cached keys, but never past this age:
+ * a key that Access has revoked must stop being trusted within a bounded window.
+ */
+const JWKS_MAX_STALE_MS = 24 * 60 * 60 * 1000;
+
+let jwksCache: JwksCache | null = null;
+/** Coalesces concurrent cold-isolate fetches so a burst of tokens makes one certs request. */
+let inFlightJwks: { domain: string; promise: Promise<JWK[]> } | null = null;
+/** When the cached keys were last force-refetched for an unknown `kid`. */
+let lastForcedFetchAt = 0;
 
 function base64UrlDecode(str: string): Uint8Array {
 	if (typeof Buffer !== 'undefined') {
@@ -93,30 +121,75 @@ function parseJwtParts(token: string): {
 	return { header, payload, signature, signedData };
 }
 
+async function loadJwks(certsUrl: string): Promise<JWK[]> {
+	if (inFlightJwks && inFlightJwks.domain === certsUrl) {
+		return inFlightJwks.promise;
+	}
+	const promise = requestJwks(certsUrl).finally(() => {
+		if (inFlightJwks?.promise === promise) inFlightJwks = null;
+	});
+	inFlightJwks = { domain: certsUrl, promise };
+	return promise;
+}
+
+async function requestJwks(certsUrl: string): Promise<JWK[]> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), JWKS_REQUEST_TIMEOUT_MS);
+	try {
+		const res = await fetch(certsUrl, { signal: controller.signal });
+		if (!res.ok) {
+			throw new UnauthenticatedError(`Failed to fetch Access certificates: ${res.statusText}`);
+		}
+
+		const data = (await res.json()) as JWKS;
+		if (!data?.keys || !Array.isArray(data.keys)) {
+			throw new UnauthenticatedError('Invalid JWKS response from Access certs endpoint');
+		}
+
+		const now = Date.now();
+		jwksCache = {
+			domain: certsUrl,
+			keys: data.keys,
+			expiresAt: now + JWKS_CACHE_TTL_MS,
+			fetchedAt: now
+		};
+
+		return data.keys;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 async function fetchJwks(certsUrl: string): Promise<JWK[]> {
 	const now = Date.now();
 	if (jwksCache && jwksCache.domain === certsUrl && jwksCache.expiresAt > now) {
 		return jwksCache.keys;
 	}
+	return loadJwks(certsUrl);
+}
 
-	const res = await fetch(certsUrl);
-	if (!res.ok) {
-		throw new UnauthenticatedError(`Failed to fetch Access certificates: ${res.statusText}`);
+/**
+ * Refetch once for an unknown `kid`, in case Access rotated keys. Capped at one attempt per
+ * `JWKS_MIN_FORCE_INTERVAL_MS`; on failure the previous keys stay in use until `JWKS_MAX_STALE_MS`
+ * have elapsed, at which point the fetch error is surfaced rather than trusting a revoked key.
+ */
+async function fetchJwksForUnknownKid(certsUrl: string): Promise<JWK[]> {
+	const now = Date.now();
+	const cached = jwksCache && jwksCache.domain === certsUrl ? jwksCache : null;
+
+	if (now - lastForcedFetchAt < JWKS_MIN_FORCE_INTERVAL_MS) {
+		return cached ? cached.keys : loadJwks(certsUrl);
 	}
 
-	const data = (await res.json()) as JWKS;
-	if (!data?.keys || !Array.isArray(data.keys)) {
-		throw new UnauthenticatedError('Invalid JWKS response from Access certs endpoint');
+	lastForcedFetchAt = now;
+	try {
+		return await loadJwks(certsUrl);
+	} catch (err) {
+		if (cached && now - cached.fetchedAt <= JWKS_MAX_STALE_MS) {
+			return cached.keys;
+		}
+		throw err;
 	}
-
-	// Cache for 10 minutes
-	jwksCache = {
-		domain: certsUrl,
-		keys: data.keys,
-		expiresAt: now + 10 * 60 * 1000
-	};
-
-	return data.keys;
 }
 
 async function verifyRsaSignature(
@@ -211,7 +284,11 @@ export async function validateAccessJwt(
 
 	const certsUrl = `https://${cleanDomain}/cdn-cgi/access/certs`;
 	const keys = await fetchJwks(certsUrl);
-	const matchingKey = keys.find((k) => k.kid === header.kid);
+	let matchingKey = keys.find((k) => k.kid === header.kid);
+	if (!matchingKey) {
+		// An unknown kid may be a key rotation we have not seen yet; refetch once before giving up.
+		matchingKey = (await fetchJwksForUnknownKid(certsUrl)).find((k) => k.kid === header.kid);
+	}
 	if (!matchingKey) {
 		throw new UnauthenticatedError(`No matching key found for kid: ${header.kid}`);
 	}
