@@ -77,8 +77,6 @@ const JWKS_MIN_FORCE_INTERVAL_MS = 60_000;
 const JWKS_MAX_STALE_MS = 24 * 60 * 60 * 1000;
 
 let jwksCache: JwksCache | null = null;
-/** Coalesces concurrent cold-isolate fetches so a burst of tokens makes one certs request. */
-let inFlightJwks: { domain: string; promise: Promise<JWK[]> } | null = null;
 /** When the cached keys were last force-refetched for an unknown `kid`. */
 let lastForcedFetchAt = 0;
 
@@ -121,17 +119,6 @@ function parseJwtParts(token: string): {
 	return { header, payload, signature, signedData };
 }
 
-async function loadJwks(certsUrl: string): Promise<JWK[]> {
-	if (inFlightJwks && inFlightJwks.domain === certsUrl) {
-		return inFlightJwks.promise;
-	}
-	const promise = requestJwks(certsUrl).finally(() => {
-		if (inFlightJwks?.promise === promise) inFlightJwks = null;
-	});
-	inFlightJwks = { domain: certsUrl, promise };
-	return promise;
-}
-
 async function requestJwks(certsUrl: string): Promise<JWK[]> {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), JWKS_REQUEST_TIMEOUT_MS);
@@ -165,7 +152,10 @@ async function fetchJwks(certsUrl: string): Promise<JWK[]> {
 	if (jwksCache && jwksCache.domain === certsUrl && jwksCache.expiresAt > now) {
 		return jwksCache.keys;
 	}
-	return loadJwks(certsUrl);
+	// Each request owns its fetch: sharing an in-flight promise across requests would run the
+	// first request's I/O (and its abort signal) on behalf of a second, so a first-request
+	// disconnect could spuriously reject the second. Only the positive cache is shared.
+	return requestJwks(certsUrl);
 }
 
 /**
@@ -178,12 +168,12 @@ async function fetchJwksForUnknownKid(certsUrl: string): Promise<JWK[]> {
 	const cached = jwksCache && jwksCache.domain === certsUrl ? jwksCache : null;
 
 	if (now - lastForcedFetchAt < JWKS_MIN_FORCE_INTERVAL_MS) {
-		return cached ? cached.keys : loadJwks(certsUrl);
+		return cached ? cached.keys : requestJwks(certsUrl);
 	}
 
 	lastForcedFetchAt = now;
 	try {
-		return await loadJwks(certsUrl);
+		return await requestJwks(certsUrl);
 	} catch (err) {
 		if (cached && now - cached.fetchedAt <= JWKS_MAX_STALE_MS) {
 			return cached.keys;

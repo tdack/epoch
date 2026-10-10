@@ -14,6 +14,12 @@ function b64Url(value: unknown): string {
 	return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+function b64UrlBytes(bytes: Uint8Array): string {
+	let binary = '';
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 function token(kid: string): string {
 	const header = { alg: 'RS256', kid, typ: 'JWT' };
 	const payload = {
@@ -118,8 +124,38 @@ describe('Access certs refresh', () => {
 		expect(seen?.signal?.aborted).toBe(false);
 	});
 
-	it('coalesces concurrent fetches into one request', async () => {
+	it('gives each concurrent cold request its own fetch and both resolve', async () => {
 		const validate = await loadValidate();
+
+		// A real RS256 key lets both validations run all the way to a resolved identity, so the
+		// assertion is about the fetches, not about an unsigned token failing later at verification.
+		const keyPair = (await crypto.subtle.generateKey(
+			{
+				name: 'RSASSA-PKCS1-v1_5',
+				modulusLength: 2048,
+				publicExponent: new Uint8Array([1, 0, 1]),
+				hash: 'SHA-256'
+			},
+			true,
+			['sign', 'verify']
+		)) as CryptoKeyPair;
+		const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey;
+
+		const header = b64Url({ alg: 'RS256', kid: 'kept', typ: 'JWT' });
+		const payload = b64Url({
+			sub: 'user',
+			email: 'user@example.com',
+			iss: ISSUER,
+			aud: 'aud',
+			exp: Math.floor(Date.now() / 1000) + 3600
+		});
+		const signature = await crypto.subtle.sign(
+			'RSASSA-PKCS1-v1_5',
+			keyPair.privateKey,
+			new TextEncoder().encode(`${header}.${payload}`)
+		);
+		const signed = `${header}.${payload}.${b64UrlBytes(new Uint8Array(signature))}`;
+
 		let calls = 0;
 		let release!: () => void;
 		const gate = new Promise<void>((resolve) => {
@@ -128,17 +164,18 @@ describe('Access certs refresh', () => {
 		vi.stubGlobal('fetch', async () => {
 			calls++;
 			await gate;
-			return Response.json({ keys: [jwk('kept')] });
+			return Response.json({ keys: [{ ...publicJwk, kid: 'kept', alg: 'RS256', use: 'sig' }] });
 		});
 
-		// Both tokens name the key the single response carries, so neither triggers a forced refetch:
-		// the only fetch in play is the shared initial one.
-		const first = validate(token('kept'), { teamDomain: TEAM, aud: 'aud' });
-		const second = validate(token('kept'), { teamDomain: TEAM, aud: 'aud' });
-		expect(calls).toBe(1);
-		release();
-		await Promise.allSettled([first, second]);
+		// Two cold requests run at once. No shared in-flight promise means each starts its own
+		// request, so both are in flight before either resolves; a shared one would show a single
+		// call here and tie the second request's I/O to the first.
+		const first = validate(signed, { teamDomain: TEAM, aud: 'aud' });
+		const second = validate(signed, { teamDomain: TEAM, aud: 'aud' });
+		expect(calls).toBe(2);
 
-		expect(calls).toBe(1);
+		release();
+		const results = await Promise.allSettled([first, second]);
+		expect(results.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled']);
 	});
 });
