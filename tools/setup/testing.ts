@@ -119,17 +119,16 @@ export function testContext(options: ContextOptions = {}) {
 	const saved: Manifest[] = [];
 	const report = silentReporter();
 	const cleanup = createCleanup();
+	const raw =
+		options.raw ?? (() => ({ status: 404, body: { success: false, errors: [{ code: 10007 }] } }));
 	const ctx: StepContext = {
 		paths: installPaths(TEST_ROOT),
 		runner,
 		cf:
 			options.cf ??
 			createCloudflareApi(runner, {
-				rawGet: async (path) =>
-					(
-						options.raw ??
-						(() => ({ status: 404, body: { success: false, errors: [{ code: 10007 }] } }))
-					)(path)
+				rawGet: async (path) => raw(path),
+				rawRequest: async (_method, path) => raw(path)
 			}),
 		makeWrangler: () => ({
 			...createWranglerApi(runner, { kind: 'profile', accountId: 'acc' }),

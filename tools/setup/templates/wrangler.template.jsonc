@@ -41,7 +41,11 @@
 		{
 			"name": "epoch-genealogy-export-workflow",
 			"binding": "GEDCOM_EXPORT_WORKFLOW",
-			"class_name": "GedcomExportWorkflow"
+			"class_name": "GedcomExportWorkflow",
+			"default_retention": {
+				"success_retention": "1 day",
+				"error_retention": "1 day"
+			}
 		}
 	],
 	"send_email": [

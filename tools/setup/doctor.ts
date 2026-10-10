@@ -1,5 +1,6 @@
 import type { StepContext } from './context.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
+import { isExportOnlyRule } from './lifecycle.ts';
 import { OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_KEYS, RESOURCE_STATES, reconcile } from './reconcile.ts';
@@ -85,6 +86,15 @@ export async function runDoctor(
 		);
 	}
 	for (const warning of result.warnings) add(FINDING_LEVELS.warn, warning);
+
+	// The export lifecycle rule is what expires finished exports. A missing or wider rule means they
+	// pile up in the bucket; a rule that could expire live media is worse, and is checked at setup.
+	add(
+		(await ctx.cf.getR2Lifecycle(names.r2)).some((rule) => isExportOnlyRule(rule))
+			? FINDING_LEVELS.ok
+			: FINDING_LEVELS.fail,
+		'R2 bucket has an exports/-scoped lifecycle rule that expires after a day'
+	);
 
 	// Drift in the two cookie settings ADR-026 depends on, which are easy to change in the dashboard.
 	const app = (await ctx.cf.listAccessApps()).find((a) => a.id === manifest.access.app?.id);

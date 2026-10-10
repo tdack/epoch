@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCloudflareApi, type RawGet } from './cloudflare.ts';
+import { createCloudflareApi, type RawGet, type RawRequest } from './cloudflare.ts';
 import { SetupError } from './errors.ts';
 import { createRunner } from './run.ts';
 import { fakeExec, fixture } from './testing.ts';
@@ -211,5 +211,69 @@ describe('the permission and token fixes from the real spike run', () => {
 		expect(extractToken(`\n ⛅️ wrangler 4.148.0\n-------------------\n${token}\n`)).toBe(token);
 		expect(extractToken(`⛅️ wrangler 4.148.0\n{"token":"${token}"}`)).toBe(token);
 		expect(() => extractToken('⛅️ wrangler 4.148.0\n')).toThrow('usable token');
+	});
+});
+
+describe('R2 lifecycle rules', () => {
+	const account = 'acc0000000000000000000000000001';
+
+	function withRaw(rawRequest: RawRequest) {
+		const cf = createCloudflareApi(createRunner(fakeExec([])), { rawRequest });
+		cf.useAccount(account);
+		return cf;
+	}
+
+	it('reads the documented `{ result: { rules } }` shape, and a 404 as no rules', async () => {
+		const seen: Array<{ method: string; path: string }> = [];
+		const cf = withRaw(async (method, path) => {
+			seen.push({ method, path });
+			return {
+				status: 200,
+				body: { result: { rules: [{ id: 'r', conditions: { prefix: 'exports/' } }] } }
+			};
+		});
+		expect(await cf.getR2Lifecycle('epoch-media')).toEqual([
+			{ id: 'r', conditions: { prefix: 'exports/' } }
+		]);
+		expect(seen[0]).toEqual({
+			method: 'GET',
+			path: `/accounts/${account}/r2/buckets/epoch-media/lifecycle`
+		});
+		expect(await withRaw(async () => ({ status: 404, body: null })).getR2Lifecycle('b')).toEqual(
+			[]
+		);
+	});
+
+	it('refuses to read “no rules” from a broken response', async () => {
+		await expect(
+			withRaw(async () => ({ status: 500, body: null })).getR2Lifecycle('b')
+		).rejects.toThrow(SetupError);
+	});
+
+	it('writes the rules as `{ rules }`, and fails loudly on an error', async () => {
+		const bodies: unknown[] = [];
+		const cf = withRaw(async (_method, _path, body) => {
+			bodies.push(body);
+			return { status: 200, body: { success: true } };
+		});
+		await cf.putR2Lifecycle('b', [{ conditions: { prefix: 'exports/' } }]);
+		expect(bodies[0]).toEqual({ rules: [{ conditions: { prefix: 'exports/' } }] });
+		await expect(
+			withRaw(async () => ({ status: 403, body: null })).putR2Lifecycle('b', [])
+		).rejects.toThrow(SetupError);
+	});
+
+	it('never writes under --dry-run', async () => {
+		const calls: string[] = [];
+		const cf = createCloudflareApi(createRunner(fakeExec([])), {
+			rawRequest: async (method) => {
+				calls.push(method);
+				return { status: 200, body: {} };
+			},
+			isDryRun: true
+		});
+		cf.useAccount(account);
+		await cf.putR2Lifecycle('b', []);
+		expect(calls).toEqual([]);
 	});
 });

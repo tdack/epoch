@@ -22,8 +22,10 @@ import { collect } from './collect.ts';
 import { migrateMarkDeploy } from './migrate-mark-deploy.ts';
 import { confirmAdoptions } from './plan.ts';
 import { detectEnvToken, preflight } from './preflight.ts';
+import { provision } from './provision.ts';
 import { assertSameIdentity, signIn } from './sign-in.ts';
 import { verify } from './verify.ts';
+import { isExportOnlyRule, type R2LifecycleRule } from '../lifecycle.ts';
 import { RESOURCE_STATES, reconcile, type Observed } from '../reconcile.ts';
 import { resourceNames } from '../names.ts';
 
@@ -835,5 +837,42 @@ describe('the whole flow', () => {
 			)
 		);
 		expect(error.flag).toBe('--yes');
+	});
+});
+
+describe('provision', () => {
+	it('scopes the export lifecycle rule after making the bucket, keeping unrelated rules', async () => {
+		const written: R2LifecycleRule[][] = [];
+		const created: string[] = [];
+		const { ctx } = testContext({
+			cf: stubApi({
+				createD1: async () => {
+					created.push('d1');
+					return { id: 'd1', name: 'epoch-db', createdAt: null, sizeBytes: null };
+				},
+				createR2Bucket: async () => {
+					created.push('r2');
+					return { name: 'epoch-media', createdAt: null };
+				},
+				createQueue: async () => {
+					created.push('queue');
+					return { id: 'q', name: 'epoch-import-queue' };
+				},
+				getR2Lifecycle: async () => [{ id: 'logs', conditions: { prefix: 'logs/' } }],
+				putR2Lifecycle: async (_bucket, rules) => {
+					written.push(rules);
+				}
+			})
+		});
+		const manifest = await provision(ctx, testManifest(), {
+			d1Location: null,
+			r2Location: null,
+			r2Jurisdiction: null
+		} as unknown as Answers);
+		expect(created).toEqual(['d1', 'r2', 'queue']);
+		expect(manifest.resources.r2).toEqual({ name: 'epoch-media' });
+		expect(written).toHaveLength(1);
+		expect(written[0]!.some((rule) => isExportOnlyRule(rule))).toBe(true);
+		expect(written[0]!.some((rule) => rule.conditions?.prefix === 'logs/')).toBe(true);
 	});
 });

@@ -1,4 +1,5 @@
 import { ERROR_CODES, SetupError } from './errors.ts';
+import type { R2LifecycleRule } from './lifecycle.ts';
 import type { AccessPolicy, AccessRule } from './policy.ts';
 import type { ObservedQueue, ObservedWorker } from './reconcile.ts';
 import type { Runner } from './run.ts';
@@ -98,6 +99,10 @@ export interface CloudflareApi {
 		bucket: string,
 		limit: number
 	): Promise<{ keys: string[]; sizeBytes: number; isTruncated: boolean }>;
+	/** The lifecycle rules a bucket already has, empty when it has none. */
+	getR2Lifecycle(bucket: string): Promise<R2LifecycleRule[]>;
+	/** Replace a bucket's lifecycle rules wholesale. A no-op under `--dry-run`. */
+	putR2Lifecycle(bucket: string, rules: R2LifecycleRule[]): Promise<void>;
 
 	findQueue(name: string): Promise<ObservedQueue | null>;
 	createQueue(name: string): Promise<{ id: string; name: string }>;
@@ -166,11 +171,31 @@ function requireRec(value: unknown, what: string): Rec {
 	return value;
 }
 
+/**
+ * The rules out of a lifecycle GET. The documented shape is `{ result: { rules: [...] } }`; a
+ * bucket with none answers 404, which the caller reads as empty, and anything else that is not the
+ * shape is treated as no rules rather than guessed at.
+ */
+function lifecycleRulesFrom(body: unknown): R2LifecycleRule[] {
+	if (!isRec(body) || !isRec(body.result)) return [];
+	const rules = body.result.rules;
+	return Array.isArray(rules) ? (rules.filter(isRec) as R2LifecycleRule[]) : [];
+}
+
 /** A read-only GET against the Cloudflare API itself, for what `cf` has no command for (a Worker's bindings). */
 export type RawGet = (path: string) => Promise<{ status: number; body: unknown }>;
 
+/** A raw API call of any method, for the few writes `cf` has no command for (the R2 lifecycle rules). */
+export type RawRequest = (
+	method: string,
+	path: string,
+	body?: unknown
+) => Promise<{ status: number; body: unknown }>;
+
 export interface ApiOptions {
 	rawGet?: RawGet;
+	/** The same endpoint with a method and a body, for writes `cf` cannot make. */
+	rawRequest?: RawRequest;
 	/** Append `--dry-run` to every write, for the spike. */
 	isDryRun?: boolean;
 }
@@ -240,6 +265,16 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 	async function raw(path: string) {
 		if (!options.rawGet) throw new Error('No raw API reader configured');
 		return options.rawGet(path);
+	}
+
+	/** A raw API call with a method and body, for the writes `cf` has no command for. */
+	async function rawRequest(method: string, path: string, body?: unknown) {
+		if (!options.rawRequest) throw new Error('No raw API writer configured');
+		return options.rawRequest(method, path, body);
+	}
+
+	function lifecyclePath(bucket: string): string {
+		return `/accounts/${account()}/r2/buckets/${encodeURIComponent(bucket)}/lifecycle`;
 	}
 
 	/** Null only for "no such Worker" (HTTP 404, or error code 10007); every other failure throws. */
@@ -415,6 +450,32 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				sizeBytes: objects.reduce((sum, o) => sum + (num(o.size) ?? 0), 0),
 				isTruncated: isRec(out) && out.truncated === true
 			};
+		},
+
+		// `cf` cannot set lifecycle rules (checked in `cf schema --list`), so this is the raw
+		// `GET /accounts/{id}/r2/buckets/{name}/lifecycle`. A bucket with no rules is a 404, read as none.
+		async getR2Lifecycle(bucket) {
+			const res = await rawRequest('GET', lifecyclePath(bucket));
+			if (res.status === 404) return [];
+			if (res.status >= 400) {
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not read the R2 lifecycle rules for "${bucket}" (HTTP ${res.status})`
+				);
+			}
+			return lifecycleRulesFrom(res.body);
+		},
+		// A raw PUT cannot take `--dry-run`, so under the spike's dry run the write is skipped rather
+		// than performed. The rules replace the bucket's set wholesale, hence the read-merge before it.
+		async putR2Lifecycle(bucket, rules) {
+			if (options.isDryRun) return;
+			const res = await rawRequest('PUT', lifecyclePath(bucket), { rules });
+			if (res.status >= 400) {
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not set the R2 lifecycle rules for "${bucket}" (HTTP ${res.status})`
+				);
+			}
 		},
 
 		async findQueue(name) {

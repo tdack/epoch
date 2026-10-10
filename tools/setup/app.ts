@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { createCloudflareApi, type RawGet } from './cloudflare.ts';
+import { createCloudflareApi, type RawGet, type RawRequest } from './cloudflare.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
 import { readEnvToken } from './env-token.ts';
 import {
@@ -49,10 +49,10 @@ export function createContext(options: AppOptions): StepContext & {
 	const runner = createRunner(exec, logFile);
 	const cleanup = createCleanup();
 
-	// `cf` cannot read a Worker's bindings, so those reads go to the API directly with whichever
-	// credential is in use: the environment token, else the wrangler profile's.
+	// `cf` cannot read a Worker's bindings or set R2 lifecycle rules, so those calls go to the API
+	// directly with whichever credential is in use: the environment token, else the wrangler profile's.
 	let cachedToken: string | null = null;
-	const rawGet: RawGet = async (path) => {
+	const rawRequest: RawRequest = async (method, path, body) => {
 		if (options.deployAuth === 'ephemeral') {
 			throw new SetupError(
 				ERROR_CODES.usage,
@@ -67,18 +67,24 @@ export function createContext(options: AppOptions): StepContext & {
 			redactor.add(cachedToken);
 		}
 		const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-			headers: { authorization: `Bearer ${cachedToken}` }
+			method,
+			headers: {
+				authorization: `Bearer ${cachedToken}`,
+				...(body === undefined ? {} : { 'Content-Type': 'application/json' })
+			},
+			body: body === undefined ? undefined : JSON.stringify(body)
 		});
-		const body = await response.json().catch(() => null);
-		options.onRawResponse?.(path, response.status, body);
-		return { status: response.status, body };
+		const payload = await response.json().catch(() => null);
+		options.onRawResponse?.(path, response.status, payload);
+		return { status: response.status, body: payload };
 	};
+	const rawGet: RawGet = (path) => rawRequest('GET', path);
 
 	return {
 		paths,
 		logFile,
 		runner,
-		cf: createCloudflareApi(runner, { rawGet }),
+		cf: createCloudflareApi(runner, { rawGet, rawRequest }),
 		makeWrangler(auth) {
 			if (auth.kind === 'token') redactor.add(auth.token);
 			return createWranglerApi(runner, auth);
