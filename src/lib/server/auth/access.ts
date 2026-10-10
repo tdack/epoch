@@ -166,19 +166,25 @@ export async function validateAccessJwt(
 		throw new UnauthenticatedError('Cloudflare Access token not active yet');
 	}
 
-	// Audience check
+	// A dev/test token is the one case an audience check can be skipped: it never reaches the
+	// production signature path below, and in local dev CF_ACCESS_AUD is often unset.
+	const isDevBypassToken =
+		!!config.allowDevBypass &&
+		(header.alg === 'none' || payload.iss === 'https://test.cloudflareaccess.com');
+
+	// Audience check. Fail closed: an unset AUD must reject a production token rather than
+	// silently admit any token whose signature happens to verify.
 	if (config.aud) {
 		const payloadAuds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
 		if (!payloadAuds.includes(config.aud)) {
 			throw new UnauthenticatedError('Invalid audience in Access token');
 		}
+	} else if (!isDevBypassToken) {
+		throw new UnauthenticatedError('Access AUD is not configured');
 	}
 
 	// If allowDevBypass is enabled and this is a dev/test token with alg: none or simulated signature
-	if (
-		config.allowDevBypass &&
-		(header.alg === 'none' || payload.iss === 'https://test.cloudflareaccess.com')
-	) {
+	if (isDevBypassToken) {
 		if (!payload.sub || !payload.email) {
 			throw new UnauthenticatedError('Invalid mock token: sub and email required');
 		}

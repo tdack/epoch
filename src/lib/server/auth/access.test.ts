@@ -235,3 +235,55 @@ describe('isLocalHostname', () => {
 		expect(isLocalHostname(new URL('https://epoch.example.com/').hostname)).toBe(false);
 	});
 });
+
+describe('access audience fails closed', () => {
+	const future = () => Math.floor(Date.now() / 1000) + 3600;
+
+	// A production token must never reach the signature path to decide whether an unset AUD is
+	// acceptable; the audience check has to reject it first, so no fetch is needed.
+	beforeEach(() => vi.stubGlobal('fetch', async () => Response.json({ keys: [] })));
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('rejects a non-dev token when the audience is unset', async () => {
+		const token = createMockJwt(
+			{
+				sub: 'attacker',
+				email: 'a@example.com',
+				iss: 'https://team.cloudflareaccess.com',
+				aud: 'anything',
+				exp: future()
+			},
+			{ alg: 'RS256', kid: 'x' }
+		);
+		await expect(
+			validateAccessJwt(token, { teamDomain: 'team.cloudflareaccess.com' })
+		).rejects.toThrow('Access AUD is not configured');
+		await expect(
+			validateAccessJwt(token, { teamDomain: 'team.cloudflareaccess.com', aud: '' })
+		).rejects.toThrow('Access AUD is not configured');
+	});
+
+	it('accepts a dev bypass token when the audience is unset', async () => {
+		const token = createMockJwt({
+			sub: 'dev-user',
+			email: 'dev@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			exp: future()
+		});
+		const user = await validateAccessJwt(token, { allowDevBypass: true });
+		expect(user.accessSub).toBe('dev-user');
+	});
+
+	it('still enforces a configured audience for a dev bypass token', async () => {
+		const token = createMockJwt({
+			sub: 'dev-user',
+			email: 'dev@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'wrong',
+			exp: future()
+		});
+		await expect(
+			validateAccessJwt(token, { aud: 'expected', allowDevBypass: true })
+		).rejects.toThrow('audience');
+	});
+});
