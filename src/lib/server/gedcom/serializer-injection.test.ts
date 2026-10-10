@@ -1,8 +1,10 @@
 /**
  * The serializer must never let a stored value forge a GEDCOM line. Every field that occupies one
  * line folds its terminators (`singleLine`); a tag is refused rather than folded, because `BIRT\n0
- * @X@ INDI` would otherwise read as a new record. This sweeps a payload field by field, injecting a
- * terminator into each and asserting the output stays one line per record.
+ * @X@ INDI` would otherwise read as a new record. A field that may span lines (`fieldLines`) starts
+ * a `CONT` on every terminator instead. This sweeps a payload field by field and record key by
+ * record key, injecting each terminator the serializer treats as a break into every string leaf and
+ * asserting the output stays one line per record.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -19,12 +21,33 @@ import {
 	type GedcomExportPayload
 } from './serializer';
 
-/** A terminator that splits into a bare second line if it ever reaches the output. */
-const INJECTIONS = ['x\ry\nz', 'x\rz', 'x\nz'];
+/**
+ * Every terminator the serializer must not leave raw inside a line: the GEDCOM terminators (`\r`,
+ * `\n`, `\r\n`) and the Unicode line separators, the same set `singleLine` folds and `LINE_BREAK`
+ * splits.
+ */
+const INJECTIONS = [
+	'x\ry\nz',
+	'x\rz',
+	'x\nz',
+	'x\r\nz',
+	'x\u2028z',
+	'x\u2029z',
+	'x\vz',
+	'x\fz',
+	'x\x85z',
+	'x\x1cz',
+	'x\x1dz',
+	'x\x1ez'
+];
 
-const EMBEDDED_TERMINATOR = /[\r\n\u2028\u2029]/;
+// The C0 separators (`\x1c`–`\x1e`) are the point of the sweep, so the usual "hidden typo" the
+// control-character rule guards against does not apply here.
+// eslint-disable-next-line no-control-regex
+const EMBEDDED_TERMINATOR = /[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/;
 const isClean = (out: string) => out.split('\r\n').every((line) => !EMBEDDED_TERMINATOR.test(line));
 const recordLines = (out: string) => out.split('\r\n').filter((line) => /^0 /.test(line));
+const pointerRecords = (out: string) => recordLines(out).filter((line) => /^0 @/.test(line));
 
 const note: ExportNote = {
 	pointer: null,
@@ -32,6 +55,10 @@ const note: ExportNote = {
 	layout: { NOTE: ['2 NOTE note text'] },
 	extra: ['3 _NOTE x']
 };
+/** A note written as a pointer with a `pointerTag`: the tag is a token, folded if it carries a break. */
+const pointedNote: ExportNote = { pointer: '@N2@', pointerTag: 'SNOTE' };
+/** A note written as a pointer only, with no text: the branch an inline note never reaches. */
+const pointerOnlyNote: ExportNote = { pointer: '@N3@' };
 const citation: ExportCitation = {
 	pointer: '@S1@',
 	description: 'inline description',
@@ -41,8 +68,19 @@ const citation: ExportCitation = {
 	text: 'citation text',
 	layout: { PAGE: ['3 PAGE p 1'] },
 	extra: ['3 _CIT x'],
+	notes: [note, pointedNote, pointerOnlyNote]
+};
+/** A citation with no pointer: it carries its text inline, the branch a pointer never reaches. */
+const inlineCitation: ExportCitation = {
+	pointer: null,
+	description: 'inline description',
+	page: 'p 1',
+	text: 'citation text',
+	extra: ['3 _CIT x'],
 	notes: [note]
 };
+/** A citation with no pointer and no description: a bare `SOUR` line. */
+const bareCitation: ExportCitation = { pointer: null, extra: ['3 _CIT x'] };
 
 /** A payload that uses every field the serializer interpolates, so a sweep touches them all. */
 function fixture(): GedcomExportPayload & { treeName: string } {
@@ -88,7 +126,7 @@ function fixture(): GedcomExportPayload & { treeName: string } {
 						noteLinks: [note]
 					}
 				],
-				citations: [citation],
+				citations: [citation, inlineCitation, bareCitation],
 				notes: [note],
 				famc: ['@F1@'],
 				fams: ['@F1@']
@@ -157,13 +195,45 @@ function fixture(): GedcomExportPayload & { treeName: string } {
 
 type Path = Array<string | number>;
 
+/** A string leaf to replace. */
+interface ValueTarget {
+	kind: 'value';
+	path: Path;
+}
+/** A map key to rename, where the key itself is data (an interpolated pointer). */
+interface KeyTarget {
+	kind: 'key';
+	at: Path;
+	key: string;
+}
+type Target = ValueTarget | KeyTarget;
+
+/** A target as a human-readable path, for the test name. */
+const label = (target: Target) =>
+	target.kind === 'key' ? `key ${target.key} of ${target.at.join('.')}` : target.path.join('.');
+
 /** Every string leaf in the payload, as a path, so a sweep can visit each field. */
-function stringPaths(value: unknown, prefix: Path = []): Path[] {
-	if (typeof value === 'string') return [prefix];
-	if (Array.isArray(value)) return value.flatMap((v, i) => stringPaths(v, [...prefix, i]));
+function valueTargets(value: unknown, prefix: Path = []): ValueTarget[] {
+	if (typeof value === 'string') return [{ kind: 'value', path: prefix }];
+	if (Array.isArray(value)) return value.flatMap((v, i) => valueTargets(v, [...prefix, i]));
 	if (value && typeof value === 'object')
-		return Object.entries(value).flatMap(([k, v]) => stringPaths(v, [...prefix, k]));
+		return Object.entries(value).flatMap(([k, v]) => valueTargets(v, [...prefix, k]));
 	return [];
+}
+
+/** A map whose keys are all pointers and whose values are all strings: its keys are interpolated. */
+const isPointerMap = (entries: Array<[string, unknown]>) =>
+	entries.length > 0 && entries.every(([k, v]) => /^@[^@\s]+@$/.test(k) && typeof v === 'string');
+
+/** Every key of a pointer map (`parentPedigrees`), which code writes as an interpolated pointer. */
+function keyTargets(value: unknown, prefix: Path = []): KeyTarget[] {
+	if (Array.isArray(value)) return value.flatMap((v, i) => keyTargets(v, [...prefix, i]));
+	if (!value || typeof value !== 'object') return [];
+	const entries = Object.entries(value);
+	return entries.flatMap(([k, v]) => [
+		...keyTargets(v, [...prefix, k]),
+		...(isPointerMap(entries) ? [{ kind: 'key' as const, at: prefix, key: k }] : [])
+	]);
 }
 
 /** A deep copy with the string at `path` replaced. */
@@ -176,13 +246,34 @@ function withInjected<T>(base: T, path: Path, value: string): T {
 	return clone;
 }
 
+/** A deep copy with the key `key` renamed to `value` in the object at `at`. */
+function withRenamedKey<T>(base: T, at: Path, key: string, value: string): T {
+	const clone = structuredClone(base);
+	let cursor = clone as Record<string | number, unknown>;
+	for (const step of at) cursor = cursor[step] as Record<string | number, unknown>;
+	const entries = Object.entries(cursor);
+	for (const existing of Object.keys(cursor)) delete cursor[existing];
+	for (const [k, v] of entries) cursor[k === key ? value : k] = v;
+	return clone;
+}
+
+/** The payload with `target` replaced by `value`. */
+const inject = <T>(base: T, target: Target, value: string): T =>
+	target.kind === 'key'
+		? withRenamedKey(base, target.at, target.key, value)
+		: withInjected(base, target.path, value);
+
 /** An event's `type` is a tag, not text: the serializer refuses it rather than folding it. */
-const isEventTypePath = (path: Path) => path.includes('events') && path.at(-1) === 'type';
+const isEventTypePath = (target: Target) =>
+	target.kind === 'value' && target.path.includes('events') && target.path.at(-1) === 'type';
 /** Preserved entries are whole lines, not single-line fields; a corrupt root header is not a field. */
-const isPreservedPath = (path: Path) => path[0] === 'preserved';
+const isPreservedPath = (target: Target) =>
+	(target.kind === 'key' ? target.at : target.path)[0] === 'preserved';
 
 const base = fixture();
+const targets: Target[] = [...valueTargets(base), ...keyTargets(base)];
 const baseCount = recordLines(buildGedcom551String(base)).length;
+const basePointerCount = pointerRecords(buildGedcom551String(base)).length;
 
 describe('no payload field can forge a GEDCOM line', () => {
 	it('serializes the untouched fixture cleanly in both formats', () => {
@@ -191,33 +282,39 @@ describe('no payload field can forge a GEDCOM line', () => {
 		}
 	});
 
-	it.each(stringPaths(base).map((path) => [path]))(
-		'folds or refuses a terminator injected at %j',
-		(path) => {
+	it.each(targets.map((target) => [label(target), target] as [string, Target]))(
+		'folds or refuses a terminator injected at %s',
+		(_label, target) => {
 			for (const injectedValue of INJECTIONS) {
-				const mutated = withInjected(base, path, injectedValue);
-				if (isEventTypePath(path)) {
+				const mutated = inject(base, target, injectedValue);
+				if (isEventTypePath(target)) {
 					expect(() => buildGedcom551String(mutated)).toThrow(ValidationError);
 					expect(() => buildGedcom7String(mutated)).toThrow(ValidationError);
 					continue;
 				}
 				for (const out of [buildGedcom551String(mutated), buildGedcom7String(mutated)]) {
 					expect(isClean(out)).toBe(true);
-					if (!isPreservedPath(path)) expect(recordLines(out)).toHaveLength(baseCount);
+					if (!isPreservedPath(target)) {
+						expect(recordLines(out)).toHaveLength(baseCount);
+						// Never an *extra* `0 @…@` record. Folding a pointer can cost its `@` (the
+						// record stays, its xref changes), so the count may fall, never rise.
+						expect(pointerRecords(out).length).toBeLessThanOrEqual(basePointerCount);
+					}
 				}
 			}
 		}
 	);
 
-	it('stays clean when every text field carries a terminator at once', () => {
+	it('stays clean when every text field carries terminators at once', () => {
 		let mutated = fixture();
-		for (const path of stringPaths(mutated)) {
-			if (isEventTypePath(path) || isPreservedPath(path)) continue;
-			mutated = withInjected(mutated, path, 'x\ry\nz');
+		for (const target of [...valueTargets(mutated), ...keyTargets(mutated)]) {
+			if (isEventTypePath(target) || isPreservedPath(target)) continue;
+			mutated = inject(mutated, target, 'x\ry\n\u2028z');
 		}
 		for (const out of [buildGedcom551String(mutated), buildGedcom7String(mutated)]) {
 			expect(isClean(out)).toBe(true);
 			expect(recordLines(out)).toHaveLength(baseCount);
+			expect(pointerRecords(out).length).toBeLessThanOrEqual(basePointerCount);
 		}
 	});
 });
@@ -245,6 +342,52 @@ describe('a file with a lone CR round-trips', () => {
 			const fromCr = format(await getTreeExportData(t.d1, cr));
 			expect(isClean(fromCr)).toBe(true);
 			expect(fromCr).toEqual(fromLf);
+		}
+	});
+});
+
+describe('a stray segment is normalized on export, not dropped', () => {
+	it('writes a non-GEDCOM line as the preceding line’s CONT', async () => {
+		// `buildGedcomTree` keeps a line that is not `level tag` as the previous line's text; the
+		// exporter must write that text back as a `CONT` rather than drop it or forge a record.
+		const treeId = crypto.randomUUID();
+		const stray = 'a stray line with no level';
+		const raw = [
+			'0 HEAD',
+			'1 GEDC',
+			'2 VERS 5.5.1',
+			'0 @I1@ INDI',
+			'1 NAME Ann /Ash/',
+			'1 NOTE first',
+			stray,
+			'0 TRLR'
+		].join('\r\n');
+		await importGedcomToDb(t.d1, treeId, raw, 'Stray');
+		for (const format of [buildGedcom551String, buildGedcom7String]) {
+			const lines = format(await getTreeExportData(t.d1, treeId)).split('\r\n');
+			expect(lines).toContain('1 NOTE first');
+			expect(lines).toContain(`2 CONT ${stray}`);
+		}
+	});
+});
+
+describe('a Unicode line separator normalizes on export', () => {
+	it('splits a separator inside imported text into a CONT, as a CR does', async () => {
+		const treeId = crypto.randomUUID();
+		const raw = [
+			'0 HEAD',
+			'1 GEDC',
+			'2 VERS 5.5.1',
+			'0 @I1@ INDI',
+			'1 NAME Ann /Ash/',
+			'1 NOTE first\u2028second',
+			'0 TRLR'
+		].join('\r\n');
+		await importGedcomToDb(t.d1, treeId, raw, 'Separator');
+		for (const format of [buildGedcom551String, buildGedcom7String]) {
+			const out = format(await getTreeExportData(t.d1, treeId));
+			expect(isClean(out)).toBe(true);
+			expect(out.split('\r\n')).toContain('2 CONT second');
 		}
 	});
 });
