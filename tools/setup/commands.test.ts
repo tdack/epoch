@@ -4,6 +4,7 @@ import type { Asker } from './asker.ts';
 import { buildProgram, toFlags, type Handlers } from './cli.ts';
 import { runDoctor } from './doctor.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
+import { exportLifecycleRule, type R2LifecycleRule } from './lifecycle.ts';
 import { AUTH_MODES, OWNERSHIPS, type Manifest } from './manifest.ts';
 import { DEFAULT_FLAGS } from './options.ts';
 import { planTeardown, runTeardown } from './teardown.ts';
@@ -147,6 +148,73 @@ describe('doctor', () => {
 		expect(text).toContain('fail: Access application: Cookie Path Attribute is off');
 		expect(text).toContain('ok: Access application: Binding Cookie is off');
 		expect(text).toContain('is now bypass, so it admits nobody');
+	});
+
+	it('fails and names each destructive lifecycle rule that endangers media or staging', async () => {
+		const manifest = testManifest({
+			account: { id: 'acc', name: 'A' },
+			zone: { id: 'z', name: 'example.com' },
+			hostname: 'epoch.example.com',
+			teamDomain: 'team.cloudflareaccess.com',
+			access: {
+				app: {
+					id: 'app00000-0000-4000-8000-000000000002',
+					name: 'Epoch (epoch)',
+					aud: 'aud-epoch'
+				},
+				policies: [],
+				idps: []
+			}
+		});
+		const exec = fakeExec([
+			{ match: 'cf d1 list', stdout: [] },
+			{ match: 'cf r2 buckets list', stdout: [] },
+			{ match: 'cf queues list', stdout: [] },
+			{ match: 'cf zero-trust access applications list', stdout: fixture('access-apps.json') },
+			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
+		]);
+		const { ctx } = testContext({
+			fs: withManifest(manifest),
+			exec,
+			cf: undefined,
+			fetch: (async () => {
+				throw new TypeError('down');
+			}) as typeof fetch
+		});
+		const rules: R2LifecycleRule[] = [
+			{
+				id: 'Default Multipart Abort Rule',
+				enabled: true,
+				conditions: { prefix: '' },
+				abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } }
+			},
+			{ id: 'wide', conditions: { prefix: '' }, deleteObjectsTransition: {} },
+			{ id: 'media', conditions: { prefix: 'med' }, deleteObjectsTransition: {} },
+			exportLifecycleRule()
+		];
+		const original = ctx.cf;
+		ctx.cf = new Proxy(original, {
+			get: (t, p: string) =>
+				p === 'whoami'
+					? async () => ({ email: 'a@example.com', userId: 'u', accountIds: ['acc'], scopes: null })
+					: p === 'getTeamDomain'
+						? async () => 'team'
+						: p === 'listIdentityProviders'
+							? async () => [{ id: 'i', name: 'n', type: 't' }]
+							: p === 'listActiveZones'
+								? async () => [{ id: 'z', name: 'example.com' }]
+								: p === 'getR2Lifecycle'
+									? async () => rules
+									: (t as any)[p]
+		});
+		const { findings } = await runDoctor(ctx);
+		const text = findings.map((f) => `${f.level}: ${f.text}`).join('\n');
+		expect(text).toContain('fail: R2 lifecycle rule "wide" is unsafe: it has no prefix');
+		expect(text).toContain('fail: R2 lifecycle rule "media" is unsafe: it is scoped to "med"');
+		expect(text).not.toContain('Default Multipart Abort Rule');
+		expect(text).toContain(
+			'ok: R2 bucket has an exports/-scoped lifecycle rule that expires after a day'
+		);
 	});
 });
 

@@ -15,8 +15,8 @@ const EXPORT_LIFECYCLE_RULE_ID = 'epoch-export-expiry';
 /** One day, matching the export read-time expiry: after this the lifecycle rule may remove a file. */
 export const EXPORT_RULE_MAX_AGE_SECONDS = 86400;
 
-/** Prefixes this tool refuses to add the export rule beside: they hold live media and import staging. */
-const RESERVED_PREFIXES = ['media', 'staging'];
+/** Prefixes this tool refuses to add a destructive rule beside: they hold live media and import staging. */
+const RESERVED_PREFIXES = ['media/', 'staging/'];
 
 /**
  * One R2 lifecycle rule, as much of it as this tool reads or writes. Unknown fields are allowed on
@@ -65,13 +65,13 @@ export function isExportOnlyRule(
 /**
  * Read-merge-write: keep every unrelated rule, and replace any existing export rule with ours.
  *
- * Refuses to run beside a rule with no prefix — an empty prefix expires every object in the bucket
- * — or one scoped to `media`/`staging`, which hold live files. This tool must not be the reason a
- * family photo or a staged import disappears.
+ * Refuses to run beside a destructive rule — one that deletes or transitions objects — with no
+ * prefix (it would expire the whole bucket) or one overlapping `media/`/`staging/`, which hold live
+ * files. This tool must not be the reason a family photo or a staged import disappears.
  *
  * @param existing - The rules the bucket already has (empty when it has none).
  * @returns The rules to write: the unrelated ones, then ours.
- * @throws SetupError - If a rule with no prefix, or one covering `media`/`staging`, already exists.
+ * @throws SetupError - If a destructive rule with no prefix, or one covering `media/`/`staging/`, already exists.
  */
 export function mergeExportRule(existing: R2LifecycleRule[]): R2LifecycleRule[] {
 	for (const rule of existing) assertSafeToCoexist(rule);
@@ -79,24 +79,47 @@ export function mergeExportRule(existing: R2LifecycleRule[]): R2LifecycleRule[] 
 	return [...others, exportLifecycleRule()];
 }
 
-function assertSafeToCoexist(rule: R2LifecycleRule): void {
-	const prefix = rule.conditions?.prefix;
-	if (!prefix || prefix.trim() === '') {
-		throw new SetupError(
-			ERROR_CODES.command,
-			'An R2 lifecycle rule has no prefix, so it would expire every object in the bucket',
-			{ hint: 'Scope or remove that rule before running setup.' }
-		);
-	}
-	const normalised = prefix.replace(/\/+$/, '');
-	const reserved = RESERVED_PREFIXES.find(
-		(name) => normalised === name || normalised.startsWith(`${name}/`)
+/**
+ * Whether a rule deletes or transitions objects, and so can destroy data. A rule that only aborts
+ * stale multipart uploads is harmless — Cloudflare adds one to every new bucket — so it is ignored.
+ */
+export function isDangerousRule(rule: R2LifecycleRule): boolean {
+	if (rule.enabled === false) return false;
+	if (rule.deleteObjectsTransition !== undefined) return true;
+	return Array.isArray(rule.storageClassTransitions) && rule.storageClassTransitions.length > 0;
+}
+
+/**
+ * The first protected prefix a rule's prefix overlaps, or null. Prefixes are plain strings, so two
+ * overlap when either starts with the other: `m`, `med` and `media/` all reach into `media/`.
+ */
+export function overlapsReservedPrefix(prefix: string): string | null {
+	return (
+		RESERVED_PREFIXES.find(
+			(protectedPrefix) => protectedPrefix.startsWith(prefix) || prefix.startsWith(protectedPrefix)
+		) ?? null
 	);
-	if (reserved) {
-		throw new SetupError(
-			ERROR_CODES.command,
-			`An R2 lifecycle rule is scoped to "${prefix}", which holds live ${reserved} files`,
-			{ hint: `Move that rule off "${reserved}" before running setup.` }
-		);
+}
+
+/**
+ * Why a destructive rule would put live media or staging objects at risk, or null when it is safe.
+ * An abort-only rule and any rule that neither deletes nor transitions objects return null.
+ */
+export function reservedRisk(rule: R2LifecycleRule): string | null {
+	if (!isDangerousRule(rule)) return null;
+	const prefix = rule.conditions?.prefix ?? '';
+	if (prefix.trim() === '') {
+		return 'it has no prefix, so it would expire every object in the bucket';
 	}
+	const reserved = overlapsReservedPrefix(prefix);
+	if (reserved) return `it is scoped to "${prefix}", which overlaps the live "${reserved}" prefix`;
+	return null;
+}
+
+function assertSafeToCoexist(rule: R2LifecycleRule): void {
+	const risk = reservedRisk(rule);
+	if (!risk) return;
+	throw new SetupError(ERROR_CODES.command, `An R2 lifecycle rule is unsafe: ${risk}`, {
+		hint: 'Scope or remove that rule before running setup.'
+	});
 }

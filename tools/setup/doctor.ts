@@ -1,6 +1,6 @@
 import type { StepContext } from './context.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
-import { isExportOnlyRule } from './lifecycle.ts';
+import { isExportOnlyRule, reservedRisk } from './lifecycle.ts';
 import { OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_KEYS, RESOURCE_STATES, reconcile } from './reconcile.ts';
@@ -88,11 +88,17 @@ export async function runDoctor(
 	for (const warning of result.warnings) add(FINDING_LEVELS.warn, warning);
 
 	// The export lifecycle rule is what expires finished exports. A missing or wider rule means they
-	// pile up in the bucket; a rule that could expire live media is worse, and is checked at setup.
+	// pile up in the bucket; a destructive rule that could expire live media is worse, and is named
+	// on its own line rather than folded into the one below.
+	const lifecycleRules = await ctx.cf.getR2Lifecycle(names.r2);
+	for (const rule of lifecycleRules) {
+		const risk = reservedRisk(rule);
+		if (!risk) continue;
+		const label = rule.id ? `"${rule.id}"` : `with prefix "${rule.conditions?.prefix ?? ''}"`;
+		add(FINDING_LEVELS.fail, `R2 lifecycle rule ${label} is unsafe: ${risk}`);
+	}
 	add(
-		(await ctx.cf.getR2Lifecycle(names.r2)).some((rule) => isExportOnlyRule(rule))
-			? FINDING_LEVELS.ok
-			: FINDING_LEVELS.fail,
+		lifecycleRules.some((rule) => isExportOnlyRule(rule)) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
 		'R2 bucket has an exports/-scoped lifecycle rule that expires after a day'
 	);
 

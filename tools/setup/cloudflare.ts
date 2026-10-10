@@ -172,14 +172,19 @@ function requireRec(value: unknown, what: string): Rec {
 }
 
 /**
- * The rules out of a lifecycle GET. The documented shape is `{ result: { rules: [...] } }`; a
- * bucket with none answers 404, which the caller reads as empty, and anything else that is not the
- * shape is treated as no rules rather than guessed at.
+ * The rules out of a lifecycle GET. The documented shape is `{ result: { rules: [...] } }`. Only a
+ * 404 means "no rules" (and the caller reads that before calling here); any other shape is an
+ * unexpected API change, and guessing at it would let `putR2Lifecycle` replace the whole set and
+ * silently drop the owner's rules, so it throws instead.
  */
 function lifecycleRulesFrom(body: unknown): R2LifecycleRule[] {
-	if (!isRec(body) || !isRec(body.result)) return [];
-	const rules = body.result.rules;
-	return Array.isArray(rules) ? (rules.filter(isRec) as R2LifecycleRule[]) : [];
+	if (!isRec(body) || !isRec(body.result) || !Array.isArray(body.result.rules)) {
+		throw new SetupError(
+			ERROR_CODES.command,
+			'Unexpected R2 lifecycle response: expected { result: { rules: [...] } }'
+		);
+	}
+	return body.result.rules.filter(isRec) as R2LifecycleRule[];
 }
 
 /** A read-only GET against the Cloudflare API itself, for what `cf` has no command for (a Worker's bindings). */

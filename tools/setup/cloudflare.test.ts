@@ -250,6 +250,15 @@ describe('R2 lifecycle rules', () => {
 		).rejects.toThrow(SetupError);
 	});
 
+	it('throws on a 200 whose body is not the documented shape, rather than dropping rules', async () => {
+		await expect(
+			withRaw(async () => ({ status: 200, body: { result: {} } })).getR2Lifecycle('b')
+		).rejects.toThrow(SetupError);
+		await expect(
+			withRaw(async () => ({ status: 200, body: { success: true } })).getR2Lifecycle('b')
+		).rejects.toThrow(SetupError);
+	});
+
 	it('writes the rules as `{ rules }`, and fails loudly on an error', async () => {
 		const bodies: unknown[] = [];
 		const cf = withRaw(async (_method, _path, body) => {
