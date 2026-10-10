@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	parseDateValue,
 	checkDateText,
+	DATE_EXAMPLES,
 	pickerStateOf,
 	formatPickerDate,
 	DATE_QUALIFIERS,
@@ -120,6 +121,10 @@ describe('parseDateValue', () => {
 	});
 });
 describe('checkDateText', () => {
+	it.each(DATE_EXAMPLES.map((example) => example.text))('accepts the help example %s', (text) => {
+		expect(checkDateText(text)).toEqual({ isValid: true });
+	});
+
 	it.each([
 		'',
 		'  ',

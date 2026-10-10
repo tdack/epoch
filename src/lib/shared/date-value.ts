@@ -381,6 +381,25 @@ const DATE_FORMAT_HELP =
 	'Use 14 APR 1912, APR 1912 or 1912, optionally after ABT, BEF, AFT, or as BET 1900 AND 1905. Put free text in brackets.';
 
 /**
+ * What a date field accepts, one example per form, for the field's help. Every example must pass
+ * `checkDateText` (the test holds it to that), so the help never shows a form the field refuses.
+ */
+export const DATE_EXAMPLES = [
+	{ text: '14 APR 1912', meaning: 'An exact day' },
+	{ text: 'APR 1912', meaning: 'Month and year only' },
+	{ text: '1912', meaning: 'Year only' },
+	{ text: 'ABT 1912', meaning: 'About then' },
+	{ text: 'EST 1912', meaning: 'Estimated' },
+	{ text: 'CAL 1912', meaning: 'Calculated from other facts, such as an age' },
+	{ text: 'BEF 1912', meaning: 'Before then' },
+	{ text: 'AFT 1912', meaning: 'After then' },
+	{ text: 'BET 1910 AND 1912', meaning: 'Some time between the two' },
+	{ text: 'FROM 1910 TO 1912', meaning: 'Lasting from one to the other' },
+	{ text: '11 FEB 1731/32', meaning: 'Old and new style year' },
+	{ text: '(after the war)', meaning: 'Free text, kept as written' }
+] as const;
+
+/**
  * Check what a person typed into a date field. The parser deliberately keeps unreadable text
  * verbatim so imports never lose data; this is the stricter question a form asks before saving.
  */

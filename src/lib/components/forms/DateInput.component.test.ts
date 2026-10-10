@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import DateInput from './DateInput.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -82,5 +82,22 @@ describe('DateInput', () => {
 			.click();
 		flushSync();
 		expect(props.value).toBe('1850');
+	});
+
+	it('shows how to write a date that is not exact, from the (i) beside the field', async () => {
+		render('');
+		const help = document.querySelector<HTMLButtonElement>('#d-help-button')!;
+		expect(document.querySelector('[role="tooltip"]')).toBeNull();
+		help.dispatchEvent(new FocusEvent('focus'));
+		await tick();
+		flushSync();
+		const tooltip = document.querySelector('[role="tooltip"]')!;
+		expect(help.getAttribute('aria-describedby')).toBe(tooltip.id);
+		for (const text of ['ABT 1912', 'BEF 1912', 'AFT 1912', 'BET 1910 AND 1912']) {
+			expect(tooltip.textContent).toContain(text);
+		}
+		help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		flushSync();
+		expect(document.querySelector('[role="tooltip"]')).toBeNull();
 	});
 });

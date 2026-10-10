@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import { Info } from '@lucide/svelte';
 	import {
+		DATE_EXAMPLES,
 		MONTH_ABBREVIATIONS,
 		checkDateEdit,
 		daysInMonthOf,
@@ -148,6 +151,49 @@
 		};
 	});
 
+	let isHelpOpen = $state(false);
+	let helpButton: HTMLButtonElement | undefined = $state();
+	let helpPanel: HTMLDivElement | undefined = $state();
+	/** Fixed for the same reason as the picker: a dialog would cut it off at its edge. */
+	let helpPosition = $state({ left: 0, top: 0 });
+	let helpCloseTimer: ReturnType<typeof setTimeout> | undefined;
+	const HELP_WIDTH_PX = 288;
+
+	async function showHelp() {
+		clearTimeout(helpCloseTimer);
+		if (isHelpOpen) return;
+		isHelpOpen = true;
+		await tick();
+		if (!helpButton || !helpPanel) return;
+		const rect = helpButton.getBoundingClientRect();
+		const height = helpPanel.offsetHeight;
+		const left = Math.min(
+			Math.max(rect.left + rect.width / 2 - HELP_WIDTH_PX / 2, VIEWPORT_MARGIN_PX),
+			window.innerWidth - HELP_WIDTH_PX - VIEWPORT_MARGIN_PX
+		);
+		// Above the field by default, so it never covers what is typed or the message under it.
+		const above = rect.top - height - 6;
+		const top = above >= VIEWPORT_MARGIN_PX ? above : rect.bottom + 6;
+		helpPosition = { left, top };
+	}
+
+	/**
+	 * Closing waits a moment so the pointer can cross from the icon onto the help, which stays open
+	 * while hovered and can then be read or copied from.
+	 */
+	function hideHelpSoon() {
+		clearTimeout(helpCloseTimer);
+		helpCloseTimer = setTimeout(() => (isHelpOpen = false), 150);
+	}
+
+	function onHelpKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || !isHelpOpen) return;
+		// Close only the help; the dialog around it would otherwise treat Escape as "cancel".
+		event.preventDefault();
+		event.stopPropagation();
+		isHelpOpen = false;
+	}
+
 	function onWindowPointerDown(event: PointerEvent) {
 		if (isPickerOpen && wrapper && !wrapper.contains(event.target as Node)) isPickerOpen = false;
 	}
@@ -157,19 +203,60 @@
 
 <div class="relative" bind:this={wrapper}>
 	<div class="flex gap-1">
-		<input
-			{id}
-			type="text"
-			bind:value
-			{placeholder}
-			disabled={isDisabled}
-			autocomplete="off"
-			spellcheck="false"
-			aria-invalid={problem ? 'true' : undefined}
-			aria-describedby={problem || keptNote || suggestion ? messageId : undefined}
-			onblur={() => (wasTouched = true)}
-			class="{inputClass} min-w-0 flex-1 {problem ? 'border-red-500!' : ''}"
-		/>
+		<div class="relative min-w-0 flex-1">
+			<input
+				{id}
+				type="text"
+				bind:value
+				{placeholder}
+				disabled={isDisabled}
+				autocomplete="off"
+				spellcheck="false"
+				aria-invalid={problem ? 'true' : undefined}
+				aria-describedby={problem || keptNote || suggestion ? messageId : undefined}
+				onblur={() => (wasTouched = true)}
+				class="{inputClass} w-full pr-7! {problem ? 'border-red-500!' : ''}"
+			/>
+			<span
+				class="absolute inset-y-0 right-1 flex items-center"
+				role="presentation"
+				onpointerenter={showHelp}
+				onpointerleave={hideHelpSoon}
+				onkeydown={onHelpKeydown}
+			>
+				<button
+					bind:this={helpButton}
+					id="{id}-help-button"
+					type="button"
+					aria-label="Date formats"
+					aria-describedby={isHelpOpen ? `${id}-help` : undefined}
+					onfocus={showHelp}
+					onblur={hideHelpSoon}
+					onclick={showHelp}
+					class="cursor-help rounded-full p-0.5 text-stone-400 hover:text-emerald-700 focus-visible:text-emerald-700 focus-visible:outline-2 focus-visible:outline-emerald-600"
+				>
+					<Info size={14} aria-hidden="true" />
+				</button>
+				{#if isHelpOpen}
+					<div
+						bind:this={helpPanel}
+						id="{id}-help"
+						role="tooltip"
+						style="left: {helpPosition.left}px; top: {helpPosition.top}px; width: {HELP_WIDTH_PX}px;"
+						class="fixed z-30 rounded-lg border border-stone-300 bg-white p-3 text-left text-[11px] text-stone-700 shadow-xl"
+					>
+						<p class="mb-1.5 font-semibold text-stone-800">Dates don't have to be exact</p>
+						<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+							{#each DATE_EXAMPLES as example (example.text)}
+								<dt class="font-mono whitespace-nowrap text-stone-900">{example.text}</dt>
+								<dd class="text-stone-600">{example.meaning}</dd>
+							{/each}
+						</dl>
+						<p class="mt-1.5 text-stone-500">Full month names and lower case work too.</p>
+					</div>
+				{/if}
+			</span>
+		</div>
 		<button
 			id="{id}-picker-button"
 			type="button"
