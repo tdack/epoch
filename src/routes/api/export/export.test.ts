@@ -315,4 +315,11 @@ describe('GET /api/export', () => {
 		const response = await download(viewer, `treeId=${small}`);
 		expect(response.status).toBe(403);
 	});
+
+	it('refuses a tree id that is not a uuid with 400, and never echoes it', async () => {
+		const response = await download(owner, 'treeId=not-a-uuid');
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { error: string };
+		expect(body.error).not.toContain('not-a-uuid');
+	});
 });

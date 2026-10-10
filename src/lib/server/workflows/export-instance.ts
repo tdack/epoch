@@ -66,8 +66,9 @@ function formatFor(token: ExportFormatToken): { format: GedcomFormat; shouldComp
  * @param shouldCompress - Package as GEDZip; only meaningful for 7.0.
  * @param clientUuid - A per-attempt id from the client, so a retry can be told apart from a new click.
  * @returns `export_<treeId>_<token>_<clientUuid>`.
- * @throws ValidationError - If `shouldCompress` is asked for a 5.5.1 file.
- * @throws Error - If either id is not a UUID, or the result would be too long to be an instance id.
+ * @throws ValidationError - If `shouldCompress` is asked for a 5.5.1 file, or either id is not a
+ *   UUID, or the result would be too long to be an instance id. The message is fixed and never
+ *   echoes the input, so a caller's value cannot reach a client through an error body.
  */
 export function buildExportInstanceId(
 	treeId: string,
@@ -77,7 +78,7 @@ export function buildExportInstanceId(
 ): string {
 	const id = `export_${treeId}_${tokenFor(format, shouldCompress)}_${clientUuid}`;
 	if (id.length > MAX_INSTANCE_ID_LENGTH || parseExportInstanceId(id) === null) {
-		throw new Error(`Refusing to build an export instance id from unsafe input: ${id}`);
+		throw new ValidationError('Refusing to build an export instance id from unsafe input');
 	}
 	return id;
 }

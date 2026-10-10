@@ -246,6 +246,13 @@ export const exportBodySchema = z.object({
 	shouldCompress: z.boolean().optional()
 });
 
+/** The synchronous download's query. The tree id is validated here, so a non-UUID is a 400, never a 500. */
+export const exportQuerySchema = z.object({
+	treeId: z.string().uuid(),
+	format: z.enum(['gedcom551', 'gedcom7']).optional(),
+	package: z.enum(['gdz']).optional()
+});
+
 // ---- Facts (Phase 3 fact editor) ----
 
 const factTypeSchema = z.string().refine(isFactType, { message: 'not a fact type' });

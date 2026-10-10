@@ -54,11 +54,23 @@ describe('buildExportInstanceId', () => {
 
 	it('refuses ids that are not UUIDs rather than truncating them', () => {
 		expect(() => buildExportInstanceId('not-a-uuid', 'gedcom7', false, CLIENT)).toThrow(
-			/unsafe input/
+			ValidationError
 		);
 		expect(() => buildExportInstanceId(TREE, 'gedcom7', false, 'not-a-uuid')).toThrow(
 			/unsafe input/
 		);
+		// The refusal is a 400-class domain error whose fixed message never echoes the input, so a
+		// caller's value cannot reach a client through an error body.
+		const thrown = (() => {
+			try {
+				buildExportInstanceId('not-a-uuid', 'gedcom7', false, CLIENT);
+				return null;
+			} catch (err) {
+				return err as Error;
+			}
+		})();
+		expect(thrown).toBeInstanceOf(ValidationError);
+		expect(thrown?.message).not.toContain('not-a-uuid');
 	});
 });
 

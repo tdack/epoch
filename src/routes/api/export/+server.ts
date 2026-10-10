@@ -4,7 +4,7 @@ import { ExportExpiredError, ExportUnavailableError } from '#lib/server/domain/e
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { assertExportable, GedcomService } from '#lib/server/services/gedcom-service.js';
 import { DEFAULT_GEDCOM_FORMAT, type GedcomFormat } from '#lib/server/gedcom/tags.js';
-import { exportBodySchema } from '#lib/server/validation/schemas.js';
+import { exportBodySchema, exportQuerySchema } from '#lib/server/validation/schemas.js';
 import {
 	buildExportInstanceId,
 	EXPORT_STATES,
@@ -47,46 +47,46 @@ function resolveFormat(raw: string | null): GedcomFormat {
 	return raw === 'gedcom551' || raw === 'gedcom7' ? raw : DEFAULT_GEDCOM_FORMAT;
 }
 
-export const GET = apiHandler(options, async ({ db, ctx, event, url }) => {
-	const treeId = url.searchParams.get('treeId');
-	if (!treeId) {
-		return Response.json({ error: 'treeId query parameter required' }, { status: 400 });
-	}
-	const env = event.platform?.env;
-	const service = new GedcomService(db);
-	await service.requireExport(treeId, ctx);
+export const GET = apiHandler(
+	{ ...options, query: exportQuerySchema },
+	async ({ db, ctx, event, query }) => {
+		const { treeId } = query;
+		const env = event.platform?.env;
+		const service = new GedcomService(db);
+		await service.requireExport(treeId, ctx);
 
-	// The download is built in this request, so the size decides before any of it is read. The
-	// ceiling is checked first, whatever is bound: a tree too large for any synchronous build is
-	// refused outright, so a bound workflow cannot turn that refusal into a 409 instead. Below the
-	// ceiling, a large tree goes through the workflow when one is bound; a small one never does.
-	const count = await service.countIndividuals(treeId);
-	if (count > MAX_SYNC_EXPORT_INDIVIDUALS) {
-		return Response.json(
-			{ error: 'This tree is too large for a direct download', code: 'sync_export_too_large' },
-			{ status: 413 }
-		);
-	}
-	if (env?.GEDCOM_EXPORT_WORKFLOW && count > LARGE_EXPORT_INDIVIDUALS) {
-		return Response.json(
-			{ error: 'This tree is too large to download directly', code: 'use_async' },
-			{ status: 409 }
-		);
-	}
+		// The download is built in this request, so the size decides before any of it is read. The
+		// ceiling is checked first, whatever is bound: a tree too large for any synchronous build is
+		// refused outright, so a bound workflow cannot turn that refusal into a 409 instead. Below the
+		// ceiling, a large tree goes through the workflow when one is bound; a small one never does.
+		const count = await service.countIndividuals(treeId);
+		if (count > MAX_SYNC_EXPORT_INDIVIDUALS) {
+			return Response.json(
+				{ error: 'This tree is too large for a direct download', code: 'sync_export_too_large' },
+				{ status: 413 }
+			);
+		}
+		if (env?.GEDCOM_EXPORT_WORKFLOW && count > LARGE_EXPORT_INDIVIDUALS) {
+			return Response.json(
+				{ error: 'This tree is too large to download directly', code: 'use_async' },
+				{ status: 409 }
+			);
+		}
 
-	const { content, filename, contentType } = await service.exportDownload(
-		treeId,
-		{
-			format: resolveFormat(url.searchParams.get('format')),
-			shouldCompress: url.searchParams.get('package') === 'gdz'
-		},
-		ctx
-	);
-	return new Response(content, {
-		status: 200,
-		headers: downloadHeaders(filename, contentType, typeof content === 'string')
-	});
-});
+		const { content, filename, contentType } = await service.exportDownload(
+			treeId,
+			{
+				format: resolveFormat(query.format ?? null),
+				shouldCompress: query.package === 'gdz'
+			},
+			ctx
+		);
+		return new Response(content, {
+			status: 200,
+			headers: downloadHeaders(filename, contentType, typeof content === 'string')
+		});
+	}
+);
 
 export const POST = apiHandler(
 	{ ...options, body: exportBodySchema },
