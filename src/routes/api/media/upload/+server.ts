@@ -112,14 +112,12 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		const { mimeType, extension } = validateMediaUpload(file.type, bytes);
 		const objectKey = `media/${treeId}/${entityId}/${crypto.randomUUID()}.${extension}`;
 
-		// Store in Cloudflare R2
 		await platform.env.MEDIA_BUCKET.put(objectKey, bytes, {
 			httpMetadata: {
 				contentType: mimeType
 			}
 		});
 
-		// Save metadata to D1
 		const mediaId = crypto.randomUUID();
 		const mediaTitle = typeof title === 'string' && title !== '' ? title : file.name;
 		await service.record(treeId, entityId, {

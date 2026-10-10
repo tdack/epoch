@@ -55,6 +55,6 @@ Slice S8 (2026-10-01) did the privacy foundation; see the [S8 status](./improvem
 | 7. Audit | Waiting (the change log is the start of it). |
 | 8. Suggestions and approval | Waiting. |
 | 9. History, revert, conflict review | Waiting. |
-| 10. Exports, logs, caches, R2, errors | Partly: export is manager-only, media reads are checked and `private`-cached, a private id answers as a missing one. A filtered export and log review wait. |
+| 10. Exports, logs, caches, R2, errors | Partly: export is manager-only, media reads are checked and cached `private, no-cache` (revalidated), media uploads are sniffed and capped and served by allowlist (ADR-039), a private id answers as a missing one. A filtered export and log review wait. |
 
 Exit criteria: "Living and indeterminate people are private by default" and "a viewer cannot infer protected data through search, charts, counts, media URLs or exports" are met for the transports in `src/routes/privacy-matrix.test.ts`. "Managers can review suggestions and audit/revert" waits. "Access identity failure is fail-closed; local development uses an explicit adapter" was already so (`ACCESS_BYPASS_DEV`).

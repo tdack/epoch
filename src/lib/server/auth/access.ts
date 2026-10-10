@@ -220,7 +220,6 @@ export async function validateAccessJwt(
 
 	const { header, payload, signature, signedData } = parseJwtParts(token);
 
-	// Expiration check
 	const nowSeconds = Math.floor(Date.now() / 1000);
 	if (payload.exp && payload.exp < nowSeconds) {
 		throw new UnauthenticatedError('Cloudflare Access token expired');
@@ -246,7 +245,6 @@ export async function validateAccessJwt(
 		throw new UnauthenticatedError('Access AUD is not configured');
 	}
 
-	// If allowDevBypass is enabled and this is a dev/test token with alg: none or simulated signature
 	if (isDevBypassToken) {
 		if (!payload.sub || !payload.email) {
 			throw new UnauthenticatedError('Invalid mock token: sub and email required');
@@ -259,7 +257,6 @@ export async function validateAccessJwt(
 		};
 	}
 
-	// Normal production signature verification
 	if (!config.teamDomain) {
 		throw new UnauthenticatedError('Access team domain not configured');
 	}
@@ -308,13 +305,11 @@ export function extractAccessJwt(request: Request): string | null {
 	const headerToken = request.headers.get('cf-access-jwt-assertion');
 	if (headerToken) return headerToken.trim();
 
-	// Check Bearer authorization
 	const authHeader = request.headers.get('authorization');
 	if (authHeader?.startsWith('Bearer ')) {
 		return authHeader.substring(7).trim();
 	}
 
-	// Check CF_Authorization cookie
 	const cookie = request.headers.get('cookie');
 	if (cookie) {
 		const match = cookie.match(/(?:^|;\s*)CF_Authorization=([^;]+)/);

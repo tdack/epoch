@@ -260,7 +260,7 @@ followed by remarriage. So the app can't treat "same partners" as "same union".
 | Privacy: living people, restrictions, relationship privacy | 4 | Built in S8 (ADR-015) |
 | Pending changes, moderation, change history | 4 | An append-only change log with undo (ADR-007); no audit UI, suggestions or moderation |
 | Members, invitations, roles UI | 4 | Built in S9 |
-| Media objects, galleries, highlighted image | 7 | Upload and attach only |
+| Media objects, galleries, highlighted image | 7 | Upload and attach only; uploads are sniffed and capped, and media is served by allowlist (ADR-039) |
 | Places hierarchy, maps, pedigree map | 7 | Literal text only |
 | Reports (family group, individual, ancestors, descendants) | 6 | None |
 | Anniversaries, calendar, recent changes, statistics | 6 | Counts banner only |
@@ -377,7 +377,7 @@ Left open or departing from the plan:
 - **Where it is decided.** One `ViewerScope` per request (`requireTreeScope`); owners, managers and editors see everyone, contributors and viewers do not. The paged reads carry a visibility predicate beside `tree_id`, so totals, `hasMore`, page fill, surname counts and order are computed over what the viewer may see. The reads that load rows mask them (`maskRows`), and the focus window never loads a private person. `filterForViewer` is gone.
 - **Absent, not masked.** A private person is excluded from search, lists, favourites and the header counts, and answers exactly like a missing id (tested). Placeholders ("Private", dashed card, nothing clickable) appear only in the graph and the family lists of a page, when the tree setting is on (default off).
 - **Writes.** A contributor's command is planned over the rows they can see (so a private id fails as a missing one does), then over every row, and refused if it would touch a private person. Previews need the rights of the change.
-- **Closed doors.** Export is a manager action and so is its background job (re-checked in the workflow). Media reads check the tree and the record, `Cache-Control` is `private`, uploads need an editor and a record of this tree. The first caller no longer becomes owner of a tree with no members. `GET /api/trees/[id]`, `GET .../individuals/[id]` and the tree-wide change log need an editor.
+- **Closed doors.** Export is a manager action and so is its background job (re-checked in the workflow). Media reads check the tree and the record, `Cache-Control` is `private, no-cache` (revalidated), and uploads are sniffed, capped and served by allowlist (ADR-039); uploads need an editor and a record of this tree. The first caller no longer becomes owner of a tree with no members. `GET /api/trees/[id]`, `GET .../individuals/[id]` and the tree-wide change log need an editor.
 - **Manager UI.** A privacy panel on a person's page, a Privacy page for the tree, the Privacy link and the Export button only for managers.
 - **Tested.** Pure rule matrix, SQL/pure parity, search, lists, favourites, graph, person and partnership pages, writes, media, export, ownership, a route-driven matrix that fails when an endpoint or page load has no entry, GEDCOM round trip, and `e2e/privacy.spec.ts` as a real second identity.
 

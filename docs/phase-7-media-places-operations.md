@@ -53,4 +53,21 @@ Media/document and place/map workstreams are independent behind shared privacy a
 Not started as a phase (the roadmap shows *Planned*). Earlier slices laid groundwork: media upload
 and attach already exist, S8 (ADR-015) made every media read check the tree, the record and
 the viewer's role, and S11 (ADR-019) added place records derived from each fact's text, with rename
-and merge. Place hierarchy, maps, media records (`OBJE` is retained) and the operations work wait.
+and merge.
+
+The security-hardening pass of 2026-10-10 (ADR-039) completes the MIME/signature and size part of
+work item 3 for upload and delivery: an upload's type is sniffed from its magic bytes and capped at
+25 MB, and every object is served through a `Content-Type` allowlist (`mediaServeDecision`) with
+`nosniff`, `CSP: sandbox`, `CORP: same-origin` and `Referrer-Policy: no-referrer`, so the stored
+type is never replayed. Image dimensions and asynchronous derivatives still wait. Place hierarchy,
+maps, media records (`OBJE` is retained), galleries, retention/orphan cleanup and the operations
+work wait.
+
+Against the exit criteria:
+
+- "Private media cannot be fetched with a guessed or stale URL." Met earlier (S8, ADR-015); the
+  serve route re-checks authorization before any cacheable answer, including a 304 (ADR-039).
+- "Media processing is idempotent and untrusted files are handled safely." Partly met: untrusted
+  files are sniffed on upload and served only by allowlist (ADR-039). Asynchronous derivatives and
+  their idempotency are not built.
+- The place, map and restore criteria wait.
