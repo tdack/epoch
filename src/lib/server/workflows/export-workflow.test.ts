@@ -159,4 +159,31 @@ describe('GedcomExportWorkflow', () => {
 		expect(error.name).toBe('NonRetryableError');
 		expect(objects.size).toBe(0);
 	});
+
+	it('fails without retrying an instance id minted for another tree, before touching R2', async () => {
+		const s = await setup();
+		const { objects, bucket } = fakeBucket();
+		const instanceId = buildExportInstanceId(
+			crypto.randomUUID(),
+			'gedcom7',
+			false,
+			crypto.randomUUID()
+		);
+
+		const error = (await workflowWith(bucket)
+			.run(
+				eventFor(instanceId, {
+					treeId: s.treeId,
+					userId: s.owner.userId,
+					format: 'gedcom7',
+					shouldCompress: false
+				}),
+				recordingStep([])
+			)
+			.catch((e: unknown) => e)) as Error;
+
+		expect(error.name).toBe('NonRetryableError');
+		expect(error.message).toBe('Export instance id does not match its payload');
+		expect(objects.size).toBe(0);
+	});
 });

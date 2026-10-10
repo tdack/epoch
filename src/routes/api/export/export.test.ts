@@ -185,6 +185,13 @@ describe('POST /api/export', () => {
 		);
 		expect(refused.status).toBe(403);
 	});
+
+	it('refuses a tree id that is not a uuid with 400, never reaching the workflow', async () => {
+		const { create, workflow } = fakeWorkflow();
+		const response = await post(owner, { treeId: 'not-a-uuid', clientUuid: uuid() }, workflow);
+		expect(response.status).toBe(400);
+		expect(create).not.toHaveBeenCalled();
+	});
 });
 
 describe('GET /api/export', () => {

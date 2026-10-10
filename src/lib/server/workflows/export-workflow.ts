@@ -41,11 +41,15 @@ export class GedcomExportWorkflow extends WorkflowEntrypoint<
 		const shouldCompress = event.payload.shouldCompress ?? false;
 		const { treeId, userId } = event.payload;
 
-		// The id carries the same two choices. They must agree, or the object's extension (from the id)
-		// could describe a file the bytes are not.
+		// The id carries the tree and the two export choices; the payload must agree with all three, or
+		// the object key (from the id) could name another tree's file or an extension the bytes are not.
 		const parsed = parseExportInstanceId(event.instanceId);
 		if (!parsed) throw new NonRetryableError('Export instance id was not minted here');
-		if (parsed.format !== format || parsed.shouldCompress !== shouldCompress) {
+		if (
+			parsed.format !== format ||
+			parsed.shouldCompress !== shouldCompress ||
+			parsed.treeId !== treeId
+		) {
 			throw new NonRetryableError('Export instance id does not match its payload');
 		}
 

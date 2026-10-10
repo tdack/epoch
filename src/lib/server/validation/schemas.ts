@@ -238,7 +238,8 @@ export const individualUpdateSchema = individualCreateSchema.partial().extend({
 });
 
 export const exportBodySchema = z.object({
-	treeId: idSchema,
+	// A tree id is a UUID; a non-UUID must be a 400 here, not a 500 from buildExportInstanceId.
+	treeId: z.string().uuid(),
 	/** Per click, so a retried async export reuses its instance instead of starting a second. */
 	clientUuid: z.string().uuid(),
 	format: z.enum(['gedcom551', 'gedcom7']).optional(),
