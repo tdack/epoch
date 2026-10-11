@@ -174,7 +174,7 @@ Every view:
 - **Picking.** Partnership markers and parent–child lines are pickable through the stage; give
   markers a hit target at least as big as a person's sphere.
 - **No focus.** The layout handles a null focus and a whole-tree selection of about 300 people (the
-  owner's Simpson tree) to 3,000, and stays legible.
+  owner's family tree) to 3,000, and stays legible.
 - **Gates.** Its own e2e spec covers union and line picking and whole tree. Lint, unit and its e2e
   pass. Look at it on the Simpsons fixture and on a whole tree of about 300 people.
 
@@ -193,7 +193,7 @@ Per view:
 
 1. Merge the four branches.
 2. Resolve every "Needs from Stage A" note.
-3. Run every gate and look at every view on the owner's Simpson tree.
+3. Run every gate and look at every view on the owner's family tree.
 4. Write ADR-035 in `docs/decisions.md`. Append after ADR-034 if that has merged by then;
    otherwise resolve the end-of-file conflict when the other branch merges.
 5. Do not push.

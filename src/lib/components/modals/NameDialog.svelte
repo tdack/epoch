@@ -202,7 +202,7 @@
 						type="text"
 						bind:value={givenName}
 						class={field}
-						placeholder="e.g. Jessica Louise"
+						placeholder="e.g. Jane Mary"
 					/>
 				</div>
 				<div>

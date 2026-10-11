@@ -231,7 +231,7 @@
 			"kind": "card",
 			"refersTo": "section-card",
 			"description": "A record page section: stone wash, border, uppercase label, quiet links.",
-			"html": "<section class=\"ds-section-card\"><h3 class=\"ds-section-heading\">Family</h3><p class=\"ds-row\">Father <a href=\"#\" class=\"ds-row-link\">George Simpson</a> <span class=\"ds-muted\">1880–1952</span></p></section>",
+			"html": "<section class=\"ds-section-card\"><h3 class=\"ds-section-heading\">Family</h3><p class=\"ds-row\">Father <a href=\"#\" class=\"ds-row-link\">George Doe</a> <span class=\"ds-muted\">1880–1952</span></p></section>",
 			"css": ".ds-section-card { border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 16px; } .ds-section-heading { margin: 0 0 8px; font: 700 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #57534e; } .ds-row { margin: 0; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #44403c; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-row-link:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-muted { color: #78716c; font-size: 0.75rem; }"
 		},
 		{
@@ -239,7 +239,7 @@
 			"kind": "card",
 			"refersTo": "list-panel",
 			"description": "White panel of divided rows on an index page.",
-			"html": "<ul class=\"ds-list\"><li><a href=\"#\" class=\"ds-row-link\">Simpson, Arthur</a> <span class=\"ds-muted\">1902–1978</span></li><li><a href=\"#\" class=\"ds-row-link\">Simpson, Mary</a> <span class=\"ds-muted\">ABT 1905–1990</span></li></ul>",
+			"html": "<ul class=\"ds-list\"><li><a href=\"#\" class=\"ds-row-link\">Doe, Arthur</a> <span class=\"ds-muted\">1902–1978</span></li><li><a href=\"#\" class=\"ds-row-link\">Doe, Mary</a> <span class=\"ds-muted\">ABT 1905–1990</span></li></ul>",
 			"css": ".ds-list { list-style: none; margin: 0; padding: 0; border-radius: 12px; border: 1px solid #e7e5e4; background: #fff; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; } .ds-list li { padding: 12px 16px; border-top: 1px solid #e7e5e4; } .ds-list li:first-child { border-top: none; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-muted { color: #78716c; font-size: 0.75rem; }"
 		},
 		{
@@ -270,7 +270,7 @@
 			"name": "Person Card",
 			"kind": "custom",
 			"description": "The tree's unit: sex-tinted card with symbol, bold name and muted dates; teal edge when selected.",
-			"html": "<div class=\"ds-tree\"><div class=\"ds-pcard ds-pcard-m\"><span class=\"ds-sym\">♂</span><div><div class=\"ds-pname\">Arthur Simpson</div><div class=\"ds-pdates\">1902–1978</div></div></div><div class=\"ds-pcard ds-pcard-f ds-selected\"><span class=\"ds-sym\">♀</span><div><div class=\"ds-pname\">Mary Simpson</div><div class=\"ds-pdates\">ABT 1905–1990</div></div></div></div>",
+			"html": "<div class=\"ds-tree\"><div class=\"ds-pcard ds-pcard-m\"><span class=\"ds-sym\">♂</span><div><div class=\"ds-pname\">Arthur Doe</div><div class=\"ds-pdates\">1902–1978</div></div></div><div class=\"ds-pcard ds-pcard-f ds-selected\"><span class=\"ds-sym\">♀</span><div><div class=\"ds-pname\">Mary Doe</div><div class=\"ds-pdates\">ABT 1905–1990</div></div></div></div>",
 			"css": ".ds-tree { display: flex; gap: 16px; padding: 24px; background-color: #f7f3ea; background-image: radial-gradient(#d6cebf 1px, transparent 1px); background-size: 16px 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-pcard { display: flex; gap: 8px; align-items: flex-start; width: 180px; padding: 10px 12px; border-radius: 12px; border: 1.75px solid; cursor: pointer; transition: border-width 120ms; } .ds-pcard:hover { border-width: 3px; } .ds-pcard-m { background: #dbe8f5; border-color: #5a84b5; } .ds-pcard-f { background: #f6dde6; border-color: #b8607f; } .ds-selected { border-color: #0f766e; border-width: 3.5px; } .ds-sym { color: #57534e; font-size: 18px; line-height: 1; } .ds-pname { font-weight: 700; font-size: 14px; color: #1c1917; } .ds-pdates { font-size: 12px; color: #57534e; }"
 		}
 	],

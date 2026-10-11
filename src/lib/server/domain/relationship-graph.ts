@@ -33,7 +33,7 @@ export interface GraphPersonInput {
 	deathDate?: string | null;
 	/** Optimistic-concurrency version of the person record. */
 	version?: number;
-	/** The person's stored names, so the card can say "(née Simpson)". */
+	/** The person's stored names, so the card can say "(née Doe)". */
 	names?: ReadonlyArray<{ type: string; surname: string | null; isPreferred?: boolean }>;
 }
 

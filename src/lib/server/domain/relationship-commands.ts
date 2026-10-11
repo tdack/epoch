@@ -193,15 +193,15 @@ function refOf(rows: TreeRows, id: string): PersonRef {
 	return { id, givenName: person?.givenName ?? null, surname: person?.surname ?? null };
 }
 
-/** "Homer Simpson–Marge Simpson": how a family is named in a sentence. */
+/** "John Smith–Jane Smith": how a family is named in a sentence. */
 function unionLabelOf(rows: TreeRows, unionId: string): string | null {
 	const names = partnerIdsOf(rows, unionId).map((id) => displayNameOf(rows, id));
 	return names.length > 0 ? names.join('–') : null;
 }
 
 /**
- * What follows "in the" when a sentence names a partnership: "2nd partnership of Homer Simpson and
- * Marge Simpson" when the pair has several, otherwise "Homer Simpson–Marge Simpson family".
+ * What follows "in the" when a sentence names a partnership: "2nd partnership of John Smith and
+ * Jane Smith" when the pair has several, otherwise "John Smith–Jane Smith family".
  */
 function unionPhraseOf(rows: TreeRows, unionId: string): string | null {
 	const label = partnershipLabels(labelableUnionsOf(rows)).get(unionId);

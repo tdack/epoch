@@ -151,8 +151,8 @@ export class SearchRepository {
 		const whole = words.join(' ');
 		const all = (make: (word: string) => SQL) => sql.join(words.map(make), sql` and `);
 		// Levels: exact name, every word is a whole word, name starts with the query, every word
-		// starts a word, every word appears anywhere. Whole words outrank a prefix so that "Brown"
-		// finds Ann Brown before Brownlow Ann. The tie term prefers the name the person is
+		// starts a word, every word appears anywhere. Whole words outrank a prefix so that "Fox"
+		// finds Ann Smith before Smithson Ann. The tie term prefers the name the person is
 		// shown by, then the preferred stored name, then the others in their order.
 		return sql`
 			with cand as (

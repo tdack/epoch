@@ -2,7 +2,7 @@
  * Name types and the one formatter for how a person is shown (Phase 3, S6).
  *
  * Browser-safe: the server's labels, the graph, the person page and the editor's type picker all
- * read it, so a card and a preview cannot disagree about "Jessica Wren (née Lovejoy)".
+ * read it, so a card and a preview cannot disagree about "Jane Smith (née Doe)".
  */
 
 import { personName } from './person-name';
@@ -57,7 +57,7 @@ interface NameParts {
 	suffix?: string | null;
 }
 
-/** The whole name written out: "Dr Julius Hibbert Jr". */
+/** The whole name written out: "Dr John van der Berg Jr". */
 export function formatFullName(name: NameParts): string {
 	return (
 		[name.prefix, name.givenName, name.surnamePrefix, name.surname, name.suffix]
@@ -86,7 +86,7 @@ export function birthSurnameOf(
 }
 
 /**
- * "Jessica Wren (née Lovejoy)": the preferred name, and the birth surname when the person has a
+ * "Jane Smith (née Doe)": the preferred name, and the birth surname when the person has a
  * birth or maiden name that differs. With no stored names it is exactly `personName`.
  */
 export function displayNameWith(
@@ -103,7 +103,7 @@ const BIRTH_SUFFIX = /^(.*) \(née (.+)\)$/;
 
 /**
  * The inverse of `displayNameWith`, for the views that draw the two halves apart (a card puts
- * "née Simpson" on its own line). It lives beside the formatter so the format is written once.
+ * "née Doe" on its own line). It lives beside the formatter so the format is written once.
  */
 export function splitDisplayName(displayName: string): {
 	name: string;

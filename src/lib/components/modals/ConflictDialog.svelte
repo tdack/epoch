@@ -6,7 +6,7 @@
 	interface Props {
 		/** Whether the dialog is open. */
 		isOpen: boolean;
-		/** What was being edited, e.g. "Homer Simpson". */
+		/** What was being edited, e.g. "John Smith". */
 		subject: string;
 		/** Only the fields that differ; identical fields are left out. */
 		rows: ConflictRow[];

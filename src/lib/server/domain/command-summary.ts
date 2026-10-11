@@ -1,5 +1,5 @@
 /**
- * One-line, past-tense summaries of what a command did ("Deleted Homer Simpson"), stored in the
+ * One-line, past-tense summaries of what a command did ("Deleted John Smith"), stored in the
  * change log and shown in the undo toast.
  */
 

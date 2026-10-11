@@ -13,7 +13,7 @@
 	interface Props {
 		/** Whether the dialog is open. */
 		isOpen: boolean;
-		/** The shared partners, e.g. "Homer Simpson and Marge Simpson". */
+		/** The shared partners, e.g. "John Smith and Jane Smith". */
 		partners: string;
 		/** The partnerships that could be merged, oldest first. At least two while `isOpen` is true. */
 		candidates: MergeCandidate[];

@@ -29,7 +29,7 @@
 		isActive: boolean;
 		/** True when the person is reached by more than one path (pedigree collapse). */
 		hasMultiplePaths: boolean;
-		/** Relationship to the focus person ("child", "partner of Ned"), spoken with the name. */
+		/** Relationship to the focus person ("child", "partner of Alex"), spoken with the name. */
 		relation: string;
 		/** Click or Enter/Space on the card: refocus the chart on this person. */
 		onSelect: (id: string) => void;

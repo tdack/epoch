@@ -40,7 +40,7 @@ These come from ADR-032 and CLAUDE.md. Every session follows them.
   - three.js stays in a dynamic `import()` from the canvas component.
   - Draw on demand, keeping the controls' `change` redraw (the zoom bug in ADR-032).
   - Merge geometries where there are hundreds of meshes, such as Ribbons' tubes.
-  - Target: the owner's 314-person Simpson tree (8 generations each way, about 202 drawn people)
+  - Target: the owner's 314-person family tree (8 generations each way, about 202 drawn people)
     lays out in under 100 ms and orbits smoothly.
 - **Pure layout, tested.**
   - `src/lib/tree-layout/<mode>.ts` holds only maths: no three.js and no DOM.
@@ -132,7 +132,7 @@ files:**
   the mode name.
 - Its own block in `tree-tokens.ts`.
 - `e2e/<mode>.spec.ts`.
-- `docs/3d-alternatives/<mode>.md`: its notes, decisions, what was tried, and timings on the Simpson
+- `docs/3d-alternatives/<mode>.md`: its notes, decisions, what was tried, and timings on the owner's family
   tree and `representative-551`.
 
 If it needs a change to a shared file, it does not make it. It writes the need into its notes file
@@ -236,7 +236,7 @@ under **Needs from Stage 0**; integration resolves it.
   - Union partners end within tolerance of the binary distance.
   - A child is nearer its parents' barycentre than an unrelated star of that generation.
   - The several-unions fixture forms one cluster.
-  - Layout time on the Simpson tree and `representative-551` is recorded.
+  - Layout time on the owner's family tree and `representative-551` is recorded.
 
 ## Stage 4 — integration (this branch)
 
@@ -256,5 +256,5 @@ under **Needs from Stage 0**; integration resolves it.
 - **Commits:** small conventional commits, with the agent's own `Co-Authored-By` trailer.
 - **Lint:** `npm run lint` before the last commit.
 - **Pushing:** never.
-- **Before calling it done:** see the view in the browser preview on the Simpsons and Simpson
+- **Before calling it done:** see the view in the browser preview on the Simpsons fixture and the owner's
   fixtures.

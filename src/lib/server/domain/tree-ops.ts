@@ -70,7 +70,7 @@ function cleanText(value: string | null | undefined): string | null {
 
 export { personName };
 
-/** "Jessica Wren (née Lovejoy)": the name for a preview, a summary or a sentence, from the rows as they are. */
+/** "Jane Smith (née Doe)": the name for a preview, a summary or a sentence, from the rows as they are. */
 export function displayNameOf(rows: TreeRows, personId: string): string {
 	return displayNameWith(
 		rows.individuals.find((p) => p.id === personId),

@@ -89,7 +89,7 @@ export type RelationshipIntent =
  * which family a link will land in, who is in the partnership, and who becomes widowed.
  */
 export interface SentenceFacts {
-	/** What follows "in the": "Homer Simpson–Marge Simpson family" or "2nd partnership of Homer Simpson and Marge Simpson". */
+	/** What follows "in the": "John Smith–Jane Smith family" or "2nd partnership of John Smith and Jane Smith". */
 	unionPhrase?: string | null;
 	partners?: PersonRef[];
 	/** The parents an added sibling will be linked to. */

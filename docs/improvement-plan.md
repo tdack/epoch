@@ -7,7 +7,7 @@
 
 This plan compares the running app with [roadmap.md](./roadmap.md), the phase documents and the
 webtrees capability baseline. It proposes an ordered set of small, commit-sized slices. Every
-finding below was verified against the code or the running app, using `The_Simpsons_clean.ged`
+finding below was verified against the code or the running app, using `test/data/The Simpsons.ged`
 imported into local D1.
 
 ## Summary
@@ -46,7 +46,7 @@ tokens with any `sub`.
   `npm run db:migrate:local`.
 - [README.md](../README.md) is still the `sv` boilerplate.
 - **Fix:** document setup (Node version, `db:migrate:local`, dev identity, seeding a fixture). Add
-  an `npm run seed` script that imports `docs/gedcom-data/The_Simpsons_clean.ged` and the
+  an `npm run seed` script that imports `test/data/The Simpsons.ged` and the
   [genealogy fixtures](../src/lib/server/fixtures/genealogy-fixtures.ts).
 
 ## Tree rendering
@@ -57,8 +57,8 @@ A probe that ran the layout for every person as focus on the Simpsons tree found
 
 | Symptom | Evidence |
 |---|---|
-| Descendants' partners are dropped | Focusing Jessica omits Rosalind Fairfax (Ned's partner). Focusing Homer or Marge omits Maude Flanders. The union node is drawn with one partner. |
-| Partner lines span generations | In the unfocused view, a partner with no recorded parents is placed in generation 0. Maude is drawn two rows above Maggie. 2 of 6 unions are split this way. |
+| Descendants' partners are dropped | Focusing Jessica omits Selma Bouvier (Maude's partner). Focusing Homer or Marjorie omits Milhouse Van Houten. The union node is drawn with one partner. |
+| Partner lines span generations | In the unfocused view, a partner with no recorded parents is placed in generation 0. Milhouse is drawn two rows above Lisa. 2 of 6 unions are split this way. |
 | Tangled edges | People are placed left to right in insertion order. Partners are not adjacent, children are not under their parents, and there is no crossing reduction. |
 | Duplicate stacked edges | Each per-parent assertion produces its own curve from the same union node to the same child. Hannah appears twice in the union's children, so two identical curves are drawn, and selecting "the" line deletes only one parent's assertion. |
 | No siblings or step-family in focus view | Focusing Bart shows 4 people. His siblings and Jessica's children (his step-children) are hidden. |
@@ -170,7 +170,7 @@ Write these constraints as tests before changing the algorithm:
 
 ### Acceptance tests
 
-Turn the probe into Vitest suites over `The_Simpsons_clean.ged` and every scenario in
+Turn the probe into Vitest suites over `test/data/The Simpsons.ged` and every scenario in
 `genealogy-fixtures.ts`, with **every person as focus** at several depths. Assert the following:
 
 - No union is drawn with a missing partner unless that partner is represented by a stub.
@@ -197,7 +197,7 @@ screenshots.
 | 2 | Intent-based editor covering marriage, separation, divorce, death, end and remove | The modal offers only add parent, add child and add partner. The domain already has `record_death` and `end_union` intents that the UI doesn't expose. Union status and union events (marriage date and place) can't be edited. |
 | 2 | Impact summaries for destructive actions; conflict display | Uses `window.confirm` and `window.alert` ([+page.svelte:331](../src/routes/+page.svelte)). No 409 conflict UI exists. `undoLast` exists server-side but has no UI. |
 | 2 | Depth and relationship-type controls on the graph | Built (the toolbar's generation steppers and link-type checkboxes, kept in the address); proved in S10 by `e2e/controls.spec.ts`. The row said "not built" after they were. |
-| 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `096fb88`). The real problem is duplicate FAMs from import, such as `The_Simpsons.ged`. See [Duplicate unions](#duplicate-unions). |
+| 2 | Never normalise away repeated unions | [PersonDrawer.svelte:66](../src/lib/components/tree/PersonDrawer.svelte) collapses unions by partner pair (commit `096fb88`). The real problem is duplicate FAMs from import, such as `test/data/The Simpsons duplicate families.ged`. See [Duplicate unions](#duplicate-unions). |
 | 2 | Keyboard and screen-reader support | Nodes are focusable, but there is no arrow-key navigation, no text alternative to the graph and no focus management in the drawer. |
 
 Phase 2 was reopened when this plan was written. It closed when slices S1–S4 below were done,
@@ -208,14 +208,14 @@ After S4 the remaining Phase 2 gaps were closed and Phase 2 is *Complete*; see [
 
 ### Duplicate unions
 
-**The problem.** In `The_Simpsons.ged`, many of the 10 `FAM` records are copies:
+**The problem.** In `test/data/The Simpsons duplicate families.ged`, many of the 10 `FAM` records are copies:
 
-- Homer and Marge's family appears three times in full, plus once with only Homer and once with
-  only Marge. Bart has three `FAMC` links, one to each full copy.
+- Homer and Marjorie's family appears three times in full, plus once with only Homer and once with
+  only Marjorie. Bart has three `FAMC` links, one to each full copy.
 - Bart and Jessica's family appears twice.
 
 The importer correctly creates one union per `FAM`, so the tree gets several identical
-Homer–Marge unions.
+Homer–Marjorie unions.
 Commit `096fb88` hides the empty copies in the drawer only. The canvas still draws every copy, and
 the data stays duplicated.
 
@@ -298,7 +298,7 @@ number prefix can overlap.
 | S3 | Duplicate unions (done) | Import-time exact-duplicate detection and merge in the preview; merge-unions command with preview; remove the drawer dedupe; chronological labels for repeated unions. See [Duplicate unions](#duplicate-unions). |
 | S4 | Phase 0/1 debt (done) | Removed `ensureDbSchema` and `schema-init.ts` (migrations are the only schema source; a missing schema answers 503 with the command to run; a test fails if Drizzle and the migrations disagree). Persisted date bounds, precision and qualifier (migration 0007, `dateColumnsFor`, backfill script; ADR-004 addendum). `X` sex end to end, with a documented 5.5.1 fallback (ADR-010). One `errorResponse` helper for every route. Also: explicit union choice on add child, add parent and add partner (the S2 gap), alias-aware merge-mode re-import (ADR-008), and `FAMC` extras kept through export (ADR-009). |
 | S5 | Phase 3 start (done) | Routes `/trees/[id]`, `/trees/[id]/people/[pid]`, `/trees/[id]/unions/[uid]` with the old `/?tree=` address redirecting; person and partnership pages; a repeatable fact editor; the bounded `/graph?focus=` endpoint (`up`/`down` in place of `depth`), proved equal to the whole-tree layout. See ADR-011 and ADR-012 and [query-plans.md](./query-plans.md). |
-| S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jessica Wren (née Lovejoy)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./archive/s6-person-names-prompt.md). |
+| S6 | Person names (done) | Every `NAME` round-trips through GEDCOM (type, `NPFX`/`GIVN`/`NICK`/`SPFX`/`SURN`/`NSFX`, extra lines, legacy `_MARNM`); add, edit, reorder, remove and choose the preferred name through the mutation runner with previews and undo; "Jane Smith (née Doe)" on cards, drawer, person page, summaries, previews and sentences; search matches every name; an optional from-date and partnership on a name, kept in a `NOTE` under the `NAME`. See ADR-013, [Person names](#person-names) and [s6-person-names-prompt.md](./archive/s6-person-names-prompt.md). |
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |

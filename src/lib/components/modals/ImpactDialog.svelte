@@ -8,7 +8,7 @@
 	interface Props {
 		/** Whether the dialog is open. */
 		isOpen: boolean;
-		/** Dialog title, e.g. "Delete Homer Simpson?". */
+		/** Dialog title, e.g. "Delete John Smith?". */
 		title: string;
 		/** What the server says the action would change; null while it is being fetched. */
 		impact: ImpactSummary | null;

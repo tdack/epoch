@@ -24,7 +24,7 @@ Stage 1 of `docs/3d-alternatives-plan.md`. Branch work on top of Stage 0 (`8715a
 
 ## Timings (layout only, Node, warm)
 
-No Simpson GEDCOM exists in this checkout, so these are synthetic full binary pedigrees with two siblings per couple and a child and partner of the focus person, dated by generation:
+No large real GEDCOM exists in this checkout, so these are synthetic full binary pedigrees with two siblings per couple and a child and partner of the focus person, dated by generation:
 
 | People drawn | Ball | Rings (same input) |
 |---|---|---|
@@ -53,8 +53,8 @@ Done:
 - Dark stage (`POINCARE_TOKENS.stage`), glass opacity base 0.05 to 0.012 and rim 0.42 to 0.14, year labels and latitude rings recoloured.
 - Scene lights from the `Highlight`: line colours from marks, `softOpacity` for soft marks, shared marks drawn at `sharedLinePx`, sprite halos in the mark colour (second ring in the intersection colour when shared). The sex fill stays.
 - `trackUnion` with an invisible hit sphere at least as big as the largest partner; `trackLink` on each geodesic (never for private people).
-- Layout: the collision pass uses a spatial grid. Whole tree on a 3,140-person synthetic tree (Simpson x10): about 8 s before, about 0.6 to 2.5 s after (machine was loaded). Simpson (314): about 80 to 200 ms.
-- Looked at in the browser: Simpsons focus view and Simpson whole tree (legible). Not looked at: trace mode, the 3,000-person render (the browser pane was hidden), the Side and Pole cameras on the dark stage.
+- Layout: the collision pass uses a spatial grid. Whole tree on a 3,140-person synthetic tree (the 314-person tree x10): about 8 s before, about 0.6 to 2.5 s after (machine was loaded). The 314-person tree: about 80 to 200 ms.
+- Looked at in the browser: Simpsons focus view and the 314-person whole tree (legible). Not looked at: trace mode, the 3,000-person render (the browser pane was hidden), the Side and Pole cameras on the dark stage.
 
 Not done:
 - `e2e/poincare.spec.ts` union and line picking and whole-tree cases, and the e2e runs.

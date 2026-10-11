@@ -104,7 +104,7 @@ Use **CSS 3D transforms over HTML planes**, not WebGL (Three.js/Threlte), with o
 
 ## Stage 0: spike and ADR (2–3 days)
 
-- Throwaway branch: draw the current `TreeLayout` for `The_Simpsons_clean.ged` in a rough
+- Throwaway branch: draw the current `TreeLayout` for `test/data/The Simpsons.ged` in a rough
   `PlaneStack`, both as upright planes (everything on plane 0 except siblings) and as floors
   (`y → floor`).
 - Check in Chromium and WebKit (Firefox is not required):

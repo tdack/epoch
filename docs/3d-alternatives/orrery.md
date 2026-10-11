@@ -47,7 +47,7 @@ union's partners are a binary, children settle round their parents' barycentre.
 | Synthetic dynasty, 8 generations | 510 | 66 ms exact, 145 ms Barnes–Hut |
 | Synthetic dynasty, 9 generations | 1022 | 1.2 s exact, 0.37 s Barnes–Hut |
 
-The owner's real Simpson tree is not in the repo, so a synthetic tree of the same size stands in: the
+The owner's real family tree is not in the repo, so a synthetic tree of the same size stands in: the
 254-person dynasty (a couple, two children per couple, each child partnered by an outsider) is
 within the 100 ms target even cold. Check it on the real tree at integration.
 

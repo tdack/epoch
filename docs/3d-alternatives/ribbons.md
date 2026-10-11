@@ -75,9 +75,9 @@ Measured in vitest (node, M-series Mac), median of a warm run:
 - **`representative-551` is not a 551-person graph.** Its fixture holds 5 people and 2 unions, so it
   cannot exercise ordering. The crossing test builds a seeded, shuffled, interlocking dynasty in
   the test file instead, with three focuses.
-- **The Simpson tree is not a fixture,** so it was not timed. The 200-person dynasty is the same size
+- **The owner's family tree is not a fixture,** so it was not timed. The 200-person dynasty is the same size
   as its drawn subset, and it lays out in a few milliseconds against the 100 ms target. Run the
-  view on the Simpson tree in the preview before relying on that.
+  view on the owner's family tree in the preview before relying on that.
 - **Rendering:** drawn once on demand. Orbit cost is the same few draw calls whatever the size.
 
 ## Rough edges
@@ -108,7 +108,7 @@ Measured in vitest (node, M-series Mac), median of a warm run:
   mark, or the knot's; an ancestor's join counts only into a union on the path.
 - **People** keep their sex fill and get a halo (a double one when shared) in their mark's colour.
   The focus keeps its light ring and size. Halos are merged into one mesh.
-- **Draw calls:** 6 on the Simpson tree with a partnership selected (solid tubes, fading tubes, halos,
+- **Draw calls:** 6 on the owner's family tree with a partnership selected (solid tubes, fading tubes, halos,
   solid knots, fading knots, glow). Merged by opacity, so it does not grow with the selection.
 - **Knots** are the partnership markers (`trackUnion`), with an invisible proxy sphere of 0.95
   units against a node's 0.46.
@@ -116,7 +116,7 @@ Measured in vitest (node, M-series Mac), median of a warm run:
   (`strandCentreline`), all sharing one invisible material. Anchored at sample 8, on the polyline.
   Measured in node: about 1 ms per pick with 3,000 lines and 3,000 spheres.
 - **Whole tree:** the layout already flows from row 0 down with a null focus. `layoutRibbons` takes
-  about 540 ms for ~3,000 people (vitest), and the Simpson tree (314) is legible from the side camera.
+  about 540 ms for ~3,000 people (vitest), and the owner's family tree (314) is legible from the side camera.
 - **Rough:** from the Angled camera, siblings' tubes lie behind one another, so a tube can be hard
   to hit. Soft (0.5) and faded (0.4) are close in opacity; colour tells them apart. Simpsons and the
   trace mode were not checked by eye; trace is covered in e2e.

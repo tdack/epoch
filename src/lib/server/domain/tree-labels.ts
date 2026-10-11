@@ -1,6 +1,6 @@
 /**
- * Names for rows in previews and the change log: "Homer Simpson", "Homer Simpson–Marge Simpson
- * partnership", "Death of Homer Simpson". Labels are computed from the tree as it was before a
+ * Names for rows in previews and the change log: "John Smith", "John Smith–Jane Smith
+ * partnership", "Death of John Smith". Labels are computed from the tree as it was before a
  * change plus the rows the change creates, so a deleted person is still named.
  */
 

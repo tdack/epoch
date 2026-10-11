@@ -225,7 +225,7 @@ function changedFields(before: RowImage, after: RowImage): FieldChange[] {
 }
 
 /**
- * Describe each op as a record change. `labelOf` names a row ("Homer Simpson", "Homer and Marge's
+ * Describe each op as a record change. `labelOf` names a row ("John Smith", "John and Jane's
  * partnership"); it gets the row as it exists after the change, or before it when deleted.
  */
 export function describeOps(

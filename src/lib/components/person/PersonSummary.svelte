@@ -9,7 +9,7 @@
 
 	let { dto }: Props = $props();
 
-	/** First letter of the first given name and of the surname: "Jessica Louise Lovejoy" is SL. */
+	/** First letter of the first given name and of the surname: "Jane Mary Doe" is JD. */
 	const initials = $derived.by(() => {
 		const first = dto.person.givenName?.trim().split(/\s+/)[0]?.[0];
 		const last = dto.person.surname?.trim().split(/\s+/).at(-1)?.[0];

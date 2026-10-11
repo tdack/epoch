@@ -107,7 +107,7 @@ export const MAX_DATE_REWRITES = 200;
 
 /** One date the standardise action would rewrite, as the preview lists it. */
 interface DateTidyChange {
-	/** What the date is on, such as "Death of Wilbur Clancy Bouvier". */
+	/** What the date is on, such as "Death of John Henry Smith". */
 	label: string;
 	before: string;
 	after: string;
