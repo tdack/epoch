@@ -40,7 +40,7 @@ const MAX_SYNC_EXPORT_INDIVIDUALS = 50000;
  * week for diagnosis. This wins over the binding's `default_retention`, which only applies to an
  * instance created without one — and this route always passes one.
  */
-const EXPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' };
+const EXPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
 const options = { failure: 'Export failed', messagePrefix: 'Export failed: ' };
 
