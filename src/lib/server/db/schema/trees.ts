@@ -1,25 +1,40 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { users } from './users';
 
 // Trees
-export const trees = sqliteTable('trees', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull(),
-	description: text('description'),
-	// ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
-	maxAliveYears: integer('max_alive_years').notNull().default(120),
-	// Whether viewers see a private person as a "Private" placeholder in the graph and on partnerships;
-	// off omits them. Off by default so the safe behaviour needs no action.
-	shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
-		.notNull()
-		.default(false),
-	// The view a member with no setting of their own sees (`flat`, `layers` or `floors`); null is flat.
-	// Set by the owner; changing it does not bump `version`, which guards the name and description.
-	defaultViewMode: text('default_view_mode'),
-	version: integer('version').notNull().default(1),
-	createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
-});
+export const trees = sqliteTable(
+	'trees',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		description: text('description'),
+		// ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
+		maxAliveYears: integer('max_alive_years').notNull().default(120),
+		// Whether viewers see a private person as a "Private" placeholder in the graph and on partnerships;
+		// off omits them. Off by default so the safe behaviour needs no action.
+		shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
+			.notNull()
+			.default(false),
+		// The view a member with no setting of their own sees (`flat`, `layers` or `floors`); null is flat.
+		// Set by the owner; changing it does not bump `version`, which guards the name and description.
+		defaultViewMode: text('default_view_mode'),
+		version: integer('version').notNull().default(1),
+		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+		// ADR-040. At most one tree in the install is readable without signing in; the partial unique
+		// index below makes the database, not the service, refuse a second.
+		isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
+		publicSince: integer('public_since', { mode: 'timestamp' }),
+		// The install owner who made it public. No foreign key: removing a user must not touch the tree.
+		publishedBy: text('published_by')
+	},
+	(table) => ({
+		onePublicTreeIdx: uniqueIndex('idx_trees_one_public')
+			.on(table.isPublic)
+			.where(sql`is_public = 1`)
+	})
+);
 
 // Tree Memberships (Roles: owner, manager, editor, contributor, viewer)
 export const treeMemberships = sqliteTable(

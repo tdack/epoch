@@ -183,6 +183,13 @@
       "when": 1791527708747,
       "tag": "0025_install_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1791685041972,
+      "tag": "0026_public_tree",
+      "breakpoints": true
     }
   ]
 }
