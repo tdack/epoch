@@ -30,7 +30,8 @@ clear message if it is missing:
 | or an active zone, for a custom domain | `cf zones list`, active zones only |
 
 **The tool never creates or changes account-level configuration.** That includes the Zero Trust
-organisation, identity providers, Access groups, Access tags, zones and DNS (beyond the record the
+organisation, identity providers, Access groups, Access tags (a Zero Trust feature, unrelated to
+the resource tags below), zones and DNS (beyond the record the
 Worker custom domain manages for itself), and Email Sending domains. Its Cloudflare footprint is:
 
 - D1, R2, the queue and the Worker (with its workflow and queue consumer);
@@ -236,7 +237,7 @@ done, and writes its result back, so an interrupted run resumes.
 
 ```
 preflight → sign in → collect → reconcile (ownership) → show plan → confirm
-         → provision → Access app and policy → write config → migrate → mark → deploy → verify → hand-off
+         → provision → Access app and policy → write config → migrate → mark → deploy → verify → mark configured → hand-off
 ```
 
 ### 1. Preflight (local, no network)
@@ -340,8 +341,8 @@ and the manifest is only a cache of what reconcile can rediscover.
 | D1 | Row in a new `install_meta` table holding the install UUID (an expand-only migration) | Applied migrations (`d1_migrations`) against `drizzle/`; counts of trees, people and users; owner emails; size and created date |
 | R2 | Object `.epoch/install.json` | Object count, total size, a few sample keys |
 | Worker | Var `EPOCH_INSTALL_ID` | Last deployment date; whether its D1, R2 and queue bindings point at the resources above. A Worker bound to a *different* D1 is a strong "not ours" |
-| Queue | None possible | Its consumer: our Worker, someone else's, or none |
-| Access app | None written: tags are account-level objects, which are out of scope. It is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<name>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
+| Queue | Resource tag `epoch.install` (see "Resource tags"); nothing can be stored in the queue itself | Its consumer: our Worker, someone else's, or none |
+| Access app | Resource tag `epoch.install` (see "Resource tags"). Without a tag, it is ours when its id is in the manifest, or when its domain is exactly `<host>/login` and the D1 or Worker marker on the same host matches. Its name is `Epoch (<name>)`; a hand-made app may have another name | Its domain and path, policies and AUD; whether the deployed `CF_ACCESS_AUD` equals it |
 | Access policy | None written. A policy the user picked from the existing ones is **referenced, never owned**: the tool attaches it and never edits it. A policy the tool created is ours when its id is in the manifest and it is named `Epoch <name> sign-in` | Its decision, its include rules, and every app that uses it |
 
 Adoption is also how **this repository's own live install moves under the tool.** Run setup with
@@ -532,6 +533,156 @@ Print:
 - where the manifest is.
 
 Offer to delete `scripts/setup-cloudflare.sh` if it is still present.
+
+## Resource tags
+
+[Resource Tagging](https://developers.cloudflare.com/resource-tagging/) (public beta since
+27 April 2026) stores key-value tags beside a resource, not inside it, and can list every
+resource in the account that matches a tag filter. The first version of this plan did not cover it;
+its "Access tags" are a Zero Trust feature that has nothing to do with this one. Resource tags give
+setup three things:
+
+- **A marker for the queue and the Access app,** which until now had none.
+- **One call to find an install:** `cf tags resources list --tag epoch.instance=<name>` returns the
+  type, id, name, tags and ETag of everything the install owns. This replaces guessing from
+  derived names on a fresh clone (the `orphaned` state), and gives `doctor` and `teardown` their
+  inventory.
+- **A completion flag** that shows in the dashboard (Manage Account > Resource Tagging) and can be
+  filtered on, so a half-finished install is visible without the manifest.
+
+### What the account showed (read-only checks, 11 October 2026)
+
+- `cf` 1.0.0-beta.13 has the commands: `cf tags resources list` (filters `--tag`, `--type`, `--id`,
+  `--name`), `cf account-tags get|update|delete`, `cf keys list` and `cf values list`.
+- **Writes go through `--body` only.** `account-tags update --tags …` is rejected. With `--body`,
+  `cf` sends only the body and drops `--resource-type` and `--resource-id`, so the body must hold
+  `resource_type`, `resource_id` and `tags`; a dry run with all three printed the correct `PUT`.
+  `--if-match <etag>` gives compare-and-swap (412 when the tags changed since the read), but the
+  dry run does not print headers, so whether `cf` sends it is unconfirmed.
+- **OAuth scopes `tag.read` and `tag.write` exist** in the `cf` client. Wrangler's login is not known
+  to request them, so every tag call goes through `cf`, never the raw-API helper.
+- **Ids are not validated.** `account-tags get` returned 200, empty tags and the same ETag for the
+  Worker by its name, by its real id, and for a made-up D1 UUID. Biblioteca's tool tagged its Worker once by name and once
+  by id, and the account now lists two `worker` entries for `biblioteca-cc`. A wrong id is a silent
+  no-op, so the tool must only ever use the canonical id below.
+- **Deploys appear to keep tags.** Both `biblioteca-*` Workers were redeployed after they were
+  tagged and still carry their tags. This is inferred, so verify re-reads the Worker's tags after
+  every deploy.
+- **Keys are account-wide.** The account already has `configured` and `OpenCode` (set by hand on
+  `biblioteca-oc`) and `biblioteca.instance`. Every Epoch key is prefixed `epoch.`, so a filter on
+  it can never match another app.
+
+### Tags
+
+| Key | Value | On | Purpose |
+| --- | --- | --- | --- |
+| `epoch.instance` | Worker name, e.g. `epoch` | Every owned resource | The filter key. Readable in the dashboard; matches biblioteca's `biblioteca.instance` convention |
+| `epoch.install` | Install UUID | Every owned resource | Ownership. The same UUID as the D1, R2 and Worker markers |
+| `epoch.role` | `worker`, `db`, `media`, `import-queue`, `access-app` | Every owned resource | Maps a listed resource to its manifest slot without parsing names |
+| `epoch.state` | `provisioning` or `configured` | Every owned resource | The completion flag |
+
+Tag values are visible to every account member, so no owner email or other personal data goes in
+them. Four keys on five resources is 20 of the account's 10,000-tag beta limit.
+
+**Canonical ids.** Each one comes from the resource's own list or create response:
+
+| Resource | `resource_type` | `resource_id` | Tagged |
+| --- | --- | --- | --- |
+| D1 | `d1_database` | Database UUID | Step 6, after create or adopt |
+| R2 | `r2_bucket` | Bucket name (the API has no other id) | Step 6 |
+| Queue | `queue` | `queue_id` (32 hex), not its name | Step 6 |
+| Access app | `access_application` | App UUID | Step 7 |
+| Worker | `worker` | The script's `id` (32 hex, `tag` in the scripts list), not its name | Step 9, after the first deploy: the Worker does not exist before it |
+
+**Not taggable here:** the Workflow (no resource type), and reusable Access policies. The only
+policy type is the zone-level `access_application_policy`, and a workers.dev install has no zone.
+Both keep matching by manifest id and name.
+
+### How reconcile uses them
+
+Tags are an **index and a second witness, not proof.** Anyone with Tag Admin can write them,
+they may outlive a deleted resource, and an R2 tag is keyed by bucket name, so a bucket that is
+deleted and re-created under the same name would inherit it. So:
+
+1. **Read once.** `cf tags resources list --tag epoch.instance=<name>` (paged by cursor), plus a
+   second call `--tag epoch.install=<uuid>` when the manifest has a UUID, to catch a resource that
+   was renamed or whose `epoch.instance` was edited.
+2. **Check each tagged id still exists** in that resource's own list. A tag on a missing resource is
+   reported by `doctor` as stale and is never adopted.
+3. **Combine with the markers** for D1, R2 and the Worker:
+
+| Tag | In-resource marker | State |
+| --- | --- | --- |
+| This install's UUID | This UUID, or the marker is not written yet | `ours` (or `orphaned` with no manifest) |
+| This install's UUID | A different UUID | `foreign`: the two witnesses disagree |
+| Another UUID | Any | `foreign`, naming the other install's `epoch.instance` |
+| None | This UUID | `ours`; the tag is backfilled |
+| None | None | `unmarked` (the adoption prompt, as today) |
+
+   For the queue and the Access app the tag is the only witness. Ours means the tag matches *and*
+   the existing corroboration still holds (the queue's consumer is our Worker; the app's domain is
+   `<host>/login`).
+4. **Show other installs.** `cf tags resources list --tag epoch.instance` (key only) lists every
+   Epoch install in the account. The name prompt shows them ("epoch-test: configured") and refuses
+   a name already in use, before any other lookup.
+
+### Writing
+
+- **Merge, never replace.** `PUT` replaces every tag on a resource, so each write is a read, a merge
+  that leaves keys the tool did not write untouched, and an `update --if-match <etag>`. On 412,
+  re-read and merge again, up to three times.
+- **The first write to an untagged resource** takes its ETag from `account-tags get` with the
+  canonical id. Never take it from `tags resources list`: an untagged resource is not in that
+  list. The docs' "500 for a never-tagged resource" no longer happens: `get` returns 200, empty
+  tags and the same empty-set ETag (`v1:RBNvo1…`) for any id, real or not.
+- **When.** A resource is tagged as soon as it is created or adopted (the user has confirmed it),
+  with `epoch.state=provisioning`. The manifest records which resources are tagged, as it does for
+  markers.
+- **The completion flag.** A run that will change anything first sets `epoch.state=provisioning`
+  on every owned resource that exists. Once verify (step 10) passes, a new **mark configured** step,
+  before hand-off, sets `epoch.state=configured` on all of them. A failed or interrupted run
+  therefore leaves `provisioning` behind, and `cf tags resources list --tag epoch.instance=<name> --tag epoch.state!=configured` finds it. A
+  `--plan` or a run with nothing to change writes no tags.
+- **Teardown** deletes each resource's tags (`account-tags delete`) before deleting the resource,
+  and only for resources whose `epoch.install` matches the manifest.
+
+### Degrading
+
+Tagging must never block an install:
+
+- **Missing scope, 403 or feature gate:** warn once ("resource tags unavailable: <reason>"), skip
+  every tag read and write, and reconcile with the markers alone, exactly as before this section.
+  The manifest records `tags: "unavailable"`, so `doctor` can say so.
+- **`CLOUDFLARE_API_TOKEN` mode:** the token's tag permission group is not documented, and
+  biblioteca's guess (`Account Settings`) was never confirmed. Try, and degrade on 403.
+- The existing markers stay. Dropping any of them is a later decision, after tags have proved
+  themselves on live installs.
+
+### Build steps
+
+1. **Spike additions** (read-only, plus `--dry-run`):
+   - a profile created with only `BASE_SCOPES` plus `tag.read` and `tag.write` can list tags;
+   - a real write on a throwaway resource, then a second write with the stale ETag: is it a 412?
+2. `scopes.ts`: add `tag.read` and `tag.write` to `BASE_SCOPES`.
+3. `cloudflare.ts`: `listTagged(filters)`, `getTags(type, id)`, `putTags(type, id, tags, etag)` and
+   `deleteTags(type, id)`. Map 412 to a retryable error, and 403 or a feature gate to "unavailable".
+   Add the queue's `queue_id` and the Worker's script id to what the wrappers already return.
+4. A new `tags.ts`: key constants, merge-and-put with retry, and ownership classification. Tests
+   against recorded `cf` output:
+   - a write keeps every tag the tool did not set;
+   - a 412 is retried from a fresh read;
+   - a tag for another install is `foreign` and names it;
+   - a tag disagreeing with the D1 marker is `foreign`;
+   - a tag on a missing resource is stale, not ours;
+   - the Worker is never tagged by name;
+   - a 403 degrades to markers only.
+5. `reconcile.ts`: the table above. `manifest.ts`: record tagged resources and `tags` availability.
+6. Steps 6, 7 and 9 tag what they create or adopt. The new mark-configured step marks the install configured. The name
+   prompt lists other installs.
+7. `doctor` reports stale tags, owned resources without tags, and an install left in
+   `provisioning`. `teardown` deletes tags first.
+8. **This repository's live install:** the adoption run tags `epoch-genealogy`'s resources. The
+   Access app and the queue get their first marker.
 
 ## Other commands
 
