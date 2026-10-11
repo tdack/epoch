@@ -50,10 +50,10 @@ capabilities, not its screens or implementation.
 - GEDCOM round-trips every supported structure without loss; unsupported structures are retained
   for export.
 - Every endpoint denies by default; privacy masks living and private people per viewer.
-- Phase status lives in `docs/roadmap.md`. Still open: audit, contributor suggestions and record
-  history (Phase 4); reports, timelines and production import/export jobs (Phase 6); media,
-  documents and maps (Phase 7); release hardening (Phase 8).
-- `docs/phase-8-release-hardening.md` targets WCAG 2.2 AA for core workflows. Phone layouts are
+- Open work lives in `docs/backlog.md`. Still open: audit, contributor suggestions and record
+  history; reports, timelines and production import/export jobs; media, documents and maps;
+  release hardening.
+- The release-hardening items in `docs/backlog.md` target WCAG 2.2 AA for core workflows. Phone layouts are
   already built and covered by e2e tests; how far phones are a primary surface is undecided.
 
 ## Brand Commitments

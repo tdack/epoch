@@ -5,9 +5,9 @@ This file provides guidance to LLMs when working with code in this repository.
 ## Project status
 This repository is an initial proof of concept implementation of webtrees.net using more contemporary frameworks, particularly svelte, sveltekit and cloudflare workers, D1, queues and other resources.
 
-Phase status lives only in the table in `docs/roadmap.md`; slice status (S0 … S16) lives in the
-delivery-slices table and status sections of `docs/improvement-plan.md`. Each phase document carries
-its own status against its exit criteria. Update those, not this file, when a slice lands.
+Open fixes and proposed additions live only in `docs/backlog.md`; the architecture is in
+`docs/architecture.md` and the reasons behind decisions in `docs/decisions.md`. Update those, not
+this file, when work lands.
 
 ## Architecture
 

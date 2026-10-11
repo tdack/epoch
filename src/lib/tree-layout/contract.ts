@@ -1,5 +1,5 @@
 /**
- * Checkers for the layout contract in docs/improvement-plan.md. Each returns a list of
+ * Checkers for the layout contract. Each returns a list of
  * human-readable violations, empty when the layout complies, so a failing test names the offender.
  *
  * They live beside the layout (not in a test file) because the same checks are useful for

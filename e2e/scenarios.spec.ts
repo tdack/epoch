@@ -1,5 +1,5 @@
 /**
- * Task-based usability run over the Phase 1 scenarios (docs/phase-1-genealogy-core.md). Each test
+ * Task-based usability run over the Phase 1 scenarios. Each test
  * builds one scenario through the editor alone, as a person would, then checks the stored graph
  * and what is shown. People are created through the API only to have somebody to start from; every
  * relationship, ending and death goes through the dialogs, with no GEDCOM and no notion of a FAM.

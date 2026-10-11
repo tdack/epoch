@@ -4,8 +4,8 @@ Notes for working on Epoch itself. For features and installation, see the
 [README](../README.md).
 
 - [AGENTS.md](../AGENTS.md): architecture, layering and code conventions.
-- [roadmap.md](./roadmap.md): direction and phase status.
-- [improvement-plan.md](./improvement-plan.md#delivery-slices): what each delivery slice shipped.
+- [architecture.md](./architecture.md): direction, layering, data model and authorization.
+- [backlog.md](./backlog.md): open fixes and proposed additions.
 - [decisions.md](./decisions.md): architecture decision records (ADRs).
 
 ## Commands
@@ -56,7 +56,7 @@ Local state is keyed by the D1 id, so the placeholder id starts a fresh local da
 `npm run db:migrate:local` once after pulling a change to it.
 
 The design of the setup tool, and the checks that still need a real account
-(`./setup spike`), are in [cli-setup-plan.md](./cli-setup-plan.md).
+(`./setup spike`), are listed in [backlog.md](./backlog.md#setup-tool-npm-run-setup).
 
 ## Identity and sign-in
 
