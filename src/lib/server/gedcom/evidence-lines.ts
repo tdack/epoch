@@ -38,12 +38,10 @@ export function isPlainText(node: GedcomNode): boolean {
 export const LINE_BREAK = /\r\n|[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/;
 
 /**
- * The code points a GEDCOM file must not carry in text. TAB, LF, CR, the Unicode line separators
- * `\u2028`/`\u2029` and NBSP are kept; everything else in the C0 and C1 controls, a *lone* UTF-16
- * surrogate, and U+FFFE/U+FFFF are removed. A valid surrogate pair spells an astral character and
- * is kept whole.
+ * The C0 and C1 controls except TAB, LF and CR, plus U+FFFE and U+FFFF, as a pattern built from
+ * text so no raw control literal appears. The Unicode line separators `\u2028`/`\u2029` and NBSP
+ * are kept.
  */
-/** The C0/C1 controls, U+FFFE and U+FFFF, as a pattern built from text so no raw control literal appears. */
 const BANNED_CONTROL_CHARS = new RegExp(
 	// eslint-disable-next-line no-control-regex
 	'[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f\\u0080-\\u009f\\ufffe\\uffff]',

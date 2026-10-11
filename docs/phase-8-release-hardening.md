@@ -71,6 +71,9 @@ GEDCOM export hardening and the asynchronous export landed on 2026-10-11
   lifecycle rule (read-merge-write, abort-only rules ignored, a rule that could touch `media/`
   refused), and `doctor` fails on any delete rule that could expire live media. See ADR-040.
 
+The dialect hardening and the tree-name round trip followed on 2026-10-11
+(`fix/gedcom-dialect-and-tree-name`, ADR-042); see [GEDCOM export follow-ups](#gedcom-export-follow-ups).
+
 The residuals the review accepted are listed below. The other work items are not started.
 
 ## Known issues and accepted residuals
@@ -121,12 +124,21 @@ The two GEDCOM export items from this review both shipped on 2026-10-11
   a tree at or below 5,000 people; there is no synchronous fallback for a large tree that the
   workflow cannot run.
 
-Still planned, not done:
+Done in the follow-up (`fix/gedcom-dialect-and-tree-name`, 2026-10-11, ADR-042):
 
-- **GEDCOM dialect hardening.** GEDCOM `@`-escaping, 255-character `CONC` wrapping, and general
-  C0-control stripping, on the same export-text seam the injection fix uses.
-- **An export audit.** An export writes no audit entry yet; recording who exported what, when, sync
-  or async, and under which instance id needs a dedicated account-level audit table and migration
-  (`TODO(audit)` in `src/routes/api/export/+server.ts`).
-- **The tree-name round trip.** Export writes the tree's name as `1 NOTE Tree: <name>`, but import
-  reads the name only from `HEAD.FILE`, so a name set in Epoch does not come back.
+- **GEDCOM dialect hardening (done).** `@`-escaping and general C0-control stripping now happen at
+  build time: a model text's leading `@` is doubled where its line is built, in both dialects; the
+  import reads the escape from the raw bytes and unescapes the owning line and its `CONT`s but never
+  a `CONC`; and the 7.0 forbidden control set (C0 except TAB/LF/CR, DEL, C1, unpaired surrogates,
+  U+FFFE/U+FFFF) is stripped. The dialect post-pass converts only. **5.5.1 `CONC` wrapping at 255
+  bytes is deferred:** no reader in scope needs it.
+- **The tree-name round trip (done).** Export writes `1 NOTE Tree: <name>` and import reads it back
+  through a version-guarded conditional rename, with precedence explicit name > embedded `Tree:` >
+  filename > `HEAD.FILE`, logged as one `import_tree_name` change.
+
+Parked, deliberately not planned:
+
+- **An export audit.** An export writes no audit entry. It does not fit `change_log`, which ADR-007
+  scopes to tree content for undo, and the owner does not want that level of accountability or
+  tracing, so a dedicated account-level audit table and migration is deliberately not planned. See
+  the former `TODO(audit)` note in `src/routes/api/export/+server.ts`.

@@ -14,7 +14,11 @@ export interface GedcomNode {
 	 * malformed payload into an apparent pointer once it is cleaned up.
 	 */
 	rawValue?: string;
-	/** True when the file escaped the value's leading `@` as `@@` (GEDCOM 7), so it is text, not a pointer. */
+	/**
+	 * True when the file wrote the value's leading `@` as `@@`, so it is text, not a pointer.
+	 * GEDCOM 7 defines the escape; Epoch reads it in both dialects, because a 5.5.1 file can carry
+	 * it too (ADR-042).
+	 */
 	isAtEscaped?: boolean;
 	rawLine: string;
 	children: GedcomNode[];

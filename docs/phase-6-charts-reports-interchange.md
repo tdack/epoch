@@ -59,6 +59,8 @@ client, with a 24-hour read-time expiry and an `exports/` R2 lifecycle rule. Pro
 status poll; cancellation, diagnostics, downloadable reports and retained job history have not
 started, and items 5 to 8 and the compact view have not started. Of the GEDCOM operations, import
 now detects the version (5.5, 5.5.1, 7.0) and the character set and reads GEDZip, and export offers
-GEDCOM 7 (the default, optionally as `.gdz`) and 5.5.1 compatibility profiles (ADR-036); exported
-text can no longer inject a GEDCOM line (ADR-040). Extension reporting before import, keeping the
-original upload, the conformance corpus and the semantic diff report have not started.
+GEDCOM 7 (the default, optionally as `.gdz`) and 5.5.1 compatibility profiles (ADR-036); exported text can no
+longer inject a GEDCOM line (ADR-040); and `@`-escaping and the 7.0 forbidden control set are handled
+at build time in both dialects, with the tree name round-tripping (ADR-042). Extension reporting
+before import, keeping the original upload, the conformance corpus and the semantic diff report have
+not started.

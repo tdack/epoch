@@ -16,13 +16,12 @@ import {
 } from '#lib/server/workflows/export-instance.js';
 
 /*
- * TODO(audit): an export writes no audit entry yet. It does not fit `change_log`, which ADR-007
- * scopes to tree content for undo (an import logs nothing for the same reason), and whose
- * `changes_json` is a list of per-record before/after images with no room for a format, a mode or
- * an instance id. Recording who exported what, when, sync or async, and the instance id needs a
- * dedicated account-level audit entry — a new table and migration, which is a hard gate and is not
- * opened here. Write one entry where each path produces the file: the synchronous GET, and the
- * workflow step (keyed by the instance id).
+ * No audit entry: an export records nothing. It does not fit `change_log`, which ADR-007 scopes to
+ * tree content for undo (an import logs nothing for the same reason), and whose `changes_json` is a
+ * list of per-record before/after images with no room for a format, a mode or an instance id. A
+ * dedicated account-level audit entry was considered and parked by the owner, who does not want
+ * that level of accountability or tracing; recording who exported what would need a new table and
+ * migration, now deliberately not planned. See ADR-042.
  */
 
 /**
