@@ -26,9 +26,11 @@ that says to run it, rather than a `no such table` error. The check compares Wra
 ### Installing into Cloudflare
 
 ```sh
-npm run setup -- --plan   # reconcile with your account and print what would change; read-only
-npm run setup             # sign in, create the resources, the Access application, deploy, verify
+./setup --plan   # reconcile with your account and print what would change; read-only
+./setup          # sign in, create the resources, the Access application, deploy, verify
 ```
+
+`./setup …` is `npm run setup -- …` without the `--`; either works.
 
 Setup signs in through your browser (no API token to create), asks only what it cannot discover, and
 proves that any resource it finds by name belongs to this install before using it. It assumes your
@@ -38,13 +40,13 @@ and Worker, a workers.dev URL or one custom domain, and one Access application o
 (chosen from your existing ones, or a new one for your email). It never edits a policy it did not
 create.
 
-Later: `npm run setup -- doctor` reports drift, `allow <email>` and `disallow <email>` edit the
-policy setup created, and `teardown` deletes only what this install made. `npm run setup -- --help`
-lists every flag, including the ones that answer each prompt for CI. With `--json` use
-`npm run -s setup -- …` so npm’s own banner stays off stdout. State lives in
+Later: `./setup doctor` reports drift, `allow <email>` and `disallow <email>` edit the
+policy setup created, and `teardown` deletes only what this install made. `./setup --help`
+lists every flag, including the ones that answer each prompt for CI. With `--json`, stdout carries
+only the result (through npm, use `npm run -s setup -- …` so its banner stays off stdout). State lives in
 `.epoch/install.json` (git-ignored) and the tracked `wrangler.deploy.jsonc`. See
 [docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
-real account (`npm run setup -- spike`).
+real account (`./setup spike`).
 
 ### Dev identity
 

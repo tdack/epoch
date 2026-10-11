@@ -1,0 +1,8 @@
+#!/bin/sh
+# `./setup <command> [options]` is `npm run setup -- <command> [options]` without the `--`.
+# It runs from the repository root, wherever it is called from: `cf` and wrangler pick their
+# sign-in profile by the directory they run in, and setup binds it to the repository root.
+set -e
+cd "$(dirname "$0")"
+node scripts/ensure-setup-deps.mjs
+exec node tools/setup/cli.ts "$@"
