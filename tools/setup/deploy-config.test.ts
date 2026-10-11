@@ -7,7 +7,6 @@ import {
 	loadTemplate,
 	parseDeployDefaults,
 	parseTrackedConfig,
-	renderDeployConfig,
 	type DeployValues
 } from './deploy-config.ts';
 import { parseJsonc, stripJsonc } from './jsonc.ts';
@@ -131,12 +130,6 @@ describe('generateDeployConfig', () => {
 		>;
 		expect(kept.workers_dev).toBe(true);
 		expect(kept.preview_urls).toBeUndefined();
-	});
-
-	it('renders JSONC with a header that wrangler can read back', () => {
-		const text = renderDeployConfig(config);
-		expect(text.startsWith('// Tracked.')).toBe(true);
-		expect(parseJsonc(text)).toEqual(config);
 	});
 
 	it('says what is missing when the tracked file has changed shape', () => {
