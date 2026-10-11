@@ -16,6 +16,8 @@ export interface ExecRequest {
 	isInteractive?: boolean;
 	/** The child prints a credential on stdout (a minted token), so stdout never reaches a log. */
 	hasSecretOutput?: boolean;
+	/** Failure is an expected answer ("absent"), so even `--verbose` does not echo its stderr. */
+	isProbe?: boolean;
 }
 
 export interface ExecResult {
@@ -80,8 +82,12 @@ export function createExec(options: RealExecOptions): Exec {
 		}
 		const { paths, logFile, isVerbose, redactor } = options;
 		mkdirSync(dirname(logFile), { recursive: true });
-		const log = (text: string) => appendFileSync(logFile, redactor.redact(text));
-		log(`\n$ ${describeCommand(request)}\n`);
+		// Commands run in parallel, so each writes its whole block once, when it finishes; appending as
+		// output arrived interleaved one command's result under another's header.
+		let block = `\n$ ${describeCommand(request)}\n`;
+		const log = (text: string) => {
+			block += text;
+		};
 
 		return new Promise((resolve, reject) => {
 			const env: NodeJS.ProcessEnv = { ...process.env };
@@ -105,18 +111,21 @@ export function createExec(options: RealExecOptions): Exec {
 				const text = chunk.toString();
 				stderr += text;
 				log(text);
-				if (isVerbose) process.stderr.write(redactor.redact(text));
+				// A probe is expected to fail when the thing is absent, so its stderr is logged, never echoed.
+				if (isVerbose && !request.isProbe) process.stderr.write(redactor.redact(text));
 			});
-			child.on('error', (error) =>
+			child.on('error', (error) => {
+				appendFileSync(logFile, redactor.redact(block));
 				reject(
 					new SetupError(ERROR_CODES.command, `Could not start ${request.tool}: ${error.message}`, {
 						hint: 'Run `npm install` at the repository root, then retry.'
 					})
-				)
-			);
+				);
+			});
 			child.on('close', (code) => {
 				if (!request.hasSecretOutput) log(`--- stdout\n${stdout}\n`);
 				log(`--- exit ${code}\n`);
+				appendFileSync(logFile, redactor.redact(block));
 				resolve({ exitCode: code ?? 1, stdout, stderr });
 			});
 			if (request.stdin !== undefined) child.stdin?.end(request.stdin);

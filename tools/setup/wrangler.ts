@@ -121,6 +121,7 @@ export function createWranglerApi(runner: Runner, auth: WranglerAuth): WranglerA
 			const result = await runner.exec({
 				tool: 'wrangler',
 				args: ['r2', 'object', 'get', `${bucket}/${key}`, '--pipe', '--remote'],
+				isProbe: true,
 				env: env()
 			});
 			return result.exitCode === 0 ? result.stdout : null;
