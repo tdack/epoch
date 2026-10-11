@@ -16,6 +16,18 @@ const INSTALL_META_TABLE = 'install_meta';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@,;'"<>\\]+@[^\s@,;'"<>\\]+\.[^\s@,;'"<>\\]+$/;
 
+/**
+ * The placeholder `wrangler.deploy.jsonc` ships with. A Worker var, a hand-inserted row or an object
+ * holding it says nothing about which install it belongs to, so it reads as "no marker".
+ */
+export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+export function realMarker(value: string | null | undefined): string | null {
+	return typeof value === 'string' && value !== '' && value.toLowerCase() !== NIL_UUID
+		? value
+		: null;
+}
+
 export interface InstallMeta {
 	installId: string;
 	ownerEmail: string;

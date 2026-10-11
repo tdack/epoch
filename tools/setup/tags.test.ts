@@ -254,7 +254,9 @@ describe('tags as a second witness in reconcile', () => {
 		);
 	const run = (manifestId: string | null, observed: Observed, tags = witnessD1(OURS)) =>
 		reconcile({
-			manifest: manifestId ? testManifest({ installId: manifestId }) : null,
+			manifest: manifestId
+				? testManifest({ installId: manifestId, markersWritten: ['worker'] })
+				: null,
 			names,
 			hostname: 'epoch.example.com',
 			observed,
@@ -328,7 +330,7 @@ describe('tags as a second witness in reconcile', () => {
 	it('with no tag evidence at all it behaves exactly as before tags existed', () => {
 		const withTags = run(OURS, observedBase, {});
 		const without = reconcile({
-			manifest: testManifest({ installId: OURS }),
+			manifest: testManifest({ installId: OURS, markersWritten: ['worker'] }),
 			names,
 			hostname: 'epoch.example.com',
 			observed: observedBase
@@ -550,7 +552,12 @@ describe('the reconcile step’s name check', () => {
 			})
 		});
 		await expect(
-			reconcileStep(ctx, testManifest({ installId: OURS }), answers, true)
+			reconcileStep(
+				ctx,
+				testManifest({ installId: OURS, markersWritten: ['worker'] }),
+				answers,
+				true
+			)
 		).rejects.toThrow(`already used by install ${OTHER}`);
 	});
 
@@ -558,7 +565,12 @@ describe('the reconcile step’s name check', () => {
 		const { ctx, report } = testContext({
 			cf: stubApi({ ...empty, listTagged: async () => installs })
 		});
-		const out = await reconcileStep(ctx, testManifest({ installId: OURS }), answers, false);
+		const out = await reconcileStep(
+			ctx,
+			testManifest({ installId: OURS, markersWritten: ['worker'] }),
+			answers,
+			false
+		);
 		expect(report.infos.join('\n')).toContain('epoch-test: configured');
 		expect(out.manifest.tags).toBe(TAG_AVAILABILITY.available);
 	});
@@ -572,7 +584,12 @@ describe('the reconcile step’s name check', () => {
 				}
 			})
 		});
-		const out = await reconcileStep(ctx, testManifest({ installId: OURS }), answers, true);
+		const out = await reconcileStep(
+			ctx,
+			testManifest({ installId: OURS, markersWritten: ['worker'] }),
+			answers,
+			true
+		);
 		expect(out.manifest.tags).toBe(TAG_AVAILABILITY.unavailable);
 		expect(report.warnings.join()).toContain('resource tags unavailable');
 	});

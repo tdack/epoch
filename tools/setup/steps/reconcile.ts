@@ -1,6 +1,6 @@
 import type { StepContext } from '../context.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
-import { FINGERPRINT_SQL, parseMarkerRows, readMarkerSql } from '../install-meta.ts';
+import { FINGERPRINT_SQL, parseMarkerRows, readMarkerSql, realMarker } from '../install-meta.ts';
 import { AUTH_MODES, OWNERSHIPS, withMarker, withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
 import type { Answers } from '../options.ts';
@@ -49,7 +49,7 @@ async function observeD1(ctx: StepContext, name: string): Promise<ObservedD1 | n
 	// (migration 0025 may not have run), and a fingerprint must never block reconcile.
 	const markerInstallId = await ctx.cf
 		.queryD1(found.id, readMarkerSql())
-		.then((rows) => parseMarkerRows(rows)?.installId ?? null)
+		.then((rows) => realMarker(parseMarkerRows(rows)?.installId))
 		.catch(() => null);
 	const ownerEmails = await ctx.cf
 		.queryD1(found.id, FINGERPRINT_SQL.ownerEmails)
@@ -95,7 +95,7 @@ async function observeR2(
 				.makeWrangler({ kind: 'profile', accountId: manifest.account?.id ?? '' })
 				.getObject(name, R2_MARKER_KEY);
 			const parsed = text ? (JSON.parse(text) as { installId?: unknown }) : null;
-			markerInstallId = typeof parsed?.installId === 'string' ? parsed.installId : null;
+			markerInstallId = realMarker(typeof parsed?.installId === 'string' ? parsed.installId : null);
 		} catch {
 			markerInstallId = null;
 		}

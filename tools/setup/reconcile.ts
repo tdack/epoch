@@ -185,7 +185,16 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 	const { manifest, names, hostname, observed, tags } = input;
 	const refusals: string[] = [];
 	const warnings: string[] = [];
-	const ownId = manifest?.installId ?? null;
+	// A manifest whose id was never written anywhere is not evidence of anything: treating it as one made
+	// a found marker "foreign" on a first run. Without history it behaves as no manifest, so agreeing
+	// markers read as orphaned and the install can be re-attached.
+	const hasHistory =
+		manifest !== null &&
+		(manifest.markersWritten.length > 0 ||
+			manifest.taggedResources.length > 0 ||
+			manifest.access.app !== null ||
+			Object.values(manifest.resources).some((resource) => resource !== null));
+	const ownId = hasHistory ? (manifest?.installId ?? null) : null;
 
 	const markersFound = [
 		observed.d1?.markerInstallId,
