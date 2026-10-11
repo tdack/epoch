@@ -46,3 +46,4 @@ vite.config.ts.timestamp-*
 
 # Install manifest, logs and spike responses written by `npm run setup`
 /.epoch/
+docs/archive/
