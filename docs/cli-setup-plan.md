@@ -800,3 +800,44 @@ Tagging must never block an install:
 - **The build-field agreement check** runs `scripts/deploy-config.mjs`, not a copy.
 - **New `cf`/API calls for the spike:** `GET /accounts/{id}/workers/subdomain` (raw API, no `cf`
   command exists); the check is `workers-subdomain`.
+
+### Resource tags (built)
+
+Build steps 2 to 7 are in `tools/setup/`; step 1's spike items and step 8 (the live install's
+adoption run) are for the owner. Where it differs from the plan:
+
+- **Tag scopes degrade instead of failing sign-in.** `tag.read` and `tag.write` are in `BASE_SCOPES`
+  (so a new login asks for them), but `assertScopesGranted` checks `requiredScopes`, which leaves
+  them out. A login made before they existed warns and runs on markers alone; `--force` adds them.
+  The spike's `whoami-shape` check skips them the same way.
+- **Tag wrappers read the exit code themselves** (`tagCf`, not `runner.json`) because `runner.json`
+  folds a failure into one sentence and cannot tell a 412 (retry) from a 403 (degrade) from anything
+  else (throw). How `cf` prints a 4xx is unrecorded, so the match is on the text (`412`,
+  `precondition failed` / `403`, `9109`, `permission`, `scope`, beta or entitlement wording); the
+  spike's 412 check settles the first. A failure that matches neither throws, and the run resumes.
+- **Canonical ids are enforced in the wrappers**, before any call: a Worker or queue id must be 32 hex,
+  a D1 or Access app id a UUID, and nothing may be empty. The Worker's id is `tag` in
+  `GET /workers/scripts` (new `getWorkerScriptId`, a raw read; the shape is unrecorded, so the
+  `worker-script-id` spike check confirms it). If it cannot be read, the Worker is left untagged with a
+  warning.
+- **The name prompt runs before sign-in**, so it cannot list installs. The list ("epoch-test:
+  configured") and the refusal of a name another install uses happen at the start of reconcile
+  instead. The refusal applies only when a manifest exists and its UUID differs; a fresh clone is left
+  to reconcile, where the same name is the install to re-attach to (`orphaned`), not a clash.
+- **`reconcile()` stays pure.** Tags arrive as `ReconcileInput.tags`; absent means exactly the old
+  behaviour. Tags also feed the install id an orphaned re-attach keeps.
+- **Availability is re-probed every run** (the reconcile step's first listing) and recorded as
+  `manifest.tags`; `taggedResources` records each tagged resource's canonical id. Older manifests
+  read with defaults. `mark-configured` was added to `STEP_NAMES` between `verify` and `hand-off`.
+- **No "nothing to change" gate.** Every applied run redeploys the Worker, so it always marks
+  `provisioning` first (tags already at the wanted value are not rewritten) and marks `configured`
+  only when verify has no failures.
+- **"Verify re-reads the Worker's tags after a deploy"** is done by mark-configured instead: it
+  reads, merges and writes, so tags a deploy dropped are restored. It does not report that they were
+  dropped.
+- **Cursor paging** is followed if `cf` ever wraps the list with a `cursor`; the recorded output is a
+  bare array.
+- **Spike.** `tag-scopes-list` (a profile with the base scopes can list), `worker-script-id`, and
+  `tag-write-etag-412` (creates a throwaway queue `epoch-spike-<ts>`, tags it, writes again with the
+  stale ETag, expects 412, then deletes the tags and the queue, also on Ctrl-C). It is the one spike
+  check that writes. The dry-run check also covers `account-tags update` and `delete`.
