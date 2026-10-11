@@ -194,7 +194,7 @@ describe('collect', () => {
 		scopes: []
 	};
 
-	it('--yes accepts the discovered defaults: one account, one zone, <name>.<zone>, an existing policy that admits the owner', async () => {
+	it('--yes accepts the discovered defaults: one account, one zone, <name>.<zone>, and a new policy of its own (never another app’s)', async () => {
 		const { ctx } = testContext({ cf: api() });
 		const { answers } = await collect(
 			ctx,
@@ -211,7 +211,7 @@ describe('collect', () => {
 			d1Location: null,
 			emailSender: null
 		});
-		expect(answers.policy).toEqual({ existingIds: [policies[0].id], isNewPolicy: false });
+		expect(answers.policy).toEqual({ existingIds: [], isNewPolicy: true });
 	});
 
 	it('without a terminal and without --yes, a question with several answers is an error naming the flag', async () => {

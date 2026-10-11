@@ -5,7 +5,6 @@ import {
 	ADMITS,
 	admitsEmail,
 	assertEmail,
-	defaultPolicyChoice,
 	describePolicy,
 	editEmailRules,
 	includesEveryone,
@@ -103,27 +102,6 @@ describe('does the owner get in', () => {
 			policiesAdmit([family!, policy({ include: [{ group: { id: 'g' } }] })], 'zed@example.org')
 		).toBe(ADMITS.unknown);
 		expect(policiesAdmit([family!], 'zed@example.org')).toBe(ADMITS.no);
-	});
-});
-
-describe('the default under --yes', () => {
-	it('is an existing policy that already admits the owner', () => {
-		expect(defaultPolicyChoice([family!, everyone!], 'a@example.com')).toEqual({
-			existingIds: [family!.id],
-			isNewPolicy: false
-		});
-	});
-	it('never defaults to a policy that admits everyone; it creates an owner-only one instead', () => {
-		expect(defaultPolicyChoice([everyone!], 'a@example.com')).toEqual({
-			existingIds: [],
-			isNewPolicy: true
-		});
-	});
-	it('creates a new policy when none admits the owner', () => {
-		expect(defaultPolicyChoice([family!], 'zed@example.org')).toEqual({
-			existingIds: [],
-			isNewPolicy: true
-		});
 	});
 });
 

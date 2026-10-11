@@ -113,23 +113,6 @@ export interface PolicyChoice {
 	isNewPolicy: boolean;
 }
 
-/**
- * What `--yes` picks: an existing Allow policy that already admits the owner, because that is
- * the least new access to create; otherwise a new policy for the owner alone. "Everyone" is
- * never a default, since ADR-034 makes it safe but the owner should choose it knowingly.
- */
-export function defaultPolicyChoice(policies: AccessPolicy[], ownerEmail: string): PolicyChoice {
-	const match = policies.find(
-		(policy) =>
-			isOfferable(policy) &&
-			!includesEveryone(policy) &&
-			admitsEmail(policy, ownerEmail) === ADMITS.yes
-	);
-	return match
-		? { existingIds: [match.id], isNewPolicy: false }
-		: { existingIds: [], isNewPolicy: true };
-}
-
 export function ownerOnlyRules(ownerEmail: string): AccessRule[] {
 	return [{ email: { email: ownerEmail.toLowerCase() } }];
 }

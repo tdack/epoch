@@ -9,7 +9,6 @@ import { HOSTINGS, type Answers, type Hosting, type SetupFlags } from '../option
 import {
 	ADMITS,
 	assertEmail,
-	defaultPolicyChoice,
 	describePolicy,
 	includesEveryone,
 	isOfferable,
@@ -411,16 +410,16 @@ export async function listPoliciesWithApps(ctx: StepContext): Promise<AccessPoli
 	}));
 }
 
-/** The policies already on this host's application when they admit the owner; otherwise the usual default. */
-function preferredChoice(
-	policies: AccessPolicy[],
-	preferredIds: string[],
-	ownerEmail: string
-): PolicyChoice {
-	const kept = policies.filter((p) => preferredIds.includes(p.id) && isOfferable(p));
-	return kept.length > 0 && policiesAdmit(kept, ownerEmail) === ADMITS.yes
+/**
+ * What setup does without being asked: keep the policies already on the application it is adopting,
+ * otherwise make its own. Never another application's policy, however well it happens to match the
+ * owner: a pre-ticked unrelated policy was once submitted by an Enter meant for another row.
+ */
+function defaultChoice(policies: AccessPolicy[], currentIds: string[]): PolicyChoice {
+	const kept = policies.filter((p) => currentIds.includes(p.id) && isOfferable(p));
+	return kept.length > 0
 		? { existingIds: kept.map((p) => p.id), isNewPolicy: false }
-		: defaultPolicyChoice(policies, ownerEmail);
+		: { existingIds: [], isNewPolicy: true };
 }
 
 async function choosePolicy(
@@ -458,25 +457,28 @@ async function choosePolicy(
 			{
 				flag: '--policy or --new-policy',
 				flagValue: undefined,
-				defaultValue: preferredChoice(policies, preferredIds, ownerEmail)
+				defaultValue: defaultChoice(policies, preferredIds)
 			},
 			mode
 		);
 		if (resolution.status === 'answered') {
 			choice = resolution.value;
 		} else {
-			const fallback = preferredChoice(policies, preferredIds, ownerEmail);
 			const picked = await asker.multiselect<string>({
 				message:
-					'Which Access policy decides who can sign in? Existing ones are attached as they are and never edited.',
+					'Which Access policy decides who can sign in? Space to tick one or more, Enter to confirm. Existing ones are attached as they are and never edited.',
 				choices: [
-					...offerable.map((policy) => ({ value: policy.id, label: describePolicy(policy) })),
+					...offerable.map((policy) => ({
+						value: policy.id,
+						label: `${describePolicy(policy)}${preferredIds.includes(policy.id) ? ' (current)' : ''}`
+					})),
 					{
 						value: NEW_POLICY,
 						label: `Create a new policy "${newPolicyName}" (Allow: your email only)`
 					}
 				],
-				initial: fallback.isNewPolicy ? [NEW_POLICY] : fallback.existingIds,
+				// Only the adopted application's own policies start ticked; otherwise nothing is.
+				initial: defaultChoice(policies, preferredIds).existingIds,
 				isRequired: true
 			});
 			choice = {
