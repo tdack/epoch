@@ -10,9 +10,13 @@
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
+		/** The install owner also gets the app-wide Trees page, in every tree. */
+		isInstallOwner?: boolean;
+		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
+		isOutsider?: boolean;
 	}
 
-	let { treeId, role, pathname }: Props = $props();
+	let { treeId, role, pathname, isInstallOwner = false, isOutsider = false }: Props = $props();
 
 	interface NavLink {
 		href: string;
@@ -31,24 +35,38 @@
 	]);
 	const research = $derived<NavLink[]>([
 		{ href: `${base}/notes`, label: 'Notes', isActive: startsWith(`${base}/notes`) },
-		{ href: `${base}/tasks`, label: 'Tasks', isActive: startsWith(`${base}/tasks`) },
+		...(isOutsider
+			? []
+			: [{ href: `${base}/tasks`, label: 'Tasks', isActive: startsWith(`${base}/tasks`) }]),
 		{
 			href: `${base}/relationship`,
 			label: 'Relationship',
 			isActive: startsWith(`${base}/relationship`)
 		},
 		{ href: `${base}/surnames`, label: 'Surnames', isActive: startsWith(`${base}/surnames`) },
-		{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) },
+		...(isOutsider
+			? []
+			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
-	const manage = $derived<NavLink[]>(
-		isManagerOrAbove(role)
+	const manage = $derived<NavLink[]>([
+		...(isManagerOrAbove(role)
 			? [
 					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
 					{ href: `${base}/privacy`, label: 'Privacy', isActive: startsWith(`${base}/privacy`) }
 				]
-			: []
-	);
+			: []),
+		// Outside the tree, so it carries the tree it was opened from to link back to.
+		...(isInstallOwner
+			? [
+					{
+						href: `/manage/trees?from=${encodeURIComponent(treeId)}`,
+						label: 'Trees',
+						isActive: false
+					}
+				]
+			: [])
+	]);
 	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>

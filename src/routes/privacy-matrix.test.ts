@@ -248,7 +248,12 @@ const loads = Object.keys(
 	])
 ).sort();
 /** Loads that read no tree at all, so there is no person in them to hide. */
-const NO_RECORD_LOADS = ['./login/+page.server.ts', './welcome/+page.server.ts'];
+const NO_RECORD_LOADS = [
+	'./login/+page.server.ts',
+	'./welcome/+page.server.ts',
+	// The install owner's list of trees: names and counts from `/api/admin/trees`, which refuses anyone else.
+	'./manage/trees/+page.ts'
+];
 
 /**
  * What the public visitor (ADR-040) gets from each endpoint that serves a GET. Every other method
