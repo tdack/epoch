@@ -11,7 +11,11 @@
 
 import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { BIRTH_EVENT_TYPES, DEATH_EVENT_TYPES } from '../domain/living-state';
+import {
+	BIRTH_EVENT_TYPES,
+	DEATH_EVENT_TYPES,
+	EVERYONE_SHOWN_CUTOFF
+} from '../domain/living-state';
 import type { ViewerScope } from '../services/tree-access';
 
 const list = (types: readonly string[]) => sql.raw(types.map((t) => `'${t}'`).join(', '));
@@ -25,6 +29,8 @@ type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
  */
 function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
 	const person = sql.raw(alias);
+	// The public tree shows every person not marked private; see `EVERYONE_SHOWN_CUTOFF`.
+	if (cutoff === EVERYONE_SHOWN_CUTOFF) return sql`(${person}.privacy != 'private')`;
 	// `is`, not `=`: a person with no author has a null `created_by`, and `null = x` is null, which
 	// turns `false or <birth test>` into null where the viewer's form gives false. `not` of that null
 	// is null too, so a partnership with a private partner would pass the all-partners-visible test.

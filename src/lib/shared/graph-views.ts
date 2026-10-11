@@ -1,3 +1,4 @@
+import type { TreeRole } from './roles';
 /**
  * What the tree view and its page header read, as the API answers it. The service that builds them
  * stays on the server; only the shapes live here.
@@ -24,6 +25,18 @@ export interface FocusGraphDto {
 export interface TreeSummaryDto {
 	tree: { id: string; name: string; description: string | null; version: number };
 	counts: TreeCounts;
+	/** Who is looking, so the page can hide what they cannot use without a second request. */
+	viewer: {
+		role: TreeRole;
+		/** Reading the public tree with no membership in it (ADR-040). */
+		isOutsider: boolean;
+		/** Nobody identified: the page offers signing in and no user-only control. */
+		isPublicVisitor: boolean;
+		/** Offers the install-wide Trees page. */
+		isInstallOwner: boolean;
+		/** The tree is the install's public one. */
+		isTreePublic: boolean;
+	};
 	/** The person the tree opens on when nobody has chosen one; null for an empty tree. */
 	defaultFocusPersonId: string | null;
 }

@@ -38,6 +38,14 @@ export function livingCutoff(now: Date, maxAliveYears: number = DEFAULT_MAX_ALIV
 	return `${String(year).padStart(4, '0')}-${month}-${day}`;
 }
 
+/**
+ * A cutoff that means "nobody counts as living" (ADR-040), so on the public tree only an explicit
+ * `private` override hides anyone. A sentinel in the existing `cutoff` slot rather than a new
+ * flag, so every reader that already threads the cutoff (the pure rule, the SQL predicate, the
+ * masks, the focus window) changes with one definition. It sorts after every date.
+ */
+export const EVERYONE_SHOWN_CUTOFF = '~';
+
 const isDeath = (type: string) => (DEATH_EVENT_TYPES as readonly string[]).includes(type);
 const isBirth = (type: string) => (BIRTH_EVENT_TYPES as readonly string[]).includes(type);
 
@@ -47,6 +55,7 @@ const isBirth = (type: string) => (BIRTH_EVENT_TYPES as readonly string[]).inclu
  * rule errs toward private, never toward showing someone who might be alive.
  */
 export function isLikelyLiving(facts: readonly LivingFact[], cutoff: string): boolean {
+	if (cutoff === EVERYONE_SHOWN_CUTOFF) return false;
 	if (facts.some((f) => isDeath(f.type))) return false;
 	const births = facts.filter((f) => isBirth(f.type));
 	if (births.length === 0) return true;

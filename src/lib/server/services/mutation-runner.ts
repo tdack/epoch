@@ -8,7 +8,12 @@ import type { DbClient } from '../db';
 import type { TreeAction } from '../auth/authorization';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { requireTreeAction, requireTreeScope, type ViewerScope } from './tree-access';
+import {
+	requireRealUser,
+	requireTreeAction,
+	requireTreeScope,
+	type ViewerScope
+} from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import {
 	OP_KINDS,
@@ -191,6 +196,8 @@ export class MutationRunner {
 		},
 		rows?: TreeRows
 	): Promise<MutationResult> {
+		// Before the role check and any read, so the refusal never depends on what the tree holds.
+		requireRealUser(context);
 		const scope = await this.scopeFor(treeId, context, 'record:create');
 		const snapshot = rows ?? (await this.store.loadRows(treeId));
 		const ops = this.planFor(treeId, snapshot, change.commands, scope);

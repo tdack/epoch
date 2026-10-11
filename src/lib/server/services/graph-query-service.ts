@@ -101,6 +101,13 @@ export class GraphQueryService {
 				description: tree.description ?? null,
 				version: tree.version
 			},
+			viewer: {
+				role: scope.role,
+				isOutsider: scope.isOutsider,
+				isPublicVisitor: context.user.isPublicVisitor === true,
+				isInstallOwner: context.user.isInstallOwner === true,
+				isTreePublic: scope.isPublic
+			},
 			counts,
 			defaultFocusPersonId
 		};

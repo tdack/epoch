@@ -5,7 +5,7 @@
  */
 
 import type { DbClient } from '../db';
-import { NotFoundError } from '../domain/errors';
+import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { EvidenceRepository } from '../repositories/evidence-repository';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
@@ -58,8 +58,20 @@ export class TaskReadService {
 		this.trees = new TreeRepository(db);
 	}
 
-	private requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
-		return requireTreeScope(this.users, this.trees, treeId, context, 'tree:view', this.now());
+	private async requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
+		// Research tasks and who holds them are for the tree's own members; reading the public tree
+		// is not membership.
+		if (scope.isOutsider)
+			throw new UnauthorizedError('Forbidden: tasks are for members of this tree');
+		return scope;
 	}
 
 	/** A page of tasks, open by default, with the counts for the filter tabs and the people who can take one. */
@@ -117,6 +129,7 @@ export class TaskReadService {
 		factIds: readonly string[],
 		scope: ViewerScope
 	): Promise<PersonTasksDto> {
+		if (scope.isOutsider) return { items: [], members: [] };
 		const [rows, members] = await Promise.all([
 			this.tasks.tasksOfSubjects(treeId, { person: [personId], event: factIds }),
 			this.members.listMembers(treeId)

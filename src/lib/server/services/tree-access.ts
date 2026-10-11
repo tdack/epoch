@@ -2,7 +2,7 @@ import { canSeePrivatePeople, isActionAllowed, type TreeAction } from '../auth/a
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
-import { livingCutoff } from '../domain/living-state';
+import { EVERYONE_SHOWN_CUTOFF, livingCutoff } from '../domain/living-state';
 import type { TreeRepository } from '../repositories/tree-repository';
 import type { UserRepository } from '../repositories/user-repository';
 
@@ -12,6 +12,10 @@ import type { UserRepository } from '../repositories/user-repository';
  */
 export interface ViewerScope {
 	role: TreeRole;
+	/** The tree is the install's public one. */
+	isPublic: boolean;
+	/** True when the caller holds no membership and is reading the public tree (ADR-040). */
+	isOutsider: boolean;
 	/** The caller, stamped on the people they create. */
 	userId: string;
 	/**
@@ -26,6 +30,24 @@ export interface ViewerScope {
 	cutoff: string;
 	/** Show a restricted viewer a "Private" placeholder in the graph and on partnerships, or omit them. */
 	shouldShowPrivateStructure: boolean;
+}
+
+/**
+ * Install-wide actions (listing every tree, publishing one) belong to the install owner alone, so
+ * they are not a `TreeAction`: no tree role, owner included, grants them (ADR-034, ADR-040).
+ */
+export function requireInstallOwner(context: AuthenticatedContext): void {
+	if (!context.user.isInstallOwner)
+		throw new UnauthorizedError('Forbidden: only the owner of this Epoch can do that');
+}
+
+/**
+ * Refuses the public visitor before anything that would stamp or store a user id. A viewer's role
+ * already stops tree writes, but a user-owned write (marks, view mode, task assignment) needs only
+ * `tree:view`, so the role alone would let it through.
+ */
+export function requireRealUser(context: AuthenticatedContext): void {
+	if (context.user.isPublicVisitor) throw new UnauthorizedError('Forbidden: sign in to do that');
 }
 
 /**
@@ -49,11 +71,33 @@ export async function requireMemberAction(
 	userId: string,
 	action: TreeAction
 ): Promise<TreeRole> {
+	return (await resolveTreeAccess(users, treeId, userId, action)).role;
+}
+
+/** A role, and whether it comes from the tree being public rather than from a membership. */
+interface TreeAccess {
+	role: TreeRole;
+	isOutsider: boolean;
+}
+
+async function resolveTreeAccess(
+	users: UserRepository,
+	treeId: string,
+	userId: string,
+	action: TreeAction
+): Promise<TreeAccess> {
 	const membership = await users.getMembership(treeId, userId);
-	if (!membership || !isActionAllowed(membership.role, action)) {
+	// The public tree is read by anyone, so a miss is the one case that asks whether it is public;
+	// members never pay for the extra read. It is a viewer's role, never more, whoever is asking.
+	const access: TreeAccess | null = membership
+		? { role: membership.role, isOutsider: false }
+		: (await users.isTreePublic(treeId))
+			? { role: 'viewer', isOutsider: true }
+			: null;
+	if (!access || !isActionAllowed(access.role, action)) {
 		throw new UnauthorizedError(`Forbidden: insufficient privileges for action '${action}'`);
 	}
-	return membership.role;
+	return access;
 }
 
 /**
@@ -69,15 +113,19 @@ export async function requireTreeScope(
 	action: TreeAction,
 	now: Date = new Date()
 ): Promise<ViewerScope> {
-	const role = await requireTreeAction(users, treeId, context, action);
+	const { role, isOutsider } = await resolveTreeAccess(users, treeId, context.user.id, action);
 	const settings = await trees.privacySettings(treeId);
 	if (!settings) throw new NotFoundError('Tree', treeId);
 	return {
 		role,
+		isOutsider,
+		isPublic: settings.isPublic,
 		userId: context.user.id,
 		creatorId: role === 'contributor' ? context.user.id : null,
 		isRestricted: !canSeePrivatePeople(role),
-		cutoff: livingCutoff(now, settings.maxAliveYears),
+		// On the public tree the living rule is switched off for the restricted roles, not the whole
+		// filter: a person marked private must stay hidden, and `isRestricted: false` would show them.
+		cutoff: settings.isPublic ? EVERYONE_SHOWN_CUTOFF : livingCutoff(now, settings.maxAliveYears),
 		shouldShowPrivateStructure: settings.shouldShowPrivateStructure
 	};
 }
