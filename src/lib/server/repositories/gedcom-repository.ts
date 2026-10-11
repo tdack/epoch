@@ -6,6 +6,7 @@
 
 import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import {
+	changeLog,
 	citations,
 	events,
 	gedcomPreserved,
@@ -77,6 +78,37 @@ export class GedcomRepository {
 
 	async treeExists(treeId: string): Promise<boolean> {
 		return !!(await this.db.select().from(trees).where(eq(trees.id, treeId)).get());
+	}
+
+	/**
+	 * Rename a tree this import just created, conditionally: only while it still has the name and
+	 * version the import saw. If a concurrent writer changed either, nothing happens — the import
+	 * never overwrites a rename it did not see. A successful rename is logged as `import_tree_name`.
+	 */
+	async renameImportedTree(
+		treeId: string,
+		fromName: string,
+		fromVersion: number,
+		toName: string,
+		actorId: string
+	): Promise<boolean> {
+		const now = new Date();
+		const updated = await this.db
+			.update(trees)
+			.set({ name: toName, version: fromVersion + 1, updatedAt: now })
+			.where(and(eq(trees.id, treeId), eq(trees.name, fromName), eq(trees.version, fromVersion)))
+			.returning({ id: trees.id });
+		if (updated.length === 0) return false;
+		await this.db.insert(changeLog).values({
+			id: crypto.randomUUID(),
+			treeId,
+			actorId,
+			kind: 'import_tree_name',
+			summary: `Named the imported tree '${toName}'`,
+			changesJson: JSON.stringify([{ field: 'name', before: fromName, after: toName }]),
+			inverseJson: null
+		});
+		return true;
 	}
 
 	/**

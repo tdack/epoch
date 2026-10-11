@@ -23,7 +23,7 @@ import {
 	type ImportOptions,
 	type ImportPreview
 } from '../gedcom/import-preview';
-import { parseGedcom } from '../gedcom/parser';
+import { parseGedcom, type ParsedGedcomData } from '../gedcom/parser';
 import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomRepository } from '../repositories/gedcom-repository';
@@ -48,6 +48,32 @@ export interface ImportQueueMessage {
 	mode?: ImportMode;
 	/** Carried through the queue so a large file is merged exactly as the preview promised. */
 	shouldMergeDuplicateFamilies?: boolean;
+	/**
+	 * True when the caller named the new tree. A message from before this field existed carries no
+	 * value, which is read as explicit so an already-queued import never renames its tree.
+	 */
+	isTreeNameExplicit?: boolean;
+	/** The name the tree was created with, so the file's own name can replace it. */
+	createdTreeName?: string;
+	/** That tree's row version, so the rename lands only while nothing else changed it. */
+	createdTreeVersion?: number;
+	/** Who imported, for the change log. */
+	actorId?: string;
+}
+
+/** Options for `runImport`: the merge switch, plus how to name a tree this import created. */
+export interface RunImportOptions extends ImportOptions {
+	/**
+	 * The name a tree this import created has. When set and the name was not explicit, the file's
+	 * own embedded name replaces it after the import.
+	 */
+	createdTreeName?: string;
+	/** That tree's row version, so the rename only lands while nothing else changed it. */
+	createdTreeVersion?: number;
+	/** True when the caller named the new tree; absent is read as explicit, so nothing renames. */
+	isTreeNameExplicit?: boolean;
+	/** Who imported, for the change log. */
+	actorId?: string;
 }
 
 /** The storage and queue an import or export may use; a binding that is absent is simply not used. */
@@ -201,6 +227,8 @@ export class GedcomService {
 	async importFile(file: ImportFile, context: AuthenticatedContext): Promise<ImportOutcome> {
 		const baseName = treeNameOf(file.fileName);
 		let treeId = file.treeId;
+		let createdTreeName: string | undefined;
+		let createdTreeVersion: number | undefined;
 		if (treeId) {
 			await this.requireImport(treeId, context);
 		} else {
@@ -210,7 +238,18 @@ export class GedcomService {
 				context
 			);
 			treeId = created.id;
+			createdTreeName = created.name;
+			createdTreeVersion = created.version;
 		}
+		const isNewTree = file.treeId === null;
+		const nameOptions = isNewTree
+			? {
+					isTreeNameExplicit: file.treeName !== null,
+					createdTreeName,
+					createdTreeVersion,
+					actorId: context.user.id
+				}
+			: {};
 
 		const { bucket, queue } = this.bindings;
 		if (file.sizeBytes > LARGE_IMPORT_BYTES && queue && bucket) {
@@ -221,14 +260,16 @@ export class GedcomService {
 				r2ObjectKey,
 				treeName: file.treeName || baseName,
 				mode: file.mode,
-				shouldMergeDuplicateFamilies: file.shouldMergeDuplicateFamilies
+				shouldMergeDuplicateFamilies: file.shouldMergeDuplicateFamilies,
+				...nameOptions
 			};
 			await queue.send(message);
 			return { status: 'queued', treeId };
 		}
 
-		const counts = await this.runImport(treeId, file.text, file.treeName || baseName, file.mode, {
-			shouldMergeDuplicateFamilies: file.shouldMergeDuplicateFamilies
+		const counts = await this.runImport(treeId, file.text, file.treeName ?? undefined, file.mode, {
+			shouldMergeDuplicateFamilies: file.shouldMergeDuplicateFamilies,
+			...nameOptions
 		});
 		return { status: 'complete', treeId, ...counts };
 	}
@@ -242,7 +283,7 @@ export class GedcomService {
 		text: string,
 		treeName?: string,
 		mode: ImportMode = 'replace',
-		options: ImportOptions = {}
+		options: RunImportOptions = {}
 	): Promise<ImportCounts> {
 		const folded = options.shouldMergeDuplicateFamilies
 			? mergeExactDuplicateFamilies(parseGedcom(text))
@@ -254,7 +295,39 @@ export class GedcomService {
 			parsed = foldIntoExistingAliases(parsed, await this.repo.aliasesInTree(treeId)).parsed;
 		}
 		const written = await this.repo.writeImport({ treeId, treeName, parsed, mode, isExistingTree });
+		await this.renameCreatedTree(treeId, parsed, options);
 		return { ...written, mergedFamiliesCount: folded.mergedCount };
+	}
+
+	/**
+	 * Rename a tree this import created, from the file's own name, but only when the caller did not
+	 * name it. Precedence is the embedded `Tree:` name, then the name the tree was created with (the
+	 * uploaded filename), then `HEAD.FILE`; a target equal to that name is skipped. A message or call
+	 * with no `isTreeNameExplicit` is read as explicit, so an import queued before this change keeps
+	 * the name it was created with.
+	 */
+	private async renameCreatedTree(
+		treeId: string,
+		parsed: ParsedGedcomData,
+		options: RunImportOptions
+	): Promise<void> {
+		const isExplicit = options.isTreeNameExplicit ?? true;
+		if (
+			isExplicit ||
+			options.createdTreeName === undefined ||
+			options.createdTreeVersion === undefined
+		)
+			return;
+		if (!options.actorId) return;
+		const resolved = parsed.treeName || options.createdTreeName || parsed.fileTreeName;
+		if (!resolved || resolved === options.createdTreeName) return;
+		await this.repo.renameImportedTree(
+			treeId,
+			options.createdTreeName,
+			options.createdTreeVersion,
+			resolved,
+			options.actorId
+		);
 	}
 
 	/**
@@ -271,7 +344,13 @@ export class GedcomService {
 			await object.text(),
 			message.treeName,
 			message.mode ?? 'replace',
-			{ shouldMergeDuplicateFamilies: message.shouldMergeDuplicateFamilies }
+			{
+				shouldMergeDuplicateFamilies: message.shouldMergeDuplicateFamilies,
+				createdTreeName: message.createdTreeName,
+				createdTreeVersion: message.createdTreeVersion,
+				isTreeNameExplicit: message.isTreeNameExplicit,
+				actorId: message.actorId
+			}
 		);
 		await bucket.delete(message.r2ObjectKey);
 		return true;

@@ -11,7 +11,7 @@ import {
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
-import { LINE_BREAK, normalizedNodeText } from './evidence-lines';
+import { LINE_BREAK, logicalText, normalizedNodeText } from './evidence-lines';
 import {
 	mergeCitations,
 	parseCitation,
@@ -154,7 +154,10 @@ export interface ParsedGedcomData {
 	version: GedcomVersion;
 	individuals: ParsedIndividual[];
 	families: ParsedFamily[];
+	/** A tree name the file carries in a `HEAD` note beginning `Tree:`; absent when it carries none. */
 	treeName?: string;
+	/** The `HEAD.FILE` value, the name the file's program last saved it under. */
+	fileTreeName?: string;
 	/**
 	 * Raw lines of structures the parser does not yet model, preserved verbatim
 	 * so they survive export. `xref` is the owning record's XREF (or null for
@@ -336,6 +339,22 @@ export function normalizeModelText(nodes: GedcomNode[]): void {
 	}
 }
 
+/**
+ * The tree name a `HEAD` carries: the first header note whose first line is `Tree: <name>`. Only a
+ * `HEAD` note counts — a record `NOTE` belongs to a person or family, never to the tree. The name
+ * is the first line only, trimmed and capped, so a stray continuation cannot leak into it.
+ */
+function headTreeName(head: GedcomNode): string | undefined {
+	for (const child of head.children) {
+		if (!isNoteNode(child)) continue;
+		const firstLine = (logicalText(child).split(LINE_BREAK)[0] ?? '').trim();
+		const match = firstLine.match(/^Tree:\s?(.*)$/);
+		const name = match?.[1].trim().slice(0, 200);
+		if (name) return name;
+	}
+	return undefined;
+}
+
 const NAME_TYPE_BY_WORD: Record<string, NameType> = Object.fromEntries(
 	Object.values(NAME_TYPES).map((t) => [t, t])
 );
@@ -456,7 +475,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const repositories: ParsedRepository[] = [];
 	const sharedNotes: ParsedSharedNote[] = [];
 	const preserved: ParsedGedcomData['preserved'] = [];
-	let treeName = 'Imported Family Tree';
+	let treeName: string | undefined;
+	let fileTreeName: string | undefined;
 
 	/** The citations among these nodes, or none when the file is read the retained way. */
 	const citationsOf = (nodes: GedcomNode[]) =>
@@ -468,9 +488,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	for (const node of rootNodes) {
 		if (node.tag === 'HEAD') {
 			const fileNode = node.children.find((c) => c.tag === 'FILE');
-			if (fileNode?.value) {
-				treeName = fileNode.value;
-			}
+			if (fileNode?.value) fileTreeName = fileNode.value.trim();
+			treeName = headTreeName(node);
 		} else if (node.tag === 'INDI') {
 			const id = node.xref || crypto.randomUUID();
 			const names: ParsedName[] = [];
@@ -751,6 +770,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		individuals,
 		families,
 		treeName,
+		fileTreeName,
 		preserved,
 		sources,
 		repositories,

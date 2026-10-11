@@ -2,7 +2,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { individuals, trees } from '../db/schema';
+import { individuals, changeLog, trees } from '../db/schema';
 import {
 	NotAdmittedError,
 	NotFoundError,
@@ -18,6 +18,7 @@ import {
 } from '../testing/d1';
 import { GedcomService, type ImportFile, type ImportQueueMessage } from './gedcom-service';
 import { buildExportInstanceId } from '../workflows/export-instance';
+import { GedcomRepository } from '../repositories/gedcom-repository';
 
 const FILE = '0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Ben /Fox/\n0 TRLR';
 
@@ -329,5 +330,166 @@ describe('countIndividuals', () => {
 		expect(await service.countIndividuals(s.treeId)).toBe(2);
 		const other = await tree();
 		expect(await service.countIndividuals(other.treeId)).toBe(0);
+	});
+});
+
+const NAMED_FILE = [
+	'0 HEAD',
+	'1 GEDC',
+	'2 VERS 5.5.1',
+	'1 FILE /old/path.ged',
+	'1 NOTE Tree: The Ash Lineage',
+	'0 @I1@ INDI',
+	'1 NAME Ann /Ash/',
+	'0 TRLR'
+].join('\n');
+
+const FILE_ONLY = [
+	'0 HEAD',
+	'1 GEDC',
+	'2 VERS 5.5.1',
+	'1 FILE Other Name',
+	'0 @I1@ INDI',
+	'1 NAME Ann /Ash/',
+	'0 TRLR'
+].join('\n');
+
+/** An install owner, so a new tree may be started by the import. */
+const installOwner = async () => {
+	const caller = await createTestUser(t.db);
+	return { ...caller.context, user: { ...caller.context.user, isInstallOwner: true } };
+};
+
+const nameOf = async (treeId: string) =>
+	(await t.db.select().from(trees).where(eq(trees.id, treeId)).get())?.name;
+
+const logOf = (treeId: string) =>
+	t.db.select().from(changeLog).where(eq(changeLog.treeId, treeId)).all();
+
+describe('naming a tree from the file it imports', () => {
+	it('renames a newly created tree from its embedded Tree: name, and logs the change', async () => {
+		const context = await installOwner();
+		const outcome = await new GedcomService(t.db).importFile(
+			fileOf({ fileName: 'upload.ged', text: NAMED_FILE }),
+			context
+		);
+		expect(await nameOf(outcome.treeId)).toBe('The Ash Lineage');
+		const changes = await logOf(outcome.treeId);
+		expect(changes.map((c) => c.kind)).toEqual(['import_tree_name']);
+		expect(changes[0]?.actorId).toBe(context.user.id);
+	});
+
+	it('leaves an explicitly named tree alone', async () => {
+		const context = await installOwner();
+		const outcome = await new GedcomService(t.db).importFile(
+			fileOf({ fileName: 'upload.ged', treeName: 'My Own Name', text: NAMED_FILE }),
+			context
+		);
+		expect(await nameOf(outcome.treeId)).toBe('My Own Name');
+		expect(await logOf(outcome.treeId)).toEqual([]);
+	});
+
+	it('keeps the uploaded filename, which beats HEAD.FILE', async () => {
+		const context = await installOwner();
+		const outcome = await new GedcomService(t.db).importFile(
+			fileOf({ fileName: 'Uploaded.ged', text: FILE_ONLY }),
+			context
+		);
+		expect(await nameOf(outcome.treeId)).toBe('Uploaded');
+	});
+
+	it('never renames a tree it imports into, in replace or merge mode', async () => {
+		const s = await tree('editor');
+		const service = new GedcomService(t.db);
+		for (const mode of ['replace', 'merge'] as const) {
+			const outcome = await service.importFile(
+				fileOf({ treeId: s.treeId, treeName: 'Keep', text: NAMED_FILE, mode }),
+				s.member.context
+			);
+			expect(outcome.treeId).toBe(s.treeId);
+		}
+		expect(await nameOf(s.treeId)).toMatch(/^Test tree /);
+		expect(await logOf(s.treeId)).toEqual([]);
+	});
+
+	it('renames a new tree on the queued path too', async () => {
+		const context = await installOwner();
+		const { bucket } = fakeBucket();
+		const sent: ImportQueueMessage[] = [];
+		const service = new GedcomService(t.db, {
+			bucket,
+			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+		});
+		const outcome = await service.importFile(
+			fileOf({ fileName: 'big.ged', text: NAMED_FILE, sizeBytes: 3 * 1024 * 1024 }),
+			context
+		);
+		expect(outcome.status).toBe('queued');
+		expect(sent[0]).toMatchObject({
+			createdTreeName: 'big',
+			isTreeNameExplicit: false,
+			actorId: context.user.id
+		});
+		expect(await service.importStaged(sent[0]!)).toBe(true);
+		expect(await nameOf(outcome.treeId)).toBe('The Ash Lineage');
+	});
+
+	it('treats a queued message with no flag as explicit, so an old message never renames', async () => {
+		const s = await tree();
+		const { bucket } = fakeBucket();
+		const key = 'staging/legacy.ged';
+		await bucket.put(key, NAMED_FILE);
+		const before = (await t.db.select().from(trees).where(eq(trees.id, s.treeId)).get())!;
+		expect(
+			await new GedcomService(t.db, { bucket }).importStaged({
+				treeId: s.treeId,
+				r2ObjectKey: key,
+				treeName: before.name,
+				createdTreeName: before.name,
+				createdTreeVersion: before.version,
+				actorId: s.owner.userId
+			})
+		).toBe(true);
+		expect(await nameOf(s.treeId)).toBe(before.name);
+		expect(await logOf(s.treeId)).toEqual([]);
+	});
+});
+
+describe('renameImportedTree', () => {
+	it('renames only while the name and version still match, then logs the change', async () => {
+		const s = await tree();
+		const repo = new GedcomRepository(t.db);
+		const before = (await t.db.select().from(trees).where(eq(trees.id, s.treeId)).get())!;
+
+		expect(
+			await repo.renameImportedTree(
+				s.treeId,
+				`Not ${before.name}`,
+				before.version,
+				'Nope',
+				s.owner.userId
+			)
+		).toBe(false);
+		expect(
+			await repo.renameImportedTree(
+				s.treeId,
+				before.name,
+				before.version,
+				'The Ash Lineage',
+				s.owner.userId
+			)
+		).toBe(true);
+
+		const after = (await t.db.select().from(trees).where(eq(trees.id, s.treeId)).get())!;
+		expect(after.name).toBe('The Ash Lineage');
+		expect(after.version).toBe(before.version + 1);
+		// The version it was renamed on is now stale, so a second writer cannot rename it again.
+		expect(
+			await repo.renameImportedTree(s.treeId, before.name, before.version, 'Again', s.owner.userId)
+		).toBe(false);
+
+		const changes = await logOf(s.treeId);
+		expect(changes).toHaveLength(1);
+		expect(changes[0]?.kind).toBe('import_tree_name');
 	});
 });
