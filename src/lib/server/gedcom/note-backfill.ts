@@ -18,6 +18,7 @@
 import { noteAttachments, notes } from '../db/schema';
 import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
 import { buildGedcomTree, collectLines, levelOfLine, type GedcomNode } from './node';
+import { normalizeModelText } from './parser';
 import { LINE_BREAK } from './evidence-lines';
 import { isNoteNode, parseNoteLink, parseNoteRecord, type ParsedNoteLink } from './note-parse';
 import { noteAttachmentRow, noteRow } from './note-rows';
@@ -97,7 +98,10 @@ export interface NoteBackfillInput extends Pick<
 /** Lines as the nodes at their own top level; the level is read, not assumed, as `keptLines` does. */
 function nodesOf(lines: string[]): GedcomNode[] {
 	const level = levelOfLine(lines[0] ?? '');
-	return level === null ? [] : buildGedcomTree(lines, level);
+	if (level === null) return [];
+	const nodes = buildGedcomTree(lines, level);
+	normalizeModelText(nodes);
+	return nodes;
 }
 
 /** A fact's `notes` column as the note line it was read from. */
@@ -107,7 +111,9 @@ function columnNoteNode(text: string): GedcomNode | undefined {
 		first ? `2 NOTE ${first}` : '2 NOTE',
 		...rest.map((l) => (l ? `3 CONT ${l}` : '3 CONT'))
 	];
-	return buildGedcomTree(lines, 2)[0];
+	const nodes = buildGedcomTree(lines, 2);
+	normalizeModelText(nodes);
+	return nodes[0];
 }
 
 /**
@@ -189,7 +195,7 @@ export function noteBackfillStatements(input: NoteBackfillInput, now = new Date(
 		// Shared notes first, so a pointer to one resolves.
 		for (const entry of entries) {
 			const lines = jsonList(entry.lines);
-			const node = lines[0]?.startsWith('0 ') ? buildGedcomTree(lines, 0)[0] : undefined;
+			const node = lines[0]?.startsWith('0 ') ? nodesOf(lines)[0] : undefined;
 			if (!node || !isNoteNode(node) || !node.xref) continue;
 			removedPreserved.add(entry.id);
 			if (map.has(node.xref)) continue;
@@ -211,13 +217,13 @@ export function noteBackfillStatements(input: NoteBackfillInput, now = new Date(
 					: unionId
 						? ([NOTE_SUBJECT_KINDS.UNION, unionId] as const)
 						: null;
-				const [node] = buildGedcomTree(lines, 1);
+				const [node] = nodesOf(lines);
 				const link = subject && node ? parseNoteLink(node) : null;
 				if (!subject || !link) continue;
 				store(treeId, subject[0], subject[1], [link]);
 				removedPreserved.add(entry.id);
 			} else if (personId && /^1 FAMC\s+\S+/.test(head)) {
-				const [famc] = buildGedcomTree(lines, 1);
+				const [famc] = nodesOf(lines);
 				const familyUnion = famc?.value ? index.unionByXref.get(famc.value.trim()) : undefined;
 				if (!famc || !familyUnion) continue;
 				const { taken, rest } = takeNotes(famc.children);

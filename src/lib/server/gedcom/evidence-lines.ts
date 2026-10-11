@@ -37,6 +37,36 @@ export function isPlainText(node: GedcomNode): boolean {
 // eslint-disable-next-line no-control-regex
 export const LINE_BREAK = /\r\n|[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/;
 
+/**
+ * The code points a GEDCOM file must not carry in text. TAB, LF, CR, the Unicode line separators
+ * `\u2028`/`\u2029` and NBSP are kept; everything else in the C0 and C1 controls, a *lone* UTF-16
+ * surrogate, and U+FFFE/U+FFFF are removed. A valid surrogate pair spells an astral character and
+ * is kept whole.
+ */
+/** The C0/C1 controls, U+FFFE and U+FFFF, as a pattern built from text so no raw control literal appears. */
+const BANNED_CONTROL_CHARS = new RegExp(
+	// eslint-disable-next-line no-control-regex
+	'[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f\\u0080-\\u009f\\ufffe\\uffff]',
+	'g'
+);
+/** A UTF-16 surrogate with no partner: a high not followed by a low, or a low not preceded by a high. */
+const LONE_SURROGATES = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+
+/** Remove the code points GEDCOM forbids in text, without breaking an astral character. */
+export function stripBannedChars(text: string): string {
+	return text.replace(BANNED_CONTROL_CHARS, '').replace(LONE_SURROGATES, '');
+}
+
+/**
+ * A node's value the way the model holds it: the banned code points gone, and a leading `@` the
+ * file escaped as `@@` restored. A `CONC` value sits in the middle of its text and is only cleaned,
+ * never unescaped, because a doubled `@` there is not an escape.
+ */
+export function normalizedNodeText(node: GedcomNode): string {
+	const text = stripBannedChars(node.value ?? '');
+	return node.tag !== 'CONC' && node.isAtEscaped && text.startsWith('@') ? text.slice(1) : text;
+}
+
 /** The canonical lines for a text: one line, and a `CONT` for each line break. */
 function textLines(level: number, tag: string, text: string): string[] {
 	const [first, ...rest] = text.split(LINE_BREAK);

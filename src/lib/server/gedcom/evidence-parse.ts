@@ -64,8 +64,13 @@ export interface ParsedRepository {
 	extra: string[];
 }
 
-function isPointer(value: string | undefined): value is string {
-	return !!value && POINTER.test(value.trim());
+/**
+ * A pointer only as the file wrote it. An escaped `@@` is text, not a pointer, and a payload whose
+ * first code point a normaliser drops must not become an apparent pointer once cleaned up, so the
+ * raw value is what the shape is tested against.
+ */
+function isPointer(node: GedcomNode): boolean {
+	return !node.isAtEscaped && !!node.rawValue && POINTER.test(node.rawValue.trim());
 }
 
 /** A text child of a record, taken once: a second one of the same tag stays in `extra`. */
@@ -95,7 +100,7 @@ function isModellableData(node: GedcomNode): boolean {
 
 export function parseCitation(node: GedcomNode, isNotesModelled = true): ParsedCitation {
 	const value = node.value?.trim();
-	const pointer = isPointer(value) ? value : undefined;
+	const pointer = isPointer(node) ? value : undefined;
 	const layout: Record<string, string[]> = {};
 	const extra: string[] = [];
 	let description: string | undefined;
@@ -174,7 +179,7 @@ function parseSourceRepository(node: GedcomNode): ParsedSourceRepository {
 	if (caln) extra.push(...caln.children.flatMap(collectLines));
 	for (const child of node.children) if (child !== caln) extra.push(...collectLines(child));
 	return {
-		...(isPointer(value) ? { pointer: value } : {}),
+		...(isPointer(node) ? { pointer: value } : {}),
 		...(caln ? { callNumber: caln.value!.trim() } : {}),
 		extra
 	};
@@ -198,7 +203,7 @@ export function parseSourceRecord(node: GedcomNode, isNotesModelled = true): Par
 		const field = SOURCE_FIELDS[child.tag as keyof typeof SOURCE_FIELDS];
 		if (field && fields[field] === undefined && isPlainText(child) && logicalText(child)) {
 			fields[field] = takeText(child, layout, child.tag);
-		} else if (child.tag === 'REPO' && (!child.value?.trim() || isPointer(child.value))) {
+		} else if (child.tag === 'REPO' && (!child.value?.trim() || isPointer(child))) {
 			repositories.push(parseSourceRepository(child));
 		} else {
 			extra.push(...collectLines(child));

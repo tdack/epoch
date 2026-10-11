@@ -8,6 +8,14 @@ export interface GedcomNode {
 	tag: string;
 	xref?: string;
 	value?: string;
+	/**
+	 * The value exactly as the file wrote it, before import normalisation. Pointer detection reads
+	 * this: a control code point that the normaliser drops (or a doubled `@@`) must not turn a
+	 * malformed payload into an apparent pointer once it is cleaned up.
+	 */
+	rawValue?: string;
+	/** True when the file escaped the value's leading `@` as `@@` (GEDCOM 7), so it is text, not a pointer. */
+	isAtEscaped?: boolean;
 	rawLine: string;
 	children: GedcomNode[];
 }
@@ -59,6 +67,8 @@ export function buildGedcomTree(lines: readonly string[], rootLevel = 0): Gedcom
 					level: textOwner.level + 1,
 					tag: 'CONT',
 					value: line,
+					rawValue: line,
+					isAtEscaped: line.startsWith('@@'),
 					rawLine: `${textOwner.level + 1} CONT ${line}`,
 					children: []
 				});
@@ -70,6 +80,8 @@ export function buildGedcomTree(lines: readonly string[], rootLevel = 0): Gedcom
 			tag: parsed.tag,
 			xref: parsed.xref,
 			value: parsed.value,
+			rawValue: parsed.value,
+			isAtEscaped: parsed.value?.startsWith('@@') ?? false,
 			rawLine: line,
 			children: []
 		};

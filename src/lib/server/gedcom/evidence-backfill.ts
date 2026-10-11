@@ -16,6 +16,7 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { citations, repositories, sourceRepositories, sources } from '../db/schema';
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
+import { normalizeModelText } from './parser';
 import {
 	parseCitation,
 	parseRepositoryRecord,
@@ -182,6 +183,17 @@ export function indexTrees(
 }
 
 /**
+ * A block of kept lines as nodes, normalised the way an import reads them: banned code points gone
+ * and a leading escaped `@` restored. Without this the backfill would store model text the fresh
+ * import would not, and the two would disagree.
+ */
+function keptNodes(lines: string[], level: number): GedcomNode[] {
+	const nodes = buildGedcomTree(lines, level);
+	normalizeModelText(nodes);
+	return nodes;
+}
+
+/**
  * The SQL that stores every piece of retained evidence as a record and removes it from where it was
  * kept. Empty when there is nothing left to move.
  */
@@ -232,7 +244,7 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 		const rootsOf = (tag: 'SOUR' | 'REPO') =>
 			entries.flatMap((entry) => {
 				const lines = jsonList(entry.lines);
-				const node = lines[0]?.startsWith('0 ') ? buildGedcomTree(lines, 0)[0] : undefined;
+				const node = lines[0]?.startsWith('0 ') ? keptNodes(lines, 0)[0] : undefined;
 				return node?.tag === tag && node.xref ? [{ entry, node }] : [];
 			});
 
@@ -287,12 +299,12 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 						? ([CITATION_SUBJECT_KINDS.UNION, unionId] as const)
 						: null;
 				if (!subject) continue;
-				const [node] = buildGedcomTree(lines, 1);
+				const [node] = keptNodes(lines, 1);
 				if (!node) continue;
 				store(treeId, index, subject[0], subject[1], [parseCitation(node, false)]);
 				removedPreserved.add(entry.id);
 			} else if (personId && /^1 FAMC\s+\S+/.test(head)) {
-				const [famc] = buildGedcomTree(lines, 1);
+				const [famc] = keptNodes(lines, 1);
 				const familyUnion = famc?.value ? index.unionByXref.get(famc.value.trim()) : undefined;
 				const sour = famc?.children.filter((c) => c.tag === 'SOUR') ?? [];
 				if (!famc || !familyUnion || sour.length === 0) continue;
@@ -333,7 +345,7 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 	) => {
 		const index = trees.get(row.tree_id);
 		const lines = jsonList(row.gedcom_extra);
-		const nodes: GedcomNode[] = buildGedcomTree(lines, 2);
+		const nodes: GedcomNode[] = keptNodes(lines, 2);
 		const sour = nodes.filter((n) => n.tag === 'SOUR');
 		if (!index || sour.length === 0) return;
 		store(

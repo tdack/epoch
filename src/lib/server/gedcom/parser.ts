@@ -11,7 +11,7 @@ import {
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
-import { LINE_BREAK } from './evidence-lines';
+import { LINE_BREAK, normalizedNodeText } from './evidence-lines';
 import {
 	mergeCitations,
 	parseCitation,
@@ -323,11 +323,16 @@ function dateTextOf(dateNode: GedcomNode | undefined, version: GedcomVersion): s
 	return fromGedcom7Date(dateNode.value, dateNode.children.find((c) => c.tag === 'PHRASE')?.value);
 }
 
-/** 7.0 doubles a payload's leading `@` so it does not read as a pointer; the model holds the text itself. */
-function unescapeGedcom7(nodes: GedcomNode[]): void {
+/**
+ * Normalise the parsed values in place: drop the code points GEDCOM forbids in text, and put back a
+ * leading `@` the file escaped as `@@` (7.0's way of saying "text, not a pointer"). Applies to both
+ * dialects, because a 5.5.1 file can carry the same `@@` text even though the standard never named
+ * it. Kept lines are not touched: they are written back exactly as the file had them.
+ */
+export function normalizeModelText(nodes: GedcomNode[]): void {
 	for (const node of nodes) {
-		if (node.value?.startsWith('@@')) node.value = node.value.slice(1);
-		unescapeGedcom7(node.children);
+		if (node.value !== undefined) node.value = normalizedNodeText(node);
+		normalizeModelText(node.children);
 	}
 }
 
@@ -443,8 +448,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const isNotesModelled = options.isNotesModelled ?? true;
 	const version = detectGedcomVersion(rawContent);
 	const rootNodes = buildGedcomTree(rawContent.split(LINE_BREAK));
-	// Only the parsed values: kept lines are written back as the file had them, escape and all.
-	if (version === '7.0') unescapeGedcom7(rootNodes);
+	normalizeModelText(rootNodes);
 
 	const individuals: ParsedIndividual[] = [];
 	const families: ParsedFamily[] = [];

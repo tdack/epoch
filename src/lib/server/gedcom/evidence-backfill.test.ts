@@ -151,3 +151,29 @@ describe.each([
 		expect(await exportOf(treeId, '551')).toEqual(file);
 	});
 });
+
+describe('backfilling @-leading text', () => {
+	const atText = [
+		'0 HEAD',
+		'1 GEDC',
+		'2 VERS 5.5.1',
+		'0 @I1@ INDI',
+		'1 NAME Ann /Ash/',
+		'1 NOTE @@handle',
+		'1 SOUR @S1@',
+		'0 @S1@ SOUR',
+		'1 TITL @@Title',
+		'0 TRLR'
+	].join('\n');
+
+	it('reads the escaped text the same as a fresh import, and writes the same file', async () => {
+		const fresh = crypto.randomUUID();
+		const old = crypto.randomUUID();
+		await importGedcomToDb(t.d1, fresh, atText, 'Fresh');
+		await importGedcomAsRetainedLines(t.d1, old, atText);
+		await runBackfill();
+		expect(await recordsOf(old)).toEqual(await recordsOf(fresh));
+		expect(await exportOf(old, '551')).toEqual(await exportOf(fresh, '551'));
+		expect(await exportOf(old, '7')).toEqual(await exportOf(fresh, '7'));
+	});
+});

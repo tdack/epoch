@@ -44,8 +44,13 @@ export interface ParsedSharedNote {
 
 export const isNoteNode = (node: GedcomNode) => node.tag === 'NOTE' || node.tag === 'SNOTE';
 
-const isPointer = (value: string | undefined): value is string =>
-	!!value && POINTER.test(value.trim());
+/**
+ * A pointer only as the file wrote it. An escaped `@@` is text, and a payload whose first code
+ * point a normaliser drops must not become an apparent pointer once cleaned up, so the raw value
+ * is what the shape is tested against.
+ */
+const isPointer = (node: GedcomNode): boolean =>
+	!node.isAtEscaped && !!node.rawValue && POINTER.test(node.rawValue.trim());
 
 /**
  * A note under a structure as a link, or null when the model cannot write it back: an `SNOTE`
@@ -55,7 +60,7 @@ const isPointer = (value: string | undefined): value is string =>
 export function parseNoteLink(node: GedcomNode): ParsedNoteLink | null {
 	const tag = node.tag === 'SNOTE' ? NOTE_RECORD_TAGS.SNOTE : NOTE_RECORD_TAGS.NOTE;
 	const value = node.value?.trim();
-	if (isPointer(value)) {
+	if (isPointer(node)) {
 		return {
 			pointer: value,
 			tag,
