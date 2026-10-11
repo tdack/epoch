@@ -107,6 +107,8 @@ function nodesOf(lines: string[]): GedcomNode[] {
 /** A fact's `notes` column as the note line it was read from. */
 function columnNoteNode(text: string): GedcomNode | undefined {
 	const [first, ...rest] = text.split(LINE_BREAK);
+	// The column holds the first note's payload as the file wrote it — a pointer `@N1@` or an escaped
+	// text `@@N1@` — so rebuilding the line and reading it takes the same path a fresh import did.
 	const lines = [
 		first ? `2 NOTE ${first}` : '2 NOTE',
 		...rest.map((l) => (l ? `3 CONT ${l}` : '3 CONT'))

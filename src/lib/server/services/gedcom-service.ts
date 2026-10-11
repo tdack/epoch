@@ -55,6 +55,11 @@ export interface ImportQueueMessage {
 	isTreeNameExplicit?: boolean;
 	/** The name the tree was created with, so the file's own name can replace it. */
 	createdTreeName?: string;
+	/**
+	 * The name the uploaded filename yields, or absent when it yields none. The rename candidate
+	 * between the embedded `Tree:` name and `HEAD.FILE`.
+	 */
+	createdTreeFileName?: string;
 	/** That tree's row version, so the rename lands only while nothing else changed it. */
 	createdTreeVersion?: number;
 	/** Who imported, for the change log. */
@@ -68,6 +73,11 @@ export interface RunImportOptions extends ImportOptions {
 	 * own embedded name replaces it after the import.
 	 */
 	createdTreeName?: string;
+	/**
+	 * The name the uploaded filename yields, or absent when it yields none. The rename candidate
+	 * between the embedded `Tree:` name and `HEAD.FILE`.
+	 */
+	createdTreeFileName?: string;
 	/** That tree's row version, so the rename only lands while nothing else changed it. */
 	createdTreeVersion?: number;
 	/** True when the caller named the new tree; absent is read as explicit, so nothing renames. */
@@ -246,6 +256,7 @@ export class GedcomService {
 			? {
 					isTreeNameExplicit: file.treeName !== null,
 					createdTreeName,
+					createdTreeFileName: baseName.trim() || undefined,
 					createdTreeVersion,
 					actorId: context.user.id
 				}
@@ -301,10 +312,11 @@ export class GedcomService {
 
 	/**
 	 * Rename a tree this import created, from the file's own name, but only when the caller did not
-	 * name it. Precedence is the embedded `Tree:` name, then the name the tree was created with (the
-	 * uploaded filename), then `HEAD.FILE`; a target equal to that name is skipped. A message or call
-	 * with no `isTreeNameExplicit` is read as explicit, so an import queued before this change keeps
-	 * the name it was created with.
+	 * name it. Precedence is the embedded `Tree:` name, then the uploaded filename, then `HEAD.FILE`;
+	 * a target equal to the name the tree was created with is skipped. The filename is a candidate
+	 * only while it yields a non-empty name, so a file whose name is only an extension still lets
+	 * `HEAD.FILE` through. A message or call with no `isTreeNameExplicit` is read as explicit, so an
+	 * import queued before this change keeps the name it was created with.
 	 */
 	private async renameCreatedTree(
 		treeId: string,
@@ -319,7 +331,7 @@ export class GedcomService {
 		)
 			return;
 		if (!options.actorId) return;
-		const resolved = parsed.treeName || options.createdTreeName || parsed.fileTreeName;
+		const resolved = parsed.treeName || options.createdTreeFileName || parsed.fileTreeName;
 		if (!resolved || resolved === options.createdTreeName) return;
 		await this.repo.renameImportedTree(
 			treeId,
@@ -347,6 +359,7 @@ export class GedcomService {
 			{
 				shouldMergeDuplicateFamilies: message.shouldMergeDuplicateFamilies,
 				createdTreeName: message.createdTreeName,
+				createdTreeFileName: message.createdTreeFileName,
 				createdTreeVersion: message.createdTreeVersion,
 				isTreeNameExplicit: message.isTreeNameExplicit,
 				actorId: message.actorId

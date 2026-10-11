@@ -212,3 +212,43 @@ describe('what the backfill does not do', () => {
 		expect(attached.map((a) => a.text)).toEqual(['Took his surname']);
 	});
 });
+
+describe('a fact note whose text begins with an escaped @', () => {
+	// The file writes `@@N1@`: an escaped leading `@`, so the note is inline text, never a pointer.
+	const file = [
+		'0 HEAD',
+		'1 GEDC',
+		'2 VERS 5.5.1',
+		'0 @I1@ INDI',
+		'1 NAME Ann /Ash/',
+		'1 BIRT',
+		'2 DATE 1 JAN 1900',
+		'2 NOTE @@N1@',
+		'0 TRLR'
+	].join('\n');
+
+	it('rebuilds it as inline text, not a pointer, the same as a fresh import', async () => {
+		const fresh = crypto.randomUUID();
+		const old = crypto.randomUUID();
+		await importGedcomToDb(t.d1, fresh, file, 'Fresh');
+		await importGedcomAsRetainedNotes(t.d1, old, file);
+
+		// The old reading kept the note's payload, escaped as the file wrote it, in the fact's column.
+		const [before] = await t.db.select().from(events).where(eq(events.treeId, old)).all();
+		expect(before?.notes).toBe('@@N1@');
+
+		await runBackfill();
+
+		const [after] = await t.db.select().from(events).where(eq(events.treeId, old)).all();
+		expect(after?.notes).toBeNull();
+		const [attachment] = await t.db
+			.select()
+			.from(noteAttachments)
+			.where(eq(noteAttachments.treeId, old))
+			.all();
+		// Inline text, not a pointer: it resolves to the text, not a noteRef.
+		expect(attachment?.text).toBe('@N1@');
+		expect(attachment?.noteRef).toBeNull();
+		expect(await recordsOf(old)).toEqual(await recordsOf(fresh));
+	});
+});

@@ -582,7 +582,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					// The first plain NOTE is the fact's note. A note with continuation lines, a second note,
 					// a citation, an OBJE or a custom tag has no column and is kept verbatim (ADR-023).
 					// With notes read into records every note under the fact is one, in file order, and the
-					// column's text is not used; the old reading is kept for the backfill's tests.
+					// column's payload is not used; the old reading is kept for the backfill's tests, which
+					// read the column back through this same parser.
 					const noteNode = isNotesModelled
 						? undefined
 						: child.children.find((c) => c.tag === 'NOTE' && c.children.length === 0);
@@ -612,7 +613,10 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						value: child.value?.trim() || undefined,
 						cause: textOf('CAUS'),
 						age: textOf('AGE'),
-						notes: noteNode?.value?.trim() || undefined,
+						// The first note as the file wrote its payload, escape and all, so the backfill can
+						// rebuild the line and classify it again exactly as a fresh read does. The model text
+						// is not enough: `@@N1@` (text) and `@N1@` (a pointer) both normalise to `@N1@`.
+						notes: noteNode?.rawValue?.trim() || undefined,
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						citations: citationsOf(child.children)

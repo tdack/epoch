@@ -398,6 +398,19 @@ describe('naming a tree from the file it imports', () => {
 		expect(await nameOf(outcome.treeId)).toBe('Uploaded');
 	});
 
+	it('falls back to HEAD.FILE when the filename yields no name at all', async () => {
+		const context = await installOwner();
+		// A name that is only an extension yields nothing, so the tree is created with its placeholder
+		// name and HEAD.FILE, not the filename, is what renames it.
+		const outcome = await new GedcomService(t.db).importFile(
+			fileOf({ fileName: '.ged', text: FILE_ONLY }),
+			context
+		);
+		expect(await nameOf(outcome.treeId)).toBe('Other Name');
+		const changes = await logOf(outcome.treeId);
+		expect(changes.map((c) => c.kind)).toEqual(['import_tree_name']);
+	});
+
 	it('never renames a tree it imports into, in replace or merge mode', async () => {
 		const s = await tree('editor');
 		const service = new GedcomService(t.db);
