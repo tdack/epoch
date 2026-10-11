@@ -13,7 +13,7 @@
 	import { deleteFactApi, previewFactApi, reorderFactsApi } from '#lib/services/tree-api.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
-	import type { TreeRole } from '#lib/shared/roles.js';
+	import { canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import type { FactDto, PersonPageDto } from '#lib/shared/person-page.js';
 	import { treePath } from './person-paths.js';
 
@@ -26,6 +26,8 @@
 	}
 
 	let { dto, treeId, role, editor, toasts }: Props = $props();
+	// A viewer, and the public visitor, may read facts and names but not change them.
+	const canEditFacts = $derived(canCreateRecords(role));
 
 	let factDialog = $state<{ fact: FactDto | null } | null>(null);
 
@@ -65,11 +67,13 @@
 	}
 </script>
 
-<div class="flex justify-end">
-	<button type="button" onclick={() => (factDialog = { fact: null })} class="action-btn"
-		><Plus class="h-3.5 w-3.5" />Add fact</button
-	>
-</div>
+{#if canEditFacts}
+	<div class="flex justify-end">
+		<button type="button" onclick={() => (factDialog = { fact: null })} class="action-btn"
+			><Plus class="h-3.5 w-3.5" />Add fact</button
+		>
+	</div>
+{/if}
 {#if dto.facts.length === 0}
 	<p class="text-sm text-stone-500 italic">No facts recorded.</p>
 {:else}
@@ -151,36 +155,38 @@
 						notes={fact.noteItems}
 					/>
 				</NotesDisclosure>
-				<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
-					<button
-						type="button"
-						onclick={() => (factDialog = { fact })}
-						class="row-link"
-						aria-label={`Edit ${fact.label}`}>Edit</button
-					>
-					<button
-						type="button"
-						onclick={() => removeFact(fact)}
-						class="row-link text-red-700"
-						aria-label={`Remove ${fact.label}`}>Remove</button
-					>
-					{#if canSwap(dto.facts[index - 1], fact)}
+				{#if canEditFacts}
+					<div class="mt-2 flex items-center gap-3 text-xs font-semibold">
 						<button
 							type="button"
-							onclick={() => void move(index, -1)}
+							onclick={() => (factDialog = { fact })}
 							class="row-link"
-							aria-label={`Move ${fact.label} up`}><ArrowUp class="inline h-3 w-3" /></button
+							aria-label={`Edit ${fact.label}`}>Edit</button
 						>
-					{/if}
-					{#if canSwap(fact, dto.facts[index + 1])}
 						<button
 							type="button"
-							onclick={() => void move(index, 1)}
-							class="row-link"
-							aria-label={`Move ${fact.label} down`}><ArrowDown class="inline h-3 w-3" /></button
+							onclick={() => removeFact(fact)}
+							class="row-link text-red-700"
+							aria-label={`Remove ${fact.label}`}>Remove</button
 						>
-					{/if}
-				</div>
+						{#if canSwap(dto.facts[index - 1], fact)}
+							<button
+								type="button"
+								onclick={() => void move(index, -1)}
+								class="row-link"
+								aria-label={`Move ${fact.label} up`}><ArrowUp class="inline h-3 w-3" /></button
+							>
+						{/if}
+						{#if canSwap(fact, dto.facts[index + 1])}
+							<button
+								type="button"
+								onclick={() => void move(index, 1)}
+								class="row-link"
+								aria-label={`Move ${fact.label} down`}><ArrowDown class="inline h-3 w-3" /></button
+							>
+						{/if}
+					</div>
+				{/if}
 			</li>
 		{/each}
 	</ol>
