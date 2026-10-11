@@ -1,112 +1,91 @@
 # Epoch
 
-A private family-tree application for one owner and invited collaborators, inspired by webtrees
-capabilities. Built with Svelte 5, SvelteKit 3, Cloudflare Workers, D1 (Drizzle), R2, Queues and
-Workflows. See [AGENTS.md](./AGENTS.md) for architecture and conventions,
-[docs/roadmap.md](./docs/roadmap.md) for direction and phase status, and the slice table in
-[docs/improvement-plan.md](./docs/improvement-plan.md#delivery-slices) for what each slice shipped.
+A private family-tree application for one owner and the relatives and researchers they invite.
+Each family runs its own copy on its own Cloudflare account, so no platform holds or mines the
+data. Epoch is inspired by webtrees' capabilities, not its screens.
 
-## Setup
+## Features
 
-Requires Node 24 or later (see `.nvmrc`).
+### A family tree that handles real families
+
+- **More than one family per child.** A child can have more than one mother, father or parental
+  family, each link typed as biological, adoptive, foster, guardian or unknown.
+- **Partnerships, not just marriages.** Married and unmarried partners, separation, divorce,
+  annulment, death, widowhood and remarriage. Repeated partnerships between the same two people
+  stay distinct and are labelled "1st partnership", "2nd partnership", with dates.
+- **Step relationships** are worked out from a parent's partnerships rather than entered by hand.
+- **Honest dates.** Approximate, ranged, incomplete and conflicting dates are kept as written;
+  `ABT 1900` never becomes an invented exact day.
+- **Several names per person**, with types, components and a preferred display name, plus
+  repeatable facts and events for people and partnerships.
+
+### Exploring the tree
+
+- A focus-centred family view where generations up and down, siblings, step relatives and
+  relationship types can be shown or hidden. The view is kept in the address, so reloading,
+  **Back** and shared links restore it.
+- A **generation rings** overview beside the flat view.
+- **Charts** centred on any person: pedigree, descendants, fan and hourglass, each with a text
+  outline.
+- **Relationship finder** showing every route between two people.
+- **Ranked search** over names, record ids, places and years, saying why each person matched.
+- **Lists** of people, partnerships and surnames, paged on the server, plus recents and favourites.
+
+### Records and research
+
+- **Person pages:** names, facts (add, edit, remove, reorder), family, evidence, media and history.
+- **Partnership pages:** partners, events, children, chronology, evidence and warnings.
+- **Places** named by facts, with rename and merge.
+- **Sources, repositories and citations**, showing what each source supports.
+- **Shared notes**, and where each one is used.
+- **Research tasks** with filters.
+- A **data-quality report** that flags likely mistakes, with dismissals.
+- **Media** attached to people, kept private in your own storage.
+
+### Editing safely together
+
+- **Roles per tree:** owner, manager, editor, contributor and viewer.
+- **Invitations.** Only the install owner, tree members and people with an open invitation can get
+  in. Anyone else who signs in is told to ask the owner for an invitation, and nothing is stored
+  about them.
+- **Living-person privacy**, configured per tree by its managers.
+- **Undo.** Every change is recorded in a change log, and each one shows a toast with **Undo**. Undo
+  reverts your own latest change, and says why if someone else has since changed the same records.
+- **Conflict protection.** If two people edit the same record at once, the second save is refused
+  rather than overwriting the first.
+- **Delete with impact.** Removing a person or link first shows exactly what will be affected.
+
+### GEDCOM import and export
+
+- Import with validation and a **preview** before anything is written.
+- **Duplicate families** in a messy file (same two partners, identical facts, no disagreement about
+  a child) are offered for merging, on by default; **possible duplicates** are listed for review.
+- **Merge duplicate partnerships** already in a tree from a partnership's menu, or **Merge…** in the
+  person drawer. The dialog lists what moves or goes and asks you to choose where the facts differ.
+  Merges can be undone.
+- Export writes the tree back out, including structures Epoch does not yet show, which are kept
+  from the import rather than discarded. Merged families keep their original ids.
+
+## Requirements
+
+- **Node 24 or later** (see `.nvmrc`).
+- To deploy: a Cloudflare account with a **paid Workers plan**, a **Zero Trust organisation with an
+  identity provider**, and somewhere to serve from (a workers.dev subdomain or an active domain).
+
+## Running locally
 
 ```sh
 nvm use                       # or otherwise install Node 24
 npm install
 cp .dev.vars.example .dev.vars
-npm run db:migrate:local      # creates the local D1 schema
+npm run db:migrate:local      # creates the local database
 npm run dev
 ```
 
-The app runs at <http://localhost:5173>. The migrations in `drizzle/` are the only schema source.
-Without `npm run db:migrate:local` (or after pulling new migrations) every request fails with a 503
-that says to run it, rather than a `no such table` error. The check compares Wrangler's
-`d1_migrations` record with the migration journal, so it also catches a partly applied set.
+The app runs at <http://localhost:5173>. If the database has not been migrated (or new migrations
+have been pulled since), every page answers with a message saying to run `npm run db:migrate:local`.
 
-### Installing into Cloudflare
-
-```sh
-./setup --plan   # reconcile with your account and print what would change; read-only
-./setup          # sign in, create the resources, the Access application, deploy, verify
-```
-
-`./setup …` is `npm run setup -- …` without the `--`; either works.
-
-Setup signs in through your browser (no API token to create), asks only what it cannot discover, and
-proves that any resource it finds by name belongs to this install before using it. It assumes your
-account already has a paid Workers plan and a Zero Trust organisation with an identity provider, and
-somewhere to serve from (a workers.dev subdomain, or an active domain); it never creates those. Everything else it needs is the D1 database, R2 bucket, queue
-and Worker, a workers.dev URL or one custom domain, and one Access application on `<host>/login` with an Allow policy
-(chosen from your existing ones, or a new one for your email). It never edits a policy it did not
-create.
-
-Later: `./setup doctor` reports drift, `allow <email>` and `disallow <email>` edit the
-policy setup created, and `teardown` deletes only what this install made. `./setup --help`
-lists every flag, including the ones that answer each prompt for CI. With `--json`, stdout carries
-only the result (through npm, use `npm run -s setup -- …` so its banner stays off stdout). State lives in
-`.epoch/install.json` (git-ignored) and the tracked `wrangler.deploy.jsonc`. See
-[docs/cli-setup-plan.md](./docs/cli-setup-plan.md) for the design and the checks that still need a
-real account (`./setup spike`).
-
-### Dev identity
-
-Identity normally comes from Cloudflare Access. For local development, `.dev.vars` sets
-`ACCESS_BYPASS_DEV=true`, which lets requests without a token act as a local developer
-(`dev-local-user`, `developer@epoch.local`). Override the identity per request with the
-`x-dev-user-sub`, `x-dev-user-email` and `x-dev-user-name` headers.
-
-While the local database has no `install_meta` row, the default developer stands in for the install
-owner, so a fresh database works without setup. Any other dev identity must be invited to a tree
-first, as for a real visitor; add an `install_meta` row to try the not-invited page locally.
-
-The bypass is opt-in only. It is never inferred from `NODE_ENV`, and without the flag every
-request without a valid Access token is rejected with 401. Never set the flag in a deployed
-environment. `.dev.vars` is git-ignored.
-
-### Sign-in and the welcome page
-
-Epoch uses **one** Cloudflare Access application, covering only `<host>/login`. Every other path
-is plain Worker traffic and the Worker is the gate: a signed-out page load is redirected to
-`/welcome?next=…`, whose "Sign in" button goes to `/login?next=…`. Access authenticates the
-visitor there and sets the `CF_Authorization` cookie, then `/login` redirects to `next`. See
-ADR-026 in [docs/decisions.md](./docs/decisions.md).
-
-Application settings: path `/login` only, an Allow policy for your invitees, **Cookie Path
-Attribute off** (otherwise the cookie is not sent on other paths) and Binding Cookie off.
-
-Getting past Access is not enough to use Epoch (ADR-034). The Worker admits only the install owner,
-people who hold a membership in any tree, and people with an unexpired invitation, which is taken
-up on that same request. Anyone else is sent to `/welcome?reason=not-invited`, which names the
-address they signed in with, asks them to get an invitation from the owner and offers sign-out;
-API calls from them get a 403. Epoch stores nothing about them. Only the install owner and members
-may start a tree, so a broad Access policy (for example, everyone at your email domain) is safe.
-
-The install owner is the `install_meta` row. Until the setup tool writes it, an install has no
-owner and admits only members and invitees. To add the row by hand, use a lower-case address and
-a lower-case UUID, which the setup tool will later read as this install's marker:
-
-```bash
-npx wrangler d1 execute epoch-genealogy-db --remote --command "INSERT INTO install_meta (install_id, owner_email, created_at) VALUES ('$(uuidgen | tr A-Z a-z)', 'you@example.com', unixepoch())"
-```
-
-Migrating a deployment that has the whole host behind Access plus a Bypass application:
-
-1. Deploy this code first. It works under the old whole-host setup too.
-2. **Edit the existing Access application's path to `/login`** rather than creating a new one. That
-   keeps its AUD tag, so the `CF_ACCESS_AUD` secret does not change. If you create a new
-   application instead, update the secret to its AUD tag.
-3. Delete the Bypass application.
-
-Verify on first deploy: that signing in returns you to the page you wanted, and that API calls
-after sign-in authenticate from the cookie alone.
-
-### Brand assets
-
-The icons are SVGs in `static/` and `static/brand/`. After changing one, run
-`npm run brand:render` to regenerate the PNGs and `favicon.ico`, and commit the output. Set
-`CHROMIUM_PATH` if the installed Chromium is not the build Playwright expects.
-
-### Seed data
+### Sample data
 
 With the dev server running:
 
@@ -114,117 +93,93 @@ With the dev server running:
 npm run seed
 ```
 
-This imports [docs/gedcom-data/The_Simpsons_clean.ged](./docs/gedcom-data/The_Simpsons_clean.ged) as a tree named "The
-Simpsons". It does nothing if that tree already exists. If the dev server is on another port, set
-`SEED_URL`, for example `SEED_URL=http://localhost:5178 npm run seed`.
+This imports [test/data/The Simpsons.ged](<./test/data/The Simpsons.ged>) as a tree named "The
+Simpsons", and does nothing if that tree already exists. If the dev server is on
+another port, set `SEED_URL`, for example `SEED_URL=http://localhost:5178 npm run seed`.
 
-## Commands
+For a larger tree with sources, places and media links, import
+[test/data/The Windsors.ged](<./test/data/The Windsors.ged>) from the app. All the files in
+`test/data/` are fictional or public, so they are safe to share.
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Start the dev server |
-| `npm run check` | Sync SvelteKit types and run `svelte-check` |
-| `npm test` | Run all Vitest suites once: unit, real-D1 service tests and jsdom component tests (`*.component.test.ts`) |
-| `npm run test:e2e` | Run the Playwright browser tests (see [Browser tests](#browser-tests)) |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run build` | Production build |
-| `npm run db:generate` | Generate a Drizzle migration from schema changes |
-| `npm run db:migrate:local` | Apply migrations to the local D1 database |
-| `npm run db:migrate` | Apply migrations to the remote D1 database, using `wrangler.deploy.jsonc` |
-| `npm run db:backfill:dates` | Fill structured date columns for events written before migration 0007 (add `-- --remote` for the deployed database) |
-| `npm run db:backfill:evidence` | Move sources, repositories and citations a tree kept as retained GEDCOM lines (imported before migration 0020) into records; add `-- --remote` for the deployed database. Run it after the migration |
-| `npm run db:backfill:notes` | Move notes a tree kept as retained GEDCOM lines, in extra lines, or in a fact's `notes` column (imported before migration 0021) into note records; add `-- --remote` for the deployed database. Run it after migration 0021 **and after** `db:backfill:evidence` |
-| `node scripts/deploy-config.mjs` | Check that `wrangler.deploy.jsonc` exists and agrees with `wrangler.jsonc` on the fields the build reads (`deploy` runs it first) |
-| `npm run deploy` | Check the deploy config, migrate, build and deploy the Worker using `wrangler.deploy.jsonc` |
+### Signing in locally
 
-### Deploy configuration
+In a deployment, sign-in comes from Cloudflare Access. Locally, `.dev.vars` sets
+`ACCESS_BYPASS_DEV=true`, so requests act as a local developer (`developer@epoch.local`) who stands
+in for the install owner. To act as someone else, send the `x-dev-user-sub`, `x-dev-user-email` and
+`x-dev-user-name` headers; that person must be invited to a tree first, as in a real install.
 
-The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
-none of the owner's values (team domain, email sender, route or workers.dev setting). Remote commands (`db:migrate`,
-`deploy`, and the backfill scripts with `--remote`) use `wrangler.deploy.jsonc` instead, which is the
-tracked file plus the real ids, how the Worker is served (`workers_dev` or a custom-domain route) and
-the vars. It is tracked too (ADR-038: nothing in it is a credential, and push-to-deploy needs it);
-`npm run setup` regenerates it in place, and without it those commands stop and say to run setup.
+The bypass only applies when the flag is set. **Never set it in a deployed environment.**
+`.dev.vars` is git-ignored.
 
-The build still reads the tracked file. `adapter-cloudflare` takes only `main` and `assets` from it, so
-`deploy` fails if the deploy file differs on those fields. Keep `main` at the adapter default and
-pass `workers/entry.ts` to `wrangler deploy` directly.
-
-Local state is keyed by the D1 id, so the placeholder id starts a fresh local database: run
-`npm run db:migrate:local` once after pulling this change.
-
-### Browser tests
-
-The Playwright suite in `e2e/` drives the real UI, including keyboard-only flows, delete with an
-impact summary, undo, a forced 409 conflict, the Phase 1 scenarios built through the editor,
-axe accessibility checks and a phone-sized run. It is outside `npm test` and the commit gate.
+## Installing into Cloudflare
 
 ```sh
-npm run db:migrate:local      # the dev database must be migrated
-npm run test:e2e
+./setup --plan   # read-only: shows what would be created or changed
+./setup          # signs in, creates everything, deploys and checks the result
 ```
 
-Playwright starts its own dev server on port 5179 (or reuses one already running there) and uses
-your installed Google Chrome, so no browser download is needed. Without Chrome, run
-`npx playwright install chromium` and remove `channel: 'chrome'` from `playwright.config.ts`.
+`./setup …` is the same as `npm run setup -- …`; either works.
 
-On a cold start (after clearing `node_modules/.vite`) the dev server's first request often answers
-`500 GET /`, logging `TypeError: Cannot read properties of null (reading 'function')` from
-`+layout.svelte`. It is not caused by the app: the log shows Vite's forced dependency
-re-optimisation followed by an SSR "program reload" while that first request is rendering. Measured
-over 30 cold starts each (2026-09-30), the first request failed 12 times on `main` (S3) and 14 times
-on the S4 branch, and the second request always succeeded. It never happens on a warm cache or in the
-production build. Ignore it if the specs pass.
+Setup signs in through your browser (there is no API token to create) and asks only what it cannot
+find out itself. It creates:
 
-Every spec creates a uniquely named tree through the API and deletes it afterwards, so "The
-Simpsons" and any other data in your local database are left alone. Stop `npm run dev` before
-`npm test`, which shares local D1 state with it.
+- the database, storage bucket, queue and Worker;
+- a workers.dev address or one custom domain;
+- one Cloudflare Access application on `<host>/login`, with an Allow policy chosen from your
+  existing ones or a new one for your email address.
 
-### Addresses
+It never creates your account, plan, Zero Trust organisation or domain, never edits an Access policy
+it did not create, and checks that anything it finds by name belongs to this install before using
+it. It also records you as the install owner.
 
-| Address | Shows |
+### Looking after an install
+
+| Command | Does |
 |---|---|
-| `/` | Opens the latest tree; the old `/?tree=…&focus=…` form redirects to the tree with the rest of the query kept |
-| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=&side=&origins=&mode=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it. `mode` is `flat`, `layers` or `floors` (ADR-030); a link without it opens in the viewer's default view, then the tree's, then flat |
-| `/trees/:id/people/:personId` | A person: names, facts (add, edit, remove, reorder), family, evidence, media, history |
-| `/trees/:id/people/:personId/pedigree`, `/descendants`, `/fan`, `/hourglass` | Charts centred on a person, with a text outline |
-| `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, evidence, warnings |
-| `/trees/:id/search?q=&place=&from=&to=` | Ranked search over names, XREFs, places and years, saying why each person matched |
-| `/trees/:id/people`, `/unions`, `/surnames` | Server-paged lists |
-| `/trees/:id/relationship?from=&to=` | Every route between two people |
-| `/trees/:id/places`, `/place?name=` | Places named by facts, and the facts at one place |
-| `/trees/:id/sources`, `/sources/:sourceId` | Sources the viewer may see, and what each one supports |
-| `/trees/:id/notes`, `/notes/:noteId` | Shared notes, and where each one is used |
-| `/trees/:id/tasks` | Research tasks, open by default, with filters |
-| `/trees/:id/quality` | The data-quality report, with dismissals; managers also see privacy leaks |
-| `/trees/:id/members`, `/privacy` | Members and invitations; the tree's privacy settings (managers) |
+| `./setup doctor` | Reports anything that has drifted from what setup created |
+| `./setup allow <email>` | Lets someone through the Access policy setup created |
+| `./setup disallow <email>` | Removes them again |
+| `./setup teardown` | Deletes only what this install created |
+| `./setup --help` | Lists every flag, including ones that answer each prompt for scripted use |
+| `npm run deploy` | Deploys a new version: applies any new migrations, builds and deploys |
 
-Person ids from an import look like `<treeId>:@I1@`; build links with `encodeURIComponent`. The tree
-reads a bounded window (`GET /api/trees/:id/graph?focus=…`) rather than the whole tree; see
-[docs/query-plans.md](./docs/query-plans.md) and ADR-011.
+With `--json`, only the result is printed (through npm, use `npm run -s setup -- …` so npm's own
+banner stays off the output). Setup keeps its state in `.epoch/install.json` (git-ignored) and
+`wrangler.deploy.jsonc`, which it regenerates; keep that file committed so later deploys can find
+your resources.
 
-### Change history and undo
+### Who can get in
 
-Every change to a tree (relationship edits, deaths, partnership edits, person create, edit and
-delete, and removals) is written to an append-only change log in the same atomic batch as the
-change. Each successful change shows a toast with **Undo**. Undo reverts your own most recent
-change in the tree, and is refused with a reason if someone else has since changed the same
-records. See ADR-007 in [docs/decisions.md](./docs/decisions.md).
+Letting someone through Cloudflare Access is not enough on its own. Epoch then admits only the
+install owner, members of any tree and people with an unexpired invitation (which is accepted on
+their first visit). So a broad Access policy, such as everyone at your email domain, is safe; invite
+people from a tree's **Members** page.
 
-### Duplicate families and merging partnerships
+If you set up Access by hand instead of with `./setup`, the application needs:
 
-A dirty GEDCOM can carry one family several times ([docs/gedcom-data/The_Simpsons.ged](./docs/gedcom-data/The_Simpsons.ged) does;
-never seed from it). The import preview lists **Duplicate families** (same two partners, identical
-facts, no disagreement about a child) with a default-on option to merge them, and **Possible
-duplicates** for review only. A merged family keeps every original XREF as an alias, and export
-writes it back as `REFN` records.
+- the path `/login` only, with an Allow policy for the people you will invite;
+- **Cookie Path Attribute off** (otherwise sign-in does not carry over to other pages);
+- **Binding Cookie off**.
 
-For data already in a tree, choose **Merge duplicate partnerships…** from a partnership's menu or
-**Merge…** in the person drawer. The dialog lists exactly which links, events and partnerships move
-or go. If the partnerships record different facts, such as two marriage dates, you must choose
-which to keep. A merge is logged and can be undone. Repeated partnerships between the same pair are
-labelled "1st partnership", "2nd partnership", with dates. See ADR-008 and ADR-009 in
-[docs/decisions.md](./docs/decisions.md).
+and an install owner recorded in the database. Use a lower-case email address:
 
-Migrations must be backwards compatible (expand and contract). `wrangler rollback` restores
-code, never schema.
+```bash
+npx wrangler d1 execute epoch-genealogy-db --remote --command "INSERT INTO install_meta (install_id, owner_email, created_at) VALUES ('$(uuidgen | tr A-Z a-z)', 'you@example.com', unixepoch())"
+```
+
+### Moving from whole-site Access
+
+If an older install has the whole site behind Access plus a Bypass application:
+
+1. Deploy the current version first; it works under the old arrangement too.
+2. **Change the existing Access application's path to `/login`** rather than creating a new one,
+   so its audience tag and the `CF_ACCESS_AUD` secret stay the same. If you do create a new one,
+   update the secret to its audience tag.
+3. Delete the Bypass application.
+
+Then check that signing in returns you to the page you asked for.
+
+## Developing Epoch
+
+Commands, tests, deploy internals and data backfills are in
+[docs/development.md](./docs/development.md).
