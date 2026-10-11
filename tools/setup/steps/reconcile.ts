@@ -13,6 +13,16 @@ import {
 	type ObservedWorker,
 	type ReconcileResult
 } from '../reconcile.ts';
+import {
+	TAG_AVAILABILITY,
+	listInstalls,
+	readTagIndex,
+	findStale,
+	witnessesFor,
+	type TagAvailability,
+	type TaggedResource,
+	type TagWitnesses
+} from '../tags.ts';
 import { listPoliciesWithApps } from './collect.ts';
 
 /** The R2 marker object, written and read through one key. */
@@ -156,6 +166,47 @@ export async function observe(
 	};
 }
 
+export interface TagObservation {
+	availability: TagAvailability;
+	/** Undefined when tags are unavailable, so `reconcile` falls back to the markers. */
+	witnesses: TagWitnesses | undefined;
+	/** Tagged as this install, but the resource is gone. */
+	stale: TaggedResource[];
+}
+
+/**
+ * Read-only. The tag half of reconcile: each observed resource is matched to its tags by canonical
+ * id, so a tag on a resource that no longer exists never counts as evidence.
+ */
+export async function observeTags(
+	ctx: StepContext,
+	manifest: Manifest,
+	observed: Observed,
+	isInstallIdKnown: boolean
+): Promise<TagObservation> {
+	const names = resourceNames(manifest.workerName);
+	const index = await readTagIndex(
+		ctx.cf,
+		manifest.workerName,
+		isInstallIdKnown ? manifest.installId : null
+	);
+	if (index === null) {
+		return { availability: TAG_AVAILABILITY.unavailable, witnesses: undefined, stale: [] };
+	}
+	const ids = {
+		d1: observed.d1?.id,
+		r2: observed.r2?.name,
+		queue: observed.queue?.id,
+		accessApp: observed.accessApp?.id,
+		worker: observed.worker ? await ctx.cf.getWorkerScriptId(names.worker) : null
+	};
+	return {
+		availability: TAG_AVAILABILITY.available,
+		witnesses: witnessesFor(index, ids),
+		stale: findStale(index, ids)
+	};
+}
+
 export async function reconcileStep(
 	ctx: StepContext,
 	manifest: Manifest,
@@ -170,14 +221,42 @@ export async function reconcileStep(
 	/** A Worker of this name that is not ours; the flow asks what to do with it (rename, adopt, replace). */
 	existingWorker: ObservedWorker | null;
 }> {
+	// Other installs first: a name that another checkout's install already uses is refused before
+	// anything else is looked up. A fresh clone (no manifest) is left to reconcile, because for it
+	// the existing install is the one to re-attach to, not a clash.
+	const installs = await listInstalls(ctx.cf);
+	if (installs !== null) {
+		const own = installs.find((install) => install.instance === manifest.workerName);
+		if (hasManifest && own?.installId && own.installId !== manifest.installId) {
+			throw new SetupError(
+				ERROR_CODES.foreign,
+				`The name "${manifest.workerName}" is already used by install ${own.installId} in this account`,
+				{ hint: 'Choose another install with --name.' }
+			);
+		}
+		const others = installs.filter((install) => install.instance !== manifest.workerName);
+		if (others.length > 0) {
+			ctx.report.info(
+				`Other Epoch installs in this account: ${others
+					.map((install) => `${install.instance}: ${install.state ?? 'untagged state'}`)
+					.join(', ')}`
+			);
+		}
+	}
 	const observed = await observe(ctx, manifest, answers.hostname);
+	const observedTags = await observeTags(ctx, manifest, observed, hasManifest);
+	if (observedTags.availability === TAG_AVAILABILITY.unavailable) {
+		ctx.report.warn('resource tags unavailable: reconciling with the markers alone');
+	}
+	manifest = { ...manifest, tags: observedTags.availability };
 	// A manifest created in this very run has no history, so a resource of that name is not "ours"
 	// just because the file exists; only a manifest read from disk counts as evidence.
 	const result = reconcile({
 		manifest: hasManifest ? manifest : null,
 		names: resourceNames(manifest.workerName),
 		hostname: answers.hostname,
-		observed
+		observed,
+		tags: observedTags.witnesses
 	});
 	const workerState = result.reports.worker.state;
 	const existingWorker =

@@ -3,6 +3,7 @@ import { mergeExportRule } from '../lifecycle.ts';
 import { withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
 import type { Answers } from '../options.ts';
+import { TAG_STATES, tagResources } from '../tags.ts';
 
 /**
  * Creates what is absent. Each id goes into the manifest the moment it exists, so a crash between
@@ -38,5 +39,7 @@ export async function provision(
 			resources: { ...current.resources, queue: { id: created.id, name: created.name } }
 		});
 	}
+	// Created or adopted, the user has confirmed it by now; it is marked until verify passes.
+	current = await tagResources(ctx, current, ['d1', 'r2', 'queue'], TAG_STATES.provisioning);
 	return ctx.save(withStepDone(current, 'provision'));
 }

@@ -1,5 +1,6 @@
 import { hasMarker, type Manifest } from './manifest.ts';
 import type { ResourceNames } from './names.ts';
+import { TAG_VERDICTS, classifyTag, type TagWitnesses } from './tags.ts';
 
 export const RESOURCE_STATES = {
 	absent: 'absent',
@@ -107,6 +108,11 @@ interface ReconcileInput {
 	names: ResourceNames;
 	hostname: string | null;
 	observed: Observed;
+	/**
+	 * What resource tags say, by resource. Undefined when tags are unavailable or were not read: the
+	 * markers then decide alone, exactly as before tags existed.
+	 */
+	tags?: TagWitnesses;
 }
 
 function sizeText(bytes: number | null): string {
@@ -176,7 +182,7 @@ function fingerprintLines(key: ResourceKey, observed: Observed): string[] {
  * (or, where none is possible, the manifest's id). Pure, so every state is tested from fixtures.
  */
 export function reconcile(input: ReconcileInput): ReconcileResult {
-	const { manifest, names, hostname, observed } = input;
+	const { manifest, names, hostname, observed, tags } = input;
 	const refusals: string[] = [];
 	const warnings: string[] = [];
 	const ownId = manifest?.installId ?? null;
@@ -184,14 +190,17 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 	const markersFound = [
 		observed.d1?.markerInstallId,
 		observed.r2?.markerInstallId,
-		observed.worker?.markerInstallId
+		observed.worker?.markerInstallId,
+		tags?.d1?.installId,
+		tags?.r2?.installId,
+		tags?.worker?.installId
 	].filter((marker): marker is string => typeof marker === 'string');
 	const distinct = new Set(markersFound);
 	const isDisagreeing = distinct.size > 1;
 	const groupId = distinct.size === 1 ? [...distinct][0]! : null;
 	if (isDisagreeing) {
 		refusals.push(
-			'The D1, R2 and Worker markers carry different install ids; they are not one install'
+			'The D1, R2 and Worker markers and tags carry different install ids; they are not one install'
 		);
 	}
 
@@ -221,6 +230,26 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 		marker: string | null,
 		isInManifest: boolean
 	): [ResourceState, string] {
+		const witness = tags?.[key];
+		switch (classifyTag(witness, marker, ownId)) {
+			case TAG_VERDICTS.disagreesWithMarker:
+				return [
+					RESOURCE_STATES.foreign,
+					`its tag says install ${witness?.installId} but its marker says ${marker}: the two witnesses disagree`
+				];
+			case TAG_VERDICTS.otherInstall:
+				return [
+					RESOURCE_STATES.foreign,
+					`it is tagged for install ${witness?.installId} (${witness?.instance ?? 'unnamed'}), not ${ownId}`
+				];
+			case TAG_VERDICTS.ours:
+				return [RESOURCE_STATES.ours, 'carries this install’s tag'];
+			case TAG_VERDICTS.orphaned:
+				return [
+					RESOURCE_STATES.orphaned,
+					`is tagged for install ${witness?.installId} and there is no manifest here`
+				];
+		}
 		if (isDisagreeing && marker !== null) {
 			return [RESOURCE_STATES.foreign, 'its marker disagrees with the other resources'];
 		}
@@ -286,6 +315,7 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 		report('queue', names.queue, RESOURCE_STATES.absent, 'nothing by that name');
 	} else {
 		const queue = observed.queue;
+		const queueTag = classifyTag(tags?.queue, null, ownId);
 		if (queue.consumerWorker !== null && queue.consumerWorker !== names.worker) {
 			report(
 				'queue',
@@ -293,8 +323,24 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 				RESOURCE_STATES.foreign,
 				`its consumer is the Worker "${queue.consumerWorker}"`
 			);
+		} else if (queueTag === TAG_VERDICTS.otherInstall) {
+			report(
+				'queue',
+				names.queue,
+				RESOURCE_STATES.foreign,
+				`it is tagged for install ${tags?.queue?.installId} (${tags?.queue?.instance ?? 'unnamed'}), not ${ownId}`
+			);
+		} else if (queueTag === TAG_VERDICTS.ours) {
+			report('queue', names.queue, RESOURCE_STATES.ours, 'carries this install’s tag');
 		} else if (manifest?.resources.queue?.id === queue.id) {
 			report('queue', names.queue, RESOURCE_STATES.ours, 'its id is in the manifest');
+		} else if (queueTag === TAG_VERDICTS.orphaned) {
+			report(
+				'queue',
+				names.queue,
+				RESOURCE_STATES.orphaned,
+				`is tagged for install ${tags?.queue?.installId} and there is no manifest here`
+			);
 		} else if (
 			ownId === null &&
 			queue.consumerWorker === names.worker &&
@@ -328,8 +374,29 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 		report('accessApp', names.accessApp, RESOURCE_STATES.absent, 'no application serves that path');
 	} else if (manifest?.access.app?.id === app.id) {
 		report('accessApp', app.name, RESOURCE_STATES.ours, 'its id is in the manifest');
+	} else if (
+		expectedDomain !== null &&
+		app.domain === expectedDomain &&
+		classifyTag(tags?.accessApp, null, ownId) === TAG_VERDICTS.otherInstall
+	) {
+		report(
+			'accessApp',
+			app.name,
+			RESOURCE_STATES.foreign,
+			`it is tagged for install ${tags?.accessApp?.installId} (${tags?.accessApp?.instance ?? 'unnamed'}), not ${ownId}`
+		);
 	} else if (expectedDomain !== null && app.domain === expectedDomain) {
-		if (manifest?.access.app) {
+		const appTag = classifyTag(tags?.accessApp, null, ownId);
+		if (appTag === TAG_VERDICTS.ours) {
+			report('accessApp', app.name, RESOURCE_STATES.ours, 'carries this install’s tag');
+		} else if (appTag === TAG_VERDICTS.orphaned) {
+			report(
+				'accessApp',
+				app.name,
+				RESOURCE_STATES.orphaned,
+				`is tagged for install ${tags?.accessApp?.installId} and there is no manifest here`
+			);
+		} else if (manifest?.access.app) {
 			report(
 				'accessApp',
 				app.name,

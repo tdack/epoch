@@ -523,8 +523,15 @@ describe('access', () => {
 			},
 			{
 				match: 'cf zero-trust access applications create',
-				stdout: { id: 'a', name: 'Epoch (epoch)', domain: 'epoch.example.com/login', aud: 'aud' }
-			}
+				stdout: {
+					id: 'a9a9a9a9-0000-4000-8000-000000000001',
+					name: 'Epoch (epoch)',
+					domain: 'epoch.example.com/login',
+					aud: 'aud'
+				}
+			},
+			{ match: 'cf account-tags get', stdout: fixture('tags-get-untagged.json') },
+			{ match: 'cf account-tags update', stdout: {} }
 		]);
 		const { ctx } = testContext({ exec });
 		ctx.cf.useAccount('acc');

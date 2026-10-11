@@ -9,13 +9,15 @@ import { WORKER_CHOICES, resolveExistingWorker } from './steps/existing-worker.t
 import { chooseWorkerName, readDeployDefaults } from './steps/name.ts';
 import { collect } from './steps/collect.ts';
 import { handOff } from './steps/hand-off.ts';
+import { markConfigured } from './steps/mark-configured.ts';
 import { migrateMarkDeploy } from './steps/migrate-mark-deploy.ts';
 import { buildPlan, confirmAdoptions, type PlanLine } from './steps/plan.ts';
 import { preflight } from './steps/preflight.ts';
 import { provision } from './steps/provision.ts';
 import { applyAdoptions, reconcileStep } from './steps/reconcile.ts';
 import { signIn } from './steps/sign-in.ts';
-import { verify, type CheckResult } from './steps/verify.ts';
+import { TAG_STATES, TAGGABLE_KEYS, tagResources } from './tags.ts';
+import { CHECK_STATUSES, verify, type CheckResult } from './steps/verify.ts';
 import { writeConfig } from './steps/write-config.ts';
 
 /** What the flow needs from the terminal. ui.ts implements it; `--json` and tests use quiet ones. */
@@ -117,6 +119,9 @@ export async function runSetup(
 		)
 	);
 
+	// Marked before anything changes, so a run that is interrupted leaves `provisioning` behind.
+	manifest = await tagResources(ctx, manifest, TAGGABLE_KEYS, TAG_STATES.provisioning);
+
 	presenter.stage('Provision');
 	manifest = await presenter.task('Creating the database, bucket and queue', () =>
 		provision(ctx, manifest, answers)
@@ -137,6 +142,10 @@ export async function runSetup(
 	const verified = await presenter.task('Checking the live site', () => verify(ctx, manifest));
 	manifest = verified.manifest;
 	presenter.showChecks(verified.results);
+
+	if (verified.results.every((check) => check.status !== CHECK_STATUSES.fail)) {
+		manifest = await markConfigured(ctx, manifest);
+	}
 
 	const done = handOff(manifest);
 	presenter.showHandOff(done.lines);

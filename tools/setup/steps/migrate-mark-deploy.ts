@@ -10,6 +10,7 @@ import {
 } from '../install-meta.ts';
 import { AUTH_MODES, withMarker, withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
+import { TAG_STATES, tagResources } from '../tags.ts';
 import type { WranglerApi, WranglerAuth } from '../wrangler.ts';
 import { R2_MARKER_KEY } from './reconcile.ts';
 
@@ -124,5 +125,7 @@ export async function migrateMarkDeploy(ctx: StepContext, manifest: Manifest): P
 			true
 		)
 	);
+	// The Worker did not exist before this deploy, so this is the first moment it can be tagged.
+	current = await tagResources(ctx, current, ['worker'], TAG_STATES.provisioning);
 	return ctx.save(withStepDone(current, 'migrate-mark-deploy'));
 }

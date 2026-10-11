@@ -4,6 +4,7 @@ import { OWNERSHIPS, withStepDone, type Manifest, type PolicyRef } from '../mani
 import { resourceNames } from '../names.ts';
 import type { Answers } from '../options.ts';
 import { ownerOnlyRules } from '../policy.ts';
+import { TAG_STATES, tagResources } from '../tags.ts';
 
 /**
  * One Access application on `<host>/login` and its policies; nothing else in Zero Trust is read for
@@ -79,5 +80,6 @@ export async function access(
 			app: { id: app.id, name: app.name, aud: app.aud }
 		}
 	});
+	current = await tagResources(ctx, current, ['accessApp'], TAG_STATES.provisioning);
 	return ctx.save(withStepDone(current, 'access'));
 }

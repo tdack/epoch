@@ -164,6 +164,11 @@ export function stubApi(overrides: Partial<CloudflareApi> = {}): CloudflareApi {
 		get(target, property: string) {
 			if (property in target) return target[property as keyof CloudflareApi];
 			if (property === 'useAccount') return () => {};
+			// An account with no tags and no way to read a Worker's script id: what the flow tests assumed before tags.
+			if (property === 'listTagged') return async () => [];
+			if (property === 'getWorkerScriptId') return async () => null;
+			if (property === 'getTags') return async () => ({ tags: {}, etag: 'v1:empty' });
+			if (property === 'putTags') return async () => {};
 			return () => {
 				throw new Error(`Unexpected cf call: ${property}`);
 			};
