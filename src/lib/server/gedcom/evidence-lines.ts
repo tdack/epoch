@@ -69,10 +69,10 @@ export function normalizedNodeText(node: GedcomNode): string {
 
 /** The canonical lines for a text: one line, and a `CONT` for each line break. */
 function textLines(level: number, tag: string, text: string): string[] {
-	const [first, ...rest] = text.split(LINE_BREAK);
+	const [first, ...rest] = stripBannedChars(text).split(LINE_BREAK);
 	return [
-		first ? `${level} ${tag} ${first}` : `${level} ${tag}`,
-		...rest.map((line) => (line ? `${level + 1} CONT ${line}` : `${level + 1} CONT`))
+		first ? `${level} ${tag} ${escapeText(first)}` : `${level} ${tag}`,
+		...rest.map((line) => (line ? `${level + 1} CONT ${escapeText(line)}` : `${level + 1} CONT`))
 	];
 }
 
@@ -87,6 +87,23 @@ export function singleLine(text: string | null | undefined): string | undefined 
 	// control-character rule guards against does not apply here.
 	// eslint-disable-next-line no-control-regex
 	return text.replace(/[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+/g, ' ');
+}
+
+/**
+ * Model text as a GEDCOM line writes it: the banned code points gone, and a leading `@` doubled so
+ * the value can never be read back as a pointer. It is applied to every payload the model supplies,
+ * never to a pointer, a tag or a `DATE` (whose `@#…@` calendar escape is the date dialect's) and
+ * never to a line kept verbatim from an imported file.
+ */
+export function escapeText(text: string): string {
+	const cleaned = stripBannedChars(text);
+	return cleaned.startsWith('@') ? `@${cleaned}` : cleaned;
+}
+
+/** A text field that occupies one GEDCOM line: its terminators folded and its leading `@` escaped. */
+export function escapedSingleLine(text: string | null | undefined): string | undefined {
+	const line = singleLine(text);
+	return line === undefined ? undefined : escapeText(line);
 }
 
 /**
@@ -109,7 +126,22 @@ function textOfLines(lines: readonly string[]): string | null {
 	const level = levelOfLine(lines[0] ?? '');
 	if (level === null) return null;
 	const root = buildGedcomTree(lines, level)[0];
-	return root ? logicalText(root) : null;
+	if (!root) return null;
+	let text = normalizedNodeText(root);
+	for (const child of root.children) {
+		if (child.tag === 'CONT') text += `\n${normalizedNodeText(child)}`;
+		else if (child.tag === 'CONC') text += normalizedNodeText(child);
+	}
+	return text;
+}
+
+/**
+ * A line kept as a text field's layout, with a lone leading `@` in its payload doubled. The layout
+ * is the file's own split, written back byte-for-byte — except for this escape, which a built line
+ * gets and a 5.5.1 file's own bytes do not. An already-doubled `@@` is left alone.
+ */
+function escapeKeptText(line: string): string {
+	return stripBannedChars(line).replace(/^(\s*\d+\s+(?:@[^@\s]+@\s+)?\S+\s+)@(?!@)/, '$1@@');
 }
 
 /**
@@ -125,7 +157,7 @@ export function fieldLines(
 	if (!text) return [];
 	if (layout && layout.length > 0 && textOfLines(layout) === text) {
 		const own = levelOfLine(layout[0]);
-		if (own !== null) return shiftLevels(layout, level - own);
+		if (own !== null) return shiftLevels(layout.map(escapeKeptText), level - own);
 	}
 	return textLines(level, tag, text);
 }

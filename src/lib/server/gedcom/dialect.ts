@@ -4,6 +4,7 @@
  * file alike, because a tree imported from 5.5.1 and exported as 7.0 carries both.
  */
 
+import { escapeText } from './evidence-lines';
 import { toGedcom551Date, toGedcom7Date } from './date-dialect';
 
 /** `level [@xref@] tag [payload]`. The payload keeps its leading spaces, which `CONC` depends on. */
@@ -24,9 +25,6 @@ function parse(line: string): Line | null {
 function format({ level, xref, tag, payload }: Line): string {
 	return [String(level), xref, tag, payload || undefined].filter((p) => p !== undefined).join(' ');
 }
-
-/** A pointer payload (`@I1@`, `@VOID@`), which is not text and is never escaped. */
-const POINTER = /^@[^@\s]+@$/;
 
 /** Tags whose 7.0 payload is an enumeration, which 7.0 spells in capitals and 5.5.1 often did not. */
 const ENUMERATED_TAGS = new Set(['STAT', 'RESN', 'ADOP', 'PEDI']);
@@ -57,7 +55,7 @@ function mediaKind(line: Line): Line[] {
 	}
 	return [
 		{ ...line, tag: 'MEDI', payload: 'OTHER' },
-		{ level: line.level + 1, tag: 'PHRASE', payload: word }
+		{ level: line.level + 1, tag: 'PHRASE', payload: escapeText(word) }
 	];
 }
 
@@ -92,7 +90,9 @@ function restructure7(line: Line, parentTag: string | undefined): Line[] {
 	if ((tag === 'TYPE' && parentTag === 'FORM') || tag === 'MEDI') return mediaKind(line);
 	if (tag === 'RELA' && parentTag === 'ASSO') {
 		const role: Line = { ...line, tag: 'ROLE', payload: 'OTHER' };
-		return payload ? [role, { level: line.level + 1, tag: 'PHRASE', payload }] : [role];
+		return payload
+			? [role, { level: line.level + 1, tag: 'PHRASE', payload: escapeText(payload) }]
+			: [role];
 	}
 	if (ENUMERATED_TAGS.has(tag) && payload) return [{ ...line, payload: payload.toUpperCase() }];
 	return [line];
@@ -100,8 +100,10 @@ function restructure7(line: Line, parentTag: string | undefined): Line[] {
 
 /**
  * Lines in 7.0 form: `CONC` folded into the line it continues (7.0 has no line-length limit and no
- * `CONC`), dates converted with a `PHRASE` where 7.0 needs one, the few 5.5.1 structures 7.0
- * renamed rewritten (`restructure7`), and a text payload that starts with `@` escaped as `@@`.
+ * `CONC`), dates converted with a `PHRASE` where 7.0 needs one, and the few 5.5.1 structures 7.0
+ * renamed rewritten (`restructure7`). A model payload's leading `@` was already doubled by
+ * `escapeText` at its call site; a line kept verbatim is left exactly as the file wrote it, because
+ * only the escape that belongs to the model can be told from a file's own bytes.
  */
 export function toGedcom7Lines(lines: readonly string[]): string[] {
 	// A line that is not GEDCOM (a blank one) stays as a string, where it was, rather than be lost.
@@ -127,20 +129,12 @@ export function toGedcom7Lines(lines: readonly string[]): string[] {
 		if (line.tag === 'DATE' && line.payload !== undefined) {
 			const { value, phrase } = toGedcom7Date(line.payload);
 			out.push({ ...line, payload: value });
-			if (phrase) out.push({ level: line.level + 1, tag: 'PHRASE', payload: phrase });
+			if (phrase) out.push({ level: line.level + 1, tag: 'PHRASE', payload: escapeText(phrase) });
 			continue;
 		}
 		out.push(...restructure7(line, parentTag));
 	}
-	return out.map((line) => {
-		if (typeof line === 'string') return line;
-		const payload = line.payload;
-		// Escaped last, so a payload that only starts with `@` once its `CONC` is folded in is caught.
-		if (payload?.startsWith('@') && !payload.startsWith('@@') && !POINTER.test(payload)) {
-			return format({ ...line, payload: `@${payload}` });
-		}
-		return format(line);
-	});
+	return out.map((line) => (typeof line === 'string' ? line : format(line)));
 }
 
 /**

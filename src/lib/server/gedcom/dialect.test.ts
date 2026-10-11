@@ -24,24 +24,6 @@ describe('toGedcom7Lines', () => {
 		expect(toGedcom7Lines(['2 DATE Spring 1900'])).toEqual(['2 DATE', '3 PHRASE Spring 1900']);
 	});
 
-	it('doubles a leading @ in text, and leaves pointers and escaped text alone', () => {
-		expect(
-			toGedcom7Lines([
-				'1 NOTE @handle on the forum',
-				'2 CONT @@already escaped',
-				'1 FAMC @F1@',
-				'1 SNOTE @N1@',
-				'0 @N1@ SNOTE text'
-			])
-		).toEqual([
-			'1 NOTE @@handle on the forum',
-			'2 CONT @@already escaped',
-			'1 FAMC @F1@',
-			'1 SNOTE @N1@',
-			'0 @N1@ SNOTE text'
-		]);
-	});
-
 	it('writes the 5.5.1 structures 7.0 renamed in their 7.0 form', () => {
 		expect(
 			toGedcom7Lines([

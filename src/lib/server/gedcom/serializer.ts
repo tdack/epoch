@@ -1,5 +1,5 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
-import { fieldLines, keptLines, singleLine } from './evidence-lines';
+import { escapedSingleLine, fieldLines, keptLines, singleLine } from './evidence-lines';
 import { ValidationError } from '../domain/errors';
 import {
 	DEFAULT_GEDCOM_FORMAT,
@@ -211,11 +211,11 @@ function individualEventLines(
 	format: GedcomFormat
 ): string[] {
 	const tag = requireSingleLineToken(ev.type, 'An event type');
-	const lines = [ev.value ? `1 ${tag} ${singleLine(ev.value)}` : `1 ${tag}`];
+	const lines = [ev.value ? `1 ${tag} ${escapedSingleLine(ev.value)}` : `1 ${tag}`];
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
-	if (ev.place) lines.push(`2 PLAC ${singleLine(ev.place)}`);
-	if (ev.cause) lines.push(`2 CAUS ${singleLine(ev.cause)}`);
-	if (ev.age) lines.push(`2 AGE ${singleLine(ev.age)}`);
+	if (ev.place) lines.push(`2 PLAC ${escapedSingleLine(ev.place)}`);
+	if (ev.cause) lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`);
+	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`);
 	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
 	// written until the backfill moves it, so no export loses it. The legacy description stands in for
 	// a note only when the fact has none of its own. Both are text and may span lines.
@@ -238,7 +238,7 @@ function familyEventLines(
 ): string[] {
 	const lines = [`1 ${requireSingleLineToken(ev.type, 'An event type')}`];
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
-	if (ev.place) lines.push(`2 PLAC ${singleLine(ev.place)}`);
+	if (ev.place) lines.push(`2 PLAC ${escapedSingleLine(ev.place)}`);
 	if (ev.description) lines.push(...fieldLines(2, 'NOTE', ev.description));
 	lines.push(...citationLines(2, ev.citations, format));
 	lines.push(...foldLines(ev.gedcomExtra));
@@ -280,8 +280,8 @@ function sharedNoteLines(note: ExportSharedNote, format: GedcomFormat): string[]
 	return [
 		head,
 		...body.slice(1),
-		...(note.mime ? [`1 MIME ${singleLine(note.mime)}`] : []),
-		...(note.language ? [`1 LANG ${singleLine(note.language)}`] : []),
+		...(note.mime ? [`1 MIME ${escapedSingleLine(note.mime)}`] : []),
+		...(note.language ? [`1 LANG ${escapedSingleLine(note.language)}`] : []),
 		...keptLines(1, foldLines(note.extra))
 	];
 }
@@ -327,7 +327,7 @@ function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[]
 	lines.push(...fieldLines(1, 'TEXT', source.text, source.layout?.TEXT));
 	for (const link of source.repositories) {
 		lines.push(link.pointer ? `1 REPO ${singleLine(link.pointer)}` : '1 REPO');
-		if (link.callNumber) lines.push(`2 CALN ${singleLine(link.callNumber)}`);
+		if (link.callNumber) lines.push(`2 CALN ${escapedSingleLine(link.callNumber)}`);
 		lines.push(...foldLines(link.extra));
 	}
 	lines.push(...foldLines(source.extra));
@@ -381,26 +381,26 @@ function nameLines(
 	for (const name of names) {
 		if (name.type === 'married' && name.gedcomType === LEGACY_MARRIED_NAME_TAG) {
 			lines.push(
-				`1 ${LEGACY_MARRIED_NAME_TAG} ${singleLine(
+				`1 ${LEGACY_MARRIED_NAME_TAG} ${escapedSingleLine(
 					line({ ...name, prefix: null, surnamePrefix: null, suffix: null })
 				)}`
 			);
 			continue;
 		}
-		lines.push(`1 NAME ${singleLine(line(name))}`);
+		lines.push(`1 NAME ${escapedSingleLine(line(name))}`);
 		if (!(isFirst && name.type === 'birth')) {
 			const { token, phrase } = nameTypeTokens(name, format);
-			lines.push(`2 TYPE ${singleLine(token)}`);
-			if (phrase) lines.push(`3 PHRASE ${singleLine(phrase)}`);
+			lines.push(`2 TYPE ${escapedSingleLine(token)}`);
+			if (phrase) lines.push(`3 PHRASE ${escapedSingleLine(phrase)}`);
 		}
-		if (name.prefix) lines.push(`2 NPFX ${singleLine(name.prefix)}`);
-		if (name.givenName) lines.push(`2 GIVN ${singleLine(name.givenName)}`);
-		if (name.nickname) lines.push(`2 NICK ${singleLine(name.nickname)}`);
-		if (name.surnamePrefix) lines.push(`2 SPFX ${singleLine(name.surnamePrefix)}`);
-		if (name.surname) lines.push(`2 SURN ${singleLine(name.surname)}`);
-		if (name.suffix) lines.push(`2 NSFX ${singleLine(name.suffix)}`);
+		if (name.prefix) lines.push(`2 NPFX ${escapedSingleLine(name.prefix)}`);
+		if (name.givenName) lines.push(`2 GIVN ${escapedSingleLine(name.givenName)}`);
+		if (name.nickname) lines.push(`2 NICK ${escapedSingleLine(name.nickname)}`);
+		if (name.surnamePrefix) lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
+		if (name.surname) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
+		if (name.suffix) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
 		const note = nameChangeNote(name.dateText, name.unionXref);
-		if (note) lines.push(`2 NOTE ${singleLine(note)}`);
+		if (note) lines.push(`2 NOTE ${escapedSingleLine(note)}`);
 		lines.push(...citationLines(2, name.citations, format));
 		lines.push(...foldLines(name.extra));
 		lines.push(...noteLines(2, name.notes, format));
@@ -494,7 +494,7 @@ function famcTarget(entry: { lines: string[] }): string {
 /** Each merged-away XREF, kept on the surviving family as a typed `REFN`. */
 function aliasLines(aliases: string[] | undefined): string[] {
 	return (aliases ?? []).flatMap((alias) => [
-		`1 REFN ${singleLine(alias.replace(/^@|@$/g, ''))}`,
+		`1 REFN ${escapedSingleLine(alias.replace(/^@|@$/g, ''))}`,
 		`2 TYPE ${FAMILY_ALIAS_REFN_TYPE}`
 	]);
 }

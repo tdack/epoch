@@ -182,8 +182,9 @@ export function exportPayloadFrom(
 
 	// Every pointer in a retained line (a FAMC, an ASSO, a custom tag, a kept citation) follows the
 	// record that absorbed the one it names, so export never writes a pointer to a record that is gone.
+	// The lookbehind keeps an escaped `@@I1@` (model text the file wrote) out of the remap.
 	const remap = (line: string) =>
-		line.replace(/@[^@\s]+@/g, (token) => xrefToExportId.get(token) ?? token);
+		line.replace(/(?<!@)@[^@\s]+@/g, (token) => xrefToExportId.get(token) ?? token);
 	// ---- Notes (ADR-029) ----
 	const noteById = new Map(rows.notes.map((n) => [n.id, n] as const));
 	const noteXrefs = new Map(rows.notes.map((n) => [n.id, n.xref ?? `@${n.id}@`] as const));
