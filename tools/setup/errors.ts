@@ -52,3 +52,22 @@ export class CommandError extends SetupError {
 		this.commandLine = commandLine;
 	}
 }
+
+/** The tags changed between the read and the write (HTTP 412 on `--if-match`); re-read and merge again. */
+export class TagConflictError extends Error {
+	constructor(commandLine: string) {
+		super(`The tags changed while they were being written (${commandLine})`);
+		this.name = 'TagConflictError';
+	}
+}
+
+/**
+ * Resource tags cannot be used with this sign-in or account (403, a missing scope or the beta gate).
+ * Tagging must never block an install, so callers catch this and carry on with markers alone.
+ */
+export class TagsUnavailableError extends Error {
+	constructor(reason: string) {
+		super(reason);
+		this.name = 'TagsUnavailableError';
+	}
+}

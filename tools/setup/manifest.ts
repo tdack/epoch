@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { ERROR_CODES, SetupError } from './errors.ts';
+import type { TagAvailability, TagTarget } from './tags.ts';
 
 /** In flow order. `collect` and `plan` hold answers, not resources, but are recorded so a resume skips them. */
 export const STEP_NAMES = [
@@ -15,6 +16,7 @@ export const STEP_NAMES = [
 	'write-config',
 	'migrate-mark-deploy',
 	'verify',
+	'mark-configured',
 	'hand-off'
 ] as const;
 export type StepName = (typeof STEP_NAMES)[number];
@@ -80,6 +82,10 @@ export interface Manifest {
 		policies: PolicyRef[];
 		idps: string[];
 	};
+	/** Whether the last run could use resource tags; `unavailable` means markers alone. */
+	tags: TagAvailability;
+	/** Resources this install has tagged, by the canonical id the tags API keys on. */
+	taggedResources: TagTarget[];
 	/** An adopted install keeps `CF_ACCESS_AUD` as a secret; a new one carries it as a var. */
 	isAudSecret: boolean;
 }
@@ -106,6 +112,8 @@ export function newManifest(workerName: string, now: Date = new Date()): Manifes
 		resources: { d1: null, r2: null, queue: null, worker: null },
 		markersWritten: [],
 		access: { app: null, policies: [], idps: [] },
+		tags: 'unknown',
+		taggedResources: [],
 		isAudSecret: false
 	};
 }
@@ -153,7 +161,8 @@ export function parseManifest(text: string): Manifest {
 			hint: 'It was probably written by a newer version of this tool. Keep a copy, then remove .epoch/install.json to re-attach from what exists in Cloudflare.'
 		});
 	}
-	return value as unknown as Manifest;
+	// A manifest from before resource tags has neither field.
+	return { tags: 'unknown', taggedResources: [], ...value } as unknown as Manifest;
 }
 
 /** Same as `readManifest`, through the context's file system so tests and the real run share one path. */

@@ -1,8 +1,15 @@
-import { ERROR_CODES, SetupError } from './errors.ts';
+import {
+	CommandError,
+	ERROR_CODES,
+	SetupError,
+	TagConflictError,
+	TagsUnavailableError
+} from './errors.ts';
 import type { R2LifecycleRule } from './lifecycle.ts';
 import type { AccessPolicy, AccessRule } from './policy.ts';
 import type { ObservedQueue, ObservedWorker } from './reconcile.ts';
-import type { Runner } from './run.ts';
+import { describeCommand, mapFailure, unwrapEnvelope, type Runner } from './run.ts';
+import { assertCanonicalTagId, type TaggedResource, type TagReading } from './tags.ts';
 
 /**
  * Every `cf` call this tool makes, one function each, with the argv shape and the output shape
@@ -129,6 +136,24 @@ export interface CloudflareApi {
 	deleteQueue(id: string): Promise<void>;
 	deleteAccessApp(id: string): Promise<void>;
 	deletePolicy(id: string): Promise<void>;
+
+	/**
+	 * Resource tags (`cf tags`, `cf account-tags`). Every one throws `TagsUnavailableError` on a 403,
+	 * a missing scope or the beta gate, and `putTags` throws `TagConflictError` on a stale ETag. Ids
+	 * must be canonical; a wrong one is accepted by the API and tags nothing, so it is refused here.
+	 */
+	listTagged(filters: string[]): Promise<TaggedResource[]>;
+	getTags(type: string, id: string): Promise<TagReading>;
+	/** Replaces every tag on the resource; callers merge first. `etag` null is an unconditional write. */
+	putTags(
+		type: string,
+		id: string,
+		tags: Record<string, string>,
+		etag: string | null
+	): Promise<void>;
+	deleteTags(type: string, id: string): Promise<void>;
+	/** The Worker's 32-hex script id (`tag` in the scripts list), which is what tags are keyed on. */
+	getWorkerScriptId(name: string): Promise<string | null>;
 
 	/** Names of the deploy-token permission groups this account does not offer; empty when minting can work. */
 	missingDeployPermissionGroups(): Promise<string[]>;
@@ -265,6 +290,59 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 	 */
 	function zeroTrust(args: string[], tail: string[] = []) {
 		return cf(['zero-trust', ...args, ...tail]);
+	}
+
+	/**
+	 * Tag calls read the exit code and text themselves instead of using `runner.json`, which folds a
+	 * failure into one sentence and so cannot tell a stale ETag (412, retry) from a missing permission
+	 * (403, degrade) from anything else (throw).
+	 */
+	async function tagCf(args: string[]): Promise<unknown> {
+		const request = {
+			tool: 'cf' as const,
+			args,
+			env: { CLOUDFLARE_ACCOUNT_ID: accountId ?? undefined }
+		};
+		const result = await runner.exec(request);
+		if (result.exitCode !== 0) {
+			const output = `${result.stderr}\n${result.stdout}`;
+			const command = describeCommand(request);
+			if (/\b412\b|precondition failed/i.test(output)) throw new TagConflictError(command);
+			if (
+				/\b403\b|\b9109\b|forbidden|insufficient scope|missing scope|permission|not (yet )?(enabled|available|entitled)|entitle|private beta|feature/i.test(
+					output
+				)
+			) {
+				throw new TagsUnavailableError(mapFailure(output, command));
+			}
+			throw new CommandError(mapFailure(output, command), command);
+		}
+		if (result.stdout.trim() === '') return null;
+		try {
+			return unwrapEnvelope(JSON.parse(result.stdout));
+		} catch {
+			throw new CommandError('The command did not print JSON', describeCommand(request));
+		}
+	}
+
+	function tagBody(type: string, id: string, tags?: Record<string, string>): string {
+		assertCanonicalTagId(type, id);
+		return JSON.stringify({ resource_type: type, resource_id: id, ...(tags ? { tags } : {}) });
+	}
+
+	function toTagged(rec: Rec): TaggedResource {
+		const tags: Record<string, string> = {};
+		if (isRec(rec.tags)) {
+			for (const [key, value] of Object.entries(rec.tags))
+				if (typeof value === 'string') tags[key] = value;
+		}
+		return {
+			type: str(rec.type) ?? '',
+			id: str(rec.id) ?? '',
+			name: str(rec.name) ?? '',
+			tags,
+			etag: str(rec.etag) ?? ''
+		};
 	}
 
 	async function raw(path: string) {
@@ -621,6 +699,54 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				...dry
 			]);
 			return parsePolicy(requireRec(out, 'policies update'));
+		},
+
+		// A bare array, as recorded. If cf ever wraps it with a `cursor`, follow it; a page boundary
+		// must not hide an install from the name check.
+		async listTagged(filters) {
+			const found: TaggedResource[] = [];
+			let cursor: string | null = null;
+			for (let page = 0; page < 50; page += 1) {
+				const args = ['tags', 'resources', 'list', ...filters.flatMap((tag) => ['--tag', tag])];
+				if (cursor) args.push('--cursor', cursor);
+				const out = await tagCf(args);
+				found.push(...asList(out, 'resources', 'result').map(toTagged));
+				cursor = isRec(out) ? str(out.cursor) : null;
+				if (!cursor) break;
+			}
+			return found;
+		},
+		async getTags(type, id) {
+			assertCanonicalTagId(type, id);
+			const out = requireRec(
+				await tagCf(['account-tags', 'get', '--resource-type', type, '--resource-id', id]),
+				'account-tags get'
+			);
+			const { tags, etag } = toTagged(out);
+			return { tags, etag };
+		},
+		// `--body` only: `--tags` is rejected and `--resource-type` is dropped when a body is given, so
+		// the body carries all three fields.
+		async putTags(type, id, tags, etag) {
+			const args = ['account-tags', 'update', '--body', tagBody(type, id, tags)];
+			if (etag) args.push('--if-match', etag);
+			await tagCf([...args, ...dry]);
+		},
+		async deleteTags(type, id) {
+			await tagCf(['account-tags', 'delete', '--body', tagBody(type, id), '--force', ...dry]);
+		},
+		// The scripts list names each script by `id` (its name) and carries the 32-hex id as `tag`.
+		async getWorkerScriptId(name) {
+			const res = await raw(`/accounts/${account()}/workers/scripts`);
+			if (res.status >= 400 || !isRec(res.body)) {
+				throw new SetupError(
+					ERROR_CODES.command,
+					`Could not list Workers to find the id of "${name}" (HTTP ${res.status})`
+				);
+			}
+			const script = asList(res.body.result).find((s) => s.id === name);
+			const tag = str(script?.tag);
+			return tag !== null && /^[0-9a-f]{32}$/.test(tag) ? tag : null;
 		},
 
 		async deleteD1(id) {

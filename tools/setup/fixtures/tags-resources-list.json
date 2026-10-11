@@ -1,0 +1,113 @@
+[
+  {
+    "type": "access_application",
+    "id": "7b9cfcec-da2e-4856-958b-72e13de7901d",
+    "name": "Biblioteca (ClaudeCode)",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:30:08.301189Z"
+  },
+  {
+    "type": "d1_database",
+    "id": "d03d2cd4-5ff4-4d14-a438-2cfc582f5e28",
+    "name": "biblioteca-cc",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:43.350084Z"
+  },
+  {
+    "type": "kv_namespace",
+    "id": "d17d16f3389d4b048c7dc81e28964e58",
+    "name": "biblioteca-cc-cache",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:49.93408Z"
+  },
+  {
+    "type": "queue",
+    "id": "06335e22aec8496192722081b36b22cb",
+    "name": "biblioteca-cc-enrich-dlq",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:59.47737Z"
+  },
+  {
+    "type": "queue",
+    "id": "2472812558524760866fc8fe8d268ae1",
+    "name": "biblioteca-cc-import",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:52.361681Z"
+  },
+  {
+    "type": "queue",
+    "id": "6270239bd9d245e4b920d93e2d2a01ef",
+    "name": "biblioteca-cc-enrich",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:57.211942Z"
+  },
+  {
+    "type": "queue",
+    "id": "f28bae74f36d428ca7e338731efc8429",
+    "name": "biblioteca-cc-import-dlq",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:54.577087Z"
+  },
+  {
+    "type": "r2_bucket",
+    "id": "biblioteca-cc-books",
+    "name": "biblioteca-cc-books",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:29:46.250723Z"
+  },
+  {
+    "type": "worker",
+    "id": "70ec3e5db163477eb15ca29776f04dbf",
+    "name": "biblioteca-cc",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T12:46:05.580937Z"
+  },
+  {
+    "type": "worker",
+    "id": "a97c120df14041d48976e14e6e1525e1",
+    "name": "biblioteca-oc",
+    "tags": {
+      "OpenCode": "true",
+      "configured": "true"
+    },
+    "etag": "v1:dZQavNxWpxcqzugDn_ENGA",
+    "tags_updated_at": "2026-09-21T07:32:20.761443Z"
+  },
+  {
+    "type": "worker",
+    "id": "biblioteca-cc",
+    "name": "biblioteca-cc",
+    "tags": {
+      "biblioteca.instance": "biblioteca-cc"
+    },
+    "etag": "v1:rDSaxsUFk6fehxuyMVUImg",
+    "tags_updated_at": "2026-09-22T13:05:11.2572Z"
+  }
+]
