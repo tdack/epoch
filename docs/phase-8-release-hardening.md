@@ -53,6 +53,24 @@ items 1 and 2:
   bounded single refetch on an unknown `kid`, no cross-request coalescing, and fails closed on a
   certs outage.
 
+GEDCOM export hardening and the asynchronous export landed on 2026-10-11
+(`feat/gedcom-export-and-workflow`, ADR-040) against work items 1, 2 and 6, and 8 in part:
+
+- **Exporter injection.** An exported text value can no longer forge a GEDCOM line. Every terminator
+  (`\r\n`, `\r`, `\n`, `\v`, `\f`, `\x1c`–`\x1e`, `\x85`, `\u2028`, `\u2029`) splits a multi-line
+  value into `CONT` lines; a field that must occupy one line folds every terminator to a space; a tag
+  or xref carrying a terminator is refused; and the write boundary (`schemas.ts`) rejects a line break
+  in a single-line field. A stray non-GEDCOM segment is retained as a `CONT` rather than dropped.
+- **Asynchronous export.** A tree above 5,000 people exports through `GedcomExportWorkflow` when the
+  binding exists, up to 50,000; above that a `413`. The threshold does not raise the memory ceiling:
+  the workflow runs the same serialization in another request, so the ceiling is enforced on both
+  paths. A status read returns a closed `{ status, code }` and never a raw error or the object key.
+- **Expiry and cleanup.** A finished export is downloadable for 24 hours, enforced at read time
+  (`customMetadata.uploadedAt`, falling back to R2's `uploaded`); past that it answers
+  `410 export_expired` and deletes the object. The setup tool writes an `exports/`-scoped R2
+  lifecycle rule (read-merge-write, abort-only rules ignored, a rule that could touch `media/`
+  refused), and `doctor` fails on any delete rule that could expire live media. See ADR-040.
+
 The residuals the review accepted are listed below. The other work items are not started.
 
 ## Known issues and accepted residuals
@@ -84,20 +102,31 @@ release blocker for the current scope.
   calls the certs endpoint directly and fails closed on an outage, with no stale fallback. The
   constant has no effect there. Noted, no behavior change.
 
-### Planned GEDCOM export follow-ups
+### GEDCOM export follow-ups
 
-The two GEDCOM export items from this review, tracked together.
+The two GEDCOM export items from this review both shipped on 2026-10-11
+(`feat/gedcom-export-and-workflow`, ADR-040); the follow-ups below are what remains.
 
-- **GEDCOM exporter injection (deferred).** The review found that a stored text value containing a
-  line break can inject an extra line into a GEDCOM export. This is a known issue to be fixed on a
-  dedicated follow-up branch; no branch or issue link exists yet.
-- **The export UI bypasses the export workflow (planned task).** The `GEDCOM_EXPORT_WORKFLOW`
-  binding and `GedcomExportWorkflow` class exist and are configured (`wrangler.deploy.jsonc`,
-  `workers/entry.ts`), but the workflow is dispatched only by the `POST /api/export` handler
-  (`src/routes/api/export/+server.ts`), and no client code calls that POST. The UI export action
-  instead performs a synchronous navigation to `GET /api/export` (`TreeShell.exportGedcom` in
-  `src/lib/components/tree/tree-shell.svelte.ts`, via `gedcomExportUrl` in
-  `src/lib/services/tree-api.ts`), so every export serializes the whole tree in-request and the
-  asynchronous workflow path is effectively dormant. Goal: route large exports through the workflow
-  (async), keeping the synchronous download for small or fast cases as appropriate; decide whether
-  to keep or remove the inline fallback on the POST.
+- **GEDCOM exporter injection (done).** The review found that a stored text value containing a line
+  break could inject an extra line into a GEDCOM export. The full terminator set now splits a
+  multi-line value into `CONT` lines, single-line fields fold a terminator to a space, a tag or xref
+  carrying one is refused, and the write boundary rejects a line break in a single-line field. The
+  `@`-escaping, 255-character `CONC` wrapping and general C0-control stripping are not part of this
+  fix; see the dialect-hardening follow-up below.
+- **The export UI bypasses the export workflow (done).** The client now calls `POST /api/export`
+  (`startGedcomExport` in `src/lib/services/tree-api.ts`), which answers `sync` for a small tree
+  (the browser then navigates to `GET /api/export`) and otherwise starts a `GedcomExportWorkflow`
+  instance the client polls and resumes (`TreeShell.exportGedcom` and `resumeExport` in
+  `src/lib/components/tree/tree-shell.svelte.ts`). The inline synchronous fallback is kept only for
+  a tree at or below 5,000 people; there is no synchronous fallback for a large tree that the
+  workflow cannot run.
+
+Still planned, not done:
+
+- **GEDCOM dialect hardening.** GEDCOM `@`-escaping, 255-character `CONC` wrapping, and general
+  C0-control stripping, on the same export-text seam the injection fix uses.
+- **An export audit.** An export writes no audit entry yet; recording who exported what, when, sync
+  or async, and under which instance id needs a dedicated account-level audit table and migration
+  (`TODO(audit)` in `src/routes/api/export/+server.ts`).
+- **The tree-name round trip.** Export writes the tree's name as `1 NOTE Tree: <name>`, but import
+  reads the name only from `HEAD.FILE`, so a name set in Epoch does not come back.

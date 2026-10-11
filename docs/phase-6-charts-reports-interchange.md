@@ -52,8 +52,13 @@ The roadmap shows Phase 6 as *In progress*. Items 2 and 3 were built in S10 and 
 hourglass in S12. Two optional 3D views of the interactive tree (layers and floors) are slice S16
 (ADR-030): all nine stages are built, merged and deployed (2026-10-05). Flat stays the product
 default until the promotion checklist in the [plan](./3d-tree-views-plan.md) is met; members and the
-owner can choose a different default view. Item 1 has only the existing large-file queue path; items 5 to 8 and the compact view
-have not started. Of the GEDCOM operations, import now detects the version (5.5, 5.5.1, 7.0) and the
-character set and reads GEDZip, and export offers GEDCOM 7 (the default, optionally as `.gdz`) and
-5.5.1 compatibility profiles (ADR-036). Extension reporting before import, keeping the original
-upload, the conformance corpus and the semantic diff report have not started.
+owner can choose a different default view. Item 1 gained an asynchronous path on 2026-10-11
+(`feat/gedcom-export-and-workflow`, ADR-040): a tree at or below 5,000 people exports in the request,
+and a larger tree (up to 50,000) runs through `GedcomExportWorkflow` behind a started/polled/download
+client, with a 24-hour read-time expiry and an `exports/` R2 lifecycle rule. Progress reporting is a
+status poll; cancellation, diagnostics, downloadable reports and retained job history have not
+started, and items 5 to 8 and the compact view have not started. Of the GEDCOM operations, import
+now detects the version (5.5, 5.5.1, 7.0) and the character set and reads GEDZip, and export offers
+GEDCOM 7 (the default, optionally as `.gdz`) and 5.5.1 compatibility profiles (ADR-036); exported
+text can no longer inject a GEDCOM line (ADR-040). Extension reporting before import, keeping the
+original upload, the conformance corpus and the semantic diff report have not started.

@@ -302,6 +302,7 @@ number prefix can overlap.
 | S7 | Search, lists, recents and favourites (done) | A ranked tree search (any name, surname, nickname, XREF, place, year range) that says why each person matched, at `/trees/[id]/search`; people, partnerships and surnames lists paged on the server; per-user favourites and recents in D1 (ADR-014); measured plans and two name-order indexes (migration 0010). See [S7 status](#s7-search-lists-recents-and-favourites). |
 | S8 | Privacy foundation (done) | Living-state derivation, a per-person override, one viewer scope, a visibility predicate in the search, list and record queries, "Private" placeholders, guarded writes, role-gated export and media, no auto-ownership. See ADR-015 and [S8 status](#s8-privacy-foundation). |
 | S9 | Members and invitations (done, deployed 2026-10-02) | Invite an email address, take it up on sign-in, change roles and remove members, last owner protected, creators keep sight of their own people. See ADR-016 and [S9 status](#s9-members-and-invitations). |
+| S18 | GEDCOM export hardening and asynchronous export (done on `feat/gedcom-export-and-workflow`, 2026-10-11, no migration; ADR-040) | Export text can no longer forge a GEDCOM line: every terminator splits into `CONT`, a single-line field folds a terminator to a space, and the write boundary rejects a line break. A tree above 5,000 people exports through `GedcomExportWorkflow` (up to 50,000), with a 24-hour read-time expiry, an `exports/` R2 lifecycle rule, and no error or object-key leakage. See [S18 status](#s18-gedcom-export-hardening-and-asynchronous-export). |
 | S17 | Rings overview (done, deployed 2026-10-08 from `be73f28`, no migration; ADR-032) | `mode=rings`: each generation a ring of spheres in WebGL, oldest at the top, orbitable, drawn from the same focus selection as every view. Layers and Floors are withdrawn from the controls but still open from a link. See ADR-032. |
 | S16 | 3D tree views: layers and floors (in progress, withdrawn from the controls by ADR-032 on 2026-10-08 but kept; stages 0 to 8 built, merged and deployed (0 to 7 on 2026-10-04, stage 8 and migrations 0023 and 0024 on 2026-10-05); the product default stays flat until the promotion checklist in the plan is met; ADR-030 accepted: shared band and step-child rules, floors preview, the wider `side`/`origins` fetch, and the layers preview) | Two optional 3D ways to draw the tree on `/trees/[id]`, `mode=layers` and `mode=floors`, beside the flat hourglass, sharing one band and step-child placement rule. See the [plan](3d-tree-views-plan.md). |
 | S15c | Notes and research tasks (done, deployed 2026-10-04, version `eeed2ab4-c136-4d16-9e9d-e198c9727606`, migrations 0021 and 0022 applied remotely; both backfills ran and found nothing to move) | Shared and inline notes as records read and written through GEDCOM 5.5.1 and 7.0; notes on every record kind, shown beside what they describe, shared with a page of where they are used; research tasks on records and quality findings with a tasks page; privacy-leak checks for managers. See ADR-029 and [S15c status](#s15c-notes-and-research-tasks). |
@@ -461,6 +462,45 @@ Left open or departing from the plan:
 - **Descendants** list a person's children across partnerships together, in birth order.
 - **Place list cost** is one pass over the tree's events, like the surname list.
 - **Not built:** relationship paths longer than 20 generations or through more than 3,000 people say "stopped at its limit"; place-based search by hierarchy.
+
+### S18: GEDCOM export hardening and asynchronous export
+
+Done on `feat/gedcom-export-and-workflow` on 2026-10-11, not yet deployed; no migration. Two
+workstreams: a line-injection fix and an asynchronous export. See [ADR-040](./decisions.md).
+
+- **Injection fix.** Every terminator splits a text value into `CONT` lines
+  (`LINE_BREAK` = `/\r\n|[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/`, so a lone `\r` and the Unicode
+  separators split too); a field that must occupy one line folds every terminator to a space
+  (`singleLine`); a tag or xref carrying a terminator is refused rather than folded; and the write
+  boundary (`schemas.ts`) rejects a line break in a single-line field. A stray non-GEDCOM segment is
+  kept as a `CONT` rather than dropped.
+- **Async export.** `POST /api/export` answers `sync` at or below 5,000 people and starts a
+  `GedcomExportWorkflow` (instance id `export_<treeId>_<token>_<clientUuid>`) between 5,000 and
+  50,000; above 50,000 it answers `413`, and `503` when no workflow is bound. The client
+  (`startGedcomExport`, `TreeShell.exportGedcom`/`resumeExport`) polls `status` and downloads once
+  complete; the object key is `exports/<treeId>-<token>-<clientUuid>.<ged|gdz>`. Authorization runs
+  before any workflow or R2 read (malformed id and non-member are the same `404`; a member without
+  `tree:export` is `403`). One `build-export` step re-checks authorization, raises `NonRetryableError`
+  before any write, and returns only a key.
+- **Expiry and cleanup.** A finished export is downloadable for 24 hours, enforced at read time from
+  `customMetadata.uploadedAt` (falling back to R2's `uploaded`); past that it answers
+  `410 export_expired` and deletes the object. Instance retention is longer than the object (3 days
+  success, 7 days error), and an object whose instance is gone is deleted when its id is looked up.
+  The setup tool adds an `exports/`-scoped R2 lifecycle rule (read-merge-write; abort-only rules
+  ignored; a rule that could touch `media/`/`staging/` refused) and `doctor` fails on any delete rule
+  that could expire live media.
+- **No leakage.** Status and download return only a closed `{ status, code }`; downloads stream
+  `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, and an attachment disposition
+  with both an ASCII `filename` and an RFC 5987 `filename*`.
+
+Deferred, recorded rather than done:
+
+- **Dialect hardening:** GEDCOM `@`-escaping, 255-character `CONC` wrapping and general C0-control
+  stripping, on the same export-text seam.
+- **An export audit:** a dedicated account-level audit table and migration (`TODO(audit)` in
+  `src/routes/api/export/+server.ts`).
+- **The tree-name round trip:** export writes `1 NOTE Tree: <name>`, but import reads the name only
+  from `HEAD.FILE`.
 
 ## Decisions (2026-09-29)
 

@@ -59,9 +59,19 @@ The security-hardening pass of 2026-10-10 (ADR-039) completes the MIME/signature
 work item 3 for upload and delivery: an upload's type is sniffed from its magic bytes and capped at
 25 MB, and every object is served through a `Content-Type` allowlist (`mediaServeDecision`) with
 `nosniff`, `CSP: sandbox`, `CORP: same-origin` and `Referrer-Policy: no-referrer`, so the stored
-type is never replayed. Image dimensions and asynchronous derivatives still wait. Place hierarchy,
-maps, media records (`OBJE` is retained), galleries, retention/orphan cleanup and the operations
-work wait.
+type is never replayed.
+
+The asynchronous export of 2026-10-11 (ADR-040) begins work item 6 ("define retention and orphan
+cleanup for uploads, imports and exports") for the export half: a finished export lives under the
+`exports/` R2 prefix for 24 hours, enforced at read time, and the setup tool writes an
+`exports/`-scoped lifecycle rule as a backstop (read-merge-write, so an owner's other rules survive;
+a destructive rule with no prefix, or one overlapping `media/` or `staging/`, is refused, and
+`doctor` fails on any delete rule that could expire live media). That is the first Operations item
+("R2 lifecycle, checksums and backup policy") to ship, for exports alone; upload and import cleanup,
+checksums and the rest wait.
+
+Image dimensions and asynchronous derivatives still wait. Place hierarchy, maps, media records
+(`OBJE` is retained), galleries, upload/import retention and the remaining operations work wait.
 
 Against the exit criteria:
 
