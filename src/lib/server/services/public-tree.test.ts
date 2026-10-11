@@ -30,6 +30,8 @@ import { requireTreeScope } from './tree-access';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { TreeService } from './tree-service';
+import { GedcomService } from './gedcom-service';
+import { buildExportInstanceId } from '../workflows/export-instance';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
 
@@ -284,6 +286,20 @@ describe('the public tree as a visitor sees it', () => {
 			await expect(new QualityService(t.db).report(firstId, ctx)).rejects.toMatchObject({
 				status: 403
 			});
+		}
+	});
+
+	it("cannot follow or download the public tree's export", async () => {
+		const instanceId = buildExportInstanceId(
+			firstId,
+			'gedcom7',
+			false,
+			'00000000-0000-4000-8000-000000000000'
+		);
+		for (const ctx of [visitorCtx, stranger.context]) {
+			await expect(
+				new GedcomService(t.db).requireExportInstance(instanceId, ctx)
+			).rejects.toMatchObject({ status: 404 });
 		}
 	});
 });

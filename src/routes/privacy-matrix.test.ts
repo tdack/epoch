@@ -267,6 +267,8 @@ const NO_RECORD_LOADS = [
 const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/admin/trees/+server.ts`]: 'refused',
 	[`${API}/export/+server.ts`]: 'refused',
+	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
+	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/charts/descendants/+server.ts`]: 'public-tree-only',
