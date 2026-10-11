@@ -14,7 +14,7 @@ import { TagConflictError } from './errors.ts';
 import { TAG_KEYS } from './tags.ts';
 
 /**
- * `npm run setup -- spike`: the plan's step 0, run once by the owner against their own account.
+ * `./setup spike`: the plan's step 0, run once by the owner against their own account.
  * Everything is read-only; writes are only ever sent with `--dry-run`, except `tag-write-etag-412`,
  * which creates a throwaway queue, tags it twice and deletes both again. Each raw response is saved
  * under `.epoch/spike/` (git-ignored) so a test fixture can be replaced with the real shape.
@@ -270,7 +270,7 @@ const CHECKS: Check[] = [
 			const missing = TAG_SCOPES.filter((scope) => !identity.scopes?.includes(scope));
 			if (identity.scopes !== null && missing.length > 0)
 				throw new Skip(
-					`this profile was signed in without ${missing.join(', ')}; run \`npm run setup -- --force\` and re-run the spike`
+					`this profile was signed in without ${missing.join(', ')}; run \`./setup --force\` and re-run the spike`
 				);
 			const found = await ctx.cf.listTagged([TAG_KEYS.instance]);
 			return `listed ${found.length} resource(s) with ${TAG_KEYS.instance}`;
@@ -297,7 +297,7 @@ const CHECKS: Check[] = [
 			if (!state.accountId) throw new Skip('no account chosen');
 			const identity = await ctx.cf.whoami();
 			if (identity.scopes !== null && TAG_SCOPES.some((s) => !identity.scopes?.includes(s)))
-				throw new Skip('this profile lacks the tag scopes; run `npm run setup -- --force`');
+				throw new Skip('this profile lacks the tag scopes; run `./setup --force`');
 			const name = `epoch-spike-${ctx.now().getTime()}`;
 			const queue = await ctx.cf.createQueue(name);
 			let hasTags = false;

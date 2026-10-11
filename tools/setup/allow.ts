@@ -16,7 +16,7 @@ export async function changeAllowedEmail(
 	const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
 	if (!manifest?.account) {
 		throw new SetupError(ERROR_CODES.manifest, 'There is no install in this checkout', {
-			hint: 'Run `npm run setup` first.'
+			hint: 'Run `./setup` first.'
 		});
 	}
 	const owned = ownedPolicyOf(manifest);
@@ -24,7 +24,7 @@ export async function changeAllowedEmail(
 	const live = (await ctx.cf.listPolicies()).find((p) => p.id === owned.id);
 	if (!live) {
 		throw new SetupError(ERROR_CODES.prerequisite, `The policy "${owned.name}" no longer exists`, {
-			hint: 'Run `npm run setup` to recreate it.'
+			hint: 'Run `./setup` to recreate it.'
 		});
 	}
 	const include = editEmailRules(live.include, { action, email });

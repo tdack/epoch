@@ -155,7 +155,7 @@ export function extractToken(output: string): string {
 	const token = candidates.find((candidate) => TOKEN_PATTERN.test(candidate));
 	if (!token) {
 		throw new SetupError(ERROR_CODES.command, 'wrangler did not print a usable token', {
-			hint: 'Sign in with `npm run setup -- --force`, or use --api-token-env.'
+			hint: 'Sign in with `./setup --force`, or use --api-token-env.'
 		});
 	}
 	return token;

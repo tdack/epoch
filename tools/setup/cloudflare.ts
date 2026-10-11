@@ -16,7 +16,7 @@ import { assertCanonicalTagId, type TaggedResource, type TagReading } from './ta
  * Every `cf` call this tool makes, one function each, with the argv shape and the output shape
  * it assumes next to it. Command names were read from `cf cli search` and `cf schema`
  * (1.0.0-beta.13); flags and output shapes marked SPIKE are read from schemas but not yet seen
- * against a real account. `npm run setup -- spike` checks them read-only and `--dry-run`s the writes.
+ * against a real account. `./setup spike` checks them read-only and `--dry-run`s the writes.
  */
 
 /** Token permission groups a deploy needs, by the names `cf accounts tokens permission-groups list` returns (SPIKE). */
@@ -432,7 +432,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			const rec = isRec(out) ? out : {};
 			if (rec.authenticated !== true || rec.tokenValid === false) {
 				throw new SetupError(ERROR_CODES.command, 'cf is not signed in', {
-					hint: 'Run `npm run setup -- --force` to sign in again.'
+					hint: 'Run `./setup --force` to sign in again.'
 				});
 			}
 			const user = rec;

@@ -94,7 +94,7 @@ export async function verify(
 		'Certificate issued',
 		welcome ? CHECK_STATUSES.pass : CHECK_STATUSES.fail,
 		welcome ? 'HTTPS answers' : 'HTTPS did not answer',
-		'Wait a few minutes; run `npm run setup -- doctor` to re-check.'
+		'Wait a few minutes; run `./setup doctor` to re-check.'
 	);
 	add(
 		'GET /welcome is 200',

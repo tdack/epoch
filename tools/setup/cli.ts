@@ -230,7 +230,7 @@ const DEFAULT_HANDLERS: Handlers = {
 export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 	const program = new Command();
 	program
-		.name('npm run setup --')
+		.name('./setup')
 		.description(
 			'Install Epoch into your Cloudflare account, or check and change an install. With no command it runs setup.'
 		)

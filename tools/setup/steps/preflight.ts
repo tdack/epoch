@@ -48,7 +48,7 @@ export function preflight(ctx: StepContext, flags: SetupFlags): PreflightResult 
 	] as const) {
 		if (!ctx.fs.exists(path)) {
 			throw new SetupError(ERROR_CODES.prerequisite, `${what} is not installed (${path})`, {
-				hint: 'Run `npm install` at the repository root, then `npm run setup` again.'
+				hint: 'Run `npm install` at the repository root, then `./setup` again.'
 			});
 		}
 	}

@@ -397,7 +397,7 @@ describe('command line', () => {
 		}
 	});
 
-	it('parses the setup flags at the top level, so `npm run setup -- --plan` works', async () => {
+	it('parses the setup flags at the top level, so `./setup --plan` works', async () => {
 		const program = buildProgram();
 		program.exitOverride();
 		const parsed = program.parseOptions([

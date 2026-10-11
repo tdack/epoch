@@ -11,7 +11,7 @@ export function handOff(manifest: Manifest): { manifest: Manifest; lines: string
 		`Sign in as ${manifest.ownerEmail ?? 'the owner'}, then create your first tree: that makes you its owner.`,
 		`Access lets in whoever the policy ${names || '(none)'} admits.`,
 		hasOwnedPolicy
-			? 'To let someone else sign in: `npm run setup -- allow <email>`, then invite them inside Epoch.'
+			? 'To let someone else sign in: `./setup allow <email>`, then invite them inside Epoch.'
 			: 'To let someone else sign in, add them to that policy in the Cloudflare dashboard, then invite them inside Epoch.',
 		'Later deploys: `npm run deploy` under the bound profiles.',
 		'Install record: .epoch/install.json'

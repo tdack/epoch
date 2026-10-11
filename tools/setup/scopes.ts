@@ -69,7 +69,7 @@ export function assertScopesGranted(
 		ERROR_CODES.scopesMissing,
 		`The sign-in did not grant: ${missing.join(', ')}`,
 		{
-			hint: 'Nothing was changed. Run `npm run setup -- --force` and leave every permission ticked.'
+			hint: 'Nothing was changed. Run `./setup --force` and leave every permission ticked.'
 		}
 	);
 }

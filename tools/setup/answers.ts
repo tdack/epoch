@@ -80,7 +80,7 @@ export function resolveTypedConfirmation(
 		throw new SetupError(
 			ERROR_CODES.needsTypedConfirmation,
 			`"${expected}" needs its name typed to confirm, which --yes and non-interactive runs cannot do`,
-			{ hint: 'Run `npm run setup` in a terminal and type the name when asked.' }
+			{ hint: 'Run `./setup` in a terminal and type the name when asked.' }
 		);
 	}
 	return 'ask';

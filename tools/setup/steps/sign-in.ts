@@ -88,7 +88,7 @@ export async function signIn(
 		const missingTags = missingTagScopes(identity.scopes);
 		if (missingTags.length > 0) {
 			ctx.report.warn(
-				`This sign-in lacks ${missingTags.join(', ')}, so resource tags will be skipped; run \`npm run setup -- --force\` to add them`
+				`This sign-in lacks ${missingTags.join(', ')}, so resource tags will be skipped; run \`./setup --force\` to add them`
 			);
 		}
 	}

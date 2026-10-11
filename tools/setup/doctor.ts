@@ -30,7 +30,7 @@ export async function runDoctor(
 			ERROR_CODES.manifest,
 			'There is no completed install in this checkout to check',
 			{
-				hint: 'Run `npm run setup` first. If the install exists but the manifest is lost, setup re-attaches to it.'
+				hint: 'Run `./setup` first. If the install exists but the manifest is lost, setup re-attaches to it.'
 			}
 		);
 	}
@@ -42,10 +42,7 @@ export async function runDoctor(
 		const identity = await ctx.cf.whoami();
 		add(FINDING_LEVELS.ok, `Signed in as ${identity.email ?? 'unknown'}`);
 	} catch {
-		add(
-			FINDING_LEVELS.fail,
-			'Not signed in to cf; run `npm run setup -- --force` to sign in again'
-		);
+		add(FINDING_LEVELS.fail, 'Not signed in to cf; run `./setup --force` to sign in again');
 		return { findings, manifest };
 	}
 	ctx.cf.useAccount(manifest.account.id);
@@ -112,10 +109,7 @@ export async function runDoctor(
 			if (!observed[key]) continue;
 			const witness = observedTags.witnesses?.[key];
 			if (!witness) {
-				add(
-					FINDING_LEVELS.warn,
-					`${TAGGABLE[key].role} has no tags; run \`npm run setup\` to add them`
-				);
+				add(FINDING_LEVELS.warn, `${TAGGABLE[key].role} has no tags; run \`./setup\` to add them`);
 			} else if (witness.state !== TAG_STATES.configured) {
 				add(
 					FINDING_LEVELS.warn,

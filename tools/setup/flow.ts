@@ -180,6 +180,6 @@ export async function runSetup(
 export function resumeNote(manifest: Manifest): string {
 	const last = lastCompletedStep(manifest);
 	return last
-		? `Nothing was changed after "${last}"; re-run \`npm run setup\` to resume.`
+		? `Nothing was changed after "${last}"; re-run \`./setup\` to resume.`
 		: 'Nothing was changed.';
 }
