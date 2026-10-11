@@ -14,9 +14,11 @@
 		actionHref: string;
 		/** A line under the button: an invitation note, or why the visitor is seeing this page. */
 		message?: string;
+		/** A second link, to the public tree when there is one. Absent leaves the page as it was. */
+		explore?: { label: string; href: string };
 	}
 
-	let { actionLabel, actionHref, message }: Props = $props();
+	let { actionLabel, actionHref, message, explore }: Props = $props();
 </script>
 
 <!-- The photograph is decoration, so it lives in CSS rather than an <img> a screen reader would
@@ -47,6 +49,14 @@ announce. The emerald wash keeps the cream text above contrast over the brightes
 			>
 				{actionLabel}
 			</a>
+			{#if explore}
+				<a
+					href={explore.href}
+					class="inline-flex min-h-12 items-center rounded-xl border border-amber-50/70 px-7 text-base font-semibold text-amber-50 hover:bg-amber-50/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
+				>
+					{explore.label}
+				</a>
+			{/if}
 			{#if message}
 				<p class="text-sm text-emerald-100">{message}</p>
 			{/if}

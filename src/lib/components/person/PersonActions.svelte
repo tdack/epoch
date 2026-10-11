@@ -81,17 +81,17 @@
 
 <div class="space-y-2">
 	<div class="flex flex-wrap gap-2">
-		<button
-			type="button"
-			onclick={toggleFavorite}
-			aria-pressed={isFavorite}
-			class="action-btn"
-			data-testid="favorite-toggle"
-		>
-			<Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite
-				? 'Favourite'
-				: 'Add to favourites'}
-		</button>
+		{#if !marks.isReadOnly}<button
+				type="button"
+				onclick={toggleFavorite}
+				aria-pressed={isFavorite}
+				class="action-btn"
+				data-testid="favorite-toggle"
+			>
+				<Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite
+					? 'Favourite'
+					: 'Add to favourites'}
+			</button>{/if}
 		{#if canChange}<button
 				type="button"
 				onclick={() => void editor.openEditPerson(dto.person.id)}

@@ -1,4 +1,6 @@
 import type { PageServerLoad } from './$types';
+import { getDb } from '#lib/server/db/index.js';
+import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
 
 // The page is served to visitors nobody has identified, so it ships no client code that could
@@ -12,7 +14,7 @@ type WelcomeState = 'signed-in' | 'signed-out' | 'not-invited';
 /** Ends the Access session for the whole team domain; a page of Epoch's own could not. */
 const ACCESS_LOGOUT_PATH = '/cdn-cgi/access/logout';
 
-export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
+export const load: PageServerLoad = async ({ locals, url, setHeaders, platform }) => {
 	// The not-invited state names the visitor, so no cache may replay it to someone else.
 	setHeaders({ 'cache-control': 'no-store' });
 	const next = safeNextPath(url.searchParams.get('next'));
@@ -29,8 +31,16 @@ export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
 		// "Continue" would come straight back here, and signing in again names the same person.
 		'not-invited': ACCESS_LOGOUT_PATH
 	};
+	// Only a visitor nobody identified can use it: someone Access named is not served the public tree
+	// anonymously, so the link would only bounce them back here. It names the tree and nothing in it.
+	const db = platform?.env?.DB;
+	const publicTree =
+		state === 'signed-out' && db ? await new PublicTreeService(getDb(db)).current() : null;
 	return {
 		state,
+		publicTree: publicTree
+			? { name: publicTree.name, href: `/trees/${encodeURIComponent(publicTree.id)}` }
+			: null,
 		actionHref: actionHrefs[state],
 		notAdmittedEmail: locals.notAdmitted?.email ?? null,
 		// Link unfurlers need absolute URLs, and the host differs between preview and production.

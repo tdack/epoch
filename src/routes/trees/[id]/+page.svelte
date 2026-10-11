@@ -55,7 +55,7 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor, marks, toasts, finder } = getTreeContext();
+	const { editor, marks, toasts, finder, isPublicVisitor } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
 	const canCreate = $derived(canCreateRecords(role));
@@ -366,6 +366,7 @@
 	 */
 	function pickFocus(id: string) {
 		navigate({ ...withOpenDrawer(id), isWholeTree: false }, { kind: HISTORY_KINDS.FOCUS });
+		if (isPublicVisitor) return;
 		void recordRecentApi(treeId, id)
 			.then((updated) => marks.set(updated))
 			.catch(() => {
@@ -497,6 +498,8 @@
 	async function setDefaultView(scope: 'member' | 'tree', mode: LayoutMode | null) {
 		const before = savedFor;
 		savedViews = { ...savedFor, [scope]: mode };
+		// The public visitor has no saved views, only the one on screen.
+		if (isPublicVisitor) return;
 		try {
 			if (scope === 'member') await saveViewMode(treeId, mode);
 			else await saveDefaultViewMode(treeId, mode);

@@ -21,6 +21,8 @@
 		onexportGedcom: (choice: GedcomExportChoice) => void;
 		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
 		canExport?: boolean;
+		/** False for the public visitor: no way to start, import or delete a tree. Defaults to true. */
+		canChangeTrees?: boolean;
 	}
 
 	let {
@@ -34,7 +36,8 @@
 		onopenRenameTree,
 		onfileSelect,
 		onexportGedcom,
-		canExport = false
+		canExport = false,
+		canChangeTrees = true
 	}: Props = $props();
 
 	const uid = $props.id();
@@ -112,7 +115,7 @@
 
 	{#if trees.length > 0}
 		<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-			Your trees
+			{canChangeTrees ? 'Your trees' : 'Public tree'}
 		</p>
 		{#each trees as t (t.id)}
 			<button
@@ -132,20 +135,22 @@
 		<div role="separator" class="my-1 border-t border-stone-200"></div>
 	{/if}
 
-	<button type="button" role="menuitem" class={itemClass} onclick={onopenNewTree}>
-		<Plus class="h-3.5 w-3.5 shrink-0 text-emerald-800" aria-hidden="true" />
-		New tree…
-	</button>
-	<button
-		type="button"
-		role="menuitem"
-		aria-disabled={isImporting}
-		class={itemClass}
-		onclick={() => !isImporting && fileInput?.click()}
-	>
-		<Upload class="h-3.5 w-3.5 shrink-0 text-stone-600" aria-hidden="true" />
-		Import GEDCOM…
-	</button>
+	{#if canChangeTrees}
+		<button type="button" role="menuitem" class={itemClass} onclick={onopenNewTree}>
+			<Plus class="h-3.5 w-3.5 shrink-0 text-emerald-800" aria-hidden="true" />
+			New tree…
+		</button>
+		<button
+			type="button"
+			role="menuitem"
+			aria-disabled={isImporting}
+			class={itemClass}
+			onclick={() => !isImporting && fileInput?.click()}
+		>
+			<Upload class="h-3.5 w-3.5 shrink-0 text-stone-600" aria-hidden="true" />
+			Import GEDCOM…
+		</button>
+	{/if}
 	{#if selectedTreeId && canExport}
 		<div class="flex items-stretch">
 			<button
@@ -229,7 +234,7 @@
 			</div>
 		{/if}
 	{/if}
-	{#if selectedTreeId}
+	{#if selectedTreeId && canChangeTrees}
 		<div role="separator" class="my-1 border-t border-stone-200"></div>
 		{#if onopenRenameTree}
 			<button type="button" role="menuitem" class={itemClass} onclick={onopenRenameTree}>

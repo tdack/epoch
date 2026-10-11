@@ -11,7 +11,11 @@ export class MarksStore implements MarksDto {
 	favorites = $state<MarkedPersonDto[]>([]);
 	recents = $state<MarkedPersonDto[]>([]);
 
-	constructor(initial: MarksDto) {
+	/** The reader is nobody in particular (the public visitor), so there is no list to add to. */
+	isReadOnly: boolean;
+
+	constructor(initial: MarksDto, isReadOnly = false) {
+		this.isReadOnly = isReadOnly;
 		this.set(initial);
 	}
 
