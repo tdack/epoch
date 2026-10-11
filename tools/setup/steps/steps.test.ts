@@ -713,9 +713,10 @@ describe('verify', () => {
 		access: { app: { id: 'a', name: 'n', aud: 'aud' }, policies: [], idps: [] }
 	});
 	function site(responses: Record<string, Response | 'down'>): typeof fetch {
-		return (async (input: string | URL | Request) => {
+		return (async (input: string | URL | Request, init?: RequestInit) => {
 			const path = new URL(String(input)).pathname;
-			const response = responses[path];
+			const method = init?.method ?? 'GET';
+			const response = responses[method === 'GET' ? path : `${method} ${path}`];
 			if (response === 'down' || response === undefined) throw new TypeError('fetch failed');
 			return response;
 		}) as typeof fetch;
@@ -727,7 +728,8 @@ describe('verify', () => {
 			status: 302,
 			headers: { location: 'https://team.cloudflareaccess.com/cdn-cgi/access/login' }
 		}),
-		'/api/trees': new Response('', { status: 401 })
+		'/api/trees': new Response('', { status: 401 }),
+		'POST /api/trees': new Response('', { status: 401 })
 	};
 
 	it('passes a healthy site and marks the step done', async () => {
@@ -736,7 +738,15 @@ describe('verify', () => {
 			cf: stubApi({ readWorkerVar: async () => 'aud' })
 		});
 		const { results, manifest } = await verify(ctx, live);
-		expect(results.map((r) => r.status)).toEqual(['pass', 'pass', 'pass', 'pass', 'pass', 'pass']);
+		expect(results.map((r) => r.status)).toEqual([
+			'pass',
+			'pass',
+			'pass',
+			'pass',
+			'pass',
+			'pass',
+			'pass'
+		]);
 		expect(manifest.completedSteps).toContain('verify');
 	});
 
@@ -798,7 +808,8 @@ describe('the whole flow', () => {
 			findD1: async () => null,
 			findR2Bucket: async () => null,
 			getWorker: async () => null,
-			findQueue: async () => null
+			findQueue: async () => null,
+			listEmailSenderDomains: async () => []
 		});
 
 	it('--plan reconciles and stops: no create call, no deploy, nothing saved as applied', async () => {

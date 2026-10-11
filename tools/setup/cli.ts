@@ -30,7 +30,7 @@ interface RawOptions {
 	d1Location?: string;
 	r2Location?: string;
 	r2Jurisdiction?: string;
-	emailSender?: string;
+	emailSender?: string | false;
 	ownerEmail?: string;
 	deployAuth?: SetupFlags['deployAuth'];
 	apiTokenEnv?: boolean;
@@ -58,7 +58,8 @@ export function toFlags(raw: RawOptions): SetupFlags {
 		d1Location: raw.d1Location,
 		r2Location: raw.r2Location,
 		r2Jurisdiction: raw.r2Jurisdiction,
-		emailSender: raw.emailSender,
+		emailSender: typeof raw.emailSender === 'string' ? raw.emailSender : undefined,
+		isEmailSenderRemoved: raw.emailSender === false ? true : undefined,
 		ownerEmail: raw.ownerEmail,
 		deployAuth: raw.deployAuth ?? DEFAULT_FLAGS.deployAuth,
 		isApiTokenEnv: raw.apiTokenEnv ?? DEFAULT_FLAGS.isApiTokenEnv,
@@ -106,8 +107,9 @@ function addSetupOptions(command: Command): Command {
 		.option('--r2-jurisdiction <name>', 'R2 jurisdiction (eu or fedramp); cannot be changed later')
 		.option(
 			'--email-sender <address>',
-			'sender on a verified Email Sending domain; omit to leave send_email out'
+			'invitation sender on a verified Email Sending domain; omit to keep the current one'
 		)
+		.option('--no-email-sender', 'remove the send_email binding, even if one exists')
 		.option('--owner-email <address>', 'owner address, if not the signed-in one')
 		.addOption(
 			new Option(

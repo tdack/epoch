@@ -143,6 +143,8 @@ export interface DeployDefaults {
 	d1Id: string | null;
 	teamDomain: string | null;
 	installId: string | null;
+	/** The `send_email` sender an earlier file had, so it is kept unless the owner says otherwise. */
+	emailSender: string | null;
 }
 
 export const NO_DEFAULTS: DeployDefaults = {
@@ -152,8 +154,15 @@ export const NO_DEFAULTS: DeployDefaults = {
 	isWorkersDevKept: null,
 	d1Id: null,
 	teamDomain: null,
-	installId: null
+	installId: null,
+	emailSender: null
 };
+
+function firstSender(sendEmail: unknown): string | null {
+	const entry = Array.isArray(sendEmail) ? (sendEmail[0] as Json | undefined) : undefined;
+	const senders = entry?.allowed_sender_addresses;
+	return Array.isArray(senders) && typeof senders[0] === 'string' ? senders[0] : null;
+}
 
 /** Empty, missing or unparseable text means no defaults, never an error. */
 export function parseDeployDefaults(text: string | null): DeployDefaults {
@@ -183,7 +192,8 @@ export function parseDeployDefaults(text: string | null): DeployDefaults {
 		isWorkersDevKept: customHost ? config.workers_dev === true : null,
 		d1Id: str(d1?.database_id),
 		teamDomain: str(vars.CF_ACCESS_TEAM_DOMAIN),
-		installId: str(vars.EPOCH_INSTALL_ID)
+		installId: str(vars.EPOCH_INSTALL_ID),
+		emailSender: firstSender(config.send_email)
 	};
 }
 

@@ -13,7 +13,13 @@ import {
 } from '../reconcile.ts';
 
 /** Colour goes on the symbol, so the plan still reads under NO_COLOR. */
-export const PLAN_SYMBOLS = { create: '+', adopt: '~', unchanged: '=', reference: '→' } as const;
+export const PLAN_SYMBOLS = {
+	create: '+',
+	adopt: '~',
+	unchanged: '=',
+	reference: '→',
+	remove: '-'
+} as const;
 type PlanSymbol = (typeof PLAN_SYMBOLS)[keyof typeof PLAN_SYMBOLS];
 
 export interface PlanLine {
@@ -85,6 +91,16 @@ export function buildPlan(
 			'Access application',
 			`"${reports.accessApp.name}" on ${answers.hostname}/login`
 		),
+		...(answers.removedEmailSender
+			? [
+					{
+						symbol: PLAN_SYMBOLS.remove,
+						text: `send_email: remove ${answers.removedEmailSender} (invitations will not be emailed)`
+					}
+				]
+			: answers.emailSender
+				? [{ symbol: PLAN_SYMBOLS.unchanged, text: `send_email: ${answers.emailSender}` }]
+				: []),
 		{ symbol: PLAN_SYMBOLS.create, text: 'write wrangler.deploy.jsonc (tracked)' },
 		lineFor(
 			reports.worker.state,

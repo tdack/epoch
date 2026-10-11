@@ -27,6 +27,8 @@ export interface SetupFlags {
 	r2Location?: string;
 	r2Jurisdiction?: string;
 	emailSender?: string;
+	/** `--no-email-sender`: remove the send_email binding even if the deploy config has one. */
+	isEmailSenderRemoved?: boolean;
 	ownerEmail?: string;
 	deployAuth: DeployAuth;
 	isApiTokenEnv: boolean;
@@ -68,6 +70,8 @@ export interface Answers {
 	r2Jurisdiction: string | null;
 	/** A sender on a verified Email Sending domain, or null to leave `send_email` out. */
 	emailSender: string | null;
+	/** The sender an existing deploy config had and this run will drop; shown in the plan so the confirm covers it. */
+	removedEmailSender: string | null;
 	/** Names typed to adopt or re-attach, by resource. Only a person at a terminal can supply these. */
 	typedAdoptions: Partial<Record<ResourceKey, string>>;
 }

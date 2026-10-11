@@ -29,7 +29,8 @@ const SYMBOL_COLOURS = {
 	[PLAN_SYMBOLS.create]: 'green',
 	[PLAN_SYMBOLS.adopt]: 'yellow',
 	[PLAN_SYMBOLS.unchanged]: 'dim',
-	[PLAN_SYMBOLS.reference]: 'cyan'
+	[PLAN_SYMBOLS.reference]: 'cyan',
+	[PLAN_SYMBOLS.remove]: 'red'
 } as const;
 
 export function createUi(options: { isJson: boolean }): Ui {

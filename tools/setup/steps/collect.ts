@@ -350,7 +350,14 @@ export async function collect(
 		asker
 	);
 
-	const emailSender = zone ? await chooseSender(ctx, zone, flags, mode, asker) : null;
+	const { sender: emailSender, removed: removedEmailSender } = await chooseSender(
+		ctx,
+		zones,
+		defaults.emailSender,
+		flags,
+		mode,
+		asker
+	);
 
 	const answers: Answers = {
 		workerName: manifest.workerName,
@@ -366,6 +373,7 @@ export async function collect(
 		r2Location,
 		r2Jurisdiction,
 		emailSender,
+		removedEmailSender,
 		typedAdoptions: {}
 	};
 	const next = ctx.save(
@@ -516,32 +524,63 @@ async function choosePolicy(
 	return choice;
 }
 
+/**
+ * The invitation sender has nothing to do with where the Worker is served, so it is decided on every
+ * run, from the Email Sending domains of every active zone. An existing sender is the default and is
+ * never dropped silently: if this run would remove it, `removed` says so and the plan shows it.
+ */
 async function chooseSender(
 	ctx: StepContext,
-	zone: ZoneInfo,
+	zones: ZoneInfo[],
+	current: string | null,
 	flags: SetupFlags,
 	mode: AnswerMode,
 	asker: Asker
-): Promise<string | null> {
-	if (flags.emailSender !== undefined) return flags.emailSender;
-	if (mode.isYes || !mode.isInteractive) return null;
-	const domains = await ctx.cf.listEmailSenderDomains(zone.id).catch(() => null);
-	if (domains === null) {
-		ctx.report.warn(
-			'Could not read Email Sending status; the generated config will leave out send_email. Re-run setup after the domain is verified.'
-		);
-		return null;
+): Promise<{ sender: string | null; removed: string | null }> {
+	if (flags.emailSender !== undefined) return { sender: flags.emailSender, removed: null };
+	if (flags.isEmailSenderRemoved) return { sender: null, removed: current };
+
+	const lists = await Promise.all(
+		zones.map((zone) => ctx.cf.listEmailSenderDomains(zone.id).catch(() => null))
+	);
+	const isReadable = lists.every((list) => list !== null);
+	const verified = [
+		...new Set(
+			lists.flatMap((list) =>
+				(list ?? []).filter((d) => d.isVerified).map((d) => `welcome@${d.domain}`)
+			)
+		)
+	];
+
+	// Without a terminal, or when the status cannot be read, an existing binding stays: a deploy that
+	// silently loses it would stop invitations being emailed.
+	if (mode.isYes || !mode.isInteractive || !isReadable) {
+		if (!isReadable && current) {
+			ctx.report.warn(
+				`Could not read Email Sending status; keeping the existing sender ${current}.`
+			);
+		} else if (!isReadable) {
+			ctx.report.warn(
+				'Could not read Email Sending status; the generated config will leave out send_email. Re-run setup after the domain is verified.'
+			);
+		}
+		return { sender: current, removed: null };
 	}
-	const verified = domains.filter((d) => d.isVerified);
-	if (verified.length === 0) return null;
-	return asker.select<string | null>({
+	const choices = [
+		...(current ? [{ value: current as string | null, label: `${current} (current)` }] : []),
+		...verified
+			.filter((address) => address !== current)
+			.map((address) => ({ value: address as string | null, label: `Send from ${address}` })),
+		{
+			value: null,
+			label: current ? `No email (removes ${current})` : 'No, share invitation links myself'
+		}
+	];
+	if (choices.length === 1) return { sender: null, removed: null };
+	const sender = await asker.select<string | null>({
 		message: 'Send invitations by email?',
-		choices: [
-			{ value: null, label: 'No, share invitation links myself' },
-			...verified.map((d) => ({
-				value: `welcome@${d.domain}`,
-				label: `Yes, from welcome@${d.domain}`
-			}))
-		]
+		choices,
+		initial: current
 	});
+	return { sender, removed: current && sender === null ? current : null };
 }

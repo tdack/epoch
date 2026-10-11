@@ -196,7 +196,8 @@ describe('an existing wrangler.deploy.jsonc', () => {
 			isWorkersDevKept: false,
 			d1Id: 'd1',
 			teamDomain: 't.cloudflareaccess.com',
-			installId: 'i'
+			installId: 'i',
+			emailSender: null
 		});
 		expect(parseDeployDefaults('{"name":"x","workers_dev":true}')).toMatchObject({
 			hosting: 'workers-dev',
