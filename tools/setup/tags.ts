@@ -238,7 +238,7 @@ export function classifyTag(
 	return tagged === ownId ? TAG_VERDICTS.ours : TAG_VERDICTS.otherInstall;
 }
 
-export function targetsFor(
+function targetsFor(
 	manifest: Manifest,
 	workerId: string | null
 ): Partial<Record<TaggableKey, TagTarget>> {

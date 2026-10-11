@@ -9,11 +9,14 @@ import { resourceNames, type ResourceNames } from './names.ts';
 import { readDeployDefaults } from './steps/name.ts';
 import { installPaths } from './paths.ts';
 import { createExec, createRedactor, type Exec, type ExecResult } from './run.ts';
-import { BASE_SCOPES } from './scopes.ts';
+import { BASE_SCOPES, TAG_SCOPES } from './scopes.ts';
+import { TagConflictError } from './errors.ts';
+import { TAG_KEYS } from './tags.ts';
 
 /**
  * `npm run setup -- spike`: the plan's step 0, run once by the owner against their own account.
- * Everything is read-only; writes are only ever sent with `--dry-run`. Each raw response is saved
+ * Everything is read-only; writes are only ever sent with `--dry-run`, except `tag-write-etag-412`,
+ * which creates a throwaway queue, tags it twice and deletes both again. Each raw response is saved
  * under `.epoch/spike/` (git-ignored) so a test fixture can be replaced with the real shape.
  */
 interface SpikeState {
@@ -44,7 +47,11 @@ const CHECKS: Check[] = [
 			const identity = await ctx.cf.whoami();
 			if (identity.scopes === null)
 				throw new Error('no scopes reported; setup will warn instead of checking them');
-			const missing = BASE_SCOPES.filter((scope) => !identity.scopes?.includes(scope));
+			// The tag scopes are checked on their own below: a profile signed in before they existed must still pass here.
+			const missing = BASE_SCOPES.filter(
+				(scope) =>
+					!identity.scopes?.includes(scope) && !(TAG_SCOPES as readonly string[]).includes(scope)
+			);
 			if (missing.length > 0)
 				throw new Error(`scopes not granted or named differently: ${missing.join(', ')}`);
 			return `${identity.email ?? 'no email'}, ${identity.scopes.length} scopes, all requested names present`;
@@ -221,6 +228,8 @@ const CHECKS: Check[] = [
 				['d1 create', () => probe.createD1('epoch-spike-dry', null)],
 				['r2 buckets create', () => probe.createR2Bucket('epoch-spike-dry', null, null)],
 				['queues create', () => probe.createQueue('epoch-spike-dry')],
+				['account-tags update', () => probe.putTags('queue', '0'.repeat(32), { a: 'b' }, 'v1:dry')],
+				['account-tags delete', () => probe.deleteTags('queue', '0'.repeat(32))],
 				[
 					'policies create',
 					() => probe.createPolicy('epoch-spike-dry', [{ email: { email: 'spike@example.com' } }])
@@ -249,7 +258,73 @@ const CHECKS: Check[] = [
 				}
 			}
 			if (failures.length > 0) throw new Error(failures.join(' | '));
-			return 'all five accepted';
+			return 'all seven accepted';
+		}
+	},
+	{
+		id: 'tag-scopes-list',
+		claim:
+			'A profile created with only BASE_SCOPES (which now include tag.read and tag.write) can list tagged resources',
+		async run(ctx) {
+			const identity = await ctx.cf.whoami();
+			const missing = TAG_SCOPES.filter((scope) => !identity.scopes?.includes(scope));
+			if (identity.scopes !== null && missing.length > 0)
+				throw new Skip(
+					`this profile was signed in without ${missing.join(', ')}; run \`npm run setup -- --force\` and re-run the spike`
+				);
+			const found = await ctx.cf.listTagged([TAG_KEYS.instance]);
+			return `listed ${found.length} resource(s) with ${TAG_KEYS.instance}`;
+		}
+	},
+	{
+		id: 'worker-script-id',
+		claim:
+			'GET /accounts/{id}/workers/scripts lists each script with `id` (its name) and `tag` (the 32-hex id the tags API keys on)',
+		async run(ctx, state) {
+			const id = await ctx.cf.getWorkerScriptId(state.names.worker);
+			if (id === null)
+				throw new Skip(
+					`no Worker ${state.names.worker} with a 32-hex tag in the scripts list (absent, or the field is named differently)`
+				);
+			return `script id ${id}`;
+		}
+	},
+	{
+		id: 'tag-write-etag-412',
+		claim:
+			'A real write with a stale ETag is refused with 412 (so `cf` sends --if-match and the compare-and-swap works), on a throwaway queue',
+		async run(ctx, state) {
+			if (!state.accountId) throw new Skip('no account chosen');
+			const identity = await ctx.cf.whoami();
+			if (identity.scopes !== null && TAG_SCOPES.some((s) => !identity.scopes?.includes(s)))
+				throw new Skip('this profile lacks the tag scopes; run `npm run setup -- --force`');
+			const name = `epoch-spike-${ctx.now().getTime()}`;
+			const queue = await ctx.cf.createQueue(name);
+			let hasTags = false;
+			const cleanUp = async () => {
+				if (hasTags) await ctx.cf.deleteTags('queue', queue.id);
+				hasTags = false;
+				await ctx.cf.deleteQueue(queue.id);
+			};
+			// A Ctrl-C mid-check must not leave the queue or its tags behind.
+			const forget = ctx.cleanup.add('delete the spike queue and its tags', cleanUp);
+			try {
+				const first = await ctx.cf.getTags('queue', queue.id);
+				await ctx.cf.putTags('queue', queue.id, { [TAG_KEYS.instance]: name }, first.etag);
+				hasTags = true;
+				try {
+					await ctx.cf.putTags('queue', queue.id, { [TAG_KEYS.instance]: `${name}-2` }, first.etag);
+				} catch (error) {
+					if (error instanceof TagConflictError) return 'the stale ETag was refused with 412';
+					throw error;
+				}
+				throw new Error(
+					'the stale-ETag write succeeded: `cf` is not sending --if-match, so tag writes are not compare-and-swap'
+				);
+			} finally {
+				await cleanUp();
+				forget();
+			}
 		}
 	},
 	{
@@ -367,6 +442,11 @@ export async function runSpike(
 	);
 	// The recording exec must be the one the context's runner uses; createContext honours `exec`.
 	const findings: Finding[] = [];
+	for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+		process.once(signal, () => {
+			void ctx.cleanup.runAll().finally(() => process.exit(130));
+		});
+	}
 	for (const check of CHECKS) {
 		try {
 			const detail = await check.run(ctx, state);

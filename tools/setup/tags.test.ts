@@ -17,6 +17,8 @@ import {
 	writeTags,
 	type TaggedResource
 } from './tags.ts';
+import { reconcileStep } from './steps/reconcile.ts';
+import type { Answers } from './options.ts';
 import { fakeExec, fixture, stubApi, testContext, testManifest } from './testing.ts';
 
 const OURS = '11111111-1111-4111-8111-111111111111';
@@ -517,5 +519,61 @@ describe('other installs', () => {
 			}
 		});
 		expect(await listInstalls(cf)).toBeNull();
+	});
+});
+
+describe('the reconcile step’s name check', () => {
+	const answers = { hostname: 'epoch.example.com', typedAdoptions: {} } as Answers;
+	const empty = {
+		findD1: async () => null,
+		findR2Bucket: async () => null,
+		getWorker: async () => null,
+		findQueue: async () => null,
+		listAccessApps: async () => [],
+		listPolicies: async () => []
+	};
+	const installs = [
+		resource('d1_database', D1_ID, ownTags(OTHER, { [TAG_KEYS.state]: 'configured' })),
+		resource('d1_database', 'f'.repeat(36), {
+			[TAG_KEYS.instance]: 'epoch-test',
+			[TAG_KEYS.install]: 'c'.repeat(8) + '-cccc-4ccc-8ccc-' + 'c'.repeat(12),
+			[TAG_KEYS.state]: 'configured'
+		})
+	];
+
+	it('refuses a name another install already uses, before looking anything else up', async () => {
+		const { ctx } = testContext({
+			cf: stubApi({
+				...empty,
+				listTagged: async () => installs,
+				findD1: () => Promise.reject(new Error('looked up'))
+			})
+		});
+		await expect(
+			reconcileStep(ctx, testManifest({ installId: OURS }), answers, true)
+		).rejects.toThrow(`already used by install ${OTHER}`);
+	});
+
+	it('leaves a fresh clone to reconcile, lists the other installs, and records availability', async () => {
+		const { ctx, report } = testContext({
+			cf: stubApi({ ...empty, listTagged: async () => installs })
+		});
+		const out = await reconcileStep(ctx, testManifest({ installId: OURS }), answers, false);
+		expect(report.infos.join('\n')).toContain('epoch-test: configured');
+		expect(out.manifest.tags).toBe(TAG_AVAILABILITY.available);
+	});
+
+	it('degrades to markers only when tags are unavailable', async () => {
+		const { ctx, report } = testContext({
+			cf: stubApi({
+				...empty,
+				listTagged: async () => {
+					throw new TagsUnavailableError('scope');
+				}
+			})
+		});
+		const out = await reconcileStep(ctx, testManifest({ installId: OURS }), answers, true);
+		expect(out.manifest.tags).toBe(TAG_AVAILABILITY.unavailable);
+		expect(report.warnings.join()).toContain('resource tags unavailable');
 	});
 });
