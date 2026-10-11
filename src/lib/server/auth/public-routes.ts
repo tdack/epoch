@@ -1,6 +1,6 @@
 /**
- * Where a visitor nobody has identified lands. It is the only page served without a user, and it
- * shows nothing from any tree.
+ * Where a visitor nobody has identified lands. Besides the public tree (ADR-040), it is the only
+ * page served without a user. It shows no record from any tree, only the public tree's name.
  */
 export const WELCOME_PATH = '/welcome';
 
@@ -48,6 +48,47 @@ export function signedOutRedirect(request: SignedOutRequest): string | null {
 	if (isPublicPagePath(request.pathname)) return null;
 	const next = encodeURIComponent(request.pathname + request.search);
 	return `${request.hasInvalidToken ? LOGIN_PATH : WELCOME_PATH}?next=${next}`;
+}
+
+export interface PublicReadRequest {
+	pathname: string;
+	method: string;
+	/** Access presented a token, valid or not: that visitor is signed in, or has been, and is not anonymous. */
+	hasToken: boolean;
+	/** Someone is already identified (a real user or the dev bypass). */
+	hasUser: boolean;
+}
+
+/** What an anonymous request may be let in to read: any API path, or one tree's pages. */
+export type PublicReadAccess = { kind: 'api' } | { kind: 'tree'; treeId: string } | null;
+
+/** The tree id of `/trees/<id>` and `/trees/<id>/...`, or null for any other path. */
+export function treeIdOfPath(pathname: string): string | null {
+	const match = /^\/trees\/([^/]+)(?:\/|$)/.exec(pathname);
+	if (!match) return null;
+	try {
+		return decodeURIComponent(match[1]!);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Whether an unidentified request may be served as the public visitor (ADR-040), and what it must
+ * then be shown to be public. Reads only: a write is left unauthenticated and fails with a 401.
+ *
+ * Any API path qualifies because every endpoint checks the tree itself, and refuses a tree that
+ * is not public exactly as it refuses a stranger. A page does not: only the pages of the public
+ * tree are served, so the caller must confirm `treeId` is the public one. A request that carried
+ * a token never qualifies, so someone Access named is handled as the signed-in or not-admitted
+ * visitor they are, not as an anonymous one.
+ */
+export function publicReadAccess(request: PublicReadRequest): PublicReadAccess {
+	if (request.hasUser || request.hasToken) return null;
+	if (request.method !== 'GET' && request.method !== 'HEAD') return null;
+	if (request.pathname === '/api' || request.pathname.startsWith('/api/')) return { kind: 'api' };
+	const treeId = treeIdOfPath(request.pathname);
+	return treeId ? { kind: 'tree', treeId } : null;
 }
 
 /** Where a signed-in visitor Epoch does not admit is sent; the welcome page decides its state from `locals`, not from this query. */

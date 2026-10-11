@@ -9,8 +9,15 @@ import {
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
-import { notAdmittedOutcome, signedOutRedirect } from '#lib/server/auth/public-routes.js';
+import {
+	notAdmittedOutcome,
+	publicReadAccess,
+	signedOutRedirect
+} from '#lib/server/auth/public-routes.js';
 import { NotAdmittedError } from '#lib/server/domain/errors.js';
+import { PUBLIC_VISITOR } from '#lib/server/domain/identity.js';
+import { getDb } from '#lib/server/db/index.js';
+import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
 import {
 	isSchemaCurrent,
@@ -135,6 +142,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.notAdmitted = admission.notAdmitted;
 	}
 
+	// The one public tree (ADR-040) is read by whoever asks. The lookup is one indexed read, made only
+	// for an anonymous request on a tree page and never cached, so making the tree private takes
+	// effect on the next request. The bypass is excluded so a local developer stays themself.
+	const publicRead = allowDevBypass
+		? null
+		: publicReadAccess({
+				pathname: event.url.pathname,
+				method: event.request.method,
+				hasToken: Boolean(token),
+				hasUser: event.locals.user !== null
+			});
+	if (publicRead && bindings.DB) {
+		const isPublicRead =
+			publicRead.kind === 'api' ||
+			(await new PublicTreeService(getDb(bindings.DB)).current())?.id === publicRead.treeId;
+		if (isPublicRead) event.locals.user = PUBLIC_VISITOR;
+	}
+
 	// Someone Access named but Epoch does not admit has no user, so nothing past here would serve
 	// them anyway; this says so plainly, before the signed-out rules would send a page load to the
 	// splash and an API call to a 401 that invites signing in again.
@@ -176,5 +201,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const response = await resolve(event);
 	response.headers.set('x-correlation-id', correlationId);
+	// Everything served to the anonymous reader stays out of search indexes (ADR-040).
+	if (event.locals.user?.isPublicVisitor) response.headers.set('x-robots-tag', 'noindex');
 	return response;
 };
