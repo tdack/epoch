@@ -33,4 +33,11 @@
 	<meta name="theme-color" content="#064e3b" />
 </svelte:head>
 
-<Splash actionLabel={actionLabels[data.state]} actionHref={data.actionHref} {message} />
+<Splash
+	actionLabel={actionLabels[data.state]}
+	actionHref={data.actionHref}
+	{message}
+	explore={data.publicTree
+		? { label: `Explore ${data.publicTree.name}`, href: data.publicTree.href }
+		: undefined}
+/>

@@ -11,7 +11,7 @@
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
 	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
-	import type { TreeRole } from '#lib/shared/roles.js';
+	import { canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import {
 		deleteNameApi,
 		previewNameApi,
@@ -31,6 +31,8 @@
 	}
 
 	let { dto, treeId, role, editor, toasts }: Props = $props();
+	// A viewer, and the public visitor, may read facts and names but not change them.
+	const canEditNames = $derived(canCreateRecords(role));
 
 	let nameDialog = $state<{ name: NameDto | null } | null>(null);
 
@@ -108,11 +110,13 @@
 	}
 </script>
 
-<div class="flex justify-end">
-	<button type="button" onclick={() => (nameDialog = { name: null })} class="action-btn"
-		><Plus class="h-3.5 w-3.5" />Add name</button
-	>
-</div>
+{#if canEditNames}
+	<div class="flex justify-end">
+		<button type="button" onclick={() => (nameDialog = { name: null })} class="action-btn"
+			><Plus class="h-3.5 w-3.5" />Add name</button
+		>
+	</div>
+{/if}
 <ol class="space-y-2" data-testid="names">
 	{#each dto.names as name, index (name.id ?? 'derived')}
 		<li
@@ -173,47 +177,49 @@
 						notes={name.notes}
 					/>
 				</NotesDisclosure>
-				<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
-					<button
-						type="button"
-						onclick={() => (nameDialog = { name })}
-						class="row-link"
-						aria-label={`Edit ${typeLabel(name)}`}>Edit</button
-					>
-					{#if !name.isPreferred}
+				{#if canEditNames}
+					<div class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
 						<button
 							type="button"
-							onclick={() => void makePreferred(name)}
+							onclick={() => (nameDialog = { name })}
 							class="row-link"
-							aria-label={`Show as ${name.displayName}`}>Show as this name</button
+							aria-label={`Edit ${typeLabel(name)}`}>Edit</button
 						>
-					{/if}
-					{#if dto.names.length > 1}
-						<button
-							type="button"
-							onclick={() => removeName(name)}
-							class="row-link text-red-700"
-							aria-label={`Remove ${typeLabel(name)}`}>Remove</button
-						>
-					{/if}
-					{#if canMoveName(index, -1)}
-						<button
-							type="button"
-							onclick={() => void moveName(index, -1)}
-							class="row-link"
-							aria-label={`Move ${typeLabel(name)} up`}><ArrowUp class="inline h-3 w-3" /></button
-						>
-					{/if}
-					{#if canMoveName(index, 1)}
-						<button
-							type="button"
-							onclick={() => void moveName(index, 1)}
-							class="row-link"
-							aria-label={`Move ${typeLabel(name)} down`}
-							><ArrowDown class="inline h-3 w-3" /></button
-						>
-					{/if}
-				</div>
+						{#if !name.isPreferred}
+							<button
+								type="button"
+								onclick={() => void makePreferred(name)}
+								class="row-link"
+								aria-label={`Show as ${name.displayName}`}>Show as this name</button
+							>
+						{/if}
+						{#if dto.names.length > 1}
+							<button
+								type="button"
+								onclick={() => removeName(name)}
+								class="row-link text-red-700"
+								aria-label={`Remove ${typeLabel(name)}`}>Remove</button
+							>
+						{/if}
+						{#if canMoveName(index, -1)}
+							<button
+								type="button"
+								onclick={() => void moveName(index, -1)}
+								class="row-link"
+								aria-label={`Move ${typeLabel(name)} up`}><ArrowUp class="inline h-3 w-3" /></button
+							>
+						{/if}
+						{#if canMoveName(index, 1)}
+							<button
+								type="button"
+								onclick={() => void moveName(index, 1)}
+								class="row-link"
+								aria-label={`Move ${typeLabel(name)} down`}
+								><ArrowDown class="inline h-3 w-3" /></button
+							>
+						{/if}
+					</div>
+				{/if}
 			{:else}
 				<p class="mt-1 text-xs text-stone-500">Edit this name from the person's Edit button.</p>
 			{/if}

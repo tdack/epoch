@@ -10,7 +10,7 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor, toasts, marks } = getTreeContext();
+	const { editor, toasts, marks, isPublicVisitor } = getTreeContext();
 
 	const dto = $derived(data.person);
 	const treeId = $derived(data.summary.tree.id);
@@ -27,6 +27,7 @@
 	// Effects never run on the server, so a server render records nothing either.
 	$effect(() => {
 		const personId = dto.person.id;
+		if (isPublicVisitor) return;
 		void recordRecentApi(treeId, personId)
 			.then((updated) => marks.set(updated))
 			.catch(() => {

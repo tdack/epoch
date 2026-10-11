@@ -1,5 +1,5 @@
 import type { DbClient } from '../db';
-import { users, treeMemberships } from '../db/schema';
+import { users, treeMemberships, trees } from '../db/schema';
 import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
 import { eq, and } from 'drizzle-orm';
@@ -37,6 +37,16 @@ export class UserRepository {
 		const user = await this.upsertUser(identity);
 		await members.redeemFor(user.id, user.email, now);
 		return { ...user, isInstallOwner };
+	}
+
+	/** Whether the tree is the install's public one (ADR-041). One primary-key read. */
+	async isTreePublic(treeId: string): Promise<boolean> {
+		const row = await this.db
+			.select({ isPublic: trees.isPublic })
+			.from(trees)
+			.where(eq(trees.id, treeId))
+			.get();
+		return row?.isPublic === true;
 	}
 
 	/** Whether this person holds a membership in any tree: what lets a member start a tree of their own. */

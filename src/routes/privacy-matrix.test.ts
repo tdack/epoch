@@ -37,8 +37,12 @@ const EVIDENCE = 'services/privacy-evidence.test.ts';
 const NOTES = 'services/privacy-notes.test.ts';
 const TASKS = 'services/privacy-tasks.test.ts';
 
+const PUBLIC_TREE = 'services/public-tree.test.ts';
+
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
+	[`${API}/admin/trees/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
+	[`${API}/admin/public-tree/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
 	[`${API}/export/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
@@ -246,7 +250,57 @@ const loads = Object.keys(
 	])
 ).sort();
 /** Loads that read no tree at all, so there is no person in them to hide. */
-const NO_RECORD_LOADS = ['./login/+page.server.ts', './welcome/+page.server.ts'];
+const NO_RECORD_LOADS = [
+	'./login/+page.server.ts',
+	'./welcome/+page.server.ts',
+	// The install owner's list of trees: names and counts from `/api/admin/trees`, which refuses anyone else.
+	'./manage/trees/+page.ts'
+];
+
+/**
+ * What the public visitor (ADR-041) gets from each endpoint that serves a GET. Every other method
+ * is refused before it reaches a handler (the hook leaves writes unauthenticated: a 401), and the
+ * services refuse the visitor again for anything that would stamp a user id. `public-tree-only`
+ * means the read goes through `requireTreeScope`, so a tree that is not public is refused exactly
+ * as it is for a stranger, and the public tree's private people stay hidden.
+ */
+const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
+	[`${API}/admin/trees/+server.ts`]: 'refused',
+	[`${API}/export/+server.ts`]: 'refused',
+	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/charts/descendants/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/individuals/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/repositories/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/surnames/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/marks/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/notes/[noteId]/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/privacy/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/quality/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/relationship/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/search/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/tasks/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/undo/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: 'public-tree-only'
+};
+const endpointSources = import.meta.glob('./**/+server.ts', {
+	query: '?raw',
+	import: 'default',
+	eager: true
+}) as Record<string, string>;
 
 const proofs = new Set(
 	Object.keys(import.meta.glob('../lib/server/**/*.test.ts')).map((k) =>
@@ -263,6 +317,14 @@ describe('the privacy matrix covers every transport', () => {
 		for (const [route, entry] of Object.entries(ENTRIES)) {
 			expect(proofs.has(entry.covers), `${route} cites ${entry.covers}`).toBe(true);
 		}
+	});
+
+	it('says what the public visitor gets from every endpoint that serves a GET', () => {
+		const readers = Object.entries(endpointSources)
+			.filter(([, source]) => /export const GET\b/.test(source))
+			.map(([route]) => route)
+			.sort();
+		expect(Object.keys(VISITOR_READS).sort()).toEqual(readers);
 	});
 
 	it('has an entry for every page and layout load, and none that fetch nothing it lists', () => {

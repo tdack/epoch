@@ -9,7 +9,7 @@
  */
 
 import type { DbClient } from '../db';
-import { NotFoundError, ValidationError } from '../domain/errors';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { omitForScope } from '../domain/privacy-mask';
 import { checkQuality } from '../domain/quality-checks';
@@ -28,7 +28,7 @@ import {
 	type QualityFinding,
 	type QualityReport
 } from '../../shared/quality';
-import { requireTreeScope, type ViewerScope } from './tree-access';
+import { requireRealUser, requireTreeScope, type ViewerScope } from './tree-access';
 
 const RULE_ORDER = new Map<string, number>(QUALITY_RULES.map((rule, i) => [rule.code, i]));
 const SEVERITY_ORDER = new Map<string, number>(
@@ -87,6 +87,9 @@ export class QualityService {
 		]);
 		// A finding that has a task says so; completing the task does not dismiss the finding, and
 		// dismissing the finding does not touch the task: they are separate decisions (ADR-029).
+		// A working report, with who may take each task: for the tree's own members, not its readers.
+		if (scope.isOutsider)
+			throw new UnauthorizedError('Forbidden: the quality report is for members of this tree');
 		const taskOf = await this.tasks.tasksByFinding(treeId, scope);
 		const byKey = new Map(all.map((f) => [f.key, f]));
 		const reasonOf = new Map(dismissals.map((d) => [d.key, d]));
@@ -117,6 +120,7 @@ export class QualityService {
 		reason: string,
 		context: AuthenticatedContext
 	): Promise<void> {
+		requireRealUser(context);
 		const trimmed = reason.trim();
 		if (!trimmed) throw new ValidationError('Say why this is fine, so the next person knows.');
 		if (trimmed.length > MAX_DISMISSAL_REASON_LENGTH)

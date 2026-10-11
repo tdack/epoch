@@ -23,6 +23,8 @@
 		onexportGedcom: (choice: GedcomExportChoice) => void;
 		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
 		canExport?: boolean;
+		/** False for the public visitor, who is offered no way to start, import or delete a tree. */
+		canChangeTrees?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */
 		finder?: Snippet;
 	}
@@ -40,6 +42,7 @@
 		onfileSelect,
 		onexportGedcom,
 		canExport = false,
+		canChangeTrees = true,
 		finder
 	}: Props = $props();
 </script>
@@ -72,6 +75,7 @@
 		{onfileSelect}
 		{onexportGedcom}
 		{canExport}
+		{canChangeTrees}
 	/>
 
 	<!-- Wraps to its own full-width row on phones so the finder keeps room to type. -->

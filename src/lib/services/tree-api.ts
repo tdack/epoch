@@ -168,6 +168,38 @@ export async function renameTreeApi(treeId: string, name: string, version: numbe
 	);
 }
 
+/** One row of the install owner's Trees page (`GET /api/admin/trees`). */
+export interface InstallTree {
+	id: string;
+	name: string;
+	version: number;
+	/** The caller's role in the tree; null when they are not a member. */
+	role: TreeRole | null;
+	ownerNames: string[];
+	peopleCount: number;
+	memberCount: number;
+	isPublic: boolean;
+	publicSince: string | null;
+}
+
+export function fetchInstallTrees(fetchFn: typeof fetch = fetch): Promise<InstallTree[]> {
+	return call<{ trees: InstallTree[] }>(
+		'/api/admin/trees',
+		undefined,
+		'Failed to load trees',
+		fetchFn
+	).then((d) => d.trees);
+}
+
+/** Makes `treeId` the public tree, or none for null. The name is the typed confirmation, re-checked by the server. */
+export async function setPublicTreeApi(treeId: string | null, confirmName: string): Promise<void> {
+	await call(
+		'/api/admin/public-tree',
+		json('PUT', { treeId, confirmName }),
+		'Failed to change the public tree'
+	);
+}
+
 export async function deleteTreeApi(treeId: string): Promise<void> {
 	await call(`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }

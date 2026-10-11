@@ -10,7 +10,25 @@ export interface UserIdentity {
 	 * bypass. Absent means not the owner: a context built anywhere else fails closed.
 	 */
 	isInstallOwner?: boolean;
+	/**
+	 * True only for `PUBLIC_VISITOR`: someone nobody identified, let in to read the public tree
+	 * (ADR-041). Absent means a real user.
+	 */
+	isPublicVisitor?: boolean;
 }
+
+/**
+ * Who the hook stands in for an anonymous reader of the public tree. It never gets a `users` row,
+ * and its id matches no membership, so the only door it can use is the tree being public.
+ */
+export const PUBLIC_VISITOR: UserIdentity = {
+	id: 'public-visitor',
+	accessSub: 'public-visitor',
+	email: '',
+	name: null,
+	isInstallOwner: false,
+	isPublicVisitor: true
+};
 
 /** Who Access says someone is, before Epoch has decided whether to admit them. */
 export interface AccessIdentity {

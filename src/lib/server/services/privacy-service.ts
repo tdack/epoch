@@ -54,7 +54,10 @@ export class PrivacyService {
 		await requireTreeAction(this.users, treeId, context, 'tree:update_settings');
 		const settings = await this.trees.privacySettings(treeId);
 		if (!settings) throw new ValidationError('Tree not found');
-		return settings;
+		return {
+			maxAliveYears: settings.maxAliveYears,
+			shouldShowPrivateStructure: settings.shouldShowPrivateStructure
+		};
 	}
 
 	async updateSettings(

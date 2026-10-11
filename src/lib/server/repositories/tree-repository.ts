@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import { trees, treeMemberships } from '../db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, exists, sql } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { parseLayoutMode, type LayoutMode } from '../../shared/view-mode';
@@ -15,6 +15,25 @@ export interface TreeSummary {
 	defaultViewMode?: LayoutMode | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
+}
+
+export interface PublicTreeRef {
+	id: string;
+	name: string;
+	since: Date | null;
+}
+
+/** One row of the install owner's Trees page: every tree, whether or not they belong to it. */
+export interface InstallTreeRow {
+	id: string;
+	name: string;
+	version: number;
+	role: TreeRole | null;
+	ownerNames: string[];
+	peopleCount: number;
+	memberCount: number;
+	isPublic: boolean;
+	publicSince: Date | null;
 }
 
 export class TreeRepository {
@@ -49,13 +68,16 @@ export class TreeRepository {
 	}
 
 	/** The per-tree privacy settings (ADR-015); null when the tree does not exist. */
-	async privacySettings(
-		treeId: string
-	): Promise<{ maxAliveYears: number; shouldShowPrivateStructure: boolean } | null> {
+	async privacySettings(treeId: string): Promise<{
+		maxAliveYears: number;
+		shouldShowPrivateStructure: boolean;
+		isPublic: boolean;
+	} | null> {
 		const record = await this.db
 			.select({
 				maxAliveYears: trees.maxAliveYears,
-				shouldShowPrivateStructure: trees.shouldShowPrivateStructure
+				shouldShowPrivateStructure: trees.shouldShowPrivateStructure,
+				isPublic: trees.isPublic
 			})
 			.from(trees)
 			.where(eq(trees.id, treeId))
@@ -186,5 +208,96 @@ export class TreeRepository {
 
 	async delete(treeId: string): Promise<void> {
 		await this.db.delete(trees).where(eq(trees.id, treeId));
+	}
+
+	/** The install's public tree, if any: one read on the partial unique index. */
+	async findPublic(): Promise<PublicTreeRef | null> {
+		const row = await this.db
+			.select({ id: trees.id, name: trees.name, since: trees.publicSince })
+			.from(trees)
+			.where(eq(trees.isPublic, true))
+			.limit(1)
+			.get();
+		return row ?? null;
+	}
+
+	/** Every tree in the install, newest activity first, with the caller's own role in each. */
+	async listAll(callerId: string): Promise<InstallTreeRow[]> {
+		const rows = await this.db.all<{
+			id: string;
+			name: string;
+			version: number;
+			role: TreeRole | null;
+			owners: string | null;
+			people: number;
+			members: number;
+			isPublic: number;
+			publicSince: number | null;
+		}>(sql`
+			select t.id as id, t.name as name, t.version as version,
+				(select m.role from tree_memberships m where m.tree_id = t.id and m.user_id = ${callerId}) as role,
+				(select group_concat(coalesce(nullif(trim(u.name), ''), u.email), char(10))
+					from tree_memberships o join users u on u.id = o.user_id
+					where o.tree_id = t.id and o.role = 'owner') as owners,
+				(select count(*) from individuals i where i.tree_id = t.id) as people,
+				(select count(*) from tree_memberships c where c.tree_id = t.id) as members,
+				t.is_public as isPublic, t.public_since as publicSince
+			from trees t order by t.updated_at desc, t.name`);
+		return rows.map((r) => ({
+			id: r.id,
+			name: r.name,
+			version: r.version,
+			role: r.role,
+			ownerNames: r.owners ? r.owners.split('\n').sort() : [],
+			peopleCount: r.people,
+			memberCount: r.members,
+			isPublic: r.isPublic === 1,
+			publicSince: r.publicSince === null ? null : new Date(r.publicSince * 1000)
+		}));
+	}
+
+	/**
+	 * Makes `treeId` the public tree, or none when null, in one batch. The old public tree is
+	 * cleared first because the partial unique index is checked row by row. The name check sits in
+	 * the UPDATE itself so a rename between the caller's read and this write cannot slip past it.
+	 *
+	 * @returns false when the tree is gone or its name no longer equals `confirmName`.
+	 */
+	async setPublic(
+		treeId: string | null,
+		confirmName: string,
+		publishedBy: string,
+		now: Date
+	): Promise<boolean> {
+		if (treeId === null) {
+			const [cleared] = await this.db.batch([
+				this.db
+					.update(trees)
+					.set({ isPublic: false, publicSince: null, publishedBy: null })
+					.where(and(eq(trees.isPublic, true), eq(trees.name, confirmName)))
+					.returning({ id: trees.id })
+			]);
+			return cleared.length > 0;
+		}
+		// The clear only runs when the new tree still has the confirmed name, so a rename racing this
+		// call cannot unpublish the old tree and then fail to publish the new one.
+		const hasConfirmedTarget = exists(
+			this.db
+				.select({ id: trees.id })
+				.from(trees)
+				.where(and(eq(trees.id, treeId), eq(trees.name, confirmName)))
+		);
+		const [, set] = await this.db.batch([
+			this.db
+				.update(trees)
+				.set({ isPublic: false, publicSince: null, publishedBy: null })
+				.where(and(eq(trees.isPublic, true), hasConfirmedTarget)),
+			this.db
+				.update(trees)
+				.set({ isPublic: true, publicSince: now, publishedBy })
+				.where(and(eq(trees.id, treeId), eq(trees.name, confirmName)))
+				.returning({ id: trees.id })
+		]);
+		return set.length > 0;
 	}
 }

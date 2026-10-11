@@ -632,3 +632,9 @@ export const taskListQuerySchema = z.object({
 
 /** A preview of deleting a task. */
 export const taskImpactSchema = z.object({ taskId: idSchema, version: versionSchema.optional() });
+
+/** `treeId: null` withdraws the public tree. The name is deliberately not trimmed: it must match exactly. */
+export const publicTreeSchema = z.object({
+	treeId: z.string().min(1).nullable(),
+	confirmName: z.string()
+});

@@ -4,6 +4,8 @@ import {
 	LOGIN_PATH,
 	NOT_INVITED_PATH,
 	notAdmittedOutcome,
+	publicReadAccess,
+	treeIdOfPath,
 	safeNextPath,
 	signedOutRedirect,
 	WELCOME_PATH
@@ -165,6 +167,61 @@ describe('turning away a visitor Epoch does not admit (ADR-034)', () => {
 	it('does nothing for an admitted or a signed-out request', () => {
 		expect(
 			notAdmittedOutcome({ ...notAdmittedPage, pathname: '/', isNotAdmitted: false })
+		).toBeNull();
+	});
+});
+
+describe('the public visitor (ADR-041)', () => {
+	const anonymous = { method: 'GET', hasToken: false, hasUser: false };
+
+	it('reads the tree id from a tree path and from nothing else', () => {
+		expect(treeIdOfPath('/trees/t1')).toBe('t1');
+		expect(treeIdOfPath('/trees/t1/people/p9')).toBe('t1');
+		expect(treeIdOfPath('/trees/a%20b/x')).toBe('a b');
+		expect(treeIdOfPath('/trees')).toBeNull();
+		expect(treeIdOfPath('/trees/')).toBeNull();
+		expect(treeIdOfPath('/manage/trees')).toBeNull();
+		expect(treeIdOfPath('/other/trees/t1')).toBeNull();
+		expect(treeIdOfPath('/trees/%E0%A4%A')).toBeNull();
+	});
+
+	it('admits an anonymous read of any API path, and of a tree path pending the lookup', () => {
+		expect(publicReadAccess({ ...anonymous, pathname: '/api/trees/t1/summary' })).toEqual({
+			kind: 'api'
+		});
+		expect(publicReadAccess({ ...anonymous, method: 'HEAD', pathname: '/api/trees' })).toEqual({
+			kind: 'api'
+		});
+		expect(publicReadAccess({ ...anonymous, pathname: '/trees/t1/people' })).toEqual({
+			kind: 'tree',
+			treeId: 't1'
+		});
+	});
+
+	it('admits nothing else: other pages, writes, or anyone who presented a token or is identified', () => {
+		for (const pathname of ['/', '/manage/trees', '/welcome', '/login', '/apix'])
+			expect(publicReadAccess({ ...anonymous, pathname })).toBeNull();
+		for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'])
+			expect(
+				publicReadAccess({ ...anonymous, method, pathname: '/api/trees/t1/people' })
+			).toBeNull();
+		expect(publicReadAccess({ ...anonymous, hasToken: true, pathname: '/trees/t1' })).toBeNull();
+		expect(publicReadAccess({ ...anonymous, hasUser: true, pathname: '/trees/t1' })).toBeNull();
+	});
+
+	it('still sends every other page to the splash, and a write to nothing', () => {
+		expect(signedOutRedirect({ ...signedOutPage, pathname: '/manage/trees' })).toBe(
+			'/welcome?next=%2Fmanage%2Ftrees'
+		);
+		expect(signedOutRedirect({ ...signedOutPage, pathname: '/trees/other' })).toBe(
+			'/welcome?next=%2Ftrees%2Fother'
+		);
+		expect(
+			signedOutRedirect({ ...signedOutPage, method: 'POST', pathname: '/trees/t1' })
+		).toBeNull();
+		// Once the hook has made the reader the public visitor, there is a user and nothing redirects.
+		expect(
+			signedOutRedirect({ ...signedOutPage, hasUser: true, pathname: '/trees/t1' })
 		).toBeNull();
 	});
 });

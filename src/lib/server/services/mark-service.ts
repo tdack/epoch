@@ -13,7 +13,7 @@ import type { MarkedPersonDto, MarksDto } from '../../shared/marks';
 import { personSummaries } from './person-summaries';
 import { TreeRepository } from '../repositories/tree-repository';
 import { visibleAmong } from '../repositories/visibility';
-import { requireTreeScope } from './tree-access';
+import { requireRealUser, requireTreeScope } from './tree-access';
 
 export class MarkService {
 	private marks: MarkRepository;
@@ -82,6 +82,7 @@ export class MarkService {
 		kind: MarkKind,
 		context: AuthenticatedContext
 	): Promise<void> {
+		requireRealUser(context);
 		const scope = await this.scope(treeId, context);
 		if (!(await visibleAmong(this.db, treeId, [personId], scope)).has(personId))
 			throw new NotFoundError('Person', personId);
@@ -101,6 +102,7 @@ export class MarkService {
 		personId: string,
 		context: AuthenticatedContext
 	): Promise<void> {
+		requireRealUser(context);
 		await this.scope(treeId, context);
 		await this.marks.remove(context.user.id, treeId, personId, 'favorite');
 	}
