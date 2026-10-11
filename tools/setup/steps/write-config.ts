@@ -1,10 +1,6 @@
 import type { StepContext } from '../context.ts';
-import {
-	generateDeployConfig,
-	lineDiff,
-	loadTemplate,
-	renderDeployConfig
-} from '../deploy-config.ts';
+import { generateDeployConfig, lineDiff, loadTemplate } from '../deploy-config.ts';
+import { editConfigText, formatWithRepoConfig } from '../edit-config.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
 import { withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
@@ -17,6 +13,38 @@ import { resourceNames } from '../names.ts';
  * run as it would be by `npm run deploy`, rather than a second copy of it.
  */
 export async function writeConfig(ctx: StepContext, manifest: Manifest): Promise<Manifest> {
+	const edited = await editedDeployConfig(ctx, manifest);
+	if (edited.text === edited.before) {
+		ctx.report.info('wrangler.deploy.jsonc unchanged');
+	} else {
+		const changes = lineDiff(edited.before ?? '', edited.text).filter(
+			(line) => !line.startsWith('  ')
+		);
+		ctx.report.info(
+			`wrangler.deploy.jsonc changes:\n${changes.slice(0, 60).join('\n')}${changes.length > 60 ? `\n… ${changes.length - 60} more` : ''}`
+		);
+		ctx.fs.write(ctx.paths.deployConfigFile, edited.text);
+	}
+
+	const check = await ctx.runner.exec({ tool: 'node', args: ['scripts/deploy-config.mjs'] });
+	if (check.exitCode !== 0) {
+		throw new SetupError(
+			ERROR_CODES.command,
+			check.stderr.trim() || 'wrangler.deploy.jsonc disagrees with wrangler.jsonc'
+		);
+	}
+	return ctx.save(withStepDone(manifest, 'write-config'));
+}
+
+/**
+ * What the deploy config would be after this run, as text, edited in place from the existing file
+ * (or from the template when there is none) and formatted with the repository's Prettier config.
+ * `before` is null when there is no file yet.
+ */
+export async function editedDeployConfig(
+	ctx: StepContext,
+	manifest: Manifest
+): Promise<{ text: string; before: string | null }> {
 	const { d1 } = manifest.resources;
 	if (!d1 || !manifest.hostname || !manifest.teamDomain || !manifest.hosting) {
 		throw new SetupError(
@@ -27,7 +55,7 @@ export async function writeConfig(ctx: StepContext, manifest: Manifest): Promise
 	const template = loadTemplate(ctx.fs, ctx.paths);
 	if (template.isFallback)
 		ctx.report.info('No usable wrangler.jsonc here; using the copy shipped with the setup tool');
-	const config = generateDeployConfig(template.config, {
+	const wanted = generateDeployConfig(template.config, {
 		names: resourceNames(manifest.workerName),
 		hosting: manifest.hosting,
 		hostname: manifest.hostname,
@@ -39,24 +67,12 @@ export async function writeConfig(ctx: StepContext, manifest: Manifest): Promise
 		r2Jurisdiction: manifest.locations.r2Jurisdiction,
 		accessAud: manifest.isAudSecret ? null : (manifest.access.app?.aud ?? null)
 	});
-	const text = renderDeployConfig(config);
 	const before = ctx.fs.exists(ctx.paths.deployConfigFile)
 		? ctx.fs.read(ctx.paths.deployConfigFile)
-		: '';
-	const changes = lineDiff(before, text).filter((line) => !line.startsWith('  '));
-	ctx.report.info(
-		before === text
-			? 'wrangler.deploy.jsonc is already up to date'
-			: `wrangler.deploy.jsonc changes:\n${changes.slice(0, 60).join('\n')}${changes.length > 60 ? `\n… ${changes.length - 60} more` : ''}`
+		: null;
+	const edited = editConfigText(before, template.text, wanted);
+	const text = await formatWithRepoConfig(edited, ctx.paths.deployConfigFile, (message) =>
+		ctx.report.warn(message)
 	);
-	ctx.fs.write(ctx.paths.deployConfigFile, text);
-
-	const check = await ctx.runner.exec({ tool: 'node', args: ['scripts/deploy-config.mjs'] });
-	if (check.exitCode !== 0) {
-		throw new SetupError(
-			ERROR_CODES.command,
-			check.stderr.trim() || 'wrangler.deploy.jsonc disagrees with wrangler.jsonc'
-		);
-	}
-	return ctx.save(withStepDone(manifest, 'write-config'));
+	return { text, before };
 }

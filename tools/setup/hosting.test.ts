@@ -464,3 +464,33 @@ describe('the raw Workers reads and the deploy config hint', () => {
 		expect(report.warnings.join('\n')).toContain('points at database shop-db (old)');
 	});
 });
+
+describe('re-running with nothing changed', () => {
+	it('reports "unchanged" and does not write the file', async () => {
+		const { writeConfig } = await import('./steps/write-config.ts');
+		const { fakeExec } = await import('./testing.ts');
+		const manifest = testManifest({
+			workerName: 'shop',
+			hosting: 'workers-dev',
+			hostname: 'shop.me.workers.dev',
+			teamDomain: 't.cloudflareaccess.com',
+			resources: { d1: { id: 'd1id', name: 'shop-db' }, r2: null, queue: null, worker: null }
+		});
+		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+		const first = testContext({ exec });
+		await writeConfig(first.ctx, manifest);
+		const written = first.fs.files[`${TEST_ROOT}/wrangler.deploy.jsonc`]!;
+
+		const second = testContext({
+			exec,
+			fs: memoryFs({ ...baseFiles(), [`${TEST_ROOT}/wrangler.deploy.jsonc`]: written })
+		});
+		let writes = 0;
+		const write = second.fs.write;
+		second.fs.write = (path, text) => (writes++, write(path, text));
+		await writeConfig(second.ctx, manifest);
+		expect(writes).toBe(0);
+		expect(second.report.infos).toContain('wrangler.deploy.jsonc unchanged');
+		expect(second.fs.files[`${TEST_ROOT}/wrangler.deploy.jsonc`]).toBe(written);
+	});
+});

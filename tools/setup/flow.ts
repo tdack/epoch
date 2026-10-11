@@ -18,7 +18,7 @@ import { applyAdoptions, reconcileStep } from './steps/reconcile.ts';
 import { signIn } from './steps/sign-in.ts';
 import { TAG_STATES, TAGGABLE_KEYS, tagResources } from './tags.ts';
 import { CHECK_STATUSES, verify, type CheckResult } from './steps/verify.ts';
-import { writeConfig } from './steps/write-config.ts';
+import { editedDeployConfig, writeConfig } from './steps/write-config.ts';
 
 /** What the flow needs from the terminal. ui.ts implements it; `--json` and tests use quiet ones. */
 export interface Presenter {
@@ -92,7 +92,25 @@ export async function runSetup(
 	answers = await confirmAdoptions(reconciled.result, answers, mode, asker, ctx.report);
 
 	presenter.stage('Plan');
-	const plan = buildPlan(manifest, answers, reconciled.result, collected.discovery.policies);
+	// If every value is already known and the file would come out the same, the plan says so
+	// instead of listing a write.
+	const predicted = applyAdoptions(
+		manifest,
+		reconciled.result,
+		reconciled.observed,
+		isWorkerReplaced
+	);
+	const deployConfig = await editedDeployConfig(ctx, predicted).then(
+		(edited) => (edited.text === edited.before ? ('unchanged' as const) : ('write' as const)),
+		() => 'write' as const
+	);
+	const plan = buildPlan(
+		manifest,
+		answers,
+		reconciled.result,
+		collected.discovery.policies,
+		deployConfig
+	);
 	presenter.showPlan(plan);
 	if (flags.isPlanOnly) {
 		return { manifest, plan, checks: [], isApplied: false, handOff: [] };

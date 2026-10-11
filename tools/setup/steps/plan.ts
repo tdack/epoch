@@ -42,7 +42,8 @@ export function buildPlan(
 	manifest: Manifest,
 	answers: Answers,
 	result: ReconcileResult,
-	policies: AccessPolicy[]
+	policies: AccessPolicy[],
+	deployConfig: 'write' | 'unchanged' = 'write'
 ): PlanLine[] {
 	const names = resourceNames(manifest.workerName);
 	const { reports } = result;
@@ -101,7 +102,9 @@ export function buildPlan(
 			: answers.emailSender
 				? [{ symbol: PLAN_SYMBOLS.unchanged, text: `send_email: ${answers.emailSender}` }]
 				: []),
-		{ symbol: PLAN_SYMBOLS.create, text: 'write wrangler.deploy.jsonc (tracked)' },
+		deployConfig === 'unchanged'
+			? { symbol: PLAN_SYMBOLS.unchanged, text: 'wrangler.deploy.jsonc unchanged' }
+			: { symbol: PLAN_SYMBOLS.create, text: 'write wrangler.deploy.jsonc (tracked)' },
 		lineFor(
 			reports.worker.state,
 			'Worker',

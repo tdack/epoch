@@ -105,13 +105,11 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 	return config;
 }
 
-const HEADER =
-	'// Tracked. `npm run setup` regenerates this file from wrangler.jsonc plus this install’s ids,\n' +
-	'// route and vars. Re-run setup to change it.\n';
-
-export function renderDeployConfig(config: Json): string {
-	return `${HEADER}${JSON.stringify(config, null, '\t')}\n`;
-}
+/** Written only at the top of a file setup creates; an existing file keeps its own header. */
+export const HEADER =
+	'// Tracked. `npm run setup` regenerates this file from wrangler.jsonc plus this install’s values,\n' +
+	'// so relative paths resolve from the repository root. `main` and `assets` must stay identical to\n' +
+	'// wrangler.jsonc: the build reads them from that file (`node scripts/deploy-config.mjs` checks).\n';
 
 /**
  * The tracked wrangler.jsonc is the template. A checkout with none, an empty one or one that does not
@@ -120,18 +118,20 @@ export function renderDeployConfig(config: Json): string {
 export function loadTemplate(
 	fs: FileSystem,
 	paths: InstallPaths
-): { config: Json; isFallback: boolean } {
+): { config: Json; text: string; isFallback: boolean } {
 	if (fs.exists(paths.trackedConfigFile)) {
 		try {
-			const tracked = parseTrackedConfig(fs.read(paths.trackedConfigFile));
+			const text = fs.read(paths.trackedConfigFile);
+			const tracked = parseTrackedConfig(text);
 			if (Array.isArray(tracked.d1_databases) && typeof tracked.main === 'string') {
-				return { config: tracked, isFallback: false };
+				return { config: tracked, text, isFallback: false };
 			}
 		} catch {
 			// Fall through to the shipped copy.
 		}
 	}
-	return { config: parseTrackedConfig(fs.read(paths.templateFile)), isFallback: true };
+	const text = fs.read(paths.templateFile);
+	return { config: parseTrackedConfig(text), text, isFallback: true };
 }
 
 /** What an earlier run, or a hand-written file, already decided. Every field may be absent. */
