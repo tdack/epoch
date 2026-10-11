@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import namesFixture from '../../../../docs/gedcom-data/The_Names_fixture.ged?raw';
+import namesFixture from '../../../../test/data/The Simpsons names.ged?raw';
 import { personNames } from '../db/schema';
 import { importGedcomToDb } from '../testing/gedcom';
 import { graphFromRows } from '../domain/relationship-graph';
@@ -27,7 +27,7 @@ afterAll(async () => {
 	await t.dispose();
 });
 
-/** The fixture with Jessica going by her married name, as a person who took it would. */
+/** The fixture with Marjorie going by her married name, as a person who took it would. */
 async function married() {
 	const treeId = crypto.randomUUID();
 	await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
@@ -50,7 +50,7 @@ async function married() {
 	// The mirrored display name, as set_preferred_name would have written it.
 	await t.d1
 		.prepare('UPDATE individuals SET surname = ? WHERE id = ?')
-		.bind('Smith', `${treeId}:@I1@`)
+		.bind('Hibbert', `${treeId}:@I1@`)
 		.run();
 	return treeId;
 }
@@ -60,9 +60,9 @@ describe('the display name says "(née …)"', () => {
 		const treeId = await married();
 		const graph = graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
 		const byId = new Map(graph.people.map((p) => [p.id, p.displayName]));
-		expect(byId.get(`${treeId}:@I1@`)).toBe('Jessica Louise Wren (née Simpson)');
+		expect(byId.get(`${treeId}:@I1@`)).toBe('Marjorie Jacqueline Hibbert (née Bouvier)');
 		// Only a birth or maiden name that differs adds it: a _MARNM or aka name does not.
-		expect(byId.get(`${treeId}:@I3@`)).toBe('Ann Brown');
+		expect(byId.get(`${treeId}:@I3@`)).toBe('Jane Doe');
 	});
 
 	it('the same in the bounded window as in the whole tree, for every person as focus', async () => {
@@ -89,7 +89,7 @@ describe('the display name says "(née …)"', () => {
 		const empty = { people: [], unions: [], parentChild: [] };
 		const summaries = await personSummaries(repo, treeId, empty, [`${treeId}:@I1@`]);
 		expect(summaries.get(`${treeId}:@I1@`)?.displayName).toBe(
-			'Jessica Louise Wren (née Simpson)'
+			'Marjorie Jacqueline Hibbert (née Bouvier)'
 		);
 	});
 });
@@ -99,20 +99,23 @@ describe('search matches every name', () => {
 		const treeId = await married();
 		const search = new SearchService(t.db);
 		expect(
-			(await search.search(treeId, { text: 'Simpson' }, actor.context)).people.map((p) => p.id)
+			(await search.search(treeId, { text: 'Bouvier' }, actor.context)).people.map((p) => p.id)
 		).toContain(`${treeId}:@I1@`);
 		expect(
-			(await search.search(treeId, { text: 'Jessica Wren' }, actor.context)).people.map(
+			(await search.search(treeId, { text: 'Marjorie Hibbert' }, actor.context)).people.map(
 				(p) => p.id
 			)
 		).toEqual([`${treeId}:@I1@`]);
 
-		// Smith is the display name now; the same person by the old name matches through the row.
-		const viaOld = (await search.search(treeId, { text: 'Jessica Louise Lovejoy' }, actor.context))
-			.people;
-		expect(viaOld).toMatchObject([{ id: `${treeId}:@I1@`, matchedName: 'Jessica Louise Lovejoy' }]);
+		// Hibbert is the display name now; the same person by the old name matches through the row.
+		const viaOld = (
+			await search.search(treeId, { text: 'Marjorie Jacqueline Bouvier' }, actor.context)
+		).people;
+		expect(viaOld).toMatchObject([
+			{ id: `${treeId}:@I1@`, matchedName: 'Marjorie Jacqueline Bouvier' }
+		]);
 		expect(
-			(await search.search(treeId, { text: 'Carter' }, actor.context)).people.map((p) => p.id)
+			(await search.search(treeId, { text: 'Roe' }, actor.context)).people.map((p) => p.id)
 		).toEqual([`${treeId}:@I3@`]);
 	});
 
@@ -121,11 +124,11 @@ describe('search matches every name', () => {
 		const b = await married();
 		const search = new SearchService(t.db);
 		expect(
-			(await search.search(a, { text: 'Carter' }, actor.context)).people.every((p) =>
+			(await search.search(a, { text: 'Roe' }, actor.context)).people.every((p) =>
 				p.id.startsWith(a)
 			)
 		).toBe(true);
 		expect((await search.search(b, { text: '%' }, actor.context)).people).toEqual([]);
-		expect((await search.search(b, { text: 'Sharl_en' }, actor.context)).people).toEqual([]);
+		expect((await search.search(b, { text: 'Marjor_e' }, actor.context)).people).toEqual([]);
 	});
 });

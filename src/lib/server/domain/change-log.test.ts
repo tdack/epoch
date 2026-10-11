@@ -5,8 +5,8 @@ import { treeRows } from '../testing/rows';
 describe('dependentsOfDeletions', () => {
 	const rows = () =>
 		treeRows({
-			people: [{ id: 'sh' }, { id: 'nick' }],
-			unions: [{ id: 'u1', partners: ['nick', 'sh'] }],
+			people: [{ id: 'sh' }, { id: 'john' }],
+			unions: [{ id: 'u1', partners: ['john', 'sh'] }],
 			names: [{ id: 'm', personId: 'sh', type: 'married', surname: 'Smith', unionId: 'u1' }]
 		});
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
+import simpsons from '../../../../test/data/The Simpsons.ged?raw';
 import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../fixtures/genealogy-fixtures';
 import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
@@ -76,7 +76,7 @@ function derived(whole: ReturnType<typeof graphFromRows>, personId: string) {
 }
 
 describe.each([
-	['The Simpsons (clean)', () => simpsonsClean],
+	['The Simpsons', () => simpsons],
 	['the representative scenarios', () => REPRESENTATIVE_GEDCOM_FIXTURE]
 ])('the person page of %s', (_name, source) => {
 	it('shows the same relatives the whole tree derives, for every person', async () => {

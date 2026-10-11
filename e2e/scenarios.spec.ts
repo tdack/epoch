@@ -21,12 +21,12 @@ test('one child has two biological mothers and a separately linked biological fa
 	const [kid] = [
 		await api.addPerson('Kid'),
 		await api.addPerson('Mia'),
-		await api.addPerson('Zoe'),
+		await api.addPerson('Jane'),
 		await api.addPerson('Dad')
 	];
 	await openTree(page, api, kid);
 	await addRelationship(page, 'Kid', 'Add parent', { existing: 'Mia', role: 'Mother' });
-	await addRelationship(page, 'Kid', 'Add parent', { existing: 'Zoe', role: 'Mother' });
+	await addRelationship(page, 'Kid', 'Add parent', { existing: 'Jane', role: 'Mother' });
 	await addRelationship(page, 'Kid', 'Add parent', { existing: 'Dad', role: 'Father' });
 
 	const graph = await api.graph();
@@ -36,7 +36,7 @@ test('one child has two biological mothers and a separately linked biological fa
 		'biological'
 	]);
 	expect(new Set(graph.parentChild.map((l) => l.parentId)).size).toBe(3);
-	for (const name of ['Mia', 'Zoe', 'Dad']) await expect(card(page, name)).toBeVisible();
+	for (const name of ['Mia', 'Jane', 'Dad']) await expect(card(page, name)).toBeVisible();
 });
 
 test('one child belongs to a birth family and an adoptive family, with foster and guardian links alongside', async ({

@@ -52,7 +52,7 @@ describe('transport validation schemas', () => {
 
 	it('requires a name on tree creation', () => {
 		expect(treeCreateSchema.safeParse({ name: '' }).success).toBe(false);
-		expect(treeCreateSchema.safeParse({ name: '  Simpsons  ' }).success).toBe(true);
+		expect(treeCreateSchema.safeParse({ name: '  Does  ' }).success).toBe(true);
 	});
 
 	it('accepts X and rejects anything else for sex', () => {

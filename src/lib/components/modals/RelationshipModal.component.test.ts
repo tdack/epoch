@@ -57,7 +57,7 @@ const union = (id: string, partnerIds: string[], childIds: string[] = []) => ({
 	}))
 });
 
-const people = ['homer', 'marge', 'lisa', 'sam'].map((id) =>
+const people = ['john', 'jane', 'lisa', 'sam'].map((id) =>
 	person(id, id[0].toUpperCase() + id.slice(1))
 );
 const graphOf = (unions: ReturnType<typeof union>[]) => ({ people, unions, parentChild: [] });
@@ -79,7 +79,7 @@ async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' 
 		props: {
 			isOpen: true,
 			treeId: 't',
-			anchor: { id: 'homer', givenName: 'Homer', surname: null },
+			anchor: { id: 'john', givenName: 'John', surname: null },
 			graph,
 			preselect: { id: 'sam', givenName: 'Sam', surname: null },
 			initialKind,
@@ -98,7 +98,7 @@ const radios = () => [...document.querySelectorAll<HTMLInputElement>('input[name
 describe('RelationshipModal partnership chooser', () => {
 	it('lists every partnership when there are several, preselects the server default and says why', async () => {
 		await open(
-			graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]),
+			graphOf([union('u1', ['john', 'jane'], ['lisa']), union('u2', ['john', 'jane'])]),
 			'add_child'
 		);
 		expect(document.querySelector('fieldset legend')!.textContent).toBe('Which partnership');
@@ -112,7 +112,7 @@ describe('RelationshipModal partnership chooser', () => {
 
 	it('sends the picked partnership with the next preview and stops showing the default reason', async () => {
 		await open(
-			graphOf([union('u1', ['homer', 'marge'], ['lisa']), union('u2', ['homer', 'marge'])]),
+			graphOf([union('u1', ['john', 'jane'], ['lisa']), union('u2', ['john', 'jane'])]),
 			'add_child'
 		);
 		radios()[1].click();
@@ -124,13 +124,13 @@ describe('RelationshipModal partnership chooser', () => {
 	});
 
 	it('shows no chooser when there is one partnership, and sends no partnership', async () => {
-		await open(graphOf([union('u1', ['homer', 'marge'])]), 'add_child');
+		await open(graphOf([union('u1', ['john', 'jane'])]), 'add_child');
 		expect(document.querySelector('[data-testid="union-chooser"]')).toBeNull();
 		expect(plan.mock.calls.at(-1)![1]).not.toHaveProperty('unionId', expect.any(String));
 	});
 
 	it('offers a new partnership beside the ones waiting for a partner when adding a partner', async () => {
-		await open(graphOf([union('u1', ['homer']), union('u2', ['homer'])]), 'add_partner');
+		await open(graphOf([union('u1', ['john']), union('u2', ['john'])]), 'add_partner');
 		expect(radios().map((r) => r.dataset.unionId)).toEqual(['u1', 'u2', 'new']);
 		expect(document.querySelector('fieldset legend')!.textContent).toBe(
 			'Which partnership to fill'

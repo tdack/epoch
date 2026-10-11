@@ -32,8 +32,8 @@ function render() {
 			initialPerson: {
 				sex: 'M',
 				raw: {
-					givenName: 'Robert Frederick',
-					surname: 'Muntz',
+					givenName: 'John Henry',
+					surname: 'Smith',
 					events: [{ type: 'BIRT', dateRaw: SAVED_BIRTH, place: null }]
 				}
 			},
@@ -62,12 +62,12 @@ describe('PersonModal', () => {
 	it('keeps a typed correction to an unreadable saved date, and the other edits with it', () => {
 		const onsubmit = render();
 		expect(birthField().value).toBe(SAVED_BIRTH);
-		type(document.querySelector<HTMLInputElement>('#person-given-name-field')!, 'Robert');
+		type(document.querySelector<HTMLInputElement>('#person-given-name-field')!, 'John');
 		type(birthField(), '28 FEB 1946');
 		expect(birthField().value).toBe('28 FEB 1946');
 		submit();
 		expect(onsubmit).toHaveBeenCalledWith(
-			expect.objectContaining({ givenName: 'Robert', birthDate: '28 FEB 1946' })
+			expect.objectContaining({ givenName: 'John', birthDate: '28 FEB 1946' })
 		);
 	});
 

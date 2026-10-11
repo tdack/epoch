@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import simpsonsDirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
-import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
+import duplicateFamilies from '../../../../test/data/The Simpsons duplicate families.ged?raw';
+import simpsons from '../../../../test/data/The Simpsons.ged?raw';
 import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { graphFromRows } from '../domain/relationship-graph';
@@ -39,7 +39,7 @@ async function importedTree(gedcom: string) {
 
 describe('the partnership page of The Simpsons', () => {
 	it('shows the partners in order, the children with their links, and the same partnership label the tree does', async () => {
-		const treeId = await importedTree(simpsonsClean);
+		const treeId = await importedTree(simpsons);
 		const whole = graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
 		for (const union of whole.unions) {
 			const page = await service().getUnion(treeId, union.id, actor.context);
@@ -50,10 +50,11 @@ describe('the partnership page of The Simpsons', () => {
 			expect(page.union.status).toBe(union.status);
 			expect(page.events.map((e) => e.type)).toEqual(union.events?.map((e) => e.type) ?? []);
 		}
-	});
+		// One query set per partnership, and the Simpsons tree has more of them than the file it replaced.
+	}, 30_000);
 
-	it('numbers repeated partnerships between the same pair and lists the others as twins, on the dirty file', async () => {
-		const treeId = await importedTree(simpsonsDirty);
+	it('numbers repeated partnerships between the same pair and lists the others as twins, on a file with duplicate families', async () => {
+		const treeId = await importedTree(duplicateFamilies);
 		const whole = graphFromRows(await new ChangeStore(t.db).loadRows(treeId));
 		const twinned = whole.unions.filter(
 			(u) =>

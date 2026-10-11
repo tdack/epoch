@@ -1,12 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import simpsonsClean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
-import namesFixture from '../../../../docs/gedcom-data/The_Names_fixture.ged?raw';
+import simpsons from '../../../../test/data/The Simpsons.ged?raw';
+import windsors from '../../../../test/data/The Windsors.ged?raw';
+import namesFixture from '../../../../test/data/The Simpsons names.ged?raw';
 import { personNames } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+
+const IMPORT_MS = 30_000;
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -30,26 +33,26 @@ describe('parsing every NAME', () => {
 	const people = Object.fromEntries(parseGedcom(namesFixture).individuals.map((i) => [i.id, i]));
 
 	it('keeps every name in file order, and the first is the primary one', () => {
-		const jessica = people['@I1@'];
-		expect(jessica.names!.map((n) => [n.type, n.givenName, n.surname])).toEqual([
-			['birth', 'Jessica Louise', 'Simpson'],
-			['married', 'Jessica Louise', 'Smith']
+		const marjorie = people['@I1@'];
+		expect(marjorie.names!.map((n) => [n.type, n.givenName, n.surname])).toEqual([
+			['birth', 'Marjorie Jacqueline', 'Bouvier'],
+			['married', 'Marjorie Jacqueline', 'Hibbert']
 		]);
-		expect(jessica.surname).toBe('Simpson');
+		expect(marjorie.surname).toBe('Bouvier');
 	});
 
 	it('reads the name parts, keeps NOTE under the NAME and reads its SOUR as a citation', () => {
 		const [, married] = people['@I1@'].names!;
 		// A note is a note record now (ADR-029): read as one, and no longer a kept line.
 		expect(married.extra).toEqual([]);
-		expect(married.notes).toMatchObject([{ text: "Took Nick's surname" }]);
+		expect(married.notes).toMatchObject([{ text: "Took Jules's surname" }]);
 		expect(married.citations).toMatchObject([{ pointer: '@S1@', page: '12' }]);
 		const [nick] = people['@I2@'].names!;
 		expect(nick).toMatchObject({
 			prefix: 'Dr',
 			givenName: 'Julius',
-			nickname: 'Nick',
-			surnamePrefix: 'de',
+			nickname: 'Jules',
+			surnamePrefix: 'van',
 			surname: 'Hibbert',
 			suffix: 'Jr'
 		});
@@ -66,27 +69,33 @@ describe('parsing every NAME', () => {
 		expect(people['@I3@'].names![2]).toMatchObject({
 			type: 'married',
 			gedcomType: '_MARNM',
-			givenName: 'Ann',
-			surname: 'Carter'
+			givenName: 'Jane',
+			surname: 'Roe'
 		});
 		expect(people['@I4@'].names![1]).toMatchObject({
 			type: 'married',
-			givenName: 'Zoe',
-			surname: 'Ames'
+			givenName: 'Jess',
+			surname: 'Mason'
 		});
 	});
 });
 
 describe('names survive export', () => {
 	for (const [label, source] of [
-		['the Simpsons', simpsonsClean],
+		['the Simpsons', simpsons],
+		['the Windsors', windsors],
 		['the names fixture', namesFixture]
 	] as const) {
-		it(`round-trips ${label} through the database in both dialects`, async () => {
-			const { text551, text7 } = await importAndExport(source);
-			expect(namesOf(text551)).toEqual(namesOf(source));
-			expect(namesOf(text7)).toEqual(namesOf(source));
-		});
+		it(
+			`round-trips ${label} through the database in both dialects`,
+			async () => {
+				const { text551, text7 } = await importAndExport(source);
+				expect(namesOf(text551)).toEqual(namesOf(source));
+				expect(namesOf(text7)).toEqual(namesOf(source));
+			},
+			// The Windsors file is several times the size of the others.
+			IMPORT_MS
+		);
 		it(`round-trips ${label} through the file alone`, () => {
 			const parsed = parseGedcom(source);
 			const data = { individuals: parsed.individuals, families: [], preserved: [] } as never;
@@ -97,7 +106,7 @@ describe('names survive export', () => {
 	it('writes a _MARNM name back as one _MARNM, not as a second NAME', async () => {
 		const { text551 } = await importAndExport(namesFixture);
 		expect(text551.match(/^1 _MARNM/gm)).toHaveLength(2);
-		expect(text551.match(/^1 NAME .*Carter/gm)).toBeNull();
+		expect(text551.match(/^1 NAME .*Roe/gm)).toBeNull();
 	});
 
 	it('writes a free-text type as a PHRASE in 7.0', async () => {
@@ -106,7 +115,7 @@ describe('names survive export', () => {
 	});
 
 	it('leaves a single-name file byte-for-byte as before (no TYPE on the primary birth name)', async () => {
-		const { text551 } = await importAndExport(simpsonsClean);
+		const { text551 } = await importAndExport(simpsons);
 		expect(text551).not.toContain('2 TYPE birth');
 	});
 
@@ -127,13 +136,13 @@ describe('names survive export', () => {
 		// What set_preferred_name does in the same change: the display name follows the preferred row.
 		await t.d1
 			.prepare('UPDATE individuals SET surname = ? WHERE id = ?')
-			.bind('Smith', `${treeId}:@I1@`)
+			.bind('Hibbert', `${treeId}:@I1@`)
 			.run();
 		const data = await getTreeExportData(t.d1, treeId);
 		const text = buildGedcom551String(data);
-		const jessica = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
-		expect(jessica.names!.map((n) => n.type)).toEqual(['married', 'birth']);
-		expect(jessica.surname).toBe('Smith');
+		const marjorie = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
+		expect(marjorie.names!.map((n) => n.type)).toEqual(['married', 'birth']);
+		expect(marjorie.surname).toBe('Hibbert');
 	});
 });
 
@@ -141,16 +150,16 @@ describe('a name row the pre-S6 person form left stale', () => {
 	it("exports the person's own name, which was the edited one", async () => {
 		const treeId = crypto.randomUUID();
 		await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
-		// The old person form wrote individuals only, so the imported preferred row still says "Simpson".
+		// The old person form wrote individuals only, so the imported preferred row still says "Bouvier".
 		await t.d1
 			.prepare('UPDATE individuals SET surname = ? WHERE id = ?')
-			.bind('Simpson-Smith', `${treeId}:@I1@`)
+			.bind('Bouvier-Smith', `${treeId}:@I1@`)
 			.run();
 		const text = buildGedcom551String(await getTreeExportData(t.d1, treeId));
-		const jessica = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
-		expect(jessica.names!.map((n) => [n.type, n.surname])).toEqual([
-			['birth', 'Simpson-Smith'],
-			['married', 'Smith']
+		const marjorie = parseGedcom(text).individuals.find((i) => i.id === '@I1@')!;
+		expect(marjorie.names!.map((n) => [n.type, n.surname])).toEqual([
+			['birth', 'Bouvier-Smith'],
+			['married', 'Hibbert']
 		]);
 	});
 });
@@ -161,8 +170,8 @@ describe('merge-mode re-import', () => {
 		await importGedcomToDb(t.d1, treeId, namesFixture, 'Names');
 		await importGedcomToDb(t.d1, treeId, namesFixture, 'Names', 'merge');
 		const data = await getTreeExportData(t.d1, treeId);
-		const jessica = data.individuals.find((i) => i.id === '@I1@')!;
-		expect(jessica.names).toHaveLength(2);
+		const marjorie = data.individuals.find((i) => i.id === '@I1@')!;
+		expect(marjorie.names).toHaveLength(2);
 		const preferred = (await t.db.select().from(personNames).all()).filter(
 			(n) => n.personId === `${treeId}:@I1@` && n.isPreferred
 		);

@@ -38,10 +38,10 @@ describe('whose membership a person may change or remove', () => {
 
 describe('what a role is described as allowing', () => {
 	it('names the tree for every role', () => {
-		for (const role of TREE_ROLES) expect(describeRole(role, 'Simpson')).toContain('the Simpson tree');
+		for (const role of TREE_ROLES) expect(describeRole(role, 'Doe')).toContain('the Doe tree');
 	});
 
 	it('tells a viewer they may only look', () => {
-		expect(describeRole('viewer', 'Simpson')).toBe('View the Simpson tree and its media.');
+		expect(describeRole('viewer', 'Doe')).toBe('View the Doe tree and its media.');
 	});
 });

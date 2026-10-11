@@ -201,7 +201,7 @@ describe('ChangeStore undo lookups', () => {
 					table: 'individuals',
 					id: 'f1',
 					before: person('f1', 'Fay'),
-					after: person('f1', 'Faye', 2)
+					after: person('f1', 'Fran', 2)
 				}
 			]
 		});
@@ -220,7 +220,7 @@ describe('ChangeStore undo lookups', () => {
 				{
 					table: 'individuals',
 					id: 'f1',
-					before: person('f1', 'Faye', 2),
+					before: person('f1', 'Fran', 2),
 					after: person('f1', 'Fay', 3)
 				}
 			]

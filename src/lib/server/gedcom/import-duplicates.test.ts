@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
+import dirty from '../../../../test/data/The Simpsons duplicate families.ged?raw';
 import { parentChild, unions } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { parseGedcom } from './parser';
@@ -23,7 +23,7 @@ afterAll(async () => {
 const unionsOf = (treeId: string) =>
 	t.db.select().from(unions).where(eq(unions.treeId, treeId)).all();
 
-describe('importing The_Simpsons.ged (dirty)', () => {
+describe('importing The Simpsons duplicate families.ged', () => {
 	it('previews the duplicate families for a new tree, without touching the database', () => {
 		const preview = previewGedcomFile(dirty);
 		expect(preview.mode).toBe('replace');

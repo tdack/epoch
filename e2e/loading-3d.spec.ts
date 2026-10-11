@@ -9,16 +9,16 @@ for (const mode of ['layers', 'floors', 'flat'] as const) {
 		page,
 		api
 	}) => {
-		const homer = await api.addPerson('Homer', 'Load');
+		const john = await api.addPerson('John', 'Load');
 		const kit = await api.addPerson('Kit', 'Load');
-		await api.child(homer, kit);
+		await api.child(john, kit);
 		const card = (name: string) =>
 			page.locator('[data-person-id]').filter({ hasText: new RegExp(`${name} Load`) });
 		const badge = page.getByRole('status').filter({ hasText: 'Loading' });
 
 		await open(
 			page,
-			`/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}&up=1&down=1&mode=${mode}`
+			`/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}&up=1&down=1&mode=${mode}`
 		);
 		await expect(card('Kit')).toBeVisible();
 		await expect(badge).toHaveCount(0);

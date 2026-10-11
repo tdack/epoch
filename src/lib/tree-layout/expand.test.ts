@@ -74,11 +74,14 @@ describe('stub expansion', () => {
 
 	it('offers one collapser per expanded stub, positioned at the branch it opened', () => {
 		const simpsons = captured('simpsons');
-		const focus = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const focus = personByName(simpsons, 'Jessica Lovejoy');
 		const base = { ancestorDepth: 1, descendantDepth: 1 };
 		const layout = layoutFocusView(simpsons, focus.id, base);
 		const childStub = layout.stubs.find((s) => s.kind === 'children')!;
-		const opened = layoutFocusView(simpsons, focus.id, { ...base, expandedStubIds: [childStub.id] });
+		const opened = layoutFocusView(simpsons, focus.id, {
+			...base,
+			expandedStubIds: [childStub.id]
+		});
 		expect(opened.collapsers).toHaveLength(1);
 		const union = opened.unions.find((u) => u.id === childStub.unionId)!;
 		expect(opened.collapsers[0].x).toBeCloseTo(union.x);
@@ -88,7 +91,7 @@ describe('stub expansion', () => {
 
 	it('ignores expansions for stubs that are not at a limit', () => {
 		const simpsons = captured('simpsons');
-		const focus = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const focus = personByName(simpsons, 'Jessica Lovejoy');
 		const plain = layoutFocusView(simpsons, focus.id);
 		const bogus = layoutFocusView(simpsons, focus.id, {
 			expandedStubIds: ['stub:ancestors:nobody']
@@ -115,8 +118,8 @@ describe('step families', () => {
 	}
 
 	it("focus Bart: a stub for Jessica's children off, her children drawn on", () => {
-		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
-		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const bart = personByName(simpsons, 'Bartholomew Jo-Jo Simpson');
+		const jessica = personByName(simpsons, 'Jessica Lovejoy');
 		const off = layoutFocusView(simpsons, bart.id);
 		expect(off.stubs.find((s) => s.personId === jessica.id)?.count).toBe(3);
 
@@ -133,8 +136,8 @@ describe('step families', () => {
 	});
 
 	it('an expanded "other families" stub draws the same family as the toggle, for that partner only', () => {
-		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
-		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const bart = personByName(simpsons, 'Bartholomew Jo-Jo Simpson');
+		const jessica = personByName(simpsons, 'Jessica Lovejoy');
 		const stubId = `stub:children:other:${jessica.id}`;
 		const layout = layoutFocusView(simpsons, bart.id, { expandedStubIds: [stubId] });
 		const toggled = layoutFocusView(simpsons, bart.id, { shouldIncludeStepFamilies: true });

@@ -18,17 +18,17 @@ let service: ListService;
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
-1 NAME Jessica /Simpson/
-1 NAME Jessica /Smith/
+1 NAME Jane /Roe/
+1 NAME Jane /Doe/
 2 TYPE married
 1 FAMS @F1@
 0 @I2@ INDI
-1 NAME Tom /Smith/
+1 NAME Tom /Doe/
 1 BIRT
 2 DATE 1950
 1 FAMS @F1@
 0 @I3@ INDI
-1 NAME Ann /bower/
+1 NAME Ann /brown/
 0 @I4@ INDI
 1 NAME Bede /Brown/
 1 NAME Bede /Brown/
@@ -63,7 +63,7 @@ afterAll(async () => {
 describe('individuals', () => {
 	it('pages in surname order, case-insensitively, then given name, with unsurnamed people first', async () => {
 		const all = await service.individuals(treeId, { limit: 50 }, ctx());
-		// Cora has no surname; "brown" and "Brown" are one surname so Ann sorts before Bede; Jessica's display surname is Simpson.
+		// Cora has no surname; "brown" and "Brown" are one surname so Ann sorts before Bede; Jane's display surname is Roe.
 		expect(ids(all)).toEqual(['@I5@', '@I3@', '@I4@', '@I2@', '@I1@']);
 		const first = await service.individuals(treeId, { limit: 2 }, ctx());
 		const second = await service.individuals(treeId, { limit: 2, offset: 2 }, ctx());
@@ -80,7 +80,7 @@ describe('individuals', () => {
 		const byGiven = await service.individuals(treeId, { sort: 'given' }, ctx());
 		expect(ids(byGiven)).toEqual(['@I3@', '@I4@', '@I5@', '@I1@', '@I2@']);
 		const tom = byGiven.items.find((p) => p.id.endsWith('@I2@'))!;
-		expect(tom).toMatchObject({ displayName: 'Tom Smith', birthDate: '1950', isPrivate: false });
+		expect(tom).toMatchObject({ displayName: 'Tom Doe', birthDate: '1950', isPrivate: false });
 	});
 
 	it('never includes another tree and never loads the whole tree', async () => {
@@ -104,11 +104,11 @@ describe('individuals', () => {
 describe('surnames', () => {
 	it('lists each surname once across every stored name, counting a person once', async () => {
 		const page = await service.surnames(treeId, {}, ctx());
-		// Smith: Tom, and Jessica through her married name. Brown: Ann and Bede (two casings; Bede has it twice).
+		// Doe: Tom, and Jane through her married name. Brown: Ann and Bede (two casings; Bede has it twice).
 		expect(page.items.map((s) => [s.surname.toLowerCase(), s.people])).toEqual([
 			['brown', 2],
-			['smith', 2],
-			['simpson', 1]
+			['doe', 2],
+			['roe', 1]
 		]);
 	});
 
@@ -119,7 +119,7 @@ describe('surnames', () => {
 			expect(filtered.items, surname).toHaveLength(people);
 		}
 		// A surname only a stored name carries still finds the person, whatever case it is typed in.
-		expect(ids(await service.individuals(treeId, { surname: 'KENNEDY' }, ctx())).sort()).toEqual([
+		expect(ids(await service.individuals(treeId, { surname: 'DOE' }, ctx())).sort()).toEqual([
 			'@I1@',
 			'@I2@'
 		]);
@@ -143,8 +143,8 @@ describe('partnerships', () => {
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0]).toMatchObject({
 			partners: [
-				expect.objectContaining({ displayName: 'Tom Smith' }),
-				expect.objectContaining({ displayName: expect.stringContaining('Jessica') })
+				expect.objectContaining({ displayName: 'Tom Doe' }),
+				expect.objectContaining({ displayName: expect.stringContaining('Jane') })
 			],
 			marriageDate: '1975',
 			marriagePlace: 'Launceston',

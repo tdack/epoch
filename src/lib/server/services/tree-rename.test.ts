@@ -32,11 +32,11 @@ describe('renaming a tree', () => {
 		const renamed = await s.service.updateTree(
 			s.treeId,
 			before,
-			{ name: '  Simpson family  ' },
+			{ name: '  Doe family  ' },
 			s.manager.context
 		);
-		expect(renamed.name).toBe('Simpson family');
-		expect((await s.repo.findById(s.treeId))!.name).toBe('Simpson family');
+		expect(renamed.name).toBe('Doe family');
+		expect((await s.repo.findById(s.treeId))!.name).toBe('Doe family');
 		expect(await s.version()).toBe(before + 1);
 	});
 

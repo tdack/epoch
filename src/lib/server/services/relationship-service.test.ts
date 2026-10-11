@@ -313,7 +313,9 @@ describe('choosing a partnership when there are several', () => {
 	it('puts the child in the partnership the intent names, and the preview matches the save', async () => {
 		const { s, unionIds, addChild, childUnion } = await twinned();
 		const { executed } = await runAndCompare(s, addChild(unionIds[1]));
-		expect(executed.sentence).toContain('in the 2nd partnership of Homer Simpson and Marge Simpson');
+		expect(executed.sentence).toContain(
+			'in the 2nd partnership of Homer Simpson and Marge Simpson'
+		);
 		expect(await childUnion()).toBe(unionIds[1]);
 	});
 
@@ -643,8 +645,8 @@ describe('removing relationships', () => {
 		};
 		const impact = await s.relationships.previewRemoval(s.treeId, command, s.ctx);
 		expect(shape(impact.records)).toEqual([
-			'deleted partner Marge Simpson in the Homer Simpson–Marge Simpson partnership',
 			'deleted partner Homer Simpson in the Homer Simpson–Marge Simpson partnership',
+			'deleted partner Marge Simpson in the Homer Simpson–Marge Simpson partnership',
 			'deleted union Homer Simpson–Marge Simpson partnership',
 			'updated link Homer Simpson as biological parent of Bart Simpson'
 		]);

@@ -53,28 +53,23 @@ test('recording a death shows the dagger and explains the widowhood before savin
 	page,
 	api
 }) => {
-	const [homer, marge] = [
-		await api.addPerson('Homer', 'Simpson'),
-		await api.addPerson('Marge', 'Simpson')
-	];
-	await api.partner(homer, marge);
-	await openTree(page, api, homer);
+	const [john, jane] = [await api.addPerson('John', 'Smith'), await api.addPerson('Jane', 'Smith')];
+	await api.partner(john, jane);
+	await openTree(page, api, john);
 
-	await openMenuByKeyboard(page, 'Homer');
+	await openMenuByKeyboard(page, 'John');
 	await chooseMenuItem(page, 'Record death…');
 	const dialog = page.getByRole('dialog', { name: 'Record death' });
 	await dialog.getByLabel('Date of death').fill('3 MAR 2001');
 	await dialog.getByLabel('Place of death').fill('Brisbane');
 	await expect(
-		dialog.getByText(
-			'Marge Simpson will be shown as widowed in their partnership with Homer Simpson.'
-		)
+		dialog.getByText('Jane Smith will be shown as widowed in their partnership with John Smith.')
 	).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(card(page, 'Homer')).toContainText('†');
+	await expect(card(page, 'John')).toContainText('†');
 	const graph = await api.graph();
-	expect(graph.people.find((p) => p.id === homer.id)).toMatchObject({
+	expect(graph.people.find((p) => p.id === john.id)).toMatchObject({
 		isDeceased: true,
 		deathDate: '3 MAR 2001'
 	});
@@ -82,7 +77,7 @@ test('recording a death shows the dagger and explains the widowhood before savin
 	expect(graph.unions[0].status).toBe('active');
 
 	// The drawer states the derived widowhood.
-	await card(page, 'Marge').dblclick();
+	await card(page, 'Jane').dblclick();
 	await expect(page.getByText('· widowed')).toBeVisible();
 });
 

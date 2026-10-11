@@ -94,32 +94,28 @@ describe('layout contract sweeps', () => {
 describe('known bugs from the plan', () => {
 	const simpsons = captured('simpsons');
 
-	it('focusing Jessica draws Rosalind Fairfax beside Ned with their union between', () => {
-		const layout = layoutFor(simpsons, 'Jessica Louise Lovejoy');
-		const ned = layout.people.find((p) => p.person.displayName === 'Ned Dermot Lovejoy')!;
-		const edna = layout.people.find((p) => p.person.displayName === 'Rosalind Fairfax')!;
-		expect(edna).toBeDefined();
-		expect(edna.y).toBe(ned.y);
-		expect(Math.abs(edna.x - ned.x)).toBe(
-			LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap
-		);
+	it('focusing Jessica draws Selma Bouvier beside Maude with their union between', () => {
+		const layout = layoutFor(simpsons, 'Jessica Lovejoy');
+		const maude = layout.people.find((p) => p.person.displayName === 'Maude Helen Lovejoy')!;
+		const selma = layout.people.find((p) => p.person.displayName === 'Selma Bouvier')!;
+		expect(selma).toBeDefined();
+		expect(selma.y).toBe(maude.y);
+		expect(Math.abs(selma.x - maude.x)).toBe(LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap);
 		const union = layout.unions.find(
-			(u) => u.union.partnerIds.includes(ned.id) && u.union.partnerIds.includes(edna.id)
+			(u) => u.union.partnerIds.includes(maude.id) && u.union.partnerIds.includes(selma.id)
 		)!;
-		expect(union.x).toBeCloseTo((ned.x + edna.x) / 2);
-		expect(union.y).toBe(ned.y);
+		expect(union.x).toBeCloseTo((maude.x + selma.x) / 2);
+		expect(union.y).toBe(maude.y);
 	});
 
-	it('focusing Homer Simpson or Marjorie Bouvier draws Maude Flanders beside Maggie', () => {
-		for (const focus of ['Homer Jay Simpson', 'Marjorie Jacqueline Bouvier']) {
+	it('focusing Homer Simpson or Marjorie Bouvier draws Milhouse Van Houten beside Lisa', () => {
+		for (const focus of ['Homer Jay Simpson', 'Marjorie Bouvier']) {
 			const layout = layoutFor(simpsons, focus);
-			const maggie = layout.people.find(
-				(p) => p.person.displayName === 'Maggie Louise Simpson'
-			)!;
-			const maude = layout.people.find((p) => p.person.displayName === 'Maude Flanders')!;
-			expect(maude, focus).toBeDefined();
-			expect(maude.y).toBe(maggie.y);
-			expect(Math.abs(maude.x - maggie.x)).toBe(
+			const lisa = layout.people.find((p) => p.person.displayName === 'Lisa Marie Simpson')!;
+			const milhouse = layout.people.find((p) => p.person.displayName === 'Milhouse Van Houten')!;
+			expect(milhouse, focus).toBeDefined();
+			expect(milhouse.y).toBe(lisa.y);
+			expect(Math.abs(milhouse.x - lisa.x)).toBe(
 				LAYOUT_METRICS.cardWidth + LAYOUT_METRICS.partnerGap
 			);
 		}
@@ -128,8 +124,8 @@ describe('known bugs from the plan', () => {
 	it("draws one edge per (union, child), carrying both parents' assertions", () => {
 		const layout = layoutFor(simpsons, 'Homer Jay Simpson');
 		const hannah = layoutFor(simpsons, 'Homer Jay Simpson', { descendantDepth: 3 });
-		const hayleyId = personByName(simpsons, 'Hannah Flanders').id;
-		const edges = childEdges(hannah).filter((e) => e.childId === hayleyId);
+		const hannahId = personByName(simpsons, 'Hannah Van Houten').id;
+		const edges = childEdges(hannah).filter((e) => e.childId === hannahId);
 		expect(edges).toHaveLength(1);
 		expect(edges[0].assertions).toHaveLength(2);
 		expect(edges[0].types).toEqual(['biological']);
@@ -137,9 +133,9 @@ describe('known bugs from the plan', () => {
 	});
 
 	it('shows the partner-depth boundary as a couple with a "+2" stub for their children', () => {
-		const layout = layoutFor(simpsons, 'Jessica Louise Lovejoy', { descendantDepth: 1 });
-		expect(layout.people.some((p) => p.person.displayName === 'Rosalind Fairfax')).toBe(true);
-		expect(layout.people.some((p) => p.person.displayName === 'Magnus Lovejoy')).toBe(false);
+		const layout = layoutFor(simpsons, 'Jessica Lovejoy', { descendantDepth: 1 });
+		expect(layout.people.some((p) => p.person.displayName === 'Selma Bouvier')).toBe(true);
+		expect(layout.people.some((p) => p.person.displayName === 'Ralph Lovejoy')).toBe(false);
 		const stub = layout.stubs.find((s) => s.kind === 'children' && s.count === 2)!;
 		const union = layout.unions.find((u) => u.id === stub.unionId)!;
 		expect(stub.y).toBeGreaterThan(union.y);
@@ -148,8 +144,8 @@ describe('known bugs from the plan', () => {
 	});
 
 	it("stubs a partner's undrawn family under the partner (focus Bart: Jessica's 3 children)", () => {
-		const layout = layoutFor(simpsons, 'Bartholomew Jojo Simpson');
-		const jessica = layout.people.find((p) => p.person.displayName === 'Jessica Louise Lovejoy')!;
+		const layout = layoutFor(simpsons, 'Bartholomew Jo-Jo Simpson');
+		const jessica = layout.people.find((p) => p.person.displayName === 'Jessica Lovejoy')!;
 		const stub = layout.stubs.find((s) => s.personId === jessica.id)!;
 		expect(stub.count).toBe(3);
 		expect(stub.x).toBe(jessica.x);
@@ -157,8 +153,12 @@ describe('known bugs from the plan', () => {
 	});
 
 	it('keeps siblings contiguous and toggles them', () => {
-		const withSiblings = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { shouldIncludeSiblings: true });
-		const without = layoutFor(simpsons, 'Bartholomew Jojo Simpson', { shouldIncludeSiblings: false });
+		const withSiblings = layoutFor(simpsons, 'Bartholomew Jo-Jo Simpson', {
+			shouldIncludeSiblings: true
+		});
+		const without = layoutFor(simpsons, 'Bartholomew Jo-Jo Simpson', {
+			shouldIncludeSiblings: false
+		});
 		expect(withSiblings.people.filter((p) => p.role === 'sibling')).toHaveLength(3);
 		expect(without.people.filter((p) => p.role === 'sibling')).toHaveLength(0);
 	});

@@ -24,10 +24,10 @@ test('the owner’s tree default, a member’s own choice and an explicit link o
 	api,
 	page
 }) => {
-	const homer = await api.addPerson('Homer', 'Default');
+	const john = await api.addPerson('John', 'Default');
 	const kit = await api.addPerson('Kit', 'Default');
-	await api.child(homer, kit);
-	const bare = `/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}`;
+	await api.child(john, kit);
+	const bare = `/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}`;
 
 	// With nothing chosen a link opens flat.
 	await open(page, bare);

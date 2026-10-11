@@ -2,14 +2,18 @@ import { readFileSync } from 'node:fs';
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { chooseMenuItem, expect, test, type Api } from './support';
 
-const DIRTY_GED = readFileSync('docs/gedcom-data/The_Simpsons.ged');
+const DIRTY_GED = readFileSync('test/data/The Simpsons duplicate families.ged');
 const XREF = { bart: '@I_c2773035@', jessica: '@I_cc833eb7@' } as const;
 
 /** The dirty file, imported as written into the test's own tree: duplicates and all. */
 async function importDirty(request: APIRequestContext, api: Api) {
 	const res = await request.post('/api/import', {
 		multipart: {
-			file: { name: 'The_Simpsons.ged', mimeType: 'text/plain', buffer: DIRTY_GED },
+			file: {
+				name: 'The Simpsons duplicate families.ged',
+				mimeType: 'text/plain',
+				buffer: DIRTY_GED
+			},
 			treeId: api.treeId,
 			mode: 'replace'
 		}
@@ -23,7 +27,7 @@ async function openBart(page: Page, api: Api) {
 }
 
 const bartJessicaMarker = (page: Page, position: '1st' | '2nd') =>
-	page.locator(`[data-union-id][aria-label^="${position} partnership of Bart"]`);
+	page.locator(`[data-union-id][aria-label^="${position} partnership of Bartholomew"]`);
 
 test('repeated partnerships between one pair are labelled 1st and 2nd, in the canvas and the drawer', async ({
 	page,
@@ -77,7 +81,7 @@ test('merging duplicate partnerships from the union menu previews the change, th
 	await expect(page.getByText(/Merged 2 partnerships/)).toBeVisible();
 	await expect.poll(async () => (await api.graph()).unions.length).toBe(9);
 	await expect(
-		page.locator('[data-union-id][aria-label*="Bart"][aria-label*="Jessica"]')
+		page.locator('[data-union-id][aria-label*="Bartholomew"][aria-label*="Jessica"]')
 	).toHaveCount(1);
 
 	await page.getByRole('button', { name: 'Undo' }).click();
@@ -108,7 +112,10 @@ test('two different marriage dates are never merged silently: a choice is requir
 	void first;
 
 	await openBart(page, api);
-	await page.locator('[data-union-id][aria-label*="Bart"][aria-label*="Jessica"]').first().focus();
+	await page
+		.locator('[data-union-id][aria-label*="Bartholomew"][aria-label*="Jessica"]')
+		.first()
+		.focus();
 	await page.keyboard.press('Shift+F10');
 	await chooseMenuItem(page, 'Merge duplicate partnerships…');
 
@@ -134,13 +141,11 @@ test('the import preview lists duplicate families, merges exact ones by default,
 	await page.goto(`/trees/${api.treeId}`);
 	// A file chosen before the page has hydrated is ignored.
 	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
-	await page.setInputFiles('input[type="file"]', 'docs/gedcom-data/The_Simpsons.ged');
+	await page.setInputFiles('input[type="file"]', 'test/data/The Simpsons duplicate families.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });
 	await expect(dialog.getByText('Duplicate families', { exact: true })).toBeVisible();
-	await expect(
-		dialog.getByText(/Homer Jay Simpson and Marjorie Jacqueline Bouvier: 3 copies/)
-	).toBeVisible();
+	await expect(dialog.getByText(/Homer Jay Simpson and Marjorie Bouvier: 3 copies/)).toBeVisible();
 	await expect(dialog.getByText(/Possible duplicates/)).toBeVisible();
 	await expect(dialog.getByText(/the same single partner, listed more than once/)).toBeVisible();
 	// The counts follow the checkbox: ten families in the file, seven once the duplicates are merged.
@@ -160,7 +165,7 @@ test('unticking the merge option imports the file exactly as written', async ({ 
 	await page.goto(`/trees/${api.treeId}`);
 	// A file chosen before the page has hydrated is ignored.
 	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
-	await page.setInputFiles('input[type="file"]', 'docs/gedcom-data/The_Simpsons.ged');
+	await page.setInputFiles('input[type="file"]', 'test/data/The Simpsons duplicate families.ged');
 
 	const dialog = page.getByRole('dialog', { name: 'Import GEDCOM' });
 	await dialog.getByRole('checkbox', { name: /Merge duplicate families/ }).uncheck();

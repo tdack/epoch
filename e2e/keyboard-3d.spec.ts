@@ -8,27 +8,27 @@ import type { Page } from '@playwright/test';
 
 const MODES = ['layers', 'floors'] as const;
 
-/** Homer and Marge, their child Kit, Homer's mother Mum and Homer's sister Sue (a sibling-line card). */
+/** John and Jane, their child Kit, John's mother Mum and John's sister Sue (a sibling-line card). */
 async function family(api: Api) {
-	const [homer, marge, kit, mum, dad, sue] = [
-		await api.addPerson('Homer', 'Simpson', { birthDate: '1960' }),
-		await api.addPerson('Marge', 'Simpson', { birthDate: '1961' }),
-		await api.addPerson('Kit', 'Simpson', { birthDate: '1990' }),
-		await api.addPerson('Mum', 'Simpson', { birthDate: '1930' }),
-		await api.addPerson('Dad', 'Simpson', { birthDate: '1928' }),
-		await api.addPerson('Sue', 'Simpson', { birthDate: '1962' })
+	const [john, jane, kit, mum, dad, sue] = [
+		await api.addPerson('John', 'Smith', { birthDate: '1960' }),
+		await api.addPerson('Jane', 'Smith', { birthDate: '1961' }),
+		await api.addPerson('Kit', 'Smith', { birthDate: '1990' }),
+		await api.addPerson('Mum', 'Smith', { birthDate: '1930' }),
+		await api.addPerson('Dad', 'Smith', { birthDate: '1928' }),
+		await api.addPerson('Sue', 'Smith', { birthDate: '1962' })
 	];
-	await api.partner(homer, marge);
+	await api.partner(john, jane);
 	// Siblings are found through the parents' partnership, so Mum needs one.
 	await api.partner(mum, dad);
-	await api.child(homer, kit);
-	await api.child(mum, homer);
+	await api.child(john, kit);
+	await api.child(mum, john);
 	await api.child(mum, sue);
-	return { homer, marge, kit, mum, sue };
+	return { john, jane, kit, mum, sue };
 }
 
 const card = (page: Page, name: string) =>
-	page.locator('[data-person-id]').filter({ hasText: new RegExp(`\\b${name} Simpson`) });
+	page.locator('[data-person-id]').filter({ hasText: new RegExp(`\\b${name} Smith`) });
 
 for (const mode of MODES) {
 	test.describe(`${mode} view`, () => {
@@ -36,9 +36,9 @@ for (const mode of MODES) {
 			const people = await family(api);
 			await open(
 				page,
-				`/trees/${api.treeId}?focus=${encodeURIComponent(people.homer.id)}&up=1&down=1&siblings=1&mode=${mode}`
+				`/trees/${api.treeId}?focus=${encodeURIComponent(people.john.id)}&up=1&down=1&siblings=1&mode=${mode}`
 			);
-			await expect(card(page, 'Homer')).toBeVisible();
+			await expect(card(page, 'John')).toBeVisible();
 			await expect(card(page, 'Sue')).toHaveCount(1);
 			return people;
 		}
@@ -48,37 +48,37 @@ for (const mode of MODES) {
 			api
 		}) => {
 			await openMode(page, api);
-			await card(page, 'Homer').focus();
+			await card(page, 'John').focus();
 
-			// Which partner stands on the left follows the union's order, so go the way Marge is.
-			const homerBox = (await card(page, 'Homer').boundingBox())!;
-			const margeBox = (await card(page, 'Marge').boundingBox())!;
-			const isMargeRight = margeBox.x > homerBox.x;
-			await page.keyboard.press(isMargeRight ? 'ArrowRight' : 'ArrowLeft');
-			await expect(card(page, 'Marge')).toBeFocused();
-			await page.keyboard.press(isMargeRight ? 'ArrowLeft' : 'ArrowRight');
-			await expect(card(page, 'Homer')).toBeFocused();
+			// Which partner stands on the left follows the union's order, so go the way Jane is.
+			const johnBox = (await card(page, 'John').boundingBox())!;
+			const janeBox = (await card(page, 'Jane').boundingBox())!;
+			const isJaneRight = janeBox.x > johnBox.x;
+			await page.keyboard.press(isJaneRight ? 'ArrowRight' : 'ArrowLeft');
+			await expect(card(page, 'Jane')).toBeFocused();
+			await page.keyboard.press(isJaneRight ? 'ArrowLeft' : 'ArrowRight');
+			await expect(card(page, 'John')).toBeFocused();
 
 			await page.keyboard.press('ArrowDown');
 			await expect(card(page, 'Kit')).toBeFocused();
 			await page.keyboard.press('ArrowUp');
 			await expect(page.locator('[data-person-id]:focus')).toHaveAttribute(
 				'aria-label',
-				/^(Homer|Marge) Simpson/
+				/^(John|Jane) Smith/
 			);
 
-			await card(page, 'Homer').focus();
+			await card(page, 'John').focus();
 			await page.keyboard.press('ArrowUp');
 			await expect(card(page, 'Mum')).toBeFocused();
 
-			// Sue stands in the next band back, level with Homer.
-			await card(page, 'Homer').focus();
+			// Sue stands in the next band back, level with John.
+			await card(page, 'John').focus();
 			await page.keyboard.press('Alt+ArrowUp');
 			await expect(card(page, 'Sue')).toBeFocused();
 			await page.keyboard.press('Alt+ArrowDown');
 			await expect(page.locator('[data-person-id]:focus')).toHaveAttribute(
 				'aria-label',
-				/^(Homer|Marge) Simpson/
+				/^(John|Jane) Smith/
 			);
 			// Only the focus card was in the tab order to start with; moving the cursor moves it.
 			await expect(page.locator('[data-person-id][tabindex="0"]')).toHaveCount(1);
@@ -89,7 +89,7 @@ for (const mode of MODES) {
 			api
 		}) => {
 			await openMode(page, api);
-			await card(page, 'Homer').focus();
+			await card(page, 'John').focus();
 			await page.keyboard.press('Shift+F10');
 			const menu = page.getByRole('menu');
 			await expect(menu).toBeVisible();
@@ -104,12 +104,12 @@ for (const mode of MODES) {
 			// Escape closes it and hands focus back.
 			await page.keyboard.press('Escape');
 			await expect(menu).toBeHidden();
-			await expect(card(page, 'Homer')).toBeFocused();
+			await expect(card(page, 'John')).toBeFocused();
 
 			await page.keyboard.press('Shift+F10');
 			await chooseMenuItem(page, 'Show details');
 			await expect(
-				page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })
+				page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /John Smith/ })
 			).toBeVisible();
 		});
 
@@ -122,7 +122,7 @@ for (const mode of MODES) {
 			await dialog.getByRole('button', { name: 'Add partner' }).press('Enter');
 			await dialog.getByRole('button', { name: 'New person' }).press('Enter');
 			await dialog.getByLabel('Given name').fill('Pat');
-			await expect(dialog.getByText("Pat will be recorded as Kit Simpson's partner.")).toBeVisible();
+			await expect(dialog.getByText("Pat will be recorded as Kit Smith's partner.")).toBeVisible();
 			await dialog.getByRole('button', { name: 'Save', exact: true }).press('Enter');
 			await expect(page.getByRole('status').filter({ hasText: 'Pat was recorded' })).toBeVisible();
 			const graph = await api.graph();
@@ -134,7 +134,7 @@ for (const mode of MODES) {
 			api
 		}) => {
 			await openMode(page, api);
-			await card(page, 'Homer').focus();
+			await card(page, 'John').focus();
 			const union = page.locator('[data-union-id][tabindex="0"]');
 			for (let i = 0; i < 6 && !(await union.evaluate((el) => el === document.activeElement)); i++)
 				await page.keyboard.press('Tab');
@@ -148,8 +148,8 @@ for (const mode of MODES) {
 			api
 		}) => {
 			await openMode(page, api);
-			const from = (await card(page, 'Homer').locator('.frame').first().boundingBox())!;
-			const to = (await card(page, 'Marge').locator('.frame').first().boundingBox())!;
+			const from = (await card(page, 'John').locator('.frame').first().boundingBox())!;
+			const to = (await card(page, 'Jane').locator('.frame').first().boundingBox())!;
 			await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
 			await page.mouse.down();
 			await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
@@ -163,7 +163,7 @@ for (const mode of MODES) {
 		}) => {
 			await openMode(page, api);
 			await expect(card(page, 'Sue')).toHaveAttribute('aria-label', /sibling line/);
-			await expect(card(page, 'Homer')).toHaveAttribute('aria-label', /focus person/);
+			await expect(card(page, 'John')).toHaveAttribute('aria-label', /focus person/);
 			const canvas = page.getByRole('application', { name: `Family tree, ${mode} view` });
 			await expect(canvas.getByRole('group').first()).toBeVisible();
 			// The Preview badge came off with this stage.

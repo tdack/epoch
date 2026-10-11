@@ -1,24 +1,24 @@
 import { card, expect, test, openTree } from './support';
 
 test('deleting a person lists exactly what goes and needs confirmation', async ({ page, api }) => {
-	const [homer, marge, bart] = [
-		await api.addPerson('Homer', 'Simpson'),
-		await api.addPerson('Marge', 'Simpson'),
-		await api.addPerson('Bart', 'Simpson')
+	const [john, jane, sam] = [
+		await api.addPerson('John', 'Smith'),
+		await api.addPerson('Jane', 'Smith'),
+		await api.addPerson('Sam', 'Smith')
 	];
-	await api.partner(homer, marge);
-	await api.child(homer, bart);
-	await openTree(page, api, homer);
+	await api.partner(john, jane);
+	await api.child(john, sam);
+	await openTree(page, api, john);
 
-	await card(page, 'Homer').click({ button: 'right' });
+	await card(page, 'John').click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Delete person…' }).click();
 
-	const dialog = page.getByRole('dialog', { name: 'Delete Homer Simpson?' });
+	const dialog = page.getByRole('dialog', { name: 'Delete John Smith?' });
 	await expect(dialog).toBeVisible();
-	await expect(dialog.getByText('Homer Simpson', { exact: true })).toBeVisible();
-	await expect(dialog.getByText('Marge Simpson', { exact: true })).toBeVisible();
-	await expect(dialog.getByText('Bart Simpson', { exact: true })).toBeVisible();
-	await expect(dialog.getByText('Homer Simpson as biological parent of Bart Simpson')).toBeVisible();
+	await expect(dialog.getByText('John Smith', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('Jane Smith', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('Sam Smith', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('John Smith as biological parent of Sam Smith')).toBeVisible();
 
 	// Cancel is the default action, and cancelling changes nothing.
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
@@ -26,16 +26,16 @@ test('deleting a person lists exactly what goes and needs confirmation', async (
 	await expect(dialog).toBeHidden();
 	expect((await api.counts()).people).toBe(3);
 
-	await card(page, 'Homer').click({ button: 'right' });
+	await card(page, 'John').click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Delete person…' }).click();
 	await dialog.getByRole('button', { name: 'Delete person' }).click();
 
-	await expect(page.getByRole('status').filter({ hasText: 'Deleted Homer Simpson' })).toBeVisible();
-	// Marge and Bart are no longer connected, so each is its own window.
+	await expect(page.getByRole('status').filter({ hasText: 'Deleted John Smith' })).toBeVisible();
+	// Jane and Sam are no longer connected, so each is its own window.
 	expect((await api.counts()).people).toBe(2);
-	for (const person of [marge, bart]) {
+	for (const person of [jane, sam]) {
 		const graph = await api.graph(person.id);
-		expect(graph.people.map((p) => p.displayName)).toEqual([`${person.givenName} Simpson`]);
+		expect(graph.people.map((p) => p.displayName)).toEqual([`${person.givenName} Smith`]);
 		expect(graph.parentChild).toEqual([]);
 	}
 });

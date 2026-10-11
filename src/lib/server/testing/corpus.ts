@@ -49,7 +49,7 @@ const GIVEN_NAMES = [
 	'Petra',
 	'Quentin',
 	'Rose',
-	'Silas',
+	'Simon',
 	'Thea',
 	'Una',
 	'Victor',
@@ -60,7 +60,7 @@ const GIVEN_NAMES = [
 ];
 const SURNAME_STEMS = [
 	'Ash',
-	'Brown',
+	'Birch',
 	'Cole',
 	'Dunn',
 	'Ellis',

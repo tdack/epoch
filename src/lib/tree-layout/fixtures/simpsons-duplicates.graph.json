@@ -2,7 +2,7 @@
 	"people": [
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_c2773035@",
-			"displayName": "Bartholomew Jojo Simpson",
+			"displayName": "Bartholomew Jo-Jo Simpson",
 			"sex": "M",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -25,7 +25,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_cc833eb7@",
-			"displayName": "Jessica Louise Lovejoy",
+			"displayName": "Jessica Lovejoy",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {},
@@ -53,7 +53,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_7fb420f0@",
-			"displayName": "Marjorie Jacqueline Bouvier",
+			"displayName": "Marjorie Bouvier",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {},
@@ -67,7 +67,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_7e044ae1@",
-			"displayName": "Maggie Louise Simpson",
+			"displayName": "Lisa Marie Simpson",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -87,7 +87,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_36d204ee@",
-			"displayName": "Lenora Marie Simpson",
+			"displayName": "Margaret Simpson",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -107,7 +107,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_547728f0@",
-			"displayName": "Amelia Rae Simpson",
+			"displayName": "Ling Simpson",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -127,7 +127,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_754c7644@",
-			"displayName": "Maude Flanders",
+			"displayName": "Milhouse Van Houten",
 			"sex": "M",
 			"isDeceased": false,
 			"parentsByUnion": {},
@@ -136,7 +136,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_def9c832@",
-			"displayName": "Hannah Flanders",
+			"displayName": "Hannah Van Houten",
 			"sex": "F",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -156,7 +156,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_7fd939cf@",
-			"displayName": "Rodney Flanders",
+			"displayName": "Jacob Van Houten",
 			"sex": "M",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -176,7 +176,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_1c2e929c@",
-			"displayName": "Jasper Silas Jonas Wren",
+			"displayName": "Todd Jackson Lovejoy",
 			"sex": "U",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -201,7 +201,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_040480da@",
-			"displayName": "Hector James Wren",
+			"displayName": "Rodney James Lovejoy",
 			"sex": "M",
 			"isDeceased": false,
 			"parentsByUnion": {
@@ -226,7 +226,7 @@
 		},
 		{
 			"id": "8cc14bc4-9220-4d0f-a1f5-141a18a09774:@I_e3c4e78c@",
-			"displayName": "Ned Dermot Lovejoy",
+			"displayName": "Maude Helen Lovejoy",
 			"sex": "U",
 			"isDeceased": false,
 			"parentsByUnion": {

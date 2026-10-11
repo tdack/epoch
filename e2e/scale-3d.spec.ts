@@ -8,36 +8,36 @@ import type { Page } from '@playwright/test';
 
 const SIBLINGS = 13;
 
-/** Homer with a crowd of siblings, a partner and a child, and parents above. */
+/** John with a crowd of siblings, a partner and a child, and parents above. */
 async function crowd(api: Api) {
-	const homer = await api.addPerson('Homer', 'Crowd', { birthDate: '1960' });
-	const marge = await api.addPerson('Marge', 'Crowd', { birthDate: '1961' });
+	const john = await api.addPerson('John', 'Crowd', { birthDate: '1960' });
+	const jane = await api.addPerson('Jane', 'Crowd', { birthDate: '1961' });
 	const mum = await api.addPerson('Mum', 'Crowd', { birthDate: '1930' });
 	const dad = await api.addPerson('Dad', 'Crowd', { birthDate: '1928' });
 	const kit = await api.addPerson('Kit', 'Crowd', { birthDate: '1990' });
-	await api.partner(homer, marge);
+	await api.partner(john, jane);
 	await api.partner(mum, dad);
-	await api.child(mum, homer);
-	await api.child(homer, kit);
+	await api.child(mum, john);
+	await api.child(john, kit);
 	for (let i = 0; i < SIBLINGS; i++) {
 		const sibling = await api.addPerson(`Sib${String(i).padStart(2, '0')}`, 'Crowd', {
 			birthDate: String(1950 + i)
 		});
 		await api.child(mum, sibling);
 	}
-	return { homer };
+	return { john };
 }
 
 const cards = (page: Page) => page.locator('[data-person-id]');
 
 for (const mode of ['layers', 'floors'] as const) {
 	test(`${mode}: a crowded back row folds into a mark that opens it`, async ({ page, api }) => {
-		const { homer } = await crowd(api);
+		const { john } = await crowd(api);
 		await open(
 			page,
-			`/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}&up=1&down=1&siblings=1&mode=${mode}`
+			`/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}&up=1&down=1&siblings=1&mode=${mode}`
 		);
-		await expect(cards(page).filter({ hasText: /Homer Crowd/ })).toBeVisible();
+		await expect(cards(page).filter({ hasText: /John Crowd/ })).toBeVisible();
 
 		const fold = page.locator('[data-fold-id]').first();
 		await expect(fold).toBeAttached();
@@ -48,7 +48,7 @@ for (const mode of ['layers', 'floors'] as const) {
 		expect(shown).toBeLessThan(SIBLINGS);
 
 		// The focus person and their direct line are never folded.
-		await expect(cards(page).filter({ hasText: /Marge Crowd|Mum Crowd|Kit Crowd/ })).toHaveCount(3);
+		await expect(cards(page).filter({ hasText: /Jane Crowd|Mum Crowd|Kit Crowd/ })).toHaveCount(3);
 
 		const url = page.url();
 		await fold.focus();
@@ -95,8 +95,8 @@ test.describe('on a phone', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await crowd(api);
-		const base = `/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}&up=1&down=1&siblings=1`;
+		const { john } = await crowd(api);
+		const base = `/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}&up=1&down=1&siblings=1`;
 
 		await open(page, `${base}&mode=layers`);
 		const canvas = page.getByRole('application', { name: 'Family tree, layers view' });

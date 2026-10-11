@@ -104,11 +104,11 @@ test('a partnership node is reachable by Tab and Enter opens its editor', async 
 });
 
 test('the card menu opens the details drawer', async ({ page, api }) => {
-	const homer = await api.addPerson('Homer', 'Simpson');
-	await openTree(page, api, homer);
-	await openMenuByKeyboard(page, 'Homer');
+	const john = await api.addPerson('John', 'Smith');
+	await openTree(page, api, john);
+	await openMenuByKeyboard(page, 'John');
 	await chooseMenuItem(page, 'Show details');
 	await expect(
-		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /Homer Simpson/ })
+		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /John Smith/ })
 	).toBeVisible();
 });

@@ -1,0 +1,169 @@
+0 HEAD
+1 SOUR EPOCH_GENEALOGY
+2 NAME Epoch Family Genealogy Repository
+2 VERS 1.0
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 NOTE Tree: The Simpsons duplicate families
+0 @I_c2773035@ INDI
+1 NAME Bartholomew Jo-Jo /Simpson/
+2 GIVN Bartholomew Jo-Jo
+2 SURN Simpson
+1 SEX M
+1 BIRT
+2 DATE 14 Aug 1975
+2 PLAC Springfield
+1 FAMC @F_ac5bd259@
+1 FAMC @F_d88ca04a@
+1 FAMC @F_d9d0076c@
+1 FAMS @F_87948dab@
+1 FAMS @F_ba9969ea@
+0 @I_cc833eb7@ INDI
+1 NAME Jessica /Lovejoy/
+2 GIVN Jessica
+2 SURN Lovejoy
+1 SEX F
+1 BIRT
+2 DATE 9 Mar 1966
+2 PLAC Shelbyville
+1 FAMS @F_87948dab@
+1 FAMS @F_ba9969ea@
+1 FAMS @F_797d559f@
+1 FAMS @F_4e0af778@
+0 @I_937df8d1@ INDI
+1 NAME Homer Jay /Simpson/
+2 GIVN Homer Jay
+2 SURN Simpson
+1 SEX M
+1 FAMS @F_d9d0076c@
+1 FAMS @F_ac5bd259@
+1 FAMS @F_d88ca04a@
+1 FAMS @F_992151b5@
+0 @I_7fb420f0@ INDI
+1 NAME Marjorie /Bouvier/
+2 GIVN Marjorie
+2 SURN Bouvier
+1 SEX F
+1 FAMS @F_d9d0076c@
+1 FAMS @F_ac5bd259@
+1 FAMS @F_d88ca04a@
+1 FAMS @F_8741ccc0@
+0 @I_7e044ae1@ INDI
+1 NAME Lisa Marie /Simpson/
+2 GIVN Lisa Marie
+2 SURN Simpson
+1 SEX F
+1 BIRT
+2 DATE 17 May 1979
+1 FAMC @F_992151b5@
+1 FAMC @F_8741ccc0@
+1 FAMC @F_d9d0076c@
+1 FAMS @F_62448547@
+0 @I_36d204ee@ INDI
+1 NAME Margaret /Simpson/
+2 GIVN Margaret
+2 SURN Simpson
+1 SEX F
+1 BIRT
+2 DATE 28 JAN 1985
+2 PLAC Springfield
+1 FAMC @F_d9d0076c@
+0 @I_547728f0@ INDI
+1 NAME Ling /Simpson/
+2 GIVN Ling
+2 SURN Simpson
+1 SEX F
+1 BIRT
+2 DATE 28 JAN 1985
+2 PLAC Springfield
+1 FAMC @F_d9d0076c@
+0 @I_754c7644@ INDI
+1 NAME Milhouse /Van Houten/
+2 GIVN Milhouse
+2 SURN Van Houten
+1 SEX M
+1 FAMS @F_62448547@
+0 @I_def9c832@ INDI
+1 NAME Hannah /Van Houten/
+2 GIVN Hannah
+2 SURN Van Houten
+1 SEX F
+1 FAMC @F_62448547@
+0 @I_7fd939cf@ INDI
+1 NAME Jacob /Van Houten/
+2 GIVN Jacob
+2 SURN Van Houten
+1 SEX M
+1 FAMC @F_62448547@
+0 @I_1c2e929c@ INDI
+1 NAME Todd Jackson /Lovejoy/
+2 GIVN Todd Jackson
+2 SURN Lovejoy
+1 SEX U
+1 BIRT
+2 DATE 21 SEP 2000
+1 FAMC @F_797d559f@
+1 FAMC @F_4e0af778@
+0 @I_040480da@ INDI
+1 NAME Rodney James /Lovejoy/
+2 GIVN Rodney James
+2 SURN Lovejoy
+1 SEX M
+1 BIRT
+2 DATE 19 DEC 2001
+1 FAMC @F_4e0af778@
+0 @I_e3c4e78c@ INDI
+1 NAME Maude Desmond /Lovejoy/
+2 GIVN Maude Desmond
+2 SURN Lovejoy
+1 SEX U
+1 FAMC @F_4e0af778@
+0 @F_87948dab@ FAM
+1 HUSB @I_c2773035@
+1 WIFE @I_cc833eb7@
+1 MARR
+2 DATE 3 Nov 2014
+2 PLAC Springfield
+0 @F_d9d0076c@ FAM
+1 HUSB @I_937df8d1@
+1 WIFE @I_7fb420f0@
+1 CHIL @I_c2773035@
+1 CHIL @I_7e044ae1@
+1 CHIL @I_36d204ee@
+1 CHIL @I_547728f0@
+0 @F_ba9969ea@ FAM
+1 HUSB @I_c2773035@
+1 WIFE @I_cc833eb7@
+1 MARR
+2 DATE 3 Nov 2014
+2 PLAC Springfield
+0 @F_ac5bd259@ FAM
+1 HUSB @I_937df8d1@
+1 WIFE @I_7fb420f0@
+1 CHIL @I_c2773035@
+0 @F_d88ca04a@ FAM
+1 HUSB @I_937df8d1@
+1 WIFE @I_7fb420f0@
+1 CHIL @I_c2773035@
+0 @F_992151b5@ FAM
+1 HUSB @I_937df8d1@
+1 CHIL @I_7e044ae1@
+0 @F_8741ccc0@ FAM
+1 WIFE @I_7fb420f0@
+1 CHIL @I_7e044ae1@
+0 @F_62448547@ FAM
+1 HUSB @I_754c7644@
+1 WIFE @I_7e044ae1@
+1 CHIL @I_def9c832@
+1 CHIL @I_7fd939cf@
+0 @F_797d559f@ FAM
+1 WIFE @I_cc833eb7@
+1 CHIL @I_1c2e929c@
+0 @F_4e0af778@ FAM
+1 WIFE @I_cc833eb7@
+1 CHIL @I_1c2e929c@
+1 CHIL @I_040480da@
+1 CHIL @I_e3c4e78c@
+0 TRLR

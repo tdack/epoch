@@ -1,0 +1,50 @@
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Marjorie Jacqueline /Bouvier/
+2 TYPE birth
+2 GIVN Marjorie Jacqueline
+2 SURN Bouvier
+1 NAME Marjorie Jacqueline /Hibbert/
+2 TYPE married
+2 GIVN Marjorie Jacqueline
+2 SURN Hibbert
+2 NOTE Took Jules's surname
+2 SOUR @S1@
+3 PAGE 12
+1 SEX F
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Dr Julius "Jules" /van Hibbert/ Jr
+2 NPFX Dr
+2 GIVN Julius
+2 NICK Jules
+2 SPFX van
+2 SURN Hibbert
+2 NSFX Jr
+1 NAME Julie /Hibbert/
+2 TYPE nickname
+1 NAME Jules /Hibbert/
+2 TYPE professional
+1 SEX M
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Jane /Doe/
+1 _MARNM Jane /Roe/
+1 NAME Jane Marie /Doe/ Jr
+2 FONE Jayne Mari
+1 SEX F
+0 @I4@ INDI
+1 NAME Jess /Lovejoy/
+1 _MARNM Mason
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 MARR
+2 DATE 8 OCT 2001
+0 @S1@ SOUR
+1 TITL A source
+0 TRLR

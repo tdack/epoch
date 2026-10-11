@@ -26,7 +26,7 @@ async function setup() {
 	const treeId = await createTestTree(t.db, actor);
 	const ctx = actor.context;
 	const person = (
-		await new PersonService(t.db).create(treeId, { givenName: 'Jessica', surname: 'Simpson' }, ctx)
+		await new PersonService(t.db).create(treeId, { givenName: 'Jane', surname: 'Doe' }, ctx)
 	).individual;
 	const names = new NameService(t.db);
 	const display = async () => {
@@ -42,7 +42,7 @@ describe('names through the mutation runner', () => {
 	it('gives a person created in the editor a preferred name row', async () => {
 		const { rows } = await setup();
 		expect(await rows()).toMatchObject([
-			{ type: 'birth', givenName: 'Jessica', surname: 'Simpson', isPreferred: true }
+			{ type: 'birth', givenName: 'Jane', surname: 'Doe', isPreferred: true }
 		]);
 	});
 
@@ -51,23 +51,23 @@ describe('names through the mutation runner', () => {
 		const created = await names.create(
 			treeId,
 			person.id,
-			{ type: 'married', givenName: 'Jessica', surname: 'Smith' },
+			{ type: 'married', givenName: 'Jane', surname: 'Smith' },
 			false,
 			ctx
 		);
-		expect(created.change?.summary).toBe('Added married name Jessica Wren to Jessica Lovejoy');
-		expect(await display()).toBe('Jessica Lovejoy');
+		expect(created.change?.summary).toBe('Added married name Jane Smith to Jane Doe');
+		expect(await display()).toBe('Jane Doe');
 
 		const preferred = await names.setPreferred(treeId, person.id, created.nameId, undefined, ctx);
 		expect(preferred.change?.summary).toBe(
-			'Chose the married name as the preferred name of Jessica Lovejoy'
+			'Chose the married name as the preferred name of Jane Doe'
 		);
-		expect(await display()).toBe('Jessica Wren');
+		expect(await display()).toBe('Jane Smith');
 		expect((await rows()).filter((n) => n.isPreferred).map((n) => n.surname)).toEqual(['Smith']);
 
 		await log.undoLast(treeId, ctx);
-		expect(await display()).toBe('Jessica Lovejoy');
-		expect((await rows()).filter((n) => n.isPreferred).map((n) => n.surname)).toEqual(['Simpson']);
+		expect(await display()).toBe('Jane Doe');
+		expect((await rows()).filter((n) => n.isPreferred).map((n) => n.surname)).toEqual(['Doe']);
 	});
 
 	it('edits and deletes a name, each undoable, and removes the name row with the undo of a create', async () => {
@@ -100,10 +100,10 @@ describe('names through the mutation runner', () => {
 			treeId,
 			person.id,
 			person.version,
-			{ surname: 'Simpson-Smith' },
+			{ surname: 'Doe-Smith' },
 			ctx
 		);
-		expect((await rows()).find((n) => n.isPreferred)).toMatchObject({ surname: 'Simpson-Smith' });
+		expect((await rows()).find((n) => n.isPreferred)).toMatchObject({ surname: 'Doe-Smith' });
 	});
 
 	it('a stale version is a conflict, and a viewer cannot change names', async () => {
@@ -136,13 +136,13 @@ describe('names through the mutation runner', () => {
 				personId: person.id,
 				nameId: 'preview',
 				isPreferred: true,
-				name: { type: 'married', givenName: 'Jessica', surname: 'Smith' }
+				name: { type: 'married', givenName: 'Jane', surname: 'Smith' }
 			},
 			ctx
 		);
 		expect(impact.records.map((r) => [r.action, r.label])).toContainEqual([
 			'created',
-			'Married name Jessica Wren of Jessica Lovejoy'
+			'Married name Jane Smith of Jane Doe'
 		]);
 		expect(impact.records.some((r) => r.entityType === 'person' && r.action === 'updated')).toBe(
 			true

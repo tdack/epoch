@@ -18,16 +18,16 @@ import {
 } from './support';
 import type { Page } from '@playwright/test';
 
-/** Homer with two partnerships, so the chooser appears. */
+/** John with two partnerships, so the chooser appears. */
 async function family(api: Api) {
-	const [homer, marge, kit] = [
-		await api.addPerson('Homer', 'Simpson'),
-		await api.addPerson('Marge', 'Simpson'),
-		await api.addPerson('Kit', 'Simpson')
+	const [john, jane, kit] = [
+		await api.addPerson('John', 'Smith'),
+		await api.addPerson('Jane', 'Smith'),
+		await api.addPerson('Kit', 'Smith')
 	];
-	await api.partner(homer, marge);
-	await api.child(homer, kit);
-	return { homer, marge, kit };
+	await api.partner(john, jane);
+	await api.child(john, kit);
+	return { john, jane, kit };
 }
 
 async function violations(page: Page, scope?: string) {
@@ -43,8 +43,8 @@ test.describe('screen reader', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
+		const { john } = await family(api);
+		await openTree(page, api, john);
 		expect(await violations(page)).toEqual([]);
 	});
 
@@ -149,10 +149,10 @@ test.describe('screen reader', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await family(api);
-		await api.addPerson('Second', 'Partner').then((p) => api.partner(homer, p));
-		await openTree(page, api, homer);
-		await openMenuByKeyboard(page, 'Homer');
+		const { john } = await family(api);
+		await api.addPerson('Second', 'Partner').then((p) => api.partner(john, p));
+		await openTree(page, api, john);
+		await openMenuByKeyboard(page, 'John');
 		await chooseMenuItem(page, 'Add relationship');
 		const dialog = page.getByRole('dialog', { name: 'Add relationship' });
 		await dialog.getByRole('button', { name: 'Add child' }).click();
@@ -170,12 +170,12 @@ test.describe('screen reader', () => {
 	});
 
 	test('a failed preview is announced as an alert', async ({ page, api }) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
+		const { john } = await family(api);
+		await openTree(page, api, john);
 		await page.route('**/relationships/plan', (route) =>
 			route.fulfill({ status: 400, json: { error: 'That did not work', code: 'VALIDATION_ERROR' } })
 		);
-		await openMenuByKeyboard(page, 'Homer');
+		await openMenuByKeyboard(page, 'John');
 		await chooseMenuItem(page, 'Add relationship');
 		const dialog = page.getByRole('dialog', { name: 'Add relationship' });
 		await dialog.getByRole('button', { name: 'New person' }).click();
@@ -184,9 +184,9 @@ test.describe('screen reader', () => {
 	});
 
 	test('a saved change is announced as a status with an Undo button', async ({ page, api }) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
-		await addRelationship(page, 'Homer', 'Add child', { newGiven: 'Wren' });
+		const { john } = await family(api);
+		await openTree(page, api, john);
+		await addRelationship(page, 'John', 'Add child', { newGiven: 'Wren' });
 		const status = page.getByRole('status').filter({ hasText: 'Wren' });
 		await expect(status).toBeVisible();
 		await expect(status.getByRole('button', { name: 'Undo' })).toBeVisible();
@@ -196,11 +196,11 @@ test.describe('screen reader', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
+		const { john } = await family(api);
+		await openTree(page, api, john);
 		await expect(page.getByRole('application', { name: 'Family tree' })).toBeVisible();
-		await expect(page.getByRole('button', { name: /Homer Simpson, focus person/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /Kit Simpson, child/ })).toBeVisible();
+		await expect(page.getByRole('button', { name: /John Smith, focus person/ })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Kit Smith, child/ })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Parent link to Kit/ })).toBeAttached();
 	});
 
@@ -208,11 +208,11 @@ test.describe('screen reader', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
-		await card(page, 'Homer').dblclick();
+		const { john } = await family(api);
+		await openTree(page, api, john);
+		await card(page, 'John').dblclick();
 		const drawer = page.locator('div.fixed.inset-y-0');
-		await expect(drawer.getByRole('heading', { name: /Homer Simpson/ })).toBeVisible();
+		await expect(drawer.getByRole('heading', { name: /John Smith/ })).toBeVisible();
 		await expect(drawer.getByRole('button', { name: 'Close details' })).toBeVisible();
 		expect(await violations(page, 'div.fixed.inset-y-0')).toEqual([]);
 	});
@@ -228,11 +228,11 @@ test.describe('phone-sized screen', () => {
 		page,
 		api
 	}) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
+		const { john } = await family(api);
+		await openTree(page, api, john);
 		expect(await fitsWidth(page)).toBe(true);
 
-		await openMenuByKeyboard(page, 'Homer');
+		await openMenuByKeyboard(page, 'John');
 		await chooseMenuItem(page, 'Add relationship');
 		const dialog = page.getByRole('dialog', { name: 'Add relationship' });
 		const box = (await dialog.boundingBox())!;
@@ -245,17 +245,17 @@ test.describe('phone-sized screen', () => {
 	});
 
 	test('the person drawer fits the screen', async ({ page, api }) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
-		await card(page, 'Homer').dblclick();
+		const { john } = await family(api);
+		await openTree(page, api, john);
+		await card(page, 'John').dblclick();
 		const box = (await page.locator('div.fixed.inset-y-0').boundingBox())!;
 		expect(box.width).toBeLessThanOrEqual(375);
 		expect(await fitsWidth(page)).toBe(true);
 	});
 
 	test('controls are large enough to tap', async ({ page, api }) => {
-		const { homer } = await family(api);
-		await openTree(page, api, homer);
+		const { john } = await family(api);
+		await openTree(page, api, john);
 		const small: string[] = [];
 		for (const control of await page
 			.locator('button:visible, [role="button"]:visible, select:visible, input:visible')

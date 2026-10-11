@@ -45,28 +45,28 @@ const extended = makeGraph({
 
 describe('assignBands', () => {
 	it('puts the Simpsons direct line in band 0 and only the siblings in band 1', () => {
-		expect(selectedBands(simpsons, 'Jessica Louise Lovejoy')).toEqual({
-			'Dermot Lovejoy': 0,
-			'Anne Brown': 0,
-			'Bartholomew Jojo Simpson': 0,
-			'Jessica Louise Lovejoy': 0,
-			'Dorian Lovejoy': 1,
-			'Jasper Silas Jonas Wren': 0,
-			'Hector James Wren': 0,
-			'Ned Dermot Lovejoy': 0,
-			'Rosalind Fairfax': 0,
-			'Magnus Lovejoy': 0,
-			'Marcus Lovejoy': 0
+		expect(selectedBands(simpsons, 'Jessica Lovejoy')).toEqual({
+			'Timothy Lovejoy': 0,
+			'Helen Lovejoy': 0,
+			'Bartholomew Jo-Jo Simpson': 0,
+			'Jessica Lovejoy': 0,
+			'Sherri Lovejoy': 1,
+			'Todd Jackson Lovejoy': 0,
+			'Rodney James Lovejoy': 0,
+			'Maude Helen Lovejoy': 0,
+			'Selma Bouvier': 0,
+			'Ralph Lovejoy': 0,
+			'Nelson Lovejoy': 0
 		});
 	});
 
 	it('moves the sibling line with the focus person', () => {
-		const darren = selectedBands(simpsons, 'Dorian Lovejoy');
-		expect(darren['Dorian Lovejoy']).toBe(0);
-		expect(darren['Jessica Louise Lovejoy']).toBe(1);
-		const ned = selectedBands(simpsons, 'Ned Dermot Lovejoy');
-		expect(ned['Ned Dermot Lovejoy']).toBe(0);
-		expect(Object.values(ned).every((b) => b === 0 || b === 1)).toBe(true);
+		const sherri = selectedBands(simpsons, 'Sherri Lovejoy');
+		expect(sherri['Sherri Lovejoy']).toBe(0);
+		expect(sherri['Jessica Lovejoy']).toBe(1);
+		const maude = selectedBands(simpsons, 'Maude Helen Lovejoy');
+		expect(maude['Maude Helen Lovejoy']).toBe(0);
+		expect(Object.values(maude).every((b) => b === 0 || b === 1)).toBe(true);
 	});
 
 	it('bands every drawn person for every focus on every captured graph', () => {

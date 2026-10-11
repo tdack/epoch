@@ -18,7 +18,7 @@ import { DateService } from './date-service';
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
-1 NAME Walter /Bouvier/
+1 NAME John /Smith/
 1 BIRT
 2 DATE 25 MARCH 1917
 1 DEAT
@@ -26,7 +26,7 @@ const FIXTURE = `0 HEAD
 1 RESI
 2 DATE CIRCA 1937
 0 @I2@ INDI
-1 NAME Frances /Marston/
+1 NAME Mary /Roe/
 1 DEAT
 2 DATE 01 MAR 191503 08 1912
 1 BURI
@@ -63,9 +63,9 @@ describe('standardising dates', () => {
 		expect(preview.remaining).toBe(0);
 		expect(preview.changes).toEqual(
 			expect.arrayContaining([
-				{ label: 'Birth of Wilbur Bouvier', before: '25 MARCH 1917', after: '25 MAR 1917' },
-				{ label: 'Death of Wilbur Bouvier', before: '3 RD DECEMBER 1996', after: '3 DEC 1996' },
-				{ label: 'Residence of Wilbur Bouvier', before: 'CIRCA 1937', after: 'ABT 1937' }
+				{ label: 'Birth of John Smith', before: '25 MARCH 1917', after: '25 MAR 1917' },
+				{ label: 'Death of John Smith', before: '3 RD DECEMBER 1996', after: '3 DEC 1996' },
+				{ label: 'Residence of John Smith', before: 'CIRCA 1937', after: 'ABT 1937' }
 			])
 		);
 		expect(preview.changes).toHaveLength(3);

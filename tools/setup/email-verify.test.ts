@@ -229,11 +229,9 @@ describe('verify, with the public tree (ADR-041)', () => {
 	});
 
 	it('passes on one viewer tree and names it', async () => {
-		const { read } = await checks(
-			json({ trees: [{ id: 't', name: 'The Simpsons', role: 'viewer' }] })
-		);
+		const { read } = await checks(json({ trees: [{ id: 't', name: 'The Does', role: 'viewer' }] }));
 		expect(read.status).toBe('pass');
-		expect(read.detail).toContain('The Simpsons');
+		expect(read.detail).toContain('The Does');
 	});
 
 	it('passes on 401 from a Worker built before the public tree, and says so', async () => {

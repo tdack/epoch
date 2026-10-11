@@ -87,12 +87,12 @@ describe('card text', () => {
 	});
 
 	it('labels a block with the first given name, cut to fit', () => {
-		expect(blockLabel('Jessica Louise Lovejoy')).toBe('Sharl…');
-		expect(blockLabel('Ann Simpson')).toBe('Ann');
+		expect(blockLabel('Bartholomew Jo-Jo Simpson')).toBe('Barth…');
+		expect(blockLabel('Ann Doe')).toBe('Ann');
 		expect(blockLabel('  cher ')).toBe('cher');
 		expect(blockLabel('   ')).toBe('?');
 		// Siblings who share a surname still read apart.
-		expect(blockLabel('David Simpson')).not.toBe(blockLabel('Daniel Simpson'));
+		expect(blockLabel('David Doe')).not.toBe(blockLabel('Daniel Doe'));
 	});
 });
 
@@ -185,38 +185,42 @@ describe('accessible names', () => {
 		new Map(layout.people.map((p) => [p.person.displayName, relationLabel(p, layout)]));
 
 	it("names each person's relationship to the focus, not just their role", () => {
-		const roles = labels(focusLayout('Jessica Louise Lovejoy'));
-		expect(roles.get('Jessica Louise Lovejoy')).toBe('focus person');
-		expect(roles.get('Bartholomew Jojo Simpson')).toBe('partner');
-		expect(roles.get('Dermot Lovejoy')).toBe('parent');
-		expect(roles.get('Dorian Lovejoy')).toBe('sibling');
-		expect(roles.get('Ned Dermot Lovejoy')).toBe('child');
-		// Edna is Ned's partner, not Jessica's.
-		expect(roles.get('Rosalind Fairfax')).toBe('partner of Ned Dermot Lovejoy');
-		expect(roles.get('Magnus Lovejoy')).toBe('grandchild');
+		const roles = labels(focusLayout('Jessica Lovejoy'));
+		expect(roles.get('Jessica Lovejoy')).toBe('focus person');
+		expect(roles.get('Bartholomew Jo-Jo Simpson')).toBe('partner');
+		expect(roles.get('Timothy Lovejoy')).toBe('parent');
+		expect(roles.get('Sherri Lovejoy')).toBe('sibling');
+		expect(roles.get('Maude Helen Lovejoy')).toBe('child');
+		// Selma is Maude's partner, not Jessica's.
+		expect(roles.get('Selma Bouvier')).toBe('partner of Maude Helen Lovejoy');
+		expect(roles.get('Ralph Lovejoy')).toBe('grandchild');
 	});
 
 	it("calls a partner's children step-children when the step family is drawn", () => {
-		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Bartholomew Jojo Simpson').id, {
-			shouldIncludeStepFamilies: true
-		});
+		const layout = layoutFocusView(
+			simpsons,
+			personByName(simpsons, 'Bartholomew Jo-Jo Simpson').id,
+			{
+				shouldIncludeStepFamilies: true
+			}
+		);
 		const roles = labels(layout);
-		expect(roles.get('Jessica Louise Lovejoy')).toBe('partner');
-		expect(roles.get('Hector James Wren')).toBe('step-child');
+		expect(roles.get('Jessica Lovejoy')).toBe('partner');
+		expect(roles.get('Rodney James Lovejoy')).toBe('step-child');
 		expect(roles.get('Homer Jay Simpson')).toBe('parent');
 	});
 
 	it('names the person, dates and relationship in one string', () => {
-		const layout = focusLayout('Jessica Louise Lovejoy');
+		const layout = focusLayout('Jessica Lovejoy');
 		const jessica = layout.people.find((p) => p.role === 'focus')!;
 		const dated = {
 			...jessica,
 			person: { ...jessica.person, birthDate: '9 Mar 1966', deathDate: '1 JAN 2040' }
 		};
 		expect(accessibleName(dated, 'focus person')).toBe(
-			'Jessica Louise Lovejoy, born 9 Mar 1966, died 1 JAN 2040, focus person'
+			'Jessica Lovejoy, born 9 Mar 1966, died 1 JAN 2040, focus person'
 		);
-		expect(accessibleName(jessica, 'focus person')).toBe('Jessica Louise Lovejoy, focus person');
+		expect(accessibleName(jessica, 'focus person')).toBe('Jessica Lovejoy, focus person');
 	});
 
 	it('words distant generations without gendered terms', () => {
@@ -227,8 +231,8 @@ describe('accessible names', () => {
 });
 
 describe('keyboard navigation', () => {
-	const layout = focusLayout('Jessica Louise Lovejoy');
-	const jessica = personByName(simpsons, 'Jessica Louise Lovejoy').id;
+	const layout = focusLayout('Jessica Lovejoy');
+	const jessica = personByName(simpsons, 'Jessica Lovejoy').id;
 
 	it('up goes to a parent, down to a child', () => {
 		const up = layout.people.find((p) => p.id === neighbourOf(layout, jessica, 'up'))!;
@@ -238,10 +242,10 @@ describe('keyboard navigation', () => {
 	});
 
 	it('left/right prefer the partner on the row, and stop at the ends', () => {
-		const ned = personByName(simpsons, 'Ned Dermot Lovejoy').id;
-		const right = neighbourOf(layout, ned, 'right');
-		const left = neighbourOf(layout, ned, 'left');
-		expect([nameOf(layout, right), nameOf(layout, left)]).toContain('Rosalind Fairfax');
+		const maude = personByName(simpsons, 'Maude Helen Lovejoy').id;
+		const right = neighbourOf(layout, maude, 'right');
+		const left = neighbourOf(layout, maude, 'left');
+		expect([nameOf(layout, right), nameOf(layout, left)]).toContain('Selma Bouvier');
 		const row = layout.people.filter((p) => p.y === 0).sort((a, b) => a.x - b.x);
 		expect(neighbourOf(layout, row[0].id, 'left')).toBeNull();
 		expect(neighbourOf(layout, row.at(-1)!.id, 'right')).toBeNull();
@@ -274,7 +278,7 @@ describe('keyboard navigation', () => {
 
 describe('partner connectors', () => {
 	it('runs along the row for a union between cards and brackets under the row for a hanging one', () => {
-		const layout = focusLayout('Jessica Louise Lovejoy');
+		const layout = focusLayout('Jessica Lovejoy');
 		const between = layout.edges.find((e) => e.kind === 'partner' && e.source.y === e.target.y)!;
 		expect(partnerEdgePath(between as never)).toMatch(/^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/);
 		const hanging = {
@@ -345,7 +349,7 @@ describe('unionLabelText', () => {
 
 describe('readable framing', () => {
 	it('picks the focus person, their parents, partners and children, and no one further out', () => {
-		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id, {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Lovejoy').id, {
 			ancestorDepth: 3,
 			descendantDepth: 3
 		});
@@ -360,7 +364,7 @@ describe('readable framing', () => {
 	});
 
 	it('falls back to the generations either side of the focus when a framing has no edges', () => {
-		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id, {
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Lovejoy').id, {
 			ancestorDepth: 3,
 			descendantDepth: 3
 		});
@@ -371,7 +375,7 @@ describe('readable framing', () => {
 	});
 
 	it('bounds only the chosen cards, and nothing when none is placed', () => {
-		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Louise Lovejoy').id);
+		const layout = layoutFocusView(simpsons, personByName(simpsons, 'Jessica Lovejoy').id);
 		const focus = layout.people.find((p) => p.id === layout.focusPersonId)!;
 		expect(boundsOfPeople(layout, new Set([focus.id]))).toEqual({
 			minX: focus.x - LAYOUT_METRICS.cardWidth / 2,

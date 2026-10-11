@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
-import clean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
+import dirty from '../../../../test/data/The Simpsons duplicate families.ged?raw';
+import clean from '../../../../test/data/The Simpsons.ged?raw';
 import { detectDuplicateFamilies, mergeExactDuplicateFamilies } from './duplicate-families';
 import { POSSIBLE_DUPLICATE_REASONS } from '../../shared/duplicate-families';
 import { parseGedcom } from './parser';
@@ -11,7 +11,7 @@ const file = (...families: string[]) =>
 const couple = '1 HUSB @I1@\n1 WIFE @I2@';
 const marriage = (date: string) => `1 MARR\n2 DATE ${date}`;
 
-describe('duplicate families in The_Simpsons.ged (the dirty file)', () => {
+describe('duplicate families in The Simpsons duplicate families.ged', () => {
 	const parsed = parseGedcom(dirty);
 	const report = detectDuplicateFamilies(parsed);
 
@@ -59,7 +59,7 @@ describe('duplicate families in The_Simpsons.ged (the dirty file)', () => {
 		expect(merged.families.map((f) => f.id)).toContain('@F_992151b5@');
 	});
 
-	it('reports nothing for the clean file', () => {
+	it('reports nothing for a file without duplicates', () => {
 		expect(detectDuplicateFamilies(parseGedcom(clean))).toEqual({ exact: [], possible: [] });
 		expect(mergeExactDuplicateFamilies(parseGedcom(clean)).mergedCount).toBe(0);
 	});

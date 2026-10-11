@@ -116,7 +116,7 @@ describe('layoutOrrery', () => {
 
 	it('settles children nearer their barycentre than the median other star of their generation on the Simpsons', () => {
 		const { graph } = allTestGraphs().find((g) => g.name === 'simpsons')!;
-		const layout = layoutOrrery(graph, personByName(graph, 'Dermot Lovejoy').id, WIDE);
+		const layout = layoutOrrery(graph, personByName(graph, 'Timothy Lovejoy').id, WIDE);
 		const at = byId(layout);
 		const unionAt = new Map(layout.unions.map((u) => [u.id, u]));
 		let checked = 0;

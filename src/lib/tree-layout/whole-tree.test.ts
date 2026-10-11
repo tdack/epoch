@@ -110,7 +110,7 @@ describe('selectWholeTree', () => {
 	});
 
 	it('copes with the dirty fixture (partner loops, repeated unions)', () => {
-		const dirty = CAPTURED_GRAPHS.find((g) => g.name === 'simpsons-dirty')!.graph;
+		const dirty = CAPTURED_GRAPHS.find((g) => g.name === 'simpsons-duplicates')!.graph;
 		const selection = selectWholeTree(dirty);
 		expect(selection.people).toHaveLength(dirty.people.length);
 		const byId = new Map(selection.people.map((p) => [p.id, p.generation]));

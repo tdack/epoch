@@ -17,8 +17,8 @@ describe('starting a tree (ADR-034)', () => {
 	it('lets the install owner start one, and makes them its owner', async () => {
 		const owner = await createTestUser(t.db, 'install-owner');
 		const context = { ...owner.context, user: { ...owner.context.user, isInstallOwner: true } };
-		const tree = await new TreeService(t.db).createTree('  Simpson family  ', null, context);
-		expect(tree.name).toBe('Simpson family');
+		const tree = await new TreeService(t.db).createTree('  Doe family  ', null, context);
+		expect(tree.name).toBe('Doe family');
 		expect((await new UserRepository(t.db).getMembership(tree.id, owner.userId))?.role).toBe(
 			'owner'
 		);

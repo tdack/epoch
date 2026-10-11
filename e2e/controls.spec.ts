@@ -56,12 +56,12 @@ test('the 3D picker chooses the WebGL view, and the 3D button returns to the las
 	api,
 	page
 }) => {
-	const homer = await api.addPerson('Homer', 'Picker');
+	const john = await api.addPerson('John', 'Picker');
 	const kit = await api.addPerson('Kit', 'Picker');
-	await api.child(homer, kit);
+	await api.child(john, kit);
 	const layout = page.getByRole('group', { name: 'Layout' });
 
-	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(homer.id)}`);
+	await open(page, `/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}`);
 	await expect(layout.getByRole('button', { name: 'Flat' })).toHaveAttribute(
 		'aria-pressed',
 		'true'

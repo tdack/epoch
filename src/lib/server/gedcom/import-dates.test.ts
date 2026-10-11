@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import clean from '../../../../docs/gedcom-data/The_Simpsons_clean.ged?raw';
-import dirty from '../../../../docs/gedcom-data/The_Simpsons.ged?raw';
+import windsors from '../../../../test/data/The Windsors.ged?raw';
+import dirty from '../../../../test/data/The Simpsons duplicate families.ged?raw';
 import { events } from '../db/schema';
 import {
 	createTestDatabase,
@@ -20,6 +20,8 @@ import {
 import { normalizeGedcomDate } from './parser';
 import { importGedcomToDb } from '../testing/gedcom';
 
+const IMPORT_MS = 30_000;
+
 let t: TestDatabase;
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -33,30 +35,35 @@ const eventsOf = (treeId: string) =>
 
 describe('persisting date bounds, precision and qualifier (ADR-004)', () => {
 	it.each([
-		['The_Simpsons_clean.ged', clean],
-		['The_Simpsons.ged', dirty]
-	])('stores every dated event in %s with its bounds and precision', async (_name, file) => {
-		const treeId = crypto.randomUUID();
-		await importGedcomToDb(t.d1, treeId, file, 'Simpsons');
-		const dated = (await eventsOf(treeId)).filter((e) => e.dateRaw);
-		expect(dated.length).toBeGreaterThan(0);
-		for (const e of dated) {
-			expect(e.dateQualifier, e.dateRaw!).not.toBeNull();
-			expect(e.datePrecision, e.dateRaw!).not.toBeNull();
-			// The lower bound is what date_sort has always held.
-			expect(e.dateSort, e.dateRaw!).toBe(normalizeGedcomDate(e.dateRaw!).sort ?? null);
-		}
-		// A full day is stored as that day, once, at both ends: nothing widened, nothing narrowed.
-		const marriage = dated.find((e) => e.dateRaw === '3 Nov 2014')!;
-		expect(marriage).toMatchObject({
-			dateSort: '2014-11-03',
-			dateSortEnd: '2014-11-03',
-			datePrecision: 'DAY',
-			dateQualifier: 'EXACT'
-		});
-		// The original text is untouched, including its casing.
-		expect(dated.map((e) => e.dateRaw)).toContain('14 Aug 1975');
-	});
+		['The Windsors.ged', windsors, '21 APR 1926', '1926-04-21'],
+		['The Simpsons duplicate families.ged', dirty, '3 Nov 2014', '2014-11-03']
+	])(
+		'stores every dated event in %s with its bounds and precision',
+		async (_name, file, dayRaw, dayIso) => {
+			const treeId = crypto.randomUUID();
+			await importGedcomToDb(t.d1, treeId, file, 'Dated');
+			const dated = (await eventsOf(treeId)).filter((e) => e.dateRaw);
+			expect(dated.length).toBeGreaterThan(0);
+			for (const e of dated) {
+				expect(e.dateQualifier, e.dateRaw!).not.toBeNull();
+				expect(e.datePrecision, e.dateRaw!).not.toBeNull();
+				// The lower bound is what date_sort has always held.
+				expect(e.dateSort, e.dateRaw!).toBe(normalizeGedcomDate(e.dateRaw!).sort ?? null);
+			}
+			// A full day is stored as that day, once, at both ends: nothing widened, nothing narrowed.
+			const fullDay = dated.find((e) => e.dateRaw === dayRaw)!;
+			expect(fullDay).toMatchObject({
+				dateSort: dayIso,
+				dateSortEnd: dayIso,
+				datePrecision: 'DAY',
+				dateQualifier: 'EXACT'
+			});
+			// The original text is untouched, including its casing.
+			expect(dated.map((e) => e.dateRaw)).toContain(dayRaw);
+		},
+		// The Windsors file has far more events than the duplicate-families fixture.
+		IMPORT_MS
+	);
 
 	it('never turns 1900 or ABT 1900 into a day', async () => {
 		const treeId = crypto.randomUUID();

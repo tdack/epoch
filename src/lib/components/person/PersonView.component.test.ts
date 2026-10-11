@@ -330,7 +330,7 @@ describe('summary', () => {
 	};
 
 	it('uses the first given name and the surname for the initials', () => {
-		expect(initialsOf('Jessica Louise', 'Simpson', 'Jessica Louise Lovejoy')).toBe('SL');
+		expect(initialsOf('Jane Mary', 'Doe', 'Jane Mary Doe')).toBe('JD');
 	});
 
 	it('falls back to the first and last words of the display name', () => {

@@ -7,8 +7,8 @@ import type {
 } from './types.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import { buildRelationshipGraph } from '#lib/server/domain/relationship-graph.js';
-import simpsons from './fixtures/littles.graph.json';
-import simpsonsDirty from './fixtures/littles-dirty.graph.json';
+import simpsons from './fixtures/simpsons.graph.json';
+import simpsonsDuplicates from './fixtures/simpsons-duplicates.graph.json';
 import representative551 from './fixtures/representative-551.graph.json';
 import representative7 from './fixtures/representative-7.graph.json';
 
@@ -17,10 +17,13 @@ export interface NamedGraph {
 	graph: RelationshipGraph;
 }
 
-/** Graphs captured from the running app after importing each GEDCOM through POST /api/import. */
+/**
+ * Graphs captured from the running app after importing each GEDCOM through POST /api/import, with
+ * the people renamed to Simpsons-universe names (the shapes are what the tests need).
+ */
 export const CAPTURED_GRAPHS: NamedGraph[] = [
 	{ name: 'simpsons', graph: simpsons as unknown as RelationshipGraph },
-	{ name: 'simpsons-dirty', graph: simpsonsDirty as unknown as RelationshipGraph },
+	{ name: 'simpsons-duplicates', graph: simpsonsDuplicates as unknown as RelationshipGraph },
 	{ name: 'representative-551', graph: representative551 as unknown as RelationshipGraph },
 	{ name: 'representative-7', graph: representative7 as unknown as RelationshipGraph }
 ];

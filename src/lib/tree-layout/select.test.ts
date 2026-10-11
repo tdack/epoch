@@ -124,28 +124,28 @@ describe('known layout bugs', () => {
 			select(simpsons, personByName(simpsons, focus).id, options ?? {}).people.map((p) => p.id)
 		);
 
-	it("focusing Jessica Lovejoy includes Rosalind Fairfax, Ned Lovejoy's partner", () => {
-		expect(peopleOf('Jessica Louise Lovejoy')).toContain('Rosalind Fairfax');
-		expect(peopleOf('Jessica Louise Lovejoy')).toContain('Ned Dermot Lovejoy');
+	it("focusing Jessica Lovejoy includes Selma Bouvier, Maude Lovejoy's partner", () => {
+		expect(peopleOf('Jessica Lovejoy')).toContain('Selma Bouvier');
+		expect(peopleOf('Jessica Lovejoy')).toContain('Maude Helen Lovejoy');
 	});
 
-	it('focusing Homer Simpson or Marjorie Bouvier includes Maude Flanders', () => {
-		expect(peopleOf('Homer Jay Simpson')).toContain('Maude Flanders');
-		expect(peopleOf('Marjorie Jacqueline Bouvier')).toContain('Maude Flanders');
+	it('focusing Homer Simpson or Marjorie Bouvier includes Milhouse Van Houten', () => {
+		expect(peopleOf('Homer Jay Simpson')).toContain('Milhouse Van Houten');
+		expect(peopleOf('Marjorie Bouvier')).toContain('Milhouse Van Houten');
 	});
 
 	it("keeps the partner at the depth boundary and stubs only the couple's children", () => {
-		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const jessica = personByName(simpsons, 'Jessica Lovejoy');
 		const s = select(simpsons, jessica.id, { descendantDepth: 1 });
 		expect(
 			names(
 				simpsons,
 				s.people.map((p) => p.id)
 			)
-		).toContain('Rosalind Fairfax');
+		).toContain('Selma Bouvier');
 		const stub = s.stubs.find(
 			(st) =>
-				st.kind === 'children' && st.personId === personByName(simpsons, 'Ned Dermot Lovejoy').id
+				st.kind === 'children' && st.personId === personByName(simpsons, 'Maude Helen Lovejoy').id
 		);
 		expect(stub?.count).toBe(2);
 		expect(
@@ -153,7 +153,7 @@ describe('known layout bugs', () => {
 				simpsons,
 				s.people.map((p) => p.id)
 			)
-		).not.toContain('Magnus Lovejoy');
+		).not.toContain('Ralph Lovejoy');
 
 		const homer = personByName(simpsons, 'Homer Jay Simpson');
 		const t = select(simpsons, homer.id, { descendantDepth: 1 });
@@ -162,25 +162,25 @@ describe('known layout bugs', () => {
 				simpsons,
 				t.people.map((p) => p.id)
 			)
-		).toContain('Maude Flanders');
+		).toContain('Milhouse Van Houten');
 		expect(t.stubs.find((st) => st.kind === 'children')?.count).toBe(2);
 	});
 
 	it("stubs a partner's undrawn family instead of dropping it (focus Bart, Jessica's children)", () => {
-		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
+		const bart = personByName(simpsons, 'Bartholomew Jo-Jo Simpson');
 		const s = select(simpsons, bart.id, {});
-		const jessica = personByName(simpsons, 'Jessica Louise Lovejoy');
+		const jessica = personByName(simpsons, 'Jessica Lovejoy');
 		expect(s.stubs.find((st) => st.personId === jessica.id)?.count).toBe(3);
 		expect(s.people.find((p) => p.id === jessica.id)?.role).toBe(PERSON_ROLES.PARTNER);
 	});
 
 	it('includes siblings only when asked', () => {
-		const bart = personByName(simpsons, 'Bartholomew Jojo Simpson');
-		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: true })).toContain(
-			'Lenora Marie Simpson'
+		const bart = personByName(simpsons, 'Bartholomew Jo-Jo Simpson');
+		expect(peopleOf('Bartholomew Jo-Jo Simpson', { shouldIncludeSiblings: true })).toContain(
+			'Margaret Simpson'
 		);
-		expect(peopleOf('Bartholomew Jojo Simpson', { shouldIncludeSiblings: false })).not.toContain(
-			'Lenora Marie Simpson'
+		expect(peopleOf('Bartholomew Jo-Jo Simpson', { shouldIncludeSiblings: false })).not.toContain(
+			'Margaret Simpson'
 		);
 		expect(select(simpsons, bart.id, {}).people.find((p) => p.id === bart.id)?.role).toBe(
 			PERSON_ROLES.FOCUS

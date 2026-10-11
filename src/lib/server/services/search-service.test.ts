@@ -18,8 +18,8 @@ let service: SearchService;
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
-1 NAME Jessica /Simpson/
-1 NAME Jessica /Smith/
+1 NAME Jane /Doe/
+1 NAME Jane /Roe/
 2 TYPE married
 1 SEX F
 1 BIRT
@@ -27,7 +27,7 @@ const FIXTURE = `0 HEAD
 2 PLAC Hobart, Tasmania
 1 FAMS @F1@
 0 @I2@ INDI
-1 NAME Ann /Brown/
+1 NAME Ann /Fox/
 2 NICK Annie
 1 BIRT
 2 DATE 12 JUN 1852
@@ -36,12 +36,12 @@ const FIXTURE = `0 HEAD
 2 DATE BEF 1900
 2 PLAC Dublin, Ireland
 0 @I3@ INDI
-1 NAME Ann /Brownlow/
+1 NAME Ann /Foxman/
 1 BIRT
 2 DATE ABT 1851
 2 PLAC Cork, Ireland
 0 @I4@ INDI
-1 NAME Tom /Smith/
+1 NAME Tom /Roe/
 1 BIRT
 2 PLAC Hobart, Tasmania
 1 FAMS @F1@
@@ -89,8 +89,8 @@ afterAll(async () => {
 
 describe('searching by name', () => {
 	it('finds a person by the name they are shown by and by another they have, saying which', async () => {
-		const byBirth = await service.search(treeId, { text: 'Jessica Lovejoy' }, ctx());
-		const byMarried = await service.search(treeId, { text: 'Jessica Wren' }, ctx());
+		const byBirth = await service.search(treeId, { text: 'Jane Doe' }, ctx());
+		const byMarried = await service.search(treeId, { text: 'Jane Roe' }, ctx());
 		expect(ids(byBirth)).toEqual(['@I1@']);
 		expect(ids(byMarried)).toEqual(['@I1@']);
 		// Whichever of the two is the display name, the other is explained as "also known as".
@@ -103,23 +103,20 @@ describe('searching by name', () => {
 
 	it('matches a nickname, a surname alone and any word order', async () => {
 		expect(ids(await service.search(treeId, { text: 'Annie' }, ctx()))).toEqual(['@I2@']);
-		expect(ids(await service.search(treeId, { text: 'smith tom' }, ctx()))).toEqual(['@I4@']);
+		expect(ids(await service.search(treeId, { text: 'roe tom' }, ctx()))).toEqual(['@I4@']);
 		expect(ids(await service.search(treeId, { text: 'Berg' }, ctx()))).toEqual(['@I5@']);
 	});
 
 	it('ranks exact over whole word over prefix, and a short query keeps its exact match under a limit', async () => {
-		expect(ids(await service.search(treeId, { text: 'Ann Brown' }, ctx()))).toEqual([
-			'@I2@',
-			'@I3@'
-		]);
-		expect(ids(await service.search(treeId, { text: 'Brown' }, ctx()))).toEqual(['@I2@', '@I3@']);
+		expect(ids(await service.search(treeId, { text: 'Ann Fox' }, ctx()))).toEqual(['@I2@', '@I3@']);
+		expect(ids(await service.search(treeId, { text: 'Fox' }, ctx()))).toEqual(['@I2@', '@I3@']);
 		const one = await service.search(treeId, { text: 'a', limit: 1 }, ctx());
 		expect(ids(one)).toEqual(['@I6@']);
 		expect(one.hasMore).toBe(true);
 	});
 
 	it('never returns a person from another tree', async () => {
-		const result = await service.search(treeId, { text: 'Smith' }, ctx());
+		const result = await service.search(treeId, { text: 'Roe' }, ctx());
 		expect(result.people.every((p) => p.id.startsWith(treeId))).toBe(true);
 		expect(result.people).toHaveLength(2);
 	});
@@ -210,7 +207,7 @@ describe('searching by place and date', () => {
 				)
 			)
 		).toEqual(['@I2@', '@I3@']);
-		expect(ids(await service.search(treeId, { text: 'Brownlow', place: 'Dublin' }, ctx()))).toEqual(
+		expect(ids(await service.search(treeId, { text: 'Foxman', place: 'Dublin' }, ctx()))).toEqual(
 			[]
 		);
 	});

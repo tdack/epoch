@@ -1,24 +1,28 @@
 import { readFileSync } from 'node:fs';
 import { activate, chooseMenuItem, expect, openMenuByKeyboard, test } from './support';
 
-const DIRTY_GED = readFileSync('docs/gedcom-data/The_Simpsons.ged');
-const TERRY = '@I_937df8d1@';
+const DIRTY_GED = readFileSync('test/data/The Simpsons duplicate families.ged');
+const HOMER = '@I_937df8d1@';
 
 test('adding a child to Homer, who has several copies of one partnership, asks which and honours the choice', async ({
 	page,
 	request,
 	api
 }) => {
-	// Imported without merging, so Homer and Marge's family exists several times over.
+	// Imported without merging, so Homer and Marjorie's family exists several times over.
 	const imported = await request.post('/api/import', {
 		multipart: {
-			file: { name: 'The_Simpsons.ged', mimeType: 'text/plain', buffer: DIRTY_GED },
+			file: {
+				name: 'The Simpsons duplicate families.ged',
+				mimeType: 'text/plain',
+				buffer: DIRTY_GED
+			},
 			treeId: api.treeId,
 			mode: 'replace'
 		}
 	});
 	expect(imported.ok(), await imported.text()).toBe(true);
-	const homerId = `${api.treeId}:${TERRY}`;
+	const homerId = `${api.treeId}:${HOMER}`;
 	await page.goto(`/trees/${api.treeId}?focus=${encodeURIComponent(homerId)}`);
 	await expect(page.locator('[data-person-id]').filter({ hasText: 'Homer' }).first()).toBeVisible();
 
@@ -46,7 +50,7 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 	await expect(dialog.getByTestId('union-reason')).toHaveCount(0);
 	await expect(
 		dialog.getByText(
-			/in the (1st|2nd|3rd) partnership of Homer Jay Simpson and Marjorie Jacqueline Bouvier|in the Homer Jay Simpson family/
+			/in the (1st|2nd|3rd) partnership of Homer Jay Simpson and Marjorie Bouvier|in the Homer Jay Simpson family/
 		)
 	).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
