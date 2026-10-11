@@ -118,6 +118,7 @@ describe('doctor', () => {
 		const exec = fakeExec([
 			{ match: 'cf d1 list', stdout: [] },
 			{ match: 'cf r2 buckets list', stdout: [] },
+			{ match: 'cf tags resources list', stdout: [] },
 			{ match: 'cf queues list', stdout: [] },
 			{ match: 'cf zero-trust access applications list', stdout: drifted },
 			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
@@ -169,6 +170,7 @@ describe('doctor', () => {
 		const exec = fakeExec([
 			{ match: 'cf d1 list', stdout: [] },
 			{ match: 'cf r2 buckets list', stdout: [] },
+			{ match: 'cf tags resources list', stdout: [] },
 			{ match: 'cf queues list', stdout: [] },
 			{ match: 'cf zero-trust access applications list', stdout: fixture('access-apps.json') },
 			{ match: 'cf zero-trust access policies list', stdout: fixture('access-policies.json') }
@@ -249,9 +251,11 @@ describe('teardown', () => {
 				match: 'cf d1 query',
 				stdout: [{ results: [{ n: 1, install_id: d1Marker, owner_email: 'a@example.com' }] }]
 			},
+			{ match: 'cf tags resources list', stdout: [] },
 			{ match: 'cf r2 buckets list', stdout: { buckets: [{ name: 'epoch-media' }] } },
 			{ match: 'cf r2 objects list', stdout: { objects: [] } },
 			{ match: 'wrangler r2 object get', stdout: JSON.stringify({ installId: OURS }) },
+			{ match: 'cf tags resources list', stdout: [] },
 			{ match: 'cf queues list', stdout: fixture('queues-list.json') },
 			{ match: 'cf queues consumers list', stdout: fixture('queue-consumers-ours.json') },
 			{ match: 'cf zero-trust access applications list', stdout: fixture('access-apps.json') },

@@ -4,7 +4,8 @@ import { isExportOnlyRule, reservedRisk } from './lifecycle.ts';
 import { OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_KEYS, RESOURCE_STATES, reconcile } from './reconcile.ts';
-import { observe } from './steps/reconcile.ts';
+import { observe, observeTags } from './steps/reconcile.ts';
+import { TAGGABLE, TAGGABLE_KEYS, TAG_AVAILABILITY, TAG_STATES } from './tags.ts';
 import { CHECK_STATUSES, verify, type CheckResult } from './steps/verify.ts';
 
 export const FINDING_LEVELS = { ok: 'ok', warn: 'warn', fail: 'fail' } as const;
@@ -72,7 +73,14 @@ export async function runDoctor(
 	}
 
 	const observed = await observe(ctx, manifest, manifest.hostname);
-	const result = reconcile({ manifest, names, hostname: manifest.hostname, observed });
+	const observedTags = await observeTags(ctx, manifest, observed, true);
+	const result = reconcile({
+		manifest,
+		names,
+		hostname: manifest.hostname,
+		observed,
+		tags: observedTags.witnesses
+	});
 	for (const key of RESOURCE_KEYS) {
 		const entry = result.reports[key];
 		if (
@@ -86,6 +94,36 @@ export async function runDoctor(
 		);
 	}
 	for (const warning of result.warnings) add(FINDING_LEVELS.warn, warning);
+
+	// Tags are a second witness, so their drift is a warning: nothing here is wrong with the install itself.
+	if (observedTags.availability === TAG_AVAILABILITY.unavailable) {
+		add(
+			FINDING_LEVELS.warn,
+			'Resource tags are unavailable; this install is checked by its markers alone'
+		);
+	} else {
+		for (const stale of observedTags.stale) {
+			add(
+				FINDING_LEVELS.warn,
+				`Stale tags on ${stale.type} ${stale.id}: the resource no longer exists`
+			);
+		}
+		for (const key of TAGGABLE_KEYS) {
+			if (!observed[key]) continue;
+			const witness = observedTags.witnesses?.[key];
+			if (!witness) {
+				add(
+					FINDING_LEVELS.warn,
+					`${TAGGABLE[key].role} has no tags; run \`npm run setup\` to add them`
+				);
+			} else if (witness.state !== TAG_STATES.configured) {
+				add(
+					FINDING_LEVELS.warn,
+					`${TAGGABLE[key].role} is tagged ${witness.state ?? 'without a state'}: an earlier run did not finish`
+				);
+			}
+		}
+	}
 
 	// The export lifecycle rule is what expires finished exports. A missing or wider rule means they
 	// pile up in the bucket; a destructive rule that could expire live media is worse, and is named

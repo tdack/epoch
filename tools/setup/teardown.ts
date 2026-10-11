@@ -5,7 +5,8 @@ import { ERROR_CODES, SetupError } from './errors.ts';
 import { AUTH_MODES, OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_STATES, reconcile, type ResourceKey } from './reconcile.ts';
-import { observe } from './steps/reconcile.ts';
+import { observe, observeTags } from './steps/reconcile.ts';
+import { untagResource, type TaggableKey } from './tags.ts';
 
 export interface TeardownItem {
 	key: ResourceKey;
@@ -24,7 +25,14 @@ export async function planTeardown(ctx: StepContext, manifest: Manifest): Promis
 	ctx.cf.useAccount(manifest.account.id);
 	const names = resourceNames(manifest.workerName);
 	const observed = await observe(ctx, manifest, manifest.hostname);
-	const result = reconcile({ manifest, names, hostname: manifest.hostname, observed });
+	const observedTags = await observeTags(ctx, manifest, observed, true);
+	const result = reconcile({
+		manifest,
+		names,
+		hostname: manifest.hostname,
+		observed,
+		tags: observedTags.witnesses
+	});
 	const items: TeardownItem[] = [];
 	const isOurs = (key: ResourceKey) => result.reports[key].state === RESOURCE_STATES.ours;
 	if (isOurs('accessApp'))
@@ -90,6 +98,8 @@ export async function runTeardown(
 	const owned = manifest.access.policies.find((p) => p.ownership === OWNERSHIPS.owned);
 	// Dependents first: the application before the policy it uses, the Worker before its queue and storage.
 	for (const item of items) {
+		// Tags first: a tag outliving its resource would be inherited by a re-created bucket of the same name.
+		if (item.key !== 'accessPolicy') await untagResource(ctx, manifest, item.key as TaggableKey);
 		if (item.key === 'accessApp' && accessApp) await ctx.cf.deleteAccessApp(accessApp.id);
 		if (item.key === 'accessPolicy' && owned) await ctx.cf.deletePolicy(owned.id);
 		if (item.key === 'worker') await wrangler.deleteWorker(item.name);

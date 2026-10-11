@@ -327,3 +327,24 @@ export function tagConfigured(ctx: StepContext, manifest: Manifest): Promise<Man
 		TAG_STATES.configured
 	);
 }
+
+/**
+ * Teardown: removes this install's tags from a resource before it is deleted. A resource whose
+ * `epoch.install` is not this install's is left alone, and an unavailable API just skips the step.
+ */
+export async function untagResource(
+	ctx: StepContext,
+	manifest: Manifest,
+	key: TaggableKey
+): Promise<void> {
+	const target = manifest.taggedResources.find((t) => t.key === key);
+	if (!target) return;
+	try {
+		const current = await ctx.cf.getTags(target.type, target.id);
+		if (current.tags[TAG_KEYS.install] !== manifest.installId) return;
+		await ctx.cf.deleteTags(target.type, target.id);
+	} catch (error) {
+		if (!(error instanceof TagsUnavailableError)) throw error;
+		ctx.report.warn(`resource tags unavailable: ${error.message}; its tags were not removed`);
+	}
+}
