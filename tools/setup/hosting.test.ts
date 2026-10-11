@@ -217,7 +217,7 @@ describe('hosting', () => {
 		const asker = {
 			...NO_ASKER,
 			text: async () => 'a@example.com',
-			multiselect: async (o: any) => o.initial,
+			multiselect: async (o: any) => (o.initial.length > 0 ? o.initial : ['__new__']),
 			select: async (o: any) =>
 				o.choices.map((c: any) => c.value).includes('workers-dev') ? 'workers-dev' : 'x'
 		} as Asker;
