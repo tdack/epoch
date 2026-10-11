@@ -1,0 +1,171 @@
+0 HEAD
+1 CHAR UTF-8
+1 SOUR SIMPSONS_TREE
+2 NAME The Simpsons Family Tree
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+0 @I1@ INDI
+1 NAME Homer Jay /Simpson/
+1 SEX M
+1 FAMC @F1@
+1 FAMS @F2@
+0 @I2@ INDI
+1 NAME Marjorie "Marge" /Bouvier/
+1 SEX F
+1 FAMC @F3@
+1 FAMS @F2@
+0 @I3@ INDI
+1 NAME Bartholomew Jo-Jo "Bart" /Simpson/
+1 SEX M
+1 FAMC @F2@
+0 @I4@ INDI
+1 NAME Lisa Marie /Simpson/
+1 SEX F
+1 FAMC @F2@
+0 @I5@ INDI
+1 NAME Margaret "Maggie" /Simpson/
+1 SEX F
+1 FAMC @F2@
+0 @I6@ INDI
+1 NAME Abraham Jebediah "Abe" /Simpson/ II
+1 SEX M
+1 FAMS @F1@
+0 @I7@ INDI
+1 NAME Mona J. /Olsen/
+1 SEX F
+1 FAMS @F1@
+0 @I8@ INDI
+1 NAME Clancy /Bouvier/
+1 SEX M
+1 FAMS @F3@
+0 @I9@ INDI
+1 NAME Jacqueline /Gurney/
+1 SEX F
+1 FAMS @F3@
+0 @I10@ INDI
+1 NAME Patricia Maleficent "Patty" /Bouvier/
+1 SEX F
+1 FAMC @F3@
+0 @I11@ INDI
+1 NAME Selma /Bouvier/
+1 SEX F
+1 FAMC @F3@
+1 FAMS @F4@
+0 @I12@ INDI
+1 NAME Ling /Bouvier/
+1 SEX F
+1 FAMC @F4@
+0 @I13@ INDI
+1 NAME Herbert "Herb" /Powell/
+1 SEX M
+1 FAMC @F1@
+0 @I14@ INDI
+1 NAME Nedward "Ned" /Flanders/ Jr.
+1 SEX M
+1 FAMC @F5@
+1 FAMS @F6@
+0 @I15@ INDI
+1 NAME Maude /Flanders/
+1 SEX F
+1 FAMS @F6@
+0 @I16@ INDI
+1 NAME Rod /Flanders/
+1 SEX M
+1 FAMC @F6@
+0 @I17@ INDI
+1 NAME Todd /Flanders/
+1 SEX M
+1 FAMC @F6@
+0 @I18@ INDI
+1 NAME Nedward /Flanders/ Sr.
+1 SEX M
+1 FAMS @F5@
+0 @I19@ INDI
+1 NAME Mona /Flanders/
+1 SEX F
+1 FAMS @F5@
+0 @I20@ INDI
+1 NAME Charles Montgomery /Burns/
+1 SEX M
+0 @I21@ INDI
+1 NAME Waylon /Smithers/ Jr.
+1 SEX M
+0 @I22@ INDI
+1 NAME Milhouse /Van Houten/
+1 SEX M
+1 FAMC @F7@
+0 @I23@ INDI
+1 NAME Kirk /Van Houten/
+1 SEX M
+1 FAMS @F7@
+0 @I24@ INDI
+1 NAME Luann /Musso/
+1 SEX F
+1 FAMS @F7@
+0 @I25@ INDI
+1 NAME Clancy /Wiggum/
+1 SEX M
+1 FAMS @F8@
+0 @I26@ INDI
+1 NAME Sarah /Kanickee/
+1 SEX F
+1 FAMS @F8@
+0 @I27@ INDI
+1 NAME Ralph /Wiggum/
+1 SEX M
+1 FAMC @F8@
+0 @I28@ INDI
+1 NAME Timothy /Lovejoy/ Jr.
+1 SEX M
+1 FAMS @F9@
+0 @I29@ INDI
+1 NAME Helen /Lovejoy/
+1 SEX F
+1 FAMS @F9@
+0 @I30@ INDI
+1 NAME Jessica /Lovejoy/
+1 SEX F
+1 FAMC @F9@
+0 @F1@ FAM
+1 HUSB @I6@
+1 WIFE @I7@
+1 CHIL @I1@
+1 CHIL @I13@
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 CHIL @I5@
+0 @F3@ FAM
+1 HUSB @I8@
+1 WIFE @I9@
+1 CHIL @I2@
+1 CHIL @I10@
+1 CHIL @I11@
+0 @F4@ FAM
+1 WIFE @I11@
+1 CHIL @I12@
+0 @F5@ FAM
+1 HUSB @I18@
+1 WIFE @I19@
+1 CHIL @I14@
+0 @F6@ FAM
+1 HUSB @I14@
+1 WIFE @I15@
+1 CHIL @I16@
+1 CHIL @I17@
+0 @F7@ FAM
+1 HUSB @I23@
+1 WIFE @I24@
+1 CHIL @I22@
+0 @F8@ FAM
+1 HUSB @I25@
+1 WIFE @I26@
+1 CHIL @I27@
+0 @F9@ FAM
+1 HUSB @I28@
+1 WIFE @I29@
+1 CHIL @I30@
+0 TLR
