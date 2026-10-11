@@ -3,7 +3,12 @@ import { ERROR_CODES, SetupError } from '../errors.ts';
 import { AUTH_MODES, withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
 import type { SetupFlags } from '../options.ts';
-import { assertScopesGranted, requestedScopes } from '../scopes.ts';
+import {
+	assertScopesGranted,
+	missingTagScopes,
+	requestedScopes,
+	requiredScopes
+} from '../scopes.ts';
 import type { Identity } from '../cloudflare.ts';
 
 /** Both logins must be the same person on a shared account, or deploys would go somewhere else. */
@@ -79,7 +84,13 @@ export async function signIn(
 			'cf does not report granted scopes, so they cannot be checked; a missing permission will show up as a clear error on the first call that needs it'
 		);
 	} else {
-		assertScopesGranted(requestedScopes(manifest.authMode), identity.scopes);
+		assertScopesGranted(requiredScopes(manifest.authMode), identity.scopes);
+		const missingTags = missingTagScopes(identity.scopes);
+		if (missingTags.length > 0) {
+			ctx.report.warn(
+				`This sign-in lacks ${missingTags.join(', ')}, so resource tags will be skipped; run \`npm run setup -- --force\` to add them`
+			);
+		}
 	}
 
 	if (manifest.authMode === AUTH_MODES.profile) {
