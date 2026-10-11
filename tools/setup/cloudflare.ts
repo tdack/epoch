@@ -1,3 +1,4 @@
+import { realMarker } from './install-meta.ts';
 import {
 	CommandError,
 	ERROR_CODES,
@@ -526,7 +527,15 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 		},
 		// `cf r2 objects list <bucket>` (SPIKE: positional and output). Truncated at `limit`.
 		async listR2Objects(bucket, limit) {
-			const out = await cf(['r2', 'objects', 'list', bucket, '--per-page', String(limit)]);
+			const out = await cf([
+				'r2',
+				'objects',
+				'list',
+				'--bucket-name',
+				bucket,
+				'--per-page',
+				String(limit)
+			]);
 			const objects = asList(out, 'objects', 'result');
 			return {
 				keys: objects.map((o) => str(o.key)).filter((k): k is string => k !== null),
@@ -597,7 +606,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			return {
 				name,
 				lastDeployedAt: null,
-				markerInstallId: str(bindings.find((b) => b.name === 'EPOCH_INSTALL_ID')?.text),
+				markerInstallId: realMarker(str(bindings.find((b) => b.name === 'EPOCH_INSTALL_ID')?.text)),
 				boundD1Id: str(find('d1')?.id),
 				boundR2Name: str(find('r2_bucket')?.bucket_name),
 				boundQueueName: str(find('queue')?.queue_name)
