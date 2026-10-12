@@ -83,6 +83,9 @@
 							{#if view.video}
 								<video
 									src={view.video}
+									poster={view.poster}
+									preload={isAnimated ? 'auto' : 'none'}
+									controls={!isAnimated}
 									muted
 									loop
 									playsinline
@@ -91,7 +94,7 @@
 								></video>
 							{:else}
 								<ViewIllustration view={view.id} {isAnimated} />
-								<span class="tag">Illustration · recording to come</span>
+								<span class="tag">Illustration</span>
 							{/if}
 						</div>
 						<div class="caption">
@@ -175,6 +178,13 @@
 		aspect-ratio: 16 / 10;
 	}
 
+	/* A flex row drops a scroller's end padding, so this spacer keeps the last panel off the edge. */
+	.track::after {
+		content: '';
+		flex: none;
+		width: 1px;
+	}
+
 	.panel {
 		flex: none;
 		width: var(--panel);
@@ -186,8 +196,8 @@
 		aspect-ratio: 16 / 7.5;
 		border-radius: 16px;
 		overflow: hidden;
-		/* The app's own 3D stage colour. */
-		background: radial-gradient(120% 90% at 50% 30%, #18202f 0%, #10141f 70%);
+		/* Emerald night rather than the app's slate stage, so the panels belong to this page. */
+		background: radial-gradient(120% 90% at 50% 30%, #0b3b2e 0%, var(--emerald-950) 70%);
 		border: 1px solid rgb(110 231 183 / 0.18);
 		box-shadow: 0 18px 40px rgb(2 44 34 / 0.45);
 	}
@@ -205,7 +215,7 @@
 		bottom: 10px;
 		padding: 3px 10px;
 		border-radius: 9999px;
-		background: rgb(16 20 31 / 0.8);
+		background: rgb(2 44 34 / 0.8);
 		color: var(--emerald-200);
 		font-size: 0.75rem;
 		font-style: italic;

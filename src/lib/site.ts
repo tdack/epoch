@@ -171,26 +171,36 @@ export interface View3d {
 	text: string;
 	/** A screen recording of the view in the app, under `static/views/`; until one exists the panel shows an illustration. */
 	video?: string;
+	/** The recording's first frame, shown before it plays and under reduced motion. */
+	poster?: string;
 }
 
 export const VIEWS_3D: View3d[] = [
 	{
 		id: 'rings',
+		video: '/views/rings.mp4',
+		poster: '/views/rings-poster.jpg',
 		name: 'Rings',
 		text: 'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.'
 	},
 	{
 		id: 'ball',
+		video: '/views/ball.mp4',
+		poster: '/views/ball-poster.jpg',
 		name: 'Ball',
 		text: 'A glass ball with the family inside it. Height is the calendar, the oldest at the top; the wider a generation, the nearer its people sit to the glass.'
 	},
 	{
 		id: 'ribbons',
+		video: '/views/ribbons.mp4',
+		poster: '/views/ribbons-poster.jpg',
 		name: 'Ribbons',
 		text: 'Each person is a ribbon of descent. A couple’s ribbons meet at a glowing knot, and their children’s ribbons branch out from it like a river delta.'
 	},
 	{
 		id: 'orrery',
+		video: '/views/orrery.mp4',
+		poster: '/views/orrery-poster.jpg',
 		name: 'Orrery',
 		text: 'A star cluster. Partners circle each other as a pair of stars, and their children circle the pair.'
 	}
