@@ -159,12 +159,18 @@ To deploy on every push with Workers Builds:
 
 1. In the Cloudflare dashboard, go to **Workers & Pages → your Worker → Settings → Builds** and
    connect the repository.
-2. Set the build command to `npm run build:worker` and the deploy command to
-   `npm run deploy:worker`.
-3. Run `./setup builds`.
+2. Run `./setup builds`.
 
-The last step sets one build variable, `EPOCH_DEPLOY_VALUES`, which the build turns into
-`wrangler.deploy.jsonc`. It uses the sign-in setup already has, so you don't need an API token.
+Setup sets one build variable, `EPOCH_DEPLOY_VALUES`, which the build turns into
+`wrangler.deploy.jsonc`. It also sets the production trigger:
+
+- the build command to `npm run build:worker` and the deploy command to `npm run deploy:worker`, so
+  the Worker is built once;
+- the watch paths to `src/**`, so documentation and tooling changes don't start a build.
+
+A push that changes only migrations, `wrangler.jsonc` or `package.json` therefore doesn't deploy on
+its own. Run `npm run deploy` for those, or let them go out with the next change to `src/`. Setup
+uses the sign-in it already has, so you don't need an API token.
 
 If setup can't set the variable (for example, a sign-in made before this feature, or the
 repository isn't connected yet), it prints the value for you to paste in. `./setup --force` signs
