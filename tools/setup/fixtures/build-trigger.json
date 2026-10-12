@@ -1,0 +1,30 @@
+{
+	"trigger_uuid": "b0000000-0000-4000-8000-000000000001",
+	"external_script_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	"build_token_uuid": "b0000000-0000-4000-8000-000000000002",
+	"build_token_name": "example build token",
+	"trigger_name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	"build_command": "npm run build",
+	"deploy_command": "npm run deploy",
+	"root_directory": "/",
+	"branch_includes": ["main"],
+	"branch_excludes": [],
+	"path_includes": ["src/**"],
+	"path_excludes": ["node_modules/**", ".git/", "docs/", ".agents/", ".claude/"],
+	"build_caching_enabled": true,
+	"created_on": "2026-10-05T11:36:35.484Z",
+	"modified_on": "2026-10-12T07:27:37.073Z",
+	"deleted_on": null,
+	"repo_connection": {
+		"repo_connection_uuid": "b0000000-0000-4000-8000-000000000003",
+		"repo_id": "example-repo-id",
+		"repo_name": "epoch",
+		"provider_type": "cloudflare_artifacts",
+		"provider_account_id": "epoch",
+		"provider_account_name": "epoch",
+		"grant_id": null,
+		"created_on": "2026-10-05T11:36:35.484Z",
+		"modified_on": "2026-10-05T11:36:35.484Z",
+		"deleted_on": null
+	}
+}

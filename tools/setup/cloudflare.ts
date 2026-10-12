@@ -83,9 +83,22 @@ interface R2Info {
 /** A Workers Builds trigger: one per connected branch set (production, and previews if on). */
 export interface BuildTrigger {
 	id: string;
+	/** Often just the script id: the dashboard names a trigger after the Worker's tag. */
 	name: string;
 	buildCommand: string | null;
 	deployCommand: string | null;
+	/** Branch patterns that start a build; the production trigger lists only the production branch. */
+	branchIncludes: string[];
+	/** Path patterns that start a build; `["*"]` is every change. */
+	pathIncludes: string[];
+	pathExcludes: string[];
+}
+
+export interface BuildTriggerSettings {
+	buildCommand: string;
+	deployCommand: string;
+	pathIncludes: readonly string[];
+	pathExcludes: readonly string[];
 }
 
 export interface CloudflareApi {
@@ -161,7 +174,7 @@ export interface CloudflareApi {
 		etag: string | null
 	): Promise<void>;
 	deleteTags(type: string, id: string): Promise<void>;
-	/** The Worker's 32-hex script id (`tag` in the scripts list), which is what tags are keyed on. */
+	/** The Worker's 32-hex id (`id` in `cf workers list`): what tags and the Builds API key on. */
 	getWorkerScriptId(name: string): Promise<string | null>;
 
 	/**
@@ -171,6 +184,8 @@ export interface CloudflareApi {
 	listBuildTriggers(scriptId: string): Promise<BuildTrigger[]>;
 	/** Adds or replaces these build variables on one trigger; others on it are left alone. */
 	setBuildVariables(triggerId: string, variables: Record<string, string>): Promise<void>;
+	/** Replaces the trigger's commands and path filters; branch filters and the token stay. */
+	updateBuildTrigger(triggerId: string, settings: BuildTriggerSettings): Promise<void>;
 
 	/** Names of the deploy-token permission groups this account does not offer; empty when minting can work. */
 	missingDeployPermissionGroups(): Promise<string[]>;
@@ -194,6 +209,10 @@ function str(value: unknown): string | null {
 }
 function num(value: unknown): number | null {
 	return typeof value === 'number' ? value : null;
+}
+
+function strings(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
 /** Lists come back as an array, or wrapped in a named key; accept both so one SPIKE answer fixes it. */
@@ -760,21 +779,27 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 		async deleteTags(type, id) {
 			await tagCf(['account-tags', 'delete', '--body', tagBody(type, id), '--force', ...dry]);
 		},
-		// The scripts list names each script by `id` (its name) and carries the 32-hex id as `tag`.
+		// `cf workers list` (the /workers/workers API) names each Worker by `name` and gives its 32-hex
+		// id as `id`, as the owner's account showed (beta.14). It is paged, so read until a short page.
 		async getWorkerScriptId(name) {
-			const res = await raw(`/accounts/${account()}/workers/scripts`);
-			if (res.status >= 400 || !isRec(res.body)) {
-				throw new SetupError(
-					ERROR_CODES.command,
-					`Could not list Workers to find the id of "${name}" (HTTP ${res.status})`
+			const perPage = 100;
+			for (let page = 1; ; page += 1) {
+				const workers = asList(
+					await cf(['workers', 'list', '--per-page', String(perPage), '--page', String(page)]),
+					'result',
+					'workers'
 				);
+				const found = workers.find((w) => w.name === name);
+				if (found) {
+					const id = str(found.id);
+					return id !== null && /^[0-9a-f]{32}$/.test(id) ? id : null;
+				}
+				if (workers.length < perPage) return null;
 			}
-			const script = asList(res.body.result).find((s) => s.id === name);
-			const tag = str(script?.tag);
-			return tag !== null && /^[0-9a-f]{32}$/.test(tag) ? tag : null;
 		},
 
-		// `cf builds triggers list --external-script-id <tag>` (SPIKE: output shape, read from `cf schema`).
+		// `cf builds triggers list --external-script-id <tag>`. Each entry has the shape `cf builds
+		// triggers update` printed on the owner's account (beta.14, fixtures/build-trigger.json).
 		async listBuildTriggers(scriptId) {
 			const out = await cf(['builds', 'triggers', 'list', '--external-script-id', scriptId]);
 			return asList(out, 'result', 'triggers')
@@ -783,7 +808,10 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 					id: str(t.trigger_uuid) ?? '',
 					name: str(t.trigger_name) ?? '',
 					buildCommand: str(t.build_command),
-					deployCommand: str(t.deploy_command)
+					deployCommand: str(t.deploy_command),
+					branchIncludes: strings(t.branch_includes),
+					pathIncludes: strings(t.path_includes),
+					pathExcludes: strings(t.path_excludes)
 				}))
 				.filter((t) => t.id !== '');
 		},
@@ -801,6 +829,24 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				triggerId,
 				'--body',
 				JSON.stringify(body),
+				...dry
+			]);
+		},
+
+		// The command flags were confirmed on the owner's account (beta.14). The path flags are arrays
+		// in cf's yargs definition, so each pattern gets its own flag.
+		async updateBuildTrigger(triggerId, settings) {
+			await cf([
+				'builds',
+				'triggers',
+				'update',
+				triggerId,
+				'--build-command',
+				settings.buildCommand,
+				'--deploy-command',
+				settings.deployCommand,
+				...settings.pathIncludes.flatMap((path) => ['--path-includes', path]),
+				...settings.pathExcludes.flatMap((path) => ['--path-excludes', path]),
 				...dry
 			]);
 		},

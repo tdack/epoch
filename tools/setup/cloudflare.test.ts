@@ -286,3 +286,48 @@ describe('R2 lifecycle rules', () => {
 		expect(calls).toEqual([]);
 	});
 });
+
+describe('Workers Builds triggers', () => {
+	it('reads the shape the owner’s account printed, and drops deleted triggers', async () => {
+		const live = fixture('build-trigger.json') as Record<string, unknown>;
+		const deleted = { ...live, trigger_uuid: 'gone', deleted_on: '2026-10-06T00:00:00Z' };
+		const { cf } = api([{ match: 'cf builds triggers list', stdout: [live, deleted] }]);
+		expect(await cf.listBuildTriggers('a'.repeat(32))).toEqual([
+			{
+				id: 'b0000000-0000-4000-8000-000000000001',
+				name: 'a'.repeat(32),
+				buildCommand: 'npm run build',
+				deployCommand: 'npm run deploy',
+				branchIncludes: ['main'],
+				pathIncludes: ['src/**'],
+				pathExcludes: ['node_modules/**', '.git/', 'docs/', '.agents/', '.claude/']
+			}
+		]);
+	});
+
+	it('updates commands and paths with the flags `cf builds triggers update` takes', async () => {
+		const { cf, exec } = api([{ match: 'cf builds triggers update', stdout: {} }]);
+		await cf.updateBuildTrigger('trig', {
+			buildCommand: 'npm run build:worker',
+			deployCommand: 'npm run deploy:worker',
+			pathIncludes: ['src/**'],
+			pathExcludes: ['docs/', '.git/']
+		});
+		expect(exec.calls[0]?.args).toEqual([
+			'builds',
+			'triggers',
+			'update',
+			'trig',
+			'--build-command',
+			'npm run build:worker',
+			'--deploy-command',
+			'npm run deploy:worker',
+			'--path-includes',
+			'src/**',
+			'--path-excludes',
+			'docs/',
+			'--path-excludes',
+			'.git/'
+		]);
+	});
+});
