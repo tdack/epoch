@@ -1,0 +1,113 @@
+/* Values follow the app's DESIGN.md so the site and the product read as one family. */
+:root {
+	--emerald-800: #065f46;
+	--emerald-700: #047857;
+	--emerald-900: #064e3b;
+	--emerald-950: #022c22;
+	--emerald-ink: #011c16;
+	--emerald-200: #a7f3d0;
+	--emerald-100: #d1fae5;
+	--emerald-mist: #6ee7b7;
+	--vellum: #fffbeb;
+	--amber: #fbbf24;
+	--amber-300: #fcd34d;
+	--page-cream: #fcf9f2;
+	--field-white: #ffffff;
+	--stone-shelf: #f5f5f4;
+	--stone-rule: #e7e5e4;
+	--stone-edge: #d6d3d1;
+	--stone-text: #57534e;
+	--stone-strong: #44403c;
+	--stone-body: #292524;
+	--stone-ink: #1c1917;
+	--tree-paper: #f7f3ea;
+	--tree-dot: #d6cebf;
+
+	--sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+	--measure: 1200px;
+	--gutter: clamp(16px, 4vw, 32px);
+	--section-gap: clamp(72px, 9vw, 112px);
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+	color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	scroll-behavior: smooth;
+	scroll-padding-top: 24px;
+	-webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+}
+
+body {
+	margin: 0;
+	background: var(--page-cream);
+	color: var(--stone-body);
+	font-family: var(--sans);
+	font-size: 1.0625rem;
+	line-height: 1.6;
+	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+	-webkit-font-smoothing: antialiased;
+	accent-color: var(--emerald-800);
+	caret-color: var(--emerald-800);
+}
+
+::selection {
+	background: var(--emerald-200);
+	color: var(--emerald-950);
+}
+
+h1,
+h2,
+h3 {
+	text-wrap: balance;
+	color: var(--stone-ink);
+}
+
+p {
+	text-wrap: pretty;
+}
+
+a {
+	color: var(--emerald-800);
+	text-underline-offset: 0.2em;
+	text-decoration-thickness: 1px;
+}
+
+a:hover {
+	color: var(--emerald-700);
+}
+
+:focus-visible {
+	outline: 2px solid var(--emerald-700);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+code,
+pre {
+	font-family: var(--mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
