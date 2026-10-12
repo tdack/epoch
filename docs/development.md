@@ -25,8 +25,10 @@ Notes for working on Epoch itself. For features and installation, see the
 | `npm run db:backfill:dates` | Fill structured date columns for events written before migration 0007 (add `-- --remote` for the deployed database) |
 | `npm run db:backfill:evidence` | Move sources, repositories and citations a tree kept as retained GEDCOM lines (imported before migration 0020) into records; add `-- --remote` for the deployed database. Run it after the migration |
 | `npm run db:backfill:notes` | Move notes a tree kept as retained GEDCOM lines, in extra lines, or in a fact's `notes` column (imported before migration 0021) into note records; add `-- --remote` for the deployed database. Run it after migration 0021 **and after** `db:backfill:evidence` |
-| `node scripts/deploy-config.mjs` | Check that `wrangler.deploy.jsonc` exists and agrees with `wrangler.jsonc` on the fields the build reads (`deploy` runs it first) |
-| `npm run deploy` | Check the deploy config, migrate, build and deploy the Worker using `wrangler.deploy.jsonc` |
+| `node scripts/deploy-config.mjs` | Write `wrangler.deploy.jsonc` from `EPOCH_DEPLOY_VALUES` if that is set, then check that the file exists and agrees with `wrangler.jsonc` on the fields the build reads |
+| `npm run build:worker` | Run the check above, then build (the Workers Builds build command) |
+| `npm run deploy:worker` | Migrate and deploy using `wrangler.deploy.jsonc`, without building (the Workers Builds deploy command) |
+| `npm run deploy` | `build:worker` then `deploy:worker`, for deploying from your own machine |
 
 ## Database and migrations
 
@@ -40,20 +42,32 @@ never schema.
 
 ## Deploy configuration
 
-The tracked `wrangler.jsonc` is safe for development: it has every binding, a placeholder D1 id and
-none of the owner's values (team domain, email sender, route or workers.dev setting). Remote
-commands (`db:migrate`, `deploy`, and the backfill scripts with `--remote`) use
-`wrangler.deploy.jsonc` instead, which is the tracked file plus the real ids, how the Worker is
-served (`workers_dev` or a custom-domain route) and the vars. It is tracked too (ADR-038: nothing in
-it is a credential, and push-to-deploy needs it); `./setup` regenerates it in place, and
-without it those commands stop and say to run setup.
+The tracked `wrangler.jsonc` is safe for development and contains none of an install's values. It
+has every binding and names the D1 database, with no id. Remote commands (`db:migrate`, `deploy`,
+and the backfill scripts with `--remote`) use `wrangler.deploy.jsonc` instead. That file is the
+tracked one plus this install's Worker name, how the Worker is served (`workers_dev` or a
+custom-domain route), the vars and the sender address.
+
+`wrangler.deploy.jsonc` is git-ignored (ADR-043). It is written in one of two ways:
+
+- **On your machine:** `./setup` writes it and rewrites it on every run, showing the diff. To write
+  it by hand, copy `wrangler.jsonc` and fill in your values.
+- **On Workers Builds:** `npm run build:worker` writes it from the `EPOCH_DEPLOY_VALUES` build
+  variable, which `./setup` (or `./setup builds`) sets.
+
+Without the file or the variable, remote commands stop and say to run setup.
+
+There is no D1 id anywhere. Wrangler looks the database up by `database_name` on deploy and on
+every remote `d1` command, so a renamed database has to be renamed in config too. Migrations run
+before the deploy, so a name that matches no database fails the migration instead of letting the
+deploy create an empty database.
 
 The build still reads the tracked file. `adapter-cloudflare` takes only `main` and `assets` from it,
-so `deploy` fails if the deploy file differs on those fields. Keep `main` at the adapter default and
+so the check fails if the deploy file differs on those fields. Keep `main` at the adapter default and
 pass `workers/entry.ts` to `wrangler deploy` directly.
 
-Local state is keyed by the D1 id, so the placeholder id starts a fresh local database: run
-`npm run db:migrate:local` once after pulling a change to it.
+Local D1 state is stored under the binding name `DB`, because there is no id. After pulling the
+change that removed the placeholder id, run `npm run db:migrate:local` (and `npm run seed`) once.
 
 The design of the setup tool, and the checks that still need a real account
 (`./setup spike`), are listed in [backlog.md](./backlog.md#setup-tool-npm-run-setup).

@@ -246,13 +246,22 @@ The tool is built in `tools/setup/` but has not been run against a real account.
   - whether `wrangler d1 migrations apply` and `d1 execute` accept the binding name `DB`;
   - `CLOUDFLARE_CF_AUTH` with `wrangler deploy` (expected to be ignored);
   - tag scopes: a profile with the base scopes can list tags, and a write with a stale ETag answers
-    412 (`tag-write-etag-412` creates and removes a throwaway queue).
+    412 (`tag-write-etag-412` creates and removes a throwaway queue);
+  - Workers Builds (ADR-043): that `workers-ci.write` is the scope the Builds API checks, the
+    output shape of `cf builds triggers list` (`builds-triggers-list`), and that
+    `cf builds triggers environment-variables upsert <uuid> --body` takes
+    `{ NAME: { value, is_secret } }`. Until a real run confirms this, setup falls back to printing
+    the value to paste.
 - **Adoption run for the live install** under Worker name `epoch-genealogy`, hosting workers.dev
   only. It tags the resources and writes the first markers on the Access app and the queue.
 - **`--deploy-auth=ephemeral` is refused for now.** Reconcile needs a wrangler token to inspect an
   existing Worker, which a minted deploy token cannot provide. Make it reachable or remove the code.
 - **Re-check on each wrangler upgrade** whether `wrangler deploy` honours `CLOUDFLARE_CF_AUTH`, which
-  would allow one consent instead of two.
+  would allow one consent instead of two. Also check that a D1 binding with no `database_id` still
+  resolves by `database_name` (resource provisioning, behind the hidden `--x-provision` flag that
+  defaults to on), which ADR-043 relies on.
+- **Scrub the owner's values from git history before the repository goes public.** Until ADR-043,
+  `wrangler.deploy.jsonc` was tracked, with the D1 id, team domain, install id and sender address.
 - **Open owner decisions:** the default deploy auth (second OAuth consent, or a single-consent
   ephemeral token); whether to keep `cf` pinned as a devDependency; whether setup should onboard the
   Email Sending domain or only report its status (report only is proposed, since verification

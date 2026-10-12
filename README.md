@@ -142,13 +142,33 @@ it. It also records you as the install owner.
 | `./setup allow <email>` | Lets someone through the Access policy setup created |
 | `./setup disallow <email>` | Removes them again |
 | `./setup teardown` | Deletes only what this install created |
+| `./setup builds` | Gives Workers Builds this install's values, after you connect the repository |
 | `./setup --help` | Lists every flag, including ones that answer each prompt for scripted use |
-| `npm run deploy` | Deploys a new version: applies any new migrations, builds and deploys |
+| `npm run deploy` | Deploys a new version from your machine: builds, applies any new migrations and deploys |
 
 With `--json`, only the result is printed (through npm, use `npm run -s setup -- …` so npm's own
-banner stays off the output). Setup keeps its state in `.epoch/install.json` (git-ignored) and
-`wrangler.deploy.jsonc`, which it regenerates; keep that file committed so later deploys can find
-your resources.
+banner stays off the output). Setup keeps its state in `.epoch/install.json` and writes your
+values to `wrangler.deploy.jsonc`. Both are git-ignored, so none of your configuration ends up in
+the repository. If you'd rather not use setup, copy `wrangler.jsonc` to `wrangler.deploy.jsonc` and
+fill in your own Worker name, route, vars and sender address. No database id is needed:
+Cloudflare finds the database by its name.
+
+### Deploying on every push
+
+To deploy on every push with Workers Builds:
+
+1. In the Cloudflare dashboard, go to **Workers & Pages → your Worker → Settings → Builds** and
+   connect the repository.
+2. Set the build command to `npm run build:worker` and the deploy command to
+   `npm run deploy:worker`.
+3. Run `./setup builds`.
+
+The last step sets one build variable, `EPOCH_DEPLOY_VALUES`, which the build turns into
+`wrangler.deploy.jsonc`. It uses the sign-in setup already has, so you don't need an API token.
+
+If setup can't set the variable (for example, a sign-in made before this feature, or the
+repository isn't connected yet), it prints the value for you to paste in. `./setup --force` signs
+in again with the extra permission.
 
 ### Who can get in
 
