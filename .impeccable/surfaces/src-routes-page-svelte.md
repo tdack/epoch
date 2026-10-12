@@ -34,7 +34,8 @@ joins them. "Epoch" (6rem) and the tagline sit centred between the ancestors. Th
 the union to an amber pill, "Explore the demo tree", with the install link beneath it.
 
 FORM: Descend the mark, ranked #1 of 6 grounded structures (dealt index 1; the user locked it).
-seed: none (unavailable). Code-led: no image generation; the Design canvas "Epoch Website" is the
+seed: none (the original roll printed no SEED REFERENCE; `--check-seed none` deals a fresh roll
+rather than verifying, and the structure was the user's own pick, so no key is recorded). Code-led: no image generation; the Design canvas "Epoch Website" is the
 sketch. Signature interaction: the hero mark assembles on arrival (ancestors, partners, union,
 stem, action), the connectors between sections draw on scroll, and the figure's legend highlights
 one kind of link.
