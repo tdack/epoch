@@ -9,7 +9,7 @@ import { resourceNames, type ResourceNames } from './names.ts';
 import { readDeployDefaults } from './steps/name.ts';
 import { installPaths } from './paths.ts';
 import { createExec, createRedactor, type Exec, type ExecResult } from './run.ts';
-import { BASE_SCOPES, TAG_SCOPES } from './scopes.ts';
+import { BASE_SCOPES, BUILDS_SCOPES, TAG_SCOPES } from './scopes.ts';
 import { TagConflictError } from './errors.ts';
 import { TAG_KEYS } from './tags.ts';
 
@@ -50,7 +50,8 @@ const CHECKS: Check[] = [
 			// The tag scopes are checked on their own below: a profile signed in before they existed must still pass here.
 			const missing = BASE_SCOPES.filter(
 				(scope) =>
-					!identity.scopes?.includes(scope) && !(TAG_SCOPES as readonly string[]).includes(scope)
+					!identity.scopes?.includes(scope) &&
+					!([...TAG_SCOPES, ...BUILDS_SCOPES] as readonly string[]).includes(scope)
 			);
 			if (missing.length > 0)
 				throw new Error(`scopes not granted or named differently: ${missing.join(', ')}`);
@@ -287,6 +288,24 @@ const CHECKS: Check[] = [
 					`no Worker ${state.names.worker} with a 32-hex tag in the scripts list (absent, or the field is named differently)`
 				);
 			return `script id ${id}`;
+		}
+	},
+	{
+		id: 'builds-triggers-list',
+		claim:
+			'With the workers-ci.write scope, `cf builds triggers list --external-script-id <tag>` lists the Worker’s triggers with trigger_uuid, trigger_name and build_command (ADR-040)',
+		async run(ctx, state) {
+			const identity = await ctx.cf.whoami();
+			if (identity.scopes !== null && BUILDS_SCOPES.some((s) => !identity.scopes?.includes(s)))
+				throw new Skip('this profile lacks workers-ci.write; run `./setup --force`');
+			const id = await ctx.cf.getWorkerScriptId(state.names.worker);
+			if (id === null) throw new Skip(`no Worker ${state.names.worker} to look up`);
+			const triggers = await ctx.cf.listBuildTriggers(id);
+			if (triggers.length === 0)
+				return 'no triggers: the repository is not connected to Workers Builds (still a pass)';
+			return triggers
+				.map((t) => `"${t.name}" builds with ${t.buildCommand ?? '(none)'}`)
+				.join('; ');
 		}
 	},
 	{

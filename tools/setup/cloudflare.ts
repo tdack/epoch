@@ -80,6 +80,14 @@ interface R2Info {
 	createdAt: string | null;
 }
 
+/** A Workers Builds trigger: one per connected branch set (production, and previews if on). */
+export interface BuildTrigger {
+	id: string;
+	name: string;
+	buildCommand: string | null;
+	deployCommand: string | null;
+}
+
 export interface CloudflareApi {
 	/** Every account-scoped call uses this id. Set once the account is chosen. */
 	useAccount(accountId: string): void;
@@ -155,6 +163,14 @@ export interface CloudflareApi {
 	deleteTags(type: string, id: string): Promise<void>;
 	/** The Worker's 32-hex script id (`tag` in the scripts list), which is what tags are keyed on. */
 	getWorkerScriptId(name: string): Promise<string | null>;
+
+	/**
+	 * Workers Builds triggers for a Worker, by its script id (the Builds API's `external_script_id`).
+	 * Empty when the repository has not been connected in the dashboard yet.
+	 */
+	listBuildTriggers(scriptId: string): Promise<BuildTrigger[]>;
+	/** Adds or replaces these build variables on one trigger; others on it are left alone. */
+	setBuildVariables(triggerId: string, variables: Record<string, string>): Promise<void>;
 
 	/** Names of the deploy-token permission groups this account does not offer; empty when minting can work. */
 	missingDeployPermissionGroups(): Promise<string[]>;
@@ -756,6 +772,37 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			const script = asList(res.body.result).find((s) => s.id === name);
 			const tag = str(script?.tag);
 			return tag !== null && /^[0-9a-f]{32}$/.test(tag) ? tag : null;
+		},
+
+		// `cf builds triggers list --external-script-id <tag>` (SPIKE: output shape, read from `cf schema`).
+		async listBuildTriggers(scriptId) {
+			const out = await cf(['builds', 'triggers', 'list', '--external-script-id', scriptId]);
+			return asList(out, 'result', 'triggers')
+				.filter((t) => !str(t.deleted_on))
+				.map((t) => ({
+					id: str(t.trigger_uuid) ?? '',
+					name: str(t.trigger_name) ?? '',
+					buildCommand: str(t.build_command),
+					deployCommand: str(t.deploy_command)
+				}))
+				.filter((t) => t.id !== '');
+		},
+		// Visible rather than secret: nothing in the values is a credential (ADR-040), and a secret
+		// could not be read back to tell whether it is current.
+		async setBuildVariables(triggerId, variables) {
+			const body = Object.fromEntries(
+				Object.entries(variables).map(([key, value]) => [key, { value, is_secret: false }])
+			);
+			await cf([
+				'builds',
+				'triggers',
+				'environment-variables',
+				'upsert',
+				triggerId,
+				'--body',
+				JSON.stringify(body),
+				...dry
+			]);
 		},
 
 		async deleteD1(id) {

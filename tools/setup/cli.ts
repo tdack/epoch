@@ -4,10 +4,11 @@ import { createContext } from './app.ts';
 import { runDoctor } from './doctor.ts';
 import { CommandError, ERROR_CODES, SetupError } from './errors.ts';
 import { resumeNote, runSetup } from './flow.ts';
-import { readManifest } from './manifest.ts';
+import { loadManifest, readManifest } from './manifest.ts';
 import { DEFAULT_FLAGS, DEPLOY_AUTHS, HOSTINGS, type SetupFlags } from './options.ts';
 import { installPaths } from './paths.ts';
 import { runSpike } from './spike.ts';
+import { configureBuilds } from './steps/builds.ts';
 import { runTeardown } from './teardown.ts';
 import { createUi } from './ui.ts';
 
@@ -165,6 +166,7 @@ export interface Handlers {
 	doctor(raw: RawOptions): Promise<void>;
 	allow(action: 'add' | 'remove', email: string, raw: RawOptions): Promise<void>;
 	teardown(raw: RawOptions): Promise<void>;
+	builds(raw: RawOptions): Promise<void>;
 	spike(raw: RawOptions): Promise<void>;
 }
 
@@ -213,6 +215,27 @@ const DEFAULT_HANDLERS: Handlers = {
 					: `Deleted ${deleted.map((d) => d.name).join(', ')}.`
 			);
 			return { deleted };
+		});
+	},
+	async builds(raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			// Read-only means the manifest is not rewritten; the build variable is still set.
+			const ctx = readOnlyContext(ui, flags);
+			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
+			if (!manifest?.account) {
+				throw new SetupError(ERROR_CODES.manifest, 'There is no install in this checkout', {
+					hint: 'Run `./setup` first.'
+				});
+			}
+			ctx.cf.useAccount(manifest.account.id);
+			ui.intro('Epoch Workers Builds');
+			const lines = await ui.presenter.task('Setting the Workers Builds variable', () =>
+				configureBuilds(ctx, manifest)
+			);
+			ui.presenter.showHandOff(lines);
+			ui.outro('Done.');
+			return { lines };
 		});
 	},
 	async spike(raw) {
@@ -272,6 +295,15 @@ export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 		.option('--yes', 'refused: teardown always needs typed names')
 		.option('--verbose', 'stream the cf and wrangler output')
 		.action((raw: RawOptions) => handlers.teardown(raw));
+
+	program
+		.command('builds')
+		.description(
+			'Set the Workers Builds variable from this install, after connecting the repository in the dashboard'
+		)
+		.option('--json', 'print one JSON result on stdout')
+		.option('--verbose', 'stream the cf output')
+		.action((raw: RawOptions) => handlers.builds(raw));
 
 	program
 		.command('spike')

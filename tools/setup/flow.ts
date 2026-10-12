@@ -5,6 +5,7 @@ import { ERROR_CODES, SetupError } from './errors.ts';
 import { lastCompletedStep, withStepDone, type Manifest } from './manifest.ts';
 import type { SetupFlags } from './options.ts';
 import { access } from './steps/access.ts';
+import { configureBuilds } from './steps/builds.ts';
 import { WORKER_CHOICES, resolveExistingWorker } from './steps/existing-worker.ts';
 import { chooseWorkerName, readDeployDefaults } from './steps/name.ts';
 import { collect } from './steps/collect.ts';
@@ -40,7 +41,7 @@ export interface SetupResult {
 	handOff: string[];
 }
 
-/** Plan steps 1 to 11. Each step reads the manifest and answers; only `collect` and the plan confirmation prompt. */
+/** Plan steps 1 to 11, plus the Workers Builds variable (ADR-040). Each step reads the manifest and answers; only `collect` and the plan confirmation prompt. */
 export async function runSetup(
 	ctx: StepContext,
 	flags: SetupFlags,
@@ -155,6 +156,10 @@ export async function runSetup(
 	manifest = await presenter.task('Migrating, marking and deploying', () =>
 		migrateMarkDeploy(ctx, manifest)
 	);
+	const deployed = manifest;
+	const buildsLines = await presenter.task('Setting the Workers Builds variable', () =>
+		configureBuilds(ctx, deployed)
+	);
 
 	presenter.stage('Verify');
 	const verified = await presenter.task('Checking the live site', () => verify(ctx, manifest));
@@ -166,13 +171,14 @@ export async function runSetup(
 	}
 
 	const done = handOff(manifest);
-	presenter.showHandOff(done.lines);
+	const lines = [...done.lines, ...buildsLines];
+	presenter.showHandOff(lines);
 	return {
 		manifest: ctx.save(done.manifest),
 		plan,
 		checks: verified.results,
 		isApplied: true,
-		handOff: done.lines
+		handOff: lines
 	};
 }
 

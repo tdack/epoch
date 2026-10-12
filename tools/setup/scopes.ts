@@ -23,7 +23,8 @@ export const BASE_SCOPES = [
 	'access-policy.write',
 	'email-sending.read',
 	'tag.read',
-	'tag.write'
+	'tag.write',
+	'workers-ci.write'
 ] as const;
 
 /**
@@ -32,6 +33,15 @@ export const BASE_SCOPES = [
  */
 export const TAG_SCOPES = ['tag.read', 'tag.write'] as const;
 
+/**
+ * Workers Builds' variables and triggers (ADR-040). SPIKE: that `workers-ci` is the scope family the
+ * Builds API checks (cf also lists the legacy `workers_builds:write`). Optional like the tag scopes:
+ * without it setup prints the build variable to paste into the dashboard instead of setting it.
+ */
+export const BUILDS_SCOPES = ['workers-ci.write'] as const;
+
+const OPTIONAL_SCOPES: readonly string[] = [...TAG_SCOPES, ...BUILDS_SCOPES];
+
 /** Broad, so asked for only when the user chose a minted deploy token. */
 const EPHEMERAL_SCOPE = 'account_api_tokens:create';
 
@@ -39,15 +49,17 @@ export function requestedScopes(mode: AuthMode): string[] {
 	return mode === AUTH_MODES.ephemeral ? [...BASE_SCOPES, EPHEMERAL_SCOPE] : [...BASE_SCOPES];
 }
 
-/** What a sign-in must have granted; the tag scopes are left out because tagging degrades without them. */
+/** What a sign-in must have granted; the optional scopes are left out because their steps degrade. */
 export function requiredScopes(mode: AuthMode): string[] {
-	return requestedScopes(mode).filter(
-		(scope) => !(TAG_SCOPES as readonly string[]).includes(scope)
-	);
+	return requestedScopes(mode).filter((scope) => !OPTIONAL_SCOPES.includes(scope));
 }
 
 export function missingTagScopes(granted: readonly string[]): string[] {
 	return missingScopes(TAG_SCOPES, granted);
+}
+
+export function missingBuildsScopes(granted: readonly string[]): string[] {
+	return missingScopes(BUILDS_SCOPES, granted);
 }
 
 function missingScopes(requested: readonly string[], granted: readonly string[]): string[] {

@@ -430,6 +430,7 @@ describe('command line', () => {
 				doctor: record('doctor'),
 				allow: record('allow'),
 				teardown: record('teardown'),
+				builds: record('builds'),
 				spike: record('spike')
 			} as unknown as Handlers;
 			return { calls, program: buildProgram(handlers) };
@@ -456,6 +457,12 @@ describe('command line', () => {
 			const teardown = (await run(['teardown', '--yes']))[0];
 			expect(teardown?.command).toBe('teardown');
 			expect(teardown?.args[0]).toMatchObject({ yes: true });
+		});
+
+		it('`builds --json` runs only the Workers Builds step', async () => {
+			const [call] = await run(['builds', '--json']);
+			expect(call?.command).toBe('builds');
+			expect(call?.args[0]).toMatchObject({ json: true });
 		});
 
 		it('allow and disallow pass the action and the address', async () => {

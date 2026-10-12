@@ -37,7 +37,7 @@ export async function writeConfig(ctx: StepContext, manifest: Manifest): Promise
 }
 
 /** This install's values for the deploy config, as setup writes them and Workers Builds receives them. */
-function deployValuesOf(manifest: Manifest): DeployValues {
+export function deployValuesOf(manifest: Manifest): DeployValues {
 	if (!manifest.hostname || !manifest.teamDomain || !manifest.hosting) {
 		throw new SetupError(
 			ERROR_CODES.manifest,

@@ -5,6 +5,7 @@ import { resourceNames } from '../names.ts';
 import type { SetupFlags } from '../options.ts';
 import {
 	assertScopesGranted,
+	missingBuildsScopes,
 	missingTagScopes,
 	requestedScopes,
 	requiredScopes
@@ -89,6 +90,12 @@ export async function signIn(
 		if (missingTags.length > 0) {
 			ctx.report.warn(
 				`This sign-in lacks ${missingTags.join(', ')}, so resource tags will be skipped; run \`./setup --force\` to add them`
+			);
+		}
+		const missingBuilds = missingBuildsScopes(identity.scopes);
+		if (missingBuilds.length > 0) {
+			ctx.report.warn(
+				`This sign-in lacks ${missingBuilds.join(', ')}, so the Workers Builds variable will be printed for you to paste instead of set; run \`./setup --force\` to add it`
 			);
 		}
 	}

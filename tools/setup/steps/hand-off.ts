@@ -13,7 +13,7 @@ export function handOff(manifest: Manifest): { manifest: Manifest; lines: string
 		hasOwnedPolicy
 			? 'To let someone else sign in: `./setup allow <email>`, then invite them inside Epoch.'
 			: 'To let someone else sign in, add them to that policy in the Cloudflare dashboard, then invite them inside Epoch.',
-		'Later deploys: `npm run deploy` under the bound profiles.',
+		'Later deploys: push, once Workers Builds is connected, or `npm run deploy` under the bound profiles.',
 		'Install record: .epoch/install.json'
 	];
 	return { manifest: withStepDone(manifest, 'hand-off'), lines };
