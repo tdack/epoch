@@ -6,6 +6,7 @@
 	import Hero from '#lib/components/Hero.svelte';
 	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import RichText from '#lib/components/RichText.svelte';
+	import SiteNav from '#lib/components/SiteNav.svelte';
 	import {
 		DEMO_URL,
 		FAQS,
@@ -60,6 +61,7 @@
 	<link rel="preload" as="image" href="/brand/splash-library.webp" type="image/webp" />
 </svelte:head>
 
+<SiteNav />
 <Hero />
 
 <main>

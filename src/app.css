@@ -28,6 +28,7 @@
 
 	--measure: 1200px;
 	--gutter: clamp(16px, 4vw, 32px);
+	--nav-height: 76px;
 	--section-gap: clamp(72px, 9vw, 112px);
 	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -42,7 +43,7 @@
 
 html {
 	scroll-behavior: smooth;
-	scroll-padding-top: 24px;
+	scroll-padding-top: calc(var(--nav-height) + 24px);
 	-webkit-text-size-adjust: 100%;
 }
 

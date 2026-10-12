@@ -1,40 +1,10 @@
 <script lang="ts">
-	import EpochMark from './EpochMark.svelte';
-	import { DEMO_URL, REPO_URL, TAGLINE } from '#lib/site.js';
-
-	const NAV = [
-		{ href: '#features', label: 'Features' },
-		{ href: '#code', label: 'Get the code' },
-		{ href: '#install', label: 'Install' },
-		{ href: '#faq', label: 'FAQ' }
-	];
+	import { DEMO_URL, TAGLINE } from '#lib/site.js';
 </script>
 
 <!-- The photograph is decoration, as on the app's splash, so it lives in CSS. The emerald wash
 keeps vellum text above contrast over the brightest spines. -->
 <header class="hero" id="top">
-	<nav aria-label="Main" class="nav">
-		<a href="#top" class="brand">
-			<EpochMark size={30} ink="var(--vellum)" />
-			<span>Epoch</span>
-		</a>
-		<ul class="links">
-			{#each NAV as item (item.href)}
-				<li><a href={item.href}>{item.label}</a></li>
-			{/each}
-			<li><a href={REPO_URL}>GitHub</a></li>
-		</ul>
-		<details class="menu">
-			<summary>Menu</summary>
-			<ul>
-				{#each NAV as item (item.href)}
-					<li><a href={item.href}>{item.label}</a></li>
-				{/each}
-				<li><a href={REPO_URL}>GitHub</a></li>
-			</ul>
-		</details>
-	</nav>
-
 	<!-- The Epoch mark at the scale of the page: the faded generation before, the partners and
 	their union, and the amber child, which is the action. -->
 	<div class="tree">
@@ -101,99 +71,9 @@ keeps vellum text above contrast over the brightest spines. -->
 		);
 	}
 
-	.nav {
-		max-width: var(--measure);
-		margin: 0 auto;
-		padding: 18px var(--gutter);
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 24px;
-	}
-
-	.brand {
-		display: inline-flex;
-		align-items: center;
-		gap: 10px;
-		min-height: 44px;
-		color: var(--vellum);
-		font-weight: 700;
-		font-size: 1.125rem;
-		text-decoration: none;
-	}
-
-	.links,
-	.menu ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
-	.links {
-		display: flex;
-		gap: 8px;
-	}
-
-	.links a,
-	.menu a {
-		display: inline-flex;
-		align-items: center;
-		min-height: 44px;
-		padding: 0 12px;
-		border-radius: 8px;
-		color: var(--emerald-100);
-		font-weight: 600;
-		font-size: 0.9375rem;
-		text-decoration: none;
-	}
-
-	.links a:hover,
-	.menu a:hover {
-		color: var(--vellum);
-		background: rgb(255 251 235 / 0.08);
-	}
-
 	.hero :focus-visible {
 		outline-color: var(--amber-300);
 		outline-offset: 4px;
-	}
-
-	.menu {
-		display: none;
-		position: relative;
-	}
-
-	.menu summary {
-		display: inline-flex;
-		align-items: center;
-		min-height: 44px;
-		padding: 0 16px;
-		border: 1px solid rgb(255 251 235 / 0.6);
-		border-radius: 12px;
-		font-weight: 600;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.menu summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.menu ul {
-		position: absolute;
-		right: 0;
-		top: calc(100% + 8px);
-		z-index: 2;
-		min-width: 200px;
-		padding: 8px;
-		border-radius: 12px;
-		background: var(--emerald-950);
-		border: 1px solid rgb(110 231 183 / 0.25);
-		box-shadow: 0 16px 40px rgb(2 44 34 / 0.5);
-	}
-
-	.menu a {
-		display: flex;
 	}
 
 	/* --side is the width of each partner's column; the ancestor line, the partner and the union's
@@ -205,7 +85,7 @@ keeps vellum text above contrast over the brightest spines. -->
 		position: relative;
 		max-width: var(--measure);
 		margin: 0 auto;
-		padding: clamp(24px, 6vw, 56px) var(--gutter) clamp(56px, 8vw, 96px);
+		padding: calc(var(--nav-height) + clamp(24px, 6vw, 56px)) var(--gutter) clamp(56px, 8vw, 96px);
 		display: grid;
 		grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
 	}
@@ -430,16 +310,6 @@ keeps vellum text above contrast over the brightest spines. -->
 	@keyframes drop {
 		from {
 			scale: 1 0;
-		}
-	}
-
-	@media (max-width: 760px) {
-		.links {
-			display: none;
-		}
-
-		.menu {
-			display: block;
 		}
 	}
 </style>

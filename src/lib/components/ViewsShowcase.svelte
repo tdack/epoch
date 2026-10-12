@@ -5,6 +5,7 @@
 
 	let runway = $state<HTMLElement>();
 	let track = $state<HTMLElement>();
+	let pin = $state<HTMLElement>();
 
 	/** Whether vertical scrolling drives the panels sideways; off on narrow screens and under reduced motion. */
 	let isPinned = $state(false);
@@ -13,16 +14,19 @@
 	let travelPx = $state(0);
 
 	$effect(() => {
-		if (!runway || !track) return;
+		if (!runway || !track || !pin) return;
 		const wide = matchMedia('(min-width: 900px) and (min-height: 600px)');
 		const still = matchMedia('(prefers-reduced-motion: reduce)');
 		const runwayEl = runway;
 		const trackEl = track;
+		const pinEl = pin;
 		let frame = 0;
+		let pinTopPx = 0;
 
 		const measure = () => {
 			isAnimated = !still.matches;
 			isPinned = wide.matches && !still.matches;
+			pinTopPx = Number.parseFloat(getComputedStyle(pinEl).top) || 0;
 			// The distance the track must travel so its last panel ends at the right edge.
 			travelPx = isPinned ? Math.max(0, trackEl.scrollWidth - trackEl.clientWidth) : 0;
 			update();
@@ -34,7 +38,8 @@
 				offsetPx = 0;
 				return;
 			}
-			const scrolled = -runwayEl.getBoundingClientRect().top;
+			// The pin sticks below the site's nav bar, so travel starts once the runway reaches it.
+			const scrolled = pinTopPx - runwayEl.getBoundingClientRect().top;
 			offsetPx = Math.min(travelPx, Math.max(0, scrolled));
 		};
 
@@ -60,14 +65,14 @@
 
 <section id="views" class="views" class:is-pinned={isPinned} aria-labelledby="views-title">
 	<Descent tone="mist" />
-	<!-- While pinned, this runway is taller than the screen by exactly the track's travel, so the
-	page scrolls on as soon as the last panel has arrived. -->
+	<!-- While pinned, this runway is taller than the space under the nav bar by exactly the track's
+	travel, so the page scrolls on as soon as the last panel has arrived. -->
 	<div
 		class="runway"
 		bind:this={runway}
-		style:height={isPinned ? `calc(100vh + ${travelPx}px)` : undefined}
+		style:height={isPinned ? `calc(100vh - var(--nav-height) + ${travelPx}px)` : undefined}
 	>
-		<div class="pin">
+		<div class="pin" bind:this={pin}>
 			<div class="head">
 				<h2 id="views-title">Four more ways to see the whole family</h2>
 				<p>
@@ -126,8 +131,8 @@
 
 	.is-pinned .pin {
 		position: sticky;
-		top: 0;
-		height: 100vh;
+		top: var(--nav-height);
+		height: calc(100vh - var(--nav-height));
 		justify-content: center;
 		padding-bottom: 32px;
 	}
@@ -155,7 +160,7 @@
 	}
 
 	.track {
-		--panel: min(78vw, 820px, calc((100vh - 330px) * 1.75));
+		--panel: min(78vw, 820px, calc((100vh - 330px - var(--nav-height)) * 1.75));
 		--gap: clamp(20px, 3vw, 40px);
 		--inset: max(var(--gutter), calc((100vw - var(--measure)) / 2 + var(--gutter)));
 		display: flex;
