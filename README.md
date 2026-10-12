@@ -150,7 +150,9 @@ With `--json`, only the result is printed (through npm, use `npm run -s setup --
 banner stays off the output). Setup keeps its state in `.epoch/install.json` and writes your
 values to `wrangler.deploy.jsonc`. Both are git-ignored, so none of your configuration ends up in
 the repository. If you'd rather not use setup, copy `wrangler.jsonc` to `wrangler.deploy.jsonc` and
-fill in your own Worker name, route, vars and sender address. No database id is needed:
+fill in your own Worker name, route, vars and sender address. The sender goes in both the
+`EMAIL` binding's `allowed_sender_addresses` and an `EPOCH_EMAIL_SENDER` var; without the var,
+invitations are saved but not emailed. No database id is needed:
 Cloudflare finds the database by its name.
 
 ### Deploying on every push
