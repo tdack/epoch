@@ -247,6 +247,8 @@ describe('teardown', () => {
 	function rules(d1Marker: string) {
 		return [
 			{ match: 'cf d1 list', stdout: fixture('d1-list.json') },
+			// No Worker id, so the Worker is proved ours by its marker var alone, as before tags.
+			{ match: 'cf workers list', stdout: [] },
 			{
 				match: 'cf d1 query',
 				stdout: [{ results: [{ n: 1, install_id: d1Marker, owner_email: 'a@example.com' }] }]

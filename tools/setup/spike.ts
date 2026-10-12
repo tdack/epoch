@@ -280,12 +280,12 @@ const CHECKS: Check[] = [
 	{
 		id: 'worker-script-id',
 		claim:
-			'GET /accounts/{id}/workers/scripts lists each script with `id` (its name) and `tag` (the 32-hex id the tags API keys on)',
+			'`cf workers list` lists each Worker with `name` and `id` (the 32-hex id the tags and Builds APIs key on)',
 		async run(ctx, state) {
 			const id = await ctx.cf.getWorkerScriptId(state.names.worker);
 			if (id === null)
 				throw new Skip(
-					`no Worker ${state.names.worker} with a 32-hex tag in the scripts list (absent, or the field is named differently)`
+					`no Worker ${state.names.worker} with a 32-hex id in \`cf workers list\` (absent, or the field is named differently)`
 				);
 			return `script id ${id}`;
 		}

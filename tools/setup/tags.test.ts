@@ -193,19 +193,19 @@ describe('the cf wrappers', () => {
 		expect(exec.calls).toEqual([]);
 	});
 
-	it('reads the Worker script id from `tag` in the scripts list, never from the name', async () => {
-		const exec = fakeExec([]);
-		const cf = createCloudflareApi(createRunner(exec), {
-			rawGet: async () => ({
-				status: 200,
-				body: {
-					result: [
-						{ id: 'epoch', tag: WORKER_ID },
-						{ id: 'other', tag: 'f'.repeat(32) }
-					]
-				}
-			})
-		});
+	it('reads the Worker id from `cf workers list`, matching on the name, across pages', async () => {
+		const others = Array.from({ length: 100 }, (_, i) => ({
+			id: i.toString(16).padStart(32, '0'),
+			name: `other-${i}`
+		}));
+		const exec = fakeExec([
+			{ match: 'cf workers list --per-page 100 --page 1', stdout: others },
+			{
+				match: 'cf workers list --per-page 100 --page 2',
+				stdout: [{ id: WORKER_ID, name: 'epoch' }]
+			}
+		]);
+		const cf = createCloudflareApi(createRunner(exec), {});
 		cf.useAccount('acc0000000000000000000000000001');
 		expect(await cf.getWorkerScriptId('epoch')).toBe(WORKER_ID);
 		expect(await cf.getWorkerScriptId('missing')).toBeNull();
