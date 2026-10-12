@@ -156,12 +156,14 @@
 
 	.track {
 		--panel: min(78vw, 820px, calc((100vh - 330px) * 1.75));
+		--gap: clamp(20px, 3vw, 40px);
+		--inset: max(var(--gutter), calc((100vw - var(--measure)) / 2 + var(--gutter)));
 		display: flex;
-		gap: clamp(20px, 3vw, 40px);
+		gap: var(--gap);
 		list-style: none;
 		margin: 0;
 		/* The first panel starts on the page's content edge and the last can end on it too. */
-		padding: 0 max(var(--gutter), calc((100vw - var(--measure)) / 2 + var(--gutter)));
+		padding: 0 var(--inset);
 		will-change: translate;
 	}
 
@@ -182,7 +184,8 @@
 	.track::after {
 		content: '';
 		flex: none;
-		width: 1px;
+		/* The row's gap already stands before it, so the spacer makes up the rest of the inset. */
+		width: calc(var(--inset) - var(--gap));
 	}
 
 	.panel {
