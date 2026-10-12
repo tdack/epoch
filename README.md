@@ -24,7 +24,9 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - A focus-centred family view where generations up and down, siblings, step relatives and
   relationship types can be shown or hidden. The view is kept in the address, so reloading,
   **Back** and shared links restore it.
-- A **generation rings** overview beside the flat view.
+- **3D views** beside the flat view: **Rings** (one ring per generation), **Ball** (height is
+  calendar time), **Ribbons** (lines of descent braiding at each partnership) and **Orrery**
+  (partners as paired stars). Each can show the whole tree and trace several lines at once.
 - **Charts** centred on any person: pedigree, descendants, fan and hourglass, each with a text
   outline.
 - **Relationship finder** showing every route between two people.

@@ -36,9 +36,9 @@ capabilities, not its screens or implementation.
 - Signed-out visitors land on `/welcome` and sign in through a Cloudflare Access application that
   covers only `/login`.
 - Work centres on a tree: record pages for people, unions and places, a relationship-first editor,
-  search, recents and favourites, charts (pedigree, descendants, relationship, fan, hourglass, and
-  the 3D layers and floors views), sources and citations, notes, tasks, a data-quality report,
-  members and invitations.
+  search, recents and favourites, charts (pedigree, descendants, relationship, fan and hourglass),
+  the 3D Rings, Ball, Ribbons and Orrery views, sources and citations, notes, tasks, a
+  data-quality report, members and invitations.
 - GEDCOM files move in and out: import with validation and preview, export in 5.5.1 and 7.0.
 - Changes are logged and undoable; edits use optimistic concurrency, so collaborators can conflict.
 
