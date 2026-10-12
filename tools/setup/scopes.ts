@@ -34,9 +34,9 @@ export const BASE_SCOPES = [
 export const TAG_SCOPES = ['tag.read', 'tag.write'] as const;
 
 /**
- * Workers Builds' variables and triggers (ADR-043). SPIKE: that `workers-ci` is the scope family the
- * Builds API checks (cf also lists the legacy `workers_builds:write`). Optional like the tag scopes:
- * without it setup prints the build variable to paste into the dashboard instead of setting it.
+ * Workers Builds' variables and triggers (ADR-043). A sign-in with it set the build variable on the
+ * live install on 2026-10-12. Optional like the tag scopes: without it setup prints the build
+ * variable to paste into the dashboard instead of setting it.
  */
 export const BUILDS_SCOPES = ['workers-ci.write'] as const;
 

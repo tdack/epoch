@@ -246,16 +246,7 @@ The tool is built in `tools/setup/` but has not been run against a real account.
   - whether `wrangler d1 migrations apply` and `d1 execute` accept the binding name `DB`;
   - `CLOUDFLARE_CF_AUTH` with `wrangler deploy` (expected to be ignored);
   - tag scopes: a profile with the base scopes can list tags, and a write with a stale ETag answers
-    412 (`tag-write-etag-412` creates and removes a throwaway queue);
-  - Workers Builds (ADR-043): that `workers-ci.write` is the scope the Builds API checks, that
-    `cf builds triggers list` prints a list of the trigger shape `update` printed
-    (`builds-triggers-list`), that `cf builds triggers environment-variables upsert <uuid> --body`
-    takes `{ NAME: { value, is_secret } }`. `update` with `--build-command`, `--deploy-command` and
-    repeated `--path-includes`/`--path-excludes` (one pattern each), and `cf workers list` giving
-    the 32-hex id as `id`, were confirmed by the owner on 2026-10-12.
-    Until a real run confirms the rest, setup falls back to printing what to paste.
-- **Adoption run for the live install** under Worker name `epoch-genealogy`, hosting workers.dev
-  only. It tags the resources and writes the first markers on the Access app and the queue.
+    412 (`tag-write-etag-412` creates and removes a throwaway queue).
 - **`--deploy-auth=ephemeral` is refused for now.** Reconcile needs a wrangler token to inspect an
   existing Worker, which a minted deploy token cannot provide. Make it reachable or remove the code.
 - **Re-check on each wrangler upgrade** whether `wrangler deploy` honours `CLOUDFLARE_CF_AUTH`, which

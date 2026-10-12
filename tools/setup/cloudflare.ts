@@ -798,8 +798,8 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			}
 		},
 
-		// `cf builds triggers list --external-script-id <tag>`. Each entry has the shape `cf builds
-		// triggers update` printed on the owner's account (beta.14, fixtures/build-trigger.json).
+		// `cf builds triggers list --external-script-id <tag>`, read on the live install (beta.14).
+		// Each entry has the shape in fixtures/build-trigger.json.
 		async listBuildTriggers(scriptId) {
 			const out = await cf(['builds', 'triggers', 'list', '--external-script-id', scriptId]);
 			return asList(out, 'result', 'triggers')
