@@ -25,32 +25,42 @@
 		f: { fill: '#f6dde6', edge: '#b8607f' }
 	};
 
+	// The app never overlaps cards, so the children keep a clear gap between the two families.
 	const CARDS: Card[] = [
-		{ x: 40, y: 48, w: 160, name: 'Thomas Reed', dates: '1871 – 1932', sex: 'm' },
+		{ x: 40, y: 60, w: 160, name: 'Thomas Reed', dates: '1871 – 1932', sex: 'm' },
 		{
 			x: 330,
-			y: 48,
+			y: 60,
 			w: 200,
 			name: 'Ellen Marsh',
 			dates: 'ABT 1874 – 1951',
 			sex: 'f',
 			isFocus: true
 		},
-		{ x: 660, y: 48, w: 160, name: 'Arthur Vale', dates: '1869 – 1940', sex: 'm' },
-		{ x: 75, y: 262, w: 160, name: 'Rose Reed', dates: 'ABT 1900', sex: 'f' },
-		{ x: 285, y: 262, w: 160, name: 'Henry Reed', dates: '1899', sex: 'm' },
-		{ x: 415, y: 262, w: 160, name: 'Jack Vale', dates: 'BET 1908 AND 1910', sex: 'm' },
-		{ x: 625, y: 262, w: 160, name: 'Nell Price', dates: '1912', sex: 'f' }
+		{ x: 660, y: 60, w: 160, name: 'Arthur Vale', dates: '1869 – 1940', sex: 'm' },
+		{ x: 30, y: 274, w: 160, name: 'Rose Reed', dates: 'ABT 1900', sex: 'f' },
+		{ x: 210, y: 274, w: 160, name: 'Henry Reed', dates: '1899', sex: 'm' },
+		{ x: 490, y: 274, w: 160, name: 'Jack Vale', dates: 'BET 1908 AND 1910', sex: 'm' },
+		{ x: 670, y: 274, w: 160, name: 'Nell Price', dates: '1912', sex: 'f' }
 	];
 
-	const LINES: { kind: Kind; d: string }[] = [
-		{ kind: 'partnership', d: 'M200 80H330' },
-		{ kind: 'partnership', d: 'M530 80H660' },
-		{ kind: 'biological', d: 'M265 80V200H155V262' },
-		{ kind: 'adoptive', d: 'M265 200H365V262' },
-		{ kind: 'biological', d: 'M595 80V200H495V262' },
-		{ kind: 'foster', d: 'M595 200H705V262' }
+	const LINES: { kind: Kind; d: string; isEnded?: boolean }[] = [
+		{ kind: 'partnership', d: 'M200 92H330', isEnded: true },
+		{ kind: 'partnership', d: 'M530 92H660' },
+		{ kind: 'biological', d: 'M265 105V212H110V274' },
+		{ kind: 'adoptive', d: 'M265 212H290V274' },
+		{ kind: 'biological', d: 'M595 105V212H570V274' },
+		{ kind: 'foster', d: 'M595 212H750V274' }
 	];
+
+	// The app's union marker (UnionMarker.svelte): a disc with two interlinked rings, and for a
+	// partnership that ended, a dashed disc with a slash through it.
+	const UNIONS = [
+		{ x: 265, label: '1st · m. 1898 · div. 1904', isEnded: true },
+		{ x: 595, label: '2nd · m. 1907', isEnded: false }
+	];
+	const UNION_Y = 92;
+	const UNION_R = 13;
 
 	const inkOf = (kind: Kind) => KINDS.find((k) => k.id === kind)!;
 
@@ -62,31 +72,32 @@
 <figure class="figure">
 	<div class="scroller">
 		<svg
-			viewBox="0 0 860 390"
+			viewBox="0 0 860 400"
 			role="img"
 			aria-labelledby="family-title family-desc"
 			class:is-filtered={highlighted !== null}
 		>
 			<title id="family-title">A sample family drawn the way Epoch draws it</title>
 			<desc id="family-desc">
-				Ellen Marsh has two partnerships. With Thomas Reed, from 1898 to 1904: a biological
-				daughter, Rose, born about 1900, and an adopted son, Henry, born 1899. With Arthur Vale,
-				from 1907: a biological son, Jack, born between 1908 and 1910, and a foster daughter, Nell,
-				born 1912. Arthur is Rose's step-father, worked out from Ellen's partnerships.
+				Ellen Marsh has two partnerships. With Thomas Reed, married 1898 and divorced 1904: a
+				biological daughter, Rose, born about 1900, and an adopted son, Henry, born 1899. With
+				Arthur Vale, married 1907: a biological son, Jack, born between 1908 and 1910, and a foster
+				daughter, Nell, born 1912. Arthur is Rose's step-father, worked out from Ellen's
+				partnerships.
 			</desc>
 			<defs>
 				<pattern id="dot-grid" width="18" height="18" patternUnits="userSpaceOnUse">
 					<circle cx="2" cy="2" r="1.3" fill="var(--tree-dot)" />
 				</pattern>
 			</defs>
-			<rect width="860" height="390" fill="url(#dot-grid)" />
+			<rect width="860" height="400" fill="url(#dot-grid)" />
 
 			<g fill="none" stroke-width="2.5" stroke-linecap="round">
 				{#each LINES as line, i (i)}
 					<path
 						d={line.d}
 						stroke={inkOf(line.kind).ink}
-						stroke-dasharray={inkOf(line.kind).dash || undefined}
+						stroke-dasharray={line.isEnded ? '6 5' : inkOf(line.kind).dash || undefined}
 						class="link"
 						class:is-lit={highlighted === line.kind}
 					/>
@@ -94,13 +105,33 @@
 			</g>
 
 			<g class="link" class:is-lit={highlighted === 'partnership'}>
-				<rect x="258" y="73" width="14" height="14" transform="rotate(45 265 80)" fill="#8a5a14" />
-				<rect x="588" y="73" width="14" height="14" transform="rotate(45 595 80)" fill="#8a5a14" />
-				<text x="265" y="120" text-anchor="middle" class="union-label"
-					>1st partnership · 1898–1904</text
-				>
-				<text x="595" y="120" text-anchor="middle" class="union-label">2nd partnership · 1907–</text
-				>
+				{#each UNIONS as union (union.x)}
+					<g transform="translate({union.x} {UNION_Y})">
+						<circle
+							r={UNION_R}
+							fill="#fdfbf7"
+							stroke="#8a5a14"
+							stroke-width="2"
+							stroke-dasharray={union.isEnded ? '4 3' : undefined}
+						/>
+						<circle cx="-3.2" r="4.6" fill="none" stroke="#8a5a14" stroke-width="1.5" />
+						<circle cx="3.2" r="4.6" fill="none" stroke="#8a5a14" stroke-width="1.5" />
+						{#if union.isEnded}
+							<line
+								x1={-UNION_R * 0.7}
+								y1={UNION_R * 0.7}
+								x2={UNION_R * 0.7}
+								y2={-UNION_R * 0.7}
+								stroke="#8a5a14"
+								stroke-width="2.5"
+								stroke-linecap="round"
+							/>
+						{/if}
+					</g>
+					<text x={union.x} y={UNION_Y - 40} text-anchor="middle" class="union-label"
+						>{union.label}</text
+					>
+				{/each}
 			</g>
 
 			{#each CARDS as card (card.name)}
@@ -156,9 +187,9 @@
 			{/each}
 
 			<g class="note">
-				<path d="M155 336v14" stroke="#a8a29e" stroke-width="1.5" stroke-dasharray="2 3" />
-				<text x="155" y="366" text-anchor="middle">Arthur's step-daughter, worked out</text>
-				<text x="155" y="382" text-anchor="middle">from Ellen's partnerships</text>
+				<path d="M110 348v14" stroke="#a8a29e" stroke-width="1.5" stroke-dasharray="2 3" />
+				<text x="110" y="376" text-anchor="middle">Arthur's step-daughter, worked out</text>
+				<text x="110" y="392" text-anchor="middle">from Ellen's partnerships</text>
 			</g>
 		</svg>
 	</div>
