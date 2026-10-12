@@ -2,31 +2,28 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as prettier from 'prettier';
 import { describe, expect, it } from 'vitest';
-import {
-	generateDeployConfig,
-	lineDiff,
-	parseTrackedConfig,
-	type DeployValues
-} from './deploy-config.ts';
+import { lineDiff, parseTrackedConfig } from './deploy-config.ts';
+import { generateDeployConfig, type DeployValues } from './deploy-values.ts';
 import { editConfigText, formatWithRepoConfig } from './edit-config.ts';
 import { parseJsonc } from './jsonc.ts';
-import { resourceNames } from './names.ts';
 
 const root = join(import.meta.dirname, '..', '..');
-// The committed file is the fixture: a change to its layout or comments breaks a test, not a lint run.
-const committed = readFileSync(join(root, 'wrangler.deploy.jsonc'), 'utf8');
+// A deploy file as setup writes it, with placeholder values: the real one is git-ignored (ADR-040).
+const committed = readFileSync(
+	join(import.meta.dirname, 'fixtures', 'deploy-config.jsonc'),
+	'utf8'
+);
 const templateText = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
 const template = parseTrackedConfig(templateText);
 const live = parseJsonc(committed) as any;
 
 const values: DeployValues = {
-	names: resourceNames('epoch-genealogy'),
+	workerName: 'epoch-genealogy',
 	hosting: 'workers-dev',
 	hostname: 'epoch-genealogy.example.workers.dev',
 	isWorkersDevKept: false,
 	teamDomain: live.vars.CF_ACCESS_TEAM_DOMAIN,
 	installId: live.vars.EPOCH_INSTALL_ID,
-	d1Id: live.d1_databases[0].database_id,
 	emailSender: live.send_email?.[0]?.allowed_sender_addresses?.[0] ?? null,
 	r2Jurisdiction: null,
 	accessAud: live.vars.CF_ACCESS_AUD ?? null
@@ -99,7 +96,7 @@ describe('editing the deploy config in place', () => {
 
 	it('creates a file from the template under the generator’s header when there is none', () => {
 		const text = editConfigText(null, templateText, wanted());
-		expect(text.startsWith('// Tracked. `npm run setup` regenerates')).toBe(true);
+		expect(text.startsWith('// Git-ignored (ADR-040). `npm run setup` regenerates')).toBe(true);
 		expect(parseJsonc(text)).toEqual(wanted());
 	});
 

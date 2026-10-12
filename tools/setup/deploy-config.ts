@@ -1,52 +1,13 @@
 import { ERROR_CODES, SetupError } from './errors.ts';
 import { parseJsonc } from './jsonc.ts';
-import type { ResourceNames } from './names.ts';
 import { HOSTINGS, type Hosting } from './options.ts';
 import type { FileSystem } from './context.ts';
 import type { InstallPaths } from './paths.ts';
 
-/**
- * Plan step 8: `wrangler.deploy.jsonc` is the tracked `wrangler.jsonc` plus this install's
- * values. The file is tracked (ADR-038: nothing in it is a credential, and push-to-deploy needs
- * it), so setup regenerating it is a convenience for the owner, not a secrecy measure.
- */
-export interface DeployValues {
-	names: ResourceNames;
-	hosting: Hosting;
-	/** The host Access protects: the workers.dev host or the custom domain. */
-	hostname: string;
-	/** Custom domain only: keep the workers.dev URL on too. */
-	isWorkersDevKept: boolean;
-	teamDomain: string;
-	installId: string;
-	d1Id: string;
-	/** Present only when the sender domain is verified; otherwise `send_email` is left out. */
-	emailSender: string | null;
-	r2Jurisdiction: string | null;
-	/** Carried as a var unless the install keeps it as a secret (an adopted one). */
-	accessAud: string | null;
-}
-
 type Json = Record<string, unknown>;
-type JsonList = Json[];
 
 function isJson(value: unknown): value is Json {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function bindingEntry(config: Json, key: string, field: string, binding: string): Json {
-	const list = config[key];
-	const found = Array.isArray(list)
-		? (list as JsonList).find((entry) => entry[field] === binding)
-		: undefined;
-	if (!found) {
-		throw new SetupError(
-			ERROR_CODES.usage,
-			`The tracked wrangler.jsonc has no ${key} entry with ${field} "${binding}"`,
-			{ hint: 'The deploy config generator expects the shape of the tracked wrangler.jsonc.' }
-		);
-	}
-	return found;
 }
 
 export function parseTrackedConfig(text: string): Json {
@@ -57,59 +18,11 @@ export function parseTrackedConfig(text: string): Json {
 	return value;
 }
 
-export function generateDeployConfig(tracked: Json, values: DeployValues): Json {
-	const config = structuredClone(tracked);
-	const { names } = values;
-
-	config.name = names.worker;
-	if (values.hosting === HOSTINGS.workersDev) {
-		config.workers_dev = true;
-		delete config.routes;
-	} else {
-		config.routes = [{ pattern: values.hostname, custom_domain: true }];
-		config.workers_dev = values.isWorkersDevKept;
-		// Preview URLs would be a second, unprotected way in on workers.dev.
-		if (values.isWorkersDevKept) delete config.preview_urls;
-		else config.preview_urls = false;
-	}
-	config.vars = {
-		...(isJson(config.vars) ? config.vars : {}),
-		CF_ACCESS_TEAM_DOMAIN: values.teamDomain,
-		EPOCH_INSTALL_ID: values.installId,
-		...(values.accessAud ? { CF_ACCESS_AUD: values.accessAud } : {})
-	};
-
-	const d1 = bindingEntry(config, 'd1_databases', 'binding', 'DB');
-	d1.database_name = names.d1;
-	d1.database_id = values.d1Id;
-
-	const r2 = bindingEntry(config, 'r2_buckets', 'binding', 'MEDIA_BUCKET');
-	r2.bucket_name = names.r2;
-	if (values.r2Jurisdiction) r2.jurisdiction = values.r2Jurisdiction;
-
-	const queues = config.queues as { producers?: JsonList; consumers?: JsonList } | undefined;
-	for (const entry of queues?.producers ?? []) entry.queue = names.queue;
-	for (const entry of queues?.consumers ?? []) entry.queue = names.queue;
-
-	bindingEntry(config, 'workflows', 'binding', 'GEDCOM_EXPORT_WORKFLOW').name = names.workflow;
-
-	// A binding that names an unverified sender may fail the deploy (spike), and the app already
-	// treats a missing binding as "not sent", so leaving it out is the safe default.
-	if (values.emailSender) {
-		bindingEntry(config, 'send_email', 'name', 'EMAIL').allowed_sender_addresses = [
-			values.emailSender
-		];
-	} else {
-		delete config.send_email;
-	}
-	return config;
-}
-
 /** Written only at the top of a file setup creates; an existing file keeps its own header. */
 export const HEADER =
-	'// Tracked. `npm run setup` regenerates this file from wrangler.jsonc plus this install’s values,\n' +
-	'// so relative paths resolve from the repository root. `main` and `assets` must stay identical to\n' +
-	'// wrangler.jsonc: the build reads them from that file (`node scripts/deploy-config.mjs` checks).\n';
+	'// Git-ignored (ADR-040). `npm run setup` regenerates this file from wrangler.jsonc plus this\n' +
+	'// install’s values; on Workers Builds `npm run build:worker` writes it from EPOCH_DEPLOY_VALUES.\n' +
+	'// `main` and `assets` must stay identical to wrangler.jsonc: the build reads them from that file.\n';
 
 /**
  * The tracked wrangler.jsonc is the template. A checkout with none, an empty one or one that does not

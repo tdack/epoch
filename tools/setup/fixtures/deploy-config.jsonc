@@ -1,0 +1,76 @@
+// Git-ignored (ADR-040). `npm run setup` regenerates this file from wrangler.jsonc plus this
+// install’s values; on Workers Builds `npm run build:worker` writes it from EPOCH_DEPLOY_VALUES.
+// `main` and `assets` must stay identical to wrangler.jsonc: the build reads them from that file.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "epoch-genealogy",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-01-01",
+	"compatibility_flags": ["nodejs_compat"],
+	// Serve on workers.dev only:
+	"workers_dev": true,
+	// Or on a custom domain instead (set "workers_dev": false):
+	// "routes": [{ "pattern": "epoch.example.com", "custom_domain": true }],
+	"vars": {
+		"CF_ACCESS_TEAM_DOMAIN": "team.cloudflareaccess.com",
+		"EPOCH_INSTALL_ID": "22222222-2222-4222-8222-222222222222"
+	},
+	"assets": {
+		"directory": ".svelte-kit/cloudflare",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "epoch-genealogy-db",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA_BUCKET",
+			"bucket_name": "epoch-genealogy-media"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "GEDCOM_IMPORT_QUEUE",
+				"queue": "epoch-genealogy-import-queue"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "epoch-genealogy-import-queue",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30
+			}
+		]
+	},
+	"workflows": [
+		{
+			"name": "epoch-genealogy-export-workflow",
+			"binding": "GEDCOM_EXPORT_WORKFLOW",
+			"class_name": "GedcomExportWorkflow",
+			"default_retention": {
+				"success_retention": "3 days",
+				"error_retention": "7 days"
+			}
+		}
+	],
+	// Only when the sender domain is verified for Email Sending.
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"allowed_sender_addresses": ["welcome@example.com"]
+		}
+	],
+	"observability": {
+		"logs": {
+			"enabled": true
+		},
+		"issues": {
+			"enabled": true
+		}
+	}
+}
