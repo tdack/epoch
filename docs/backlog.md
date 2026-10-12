@@ -250,9 +250,9 @@ The tool is built in `tools/setup/` but has not been run against a real account.
   - Workers Builds (ADR-043): that `workers-ci.write` is the scope the Builds API checks, that
     `cf builds triggers list` prints a list of the trigger shape `update` printed
     (`builds-triggers-list`), that `cf builds triggers environment-variables upsert <uuid> --body`
-    takes `{ NAME: { value, is_secret } }`, and that repeating `--path-includes`/`--path-excludes`
-    sets several patterns. `update` with `--build-command` and `--deploy-command`, and
-    `cf workers list` giving the 32-hex id as `id`, were confirmed by the owner on 2026-10-12.
+    takes `{ NAME: { value, is_secret } }`. `update` with `--build-command`, `--deploy-command` and
+    repeated `--path-includes`/`--path-excludes` (one pattern each), and `cf workers list` giving
+    the 32-hex id as `id`, were confirmed by the owner on 2026-10-12.
     Until a real run confirms the rest, setup falls back to printing what to paste.
 - **Adoption run for the live install** under Worker name `epoch-genealogy`, hosting workers.dev
   only. It tags the resources and writes the first markers on the Access app and the queue.

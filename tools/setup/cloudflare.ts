@@ -833,8 +833,8 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			]);
 		},
 
-		// The command flags were confirmed on the owner's account (beta.14). The path flags are arrays
-		// in cf's yargs definition, so each pattern gets its own flag.
+		// Every flag here was confirmed on the owner's account (beta.14): a repeated path flag sets
+		// one pattern each.
 		async updateBuildTrigger(triggerId, settings) {
 			await cf([
 				'builds',
