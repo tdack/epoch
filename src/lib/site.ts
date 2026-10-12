@@ -163,3 +163,35 @@ export const FAQS: Faq[] = [
 		]
 	}
 ];
+
+export interface View3d {
+	id: 'rings' | 'ball' | 'ribbons' | 'orrery';
+	name: string;
+	/** The app's own description of the view (TreeToolbar on `main`). */
+	text: string;
+	/** A screen recording of the view in the app, under `static/views/`; until one exists the panel shows an illustration. */
+	video?: string;
+}
+
+export const VIEWS_3D: View3d[] = [
+	{
+		id: 'rings',
+		name: 'Rings',
+		text: 'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.'
+	},
+	{
+		id: 'ball',
+		name: 'Ball',
+		text: 'A glass ball with the family inside it. Height is the calendar, the oldest at the top; the wider a generation, the nearer its people sit to the glass.'
+	},
+	{
+		id: 'ribbons',
+		name: 'Ribbons',
+		text: 'Each person is a ribbon of descent. A couple’s ribbons meet at a glowing knot, and their children’s ribbons branch out from it like a river delta.'
+	},
+	{
+		id: 'orrery',
+		name: 'Orrery',
+		text: 'A star cluster. Partners circle each other as a pair of stars, and their children circle the pair.'
+	}
+];

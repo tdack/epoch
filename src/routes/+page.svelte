@@ -4,6 +4,7 @@
 	import EpochMark from '#lib/components/EpochMark.svelte';
 	import FamilyFigure from '#lib/components/FamilyFigure.svelte';
 	import Hero from '#lib/components/Hero.svelte';
+	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import RichText from '#lib/components/RichText.svelte';
 	import {
 		DEMO_URL,
@@ -111,6 +112,8 @@
 			</div>
 		</div>
 	</section>
+
+	<ViewsShowcase />
 
 	<section id="code" class="code" aria-labelledby="code-title">
 		<div class="wrap">
