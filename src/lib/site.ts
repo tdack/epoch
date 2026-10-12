@@ -44,9 +44,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		points: [
 			'Biological, adoptive, foster, guardian and unknown parentage',
 			'Partnerships with separation, divorce, annulment, death and remarriage',
-			'Two people who partner twice keep two partnerships, labelled and dated',
-			'Step relationships worked out from a parent’s partnerships',
-			'Several names per person, with a preferred display name'
+			'Step relationships worked out from a parent’s partnerships'
 		]
 	},
 	{
@@ -54,7 +52,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		text: 'A focus-centred family view kept in the address, so Back and shared links restore it.',
 		points: [
 			'Pedigree, descendants, fan and hourglass charts, each with a text outline',
-			'Rings, Ball, Ribbons and Orrery: four 3D views of the whole tree',
 			'A relationship finder that shows every route between two people',
 			'Ranked search that says why each person matched'
 		]
@@ -64,7 +61,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		text: 'Pages for people, partnerships, places and sources, built around the evidence.',
 		points: [
 			'Sources, repositories and citations, showing what each source supports',
-			'Places named by facts, with rename and merge',
 			'Shared notes, research tasks and a data-quality report',
 			'Media attached to people, kept private in your own storage'
 		]
@@ -75,8 +71,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		points: [
 			'Owner, manager, editor, contributor and viewer roles per tree',
 			'Every change shows an Undo, and the change log keeps the rest',
-			'Two saves to the same record at once: the second is refused, not merged blind',
-			'Deleting a person first shows exactly what it will affect'
+			'Two saves to the same record at once: the second is refused, not merged blind'
 		]
 	},
 	{
@@ -85,7 +80,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		points: [
 			'Validation and a preview before anything is written',
 			'Duplicate families in a messy file offered for merging',
-			'Export in GEDCOM 5.5.1 or 7.0',
 			'Structures Epoch does not show yet are kept and written back out'
 		]
 	}

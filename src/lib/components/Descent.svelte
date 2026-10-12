@@ -4,14 +4,36 @@
 		tone?: 'emerald' | 'mist' | 'vellum';
 		/** Draw the node as the amber child of the mark rather than an ink partner. */
 		isFocus?: boolean;
+		/**
+		 * What the line descends from: the plain stem, the faded ancestors' bar at the top of the
+		 * mark, or a partnership (two partners and the app's union marker).
+		 */
+		origin?: 'stem' | 'ancestors' | 'union';
 	}
 
-	let { tone = 'emerald', isFocus = false }: Props = $props();
+	let { tone = 'emerald', isFocus = false, origin = 'stem' }: Props = $props();
 </script>
 
 <!-- The line of descent that carries the mark's stem from one section to the next. Decoration:
 the section heading that follows names the place. -->
 <div class="descent {tone}" class:focus={isFocus} aria-hidden="true">
+	{#if origin === 'ancestors'}
+		<svg class="origin ancestors" viewBox="0 0 120 22" width="120" height="22">
+			<circle cx="11" cy="11" r="9" />
+			<circle cx="109" cy="11" r="9" />
+			<path d="M20 11H100M60 11V22" />
+		</svg>
+	{:else if origin === 'union'}
+		<!-- The union marker as the app draws it: a disc holding two linked rings. -->
+		<svg class="origin union" viewBox="0 0 160 30" width="160" height="30">
+			<circle cx="12" cy="15" r="9" />
+			<circle cx="148" cy="15" r="9" />
+			<path d="M21 15H67M93 15H139M80 28V30" />
+			<circle class="disc" cx="80" cy="15" r="13" />
+			<circle class="ring" cx="76.8" cy="15" r="4.6" />
+			<circle class="ring" cx="83.2" cy="15" r="4.6" />
+		</svg>
+	{/if}
 	<span class="line"></span>
 	<span class="node"></span>
 </div>
@@ -31,6 +53,31 @@ the section heading that follows names the place. -->
 
 	.vellum {
 		--ink: var(--vellum);
+	}
+
+	.origin {
+		display: block;
+		overflow: visible;
+		fill: var(--ink);
+		stroke: var(--ink);
+		stroke-width: 3;
+	}
+
+	/* The ancestors sit above the page's line, so they are drawn faint, as the mark draws them. */
+	.ancestors {
+		opacity: 0.42;
+	}
+
+	.union .disc {
+		fill: var(--union-fill, #fdfbf7);
+		stroke: var(--union-ink, #8a5a14);
+		stroke-width: 1.5;
+	}
+
+	.union .ring {
+		fill: none;
+		stroke: var(--union-ink, #8a5a14);
+		stroke-width: 1.5;
 	}
 
 	.line {

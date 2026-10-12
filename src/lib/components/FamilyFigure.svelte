@@ -217,6 +217,14 @@
 					</button>
 				</li>
 			{/each}
+			<!-- A key, not a filter: an ended partnership is a state of the Partnership link above. -->
+			<li class="key">
+				<svg width="34" height="14" aria-hidden="true">
+					<path d="M2 7H32" stroke="#8a5a14" stroke-width="2.5" stroke-dasharray="6 5" />
+					<path d="M13 12L21 2" stroke="#8a5a14" stroke-width="2.5" stroke-linecap="round" />
+				</svg>
+				Ended partnership
+			</li>
 		</ul>
 		<span class="synthetic">A sample family, invented for illustration.</span>
 	</figcaption>
@@ -327,6 +335,16 @@
 		background: var(--field-white);
 		border-color: var(--stone-edge);
 		color: var(--stone-ink);
+	}
+
+	.key {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 44px;
+		padding: 0 12px;
+		color: var(--stone-text);
+		font-size: 0.875rem;
 	}
 
 	.synthetic {

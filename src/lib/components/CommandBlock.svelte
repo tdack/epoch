@@ -28,7 +28,9 @@
 </script>
 
 <div class="block {tone}">
-	<pre><code>{lines.join('\n')}</code></pre>
+	<pre><code
+			>{#each lines as line, i (i)}<span class="line">{line}</span>{/each}</code
+		></pre>
 	<button type="button" onclick={copy} aria-label="Copy {label}">
 		{#if status === 'copied'}
 			<svg
@@ -79,6 +81,10 @@
 		overflow-x: auto;
 		font-size: 0.9375rem;
 		line-height: 1.8;
+	}
+
+	.line {
+		display: block;
 	}
 
 	.dark pre {
@@ -135,6 +141,14 @@
 		pre {
 			align-self: stretch;
 			padding-right: 20px;
+			white-space: pre-wrap;
+		}
+
+		/* A long command wraps with a hanging indent, so a continuation never reads as a new command. */
+		.line {
+			padding-left: 2ch;
+			text-indent: -2ch;
+			overflow-wrap: anywhere;
 		}
 	}
 

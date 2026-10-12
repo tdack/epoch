@@ -65,7 +65,7 @@
 <main>
 	<section class="why" aria-labelledby="why-title">
 		<div class="wrap">
-			<Descent />
+			<Descent origin="ancestors" />
 			<div class="split">
 				<h2 id="why-title" class="display">The history stays with the family that keeps it.</h2>
 				<dl class="ledger">
@@ -82,7 +82,7 @@
 
 	<section id="features" class="features" aria-labelledby="features-title">
 		<div class="wrap">
-			<Descent />
+			<Descent origin="union" />
 			<header class="centred">
 				<h2 id="features-title" class="display">Families as they were, not as a form expects.</h2>
 				<p class="lede">
