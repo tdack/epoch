@@ -32,6 +32,8 @@ vite.config.ts.timestamp-*
 
 # Cloudflare config & generated files
 .cloudflare/
+# This install's values; `npm run setup` or `npm run build:worker` writes it (ADR-040)
+/wrangler.deploy.jsonc
 
 # Local Worker secrets/vars
 .dev.vars
