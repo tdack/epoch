@@ -19,6 +19,8 @@ declare global {
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
 				/** Absent in unit tests and bare previews; invitations are then saved but not emailed. */
 				EMAIL?: SendEmail;
+				/** Set by setup alongside `EMAIL`; the one address its `allowed_sender_addresses` names. */
+				EPOCH_EMAIL_SENDER?: string;
 				CF_IMAGES_TOKEN?: string;
 				CF_ACCOUNT_ID?: string;
 				CF_ACCESS_TEAM_DOMAIN?: string;

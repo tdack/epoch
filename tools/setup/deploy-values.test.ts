@@ -77,6 +77,8 @@ describe('generateDeployConfig', () => {
 			name: 'EMAIL',
 			allowed_sender_addresses: ['welcome@example.com']
 		});
+		expect(withSender.vars.EPOCH_EMAIL_SENDER).toBe('welcome@example.com');
+		expect((config as Record<string, any>).vars.EPOCH_EMAIL_SENDER).toBeUndefined();
 	});
 
 	it('writes the R2 jurisdiction only when one was chosen', () => {

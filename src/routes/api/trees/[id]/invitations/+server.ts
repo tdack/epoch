@@ -11,7 +11,9 @@ export const POST = treeHandler(
 	{ failure: 'Failed to invite', body: inviteMemberSchema, status: 201 },
 	({ db, ctx, treeId, body, event, url }) => {
 		const binding = event.platform?.env.EMAIL;
-		const mailer = binding ? new WorkersInvitationMailer(binding, url.origin) : undefined;
+		const sender = event.platform?.env.EPOCH_EMAIL_SENDER;
+		const mailer =
+			binding && sender ? new WorkersInvitationMailer(binding, sender, url.origin) : undefined;
 		return new MemberService(db, undefined, mailer).invite(treeId, body, ctx);
 	}
 );

@@ -2,9 +2,6 @@ import type { SendEmail } from '@cloudflare/workers-types';
 import type { InvitationEmail, InvitationMailer } from '../services/invitation-mailer';
 import { renderInvitationEmail } from './invitation-template';
 
-/** Must be on a domain onboarded to Email Sending and listed in the binding's `allowed_sender_addresses`. */
-const INVITATION_SENDER_ADDRESS = 'welcome@epoch.example.com';
-
 /**
  * Sends through the `EMAIL` binding. The link is built from the request's origin, not a configured
  * host, so it works on a preview or a custom domain without a setting to forget.
@@ -12,6 +9,8 @@ const INVITATION_SENDER_ADDRESS = 'welcome@epoch.example.com';
 export class WorkersInvitationMailer implements InvitationMailer {
 	constructor(
 		private binding: SendEmail,
+		/** On a domain onboarded to Email Sending and listed in the binding's `allowed_sender_addresses`. */
+		private senderAddress: string,
 		private origin: string
 	) {}
 
@@ -20,7 +19,7 @@ export class WorkersInvitationMailer implements InvitationMailer {
 		const signInUrl = new URL(`/trees/${encodeURIComponent(invitation.treeId)}`, this.origin).href;
 		const { subject, html, text } = renderInvitationEmail({ ...invitation, signInUrl });
 		await this.binding.send({
-			from: { email: INVITATION_SENDER_ADDRESS, name: 'Epoch' },
+			from: { email: this.senderAddress, name: 'Epoch' },
 			to: invitation.to,
 			subject,
 			html,

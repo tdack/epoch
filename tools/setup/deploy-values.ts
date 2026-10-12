@@ -130,7 +130,9 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 		...(isJson(config.vars) ? config.vars : {}),
 		CF_ACCESS_TEAM_DOMAIN: values.teamDomain,
 		EPOCH_INSTALL_ID: values.installId,
-		...(values.accessAud ? { CF_ACCESS_AUD: values.accessAud } : {})
+		...(values.accessAud ? { CF_ACCESS_AUD: values.accessAud } : {}),
+		// The mailer reads its sender from here, so no install's address is in the source.
+		...(values.emailSender ? { EPOCH_EMAIL_SENDER: values.emailSender } : {})
 	};
 
 	const d1 = bindingEntry(config, 'd1_databases', 'binding', 'DB');
