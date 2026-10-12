@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "epoch-website",
+	// The adapter writes the Worker and the prerendered pages here on every build.
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-01-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": ".svelte-kit/cloudflare",
+		"binding": "ASSETS"
+	},
+	// A custom domain rather than a route, so Cloudflare creates the DNS record and certificate.
+	// The zone must already be active on the account that deploys.
+	"routes": [{ "pattern": "epochgenealogy.app", "custom_domain": true }],
+	"workers_dev": false,
+	"observability": { "enabled": true }
+}

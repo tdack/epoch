@@ -1,0 +1,23 @@
+node_modules
+
+# Output
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+
+# Env
+.env
+.env.*
+.dev.vars
+
+# Vite
+vite.config.ts.timestamp-*
+
+# AI related
+.claude/
+.impeccable/live/
+.impeccable/questions/
+.impeccable/hook.cache.json

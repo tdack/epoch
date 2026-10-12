@@ -1,0 +1,7 @@
+.svelte-kit
+build
+node_modules
+static
+package-lock.json
+*.md
+.impeccable/
