@@ -41,7 +41,7 @@ export interface SetupResult {
 	handOff: string[];
 }
 
-/** Plan steps 1 to 11, plus the Workers Builds variable (ADR-040). Each step reads the manifest and answers; only `collect` and the plan confirmation prompt. */
+/** Plan steps 1 to 11, plus the Workers Builds variable (ADR-043). Each step reads the manifest and answers; only `collect` and the plan confirmation prompt. */
 export async function runSetup(
 	ctx: StepContext,
 	flags: SetupFlags,

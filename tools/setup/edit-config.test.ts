@@ -8,7 +8,7 @@ import { editConfigText, formatWithRepoConfig } from './edit-config.ts';
 import { parseJsonc } from './jsonc.ts';
 
 const root = join(import.meta.dirname, '..', '..');
-// A deploy file as setup writes it, with placeholder values: the real one is git-ignored (ADR-040).
+// A deploy file as setup writes it, with placeholder values: the real one is git-ignored (ADR-043).
 const committed = readFileSync(
 	join(import.meta.dirname, 'fixtures', 'deploy-config.jsonc'),
 	'utf8'
@@ -96,7 +96,7 @@ describe('editing the deploy config in place', () => {
 
 	it('creates a file from the template under the generator’s header when there is none', () => {
 		const text = editConfigText(null, templateText, wanted());
-		expect(text.startsWith('// Git-ignored (ADR-040). `npm run setup` regenerates')).toBe(true);
+		expect(text.startsWith('// Git-ignored (ADR-043). `npm run setup` regenerates')).toBe(true);
 		expect(parseJsonc(text)).toEqual(wanted());
 	});
 

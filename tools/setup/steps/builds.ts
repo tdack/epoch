@@ -4,7 +4,7 @@ import type { Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
 import { deployValuesOf } from './write-config.ts';
 
-/** The Workers Builds commands that build once and read the build variable (ADR-040). */
+/** The Workers Builds commands that build once and read the build variable (ADR-043). */
 export const BUILDS_COMMANDS = {
 	build: 'npm run build:worker',
 	deploy: 'npm run deploy:worker'

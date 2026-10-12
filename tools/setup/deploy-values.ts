@@ -8,12 +8,12 @@ import { HOSTINGS, type Hosting } from './options.ts';
  * a package behind it (no `jsonc-parser`, no `cf`), which is why it is not part of deploy-config.ts.
  */
 
-/** The build variable that carries an install's values to Workers Builds (ADR-040). */
+/** The build variable that carries an install's values to Workers Builds (ADR-043). */
 export const DEPLOY_VALUES_VARIABLE = 'EPOCH_DEPLOY_VALUES';
 
 /**
  * What `wrangler.deploy.jsonc` adds to the tracked `wrangler.jsonc`. There is no D1 id: wrangler
- * resolves the database by `database_name` on deploy and on every remote `d1` command (ADR-040).
+ * resolves the database by `database_name` on deploy and on every remote `d1` command (ADR-043).
  */
 export interface DeployValues {
 	workerName: string;
@@ -135,7 +135,7 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 
 	const d1 = bindingEntry(config, 'd1_databases', 'binding', 'DB');
 	d1.database_name = names.d1;
-	// Undefined rather than deleted, so editing a file written before ADR-040 removes its stale id.
+	// Undefined rather than deleted, so editing a file written before ADR-043 removes its stale id.
 	d1.database_id = undefined;
 
 	const r2 = bindingEntry(config, 'r2_buckets', 'binding', 'MEDIA_BUCKET');

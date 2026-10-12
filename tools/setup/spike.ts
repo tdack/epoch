@@ -293,7 +293,7 @@ const CHECKS: Check[] = [
 	{
 		id: 'builds-triggers-list',
 		claim:
-			'With the workers-ci.write scope, `cf builds triggers list --external-script-id <tag>` lists the Worker’s triggers with trigger_uuid, trigger_name and build_command (ADR-040)',
+			'With the workers-ci.write scope, `cf builds triggers list --external-script-id <tag>` lists the Worker’s triggers with trigger_uuid, trigger_name and build_command (ADR-043)',
 		async run(ctx, state) {
 			const identity = await ctx.cf.whoami();
 			if (identity.scopes !== null && BUILDS_SCOPES.some((s) => !identity.scopes?.includes(s)))

@@ -8,7 +8,7 @@ import { withStepDone, type Manifest } from '../manifest.ts';
 /**
  * Plan step 8: the template (the tracked wrangler.jsonc, or the shipped copy) plus this install's
  * values. The whole file is regenerated and the change against the old one is shown before writing.
- * The file is git-ignored (ADR-040); Workers Builds gets the same values as a build variable instead
+ * The file is git-ignored (ADR-043); Workers Builds gets the same values as a build variable instead
  * (`steps/builds.ts`). The build-field agreement check is `scripts/deploy-config.mjs`, run as it
  * would be by `npm run deploy`, rather than a second copy of it.
  */

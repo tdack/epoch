@@ -1,7 +1,7 @@
 // Shared by `npm run build:worker` and the backfill scripts' --remote mode: every remote command
 // runs against the git-ignored wrangler.deploy.jsonc, never the dev-safe wrangler.jsonc the build
 // reads. On Workers Builds there is no such file, so it is written here from the EPOCH_DEPLOY_VALUES
-// build variable that `./setup builds` sets (ADR-040).
+// build variable that `./setup builds` sets (ADR-043).
 //
 //   node scripts/deploy-config.mjs   # exits non-zero when the deploy config is missing or disagrees
 import { existsSync, writeFileSync } from 'node:fs';
@@ -52,7 +52,7 @@ export async function writeDeployConfigFromEnv(env = process.env) {
 	const config = generateDeployConfig(rawConfig, parseDeployValues(text));
 	writeFileSync(
 		DEPLOY_CONFIG,
-		`// Written by scripts/deploy-config.mjs from ${DEPLOY_VALUES_VARIABLE}; git-ignored (ADR-040).\n` +
+		`// Written by scripts/deploy-config.mjs from ${DEPLOY_VALUES_VARIABLE}; git-ignored (ADR-043).\n` +
 			`${JSON.stringify(config, null, '\t')}\n`
 	);
 	return true;

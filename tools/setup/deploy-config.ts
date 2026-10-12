@@ -20,7 +20,7 @@ export function parseTrackedConfig(text: string): Json {
 
 /** Written only at the top of a file setup creates; an existing file keeps its own header. */
 export const HEADER =
-	'// Git-ignored (ADR-040). `npm run setup` regenerates this file from wrangler.jsonc plus this\n' +
+	'// Git-ignored (ADR-043). `npm run setup` regenerates this file from wrangler.jsonc plus this\n' +
 	'// install’s values; on Workers Builds `npm run build:worker` writes it from EPOCH_DEPLOY_VALUES.\n' +
 	'// `main` and `assets` must stay identical to wrangler.jsonc: the build reads them from that file.\n';
 

@@ -787,7 +787,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 				}))
 				.filter((t) => t.id !== '');
 		},
-		// Visible rather than secret: nothing in the values is a credential (ADR-040), and a secret
+		// Visible rather than secret: nothing in the values is a credential (ADR-043), and a secret
 		// could not be read back to tell whether it is current.
 		async setBuildVariables(triggerId, variables) {
 			const body = Object.fromEntries(

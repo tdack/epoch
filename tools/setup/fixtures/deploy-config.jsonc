@@ -1,4 +1,4 @@
-// Git-ignored (ADR-040). `npm run setup` regenerates this file from wrangler.jsonc plus this
+// Git-ignored (ADR-043). `npm run setup` regenerates this file from wrangler.jsonc plus this
 // install’s values; on Workers Builds `npm run build:worker` writes it from EPOCH_DEPLOY_VALUES.
 // `main` and `assets` must stay identical to wrangler.jsonc: the build reads them from that file.
 {
