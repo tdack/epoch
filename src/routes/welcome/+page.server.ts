@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getDb } from '#lib/server/db/index.js';
 import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
+import { ACCESS_LOGOUT_PATH } from '#lib/shared/access.js';
 
 // The page is served to visitors nobody has identified, so it ships no client code that could
 // later be taught to call the API from here.
@@ -10,9 +11,6 @@ import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
 export const csr = false;
 
 type WelcomeState = 'signed-in' | 'signed-out' | 'not-invited';
-
-/** Ends the Access session for the whole team domain; a page of Epoch's own could not. */
-const ACCESS_LOGOUT_PATH = '/cdn-cgi/access/logout';
 
 export const load: PageServerLoad = async ({ locals, url, setHeaders, platform }) => {
 	// The not-invited state names the visitor, so no cache may replay it to someone else.

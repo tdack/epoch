@@ -73,6 +73,22 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Trees');
 	});
 
+	it('offers Sign out to anyone signed in, through Access, outside the client router', () => {
+		render({ role: 'viewer', isSignedIn: true });
+		openMore();
+		const signOut = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')].find(
+			(a) => a.textContent?.trim() === 'Sign out'
+		)!;
+		expect(signOut.getAttribute('href')).toBe('/cdn-cgi/access/logout');
+		expect(signOut.hasAttribute('data-sveltekit-reload')).toBe(true);
+		unmount(component!);
+		component = null;
+		document.body.innerHTML = '';
+		render({ role: 'viewer' });
+		openMore();
+		expect(menuLabels()).not.toContain('Sign out');
+	});
+
 	it('marks Trees active on its page', () => {
 		render({ role: 'viewer', treeCount: 2, pathname: '/trees/t1/trees' });
 		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(

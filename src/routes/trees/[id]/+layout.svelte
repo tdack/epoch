@@ -167,6 +167,7 @@
 			pathname={page.url.pathname}
 			isInstallOwner={viewer.isInstallOwner}
 			treeCount={data.trees.length}
+			isSignedIn={!viewer.isPublicVisitor}
 			isOutsider={viewer.isOutsider}
 		/>
 		{@render children()}
