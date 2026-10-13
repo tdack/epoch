@@ -50,7 +50,8 @@
 <header
 	class="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-stone-200/80 bg-[#fdfbf7]/90 px-3 py-2 shadow-xs backdrop-blur-md sm:px-6"
 >
-	<div class="flex items-center space-x-3">
+	<!-- `/` resolves the viewer's default tree, so the link needs no tree list of its own. -->
+	<a href="/" class="flex items-center space-x-3 rounded-xl focus-ring">
 		<div
 			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-800 shadow-md shadow-emerald-900/15"
 		>
@@ -61,7 +62,7 @@
 			<h1 class="text-base font-bold tracking-tight text-stone-900">Epoch</h1>
 			<p class="text-xs font-medium tracking-wide text-stone-500">Family history</p>
 		</div>
-	</div>
+	</a>
 
 	<TreeSwitcher
 		{trees}
