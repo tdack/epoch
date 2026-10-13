@@ -11,5 +11,6 @@ export const load: PageLoad = async ({ url, fetch }) => {
 	const from = url.searchParams.get('from');
 	const trees = from ? [] : await fetchTreeList(fetch);
 	const tree = from ? { id: from } : (trees.find((t) => t.isDefault) ?? trees[0]);
-	redirect(308, tree ? `${treePath(tree)}/trees` : '/');
+	// Not permanent: without `?from=` the target is this user's default, which they can change.
+	redirect(302, tree ? `${treePath(tree)}/trees` : '/');
 };

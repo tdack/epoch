@@ -15,6 +15,7 @@ export const load: LayoutLoad = treeLoad(async ({ params, fetch, url }) => {
 	// An address by id, from an old bookmark or a link that only knew the id, moves to the slug, so
 	// the address bar always shows the readable form and one tree has one address (ADR-045).
 	const canonical = canonicalTreeAddress(url, params.id, summary.tree);
-	if (canonical) redirect(308, canonical);
+	// Not permanent: a browser caches a 308, and the slug can be changed or given up.
+	if (canonical) redirect(302, canonical);
 	return { trees, summary, marks: await marks };
 });
