@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BAND_FADE, TREE_TOKENS } from './tree-tokens';
+import { TREE_TOKENS } from './tree-tokens';
 import {
 	COMPACT_FROM_ZOOM,
 	FULL_ABOVE_ZOOM,
@@ -7,7 +7,6 @@ import {
 	MIN_ZOOM,
 	accessibleName,
 	childEdgeStyle,
-	blendOver,
 	contrastRatio,
 	hitSize,
 	isEndedUnion,
@@ -114,21 +113,6 @@ describe('colour tokens', () => {
 			expect(contrastRatio(token('--tree-ink-muted'), token(fill)), fill).toBeGreaterThanOrEqual(
 				4.5
 			);
-		}
-	});
-
-	it('keeps text at AA contrast on a card faded to its band, fill and text both blended over the canvas', () => {
-		for (const [band, alpha] of Object.entries(BAND_FADE)) {
-			for (const fill of ['--sex-m', '--sex-f', '--sex-u'] as const) {
-				const card = blendOver(token(fill), token('--tree-bg'), alpha);
-				for (const ink of ['--tree-ink', '--tree-ink-muted'] as const) {
-					const text = blendOver(token(ink), token('--tree-bg'), alpha);
-					expect(
-						contrastRatio(text, card),
-						`band ${band} ${ink} on ${fill}`
-					).toBeGreaterThanOrEqual(4.5);
-				}
-			}
 		}
 	});
 

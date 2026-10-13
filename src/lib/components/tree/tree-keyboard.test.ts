@@ -54,13 +54,11 @@ describe('keyIntentOf', () => {
 		});
 	});
 
-	it('reads Alt+Up and Alt+Down as a step between bands, and other Alt arrows as nothing', () => {
+	it('leaves Alt with an arrow to the browser', () => {
 		const el = target({ 'data-person-id': 'p7' });
 		const alt = (key: string) => keyIntentOf({ key, shiftKey: false, altKey: true, target: el });
-		expect(alt('ArrowUp')).toEqual({ kind: 'band', direction: 'back', fromId: 'p7' });
-		expect(alt('ArrowDown')).toEqual({ kind: 'band', direction: 'front', fromId: 'p7' });
-		// Alt+Left and Alt+Right are the browser's Back and Forward.
-		expect(alt('ArrowLeft')).toEqual({ kind: 'ignore' });
+		for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+			expect(alt(key), key).toEqual({ kind: 'ignore' });
 	});
 
 	it('ignores an arrow when no card has focus, and any other key', () => {

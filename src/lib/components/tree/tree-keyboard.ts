@@ -6,9 +6,6 @@
 
 import { NAV_DIRECTIONS, type NavDirection } from './tree-view.js';
 
-/** `back` is toward the cousin line, which is up on screen in both 3D views; `front` is toward the direct line. */
-export type BandDirection = 'back' | 'front';
-
 const ARROW_KEYS: Record<string, NavDirection> = {
 	ArrowUp: NAV_DIRECTIONS.UP,
 	ArrowDown: NAV_DIRECTIONS.DOWN,
@@ -39,9 +36,7 @@ export type KeyIntent =
 	| { kind: 'context-menu'; target: KeyTarget }
 	| { kind: 'escape' }
 	| { kind: 'delete' }
-	| { kind: 'move'; direction: NavDirection; fromId: string }
-	/** Alt+Up/Down: step to the next band (a plane in layers); the flat view has none. */
-	| { kind: 'band'; direction: BandDirection; fromId: string };
+	| { kind: 'move'; direction: NavDirection; fromId: string };
 
 export function keyIntentOf(
 	event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'altKey'> & { target: Element }
@@ -54,9 +49,7 @@ export function keyIntentOf(
 	if (event.key === 'Delete' || event.key === 'Backspace') return { kind: 'delete' };
 	const direction = ARROW_KEYS[event.key];
 	const fromId = keyTargetOf(event.target).personId;
-	if (event.altKey && fromId && (direction === 'up' || direction === 'down')) {
-		return { kind: 'band', direction: direction === 'up' ? 'back' : 'front', fromId };
-	}
+	// Alt+Left and Alt+Right are the browser's Back and Forward.
 	if (event.altKey) return { kind: 'ignore' };
 	if (direction && fromId) return { kind: 'move', direction, fromId };
 	return { kind: 'ignore' };

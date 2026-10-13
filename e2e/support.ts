@@ -229,16 +229,6 @@ export async function open(page: Page, url: string) {
 }
 
 /**
- * Switch the open tree to a view the toolbar no longer offers (Layers, ADR-032) the way
- * a person still can: a link naming it. Everything else in the address is kept.
- */
-export async function openWithdrawnMode(page: Page, mode: 'layers') {
-	const url = new URL(page.url());
-	url.searchParams.set('mode', mode);
-	await open(page, `${url.pathname}${url.search}`);
-}
-
-/**
  * Where a partnership marker or a parent-child line lands on screen, for the WebGL views, where
  * neither has a name button. Under automation the shell renders an invisible anchor for each one
  * the scene tracks (`data-pick-kind`, `data-pick-id`). A link's id starts with its child's id.

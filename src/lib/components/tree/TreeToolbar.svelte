@@ -12,9 +12,9 @@
 		type TreeViewState
 	} from './tree-url.js';
 	import {
+		LAYOUT_MODE_VALUES,
 		VIEW_MODE_TRAITS,
 		WEBGL_LAYOUT_MODES,
-		layoutModeChoices,
 		parseLayoutMode
 	} from '#lib/shared/view-mode.js';
 	import { treeTokenStyle } from './tree-tokens.js';
@@ -34,10 +34,6 @@
 		 * long-press; this is the route that needs neither, and that a touch screen can see.
 		 */
 		onshowDetails?: (personId: string) => void;
-		/** The focus person's unions, when `layers` can be centred on any of them. */
-		unionChoices?: Array<{ id: string; label: string }>;
-		/** The union `layers` is centred on now. */
-		focusUnionId?: string | null;
 		/**
 		 * The saved defaults the view starts from, when they can be changed here: the viewer's own,
 		 * the tree's, and whether the viewer may set the tree's (the owner).
@@ -57,8 +53,6 @@
 		onchangeFocus,
 		onopenProfile,
 		onshowDetails,
-		unionChoices = [],
-		focusUnionId = null,
 		defaults,
 		onSetMemberDefault,
 		onSetTreeDefault,
@@ -67,7 +61,6 @@
 
 	const MODE_LABELS: Record<LayoutMode, string> = {
 		flat: 'Flat',
-		layers: 'Layers',
 		rings: 'Rings',
 		poincare: 'Ball',
 		ribbons: 'Ribbons',
@@ -76,8 +69,6 @@
 	/** What each layout draws, in a relative's words: the labels alone were the tool's own names. */
 	const MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
 		flat: 'Everyone on one page: ancestors above, descendants below.',
-		layers:
-			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
 		rings:
 			'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.',
 		poincare:
@@ -102,14 +93,8 @@
 		return () => query.removeEventListener('change', onQueryChange);
 	});
 
-	/**
-	 * Flat and the WebGL views are offered; Layers is withdrawn (ADR-032) and shows only when the
-	 * address already names it, so the choice in force stays visible and can be left.
-	 */
-	const shownModes = $derived(layoutModeChoices(view.layoutMode));
-	/** Flat, plus a withdrawn view while it is in force: the segments beside the 3D button. */
-	const plainModes = $derived(shownModes.filter((mode) => !VIEW_MODE_TRAITS[mode].isWebGl));
-	const webGlModes = $derived(shownModes.filter((mode) => VIEW_MODE_TRAITS[mode].isWebGl));
+	/** The segments beside the 3D button: Flat. */
+	const plainModes = LAYOUT_MODE_VALUES.filter((mode) => !VIEW_MODE_TRAITS[mode].isWebGl);
 
 	const LAST_3D_KEY = 'epoch:last-3d-view';
 	/** The 3D view the 3D button returns to: the one in force, else the last one used, else Rings. */
@@ -136,11 +121,6 @@
 		isPickerOpen = false;
 		onChange({ layoutMode: mode });
 	}
-	const isLayers = $derived(view.layoutMode === LAYOUT_MODES.LAYERS);
-	const hasPartnerChoice = $derived(isLayers && unionChoices.length > 1);
-	const partnerLabel = $derived(
-		hasPartnerChoice ? unionChoices.find((c) => c.id === focusUnionId)?.label : undefined
-	);
 	const changeCount = $derived(countDisplayChanges(view));
 	const canShowWiderGroups = $derived(VIEW_MODE_TRAITS[view.layoutMode].hasWiderGroups);
 
@@ -270,7 +250,7 @@
 				role="group"
 				aria-label="3D view"
 			>
-				{#each webGlModes as mode (mode)}
+				{#each WEBGL_LAYOUT_MODES as mode (mode)}
 					<button
 						type="button"
 						class="flex menu-item w-full cursor-pointer flex-col rounded-md px-2.5 text-left focus-ring {isNarrow
@@ -452,7 +432,7 @@
 						<option value=""
 							>Tree default ({MODE_LABELS[defaults.tree ?? LAYOUT_MODES.FLAT]})</option
 						>
-						{#each layoutModeChoices(defaults.member) as mode (mode)}
+						{#each LAYOUT_MODE_VALUES as mode (mode)}
 							<option value={mode}>{MODE_LABELS[mode]}</option>
 						{/each}
 					</select>
@@ -468,7 +448,7 @@
 							value={defaults.tree ?? LAYOUT_MODES.FLAT}
 							onchange={(event) => onSetTreeDefault?.(event.currentTarget.value as LayoutMode)}
 						>
-							{#each layoutModeChoices(defaults.tree) as mode (mode)}
+							{#each LAYOUT_MODE_VALUES as mode (mode)}
 								<option value={mode}>{MODE_LABELS[mode]}</option>
 							{/each}
 						</select>
@@ -510,33 +490,10 @@
 			>
 				<span class="min-w-0 truncate">
 					<span class="font-semibold">{focusPerson?.name ?? 'Choose a focus person'}</span>
-					{#if partnerLabel}<span class="font-normal text-stone-600">
-							with {partnerLabel}</span
-						>{/if}
 				</span>
 				<ChevronDown class="h-3.5 w-3.5 shrink-0 text-stone-500" aria-hidden="true" />
 			</button>
 		{/snippet}
-		{#if hasPartnerChoice}
-			<div role="group" aria-label="Centred on partnership">
-				<p class="px-3 pt-1.5 pb-1 {headingClass}">Centred on partnership</p>
-				{#each unionChoices as choice (choice.id)}
-					<button
-						type="button"
-						role="menuitemradio"
-						aria-checked={choice.id === focusUnionId}
-						class={itemClass}
-						onclick={() => onChange({ unionId: choice.id })}
-					>
-						<span class="w-3.5 shrink-0 text-emerald-800" aria-hidden="true">
-							{choice.id === focusUnionId ? '✓' : ''}
-						</span>
-						<span class="truncate">{choice.label}</span>
-					</button>
-				{/each}
-			</div>
-			<div role="separator" class="my-1 border-t border-stone-200"></div>
-		{/if}
 		<button type="button" role="menuitem" class={itemClass} onclick={onchangeFocus}>
 			Change focus person…
 		</button>

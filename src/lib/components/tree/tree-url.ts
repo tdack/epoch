@@ -48,23 +48,17 @@ export interface TreeViewState {
 	/** Which view draws the graph. It never changes what is fetched. */
 	layoutMode: LayoutMode;
 	/**
-	 * The union `layers` is centred on, one of the focus person's. Null means their first. It never
-	 * changes what is fetched, and a new focus person starts again from their first.
-	 */
-	unionId: string | null;
-	/**
-	 * Draw everyone the viewer may see, anchored to no one (`scope=all`). Only the WebGL views have
-	 * it: a link naming it with Flat, or leaving for Flat, drops it. While it is set `focus` stays in
-	 * the address (leaving returns there) but, with the depths and the wider groups, no longer
-	 * changes what is fetched.
+	 * Draw everyone the viewer may see, anchored to no one (`scope=all`), in any view. While it is set
+	 * `focus` stays in the address (leaving returns there) but, with the depths and the wider groups,
+	 * no longer changes what is fetched.
 	 */
 	isWholeTree: boolean;
 	/** Stubs the user opened, as compact tokens (see `compactStubId`); resolved against the graph by the page. */
 	expandedStubs: string[];
 }
 
-/** Layers shows the cousin line, so arriving at it asks for side branches two steps out. */
-export const LAYERS_DEFAULT_COLLATERAL_DEPTH = 2;
+/** The overviews show the cousin line, so arriving at one asks for side branches two steps out. */
+export const ARRIVAL_COLLATERAL_DEPTH = 2;
 
 /**
  * What the wider groups are when the address says nothing, in this view. The views whose traits ask for
@@ -77,7 +71,7 @@ export function wideGroupDefaults(mode: LayoutMode): {
 	shouldIncludePartnerOrigins: boolean;
 } {
 	return VIEW_MODE_TRAITS[mode].shouldAskWiderGroups
-		? { collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH, shouldIncludePartnerOrigins: true }
+		? { collateralDepth: ARRIVAL_COLLATERAL_DEPTH, shouldIncludePartnerOrigins: true }
 		: {
 				collateralDepth: DEFAULT_VIEW_STATE.collateralDepth,
 				shouldIncludePartnerOrigins: DEFAULT_VIEW_STATE.shouldIncludePartnerOrigins
@@ -96,7 +90,6 @@ export const DEFAULT_VIEW_STATE: TreeViewState = {
 	shouldIncludePartnerOrigins: DEFAULT_FOCUS_OPTIONS.shouldIncludePartnerOrigins,
 	types: [...ALL_PARENT_CHILD_TYPES],
 	layoutMode: LAYOUT_MODES.FLAT,
-	unionId: null,
 	isWholeTree: false,
 	expandedStubs: []
 };
@@ -145,8 +138,7 @@ export function parseViewState(
 		// An empty or unrecognised list would draw no parentage at all, which is never intended.
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		layoutMode,
-		unionId: params.get('union') || null,
-		isWholeTree: params.get('scope') === 'all' && VIEW_MODE_TRAITS[layoutMode].hasWholeTree,
+		isWholeTree: params.get('scope') === 'all',
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
 }
@@ -165,7 +157,7 @@ export function shouldResetStubs(change: Partial<TreeViewState>, currentFocusId:
 export function serializeViewState(state: TreeViewState): URLSearchParams {
 	const params = new URLSearchParams();
 	const d = DEFAULT_VIEW_STATE;
-	// Compared with this view's own defaults: Layers omits side=2, so a viewer who turns the groups
+	// Compared with this view's own defaults: a WebGL view omits side=2, so a viewer who turns the groups
 	// off has to be written out, or parsing would give them back.
 	const wide = wideGroupDefaults(state.layoutMode);
 	if (state.treeId) params.set('tree', state.treeId);
@@ -191,9 +183,7 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	// Always written, flat included: a link without it opens in the reader's own default, so the
 	// address has to say what this view is for a reload, Back and a shared link to land the same.
 	params.set('mode', state.layoutMode);
-	if (state.unionId) params.set('union', state.unionId);
-	if (state.isWholeTree && VIEW_MODE_TRAITS[state.layoutMode].hasWholeTree)
-		params.set('scope', 'all');
+	if (state.isWholeTree) params.set('scope', 'all');
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }

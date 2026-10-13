@@ -36,23 +36,6 @@ export const TREE_TOKENS = {
 } as const;
 
 /**
- * How the 3D views look at the stage: the fixed cameras and how far each band recedes. Tokens, not
- * constants in the geometry module, so the contrast test reads the exact fade the page draws.
- * Rotations are degrees: X tips the stage back, Y turns it about the vertical.
- */
-export const CAMERA_TOKENS = {
-	'layers-front': { rotateXDeg: 2, rotateYDeg: -3 },
-	'layers-angled': { rotateXDeg: 5, rotateYDeg: -13 },
-	'layers-exploded': { rotateXDeg: 7, rotateYDeg: -17 }
-} as const;
-
-/**
- * Opacity of a band's cards, so the sibling and cousin lines recede behind the direct line. Text
- * fades with its card, so the contrast test blends it over the canvas before it measures.
- */
-export const BAND_FADE = { 0: 1, 1: 0.9, 2: 0.88 } as const;
-
-/**
  * Colours of the rings overview (ADR-032). A sphere is coloured by sex, as a card is, using the
  * card borders' stronger shades so a small sphere still reads; the focus person's line is carried
  * by the lines (ancestors, descendants, partnerships), a halo on the focus, and fading everyone

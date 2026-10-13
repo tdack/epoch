@@ -1,7 +1,7 @@
 /**
  * The toolbar's "Display" settings: what is drawn around the focus person, as opposed to which
- * view draws it. Defaults depend on the view because arriving at Layers asks for the wider groups
- * (see the chart page); counting against the flat defaults would badge every Layers visit.
+ * view draws it. Defaults depend on the view because arriving at a WebGL view asks for the wider
+ * groups (see the chart page); counting against the flat defaults would badge every visit to one.
  */
 
 import {

@@ -5,7 +5,6 @@
 	import { Loader2 } from '@lucide/svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
-	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import OrreryCanvas from '#lib/components/tree/OrreryCanvas.svelte';
 	import PoincareCanvas from '#lib/components/tree/PoincareCanvas.svelte';
 	import RibbonsCanvas from '#lib/components/tree/RibbonsCanvas.svelte';
@@ -18,7 +17,7 @@
 		ALL_PARENT_CHILD_TYPES,
 		DEFAULT_VIEW_STATE,
 		HISTORY_KINDS,
-		LAYERS_DEFAULT_COLLATERAL_DEPTH,
+		ARRIVAL_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
 		compactStubId,
 		createHistoryCoalescer,
@@ -42,7 +41,6 @@
 		layoutFocusView,
 		layoutWholeTree
 	} from '#lib/tree-layout/index.js';
-	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { layoutOrrery } from '#lib/tree-layout/orrery.js';
 	import { layoutPoincare } from '#lib/tree-layout/poincare.js';
 	import { layoutRibbons } from '#lib/tree-layout/ribbons.js';
@@ -130,7 +128,7 @@
 			: graph
 	);
 	const mode = $derived(view.layoutMode);
-	/** A tilted stack needs width to read. Under this many pixels Layers shows one plane at a time. */
+	/** Below this width the gesture hint sits over the chart instead of above it. */
 	const PHONE_MAX_WIDTH_PX = 639;
 	let isPhone = $state(false);
 	$effect(() => {
@@ -169,11 +167,6 @@
 				? layoutWholeTree(graphForLayout)
 				: layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
-	);
-	const layersLayout = $derived(
-		graphForLayout && mode === LAYOUT_MODES.LAYERS
-			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
-			: null
 	);
 	/** The whole tree as a selection, worked out once for whichever WebGL view draws it. */
 	const wholeSelection = $derived(
@@ -239,7 +232,7 @@
 				: {}),
 			...(traits.shouldAskWiderGroups && hasNoWiderGroups
 				? {
-						collateralDepth: LAYERS_DEFAULT_COLLATERAL_DEPTH,
+						collateralDepth: ARRIVAL_COLLATERAL_DEPTH,
 						shouldIncludePartnerOrigins: true
 					}
 				: {}),
@@ -265,9 +258,7 @@
 			applied.shouldIncludePartnerOrigins,
 			view.types,
 			isWholeTreeDrawn,
-			mode,
-			// Another union recentres the planes, so it re-frames like a new focus.
-			layersLayout?.focusUnionId ?? null
+			mode
 		])
 	);
 	/** Bumped when the data reloads without the person having opened a stub, so an edit re-frames the canvas. */
@@ -315,15 +306,11 @@
 		const currentFocus = view.focusId ?? focusPersonId;
 		// Opened branches belong to the person they were opened around, so only a new focus closes them.
 		const stubs = shouldResetStubs(change, currentFocus) ? { expandedStubs: [] } : {};
-		// A union belongs to the person it was picked for, so another focus starts from their first.
-		const isRefocus = 'focusId' in change && change.focusId !== currentFocus;
-		const union = isRefocus && !('unionId' in change) ? { unionId: null } : {};
 		const query = serializeViewState({
 			...view,
 			treeId: null,
 			focusId: currentFocus,
 			...stubs,
-			...union,
 			...change
 		}).toString();
 		// The address only changes once the new graph has loaded, so a second click straight after the
@@ -546,15 +533,6 @@
 		setFocus(id);
 	}
 
-	/**
-	 * Layers moved a generation back or forward. The partnership goes along: without it a parent with
-	 * more than one would be centred on their first, which may not be the one the viewer dived into.
-	 */
-	function handleTravel(to: { focusId: string; unionId: string | null }) {
-		rememberFocus(to.focusId);
-		navigate({ ...withOpenDrawer(to.focusId), unionId: to.unionId }, { kind: HISTORY_KINDS.FOCUS });
-	}
-
 	/** Canvas double-click or long-press: focus the person and show their details. */
 	function handleOpenPerson(id: string) {
 		if (!selectedPersonId) openerCardId = id;
@@ -578,8 +556,6 @@
 		<div class="mb-2 sm:mb-3">
 			<TreeToolbar
 				{view}
-				unionChoices={layersLayout?.unionChoices ?? []}
-				focusUnionId={layersLayout?.focusUnionId ?? null}
 				defaults={{
 					member: savedMemberMode,
 					tree: savedTreeMode,
@@ -661,22 +637,6 @@
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
 					onClearSelection={clearSelection}
-				/>
-			{:else if layersLayout}
-				<LayersCanvas
-					layout={layersLayout}
-					{fitKey}
-					{selectedPersonId}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-					onExpandStub={expandStub}
-					onCollapseStub={collapseStub}
-					onTravel={handleTravel}
-					{actions}
-					partnershipLabels={editor.unionLabels}
-					onDragRelate={canCreate ? editor.dragRelate : undefined}
-					isSinglePlane={isPhone}
 				/>
 			{:else}
 				<TreeCanvas

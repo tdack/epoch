@@ -268,7 +268,7 @@ describe('step-children', () => {
 		expect(selection.stubs).toContainEqual(
 			expect.objectContaining({ id: 'stub:children:other:P', count: 1 })
 		);
-		// Were P and Q not cards (as a sibling’s partner is not on a far plane), S has no anchor.
+		// Were P and Q not cards, S would have no anchor.
 		const people = selection.people.filter((p) => p.id !== 'P' && p.id !== 'Q');
 		const index = buildIndex(graph);
 		const bands = assignBands(selection, index).bands;

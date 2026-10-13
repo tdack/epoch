@@ -34,8 +34,8 @@ describe('view mode settings', () => {
 
 	it('lets any member choose their own view, and clear it', async () => {
 		const s = await setup();
-		await s.service.setViewMode(s.treeId, 'layers', s.viewer.context);
-		expect((await treeFor(s, s.viewer)).viewMode).toBe('layers');
+		await s.service.setViewMode(s.treeId, 'orrery', s.viewer.context);
+		expect((await treeFor(s, s.viewer)).viewMode).toBe('orrery');
 		// It is theirs alone.
 		expect((await treeFor(s, s.owner)).viewMode).toBeNull();
 		await s.service.setViewMode(s.treeId, null, s.viewer.context);
@@ -55,7 +55,7 @@ describe('view mode settings', () => {
 	it('leaves the tree and member versions alone, since neither is a record edit', async () => {
 		const s = await setup();
 		const before = await treeFor(s, s.owner);
-		await s.service.setDefaultViewMode(s.treeId, 'layers', s.owner.context);
+		await s.service.setDefaultViewMode(s.treeId, 'orrery', s.owner.context);
 		await s.service.setViewMode(s.treeId, 'rings', s.owner.context);
 		const after = await treeFor(s, s.owner);
 		expect(after.version).toBe(before.version);
@@ -79,7 +79,7 @@ describe('view mode settings', () => {
 	it('does not let a non-member write', async () => {
 		const s = await setup();
 		const stranger = await createTestUser(t.db);
-		await expect(s.service.setViewMode(s.treeId, 'layers', stranger.context)).rejects.toThrow(
+		await expect(s.service.setViewMode(s.treeId, 'orrery', stranger.context)).rejects.toThrow(
 			'Forbidden'
 		);
 	});

@@ -33,7 +33,7 @@ test('the owner’s tree default, a member’s own choice and an explicit link o
 	await open(page, bare);
 	await expect(flatCanvas(page)).toBeVisible();
 
-	// Flat and the four WebGL views are offered; Layers is withdrawn (ADR-032).
+	// Flat and the four WebGL views are offered.
 	await withDisplay(page, () =>
 		expect(
 			page.getByRole('combobox', { name: 'Default view for everyone' }).locator('option')

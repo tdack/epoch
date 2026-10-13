@@ -19,7 +19,7 @@ const FETCHED_PARAMS = new Set([
 	'side',
 	'origins',
 	'exp',
-	// The wider groups default on in Layers, so the mode decides what a bare address fetches.
+	// The wider groups default on in the WebGL views, so the mode decides what a bare address fetches.
 	'mode',
 	// The whole tree is a different request; see the load.
 	'scope'

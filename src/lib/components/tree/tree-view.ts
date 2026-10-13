@@ -442,17 +442,6 @@ function channel(value: number): number {
 	return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
-/** The colour of `foreground` drawn at `alpha` over `background`, as a hex value. */
-export function blendOver(foreground: string, background: string, alpha: number): string {
-	const parts = (hex: string) => {
-		const n = Number.parseInt(hex.replace('#', ''), 16);
-		return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-	};
-	const [f, b] = [parts(foreground), parts(background)];
-	const mixed = f.map((c, i) => Math.round(c * alpha + b[i] * (1 - alpha)));
-	return `#${mixed.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-}
-
 export function contrastRatio(foreground: string, background: string): number {
 	const luminance = (hex: string) => {
 		const n = Number.parseInt(hex.replace('#', ''), 16);

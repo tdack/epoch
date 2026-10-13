@@ -98,7 +98,7 @@ wanted, and that API calls after sign-in authenticate from the cookie alone.
 | Address | Shows |
 |---|---|
 | `/` | Opens the latest tree; the old `/?tree=…&focus=…` form redirects to the tree with the rest of the query kept |
-| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=&side=&origins=&mode=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it. `mode` is `flat`, `layers`, `rings`, `poincare`, `ribbons` or `orrery` (ADR-030, ADR-032, ADR-047); a link without it opens in the viewer's default view, then the tree's, then flat |
+| `/trees/:id?focus=&up=&down=&siblings=&step=&exp=&types=&side=&origins=&mode=` | The focus-centred tree; the view is in the address, so reload, Back and shared links restore it. `mode` is `flat`, `rings`, `poincare`, `ribbons` or `orrery` (ADR-032, ADR-047); a link without it opens in the viewer's default view, then the tree's, then flat |
 | `/trees/:id/people/:personId` | A person: names, facts, family, evidence, media, history |
 | `/trees/:id/people/:personId/pedigree`, `/descendants`, `/fan`, `/hourglass` | Charts centred on a person, with a text outline |
 | `/trees/:id/unions/:unionId` | A partnership: partners, events, children, chronology, evidence, warnings |

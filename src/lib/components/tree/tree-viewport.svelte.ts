@@ -67,8 +67,6 @@ export class TreeViewport {
 	private lastFitKey: string | null = null;
 	private previousPositions = new Map<string, Point>();
 	private previousCollapserCount = 0;
-	private minZoom = MIN_ZOOM;
-	private maxZoom = MAX_ZOOM;
 
 	/** Whether the behaviour is installed; a re-frame before that has nothing to move. */
 	get isAttached(): boolean {
@@ -84,7 +82,7 @@ export class TreeViewport {
 		this.size = { width: svg.clientWidth || 1000, height: svg.clientHeight || 600 };
 
 		this.zoomBehavior = zoom<Element, unknown>()
-			.scaleExtent([this.minZoom, this.maxZoom])
+			.scaleExtent([MIN_ZOOM, MAX_ZOOM])
 			// Dragging a card starts drag-to-relate, not a pan; the wheel still zooms everywhere.
 			.filter((event: Event) => {
 				if (event.type === 'wheel') return true;
@@ -188,21 +186,6 @@ export class TreeViewport {
 		return left >= 0 && top >= 0 && right <= this.size.width && bottom <= this.size.height;
 	}
 
-	/** How far the wheel, a pinch and the zoom buttons may go. */
-	get zoomLimits(): { min: number; max: number } {
-		return { min: this.minZoom, max: this.maxZoom };
-	}
-
-	/**
-	 * Narrow the zoom range. Layers stops short of the full range so that pushing on past either end
-	 * can mean something (see `dive.ts`).
-	 */
-	setZoomLimits(min: number, max: number) {
-		this.minZoom = Math.max(MIN_ZOOM, Math.min(min, max));
-		this.maxZoom = Math.min(MAX_ZOOM, max);
-		this.zoomBehavior?.scaleExtent([this.minZoom, this.maxZoom]);
-	}
-
 	/** The scale the Fit button would choose for `layout`. */
 	fitScale(layout: TreeLayout): number {
 		return layout.people.length > 0 ? this.fitTransform(layout).k : MAX_FIT_ZOOM;
@@ -211,7 +194,7 @@ export class TreeViewport {
 	/** Zoom about the centre of the view. */
 	zoomBy(factor: number) {
 		const base = this.animationTarget ?? this.transform;
-		const k = Math.min(this.maxZoom, Math.max(this.minZoom, base.k * factor));
+		const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, base.k * factor));
 		const centre: [number, number] = [this.size.width / 2, this.size.height / 2];
 		const [px, py] = base.invert(centre);
 		this.moveTo(zoomIdentity.translate(centre[0] - px * k, centre[1] - py * k).scale(k), {

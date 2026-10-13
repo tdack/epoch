@@ -927,7 +927,6 @@
 		border-radius: 9999px;
 		vertical-align: -0.0625rem;
 	}
-	/* The same camera buttons as Layers, so the 3D views read as one family of controls. */
 	/* Global, so a mode's extra controls (a snippet from the canvas) can wear the same buttons. */
 	.webgl-shell :global(.view) {
 		padding: 0.25rem 0.625rem;
