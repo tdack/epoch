@@ -15,7 +15,8 @@ import {
 	PERSON_ROLES,
 	type FocusSelection,
 	type LayoutMetrics,
-	type RelationshipGraphUnion
+	type RelationshipGraphUnion,
+	type TreeSelection
 } from './types.js';
 
 export type Item =
@@ -37,7 +38,7 @@ export interface Placement {
 
 interface Context {
 	index: GraphIndex;
-	selection: FocusSelection;
+	selection: TreeSelection;
 	m: LayoutMetrics;
 	genOf: Map<string, number>;
 	unionIds: Set<string>;
@@ -569,12 +570,8 @@ function shiftedContour(contour: Contour, dx: number): Contour {
 
 // ---- Entry point ----
 
-export function placeHourglass(
-	index: GraphIndex,
-	selection: FocusSelection,
-	m: LayoutMetrics = LAYOUT_METRICS
-): Placement {
-	const ctx: Context = {
+function newContext(index: GraphIndex, selection: TreeSelection, m: LayoutMetrics): Context {
+	return {
 		index,
 		selection,
 		m,
@@ -592,6 +589,14 @@ export function placeHourglass(
 			selection.people.filter((p) => p.role === PERSON_ROLES.ANCESTOR).map((p) => p.id)
 		)
 	};
+}
+
+export function placeHourglass(
+	index: GraphIndex,
+	selection: FocusSelection,
+	m: LayoutMetrics = LAYOUT_METRICS
+): Placement {
+	const ctx = newContext(index, selection, m);
 
 	// The focus row: children of the focus person's parent unions, so siblings stay contiguous.
 	const focusId = selection.focusPersonId;
@@ -635,6 +640,99 @@ export function placeHourglass(
 	const focusX = items.find((it) => it.t === 'person' && it.id === focusId)!.x;
 	return {
 		items: shiftItems(items, -focusX),
+		primaryEdgeKeys: ctx.primaryEdgeKeys,
+		nonAdjacentUnionIds: [...ctx.nonAdjacent]
+	};
+}
+
+/**
+ * The whole tree (`selectWholeTree`), with no focus. Each family with no recorded link to another
+ * is placed on its own, largest first, with a wide gap so separate families read as separate.
+ *
+ * Within a family, descendant blocks grow from its founding couples: partnership groups in which
+ * nobody has a drawn parent. Starting from a person instead would let a married-in spouse, who has
+ * no parents drawn, pull their partner into a block before the partner's own parents claim them.
+ * Whoever no block reached (a child two rows below a parent, a parent loop) starts a block of
+ * their own, so everyone is placed and the edge that did not place them is drawn as secondary.
+ */
+export function placeWholeTree(
+	index: GraphIndex,
+	selection: TreeSelection,
+	m: LayoutMetrics = LAYOUT_METRICS
+): Placement {
+	const ctx = newContext(index, selection, m);
+	const ids = selection.people.map((p) => p.id);
+	const isDrawn = (id: string) => ctx.genOf.has(id);
+	const drawnParentIds = (id: string) =>
+		(index.parentLinksOfChild.get(id) ?? []).map((l) => l.parentId).filter(isDrawn);
+
+	// Partnership groups, and families: groups joined by any parent-child link.
+	const group = new Map(ids.map((id) => [id, id]));
+	const family = new Map(ids.map((id) => [id, id]));
+	const find = (sets: Map<string, string>, id: string): string => {
+		while (sets.get(id) !== id) id = sets.get(id)!;
+		return id;
+	};
+	const join = (sets: Map<string, string>, a: string, b: string) => {
+		const ra = find(sets, a);
+		const rb = find(sets, b);
+		if (ra !== rb) sets.set(rb, ra);
+	};
+	for (const unionId of ctx.unionIds) {
+		const partners = (index.unionById.get(unionId)?.partnerIds ?? []).filter(isDrawn);
+		for (const id of partners.slice(1)) {
+			join(group, partners[0], id);
+			join(family, partners[0], id);
+		}
+	}
+	for (const id of ids) for (const parentId of drawnParentIds(id)) join(family, parentId, id);
+
+	const hasParents = new Set<string>();
+	for (const id of ids) if (drawnParentIds(id).length > 0) hasParents.add(find(group, id));
+	const membersOf = new Map<string, string[]>();
+	for (const id of ids) {
+		const root = find(family, id);
+		if (!membersOf.has(root)) membersOf.set(root, []);
+		membersOf.get(root)!.push(id);
+	}
+	// Largest family first, then the graph's own order, so the same tree always draws the same way.
+	const families = [...membersOf.values()].sort((a, b) => b.length - a.length);
+
+	const familySubs: Sub[] = families.map((members) => {
+		const byRow = [...members].sort((a, b) => ctx.genOf.get(a)! - ctx.genOf.get(b)!);
+		const founders = byRow.filter((id) => !hasParents.has(find(group, id)));
+		const blocks: Sub[] = [];
+		for (const id of [...founders, ...byRow]) {
+			if (ctx.placed.has(id)) continue;
+			ctx.placed.add(id);
+			blocks.push(layoutDescendantBlock(ctx, id, 'right'));
+		}
+		const offsets = sequenceOffsets(blocks, m.siblingGap);
+		const items: Item[] = [];
+		const contour: Contour = new Map();
+		blocks.forEach((b, i) => {
+			items.push(...shiftItems(b.items, offsets[i]));
+			contourMerge(contour, b.contour, offsets[i]);
+		});
+		return { items, contour };
+	});
+
+	const familyGap = m.cardWidth / 2;
+	const items: Item[] = [];
+	let right = Number.NEGATIVE_INFINITY;
+	for (const sub of familySubs) {
+		let left = Number.POSITIVE_INFINITY;
+		let subRight = Number.NEGATIVE_INFINITY;
+		for (const [l, r] of sub.contour.values()) {
+			left = Math.min(left, l);
+			subRight = Math.max(subRight, r);
+		}
+		const dx = Number.isFinite(right) ? right + familyGap - left : -left;
+		items.push(...shiftItems(sub.items, dx));
+		right = subRight + dx;
+	}
+	return {
+		items,
 		primaryEdgeKeys: ctx.primaryEdgeKeys,
 		nonAdjacentUnionIds: [...ctx.nonAdjacent]
 	};

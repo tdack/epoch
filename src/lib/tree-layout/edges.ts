@@ -2,13 +2,13 @@ import type { GraphIndex } from './graph-index.js';
 import type {
 	ChildAssertion,
 	ChildEdge,
-	FocusSelection,
 	LayoutEdge,
 	PartnerEdge,
 	PlacedPerson,
 	PlacedStub,
 	PlacedUnion,
-	StubEdge
+	StubEdge,
+	TreeSelection
 } from './types.js';
 
 function assertionsOf(
@@ -32,7 +32,7 @@ function assertionsOf(
  */
 export function buildEdges(
 	index: GraphIndex,
-	selection: FocusSelection,
+	selection: TreeSelection,
 	people: Map<string, PlacedPerson>,
 	unions: Map<string, PlacedUnion>,
 	stubs: PlacedStub[],

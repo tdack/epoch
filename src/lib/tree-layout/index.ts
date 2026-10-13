@@ -4,9 +4,10 @@
  */
 
 import { buildEdges } from './edges.js';
-import { buildIndex } from './graph-index.js';
-import { placeHourglass, type Item } from './place.js';
+import { buildIndex, type GraphIndex } from './graph-index.js';
+import { placeHourglass, placeWholeTree, type Item, type Placement } from './place.js';
 import { selectFocusSubgraph } from './select.js';
+import { selectWholeTree } from './whole-tree.js';
 import {
 	EMPTY_LAYOUT,
 	LAYOUT_METRICS,
@@ -17,7 +18,8 @@ import {
 	type PlacedStub,
 	type PlacedUnion,
 	type RelationshipGraph,
-	type TreeLayout
+	type TreeLayout,
+	type TreeSelection
 } from './types.js';
 
 export * from './types.js';
@@ -48,8 +50,30 @@ export function layoutFocusView(
 	const index = buildIndex(graph);
 	const selection = selectFocusSubgraph(graph, focusPersonId, options, index);
 	if (!selection) return EMPTY_LAYOUT;
+	return finishLayout(graph, index, selection, placeHourglass(index, selection, m), m);
+}
 
-	const placement = placeHourglass(index, selection, m);
+/**
+ * The flat view of the whole tree: everyone the graph fully holds, in rows by generation, with no
+ * focus. Families with no recorded link between them sit side by side (see `placeWholeTree`).
+ */
+export function layoutWholeTree(
+	graph: RelationshipGraph,
+	m: LayoutMetrics = LAYOUT_METRICS
+): TreeLayout {
+	const index = buildIndex(graph);
+	const selection = selectWholeTree(graph);
+	if (selection.people.length === 0) return EMPTY_LAYOUT;
+	return finishLayout(graph, index, selection, placeWholeTree(index, selection, m), m);
+}
+
+function finishLayout(
+	graph: RelationshipGraph,
+	index: GraphIndex,
+	selection: TreeSelection,
+	placement: Placement,
+	m: LayoutMetrics
+): TreeLayout {
 	const items: Item[] = [...placement.items];
 	const nonAdjacent = new Set(placement.nonAdjacentUnionIds);
 
@@ -168,7 +192,7 @@ export function layoutFocusView(
 	const xs = [...people.map((p) => p.x), ...stubs.map((s) => s.x)];
 	const gens = [...people.map((p) => p.generation), ...stubs.map((s) => s.generation)];
 	return {
-		focusPersonId,
+		focusPersonId: selection.focusPersonId,
 		people,
 		unions,
 		stubs,
