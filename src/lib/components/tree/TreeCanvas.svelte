@@ -17,6 +17,7 @@
 	import TreeContextMenu from './TreeContextMenu.svelte';
 	import TreeEdge from './TreeEdge.svelte';
 	import TreeLegend from './TreeLegend.svelte';
+	import TreeMinimap from './TreeMinimap.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import ZoomControls from './ZoomControls.svelte';
 	import { treeTokenStyle } from './tree-tokens.js';
@@ -29,7 +30,8 @@
 		type PersonRef,
 		type TreeEditActions
 	} from './tree-actions.js';
-	import { TreeViewport } from './tree-viewport.svelte.js';
+	import { isWholeVisible, visibleRect } from './minimap.js';
+	import { NARROW_CANVAS_PX, TreeViewport } from './tree-viewport.svelte.js';
 	import { FIT_ACTIONS, offscreenMarkers, type OffscreenMarker } from './view-geometry.js';
 	import {
 		isEndedUnion,
@@ -128,6 +130,12 @@
 	const viewport = new TreeViewport();
 	const transform = $derived(viewport.transform);
 	const size = $derived(viewport.size);
+	// Not on a phone, where it would cover the cards it maps, and not while the whole tree shows.
+	const shouldShowMinimap = $derived(
+		layout.people.length > 0 &&
+			size.width >= NARROW_CANVAS_PX &&
+			!isWholeVisible(layout.bounds, visibleRect(transform, size))
+	);
 	/** Names what Fit will do next, since on a phone it alternates between two framings. */
 	const fitLabel = $derived(
 		!viewport.isWholeUnreadable(layout)
@@ -680,6 +688,15 @@
 		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
 		onFit={() => viewport.fitStep(layout)}
 	/>
+
+	{#if shouldShowMinimap}
+		<TreeMinimap
+			{layout}
+			{transform}
+			{size}
+			onCentre={(x, y, isAnimated) => viewport.centreOn(x, y, isAnimated)}
+		/>
+	{/if}
 
 	<OffscreenMarkers {markers} onPan={panToward} />
 

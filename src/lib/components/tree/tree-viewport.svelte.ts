@@ -34,7 +34,7 @@ const MIN_FIT_PADDING_PX = 16;
 const FIT_PADDING_TOP_PX = 56;
 const FIT_PADDING_BOTTOM_PX = 72;
 /** Canvases narrower than this (a phone, or a narrow window) frame a readable family, not the whole tree. */
-const NARROW_CANVAS_PX = 640;
+export const NARROW_CANVAS_PX = 640;
 
 type Bounds = TreeLayout['bounds'];
 const ANIMATION_MS = 380;
@@ -259,6 +259,19 @@ export class TreeViewport {
 	panBy(dx: number, dy: number) {
 		const base = this.animationTarget ?? this.transform;
 		this.moveTo(base.translate(dx / base.k, dy / base.k), { isAnimated: true });
+	}
+
+	/**
+	 * Centre the view on (x, y) in layout space at the current zoom: the minimap's click and drag.
+	 * Goes through the zoom behaviour, which keeps its own copy of the transform on the element; a
+	 * direct assignment to `transform` would be undone by the next wheel or drag.
+	 */
+	centreOn(x: number, y: number, isAnimated = false) {
+		const { k } = this.animationTarget ?? this.transform;
+		this.moveTo(
+			zoomIdentity.translate(this.size.width / 2 - x * k, this.size.height / 2 - y * k).scale(k),
+			{ isAnimated }
+		);
 	}
 
 	/** Pan just enough to bring a card centred at (x, y) fully into view. */
