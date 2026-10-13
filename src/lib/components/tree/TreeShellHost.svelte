@@ -9,7 +9,7 @@
 	interface Props {
 		shell: TreeShell;
 		/** The tree in view, for the rename, delete and import dialogs; null on the landing page. */
-		tree: { id: string; name: string; version: number } | null;
+		tree: { id: string; slug: string | null; name: string; version: number } | null;
 	}
 
 	let { shell, tree }: Props = $props();
@@ -45,11 +45,12 @@
 	<RenameTreeModal
 		isOpen={shell.isRenameTreeModalOpen}
 		treeName={tree.name}
+		treeSlug={tree.slug}
 		treeVersion={tree.version}
 		isRenaming={shell.isRenamingTree}
 		error={shell.renameTreeError}
 		onclose={() => (shell.isRenameTreeModalOpen = false)}
-		onrename={shell.renameTree}
+		onrename={(name, slug, version) => shell.renameTree(name, slug, version, tree.slug)}
 	/>
 	<DeleteTreeModal
 		isOpen={shell.isDeleteTreeModalOpen}

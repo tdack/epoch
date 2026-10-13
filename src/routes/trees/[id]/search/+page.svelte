@@ -13,7 +13,6 @@
 
 	let { data }: Props = $props();
 
-	const treeId = $derived(data.summary.tree.id);
 	const base = $derived(treePath(data.summary.tree));
 	const query = $derived(data.query);
 	const response = $derived(data.response);

@@ -56,15 +56,16 @@
 		dialog = null;
 	}
 
-	async function run(work: () => Promise<void>, done: string, isLeavingTree = false) {
+	/** `leaveTo` is where to go afterwards when this tree's own address no longer works. */
+	async function run(work: () => Promise<void>, done: string, leaveTo: string | null = null) {
 		isBusy = true;
 		dialogError = null;
 		try {
 			await work();
 			dialog = null;
 			toasts.push(done);
-			// Reloading would ask for the tree this page sits in after it was deleted, and fail.
-			if (isLeavingTree) await goto('/', { invalidateAll: true });
+			// Reloading would ask for this page's tree by an address that no longer names it, and fail.
+			if (leaveTo) await goto(leaveTo, { replaceState: true, invalidateAll: true });
 			else await invalidate(DATA_KEY);
 		} catch (cause) {
 			dialogError = (cause as Error).message || 'That did not work';
@@ -73,10 +74,23 @@
 		}
 	}
 
-	const rename = (name: string, version: number) =>
-		run(() => renameTreeApi(target!.id, name, version), 'Tree renamed');
+	async function rename(name: string, slug: string | null, version: number) {
+		const tree = target!;
+		// This page sits under the current tree's address; a new slug for it leaves that address
+		// naming nothing, so the page moves rather than reloading in place.
+		const isMovingHere = tree.id === data.summary.tree.id && slug !== tree.slug;
+		await run(
+			() => renameTreeApi(tree.id, name, slug, version).then(() => undefined),
+			'Tree renamed',
+			isMovingHere ? `${treePath({ id: tree.id, slug })}/trees` : null
+		);
+	}
 	const remove = () =>
-		run(() => deleteTreeApi(target!.id), 'Tree deleted', target!.id === data.summary.tree.id);
+		run(
+			() => deleteTreeApi(target!.id),
+			'Tree deleted',
+			target!.id === data.summary.tree.id ? '/' : null
+		);
 	const setPublic = (confirmName: string) =>
 		run(
 			() => setPublicTreeApi(target!.isPublic ? null : target!.id, confirmName),
@@ -241,6 +255,7 @@
 	<RenameTreeModal
 		isOpen={dialog === 'rename'}
 		treeName={target.name}
+		treeSlug={target.slug}
 		treeVersion={target.version}
 		isRenaming={isBusy}
 		error={dialogError}

@@ -77,6 +77,11 @@ export interface TreeShellOptions {
 	reload: () => Promise<void>;
 	/** Show a tree, or the landing page for null. */
 	goTo: (treeId: string | null) => void;
+	/**
+	 * The open tree's address changed (ADR-045). The page's own address now names a slug that no
+	 * longer resolves, so reloading in place would fail; the caller moves to the new one instead.
+	 */
+	onAddressChange?: (tree: { id: string; slug: string | null }) => Promise<void>;
 }
 
 export class TreeShell {
@@ -144,16 +149,23 @@ export class TreeShell {
 	};
 
 	/** `version` is the tree's as the dialog was opened, so a rename made meanwhile answers 409. */
-	renameTree = async (name: string, version: number) => {
+	renameTree = async (
+		name: string,
+		slug: string | null,
+		version: number,
+		wasSlug: string | null
+	) => {
 		const treeId = this.options.treeId();
 		if (!treeId) return;
 		this.isRenamingTree = true;
 		this.renameTreeError = null;
 		try {
-			await renameTreeApi(treeId, name, version);
+			const renamed = await renameTreeApi(treeId, name, slug, version);
 			this.isRenameTreeModalOpen = false;
 			this.options.toasts.push('Tree renamed');
-			await this.options.reload();
+			if (renamed.slug !== wasSlug && this.options.onAddressChange)
+				await this.options.onAddressChange(renamed);
+			else await this.options.reload();
 		} catch (err) {
 			this.renameTreeError = (err as Error).message || 'Failed to rename tree';
 		} finally {

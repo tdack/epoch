@@ -160,12 +160,18 @@ export async function createTreeApi(payload: {
 	return data.tree;
 }
 
-export async function renameTreeApi(treeId: string, name: string, version: number): Promise<void> {
-	await call(
+/** Rename the tree and set its address (ADR-045); a null slug leaves it reached by its id. */
+export async function renameTreeApi(
+	treeId: string,
+	name: string,
+	slug: string | null,
+	version: number
+): Promise<{ id: string; slug: string | null }> {
+	return call<{ tree: { id: string; slug: string | null } }>(
 		`/api/trees/${enc(treeId)}`,
-		json('PATCH', { name, version }),
+		json('PATCH', { name, slug, version }),
 		'Failed to rename tree'
-	);
+	).then((d) => d.tree);
 }
 
 /** One row of the install owner's Trees page (`GET /api/admin/trees`). */

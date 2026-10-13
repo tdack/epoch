@@ -18,7 +18,6 @@
 	}
 
 	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
-	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	interface Group {
 		subject: CitationSubjectRef;

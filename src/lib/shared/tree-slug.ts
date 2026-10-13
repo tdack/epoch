@@ -52,7 +52,11 @@ export function treePath(tree: TreeRef): string {
  * The same address under the tree's canonical segment, or null when `url` already uses it. Only
  * the segment after `/trees/` changes; the rest of the path and the query are kept.
  */
-export function canonicalTreeAddress(url: URL, segment: string, tree: TreeRef): string | null {
+export function canonicalTreeAddress(
+	url: { pathname: string; search: string },
+	segment: string,
+	tree: TreeRef
+): string | null {
 	const canonical = treeSegment(tree);
 	if (segment === canonical) return null;
 	const prefix = `/trees/${encodeURIComponent(segment)}`;

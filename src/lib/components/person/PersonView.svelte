@@ -49,7 +49,6 @@
 		toasts,
 		marks
 	}: Props = $props();
-	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	const isPage = $derived(layout === 'page');
 </script>

@@ -17,7 +17,7 @@
 	import { searchPeopleApi } from '#lib/services/tree-api.js';
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
-	import { treePath } from '#lib/shared/tree-slug.js';
+	import { canonicalTreeAddress, treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: LayoutData;
@@ -62,7 +62,11 @@
 		treeId: () => data.summary.tree.id,
 		toasts,
 		reload,
-		goTo: (id) => void goto(id ? pathOf(id) : '/')
+		goTo: (id) => void goto(id ? pathOf(id) : '/'),
+		onAddressChange: async (tree) => {
+			const moved = canonicalTreeAddress(page.url, page.params.id!, tree);
+			if (moved) await goto(moved, { replaceState: true, invalidateAll: true });
+		}
 	});
 	// Seeded once so the server render already has the lists; the effect below adopts any later load.
 	const marks = new MarksStore(
@@ -165,6 +169,7 @@
 			{shell}
 			tree={{
 				id: data.summary.tree.id,
+				slug: data.summary.tree.slug,
 				name: data.summary.tree.name,
 				version: data.summary.tree.version
 			}}

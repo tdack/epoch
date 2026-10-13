@@ -17,7 +17,6 @@
 	}
 
 	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
-	const treeRef = $derived({ id: treeId, slug: treeSlug });
 </script>
 
 <!-- The person's own notes, in place. Notes on a fact, a name or a citation sit beside it in its own section. -->
