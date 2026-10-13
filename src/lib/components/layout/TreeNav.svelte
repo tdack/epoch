@@ -12,11 +12,20 @@
 		pathname: string;
 		/** The install owner also gets the app-wide Trees page, in every tree. */
 		isInstallOwner?: boolean;
+		/** How many trees the viewer belongs to; with more than one they get the Trees page to pick a default. */
+		treeCount?: number;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
 	}
 
-	let { treeId, role, pathname, isInstallOwner = false, isOutsider = false }: Props = $props();
+	let {
+		treeId,
+		role,
+		pathname,
+		isInstallOwner = false,
+		treeCount = 0,
+		isOutsider = false
+	}: Props = $props();
 
 	interface NavLink {
 		href: string;
@@ -56,15 +65,8 @@
 					{ href: `${base}/privacy`, label: 'Privacy', isActive: startsWith(`${base}/privacy`) }
 				]
 			: []),
-		// Outside the tree, so it carries the tree it was opened from to link back to.
-		...(isInstallOwner
-			? [
-					{
-						href: `/manage/trees?from=${encodeURIComponent(treeId)}`,
-						label: 'Trees',
-						isActive: false
-					}
-				]
+		...(isInstallOwner || treeCount > 1
+			? [{ href: `${base}/trees`, label: 'Trees', isActive: startsWith(`${base}/trees`) }]
 			: [])
 	]);
 	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));

@@ -75,6 +75,7 @@
 		editor,
 		marks,
 		finder: finderBridge,
+		openNewTree: shell.openNewTree,
 		get isPublicVisitor() {
 			return viewer.isPublicVisitor;
 		}
@@ -165,6 +166,7 @@
 			{role}
 			pathname={page.url.pathname}
 			isInstallOwner={viewer.isInstallOwner}
+			treeCount={data.trees.length}
 			isOutsider={viewer.isOutsider}
 		/>
 		{@render children()}

@@ -28,6 +28,8 @@ export interface TreeContext {
 	editor: TreeEditor;
 	marks: MarksStore;
 	finder: FinderBridge;
+	/** Opens the layout's "New tree" dialog, which the header's tree switcher also uses. */
+	openNewTree: () => void;
 	/**
 	 * Nobody is signed in: the reader of the public tree. A screen must not call an endpoint that
 	 * stores something for a user, since the answer is a 401 and the API client reacts to a 401 by

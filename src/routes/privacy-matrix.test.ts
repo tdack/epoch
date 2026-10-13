@@ -85,6 +85,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: 'services/tree-view-mode.test.ts'
 	},
+	[`${API}/default-tree/+server.ts`]: {
+		kind: 'no-record-data',
+		covers: 'services/tree-default.test.ts'
+	},
 	[`${API}/trees/[id]/view-mode/+server.ts`]: {
 		kind: 'no-record-data',
 		covers: 'services/tree-view-mode.test.ts'
@@ -236,6 +240,7 @@ const LOADS = [
 	'./trees/[id]/sources/[sourceId]/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
 	'./trees/[id]/tasks/+page.ts',
+	'./trees/[id]/trees/+page.ts',
 	'./trees/[id]/unions/+page.ts',
 	'./trees/[id]/unions/[unionId]/+page.ts'
 ];
@@ -253,7 +258,7 @@ const loads = Object.keys(
 const NO_RECORD_LOADS = [
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
-	// The install owner's list of trees: names and counts from `/api/admin/trees`, which refuses anyone else.
+	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
 	'./manage/trees/+page.ts'
 ];
 

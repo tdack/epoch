@@ -59,6 +59,27 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Privacy');
 	});
 
+	it('offers Trees to the install owner and to members of more than one tree', () => {
+		for (const props of [{ isInstallOwner: true, treeCount: 1 }, { treeCount: 2 }]) {
+			render({ role: 'viewer', ...props });
+			openMore();
+			expect(menuLabels()).toContain('Trees');
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		render({ role: 'owner', treeCount: 1 });
+		openMore();
+		expect(menuLabels()).not.toContain('Trees');
+	});
+
+	it('marks Trees active on its page', () => {
+		render({ role: 'viewer', treeCount: 2, pathname: '/trees/t1/trees' });
+		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(
+			'More: Trees'
+		);
+	});
+
 	it('names the page inside More on the trigger and styles it active', () => {
 		render({ role: 'editor', pathname: '/trees/t1/quality' });
 		const trigger = document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
