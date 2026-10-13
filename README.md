@@ -47,6 +47,7 @@ command to `npm run build` and the deploy command to `npx wrangler deploy`.
   each take are played at 1.4× (about 13 seconds), 1280×538 h264 at CRF 26, with a `-poster.jpg`
   first frame. The browser capture leaves blocky patches in the near-black stage, so every pixel
   darker than R+G+B 72 is set to one colour (ffmpeg `geq`) before encoding. Re-record them when a
-  view changes, and keep the `video` and `poster` entries in `VIEWS_3D` in step.
+  view changes, and bump `CLIP_VERSION` in `src/lib/site.ts`: the edge cache keeps the old clips
+  under their old URLs whatever the Worker deploys.
 - `PRODUCT.md` and `DESIGN.md`: copies of the app's product and design context, which the site
   follows. The site's own design direction is in `.impeccable/surfaces/`.
