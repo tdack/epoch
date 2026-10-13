@@ -14,7 +14,8 @@
 	"vars": {
 		"CF_ACCESS_TEAM_DOMAIN": "team.cloudflareaccess.com",
 		"EPOCH_EMAIL_SENDER": "welcome@example.com",
-		"EPOCH_INSTALL_ID": "22222222-2222-4222-8222-222222222222"
+		"EPOCH_INSTALL_ID": "22222222-2222-4222-8222-222222222222",
+		"EPOCH_SOURCE_URL": "https://github.com/tdack/epoch"
 	},
 	"assets": {
 		"directory": ".svelte-kit/cloudflare",

@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
 	import PersonFinder from '#lib/components/layout/PersonFinder.svelte';
+	import SourceLink from '#lib/components/layout/SourceLink.svelte';
 	import TreeNav from '#lib/components/layout/TreeNav.svelte';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -187,6 +188,9 @@
 		/>
 		{@render children()}
 	</main>
+	<footer class="px-6 pb-4 text-center">
+		<SourceLink href={data.sourceUrl} />
+	</footer>
 </div>
 
 <TreeEditorHost {editor} />

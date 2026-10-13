@@ -49,8 +49,8 @@ describe('editing the deploy config in place', () => {
 			wanted({ installId: '11111111-1111-4111-8111-111111111111' })
 		);
 		expect(changed(committed, next)).toEqual([
-			`- \t\t"EPOCH_INSTALL_ID": "${values.installId}"`,
-			'+ \t\t"EPOCH_INSTALL_ID": "11111111-1111-4111-8111-111111111111"'
+			`- \t\t"EPOCH_INSTALL_ID": "${values.installId}",`,
+			'+ \t\t"EPOCH_INSTALL_ID": "11111111-1111-4111-8111-111111111111",'
 		]);
 		expect(next).toContain('// Serve on workers.dev only:');
 		expect(next.startsWith(committed.split('\n')[0]!)).toBe(true);

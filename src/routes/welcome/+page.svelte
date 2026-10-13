@@ -35,6 +35,7 @@
 
 <Splash
 	actionLabel={actionLabels[data.state]}
+	sourceUrl={data.sourceUrl}
 	actionHref={data.actionHref}
 	{message}
 	explore={data.publicTree

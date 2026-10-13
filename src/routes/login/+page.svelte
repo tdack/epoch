@@ -11,6 +11,7 @@
 
 <Splash
 	actionLabel="Back to the welcome page"
+	sourceUrl={data.sourceUrl}
 	actionHref={data.welcomePath}
 	message="We could not confirm your sign-in. Try again from the welcome page, and if it keeps happening, ask whoever invited you."
 />
