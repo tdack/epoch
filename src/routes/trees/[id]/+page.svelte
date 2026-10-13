@@ -37,7 +37,12 @@
 		saveDefaultViewMode,
 		saveViewMode
 	} from '#lib/services/tree-api.js';
-	import { EMPTY_LAYOUT, filterParentChildTypes, layoutFocusView } from '#lib/tree-layout/index.js';
+	import {
+		EMPTY_LAYOUT,
+		filterParentChildTypes,
+		layoutFocusView,
+		layoutWholeTree
+	} from '#lib/tree-layout/index.js';
 	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { layoutOrrery } from '#lib/tree-layout/orrery.js';
@@ -170,7 +175,9 @@
 	// Only the chosen view is laid out, so switching mode costs one layout and no request.
 	const layout = $derived(
 		graphForLayout && drawnMode === LAYOUT_MODES.FLAT
-			? layoutFocusView(graphForLayout, focusPersonId, focusOptions)
+			? isWholeTreeDrawn
+				? layoutWholeTree(graphForLayout)
+				: layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
 	);
 	const floorsLayout = $derived(
@@ -540,6 +547,12 @@
 
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	function handleFocusPerson(id: string) {
+		// The flat whole tree lights no line, so a card there is a way in: focus them and leave it.
+		if (isWholeTreeDrawn && drawnMode === LAYOUT_MODES.FLAT) {
+			rememberFocus(id);
+			navigate({ ...withOpenDrawer(id), isWholeTree: false }, { kind: HISTORY_KINDS.FOCUS });
+			return;
+		}
 		// The first click of a double-click lands here too; re-centring on the person already at the
 		// centre would only flash the cue and, before stubs were kept, wipe the branches just opened.
 		if (id === (view.focusId ?? focusPersonId)) return;
@@ -703,6 +716,9 @@
 				<TreeCanvas
 					{layout}
 					{fitKey}
+					isWholeTree={isWholeTreeDrawn}
+					isTruncated={isWholeTreeTruncated}
+					onToggleWholeTree={toggleWholeTree}
 					{selectedPersonId}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}

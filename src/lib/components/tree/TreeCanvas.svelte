@@ -95,6 +95,12 @@
 		onExpandStub?: (stubId: string) => void;
 		/** A collapse control was activated; the caller removes the id. */
 		onCollapseStub?: (stubId: string) => void;
+		/** The whole tree is drawn (`layoutWholeTree`): nobody is the focus. */
+		isWholeTree?: boolean;
+		/** Shows the Whole tree button, pressed while the whole tree is drawn. */
+		onToggleWholeTree?: () => void;
+		/** The whole tree stopped at its cap. */
+		isTruncated?: boolean;
 	}
 
 	let {
@@ -120,7 +126,10 @@
 		partnershipLabels,
 		onDragRelate,
 		onExpandStub,
-		onCollapseStub
+		onCollapseStub,
+		isWholeTree = false,
+		onToggleWholeTree,
+		isTruncated = false
 	}: Props = $props();
 
 	const ZOOM_STEP = 1.35;
@@ -173,12 +182,15 @@
 			keyboardCursor.focusId === layout.focusPersonId &&
 			peopleById.has(keyboardCursor.personId)
 			? keyboardCursor.personId
-			: layout.focusPersonId
+			: // The whole tree has no focus; without a fallback no card would be in the tab order.
+				(layout.focusPersonId ?? layout.people[0]?.id ?? null)
 	);
 	const announcement = $derived(
 		layout.focusPersonId
 			? `Tree focused on ${peopleById.get(layout.focusPersonId)?.person.displayName ?? 'unknown'}. ${layout.people.length} people shown.`
-			: ''
+			: isWholeTree && layout.people.length > 0
+				? `Showing the whole tree: ${layout.people.length} people.`
+				: ''
 	);
 	const relations = $derived(new Map(layout.people.map((p) => [p.id, relationLabel(p, layout)])));
 	/**
@@ -681,13 +693,37 @@
 		<TreeLegend />
 	</div>
 
+	{#if isWholeTree && isTruncated}
+		<p
+			class="absolute top-4 right-4 z-20 max-w-xs rounded-xl border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] px-3 py-1.5 text-xs text-[var(--tree-ink)] shadow-md"
+			role="note"
+			data-testid="whole-tree-truncated"
+		>
+			Showing the first {layout.people.length.toLocaleString()} people; the tree has more than this view
+			draws.
+		</p>
+	{/if}
+
 	<ZoomControls
 		scale={transform.k}
 		{fitLabel}
 		onZoomIn={() => viewport.zoomBy(ZOOM_STEP)}
 		onZoomOut={() => viewport.zoomBy(1 / ZOOM_STEP)}
 		onFit={() => viewport.fitStep(layout)}
-	/>
+	>
+		{#snippet leading()}
+			{#if onToggleWholeTree}
+				<button
+					type="button"
+					class="whole-tree"
+					aria-pressed={isWholeTree}
+					onclick={onToggleWholeTree}
+				>
+					Whole tree
+				</button>
+			{/if}
+		{/snippet}
+	</ZoomControls>
 
 	{#if shouldShowMinimap}
 		<TreeMinimap
@@ -721,6 +757,31 @@
 </div>
 
 <style>
+	/* Matches the WebGL views' Whole tree toggle, so the one control reads the same in every view. */
+	.whole-tree {
+		padding: 0.25rem 0.625rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--tree-panel-border);
+		color: #44403c;
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.whole-tree[aria-pressed='true'] {
+		background: var(--color-emerald-800);
+		border-color: var(--color-emerald-800);
+		color: var(--color-amber-50);
+	}
+	.whole-tree:focus-visible {
+		outline: 2px solid var(--tree-focus-ring);
+		outline-offset: 2px;
+	}
+	@media (pointer: coarse) {
+		.whole-tree {
+			min-height: 2.75rem;
+		}
+	}
+
 	.stub {
 		cursor: pointer;
 		outline: none;

@@ -133,7 +133,8 @@ The tree page is a focus-centred hourglass: there is always a focus person, and 
 bounded subgraph rather than the whole tree (ADR-011). Pedigree, descendant, fan, hourglass and
 relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL views (Rings, Ball,
 Ribbons, Orrery) share one selection and highlight model (ADR-032, ADR-033, ADR-035); flat is the
-default. The flat view shows a minimap once the tree no longer fits the canvas. One person view
+default. The flat view shows a minimap once the tree no longer fits the canvas, and draws the whole
+tree too, with unconnected families side by side (ADR-046). One person view
 renders both the drawer and the person page (ADR-027).
 
 ## Research basis

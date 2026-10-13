@@ -53,6 +53,19 @@ describe('tree view URL state', () => {
 		);
 	});
 
+	it('keeps the whole tree in the views that draw one, and drops it in the stacked ones', () => {
+		for (const mode of ['flat', 'rings']) {
+			const parsed = parseViewState(new URLSearchParams(`mode=${mode}&scope=all`));
+			expect(parsed.isWholeTree, mode).toBe(true);
+			expect(serializeViewState(parsed).get('scope'), mode).toBe('all');
+		}
+		for (const mode of ['layers', 'floors']) {
+			expect(parseViewState(new URLSearchParams(`mode=${mode}&scope=all`)).isWholeTree).toBe(false);
+			const state = { ...DEFAULT_VIEW_STATE, layoutMode: mode as 'layers', isWholeTree: true };
+			expect(serializeViewState(state).has('scope'), mode).toBe(false);
+		}
+	});
+
 	it('carries the focus union, and leaves it out when absent', () => {
 		const layers = {
 			...DEFAULT_VIEW_STATE,

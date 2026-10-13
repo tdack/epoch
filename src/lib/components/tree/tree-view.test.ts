@@ -25,7 +25,7 @@ import {
 	unionLabelText
 } from './tree-view';
 import { CAPTURED_GRAPHS, personByName } from '#lib/tree-layout/test-support.js';
-import { LAYOUT_METRICS, layoutFocusView } from '#lib/tree-layout/index.js';
+import { LAYOUT_METRICS, layoutFocusView, layoutWholeTree } from '#lib/tree-layout/index.js';
 import { UNION_STATUSES } from '#lib/shared/relationship-model.js';
 import { isEndedUnionStatus } from '#lib/server/domain/relationship-graph.js';
 import { ALL_PARENT_CHILD_TYPES } from './tree-url';
@@ -221,6 +221,13 @@ describe('accessible names', () => {
 			'Jessica Lovejoy, born 9 Mar 1966, died 1 JAN 2040, focus person'
 		);
 		expect(accessibleName(jessica, 'focus person')).toBe('Jessica Lovejoy, focus person');
+	});
+
+	it('names no relationship in the whole tree, where nobody is the focus', () => {
+		const layout = layoutWholeTree(simpsons);
+		expect([...new Set(labels(layout).values())]).toEqual(['']);
+		const [first] = layout.people;
+		expect(accessibleName(first, '')).toBe(first.person.displayName);
 	});
 
 	it('words distant generations without gendered terms', () => {

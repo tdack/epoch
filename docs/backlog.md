@@ -133,8 +133,6 @@ Last reviewed: 2026-10-11.
   Export is whole-tree only today.
 - **Pedigree collapse in charts.** An ancestor reached twice should render once, with a dashed link
   or an "also appears as" badge, never a duplicate card.
-- **Whole-tree overview.** The S1f spike compared layered engines (d3-dag, ELK) for an optional
-  whole-tree flat overview; confirm whether a decision was recorded, otherwise decide.
 - **Home dashboard.** Favourites and recents exist; there is no dashboard.
 - **A text alternative to the graph for screen readers,** with arrow-key navigation between
   related nodes (confirm what shipped against the accessibility audit below). The flat view's

@@ -146,7 +146,7 @@ export function parseViewState(
 		types: types.length > 0 ? types : [...ALL_PARENT_CHILD_TYPES],
 		layoutMode,
 		unionId: params.get('union') || null,
-		isWholeTree: params.get('scope') === 'all' && VIEW_MODE_TRAITS[layoutMode].isWebGl,
+		isWholeTree: params.get('scope') === 'all' && VIEW_MODE_TRAITS[layoutMode].hasWholeTree,
 		expandedStubs: (params.get('exp') ?? '').split(',').filter((token) => STUB_TOKEN.test(token))
 	};
 }
@@ -192,7 +192,8 @@ export function serializeViewState(state: TreeViewState): URLSearchParams {
 	// address has to say what this view is for a reload, Back and a shared link to land the same.
 	params.set('mode', state.layoutMode);
 	if (state.unionId) params.set('union', state.unionId);
-	if (state.isWholeTree && VIEW_MODE_TRAITS[state.layoutMode].isWebGl) params.set('scope', 'all');
+	if (state.isWholeTree && VIEW_MODE_TRAITS[state.layoutMode].hasWholeTree)
+		params.set('scope', 'all');
 	if (state.expandedStubs.length > 0) params.set('exp', state.expandedStubs.join(','));
 	return params;
 }

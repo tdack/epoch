@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Maximize2, ZoomIn, ZoomOut } from '@lucide/svelte';
 
 	interface Props {
@@ -17,6 +18,8 @@
 		 * bottom controls passes a flow position instead so the two cannot overlap on a phone.
 		 */
 		class?: string;
+		/** Controls of the canvas's own that belong in the same bar, drawn before the zoom buttons. */
+		leading?: Snippet;
 	}
 
 	let {
@@ -25,7 +28,8 @@
 		onZoomOut,
 		onFit,
 		fitLabel = 'Fit to view',
-		class: placement = 'absolute right-6 bottom-6'
+		class: placement = 'absolute right-6 bottom-6',
+		leading
 	}: Props = $props();
 </script>
 
@@ -33,6 +37,7 @@
 	class="{placement} z-20 flex items-center gap-1.5 rounded-xl border border-stone-300 p-1.5 shadow-md"
 	style="background: var(--tree-panel);"
 >
+	{@render leading?.()}
 	<button type="button" title="Zoom in" aria-label="Zoom in" onclick={onZoomIn} class="control">
 		<ZoomIn class="h-4 w-4" />
 	</button>

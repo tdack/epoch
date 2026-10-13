@@ -54,6 +54,8 @@ export interface ViewModeTraits {
 	canEdit: boolean;
 	/** A phone is shown the flat view instead, with a note: the tilt is too small to use. */
 	isPhoneFallbackToFlat: boolean;
+	/** Offers the Whole tree button (`scope=all`); the stacked views have no plane for everyone. */
+	hasWholeTree: boolean;
 }
 
 const WEBGL_TRAITS: ViewModeTraits = {
@@ -62,7 +64,8 @@ const WEBGL_TRAITS: ViewModeTraits = {
 	shouldAskWiderGroups: true,
 	arrivalDepth: RINGS_ARRIVAL_DEPTH,
 	canEdit: false,
-	isPhoneFallbackToFlat: false
+	isPhoneFallbackToFlat: false,
+	hasWholeTree: true
 };
 
 export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
@@ -72,7 +75,8 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		shouldAskWiderGroups: false,
 		arrivalDepth: null,
 		canEdit: true,
-		isPhoneFallbackToFlat: false
+		isPhoneFallbackToFlat: false,
+		hasWholeTree: true
 	},
 	layers: {
 		isWebGl: false,
@@ -80,7 +84,8 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		shouldAskWiderGroups: true,
 		arrivalDepth: null,
 		canEdit: true,
-		isPhoneFallbackToFlat: false
+		isPhoneFallbackToFlat: false,
+		hasWholeTree: false
 	},
 	floors: {
 		isWebGl: false,
@@ -88,7 +93,8 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		shouldAskWiderGroups: false,
 		arrivalDepth: null,
 		canEdit: true,
-		isPhoneFallbackToFlat: true
+		isPhoneFallbackToFlat: true,
+		hasWholeTree: false
 	},
 	rings: WEBGL_TRAITS,
 	poincare: WEBGL_TRAITS,

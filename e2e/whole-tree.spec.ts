@@ -1,7 +1,8 @@
 /**
  * The whole tree (`scope=all`): everyone the viewer may see, anchored to no one, in the WebGL
- * views. A person lights their line in place, nothing refetches, and a restricted viewer is never
- * sent a private person. Privacy lives here, not in privacy.spec.ts, so that file stays untouched.
+ * views and Flat. In a WebGL view a person lights their line in place and nothing refetches; in
+ * Flat a card leads back into the focus view. A restricted viewer is never sent a private person.
+ * Privacy lives here, not in privacy.spec.ts, so that file stays untouched.
  */
 import { activate, expect, open, test } from './support';
 
@@ -66,11 +67,25 @@ test('the whole tree draws unconnected families, lights a line in place and leav
 	await expect(wholeButton).toHaveAttribute('aria-pressed', 'false');
 	await expect(name('Max', 'Marrow')).toHaveCount(0);
 
-	// Switching to Flat drops the scope too.
+	// Flat draws the whole tree too, both families side by side.
 	await wholeButton.click();
 	await expect(page).toHaveURL(/scope=all/);
 	await page.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Flat' }).click();
+	await expect(page).toHaveURL(/mode=flat/);
+	await expect(page).toHaveURL(/scope=all/);
+	const flatWhole = page.getByRole('button', { name: 'Whole tree' });
+	await expect(flatWhole).toHaveAttribute('aria-pressed', 'true');
+	const card = (given: string, surname: string) =>
+		page.getByRole('button', { name: new RegExp(`^${given} ${surname}\\b`) });
+	await expect(card('Max', 'Marrow')).toBeVisible();
+	await expect(card('Gran', 'Whole')).toBeVisible();
+
+	// A card there is the way in: it focuses that person and leaves the whole tree.
+	await card('Moe', 'Marrow').click();
 	await expect(page).not.toHaveURL(/scope=all/);
+	await expect(page).toHaveURL(new RegExp(`focus=${moe.id}`));
+	await expect(flatWhole).toHaveAttribute('aria-pressed', 'false');
+	await expect(card('Gran', 'Whole')).toHaveCount(0);
 });
 
 test('a restricted viewer is never sent a private person by the whole tree', async ({

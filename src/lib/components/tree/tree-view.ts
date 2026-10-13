@@ -206,6 +206,8 @@ export function generationLabel(direction: 'ancestor' | 'descendant', generation
  */
 export function relationLabel(person: PlacedPerson, layout: TreeLayout): string {
 	const focusId = layout.focusPersonId;
+	// The whole tree has no focus, and its roles are placeholders: there is nothing to be related to.
+	if (focusId === null) return '';
 	const nameOf = (id: string) => layout.people.find((p) => p.id === id)?.person.displayName ?? id;
 	const childEdges = layout.edges.filter((e): e is ChildEdge => e.kind === 'child');
 	switch (person.role) {
@@ -242,7 +244,7 @@ export function accessibleName(person: PlacedPerson, relation: string): string {
 	if (person.person.birthDate) parts.push(`born ${person.person.birthDate}`);
 	if (person.person.deathDate) parts.push(`died ${person.person.deathDate}`);
 	else if (person.person.isDeceased) parts.push('deceased');
-	parts.push(relation);
+	if (relation) parts.push(relation);
 	return parts.join(', ');
 }
 
