@@ -74,10 +74,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const token = extractAccessJwt(event.request);
 	let hasInvalidToken = false;
-	// Fail closed: the bypass needs an explicit opt-in and never follows NODE_ENV, since the
-	// unbundled server build keeps runtime env checks and would otherwise open production. It also
-	// needs a local hostname, because only `/login` sits behind Access: a flag left set on a
-	// deployment would open every other path.
+	// Fail closed: the bypass needs an explicit opt-in (the flag is never inferred from NODE_ENV,
+	// since the unbundled server build keeps runtime env checks and would otherwise open production),
+	// a dev build (below), and a local hostname, because only `/login` sits behind Access: a flag
+	// left set on a deployment would open every other path.
 	const isBypassFlagSet = isDevBypassEnabled(
 		ACCESS_BYPASS_DEV,
 		(bindings as { ACCESS_BYPASS_DEV?: string }).ACCESS_BYPASS_DEV
@@ -93,9 +93,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// because `validateAccessJwt` refuses a token when the domain is absent.
 	const accessTeamDomain =
 		CF_ACCESS_TEAM_DOMAIN || (bindings as { CF_ACCESS_TEAM_DOMAIN?: string }).CF_ACCESS_TEAM_DOMAIN;
-	const allowDevBypass = isBypassFlagSet && isLocalHostname(event.url.hostname);
+	// A production build replaces `import.meta.env.DEV` with `false`, so its bundle cannot be switched
+	// on by the flag alone: the binding fallback above is read at runtime and would otherwise be
+	// honoured by any deployed Worker that happens to carry the variable. Vite derives DEV from the
+	// build mode, so a build run with NODE_ENV=development would keep the bypass compiled in.
+	const isDevBuild = import.meta.env.DEV === true;
+	const allowDevBypass = isDevBuild && isBypassFlagSet && isLocalHostname(event.url.hostname);
 	if (isBypassFlagSet && !allowDevBypass) {
-		requestLogger.warn('ACCESS_BYPASS_DEV is set but ignored: the host is not local', {
+		requestLogger.warn('ACCESS_BYPASS_DEV is set but ignored: not a dev build on a local host', {
 			hostname: event.url.hostname
 		});
 	}

@@ -85,7 +85,10 @@ invitation, which is taken up on that same request. Anyone else is sent to
 `/welcome?reason=not-invited`; API calls from them get a 403. Until the setup tool writes
 `install_meta`, an install has no owner and admits only members and invitees.
 
-The dev bypass (`ACCESS_BYPASS_DEV=true`) is never inferred from `NODE_ENV`; without the flag every
+The dev bypass (`ACCESS_BYPASS_DEV=true`) is never inferred from `NODE_ENV`, and it is compiled
+out of production builds (`import.meta.env.DEV`, which Vite takes from the build mode, so do not
+build with `NODE_ENV=development`), so it works under `npm run dev` only, not under
+`npm run preview` or a built Worker. Without the flag every
 request without a valid Access token is rejected with 401. While the local database has no
 `install_meta` row, the default developer (`dev-local-user`) stands in for the install owner, so a
 fresh database works without setup. Add an `install_meta` row to try the not-invited page locally.
