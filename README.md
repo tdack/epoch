@@ -40,11 +40,13 @@ command to `npm run build` and the deploy command to `npx wrangler deploy`.
 - `src/lib/components/`: the hero, the family figure, the section connectors and the copyable
   command blocks. `EpochMark.svelte` is copied from the app; change the two together.
 - `static/brand/`: the app's brand assets, copied from `main`.
-- `static/views/`: 12-second recordings of the four 3D views, made in the demo
-  (<https://demo.epochgenealogy.app>, the public "The Windsors" tree) with the view's Spin on.
-  They are 1280×538 h264 at CRF 26, each with a `-poster.jpg` first frame. The browser capture
-  leaves blocky patches in the near-black stage, so every pixel darker than R+G+B 72 is set to
-  one colour (ffmpeg `geq`) before encoding. Re-record them when a
+- `static/views/`: recordings of the four 3D views, made in the demo
+  (<https://demo.epochgenealogy.app>, the public "The Windsors" tree). Each clip selects
+  Elizabeth, Alexandra, Mary Windsor so her ancestor and descendant lines are lit, then spins the
+  view while a scripted hand orbits it, looks down on it and zooms in and out. 18.5 seconds of
+  each take are played at 1.4× (about 13 seconds), 1280×538 h264 at CRF 26, with a `-poster.jpg`
+  first frame. The browser capture leaves blocky patches in the near-black stage, so every pixel
+  darker than R+G+B 72 is set to one colour (ffmpeg `geq`) before encoding. Re-record them when a
   view changes, and keep the `video` and `poster` entries in `VIEWS_3D` in step.
 - `PRODUCT.md` and `DESIGN.md`: copies of the app's product and design context, which the site
   follows. The site's own design direction is in `.impeccable/surfaces/`.
