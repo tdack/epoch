@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
+import { signOutHref } from '#lib/shared/access.js';
 import TreeNav from './TreeNav.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -74,12 +75,14 @@ describe('TreeNav', () => {
 	});
 
 	it('offers Sign out to anyone signed in, through Access, outside the client router', () => {
-		render({ role: 'viewer', isSignedIn: true });
+		render({ role: 'viewer', signOutHref: signOutHref('https://epoch.test') });
 		openMore();
 		const signOut = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')].find(
 			(a) => a.textContent?.trim() === 'Sign out'
 		)!;
-		expect(signOut.getAttribute('href')).toBe('/cdn-cgi/access/logout');
+		expect(signOut.getAttribute('href')).toBe(
+			'/cdn-cgi/access/logout?returnTo=https%3A%2F%2Fepoch.test%2Fwelcome'
+		);
 		expect(signOut.hasAttribute('data-sveltekit-reload')).toBe(true);
 		unmount(component!);
 		component = null;

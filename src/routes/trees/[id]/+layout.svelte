@@ -17,6 +17,7 @@
 	import { searchPeopleApi } from '#lib/services/tree-api.js';
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
+	import { signOutHref } from '#lib/shared/access.js';
 	import { canonicalTreeAddress, treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
@@ -181,7 +182,7 @@
 			isInstallOwner={viewer.isInstallOwner}
 			treeSlug={data.summary.tree.slug}
 			treeCount={data.trees.length}
-			isSignedIn={!viewer.isPublicVisitor}
+			signOutHref={viewer.isPublicVisitor ? undefined : signOutHref(page.url.origin)}
 			isOutsider={viewer.isOutsider}
 		/>
 		{@render children()}

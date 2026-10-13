@@ -1,8 +1,7 @@
-/**
- * Where a visitor nobody has identified lands. Besides the public tree (ADR-041), it is the only
- * page served without a user. It shows no record from any tree, only the public tree's name.
- */
-export const WELCOME_PATH = '/welcome';
+import { WELCOME_PATH } from '../../shared/access';
+
+// Defined beside the sign-out address, which the client builds and which returns here.
+export { WELCOME_PATH };
 
 /**
  * The one path the Access application covers. Access authenticates the visitor and sets the

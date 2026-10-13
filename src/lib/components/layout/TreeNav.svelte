@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { ChevronDown, LogOut } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import { ACCESS_LOGOUT_PATH } from '#lib/shared/access.js';
 	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
@@ -18,8 +17,11 @@
 		isInstallOwner?: boolean;
 		/** How many trees the viewer belongs to; with more than one they get the Trees page to pick a default. */
 		treeCount?: number;
-		/** Someone Access identified, who can sign out; the public visitor has a "Sign in" banner instead. */
-		isSignedIn?: boolean;
+		/**
+		 * Where Sign out goes, for someone Access identified; absent for the public visitor, who has a
+		 * "Sign in" banner instead.
+		 */
+		signOutHref?: string;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
 	}
@@ -31,7 +33,7 @@
 		pathname,
 		isInstallOwner = false,
 		treeCount = 0,
-		isSignedIn = false,
+		signOutHref,
 		isOutsider = false
 	}: Props = $props();
 
@@ -142,12 +144,12 @@
 				{/each}
 			</div>
 		{/if}
-		{#if isSignedIn}
+		{#if signOutHref}
 			<!-- Its own group, not under Manage: that group is only there for managers and the install owner. -->
 			<div class="mt-1 border-t border-stone-200 pt-1">
 				<!-- A Cloudflare path, not a route: the reload keeps the client router from answering it with a 404. -->
 				<a
-					href={ACCESS_LOGOUT_PATH}
+					href={signOutHref}
 					role="menuitem"
 					data-sveltekit-reload
 					class="{itemClass(false)} gap-2"
