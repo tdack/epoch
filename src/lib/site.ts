@@ -169,32 +169,38 @@ export interface View3d {
 	poster?: string;
 }
 
+/**
+ * Bumped with every re-recording: the zone's edge cache keeps a clip under its URL whatever the
+ * Worker deploys, so a new take needs a new URL.
+ */
+const CLIP_VERSION = '2';
+
 export const VIEWS_3D: View3d[] = [
 	{
 		id: 'rings',
-		video: '/views/rings.mp4',
-		poster: '/views/rings-poster.jpg',
+		video: `/views/rings.mp4?v=${CLIP_VERSION}`,
+		poster: `/views/rings-poster.jpg?v=${CLIP_VERSION}`,
 		name: 'Rings',
 		text: 'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.'
 	},
 	{
 		id: 'ball',
-		video: '/views/ball.mp4',
-		poster: '/views/ball-poster.jpg',
+		video: `/views/ball.mp4?v=${CLIP_VERSION}`,
+		poster: `/views/ball-poster.jpg?v=${CLIP_VERSION}`,
 		name: 'Ball',
 		text: 'A glass ball with the family inside it. Height is the calendar, the oldest at the top; the wider a generation, the nearer its people sit to the glass.'
 	},
 	{
 		id: 'ribbons',
-		video: '/views/ribbons.mp4',
-		poster: '/views/ribbons-poster.jpg',
+		video: `/views/ribbons.mp4?v=${CLIP_VERSION}`,
+		poster: `/views/ribbons-poster.jpg?v=${CLIP_VERSION}`,
 		name: 'Ribbons',
 		text: 'Each person is a ribbon of descent. A couple’s ribbons meet at a glowing knot, and their children’s ribbons branch out from it like a river delta.'
 	},
 	{
 		id: 'orrery',
-		video: '/views/orrery.mp4',
-		poster: '/views/orrery-poster.jpg',
+		video: `/views/orrery.mp4?v=${CLIP_VERSION}`,
+		poster: `/views/orrery-poster.jpg?v=${CLIP_VERSION}`,
 		name: 'Orrery',
 		text: 'A star cluster. Partners circle each other as a pair of stars, and their children circle the pair.'
 	}
