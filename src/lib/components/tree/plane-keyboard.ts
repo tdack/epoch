@@ -1,7 +1,7 @@
 /**
- * Where an arrow key goes in the 3D views, where a card's row is one band (a plane in `layers`, a
- * row of a floor in `floors`) of one generation. Pure like `neighbourOf`, which it mirrors for the
- * flat view, so the same keys mean the same things in all three (ADR-030).
+ * Where an arrow key goes in the Layers view, where a card's row is one band (a plane) of one
+ * generation. Pure like `neighbourOf`, which it mirrors for the flat view, so the same keys mean
+ * the same things in both (ADR-030).
  */
 
 import { NAV_DIRECTIONS, type NavDirection } from './tree-view.js';
@@ -65,7 +65,7 @@ function nearestTo(candidates: PlaneNavPerson[], from: PlaneNavPerson): PlaneNav
 
 /**
  * The person a key moves to, or null when nothing lies that way. Up goes to a parent and Down to
- * the leftmost child, on whatever plane or floor they stand. Left and Right stay in the row,
+ * the leftmost child, on whatever plane they stand. Left and Right stay in the row,
  * preferring a partner or sibling and falling back to whoever is next. Alt+Up and Alt+Down move to
  * the nearest row of the next band that holds anyone, on the nearest generation, then the nearest x.
  */

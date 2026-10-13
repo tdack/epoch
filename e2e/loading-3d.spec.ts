@@ -4,7 +4,7 @@
  */
 import { expect, open, test } from './support';
 
-for (const mode of ['layers', 'floors', 'flat'] as const) {
+for (const mode of ['layers', 'flat'] as const) {
 	test(`${mode}: choosing a person shows a loading badge until the new view is drawn`, async ({
 		page,
 		api

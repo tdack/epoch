@@ -1,7 +1,7 @@
 /**
  * What keeps the 3D views workable on a big tree and on a phone (S16 stage 7): crowded back rows
  * fold into a "+N" mark, planes out of view draw no cards, and a narrow screen gets one plane at a
- * time (Layers) or the hourglass with a note (Floors).
+ * time.
  */
 import { expect, open, test, type Api } from './support';
 import type { Page } from '@playwright/test';
@@ -30,7 +30,7 @@ async function crowd(api: Api) {
 
 const cards = (page: Page) => page.locator('[data-person-id]');
 
-for (const mode of ['layers', 'floors'] as const) {
+for (const mode of ['layers'] as const) {
 	test(`${mode}: a crowded back row folds into a mark that opens it`, async ({ page, api }) => {
 		const { john } = await crowd(api);
 		await open(
@@ -60,41 +60,10 @@ for (const mode of ['layers', 'floors'] as const) {
 	});
 }
 
-test('floors: floors out of view draw no cards, and Fit brings them back', async ({
-	page,
-	api
-}) => {
-	const a = await api.addPerson('Gen0', 'Deep');
-	const people = [a];
-	for (let i = 1; i <= 4; i++) {
-		const child = await api.addPerson(`Gen${i}`, 'Deep');
-		await api.child(people[i - 1], child);
-		people.push(child);
-	}
-	await open(
-		page,
-		`/trees/${api.treeId}?focus=${encodeURIComponent(people[2].id)}&up=2&down=2&mode=floors`
-	);
-	const all = page.locator('[data-person-id]');
-	await expect(all).toHaveCount(5);
-
-	const canvas = page.getByRole('application', { name: 'Family tree, floors view' });
-	for (let i = 0; i < 6; i++) await canvas.getByRole('button', { name: 'Zoom in' }).click();
-	// Zoomed far in on the focus floor, the outer floors are off the canvas and are not drawn.
-	await expect.poll(async () => await all.count()).toBeLessThan(5);
-	await expect(all.filter({ hasText: /Gen2 Deep/ })).toHaveCount(1);
-
-	await canvas.getByRole('button', { name: /Fit/ }).click();
-	await expect(all).toHaveCount(5);
-});
-
 test.describe('on a phone', () => {
 	test.use({ viewport: { width: 390, height: 780 } });
 
-	test('layers shows one plane at a time with tabs, and floors falls back to the hourglass with a note', async ({
-		page,
-		api
-	}) => {
+	test('layers shows one plane at a time with tabs', async ({ page, api }) => {
 		const { john } = await crowd(api);
 		const base = `/trees/${api.treeId}?focus=${encodeURIComponent(john.id)}&up=1&down=1&siblings=1`;
 
@@ -112,12 +81,5 @@ test.describe('on a phone', () => {
 		await tabs.getByRole('button', { name: 'Families' }).click();
 		await expect(page.getByRole('group', { name: 'The families it came from' })).toBeVisible();
 		await expect(page.getByRole('group', { name: 'The union and its descendants' })).toHaveCount(0);
-
-		await open(page, `${base}&mode=floors`);
-		await expect(page.getByRole('note')).toHaveText(/Floors needs a wider screen/);
-		await expect(page.getByRole('application', { name: 'Family tree', exact: true })).toBeVisible();
-		await expect(page.getByRole('application', { name: 'Family tree, floors view' })).toHaveCount(
-			0
-		);
 	});
 });

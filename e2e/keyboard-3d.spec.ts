@@ -1,12 +1,12 @@
 /**
  * The keyboard, menu and drag-to-relate checks of `keyboard.spec.ts` and `controls.spec.ts`, run
- * in both 3D views: the same intents have to mean the same things in all three modes (S16).
+ * in the 3D Layers view: the same intents have to mean the same things there as in Flat (S16).
  */
 import AxeBuilder from '@axe-core/playwright';
 import { chooseMenuItem, expect, open, test, type Api } from './support';
 import type { Page } from '@playwright/test';
 
-const MODES = ['layers', 'floors'] as const;
+const MODES = ['layers'] as const;
 
 /** John and Jane, their child Kit, John's mother Mum and John's sister Sue (a sibling-line card). */
 async function family(api: Api) {
@@ -157,7 +157,7 @@ for (const mode of MODES) {
 			await expect(page.getByRole('dialog', { name: 'Add relationship' })).toBeVisible();
 		});
 
-		test('a card says which band it belongs to, and each plane or floor is a labelled group', async ({
+		test('a card says which band it belongs to, and each plane is a labelled group', async ({
 			page,
 			api
 		}) => {

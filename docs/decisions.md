@@ -605,3 +605,11 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **No focus, no relation labels:** the whole tree's roles are placeholders, so a card's accessible name gives the person and dates only, and the first card holds the tab stop.
 - **Rejected alternatives:** a layered engine (a new dependency, and the flat view's contract checks would have to be re-proven against it); running the hourglass from one person per family (it reaches ancestors and descendants only, never a spouse's parents).
 - **Consequences:** the contract sweep (`whole-tree.flat.test.ts`) covers every fixture plus a graph of scattered families. A tree with many separate families draws wide, across few rows, and opens below its whole width at the minimum zoom; the minimap and edge markers cover the rest.
+
+## ADR-047: Floors is removed (amends ADR-030 and ADR-032)
+- **Status:** built on `claude/ui-tweaks-navigation-674a2c` on 2026-10-13; not yet deployed. No migration.
+- **Context:** Floors (one tilted floor per generation, ADR-030) was early work toward the 3D views. The WebGL views (ADR-032, ADR-035) replaced it, and it had been off the controls since ADR-032. The owner asked for it to be removed.
+- **Decision:**
+  - **The mode is gone,** with its layout (`floors.ts`), canvas, camera preset and the floors geometry in `plane-stack.ts`. So is the phone fallback that drew Flat in its place, the only use of the `isPhoneFallbackToFlat` trait.
+  - **Nothing stored needs rewriting.** A member's or tree's saved view, and the `mode` in an address, are parsed on read (`parseLayoutMode`), so `floors` now reads as no choice and the next one in line applies: the member's, then the tree's, then Flat.
+- **Consequences:** Layers keeps the shared plane code (`PlaneStack`, `row-placement`, `plane-keyboard`).

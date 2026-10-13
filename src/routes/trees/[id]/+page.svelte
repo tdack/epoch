@@ -4,7 +4,6 @@
 	import { navigating, page } from '$app/state';
 	import { Loader2 } from '@lucide/svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
-	import FloorsCanvas from '#lib/components/tree/FloorsCanvas.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
 	import LayersCanvas from '#lib/components/tree/LayersCanvas.svelte';
 	import OrreryCanvas from '#lib/components/tree/OrreryCanvas.svelte';
@@ -43,7 +42,6 @@
 		layoutFocusView,
 		layoutWholeTree
 	} from '#lib/tree-layout/index.js';
-	import { layoutFloors } from '#lib/tree-layout/floors.js';
 	import { layoutLayers } from '#lib/tree-layout/layers.js';
 	import { layoutOrrery } from '#lib/tree-layout/orrery.js';
 	import { layoutPoincare } from '#lib/tree-layout/poincare.js';
@@ -132,10 +130,7 @@
 			: graph
 	);
 	const mode = $derived(view.layoutMode);
-	/**
-	 * A tilted stack needs width to read. Under this many pixels Layers shows one plane at a time
-	 * and Floors draws the flat view, with a note, rather than a tilt too small to use.
-	 */
+	/** A tilted stack needs width to read. Under this many pixels Layers shows one plane at a time. */
 	const PHONE_MAX_WIDTH_PX = 639;
 	let isPhone = $state(false);
 	$effect(() => {
@@ -145,13 +140,8 @@
 		query.addEventListener('change', onChange);
 		return () => query.removeEventListener('change', onChange);
 	});
-	/** What is drawn: the address says Floors, a phone gets the hourglass. */
-	const drawnMode = $derived(
-		isPhone && VIEW_MODE_TRAITS[mode].isPhoneFallbackToFlat ? LAYOUT_MODES.FLAT : mode
-	);
 	/** The overviews do not edit, so the gesture hints leave out the drag and menu actions there. */
-	const canEditDrawn = $derived(VIEW_MODE_TRAITS[drawnMode].canEdit);
-	const isFloorsOnPhone = $derived(drawnMode !== mode);
+	const canEditDrawn = $derived(VIEW_MODE_TRAITS[mode].canEdit);
 	/**
 	 * A new focus, depth or option waits on the server for its graph, and the 3D views then lay it
 	 * out, so the chart on screen is stale for a moment. The address is ahead of the load while this
@@ -164,7 +154,7 @@
 		shouldIncludeSiblings: applied.shouldIncludeSiblings,
 		shouldIncludeStepFamilies: applied.shouldIncludeStepFamilies,
 		// Flat draws the hourglass it always has; the wider groups are for the 3D views.
-		...(drawnMode === LAYOUT_MODES.FLAT
+		...(mode === LAYOUT_MODES.FLAT
 			? {}
 			: {
 					collateralDepth: applied.collateralDepth,
@@ -174,40 +164,35 @@
 	});
 	// Only the chosen view is laid out, so switching mode costs one layout and no request.
 	const layout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.FLAT
+		graphForLayout && mode === LAYOUT_MODES.FLAT
 			? isWholeTreeDrawn
 				? layoutWholeTree(graphForLayout)
 				: layoutFocusView(graphForLayout, focusPersonId, focusOptions)
 			: EMPTY_LAYOUT
 	);
-	const floorsLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.FLOORS
-			? layoutFloors(graphForLayout, focusPersonId, focusOptions)
-			: null
-	);
 	const layersLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.LAYERS
+		graphForLayout && mode === LAYOUT_MODES.LAYERS
 			? layoutLayers(graphForLayout, focusPersonId, view.unionId, focusOptions)
 			: null
 	);
 	/** The whole tree as a selection, worked out once for whichever WebGL view draws it. */
 	const wholeSelection = $derived(
-		graphForLayout && isWholeTreeDrawn && VIEW_MODE_TRAITS[drawnMode].isWebGl
+		graphForLayout && isWholeTreeDrawn && VIEW_MODE_TRAITS[mode].isWebGl
 			? selectWholeTree(graphForLayout)
 			: undefined
 	);
 	const ringsLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.RINGS
+		graphForLayout && mode === LAYOUT_MODES.RINGS
 			? layoutRings(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
 			: null
 	);
 	const poincareLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.POINCARE
+		graphForLayout && mode === LAYOUT_MODES.POINCARE
 			? layoutPoincare(graphForLayout, focusPersonId, focusOptions, undefined, wholeSelection)
 			: null
 	);
 	const ribbonsLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.RIBBONS
+		graphForLayout && mode === LAYOUT_MODES.RIBBONS
 			? layoutRibbons(
 					graphForLayout,
 					focusPersonId,
@@ -219,7 +204,7 @@
 			: null
 	);
 	const orreryLayout = $derived(
-		graphForLayout && drawnMode === LAYOUT_MODES.ORRERY
+		graphForLayout && mode === LAYOUT_MODES.ORRERY
 			? layoutOrrery(
 					graphForLayout,
 					focusPersonId,
@@ -280,7 +265,7 @@
 			applied.shouldIncludePartnerOrigins,
 			view.types,
 			isWholeTreeDrawn,
-			drawnMode,
+			mode,
 			// Another union recentres the planes, so it re-frames like a new focus.
 			layersLayout?.focusUnionId ?? null
 		])
@@ -548,7 +533,7 @@
 	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
 	function handleFocusPerson(id: string) {
 		// The flat whole tree lights no line, so a card there is a way in: focus them and leave it.
-		if (isWholeTreeDrawn && drawnMode === LAYOUT_MODES.FLAT) {
+		if (isWholeTreeDrawn && mode === LAYOUT_MODES.FLAT) {
 			rememberFocus(id);
 			navigate({ ...withOpenDrawer(id), isWholeTree: false }, { kind: HISTORY_KINDS.FOCUS });
 			return;
@@ -620,11 +605,6 @@
 				canRelate={canCreate && canEditDrawn}
 				hasMenuActions={(canCreate || canChange) && canEditDrawn}
 			/>{/if}
-		{#if isFloorsOnPhone}
-			<p class="mb-2 text-sm text-stone-600" role="note">
-				Floors needs a wider screen, so this shows the flat view.
-			</p>
-		{/if}
 		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
@@ -697,20 +677,6 @@
 					partnershipLabels={editor.unionLabels}
 					onDragRelate={canCreate ? editor.dragRelate : undefined}
 					isSinglePlane={isPhone}
-				/>
-			{:else if floorsLayout}
-				<FloorsCanvas
-					layout={floorsLayout}
-					{fitKey}
-					{selectedPersonId}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-					onExpandStub={expandStub}
-					onCollapseStub={collapseStub}
-					{actions}
-					partnershipLabels={editor.unionLabels}
-					onDragRelate={canCreate ? editor.dragRelate : undefined}
 				/>
 			{:else}
 				<TreeCanvas

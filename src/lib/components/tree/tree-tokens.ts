@@ -41,7 +41,6 @@ export const TREE_TOKENS = {
  * Rotations are degrees: X tips the stage back, Y turns it about the vertical.
  */
 export const CAMERA_TOKENS = {
-	floors: { rotateXDeg: 33, rotateYDeg: 0 },
 	'layers-front': { rotateXDeg: 2, rotateYDeg: -3 },
 	'layers-angled': { rotateXDeg: 5, rotateYDeg: -13 },
 	'layers-exploded': { rotateXDeg: 7, rotateYDeg: -17 }

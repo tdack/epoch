@@ -1,13 +1,14 @@
 /**
- * How a tree is drawn: the flat hourglass, one of the two CSS 3D views (S16), or one of the WebGL
- * views: rings (ADR-032) and the Ball, Ribbons and Orrery alternatives. Shared by the server, which stores a member's choice and the tree's default,
- * and the page, which turns them into the view on screen.
+ * How a tree is drawn: the flat hourglass, the CSS 3D Layers view (S16), or one of the WebGL
+ * views: rings (ADR-032) and the Ball, Ribbons and Orrery alternatives. Shared by the server,
+ * which stores a member's choice and the tree's default, and the page, which turns them into the
+ * view on screen. A stored or linked mode that is no longer here (Floors, ADR-047) parses as none,
+ * so the next choice in line applies.
  */
 
 export const LAYOUT_MODES = {
 	FLAT: 'flat',
 	LAYERS: 'layers',
-	FLOORS: 'floors',
 	RINGS: 'rings',
 	POINCARE: 'poincare',
 	RIBBONS: 'ribbons',
@@ -18,9 +19,9 @@ export type LayoutMode = (typeof LAYOUT_MODES)[keyof typeof LAYOUT_MODES];
 export const LAYOUT_MODE_VALUES = Object.values(LAYOUT_MODES) as [LayoutMode, ...LayoutMode[]];
 
 /**
- * The views the toolbar and the default-view pickers offer. Layers and Floors are withdrawn from
- * the controls while the owner decides on them (ADR-032), not removed: a link or a saved default
- * naming one still opens it, and the control then shows it so the view in force stays visible.
+ * The views the toolbar and the default-view pickers offer. Layers is withdrawn from the controls
+ * (ADR-032), not removed: a link or a saved default naming it still opens it, and the control then
+ * shows it so the view in force stays visible.
  */
 const OFFERED_LAYOUT_MODES: readonly LayoutMode[] = [
 	LAYOUT_MODES.FLAT,
@@ -52,8 +53,6 @@ export interface ViewModeTraits {
 	arrivalDepth: number | null;
 	/** The drawing offers editing gestures (drag to relate, context menu); the overviews do not. */
 	canEdit: boolean;
-	/** A phone is shown the flat view instead, with a note: the tilt is too small to use. */
-	isPhoneFallbackToFlat: boolean;
 	/** Offers the Whole tree button (`scope=all`); the stacked views have no plane for everyone. */
 	hasWholeTree: boolean;
 }
@@ -64,7 +63,6 @@ const WEBGL_TRAITS: ViewModeTraits = {
 	shouldAskWiderGroups: true,
 	arrivalDepth: RINGS_ARRIVAL_DEPTH,
 	canEdit: false,
-	isPhoneFallbackToFlat: false,
 	hasWholeTree: true
 };
 
@@ -75,7 +73,6 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		shouldAskWiderGroups: false,
 		arrivalDepth: null,
 		canEdit: true,
-		isPhoneFallbackToFlat: false,
 		hasWholeTree: true
 	},
 	layers: {
@@ -84,16 +81,6 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		shouldAskWiderGroups: true,
 		arrivalDepth: null,
 		canEdit: true,
-		isPhoneFallbackToFlat: false,
-		hasWholeTree: false
-	},
-	floors: {
-		isWebGl: false,
-		hasWiderGroups: true,
-		shouldAskWiderGroups: false,
-		arrivalDepth: null,
-		canEdit: true,
-		isPhoneFallbackToFlat: true,
 		hasWholeTree: false
 	},
 	rings: WEBGL_TRAITS,

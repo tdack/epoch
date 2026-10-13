@@ -115,12 +115,12 @@ Last reviewed: 2026-10-11.
   the checklist from ADR-030: stage 6 parity (drag-to-relate included or deliberately excluded),
   the stage 7 performance budgets, the whole e2e suite parameterised over all view modes and green,
   and a trial on the owner's own tree.
-- **Decide the fate of Layers and Floors.** They were withdrawn from the controls but still open from
-  a link (ADR-032). Promote, keep as hidden, or remove.
+- **Decide the fate of Layers.** It was withdrawn from the controls but still opens from a link
+  (ADR-032). Floors was removed (ADR-047). Promote, keep as hidden, or remove.
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of
   scope today.
-- **Phone layout for the 3D views.** Layers tabs on a phone and a readable tilt for Floors were
-  planned; confirm what shipped. (ADR-030)
+- **Phone layout for the 3D views.** Layers tabs on a phone were planned; confirm what shipped.
+  (ADR-030)
 
 ### Charts, reports and views
 

@@ -229,10 +229,10 @@ export async function open(page: Page, url: string) {
 }
 
 /**
- * Switch the open tree to a view the toolbar no longer offers (Layers and Floors, ADR-032) the way
+ * Switch the open tree to a view the toolbar no longer offers (Layers, ADR-032) the way
  * a person still can: a link naming it. Everything else in the address is kept.
  */
-export async function openWithdrawnMode(page: Page, mode: 'layers' | 'floors') {
+export async function openWithdrawnMode(page: Page, mode: 'layers') {
 	const url = new URL(page.url());
 	url.searchParams.set('mode', mode);
 	await open(page, `${url.pathname}${url.search}`);

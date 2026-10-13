@@ -1,6 +1,6 @@
 /**
- * The geometry behind the 3D views: camera presets, where a floor's rows sit, and the CSS that
- * turns a line between two points in the stage into a thin element rotated into place. Pure, so
+ * The geometry behind the 3D views: camera presets, where a plane stands, and the CSS that turns
+ * a line between two points in the stage into a thin element rotated into place. Pure, so
  * the maths is tested without a browser (ADR-030).
  *
  * Stage coordinates are the plane's own: x across, y down the plane, z toward the viewer before
@@ -15,13 +15,8 @@ import {
 	type TreeLayout
 } from '#lib/tree-layout/index.js';
 import { CAMERA_TOKENS } from './tree-tokens.js';
-import type { FloorsLayout } from '#lib/tree-layout/floors.js';
 import type { LayersLayout } from '#lib/tree-layout/layers.js';
 
-/** Distance between two neighbouring floors along Z. */
-export const FLOOR_GAP_PX = 400;
-/** Vertical space one band row takes on a floor; holds a card and a union hanging below it. */
-export const BAND_ROW_PX = 170;
 /** How far the camera sits from the stage; a larger value flattens perspective. */
 export const PERSPECTIVE_PX = 3600;
 /** Thickness of a depth connector. */
@@ -75,16 +70,6 @@ export function layerPoint(
 	return { x: x + offset.x, y: generation * m.rowHeight + dy + offset.y, z: offset.z };
 }
 
-/** Band 0 sits at the front of a floor; each further band recedes one row. */
-export function bandRowY(band: Band): number {
-	return (2 - band) * BAND_ROW_PX;
-}
-
-/** Older generations sit higher: a negative generation is an ancestor. */
-export function floorZ(generation: number): number {
-	return -generation * FLOOR_GAP_PX || 0;
-}
-
 export interface StagePoint {
 	x: number;
 	y: number;
@@ -96,11 +81,7 @@ export interface StagePoint {
  * `rotateXDeg` (CSS applies the right-hand transform first). Perspective is left out: this frames
  * the view and keeps a card in sight, and a few percent of error there only shifts the margin.
  */
-export function projectToScreen(
-	point: StagePoint,
-	rotateXDeg: number = CAMERA_TOKENS.floors.rotateXDeg,
-	rotateYDeg = 0
-) {
+export function projectToScreen(point: StagePoint, rotateXDeg: number, rotateYDeg = 0) {
 	const tilt = (rotateXDeg * Math.PI) / 180;
 	const turn = (rotateYDeg * Math.PI) / 180;
 	const turnedX = point.x * Math.cos(turn) + point.z * Math.sin(turn);
@@ -157,45 +138,9 @@ export function connectorStyle(from: StagePoint, to: StagePoint) {
 	};
 }
 
-export function floorPoint(generation: number, band: Band, x: number, dy = 0): StagePoint {
-	return { x, y: bandRowY(band) + dy, z: floorZ(generation) };
-}
-
 /**
- * The floors as a flat layout of where things land on screen, so the pan and zoom (which frame
- * `bounds`, keep the focus person put on a refocus and watch `collapsers`) work unchanged. Only
- * positions and bounds are filled in.
- */
-export function framingLayout(layout: FloorsLayout, m: LayoutMetrics = LAYOUT_METRICS): TreeLayout {
-	const project = (generation: number, band: Band, x: number) =>
-		projectToScreen(floorPoint(generation, band, x));
-	const people = layout.people.map((p) => ({ ...p, ...project(p.generation, p.band, p.x) }));
-	if (people.length === 0) return EMPTY_LAYOUT;
-	const boxes = [
-		...people.map((p) => ({ x: p.x, y: p.y, halfW: m.cardWidth / 2, halfH: m.cardHeight / 2 })),
-		...layout.stubs.map((s) => ({
-			...project(s.generation, s.band, s.x),
-			halfW: m.stubWidth / 2,
-			halfH: m.stubHeight / 2
-		}))
-	];
-	return {
-		...EMPTY_LAYOUT,
-		focusPersonId: layout.focusPersonId,
-		people,
-		collapsers: layout.collapsers.map((c) => ({ ...c, ...project(c.generation, c.band, c.x) })),
-		bounds: {
-			minX: Math.min(...boxes.map((b) => b.x - b.halfW)),
-			maxX: Math.max(...boxes.map((b) => b.x + b.halfW)),
-			minY: Math.min(...boxes.map((b) => b.y - b.halfH)),
-			maxY: Math.max(...boxes.map((b) => b.y + b.halfH))
-		}
-	};
-}
-
-/**
- * The planes as a flat layout of where things land on screen, for the same pan and zoom as
- * `framingLayout`. Planes the viewer has hidden are left out so the fit follows what is drawn.
+ * The planes as a flat layout of where things land on screen, for the pan and zoom, which frame
+ * `bounds`. Planes the viewer has hidden are left out so the fit follows what is drawn.
  */
 export function layersFraming(
 	layout: LayersLayout,

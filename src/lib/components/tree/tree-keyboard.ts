@@ -40,7 +40,7 @@ export type KeyIntent =
 	| { kind: 'escape' }
 	| { kind: 'delete' }
 	| { kind: 'move'; direction: NavDirection; fromId: string }
-	/** Alt+Up/Down: step to the next band (a plane in layers, a row in floors); the flat view has none. */
+	/** Alt+Up/Down: step to the next band (a plane in layers); the flat view has none. */
 	| { kind: 'band'; direction: BandDirection; fromId: string };
 
 export function keyIntentOf(

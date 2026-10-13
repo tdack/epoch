@@ -1,18 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { layoutFloors } from '#lib/tree-layout/floors.js';
 import { layoutLayers } from '#lib/tree-layout/layers.js';
 import { LAYOUT_METRICS } from '#lib/tree-layout/index.js';
 import { makeGraph } from '#lib/tree-layout/test-support.js';
 import {
-	BAND_ROW_PX,
-	FLOOR_GAP_PX,
 	LAYER_STAGGER_PX,
 	LAYER_VIEWS,
-	bandRowY,
 	cameraTransform,
 	connectorStyle,
-	floorZ,
-	framingLayout,
 	layerCamera,
 	layerOffset,
 	layerPoint,
@@ -38,21 +32,6 @@ function farEnd(style: ReturnType<typeof connectorStyle>) {
 }
 
 describe('plane stack geometry', () => {
-	it('puts the direct line at the front of a floor and each band a row behind it', () => {
-		expect(bandRowY(0)).toBe(2 * BAND_ROW_PX);
-		expect(bandRowY(1)).toBe(BAND_ROW_PX);
-		expect(bandRowY(2)).toBe(0);
-	});
-
-	it('lifts older generations', () => {
-		expect(floorZ(-1)).toBe(FLOOR_GAP_PX);
-		expect(floorZ(0)).toBe(0);
-		expect(floorZ(2)).toBe(-2 * FLOOR_GAP_PX);
-		expect(projectToScreen({ x: 0, y: 0, z: floorZ(-1) }).y).toBeLessThan(
-			projectToScreen({ x: 0, y: 0, z: floorZ(0) }).y
-		);
-	});
-
 	it('keeps x and shortens y by the tilt', () => {
 		expect(projectToScreen({ x: 40, y: 100, z: 0 }, 60)).toEqual({
 			x: 40,
@@ -62,7 +41,7 @@ describe('plane stack geometry', () => {
 	});
 
 	it('writes the camera as a transform', () => {
-		expect(cameraTransform('floors')).toBe('rotateX(33deg) rotateY(0deg)');
+		expect(cameraTransform('layers-angled')).toBe('rotateX(5deg) rotateY(-13deg)');
 	});
 
 	it('aims a connector from one point to the other in every direction', () => {
@@ -80,34 +59,6 @@ describe('plane stack geometry', () => {
 			expect(end.y).toBeCloseTo(to.y, 6);
 			expect(end.z).toBeCloseTo(to.z, 6);
 		}
-	});
-});
-
-describe('framingLayout', () => {
-	const graph = makeGraph({
-		people: ['mum', 'dad', 'me', 'kid'],
-		unions: [
-			{ id: 'u1', partners: ['mum', 'dad'], children: ['me'] },
-			{ id: 'u2', partners: ['me'], children: ['kid'] }
-		]
-	});
-
-	it('frames every person, with ancestors higher on screen than descendants', () => {
-		const framing = framingLayout(layoutFloors(graph, 'me'));
-		const at = (id: string) => framing.people.find((p) => p.id === id)!;
-		expect(framing.focusPersonId).toBe('me');
-		expect(at('mum').y).toBeLessThan(at('me').y);
-		expect(at('me').y).toBeLessThan(at('kid').y);
-		for (const p of framing.people) {
-			expect(p.x).toBeGreaterThanOrEqual(framing.bounds.minX);
-			expect(p.x).toBeLessThanOrEqual(framing.bounds.maxX);
-			expect(p.y).toBeGreaterThanOrEqual(framing.bounds.minY);
-			expect(p.y).toBeLessThanOrEqual(framing.bounds.maxY);
-		}
-	});
-
-	it('is empty for an empty layout', () => {
-		expect(framingLayout(layoutFloors(graph, 'nobody')).people).toEqual([]);
 	});
 });
 

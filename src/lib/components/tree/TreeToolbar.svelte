@@ -68,7 +68,6 @@
 	const MODE_LABELS: Record<LayoutMode, string> = {
 		flat: 'Flat',
 		layers: 'Layers',
-		floors: 'Floors',
 		rings: 'Rings',
 		poincare: 'Ball',
 		ribbons: 'Ribbons',
@@ -79,7 +78,6 @@
 		flat: 'Everyone on one page: ancestors above, descendants below.',
 		layers:
 			'Families stacked in depth: the couple and their children in front, the families they came from behind.',
-		floors: 'One floor for each generation, the oldest at the top.',
 		rings:
 			'An overview to turn and explore: one ring for each generation, the youngest at the top and the oldest at the bottom, with lines up to the children.',
 		poincare:
@@ -105,9 +103,8 @@
 	});
 
 	/**
-	 * Flat and Rings are offered; Layers and Floors are withdrawn while the owner decides on them
-	 * (ADR-032), and show only when the address already names one, so the choice in force stays
-	 * visible and can be left.
+	 * Flat and the WebGL views are offered; Layers is withdrawn (ADR-032) and shows only when the
+	 * address already names it, so the choice in force stays visible and can be left.
 	 */
 	const shownModes = $derived(layoutModeChoices(view.layoutMode));
 	/** Flat, plus a withdrawn view while it is in force: the segments beside the 3D button. */

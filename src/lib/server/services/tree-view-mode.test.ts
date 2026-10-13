@@ -44,19 +44,19 @@ describe('view mode settings', () => {
 
 	it('lets only the owner set the tree default, and shows it to every member', async () => {
 		const s = await setup();
-		await expect(
-			s.service.setDefaultViewMode(s.treeId, 'floors', s.viewer.context)
-		).rejects.toThrow('Forbidden');
-		await s.service.setDefaultViewMode(s.treeId, 'floors', s.owner.context);
-		expect((await treeFor(s, s.viewer)).defaultViewMode).toBe('floors');
-		expect((await treeFor(s, s.owner)).defaultViewMode).toBe('floors');
+		await expect(s.service.setDefaultViewMode(s.treeId, 'rings', s.viewer.context)).rejects.toThrow(
+			'Forbidden'
+		);
+		await s.service.setDefaultViewMode(s.treeId, 'rings', s.owner.context);
+		expect((await treeFor(s, s.viewer)).defaultViewMode).toBe('rings');
+		expect((await treeFor(s, s.owner)).defaultViewMode).toBe('rings');
 	});
 
 	it('leaves the tree and member versions alone, since neither is a record edit', async () => {
 		const s = await setup();
 		const before = await treeFor(s, s.owner);
 		await s.service.setDefaultViewMode(s.treeId, 'layers', s.owner.context);
-		await s.service.setViewMode(s.treeId, 'floors', s.owner.context);
+		await s.service.setViewMode(s.treeId, 'rings', s.owner.context);
 		const after = await treeFor(s, s.owner);
 		expect(after.version).toBe(before.version);
 		expect(after.updatedAt).toEqual(before.updatedAt);

@@ -7,7 +7,8 @@ import {
 	parseViewState,
 	resolveStubTokens,
 	serializeViewState,
-	shouldResetStubs
+	shouldResetStubs,
+	wideGroupDefaults
 } from './tree-url';
 
 describe('tree view URL state', () => {
@@ -30,23 +31,24 @@ describe('tree view URL state', () => {
 	});
 
 	it('carries the layout mode, flat included, and falls back to the default of the viewer without one', () => {
-		const floors = {
+		const rings = {
 			...DEFAULT_VIEW_STATE,
 			treeId: 't1',
 			focusId: 'p1',
-			layoutMode: 'floors' as const
+			layoutMode: 'rings' as const,
+			...wideGroupDefaults('rings')
 		};
-		expect(serializeViewState(floors).toString()).toBe('tree=t1&focus=p1&mode=floors');
-		expect(parseViewState(serializeViewState(floors)).layoutMode).toBe('floors');
+		expect(serializeViewState(rings).toString()).toBe('tree=t1&focus=p1&mode=rings');
+		expect(parseViewState(serializeViewState(rings)).layoutMode).toBe('rings');
 		expect(parseViewState(new URLSearchParams('mode=layers')).layoutMode).toBe('layers');
 		expect(parseViewState(new URLSearchParams('mode=flat')).layoutMode).toBe('flat');
 		expect(parseViewState(new URLSearchParams('mode=sideways')).layoutMode).toBe('flat');
 		// A link without a mode opens in the reader's default; the address wins over it.
 		expect(parseViewState(new URLSearchParams(''), 'layers').layoutMode).toBe('layers');
 		expect(parseViewState(new URLSearchParams('mode=flat'), 'layers').layoutMode).toBe('flat');
-		expect(parseViewState(new URLSearchParams('mode=sideways'), 'floors').layoutMode).toBe(
-			'floors'
-		);
+		expect(parseViewState(new URLSearchParams('mode=sideways'), 'rings').layoutMode).toBe('rings');
+		// A removed view (ADR-047) in an old link opens the reader's default instead.
+		expect(parseViewState(new URLSearchParams('mode=floors'), 'rings').layoutMode).toBe('rings');
 		// Flat is written too, so a reload cannot be flipped by a default that says otherwise.
 		expect(serializeViewState({ ...DEFAULT_VIEW_STATE, layoutMode: 'flat' }).get('mode')).toBe(
 			'flat'
@@ -59,7 +61,7 @@ describe('tree view URL state', () => {
 			expect(parsed.isWholeTree, mode).toBe(true);
 			expect(serializeViewState(parsed).get('scope'), mode).toBe('all');
 		}
-		for (const mode of ['layers', 'floors']) {
+		for (const mode of ['layers']) {
 			expect(parseViewState(new URLSearchParams(`mode=${mode}&scope=all`)).isWholeTree).toBe(false);
 			const state = { ...DEFAULT_VIEW_STATE, layoutMode: mode as 'layers', isWholeTree: true };
 			expect(serializeViewState(state).has('scope'), mode).toBe(false);
@@ -110,10 +112,6 @@ describe('tree view URL state', () => {
 			shouldIncludePartnerOrigins: true
 		});
 		expect(parseViewState(new URLSearchParams('mode=flat'), 'layers')).toMatchObject({
-			collateralDepth: 0,
-			shouldIncludePartnerOrigins: false
-		});
-		expect(parseViewState(new URLSearchParams('mode=floors'))).toMatchObject({
 			collateralDepth: 0,
 			shouldIncludePartnerOrigins: false
 		});

@@ -1,7 +1,7 @@
 /**
  * Placement rules every view shares: which band each drawn person sits in, and which drawn
- * parent a child hangs from. Flat, layers and floors all read these, so the same person lands in
- * the same place relative to their family whatever the mode (ADR-030).
+ * parent a child hangs from. Flat and layers both read these, so the same person lands in the same
+ * place relative to their family whatever the mode (ADR-030).
  *
  * The rules are applied to every child, not only step-children: for an ordinary child both
  * parents share one union and the anchor is just the tie-break between them. Special-casing
