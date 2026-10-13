@@ -1,6 +1,7 @@
 import type { MessageBatch } from '@cloudflare/workers-types';
 import { assertSchemaCurrent } from '../db/schema-status';
 import { getDb } from '../db';
+import { NotFoundError, PayloadTooLargeError, UnauthorizedError } from '../domain/errors';
 import { GedcomService, type ImportQueueMessage } from '../services/gedcom-service';
 
 /**
@@ -28,6 +29,21 @@ export default {
 
 				msg.ack();
 			} catch (err) {
+				// Dropped, not retried: a revoked actor, or a staged file over the cap, fails the same way
+				// on every delivery, and nothing was written, so there is nothing to recover.
+				if (
+					err instanceof UnauthorizedError ||
+					err instanceof NotFoundError ||
+					err instanceof PayloadTooLargeError
+				) {
+					const reason =
+						err instanceof PayloadTooLargeError ? 'staged file too large' : 'no longer authorized';
+					console.warn(
+						`Dropped queued GEDCOM import for tree ${msg.body.treeId} by actor ${msg.body.actorId ?? 'none'}: ${reason}`
+					);
+					msg.ack();
+					continue;
+				}
 				console.error('Failed to process GEDCOM import queue message:', err);
 				msg.retry();
 			}

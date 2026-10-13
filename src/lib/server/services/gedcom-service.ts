@@ -4,18 +4,24 @@
  * queue and the one way an export is named and stored each live in one place.
  *
  * Authorization reads only the caller's membership, never the tree's rows. The methods that take
- * no context (`runImport`, `loadExport`, `storeExport`) are for a job that was authorized when it
- * was queued; they never face a request.
+ * no context (`runImport`, `loadExport`, `storeExport`) never face a request: a queued import is
+ * re-authorized against its actor in `importStaged` before `runImport` is reached.
  */
 
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
-import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
+import {
+	NotFoundError,
+	PayloadTooLargeError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { isActionAllowed } from '../auth/authorization';
 import { foldIntoExistingAliases, mergeExactDuplicateFamilies } from '../gedcom/duplicate-families';
 import { exportPayloadFrom } from '../gedcom/export-payload';
 import { GEDZIP_CONTENT_TYPE, packGedzip } from '../gedcom/gedzip';
+import { MAX_DATASET_BYTES, MAX_STAGED_BYTES } from '../gedcom/limits';
 import {
 	previewAgainstTree,
 	previewNewTree,
@@ -152,6 +158,15 @@ function treeNameOf(fileName: string): string {
 	return fileName.replace(/\.(ged|gedcom|gdz)$/i, '');
 }
 
+/** Where `importFile` stages a tree's queued uploads. */
+const stagingPrefix = (treeId: string) => `staging/gedcom-${treeId}-`;
+
+/** True for a key shaped like the ones `importFile` writes for this tree, and nothing else. */
+const isStagingKeyOf = (treeId: string, key: string) =>
+	key.startsWith(stagingPrefix(treeId)) &&
+	key.endsWith('.ged') &&
+	!key.includes('/', 'staging/'.length);
+
 export class GedcomService {
 	private repo: GedcomRepository;
 	private users: UserRepository;
@@ -235,6 +250,10 @@ export class GedcomService {
 	 * the queue consumer when both are bound, and imported in the request otherwise.
 	 */
 	async importFile(file: ImportFile, context: AuthenticatedContext): Promise<ImportOutcome> {
+		// Before any tree is created: an over-large dataset must not leave an empty tree behind.
+		if (file.text.length > MAX_DATASET_BYTES) {
+			throw new PayloadTooLargeError(`The dataset exceeds the ${MAX_DATASET_BYTES} byte limit`);
+		}
 		const baseName = treeNameOf(file.fileName);
 		let treeId = file.treeId;
 		let createdTreeName: string | undefined;
@@ -264,7 +283,7 @@ export class GedcomService {
 
 		const { bucket, queue } = this.bindings;
 		if (file.sizeBytes > LARGE_IMPORT_BYTES && queue && bucket) {
-			const r2ObjectKey = `staging/gedcom-${treeId}-${Date.now()}.ged`;
+			const r2ObjectKey = `${stagingPrefix(treeId)}${Date.now()}-${crypto.randomUUID()}.ged`;
 			await bucket.put(r2ObjectKey, file.text);
 			const message: ImportQueueMessage = {
 				treeId,
@@ -272,6 +291,7 @@ export class GedcomService {
 				treeName: file.treeName || baseName,
 				mode: file.mode,
 				shouldMergeDuplicateFamilies: file.shouldMergeDuplicateFamilies,
+				actorId: context.user.id,
 				...nameOptions
 			};
 			await queue.send(message);
@@ -286,8 +306,9 @@ export class GedcomService {
 	}
 
 	/**
-	 * Write a file into a tree with no authorization check: for the queue consumer, whose request
-	 * was authorized when it was made, and for tests that seed a tree.
+	 * Write a file into a tree without checking who asked. Callers must have authorized the actor
+	 * first: `importFile` does so on the request, `importStaged` does so at consume time, because
+	 * the request that queued a large import may be long over. Tests also use it to seed a tree.
 	 */
 	async runImport(
 		treeId: string,
@@ -344,13 +365,39 @@ export class GedcomService {
 
 	/**
 	 * Import a staged file for a queue message, then remove the staging object. Answers false when
-	 * the object is gone, so the consumer can drop a message that can never succeed.
+	 * the object is gone, so the consumer can drop a message that can never succeed. Throws
+	 * `UnauthorizedError` before reading or writing anything when the message's actor no longer
+	 * holds `tree:import` on the tree, since access may have been revoked after the message was sent.
 	 */
 	async importStaged(message: ImportQueueMessage): Promise<boolean> {
 		const bucket = this.bindings.bucket;
 		if (!bucket) throw new Error('Storage binding unavailable');
+		// The key comes from the message, and this bucket also holds media and exports: refuse anything
+		// but this tree's own staging file before it can be read or, below, deleted.
+		if (!isStagingKeyOf(message.treeId, message.r2ObjectKey)) {
+			throw new UnauthorizedError('Queued import names an object outside its staging area', {
+				treeId: message.treeId
+			});
+		}
+		try {
+			await this.requireQueuedImport(message);
+		} catch (err) {
+			// The consumer drops a refused message, and nothing else would ever remove the file: a
+			// revoked user's upload must not stay in the bucket.
+			if (err instanceof UnauthorizedError || err instanceof NotFoundError) {
+				await bucket.delete(message.r2ObjectKey);
+			}
+			throw err;
+		}
 		const object = await bucket.get(message.r2ObjectKey);
 		if (!object) return false;
+		// The queue message is not trusted to carry a sane payload: the staged object is read whole, so
+		// its size is checked before `text()` buffers it.
+		if (object.size > MAX_STAGED_BYTES) {
+			// Dropped by the consumer as a message that can never succeed, so nothing would reuse it.
+			await bucket.delete(message.r2ObjectKey);
+			throw new PayloadTooLargeError(`Staged dataset exceeds the ${MAX_STAGED_BYTES} byte limit`);
+		}
 		await this.runImport(
 			message.treeId,
 			await object.text(),
@@ -367,6 +414,17 @@ export class GedcomService {
 		);
 		await bucket.delete(message.r2ObjectKey);
 		return true;
+	}
+
+	/**
+	 * A queued import runs with the rights its actor holds now. A message with no actor is refused
+	 * rather than trusted: nothing else says who asked.
+	 */
+	private async requireQueuedImport(message: ImportQueueMessage): Promise<void> {
+		if (!message.actorId) {
+			throw new UnauthorizedError('Queued import has no actor', { treeId: message.treeId });
+		}
+		await requireMemberAction(this.users, message.treeId, message.actorId, 'tree:import');
 	}
 
 	/** The tree as the serializers read it, with no authorization check: see `requireExport`. */
