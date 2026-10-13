@@ -3,10 +3,13 @@
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import { ACCESS_LOGOUT_PATH } from '#lib/shared/access.js';
 	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		/** The tree these links belong to. */
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		/** The viewer's role; managers and owners also get the members and privacy screens. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
@@ -23,6 +26,7 @@
 
 	let {
 		treeId,
+		treeSlug = null,
 		role,
 		pathname,
 		isInstallOwner = false,
@@ -37,7 +41,7 @@
 		isActive: boolean;
 	}
 
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath({ id: treeId, slug: treeSlug }));
 	const startsWith = (path: string) => pathname.startsWith(path);
 	const tabs = $derived<NavLink[]>([
 		{ href: base, label: 'Tree', isActive: pathname === base },

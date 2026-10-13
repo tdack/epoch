@@ -3,9 +3,12 @@
 	import { chartAddress, type ChartStyle } from '#lib/shared/charts.js';
 	import ChartStyleNav from './ChartStyleNav.svelte';
 	import GenerationStepper from './GenerationStepper.svelte';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		treeName: string;
 		/** Whose chart this is: the breadcrumb and the "Show in the tree" link point at them. */
 		subject: { id: string; name: string };
@@ -29,6 +32,7 @@
 
 	let {
 		treeId,
+		treeSlug = null,
 		treeName,
 		subject,
 		style,
@@ -40,8 +44,9 @@
 		notice = null,
 		children
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(treeRef));
 </script>
 
 <svelte:head>
@@ -59,7 +64,7 @@
 <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
 	<ChartStyleNav
 		current={style}
-		hrefFor={(other) => chartAddress(treeId, subject.id, other, generations)}
+		hrefFor={(other) => chartAddress(treeRef, subject.id, other, generations)}
 	/>
 	{#if controls}
 		{@render controls()}

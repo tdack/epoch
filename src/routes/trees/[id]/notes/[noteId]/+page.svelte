@@ -9,13 +9,14 @@
 	import { deleteSharedNoteApi, previewNoteApi } from '#lib/services/tree-api.js';
 	import { noteTitle } from '#lib/shared/notes.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { editor } = getTreeContext();
 
 	const note = $derived(data.note);
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const title = $derived(noteTitle(note.text, 60));
 	const pageHref = (offset: number) =>

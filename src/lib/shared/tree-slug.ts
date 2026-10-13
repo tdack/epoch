@@ -32,12 +32,30 @@ export function slugifyTreeName(name: string): string | null {
 	return slug && isValidTreeSlug(slug) ? slug : null;
 }
 
+/** What a link to a tree needs: its id, and its slug when it has one. */
+export interface TreeRef {
+	id: string;
+	slug?: string | null;
+}
+
 /** The segment a tree's pages live under: its slug when it has one, else its id. */
-export function treeSegment(tree: { id: string; slug?: string | null }): string {
+export function treeSegment(tree: TreeRef): string {
 	return tree.slug ?? tree.id;
 }
 
 /** `/trees/<segment>`, the root every page of the tree hangs from. */
-export function treePath(tree: { id: string; slug?: string | null }): string {
+export function treePath(tree: TreeRef): string {
 	return `/trees/${encodeURIComponent(treeSegment(tree))}`;
+}
+
+/**
+ * The same address under the tree's canonical segment, or null when `url` already uses it. Only
+ * the segment after `/trees/` changes; the rest of the path and the query are kept.
+ */
+export function canonicalTreeAddress(url: URL, segment: string, tree: TreeRef): string | null {
+	const canonical = treeSegment(tree);
+	if (segment === canonical) return null;
+	const prefix = `/trees/${encodeURIComponent(segment)}`;
+	const rest = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : '';
+	return `/trees/${encodeURIComponent(canonical)}${rest}${url.search}`;
 }

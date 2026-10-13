@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { fetchTreeList } from '#lib/services/tree-api.js';
 import type { PageLoad } from './$types';
+import { treePath } from '#lib/shared/tree-slug.js';
 
 /**
  * `/` is no longer a screen of its own. The old address carried the tree and the view in its query
@@ -18,6 +19,6 @@ export const load: PageLoad = async ({ url, fetch }) => {
 
 	const trees = await fetchTreeList(fetch);
 	const opening = trees.find((t) => t.isDefault) ?? trees[0];
-	if (opening) redirect(302, `/trees/${encodeURIComponent(opening.id)}`);
+	if (opening) redirect(302, treePath(opening));
 	return { trees };
 };

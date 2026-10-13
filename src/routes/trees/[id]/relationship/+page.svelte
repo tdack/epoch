@@ -4,10 +4,11 @@
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import { routeSentence } from '#lib/shared/kinship.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 
 	type Picked = { id: string; name: string } | null;
 	let first = $state<Picked>(

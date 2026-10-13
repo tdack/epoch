@@ -9,17 +9,21 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, role, editor, toasts }: Props = $props();
+	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 </script>
 
 <!-- The person's own notes, in place. Notes on a fact, a name or a citation sit beside it in its own section. -->
 <NoteList
 	{treeId}
+	{treeSlug}
 	{role}
 	{editor}
 	{toasts}
@@ -35,6 +39,7 @@
 				<div class="mt-1">
 					<NoteList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}

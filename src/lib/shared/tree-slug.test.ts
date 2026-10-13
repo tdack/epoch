@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidTreeSlug, slugifyTreeName, treePath } from './tree-slug';
+import { canonicalTreeAddress, isValidTreeSlug, slugifyTreeName, treePath } from './tree-slug';
 
 describe('slugifyTreeName', () => {
 	it('makes hyphenated lower-case words of a name', () => {
@@ -36,5 +36,33 @@ describe('treePath', () => {
 	it('prefers the slug and falls back to the id', () => {
 		expect(treePath({ id: 'abc', slug: 'the-dacks' })).toBe('/trees/the-dacks');
 		expect(treePath({ id: 'abc', slug: null })).toBe('/trees/abc');
+	});
+});
+
+describe('canonicalTreeAddress', () => {
+	const tree = { id: 'b8ea1a57-5542-437c-99df-00c5d8ee5970', slug: 'the-windsors' };
+
+	it('moves an id address to the slug, keeping the path and the query', () => {
+		const url = new URL(`https://epoch.test/trees/${tree.id}/people/p1?focus=x&mode=rings`);
+		expect(canonicalTreeAddress(url, tree.id, tree)).toBe(
+			'/trees/the-windsors/people/p1?focus=x&mode=rings'
+		);
+	});
+
+	it('leaves a canonical address alone, and an id address for a tree with no slug', () => {
+		expect(
+			canonicalTreeAddress(new URL('https://epoch.test/trees/the-windsors'), 'the-windsors', tree)
+		).toBeNull();
+		expect(
+			canonicalTreeAddress(new URL(`https://epoch.test/trees/${tree.id}`), tree.id, {
+				id: tree.id,
+				slug: null
+			})
+		).toBeNull();
+	});
+
+	it('replaces whatever segment the address used with the canonical one', () => {
+		const url = new URL('https://epoch.test/trees/old-name/notes');
+		expect(canonicalTreeAddress(url, 'old-name', tree)).toBe('/trees/the-windsors/notes');
 	});
 });

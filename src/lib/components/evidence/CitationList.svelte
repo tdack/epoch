@@ -19,9 +19,12 @@
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationDialog from './CitationDialog.svelte';
 	import { canChangeEvidence, canCite } from './evidence-permissions.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		/** What these citations support, in words: "the birth of Ann Ash". */
 		subjectLabel: string;
@@ -32,7 +35,17 @@
 		toasts: ToastStore;
 	}
 
-	let { treeId, role, subjectLabel, subject, citations, editor, toasts }: Props = $props();
+	let {
+		treeId,
+		treeSlug = null,
+		role,
+		subjectLabel,
+		subject,
+		citations,
+		editor,
+		toasts
+	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let dialog = $state<{ citation: CitationDto | null } | null>(null);
 
@@ -85,7 +98,7 @@
 			<li class="rounded-lg border border-stone-200 bg-stone-50 p-2 text-xs" data-testid="citation">
 				<p class="font-semibold text-stone-900">
 					{#if citation.sourceId}<a
-							href={`/trees/${encodeURIComponent(treeId)}/sources/${encodeURIComponent(citation.sourceId)}`}
+							href={`${treePath(treeRef)}/sources/${encodeURIComponent(citation.sourceId)}`}
 							class="text-link">{citation.sourceLabel}</a
 						>{:else}{citation.sourceLabel}{/if}{#if citation.page}{' '}<span
 							class="font-normal text-stone-700"
@@ -113,6 +126,7 @@
 				>
 					<NoteList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}

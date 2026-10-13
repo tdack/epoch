@@ -8,16 +8,20 @@
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import { TASK_SUBJECT_KINDS } from '#lib/shared/tasks.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, role, editor, toasts }: Props = $props();
+	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let isDialogOpen = $state(false);
 
@@ -35,7 +39,7 @@
 
 	const open = $derived(dto.tasks.items.filter((t) => t.status === 'open').length);
 	const allHref = $derived(
-		`/trees/${encodeURIComponent(treeId)}/tasks?status=all&subjectKind=person&subjectId=${encodeURIComponent(dto.person.id)}`
+		`${treePath(treeRef)}/tasks?status=all&subjectKind=person&subjectId=${encodeURIComponent(dto.person.id)}`
 	);
 </script>
 
@@ -59,6 +63,7 @@
 	<div class="mt-2">
 		<TaskList
 			{treeId}
+			{treeSlug}
 			{role}
 			tasks={dto.tasks.items}
 			members={dto.tasks.members}

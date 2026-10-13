@@ -17,6 +17,8 @@
 		/** The person's page data; null while it loads. */
 		page: PersonPageDto | null;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		/** Set when the page data could not be loaded. */
 		error?: string | null;
@@ -31,6 +33,7 @@
 	let {
 		page,
 		treeId,
+		treeSlug = null,
 		role,
 		error = null,
 		onClose,
@@ -39,6 +42,7 @@
 		toasts,
 		marks
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let panel: HTMLElement | null = $state(null);
 
@@ -73,7 +77,7 @@
 			class="flex items-center justify-between border-b border-stone-200/90 bg-[#fbf8f0] px-6 py-3"
 		>
 			<a
-				href={personPath(treeId, page.person.id)}
+				href={personPath(treeRef, page.person.id)}
 				class="text-link inline-flex items-center gap-1 text-xs"
 			>
 				<ExternalLink class="h-3 w-3" />
@@ -92,6 +96,7 @@
 			<PersonView
 				dto={page}
 				{treeId}
+				{treeSlug}
 				{role}
 				layout="drawer"
 				relativeTarget={{ kind: 'select', onSelect: onSelectPerson }}

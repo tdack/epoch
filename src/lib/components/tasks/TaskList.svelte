@@ -13,9 +13,12 @@
 	} from '#lib/shared/tasks.js';
 	import TaskDialog from './TaskDialog.svelte';
 	import { canDeleteTask } from './task-permissions.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		tasks: TaskDto[];
 		/** Current members of the tree, for the edit dialog's assignee choice. */
@@ -30,6 +33,7 @@
 
 	let {
 		treeId,
+		treeSlug = null,
 		role,
 		tasks,
 		members,
@@ -38,9 +42,10 @@
 		shouldShowSubject = true,
 		today = new Date().toISOString().slice(0, 10)
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let dialog = $state<{ task: TaskDto } | null>(null);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(treeRef));
 
 	const hrefOf = (task: TaskDto) => {
 		const s = task.subject;

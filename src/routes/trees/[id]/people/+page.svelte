@@ -3,6 +3,7 @@
 	import { INDIVIDUAL_SORTS, type IndividualSort } from '#lib/shared/lists.js';
 	import { lifeDates } from '#lib/shared/life-dates.js';
 	import type { PageData } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: PageData;
@@ -10,7 +11,7 @@
 
 	let { data }: Props = $props();
 
-	const base = $derived(`/trees/${encodeURIComponent(data.summary.tree.id)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const page = $derived(data.page);
 
 	function listHref(change: { sort?: IndividualSort; offset?: number; surname?: string }): string {

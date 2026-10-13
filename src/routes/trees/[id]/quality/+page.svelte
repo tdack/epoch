@@ -23,12 +23,13 @@
 	} from '#lib/shared/quality.js';
 	import { hasMinimumRole, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { editor, toasts } = getTreeContext();
 
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const report = $derived(data.report);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const canDismiss = $derived(role !== undefined && hasMinimumRole(role, 'editor'));

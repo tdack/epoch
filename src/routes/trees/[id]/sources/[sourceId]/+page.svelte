@@ -20,13 +20,14 @@
 		type SourceRepositoryDto
 	} from '#lib/shared/evidence.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { editor, toasts } = getTreeContext();
 
 	const source = $derived(data.source);
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const title = $derived(sourceLabel(source));
 	const pageHref = (offset: number) =>
@@ -230,6 +231,7 @@
 			<div class="mt-2">
 				<NoteList
 					{treeId}
+					treeSlug={data.summary.tree.slug}
 					{role}
 					{editor}
 					{toasts}

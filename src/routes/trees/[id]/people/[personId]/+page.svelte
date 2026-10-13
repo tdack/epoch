@@ -14,7 +14,7 @@
 
 	const dto = $derived(data.person);
 	const treeId = $derived(data.summary.tree.id);
-	const treeHref = $derived(treePath(treeId));
+	const treeHref = $derived(treePath(data.summary.tree));
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 
 	// The dialogs read versions and names from the graph the screen shows.
@@ -48,4 +48,13 @@
 	<span aria-current="page">{dto.person.displayName}</span>
 </nav>
 
-<PersonView {dto} {treeId} {role} {editor} {toasts} {marks} layout="page" />
+<PersonView
+	{dto}
+	{treeId}
+	treeSlug={data.summary.tree.slug}
+	{role}
+	{editor}
+	{toasts}
+	{marks}
+	layout="page"
+/>

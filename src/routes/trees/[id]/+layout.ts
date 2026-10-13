@@ -1,14 +1,20 @@
+import { redirect } from '@sveltejs/kit';
 import { fetchMarks, fetchTreeList, fetchTreeSummary } from '#lib/services/tree-api.js';
 import { treeLoad } from '#lib/services/load-helpers.js';
+import { canonicalTreeAddress } from '#lib/shared/tree-slug.js';
 import type { LayoutLoad } from './$types';
 
 /** What every screen under a tree needs: the tree list, this tree's name and counts, and the user's shortcuts. */
-export const load: LayoutLoad = treeLoad(async ({ params, fetch }) => {
+export const load: LayoutLoad = treeLoad(async ({ params, fetch, url }) => {
 	// Shortcuts are a convenience: a failure to load them must not take the tree page down.
 	const marks = fetchMarks(params.id, fetch).catch(() => ({ favorites: [], recents: [] }));
 	const [trees, summary] = await Promise.all([
 		fetchTreeList(fetch),
 		fetchTreeSummary(params.id, fetch)
 	]);
+	// An address by id, from an old bookmark or a link that only knew the id, moves to the slug, so
+	// the address bar always shows the readable form and one tree has one address (ADR-045).
+	const canonical = canonicalTreeAddress(url, params.id, summary.tree);
+	if (canonical) redirect(308, canonical);
 	return { trees, summary, marks: await marks };
 });

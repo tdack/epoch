@@ -7,10 +7,11 @@
 	import { layoutHourglass } from '#lib/charts/chart-layout.js';
 	import { MAX_HOURGLASS_GENERATIONS } from '#lib/shared/charts.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const subject = $derived(data.descendants.root.person);
 	const layout = $derived(layoutHourglass(data.ancestors.slots, data.up, data.descendants.root));
 	const address = (id: string, up = data.up, down = data.down) =>
@@ -44,6 +45,7 @@
 
 <ChartPage
 	{treeId}
+	treeSlug={data.summary.tree.slug}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="hourglass"

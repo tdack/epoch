@@ -1,10 +1,11 @@
 <script lang="ts">
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 
-	const base = $derived(`/trees/${encodeURIComponent(data.summary.tree.id)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const page = $derived(data.page);
 	const pageHref = (offset: number) => {
 		const params = new URLSearchParams();

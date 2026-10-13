@@ -20,12 +20,15 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, role, editor, toasts }: Props = $props();
+	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 	// A viewer, and the public visitor, may read facts and names but not change them.
 	const canEditFacts = $derived(canCreateRecords(role));
 
@@ -99,7 +102,7 @@
 				</div>
 				{#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600">
 						<MapPin class="mr-1 h-3.5 w-3.5 text-stone-400" /><a
-							href={`${treePath(treeId)}/place?name=${encodeURIComponent(fact.place)}`}
+							href={`${treePath(treeRef)}/place?name=${encodeURIComponent(fact.place)}`}
 							class="hover:underline">{fact.place}</a
 						>
 					</p>{/if}
@@ -128,6 +131,7 @@
 				>
 					<CitationList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}
@@ -147,6 +151,7 @@
 				>
 					<NoteList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}

@@ -1,5 +1,7 @@
 /** What the pedigree and descendant charts are drawn from. */
 
+import { treePath, type TreeRef } from './tree-slug';
+
 export interface ChartPerson {
 	id: string;
 	name: string;
@@ -60,12 +62,12 @@ export const MAX_HOURGLASS_GENERATIONS = 6;
  * two) takes the same number for both of its halves, so moving between styles keeps the depth.
  */
 export function chartAddress(
-	treeId: string,
+	tree: TreeRef,
 	personId: string,
 	style: ChartStyle,
 	generations: number
 ): string {
-	const base = `/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(personId)}/${style}`;
+	const base = `${treePath(tree)}/people/${encodeURIComponent(personId)}/${style}`;
 	return style === 'hourglass'
 		? `${base}?up=${generations}&down=${generations}`
 		: `${base}?generations=${generations}`;

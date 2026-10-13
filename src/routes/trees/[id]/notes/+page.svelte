@@ -6,12 +6,13 @@
 	import { canAddNote } from '#lib/components/notes/note-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { editor } = getTreeContext();
 
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const page = $derived(data.page);
 	const pageHref = (offset: number) => {

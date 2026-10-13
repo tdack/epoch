@@ -49,6 +49,7 @@
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: PageData;
@@ -62,7 +63,8 @@
 	const canChange = $derived(canChangeRecords(role));
 	const historyCoalescer = createHistoryCoalescer();
 
-	const treeId = $derived(page.params.id!);
+	// The id, not the address segment, which may be the slug (ADR-045).
+	const treeId = $derived(data.summary.tree.id);
 	/** The address a navigation is heading for, shown before the load commits it; see `navigate`. */
 	let pendingSearch = $state<string | null>(null);
 	/**
@@ -591,7 +593,7 @@
 				onchangeFocus={() => finder.focusInput?.()}
 				onshowDetails={handleOpenPerson}
 				onopenProfile={(id) =>
-					void goto(`/trees/${encodeURIComponent(treeId)}/people/${encodeURIComponent(id)}`)}
+					void goto(`${treePath(data.summary.tree)}/people/${encodeURIComponent(id)}`)}
 				onChange={(change) =>
 					navigate(
 						// Switching view redraws the same graph, so what the person opened stays open. Flat
@@ -772,6 +774,7 @@
 	<PersonDrawer
 		page={drawerPage}
 		{treeId}
+		treeSlug={data.summary.tree.slug}
 		{role}
 		error={drawerError}
 		onClose={clearSelection}

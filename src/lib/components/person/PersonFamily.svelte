@@ -12,6 +12,8 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		/** The viewer's role; a viewer sees the family without the controls that change it. */
 		role: TreeRole | undefined;
 		/** Every relative action (add, remove, edit or merge a partnership) goes through the editor's dialogs. */
@@ -19,7 +21,15 @@
 		relativeTarget?: RelativeTarget;
 	}
 
-	let { dto, treeId, role, editor, relativeTarget = LINK_TARGET }: Props = $props();
+	let {
+		dto,
+		treeId,
+		treeSlug = null,
+		role,
+		editor,
+		relativeTarget = LINK_TARGET
+	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	const canAdd = $derived(canCreateRecords(role));
 	const canChange = $derived(canChangeRecords(role));
@@ -57,7 +67,7 @@
 {#snippet relative(person: PersonSummaryDto, note: string, remove?: RelativeAction)}
 	<li class="flex items-center justify-between gap-2">
 		<span class="min-w-0 text-sm">
-			<PersonLink {person} href={personPath(treeId, person.id)} {relativeTarget} />
+			<PersonLink {person} href={personPath(treeRef, person.id)} {relativeTarget} />
 			{#if note}<span class="text-xs text-stone-500">({note})</span>{/if}
 		</span>
 		{#if remove && canChange}
@@ -99,7 +109,7 @@
 				{/each}
 			</ul>
 			{#if family.unionId}<p class="text-xs">
-					<a class="row-link" href={unionPath(treeId, family.unionId)}
+					<a class="row-link" href={unionPath(treeRef, family.unionId)}
 						>{family.label?.full ?? 'Their partnership'}</a
 					>
 				</p>{/if}
@@ -127,7 +137,7 @@
 		>
 			<div class="flex flex-wrap items-baseline justify-between gap-x-2">
 				<p class="text-xs font-semibold text-amber-900">
-					<a class="row-link" href={unionPath(treeId, union.unionId)}
+					<a class="row-link" href={unionPath(treeRef, union.unionId)}
 						>{union.label?.full ??
 							(union.partners.length > 0
 								? 'Partner & Children'

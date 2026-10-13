@@ -43,7 +43,7 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 	const { summary, trees } = await parent();
 	// Read only the parameters that change what is fetched, so toggling a relationship type redraws
 	// without a request.
-	const saved = trees.find((t) => t.id === params.id);
+	const saved = trees.find((t) => t.id === summary.tree.id);
 	// Same fallback as the page, or a link without a mode would fetch for one view and draw another.
 	const fallbackMode = resolveLayoutMode({
 		fromAddress: null,
@@ -75,7 +75,7 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 
 	const candidates = [
 		view.focusId,
-		rememberedFocus(params.id),
+		rememberedFocus(summary.tree.id),
 		summary.defaultFocusPersonId
 	].filter((id, index, all): id is string => id !== null && all.indexOf(id) === index);
 	for (const [index, focusId] of candidates.entries()) {

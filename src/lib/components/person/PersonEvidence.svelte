@@ -10,12 +10,15 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, role, editor, toasts }: Props = $props();
+	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	interface Group {
 		subject: CitationSubjectRef;
@@ -79,6 +82,7 @@
 			<div class="mt-1">
 				<CitationList
 					{treeId}
+					{treeSlug}
 					{role}
 					{editor}
 					{toasts}

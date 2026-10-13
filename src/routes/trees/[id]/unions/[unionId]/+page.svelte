@@ -12,6 +12,7 @@
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
 	import type { PageData } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: PageData;
@@ -23,7 +24,7 @@
 	const dto = $derived(data.union);
 	const treeId = $derived(data.summary.tree.id);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
-	const treeHref = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const treeHref = $derived(treePath(data.summary.tree));
 	const personHref = (id: string) => `${treeHref}/people/${encodeURIComponent(id)}`;
 	/** A placeholder has no page for this viewer, so the chronology names them without a link. */
 	const privateIds = $derived(
@@ -154,9 +155,7 @@
 						<span class="font-medium">{event.label}</span>
 						<span class="text-xs text-stone-600"
 							>{event.dateText ?? 'Date unknown'}{#if event.place}{' · '}<a
-									href="/trees/{encodeURIComponent(
-										data.summary.tree.id
-									)}/place?name={encodeURIComponent(event.place)}"
+									href="{treePath(data.summary.tree)}/place?name={encodeURIComponent(event.place)}"
 									class="hover:underline">{event.place}</a
 								>{/if}</span
 						>
@@ -169,6 +168,7 @@
 						>
 							<CitationList
 								{treeId}
+								treeSlug={data.summary.tree.slug}
 								{role}
 								{editor}
 								{toasts}
@@ -188,6 +188,7 @@
 						>
 							<NoteList
 								{treeId}
+								treeSlug={data.summary.tree.slug}
 								{role}
 								{editor}
 								{toasts}
@@ -206,6 +207,7 @@
 			<div class="mt-2">
 				<NoteList
 					{treeId}
+					treeSlug={data.summary.tree.slug}
 					{role}
 					{editor}
 					{toasts}
@@ -220,6 +222,7 @@
 					<div class="mt-1">
 						<NoteList
 							{treeId}
+							treeSlug={data.summary.tree.slug}
 							{role}
 							{editor}
 							{toasts}
@@ -247,6 +250,7 @@
 			<div class="mt-2">
 				<CitationList
 					{treeId}
+					treeSlug={data.summary.tree.slug}
 					{role}
 					{editor}
 					{toasts}
@@ -265,6 +269,7 @@
 					<div class="mt-1">
 						<CitationList
 							{treeId}
+							treeSlug={data.summary.tree.slug}
 							{role}
 							{editor}
 							{toasts}

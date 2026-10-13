@@ -11,11 +11,12 @@
 	const subject = $derived(data.chart.root.person);
 	const layout = $derived(layoutDescendants(data.chart.root));
 	const address = (id: string, generations = data.chart.generations) =>
-		chartAddress(treeId, id, 'descendants', generations);
+		chartAddress(data.summary.tree, id, 'descendants', generations);
 </script>
 
 <ChartPage
 	{treeId}
+	treeSlug={data.summary.tree.slug}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="descendants"

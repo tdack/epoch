@@ -15,6 +15,8 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		/** The viewer's role in this tree; merging deletes a record, so it needs an editor. */
 		role: TreeRole | undefined;
 		editor: TreeEditor;
@@ -24,10 +26,20 @@
 		relativeTarget?: RelativeTarget;
 	}
 
-	let { dto, treeId, role, editor, toasts, marks, relativeTarget = LINK_TARGET }: Props = $props();
+	let {
+		dto,
+		treeId,
+		treeSlug = null,
+		role,
+		editor,
+		toasts,
+		marks,
+		relativeTarget = LINK_TARGET
+	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
-	const treeHref = $derived(treePath(treeId));
-	const here = $derived(personPath(treeId, dto.person.id));
+	const treeHref = $derived(treePath(treeRef));
+	const here = $derived(personPath(treeRef, dto.person.id));
 
 	const isFavorite = $derived(marks.favorites.some((f) => f.id === dto.person.id));
 
@@ -49,7 +61,7 @@
 			// The survivor may already be the focus, in which case selecting it reloads nothing.
 			relativeTarget.onSelect(id);
 			await editor.refresh();
-		} else await goto(personPath(treeId, id), { refreshAll: true });
+		} else await goto(personPath(treeRef, id), { refreshAll: true });
 	}
 
 	// The record that goes may be the one on screen, so the view moves to the one that stays, and Undo moves back.

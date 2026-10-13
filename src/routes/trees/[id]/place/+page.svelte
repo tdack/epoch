@@ -7,11 +7,12 @@
 	import { hasMinimumRole } from '#lib/shared/roles.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { toasts } = getTreeContext();
 
-	const base = $derived(`/trees/${encodeURIComponent(data.summary.tree.id)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const place = $derived(data.place);
 	const entityHref = (kind: 'person' | 'partnership', id: string) =>
 		`${base}/${kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(id)}`;

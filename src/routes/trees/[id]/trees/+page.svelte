@@ -14,6 +14,7 @@
 		type InstallTree
 	} from '#lib/services/tree-api.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { toasts, openNewTree } = getTreeContext();
@@ -156,9 +157,7 @@
 					<th scope="row" class="px-3 py-2 font-semibold text-stone-900">
 						<span class="inline-flex flex-wrap items-center gap-2">
 							{#if tree.role}
-								<a href="/trees/{encodeURIComponent(tree.id)}" class="hover:underline"
-									>{tree.name}</a
-								>
+								<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
 							{:else}
 								{tree.name}
 							{/if}

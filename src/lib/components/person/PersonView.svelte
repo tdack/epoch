@@ -23,6 +23,8 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		/** The viewer's role in this tree; each section hides what it cannot do. */
 		role: TreeRole | undefined;
 		/**
@@ -39,6 +41,7 @@
 	let {
 		dto,
 		treeId,
+		treeSlug = null,
 		role,
 		layout,
 		relativeTarget = LINK_TARGET,
@@ -46,25 +49,26 @@
 		toasts,
 		marks
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	const isPage = $derived(layout === 'page');
 </script>
 
 {#snippet family()}
 	<PersonSection id="family" title="Family" {layout} isOpenByDefault>
-		<PersonFamily {dto} {treeId} {role} {editor} {relativeTarget} />
+		<PersonFamily {dto} {treeId} {treeSlug} {role} {editor} {relativeTarget} />
 	</PersonSection>
 {/snippet}
 
 {#snippet facts()}
 	<PersonSection id="facts" title="Facts" {layout} isOpenByDefault>
-		<PersonFacts {dto} {treeId} {role} {editor} {toasts} />
+		<PersonFacts {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet names()}
 	<PersonSection id="names" title="Names" {layout}>
-		<PersonNames {dto} {treeId} {role} {editor} {toasts} />
+		<PersonNames {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
@@ -76,19 +80,19 @@
 
 {#snippet notes()}
 	<PersonSection id="notes" title="Notes" {layout}>
-		<PersonNotes {dto} {treeId} {role} {editor} {toasts} />
+		<PersonNotes {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet tasks()}
 	<PersonSection id="tasks" title="Tasks" {layout}>
-		<PersonTasks {dto} {treeId} {role} {editor} {toasts} />
+		<PersonTasks {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet evidence()}
 	<PersonSection id="evidence" title="Sources and evidence" {layout}>
-		<PersonEvidence {dto} {treeId} {role} {editor} {toasts} />
+		<PersonEvidence {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
@@ -107,7 +111,7 @@
 <div class="space-y-6">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<PersonSummary {dto} />
-		<PersonActions {dto} {treeId} {role} {editor} {toasts} {marks} {relativeTarget} />
+		<PersonActions {dto} {treeId} {treeSlug} {role} {editor} {toasts} {marks} {relativeTarget} />
 	</header>
 
 	{#if isPage}

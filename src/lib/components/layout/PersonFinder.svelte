@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { ArrowRight, Search } from '@lucide/svelte';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		/** The tree being searched; profile and fact-search links are built from it. */
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		/** Search the tree's people by name. */
 		searchPeople: (query: string) => Promise<PeopleSearchResult[]>;
 		/** Offered before anything is typed: the people the user favourited and opened lately. */
@@ -23,11 +26,13 @@
 
 	let {
 		treeId,
+		treeSlug = null,
 		searchPeople,
 		suggestions = { favorites: [], recents: [] },
 		onpickFocus,
 		onnavigate
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	type Option =
 		| { kind: 'person'; key: string; id: string; label: string; alias?: string; group?: string }
@@ -56,7 +61,7 @@
 		input?.select();
 	}
 
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(treeRef));
 	const profileHref = (id: string) => `${base}/people/${encodeURIComponent(id)}`;
 	const searchHref = (q: string) => `${base}/search?q=${encodeURIComponent(q)}`;
 

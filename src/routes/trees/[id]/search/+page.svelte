@@ -5,6 +5,7 @@
 	import { NAME_TYPE_LABELS, isNameType } from '#lib/shared/name-types.js';
 	import { DEFAULT_SEARCH_LIMIT, type SearchMatch } from '#lib/shared/search.js';
 	import type { PageData } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: PageData;
@@ -13,7 +14,7 @@
 	let { data }: Props = $props();
 
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const query = $derived(data.query);
 	const response = $derived(data.response);
 

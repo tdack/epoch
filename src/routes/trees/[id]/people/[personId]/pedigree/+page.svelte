@@ -11,11 +11,12 @@
 	const subject = $derived(data.chart.person);
 	const layout = $derived(layoutPedigree(data.chart.slots, data.chart.generations));
 	const address = (id: string, generations = data.chart.generations) =>
-		chartAddress(treeId, id, 'pedigree', generations);
+		chartAddress(data.summary.tree, id, 'pedigree', generations);
 </script>
 
 <ChartPage
 	{treeId}
+	treeSlug={data.summary.tree.slug}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="pedigree"

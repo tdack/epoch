@@ -11,12 +11,13 @@
 		TASK_SUBJECT_KIND_VALUES
 	} from '#lib/shared/tasks.js';
 	import type { PageProps } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
 	const { editor, toasts } = getTreeContext();
 
 	const treeId = $derived(data.summary.tree.id);
-	const base = $derived(`/trees/${encodeURIComponent(treeId)}`);
+	const base = $derived(treePath(data.summary.tree));
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	const page = $derived(data.page);
 
@@ -125,7 +126,15 @@
 			{data.status === 'open' ? 'No open task.' : 'No task matches.'}
 		</p>
 	{:else}
-		<TaskList {treeId} {role} tasks={page.items} members={page.members} {editor} {toasts} />
+		<TaskList
+			{treeId}
+			treeSlug={data.summary.tree.slug}
+			{role}
+			tasks={page.items}
+			members={page.members}
+			{editor}
+			{toasts}
+		/>
 		<Pager
 			summary="Showing {page.offset + 1} to {page.offset + page.items.length}"
 			previousHref={page.offset > 0 ? href({}, Math.max(0, page.offset - page.limit)) : null}

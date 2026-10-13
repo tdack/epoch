@@ -17,6 +17,7 @@
 	import { searchPeopleApi } from '#lib/services/tree-api.js';
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		data: LayoutData;
@@ -32,9 +33,15 @@
 			(viewer.isOutsider ? viewer.role : undefined)
 	);
 	const isChartPage = $derived(page.route.id === '/trees/[id]');
-	const treePath = (id: string) => `/trees/${encodeURIComponent(id)}`;
+	// Links prefer a tree's slug (ADR-045); the switcher and the shell know only the id they chose.
+	const pathOf = (id: string) =>
+		treePath(
+			id === data.summary.tree.id
+				? data.summary.tree
+				: (data.trees.find((t) => t.id === id) ?? { id })
+		);
 	const personPath = (treeId: string, personId: string) =>
-		`${treePath(treeId)}/people/${encodeURIComponent(personId)}`;
+		`${pathOf(treeId)}/people/${encodeURIComponent(personId)}`;
 
 	// Toasts and the editor outlive any one screen: "Person deleted, Undo" has to appear on the
 	// screen the person was deleted from, which is a different screen from the one that showed them.
@@ -48,14 +55,14 @@
 		onPersonDeleted: async (personId) => {
 			// A page about a person who no longer exists has nothing to show; go back to the tree.
 			if (page.params.personId === personId)
-				await goto(treePath(data.summary.tree.id), { replace: true });
+				await goto(pathOf(data.summary.tree.id), { replace: true });
 		}
 	});
 	const shell = new TreeShell({
 		treeId: () => data.summary.tree.id,
 		toasts,
 		reload,
-		goTo: (id) => void goto(id ? treePath(id) : '/')
+		goTo: (id) => void goto(id ? pathOf(id) : '/')
 	});
 	// Seeded once so the server render already has the lists; the effect below adopts any later load.
 	const marks = new MarksStore(
@@ -117,7 +124,7 @@
 		trees={data.trees}
 		selectedTreeId={data.summary.tree.id}
 		isImporting={shell.isImporting}
-		onselectTree={(id) => void goto(treePath(id))}
+		onselectTree={(id) => void goto(pathOf(id))}
 		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
@@ -132,6 +139,7 @@
 			<PersonFinder
 				bind:this={personFinder}
 				treeId={data.summary.tree.id}
+				treeSlug={data.summary.tree.slug}
 				searchPeople={(q) => searchPeopleApi(data.summary.tree.id, q)}
 				suggestions={marks}
 				onpickFocus={isChartPage
@@ -166,6 +174,7 @@
 			{role}
 			pathname={page.url.pathname}
 			isInstallOwner={viewer.isInstallOwner}
+			treeSlug={data.summary.tree.slug}
 			treeCount={data.trees.length}
 			isSignedIn={!viewer.isPublicVisitor}
 			isOutsider={viewer.isOutsider}

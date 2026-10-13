@@ -25,12 +25,15 @@
 	interface Props {
 		dto: PersonPageDto;
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		editor: TreeEditor;
 		toasts: ToastStore;
 	}
 
-	let { dto, treeId, role, editor, toasts }: Props = $props();
+	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 	// A viewer, and the public visitor, may read facts and names but not change them.
 	const canEditNames = $derived(canCreateRecords(role));
 
@@ -138,7 +141,7 @@
 			{#if name.dateText || partnershipLabel(name.unionId)}
 				<p class="mt-1 text-xs text-stone-600" data-testid="name-context">
 					{nameContext(name)}{#if partnershipLabel(name.unionId)}{' '}<a
-							href={unionPath(treeId, name.unionId!)}
+							href={unionPath(treeRef, name.unionId!)}
 							class="text-link">{partnershipLabel(name.unionId)}</a
 						>{/if}
 				</p>
@@ -150,6 +153,7 @@
 				>
 					<CitationList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}
@@ -169,6 +173,7 @@
 				>
 					<NoteList
 						{treeId}
+						{treeSlug}
 						{role}
 						{editor}
 						{toasts}

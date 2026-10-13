@@ -12,9 +12,12 @@
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import NoteDialog from './NoteDialog.svelte';
 	import { canAddNote, canChangeNote } from './note-permissions.js';
+	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
 		treeId: string;
+		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
+		treeSlug?: string | null;
 		role: TreeRole | undefined;
 		/** What these notes are on, in words: "the birth of Ann Ash". */
 		subjectLabel: string;
@@ -29,6 +32,7 @@
 
 	let {
 		treeId,
+		treeSlug = null,
 		role,
 		subjectLabel,
 		subject,
@@ -37,11 +41,11 @@
 		toasts,
 		isQuiet = false
 	}: Props = $props();
+	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let dialog = $state<{ note: NoteDto | null } | null>(null);
 
-	const notePath = (id: string) =>
-		`/trees/${encodeURIComponent(treeId)}/notes/${encodeURIComponent(id)}`;
+	const notePath = (id: string) => `${treePath(treeRef)}/notes/${encodeURIComponent(id)}`;
 
 	async function saved(change: Parameters<typeof editor.afterChange>[0]) {
 		dialog = null;
