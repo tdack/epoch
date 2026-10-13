@@ -28,8 +28,8 @@ test('the quality report lists what the record contradicts, links to it, and a d
 	await expect(page.getByTestId('rule-one_parent_recorded')).toContainText(
 		'Kid Early has only one parent recorded'
 	);
-	// The most serious come first.
-	await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText('Warnings');
+	// The most serious come first. The Date spellings tool sits above the findings, so it is skipped.
+	await expect(page.locator('h3[id^="severity-"]').first()).toHaveText('Warnings');
 	await page.screenshot({ path: `${SHOTS}/quality.png`, fullPage: true });
 
 	const found = await new AxeBuilder({ page })

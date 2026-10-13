@@ -35,7 +35,9 @@ export interface GraphView {
 export class Api {
 	constructor(
 		private request: APIRequestContext,
-		readonly treeId: string
+		readonly treeId: string,
+		/** The address segment pages redirect to; the id when the name gives no slug. */
+		readonly treeSlug: string
 	) {}
 
 	async addPerson(
@@ -120,8 +122,9 @@ export const test = base.extend<{ api: Api }>({
 			data: { name: `e2e ${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }
 		});
 		expect(created.ok()).toBe(true);
-		const treeId = (await created.json()).tree.id as string;
-		await use(new Api(request, treeId));
+		const { tree } = (await created.json()) as { tree: { id: string; slug: string | null } };
+		const treeId = tree.id;
+		await use(new Api(request, treeId, tree.slug ?? treeId));
 		await request.delete(`/api/trees/${treeId}`);
 	}
 });
