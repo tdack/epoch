@@ -1,0 +1,852 @@
+0 HEAD
+1 SOUR GameOfThronesGEDCOM
+2 VERS 1.0
+2 NAME GOT Family Tree Generator
+1 DEST GEDCOM 7.0
+1 DATE 12 OCT 2026
+1 FILE got_family_tree.ged
+1 GEDC
+2 VERS 7.0
+1 CHAR UTF-8
+1 LANG en-US
+1 PLAC FORM City, County, State, Country, Postal Code
+0 @I1@ INDI
+1 NAME Rickard /Stark/
+1 SEX M
+1 BIRT
+2 DATE ABT 235 AC
+2 PLAC Winterfell, The North
+1 DEAT
+2 DATE AFT 282 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Lyarra /Stark/
+1 SEX F
+1 BIRT
+2 DATE ABT 240 AC
+2 PLAC Winterfell, The North
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Brandon /Stark/
+1 SEX M
+1 BIRT
+2 DATE 262 AC
+2 PLAC Winterfell, The North
+1 DEAT
+2 DATE 282 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Eddard "Ned" /Stark/
+1 SEX M
+1 BIRT
+2 DATE 265 AC
+2 PLAC Winterfell, The North
+1 DEAT
+2 DATE 298 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F1@
+1 FAMS @F2@
+0 @I5@ INDI
+1 NAME Lyanna /Stark/
+1 SEX F
+1 BIRT
+2 DATE 268 AC
+2 PLAC Winterfell, The North
+1 DEAT
+2 DATE 283 AC
+2 PLAC Tower of Joy, Dorne
+1 FAMC @F1@
+1 FAMS @F18@
+0 @I6@ INDI
+1 NAME Benjen /Stark/
+1 SEX M
+1 BIRT
+2 DATE 272 AC
+2 PLAC Winterfell, The North
+1 FAMC @F1@
+0 @I7@ INDI
+1 NAME Hoster /Tully/
+1 SEX M
+1 BIRT
+2 DATE 235 AC
+2 PLAC Riverrun, The Riverlands
+1 DEAT
+2 DATE 299 AC
+2 PLAC Riverrun, The Riverlands
+1 FAMS @F3@
+0 @I8@ INDI
+1 NAME Minisa /Whent/
+1 SEX F
+1 BIRT
+2 DATE ABT 240 AC
+2 PLAC Unknown, The Riverlands
+1 DEAT
+2 DATE 275 AC
+2 PLAC Riverrun, The Riverlands
+1 FAMS @F3@
+0 @I9@ INDI
+1 NAME Catelyn /Tully/ Stark
+1 SEX F
+1 BIRT
+2 DATE 264 AC
+2 PLAC Riverrun, The Riverlands
+1 DEAT
+2 DATE 299 AC
+2 PLAC The Twins, The Riverlands
+1 FAMC @F3@
+1 FAMS @F2@
+0 @I10@ INDI
+1 NAME Lysa /Tully/ Arryn
+1 SEX F
+1 BIRT
+2 DATE 266 AC
+2 PLAC Riverrun, The Riverlands
+1 DEAT
+2 DATE 300 AC
+2 PLAC The Eyrie, The Vale
+1 FAMC @F3@
+1 FAMS @F4@
+0 @I11@ INDI
+1 NAME Edmure /Tully/
+1 SEX M
+1 BIRT
+2 DATE ABT 272 AC
+2 PLAC Riverrun, The Riverlands
+1 FAMC @F3@
+0 @I12@ INDI
+1 NAME Brynden /Tully/
+1 SEX M
+1 BIRT
+2 DATE ABT 240 AC
+2 PLAC Unknown, The Riverlands
+1 FAMC @F3@
+0 @I13@ INDI
+1 NAME Robb /Stark/
+1 SEX M
+1 BIRT
+2 DATE 283 AC
+2 PLAC Winterfell, The North
+1 DEAT
+2 DATE 299 AC
+2 PLAC The Twins, The Riverlands
+1 FAMC @F2@
+1 FAMS @F7@
+0 @I14@ INDI
+1 NAME Sansa /Stark/
+1 SEX F
+1 BIRT
+2 DATE 286 AC
+2 PLAC Winterfell, The North
+1 FAMC @F2@
+0 @I15@ INDI
+1 NAME Arya /Stark/
+1 SEX F
+1 BIRT
+2 DATE 289 AC
+2 PLAC Winterfell, The North
+1 FAMC @F2@
+0 @I16@ INDI
+1 NAME Brandon "Bran" /Stark/
+1 SEX M
+1 BIRT
+2 DATE 291 AC
+2 PLAC Winterfell, The North
+1 FAMC @F2@
+0 @I17@ INDI
+1 NAME Rickon /Stark/
+1 SEX M
+1 BIRT
+2 DATE 295 AC
+2 PLAC Winterfell, The North
+1 FAMC @F2@
+0 @I18@ INDI
+1 NAME Jon /Snow/
+1 SEX M
+1 BIRT
+2 DATE 283 AC
+2 PLAC Tower of Joy, Dorne
+1 FAMC @F18@
+0 @I19@ INDI
+1 NAME Tywin /Lannister/
+1 SEX M
+1 BIRT
+2 DATE 242 AC
+2 PLAC Casterly Rock, The Westerlands
+1 DEAT
+2 DATE 301 AC
+2 PLAC Solar, The Westerlands
+1 FAMS @F10@
+0 @I20@ INDI
+1 NAME Joanna /Lannister/
+1 SEX F
+1 BIRT
+2 DATE 245 AC
+2 PLAC Casterly Rock, The Westerlands
+1 DEAT
+2 DATE 273 AC
+2 PLAC Casterly Rock, The Westerlands
+1 FAMS @F10@
+0 @I21@ INDI
+1 NAME Cersei /Lannister/
+1 SEX F
+1 BIRT
+2 DATE 266 AC
+2 PLAC Casterly Rock, The Westerlands
+1 FAMC @F10@
+1 FAMS @F8@
+1 FAMS @F9@
+0 @I22@ INDI
+1 NAME Jaime /Lannister/
+1 SEX M
+1 BIRT
+2 DATE 266 AC
+2 PLAC Casterly Rock, The Westerlands
+1 FAMC @F10@
+1 FAMS @F8@
+0 @I23@ INDI
+1 NAME Tyrion /Lannister/
+1 SEX M
+1 BIRT
+2 DATE 273 AC
+2 PLAC Casterly Rock, The Westerlands
+1 FAMC @F10@
+0 @I24@ INDI
+1 NAME Kevan /Lannister/
+1 SEX M
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Casterly Rock, The Westerlands
+0 @I25@ INDI
+1 NAME Genna /Lannister/
+1 SEX F
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Casterly Rock, The Westerlands
+0 @I26@ INDI
+1 NAME Tygett /Lannister/
+1 SEX M
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Casterly Rock, The Westerlands
+0 @I27@ INDI
+1 NAME Gerion /Lannister/
+1 SEX M
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Casterly Rock, The Westerlands
+0 @I28@ INDI
+1 NAME Ormund /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE ABT 220 AC
+2 PLAC Storm's End, The Stormlands
+1 FAMS @F11@
+0 @I29@ INDI
+1 NAME Rhaelle /Targaryen/ Baratheon
+1 SEX F
+1 BIRT
+2 DATE 229 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F11@
+0 @I30@ INDI
+1 NAME Steffon /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 245 AC
+2 PLAC Storm's End, The Stormlands
+1 DEAT
+2 DATE 278 AC
+2 PLAC Shipbreaker Bay, The Stormlands
+1 FAMC @F11@
+1 FAMS @F12@
+0 @I31@ INDI
+1 NAME Cassana /Estermont/
+1 SEX F
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Unknown, The Stormlands
+1 FAMS @F12@
+0 @I32@ INDI
+1 NAME Robert /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 262 AC
+2 PLAC Storm's End, The Stormlands
+1 DEAT
+2 DATE 298 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F12@
+1 FAMS @F9@
+0 @I33@ INDI
+1 NAME Stannis /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 265 AC
+2 PLAC Storm's End, The Stormlands
+1 FAMC @F12@
+1 FAMS @F13@
+0 @I34@ INDI
+1 NAME Renly /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 277 AC
+2 PLAC Storm's End, The Stormlands
+1 DEAT
+2 DATE 299 AC
+2 PLAC Storm's End, The Stormlands
+1 FAMC @F12@
+1 FAMS @F14@
+0 @I35@ INDI
+1 NAME Selyse /Florent/
+1 SEX F
+1 BIRT
+2 DATE ABT 270 AC
+2 PLAC Brightwater Keep, The Reach
+1 FAMS @F13@
+0 @I36@ INDI
+1 NAME Shireen /Baratheon/
+1 SEX F
+1 BIRT
+2 DATE 290 AC
+2 PLAC Dragonstone, Crownlands
+1 FAMC @F13@
+0 @I37@ INDI
+1 NAME Margaery /Tyrell/
+1 SEX F
+1 BIRT
+2 DATE 284 AC
+2 PLAC Highgarden, The Reach
+1 FAMS @F7@
+1 FAMS @F14@
+0 @I38@ INDI
+1 NAME Joffrey /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 286 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 300 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F9@
+0 @I39@ INDI
+1 NAME Myrcella /Baratheon/
+1 SEX F
+1 BIRT
+2 DATE 290 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F9@
+0 @I40@ INDI
+1 NAME Tommen /Baratheon/
+1 SEX M
+1 BIRT
+2 DATE 291 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F9@
+0 @I41@ INDI
+1 NAME Olenna /Tyrell/
+1 SEX F
+1 BIRT
+2 DATE 228 AC
+2 PLAC Unknown, The Reach
+0 @I42@ INDI
+1 NAME Mace /Tyrell/
+1 SEX M
+1 BIRT
+2 DATE 250 AC
+2 PLAC Highgarden, The Reach
+1 FAMS @F15@
+0 @I43@ INDI
+1 NAME Alerie /Hightower/ Tyrell
+1 SEX F
+1 BIRT
+2 DATE ABT 255 AC
+2 PLAC Oldtown, The Reach
+1 FAMS @F15@
+0 @I44@ INDI
+1 NAME Loras /Tyrell/
+1 SEX M
+1 BIRT
+2 DATE 277 AC
+2 PLAC Highgarden, The Reach
+1 FAMC @F15@
+0 @I45@ INDI
+1 NAME Margaery /Tyrell/ Baratheon
+1 SEX F
+1 BIRT
+2 DATE 284 AC
+2 PLAC Highgarden, The Reach
+1 FAMC @F15@
+0 @I46@ INDI
+1 NAME Garlan /Tyrell/
+1 SEX M
+1 BIRT
+2 DATE 277 AC
+2 PLAC Highgarden, The Reach
+1 FAMC @F15@
+0 @I47@ INDI
+1 NAME Willas /Tyrell/
+1 SEX M
+1 BIRT
+2 DATE 275 AC
+2 PLAC Highgarden, The Reach
+1 FAMC @F15@
+0 @I48@ INDI
+1 NAME Doran /Martell/
+1 SEX M
+1 BIRT
+2 DATE 248 AC
+2 PLAC Sunspear, Dorne
+1 FAMS @F16@
+0 @I49@ INDI
+1 NAME Mellario /Martell/
+1 SEX F
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Norvos, Essos
+1 FAMS @F16@
+0 @I50@ INDI
+1 NAME Arianne /Martell/
+1 SEX F
+1 BIRT
+2 DATE 276 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F16@
+0 @I51@ INDI
+1 NAME Quentyn /Martell/
+1 SEX M
+1 BIRT
+2 DATE 281 AC
+2 PLAC Sunspear, Dorne
+1 DEAT
+2 DATE 300 AC
+2 PLAC Meereen, Essos
+1 FAMC @F16@
+0 @I52@ INDI
+1 NAME Trystane /Martell/
+1 SEX M
+1 BIRT
+2 DATE 287 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F16@
+0 @I53@ INDI
+1 NAME Oberyn /Martell/
+1 SEX M
+1 BIRT
+2 DATE 258 AC
+2 PLAC Sunspear, Dorne
+1 DEAT
+2 DATE 300 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F22@
+0 @I54@ INDI
+1 NAME Elia /Martell/ Targaryen
+1 SEX F
+1 BIRT
+2 DATE 257 AC
+2 PLAC Sunspear, Dorne
+1 DEAT
+2 DATE 283 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F17@
+0 @I55@ INDI
+1 NAME Ellaria /Sand/
+1 SEX F
+1 BIRT
+2 DATE ABT 260 AC
+2 PLAC Unknown, Dorne
+1 FAMS @F22@
+0 @I56@ INDI
+1 NAME Obara /Sand/
+1 SEX F
+1 BIRT
+2 DATE 272 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I57@ INDI
+1 NAME Nymeria /Sand/
+1 SEX F
+1 BIRT
+2 DATE 275 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I58@ INDI
+1 NAME Tyene /Sand/
+1 SEX F
+1 BIRT
+2 DATE 277 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I59@ INDI
+1 NAME Sarella /Sand/
+1 SEX F
+1 BIRT
+2 DATE 281 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I60@ INDI
+1 NAME Obella /Sand/
+1 SEX F
+1 BIRT
+2 DATE 288 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I61@ INDI
+1 NAME Dorea /Sand/
+1 SEX F
+1 BIRT
+2 DATE 292 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I62@ INDI
+1 NAME Elia /Sand/
+1 SEX F
+1 BIRT
+2 DATE 286 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I63@ INDI
+1 NAME Loreza /Sand/
+1 SEX F
+1 BIRT
+2 DATE 293 AC
+2 PLAC Sunspear, Dorne
+1 FAMC @F22@
+0 @I64@ INDI
+1 NAME Quellon /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE ABT 230 AC
+2 PLAC Pyke, The Iron Islands
+1 DEAT
+2 DATE 283 AC
+2 PLAC Shipbreaker Bay, The Stormlands
+1 FAMS @F20@
+0 @I65@ INDI
+1 NAME Unknown /Sunderly/
+1 SEX F
+1 BIRT
+2 DATE ABT 235 AC
+2 PLAC Unknown, The Stormlands
+1 FAMS @F20@
+0 @I66@ INDI
+1 NAME Balon /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 248 AC
+2 PLAC Pyke, The Iron Islands
+1 DEAT
+2 DATE 299 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F20@
+1 FAMS @F21@
+0 @I67@ INDI
+1 NAME Euron /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 250 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F20@
+0 @I68@ INDI
+1 NAME Victarion /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 255 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F20@
+0 @I69@ INDI
+1 NAME Aeron /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 260 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F20@
+0 @I70@ INDI
+1 NAME Alannys /Harlaw/ Greyjoy
+1 SEX F
+1 BIRT
+2 DATE ABT 250 AC
+2 PLAC Orkmont, The Iron Islands
+1 FAMS @F21@
+0 @I71@ INDI
+1 NAME Theon /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 279 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F21@
+0 @I72@ INDI
+1 NAME Asha /Greyjoy/
+1 SEX F
+1 BIRT
+2 DATE 276 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F21@
+0 @I73@ INDI
+1 NAME Rodrik /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 274 AC
+2 PLAC Pyke, The Iron Islands
+1 DEAT
+2 DATE 289 AC
+2 PLAC Seagard, The Riverlands
+1 FAMC @F21@
+0 @I74@ INDI
+1 NAME Maron /Greyjoy/
+1 SEX M
+1 BIRT
+2 DATE 278 AC
+2 PLAC Pyke, The Iron Islands
+1 DEAT
+2 DATE 289 AC
+2 PLAC Pyke, The Iron Islands
+1 FAMC @F21@
+0 @I75@ INDI
+1 NAME Aerys II /Targaryen/
+1 SEX M
+1 BIRT
+2 DATE 244 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 283 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F19@
+0 @I76@ INDI
+1 NAME Rhaella /Targaryen/
+1 SEX F
+1 BIRT
+2 DATE 245 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 284 AC
+2 PLAC Dragonstone, Crownlands
+1 FAMS @F19@
+0 @I77@ INDI
+1 NAME Rhaegar /Targaryen/
+1 SEX M
+1 BIRT
+2 DATE 259 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 283 AC
+2 PLAC Ruby Ford, The Riverlands
+1 FAMC @F19@
+1 FAMS @F17@
+1 FAMS @F18@
+0 @I78@ INDI
+1 NAME Viserys /Targaryen/
+1 SEX M
+1 BIRT
+2 DATE 276 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 298 AC
+2 PLAC Vaes Dothrak, Essos
+1 FAMC @F19@
+0 @I79@ INDI
+1 NAME Daenerys /Targaryen/
+1 SEX F
+1 BIRT
+2 DATE 284 AC
+2 PLAC Dragonstone, Crownlands
+1 FAMC @F19@
+0 @I80@ INDI
+1 NAME Rhaenys /Targaryen/
+1 SEX F
+1 BIRT
+2 DATE 280 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 283 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F17@
+0 @I81@ INDI
+1 NAME Aegon /Targaryen/
+1 SEX M
+1 BIRT
+2 DATE 282 AC
+2 PLAC King's Landing, Crownlands
+1 DEAT
+2 DATE 283 AC
+2 PLAC King's Landing, Crownlands
+1 FAMC @F17@
+0 @I82@ INDI
+1 NAME Jon /Arryn/
+1 SEX M
+1 BIRT
+2 DATE 225 AC
+2 PLAC The Eyrie, The Vale
+1 DEAT
+2 DATE 298 AC
+2 PLAC King's Landing, Crownlands
+1 FAMS @F4@
+1 FAMS @F5@
+1 FAMS @F6@
+0 @I83@ INDI
+1 NAME Jeyne /Royce/
+1 SEX F
+1 BIRT
+2 DATE ABT 230 AC
+2 PLAC Unknown, The Vale
+1 DEAT
+2 DATE ABT 255 AC
+2 PLAC The Eyrie, The Vale
+1 FAMS @F5@
+0 @I84@ INDI
+1 NAME Rowena /Arryn/
+1 SEX F
+1 BIRT
+2 DATE ABT 235 AC
+2 PLAC Unknown, The Vale
+1 DEAT
+2 DATE ABT 265 AC
+2 PLAC The Eyrie, The Vale
+1 FAMS @F6@
+0 @I85@ INDI
+1 NAME Robert /Arryn/
+1 SEX M
+1 BIRT
+2 DATE 292 AC
+2 PLAC The Eyrie, The Vale
+1 FAMC @F4@
+0 @I86@ INDI
+1 NAME Ronnel /Arryn/
+1 SEX M
+1 BIRT
+2 DATE ABT 220 AC
+2 PLAC Unknown, The Vale
+0 @I87@ INDI
+1 NAME Elbert /Arryn/
+1 SEX M
+1 BIRT
+2 DATE ABT 240 AC
+2 PLAC Unknown, The Vale
+1 DEAT
+2 DATE 282 AC
+2 PLAC Battle of the Bells, Stoney Sept
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 CHIL @I5@
+1 CHIL @I6@
+0 @F2@ FAM
+1 HUSB @I4@
+1 WIFE @I9@
+1 CHIL @I13@
+1 CHIL @I14@
+1 CHIL @I15@
+1 CHIL @I16@
+1 CHIL @I17@
+0 @F3@ FAM
+1 HUSB @I7@
+1 WIFE @I8@
+1 CHIL @I9@
+1 CHIL @I10@
+1 CHIL @I11@
+1 CHIL @I12@
+0 @F4@ FAM
+1 HUSB @I82@
+1 WIFE @I10@
+1 CHIL @I85@
+0 @F5@ FAM
+1 HUSB @I82@
+1 WIFE @I83@
+0 @F6@ FAM
+1 HUSB @I82@
+1 WIFE @I84@
+0 @F7@ FAM
+1 HUSB @I13@
+1 WIFE @I37@
+0 @F8@ FAM
+1 HUSB @I22@
+1 WIFE @I21@
+1 CHIL @I38@
+1 CHIL @I39@
+1 CHIL @I40@
+0 @F9@ FAM
+1 HUSB @I32@
+1 WIFE @I21@
+1 CHIL @I38@
+1 CHIL @I39@
+1 CHIL @I40@
+0 @F10@ FAM
+1 HUSB @I19@
+1 WIFE @I20@
+1 CHIL @I21@
+1 CHIL @I22@
+1 CHIL @I23@
+0 @F11@ FAM
+1 HUSB @I28@
+1 WIFE @I29@
+1 CHIL @I30@
+0 @F12@ FAM
+1 HUSB @I30@
+1 WIFE @I31@
+1 CHIL @I32@
+1 CHIL @I33@
+1 CHIL @I34@
+0 @F13@ FAM
+1 HUSB @I33@
+1 WIFE @I35@
+1 CHIL @I36@
+0 @F14@ FAM
+1 HUSB @I34@
+1 WIFE @I37@
+0 @F15@ FAM
+1 HUSB @I42@
+1 WIFE @I43@
+1 CHIL @I44@
+1 CHIL @I45@
+1 CHIL @I46@
+1 CHIL @I47@
+0 @F16@ FAM
+1 HUSB @I48@
+1 WIFE @I49@
+1 CHIL @I50@
+1 CHIL @I51@
+1 CHIL @I52@
+0 @F17@ FAM
+1 HUSB @I77@
+1 WIFE @I54@
+1 CHIL @I80@
+1 CHIL @I81@
+0 @F18@ FAM
+1 HUSB @I77@
+1 WIFE @I5@
+1 CHIL @I18@
+0 @F19@ FAM
+1 HUSB @I75@
+1 WIFE @I76@
+1 CHIL @I77@
+1 CHIL @I78@
+1 CHIL @I79@
+0 @F20@ FAM
+1 HUSB @I64@
+1 WIFE @I65@
+1 CHIL @I66@
+1 CHIL @I67@
+1 CHIL @I68@
+1 CHIL @I69@
+0 @F21@ FAM
+1 HUSB @I66@
+1 WIFE @I70@
+1 CHIL @I71@
+1 CHIL @I72@
+1 CHIL @I73@
+1 CHIL @I74@
+0 @F22@ FAM
+1 HUSB @I53@
+1 WIFE @I55@
+1 CHIL @I56@
+1 CHIL @I57@
+1 CHIL @I58@
+1 CHIL @I59@
+1 CHIL @I60@
+1 CHIL @I61@
+1 CHIL @I62@
+1 CHIL @I63@
+0 TRLR

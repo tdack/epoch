@@ -1,0 +1,4381 @@
+0 HEAD
+1 SOUR RoyalGenealogyDatabase
+2 NAME Extended Royal Family Lineages
+2 VERS 3.5.0
+1 DEST DISKETTE
+1 DATE 13 OCT 2026
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 FILE Windsor_Glucksburg_Extended_Lineage.ged
+1 NOTE Extended lineages and direct ancestral lines of Queen Elizabeth II and Prince Philip from 1400 AD to the present, including the family branch of Queen Camilla.
+1 COPR Open Genealogy Project
+1 SUBM @SUBM1@
+0 @SUBM1@ SUBM
+1 NAME Open Genealogy Project
+0 @SOUR1@ SOUR
+1 TITL General Register Office (GRO) - Certified Copies of Birth Entries
+0 @SOUR2@ SOUR
+1 TITL The London Gazette (Official Public Record)
+0 @SOUR3@ SOUR
+1 TITL Burke's Peerage, Baronetage & Knightage
+0 @SOUR4@ SOUR
+1 TITL Almanach de Gotha - Annuaire Généalogique, Diplomatique et Statistique
+0 @SOUR5@ SOUR
+1 TITL Church of England Parish Registers and British History Online
+0 @SOUR6@ SOUR
+1 TITL Isenburg/Freytag von Loringhoven, Europäische Stammtafeln
+
+0 @I1@ INDI
+1 NAME King Charles III
+2 GIVN Charles Philip Arthur George
+2 SURN Windsor
+1 SEX M
+1 TITL King of the United Kingdom
+1 BIRT
+2 DATE 14 NOV 1948
+2 PLAC Buckingham Palace, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 06 MAY 2023
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 FAMC @F1@
+1 FAMS @F2@
+1 FAMS @F3@
+
+0 @I2@ INDI
+1 NAME Queen Elizabeth II
+2 GIVN Elizabeth Alexandra Mary
+2 SURN Windsor
+1 SEX F
+1 TITL Queen of the United Kingdom
+1 BIRT
+2 DATE 21 APR 1926
+2 PLAC 17 Bruton Street, Mayfair, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 02 JUN 1953
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 08 SEP 2022
+2 PLAC Balmoral Castle, Aberdeenshire, Scotland
+2 SOUR @SOUR2@
+1 FAMC @F4@
+1 FAMS @F1@
+
+0 @I3@ INDI
+1 NAME Prince Philip, Duke of Edinburgh
+2 GIVN Philip
+2 SURN Schleswig-Holstein-Sonderburg-Glücksburg
+1 SEX M
+1 TITL Prince Consort of the United Kingdom, Duke of Edinburgh
+1 BIRT
+2 DATE 10 JUN 1921
+2 PLAC Mon Repos, Corfu, Greece
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 09 APR 2021
+2 PLAC Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+1 FAMC @F5@
+1 FAMS @F1@
+
+0 @I4@ INDI
+1 NAME Princess Margaret, Countess of Snowdon
+2 GIVN Margaret Rose
+2 SURN Windsor
+1 SEX F
+1 TITL Countess of Snowdon
+1 BIRT
+2 DATE 21 AUG 1930
+2 PLAC Glamis Castle, Angus, Scotland
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 09 FEB 2002
+2 PLAC King Edward VII Hospital, London, England
+2 SOUR @SOUR2@
+1 FAMC @F4@
+1 FAMS @F19@
+
+0 @I5@ INDI
+1 NAME Anne, Princess Royal
+2 GIVN Anne Elizabeth Alice Louise
+2 SURN Windsor
+1 SEX F
+1 TITL Princess Royal
+1 BIRT
+2 DATE 15 AUG 1950
+2 PLAC Clarence House, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 FAMC @F1@
+1 FAMS @F6@
+1 FAMS @F7@
+
+0 @I6@ INDI
+1 NAME Prince Andrew, Duke of York
+2 GIVN Andrew Albert Christian Edward
+2 SURN Windsor
+1 SEX M
+1 TITL Duke of York
+1 BIRT
+2 DATE 19 FEB 1960
+2 PLAC Buckingham Palace, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 FAMC @F1@
+1 FAMS @F8@
+
+0 @I7@ INDI
+1 NAME Prince Edward, Duke of Edinburgh
+2 GIVN Edward Antony Richard Louis
+2 SURN Windsor
+1 SEX M
+1 TITL Duke of Edinburgh
+1 BIRT
+2 DATE 10 MAR 1964
+2 PLAC Buckingham Palace, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 FAMC @F1@
+1 FAMS @F9@
+
+0 @I8@ INDI
+1 NAME Lady Diana /Spencer/
+2 GIVN Diana Frances
+2 SURN Spencer
+1 SEX F
+1 TITL Princess of Wales
+1 BIRT
+2 DATE 01 JUL 1961
+2 PLAC Park House, Sandringham, Norfolk, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 31 AUG 1997
+2 PLAC Pitié-Salpêtrière Hospital, Paris, France
+2 SOUR @SOUR2@
+1 FAMS @F2@
+
+0 @I9@ INDI
+1 NAME Camilla Rosemary /Shand/
+2 GIVN Camilla Rosemary
+2 SURN Shand
+1 NICK Queen Camilla
+1 SEX F
+1 TITL Queen Consort of the United Kingdom
+1 BIRT
+2 DATE 17 JUL 1947
+2 PLAC King's College Hospital, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 06 MAY 2023
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 FAMC @F300@
+1 FAMS @F14B@
+1 FAMS @F3@
+
+0 @I10@ INDI
+1 NAME Prince William, Prince of Wales
+2 GIVN William Arthur Philip Louis
+2 SURN Windsor
+1 SEX M
+1 TITL Prince of Wales, Duke of Cambridge
+1 BIRT
+2 DATE 21 JUN 1982
+2 PLAC St Mary's Hospital, Paddington, London, England
+2 SOUR @SOUR1@
+1 FAMC @F2@
+1 FAMS @F11@
+
+0 @I11@ INDI
+1 NAME Prince Harry, Duke of Sussex
+2 GIVN Henry Charles Albert David
+2 SURN Windsor
+1 SEX M
+1 TITL Duke of Sussex
+1 BIRT
+2 DATE 15 SEP 1984
+2 PLAC St Mary's Hospital, Paddington, London, England
+2 SOUR @SOUR1@
+1 FAMC @F2@
+1 FAMS @F12@
+
+0 @I12@ INDI
+1 NAME Catherine Elizabeth /Middleton/
+2 GIVN Catherine Elizabeth
+2 SURN Middleton
+1 SEX F
+1 TITL Princess of Wales, Duchess of Cambridge
+1 BIRT
+2 DATE 09 JAN 1982
+2 PLAC Royal Berkshire Hospital, Reading, Berkshire, England
+2 SOUR @SOUR1@
+1 FAMS @F11@
+
+0 @I13@ INDI
+1 NAME Prince George of Wales
+2 GIVN George Alexander Louis
+2 SURN Mountbatten-Windsor
+1 SEX M
+1 TITL Prince of Wales
+1 BIRT
+2 DATE 22 JUL 2013
+2 PLAC St Mary's Hospital, Paddington, London, England
+2 SOUR @SOUR1@
+1 FAMC @F11@
+
+0 @I14@ INDI
+1 NAME Princess Charlotte of Wales
+2 GIVN Charlotte Elizabeth Diana
+2 SURN Mountbatten-Windsor
+1 SEX F
+1 TITL Princess of Wales
+1 BIRT
+2 DATE 02 MAY 2015
+2 PLAC St Mary's Hospital, Paddington, London, England
+2 SOUR @SOUR1@
+1 FAMC @F11@
+
+0 @I15@ INDI
+1 NAME Prince Louis of Wales
+2 GIVN Louis Arthur Charles
+2 SURN Mountbatten-Windsor
+1 SEX M
+1 TITL Prince of Wales
+1 BIRT
+2 DATE 23 APR 2018
+2 PLAC St Mary's Hospital, Paddington, London, England
+2 SOUR @SOUR1@
+1 FAMC @F11@
+
+0 @I16@ INDI
+1 NAME Meghan /Markle/
+2 GIVN Rachel Meghan
+2 SURN Markle
+1 SEX F
+1 TITL Duchess of Sussex
+1 BIRT
+2 DATE 04 AUG 1981
+2 PLAC Canoga Park, Los Angeles, California, USA
+2 SOUR @SOUR1@
+1 FAMS @F12@
+
+0 @I17@ INDI
+1 NAME Prince Archie of Sussex
+2 GIVN Archie Harrison
+2 SURN Mountbatten-Windsor
+1 SEX M
+1 TITL Prince of Sussex
+1 BIRT
+2 DATE 06 MAY 2019
+2 PLAC Portland Hospital, London, England
+2 SOUR @SOUR1@
+1 FAMC @F12@
+
+0 @I18@ INDI
+1 NAME Princess Lilibet of Sussex
+2 GIVN Lilibet Diana
+2 SURN Mountbatten-Windsor
+1 SEX F
+1 TITL Princess of Sussex
+1 BIRT
+2 DATE 04 JUN 2021
+2 PLAC Santa Barbara Cottage Hospital, Santa Barbara, California, USA
+2 SOUR @SOUR1@
+1 FAMC @F12@
+
+0 @I19@ INDI
+1 NAME Captain Mark Anthony Peter /Phillips/
+2 GIVN Mark Anthony Peter
+2 SURN Phillips
+1 SEX M
+1 TITL Captain
+1 BIRT
+2 DATE 22 SEP 1948
+2 PLAC Tetbury, Gloucestershire, England
+2 SOUR @SOUR1@
+1 FAMS @F6@
+
+0 @I20@ INDI
+1 NAME Sir Timothy James Hamilton /Laurence/
+2 GIVN Timothy James Hamilton
+2 SURN Laurence
+1 SEX M
+1 TITL Vice Admiral, Sir
+1 BIRT
+2 DATE 01 MAR 1955
+2 PLAC Camberwell, London, England
+2 SOUR @SOUR1@
+1 FAMS @F7@
+
+0 @I21@ INDI
+1 NAME Sarah /Ferguson/
+2 GIVN Sarah Margaret
+2 SURN Ferguson
+1 SEX F
+1 TITL Duchess of York
+1 BIRT
+2 DATE 15 OCT 1959
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMS @F8@
+
+0 @I22@ INDI
+1 NAME Sophie Helen /Rhys-Jones/
+2 GIVN Sophie Helen
+2 SURN Rhys-Jones
+1 SEX F
+1 TITL Duchess of Edinburgh
+1 BIRT
+2 DATE 20 JAN 1965
+2 PLAC Radcliffe Infirmary, Oxford, Oxfordshire, England
+2 SOUR @SOUR1@
+1 FAMS @F9@
+
+0 @I23@ INDI
+1 NAME Antony Armstrong-Jones, 1st Earl of Snowdon
+2 GIVN Antony Charles Robert
+2 SURN Armstrong-Jones
+1 SEX M
+1 TITL 1st Earl of Snowdon
+1 BIRT
+2 DATE 07 MAR 1930
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 13 JAN 2017
+2 PLAC Kensington, London, England
+2 SOUR @SOUR2@
+1 FAMS @F19@
+
+0 @I32@ INDI
+1 NAME King George VI
+2 GIVN Albert Frederick Arthur George
+2 SURN Windsor
+1 SEX M
+1 TITL King of the United Kingdom, Emperor of India
+1 BIRT
+2 DATE 14 DEC 1895
+2 PLAC York Cottage, Sandringham, Norfolk, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 12 MAY 1937
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 06 FEB 1952
+2 PLAC Sandringham House, Norfolk, England
+2 SOUR @SOUR2@
+1 FAMC @F13@
+1 FAMS @F4@
+
+0 @I33@ INDI
+1 NAME Queen Elizabeth The Queen Mother
+2 GIVN Elizabeth Angela Marguerite
+2 SURN Bowes-Lyon
+1 SEX F
+1 TITL Queen Consort of the United Kingdom, Empress Consort of India
+1 BIRT
+2 DATE 04 AUG 1900
+2 PLAC Hitchin, Hertfordshire, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 12 MAY 1937
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 30 MAR 2002
+2 PLAC Royal Lodge, Windsor, Berkshire, England
+2 SOUR @SOUR2@
+1 FAMC @F102@
+1 FAMS @F4@
+
+0 @I34@ INDI
+1 NAME Prince Andrew of Greece and Denmark
+2 GIVN Andrew
+2 SURN Oldenburg
+1 SEX M
+1 TITL Prince of Greece and Denmark
+1 BIRT
+2 DATE 02 FEB 1882
+2 PLAC Old Royal Palace, Athens, Greece
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 03 DEC 1944
+2 PLAC Hotel Metropole, Monte Carlo, Monaco
+2 SOUR @SOUR4@
+1 FAMC @F203@
+1 FAMS @F5@
+
+0 @I35@ INDI
+1 NAME Princess Alice of Battenberg
+2 GIVN Victoria Alice Elizabeth Julia Marie
+2 SURN Battenberg
+1 SEX F
+1 TITL Princess of Greece and Denmark
+1 BIRT
+2 DATE 25 FEB 1885
+2 PLAC Windsor Castle, Berkshire, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 05 DEC 1969
+2 PLAC Buckingham Palace, London, England
+2 SOUR @SOUR2@
+1 FAMC @F202@
+1 FAMS @F5@
+
+0 @I36@ INDI
+1 NAME King George V
+2 GIVN George Frederick Ernest Albert
+2 SURN Windsor
+1 SEX M
+1 TITL King of the United Kingdom, Emperor of India
+1 BIRT
+2 DATE 03 JUN 1865
+2 PLAC Marlborough House, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 22 JUN 1911
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 20 JAN 1936
+2 PLAC Sandringham House, Norfolk, England
+2 SOUR @SOUR2@
+1 FAMC @F14@
+1 FAMS @F13@
+
+0 @I37@ INDI
+1 NAME Queen Mary
+2 GIVN Victoria Mary Augusta Louise Olga Pauline Claudine Agnes
+2 SURN Teck
+1 SEX F
+1 TITL Queen Consort of the United Kingdom, Empress Consort of India
+1 BIRT
+2 DATE 26 MAY 1867
+2 PLAC Kensington Palace, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 22 JUN 1911
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 24 MAR 1953
+2 PLAC Marlborough House, London, England
+2 SOUR @SOUR2@
+1 FAMS @F13@
+
+0 @I38@ INDI
+1 NAME King Edward VII
+2 GIVN Albert Edward
+2 SURN Wettin
+1 SEX M
+1 TITL King of the United Kingdom, Emperor of India
+1 BIRT
+2 DATE 09 NOV 1841
+2 PLAC Buckingham Palace, City of Westminster, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 09 AUG 1902
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 06 MAY 1910
+2 PLAC Buckingham Palace, London, England
+2 SOUR @SOUR2@
+1 FAMC @F15@
+1 FAMS @F14@
+
+0 @I39@ INDI
+1 NAME Queen Alexandra
+2 GIVN Alexandra Caroline Marie Charlotte Louise Julia
+2 SURN Oldenburg
+1 SEX F
+1 TITL Queen Consort of the United Kingdom, Empress Consort of India
+1 BIRT
+2 DATE 01 DEC 1844
+2 PLAC Yellow Palace, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 09 AUG 1902
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 20 NOV 1925
+2 PLAC Sandringham House, Norfolk, England
+2 SOUR @SOUR2@
+1 FAMC @F204@
+1 FAMS @F14@
+
+0 @I40@ INDI
+1 NAME Queen Victoria
+2 GIVN Alexandrina Victoria
+2 SURN Hanover
+1 SEX F
+1 TITL Queen of the United Kingdom, Empress of India
+1 BIRT
+2 DATE 24 MAY 1819
+2 PLAC Kensington Palace, London, England
+2 SOUR @SOUR1@
+1 EVEN
+2 TYPE Coronation
+2 DATE 28 JUN 1838
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 22 JAN 1901
+2 PLAC Osborne House, Isle of Wight, England
+2 SOUR @SOUR2@
+1 FAMC @F100@
+1 FAMS @F15@
+
+0 @I41@ INDI
+1 NAME Prince Albert of Saxe-Coburg and Gotha
+2 GIVN Francis Albert Augustus Charles
+2 SURN Wettin
+1 SEX M
+1 TITL Prince Consort of the United Kingdom
+1 BIRT
+2 DATE 26 AUG 1819
+2 PLAC Schloss Rosenau, Coburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 DEC 1861
+2 PLAC Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+1 FAMC @F101@
+1 FAMS @F15@
+
+0 @I101@ INDI
+1 NAME Ernest I, Duke of Saxe-Coburg and Gotha
+2 GIVN Ernest Anton Karl Ludwig
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Coburg and Gotha
+1 BIRT
+2 DATE 02 JAN 1784
+2 PLAC Coburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 29 JAN 1844
+2 PLAC Gotha, Germany
+1 FAMC @F103@
+1 FAMS @F101@
+
+0 @I101S@ INDI
+1 NAME Princess Louise of Saxe-Gotha-Altenburg
+2 GIVN Louise Pauline Charlotte Frederike Auguste
+2 SURN Wettin
+1 SEX F
+1 TITL Duchess of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 09 MAR 1800
+2 PLAC Gotha, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 30 AUG 1831
+2 PLAC Paris, France
+1 FAMS @F101@
+
+0 @I102@ INDI
+1 NAME Francis, Duke of Saxe-Coburg-Saalfeld
+2 GIVN Francis Frederick Antony
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 15 JUL 1750
+2 PLAC Coburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 09 DEC 1806
+2 PLAC Coburg, Germany
+1 FAMC @F104@
+1 FAMS @F103@
+
+0 @I103@ INDI
+1 NAME Ernest Frederick, Duke of Saxe-Coburg-Saalfeld
+2 GIVN Ernest Frederick
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 08 MAR 1724
+2 PLAC Saalfeld, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 08 SEP 1800
+2 PLAC Coburg, Germany
+1 FAMC @F105@
+1 FAMS @F104@
+
+0 @I103S@ INDI
+1 NAME Sophia Antonia of Brunswick-Wolfenbüttel
+2 GIVN Sophia Antonia
+2 SURN Welf
+1 SEX F
+1 TITL Duchess of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 13 JAN 1724
+2 PLAC Wolfenbüttel, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 17 MAY 1802
+2 PLAC Coburg, Germany
+1 FAMC @F251@
+1 FAMS @F104@
+
+0 @I104@ INDI
+1 NAME Francis Josias, Duke of Saxe-Coburg-Saalfeld
+2 GIVN Francis Josias
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 25 SEP 1697
+2 PLAC Saalfeld, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 16 SEP 1764
+2 PLAC Rodach, Germany
+1 FAMC @F106@
+1 FAMS @F105@
+
+0 @I104S@ INDI
+1 NAME Princess Anna Sophie of Schwarzburg-Rudolstadt
+2 GIVN Anna Sophie
+2 SURN Schwarzburg
+1 SEX F
+1 TITL Duchess of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 09 SEP 1700
+2 PLAC Rudolstadt, Germany
+1 DEAT
+2 DATE 11 DEC 1780
+2 PLAC Römhild, Germany
+1 FAMS @F105@
+
+0 @I105@ INDI
+1 NAME John Ernest IV, Duke of Saxe-Coburg-Saalfeld
+2 GIVN John Ernest
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 22 AUG 1658
+2 PLAC Gotha, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 17 FEB 1729
+2 PLAC Saalfeld, Germany
+1 FAMC @F107@
+1 FAMS @F106@
+
+0 @I105S@ INDI
+1 NAME Countess Charlotte Johanna of Waldeck-Wildungen
+2 GIVN Charlotte Johanna
+2 SURN Waldeck
+1 SEX F
+1 TITL Duchess of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 13 DEC 1664
+2 PLAC Arolsen, Germany
+1 DEAT
+2 DATE 01 FEB 1699
+2 PLAC Hildburghausen, Germany
+1 FAMS @F106@
+
+0 @I106@ INDI
+1 NAME Ernest I, Duke of Saxe-Gotha
+2 GIVN Ernest
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Gotha
+1 BIRT
+2 DATE 25 DEC 1601
+2 PLAC Altenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 26 MAR 1675
+2 PLAC Gotha, Germany
+1 FAMC @F108@
+1 FAMS @F107@
+
+0 @I106S@ INDI
+1 NAME Princess Elisabeth Sophia of Saxe-Altenburg
+2 GIVN Elisabeth Sophia
+2 SURN Wettin
+1 SEX F
+1 TITL Duchess of Saxe-Gotha
+1 BIRT
+2 DATE 10 OCT 1619
+2 PLAC Halle, Germany
+1 DEAT
+2 DATE 20 DEC 1680
+2 PLAC Gotha, Germany
+1 FAMS @F107@
+
+0 @I107@ INDI
+1 NAME John II, Duke of Saxe-Weimar
+2 GIVN John
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Weimar
+1 BIRT
+2 DATE 22 MAY 1570
+2 PLAC Weimar, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 31 OCT 1605
+2 PLAC Weimar, Germany
+1 FAMC @F109@
+1 FAMS @F108@
+
+0 @I107S@ INDI
+1 NAME Dorothea Maria of Anhalt
+2 GIVN Dorothea Maria
+2 SURN Ascania
+1 SEX F
+1 TITL Duchess of Saxe-Weimar
+1 BIRT
+2 DATE 02 JUL 1574
+2 PLAC Dessau, Germany
+1 DEAT
+2 DATE 18 JUL 1617
+2 PLAC Weimar, Germany
+1 FAMS @F108@
+
+0 @I108@ INDI
+1 NAME John William, Duke of Saxe-Weimar
+2 GIVN John William
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Weimar
+1 BIRT
+2 DATE 11 MAR 1530
+2 PLAC Torgau, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 02 MAR 1573
+2 PLAC Weimar, Germany
+1 FAMC @F110@
+1 FAMS @F109@
+
+0 @I108S@ INDI
+1 NAME Dorothea Susanne of the Palatinate
+2 GIVN Dorothea Susanne
+2 SURN Wittelsbach
+1 SEX F
+1 TITL Duchess of Saxe-Weimar
+1 BIRT
+2 DATE 15 NOV 1544
+2 PLAC Simmern, Germany
+1 DEAT
+2 DATE 08 APR 1592
+2 PLAC Weimar, Germany
+1 FAMS @F109@
+
+0 @I109@ INDI
+1 NAME John Frederick I, Elector of Saxony
+2 GIVN John Frederick
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 30 JUN 1503
+2 PLAC Torgau, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 03 MAR 1554
+2 PLAC Weimar, Germany
+1 FAMC @F111@
+1 FAMS @F110@
+
+0 @I109S@ INDI
+1 NAME Sibylle of Cleves
+2 GIVN Sibylle
+2 SURN La Marck
+1 SEX F
+1 TITL Electress of Saxony
+1 BIRT
+2 DATE 17 JAN 1512
+2 PLAC Düsseldorf, Germany
+1 DEAT
+2 DATE 21 FEB 1554
+2 PLAC Weimar, Germany
+1 FAMS @F110@
+
+0 @I110@ INDI
+1 NAME John, Elector of Saxony
+2 GIVN John
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 30 JUN 1468
+2 PLAC Meissen, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 16 AUG 1532
+2 PLAC Schweinitz, Germany
+1 FAMC @F112@
+1 FAMS @F111@
+
+0 @I110S@ INDI
+1 NAME Sophie of Mecklenburg-Schwerin
+2 GIVN Sophie
+2 SURN Mecklenburg
+1 SEX F
+1 TITL Duchess of Saxony
+1 BIRT
+2 DATE 18 DEC 1481
+2 PLAC Schwerin, Germany
+1 DEAT
+2 DATE 12 JUL 1503
+2 PLAC Torgau, Germany
+1 FAMS @F111@
+
+0 @I111@ INDI
+1 NAME Ernest, Elector of Saxony
+2 GIVN Ernest
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 24 MAR 1441
+2 PLAC Meissen, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 03 AUG 1486
+2 PLAC Colditz, Germany
+1 FAMC @F113@
+1 FAMS @F112@
+
+0 @I111S@ INDI
+1 NAME Elisabeth of Bavaria
+2 GIVN Elisabeth
+2 SURN Wittelsbach
+1 SEX F
+1 TITL Electress of Saxony
+1 BIRT
+2 DATE 02 FEB 1443
+2 PLAC Munich, Germany
+1 DEAT
+2 DATE 05 MAR 1484
+2 PLAC Leipzig, Germany
+1 FAMS @F112@
+
+0 @I112@ INDI
+1 NAME Frederick II, Elector of Saxony
+2 GIVN Frederick
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 22 AUG 1412
+2 PLAC Leipzig, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 07 SEP 1464
+2 PLAC Leipzig, Germany
+1 FAMC @F114@
+1 FAMS @F113@
+
+0 @I112S@ INDI
+1 NAME Margaret of Austria, Electress of Saxony
+2 GIVN Margaret
+2 SURN Habsburg
+1 SEX F
+1 TITL Electress of Saxony
+1 BIRT
+2 DATE 1416
+2 PLAC Wiener Neustadt, Austria
+1 DEAT
+2 DATE 12 FEB 1486
+2 PLAC Altenburg, Germany
+1 FAMS @F113@
+
+0 @I113@ INDI
+1 NAME Frederick I, Elector of Saxony
+2 GIVN Frederick
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 11 APR 1370
+2 PLAC Altenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 04 JAN 1428
+2 PLAC Altenburg, Germany
+1 FAMS @F114@
+
+0 @I113S@ INDI
+1 NAME Catherine of Brunswick-Lüneburg
+2 GIVN Catherine
+2 SURN Welf
+1 SEX F
+1 TITL Electress of Saxony
+1 BIRT
+2 DATE 1395
+2 PLAC Brunswick, Germany
+1 DEAT
+2 DATE 28 DEC 1442
+2 PLAC Grimma, Germany
+1 FAMS @F114@
+
+0 @I114@ INDI
+1 NAME Cecilia Nina /Cavendish-Bentinck/
+2 GIVN Cecilia Nina
+2 SURN Cavendish-Bentinck
+1 SEX F
+1 TITL Countess of Strathmore and Kinghorne
+1 BIRT
+2 DATE 11 SEP 1862
+2 PLAC 4 Belgrave Square, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 23 JUN 1938
+2 PLAC 38 Cumberland Mansions, Bryanston Street, London, England
+2 SOUR @SOUR1@
+1 FAMC @F115@
+1 FAMS @F102@
+
+0 @I114S@ INDI
+1 NAME Claude Bowes-Lyon, 14th Earl of Strathmore and Kinghorne
+2 GIVN Claude George
+2 SURN Bowes-Lyon
+1 SEX M
+1 TITL 14th Earl of Strathmore and Kinghorne
+1 BIRT
+2 DATE 14 MAR 1855
+2 PLAC Lowndes Square, Belgravia, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 07 NOV 1944
+2 PLAC Glamis Castle, Angus, Scotland
+2 SOUR @SOUR1@
+1 FAMS @F102@
+
+0 @I115@ INDI
+1 NAME Caroline Louisa /Burnaby/
+2 GIVN Caroline Louisa
+2 SURN Burnaby
+1 SEX F
+1 BIRT
+2 DATE 05 DEC 1832
+2 PLAC Baggrave Hall, Hungarton, Leicestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 06 JUL 1918
+2 PLAC Dawlish, Devon, England
+2 SOUR @SOUR1@
+1 FAMC @F116@
+1 FAMS @F115@
+
+0 @I115S@ INDI
+1 NAME Rev. Charles William Frederick /Cavendish-Bentinck/
+2 GIVN Charles William Frederick
+2 SURN Cavendish-Bentinck
+1 SEX M
+1 TITL Reverend
+1 BIRT
+2 DATE 08 NOV 1817
+2 PLAC Kensington, London, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 17 AUG 1865
+2 PLAC Ridgway, Devon, England
+2 SOUR @SOUR1@
+1 FAMS @F115@
+
+0 @I116@ INDI
+1 NAME Anne Caroline /Salisbury/
+2 GIVN Anne Caroline
+2 SURN Salisbury
+1 SEX F
+1 BIRT
+2 DATE 1805
+2 PLAC Fordington, Dorset, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 03 MAY 1881
+2 PLAC Mayfair, London, England
+2 SOUR @SOUR1@
+1 FAMC @F117@
+1 FAMS @F116@
+
+0 @I116S@ INDI
+1 NAME Edwyn /Burnaby/
+2 GIVN Edwyn
+2 SURN Burnaby
+1 SEX M
+1 BIRT
+2 DATE 29 SEP 1799
+2 PLAC Baggrave Hall, Leicestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 18 JUL 1867
+2 PLAC Baggrave Hall, Leicestershire, England
+2 SOUR @SOUR1@
+1 FAMS @F116@
+
+0 @I117@ INDI
+1 NAME Frances /Webb/
+2 GIVN Frances
+2 SURN Webb
+1 SEX F
+1 BIRT
+2 DATE 1775
+2 PLAC Stow-on-the-Wold, Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1862
+2 PLAC Settle, Yorkshire, England
+2 SOUR @SOUR1@
+1 FAMC @F118@
+1 FAMS @F117@
+
+0 @I117S@ INDI
+1 NAME Thomas /Salisbury/
+2 GIVN Thomas
+2 SURN Salisbury
+1 SEX M
+1 BIRT
+2 DATE 1761
+2 PLAC Marshfield House, Settle, Yorkshire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1810
+2 PLAC Fordington, Dorset, England
+2 SOUR @SOUR5@
+1 FAMS @F117@
+
+0 @I118@ INDI
+1 NAME Mary /Garritt/
+2 GIVN Mary
+2 SURN Garritt
+1 SEX F
+1 BIRT
+2 DATE 1751
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1836
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMC @F119@
+1 FAMS @F118@
+
+0 @I118S@ INDI
+1 NAME Francis /Webb/
+2 GIVN Francis
+2 SURN Webb
+1 SEX M
+1 BIRT
+2 DATE 1745
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1810
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMS @F118@
+
+0 @I119@ INDI
+1 NAME Elizabeth /Lysons/
+2 GIVN Elizabeth
+2 SURN Lysons
+1 SEX F
+1 BIRT
+2 DATE 1724
+2 PLAC Hempsted, Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1790
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMC @F151@
+1 FAMS @F119@
+
+0 @I119S@ INDI
+1 NAME Edward /Garritt/
+2 GIVN Edward
+2 SURN Garritt
+1 SEX M
+1 BIRT
+2 DATE 1720
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1785
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMS @F119@
+
+0 @I151@ INDI
+1 NAME Elizabeth /Peach/
+2 GIVN Elizabeth
+2 SURN Peach
+1 SEX F
+1 BIRT
+2 DATE ABT 1700
+2 PLAC Woodchester, Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1768
+2 PLAC Hempsted, Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMC @F152@
+1 FAMS @F151@
+
+0 @I151S@ INDI
+1 NAME Daniel /Lysons/
+2 GIVN Daniel
+2 SURN Lysons
+1 SEX M
+1 BIRT
+2 DATE 1697
+2 PLAC Hempsted, Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1773
+2 PLAC Hempsted, Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMS @F151@
+
+0 @I152@ INDI
+1 NAME Jane /Rogers/
+2 GIVN Jane
+2 SURN Rogers
+1 SEX F
+1 BIRT
+2 DATE ABT 1675
+2 PLAC Heddington, Wiltshire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1740
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMC @F153@
+1 FAMS @F152@
+
+0 @I152S@ INDI
+1 NAME Samuel /Peach/
+2 GIVN Samuel
+2 SURN Peach
+1 SEX M
+1 BIRT
+2 DATE 1675
+2 PLAC Woodchester, Gloucestershire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1744
+2 PLAC Woodchester, Gloucestershire, England
+2 SOUR @SOUR5@
+1 FAMS @F152@
+
+0 @I153@ INDI
+1 NAME Elizabeth /Hungerford/
+2 GIVN Elizabeth
+2 SURN Hungerford
+1 SEX F
+1 BIRT
+2 DATE ABT 1648
+2 PLAC Corsham, Wiltshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1707
+2 PLAC Heddington, Wiltshire, England
+2 SOUR @SOUR5@
+1 FAMC @F154@
+1 FAMS @F153@
+
+0 @I153S@ INDI
+1 NAME Henry /Rogers/
+2 GIVN Henry
+2 SURN Rogers
+1 SEX M
+1 BIRT
+2 DATE 1645
+2 PLAC Heddington, Wiltshire, England
+2 SOUR @SOUR5@
+1 DEAT
+2 DATE 1704
+2 PLAC Heddington, Wiltshire, England
+2 SOUR @SOUR5@
+1 FAMS @F153@
+
+0 @I154@ INDI
+1 NAME Jane /Hele/
+2 GIVN Jane
+2 SURN Hele
+1 SEX F
+1 BIRT
+2 DATE ABT 1620
+2 PLAC Babcombe, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1682
+2 PLAC Wiltshire, England
+2 SOUR @SOUR5@
+1 FAMC @F155@
+1 FAMS @F154@
+
+0 @I154S@ INDI
+1 NAME Anthony /Hungerford/
+2 GIVN Anthony
+2 SURN Hungerford
+1 SEX M
+1 BIRT
+2 DATE 1614
+2 PLAC Black Bourton, Oxfordshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1657
+2 PLAC Wiltshire, England
+2 SOUR @SOUR3@
+1 FAMS @F154@
+
+0 @I155@ INDI
+1 NAME Margaret /Elford/
+2 GIVN Margaret
+2 SURN Elford
+1 SEX F
+1 BIRT
+2 DATE ABT 1592
+2 PLAC Sheepstor, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1656
+2 PLAC Babcombe, Devon, England
+2 SOUR @SOUR5@
+1 FAMC @F156@
+1 FAMS @F155@
+
+0 @I155S@ INDI
+1 NAME John /Hele/
+2 GIVN John
+2 SURN Hele
+1 SEX M
+1 BIRT
+2 DATE 1589
+2 PLAC Babcombe, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1648
+2 PLAC Devon, England
+2 SOUR @SOUR5@
+1 FAMS @F155@
+
+0 @I156@ INDI
+1 NAME Elizabeth /Copplestone/
+2 GIVN Elizabeth
+2 SURN Copplestone
+1 SEX F
+1 BIRT
+2 DATE ABT 1565
+2 PLAC Colebrooke, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1630
+2 PLAC Sheepstor, Devon, England
+2 SOUR @SOUR5@
+1 FAMC @F157@
+1 FAMS @F156@
+
+0 @I156S@ INDI
+1 NAME Hugh /Elford/
+2 GIVN Hugh
+2 SURN Elford
+1 SEX M
+1 BIRT
+2 DATE 1560
+2 PLAC Sheepstor, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1620
+2 PLAC Devon, England
+2 SOUR @SOUR5@
+1 FAMS @F156@
+
+0 @I157@ INDI
+1 NAME Jane /Pollard/
+2 GIVN Jane
+2 SURN Pollard
+1 SEX F
+1 BIRT
+2 DATE ABT 1540
+2 PLAC King's Nympton, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1598
+2 PLAC Colebrooke, Devon, England
+2 SOUR @SOUR5@
+1 FAMC @F158@
+1 FAMS @F157@
+
+0 @I157S@ INDI
+1 NAME Hugh /Copplestone/
+2 GIVN Hugh
+2 SURN Copplestone
+1 SEX M
+1 BIRT
+2 DATE 1535
+2 PLAC Colebrooke, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1585
+2 PLAC Devon, England
+2 SOUR @SOUR5@
+1 FAMS @F157@
+
+0 @I158@ INDI
+1 NAME Eleanor /Pawlett/
+2 GIVN Eleanor
+2 SURN Pawlett
+1 SEX F
+1 BIRT
+2 DATE ABT 1515
+2 PLAC Melcombe Paulet, Somerset, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1575
+2 PLAC King's Nympton, Devon, England
+2 SOUR @SOUR5@
+1 FAMC @F159@
+1 FAMS @F158@
+
+0 @I158S@ INDI
+1 NAME Sir Lewis /Pollard/
+2 GIVN Lewis
+2 SURN Pollard
+1 SEX M
+1 TITL Sir
+1 BIRT
+2 DATE 1510
+2 PLAC King's Nympton, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1563
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 FAMS @F158@
+
+0 @I159@ INDI
+1 NAME Elizabeth /Denebaud/
+2 GIVN Elizabeth
+2 SURN Denebaud
+1 SEX F
+1 BIRT
+2 DATE ABT 1488
+2 PLAC Hinton St George, Somerset, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1540
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 FAMC @F160@
+1 FAMS @F159@
+
+0 @I159S@ INDI
+1 NAME Sir William /Pawlett/
+2 GIVN William
+2 SURN Pawlett
+1 SEX M
+1 TITL Sir
+1 BIRT
+2 DATE 1485
+2 PLAC Melcombe Paulet, Somerset, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1545
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 FAMS @F159@
+
+0 @I160@ INDI
+1 NAME Alice /Gifford/
+2 GIVN Alice
+2 SURN Gifford
+1 SEX F
+1 BIRT
+2 DATE ABT 1460
+2 PLAC Halsbury, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1520
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 FAMC @F161@
+1 FAMS @F160@
+
+0 @I160S@ INDI
+1 NAME William /Denebaud/
+2 GIVN William
+2 SURN Denebaud
+1 SEX M
+1 BIRT
+2 DATE 1455
+2 PLAC Hinton St George, Somerset, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1512
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 FAMS @F160@
+
+0 @I161@ INDI
+1 NAME Joan /Dabernon/
+2 GIVN Joan
+2 SURN Dabernon
+1 SEX F
+1 BIRT
+2 DATE ABT 1435
+2 PLAC Dunsland, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1490
+2 PLAC Halsbury, Devon, England
+2 SOUR @SOUR3@
+1 FAMC @F162@
+1 FAMS @F161@
+
+0 @I161S@ INDI
+1 NAME John /Gifford/
+2 GIVN John
+2 SURN Gifford
+1 SEX M
+1 BIRT
+2 DATE 1430
+2 PLAC Halsbury, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1483
+2 PLAC Halsbury, Devon, England
+2 SOUR @SOUR3@
+1 FAMS @F161@
+
+0 @I162@ INDI
+1 NAME Isabella /Oakhurst/
+2 GIVN Isabella
+2 SURN Oakhurst
+1 SEX F
+1 BIRT
+2 DATE ABT 1410
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1465
+2 PLAC Dunsland, Devon, England
+2 SOUR @SOUR3@
+1 FAMS @F162@
+
+0 @I162S@ INDI
+1 NAME John /Dabernon/
+2 GIVN John
+2 SURN Dabernon
+1 SEX M
+1 BIRT
+2 DATE 1405
+2 PLAC Bradford, Devon, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1458
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 FAMS @F162@
+
+0 @I120@ INDI
+1 NAME Prince Edward, Duke of Kent and Strathearn
+2 GIVN Edward Augustus
+2 SURN Hanover
+1 SEX M
+1 TITL Duke of Kent and Strathearn
+1 BIRT
+2 DATE 02 NOV 1767
+2 PLAC Buckingham House, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 23 JAN 1820
+2 PLAC Sidmouth, Devon, England
+2 SOUR @SOUR2@
+1 FAMC @F121@
+1 FAMS @F100@
+
+0 @I121@ INDI
+1 NAME Princess Victoria of Saxe-Coburg-Saalfeld
+2 GIVN Mary Louisa Victoria
+2 SURN Wettin
+1 SEX F
+1 TITL Duchess of Kent and Strathearn
+1 BIRT
+2 DATE 17 AUG 1786
+2 PLAC Coburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 16 MAR 1861
+2 PLAC Frogmore House, Windsor, Berkshire, England
+2 SOUR @SOUR2@
+1 FAMC @F103@
+1 FAMS @F100@
+
+0 @I122@ INDI
+1 NAME King George III
+2 GIVN George William Frederick
+2 SURN Hanover
+1 SEX M
+1 TITL King of Great Britain and Ireland
+1 BIRT
+2 DATE 04 JUN 1738
+2 PLAC Norfolk House, St James's Square, London, England
+2 SOUR @SOUR2@
+1 EVEN
+2 TYPE Coronation
+2 DATE 22 SEP 1761
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 29 JAN 1820
+2 PLAC Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+1 FAMC @F122@
+1 FAMS @F121@
+
+0 @I122S@ INDI
+1 NAME Queen Charlotte
+2 GIVN Sophia Charlotte
+2 SURN Mecklenburg-Strelitz
+1 SEX F
+1 TITL Queen Consort of Great Britain and Ireland
+1 BIRT
+2 DATE 19 MAY 1744
+2 PLAC Mirow, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 22 SEP 1761
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 17 NOV 1818
+2 PLAC Kew Palace, Surrey, England
+2 SOUR @SOUR2@
+1 FAMS @F121@
+
+0 @I123@ INDI
+1 NAME Frederick, Prince of Wales
+2 GIVN Frederick Louis
+2 SURN Hanover
+1 SEX M
+1 TITL Prince of Wales
+1 BIRT
+2 DATE 01 FEB 1707
+2 PLAC Hanover, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 31 MAR 1751
+2 PLAC Leicester House, London, England
+2 SOUR @SOUR2@
+1 FAMC @F123@
+1 FAMS @F122@
+
+0 @I123S@ INDI
+1 NAME Princess Augusta of Saxe-Gotha-Altenburg
+2 GIVN Augusta
+2 SURN Wettin
+1 SEX F
+1 TITL Princess of Wales
+1 BIRT
+2 DATE 30 NOV 1719
+2 PLAC Gotha, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 08 FEB 1772
+2 PLAC Carlton House, London, England
+2 SOUR @SOUR2@
+1 FAMS @F122@
+
+0 @I124@ INDI
+1 NAME King George II
+2 GIVN George Augustus
+2 SURN Hanover
+1 SEX M
+1 TITL King of Great Britain and Ireland
+1 BIRT
+2 DATE 10 NOV 1683
+2 PLAC Herrenhausen Palace, Hanover, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 11 OCT 1727
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 25 OCT 1760
+2 PLAC Kensington Palace, London, England
+2 SOUR @SOUR2@
+1 FAMC @F124@
+1 FAMS @F123@
+
+0 @I124S@ INDI
+1 NAME Caroline of Ansbach
+2 GIVN Wilhelmina Charlotte Caroline
+2 SURN Hohenzollern
+1 SEX F
+1 TITL Queen Consort of Great Britain and Ireland
+1 BIRT
+2 DATE 01 MAR 1683
+2 PLAC Ansbach, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 11 OCT 1727
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 20 NOV 1737
+2 PLAC St James's Palace, London, England
+2 SOUR @SOUR2@
+1 FAMS @F123@
+
+0 @I125@ INDI
+1 NAME King George I
+2 GIVN George Louis
+2 SURN Hanover
+1 SEX M
+1 TITL King of Great Britain and Ireland
+1 BIRT
+2 DATE 28 MAY 1660
+2 PLAC Leineschloss, Hanover, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 20 OCT 1714
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DEAT
+2 DATE 11 JUN 1727
+2 PLAC Osnabrück, Germany
+2 SOUR @SOUR2@
+1 FAMC @F125@
+1 FAMS @F124@
+
+0 @I125S@ INDI
+1 NAME Sophia Dorothea of Celle
+2 GIVN Sophia Dorothea
+2 SURN Welf
+1 SEX F
+1 TITL Hereditary Princess of Brunswick-Lüneburg
+1 BIRT
+2 DATE 15 SEP 1666
+2 PLAC Celle, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 NOV 1726
+2 PLAC Castle of Ahlden, Germany
+1 FAMS @F124@
+
+0 @I126@ INDI
+1 NAME Sophia of Hanover
+2 GIVN Sophia
+2 SURN Wittelsbach
+1 SEX F
+1 TITL Electress of Hanover
+1 BIRT
+2 DATE 14 OCT 1630
+2 PLAC The Hague, Netherlands
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 08 JUN 1714
+2 PLAC Herrenhausen, Hanover, Germany
+2 SOUR @SOUR4@
+1 FAMC @F126@
+1 FAMS @F125@
+
+0 @I126S@ INDI
+1 NAME Ernest Augustus, Elector of Hanover
+2 GIVN Ernest Augustus
+2 SURN Welf
+1 SEX M
+1 TITL Elector of Hanover
+1 BIRT
+2 DATE 20 NOV 1629
+2 PLAC Herzberg am Harz, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 23 JAN 1698
+2 PLAC Herrenhausen, Germany
+1 FAMS @F125@
+
+0 @I127@ INDI
+1 NAME Elizabeth Stuart, Queen of Bohemia
+2 GIVN Elizabeth
+2 SURN Stuart
+1 SEX F
+1 TITL Queen Consort of Bohemia
+1 BIRT
+2 DATE 19 AUG 1596
+2 PLAC Falkland Palace, Fife, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 07 NOV 1619
+2 PLAC St Vitus Cathedral, Prague, Bohemia
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 FEB 1662
+2 PLAC Leicester House, London, England
+2 SOUR @SOUR3@
+1 FAMC @F127@
+1 FAMS @F126@
+
+0 @I127S@ INDI
+1 NAME Frederick V, Elector Palatine
+2 GIVN Frederick
+2 SURN Wittelsbach
+1 SEX M
+1 TITL King of Bohemia, Elector Palatine
+1 BIRT
+2 DATE 16 AUG 1596
+2 PLAC Deinschwang, Upper Palatinate, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 04 NOV 1619
+2 PLAC St Vitus Cathedral, Prague, Bohemia
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 29 NOV 1632
+2 PLAC Mainz, Germany
+1 FAMS @F126@
+
+0 @I128@ INDI
+1 NAME King James VI & I
+2 GIVN James Charles
+2 SURN Stuart
+1 SEX M
+1 TITL King of England, Scotland, and Ireland
+1 BIRT
+2 DATE 19 JUN 1566
+2 PLAC Edinburgh Castle, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 29 JUL 1567
+2 PLAC Church of the Holy Rude, Stirling, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 25 JUL 1603
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 27 MAR 1625
+2 PLAC Theobalds House, Hertfordshire, England
+2 SOUR @SOUR3@
+1 FAMC @F128@
+1 FAMS @F127@
+
+0 @I128S@ INDI
+1 NAME Anne of Denmark
+2 GIVN Anne
+2 SURN Oldenburg
+1 SEX F
+1 TITL Queen Consort of England, Scotland, and Ireland
+1 BIRT
+2 DATE 12 DEC 1574
+2 PLAC Skanderborg Castle, Jutland, Denmark
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 17 MAY 1590
+2 PLAC Holyrood Abbey, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 25 JUL 1603
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 02 MAR 1619
+2 PLAC Hampton Court Palace, Middlesex, England
+2 SOUR @SOUR3@
+1 FAMS @F127@
+
+0 @I129@ INDI
+1 NAME Mary, Queen of Scots
+2 GIVN Mary
+2 SURN Stuart
+1 SEX F
+1 TITL Queen of Scots
+1 BIRT
+2 DATE 08 DEC 1542
+2 PLAC Linlithgow Palace, West Lothian, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 09 SEP 1543
+2 PLAC Stirling Castle, Stirlingshire, Scotland
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 08 FEB 1587
+2 PLAC Fotheringhay Castle, Northamptonshire, England
+2 SOUR @SOUR3@
+1 FAMC @F129@
+1 FAMS @F128@
+
+0 @I129S@ INDI
+1 NAME Henry Stuart, Lord Darnley
+2 GIVN Henry
+2 SURN Stuart
+1 SEX M
+1 TITL Duke of Albany, Lord Darnley
+1 BIRT
+2 DATE 07 DEC 1545
+2 PLAC Temple Newsam, Leeds, Yorkshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 10 FEB 1567
+2 PLAC Kirk o' Field, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 FAMS @F128@
+
+0 @I130@ INDI
+1 NAME James V of Scotland
+2 GIVN James
+2 SURN Stewart
+1 SEX M
+1 TITL King of Scots
+1 BIRT
+2 DATE 10 APR 1512
+2 PLAC Linlithgow Palace, West Lothian, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 21 SEP 1513
+2 PLAC Stirling Castle, Stirlingshire, Scotland
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 14 DEC 1542
+2 PLAC Falkland Palace, Fife, Scotland
+2 SOUR @SOUR3@
+1 FAMC @F130@
+1 FAMS @F129@
+
+0 @I130S@ INDI
+1 NAME Mary of Guise
+2 GIVN Mary
+2 SURN Guise
+1 SEX F
+1 TITL Queen Consort of Scots
+1 BIRT
+2 DATE 22 NOV 1515
+2 PLAC Bar-le-Duc, Lorraine, France
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 22 FEB 1540
+2 PLAC Holyrood Abbey, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 11 JUN 1560
+2 PLAC Edinburgh Castle, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 FAMS @F129@
+
+0 @I131@ INDI
+1 NAME Margaret Tudor
+2 GIVN Margaret
+2 SURN Tudor
+1 SEX F
+1 TITL Queen Consort of Scots
+1 BIRT
+2 DATE 28 NOV 1489
+2 PLAC Palace of Westminster, London, England
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 08 AUG 1503
+2 PLAC Holyrood Abbey, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 18 OCT 1541
+2 PLAC Methven Castle, Perthshire, Scotland
+2 SOUR @SOUR3@
+1 FAMC @F131@
+1 FAMS @F130@
+
+0 @I131S@ INDI
+1 NAME James IV of Scotland
+2 GIVN James
+2 SURN Stewart
+1 SEX M
+1 TITL King of Scots
+1 BIRT
+2 DATE 17 MAR 1473
+2 PLAC Stirling Castle, Stirlingshire, Scotland
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 24 JUN 1488
+2 PLAC Scone Abbey, Scone, Scotland
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 09 SEP 1513
+2 PLAC Branxton, Northumberland, England
+2 SOUR @SOUR3@
+1 FAMS @F130@
+
+0 @I132@ INDI
+1 NAME King Henry VII
+2 GIVN Henry
+2 SURN Tudor
+1 SEX M
+1 TITL King of England
+1 BIRT
+2 DATE 28 JAN 1457
+2 PLAC Pembroke Castle, Pembrokeshire, Wales
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 30 OCT 1485
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 21 APR 1509
+2 PLAC Richmond Palace, Surrey, England
+2 SOUR @SOUR3@
+1 FAMC @F132@
+1 FAMS @F131@
+
+0 @I132S@ INDI
+1 NAME Elizabeth of York
+2 GIVN Elizabeth
+2 SURN Plantagenet
+1 SEX F
+1 TITL Queen Consort of England
+1 BIRT
+2 DATE 11 FEB 1466
+2 PLAC Palace of Westminster, London, England
+2 SOUR @SOUR3@
+1 EVEN
+2 TYPE Coronation
+2 DATE 25 NOV 1487
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 11 FEB 1503
+2 PLAC Tower of London, London, England
+2 SOUR @SOUR3@
+1 FAMS @F131@
+
+0 @I133@ INDI
+1 NAME Margaret Beaufort
+2 GIVN Margaret
+2 SURN Beaufort
+1 SEX F
+1 TITL Countess of Richmond and Derby
+1 BIRT
+2 DATE 31 MAY 1443
+2 PLAC Bletsoe Castle, Bedfordshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 29 JUN 1509
+2 PLAC Westminster, London, England
+2 SOUR @SOUR3@
+1 FAMC @F133@
+1 FAMS @F132@
+
+0 @I133S@ INDI
+1 NAME Edmund Tudor, 1st Earl of Richmond
+2 GIVN Edmund
+2 SURN Tudor
+1 SEX M
+1 TITL 1st Earl of Richmond
+1 BIRT
+2 DATE 1430
+2 PLAC Much Hadham Palace, Hertfordshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 03 NOV 1456
+2 PLAC Carmarthen Castle, Carmarthenshire, Wales
+2 SOUR @SOUR3@
+1 FAMS @F132@
+
+0 @I134@ INDI
+1 NAME John Beaufort, 1st Duke of Somerset
+2 GIVN John
+2 SURN Beaufort
+1 SEX M
+1 TITL 1st Duke of Somerset
+1 BIRT
+2 DATE 25 MAR 1404
+2 PLAC England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 27 MAY 1444
+2 PLAC Wimborne Minster, Dorset, England
+2 SOUR @SOUR3@
+1 FAMC @F134@
+1 FAMS @F133@
+
+0 @I134S@ INDI
+1 NAME Margaret Beauchamp of Bletso
+2 GIVN Margaret
+2 SURN Beauchamp
+1 SEX F
+1 TITL Duchess of Somerset
+1 BIRT
+2 DATE 1410
+2 PLAC Bletsoe, Bedfordshire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 08 AUG 1482
+2 PLAC England
+2 SOUR @SOUR3@
+1 FAMS @F133@
+
+0 @I135@ INDI
+1 NAME John Beaufort, 1st Earl of Somerset
+2 GIVN John
+2 SURN Beaufort
+1 SEX M
+1 TITL 1st Earl of Somerset
+1 BIRT
+2 DATE 1373
+2 PLAC Chateau de Beaufort, Meuse, France
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 16 MAR 1410
+2 PLAC Hospital of St Katherine, London, England
+2 SOUR @SOUR3@
+1 FAMC @F135@
+1 FAMS @F134@
+
+0 @I135S@ INDI
+1 NAME Margaret Holland, Countess of Somerset
+2 GIVN Margaret
+2 SURN Holland
+1 SEX F
+1 TITL Countess of Somerset
+1 BIRT
+2 DATE 1385
+2 PLAC Upholland, Lancashire, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 30 DEC 1439
+2 PLAC St Saviour's Abbey, Bermondsey, London, England
+2 SOUR @SOUR3@
+1 FAMS @F134@
+
+0 @I136@ INDI
+1 NAME John of Gaunt, 1st Duke of Lancaster
+2 GIVN John
+2 SURN Plantagenet
+1 SEX M
+1 TITL 1st Duke of Lancaster
+1 BIRT
+2 DATE 06 MAR 1340
+2 PLAC Abbey of St Bavo, Ghent, Flanders, Belgium
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 03 FEB 1399
+2 PLAC Leicester Castle, Leicestershire, England
+2 SOUR @SOUR3@
+1 FAMS @F135@
+
+0 @I136S@ INDI
+1 NAME Katherine Swynford
+2 GIVN Katherine
+2 SURN De Roet
+1 SEX F
+1 TITL Duchess of Lancaster
+1 BIRT
+2 DATE 25 NOV 1350
+2 PLAC County of Hainaut
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 10 MAY 1403
+2 PLAC Lincoln, Lincolnshire, England
+2 SOUR @SOUR3@
+1 FAMS @F135@
+
+0 @I201@ INDI
+1 NAME King Christian IX of Denmark
+2 GIVN Christian
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of Denmark
+1 BIRT
+2 DATE 08 APR 1818
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 29 JAN 1906
+2 PLAC Amalienborg Palace, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F205@
+1 FAMS @F204@
+
+0 @I201S@ INDI
+1 NAME Louise of Hesse-Kassel
+2 GIVN Louise Wilhelmina Frederica Caroline Augusta Julie
+2 SURN Hesse
+1 SEX F
+1 TITL Queen Consort of Denmark
+1 BIRT
+2 DATE 07 SEP 1817
+2 PLAC Kassel, Hesse, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 29 SEP 1898
+2 PLAC Bernstorff Palace, Gentofte, Denmark
+2 SOUR @SOUR4@
+1 FAMS @F204@
+
+0 @I202@ INDI
+1 NAME King George I of Greece
+2 GIVN Christian William Ferdinand Adolphus George
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of the Hellenes
+1 BIRT
+2 DATE 24 DEC 1845
+2 PLAC Yellow Palace, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 18 MAR 1913
+2 PLAC Thessaloniki, Greece
+2 SOUR @SOUR4@
+1 FAMC @F204@
+1 FAMS @F203@
+
+0 @I202S@ INDI
+1 NAME Olga Constantinovna of Russia
+2 GIVN Olga
+2 SURN Romanov
+1 SEX F
+1 TITL Queen Consort of the Hellenes
+1 BIRT
+2 DATE 03 SEP 1851
+2 PLAC Pavlovsk Palace, Saint Petersburg, Russia
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 18 JUN 1926
+2 PLAC Rome, Italy
+2 SOUR @SOUR4@
+1 FAMS @F203@
+
+0 @I203@ INDI
+1 NAME Friedrich Wilhelm, Duke of Schleswig-Holstein-Sonderburg-Glücksburg
+2 GIVN Friedrich Wilhelm
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg-Glücksburg
+1 BIRT
+2 DATE 04 JAN 1785
+2 PLAC Lindenau, East Prussia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 17 FEB 1831
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 FAMC @F206@
+1 FAMS @F205@
+
+0 @I203S@ INDI
+1 NAME Princess Louise Caroline of Hesse-Kassel
+2 GIVN Louise Caroline
+2 SURN Hesse
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg-Glücksburg
+1 BIRT
+2 DATE 28 SEP 1789
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 MAR 1867
+2 PLAC Ballenstedt, Germany
+2 SOUR @SOUR4@
+1 FAMS @F205@
+
+0 @I204@ INDI
+1 NAME Friedrich Karl Ludwig, Duke of Schleswig-Holstein-Sonderburg-Beck
+2 GIVN Friedrich Karl Ludwig
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 20 AUG 1757
+2 PLAC Königsberg, East Prussia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 24 APR 1816
+2 PLAC Wellingsbüttel Manor, Hamburg, Germany
+2 SOUR @SOUR4@
+1 FAMC @F207@
+1 FAMS @F206@
+
+0 @I204S@ INDI
+1 NAME Countess Friederike of Schlieben
+2 GIVN Friederike Amalie
+2 SURN Schlieben
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 28 FEB 1757
+2 PLAC Königsberg, East Prussia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 17 DEC 1827
+2 PLAC Schleswig, Germany
+1 FAMS @F206@
+
+0 @I205@ INDI
+1 NAME Karl Anton August, Prince of Schleswig-Holstein-Sonderburg-Beck
+2 GIVN Karl Anton August
+2 SURN Oldenburg
+1 SEX M
+1 TITL Prince of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 10 AUG 1727
+2 PLAC Marburg, Hesse, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 12 SEP 1759
+2 PLAC Stettin, Pomerania, Prussia
+2 SOUR @SOUR4@
+1 FAMC @F208@
+1 FAMS @F207@
+
+0 @I205S@ INDI
+1 NAME Countess Charlotte of Dohna-Schlodien
+2 GIVN Frederica Charlotte Antoinette
+2 SURN Dohna
+1 SEX F
+1 TITL Princess of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 03 JUL 1738
+2 PLAC Königsberg, Prussia
+1 DEAT
+2 DATE 21 APR 1786
+2 PLAC Trakehnen, East Prussia, Germany
+1 FAMS @F207@
+
+0 @I206@ INDI
+1 NAME Peter August, Duke of Schleswig-Holstein-Sonderburg-Beck
+2 GIVN Peter August
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 07 DEC 1697
+2 PLAC Königsberg, Prussia
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 22 MAY 1775
+2 PLAC Reval, Governorate of Estonia, Russian Empire
+2 SOUR @SOUR4@
+1 FAMC @F209@
+1 FAMS @F208@
+
+0 @I206S@ INDI
+1 NAME Princess Sophie of Hesse-Philippsthal
+2 GIVN Sophie
+2 SURN Hesse
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 06 APR 1695
+2 PLAC Philippsthal, Hesse, Germany
+1 DEAT
+2 DATE 08 MAY 1728
+2 PLAC Marburg, Hesse, Germany
+1 FAMS @F208@
+
+0 @I207@ INDI
+1 NAME Frederick Louis, Duke of Schleswig-Holstein-Sonderburg-Beck
+2 GIVN Frederick Louis
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 06 APR 1653
+2 PLAC Haus Beck, Ulenburg, Westphalia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 07 MAR 1728
+2 PLAC Königsberg, Prussia
+2 SOUR @SOUR4@
+1 FAMC @F210@
+1 FAMS @F209@
+
+0 @I207S@ INDI
+1 NAME Princess Louise Charlotte of Schleswig-Holstein-Sonderburg-Augustenburg
+2 GIVN Louise Charlotte
+2 SURN Oldenburg
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 13 APR 1658
+2 PLAC Augustenborg, Als, Denmark
+1 DEAT
+2 DATE 02 MAY 1740
+2 PLAC Königsberg, Prussia
+1 FAMS @F209@
+
+0 @I208@ INDI
+1 NAME August Philipp, Duke of Schleswig-Holstein-Sonderburg-Beck
+2 GIVN August Philipp
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 11 NOV 1612
+2 PLAC Sønderborg Castle, Als, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 06 MAY 1675
+2 PLAC Haus Beck, Westphalia, Germany
+2 SOUR @SOUR4@
+1 FAMC @F211@
+1 FAMS @F210@
+
+0 @I208S@ INDI
+1 NAME Duchess Marie Sidonie of Nassau-Siegen
+2 GIVN Marie Sidonie
+2 SURN Nassau
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg-Beck
+1 BIRT
+2 DATE 17 JAN 1635
+2 PLAC Siegen, Westphalia, Germany
+1 DEAT
+2 DATE 18 JUL 1691
+2 PLAC Haus Beck, Westphalia, Germany
+1 FAMS @F210@
+
+0 @I209@ INDI
+1 NAME Alexander, Duke of Schleswig-Holstein-Sonderburg
+2 GIVN Alexander
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg
+1 BIRT
+2 DATE 20 JAN 1573
+2 PLAC Sønderborg Castle, Als, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 MAY 1627
+2 PLAC Sønderborg, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F212@
+1 FAMS @F211@
+
+0 @I209S@ INDI
+1 NAME Countess Dorothea of Schwarzburg-Sondershausen
+2 GIVN Dorothea
+2 SURN Schwarzburg
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg
+1 BIRT
+2 DATE 23 AUG 1579
+2 PLAC Sondershausen, Germany
+1 DEAT
+2 DATE 05 JUL 1639
+2 PLAC Sønderborg, Denmark
+1 FAMS @F211@
+
+0 @I210@ INDI
+1 NAME John II, Duke of Schleswig-Holstein-Sonderburg
+2 GIVN John
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Schleswig-Holstein-Sonderburg
+1 BIRT
+2 DATE 25 MAR 1545
+2 PLAC Koldinghus, Kolding, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 09 OCT 1622
+2 PLAC Sønderborg, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F213@
+1 FAMS @F212@
+
+0 @I210S@ INDI
+1 NAME Elisabeth of Brunswick-Grubenhagen
+2 GIVN Elisabeth
+2 SURN Welf
+1 SEX F
+1 TITL Duchess of Schleswig-Holstein-Sonderburg
+1 BIRT
+2 DATE 20 MAR 1550
+2 PLAC Salzderhelden, Germany
+1 DEAT
+2 DATE 11 FEB 1586
+2 PLAC Østerholm, Als, Denmark
+1 FAMS @F212@
+
+0 @I211@ INDI
+1 NAME King Christian III of Denmark
+2 GIVN Christian
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of Denmark and Norway
+1 BIRT
+2 DATE 12 AUG 1503
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 12 AUG 1537
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 01 JAN 1559
+2 PLAC Koldinghus, Kolding, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F214@
+1 FAMS @F213@
+
+0 @I211S@ INDI
+1 NAME Dorothea of Saxe-Lauenburg
+2 GIVN Dorothea
+2 SURN Ascania
+1 SEX F
+1 TITL Queen Consort of Denmark and Norway
+1 BIRT
+2 DATE 09 JUL 1511
+2 PLAC Lauenburg Castle, Lauenburg, Germany
+1 EVEN
+2 TYPE Coronation
+2 DATE 12 AUG 1537
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 07 OCT 1571
+2 PLAC Sønderborg Castle, Denmark
+1 FAMS @F213@
+
+0 @I212@ INDI
+1 NAME King Frederick I of Denmark
+2 GIVN Frederick
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of Denmark and Norway
+1 BIRT
+2 DATE 07 OCT 1471
+2 PLAC Haderslevhus, Haderslev, Denmark
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 07 AUG 1524
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 10 APR 1533
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 FAMC @F215@
+1 FAMS @F214@
+1 FAMS @F258@
+
+0 @I212S@ INDI
+1 NAME Anna of Brandenburg
+2 GIVN Anna
+2 SURN Hohenzollern
+1 SEX F
+1 TITL Duchess of Schleswig and Holstein
+1 BIRT
+2 DATE 27 AUG 1487
+2 PLAC Berlin, Brandenburg, Germany
+1 DEAT
+2 DATE 03 MAY 1514
+2 PLAC Kiel, Holstein, Germany
+1 FAMS @F214@
+
+0 @I213@ INDI
+1 NAME King Christian I of Denmark
+2 GIVN Christian
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of Denmark, Norway, and Sweden
+1 BIRT
+2 DATE FEB 1426
+2 PLAC Oldenburg, Lower Saxony, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 28 OCT 1449
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 02 AUG 1450
+2 PLAC Nidaros Cathedral, Trondheim, Norway
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 29 JUN 1457
+2 PLAC Uppsala Cathedral, Uppsala, Sweden
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 21 MAY 1481
+2 PLAC Copenhagen Castle, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F216@
+1 FAMS @F215@
+
+0 @I213S@ INDI
+1 NAME Dorothea of Brandenburg
+2 GIVN Dorothea
+2 SURN Hohenzollern
+1 SEX F
+1 TITL Queen Consort of Denmark, Norway, and Sweden
+1 BIRT
+2 DATE 1430
+2 PLAC Berlin, Brandenburg, Germany
+1 EVEN
+2 TYPE Coronation
+2 DATE 28 OCT 1449
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 10 NOV 1495
+2 PLAC Kalundborg Castle, Denmark
+1 FAMS @F215@
+
+0 @I214@ INDI
+1 NAME Dietrich, Count of Oldenburg
+2 GIVN Dietrich
+2 SURN Oldenburg
+1 SEX M
+1 TITL Count of Oldenburg and Delmenhorst
+1 BIRT
+2 DATE 1390
+2 PLAC Oldenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 FEB 1440
+2 PLAC Delmenhorst, Germany
+2 SOUR @SOUR4@
+1 FAMS @F216@
+
+0 @I214S@ INDI
+1 NAME Helvig of Schauenburg
+2 GIVN Helvig
+2 SURN Schauenburg
+1 SEX F
+1 TITL Countess of Oldenburg
+1 BIRT
+2 DATE 1398
+2 PLAC Itzehoe, Holstein, Germany
+1 DEAT
+2 DATE 1436
+1 FAMS @F216@
+
+0 @I215@ INDI
+1 NAME Princess Victoria of Hesse and by Rhine
+2 GIVN Victoria Alberta Elisabeth Mathilde Marie
+2 SURN Hesse
+1 SEX F
+1 TITL Marchioness of Milford Haven
+1 BIRT
+2 DATE 05 APR 1863
+2 PLAC Windsor Castle, Berkshire, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 24 SEP 1950
+2 PLAC Kensington Palace, London, England
+2 SOUR @SOUR2@
+1 FAMC @F201@
+1 FAMS @F202@
+
+0 @I215S@ INDI
+1 NAME Prince Louis of Battenberg
+2 GIVN Louis Alexander
+2 SURN Battenberg
+1 SEX M
+1 TITL 1st Marquess of Milford Haven
+1 BIRT
+2 DATE 24 MAY 1854
+2 PLAC Graz, Styria, Austria
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 11 SEP 1921
+2 PLAC London, England
+2 SOUR @SOUR2@
+1 FAMS @F202@
+
+0 @I216@ INDI
+1 NAME Princess Alice of the United Kingdom
+2 GIVN Alice Maud Mary
+2 SURN Wettin
+1 SEX F
+1 TITL Grand Duchess of Hesse and by Rhine
+1 BIRT
+2 DATE 25 APR 1843
+2 PLAC Buckingham Palace, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 14 DEC 1878
+2 PLAC New Palace, Darmstadt, Hesse, Germany
+2 SOUR @SOUR2@
+1 FAMC @F15@
+1 FAMS @F201@
+
+0 @I216S@ INDI
+1 NAME Louis IV, Grand Duke of Hesse and by Rhine
+2 GIVN Friedrich Wilhelm Ludwig Karl
+2 SURN Hesse
+1 SEX M
+1 TITL Grand Duke of Hesse and by Rhine
+1 BIRT
+2 DATE 12 SEP 1837
+2 PLAC Bessungen, Darmstadt, Hesse, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 MAR 1892
+2 PLAC Darmstadt, Hesse, Germany
+2 SOUR @SOUR4@
+1 FAMS @F201@
+
+0 @I217@ INDI
+1 NAME Countess Augusta Reuss of Ebersdorf
+2 GIVN Augusta Caroline Sophie
+2 SURN Reuss
+1 SEX F
+1 TITL Duchess of Saxe-Coburg-Saalfeld
+1 BIRT
+2 DATE 19 JAN 1757
+2 PLAC Ebersdorf, Thuringia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 16 NOV 1831
+2 PLAC Coburg, Bavaria, Germany
+2 SOUR @SOUR4@
+1 FAMC @F250@
+1 FAMS @F103@
+
+0 @I250S@ INDI
+1 NAME Heinrich XXIV, Count Reuss of Ebersdorf
+2 GIVN Heinrich XXIV
+2 SURN Reuss
+1 SEX M
+1 TITL Count Reuss of Ebersdorf
+1 BIRT
+2 DATE 22 JAN 1724
+2 PLAC Ebersdorf, Thuringia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 MAY 1779
+2 PLAC Ebersdorf, Thuringia, Germany
+2 SOUR @SOUR4@
+1 FAMS @F250@
+
+0 @I250M@ INDI
+1 NAME Countess Karoline Ernestine of Erbach-Schönberg
+2 GIVN Karoline Ernestine
+2 SURN Erbach
+1 SEX F
+1 TITL Countess Reuss of Ebersdorf
+1 BIRT
+2 DATE 20 AUG 1727
+2 PLAC Gedern, Hesse, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 22 APR 1796
+2 PLAC Ebersdorf, Thuringia, Germany
+2 SOUR @SOUR4@
+1 FAMC @F250B@
+1 FAMS @F250@
+
+0 @I250F@ INDI
+1 NAME Countess Marie Sophie of Stolberg-Gedern
+2 GIVN Marie Sophie
+2 SURN Stolberg
+1 SEX F
+1 TITL Countess of Erbach-Schönberg
+1 BIRT
+2 DATE 24 SEP 1695
+2 PLAC Gedern, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 31 MAY 1772
+2 PLAC Ebersdorf, Germany
+2 SOUR @SOUR4@
+1 FAMS @F250B@
+
+0 @I250B_H@ INDI
+1 NAME George August, Count of Erbach-Schönberg
+2 GIVN George August
+2 SURN Erbach
+1 SEX M
+1 TITL Count of Erbach-Schönberg
+1 BIRT
+2 DATE 17 JUN 1691
+2 PLAC Waldenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 29 MAR 1758
+2 PLAC König, Germany
+2 SOUR @SOUR4@
+1 FAMS @F250B@
+
+0 @I251@ INDI
+1 NAME Duchess Jeannette Antoinette of Saxe-Eisenach
+2 GIVN Jeannette Antoinette
+2 SURN Wettin
+1 SEX F
+1 TITL Duchess of Saxe-Weissenfels
+1 BIRT
+2 DATE 31 JAN 1698
+2 PLAC Jena, Thuringia, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 13 APR 1726
+2 PLAC Schloss Dahum, Wolfenbüttel, Germany
+2 SOUR @SOUR4@
+1 FAMC @F252@
+1 FAMS @F251@
+
+0 @I251S@ INDI
+1 NAME Johann Wilhelm, Duke of Saxe-Jena
+2 GIVN Johann Wilhelm
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Jena
+1 BIRT
+2 DATE 17 OCT 1675
+2 PLAC Jena, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 JAN 1729
+2 PLAC Jena, Germany
+2 SOUR @SOUR4@
+1 FAMS @F251@
+
+0 @I252@ INDI
+1 NAME Princess Christine Juliane of Baden-Durlach
+2 GIVN Christine Juliane
+2 SURN Zähringen
+1 SEX F
+1 TITL Duchess of Saxe-Eisenach
+1 BIRT
+2 DATE 12 SEP 1678
+2 PLAC Karlsburg Castle, Durlach, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 10 JUL 1707
+2 PLAC Eisenach, Thuringia, Germany
+2 SOUR @SOUR4@
+1 FAMC @F253@
+1 FAMS @F252@
+
+0 @I252S@ INDI
+1 NAME Johann Wilhelm III, Duke of Saxe-Eisenach
+2 GIVN Johann Wilhelm
+2 SURN Wettin
+1 SEX M
+1 TITL Duke of Saxe-Eisenach
+1 BIRT
+2 DATE 17 OCT 1666
+2 PLAC Friedewald, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 JAN 1729
+2 PLAC Eisenach, Germany
+2 SOUR @SOUR4@
+1 FAMS @F252@
+
+0 @I253@ INDI
+1 NAME Princess Augusta Marie of Holstein-Gottorp
+2 GIVN Augusta Marie
+2 SURN Oldenburg
+1 SEX F
+1 TITL Margravine of Baden-Durlach
+1 BIRT
+2 DATE 06 FEB 1649
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 25 APR 1728
+2 PLAC Augustenburg Manor, Durlach, Germany
+2 SOUR @SOUR4@
+1 FAMC @F254@
+1 FAMS @F253@
+
+0 @I253S@ INDI
+1 NAME Frederick VII, Margrave of Baden-Durlach
+2 GIVN Frederick
+2 SURN Zähringen
+1 SEX M
+1 TITL Margrave of Baden-Durlach
+1 BIRT
+2 DATE 23 SEP 1647
+2 PLAC Ueckermünde, Pomerania, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 25 JUN 1709
+2 PLAC Karlsburg Castle, Durlach, Germany
+2 SOUR @SOUR4@
+1 FAMS @F253@
+
+0 @I254@ INDI
+1 NAME Duchess Marie Elisabeth of Saxony
+2 GIVN Marie Elisabeth
+2 SURN Wettin
+1 SEX F
+1 TITL Duchess of Holstein-Gottorp
+1 BIRT
+2 DATE 22 NOV 1610
+2 PLAC Dresden Castle, Dresden, Saxony, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 24 OCT 1684
+2 PLAC Husum Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 FAMC @F255@
+1 FAMS @F254@
+
+0 @I254S@ INDI
+1 NAME Frederick III, Duke of Holstein-Gottorp
+2 GIVN Frederick
+2 SURN Oldenburg
+1 SEX M
+1 TITL Duke of Holstein-Gottorp
+1 BIRT
+2 DATE 22 DEC 1597
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 10 AUG 1659
+2 PLAC Tønder Castle, Denmark
+2 SOUR @SOUR4@
+1 FAMS @F254@
+
+0 @I255@ INDI
+1 NAME Princess Hedwig of Denmark
+2 GIVN Hedwig
+2 SURN Oldenburg
+1 SEX F
+1 TITL Electress of Saxony
+1 BIRT
+2 DATE 05 AUG 1581
+2 PLAC Frederiksborg Castle, Hillerød, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 26 NOV 1641
+2 PLAC Lichtenburg Castle, Prettin, Saxony, Germany
+2 SOUR @SOUR4@
+1 FAMC @F256@
+1 FAMS @F255@
+
+0 @I255S@ INDI
+1 NAME Christian II, Elector of Saxony
+2 GIVN Christian
+2 SURN Wettin
+1 SEX M
+1 TITL Elector of Saxony
+1 BIRT
+2 DATE 23 SEP 1583
+2 PLAC Dresden, Saxony, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 23 JUN 1611
+2 PLAC Dresden, Saxony, Germany
+2 SOUR @SOUR4@
+1 FAMS @F255@
+
+0 @I256@ INDI
+1 NAME Princess Sophie of Mecklenburg-Güstrow
+2 GIVN Sophie
+2 SURN Mecklenburg
+1 SEX F
+1 TITL Queen Consort of Denmark and Norway
+1 BIRT
+2 DATE 04 SEP 1557
+2 PLAC Wismar, Mecklenburg, Germany
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 20 JUL 1572
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 OCT 1631
+2 PLAC Nykøbing Castle, Falster, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F257@
+1 FAMS @F256@
+
+0 @I256S@ INDI
+1 NAME King Frederick II of Denmark
+2 GIVN Frederick
+2 SURN Oldenburg
+1 SEX M
+1 TITL King of Denmark and Norway
+1 BIRT
+2 DATE 01 JUL 1534
+2 PLAC Haderslevhus, Haderslev, Denmark
+2 SOUR @SOUR4@
+1 EVEN
+2 TYPE Coronation
+2 DATE 20 AUG 1559
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 04 APR 1588
+2 PLAC Antvorskov, Slagelse, Denmark
+2 SOUR @SOUR4@
+1 FAMS @F256@
+
+0 @I257@ INDI
+1 NAME Princess Elizabeth of Denmark
+2 GIVN Elizabeth
+2 SURN Oldenburg
+1 SEX F
+1 TITL Duchess of Mecklenburg-Güstrow
+1 BIRT
+2 DATE 14 OCT 1524
+2 PLAC Nyborg Castle, Funen, Denmark
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 15 OCT 1586
+2 PLAC Gedser, Falster, Denmark
+2 SOUR @SOUR4@
+1 FAMC @F258@
+1 FAMS @F257@
+
+0 @I257S@ INDI
+1 NAME Ulrich, Duke of Mecklenburg-Güstrow
+2 GIVN Ulrich
+2 SURN Mecklenburg
+1 SEX M
+1 TITL Duke of Mecklenburg-Güstrow
+1 BIRT
+2 DATE 05 MAR 1527
+2 PLAC Schwerin, Mecklenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 14 MAR 1603
+2 PLAC Güstrow, Mecklenburg, Germany
+2 SOUR @SOUR4@
+1 FAMS @F257@
+
+0 @I258@ INDI
+1 NAME Queen Sophia of Pomerania
+2 GIVN Sophia
+2 SURN Gryfici
+1 SEX F
+1 TITL Queen Consort of Denmark and Norway
+1 BIRT
+2 DATE 1498
+2 PLAC Stettin Castle, Pomerania
+2 SOUR @SOUR6@
+1 EVEN
+2 TYPE Coronation
+2 DATE 13 AUG 1525
+2 PLAC Church of Our Lady, Copenhagen, Denmark
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 13 MAY 1568
+2 PLAC Kiel Castle, Holstein, Germany
+2 SOUR @SOUR6@
+1 FAMC @F259@
+1 FAMS @F258@
+
+0 @I259@ INDI
+1 NAME Princess Margaret of Brandenburg
+2 GIVN Margaret
+2 SURN Hohenzollern
+1 SEX F
+1 TITL Duchess of Pomerania
+1 BIRT
+2 DATE 1470
+2 PLAC Ansbach, Franconia, Germany
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 24 DEC 1521
+2 PLAC Stolp, Pomerania
+2 SOUR @SOUR6@
+1 FAMC @F260@
+1 FAMS @F259@
+
+0 @I259S@ INDI
+1 NAME Bogislaw X, Duke of Pomerania
+2 GIVN Bogislaw
+2 SURN Gryfici
+1 SEX M
+1 TITL Duke of Pomerania
+1 BIRT
+2 DATE 03 JUN 1454
+2 PLAC Rügenwalde, Pomerania
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 05 OCT 1523
+2 PLAC Stettin, Pomerania
+2 SOUR @SOUR6@
+1 FAMS @F259@
+
+0 @I260@ INDI
+1 NAME Princess Margaret of Brunswick-Lüneburg
+2 GIVN Margaret
+2 SURN Welf
+1 SEX F
+1 TITL Electress of Brandenburg
+1 BIRT
+2 DATE 1442
+2 PLAC Celle, Lower Saxony, Germany
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 24 AUG 1512
+2 PLAC Celle, Lower Saxony, Germany
+2 SOUR @SOUR6@
+1 FAMC @F261@
+1 FAMS @F260@
+
+0 @I260S@ INDI
+1 NAME Albert III Achilles, Elector of Brandenburg
+2 GIVN Albert
+2 SURN Hohenzollern
+1 SEX M
+1 TITL Elector of Brandenburg
+1 BIRT
+2 DATE 09 NOV 1414
+2 PLAC Tangermünde, Brandenburg, Germany
+2 SOUR @SOUR4@
+1 DEAT
+2 DATE 11 MAR 1486
+2 PLAC Frankfurt am Main, Germany
+2 SOUR @SOUR4@
+1 FAMS @F260@
+
+0 @I261@ INDI
+1 NAME Princess Elisabeth of Bavaria-Landshut
+2 GIVN Elisabeth
+2 SURN Wittelsbach
+1 SEX F
+1 TITL Duchess of Brunswick-Lüneburg
+1 BIRT
+2 DATE 1419
+2 PLAC Trausnitz Castle, Landshut, Bavaria
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 01 JAN 1451
+2 PLAC Landshut, Bavaria
+2 SOUR @SOUR6@
+1 FAMC @F262@
+1 FAMS @F261@
+
+0 @I261S@ INDI
+1 NAME Frederick II, Duke of Brunswick-Lüneburg
+2 GIVN Frederick
+2 SURN Welf
+1 SEX M
+1 TITL Duke of Brunswick-Lüneburg
+1 BIRT
+2 DATE 1418
+2 PLAC Celle, Lower Saxony, Germany
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 19 MAR 1478
+2 PLAC Celle, Lower Saxony, Germany
+2 SOUR @SOUR6@
+1 FAMS @F261@
+
+0 @I262@ INDI
+1 NAME Princess Margaret of Austria
+2 GIVN Margaret
+2 SURN Habsburg
+1 SEX F
+1 TITL Duchess of Bavaria-Landshut
+1 BIRT
+2 DATE 26 JUN 1395
+2 PLAC Hofburg Palace, Vienna, Austria
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 24 DEC 1447
+2 PLAC Burghausen Castle, Bavaria
+2 SOUR @SOUR6@
+1 FAMS @F262@
+
+0 @I262S@ INDI
+1 NAME Henry XVI, Duke of Bavaria-Landshut
+2 GIVN Henry
+2 SURN Wittelsbach
+1 SEX M
+1 TITL Duke of Bavaria-Landshut
+1 BIRT
+2 DATE 1386
+2 PLAC Burghausen Castle, Bavaria
+2 SOUR @SOUR6@
+1 DEAT
+2 DATE 30 JUL 1450
+2 PLAC Landshut, Bavaria
+2 SOUR @SOUR6@
+1 FAMS @F262@
+
+0 @I301@ INDI
+1 NAME Major Bruce Middleton Hope /Shand/
+2 GIVN Bruce Middleton Hope
+2 SURN Shand
+1 SEX M
+1 TITL Major
+1 BIRT
+2 DATE 22 JAN 1917
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 11 JUN 2006
+2 PLAC Stourpaine, Dorset, England
+2 SOUR @SOUR1@
+1 FAMC @F301@
+1 FAMS @F300@
+
+0 @I302@ INDI
+1 NAME The Honourable Rosalind Maud /Cubitt/
+2 GIVN Rosalind Maud
+2 SURN Cubitt
+1 SEX F
+1 TITL The Honourable
+1 BIRT
+2 DATE 11 AUG 1921
+2 PLAC 16 Grosvenor Street, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 14 JUL 1994
+2 PLAC Lewes, East Sussex, England
+2 SOUR @SOUR1@
+1 FAMC @F302@
+1 FAMS @F300@
+
+0 @I303@ INDI
+1 NAME Roland Calvert Cubitt, 3rd Baron Ashcombe
+2 GIVN Roland Calvert
+2 SURN Cubitt
+1 SEX M
+1 TITL 3rd Baron Ashcombe
+1 BIRT
+2 DATE 26 JAN 1899
+2 PLAC 20 Princes Gate, Kensington, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 28 OCT 1962
+2 PLAC Dorking, Surrey, England
+2 SOUR @SOUR1@
+1 FAMC @F303B@
+1 FAMS @F302@
+
+0 @I304@ INDI
+1 NAME Sonia Rosemary /Keppel/
+2 GIVN Sonia Rosemary
+2 SURN Keppel
+1 SEX F
+1 TITL The Honourable, Baroness Ashcombe
+1 BIRT
+2 DATE 24 MAY 1900
+2 PLAC Marylebone, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 16 AUG 1986
+2 PLAC Droxford, Hampshire, England
+2 SOUR @SOUR1@
+1 FAMC @F303@
+1 FAMS @F302@
+
+0 @I305@ INDI
+1 NAME Philip Morton /Shand/
+2 GIVN Philip Morton
+2 SURN Shand
+1 SEX M
+1 BIRT
+2 DATE 21 JAN 1888
+2 PLAC Kensington, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 30 APR 1960
+2 PLAC Lyon, Rhône, France
+2 SOUR @SOUR1@
+1 FAMC @F301B@
+1 FAMS @F301@
+
+0 @I305S@ INDI
+1 NAME Edith Marguerite /Harrington/
+2 GIVN Edith Marguerite
+2 SURN Harrington
+1 SEX F
+1 BIRT
+2 DATE 14 JUN 1893
+2 PLAC 32 Linver Road, Fulham, London, England
+2 SOUR @SOUR1@
+1 DEAT
+2 DATE 03 JAN 1981
+2 PLAC Fulham, London, England
+2 SOUR @SOUR1@
+1 FAMS @F301@
+
+0 @I306@ INDI
+1 NAME Brigadier Andrew Henry /Parker Bowles/
+2 GIVN Andrew Henry
+2 SURN Parker Bowles
+1 SEX M
+1 TITL Brigadier
+1 BIRT
+2 DATE 27 DEC 1939
+2 PLAC Surrey, England
+2 SOUR @SOUR1@
+1 FAMS @F14B@
+
+0 @I307@ INDI
+1 NAME Thomas "Tom" Henry Charles /Parker Bowles/
+2 GIVN Thomas Henry Charles
+2 SURN Parker Bowles
+1 SEX M
+1 BIRT
+2 DATE 18 DEC 1974
+2 PLAC Westminster, London, England
+2 SOUR @SOUR1@
+1 FAMC @F14B@
+1 FAMS @F304@
+
+0 @I308@ INDI
+1 NAME Laura Rose /Parker Bowles/
+2 GIVN Laura Rose
+2 SURN Parker Bowles
+1 NAME Laura /Lopes/
+2 TYPE married
+2 GIVN Laura Rose
+2 SURN Lopes
+1 SEX F
+1 BIRT
+2 DATE 01 JAN 1978
+2 PLAC Swindon, Wiltshire, England
+2 SOUR @SOUR1@
+1 FAMC @F14B@
+1 FAMS @F305@
+
+0 @I309@ INDI
+1 NAME Sara /Buys/
+2 GIVN Sara
+2 SURN Buys
+1 SEX F
+1 BIRT
+2 DATE 1973
+2 PLAC England
+2 SOUR @SOUR1@
+1 FAMS @F304@
+
+0 @I310@ INDI
+1 NAME Harry Marcus George /Lopes/
+2 GIVN Harry Marcus George
+2 SURN Lopes
+1 SEX M
+1 BIRT
+2 DATE 07 OCT 1977
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMS @F305@
+
+0 @I311@ INDI
+1 NAME Lola Rosalind /Parker Bowles/
+2 GIVN Lola Rosalind
+2 SURN Parker Bowles
+1 SEX F
+1 BIRT
+2 DATE 09 OCT 2007
+2 PLAC Queen Charlotte's Hospital, London, England
+2 SOUR @SOUR1@
+1 FAMC @F304@
+
+0 @I312@ INDI
+1 NAME Frederick "Freddy" /Parker Bowles/
+2 GIVN Frederick
+2 SURN Parker Bowles
+1 SEX M
+1 BIRT
+2 DATE 28 FEB 2010
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMC @F304@
+
+0 @I313@ INDI
+1 NAME Eliza /Lopes/
+2 GIVN Eliza
+2 SURN Lopes
+1 SEX F
+1 BIRT
+2 DATE 16 JAN 2008
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMC @F305@
+
+0 @I314@ INDI
+1 NAME Gus /Lopes/
+2 GIVN Gus
+2 SURN Lopes
+1 SEX M
+1 BIRT
+2 DATE 30 DEC 2009
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMC @F305@
+
+0 @I315@ INDI
+1 NAME Louis /Lopes/
+2 GIVN Louis
+2 SURN Lopes
+1 SEX M
+1 BIRT
+2 DATE 30 DEC 2009
+2 PLAC London, England
+2 SOUR @SOUR1@
+1 FAMC @F305@
+
+0 @I316@ INDI
+1 NAME The Honourable George /Keppel/
+2 GIVN George
+2 SURN Keppel
+1 SEX M
+1 TITL The Honourable
+1 BIRT
+2 DATE 14 OCT 1865
+2 PLAC England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 22 NOV 1947
+2 PLAC The Ritz Hotel, London, England
+2 SOUR @SOUR3@
+1 FAMS @F303@
+
+0 @I317@ INDI
+1 NAME Alice Frederica /Edmonstone/
+2 GIVN Alice Frederica
+2 SURN Edmonstone
+1 NICK Alice Keppel
+1 SEX F
+1 TITL The Honourable Mrs George Keppel
+1 BIRT
+2 DATE 29 APR 1868
+2 PLAC Woolwich Dockyard, Kent, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 11 SEP 1947
+2 PLAC Villa dell'Ombrellino, Bellosguardo, Florence, Italy
+2 SOUR @SOUR3@
+1 FAMS @F303@
+
+0 @I318@ INDI
+1 NAME Henry Cubitt, 2nd Baron Ashcombe
+2 GIVN Henry
+2 SURN Cubitt
+1 SEX M
+1 TITL 2nd Baron Ashcombe
+1 BIRT
+2 DATE 14 MAR 1867
+2 PLAC London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 27 OCT 1947
+2 PLAC Surrey, England
+2 SOUR @SOUR3@
+1 FAMS @F303B@
+
+0 @I319@ INDI
+1 NAME Maud Marianne /Calvert/
+2 GIVN Maud Marianne
+2 SURN Calvert
+1 SEX F
+1 TITL Baroness Ashcombe
+1 BIRT
+2 DATE 1865
+2 PLAC Ockley Court, Surrey, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 12 FEB 1945
+2 PLAC Surrey, England
+2 SOUR @SOUR3@
+1 FAMS @F303B@
+
+0 @I320@ INDI
+1 NAME Alexander Faulkner /Shand/
+2 GIVN Alexander Faulkner
+2 SURN Shand
+1 SEX M
+1 BIRT
+2 DATE 20 MAY 1858
+2 PLAC London, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 06 JAN 1936
+2 PLAC 1 Edwardes Place, Kensington, London, England
+2 SOUR @SOUR3@
+1 FAMS @F301B@
+
+0 @I321@ INDI
+1 NAME Augusta Mary /Coates/
+2 GIVN Augusta Mary
+2 SURN Coates
+1 SEX F
+1 BIRT
+2 DATE 1859
+2 PLAC Bath, Somerset, England
+2 SOUR @SOUR3@
+1 DEAT
+2 DATE 1954
+2 PLAC London, England
+2 SOUR @SOUR3@
+1 FAMS @F301B@
+
+0 @F1@ FAM
+1 HUSB @I3@
+1 WIFE @I2@
+1 MARR
+2 DATE 20 NOV 1947
+2 PLAC Westminster Abbey, City of Westminster, London, England
+2 SOUR @SOUR2@
+1 CHIL @I1@
+1 CHIL @I5@
+1 CHIL @I6@
+1 CHIL @I7@
+
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I8@
+1 MARR
+2 DATE 29 JUL 1981
+2 PLAC St Paul's Cathedral, London, England
+2 SOUR @SOUR2@
+1 DIV
+2 DATE 28 AUG 1996
+2 SOUR @SOUR2@
+1 CHIL @I10@
+1 CHIL @I11@
+
+0 @F3@ FAM
+1 HUSB @I1@
+1 WIFE @I9@
+1 MARR
+2 DATE 09 APR 2005
+2 PLAC Windsor Guildhall, Windsor, Berkshire, England
+2 SOUR @SOUR2@
+
+0 @F4@ FAM
+1 HUSB @I32@
+1 WIFE @I33@
+1 MARR
+2 DATE 26 APR 1923
+2 PLAC Westminster Abbey, City of Westminster, London, England
+2 SOUR @SOUR2@
+1 CHIL @I2@
+1 CHIL @I4@
+
+0 @F5@ FAM
+1 HUSB @I34@
+1 WIFE @I35@
+1 MARR
+2 DATE 06 OCT 1903
+2 PLAC Darmstadt, Hesse, Germany
+2 SOUR @SOUR4@
+1 CHIL @I3@
+
+0 @F6@ FAM
+1 HUSB @I19@
+1 WIFE @I5@
+1 MARR
+2 DATE 14 NOV 1973
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+
+0 @F7@ FAM
+1 HUSB @I20@
+1 WIFE @I5@
+1 MARR
+2 DATE 12 DEC 1992
+2 PLAC Crathie Kirk, Aberdeenshire, Scotland
+2 SOUR @SOUR2@
+
+0 @F8@ FAM
+1 HUSB @I6@
+1 WIFE @I21@
+1 MARR
+2 DATE 23 JUL 1986
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DIV
+2 DATE 30 MAY 1996
+2 SOUR @SOUR2@
+
+0 @F9@ FAM
+1 HUSB @I7@
+1 WIFE @I22@
+1 MARR
+2 DATE 19 JUN 1999
+2 PLAC St George's Chapel, Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+
+0 @F11@ FAM
+1 HUSB @I10@
+1 WIFE @I12@
+1 MARR
+2 DATE 29 APR 2011
+2 PLAC Westminster Abbey, City of Westminster, London, England
+2 SOUR @SOUR2@
+1 CHIL @I13@
+1 CHIL @I14@
+1 CHIL @I15@
+
+0 @F12@ FAM
+1 HUSB @I11@
+1 WIFE @I16@
+1 MARR
+2 DATE 19 MAY 2018
+2 PLAC St George's Chapel, Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+1 CHIL @I17@
+1 CHIL @I18@
+
+0 @F13@ FAM
+1 HUSB @I36@
+1 WIFE @I37@
+1 MARR
+2 DATE 06 JUL 1893
+2 PLAC Chapel Royal, St James's Palace, London, England
+2 SOUR @SOUR2@
+1 CHIL @I32@
+
+0 @F14@ FAM
+1 HUSB @I38@
+1 WIFE @I39@
+1 MARR
+2 DATE 10 MAR 1863
+2 PLAC St George's Chapel, Windsor Castle, Berkshire, England
+2 SOUR @SOUR2@
+1 CHIL @I36@
+
+0 @F14B@ FAM
+1 HUSB @I306@
+1 WIFE @I9@
+1 MARR
+2 DATE 04 JUL 1973
+2 PLAC Guards Chapel, Wellington Barracks, London, England
+2 SOUR @SOUR1@
+1 DIV
+2 DATE 03 MAR 1995
+2 SOUR @SOUR1@
+1 CHIL @I307@
+1 CHIL @I308@
+
+0 @F15@ FAM
+1 HUSB @I41@
+1 WIFE @I40@
+1 MARR
+2 DATE 10 FEB 1840
+2 PLAC Chapel Royal, St James's Palace, London, England
+2 SOUR @SOUR2@
+1 CHIL @I38@
+1 CHIL @I216@
+
+0 @F19@ FAM
+1 HUSB @I23@
+1 WIFE @I4@
+1 MARR
+2 DATE 06 MAY 1960
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR2@
+1 DIV
+2 DATE 11 JUL 1978
+2 SOUR @SOUR2@
+
+0 @F100@ FAM
+1 HUSB @I120@
+1 WIFE @I121@
+1 MARR
+2 DATE 29 MAY 1818
+2 PLAC Ehrenburg Palace, Coburg, Germany
+2 SOUR @SOUR4@
+1 CHIL @I40@
+
+0 @F101@ FAM
+1 HUSB @I101@
+1 WIFE @I101S@
+1 MARR
+2 DATE 31 JUL 1817
+2 PLAC Gotha, Thuringia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I41@
+
+0 @F102@ FAM
+1 HUSB @I114S@
+1 WIFE @I114@
+1 MARR
+2 DATE 16 JUL 1881
+2 PLAC St Peter's Church, Petersham, Surrey, England
+2 SOUR @SOUR1@
+1 CHIL @I33@
+
+0 @F103@ FAM
+1 HUSB @I102@
+1 WIFE @I217@
+1 MARR
+2 DATE 23 APR 1777
+2 PLAC Ebersdorf, Thuringia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I101@
+1 CHIL @I121@
+
+0 @F104@ FAM
+1 HUSB @I103@
+1 WIFE @I103S@
+1 MARR
+2 DATE 23 APR 1749
+2 PLAC Wolfenbüttel, Germany
+2 SOUR @SOUR4@
+1 CHIL @I102@
+
+0 @F105@ FAM
+1 HUSB @I104@
+1 WIFE @I104S@
+1 MARR
+2 DATE 02 JAN 1723
+2 PLAC Rudolstadt, Thuringia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I103@
+
+0 @F106@ FAM
+1 HUSB @I105@
+1 WIFE @I105S@
+1 MARR
+2 DATE 02 DEC 1680
+2 PLAC Arolsen, Waldeck, Germany
+2 SOUR @SOUR4@
+1 CHIL @I104@
+
+0 @F107@ FAM
+1 HUSB @I106@
+1 WIFE @I106S@
+1 MARR
+2 DATE 24 OCT 1636
+2 PLAC Altenburg, Thuringia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I105@
+
+0 @F108@ FAM
+1 HUSB @I107@
+1 WIFE @I107S@
+1 MARR
+2 DATE 07 JAN 1593
+2 PLAC Dessau, Anhalt, Germany
+2 SOUR @SOUR4@
+1 CHIL @I106@
+
+0 @F109@ FAM
+1 HUSB @I108@
+1 WIFE @I108S@
+1 MARR
+2 DATE 15 JUN 1560
+2 PLAC Heidelberg, Baden, Germany
+2 SOUR @SOUR4@
+1 CHIL @I107@
+
+0 @F110@ FAM
+1 HUSB @I109@
+1 WIFE @I109S@
+1 MARR
+2 DATE 09 FEB 1527
+2 PLAC Torgau, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I108@
+
+0 @F111@ FAM
+1 HUSB @I110@
+1 WIFE @I110S@
+1 MARR
+2 DATE 01 MAR 1500
+2 PLAC Torgau, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I109@
+
+0 @F112@ FAM
+1 HUSB @I111@
+1 WIFE @I111S@
+1 MARR
+2 DATE 19 NOV 1463
+2 PLAC Leipzig, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I110@
+
+0 @F113@ FAM
+1 HUSB @I112@
+1 WIFE @I112S@
+1 MARR
+2 DATE 03 JUN 1431
+2 PLAC Leipzig, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I111@
+
+0 @F114@ FAM
+1 HUSB @I113@
+1 WIFE @I113S@
+1 MARR
+2 DATE 08 FEB 1402
+2 PLAC Brunswick, Lower Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I112@
+
+0 @F115@ FAM
+1 HUSB @I115S@
+1 WIFE @I115@
+1 MARR
+2 DATE 17 APR 1859
+2 PLAC Hungarton, Leicestershire, England
+2 SOUR @SOUR1@
+1 CHIL @I114@
+
+0 @F116@ FAM
+1 HUSB @I116S@
+1 WIFE @I116@
+1 MARR
+2 DATE 29 AUG 1829
+2 PLAC Salisbury Cathedral, Salisbury, Wiltshire, England
+2 SOUR @SOUR5@
+1 CHIL @I115@
+
+0 @F117@ FAM
+1 HUSB @I117S@
+1 WIFE @I117@
+1 MARR
+2 DATE 1795
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 CHIL @I116@
+
+0 @F118@ FAM
+1 HUSB @I118S@
+1 WIFE @I118@
+1 MARR
+2 DATE 1770
+2 PLAC Stanway, Gloucestershire, England
+2 SOUR @SOUR5@
+1 CHIL @I117@
+
+0 @F119@ FAM
+1 HUSB @I119S@
+1 WIFE @I119@
+1 MARR
+2 DATE 1742
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 CHIL @I118@
+
+0 @F121@ FAM
+1 HUSB @I122@
+1 WIFE @I122S@
+1 MARR
+2 DATE 08 SEP 1761
+2 PLAC Chapel Royal, St James's Palace, London, England
+2 SOUR @SOUR2@
+1 CHIL @I120@
+
+0 @F122@ FAM
+1 HUSB @I123@
+1 WIFE @I123S@
+1 MARR
+2 DATE 08 MAY 1736
+2 PLAC Chapel Royal, St James's Palace, London, England
+2 SOUR @SOUR2@
+1 CHIL @I122@
+
+0 @F123@ FAM
+1 HUSB @I124@
+1 WIFE @I124S@
+1 MARR
+2 DATE 22 AUG 1705
+2 PLAC Herrenhausen Palace, Hanover, Germany
+2 SOUR @SOUR4@
+1 CHIL @I123@
+
+0 @F124@ FAM
+1 HUSB @I125@
+1 WIFE @I125S@
+1 MARR
+2 DATE 22 NOV 1682
+2 PLAC Celle, Lower Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I124@
+
+0 @F125@ FAM
+1 HUSB @I126S@
+1 WIFE @I126@
+1 MARR
+2 DATE 30 SEP 1658
+2 PLAC Leineschloss, Hanover, Germany
+2 SOUR @SOUR4@
+1 CHIL @I125@
+
+0 @F126@ FAM
+1 HUSB @I127S@
+1 WIFE @I127@
+1 MARR
+2 DATE 14 FEB 1613
+2 PLAC Chapel Royal, Whitehall Palace, London, England
+2 SOUR @SOUR3@
+1 CHIL @I126@
+
+0 @F127@ FAM
+1 HUSB @I128@
+1 WIFE @I128S@
+1 MARR
+2 DATE 23 NOV 1589
+2 PLAC Old Bishop's Palace, Oslo, Norway
+2 SOUR @SOUR3@
+1 CHIL @I127@
+
+0 @F128@ FAM
+1 HUSB @I129S@
+1 WIFE @I129@
+1 MARR
+2 DATE 29 JUL 1565
+2 PLAC Holyrood Palace, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 CHIL @I128@
+
+0 @F129@ FAM
+1 HUSB @I130@
+1 WIFE @I130S@
+1 MARR
+2 DATE 18 JUN 1538
+2 PLAC St Andrews Cathedral, Fife, Scotland
+2 SOUR @SOUR3@
+1 CHIL @I129@
+
+0 @F130@ FAM
+1 HUSB @I131S@
+1 WIFE @I131@
+1 MARR
+2 DATE 08 AUG 1503
+2 PLAC Holyrood Abbey, Edinburgh, Scotland
+2 SOUR @SOUR3@
+1 CHIL @I130@
+
+0 @F131@ FAM
+1 HUSB @I132@
+1 WIFE @I132S@
+1 MARR
+2 DATE 18 JAN 1486
+2 PLAC Westminster Abbey, London, England
+2 SOUR @SOUR3@
+1 CHIL @I131@
+
+0 @F132@ FAM
+1 HUSB @I133S@
+1 WIFE @I133@
+1 MARR
+2 DATE 01 NOV 1455
+2 PLAC Bletsoe Castle, Bedfordshire, England
+2 SOUR @SOUR3@
+1 CHIL @I132@
+
+0 @F133@ FAM
+1 HUSB @I134@
+1 WIFE @I134S@
+1 MARR
+2 DATE 1439
+2 PLAC Bedfordshire, England
+2 SOUR @SOUR3@
+1 CHIL @I133@
+
+0 @F134@ FAM
+1 HUSB @I135@
+1 WIFE @I135S@
+1 MARR
+2 DATE 28 SEP 1397
+2 PLAC London, England
+2 SOUR @SOUR3@
+1 CHIL @I134@
+
+0 @F135@ FAM
+1 HUSB @I136@
+1 WIFE @I136S@
+1 MARR
+2 DATE 13 JAN 1396
+2 PLAC Lincoln Cathedral, Lincolnshire, England
+2 SOUR @SOUR3@
+1 CHIL @I135@
+
+0 @F151@ FAM
+1 HUSB @I151S@
+1 WIFE @I151@
+1 MARR
+2 DATE 1722
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 CHIL @I119@
+
+0 @F152@ FAM
+1 HUSB @I152S@
+1 WIFE @I152@
+1 MARR
+2 DATE 1698
+2 PLAC Gloucestershire, England
+2 SOUR @SOUR5@
+1 CHIL @I151@
+
+0 @F153@ FAM
+1 HUSB @I153S@
+1 WIFE @I153@
+1 MARR
+2 DATE 1670
+2 PLAC Wiltshire, England
+2 SOUR @SOUR5@
+1 CHIL @I152@
+
+0 @F154@ FAM
+1 HUSB @I154S@
+1 WIFE @I154@
+1 MARR
+2 DATE 1642
+2 PLAC Wiltshire, England
+2 SOUR @SOUR3@
+1 CHIL @I153@
+
+0 @F155@ FAM
+1 HUSB @I155S@
+1 WIFE @I155@
+1 MARR
+2 DATE 1612
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I154@
+
+0 @F156@ FAM
+1 HUSB @I156S@
+1 WIFE @I156@
+1 MARR
+2 DATE 1588
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I155@
+
+0 @F157@ FAM
+1 HUSB @I157S@
+1 WIFE @I157@
+1 MARR
+2 DATE 1561
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I156@
+
+0 @F158@ FAM
+1 HUSB @I158S@
+1 WIFE @I158@
+1 MARR
+2 DATE 1533
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I157@
+
+0 @F159@ FAM
+1 HUSB @I159S@
+1 WIFE @I159@
+1 MARR
+2 DATE 1508
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 CHIL @I158@
+
+0 @F160@ FAM
+1 HUSB @I160S@
+1 WIFE @I160@
+1 MARR
+2 DATE 1482
+2 PLAC Somerset, England
+2 SOUR @SOUR3@
+1 CHIL @I159@
+
+0 @F161@ FAM
+1 HUSB @I161S@
+1 WIFE @I161@
+1 MARR
+2 DATE 1456
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I160@
+
+0 @F162@ FAM
+1 HUSB @I162S@
+1 WIFE @I162@
+1 MARR
+2 DATE 1432
+2 PLAC Devon, England
+2 SOUR @SOUR3@
+1 CHIL @I161@
+
+0 @F201@ FAM
+1 HUSB @I216S@
+1 WIFE @I216@
+1 MARR
+2 DATE 01 JUL 1862
+2 PLAC Osborne House, Isle of Wight, England
+2 SOUR @SOUR2@
+1 CHIL @I215@
+
+0 @F202@ FAM
+1 HUSB @I215S@
+1 WIFE @I215@
+1 MARR
+2 DATE 30 APR 1884
+2 PLAC Darmstadt, Hesse, Germany
+2 SOUR @SOUR4@
+1 CHIL @I35@
+
+0 @F203@ FAM
+1 HUSB @I202@
+1 WIFE @I202S@
+1 MARR
+2 DATE 27 OCT 1867
+2 PLAC Grand Church of the Winter Palace, Saint Petersburg, Russia
+2 SOUR @SOUR4@
+1 CHIL @I34@
+
+0 @F204@ FAM
+1 HUSB @I201@
+1 WIFE @I201S@
+1 MARR
+2 DATE 26 MAY 1842
+2 PLAC Amalienborg Palace, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I202@
+1 CHIL @I39@
+
+0 @F205@ FAM
+1 HUSB @I203@
+1 WIFE @I203S@
+1 MARR
+2 DATE 26 JAN 1810
+2 PLAC Gottorf Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 CHIL @I201@
+
+0 @F206@ FAM
+1 HUSB @I204@
+1 WIFE @I204S@
+1 MARR
+2 DATE 09 MAR 1780
+2 PLAC Königsberg, East Prussia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I203@
+
+0 @F207@ FAM
+1 HUSB @I205@
+1 WIFE @I205S@
+1 MARR
+2 DATE 30 MAY 1754
+2 PLAC Königsberg, East Prussia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I204@
+
+0 @F208@ FAM
+1 HUSB @I206@
+1 WIFE @I206S@
+1 MARR
+2 DATE 05 SEP 1723
+2 PLAC Philippsthal, Hesse, Germany
+2 SOUR @SOUR4@
+1 CHIL @I205@
+
+0 @F209@ FAM
+1 HUSB @I207@
+1 WIFE @I207S@
+1 MARR
+2 DATE 01 JAN 1685
+2 PLAC Augustenborg, Als, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I206@
+
+0 @F210@ FAM
+1 HUSB @I208@
+1 WIFE @I208S@
+1 MARR
+2 DATE 12 APR 1662
+2 PLAC Haus Beck, Westphalia, Germany
+2 SOUR @SOUR4@
+1 CHIL @I207@
+
+0 @F211@ FAM
+1 HUSB @I209@
+1 WIFE @I209S@
+1 MARR
+2 DATE 26 NOV 1604
+2 PLAC Sondershausen, Schwarzburg, Germany
+2 SOUR @SOUR4@
+1 CHIL @I208@
+
+0 @F212@ FAM
+1 HUSB @I210@
+1 WIFE @I210S@
+1 MARR
+2 DATE 19 AUG 1568
+2 PLAC Koldinghus, Kolding, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I209@
+
+0 @F213@ FAM
+1 HUSB @I211@
+1 WIFE @I211S@
+1 MARR
+2 DATE 29 OCT 1525
+2 PLAC Lauenburg Castle, Lauenburg, Germany
+2 SOUR @SOUR4@
+1 CHIL @I210@
+
+0 @F214@ FAM
+1 HUSB @I212@
+1 WIFE @I212S@
+1 MARR
+2 DATE 10 APR 1502
+2 PLAC Stendal, Brandenburg, Germany
+2 SOUR @SOUR4@
+1 CHIL @I211@
+
+0 @F215@ FAM
+1 HUSB @I213@
+1 WIFE @I213S@
+1 MARR
+2 DATE 28 OCT 1450
+2 PLAC Copenhagen Castle, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I212@
+
+0 @F216@ FAM
+1 HUSB @I214@
+1 WIFE @I214S@
+1 MARR
+2 DATE 23 NOV 1423
+2 PLAC Oldenburg, Germany
+2 SOUR @SOUR4@
+1 CHIL @I213@
+
+0 @F250@ FAM
+1 HUSB @I250S@
+1 WIFE @I250M@
+1 MARR
+2 DATE 28 JUN 1754
+2 PLAC Thurnau, Bavaria, Germany
+2 SOUR @SOUR4@
+1 CHIL @I217@
+
+0 @F250B@ FAM
+1 HUSB @I250B_H@
+1 WIFE @I250F@
+1 MARR
+2 DATE 15 DEC 1719
+2 PLAC Gedern, Germany
+2 SOUR @SOUR4@
+1 CHIL @I250M@
+
+0 @F251@ FAM
+1 HUSB @I251S@
+1 WIFE @I251@
+1 MARR
+2 DATE 1718
+2 PLAC Wolfenbüttel, Germany
+2 SOUR @SOUR4@
+1 CHIL @I103S@
+
+0 @F252@ FAM
+1 HUSB @I252S@
+1 WIFE @I252@
+1 MARR
+2 DATE 27 FEB 1697
+2 PLAC Karlsburg Castle, Durlach, Germany
+2 SOUR @SOUR4@
+1 CHIL @I251@
+
+0 @F253@ FAM
+1 HUSB @I253S@
+1 WIFE @I253@
+1 MARR
+2 DATE 15 MAY 1677
+2 PLAC Husum Castle, Schleswig, Germany
+2 SOUR @SOUR4@
+1 CHIL @I252@
+
+0 @F254@ FAM
+1 HUSB @I254S@
+1 WIFE @I254@
+1 MARR
+2 DATE 21 FEB 1630
+2 PLAC Dresden Castle, Dresden, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I253@
+
+0 @F255@ FAM
+1 HUSB @I255S@
+1 WIFE @I255@
+1 MARR
+2 DATE 12 SEP 1602
+2 PLAC Dresden Castle, Dresden, Saxony, Germany
+2 SOUR @SOUR4@
+1 CHIL @I254@
+
+0 @F256@ FAM
+1 HUSB @I256S@
+1 WIFE @I256@
+1 MARR
+2 DATE 20 JUL 1572
+2 PLAC Copenhagen Castle, Copenhagen, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I255@
+
+0 @F257@ FAM
+1 HUSB @I257S@
+1 WIFE @I257@
+1 MARR
+2 DATE 14 FEB 1556
+2 PLAC Koldinghus, Kolding, Denmark
+2 SOUR @SOUR4@
+1 CHIL @I256@
+
+0 @F258@ FAM
+1 HUSB @I212@
+1 WIFE @I258@
+1 MARR
+2 DATE 09 OCT 1518
+2 PLAC Kiel Castle, Holstein, Germany
+2 SOUR @SOUR4@
+1 CHIL @I257@
+
+0 @F259@ FAM
+1 HUSB @I259S@
+1 WIFE @I259@
+1 MARR
+2 DATE 1477
+2 PLAC Stettin, Pomerania
+2 SOUR @SOUR6@
+1 CHIL @I258@
+
+0 @F260@ FAM
+1 HUSB @I260S@
+1 WIFE @I260@
+1 MARR
+2 DATE 1458
+2 PLAC Ansbach, Franconia, Germany
+2 SOUR @SOUR6@
+1 CHIL @I259@
+
+0 @F261@ FAM
+1 HUSB @I261S@
+1 WIFE @I261@
+1 MARR
+2 DATE 1437
+2 PLAC Landshut, Bavaria
+2 SOUR @SOUR6@
+1 CHIL @I260@
+
+0 @F262@ FAM
+1 HUSB @I262S@
+1 WIFE @I262@
+1 MARR
+2 DATE 1412
+2 PLAC Burghausen Castle, Bavaria
+2 SOUR @SOUR6@
+1 CHIL @I261@
+
+0 @F300@ FAM
+1 HUSB @I301@
+1 WIFE @I302@
+1 MARR
+2 DATE 02 JAN 1946
+2 PLAC St Paul's Church, Knightsbridge, London, England
+2 SOUR @SOUR1@
+1 CHIL @I9@
+
+0 @F301@ FAM
+1 HUSB @I305@
+1 WIFE @I305S@
+1 MARR
+2 DATE 22 APR 1916
+2 PLAC St Peter's Church, Hammersmith, London, England
+2 SOUR @SOUR1@
+1 DIV
+2 DATE 1920
+2 SOUR @SOUR1@
+1 CHIL @I301@
+
+0 @F301B@ FAM
+1 HUSB @I320@
+1 WIFE @I321@
+1 MARR
+2 DATE 1886
+2 PLAC Bath, Somerset, England
+2 SOUR @SOUR3@
+1 CHIL @I305@
+
+0 @F302@ FAM
+1 HUSB @I303@
+1 WIFE @I304@
+1 MARR
+2 DATE 16 NOV 1920
+2 PLAC Guards Chapel, Wellington Barracks, London, England
+2 SOUR @SOUR1@
+1 DIV
+2 DATE 1947
+2 SOUR @SOUR1@
+1 CHIL @I302@
+
+0 @F303@ FAM
+1 HUSB @I316@
+1 WIFE @I317@
+1 MARR
+2 DATE 01 JUN 1891
+2 PLAC St George Hanover Square, London, England
+2 SOUR @SOUR3@
+1 CHIL @I304@
+
+0 @F303B@ FAM
+1 HUSB @I318@
+1 WIFE @I319@
+1 MARR
+2 DATE 21 AUG 1890
+2 PLAC Ockley, Surrey, England
+2 SOUR @SOUR3@
+1 CHIL @I303@
+
+0 @F304@ FAM
+1 HUSB @I307@
+1 WIFE @I309@
+1 MARR
+2 DATE 10 SEP 2005
+2 PLAC St Nicholas Church, Rotherfield Greys, Oxfordshire, England
+2 SOUR @SOUR1@
+1 DIV
+2 DATE 2022
+2 SOUR @SOUR1@
+1 CHIL @I311@
+1 CHIL @I312@
+
+0 @F305@ FAM
+1 HUSB @I310@
+1 WIFE @I308@
+1 MARR
+2 DATE 06 MAY 2006
+2 PLAC St Cyriac's Church, Lacock, Wiltshire, England
+2 SOUR @SOUR1@
+1 CHIL @I313@
+1 CHIL @I314@
+1 CHIL @I315@
+
+0 TRLR
