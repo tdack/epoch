@@ -1131,15 +1131,16 @@ export async function fetchQuality(
 	);
 }
 
-export async function dismissFindingApi(
+/** Dismisses every finding named with the one reason, or none of them. */
+export async function dismissFindingsApi(
 	treeId: string,
-	key: string,
+	keys: string[],
 	reason: string
 ): Promise<void> {
 	await call(
 		`/api/trees/${enc(treeId)}/quality`,
-		json('PUT', { key, reason }),
-		'Failed to dismiss the finding'
+		json('PUT', { keys, reason }),
+		keys.length === 1 ? 'Failed to dismiss the finding' : 'Failed to dismiss the findings'
 	);
 }
 

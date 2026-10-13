@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { SvelteSet } from 'svelte/reactivity';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
 	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/services/load-helpers.js';
 	import {
-		dismissFindingApi,
+		dismissFindingsApi,
 		previewStandardiseDatesApi,
 		restoreFindingApi,
 		standardiseDatesApi
@@ -92,6 +93,33 @@
 	let dismissing = $state<string | null>(null);
 	let reason = $state('');
 	let isSaving = $state(false);
+
+	/** Findings ticked to be dismissed together, with one reason. */
+	const selected = new SvelteSet<string>();
+	let bulkReason = $state('');
+	/** Only what the report still lists: a key fixed or dismissed meanwhile drops out of the count. */
+	const selectedKeys = $derived(
+		report.findings.filter((f) => selected.has(f.key)).map((f) => f.key)
+	);
+
+	function selectAll(findings: QualityFinding[], isOn: boolean) {
+		for (const finding of findings) {
+			if (isOn) selected.add(finding.key);
+			else selected.delete(finding.key);
+		}
+	}
+
+	function dismissSelected() {
+		const keys = selectedKeys;
+		void run(
+			async () => {
+				await dismissFindingsApi(treeId, keys, bulkReason);
+				selected.clear();
+				bulkReason = '';
+			},
+			keys.length === 1 ? 'Finding dismissed' : `${keys.length} findings dismissed`
+		);
+	}
 
 	const total = $derived(Object.values(report.counts).reduce((sum, n) => sum + n, 0));
 	const sections = $derived(
@@ -243,9 +271,25 @@
 				data-testid="rule-{group.rule.code}"
 			>
 				<div class="border-b border-stone-200 px-4 py-2">
-					<h4 class="text-sm font-semibold text-stone-900">
-						{group.rule.title} <span class="font-normal text-stone-600">({group.count})</span>
-					</h4>
+					<div class="flex flex-wrap items-baseline justify-between gap-2">
+						<h4 class="text-sm font-semibold text-stone-900">
+							{group.rule.title} <span class="font-normal text-stone-600">({group.count})</span>
+						</h4>
+						{#if canDismiss}
+							{@const ticked = group.findings.filter((f) => selected.has(f.key)).length}
+							<label class="flex items-center gap-1.5 text-xs text-stone-700">
+								<input
+									type="checkbox"
+									class="coarse:h-5 coarse:w-5"
+									checked={ticked > 0 && ticked === group.findings.length}
+									indeterminate={ticked > 0 && ticked < group.findings.length}
+									onchange={(event) => selectAll(group.findings, event.currentTarget.checked)}
+									data-testid="select-all"
+								/>
+								Select all {group.findings.length}
+							</label>
+						{/if}
+					</div>
 					<details class="text-xs text-stone-600">
 						<summary class="cursor-pointer">Why this is flagged</summary>
 						<p class="mt-1">{group.rule.why}</p>
@@ -255,10 +299,25 @@
 					{#each group.findings as finding (finding.key)}
 						<li class="px-4 py-2 text-sm" data-testid="finding">
 							<div class="flex flex-wrap items-baseline justify-between gap-2">
-								<span class="text-stone-800"
-									>{finding.message}
-									<span class="text-xs text-stone-500">{@render subjectLinks(finding)}</span></span
-								>
+								<span class="flex items-baseline gap-2">
+									{#if canDismiss}
+										<input
+											type="checkbox"
+											class="shrink-0 translate-y-0.5 coarse:h-5 coarse:w-5"
+											checked={selected.has(finding.key)}
+											onchange={(event) =>
+												event.currentTarget.checked
+													? selected.add(finding.key)
+													: selected.delete(finding.key)}
+											aria-label={`Select: ${finding.message}`}
+										/>
+									{/if}
+									<span class="text-stone-800"
+										>{finding.message}
+										<span class="text-xs text-stone-500">{@render subjectLinks(finding)}</span
+										></span
+									>
+								</span>
 								<span class="flex items-baseline gap-3">
 									{#if canAddTask(role) && !finding.task}
 										<button
@@ -293,7 +352,7 @@
 									onsubmit={(event) => {
 										event.preventDefault();
 										void run(
-											() => dismissFindingApi(treeId, finding.key, reason),
+											() => dismissFindingsApi(treeId, [finding.key], reason),
 											'Finding dismissed'
 										);
 									}}
@@ -333,6 +392,43 @@
 		{/each}
 	</section>
 {/each}
+
+{#if selectedKeys.length > 0}
+	<!-- Sticky, so the reason stays in reach while more findings are ticked further down. -->
+	<form
+		class="sticky bottom-4 z-10 mt-6 flex flex-wrap items-end gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 shadow-md"
+		aria-label="Dismiss the selected findings"
+		data-testid="bulk-dismiss"
+		onsubmit={(event) => {
+			event.preventDefault();
+			dismissSelected();
+		}}
+	>
+		<label class="text-xs font-semibold text-stone-700">
+			{selectedKeys.length === 1
+				? 'Why is this fine?'
+				: `Why are these ${selectedKeys.length} fine?`}
+			<input
+				bind:value={bulkReason}
+				required
+				maxlength={MAX_DISMISSAL_REASON_LENGTH}
+				class="mt-1 block w-80 max-w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal"
+			/>
+		</label>
+		<button
+			type="submit"
+			disabled={isSaving || !bulkReason.trim()}
+			class="rounded-lg bg-emerald-800 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+			>Dismiss {selectedKeys.length}</button
+		>
+		<button
+			type="button"
+			class="rounded-lg px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-100"
+			onclick={() => selected.clear()}>Clear selection</button
+		>
+		<span class="text-xs text-stone-500">The one reason is kept on each finding.</span>
+	</form>
+{/if}
 
 {#if report.dismissed.length > 0}
 	<section class="mt-8" aria-labelledby="dismissed-heading">
