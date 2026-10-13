@@ -155,6 +155,11 @@ fill in your own Worker name, route, vars and sender address. The sender goes in
 invitations are saved but not emailed. No database id is needed:
 Cloudflare finds the database by its name.
 
+Every page links to Epoch's source code, as the AGPL asks of a copy people use over a network. The
+link goes to `https://github.com/tdack/epoch`. If you run a modified copy, set `EPOCH_SOURCE_URL` in
+the `vars` of your fork's `wrangler.jsonc` to your own repository; setup and Workers Builds carry it
+into the deploy config.
+
 ### Deploying on every push
 
 To deploy on every push with Workers Builds:

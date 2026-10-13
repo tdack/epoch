@@ -57,6 +57,12 @@ custom-domain route), the vars and the sender address.
 
 Without the file or the variable, remote commands stop and say to run setup.
 
+The tracked `wrangler.jsonc` carries one var of its own, `EPOCH_SOURCE_URL`: the repository every
+page's "Source code (AGPL)" link points to. It belongs to the fork rather than the install, so it
+lives in the tracked file, and the generator keeps tracked vars. The code falls back to the upstream
+repository when it is unset or blank, so a deploy file written before the var existed still gets a
+link.
+
 There is no D1 id anywhere. Wrangler looks the database up by `database_name` on deploy and on
 every remote `d1` command, so a renamed database has to be renamed in config too. Migrations run
 before the deploy, so a name that matches no database fails the migration instead of letting the
