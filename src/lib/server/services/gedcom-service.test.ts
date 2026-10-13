@@ -1,8 +1,8 @@
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { individuals, changeLog, trees } from '../db/schema';
+import { individuals, changeLog, treeMemberships, trees } from '../db/schema';
 import {
 	NotAdmittedError,
 	NotFoundError,
@@ -167,9 +167,97 @@ describe('importFile', () => {
 	it('reports a staged file that is gone, so the consumer can drop the message', async () => {
 		const s = await tree();
 		const service = new GedcomService(t.db, { bucket: fakeBucket().bucket });
-		expect(await service.importStaged({ treeId: s.treeId, r2ObjectKey: 'staging/none.ged' })).toBe(
-			false
+		expect(
+			await service.importStaged({
+				treeId: s.treeId,
+				r2ObjectKey: `staging/gedcom-${s.treeId}-none.ged`,
+				actorId: s.owner.userId
+			})
+		).toBe(false);
+	});
+});
+
+describe('importStaged authorization', () => {
+	const REPLACEMENT = '0 HEAD\n0 @I1@ INDI\n1 NAME Solo /Fox/\n0 TRLR';
+
+	/** A tree that already holds two people, with a replace import queued by its editor. */
+	async function queuedReplace() {
+		const s = await tree('editor');
+		await new GedcomService(t.db).runImport(s.treeId, FILE);
+		const { objects, bucket } = fakeBucket();
+		const key = `staging/gedcom-${s.treeId}-${crypto.randomUUID()}.ged`;
+		await bucket.put(key, REPLACEMENT);
+		const message: ImportQueueMessage = {
+			treeId: s.treeId,
+			r2ObjectKey: key,
+			mode: 'replace',
+			actorId: s.member.userId
+		};
+		const service = new GedcomService(t.db, { bucket });
+		const countPeople = async () =>
+			(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).length;
+		return { s, objects, key, message, service, countPeople };
+	}
+
+	it.each([
+		['a media object', () => 'media/someone-elses-photo.jpg'],
+		["another tree's staging file", () => 'staging/gedcom-other-tree-1.ged'],
+		[
+			'a key that climbs out of staging',
+			(treeId: string) => `staging/gedcom-${treeId}-/../../exports/x.ged`
+		]
+	])('refuses a message naming %s, and deletes nothing', async (_label, keyFor) => {
+		const q = await queuedReplace();
+		const key = keyFor(q.s.treeId);
+		q.objects.set(key, { value: 'precious' });
+		await expect(q.service.importStaged({ ...q.message, r2ObjectKey: key })).rejects.toBeInstanceOf(
+			UnauthorizedError
 		);
+		expect(q.objects.has(key)).toBe(true);
+		expect(await q.countPeople()).toBe(2);
+	});
+
+	it('writes nothing for an editor whose access was revoked after queueing', async () => {
+		const q = await queuedReplace();
+		const message = q.message;
+		await t.db
+			.delete(treeMemberships)
+			.where(
+				and(eq(treeMemberships.treeId, q.s.treeId), eq(treeMemberships.userId, q.s.member.userId))
+			);
+		await expect(q.service.importStaged(message)).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await q.countPeople()).toBe(2);
+		expect(q.objects.has(q.key)).toBe(false);
+	});
+
+	it('writes nothing for an editor demoted to viewer after queueing', async () => {
+		const q = await queuedReplace();
+		const message = q.message;
+		await t.db
+			.update(treeMemberships)
+			.set({ role: 'viewer' })
+			.where(
+				and(eq(treeMemberships.treeId, q.s.treeId), eq(treeMemberships.userId, q.s.member.userId))
+			);
+		await expect(q.service.importStaged(message)).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await q.countPeople()).toBe(2);
+		expect(q.objects.has(q.key)).toBe(false);
+	});
+
+	it('refuses a message with no actor, writing nothing', async () => {
+		const q = await queuedReplace();
+		await expect(
+			q.service.importStaged({ ...q.message, actorId: undefined })
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await q.countPeople()).toBe(2);
+	});
+
+	it('still runs the replace for an editor who holds the right', async () => {
+		const q = await queuedReplace();
+		const message = q.message;
+		expect(await q.service.importStaged(message)).toBe(true);
+		expect(await q.countPeople()).toBe(1);
+		expect(q.objects.size).toBe(0);
 	});
 });
 
@@ -450,7 +538,7 @@ describe('naming a tree from the file it imports', () => {
 	it('treats a queued message with no flag as explicit, so an old message never renames', async () => {
 		const s = await tree();
 		const { bucket } = fakeBucket();
-		const key = 'staging/legacy.ged';
+		const key = `staging/gedcom-${s.treeId}-legacy.ged`;
 		await bucket.put(key, NAMED_FILE);
 		const before = (await t.db.select().from(trees).where(eq(trees.id, s.treeId)).get())!;
 		expect(

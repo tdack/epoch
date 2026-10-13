@@ -41,7 +41,7 @@ const MAX_SYNC_EXPORT_INDIVIDUALS = 50000;
  */
 const EXPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
-const options = { failure: 'Export failed', messagePrefix: 'Export failed: ' };
+const options = { failure: 'Export failed' };
 
 /** Best-effort delete of an object whose instance is gone: the lifecycle rule is the backstop. */
 async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {

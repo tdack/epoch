@@ -218,6 +218,25 @@ describe('handle hook', () => {
 		warn.mockRestore();
 	});
 
+	it('ignores the flag in a production build, even on a local host', async () => {
+		// The production bundle has DEV compiled to false, so a runtime binding cannot re-enable the
+		// bypass there. Pins the build-time gate that stands in for it.
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		vi.stubEnv('DEV', false);
+		try {
+			expect(await run({ env: 'true' })).toBeNull();
+			expect(await run({ binding: 'true' })).toBeNull();
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'ACCESS_BYPASS_DEV is set but ignored: not a dev build on a local host'
+				)
+			);
+		} finally {
+			vi.unstubAllEnvs();
+			warn.mockRestore();
+		}
+	});
+
 	it('takes a second dev identity from a header or a cookie, and only with the flag', async () => {
 		const asCookie = { cookie: 'x-dev-user-sub=second-user' };
 		expect((await run({ env: 'true' }, { 'x-dev-user-sub': 'header-user' }))?.accessSub).toBe(

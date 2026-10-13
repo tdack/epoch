@@ -110,7 +110,8 @@ In a deployment, sign-in comes from Cloudflare Access. Locally, `.dev.vars` sets
 in for the install owner. To act as someone else, send the `x-dev-user-sub`, `x-dev-user-email` and
 `x-dev-user-name` headers; that person must be invited to a tree first, as in a real install.
 
-The bypass only applies when the flag is set. **Never set it in a deployed environment.**
+The bypass only applies when the flag is set and the app runs from the dev server (`npm run dev`); a
+built bundle ignores it. **Never set it in a deployed environment.**
 `.dev.vars` is git-ignored.
 
 ## Installing into Cloudflare

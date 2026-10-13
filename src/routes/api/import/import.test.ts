@@ -4,7 +4,9 @@
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
+import { zipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { MAX_DATASET_BYTES, MAX_IMPORT_BYTES } from '../../../lib/server/gedcom/limits';
 import type { TreeRole } from '../../../lib/shared/roles';
 import {
 	addTestMember,
@@ -68,6 +70,39 @@ describe.each([
 
 	it.each(['editor', 'manager', 'owner'] as const)('allows an %s', async (role) => {
 		const response = await call(handler, actors[role]);
+		expect(response.status).toBe(200);
+	});
+});
+
+describe('import size limits', () => {
+	function post(file: File, actor: TestActor) {
+		const body = new FormData();
+		body.set('file', file);
+		body.set('treeId', treeId);
+		body.set('mode', 'merge');
+		const event = {
+			request: new Request('http://epoch.test/api/import', { method: 'POST', body }),
+			locals: { user: actor.context.user, correlationId: actor.context.correlationId },
+			platform: { env: { DB: t.d1 } }
+		} as unknown as RequestEvent;
+		return POST(event);
+	}
+
+	it('refuses an upload over the cap before reading it', async () => {
+		const file = new File([new Uint8Array(MAX_IMPORT_BYTES + 1)], 'huge.ged');
+		const response = await post(file, actors.editor);
+		expect(response.status).toBe(413);
+	}, 60_000);
+
+	it('refuses a small archive that expands past the dataset cap', async () => {
+		const bomb = zipSync({ 'gedcom.ged': new Uint8Array(MAX_DATASET_BYTES + 1) });
+		const response = await post(new File([bomb], 'bomb.gdz'), actors.editor);
+		expect(response.status).toBe(413);
+	}, 60_000);
+
+	it('still imports a small GEDZIP', async () => {
+		const archive = zipSync({ 'gedcom.ged': new TextEncoder().encode(GEDCOM) });
+		const response = await post(new File([archive], 'small.gdz'), actors.editor);
 		expect(response.status).toBe(200);
 	});
 });

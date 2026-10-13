@@ -17,7 +17,7 @@ import {
 	type ParsedExportInstance
 } from '#lib/server/workflows/export-instance.js';
 
-const options = { failure: 'Export failed', messagePrefix: 'Export failed: ' };
+const options = { failure: 'Export failed' };
 
 /** Best-effort delete of an expired object: the lifecycle rule is the backstop if it fails. */
 async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {

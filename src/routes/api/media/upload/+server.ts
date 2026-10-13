@@ -1,62 +1,11 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
-import { PayloadTooLargeError, ValidationError } from '#lib/server/domain/errors.js';
+import { ValidationError } from '#lib/server/domain/errors.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
-
-/** Multipart framing around the file (boundaries, headers) costs a little over the file itself. */
-const MULTIPART_SLACK_BYTES = 64 * 1024;
-
-/** The largest request body the route will read: the file cap plus its multipart framing. */
-const MAX_UPLOAD_BODY_BYTES = MAX_MEDIA_UPLOAD_BYTES + MULTIPART_SLACK_BYTES;
-
-/**
- * Parse a multipart upload while counting the bytes as they arrive, so an oversized body is aborted
- * mid-stream rather than buffered whole. This is the authoritative size control: it does not trust
- * `Content-Length`, which a client may omit (HTTP/2, chunked) or understate to slip a large body
- * into the isolate before rejection.
- *
- * @throws PayloadTooLargeError when the streamed body exceeds {@link MAX_UPLOAD_BODY_BYTES}.
- * @throws ValidationError when the body is missing or is not valid multipart form data.
- */
-async function parseUploadForm(request: Request): Promise<FormData> {
-	const body = request.body;
-	if (!body) {
-		throw new ValidationError('Upload body is missing');
-	}
-
-	const contentType = request.headers.get('content-type') ?? '';
-	let totalBytes = 0;
-	let isOverLimit = false;
-	const bounded = body.pipeThrough(
-		new TransformStream<Uint8Array, Uint8Array>({
-			transform(chunk, controller) {
-				totalBytes += chunk.byteLength;
-				if (totalBytes > MAX_UPLOAD_BODY_BYTES) {
-					isOverLimit = true;
-					controller.error(new Error('upload body exceeds the size limit'));
-					return;
-				}
-				controller.enqueue(chunk);
-			}
-		})
-	);
-
-	try {
-		return await new Response(bounded, {
-			headers: { 'content-type': contentType }
-		}).formData();
-	} catch {
-		// A stream error from the limiter is the size cap, not a malformed body; anything else is a
-		// parse failure the caller fixes, so it is a 400 rather than a 500.
-		if (isOverLimit) {
-			throw new PayloadTooLargeError('Upload is too large');
-		}
-		throw new ValidationError('Upload body is not valid multipart form data');
-	}
-}
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	if (!locals.user) {
@@ -66,19 +15,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
 	}
 
-	// Refuse a body whose declared length is already too large before reading anything. This is only
-	// a cheap early exit: the length may be absent (HTTP/2, chunked) or understated, so the byte
-	// count `parseUploadForm` enforces while streaming is what actually bounds the body.
-	const declaredLength = request.headers.get('content-length');
-	if (declaredLength !== null) {
-		const declaredBytes = Number(declaredLength);
-		if (Number.isFinite(declaredBytes) && declaredBytes > MAX_UPLOAD_BODY_BYTES) {
-			return Response.json({ error: 'Upload is too large' }, { status: 413 });
-		}
-	}
-
 	try {
-		const formData = await parseUploadForm(request);
+		const formData = await parseBoundedFormData(request, MAX_MEDIA_UPLOAD_BYTES);
 		const file = formData.get('file');
 		const treeId = formData.get('treeId');
 		const entityId = formData.get('entityId');

@@ -1,25 +1,39 @@
 import { decodeGedcomFile } from '#lib/server/gedcom/decode.js';
+import { MAX_DATASET_BYTES, MAX_IMPORT_BYTES } from '#lib/server/gedcom/limits.js';
+import { PayloadTooLargeError, ValidationError } from '#lib/server/domain/errors.js';
+import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { GedcomService } from '#lib/server/services/gedcom-service.js';
 
 const importFailure = {
-	failure: 'Failed to import GEDCOM',
-	messagePrefix: 'Failed to import GEDCOM: '
+	failure: 'Failed to import GEDCOM'
 };
-/** The file's text, whatever version, character set or GEDZip archive it came as. */
+/**
+ * The file's text, whatever version, character set or GEDZip archive it came as. The size is refused
+ * before the file is read, and the dataset is refused before it is returned: a small archive can
+ * expand far past the upload cap.
+ */
 async function readGedcom(file: File): Promise<string> {
-	return decodeGedcomFile(new Uint8Array(await file.arrayBuffer()));
+	if (file.size > MAX_IMPORT_BYTES) {
+		throw new PayloadTooLargeError(`Import file exceeds the ${MAX_IMPORT_BYTES} byte limit`);
+	}
+	const text = decodeGedcomFile(new Uint8Array(await file.arrayBuffer()));
+	// Every decoder yields at most one UTF-16 unit per input byte, so this bounds the dataset's bytes.
+	if (text.length > MAX_DATASET_BYTES) {
+		throw new PayloadTooLargeError(`The dataset exceeds the ${MAX_DATASET_BYTES} byte limit`);
+	}
+	return text;
 }
 
 const previewFailure = {
-	failure: 'Failed to preview GEDCOM',
-	messagePrefix: 'Failed to preview GEDCOM: '
+	failure: 'Failed to preview GEDCOM'
 };
 
 export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
-	const formData = await event.request.formData();
-	const file = formData.get('file') as File | null;
+	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
+	const file = formData.get('file');
 	if (!file) return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
+	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
 	const text = await readGedcom(file);
 	const env = event.platform?.env;
@@ -52,10 +66,11 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 });
 
 export const PUT = apiHandler(previewFailure, async ({ db, ctx, event }) => {
-	const formData = await event.request.formData();
-	const file = formData.get('file') as File | null;
+	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
+	const file = formData.get('file');
 	const treeId = formData.get('treeId') as string | null;
 	if (!file) return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
+	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
 	const service = new GedcomService(db);
 	const text = await readGedcom(file);

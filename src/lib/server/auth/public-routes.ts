@@ -154,5 +154,9 @@ export function safeNextPath(raw: string | null): string {
 	}
 	if (resolved.origin !== PLACEHOLDER_ORIGIN) return '/';
 	if (resolved.pathname === LOGIN_PATH || resolved.pathname === WELCOME_PATH) return '/';
-	return resolved.pathname + resolved.search + resolved.hash;
+	const path = resolved.pathname + resolved.search + resolved.hash;
+	// Dot-segment collapsing can leave a `//` (or `/\`) prefix that the origin check cannot see, and
+	// a browser given it as a Location header follows it to another host.
+	if (path.startsWith('//') || path.startsWith('/\\')) return '/';
+	return path;
 }

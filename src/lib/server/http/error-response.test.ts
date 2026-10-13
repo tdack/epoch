@@ -62,38 +62,37 @@ describe('errorResponse: domain errors keep their status, code and details', () 
 });
 
 describe('errorResponse: anything else is a logged 500', () => {
-	it('uses the error message and logs the cause once', async () => {
+	it('returns only the fixed fallback and logs the cause once', async () => {
 		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-		const cause = new Error('D1_ERROR: boom');
-		expect(await read(errorResponse(cause, 'Failed to create tree'))).toEqual({
-			status: 500,
-			body: { error: 'D1_ERROR: boom' }
-		});
+		const cause = new Error('D1_ERROR: UNIQUE constraint failed: trees.slug');
+		const result = await read(errorResponse(cause, 'Failed to create tree'));
+		expect(result).toEqual({ status: 500, body: { error: 'Failed to create tree' } });
+		expect(JSON.stringify(result.body)).not.toContain('D1_ERROR');
 		expect(log).toHaveBeenCalledTimes(1);
 		expect(log).toHaveBeenCalledWith('Failed to create tree:', cause);
 	});
 
-	it('falls back to the operation name when the thrown value has no message', async () => {
+	it('returns the fallback for every thrown value, with or without a message', async () => {
 		vi.spyOn(console, 'error').mockImplementation(() => {});
-		for (const thrown of [undefined, null, '', {}, { message: '' }]) {
+		for (const thrown of [undefined, null, '', {}, { message: '' }, new Error('secret')]) {
 			expect((await read(errorResponse(thrown, 'Failed to load graph'))).body).toEqual({
 				error: 'Failed to load graph'
 			});
 		}
 	});
 
-	it('prefixes the message for endpoints that show a generic failure', async () => {
+	it('prefixes the fallback for endpoints that show a generic failure', async () => {
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		expect(
 			(
 				await read(
-					errorResponse(new Error('bad file'), 'Export failed', {
+					errorResponse(new Error('bad file'), 'Could not read file', {
 						messagePrefix: 'Export failed: '
 					})
 				)
 			).body
 		).toEqual({
-			error: 'Export failed: bad file'
+			error: 'Export failed: Could not read file'
 		});
 	});
 });
