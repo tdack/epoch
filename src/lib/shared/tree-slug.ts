@@ -39,7 +39,7 @@ export interface TreeRef {
 }
 
 /** The segment a tree's pages live under: its slug when it has one, else its id. */
-export function treeSegment(tree: TreeRef): string {
+function treeSegment(tree: TreeRef): string {
 	return tree.slug ?? tree.id;
 }
 
