@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import EpochMark from './EpochMark.svelte';
+	import SourceLink from '#lib/components/layout/SourceLink.svelte';
 
 	interface Props {
 		/** Text of the one button. */
@@ -16,9 +17,11 @@
 		message?: string;
 		/** A second link, to the public tree when there is one. Absent leaves the page as it was. */
 		explore?: { label: string; href: string };
+		/** Where this install's source can be had. Required, so no signed-out page drops the offer. */
+		sourceUrl: string;
 	}
 
-	let { actionLabel, actionHref, message, explore }: Props = $props();
+	let { actionLabel, actionHref, message, explore, sourceUrl }: Props = $props();
 </script>
 
 <!-- The photograph is decoration, so it lives in CSS rather than an <img> a screen reader would
@@ -61,5 +64,8 @@ announce. The emerald wash keeps the cream text above contrast over the brightes
 				<p class="text-sm text-emerald-100">{message}</p>
 			{/if}
 		</div>
+	</div>
+	<div class="absolute inset-x-0 bottom-4 text-center">
+		<SourceLink href={sourceUrl} tone="dark" />
 	</div>
 </main>

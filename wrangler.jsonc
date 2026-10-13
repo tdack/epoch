@@ -53,6 +53,11 @@
 			"allowed_sender_addresses": ["epoch@example.com"]
 		}
 	],
+	// A fork that changes Epoch points this at its own repository: the licence asks it to offer the
+	// source it runs. Setup carries these vars into every install's deploy config.
+	"vars": {
+		"EPOCH_SOURCE_URL": "https://github.com/tdack/epoch"
+	},
 	"observability": {
 		"logs": {
 			"enabled": true

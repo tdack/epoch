@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
+	import SourceLink from '#lib/components/layout/SourceLink.svelte';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TreeShellHost from '#lib/components/tree/TreeShellHost.svelte';
 	import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
+
+	let { data } = $props();
 
 	const toasts = new ToastStore();
 	const shell = new TreeShell({
@@ -47,5 +50,8 @@
 			</button>
 		</div>
 	</main>
+	<footer class="px-6 pb-4 text-center">
+		<SourceLink href={data.sourceUrl} />
+	</footer>
 </div>
 <ToastHost store={toasts} />

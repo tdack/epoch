@@ -21,6 +21,8 @@ declare global {
 				EMAIL?: SendEmail;
 				/** Set by setup alongside `EMAIL`; the one address its `allowed_sender_addresses` names. */
 				EPOCH_EMAIL_SENDER?: string;
+				/** Where visitors are offered this install's source (AGPL section 13); upstream when unset. */
+				EPOCH_SOURCE_URL?: string;
 				CF_IMAGES_TOKEN?: string;
 				CF_ACCOUNT_ID?: string;
 				CF_ACCESS_TEAM_DOMAIN?: string;

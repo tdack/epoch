@@ -53,6 +53,9 @@
 			"allowed_sender_addresses": ["epoch@example.com"]
 		}
 	],
+	"vars": {
+		"EPOCH_SOURCE_URL": "https://github.com/tdack/epoch"
+	},
 	"observability": {
 		"logs": {
 			"enabled": true
