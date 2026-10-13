@@ -20,6 +20,7 @@ import {
 import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
 import { QualityService } from './quality-service';
+import { QualityRepository } from '../repositories/quality-repository';
 import { MAX_FINDINGS_PER_RULE } from '../../shared/quality';
 
 const FIXTURE = `0 HEAD
@@ -234,6 +235,47 @@ describe('dismissing', () => {
 		await expect(service().restore(treeId, key, actors.editor.context)).rejects.toBeInstanceOf(
 			NotFoundError
 		);
+	});
+
+	it('dismisses several findings with one reason, or none when one of them is gone', async () => {
+		const keys = (await service().report(treeId, actors.owner.context)).findings.map((f) => f.key);
+		expect(keys.length).toBeGreaterThan(1);
+
+		await expect(
+			service().dismiss(
+				treeId,
+				[...keys, 'child_before_parent:nobody'],
+				'Known',
+				actors.editor.context
+			)
+		).rejects.toBeInstanceOf(NotFoundError);
+		expect((await service().report(treeId, actors.owner.context)).dismissed).toEqual([]);
+		await expect(
+			service().dismiss(treeId, [], 'Known', actors.editor.context)
+		).rejects.toBeInstanceOf(ValidationError);
+
+		await service().dismiss(
+			treeId,
+			[...keys, keys[0]!],
+			'  Checked as a batch ',
+			actors.editor.context
+		);
+		const report = await service().report(treeId, actors.owner.context);
+		expect(report.findings).toEqual([]);
+		expect(report.dismissed.map((d) => d.key).sort()).toEqual([...keys].sort());
+		expect(new Set(report.dismissed.map((d) => d.reason))).toEqual(new Set(['Checked as a batch']));
+
+		for (const key of keys) await service().restore(treeId, key, actors.editor.context);
+	});
+
+	it('stores a selection larger than one insert can bind', async () => {
+		// D1 binds at most 100 parameters, so the rows go in chunks; the fixture has too few findings.
+		const keys = Array.from({ length: 40 }, (_, i) => `test:bulk-${i}`);
+		const dismissals = new QualityRepository(t.db);
+		await dismissals.dismiss(treeId, keys, 'Bulk', actors.owner.context.user.id, 1);
+		const stored = (await dismissals.list(treeId)).filter((d) => d.key.startsWith('test:bulk-'));
+		expect(stored).toHaveLength(40);
+		for (const key of keys) await dismissals.restore(treeId, key);
 	});
 
 	it('stops listing a dismissal once the data no longer raises the finding, and never lists one about a hidden person', async () => {

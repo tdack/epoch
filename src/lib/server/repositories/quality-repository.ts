@@ -3,6 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { qualityDismissals, users } from '../db/schema';
+import { chunkByParamLimit } from './param-chunks';
 import type { QualityDismissal } from '../../shared/quality';
 
 /** What a dismissal shows of the person who made it: a name, never an email address. */
@@ -32,28 +33,36 @@ export class QualityRepository {
 		}));
 	}
 
-	/** Records the decision; dismissing again replaces the reason and the person, so the latest word stands. */
+	/**
+	 * Records one decision for every key, all or none; dismissing again replaces the reason and the
+	 * person, so the latest word stands.
+	 */
 	async dismiss(
 		treeId: string,
-		findingKey: string,
+		findingKeys: string[],
 		reason: string,
 		userId: string,
 		now: number
 	): Promise<void> {
-		await this.db
-			.insert(qualityDismissals)
-			.values({
-				id: crypto.randomUUID(),
-				treeId,
-				findingKey,
-				reason,
-				dismissedBy: userId,
-				dismissedAt: now
-			})
-			.onConflictDoUpdate({
-				target: [qualityDismissals.treeId, qualityDismissals.findingKey],
-				set: { reason, dismissedBy: userId, dismissedAt: now }
-			});
+		const rows = findingKeys.map((findingKey) => ({
+			id: crypto.randomUUID(),
+			treeId,
+			findingKey,
+			reason,
+			dismissedBy: userId,
+			dismissedAt: now
+		}));
+		const inserts = chunkByParamLimit(rows, 6).map((chunk) =>
+			this.db
+				.insert(qualityDismissals)
+				.values(chunk)
+				.onConflictDoUpdate({
+					target: [qualityDismissals.treeId, qualityDismissals.findingKey],
+					set: { reason, dismissedBy: userId, dismissedAt: now }
+				})
+		);
+		const [first, ...rest] = inserts;
+		if (first) await this.db.batch([first, ...rest]);
 	}
 
 	/** @returns false when there was no such dismissal. */

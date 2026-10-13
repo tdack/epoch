@@ -7,11 +7,11 @@ export const GET = treeHandler({ failure: 'Failed to load the report' }, ({ db, 
 	new QualityService(db).report(treeId, ctx)
 );
 
-/** Dismiss a finding with a reason; dismissing again replaces the reason. */
+/** Dismiss one finding or several with a reason, all or none; dismissing again replaces the reason. */
 export const PUT = treeHandler(
-	{ failure: 'Failed to dismiss the finding', body: qualityDismissSchema },
-	async ({ db, ctx, treeId, body: { key, reason } }) => {
-		await new QualityService(db).dismiss(treeId, key, reason, ctx);
+	{ failure: 'Failed to dismiss the findings', body: qualityDismissSchema },
+	async ({ db, ctx, treeId, body: { key, keys, reason } }) => {
+		await new QualityService(db).dismiss(treeId, keys ?? [key!], reason, ctx);
 		return { ok: true };
 	}
 );

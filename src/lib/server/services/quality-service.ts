@@ -113,13 +113,19 @@ export class QualityService {
 		};
 	}
 
-	/** @throws NotFoundError when the finding does not exist now (it was fixed, or it is about someone the caller cannot see). */
+	/**
+	 * Dismisses every finding named with the one reason, or none of them.
+	 *
+	 * @throws NotFoundError when a finding does not exist now (it was fixed, or it is about someone the caller cannot see).
+	 */
 	async dismiss(
 		treeId: string,
-		findingKey: string,
+		findingKeys: string | string[],
 		reason: string,
 		context: AuthenticatedContext
 	): Promise<void> {
+		const keys = [...new Set(typeof findingKeys === 'string' ? [findingKeys] : findingKeys)];
+		if (keys.length === 0) throw new ValidationError('Choose at least one finding to dismiss.');
 		requireRealUser(context);
 		const trimmed = reason.trim();
 		if (!trimmed) throw new ValidationError('Say why this is fine, so the next person knows.');
@@ -128,8 +134,10 @@ export class QualityService {
 				`The reason can be at most ${MAX_DISMISSAL_REASON_LENGTH} characters.`
 			);
 		const { findings: all } = await this.visibleFindings(treeId, context, 'record:edit');
-		if (!all.some((f) => f.key === findingKey)) throw new NotFoundError('Finding', findingKey);
-		await this.dismissals.dismiss(treeId, findingKey, trimmed, context.user.id, this.now());
+		const existing = new Set(all.map((f) => f.key));
+		const missing = keys.find((key) => !existing.has(key));
+		if (missing !== undefined) throw new NotFoundError('Finding', missing);
+		await this.dismissals.dismiss(treeId, keys, trimmed, context.user.id, this.now());
 	}
 
 	async restore(treeId: string, findingKey: string, context: AuthenticatedContext): Promise<void> {

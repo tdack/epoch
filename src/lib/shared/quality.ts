@@ -219,6 +219,11 @@ export interface QualityReport {
 /** A rule on a badly tangled tree can fire thousands of times; the page and the response stay readable. */
 export const MAX_FINDINGS_PER_RULE = 100;
 export const MAX_DISMISSAL_REASON_LENGTH = 500;
+/**
+ * The most findings one request may dismiss. A selection reaches only what the page lists, at most
+ * `MAX_FINDINGS_PER_RULE` per rule; this bounds the request, not the page.
+ */
+export const MAX_BULK_DISMISSALS = 2000;
 
 export const findingKey = (rule: QualityRuleCode, ...ids: string[]): string =>
 	`${rule}:${ids.join(',')}`;

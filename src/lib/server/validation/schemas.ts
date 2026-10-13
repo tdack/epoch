@@ -8,7 +8,7 @@
  * normalization stay in the service).
  */
 
-import { MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
+import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { TREE_ROLES } from '../../shared/roles';
 import {
@@ -311,10 +311,19 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 export const placeRewriteSchema = z.object({ name: z.string().trim().min(1).max(200) });
 
 /** Dismissing a data-quality finding: the finding's key, and why it is fine. */
-export const qualityDismissSchema = z.object({
-	key: z.string().min(1).max(2000),
-	reason: z.string().trim().min(1).max(MAX_DISMISSAL_REASON_LENGTH)
-});
+/**
+ * One finding (`key`) or several (`keys`) dismissed with one reason. `key` stays for a page loaded
+ * before `keys` existed.
+ */
+export const qualityDismissSchema = z
+	.object({
+		key: z.string().min(1).max(2000).optional(),
+		keys: z.array(z.string().min(1).max(2000)).min(1).max(MAX_BULK_DISMISSALS).optional(),
+		reason: z.string().trim().min(1).max(MAX_DISMISSAL_REASON_LENGTH)
+	})
+	.refine((body) => (body.key === undefined) !== (body.keys === undefined), {
+		message: 'Name the findings to dismiss with either key or keys'
+	});
 
 /** Merging a person (the path names the one that stays): who is folded in, what to keep where they differ, and the versions the review showed. */
 export const personMergeSchema = z.object({
