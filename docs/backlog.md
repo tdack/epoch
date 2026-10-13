@@ -136,9 +136,9 @@ Last reviewed: 2026-10-11.
 - **Whole-tree overview.** The S1f spike compared layered engines (d3-dag, ELK) for an optional
   whole-tree flat overview; confirm whether a decision was recorded, otherwise decide.
 - **Home dashboard.** Favourites and recents exist; there is no dashboard.
-- **A minimap for large trees,** and a text alternative to the graph for screen readers, with
-  arrow-key navigation between related nodes (confirm what shipped against the accessibility audit
-  below).
+- **A text alternative to the graph for screen readers,** with arrow-key navigation between
+  related nodes (confirm what shipped against the accessibility audit below). The flat view's
+  minimap shipped (pointer only, hidden from assistive technology); the 3D views have none.
 - **Phone layouts** for the core screens (see PRODUCT.md).
 
 ### Search

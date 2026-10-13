@@ -121,6 +121,7 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
   so totals, paging and counts never leak.
 - Members join by invitation (ADR-016, ADR-031). Only the install owner, members and invitees are
   admitted (ADR-034). A tree can be made public to read without signing in (ADR-041).
+  Each member may mark one of their trees as the default that `/` opens (ADR-044).
 - Media reads re-check the tree, the record and the role. Uploads are sniffed and capped, and served
   by `Content-Type` allowlist (ADR-039).
 - Export is a manager action, and its background job re-checks authorization (ADR-040).
@@ -131,7 +132,8 @@ The tree page is a focus-centred hourglass: there is always a focus person, and 
 bounded subgraph rather than the whole tree (ADR-011). Pedigree, descendant, fan, hourglass and
 relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL views (Rings, Ball,
 Ribbons, Orrery) share one selection and highlight model (ADR-032, ADR-033, ADR-035); flat is the
-default. One person view renders both the drawer and the person page (ADR-027).
+default. The flat view shows a minimap once the tree no longer fits the canvas. One person view
+renders both the drawer and the person page (ADR-027).
 
 ## Research basis
 
