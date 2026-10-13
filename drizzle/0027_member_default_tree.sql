@@ -1,0 +1,2 @@
+ALTER TABLE `tree_memberships` ADD `is_default` integer DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_membership_one_default` ON `tree_memberships` (`user_id`) WHERE is_default = 1;

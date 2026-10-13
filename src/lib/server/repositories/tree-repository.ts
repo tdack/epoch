@@ -13,6 +13,8 @@ export interface TreeSummary {
 	role?: TreeRole;
 	viewMode?: LayoutMode | null;
 	defaultViewMode?: LayoutMode | null;
+	/** Whether `/` opens this tree for the caller; set on the tree list only. */
+	isDefault?: boolean;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 }
@@ -48,6 +50,7 @@ export class TreeRepository {
 				version: trees.version,
 				role: treeMemberships.role,
 				viewMode: treeMemberships.viewMode,
+				isDefault: treeMemberships.isDefault,
 				defaultViewMode: trees.defaultViewMode,
 				createdAt: trees.createdAt,
 				updatedAt: trees.updatedAt
@@ -110,6 +113,31 @@ export class TreeRepository {
 			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
 			.returning({ id: treeMemberships.id });
 		return updated.length > 0;
+	}
+
+	/**
+	 * Makes `treeId` the tree `/` opens for this user, or none when null. The old flag is cleared
+	 * first, in the same batch, because the partial unique index is checked row by row. Like the view
+	 * setting it leaves `version` and `updatedAt` alone. False when the user is no member of the tree.
+	 */
+	async setDefaultTree(userId: string, treeId: string | null): Promise<boolean> {
+		const clear = this.db
+			.update(treeMemberships)
+			.set({ isDefault: false })
+			.where(and(eq(treeMemberships.userId, userId), eq(treeMemberships.isDefault, true)));
+		if (treeId === null) {
+			await clear;
+			return true;
+		}
+		const [, set] = await this.db.batch([
+			clear,
+			this.db
+				.update(treeMemberships)
+				.set({ isDefault: true })
+				.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
+				.returning({ id: treeMemberships.id })
+		]);
+		return set.length > 0;
 	}
 
 	/** The tree's default view; `version` stays, as it guards the name and description. */

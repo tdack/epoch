@@ -911,6 +911,11 @@ export async function saveViewMode(treeId: string, mode: LayoutMode | null): Pro
 	);
 }
 
+/** The tree `/` opens for the signed-in user; null clears it. */
+export async function saveDefaultTree(treeId: string | null): Promise<void> {
+	await call('/api/default-tree', json('PUT', { treeId }), 'Failed to save the default tree');
+}
+
 /** The view members with no choice of their own get; the owner's to set. */
 export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
 	await call(

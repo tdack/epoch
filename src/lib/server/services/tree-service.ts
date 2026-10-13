@@ -101,6 +101,23 @@ export class TreeService {
 		return { viewMode: mode };
 	}
 
+	/**
+	 * The tree `/` opens for the caller; null clears it so the most recently changed tree opens. Their
+	 * own setting, so any member may set it and it is not logged or undoable.
+	 */
+	async setDefaultTree(treeId: string | null, context: AuthenticatedContext) {
+		requireRealUser(context);
+		if (treeId !== null) {
+			await requireTreeAction(this.userRepo, treeId, context, 'tree:view');
+			// The public tree lets a non-member view it, but only a membership can carry the flag.
+			if (!(await this.treeRepo.setDefaultTree(context.user.id, treeId)))
+				throw new ValidationError('Only a tree you are a member of can be your default');
+		} else {
+			await this.treeRepo.setDefaultTree(context.user.id, null);
+		}
+		return { defaultTreeId: treeId };
+	}
+
 	/** The view members with no choice of their own get; the owner's to set. */
 	async setDefaultViewMode(treeId: string, mode: LayoutMode | null, context: AuthenticatedContext) {
 		await requireTreeAction(this.userRepo, treeId, context, 'tree:set_default_view');

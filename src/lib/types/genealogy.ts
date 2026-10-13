@@ -11,6 +11,8 @@ export interface TreeSummary {
 	viewMode?: LayoutMode | null;
 	/** The view for members with no choice of their own; null is flat. */
 	defaultViewMode?: LayoutMode | null;
+	/** Whether `/` opens this tree for the caller. */
+	isDefault?: boolean;
 }
 
 export interface ImportPreviewData {

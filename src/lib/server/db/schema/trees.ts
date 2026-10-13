@@ -54,6 +54,9 @@ export const treeMemberships = sqliteTable(
 		// chosen and the tree's default applies (S16 stage 8). Their own setting, so changing it neither
 		// bumps `version` (that guards role edits) nor needs a manager.
 		viewMode: text('view_mode'),
+		// The tree `/` opens for this user. On the membership rather than the user so that leaving or
+		// deleting the tree takes the choice with it, instead of leaving a pointer to a tree they lost.
+		isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
 		// Two managers can change the same member at once; the second sees a conflict, not a silent overwrite.
 		version: integer('version').notNull().default(1),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -61,7 +64,10 @@ export const treeMemberships = sqliteTable(
 	},
 	(table) => ({
 		treeUserIdx: uniqueIndex('idx_tree_user').on(table.treeId, table.userId),
-		userTreeIdx: index('idx_membership_user').on(table.userId)
+		userTreeIdx: index('idx_membership_user').on(table.userId),
+		oneDefaultIdx: uniqueIndex('idx_membership_one_default')
+			.on(table.userId)
+			.where(sql`is_default = 1`)
 	})
 );
 
