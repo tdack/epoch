@@ -384,16 +384,22 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 		const ordered = [...slots].sort((a, b) => slotX(a, xs) - slotX(b, xs) || a.order - b.order);
 		let didChange = false;
 		for (let i = 1; i < ordered.length && !didChange; i++) {
-			const a = ordered[i - 1];
 			const b = ordered[i];
-			const hasA = a.subs.length > 0;
-			const hasB = b.subs.length > 0;
-			let need = 0;
-			if (hasA && hasB) need = contourSeparation(a.contour, b.contour, m.siblingGap);
-			else if (a.hasNode && b.hasNode && a.gapIdx === null && b.gapIdx === null)
-				need = nodeClearance;
-			const deficit = need - (slotX(b, xs) - slotX(a, xs));
-			if (need > 0 && deficit > 1e-6) {
+			const prev = ordered[i - 1];
+			let deficit =
+				prev.hasNode && b.hasNode && prev.gapIdx === null && b.gapIdx === null
+					? nodeClearance - (slotX(b, xs) - slotX(prev, xs))
+					: 0;
+			// Every earlier subtree, not just the neighbour: a childless union in between (a later
+			// partner's) has nothing to separate, and checking only it let a stub land on a card.
+			if (b.subs.length > 0) {
+				for (const a of ordered.slice(0, i)) {
+					if (a.subs.length === 0) continue;
+					const need = contourSeparation(a.contour, b.contour, m.siblingGap);
+					deficit = Math.max(deficit, need - (slotX(b, xs) - slotX(a, xs)));
+				}
+			}
+			if (deficit > 1e-6) {
 				if (b.gapIdx !== null) gaps[b.gapIdx] += 2 * deficit;
 				else b.shift += deficit;
 				didChange = true;

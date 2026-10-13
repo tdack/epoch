@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { allContractViolations, countCrossings } from './contract';
+import { allContractViolations, countCrossings, findOverlaps } from './contract';
 import { layoutFocusView } from './index';
-import { allTestGraphs, CAPTURED_GRAPHS, personByName, SYNTHETIC_GRAPHS } from './test-support';
+import {
+	allTestGraphs,
+	CAPTURED_GRAPHS,
+	makeGraph,
+	personByName,
+	SYNTHETIC_GRAPHS
+} from './test-support';
 import { CROSSING_CONFIGS, crossingKey } from './crossing-configs';
 import baseline from './fixtures/crossings.baseline.json';
 import {
@@ -165,6 +171,43 @@ describe('known bugs from the plan', () => {
 });
 
 describe('structures beyond the Simpsons', () => {
+	it("keeps a later partner's hidden-children stub off the earlier union's children", () => {
+		// Charles's children by Diana spread right under Camilla, whose own children (by another
+		// partner) are a stub; the childless union between them used to hide the clash.
+		const graph = makeGraph({
+			people: [
+				'Charles',
+				'Diana',
+				'Camilla',
+				'Andrew',
+				'Tom',
+				'Laura',
+				'William',
+				'Harry',
+				'Meghan'
+			],
+			unions: [
+				{
+					id: 'cd',
+					partners: ['Charles', 'Diana'],
+					marriageDate: '1981',
+					children: ['William', 'Harry']
+				},
+				{ id: 'cc', partners: ['Charles', 'Camilla'], marriageDate: '2005' },
+				{
+					id: 'ca',
+					partners: ['Camilla', 'Andrew'],
+					marriageDate: '1973',
+					children: ['Tom', 'Laura']
+				},
+				{ id: 'hm', partners: ['Harry', 'Meghan'] }
+			]
+		});
+		const layout = layoutFocusView(graph, 'Charles', { ancestorDepth: 1, descendantDepth: 1 });
+		expect(layout.stubs.map((s) => s.id)).toContain('stub:children:other:Camilla');
+		expect(findOverlaps(layout)).toEqual([]);
+	});
+
 	it('draws a child of two unions once, with a secondary edge for the second union', () => {
 		const rep = captured('representative-551');
 		const layout = layoutFor(rep, 'Alice /Walker/');
