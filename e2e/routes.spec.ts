@@ -30,7 +30,7 @@ test('the old address redirects to the tree, keeping the view', async ({ page, r
 	await page.goto(`/?tree=${api.treeId}&focus=${focus}&up=2&siblings=0`);
 	await expect(card(page, 'Elizabeth')).toBeVisible();
 	const url = new URL(page.url());
-	expect(url.pathname).toBe(`/trees/${api.treeId}`);
+	expect(url.pathname).toBe(`/trees/${api.treeSlug}`);
 	expect(url.searchParams.get('focus')).toBe(`${api.treeId}:${XREF.elizabeth}`);
 	expect(url.searchParams.get('up')).toBe('2');
 	expect(url.searchParams.get('siblings')).toBe('0');
@@ -110,7 +110,7 @@ test('a partnership page shows partners, events, children and chronology, and de
 		.getByTestId('parents')
 		.getByRole('link', { name: /partnership/i })
 		.click();
-	await expect(page).toHaveURL(new RegExp(`/trees/${api.treeId}/unions/`));
+	await expect(page).toHaveURL(new RegExp(`/trees/${api.treeSlug}/unions/`));
 	await expect(page.getByTestId('partners')).toContainText('George');
 	await expect(page.getByTestId('partners')).toContainText('Elizabeth');
 	await expect(page.getByTestId('union-children')).toContainText('Elizabeth');
