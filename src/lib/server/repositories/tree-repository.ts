@@ -121,16 +121,27 @@ export class TreeRepository {
 	 * setting it leaves `version` and `updatedAt` alone. False when the user is no member of the tree.
 	 */
 	async setDefaultTree(userId: string, treeId: string | null): Promise<boolean> {
-		const clear = this.db
-			.update(treeMemberships)
-			.set({ isDefault: false })
-			.where(and(eq(treeMemberships.userId, userId), eq(treeMemberships.isDefault, true)));
+		const isCurrentDefault = and(
+			eq(treeMemberships.userId, userId),
+			eq(treeMemberships.isDefault, true)
+		);
 		if (treeId === null) {
-			await clear;
+			await this.db.update(treeMemberships).set({ isDefault: false }).where(isCurrentDefault);
 			return true;
 		}
+		// The clear only runs when the user belongs to the new tree, so a refused choice (the public
+		// tree, read without membership) cannot leave them with no default at all.
+		const isMemberOfTarget = exists(
+			this.db
+				.select({ id: treeMemberships.id })
+				.from(treeMemberships)
+				.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
+		);
 		const [, set] = await this.db.batch([
-			clear,
+			this.db
+				.update(treeMemberships)
+				.set({ isDefault: false })
+				.where(and(isCurrentDefault, isMemberOfTarget)),
 			this.db
 				.update(treeMemberships)
 				.set({ isDefault: true })

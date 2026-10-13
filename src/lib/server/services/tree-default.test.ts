@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { trees } from '../db/schema';
 import { TreeRepository } from '../repositories/tree-repository';
 import { addTestMember, createTestDatabase, createTestTree, createTestUser } from '../testing/d1';
 import type { TestDatabase } from '../testing/d1';
@@ -51,6 +53,22 @@ describe('default tree', () => {
 		const stranger = await createTestUser(t.db);
 		await expect(service().setDefaultTree(treeId, stranger.context)).rejects.toThrow();
 		expect(await defaultsOf(stranger)).toEqual([]);
+	});
+
+	it('keeps the current default when a non-member picks the public tree', async () => {
+		const reader = await createTestUser(t.db);
+		const own = await createTestTree(t.db, reader);
+		await service().setDefaultTree(own, reader.context);
+		const publisher = await createTestUser(t.db);
+		const publicTree = await createTestTree(t.db, publisher);
+		await t.db.update(trees).set({ isPublic: true }).where(eq(trees.id, publicTree));
+		try {
+			// Readable as a viewer (ADR-041), but there is no membership to carry the flag.
+			await expect(service().setDefaultTree(publicTree, reader.context)).rejects.toThrow('member');
+			expect(await defaultsOf(reader)).toEqual([own]);
+		} finally {
+			await t.db.update(trees).set({ isPublic: false }).where(eq(trees.id, publicTree));
+		}
 	});
 
 	it('goes with the tree when it is deleted', async () => {
