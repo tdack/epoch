@@ -7,10 +7,10 @@ import { DomainError } from '../domain/errors';
  * to act (the current version on a 409, the conflicts on a merge refusal), and is omitted from the
  * body when the error has none.
  *
- * @param fallback Names the operation ("Failed to create tree"); used as the message when the
- *   thrown value has none, and as the log label.
- * @param options.messagePrefix Prepended to an unexpected error's message, for endpoints whose
- *   clients show a generic failure ("Export failed: …").
+ * @param fallback Names the operation ("Failed to create tree"); the only text an unexpected error
+ *   returns, and the log label.
+ * @param options.messagePrefix Prepended to `fallback` in an unexpected error's body, for endpoints
+ *   whose clients show a generic failure ("Export failed: …").
  */
 export function errorResponse(
 	err: unknown,
@@ -24,6 +24,7 @@ export function errorResponse(
 		);
 	}
 	console.error(`${fallback}:`, err);
-	const message = (err as { message?: string } | null)?.message || fallback;
-	return Response.json({ error: `${options.messagePrefix ?? ''}${message}` }, { status: 500 });
+	// Never the thrown message: a driver error can carry SQL or schema names, and the cause is
+	// already in the log above.
+	return Response.json({ error: `${options.messagePrefix ?? ''}${fallback}` }, { status: 500 });
 }

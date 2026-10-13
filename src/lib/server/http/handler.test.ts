@@ -193,14 +193,20 @@ describe('treeHandler: errors go through errorResponse', () => {
 		expect(log).toHaveBeenCalledTimes(1);
 	});
 
-	it('prefixes an unexpected failure when asked to', async () => {
+	it('never echoes an unexpected error’s message, and prefixes the fallback when asked to', async () => {
 		vi.spyOn(console, 'error').mockImplementation(() => {});
-		const handler = treeHandler({ failure: 'x', messagePrefix: 'Export failed: ' }, async () => {
-			throw new Error('bad file');
+		const handler = treeHandler(
+			{ failure: 'Could not read file', messagePrefix: 'Export failed: ' },
+			async () => {
+				throw new Error('no such column: trees.secret');
+			}
+		);
+		const result = await read(await handler(eventOf()));
+		expect(result).toEqual({
+			status: 500,
+			body: { error: 'Export failed: Could not read file' }
 		});
-		expect((await read(await handler(eventOf()))).body).toEqual({
-			error: 'Export failed: bad file'
-		});
+		expect(JSON.stringify(result.body)).not.toContain('no such column');
 	});
 });
 
