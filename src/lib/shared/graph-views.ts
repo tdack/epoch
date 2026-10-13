@@ -23,7 +23,14 @@ export interface FocusGraphDto {
 }
 
 export interface TreeSummaryDto {
-	tree: { id: string; name: string; description: string | null; version: number };
+	/** `slug` is the tree's address segment (ADR-045); null when its id is used instead. */
+	tree: {
+		id: string;
+		slug: string | null;
+		name: string;
+		description: string | null;
+		version: number;
+	};
 	counts: TreeCounts;
 	/** Who is looking, so the page can hide what they cannot use without a second request. */
 	viewer: {

@@ -8,6 +8,9 @@ export const trees = sqliteTable(
 	{
 		id: text('id').primaryKey(),
 		name: text('name').notNull(),
+		// The tree's readable address, `/trees/<slug>` (ADR-045). Kept when the tree is renamed, so a
+		// bookmark survives; null when the name has nothing to make one from, and the id serves.
+		slug: text('slug'),
 		description: text('description'),
 		// ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
 		maxAliveYears: integer('max_alive_years').notNull().default(120),
@@ -30,6 +33,7 @@ export const trees = sqliteTable(
 		publishedBy: text('published_by')
 	},
 	(table) => ({
+		slugIdx: uniqueIndex('idx_trees_slug').on(table.slug),
 		onePublicTreeIdx: uniqueIndex('idx_trees_one_public')
 			.on(table.isPublic)
 			.where(sql`is_public = 1`)

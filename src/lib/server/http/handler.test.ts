@@ -1,9 +1,14 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
+import { TreeService } from '../services/tree-service';
 import { apiHandler, expectedVersion, treeHandler } from './handler';
 
+// The fake database cannot answer the slug lookup; every segment is taken to be the id itself.
+beforeEach(() => {
+	vi.spyOn(TreeService.prototype, 'resolveSegment').mockImplementation(async (segment) => segment);
+});
 afterEach(() => vi.restoreAllMocks());
 
 const USER = { id: 'u1', email: 'a@example.com' };
@@ -100,6 +105,14 @@ describe('treeHandler: what it hands the handler', () => {
 			query: undefined
 		});
 		expect(args.db).toBeDefined();
+	});
+
+	it('hands the handler the id a slug stands for (ADR-045)', async () => {
+		vi.spyOn(TreeService.prototype, 'resolveSegment').mockResolvedValue('t1');
+		const run = vi.fn(async () => ({}));
+		await treeHandler({ failure: 'x' }, run)(eventOf({ params: { id: 'the-dacks' } }));
+		const args = (run.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+		expect(args.treeId).toBe('t1');
 	});
 
 	it('parses and validates the body', async () => {

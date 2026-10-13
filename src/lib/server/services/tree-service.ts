@@ -4,6 +4,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
 import type { TreeAction } from '../auth/authorization';
 import type { LayoutMode } from '../../shared/view-mode';
+import { isValidTreeSlug } from '../../shared/tree-slug';
 import { requireRealUser, requireTreeAction } from './tree-access';
 import { NotAdmittedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
@@ -39,6 +40,15 @@ export class TreeService {
 			return;
 		}
 		await requireTreeAction(this.userRepo, treeId, context, action);
+	}
+
+	/**
+	 * The tree id an API address segment stands for: the id of the tree whose id or slug it is, else
+	 * the segment unchanged, which the tree's own checks then refuse as they refuse any unknown id.
+	 * Not an authorization step; it reveals nothing the next check does not decide.
+	 */
+	async resolveSegment(segment: string): Promise<string> {
+		return (await this.treeRepo.resolveSegment(segment)) ?? segment;
 	}
 
 	async listTrees(context: AuthenticatedContext) {
@@ -81,12 +91,15 @@ export class TreeService {
 	async updateTree(
 		treeId: string,
 		expectedVersion: number,
-		data: { name?: string; description?: string | null },
+		data: { name?: string; description?: string | null; slug?: string | null },
 		context: AuthenticatedContext
 	) {
 		await this.requireOwnerOrAction(treeId, context, 'tree:update_settings');
 		if (data.name !== undefined && !data.name.trim())
 			throw new ValidationError('Tree name is required');
+		// Checked here as well as at the endpoint: a slug shaped like an id would read as another tree.
+		if (data.slug != null && !isValidTreeSlug(data.slug))
+			throw new ValidationError('Use lower-case letters, digits and single hyphens');
 		return this.treeRepo.update(treeId, expectedVersion, data);
 	}
 

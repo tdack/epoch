@@ -25,6 +25,7 @@
 		data.installTrees ??
 			data.trees.map((t) => ({
 				id: t.id,
+				slug: t.slug ?? null,
 				name: t.name,
 				version: 0,
 				role: t.role ?? null,

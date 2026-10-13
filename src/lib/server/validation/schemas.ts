@@ -9,6 +9,7 @@
  */
 
 import { MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
+import { isValidTreeSlug } from '../../shared/tree-slug';
 import { TREE_ROLES } from '../../shared/roles';
 import {
 	MAX_MAX_ALIVE_YEARS,
@@ -220,6 +221,16 @@ export const treeRenameSchema = z.object({
 		.min(1, 'Tree name is required')
 		.max(200)
 		.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE),
+	/** The address (ADR-045); null gives it up, so the tree is reached by its id. Omitted keeps it. */
+	slug: z
+		.string()
+		.trim()
+		.refine(
+			isValidTreeSlug,
+			'Use lower-case letters, digits and single hyphens, up to 60 characters'
+		)
+		.nullable()
+		.optional(),
 	version: versionSchema
 });
 

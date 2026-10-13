@@ -197,6 +197,13 @@
       "when": 1791880963379,
       "tag": "0027_member_default_tree",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1791882124300,
+      "tag": "0028_tree_slug",
+      "breakpoints": true
     }
   ]
 }

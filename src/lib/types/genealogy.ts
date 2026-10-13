@@ -3,6 +3,8 @@ import type { LayoutMode } from '#lib/shared/view-mode.js';
 
 export interface TreeSummary {
 	id: string;
+	/** The tree's address segment (ADR-045); null when its id is used instead. */
+	slug?: string | null;
 	name: string;
 	description: string | null;
 	/** The caller's role in the tree; the tree list always carries it. */

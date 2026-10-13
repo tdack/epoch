@@ -11,6 +11,7 @@ import {
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
 import {
 	notAdmittedOutcome,
+	isPublicTreeSegment,
 	publicReadAccess,
 	signedOutRedirect
 } from '#lib/server/auth/public-routes.js';
@@ -156,7 +157,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (publicRead && bindings.DB) {
 		const isPublicRead =
 			publicRead.kind === 'api' ||
-			(await new PublicTreeService(getDb(bindings.DB)).current())?.id === publicRead.treeId;
+			isPublicTreeSegment(
+				await new PublicTreeService(getDb(bindings.DB)).current(),
+				publicRead.treeId
+			);
 		if (isPublicRead) event.locals.user = PUBLIC_VISITOR;
 	}
 

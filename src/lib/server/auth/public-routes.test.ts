@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+	isPublicTreeSegment,
 	isPublicPagePath,
 	LOGIN_PATH,
 	NOT_INVITED_PATH,
@@ -223,5 +224,20 @@ describe('the public visitor (ADR-041)', () => {
 		expect(
 			signedOutRedirect({ ...signedOutPage, hasUser: true, pathname: '/trees/t1' })
 		).toBeNull();
+	});
+});
+
+describe('isPublicTreeSegment', () => {
+	const publicTree = { id: 'b8ea1a57-5542-437c-99df-00c5d8ee5970', slug: 'the-windsors' };
+
+	it('matches the public tree by id or by slug', () => {
+		expect(isPublicTreeSegment(publicTree, publicTree.id)).toBe(true);
+		expect(isPublicTreeSegment(publicTree, 'the-windsors')).toBe(true);
+	});
+
+	it('matches nothing else, and nothing when no tree is public', () => {
+		expect(isPublicTreeSegment(publicTree, 'the-dacks')).toBe(false);
+		expect(isPublicTreeSegment({ ...publicTree, slug: null }, 'the-windsors')).toBe(false);
+		expect(isPublicTreeSegment(null, 'the-windsors')).toBe(false);
 	});
 });

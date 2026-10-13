@@ -5,6 +5,7 @@
  */
 
 import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { availableTreeSlug } from './tree-repository';
 import {
 	changeLog,
 	citations,
@@ -170,9 +171,11 @@ export class GedcomRepository {
 	}: ImportWrite): Promise<ImportWritten> {
 		const db = this.db;
 		if (!isExistingTree) {
+			const name = treeName || parsed.treeName || 'Imported Tree';
 			await db.insert(trees).values({
 				id: treeId,
-				name: treeName || parsed.treeName || 'Imported Tree',
+				slug: await availableTreeSlug(db, name),
+				name,
 				description: `Imported with ${parsed.individuals.length} individuals and ${parsed.families.length} families`,
 				createdAt: new Date(),
 				updatedAt: new Date()

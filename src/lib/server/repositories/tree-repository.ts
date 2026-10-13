@@ -1,12 +1,15 @@
 import type { DbClient } from '../db';
 import { trees, treeMemberships } from '../db/schema';
-import { eq, desc, and, exists, sql } from 'drizzle-orm';
-import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
+import { eq, desc, and, exists, like, or, sql } from 'drizzle-orm';
+import { ConcurrencyConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { parseLayoutMode, type LayoutMode } from '../../shared/view-mode';
+import { MAX_TREE_SLUG_LENGTH, slugifyTreeName } from '../../shared/tree-slug';
 
 export interface TreeSummary {
 	id: string;
+	/** The readable address segment (ADR-045); null when the tree is reached by its id. */
+	slug: string | null;
 	name: string;
 	description: string | null;
 	version: number;
@@ -21,6 +24,7 @@ export interface TreeSummary {
 
 export interface PublicTreeRef {
 	id: string;
+	slug: string | null;
 	name: string;
 	since: Date | null;
 }
@@ -28,6 +32,7 @@ export interface PublicTreeRef {
 /** One row of the install owner's Trees page: every tree, whether or not they belong to it. */
 export interface InstallTreeRow {
 	id: string;
+	slug: string | null;
 	name: string;
 	version: number;
 	role: TreeRole | null;
@@ -38,6 +43,30 @@ export interface InstallTreeRow {
 	publicSince: Date | null;
 }
 
+/**
+ * The slug a tree named `name` would get: the name's own, else the first free `-2`, `-3`… after it.
+ * Null when the name gives no slug. The unique index is the backstop for two creates racing.
+ */
+export async function availableTreeSlug(db: DbClient, name: string): Promise<string | null> {
+	const base = slugifyTreeName(name);
+	if (!base) return null;
+	const taken = new Set(
+		(
+			await db
+				.select({ slug: trees.slug })
+				.from(trees)
+				.where(or(eq(trees.slug, base), like(trees.slug, `${base}-%`)))
+				.all()
+		).map((row) => row.slug)
+	);
+	if (!taken.has(base)) return base;
+	for (let n = 2; ; n++) {
+		const suffix = `-${n}`;
+		const candidate = `${base.slice(0, MAX_TREE_SLUG_LENGTH - suffix.length).replace(/-+$/, '')}${suffix}`;
+		if (!taken.has(candidate)) return candidate;
+	}
+}
+
 export class TreeRepository {
 	constructor(private db: DbClient) {}
 
@@ -45,6 +74,7 @@ export class TreeRepository {
 		const records = await this.db
 			.select({
 				id: trees.id,
+				slug: trees.slug,
 				name: trees.name,
 				description: trees.description,
 				version: trees.version,
@@ -161,12 +191,29 @@ export class TreeRepository {
 		if (!record) return null;
 		return {
 			id: record.id,
+			slug: record.slug,
 			name: record.name,
 			description: record.description,
 			version: record.version,
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt
 		};
+	}
+
+	/**
+	 * The id of the tree an address segment names: its id or its slug. Null when neither matches,
+	 * and the caller then carries on with the segment as given, so a missing tree is refused exactly
+	 * as before slugs existed. An id match wins, though a slug can never be shaped like an id.
+	 */
+	async resolveSegment(segment: string): Promise<string | null> {
+		const row = await this.db
+			.select({ id: trees.id })
+			.from(trees)
+			.where(or(eq(trees.id, segment), eq(trees.slug, segment)))
+			.orderBy(sql`${trees.id} = ${segment} desc`)
+			.limit(1)
+			.get();
+		return row?.id ?? null;
 	}
 
 	async create(
@@ -179,6 +226,7 @@ export class TreeRepository {
 
 		const newTree = {
 			id: treeId,
+			slug: await availableTreeSlug(this.db, name),
 			name: name.trim(),
 			description: description?.trim() || null,
 			version: 1,
@@ -207,7 +255,7 @@ export class TreeRepository {
 	async update(
 		treeId: string,
 		expectedVersion: number,
-		data: { name?: string; description?: string | null }
+		data: { name?: string; description?: string | null; slug?: string | null }
 	): Promise<TreeSummary> {
 		const current = await this.findById(treeId);
 		if (!current) throw new NotFoundError('Tree', treeId);
@@ -221,9 +269,17 @@ export class TreeRepository {
 		const now = new Date();
 		const nextVersion = current.version + 1;
 
+		const slug = data.slug !== undefined ? data.slug : current.slug;
+		if (slug !== null && slug !== current.slug) {
+			const owner = await this.resolveSegment(slug);
+			if (owner && owner !== treeId)
+				throw new ValidationError(`Another tree already uses "${slug}"`);
+		}
+
 		const updated = await this.db
 			.update(trees)
 			.set({
+				slug,
 				name: data.name !== undefined ? data.name.trim() : current.name,
 				description: data.description !== undefined ? data.description : current.description,
 				version: nextVersion,
@@ -237,6 +293,7 @@ export class TreeRepository {
 
 		return {
 			id: treeId,
+			slug,
 			name: data.name !== undefined ? data.name.trim() : current.name,
 			description: data.description !== undefined ? data.description : current.description,
 			version: nextVersion,
@@ -252,7 +309,7 @@ export class TreeRepository {
 	/** The install's public tree, if any: one read on the partial unique index. */
 	async findPublic(): Promise<PublicTreeRef | null> {
 		const row = await this.db
-			.select({ id: trees.id, name: trees.name, since: trees.publicSince })
+			.select({ id: trees.id, slug: trees.slug, name: trees.name, since: trees.publicSince })
 			.from(trees)
 			.where(eq(trees.isPublic, true))
 			.limit(1)
@@ -264,6 +321,7 @@ export class TreeRepository {
 	async listAll(callerId: string): Promise<InstallTreeRow[]> {
 		const rows = await this.db.all<{
 			id: string;
+			slug: string | null;
 			name: string;
 			version: number;
 			role: TreeRole | null;
@@ -273,7 +331,7 @@ export class TreeRepository {
 			isPublic: number;
 			publicSince: number | null;
 		}>(sql`
-			select t.id as id, t.name as name, t.version as version,
+			select t.id as id, t.slug as slug, t.name as name, t.version as version,
 				(select m.role from tree_memberships m where m.tree_id = t.id and m.user_id = ${callerId}) as role,
 				(select group_concat(coalesce(nullif(trim(u.name), ''), u.email), char(10))
 					from tree_memberships o join users u on u.id = o.user_id
@@ -284,6 +342,7 @@ export class TreeRepository {
 			from trees t order by t.updated_at desc, t.name`);
 		return rows.map((r) => ({
 			id: r.id,
+			slug: r.slug,
 			name: r.name,
 			version: r.version,
 			role: r.role,

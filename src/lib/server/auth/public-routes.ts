@@ -62,7 +62,18 @@ export interface PublicReadRequest {
 /** What an anonymous request may be let in to read: any API path, or one tree's pages. */
 export type PublicReadAccess = { kind: 'api' } | { kind: 'tree'; treeId: string } | null;
 
-/** The tree id of `/trees/<id>` and `/trees/<id>/...`, or null for any other path. */
+/**
+ * Whether a page address's tree segment names the public tree, by its id or its slug (ADR-045).
+ * The anonymous page gate asks this; a slug link to the public tree must open like an id link.
+ */
+export function isPublicTreeSegment(
+	publicTree: { id: string; slug: string | null } | null,
+	segment: string
+): boolean {
+	return publicTree !== null && (publicTree.id === segment || publicTree.slug === segment);
+}
+
+/** The tree segment (an id or a slug) of `/trees/<segment>` and `/trees/<segment>/...`, or null for any other path. */
 export function treeIdOfPath(pathname: string): string | null {
 	const match = /^\/trees\/([^/]+)(?:\/|$)/.exec(pathname);
 	if (!match) return null;

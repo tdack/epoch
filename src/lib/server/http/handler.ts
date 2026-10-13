@@ -4,6 +4,7 @@ import { getDb, type DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
 import { parseBody, parseQuery } from '../validation';
 import { errorResponse } from './error-response';
+import { TreeService } from '../services/tree-service';
 
 type Schema = z.ZodTypeAny | undefined;
 type Parsed<S extends Schema> = S extends z.ZodTypeAny ? z.infer<S> : undefined;
@@ -110,13 +111,20 @@ export function apiHandler<B extends Schema = undefined, Q extends Schema = unde
 /**
  * An endpoint under `/api/trees/[id]`. Everything `apiHandler` does, plus the tree id. Whether the
  * caller may act on the tree is the service's call, never the handler's.
+ *
+ * The segment may be the tree's slug (ADR-045); it is turned into the id here, once, so no service
+ * ever sees a slug. A segment that names no tree is passed on unchanged, and the service refuses it
+ * exactly as it refuses a missing id, so an unknown slug says no more than an unknown id.
  */
 export function treeHandler<B extends Schema = undefined, Q extends Schema = undefined>(
 	options: HandlerOptions<B, Q>,
 	run: (args: TreeArgs<Parsed<B>, Parsed<Q>>) => Promise<Result> | Result
 ): RequestHandler {
 	return (event) =>
-		handle(event, options, ['id', ...(options.params ?? [])], (args) =>
-			run({ ...args, treeId: args.params.id })
+		handle(event, options, ['id', ...(options.params ?? [])], async (args) =>
+			run({
+				...args,
+				treeId: await new TreeService(args.db).resolveSegment(args.params.id)
+			})
 		);
 }

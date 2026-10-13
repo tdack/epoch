@@ -171,6 +171,7 @@ export async function renameTreeApi(treeId: string, name: string, version: numbe
 /** One row of the install owner's Trees page (`GET /api/admin/trees`). */
 export interface InstallTree {
 	id: string;
+	slug: string | null;
 	name: string;
 	version: number;
 	/** The caller's role in the tree; null when they are not a member. */

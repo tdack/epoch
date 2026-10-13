@@ -97,6 +97,7 @@ export class GraphQueryService {
 		return {
 			tree: {
 				id: tree.id,
+				slug: tree.slug,
 				name: tree.name,
 				description: tree.description ?? null,
 				version: tree.version
