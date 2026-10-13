@@ -112,9 +112,20 @@ describe('safeNextPath', () => {
 		['an absolute URL', 'https://evil.example'],
 		['a script URL', 'javascript:alert(1)'],
 		// searchParams.get has already decoded %2F%2F by the time it reaches this function.
-		['a decoded encoded protocol-relative URL', decodeURIComponent('%2F%2Fevil.example')]
+		['a decoded encoded protocol-relative URL', decodeURIComponent('%2F%2Fevil.example')],
+		// Dot segments collapse to a leading `//` after the origin check has already passed.
+		['a protocol-relative URL behind a dot segment', '/.//evil.com'],
+		['a protocol-relative URL behind a parent segment', '/..//evil.com'],
+		['a protocol-relative URL behind a nested parent segment', '/a/..//evil.com'],
+		// Encoded dots and slashes are decoded by searchParams.get before this function sees them.
+		['an encoded dot-segment protocol-relative URL', decodeURIComponent('/%2E%2F%2Fevil.com')]
 	])('refuses %s', (_label, raw) => {
 		expect(safeNextPath(raw)).toBe('/');
+	});
+
+	it('keeps a legitimate path that only looks like a dot segment', () => {
+		expect(safeNextPath('/trees/abc?x=1#y')).toBe('/trees/abc?x=1#y');
+		expect(safeNextPath('/a/../trees/abc')).toBe('/trees/abc');
 	});
 
 	it('refuses the pages that issue the redirect, so it cannot loop', () => {
