@@ -1,7 +1,7 @@
 /**
- * Who may read or add a media object (Phase 4 items 3 and 10). R2 keys are `media/<tree>/<record>/…`;
- * the key alone is never a credential, so a read is checked against the tree and against the
- * record the object belongs to, and a private person's media answers as a missing object.
+ * Who may read or add a media object (Phase 4 items 3 and 10). The key alone is never a credential:
+ * a read is checked against the tree, then against the row that owns the object, and a private
+ * person's media answers as a missing object. Ownership is the row's `entity_id`, not the key.
  */
 
 import type { R2Bucket } from '@cloudflare/workers-types';
@@ -9,18 +9,44 @@ import type { DbClient } from '../db';
 import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { sumStoredBytes } from '../media/stored-bytes';
-import { MediaRepository, type StoredMedia } from '../repositories/media-repository';
+import {
+	MediaRepository,
+	type MediaItemRow,
+	type StoredMedia
+} from '../repositories/media-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
-import { requireTreeScope } from './tree-access';
+import { requireTreeScope, type ViewerScope } from './tree-access';
 
-/** `media/<treeId>/<recordId>/<file>`; ids contain no slash. */
-export function parseMediaKey(key: string): { treeId: string; entityId: string } | null {
-	const [prefix, treeId, entityId, file, ...rest] = key.split('/');
-	if (prefix !== 'media' || !treeId || !entityId || !file || rest.length > 0) return null;
-	return { treeId, entityId };
+/**
+ * Reads the tree from a key. Current keys are `media/<treeId>/<mediaId>.<ext>`; legacy keys are
+ * `media/<treeId>/<entityId>/<file>` and keep working because existing objects are not moved. The
+ * owner is never read from the key, so the shape only has to be a key this app wrote. Ids contain
+ * no slash.
+ */
+export function parseMediaKey(key: string): { treeId: string } | null {
+	const [prefix, treeId, ...rest] = key.split('/');
+	if (prefix !== 'media' || !treeId || rest.length < 1 || rest.length > 2) return null;
+	if (rest.some((segment) => segment === '')) return null;
+	return { treeId };
+}
+
+/**
+/**
+ * Whether a viewer may read a file. `owners` is the people it hangs off: null for a detached file,
+ * empty when the owner no longer exists, else the person (or a union's partners). `visible` is the
+ * subset of those people the viewer can see. Kept as one function so every read path shares the rule.
+ */
+function canReadRow(
+	owners: readonly string[] | null,
+	scope: Pick<ViewerScope, 'isRestricted'>,
+	visible: ReadonlySet<string>
+): boolean {
+	if (!scope.isRestricted) return true;
+	if (owners === null) return false;
+	return owners.length > 0 && owners.every((id) => visible.has(id));
 }
 
 export class MediaService {
@@ -37,7 +63,11 @@ export class MediaService {
 		this.trees = new TreeRepository(db);
 	}
 
-	/** Throws unless the caller may read this object. A key that is not ours, or whose record they cannot see, is a missing object. */
+	/**
+	 * Throws unless the caller may read this object. A key that is not ours, or whose row they cannot
+	 * see, is a missing object. The tree is checked before the row is read, so a caller outside the
+	 * tree is refused without learning whether a key exists in it.
+	 */
 	async requireRead(key: string, context: AuthenticatedContext): Promise<void> {
 		const parsed = parseMediaKey(key);
 		if (!parsed) throw new NotFoundError('Media', key);
@@ -49,13 +79,22 @@ export class MediaService {
 			'media:view',
 			this.now()
 		);
-		if (!scope.isRestricted) return;
-		const owner = await this.media.ownerOf(parsed.treeId, parsed.entityId);
-		if (!owner) throw new NotFoundError('Media', key);
-		const people = owner.kind === 'person' ? [owner.id] : await this.media.partnerIds(owner.id);
-		const seen = await visibleAmong(this.db, parsed.treeId, people, scope);
-		if (people.length === 0 || people.some((id) => !seen.has(id)))
-			throw new NotFoundError('Media', key);
+		const row = await this.media.findByKey(parsed.treeId, key);
+		if (!row) throw new NotFoundError('Media', key);
+		const owners = scope.isRestricted ? await this.ownersOf(row) : null;
+		const visible =
+			owners && owners.length > 0
+				? await visibleAmong(this.db, parsed.treeId, owners, scope)
+				: new Set<string>();
+		if (!canReadRow(owners, scope, visible)) throw new NotFoundError('Media', key);
+	}
+
+	/** The people a file hangs off: null when detached, [] when its owner is gone. */
+	private async ownersOf(row: MediaItemRow): Promise<string[] | null> {
+		if (row.entityId === null) return null;
+		const owner = await this.media.ownerOf(row.treeId, row.entityId);
+		if (!owner) return [];
+		return owner.kind === 'person' ? [owner.id] : this.media.partnerIds(owner.id);
 	}
 
 	/** Throws unless the caller may add media to this record of this tree. */

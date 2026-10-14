@@ -5,7 +5,14 @@
 
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { individuals, mediaItems, treeMemberships, trees } from '../db/schema';
+import {
+	individuals,
+	mediaItems,
+	treeMemberships,
+	trees,
+	unionPartners,
+	unions
+} from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -43,10 +50,18 @@ const actors = {} as Record<TreeRole, TestActor>;
 let idOf: (xref: string) => string;
 const media = () => new MediaService(t.db, () => NOW);
 
-async function addMedia(entityId: string): Promise<string> {
-	const key = `media/${treeId}/${entityId}/${crypto.randomUUID()}.jpg`;
+/** A legacy key names its owner; a current key does not. A null owner is a detached file. */
+async function addMedia(
+	entityId: string | null,
+	shape: 'legacy' | 'current' = 'legacy'
+): Promise<string> {
+	const mediaId = crypto.randomUUID();
+	const key =
+		shape === 'current' || entityId === null
+			? `media/${treeId}/${mediaId}.jpg`
+			: `media/${treeId}/${entityId}/${mediaId}.jpg`;
 	await t.db.insert(mediaItems).values({
-		id: crypto.randomUUID(),
+		id: mediaId,
 		treeId,
 		entityId,
 		r2ObjectKey: key,
@@ -54,6 +69,21 @@ async function addMedia(entityId: string): Promise<string> {
 		mimeType: 'image/jpeg'
 	});
 	return key;
+}
+
+/** A partnership's media is held by the union; it is visible only while every partner is. */
+async function addUnionMedia(partnerIds: string[]): Promise<string> {
+	const unionId = crypto.randomUUID();
+	await t.db.insert(unions).values({ id: unionId, treeId });
+	for (const [order, personId] of partnerIds.entries()) {
+		await t.db.insert(unionPartners).values({
+			id: crypto.randomUUID(),
+			unionId,
+			personId,
+			order
+		});
+	}
+	return addMedia(unionId, 'current');
 }
 
 beforeAll(async () => {
@@ -143,11 +173,14 @@ describe('export', () => {
 });
 
 describe('media keys', () => {
-	it('parses only keys this app writes', () => {
-		expect(parseMediaKey('media/t1/p1/file.jpg')).toEqual({ treeId: 't1', entityId: 'p1' });
+	it('parses the tree from both the current and the legacy key shapes', () => {
+		expect(parseMediaKey('media/t1/3f2a.jpg')).toEqual({ treeId: 't1' });
+		expect(parseMediaKey('media/t1/p1/file.jpg')).toEqual({ treeId: 't1' });
+		expect(parseMediaKey('media/t1/p1')).toEqual({ treeId: 't1' });
 		for (const bad of [
 			'exports/t1-1.ged',
-			'media/t1/p1',
+			'media/t1',
+			'media/t1/',
 			'media/t1/p1/a/b.jpg',
 			'media//p1/x.jpg',
 			'../media/t1/p1/x.jpg'
@@ -183,6 +216,37 @@ describe('reading an object', () => {
 		expect(a).toBeInstanceOf(NotFoundError);
 		expect(b).toBeInstanceOf(NotFoundError);
 		expect(a.message.replace(hidden, 'KEY')).toBe(b.message.replace(missing, 'KEY'));
+	});
+	it('reads a current-shape key by its row, and a detached file only as an editor or above', async () => {
+		const loose = await addMedia(null, 'current');
+		await expect(media().requireRead(loose, actors.editor.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(loose, actors.owner.context)).resolves.toBeUndefined();
+		for (const role of ['contributor', 'viewer'] as const) {
+			await expect(media().requireRead(loose, actors[role].context)).rejects.toBeInstanceOf(
+				NotFoundError
+			);
+		}
+	});
+	it('answers a current-shape key for a visible person to a viewer, and a private one as missing', async () => {
+		const visible = await addMedia(idOf('@I1@'), 'current');
+		const hidden = await addMedia(idOf('@I2@'), 'current');
+		await expect(media().requireRead(visible, actors.viewer.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(hidden, actors.viewer.context)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+	});
+	it('shows a union file only while every partner is visible to the viewer', async () => {
+		const visibleUnion = await addUnionMedia([idOf('@I1@')]);
+		const mixedUnion = await addUnionMedia([idOf('@I1@'), idOf('@I2@')]);
+		const noPartners = await addUnionMedia([]);
+		await expect(media().requireRead(visibleUnion, actors.viewer.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(mixedUnion, actors.viewer.context)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+		await expect(media().requireRead(noPartners, actors.viewer.context)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+		await expect(media().requireRead(noPartners, actors.editor.context)).resolves.toBeUndefined();
 	});
 	it('does not trust a key that names another tree', async () => {
 		const other = await createTestTree(t.db, actors.owner);

@@ -2,45 +2,28 @@
  * The serve route must never replay the stored content type. A legacy object uploaded as
  * `text/html` or `image/svg+xml` has to come back as an opaque, non-sniffable attachment, while a
  * real image is still served inline. It also revalidates rather than caching for a year, but never
- * before the caller has been authorized.
+ * before the caller has been authorized. A detached file (no owner) is editor-only, and a key with
+ * no row is a missing object whatever its shape.
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, mediaItems } from '#lib/server/db/index.js';
 import {
+	addTestMember,
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
+import { FakeMediaBucket } from '#lib/server/testing/fake-bucket.js';
 import { GET } from './+server.js';
 
 interface FakeObject {
 	contentType?: string;
 	body: Uint8Array;
 	httpEtag: string;
-}
-
-class FakeReadBucket {
-	constructor(private readonly object: FakeObject | null) {}
-
-	async get(_key: string) {
-		const object = this.object;
-		if (!object) return null;
-		const bytes = object.body;
-		return {
-			httpMetadata: { contentType: object.contentType },
-			httpEtag: object.httpEtag,
-			body: new ReadableStream({
-				start(controller) {
-					controller.enqueue(bytes);
-					controller.close();
-				}
-			})
-		};
-	}
 }
 
 const HTML_BYTES = new TextEncoder().encode('<html><body>hi</body></html>');
@@ -52,48 +35,82 @@ let treeId: string;
 let personId: string;
 let owner: TestActor;
 let stranger: TestActor;
+let editor: TestActor;
+let viewer: TestActor;
+let contributor: TestActor;
+const bucket = new FakeMediaBucket();
+/** Keys that already have a row, so each test can name a key without tripping over the others. */
+const rowedKeys = new Set<string>();
 
 beforeAll(async () => {
 	t = await createTestDatabase();
 	owner = await createTestUser(t.db, 'owner');
 	stranger = await createTestUser(t.db, 'stranger');
+	editor = await createTestUser(t.db, 'editor');
+	viewer = await createTestUser(t.db, 'viewer');
+	contributor = await createTestUser(t.db, 'contributor');
 	treeId = await createTestTree(t.db, owner);
+	await addTestMember(t.db, treeId, editor, 'editor');
+	await addTestMember(t.db, treeId, viewer, 'viewer');
+	await addTestMember(t.db, treeId, contributor, 'contributor');
 	personId = crypto.randomUUID();
 	await t.db.insert(individuals).values({ id: personId, treeId, givenName: 'Ada' });
-	await t.db.insert(mediaItems).values({
-		id: crypto.randomUUID(),
-		treeId,
-		entityId: personId,
-		r2ObjectKey: `media/${treeId}/${personId}/object`,
-		title: 'x',
-		mimeType: 'application/octet-stream'
-	});
 }, 60_000);
 
 afterAll(async () => {
 	await t.dispose();
 });
 
+/** Gives an object key a row owned by `entityId`, once. `null` makes the file detached. */
+async function ensureRow(key: string, entityId: string | null) {
+	if (rowedKeys.has(key)) return;
+	rowedKeys.add(key);
+	await t.db.insert(mediaItems).values({
+		id: crypto.randomUUID(),
+		treeId,
+		entityId,
+		r2ObjectKey: key,
+		title: 'x',
+		mimeType: 'application/octet-stream'
+	});
+}
+
 function fetchMedia(
 	key: string,
 	object: FakeObject | null,
-	options: { ifNoneMatch?: string; actor?: TestActor } = {}
+	options: { ifNoneMatch?: string; actor?: TestActor; entityId?: string | null } = {}
 ) {
 	const actor = options.actor ?? owner;
-	const event = {
-		params: { key },
-		request: new Request(`http://epoch.test/api/media/${key}`, {
-			headers: options.ifNoneMatch ? { 'if-none-match': options.ifNoneMatch } : {}
-		}),
-		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
-		platform: { env: { DB: t.d1, MEDIA_BUCKET: new FakeReadBucket(object) } },
-		setHeaders: () => {}
-	} as unknown as RequestEvent;
-	return GET(event);
+	bucket.objects.clear();
+	if (object) {
+		bucket.objects.set(key, {
+			body: object.body,
+			size: object.body.byteLength,
+			contentType: object.contentType,
+			httpEtag: object.httpEtag
+		});
+	}
+	return ensureRow(key, options.entityId === undefined ? personId : options.entityId).then(() => {
+		const event = {
+			params: { key },
+			request: new Request(`http://epoch.test/api/media/${key}`, {
+				headers: options.ifNoneMatch ? { 'if-none-match': options.ifNoneMatch } : {}
+			}),
+			locals: { user: actor.context.user, correlationId: actor.context.correlationId },
+			platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket } },
+			setHeaders: () => {}
+		} as unknown as RequestEvent;
+		return GET(event);
+	});
 }
 
 function keyFor(name: string): string {
 	return `media/${treeId}/${personId}/${name}`;
+}
+
+/** The current key shape: named by a media id, with no owner in it. */
+function currentKey(): string {
+	return `media/${treeId}/${crypto.randomUUID()}.png`;
 }
 
 describe('media serve safety', () => {
@@ -184,5 +201,31 @@ describe('media revalidation', () => {
 
 		expect(response.status).toBe(404);
 		expect(response.headers.get('cache-control')).toBe('no-store');
+	});
+});
+
+describe('media ownership in the serve path', () => {
+	it('answers a detached file with 404 to a viewer and a contributor, and serves it to an editor', async () => {
+		const key = currentKey();
+		for (const actor of [viewer, contributor]) {
+			const response = await fetchMedia(key, PNG_OBJECT, { actor, entityId: null });
+			expect(response.status).toBe(404);
+			expect(response.headers.get('cache-control')).toBe('no-store');
+		}
+		expect((await fetchMedia(key, PNG_OBJECT, { actor: editor, entityId: null })).status).toBe(200);
+		expect((await fetchMedia(key, PNG_OBJECT, { actor: owner, entityId: null })).status).toBe(200);
+	});
+
+	it('answers a key with no row as missing, even for an owner, when the object exists', async () => {
+		const key = `media/${treeId}/${crypto.randomUUID()}.png`;
+		bucket.objects.set(key, { body: PNG_BYTES, size: PNG_BYTES.byteLength });
+		const response = await GET({
+			params: { key },
+			request: new Request(`http://epoch.test/api/media/${key}`),
+			locals: { user: owner.context.user, correlationId: owner.context.correlationId },
+			platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket } },
+			setHeaders: () => {}
+		} as unknown as RequestEvent);
+		expect(response.status).toBe(404);
 	});
 });
