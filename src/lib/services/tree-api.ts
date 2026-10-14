@@ -15,6 +15,7 @@ import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 import type { FocusGraphDto, TreeSummaryDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import type { LayoutMode } from '#lib/shared/view-mode.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
+import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
 import type {
 	CitationInput,
@@ -1673,4 +1674,112 @@ export async function previewDeleteTaskApi(
 		'Failed to preview the change'
 	);
 	return data.impact;
+}
+
+/** A page of the files the caller may see; `treeId` narrows it, `cursor` continues it. */
+export async function fetchFiles(
+	query: { treeId?: string | null; cursor?: string | null; limit?: number },
+	fetcher: typeof fetch = fetch
+): Promise<FileListDto> {
+	const params = new URLSearchParams();
+	if (query.treeId) params.set('treeId', query.treeId);
+	if (query.cursor) params.set('cursor', query.cursor);
+	if (query.limit) params.set('limit', String(query.limit));
+	const qs = params.size > 0 ? `?${params}` : '';
+	return call(`/api/files${qs}`, { method: 'GET' }, 'Failed to load files', fetcher);
+}
+
+/** Storage used by the files the caller may see, optionally narrowed to one tree. */
+export async function fetchFileUsage(
+	treeId: string | null,
+	fetcher: typeof fetch = fetch
+): Promise<FileUsageDto> {
+	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	return call(`/api/files/usage${qs}`, { method: 'GET' }, 'Failed to read storage use', fetcher);
+}
+
+/** Renames a file. `version` is the one the caller last read, so a stale rename is refused. */
+export async function renameFileApi(
+	fileId: string,
+	treeId: string,
+	title: string,
+	version: number | undefined
+): Promise<void> {
+	await call(
+		`/api/files/${enc(fileId)}`,
+		json('PATCH', { treeId, title, version }),
+		'Failed to rename the file'
+	);
+}
+
+/** Deletes a file's row and then its bytes. Permanent: the server keeps no copy and no undo. */
+export async function deleteFileApi(fileId: string, treeId: string): Promise<void> {
+	await call(
+		`/api/files/${enc(fileId)}?treeId=${enc(treeId)}`,
+		{ method: 'DELETE' },
+		'Failed to delete the file'
+	);
+}
+
+/** Attaches a detached file to a person or partnership in the same tree. */
+export async function attachFileApi(
+	fileId: string,
+	treeId: string,
+	entityId: string,
+	version: number | undefined
+): Promise<void> {
+	await call(
+		`/api/files/${enc(fileId)}/attach`,
+		json('POST', { treeId, entityId, version }),
+		'Failed to attach the file'
+	);
+}
+
+/** Detaches a file from its person or partnership; the file itself is kept. */
+export async function detachFileApi(
+	fileId: string,
+	treeId: string,
+	version: number | undefined
+): Promise<void> {
+	await call(
+		`/api/files/${enc(fileId)}/detach`,
+		json('POST', { treeId, version }),
+		'Failed to detach the file'
+	);
+}
+
+/** Moves an attached file to another person in the same tree, as one logged change. */
+export async function moveFileApi(
+	fileId: string,
+	treeId: string,
+	entityId: string,
+	version: number | undefined
+): Promise<void> {
+	await call(
+		`/api/files/${enc(fileId)}/move`,
+		json('POST', { treeId, entityId, version }),
+		'Failed to move the file'
+	);
+}
+
+/** Stored objects that no file points at, in the trees the caller manages. */
+export async function fetchUnlinkedFiles(
+	treeId: string | null,
+	fetcher: typeof fetch = fetch
+): Promise<UnlinkedListDto> {
+	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	return call(
+		`/api/files/unlinked${qs}`,
+		{ method: 'GET' },
+		'Failed to list stored files',
+		fetcher
+	);
+}
+
+/** Deletes the unlinked objects a fresh listing finds. Permanent. */
+export async function deleteUnlinkedFilesApi(
+	treeId: string | null
+): Promise<{ deleted: number; failed: number }> {
+	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
 }
