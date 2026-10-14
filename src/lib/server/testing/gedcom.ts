@@ -60,3 +60,22 @@ export function importGedcomAsRetainedNotes(d1: D1Database, treeId: string, rawG
 		isExistingTree: false
 	});
 }
+
+/**
+ * Seeds a tree the way an import did before event details were modelled: an event's ADDR, TYPE,
+ * AGNC, RELI and contacts are kept as lines, and the sub-lines of its PLAC are dropped. It is what
+ * the fact-detail backfill is tested against.
+ */
+export function importGedcomAsRetainedFactDetails(
+	d1: D1Database,
+	treeId: string,
+	rawGedcom: string
+) {
+	return new GedcomRepository(getDb(d1)).writeImport({
+		treeId,
+		treeName: 'Retained fact details',
+		parsed: parseGedcom(rawGedcom, { areFactDetailsModelled: false }),
+		mode: 'replace',
+		isExistingTree: false
+	});
+}
