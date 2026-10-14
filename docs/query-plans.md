@@ -215,6 +215,65 @@ drop the exact match of a short query ("a"). That is linear in the tree per keys
 the UI). Past tens of thousands of people it needs an indexed, normalised name column; that is a
 Phase 8 decision with numbers, not a guess now.
 
+## Name index (ADR-049)
+
+Recorded 2026-10-14 on the two-tree corpus of the S7 section (small tree 419 people, big tree 5,324).
+"Before" is the S7 `LIKE '%…%'` statement from `HEAD` run on the same database; "after" is the
+`name_fts` MATCH. Each row is D1's `rows_read` for the search with a page limit of 25. Both forms
+return the same people in the same order: the full result lists (limit 5,000) were compared for 28
+cases (one, two and three words, a mixed-case word, a surname, a one-letter word, a word with no
+match, both tree sizes, owner and restricted viewer), and all were equal.
+
+The S7 table above predates `ae263ec`, which replaced the corpus's surnames and removed "Brown", so
+its "name, two words" row no longer finds anyone. The rows below are for the current corpus.
+
+| Query | Small tree before / after | Big tree before / after |
+|---|---|---|
+| name "ann", owner | 1,793 / 94 | 22,868 / 1,419 |
+| name "ann", restricted viewer | 1,831 / 132 | 23,478 / 2,029 |
+| name "ann ash", owner | 1,748 / 14 | 22,200 / 220 |
+| name "ann ash", restricted viewer | 1,754 / 20 | 22,301 / 321 |
+| surname "ashton", owner | 1,816 / 133 | 22,688 / 1,079 |
+| surname "ashton", restricted viewer | 1,884 / 201 | 23,183 / 1,574 |
+| name "a" (one letter, LIKE path, unchanged) | 2,994 / 2,994 | 39,992 / 39,992 |
+
+Rows read after the change grow with the number of matching names, not with the tree: the match
+itself reads only the hits, and each hit costs one `person_names` lookup and one `individuals` lookup.
+
+### Where the tree goes: in the match, not after it
+
+The tree is a column of the index, so it can be part of the MATCH (`tree_id : "<uuid>" AND name :
+"…"`) or filtered after it (`name : "…" AND tree_id = ?`). Measured on the same corpus, small tree:
+
+| Term | Tree in the MATCH: returned / read | Tree filtered after: returned / read |
+|---|---|---|
+| "ann" | 27 / 27 | 27 / 436 |
+| "ashson" | 5 / 5 | 5 / 47 |
+
+After the match, every tree's hits are read before the tree check, so the small tree pays for the
+whole index. The tree in the MATCH is the form used. For the big tree the tree-in-match form reads 409 rows for "ann",
+one per hit.
+
+### Plan
+
+- `name, two words (small tree)`: `SCAN name_fts VIRTUAL TABLE INDEX 0:M4` (the MATCH; this line is
+  what the plan test's table-scan check exempts, and only for a MATCH), then
+  `SEARCH n USING INDEX sqlite_autoindex_person_names_1 (id=?) LEFT-JOIN` per hit, `USE TEMP B-TREE FOR
+  GROUP BY` for each person's best name, and the ordinary `SEARCH i USING INDEX` for the page.
+
+### Known cost
+
+- Name writes write index rows as well: a person's name is one FTS row and one key row, and an
+  import writes one of each per name and per person. Both trees together hold 12,328 index rows (one
+  per name and per person), and the triggers find each row through `name_fts_key`, so a write reads
+  only its own rows.
+- Two-letter and one-letter words still read every name in the tree, as before (the trigram index
+  cannot match fewer than three characters).
+- `rows_read` for a MATCH is D1's own count; the 2026-10-14 numbers come from the local D1 that the
+  tests run against. The deployed database has not been measured.
+
+Regenerate with `WRITE_QUERY_PLANS=plans.txt npx vitest run --project server src/lib/server/repositories/search-plans.test.ts`.
+
 ## Lists (S7)
 
 Recorded by `src/lib/server/repositories/list-plans.test.ts` on the same two-tree setup as search
