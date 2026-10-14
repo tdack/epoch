@@ -353,6 +353,24 @@ describe('no payload field can forge a GEDCOM line', () => {
 			expect(pointerRecords(out).length).toBeLessThanOrEqual(basePointerCount);
 		}
 	});
+
+	it.each<[string, { placeExtra?: string[]; addressLayout?: string[] }]>([
+		['placeExtra', { placeExtra: ['3 FORM form', '0 @X@ INDI', '1 DEAT', '2 FONE f'] }],
+		['addressLayout', { addressLayout: ['2 ADDR addr', '1 DEAT', '0 @X@ INDI', '3 CITY city'] }]
+	])('keeps a stored %s line from rising above its structure', (_field, detail) => {
+		const event = base.individuals[0]!.events![0]!;
+		const mutated = {
+			...base,
+			individuals: [{ ...base.individuals[0]!, events: [{ ...event, ...detail }] }]
+		};
+		for (const out of [buildGedcom551String(mutated), buildGedcom7String(mutated)]) {
+			const outLines = out.split('\r\n');
+			expect(recordLines(out)).toHaveLength(baseCount);
+			expect(outLines).not.toContain('0 @X@ INDI');
+			expect(outLines).not.toContain('1 DEAT');
+			expect(outLines).not.toContain('2 FONE f');
+		}
+	});
 });
 
 let t: TestDatabase;

@@ -1,5 +1,6 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 import { escapedSingleLine, fieldLines, keptLines, LINE_BREAK, singleLine } from './evidence-lines';
+import { levelOfLine } from './node';
 import { ValidationError } from '../domain/errors';
 import {
 	DEFAULT_GEDCOM_FORMAT,
@@ -228,13 +229,31 @@ function foldLines(lines: readonly string[] | null | undefined): string[] {
 }
 
 /**
+ * Kept lines that hang under a structure: the first sits at `firstLevel`, and no later line may rise
+ * to `floor` or above, since a stored `1 DEAT` or `0 @X@ INDI` would otherwise read as a sibling of
+ * the structure or a new record. `keptLines` only moves a block as a whole, so the floor is what
+ * stops a line that started deeper from escaping.
+ */
+function keptUnder(
+	firstLevel: number,
+	floor: number,
+	lines: readonly string[] | null | undefined
+): string[] {
+	return keptLines(firstLevel, foldLines(lines)).map((line, i) => {
+		const own = levelOfLine(line);
+		if (i === 0 || own === null || own >= floor) return line;
+		return line.replace(/^(\s*)\d+/, `$1${floor}`);
+	});
+}
+
+/**
  * A place and what hangs under it. The place's sub-lines and coordinates are written only while the
  * place has text: the coordinates belong to a place, and a sub-line with no `PLAC` to sit under
  * would be read back as a fact detail of the event.
  */
 function placeLines(ev: ExportFactDetails & { place: string | null }): string[] {
 	if (!ev.place) return [];
-	const lines = [`2 PLAC ${escapedSingleLine(ev.place)}`, ...foldLines(ev.placeExtra)];
+	const lines = [`2 PLAC ${escapedSingleLine(ev.place)}`, ...keptUnder(3, 3, ev.placeExtra)];
 	if (ev.latitude || ev.longitude) {
 		lines.push('3 MAP');
 		if (ev.latitude) lines.push(`4 LATI ${escapedSingleLine(ev.latitude)}`);
@@ -253,7 +272,7 @@ function addressAndContactLines(ev: ExportFactDetails): string[] {
 		2,
 		'ADDR',
 		ev.address,
-		ev.addressLayout ? foldLines(ev.addressLayout) : null
+		ev.addressLayout ? keptUnder(2, 3, ev.addressLayout) : null
 	);
 	const contacts: Array<[string, string | null | undefined]> = [
 		['PHON', ev.phone],
