@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals } from '../db/schema';
-import { UnauthorizedError, ValidationError } from '../domain/errors';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
@@ -148,5 +148,80 @@ describe('the tree settings', () => {
 				service().updateSettings(treeId, { maxAliveYears: bad }, actors.manager.context)
 			).rejects.toBeInstanceOf(ValidationError);
 		}
+	});
+});
+
+describe('the imported details of a fact', () => {
+	const DETAILS = `2 AGNC Parish of St Mary
+2 RELI Anglican
+2 ADDR 12 High St
+3 CONT York
+2 PHON 0113 000
+2 EMAIL old@example.test
+2 FAX 0113 999
+2 WWW https://example.test
+2 PLAC York
+3 MAP
+4 LATI N53.8
+4 LONG W1.5
+2 RESN locked`;
+	const DETAILED = `0 HEAD
+0 @I1@ INDI
+1 NAME Olda /Oldman/
+1 BAPM
+2 DATE 1850
+${DETAILS}
+0 @I2@ INDI
+1 NAME Younga /Youngman/
+1 BAPM
+2 DATE 1990
+${DETAILS}
+0 TRLR`;
+	const SECRETS = [
+		'Parish of St Mary',
+		'Anglican',
+		'12 High St',
+		'0113 000',
+		'old@example.test',
+		'0113 999',
+		'https://example.test',
+		'N53.8',
+		'W1.5',
+		'RESN locked'
+	];
+	let detailTree: string;
+	let detailIds: Record<string, string>;
+
+	beforeAll(async () => {
+		detailTree = await createTestTree(t.db, actors.owner);
+		await addTestMember(t.db, detailTree, actors.manager, 'manager');
+		await addTestMember(t.db, detailTree, actors.viewer, 'viewer');
+		await importGedcomToDb(t.d1, detailTree, DETAILED, 'Fact details');
+		const rows = await t.db
+			.select({ id: individuals.id, xref: individuals.xrefId })
+			.from(individuals)
+			.where(eq(individuals.treeId, detailTree));
+		detailIds = Object.fromEntries(rows.map((r) => [r.xref, r.id]));
+	}, 60_000);
+
+	it('reach a manager of a living person and a viewer of an old one, and nobody else', async () => {
+		const pages = new PersonPageService(t.db, () => NOW);
+		const asManager = JSON.stringify(
+			await pages.getPerson(detailTree, detailIds['@I2@']!, actors.manager.context)
+		);
+		for (const secret of SECRETS) expect(asManager).toContain(secret);
+
+		const asViewerOld = JSON.stringify(
+			await pages.getPerson(detailTree, detailIds['@I1@']!, actors.viewer.context)
+		);
+		for (const secret of SECRETS) expect(asViewerOld).toContain(secret);
+	});
+
+	it('answers a viewer of a living person as for a missing one, with none of the details', async () => {
+		const pages = new PersonPageService(t.db, () => NOW);
+		const asViewer = pages.getPerson(detailTree, detailIds['@I2@']!, actors.viewer.context);
+		await expect(asViewer).rejects.toBeInstanceOf(NotFoundError);
+		const message = await asViewer.catch((error: Error) => error.message);
+		for (const secret of SECRETS) expect(message).not.toContain(secret);
 	});
 });

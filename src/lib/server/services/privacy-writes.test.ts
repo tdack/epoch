@@ -6,7 +6,7 @@
 
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { individuals } from '../db/schema';
+import { events, individuals } from '../db/schema';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -203,5 +203,27 @@ describe('a viewer', () => {
 				ctx
 			)
 		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+});
+
+describe('imported fact details', () => {
+	it('cannot be written by a viewer, who is refused before anything is read', async () => {
+		const [fact] = await t.db
+			.select({ id: events.id, version: events.version })
+			.from(events)
+			.where(eq(events.entityId, idOf('@I1@')))
+			.all();
+		expect(fact).toBeDefined();
+		await expect(
+			facts().update(
+				treeId,
+				fact!.id,
+				{ address: '1 Road', phone: '0113 000' },
+				fact!.version,
+				actors.viewer.context
+			)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		const stored = await t.db.select().from(events).where(eq(events.id, fact!.id)).get();
+		expect(stored).toMatchObject({ address: null, phone: null });
 	});
 });

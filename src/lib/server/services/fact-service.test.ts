@@ -86,6 +86,57 @@ describe('facts through the mutation runner', () => {
 		);
 	});
 
+	it("keeps a fact's imported details through a date edit, and undo puts them back", async () => {
+		const { treeId, ctx, person, facts, rowsOf, log } = await setup();
+		const created = await facts.create(
+			treeId,
+			person.id,
+			{
+				...blank,
+				type: 'BAPM',
+				dateText: '1900',
+				address: '12 High St\nYork',
+				agency: 'Parish of St Mary',
+				phone: '0113 000\n0113 111',
+				latitude: 'N53.8',
+				religion: 'Anglican'
+			},
+			ctx
+		);
+		const stored = (await rowsOf()).find((f) => f.id === created.factId)!;
+		// The dialog sends the stored details back with the edit, as it does for an imported fact.
+		await facts.update(
+			treeId,
+			created.factId,
+			{
+				dateText: '1 JAN 1900',
+				address: stored.address,
+				agency: stored.agency,
+				phone: stored.phone,
+				latitude: stored.latitude,
+				religion: stored.religion
+			},
+			stored.version,
+			ctx
+		);
+		expect((await rowsOf()).find((f) => f.id === created.factId)).toMatchObject({
+			dateRaw: '1 JAN 1900',
+			address: '12 High St\nYork',
+			agency: 'Parish of St Mary',
+			phone: '0113 000\n0113 111',
+			latitude: 'N53.8',
+			religion: 'Anglican'
+		});
+
+		await log.undoLast(treeId, ctx);
+		expect((await rowsOf()).find((f) => f.id === created.factId)).toMatchObject({
+			dateRaw: '1900',
+			address: '12 High St\nYork',
+			agency: 'Parish of St Mary',
+			phone: '0113 000\n0113 111'
+		});
+	});
+
 	it('logs a delete and undoes it, and a create and undoes it', async () => {
 		const { treeId, ctx, person, facts, rowsOf, log } = await setup();
 		const created = await facts.create(
