@@ -12,7 +12,8 @@
 		Search,
 		Trash2,
 		Unlink,
-		Upload
+		Upload,
+		X
 	} from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
@@ -392,6 +393,7 @@
 									type="button"
 									class={actionClass}
 									onclick={() => openDialog('preview', file)}
+									title="Preview"
 								>
 									<Eye class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Preview '}{file.title ?? 'file'}</span>
@@ -402,6 +404,7 @@
 									type="button"
 									class={actionClass}
 									onclick={() => openDialog('rename', file)}
+									title="Rename"
 								>
 									<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Rename '}{file.title ?? 'file'}</span>
@@ -412,19 +415,30 @@
 									type="button"
 									class={actionClass}
 									onclick={() => openDialog('attach', file)}
+									title="Attach to a person"
 								>
 									<Link class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Attach '}{file.title ?? 'file'}</span>
 								</button>
 							{/if}
 							{#if file.canMove}
-								<button type="button" class={actionClass} onclick={() => openDialog('move', file)}>
+								<button
+									type="button"
+									class={actionClass}
+									onclick={() => openDialog('move', file)}
+									title="Move to another person"
+								>
 									<ArrowRightLeft class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Move '}{file.title ?? 'file'}</span>
 								</button>
 							{/if}
 							{#if file.canDetach}
-								<button type="button" class={actionClass} onclick={() => detach(file)}>
+								<button
+									type="button"
+									class={actionClass}
+									onclick={() => detach(file)}
+									title="Unlink from person"
+								>
 									<Unlink class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Detach '}{file.title ?? 'file'}</span>
 								</button>
@@ -434,6 +448,7 @@
 									type="button"
 									class="{actionClass} text-red-700"
 									onclick={() => openDialog('delete', file)}
+									title="Delete permanently"
 								>
 									<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Delete '}{file.title ?? 'file'}</span>
@@ -736,6 +751,18 @@
 	maxWidthClass="max-w-3xl"
 	onclose={closeDialog}
 >
+	{#snippet headerExtra()}
+		<button
+			type="button"
+			class={actionClass}
+			title="Close preview"
+			onclick={closeDialog}
+			data-testid="preview-close"
+		>
+			<X class="h-4 w-4" aria-hidden="true" />
+			<span class="sr-only">Close preview</span>
+		</button>
+	{/snippet}
 	<div class="space-y-3 text-xs text-stone-700">
 		{#if target?.previewKey && isInlineMediaType(target.mimeType)}
 			<img
