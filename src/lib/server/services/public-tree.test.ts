@@ -4,12 +4,14 @@
  */
 
 import { eq } from 'drizzle-orm';
+import type { R2Bucket } from '@cloudflare/workers-types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, trees } from '../db/schema';
 import { PUBLIC_VISITOR, type AuthenticatedContext } from '../domain/identity';
 import { EVERYONE_SHOWN_CUTOFF, isPersonPrivate } from '../domain/living-state';
 import { visibleAmong } from '../repositories/visibility';
 import { importGedcomToDb } from '../testing/gedcom';
+import { FakeMediaBucket } from '../testing/fake-bucket';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -181,8 +183,10 @@ describe('the install owner and trees they are not in', () => {
 			name: 'Renamed'
 		});
 		await expect(trees_.previewDeleteTree(tree.id, ownerCtx)).resolves.toBeDefined();
-		await trees_.deleteTree(tree.id, ownerCtx);
-		await expect(trees_.deleteTree(tree.id, ownerCtx)).rejects.toMatchObject({ status: 404 });
+		await trees_.deleteTree(tree.id, ownerCtx, new FakeMediaBucket() as unknown as R2Bucket);
+		await expect(
+			trees_.deleteTree(tree.id, ownerCtx, new FakeMediaBucket() as unknown as R2Bucket)
+		).rejects.toMatchObject({ status: 404 });
 	});
 });
 

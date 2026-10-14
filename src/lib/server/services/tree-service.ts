@@ -9,6 +9,27 @@ import { requireRealUser, requireTreeAction } from './tree-access';
 import { NotAdmittedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { MutationRunner, type MutationClock } from './mutation-runner';
+import type { R2Bucket } from '@cloudflare/workers-types';
+import { listAllObjects } from '../media/stored-bytes';
+import { isStagingKeyOf, stagingPrefix } from './gedcom-service';
+
+/** R2's `delete` takes at most this many keys per call. */
+const R2_MAX_KEYS_PER_DELETE = 1000;
+
+/**
+ * Every R2 object a tree owns: its files and its queued GEDCOM uploads. The prefixes end in `/` and
+ * `-` so that one tree's objects can never be another's; the staging check also rejects keys the
+ * importer would never have written.
+ */
+async function treeObjectKeys(bucket: R2Bucket, treeId: string): Promise<string[]> {
+	const media = await listAllObjects(bucket, `media/${treeId}/`);
+	const staged = await listAllObjects(bucket, stagingPrefix(treeId));
+	return [
+		...media.map((o) => o.key),
+		...staged.map((o) => o.key).filter((k) => isStagingKeyOf(treeId, k))
+	];
+}
+
 export class TreeService {
 	private treeRepo: TreeRepository;
 	private userRepo: UserRepository;
@@ -138,9 +159,29 @@ export class TreeService {
 		return { defaultViewMode: mode };
 	}
 
-	async deleteTree(treeId: string, context: AuthenticatedContext) {
+	/**
+	 * The rows go first. Had the bytes gone first, a failure between the two would leave a tree that
+	 * still exists with its files gone, so every file in it would fail to open. Going rows-first, a
+	 * failure can only leave bytes behind: no row points at them and nobody can read them.
+	 *
+	 * The sweep is best effort after that point, so a failure is logged rather than thrown. The
+	 * Files manager's unlinked scan skips trees that no longer exist, so such leftovers need a
+	 * manual R2 cleanup; the log line carries the tree id to find them by.
+	 */
+	async deleteTree(treeId: string, context: AuthenticatedContext, bucket: R2Bucket) {
 		await this.requireOwnerOrAction(treeId, context, 'tree:delete');
-		return this.treeRepo.delete(treeId);
+		await this.treeRepo.delete(treeId);
+		try {
+			const keys = await treeObjectKeys(bucket, treeId);
+			for (let i = 0; i < keys.length; i += R2_MAX_KEYS_PER_DELETE) {
+				await bucket.delete(keys.slice(i, i + R2_MAX_KEYS_PER_DELETE));
+			}
+		} catch (error) {
+			console.error('Deleted tree left stored files behind; remove them by its id prefix', {
+				treeId,
+				error
+			});
+		}
 	}
 
 	/** Counts of everything deleting a tree would erase. Deleting a tree is not undoable. */

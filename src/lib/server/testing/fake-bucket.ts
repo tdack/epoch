@@ -56,8 +56,17 @@ export class FakeMediaBucket {
 		return { key, size: object.size };
 	}
 
+	/** The size of each `delete` call, so a test can prove no call went over R2's limit. */
+	readonly deleteBatches: number[] = [];
+
 	async delete(keys: string | string[]) {
-		for (const key of Array.isArray(keys) ? keys : [keys]) this.objects.delete(key);
+		const list = Array.isArray(keys) ? keys : [keys];
+		// R2 refuses a batch over 1,000 keys; failing here keeps a test from passing on a call the
+		// real bucket would reject.
+		if (list.length > 1000)
+			throw new Error(`R2 delete takes at most 1000 keys, got ${list.length}`);
+		this.deleteBatches.push(list.length);
+		for (const key of list) this.objects.delete(key);
 	}
 
 	async list(options: { prefix?: string; cursor?: string } = {}) {

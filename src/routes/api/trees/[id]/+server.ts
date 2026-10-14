@@ -15,10 +15,16 @@ export const PATCH = treeHandler(
 	})
 );
 
+/**
+ * Deletes the tree and then its stored files. The bucket is checked first: without it the rows
+ * would go and the files would be left behind with nothing to sweep them.
+ */
 export const DELETE = treeHandler(
 	{ failure: 'Failed to delete tree' },
-	async ({ db, ctx, treeId }) => {
-		await new TreeService(db).deleteTree(treeId, ctx);
+	async ({ db, ctx, treeId, event }) => {
+		const bucket = event.platform?.env?.MEDIA_BUCKET;
+		if (!bucket) return Response.json({ error: 'R2 binding unavailable' }, { status: 500 });
+		await new TreeService(db).deleteTree(treeId, ctx, bucket);
 		return { success: true };
 	}
 );

@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
+import type { R2Bucket } from '@cloudflare/workers-types';
 import { trees } from '../db/schema';
 import { TreeRepository } from '../repositories/tree-repository';
 import { addTestMember, createTestDatabase, createTestTree, createTestUser } from '../testing/d1';
 import type { TestDatabase } from '../testing/d1';
 import { TreeService } from './tree-service';
+import { FakeMediaBucket } from '../testing/fake-bucket';
 
 type Actor = Awaited<ReturnType<typeof createTestUser>>;
 let t: TestDatabase;
@@ -76,7 +78,7 @@ describe('default tree', () => {
 		const kept = await createTestTree(t.db, user);
 		const doomed = await createTestTree(t.db, user);
 		await service().setDefaultTree(doomed, user.context);
-		await service().deleteTree(doomed, user.context);
+		await service().deleteTree(doomed, user.context, new FakeMediaBucket() as unknown as R2Bucket);
 		expect(await defaultsOf(user)).toEqual([]);
 		// Nothing left behind blocks choosing again.
 		await service().setDefaultTree(kept, user.context);

@@ -165,10 +165,10 @@ function treeNameOf(fileName: string): string {
 }
 
 /** Where `importFile` stages a tree's queued uploads. */
-const stagingPrefix = (treeId: string) => `staging/gedcom-${treeId}-`;
+export const stagingPrefix = (treeId: string) => `staging/gedcom-${treeId}-`;
 
 /** True for a key shaped like the ones `importFile` writes for this tree, and nothing else. */
-const isStagingKeyOf = (treeId: string, key: string) =>
+export const isStagingKeyOf = (treeId: string, key: string) =>
 	key.startsWith(stagingPrefix(treeId)) &&
 	key.endsWith('.ged') &&
 	!key.includes('/', 'staging/'.length);
