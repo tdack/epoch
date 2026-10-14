@@ -47,7 +47,9 @@ beforeAll(async () => {
 	await seedIndividuals(small, 2);
 	await seedIndividuals(large, 5001);
 	await seedIndividuals(huge, 50001);
-}, 180_000);
+	// Each raw person insert also writes the name index (ADR-049), which makes 55,000 people take over
+	// a minute on a loaded machine; the default hook limit is not enough.
+}, 600_000);
 
 afterAll(async () => {
 	await t.dispose();

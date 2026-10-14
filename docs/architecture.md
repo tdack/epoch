@@ -91,7 +91,7 @@ are gone.
 - `event`: typed, repeatable facts for a person or union.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person or a
   partnership, or is null for a detached file. The R2 key names the file, not its owner, so attaching,
-  detaching and moving are row updates that never touch the bytes (ADR-049).
+  detaching and moving are row updates that never touch the bytes (ADR-050).
 - `date_value`: the original GEDCOM text plus parsed lower and upper bounds, precision, calendar
   and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day (ADR-004).
 - Evidence: sources, repositories, citations, shared notes and research tasks are records
@@ -131,7 +131,7 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
 - The Files manager lists files across the trees a caller may see, and each row carries the actions
   the server allowed for it. Editors may upload, rename, attach, detach and move files, and delete
   the files they uploaded; managers and owners may delete any file. The install owner sees metadata
-  only for trees they are not in (ADR-049, ADR-041).
+  only for trees they are not in (ADR-050, ADR-041).
 - Export is a manager action, and its background job re-checks authorization (ADR-040).
 
 ## Layout and views

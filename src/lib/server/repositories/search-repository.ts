@@ -14,7 +14,7 @@
 
 import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { dateBound } from '../../shared/search';
+import { dateBound, foldQuery } from '../../shared/search';
 import type { ViewerScope } from '../services/tree-access';
 import { andVisible, isVisibleOf } from './visibility';
 
@@ -85,6 +85,23 @@ function allPartnersVisible(unionColumn: string, scope: Scope): SQL {
 		: sql``;
 }
 
+/** The index tokenizes by trigram, which cannot match fewer than three characters. */
+const isIndexable = (word: string) => [...foldQuery(word)].length >= 3;
+
+/**
+ * The MATCH for name_fts. The tree is a column of the index and is named in the match, because a
+ * filter applied after the match reads every tree's hits for the word first (436 rows for "ann" in
+ * the small tree, against 27; query-plans.md). Each word is its own column filter, so all of them
+ * must appear in one name. Phrases are quoted, so a word's punctuation cannot be read as syntax.
+ */
+function nameMatch(treeId: string, words: string[]): string {
+	const phrase = (text: string) => `"${text.replace(/"/g, '""')}"`;
+	return [
+		`tree_id : ${phrase(treeId)}`,
+		...words.map((w) => `name : ${phrase(foldQuery(w))}`)
+	].join(' AND ');
+}
+
 const hasFactFilter = (f: SearchFilters) =>
 	Boolean(f.place || dateBound(f.from, 'start') || dateBound(f.to, 'end'));
 
@@ -148,20 +165,36 @@ export class SearchRepository {
 	}
 
 	private rankedNames(treeId: string, words: string[], factFilter: SQL, page: SQL): SQL {
+		// The levels score the words as typed, not folded: a folded word would no longer match a stored
+		// "müller", and that exact match works today. A name that only the fold finds ranks as "contains".
 		const whole = words.join(' ');
 		const all = (make: (word: string) => SQL) => sql.join(words.map(make), sql` and `);
+		// A word the index can match (three code points, the trigram minimum) is matched there, folded,
+		// and every such word must be in the same name. The rest are checked with LIKE on the name, as
+		// before. With no matchable word the index has nothing to offer and the scan of names is kept.
+		const indexed = words.filter((w) => isIndexable(w));
+		const unindexed = words.filter((w) => !isIndexable(w));
+		const candidates =
+			indexed.length === 0
+				? sql`
+					select i.id as person_id, null as name_id, 0 as tie, ${OWN_HAY} as hay
+					from individuals i where i.tree_id = ${treeId}
+					union all
+					select n.person_id, n.id, case when n.is_preferred = 1 then 1 else 2 + min(n."order", 100) end, ${NAME_HAY}
+					from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId}`
+				: sql`
+					select name_fts.person_id as person_id, name_fts.name_id as name_id,
+						case when name_fts.name_id is null then 0 when n.is_preferred = 1 then 1 else 2 + min(n."order", 100) end as tie,
+						lower(name_fts.name) as hay
+					from name_fts left join person_names n on n.id = name_fts.name_id
+					where name_fts match ${nameMatch(treeId, indexed)}`;
+		const filtered = indexed.length === 0 ? words : unindexed;
 		// Levels: exact name, every word is a whole word, name starts with the query, every word
 		// starts a word, every word appears anywhere. Whole words outrank a prefix so that "Fox"
 		// finds Ann Smith before Smithson Ann. The tie term prefers the name the person is
 		// shown by, then the preferred stored name, then the others in their order.
 		return sql`
-			with cand as (
-				select i.id as person_id, null as name_id, 0 as tie, ${OWN_HAY} as hay
-				from individuals i where i.tree_id = ${treeId}
-				union all
-				select n.person_id, n.id, case when n.is_preferred = 1 then 1 else 2 + min(n."order", 100) end, ${NAME_HAY}
-				from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId}
-			), scored as (
+			with cand as (${candidates}), scored as (
 				select person_id, name_id,
 					case
 						when hay = ${whole} then 0
@@ -170,13 +203,22 @@ export class SearchRepository {
 						when ${all((w) => like(sql.raw(`(' ' || hay)`), `% ${escapeLike(w)}%`))} then 3
 						else 4
 					end * 1000 + tie as rank_key
-				from cand where ${all((w) => like(sql.raw('hay'), `%${escapeLike(w)}%`))}
+				from cand where ${
+					filtered.length === 0
+						? sql`1 = 1`
+						: sql.join(
+								filtered.map((w) => like(sql.raw('hay'), `%${escapeLike(w)}%`)),
+								sql` and `
+							)
+				}
 			), best as (
 				select person_id, name_id, min(rank_key) as rank_key from scored group by person_id
 			)
 			select i.id as id, best.name_id as name_id
 			from best join individuals i on i.id = best.person_id
-			where 1 = 1${factFilter}
+			-- The unary + keeps the plan on the primary key. The trigram tree term in the index is a
+			-- substring match, so this exact check is what makes the tree scope safe.
+			where +i.tree_id = ${treeId}${factFilter}
 			order by best.rank_key, lower(i.surname), lower(i.given_name), i.id ${page}`;
 	}
 

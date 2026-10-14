@@ -208,8 +208,15 @@
     {
       "idx": 29,
       "version": "6",
-      "when": 1791965496860,
-      "tag": "0029_media_file_manager",
+      "when": 1792000000000,
+      "tag": "0029_name_fts",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1791977861047,
+      "tag": "0030_media_file_manager",
       "breakpoints": true
     }
   ]

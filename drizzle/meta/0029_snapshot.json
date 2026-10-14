@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e69c3b7a-ec97-4860-88e1-67fe7d119031",
+  "id": "c45d2d87-e0ab-4974-91f5-8782219d3487",
   "prevId": "46af50a6-52de-4fb4-ba85-b56cafd7f996",
   "tables": {
     "users": {
@@ -1432,7 +1432,7 @@
           "name": "entity_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "r2_object_key": {
@@ -1463,37 +1463,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1512,14 +1483,6 @@
           "name": "idx_media_tree",
           "columns": [
             "tree_id"
-          ],
-          "isUnique": false
-        },
-        "idx_media_tree_key": {
-          "name": "idx_media_tree_key",
-          "columns": [
-            "tree_id",
-            "r2_object_key"
           ],
           "isUnique": false
         }

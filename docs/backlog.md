@@ -24,7 +24,7 @@ Last reviewed: 2026-10-14.
 - **Media privacy follows only the person or partnership a file hangs off.** A restricted viewer sees
   a file only when every person it hangs off is visible, and a detached file is hidden from them. A
   file can attach only to a person or a partnership, so no other record (an event, a source) has a
-  privacy rule of its own for its files. (ADR-049, ADR-039)
+  privacy rule of its own for its files. (ADR-050, ADR-039)
 
 ### Abuse controls
 
@@ -46,31 +46,31 @@ Last reviewed: 2026-10-14.
   backfill has run. The backfill (`npm run db:backfill:media-sizes`) has only been run against a
   local database. On a deployed database it downloads each unsized object, because Wrangler cannot
   list or head R2 objects, so it is slow for a large library. Run it with `--remote`, then decide
-  whether editors may delete legacy files. (ADR-049)
+  whether editors may delete legacy files. (ADR-050)
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
-  cleanup for `media/` keys whose tree has no row. (ADR-049)
+  cleanup for `media/` keys whose tree has no row. (ADR-050)
 - **An undo can point at a removed object.** An undo of a `delete_person` made before migration 0029
   restores a file row. The unlinked cleanup may already have deleted its bytes, so the file then
-  answers 404. (ADR-049)
+  answers 404. (ADR-050)
 - **Deleting a file is not undoable, and it blocks earlier undos.** A file delete is not in the
   change log. Once it is gone, an earlier change that touches the row refuses its undo. The confirm
-  dialog says so. Decide whether deletes should be logged. (ADR-049)
+  dialog says so. Decide whether deletes should be logged. (ADR-050)
 - **Rename, attach, detach and move from the Files page do not send `version`.** `FileRowDto` has no
   `version`, so the page sends `undefined` and optimistic concurrency is not used there. Add
-  `version` to the DTO and send it back. (ADR-049)
+  `version` to the DTO and send it back. (ADR-050)
 - **Uploads on the Files page go to the tree the page belongs to.** A file for another tree has to be
-  uploaded from that tree's Files page. (ADR-049)
+  uploaded from that tree's Files page. (ADR-050)
 - **The install owner sees metadata of trees they are not in** (ADR-041): file names, sizes, counts
   and totals. They cannot preview or change anything there. The Files link is hidden from
   non-members, so decide whether that metadata should be reachable from the navigation at all.
-  (ADR-049)
+  (ADR-050)
 - **The change-log label for a detached file has no title.** The impact text reads "updated media
-  Unattached file". The detach summary names the file, but the row label does not. (ADR-049)
+  Unattached file". The detach summary names the file, but the row label does not. (ADR-050)
 - **Union-owned files follow the partnership.** A merged partnership's files move to the survivor.
   Deleting a partnership, or its last partner, detaches its files rather than deleting them. Confirm
-  this is the intended rule. (ADR-049)
+  this is the intended rule. (ADR-050)
 
 ### GEDCOM
 
@@ -93,15 +93,22 @@ Last reviewed: 2026-10-14.
 
 ### Search, lists and performance
 
-- **Search is linear in the tree's people per query** (about 4 to 8 rows read per person), and offset
-  pages are linear in the offset. The surname list reads about 6.5 times the tree's people. Decide on
-  counters or a normalised name column before large trees. (ADR-014, [query-plans.md](./query-plans.md))
-- **Case folding is ASCII-only.** SQLite `LIKE`, `lower()` and `collate nocase` fold only ASCII, so
-  "müller" does not match "Müller". Needs a normalised column, together with the phonetic work.
+- **Two-letter and one-letter name searches still scan the tree's names.** Trigram cannot index
+  fewer than three characters, so a query whose words are all shorter reads every name in the tree
+  (about 4 to 8 rows per person). Words of three or more letters use the name index (ADR-049).
+- **Name search ranks folded matches as "contains" when the stored name has a diacritic.** The index
+  folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
+  fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
+  needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
+- **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
+  people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
+  `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
+  stored inputs in ADR-015 (`has_death`, `birth_upper`) are the step for restricted reads. Measure on
+  a real large tree first. (ADR-014, ADR-015)
 - **The restricted-viewer Files list scans up to 500 rows per request.** `FILE_SCAN_CAP` bounds the
   cost, but the sort is not covered by an index, so each page reads the table in order. A page can
   be short or empty while `nextCursor` is still set. Index the sort, or store visibility as a
-  column, once a tree outgrows it. (ADR-049)
+  column, once a tree outgrows it. (ADR-050)
 - **Unsurnamed people sort first** in the people list, because an expression in `ORDER BY` would lose
   the index.
 - **Recents are recorded only on the person page and on a focus-box pick,** not when the tree
@@ -182,8 +189,11 @@ Last reviewed: 2026-10-14.
 
 ### Search
 
-- **Phonetic search (Soundex/Daitch-Mokotoff),** boolean query syntax, saved searches, and
-  source and note search. Needs the normalised name column above.
+- **Phonetic search (Soundex/Daitch-Mokotoff),** as a second column of the ADR-049 FTS table. The
+  code is computed in the app, so a trigger cannot write it; needs its own ADR.
+- **Boolean query syntax, saved searches, and source and note search.** For note and source text,
+  Cloudflare AI Search (hybrid BM25 and vector) or Vectorize may fit where name search does not, if
+  limited to what everyone may see or once privacy can be a metadata filter. (ADR-049)
 - **Place-based search by hierarchy,** once places have a hierarchy.
 
 ### GEDCOM import and export operations
@@ -224,10 +234,10 @@ Last reviewed: 2026-10-14.
 - **Scanned documents** (certificates) with transcription and citation workflows.
 - **Retention and orphan cleanup for uploads and imports.** Exports are covered by the 24-hour
   expiry and the `exports/` lifecycle rule (ADR-040). A manager can list and delete media objects
-  that no file row points at (ADR-049). Staged imports have no cleanup beyond the four-day cap.
+  that no file row points at (ADR-050). Staged imports have no cleanup beyond the four-day cap.
 - **Checksums and a backup policy for R2.**
 - **Move legacy media keys, if they are ever to change.** Legacy keys (`media/<treeId>/<entityId>/<file>`)
-  are still read and are not moved; new uploads use `media/<treeId>/<mediaId>.<ext>` (ADR-049). Any
+  are still read and are not moved; new uploads use `media/<treeId>/<mediaId>.<ext>` (ADR-050). Any
   move needs an inventory of ownership, checksum, MIME type and dangling links first.
 
 ### Places and maps
@@ -241,7 +251,10 @@ Last reviewed: 2026-10-14.
 ### Operations
 
 - **D1 recovery runbook** (Time Travel, tested exports) and a documented, rehearsed restore of D1
-  and the required R2 assets.
+  and the required R2 assets. `wrangler d1 export` refuses the database, which holds the FTS5 name
+  index (migration 0029, ADR-049). The runbook needs a script that drops `name_fts` and
+  `name_fts_key`, exports, then recreates both and repopulates them with the backfill in
+  `drizzle/0029_name_fts.sql`. Time Travel is not affected.
 - **Job dashboards, structured privacy-safe logs, and storage and cost metrics.**
 - **Development, staging and production configuration separation,** reproducible provisioning.
 

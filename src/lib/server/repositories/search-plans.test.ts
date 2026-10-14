@@ -58,9 +58,15 @@ async function measure(name: string, statement: SQL): Promise<Plan> {
 	};
 }
 
-/** Plan lines that read a named table from its first row to its last. A CTE or subquery is not a table. */
+/**
+ * Plan lines that read a named table from its first row to its last. A CTE or subquery is not a table.
+ * A virtual table read through its MATCH (`VIRTUAL TABLE INDEX n:M…`, the name index) is reported as
+ * a SCAN too, but it reads only the rows the match returns; a virtual-table scan without MATCH still fails.
+ */
 const tableScans = (details: string[]) =>
-	details.filter((d) => /^SCAN (?!cand|scored|best|\(subquery)/.test(d));
+	details.filter(
+		(d) => /^SCAN (?!cand|scored|best|\(subquery)/.test(d) && !/VIRTUAL TABLE INDEX \d+:M/.test(d)
+	);
 
 /** Owners, managers and editors: no visibility predicate. Contributors and viewers: the predicate, cut at a fixed day. */
 const EVERYONE = { isRestricted: false, cutoff: '1906-10-01', creatorId: null };
