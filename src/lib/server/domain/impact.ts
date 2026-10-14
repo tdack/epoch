@@ -37,7 +37,8 @@ function peopleOf(
 		case 'events':
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
 		case 'media_items':
-			return [row.entityId];
+			// A detached file touches no person.
+			return row.entityId === null ? [] : [row.entityId];
 		case 'citations':
 		case 'note_attachments':
 			return subjectPeople(row.subjectKind, row.subjectId);

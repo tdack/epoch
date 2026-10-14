@@ -45,6 +45,8 @@ export class GenealogyRepository {
 
 		const mediaByEntity: Record<string, typeof mediaList> = {};
 		for (const med of mediaList) {
+			// A detached file belongs to no entity, so it is in no entity's list.
+			if (med.entityId === null) continue;
 			if (!mediaByEntity[med.entityId]) mediaByEntity[med.entityId] = [];
 			mediaByEntity[med.entityId].push(med);
 		}

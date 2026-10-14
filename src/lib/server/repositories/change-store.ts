@@ -72,8 +72,12 @@ const PLACE_IDS_PER_UPDATE = 90;
 
 type ColumnMap = Record<string, { dataType: string }>;
 
-/** Columns the store derives rather than records; see `EventRow`. */
-const DERIVED_COLUMNS = new Set(['placeId']);
+/**
+ * Columns left out of row images: `placeId` is derived from `place`; `sizeBytes` and `uploadedBy`
+ * arrived with migration 0029, so an inverse written before it has no such keys and would never
+ * match a row that has them. See `EventRow` and `MediaRow`.
+ */
+const DERIVED_COLUMNS = new Set(['placeId', 'sizeBytes', 'uploadedBy']);
 
 /**
  * The table's `tree_id` column, or undefined for the tables keyed by id alone (person_names,

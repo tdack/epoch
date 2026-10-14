@@ -204,6 +204,13 @@
       "when": 1791882124300,
       "tag": "0028_tree_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1791965496860,
+      "tag": "0029_media_file_manager",
+      "breakpoints": true
     }
   ]
 }

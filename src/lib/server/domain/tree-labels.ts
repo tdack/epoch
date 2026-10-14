@@ -149,7 +149,7 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				return `${eventLabel(event.type)}${detail} of ${owner}`;
 			}
 			case 'media_items':
-				return `Attachment of ${person(row.entityId)}`;
+				return row.entityId === null ? 'Unattached file' : `Attachment of ${person(row.entityId)}`;
 			case 'sources':
 				return `Source “${sourceLabel(row as SourceRow)}”`;
 			case 'repositories':

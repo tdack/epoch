@@ -220,7 +220,8 @@ export function maskRows(
 	);
 	const personNames = rows.personNames.filter((n) => !hidden.has(n.personId));
 	// Media of a private person is theirs; the window never carries media, but a reader that does must not show it.
-	const mediaItems = rows.mediaItems.filter((m) => !hidden.has(m.entityId));
+	// A detached file has no owner to be private with, so a restricted viewer does not see it either.
+	const mediaItems = rows.mediaItems.filter((m) => m.entityId !== null && !hidden.has(m.entityId));
 
 	if (shouldShowStructure) {
 		return {
@@ -365,7 +366,8 @@ function touchesHidden(
 					? hidden.has(r.entityId ?? '')
 					: hiddenUnions.has(r.entityId ?? '');
 			case 'media_items':
-				return hidden.has(r.entityId ?? '');
+				// A detached file is editor-only, so an op on it is one a restricted viewer must not see.
+				return !r.entityId || hidden.has(r.entityId);
 			case 'citations':
 				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
 			case 'note_attachments':

@@ -49,7 +49,11 @@ export type ParentChildRow = Imaged<typeof parentChild.$inferSelect>;
  * the row as unchanged, which would make every writer responsible for keeping it right.
  */
 export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
-export type MediaRow = Imaged<typeof mediaItems.$inferSelect>;
+/**
+ * `sizeBytes` and `uploadedBy` are left out of the image for the same reason as `placeId` above:
+ * an inverse written before migration 0029 lacks them, and must still match the row as it is now.
+ */
+export type MediaRow = Omit<Imaged<typeof mediaItems.$inferSelect>, 'sizeBytes' | 'uploadedBy'>;
 export type SourceRow = Imaged<typeof sources.$inferSelect>;
 export type RepositoryRow = Imaged<typeof repositories.$inferSelect>;
 export type SourceRepositoryRow = Imaged<typeof sourceRepositories.$inferSelect>;
@@ -377,7 +381,7 @@ export function dependentsOfDeletions(
 			add('person_names', name);
 	}
 	for (const media of rows.mediaItems)
-		if (deletedPeople.has(media.entityId)) add('media_items', media);
+		if (media.entityId !== null && deletedPeople.has(media.entityId)) add('media_items', media);
 	// Evidence: a citation of a subject or source that is going, and a repository link of a source or
 	// repository that is going, would be left pointing at nothing.
 	const isSubjectDeleted = (kind: string, id: string) => {

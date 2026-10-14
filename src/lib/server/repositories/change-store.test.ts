@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { changeLog, changeLogRecords, events, individuals } from '../db/schema';
+import { changeLog, changeLogRecords, events, individuals, mediaItems } from '../db/schema';
 import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
-import type { RowOp } from '../domain/change-log';
+import { matchesImage, rebaseInverse, type RowOp } from '../domain/change-log';
 import {
 	createTestDatabase,
 	createTestTree,
@@ -10,7 +10,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
-import { ChangeStore } from './change-store';
+import { ChangeStore, toImage } from './change-store';
 
 let t: TestDatabase;
 let actor: TestActor;
@@ -364,5 +364,77 @@ describe('ChangeStore tree scoping', () => {
 		).rejects.toBeInstanceOf(ValidationError);
 		expect(await t.db.select().from(individuals).where(eq(individuals.id, 's2'))).toEqual([]);
 		expect((await store.listRecent(treeId, 10)).length).toBe(0);
+	});
+});
+
+describe('media row images and the file-manager columns', () => {
+	const mediaRow = (entityId: string) => ({
+		id: 'm1',
+		treeId,
+		entityId,
+		r2ObjectKey: `media/${treeId}/m1.png`,
+		cfImageId: null,
+		title: 'Portrait',
+		mimeType: 'image/png',
+		version: 1,
+		createdAt: 1_000,
+		updatedAt: 1_000
+	});
+	async function imageOf(id: string) {
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, id)).get();
+		return row ? toImage(mediaItems, row) : null;
+	}
+
+	it('leaves sizeBytes and uploadedBy out of the image, so a pre-migration inverse still matches', async () => {
+		await freshTree();
+		await store.commit({
+			...base(),
+			ops: [{ table: 'media_items', id: 'm1', before: null, after: mediaRow('p1') }]
+		});
+		const image = await imageOf('m1');
+		expect(image).not.toHaveProperty('sizeBytes');
+		expect(image).not.toHaveProperty('uploadedBy');
+		// An inverse written before migration 0029 names only the columns that existed then.
+		expect(matchesImage(image, { ...image! })).toBe(true);
+	});
+
+	it('undoes a move of a file, using an inverse written before migration 0029', async () => {
+		await freshTree();
+		await store.commit({
+			...base(),
+			ops: [
+				{
+					table: 'media_items',
+					id: 'm2',
+					before: null,
+					after: { ...mediaRow('p1'), id: 'm2', r2ObjectKey: `media/${treeId}/m2.png` }
+				}
+			]
+		});
+		const original = (await imageOf('m2'))!;
+		// The merge moves the file from p1 to p2: version 2, one more row touch.
+		const beforeMove = (await imageOf('m2'))!;
+		await store.commit({
+			...base(),
+			ops: [
+				{
+					table: 'media_items',
+					id: 'm2',
+					before: beforeMove,
+					after: { ...beforeMove, entityId: 'p2', version: Number(beforeMove.version) + 1 }
+				}
+			]
+		});
+		// The undo's inverse is the original image, as the change stored it.
+		const live = (await imageOf('m2'))!;
+		const rebased = rebaseInverse(
+			[{ table: 'media_items', id: 'm2', before: live, after: original }],
+			() => live,
+			Date.now()
+		);
+		expect(rebased.isOk).toBe(true);
+		if (!rebased.isOk) return;
+		await store.commit({ ...base(), ops: rebased.ops });
+		expect((await imageOf('m2'))?.entityId).toBe('p1');
 	});
 });
