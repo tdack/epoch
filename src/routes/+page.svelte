@@ -21,6 +21,7 @@
 	const LOCAL_COMMANDS = [
 		`git clone ${REPO_CLONE_URL}`,
 		'cd epoch',
+		'nvm use 24',
 		'npm install',
 		'cp .dev.vars.example .dev.vars',
 		'npm run db:migrate:local',
