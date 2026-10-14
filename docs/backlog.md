@@ -245,35 +245,17 @@ Nothing below has started as a phase. Findings return to the area that owns them
 
 ### Setup tool (`npm run setup`)
 
-The tool is built in `tools/setup/` but has not been run against a real account.
+The tool is built in `tools/setup/`.
 
-- **Run `npm run setup -- spike` against a real Cloudflare account.** It runs the read-only checks,
-  sends writes with `--dry-run`, and saves each raw response under `.epoch/spike/`. Use the results
-  to replace the synthesized test fixtures, settle the open claims below, and record the outcome in
-  an ADR. The open claims:
-  - device login output format and the granted-scope readback after unticking an optional scope;
-  - whether the Access endpoints accept the `cf` OAuth token, and whether the create response
-    carries `aud`;
-  - wrangler profiles and `wrangler whoami` agreeing with `cf`;
-  - whether `vars` reach `$app/env/private`, and whether a var named `CF_ACCESS_AUD` can replace an
-    existing secret of that name;
-  - whether a `send_email` binding naming an unverified sender fails the deploy;
-  - whether `wrangler d1 migrations apply` and `d1 execute` accept the binding name `DB`;
-  - `CLOUDFLARE_CF_AUTH` with `wrangler deploy` (expected to be ignored);
-  - tag scopes: a profile with the base scopes can list tags, and a write with a stale ETag answers
-    412 (`tag-write-etag-412` creates and removes a throwaway queue).
 - **`--deploy-auth=ephemeral` is refused for now.** Reconcile needs a wrangler token to inspect an
   existing Worker, which a minted deploy token cannot provide. Make it reachable or remove the code.
 - **Re-check on each wrangler upgrade** whether `wrangler deploy` honours `CLOUDFLARE_CF_AUTH`, which
   would allow one consent instead of two. Also check that a D1 binding with no `database_id` still
   resolves by `database_name` (resource provisioning, behind the hidden `--x-provision` flag that
   defaults to on), which ADR-043 relies on.
-- **Scrub the owner's values from git history before the repository goes public.** Until ADR-043,
-  `wrangler.deploy.jsonc` was tracked, with the D1 id, team domain, install id and sender address.
 - **Open owner decisions:** the default deploy auth (second OAuth consent, or a single-consent
   ephemeral token); whether to keep `cf` pinned as a devDependency; whether setup should onboard the
   Email Sending domain or only report its status (report only is proposed, since verification
   touches DNS).
 - **Post-deploy tag check.** Mark-configured restores tags a deploy dropped but does not report that
   they were dropped; report it.
-- **Delete `scripts/setup-cloudflare.sh`** if it is still present, and offer to in the hand-off.
