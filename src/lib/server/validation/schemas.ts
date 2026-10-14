@@ -268,6 +268,51 @@ export const exportQuerySchema = z.object({
 
 const factTypeSchema = z.string().refine(isFactType, { message: 'not a fact type' });
 
+/*
+ * Imported details are never validated on import, so an edit of an imported fact must not fail on a
+ * GEDCOM spec limit (a 130-character agency, four phone lines, an unusual coordinate). These caps
+ * are only a safety net against abuse; the spec's per-line and per-value limits are not enforced.
+ */
+const DETAIL_LINE_MAX_CHARS = 500;
+const DETAIL_TEXT_MAX_CHARS = 2000;
+const detailSingleLine = z
+	.string()
+	.trim()
+	.max(DETAIL_LINE_MAX_CHARS)
+	.refine(hasNoLineBreak, SINGLE_LINE_MESSAGE)
+	.nullable();
+/** Several values, one per line (phone, email, fax, web) or a multi-line address. */
+const detailText = z.string().trim().max(DETAIL_TEXT_MAX_CHARS).nullable();
+
+const factDetailCreateFields = {
+	address: detailText.default(null),
+	classification: detailSingleLine.default(null),
+	agency: detailSingleLine.default(null),
+	phone: detailText.default(null),
+	email: detailText.default(null),
+	fax: detailText.default(null),
+	web: detailText.default(null),
+	latitude: detailSingleLine.default(null),
+	longitude: detailSingleLine.default(null),
+	religion: detailSingleLine.default(null)
+};
+
+const factDetailUpdateFields = {
+	address: detailText.optional(),
+	classification: detailSingleLine.optional(),
+	agency: detailSingleLine.optional(),
+	phone: detailText.optional(),
+	email: detailText.optional(),
+	fax: detailText.optional(),
+	web: detailText.optional(),
+	latitude: detailSingleLine.optional(),
+	longitude: detailSingleLine.optional(),
+	religion: detailSingleLine.optional()
+};
+
+// `place_extra` and `address_layout` are not in these schemas on purpose: zod strips unknown keys,
+// so a request cannot write or clear the file's own lines, which only the import owns.
+
 /** A fact as the form sends it: every field present, empty ones null. */
 export const factCreateSchema = z.object({
 	type: factTypeSchema,
@@ -276,7 +321,8 @@ export const factCreateSchema = z.object({
 	value: nullableSingleLine.default(null),
 	cause: nullableSingleLine.default(null),
 	age: nullableSingleLine.default(null),
-	notes: nullableText.default(null)
+	notes: nullableText.default(null),
+	...factDetailCreateFields
 });
 
 /** Only the fields to change; absent leaves a field alone, null clears it. */
@@ -288,7 +334,8 @@ export const factUpdateSchema = z.object({
 	value: nullableSingleLine.optional(),
 	cause: nullableSingleLine.optional(),
 	age: nullableSingleLine.optional(),
-	notes: nullableText.optional()
+	notes: nullableText.optional(),
+	...factDetailUpdateFields
 });
 
 export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).max(500) });

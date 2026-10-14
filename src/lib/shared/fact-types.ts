@@ -98,4 +98,26 @@ export interface FactInput {
 	/** As GEDCOM writes it: `79y`, `2y 3m`, `CHILD`. */
 	age: string | null;
 	notes: string | null;
+	/*
+	 * Imported details. Optional so a form that predates them still type-checks; an absent field is
+	 * left as stored. The editor passes them through so a save never erases what an import brought.
+	 * The stored `place_extra` and `address_layout` are deliberately absent: they are not editable,
+	 * and the server's schema strips them from a request so a client cannot forge or clear them.
+	 */
+	/** The address as one logical text; line breaks are CONT lines in GEDCOM. */
+	address?: string | null;
+	/** `TYPE`: the sub-type of an event or fact, e.g. `Baptism at home`. */
+	classification?: string | null;
+	/** `AGNC`: the agency that carried out the event. */
+	agency?: string | null;
+	/** `PHON`, `EMAIL`, `FAX`, `WWW`: one value per line when a fact has several. */
+	phone?: string | null;
+	email?: string | null;
+	fax?: string | null;
+	web?: string | null;
+	/** `MAP` > `LATI`/`LONG` as written, e.g. `N18.150944`. Only written with a place. */
+	latitude?: string | null;
+	longitude?: string | null;
+	/** `RELI`: the religion an event or attribute refers to. */
+	religion?: string | null;
 }

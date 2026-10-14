@@ -50,6 +50,16 @@ const noteContext = (ctx: FactContext): NoteContext => ({
 
 const clean = (value: string | null | undefined): string | null => value?.trim() || null;
 
+/**
+ * An imported detail keeps its stored text when a save leaves it alone: the editor sends back what
+ * it was given, which for an untrimmed address is not the cleaned value. Only a real change is cleaned
+ * and written.
+ */
+function keptOrChanged(next: string | null | undefined, current: string | null): string | null {
+	if (next === undefined || clean(next) === clean(current)) return current;
+	return clean(next);
+}
+
 /** Vitals are on the person form too, so changing one must make a stale form conflict. */
 const VITAL_TYPES = new Set(['BIRT', 'DEAT']);
 
@@ -83,7 +93,17 @@ function factSnapshot(rows: TreeRows, fact: EventRow): Record<string, unknown> {
 		value: fact.value,
 		cause: fact.cause,
 		age: fact.age,
-		notes: own?.text ?? fact.description
+		notes: own?.text ?? fact.description,
+		address: fact.address,
+		classification: fact.classification,
+		agency: fact.agency,
+		phone: fact.phone,
+		email: fact.email,
+		fax: fact.fax,
+		web: fact.web,
+		latitude: fact.latitude,
+		longitude: fact.longitude,
+		religion: fact.religion
 	};
 }
 
@@ -141,18 +161,18 @@ function createFact(
 		value: clean(command.fact.value),
 		cause: clean(command.fact.cause),
 		age: clean(command.fact.age),
-		address: null,
+		address: clean(command.fact.address),
 		addressLayout: null,
-		classification: null,
-		agency: null,
-		phone: null,
-		email: null,
-		fax: null,
-		web: null,
-		latitude: null,
-		longitude: null,
+		classification: clean(command.fact.classification),
+		agency: clean(command.fact.agency),
+		phone: clean(command.fact.phone),
+		email: clean(command.fact.email),
+		fax: clean(command.fact.fax),
+		web: clean(command.fact.web),
+		latitude: clean(command.fact.latitude),
+		longitude: clean(command.fact.longitude),
 		placeExtra: null,
-		religion: null,
+		religion: clean(command.fact.religion),
 		// The fact's note is a note record (ADR-029); the column that held it is no longer written.
 		notes: null,
 		sortOrder: 0,
@@ -178,6 +198,8 @@ function updateFact(
 	const patch = command.fact;
 	if (patch.type !== undefined) requireKnownType(patch.type);
 
+	const isAddressChanged =
+		patch.address !== undefined && clean(patch.address) !== clean(before.address);
 	const after: EventRow = {
 		...before,
 		type: patch.type ?? before.type,
@@ -188,7 +210,19 @@ function updateFact(
 		place: patch.place !== undefined ? clean(patch.place) : before.place,
 		value: patch.value !== undefined ? clean(patch.value) : before.value,
 		cause: patch.cause !== undefined ? clean(patch.cause) : before.cause,
-		age: patch.age !== undefined ? clean(patch.age) : before.age
+		age: patch.age !== undefined ? clean(patch.age) : before.age,
+		address: keptOrChanged(patch.address, before.address),
+		// The layout is the file's own ADDR lines; once the text they describe changes it is stale.
+		addressLayout: isAddressChanged ? null : before.addressLayout,
+		classification: keptOrChanged(patch.classification, before.classification),
+		agency: keptOrChanged(patch.agency, before.agency),
+		phone: keptOrChanged(patch.phone, before.phone),
+		email: keptOrChanged(patch.email, before.email),
+		fax: keptOrChanged(patch.fax, before.fax),
+		web: keptOrChanged(patch.web, before.web),
+		latitude: keptOrChanged(patch.latitude, before.latitude),
+		longitude: keptOrChanged(patch.longitude, before.longitude),
+		religion: keptOrChanged(patch.religion, before.religion)
 	};
 	// A legacy description is the imported cause, note or value in one. Once the fact is edited its
 	// text lives in the field that says what it is: the note field when it is a note, which is a

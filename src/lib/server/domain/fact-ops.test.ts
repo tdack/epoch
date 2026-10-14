@@ -239,3 +239,139 @@ describe('facts as row operations', () => {
 		).toBe('Reordered the facts of Wren Ash');
 	});
 });
+
+describe('imported fact details', () => {
+	const detailed = (): EventRow =>
+		({
+			...wren().events[0]!,
+			id: 'x1',
+			type: 'BAPM',
+			address: '  12 High St\nYork  ',
+			addressLayout: ['2 ADDR 12 High St', '3 CONT York'],
+			agency: 'Parish of St Mary, Leeds',
+			phone: '0113 000\n0113 111',
+			religion: 'Anglican',
+			latitude: 'N53.8',
+			longitude: 'W1.5',
+			classification: 'Adult'
+		}) as EventRow;
+	const rowsWith = (fact: EventRow) => {
+		const rows = wren();
+		return { ...rows, events: [...rows.events, fact] };
+	};
+
+	it('stores the detail fields a create is given, cleaned, and never a layout', () => {
+		const ops = buildFactOps(
+			wren(),
+			{
+				kind: 'create_fact',
+				personId: 'wren',
+				factId: 'f9',
+				fact: {
+					...blank,
+					type: 'BAPM',
+					address: ' 1 Road ',
+					agency: ' Church ',
+					email: '',
+					latitude: 'N51.5',
+					religion: 'Quaker'
+				}
+			},
+			ctx
+		);
+		expect(after(ops, 'f9')).toMatchObject({
+			address: '1 Road',
+			addressLayout: null,
+			agency: 'Church',
+			email: null,
+			latitude: 'N51.5',
+			religion: 'Quaker',
+			placeExtra: null
+		});
+	});
+
+	it('keeps every stored detail when an edit does not send it', () => {
+		const ops = buildFactOps(
+			rowsWith(detailed()),
+			{ kind: 'update_fact', factId: 'x1', fact: { dateText: '1 JAN 1900' } },
+			ctx
+		);
+		expect(after(ops, 'x1')).toMatchObject({
+			address: '  12 High St\nYork  ',
+			addressLayout: ['2 ADDR 12 High St', '3 CONT York'],
+			agency: 'Parish of St Mary, Leeds',
+			phone: '0113 000\n0113 111',
+			religion: 'Anglican',
+			latitude: 'N53.8',
+			longitude: 'W1.5',
+			classification: 'Adult'
+		});
+	});
+
+	it('keeps the stored untrimmed address and its layout when the cleaned text is unchanged', () => {
+		const ops = buildFactOps(
+			rowsWith(detailed()),
+			{
+				kind: 'update_fact',
+				factId: 'x1',
+				fact: { dateText: '1 JAN 1900', address: '12 High St\nYork' }
+			},
+			ctx
+		);
+		expect(after(ops, 'x1')).toMatchObject({
+			address: '  12 High St\nYork  ',
+			addressLayout: ['2 ADDR 12 High St', '3 CONT York']
+		});
+	});
+
+	it('drops the layout once the address text really changes, and clears a field sent as null', () => {
+		const ops = buildFactOps(
+			rowsWith(detailed()),
+			{ kind: 'update_fact', factId: 'x1', fact: { address: '99 New St', agency: null } },
+			ctx
+		);
+		expect(after(ops, 'x1')).toMatchObject({
+			address: '99 New St',
+			addressLayout: null,
+			agency: null,
+			phone: '0113 000\n0113 111'
+		});
+	});
+
+	it('writes nothing for a save that sends the details back unchanged', () => {
+		const ops = buildFactOps(
+			rowsWith(detailed()),
+			{
+				kind: 'update_fact',
+				factId: 'x1',
+				fact: { address: '12 High St\nYork', agency: 'Parish of St Mary, Leeds' }
+			},
+			ctx
+		);
+		expect(ops).toEqual([]);
+	});
+
+	it('shows the detail fields in a conflict snapshot', () => {
+		const stale = () =>
+			buildFactOps(
+				rowsWith(detailed()),
+				{ kind: 'update_fact', factId: 'x1', expectedVersion: 0, fact: { place: 'York' } },
+				ctx
+			);
+		expect(stale).toThrow(ConcurrencyConflictError);
+		try {
+			stale();
+		} catch (error) {
+			expect((error as ConcurrencyConflictError).details).toMatchObject({
+				current: {
+					address: '  12 High St\nYork  ',
+					agency: 'Parish of St Mary, Leeds',
+					phone: '0113 000\n0113 111',
+					religion: 'Anglican',
+					latitude: 'N53.8',
+					longitude: 'W1.5'
+				}
+			});
+		}
+	});
+});

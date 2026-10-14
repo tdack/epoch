@@ -127,3 +127,59 @@ describe('line terminators at the write boundary', () => {
 		).toBe(true);
 	});
 });
+
+describe('imported fact details at the write boundary', () => {
+	const agency130 = 'A'.repeat(130);
+
+	it('accepts the values an import can bring, so editing an imported fact cannot fail on a spec limit', () => {
+		const imported = {
+			type: 'BAPM',
+			address: '12 High Street\nYork',
+			agency: agency130,
+			phone: '0113 000\n0113 111\n0113 222\n0113 333',
+			latitude: '51.5',
+			longitude: 'W1.5'
+		};
+		expect(factCreateSchema.safeParse(imported).success).toBe(true);
+		expect(factUpdateSchema.safeParse({ version: 1, ...imported }).success).toBe(true);
+	});
+
+	it('keeps line breaks out of the one-line detail fields only', () => {
+		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'a\nb' }).success).toBe(false);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', latitude: '51\n5' }).success).toBe(false);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', address: 'a\nb' }).success).toBe(true);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', email: 'a@x.test\nb@x.test' }).success).toBe(
+			true
+		);
+	});
+
+	it('refuses only values past the safety caps', () => {
+		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(501) }).success).toBe(
+			false
+		);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(500) }).success).toBe(
+			true
+		);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', address: 'A'.repeat(2001) }).success).toBe(
+			false
+		);
+		expect(factUpdateSchema.safeParse({ version: 1, web: 'w'.repeat(2001) }).success).toBe(false);
+	});
+
+	it('leaves the file-owned layout and extra lines out of what a request can write', () => {
+		const parsed = factUpdateSchema.parse({
+			version: 1,
+			address: '1 Road',
+			addressLayout: ['2 ADDR forged'],
+			placeExtra: ['2 FORM forged']
+		});
+		expect(parsed).not.toHaveProperty('addressLayout');
+		expect(parsed).not.toHaveProperty('placeExtra');
+		expect(parsed.address).toBe('1 Road');
+	});
+
+	it('treats an absent detail as left alone on update, and null as a clear', () => {
+		expect(factUpdateSchema.parse({ version: 1 })).not.toHaveProperty('agency');
+		expect(factUpdateSchema.parse({ version: 1, agency: null }).agency).toBeNull();
+	});
+});
