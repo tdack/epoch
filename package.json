@@ -18,6 +18,7 @@
 		"db:backfill:dates": "node scripts/backfill-event-dates.mjs",
 		"db:backfill:evidence": "node scripts/backfill-evidence.mjs",
 		"db:backfill:notes": "node scripts/backfill-notes.mjs",
+		"db:backfill:media-sizes": "node scripts/backfill-media-sizes.mjs",
 		"seed": "node scripts/seed.mjs",
 		"brand:render": "node scripts/render-brand-assets.mjs",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p tools/setup",
