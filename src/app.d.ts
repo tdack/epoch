@@ -26,8 +26,6 @@ declare global {
 				EPOCH_EMAIL_SENDER?: string;
 				/** Where visitors are offered this install's source (AGPL section 13); upstream when unset. */
 				EPOCH_SOURCE_URL?: string;
-				CF_IMAGES_TOKEN?: string;
-				CF_ACCOUNT_ID?: string;
 				CF_ACCESS_TEAM_DOMAIN?: string;
 				CF_ACCESS_AUD?: string;
 				ACCESS_BYPASS_DEV?: string;

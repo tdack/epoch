@@ -49,6 +49,16 @@ export interface ExportRows {
 	noteAttachments: Array<typeof noteAttachments.$inferSelect>;
 }
 
+/**
+ * An id with its tree's `treeId:` prefix removed, for the GEDCOM xref it stands for. A plain string
+ * prefix check, not a RegExp built from the id: a tree id is free text, so `.` or `+` in it would
+ * match other trees' ids, and a crafted one could make the match backtrack without end.
+ */
+export function withoutTreePrefix(id: string, treeId: string): string {
+	const prefix = `${treeId}:`;
+	return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+}
+
 /** A retained entry that is a whole level-0 record, not a structure kept under a person or family. */
 function isRootRecord(entry: { lines: unknown }): boolean {
 	return (entry.lines as string[])[0]?.startsWith('0 ') ?? false;
@@ -133,12 +143,12 @@ export function exportPayloadFrom(
 	// Format export IDs: prefer original xrefId if present, otherwise clean ID
 	const indXrefMap = new Map<string, string>();
 	for (const ind of treeInds) {
-		indXrefMap.set(ind.id, ind.xrefId || ind.id.replace(new RegExp(`^${treeId}:`), ''));
+		indXrefMap.set(ind.id, ind.xrefId || withoutTreePrefix(ind.id, treeId));
 	}
 
 	const famXrefMap = new Map<string, string>();
 	for (const u of treeUnions) {
-		famXrefMap.set(u.id, u.id.replace(new RegExp(`^${treeId}:`), ''));
+		famXrefMap.set(u.id, withoutTreePrefix(u.id, treeId));
 	}
 
 	for (const [key, links] of linksByChildUnion) {

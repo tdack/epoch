@@ -104,6 +104,39 @@ describe('GET /api/export/download/[instanceId]', () => {
 		expect(await response.text()).toContain('0 HEAD');
 	});
 
+	it('serves the GEDCOM type whatever content type the object was stored with', async () => {
+		const { workflow } = workflowAt('complete');
+		const { bucket } = bucketWithObject({
+			...storedObject(),
+			httpMetadata: { contentType: 'text/html', contentDisposition: 'attachment; filename="x.ged"' }
+		});
+		const response = await GET(
+			eventFor(id(), { GEDCOM_EXPORT_WORKFLOW: workflow, MEDIA_BUCKET: bucket })
+		);
+		expect(response.headers.get('Content-Type')).toBe(
+			'text/vnd.familysearch.gedcom; charset=utf-8'
+		);
+	});
+
+	it('never lets a stored disposition add a header or leave CR/LF in the filename', async () => {
+		const { workflow } = workflowAt('complete');
+		const { bucket } = bucketWithObject({
+			...storedObject(),
+			httpMetadata: {
+				contentType: 'text/vnd.familysearch.gedcom',
+				contentDisposition: 'attachment; filename="a\r\nX-Evil: 1"'
+			}
+		});
+		const response = await GET(
+			eventFor(id(), { GEDCOM_EXPORT_WORKFLOW: workflow, MEDIA_BUCKET: bucket })
+		);
+		expect(response.status).toBe(200);
+		expect(response.headers.get('X-Evil')).toBeNull();
+		const disposition = response.headers.get('Content-Disposition') ?? '';
+		expect(disposition).not.toMatch(/[\r\n]/);
+		expect(disposition).toContain('filename="a__X-Evil: 1"');
+	});
+
 	it('answers 404 when the object a complete instance names is gone', async () => {
 		const { workflow } = workflowAt('complete');
 		const { bucket } = bucketWithObject(null);

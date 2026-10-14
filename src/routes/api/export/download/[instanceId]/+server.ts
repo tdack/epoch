@@ -6,7 +6,8 @@ import {
 	ExportUnavailableError,
 	NotFoundError
 } from '#lib/server/domain/errors.js';
-import { GedcomService } from '#lib/server/services/gedcom-service.js';
+import { GEDCOM_CONTENT_TYPE, GedcomService } from '#lib/server/services/gedcom-service.js';
+import { GEDZIP_CONTENT_TYPE } from '#lib/server/gedcom/gedzip.js';
 import {
 	EXPORT_CODES,
 	EXPORT_STATES,
@@ -98,11 +99,9 @@ export const GET = apiHandler(
 			throw new ExportExpiredError();
 		}
 
-		const contentType =
-			object.httpMetadata?.contentType ??
-			(parsed.shouldCompress
-				? 'application/vnd.familysearch.gedcom+zip'
-				: 'text/vnd.familysearch.gedcom');
+		// Derived from the instance, never the stored type: the object's metadata is a write-time
+		// input, and a file served as HTML would be rendered by the browser instead of downloaded.
+		const contentType = parsed.shouldCompress ? GEDZIP_CONTENT_TYPE : GEDCOM_CONTENT_TYPE;
 		const filename = storedFilename(object.httpMetadata?.contentDisposition, parsed);
 		return new Response(object.body as unknown as ReadableStream, {
 			status: 200,
