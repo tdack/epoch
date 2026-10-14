@@ -69,8 +69,9 @@ const IMPORTED = {
 	noteItems: []
 } as unknown as FactDto;
 
+/** What the dialog sends: the stored details, trimmed (the server keeps stored text when equal). */
 const DETAIL_FIELDS = {
-	address: '  12 High St\nYork  ',
+	address: '12 High St\nYork',
 	classification: 'Adult',
 	agency: 'Parish of St Mary, Leeds',
 	phone: '0113 000\n0113 111',
@@ -115,6 +116,22 @@ function save() {
 	flushSync();
 }
 
+function choose(code: string) {
+	const select = document.getElementById('fact-type');
+	if (!(select instanceof HTMLSelectElement)) throw new Error('no fact type select');
+	select.value = code;
+	select.dispatchEvent(new Event('change', { bubbles: true }));
+	flushSync();
+}
+
+const detailsOf = () => document.querySelector<HTMLDetailsElement>('[data-testid="fact-details"]')!;
+
+function cleanup() {
+	if (component) unmount(component);
+	component = null;
+	document.body.innerHTML = '';
+}
+
 describe('FactDialog', () => {
 	it('sends an imported fact back with its details when only the date is edited', async () => {
 		render(IMPORTED);
@@ -131,6 +148,77 @@ describe('FactDialog', () => {
 			expect.objectContaining({ dateText: '1 JAN 1900', ...DETAIL_FIELDS }),
 			3
 		);
+	});
+
+	it('opens the Details section for a fact that has details, and not for a new one', () => {
+		render(IMPORTED);
+		expect(detailsOf().open).toBe(true);
+		cleanup();
+		render(null);
+		expect(detailsOf().open).toBe(false);
+	});
+
+	it('edits each detail field and sends it trimmed', async () => {
+		render(null);
+		const setText = (id: string, text: string) => {
+			const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${id}`)!;
+			el.value = text;
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+			flushSync();
+		};
+		choose('BAPM');
+		setText('fact-place', 'York');
+		setText('fact-address', '  12 High St\nYork  ');
+		setText('fact-classification', ' At home ');
+		setText('fact-agency', ' Parish of St Mary ');
+		setText('fact-religion', ' Anglican ');
+		setText('fact-phone', ' 0113 000\n0113 111 ');
+		setText('fact-email', ' parish@example.test ');
+		setText('fact-fax', '  ');
+		setText('fact-web', ' https://example.test ');
+		setText('fact-latitude', ' N53.8 ');
+		setText('fact-longitude', ' W1.5 ');
+		save();
+
+		await vi.waitFor(() => expect(createFactApi).toHaveBeenCalledTimes(1));
+		expect(vi.mocked(createFactApi).mock.calls[0]![2]).toMatchObject({
+			type: 'BAPM',
+			address: '12 High St\nYork',
+			classification: 'At home',
+			agency: 'Parish of St Mary',
+			religion: 'Anglican',
+			phone: '0113 000\n0113 111',
+			email: 'parish@example.test',
+			fax: null,
+			web: 'https://example.test',
+			latitude: 'N53.8',
+			longitude: 'W1.5'
+		});
+	});
+
+	it('places the sub-type under Type for an event, and inside Details for another fact', () => {
+		render(null);
+		choose('EVEN');
+		expect(detailsOf().contains(document.querySelector('#fact-classification'))).toBe(false);
+		choose('OCCU');
+		expect(detailsOf().contains(document.querySelector('#fact-classification'))).toBe(true);
+	});
+
+	it('hides the religion field for a religion fact', () => {
+		render(null);
+		expect(document.querySelector('#fact-religion')).not.toBeNull();
+		choose('RELI');
+		expect(document.querySelector('#fact-religion')).toBeNull();
+	});
+
+	it('disables the coordinates until the fact has a place', () => {
+		render(null);
+		expect(document.querySelector<HTMLInputElement>('#fact-latitude')!.disabled).toBe(true);
+		const place = document.querySelector<HTMLInputElement>('#fact-place')!;
+		place.value = 'York';
+		place.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+		expect(document.querySelector<HTMLInputElement>('#fact-latitude')!.disabled).toBe(false);
 	});
 
 	it('sends no details for a new fact', async () => {

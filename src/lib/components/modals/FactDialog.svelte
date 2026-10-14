@@ -45,6 +45,17 @@
 	let cause = $state('');
 	let age = $state('');
 	let notes = $state('');
+	let address = $state('');
+	let classification = $state('');
+	let agency = $state('');
+	let religion = $state('');
+	let phone = $state('');
+	let email = $state('');
+	let fax = $state('');
+	let web = $state('');
+	let latitude = $state('');
+	let longitude = $state('');
+	let isDetailsOpen = $state(false);
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
@@ -77,27 +88,47 @@
 	const field =
 		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600';
 
+	const isPlaceless = $derived(place.trim() === '');
+	const hasSubTypeOutsideDetails = $derived(type === 'EVEN' || type === 'FACT');
+
+	/** Trimmed, or null when empty; the server compares against the stored value and keeps it if equal. */
+	const orNull = (text: string) => text.trim() || null;
+
 	const toInput = (): FactInput => ({
 		type,
-		dateText: dateText.trim() || null,
-		place: place.trim() || null,
-		value: value.trim() || null,
-		cause: cause.trim() || null,
-		age: age.trim() || null,
-		notes: notes.trim() || null,
-		// No inputs for these yet, so they go back exactly as stored: a save of another field must not
-		// erase what an import brought. A new fact has none.
-		address: fact?.address ?? null,
-		classification: fact?.classification ?? null,
-		agency: fact?.agency ?? null,
-		phone: fact?.phone ?? null,
-		email: fact?.email ?? null,
-		fax: fact?.fax ?? null,
-		web: fact?.web ?? null,
-		latitude: fact?.latitude ?? null,
-		longitude: fact?.longitude ?? null,
-		religion: fact?.religion ?? null
+		dateText: orNull(dateText),
+		place: orNull(place),
+		value: orNull(value),
+		cause: orNull(cause),
+		age: orNull(age),
+		notes: orNull(notes),
+		address: orNull(address),
+		classification: orNull(classification),
+		agency: orNull(agency),
+		religion: orNull(religion),
+		phone: orNull(phone),
+		email: orNull(email),
+		fax: orNull(fax),
+		web: orNull(web),
+		latitude: orNull(latitude),
+		longitude: orNull(longitude)
 	});
+
+	/** Whether a stored fact has any of the details, so the Details section starts open. */
+	const hasAnyDetail = (source: FactDto | null) =>
+		source !== null &&
+		[
+			source.address,
+			source.classification,
+			source.agency,
+			source.religion,
+			source.phone,
+			source.email,
+			source.fax,
+			source.web,
+			source.latitude,
+			source.longitude
+		].some((detail) => detail !== null && detail.trim() !== '');
 
 	// Fill the form only when the dialog opens: reading `fact` inside the effect that also watches the
 	// fields would wipe what has been typed whenever the page data reloads underneath it.
@@ -111,6 +142,17 @@
 		cause = source?.cause ?? '';
 		age = source?.age ?? '';
 		notes = source?.notes ?? '';
+		address = source?.address ?? '';
+		classification = source?.classification ?? '';
+		agency = source?.agency ?? '';
+		religion = source?.religion ?? '';
+		phone = source?.phone ?? '';
+		email = source?.email ?? '';
+		fax = source?.fax ?? '';
+		web = source?.web ?? '';
+		latitude = source?.latitude ?? '';
+		longitude = source?.longitude ?? '';
+		isDetailsOpen = hasAnyDetail(source);
 		impact = null;
 		previewError = null;
 		saveError = null;
@@ -173,6 +215,19 @@
 	}
 </script>
 
+{#snippet subType()}
+	<div>
+		<label for="fact-classification" class="field-label">Sub-type</label>
+		<input
+			id="fact-classification"
+			type="text"
+			bind:value={classification}
+			class={field}
+			placeholder="e.g. Baptism at home"
+		/>
+	</div>
+{/snippet}
+
 <ImpactDialog
 	{isOpen}
 	title={isEdit ? 'Edit fact' : 'Add a fact'}
@@ -209,6 +264,10 @@
 					</optgroup>
 				</select>
 			</div>
+
+			{#if hasSubTypeOutsideDetails}
+				{@render subType()}
+			{/if}
 
 			{#if isAttribute}
 				<div>
@@ -270,6 +329,106 @@
 					<input id="fact-value-event" type="text" bind:value class={field} />
 				</div>
 			{/if}
+
+			<details
+				class="rounded-lg border border-stone-200 px-3 py-2"
+				bind:open={isDetailsOpen}
+				data-testid="fact-details"
+			>
+				<summary class="cursor-pointer text-sm font-semibold text-emerald-900">Details</summary>
+				<div class="mt-3 space-y-3">
+					{#if !hasSubTypeOutsideDetails}
+						{@render subType()}
+					{/if}
+
+					<div>
+						<label for="fact-address" class="field-label">Address</label>
+						<textarea id="fact-address" rows="3" bind:value={address} class={field}></textarea>
+					</div>
+
+					<div>
+						<label for="fact-agency" class="field-label">Agency</label>
+						<input id="fact-agency" type="text" bind:value={agency} class={field} />
+					</div>
+
+					{#if type !== 'RELI'}
+						<div>
+							<label for="fact-religion" class="field-label">Religion</label>
+							<input id="fact-religion" type="text" bind:value={religion} class={field} />
+						</div>
+					{/if}
+
+					<div>
+						<label for="fact-phone" class="field-label">Phone</label>
+						<textarea
+							id="fact-phone"
+							rows="2"
+							bind:value={phone}
+							class={field}
+							aria-describedby="fact-contact-hint"></textarea>
+					</div>
+					<div>
+						<label for="fact-email" class="field-label">Email</label>
+						<textarea
+							id="fact-email"
+							rows="2"
+							bind:value={email}
+							class={field}
+							aria-describedby="fact-contact-hint"></textarea>
+					</div>
+					<div>
+						<label for="fact-fax" class="field-label">Fax</label>
+						<textarea
+							id="fact-fax"
+							rows="2"
+							bind:value={fax}
+							class={field}
+							aria-describedby="fact-contact-hint"></textarea>
+					</div>
+					<div>
+						<label for="fact-web" class="field-label">Website</label>
+						<textarea
+							id="fact-web"
+							rows="2"
+							bind:value={web}
+							class={field}
+							aria-describedby="fact-contact-hint"></textarea>
+					</div>
+					<p id="fact-contact-hint" class="text-xs text-stone-500">One per line.</p>
+
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<label for="fact-latitude" class="field-label">Latitude</label>
+							<input
+								id="fact-latitude"
+								type="text"
+								bind:value={latitude}
+								disabled={isPlaceless}
+								class={field}
+								aria-describedby="fact-coordinates-hint"
+							/>
+						</div>
+						<div>
+							<label for="fact-longitude" class="field-label">Longitude</label>
+							<input
+								id="fact-longitude"
+								type="text"
+								bind:value={longitude}
+								disabled={isPlaceless}
+								class={field}
+								aria-describedby="fact-coordinates-hint"
+							/>
+						</div>
+					</div>
+					<p id="fact-coordinates-hint" class="text-xs text-stone-500">
+						{#if isPlaceless}
+							Add a place to record coordinates; they are stored with it.
+						{:else}
+							e.g. N18.150944 / E168.150944
+						{/if}
+					</p>
+				</div>
+			</details>
 
 			<div>
 				<label for="fact-notes" class="field-label">Notes</label>
