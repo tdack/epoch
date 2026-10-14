@@ -4,7 +4,7 @@ import { parseSearchParams } from '#lib/shared/search.js';
 
 /** Ranked people for `?q=&place=&from=&to=&limit=&offset=`; each says what matched. See `SearchResponse`. */
 export const GET = treeHandler(
-	{ failure: 'Failed to search the tree' },
+	{ allowPublicVisitor: true, failure: 'Failed to search the tree' },
 	({ db, ctx, treeId, url }) =>
 		new SearchService(db).search(treeId, parseSearchParams(url.searchParams), ctx)
 );

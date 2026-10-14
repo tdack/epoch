@@ -7,10 +7,13 @@ import { parseListParams } from '#lib/shared/lists.js';
  * whose text contains it (the fact editor uses it for suggestions). `?name=` answers one place's
  * facts instead.
  */
-export const GET = treeHandler({ failure: 'Failed to list places' }, ({ db, ctx, treeId, url }) => {
-	const service = new PlaceService(db);
-	const page = parseListParams(url.searchParams);
-	const name = url.searchParams.get('name');
-	if (name) return service.detail(treeId, name, page, ctx);
-	return service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, ctx);
-});
+export const GET = treeHandler(
+	{ allowPublicVisitor: true, failure: 'Failed to list places' },
+	({ db, ctx, treeId, url }) => {
+		const service = new PlaceService(db);
+		const page = parseListParams(url.searchParams);
+		const name = url.searchParams.get('name');
+		if (name) return service.detail(treeId, name, page, ctx);
+		return service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, ctx);
+	}
+);

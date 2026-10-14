@@ -10,7 +10,7 @@ import { parseFocusQuery } from '#lib/server/validation/graph-query.js';
  * the other parameters.
  */
 export const GET = treeHandler(
-	{ failure: 'Failed to load relationship graph' },
+	{ allowPublicVisitor: true, failure: 'Failed to load relationship graph' },
 	({ db, ctx, treeId, url }) => {
 		const { focusPersonId, options, isWholeTree } = parseFocusQuery(url.searchParams);
 		if (isWholeTree) return new GraphQueryService(db).wholeTreeGraph(treeId, ctx);

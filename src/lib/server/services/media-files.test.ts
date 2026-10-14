@@ -734,3 +734,25 @@ describe('unlinked objects', () => {
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 });
+
+describe('the public visitor and media keys (ADR-041)', () => {
+	// The media GET is hand-rolled, so its visitor guard is this read, not the handler factory's.
+	it('refuses the visitor a key of a tree that is not public, with the same 403 as a stranger', async () => {
+		await addFile(treeId, null, owner.userId, { id: 'f-visitor-probe', title: 'Probe.png' });
+		await expect(
+			service.requireRead(`media/${treeId}/f-visitor-probe.png`, visitorCtx)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	// An outsider on the public tree sees only files attached to people they may see, so a detached
+	// file of the public tree stays unreadable to the visitor as well.
+	it('shows the visitor a detached file of the public tree no more than a stranger does', async () => {
+		await addFile(publicTreeId, null, stranger.userId, {
+			id: 'f-visitor-public',
+			title: 'Visitor public.png'
+		});
+		await expect(
+			service.requireRead(`media/${publicTreeId}/f-visitor-public.png`, visitorCtx)
+		).rejects.toBeInstanceOf(NotFoundError);
+	});
+});

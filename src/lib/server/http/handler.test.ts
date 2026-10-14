@@ -1,9 +1,27 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { trees } from '../db/schema';
+import { PUBLIC_VISITOR, type UserIdentity } from '../domain/identity';
 import { ConcurrencyConflictError, NotFoundError } from '../domain/errors';
+import {
+	addTestMember,
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestActor,
+	type TestDatabase
+} from '../testing/d1';
+import { PublicTreeService } from '../services/public-tree-service';
 import { TreeService } from '../services/tree-service';
-import { apiHandler, expectedVersion, treeHandler } from './handler';
+import {
+	allowsPublicVisitor,
+	apiHandler,
+	expectedVersion,
+	isFactoryHandler,
+	treeHandler
+} from './handler';
 
 // The fake database cannot answer the slug lookup; every segment is taken to be the id itself.
 beforeEach(() => {
@@ -232,5 +250,148 @@ describe('expectedVersion', () => {
 
 	it('passes a non-number through for the service to refuse', () => {
 		expect(expectedVersion(new URL('https://epoch.test/x?version=abc'))).toBeNaN();
+	});
+});
+
+describe('the public visitor (ADR-041) at the handler factories', () => {
+	let t: TestDatabase;
+	let owner: TestActor;
+	let member: TestActor;
+	let publicId: string;
+	let privateId: string;
+	const forbidden = {
+		status: 403,
+		body: { error: 'Forbidden: sign in to do that', code: 'UNAUTHORIZED' }
+	};
+
+	/** A request as the hook builds it for a visitor or a member: real D1, no fake database. */
+	function realEvent(
+		user: UserIdentity,
+		params: Record<string, string>,
+		method = 'GET'
+	): RequestEvent {
+		const url = 'https://epoch.test/api/trees/x';
+		return {
+			locals: { user, correlationId: 'c1' },
+			platform: { env: { DB: t.d1 } },
+			params,
+			url: new URL(url),
+			request: new Request(url, { method })
+		} as unknown as RequestEvent;
+	}
+
+	beforeAll(async () => {
+		t = await createTestDatabase();
+		owner = await createTestUser(t.db, 'owner');
+		member = await createTestUser(t.db, 'member');
+		publicId = await createTestTree(t.db, owner);
+		privateId = await createTestTree(t.db, owner);
+		await addTestMember(t.db, privateId, member, 'viewer');
+		await t.db.update(trees).set({ slug: 'the-royal' }).where(eq(trees.id, publicId));
+		const name = (await t.db
+			.select({ name: trees.name })
+			.from(trees)
+			.where(eq(trees.id, publicId))
+			.get())!.name;
+		const ownerCtx = {
+			...owner.context,
+			user: { ...owner.context.user, isInstallOwner: true }
+		};
+		await new PublicTreeService(t.db).setPublicTree(publicId, name, ownerCtx);
+	}, 60_000);
+	afterAll(async () => {
+		await t.dispose();
+	});
+	// The file-level spy stands in for the fake database; here the slug lookup is real.
+	beforeEach(() => vi.restoreAllMocks());
+
+	it('refuses the visitor an endpoint that does not opt in, with a 403 and no run', async () => {
+		const run = vi.fn(async () => ({ leaked: true }));
+		const response = await apiHandler({ failure: 'x' }, run)(realEvent(PUBLIC_VISITOR, {}));
+		expect(await read(response)).toEqual({ status: 403, body: forbidden.body });
+		expect(run).not.toHaveBeenCalled();
+	});
+
+	it('refuses the visitor a tree endpoint that does not opt in, even on the public tree', async () => {
+		const run = vi.fn(async () => ({}));
+		const response = await treeHandler(
+			{ failure: 'x' },
+			run
+		)(realEvent(PUBLIC_VISITOR, { id: publicId }));
+		expect(await read(response)).toEqual({ status: 403, body: forbidden.body });
+		expect(run).not.toHaveBeenCalled();
+	});
+
+	it('runs an apiHandler that opts in, for the visitor', async () => {
+		const run = vi.fn(async () => ({ ok: true }));
+		const response = await apiHandler(
+			{ failure: 'x', allowPublicVisitor: true },
+			run
+		)(realEvent(PUBLIC_VISITOR, {}));
+		expect(await read(response)).toEqual({ status: 200, body: { ok: true } });
+		expect(run).toHaveBeenCalledOnce();
+	});
+
+	it('runs a treeHandler that opts in on the public tree, by its id', async () => {
+		const run = vi.fn(async ({ treeId }: { treeId: string }) => ({ treeId }));
+		const response = await treeHandler(
+			{ failure: 'x', allowPublicVisitor: true },
+			run
+		)(realEvent(PUBLIC_VISITOR, { id: publicId }));
+		expect(await read(response)).toEqual({ status: 200, body: { treeId: publicId } });
+	});
+
+	it('runs a treeHandler that opts in on the public tree, by its slug, with the id', async () => {
+		const run = vi.fn(async ({ treeId }: { treeId: string }) => ({ treeId }));
+		const response = await treeHandler(
+			{ failure: 'x', allowPublicVisitor: true },
+			run
+		)(realEvent(PUBLIC_VISITOR, { id: 'the-royal' }));
+		expect(await read(response)).toEqual({ status: 200, body: { treeId: publicId } });
+	});
+
+	it('refuses the visitor a private tree and an unknown id with the same 403, and no run', async () => {
+		const run = vi.fn(async () => ({ leaked: true }));
+		const handler = treeHandler({ failure: 'x', allowPublicVisitor: true }, run);
+		const private_ = await read(await handler(realEvent(PUBLIC_VISITOR, { id: privateId })));
+		const unknown = await read(await handler(realEvent(PUBLIC_VISITOR, { id: 'no-such-tree' })));
+		expect(private_).toEqual(forbidden);
+		expect(unknown).toEqual(forbidden);
+		expect(run).not.toHaveBeenCalled();
+	});
+
+	it('leaves a real member on a private tree unaffected by the visitor rule', async () => {
+		const run = vi.fn(async ({ treeId }: { treeId: string }) => ({ treeId }));
+		const response = await treeHandler(
+			{ failure: 'x' },
+			run
+		)(realEvent(member.context.user, { id: privateId }));
+		expect(await read(response)).toEqual({ status: 200, body: { treeId: privateId } });
+	});
+
+	it('treats HEAD exactly as GET for the visitor', async () => {
+		const run = vi.fn(async () => ({}));
+		const optIn = treeHandler({ failure: 'x', allowPublicVisitor: true }, run);
+		const closed = treeHandler({ failure: 'x' }, run);
+		expect((await optIn(realEvent(PUBLIC_VISITOR, { id: publicId }, 'HEAD'))).status).toBe(200);
+		expect((await optIn(realEvent(PUBLIC_VISITOR, { id: privateId }, 'HEAD'))).status).toBe(403);
+		expect((await closed(realEvent(PUBLIC_VISITOR, { id: publicId }, 'HEAD'))).status).toBe(403);
+	});
+});
+
+describe('which handlers a factory built, and which let the visitor in', () => {
+	it('marks every factory handler, and only the ones that opt in as visitor-readable', () => {
+		const closed = apiHandler({ failure: 'x' }, () => ({}));
+		const open = treeHandler({ failure: 'x', allowPublicVisitor: true }, () => ({}));
+		expect(isFactoryHandler(closed)).toBe(true);
+		expect(isFactoryHandler(open)).toBe(true);
+		expect(allowsPublicVisitor(closed)).toBe(false);
+		expect(allowsPublicVisitor(open)).toBe(true);
+	});
+
+	it('does not mark a handler it did not build', () => {
+		const hand: Parameters<typeof isFactoryHandler>[0] = async () => new Response('x');
+		expect(isFactoryHandler(hand)).toBe(false);
+		expect(allowsPublicVisitor(hand)).toBe(false);
 	});
 });

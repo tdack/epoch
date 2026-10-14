@@ -4,7 +4,7 @@ import { DEFAULT_CHART_GENERATIONS } from '#lib/shared/charts.js';
 
 /** `?person=<id>&generations=<n>`: the descendants chart's data (see `DescendantsDto`). */
 export const GET = treeHandler(
-	{ failure: 'Failed to load the chart' },
+	{ allowPublicVisitor: true, failure: 'Failed to load the chart' },
 	({ db, ctx, treeId, url }) => {
 		const person = url.searchParams.get('person');
 		if (!person) return Response.json({ error: 'person is required' }, { status: 400 });

@@ -4,7 +4,7 @@ import { parseListParams } from '#lib/shared/lists.js';
 
 /** One page of partnerships: `?offset=&limit=`. */
 export const GET = treeHandler(
-	{ failure: 'Failed to list partnerships' },
+	{ allowPublicVisitor: true, failure: 'Failed to list partnerships' },
 	({ db, ctx, treeId, url }) =>
 		new ListService(db).unions(treeId, parseListParams(url.searchParams), ctx)
 );

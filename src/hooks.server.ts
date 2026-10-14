@@ -149,9 +149,13 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		event.locals.notAdmitted = admission.notAdmitted;
 	}
 
-	// The one public tree (ADR-041) is read by whoever asks. The lookup is one indexed read, made only
-	// for an anonymous request on a tree page and never cached, so making the tree private takes
-	// effect on the next request. The bypass is excluded so a local developer stays themself.
+	// The one public tree (ADR-041) is read by whoever asks. Stamping the visitor here does not grant
+	// any read by itself: an API handler refuses the visitor (403) unless its GET opts in (the media route, which is
+	// hand-rolled, uses its own read guard instead), and an
+	// opted-in tree route refuses every tree but the public one, so the lookup below only decides
+	// whether a tree page is served. The lookup is one indexed read, made only for an anonymous
+	// request on a tree page and never cached, so making the tree private takes effect on the next
+	// request. The bypass is excluded so a local developer stays themself.
 	const publicRead = allowDevBypass
 		? null
 		: publicReadAccess({

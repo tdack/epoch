@@ -3,7 +3,7 @@ import { KinshipService } from '#lib/server/services/kinship-service.js';
 
 /** `?from=<person>&to=<person>`: every way the second is related to the first (see `RelationshipDto`). */
 export const GET = treeHandler(
-	{ failure: 'Failed to work out the relationship' },
+	{ allowPublicVisitor: true, failure: 'Failed to work out the relationship' },
 	({ db, ctx, treeId, url }) => {
 		const from = url.searchParams.get('from');
 		const to = url.searchParams.get('to');

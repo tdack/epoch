@@ -4,7 +4,7 @@ import { parseListParams } from '#lib/shared/lists.js';
 
 /** One page of repositories, by name: `?q=&offset=&limit=`. */
 export const GET = treeHandler(
-	{ failure: 'Failed to list repositories' },
+	{ allowPublicVisitor: true, failure: 'Failed to list repositories' },
 	({ db, ctx, treeId, url }) =>
 		new EvidenceReadService(db).listRepositories(
 			treeId,

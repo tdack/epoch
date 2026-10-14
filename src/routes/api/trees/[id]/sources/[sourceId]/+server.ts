@@ -9,7 +9,7 @@ import { sourceUpdateSchema } from '#lib/server/validation/schemas.js';
  * that supports nothing the viewer may see answers 404, as a private person does.
  */
 export const GET = treeHandler(
-	{ failure: 'Failed to load the source', params: ['sourceId'] },
+	{ allowPublicVisitor: true, failure: 'Failed to load the source', params: ['sourceId'] },
 	({ db, ctx, treeId, params, url }) =>
 		new EvidenceReadService(db).getSource(
 			treeId,

@@ -4,7 +4,7 @@ import { parseListParams } from '#lib/shared/lists.js';
 
 /** One page of shared notes, by text: `?q=&offset=&limit=`. `q` matches the words of the note. */
 export const GET = treeHandler(
-	{ failure: 'Failed to list the notes' },
+	{ allowPublicVisitor: true, failure: 'Failed to list the notes' },
 	({ db, ctx, treeId, url }) =>
 		new NoteReadService(db).listNotes(
 			treeId,

@@ -4,7 +4,9 @@
  * test: the matrix cannot silently fall behind the transports.
  */
 
+import type { RequestHandler } from '@sveltejs/kit';
 import { describe, expect, it } from 'vitest';
+import { allowsPublicVisitor, isFactoryHandler } from '#lib/server/http/handler.js';
 
 type Kind =
 	/** Paged in SQL with the visibility predicate beside `tree_id`. */
@@ -277,10 +279,11 @@ const NO_RECORD_LOADS = [
 
 /**
  * What the public visitor (ADR-041) gets from each endpoint that serves a GET. Every other method
- * is refused before it reaches a handler (the hook leaves writes unauthenticated: a 401), and the
- * services refuse the visitor again for anything that would stamp a user id. `public-tree-only`
- * means the read goes through `requireTreeScope`, so a tree that is not public is refused exactly
- * as it is for a stranger, and the public tree's private people stay hidden.
+ * is refused before it reaches a handler (the hook leaves writes unauthenticated: a 401). A
+ * handler factory refuses the visitor unless its GET opts in with `allowPublicVisitor`, and an
+ * opted-in tree read is refused for any tree but the public one, exactly as a stranger is refused
+ * for a private tree. `public-tree-only` is that opt-in; `refused` is no opt-in at all. The
+ * private people of the public tree stay hidden through the services' own visibility rules.
  */
 const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/admin/trees/+server.ts`]: 'refused',
@@ -316,7 +319,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/tasks/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/undo/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/undo/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: 'public-tree-only'
 };
 const endpointSources = import.meta.glob('./**/+server.ts', {
@@ -352,5 +355,46 @@ describe('the privacy matrix covers every transport', () => {
 
 	it('has an entry for every page and layout load, and none that fetch nothing it lists', () => {
 		expect(loads).toEqual([...LOADS, ...NO_RECORD_LOADS].sort());
+	});
+});
+
+/**
+ * Every route module, loaded for real, so the GET each one exports is the handler that serves
+ * requests. The media GET is the one hand-rolled handler: it is not built by a factory, so the
+ * factory's refusal does not reach it, and its own guard is the one below.
+ */
+const ROUTE_MODULES = import.meta.glob('./**/+server.ts', { eager: true }) as Record<
+	string,
+	{ GET?: RequestHandler }
+>;
+
+/**
+ * Hand-rolled on purpose: it sets its own headers and streams the object. Its visitor guard is
+ * MediaService.requireRead -> requireTreeScope, which refuses a tree that is not public, so the
+ * visitor reads only the public tree's media (media-files.test.ts proves it).
+ */
+const HAND_ROLLED_GET_ROUTE = `${API}/media/[...key]/+server.ts`;
+
+describe('the public visitor reads only what a route opts into (ADR-041)', () => {
+	it('exports only factory-built GETs, except the one named hand-rolled route', () => {
+		for (const [route, module] of Object.entries(ROUTE_MODULES)) {
+			if (!module.GET || route === HAND_ROLLED_GET_ROUTE) continue;
+			expect(isFactoryHandler(module.GET), `${route} GET is built by a handler factory`).toBe(true);
+		}
+		expect(ROUTE_MODULES[HAND_ROLLED_GET_ROUTE]?.GET).toBeTypeOf('function');
+		expect(isFactoryHandler(ROUTE_MODULES[HAND_ROLLED_GET_ROUTE]!.GET!)).toBe(false);
+	});
+
+	it('opts a GET in exactly when VISITOR_READS says public-tree-only', () => {
+		for (const [route, module] of Object.entries(ROUTE_MODULES)) {
+			if (!module.GET || route === HAND_ROLLED_GET_ROUTE) continue;
+			expect(allowsPublicVisitor(module.GET), route).toBe(
+				VISITOR_READS[route] === 'public-tree-only'
+			);
+		}
+	});
+
+	it('marks the hand-rolled media GET as public-tree-only, guarded by its own service', () => {
+		expect(VISITOR_READS[HAND_ROLLED_GET_ROUTE]).toBe('public-tree-only');
 	});
 });

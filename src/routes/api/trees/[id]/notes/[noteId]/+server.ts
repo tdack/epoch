@@ -9,7 +9,7 @@ import { sharedNoteUpdateSchema } from '#lib/server/validation/schemas.js';
  * viewer may see uses, and that they did not make, answers 404, as a private person does.
  */
 export const GET = treeHandler(
-	{ failure: 'Failed to load the note', params: ['noteId'] },
+	{ allowPublicVisitor: true, failure: 'Failed to load the note', params: ['noteId'] },
 	({ db, ctx, treeId, params, url }) =>
 		new NoteReadService(db).getNote(treeId, params.noteId, parseListParams(url.searchParams), ctx)
 );

@@ -18,6 +18,6 @@ export const PUT = treeHandler(
 
 /** Everything the partnership page shows, from bounded reads: see `UnionPageDto`. */
 export const GET = treeHandler(
-	{ failure: 'Failed to load the partnership', params: ['unionId'] },
+	{ allowPublicVisitor: true, failure: 'Failed to load the partnership', params: ['unionId'] },
 	({ db, ctx, treeId, params }) => new UnionPageService(db).getUnion(treeId, params.unionId, ctx)
 );

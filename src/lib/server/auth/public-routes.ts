@@ -87,11 +87,12 @@ export function treeIdOfPath(pathname: string): string | null {
  * Whether an unidentified request may be served as the public visitor (ADR-041), and what it must
  * then be shown to be public. Reads only: a write is left unauthenticated and fails with a 401.
  *
- * Any API path qualifies because every endpoint checks the tree itself, and refuses a tree that
- * is not public exactly as it refuses a stranger. A page does not: only the pages of the public
- * tree are served, so the caller must confirm `treeId` is the public one. A request that carried
- * a token never qualifies, so someone Access named is handled as the signed-in or not-admitted
- * visitor they are, not as an anonymous one.
+ * Any API path qualifies because the handler factories refuse the visitor unless a route opts in
+ * (`allowPublicVisitor`), and an opted-in tree route refuses any tree but the public one, exactly
+ * as it refuses a stranger. A page does not: only the pages of the public tree are served, so the
+ * caller must confirm `treeId` is the public one. A request that carried a token never qualifies,
+ * so someone Access named is handled as the signed-in or not-admitted visitor they are, not as an
+ * anonymous one.
  */
 export function publicReadAccess(request: PublicReadRequest): PublicReadAccess {
 	if (request.hasUser || request.hasToken) return null;

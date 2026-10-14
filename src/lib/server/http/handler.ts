@@ -2,8 +2,10 @@ import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import type { z } from 'zod';
 import { getDb, type DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
+import { UnauthorizedError } from '../domain/errors';
 import { parseBody, parseQuery } from '../validation';
 import { errorResponse } from './error-response';
+import { PublicTreeService } from '../services/public-tree-service';
 import { TreeService } from '../services/tree-service';
 
 type Schema = z.ZodTypeAny | undefined;
@@ -22,6 +24,12 @@ export interface HandlerOptions<B extends Schema, Q extends Schema> {
 	status?: number;
 	/** Passed to `errorResponse` for endpoints whose clients show a generic failure. */
 	messagePrefix?: string;
+	/**
+	 * Lets the public visitor (ADR-041) call this. Off by default, so a new endpoint refuses the
+	 * visitor until someone decides it may read. A tree endpoint that opts in is still refused for
+	 * any tree that is not the public one.
+	 */
+	allowPublicVisitor?: boolean;
 }
 
 export interface ApiArgs<B, Q> {
@@ -51,6 +59,32 @@ export function expectedVersion(url: URL): number | undefined {
 /** What a handler returns when it builds the whole response itself (a file, a redirect). */
 type Result = Response | unknown;
 
+/**
+ * The same 403 for every refusal of the visitor, whether the endpoint is closed to them or the tree
+ * is not public, so a probe cannot tell a private tree from an unknown id.
+ */
+const VISITOR_REFUSED_MESSAGE = 'Forbidden: sign in to do that';
+
+/** Handlers built with `allowPublicVisitor`, and every handler a factory built at all. */
+const publicVisitorHandlers = new WeakSet<RequestHandler>();
+const factoryHandlers = new WeakSet<RequestHandler>();
+
+/** Whether this handler was built with `allowPublicVisitor` (ADR-041). For the privacy matrix test. */
+export function allowsPublicVisitor(handler: RequestHandler): boolean {
+	return publicVisitorHandlers.has(handler);
+}
+
+/** Whether this handler came from `apiHandler` or `treeHandler`. For the privacy matrix test. */
+export function isFactoryHandler(handler: RequestHandler): boolean {
+	return factoryHandlers.has(handler);
+}
+
+function mark(handler: RequestHandler, options: { allowPublicVisitor?: boolean }): RequestHandler {
+	factoryHandlers.add(handler);
+	if (options.allowPublicVisitor) publicVisitorHandlers.add(handler);
+	return handler;
+}
+
 async function handle<B extends Schema, Q extends Schema>(
 	event: RequestEvent,
 	options: HandlerOptions<B, Q>,
@@ -61,6 +95,9 @@ async function handle<B extends Schema, Q extends Schema>(
 	// Present and non-empty once the loop below passes; the generated route types cannot say so.
 	const params = event.params as Record<string, string>;
 	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
+	// A 403, never a 401: the client restarts sign-in on a 401, and a visitor has nothing to sign in to.
+	if (locals.user.isPublicVisitor && !options.allowPublicVisitor)
+		return errorResponse(new UnauthorizedError(VISITOR_REFUSED_MESSAGE), options.failure);
 	for (const name of requiredParams) {
 		if (!params[name]) return Response.json({ error: `${name} required` }, { status: 400 });
 	}
@@ -105,12 +142,14 @@ export function apiHandler<B extends Schema = undefined, Q extends Schema = unde
 	options: HandlerOptions<B, Q>,
 	run: (args: ApiArgs<Parsed<B>, Parsed<Q>>) => Promise<Result> | Result
 ): RequestHandler {
-	return (event) => handle(event, options, options.params ?? [], run);
+	return mark((event) => handle(event, options, options.params ?? [], run), options);
 }
 
 /**
- * An endpoint under `/api/trees/[id]`. Everything `apiHandler` does, plus the tree id. Whether the
- * caller may act on the tree is the service's call, never the handler's.
+ * An endpoint under `/api/trees/[id]`. Everything `apiHandler` does, plus the tree id. Whether a
+ * signed-in caller may act on the tree is the service's call. The one decision made here is for the
+ * anonymous public visitor (ADR-052): it is refused for any tree but the public one, so a handler
+ * that forgot its own guard cannot show it another tree.
  *
  * The segment may be the tree's slug (ADR-045); it is turned into the id here, once, so no service
  * ever sees a slug. A segment that names no tree is passed on unchanged, and the service refuses it
@@ -120,11 +159,18 @@ export function treeHandler<B extends Schema = undefined, Q extends Schema = und
 	options: HandlerOptions<B, Q>,
 	run: (args: TreeArgs<Parsed<B>, Parsed<Q>>) => Promise<Result> | Result
 ): RequestHandler {
-	return (event) =>
-		handle(event, options, ['id', ...(options.params ?? [])], async (args) =>
-			run({
-				...args,
-				treeId: await new TreeService(args.db).resolveSegment(args.params.id)
-			})
-		);
+	return mark(
+		(event) =>
+			handle(event, options, ['id', ...(options.params ?? [])], async (args) => {
+				const treeId = await new TreeService(args.db).resolveSegment(args.params.id);
+				// Only the public tree is open to the visitor, by the id the segment resolved to, so a
+				// slug and an id cannot disagree about which tree this is.
+				if (args.ctx.user.isPublicVisitor) {
+					const publicTree = await new PublicTreeService(args.db).current();
+					if (publicTree?.id !== treeId) throw new UnauthorizedError(VISITOR_REFUSED_MESSAGE);
+				}
+				return run({ ...args, treeId });
+			}),
+		options
+	);
 }
