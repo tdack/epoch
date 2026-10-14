@@ -6,7 +6,7 @@ const PRODUCTION = new URL('https://epoch.example.com/trees/the-windsors');
 describe('securityHeadersFor', () => {
 	it('pins https production traffic to HSTS, without preload', () => {
 		expect(securityHeadersFor(PRODUCTION)).toMatchObject({
-			'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+			'Strict-Transport-Security': 'max-age=31536000',
 			'X-Frame-Options': 'DENY',
 			'Referrer-Policy': 'strict-origin-when-cross-origin',
 			'X-Content-Type-Options': 'nosniff',

@@ -11,11 +11,12 @@ const SECURITY_HEADERS = {
 } as const;
 
 /**
- * No `preload`: it asks browsers to pin the whole registrable domain, which is a commitment this
- * change should not make on its own. HSTS is sent only over https, and never to a local host, so a
+ * Neither `includeSubDomains` nor `preload`. Epoch is open source and may be deployed beside
+ * sibling subdomains its operator does not want pinned to https, so only the host that sends the
+ * header is pinned; `preload` would pin the whole registrable domain. HSTS is sent only over https, and never to a local host, so a
  * developer running https on localhost does not pin it for a year.
  */
-const HSTS_VALUE = 'max-age=31536000; includeSubDomains';
+const HSTS_VALUE = 'max-age=31536000';
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
