@@ -34,6 +34,25 @@ Last reviewed: 2026-10-11.
 - **Media privacy only follows the person.** It does not yet follow the other records a media item
   is attached to.
 
+### Abuse controls
+
+- **Rate limits on `/api/media/upload`, `/api/import` and `/api/csp-report` are not in source.**
+  Configure Cloudflare rate-limiting rules for all three paths in the dashboard or Terraform; a Worker cannot enforce them.
+  Per-user rate limiting in the app waits for a demonstrated coordination need, which would bring
+  a Durable Object. (F9)
+- **Staged imports are not cleaned up after a crash.** A staged object left behind by a consumer
+  that ran out of retries stops counting against its tree's cap after four days
+  (`STAGED_IMPORT_MAX_AGE_MS`) but stays in the bucket. Add an R2 lifecycle rule for `staging/` at
+  the Cloudflare layer, as with `exports/`. (F9)
+- **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
+  can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
+  is never capped. Decide between an install-wide or per-actor bound, limiting who may create
+  trees, or accepting the risk; the rate-limit rules above are the other half. (F9)
+- **The media quota never shrinks.** It sums what R2 holds, and no code removes media objects, so
+  deleting media in the app does not free quota and deleting a tree leaves its objects behind.
+  A tree that reaches its limit needs an operator to remove objects by hand until media deletion
+  and tree deletion clear them. (F9)
+
 ### GEDCOM
 
 - **5.5.1 `CONC` wrapping at 255 bytes** is not implemented. No reader in scope needs it. (ADR-042)

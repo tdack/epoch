@@ -16,7 +16,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
-import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
+import { MAX_MEDIA_UPLOAD_BYTES, MAX_TREE_MEDIA_BYTES } from '#lib/shared/media.js';
 import { POST } from './+server.js';
 
 function ascii(text: string): number[] {
@@ -40,16 +40,32 @@ const SVG_BYTES = new Uint8Array(ascii('<svg xmlns="http://www.w3.org/2000/svg">
 const UPLOAD_URL = 'http://localhost/api/media/upload';
 const MULTIPART_BOUNDARY = 'epoch-upload-test';
 
+/**
+ * `size` is what a listing reports; a test sets it directly to fill a tree's quota without
+ * allocating gigabytes.
+ */
 class FakeMediaBucket {
-	readonly objects = new Map<string, { body: Uint8Array; contentType?: string }>();
+	readonly objects = new Map<string, { body: Uint8Array; size: number; contentType?: string }>();
 	async put(
 		key: string,
 		value: Uint8Array | ArrayBuffer,
 		options?: { httpMetadata?: { contentType?: string } }
 	) {
 		const body = value instanceof Uint8Array ? value : new Uint8Array(value);
-		this.objects.set(key, { body, contentType: options?.httpMetadata?.contentType });
+		this.objects.set(key, {
+			body,
+			size: body.byteLength,
+			contentType: options?.httpMetadata?.contentType
+		});
 		return { key, size: body.byteLength };
+	}
+	async list(options: { prefix?: string } = {}) {
+		return {
+			truncated: false as const,
+			objects: [...this.objects.entries()]
+				.filter(([key]) => key.startsWith(options.prefix ?? ''))
+				.map(([key, found]) => ({ key, size: found.size }))
+		};
 	}
 }
 
@@ -161,6 +177,29 @@ function malformedUpload(): Request {
 	});
 	return { headers: multipartHeaders(), body } as unknown as Request;
 }
+
+describe('media storage quota', () => {
+	it('refuses an upload that would exceed the tree quota, before any byte is stored', async () => {
+		bucket.objects.set(`media/${treeId}/${personId}/full.png`, {
+			body: new Uint8Array(0),
+			size: MAX_TREE_MEDIA_BYTES - 10
+		});
+		const response = await upload(owner, new File([PNG_BYTES], 'photo.png', { type: 'image/png' }));
+		expect(response.status).toBe(413);
+		expect(((await response.json()) as { code: string }).code).toBe('VALIDATION_ERROR');
+		expect(bucket.objects.size).toBe(1);
+	});
+
+	it('does not count another tree toward this tree quota', async () => {
+		const otherTreeId = await createTestTree(t.db, owner);
+		bucket.objects.set(`media/${otherTreeId}/${personId}/full.png`, {
+			body: new Uint8Array(0),
+			size: MAX_TREE_MEDIA_BYTES
+		});
+		const response = await upload(owner, new File([PNG_BYTES], 'photo.png', { type: 'image/png' }));
+		expect(response.status).toBe(201);
+	});
+});
 
 describe('media upload type checks', () => {
 	it('refuses HTML bytes even when the declared type says image/png', async () => {

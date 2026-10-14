@@ -43,6 +43,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			user: locals.user,
 			correlationId: locals.correlationId
 		});
+		// Still before any byte is written: a full tree refuses the file rather than storing it.
+		await service.requireQuotaFor(treeId, file.size, platform.env.MEDIA_BUCKET);
 
 		// The bytes decide the type; the declared type and filename are attacker-controlled and are
 		// ignored. The extension comes from the sniffed type so it cannot disagree with the content.
