@@ -6,9 +6,14 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { individuals, mediaItems, trees, unions } from '../db/schema';
+import { changeLog, individuals, mediaItems, trees, unions } from '../db/schema';
 import { PUBLIC_VISITOR, type AuthenticatedContext } from '../domain/identity';
-import { UnauthorizedError, ValidationError } from '../domain/errors';
+import {
+	ConcurrencyConflictError,
+	NotFoundError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import type { FileRowDto } from '../../shared/files';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -22,6 +27,7 @@ import {
 } from '../testing/d1';
 import { FakeMediaBucket } from '../testing/fake-bucket';
 import { MediaService } from './media-service';
+import { ChangeLogService } from './change-log-service';
 
 const FIXTURE = `0 HEAD
 0 @I1@ INDI
@@ -361,5 +367,147 @@ describe('storage use', () => {
 
 	it('refuses a public visitor', async () => {
 		await expect(service.usage(visitorCtx, bucketWith())).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+});
+
+describe('editing files', () => {
+	/** A file in the tree, on a person, with its own id so each test undoes only its own change. */
+	async function fileOn(entityId: string | null, id: string, title = `${id}.png`) {
+		await addFile(treeId, entityId, editor.userId, { id, title });
+		return id;
+	}
+	const owners = () => ({ pub: personId('@I1@'), other: personId('@I2@') });
+	const rowOf = async (id: string) =>
+		(await t.db.select().from(mediaItems).where(eq(mediaItems.id, id)))[0]!;
+	const changesIn = async () =>
+		(await t.db.select().from(changeLog).where(eq(changeLog.treeId, treeId))).length;
+
+	it('renames a file through the change log, bumping its version, and undoes it', async () => {
+		const id = await fileOn(null, 'e-rename');
+		const before = await changesIn();
+		await service.rename(ctxOf(editor), {
+			treeId,
+			mediaId: id,
+			title: 'Renamed.png',
+			expectedVersion: 1
+		});
+		expect(await rowOf(id)).toMatchObject({ title: 'Renamed.png', version: 2 });
+		expect(await changesIn()).toBe(before + 1);
+		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
+		expect(await rowOf(id)).toMatchObject({ title: 'e-rename.png' });
+	});
+
+	it('attaches a detached file to a person and undoes the attach', async () => {
+		const id = await fileOn(null, 'e-attach');
+		await service.attach(ctxOf(editor), { treeId, mediaId: id, entityId: owners().pub });
+		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
+		expect(await rowOf(id)).toMatchObject({ entityId: null });
+	});
+
+	it('detaches a file, keeping it, and undoes the detach', async () => {
+		const id = await fileOn(owners().pub, 'e-detach');
+		await service.detach(ctxOf(editor), { treeId, mediaId: id });
+		expect(await rowOf(id)).toMatchObject({ entityId: null });
+		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
+		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+	});
+
+	it('moves a file to another person in one change, and undoes the move', async () => {
+		const id = await fileOn(owners().pub, 'e-move');
+		await service.move(ctxOf(editor), { treeId, mediaId: id, entityId: owners().other });
+		expect(await rowOf(id)).toMatchObject({ entityId: owners().other });
+		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
+		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+	});
+
+	it('refuses a move to a partnership, to a person in another tree, and of a detached file', async () => {
+		const attached = await fileOn(owners().pub, 'e-move-refused');
+		const detached = await fileOn(null, 'e-move-detached');
+		const otherPerson = await t.db
+			.select({ id: individuals.id })
+			.from(individuals)
+			.where(eq(individuals.treeId, otherTreeId));
+		await expect(
+			service.move(ctxOf(editor), { treeId, mediaId: attached, entityId: unionId })
+		).rejects.toBeInstanceOf(ValidationError);
+		await expect(
+			service.move(ctxOf(editor), {
+				treeId,
+				mediaId: attached,
+				entityId: otherPerson[0]?.id ?? 'none'
+			})
+		).rejects.toBeInstanceOf(ValidationError);
+		await expect(
+			service.move(ctxOf(editor), { treeId, mediaId: detached, entityId: owners().pub })
+		).rejects.toBeInstanceOf(ValidationError);
+	});
+
+	it('lets an editor edit a file uploaded by someone else', async () => {
+		const id = await fileOn(null, 'e-other-upload');
+		await t.db.update(mediaItems).set({ uploadedBy: manager.userId }).where(eq(mediaItems.id, id));
+		await expect(
+			service.rename(ctxOf(editor), { treeId, mediaId: id, title: 'Theirs.png' })
+		).resolves.toBeDefined();
+	});
+
+	it.each([
+		['a contributor', () => contributor],
+		['a viewer', () => viewer],
+		['a stranger to the tree', () => stranger]
+	])('refuses %s to rename a file', async (_label, actor) => {
+		const id = await fileOn(null, `e-refused-${_label.replace(/\W+/g, '-')}`);
+		await expect(
+			service.rename(ctxOf(actor()), { treeId, mediaId: id, title: 'No.png' })
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		expect((await rowOf(id)).title).toBe(`${id}.png`);
+	});
+
+	it('refuses an outsider on the public tree, who reads it as a viewer and may edit nothing', async () => {
+		const outsider = await createTestUser(t.db, 'outsider');
+		await addFile(publicTreeId, null, stranger.userId, {
+			id: 'e-public-outsider',
+			title: 'Outsider.png'
+		});
+		await expect(
+			service.rename(outsider.context, {
+				treeId: publicTreeId,
+				mediaId: 'e-public-outsider',
+				title: 'No.png'
+			})
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('refuses the install owner, who is not a member of the tree, to edit anything there', async () => {
+		const id = await fileOn(null, 'e-install');
+		await expect(
+			service.rename(installOwner, { treeId, mediaId: id, title: 'No.png' })
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('refuses a public visitor', async () => {
+		const id = await fileOn(null, 'e-visitor');
+		await expect(
+			service.attach(visitorCtx, { treeId, mediaId: id, entityId: owners().pub })
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('refuses an edit made from a version that is no longer current', async () => {
+		const id = await fileOn(null, 'e-stale');
+		await service.rename(ctxOf(editor), {
+			treeId,
+			mediaId: id,
+			title: 'Once.png',
+			expectedVersion: 1
+		});
+		await expect(
+			service.rename(ctxOf(editor), { treeId, mediaId: id, title: 'Twice.png', expectedVersion: 1 })
+		).rejects.toBeInstanceOf(ConcurrencyConflictError);
+	});
+
+	it('names a file in another tree as missing when asked through this tree', async () => {
+		await expect(
+			service.rename(ctxOf(editor), { treeId, mediaId: 'f-other', title: 'Nope.png' })
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });

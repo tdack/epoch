@@ -24,8 +24,32 @@ import type { FileListDto, FileRowDto, FileUsageDto } from '../../shared/files';
 import { hasMinimumRole, type TreeRole } from '../../shared/roles';
 import { canSeePrivatePeople, isActionAllowed } from '../auth/authorization';
 import { requireRealUser, requireTreeScope, type ViewerScope } from './tree-access';
+import { describeCommand } from '../domain/command-summary';
+import type { MediaCommand } from '../domain/media-ops';
+import { MutationRunner, type MutationResult } from './mutation-runner';
 
 export { parseMediaKey };
+
+export interface FileRenameInput {
+	treeId: string;
+	mediaId: string;
+	title: string;
+	expectedVersion?: number;
+}
+
+export interface FileAttachInput {
+	treeId: string;
+	mediaId: string;
+	/** The person or partnership the file is attached to. */
+	entityId: string;
+	expectedVersion?: number;
+}
+
+export interface FileDetachInput {
+	treeId: string;
+	mediaId: string;
+	expectedVersion?: number;
+}
 
 /**
  * Whether a viewer may read a file. `owners` is the people it hangs off: null for a detached file,
@@ -159,6 +183,8 @@ export class MediaService {
 	private users: UserRepository;
 	private trees: TreeRepository;
 
+	private runner: MutationRunner;
+
 	constructor(
 		private db: DbClient,
 		private now: () => Date = () => new Date()
@@ -166,6 +192,10 @@ export class MediaService {
 		this.media = new MediaRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
+		this.runner = new MutationRunner(db, {
+			now: () => now().getTime(),
+			newId: () => crypto.randomUUID()
+		});
 	}
 
 	/**
@@ -417,6 +447,86 @@ export class MediaService {
 			trees: manageable,
 			installBytes: context.user.isInstallOwner === true ? total : null
 		};
+	}
+
+	/**
+	 * Rename a file. Logged and undoable like any record change (it is a row update), and refused
+	 * unless the caller may manage media in this tree. Editors and above rename any file.
+	 */
+	rename(context: AuthenticatedContext, input: FileRenameInput): Promise<MutationResult> {
+		return this.editFile(input.treeId, context, {
+			kind: 'rename_media',
+			mediaId: input.mediaId,
+			title: input.title,
+			expectedVersion: input.expectedVersion
+		});
+	}
+
+	/** Attach a detached file to a person or partnership in the same tree. */
+	attach(context: AuthenticatedContext, input: FileAttachInput): Promise<MutationResult> {
+		return this.editFile(input.treeId, context, {
+			kind: 'attach_media',
+			mediaId: input.mediaId,
+			entityId: input.entityId,
+			expectedVersion: input.expectedVersion
+		});
+	}
+
+	/** Detach a file from its person or partnership; the file itself is kept. */
+	detach(context: AuthenticatedContext, input: FileDetachInput): Promise<MutationResult> {
+		return this.editFile(input.treeId, context, {
+			kind: 'detach_media',
+			mediaId: input.mediaId,
+			expectedVersion: input.expectedVersion
+		});
+	}
+
+	/**
+	 * Move an attached file to another person in the same tree: a detach and an attach in one logged
+	 * change. A partnership is not a destination, and a detached file is attached rather than moved.
+	 */
+	async move(context: AuthenticatedContext, input: FileAttachInput): Promise<MutationResult> {
+		requireRealUser(context);
+		await requireTreeScope(
+			this.users,
+			this.trees,
+			input.treeId,
+			context,
+			'media:manage',
+			this.now()
+		);
+		const destination = await this.media.recordKindsOf(input.treeId, [input.entityId]);
+		if (destination.get(input.entityId) !== 'person')
+			throw new ValidationError('A file can only be moved to a person in the same tree');
+		const file = await this.media.findById(input.mediaId);
+		if (!file || file.treeId !== input.treeId) throw new NotFoundError('File', input.mediaId);
+		if (file.entityId === null)
+			throw new ValidationError('This file is not attached to anyone, so attach it instead');
+		return this.editFile(input.treeId, context, {
+			kind: 'attach_media',
+			mediaId: input.mediaId,
+			entityId: input.entityId,
+			expectedVersion: input.expectedVersion
+		});
+	}
+
+	/**
+	 * The one path a file edit takes: the tree is checked before any row is read, so a caller outside
+	 * it learns nothing about its files, then the change is planned, authorised and logged together.
+	 */
+	private async editFile(
+		treeId: string,
+		context: AuthenticatedContext,
+		command: MediaCommand
+	): Promise<MutationResult> {
+		requireRealUser(context);
+		await requireTreeScope(this.users, this.trees, treeId, context, 'media:manage', this.now());
+		return this.runner.run(treeId, context, {
+			kind: command.kind,
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command],
+			requiredAction: () => 'media:manage'
+		});
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

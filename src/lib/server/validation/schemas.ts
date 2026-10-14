@@ -668,3 +668,19 @@ export const fileListQuerySchema = z.object({
 });
 
 export const fileUsageQuerySchema = z.object({ treeId: idSchema.optional() });
+
+/** A rename: the tree the file is in, its new name, and the version the client last read. */
+export const fileRenameSchema = z.object({
+	treeId: idSchema,
+	title: z.string(),
+	version: versionSchema.optional()
+});
+
+/** An attach, or a move: the tree, the record to attach the file to, and the version read. */
+export const fileAttachSchema = z.object({
+	treeId: idSchema,
+	entityId: idSchema,
+	version: versionSchema.optional()
+});
+
+export const fileDetachSchema = z.object({ treeId: idSchema, version: versionSchema.optional() });
