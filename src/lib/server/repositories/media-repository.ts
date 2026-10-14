@@ -72,6 +72,19 @@ export class MediaRepository {
 		return this.db.select().from(mediaItems).where(eq(mediaItems.id, mediaId)).get();
 	}
 
+	/**
+	 * Who uploaded each file attached to a person, keyed by media id. Read separately because the
+	 * graph reads build row images, which leave the uploader out (see `MediaRow`).
+	 */
+	async uploadersOf(treeId: string, entityId: string): Promise<Map<string, string | null>> {
+		const rows = await this.db
+			.select({ id: mediaItems.id, uploadedBy: mediaItems.uploadedBy })
+			.from(mediaItems)
+			.where(and(eq(mediaItems.treeId, treeId), eq(mediaItems.entityId, entityId)))
+			.all();
+		return new Map(rows.map((row) => [row.id, row.uploadedBy]));
+	}
+
 	async exists(treeId: string, objectKey: string): Promise<boolean> {
 		const row = await this.db
 			.select({ id: mediaItems.id })

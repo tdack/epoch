@@ -9,7 +9,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { FakeMediaBucket } from '../testing/fake-bucket';
-import { MediaService } from './media-service';
+import { canDeleteMedia, MediaService } from './media-service';
 
 /** Lists two objects per page, so a tree's total only comes out right if every page is read. */
 const PAGE_SIZE = 2;
@@ -86,5 +86,30 @@ describe('MediaService.requireQuotaFor', () => {
 		await expect(
 			new MediaService(t.db).requireQuotaFor(treeId, 1024, bucket)
 		).resolves.toBeUndefined();
+	});
+});
+
+describe('canDeleteMedia', () => {
+	const scope = (role: 'owner' | 'manager' | 'editor' | 'contributor' | 'viewer') => ({
+		role,
+		userId: 'me'
+	});
+	it('lets an editor delete the files they uploaded, and not other users', () => {
+		expect(canDeleteMedia(scope('editor'), 'me')).toBe(true);
+		expect(canDeleteMedia(scope('editor'), 'someone-else')).toBe(false);
+	});
+	it('lets a manager or owner delete any file, including one with no recorded uploader', () => {
+		for (const role of ['manager', 'owner'] as const) {
+			expect(canDeleteMedia(scope(role), 'someone-else')).toBe(true);
+			expect(canDeleteMedia(scope(role), null)).toBe(true);
+		}
+	});
+	it('refuses a contributor or viewer even for their own upload', () => {
+		for (const role of ['contributor', 'viewer'] as const) {
+			expect(canDeleteMedia(scope(role), 'me')).toBe(false);
+		}
+	});
+	it('does not let an editor delete a legacy file with no uploader', () => {
+		expect(canDeleteMedia(scope('editor'), null)).toBe(false);
 	});
 });

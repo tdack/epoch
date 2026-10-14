@@ -7,6 +7,8 @@
 
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
+import { MediaRepository } from '../repositories/media-repository';
+import { canDeleteMedia } from './media-service';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
@@ -161,6 +163,7 @@ function nameDtos(
 export class PersonPageService {
 	private now: () => Date;
 	private repo: GraphWindowRepository;
+	private media: MediaRepository;
 	private evidence: EvidenceRepository;
 	private notes: NoteRepository;
 	private tasks: TaskReadService;
@@ -170,6 +173,7 @@ export class PersonPageService {
 	constructor(db: DbClient, now: () => Date = () => new Date()) {
 		this.now = now;
 		this.repo = new GraphWindowRepository(db);
+		this.media = new MediaRepository(db);
 		this.evidence = new EvidenceRepository(db);
 		this.notes = new NoteRepository(db);
 		this.tasks = new TaskReadService(db, now);
@@ -210,6 +214,7 @@ export class PersonPageService {
 			this.repo.mediaOf(treeId, [personId])
 		);
 		if (!self) throw new NotFoundError('Person', personId);
+		const uploaders = await this.media.uploadersOf(treeId, personId);
 
 		// Evidence: every citation of the person and of what they have, in one batch, then the sources
 		// those name. A fact or name that none cites is unsourced.
@@ -403,7 +408,8 @@ export class PersonPageService {
 				id: row.id,
 				title: row.title,
 				mimeType: row.mimeType,
-				r2ObjectKey: row.r2ObjectKey
+				r2ObjectKey: row.r2ObjectKey,
+				canDelete: canDeleteMedia(scope, uploaders.get(row.id) ?? null)
 			})),
 			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.PERSON, personId),
 			linkNotes: links.flatMap((l) => {

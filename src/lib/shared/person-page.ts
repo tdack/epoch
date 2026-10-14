@@ -103,6 +103,8 @@ interface MediaDto extends PrivacyFlag {
 	title: string | null;
 	mimeType: string;
 	r2ObjectKey: string;
+	/** Computed on the server: editors may delete the files they uploaded, managers any. */
+	canDelete: boolean;
 }
 
 export interface ChangeEntryDto {

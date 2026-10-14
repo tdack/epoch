@@ -18,6 +18,7 @@ import { TreeRepository } from '../repositories/tree-repository';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
+import { hasMinimumRole } from '../../shared/roles';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /**
@@ -47,6 +48,19 @@ function canReadRow(
 	if (!scope.isRestricted) return true;
 	if (owners === null) return false;
 	return owners.length > 0 && owners.every((id) => visible.has(id));
+}
+
+/**
+ * Whether the viewer may delete a file attached to a person. Editors may delete the files they
+ * uploaded; a manager may delete any. A file with no recorded uploader (every file uploaded before
+ * migration 0029) is a manager's to delete.
+ */
+export function canDeleteMedia(
+	scope: Pick<ViewerScope, 'role' | 'userId'>,
+	uploadedBy: string | null
+): boolean {
+	if (!hasMinimumRole(scope.role, 'editor')) return false;
+	return hasMinimumRole(scope.role, 'manager') || uploadedBy === scope.userId;
 }
 
 export class MediaService {
