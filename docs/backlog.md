@@ -46,12 +46,17 @@ Last reviewed: 2026-10-11.
   the Cloudflare layer, as with `exports/`. (F9)
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
-  is never capped. Decide between an install-wide or per-actor bound, limiting who may create
-  trees, or accepting the risk; the rate-limit rules above are the other half. (F9)
-- **The media quota never shrinks.** It sums what R2 holds, and no code removes media objects, so
-  deleting media in the app does not free quota and deleting a tree leaves its objects behind.
-  A tree that reaches its limit needs an operator to remove objects by hand until media deletion
-  and tree deletion clear them. (F9)
+  is never capped. Accepted for now; the Cloudflare rate-limit rules above are the other half. (F9)
+- **Media cannot be deleted, so the quota never shrinks.** The app has no way to remove an image or
+  document attached to a person: no delete control, endpoint or R2 removal, and deleting a tree
+  leaves its objects behind. Add a delete control (a bin icon) on each image and document, backed
+  by a service call that removes the `media_items` row and the R2 object, and have tree deletion
+  remove its `media/<treeId>/` objects. Until then a tree that reaches its limit needs an operator
+  to clear objects by hand. (F9)
+- **No file management view.** Add a file browser: for an owner, every file in the install with the
+  tree it belongs to; for a manager or editor, the files of the trees they can access. It would
+  show size and uploader, support deleting, and show how much of each tree's media quota is used.
+  Needs a decision on the role that may delete another member's file. (F9)
 
 ### GEDCOM
 
