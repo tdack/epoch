@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { dependentsOfDeletions, matchesImage, type RowOp } from './change-log';
+import {
+	describeOps,
+	dependentsOfDeletions,
+	matchesImage,
+	withAllColumns,
+	type RowOp
+} from './change-log';
 import { treeRows } from '../testing/rows';
 
 describe('dependentsOfDeletions', () => {
@@ -39,6 +45,11 @@ describe('matchesImage', () => {
 		).toBe(true);
 	});
 
+	it('treats a key one image lacks as null, so a column added later does not refuse an undo', () => {
+		expect(matchesImage({ id: 'a', address: null }, { id: 'a' })).toBe(true);
+		expect(matchesImage({ id: 'a', address: '12 High Street' }, { id: 'a' })).toBe(false);
+	});
+
 	it('ignores version and timestamps, and notices any other difference', () => {
 		expect(
 			matchesImage({ id: 'a', version: 1, updatedAt: 1 }, { id: 'a', version: 2, updatedAt: 9 })
@@ -49,5 +60,43 @@ describe('matchesImage', () => {
 		).toBe(false);
 		expect(matchesImage(null, null)).toBe(true);
 		expect(matchesImage({ id: 'a' }, null)).toBe(false);
+	});
+});
+
+describe('withAllColumns', () => {
+	it('fills the keys an image lacks with null and keeps the ones it has', () => {
+		expect(withAllColumns({ id: 'a', place: 'Leeds' }, ['id', 'place', 'address'])).toEqual({
+			id: 'a',
+			place: 'Leeds',
+			address: null
+		});
+	});
+});
+
+describe('describeOps across a column added by a migration', () => {
+	it('lists no field for a column the old image lacks and the row now holds as null', () => {
+		const ops: RowOp[] = [
+			{
+				table: 'events',
+				id: 'e1',
+				before: { id: 'e1', place: 'Leeds', version: 1 },
+				after: { id: 'e1', place: 'Leeds', address: null, version: 2 }
+			}
+		];
+		expect(describeOps(ops, () => 'event')[0]!.fields).toEqual([]);
+	});
+
+	it('still lists a real change alongside a column the old image lacks', () => {
+		const ops: RowOp[] = [
+			{
+				table: 'events',
+				id: 'e1',
+				before: { id: 'e1', place: 'Leeds', version: 1 },
+				after: { id: 'e1', place: 'Hull', address: null, version: 2 }
+			}
+		];
+		expect(describeOps(ops, () => 'event')[0]!.fields).toEqual([
+			{ field: 'place', before: 'Leeds', after: 'Hull' }
+		]);
 	});
 });

@@ -217,12 +217,30 @@ const ACTIONS: Record<OpKind, RecordAction> = {
 	delete: RECORD_ACTIONS.DELETED
 };
 
+/**
+ * Fill the keys an image lacks with null. An image written before a migration added a column has
+ * no key for it, while the live row has one holding null; without this the two would differ, and
+ * an undo of that old change would refuse, or list the column as changed when nothing was.
+ */
+export function withAllColumns(image: RowImage, columns: Iterable<string>): RowImage {
+	const filled: RowImage = { ...image };
+	for (const column of columns) if (!(column in filled)) filled[column] = null;
+	return filled;
+}
+
+/** Both images over the union of their keys, so each side has the same columns. */
+function alignedImages(a: RowImage, b: RowImage): [RowImage, RowImage] {
+	const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+	return [withAllColumns(a, keys), withAllColumns(b, keys)];
+}
+
 function changedFields(before: RowImage, after: RowImage): FieldChange[] {
 	const fields: FieldChange[] = [];
-	for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+	const [left, right] = alignedImages(before, after);
+	for (const key of Object.keys(left)) {
 		if (HOUSEKEEPING_FIELDS.has(key)) continue;
-		if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
-			fields.push({ field: key, before: before[key] ?? null, after: after[key] ?? null });
+		if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) {
+			fields.push({ field: key, before: left[key] ?? null, after: right[key] ?? null });
 		}
 	}
 	return fields;
@@ -277,14 +295,16 @@ export const UNDO_REFUSALS = {
 export function matchesImage(current: RowImage | null, expected: RowImage | null): boolean {
 	if (current === null || expected === null) return current === expected;
 	// Compared by key, not by the order the keys were written in: a row built by a command and the
-	// same row read from the table list their columns differently.
+	// same row read from the table list their columns differently. A key one side lacks counts as
+	// null (see withAllColumns).
+	const [left, right] = alignedImages(current, expected);
 	const strip = (image: RowImage) =>
 		JSON.stringify(
 			Object.entries(image)
 				.filter(([key]) => !HOUSEKEEPING_FIELDS.has(key))
 				.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
 		);
-	return strip(current) === strip(expected);
+	return strip(left) === strip(right);
 }
 
 export interface RebaseMismatch {
@@ -311,6 +331,9 @@ export function rebaseInverse(
 		let after = op.after;
 		if (after) {
 			const previous = versionOf(current) ?? versionOf(after);
+			// The restored row gets every column the live row has, so a column the old image predates is
+			// written as null rather than left to whatever the database holds.
+			if (current) after = withAllColumns(after, Object.keys(current));
 			after = {
 				...after,
 				...(previous === null ? {} : { version: previous + 1 }),

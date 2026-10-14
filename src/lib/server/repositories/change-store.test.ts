@@ -2,7 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { changeLog, changeLogRecords, events, individuals, mediaItems } from '../db/schema';
 import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
-import { matchesImage, rebaseInverse, type RowOp } from '../domain/change-log';
+import {
+	describeOps,
+	invertOps,
+	matchesImage,
+	rebaseInverse,
+	type RowImage,
+	type RowOp
+} from '../domain/change-log';
 import {
 	createTestDatabase,
 	createTestTree,
@@ -436,5 +443,115 @@ describe('media row images and the file-manager columns', () => {
 		if (!rebased.isOk) return;
 		await store.commit({ ...base(), ops: rebased.ops });
 		expect((await imageOf('m2'))?.entityId).toBe('p1');
+	});
+});
+
+describe('fact detail columns and undo of a change logged before them', () => {
+	// Migration 0031 added these; an image logged earlier has no key for any of them.
+	const FACT_DETAIL_KEYS = [
+		'address',
+		'addressLayout',
+		'classification',
+		'agency',
+		'phone',
+		'email',
+		'fax',
+		'web',
+		'latitude',
+		'longitude',
+		'placeExtra',
+		'religion'
+	];
+	const withoutFactDetails = (image: RowImage): RowImage =>
+		Object.fromEntries(Object.entries(image).filter(([key]) => !FACT_DETAIL_KEYS.includes(key)));
+	// The database is shared by the tests in this file, so each test names its own rows.
+	let sequence = 0;
+	let eventId = '';
+	let personId = '';
+	const eventRow = (extra: Record<string, unknown> = {}) => ({
+		id: eventId,
+		treeId,
+		entityType: 'INDIVIDUAL',
+		entityId: personId,
+		type: 'BIRT',
+		dateRaw: null,
+		dateSort: null,
+		place: 'Leeds',
+		description: null,
+		version: 1,
+		createdAt: 1_000,
+		updatedAt: 1_000,
+		...extra
+	});
+	async function liveImage(id: string) {
+		const row = await t.db.select().from(events).where(eq(events.id, id)).get();
+		return row ? toImage(events, row) : null;
+	}
+	async function seedEvent() {
+		sequence += 1;
+		eventId = `fd-event-${sequence}`;
+		personId = `fd-person-${sequence}`;
+		await freshTree();
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: personId, before: null, after: person(personId, 'Pat') }]
+		});
+		await store.commit({
+			...base(),
+			ops: [{ table: 'events', id: eventId, before: null, after: eventRow() }]
+		});
+	}
+
+	it('matches a live row whose new columns are null against an image that lacks them', async () => {
+		await seedEvent();
+		const live = (await liveImage(eventId))!;
+		expect(live).toMatchObject({ address: null, religion: null, placeExtra: null });
+		expect(matchesImage(live, withoutFactDetails(live))).toBe(true);
+	});
+
+	it('undoes an update logged before the columns existed, with no phantom changed fields', async () => {
+		await seedEvent();
+		const before = withoutFactDetails((await liveImage(eventId))!);
+		const after = { ...before, place: 'Hull', version: Number(before.version) + 1 };
+		await store.commit({
+			...base(),
+			ops: [{ table: 'events', id: eventId, before, after }]
+		});
+		// The undo is planned from the inverse as the old change stored it, which lacks the columns.
+		const inverse = invertOps([{ table: 'events', id: eventId, before, after }]);
+		const live = (await liveImage(eventId))!;
+		const rebased = rebaseInverse(inverse, (table, id) => (id === eventId ? live : null), 2_000);
+		expect(rebased.isOk).toBe(true);
+		if (!rebased.isOk) return;
+		const described = describeOps(rebased.ops, () => 'event');
+		expect(described[0]!.fields.map((field) => field.field)).toEqual(['place']);
+		await store.commit({ ...base(), ops: rebased.ops });
+		expect((await liveImage(eventId))?.place).toBe('Leeds');
+	});
+
+	it('still refuses an undo when a fact detail was set after the change', async () => {
+		await seedEvent();
+		const before = withoutFactDetails((await liveImage(eventId))!);
+		const after = { ...before, place: 'Hull', version: Number(before.version) + 1 };
+		await store.commit({ ...base(), ops: [{ table: 'events', id: eventId, before, after }] });
+		const inverse = invertOps([{ table: 'events', id: eventId, before, after }]);
+		const live = (await liveImage(eventId))!;
+		await store.commit({
+			...base(),
+			ops: [
+				{
+					table: 'events',
+					id: eventId,
+					before: live,
+					after: { ...live, address: '12 High Street', version: Number(live.version) + 1 }
+				}
+			]
+		});
+		const edited = (await liveImage(eventId))!;
+		const rebased = rebaseInverse(inverse, (table, id) => (id === eventId ? edited : null), 2_000);
+		expect(rebased).toEqual({
+			isOk: false,
+			mismatch: { table: 'events', id: eventId }
+		});
 	});
 });
