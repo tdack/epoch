@@ -28,3 +28,8 @@ export function canCreateRecords(role: TreeRole | undefined): boolean {
 export function canChangeRecords(role: TreeRole | undefined): boolean {
 	return role !== undefined && hasMinimumRole(role, 'editor');
 }
+
+/** Editors and up import a GEDCOM file into the tree (`tree:import`). */
+export function canImportGedcom(role: TreeRole | undefined): boolean {
+	return role !== undefined && hasMinimumRole(role, 'editor');
+}

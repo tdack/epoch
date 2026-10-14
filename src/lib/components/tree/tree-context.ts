@@ -30,6 +30,8 @@ export interface TreeContext {
 	finder: FinderBridge;
 	/** Opens the layout's "New tree" dialog, which the header's tree switcher also uses. */
 	openNewTree: () => void;
+	/** Previews a GEDCOM file for this tree and asks before importing it, as the header's import does. */
+	importGedcom: (file: File) => void;
 	/**
 	 * Nobody is signed in: the reader of the public tree. A screen must not call an endpoint that
 	 * stores something for a user, since the answer is a 401 and the API client reacts to a 401 by

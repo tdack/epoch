@@ -19,9 +19,18 @@
 		explore?: { label: string; href: string };
 		/** Where this install's source can be had. Required, so no signed-out page drops the offer. */
 		sourceUrl: string;
+		/** The short commit this build was made from, shown beside the source link. */
+		sourceCommit?: string | null;
 	}
 
-	let { actionLabel, actionHref, message, explore, sourceUrl }: Props = $props();
+	let {
+		actionLabel,
+		actionHref,
+		message,
+		explore,
+		sourceUrl,
+		sourceCommit = null
+	}: Props = $props();
 </script>
 
 <!-- The photograph is decoration, so it lives in CSS rather than an <img> a screen reader would
@@ -66,6 +75,6 @@ announce. The emerald wash keeps the cream text above contrast over the brightes
 		</div>
 	</div>
 	<div class="absolute inset-x-0 bottom-4 text-center">
-		<SourceLink href={sourceUrl} tone="dark" />
+		<SourceLink href={sourceUrl} commit={sourceCommit} tone="dark" />
 	</div>
 </main>
