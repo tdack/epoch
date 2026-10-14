@@ -83,8 +83,6 @@ Last reviewed: 2026-10-14.
   folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
   fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
   needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
-- **D1 has not been checked for the name index's tokenizer.** The local test database accepts
-  `trigram remove_diacritics 1`; the deployed database has not been checked (ADR-049 acceptance).
 - **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
   people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
   `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
