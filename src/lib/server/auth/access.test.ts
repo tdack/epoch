@@ -27,11 +27,22 @@ describe('Cloudflare Access JWT & Authorization', () => {
 		expect(extractAccessJwt(req)).toBe('cookie-jwt-token');
 	});
 
-	it('extracts token from Authorization: Bearer header', () => {
+	it('ignores an Authorization: Bearer header', () => {
 		const req = new Request('https://epoch.example.com', {
 			headers: { authorization: 'Bearer bearer-token' }
 		});
-		expect(extractAccessJwt(req)).toBe('bearer-token');
+		expect(extractAccessJwt(req)).toBeNull();
+	});
+
+	it('prefers the Access header over the cookie and ignores Bearer alongside both', () => {
+		const req = new Request('https://epoch.example.com', {
+			headers: {
+				'cf-access-jwt-assertion': 'header-jwt-token',
+				authorization: 'Bearer bearer-token',
+				cookie: 'CF_Authorization=cookie-jwt-token'
+			}
+		});
+		expect(extractAccessJwt(req)).toBe('header-jwt-token');
 	});
 
 	it('rejects expired token', async () => {
@@ -46,6 +57,113 @@ describe('Cloudflare Access JWT & Authorization', () => {
 		await expect(
 			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
 		).rejects.toThrow('expired');
+	});
+
+	it('rejects a token with no exp claim', async () => {
+		const token = createMockJwt({
+			sub: 'user-123',
+			email: 'user@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'test-aud'
+		});
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('no expiry');
+	});
+
+	it('rejects a non-numeric exp claim', async () => {
+		const token = createMockJwt({
+			sub: 'user-123',
+			email: 'user@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'test-aud',
+			exp: 'never'
+		});
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('no expiry');
+	});
+
+	it('rejects a future nbf claim', async () => {
+		const token = createMockJwt({
+			sub: 'user-123',
+			email: 'user@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'test-aud',
+			nbf: Math.floor(Date.now() / 1000) + 3600,
+			exp: Math.floor(Date.now() / 1000) + 7200
+		});
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('not active yet');
+	});
+
+	it('rejects a non-numeric nbf claim', async () => {
+		const token = createMockJwt({
+			sub: 'user-123',
+			email: 'user@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'test-aud',
+			nbf: 'soon',
+			exp: Math.floor(Date.now() / 1000) + 3600
+		});
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('not active yet');
+	});
+
+	it('rejects a JWT header whose typ is not JWT', async () => {
+		const token = createMockJwt(
+			{
+				sub: 'user-123',
+				email: 'user@example.com',
+				iss: 'https://test.cloudflareaccess.com',
+				aud: 'test-aud',
+				exp: Math.floor(Date.now() / 1000) + 3600
+			},
+			{ alg: 'none', typ: 'at+jwt' }
+		);
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('unexpected type');
+	});
+
+	it.each(['service', 'org'])('rejects a payload whose type is %s, not app', async (type) => {
+		const token = createMockJwt({
+			sub: 'user-123',
+			email: 'user@example.com',
+			iss: 'https://test.cloudflareaccess.com',
+			aud: 'test-aud',
+			type,
+			exp: Math.floor(Date.now() / 1000) + 3600
+		});
+
+		await expect(
+			validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true })
+		).rejects.toThrow('unexpected type');
+	});
+
+	it('accepts a token carrying typ JWT, type app and a past nbf', async () => {
+		const token = createMockJwt(
+			{
+				sub: 'user-789',
+				email: 'casey@example.com',
+				iss: 'https://test.cloudflareaccess.com',
+				aud: 'test-aud',
+				type: 'app',
+				nbf: Math.floor(Date.now() / 1000) - 60,
+				exp: Math.floor(Date.now() / 1000) + 3600
+			},
+			{ alg: 'none', typ: 'JWT' }
+		);
+
+		const user = await validateAccessJwt(token, { aud: 'test-aud', allowDevBypass: true });
+		expect(user.accessSub).toBe('user-789');
 	});
 
 	it('rejects audience mismatch', async () => {
