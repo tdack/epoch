@@ -69,6 +69,10 @@
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
 	const manage = $derived<NavLink[]>([
+		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
+		...(role && !isOutsider
+			? [{ href: `${base}/files`, label: 'Files', isActive: startsWith(`${base}/files`) }]
+			: []),
 		...(isManagerOrAbove(role)
 			? [
 					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
@@ -145,7 +149,7 @@
 			</div>
 		{/if}
 		{#if signOutHref}
-			<!-- Its own group, not under Manage: that group is only there for managers and the install owner. -->
+			<!-- Its own group, not under Manage: a signed-in reader who is not a member is offered no Manage links. -->
 			<div class="mt-1 border-t border-stone-200 pt-1">
 				<!-- A Cloudflare path, not a route: the reload keeps the client router from answering it with a 404. -->
 				<a

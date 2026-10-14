@@ -40,9 +40,37 @@ describe('TreeNav', () => {
 			'Relationship',
 			'Surnames',
 			'Quality',
-			'Fact search'
+			'Fact search',
+			'Files'
 		]);
-		expect(document.querySelector('[role="group"][aria-label="Manage"]')).toBeNull();
+		expect(document.querySelector('[role="group"][aria-label="Manage"]')).not.toBeNull();
+	});
+
+	it('offers Files to every member, and to no one outside the tree', () => {
+		for (const role of ['viewer', 'contributor', 'editor', 'manager', 'owner']) {
+			render({ role });
+			openMore();
+			expect(menuLabels()).toContain('Files');
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		render({ role: 'viewer', isOutsider: true });
+		openMore();
+		expect(menuLabels()).not.toContain('Files');
+		unmount(component!);
+		component = null;
+		document.body.innerHTML = '';
+		// A signed-in user with no membership of this tree, and no outsider role, sees no Manage links.
+		render({});
+		openMore();
+		expect(menuLabels()).not.toContain('Files');
+	});
+
+	it('names Files as the active section on its page', () => {
+		render({ role: 'editor', pathname: '/trees/t1/files' });
+		const trigger = document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+		expect(trigger.textContent).toContain('More: Files');
 	});
 
 	it('offers Members and Privacy to managers and owners only', () => {
