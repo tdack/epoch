@@ -232,6 +232,7 @@ const LOADS = [
 	'./trees/[id]/+layout.ts',
 	'./trees/[id]/+page.ts',
 	'./trees/[id]/members/+page.ts',
+	'./trees/[id]/files/+page.ts',
 	'./trees/[id]/people/+page.ts',
 	'./trees/[id]/notes/+page.ts',
 	'./trees/[id]/notes/[noteId]/+page.ts',
