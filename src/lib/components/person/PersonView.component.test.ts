@@ -4,6 +4,11 @@ import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js
 import type { TreeRole } from '#lib/shared/roles.js';
 import PersonView from './PersonView.svelte';
 
+// PersonView sits under a tree layout in the app; this test mounts it bare, so the layout's context is stubbed.
+vi.mock('#lib/components/tree/tree-context.js', () => ({
+	getTreeContext: () => ({ toasts: { push: () => {} } })
+}));
+
 let component: Record<string, unknown> | null = null;
 afterEach(() => {
 	if (component) unmount(component);
