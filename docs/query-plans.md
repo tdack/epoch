@@ -267,6 +267,11 @@ one per hit.
   import writes one of each per name and per person. Both trees together hold 12,328 index rows (one
   per name and per person), and the triggers find each row through `name_fts_key`, so a write reads
   only its own rows.
+- Bulk writes pay for the index. A raw insert of 5,000 people took 1.5 s with the triggers against
+  0.23 s without; 50,000 took 69 s (the export test seeds 55,000, and its hook limit was raised for
+  it). The cost is superlinear. Part of it is likely the 34 trigram postings each row takes for
+  `tree_id`, which must be indexed for the match; that was not measured separately. Measure a
+  replace-mode import on the deployed database before relying on it.
 - Two-letter and one-letter words still read every name in the tree, as before (the trigram index
   cannot match fewer than three characters).
 - `rows_read` for a MATCH is D1's own count; the 2026-10-14 numbers come from the local D1 that the

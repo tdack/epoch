@@ -658,7 +658,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - "müller" finds "Müller". "mueller" does not, because folding is not transliteration; that is the phonetic step.
 - **Consequences:**
   - **`wrangler d1 export` refuses a database that holds a virtual table.** Cloudflare's workaround is to drop the virtual tables, export, and recreate them. The D1 recovery runbook in the backlog must say so and ship a rebuild script (drop, export, recreate, repopulate with the backfill `INSERT … SELECT`). Time Travel is not affected.
-  - Every name write also writes FTS rows (more rows written per name change, and more again for an import).
+  - Every name write also writes FTS rows (more rows written per name change, and more again for an import). Measured locally, a raw insert of 5,000 people took 1.5 s with the triggers against 0.23 s without, and 50,000 took 69 s: the cost is superlinear as the index grows. `tree_id` is indexed too (it has to be, for the match), so each row also carries its tree's 34 trigrams. Before a large import is measured on the deployed database, this is the number to watch, along with rows written.
   - A `wrangler rollback` restores code that does not read the table; the triggers keep maintaining it, which is harmless. Dropping it later is a contract migration.
   - **Phonetic search builds on this.** A Soundex or Daitch-Mokotoff code is computed in the app (SQLite has no such function in D1), so it cannot come from a trigger. It is added as a second column of the same table, written by the writers or by a rebuild, in its own ADR.
   - Place search can follow the same pattern over `events.place`, once this is measured.
