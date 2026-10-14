@@ -25,6 +25,14 @@ Last reviewed: 2026-10-15.
   a file only when every person it hangs off is visible, and a detached file is hidden from them. A
   file can attach only to a person or a partnership, so no other record (an event, a source) has a
   privacy rule of its own for its files. (ADR-050, ADR-039)
+- **`partnerIds(unionId)` in `media-repository.ts` has no tree predicate.** It is the same class of
+  gap as the id-lookup helpers ADR-052 scoped. Add a `treeId`. (F14)
+- **Two reads do not chunk their id lists.** `visibleAmong` (`visibility.ts`) and
+  `SearchRepository.factsMatching` (which binds the list twice) can pass D1's 100-parameter limit
+  on a large list. Chunk them. (F13)
+- **`person_names`, `union_partners` and `source_repositories` have no `tree_id` column,** so
+  `ChangeStore` writes to them by id alone and its undo guard skips the tree check for them. Add the
+  column, or keep relying on the tree-scoped parent the planner read them through. (F8, F14)
 
 ### Abuse controls
 
