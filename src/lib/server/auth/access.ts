@@ -220,11 +220,29 @@ export async function validateAccessJwt(
 
 	const { header, payload, signature, signedData } = parseJwtParts(token);
 
-	const nowSeconds = Math.floor(Date.now() / 1000);
-	if (payload.exp && payload.exp < nowSeconds) {
-		throw new UnauthenticatedError('Cloudflare Access token expired');
+	// Access tokens are `typ: JWT` and, when the claim is present, `type: app`. Anything else is a
+	// different kind of token that a shared signing key could otherwise be made to satisfy.
+	if (header.typ !== undefined && header.typ !== 'JWT') {
+		throw new UnauthenticatedError('Cloudflare Access token has an unexpected type');
 	}
-	if (payload.nbf && payload.nbf > nowSeconds) {
+	if (payload.type !== undefined && payload.type !== 'app') {
+		throw new UnauthenticatedError('Cloudflare Access token has an unexpected type');
+	}
+
+	// Fail closed: a missing `exp` would otherwise mean a token that never expires, and a present
+	// but non-numeric `nbf` cannot be compared, so it is refused rather than skipped.
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	if (
+		typeof payload.exp !== 'number' ||
+		!Number.isFinite(payload.exp) ||
+		payload.exp < nowSeconds
+	) {
+		throw new UnauthenticatedError('Cloudflare Access token expired or has no expiry');
+	}
+	if (
+		payload.nbf !== undefined &&
+		(typeof payload.nbf !== 'number' || !Number.isFinite(payload.nbf) || payload.nbf > nowSeconds)
+	) {
 		throw new UnauthenticatedError('Cloudflare Access token not active yet');
 	}
 
@@ -299,16 +317,14 @@ export async function validateAccessJwt(
 
 /**
  * Extract Access JWT from incoming Request headers or cookies.
+ *
+ * `Authorization: Bearer` is deliberately not read: Access never injects it, so accepting it would
+ * widen the token intake to anything a client chooses to send.
  */
 export function extractAccessJwt(request: Request): string | null {
 	// Check header first (standard Cloudflare Access injection)
 	const headerToken = request.headers.get('cf-access-jwt-assertion');
 	if (headerToken) return headerToken.trim();
-
-	const authHeader = request.headers.get('authorization');
-	if (authHeader?.startsWith('Bearer ')) {
-		return authHeader.substring(7).trim();
-	}
 
 	const cookie = request.headers.get('cookie');
 	if (cookie) {

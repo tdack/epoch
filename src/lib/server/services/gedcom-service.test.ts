@@ -19,6 +19,7 @@ import {
 import { GedcomService, type ImportFile, type ImportQueueMessage } from './gedcom-service';
 import { buildExportInstanceId } from '../workflows/export-instance';
 import { GedcomRepository } from '../repositories/gedcom-repository';
+import { MAX_STAGED_BYTES_PER_TREE, STAGED_IMPORT_MAX_AGE_MS } from '../gedcom/limits';
 
 const FILE = '0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Ben /Fox/\n0 TRLR';
 
@@ -30,12 +31,17 @@ afterAll(async () => {
 	await t.dispose();
 });
 
-/** An R2 stand-in that keeps what is put in it. */
+/**
+ * An R2 stand-in that keeps what is put in it. `size` overrides the length a listing reports, so a
+ * test can fill a tree's staging area to its cap without allocating the bytes.
+ */
 function fakeBucket() {
 	const objects = new Map<
 		string,
 		{
 			value: string | Uint8Array;
+			size?: number;
+			uploaded?: Date;
 			options?: { httpMetadata?: unknown; customMetadata?: Record<string, string> };
 		}
 	>();
@@ -53,7 +59,19 @@ function fakeBucket() {
 		},
 		delete: async (key: string) => {
 			objects.delete(key);
-		}
+		},
+		list: async (options: { prefix?: string } = {}) => ({
+			truncated: false as const,
+			objects: [...objects.entries()]
+				.filter(([key]) => key.startsWith(options.prefix ?? ''))
+				.map(([key, found]) => ({
+					key,
+					uploaded: found.uploaded,
+					size:
+						found.size ??
+						(typeof found.value === 'string' ? found.value.length : found.value.byteLength)
+				}))
+		})
 	};
 	return { objects, bucket: bucket as unknown as R2Bucket };
 }
@@ -153,6 +171,64 @@ describe('importFile', () => {
 			(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).length
 		).toBe(2);
 		expect(objects.size).toBe(0);
+	});
+
+	it('refuses a large import once the tree has its staging cap queued, and queues nothing', async () => {
+		const s = await tree();
+		const { objects, bucket } = fakeBucket();
+		const sent: ImportQueueMessage[] = [];
+		objects.set(`staging/gedcom-${s.treeId}-earlier.ged`, {
+			value: '',
+			size: MAX_STAGED_BYTES_PER_TREE - 10
+		});
+		const service = new GedcomService(t.db, {
+			bucket,
+			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+		});
+		await expect(
+			service.importFile(fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }), s.owner.context)
+		).rejects.toMatchObject({ status: 413 });
+		expect(sent).toHaveLength(0);
+		expect(objects.size).toBe(1);
+	});
+
+	it('stops counting a staged file older than the queue keeps messages, so a crash cannot block imports for good', async () => {
+		const s = await tree();
+		const { objects, bucket } = fakeBucket();
+		objects.set(`staging/gedcom-${s.treeId}-stuck.ged`, {
+			value: '',
+			size: MAX_STAGED_BYTES_PER_TREE,
+			uploaded: new Date(Date.now() - STAGED_IMPORT_MAX_AGE_MS - 60_000)
+		});
+		const service = new GedcomService(t.db, {
+			bucket,
+			queue: { send: async () => {} }
+		});
+		const outcome = await service.importFile(
+			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
+			s.owner.context
+		);
+		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+	});
+
+	it('counts only this tree’s staged files against its cap', async () => {
+		const s = await tree();
+		const other = await tree();
+		const { objects, bucket } = fakeBucket();
+		const sent: ImportQueueMessage[] = [];
+		objects.set(`staging/gedcom-${other.treeId}-earlier.ged`, {
+			value: '',
+			size: MAX_STAGED_BYTES_PER_TREE
+		});
+		const service = new GedcomService(t.db, {
+			bucket,
+			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+		});
+		const outcome = await service.importFile(
+			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
+			s.owner.context
+		);
+		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
 	});
 
 	it('imports a large file in the request when the queue is not bound', async () => {

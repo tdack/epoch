@@ -34,6 +34,30 @@ Last reviewed: 2026-10-11.
 - **Media privacy only follows the person.** It does not yet follow the other records a media item
   is attached to.
 
+### Abuse controls
+
+- **Rate limits on `/api/media/upload`, `/api/import` and `/api/csp-report` are not in source.**
+  Configure Cloudflare rate-limiting rules for all three paths in the dashboard or Terraform; a Worker cannot enforce them.
+  Per-user rate limiting in the app waits for a demonstrated coordination need, which would bring
+  a Durable Object. (F9)
+- **Staged imports are not cleaned up after a crash.** A staged object left behind by a consumer
+  that ran out of retries stops counting against its tree's cap after four days
+  (`STAGED_IMPORT_MAX_AGE_MS`) but stays in the bucket. Add an R2 lifecycle rule for `staging/` at
+  the Cloudflare layer, as with `exports/`. (F9)
+- **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
+  can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
+  is never capped. Accepted for now; the Cloudflare rate-limit rules above are the other half. (F9)
+- **Media cannot be deleted, so the quota never shrinks.** The app has no way to remove an image or
+  document attached to a person: no delete control, endpoint or R2 removal, and deleting a tree
+  leaves its objects behind. Add a delete control (a bin icon) on each image and document, backed
+  by a service call that removes the `media_items` row and the R2 object, and have tree deletion
+  remove its `media/<treeId>/` objects. Until then a tree that reaches its limit needs an operator
+  to clear objects by hand. (F9)
+- **No file management view.** Add a file browser: for an owner, every file in the install with the
+  tree it belongs to; for a manager or editor, the files of the trees they can access. It would
+  show size and uploader, support deleting, and show how much of each tree's media quota is used.
+  Needs a decision on the role that may delete another member's file. (F9)
+
 ### GEDCOM
 
 - **5.5.1 `CONC` wrapping at 255 bytes** is not implemented. No reader in scope needs it. (ADR-042)

@@ -21,7 +21,13 @@ import { isActionAllowed } from '../auth/authorization';
 import { foldIntoExistingAliases, mergeExactDuplicateFamilies } from '../gedcom/duplicate-families';
 import { exportPayloadFrom } from '../gedcom/export-payload';
 import { GEDZIP_CONTENT_TYPE, packGedzip } from '../gedcom/gedzip';
-import { MAX_DATASET_BYTES, MAX_STAGED_BYTES } from '../gedcom/limits';
+import {
+	MAX_DATASET_BYTES,
+	MAX_STAGED_BYTES,
+	MAX_STAGED_BYTES_PER_TREE,
+	STAGED_IMPORT_MAX_AGE_MS
+} from '../gedcom/limits';
+import { sumStoredBytes } from '../media/stored-bytes';
 import {
 	previewAgainstTree,
 	previewNewTree,
@@ -283,6 +289,22 @@ export class GedcomService {
 
 		const { bucket, queue } = this.bindings;
 		if (file.sizeBytes > LARGE_IMPORT_BYTES && queue && bucket) {
+			// Counts what this tree already has queued, not the new file's exact UTF-8 size: the
+			// dataset length is at most MAX_DATASET_BYTES, so a fresh tree can never trip the cap
+			// after `createTree` has run. The read and the put are not atomic, so two imports racing
+			// at the edge can both pass; the cap is a backlog bound, not a hard guarantee.
+			const stagedBytes = await sumStoredBytes(
+				bucket,
+				stagingPrefix(treeId),
+				({ key, uploaded }) =>
+					isStagingKeyOf(treeId, key) &&
+					(uploaded === undefined || Date.now() - uploaded.getTime() < STAGED_IMPORT_MAX_AGE_MS)
+			);
+			if (stagedBytes + file.text.length > MAX_STAGED_BYTES_PER_TREE) {
+				throw new PayloadTooLargeError(
+					'This tree already has imports queued. Wait for them to finish, then try again.'
+				);
+			}
 			const r2ObjectKey = `${stagingPrefix(treeId)}${Date.now()}-${crypto.randomUUID()}.ged`;
 			await bucket.put(r2ObjectKey, file.text);
 			const message: ImportQueueMessage = {

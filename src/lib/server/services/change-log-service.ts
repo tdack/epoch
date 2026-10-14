@@ -65,7 +65,7 @@ export class ChangeLogService {
 			);
 		}
 
-		const current = await store.currentImages(target.inverse);
+		const current = await store.currentImages(target.inverse, treeId);
 		const rebased = rebaseInverse(
 			target.inverse,
 			(table, id) => current.get(`${table}:${id}`) ?? null,

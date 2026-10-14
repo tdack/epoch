@@ -31,6 +31,14 @@ export const MEDIA_UPLOAD_ACCEPT = UPLOAD_MEDIA_TYPES.join(',');
  */
 export const MAX_MEDIA_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+/**
+ * How many bytes one tree's stored media may total. A soft quota: the total is read before a write
+ * and the write follows, so two uploads racing at the edge can each pass and overshoot by at most
+ * one file each. Bounding the total, not each request, is what stops a collaborator's repeated
+ * uploads from growing R2 without limit.
+ */
+export const MAX_TREE_MEDIA_BYTES = 2 * 1024 * 1024 * 1024;
+
 /** Whether a stored type may be rendered inline on our own origin. */
 export function isInlineMediaType(mime: string | undefined | null): mime is InlineMediaType {
 	return mime != null && (INLINE_MEDIA_TYPES as readonly string[]).includes(mime);

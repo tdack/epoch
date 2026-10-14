@@ -11,7 +11,29 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// Report-only until the policy has been watched against the real UI (ADR-048). Kit requires
+			// a report target for report-only, so violations POST to the same-origin report endpoint.
+			// Kit quotes the keywords itself and compares them bare ('unsafe-inline', not
+			// "'unsafe-inline'"); a quoted one renders fine but defeats its nonce decision for style-src.
+			csp: {
+				mode: 'auto',
+				reportOnly: {
+					'default-src': ['self'],
+					'script-src': ['self'],
+					// Svelte transitions and component styles set inline styles.
+					'style-src': ['self', 'unsafe-inline'],
+					'img-src': ['self', 'data:', 'blob:'],
+					'font-src': ['self', 'data:'],
+					'connect-src': ['self'],
+					'worker-src': ['self', 'blob:'],
+					'object-src': ['none'],
+					'base-uri': ['self'],
+					'form-action': ['self'],
+					'frame-ancestors': ['none'],
+					'report-uri': ['/api/csp-report']
+				}
+			}
 		})
 	],
 	test: {

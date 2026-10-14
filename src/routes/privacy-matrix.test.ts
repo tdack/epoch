@@ -50,6 +50,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
+	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/trees/[id]/charts/descendants/+server.ts`]: {
 		kind: 'masked-rows',

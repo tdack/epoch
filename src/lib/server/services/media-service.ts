@@ -4,11 +4,14 @@
  * record the object belongs to, and a private person's media answers as a missing object.
  */
 
+import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
-import { NotFoundError, ValidationError } from '../domain/errors';
+import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
+import { sumStoredBytes } from '../media/stored-bytes';
 import { MediaRepository, type StoredMedia } from '../repositories/media-repository';
 import { TreeRepository } from '../repositories/tree-repository';
+import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
 import { requireTreeScope } from './tree-access';
@@ -64,6 +67,20 @@ export class MediaService {
 		await requireTreeScope(this.users, this.trees, treeId, context, 'media:manage', this.now());
 		if (!(await this.media.ownerOf(treeId, entityId)))
 			throw new ValidationError('The record to attach media to is not in this tree');
+	}
+
+	/**
+	 * Throws when storing `incomingBytes` more would take the tree past `MAX_TREE_MEDIA_BYTES`. Runs
+	 * before the bytes are written. The total is read and then the write follows, so two uploads
+	 * racing at the edge can both pass; the quota is soft and that overshoot is accepted. Call only
+	 * after `requireUpload`, so a caller who may not add media never learns how full the tree is.
+	 */
+	async requireQuotaFor(treeId: string, incomingBytes: number, bucket: R2Bucket): Promise<void> {
+		const storedBytes = await sumStoredBytes(bucket, `media/${treeId}/`);
+		if (storedBytes + incomingBytes > MAX_TREE_MEDIA_BYTES)
+			throw new PayloadTooLargeError(
+				'This tree has no room for this file: its media storage is full'
+			);
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {
