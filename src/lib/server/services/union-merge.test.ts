@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TreeRows } from '../domain/change-log';
 import type { RecordChange } from '../../shared/impact';
+import { mediaItems } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -211,6 +213,37 @@ describe('merging partnerships between the same people', () => {
 		const undone = await s.log.undoLast(s.treeId, s.ctx);
 		expect(undone.undone.summary).toMatch(/^Merged 3 partnerships/);
 		expect(canonical(await s.rows())).toEqual(before);
+	});
+
+	it('moves a file of a merged partnership onto the survivor, and undo puts it back', async () => {
+		const s = await setup();
+		await t.db.insert(mediaItems).values({
+			id: 'file-of-merged',
+			treeId: s.treeId,
+			entityId: s.unionIds[1],
+			r2ObjectKey: `media/${s.treeId}/file-of-merged.png`,
+			title: 'Wedding.png',
+			mimeType: 'image/png',
+			sizeBytes: 7,
+			uploadedBy: s.actor.userId,
+			version: 1,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		const file = () =>
+			t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-of-merged')).get();
+
+		const command = await s.command();
+		// The file's owner is a partnership, so its preview names the partnership, not an unknown record.
+		const { impact } = await s.relationships.previewMerge(s.treeId, command, s.ctx);
+		const fileChange = impact!.records.find((r) => r.entityType === 'media');
+		expect(fileChange?.label).toMatch(/^Attachment of Homer Simpson–Marge Simpson partnership/);
+
+		await s.relationships.mergeUnions(s.treeId, command, s.ctx);
+		expect(await file()).toMatchObject({ entityId: s.unionIds[0], version: 2, sizeBytes: 7 });
+
+		await s.log.undoLast(s.treeId, s.ctx);
+		expect(await file()).toMatchObject({ entityId: s.unionIds[1], version: 3, sizeBytes: 7 });
 	});
 
 	it('never merges two different marriage dates on its own: the preview and the command both refuse', async () => {

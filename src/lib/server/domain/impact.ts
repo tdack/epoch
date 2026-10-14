@@ -20,7 +20,8 @@ import { displayNameOf, personName } from './tree-ops';
 function peopleOf(
 	op: RowOp,
 	partnersOf: (unionId: string) => string[],
-	subjectPeople: (kind: string, id: string) => string[]
+	subjectPeople: (kind: string, id: string) => string[],
+	fileOwnerPeople: (entityId: string) => string[]
 ): string[] {
 	const row = (op.after ?? op.before) as Record<string, any>;
 	switch (op.table) {
@@ -37,8 +38,8 @@ function peopleOf(
 		case 'events':
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
 		case 'media_items':
-			// A detached file touches no person.
-			return row.entityId === null ? [] : [row.entityId];
+			// A detached file touches no person; a file of a partnership touches its partners.
+			return row.entityId === null ? [] : fileOwnerPeople(row.entityId);
 		case 'citations':
 		case 'note_attachments':
 			return subjectPeople(row.subjectKind, row.subjectId);
@@ -73,6 +74,14 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		}
 	}
 	const partnersOf = (unionId: string) => partnerIds.get(unionId) ?? [];
+	// A file's owner is a person or a partnership. A partnership with nobody in it is still a
+	// partnership, so the test is whether the id is one, not whether it has partners.
+	const unionIds = new Set([
+		...rows.unions.map((u) => u.id),
+		...ops.filter((op) => op.table === 'unions' && op.after).map((op) => op.id)
+	]);
+	const fileOwnerPeople = (entityId: string) =>
+		unionIds.has(entityId) ? partnersOf(entityId) : [entityId];
 
 	// The people a citation is about, from its subject, whether the change creates, keeps or deletes it.
 	const subjectRows = new Map<string, Record<string, any>>();
@@ -112,7 +121,7 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 			roles.set(op.id, PERSON_ROLES_IN_IMPACT.DELETED);
 	}
 	for (const op of ops) {
-		for (const id of peopleOf(op, partnersOf, subjectPeople))
+		for (const id of peopleOf(op, partnersOf, subjectPeople, fileOwnerPeople))
 			if (!roles.has(id)) roles.set(id, PERSON_ROLES_IN_IMPACT.AFFECTED);
 	}
 	const people = [...roles].map(([id, role]) => ({ id, name: names.get(id) ?? 'Unknown', role }));

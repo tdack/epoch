@@ -380,8 +380,13 @@ export function dependentsOfDeletions(
 		)
 			add('person_names', name);
 	}
+	// A file of a person or partnership that is going would be left pointing at nothing.
 	for (const media of rows.mediaItems)
-		if (media.entityId !== null && deletedPeople.has(media.entityId)) add('media_items', media);
+		if (
+			media.entityId !== null &&
+			(deletedPeople.has(media.entityId) || deletedUnions.has(media.entityId))
+		)
+			add('media_items', media);
 	// Evidence: a citation of a subject or source that is going, and a repository link of a source or
 	// repository that is going, would be left pointing at nothing.
 	const isSubjectDeleted = (kind: string, id: string) => {

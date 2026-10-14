@@ -148,8 +148,11 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				const detail = event.value ? ` (${event.value})` : '';
 				return `${eventLabel(event.type)}${detail} of ${owner}`;
 			}
-			case 'media_items':
-				return row.entityId === null ? 'Unattached file' : `Attachment of ${person(row.entityId)}`;
+			case 'media_items': {
+				if (row.entityId === null) return 'Unattached file';
+				const isPartnership = known.unions.some((u) => u.id === row.entityId);
+				return `Attachment of ${isPartnership ? union(row.entityId) : person(row.entityId)}`;
+			}
 			case 'sources':
 				return `Source “${sourceLabel(row as SourceRow)}”`;
 			case 'repositories':

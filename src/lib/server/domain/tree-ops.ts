@@ -250,6 +250,22 @@ function touch<T extends { version: number; updatedAt: number | null }>(row: T, 
 	return { ...row, version: row.version + 1, updatedAt: ctx.now };
 }
 
+/**
+ * Files of the given records are detached, not deleted: the bytes stay, and undo hangs each file
+ * back on its record. A file that is merely detached is also never orphaned, so nothing points
+ * at a record that is gone.
+ */
+function detachFilesOf(rows: TreeRows, ctx: OpContext, ownerIds: ReadonlySet<string>): RowOp[] {
+	return rows.mediaItems
+		.filter((m) => m.entityId !== null && ownerIds.has(m.entityId))
+		.map((media) => ({
+			table: 'media_items' as const,
+			id: media.id,
+			before: media,
+			after: touch({ ...media, entityId: null }, ctx)
+		}));
+}
+
 /** An op that bumps a person or union's version because something it owns changed. */
 function bump(
 	table: 'individuals' | 'unions',
@@ -490,16 +506,7 @@ function deletePerson(
 		.filter((l) => l.parentId === person.id || l.childId === person.id)
 		.forEach((l) => remove('parent_child', l));
 	eventsOf(rows, 'INDIVIDUAL', person.id).forEach((e) => remove('events', e));
-	// A file outlives the person it was of: it is detached rather than deleted, so the bytes stay
-	// and undo can hang it back on the person.
-	for (const media of rows.mediaItems.filter((m) => m.entityId === person.id)) {
-		ops.push({
-			table: 'media_items',
-			id: media.id,
-			before: media,
-			after: touch({ ...media, entityId: null }, ctx)
-		});
-	}
+	ops.push(...detachFilesOf(rows, ctx, new Set([person.id])));
 
 	for (const membership of rows.unionPartners.filter((p) => p.personId === person.id)) {
 		remove('union_partners', membership);
@@ -512,6 +519,7 @@ function deletePerson(
 			// Nobody left in it: the union, its own events, and any links still filed under it go too.
 			// Links are kept as direct parent links where the parent is someone other than the deleted person.
 			eventsOf(rows, 'FAMILY', union.id).forEach((e) => remove('events', e));
+			ops.push(...detachFilesOf(rows, ctx, new Set([union.id])));
 			for (const link of rows.parentChild.filter(
 				(l) => l.unionId === union.id && l.parentId !== person.id && l.childId !== person.id
 			)) {
@@ -713,6 +721,7 @@ function destroyUnion(
 	eventsOf(rows, 'FAMILY', union.id).forEach((e) =>
 		ops.push({ table: 'events', id: e.id, before: e, after: null })
 	);
+	ops.push(...detachFilesOf(rows, ctx, new Set([union.id])));
 	// Parentage is a fact about the parent and child, not about the partnership, so the links stay
 	// and only lose their grouping. Deleting them would erase who someone's parents were.
 	for (const link of rows.parentChild.filter((l) => l.unionId === union.id)) {
@@ -958,6 +967,17 @@ function mergeUnions(
 	// The partner rows repeat the survivor's, and (union, person) is unique, so they are deleted, not moved.
 	for (const partner of rows.unionPartners.filter((p) => mergedSet.has(p.unionId))) {
 		ops.push({ table: 'union_partners', id: partner.id, before: partner, after: null });
+	}
+
+	// A file of a merged partnership is the survivor's now, as it would be if it had been theirs.
+	for (const media of rows.mediaItems) {
+		if (media.entityId === null || !mergedSet.has(media.entityId)) continue;
+		ops.push({
+			table: 'media_items',
+			id: media.id,
+			before: media,
+			after: touch({ ...media, entityId: survivor.id }, ctx)
+		});
 	}
 
 	ops.push(...relinkNames(rows, ctx, mergedIds, survivor.id));
