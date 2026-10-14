@@ -36,6 +36,7 @@
 <Splash
 	actionLabel={actionLabels[data.state]}
 	sourceUrl={data.sourceUrl}
+	sourceCommit={data.sourceCommit}
 	actionHref={data.actionHref}
 	{message}
 	explore={data.publicTree

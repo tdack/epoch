@@ -63,6 +63,11 @@ lives in the tracked file, and the generator keeps tracked vars. The code falls 
 repository when it is unset or blank, so a deploy file written before the var existed still gets a
 link.
 
+The link also names the commit the running code was built from, such as `· 539a424`, so a visitor
+can find its exact source. `vite.config.ts` bakes it in at build time: from Workers Builds'
+`WORKERS_CI_COMMIT_SHA`, else from git, with `-dirty` when a local build or `npm run deploy` had
+uncommitted changes. A build with neither shows no commit. The dev server reads it once at start.
+
 There is no D1 id anywhere. Wrangler looks the database up by `database_name` on deploy and on
 every remote `d1` command, so a renamed database has to be renamed in config too. Migrations run
 before the deploy, so a name that matches no database fails the migration instead of letting the

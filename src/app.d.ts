@@ -3,6 +3,9 @@ import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.j
 import type { GedcomExportPayload } from '#lib/server/workflows/export-workflow.js';
 
 declare global {
+	/** The short commit this build was made from (`vite.config.ts`); null when it was not known. */
+	const __EPOCH_COMMIT__: string | null;
+
 	namespace App {
 		interface Locals {
 			/** Set only for someone Epoch admits (ADR-034); null for the signed out and the not admitted alike. */

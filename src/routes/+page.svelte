@@ -51,7 +51,7 @@
 		</div>
 	</main>
 	<footer class="px-6 pb-4 text-center">
-		<SourceLink href={data.sourceUrl} />
+		<SourceLink href={data.sourceUrl} commit={data.sourceCommit} />
 	</footer>
 </div>
 <ToastHost store={toasts} />
