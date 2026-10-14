@@ -49,9 +49,11 @@ describe('the Drizzle schema and the migrations agree', () => {
 	}
 
 	it('has the same tables', async () => {
+		// The name index and its key table are migration-only by design: Drizzle cannot declare a
+		// virtual table or a trigger, and the index is never read through the schema (ADR-049).
 		const tables = (
 			await all<{ name: string }>(
-				"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'"
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'name_fts%'"
 			)
 		).map((r) => r.name);
 		expect(tables.sort()).toEqual([...declared.keys()].sort());

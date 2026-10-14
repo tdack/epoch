@@ -76,12 +76,13 @@ Last reviewed: 2026-10-14.
 
 ### Search, lists and performance
 
-- **Search is linear in the tree's people per query** (about 4 to 8 rows read per person). The
-  direction is an FTS5 name table kept current by triggers (ADR-049, proposed). Next: build it
-  behind the acceptance checks in ADR-049 (D1 accepts the tokenizer, the two-tree witness holds,
-  a trigger test per writer path) and record its rows read in [query-plans.md](./query-plans.md).
-- **Case folding is ASCII-only.** SQLite `LIKE`, `lower()` and `collate nocase` fold only ASCII, so
-  "müller" does not match "Müller". The FTS5 tokenizer folds it (ADR-049).
+- **Two-letter and one-letter name searches still scan the tree's names.** Trigram cannot index
+  fewer than three characters, so a query whose words are all shorter reads every name in the tree
+  (about 4 to 8 rows per person). Words of three or more letters use the name index (ADR-049).
+- **Name search ranks folded matches as "contains" when the stored name has a diacritic.** The index
+  folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
+  fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
+  needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
 - **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
   people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
   `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
@@ -224,9 +225,10 @@ Last reviewed: 2026-10-14.
 ### Operations
 
 - **D1 recovery runbook** (Time Travel, tested exports) and a documented, rehearsed restore of D1
-  and the required R2 assets. Once ADR-049 lands, `wrangler d1 export` refuses the database (it
-  holds an FTS5 virtual table): the runbook needs a script that drops the table, exports, then
-  recreates and repopulates it.
+  and the required R2 assets. `wrangler d1 export` refuses the database, which holds the FTS5 name
+  index (migration 0029, ADR-049). The runbook needs a script that drops `name_fts` and
+  `name_fts_key`, exports, then recreates both and repopulates them with the backfill in
+  `drizzle/0029_name_fts.sql`. Time Travel is not affected.
 - **Job dashboards, structured privacy-safe logs, and storage and cost metrics.**
 - **Development, staging and production configuration separation,** reproducible provisioning.
 
