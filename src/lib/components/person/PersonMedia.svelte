@@ -3,7 +3,7 @@
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { deleteFileApi, uploadMediaApi } from '#lib/services/tree-api.js';
-	import { isInlineMediaType, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
+	import { isInlineMediaType, mediaUrl, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
@@ -22,16 +22,6 @@
 	/** The file whose delete is waiting for its second click; one at a time, so one id is enough. */
 	let confirmingId = $state<string | null>(null);
 	let isDeleting = $state(false);
-
-	/**
-	 * Older media responses were cached as immutable for a year, so a browser keeps them until the
-	 * URL changes. The version query is what evicts them after the serve path changed; bump it when
-	 * the bytes a URL returns can change again.
-	 */
-	const MEDIA_URL_VERSION = 2;
-	function mediaUrl(objectKey: string): string {
-		return `/api/media/${objectKey}?v=${MEDIA_URL_VERSION}`;
-	}
 
 	async function confirmDelete(fileId: string) {
 		if (isDeleting) return;

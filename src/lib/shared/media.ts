@@ -65,3 +65,29 @@ export function extensionForMediaType(mime: string): string | null {
 
 /** The longest title a stored file may be given; longer input is refused, not truncated. */
 export const MAX_MEDIA_TITLE_LENGTH = 200;
+
+/**
+ * Older media responses were cached as immutable for a year, so a browser keeps them until the URL
+ * changes. The version query is what evicts them after the serve path changed; bump it when the
+ * bytes a URL returns can change again.
+ */
+const MEDIA_URL_VERSION = 2;
+
+/** The address a stored file is read from. Every screen that shows a file uses this, so the version stays in one place. */
+export function mediaUrl(objectKey: string): string {
+	return `/api/media/${objectKey}?v=${MEDIA_URL_VERSION}`;
+}
+
+/** A stored file's size for people to read; "Unknown" until it has been recorded. */
+export function formatMediaSize(bytes: number | null): string {
+	if (bytes === null) return 'Unknown';
+	if (bytes < 1024) return `${bytes} B`;
+	const units = ['KB', 'MB', 'GB', 'TB'];
+	let value = bytes / 1024;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit++;
+	}
+	return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+}

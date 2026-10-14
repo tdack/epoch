@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	extensionForMediaType,
+	formatMediaSize,
 	INLINE_MEDIA_TYPES,
 	isInlineMediaType,
 	isUploadMediaType,
+	mediaUrl,
 	MEDIA_UPLOAD_ACCEPT,
 	UPLOAD_MEDIA_TYPES
 } from './media';
@@ -57,5 +59,20 @@ describe('extensionForMediaType', () => {
 	it('returns null for anything else', () => {
 		expect(extensionForMediaType('text/html')).toBeNull();
 		expect(extensionForMediaType('image/svg+xml')).toBeNull();
+	});
+});
+
+describe('stored media helpers', () => {
+	it('addresses a stored object by its key, with the cache version', () => {
+		expect(mediaUrl('media/t1/abc.png')).toBe('/api/media/media/t1/abc.png?v=2');
+	});
+
+	it('reads a size in bytes, kilobytes, megabytes or gigabytes, or Unknown', () => {
+		expect(formatMediaSize(null)).toBe('Unknown');
+		expect(formatMediaSize(0)).toBe('0 B');
+		expect(formatMediaSize(1023)).toBe('1023 B');
+		expect(formatMediaSize(1536)).toBe('1.5 KB');
+		expect(formatMediaSize(5 * 1024 * 1024)).toBe('5.0 MB');
+		expect(formatMediaSize(12 * 1024 ** 3)).toBe('12 GB');
 	});
 });
