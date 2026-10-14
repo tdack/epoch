@@ -82,6 +82,25 @@ const inlineCitation: ExportCitation = {
 /** A citation with no pointer and no description: a bare `SOUR` line. */
 const bareCitation: ExportCitation = { pointer: null, extra: ['3 _CIT x'] };
 
+/**
+ * Every fact detail, so the sweep reaches the lines they are written as. The address layout is a
+ * file's own lines, which the serializer checks against the address before writing them.
+ */
+const eventDetails = {
+	classification: 'Civil',
+	address: 'addr',
+	addressLayout: ['2 ADDR addr', '3 CITY city'],
+	agency: 'agency',
+	phone: 'p1\np2',
+	email: 'e@example.org',
+	fax: 'f',
+	web: 'w',
+	latitude: 'N1',
+	longitude: 'E1',
+	placeExtra: ['3 FORM form', '3 MAP', '4 LATI N2'],
+	religion: 'r'
+};
+
 /** A payload that uses every field the serializer interpolates, so a sweep touches them all. */
 function fixture(): GedcomExportPayload & { treeName: string } {
 	return {
@@ -123,7 +142,8 @@ function fixture(): GedcomExportPayload & { treeName: string } {
 						notes: 'a fact note',
 						gedcomExtra: ['2 _EV x'],
 						citations: [citation],
-						noteLinks: [note]
+						noteLinks: [note],
+						...eventDetails
 					}
 				],
 				citations: [citation, inlineCitation, bareCitation],
@@ -155,7 +175,8 @@ function fixture(): GedcomExportPayload & { treeName: string } {
 						description: 'a family note',
 						gedcomExtra: ['2 _FE y'],
 						citations: [citation],
-						noteLinks: [note]
+						noteLinks: [note],
+						...eventDetails
 					}
 				],
 				citations: [citation],
@@ -276,6 +297,21 @@ const baseCount = recordLines(buildGedcom551String(base)).length;
 const basePointerCount = pointerRecords(buildGedcom551String(base)).length;
 
 describe('no payload field can forge a GEDCOM line', () => {
+	it.each(['classification', 'agency', 'phone', 'address', 'religion'] as const)(
+		'keeps a record from being forged through %s',
+		(field) => {
+			const event = base.individuals[0]!.events![0]!;
+			const mutated = {
+				...base,
+				individuals: [{ ...base.individuals[0]!, events: [{ ...event, [field]: 'x\n0 @X@ INDI' }] }]
+			};
+			for (const out of [buildGedcom551String(mutated), buildGedcom7String(mutated)]) {
+				expect(recordLines(out)).toHaveLength(baseCount);
+				expect(out.split('\r\n')).not.toContain('0 @X@ INDI');
+			}
+		}
+	);
+
 	it('serializes the untouched fixture cleanly in both formats', () => {
 		for (const out of [buildGedcom551String(base), buildGedcom7String(base)]) {
 			expect(isClean(out)).toBe(true);

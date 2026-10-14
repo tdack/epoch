@@ -1,5 +1,5 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
-import { escapedSingleLine, fieldLines, keptLines, singleLine } from './evidence-lines';
+import { escapedSingleLine, fieldLines, keptLines, LINE_BREAK, singleLine } from './evidence-lines';
 import { ValidationError } from '../domain/errors';
 import {
 	DEFAULT_GEDCOM_FORMAT,
@@ -103,6 +103,28 @@ interface ExportRepository {
 	notes?: ExportNote[];
 }
 
+/**
+ * The details an event carries beyond its date, place and text (see fact-details.ts). Each is
+ * written only when present, so a fact without one exports as it did before the column existed.
+ */
+interface ExportFactDetails {
+	classification?: string | null;
+	address?: string | null;
+	/** The file's own ADDR lines, written back only while they still say `address`. */
+	addressLayout?: string[] | null;
+	agency?: string | null;
+	/** One value per line, as the import reads them. */
+	phone?: string | null;
+	email?: string | null;
+	fax?: string | null;
+	web?: string | null;
+	latitude?: string | null;
+	longitude?: string | null;
+	/** The place's sub-lines other than MAP, verbatim with their levels. */
+	placeExtra?: string[] | null;
+	religion?: string | null;
+}
+
 export interface GedcomExportPayload {
 	treeName?: string;
 	individuals: Array<{
@@ -114,21 +136,23 @@ export interface GedcomExportPayload {
 		sex: string | null;
 		/** The person's privacy override; `auto` (or absent) writes nothing. */
 		privacy?: string | null;
-		events?: Array<{
-			type: string;
-			dateRaw: string | null;
-			place: string | null;
-			description: string | null;
-			value?: string | null;
-			cause?: string | null;
-			age?: string | null;
-			notes?: string | null;
-			/** Lines with no column, written back inside the fact. */
-			gedcomExtra?: string[] | null;
-			citations?: ExportCitation[];
-			/** The notes under the fact, written before its citations. */
-			noteLinks?: ExportNote[];
-		}>;
+		events?: Array<
+			ExportFactDetails & {
+				type: string;
+				dateRaw: string | null;
+				place: string | null;
+				description: string | null;
+				value?: string | null;
+				cause?: string | null;
+				age?: string | null;
+				notes?: string | null;
+				/** Lines with no column, written back inside the fact. */
+				gedcomExtra?: string[] | null;
+				citations?: ExportCitation[];
+				/** The notes under the fact, written before its citations. */
+				noteLinks?: ExportNote[];
+			}
+		>;
 		/** Citations of the person themself. */
 		citations?: ExportCitation[];
 		/** Notes on the person themself. */
@@ -152,15 +176,17 @@ export interface GedcomExportPayload {
 		}>;
 		/** XREFs of families merged into this one; each is written as a typed `REFN`. */
 		aliases?: string[];
-		events?: Array<{
-			type: string;
-			dateRaw: string | null;
-			place: string | null;
-			description: string | null;
-			gedcomExtra?: string[] | null;
-			citations?: ExportCitation[];
-			noteLinks?: ExportNote[];
-		}>;
+		events?: Array<
+			ExportFactDetails & {
+				type: string;
+				dateRaw: string | null;
+				place: string | null;
+				description: string | null;
+				gedcomExtra?: string[] | null;
+				citations?: ExportCitation[];
+				noteLinks?: ExportNote[];
+			}
+		>;
 		/** Citations of the family record. */
 		citations?: ExportCitation[];
 		/** Notes on the family record. */
@@ -202,6 +228,50 @@ function foldLines(lines: readonly string[] | null | undefined): string[] {
 }
 
 /**
+ * A place and what hangs under it. The place's sub-lines and coordinates are written only while the
+ * place has text: the coordinates belong to a place, and a sub-line with no `PLAC` to sit under
+ * would be read back as a fact detail of the event.
+ */
+function placeLines(ev: ExportFactDetails & { place: string | null }): string[] {
+	if (!ev.place) return [];
+	const lines = [`2 PLAC ${escapedSingleLine(ev.place)}`, ...foldLines(ev.placeExtra)];
+	if (ev.latitude || ev.longitude) {
+		lines.push('3 MAP');
+		if (ev.latitude) lines.push(`4 LATI ${escapedSingleLine(ev.latitude)}`);
+		if (ev.longitude) lines.push(`4 LONG ${escapedSingleLine(ev.longitude)}`);
+	}
+	return lines;
+}
+
+/**
+ * The address, contacts, agency and religion of a fact, in the order the spec lists them. Each
+ * contact value is written on a line of its own: a repeated tag is one fact detail per line, not one
+ * value that could span lines.
+ */
+function addressAndContactLines(ev: ExportFactDetails): string[] {
+	const lines = fieldLines(
+		2,
+		'ADDR',
+		ev.address,
+		ev.addressLayout ? foldLines(ev.addressLayout) : null
+	);
+	const contacts: Array<[string, string | null | undefined]> = [
+		['PHON', ev.phone],
+		['EMAIL', ev.email],
+		['FAX', ev.fax],
+		['WWW', ev.web]
+	];
+	for (const [tag, values] of contacts) {
+		for (const value of (values ?? '').split(LINE_BREAK)) {
+			if (value.trim() !== '') lines.push(`2 ${tag} ${escapedSingleLine(value)}`);
+		}
+	}
+	if (ev.agency) lines.push(`2 AGNC ${escapedSingleLine(ev.agency)}`);
+	if (ev.religion) lines.push(`2 RELI ${escapedSingleLine(ev.religion)}`);
+	return lines;
+}
+
+/**
  * An individual's event as GEDCOM lines. The line value goes on the event's own line, and a legacy
  * `description` is written as a note only when the fact has no note of its own, so a fact edited
  * after import does not gain a second `NOTE`.
@@ -212,8 +282,10 @@ function individualEventLines(
 ): string[] {
 	const tag = requireSingleLineToken(ev.type, 'An event type');
 	const lines = [ev.value ? `1 ${tag} ${escapedSingleLine(ev.value)}` : `1 ${tag}`];
+	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
-	if (ev.place) lines.push(`2 PLAC ${escapedSingleLine(ev.place)}`);
+	lines.push(...placeLines(ev));
+	lines.push(...addressAndContactLines(ev));
 	if (ev.cause) lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`);
 	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`);
 	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
@@ -237,8 +309,10 @@ function familyEventLines(
 	format: GedcomFormat
 ): string[] {
 	const lines = [`1 ${requireSingleLineToken(ev.type, 'An event type')}`];
+	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
-	if (ev.place) lines.push(`2 PLAC ${escapedSingleLine(ev.place)}`);
+	lines.push(...placeLines(ev));
+	lines.push(...addressAndContactLines(ev));
 	if (ev.description) lines.push(...fieldLines(2, 'NOTE', ev.description));
 	lines.push(...citationLines(2, ev.citations, format));
 	lines.push(...foldLines(ev.gedcomExtra));

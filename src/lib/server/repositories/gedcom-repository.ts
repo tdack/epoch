@@ -34,6 +34,7 @@ import {
 	type ImportMode,
 	type PreviewRows
 } from '../gedcom/import-preview';
+import { factDetailColumns } from '../gedcom/fact-details';
 import type { ParsedCitation, ParsedGedcomData } from '../gedcom/parser';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import {
@@ -261,7 +262,8 @@ export class GedcomRepository {
 					cause: ev.cause || null,
 					age: ev.age || null,
 					notes: ev.notes || null,
-					gedcomExtra: ev.extra ?? null
+					gedcomExtra: ev.extra ?? null,
+					...factDetailColumns(ev)
 				});
 			}
 		}
@@ -286,7 +288,8 @@ export class GedcomRepository {
 					cause: null,
 					age: null,
 					notes: null,
-					gedcomExtra: ev.extra ?? null
+					gedcomExtra: ev.extra ?? null,
+					...factDetailColumns(ev)
 				});
 			}
 		}

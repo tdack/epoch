@@ -4,7 +4,7 @@
  * makes share one definition of "the same fact" and "the same record".
  */
 
-import type { ParsedGedcomData } from './parser';
+import type { ParsedEvent, ParsedGedcomData } from './parser';
 import { detectDuplicateFamilies } from './duplicate-families';
 import { type DuplicateFamilyReport } from '../../shared/duplicate-families';
 
@@ -51,6 +51,53 @@ export interface EventKeyInput {
 	age?: string | null;
 	notes?: string | null;
 	gedcomExtra?: string[] | null;
+	address?: string | null;
+	classification?: string | null;
+	agency?: string | null;
+	phone?: string | null;
+	email?: string | null;
+	fax?: string | null;
+	web?: string | null;
+	latitude?: string | null;
+	longitude?: string | null;
+	placeExtra?: string[] | null;
+	religion?: string | null;
+}
+
+/**
+ * The key input a parsed fact is compared by. The parsed field for the kept lines is `extra`, but the
+ * key reads the stored column `gedcomExtra`: spreading the parsed event in would leave the kept lines
+ * out of the preview's key, so it would call a fact a repeat that the import keeps apart.
+ */
+function eventKeyOfParsed(
+	entityType: EventKeyInput['entityType'],
+	entityId: string,
+	ev: ParsedEvent
+): EventKeyInput {
+	return {
+		entityType,
+		entityId,
+		type: ev.type,
+		dateRaw: ev.dateRaw,
+		place: ev.place,
+		description: ev.description,
+		value: ev.value,
+		cause: ev.cause,
+		age: ev.age,
+		notes: ev.notes,
+		gedcomExtra: ev.extra,
+		address: ev.address,
+		classification: ev.classification,
+		agency: ev.agency,
+		phone: ev.phone,
+		email: ev.email,
+		fax: ev.fax,
+		web: ev.web,
+		latitude: ev.latitude,
+		longitude: ev.longitude,
+		placeExtra: ev.placeExtra,
+		religion: ev.religion
+	};
 }
 
 /** What the tree already holds, as much of it as the comparison needs. */
@@ -79,7 +126,19 @@ export function eventContentKey(e: EventKeyInput): string {
 		e.cause,
 		e.age,
 		e.notes,
-		(e.gedcomExtra ?? []).join('\n')
+		(e.gedcomExtra ?? []).join('\n'),
+		e.address,
+		e.classification,
+		e.agency,
+		e.phone,
+		e.email,
+		e.fax,
+		e.web,
+		e.latitude,
+		e.longitude,
+		// JSON, so a line break inside one line cannot read as two.
+		e.placeExtra?.length ? JSON.stringify(e.placeExtra) : '',
+		e.religion
 	]
 		.map((part) => part ?? '')
 		.join('\u0000');
@@ -168,7 +227,7 @@ export function previewAgainstTree(
 			}
 		}
 		for (const ev of fam.events) {
-			const evKey = eventContentKey({ entityType: 'FAMILY', entityId: targetFamId, ...ev });
+			const evKey = eventContentKey(eventKeyOfParsed('FAMILY', targetFamId, ev));
 			if (existingEventKeys.has(evKey)) {
 				merge.duplicateEvents++;
 			} else {
@@ -186,7 +245,7 @@ export function previewAgainstTree(
 			merge.newIndividuals++;
 		}
 		for (const ev of ind.events) {
-			const evKey = eventContentKey({ entityType: 'INDIVIDUAL', entityId: scopedIndId, ...ev });
+			const evKey = eventContentKey(eventKeyOfParsed('INDIVIDUAL', scopedIndId, ev));
 			if (existingEventKeys.has(evKey)) {
 				merge.duplicateEvents++;
 			} else {

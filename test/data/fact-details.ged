@@ -1,0 +1,67 @@
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Ada /Lovelace/
+1 SEX F
+1 BIRT
+2 DATE 10 DEC 1815
+2 PLAC Mayfair, London, England
+3 FORM City, Borough, Country
+3 MAP
+4 LATI N51.510000
+4 LONG W0.150000
+3 MAP
+4 LATI N1.000000
+4 LONG E1.000000
+2 ADDR 12 Curzon Street
+3 CONT Mayfair
+3 CITY London
+3 POST W1J 7AB
+2 PHON 020 7946 0000
+2 PHON 020 7946 0001
+2 EMAIL ada@@example.org
+2 FAX 020 7946 0002
+2 WWW https://example.org/ada
+2 AGNC Parish of St George
+2 RELI Church of England
+2 CAUS Fever
+1 DEAT
+2 DATE 1852
+2 PLAC
+3 FORM Unknown
+2 ADDR 3 Grosvenor P
+3 CONC lace
+2 RESN privacy
+1 EVEN
+2 TYPE Military
+2 DATE 1840
+2 PLAC Woolwich
+3 MAP
+4 LATI N51.490000
+4 LONG E0.070000
+2 PHON 0800 000 111
+3 TYPE Mobile
+0 @I2@ INDI
+1 NAME Charles /Babbage/
+1 SEX M
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Georgiana /Whitmore/
+1 SEX F
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I3@
+1 MARR
+2 DATE 1814
+2 PLAC Ashbourne
+3 MAP
+4 LATI N53.000000
+4 LONG W1.700000
+2 ADDR Church Street
+3 CITY Ashbourne
+2 AGNC Registry Office
+2 PHON 01335 000 000
+0 TRLR

@@ -11,6 +11,7 @@ import {
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
+import { extractFactDetails, type FactDetails } from './fact-details';
 import { LINE_BREAK, logicalText, normalizedNodeText } from './evidence-lines';
 import {
 	mergeCitations,
@@ -125,7 +126,7 @@ export interface ParsedFamily {
 	aliases?: string[];
 }
 
-export interface ParsedEvent {
+export interface ParsedEvent extends FactDetails {
 	id?: string;
 	type: string;
 	dateRaw?: string;
@@ -184,6 +185,13 @@ export interface ParseOptions {
 	 * this change holds them; only the backfill's tests need that.
 	 */
 	isNotesModelled?: boolean;
+	/**
+	 * Read an event's address, classification, agency, contacts, coordinates and religion into their
+	 * own fields (see fact-details.ts). Off keeps them as the lines they were, and drops a place's
+	 * sub-lines as a tree imported before those fields existed holds them; only the backfill's tests
+	 * need that.
+	 */
+	areFactDetailsModelled?: boolean;
 }
 
 /** Individual-level event tags shared by GEDCOM 5.5.1 and 7.0. */
@@ -465,6 +473,7 @@ function parseLegacyMarriedName(value: string, primary: ParsedName | undefined):
 export function parseGedcom(rawContent: string, options: ParseOptions = {}): ParsedGedcomData {
 	const isEvidenceModelled = options.isEvidenceModelled ?? true;
 	const isNotesModelled = options.isNotesModelled ?? true;
+	const areFactDetailsModelled = options.areFactDetailsModelled ?? true;
 	const version = detectGedcomVersion(rawContent);
 	const rootNodes = buildGedcomTree(rawContent.split(LINE_BREAK));
 	normalizeModelText(rootNodes);
@@ -591,9 +600,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						child.children,
 						isNotesModelled
 					);
+					const details = areFactDetailsModelled ? extractFactDetails(child.children) : undefined;
 					const modelled = new Set([
 						dateNode,
-						placNode,
+						// The place is taken whole when its sub-lines are read with it; without that its sub-lines are dropped, as before.
+						...(details ? details.consumed : [placNode]),
 						child.children.find((c) => c.tag === 'CAUS'),
 						child.children.find((c) => c.tag === 'AGE'),
 						noteNode
@@ -619,6 +630,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						notes: noteNode?.rawValue?.trim() || undefined,
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
+						...(details ? details.details : {}),
 						citations: citationsOf(child.children)
 					});
 				} else if (isCitation(child)) {
@@ -686,8 +698,10 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						child.children,
 						isNotesModelled
 					);
+					const details = areFactDetailsModelled ? extractFactDetails(child.children) : undefined;
+					const modelled = new Set([dateNode, ...(details ? details.consumed : [placNode])]);
 					const extra = factOthers
-						.filter((c) => c !== dateNode && c !== placNode && !isCitation(c))
+						.filter((c) => !modelled.has(c) && !isCitation(c))
 						.flatMap(collectLines);
 					events.push({
 						type: child.tag,
@@ -698,6 +712,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						description: child.value?.trim(),
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
+						...(details ? details.details : {}),
 						citations: citationsOf(child.children)
 					});
 				} else if (isCitation(child)) {

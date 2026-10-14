@@ -266,6 +266,9 @@ export function exportPayloadFrom(
 		list.map((ev) => ({
 			...ev,
 			...(ev.gedcomExtra?.length ? { gedcomExtra: ev.gedcomExtra.map(remap) } : {}),
+			// The place's sub-lines and the address's own lines can name a record too (a NOTE or SOUR pointer).
+			...(ev.placeExtra?.length ? { placeExtra: ev.placeExtra.map(remap) } : {}),
+			...(ev.addressLayout?.length ? { addressLayout: ev.addressLayout.map(remap) } : {}),
 			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id),
 			noteLinks: notesFor(NOTE_SUBJECT_KINDS.EVENT, ev.id)
 		}));
