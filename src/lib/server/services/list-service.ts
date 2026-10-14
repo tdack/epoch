@@ -74,7 +74,7 @@ export class ListService {
 		const [people, vitals, names] = await this.graphRepo.run(
 			this.graphRepo.individualsIn(treeId, ids),
 			this.graphRepo.eventsOf(treeId, 'INDIVIDUAL', ids, ['BIRT', 'DEAT']),
-			this.graphRepo.namesOf(ids)
+			this.graphRepo.namesOf(treeId, ids)
 		);
 		const byId = new Map(people.map(({ row }) => [row.id, row]));
 		const items: IndividualListItem[] = [];

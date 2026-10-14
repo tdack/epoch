@@ -9,6 +9,7 @@ import type { DbClient } from '../db';
 import {
 	citations,
 	events,
+	individuals,
 	parentChild,
 	personNames,
 	repositories,
@@ -35,6 +36,7 @@ export interface PageRequest {
 
 /** Ids per `IN (...)`, under D1's 100 bound parameters with the tree id and filters. */
 const IDS_PER_QUERY = 80;
+const CITATION_COUNT_IDS_PER_QUERY = 50;
 
 const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
 	const unique = [...new Set(items)];
@@ -109,7 +111,9 @@ export class EvidenceRepository {
 		scope: Scope
 	): Promise<Map<string, number>> {
 		const counts = new Map<string, number>();
-		for (const chunk of chunksOf(sourceIds)) {
+		// Not the 80-id default: the visibility fragment binds about 25 parameters with a creator test,
+		// so 80 ids pass D1's limit of 100 for a contributor (found by the F12 to F18 review).
+		for (const chunk of chunksOf(sourceIds, CITATION_COUNT_IDS_PER_QUERY)) {
 			const rows = await this.db
 				.select({ sourceId: citations.sourceId, n: sql<number>`count(*)` })
 				.from(citations)
@@ -219,15 +223,27 @@ export class EvidenceRepository {
 		return out;
 	}
 
-	/** A source's repository links, in order, with the repositories they name. */
-	async linksOfSource(sourceId: string) {
+	/**
+	 * A source's repository links, in order, with the repositories they name. The source must be in
+	 * this tree, and a repository is named only when it is too, so a link to another tree's repository
+	 * comes back with no repository. The tree test sits in the join's `on`, not `where`, so such a
+	 * link is kept rather than dropped.
+	 */
+	async linksOfSource(treeId: string, sourceId: string) {
 		return this.db
 			.select({
 				link: getTableColumns(sourceRepositories),
 				repository: getTableColumns(repositories)
 			})
 			.from(sourceRepositories)
-			.leftJoin(repositories, eq(sourceRepositories.repositoryId, repositories.id))
+			.innerJoin(
+				sources,
+				and(eq(sources.id, sourceRepositories.sourceId), eq(sources.treeId, treeId))
+			)
+			.leftJoin(
+				repositories,
+				and(eq(sourceRepositories.repositoryId, repositories.id), eq(repositories.treeId, treeId))
+			)
 			.where(eq(sourceRepositories.sourceId, sourceId))
 			.orderBy(asc(sourceRepositories.sortOrder))
 			.all();
@@ -348,11 +364,16 @@ export class EvidenceRepository {
 	}
 
 	/** Every id-and-subject of the citations whose source or subject a page names, for resolving labels. */
-	async namesByIds(ids: readonly string[]) {
+	async namesByIds(treeId: string, ids: readonly string[]) {
 		const out: Array<typeof personNames.$inferSelect> = [];
 		for (const chunk of chunksOf(ids))
 			out.push(
-				...(await this.db.select().from(personNames).where(inArray(personNames.id, chunk)).all())
+				...(await this.db
+					.select(getTableColumns(personNames))
+					.from(personNames)
+					.innerJoin(individuals, eq(individuals.id, personNames.personId))
+					.where(and(sql`+${individuals.treeId} = ${treeId}`, inArray(personNames.id, chunk)))
+					.all())
 			);
 		return out;
 	}

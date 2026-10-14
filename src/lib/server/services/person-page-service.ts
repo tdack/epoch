@@ -220,7 +220,7 @@ export class PersonPageService {
 
 		const [[self], nameRows, factRows, mediaRows] = await this.repo.run(
 			this.repo.individualsIn(treeId, [personId]),
-			this.repo.namesOf([personId]),
+			this.repo.namesOf(treeId, [personId]),
 			this.repo.eventsOf(treeId, 'INDIVIDUAL', [personId]),
 			this.repo.mediaOf(treeId, [personId])
 		);
@@ -360,7 +360,10 @@ export class PersonPageService {
 					[personId, ...rows.map((r) => r.id)],
 					RECENT_CHANGES_SHOWN
 				);
-		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
+		const actors = await this.repo.actorNames(
+			treeId,
+			recent.map((c) => c.actorId)
+		);
 
 		return {
 			...privacyOf(self.row),

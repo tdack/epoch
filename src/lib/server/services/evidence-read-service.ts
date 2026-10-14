@@ -140,7 +140,7 @@ export class EvidenceReadService {
 		if (!source) throw new NotFoundError('Source', sourceId);
 		const page = clampPage(query);
 		const [links, cited, counts] = await Promise.all([
-			this.evidence.linksOfSource(sourceId),
+			this.evidence.linksOfSource(treeId, sourceId),
 			this.evidence.citationsOfSource(treeId, sourceId, page, scope),
 			this.evidence.visibleCitationCounts(treeId, [sourceId], scope)
 		]);
@@ -192,7 +192,7 @@ export class EvidenceReadService {
 		const idsOf = (kind: string) =>
 			rows.filter((r) => r.subjectKind === kind).map((r) => r.subjectId);
 		const [names, facts, links] = await Promise.all([
-			this.evidence.namesByIds(idsOf(CITATION_SUBJECT_KINDS.NAME)),
+			this.evidence.namesByIds(treeId, idsOf(CITATION_SUBJECT_KINDS.NAME)),
 			this.evidence.eventsByIds(treeId, idsOf(CITATION_SUBJECT_KINDS.EVENT)),
 			this.evidence.linksByIds(treeId, idsOf(CITATION_SUBJECT_KINDS.PARENT_CHILD))
 		]);

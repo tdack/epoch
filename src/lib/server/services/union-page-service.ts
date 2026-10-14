@@ -283,7 +283,10 @@ export class UnionPageService {
 					[unionId, ...events.map((e) => e.id)],
 					RECENT_CHANGES_SHOWN
 				);
-		const actors = await this.repo.actorNames(recent.map((c) => c.actorId));
+		const actors = await this.repo.actorNames(
+			treeId,
+			recent.map((c) => c.actorId)
+		);
 
 		return {
 			...privacyOf(union),

@@ -233,7 +233,7 @@ export async function loadNeighbourhood(
 	const [records, personEvents, personNameRows] = await repo.run(
 		repo.individualsIn(treeId, missing),
 		repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, personEventTypes),
-		repo.namesOf(withoutNames)
+		repo.namesOf(treeId, withoutNames)
 	);
 	state.addIndividuals(records);
 	state.addEvents(personEvents);

@@ -126,7 +126,7 @@ export class NoteReadService {
 			...citationRows.filter((c) => c.subjectKind === kind).map((c) => c.subjectId)
 		];
 		const [names, facts, links, sourceRows, repositoryRows] = await Promise.all([
-			this.evidence.namesByIds(subjectsOf(NOTE_SUBJECT_KINDS.NAME)),
+			this.evidence.namesByIds(treeId, subjectsOf(NOTE_SUBJECT_KINDS.NAME)),
 			this.evidence.eventsByIds(treeId, subjectsOf(NOTE_SUBJECT_KINDS.EVENT)),
 			this.evidence.linksByIds(treeId, subjectsOf(NOTE_SUBJECT_KINDS.PARENT_CHILD)),
 			this.evidence.sourcesByIds(treeId, [

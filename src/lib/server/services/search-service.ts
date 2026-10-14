@@ -96,7 +96,7 @@ export class SearchService {
 			this.graphRepo.run(
 				this.graphRepo.individualsIn(treeId, ids),
 				this.graphRepo.eventsOf(treeId, 'INDIVIDUAL', ids, ['BIRT', 'DEAT']),
-				this.graphRepo.namesOf(ids)
+				this.graphRepo.namesOf(treeId, ids)
 			),
 			this.repo.factsMatching(ids, place, from, to, scope)
 		]);

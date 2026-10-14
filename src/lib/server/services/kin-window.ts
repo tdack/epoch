@@ -118,7 +118,7 @@ export async function loadKinWindow(
 	const [individuals, events, names] = await repo.run(
 		repo.individualsIn(treeId, ids),
 		repo.eventsOf(treeId, 'INDIVIDUAL', ids, VITAL_EVENT_TYPES),
-		repo.namesOf(ids)
+		repo.namesOf(treeId, ids)
 	);
 	const existing = new Set(individuals.map((i) => i.row.id));
 	return {

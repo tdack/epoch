@@ -89,7 +89,7 @@ export async function personSummaries(
 		const [records, vitalEvents, nameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
 			repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT']),
-			repo.namesOf(missing)
+			repo.namesOf(treeId, missing)
 		);
 		for (const { row } of records) {
 			summaries.set(

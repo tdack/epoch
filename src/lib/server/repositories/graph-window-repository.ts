@@ -231,13 +231,18 @@ export class GraphWindowRepository {
 		);
 	}
 
-	/** Every name of these people. Callers have already checked the people belong to the tree. */
-	namesOf(personIds: readonly string[]): Read<Array<Ranked<PersonNameRow>>> {
+	/**
+	 * Every name of these people, and only those of people in this tree. `person_names` has no tree
+	 * id, so the tree is tested on the person it belongs to: a name id of another tree's person yields
+	 * nothing, whatever the caller has checked.
+	 */
+	namesOf(treeId: string, personIds: readonly string[]): Read<Array<Ranked<PersonNameRow>>> {
 		return this.readIn(personNames, personIds, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(personNames), rid: sql<number>`${personNames}.rowid` })
 				.from(personNames)
-				.where(inArray(personNames.personId, chunk))
+				.innerJoin(individuals, eq(individuals.id, personNames.personId))
+				.where(and(inTree(individuals.treeId, treeId), inArray(personNames.personId, chunk)))
 		);
 	}
 
@@ -288,14 +293,23 @@ export class GraphWindowRepository {
 		return [...byId.values()].sort((a, b) => b.seq - a.seq).slice(0, limit);
 	}
 
-	/** Display names for the people behind a set of changes. */
-	async actorNames(userIds: readonly string[]): Promise<Map<string, string>> {
+	/**
+	 * Display names for the people behind a set of changes, for those who changed this tree. `users`
+	 * has no tree id and membership is not the test: someone removed from the tree keeps the name of
+	 * the edits they made in it, but a user whose only edits are in another tree is not named here.
+	 */
+	async actorNames(treeId: string, userIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
 		for (const chunk of chunked(userIds)) {
 			for (const row of await this.db
 				.select({ id: users.id, name: users.name, email: users.email })
 				.from(users)
-				.where(inArray(users.id, chunk))
+				.where(
+					and(
+						inArray(users.id, chunk),
+						sql`exists (select 1 from change_log c where c.tree_id = ${treeId} and c.actor_id = ${users.id})`
+					)
+				)
 				.all()) {
 				names.set(row.id, row.name || row.email);
 			}
@@ -372,7 +386,7 @@ export class GraphWindowRepository {
 				this.eventsOf(treeId, 'INDIVIDUAL', sample.personIds, ['BIRT', 'DEAT'])
 			),
 			'union events': only(this.eventsOf(treeId, 'FAMILY', sample.unionIds)),
-			'names of people': only(this.namesOf(sample.personIds)),
+			'names of people': only(this.namesOf(treeId, sample.personIds)),
 			'media of people': only(this.mediaOf(treeId, sample.personIds)),
 			'changes touching records': this.changeHistoryQuery(treeId, sample.personIds, 15),
 			'person ids in order': this.personIdsAfterQuery(treeId, 0, 3),

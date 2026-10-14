@@ -98,9 +98,12 @@ Rows returned 3, rows read 9.
 
 ### names of people
 
+- `SEARCH individuals USING INDEX sqlite_autoindex_individuals_1 (id=?)`
 - `SEARCH person_names USING INDEX idx_person_name_person (person_id=?)`
 
-Rows returned 0, rows read 3. (The generated tree has no stored name rows; the plan is what matters.)
+Rows returned 0, rows read 6 (was 3 before the lookup was scoped to the tree, which joins
+`individuals` to test `tree_id`; `+individuals.tree_id` keeps the tree test from driving the query).
+The generated tree has no stored name rows; the plan is what matters.
 
 ### media of people
 

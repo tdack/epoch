@@ -138,7 +138,7 @@ export interface ExportFile {
 	contentType: string;
 }
 
-const GEDCOM_CONTENT_TYPE = 'text/vnd.familysearch.gedcom';
+export const GEDCOM_CONTENT_TYPE = 'text/vnd.familysearch.gedcom';
 
 /** GEDZip's version is the dataset's, and 7.0 was its first, so a 5.5.1 file has no archive form. */
 export function assertExportable({ format, shouldCompress }: ExportOptions): void {
