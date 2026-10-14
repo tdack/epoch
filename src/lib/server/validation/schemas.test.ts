@@ -154,16 +154,19 @@ describe('imported fact details at the write boundary', () => {
 	});
 
 	it('refuses only values past the safety caps', () => {
-		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(501) }).success).toBe(
+		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(2001) }).success).toBe(
 			false
 		);
-		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(500) }).success).toBe(
+		expect(factCreateSchema.safeParse({ type: 'BIRT', agency: 'A'.repeat(2000) }).success).toBe(
 			true
 		);
-		expect(factCreateSchema.safeParse({ type: 'BIRT', address: 'A'.repeat(2001) }).success).toBe(
+		expect(factCreateSchema.safeParse({ type: 'BIRT', address: 'A'.repeat(20001) }).success).toBe(
 			false
 		);
-		expect(factUpdateSchema.safeParse({ version: 1, web: 'w'.repeat(2001) }).success).toBe(false);
+		expect(factCreateSchema.safeParse({ type: 'BIRT', address: 'A'.repeat(20000) }).success).toBe(
+			true
+		);
+		expect(factUpdateSchema.safeParse({ version: 1, web: 'w'.repeat(20001) }).success).toBe(false);
 	});
 
 	it('leaves the file-owned layout and extra lines out of what a request can write', () => {

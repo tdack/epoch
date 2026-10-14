@@ -273,8 +273,8 @@ const factTypeSchema = z.string().refine(isFactType, { message: 'not a fact type
  * GEDCOM spec limit (a 130-character agency, four phone lines, an unusual coordinate). These caps
  * are only a safety net against abuse; the spec's per-line and per-value limits are not enforced.
  */
-const DETAIL_LINE_MAX_CHARS = 500;
-const DETAIL_TEXT_MAX_CHARS = 2000;
+const DETAIL_LINE_MAX_CHARS = 2000;
+const DETAIL_TEXT_MAX_CHARS = 20000;
 const detailSingleLine = z
 	.string()
 	.trim()
