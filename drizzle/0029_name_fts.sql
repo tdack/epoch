@@ -45,7 +45,10 @@ BEGIN
 	);
 END;--> statement-breakpoint
 -- An update rewrites the name's row: the same key and FTS rowid, so no other row is touched.
+-- The writers set every column of a row on update, so the WHEN keeps an edit that changes none of
+-- these from rewriting the row.
 CREATE TRIGGER `trg_person_names_fts_update` AFTER UPDATE OF `person_id`, `id`, `name_prefix`, `given_name`, `nickname`, `surname_prefix`, `surname`, `name_suffix` ON `person_names`
+WHEN NEW.`person_id` IS NOT OLD.`person_id` OR NEW.`id` IS NOT OLD.`id` OR NEW.`name_prefix` IS NOT OLD.`name_prefix` OR NEW.`given_name` IS NOT OLD.`given_name` OR NEW.`nickname` IS NOT OLD.`nickname` OR NEW.`surname_prefix` IS NOT OLD.`surname_prefix` OR NEW.`surname` IS NOT OLD.`surname` OR NEW.`name_suffix` IS NOT OLD.`name_suffix`
 BEGIN
 	DELETE FROM `name_fts` WHERE rowid = (SELECT `id` FROM `name_fts_key` WHERE `name_id` = OLD.`id`);
 	DELETE FROM `name_fts_key` WHERE `name_id` = OLD.`id`;
@@ -77,12 +80,14 @@ BEGIN
 	);
 END;--> statement-breakpoint
 CREATE TRIGGER `trg_individuals_fts_own_update` AFTER UPDATE OF `given_name`, `surname` ON `individuals`
+WHEN NEW.`given_name` IS NOT OLD.`given_name` OR NEW.`surname` IS NOT OLD.`surname`
 BEGIN
 	UPDATE `name_fts` SET `name` = rtrim(coalesce(NEW.`given_name` || ' ', '') || coalesce(NEW.`surname`, ''))
 	WHERE rowid = (SELECT `id` FROM `name_fts_key` WHERE `person_id` = NEW.`id` AND `name_id` IS NULL);
 END;--> statement-breakpoint
 -- A person's name rows carry the tree too, so a move between trees must reach them.
 CREATE TRIGGER `trg_individuals_fts_tree` AFTER UPDATE OF `tree_id` ON `individuals`
+WHEN NEW.`tree_id` IS NOT OLD.`tree_id`
 BEGIN
 	UPDATE `name_fts` SET `tree_id` = NEW.`tree_id`
 	WHERE rowid IN (SELECT `id` FROM `name_fts_key` WHERE `person_id` = NEW.`id`);
