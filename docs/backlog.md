@@ -5,7 +5,7 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md), a
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
 it changes a decision.
 
-Last reviewed: 2026-10-11.
+Last reviewed: 2026-10-14.
 
 ## Part 1: Open fixes
 
@@ -79,11 +79,17 @@ Last reviewed: 2026-10-11.
 
 ### Search, lists and performance
 
-- **Search is linear in the tree's people per query** (about 4 to 8 rows read per person), and offset
-  pages are linear in the offset. The surname list reads about 6.5 times the tree's people. Decide on
-  counters or a normalised name column before large trees. (ADR-014, [query-plans.md](./query-plans.md))
+- **Search is linear in the tree's people per query** (about 4 to 8 rows read per person). The
+  direction is an FTS5 name table kept current by triggers (ADR-049, proposed). Next: build it
+  behind the acceptance checks in ADR-049 (D1 accepts the tokenizer, the two-tree witness holds,
+  a trigger test per writer path) and record its rows read in [query-plans.md](./query-plans.md).
 - **Case folding is ASCII-only.** SQLite `LIKE`, `lower()` and `collate nocase` fold only ASCII, so
-  "müller" does not match "Müller". Needs a normalised column, together with the phonetic work.
+  "müller" does not match "Müller". The FTS5 tokenizer folds it (ADR-049).
+- **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
+  people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
+  `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
+  stored inputs in ADR-015 (`has_death`, `birth_upper`) are the step for restricted reads. Measure on
+  a real large tree first. (ADR-014, ADR-015)
 - **Unsurnamed people sort first** in the people list, because an expression in `ORDER BY` would lose
   the index.
 - **Recents are recorded only on the person page and on a focus-box pick,** not when the tree
@@ -161,8 +167,11 @@ Last reviewed: 2026-10-11.
 
 ### Search
 
-- **Phonetic search (Soundex/Daitch-Mokotoff),** boolean query syntax, saved searches, and
-  source and note search. Needs the normalised name column above.
+- **Phonetic search (Soundex/Daitch-Mokotoff),** as a second column of the ADR-049 FTS table. The
+  code is computed in the app, so a trigger cannot write it; needs its own ADR.
+- **Boolean query syntax, saved searches, and source and note search.** For note and source text,
+  Cloudflare AI Search (hybrid BM25 and vector) or Vectorize may fit where name search does not, if
+  limited to what everyone may see or once privacy can be a metadata filter. (ADR-049)
 - **Place-based search by hierarchy,** once places have a hierarchy.
 
 ### GEDCOM import and export operations
@@ -218,7 +227,9 @@ Last reviewed: 2026-10-11.
 ### Operations
 
 - **D1 recovery runbook** (Time Travel, tested exports) and a documented, rehearsed restore of D1
-  and the required R2 assets.
+  and the required R2 assets. Once ADR-049 lands, `wrangler d1 export` refuses the database (it
+  holds an FTS5 virtual table): the runbook needs a script that drops the table, exports, then
+  recreates and repopulates it.
 - **Job dashboards, structured privacy-safe logs, and storage and cost metrics.**
 - **Development, staging and production configuration separation,** reproducible provisioning.
 
