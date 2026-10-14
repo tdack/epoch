@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parseGedcom, normalizeGedcomDate, parseGedcomNameValue } from './parser';
 import { buildGedcom551String } from './serializer';
+import { getTableColumns } from 'drizzle-orm';
+import { events } from '../db/schema';
+import { chunkByParamLimit } from '../repositories/param-chunks';
 
 describe('GEDCOM 5.5.1 Parser and Serializer', () => {
 	const sampleGedcom = `0 HEAD
@@ -194,10 +197,13 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
 		const D1_MAX_ALLOWED_PARAMS = 100;
 		const MAX_BOUND_PARAMS = 70;
 
+		// The event column count comes from the schema, so adding a column cannot leave this test
+		// checking a stale number. The chunker is the one the repository uses.
+		const eventColumnCount = Object.keys(getTableColumns(events)).length;
 		const columnCounts = {
 			individuals: 9, // id, treeId, xrefId, givenName, surname, sex, version, createdAt, updatedAt
 			unions: 6, // id, treeId, status, version, createdAt, updatedAt (+ partners/assertions batched separately)
-			events: 21 // id, treeId, entityType, entityId, type, dateRaw, dateSort, dateSortEnd, dateQualifier, datePrecision, dateCalendar, place, description, value, cause, age, notes, sortOrder, version, createdAt, updatedAt
+			events: eventColumnCount
 		};
 
 		for (const [, cols] of Object.entries(columnCounts)) {
@@ -205,6 +211,11 @@ describe('GEDCOM 5.5.1 Parser and Serializer', () => {
 			const boundParamsPerChunk = maxRowsPerChunk * cols;
 			expect(boundParamsPerChunk).toBeLessThanOrEqual(D1_MAX_ALLOWED_PARAMS);
 			expect(boundParamsPerChunk).toBeLessThanOrEqual(MAX_BOUND_PARAMS);
+		}
+
+		const rows = Array.from({ length: 5 }, (_, index) => index);
+		for (const chunk of chunkByParamLimit(rows, eventColumnCount)) {
+			expect(chunk.length * eventColumnCount).toBeLessThanOrEqual(D1_MAX_ALLOWED_PARAMS);
 		}
 	});
 });
