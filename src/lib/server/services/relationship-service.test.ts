@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { mediaItems } from '../db/schema';
 import { ValidationError } from '../domain/errors';
 import type { RelationshipGraph } from '../../shared/relationship-graph';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
@@ -589,6 +591,48 @@ describe('deleting a person', () => {
 		expect(survivor.marriageDate).toBe('1975');
 		expect(after.parentChild).toEqual([]);
 		expect(after.unions).toHaveLength(before.unions.length);
+	});
+
+	it('keeps a file of the person as an unattached file, and undo hangs it back on them', async () => {
+		const s = await setup();
+		const homer = await s.addPerson('Homer', 'Simpson');
+		await t.db.insert(mediaItems).values({
+			id: 'file-of-homer',
+			treeId: s.treeId,
+			entityId: homer.id,
+			r2ObjectKey: `media/${s.treeId}/file-of-homer.png`,
+			title: 'Homer.png',
+			mimeType: 'image/png',
+			sizeBytes: 42,
+			uploadedBy: s.actor.userId,
+			version: 1,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		const file = () =>
+			t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-of-homer')).get();
+
+		const impact = await s.people.previewDelete(s.treeId, homer.id, s.ctx);
+		expect(shape(impact.records)).toEqual([
+			'deleted name Birth name Homer Simpson of Homer Simpson',
+			'deleted person Homer Simpson',
+			'updated media Unattached file'
+		]);
+		await s.people.remove(s.treeId, homer.id, s.ctx);
+		expect(await file()).toMatchObject({
+			entityId: null,
+			version: 2,
+			sizeBytes: 42,
+			uploadedBy: s.actor.userId
+		});
+
+		await s.log.undoLast(s.treeId, s.ctx);
+		expect(await file()).toMatchObject({
+			entityId: homer.id,
+			version: 3,
+			sizeBytes: 42,
+			uploadedBy: s.actor.userId
+		});
 	});
 
 	it('removes a partnership that would be left with nobody, along with its own events', async () => {

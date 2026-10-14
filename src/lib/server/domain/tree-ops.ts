@@ -490,7 +490,16 @@ function deletePerson(
 		.filter((l) => l.parentId === person.id || l.childId === person.id)
 		.forEach((l) => remove('parent_child', l));
 	eventsOf(rows, 'INDIVIDUAL', person.id).forEach((e) => remove('events', e));
-	rows.mediaItems.filter((m) => m.entityId === person.id).forEach((m) => remove('media_items', m));
+	// A file outlives the person it was of: it is detached rather than deleted, so the bytes stay
+	// and undo can hang it back on the person.
+	for (const media of rows.mediaItems.filter((m) => m.entityId === person.id)) {
+		ops.push({
+			table: 'media_items',
+			id: media.id,
+			before: media,
+			after: touch({ ...media, entityId: null }, ctx)
+		});
+	}
 
 	for (const membership of rows.unionPartners.filter((p) => p.personId === person.id)) {
 		remove('union_partners', membership);
