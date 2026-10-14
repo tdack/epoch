@@ -152,6 +152,22 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		}
 		case 'merge_notes':
 			return `Merged ${command.mergedIds.length + 1} shared notes into ${sharedNoteLabel(rows, command.survivorId)}`;
+		case 'rename_media':
+			return `Renamed the file “${command.title.trim().slice(0, 60)}”`;
+		case 'attach_media': {
+			const file = rows.mediaItems.find((m) => m.id === command.mediaId);
+			const name = `“${(file?.title ?? 'a file').slice(0, 60)}”`;
+			const target = rows.individuals.some((p) => p.id === command.entityId)
+				? nameOf(rows, command.entityId)
+				: partnershipOf(rows, command.entityId);
+			if (file?.entityId && file.entityId !== command.entityId)
+				return `Moved the file ${name} to ${target}`;
+			return `Attached the file ${name} to ${target}`;
+		}
+		case 'detach_media': {
+			const file = rows.mediaItems.find((m) => m.id === command.mediaId);
+			return `Detached the file “${(file?.title ?? 'a file').slice(0, 60)}”`;
+		}
 		case 'create_task':
 			return `Added the task “${command.task.title.trim().slice(0, 60)}”`;
 		case 'update_task': {

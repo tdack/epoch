@@ -1,6 +1,6 @@
 /** Builds `TreeRows` snapshots for pure tests of planning and ops, without a database. */
 
-import type { EventRow, PersonNameRow, TreeRows } from '../domain/change-log';
+import type { EventRow, MediaRow, PersonNameRow, TreeRows } from '../domain/change-log';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { Sex } from '../../shared/sex';
 
@@ -33,6 +33,7 @@ export interface RowsSpec {
 	}>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
+	media?: Array<Partial<MediaRow> & { id: string }>;
 	/** Citations of the facts, names, people or partnerships above, by what they support. */
 	citations?: Array<{
 		subjectKind: 'person' | 'name' | 'event' | 'union' | 'parent_child';
@@ -57,6 +58,20 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		noteAttachments: [],
 		researchTasks: []
 	};
+	for (const m of spec.media ?? []) {
+		rows.mediaItems.push({
+			treeId: TEST_TREE_ID,
+			entityId: null,
+			r2ObjectKey: `media/${TEST_TREE_ID}/${m.id}.png`,
+			cfImageId: null,
+			title: null,
+			mimeType: 'image/png',
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			...m
+		});
+	}
 	for (const [index, c] of (spec.citations ?? []).entries()) {
 		rows.citations.push({
 			id: `cite-${index}`,

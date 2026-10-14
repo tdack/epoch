@@ -62,3 +62,6 @@ const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
 export function extensionForMediaType(mime: string): string | null {
 	return EXTENSION_BY_MEDIA_TYPE[mime] ?? null;
 }
+
+/** The longest title a stored file may be given; longer input is refused, not truncated. */
+export const MAX_MEDIA_TITLE_LENGTH = 200;

@@ -34,6 +34,7 @@ import { buildFactOps } from './fact-ops';
 import { buildEvidenceOps, citationCascadeOps, makeEvidenceMover } from './evidence-ops';
 import { buildNoteOps, noteCascadeOps } from './note-ops';
 import { buildTaskOps, taskCascadeOps } from './task-ops';
+import { buildMediaOps } from './media-ops';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { buildPersonMergeOps } from './person-merge';
 import { buildDateOps } from './date-ops';
@@ -1016,6 +1017,10 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'delete_shared_note':
 		case 'merge_notes':
 			return buildNoteOps(rows, command, ctx);
+		case 'rename_media':
+		case 'attach_media':
+		case 'detach_media':
+			return buildMediaOps(rows, command, { treeId: ctx.treeId, now: ctx.now });
 		case 'create_task':
 		case 'update_task':
 		case 'delete_task':

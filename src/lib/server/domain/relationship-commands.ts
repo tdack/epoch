@@ -43,6 +43,7 @@ import type { TaskCommand } from './task-ops';
 import type { PersonMergeCommand } from './person-merge';
 import type { PlaceCommand } from './place-ops';
 import type { DateCommand } from './date-ops';
+import type { MediaCommand } from './media-ops';
 
 export type RelationshipCommand =
 	| FactCommand
@@ -53,6 +54,7 @@ export type RelationshipCommand =
 	| PlaceCommand
 	| DateCommand
 	| PersonMergeCommand
+	| MediaCommand
 	| {
 			kind: 'create_person';
 			personId: string;
