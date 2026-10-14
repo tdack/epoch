@@ -79,9 +79,9 @@ function factCondition(place: string, from: string, to: string): SQL {
  * viewer may match on them only when every partner is visible (ADR-015); otherwise a search for the
  * year of a private couple's wedding would find the visible one and name the date.
  */
-function allPartnersVisible(unionColumn: string, scope: Scope): SQL {
+function allPartnersVisible(unionColumn: SQL, scope: Scope): SQL {
 	return scope.isRestricted
-		? sql` and not exists (select 1 from union_partners other join individuals p on p.id = other.person_id where other.union_id = ${sql.raw(unionColumn)} and not ${isVisibleOf('p', scope)})`
+		? sql` and not exists (select 1 from union_partners other join individuals p on p.id = other.person_id where other.union_id = ${unionColumn} and not ${isVisibleOf('p', scope)})`
 		: sql``;
 }
 
@@ -152,7 +152,7 @@ export class SearchRepository {
 		const { words, limit, offset } = filters;
 		const factFilter = hasFactFilter(filters)
 			? sql` and (exists (select 1 from events e where e.entity_type = 'INDIVIDUAL' and e.entity_id = i.id and ${factCondition(filters.place, filters.from, filters.to)})
-				or exists (select 1 from union_partners up where up.person_id = i.id and exists (select 1 from events e where e.entity_type = 'FAMILY' and e.entity_id = up.union_id and ${factCondition(filters.place, filters.from, filters.to)})${allPartnersVisible('up.union_id', scope)}))`
+				or exists (select 1 from union_partners up where up.person_id = i.id and exists (select 1 from events e where e.entity_type = 'FAMILY' and e.entity_id = up.union_id and ${factCondition(filters.place, filters.from, filters.to)})${allPartnersVisible(sql`up.union_id`, scope)}))`
 			: sql``;
 		// One more than asked for, so the caller can say whether there is another page.
 		const page = sql`limit ${limit + 1} offset ${offset}`;
@@ -253,7 +253,7 @@ export class SearchRepository {
 			union all
 			select e.id, up.person_id, e.type, e.place, e.date_raw, 1
 			from union_partners up join events e on e.entity_type = 'FAMILY' and e.entity_id = up.union_id
-			where up.person_id in (${ids}) and ${condition}${allPartnersVisible('up.union_id', scope)}`);
+			where up.person_id in (${ids}) and ${condition}${allPartnersVisible(sql`up.union_id`, scope)}`);
 		return rows.map((r) => ({
 			factId: r.fact_id,
 			personId: r.person_id,

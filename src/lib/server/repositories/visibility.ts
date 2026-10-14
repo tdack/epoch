@@ -18,7 +18,30 @@ import {
 } from '../domain/living-state';
 import type { ViewerScope } from '../services/tree-access';
 
-const list = (types: readonly string[]) => sql.raw(types.map((t) => `'${t}'`).join(', '));
+/**
+ * A list of event types as SQL literals. They are inline rather than bound because every visibility
+ * fragment would then carry six more parameters, and the chunked id lists already sit near D1's
+ * 100-parameter cap. Each is checked to be a bare tag, so a value that is not one cannot reach the SQL.
+ */
+export function literalList(types: readonly string[]): SQL {
+	for (const t of types) {
+		if (!/^[A-Z]{3,5}$/.test(t)) throw new Error(`not an event type: ${JSON.stringify(t)}`);
+	}
+	return sql.raw(types.map((t) => `'${t}'`).join(', '));
+}
+
+/**
+ * An alias or column name spliced in as an identifier, checked so no caller can splice more than a
+ * name. `sql.raw` alone would accept anything; these are literals today, and the check keeps them so.
+ */
+export function ident(name: string): SQL {
+	if (!/^[a-z][a-z0-9_]*$/.test(name))
+		throw new Error(`not an identifier: ${JSON.stringify(name)}`);
+	return sql.raw(name);
+}
+
+const DEATH_TYPES_SQL = literalList(DEATH_EVENT_TYPES);
+const BIRTH_TYPES_SQL = literalList(BIRTH_EVENT_TYPES);
 
 type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
 
@@ -28,7 +51,7 @@ type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
  * lookups.
  */
 function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
-	const person = sql.raw(alias);
+	const person = ident(alias);
 	// The public tree shows every person not marked private; see `EVERYONE_SHOWN_CUTOFF`.
 	if (cutoff === EVERYONE_SHOWN_CUTOFF) return sql`(${person}.privacy != 'private')`;
 	// `is`, not `=`: a person with no author has a null `created_by`, and `null = x` is null, which
@@ -36,8 +59,8 @@ function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
 	// is null too, so a partnership with a private partner would pass the all-partners-visible test.
 	const isOwn = creatorId === null ? sql`` : sql`${person}.created_by is ${creatorId} or `;
 	return sql`(${person}.privacy = 'public' or (${person}.privacy = 'auto' and (${isOwn}
-		exists (select 1 from events de where de.entity_type = 'INDIVIDUAL' and de.entity_id = ${person}.id and de.type in (${list(DEATH_EVENT_TYPES)}))
-		or (select max(coalesce(be.date_sort_end, '9999-12-31')) from events be where be.entity_type = 'INDIVIDUAL' and be.entity_id = ${person}.id and be.type in (${list(BIRTH_EVENT_TYPES)})) < ${cutoff}
+		exists (select 1 from events de where de.entity_type = 'INDIVIDUAL' and de.entity_id = ${person}.id and de.type in (${DEATH_TYPES_SQL}))
+		or (select max(coalesce(be.date_sort_end, '9999-12-31')) from events be where be.entity_type = 'INDIVIDUAL' and be.entity_id = ${person}.id and be.type in (${BIRTH_TYPES_SQL})) < ${cutoff}
 	)))`;
 }
 
@@ -114,7 +137,7 @@ export async function firstVisiblePersonId(
  * exceeded SQLite's expression depth (100), and it is cheaper this way as well.
  */
 export function isCitationVisibleOf(alias: string, scope: Viewer, treeId: string): SQL {
-	const c = sql.raw(alias);
+	const c = ident(alias);
 	const people = sql`(select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)})`;
 	const unionOk = (column: SQL) =>
 		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
@@ -174,7 +197,7 @@ function visibleCitedSourceIds(treeId: string): SQL {
  */
 export function andSourceVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
-	const s = sql.raw(alias);
+	const s = ident(alias);
 	const isOwn = scope.creatorId === null ? sql`` : sql`${s}.created_by is ${scope.creatorId} or `;
 	return sql` and (${isOwn}${s}.id in (${visibleCitedSourceIds(treeId)}))`;
 }
@@ -182,7 +205,7 @@ export function andSourceVisible(alias: string, scope: Scope, treeId: string): S
 /** The same for a repository row: one of their visible sources is kept there, or they made it. */
 export function andRepositoryVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
-	const r = sql.raw(alias);
+	const r = ident(alias);
 	const isOwn = scope.creatorId === null ? sql`` : sql`${r}.created_by is ${scope.creatorId} or `;
 	const ownSources =
 		scope.creatorId === null
@@ -207,7 +230,7 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
 	if (!scope.isRestricted) return sql``;
 	const people = sql`(select id from vp)`;
 	const isOwn = (row: string) =>
-		scope.creatorId === null ? sql`` : sql`${sql.raw(row)}.created_by is ${scope.creatorId} or `;
+		scope.creatorId === null ? sql`` : sql`${ident(row)}.created_by is ${scope.creatorId} or `;
 	return sql`with vp(id) as (select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)}),
 		hu(id) as (select up.union_id from union_partners up where up.person_id not in ${people}),
 		vn(id) as (select n.id from person_names n where n.person_id in ${people}),
@@ -235,7 +258,7 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
  * as visible as that record is to this viewer. The statement must start with `withVisibleNoteScope`.
  */
 function isNoteAttachmentVisibleOf(alias: string, treeId: string): SQL {
-	const a = sql.raw(alias);
+	const a = ident(alias);
 	return sql`(case ${a}.subject_kind
 		when 'person' then ${a}.subject_id in (select id from vp)
 		when 'name' then ${a}.subject_id in (select id from vn)
@@ -260,7 +283,7 @@ export function andNoteAttachmentVisible(alias: string, scope: Scope, treeId: st
  * sees everyone. The statement must start with `withVisibleNoteScope`.
  */
 export function andNoteVisible(alias: string, scope: Scope): SQL {
-	return scope.isRestricted ? sql` and ${sql.raw(alias)}.id in (select id from vo)` : sql``;
+	return scope.isRestricted ? sql` and ${ident(alias)}.id in (select id from vo)` : sql``;
 }
 
 /**
@@ -276,7 +299,7 @@ export function andNoteVisible(alias: string, scope: Scope): SQL {
  */
 export function andTaskVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
-	const t = sql.raw(alias);
+	const t = ident(alias);
 	const hiddenPerson = (id: SQL) =>
 		sql`exists (select 1 from individuals hp where hp.id = ${id} and not ${isVisibleSql('hp', scope)})`;
 	const hiddenPartner = (unionId: SQL) =>
