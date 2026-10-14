@@ -38,6 +38,22 @@ export interface FactDto extends PrivacyFlag {
 	value: string | null;
 	cause: string | null;
 	age: string | null;
+	/** Imported details (ADDR, TYPE, AGNC, RELI, contacts, coordinates); null when none. */
+	address: string | null;
+	classification: string | null;
+	agency: string | null;
+	phone: string | null;
+	email: string | null;
+	fax: string | null;
+	web: string | null;
+	latitude: string | null;
+	longitude: string | null;
+	religion: string | null;
+	/**
+	 * Lines the editor cannot show yet (e.g. RESN, OBJE, custom tags), verbatim as stored. They may
+	 * contain pointers, so they are read-only and shown only with the rest of the fact.
+	 */
+	retainedLines: string[];
 	/** The note, or the imported description on a fact nobody has edited since. */
 	notes: string | null;
 	/** True when `notes` is a legacy imported description (its real role was never recorded). */

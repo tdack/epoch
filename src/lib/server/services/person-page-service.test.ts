@@ -208,6 +208,40 @@ describe('facts, names and history on the page', () => {
 		expect((await page()).facts.map((f) => f.type)).toEqual(['BIRT', 'DEAT', 'RESI', 'OCCU']);
 	});
 
+	it("carries an imported fact's details and the lines it cannot show yet", async () => {
+		const treeId = await importedTree(
+			[
+				'0 HEAD',
+				'0 @I1@ INDI',
+				'1 NAME A /B/',
+				'1 BAPM',
+				'2 DATE 1900',
+				'2 ADDR 12 High St',
+				'3 CONT York',
+				'2 AGNC Parish of St Mary',
+				'2 RELI Anglican',
+				'2 PHON 0113 000',
+				'2 RESN locked',
+				'0 TRLR'
+			].join('\n')
+		);
+		const personId = (await new TreeService(t.db).getTree(treeId, actor.context)).individuals[0]!
+			.id;
+		const fact = (await service().getPerson(treeId, personId, actor.context)).facts[0]!;
+		expect(fact).toMatchObject({
+			type: 'BAPM',
+			address: '12 High St\nYork',
+			agency: 'Parish of St Mary',
+			religion: 'Anglican',
+			phone: '0113 000',
+			email: null,
+			latitude: null,
+			retainedLines: ['2 RESN locked']
+		});
+		expect(fact).not.toHaveProperty('placeExtra');
+		expect(fact).not.toHaveProperty('addressLayout');
+	});
+
 	it('shows a legacy description as a note until the fact is edited', async () => {
 		const treeId = await importedTree(
 			'0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 OCCU Carpenter\n0 TRLR'
