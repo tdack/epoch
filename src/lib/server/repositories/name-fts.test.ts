@@ -13,6 +13,9 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
+import simpsons from '../../../../test/data/The Simpsons.ged?raw';
+import windsors from '../../../../test/data/The Windsors.ged?raw';
+import { importGedcomToDb } from '../testing/gedcom';
 import { SearchRepository, type SearchFilters } from './search-repository';
 
 let t: TestDatabase;
@@ -218,6 +221,34 @@ describe('the index follows every write path', () => {
 			.first<{ c: number }>())!.c;
 		expect(bigAfter).toBe(bigBefore);
 	}, 240_000);
+});
+
+describe('the index follows the importer', () => {
+	it('stays equal after a replace import and then a merge import into the same tree, and finds what was imported', async () => {
+		const actor = await createTestUser(t.db, 'import');
+		const treeId = await createTestTree(t.db, actor);
+
+		await importGedcomToDb(t.d1, treeId, simpsons, 'Simpsons', 'replace');
+		await expectIndexMatchesBaseTables();
+		const homer = (await t.d1
+			.prepare("select count(*) c from name_fts where tree_id = ? and name like '%Homer%'")
+			.bind(treeId)
+			.first<{ c: number }>())!.c;
+		expect(homer).toBeGreaterThan(0);
+
+		const rowsBeforeMerge = (await t.d1
+			.prepare('select count(*) c from name_fts')
+			.first<{ c: number }>())!.c;
+		await importGedcomToDb(t.d1, treeId, windsors, undefined, 'merge');
+		await expectIndexMatchesBaseTables();
+		const rowsAfterMerge = (await t.d1
+			.prepare('select count(*) c from name_fts')
+			.first<{ c: number }>())!.c;
+		expect(rowsAfterMerge).toBeGreaterThan(rowsBeforeMerge);
+
+		await importGedcomToDb(t.d1, treeId, simpsons, 'Simpsons again', 'replace');
+		await expectIndexMatchesBaseTables();
+	}, 120_000);
 });
 
 describe('the two-tree witness, on the index', () => {
