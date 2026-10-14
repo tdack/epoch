@@ -139,6 +139,14 @@
 				<strong>{preview.incoming.events}</strong> events.
 			</p>
 
+			{#if preview.retainedTags.length > 0}
+				<p>
+					Kept as-is and not editable yet: {preview.retainedTags
+						.map((r) => `${r.tag} × ${r.count}`)
+						.join(', ')}.
+				</p>
+			{/if}
+
 			{#if !hasSelectedTree}
 				<div class="space-y-1 rounded-lg border border-stone-300 bg-stone-100 p-3">
 					<p class="font-semibold text-stone-900">New tree</p>

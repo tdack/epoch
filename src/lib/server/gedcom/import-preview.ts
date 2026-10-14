@@ -28,6 +28,42 @@ export interface ImportPreview {
 	incoming: { individuals: number; families: number; events: number };
 	/** Families the file repeats: exact ones can be merged on import, possible ones are for review. */
 	duplicates: DuplicateFamilyReport;
+	/**
+	 * Structures under events that are kept as written and cannot be edited yet, counted by their
+	 * top-level tag. Counts only: the content is never shown here.
+	 */
+	retainedTags: RetainedTagCount[];
+}
+
+interface RetainedTagCount {
+	tag: string;
+	count: number;
+}
+
+/** A report lists at most this many tags, so a file full of custom tags stays readable. */
+const MAX_RETAINED_TAGS = 20;
+
+/**
+ * The top-level tags of the lines an event keeps verbatim, most frequent first. A kept line's level
+ * is one below its event's children only when it is a direct child, which is the only kind the
+ * event keeps at level 2; deeper lines belong to it and are not counted again.
+ */
+function retainedTagsOf(parsed: ParsedGedcomData): RetainedTagCount[] {
+	const counts = new Map<string, number>();
+	const events = [
+		...parsed.individuals.flatMap((i) => i.events),
+		...parsed.families.flatMap((f) => f.events)
+	];
+	for (const ev of events) {
+		for (const line of ev.extra ?? []) {
+			const tag = /^\s*2\s+(\S+)/.exec(line)?.[1];
+			if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		}
+	}
+	return [...counts]
+		.map(([tag, count]) => ({ tag, count }))
+		.sort((a, b) => b.count - a.count || (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0))
+		.slice(0, MAX_RETAINED_TAGS);
 }
 
 export interface ImportOptions {
@@ -166,7 +202,8 @@ export function previewNewTree(fresh: ParsedGedcomData): ImportPreview {
 	return {
 		mode: 'replace',
 		incoming: countIncoming(fresh),
-		duplicates: detectDuplicateFamilies(fresh)
+		duplicates: detectDuplicateFamilies(fresh),
+		retainedTags: retainedTagsOf(fresh)
 	};
 }
 
@@ -183,6 +220,7 @@ export function previewAgainstTree(
 ): ImportPreview {
 	const incoming = countIncoming(fresh);
 	const duplicates = detectDuplicateFamilies(fresh);
+	const retainedTags = retainedTagsOf(fresh);
 
 	const deleteCounts = {
 		individuals: rows.individuals.length,
@@ -256,5 +294,5 @@ export function previewAgainstTree(
 		}
 	}
 
-	return { mode: 'merge', deleteCounts, merge, incoming, duplicates };
+	return { mode: 'merge', deleteCounts, merge, incoming, duplicates, retainedTags };
 }

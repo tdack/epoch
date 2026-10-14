@@ -42,6 +42,8 @@ export interface ImportPreviewData {
 	};
 	/** Families the file repeats: exact ones can be merged on import, possible ones are for review. */
 	duplicates: DuplicateFamilyReport;
+	/** Structures under events kept as written and not editable yet, by top-level tag, with counts only. */
+	retainedTags: Array<{ tag: string; count: number }>;
 }
 
 export type { PossibleDuplicateGroup } from '#lib/shared/duplicate-families.js';
