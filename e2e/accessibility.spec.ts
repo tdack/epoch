@@ -145,6 +145,19 @@ test.describe('screen reader', () => {
 		expect(await violations(page)).toEqual([]);
 	});
 
+	test('the fact dialog with its Details section open has no detectable violations', async ({
+		page,
+		api
+	}) => {
+		const wren = await api.addPerson('Wren', 'Ash');
+		await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
+		await page.getByRole('button', { name: 'Add fact' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Add a fact' });
+		await dialog.locator('summary', { hasText: 'Details' }).click();
+		await expect(dialog.getByLabel('Address')).toBeVisible();
+		expect(await violations(page)).toEqual([]);
+	});
+
 	test('the relationship dialog is announced, groups its choices and describes the result in a live region', async ({
 		page,
 		api

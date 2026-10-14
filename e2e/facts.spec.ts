@@ -12,7 +12,7 @@ test('a person keeps two conflicting births, edits one, and undo restores it', a
 	// Add a second birth that disagrees. The dialog previews exactly what it will write.
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
-	await dialog.getByLabel('Type').selectOption('BIRT');
+	await dialog.getByLabel('Type', { exact: true }).selectOption('BIRT');
 	await dialog.getByRole('textbox', { name: 'Date' }).fill('5 MAR 1900');
 	await dialog.getByLabel('Place').fill('Hull');
 	await expect(dialog.getByText('Added Birth of Wren Ash')).toBeVisible();
@@ -47,7 +47,7 @@ test('removing a fact lists what goes, and undo brings it back', async ({ page, 
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
-	await dialog.getByLabel('Type').selectOption('OCCU');
+	await dialog.getByLabel('Type', { exact: true }).selectOption('OCCU');
 	await dialog.getByLabel('Value', { exact: true }).fill('Carpenter');
 	await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
 	await expect(page.getByTestId('fact')).toContainText('Occupation: Carpenter');
@@ -74,7 +74,7 @@ test('an invalid date blocks the save with a reason, and same-date facts can be 
 	] as const) {
 		await page.getByRole('button', { name: 'Add fact' }).click();
 		const dialog = page.getByRole('dialog', { name: 'Add a fact' });
-		await dialog.getByLabel('Type').selectOption(type);
+		await dialog.getByLabel('Type', { exact: true }).selectOption(type);
 		await dialog.getByLabel('Value', { exact: true }).fill(value);
 		await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
 		await expect(dialog).toBeHidden();
@@ -131,4 +131,38 @@ test('the date picker stays open when the window resizes, as a phone keyboard do
 	const box = (await picker.boundingBox())!;
 	expect(box.x).toBeGreaterThanOrEqual(0);
 	expect(box.x + box.width).toBeLessThanOrEqual(375);
+});
+
+test('a fact keeps its address and agency, and an edit to the address is undone', async ({
+	page,
+	api
+}) => {
+	const wren = await api.addPerson('Wren', 'Ash');
+	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
+	await page.getByRole('button', { name: 'Add fact' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Add a fact' });
+	await dialog.getByLabel('Type', { exact: true }).selectOption('BIRT');
+	await dialog.getByLabel('Place').fill('Hull');
+	await dialog.locator('summary', { hasText: 'Details' }).click();
+	await dialog.getByLabel('Address').fill('12 High St\nHull');
+	await dialog.getByLabel('Agency').fill('Parish of St Mary');
+	await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
+	await expect(dialog).toBeHidden();
+
+	const fact = page.getByTestId('fact');
+	await expect(fact.getByTestId('fact-address')).toContainText('12 High St');
+	await expect(fact.getByTestId('fact-agency')).toContainText('Parish of St Mary');
+
+	// A fact with details opens its Details section by itself, so the address is editable at once.
+	await fact.getByRole('button', { name: 'Edit Birth' }).click();
+	const edit = page.getByRole('dialog', { name: 'Edit fact' });
+	await expect(edit.getByLabel('Address')).toHaveValue('12 High St\nHull');
+	await edit.getByLabel('Address').fill('14 High St\nHull');
+	await edit.getByRole('button', { name: 'Save fact' }).click();
+	await expect(edit).toBeHidden();
+	await expect(fact.getByTestId('fact-address')).toContainText('14 High St');
+
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(fact.getByTestId('fact-address')).toContainText('12 High St');
+	await expect(fact.getByTestId('fact-address')).not.toContainText('14 High St');
 });
