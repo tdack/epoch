@@ -111,7 +111,8 @@ export interface PreviewRows {
 /**
  * The identity of an event for merge-mode de-duplication, shared by the preview and the import so
  * their counts agree. The value, cause, age and note are part of it: two undated occupations with
- * different values are two facts, not one repeated.
+ * different values are two facts, not one repeated. The address layout is not: it records only how the
+ * file split the same address across lines, so the same address written with CONC or CONT is one fact.
  */
 export function eventContentKey(e: EventKeyInput): string {
 	// The kept lines are part of it: the same fact with a different citation is a different record.
