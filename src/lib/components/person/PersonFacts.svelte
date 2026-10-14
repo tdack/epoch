@@ -34,6 +34,33 @@
 
 	let factDialog = $state<{ fact: FactDto | null } | null>(null);
 
+	/** Event types whose sub-type reads as part of the heading, e.g. "Other event (Anniversary)". */
+	const QUALIFIED_TYPES: ReadonlySet<string> = new Set(['EVEN', 'FACT']);
+	const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
+	const WEB_URL_SHAPE = /^https?:\/\/\S+$/i;
+
+	interface ContactRow {
+		label: string;
+		value: string;
+		/** Set only for values the browser may follow; anything else renders as plain text. */
+		href: string | null;
+	}
+
+	/** One row per stored contact value. A `javascript:` or other non-web value is never a link. */
+	function contactRows(fact: FactDto): ContactRow[] {
+		const rows: ContactRow[] = [];
+		const add = (label: string, text: string | null, hrefFor: (value: string) => string | null) => {
+			for (const value of (text ?? '').split('\n').map((line) => line.trim())) {
+				if (value) rows.push({ label, value, href: hrefFor(value) });
+			}
+		};
+		add('Phone', fact.phone, () => null);
+		add('Email', fact.email, (value) => (EMAIL_SHAPE.test(value) ? `mailto:${value}` : null));
+		add('Fax', fact.fax, () => null);
+		add('Website', fact.web, (value) => (WEB_URL_SHAPE.test(value) ? value : null));
+		return rows;
+	}
+
 	async function factSaved(change: Parameters<typeof editor.afterChange>[0]) {
 		factDialog = null;
 		await editor.afterChange(change, 'Fact saved');
@@ -92,8 +119,10 @@
 			>
 				<div class="flex flex-wrap items-baseline justify-between gap-2">
 					<span class="text-sm font-semibold text-emerald-900"
-						>{fact.label}{#if fact.value}: <span class="text-stone-900">{fact.value}</span
-							>{/if}</span
+						>{fact.label}{#if fact.classification && QUALIFIED_TYPES.has(fact.type)}{' '}<span
+								class="font-normal text-emerald-800">({fact.classification})</span
+							>{/if}{#if fact.value}:
+							<span class="text-stone-900">{fact.value}</span>{/if}</span
 					>
 					<span class="text-xs text-stone-600"
 						>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}
@@ -113,10 +142,56 @@
 							.join(' · ')}
 					</p>
 				{/if}
+				{#if fact.address}<p
+						class="mt-1 text-xs whitespace-pre-line text-stone-700"
+						data-testid="fact-address"
+					>
+						{fact.address}
+					</p>{/if}
+				{#if fact.agency}<p class="mt-1 text-xs text-stone-600" data-testid="fact-agency">
+						Agency: {fact.agency}
+					</p>{/if}
+				{#if fact.religion}<p class="mt-1 text-xs text-stone-600" data-testid="fact-religion">
+						Religion: {fact.religion}
+					</p>{/if}
+				{#if contactRows(fact).length > 0}
+					<ul class="mt-1 space-y-0.5 text-xs text-stone-600" data-testid="fact-contact">
+						{#each contactRows(fact) as row, index (index)}
+							<li>
+								{row.label}:
+								{#if row.href}<a
+										href={row.href}
+										rel="noopener noreferrer"
+										class="text-emerald-800 underline hover:text-emerald-900">{row.value}</a
+									>{:else}{row.value}{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if fact.latitude || fact.longitude}<p
+						class="mt-1 text-xs text-stone-600"
+						data-testid="fact-coordinates"
+					>
+						Coordinates: {[fact.latitude, fact.longitude].filter(Boolean).join(', ')}
+					</p>{/if}
 				{#if fact.isLegacyNote && fact.notes}<p class="mt-1 text-xs text-stone-700">
 						{fact.notes}
 						<span class="text-stone-400">(imported note)</span>
 					</p>{/if}
+				{#if fact.retainedLines.length > 0}
+					<details class="mt-2 text-xs" data-testid="fact-retained">
+						<summary class="cursor-pointer font-semibold text-stone-700"
+							>Imported, not editable here ({fact.retainedLines.length})</summary
+						>
+						<p class="mt-1 text-stone-600">
+							Kept so your file exports unchanged. The app cannot show or edit these yet.
+						</p>
+						<pre
+							class="mt-1 overflow-x-auto rounded bg-stone-50 p-2 font-mono text-[11px] text-stone-800">{fact.retainedLines.join(
+								'\n'
+							)}</pre>
+					</details>
+				{/if}
 				{#if fact.conflict}
 					<p class="mt-1 text-xs font-semibold text-amber-800" role="note">
 						{fact.conflict.kind === 'repeat'

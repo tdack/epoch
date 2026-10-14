@@ -137,6 +137,7 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 						notes: null,
 						citationCount: 0,
 						noteItems: [],
+						retainedLines: [],
 						conflict: { kind: 'conflict', otherIds: ['b2'] }
 					} as never
 				]
