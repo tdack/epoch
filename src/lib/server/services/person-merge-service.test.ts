@@ -6,7 +6,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { personMarks } from '../db/schema';
+import { mediaItems, personMarks } from '../db/schema';
 import {
 	ConcurrencyConflictError,
 	NotFoundError,
@@ -31,6 +31,8 @@ import { FactService } from './fact-service';
 import { MarkService } from './mark-service';
 import { PersonMergeService } from './person-merge-service';
 import { MAX_PERSON_MERGE_OPS } from '../../shared/person-merge';
+import { FakeMediaBucket } from '../testing/fake-bucket';
+import { MediaService } from './media-service';
 
 /** Ann is entered twice (I1 and I2); Ann's record I2 also carries a married name, a custom tag and a birth that differs. */
 const FIXTURE = `0 HEAD
@@ -319,4 +321,47 @@ describe('the size limit', () => {
 			/at most/
 		);
 	}, 240_000);
+});
+
+describe('files on a merged person', () => {
+	it('moves a file to the survivor in the same D1 change, leaves R2 untouched, and a restricted viewer can then read it', async () => {
+		const owner = await createTestUser(t.db, 'files-owner');
+		const tree = await createTestTree(t.db, owner);
+		const reader = await createTestUser(t.db, 'files-reader');
+		await addTestMember(t.db, tree, reader, 'viewer');
+		// Ann (A) is deceased and visible to a viewer; Ann (B) is living, so a viewer cannot see her file.
+		await importGedcomToDb(
+			t.d1,
+			tree,
+			'0 HEAD\n0 @A@ INDI\n1 NAME Ann /Ash/\n1 DEAT\n2 DATE 1950\n0 @B@ INDI\n1 NAME Ann /Ash/\n1 BIRT\n2 DATE 1990\n0 TRLR',
+			'Files'
+		);
+		const [a, b] = [`${tree}:@A@`, `${tree}:@B@`];
+		const key = `media/${tree}/file-on-b.png`;
+		const bucket = new FakeMediaBucket();
+		await bucket.put(key, new Uint8Array([1, 2, 3]));
+		await t.db.insert(mediaItems).values({
+			id: 'file-on-b',
+			treeId: tree,
+			entityId: b,
+			r2ObjectKey: key,
+			title: 'Ann.png',
+			mimeType: 'image/png',
+			sizeBytes: 3,
+			uploadedBy: owner.userId,
+			version: 1,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		const media = new MediaService(t.db);
+		await expect(media.requireRead(key, reader.context)).rejects.toBeInstanceOf(NotFoundError);
+
+		const objectsBefore = [...bucket.objects.keys()].sort();
+		await new PersonMergeService(t.db).merge(tree, { survivorId: a, mergedId: b }, owner.context);
+
+		const [moved] = await t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-on-b'));
+		expect(moved).toMatchObject({ entityId: a, version: 2, r2ObjectKey: key });
+		expect([...bucket.objects.keys()].sort()).toEqual(objectsBefore);
+		await expect(media.requireRead(key, reader.context)).resolves.toBeUndefined();
+	});
 });
