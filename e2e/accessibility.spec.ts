@@ -204,6 +204,18 @@ test.describe('screen reader', () => {
 		await expect(page.getByRole('button', { name: /Parent link to Kit/ })).toBeAttached();
 	});
 
+	test('the Files manager has no detectable violations, with its table and storage figures', async ({
+		page,
+		api
+	}) => {
+		await api.addPerson('John', 'Smith', { birthDate: '1850' });
+		await open(page, `/trees/${api.treeId}/files`);
+		await expect(
+			page.getByRole('table', { name: 'Files in the trees you belong to' })
+		).toBeVisible();
+		expect(await violations(page)).toEqual([]);
+	});
+
 	test('the person drawer is reachable by keyboard and has no violations', async ({
 		page,
 		api
