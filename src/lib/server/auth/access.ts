@@ -56,8 +56,6 @@ interface JwksCache {
 	domain: string;
 	keys: JWK[];
 	expiresAt: number;
-	/** When these keys were last fetched; the basis for the staleness bound below. */
-	fetchedAt: number;
 }
 
 /** Access rotates signing keys; a copy older than this is refetched on the next request. */
@@ -70,11 +68,6 @@ const JWKS_REQUEST_TIMEOUT_MS = 3_000;
  * verification into a request to the certs endpoint.
  */
 const JWKS_MIN_FORCE_INTERVAL_MS = 60_000;
-/**
- * A forced refetch that fails keeps serving the previously cached keys, but never past this age:
- * a key that Access has revoked must stop being trusted within a bounded window.
- */
-const JWKS_MAX_STALE_MS = 24 * 60 * 60 * 1000;
 
 let jwksCache: JwksCache | null = null;
 /** When the cached keys were last force-refetched for an unknown `kid`. */
@@ -137,8 +130,7 @@ async function requestJwks(certsUrl: string): Promise<JWK[]> {
 		jwksCache = {
 			domain: certsUrl,
 			keys: data.keys,
-			expiresAt: now + JWKS_CACHE_TTL_MS,
-			fetchedAt: now
+			expiresAt: now + JWKS_CACHE_TTL_MS
 		};
 
 		return data.keys;
@@ -160,8 +152,10 @@ async function fetchJwks(certsUrl: string): Promise<JWK[]> {
 
 /**
  * Refetch once for an unknown `kid`, in case Access rotated keys. Capped at one attempt per
- * `JWKS_MIN_FORCE_INTERVAL_MS`; on failure the previous keys stay in use until `JWKS_MAX_STALE_MS`
- * have elapsed, at which point the fetch error is surfaced rather than trusting a revoked key.
+ * `JWKS_MIN_FORCE_INTERVAL_MS`. A failed refetch returns the cached keys, which the caller has just
+ * searched, so it ends in "no matching key" instead of a fetch error. Past `JWKS_CACHE_TTL_MS` the
+ * cache is never served: the regular fetch fails closed, so a revoked key is not trusted for longer
+ * than the TTL.
  */
 async function fetchJwksForUnknownKid(certsUrl: string): Promise<JWK[]> {
 	const now = Date.now();
@@ -175,9 +169,7 @@ async function fetchJwksForUnknownKid(certsUrl: string): Promise<JWK[]> {
 	try {
 		return await requestJwks(certsUrl);
 	} catch (err) {
-		if (cached && now - cached.fetchedAt <= JWKS_MAX_STALE_MS) {
-			return cached.keys;
-		}
+		if (cached) return cached.keys;
 		throw err;
 	}
 }

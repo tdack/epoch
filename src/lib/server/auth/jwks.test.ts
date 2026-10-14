@@ -1,7 +1,6 @@
 /**
  * The Access certs cache. A rotated signing key must be picked up from an unknown `kid`, but a
- * flood of tokens naming a bogus kid must not hammer the certs endpoint, and an old key must stop
- * being trusted once the staleness bound is passed. Each case runs on a fresh module instance so
+ * flood of tokens naming a bogus kid must not hammer the certs endpoint. Each case runs on a fresh module instance so
  * the module-level cache does not leak between tests.
  */
 
