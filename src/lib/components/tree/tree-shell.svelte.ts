@@ -315,10 +315,16 @@ export class TreeShell {
 	selectFile = (e: Event) => {
 		const input = e.target as HTMLInputElement;
 		if (!input.files || input.files.length === 0) return;
-		this.pendingImportFile = input.files[0];
+		const file = input.files[0];
+		input.value = '';
+		this.importFile(file);
+	};
+
+	/** Previews a GEDCOM file and asks before importing it, however it was chosen. */
+	importFile = (file: File) => {
+		this.pendingImportFile = file;
 		this.importPreview = null;
 		this.importConfirmError = null;
-		input.value = '';
 		void this.openImportConfirm();
 	};
 

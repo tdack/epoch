@@ -89,6 +89,7 @@
 		marks,
 		finder: finderBridge,
 		openNewTree: shell.openNewTree,
+		importGedcom: shell.importFile,
 		get isPublicVisitor() {
 			return viewer.isPublicVisitor;
 		}
