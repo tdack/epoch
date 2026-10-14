@@ -77,6 +77,36 @@ export const events = sqliteTable(
 		// inside the same fact. A column rather than gedcom_preserved so they follow the row through
 		// edits, a merge and undo, as a name's do (ADR-013). Null when there are none.
 		gedcomExtra: text('gedcom_extra', { mode: 'json' }).$type<string[]>(),
+		// The fact details the editor shows (migration 0031). Each is null on every earlier row, and an
+		// import writes null where the file had nothing, so a fact without one reads the same as before.
+		// `address` is the ADDR's logical text (its value joined with CONT lines, CONC joined directly),
+		// stored untrimmed: trimming would lose a trailing space the file wrote, and the export must give
+		// it back. `addressLayout` is the file's own ADDR lines (ADDR, CONT, CONC, ADR1..CTRY) as
+		// JSON, so the export writes the same structure. It is only used while it still produces
+		// `address`; an edit that changes the text makes it stale and it is dropped on the next write.
+		address: text('address'),
+		addressLayout: text('address_layout', { mode: 'json' }).$type<string[]>(),
+		// The fact's TYPE line (`2 TYPE Military`), the sub-type of an EVEN or FACT.
+		classification: text('classification'),
+		// AGNC: the agency or institution that handled the fact.
+		agency: text('agency'),
+		// PHON, EMAIL, FAX and WWW can each repeat (the spec allows three). Every value is joined with
+		// `\n` in file order: a value is single-line, so the newline is never part of one.
+		phone: text('phone'),
+		email: text('email'),
+		fax: text('fax'),
+		web: text('web'),
+		// MAP > LATI and LONG, kept exactly as the file wrote them (`N18.150944`), not converted to a
+		// number: a conversion would change the text on export, and the hemisphere letter is part of
+		// the value.
+		latitude: text('latitude'),
+		longitude: text('longitude'),
+		// The PLAC's own sub-lines other than MAP (FORM, FONE, ROMN, NOTE, SOUR, and anything custom),
+		// verbatim from level 3 and in file order. They sit with the place text, so they stay in place
+		// on export and do not leave the fact with nowhere to go. JSON, as gedcom_extra is.
+		placeExtra: text('place_extra', { mode: 'json' }).$type<string[]>(),
+		// RELI: the religion of a fact (a christening or burial record).
+		religion: text('religion'),
 		// Manual order among facts that sort together (same date, or both undated). Never a substitute
 		// for the date: the timeline is date first.
 		sortOrder: integer('sort_order').notNull().default(0),
