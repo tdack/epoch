@@ -5,19 +5,12 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md), a
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
 it changes a decision.
 
-Last reviewed: 2026-10-11.
+Last reviewed: 2026-10-14.
 
 ## Part 1: Open fixes
 
 ### Security and privacy
 
-- **A merged person leaves a stale media key.** Person merge moves `media_items` rows but not the R2
-  object key, which embeds the old entity id. A restricted viewer who can see the surviving person
-  gets a false 404 on the moved media, because the read check parses the old id from the key.
-  (ADR-039, ADR-022)
-- **Tree deletion orphans R2 objects.** `media_items.tree_id` cascades in D1, but the objects are
-  never deleted, so storage leaks and the objects are unreachable. Needs a delete-time sweep or a
-  lifecycle rule. (ADR-039)
 - **A legitimate file sent with 64 KB or more of other form fields is refused** with a 413, because
   the streaming bound adds only 64 KB of multipart slack above the 25 MB file cap. (ADR-039)
 - **HEIC and `mif1`-brand AVIF uploads are rejected.** The sniffer accepts ISO-BMFF only for the
@@ -28,8 +21,10 @@ Last reviewed: 2026-10-11.
 - **Restricted-viewer read cost.** A restricted viewer's surname list reads about 12 rows per person,
   and the partnership list's first page reads 650 rows. The stored-column alternative in ADR-015 is
   the next step if a tree outgrows it.
-- **Media privacy only follows the person.** It does not yet follow the other records a media item
-  is attached to.
+- **Media privacy follows only the person or partnership a file hangs off.** A restricted viewer sees
+  a file only when every person it hangs off is visible, and a detached file is hidden from them. A
+  file can attach only to a person or a partnership, so no other record (an event, a source) has a
+  privacy rule of its own for its files. (ADR-049, ADR-039)
 
 ### Abuse controls
 
@@ -44,16 +39,38 @@ Last reviewed: 2026-10-11.
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
   is never capped. Accepted for now; the Cloudflare rate-limit rules above are the other half. (F9)
-- **Media cannot be deleted, so the quota never shrinks.** The app has no way to remove an image or
-  document attached to a person: no delete control, endpoint or R2 removal, and deleting a tree
-  leaves its objects behind. Add a delete control (a bin icon) on each image and document, backed
-  by a service call that removes the `media_items` row and the R2 object, and have tree deletion
-  remove its `media/<treeId>/` objects. Until then a tree that reaches its limit needs an operator
-  to clear objects by hand. (F9)
-- **No file management view.** Add a file browser: for an owner, every file in the install with the
-  tree it belongs to; for a manager or editor, the files of the trees they can access. It would
-  show size and uploader, support deleting, and show how much of each tree's media quota is used.
-  Needs a decision on the role that may delete another member's file. (F9)
+### Media and files
+
+- **Editors cannot delete legacy files.** Files stored before migration 0029 have no recorded
+  uploader, so only a manager or owner may delete them. Their sizes show as unknown until the size
+  backfill has run. The backfill (`npm run db:backfill:media-sizes`) has only been run against a
+  local database. On a deployed database it downloads each unsized object, because Wrangler cannot
+  list or head R2 objects, so it is slow for a large library. Run it with `--remote`, then decide
+  whether editors may delete legacy files. (ADR-049)
+- **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
+  the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
+  The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
+  cleanup for `media/` keys whose tree has no row. (ADR-049)
+- **An undo can point at a removed object.** An undo of a `delete_person` made before migration 0029
+  restores a file row. The unlinked cleanup may already have deleted its bytes, so the file then
+  answers 404. (ADR-049)
+- **Deleting a file is not undoable, and it blocks earlier undos.** A file delete is not in the
+  change log. Once it is gone, an earlier change that touches the row refuses its undo. The confirm
+  dialog says so. Decide whether deletes should be logged. (ADR-049)
+- **Rename, attach, detach and move from the Files page do not send `version`.** `FileRowDto` has no
+  `version`, so the page sends `undefined` and optimistic concurrency is not used there. Add
+  `version` to the DTO and send it back. (ADR-049)
+- **Uploads on the Files page go to the tree the page belongs to.** A file for another tree has to be
+  uploaded from that tree's Files page. (ADR-049)
+- **The install owner sees metadata of trees they are not in** (ADR-041): file names, sizes, counts
+  and totals. They cannot preview or change anything there. The Files link is hidden from
+  non-members, so decide whether that metadata should be reachable from the navigation at all.
+  (ADR-049)
+- **The change-log label for a detached file has no title.** The impact text reads "updated media
+  Unattached file". The detach summary names the file, but the row label does not. (ADR-049)
+- **Union-owned files follow the partnership.** A merged partnership's files move to the survivor.
+  Deleting a partnership, or its last partner, detaches its files rather than deleting them. Confirm
+  this is the intended rule. (ADR-049)
 
 ### GEDCOM
 
@@ -81,6 +98,10 @@ Last reviewed: 2026-10-11.
   counters or a normalised name column before large trees. (ADR-014, [query-plans.md](./query-plans.md))
 - **Case folding is ASCII-only.** SQLite `LIKE`, `lower()` and `collate nocase` fold only ASCII, so
   "müller" does not match "Müller". Needs a normalised column, together with the phonetic work.
+- **The restricted-viewer Files list scans up to 500 rows per request.** `FILE_SCAN_CAP` bounds the
+  cost, but the sort is not covered by an index, so each page reads the table in order. A page can
+  be short or empty while `nextCursor` is still set. Index the sort, or store visibility as a
+  column, once a tree outgrows it. (ADR-049)
 - **Unsurnamed people sort first** in the people list, because an expression in `ORDER BY` would lose
   the index.
 - **Recents are recorded only on the person page and on a focus-box pick,** not when the tree
@@ -105,6 +126,9 @@ Last reviewed: 2026-10-11.
 - **Flaky e2e specs.** `union-choice.spec.ts` has failed about 1 run in 4 to 8, and
   `undo-and-conflict.spec.ts` ("a concurrent edit opens the conflict dialog") failed once in a full
   run. Find the race and fix it, or quarantine with a tracked reason.
+- **Flaky unit tests under load.** `union-merge.test.ts` and the "size limit" case in
+  `person-merge-service.test.ts` have failed intermittently when the suite runs under load. Find the
+  cause, or quarantine with a tracked reason.
 
 ### Code structure
 
@@ -199,10 +223,12 @@ Last reviewed: 2026-10-11.
 - **Galleries, record thumbnails, ordering, captions and download permissions.**
 - **Scanned documents** (certificates) with transcription and citation workflows.
 - **Retention and orphan cleanup for uploads and imports.** Exports are covered by the 24-hour
-  expiry and the `exports/` lifecycle rule. (ADR-040)
+  expiry and the `exports/` lifecycle rule (ADR-040). A manager can list and delete media objects
+  that no file row points at (ADR-049). Staged imports have no cleanup beyond the four-day cap.
 - **Checksums and a backup policy for R2.**
-- **Migrate existing media** by inventorying ownership, checksum, MIME and dangling links before any
-  key change.
+- **Move legacy media keys, if they are ever to change.** Legacy keys (`media/<treeId>/<entityId>/<file>`)
+  are still read and are not moved; new uploads use `media/<treeId>/<mediaId>.<ext>` (ADR-049). Any
+  move needs an inventory of ownership, checksum, MIME type and dangling links first.
 
 ### Places and maps
 
