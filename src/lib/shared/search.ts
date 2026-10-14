@@ -74,6 +74,16 @@ export function dateBound(text: string, edge: 'start' | 'end'): string | null {
 	return null;
 }
 
+/**
+ * The form a query word is matched in: canonical decomposition with the combining marks dropped and
+ * lower-cased, so "müller" and "Muller" are one word. The name index folds the same way (its
+ * tokenizer removes diacritics), which SQL cannot do for stored names (ADR-049). Folding is not
+ * transliteration: "mueller" stays a different word.
+ */
+export function foldQuery(text: string): string {
+	return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
 export function searchWords(text: string): string[] {
 	return text
 		.toLowerCase()
