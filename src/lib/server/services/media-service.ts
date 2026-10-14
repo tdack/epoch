@@ -184,6 +184,7 @@ function fileDto(
 	uploadedBy: string | null,
 	userId: string
 ): FileRowDto {
+	const rights = rightsOf(row, tree.role, userId);
 	return {
 		id: row.id,
 		title: row.title,
@@ -194,7 +195,9 @@ function fileDto(
 		attachedTo,
 		uploadedBy,
 		createdAt: row.createdAt ? row.createdAt.getTime() : null,
-		...rightsOf(row, tree.role, userId)
+		// The object key is what the serve route reads by, so it goes only to a caller who may preview.
+		previewKey: rights.canPreview ? row.r2ObjectKey : null,
+		...rights
 	};
 }
 

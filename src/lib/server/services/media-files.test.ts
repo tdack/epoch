@@ -245,6 +245,15 @@ describe('who sees which files', () => {
 		expect(files[0]).toMatchObject({ canPreview: true, canRename: false, canDelete: false });
 	});
 
+	it('gives the object key only to a caller who may preview the file', async () => {
+		const [shown] = await listAll(ctxOf(viewer), { treeId });
+		expect(shown!.previewKey).toBe(`media/${treeId}/${shown!.id}.png`);
+		expect(await listAll(ctxOf(stranger), { treeId })).toEqual([]);
+		for (const file of await listAll(ctxOf(stranger))) {
+			expect(file.previewKey !== null).toBe(file.canPreview);
+		}
+	});
+
 	it('shows a viewer the same restricted set, with no action on any file', async () => {
 		const files = await listAll(ctxOf(viewer), { treeId });
 		expect(titlesOf(files)).toEqual(['Public.png']);

@@ -19,6 +19,11 @@ export interface FileRowDto {
 	uploadedBy: string | null;
 	/** Epoch milliseconds, or null for a row with no recorded time. */
 	createdAt: number | null;
+	/**
+	 * The stored object's key, for `/api/media/<key>` (a thumbnail or preview). Null unless the caller
+	 * may preview the file: the key is not a secret, but the serve route is the only thing that checks it.
+	 */
+	previewKey: string | null;
 	canPreview: boolean;
 	canRename: boolean;
 	canAttach: boolean;
