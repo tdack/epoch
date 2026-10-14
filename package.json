@@ -17,6 +17,7 @@
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"db:backfill:dates": "node scripts/backfill-event-dates.mjs",
 		"db:backfill:evidence": "node scripts/backfill-evidence.mjs",
+		"db:backfill:fact-details": "node scripts/backfill-fact-details.mjs",
 		"db:backfill:notes": "node scripts/backfill-notes.mjs",
 		"db:backfill:media-sizes": "node scripts/backfill-media-sizes.mjs",
 		"seed": "node scripts/seed.mjs",
