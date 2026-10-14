@@ -45,6 +45,7 @@ import type { RelationshipCommand } from './relationship-commands';
 import {
 	factKey,
 	findMergeConflicts,
+	mergeFactOf,
 	partnerSetKey,
 	unresolvedConflicts,
 	type MergeConflict,
@@ -852,12 +853,7 @@ function mergeableUnion(rows: TreeRows, union: UnionRow): MergeableUnion {
 	return {
 		id: union.id,
 		status: union.status,
-		facts: eventsOf(rows, 'FAMILY', union.id).map((e): MergeFact => ({
-			type: e.type,
-			dateText: e.dateRaw,
-			place: e.place,
-			description: e.description
-		}))
+		facts: eventsOf(rows, 'FAMILY', union.id).map((e): MergeFact => mergeFactOf(e))
 	};
 }
 
@@ -922,12 +918,7 @@ function mergeUnions(
 				? chosenFor(event.type)
 				: undefined;
 			const isLoser = chosen !== undefined && chosen !== union.id;
-			const key = factKey({
-				type: event.type,
-				dateText: event.dateRaw,
-				place: event.place,
-				description: event.description
-			});
+			const key = factKey(mergeFactOf(event));
 			const isFactSeen = seen.has(key);
 			if (isLoser || (union.id !== survivor.id && isFactSeen)) {
 				ops.push({ table: 'events', id: event.id, before: event, after: null });

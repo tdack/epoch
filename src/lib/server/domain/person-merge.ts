@@ -119,7 +119,27 @@ export function personMergeConflicts(
 
 /** The text a fact states, so a fact written identically on both records is kept once. */
 const factKey = (e: EventRow) =>
-	JSON.stringify([e.type, e.dateRaw, e.place, e.description, e.value, e.cause, e.age, e.notes]);
+	JSON.stringify([
+		e.type,
+		e.dateRaw,
+		e.place,
+		e.description,
+		e.value,
+		e.cause,
+		e.age,
+		e.notes,
+		e.address,
+		e.classification,
+		e.agency,
+		e.phone,
+		e.email,
+		e.fax,
+		e.web,
+		e.latitude,
+		e.longitude,
+		e.placeExtra,
+		e.religion
+	]);
 
 /** What a name says, so a name both records have is kept once. */
 const nameKey = (n: PersonNameRow) =>

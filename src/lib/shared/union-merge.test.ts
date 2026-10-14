@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+	factKey,
 	findMergeConflicts,
+	mergeFactOf,
 	partnerSetKey,
 	unresolvedConflicts,
 	type MergeFact
 } from './union-merge';
 
-const fact = (type: string, dateText: string | null, place: string | null = null): MergeFact => ({
-	type,
-	dateText,
-	place,
-	description: null
-});
+const fact = (type: string, dateText: string | null, place: string | null = null): MergeFact =>
+	mergeFactOf({ type, dateRaw: dateText, place });
 const union = (id: string, facts: MergeFact[] = [], status = 'active') => ({ id, status, facts });
 
 describe('findMergeConflicts', () => {
@@ -23,6 +21,14 @@ describe('findMergeConflicts', () => {
 				union('b', [fact('MARR', ' 1975 ', 'perth')])
 			])
 		).toEqual([]);
+	});
+
+	it('tells facts apart by their details: a different address is a conflict', () => {
+		const withAddress = mergeFactOf({ type: 'BIRT', dateRaw: '1900', address: '1 High Street' });
+		expect(factKey(withAddress)).not.toBe(factKey(fact('BIRT', '1900')));
+		expect(
+			findMergeConflicts([union('a', [withAddress]), union('b', [fact('BIRT', '1900')])])
+		).toMatchObject([{ kind: 'event', eventType: 'BIRT' }]);
 	});
 
 	it('does not call a fact on one side only a conflict', () => {

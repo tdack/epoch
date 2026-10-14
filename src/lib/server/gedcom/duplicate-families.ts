@@ -7,7 +7,7 @@
  * and merged automatically. Everything else that looks alike is only reported.
  */
 
-import { factKey, partnerSetKey } from '../../shared/union-merge';
+import { factKey, mergeFactOf, partnerSetKey } from '../../shared/union-merge';
 import {
 	mergeCitations,
 	mergeNoteLinks,
@@ -25,15 +25,7 @@ import {
 const partnersOf = (fam: ParsedFamily) =>
 	[fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
 
-const factsOf = (events: ParsedEvent[]) =>
-	events.map((e) =>
-		factKey({
-			type: e.type,
-			dateText: e.dateRaw ?? null,
-			place: e.place ?? null,
-			description: e.description ?? null
-		})
-	);
+const factsOf = (events: ParsedEvent[]) => events.map((e) => factKey(mergeFactOf(e)));
 
 const signatureOf = (fam: ParsedFamily) => factsOf(fam.events).sort().join('\n');
 

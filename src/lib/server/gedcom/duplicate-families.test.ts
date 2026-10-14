@@ -81,6 +81,20 @@ describe('what counts as exact', () => {
 		expect(mergeExactDuplicateFamilies(parsed).mergedCount).toBe(0);
 	});
 
+	it('needs the same address: a marriage at another address is only a possible duplicate', () => {
+		const at = (address: string) => `${marriage('1975')}\n2 ADDR ${address}`;
+		const parsed = parseGedcom(
+			file(
+				fam('@F1@', `${couple}\n${at('1 High Street')}`),
+				fam('@F2@', `${couple}\n${at('9 Low Road')}`)
+			)
+		);
+		const report = detectDuplicateFamilies(parsed);
+		expect(report.exact).toEqual([]);
+		expect(report.possible[0].reason).toBe(POSSIBLE_DUPLICATE_REASONS.DIFFERENT_FACTS);
+		expect(mergeExactDuplicateFamilies(parsed).mergedCount).toBe(0);
+	});
+
 	it('does not treat a marriage on one side only as identical', () => {
 		const report = detectDuplicateFamilies(
 			parseGedcom(file(fam('@F1@', `${couple}\n${marriage('1975')}`), fam('@F2@', couple)))

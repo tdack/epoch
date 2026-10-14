@@ -5,11 +5,68 @@
  * so what is shown as a conflict is exactly what the command refuses on.
  */
 
+/**
+ * A fact as the merge rules compare it. The detail fields are part of the identity: two facts that
+ * differ only by an address are two facts, and a merge must not keep one and lose the other.
+ */
 export interface MergeFact {
 	type: string;
 	dateText: string | null;
 	place: string | null;
 	description: string | null;
+	address: string | null;
+	classification: string | null;
+	agency: string | null;
+	phone: string | null;
+	email: string | null;
+	fax: string | null;
+	web: string | null;
+	latitude: string | null;
+	longitude: string | null;
+	religion: string | null;
+	/** The place's sub-lines, one string with a line break between each line. */
+	placeExtra: string | null;
+}
+
+/** What a stored or parsed event holds, under the names both use. */
+interface MergeFactSource {
+	type: string;
+	dateRaw?: string | null;
+	place?: string | null;
+	description?: string | null;
+	address?: string | null;
+	classification?: string | null;
+	agency?: string | null;
+	phone?: string | null;
+	email?: string | null;
+	fax?: string | null;
+	web?: string | null;
+	latitude?: string | null;
+	longitude?: string | null;
+	religion?: string | null;
+	placeExtra?: string[] | null;
+}
+
+/** The fact the merge rules compare for this event. */
+export function mergeFactOf(source: MergeFactSource): MergeFact {
+	const text = (value: string | null | undefined) => value ?? null;
+	return {
+		type: source.type,
+		dateText: text(source.dateRaw),
+		place: text(source.place),
+		description: text(source.description),
+		address: text(source.address),
+		classification: text(source.classification),
+		agency: text(source.agency),
+		phone: text(source.phone),
+		email: text(source.email),
+		fax: text(source.fax),
+		web: text(source.web),
+		latitude: text(source.latitude),
+		longitude: text(source.longitude),
+		religion: text(source.religion),
+		placeExtra: source.placeExtra?.length ? source.placeExtra.join('\n') : null
+	};
 }
 
 export interface MergeableUnion {
@@ -34,7 +91,26 @@ const normalise = (value: string | null | undefined) =>
 
 /** Two facts are the same fact when their type, date, place and description read the same. */
 export function factKey(fact: MergeFact): string {
-	return [fact.type, fact.dateText, fact.place, fact.description].map(normalise).join('|');
+	// JSON rather than a separator, so a value holding the separator cannot make two facts one.
+	return JSON.stringify(
+		[
+			fact.type,
+			fact.dateText,
+			fact.place,
+			fact.description,
+			fact.address,
+			fact.classification,
+			fact.agency,
+			fact.phone,
+			fact.email,
+			fact.fax,
+			fact.web,
+			fact.latitude,
+			fact.longitude,
+			fact.religion,
+			fact.placeExtra
+		].map(normalise)
+	);
 }
 
 function signature(facts: MergeFact[]): string {

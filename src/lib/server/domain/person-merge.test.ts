@@ -107,6 +107,48 @@ describe('what moves and what is kept once', () => {
 		expect(afterOf<EventRow>(ops, 'events', 'ob')).toMatchObject({ entityId: 'a', version: 2 });
 	});
 
+	it('keeps two facts that differ only by an address, and drops one stated identically twice', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			events: [
+				{
+					id: 'ra',
+					entityId: 'a',
+					type: 'RESI',
+					dateRaw: '1920',
+					place: 'York',
+					address: '1 High St'
+				},
+				{
+					id: 'rb',
+					entityId: 'b',
+					type: 'RESI',
+					dateRaw: '1920',
+					place: 'York',
+					address: '9 Low Rd'
+				},
+				{
+					id: 'rc',
+					entityId: 'b',
+					type: 'RESI',
+					dateRaw: '1920',
+					place: 'York',
+					address: '1 High St'
+				}
+			]
+		});
+		const after = applyOpsToRows(rows, buildPersonMergeOps(rows, merge('a', 'b'), ctx()));
+		expect(
+			after.events
+				.filter((e) => e.entityId === 'a')
+				.map((e) => e.address)
+				.sort()
+		).toEqual(['1 High St', '9 Low Rd']);
+		expect(
+			opFor(buildPersonMergeOps(rows, merge('a', 'b'), ctx()), 'events', 'rc')?.after
+		).toBeNull();
+	});
+
 	it("writes a moved birth after the survivor's own, so the survivor's stays the first birth on file", () => {
 		const rows = treeRows({
 			people: [{ id: 'a' }, { id: 'b' }],
