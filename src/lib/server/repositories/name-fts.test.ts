@@ -188,7 +188,8 @@ describe('the index follows every write path', () => {
 		await expectIndexMatchesBaseTables();
 		await personNamed(treeId, 'Fresh', 'Start', actor);
 		await expectIndexMatchesBaseTables();
-	});
+		// Each check rebuilds the index from every row, so this takes longer than a unit test's default.
+	}, 120_000);
 
 	it('stays equal after a bulk insert and after a tree is deleted, and the search of another tree is unaffected', async () => {
 		const big = crypto.randomUUID();
