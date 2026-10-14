@@ -2,6 +2,7 @@ node_modules
 
 # Output
 .wrangler
+/.cloudflare
 /.svelte-kit
 /build
 

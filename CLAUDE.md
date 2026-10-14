@@ -4,7 +4,7 @@ This branch (`website`) is the public website for Epoch at epochgenealogy.app. I
 branch: the application lives on `main`. Read `README.md` first.
 
 - **Stack:** SvelteKit 3 with `@sveltejs/adapter-cloudflare`, Svelte 5 runes, Node 24, deployed as
-  a Worker (`wrangler.jsonc`). Every page is prerendered (`src/routes/+layout.ts`).
+  a Worker (`cloudflare.config.ts`, deployed with `cf`). Every page is prerendered (`src/routes/+layout.ts`).
 - **Imports** use the `#lib/*` package import (`package.json` `imports`); `$lib` is removed in
   Kit 3. Import TypeScript modules with a `.js` extension.
 - **Brand:** follow the app's `DESIGN.md` (emerald binding, cream paper, stone inks, system sans,

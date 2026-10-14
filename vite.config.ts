@@ -6,7 +6,7 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			compilerOptions: { runes: true },
-			adapter: adapter()
+			adapter: adapter({ config: 'wrangler.config.ts' })
 		})
 	]
 });

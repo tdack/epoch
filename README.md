@@ -18,19 +18,20 @@ npm run dev      # http://localhost:5173
 |---|---|
 | `npm run check` | Type-checks the Svelte and TypeScript |
 | `npm run lint` | Checks formatting, then types |
-| `npm run build` | Prerenders the site into `.svelte-kit/cloudflare` |
-| `npm run preview` | Builds, then serves it with the real Worker runtime (`wrangler dev`) |
+| `npm run build` | Prerenders the site into `.svelte-kit/cloudflare`, then packages it into `.cloudflare/output` |
+| `npm run preview` | Builds, then serves it locally with `vite preview` |
 | `npm run deploy` | Builds and deploys to epochgenealogy.app |
 
 ## Deploying
 
-`wrangler.jsonc` binds the Worker to `epochgenealogy.app` as a custom domain, so Cloudflare
+`cloudflare.config.ts` binds the Worker to `epochgenealogy.app` as a custom domain, so Cloudflare
 creates the DNS record and certificate on the first deploy. The `epochgenealogy.app` zone must
-already be active on the account that deploys. Sign in once with `npx wrangler login`, then run
-`npm run deploy`.
+already be active on the account that deploys. Sign in once with `npx cf auth login`, then run
+`npm run deploy`. `wrangler.config.ts` only tells the build where the SvelteKit adapter writes the
+prerendered pages; the adapter reads it, so keep `vite.config.ts` pointing at it.
 
 With Workers Builds, connect this repository, set the production branch to `website`, the build
-command to `npm run build` and the deploy command to `npx wrangler deploy`.
+command to `npm run build` and the deploy command to `npx cf deploy --prebuilt`.
 
 ## Where things are
 

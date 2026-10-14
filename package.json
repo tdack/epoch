@@ -8,20 +8,21 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "npm run build && wrangler dev",
+		"build": "WORKERS_CI=1 vite build && wrangler build --experimental-new-config --experimental-cf-build-output",
+		"preview": "npm run build && vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "npm run format:check && npm run check",
-		"deploy": "npm run build && wrangler deploy"
+		"deploy": "npm run build && cf deploy --prebuilt"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260911.1",
 		"@sveltejs/adapter-cloudflare": "^8.0.0",
 		"@sveltejs/kit": "^3.0.1",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
+		"cf": "^1.0.0-beta.16",
 		"prettier": "^3.9.9",
 		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.57.2",
