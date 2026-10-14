@@ -20,6 +20,7 @@ import { PUBLIC_VISITOR } from '#lib/server/domain/identity.js';
 import { getDb } from '#lib/server/db/index.js';
 import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { applySecurityHeaders } from '#lib/server/http/security-headers.js';
 import {
 	isSchemaCurrent,
 	SCHEMA_NOT_MIGRATED_CODE,
@@ -30,7 +31,7 @@ import { Logger } from '#lib/server/logging/logger.js';
 /** Who the dev bypass is without `x-dev-user-*`, and the install owner on a local database with no `install_meta` row. */
 const DEV_BYPASS_EMAIL = 'developer@epoch.local';
 
-export const handle: Handle = async ({ event, resolve }) => {
+const handleRequest: Handle = async ({ event, resolve }) => {
 	const correlationId = event.request.headers.get('x-correlation-id') || crypto.randomUUID();
 	event.locals.correlationId = correlationId;
 	event.locals.user = null;
@@ -214,3 +215,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (event.locals.user?.isPublicVisitor) response.headers.set('x-robots-tag', 'noindex');
 	return response;
 };
+
+// Wraps every answer, including the redirects above: the first response a visitor gets (the sign-in
+// redirect) is where HSTS has to land.
+export const handle: Handle = async (input) =>
+	applySecurityHeaders(await handleRequest(input), input.event.url);
