@@ -110,9 +110,29 @@
 	const chosenFor = (conflict: MergeConflict) =>
 		conflict.kind === 'status' ? keep.status : keep.events?.[conflict.eventType];
 
+	/**
+	 * Two marriages that differ only by address must not read the same, so the imported details go in
+	 * too, one line of text per fact (an address's line breaks become slashes).
+	 */
 	const factText = (facts: MergeFact[]) =>
 		facts
-			.map((f) => [f.dateText, f.place, f.description].filter(Boolean).join(', ') || 'no details')
+			.map(
+				(f) =>
+					[
+						f.dateText,
+						f.place,
+						f.description,
+						f.classification && `type ${f.classification}`,
+						f.address && `address ${f.address.split(/\r?\n/).join(' / ')}`,
+						f.agency && `agency ${f.agency}`,
+						f.religion && `religion ${f.religion}`,
+						f.phone && `phone ${f.phone.split(/\r?\n/).join(', ')}`,
+						f.email && `email ${f.email.split(/\r?\n/).join(', ')}`,
+						f.web && `web ${f.web.split(/\r?\n/).join(', ')}`
+					]
+						.filter(Boolean)
+						.join(', ') || 'no details'
+			)
 			.join('; ');
 
 	const conflictTitle = (conflict: MergeConflict) =>
