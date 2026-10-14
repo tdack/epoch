@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { changeLog, changeLogRecords, events, individuals } from '../db/schema';
-import { ConcurrencyConflictError } from '../domain/errors';
+import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
 import type { RowOp } from '../domain/change-log';
 import {
 	createTestDatabase,
@@ -297,5 +297,72 @@ describe('event row images and the structured date columns', () => {
 			datePrecision: null,
 			dateCalendar: null
 		});
+	});
+});
+
+describe('ChangeStore tree scoping', () => {
+	it('leaves a row alone when an update or delete names another tree, and still applies the matching tree', async () => {
+		await freshTree();
+		const otherTree = await createTestTree(t.db, actor);
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 's1', before: null, after: person('s1', 'Sam') }]
+		});
+		const planned = person('s1', 'Sam');
+		const renamed = { ...planned, givenName: 'Sly', version: 2 };
+		// Images that claim the other tree, so they pass the single-tree check and only the SQL
+		// predicates stand between the commit and a row that lives in a different tree.
+		const claimed = { ...planned, treeId: otherTree };
+
+		await expect(
+			store.commit({
+				...base(),
+				treeId: otherTree,
+				ops: [
+					{ table: 'individuals', id: 's1', before: claimed, after: { ...claimed, version: 2 } }
+				]
+			})
+		).rejects.toMatchObject({ details: { reason: 'CONCURRENT_WRITE' } });
+		await expect(
+			store.commit({
+				...base(),
+				treeId: otherTree,
+				ops: [{ table: 'individuals', id: 's1', before: claimed, after: null }]
+			})
+		).rejects.toBeInstanceOf(ConcurrencyConflictError);
+
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.id, 's1')).get())?.givenName
+		).toBe('Sam');
+		expect(
+			await store.currentImages(
+				[{ table: 'individuals', id: 's1', before: planned, after: null }],
+				otherTree
+			)
+		).toEqual(new Map());
+		expect((await store.listRecent(treeId, 10)).length).toBe(1);
+
+		await store.commit({
+			...base(),
+			ops: [{ table: 'individuals', id: 's1', before: planned, after: renamed }]
+		});
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.id, 's1')).get())?.givenName
+		).toBe('Sly');
+	});
+
+	it('refuses an op whose image names a different tree, before writing anything', async () => {
+		await freshTree();
+		const otherTree = await createTestTree(t.db, actor);
+		const stray = { ...person('s2', 'Stray'), treeId: otherTree };
+
+		await expect(
+			store.commit({
+				...base(),
+				ops: [{ table: 'individuals', id: 's2', before: null, after: stray }]
+			})
+		).rejects.toBeInstanceOf(ValidationError);
+		expect(await t.db.select().from(individuals).where(eq(individuals.id, 's2'))).toEqual([]);
+		expect((await store.listRecent(treeId, 10)).length).toBe(0);
 	});
 });

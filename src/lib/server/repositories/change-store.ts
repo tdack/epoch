@@ -43,7 +43,7 @@ import {
 	type TreeRows
 } from '../domain/change-log';
 import { type RecordChange } from '../../shared/impact';
-import { ConcurrencyConflictError } from '../domain/errors';
+import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
 import { placeKey } from '../../shared/places';
 import { placeIdOfEvent } from './place-repository';
 
@@ -74,6 +74,15 @@ type ColumnMap = Record<string, { dataType: string }>;
 
 /** Columns the store derives rather than records; see `EventRow`. */
 const DERIVED_COLUMNS = new Set(['placeId']);
+
+/**
+ * The table's `tree_id` column, or undefined for the tables keyed by id alone (person_names,
+ * union_partners, source_repositories). Read from the Drizzle table so this cannot drift from the schema.
+ */
+function treeColumnOf(table: SQLiteTable) {
+	const columns = getTableColumns(table);
+	return 'treeId' in columns ? columns.treeId : undefined;
+}
 
 function columnsOf(table: SQLiteTable): ColumnMap {
 	return Object.fromEntries(
@@ -259,22 +268,43 @@ export class ChangeStore {
 	}
 
 	/**
+	 * The WHERE clauses scope updates and deletes to the tree, but an insert writes whatever `treeId`
+	 * its image carries and an update's SET could move a row into another tree, so no image may name
+	 * a tree other than the one being committed. Tables without a tree column are bounded by the
+	 * tree-scoped parent the planner read them through.
+	 */
+	private requireSingleTree(ops: RowOp[], treeId: string) {
+		for (const op of ops) {
+			if (!treeColumnOf(TABLES[op.table])) continue;
+			for (const image of [op.before, op.after]) {
+				const imageTreeId = image?.treeId;
+				if (imageTreeId !== undefined && imageTreeId !== treeId) {
+					throw new ValidationError('A change may not write across trees');
+				}
+			}
+		}
+	}
+
+	/**
 	 * Apply the ops and append the log entry atomically. Returns null when the ops change nothing,
 	 * in which case nothing is written and no log row exists.
 	 *
 	 * @throws ConcurrencyConflictError when a row is no longer at the version the ops were planned on.
+	 * @throws ValidationError when an op names a row image from another tree.
 	 */
 	async commit(input: CommitInput): Promise<CommittedChange | null> {
 		const applied = orderForApply(withoutNoOps(input.ops));
 		if (applied.length === 0) return null;
+
+		this.requireSingleTree(applied, input.treeId);
 
 		const { db } = this;
 		const changeId = crypto.randomUUID();
 		const inverse = input.isUndoable ? invertOps(applied) : null;
 
 		const statements = [
-			...applied.filter((op) => op.before !== null).map((op) => this.guard(op)),
-			...applied.map((op) => this.statementFor(op)),
+			...applied.filter((op) => op.before !== null).map((op) => this.guard(op, input.treeId)),
+			...applied.map((op) => this.statementFor(op, input.treeId)),
 			...this.placeStatements(input.treeId, applied),
 			db.insert(changeLog).values({
 				id: changeId,
@@ -314,15 +344,20 @@ export class ChangeStore {
 	 * op was planned on. The constraint failure aborts the whole batch, which is how a version check
 	 * becomes part of the transaction; D1 offers no other way to abort a batch on a condition.
 	 */
-	private guard(op: RowOp) {
+	private guard(op: RowOp, treeId: string) {
 		const version = versionOf(op.before);
 		const isVersionMatch = version === null ? sql`` : sql` and version = ${version}`;
+		// A row in another tree must fail the guard exactly like a missing row: that is the conflict path.
+		const treeColumn = treeColumnOf(TABLES[op.table]);
+		const isSameTree = treeColumn
+			? sql` and ${sql.identifier(treeColumn.name)} = ${treeId}`
+			: sql``;
 		const nulls = sql.join(
 			Object.keys(getTableColumns(changeLog)).map(() => sql`null`),
 			sql`, `
 		);
 		return (this.db.insert(changeLog) as unknown as { select: (query: unknown) => never }).select(
-			sql`select ${nulls} where not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch})`
+			sql`select ${nulls} where not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch}${isSameTree})`
 		);
 	}
 
@@ -352,25 +387,37 @@ export class ChangeStore {
 				.update(events)
 				.set({ placeId: placeIdOfEvent })
 				.where(
-					inArray(
-						events.id,
-						group.map((op) => op.id)
+					and(
+						eq(events.treeId, treeId),
+						inArray(
+							events.id,
+							group.map((op) => op.id)
+						)
 					)
 				)
 		);
 		return [...upserts, ...points];
 	}
 
-	private statementFor(op: RowOp) {
+	/**
+	 * Updates and deletes match the tree as well as the id, so a planner that names a row from
+	 * another tree touches nothing; the guard above then reports it as a conflict. Inserts carry
+	 * their own `tree_id` and are left alone.
+	 */
+	private statementFor(op: RowOp, treeId: string) {
 		const table = TABLES[op.table];
 		const idColumn = (table as unknown as { id: never }).id;
+		const treeColumn = treeColumnOf(table);
+		const isOwnRow = treeColumn
+			? and(eq(idColumn, op.id), eq(treeColumn, treeId))
+			: eq(idColumn, op.id);
 		switch (opKind(op)) {
 			case OP_KINDS.CREATE:
 				return this.db.insert(table).values(revive(table, op.after!));
 			case OP_KINDS.UPDATE:
-				return this.db.update(table).set(revive(table, op.after!)).where(eq(idColumn, op.id));
+				return this.db.update(table).set(revive(table, op.after!)).where(isOwnRow);
 			case OP_KINDS.DELETE:
-				return this.db.delete(table).where(eq(idColumn, op.id));
+				return this.db.delete(table).where(isOwnRow);
 		}
 	}
 
@@ -450,15 +497,19 @@ export class ChangeStore {
 	}
 
 	/** Current images of specific rows, for checking whether an undo still applies. */
-	async currentImages(ops: RowOp[]): Promise<Map<string, RowImage>> {
+	async currentImages(ops: RowOp[], treeId: string): Promise<Map<string, RowImage>> {
 		const images = new Map<string, RowImage>();
 		const idsByTable = new Map<RecordTable, string[]>();
 		for (const op of ops) idsByTable.set(op.table, [...(idsByTable.get(op.table) ?? []), op.id]);
 		for (const [name, ids] of idsByTable) {
 			const table = TABLES[name];
 			const idColumn = (table as unknown as { id: never }).id;
+			const treeColumn = treeColumnOf(table);
 			for (const part of chunk(ids, 90)) {
-				const rows = await this.db.select().from(table).where(inArray(idColumn, part)).all();
+				const isInTree = treeColumn
+					? and(inArray(idColumn, part), eq(treeColumn, treeId))
+					: inArray(idColumn, part);
+				const rows = await this.db.select().from(table).where(isInTree).all();
 				for (const row of rows) images.set(`${name}:${row.id}`, toImage(table, row));
 			}
 		}
