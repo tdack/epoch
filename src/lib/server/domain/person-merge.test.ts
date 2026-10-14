@@ -178,10 +178,15 @@ describe('what moves and what is kept once', () => {
 			cfImageId: null,
 			title: null,
 			mimeType: 'image/png',
-			createdAt: 1
+			version: 1,
+			createdAt: 1,
+			updatedAt: 1
 		} as never);
 		const ops = buildPersonMergeOps(rows, merge('a', 'b'), ctx());
-		expect(afterOf<{ entityId: string }>(ops, 'media_items', 'm1')!.entityId).toBe('a');
+		const moved = afterOf<{ entityId: string; version: number }>(ops, 'media_items', 'm1')!;
+		expect(moved.entityId).toBe('a');
+		// Its version moves too, so an editor who loaded the file before the merge gets a conflict.
+		expect(moved.version).toBe(2);
 		expect(afterOf<IndividualRow>(ops, 'individuals', 'a')!.xrefAliases).toEqual(['@b@', '@OLD@']);
 		expect(opFor(ops, 'individuals', 'b')?.after).toBeNull();
 	});
@@ -288,6 +293,22 @@ describe('who cannot be one person', () => {
 		expect(() =>
 			buildPersonMergeOps(rows, merge('a', 'b', { expectedVersions: { a: 1, b: 1 } }), ctx())
 		).not.toThrow();
+	});
+
+	it('counts a moved file toward the same limit as every other record in the merge', () => {
+		const rowsWith = (count: number) =>
+			treeRows({
+				people: [{ id: 'a' }, { id: 'b' }],
+				media: Array.from({ length: count }, (_, i) => ({ id: `m${i}`, entityId: 'b' }))
+			});
+		const baseline = buildPersonMergeOps(rowsWith(0), merge('a', 'b'), ctx()).length;
+		const room = MAX_PERSON_MERGE_OPS - baseline;
+		expect(buildPersonMergeOps(rowsWith(room), merge('a', 'b'), ctx()).length).toBe(
+			MAX_PERSON_MERGE_OPS
+		);
+		expect(() => buildPersonMergeOps(rowsWith(room + 1), merge('a', 'b'), ctx())).toThrow(
+			/at most/
+		);
 	});
 
 	it('refuses a person with more records than one change can carry', () => {

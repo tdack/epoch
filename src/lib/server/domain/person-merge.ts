@@ -352,7 +352,8 @@ export function buildPersonMergeOps(
 			table: 'media_items',
 			id: item.id,
 			before: item,
-			after: { ...item, entityId: survivor.id }
+			// A file's version is its concurrency guard, so a stale editor must conflict after the move.
+			after: touch({ ...item, entityId: survivor.id }, ctx)
 		});
 	}
 
