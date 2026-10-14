@@ -22,9 +22,6 @@ Last reviewed: 2026-10-11.
   the streaming bound adds only 64 KB of multipart slack above the 25 MB file cap. (ADR-039)
 - **HEIC and `mif1`-brand AVIF uploads are rejected.** The sniffer accepts ISO-BMFF only for the
   `avif` and `avis` brands. Extend the sniff, or note the limit in the release notes. (ADR-039)
-- **`JWKS_MAX_STALE_MS` has no effect on the TTL path.** The 24-hour staleness bound is used only
-  for an unknown `kid`; after the 10-minute TTL the certs fetch fails closed with no stale fallback.
-  Either use the constant or delete it. (ADR-039)
 - **Relationships through a private ancestor are hidden** from a restricted viewer with no sign they
   exist, when private people are omitted. Decide whether that is the intended behaviour. (ADR-015)
 - **`confidential` imports as private but exports as `privacy`.** The word is not kept. (ADR-015)
