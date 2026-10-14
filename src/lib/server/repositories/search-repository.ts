@@ -216,7 +216,9 @@ export class SearchRepository {
 			)
 			select i.id as id, best.name_id as name_id
 			from best join individuals i on i.id = best.person_id
-			where 1 = 1${factFilter}
+			-- The unary + keeps the plan on the primary key. The trigram tree term in the index is a
+			-- substring match, so this exact check is what makes the tree scope safe.
+			where +i.tree_id = ${treeId}${factFilter}
 			order by best.rank_key, lower(i.surname), lower(i.given_name), i.id ${page}`;
 	}
 

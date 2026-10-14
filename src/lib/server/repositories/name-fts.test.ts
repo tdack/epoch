@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
-import { trees } from '../db/schema';
+import { treeMemberships, trees } from '../db/schema';
 import { ChangeLogService } from '../services/change-log-service';
 import { NameService } from '../services/name-service';
 import { PersonMergeService } from '../services/person-merge-service';
@@ -123,6 +123,24 @@ describe('folding in the name index', () => {
 
 		expect(await namesFound(treeId, ['an'])).toEqual([ann.id]);
 		expect(await namesFound(treeId, ['ann', 'an'])).toEqual([ann.id]);
+	});
+});
+
+describe('tree scope', () => {
+	it('does not return a person of a tree whose id contains the searched tree id', async () => {
+		const actor = await createTestUser(t.db, 'substr');
+		const shortId = `substr-${crypto.randomUUID().slice(0, 8)}`;
+		const longId = `X-${shortId.toUpperCase()}-y`;
+		await t.db.insert(trees).values({ id: shortId, name: 'Short id' });
+		await t.db.insert(trees).values({ id: longId, name: 'Long id' });
+		for (const treeId of [shortId, longId])
+			await t.db
+				.insert(treeMemberships)
+				.values({ id: crypto.randomUUID(), treeId, userId: actor.userId, role: 'owner' });
+		const other = await personNamed(longId, 'Annette', 'Other', actor);
+		const mine = await personNamed(shortId, 'Annabel', 'Mine', actor);
+		expect(await namesFound(shortId, ['ann'])).toEqual([mine.id]);
+		expect(await namesFound(longId, ['ann'])).toEqual([other.id]);
 	});
 });
 
