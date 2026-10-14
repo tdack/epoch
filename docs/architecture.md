@@ -11,7 +11,9 @@ Identity comes from Cloudflare Access; Epoch stores roles and permissions. The f
 correct genealogy graph and an editor that makes complex relationships understandable.
 
 The canonical model is GEDCOM-aware and must round-trip every supported structure without loss.
-Unsupported imported structures are retained and written back on export (ADR-003, ADR-023).
+Unsupported imported structures are retained and written back on export (ADR-003, ADR-023). Under
+an event, the structures with a column are modelled (ADR-051); the rest, such as `RESN`, custom tags
+and objects, stay verbatim and are listed on the fact as read-only, so nothing is lost silently.
 
 A collaborator can safely create and understand a tree containing:
 
@@ -88,7 +90,10 @@ are gone.
   interchange concern.
 - `parent_child`: a direct assertion between two people with a type (`biological`, `adoptive`,
   `foster`, `guardian`, `unknown/other`), optional union context, status, dates, notes and evidence.
-- `event`: typed, repeatable facts for a person or union.
+- `event`: typed, repeatable facts for a person or union. A fact also carries its address (with the
+  file's own layout), `TYPE`, agency, religion, phone, email, fax and web values, coordinates, and the
+  place's other sub-lines, each in a nullable column, so the fact editor can show and edit them
+  (ADR-051). Any other line under a fact is kept verbatim and shown read-only.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person or a
   partnership, or is null for a detached file. The R2 key names the file, not its owner, so attaching,
   detaching and moving are row updates that never touch the bytes (ADR-050).
