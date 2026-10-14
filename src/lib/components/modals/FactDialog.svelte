@@ -84,7 +84,19 @@
 		value: value.trim() || null,
 		cause: cause.trim() || null,
 		age: age.trim() || null,
-		notes: notes.trim() || null
+		notes: notes.trim() || null,
+		// No inputs for these yet, so they go back exactly as stored: a save of another field must not
+		// erase what an import brought. A new fact has none.
+		address: fact?.address ?? null,
+		classification: fact?.classification ?? null,
+		agency: fact?.agency ?? null,
+		phone: fact?.phone ?? null,
+		email: fact?.email ?? null,
+		fax: fact?.fax ?? null,
+		web: fact?.web ?? null,
+		latitude: fact?.latitude ?? null,
+		longitude: fact?.longitude ?? null,
+		religion: fact?.religion ?? null
 	});
 
 	// Fill the form only when the dialog opens: reading `fact` inside the effect that also watches the
