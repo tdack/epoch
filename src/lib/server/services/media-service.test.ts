@@ -8,27 +8,18 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { FakeMediaBucket } from '../testing/fake-bucket';
 import { MediaService } from './media-service';
 
 /** Lists two objects per page, so a tree's total only comes out right if every page is read. */
 const PAGE_SIZE = 2;
 
-/** An R2 stand-in that holds keys and sizes only; the bytes are never needed for the quota. */
+/** An R2 listing with the given sizes; the bytes are never needed for the quota. */
 function fakeListingBucket(sizes: Record<string, number>) {
-	const objects = new Map(Object.entries(sizes));
-	const bucket = {
-		list: async (options: { prefix?: string; cursor?: string } = {}) => {
-			const keys = [...objects.keys()].filter((key) => key.startsWith(options.prefix ?? '')).sort();
-			const start = options.cursor ? Number(options.cursor) : 0;
-			const end = start + PAGE_SIZE;
-			const isTruncated = end < keys.length;
-			return {
-				objects: keys.slice(start, end).map((key) => ({ key, size: objects.get(key) ?? 0 })),
-				truncated: isTruncated,
-				...(isTruncated ? { cursor: String(end) } : {})
-			};
-		}
-	};
+	const bucket = new FakeMediaBucket(PAGE_SIZE);
+	for (const [key, size] of Object.entries(sizes)) {
+		bucket.objects.set(key, { body: new Uint8Array(0), size });
+	}
 	return bucket as unknown as R2Bucket;
 }
 

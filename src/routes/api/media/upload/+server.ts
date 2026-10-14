@@ -50,7 +50,10 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		// ignored. The extension comes from the sniffed type so it cannot disagree with the content.
 		const bytes = new Uint8Array(await file.arrayBuffer());
 		const { mimeType, extension } = validateMediaUpload(file.type, bytes);
-		const objectKey = `media/${treeId}/${entityId}/${crypto.randomUUID()}.${extension}`;
+		// The key names the file, not its owner: ownership is the row's entity_id, so a file can be
+		// moved or detached without touching R2.
+		const mediaId = crypto.randomUUID();
+		const objectKey = `media/${treeId}/${mediaId}.${extension}`;
 
 		await platform.env.MEDIA_BUCKET.put(objectKey, bytes, {
 			httpMetadata: {
@@ -58,14 +61,22 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			}
 		});
 
-		const mediaId = crypto.randomUUID();
 		const mediaTitle = typeof title === 'string' && title !== '' ? title : file.name;
-		await service.record(treeId, entityId, {
-			id: mediaId,
-			objectKey,
-			title: mediaTitle,
-			mimeType
-		});
+		try {
+			await service.record(treeId, entityId, {
+				id: mediaId,
+				objectKey,
+				title: mediaTitle,
+				mimeType,
+				sizeBytes: file.size,
+				uploadedBy: locals.user.id
+			});
+		} catch (err) {
+			// The object would otherwise be unreachable and still counted against the quota. A failed
+			// cleanup leaves that one object behind, which is no worse than before this was added.
+			await platform.env.MEDIA_BUCKET.delete(objectKey).catch(() => undefined);
+			throw err;
+		}
 
 		return Response.json(
 			{

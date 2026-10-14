@@ -1,4 +1,7 @@
-/** Media metadata (the bytes are in R2, under a key that names the tree and the record). */
+/**
+ * Media metadata. The bytes are in R2 under `media/<treeId>/<mediaId>.<ext>` (or the legacy
+ * `media/<treeId>/<entityId>/<file>`); who a file belongs to is `media_items.entity_id`, never the key.
+ */
 
 import { and, eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
@@ -7,11 +10,15 @@ import { mediaItems } from '../db/schema';
 
 export type MediaOwner = { kind: 'person'; id: string } | { kind: 'union'; id: string };
 
+export type MediaItemRow = typeof mediaItems.$inferSelect;
+
 export interface StoredMedia {
 	id: string;
 	objectKey: string;
 	title: string;
 	mimeType: string;
+	sizeBytes: number;
+	uploadedBy: string;
 }
 
 export class MediaRepository {
@@ -42,8 +49,27 @@ export class MediaRepository {
 			r2ObjectKey: media.objectKey,
 			title: media.title,
 			mimeType: media.mimeType,
-			createdAt: new Date()
+			sizeBytes: media.sizeBytes,
+			uploadedBy: media.uploadedBy,
+			createdAt: new Date(),
+			updatedAt: new Date()
 		});
+	}
+
+	/**
+	 * The row for an object key, scoped to its tree. The key is looked up here rather than parsed
+	 * for an owner: a legacy key names its owner, but the row is the only record of ownership now.
+	 */
+	async findByKey(treeId: string, objectKey: string): Promise<MediaItemRow | undefined> {
+		return this.db
+			.select()
+			.from(mediaItems)
+			.where(and(eq(mediaItems.treeId, treeId), eq(mediaItems.r2ObjectKey, objectKey)))
+			.get();
+	}
+
+	async findById(mediaId: string): Promise<MediaItemRow | undefined> {
+		return this.db.select().from(mediaItems).where(eq(mediaItems.id, mediaId)).get();
 	}
 
 	async exists(treeId: string, objectKey: string): Promise<boolean> {

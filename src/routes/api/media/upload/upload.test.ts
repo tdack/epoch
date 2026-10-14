@@ -7,8 +7,9 @@
 
 import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { individuals, mediaItems } from '#lib/server/db/index.js';
+import { MediaRepository } from '#lib/server/repositories/media-repository.js';
 import {
 	createTestDatabase,
 	createTestTree,
@@ -16,6 +17,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
+import { FakeMediaBucket } from '#lib/server/testing/fake-bucket.js';
 import { MAX_MEDIA_UPLOAD_BYTES, MAX_TREE_MEDIA_BYTES } from '#lib/shared/media.js';
 import { POST } from './+server.js';
 
@@ -39,35 +41,6 @@ const SVG_BYTES = new Uint8Array(ascii('<svg xmlns="http://www.w3.org/2000/svg">
 
 const UPLOAD_URL = 'http://localhost/api/media/upload';
 const MULTIPART_BOUNDARY = 'epoch-upload-test';
-
-/**
- * `size` is what a listing reports; a test sets it directly to fill a tree's quota without
- * allocating gigabytes.
- */
-class FakeMediaBucket {
-	readonly objects = new Map<string, { body: Uint8Array; size: number; contentType?: string }>();
-	async put(
-		key: string,
-		value: Uint8Array | ArrayBuffer,
-		options?: { httpMetadata?: { contentType?: string } }
-	) {
-		const body = value instanceof Uint8Array ? value : new Uint8Array(value);
-		this.objects.set(key, {
-			body,
-			size: body.byteLength,
-			contentType: options?.httpMetadata?.contentType
-		});
-		return { key, size: body.byteLength };
-	}
-	async list(options: { prefix?: string } = {}) {
-		return {
-			truncated: false as const,
-			objects: [...this.objects.entries()]
-				.filter(([key]) => key.startsWith(options.prefix ?? ''))
-				.map(([key, found]) => ({ key, size: found.size }))
-		};
-	}
-}
 
 let t: TestDatabase;
 let treeId: string;
@@ -218,6 +191,39 @@ describe('media upload type checks', () => {
 		);
 		expect(response.status).toBe(400);
 		expect(bucket.objects.size).toBe(0);
+	});
+
+	it('stores the object under a key named by the media id, and records its size and uploader', async () => {
+		const response = await upload(owner, new File([PNG_BYTES], 'photo.png', { type: 'image/png' }));
+		expect(response.status).toBe(201);
+		const body = (await response.json()) as { media: { id: string; objectKey: string } };
+		// The owner is not in the key: ownership is the row, so a file can move without an R2 copy.
+		expect(body.media.objectKey).toBe(`media/${treeId}/${body.media.id}.png`);
+		expect(bucket.objects.has(body.media.objectKey)).toBe(true);
+
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, body.media.id)).get();
+		expect(row).toMatchObject({
+			entityId: personId,
+			sizeBytes: PNG_BYTES.byteLength,
+			uploadedBy: owner.userId,
+			version: 1
+		});
+	});
+
+	it('deletes the stored object when the row cannot be recorded', async () => {
+		const insert = vi
+			.spyOn(MediaRepository.prototype, 'insert')
+			.mockRejectedValueOnce(new Error('D1 unavailable'));
+		try {
+			const response = await upload(
+				owner,
+				new File([PNG_BYTES], 'photo.png', { type: 'image/png' })
+			);
+			expect(response.status).toBe(500);
+			expect(bucket.objects.size).toBe(0);
+		} finally {
+			insert.mockRestore();
+		}
 	});
 
 	it('stores an accepted image under the sniffed type, not the declared one', async () => {
