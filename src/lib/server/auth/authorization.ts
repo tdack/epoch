@@ -10,6 +10,7 @@ export type TreeAction =
 	| 'tree:set_default_view'
 	| 'person:set_privacy'
 	| 'media:manage'
+	| 'media:delete_any'
 	| 'media:view'
 	| 'record:create'
 	| 'record:edit'
@@ -29,6 +30,8 @@ const ACTION_MIN_ROLES: Record<TreeAction, TreeRole> = {
 	'tree:set_default_view': 'owner',
 	'person:set_privacy': 'manager',
 	'media:manage': 'editor',
+	// Deleting a file someone else uploaded is a manager's call; an editor may delete their own.
+	'media:delete_any': 'manager',
 	'media:view': 'viewer',
 	'tree:manage_members': 'manager',
 	'tree:delete': 'owner'

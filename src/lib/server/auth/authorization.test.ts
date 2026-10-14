@@ -22,3 +22,14 @@ describe('actions that expose or change privacy', () => {
 		expect(isActionAllowed(null, 'tree:view')).toBe(false);
 	});
 });
+
+describe('deleting media', () => {
+	it.each(ROLES)('%s may delete any file only as a manager or owner', (role) => {
+		expect(isActionAllowed(role, 'media:delete_any')).toBe(role === 'manager' || role === 'owner');
+	});
+	it.each(ROLES)('%s may manage media only as an editor or above', (role) => {
+		expect(isActionAllowed(role, 'media:manage')).toBe(
+			role === 'editor' || role === 'manager' || role === 'owner'
+		);
+	});
+});

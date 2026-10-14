@@ -18,7 +18,7 @@ import { TreeRepository } from '../repositories/tree-repository';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
-import { hasMinimumRole } from '../../shared/roles';
+import { isActionAllowed } from '../auth/authorization';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /**
@@ -35,7 +35,6 @@ export function parseMediaKey(key: string): { treeId: string } | null {
 }
 
 /**
-/**
  * Whether a viewer may read a file. `owners` is the people it hangs off: null for a detached file,
  * empty when the owner no longer exists, else the person (or a union's partners). `visible` is the
  * subset of those people the viewer can see. Kept as one function so every read path shares the rule.
@@ -51,16 +50,16 @@ function canReadRow(
 }
 
 /**
- * Whether the viewer may delete a file attached to a person. Editors may delete the files they
- * uploaded; a manager may delete any. A file with no recorded uploader (every file uploaded before
+ * Whether the viewer may delete a file attached to a person. A manager may delete any; an editor
+ * may delete the files they uploaded. A file with no recorded uploader (every file uploaded before
  * migration 0029) is a manager's to delete.
  */
 export function canDeleteMedia(
 	scope: Pick<ViewerScope, 'role' | 'userId'>,
 	uploadedBy: string | null
 ): boolean {
-	if (!hasMinimumRole(scope.role, 'editor')) return false;
-	return hasMinimumRole(scope.role, 'manager') || uploadedBy === scope.userId;
+	if (isActionAllowed(scope.role, 'media:delete_any')) return true;
+	return isActionAllowed(scope.role, 'media:manage') && uploadedBy === scope.userId;
 }
 
 export class MediaService {

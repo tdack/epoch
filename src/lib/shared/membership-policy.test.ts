@@ -45,3 +45,12 @@ describe('what a role is described as allowing', () => {
 		expect(describeRole('viewer', 'Doe')).toBe('View the Doe tree and its media.');
 	});
 });
+
+describe('what media rights each role is described as having', () => {
+	it('says an editor deletes only their own uploads', () => {
+		expect(describeRole('editor', 'Doe')).toContain('deleting only the files they uploaded');
+	});
+	it('says a manager deletes any file', () => {
+		expect(describeRole('manager', 'Doe')).toContain('delete any media file');
+	});
+});

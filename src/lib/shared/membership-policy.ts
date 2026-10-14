@@ -41,9 +41,9 @@ export function describeRole(role: TreeRole, treeName: string): string {
 		case 'contributor':
 			return `View the ${treeName} tree and add people, relationships, sources, citations and notes. Private living people stay hidden, apart from those they add.`;
 		case 'editor':
-			return `Add, edit, delete and merge any record in the ${treeName} tree, import GEDCOM and manage media. Private living people are visible.`;
+			return `Add, edit, delete and merge any record in the ${treeName} tree, import GEDCOM and manage media, deleting only the files they uploaded. Private living people are visible.`;
 		case 'manager':
-			return `Everything an editor can do in the ${treeName} tree, plus export GEDCOM, change settings, set privacy, and invite and manage editors, contributors and viewers.`;
+			return `Everything an editor can do in the ${treeName} tree, plus delete any media file, export GEDCOM, change settings, set privacy, and invite and manage editors, contributors and viewers.`;
 		case 'owner':
 			return `Full control of the ${treeName} tree: everything a manager can do, plus manage any member, set the default view and delete the tree.`;
 	}
