@@ -659,3 +659,12 @@ export const publicTreeSchema = z.object({
 	treeId: z.string().min(1).nullable(),
 	confirmName: z.string()
 });
+
+/** The Files listing: a tree to narrow to, a cursor from the last page, and a page size. */
+export const fileListQuerySchema = z.object({
+	treeId: idSchema.optional(),
+	cursor: z.string().min(1).max(200).optional(),
+	limit: z.coerce.number().int().min(1).max(100).optional()
+});
+
+export const fileUsageQuerySchema = z.object({ treeId: idSchema.optional() });

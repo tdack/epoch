@@ -8,31 +8,24 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
 import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import { sumStoredBytes } from '../media/stored-bytes';
+import { parseMediaKey } from '../media/media-key';
+import { sumStoredBytes, storedBytesByTree } from '../media/stored-bytes';
 import {
 	MediaRepository,
+	type FileCursor,
 	type MediaItemRow,
 	type StoredMedia
 } from '../repositories/media-repository';
 import { TreeRepository } from '../repositories/tree-repository';
-import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
-import { isActionAllowed } from '../auth/authorization';
-import { requireTreeScope, type ViewerScope } from './tree-access';
+import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
+import type { FileListDto, FileRowDto, FileUsageDto } from '../../shared/files';
+import { hasMinimumRole, type TreeRole } from '../../shared/roles';
+import { canSeePrivatePeople, isActionAllowed } from '../auth/authorization';
+import { requireRealUser, requireTreeScope, type ViewerScope } from './tree-access';
 
-/**
- * Reads the tree from a key. Current keys are `media/<treeId>/<mediaId>.<ext>`; legacy keys are
- * `media/<treeId>/<entityId>/<file>` and keep working because existing objects are not moved. The
- * owner is never read from the key, so the shape only has to be a key this app wrote. Ids contain
- * no slash.
- */
-export function parseMediaKey(key: string): { treeId: string } | null {
-	const [prefix, treeId, ...rest] = key.split('/');
-	if (prefix !== 'media' || !treeId || rest.length < 1 || rest.length > 2) return null;
-	if (rest.some((segment) => segment === '')) return null;
-	return { treeId };
-}
+export { parseMediaKey };
 
 /**
  * Whether a viewer may read a file. `owners` is the people it hangs off: null for a detached file,
@@ -60,6 +53,105 @@ export function canDeleteMedia(
 ): boolean {
 	if (isActionAllowed(scope.role, 'media:delete_any')) return true;
 	return isActionAllowed(scope.role, 'media:manage') && uploadedBy === scope.userId;
+}
+
+/** A tree in the caller's list: its name, and the caller's role there (null when they are not a member). */
+interface CallerTree {
+	name: string;
+	role: TreeRole | null;
+}
+
+/** What a tree's files need decided, for one listing batch. */
+interface TreeView {
+	isRestricted: boolean;
+	/** People in the tree the caller may see; only consulted when `isRestricted`. */
+	visible: ReadonlySet<string>;
+	/** The people a file hangs off, or null for a detached file. */
+	ownersOf: (row: MediaItemRow) => string[] | null;
+	/** Names shown beside a file, keyed by the record it is attached to. */
+	labels: ReadonlyMap<string, string>;
+}
+
+export interface FileQuery {
+	treeId?: string;
+	cursor?: string;
+	limit?: number;
+}
+
+/** Files per page, and the most a caller may ask for. */
+const FILE_PAGE_SIZE = 50;
+const FILE_PAGE_MAX = 100;
+/** Rows read per database query while scanning for a page. */
+const FILE_SCAN_BATCH = 100;
+/**
+ * Rows read per listing request, whatever the viewer may see. A restricted viewer's page can be
+ * short or empty when most of the tree is hidden; this bounds the work that takes. Not yet indexed:
+ * the scan is a sort of the whole table, which is acceptable at this size.
+ */
+const FILE_SCAN_CAP = 500;
+
+const isManagerRole = (role: TreeRole | null | undefined): boolean =>
+	role !== null && role !== undefined && hasMinimumRole(role, 'manager');
+
+/** The cursor's sort key: the stored timestamp, which is whole seconds. */
+function createdKeyOf(row: MediaItemRow): number {
+	return row.createdAt ? Math.floor(row.createdAt.getTime() / 1000) : 0;
+}
+
+function formatFileCursor(cursor: FileCursor): string {
+	return `${cursor.createdAt}:${cursor.id}`;
+}
+
+/** Throws on anything but a cursor this service issued, so a made-up one is refused, not guessed at. */
+function parseFileCursor(raw: string): FileCursor {
+	const match = /^(\d+):([A-Za-z0-9-]+)$/.exec(raw);
+	if (!match) throw new ValidationError('The file listing cursor is not valid');
+	return { createdAt: Number(match[1]), id: match[2]! };
+}
+
+/** What the caller may do with one file. A file in a tree the caller is not a member of allows nothing. */
+function rightsOf(row: MediaItemRow, role: TreeRole | null, userId: string) {
+	if (role === null) {
+		return {
+			canPreview: false,
+			canRename: false,
+			canAttach: false,
+			canDetach: false,
+			canMove: false,
+			canDelete: false
+		};
+	}
+	const canEdit = isActionAllowed(role, 'media:manage');
+	const isAttached = row.entityId !== null;
+	return {
+		canPreview: true,
+		canRename: canEdit,
+		canAttach: canEdit && !isAttached,
+		canDetach: canEdit && isAttached,
+		canMove: canEdit && isAttached,
+		canDelete: canDeleteMedia({ role, userId }, row.uploadedBy)
+	};
+}
+
+function fileDto(
+	row: MediaItemRow,
+	tree: CallerTree,
+	attachedTo: string | null,
+	uploadedBy: string | null,
+	userId: string
+): FileRowDto {
+	return {
+		id: row.id,
+		title: row.title,
+		mimeType: row.mimeType,
+		sizeBytes: row.sizeBytes,
+		treeId: row.treeId,
+		treeName: tree.name,
+		attachedTo,
+		uploadedBy,
+		createdAt: row.createdAt ? row.createdAt.getTime() : null,
+		...rightsOf(row, tree.role, userId)
+	};
 }
 
 export class MediaService {
@@ -133,6 +225,198 @@ export class MediaService {
 			throw new PayloadTooLargeError(
 				'This tree has no room for this file: its media storage is full'
 			);
+	}
+
+	/**
+	 * The trees the caller stands in, with their names and the caller's role in each. The install
+	 * owner also appears in trees they are not a member of, with no role: they may see a file's
+	 * metadata there but nothing that would reveal the people in it.
+	 */
+	private async callerTrees(context: AuthenticatedContext): Promise<Map<string, CallerTree>> {
+		const userId = context.user.id;
+		if (context.user.isInstallOwner === true) {
+			const all = await this.trees.listAll(userId);
+			return new Map(all.map((t) => [t.id, { name: t.name, role: t.role ?? null }]));
+		}
+		const mine = await this.trees.listForUser(userId);
+		return new Map(mine.map((t) => [t.id, { name: t.name, role: t.role ?? null }]));
+	}
+
+	/**
+	 * Whether each file may be seen, and what the caller may do with it, for one batch of rows. The
+	 * visibility answer comes from the same `canReadRow` `requireRead` uses, fed by the same owner
+	 * lookup (a detached file, a person, a partnership, a partnership with no partners), so the list
+	 * and a direct read cannot disagree. Lookups are batched per tree, so a batch costs a handful of
+	 * queries however many files it holds.
+	 */
+	private async decideRows(
+		rows: MediaItemRow[],
+		trees: Map<string, CallerTree>,
+		context: AuthenticatedContext
+	): Promise<Array<FileRowDto | null>> {
+		const views = new Map<string, TreeView>();
+		for (const treeId of new Set(rows.map((row) => row.treeId))) {
+			const access = trees.get(treeId);
+			if (!access || access.role === null) continue;
+			views.set(treeId, await this.viewOf(treeId, access.role, rows, context));
+		}
+		const uploaderIds = rows
+			.filter((row) => row.uploadedBy !== null && isManagerRole(trees.get(row.treeId)?.role))
+			.map((row) => row.uploadedBy as string);
+		const uploaders = await this.media.uploaderNamesOf(uploaderIds);
+		return rows.map((row) => {
+			const tree = trees.get(row.treeId);
+			if (!tree) return null;
+			// A tree the caller is not a member of (install owner only): metadata, nothing that names a person.
+			if (tree.role === null) return fileDto(row, tree, null, null, context.user.id);
+			const view = views.get(row.treeId);
+			if (!view || !canReadRow(view.ownersOf(row), view, view.visible)) return null;
+			const attachedTo = row.entityId === null ? null : (view.labels.get(row.entityId) ?? null);
+			const uploadedBy =
+				row.uploadedBy !== null && isManagerRole(tree.role)
+					? (uploaders.get(row.uploadedBy) ?? null)
+					: null;
+			return fileDto(row, tree, attachedTo, uploadedBy, context.user.id);
+		});
+	}
+
+	/**
+	 * What one tree's rows need to be decided: the owner of each file, which of the people involved
+	 * the caller may see, and the names to show. Restricted viewers get a visibility check; everyone
+	 * else sees every person, so only names are needed.
+	 */
+	private async viewOf(
+		treeId: string,
+		role: TreeRole,
+		rows: MediaItemRow[],
+		context: AuthenticatedContext
+	): Promise<TreeView> {
+		const entityIds = [
+			...new Set(
+				rows
+					.filter((r) => r.treeId === treeId)
+					.map((r) => r.entityId)
+					.filter((id): id is string => id !== null)
+			)
+		];
+		const kinds = await this.media.recordKindsOf(treeId, entityIds);
+		const unionIds = entityIds.filter((id) => kinds.get(id) === 'union');
+		const partners = await this.media.partnersOf(unionIds);
+		const personIds = new Set<string>();
+		for (const id of entityIds) {
+			if (kinds.get(id) === 'person') personIds.add(id);
+		}
+		for (const list of partners.values()) for (const id of list) personIds.add(id);
+		const isRestricted = !canSeePrivatePeople(role);
+		const scope = isRestricted
+			? await requireTreeScope(this.users, this.trees, treeId, context, 'media:view', this.now())
+			: null;
+		const visible = scope
+			? await visibleAmong(this.db, treeId, [...personIds], scope)
+			: new Set<string>();
+		const names = await this.media.personNamesOf(treeId, [...personIds]);
+		const labels = new Map<string, string>();
+		for (const id of entityIds) {
+			if (kinds.get(id) === 'person') labels.set(id, names.get(id) ?? 'Unknown');
+			if (kinds.get(id) === 'union') {
+				const partnerNames = (partners.get(id) ?? []).map((p) => names.get(p) ?? 'Unknown');
+				labels.set(id, partnerNames.length > 0 ? partnerNames.join(' and ') : 'A partnership');
+			}
+		}
+		return {
+			isRestricted,
+			visible,
+			labels,
+			ownersOf: (row: MediaItemRow) => {
+				if (row.entityId === null) return null;
+				const kind = kinds.get(row.entityId);
+				if (kind === 'person') return [row.entityId];
+				if (kind === 'union') return partners.get(row.entityId) ?? [];
+				return [];
+			}
+		};
+	}
+
+	/**
+	 * One page of the files the caller may see, newest first. Rows are read in batches and each
+	 * scanned row counts toward a cap, so a restricted viewer whose files are mostly hidden gets a
+	 * short page with a cursor rather than a long wait. The cursor is the last row scanned, not the
+	 * last row returned, so the next page starts where the scan isStopped.
+	 */
+	async list(context: AuthenticatedContext, query: FileQuery): Promise<FileListDto> {
+		requireRealUser(context);
+		const trees = await this.callerTrees(context);
+		if (query.treeId !== undefined && !trees.has(query.treeId))
+			return { files: [], nextCursor: null };
+		const limit = Math.min(query.limit ?? FILE_PAGE_SIZE, FILE_PAGE_MAX);
+		let after = query.cursor === undefined ? undefined : parseFileCursor(query.cursor);
+		const files: FileRowDto[] = [];
+		let last: FileCursor | null = null;
+		let scanned = 0;
+		let isStopped = false;
+		for (;;) {
+			if (files.length >= limit || scanned >= FILE_SCAN_CAP) {
+				isStopped = true;
+				break;
+			}
+			const batch = await this.media.listNewestFirst({
+				treeId: query.treeId,
+				after,
+				limit: FILE_SCAN_BATCH
+			});
+			if (batch.length === 0) break;
+			const decided = await this.decideRows(batch, trees, context);
+			let isConsumed = true;
+			for (const [index, row] of batch.entries()) {
+				if (files.length >= limit || scanned >= FILE_SCAN_CAP) {
+					isConsumed = false;
+					break;
+				}
+				scanned++;
+				last = { createdAt: createdKeyOf(row), id: row.id };
+				const file = decided[index];
+				if (file) files.push(file);
+			}
+			if (!isConsumed) {
+				isStopped = true;
+				break;
+			}
+			if (batch.length < FILE_SCAN_BATCH) break;
+			after = last ?? undefined;
+		}
+		return {
+			files,
+			nextCursor: isStopped && last ? formatFileCursor(last) : null
+		};
+	}
+
+	/**
+	 * Storage the caller may see. Per-tree totals go to editors and above of each tree; the install
+	 * total goes to the install owner alone. Both come from one listing of R2, because the quota
+	 * refusal reads R2 too: a figure from D1 would disagree with it for rows that predate sizes.
+	 */
+	async usage(
+		context: AuthenticatedContext,
+		bucket: R2Bucket,
+		treeId?: string
+	): Promise<FileUsageDto> {
+		requireRealUser(context);
+		const trees = await this.callerTrees(context);
+		const { total, byTree } = await storedBytesByTree(bucket);
+		const manageable = [...trees]
+			.filter(([, access]) => access.role !== null && isActionAllowed(access.role, 'media:manage'))
+			.filter(([id]) => treeId === undefined || id === treeId)
+			.map(([id, access]) => ({
+				treeId: id,
+				treeName: access.name,
+				storedBytes: byTree.get(id) ?? 0,
+				limitBytes: MAX_TREE_MEDIA_BYTES
+			}))
+			.sort((a, b) => a.treeName.localeCompare(b.treeName));
+		return {
+			trees: manageable,
+			installBytes: context.user.isInstallOwner === true ? total : null
+		};
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

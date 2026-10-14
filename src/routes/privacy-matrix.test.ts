@@ -39,11 +39,15 @@ const TASKS = 'services/privacy-tasks.test.ts';
 
 const PUBLIC_TREE = 'services/public-tree.test.ts';
 
+const FILES = 'services/media-files.test.ts';
+
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
 	[`${API}/admin/trees/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
 	[`${API}/admin/public-tree/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
 	[`${API}/export/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/files/+server.ts`]: { kind: 'paged-sql', covers: FILES },
+	[`${API}/files/usage/+server.ts`]: { kind: 'role-gated', covers: FILES },
 	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/import/+server.ts`]: { kind: 'role-gated', covers: 'auth/authorization.test.ts' },
@@ -275,6 +279,8 @@ const NO_RECORD_LOADS = [
 const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/admin/trees/+server.ts`]: 'refused',
 	[`${API}/export/+server.ts`]: 'refused',
+	[`${API}/files/+server.ts`]: 'refused',
+	[`${API}/files/usage/+server.ts`]: 'refused',
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
