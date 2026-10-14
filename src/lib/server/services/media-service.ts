@@ -14,7 +14,7 @@ import {
 } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { parseMediaKey } from '../media/media-key';
-import { sumStoredBytes, storedBytesByTree } from '../media/stored-bytes';
+import { listAllObjects, storedBytesByTree, sumStoredBytes } from '../media/stored-bytes';
 import {
 	MediaRepository,
 	type FileCursor,
@@ -25,7 +25,13 @@ import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong } from '../repositories/visibility';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
-import type { FileListDto, FileRowDto, FileUsageDto } from '../../shared/files';
+import type {
+	FileListDto,
+	FileRowDto,
+	FileUsageDto,
+	UnlinkedFileDto,
+	UnlinkedListDto
+} from '../../shared/files';
 import { hasMinimumRole, type TreeRole } from '../../shared/roles';
 import { canSeePrivatePeople, isActionAllowed } from '../auth/authorization';
 import { requireRealUser, requireTreeScope, type ViewerScope } from './tree-access';
@@ -106,6 +112,15 @@ export interface FileQuery {
 	cursor?: string;
 	limit?: number;
 }
+
+/**
+ * How old an object must be before it counts as unlinked. An upload writes its bytes before its row,
+ * so a young object with no row may simply be an upload still in progress.
+ */
+const UNLINKED_GRACE_MS = 60 * 60 * 1000;
+
+/** R2 takes at most this many keys in one delete call. */
+const DELETES_PER_CALL = 1000;
 
 /** Files per page, and the most a caller may ask for. */
 const FILE_PAGE_SIZE = 50;
@@ -568,6 +583,84 @@ export class MediaService {
 		} catch {
 			return { wasObjectRemoved: false };
 		}
+	}
+
+	/**
+	 * Objects in storage that no file row points at, in the trees the caller may clean up (managers
+	 * and owners). One listing of R2 is compared with the keys each tree's rows name. An object
+	 * younger than the grace period, or whose upload time is unknown, is left alone.
+	 */
+	async listUnlinked(
+		context: AuthenticatedContext,
+		bucket: R2Bucket,
+		treeId?: string
+	): Promise<UnlinkedListDto> {
+		const files = await this.findUnlinked(context, bucket, treeId);
+		return { files, totalBytes: files.reduce((sum, file) => sum + file.sizeBytes, 0) };
+	}
+
+	/**
+	 * Deletes the unlinked objects found by a fresh listing, never a list the client sent. Returns how
+	 * many were deleted and how many the bucket refused.
+	 */
+	async deleteUnlinked(
+		context: AuthenticatedContext,
+		bucket: R2Bucket,
+		treeId?: string
+	): Promise<{ deleted: number; failed: number }> {
+		const files = await this.findUnlinked(context, bucket, treeId);
+		let deleted = 0;
+		let failed = 0;
+		for (let start = 0; start < files.length; start += DELETES_PER_CALL) {
+			const keys = files.slice(start, start + DELETES_PER_CALL).map((file) => file.key);
+			try {
+				await bucket.delete(keys);
+				deleted += keys.length;
+			} catch {
+				failed += keys.length;
+			}
+		}
+		return { deleted, failed };
+	}
+
+	private async findUnlinked(
+		context: AuthenticatedContext,
+		bucket: R2Bucket,
+		treeId?: string
+	): Promise<UnlinkedFileDto[]> {
+		requireRealUser(context);
+		const trees = await this.callerTrees(context);
+		const manageable = new Map(
+			[...trees].filter(
+				([id, access]) =>
+					(treeId === undefined || id === treeId) &&
+					access.role !== null &&
+					isActionAllowed(access.role, 'media:delete_any')
+			)
+		);
+		if (manageable.size === 0) return [];
+		const cutoff = this.now().getTime() - UNLINKED_GRACE_MS;
+		const candidates = (await listAllObjects(bucket, 'media/')).flatMap((object) => {
+			const owningTree = parseMediaKey(object.key)?.treeId;
+			if (owningTree === undefined || !manageable.has(owningTree)) return [];
+			if (object.uploaded === undefined || object.uploaded.getTime() > cutoff) return [];
+			return [
+				{ key: object.key, treeId: owningTree, size: object.size, uploaded: object.uploaded }
+			];
+		});
+		const linked = new Map<string, Set<string>>();
+		for (const owningTree of new Set(candidates.map((c) => c.treeId))) {
+			linked.set(owningTree, await this.media.keysInTree(owningTree));
+		}
+		return candidates
+			.filter((c) => !linked.get(c.treeId)?.has(c.key))
+			.map((c) => ({
+				key: c.key,
+				treeId: c.treeId,
+				treeName: trees.get(c.treeId)?.name ?? '',
+				sizeBytes: c.size,
+				uploadedAt: c.uploaded.getTime()
+			}));
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

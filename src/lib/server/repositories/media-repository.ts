@@ -207,6 +207,16 @@ export class MediaRepository {
 		await this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId));
 	}
 
+	/** Every object key a file row in the tree points at. */
+	async keysInTree(treeId: string): Promise<Set<string>> {
+		const rows = await this.db
+			.select({ key: mediaItems.r2ObjectKey })
+			.from(mediaItems)
+			.where(eq(mediaItems.treeId, treeId))
+			.all();
+		return new Set(rows.map((row) => row.key));
+	}
+
 	async exists(treeId: string, objectKey: string): Promise<boolean> {
 		const row = await this.db
 			.select({ id: mediaItems.id })

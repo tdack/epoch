@@ -50,3 +50,20 @@ export interface FileUsageDto {
 	trees: TreeUsageDto[];
 	installBytes: number | null;
 }
+
+/**
+ * An object in storage that no file row points at: left by a failed upload or a removed tree, and
+ * still counted against the quota. `uploadedAt` is epoch milliseconds.
+ */
+export interface UnlinkedFileDto {
+	key: string;
+	treeId: string;
+	treeName: string;
+	sizeBytes: number;
+	uploadedAt: number;
+}
+
+export interface UnlinkedListDto {
+	files: UnlinkedFileDto[];
+	totalBytes: number;
+}

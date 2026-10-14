@@ -667,7 +667,8 @@ export const fileListQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).optional()
 });
 
-export const fileUsageQuerySchema = z.object({ treeId: idSchema.optional() });
+/** A query that may narrow to one tree, shared by the usage and unlinked listings. */
+export const fileTreeQuerySchema = z.object({ treeId: idSchema.optional() });
 
 /** A rename: the tree the file is in, its new name, and the version the client last read. */
 export const fileRenameSchema = z.object({

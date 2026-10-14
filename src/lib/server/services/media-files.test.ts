@@ -630,3 +630,98 @@ describe('deleting a file', () => {
 		expect(await rowExists('f-other')).toBe(true);
 	});
 });
+
+describe('unlinked objects', () => {
+	const HOUR_MS = 60 * 60 * 1000;
+	/**
+	 * A bucket holding an old orphan, a young one, one with no upload time, a linked file, and an
+	 * orphan in the other tree. Built fresh each time, since the delete tests change it.
+	 */
+	function orphanedBucket(): FakeMediaBucket {
+		const bucket = new FakeMediaBucket();
+		const add = (key: string, uploaded: Date | undefined) =>
+			bucket.objects.set(key, { body: new Uint8Array(0), size: 30, uploaded });
+		add(`media/${treeId}/orphan-old.png`, new Date(Date.now() - 2 * HOUR_MS));
+		add(`media/${treeId}/orphan-new.png`, new Date(Date.now() - 10 * 60 * 1000));
+		add(`media/${treeId}/no-time.png`, undefined);
+		add(`media/${treeId}/f-pub.png`, new Date(Date.now() - 2 * HOUR_MS));
+		add(`media/${otherTreeId}/orphan-other.png`, new Date(Date.now() - 2 * HOUR_MS));
+		return bucket;
+	}
+
+	it('lists an old object no file points at, in a tree the caller manages', async () => {
+		const result = await service.listUnlinked(
+			ctxOf(manager),
+			orphanedBucket() as unknown as R2Bucket,
+			treeId
+		);
+		expect(result.files.map((f) => f.key)).toEqual([`media/${treeId}/orphan-old.png`]);
+		expect(result.totalBytes).toBe(30);
+	});
+
+	it('leaves out an object uploaded within the hour, and one with no upload time', async () => {
+		const result = await service.listUnlinked(
+			ctxOf(manager),
+			orphanedBucket() as unknown as R2Bucket,
+			treeId
+		);
+		const keys = result.files.map((f) => f.key);
+		expect(keys).not.toContain(`media/${treeId}/orphan-new.png`);
+		expect(keys).not.toContain(`media/${treeId}/no-time.png`);
+	});
+
+	it('leaves out an object that a file row still points at', async () => {
+		const result = await service.listUnlinked(
+			ctxOf(manager),
+			orphanedBucket() as unknown as R2Bucket,
+			treeId
+		);
+		expect(result.files.map((f) => f.key)).not.toContain(`media/${treeId}/f-pub.png`);
+	});
+
+	it('shows nothing from a tree the caller does not manage', async () => {
+		const result = await service.listUnlinked(
+			ctxOf(manager),
+			orphanedBucket() as unknown as R2Bucket
+		);
+		expect(result.files.map((f) => f.key)).not.toContain(`media/${otherTreeId}/orphan-other.png`);
+	});
+
+	it('shows an editor nothing, and deletes nothing for them', async () => {
+		const bucket = orphanedBucket();
+		expect(
+			(await service.listUnlinked(ctxOf(editor), bucket as unknown as R2Bucket)).files
+		).toEqual([]);
+		expect(await service.deleteUnlinked(ctxOf(editor), bucket as unknown as R2Bucket)).toEqual({
+			deleted: 0,
+			failed: 0
+		});
+		expect(bucket.objects.has(`media/${treeId}/orphan-old.png`)).toBe(true);
+	});
+
+	it('deletes only the unlinked objects of a manager tree, and a second run finds nothing more', async () => {
+		const bucket = orphanedBucket();
+		expect(
+			await service.deleteUnlinked(ctxOf(manager), bucket as unknown as R2Bucket, treeId)
+		).toEqual({
+			deleted: 1,
+			failed: 0
+		});
+		expect(bucket.objects.has(`media/${treeId}/orphan-old.png`)).toBe(false);
+		expect(bucket.objects.has(`media/${treeId}/orphan-new.png`)).toBe(true);
+		expect(bucket.objects.has(`media/${treeId}/f-pub.png`)).toBe(true);
+		expect(bucket.objects.has(`media/${otherTreeId}/orphan-other.png`)).toBe(true);
+		expect(
+			await service.deleteUnlinked(ctxOf(manager), bucket as unknown as R2Bucket, treeId)
+		).toEqual({
+			deleted: 0,
+			failed: 0
+		});
+	});
+
+	it('refuses a public visitor', async () => {
+		await expect(
+			service.listUnlinked(visitorCtx, orphanedBucket() as unknown as R2Bucket)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+});

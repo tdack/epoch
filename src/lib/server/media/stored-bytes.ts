@@ -27,6 +27,23 @@ export async function sumStoredBytes(
 	return total;
 }
 
+/** Every object under a prefix, from R2's listing. Used where the individual keys are needed, not a sum. */
+export async function listAllObjects(
+	bucket: R2Bucket,
+	prefix: string
+): Promise<Array<{ key: string; size: number; uploaded?: Date }>> {
+	const objects: Array<{ key: string; size: number; uploaded?: Date }> = [];
+	let cursor: string | undefined;
+	do {
+		const page = await bucket.list({ prefix, cursor });
+		for (const object of page.objects) {
+			objects.push({ key: object.key, size: object.size, uploaded: object.uploaded });
+		}
+		cursor = page.truncated ? page.cursor : undefined;
+	} while (cursor !== undefined);
+	return objects;
+}
+
 /**
  * The bytes stored under `media/`, in total and per tree, from one pass over R2's listing. Objects
  * whose key names no tree count toward the total only. One pass matters: asking `sumStoredBytes`
