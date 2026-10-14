@@ -3,6 +3,7 @@
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { GedcomExportChoice } from '#lib/services/tree-api.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
+	import { GEDCOM_FILE_ACCEPT } from '#lib/shared/gedcom-files.js';
 
 	interface Props {
 		trees: TreeSummary[];
@@ -80,7 +81,7 @@
 <input
 	bind:this={fileInput}
 	type="file"
-	accept=".ged,.gedcom,.gdz"
+	accept={GEDCOM_FILE_ACCEPT}
 	onchange={onfileSelect}
 	class="hidden"
 	disabled={isImporting}

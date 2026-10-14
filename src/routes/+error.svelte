@@ -17,7 +17,7 @@
 	<!-- From the root layout load; missing only when that load is what failed. -->
 	{#if page.data.sourceUrl}
 		<footer class="px-6 pb-4 text-center">
-			<SourceLink href={page.data.sourceUrl} />
+			<SourceLink href={page.data.sourceUrl} commit={page.data.sourceCommit} />
 		</footer>
 	{/if}
 </div>

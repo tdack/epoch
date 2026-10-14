@@ -5,6 +5,7 @@
 	import { Loader2 } from '@lucide/svelte';
 	import PersonDrawer from '#lib/components/tree/PersonDrawer.svelte';
 	import TreeGestureHint from '#lib/components/tree/TreeGestureHint.svelte';
+	import EmptyTreePrompt from '#lib/components/tree/EmptyTreePrompt.svelte';
 	import OrreryCanvas from '#lib/components/tree/OrreryCanvas.svelte';
 	import PoincareCanvas from '#lib/components/tree/PoincareCanvas.svelte';
 	import RibbonsCanvas from '#lib/components/tree/RibbonsCanvas.svelte';
@@ -48,7 +49,7 @@
 	import { selectWholeTree } from '#lib/tree-layout/whole-tree.js';
 	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
-	import { canChangeRecords, canCreateRecords } from '#lib/shared/roles.js';
+	import { canChangeRecords, canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
@@ -57,7 +58,7 @@
 	}
 
 	let { data }: Props = $props();
-	const { editor, marks, toasts, finder, isPublicVisitor } = getTreeContext();
+	const { editor, marks, toasts, finder, isPublicVisitor, importGedcom } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
 	const canCreate = $derived(canCreateRecords(role));
@@ -697,18 +698,13 @@
 			{/if}
 		</div>
 	{:else}
-		<div
-			class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-stone-200 bg-stone-100/60 p-10 text-center"
-		>
-			<p class="text-sm text-stone-700">This tree has no people yet.</p>
-			{#if canCreate}<button
-					type="button"
-					onclick={editor.openAddPerson}
-					class="mt-4 cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-emerald-700"
-				>
-					Add the first person
-				</button>{/if}
-		</div>
+		<EmptyTreePrompt
+			{canCreate}
+			canImport={canImportGedcom(role)}
+			onAddPerson={editor.openAddPerson}
+			onImport={importGedcom}
+			onReject={(message) => toasts.push(message, { tone: 'error', durationMs: 10_000 })}
+		/>
 	{/if}
 </div>
 

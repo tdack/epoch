@@ -1,3 +1,9 @@
+/**
+ * The short commit the running code was built from, shown beside the source link so a visitor can
+ * find the exact source; `-dirty` when a local build had uncommitted changes.
+ */
+export const SOURCE_COMMIT: string | null = __EPOCH_COMMIT__;
+
 /** The upstream repository, offered when an install names no source of its own. */
 const UPSTREAM_SOURCE_URL = 'https://github.com/tdack/epoch';
 
