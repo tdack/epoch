@@ -5,7 +5,7 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md), a
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
 it changes a decision.
 
-Last reviewed: 2026-10-14.
+Last reviewed: 2026-10-15.
 
 ## Part 1: Open fixes
 
@@ -90,6 +90,13 @@ Last reviewed: 2026-10-14.
   (ADR-029)
 - **A source merge or delete touching more than 300 records is refused.** Raise or batch the limit.
   (ADR-028)
+- **Event structures still dropped on import.** `AGE > PHRASE`, `CAUS` with `CONT` or `CONC`, and
+  `DATE > TIME` are read, and their children are lost. Keep them verbatim, as the place's children
+  are kept now. (ADR-051, ADR-023)
+- **`FONE` and `ROMN` under a place are kept verbatim,** so a 7.0 export writes them as 5.5.1 tags,
+  not as 7.0 `TRAN`. Convert them when the place model needs transliterations. (ADR-051)
+- **`@@` inside an email or web value** follows the codebase-wide text rule, like every other text
+  field. Contact fields may need their own rule about escaping. (ADR-051)
 
 ### Search, lists and performance
 
@@ -133,6 +140,11 @@ Last reviewed: 2026-10-14.
 - **Flaky e2e specs.** `union-choice.spec.ts` has failed about 1 run in 4 to 8, and
   `undo-and-conflict.spec.ts` ("a concurrent edit opens the conflict dialog") failed once in a full
   run. Find the race and fix it, or quarantine with a tracked reason.
+- **E2E specs find a fact's fields by label.** `getByLabel('Type')` also matches "Sub-type", so use
+  `{ exact: true }` for any label that is part of another (see `e2e/facts.spec.ts`).
+- **Test data is imported by relative path.** Tests read `test/data` files through relative
+  `?raw` imports, so moving the directory breaks them at a distance. One shared path constant, or
+  fixtures beside the tests, would keep the paths in one place.
 - **Flaky unit tests under load.** `union-merge.test.ts` and the "size limit" case in
   `person-merge-service.test.ts` have failed intermittently when the suite runs under load. Find the
   cause, or quarantine with a tracked reason.
@@ -200,7 +212,9 @@ Last reviewed: 2026-10-14.
 
 - **Job UX for import and export:** progress, cancellation, diagnostics, downloadable reports and
   retained job history. Progress is a status poll today. (ADR-040)
-- **Extension reporting before import,** so unsupported tags are listed in the preview.
+- **Preview counts for preserved structures outside events.** The preview counts the lines kept
+  under events (`retainedTags`, ADR-051). Lines kept on individuals and families, and name extras,
+  are not counted yet, so the preview under-reports them.
 - **Keep the original upload and its checksum** privately for recovery and audit, under a retention
   policy.
 - **Conformance corpus and a semantic diff report** between an import and its export.
@@ -209,6 +223,23 @@ Last reviewed: 2026-10-14.
 - **Export UI for exporting tasks;** research tasks are Epoch's own and are not exported. (ADR-029)
 - **An export audit is deliberately not planned.** The owner does not want account-level
   accountability tracing, and `change_log` (ADR-007) is scoped to tree content. (ADR-042)
+
+### Fact details
+
+- **Edit and show fact details on family events.** The partnership DTO and the union editor carry
+  only the date and place. Family events are stored and exported with their details (ADR-051).
+- **Decide what a fact-level `RESN` should do.** It is kept and shown read-only. Its contact fields
+  and address are shown to anyone who can see the person. Decide whether `confidential` or `privacy`
+  on a fact should restrict them, as the person-level `RESN` does (ADR-015, ADR-051).
+- **Structured address editing (`ADR1` to `CTRY`).** The address is edited as text, so its
+  structured parts are kept only while the text still matches them, the rule ADR-028 applies to
+  `gedcom_layout`. Editing the parts would need its own staleness rule (ADR-051).
+- **Feed fact coordinates into the places model.** Latitude and longitude sit on the fact and need a
+  place. A place-level coordinate would serve the places model (ADR-051).
+- **`HUSB` and `WIFE` `AGE` under family events** stay retained. Model them with the partnership
+  details (ADR-051).
+- **Show the sub-type on the person page for every fact that has one.** Only `EVEN` and `FACT` show
+  it today.
 
 ### Collaboration and change control
 
