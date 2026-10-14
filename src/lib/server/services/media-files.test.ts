@@ -511,3 +511,122 @@ describe('editing files', () => {
 		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });
+
+describe('deleting a file', () => {
+	/** A bucket with one object, so a test can see whether delete removed it. */
+	function bucketHolding(key: string): FakeMediaBucket {
+		const bucket = new FakeMediaBucket();
+		bucket.objects.set(key, { body: new Uint8Array(0), size: 5 });
+		return bucket;
+	}
+	/** A bucket whose deletes fail, to show the row goes even when the bytes cannot. */
+	class FailingDeleteBucket extends FakeMediaBucket {
+		override async delete(): Promise<void> {
+			throw new Error('R2 is unavailable');
+		}
+	}
+	async function uploadedBy(id: string, uploader: string | null) {
+		await addFile(treeId, null, uploader, { id, title: `${id}.png` });
+		return { id, key: `media/${treeId}/${id}.png` };
+	}
+	const rowExists = async (id: string) =>
+		(await t.db.select().from(mediaItems).where(eq(mediaItems.id, id))).length > 0;
+	const changesIn = async () =>
+		(await t.db.select().from(changeLog).where(eq(changeLog.treeId, treeId))).length;
+
+	it('removes the row first and then the object', async () => {
+		const file = await uploadedBy('d-order', manager.userId);
+		const bucket = bucketHolding(file.key);
+		const result = await service.delete(
+			ctxOf(manager),
+			{ treeId, mediaId: file.id },
+			bucket as unknown as R2Bucket
+		);
+		expect(result).toEqual({ wasObjectRemoved: true });
+		expect(await rowExists(file.id)).toBe(false);
+		expect(bucket.objects.has(file.key)).toBe(false);
+	});
+
+	it('removes the row even when the object cannot be removed, and reports that the object remains', async () => {
+		const file = await uploadedBy('d-r2-fails', manager.userId);
+		const result = await service.delete(
+			ctxOf(manager),
+			{ treeId, mediaId: file.id },
+			new FailingDeleteBucket() as unknown as R2Bucket
+		);
+		expect(result).toEqual({ wasObjectRemoved: false });
+		expect(await rowExists(file.id)).toBe(false);
+	});
+
+	it('lets an editor delete their own upload and refuses one they did not upload', async () => {
+		const own = await uploadedBy('d-own', editor.userId);
+		const theirs = await uploadedBy('d-theirs', manager.userId);
+		const bucket = new FakeMediaBucket() as unknown as R2Bucket;
+		await expect(
+			service.delete(ctxOf(editor), { treeId, mediaId: own.id }, bucket)
+		).resolves.toBeDefined();
+		await expect(
+			service.delete(ctxOf(editor), { treeId, mediaId: theirs.id }, bucket)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await rowExists(theirs.id)).toBe(true);
+	});
+
+	it('lets a manager and an owner delete any file, including a legacy one with no uploader', async () => {
+		const legacy = await uploadedBy('d-legacy', null);
+		const other = await uploadedBy('d-by-editor', editor.userId);
+		const bucket = new FakeMediaBucket() as unknown as R2Bucket;
+		await service.delete(ctxOf(owner), { treeId, mediaId: legacy.id }, bucket);
+		await service.delete(ctxOf(manager), { treeId, mediaId: other.id }, bucket);
+		expect(await rowExists(legacy.id)).toBe(false);
+		expect(await rowExists(other.id)).toBe(false);
+	});
+
+	it('refuses an editor a legacy file with no uploader', async () => {
+		const legacy = await uploadedBy('d-legacy-editor', null);
+		await expect(
+			service.delete(
+				ctxOf(editor),
+				{ treeId, mediaId: legacy.id },
+				new FakeMediaBucket() as unknown as R2Bucket
+			)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it.each([
+		['a contributor', () => contributor],
+		['a viewer', () => viewer],
+		['a stranger', () => stranger]
+	])('refuses %s, even for a file they uploaded', async (_label, actor) => {
+		const file = await uploadedBy(`d-refused-${_label.replace(/\W+/g, '-')}`, actor().userId);
+		await expect(
+			service.delete(
+				ctxOf(actor()),
+				{ treeId, mediaId: file.id },
+				new FakeMediaBucket() as unknown as R2Bucket
+			)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await rowExists(file.id)).toBe(true);
+	});
+
+	it('is not written to the change log, so it leaves no undoable entry', async () => {
+		const file = await uploadedBy('d-unlogged', manager.userId);
+		const before = await changesIn();
+		await service.delete(
+			ctxOf(manager),
+			{ treeId, mediaId: file.id },
+			new FakeMediaBucket() as unknown as R2Bucket
+		);
+		expect(await changesIn()).toBe(before);
+	});
+
+	it('names a file in another tree as missing when asked through this tree', async () => {
+		await expect(
+			service.delete(
+				ctxOf(owner),
+				{ treeId, mediaId: 'f-other' },
+				new FakeMediaBucket() as unknown as R2Bucket
+			)
+		).rejects.toBeInstanceOf(NotFoundError);
+		expect(await rowExists('f-other')).toBe(true);
+	});
+});

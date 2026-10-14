@@ -6,7 +6,12 @@
 
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
-import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
+import {
+	NotFoundError,
+	PayloadTooLargeError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { parseMediaKey } from '../media/media-key';
 import { sumStoredBytes, storedBytesByTree } from '../media/stored-bytes';
@@ -527,6 +532,42 @@ export class MediaService {
 			commands: [command],
 			requiredAction: () => 'media:manage'
 		});
+	}
+
+	/**
+	 * Delete a file: its row first, then its bytes. Not a logged change, so it cannot be undone; an
+	 * earlier change that involves the file will refuse its undo once it is gone. A manager may delete
+	 * any file, and an editor only their own uploads. The bytes are removed after the row, so if that
+	 * second step fails the file is still gone for everyone and the bytes become an orphan that the
+	 * unlinked cleanup finds; `wasObjectRemoved` says which happened.
+	 */
+	async delete(
+		context: AuthenticatedContext,
+		input: { treeId: string; mediaId: string },
+		bucket: R2Bucket
+	): Promise<{ wasObjectRemoved: boolean }> {
+		requireRealUser(context);
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			input.treeId,
+			context,
+			'media:manage',
+			this.now()
+		);
+		const file = await this.media.findById(input.mediaId);
+		if (!file || file.treeId !== input.treeId) throw new NotFoundError('File', input.mediaId);
+		if (!canDeleteMedia(scope, file.uploadedBy))
+			throw new UnauthorizedError(
+				"Forbidden: insufficient privileges for action 'media:delete_any'"
+			);
+		await this.media.deleteRow(file.id);
+		try {
+			await bucket.delete(file.r2ObjectKey);
+			return { wasObjectRemoved: true };
+		} catch {
+			return { wasObjectRemoved: false };
+		}
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

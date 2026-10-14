@@ -684,3 +684,6 @@ export const fileAttachSchema = z.object({
 });
 
 export const fileDetachSchema = z.object({ treeId: idSchema, version: versionSchema.optional() });
+
+/** A delete names its tree in the query: DELETE carries no body. */
+export const fileDeleteQuerySchema = z.object({ treeId: idSchema });

@@ -202,6 +202,11 @@ export class MediaRepository {
 		return new Map(rows.map((row) => [row.id, row.uploadedBy]));
 	}
 
+	/** Removes the row. The object is removed separately, after this, so a failure leaves an orphan the cleanup finds rather than a row that points at nothing. */
+	async deleteRow(mediaId: string): Promise<void> {
+		await this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId));
+	}
+
 	async exists(treeId: string, objectKey: string): Promise<boolean> {
 		const row = await this.db
 			.select({ id: mediaItems.id })
