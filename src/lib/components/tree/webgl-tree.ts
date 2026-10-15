@@ -230,3 +230,9 @@ export interface WebGlTreeScene {
 	requestFrame(): void;
 	dispose(): void;
 }
+
+/** "the partnership of A and B" as a title: "Partnership of A and B". */
+export function capitalised(text: string): string {
+	const bare = text.replace(/^the /, '');
+	return bare.charAt(0).toUpperCase() + bare.slice(1);
+}
