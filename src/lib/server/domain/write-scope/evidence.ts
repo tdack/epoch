@@ -122,5 +122,8 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	}),
 	remove_citation: (c) => seedOf({ citations: [c.citationId] }),
 	// The subject brings every citation on it, which is every sibling to reorder.
-	reorder_citations: (c) => citationSubjectSeed(c.subject)
+	reorder_citations: (c) => citationSubjectSeed(c.subject),
+	add_note: (c) => noteSubjectSeed(c.subject),
+	reorder_notes: (c) => noteSubjectSeed(c.subject),
+	create_note: () => seedOf({ wholeTables: ['notes'] })
 };

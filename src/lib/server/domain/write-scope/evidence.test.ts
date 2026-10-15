@@ -47,7 +47,10 @@ const ENABLED = [
 	'add_citation',
 	'update_citation',
 	'remove_citation',
-	'reorder_citations'
+	'reorder_citations',
+	'add_note',
+	'reorder_notes',
+	'create_note'
 ] as const;
 
 function rng(seed: number) {
