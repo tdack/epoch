@@ -109,7 +109,8 @@ describe('PersonFacts', () => {
 	it('links an email and a website only when the value is one the browser may follow', () => {
 		render([
 			fact({ email: 'parish@example.test', web: 'https://example.test/parish' }),
-			fact({ id: 'f2', web: 'javascript:alert(1)' })
+			// Older, so the newest of the group is the valid one and the hostile one sits behind "Show earlier".
+			fact({ id: 'f2', web: 'javascript:alert(1)', sortStart: '1800-01-01' })
 		]);
 		const [valid, hostile] = [...document.querySelectorAll('[data-testid="fact-contact"]')];
 		const email = valid!.querySelector('a[href^="mailto:"]');
@@ -136,8 +137,96 @@ describe('PersonFacts', () => {
 
 	it('shows the sub-type after the heading of an other event', () => {
 		render([fact({ type: 'EVEN', label: 'Other event', classification: 'Anniversary' })]);
-		expect(document.querySelector('[data-testid="fact"] span')!.textContent).toContain(
-			'Other event (Anniversary)'
-		);
+		expect(groupHeading(0)).toBe('Other event (Anniversary)');
+	});
+
+	it('groups facts of one kind under one panel, in order of first appearance', () => {
+		render([
+			fact({ id: 'r1', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' }),
+			fact({ id: 'b1', type: 'BIRT', label: 'Birth', sortStart: '1880-01-01' }),
+			fact({ id: 'r2', type: 'RESI', label: 'Residence', sortStart: '1910-01-01' })
+		]);
+		expect(groupCount()).toBe(2);
+		expect(groupHeading(0)).toBe('Residence');
+		expect(groups()[0]!.querySelector('h4 span')!.textContent).toBe('2');
+		expect(groupHeading(1)).toBe('Birth');
+	});
+
+	it('groups custom events by their sub-type, so different ones do not merge', () => {
+		render([
+			fact({ id: 'e1', type: 'EVEN', label: 'Other event', classification: 'Anniversary' }),
+			fact({ id: 'e2', type: 'EVEN', label: 'Other event', classification: 'Graduation' })
+		]);
+		expect(groupCount()).toBe(2);
+	});
+
+	it('shows only the newest fact of a group, with the earlier ones behind a button', () => {
+		render([
+			fact({ id: 'r1', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' }),
+			fact({ id: 'r2', type: 'RESI', label: 'Residence', sortStart: '1920-01-01' }),
+			fact({ id: 'r3', type: 'RESI', label: 'Residence', sortStart: '1910-01-01' })
+		]);
+		expect(visibleFactIds()).toEqual(['r2']);
+		const toggle = groupButton(0)!;
+		expect(toggle.textContent).toBe('Show 2 earlier');
+		expect(toggle.getAttribute('aria-expanded')).toBe('false');
+		expect(toggle.getAttribute('aria-controls')).toBeTruthy();
+	});
+
+	it('reveals the earlier facts newest first, and hides them again', () => {
+		render([
+			fact({ id: 'r1', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' }),
+			fact({ id: 'r2', type: 'RESI', label: 'Residence', sortStart: '1920-01-01' }),
+			fact({ id: 'r3', type: 'RESI', label: 'Residence', sortStart: '1910-01-01' })
+		]);
+		const toggle = groupButton(0)!;
+		toggle.click();
+		flushSync();
+		expect(visibleFactIds()).toEqual(['r2', 'r3', 'r1']);
+		expect(toggle.textContent).toBe('Hide earlier');
+		expect(toggle.getAttribute('aria-expanded')).toBe('true');
+		toggle.click();
+		flushSync();
+		expect(visibleFactIds()).toEqual(['r2']);
+	});
+
+	it('counts an undated fact as the oldest, and ties go to the later one in the list', () => {
+		render([
+			fact({ id: 'undated', type: 'RESI', label: 'Residence', dateText: null, sortStart: null }),
+			fact({ id: 'first', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' }),
+			fact({ id: 'second', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' })
+		]);
+		expect(visibleFactIds()).toEqual(['second']);
+	});
+
+	it('shows every fact of a group that has a conflict, with no button to hide them', () => {
+		render([
+			fact({ id: 'b1', type: 'BIRT', sortStart: '1900-01-01' }),
+			fact({
+				id: 'b2',
+				type: 'BIRT',
+				sortStart: '1901-01-01',
+				conflict: { kind: 'conflict', otherIds: ['b1'] } as never
+			})
+		]);
+		expect(visibleFactIds()).toEqual(['b2', 'b1']);
+		expect(groupButton(0)).toBeNull();
+		expect(byTestId('fact')!.getAttribute('data-conflict')).toBe('conflict');
 	});
 });
+
+/** The panel headings, as the reader sees them: a label and, for more than one fact, its count. */
+const groups = () => [...document.querySelectorAll('[data-testid="fact-group"]')];
+const groupCount = () => groups().length;
+/** The label alone; the count is a separate span after it. */
+const groupHeading = (index: number) =>
+	groups()[index]!.querySelector('h4')!.childNodes[0]!.textContent!.trim();
+const groupButton = (index: number) =>
+	groups()[index]!.querySelector('button[aria-controls]') as HTMLButtonElement | null;
+
+/** The fact rows a reader can see, in order: rows inside a hidden list are skipped. */
+function visibleFactIds(): string[] {
+	return [...document.querySelectorAll<HTMLElement>('[data-testid="fact"]')]
+		.filter((row) => !row.closest('[hidden]'))
+		.map((row) => row.getAttribute('data-fact-id') ?? '');
+}
