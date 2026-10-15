@@ -43,10 +43,10 @@ const SAMPLE_COMMANDS: RelationshipCommand[] = [
 
 describe('the command scope tables', () => {
 	it('leave the kinds ADR-055 keeps whole without a seed', () => {
-		const whole = SAMPLE_COMMANDS.filter((c) => c.kind === 'delete_person');
-		for (const command of whole) expect(seedFor([command]), command.kind).toBeNull();
-		const seeded = SAMPLE_COMMANDS.find((c) => c.kind === 'update_fact')!;
-		expect(seedFor([seeded])).not.toBeNull();
+		const kept = new Set(['delete_person', 'destroy_union']);
+		for (const command of SAMPLE_COMMANDS) {
+			expect(seedFor([command]) === null, command.kind).toBe(kept.has(command.kind));
+		}
 	});
 
 	it('send a request to the whole tree if any one of its commands has no seed', () => {
