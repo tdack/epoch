@@ -268,7 +268,7 @@
 			type="button"
 			data-testid="files-add"
 			onclick={() => openDialog('upload')}
-			class="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-sm hover:bg-emerald-700"
+			class="btn-primary-sm gap-1.5"
 		>
 			<Plus class="h-3.5 w-3.5" aria-hidden="true" />
 			Add a file
