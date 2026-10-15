@@ -97,6 +97,11 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: 'services/tree-view-mode.test.ts'
 	},
+	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
+	[`${API}/admin/settings/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/settings-service.test.ts'
+	},
 	[`${API}/default-tree/+server.ts`]: {
 		kind: 'no-record-data',
 		covers: 'services/tree-default.test.ts'
@@ -285,7 +290,7 @@ const NO_RECORD_LOADS = [
  * for a private tree. `public-tree-only` is that opt-in; `refused` is no opt-in at all. The
  * private people of the public tree stay hidden through the services' own visibility rules.
  */
-const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
+const VISITOR_READS: Record<string, 'refused' | 'public-tree-only' | 'site-settings-only'> = {
 	[`${API}/admin/trees/+server.ts`]: 'refused',
 	[`${API}/export/+server.ts`]: 'refused',
 	[`${API}/files/+server.ts`]: 'refused',
@@ -294,6 +299,8 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
+	// The site default's colours and the visitor's empty own layer: no tree, no record.
+	[`${API}/settings/+server.ts`]: 'site-settings-only',
 	[`${API}/trees/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/charts/descendants/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: 'public-tree-only',
@@ -389,7 +396,7 @@ describe('the public visitor reads only what a route opts into (ADR-041)', () =>
 		for (const [route, module] of Object.entries(ROUTE_MODULES)) {
 			if (!module.GET || route === HAND_ROLLED_GET_ROUTE) continue;
 			expect(allowsPublicVisitor(module.GET), route).toBe(
-				VISITOR_READS[route] === 'public-tree-only'
+				VISITOR_READS[route] === 'public-tree-only' || VISITOR_READS[route] === 'site-settings-only'
 			);
 		}
 	});

@@ -735,3 +735,41 @@ export const fileDetachSchema = z.object({ treeId: idSchema, version: versionSch
 
 /** A delete names its tree in the query: DELETE carries no body. */
 export const fileDeleteQuerySchema = z.object({ treeId: idSchema });
+
+// ADR-053: colours reach a style attribute, so each one is a six-digit hex and nothing looser.
+const colourSchema = z
+	.string()
+	.regex(/^#[0-9a-fA-F]{6}$/)
+	.transform((colour) => colour.toLowerCase());
+const sexColoursSchema = z.object({
+	male: colourSchema,
+	female: colourSchema,
+	unknown: colourSchema
+});
+const tracePaletteSchema = z.object({
+	trace: z.array(colourSchema).length(6),
+	intersection: colourSchema
+});
+const focusColoursSchema = z.object({
+	ancestor: colourSchema,
+	descendant: colourSchema,
+	partner: colourSchema
+});
+
+/** A change to a settings layer: a group replaces, `null` clears it, an absent key is left alone. */
+export const settingsPatchSchema = z.object({
+	sexColours: sexColoursSchema.nullable().optional(),
+	tracePalette: tracePaletteSchema.nullable().optional(),
+	focusColours: focusColoursSchema.nullable().optional(),
+	isMotionReduced: z.boolean().nullable().optional()
+});
+/** The site default has no motion setting, so the install owner cannot set one for everyone. */
+export const siteSettingsPatchSchema = settingsPatchSchema.omit({ isMotionReduced: true });
+/** The versioned document stored per layer. Unknown keys are stripped on every read. */
+export const settingsDocumentSchema = z.object({
+	version: z.literal(1).optional(),
+	sexColours: sexColoursSchema.optional(),
+	tracePalette: tracePaletteSchema.optional(),
+	focusColours: focusColoursSchema.optional(),
+	isMotionReduced: z.boolean().optional()
+});

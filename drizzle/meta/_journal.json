@@ -225,6 +225,13 @@
       "when": 1791982355913,
       "tag": "0031_fact_details",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1792048654592,
+      "tag": "0032_user_site_settings",
+      "breakpoints": true
     }
   ]
 }
