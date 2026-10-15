@@ -144,10 +144,12 @@ count, so it reads one index entry per row (5,324 and 2,599 above). That is line
 is the only part of a page load that is. It is acceptable at the sizes Epoch targets; if trees grow
 far past that, keep counters on the `trees` row instead of counting (Phase 8, performance).
 
-## Writes still read the whole tree
+## Writes read a scoped snapshot (ADR-055)
 
-Every mutation plans against a full `TreeRows` snapshot (`ChangeStore.loadRows`). That is outside
-this slice, which bounds reads. It is the next place a large tree will hurt.
+Most edits now plan over the closure of the records they name (`ScopedRowLoader`), not the whole
+tree. The kinds still planned over a full `TreeRows` snapshot (`ChangeStore.loadRows`) are listed in
+ADR-055 and in `write-scope/*.ts`; the relationship intent planner (`add_partner`, `add_child`, …)
+is one of them, which is why "add partner" below has not moved.
 
 ### Write cost (ADR-055 baseline)
 
@@ -169,6 +171,24 @@ time is local wrangler SQLite, so only its ratio between the trees means anythin
 | Corpus (5,324 people) | name edit | 34412 | 18 | 400 |
 | Corpus (5,324 people) | person update (update_person) | 34415 | 21 | 485 |
 | Corpus (5,324 people) | add partner | 34415 | 21 | 634 |
+
+After ADR-055 (recorded 2026-10-16, same test). The edited person is new, with one name and one
+fact, so the rows are close to the minimum; a person with many partnerships, children and citations
+reads more, but in proportion to that person, not to the tree. A scoped load is three to five
+sequential batches, so round trips fall less than rows.
+
+| Tree | Write | Rows returned | Round trips | Wall ms |
+| --- | --- | ---: | ---: | ---: |
+| The Simpsons | fact edit | 7 | 7 | 26 |
+| The Simpsons | undo of the fact edit | 10 | 10 | 35 |
+| The Simpsons | name edit | 7 | 7 | 26 |
+| The Simpsons | person update (update_person) | 9 | 9 | 28 |
+| The Simpsons | add partner (still whole-tree) | 126 | 21 | 36 |
+| Corpus (5,324 people) | fact edit | 7 | 7 | 18 |
+| Corpus (5,324 people) | undo of the fact edit | 10 | 10 | 26 |
+| Corpus (5,324 people) | name edit | 7 | 7 | 18 |
+| Corpus (5,324 people) | person update (update_person) | 9 | 9 | 22 |
+| Corpus (5,324 people) | add partner (still whole-tree) | 34415 | 21 | 642 |
 
 ## Name search (S6)
 

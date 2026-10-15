@@ -115,11 +115,33 @@ Last reviewed: 2026-10-15.
   folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
   fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
   needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
-- **Every write reads the whole tree.** `ChangeStore.loadRows` runs 14 queries over the tree's
-  people, names, events, unions, evidence, notes and tasks for every mutation, preview and merge
-  (query-plans.md, "Writes still read the whole tree"). Not a problem at today's sizes. Measure rows
-  read and peak memory for a fact edit on the 5,324-person corpus before choosing a scoped loader;
-  `buildPlanOps` is pure, so only the loading changes.
+- **Some writes still read the whole tree (ADR-055).** Person, fact, name, file, union-link,
+  source, citation, note-creation and task-creation edits and undo now load a scoped snapshot (a
+  fact edit on the 5,324-person corpus fell from 34,412 rows to 7; query-plans.md, "Write cost").
+  Still whole, each pinned by a test in `write-scope/*.test.ts`:
+  - `update_union`, `end_union`, `destroy_union`: the labeller numbers a partnership among the
+    same pair's other partnerships ("1st of 2"), which the closure does not load. Loading each
+    partner's other partnerships would let them in.
+  - Repository edits and links (`update_repository`, `delete_repository`, `link_repository`,
+    `update_source_repository`, `unlink_repository`): a restricted viewer sees a repository only
+    through the sources that link it, and the closure does not walk from a repository to them.
+  - Note and task edits keyed by an attachment, note or task id (`update_note`, `remove_note`,
+    `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
+    `delete_task`): the id does not say which subject it sits on.
+  - `delete_person`, `detach_media`: blocked by the `opsTouchPrivate` item below.
+  - The relationship intent planner (`add_partner`, `add_child`, …), which is the busiest path left;
+    showing equality for it is the next step.
+  - By design: merges, `standardise_dates`, `rewrite_place`, the quality report.
+  A scoped load costs three to five sequential batches, so round trips fall less than rows.
+- **`opsTouchPrivate` treats an unowned file differently when the tree has no private person.**
+  Its `hidden.size === 0` early return skips the "a detached file is editor-only" rule, so whether a
+  contributor may touch an unowned file depends on whether anyone else in the tree is private. A
+  scoped snapshot may see no private person where the whole tree has one, which is why
+  `delete_person` and `detach_media` stay whole. Decide which behaviour is intended, make the rule
+  not depend on the rest of the tree, then scope both kinds. (`domain/privacy-mask.ts`)
+- **A union label can number against an unrelated union.** The labeller numbers single-partner
+  partnerships that share a display name elsewhere in the tree ("1 of 2"); a scoped load cannot see
+  the unrelated one, so the label can differ from the whole tree's. Cosmetic; it predates ADR-055.
 - **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
   people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
   `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
