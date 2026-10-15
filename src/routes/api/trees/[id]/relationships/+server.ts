@@ -11,6 +11,6 @@ export const POST = treeHandler(
 			ctx
 		);
 		// 200 rather than 201 when the plan wrote nothing (a warning stopped it), so the client can say so.
-		return Response.json({ success: true, plan, change, affected }, { status: change ? 201 : 200 });
+		return Response.json({ plan, change, affected }, { status: change ? 201 : 200 });
 	}
 );

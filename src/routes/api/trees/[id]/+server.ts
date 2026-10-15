@@ -26,6 +26,6 @@ export const DELETE = treeHandler(
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
 		if (!bucket) return Response.json({ error: 'R2 binding unavailable' }, { status: 500 });
 		await new TreeService(db).deleteTree(treeId, ctx, bucket);
-		return { success: true };
+		return {};
 	}
 );

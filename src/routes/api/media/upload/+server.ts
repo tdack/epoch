@@ -80,7 +80,6 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 
 		return Response.json(
 			{
-				success: true,
 				media: {
 					id: mediaId,
 					objectKey,

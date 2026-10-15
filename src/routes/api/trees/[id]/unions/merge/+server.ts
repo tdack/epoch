@@ -14,6 +14,6 @@ export const POST = treeHandler(
 		const command = { kind: 'merge_unions' as const, ...body };
 		if (isPreview) return service.previewMerge(treeId, command, ctx);
 		const { change } = await service.mergeUnions(treeId, command, ctx);
-		return { success: true, change };
+		return { change };
 	}
 );

@@ -12,7 +12,7 @@ export const PUT = treeHandler(
 			{ kind: 'update_union', unionId: params.unionId, expectedVersion: version, status, events },
 			ctx
 		);
-		return { success: true, change };
+		return { change };
 	}
 );
 

@@ -26,6 +26,6 @@ export const POST = treeHandler(
 			},
 			ctx
 		);
-		return { success: true, individual, change };
+		return { individual, change };
 	}
 );

@@ -11,6 +11,6 @@ export const POST = treeHandler(
 	{ failure: 'Failed to remove relationship', body: relationshipDeleteSchema },
 	async ({ db, ctx, treeId, body }) => {
 		const { change } = await new RelationshipService(db).removeRelationship(treeId, body, ctx);
-		return { success: true, change };
+		return { change };
 	}
 );

@@ -20,7 +20,7 @@ export const PUT = treeHandler(
 			{ givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace },
 			ctx
 		);
-		return { success: true, individual, change };
+		return { individual, change };
 	}
 );
 
@@ -33,6 +33,6 @@ export const DELETE = treeHandler(
 			ctx,
 			expectedVersion(url)
 		);
-		return { success: true, change };
+		return { change };
 	}
 );

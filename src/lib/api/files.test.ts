@@ -11,7 +11,7 @@ describe('uploadMediaApi', () => {
 
 	it('posts the file with its tree and person, and titles it by its name', async () => {
 		const { uploadMediaApi } = await loadApi(false);
-		const fetchMock = vi.fn(async () => Response.json({ success: true }, { status: 201 }));
+		const fetchMock = vi.fn(async () => Response.json({}, { status: 201 }));
 		vi.stubGlobal('fetch', fetchMock);
 
 		await uploadMediaApi('t1', 'p1', new File(['x'], 'portrait.png', { type: 'image/png' }));

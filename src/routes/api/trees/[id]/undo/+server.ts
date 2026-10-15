@@ -12,5 +12,5 @@ export const GET = treeHandler(
 /** Undo the signed-in user's most recent undoable change in this tree. */
 export const POST = treeHandler({ failure: 'Failed to undo' }, async ({ db, ctx, treeId }) => {
 	const { undone, change } = await new ChangeLogService(db).undoLast(treeId, ctx);
-	return { success: true, undone, change };
+	return { undone, change };
 });
