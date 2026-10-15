@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import { resolvePalette, type Palette } from './palette.js';
+import { resolvePalette, type Palette } from '#lib/shared/palette.js';
 import { DEFAULT_VIEW_STATE } from './tree-url.js';
 import TreeToolbar from './TreeToolbar.svelte';
 

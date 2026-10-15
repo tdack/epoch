@@ -1,4 +1,4 @@
-import { DEFAULT_PALETTE, type Palette } from '#lib/components/tree/palette.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
 import { getDb } from '#lib/server/db/index.js';
 import { Logger } from '#lib/server/logging/logger.js';
 import { SettingsService } from '#lib/server/services/settings-service.js';

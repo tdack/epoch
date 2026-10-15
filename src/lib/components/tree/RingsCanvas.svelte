@@ -2,9 +2,9 @@
 	import { ringLineage, type RingsLayout } from '#lib/tree-layout/rings.js';
 	import type { RingsScene } from './rings-scene.js';
 	import { RING_CAMERAS } from './webgl-cameras.js';
-	import { RING_TOKENS } from './tree-tokens.js';
+	import { RING_TOKENS } from '#lib/shared/tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import { DEFAULT_PALETTE } from './palette.js';
+	import { DEFAULT_PALETTE } from '#lib/shared/palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let {

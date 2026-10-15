@@ -4,7 +4,7 @@
  * small handle the shell drives. Plain TypeScript with no three.js import, so the shell stays out of the three.js bundle.
  */
 
-import type { Palette } from './palette.js';
+import type { Palette } from '#lib/shared/palette.js';
 import { sexLabel } from '#lib/shared/sex.js';
 import {
 	linkKey,

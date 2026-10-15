@@ -12,7 +12,7 @@
 	import RingsCanvas from '#lib/components/tree/RingsCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
-	import { safePalette } from '#lib/components/tree/palette.js';
+	import { safePalette } from '#lib/shared/palette.js';
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {

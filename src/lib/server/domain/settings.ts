@@ -4,7 +4,7 @@
  * its cards, ink and spheres legible. No storage or request handling in here.
  */
 
-import { resolvePalette } from '#lib/components/tree/palette.js';
+import { resolvePalette } from '#lib/shared/palette.js';
 import { floorBreaches, type SettingsDocument, type SettingsPatch } from '#lib/shared/settings.js';
 import { ValidationError } from './errors';
 

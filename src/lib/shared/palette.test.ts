@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio } from '#lib/shared/colour.js';
+import { contrastRatio } from './colour.js';
 import {
 	DEFAULT_PALETTE,
 	resolvePalette,

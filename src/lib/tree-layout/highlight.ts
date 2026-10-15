@@ -14,8 +14,8 @@
  * - Colours are never the sex colours. A mark on two or more paths takes the intersection colour.
  */
 
-import { HIGHLIGHT_TOKENS } from '#lib/components/tree/tree-tokens.js';
-import { DEFAULT_PALETTE, type Palette } from '#lib/components/tree/palette.js';
+import { HIGHLIGHT_TOKENS } from '#lib/shared/tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
 import type { RelationshipGraphPerson } from './types.js';
 
 /** What a layout must carry for a highlight to be computed; every WebGL layout already does. */

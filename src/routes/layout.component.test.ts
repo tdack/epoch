@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRawSnippet, flushSync, mount, unmount } from 'svelte';
-import { DEFAULT_PALETTE } from '#lib/components/tree/palette.js';
+import { DEFAULT_PALETTE } from '#lib/shared/palette.js';
 import Layout from './+layout.svelte';
 
 let component: Record<string, unknown> | null = null;

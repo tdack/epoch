@@ -10,7 +10,7 @@ import {
 	type Palette,
 	type SexBases,
 	type SexKey
-} from '#lib/components/tree/palette.js';
+} from './palette.js';
 import { contrastRatio, oklabDistance } from './colour.js';
 
 interface TracePaletteSettings {

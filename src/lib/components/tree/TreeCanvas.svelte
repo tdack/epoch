@@ -20,7 +20,7 @@
 	import TreeMinimap from './TreeMinimap.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import ZoomControls from './ZoomControls.svelte';
-	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
 	import { keyIntentOf } from './tree-keyboard.js';

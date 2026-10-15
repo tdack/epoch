@@ -35,8 +35,13 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { haloGeometry, nodeGeometry, strandCentreline, strandGeometry } from './ribbons-tubes.js';
 import { createThreeStage, sexColour } from './three-stage.js';
-import { DEFAULT_PALETTE, type Palette } from './palette.js';
-import { HIGHLIGHT_TOKENS, RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
+import {
+	HIGHLIGHT_TOKENS,
+	RIBBON_FADE,
+	RIBBON_SIZES,
+	RIBBON_TOKENS
+} from '#lib/shared/tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { RIBBONS_CAMERAS } from './webgl-cameras.js';
 

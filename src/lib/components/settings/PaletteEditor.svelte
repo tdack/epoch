@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SexKey } from '#lib/components/tree/palette.js';
+	import type { SexKey } from '#lib/shared/palette.js';
 	import {
 		COLOUR_PRESETS,
 		CONTRAST_FLOORS,

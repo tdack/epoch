@@ -8,7 +8,7 @@
  */
 
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS, RING_TOKENS, TREE_TOKENS } from './tree-tokens.js';
-import { isHexColour, lightenHex, mixHex } from '#lib/shared/colour.js';
+import { isHexColour, lightenHex, mixHex } from './colour.js';
 
 export type SexKey = 'male' | 'female' | 'unknown';
 
