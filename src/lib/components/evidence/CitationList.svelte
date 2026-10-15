@@ -7,11 +7,7 @@
 		type CitationDto,
 		type CitationSubjectRef
 	} from '#lib/shared/evidence.js';
-	import {
-		previewEvidenceApi,
-		removeCitationApi,
-		reorderCitationsApi
-	} from '#lib/services/tree-api.js';
+	import { previewEvidenceApi, removeCitationApi, reorderCitationsApi } from '#lib/api/evidence.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import NoteList from '#lib/components/notes/NoteList.svelte';
 	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';

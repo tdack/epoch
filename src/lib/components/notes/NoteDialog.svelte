@@ -3,14 +3,14 @@
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import { isConflict } from '#lib/api/client.js';
 	import {
 		addNoteApi,
 		attachNoteApi,
 		fetchNotes,
-		isConflict,
 		updateNoteApi,
 		updateSharedNoteApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/notes.js';
 	import type { NoteDto, NoteListItem, NoteSubjectRef } from '#lib/shared/notes.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 

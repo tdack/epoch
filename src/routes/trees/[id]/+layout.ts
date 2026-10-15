@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import { fetchMarks, fetchTreeList, fetchTreeSummary } from '#lib/services/tree-api.js';
-import { treeLoad } from '#lib/services/load-helpers.js';
+import { fetchMarks } from '#lib/api/lists.js';
+import { fetchTreeList, fetchTreeSummary } from '#lib/api/trees.js';
+import { treeLoad } from '#lib/api/load-helpers.js';
 import { canonicalTreeAddress } from '#lib/shared/tree-slug.js';
 import type { LayoutLoad } from './$types';
 

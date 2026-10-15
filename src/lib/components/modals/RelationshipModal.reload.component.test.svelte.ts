@@ -1,16 +1,22 @@
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('#lib/services/tree-api.js', () => ({
-	searchPeopleApi: vi.fn(),
+vi.mock('#lib/api/client.js', () => ({
+	isConflict: () => false
+}));
+
+vi.mock('#lib/api/lists.js', () => ({
+	searchPeopleApi: vi.fn()
+}));
+
+vi.mock('#lib/api/relationships.js', () => ({
 	planRelationshipApi: vi.fn().mockResolvedValue({
 		sentence: 'x will be recorded as y',
 		commands: [{}],
 		warnings: [],
 		unionChoice: null
 	}),
-	applyRelationshipApi: vi.fn(),
-	isConflict: () => false
+	applyRelationshipApi: vi.fn()
 }));
 
 import RelationshipModal from './RelationshipModal.svelte';

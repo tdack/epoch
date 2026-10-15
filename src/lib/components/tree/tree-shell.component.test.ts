@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
-import * as api from '#lib/services/tree-api.js';
+import { clearExportClientUuid, exportStatusApi, startGedcomExport } from '#lib/api/files.js';
+import { isExpiredExportError } from '#lib/api/client.js';
 import { TreeShell } from './tree-shell.svelte.js';
 
-vi.mock('#lib/services/tree-api.js', () => ({
-	createTreeApi: vi.fn(),
-	deleteTreeApi: vi.fn(),
-	renameTreeApi: vi.fn(),
+vi.mock('#lib/api/client.js', () => ({
+	isExpiredExportError: vi.fn()
+}));
+
+vi.mock('#lib/api/files.js', () => ({
 	previewGedcomImport: vi.fn(),
 	submitGedcomImport: vi.fn(),
 	startGedcomExport: vi.fn(),
 	exportStatusApi: vi.fn(),
 	clearExportClientUuid: vi.fn(),
-	isExpiredExportError: vi.fn(),
 	exportDownloadUrl: (instanceId: string) => `/api/export/download/${instanceId}`,
 	gedcomExportUrl: (treeId: string, choice: { format: string; shouldCompress: boolean }) =>
 		`/api/export?treeId=${treeId}&format=${choice.format}${
@@ -20,11 +21,17 @@ vi.mock('#lib/services/tree-api.js', () => ({
 		}`
 }));
 
+vi.mock('#lib/api/trees.js', () => ({
+	createTreeApi: vi.fn(),
+	deleteTreeApi: vi.fn(),
+	renameTreeApi: vi.fn()
+}));
+
 const choice = { format: 'gedcom7', shouldCompress: false } as const;
-const start = vi.mocked(api.startGedcomExport);
-const status = vi.mocked(api.exportStatusApi);
-const clearClientUuid = vi.mocked(api.clearExportClientUuid);
-const isExpired = vi.mocked(api.isExpiredExportError);
+const start = vi.mocked(startGedcomExport);
+const status = vi.mocked(exportStatusApi);
+const clearClientUuid = vi.mocked(clearExportClientUuid);
+const isExpired = vi.mocked(isExpiredExportError);
 const navigations: string[] = [];
 
 function setup() {

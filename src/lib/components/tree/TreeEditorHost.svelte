@@ -6,7 +6,7 @@
 	import RelationshipModal from '#lib/components/modals/RelationshipModal.svelte';
 	import UnionEditorModal from '#lib/components/modals/UnionEditorModal.svelte';
 	import UnionMergeDialog from '#lib/components/modals/UnionMergeDialog.svelte';
-	import { previewUnionMergeApi } from '#lib/services/tree-api.js';
+	import { previewUnionMergeApi } from '#lib/api/relationships.js';
 	import type { TreeEditor } from './tree-editor.svelte.js';
 
 	interface Props {

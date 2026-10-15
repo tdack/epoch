@@ -14,8 +14,8 @@
 	import { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
 	import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
-	import { DATA_KEY } from '#lib/services/load-helpers.js';
-	import { searchPeopleApi } from '#lib/services/tree-api.js';
+	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import { searchPeopleApi } from '#lib/api/lists.js';
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';

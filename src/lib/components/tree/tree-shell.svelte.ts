@@ -4,20 +4,18 @@
  * yet, so both offer the same actions with the same dialogs.
  */
 
+import { isExpiredExportError } from '#lib/api/client.js';
 import {
 	clearExportClientUuid,
-	createTreeApi,
-	deleteTreeApi,
 	exportDownloadUrl,
 	exportStatusApi,
 	gedcomExportUrl,
-	isExpiredExportError,
-	renameTreeApi,
 	previewGedcomImport,
 	startGedcomExport,
 	submitGedcomImport,
 	type GedcomExportChoice
-} from '#lib/services/tree-api.js';
+} from '#lib/api/files.js';
+import { createTreeApi, deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
 import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';

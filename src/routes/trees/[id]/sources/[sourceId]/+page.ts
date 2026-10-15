@@ -1,5 +1,5 @@
-import { listQuery, treeLoad } from '#lib/services/load-helpers.js';
-import { fetchSource } from '#lib/services/tree-api.js';
+import { listQuery, treeLoad } from '#lib/api/load-helpers.js';
+import { fetchSource } from '#lib/api/evidence.js';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = treeLoad(async ({ params, url, fetch }) => ({

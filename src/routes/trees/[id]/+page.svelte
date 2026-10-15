@@ -31,7 +31,8 @@
 		type HistoryKind,
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
-	import { recordRecentApi, saveDefaultViewMode, saveViewMode } from '#lib/services/tree-api.js';
+	import { recordRecentApi } from '#lib/api/lists.js';
+	import { saveDefaultViewMode, saveViewMode } from '#lib/api/settings.js';
 	import {
 		EMPTY_LAYOUT,
 		filterParentChildTypes,
@@ -43,7 +44,7 @@
 	import { layoutRibbons } from '#lib/tree-layout/ribbons.js';
 	import { layoutRings } from '#lib/tree-layout/rings.js';
 	import { selectWholeTree } from '#lib/tree-layout/whole-tree.js';
-	import { rememberedFocusKey } from '#lib/services/load-helpers.js';
+	import { rememberedFocusKey } from '#lib/api/load-helpers.js';
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';

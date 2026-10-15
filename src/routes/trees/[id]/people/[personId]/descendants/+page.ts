@@ -1,5 +1,5 @@
-import { generationsParam, treeLoad } from '#lib/services/load-helpers.js';
-import { fetchDescendants } from '#lib/services/tree-api.js';
+import { generationsParam, treeLoad } from '#lib/api/load-helpers.js';
+import { fetchDescendants } from '#lib/api/lists.js';
 import { DEFAULT_CHART_GENERATIONS } from '#lib/shared/charts.js';
 import type { PageLoad } from './$types';
 

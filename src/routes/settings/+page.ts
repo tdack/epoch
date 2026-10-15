@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { fetchTreeList } from '#lib/services/tree-api.js';
+import { fetchTreeList } from '#lib/api/trees.js';
 import { treePath } from '#lib/shared/tree-slug.js';
 import type { PageLoad } from './$types';
 

@@ -1,5 +1,5 @@
-import { treeLoad } from '#lib/services/load-helpers.js';
-import { fetchUnionPage } from '#lib/services/tree-api.js';
+import { treeLoad } from '#lib/api/load-helpers.js';
+import { fetchUnionPage } from '#lib/api/relationships.js';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = treeLoad(async ({ params, fetch }) => ({

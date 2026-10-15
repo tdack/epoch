@@ -1,0 +1,250 @@
+import type { ImpactResponse, PeopleSearchResponse } from '#lib/shared/api-contracts.js';
+import type { PeopleSearchResult, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
+import type { SearchResponse } from '#lib/shared/search.js';
+import type { MarksDto } from '#lib/shared/marks.js';
+import type { RelationshipDto } from '#lib/shared/kinship.js';
+import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
+import type { QualityReport } from '#lib/shared/quality.js';
+import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
+import type {
+	IndividualListItem,
+	Page,
+	SurnameListItem,
+	UnionListItem
+} from '#lib/shared/lists.js';
+import { call, json, path } from './client.js';
+
+export async function searchPeopleApi(
+	treeId: string,
+	query: string
+): Promise<PeopleSearchResult[]> {
+	const data = await call<PeopleSearchResponse>(
+		path`/api/trees/${treeId}/people-search` + `?q=${encodeURIComponent(query)}`,
+		undefined,
+		'Failed to search people'
+	);
+	return data.people || [];
+}
+
+/** The search page's results for its own URL parameters (`q`, `place`, `from`, `to`, `offset`). */
+export function searchTreeApi(
+	treeId: string,
+	params: URLSearchParams,
+	fetchFn: typeof fetch = fetch
+): Promise<SearchResponse> {
+	return call(
+		path`/api/trees/${treeId}/search` + `?${params}`,
+		undefined,
+		'Failed to search the tree',
+		fetchFn
+	);
+}
+
+/** One page of a list, for the list page's own URL parameters. */
+export function fetchList<T extends IndividualListItem | UnionListItem | SurnameListItem>(
+	treeId: string,
+	list: 'individuals' | 'unions' | 'surnames',
+	params: URLSearchParams,
+	fetchFn: typeof fetch = fetch
+): Promise<Page<T>> {
+	return call(
+		path`/api/trees/${treeId}/lists/${list}` + `?${params}`,
+		undefined,
+		'Failed to load the list',
+		fetchFn
+	);
+}
+
+export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
+	return call(
+		path`/api/trees/${treeId}/marks`,
+		undefined,
+		'Failed to load favourites and recents',
+		fetchFn
+	);
+}
+
+/** Record a visit; answers with the user's marks as they now stand. */
+export function recordRecentApi(treeId: string, personId: string): Promise<MarksDto> {
+	return call(
+		path`/api/trees/${treeId}/marks/recents`,
+		json('POST', { personId }),
+		'Failed to record the visit'
+	);
+}
+
+export function setFavoriteApi(
+	treeId: string,
+	personId: string,
+	isFavorite: boolean
+): Promise<MarksDto> {
+	return call(
+		path`/api/trees/${treeId}/marks/favorites/${personId}`,
+		{ method: isFavorite ? 'PUT' : 'DELETE' },
+		'Failed to change the favourite'
+	);
+}
+
+export async function fetchRelationship(
+	treeId: string,
+	fromId: string,
+	toId: string,
+	fetcher: typeof fetch = fetch
+): Promise<RelationshipDto> {
+	return call(
+		path`/api/trees/${treeId}/relationship` +
+			`?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
+		{ method: 'GET' },
+		'Failed to work out the relationship',
+		fetcher
+	);
+}
+
+export async function fetchPedigree(
+	treeId: string,
+	personId: string,
+	generations: number,
+	fetcher: typeof fetch = fetch
+): Promise<PedigreeDto> {
+	return call(
+		path`/api/trees/${treeId}/charts/pedigree` +
+			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		{ method: 'GET' },
+		'Failed to load the pedigree',
+		fetcher
+	);
+}
+
+export async function fetchDescendants(
+	treeId: string,
+	personId: string,
+	generations: number,
+	fetcher: typeof fetch = fetch
+): Promise<DescendantsDto> {
+	return call(
+		path`/api/trees/${treeId}/charts/descendants` +
+			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		{ method: 'GET' },
+		'Failed to load the descendants',
+		fetcher
+	);
+}
+
+export async function fetchPlaces(
+	treeId: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<Page<PlaceListItem>> {
+	return call(
+		path`/api/trees/${treeId}/places` + `?${params}`,
+		{ method: 'GET' },
+		'Failed to list the places',
+		fetcher
+	);
+}
+
+export async function fetchPlace(
+	treeId: string,
+	name: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<PlaceDto> {
+	const query = new URLSearchParams(params);
+	query.set('name', name);
+	return call(
+		path`/api/trees/${treeId}/places` + `?${query}`,
+		{ method: 'GET' },
+		'Failed to load the place',
+		fetcher
+	);
+}
+
+/** Places whose text contains `text`, for the fact editor's suggestions. */
+export async function suggestPlacesApi(treeId: string, text: string): Promise<string[]> {
+	const data = await fetchPlaces(
+		treeId,
+		new URLSearchParams({ q: text, limit: String(MAX_PLACE_SUGGESTIONS) })
+	);
+	return data.items.map((p) => p.name);
+}
+
+/** Rename a place, or merge it into the place that already has `name`; one change, one undo. */
+export async function rewritePlaceApi(
+	treeId: string,
+	placeId: string,
+	name: string
+): Promise<{ change: ChangeSummary | null; name: string }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}`,
+		json('PUT', { name }),
+		'Failed to change the place'
+	);
+}
+
+/** The dates that would take their standard spelling, before and after. Saves nothing. */
+export async function previewStandardiseDatesApi(
+	treeId: string
+): Promise<import('#lib/shared/date-tidy.js').DateTidyPreview> {
+	return call(
+		path`/api/trees/${treeId}/dates/standardise`,
+		{},
+		'Failed to preview standardising the dates'
+	);
+}
+
+/** Give those dates their standard spelling: one change, one undo. */
+export async function standardiseDatesApi(
+	treeId: string
+): Promise<{ change: ChangeSummary | null; remaining: number }> {
+	return call(
+		path`/api/trees/${treeId}/dates/standardise`,
+		{ method: 'POST' },
+		'Failed to standardise the dates'
+	);
+}
+
+export async function previewPlaceRewriteApi(
+	treeId: string,
+	placeId: string,
+	name: string
+): Promise<ImpactSummary> {
+	const data = await call<ImpactResponse>(
+		path`/api/trees/${treeId}/places/${placeId}/impact`,
+		json('POST', { name }),
+		'Failed to preview the change'
+	);
+	return data.impact;
+}
+
+export async function fetchQuality(
+	treeId: string,
+	fetcher: typeof fetch = fetch
+): Promise<QualityReport> {
+	return call(
+		path`/api/trees/${treeId}/quality`,
+		{ method: 'GET' },
+		'Failed to load the report',
+		fetcher
+	);
+}
+
+/** Dismisses every finding named with the one reason, or none of them. */
+export async function dismissFindingsApi(
+	treeId: string,
+	keys: string[],
+	reason: string
+): Promise<void> {
+	await call(
+		path`/api/trees/${treeId}/quality`,
+		json('PUT', { keys, reason }),
+		keys.length === 1 ? 'Failed to dismiss the finding' : 'Failed to dismiss the findings'
+	);
+}
+
+export async function restoreFindingApi(treeId: string, key: string): Promise<void> {
+	await call(
+		path`/api/trees/${treeId}/quality` + `?key=${encodeURIComponent(key)}`,
+		{ method: 'DELETE' },
+		'Failed to restore the finding'
+	);
+}

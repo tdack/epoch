@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import TreeSwitcher from './TreeSwitcher.svelte';
-import type { GedcomExportChoice } from '#lib/services/tree-api.js';
+import type { GedcomExportChoice } from '#lib/api/files.js';
 import type { TreeSummary } from '#lib/types/genealogy.js';
 
 let component: Record<string, unknown> | null = null;

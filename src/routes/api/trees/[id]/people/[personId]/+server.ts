@@ -1,3 +1,4 @@
+import type { ChangeResponse, PersonWriteResponse } from '#lib/shared/api-contracts.js';
 import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
 import { PersonService } from '#lib/server/services/person-service.js';
 import { PersonPageService } from '#lib/server/services/person-page-service.js';
@@ -11,7 +12,7 @@ export const GET = treeHandler(
 
 export const PUT = treeHandler(
 	{ failure: 'Failed to update individual', params: ['personId'], body: individualUpdateSchema },
-	async ({ db, ctx, treeId, params, body }) => {
+	async ({ db, ctx, treeId, params, body }): Promise<PersonWriteResponse> => {
 		const { givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace, version } = body;
 		const { individual, change } = await new PersonService(db).update(
 			treeId,
@@ -20,19 +21,19 @@ export const PUT = treeHandler(
 			{ givenName, surname, sex, birthDate, birthPlace, deathDate, deathPlace },
 			ctx
 		);
-		return { success: true, individual, change };
+		return { individual, change };
 	}
 );
 
 export const DELETE = treeHandler(
 	{ failure: 'Failed to delete individual', params: ['personId'] },
-	async ({ db, ctx, treeId, params, url }) => {
+	async ({ db, ctx, treeId, params, url }): Promise<ChangeResponse> => {
 		const { change } = await new PersonService(db).remove(
 			treeId,
 			params.personId,
 			ctx,
 			expectedVersion(url)
 		);
-		return { success: true, change };
+		return { change };
 	}
 );

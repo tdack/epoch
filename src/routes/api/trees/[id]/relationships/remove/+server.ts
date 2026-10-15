@@ -1,3 +1,4 @@
+import type { ChangeResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { relationshipDeleteSchema } from '#lib/server/validation/schemas.js';
@@ -9,8 +10,8 @@ import { relationshipDeleteSchema } from '#lib/server/validation/schemas.js';
  */
 export const POST = treeHandler(
 	{ failure: 'Failed to remove relationship', body: relationshipDeleteSchema },
-	async ({ db, ctx, treeId, body }) => {
+	async ({ db, ctx, treeId, body }): Promise<ChangeResponse> => {
 		const { change } = await new RelationshipService(db).removeRelationship(treeId, body, ctx);
-		return { success: true, change };
+		return { change };
 	}
 );

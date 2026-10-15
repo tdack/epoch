@@ -3,7 +3,7 @@
 	import { ListTodo } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
-	import { createTaskApi, updateTaskApi } from '#lib/services/tree-api.js';
+	import { createTaskApi, updateTaskApi } from '#lib/api/tasks.js';
 	import {
 		MAX_TASK_DETAILS_LENGTH,
 		MAX_TASK_TITLE_LENGTH,

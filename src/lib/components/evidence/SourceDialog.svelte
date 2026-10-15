@@ -3,7 +3,7 @@
 	import { BookOpen } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
-	import { createSourceApi, updateSourceApi } from '#lib/services/tree-api.js';
+	import { createSourceApi, updateSourceApi } from '#lib/api/evidence.js';
 	import type { SourceDto } from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 

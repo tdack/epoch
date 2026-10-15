@@ -1,3 +1,4 @@
+import type { PersonWriteResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { PersonService } from '#lib/server/services/person-service.js';
 import { individualCreateSchema } from '#lib/server/validation/schemas.js';
@@ -9,7 +10,7 @@ export const POST = treeHandler(
 		ctx,
 		treeId,
 		body: { givenName, surname, sex = 'U', birthDate, birthPlace, deathDate, deathPlace }
-	}) => {
+	}): Promise<PersonWriteResponse | Response> => {
 		if (!givenName?.trim() && !surname?.trim()) {
 			return Response.json({ error: 'Given name or surname is required' }, { status: 400 });
 		}
@@ -26,6 +27,6 @@ export const POST = treeHandler(
 			},
 			ctx
 		);
-		return { success: true, individual, change };
+		return { individual, change };
 	}
 );

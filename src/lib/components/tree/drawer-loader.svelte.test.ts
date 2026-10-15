@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('#lib/services/tree-api.js', () => ({ fetchPersonPage: vi.fn() }));
+vi.mock('#lib/api/people.js', () => ({ fetchPersonPage: vi.fn() }));
 
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import { createDrawerLoader } from './drawer-loader.svelte.js';

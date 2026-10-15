@@ -3,7 +3,7 @@
 	import { Landmark } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
-	import { createRepositoryApi, updateRepositoryApi } from '#lib/services/tree-api.js';
+	import { createRepositoryApi, updateRepositoryApi } from '#lib/api/evidence.js';
 	import type { RepositoryListItem } from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 

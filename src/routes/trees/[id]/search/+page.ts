@@ -1,5 +1,5 @@
-import { treeLoad } from '#lib/services/load-helpers.js';
-import { searchTreeApi } from '#lib/services/tree-api.js';
+import { treeLoad } from '#lib/api/load-helpers.js';
+import { searchTreeApi } from '#lib/api/lists.js';
 import { DEFAULT_SEARCH_LIMIT, parseSearchParams } from '#lib/shared/search.js';
 import type { PageLoad } from './$types';
 

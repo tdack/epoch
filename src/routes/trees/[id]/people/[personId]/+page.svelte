@@ -2,7 +2,7 @@
 	import PersonView from '#lib/components/person/PersonView.svelte';
 	import { treePath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { recordRecentApi } from '#lib/services/tree-api.js';
+	import { recordRecentApi } from '#lib/api/lists.js';
 	import type { PageData } from './$types';
 
 	interface Props {

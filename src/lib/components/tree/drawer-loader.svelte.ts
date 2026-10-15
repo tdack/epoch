@@ -1,5 +1,5 @@
 import type { PersonPageDto } from '#lib/shared/person-page.js';
-import { fetchPersonPage } from '#lib/services/tree-api.js';
+import { fetchPersonPage } from '#lib/api/people.js';
 import { messageOf } from '../feedback/error-message.js';
 
 interface DrawerLoaderOptions {

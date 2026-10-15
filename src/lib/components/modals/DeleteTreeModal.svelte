@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Trash2, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
-	import { previewTreeDeletionApi, type TreeImpact } from '#lib/services/tree-api.js';
+	import { previewTreeDeletionApi } from '#lib/api/trees.js';
+	import type { TreeImpact } from '#lib/shared/api-contracts.js';
 
 	interface Props {
 		isOpen: boolean;
