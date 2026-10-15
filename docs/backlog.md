@@ -248,6 +248,10 @@ Last reviewed: 2026-10-15.
   details (ADR-051).
 - **Show the sub-type on the person page for every fact that has one.** Only `EVEN` and `FACT` show
   it today.
+- **Show citations of parent links on the person page.** The person page no longer has a separate
+  "Sources and evidence" list (ADR-053), so a citation of a parent link shows nowhere. The parent
+  rows carry no link id, so the page cannot pair a row with its `dto.evidence.links` entry yet.
+  Add the link id to each parent in the DTO, then show the claim control under the row.
 
 ### Collaboration and change control
 
