@@ -47,11 +47,13 @@ const SAMPLE_COMMANDS: RelationshipCommand[] = [
 ];
 
 describe('the command scope tables', () => {
-	it('are empty, so every kind loads the whole tree', () => {
+	it('give a kind a seed only where its table has an entry, and the rest load the whole tree', () => {
 		expect(PERSON_SCOPES).toEqual({});
 		expect(EVIDENCE_SCOPES).toEqual({});
-		expect(UNION_SCOPES).toEqual({});
-		for (const command of SAMPLE_COMMANDS) expect(seedFor([command]), command.kind).toBeNull();
+		for (const command of SAMPLE_COMMANDS) {
+			const hasSeed = UNION_SCOPES[command.kind] !== undefined;
+			expect(seedFor([command]) !== null, command.kind).toBe(hasSeed);
+		}
 	});
 
 	it('send a request to the whole tree if any one of its commands has no seed', () => {
