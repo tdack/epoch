@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '#lib/shared/colour.js';
-import { DEFAULT_PALETTE, resolvePalette, treeTokenStyle } from './palette';
+import {
+	DEFAULT_PALETTE,
+	resolvePalette,
+	safePalette,
+	treeTokenStyle,
+	type Palette
+} from './palette';
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS, RING_TOKENS, TREE_TOKENS } from './tree-tokens';
 
 describe('DEFAULT_PALETTE', () => {
@@ -87,5 +93,32 @@ describe('treeTokenStyle', () => {
 		const style = treeTokenStyle(hostile);
 		expect(style).not.toContain('evil');
 		expect(style).toContain(`--union-ink:${DEFAULT_PALETTE.focus.ancestor}`);
+	});
+});
+
+describe('safePalette', () => {
+	it('passes a valid palette through unchanged', () => {
+		expect(safePalette(DEFAULT_PALETTE)).toEqual(DEFAULT_PALETTE);
+	});
+
+	it('replaces anything that is not six-digit hex with the built-in colour', () => {
+		const tampered = {
+			...DEFAULT_PALETTE,
+			sex: {
+				...DEFAULT_PALETTE.sex,
+				male: { ...DEFAULT_PALETTE.sex.male, border: 'red;background:url(x)' }
+			},
+			trace: ['#E69F00', 'nope', '#d55e00', '#f0e442', '#7b5fd1', '#2f6fd0'],
+			focus: { ...DEFAULT_PALETTE.focus, partner: 'expression(alert(1))' }
+		} as unknown as Palette;
+		const safe = safePalette(tampered);
+		expect(safe.sex.male.border).toBe(DEFAULT_PALETTE.sex.male.border);
+		expect(safe.trace[0]).toBe('#e69f00');
+		expect(safe.trace[1]).toBe(DEFAULT_PALETTE.trace[1]);
+		expect(safe.focus.partner).toBe(DEFAULT_PALETTE.focus.partner);
+	});
+
+	it('gives the built-in palette for missing data', () => {
+		expect(safePalette(undefined)).toEqual(DEFAULT_PALETTE);
 	});
 });

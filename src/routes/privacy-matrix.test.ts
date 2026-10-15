@@ -274,7 +274,8 @@ const loads = Object.keys(
 ).sort();
 /** Loads that read no tree at all, so there is no person in them to hide. */
 const NO_RECORD_LOADS = [
-	// Reads only where the source is published, from the Worker's vars.
+	// Reads where the source is published, from the Worker's vars, and the caller's own colours and
+	// the site default (ADR-053): settings, never a tree.
 	'./+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',

@@ -51,6 +51,9 @@ export interface SettingsView {
 	};
 }
 
+/** What a settings save invalidates, so the root layout repaints every view with the new colours. */
+export const SETTINGS_DEPENDENCY = 'app:settings';
+
 export const COLOUR_GROUPS = ['sexColours', 'tracePalette', 'focusColours'] as const;
 export type ColourGroup = (typeof COLOUR_GROUPS)[number];
 

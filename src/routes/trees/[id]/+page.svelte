@@ -12,6 +12,7 @@
 	import RingsCanvas from '#lib/components/tree/RingsCanvas.svelte';
 	import TreeCanvas from '#lib/components/tree/TreeCanvas.svelte';
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
+	import { safePalette } from '#lib/components/tree/palette.js';
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
@@ -58,6 +59,8 @@
 	}
 
 	let { data }: Props = $props();
+	// Checked again here because these colours reach style attributes in every view (ADR-053).
+	const palette = $derived(safePalette(data.palette));
 	const { editor, marks, toasts, finder, isPublicVisitor, importGedcom } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
@@ -557,6 +560,7 @@
 		<div class="mb-2 sm:mb-3">
 			<TreeToolbar
 				{view}
+				{palette}
 				defaults={{
 					member: savedMemberMode,
 					tree: savedTreeMode,
@@ -594,6 +598,7 @@
 			{#if ringsLayout}
 				<RingsCanvas
 					layout={ringsLayout}
+					{palette}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -606,6 +611,7 @@
 			{:else if poincareLayout}
 				<PoincareCanvas
 					layout={poincareLayout}
+					{palette}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -618,6 +624,7 @@
 			{:else if ribbonsLayout}
 				<RibbonsCanvas
 					layout={ribbonsLayout}
+					{palette}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -630,6 +637,7 @@
 			{:else if orreryLayout}
 				<OrreryCanvas
 					layout={orreryLayout}
+					{palette}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -642,6 +650,7 @@
 			{:else}
 				<TreeCanvas
 					{layout}
+					{palette}
 					{fitKey}
 					isWholeTree={isWholeTreeDrawn}
 					isTruncated={isWholeTreeTruncated}

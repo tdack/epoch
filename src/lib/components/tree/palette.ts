@@ -187,6 +187,38 @@ export const DEFAULT_PALETTE: Palette = {
 };
 
 /**
+ * The palette with every colour checked again, for a component about to write them into style
+ * attributes. Layout data arrives from the server as plain JSON, so a value that is not six-digit
+ * hex is replaced by its built-in counterpart rather than trusted.
+ */
+export function safePalette(palette: Palette | null | undefined): Palette {
+	if (!palette) return DEFAULT_PALETTE;
+	const safe = (value: unknown, fallback: string) =>
+		typeof value === 'string' && isHexColour(value) ? value.toLowerCase() : fallback;
+	const sexShades = (key: SexKey): SexShades => ({
+		fill: safe(palette.sex?.[key]?.fill, DEFAULT_SEX[key].fill),
+		border: safe(palette.sex?.[key]?.border, DEFAULT_SEX[key].border),
+		sphere: safe(palette.sex?.[key]?.sphere, DEFAULT_SEX[key].sphere),
+		star: safe(palette.sex?.[key]?.star, DEFAULT_SEX[key].star)
+	});
+	const focusShades = (shades: FocusShades | undefined, fallback: FocusShades): FocusShades => ({
+		ancestor: safe(shades?.ancestor, fallback.ancestor),
+		descendant: safe(shades?.descendant, fallback.descendant),
+		partner: safe(shades?.partner, fallback.partner)
+	});
+	const traceSlot = (slot: number) => safe(palette.trace?.[slot], DEFAULT_PALETTE.trace[slot]);
+	return {
+		sex: { male: sexShades('male'), female: sexShades('female'), unknown: sexShades('unknown') },
+		trace: [traceSlot(0), traceSlot(1), traceSlot(2), traceSlot(3), traceSlot(4), traceSlot(5)],
+		intersection: safe(palette.intersection, DEFAULT_PALETTE.intersection),
+		focus: focusShades(palette.focus, DEFAULT_FOCUS),
+		focusDark: focusShades(palette.focusDark, DEFAULT_FOCUS_DARK),
+		flatPartnerLine: safe(palette.flatPartnerLine, DEFAULT_PALETTE.flatPartnerLine),
+		private: safe(palette.private, DEFAULT_PALETTE.private)
+	};
+}
+
+/**
  * The CSS custom properties a tree view's root carries. Each palette colour is checked again here,
  * because it is written into a style attribute: a value that is not six-digit hex falls back to the
  * built-in one rather than reaching the page.
