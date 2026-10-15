@@ -41,7 +41,7 @@ export function sexLegend(palette: Palette, shade: 'sphere' | 'star' = 'sphere')
 	return [
 		{ kind: 'dot', colour: palette.sex.male[shade], label: 'Male' },
 		{ kind: 'dot', colour: palette.sex.female[shade], label: 'Female' },
-		{ kind: 'dot', colour: palette.sex.unknown[shade], label: 'Other or unknown' }
+		{ kind: 'dot', colour: palette.sex.unknown[shade], label: 'Unknown or other' }
 	];
 }
 
