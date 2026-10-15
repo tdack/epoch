@@ -172,6 +172,11 @@ export function rowOp<T extends RecordTable>(
 	return { table, id, before, after } as RowOp;
 }
 
+/** A row paired with its table, for code that is handed the two separately (a labeller call). */
+export type TableRow = {
+	[T in RecordTable]: { table: T; row: TableRows[T] };
+}[RecordTable];
+
 export const OP_KINDS = { CREATE: 'create', UPDATE: 'update', DELETE: 'delete' } as const;
 export type OpKind = (typeof OP_KINDS)[keyof typeof OP_KINDS];
 
