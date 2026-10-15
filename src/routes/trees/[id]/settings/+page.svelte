@@ -21,6 +21,24 @@
 		await saveMySettings(patch);
 		await invalidate(SETTINGS_DEPENDENCY);
 	}
+	// Follows the stored choice; flipped at once on change so the box answers before the save does.
+	let isMotionReduced = $derived(settings.user.isMotionReduced ?? false);
+	let isSavingMotion = $state(false);
+	let motionError = $state<string | null>(null);
+	async function saveMotion(isChecked: boolean) {
+		isMotionReduced = isChecked;
+		isSavingMotion = true;
+		motionError = null;
+		try {
+			// Off clears the choice rather than storing false: there is no site default to override.
+			await saveMine({ isMotionReduced: isChecked ? true : null });
+		} catch (error) {
+			isMotionReduced = !isChecked;
+			motionError = error instanceof Error ? error.message : 'Could not save the setting.';
+		} finally {
+			isSavingMotion = false;
+		}
+	}
 	async function saveSite(patch: SettingsPatch) {
 		await saveSiteSettings(patch);
 		await invalidate(SETTINGS_DEPENDENCY);
@@ -48,6 +66,30 @@
 			inheritedName="the site default"
 			onsave={saveMine}
 		/>
+	</section>
+
+	<section aria-labelledby="motion-heading" class="flex flex-col gap-2">
+		<h3 id="motion-heading" class="text-lg font-bold text-stone-900">Motion</h3>
+		<label class="flex items-start gap-2 text-sm text-stone-800">
+			<input
+				type="checkbox"
+				class="mt-0.5 h-4 w-4"
+				checked={isMotionReduced}
+				disabled={isSavingMotion}
+				onchange={(event) => void saveMotion(event.currentTarget.checked)}
+				aria-describedby="motion-hint motion-error"
+			/>
+			<span>
+				<span class="font-semibold">Reduce animation</span>
+				<span id="motion-hint" class="block text-xs text-stone-600">
+					Holds the tree still: no gliding between people, no spinning or drifting in the 3D views.
+					If your device already asks for less motion, that applies whatever you choose here.
+				</span>
+			</span>
+		</label>
+		<p id="motion-error" role="alert" class="text-sm font-medium text-red-800">
+			{motionError ?? ''}
+		</p>
 	</section>
 
 	{#if isInstallOwner}

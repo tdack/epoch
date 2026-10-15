@@ -190,6 +190,22 @@ describe('settings page', () => {
 		expect(saveMine).not.toHaveBeenCalled();
 	});
 
+	it('saves Reduce animation on change, and clears it rather than storing off', async () => {
+		render();
+		const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+		expect(box.closest('label')!.textContent).toContain('Reduce animation');
+		expect(box.checked).toBe(false);
+		box.click();
+		await tick();
+		expect(saveMine).toHaveBeenLastCalledWith({ isMotionReduced: true });
+		expect(navigation.invalidate).toHaveBeenCalledWith('app:settings');
+		await vi.waitFor(() => expect(box.disabled).toBe(false));
+		expect(box.checked).toBe(true);
+		box.click();
+		await tick();
+		expect(saveMine).toHaveBeenLastCalledWith({ isMotionReduced: null });
+	});
+
 	it('points at the Trees page for the default tree', () => {
 		render();
 		const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Trees page')!;

@@ -25,6 +25,7 @@ import {
 	immediateFamilyIds
 } from './tree-view.js';
 import { FIT_ACTIONS, chooseFitAction, isNearTransform, type FitAction } from './view-geometry.js';
+import { shouldReduceMotion } from '../motion.js';
 
 const FIT_PADDING_PX = 56;
 /** Side padding never takes more than this share of a narrow canvas's width. */
@@ -44,16 +45,12 @@ const ZOOM_BUTTON_MS = 220;
 const OWN_GESTURE_SELECTOR =
 	'[data-person-id], [data-stub-id], [data-fold-id], [data-collapser-id], [data-edge-id], [data-union-id]';
 
-function prefersReducedMotion(): boolean {
-	return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 /**
  * Animation needs requestAnimationFrame, which a hidden tab never delivers: a d3 transition
  * started there advances one tick and freezes. Jump straight to the end when nobody can see it.
  */
 function canAnimate(): boolean {
-	return !prefersReducedMotion() && !document.hidden;
+	return !shouldReduceMotion() && !document.hidden;
 }
 
 export class TreeViewport {

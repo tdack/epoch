@@ -56,6 +56,8 @@ export interface WebGlCanvasProps<TLayout> {
 	fitKey: string;
 	/** The colours to paint with, from the user's, the site's, or the built-in settings. */
 	palette?: Palette;
+	/** The viewer chose "Reduce animation" in their settings; adds to prefers-reduced-motion. */
+	isMotionReduced?: boolean;
 	/** Person whose details are open in the drawer, if any. */
 	selectedPersonId?: string | null;
 	/** The whole tree is drawn (`scope=all`): a person lights their line and the view does not refocus. */

@@ -599,6 +599,7 @@
 				<RingsCanvas
 					layout={ringsLayout}
 					{palette}
+					isMotionReduced={data.isMotionReduced}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -612,6 +613,7 @@
 				<PoincareCanvas
 					layout={poincareLayout}
 					{palette}
+					isMotionReduced={data.isMotionReduced}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -625,6 +627,7 @@
 				<RibbonsCanvas
 					layout={ribbonsLayout}
 					{palette}
+					isMotionReduced={data.isMotionReduced}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -638,6 +641,7 @@
 				<OrreryCanvas
 					layout={orreryLayout}
 					{palette}
+					isMotionReduced={data.isMotionReduced}
 					{fitKey}
 					{selectedPersonId}
 					isWholeTree={isWholeTreeDrawn}
@@ -772,5 +776,9 @@
 		.cue {
 			animation-name: cue-fade;
 		}
+	}
+	/* The viewer's own "Reduce animation" (ADR-053), set on the root layout; same fade, no slide. */
+	:global([data-reduce-motion]) .cue {
+		animation-name: cue-fade;
 	}
 </style>

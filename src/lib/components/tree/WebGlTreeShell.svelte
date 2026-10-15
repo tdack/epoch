@@ -76,8 +76,13 @@
 		applyLayout: (scene: TScene, highlight: Highlight, shouldRefit: boolean) => void;
 		/** The scene once created; null before then and after a failure. */
 		scene?: TScene | null;
-		/** True under prefers-reduced-motion; a scene that animates anything decorative reads this. */
+		/**
+		 * True under prefers-reduced-motion or the viewer's own "Reduce animation" setting; a scene
+		 * that animates anything decorative reads this.
+		 */
 		shouldReduceMotion?: boolean;
+		/** The viewer chose "Reduce animation" in their settings (ADR-053). */
+		isMotionReduced?: boolean;
 		/** Person whose details are open in the drawer, if any. */
 		selectedPersonId?: string | null;
 		/** Legend entries, shown top left. */
@@ -112,6 +117,7 @@
 		applyLayout,
 		scene = $bindable(null),
 		shouldReduceMotion = $bindable(false),
+		isMotionReduced = false,
 		selectedPersonId = null,
 		legend = [],
 		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click for details',
@@ -378,12 +384,19 @@
 		}
 	}
 
+	let isOsReducingMotion = $state(false);
+	// The setting only adds reduction: it can hold still what the system lets move, and never moves
+	// what the system holds still.
+	$effect(() => {
+		shouldReduceMotion = isOsReducingMotion || isMotionReduced;
+		if (shouldReduceMotion) untrack(() => (isSpinning = false));
+	});
+
 	onMount(() => {
 		const motion = matchMedia('(prefers-reduced-motion: reduce)');
-		shouldReduceMotion = motion.matches;
+		isOsReducingMotion = motion.matches;
 		const onMotion = (event: MediaQueryListEvent) => {
-			shouldReduceMotion = event.matches;
-			if (event.matches) isSpinning = false;
+			isOsReducingMotion = event.matches;
 		};
 		motion.addEventListener('change', onMotion);
 		let isDisposed = false;
