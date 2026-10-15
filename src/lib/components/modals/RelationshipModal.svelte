@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import {
 		UserPlus,
 		Baby,
@@ -310,8 +311,8 @@
 		isSearching = true;
 		try {
 			results = await searchPeopleApi(treeId, searchQuery);
-		} catch (e: any) {
-			error = e.message;
+		} catch (e) {
+			error = messageOf(e, '');
 		} finally {
 			isSearching = false;
 		}
@@ -396,10 +397,10 @@
 					plan = next;
 					error = null;
 				}
-			} catch (e: any) {
+			} catch (e) {
 				if (!isStale) {
 					plan = null;
-					error = e.message;
+					error = messageOf(e, '');
 				}
 			} finally {
 				if (!isStale) isPlanning = false;
@@ -435,9 +436,9 @@
 			const saved = await applyRelationshipApi(treeId, intent);
 			conflict = null;
 			onsaved(saved.change, saved.plan);
-		} catch (e: any) {
+		} catch (e) {
 			if (isConflict(e)) conflict = e;
-			else error = e.message;
+			else error = messageOf(e, '');
 		} finally {
 			isSubmitting = false;
 		}

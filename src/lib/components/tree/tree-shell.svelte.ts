@@ -18,6 +18,7 @@ import {
 	submitGedcomImport,
 	type GedcomExportChoice
 } from '#lib/services/tree-api.js';
+import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';
 
@@ -134,9 +135,9 @@ export class TreeShell {
 			this.isNewTreeModalOpen = false;
 			await this.options.reload();
 			if (created?.id) this.options.goTo(created.id);
-		} catch (e: any) {
+		} catch (e) {
 			console.error('Failed to create tree', e);
-			this.createTreeError = e?.message || 'Failed to create tree';
+			this.createTreeError = messageOf(e, 'Failed to create tree');
 		} finally {
 			this.isCreatingTree = false;
 		}
@@ -167,7 +168,7 @@ export class TreeShell {
 				await this.options.onAddressChange(renamed);
 			else await this.options.reload();
 		} catch (err) {
-			this.renameTreeError = (err as Error).message || 'Failed to rename tree';
+			this.renameTreeError = messageOf(err, 'Failed to rename tree');
 		} finally {
 			this.isRenamingTree = false;
 		}
@@ -190,8 +191,8 @@ export class TreeShell {
 			this.options.toasts.push('Tree deleted');
 			// The landing page opens the next tree, or offers to create one.
 			this.options.goTo(null);
-		} catch (err: any) {
-			this.deleteTreeError = err.message || 'Failed to delete tree';
+		} catch (err) {
+			this.deleteTreeError = messageOf(err, 'Failed to delete tree');
 		} finally {
 			this.isDeletingTree = false;
 		}
@@ -292,7 +293,7 @@ export class TreeShell {
 	}
 
 	private reportExportFailure(err: unknown): void {
-		const message = (err as Error)?.message || 'Export failed';
+		const message = messageOf(err, 'Export failed');
 		this.exportError = message;
 		this.options.toasts.push(message);
 	}
@@ -335,8 +336,8 @@ export class TreeShell {
 		this.importConfirmError = null;
 		try {
 			this.importPreview = await previewGedcomImport(this.pendingImportFile, this.options.treeId());
-		} catch (err: any) {
-			this.importConfirmError = err.message;
+		} catch (err) {
+			this.importConfirmError = messageOf(err, '');
 		} finally {
 			this.isLoadingPreview = false;
 		}
@@ -364,8 +365,8 @@ export class TreeShell {
 			this.importPreview = null;
 			await this.options.reload();
 			if (result.treeId) this.options.goTo(result.treeId);
-		} catch (err: any) {
-			this.importConfirmError = err.message;
+		} catch (err) {
+			this.importConfirmError = messageOf(err, '');
 			this.importStatus = null;
 		} finally {
 			this.isConfirmingImport = false;

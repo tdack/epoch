@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import { defaultSurvivor, type MergeCandidate } from '#lib/components/tree/merge-candidates.js';
 	import {
@@ -67,10 +68,10 @@
 		try {
 			const result = await onpreview(current);
 			if (number === previewRequestNumber) preview = result;
-		} catch (e: any) {
+		} catch (e) {
 			if (number === previewRequestNumber) {
 				preview = null;
-				error = e?.message || 'Could not check what this merge does';
+				error = messageOf(e, 'Could not check what this merge does');
 			}
 		} finally {
 			if (number === previewRequestNumber) isLoading = false;
@@ -146,8 +147,8 @@
 		error = null;
 		try {
 			await onconfirm(request);
-		} catch (e: any) {
-			error = e?.message || 'That did not work';
+		} catch (e) {
+			error = messageOf(e, 'That did not work');
 			isConfirming = false;
 		}
 	}

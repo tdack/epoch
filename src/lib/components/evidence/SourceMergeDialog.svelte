@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
 	import { fetchSources, mergeSourcesApi, previewEvidenceApi } from '#lib/services/tree-api.js';
 	import type { SourceListItem } from '#lib/shared/evidence.js';
@@ -96,7 +97,7 @@
 			});
 			await onmerged(change);
 		} catch (cause: unknown) {
-			error = (cause as Error).message || 'Could not merge the sources';
+			error = messageOf(cause, 'Could not merge the sources');
 		} finally {
 			isMerging = false;
 		}

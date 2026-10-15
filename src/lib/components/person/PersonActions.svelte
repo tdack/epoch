@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { Combine, Cross, GitBranch, Pencil, Star, Trash2, UserPlus } from '@lucide/svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -47,7 +48,7 @@
 		try {
 			marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not change the favourite', { tone: 'error' });
+			toasts.push(messageOf(cause, 'Could not change the favourite'), { tone: 'error' });
 		}
 	}
 
@@ -79,7 +80,7 @@
 								await showPerson(hereId);
 								toasts.push(`Undid: ${undone.summary}`);
 							} catch (cause: unknown) {
-								toasts.push((cause as Error).message || 'Could not undo', {
+								toasts.push(messageOf(cause, 'Could not undo'), {
 									tone: 'error',
 									durationMs: 10_000
 								});

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { SvelteSet } from 'svelte/reactivity';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
 	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
@@ -46,7 +47,7 @@
 		try {
 			datePreview = await previewStandardiseDatesApi(treeId);
 		} catch (cause: unknown) {
-			toasts.push((cause as Error).message || 'Could not check the dates', {
+			toasts.push(messageOf(cause, 'Could not check the dates'), {
 				tone: 'error',
 				durationMs: 10_000
 			});
@@ -63,7 +64,7 @@
 			// What is left is for another turn; show it rather than make the manager check again.
 			datePreview = remaining > 0 ? await previewStandardiseDatesApi(treeId) : null;
 		} catch (cause: unknown) {
-			toasts.push((cause as Error).message || 'Could not standardise the dates', {
+			toasts.push(messageOf(cause, 'Could not standardise the dates'), {
 				tone: 'error',
 				durationMs: 10_000
 			});
@@ -151,7 +152,7 @@
 			await invalidate(DATA_KEY);
 			toasts.push(done);
 		} catch (cause: unknown) {
-			toasts.push((cause as Error).message || 'Could not save', {
+			toasts.push(messageOf(cause, 'Could not save'), {
 				tone: 'error',
 				durationMs: 10_000
 			});

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import {
 		isConflict,
@@ -99,7 +100,7 @@
 		} catch (cause: unknown) {
 			saveError = isConflict(cause)
 				? `${(cause as Error).message} Close this and try again.`
-				: (cause as Error).message || 'Could not change the place';
+				: messageOf(cause, 'Could not change the place');
 		} finally {
 			isSaving = false;
 		}

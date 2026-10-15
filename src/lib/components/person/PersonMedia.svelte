@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { FileText, Image as ImageIcon, Trash2, Upload } from '@lucide/svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { deleteFileApi, uploadMediaApi } from '#lib/services/tree-api.js';
@@ -31,7 +32,7 @@
 			confirmingId = null;
 			await editor.refresh();
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not delete the file', { tone: 'error' });
+			toasts.push(messageOf(cause, 'Could not delete the file'), { tone: 'error' });
 		} finally {
 			isDeleting = false;
 		}

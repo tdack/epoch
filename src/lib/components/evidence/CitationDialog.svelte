@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { Quote } from '@lucide/svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
@@ -129,7 +130,7 @@
 			isChoosing = false;
 			isNewSource = false;
 		} catch (cause: unknown) {
-			submission.error = (cause as Error).message || 'Could not add the source';
+			submission.error = messageOf(cause, 'Could not add the source');
 		}
 	}
 

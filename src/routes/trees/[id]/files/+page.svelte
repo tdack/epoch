@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import {
 		ArrowRightLeft,
 		Download,
@@ -109,7 +110,7 @@
 			files = found;
 			nextCursor = cursor;
 		} catch (cause) {
-			if (mine === listing) listError = (cause as Error).message || 'Could not load files';
+			if (mine === listing) listError = messageOf(cause, 'Could not load files');
 		} finally {
 			if (mine === listing) isLoading = false;
 		}
@@ -133,7 +134,7 @@
 			files = [...files, ...found];
 			nextCursor = cursor;
 		} catch (cause) {
-			if (mine === listing) listError = (cause as Error).message || 'Could not load more files';
+			if (mine === listing) listError = messageOf(cause, 'Could not load more files');
 		} finally {
 			if (mine === listing) isLoading = false;
 		}
@@ -179,7 +180,7 @@
 			toasts.push(done);
 			await reload();
 		} catch (cause) {
-			dialogError = (cause as Error).message || 'That did not work';
+			dialogError = messageOf(cause, 'That did not work');
 		} finally {
 			isBusy = false;
 		}
@@ -226,7 +227,7 @@
 			toasts.push('File detached');
 			await reload();
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not detach the file', { tone: 'error' });
+			toasts.push(messageOf(cause, 'Could not detach the file'), { tone: 'error' });
 		}
 	}
 
@@ -235,7 +236,7 @@
 		try {
 			unlinked = await fetchUnlinkedFiles(scopeOf(filter));
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not list stored files', { tone: 'error' });
+			toasts.push(messageOf(cause, 'Could not list stored files'), { tone: 'error' });
 		} finally {
 			isCheckingUnlinked = false;
 		}

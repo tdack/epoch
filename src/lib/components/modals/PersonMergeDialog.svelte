@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ImpactDialog from './ImpactDialog.svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import { isConflict, mergePeopleApi, reviewPersonMergeApi } from '#lib/services/tree-api.js';
 	import type { MergeSide, PersonMergeReviewDto } from '#lib/shared/person-merge.js';
@@ -93,7 +94,7 @@
 		} catch (cause: unknown) {
 			saveError = isConflict(cause)
 				? `${(cause as Error).message} Close this and try again.`
-				: (cause as Error).message || 'Could not merge';
+				: messageOf(cause, 'Could not merge');
 		} finally {
 			isSaving = false;
 		}
