@@ -29,14 +29,13 @@ export const NAME_SCOPES: ScopeTable = {
 /**
  * `create_person` reads nothing, but its id is seeded so a clash with an existing row is seen.
  *
- * `delete_person` and `detach_media` are deliberately absent. Both write a file with no owner, and
- * `opsTouchPrivate` treats any such write as editor-only, but only after it finds a private person
- * in the rows it is given (`hidden.size === 0` returns early). Over a scoped snapshot that holds no
- * private person a restricted viewer is allowed what the whole tree refuses, so they stay whole-tree
- * until that rule stops depending on who else is in the tree.
+ * `delete_person` reads the person's names, links, facts, files and partnerships, then each
+ * partnership's other partners, facts and files and the links filed under it; the closure of a
+ * loaded person brings all of those, and the evidence hanging off them.
  */
 export const PERSON_COMMAND_SCOPES: ScopeTable = {
 	create_person: (c) => seedOf({ people: [c.personId] }),
+	delete_person: (c) => seedOf({ people: [c.personId] }),
 	update_person: (c) => seedOf({ people: [c.personId] }),
 	set_person_privacy: (c) => seedOf({ people: [c.personId] }),
 	record_death: (c) => seedOf({ people: [c.personId] })
@@ -45,6 +44,7 @@ export const PERSON_COMMAND_SCOPES: ScopeTable = {
 /** A file's owner is loaded through it; the target of an attach is a person or a union. */
 export const MEDIA_SCOPES: ScopeTable = {
 	rename_media: (c) => seedOf({ media: [c.mediaId] }),
+	detach_media: (c) => seedOf({ media: [c.mediaId] }),
 	attach_media: (c) => seedOf({ media: [c.mediaId], people: [c.entityId], unions: [c.entityId] })
 };
 

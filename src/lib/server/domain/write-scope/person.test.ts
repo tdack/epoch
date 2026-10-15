@@ -35,7 +35,8 @@ import { importGedcomToDb } from '../../testing/gedcom';
 import { expectScopedEqualsWhole, viewerScopes } from '../../testing/scope-equivalence';
 import type { TreeRows } from '../change-log';
 import type { RelationshipCommand } from '../relationship-commands';
-import type { ScopeSeed } from '../write-scope';
+import { privatePeople } from '../privacy-mask';
+import { seedOf, type ScopeSeed } from '../write-scope';
 import { FACT_SCOPES, MEDIA_SCOPES, NAME_SCOPES, PERSON_COMMAND_SCOPES } from './person';
 import type { ScopeTable } from './types';
 
@@ -393,5 +394,87 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 		expect(touched).toContain('citations');
 		expect(touched).toContain('note_attachments');
 		expect(touched).toContain('research_tasks');
+	});
+
+	it('covers deleting a person: their partnership, links, files and evidence', () => {
+		const world = worlds.find((w) => w.label === 'Representative 5.5.1')!;
+		const personId = world.people.find((id) => {
+			const partnerships = world.rows.unionPartners.filter((p) => p.personId === id);
+			return (
+				partnerships.length > 0 &&
+				world.rows.mediaItems.some((m) => m.entityId === id) &&
+				world.rows.parentChild.some((l) => l.parentId === id || l.childId === id)
+			);
+		})!;
+		const command: RelationshipCommand = { kind: 'delete_person', personId };
+		const seed = PERSON_COMMAND_SCOPES.delete_person!(command as never);
+		const outcome = expectScopedEqualsWhole({
+			whole: world.rows,
+			commands: [command],
+			scope: scopes.unrestricted,
+			seed
+		});
+		const touched = new Set(outcome.ops?.map((op) => op.table));
+		for (const table of ['person_names', 'union_partners', 'parent_child', 'media_items'])
+			expect(touched).toContain(table);
+		expect(touched).toContain('citations');
+		// A seed that names no one gives the planner nothing to delete, so it must not pass.
+		expect(() =>
+			expectScopedEqualsWhole({
+				whole: world.rows,
+				commands: [command],
+				scope: scopes.unrestricted,
+				seed: seedOf({})
+			})
+		).toThrow();
+	});
+
+	it('covers detaching a file: the owner is read through the file', () => {
+		const world = worlds.find((w) => w.label === 'Representative 5.5.1')!;
+		const file = world.rows.mediaItems.find((m) => m.entityId !== null)!;
+		const command: RelationshipCommand = { kind: 'detach_media', mediaId: file.id };
+		const outcome = expectScopedEqualsWhole({
+			whole: world.rows,
+			commands: [command],
+			scope: scopes.unrestricted,
+			seed: MEDIA_SCOPES.detach_media!(command as never)
+		});
+		expect(outcome.ops).toHaveLength(1);
+		// Deliberately weakened: with no seed the file is not in the snapshot, so it is "not found".
+		expect(() =>
+			expectScopedEqualsWhole({
+				whole: world.rows,
+				commands: [command],
+				scope: scopes.unrestricted,
+				seed: seedOf({})
+			})
+		).toThrow();
+	});
+
+	it('refuses a restricted viewer a detach the same way over a snapshot with no private person', () => {
+		// The whole tree has private people, the file's snapshot does not: the refusal must not
+		// depend on that (the unowned-file rule in opsTouchPrivate).
+		const found = worlds
+			.map((world) => {
+				const hidden = privatePeople(world.rows, scopes.restricted.cutoff, null);
+				const file = world.rows.mediaItems.find(
+					(m) =>
+						m.entityId !== null &&
+						world.rows.individuals.some((p) => p.id === m.entityId) &&
+						!hidden.has(m.entityId)
+				);
+				return { world, file, isMixed: hidden.size > 0 };
+			})
+			.find((x) => x.file && x.isMixed)!;
+		const { world, file } = found as { world: World; file: NonNullable<typeof found.file> };
+		const command: RelationshipCommand = { kind: 'detach_media', mediaId: file.id };
+		const seed = MEDIA_SCOPES.detach_media!(command as never);
+		const restricted = expectScopedEqualsWhole({
+			whole: world.rows,
+			commands: [command],
+			scope: scopes.restricted,
+			seed
+		});
+		expect(restricted.failure?.name).toBe('UnauthorizedError');
 	});
 });
