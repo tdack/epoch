@@ -85,6 +85,9 @@ describe.each([
 		for (const person of whole.people) {
 			const page = await service().getPerson(treeId, person.id, actor.context);
 			expect(shown(page), person.displayName).toEqual(derived(whole, person.id));
+			// The link id is what a parent row files a citation under.
+			for (const parent of page.parentFamilies.flatMap((f) => f.parents))
+				expect(parent.linkId, person.displayName).toEqual(expect.any(String));
 		}
 	}, 120_000);
 });

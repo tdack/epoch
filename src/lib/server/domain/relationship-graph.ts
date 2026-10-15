@@ -82,7 +82,7 @@ export function buildRelationshipGraph(input: {
 	>();
 	const parentsByChild = new Map<
 		string,
-		Array<{ parentId: string; type: ParentChildType; unionId: string | null }>
+		Array<{ linkId?: string; parentId: string; type: ParentChildType; unionId: string | null }>
 	>();
 	for (const pc of input.parentChild) {
 		const key = pc.unionId ?? '__direct__';
@@ -92,7 +92,7 @@ export function buildRelationshipGraph(input: {
 		if (!parentsByChild.has(pc.childId)) parentsByChild.set(pc.childId, []);
 		parentsByChild
 			.get(pc.childId)!
-			.push({ parentId: pc.parentId, type: pc.type, unionId: pc.unionId });
+			.push({ linkId: pc.id, parentId: pc.parentId, type: pc.type, unionId: pc.unionId });
 	}
 
 	const people: RelationshipGraphPerson[] = input.people.map((p) => {
@@ -101,7 +101,7 @@ export function buildRelationshipGraph(input: {
 		for (const pa of directParents) {
 			const key = pa.unionId ?? '__direct__';
 			if (!parentsByUnion[key]) parentsByUnion[key] = [];
-			parentsByUnion[key].push({ parentId: pa.parentId, type: pa.type });
+			parentsByUnion[key].push({ parentId: pa.parentId, type: pa.type, linkId: pa.linkId });
 		}
 
 		// Unions the person participates in as a partner.
@@ -240,6 +240,7 @@ export function graphFromRows(
 			};
 		}),
 		parentChild: rows.parentChild.map((pc) => ({
+			id: pc.id,
 			parentId: pc.parentId,
 			childId: pc.childId,
 			type: pc.type as ParentChildType,

@@ -14,6 +14,8 @@ import { startSort } from './partnership-labels';
 import { stepRelativesOf, type StepRelatives } from './step-relatives';
 
 interface ParentLink {
+	/** What a citation of this link is filed under; absent on older captured graphs. */
+	linkId?: string;
 	personId: string;
 	type: ParentChildType;
 }
@@ -69,7 +71,7 @@ export function relativesOf(graph: RelationshipGraph, personId: string): Relativ
 	const parentFamilies: ParentFamily[] = Object.entries(person?.parentsByUnion ?? {}).map(
 		([key, parents]) => ({
 			unionId: key === '__direct__' ? null : key,
-			parents: parents.map((p) => ({ personId: p.parentId, type: p.type }))
+			parents: parents.map((p) => ({ personId: p.parentId, type: p.type, linkId: p.linkId }))
 		})
 	);
 
