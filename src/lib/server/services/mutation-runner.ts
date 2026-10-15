@@ -15,6 +15,8 @@ import {
 	type ViewerScope
 } from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
+import { ScopedRowLoader } from '../repositories/scoped-row-loader';
+import { seedFor } from '../domain/write-scope/index';
 import {
 	OP_KINDS,
 	describeOps,
@@ -57,8 +59,29 @@ export function actionForOps(ops: RowOp[]): TreeAction {
 	return 'record:create';
 }
 
+/**
+ * What a preview shows: the impact of the ops over the rows the caller may see, with the evidence
+ * and notes the commands would carry. Pure, so the scoped-snapshot equivalence tests (ADR-055) run
+ * the same code the preview endpoint does.
+ */
+export function previewOf(
+	visible: TreeRows,
+	commands: RelationshipCommand[],
+	ops: RowOp[],
+	headline: (rows: TreeRows) => string
+): ImpactSummary {
+	const carried = carriedCitations(visible, commands);
+	const carriedNote = carriedNotes(visible, commands);
+	return {
+		...describeImpact(headline(visible), visible, ops),
+		...(carried ? { carriedCitations: carried } : {}),
+		...(carriedNote ? { carriedNotes: carriedNote } : {})
+	};
+}
+
 export class MutationRunner {
 	readonly store: ChangeStore;
+	private scopedLoader: ScopedRowLoader;
 	private userRepo: UserRepository;
 	private treeRepo: TreeRepository;
 
@@ -67,6 +90,7 @@ export class MutationRunner {
 		readonly clock: MutationClock = SYSTEM_CLOCK
 	) {
 		this.store = new ChangeStore(db);
+		this.scopedLoader = new ScopedRowLoader(db);
 		this.userRepo = new UserRepository(db);
 		this.treeRepo = new TreeRepository(db);
 	}
@@ -93,6 +117,15 @@ export class MutationRunner {
 			action,
 			new Date(this.clock.now())
 		);
+	}
+
+	/**
+	 * The rows these commands plan over: the scoped snapshot when every kind has a seed, else the
+	 * whole tree (ADR-055). A kind with no seed is the default, so nothing changes until one is added.
+	 */
+	private loadFor(treeId: string, commands: RelationshipCommand[]): Promise<TreeRows> {
+		const seed = seedFor(commands);
+		return seed ? this.scopedLoader.load(treeId, seed) : this.store.loadRows(treeId);
 	}
 
 	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
@@ -154,7 +187,7 @@ export class MutationRunner {
 		// `record:create` first, the weakest right any change needs: a role that can change nothing is
 		// refused before planning, so it cannot tell a private record from a missing one by the error.
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const rows = await this.store.loadRows(treeId);
+		const rows = await this.loadFor(treeId, commands);
 		const ops = this.planFor(treeId, rows, commands, scope);
 		await this.requireAccess(treeId, context, actionForOps(ops));
 		return { rows, visible: this.visibleRows(rows, scope), ops };
@@ -168,13 +201,7 @@ export class MutationRunner {
 		headline: (rows: TreeRows) => string
 	): Promise<ImpactSummary> {
 		const { visible, ops } = await this.planned(treeId, context, commands);
-		const carried = carriedCitations(visible, commands);
-		const carriedNote = carriedNotes(visible, commands);
-		return {
-			...describeImpact(headline(visible), visible, ops),
-			...(carried ? { carriedCitations: carried } : {}),
-			...(carriedNote ? { carriedNotes: carriedNote } : {})
-		};
+		return previewOf(visible, commands, ops, headline);
 	}
 
 	/**
@@ -199,7 +226,7 @@ export class MutationRunner {
 		// Before the role check and any read, so the refusal never depends on what the tree holds.
 		requireRealUser(context);
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const snapshot = rows ?? (await this.store.loadRows(treeId));
+		const snapshot = rows ?? (await this.loadFor(treeId, change.commands));
 		const ops = this.planFor(treeId, snapshot, change.commands, scope);
 		await this.requireAccess(
 			treeId,

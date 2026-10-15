@@ -149,6 +149,27 @@ far past that, keep counters on the `trees` row instead of counting (Phase 8, pe
 Every mutation plans against a full `TreeRows` snapshot (`ChangeStore.loadRows`). That is outside
 this slice, which bounds reads. It is the next place a large tree will hurt.
 
+### Write cost (ADR-055 baseline)
+
+Recorded 2026-10-16 by `src/lib/server/services/write-cost.record.test.ts` (`RECORD_WRITE_COST=1`,
+`--silent=false`), through the real services over a counting wrapper of the D1 binding. Rows are
+summed from every result; a round trip is one `batch()` or one standalone statement. The count
+includes the access checks, the load, the commit and the follow-up read, not only the load. Wall
+time is local wrangler SQLite, so only its ratio between the trees means anything.
+
+| Tree | Write | Rows returned | Round trips | Wall ms |
+| --- | --- | ---: | ---: | ---: |
+| The Simpsons | fact edit | 123 | 18 | 47 |
+| The Simpsons | undo of the fact edit | 126 | 22 | 67 |
+| The Simpsons | name edit | 123 | 18 | 44 |
+| The Simpsons | person update (update_person) | 126 | 21 | 53 |
+| The Simpsons | add partner | 126 | 21 | 53 |
+| Corpus (5,324 people) | fact edit | 34412 | 18 | 574 |
+| Corpus (5,324 people) | undo of the fact edit | 34415 | 22 | 431 |
+| Corpus (5,324 people) | name edit | 34412 | 18 | 400 |
+| Corpus (5,324 people) | person update (update_person) | 34415 | 21 | 485 |
+| Corpus (5,324 people) | add partner | 34415 | 21 | 634 |
+
 ## Name search (S6)
 
 `RelationshipRepository.searchPeople` matches every stored name. The other filter is a `LIKE`, which
