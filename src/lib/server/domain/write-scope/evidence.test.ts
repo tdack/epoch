@@ -39,7 +39,16 @@ const CREATOR = 'creator-1';
 const scopes = viewerScopes(CREATOR);
 
 /** The kinds proved here. Each must have a seed, and the others must not. */
-const ENABLED = ['create_source', 'update_source', 'delete_source', 'create_repository'] as const;
+const ENABLED = [
+	'create_source',
+	'update_source',
+	'delete_source',
+	'create_repository',
+	'add_citation',
+	'update_citation',
+	'remove_citation',
+	'reorder_citations'
+] as const;
 
 function rng(seed: number) {
 	let state = seed >>> 0;

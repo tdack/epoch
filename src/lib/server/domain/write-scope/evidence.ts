@@ -111,5 +111,16 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	create_source: () => seedOf({ wholeTables: ['sources'] }),
 	update_source: (c) => sourceSeed(c.sourceId),
 	delete_source: (c) => sourceSeed(c.sourceId),
-	create_repository: () => seedOf({ wholeTables: ['repositories'] })
+	create_repository: () => seedOf({ wholeTables: ['repositories'] }),
+	add_citation: (c) => ({
+		...citationSubjectSeed(c.subject),
+		sources: sourceSeed(c.citation.sourceId).sources
+	}),
+	update_citation: (c) => ({
+		...seedOf({ citations: [c.citationId] }),
+		sources: sourceSeed(c.citation.sourceId).sources
+	}),
+	remove_citation: (c) => seedOf({ citations: [c.citationId] }),
+	// The subject brings every citation on it, which is every sibling to reorder.
+	reorder_citations: (c) => citationSubjectSeed(c.subject)
 };
