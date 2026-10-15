@@ -281,7 +281,8 @@ describe('taking up an invitation', () => {
 		new UserRepository(t.db).admitFromAccess(
 			{ accessSub: sub, email, name: 'Newcomer' },
 			null,
-			new Date()
+			// The service's clock, not the wall clock: offers made at NOW expire 14 days later.
+			clockNow
 		);
 	const signIn = async (email: string) => {
 		const user = await admit(email);
