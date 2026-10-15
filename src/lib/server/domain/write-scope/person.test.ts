@@ -97,14 +97,16 @@ async function addEvidence(treeId: string, rows: TreeRows, every: number) {
 			text: n % 2 ? null : 'inline',
 			version: 1
 		});
-		await t.db.insert(researchTasks).values({
-			id: `${tag}-t${n}`,
-			treeId,
-			title: `task ${n}`,
-			subjectKind: kind,
-			subjectId: id,
-			version: 1
-		});
+		// A task cannot be about a name, so a name's task sits on its person instead.
+		if (kind !== 'name')
+			await t.db.insert(researchTasks).values({
+				id: `${tag}-t${n}`,
+				treeId,
+				title: `task ${n}`,
+				subjectKind: kind,
+				subjectId: id,
+				version: 1
+			});
 		n++;
 	};
 	const addFile = async (entityId: string | null) => {
@@ -342,41 +344,43 @@ const GROUPS: Array<[string, ScopeTable]> = [
 
 describe('person-domain scoped planning equals whole-tree planning', () => {
 	for (const [group, table] of GROUPS) {
-		it(group, () => {
-			let plannedCount = 0;
-			let failedCount = 0;
-			for (const world of worlds) {
-				for (const personId of world.people) {
-					for (const command of commandsFor(world.rows, personId)) {
-						const seedFunction = table[command.kind] as
-							| ((c: RelationshipCommand) => ScopeSeed)
-							| undefined;
-						if (!seedFunction) continue;
-						for (const [viewer, scope] of Object.entries(scopes)) {
-							const outcome = expectScopedEqualsWhole({
-								whole: world.rows,
-								commands: [command],
-								scope,
-								seed: seedFunction(command),
-								label: `${world.label} ${personId} ${viewer} ${JSON.stringify(command)}`
-							});
-							if (outcome.failure) failedCount++;
-							else plannedCount++;
+		it(
+			group,
+			() => {
+				let plannedCount = 0;
+				let failedCount = 0;
+				for (const world of worlds) {
+					for (const personId of world.people) {
+						for (const command of commandsFor(world.rows, personId)) {
+							const seedFunction = table[command.kind] as
+								((c: RelationshipCommand) => ScopeSeed) | undefined;
+							if (!seedFunction) continue;
+							for (const [viewer, scope] of Object.entries(scopes)) {
+								const outcome = expectScopedEqualsWhole({
+									whole: world.rows,
+									commands: [command],
+									scope,
+									seed: seedFunction(command),
+									label: `${world.label} ${personId} ${viewer} ${JSON.stringify(command)}`
+								});
+								if (outcome.failure) failedCount++;
+								else plannedCount++;
+							}
 						}
 					}
 				}
-			}
-			// A green run must include real plans, not only refusals.
-			expect(plannedCount).toBeGreaterThan(100);
-			expect(plannedCount).toBeGreaterThan(failedCount / 8);
-		}, 600_000);
+				// A green run must include real plans, not only refusals.
+				expect(plannedCount).toBeGreaterThan(100);
+				expect(plannedCount).toBeGreaterThan(failedCount / 8);
+			},
+			600_000
+		);
 	}
 
 	it('covers cascades: deleting a fact reaches its citations, notes and tasks', () => {
 		const world = worlds.find((w) => w.label === 'Representative 5.5.1')!;
 		const fact = world.rows.events.find(
-			(e) =>
-				e.entityType === 'INDIVIDUAL' && world.rows.citations.some((c) => c.subjectId === e.id)
+			(e) => e.entityType === 'INDIVIDUAL' && world.rows.citations.some((c) => c.subjectId === e.id)
 		)!;
 		const command: RelationshipCommand = { kind: 'delete_fact', factId: fact.id };
 		const outcome = expectScopedEqualsWhole({

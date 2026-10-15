@@ -49,4 +49,9 @@ export const MEDIA_SCOPES: ScopeTable = {
 };
 
 /** Seeds for commands about people, their names and facts. */
-export const PERSON_SCOPES: ScopeTable = { ...FACT_SCOPES, ...NAME_SCOPES, ...PERSON_COMMAND_SCOPES, ...MEDIA_SCOPES };
+export const PERSON_SCOPES: ScopeTable = {
+	...FACT_SCOPES,
+	...NAME_SCOPES,
+	...PERSON_COMMAND_SCOPES,
+	...MEDIA_SCOPES
+};
