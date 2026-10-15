@@ -9,7 +9,7 @@
  * it calls `refresh`, which reloads the screen's data, and then says what happened in a toast.
  */
 
-import { differingRows } from '#lib/components/modals/conflict.js';
+import { differingRows, storedText } from '#lib/components/modals/conflict.js';
 import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
@@ -325,12 +325,12 @@ export class TreeEditor {
 	}
 
 	/** Rows for the conflict dialog: fields the person changed that now differ from what is stored. */
-	personFormRows = (changes: Partial<PersonFormData>, current: Record<string, any>) =>
+	personFormRows = (changes: Partial<PersonFormData>, current: Record<string, unknown>) =>
 		differingRows(
 			PERSON_FIELD_LABELS.filter(([key]) => key in changes).map(([key, label]) => ({
 				label,
 				yours: (changes[key] ?? '') as string,
-				current: current[key]
+				current: storedText(current[key])
 			}))
 		);
 

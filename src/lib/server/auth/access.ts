@@ -73,7 +73,7 @@ let jwksCache: JwksCache | null = null;
 /** When the cached keys were last force-refetched for an unknown `kid`. */
 let lastForcedFetchAt = 0;
 
-function base64UrlDecode(str: string): Uint8Array {
+function base64UrlDecode(str: string): Uint8Array<ArrayBuffer> {
 	if (typeof Buffer !== 'undefined') {
 		return new Uint8Array(Buffer.from(str, 'base64url'));
 	}
@@ -90,10 +90,10 @@ function base64UrlDecode(str: string): Uint8Array {
 }
 
 function parseJwtParts(token: string): {
-	header: Record<string, any>;
+	header: Record<string, unknown>;
 	payload: AccessTokenPayload;
-	signature: Uint8Array;
-	signedData: Uint8Array;
+	signature: Uint8Array<ArrayBuffer>;
+	signedData: Uint8Array<ArrayBuffer>;
 } {
 	const parts = token.split('.');
 	if (parts.length !== 3) {
@@ -176,8 +176,8 @@ async function fetchJwksForUnknownKid(certsUrl: string): Promise<JWK[]> {
 
 async function verifyRsaSignature(
 	jwk: JWK,
-	signature: Uint8Array,
-	signedData: Uint8Array
+	signature: Uint8Array<ArrayBuffer>,
+	signedData: Uint8Array<ArrayBuffer>
 ): Promise<boolean> {
 	const cryptoKey = await crypto.subtle.importKey(
 		'jwk',
@@ -196,7 +196,7 @@ async function verifyRsaSignature(
 		['verify']
 	);
 
-	return crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signature as any, signedData as any);
+	return crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signature, signedData);
 }
 
 /**

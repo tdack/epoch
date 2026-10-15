@@ -9,11 +9,11 @@ import { createSubmission } from './submission.svelte.js';
 describe('createSubmission', () => {
 	it('tracks isSaving around a successful run', async () => {
 		const save = createSubmission(vi.fn());
-		let during = false;
+		let wasSavingDuring = false;
 		await save.submit(async () => {
-			during = save.isSaving;
+			wasSavingDuring = save.isSaving;
 		}, 'fallback');
-		expect(during).toBe(true);
+		expect(wasSavingDuring).toBe(true);
 		expect(save.isSaving).toBe(false);
 		expect(save.error).toBeNull();
 	});

@@ -4,12 +4,13 @@
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
+	import type { EditablePerson } from '#lib/components/tree/tree-editor.svelte.js';
 	import type { PersonFormData } from '#lib/types/genealogy.js';
 
 	interface Props {
 		isOpen: boolean;
 		mode: 'add' | 'edit';
-		initialPerson?: any | null;
+		initialPerson?: EditablePerson | null;
 		isSubmitting?: boolean;
 		error?: string | null;
 		onclose: () => void;
@@ -44,14 +45,14 @@
 		if (isOpen) {
 			localError = null;
 			if (mode === 'edit' && initialPerson) {
-				const raw = initialPerson.raw || {};
+				const raw = initialPerson.raw;
 				givenName = raw.givenName || '';
 				surname = raw.surname || '';
 				sex = (initialPerson.sex as Sex) || raw.sex || 'U';
 
 				const events = raw.events || [];
-				const birthEvent = events.find((e: any) => e.type === 'BIRT');
-				const deathEvent = events.find((e: any) => e.type === 'DEAT');
+				const birthEvent = events.find((e) => e.type === 'BIRT');
+				const deathEvent = events.find((e) => e.type === 'DEAT');
 
 				const birthDateRaw = birthEvent?.dateRaw || '';
 				const deathDateRaw = deathEvent?.dateRaw || '';

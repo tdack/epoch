@@ -13,7 +13,7 @@
 	} from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
-	import { differingRows, type ConflictRow } from './conflict.js';
+	import { differingRows, storedText, type ConflictRow } from './conflict.js';
 	import {
 		searchPeopleApi,
 		planRelationshipApi,
@@ -449,8 +449,8 @@
 		const current = conflict.details.current;
 		if (conflict.details.entity === 'individual') {
 			return differingRows([
-				{ label: 'Death date', yours: deathDate, current: current.deathDate },
-				{ label: 'Death place', yours: deathPlace, current: current.deathPlace }
+				{ label: 'Death date', yours: deathDate, current: storedText(current.deathDate) },
+				{ label: 'Death place', yours: deathPlace, current: storedText(current.deathPlace) }
 			]);
 		}
 		const stored =
