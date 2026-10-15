@@ -15,6 +15,8 @@ import {
 	type ViewerScope
 } from './tree-access';
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
+import { ScopedRowLoader } from '../repositories/scoped-row-loader';
+import { seedFor } from '../domain/write-scope/index';
 import {
 	OP_KINDS,
 	describeOps,
@@ -79,6 +81,7 @@ export function previewOf(
 
 export class MutationRunner {
 	readonly store: ChangeStore;
+	private scopedLoader: ScopedRowLoader;
 	private userRepo: UserRepository;
 	private treeRepo: TreeRepository;
 
@@ -87,6 +90,7 @@ export class MutationRunner {
 		readonly clock: MutationClock = SYSTEM_CLOCK
 	) {
 		this.store = new ChangeStore(db);
+		this.scopedLoader = new ScopedRowLoader(db);
 		this.userRepo = new UserRepository(db);
 		this.treeRepo = new TreeRepository(db);
 	}
@@ -113,6 +117,15 @@ export class MutationRunner {
 			action,
 			new Date(this.clock.now())
 		);
+	}
+
+	/**
+	 * The rows these commands plan over: the scoped snapshot when every kind has a seed, else the
+	 * whole tree (ADR-055). A kind with no seed is the default, so nothing changes until one is added.
+	 */
+	private loadFor(treeId: string, commands: RelationshipCommand[]): Promise<TreeRows> {
+		const seed = seedFor(commands);
+		return seed ? this.scopedLoader.load(treeId, seed) : this.store.loadRows(treeId);
 	}
 
 	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
@@ -174,7 +187,7 @@ export class MutationRunner {
 		// `record:create` first, the weakest right any change needs: a role that can change nothing is
 		// refused before planning, so it cannot tell a private record from a missing one by the error.
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const rows = await this.store.loadRows(treeId);
+		const rows = await this.loadFor(treeId, commands);
 		const ops = this.planFor(treeId, rows, commands, scope);
 		await this.requireAccess(treeId, context, actionForOps(ops));
 		return { rows, visible: this.visibleRows(rows, scope), ops };
@@ -213,7 +226,7 @@ export class MutationRunner {
 		// Before the role check and any read, so the refusal never depends on what the tree holds.
 		requireRealUser(context);
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const snapshot = rows ?? (await this.store.loadRows(treeId));
+		const snapshot = rows ?? (await this.loadFor(treeId, change.commands));
 		const ops = this.planFor(treeId, snapshot, change.commands, scope);
 		await this.requireAccess(
 			treeId,
