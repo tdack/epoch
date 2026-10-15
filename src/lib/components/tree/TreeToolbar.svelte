@@ -17,12 +17,14 @@
 		WEBGL_LAYOUT_MODES,
 		parseLayoutMode
 	} from '#lib/shared/view-mode.js';
-	import { treeTokenStyle } from './tree-tokens.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {
 		/** The current view; the toolbar reports changes and does not keep its own copy. */
 		view: TreeViewState;
+		/** The colours to paint with, so the toolbar's focus chips match the canvas. */
+		palette?: Palette;
 		/** The person the chart is centred on; null before the graph has one. */
 		focusPerson?: { id: string; name: string } | null;
 		/** Move keyboard focus to the header's person finder, where the focus person is changed. */
@@ -49,6 +51,7 @@
 
 	let {
 		view,
+		palette = DEFAULT_PALETTE,
 		focusPerson = null,
 		onchangeFocus,
 		onopenProfile,
@@ -475,7 +478,7 @@
 	class="flex items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--tree-panel-border,#d6d3d1)] bg-[#fdfbf7] px-3 py-2 text-xs text-stone-900"
 	role="toolbar"
 	aria-label="Tree view controls"
-	style={treeTokenStyle()}
+	style={treeTokenStyle(palette)}
 >
 	<Popover
 		label="Focus person"

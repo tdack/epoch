@@ -12,7 +12,8 @@
 		type HighlightSource,
 		type KinSource
 	} from '#lib/tree-layout/highlight.js';
-	import { RING_TOKENS, treeTokenStyle } from './tree-tokens.js';
+	import { RING_TOKENS } from './tree-tokens.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
 	import { yearsLine } from './tree-view.js';
 	import {
 		describeMark,
@@ -33,6 +34,8 @@
 	interface Props {
 		/** Everyone drawn, for the name buttons. Private people are never named. */
 		people: ShellPerson[];
+		/** The colours to paint with: the user's, the site's, or the built-in ones. */
+		palette?: Palette;
 		/**
 		 * What the highlight is computed over: the layout itself. Its identity matters: a new layout
 		 * (a new focus, say) relights the focus line and drops a selection made on the old one.
@@ -93,6 +96,7 @@
 
 	let {
 		people,
+		palette = DEFAULT_PALETTE,
 		kin,
 		focusPersonId,
 		isWholeTree = false,
@@ -506,7 +510,8 @@
 
 <div
 	class="webgl-shell relative flex-1 overflow-hidden rounded-2xl border border-[var(--tree-panel-border)]"
-	style="{treeTokenStyle()};--ring-partner:{RING_TOKENS.partner};background:{RING_TOKENS.stage}"
+	style="{treeTokenStyle(palette)};--ring-partner:{palette.focus
+		.partner};background:{RING_TOKENS.stage}"
 	role="group"
 	aria-label={label}
 	bind:clientWidth={shellWidth}

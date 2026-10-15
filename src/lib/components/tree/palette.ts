@@ -185,3 +185,29 @@ export const DEFAULT_PALETTE: Palette = {
 	flatPartnerLine: TREE_TOKENS['--partner-line'],
 	private: RING_TOKENS.private
 };
+
+/**
+ * The CSS custom properties a tree view's root carries. Each palette colour is checked again here,
+ * because it is written into a style attribute: a value that is not six-digit hex falls back to the
+ * built-in one rather than reaching the page.
+ */
+export function treeTokenStyle(palette: Palette = DEFAULT_PALETTE): string {
+	const safe = (value: string, fallback: string) => (isHexColour(value) ? value : fallback);
+	const sex = (key: SexKey, field: keyof SexShades) =>
+		safe(palette.sex[key][field], DEFAULT_SEX[key][field]);
+	const vars: Record<string, string> = {
+		...TREE_TOKENS,
+		'--sex-m': sex('male', 'fill'),
+		'--sex-m-border': sex('male', 'border'),
+		'--sex-f': sex('female', 'fill'),
+		'--sex-f-border': sex('female', 'border'),
+		'--sex-u': sex('unknown', 'fill'),
+		'--sex-u-border': sex('unknown', 'border'),
+		'--union-ink': safe(palette.focus.ancestor, DEFAULT_FOCUS.ancestor),
+		'--tree-accent': safe(palette.focus.descendant, DEFAULT_FOCUS.descendant),
+		'--partner-line': safe(palette.flatPartnerLine, DEFAULT_PALETTE.flatPartnerLine)
+	};
+	return Object.entries(vars)
+		.map(([name, value]) => `${name}:${value}`)
+		.join(';');
+}

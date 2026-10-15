@@ -139,12 +139,6 @@ export const RIBBON_SIZES = {
 	haloTube: 0.055
 } as const;
 
-export function treeTokenStyle(): string {
-	return Object.entries(TREE_TOKENS)
-		.map(([name, value]) => `${name}:${value}`)
-		.join(';');
-}
-
 /**
  * Colours and sizes of the Orrery view, a star cluster of partners and their children.
  * Owned by the Orrery view alone: it adds its colours and sizes here, and no other view edits this block.

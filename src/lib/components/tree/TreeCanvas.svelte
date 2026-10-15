@@ -20,7 +20,7 @@
 	import TreeMinimap from './TreeMinimap.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import ZoomControls from './ZoomControls.svelte';
-	import { treeTokenStyle } from './tree-tokens.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
 	import { keyIntentOf } from './tree-keyboard.js';
@@ -45,6 +45,8 @@
 	interface Props {
 		/** Positioned people, unions, stubs and edges from `layoutFocusView`. */
 		layout: TreeLayout;
+		/** The colours to paint with: the user's, the site's, or the built-in ones. */
+		palette?: Palette;
 		/**
 		 * Changes when the view should be re-framed (a new focus, edited data, changed options) and
 		 * deliberately not when a stub is expanded, so opening a branch does not move the view.
@@ -105,6 +107,7 @@
 
 	let {
 		layout,
+		palette = DEFAULT_PALETTE,
 		fitKey,
 		selectedPersonId = null,
 		onSelectPerson,
@@ -528,7 +531,7 @@
 <div
 	bind:this={containerElement}
 	class="tree-canvas relative min-h-[28rem] w-full flex-1 overflow-hidden rounded-2xl border border-stone-300/80 shadow-inner"
-	style="{treeTokenStyle()}; background: var(--tree-bg);"
+	style="{treeTokenStyle(palette)}; background: var(--tree-bg);"
 	role="application"
 	aria-label="Family tree"
 	tabindex="-1"

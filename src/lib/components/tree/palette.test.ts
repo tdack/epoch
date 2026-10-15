@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '#lib/shared/colour.js';
-import { DEFAULT_PALETTE, resolvePalette } from './palette';
+import { DEFAULT_PALETTE, resolvePalette, treeTokenStyle } from './palette';
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS, RING_TOKENS, TREE_TOKENS } from './tree-tokens';
 
 describe('DEFAULT_PALETTE', () => {
@@ -59,5 +59,33 @@ describe('resolvePalette', () => {
 
 	it('lower-cases a valid colour so it always matches the stored form', () => {
 		expect(resolvePalette({ focusColours: { partner: '#ABCDEF' } }).focus.partner).toBe('#abcdef');
+	});
+});
+
+describe('treeTokenStyle', () => {
+	it('emits exactly the built-in custom properties for the default palette', () => {
+		const expected = Object.entries(TREE_TOKENS)
+			.map(([name, value]) => `${name}:${value}`)
+			.join(';');
+		expect(treeTokenStyle()).toBe(expected);
+	});
+
+	it('writes a chosen sex colour and focus colour into the flat view variables', () => {
+		const style = treeTokenStyle(
+			resolvePalette({ sexColours: { male: '#123456' }, focusColours: { descendant: '#abcdef' } })
+		);
+		expect(style).toContain('--sex-m-border:#123456');
+		expect(style).toContain('--tree-accent:#abcdef');
+		expect(style).not.toContain(TREE_TOKENS['--sex-m-border']);
+	});
+
+	it('never writes an invalid colour into the style attribute', () => {
+		const hostile = {
+			...DEFAULT_PALETTE,
+			focus: { ...DEFAULT_PALETTE.focus, ancestor: 'red;--x:url(evil)' }
+		};
+		const style = treeTokenStyle(hostile);
+		expect(style).not.toContain('evil');
+		expect(style).toContain(`--union-ink:${DEFAULT_PALETTE.focus.ancestor}`);
 	});
 });
