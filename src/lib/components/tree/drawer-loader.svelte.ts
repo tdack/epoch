@@ -1,5 +1,6 @@
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import { fetchPersonPage } from '#lib/services/tree-api.js';
+import { messageOf } from '../feedback/error-message.js';
 
 interface DrawerLoaderOptions {
 	/** A getter because the page can move to another tree without being recreated. */
@@ -30,6 +31,8 @@ export function createDrawerLoader({
 		/** `null` closes the drawer. Loading again for the same person refreshes it. */
 		load(id: string | null) {
 			if (!id) {
+				// Closing supersedes any load still in flight, or a slow response would reopen the drawer.
+				latestRequest++;
 				page = null;
 				error = null;
 				return;
@@ -41,12 +44,12 @@ export function createDrawerLoader({
 					page = loaded;
 					error = null;
 				})
-				.catch((cause: Error) => {
+				.catch((cause: unknown) => {
 					if (request !== latestRequest) return;
 					// The person is gone (deleted, undone away, or a stale link): there is nothing to keep
 					// open. Replacing the entry keeps Back from returning to a drawer that cannot open.
 					onMissing();
-					error = cause.message;
+					error = messageOf(cause, 'Could not load this person');
 				});
 		}
 	};

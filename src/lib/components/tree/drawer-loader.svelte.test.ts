@@ -54,6 +54,20 @@ describe('createDrawerLoader', () => {
 		expect(loader.page).toEqual(pageOf('b'));
 	});
 
+	it('drops a response that lands after the drawer closed', async () => {
+		const slow = deferred<PersonPageDto>();
+		const loader = createDrawerLoader({
+			treeId: () => 't',
+			onMissing: vi.fn(),
+			fetchPage: () => slow.promise
+		});
+		loader.load('a');
+		loader.load(null);
+		slow.resolve(pageOf('a'));
+		await flush();
+		expect(loader.page).toBeNull();
+	});
+
 	it('calls onMissing and shows the message when the load fails', async () => {
 		const onMissing = vi.fn();
 		const loader = createDrawerLoader({
