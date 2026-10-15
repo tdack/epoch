@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { savePrivacySettings } from '#lib/api/tree-api.js';
+	import { savePrivacySettings } from '#lib/api/people.js';
 	import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS } from '#lib/shared/privacy.js';
 	import type { PageProps } from './$types';
 

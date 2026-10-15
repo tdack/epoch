@@ -11,12 +11,8 @@
 		type FactInput
 	} from '#lib/shared/fact-types.js';
 	import type { FactDto } from '#lib/shared/person-page.js';
-	import {
-		createFactApi,
-		previewFactApi,
-		suggestPlacesApi,
-		updateFactApi
-	} from '#lib/api/tree-api.js';
+	import { suggestPlacesApi } from '#lib/api/lists.js';
+	import { createFactApi, previewFactApi, updateFactApi } from '#lib/api/people.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {

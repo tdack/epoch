@@ -1,5 +1,5 @@
 import { listQuery, treeLoad } from '#lib/api/load-helpers.js';
-import { fetchPlace } from '#lib/api/tree-api.js';
+import { fetchPlace } from '#lib/api/lists.js';
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 

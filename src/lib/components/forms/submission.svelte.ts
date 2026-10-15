@@ -1,4 +1,4 @@
-import { isConflict } from '#lib/api/tree-api.js';
+import { isConflict } from '#lib/api/client.js';
 import { messageOf } from '../feedback/error-message.js';
 
 /**

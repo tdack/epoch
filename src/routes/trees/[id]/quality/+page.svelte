@@ -11,7 +11,7 @@
 		previewStandardiseDatesApi,
 		restoreFindingApi,
 		standardiseDatesApi
-	} from '#lib/api/tree-api.js';
+	} from '#lib/api/lists.js';
 	import type { DateTidyPreview } from '#lib/shared/date-tidy.js';
 	import {
 		MAX_DISMISSAL_REASON_LENGTH,

@@ -1,5 +1,5 @@
 import { generationsParam, treeLoad } from '#lib/api/load-helpers.js';
-import { fetchDescendants, fetchPedigree } from '#lib/api/tree-api.js';
+import { fetchDescendants, fetchPedigree } from '#lib/api/lists.js';
 import { DEFAULT_CHART_GENERATIONS, MAX_HOURGLASS_GENERATIONS } from '#lib/shared/charts.js';
 import type { PageLoad } from './$types';
 

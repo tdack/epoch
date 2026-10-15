@@ -10,7 +10,7 @@
 		createSourceApi,
 		fetchSources,
 		updateCitationApi
-	} from '#lib/api/tree-api.js';
+	} from '#lib/api/evidence.js';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
 		CITATION_QUALITY_LABELS,

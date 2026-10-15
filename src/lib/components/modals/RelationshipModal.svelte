@@ -14,13 +14,9 @@
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows, storedText, type ConflictRow } from './conflict.js';
-	import {
-		searchPeopleApi,
-		planRelationshipApi,
-		applyRelationshipApi,
-		isConflict,
-		type ConflictError
-	} from '#lib/api/tree-api.js';
+	import { isConflict, type ConflictError } from '#lib/api/client.js';
+	import { searchPeopleApi } from '#lib/api/lists.js';
+	import { planRelationshipApi, applyRelationshipApi } from '#lib/api/relationships.js';
 	import { personName } from '#lib/shared/person-name.js';
 	import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';

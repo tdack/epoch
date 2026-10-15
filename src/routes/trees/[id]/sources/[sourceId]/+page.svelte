@@ -9,11 +9,7 @@
 	import NoteList from '#lib/components/notes/NoteList.svelte';
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import {
-		deleteSourceApi,
-		previewEvidenceApi,
-		unlinkRepositoryApi
-	} from '#lib/api/tree-api.js';
+	import { deleteSourceApi, previewEvidenceApi, unlinkRepositoryApi } from '#lib/api/evidence.js';
 	import {
 		CITATION_QUALITY_LABELS,
 		sourceLabel,

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('#lib/api/tree-api.js', () => ({
+vi.mock('#lib/api/lists.js', () => ({
 	searchPeopleApi: vi.fn()
 }));
 
-import { searchPeopleApi } from '#lib/api/tree-api.js';
+import { searchPeopleApi } from '#lib/api/lists.js';
 import PersonPicker from './PersonPicker.svelte';
 
 const search = vi.mocked(searchPeopleApi);

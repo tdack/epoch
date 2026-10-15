@@ -4,7 +4,7 @@ import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import CitationsDisclosure from './CitationsDisclosure.svelte';
 
-vi.mock('#lib/api/tree-api.js', async (importOriginal) => ({
+vi.mock('#lib/api/evidence.js', async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	fetchSources: vi.fn(async () => [])
 }));

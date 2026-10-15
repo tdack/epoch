@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
-	import { fetchNotes, mergeNotesApi, previewNoteApi } from '#lib/api/tree-api.js';
+	import { fetchNotes, mergeNotesApi, previewNoteApi } from '#lib/api/notes.js';
 	import type { NoteListItem } from '#lib/shared/notes.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 

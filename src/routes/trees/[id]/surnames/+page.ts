@@ -1,5 +1,5 @@
 import { listQuery, treeLoad } from '#lib/api/load-helpers.js';
-import { fetchList } from '#lib/api/tree-api.js';
+import { fetchList } from '#lib/api/lists.js';
 import type { SurnameListItem } from '#lib/shared/lists.js';
 import type { PageLoad } from './$types';
 

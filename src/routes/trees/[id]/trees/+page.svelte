@@ -7,13 +7,13 @@
 	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import { saveDefaultTree } from '#lib/api/settings.js';
 	import {
 		deleteTreeApi,
 		renameTreeApi,
-		saveDefaultTree,
 		setPublicTreeApi,
 		type InstallTree
-	} from '#lib/api/tree-api.js';
+	} from '#lib/api/trees.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 

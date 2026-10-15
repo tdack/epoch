@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('#lib/api/tree-api.js', () => ({
+vi.mock('#lib/api/client.js', () => ({
 	isConflict: (cause: unknown) => (cause as { isStale?: boolean })?.isStale === true
 }));
 

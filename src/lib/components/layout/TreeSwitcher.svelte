@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Check, ChevronDown, Download, Pencil, Plus, Trash2, Upload } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import type { GedcomExportChoice } from '#lib/api/tree-api.js';
+	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 	import { GEDCOM_FILE_ACCEPT } from '#lib/shared/gedcom-files.js';
 

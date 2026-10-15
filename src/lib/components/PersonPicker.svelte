@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { searchPeopleApi } from '#lib/api/tree-api.js';
+	import { searchPeopleApi } from '#lib/api/lists.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 
 	interface Props {

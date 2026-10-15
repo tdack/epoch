@@ -9,7 +9,7 @@
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
 	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
-	import { deleteFactApi, previewFactApi, reorderFactsApi } from '#lib/api/tree-api.js';
+	import { deleteFactApi, previewFactApi, reorderFactsApi } from '#lib/api/people.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
 	import { canCreateRecords, type TreeRole } from '#lib/shared/roles.js';

@@ -8,12 +8,12 @@ const toasts = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('#lib/components/tree/tree-context.js', () => ({
 	getTreeContext: () => ({ toasts })
 }));
-vi.mock('#lib/api/tree-api.js', () => ({
+vi.mock('#lib/api/files.js', () => ({
 	deleteFileApi: vi.fn(),
 	uploadMediaApi: vi.fn()
 }));
 
-import { deleteFileApi } from '#lib/api/tree-api.js';
+import { deleteFileApi } from '#lib/api/files.js';
 import PersonMedia from './PersonMedia.svelte';
 
 const remove = vi.mocked(deleteFileApi);

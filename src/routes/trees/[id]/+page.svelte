@@ -31,12 +31,9 @@
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
-	import {
-		fetchPersonPage,
-		recordRecentApi,
-		saveDefaultViewMode,
-		saveViewMode
-	} from '#lib/api/tree-api.js';
+	import { recordRecentApi } from '#lib/api/lists.js';
+	import { fetchPersonPage } from '#lib/api/people.js';
+	import { saveDefaultViewMode, saveViewMode } from '#lib/api/settings.js';
 	import {
 		EMPTY_LAYOUT,
 		filterParentChildTypes,

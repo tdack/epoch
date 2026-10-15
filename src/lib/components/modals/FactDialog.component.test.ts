@@ -1,20 +1,22 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('#lib/api/tree-api.js', () => ({
+vi.mock('#lib/api/client.js', () => ({
+	isConflict: vi.fn(() => false)
+}));
+
+vi.mock('#lib/api/lists.js', () => ({
+	suggestPlacesApi: vi.fn()
+}));
+
+vi.mock('#lib/api/people.js', () => ({
 	createFactApi: vi.fn(),
-	isConflict: vi.fn(() => false),
 	previewFactApi: vi.fn(),
-	suggestPlacesApi: vi.fn(),
 	updateFactApi: vi.fn()
 }));
 
-import {
-	createFactApi,
-	previewFactApi,
-	suggestPlacesApi,
-	updateFactApi
-} from '#lib/api/tree-api.js';
+import { suggestPlacesApi } from '#lib/api/lists.js';
+import { createFactApi, previewFactApi, updateFactApi } from '#lib/api/people.js';
 import type { FactDto } from '#lib/shared/person-page.js';
 import FactDialog from './FactDialog.svelte';
 

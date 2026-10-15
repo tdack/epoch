@@ -16,23 +16,24 @@ import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
 import type { RelationshipGraph } from '#lib/shared/relationship-graph.js';
 import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import { mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
+import { isConflict, type ConflictError } from '#lib/api/client.js';
 import {
-	applyRelationshipApi,
 	createPersonApi,
 	deletePersonApi,
 	fetchPersonPage,
-	isConflict,
+	updatePersonApi
+} from '#lib/api/people.js';
+import {
+	applyRelationshipApi,
 	mergeUnionsApi,
 	planRelationshipApi,
 	previewImpactApi,
 	removeRelationshipApi,
 	undoApi,
-	updatePersonApi,
-	type ConflictError,
 	type ImpactRequest,
 	type MergeUnionsRequest,
 	type RelationshipDeleteCommand
-} from '#lib/api/tree-api.js';
+} from '#lib/api/relationships.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type {
 	ChangeSummary,

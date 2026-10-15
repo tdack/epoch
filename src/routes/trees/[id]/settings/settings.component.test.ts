@@ -4,12 +4,12 @@ import type { SettingsView } from '#lib/shared/settings.js';
 
 const navigation = vi.hoisted(() => ({ invalidate: vi.fn() }));
 vi.mock('$app/navigation', () => navigation);
-vi.mock('#lib/api/tree-api.js', () => ({
+vi.mock('#lib/api/settings.js', () => ({
 	saveMySettings: vi.fn(),
 	saveSiteSettings: vi.fn()
 }));
 
-import { saveMySettings, saveSiteSettings } from '#lib/api/tree-api.js';
+import { saveMySettings, saveSiteSettings } from '#lib/api/settings.js';
 import Page from './+page.svelte';
 
 const saveMine = vi.mocked(saveMySettings);

@@ -8,7 +8,7 @@
 		inviteMemberApi,
 		removeMemberApi,
 		withdrawInvitationApi
-	} from '#lib/api/tree-api.js';
+	} from '#lib/api/members.js';
 	import { describeRole } from '#lib/shared/membership-policy.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';

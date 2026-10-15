@@ -2,12 +2,8 @@
 	import { tick } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from './ImpactDialog.svelte';
-	import {
-		isConflict,
-		previewPlaceRewriteApi,
-		rewritePlaceApi,
-		suggestPlacesApi
-	} from '#lib/api/tree-api.js';
+	import { isConflict } from '#lib/api/client.js';
+	import { previewPlaceRewriteApi, rewritePlaceApi, suggestPlacesApi } from '#lib/api/lists.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {

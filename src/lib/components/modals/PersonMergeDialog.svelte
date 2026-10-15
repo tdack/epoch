@@ -2,7 +2,8 @@
 	import ImpactDialog from './ImpactDialog.svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
-	import { isConflict, mergePeopleApi, reviewPersonMergeApi } from '#lib/api/tree-api.js';
+	import { isConflict } from '#lib/api/client.js';
+	import { mergePeopleApi, reviewPersonMergeApi } from '#lib/api/people.js';
 	import type { MergeSide, PersonMergeReviewDto } from '#lib/shared/person-merge.js';
 	import { sexLabel } from '#lib/shared/sex.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';

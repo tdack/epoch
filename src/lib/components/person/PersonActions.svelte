@@ -6,7 +6,8 @@
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { setFavoriteApi, undoApi } from '#lib/api/tree-api.js';
+	import { setFavoriteApi } from '#lib/api/lists.js';
+	import { undoApi } from '#lib/api/relationships.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { canMergePerson } from './person-permissions.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';

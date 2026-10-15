@@ -9,7 +9,7 @@
 		isUnionEventType
 	} from '#lib/shared/union-events.js';
 	import type { MergeChoices, MergeConflict, MergeFact } from '#lib/shared/union-merge.js';
-	import type { MergePreviewResponse, MergeUnionsRequest } from '#lib/api/tree-api.js';
+	import type { MergePreviewResponse, MergeUnionsRequest } from '#lib/api/relationships.js';
 
 	interface Props {
 		/** Whether the dialog is open. */

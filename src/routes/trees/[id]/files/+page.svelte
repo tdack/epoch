@@ -30,7 +30,7 @@
 		moveFileApi,
 		renameFileApi,
 		uploadMediaApi
-	} from '#lib/api/tree-api.js';
+	} from '#lib/api/files.js';
 	import type { FileRowDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 	import {
 		formatMediaSize,

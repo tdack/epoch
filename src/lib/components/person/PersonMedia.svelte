@@ -3,7 +3,7 @@
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { deleteFileApi, uploadMediaApi } from '#lib/api/tree-api.js';
+	import { deleteFileApi, uploadMediaApi } from '#lib/api/files.js';
 	import { isInlineMediaType, mediaUrl, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 

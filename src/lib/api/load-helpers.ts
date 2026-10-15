@@ -2,7 +2,7 @@
 
 import { error } from '@sveltejs/kit';
 import { parseListParams } from '../shared/lists.js';
-import { ApiError } from './tree-api.js';
+import { ApiError } from './client.js';
 
 /** The key every tree screen's load function depends on; invalidating it reloads what is on screen. */
 export const DATA_KEY = 'epoch:data';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { setPersonPrivacyApi } from '#lib/api/tree-api.js';
+	import { setPersonPrivacyApi } from '#lib/api/people.js';
 	import type { PersonPrivacy } from '#lib/shared/privacy.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
