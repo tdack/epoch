@@ -18,17 +18,9 @@ supported structure without loss; unsupported imported structures are retained f
 
 **Stack:** Svelte 5 / SvelteKit 3, Cloudflare Workers, D1 (Drizzle ORM), R2, Queues, and Workflows.
 
-**Layering** (enforced — routes never touch the database directly):
-
-1. **Domain** (`src/lib/server/domain/`) — pure models, command interfaces, typed errors
-   (`DomainError`, `UnauthorizedError`, `NotFoundError`, `ConcurrencyConflictError`,
-   `ValidationError`), and business invariants.
-2. **Persistence** (`src/lib/server/repositories/`) — D1 implementations with optimistic
-   concurrency (`version` columns) and audit metadata.
-3. **Service** (`src/lib/server/services/`) — coordinate domain commands, enforce tree
-   authorization, return DTOs.
-4. **Transport/UI** (`src/routes/`, `src/lib/components/`) — SvelteKit hooks, API endpoints, and
-   views. Handlers only parse input, invoke services, and format responses.
+**Layering:** domain → repositories → services → routes. Routes never touch D1; `server/` and
+`shared/` never import `components/`; every edit goes through the mutation runner. Read
+`docs/architecture.md` (layering, resources, data model) before changing a layer boundary.
 
 **Data model** (the neutral model is the single source of truth; the gendered
 legacy `families`/`family_children` tables have been expunged):
@@ -47,11 +39,6 @@ legacy `families`/`family_children` tables have been expunged):
 Step relationships are derived from a parent's union; widowhood from partner death and union
 history. Death never deletes or rewrites a union. Multiple unions between the same people remain
 distinct.
-
-**Cloudflare resources** (`wrangler.jsonc`): D1 (`DB`), R2 (`MEDIA_BUCKET`), Queue
-(`GEDCOM_IMPORT_QUEUE`), Workflow (`GedcomExportWorkflow`). Queues/Workflows are reserved for large
-or retryable import/export/media jobs; Durable Objects are deferred until a demonstrated
-coordination need exists.
 
 **Authorization**: Cloudflare Access JWT validated at the Worker (issuer, audience, rotating JWKS),
 users upserted by stable `sub`. Tree roles (`owner` > `manager` > `editor` > `contributor` >
