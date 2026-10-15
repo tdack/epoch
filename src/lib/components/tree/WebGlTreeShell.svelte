@@ -385,11 +385,10 @@
 	}
 
 	let isOsReducingMotion = $state(false);
-	// The setting only adds reduction: it can hold still what the system lets move, and never moves
-	// what the system holds still.
+	// A bindable output, so it is written rather than derived. The setting only adds reduction: it
+	// can hold still what the system lets move, and never moves what the system holds still.
 	$effect(() => {
 		shouldReduceMotion = isOsReducingMotion || isMotionReduced;
-		if (shouldReduceMotion) untrack(() => (isSpinning = false));
 	});
 
 	onMount(() => {
@@ -397,6 +396,7 @@
 		isOsReducingMotion = motion.matches;
 		const onMotion = (event: MediaQueryListEvent) => {
 			isOsReducingMotion = event.matches;
+			if (event.matches) isSpinning = false;
 		};
 		motion.addEventListener('change', onMotion);
 		let isDisposed = false;
