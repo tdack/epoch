@@ -81,7 +81,7 @@ export interface ChangeHistoryRow {
  * (measured: 5,324 rows read to return 3 people). The unary plus keeps the scope check and lets the
  * selective index lead.
  */
-const inTree = (column: SQLiteColumn, treeId: string) => sql`+${column} = ${treeId}`;
+export const inTree = (column: SQLiteColumn, treeId: string) => sql`+${column} = ${treeId}`;
 
 function chunked<T>(items: readonly T[]): T[][] {
 	const unique = [...new Set(items)];
@@ -128,7 +128,7 @@ export class GraphWindowRepository {
 	}
 
 	/** One query per chunk of ids; results are flattened and ranked. */
-	private readIn<T, Id>(
+	protected readIn<T, Id>(
 		table: SQLiteTable,
 		ids: readonly Id[],
 		build: (chunk: Id[]) => BatchItem<'sqlite'>

@@ -64,6 +64,24 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	research_tasks: researchTasks
 };
 
+/** Each `TreeRows` key's table. */
+const TREE_ROW_TABLES: Record<keyof TreeRows, SQLiteTable> = {
+	individuals,
+	unions,
+	unionPartners,
+	parentChild,
+	events,
+	mediaItems,
+	personNames,
+	sources,
+	repositories,
+	sourceRepositories,
+	citations,
+	notes,
+	noteAttachments,
+	researchTasks
+};
+
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */
 const RECORDS_PER_INSERT = 30;
 
@@ -147,129 +165,52 @@ export class ChangeStore {
 	 * that a window and the whole tree draw identically.
 	 */
 	async loadRows(treeId: string): Promise<TreeRows> {
+		const keys = Object.keys(TREE_ROW_TABLES) as Array<keyof TreeRows>;
+		const tables = await Promise.all(keys.map((key) => this.loadTable(treeId, key)));
+		return Object.fromEntries(keys.map((key, i) => [key, tables[i]])) as unknown as TreeRows;
+	}
+
+	/**
+	 * One table of `loadRows`, in the same order and as the same images. The scoped loader reads a
+	 * whole table this way when a command asks for one (ADR-055).
+	 */
+	async loadTable<K extends keyof TreeRows>(treeId: string, key: K): Promise<TreeRows[K]> {
 		const { db } = this;
-		const [
-			inds,
-			unionRows,
-			partners,
-			pcs,
-			evs,
-			media,
-			names,
-			sourceRows,
-			repoRows,
-			linkRows,
-			cites,
-			noteRows,
-			attachmentRows,
-			taskRows
-		] = await Promise.all([
-			db
-				.select()
-				.from(individuals)
-				.where(eq(individuals.treeId, treeId))
-				.orderBy(sql`${individuals}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(unions)
-				.where(eq(unions.treeId, treeId))
-				.orderBy(sql`${unions}.rowid`)
-				.all(),
-			db
-				.select(getTableColumns(unionPartners))
-				.from(unionPartners)
-				.innerJoin(unions, eq(unionPartners.unionId, unions.id))
-				.where(eq(unions.treeId, treeId))
-				.orderBy(sql`${unionPartners}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(parentChild)
-				.where(eq(parentChild.treeId, treeId))
-				.orderBy(sql`${parentChild}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(events)
-				.where(eq(events.treeId, treeId))
-				.orderBy(sql`${events}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(mediaItems)
-				.where(eq(mediaItems.treeId, treeId))
-				.orderBy(sql`${mediaItems}.rowid`)
-				.all(),
-			db
-				.select(getTableColumns(personNames))
-				.from(personNames)
-				.innerJoin(individuals, eq(personNames.personId, individuals.id))
-				.where(eq(individuals.treeId, treeId))
-				.orderBy(sql`${personNames}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(sources)
-				.where(eq(sources.treeId, treeId))
-				.orderBy(sql`${sources}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(repositories)
-				.where(eq(repositories.treeId, treeId))
-				.orderBy(sql`${repositories}.rowid`)
-				.all(),
-			db
-				.select(getTableColumns(sourceRepositories))
-				.from(sourceRepositories)
-				.innerJoin(sources, eq(sourceRepositories.sourceId, sources.id))
-				.where(eq(sources.treeId, treeId))
-				.orderBy(sql`${sourceRepositories}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(citations)
-				.where(eq(citations.treeId, treeId))
-				.orderBy(sql`${citations}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(notes)
-				.where(eq(notes.treeId, treeId))
-				.orderBy(sql`${notes}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(noteAttachments)
-				.where(eq(noteAttachments.treeId, treeId))
-				.orderBy(sql`${noteAttachments}.rowid`)
-				.all(),
-			db
-				.select()
-				.from(researchTasks)
-				.where(eq(researchTasks.treeId, treeId))
-				.orderBy(sql`${researchTasks}.rowid`)
-				.all()
-		]);
-		const images = <T>(table: SQLiteTable, rows: unknown[]) =>
-			rows.map((row) => toImage(table, row as Record<string, unknown>)) as T[];
-		return {
-			individuals: images(individuals, inds),
-			unions: images(unions, unionRows),
-			unionPartners: images(unionPartners, partners),
-			parentChild: images(parentChild, pcs),
-			events: images(events, evs),
-			mediaItems: images(mediaItems, media),
-			personNames: images(personNames, names),
-			sources: images(sources, sourceRows),
-			repositories: images(repositories, repoRows),
-			sourceRepositories: images(sourceRepositories, linkRows),
-			citations: images(citations, cites),
-			notes: images(notes, noteRows),
-			noteAttachments: images(noteAttachments, attachmentRows),
-			researchTasks: images(researchTasks, taskRows)
-		};
+		const table = TREE_ROW_TABLES[key];
+		const byRowid = sql`${table}.rowid`;
+		// Tables with no tree column of their own are scoped through the row they belong to.
+		const rows =
+			key === 'unionPartners'
+				? await db
+						.select(getTableColumns(unionPartners))
+						.from(unionPartners)
+						.innerJoin(unions, eq(unionPartners.unionId, unions.id))
+						.where(eq(unions.treeId, treeId))
+						.orderBy(byRowid)
+						.all()
+				: key === 'personNames'
+					? await db
+							.select(getTableColumns(personNames))
+							.from(personNames)
+							.innerJoin(individuals, eq(personNames.personId, individuals.id))
+							.where(eq(individuals.treeId, treeId))
+							.orderBy(byRowid)
+							.all()
+					: key === 'sourceRepositories'
+						? await db
+								.select(getTableColumns(sourceRepositories))
+								.from(sourceRepositories)
+								.innerJoin(sources, eq(sourceRepositories.sourceId, sources.id))
+								.where(eq(sources.treeId, treeId))
+								.orderBy(byRowid)
+								.all()
+						: await db
+								.select()
+								.from(table as typeof individuals)
+								.where(eq((table as typeof individuals).treeId, treeId))
+								.orderBy(byRowid)
+								.all();
+		return rows.map((row) => toImage(table, row as Record<string, unknown>)) as TreeRows[K];
 	}
 
 	/**
