@@ -10,10 +10,9 @@
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS, RING_TOKENS, TREE_TOKENS } from './tree-tokens.js';
 import { isHexColour, lightenHex, mixHex } from '#lib/shared/colour.js';
 
-export const SEX_KEYS = ['male', 'female', 'unknown'] as const;
-export type SexKey = (typeof SEX_KEYS)[number];
+export type SexKey = 'male' | 'female' | 'unknown';
 
-export interface SexShades {
+interface SexShades {
 	/** The pale card fill. */
 	readonly fill: string;
 	/** The card border, and the sphere in the 3D views. */
@@ -30,7 +29,7 @@ export interface FocusShades {
 	readonly partner: string;
 }
 
-export type TraceTuple = readonly [string, string, string, string, string, string];
+type TraceTuple = readonly [string, string, string, string, string, string];
 
 export interface Palette {
 	readonly sex: Readonly<Record<SexKey, SexShades>>;

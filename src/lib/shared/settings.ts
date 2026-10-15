@@ -13,7 +13,7 @@ import {
 } from '#lib/components/tree/palette.js';
 import { contrastRatio, oklabDistance } from './colour.js';
 
-export interface TracePaletteSettings {
+interface TracePaletteSettings {
 	trace: string[];
 	intersection: string;
 }
@@ -54,8 +54,7 @@ export interface SettingsView {
 /** What a settings save invalidates, so the root layout repaints every view with the new colours. */
 export const SETTINGS_DEPENDENCY = 'app:settings';
 
-export const COLOUR_GROUPS = ['sexColours', 'tracePalette', 'focusColours'] as const;
-export type ColourGroup = (typeof COLOUR_GROUPS)[number];
+export type ColourGroup = 'sexColours' | 'tracePalette' | 'focusColours';
 
 export const SEX_COLOUR_LABELS: Readonly<Record<SexKey, string>> = {
 	male: 'Male',
@@ -69,7 +68,7 @@ export const SEX_COLOUR_LABELS: Readonly<Record<SexKey, string>> = {
  * stages (3:1).
  */
 export const CONTRAST_FLOORS = { border: 3, ink: 4.5, sphere: 3 } as const;
-export type ContrastCheck = keyof typeof CONTRAST_FLOORS;
+type ContrastCheck = keyof typeof CONTRAST_FLOORS;
 
 /** The card ink and the two dark stages; the same values tree-tokens.ts paints with. */
 const CARD_INK = '#1c1917';
@@ -155,7 +154,7 @@ export interface ColourPreset {
 }
 
 /** The base colours of the built-in palette, in the shape a settings layer stores. */
-export const BUILT_IN_GROUPS: ColourPreset['groups'] = {
+const BUILT_IN_GROUPS: ColourPreset['groups'] = {
 	sexColours: {
 		male: DEFAULT_PALETTE.sex.male.border,
 		female: DEFAULT_PALETTE.sex.female.border,
