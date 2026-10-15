@@ -17,6 +17,8 @@ import {
 import { UndoRefusedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
+import { loadRowsForUndo } from '../domain/undo-scope';
+import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
 	actionForOps,
 	MutationRunner,
@@ -31,9 +33,11 @@ export interface UndoResult extends MutationResult {
 
 export class ChangeLogService {
 	private runner: MutationRunner;
+	private scopedLoader: ScopedRowLoader;
 
 	constructor(db: DbClient, clock?: MutationClock) {
 		this.runner = new MutationRunner(db, clock);
+		this.scopedLoader = new ScopedRowLoader(db);
 	}
 
 	/** What the next undo would revert, or null. Lets the UI say what "Undo" will do. */
@@ -81,7 +85,8 @@ export class ChangeLogService {
 		// Undoing is itself an edit of the tree, so the caller needs the rights the ops require.
 		await this.runner.requireAccess(treeId, context, actionForOps(rebased.ops));
 
-		const rows = await store.loadRows(treeId);
+		// Only the records the undo writes and what points at them, not the tree (ADR-055).
+		const rows = await loadRowsForUndo(rebased.ops, (seed) => this.scopedLoader.load(treeId, seed));
 		const labeler = makeLabeler(rows, rebased.ops);
 
 		// Deleting a row cascades to whatever points at it. If someone has since attached something

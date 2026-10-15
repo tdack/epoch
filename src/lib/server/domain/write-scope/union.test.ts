@@ -1,20 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import duplicateFamilies from '../../../../../test/data/The Simpsons duplicate families.ged?raw';
-import simpsonsNames from '../../../../../test/data/The Simpsons names.ged?raw';
-import simpsons from '../../../../../test/data/The Simpsons.ged?raw';
-import { ChangeStore } from '../../repositories/change-store';
-import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../../fixtures/genealogy-fixtures';
-import { insertCorpus } from '../../testing/corpus';
-import {
-	createTestDatabase,
-	createTestTree,
-	createTestUser,
-	type TestDatabase
-} from '../../testing/d1';
-import { addEvidence, seededRandom } from '../../testing/evidence-fixtures';
-import { importGedcomToDb } from '../../testing/gedcom';
-import { TEST_TREE_ID } from '../../testing/rows';
 import { expectScopedEqualsWhole, viewerScopes } from '../../testing/scope-equivalence';
+import { createWorlds, type World } from '../../testing/scope-worlds';
+import type { TestDatabase } from '../../testing/d1';
 import type { TreeRows } from '../change-log';
 import type { RelationshipCommand } from '../relationship-commands';
 import { seedOf } from '../write-scope';
@@ -22,64 +9,17 @@ import { seedFor } from './index';
 import { UNION_SCOPES } from './union';
 
 const scopes = viewerScopes();
-const CREATOR = 'creator-1';
-
-interface World {
-	label: string;
-	rows: TreeRows;
-}
 
 let t: TestDatabase;
-const worlds: World[] = [];
-
-/**
- * The planner checks rows against the tree it plans for, and the harness plans for `TEST_TREE_ID`,
- * so the imported rows are moved into it. Some people belong to the contributor, so that scope
- * differs from the restricted one.
- */
-function prepared(rows: TreeRows): TreeRows {
-	const moved = Object.fromEntries(
-		Object.entries(rows).map(([table, list]) => [
-			table,
-			(list as Array<Record<string, unknown>>).map((row) =>
-				'treeId' in row ? { ...row, treeId: TEST_TREE_ID } : row
-			)
-		])
-	) as unknown as TreeRows;
-	return {
-		...moved,
-		individuals: moved.individuals.map((p, index) =>
-			index % 4 === 0 ? { ...p, createdBy: CREATOR } : p
-		)
-	};
-}
+let worlds: World[] = [];
 
 beforeAll(async () => {
-	t = await createTestDatabase();
-	const actor = await createTestUser(t.db);
-	const store = new ChangeStore(t.db);
-	const imports: Array<[string, string]> = [
-		['Simpsons', simpsons],
-		['Simpsons duplicate families', duplicateFamilies],
-		['Simpsons names', simpsonsNames],
-		['Representative', REPRESENTATIVE_GEDCOM_FIXTURE]
-	];
-	for (const [index, [label, gedcom]] of imports.entries()) {
-		const treeId = await createTestTree(t.db, actor);
-		await importGedcomToDb(t.d1, treeId, gedcom, label);
-		await addEvidence(t.db, treeId, await store.loadRows(treeId), seededRandom(31 + index));
-		worlds.push({ label, rows: prepared(await store.loadRows(treeId)) });
-	}
-	const treeId = await createTestTree(t.db, actor);
-	await insertCorpus(t.db, treeId, {
-		prefix: treeId.slice(0, 8),
-		lineages: 2,
-		generations: 6,
-		shouldNameThePeople: true
-	});
-	await addEvidence(t.db, treeId, await store.loadRows(treeId), seededRandom(47));
-	worlds.push({ label: 'Corpus', rows: prepared(await store.loadRows(treeId)) });
+	({ t, worlds } = await createWorlds());
 }, 120_000);
+
+afterAll(async () => {
+	await t.dispose();
+});
 
 afterAll(async () => {
 	await t.dispose();
@@ -115,7 +55,7 @@ function unionCommands(rows: TreeRows): RelationshipCommand[] {
 				unionId: union.id,
 				expectedVersion: union.version,
 				status: 'separated',
-				events: [{ type: 'MARR', dateText: '1950', place: null }]
+				events: [{ id: null, type: 'MARR', dateText: '1950', place: null }]
 			},
 			{ kind: 'update_union', unionId: union.id, expectedVersion: union.version + 3 },
 			{ kind: 'add_partner_to_union', unionId: union.id, personId: outsider },
