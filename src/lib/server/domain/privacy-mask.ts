@@ -315,7 +315,10 @@ export function opsTouchPrivate(
 	creatorId: string | null = null
 ): boolean {
 	const hidden = privatePeople(rows, cutoff, creatorId);
-	if (hidden.size === 0) return false;
+	// An unowned file is editor-only whether or not anyone is private, so a snapshot that happens to
+	// hold no private person must answer as the whole tree does. Only that one rule survives an
+	// empty `hidden`, which keeps the early return cheap for every other op.
+	if (hidden.size === 0 && !ops.some(touchesUnownedFile)) return false;
 	const hiddenUnions = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
@@ -333,6 +336,10 @@ export function opsTouchPrivate(
 	return ops.some((op) =>
 		touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations, hiddenRecords)
 	);
+}
+
+function touchesUnownedFile(op: RowOp): boolean {
+	return op.table === 'media_items' && [op.before, op.after].some((r) => r !== null && !r.entityId);
 }
 
 function touchesHidden(
