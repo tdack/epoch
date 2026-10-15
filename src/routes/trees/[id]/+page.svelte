@@ -14,6 +14,7 @@
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
 	import { safePalette } from '#lib/shared/palette.js';
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
+	import { createDrawerLoader } from '#lib/components/tree/drawer-loader.svelte.js';
 	import { createTreeNavigation } from '#lib/components/tree/tree-navigation.svelte.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
@@ -30,13 +31,7 @@
 		type HistoryKind,
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
-	import type { PersonPageDto } from '#lib/shared/person-page.js';
-	import {
-		fetchPersonPage,
-		recordRecentApi,
-		saveDefaultViewMode,
-		saveViewMode
-	} from '#lib/services/tree-api.js';
+	import { recordRecentApi, saveDefaultViewMode, saveViewMode } from '#lib/services/tree-api.js';
 	import {
 		EMPTY_LAYOUT,
 		filterParentChildTypes,
@@ -366,9 +361,11 @@
 	// ---- The details drawer ----
 	/** The drawer lives in the address, so a reload, Back and a shared link all find it as it was. */
 	const selectedPersonId = $derived(view.personId);
-	let drawerPage = $state<PersonPageDto | null>(null);
-	let drawerError = $state<string | null>(null);
-	let drawerRequest = 0;
+	const drawer = createDrawerLoader({
+		treeId: () => treeId,
+		onMissing: () =>
+			navigate({ personId: null, expandedStubs: view.expandedStubs }, { isReplace: true })
+	});
 	/** The card the drawer was opened from, so closing it can hand focus back. */
 	let openerCardId: string | null = null;
 
@@ -376,25 +373,7 @@
 		const id = selectedPersonId;
 		// Reload with the tree: an edit, an undo or a new focus all change what the drawer should say.
 		void data.focusGraph;
-		if (!id) {
-			drawerPage = null;
-			drawerError = null;
-			return;
-		}
-		const request = ++drawerRequest;
-		fetchPersonPage(treeId, id)
-			.then((loaded) => {
-				if (request !== drawerRequest) return;
-				drawerPage = loaded;
-				drawerError = null;
-			})
-			.catch((cause: Error) => {
-				if (request !== drawerRequest) return;
-				// The person is gone (deleted, undone away, or a stale link): there is nothing to keep
-				// open. Replacing the entry keeps Back from returning to a drawer that cannot open.
-				navigate({ personId: null, expandedStubs: view.expandedStubs }, { isReplace: true });
-				drawerError = cause.message;
-			});
+		drawer.load(id);
 	});
 
 	/** Close the drawer; the tree stays as it is, and focus returns to the card that opened it if it is still drawn. */
@@ -702,11 +681,11 @@
 
 {#if selectedPersonId}
 	<PersonDrawer
-		page={drawerPage}
+		page={drawer.page}
 		{treeId}
 		treeSlug={data.summary.tree.slug}
 		{role}
-		error={drawerError}
+		error={drawer.error}
 		onClose={clearSelection}
 		onSelectPerson={handleSelectPerson}
 		{editor}
