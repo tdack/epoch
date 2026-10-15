@@ -1,13 +1,21 @@
+import type {
+	CreateTreeResponse,
+	InstallTree,
+	InstallTreesResponse,
+	RenameTreeResponse,
+	TreeImpact,
+	TreeImpactResponse,
+	TreeListResponse
+} from '#lib/shared/api-contracts.js';
 import type { TreeSummary } from '#lib/types/genealogy.js';
 import type { FocusGraphDto, TreeSummaryDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
-import type { TreeRole } from '#lib/shared/roles.js';
 import { call, json, path } from './client.js';
 
 export async function createTreeApi(payload: {
 	name: string;
 	description?: string;
 }): Promise<{ id: string; name: string }> {
-	const data = await call<{ tree: { id: string; name: string } }>(
+	const data = await call<CreateTreeResponse>(
 		'/api/trees',
 		json('POST', payload),
 		'Failed to create tree'
@@ -22,30 +30,15 @@ export async function renameTreeApi(
 	slug: string | null,
 	version: number
 ): Promise<{ id: string; slug: string | null }> {
-	return call<{ tree: { id: string; slug: string | null } }>(
+	return call<RenameTreeResponse>(
 		path`/api/trees/${treeId}`,
 		json('PATCH', { name, slug, version }),
 		'Failed to rename tree'
 	).then((d) => d.tree);
 }
 
-/** One row of the install owner's Trees page (`GET /api/admin/trees`). */
-export interface InstallTree {
-	id: string;
-	slug: string | null;
-	name: string;
-	version: number;
-	/** The caller's role in the tree; null when they are not a member. */
-	role: TreeRole | null;
-	ownerNames: string[];
-	peopleCount: number;
-	memberCount: number;
-	isPublic: boolean;
-	publicSince: string | null;
-}
-
 export function fetchInstallTrees(fetchFn: typeof fetch = fetch): Promise<InstallTree[]> {
-	return call<{ trees: InstallTree[] }>(
+	return call<InstallTreesResponse>(
 		'/api/admin/trees',
 		undefined,
 		'Failed to load trees',
@@ -66,16 +59,8 @@ export async function deleteTreeApi(treeId: string): Promise<void> {
 	await call(path`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }
 
-export interface TreeImpact {
-	people: number;
-	unions: number;
-	links: number;
-	events: number;
-	media: number;
-}
-
 export async function previewTreeDeletionApi(treeId: string): Promise<TreeImpact> {
-	const data = await call<{ treeImpact: TreeImpact }>(
+	const data = await call<TreeImpactResponse>(
 		path`/api/trees/${treeId}/impact`,
 		json('POST', { kind: 'delete_tree' }),
 		'Failed to preview the impact'
@@ -142,10 +127,7 @@ export function fetchTreeSummary(
 }
 
 export function fetchTreeList(fetchFn: typeof fetch = fetch): Promise<TreeSummary[]> {
-	return call<{ trees?: TreeSummary[] }>(
-		'/api/trees',
-		undefined,
-		'Failed to load trees',
-		fetchFn
-	).then((d) => d.trees || []);
+	return call<TreeListResponse>('/api/trees', undefined, 'Failed to load trees', fetchFn).then(
+		(d) => d.trees || []
+	);
 }

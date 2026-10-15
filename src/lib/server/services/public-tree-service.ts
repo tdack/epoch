@@ -4,19 +4,12 @@
  * the install owner's alone.
  */
 
+import type { InstallTree } from '#lib/shared/api-contracts.js';
 import type { DbClient } from '../db';
 import { NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
-import {
-	TreeRepository,
-	type InstallTreeRow,
-	type PublicTreeRef
-} from '../repositories/tree-repository';
+import { TreeRepository, type PublicTreeRef } from '../repositories/tree-repository';
 import { requireInstallOwner } from './tree-access';
-
-export interface InstallTreeDto extends Omit<InstallTreeRow, 'publicSince'> {
-	publicSince: string | null;
-}
 
 export class PublicTreeService {
 	private trees: TreeRepository;
@@ -34,7 +27,7 @@ export class PublicTreeService {
 	}
 
 	/** Every tree in the install, for the Trees page. */
-	async listAll(context: AuthenticatedContext): Promise<InstallTreeDto[]> {
+	async listAll(context: AuthenticatedContext): Promise<InstallTree[]> {
 		requireInstallOwner(context);
 		return (await this.trees.listAll(context.user.id)).map((t) => ({
 			...t,

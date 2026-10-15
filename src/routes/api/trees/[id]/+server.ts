@@ -1,3 +1,4 @@
+import type { RenameTreeResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { TreeService } from '#lib/server/services/tree-service.js';
 import { treeRenameSchema } from '#lib/server/validation/schemas.js';
@@ -5,7 +6,7 @@ import { treeRenameSchema } from '#lib/server/validation/schemas.js';
 /** Rename the tree or change its address; a stale `version` answers 409 with nothing changed. */
 export const PATCH = treeHandler(
 	{ failure: 'Failed to rename tree', body: treeRenameSchema },
-	async ({ db, ctx, treeId, body }) => ({
+	async ({ db, ctx, treeId, body }): Promise<RenameTreeResponse> => ({
 		tree: await new TreeService(db).updateTree(
 			treeId,
 			body.version,

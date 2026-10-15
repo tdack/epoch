@@ -8,12 +8,8 @@
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/api/load-helpers.js';
 	import { saveDefaultTree } from '#lib/api/settings.js';
-	import {
-		deleteTreeApi,
-		renameTreeApi,
-		setPublicTreeApi,
-		type InstallTree
-	} from '#lib/api/trees.js';
+	import { deleteTreeApi, renameTreeApi, setPublicTreeApi } from '#lib/api/trees.js';
+	import type { InstallTree } from '#lib/shared/api-contracts.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
