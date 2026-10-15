@@ -115,6 +115,11 @@ Last reviewed: 2026-10-15.
   folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
   fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
   needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
+- **Every write reads the whole tree.** `ChangeStore.loadRows` runs 14 queries over the tree's
+  people, names, events, unions, evidence, notes and tasks for every mutation, preview and merge
+  (query-plans.md, "Writes still read the whole tree"). Not a problem at today's sizes. Measure rows
+  read and peak memory for a fact edit on the 5,324-person corpus before choosing a scoped loader;
+  `buildPlanOps` is pure, so only the loading changes.
 - **Offset pages are linear in the offset,** and the surname list reads about 6.5 times the tree's
   people (about 12 for a restricted viewer). FTS5 does not help either. A keyset cursor on
   `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
@@ -153,8 +158,10 @@ Last reviewed: 2026-10-15.
 - **Test data is imported by relative path.** Tests read `test/data` files through relative
   `?raw` imports, so moving the directory breaks them at a distance. One shared path constant, or
   fixtures beside the tests, would keep the paths in one place.
-- **Flaky unit tests under load.** `union-merge.test.ts` and the "size limit" case in
-  `person-merge-service.test.ts` have failed intermittently when the suite runs under load. Find the
+- **Flaky unit tests under load.** `union-merge.test.ts`, the "size limit" case in
+  `person-merge-service.test.ts` and three cases in `fact-detail-backfill.test.ts` (5-second
+  timeouts on The Windsors) have failed intermittently when the suite runs under load; each passes
+  alone. Find the
   cause, or quarantine with a tracked reason.
 
 ### Code structure
