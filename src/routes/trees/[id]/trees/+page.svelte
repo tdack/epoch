@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { Globe, GlobeLock, Pencil, Plus, Star, StarOff, Trash2 } from '@lucide/svelte';
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import PublicTreeModal from '#lib/components/modals/PublicTreeModal.svelte';
@@ -68,7 +69,7 @@
 			if (leaveTo) await goto(leaveTo, { replaceState: true, invalidateAll: true });
 			else await invalidate(DATA_KEY);
 		} catch (cause) {
-			dialogError = (cause as Error).message || 'That did not work';
+			dialogError = messageOf(cause, 'That did not work');
 		} finally {
 			isBusy = false;
 		}
@@ -108,7 +109,7 @@
 			);
 			await invalidate(DATA_KEY);
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not change the default tree', {
+			toasts.push(messageOf(cause, 'Could not change the default tree'), {
 				tone: 'error'
 			});
 		} finally {

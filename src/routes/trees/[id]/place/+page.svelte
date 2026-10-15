@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -37,7 +38,7 @@
 								await goto(placeHref(oldName), { refreshAll: true });
 								toasts.push(`Undid: ${undone.summary}`);
 							} catch (cause: unknown) {
-								toasts.push((cause as Error).message || 'Could not undo', {
+								toasts.push(messageOf(cause, 'Could not undo'), {
 									tone: 'error',
 									durationMs: 10_000
 								});

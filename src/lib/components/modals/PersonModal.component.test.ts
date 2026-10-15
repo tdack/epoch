@@ -30,8 +30,15 @@ function render() {
 			isOpen: true,
 			mode: 'edit',
 			initialPerson: {
+				id: 'p1',
+				name: 'John Henry Smith',
+				givenName: 'John Henry',
+				surname: 'Smith',
 				sex: 'M',
+				notice: null,
 				raw: {
+					version: 1,
+					sex: 'M',
 					givenName: 'John Henry',
 					surname: 'Smith',
 					events: [{ type: 'BIRT', dateRaw: SAVED_BIRTH, place: null }]

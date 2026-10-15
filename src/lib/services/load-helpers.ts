@@ -14,25 +14,29 @@ function rethrowAsPageError(cause: unknown): never {
 }
 
 /** What `treeLoad` needs of a SvelteKit load event; the load itself sees the whole of its own. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LoadEventLike = any;
+interface DependsEvent {
+	depends(...deps: `${string}:${string}`[]): void;
+}
 
 /**
  * Wraps a tree screen's load: registers the dependency that lets `invalidate(DATA_KEY)` reload it,
  * and turns a failed API call into the error page. Anything else a load throws (a `redirect`, an
  * `error()` of its own, a bug) passes through untouched.
+ *
+ * `Event` is inferred from the generated `PageLoad` or `LayoutLoad` the result is assigned to, so
+ * the body still sees that route's own event and the route's types still describe what it returns.
  */
-export function treeLoad<Load extends (event: LoadEventLike) => unknown>(run: Load): Load {
-	// The cast is the contract: callers hand in a `PageLoad` or `LayoutLoad` body and get the same
-	// type back, so the generated route types still describe what the load returns.
-	return (async (event: LoadEventLike) => {
+export function treeLoad<Event extends DependsEvent, Result>(
+	run: (event: Event) => Result
+): (event: Event) => Promise<Awaited<Result>> {
+	return async (event): Promise<Awaited<Result>> => {
 		event.depends(DATA_KEY);
 		try {
 			return await run(event);
 		} catch (cause) {
 			rethrowAsPageError(cause);
 		}
-	}) as Load;
+	};
 }
 
 /**

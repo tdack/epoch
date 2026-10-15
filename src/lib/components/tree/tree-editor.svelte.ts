@@ -9,7 +9,8 @@
  * it calls `refresh`, which reloads the screen's data, and then says what happened in a toast.
  */
 
-import { differingRows } from '#lib/components/modals/conflict.js';
+import { differingRows, storedText } from '#lib/components/modals/conflict.js';
+import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
 import type { RelationshipGraph } from '#lib/shared/relationship-graph.js';
@@ -211,7 +212,7 @@ export class TreeEditor {
 			await this.afterChange(change, options.done);
 			return true;
 		} catch (cause) {
-			this.toasts.push((cause as Error).message || options.failure, { tone: TOAST_TONES.ERROR });
+			this.toasts.push(messageOf(cause, options.failure), { tone: TOAST_TONES.ERROR });
 			return false;
 		}
 	};
@@ -221,9 +222,9 @@ export class TreeEditor {
 			const { undone } = await undoApi(this.treeId);
 			await this.refresh();
 			this.toasts.push(`Undid: ${undone.summary}`);
-		} catch (e: any) {
+		} catch (e) {
 			// Refusals arrive with a plain-language reason (a later change touched the same records).
-			this.toasts.push(e.message || 'Could not undo', {
+			this.toasts.push(messageOf(e, 'Could not undo'), {
 				tone: TOAST_TONES.ERROR,
 				durationMs: 10_000
 			});
@@ -291,8 +292,8 @@ export class TreeEditor {
 			this.personModalError = null;
 			this.isSubmittingPerson = false;
 			this.isPersonModalOpen = true;
-		} catch (e: any) {
-			this.toasts.push(e.message || 'Could not open the person', { tone: TOAST_TONES.ERROR });
+		} catch (e) {
+			this.toasts.push(messageOf(e, 'Could not open the person'), { tone: TOAST_TONES.ERROR });
 		}
 	};
 
@@ -324,12 +325,12 @@ export class TreeEditor {
 	}
 
 	/** Rows for the conflict dialog: fields the person changed that now differ from what is stored. */
-	personFormRows = (changes: Partial<PersonFormData>, current: Record<string, any>) =>
+	personFormRows = (changes: Partial<PersonFormData>, current: Record<string, unknown>) =>
 		differingRows(
 			PERSON_FIELD_LABELS.filter(([key]) => key in changes).map(([key, label]) => ({
 				label,
 				yours: (changes[key] ?? '') as string,
-				current: current[key]
+				current: storedText(current[key])
 			}))
 		);
 
@@ -356,7 +357,7 @@ export class TreeEditor {
 			} else if (this.personToEdit) {
 				await this.savePersonEdit(this.personToEdit.id, formData, this.personToEdit.raw.version);
 			}
-		} catch (err: any) {
+		} catch (err) {
 			if (isConflict(err) && this.personToEdit) {
 				this.personConflict = {
 					error: err,
@@ -366,7 +367,7 @@ export class TreeEditor {
 				};
 			} else {
 				console.error('Failed to save person', err);
-				this.personModalError = err.message || 'Failed to save person';
+				this.personModalError = messageOf(err, 'Failed to save person');
 			}
 		} finally {
 			this.isSubmittingPerson = false;
@@ -383,11 +384,11 @@ export class TreeEditor {
 				conflict.changes,
 				conflict.error.details.currentVersion
 			);
-		} catch (err: any) {
+		} catch (err) {
 			if (isConflict(err)) this.personConflict = { ...conflict, error: err };
 			else {
 				this.personConflict = null;
-				this.personModalError = err.message || 'Failed to save person';
+				this.personModalError = messageOf(err, 'Failed to save person');
 			}
 		} finally {
 			this.isSubmittingPerson = false;
@@ -462,9 +463,9 @@ export class TreeEditor {
 		try {
 			const impact = await options.preview();
 			if (this.pendingImpact) this.pendingImpact.impact = impact;
-		} catch (e: any) {
+		} catch (e) {
 			if (this.pendingImpact)
-				this.pendingImpact.error = e.message || 'Could not check what this affects';
+				this.pendingImpact.error = messageOf(e, 'Could not check what this affects');
 		}
 	};
 
@@ -477,7 +478,7 @@ export class TreeEditor {
 			const { change } = await pending.run();
 			this.pendingImpact = null;
 			await this.afterChange(change, pending.done);
-		} catch (e: any) {
+		} catch (e) {
 			pending.isConfirming = false;
 			if (isConflict(e)) {
 				// Changed by someone else after the preview: show the current state rather than delete on stale information.
@@ -488,7 +489,7 @@ export class TreeEditor {
 					durationMs: 10_000
 				});
 			} else {
-				pending.error = e.message || 'That did not work';
+				pending.error = messageOf(e, 'That did not work');
 			}
 		}
 	};
@@ -672,7 +673,7 @@ export class TreeEditor {
 			const { change } = await mergeUnionsApi(this.treeId, request);
 			this.mergingUnionId = null;
 			await this.afterChange(change, 'Partnerships merged');
-		} catch (e: any) {
+		} catch (e) {
 			if (!isConflict(e)) throw e;
 			// A partnership changed after the dialog loaded it: show the current state instead of merging on stale information.
 			this.mergingUnionId = null;

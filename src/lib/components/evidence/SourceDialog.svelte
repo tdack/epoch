@@ -2,7 +2,8 @@
 	import { tick, untrack } from 'svelte';
 	import { BookOpen } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
-	import { createSourceApi, isConflict, updateSourceApi } from '#lib/services/tree-api.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
+	import { createSourceApi, updateSourceApi } from '#lib/services/tree-api.js';
 	import type { SourceDto } from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 
@@ -28,8 +29,7 @@
 	let publication = $state('');
 	let abbreviation = $state('');
 	let text = $state('');
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let titleInput = $state<HTMLInputElement | null>(null);
 
 	const field =
@@ -44,7 +44,7 @@
 		publication = from?.publication ?? '';
 		abbreviation = from?.abbreviation ?? '';
 		text = from?.text ?? '';
-		error = null;
+		submission.error = null;
 		void tick().then(() => titleInput?.focus());
 	});
 
@@ -57,12 +57,10 @@
 			text: text.trim() || null
 		};
 		if (!input.title && !input.abbreviation && !input.text) {
-			error = 'Give the source a title, an abbreviation or its text.';
+			submission.error = 'Give the source a title, an abbreviation or its text.';
 			return;
 		}
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			if (source) {
 				const { change } = await updateSourceApi(treeId, source.id, input, source.version);
 				await onsaved(change, source.id);
@@ -70,12 +68,7 @@
 				const created = await createSourceApi(treeId, input);
 				await onsaved(created.change, created.sourceId);
 			}
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the source';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the source');
 	}
 </script>
 
@@ -84,7 +77,7 @@
 	title={source ? 'Edit source' : 'Add a source'}
 	icon={BookOpen}
 	maxWidthClass="max-w-lg"
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -135,9 +128,9 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving}
+				disabled={submission.isSaving}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : source ? 'Save source' : 'Add source'}</button
+				>{submission.isSaving ? 'Saving…' : source ? 'Save source' : 'Add source'}</button
 			>
 		</div>
 	</form>

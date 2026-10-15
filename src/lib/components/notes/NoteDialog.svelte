@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import {
@@ -88,7 +89,7 @@
 			const { change } = await attachNoteApi(treeId, subject, chosen.id);
 			await onsaved(change);
 		} catch (cause: unknown) {
-			error = (cause as Error).message || 'Could not attach the note';
+			error = messageOf(cause, 'Could not attach the note');
 		} finally {
 			isSaving = false;
 		}
@@ -116,7 +117,7 @@
 			await onsaved(change);
 		} catch (cause: unknown) {
 			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the note';
+			else error = messageOf(cause, 'Could not save the note');
 		} finally {
 			isSaving = false;
 		}

@@ -5,6 +5,11 @@ export interface ConflictRow {
 	current: string;
 }
 
+/** A stored value as text: the conflict payload is untyped, and only a string can be compared. */
+export function storedText(value: unknown): string | null {
+	return typeof value === 'string' ? value : null;
+}
+
 /** Rows for the fields whose values differ; identical fields are not worth the reader's attention. */
 export function differingRows(
 	fields: Array<{

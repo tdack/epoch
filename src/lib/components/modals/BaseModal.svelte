@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import type { Component, Snippet } from 'svelte';
 
 	interface Props {
 		isOpen: boolean;
 		title: string;
-		icon?: any;
+		icon?: Component<{ class?: string }>;
 		iconBgClass?: string;
 		iconBorderClass?: string;
 		iconTextClass?: string;

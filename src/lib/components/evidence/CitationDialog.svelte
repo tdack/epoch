@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { Quote } from '@lucide/svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import {
 		addCitationApi,
 		createSourceApi,
 		fetchSources,
-		isConflict,
 		updateCitationApi
 	} from '#lib/services/tree-api.js';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
@@ -55,8 +56,7 @@
 	let entryDate = $state('');
 	let savedEntryDate = $state<string | null>(null);
 	let text = $state('');
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let searchInput = $state<HTMLInputElement | null>(null);
 
 	const isDateValid = $derived(checkDateEdit(entryDate, savedEntryDate).isValid);
@@ -84,7 +84,7 @@
 		entryDate = from?.entryDate ?? '';
 		savedEntryDate = from?.entryDate ?? null;
 		text = from?.text ?? '';
-		error = null;
+		submission.error = null;
 		void tick().then(() => searchInput?.focus());
 	});
 
@@ -119,10 +119,10 @@
 	async function makeSource() {
 		const title = newTitle.trim();
 		if (!title) {
-			error = 'Give the new source a title.';
+			submission.error = 'Give the new source a title.';
 			return;
 		}
-		error = null;
+		submission.error = null;
 		try {
 			const created = await createSourceApi(treeId, { title, author: newAuthor.trim() || null });
 			sourceId = created.sourceId;
@@ -130,17 +130,17 @@
 			isChoosing = false;
 			isNewSource = false;
 		} catch (cause: unknown) {
-			error = (cause as Error).message || 'Could not add the source';
+			submission.error = messageOf(cause, 'Could not add the source');
 		}
 	}
 
 	async function save() {
 		if (!sourceId) {
-			error = 'Choose the source this citation is from.';
+			submission.error = 'Choose the source this citation is from.';
 			return;
 		}
 		if (!isDateValid) {
-			error = 'Fix the highlighted date before saving.';
+			submission.error = 'Fix the highlighted date before saving.';
 			return;
 		}
 		const parsedQuality = quality === '' ? null : Number(quality);
@@ -150,9 +150,7 @@
 			entryDate: entryDate.trim() || null,
 			text: text.trim() || null
 		};
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			const { change } = citation
 				? await updateCitationApi(
 						treeId,
@@ -162,12 +160,7 @@
 					)
 				: await addCitationApi(treeId, subject, { ...input, sourceId });
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the citation';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the citation');
 	}
 </script>
 
@@ -177,7 +170,7 @@
 	subtitle={`For ${subjectLabel}`}
 	icon={Quote}
 	maxWidthClass="max-w-lg"
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -310,9 +303,9 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving || !sourceId || !isDateValid}
+				disabled={submission.isSaving || !sourceId || !isDateValid}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : citation ? 'Save citation' : 'Add citation'}</button
+				>{submission.isSaving ? 'Saving…' : citation ? 'Save citation' : 'Add citation'}</button
 			>
 		</div>
 	</form>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Heart, Plus, Trash2 } from '@lucide/svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows } from './conflict.js';
@@ -149,9 +150,9 @@
 			);
 			conflict = null;
 			onsaved(change);
-		} catch (e: any) {
+		} catch (e) {
 			if (isConflict(e)) conflict = e;
-			else error = e.message;
+			else error = messageOf(e, '');
 		} finally {
 			isSubmitting = false;
 		}

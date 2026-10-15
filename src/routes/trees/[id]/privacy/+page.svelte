@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { savePrivacySettings } from '#lib/services/tree-api.js';
 	import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS } from '#lib/shared/privacy.js';
@@ -33,7 +34,7 @@
 			shouldShowPrivateStructure = saved.shouldShowPrivateStructure;
 			toasts.push('Privacy settings saved');
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'Could not save the privacy settings', {
+			toasts.push(messageOf(cause, 'Could not save the privacy settings'), {
 				tone: 'error'
 			});
 		} finally {

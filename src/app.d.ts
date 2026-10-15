@@ -1,5 +1,6 @@
 import type { D1Database, R2Bucket, Queue, SendEmail, Workflow } from '@cloudflare/workers-types';
 import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.js';
+import type { ImportQueueMessage } from '#lib/server/services/gedcom-service.js';
 import type { GedcomExportPayload } from '#lib/server/workflows/export-workflow.js';
 
 declare global {
@@ -18,7 +19,7 @@ declare global {
 			env: {
 				DB: D1Database;
 				MEDIA_BUCKET: R2Bucket;
-				GEDCOM_IMPORT_QUEUE?: Queue<any>;
+				GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
 				/** Absent in unit tests and bare previews; invitations are then saved but not emailed. */
 				EMAIL?: SendEmail;

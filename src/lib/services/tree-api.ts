@@ -89,7 +89,7 @@ export class ConflictError extends ApiError {
 			id: string;
 			expectedVersion: number;
 			currentVersion: number;
-			current: Record<string, any>;
+			current: Record<string, unknown>;
 		}
 	) {
 		super(message, status, code, details);
@@ -129,7 +129,11 @@ async function call<T>(
 	fetchFn: typeof fetch = fetch
 ): Promise<T> {
 	const res = await fetchFn(url, init);
-	const data = (await res.json().catch(() => ({}))) as Record<string, any>;
+	const data = (await res.json().catch(() => ({}))) as {
+		error?: string;
+		code?: string;
+		details?: Record<string, unknown>;
+	};
 	if (!res.ok) {
 		// The error is still thrown, so callers stop while the page navigates away.
 		if (res.status === 401) restartSignIn();
@@ -137,11 +141,16 @@ async function call<T>(
 		// Only a conflict that carries the stored values can be shown as a comparison; a bare
 		// CONCURRENT_WRITE (a race inside the save) is reported as a plain error.
 		if (res.status === 409 && data.details?.reason === 'STALE_VERSION' && data.details.current) {
-			throw new ConflictError(message, res.status, data.code, data.details);
+			throw new ConflictError(
+				message,
+				res.status,
+				data.code,
+				data.details as ConflictError['details']
+			);
 		}
 		throw new ApiError(message, res.status, data.code, data.details);
 	}
-	return data as T;
+	return data as unknown as T;
 }
 
 const json = (method: string, body: unknown): RequestInit => ({

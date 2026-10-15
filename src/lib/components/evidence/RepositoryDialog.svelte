@@ -2,7 +2,8 @@
 	import { tick, untrack } from 'svelte';
 	import { Landmark } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
-	import { createRepositoryApi, isConflict, updateRepositoryApi } from '#lib/services/tree-api.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
+	import { createRepositoryApi, updateRepositoryApi } from '#lib/services/tree-api.js';
 	import type { RepositoryListItem } from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 
@@ -20,8 +21,7 @@
 
 	let name = $state('');
 	let address = $state('');
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let nameInput = $state<HTMLInputElement | null>(null);
 
 	const field =
@@ -32,19 +32,17 @@
 		const from = untrack(() => repository);
 		name = from?.name ?? '';
 		address = from?.address ?? '';
-		error = null;
+		submission.error = null;
 		void tick().then(() => nameInput?.focus());
 	});
 
 	async function save() {
 		if (!name.trim()) {
-			error = 'Give the repository a name.';
+			submission.error = 'Give the repository a name.';
 			return;
 		}
-		isSaving = true;
-		error = null;
 		const input = { name: name.trim(), address: address.trim() || null };
-		try {
+		await submission.submit(async () => {
 			if (repository) {
 				const { change } = await updateRepositoryApi(
 					treeId,
@@ -57,12 +55,7 @@
 				const created = await createRepositoryApi(treeId, input);
 				await onsaved(created.change, created.repositoryId);
 			}
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the repository';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the repository');
 	}
 </script>
 
@@ -70,7 +63,7 @@
 	{isOpen}
 	title={repository ? 'Edit repository' : 'Add a repository'}
 	icon={Landmark}
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -107,9 +100,13 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving}
+				disabled={submission.isSaving}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : repository ? 'Save repository' : 'Add repository'}</button
+				>{submission.isSaving
+					? 'Saving…'
+					: repository
+						? 'Save repository'
+						: 'Add repository'}</button
 			>
 		</div>
 	</form>

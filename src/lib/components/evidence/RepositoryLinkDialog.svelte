@@ -2,10 +2,10 @@
 	import { tick, untrack } from 'svelte';
 	import { Landmark } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import {
 		createRepositoryApi,
 		fetchRepositories,
-		isConflict,
 		linkRepositoryApi,
 		updateSourceLinkApi
 	} from '#lib/services/tree-api.js';
@@ -30,8 +30,7 @@
 	let isNew = $state(false);
 	let newName = $state('');
 	let callNumber = $state('');
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let firstField = $state<HTMLInputElement | HTMLSelectElement | null>(null);
 	let callField = $state<HTMLInputElement | null>(null);
 
@@ -45,7 +44,7 @@
 		isNew = false;
 		newName = '';
 		callNumber = from?.callNumber ?? '';
-		error = null;
+		submission.error = null;
 		if (!from) {
 			void fetchRepositories(treeId, new URLSearchParams({ limit: '100' }))
 				.then((page) => {
@@ -58,9 +57,7 @@
 	});
 
 	async function save() {
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			if (link) {
 				const { change } = await updateSourceLinkApi(
 					treeId,
@@ -74,13 +71,13 @@
 			let chosen = repositoryId;
 			if (isNew) {
 				if (!newName.trim()) {
-					error = 'Give the repository a name.';
+					submission.error = 'Give the repository a name.';
 					return;
 				}
 				chosen = (await createRepositoryApi(treeId, { name: newName.trim() })).repositoryId;
 			}
 			if (!chosen) {
-				error = 'Choose where the source is kept.';
+				submission.error = 'Choose where the source is kept.';
 				return;
 			}
 			const { change } = await linkRepositoryApi(treeId, sourceId, {
@@ -88,12 +85,7 @@
 				callNumber: callNumber.trim() || null
 			});
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save');
 	}
 </script>
 
@@ -101,7 +93,7 @@
 	{isOpen}
 	title={link ? 'Change the call number' : 'Where is this source kept?'}
 	icon={Landmark}
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -172,9 +164,9 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving}
+				disabled={submission.isSaving}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : 'Save'}</button
+				>{submission.isSaving ? 'Saving…' : 'Save'}</button
 			>
 		</div>
 	</form>

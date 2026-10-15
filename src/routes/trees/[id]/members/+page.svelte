@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		changeMemberRoleApi,
@@ -41,7 +42,7 @@
 			const result = await action();
 			toasts.push(typeof result === 'string' ? result : done);
 		} catch (cause) {
-			toasts.push((cause as Error).message || 'That did not work', { tone: 'error' });
+			toasts.push(messageOf(cause, 'That did not work'), { tone: 'error' });
 		} finally {
 			// Always reload: a refused change usually means someone else changed the list first.
 			members = await fetchMembers(treeId).catch(() => members);
