@@ -2,7 +2,8 @@
 	import { tick, untrack } from 'svelte';
 	import { ListTodo } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
-	import { createTaskApi, isConflict, updateTaskApi } from '#lib/services/tree-api.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
+	import { createTaskApi, updateTaskApi } from '#lib/services/tree-api.js';
 	import {
 		MAX_TASK_DETAILS_LENGTH,
 		MAX_TASK_TITLE_LENGTH,
@@ -57,8 +58,7 @@
 	let assigneeId = $state('');
 	let dueDate = $state('');
 	let chosen = $state(0);
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let titleInput = $state<HTMLInputElement | null>(null);
 
 	const field =
@@ -74,7 +74,7 @@
 		assigneeId = from?.assignee?.id ?? '';
 		dueDate = from?.dueDate ?? '';
 		chosen = 0;
-		error = null;
+		submission.error = null;
 		void tick().then(() => titleInput?.focus());
 	});
 
@@ -83,11 +83,11 @@
 	async function save() {
 		const words = title.trim();
 		if (!words) {
-			error = 'A task needs a title.';
+			submission.error = 'A task needs a title.';
 			return;
 		}
 		if (dueDate && !isDueDate(dueDate)) {
-			error = 'Choose a due date from the calendar.';
+			submission.error = 'Choose a due date from the calendar.';
 			return;
 		}
 		const input = {
@@ -96,19 +96,12 @@
 			assigneeId: assigneeId || null,
 			dueDate: dueDate || null
 		};
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			const { change } = task
 				? await updateTaskApi(treeId, task.id, { ...input, status }, task.version)
 				: await createTaskApi(treeId, input, { subject: about?.ref ?? null, findingKey });
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the task';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the task');
 	}
 </script>
 
@@ -118,7 +111,7 @@
 	subtitle={task ? undefined : subject ? `About ${subject.label}` : 'Not linked to a record'}
 	icon={ListTodo}
 	maxWidthClass="max-w-lg"
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -198,9 +191,9 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving || !title.trim()}
+				disabled={submission.isSaving || !title.trim()}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : task ? 'Save task' : 'Add task'}</button
+				>{submission.isSaving ? 'Saving…' : task ? 'Save task' : 'Add task'}</button
 			>
 		</div>
 	</form>

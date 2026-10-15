@@ -15,6 +15,10 @@ export function createSubmission(onstale: (message: string) => Promise<void> | v
 		get error() {
 			return error;
 		},
+		/** Dialogs set this for their own validation messages, which never reach `submit`. */
+		set error(message: string | null) {
+			error = message;
+		},
 		clearError() {
 			error = null;
 		},

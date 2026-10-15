@@ -2,7 +2,8 @@
 	import { tick, untrack } from 'svelte';
 	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
-	import { createSharedNoteApi, isConflict, updateSharedNoteApi } from '#lib/services/tree-api.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
+	import { createSharedNoteApi, updateSharedNoteApi } from '#lib/services/tree-api.js';
 	import type { SharedNoteDto } from '#lib/shared/notes.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 
@@ -23,8 +24,7 @@
 	let text = $state('');
 	let mime = $state('');
 	let language = $state('');
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let textArea = $state<HTMLTextAreaElement | null>(null);
 
 	const field =
@@ -37,20 +37,18 @@
 		text = from?.text ?? '';
 		mime = from?.mime ?? '';
 		language = from?.language ?? '';
-		error = null;
+		submission.error = null;
 		void tick().then(() => textArea?.focus());
 	});
 
 	async function save() {
 		const words = text.trim();
 		if (!words) {
-			error = 'A note needs some text.';
+			submission.error = 'A note needs some text.';
 			return;
 		}
 		const input = { mime: mime.trim() || null, language: language.trim() || null };
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			if (note) {
 				const { change } = await updateSharedNoteApi(
 					treeId,
@@ -63,12 +61,7 @@
 				const created = await createSharedNoteApi(treeId, { ...input, text: words });
 				await onsaved(created.change, created.noteId);
 			}
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = (cause as Error).message || 'Could not save the note';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the note');
 	}
 </script>
 
@@ -80,7 +73,7 @@
 		: 'Attach it to records afterwards from their pages'}
 	icon={StickyNote}
 	maxWidthClass="max-w-lg"
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	<form
@@ -136,9 +129,9 @@
 			>
 			<button
 				type="submit"
-				disabled={isSaving || !text.trim()}
+				disabled={submission.isSaving || !text.trim()}
 				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-				>{isSaving ? 'Saving…' : note ? 'Save note' : 'Add note'}</button
+				>{submission.isSaving ? 'Saving…' : note ? 'Save note' : 'Add note'}</button
 			>
 		</div>
 	</form>

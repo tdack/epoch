@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
@@ -12,7 +13,6 @@
 	import type { FactDto } from '#lib/shared/person-page.js';
 	import {
 		createFactApi,
-		isConflict,
 		previewFactApi,
 		suggestPlacesApi,
 		updateFactApi
@@ -59,8 +59,7 @@
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
-	let saveError = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let typeSelect = $state<HTMLSelectElement | null>(null);
 	let previewRequest = 0;
 	// Places already on the tree's facts, offered as the user types so one place keeps one spelling.
@@ -155,7 +154,7 @@
 		isDetailsOpen = hasAnyDetail(source);
 		impact = null;
 		previewError = null;
-		saveError = null;
+		submission.error = null;
 		void tick().then(() => typeSelect?.focus());
 	});
 
@@ -195,23 +194,16 @@
 
 	async function save() {
 		if (!isDateValid) {
-			saveError = 'Fix the highlighted date before saving.';
+			submission.error = 'Fix the highlighted date before saving.';
 			return;
 		}
-		isSaving = true;
-		saveError = null;
-		try {
+		await submission.submit(async () => {
 			const input = toInput();
 			const { change } = fact
 				? await updateFactApi(treeId, fact.id, input, fact.version)
 				: await createFactApi(treeId, personId, input);
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else saveError = (cause as Error).message || 'Could not save the fact';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the fact');
 	}
 </script>
 
@@ -233,8 +225,8 @@
 	title={isEdit ? 'Edit fact' : 'Add a fact'}
 	{impact}
 	isLoading={isOpen && impact === null && previewError === null && isDateValid}
-	isConfirming={isSaving}
-	error={saveError ?? previewError}
+	isConfirming={submission.isSaving}
+	error={submission.error ?? previewError}
 	confirmLabel={isEdit ? 'Save fact' : 'Add fact'}
 	idleMessage="Fix the date to see what will change."
 	isConfirmBlocked={!isDateValid}

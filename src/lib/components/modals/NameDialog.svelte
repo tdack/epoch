@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
@@ -11,12 +12,7 @@
 		type NameType
 	} from '#lib/shared/name-types.js';
 	import type { NameDto } from '#lib/shared/person-page.js';
-	import {
-		createNameApi,
-		isConflict,
-		previewNameApi,
-		updateNameApi
-	} from '#lib/services/tree-api.js';
+	import { createNameApi, previewNameApi, updateNameApi } from '#lib/services/tree-api.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -52,8 +48,7 @@
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
-	let saveError = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let typeSelect = $state<HTMLSelectElement | null>(null);
 	let previewRequest = 0;
 
@@ -95,7 +90,7 @@
 		isPreferred = false;
 		impact = null;
 		previewError = null;
-		saveError = null;
+		submission.error = null;
 		void tick().then(() => typeSelect?.focus());
 	});
 
@@ -140,25 +135,18 @@
 
 	async function save() {
 		if (!isReady) {
-			saveError = hasContent
+			submission.error = hasContent
 				? 'Fix the highlighted date before saving.'
 				: 'Give the name at least one part.';
 			return;
 		}
-		isSaving = true;
-		saveError = null;
-		try {
+		await submission.submit(async () => {
 			const input = toInput();
 			const { change } = name?.id
 				? await updateNameApi(treeId, name.id, input, name.version ?? 0)
 				: await createNameApi(treeId, personId, input, isPreferred);
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else saveError = (cause as Error).message || 'Could not save the name';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the name');
 	}
 </script>
 
@@ -167,8 +155,8 @@
 	title={isEdit ? 'Edit name' : 'Add a name'}
 	{impact}
 	isLoading={isOpen && impact === null && previewError === null && isReady}
-	isConfirming={isSaving}
-	error={saveError ?? previewError}
+	isConfirming={submission.isSaving}
+	error={submission.error ?? previewError}
 	confirmLabel={isEdit ? 'Save name' : 'Add name'}
 	idleMessage={hasContent
 		? 'Fix the date to see what will change.'
