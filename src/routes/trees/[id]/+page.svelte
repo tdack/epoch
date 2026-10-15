@@ -14,6 +14,7 @@
 	import TreeToolbar from '#lib/components/tree/TreeToolbar.svelte';
 	import { safePalette } from '#lib/shared/palette.js';
 	import type { PersonRef, TreeEditActions } from '#lib/components/tree/tree-actions.js';
+	import { createTreeNavigation } from '#lib/components/tree/tree-navigation.svelte.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		ALL_PARENT_CHILD_TYPES,
@@ -22,7 +23,6 @@
 		ARRIVAL_COLLATERAL_DEPTH,
 		LAYOUT_MODES,
 		compactStubId,
-		createHistoryCoalescer,
 		parseViewState,
 		resolveStubTokens,
 		serializeViewState,
@@ -66,12 +66,16 @@
 	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
 	const canCreate = $derived(canCreateRecords(role));
 	const canChange = $derived(canChangeRecords(role));
-	const historyCoalescer = createHistoryCoalescer();
 
 	// The id, not the address segment, which may be the slug (ADR-045).
 	const treeId = $derived(data.summary.tree.id);
-	/** The address a navigation is heading for, shown before the load commits it; see `navigate`. */
-	let pendingSearch = $state<string | null>(null);
+	const navigation = createTreeNavigation((href, isReplace) =>
+		goto(href || page.url.pathname, {
+			replace: isReplace,
+			// Leave scroll and the focused element alone; the tree view changes in place.
+			reset: false
+		})
+	);
 	/**
 	 * The view (focus, depths, toggles, opened stubs) lives in the URL so reloads, back/forward and
 	 * shared links restore it. Everything below derives from it rather than keeping a second copy.
@@ -96,7 +100,7 @@
 		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode, fromTree: savedTreeMode })
 	);
 	const view = $derived(
-		parseViewState(new URLSearchParams(pendingSearch ?? page.url.search), startingMode)
+		parseViewState(new URLSearchParams(navigation.pendingSearch ?? page.url.search), startingMode)
 	);
 	/** What the graph on screen was fetched for. The canvas draws with this, and the toolbar shows `view`. */
 	const applied = $derived(data.applied);
@@ -149,7 +153,7 @@
 	 * out, so the chart on screen is stale for a moment. The address is ahead of the load while this
 	 * is true; the badge says so instead of leaving a click looking ignored.
 	 */
-	const isLoading = $derived(pendingSearch !== null || navigating.to !== null);
+	const isLoading = $derived(navigation.pendingSearch !== null || navigating.to !== null);
 	const focusOptions = $derived({
 		ancestorDepth: applied.ancestorDepth,
 		descendantDepth: applied.descendantDepth,
@@ -317,32 +321,7 @@
 			...stubs,
 			...change
 		}).toString();
-		// The address only changes once the new graph has loaded, so a second click straight after the
-		// first would read the old view. Show the new view at once and let the load catch up. Only one
-		// navigation runs at a time: a second would cancel the first, and "replace the last entry"
-		// would then overwrite the entry the first should have pushed.
-		pendingSearch = query ? `?${query}` : '';
-		if (isNavigating)
-			queuedNavigation = { query, kind: options.kind, isReplace: options.isReplace };
-		else commitNavigation(query, options.kind, options.isReplace);
-	}
-
-	let isNavigating = false;
-	let queuedNavigation: { query: string; kind?: HistoryKind; isReplace?: boolean } | null = null;
-
-	function commitNavigation(query: string, kind?: HistoryKind, isReplace?: boolean) {
-		isNavigating = true;
-		void goto(query ? `?${query}` : page.url.pathname, {
-			replace: isReplace ?? (kind ? historyCoalescer.shouldReplace(kind) : false),
-			// Leave scroll and the focused element alone; the tree view changes in place.
-			reset: false
-		}).finally(() => {
-			isNavigating = false;
-			const next = queuedNavigation;
-			queuedNavigation = null;
-			if (next) commitNavigation(next.query, next.kind, next.isReplace);
-			else pendingSearch = null;
-		});
+		navigation.push({ query, kind: options.kind, isReplace: options.isReplace });
 	}
 
 	/**
