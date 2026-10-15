@@ -1,5 +1,5 @@
 /**
- * The colour and motion settings (ADR-053) as both sides see them: the stored shapes, the contrast
+ * The colour and motion settings (ADR-054) as both sides see them: the stored shapes, the contrast
  * floors and soft warnings, and the presets. Shared so the settings page shows exactly the numbers
  * the server enforces on save; the server alone decides, by refusing a breach.
  */

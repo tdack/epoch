@@ -1,5 +1,5 @@
 /**
- * Colour settings (ADR-053): a person's own male colour repaints the flat view's cards. Settings
+ * Colour settings (ADR-054): a person's own male colour repaints the flat view's cards. Settings
  * belong to the dev user, not the spec's tree, so the spec puts them back whatever happens.
  */
 import AxeBuilder from '@axe-core/playwright';

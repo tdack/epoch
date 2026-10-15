@@ -97,7 +97,12 @@ export interface NameDto extends PrivacyFlag {
 interface ParentFamilyDto {
 	unionId: string | null;
 	label: PartnershipLabel | null;
-	parents: Array<{ person: PersonSummaryDto; type: ParentChildType }>;
+	parents: Array<{
+		person: PersonSummaryDto;
+		type: ParentChildType;
+		/** The parent-child assertion, which a citation of the link is filed under. */
+		linkId: string | null;
+	}>;
 }
 
 export interface PartnershipDto extends PrivacyFlag {

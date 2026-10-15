@@ -400,7 +400,11 @@ export class PersonPageService {
 			parentFamilies: relatives.parentFamilies.map((f) => ({
 				unionId: f.unionId,
 				label: f.unionId ? (labels.get(f.unionId) ?? null) : null,
-				parents: f.parents.map((p) => ({ person: summary(p.personId), type: p.type }))
+				parents: f.parents.map((p) => ({
+					person: summary(p.personId),
+					type: p.type,
+					linkId: p.linkId ?? null
+				}))
 			})),
 			partnerships,
 			directChildren: relatives.directChildren.map(childEntry),

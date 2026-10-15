@@ -180,7 +180,7 @@ Last reviewed: 2026-10-15.
 ### Settings
 
 - **More app-wide settings beyond colours and reduced motion.** Left out of the first settings page
-  (ADR-053), because the dates and names ones touch many render sites:
+  (ADR-054), because the dates and names ones touch many render sites:
   - **Date display format** (day-month-year, month-day-year, ISO). `date_value` keeps the original
     text, so this is a display choice only. Every place that formats a date needs to read it.
   - **Name display order** (given then surname, or surname first), including how the "née" line and

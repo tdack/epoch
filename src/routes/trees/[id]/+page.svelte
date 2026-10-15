@@ -59,7 +59,7 @@
 	}
 
 	let { data }: Props = $props();
-	// Checked again here because these colours reach style attributes in every view (ADR-053).
+	// Checked again here because these colours reach style attributes in every view (ADR-054).
 	const palette = $derived(safePalette(data.palette));
 	const { editor, marks, toasts, finder, isPublicVisitor, importGedcom } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
@@ -777,7 +777,7 @@
 			animation-name: cue-fade;
 		}
 	}
-	/* The viewer's own "Reduce animation" (ADR-053), set on the root layout; same fade, no slide. */
+	/* The viewer's own "Reduce animation" (ADR-054), set on the root layout; same fade, no slide. */
 	:global([data-reduce-motion]) .cue {
 		animation-name: cue-fade;
 	}

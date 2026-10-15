@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { Ellipsis } from '@lucide/svelte';
+	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
+	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
+	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import type { RelativeAction, TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 	import type { RelationshipKind } from '#lib/types/genealogy.js';
+	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { LINK_TARGET, type RelativeTarget } from './relative-target.js';
 	import { personPath, unionPath } from './person-paths.js';
@@ -18,6 +22,7 @@
 		role: TreeRole | undefined;
 		/** Every relative action (add, remove, edit or merge a partnership) goes through the editor's dialogs. */
 		editor: TreeEditor;
+		toasts: ToastStore;
 		relativeTarget?: RelativeTarget;
 	}
 
@@ -27,6 +32,7 @@
 		treeSlug = null,
 		role,
 		editor,
+		toasts,
 		relativeTarget = LINK_TARGET
 	}: Props = $props();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
@@ -64,23 +70,50 @@
 	}
 </script>
 
-{#snippet relative(person: PersonSummaryDto, note: string, remove?: RelativeAction)}
-	<li class="flex items-center justify-between gap-2">
-		<span class="min-w-0 text-sm">
-			<PersonLink {person} href={personPath(treeRef, person.id)} {relativeTarget} />
-			{#if note}<span class="text-xs text-stone-500">({note})</span>{/if}
-		</span>
-		{#if remove && canChange}
-			<!-- Opens a choice (record a death or separation, or remove the link), so it is not drawn as
+{#snippet relative(
+	person: PersonSummaryDto,
+	note: string,
+	remove?: RelativeAction,
+	linkId?: string | null
+)}
+	<li>
+		<div class="flex items-center justify-between gap-2">
+			<span class="min-w-0 text-sm">
+				<PersonLink {person} href={personPath(treeRef, person.id)} {relativeTarget} />
+				{#if note}<span class="text-xs text-stone-500">({note})</span>{/if}
+			</span>
+			{#if remove && canChange}
+				<!-- Opens a choice (record a death or separation, or remove the link), so it is not drawn as
 			     a trash can: most of what it leads to deletes nothing. -->
-			<button
-				type="button"
-				onclick={() => editor.requestRelativeAction(remove)}
-				aria-label={`Options for ${person.displayName}: record what happened, or remove`}
-				class="shrink-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-2 py-1 text-stone-500 focus-ring transition-colors hover:bg-stone-100 hover:text-stone-800 coarse:min-h-11 coarse:min-w-11"
-			>
-				<Ellipsis class="h-3.5 w-3.5" aria-hidden="true" />
-			</button>
+				<button
+					type="button"
+					onclick={() => editor.requestRelativeAction(remove)}
+					aria-label={`Options for ${person.displayName}: record what happened, or remove`}
+					class="shrink-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-2 py-1 text-stone-500 focus-ring transition-colors hover:bg-stone-100 hover:text-stone-800 coarse:min-h-11 coarse:min-w-11"
+				>
+					<Ellipsis class="h-3.5 w-3.5" aria-hidden="true" />
+				</button>
+			{/if}
+		</div>
+		{#if linkId}
+			{@const citations = citationsOfSubject(
+				dto.evidence.citations,
+				CITATION_SUBJECT_KINDS.PARENT_CHILD,
+				linkId
+			)}
+			<!-- The parent link is a claim like a fact: it carries its own evidence marker. -->
+			<CitationsDisclosure
+				{treeId}
+				{treeSlug}
+				{role}
+				{editor}
+				{toasts}
+				subjectLabel={`${person.displayName} as parent`}
+				subject={{ kind: CITATION_SUBJECT_KINDS.PARENT_CHILD, id: linkId }}
+				{citations}
+				citationCount={citations.length}
+				label={`${person.displayName} as parent`}
+			/>
 		{/if}
 	</li>
 {/snippet}
@@ -104,7 +137,8 @@
 					{@render relative(
 						parent.person,
 						parent.type === 'biological' ? '' : parent.type,
-						removal('parent', parent.person, { type: parent.type })
+						removal('parent', parent.person, { type: parent.type }),
+						parent.linkId
 					)}
 				{/each}
 			</ul>

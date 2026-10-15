@@ -157,7 +157,7 @@
 		{/if}
 		{#if signOutHref}
 			<!-- Its own group, not under Manage: a signed-in reader who is not a member is offered no Manage links. -->
-			<!-- Settings are the person's own (ADR-053), so they sit with Sign out, for anyone signed in. -->
+			<!-- Settings are the person's own (ADR-054), so they sit with Sign out, for anyone signed in. -->
 			<div class="mt-1 border-t border-stone-200 pt-1">
 				<a
 					href={settingsLink.href}

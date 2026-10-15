@@ -19,6 +19,8 @@ export interface GraphUnionEvent {
 }
 
 export interface GraphParentChildInput {
+	/** The assertion's id, what a citation of the link is filed under. Absent on older captured graphs. */
+	id?: string;
 	parentId: string;
 	childId: string;
 	type: ParentChildType;
@@ -41,7 +43,10 @@ export interface RelationshipGraphPerson extends Partial<PrivacyFlag> {
 	/** Version to send back when editing this person. Absent on older captured graphs. */
 	version?: number;
 	/** Parents grouped by union context (`__direct__` for none). */
-	parentsByUnion: Record<string, Array<{ parentId: string; type: ParentChildType }>>;
+	parentsByUnion: Record<
+		string,
+		Array<{ parentId: string; type: ParentChildType; linkId?: string }>
+	>;
 	/** Union IDs this person participates in as a partner. */
 	unionIds: string[];
 	/** Derived step-parent relationships (parent's partner who is not a parent). */

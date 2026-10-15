@@ -18,6 +18,7 @@
 	import { canAddNote } from '#lib/components/notes/note-permissions.js';
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import CitationDialog from './CitationDialog.svelte';
+	import { citationSaved, citationStale } from './citation-changes.js';
 	import { canChangeEvidence, canCite } from './evidence-permissions.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
@@ -51,16 +52,12 @@
 
 	async function saved(change: Parameters<typeof editor.afterChange>[0]) {
 		dialog = null;
-		await editor.afterChange(change, 'Citation saved');
+		await citationSaved(editor, change);
 	}
 
 	async function stale(message: string) {
 		dialog = null;
-		await editor.refresh();
-		toasts.push(`${message} Review the citation and try again.`, {
-			tone: 'error',
-			durationMs: 10_000
-		});
+		await citationStale(editor, toasts, message);
 	}
 
 	function remove(citation: CitationDto) {

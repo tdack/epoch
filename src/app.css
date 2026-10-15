@@ -124,7 +124,7 @@
 }
 
 /*
- * "Reduce animation" (ADR-053): the root layout sets data-reduce-motion when a viewer turns it on.
+ * "Reduce animation" (ADR-054): the root layout sets data-reduce-motion when a viewer turns it on.
  * Tailwind's motion-safe and motion-reduce variants only read the system setting, so this does
  * what they would: no sliding transitions and no spinner. It only ever removes motion, so the
  * system setting still applies where this is off.

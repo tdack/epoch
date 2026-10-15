@@ -11,7 +11,7 @@ import { requireInstallOwner, requireRealUser } from './tree-access';
 const STORED_VERSION = 1;
 
 /**
- * Reads and writes the colour and motion choices (ADR-053). A stored document that fails to parse
+ * Reads and writes the colour and motion choices (ADR-054). A stored document that fails to parse
  * is read as unset, so a corrupt row falls back to the layer below rather than breaking the page.
  */
 export class SettingsService {

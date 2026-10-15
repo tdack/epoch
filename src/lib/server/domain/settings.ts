@@ -1,5 +1,5 @@
 /**
- * The colour and motion choices a person or the install owner makes (ADR-053), with the two
+ * The colour and motion choices a person or the install owner makes (ADR-054), with the two
  * business rules that guard them: a patch replaces or clears whole groups, and a palette must keep
  * its cards, ink and spheres legible. No storage or request handling in here.
  */

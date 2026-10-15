@@ -5,7 +5,7 @@ import { SETTINGS_DEPENDENCY } from '#lib/shared/settings.js';
 import type { PageLoad } from './$types';
 
 /**
- * A person's own colours, and the install owner's site default (ADR-053). The settings belong to
+ * A person's own colours, and the install owner's site default (ADR-054). The settings belong to
  * the person, not the tree: the page sits under a tree only to keep the header and section menu.
  * The public visitor has no settings of their own, so the page is not theirs.
  */

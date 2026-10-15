@@ -1,6 +1,6 @@
 /**
  * Whether to hold animation still: the system's prefers-reduced-motion, or the viewer's own
- * "Reduce animation" setting (ADR-053). The root layout marks the page with
+ * "Reduce animation" setting (ADR-054). The root layout marks the page with
  * {@link REDUCE_MOTION_ATTRIBUTE} when the setting is on, so code with no route data to read, such
  * as the flat view's viewport, can still honour it. The setting only adds reduction.
  */

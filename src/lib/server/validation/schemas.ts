@@ -736,7 +736,7 @@ export const fileDetachSchema = z.object({ treeId: idSchema, version: versionSch
 /** A delete names its tree in the query: DELETE carries no body. */
 export const fileDeleteQuerySchema = z.object({ treeId: idSchema });
 
-// ADR-053: colours reach a style attribute, so each one is a six-digit hex and nothing looser.
+// ADR-054: colours reach a style attribute, so each one is a six-digit hex and nothing looser.
 const colourSchema = z
 	.string()
 	.regex(/^#[0-9a-fA-F]{6}$/)

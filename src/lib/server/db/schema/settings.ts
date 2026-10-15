@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { users } from './users';
 
-// A person's own colour and motion choices (ADR-053). `data` is a versioned JSON document in which
+// A person's own colour and motion choices (ADR-054). `data` is a versioned JSON document in which
 // each group is optional: a missing group inherits the site default, then the built-in one. The
 // document is validated on every write and again on read, so the column never holds a value the
 // palette would refuse.

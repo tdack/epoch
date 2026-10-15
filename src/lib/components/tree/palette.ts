@@ -1,6 +1,6 @@
 /**
  * The resolved colours every tree view paints with. Built-in defaults come from tree-tokens.ts;
- * an install owner may set the site default and a signed-in user may set their own (ADR-053), and
+ * an install owner may set the site default and a signed-in user may set their own (ADR-054), and
  * {@link resolvePalette} layers them: user over site over built-in, one group at a time.
  *
  * Defaults are literal values, not derived from one another, so the default rendering is the one

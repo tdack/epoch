@@ -169,6 +169,45 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 		expect(document.querySelector('input[type="file"]')).not.toBeNull();
 	});
 
+	it("files a parent link's evidence under the parent row", () => {
+		open(
+			pageOf('kid', 'Kid', {
+				parentFamilies: [
+					{
+						unionId: 'u',
+						label: null,
+						parents: [
+							{ person: summary('mum', 'Mum'), type: 'biological', linkId: 'pc1' },
+							{ person: summary('dad', 'Dad'), type: 'biological', linkId: 'pc2' }
+						]
+					} as never
+				],
+				evidence: {
+					citations: [
+						{
+							id: 'c1',
+							subject: { kind: 'parent_child', id: 'pc1' },
+							sourceLabel: 'Census 1851',
+							notes: []
+						} as never
+					],
+					links: []
+				}
+			}),
+			{ layout }
+		);
+		const rows = [...document.querySelectorAll('[data-testid="parents"] > ul > li')];
+		expect(rows).toHaveLength(2);
+		expect(rows[0]!.querySelector('[data-testid="claim-state"]')?.getAttribute('data-state')).toBe(
+			'sourced'
+		);
+		const dad = rows[1]!.querySelector('[data-testid="claim-state"]');
+		expect(dad?.getAttribute('data-state')).toBe('unsourced');
+		expect(
+			rows[1]!.querySelector('button[aria-label="Add a citation for Dad as parent"]')
+		).not.toBeNull();
+	});
+
 	it('shows a viewer the family without the controls that would change it', () => {
 		open(
 			pageOf('kid', 'Kid', {
@@ -345,5 +384,33 @@ describe('summary', () => {
 
 	it('shows one letter for a single name', () => {
 		expect(initialsOf('Cher', null, 'Cher')).toBe('C');
+	});
+});
+
+describe('PersonView section order', () => {
+	const ORDER = ['family', 'facts', 'names', 'media', 'privacy', 'notes', 'tasks', 'history'];
+	const sectionIds = () =>
+		[...document.querySelectorAll<HTMLElement>('[data-section]')].map((el) => el.dataset.section);
+	/** The column a section sits in on the page: its parent. */
+	const column = (id: string) => document.querySelector(`[data-section="${id}"]`)!.parentElement;
+
+	it('lists the sections in one order in the drawer', () => {
+		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'drawer', role: 'owner' });
+		expect(sectionIds()).toEqual(ORDER.filter((id) => sectionIds().includes(id)));
+		expect(sectionIds()).toEqual(expect.arrayContaining(['family', 'facts', 'names', 'history']));
+	});
+
+	it('keeps the same order on the page, with Family, Facts and Names in the left column', () => {
+		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'page', role: 'owner' });
+		expect(sectionIds()).toEqual(ORDER.filter((id) => sectionIds().includes(id)));
+		expect(column('family')).toBe(column('facts'));
+		expect(column('facts')).toBe(column('names'));
+		expect(column('media')).toBe(column('history'));
+		expect(column('family')).not.toBe(column('media'));
+	});
+
+	it('has no separate sources section', () => {
+		open(pageOf('ben', 'Ben'), { layout: 'drawer' });
+		expect(document.querySelector('[data-section="evidence"]')).toBeNull();
 	});
 });

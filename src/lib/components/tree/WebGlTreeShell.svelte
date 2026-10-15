@@ -81,7 +81,7 @@
 		 * that animates anything decorative reads this.
 		 */
 		shouldReduceMotion?: boolean;
-		/** The viewer chose "Reduce animation" in their settings (ADR-053). */
+		/** The viewer chose "Reduce animation" in their settings (ADR-054). */
 		isMotionReduced?: boolean;
 		/** Person whose details are open in the drawer, if any. */
 		selectedPersonId?: string | null;

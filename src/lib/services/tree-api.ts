@@ -1785,7 +1785,7 @@ export async function deleteUnlinkedFilesApi(
 	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
 }
 
-/** The caller's own colour layer, the site default and what they resolve to (ADR-053). */
+/** The caller's own colour layer, the site default and what they resolve to (ADR-054). */
 export function fetchSettings(fetchFn: typeof fetch = fetch): Promise<SettingsView> {
 	return call('/api/settings', undefined, 'Failed to load settings', fetchFn);
 }

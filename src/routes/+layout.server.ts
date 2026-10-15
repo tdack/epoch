@@ -8,7 +8,7 @@ import type { LayoutServerLoad } from './$types';
 
 /**
  * What every page needs from the server: where its source can be had (AGPL section 13), and the
- * colours and motion setting it is painted with (ADR-053).
+ * colours and motion setting it is painted with (ADR-054).
  */
 export const load: LayoutServerLoad = async ({ platform, locals, depends }) => {
 	depends(SETTINGS_DEPENDENCY);

@@ -22,7 +22,7 @@
 	<meta name="theme-color" content="#065f46" />
 </svelte:head>
 
-<!-- Rendered on the server, so the first paint already honours "Reduce animation" (ADR-053):
+<!-- Rendered on the server, so the first paint already honours "Reduce animation" (ADR-054):
      styles and scripts key off the attribute. `display: contents` keeps it out of the layout. -->
 <div style="display: contents" data-reduce-motion={data.isMotionReduced ? '' : undefined}>
 	{@render children()}
