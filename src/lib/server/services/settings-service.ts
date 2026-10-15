@@ -1,32 +1,14 @@
 import { resolvePalette, type Palette } from '#lib/components/tree/palette.js';
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
-import {
-	applyPatch,
-	assertContrastFloors,
-	type SettingsDocument,
-	type SettingsPatch
-} from '../domain/settings';
+import { applyPatch, assertContrastFloors } from '../domain/settings';
+import type { SettingsDocument, SettingsPatch, SettingsView } from '#lib/shared/settings.js';
 import { SettingsRepository } from '../repositories/settings-repository';
 import { settingsDocumentSchema } from '../validation/schemas';
 import { requireInstallOwner, requireRealUser } from './tree-access';
 
 /** The shape of a stored document. Bumped only with a migration of the stored JSON. */
 const STORED_VERSION = 1;
-
-/** What the settings page reads: each layer as stored, and the choices the page should show. */
-export interface SettingsView {
-	/** The caller's own layer; empty for the public visitor. */
-	user: SettingsDocument;
-	site: SettingsDocument;
-	/** The base colours the caller sees, after layering, and whether motion is reduced. */
-	effective: {
-		sexColours: NonNullable<SettingsDocument['sexColours']>;
-		tracePalette: NonNullable<SettingsDocument['tracePalette']>;
-		focusColours: NonNullable<SettingsDocument['focusColours']>;
-		isMotionReduced: boolean;
-	};
-}
 
 /**
  * Reads and writes the colour and motion choices (ADR-053). A stored document that fails to parse

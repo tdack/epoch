@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from './errors';
-import { applyPatch, assertContrastFloors, type SettingsDocument } from './settings';
+import type { SettingsDocument } from '#lib/shared/settings.js';
+import { applyPatch, assertContrastFloors } from './settings';
 
 const SEX = { male: '#5a84b5', female: '#b8607f', unknown: '#7d756a' };
 
