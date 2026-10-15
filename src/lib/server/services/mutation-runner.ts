@@ -57,6 +57,26 @@ export function actionForOps(ops: RowOp[]): TreeAction {
 	return 'record:create';
 }
 
+/**
+ * What a preview shows: the impact of the ops over the rows the caller may see, with the evidence
+ * and notes the commands would carry. Pure, so the scoped-snapshot equivalence tests (ADR-055) run
+ * the same code the preview endpoint does.
+ */
+export function previewOf(
+	visible: TreeRows,
+	commands: RelationshipCommand[],
+	ops: RowOp[],
+	headline: (rows: TreeRows) => string
+): ImpactSummary {
+	const carried = carriedCitations(visible, commands);
+	const carriedNote = carriedNotes(visible, commands);
+	return {
+		...describeImpact(headline(visible), visible, ops),
+		...(carried ? { carriedCitations: carried } : {}),
+		...(carriedNote ? { carriedNotes: carriedNote } : {})
+	};
+}
+
 export class MutationRunner {
 	readonly store: ChangeStore;
 	private userRepo: UserRepository;
@@ -168,13 +188,7 @@ export class MutationRunner {
 		headline: (rows: TreeRows) => string
 	): Promise<ImpactSummary> {
 		const { visible, ops } = await this.planned(treeId, context, commands);
-		const carried = carriedCitations(visible, commands);
-		const carriedNote = carriedNotes(visible, commands);
-		return {
-			...describeImpact(headline(visible), visible, ops),
-			...(carried ? { carriedCitations: carried } : {}),
-			...(carriedNote ? { carriedNotes: carriedNote } : {})
-		};
+		return previewOf(visible, commands, ops, headline);
 	}
 
 	/**
