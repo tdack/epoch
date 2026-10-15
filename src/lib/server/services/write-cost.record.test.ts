@@ -47,7 +47,7 @@ function counting(d1: D1Database, tally: Tally): D1Database {
 				tally.rows += result.results.length;
 				return result;
 			},
-			raw: async (options?: { columnNames?: boolean }) => {
+			raw: async (options?: unknown) => {
 				tally.roundTrips++;
 				const result = await (stmt.raw as (o?: unknown) => Promise<unknown[]>)(options);
 				tally.rows += result.length;
@@ -182,16 +182,19 @@ async function measureWrites(label: string, treeId: string) {
 	);
 }
 
-describe.skipIf(process.env.RECORD_WRITE_COST !== '1')('write cost before scoping (ADR-055)', () => {
-	it('a Simpsons-sized tree', async () => {
-		const treeId = await createTestTree(t.db, actor);
-		await importGedcomToDb(t.d1, treeId, simpsons, 'Simpsons');
-		await measureWrites('The Simpsons', treeId);
-	}, 120_000);
+describe.skipIf(process.env.RECORD_WRITE_COST !== '1')(
+	'write cost before scoping (ADR-055)',
+	() => {
+		it('a Simpsons-sized tree', async () => {
+			const treeId = await createTestTree(t.db, actor);
+			await importGedcomToDb(t.d1, treeId, simpsons, 'Simpsons');
+			await measureWrites('The Simpsons', treeId);
+		}, 120_000);
 
-	it('the 5,324-person corpus', async () => {
-		const treeId = await createTestTree(t.db, actor);
-		await insertCorpus(t.db, treeId, { prefix: treeId.slice(0, 8), shouldNameThePeople: true });
-		await measureWrites('Corpus (5,324 people)', treeId);
-	}, 600_000);
-});
+		it('the 5,324-person corpus', async () => {
+			const treeId = await createTestTree(t.db, actor);
+			await insertCorpus(t.db, treeId, { prefix: treeId.slice(0, 8), shouldNameThePeople: true });
+			await measureWrites('Corpus (5,324 people)', treeId);
+		}, 600_000);
+	}
+);
