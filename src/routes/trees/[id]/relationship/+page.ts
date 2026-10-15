@@ -1,5 +1,5 @@
-import { treeLoad } from '#lib/services/load-helpers.js';
-import { fetchPersonPage, fetchRelationship } from '#lib/services/tree-api.js';
+import { treeLoad } from '#lib/api/load-helpers.js';
+import { fetchPersonPage, fetchRelationship } from '#lib/api/tree-api.js';
 import type { PageLoad } from './$types';
 
 /** The two people live in the address, so a refresh, the back button and a bookmark keep the question. */

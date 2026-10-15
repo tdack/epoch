@@ -20,7 +20,7 @@
 		applyRelationshipApi,
 		isConflict,
 		type ConflictError
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import { personName } from '#lib/shared/person-name.js';
 	import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';

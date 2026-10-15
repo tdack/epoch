@@ -6,7 +6,7 @@
 	import SharedNoteDialog from '#lib/components/notes/SharedNoteDialog.svelte';
 	import { canChangeNote } from '#lib/components/notes/note-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { deleteSharedNoteApi, previewNoteApi } from '#lib/services/tree-api.js';
+	import { deleteSharedNoteApi, previewNoteApi } from '#lib/api/tree-api.js';
 	import { noteTitle } from '#lib/shared/notes.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';

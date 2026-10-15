@@ -1,7 +1,7 @@
 import { parseViewState } from '#lib/components/tree/tree-url.js';
-import { rememberedFocusKey, treeLoad } from '#lib/services/load-helpers.js';
+import { rememberedFocusKey, treeLoad } from '#lib/api/load-helpers.js';
 import { resolveLayoutMode } from '#lib/shared/view-mode.js';
-import { ApiError, fetchFocusGraph, fetchWholeTreeGraph } from '#lib/services/tree-api.js';
+import { ApiError, fetchFocusGraph, fetchWholeTreeGraph } from '#lib/api/tree-api.js';
 import type { PageLoad } from './$types';
 
 // The remembered focus lives in localStorage, and the canvas needs the browser anyway.

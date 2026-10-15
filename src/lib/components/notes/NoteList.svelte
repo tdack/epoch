@@ -7,7 +7,7 @@
 		removeNoteApi,
 		reorderNotesApi,
 		shareNoteApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { NoteDto, NoteSubjectRef } from '#lib/shared/notes.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import NoteDialog from './NoteDialog.svelte';

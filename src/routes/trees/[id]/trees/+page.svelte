@@ -6,14 +6,14 @@
 	import PublicTreeModal from '#lib/components/modals/PublicTreeModal.svelte';
 	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { DATA_KEY } from '#lib/services/load-helpers.js';
+	import { DATA_KEY } from '#lib/api/load-helpers.js';
 	import {
 		deleteTreeApi,
 		renameTreeApi,
 		saveDefaultTree,
 		setPublicTreeApi,
 		type InstallTree
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 

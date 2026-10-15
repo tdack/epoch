@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('#lib/services/tree-api.js', () => ({
+vi.mock('#lib/api/tree-api.js', () => ({
 	searchPeopleApi: vi.fn(),
 	planRelationshipApi: vi.fn(),
 	applyRelationshipApi: vi.fn(),
 	isConflict: () => false
 }));
 
-import { planRelationshipApi } from '#lib/services/tree-api.js';
+import { planRelationshipApi } from '#lib/api/tree-api.js';
 import RelationshipModal from './RelationshipModal.svelte';
 
 const plan = vi.mocked(planRelationshipApi);

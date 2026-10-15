@@ -8,7 +8,7 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 	getTreeContext: () => ({ toasts })
 }));
 vi.mock('#lib/components/PersonPicker.svelte', () => ({ default: function () {} }));
-vi.mock('#lib/services/tree-api.js', () => ({
+vi.mock('#lib/api/tree-api.js', () => ({
 	attachFileApi: vi.fn(),
 	deleteFileApi: vi.fn(),
 	deleteUnlinkedFilesApi: vi.fn(),
@@ -26,7 +26,7 @@ import {
 	fetchFiles,
 	fetchFileUsage,
 	fetchUnlinkedFiles
-} from '#lib/services/tree-api.js';
+} from '#lib/api/tree-api.js';
 import Page from './+page.svelte';
 
 const remove = vi.mocked(deleteFileApi);

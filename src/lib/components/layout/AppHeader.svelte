@@ -3,7 +3,7 @@
 	import type { Snippet } from 'svelte';
 	import EpochMark from '#lib/components/brand/EpochMark.svelte';
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
-	import type { GedcomExportChoice } from '#lib/services/tree-api.js';
+	import type { GedcomExportChoice } from '#lib/api/tree-api.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 
 	interface Props {

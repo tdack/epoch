@@ -4,7 +4,7 @@
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { undoApi } from '#lib/services/tree-api.js';
+	import { undoApi } from '#lib/api/tree-api.js';
 	import { hasMinimumRole } from '#lib/shared/roles.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 	import type { PageProps } from './$types';

@@ -4,7 +4,7 @@
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows } from './conflict.js';
-	import { updateUnionApi, isConflict, type ConflictError } from '#lib/services/tree-api.js';
+	import { updateUnionApi, isConflict, type ConflictError } from '#lib/api/tree-api.js';
 	import {
 		UNION_EVENT_LABELS,
 		UNION_EVENT_TYPE_LIST,

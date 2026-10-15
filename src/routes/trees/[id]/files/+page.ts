@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { treeLoad } from '#lib/services/load-helpers.js';
-import { fetchFileUsage, fetchFiles } from '#lib/services/tree-api.js';
+import { treeLoad } from '#lib/api/load-helpers.js';
+import { fetchFileUsage, fetchFiles } from '#lib/api/tree-api.js';
 import type { PageLoad } from './$types';
 
 /**

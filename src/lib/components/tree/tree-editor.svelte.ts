@@ -32,7 +32,7 @@ import {
 	type ImpactRequest,
 	type MergeUnionsRequest,
 	type RelationshipDeleteCommand
-} from '#lib/services/tree-api.js';
+} from '#lib/api/tree-api.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type {
 	ChangeSummary,

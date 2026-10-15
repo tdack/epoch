@@ -16,7 +16,7 @@
 		previewFactApi,
 		suggestPlacesApi,
 		updateFactApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
-import * as api from '#lib/services/tree-api.js';
+import * as api from '#lib/api/tree-api.js';
 import { TreeShell } from './tree-shell.svelte.js';
 
-vi.mock('#lib/services/tree-api.js', () => ({
+vi.mock('#lib/api/tree-api.js', () => ({
 	createTreeApi: vi.fn(),
 	deleteTreeApi: vi.fn(),
 	renameTreeApi: vi.fn(),

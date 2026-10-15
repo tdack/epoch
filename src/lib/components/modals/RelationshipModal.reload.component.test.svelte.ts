@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('#lib/services/tree-api.js', () => ({
+vi.mock('#lib/api/tree-api.js', () => ({
 	searchPeopleApi: vi.fn(),
 	planRelationshipApi: vi.fn().mockResolvedValue({
 		sentence: 'x will be recorded as y',

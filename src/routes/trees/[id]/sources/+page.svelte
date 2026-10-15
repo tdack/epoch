@@ -6,7 +6,7 @@
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { deleteRepositoryApi, previewEvidenceApi } from '#lib/services/tree-api.js';
+	import { deleteRepositoryApi, previewEvidenceApi } from '#lib/api/tree-api.js';
 	import type { RepositoryListItem } from '#lib/shared/evidence.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';

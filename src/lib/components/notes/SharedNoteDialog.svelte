@@ -3,7 +3,7 @@
 	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
-	import { createSharedNoteApi, updateSharedNoteApi } from '#lib/services/tree-api.js';
+	import { createSharedNoteApi, updateSharedNoteApi } from '#lib/api/tree-api.js';
 	import type { SharedNoteDto } from '#lib/shared/notes.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 

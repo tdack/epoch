@@ -10,7 +10,7 @@
 		isConflict,
 		updateNoteApi,
 		updateSharedNoteApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { NoteDto, NoteListItem, NoteSubjectRef } from '#lib/shared/notes.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 

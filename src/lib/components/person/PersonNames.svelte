@@ -16,7 +16,7 @@
 		previewNameApi,
 		reorderNamesApi,
 		setPreferredNameApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import { NAME_TYPE_LABELS, formatFullName } from '#lib/shared/name-types.js';
 	import type { NameDto, PersonPageDto } from '#lib/shared/person-page.js';
 	import { unionPath } from './person-paths.js';

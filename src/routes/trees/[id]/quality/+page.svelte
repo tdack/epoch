@@ -5,13 +5,13 @@
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
 	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { DATA_KEY } from '#lib/services/load-helpers.js';
+	import { DATA_KEY } from '#lib/api/load-helpers.js';
 	import {
 		dismissFindingsApi,
 		previewStandardiseDatesApi,
 		restoreFindingApi,
 		standardiseDatesApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { DateTidyPreview } from '#lib/shared/date-tidy.js';
 	import {
 		MAX_DISMISSAL_REASON_LENGTH,

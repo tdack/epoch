@@ -13,7 +13,7 @@
 		deleteSourceApi,
 		previewEvidenceApi,
 		unlinkRepositoryApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import {
 		CITATION_QUALITY_LABELS,
 		sourceLabel,

@@ -17,7 +17,7 @@ import {
 	startGedcomExport,
 	submitGedcomImport,
 	type GedcomExportChoice
-} from '#lib/services/tree-api.js';
+} from '#lib/api/tree-api.js';
 import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { ImportPreviewData } from '#lib/types/genealogy.js';

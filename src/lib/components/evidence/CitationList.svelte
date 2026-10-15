@@ -11,7 +11,7 @@
 		previewEvidenceApi,
 		removeCitationApi,
 		reorderCitationsApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import NoteList from '#lib/components/notes/NoteList.svelte';
 	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';

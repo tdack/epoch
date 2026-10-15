@@ -12,7 +12,7 @@
 		type NameType
 	} from '#lib/shared/name-types.js';
 	import type { NameDto } from '#lib/shared/person-page.js';
-	import { createNameApi, previewNameApi, updateNameApi } from '#lib/services/tree-api.js';
+	import { createNameApi, previewNameApi, updateNameApi } from '#lib/api/tree-api.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {

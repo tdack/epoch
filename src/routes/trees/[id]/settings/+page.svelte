@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import PaletteEditor from '#lib/components/settings/PaletteEditor.svelte';
-	import { saveMySettings, saveSiteSettings } from '#lib/services/tree-api.js';
+	import { saveMySettings, saveSiteSettings } from '#lib/api/tree-api.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import type { PageData } from './$types';

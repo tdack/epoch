@@ -8,7 +8,7 @@
 		fetchRepositories,
 		linkRepositoryApi,
 		updateSourceLinkApi
-	} from '#lib/services/tree-api.js';
+	} from '#lib/api/tree-api.js';
 	import type { RepositoryListItem, SourceRepositoryDto } from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 
