@@ -22,6 +22,7 @@ import {
 import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
 import type { RingsLayout } from '#lib/tree-layout/rings.js';
 import { createThreeStage, sexColour } from './three-stage.js';
+import { DEFAULT_PALETTE, type Palette } from './palette.js';
 import { HIGHLIGHT_TOKENS, RING_FADE, RING_LINE_WIDTH_PX, RING_TOKENS } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { RING_CAMERAS } from './webgl-cameras.js';
@@ -82,15 +83,17 @@ function ringPosition(generation: number, radius: number, angle: number, gap: nu
 
 /**
  * The highlight colours are tuned for the cream stage, where the focus line's brown and purple read.
- * On the dark stage the same hues are lifted, so a mark's colour still says which line it is.
+ * On the dark stage the same hues are lifted, so a mark's colour still says which line it is. Keyed
+ * by the light colour the palette holds, so a colour the user chose is lifted too, not only the
+ * built-in one.
  */
-const LIFTED = new Map<string, string>([
-	[HIGHLIGHT_TOKENS.focus.ancestor, RING_TOKENS.dark.ancestor],
-	[HIGHLIGHT_TOKENS.focus.descendant, RING_TOKENS.dark.descendant],
-	[HIGHLIGHT_TOKENS.focus.partner, RING_TOKENS.dark.partner]
-]);
-function onDark(colour: string): string {
-	return LIFTED.get(colour) ?? colour;
+function liftedFor(palette: Palette): (colour: string) => string {
+	const lifted = new Map<string, string>([
+		[palette.focus.ancestor, palette.focusDark.ancestor],
+		[palette.focus.descendant, palette.focusDark.descendant],
+		[palette.focus.partner, palette.focusDark.partner]
+	]);
+	return (colour) => lifted.get(colour) ?? colour;
 }
 
 /** Circles drawn once, so a halo is a tinted camera-facing sprite that reads from every angle. */
@@ -114,7 +117,11 @@ function haloTexture(radii: number[]): CanvasTexture {
 /**
  * @throws when the browser cannot give a WebGL context; the shell shows a message instead.
  */
-export function createRingsScene(host: HTMLElement): RingsScene {
+export function createRingsScene(
+	host: HTMLElement,
+	palette: Palette = DEFAULT_PALETTE
+): RingsScene {
+	const onDark = liftedFor(palette);
 	const stage = createThreeStage(host, {
 		background: RING_TOKENS.dark.stage,
 		cameraDirections: CAMERA_DIRECTIONS
@@ -220,7 +227,7 @@ export function createRingsScene(host: HTMLElement): RingsScene {
 			const mark = highlight.people.get(p.id);
 			const opacity = mark ? 1 : isQuiet ? 1 : RING_FADE.person;
 			// Their sex fill stays; the mark shows as a halo round it.
-			const mesh = new Mesh(sphere, sphereMaterial(sexColour(p.person), opacity));
+			const mesh = new Mesh(sphere, sphereMaterial(sexColour(p.person, palette), opacity));
 			mesh.position.copy(position);
 			const scale = isChosenPerson(mark) ? FOCUS_SCALE : 1;
 			mesh.scale.setScalar(scale);

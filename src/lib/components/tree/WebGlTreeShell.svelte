@@ -152,10 +152,10 @@
 	const activeSelection = $derived(selection?.kin === kin ? selection.source : null);
 	const highlight = $derived.by<Highlight>(() => {
 		if (isHighlightCleared) return QUIET_HIGHLIGHT;
-		if (isTracing) return computeHighlight(kin, liveTrace, true);
-		if (activeSelection) return computeHighlight(kin, [activeSelection]);
+		if (isTracing) return computeHighlight(kin, liveTrace, true, palette);
+		if (activeSelection) return computeHighlight(kin, [activeSelection], false, palette);
 		return focusPersonId
-			? computeHighlight(kin, [{ kind: 'focus', personId: focusPersonId }])
+			? computeHighlight(kin, [{ kind: 'focus', personId: focusPersonId }], false, palette)
 			: QUIET_HIGHLIGHT;
 	});
 	/** Roles at the level the scenes light people: see {@link highlightRoles}. */
@@ -265,9 +265,9 @@
 		return { x: Math.max(4, x), y: Math.max(4, y) };
 	});
 	function sexColourOf(person: ShellPerson['person']): string {
-		if (person.sex === 'M') return RING_TOKENS.male;
-		if (person.sex === 'F') return RING_TOKENS.female;
-		return RING_TOKENS.unknownSex;
+		if (person.sex === 'M') return palette.sex.male.sphere;
+		if (person.sex === 'F') return palette.sex.female.sphere;
+		return palette.sex.unknown.sphere;
 	}
 
 	/**

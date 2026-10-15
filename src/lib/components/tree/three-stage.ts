@@ -34,7 +34,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 import type { PickOptions, PickTarget, WebGlTreeScene } from './webgl-tree.js';
-import { RING_TOKENS } from './tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from './palette.js';
 
 /** How much of the canvas the framed content may fill, in clip space (1 is edge to edge). */
 const FRAME_FILL = 0.88;
@@ -59,13 +59,16 @@ const COARSE_LINE_PICK_RADIUS_PX = 12;
 const PICK_PRIORITY: Record<PickTarget['kind'], number> = { person: 0, union: 0, link: 1 };
 
 /** Colour of a person's sphere or tube: by sex, with private people a plain neutral. */
-export function sexColour(person: RelationshipGraphPerson): string {
-	if (person.isPrivate === true) return RING_TOKENS.private;
+export function sexColour(
+	person: RelationshipGraphPerson,
+	palette: Palette = DEFAULT_PALETTE
+): string {
+	if (person.isPrivate === true) return palette.private;
 	return person.sex === 'M'
-		? RING_TOKENS.male
+		? palette.sex.male.sphere
 		: person.sex === 'F'
-			? RING_TOKENS.female
-			: RING_TOKENS.unknownSex;
+			? palette.sex.female.sphere
+			: palette.sex.unknown.sphere;
 }
 
 export interface StageOptions {

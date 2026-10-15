@@ -4,18 +4,23 @@
 	import { ORRERY_CAMERAS } from './webgl-cameras.js';
 	import { ORRERY_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
+	import { DEFAULT_PALETTE } from './palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
-	let { layout, ...shellProps }: WebGlCanvasProps<OrreryLayout> = $props();
+	let {
+		layout,
+		palette = DEFAULT_PALETTE,
+		...shellProps
+	}: WebGlCanvasProps<OrreryLayout> = $props();
 
 	const CAMERAS = [
 		{ id: ORRERY_CAMERAS.ANGLED, label: 'Angled' },
 		{ id: ORRERY_CAMERAS.SIDE, label: 'Side' }
 	];
-	const LEGEND = [
-		...sexLegend(ORRERY_TOKENS),
+	const LEGEND = $derived<LegendEntry[]>([
+		...sexLegend(palette, 'star'),
 		{ kind: 'halo', colour: ORRERY_TOKENS.legendHalo, label: 'Focus' }
-	] satisfies LegendEntry[];
+	]);
 
 	/** Remembers a viewer's choice to hold the orrery still; per browser, not per tree. */
 	const MOTION_STORAGE_KEY = 'epoch.orrery.isMoving';
@@ -74,7 +79,8 @@
 	cameras={CAMERAS}
 	legend={LEGEND}
 	{...shellProps}
-	createScene={async (host) => (await import('./orrery-scene.js')).createOrreryScene(host)}
+	{palette}
+	createScene={async (host) => (await import('./orrery-scene.js')).createOrreryScene(host, palette)}
 	applyLayout={(scene: OrreryScene, highlight, shouldRefit) =>
 		scene.setLayout(layout, highlight, shouldRefit)}
 />

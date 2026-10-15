@@ -35,6 +35,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { haloGeometry, nodeGeometry, strandCentreline, strandGeometry } from './ribbons-tubes.js';
 import { createThreeStage, sexColour } from './three-stage.js';
+import { DEFAULT_PALETTE, type Palette } from './palette.js';
 import { HIGHLIGHT_TOKENS, RIBBON_FADE, RIBBON_SIZES, RIBBON_TOKENS } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { RIBBONS_CAMERAS } from './webgl-cameras.js';
@@ -78,7 +79,10 @@ function glowTexture(): CanvasTexture {
 /**
  * @throws when the browser cannot give a WebGL context; the shell shows a message instead.
  */
-export function createRibbonsScene(host: HTMLElement): RibbonsScene {
+export function createRibbonsScene(
+	host: HTMLElement,
+	palette: Palette = DEFAULT_PALETTE
+): RibbonsScene {
 	const stage = createThreeStage(host, {
 		background: RIBBON_TOKENS.stage,
 		cameraDirections: {
@@ -113,7 +117,7 @@ export function createRibbonsScene(host: HTMLElement): RibbonsScene {
 			return RIBBON_SIZES.tubeOldest + (RIBBON_SIZES.tubeYoungest - RIBBON_SIZES.tubeOldest) * t;
 		};
 		const knotColour = new Color(RIBBON_TOKENS.knot);
-		const colourOf = (id: string) => new Color(sexColour(personById.get(id)!.person));
+		const colourOf = (id: string) => new Color(sexColour(personById.get(id)!.person, palette));
 
 		/** A mark's opacity: the upstream half is lighter, and what is off every path fades. */
 		const opacityOf = (mark: Mark | undefined, fade: number) =>

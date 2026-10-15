@@ -34,6 +34,7 @@ import { buildOrbitPlan, orbitPositions } from '#lib/tree-layout/orrery-orbit.js
 import { LinkPickProxy } from './orrery-link-pick.js';
 import { createThreeStage } from './three-stage.js';
 import { HIGHLIGHT_TOKENS, ORRERY_TOKENS as T } from './tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from './palette.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { ORRERY_CAMERAS } from './webgl-cameras.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
@@ -54,9 +55,14 @@ export interface OrreryScene extends WebGlTreeScene {
 	setReducedMotion(isReduced: boolean): void;
 }
 
-function starColour(person: RelationshipGraphPerson): string {
+/** A star's colour by sex. The Orrery's stars are lighter than the card borders, so they take the palette's star shade. */
+function starColour(person: RelationshipGraphPerson, palette: Palette): string {
 	if (person.isPrivate === true) return T.private;
-	return person.sex === 'M' ? T.male : person.sex === 'F' ? T.female : T.unknownSex;
+	return person.sex === 'M'
+		? palette.sex.male.star
+		: person.sex === 'F'
+			? palette.sex.female.star
+			: palette.sex.unknown.star;
 }
 
 /** A soft round falloff, white so a sprite's material colour tints it. */
@@ -197,7 +203,10 @@ const WHITE = new Color('#ffffff');
 /**
  * @throws when the browser cannot give a WebGL context; the shell shows a message instead.
  */
-export function createOrreryScene(host: HTMLElement): OrreryScene {
+export function createOrreryScene(
+	host: HTMLElement,
+	palette: Palette = DEFAULT_PALETTE
+): OrreryScene {
 	const stage = createThreeStage(host, {
 		background: T.stage,
 		cameraDirections: {
@@ -460,7 +469,7 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 				mark?.kind === 'self' && highlight.sources[mark.sourceIndexes[0]]?.source.kind === 'focus';
 			const isLit = isQuiet || mark !== undefined;
 			const isSoft = mark?.strength === 'soft';
-			const colour = starColour(p.person);
+			const colour = starColour(p.person, palette);
 			const at = shown.get(p.id)!;
 			const mesh = new Mesh(
 				star,
@@ -586,7 +595,7 @@ export function createOrreryScene(host: HTMLElement): OrreryScene {
 					mark && !mark.isShared ? (highlight.people.get(id)?.colour ?? mark.colour) : mark?.colour;
 				const colourOf = (person: typeof a) => {
 					const colour = markOf(person.id);
-					return colour ? litColour(colour).clone() : new Color(starColour(person.person));
+					return colour ? litColour(colour).clone() : new Color(starColour(person.person, palette));
 				};
 				tethers.push({
 					a: a.id,

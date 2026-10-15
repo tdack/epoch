@@ -15,6 +15,7 @@
  */
 
 import { HIGHLIGHT_TOKENS } from '#lib/components/tree/tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/components/tree/palette.js';
 import type { RelationshipGraphPerson } from './types.js';
 
 /** What a layout must carry for a highlight to be computed; every WebGL layout already does. */
@@ -200,7 +201,8 @@ function indexKin(kin: KinSource): Graph {
 export function computeHighlight(
 	kin: KinSource,
 	allSources: readonly HighlightSource[],
-	isTrace = false
+	isTrace = false,
+	palette: Palette = DEFAULT_PALETTE
 ): Highlight {
 	const graph = indexKin(kin);
 	const sources = (isTrace ? allSources.slice(0, MAX_TRACE_ITEMS) : allSources).filter((s) =>
@@ -279,12 +281,12 @@ export function computeHighlight(
 						walker,
 						kind: 'partner',
 						strength: 'full',
-						colour: HIGHLIGHT_TOKENS.focus.partner
+						colour: palette.focus.partner
 					});
 	}
 
 	sources.forEach((source, index) => {
-		const traceColour = HIGHLIGHT_TOKENS.trace[index];
+		const traceColour = palette.trace[index];
 		const colourOf = (fallback: string) => (isTrace ? traceColour : fallback);
 		switch (source.kind) {
 			case 'focus': {
@@ -292,8 +294,8 @@ export function computeHighlight(
 					chipColours.push(traceColour);
 					return;
 				}
-				const up = newWalker(index, colourOf(HIGHLIGHT_TOKENS.focus.ancestor));
-				const down = newWalker(index, colourOf(HIGHLIGHT_TOKENS.focus.descendant));
+				const up = newWalker(index, colourOf(palette.focus.ancestor));
+				const down = newWalker(index, colourOf(palette.focus.descendant));
 				chipColours.push(walkers[down].colour);
 				add(people, source.personId, {
 					walker: down,
@@ -312,8 +314,8 @@ export function computeHighlight(
 					chipColours.push(traceColour);
 					return;
 				}
-				const up = newWalker(index, colourOf(HIGHLIGHT_TOKENS.ancestor));
-				const down = newWalker(index, colourOf(HIGHLIGHT_TOKENS.descendant));
+				const up = newWalker(index, colourOf(palette.focus.ancestor));
+				const down = newWalker(index, colourOf(palette.focus.descendant));
 				chipColours.push(walkers[down].colour);
 				add(people, source.personId, {
 					walker: down,
@@ -330,21 +332,20 @@ export function computeHighlight(
 					(id) => !graph.isPrivate(id)
 				);
 				const all = graph.partnersOfUnion.get(source.unionId) ?? [];
-				const down = newWalker(index, colourOf(HIGHLIGHT_TOKENS.descendant));
+				const down = newWalker(index, colourOf(palette.focus.descendant));
 				chipColours.push(walkers[down].colour);
 				add(unions, source.unionId, {
 					walker: down,
 					kind: 'self',
 					strength: 'full',
-					colour: isTrace ? traceColour : HIGHLIGHT_TOKENS.partner
+					colour: isTrace ? traceColour : palette.focus.partner
 				});
 				const isSplit = source.shouldSplitPartners && !isTrace;
 				// One walker per partner when split, so cousins marrying shows as a shared ancestor.
-				const shared = isSplit ? null : newWalker(index, colourOf(HIGHLIGHT_TOKENS.ancestor));
+				const shared = isSplit ? null : newWalker(index, colourOf(palette.focus.ancestor));
 				for (const partnerId of partnerIds) {
 					const walker =
-						shared ??
-						newWalker(index, HIGHLIGHT_TOKENS.trace[all.indexOf(partnerId) % MAX_TRACE_ITEMS]);
+						shared ?? newWalker(index, palette.trace[all.indexOf(partnerId) % MAX_TRACE_ITEMS]);
 					add(people, partnerId, {
 						walker,
 						kind: 'self',
@@ -358,8 +359,8 @@ export function computeHighlight(
 			}
 			case 'link': {
 				const link = graph.linkByKey.get(source.key)!;
-				const up = newWalker(index, colourOf(HIGHLIGHT_TOKENS.ancestor));
-				const down = newWalker(index, colourOf(HIGHLIGHT_TOKENS.descendant));
+				const up = newWalker(index, colourOf(palette.focus.ancestor));
+				const down = newWalker(index, colourOf(palette.focus.descendant));
 				chipColours.push(walkers[down].colour);
 				if (graph.isPrivate(link.childId)) return;
 				add(links, source.key, {
@@ -399,7 +400,7 @@ export function computeHighlight(
 			const isShared = distinctWalkers.size >= 2;
 			const best = [...contributions].sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind])[0];
 			marks.set(id, {
-				colour: isShared ? HIGHLIGHT_TOKENS.intersection : best.colour,
+				colour: isShared ? palette.intersection : best.colour,
 				strength: contributions.some((c) => c.strength === 'full') ? 'full' : 'soft',
 				kind: best.kind,
 				isShared,
@@ -434,7 +435,7 @@ export function computeHighlight(
 			});
 			if (onLine !== undefined)
 				unionMarks.set(union.id, {
-					colour: HIGHLIGHT_TOKENS.focus.partner,
+					colour: palette.focus.partner,
 					strength: 'full',
 					kind: 'partner',
 					isShared: false,

@@ -4,19 +4,24 @@
 	import { POINCARE_CAMERAS } from './webgl-cameras.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
+	import { DEFAULT_PALETTE } from './palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
-	let { layout, ...shellProps }: WebGlCanvasProps<PoincareLayout> = $props();
+	let {
+		layout,
+		palette = DEFAULT_PALETTE,
+		...shellProps
+	}: WebGlCanvasProps<PoincareLayout> = $props();
 
 	const CAMERAS = [
 		{ id: POINCARE_CAMERAS.ANGLED, label: 'Angled' },
 		{ id: POINCARE_CAMERAS.SIDE, label: 'Side' },
 		{ id: POINCARE_CAMERAS.POLE, label: 'Pole' }
 	];
-	const LEGEND = [
-		...sexLegend(RING_TOKENS),
+	const LEGEND = $derived<LegendEntry[]>([
+		...sexLegend(palette),
 		{ kind: 'halo', colour: RING_TOKENS.focus, label: 'Focus' }
-	] satisfies LegendEntry[];
+	]);
 
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
 	const announcement = $derived(
@@ -49,8 +54,10 @@
 	cameras={CAMERAS}
 	legend={LEGEND}
 	{...shellProps}
+	{palette}
 	{controls}
-	createScene={async (host) => (await import('./poincare-scene.js')).createPoincareScene(host)}
+	createScene={async (host) =>
+		(await import('./poincare-scene.js')).createPoincareScene(host, palette)}
 	applyLayout={(scene: PoincareScene, highlight, shouldRefit) =>
 		scene.setLayout(layout, highlight, shouldRefit)}
 />

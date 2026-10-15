@@ -4,22 +4,27 @@
 	import { RING_CAMERAS } from './webgl-cameras.js';
 	import { RING_TOKENS } from './tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
+	import { DEFAULT_PALETTE } from './palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
-	let { layout, ...shellProps }: WebGlCanvasProps<RingsLayout> = $props();
+	let {
+		layout,
+		palette = DEFAULT_PALETTE,
+		...shellProps
+	}: WebGlCanvasProps<RingsLayout> = $props();
 
 	const CAMERAS = [
 		{ id: RING_CAMERAS.ANGLED, label: 'Angled' },
 		{ id: RING_CAMERAS.SIDE, label: 'Side' },
 		{ id: RING_CAMERAS.ABOVE, label: 'Above' }
 	];
-	const LEGEND = [
-		...sexLegend(RING_TOKENS),
+	const LEGEND = $derived<LegendEntry[]>([
+		...sexLegend(palette),
 		{ kind: 'halo', colour: RING_TOKENS.focus, label: 'Focus' },
-		{ kind: 'line', colour: RING_TOKENS.ancestor, label: 'Ancestor line' },
-		{ kind: 'line', colour: RING_TOKENS.descendant, label: 'Descendant line' },
-		{ kind: 'line', colour: RING_TOKENS.partner, label: 'Partnership' }
-	] satisfies LegendEntry[];
+		{ kind: 'line', colour: palette.focus.ancestor, label: 'Ancestor line' },
+		{ kind: 'line', colour: palette.focus.descendant, label: 'Descendant line' },
+		{ kind: 'line', colour: palette.focus.partner, label: 'Partnership' }
+	]);
 
 	const focus = $derived(layout.people.find((p) => p.id === layout.focusPersonId));
 	const lineage = $derived(ringLineage(layout, layout.focusPersonId ?? ''));
@@ -43,7 +48,8 @@
 	cameras={CAMERAS}
 	legend={LEGEND}
 	{...shellProps}
-	createScene={async (host) => (await import('./rings-scene.js')).createRingsScene(host)}
+	{palette}
+	createScene={async (host) => (await import('./rings-scene.js')).createRingsScene(host, palette)}
 	applyLayout={(scene: RingsScene, highlight, shouldRefit) =>
 		scene.setLayout(layout, highlight, shouldRefit)}
 />

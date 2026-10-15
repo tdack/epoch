@@ -24,6 +24,7 @@ import { geodesicPoints, type Vec3 } from '#lib/tree-layout/poincare-geodesic.js
 import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
 import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 import { createThreeStage, sexColour } from './three-stage.js';
+import { DEFAULT_PALETTE, type Palette } from './palette.js';
 import { HIGHLIGHT_TOKENS, POINCARE_TOKENS, RING_FADE, RING_LINE_WIDTH_PX } from './tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { POINCARE_CAMERAS } from './webgl-cameras.js';
@@ -93,7 +94,10 @@ function shellMaterial(side: typeof BackSide | typeof FrontSide, base: number, r
 /**
  * @throws when the browser cannot give a WebGL context; the shell shows a message instead.
  */
-export function createPoincareScene(host: HTMLElement): PoincareScene {
+export function createPoincareScene(
+	host: HTMLElement,
+	palette: Palette = DEFAULT_PALETTE
+): PoincareScene {
 	const stage = createThreeStage(host, {
 		background: POINCARE_TOKENS.stage,
 		cameraDirections: CAMERA_DIRECTIONS
@@ -271,7 +275,7 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 			const mesh = new Mesh(
 				sphere,
 				new MeshStandardMaterial({
-					color: sexColour(p.person),
+					color: sexColour(p.person, palette),
 					roughness: 0.55,
 					metalness: 0.05,
 					transparent: isFaded,
@@ -291,7 +295,7 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 						world,
 						position,
 						reach * POINCARE_TOKENS.sharedHaloScale,
-						HIGHLIGHT_TOKENS.intersection,
+						palette.intersection,
 						opacity
 					);
 			}
@@ -351,7 +355,7 @@ export function createPoincareScene(host: HTMLElement): PoincareScene {
 						world,
 						at,
 						Math.max(marker.scale.x * 4, bigger) * POINCARE_TOKENS.sharedHaloScale,
-						HIGHLIGHT_TOKENS.intersection,
+						palette.intersection,
 						opacity
 					);
 			}

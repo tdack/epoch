@@ -4,6 +4,7 @@
  * small handle the shell drives. Plain TypeScript with no three.js import, so the shell stays out of the three.js bundle.
  */
 
+import type { Palette } from './palette.js';
 import { sexLabel } from '#lib/shared/sex.js';
 import {
 	linkKey,
@@ -32,16 +33,15 @@ export interface LegendEntry {
 	label: string;
 }
 
-/** The legend's sex dots, which every view shows, in the view's own shades. */
-export function sexLegend(tokens: {
-	male: string;
-	female: string;
-	unknownSex: string;
-}): LegendEntry[] {
+/**
+ * The legend's sex dots, which every view shows, in the view's own shades: the sphere colour for
+ * the 3D cards and spheres, the star colour for the Orrery.
+ */
+export function sexLegend(palette: Palette, shade: 'sphere' | 'star' = 'sphere'): LegendEntry[] {
 	return [
-		{ kind: 'dot', colour: tokens.male, label: 'Male' },
-		{ kind: 'dot', colour: tokens.female, label: 'Female' },
-		{ kind: 'dot', colour: tokens.unknownSex, label: 'Other or unknown' }
+		{ kind: 'dot', colour: palette.sex.male[shade], label: 'Male' },
+		{ kind: 'dot', colour: palette.sex.female[shade], label: 'Female' },
+		{ kind: 'dot', colour: palette.sex.unknown[shade], label: 'Other or unknown' }
 	];
 }
 
@@ -54,6 +54,8 @@ export interface WebGlCanvasProps<TLayout> {
 	layout: TLayout;
 	/** Changes when the view should be re-framed; see `TreeCanvas`. */
 	fitKey: string;
+	/** The colours to paint with, from the user's, the site's, or the built-in settings. */
+	palette?: Palette;
 	/** Person whose details are open in the drawer, if any. */
 	selectedPersonId?: string | null;
 	/** The whole tree is drawn (`scope=all`): a person lights their line and the view does not refocus. */

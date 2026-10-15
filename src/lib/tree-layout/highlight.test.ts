@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HIGHLIGHT_TOKENS } from '#lib/components/tree/tree-tokens.js';
+import { resolvePalette } from '#lib/components/tree/palette.js';
 import {
 	computeHighlight,
 	linkKey,
@@ -230,5 +231,22 @@ describe('bad data', () => {
 		const h = computeHighlight(kin, [{ kind: 'person', personId: 'A' }], true);
 		expect(nameOf(graph, 'B')).toBe('B');
 		expect(h.people.size).toBeGreaterThan(0);
+	});
+});
+
+describe('computeHighlight with a chosen palette', () => {
+	it('paints the focus line in the palette colours, not the built-in ones', () => {
+		const palette = resolvePalette({ focusColours: { ancestor: '#101010' } });
+		const h = computeHighlight(kinOf(), [{ kind: 'focus', personId: 'A' }], false, palette);
+		expect(h.people.get('G1')!.colour).toBe('#101010');
+		expect(h.people.get('K1')!.colour).toBe(HIGHLIGHT_TOKENS.focus.descendant);
+	});
+
+	it('paints a trace with the palette trace slots', () => {
+		const palette = resolvePalette({ tracePalette: { trace: ['#111111', '#222222'] } });
+		const person = (personId: string): HighlightSource => ({ kind: 'person', personId });
+		const h = computeHighlight(kinOf(), [person('A'), person('SB')], true, palette);
+		expect(h.people.get('A')!.colour).toBe('#111111');
+		expect(h.people.get('SB')!.colour).toBe('#222222');
 	});
 });
