@@ -135,7 +135,7 @@ const mkNote = (id: string, o: Partial<NoteRow> = {}): NoteRow => ({
 
 const mkCitation = (
 	id: string,
-	subjectKind: string,
+	subjectKind: CitationRow['subjectKind'],
 	subjectId: string,
 	sourceId: string | null,
 	sortOrder = 0
@@ -166,7 +166,7 @@ const mkCitation = (
 
 const mkAttachment = (
 	id: string,
-	subjectKind: string,
+	subjectKind: NoteAttachmentRow['subjectKind'],
 	subjectId: string,
 	noteId: string | null,
 	sortOrder = 0
@@ -290,7 +290,11 @@ function addEvidence(rows: TreeRows, random: () => number, prefix: string): Tree
 
 	const attachments: NoteAttachmentRow[] = [];
 	const orderOf = new Map<string, number>();
-	const attach = (subjectKind: string, subjectId: string, noteId: string | null) => {
+	const attach = (
+		subjectKind: NoteAttachmentRow['subjectKind'],
+		subjectId: string,
+		noteId: string | null
+	) => {
 		const key = `${subjectKind}|${subjectId}`;
 		const sortOrder = orderOf.get(key) ?? 0;
 		orderOf.set(key, sortOrder + 1);
