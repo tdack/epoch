@@ -347,3 +347,31 @@ describe('summary', () => {
 		expect(initialsOf('Cher', null, 'Cher')).toBe('C');
 	});
 });
+
+describe('PersonView section order', () => {
+	const ORDER = ['family', 'facts', 'names', 'media', 'privacy', 'notes', 'tasks', 'history'];
+	const sectionIds = () =>
+		[...document.querySelectorAll<HTMLElement>('[data-section]')].map((el) => el.dataset.section);
+	/** The column a section sits in on the page: its parent. */
+	const column = (id: string) => document.querySelector(`[data-section="${id}"]`)!.parentElement;
+
+	it('lists the sections in one order in the drawer', () => {
+		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'drawer', role: 'owner' });
+		expect(sectionIds()).toEqual(ORDER.filter((id) => sectionIds().includes(id)));
+		expect(sectionIds()).toEqual(expect.arrayContaining(['family', 'facts', 'names', 'history']));
+	});
+
+	it('keeps the same order on the page, with Family, Facts and Names in the left column', () => {
+		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'page', role: 'owner' });
+		expect(sectionIds()).toEqual(ORDER.filter((id) => sectionIds().includes(id)));
+		expect(column('family')).toBe(column('facts'));
+		expect(column('facts')).toBe(column('names'));
+		expect(column('media')).toBe(column('history'));
+		expect(column('family')).not.toBe(column('media'));
+	});
+
+	it('has no separate sources section', () => {
+		open(pageOf('ben', 'Ben'), { layout: 'drawer' });
+		expect(document.querySelector('[data-section="evidence"]')).toBeNull();
+	});
+});

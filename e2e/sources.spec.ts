@@ -192,7 +192,11 @@ test('a viewer never sees a private person’s citation, or the source that only
 
 		// The dead person's page shows their citation, and the viewer can read but not edit it.
 		await open(viewer, `${base}/people/${encodeURIComponent(old.id)}`);
-		await expect(viewer.getByTestId('evidence')).toContainText('Census 1851');
+		// The citation sits against the fact it supports, so that fact's disclosure names it.
+		const cited = viewer.getByTestId('citations-disclosure').filter({ hasText: 'Census 1851' });
+		await expect(cited).toHaveCount(1);
+		await cited.locator('summary').click();
+		await expect(cited.getByTestId('citation')).toContainText('Census 1851');
 		await expect(viewer.getByRole('button', { name: /Add a citation/ })).toHaveCount(0);
 
 		// The owner sees both.

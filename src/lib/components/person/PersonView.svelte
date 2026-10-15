@@ -1,11 +1,13 @@
 <script lang="ts">
+	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
+	import { citationsOfSubject } from '#lib/components/evidence/evidence-select.js';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
+	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import PersonActions from './PersonActions.svelte';
-	import PersonEvidence from './PersonEvidence.svelte';
 	import PersonFacts from './PersonFacts.svelte';
 	import PersonFamily from './PersonFamily.svelte';
 	import PersonHistory from './PersonHistory.svelte';
@@ -51,6 +53,10 @@
 	}: Props = $props();
 
 	const isPage = $derived(layout === 'page');
+	/** The person's own citations, shown once beneath the summary; a fact's or name's are on that row. */
+	const personCitations = $derived(
+		citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.PERSON, dto.person.id)
+	);
 </script>
 
 {#snippet family()}
@@ -89,12 +95,6 @@
 	</PersonSection>
 {/snippet}
 
-{#snippet evidence()}
-	<PersonSection id="evidence" title="Sources and evidence" {layout}>
-		<PersonEvidence {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
-	</PersonSection>
-{/snippet}
-
 {#snippet privacy()}
 	{#if canSetPrivacy(role, dto)}
 		<PersonSection id="privacy" title="Privacy" {layout} testId="privacy-panel">
@@ -109,23 +109,36 @@
 
 <div class="space-y-6">
 	<header class="flex flex-wrap items-start justify-between gap-3">
-		<PersonSummary {dto} />
+		<div class="min-w-0 space-y-2">
+			<PersonSummary {dto} />
+			<CitationsDisclosure
+				{treeId}
+				{treeSlug}
+				{role}
+				{editor}
+				{toasts}
+				subjectLabel={dto.person.displayName}
+				subject={{ kind: CITATION_SUBJECT_KINDS.PERSON, id: dto.person.id }}
+				citations={personCitations}
+				citationCount={personCitations.length}
+				label={dto.person.displayName}
+			/>
+		</div>
 		<PersonActions {dto} {treeId} {treeSlug} {role} {editor} {toasts} {marks} {relativeTarget} />
 	</header>
 
 	{#if isPage}
 		<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 			<div class="space-y-6">
-				{@render names()}
+				{@render family()}
 				{@render facts()}
-				{@render notes()}
-				{@render evidence()}
-				{@render tasks()}
-				{@render media()}
+				{@render names()}
 			</div>
 			<div class="space-y-6">
-				{@render family()}
+				{@render media()}
 				{@render privacy()}
+				{@render notes()}
+				{@render tasks()}
 				{@render history()}
 			</div>
 		</div>
@@ -137,7 +150,6 @@
 			{@render media()}
 			{@render privacy()}
 			{@render notes()}
-			{@render evidence()}
 			{@render tasks()}
 			{@render history()}
 		</div>
