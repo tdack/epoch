@@ -4,9 +4,13 @@ import {
 	dependentsOfDeletions,
 	matchesImage,
 	withAllColumns,
+	type EventRow,
 	type RowOp
 } from './change-log';
 import { treeRows } from '../testing/rows';
+
+/** An image written before a migration added columns lacks them, which is what these tests are about. */
+const oldImage = (image: object) => image as unknown as EventRow;
 
 describe('dependentsOfDeletions', () => {
 	const rows = () =>
@@ -79,8 +83,8 @@ describe('describeOps across a column added by a migration', () => {
 			{
 				table: 'events',
 				id: 'e1',
-				before: { id: 'e1', place: 'Leeds', version: 1 },
-				after: { id: 'e1', place: 'Leeds', address: null, version: 2 }
+				before: oldImage({ id: 'e1', place: 'Leeds', version: 1 }),
+				after: oldImage({ id: 'e1', place: 'Leeds', address: null, version: 2 })
 			}
 		];
 		expect(describeOps(ops, () => 'event')[0]!.fields).toEqual([]);
@@ -91,8 +95,8 @@ describe('describeOps across a column added by a migration', () => {
 			{
 				table: 'events',
 				id: 'e1',
-				before: { id: 'e1', place: 'Leeds', version: 1 },
-				after: { id: 'e1', place: 'Hull', address: null, version: 2 }
+				before: oldImage({ id: 'e1', place: 'Leeds', version: 1 }),
+				after: oldImage({ id: 'e1', place: 'Hull', address: null, version: 2 })
 			}
 		];
 		expect(describeOps(ops, () => 'event')[0]!.fields).toEqual([

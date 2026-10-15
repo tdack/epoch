@@ -34,10 +34,9 @@ const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
 const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** Rows as the mutation snapshot has them, so the read services and the planner share one shape. */
-const noteImage = (row: typeof notes.$inferSelect) =>
-	toImage(notes, row as unknown as Record<string, unknown>) as NoteRow;
+const noteImage = (row: typeof notes.$inferSelect) => toImage(notes, row) as NoteRow;
 const attachmentImage = (row: typeof noteAttachments.$inferSelect) =>
-	toImage(noteAttachments, row as unknown as Record<string, unknown>) as NoteAttachmentRow;
+	toImage(noteAttachments, row) as NoteAttachmentRow;
 
 /** The subjects whose notes a page wants, by kind. */
 export type SubjectIds = Partial<Record<NoteSubjectKind, readonly string[]>>;
@@ -167,6 +166,7 @@ export class NoteRepository {
 			)
 		);
 		if (queries.length === 0) return [];
+		// D1 batch is typed for a non-empty tuple, and the result type loses the row shape.
 		const results = await this.db.batch(queries as unknown as [(typeof queries)[number]]);
 		return (results as unknown as Array<(typeof noteAttachments.$inferSelect)[]>)
 			.flat()

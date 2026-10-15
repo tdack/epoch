@@ -4,7 +4,15 @@
  * what the save does.
  */
 
-import { describeOps, type RowOp, type TreeRows } from './change-log';
+import {
+	describeOps,
+	type CitationRow,
+	type EventRow,
+	type ParentChildRow,
+	type PersonNameRow,
+	type RowOp,
+	type TreeRows
+} from './change-log';
 import {
 	PERSON_ROLES_IN_IMPACT,
 	type ImpactMove,
@@ -16,6 +24,13 @@ import { makeLabeler } from './tree-labels';
 
 import { displayNameOf, personName } from './tree-ops';
 
+/** A row a citation or note can be about, with what it is, so a lookup by kind narrows the row. */
+type Subject =
+	| { kind: 'name'; row: PersonNameRow }
+	| { kind: 'event'; row: EventRow }
+	| { kind: 'parent_child'; row: ParentChildRow }
+	| { kind: 'citation'; row: CitationRow };
+
 /** Every person a row belongs to or points at; a partnership belongs to its partners. */
 function peopleOf(
 	op: RowOp,
@@ -23,26 +38,32 @@ function peopleOf(
 	subjectPeople: (kind: string, id: string) => string[],
 	fileOwnerPeople: (entityId: string) => string[]
 ): string[] {
-	const row = (op.after ?? op.before) as Record<string, any>;
 	switch (op.table) {
 		case 'individuals':
 			return [op.id];
 		case 'unions':
 			return partnersOf(op.id);
 		case 'person_names':
-			return [row.personId];
 		case 'union_partners':
-			return [row.personId];
-		case 'parent_child':
+			return [(op.after ?? op.before)!.personId];
+		case 'parent_child': {
+			const row = (op.after ?? op.before)!;
 			return [row.parentId, row.childId];
-		case 'events':
+		}
+		case 'events': {
+			const row = (op.after ?? op.before)!;
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
-		case 'media_items':
+		}
+		case 'media_items': {
+			const row = (op.after ?? op.before)!;
 			// A detached file touches no person; a file of a partnership touches its partners.
 			return row.entityId === null ? [] : fileOwnerPeople(row.entityId);
+		}
 		case 'citations':
-		case 'note_attachments':
+		case 'note_attachments': {
+			const row = (op.after ?? op.before)!;
 			return subjectPeople(row.subjectKind, row.subjectId);
+		}
 		case 'sources':
 		case 'repositories':
 		case 'source_repositories':
@@ -61,7 +82,7 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 
 	const names = new Map(rows.individuals.map((p) => [p.id, displayNameOf(rows, p.id)]));
 	for (const op of ops)
-		if (op.table === 'individuals' && op.after) names.set(op.id, personName(op.after as any));
+		if (op.table === 'individuals' && op.after) names.set(op.id, personName(op.after));
 
 	// Partners as they are before the change plus those it adds, so a deleted partnership still names them.
 	const partnerIds = new Map<string, string[]>();
@@ -69,7 +90,7 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		partnerIds.set(p.unionId, [...(partnerIds.get(p.unionId) ?? []), p.personId]);
 	for (const op of ops) {
 		if (op.table === 'union_partners' && op.before === null) {
-			const row = op.after as { unionId: string; personId: string };
+			const row = op.after!;
 			partnerIds.set(row.unionId, [...(partnerIds.get(row.unionId) ?? []), row.personId]);
 		}
 	}
@@ -84,33 +105,47 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		unionIds.has(entityId) ? partnersOf(entityId) : [entityId];
 
 	// The people a citation is about, from its subject, whether the change creates, keeps or deletes it.
-	const subjectRows = new Map<string, Record<string, any>>();
-	const remember = (kind: string, list: Array<{ id: string }>) =>
-		list.forEach((r) => subjectRows.set(`${kind}|${r.id}`, r as Record<string, any>));
-	remember('name', rows.personNames);
-	remember('event', rows.events);
-	remember('parent_child', rows.parentChild);
-	remember('citation', rows.citations);
+	const subjects = new Map<string, Subject>();
+	for (const r of rows.personNames) subjects.set(`name|${r.id}`, { kind: 'name', row: r });
+	for (const r of rows.events) subjects.set(`event|${r.id}`, { kind: 'event', row: r });
+	for (const r of rows.parentChild)
+		subjects.set(`parent_child|${r.id}`, { kind: 'parent_child', row: r });
+	for (const r of rows.citations) subjects.set(`citation|${r.id}`, { kind: 'citation', row: r });
 	for (const op of ops) {
-		const kind = {
-			person_names: 'name',
-			events: 'event',
-			parent_child: 'parent_child',
-			citations: 'citation'
-		}[op.table as string];
-		if (kind && op.after) subjectRows.set(`${kind}|${op.id}`, op.after);
+		if (!op.after) continue;
+		switch (op.table) {
+			case 'person_names':
+				subjects.set(`name|${op.id}`, { kind: 'name', row: op.after });
+				break;
+			case 'events':
+				subjects.set(`event|${op.id}`, { kind: 'event', row: op.after });
+				break;
+			case 'parent_child':
+				subjects.set(`parent_child|${op.id}`, { kind: 'parent_child', row: op.after });
+				break;
+			case 'citations':
+				subjects.set(`citation|${op.id}`, { kind: 'citation', row: op.after });
+				break;
+		}
 	}
 	const subjectPeople = (kind: string, id: string): string[] => {
 		if (kind === 'person') return [id];
 		if (kind === 'union') return partnersOf(id);
-		const row = subjectRows.get(`${kind}|${id}`);
-		if (!row) return [];
-		// A note on a citation is about whoever the citation is.
-		if (kind === 'citation') return subjectPeople(row.subjectKind, row.subjectId);
-		if (kind === 'name') return [row.personId];
-		if (kind === 'event')
-			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
-		return [row.parentId, row.childId];
+		const subject = subjects.get(`${kind}|${id}`);
+		if (!subject) return [];
+		switch (subject.kind) {
+			// A note on a citation is about whoever the citation is.
+			case 'citation':
+				return subjectPeople(subject.row.subjectKind, subject.row.subjectId);
+			case 'name':
+				return [subject.row.personId];
+			case 'event':
+				return subject.row.entityType === 'INDIVIDUAL'
+					? [subject.row.entityId]
+					: partnersOf(subject.row.entityId);
+			case 'parent_child':
+				return [subject.row.parentId, subject.row.childId];
+		}
 	};
 
 	const roles = new Map<string, ImpactPersonRole>();

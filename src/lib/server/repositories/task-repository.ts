@@ -47,7 +47,7 @@ const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
 };
 
 const taskImage = (row: typeof researchTasks.$inferSelect) =>
-	toImage(researchTasks, row as unknown as Record<string, unknown>) as ResearchTaskRow;
+	toImage(researchTasks, row) as ResearchTaskRow;
 
 /** The filters as a SQL fragment over a `research_tasks` row aliased `t`. */
 function filterSql(filter: TaskFilter): SQL {
@@ -154,6 +154,7 @@ export class TaskRepository {
 			)
 		);
 		if (queries.length === 0) return [];
+		// D1 batch is typed for a non-empty tuple, and the result type loses the row shape.
 		const results = await this.db.batch(queries as unknown as [(typeof queries)[number]]);
 		return (results as unknown as Array<Array<typeof researchTasks.$inferSelect>>)
 			.flat()

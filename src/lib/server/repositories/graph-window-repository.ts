@@ -362,6 +362,7 @@ export class GraphWindowRepository {
 
 	/** Counting walks a covering index, so this is linear in the tree; see docs/query-plans.md. */
 	async counts(treeId: string): Promise<TreeCounts> {
+		// D1 batch results are untyped tuples; the queries are known to be these shapes.
 		const [people, unionCount] = (await this.db.batch(
 			this.countQueries(treeId)
 		)) as unknown as Array<Array<{ n: number }>>;

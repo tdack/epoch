@@ -80,21 +80,25 @@ export interface TreeRows {
 	researchTasks: ResearchTaskRow[];
 }
 
-export type RecordTable =
-	| 'individuals'
-	| 'person_names'
-	| 'unions'
-	| 'union_partners'
-	| 'parent_child'
-	| 'events'
-	| 'media_items'
-	| 'sources'
-	| 'repositories'
-	| 'source_repositories'
-	| 'citations'
-	| 'notes'
-	| 'note_attachments'
-	| 'research_tasks';
+/** Each table's row type, which is what `RowOp` carries so a switch on `table` narrows the row. */
+export interface TableRows {
+	individuals: IndividualRow;
+	person_names: PersonNameRow;
+	unions: UnionRow;
+	union_partners: UnionPartnerRow;
+	parent_child: ParentChildRow;
+	events: EventRow;
+	media_items: MediaRow;
+	sources: SourceRow;
+	repositories: RepositoryRow;
+	source_repositories: SourceRepositoryRow;
+	citations: CitationRow;
+	notes: NoteRow;
+	note_attachments: NoteAttachmentRow;
+	research_tasks: ResearchTaskRow;
+}
+
+export type RecordTable = keyof TableRows;
 
 /** Parents before children: creates run in this order and deletes in reverse, so no foreign key is ever dangling. */
 const TABLE_RANK: Record<RecordTable, number> = {
@@ -137,16 +141,41 @@ const ENTITY_TYPES = {
 	research_tasks: 'task'
 } as const satisfies Record<RecordTable, EntityType>;
 
+/**
+ * A row of no particular table. Kept for what is genuinely generic: the serialised images in
+ * `change_log`, and the comparisons that run over any table's columns by name.
+ */
 export type RowImage = Record<string, unknown>;
 
-export interface RowOp {
-	table: RecordTable;
-	id: string;
-	/** The row as it was, or null when the op creates it. */
-	before: RowImage | null;
-	/** The row as it will be, or null when the op deletes it. */
-	after: RowImage | null;
+/** One op per table, so `op.table` narrows `before` and `after` to that table's row. */
+export type RowOp = {
+	[T in RecordTable]: {
+		table: T;
+		id: string;
+		/** The row as it was, or null when the op creates it. */
+		before: TableRows[T] | null;
+		/** The row as it will be, or null when the op deletes it. */
+		after: TableRows[T] | null;
+	};
+}[RecordTable];
+
+/**
+ * Build an op for a table known only as a variable. TypeScript cannot correlate a generic `table`
+ * with the union member, so the one cast lives here instead of at every call site.
+ */
+export function rowOp<T extends RecordTable>(
+	table: T,
+	id: string,
+	before: TableRows[T] | null,
+	after: TableRows[T] | null
+): RowOp {
+	return { table, id, before, after } as RowOp;
 }
+
+/** A row paired with its table, for code that is handed the two separately (a labeller call). */
+export type TableRow = {
+	[T in RecordTable]: { table: T; row: TableRows[T] };
+}[RecordTable];
 
 export const OP_KINDS = { CREATE: 'create', UPDATE: 'update', DELETE: 'delete' } as const;
 export type OpKind = (typeof OP_KINDS)[keyof typeof OP_KINDS];
@@ -184,9 +213,12 @@ export function orderForApply(ops: RowOp[]): RowOp[] {
 
 /** The ops that revert `ops`: images swapped, and the order reversed. */
 export function invertOps(ops: RowOp[]): RowOp[] {
-	return [...ops]
-		.reverse()
-		.map((op) => ({ table: op.table, id: op.id, before: op.after, after: op.before }));
+	return (
+		[...ops]
+			.reverse()
+			// The swap keeps each image with its own table, which a spread over the union cannot show.
+			.map((op) => ({ table: op.table, id: op.id, before: op.after, after: op.before }) as RowOp)
+	);
 }
 
 export interface AffectedRecordRef {
@@ -328,7 +360,8 @@ export function rebaseInverse(
 		const current = currentImage(op.table, op.id);
 		if (!matchesImage(current, op.before))
 			return { isOk: false, mismatch: { table: op.table, id: op.id } };
-		let after = op.after;
+		// The stored inverse is JSON read back from `change_log`, so here the images really are generic.
+		let after: RowImage | null = op.after;
 		if (after) {
 			const previous = versionOf(current) ?? versionOf(after);
 			// The restored row gets every column the live row has, so a column the old image predates is
@@ -340,7 +373,7 @@ export function rebaseInverse(
 				...('updatedAt' in after ? { updatedAt: nowMs } : {})
 			};
 		}
-		ops.push({ table: op.table, id: op.id, before: current, after });
+		ops.push({ table: op.table, id: op.id, before: current, after } as RowOp);
 	}
 	return { isOk: true, ops };
 }

@@ -89,6 +89,7 @@ function treeColumnOf(table: SQLiteTable) {
 }
 
 function columnsOf(table: SQLiteTable): ColumnMap {
+	// `getTableColumns` on a generic table is not indexable by column name, which every table here is.
 	return Object.fromEntries(
 		Object.entries(getTableColumns(table)).filter(([key]) => !DERIVED_COLUMNS.has(key))
 	) as unknown as ColumnMap;
@@ -281,7 +282,7 @@ export class ChangeStore {
 		for (const op of ops) {
 			if (!treeColumnOf(TABLES[op.table])) continue;
 			for (const image of [op.before, op.after]) {
-				const imageTreeId = image?.treeId;
+				const imageTreeId = image && 'treeId' in image ? image.treeId : undefined;
 				if (imageTreeId !== undefined && imageTreeId !== treeId) {
 					throw new ValidationError('A change may not write across trees');
 				}
@@ -328,6 +329,7 @@ export class ChangeStore {
 
 		try {
 			await db.batch(
+				// D1 batch wants a non-empty tuple; the array is checked non-empty above.
 				statements as unknown as [(typeof statements)[number], ...(typeof statements)[number][]]
 			);
 		} catch (error) {
@@ -360,6 +362,7 @@ export class ChangeStore {
 			Object.keys(getTableColumns(changeLog)).map(() => sql`null`),
 			sql`, `
 		);
+		// Drizzle's typed insert-select cannot take a raw `select ... where not exists` guard.
 		return (this.db.insert(changeLog) as unknown as { select: (query: unknown) => never }).select(
 			sql`select ${nulls} where not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch}${isSameTree})`
 		);
@@ -410,6 +413,7 @@ export class ChangeStore {
 	 */
 	private statementFor(op: RowOp, treeId: string) {
 		const table = TABLES[op.table];
+		// Every table in TABLES has an `id` column; the generic SQLiteTable type cannot say so.
 		const idColumn = (table as unknown as { id: never }).id;
 		const treeColumn = treeColumnOf(table);
 		const isOwnRow = treeColumn
@@ -507,6 +511,7 @@ export class ChangeStore {
 		for (const op of ops) idsByTable.set(op.table, [...(idsByTable.get(op.table) ?? []), op.id]);
 		for (const [name, ids] of idsByTable) {
 			const table = TABLES[name];
+			// Every table in TABLES has an `id` column; the generic SQLiteTable type cannot say so.
 			const idColumn = (table as unknown as { id: never }).id;
 			const treeColumn = treeColumnOf(table);
 			for (const part of chunk(ids, 90)) {

@@ -5,13 +5,12 @@
  */
 
 import {
-	type EventRow,
 	type IndividualRow,
-	type SourceRow,
 	type PersonNameRow,
 	type RecordTable,
 	type RowImage,
 	type RowOp,
+	type TableRow,
 	type TreeRows,
 	type UnionPartnerRow
 } from './change-log';
@@ -125,11 +124,13 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 		}
 	};
 
-	return (table, image) => {
-		const row = image as Record<string, any>;
+	return (tableName, image) => {
+		// The labeller is handed a table and a generic image (a stored inverse's rows included); this is
+		// where the pair is trusted to match, once, so each case below sees its own table's row.
+		const { table, row } = { table: tableName, row: image } as TableRow;
 		switch (table) {
 			case 'individuals':
-				return personName(row as IndividualRow);
+				return personName(row);
 			case 'person_names':
 				return `${NAME_TYPE_LABELS[(row.type as NameType) ?? 'other'] ?? 'Name'} ${formatFullName({ prefix: row.namePrefix, givenName: row.givenName, surnamePrefix: row.surnamePrefix, surname: row.surname, suffix: row.nameSuffix })} of ${person(row.personId)}`;
 			case 'unions':
@@ -141,12 +142,10 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				return `${person(row.parentId)} as ${kind}parent of ${person(row.childId)}`;
 			}
 			case 'events': {
-				const event = row as EventRow;
-				const owner =
-					event.entityType === 'FAMILY' ? union(event.entityId) : person(event.entityId);
+				const owner = row.entityType === 'FAMILY' ? union(row.entityId) : person(row.entityId);
 				// Two occupations or residences share a name, so a preview names the one it means.
-				const detail = event.value ? ` (${event.value})` : '';
-				return `${eventLabel(event.type)}${detail} of ${owner}`;
+				const detail = row.value ? ` (${row.value})` : '';
+				return `${eventLabel(row.type)}${detail} of ${owner}`;
 			}
 			case 'media_items': {
 				if (row.entityId === null) return 'Unattached file';
@@ -154,7 +153,7 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				return `Attachment of ${isPartnership ? union(row.entityId) : person(row.entityId)}`;
 			}
 			case 'sources':
-				return `Source “${sourceLabel(row as SourceRow)}”`;
+				return `Source “${sourceLabel(row)}”`;
 			case 'repositories':
 				return `Repository “${row.name ?? 'Unnamed'}”`;
 			case 'source_repositories': {
