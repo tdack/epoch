@@ -125,5 +125,6 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	reorder_citations: (c) => citationSubjectSeed(c.subject),
 	add_note: (c) => noteSubjectSeed(c.subject),
 	reorder_notes: (c) => noteSubjectSeed(c.subject),
-	create_note: () => seedOf({ wholeTables: ['notes'] })
+	create_note: () => seedOf({ wholeTables: ['notes'] }),
+	create_task: (c) => taskSubjectSeed(c.subject)
 };

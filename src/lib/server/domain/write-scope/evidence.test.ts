@@ -50,7 +50,8 @@ const ENABLED = [
 	'reorder_citations',
 	'add_note',
 	'reorder_notes',
-	'create_note'
+	'create_note',
+	'create_task'
 ] as const;
 
 function rng(seed: number) {
