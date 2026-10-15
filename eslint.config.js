@@ -99,6 +99,25 @@ export default ts.config(
 		}
 	},
 	{
+		// Server and shared code is imported by workers and tests that have no DOM or SvelteKit
+		// runtime, so a pull towards UI code makes them unloadable there (it once did for palette).
+		files: ['src/lib/server/**/*.ts', 'src/lib/shared/**/*.ts'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: ['#lib/components/*', '**/components/*', '$app/*'],
+							message:
+								'server/ and shared/ must not depend on UI code (see docs/architecture.md, Layering).'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
 		// The setup CLI has its own package.json and tsconfig; the project service finds that tsconfig
 		// for each file, so the type-aware rules see its Node types and not the Worker ones.
 		files: ['tools/setup/**/*.ts'],

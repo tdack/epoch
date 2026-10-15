@@ -74,6 +74,8 @@ Routes never touch the database directly (ADR-006):
    views. Handlers only parse input, call services and format responses (`treeHandler` and
    `apiHandler`).
 
+`server/` and `shared/` never import `components/` (or `$app`); ESLint enforces it.
+
 Types both sides read live in `src/lib/shared/`; server modules import from `shared/`, never the
 reverse. Every edit goes through one mutation runner that plans, previews, applies and records an
 append-only change log with undo (ADR-007).
