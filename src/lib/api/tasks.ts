@@ -1,3 +1,4 @@
+import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { TaskInput, TaskPageDto, TaskSubjectRef } from '#lib/shared/tasks.js';
 import { type Changed, call, json, path } from './client.js';
@@ -57,7 +58,7 @@ export async function previewDeleteTaskApi(
 	taskId: string,
 	version: number
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/tasks/impact`,
 		json('POST', { taskId, version }),
 		'Failed to preview the change'

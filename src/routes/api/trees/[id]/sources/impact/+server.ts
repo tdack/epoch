@@ -1,3 +1,4 @@
+import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { EvidenceService } from '#lib/server/services/evidence-service.js';
 import { evidenceImpactSchema } from '#lib/server/validation/schemas.js';
@@ -5,7 +6,7 @@ import { evidenceImpactSchema } from '#lib/server/validation/schemas.js';
 /** Preview a deletion or merge of sources, repositories or citations: which records it would change. Saves nothing. */
 export const POST = treeHandler(
 	{ failure: 'Failed to preview the change', body: evidenceImpactSchema },
-	async ({ db, ctx, treeId, body }) => {
+	async ({ db, ctx, treeId, body }): Promise<ImpactResponse> => {
 		const command =
 			body.kind === 'delete_source'
 				? {

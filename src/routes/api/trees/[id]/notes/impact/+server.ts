@@ -1,3 +1,4 @@
+import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { NoteService } from '#lib/server/services/note-service.js';
 import { noteImpactSchema } from '#lib/server/validation/schemas.js';
@@ -5,7 +6,7 @@ import { noteImpactSchema } from '#lib/server/validation/schemas.js';
 /** Preview deleting or merging shared notes, or removing a note from a record: which records it would change. Saves nothing. */
 export const POST = treeHandler(
 	{ failure: 'Failed to preview the change', body: noteImpactSchema },
-	async ({ db, ctx, treeId, body }) => {
+	async ({ db, ctx, treeId, body }): Promise<ImpactResponse> => {
 		const command =
 			body.kind === 'delete_shared_note'
 				? {

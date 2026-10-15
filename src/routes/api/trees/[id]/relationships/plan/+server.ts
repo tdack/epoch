@@ -1,10 +1,11 @@
+import type { PlanRelationshipResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { RelationshipService } from '#lib/server/services/relationship-service.js';
 import { relationshipPayloadSchema } from '#lib/server/validation/schemas.js';
 
 export const POST = treeHandler(
 	{ failure: 'Failed to plan relationship command', body: relationshipPayloadSchema },
-	async ({ db, ctx, treeId, body: { intent } }) => ({
+	async ({ db, ctx, treeId, body: { intent } }): Promise<PlanRelationshipResponse> => ({
 		plan: await new RelationshipService(db).plan(treeId, intent, ctx)
 	})
 );

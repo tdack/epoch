@@ -1,3 +1,4 @@
+import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type {
 	NoteListItem,
@@ -90,7 +91,7 @@ export async function previewNoteApi(
 	treeId: string,
 	request: NoteImpactRequest
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/notes/impact`,
 		json('POST', request),
 		'Failed to preview the change'

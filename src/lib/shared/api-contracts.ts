@@ -4,7 +4,14 @@
  * typecheck on the other. Types only: the client still trusts the bytes that arrive.
  */
 
-import type { ChangeSummary, ImpactSummary, TreeSummary } from '#lib/types/genealogy.js';
+import type {
+	ChangeSummary,
+	ImpactSummary,
+	PeopleSearchResult,
+	RelationshipPlan,
+	TreeSummary
+} from '#lib/types/genealogy.js';
+import type { MergeConflict } from './union-merge.js';
 import type { TreeRole } from './roles.js';
 
 /** One row of the install owner's Trees page. */
@@ -64,4 +71,37 @@ export interface ImpactResponse {
 /** A write that logs a change; `change` is null when the request changed nothing. */
 export interface ChangeResponse {
 	change: ChangeSummary | null;
+}
+
+/** `POST /api/trees/[id]/people` and `PUT /api/trees/[id]/people/[personId]` */
+export interface PersonWriteResponse extends ChangeResponse {
+	individual: { id: string };
+}
+
+/** `GET /api/trees/[id]/people-search` */
+export interface PeopleSearchResponse {
+	people: PeopleSearchResult[];
+}
+
+/** `POST /api/trees/[id]/relationships/plan` */
+export interface PlanRelationshipResponse {
+	plan: RelationshipPlan;
+}
+
+/** `POST /api/trees/[id]/relationships`: 201 when it wrote something, 200 when a warning stopped it. */
+export interface ApplyRelationshipResponse extends PlanRelationshipResponse, ChangeResponse {
+	/** Every record written. The client does not read it. */
+	affected: readonly unknown[];
+}
+
+/** `POST /api/trees/[id]/unions/merge` with `isPreview`: what a merge would do. `impact` is null while a conflict has no choice. */
+export interface MergePreviewResponse {
+	conflicts: MergeConflict[];
+	impact: ImpactSummary | null;
+}
+
+/** `POST /api/trees/[id]/undo` */
+export interface UndoResponse extends ChangeResponse {
+	/** The change that was reverted. */
+	undone: { id: string; summary: string };
 }

@@ -1,3 +1,4 @@
+import type { ImpactResponse, PeopleSearchResponse } from '#lib/shared/api-contracts.js';
 import type { PeopleSearchResult, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { SearchResponse } from '#lib/shared/search.js';
 import type { MarksDto } from '#lib/shared/marks.js';
@@ -17,7 +18,7 @@ export async function searchPeopleApi(
 	treeId: string,
 	query: string
 ): Promise<PeopleSearchResult[]> {
-	const data = await call<{ people?: PeopleSearchResult[] }>(
+	const data = await call<PeopleSearchResponse>(
 		path`/api/trees/${treeId}/people-search` + `?q=${encodeURIComponent(query)}`,
 		undefined,
 		'Failed to search people'
@@ -207,7 +208,7 @@ export async function previewPlaceRewriteApi(
 	placeId: string,
 	name: string
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/places/${placeId}/impact`,
 		json('POST', { name }),
 		'Failed to preview the change'

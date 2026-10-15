@@ -1,3 +1,8 @@
+import type {
+	ChangeResponse,
+	ImpactResponse,
+	PersonWriteResponse
+} from '#lib/shared/api-contracts.js';
 import type { PersonFormData, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
@@ -10,7 +15,7 @@ export async function createPersonApi(
 	treeId: string,
 	data: PersonFormData
 ): Promise<{ id: string; change: ChangeSummary | null }> {
-	const res = await call<{ individual: { id: string }; change: ChangeSummary | null }>(
+	const res = await call<PersonWriteResponse>(
 		path`/api/trees/${treeId}/people`,
 		json('POST', data),
 		'Failed to add individual.'
@@ -25,7 +30,7 @@ export async function updatePersonApi(
 	data: Partial<PersonFormData>,
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
-	const res = await call<{ change: ChangeSummary | null }>(
+	const res = await call<ChangeResponse>(
 		path`/api/trees/${treeId}/people/${personId}`,
 		json('PUT', { ...data, version }),
 		'Failed to update person.'
@@ -39,7 +44,7 @@ export async function deletePersonApi(
 	version: number | undefined
 ): Promise<{ change: ChangeSummary | null }> {
 	const query = version === undefined ? '' : `?version=${version}`;
-	const res = await call<{ change: ChangeSummary | null }>(
+	const res = await call<ChangeResponse>(
 		path`/api/trees/${treeId}/people/${personId}` + query,
 		{ method: 'DELETE' },
 		'Failed to delete person'
@@ -118,7 +123,7 @@ export async function previewFactApi(
 	treeId: string,
 	request: FactImpactRequest
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/facts/impact`,
 		json('POST', request),
 		'Failed to preview the change'
@@ -267,7 +272,7 @@ export async function previewNameApi(
 	treeId: string,
 	request: NameImpactRequest
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/names/impact`,
 		json('POST', request),
 		'Failed to preview the change'

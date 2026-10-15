@@ -1,4 +1,12 @@
 import type {
+	ApplyRelationshipResponse,
+	ChangeResponse,
+	ImpactResponse,
+	MergePreviewResponse,
+	PlanRelationshipResponse,
+	UndoResponse
+} from '#lib/shared/api-contracts.js';
+import type {
 	RelationshipIntent,
 	RelationshipPlan,
 	ChangeSummary,
@@ -6,7 +14,7 @@ import type {
 	UnionEventInput
 } from '#lib/types/genealogy.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
-import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
+import type { MergeChoices } from '#lib/shared/union-merge.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
 import { call, json, path } from './client.js';
 
@@ -15,7 +23,7 @@ export async function planRelationshipApi(
 	treeId: string,
 	intent: RelationshipIntent
 ): Promise<RelationshipPlan> {
-	const data = await call<{ plan: RelationshipPlan }>(
+	const data = await call<PlanRelationshipResponse>(
 		path`/api/trees/${treeId}/relationships/plan`,
 		json('POST', { intent }),
 		'Failed to preview relationship'
@@ -26,8 +34,8 @@ export async function planRelationshipApi(
 export async function applyRelationshipApi(
 	treeId: string,
 	intent: RelationshipIntent
-): Promise<{ plan: RelationshipPlan; change: ChangeSummary | null }> {
-	return call(
+): Promise<Pick<ApplyRelationshipResponse, 'plan' | 'change'>> {
+	return call<ApplyRelationshipResponse>(
 		path`/api/trees/${treeId}/relationships`,
 		json('POST', { intent }),
 		'Failed to apply relationship'
@@ -48,7 +56,7 @@ export async function removeRelationshipApi(
 	treeId: string,
 	command: RelationshipDeleteCommand
 ): Promise<{ change: ChangeSummary | null }> {
-	const res = await call<{ change: ChangeSummary | null }>(
+	const res = await call<ChangeResponse>(
 		path`/api/trees/${treeId}/relationships/remove`,
 		json('POST', command),
 		'Failed to remove relationship'
@@ -63,7 +71,7 @@ export async function previewImpactApi(
 	treeId: string,
 	request: ImpactRequest
 ): Promise<ImpactSummary> {
-	const data = await call<{ impact: ImpactSummary }>(
+	const data = await call<ImpactResponse>(
 		path`/api/trees/${treeId}/impact`,
 		json('POST', request),
 		'Failed to preview the impact'
@@ -76,7 +84,7 @@ export async function updateUnionApi(
 	unionId: string,
 	payload: { version: number; status?: string; events?: UnionEventInput[] }
 ): Promise<{ change: ChangeSummary | null }> {
-	const res = await call<{ change: ChangeSummary | null }>(
+	const res = await call<ChangeResponse>(
 		path`/api/trees/${treeId}/unions/${unionId}`,
 		json('PUT', payload),
 		'Failed to save the partnership'
@@ -92,17 +100,11 @@ export interface MergeUnionsRequest {
 	keep?: MergeChoices;
 }
 
-/** What a merge would do. `impact` is null while a conflict has no choice. */
-export interface MergePreviewResponse {
-	conflicts: MergeConflict[];
-	impact: ImpactSummary | null;
-}
-
 export async function previewUnionMergeApi(
 	treeId: string,
 	request: MergeUnionsRequest
 ): Promise<MergePreviewResponse> {
-	return call(
+	return call<MergePreviewResponse>(
 		path`/api/trees/${treeId}/unions/merge`,
 		json('POST', { ...request, isPreview: true }),
 		'Failed to preview the merge'
@@ -113,7 +115,7 @@ export async function mergeUnionsApi(
 	treeId: string,
 	request: MergeUnionsRequest
 ): Promise<{ change: ChangeSummary | null }> {
-	const res = await call<{ change: ChangeSummary | null }>(
+	const res = await call<ChangeResponse>(
 		path`/api/trees/${treeId}/unions/merge`,
 		json('POST', request),
 		'Failed to merge the partnerships'
@@ -122,10 +124,8 @@ export async function mergeUnionsApi(
 }
 
 /** Undo the signed-in user's most recent change. Refusals (a later change touched it) come back as ApiError. */
-export async function undoApi(
-	treeId: string
-): Promise<{ undone: { id: string; summary: string } }> {
-	return call(path`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
+export async function undoApi(treeId: string): Promise<UndoResponse> {
+	return call<UndoResponse>(path`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
 }
 
 export function fetchUnionPage(

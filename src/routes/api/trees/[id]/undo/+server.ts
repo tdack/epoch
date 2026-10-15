@@ -1,3 +1,4 @@
+import type { UndoResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { ChangeLogService } from '#lib/server/services/change-log-service.js';
 
@@ -10,7 +11,10 @@ export const GET = treeHandler(
 );
 
 /** Undo the signed-in user's most recent undoable change in this tree. */
-export const POST = treeHandler({ failure: 'Failed to undo' }, async ({ db, ctx, treeId }) => {
-	const { undone, change } = await new ChangeLogService(db).undoLast(treeId, ctx);
-	return { undone, change };
-});
+export const POST = treeHandler(
+	{ failure: 'Failed to undo' },
+	async ({ db, ctx, treeId }): Promise<UndoResponse> => {
+		const { undone, change } = await new ChangeLogService(db).undoLast(treeId, ctx);
+		return { undone, change };
+	}
+);
