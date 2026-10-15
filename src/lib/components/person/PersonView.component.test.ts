@@ -169,6 +169,45 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 		expect(document.querySelector('input[type="file"]')).not.toBeNull();
 	});
 
+	it("files a parent link's evidence under the parent row", () => {
+		open(
+			pageOf('kid', 'Kid', {
+				parentFamilies: [
+					{
+						unionId: 'u',
+						label: null,
+						parents: [
+							{ person: summary('mum', 'Mum'), type: 'biological', linkId: 'pc1' },
+							{ person: summary('dad', 'Dad'), type: 'biological', linkId: 'pc2' }
+						]
+					} as never
+				],
+				evidence: {
+					citations: [
+						{
+							id: 'c1',
+							subject: { kind: 'parent_child', id: 'pc1' },
+							sourceLabel: 'Census 1851',
+							notes: []
+						} as never
+					],
+					links: []
+				}
+			}),
+			{ layout }
+		);
+		const rows = [...document.querySelectorAll('[data-testid="parents"] > ul > li')];
+		expect(rows).toHaveLength(2);
+		expect(rows[0]!.querySelector('[data-testid="claim-state"]')?.getAttribute('data-state')).toBe(
+			'sourced'
+		);
+		const dad = rows[1]!.querySelector('[data-testid="claim-state"]');
+		expect(dad?.getAttribute('data-state')).toBe('unsourced');
+		expect(
+			rows[1]!.querySelector('button[aria-label="Add a citation for Dad as parent"]')
+		).not.toBeNull();
+	});
+
 	it('shows a viewer the family without the controls that would change it', () => {
 		open(
 			pageOf('kid', 'Kid', {
