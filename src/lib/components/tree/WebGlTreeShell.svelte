@@ -2,22 +2,18 @@
 	import { onMount, untrack, type Snippet } from 'svelte';
 	import { clearLabels, labelRank, type LabelBox } from './ring-labels.js';
 	import {
-		computeHighlight,
-		isSourcePresent,
 		linkKey,
 		MAX_TRACE_ITEMS,
-		QUIET_HIGHLIGHT,
-		toggleTraceItem,
 		type Highlight,
 		type HighlightSource,
 		type KinSource
 	} from '#lib/tree-layout/highlight.js';
+	import { createHighlightState } from './webgl-highlight.svelte.js';
 	import { RING_TOKENS } from '#lib/shared/tree-tokens.js';
 	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import { yearsLine } from './tree-view.js';
 	import {
 		describeMark,
-		highlightRoles,
 		hoverCard,
 		sourceLabel,
 		type LegendEntry,
@@ -141,34 +137,13 @@
 	let shouldShowAllNames = $state(false);
 	let hovered = $state.raw<PickTarget | null>(null);
 	const hoveredId = $derived(hovered?.kind === 'person' ? hovered.id : null);
-	/**
-	 * A partnership, line or (in the whole tree) person selected outside trace mode, with the layout
-	 * it was made on: a new layout drops it, as a new focus has always relit the focus line.
-	 */
-	let selection = $state.raw<{ kin: KinSource; source: HighlightSource } | null>(null);
-	/** The layout the viewer cleared the highlight on; clearing keeps everyone where they are. */
-	let clearedKin = $state.raw<KinSource | null>(null);
-	const isHighlightCleared = $derived(clearedKin === kin);
-	let isTracing = $state(false);
-	/** What trace mode holds. Kept across layouts; what a layout does not draw is simply not lit. */
-	let traceItems = $state.raw<HighlightSource[]>([]);
-	/** Said in the trace strip and announced: the cap was hit. */
-	let notice = $state<string | null>(null);
-	const liveTrace = $derived(traceItems.filter((item) => isSourcePresent(kin, item)));
-	const activeSelection = $derived(selection?.kin === kin ? selection.source : null);
-	const highlight = $derived.by<Highlight>(() => {
-		if (isHighlightCleared) return QUIET_HIGHLIGHT;
-		if (isTracing) return computeHighlight(kin, liveTrace, true, palette);
-		if (activeSelection) return computeHighlight(kin, [activeSelection], false, palette);
-		return focusPersonId
-			? computeHighlight(kin, [{ kind: 'focus', personId: focusPersonId }], false, palette)
-			: QUIET_HIGHLIGHT;
+	const lit = createHighlightState({
+		kin: () => kin,
+		focusPersonId: () => focusPersonId,
+		palette: () => palette
 	});
-	/** Roles at the level the scenes light people: see {@link highlightRoles}. */
-	const roles = $derived(highlightRoles(highlight));
-	function clearHighlight() {
-		clearedKin = kin;
-	}
+	const highlight = $derived(lit.highlight);
+	const roles = $derived(lit.roles);
 	const labelOf = (source: HighlightSource) => sourceLabel(kin, source);
 	/** "the partnership of A and B" as a title: "Partnership of A and B". */
 	const capitalised = (text: string) => {
@@ -178,25 +153,8 @@
 	function sourceFor(target: PickTarget): HighlightSource {
 		if (target.kind === 'person') return { kind: 'person', personId: target.id };
 		if (target.kind === 'union')
-			return { kind: 'union', unionId: target.id, shouldSplitPartners: !isTracing };
+			return { kind: 'union', unionId: target.id, shouldSplitPartners: !lit.isTracing };
 		return { kind: 'link', key: target.id };
-	}
-	function toggleTrace(source: HighlightSource) {
-		const change = toggleTraceItem(liveTrace, source);
-		if (change.result === 'full') {
-			notice = `Trace holds at most ${MAX_TRACE_ITEMS} items. Remove one to add another.`;
-			return;
-		}
-		notice = null;
-		clearedKin = null;
-		traceItems = change.items;
-	}
-	function setTracing(isOn: boolean) {
-		isTracing = isOn;
-		notice = null;
-		selection = null;
-		clearedKin = null;
-		if (!isOn) traceItems = [];
 	}
 	/** The pointer inside the canvas, in CSS pixels; null while orbiting or off the canvas. */
 	let pointerAt = $state<{ x: number; y: number } | null>(null);
@@ -236,7 +194,7 @@
 					labelOf({ kind: 'union', unionId: union.id, shouldSplitPartners: true })
 				),
 				meta: `${union.partnerIds.length} ${union.partnerIds.length === 1 ? 'partner' : 'partners'} · ${children} ${children === 1 ? 'child' : 'children'} in view`,
-				hint: isTracing
+				hint: lit.isTracing
 					? 'Click to add to or remove from the trace'
 					: 'Click to light this partnership'
 			};
@@ -246,12 +204,12 @@
 		return {
 			title: capitalised(labelOf({ kind: 'link', key: hovered.id })),
 			meta: 'A parent-child line',
-			hint: isTracing ? 'Click to add to or remove from the trace' : 'Click to light this line'
+			hint: lit.isTracing ? 'Click to add to or remove from the trace' : 'Click to light this line'
 		};
 	});
 	/** What a click on a person does, in words, for the hover card and the name buttons. */
 	const personAction = $derived(
-		isTracing
+		lit.isTracing
 			? 'Add to or remove from the trace.'
 			: isWholeTree
 				? 'Light their line.'
@@ -293,22 +251,22 @@
 
 	/** Spoken (and, for the cap, shown) whenever the selection changes. */
 	const statusMessage = $derived.by(() => {
-		if (notice) return notice;
-		if (isHighlightCleared) return 'Highlight cleared: everyone is shown alike.';
-		if (isTracing) {
-			if (liveTrace.length === 0)
+		if (lit.notice) return lit.notice;
+		if (lit.isCleared) return 'Highlight cleared: everyone is shown alike.';
+		if (lit.isTracing) {
+			if (lit.liveTrace.length === 0)
 				return `Trace mode on. Click people, partnerships or lines to trace up to ${MAX_TRACE_ITEMS}.`;
 			const shared = [...highlight.people.values()].filter((m) => m.isShared).length;
-			return `Tracing ${liveTrace.length} of ${MAX_TRACE_ITEMS}: ${liveTrace.map(labelOf).join('; ')}.${
+			return `Tracing ${lit.liveTrace.length} of ${MAX_TRACE_ITEMS}: ${lit.liveTrace.map(labelOf).join('; ')}.${
 				shared > 0
 					? ` ${shared} ${shared === 1 ? 'person is' : 'people are'} on more than one path.`
 					: ''
 			}`;
 		}
-		if (activeSelection) {
+		if (lit.activeSelection) {
 			const marks = [...highlight.people.values()];
 			const count = (kind: string) => marks.filter((m) => m.kind === kind).length;
-			return `Selected ${labelOf(activeSelection)}: ${count('ancestor')} ancestors and ${count('descendant')} descendants lit.`;
+			return `Selected ${labelOf(lit.activeSelection)}: ${count('ancestor')} ancestors and ${count('descendant')} descendants lit.`;
 		}
 		return announcement;
 	});
@@ -458,7 +416,7 @@
 		});
 		if (target) activate(target);
 		// Trace mode keeps what it holds on a stray click; Clear and Escape are for that.
-		else if (!isTracing) clearHighlight();
+		else if (!lit.isTracing) lit.clearHighlight();
 	}
 	function onDoubleClick(event: MouseEvent) {
 		const target = scene?.pick(event.clientX, event.clientY);
@@ -480,25 +438,22 @@
 	}
 	/** A sphere, marker, line or name was clicked or activated: what that does depends on the mode. */
 	function activate(target: PickTarget) {
-		if (isTracing) {
-			toggleTrace(sourceFor(target));
+		if (lit.isTracing) {
+			lit.toggleTrace(sourceFor(target));
 		} else if (target.kind === 'person') {
 			selectPerson(target.id);
 		} else {
-			selection = { kin, source: sourceFor(target) };
-			clearedKin = null;
+			lit.select(sourceFor(target));
 		}
 	}
 	function selectPerson(id: string) {
-		if (isTracing) {
-			toggleTrace({ kind: 'person', personId: id });
+		if (lit.isTracing) {
+			lit.toggleTrace({ kind: 'person', personId: id });
 		} else if (isWholeTree) {
 			// Nobody is the focus here, so a person lights their line where they stand.
-			selection = { kin, source: { kind: 'focus', personId: id } };
-			clearedKin = null;
+			lit.select({ kind: 'focus', personId: id });
 		} else {
-			selection = null;
-			clearedKin = null;
+			lit.select(null);
 			onSelectPerson?.(id);
 		}
 	}
@@ -516,8 +471,8 @@
 		// One step back at a time: an open drawer closes first, then trace mode ends (dropping what it
 		// held), then the highlight clears.
 		if (selectedPersonId) onClearSelection?.();
-		else if (isTracing) setTracing(false);
-		else clearHighlight();
+		else if (lit.isTracing) lit.setTracing(false);
+		else lit.clearHighlight();
 	}}
 />
 
@@ -601,7 +556,7 @@
 					{card.childrenInView === 1 ? 'child' : 'children'} in view
 				</p>
 				<p class="hint">
-					{isTracing
+					{lit.isTracing
 						? 'Click to add to or remove from the trace'
 						: isWholeTree
 							? 'Click to light their line'
@@ -670,43 +625,38 @@
 	<div
 		class="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex flex-col gap-2 sm:inset-x-6 sm:bottom-6"
 	>
-		{#if isTracing}
+		{#if lit.isTracing}
 			<div
 				class="trace-strip pointer-events-auto flex flex-wrap items-center gap-1.5 self-start rounded-xl border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] p-1.5 text-xs shadow-md"
 				role="group"
 				aria-label="Traced items"
 				data-testid="trace-strip"
 			>
-				{#if liveTrace.length === 0}
+				{#if lit.liveTrace.length === 0}
 					<span class="px-1 text-[var(--tree-ink-muted)]">
 						Click people, partnerships or lines to trace up to {MAX_TRACE_ITEMS}.
 					</span>
 				{/if}
-				{#each liveTrace as item, i (`${i}:${item.kind}`)}
+				{#each lit.liveTrace as item, i (`${i}:${item.kind}`)}
 					{@const text = capitalised(labelOf(item))}
 					<span class="chip" style:--chip={highlight.sources[i]?.colour} data-testid="trace-chip">
 						<i></i>{text}
 						<button
 							type="button"
 							aria-label="Remove {text} from the trace"
-							onclick={() => toggleTrace(item)}>×</button
+							onclick={() => lit.toggleTrace(item)}>×</button
 						>
 					</span>
 				{/each}
 				<span class="px-1 text-[var(--tree-ink-muted)]" data-testid="trace-count">
-					{liveTrace.length} of {MAX_TRACE_ITEMS}
+					{lit.liveTrace.length} of {MAX_TRACE_ITEMS}
 				</span>
-				{#if liveTrace.length > 0}
-					<button
-						type="button"
-						class="view"
-						onclick={() => {
-							traceItems = [];
-							notice = null;
-						}}>Clear</button
-					>
+				{#if lit.liveTrace.length > 0}
+					<button type="button" class="view" onclick={lit.clearTrace}>Clear</button>
 				{/if}
-				{#if notice}<span class="px-1 font-medium text-stone-900" role="status">{notice}</span>{/if}
+				{#if lit.notice}<span class="px-1 font-medium text-stone-900" role="status"
+						>{lit.notice}</span
+					>{/if}
 			</div>
 		{/if}
 		<div class="flex flex-wrap items-end justify-between gap-2 sm:flex-nowrap">
@@ -737,8 +687,8 @@
 					<button
 						type="button"
 						class="view"
-						aria-pressed={!isHighlightCleared}
-						onclick={() => (isHighlightCleared ? (clearedKin = null) : clearHighlight())}
+						aria-pressed={!lit.isCleared}
+						onclick={() => (lit.isCleared ? lit.restoreHighlight() : lit.clearHighlight())}
 					>
 						Focus line
 					</button>
@@ -746,8 +696,8 @@
 				<button
 					type="button"
 					class="view"
-					aria-pressed={isTracing}
-					onclick={() => setTracing(!isTracing)}
+					aria-pressed={lit.isTracing}
+					onclick={() => lit.setTracing(!lit.isTracing)}
 				>
 					Trace
 				</button>
@@ -771,7 +721,7 @@
 			<p
 				class="hidden min-w-0 truncate rounded-full border border-[var(--tree-panel-border)] bg-[var(--tree-panel)] px-3 py-1 text-xs text-stone-600 shadow-sm sm:block"
 			>
-				{isTracing
+				{lit.isTracing
 					? 'Trace: click people, partnerships or lines to add or remove them · Esc ends the trace'
 					: hint}
 			</p>
