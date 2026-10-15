@@ -120,6 +120,37 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Sign out');
 	});
 
+	it('offers Settings to anyone signed in, member or not, and never to the public visitor', () => {
+		const signOut = signOutHref('https://epoch.test');
+		for (const props of [{ role: 'viewer' }, { role: 'viewer', isOutsider: true }, {}]) {
+			render({ ...props, signOutHref: signOut, treeSlug: 'the-smiths' });
+			openMore();
+			const settings = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')].find(
+				(a) => a.textContent?.trim() === 'Settings'
+			);
+			expect(settings?.getAttribute('href')).toBe('/trees/the-smiths/settings');
+			// Outside Manage, which a non-member reader does not get.
+			expect(settings?.closest('[aria-label="Manage"]')).toBeNull();
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		render({ role: 'viewer', isOutsider: true });
+		openMore();
+		expect(menuLabels()).not.toContain('Settings');
+	});
+
+	it('marks Settings active on its page', () => {
+		render({
+			role: 'viewer',
+			signOutHref: signOutHref('https://epoch.test'),
+			pathname: '/trees/t1/settings'
+		});
+		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(
+			'More: Settings'
+		);
+	});
+
 	it('marks Trees active on its page', () => {
 		render({ role: 'viewer', treeCount: 2, pathname: '/trees/t1/trees' });
 		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(

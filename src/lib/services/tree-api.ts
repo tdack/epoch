@@ -36,6 +36,7 @@ import type { TaskDto, TaskInput, TaskPageDto, TaskSubjectRef } from '#lib/share
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { SearchResponse } from '#lib/shared/search.js';
+import type { SettingsPatch, SettingsView } from '#lib/shared/settings.js';
 import type { MarksDto } from '#lib/shared/marks.js';
 import type { PersonPrivacy } from '#lib/shared/privacy.js';
 import type { PrivacySettingsDto } from '#lib/shared/privacy.js';
@@ -1782,4 +1783,21 @@ export async function deleteUnlinkedFilesApi(
 ): Promise<{ deleted: number; failed: number }> {
 	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
 	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
+}
+
+/** The caller's own colour layer, the site default and what they resolve to (ADR-053). */
+export function fetchSettings(fetchFn: typeof fetch = fetch): Promise<SettingsView> {
+	return call('/api/settings', undefined, 'Failed to load settings', fetchFn);
+}
+
+/** Changes the caller's own layer; a group sent as null inherits the site default again. */
+export function saveMySettings(patch: SettingsPatch): Promise<SettingsView> {
+	return call('/api/settings', json('PUT', patch), 'Failed to save your settings');
+}
+
+/** Changes the install-wide default; the install owner alone may. */
+export function saveSiteSettings(
+	patch: Omit<SettingsPatch, 'isMotionReduced'>
+): Promise<SettingsView> {
+	return call('/api/admin/settings', json('PUT', patch), 'Failed to save the site default');
 }

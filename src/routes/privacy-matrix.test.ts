@@ -254,6 +254,7 @@ const LOADS = [
 	'./trees/[id]/quality/+page.ts',
 	'./trees/[id]/relationship/+page.ts',
 	'./trees/[id]/search/+page.ts',
+	'./trees/[id]/settings/+page.ts',
 	'./trees/[id]/sources/+page.ts',
 	'./trees/[id]/sources/[sourceId]/+page.ts',
 	'./trees/[id]/surnames/+page.ts',
@@ -280,7 +281,9 @@ const NO_RECORD_LOADS = [
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
 	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
-	'./manage/trees/+page.ts'
+	'./manage/trees/+page.ts',
+	// Only redirects to the settings under a tree, chosen the same way.
+	'./settings/+page.ts'
 ];
 
 /**
