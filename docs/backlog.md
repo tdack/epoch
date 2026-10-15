@@ -166,6 +166,14 @@ Last reviewed: 2026-10-15.
 
 ### Code structure
 
+- **Response contracts cover about 24 endpoints.** `src/lib/shared/api-contracts.ts` types the
+  tree, person, relationship, impact and undo responses on both sides. The page, list, graph,
+  search, files, members and import endpoints still return a shared DTO the handler is not annotated
+  with, so a renamed field there would not fail the typecheck. Annotate them as they are touched.
+- **The tree page is still about 740 lines** after navigation and the drawer moved out. What is left
+  is the saved-view state and the per-mode layout derivations; extract those next if the page grows.
+- **15 primary buttons keep their own Tailwind strings** because they differ from `.btn-primary`
+  (text size, padding or shadow). Decide whether the differences are deliberate, then convert.
 - **Universal loads call the app's own API through `event.fetch`.** On a server render that runs
   `handle` twice (schema check, JWT validation, user upsert). Moving the read-only loads to
   `+page.server.ts` would remove the second pass and about a dozen GET endpoints. Deliberately
