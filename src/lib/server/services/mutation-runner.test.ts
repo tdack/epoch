@@ -2,11 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import type { RelationshipCommand } from '../domain/relationship-commands';
-import { seedOf } from '../domain/write-scope';
 import { seedFor } from '../domain/write-scope/index';
-import { PERSON_SCOPES } from '../domain/write-scope/person';
-import { EVIDENCE_SCOPES } from '../domain/write-scope/evidence';
-import { UNION_SCOPES } from '../domain/write-scope/union';
 import { ChangeStore } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
@@ -27,7 +23,6 @@ afterAll(async () => {
 });
 afterEach(() => {
 	vi.restoreAllMocks();
-	delete PERSON_SCOPES.update_fact;
 });
 
 const blank = { dateText: null, place: null, value: null, cause: null, age: null, notes: null };
@@ -47,18 +42,16 @@ const SAMPLE_COMMANDS: RelationshipCommand[] = [
 ];
 
 describe('the command scope tables', () => {
-	it('are empty, so every kind loads the whole tree', () => {
-		expect(PERSON_SCOPES).toEqual({});
-		expect(EVIDENCE_SCOPES).toEqual({});
-		expect(UNION_SCOPES).toEqual({});
-		for (const command of SAMPLE_COMMANDS) expect(seedFor([command]), command.kind).toBeNull();
+	it('leave the kinds ADR-055 keeps whole without a seed', () => {
+		const whole = SAMPLE_COMMANDS.filter((c) => c.kind === 'delete_person');
+		for (const command of whole) expect(seedFor([command]), command.kind).toBeNull();
+		const seeded = SAMPLE_COMMANDS.find((c) => c.kind === 'update_fact')!;
+		expect(seedFor([seeded])).not.toBeNull();
 	});
 
 	it('send a request to the whole tree if any one of its commands has no seed', () => {
-		PERSON_SCOPES.update_fact = (command) => seedOf({ events: [command.factId] });
 		const seeded = SAMPLE_COMMANDS.find((c) => c.kind === 'update_fact')!;
-		const unseeded = SAMPLE_COMMANDS.find((c) => c.kind === 'delete_fact')!;
-		expect(seedFor([seeded])).not.toBeNull();
+		const unseeded = SAMPLE_COMMANDS.find((c) => c.kind === 'delete_person')!;
 		expect(seedFor([seeded, unseeded])).toBeNull();
 		expect(seedFor([])).toBeNull();
 	});
@@ -89,20 +82,14 @@ describe('the mutation runner loads', () => {
 		const { actor, treeId, fact } = await setup();
 		const whole = vi.spyOn(ChangeStore.prototype, 'loadRows');
 		const scoped = vi.spyOn(ScopedRowLoader.prototype, 'load');
-		await new FactService(t.db).update(
-			treeId,
-			fact.id,
-			{ place: 'York' },
-			fact.version,
-			actor.context
-		);
+		// Deleting a person stays whole-tree: see write-scope/person.ts.
+		await new PersonService(t.db).remove(treeId, fact.entityId, actor.context);
 		expect(whole).toHaveBeenCalled();
 		expect(scoped).not.toHaveBeenCalled();
 	});
 
 	it('a scoped snapshot once the kind has a seed, and writes the same change', async () => {
 		const { actor, treeId, fact } = await setup();
-		PERSON_SCOPES.update_fact = (command) => seedOf({ events: [command.factId] });
 		const whole = vi.spyOn(ChangeStore.prototype, 'loadRows');
 		const scoped = vi.spyOn(ScopedRowLoader.prototype, 'load');
 		const result = await new FactService(t.db).update(
