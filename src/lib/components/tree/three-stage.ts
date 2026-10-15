@@ -11,6 +11,7 @@
 import {
 	BufferGeometry,
 	Color,
+	Float32BufferAttribute,
 	DirectionalLight,
 	Group,
 	HemisphereLight,
@@ -19,6 +20,7 @@ import {
 	Mesh,
 	Object3D,
 	Points,
+	PointsMaterial,
 	PerspectiveCamera,
 	Raycaster,
 	Scene,
@@ -35,11 +37,17 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 import type { PickOptions, PickTarget, WebGlTreeScene } from './webgl-tree.js';
 import { DEFAULT_PALETTE, type Palette } from './palette.js';
+import { starField } from './star-field.js';
 
 /** How much of the canvas the framed content may fill, in clip space (1 is edge to edge). */
 const FRAME_FILL = 0.88;
 const FIELD_OF_VIEW_DEGREES = 42;
 const FAR_PLANE_UNITS = 5000;
+/** Inside the far plane, and far enough beyond any framed tree that it never reads as part of it. */
+const STAR_SHELL_UNITS = 3500;
+const STAR_COUNT = 700;
+/** Only a dark stage gets stars: on the cream stage they would be dirt. */
+const MAX_STAR_STAGE_LIGHTNESS = 0.25;
 /** Halvings of the framing search; 40 narrows the far plane's range far below a pixel. */
 const FRAME_SEARCH_STEPS = 40;
 /**
@@ -69,6 +77,30 @@ export function sexColour(
 		: person.sex === 'F'
 			? palette.sex.female.sphere
 			: palette.sex.unknown.sphere;
+}
+
+function makeStars(): Points {
+	const { positions, colours } = starField(STAR_COUNT, STAR_SHELL_UNITS);
+	const geometry = new BufferGeometry();
+	geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+	geometry.setAttribute('color', new Float32BufferAttribute(colours, 3));
+	// Fixed pixel size, not attenuated: a star a few thousand units away would otherwise vanish. The
+	// ratio keeps them the same CSS size on a dense screen.
+	const material = new PointsMaterial({
+		size: 1.5 * Math.min(window.devicePixelRatio, 2),
+		sizeAttenuation: false,
+		vertexColors: true,
+		transparent: true,
+		opacity: 0.85,
+		depthWrite: false,
+		fog: false
+	});
+	const points = new Points(geometry, material);
+	// Centred on the camera, so the bounding sphere three computes (round the origin) is wrong.
+	points.frustumCulled = false;
+	// Behind everything the tree draws.
+	points.renderOrder = -1;
+	return points;
 }
 
 export interface StageOptions {
@@ -153,7 +185,13 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 	host.appendChild(renderer.domElement);
 
 	const scene = new Scene();
-	scene.background = new Color(options.background);
+	const backgroundColour = new Color(options.background);
+	scene.background = backgroundColour;
+	const stars =
+		backgroundColour.getHSL({ h: 0, s: 0, l: 0 }).l <= MAX_STAR_STAGE_LIGHTNESS
+			? makeStars()
+			: null;
+	if (stars) scene.add(stars);
 	const camera = new PerspectiveCamera(FIELD_OF_VIEW_DEGREES, 1, 0.1, FAR_PLANE_UNITS);
 	const controls = new OrbitControls(camera, renderer.domElement);
 	controls.enableDamping = true;
@@ -320,6 +358,8 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 		const didMove = controls.update();
 		if (!didMove && !didAnimate && !isDirty) return;
 		isDirty = false;
+		// Pinned to the camera so the shell is always the same distance away; only rotation moves the stars.
+		stars?.position.copy(camera.position);
 		renderer.render(scene, camera);
 		for (const callback of frameCallbacks) callback();
 	};
@@ -352,6 +392,10 @@ export function createThreeStage(host: HTMLElement, options: StageOptions): Thre
 			observer.disconnect();
 			disposeWorld();
 			for (const geometry of sharedGeometries) geometry.dispose();
+			if (stars) {
+				stars.geometry.dispose();
+				(stars.material as Material).dispose();
+			}
 			controls.dispose();
 			renderer.dispose();
 			renderer.domElement.remove();
