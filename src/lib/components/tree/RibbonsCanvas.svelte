@@ -2,9 +2,9 @@
 	import type { RibbonsLayout } from '#lib/tree-layout/ribbons.js';
 	import type { RibbonsScene } from './ribbons-scene.js';
 	import { RIBBONS_CAMERAS } from './webgl-cameras.js';
-	import { RIBBON_TOKENS } from './tree-tokens.js';
+	import { RIBBON_TOKENS } from '#lib/shared/tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import { DEFAULT_PALETTE } from './palette.js';
+	import { DEFAULT_PALETTE } from '#lib/shared/palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let {

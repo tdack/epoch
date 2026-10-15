@@ -17,7 +17,7 @@
 		WEBGL_LAYOUT_MODES,
 		parseLayoutMode
 	} from '#lib/shared/view-mode.js';
-	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import { RELATIONSHIP_STYLES } from './tree-view.js';
 
 	interface Props {

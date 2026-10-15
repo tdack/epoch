@@ -36,7 +36,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';
 import type { PickOptions, PickTarget, WebGlTreeScene } from './webgl-tree.js';
-import { DEFAULT_PALETTE, type Palette } from './palette.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
 import { starField } from './star-field.js';
 
 /** How much of the canvas the framed content may fill, in clip space (1 is edge to edge). */

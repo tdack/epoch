@@ -33,8 +33,8 @@ import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.j
 import { buildOrbitPlan, orbitPositions } from '#lib/tree-layout/orrery-orbit.js';
 import { LinkPickProxy } from './orrery-link-pick.js';
 import { createThreeStage } from './three-stage.js';
-import { HIGHLIGHT_TOKENS, ORRERY_TOKENS as T } from './tree-tokens.js';
-import { DEFAULT_PALETTE, type Palette } from './palette.js';
+import { HIGHLIGHT_TOKENS, ORRERY_TOKENS as T } from '#lib/shared/tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { ORRERY_CAMERAS } from './webgl-cameras.js';
 import type { RelationshipGraphPerson } from '#lib/tree-layout/types.js';

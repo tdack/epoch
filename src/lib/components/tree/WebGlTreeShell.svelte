@@ -12,8 +12,8 @@
 		type HighlightSource,
 		type KinSource
 	} from '#lib/tree-layout/highlight.js';
-	import { RING_TOKENS } from './tree-tokens.js';
-	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from './palette.js';
+	import { RING_TOKENS } from '#lib/shared/tree-tokens.js';
+	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import { yearsLine } from './tree-view.js';
 	import {
 		describeMark,

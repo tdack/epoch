@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { treeTokenStyle, type Palette, type SexKey } from '#lib/components/tree/palette.js';
+	import { treeTokenStyle, type Palette, type SexKey } from '#lib/shared/palette.js';
 	import { SEX_COLOUR_LABELS } from '#lib/shared/settings.js';
 
 	interface Props {

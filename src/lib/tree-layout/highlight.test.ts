@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { HIGHLIGHT_TOKENS } from '#lib/components/tree/tree-tokens.js';
-import { resolvePalette } from '#lib/components/tree/palette.js';
+import { HIGHLIGHT_TOKENS } from '#lib/shared/tree-tokens.js';
+import { resolvePalette } from '#lib/shared/palette.js';
 import {
 	computeHighlight,
 	linkKey,

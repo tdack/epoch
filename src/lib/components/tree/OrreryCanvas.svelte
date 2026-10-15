@@ -2,9 +2,9 @@
 	import type { OrreryLayout } from '#lib/tree-layout/orrery.js';
 	import type { OrreryScene } from './orrery-scene.js';
 	import { ORRERY_CAMERAS } from './webgl-cameras.js';
-	import { ORRERY_TOKENS } from './tree-tokens.js';
+	import { ORRERY_TOKENS } from '#lib/shared/tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import { DEFAULT_PALETTE } from './palette.js';
+	import { DEFAULT_PALETTE } from '#lib/shared/palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let {

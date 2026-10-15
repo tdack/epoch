@@ -2,9 +2,9 @@
 	import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 	import type { PoincareScene } from './poincare-scene.js';
 	import { POINCARE_CAMERAS } from './webgl-cameras.js';
-	import { RING_TOKENS } from './tree-tokens.js';
+	import { RING_TOKENS } from '#lib/shared/tree-tokens.js';
 	import WebGlTreeShell from './WebGlTreeShell.svelte';
-	import { DEFAULT_PALETTE } from './palette.js';
+	import { DEFAULT_PALETTE } from '#lib/shared/palette.js';
 	import { sexLegend, type LegendEntry, type WebGlCanvasProps } from './webgl-tree.js';
 
 	let {

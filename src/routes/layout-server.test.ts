@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { D1Database } from '@cloudflare/workers-types';
-import { DEFAULT_PALETTE, type Palette } from '#lib/components/tree/palette.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
 import { PUBLIC_VISITOR, type UserIdentity } from '#lib/server/domain/identity.js';
 import { SettingsRepository } from '#lib/server/repositories/settings-repository.js';
 import { SettingsService } from '#lib/server/services/settings-service.js';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TREE_TOKENS } from './tree-tokens';
+import { TREE_TOKENS } from '#lib/shared/tree-tokens.js';
 import {
 	COMPACT_FROM_ZOOM,
 	FULL_ABOVE_ZOOM,

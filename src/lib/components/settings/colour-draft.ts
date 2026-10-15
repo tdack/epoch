@@ -4,7 +4,7 @@
  * one colour of an inherited group copies the inherited group first.
  */
 
-import { resolvePalette, type Palette } from '#lib/components/tree/palette.js';
+import { resolvePalette, type Palette } from '#lib/shared/palette.js';
 import type {
 	ColourGroup,
 	ColourPreset,

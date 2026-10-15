@@ -24,8 +24,13 @@ import { geodesicPoints, type Vec3 } from '#lib/tree-layout/poincare-geodesic.js
 import { linkKey, type Highlight, type Mark } from '#lib/tree-layout/highlight.js';
 import type { PoincareLayout } from '#lib/tree-layout/poincare.js';
 import { createThreeStage, sexColour } from './three-stage.js';
-import { DEFAULT_PALETTE, type Palette } from './palette.js';
-import { HIGHLIGHT_TOKENS, POINCARE_TOKENS, RING_FADE, RING_LINE_WIDTH_PX } from './tree-tokens.js';
+import { DEFAULT_PALETTE, type Palette } from '#lib/shared/palette.js';
+import {
+	HIGHLIGHT_TOKENS,
+	POINCARE_TOKENS,
+	RING_FADE,
+	RING_LINE_WIDTH_PX
+} from '#lib/shared/tree-tokens.js';
 import type { WebGlTreeScene } from './webgl-tree.js';
 import { POINCARE_CAMERAS } from './webgl-cameras.js';
 

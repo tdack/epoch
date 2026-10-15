@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PALETTE, resolvePalette } from '#lib/components/tree/palette.js';
+import { DEFAULT_PALETTE, resolvePalette } from './palette.js';
 import { COLOUR_PRESETS, floorBreaches, paletteWarnings, sexContrast } from './settings';
 
 describe('contrast floors', () => {

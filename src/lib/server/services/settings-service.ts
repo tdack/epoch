@@ -1,4 +1,4 @@
-import { resolvePalette, type Palette } from '#lib/components/tree/palette.js';
+import { resolvePalette, type Palette } from '#lib/shared/palette.js';
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
 import { applyPatch, assertContrastFloors } from '../domain/settings';
