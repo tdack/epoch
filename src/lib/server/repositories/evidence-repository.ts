@@ -50,7 +50,7 @@ const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** A citation row as the mutation snapshot has it, so the read services and the planner share one shape. */
 const citationImage = (row: typeof citations.$inferSelect) =>
-	toImage(citations, row as unknown as Record<string, unknown>) as CitationRow;
+	toImage(citations, row) as CitationRow;
 
 /** Whether a citation is the viewer's to see, as a drizzle condition on the `citations` table itself. */
 const visibleCitation = (treeId: string, scope: Scope): SQL | undefined =>

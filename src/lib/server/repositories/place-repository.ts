@@ -58,7 +58,8 @@ export const placeIdOfEvent = sql`(select p.id from places p where p.tree_id = e
  * at a record keep it because the key is the same. Batchable, unlike `db.run`.
  */
 export function pointFactsAtPlaces(db: DbClient, treeId: string) {
-	const insert = (
+	const insert = // Drizzle's typed insert-select cannot take a raw SQL select.
+	(
 		db.insert(places) as unknown as { select: (query: SQL) => { onConflictDoNothing: () => never } }
 	).select(
 		sql`select lower(hex(randomblob(16))), tree_id, lower(place), unixepoch() from events
