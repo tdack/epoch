@@ -1,5 +1,5 @@
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
-import { ApiError, call, enc, json, restartSignIn } from './client.js';
+import { ApiError, call, json, path, restartSignIn } from './client.js';
 
 /** Attach a photo or document to a person; the server checks the caller may add media to them. */
 export async function uploadMediaApi(treeId: string, personId: string, file: File): Promise<void> {
@@ -162,16 +162,12 @@ export function exportStatusApi(
 	instanceId: string,
 	signal?: AbortSignal
 ): Promise<GedcomExportStatus> {
-	return call(
-		`/api/export/status/${encodeURIComponent(instanceId)}`,
-		{ signal },
-		'Failed to check the export'
-	);
+	return call(path`/api/export/status/${instanceId}`, { signal }, 'Failed to check the export');
 }
 
 /** The address a finished export is saved from. A plain navigation, so the browser saves the file. */
 export function exportDownloadUrl(instanceId: string): string {
-	return `/api/export/download/${encodeURIComponent(instanceId)}`;
+	return path`/api/export/download/${instanceId}`;
 }
 
 /** A page of the files the caller may see; `treeId` narrows it, `cursor` continues it. */
@@ -192,7 +188,7 @@ export async function fetchFileUsage(
 	treeId: string | null,
 	fetcher: typeof fetch = fetch
 ): Promise<FileUsageDto> {
-	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
 	return call(`/api/files/usage${qs}`, { method: 'GET' }, 'Failed to read storage use', fetcher);
 }
 
@@ -204,7 +200,7 @@ export async function renameFileApi(
 	version: number | undefined
 ): Promise<void> {
 	await call(
-		`/api/files/${enc(fileId)}`,
+		path`/api/files/${fileId}`,
 		json('PATCH', { treeId, title, version }),
 		'Failed to rename the file'
 	);
@@ -213,7 +209,7 @@ export async function renameFileApi(
 /** Deletes a file's row and then its bytes. Permanent: the server keeps no copy and no undo. */
 export async function deleteFileApi(fileId: string, treeId: string): Promise<void> {
 	await call(
-		`/api/files/${enc(fileId)}?treeId=${enc(treeId)}`,
+		path`/api/files/${fileId}` + `?treeId=${encodeURIComponent(treeId)}`,
 		{ method: 'DELETE' },
 		'Failed to delete the file'
 	);
@@ -227,7 +223,7 @@ export async function attachFileApi(
 	version: number | undefined
 ): Promise<void> {
 	await call(
-		`/api/files/${enc(fileId)}/attach`,
+		path`/api/files/${fileId}/attach`,
 		json('POST', { treeId, entityId, version }),
 		'Failed to attach the file'
 	);
@@ -240,7 +236,7 @@ export async function detachFileApi(
 	version: number | undefined
 ): Promise<void> {
 	await call(
-		`/api/files/${enc(fileId)}/detach`,
+		path`/api/files/${fileId}/detach`,
 		json('POST', { treeId, version }),
 		'Failed to detach the file'
 	);
@@ -254,7 +250,7 @@ export async function moveFileApi(
 	version: number | undefined
 ): Promise<void> {
 	await call(
-		`/api/files/${enc(fileId)}/move`,
+		path`/api/files/${fileId}/move`,
 		json('POST', { treeId, entityId, version }),
 		'Failed to move the file'
 	);
@@ -265,7 +261,7 @@ export async function fetchUnlinkedFiles(
 	treeId: string | null,
 	fetcher: typeof fetch = fetch
 ): Promise<UnlinkedListDto> {
-	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
 	return call(
 		`/api/files/unlinked${qs}`,
 		{ method: 'GET' },
@@ -278,6 +274,6 @@ export async function fetchUnlinkedFiles(
 export async function deleteUnlinkedFilesApi(
 	treeId: string | null
 ): Promise<{ deleted: number; failed: number }> {
-	const qs = treeId ? `?treeId=${enc(treeId)}` : '';
+	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
 	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
 }

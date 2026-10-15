@@ -106,6 +106,16 @@ export const json = (method: string, body: unknown): RequestInit => ({
 	body: JSON.stringify(body)
 });
 
-export const enc = encodeURIComponent;
+/**
+ * Builds a URL path with every interpolated part encoded, so an id or slug can never add a segment
+ * or a query. A query string stays outside the tag, because its values are encoded separately.
+ */
+export function path(strings: TemplateStringsArray, ...parts: Array<string | number>): string {
+	return strings.reduce(
+		(url, text, index) =>
+			url + text + (index < parts.length ? encodeURIComponent(String(parts[index])) : ''),
+		''
+	);
+}
 
 export type Changed = { change: ChangeSummary | null };

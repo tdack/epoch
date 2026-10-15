@@ -4,14 +4,14 @@ import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { PersonPrivacy, PrivacySettingsDto } from '#lib/shared/privacy.js';
 import type { PersonMergeChoices, PersonMergeReviewDto } from '#lib/shared/person-merge.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 export async function createPersonApi(
 	treeId: string,
 	data: PersonFormData
 ): Promise<{ id: string; change: ChangeSummary | null }> {
 	const res = await call<{ individual: { id: string }; change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/people`,
+		path`/api/trees/${treeId}/people`,
 		json('POST', data),
 		'Failed to add individual.'
 	);
@@ -26,7 +26,7 @@ export async function updatePersonApi(
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/people/${personId}`,
+		path`/api/trees/${treeId}/people/${personId}`,
 		json('PUT', { ...data, version }),
 		'Failed to update person.'
 	);
@@ -40,7 +40,7 @@ export async function deletePersonApi(
 ): Promise<{ change: ChangeSummary | null }> {
 	const query = version === undefined ? '' : `?version=${version}`;
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/people/${personId}${query}`,
+		path`/api/trees/${treeId}/people/${personId}` + query,
 		{ method: 'DELETE' },
 		'Failed to delete person'
 	);
@@ -53,7 +53,7 @@ export function fetchPersonPage(
 	fetchFn: typeof fetch = fetch
 ): Promise<PersonPageDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}`,
+		path`/api/trees/${treeId}/people/${personId}`,
 		undefined,
 		'Failed to load the person',
 		fetchFn
@@ -66,7 +66,7 @@ export async function createFactApi(
 	fact: FactInput
 ): Promise<{ factId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts`,
+		path`/api/trees/${treeId}/people/${personId}/facts`,
 		json('POST', fact),
 		'Failed to add the fact'
 	);
@@ -79,7 +79,7 @@ export async function updateFactApi(
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/facts/${enc(factId)}`,
+		path`/api/trees/${treeId}/facts/${factId}`,
 		json('PUT', { ...fact, version }),
 		'Failed to save the fact'
 	);
@@ -91,7 +91,7 @@ export async function deleteFactApi(
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/facts/${enc(factId)}?version=${version}`,
+		path`/api/trees/${treeId}/facts/${factId}` + `?version=${version}`,
 		{ method: 'DELETE' },
 		'Failed to remove the fact'
 	);
@@ -103,7 +103,7 @@ export async function reorderFactsApi(
 	orderedFactIds: string[]
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/facts/reorder`,
+		path`/api/trees/${treeId}/people/${personId}/facts/reorder`,
 		json('POST', { orderedFactIds }),
 		'Failed to reorder the facts'
 	);
@@ -119,7 +119,7 @@ export async function previewFactApi(
 	request: FactImpactRequest
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${enc(treeId)}/facts/impact`,
+		path`/api/trees/${treeId}/facts/impact`,
 		json('POST', request),
 		'Failed to preview the change'
 	);
@@ -133,7 +133,7 @@ export async function createNameApi(
 	isPreferred = false
 ): Promise<{ nameId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names`,
+		path`/api/trees/${treeId}/people/${personId}/names`,
 		json('POST', { ...name, isPreferred }),
 		'Failed to add the name'
 	);
@@ -146,7 +146,7 @@ export async function updateNameApi(
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/names/${enc(nameId)}`,
+		path`/api/trees/${treeId}/names/${nameId}`,
 		json('PUT', { ...name, version }),
 		'Failed to save the name'
 	);
@@ -158,7 +158,7 @@ export async function deleteNameApi(
 	version: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/names/${enc(nameId)}?version=${version}`,
+		path`/api/trees/${treeId}/names/${nameId}` + `?version=${version}`,
 		{ method: 'DELETE' },
 		'Failed to remove the name'
 	);
@@ -170,7 +170,7 @@ export async function reorderNamesApi(
 	orderedNameIds: string[]
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/reorder`,
+		path`/api/trees/${treeId}/people/${personId}/names/reorder`,
 		json('POST', { orderedNameIds }),
 		'Failed to reorder the names'
 	);
@@ -183,7 +183,7 @@ export async function setPreferredNameApi(
 	version?: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/names/preferred`,
+		path`/api/trees/${treeId}/people/${personId}/names/preferred`,
 		json('POST', { nameId, version }),
 		'Failed to choose the preferred name'
 	);
@@ -197,7 +197,7 @@ export async function setPersonPrivacyApi(
 	version?: number
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(personId)}/privacy`,
+		path`/api/trees/${treeId}/people/${personId}/privacy`,
 		json('PUT', { privacy, version }),
 		'Failed to change the privacy of the person'
 	);
@@ -208,7 +208,7 @@ export async function fetchPrivacySettings(
 	fetcher: typeof fetch = fetch
 ): Promise<PrivacySettingsDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/privacy`,
+		path`/api/trees/${treeId}/privacy`,
 		{ method: 'GET' },
 		'Failed to load the privacy settings',
 		fetcher
@@ -220,7 +220,7 @@ export async function savePrivacySettings(
 	patch: Partial<PrivacySettingsDto>
 ): Promise<PrivacySettingsDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/privacy`,
+		path`/api/trees/${treeId}/privacy`,
 		json('PUT', patch),
 		'Failed to save the privacy settings'
 	);
@@ -239,7 +239,7 @@ export async function reviewPersonMergeApi(
 	body: PersonMergeBody
 ): Promise<{ review: PersonMergeReviewDto; impact: ImpactSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(survivorId)}/merge/impact`,
+		path`/api/trees/${treeId}/people/${survivorId}/merge/impact`,
 		json('POST', body),
 		'Failed to review the merge'
 	);
@@ -251,7 +251,7 @@ export async function mergePeopleApi(
 	body: PersonMergeBody
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/people/${enc(survivorId)}/merge`,
+		path`/api/trees/${treeId}/people/${survivorId}/merge`,
 		json('POST', body),
 		'Failed to merge the people'
 	);
@@ -268,7 +268,7 @@ export async function previewNameApi(
 	request: NameImpactRequest
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${enc(treeId)}/names/impact`,
+		path`/api/trees/${treeId}/names/impact`,
 		json('POST', request),
 		'Failed to preview the change'
 	);

@@ -1,6 +1,6 @@
 import type { InvitationSentDto, MemberDto, MembersDto } from '#lib/shared/members.js';
 import type { TreeRole } from '#lib/shared/roles.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 export type { InvitationSentDto, MemberDto, MembersDto };
 
@@ -9,7 +9,7 @@ export async function fetchMembers(
 	fetcher: typeof fetch = fetch
 ): Promise<MembersDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/members`,
+		path`/api/trees/${treeId}/members`,
 		{ method: 'GET' },
 		'Failed to load the members',
 		fetcher
@@ -22,7 +22,7 @@ export async function inviteMemberApi(
 	role: TreeRole
 ): Promise<InvitationSentDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/invitations`,
+		path`/api/trees/${treeId}/invitations`,
 		json('POST', { email, role }),
 		'Failed to send the invitation'
 	);
@@ -30,7 +30,7 @@ export async function inviteMemberApi(
 
 export async function withdrawInvitationApi(treeId: string, invitationId: string): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/invitations/${enc(invitationId)}`,
+		path`/api/trees/${treeId}/invitations/${invitationId}`,
 		{ method: 'DELETE' },
 		'Failed to withdraw the invitation'
 	);
@@ -43,7 +43,7 @@ export async function changeMemberRoleApi(
 	version: number
 ): Promise<MemberDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/members/${enc(userId)}`,
+		path`/api/trees/${treeId}/members/${userId}`,
 		json('PATCH', { role, version }),
 		'Failed to change the role'
 	);
@@ -55,7 +55,7 @@ export async function removeMemberApi(
 	version: number
 ): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/members/${enc(userId)}?version=${version}`,
+		path`/api/trees/${treeId}/members/${userId}` + `?version=${version}`,
 		{ method: 'DELETE' },
 		'Failed to remove the member'
 	);

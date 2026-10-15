@@ -11,14 +11,14 @@ import type {
 	SurnameListItem,
 	UnionListItem
 } from '#lib/shared/lists.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 export async function searchPeopleApi(
 	treeId: string,
 	query: string
 ): Promise<PeopleSearchResult[]> {
 	const data = await call<{ people?: PeopleSearchResult[] }>(
-		`/api/trees/${treeId}/people-search?q=${encodeURIComponent(query)}`,
+		path`/api/trees/${treeId}/people-search` + `?q=${encodeURIComponent(query)}`,
 		undefined,
 		'Failed to search people'
 	);
@@ -32,7 +32,7 @@ export function searchTreeApi(
 	fetchFn: typeof fetch = fetch
 ): Promise<SearchResponse> {
 	return call(
-		`/api/trees/${treeId}/search?${params}`,
+		path`/api/trees/${treeId}/search` + `?${params}`,
 		undefined,
 		'Failed to search the tree',
 		fetchFn
@@ -47,7 +47,7 @@ export function fetchList<T extends IndividualListItem | UnionListItem | Surname
 	fetchFn: typeof fetch = fetch
 ): Promise<Page<T>> {
 	return call(
-		`/api/trees/${treeId}/lists/${list}?${params}`,
+		path`/api/trees/${treeId}/lists/${list}` + `?${params}`,
 		undefined,
 		'Failed to load the list',
 		fetchFn
@@ -56,7 +56,7 @@ export function fetchList<T extends IndividualListItem | UnionListItem | Surname
 
 export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
 	return call(
-		`/api/trees/${treeId}/marks`,
+		path`/api/trees/${treeId}/marks`,
 		undefined,
 		'Failed to load favourites and recents',
 		fetchFn
@@ -66,7 +66,7 @@ export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promi
 /** Record a visit; answers with the user's marks as they now stand. */
 export function recordRecentApi(treeId: string, personId: string): Promise<MarksDto> {
 	return call(
-		`/api/trees/${treeId}/marks/recents`,
+		path`/api/trees/${treeId}/marks/recents`,
 		json('POST', { personId }),
 		'Failed to record the visit'
 	);
@@ -78,7 +78,7 @@ export function setFavoriteApi(
 	isFavorite: boolean
 ): Promise<MarksDto> {
 	return call(
-		`/api/trees/${treeId}/marks/favorites/${encodeURIComponent(personId)}`,
+		path`/api/trees/${treeId}/marks/favorites/${personId}`,
 		{ method: isFavorite ? 'PUT' : 'DELETE' },
 		'Failed to change the favourite'
 	);
@@ -91,7 +91,8 @@ export async function fetchRelationship(
 	fetcher: typeof fetch = fetch
 ): Promise<RelationshipDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/relationship?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
+		path`/api/trees/${treeId}/relationship` +
+			`?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
 		{ method: 'GET' },
 		'Failed to work out the relationship',
 		fetcher
@@ -105,7 +106,8 @@ export async function fetchPedigree(
 	fetcher: typeof fetch = fetch
 ): Promise<PedigreeDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/charts/pedigree?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		path`/api/trees/${treeId}/charts/pedigree` +
+			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
 		{ method: 'GET' },
 		'Failed to load the pedigree',
 		fetcher
@@ -119,7 +121,8 @@ export async function fetchDescendants(
 	fetcher: typeof fetch = fetch
 ): Promise<DescendantsDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/charts/descendants?person=${encodeURIComponent(personId)}&generations=${generations}`,
+		path`/api/trees/${treeId}/charts/descendants` +
+			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
 		{ method: 'GET' },
 		'Failed to load the descendants',
 		fetcher
@@ -132,7 +135,7 @@ export async function fetchPlaces(
 	fetcher: typeof fetch = fetch
 ): Promise<Page<PlaceListItem>> {
 	return call(
-		`/api/trees/${enc(treeId)}/places?${params}`,
+		path`/api/trees/${treeId}/places` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the places',
 		fetcher
@@ -148,7 +151,7 @@ export async function fetchPlace(
 	const query = new URLSearchParams(params);
 	query.set('name', name);
 	return call(
-		`/api/trees/${enc(treeId)}/places?${query}`,
+		path`/api/trees/${treeId}/places` + `?${query}`,
 		{ method: 'GET' },
 		'Failed to load the place',
 		fetcher
@@ -171,7 +174,7 @@ export async function rewritePlaceApi(
 	name: string
 ): Promise<{ change: ChangeSummary | null; name: string }> {
 	return call(
-		`/api/trees/${enc(treeId)}/places/${enc(placeId)}`,
+		path`/api/trees/${treeId}/places/${placeId}`,
 		json('PUT', { name }),
 		'Failed to change the place'
 	);
@@ -182,7 +185,7 @@ export async function previewStandardiseDatesApi(
 	treeId: string
 ): Promise<import('#lib/shared/date-tidy.js').DateTidyPreview> {
 	return call(
-		`/api/trees/${enc(treeId)}/dates/standardise`,
+		path`/api/trees/${treeId}/dates/standardise`,
 		{},
 		'Failed to preview standardising the dates'
 	);
@@ -193,7 +196,7 @@ export async function standardiseDatesApi(
 	treeId: string
 ): Promise<{ change: ChangeSummary | null; remaining: number }> {
 	return call(
-		`/api/trees/${enc(treeId)}/dates/standardise`,
+		path`/api/trees/${treeId}/dates/standardise`,
 		{ method: 'POST' },
 		'Failed to standardise the dates'
 	);
@@ -205,7 +208,7 @@ export async function previewPlaceRewriteApi(
 	name: string
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${enc(treeId)}/places/${enc(placeId)}/impact`,
+		path`/api/trees/${treeId}/places/${placeId}/impact`,
 		json('POST', { name }),
 		'Failed to preview the change'
 	);
@@ -217,7 +220,7 @@ export async function fetchQuality(
 	fetcher: typeof fetch = fetch
 ): Promise<QualityReport> {
 	return call(
-		`/api/trees/${enc(treeId)}/quality`,
+		path`/api/trees/${treeId}/quality`,
 		{ method: 'GET' },
 		'Failed to load the report',
 		fetcher
@@ -231,7 +234,7 @@ export async function dismissFindingsApi(
 	reason: string
 ): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/quality`,
+		path`/api/trees/${treeId}/quality`,
 		json('PUT', { keys, reason }),
 		keys.length === 1 ? 'Failed to dismiss the finding' : 'Failed to dismiss the findings'
 	);
@@ -239,7 +242,7 @@ export async function dismissFindingsApi(
 
 export async function restoreFindingApi(treeId: string, key: string): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/quality?key=${enc(key)}`,
+		path`/api/trees/${treeId}/quality` + `?key=${encodeURIComponent(key)}`,
 		{ method: 'DELETE' },
 		'Failed to restore the finding'
 	);

@@ -46,3 +46,11 @@ describe('a 401 from the API', () => {
 		expect(assign).not.toHaveBeenCalled();
 	});
 });
+
+describe('path', () => {
+	it('encodes every interpolated part and leaves the literal text alone', async () => {
+		const { path } = await loadApi(false);
+		expect(path`/api/trees/${'a/b'}/people/${'x?y'}`).toBe('/api/trees/a%2Fb/people/x%3Fy');
+		expect(path`/api/n/${7}`).toBe('/api/n/7');
+	});
+});

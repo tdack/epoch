@@ -8,7 +8,7 @@ import type {
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices, MergeConflict } from '#lib/shared/union-merge.js';
 import type { UnionPageDto } from '#lib/shared/union-page.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 /** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
 export async function planRelationshipApi(
@@ -16,7 +16,7 @@ export async function planRelationshipApi(
 	intent: RelationshipIntent
 ): Promise<RelationshipPlan> {
 	const data = await call<{ plan: RelationshipPlan }>(
-		`/api/trees/${treeId}/relationships/plan`,
+		path`/api/trees/${treeId}/relationships/plan`,
 		json('POST', { intent }),
 		'Failed to preview relationship'
 	);
@@ -28,7 +28,7 @@ export async function applyRelationshipApi(
 	intent: RelationshipIntent
 ): Promise<{ plan: RelationshipPlan; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${treeId}/relationships`,
+		path`/api/trees/${treeId}/relationships`,
 		json('POST', { intent }),
 		'Failed to apply relationship'
 	);
@@ -49,7 +49,7 @@ export async function removeRelationshipApi(
 	command: RelationshipDeleteCommand
 ): Promise<{ change: ChangeSummary | null }> {
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/relationships/remove`,
+		path`/api/trees/${treeId}/relationships/remove`,
 		json('POST', command),
 		'Failed to remove relationship'
 	);
@@ -64,7 +64,7 @@ export async function previewImpactApi(
 	request: ImpactRequest
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${treeId}/impact`,
+		path`/api/trees/${treeId}/impact`,
 		json('POST', request),
 		'Failed to preview the impact'
 	);
@@ -77,7 +77,7 @@ export async function updateUnionApi(
 	payload: { version: number; status?: string; events?: UnionEventInput[] }
 ): Promise<{ change: ChangeSummary | null }> {
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/unions/${unionId}`,
+		path`/api/trees/${treeId}/unions/${unionId}`,
 		json('PUT', payload),
 		'Failed to save the partnership'
 	);
@@ -103,7 +103,7 @@ export async function previewUnionMergeApi(
 	request: MergeUnionsRequest
 ): Promise<MergePreviewResponse> {
 	return call(
-		`/api/trees/${treeId}/unions/merge`,
+		path`/api/trees/${treeId}/unions/merge`,
 		json('POST', { ...request, isPreview: true }),
 		'Failed to preview the merge'
 	);
@@ -114,7 +114,7 @@ export async function mergeUnionsApi(
 	request: MergeUnionsRequest
 ): Promise<{ change: ChangeSummary | null }> {
 	const res = await call<{ change: ChangeSummary | null }>(
-		`/api/trees/${treeId}/unions/merge`,
+		path`/api/trees/${treeId}/unions/merge`,
 		json('POST', request),
 		'Failed to merge the partnerships'
 	);
@@ -125,7 +125,7 @@ export async function mergeUnionsApi(
 export async function undoApi(
 	treeId: string
 ): Promise<{ undone: { id: string; summary: string } }> {
-	return call(`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
+	return call(path`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
 }
 
 export function fetchUnionPage(
@@ -134,7 +134,7 @@ export function fetchUnionPage(
 	fetchFn: typeof fetch = fetch
 ): Promise<UnionPageDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/unions/${enc(unionId)}`,
+		path`/api/trees/${treeId}/unions/${unionId}`,
 		undefined,
 		'Failed to load the partnership',
 		fetchFn

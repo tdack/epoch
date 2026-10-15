@@ -6,7 +6,7 @@ import type {
 	SharedNoteInput
 } from '#lib/shared/notes.js';
 import type { Page } from '#lib/shared/lists.js';
-import { type Changed, call, enc, json } from './client.js';
+import { type Changed, call, json, path } from './client.js';
 
 export async function fetchNotes(
 	treeId: string,
@@ -14,7 +14,7 @@ export async function fetchNotes(
 	fetcher: typeof fetch = fetch
 ): Promise<Page<NoteListItem>> {
 	return call(
-		`/api/trees/${enc(treeId)}/lists/notes?${params}`,
+		path`/api/trees/${treeId}/lists/notes` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the notes',
 		fetcher
@@ -28,7 +28,7 @@ export async function fetchNote(
 	fetcher: typeof fetch = fetch
 ): Promise<SharedNoteDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/notes/${enc(noteId)}?${params}`,
+		path`/api/trees/${treeId}/notes/${noteId}` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to load the note',
 		fetcher
@@ -39,7 +39,7 @@ export async function createSharedNoteApi(
 	treeId: string,
 	note: SharedNoteInput & { text: string }
 ): Promise<{ noteId: string; change: ChangeSummary | null }> {
-	return call(`/api/trees/${enc(treeId)}/notes`, json('POST', note), 'Failed to add the note');
+	return call(path`/api/trees/${treeId}/notes`, json('POST', note), 'Failed to add the note');
 }
 
 export async function updateSharedNoteApi(
@@ -49,7 +49,7 @@ export async function updateSharedNoteApi(
 	version: number
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/notes/${enc(noteId)}`,
+		path`/api/trees/${treeId}/notes/${noteId}`,
 		json('PUT', { ...note, version }),
 		'Failed to save the note'
 	);
@@ -63,7 +63,7 @@ export async function deleteSharedNoteApi(
 	const query = new URLSearchParams({ version: String(options.version) });
 	if (options.shouldDetach) query.set('detach', 'true');
 	return call(
-		`/api/trees/${enc(treeId)}/notes/${enc(noteId)}?${query}`,
+		path`/api/trees/${treeId}/notes/${noteId}` + `?${query}`,
 		{ method: 'DELETE' },
 		'Failed to delete the note'
 	);
@@ -75,7 +75,7 @@ export async function mergeNotesApi(
 	body: { mergedIds: string[]; expectedVersions?: Record<string, number> }
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/notes/${enc(survivorId)}/merge`,
+		path`/api/trees/${treeId}/notes/${survivorId}/merge`,
 		json('POST', body),
 		'Failed to merge the notes'
 	);
@@ -91,7 +91,7 @@ export async function previewNoteApi(
 	request: NoteImpactRequest
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${enc(treeId)}/notes/impact`,
+		path`/api/trees/${treeId}/notes/impact`,
 		json('POST', request),
 		'Failed to preview the change'
 	);
@@ -105,7 +105,7 @@ export async function addNoteApi(
 	text: string
 ): Promise<{ attachmentId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links`,
+		path`/api/trees/${treeId}/note-links`,
 		json('POST', { subject, text }),
 		'Failed to add the note'
 	);
@@ -118,7 +118,7 @@ export async function attachNoteApi(
 	noteId: string
 ): Promise<{ attachmentId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links`,
+		path`/api/trees/${treeId}/note-links`,
 		json('POST', { subject, noteId }),
 		'Failed to attach the note'
 	);
@@ -131,7 +131,7 @@ export async function updateNoteApi(
 	version: number
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links/${enc(attachmentId)}`,
+		path`/api/trees/${treeId}/note-links/${attachmentId}`,
 		json('PUT', { text, version }),
 		'Failed to save the note'
 	);
@@ -143,7 +143,7 @@ export async function removeNoteApi(
 	version: number
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links/${enc(attachmentId)}?version=${version}`,
+		path`/api/trees/${treeId}/note-links/${attachmentId}` + `?version=${version}`,
 		{ method: 'DELETE' },
 		'Failed to remove the note'
 	);
@@ -155,7 +155,7 @@ export async function shareNoteApi(
 	version: number
 ): Promise<{ noteId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links/${enc(attachmentId)}/share`,
+		path`/api/trees/${treeId}/note-links/${attachmentId}/share`,
 		json('POST', { version }),
 		'Failed to share the note'
 	);
@@ -167,7 +167,7 @@ export async function reorderNotesApi(
 	orderedAttachmentIds: string[]
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/note-links/reorder`,
+		path`/api/trees/${treeId}/note-links/reorder`,
 		json('POST', { subject, orderedAttachmentIds }),
 		'Failed to reorder the notes'
 	);

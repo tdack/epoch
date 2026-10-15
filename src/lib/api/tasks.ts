@@ -1,6 +1,6 @@
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { TaskInput, TaskPageDto, TaskSubjectRef } from '#lib/shared/tasks.js';
-import { type Changed, call, enc, json } from './client.js';
+import { type Changed, call, json, path } from './client.js';
 
 export async function fetchTasks(
 	treeId: string,
@@ -8,7 +8,7 @@ export async function fetchTasks(
 	fetcher: typeof fetch = fetch
 ): Promise<TaskPageDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/tasks?${params}`,
+		path`/api/trees/${treeId}/tasks` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the tasks',
 		fetcher
@@ -21,7 +21,7 @@ export async function createTaskApi(
 	link: { subject?: TaskSubjectRef | null; findingKey?: string | null } = {}
 ): Promise<{ taskId: string; change: ChangeSummary | null }> {
 	return call(
-		`/api/trees/${enc(treeId)}/tasks`,
+		path`/api/trees/${treeId}/tasks`,
 		json('POST', { ...task, subject: link.subject ?? null, findingKey: link.findingKey ?? null }),
 		'Failed to add the task'
 	);
@@ -34,7 +34,7 @@ export async function updateTaskApi(
 	version: number
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/tasks/${enc(taskId)}`,
+		path`/api/trees/${treeId}/tasks/${taskId}`,
 		json('PUT', { ...task, version }),
 		'Failed to save the task'
 	);
@@ -46,7 +46,7 @@ export async function deleteTaskApi(
 	version: number
 ): Promise<Changed> {
 	return call(
-		`/api/trees/${enc(treeId)}/tasks/${enc(taskId)}?version=${version}`,
+		path`/api/trees/${treeId}/tasks/${taskId}` + `?version=${version}`,
 		{ method: 'DELETE' },
 		'Failed to delete the task'
 	);
@@ -58,7 +58,7 @@ export async function previewDeleteTaskApi(
 	version: number
 ): Promise<ImpactSummary> {
 	const data = await call<{ impact: ImpactSummary }>(
-		`/api/trees/${enc(treeId)}/tasks/impact`,
+		path`/api/trees/${treeId}/tasks/impact`,
 		json('POST', { taskId, version }),
 		'Failed to preview the change'
 	);

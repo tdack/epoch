@@ -1,7 +1,7 @@
 import type { TreeSummary } from '#lib/types/genealogy.js';
 import type { FocusGraphDto, TreeSummaryDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import type { TreeRole } from '#lib/shared/roles.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 export async function createTreeApi(payload: {
 	name: string;
@@ -23,7 +23,7 @@ export async function renameTreeApi(
 	version: number
 ): Promise<{ id: string; slug: string | null }> {
 	return call<{ tree: { id: string; slug: string | null } }>(
-		`/api/trees/${enc(treeId)}`,
+		path`/api/trees/${treeId}`,
 		json('PATCH', { name, slug, version }),
 		'Failed to rename tree'
 	).then((d) => d.tree);
@@ -63,7 +63,7 @@ export async function setPublicTreeApi(treeId: string | null, confirmName: strin
 }
 
 export async function deleteTreeApi(treeId: string): Promise<void> {
-	await call(`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
+	await call(path`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }
 
 export interface TreeImpact {
@@ -76,7 +76,7 @@ export interface TreeImpact {
 
 export async function previewTreeDeletionApi(treeId: string): Promise<TreeImpact> {
 	const data = await call<{ treeImpact: TreeImpact }>(
-		`/api/trees/${treeId}/impact`,
+		path`/api/trees/${treeId}/impact`,
 		json('POST', { kind: 'delete_tree' }),
 		'Failed to preview the impact'
 	);
@@ -114,7 +114,7 @@ export function fetchFocusGraph(
 		params.set('origins', query.shouldIncludePartnerOrigins ? '1' : '0');
 	if (query.exp?.length) params.set('exp', query.exp.join(','));
 	return call(
-		`/api/trees/${enc(treeId)}/graph?${params}`,
+		path`/api/trees/${treeId}/graph` + `?${params}`,
 		undefined,
 		'Failed to load the tree',
 		fetchFn
@@ -127,7 +127,7 @@ export function fetchWholeTreeGraph(
 	fetchFn: typeof fetch = fetch
 ): Promise<WholeTreeGraphDto> {
 	return call(
-		`/api/trees/${enc(treeId)}/graph?scope=all`,
+		path`/api/trees/${treeId}/graph` + '?scope=all',
 		undefined,
 		'Failed to load the tree',
 		fetchFn
@@ -138,7 +138,7 @@ export function fetchTreeSummary(
 	treeId: string,
 	fetchFn: typeof fetch = fetch
 ): Promise<TreeSummaryDto> {
-	return call(`/api/trees/${enc(treeId)}/summary`, undefined, 'Failed to load the tree', fetchFn);
+	return call(path`/api/trees/${treeId}/summary`, undefined, 'Failed to load the tree', fetchFn);
 }
 
 export function fetchTreeList(fetchFn: typeof fetch = fetch): Promise<TreeSummary[]> {

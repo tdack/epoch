@@ -1,11 +1,11 @@
 import type { LayoutMode } from '#lib/shared/view-mode.js';
 import type { SettingsPatch, SettingsView } from '#lib/shared/settings.js';
-import { call, enc, json } from './client.js';
+import { call, json, path } from './client.js';
 
 /** The caller's own view in this tree; `null` clears it so the tree's default applies. */
 export async function saveViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/view-mode`,
+		path`/api/trees/${treeId}/view-mode`,
 		json('PUT', { mode }),
 		'Failed to save the view'
 	);
@@ -19,7 +19,7 @@ export async function saveDefaultTree(treeId: string | null): Promise<void> {
 /** The view members with no choice of their own get; the owner's to set. */
 export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
 	await call(
-		`/api/trees/${enc(treeId)}/default-view`,
+		path`/api/trees/${treeId}/default-view`,
 		json('PUT', { mode }),
 		'Failed to save the default view'
 	);
