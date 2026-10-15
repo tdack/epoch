@@ -8,7 +8,7 @@
  */
 export const TREE_TOKENS = {
 	'--tree-bg': '#f7f3ea',
-	'--tree-dot': '#d6cebf',
+	'--tree-dot': '#c2b7a0',
 	'--tree-ink': '#1c1917',
 	'--tree-ink-muted': '#57534e',
 	'--tree-panel': '#fdfbf7',

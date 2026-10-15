@@ -140,6 +140,8 @@
 	let containerElement: HTMLDivElement | null = $state(null);
 	let svgElement: SVGSVGElement | null = $state(null);
 	const viewport = new TreeViewport();
+	/** Dot spacing on the flat canvas, in CSS pixels. */
+	const DOT_GRID_PX = 22;
 	const transform = $derived(viewport.transform);
 	const size = $derived(viewport.size);
 	// Not on a phone, where it would cover the cards it maps, and not while the whole tree shows.
@@ -538,9 +540,11 @@
 	onclick={onCanvasClick}
 	onkeydown={onKeydown}
 >
+	<!-- Follows the pan (not the zoom, which would alias the grid) so dragging slides the dots under the cards. -->
 	<div
-		class="pointer-events-none absolute inset-0 opacity-40"
-		style="background-image: radial-gradient(circle, var(--tree-dot) 1px, transparent 1px); background-size: 24px 24px;"
+		class="pointer-events-none absolute inset-0"
+		style="background-image: radial-gradient(circle, var(--tree-dot) 1.5px, transparent 1.5px); background-size: {DOT_GRID_PX}px {DOT_GRID_PX}px; background-position: {transform.x %
+			DOT_GRID_PX}px {transform.y % DOT_GRID_PX}px;"
 	></div>
 
 	<svg
