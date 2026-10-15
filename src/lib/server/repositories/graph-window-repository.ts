@@ -369,6 +369,44 @@ export class GraphWindowRepository {
 		return { people: people[0]!.n, unions: unionCount[0]!.n };
 	}
 
+	private deletionCountQueries(treeId: string) {
+		const total = (
+			table:
+				typeof individuals | typeof unions | typeof parentChild | typeof events | typeof mediaItems
+		) => this.db.select({ n: count() }).from(table).where(eq(table.treeId, treeId));
+		return [
+			total(individuals),
+			total(unions),
+			total(parentChild),
+			total(events),
+			total(mediaItems)
+		] as const;
+	}
+
+	/**
+	 * What deleting a tree would erase, counted in one batch rather than by loading its rows. Each
+	 * count walks the tree's index, so this is linear in the tree and holds no row in memory.
+	 */
+	async deletionCounts(treeId: string): Promise<{
+		people: number;
+		unions: number;
+		links: number;
+		events: number;
+		media: number;
+	}> {
+		// D1 batch results are untyped tuples; the queries are known to be these shapes.
+		const [people, unionCount, links, eventCount, media] = (await this.db.batch(
+			this.deletionCountQueries(treeId)
+		)) as unknown as Array<Array<{ n: number }>>;
+		return {
+			people: people[0]!.n,
+			unions: unionCount[0]!.n,
+			links: links[0]!.n,
+			events: eventCount[0]!.n,
+			media: media[0]!.n
+		};
+	}
+
 	/** Every statement this repository can send for a tree, for the query-plan test to explain. */
 	statementsForPlans(
 		treeId: string,
@@ -393,7 +431,10 @@ export class GraphWindowRepository {
 			'person ids in order': this.personIdsAfterQuery(treeId, 0, 3),
 			'first person': this.firstPersonQuery(treeId),
 			'count people': this.countQueries(treeId)[0],
-			'count unions': this.countQueries(treeId)[1]
+			'count unions': this.countQueries(treeId)[1],
+			'count links': this.deletionCountQueries(treeId)[2],
+			'count events': this.deletionCountQueries(treeId)[3],
+			'count media': this.deletionCountQueries(treeId)[4]
 		};
 	}
 }

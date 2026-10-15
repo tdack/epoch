@@ -6,8 +6,9 @@
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { trees } from '../db/schema';
+import { events, individuals, mediaItems, parentChild, trees, unions } from '../db/schema';
 import { UnauthorizedError } from '../domain/errors';
+import { ChangeStore } from '../repositories/change-store';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -126,5 +127,54 @@ describe('deleting a tree and its stored files', () => {
 		expect(remaining(bucket)).toEqual(before);
 		expect(before).toEqual([...keys, ...kept].sort());
 		expect(await t.db.select().from(trees).where(eq(trees.id, treeId))).toHaveLength(1);
+	});
+});
+
+describe('counting what deleting a tree would erase', () => {
+	it('counts each kind of row in the tree, and only those, as loading them would', async () => {
+		const treeId = await createTestTree(t.db, owner);
+		const otherTreeId = await createTestTree(t.db, owner);
+		const [mother, father, child] = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+		const unionId = crypto.randomUUID();
+		await t.db.insert(individuals).values([
+			{ id: mother, treeId },
+			{ id: father, treeId },
+			{ id: child, treeId }
+		]);
+		await t.db.insert(unions).values({ id: unionId, treeId, status: 'active' });
+		await t.db.insert(parentChild).values({
+			id: crypto.randomUUID(),
+			treeId,
+			parentId: mother,
+			childId: child,
+			type: 'biological',
+			status: 'active',
+			unionId
+		});
+		await t.db.insert(events).values([
+			{ id: crypto.randomUUID(), treeId, entityType: 'INDIVIDUAL', entityId: child, type: 'BIRT' },
+			{ id: crypto.randomUUID(), treeId, entityType: 'FAMILY', entityId: unionId, type: 'MARR' }
+		]);
+		await t.db.insert(mediaItems).values({
+			id: crypto.randomUUID(),
+			treeId,
+			entityId: child,
+			r2ObjectKey: `media/${treeId}/photo.jpg`,
+			mimeType: 'image/jpeg'
+		});
+		// A neighbour's rows must not be counted under this tree.
+		await t.db.insert(individuals).values({ id: crypto.randomUUID(), treeId: otherTreeId });
+
+		const counts = await new TreeService(t.db).previewDeleteTree(treeId, owner.context);
+		const rows = await new ChangeStore(t.db).loadRows(treeId);
+
+		expect(counts).toEqual({ people: 3, unions: 1, links: 1, events: 2, media: 1 });
+		expect(counts).toEqual({
+			people: rows.individuals.length,
+			unions: rows.unions.length,
+			links: rows.parentChild.length,
+			events: rows.events.length,
+			media: rows.mediaItems.length
+		});
 	});
 });

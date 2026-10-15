@@ -2,6 +2,7 @@ import type { DbClient } from '../db';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { GenealogyRepository } from '../repositories/genealogy-repository';
+import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import type { TreeAction } from '../auth/authorization';
 import type { LayoutMode } from '../../shared/view-mode';
 import { isValidTreeSlug } from '../../shared/tree-slug';
@@ -187,13 +188,6 @@ export class TreeService {
 	/** Counts of everything deleting a tree would erase. Deleting a tree is not undoable. */
 	async previewDeleteTree(treeId: string, context: AuthenticatedContext) {
 		await this.requireOwnerOrAction(treeId, context, 'tree:delete');
-		const rows = await this.runner.store.loadRows(treeId);
-		return {
-			people: rows.individuals.length,
-			unions: rows.unions.length,
-			links: rows.parentChild.length,
-			events: rows.events.length,
-			media: rows.mediaItems.length
-		};
+		return new GraphWindowRepository(this.db).deletionCounts(treeId);
 	}
 }
