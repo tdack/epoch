@@ -128,7 +128,13 @@ describe('preview matches result, for every intent', () => {
 		});
 		expect(executed.sentence).toBe("Alex Walker will be recorded as Sam Smith's adoptive mother.");
 		expect(after.parentChild).toEqual([
-			{ parentId: parent.id, childId: child.id, type: 'adoptive', unionId: null }
+			{
+				id: expect.any(String),
+				parentId: parent.id,
+				childId: child.id,
+				type: 'adoptive',
+				unionId: null
+			}
 		]);
 		expect(shape(executed.affected)).toEqual([
 			'created link Alex Walker as adoptive parent of Sam Smith'
@@ -149,7 +155,13 @@ describe('preview matches result, for every intent', () => {
 		const nia = after.people.find((p) => p.displayName === 'Nia Novak');
 		expect(nia).toBeDefined();
 		expect(after.parentChild).toEqual([
-			{ parentId: nia!.id, childId: child.id, type: 'biological', unionId: null }
+			{
+				id: expect.any(String),
+				parentId: nia!.id,
+				childId: child.id,
+				type: 'biological',
+				unionId: null
+			}
 		]);
 		expect(shape(executed.affected)).toEqual([
 			'created link Nia Novak as biological parent of Sam Smith',
@@ -178,7 +190,13 @@ describe('preview matches result, for every intent', () => {
 		);
 		const union = after.unions.find((u) => u.partnerIds.includes(alex.id))!;
 		expect(after.parentChild).toEqual([
-			{ parentId: alex.id, childId: sam.id, type: 'biological', unionId: union.id }
+			{
+				id: expect.any(String),
+				parentId: alex.id,
+				childId: sam.id,
+				type: 'biological',
+				unionId: union.id
+			}
 		]);
 	});
 
@@ -459,10 +477,17 @@ describe('changing a parent link’s type', () => {
 			'adoptive parent instead of biological parent in the Alex Walker–Robin Reed family'
 		);
 		expect(before.parentChild).toEqual([
-			{ parentId: alex.id, childId: sam.id, type: 'biological', unionId: expect.any(String) }
+			{
+				id: expect.any(String),
+				parentId: alex.id,
+				childId: sam.id,
+				type: 'biological',
+				unionId: expect.any(String)
+			}
 		]);
 		expect(after.parentChild).toEqual([
 			{
+				id: expect.any(String),
 				parentId: alex.id,
 				childId: sam.id,
 				type: 'adoptive',
@@ -778,7 +803,13 @@ describe('removing relationships', () => {
 		expect(after.people).toHaveLength(3);
 		expect(after.unions).toEqual([]);
 		expect(after.parentChild).toEqual([
-			{ parentId: homer.id, childId: bart.id, type: 'biological', unionId: null }
+			{
+				id: expect.any(String),
+				parentId: homer.id,
+				childId: bart.id,
+				type: 'biological',
+				unionId: null
+			}
 		]);
 	});
 
@@ -1007,7 +1038,13 @@ describe('the change log and undo', () => {
 		const after = await s.graph();
 		expect(after.people.map((p) => p.displayName).sort()).toEqual(['Kit', 'Pat']);
 		expect(after.parentChild).toEqual([
-			{ parentId: parent.id, childId: child.id, type: 'biological', unionId: null }
+			{
+				id: expect.any(String),
+				parentId: parent.id,
+				childId: child.id,
+				type: 'biological',
+				unionId: null
+			}
 		]);
 	});
 
