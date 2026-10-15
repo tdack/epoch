@@ -281,7 +281,7 @@ export class ChangeStore {
 		for (const op of ops) {
 			if (!treeColumnOf(TABLES[op.table])) continue;
 			for (const image of [op.before, op.after]) {
-				const imageTreeId = image?.treeId;
+				const imageTreeId = image && 'treeId' in image ? image.treeId : undefined;
 				if (imageTreeId !== undefined && imageTreeId !== treeId) {
 					throw new ValidationError('A change may not write across trees');
 				}

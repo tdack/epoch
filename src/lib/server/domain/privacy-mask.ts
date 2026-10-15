@@ -343,57 +343,66 @@ function touchesHidden(
 	hiddenCitations: Set<string>,
 	hiddenRecords: { sources: Set<string>; notes: Set<string> }
 ): boolean {
-	return [op.before, op.after].some((image) => {
-		if (!image) return false;
-		const r = image as Record<string, string | undefined>;
-		switch (op.table) {
-			case 'individuals':
-				return hidden.has(op.id);
-			case 'person_names':
-				return hidden.has(r.personId ?? '');
-			case 'unions':
-				return hiddenUnions.has(op.id);
-			case 'union_partners':
-				return hidden.has(r.personId ?? '') || hiddenUnions.has(r.unionId ?? '');
-			case 'parent_child':
-				return (
-					hidden.has(r.parentId ?? '') ||
-					hidden.has(r.childId ?? '') ||
-					hiddenUnions.has(r.unionId ?? '')
-				);
-			case 'events':
-				return r.entityType === 'INDIVIDUAL'
-					? hidden.has(r.entityId ?? '')
-					: hiddenUnions.has(r.entityId ?? '');
-			case 'media_items':
-				// A detached file is editor-only, so an op on it is one a restricted viewer must not see.
-				return !r.entityId || hidden.has(r.entityId);
-			case 'citations':
-				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
-			case 'note_attachments':
-				// A note on a citation is as private as the citation's own subject; one on a source or
-				// repository belongs to no person, like the record itself.
-				if (r.subjectKind === 'citation') return hiddenCitations.has(r.subjectId ?? '');
-				return hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`);
-			case 'research_tasks':
-				// A task about a record the viewer cannot see is hidden with it, however it is changed.
+	// Either image may carry the link to a hidden record, so a row hidden before or after hides the op.
+	const some = <R>(before: R | null, after: R | null, isHidden: (row: R) => boolean) =>
+		[before, after].some((row) => row !== null && isHidden(row));
+	switch (op.table) {
+		case 'individuals':
+			return hidden.has(op.id);
+		case 'person_names':
+			return some(op.before, op.after, (r) => hidden.has(r.personId));
+		case 'unions':
+			return hiddenUnions.has(op.id);
+		case 'union_partners':
+			return some(
+				op.before,
+				op.after,
+				(r) => hidden.has(r.personId) || hiddenUnions.has(r.unionId)
+			);
+		case 'parent_child':
+			return some(
+				op.before,
+				op.after,
+				(r) => hidden.has(r.parentId) || hidden.has(r.childId) || hiddenUnions.has(r.unionId ?? '')
+			);
+		case 'events':
+			return some(op.before, op.after, (r) =>
+				r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId) : hiddenUnions.has(r.entityId)
+			);
+		case 'media_items':
+			// A detached file is editor-only, so an op on it is one a restricted viewer must not see.
+			return some(op.before, op.after, (r) => !r.entityId || hidden.has(r.entityId));
+		case 'citations':
+			return some(op.before, op.after, (r) => hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`));
+		case 'note_attachments':
+			// A note on a citation is as private as the citation's own subject; one on a source or
+			// repository belongs to no person, like the record itself.
+			return some(op.before, op.after, (r) =>
+				r.subjectKind === 'citation'
+					? hiddenCitations.has(r.subjectId)
+					: hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`)
+			);
+		case 'research_tasks':
+			// A task about a record the viewer cannot see is hidden with it, however it is changed.
+			return some(op.before, op.after, (r) => {
+				const subjectId = r.subjectId ?? '';
 				switch (r.subjectKind) {
 					case 'person':
-						return hidden.has(r.subjectId ?? '');
+						return hidden.has(subjectId);
 					case 'union':
-						return hiddenUnions.has(r.subjectId ?? '');
+						return hiddenUnions.has(subjectId);
 					case 'event':
-						return hiddenKeys.has(`event|${r.subjectId}`);
+						return hiddenKeys.has(`event|${subjectId}`);
 					case 'source':
-						return hiddenRecords.sources.has(r.subjectId ?? '');
+						return hiddenRecords.sources.has(subjectId);
 					case 'note':
-						return hiddenRecords.notes.has(r.subjectId ?? '');
+						return hiddenRecords.notes.has(subjectId);
 					default:
 						return false;
 				}
-			default:
-				// A source, a repository and the link between them belong to no person; what cites them is checked above.
-				return false;
-		}
-	});
+			});
+		default:
+			// A source, a repository and the link between them belong to no person; what cites them is checked above.
+			return false;
+	}
 }

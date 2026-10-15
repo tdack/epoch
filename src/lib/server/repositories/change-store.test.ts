@@ -7,8 +7,11 @@ import {
 	invertOps,
 	matchesImage,
 	rebaseInverse,
+	type IndividualRow,
+	type RecordTable,
 	type RowImage,
-	type RowOp
+	type RowOp,
+	type TableRows
 } from '../domain/change-log';
 import {
 	createTestDatabase,
@@ -37,18 +40,29 @@ async function freshTree() {
 	treeId = await createTestTree(t.db, actor);
 }
 
-function person(id: string, givenName: string, version = 1) {
+function person(id: string, givenName: string, version = 1): IndividualRow {
 	return {
+		xrefAliases: null,
+		privacy: 'auto',
+		createdBy: null,
 		id,
 		treeId,
 		xrefId: null,
 		givenName,
 		surname: null,
-		sex: 'U',
+		sex: null,
 		version,
 		createdAt: 1_000,
 		updatedAt: 1_000
 	};
+}
+
+/**
+ * Fixtures list only the columns a test is about and let the table default the rest, the way an
+ * image written before a migration lacks a later column; the cast says so once.
+ */
+function partialRow<T extends RecordTable>(_table: T, row: object): TableRows[T] {
+	return row as unknown as TableRows[T];
 }
 
 const base = () => ({
@@ -240,21 +254,22 @@ describe('ChangeStore undo lookups', () => {
 });
 
 describe('event row images and the structured date columns', () => {
-	const event = (extra: Record<string, unknown> = {}) => ({
-		id: 'e1',
-		treeId,
-		entityType: 'INDIVIDUAL',
-		entityId: 'p1',
-		type: 'BIRT',
-		dateRaw: 'ABT 1900',
-		dateSort: '1900-01-01',
-		place: null,
-		description: null,
-		version: 1,
-		createdAt: 1_000,
-		updatedAt: 1_000,
-		...extra
-	});
+	const event = (extra: Record<string, unknown> = {}) =>
+		partialRow('events', {
+			id: 'e1',
+			treeId,
+			entityType: 'INDIVIDUAL',
+			entityId: 'p1',
+			type: 'BIRT',
+			dateRaw: 'ABT 1900',
+			dateSort: '1900-01-01',
+			place: null,
+			description: null,
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			...extra
+		});
 
 	it('carries the bounds, precision and qualifier in the inverse image, so an undo restores them', async () => {
 		await freshTree();
@@ -375,21 +390,22 @@ describe('ChangeStore tree scoping', () => {
 });
 
 describe('media row images and the file-manager columns', () => {
-	const mediaRow = (entityId: string) => ({
-		id: 'm1',
-		treeId,
-		entityId,
-		r2ObjectKey: `media/${treeId}/m1.png`,
-		cfImageId: null,
-		title: 'Portrait',
-		mimeType: 'image/png',
-		version: 1,
-		createdAt: 1_000,
-		updatedAt: 1_000
-	});
+	const mediaRow = (entityId: string) =>
+		partialRow('media_items', {
+			id: 'm1',
+			treeId,
+			entityId,
+			r2ObjectKey: `media/${treeId}/m1.png`,
+			cfImageId: null,
+			title: 'Portrait',
+			mimeType: 'image/png',
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000
+		});
 	async function imageOf(id: string) {
 		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, id)).get();
-		return row ? toImage(mediaItems, row) : null;
+		return row ? partialRow('media_items', toImage(mediaItems, row)) : null;
 	}
 
 	it('leaves sizeBytes and uploadedBy out of the image, so a pre-migration inverse still matches', async () => {
@@ -462,30 +478,34 @@ describe('fact detail columns and undo of a change logged before them', () => {
 		'placeExtra',
 		'religion'
 	];
-	const withoutFactDetails = (image: RowImage): RowImage =>
-		Object.fromEntries(Object.entries(image).filter(([key]) => !FACT_DETAIL_KEYS.includes(key)));
+	const withoutFactDetails = (image: RowImage) =>
+		partialRow(
+			'events',
+			Object.fromEntries(Object.entries(image).filter(([key]) => !FACT_DETAIL_KEYS.includes(key)))
+		);
 	// The database is shared by the tests in this file, so each test names its own rows.
 	let sequence = 0;
 	let eventId = '';
 	let personId = '';
-	const eventRow = (extra: Record<string, unknown> = {}) => ({
-		id: eventId,
-		treeId,
-		entityType: 'INDIVIDUAL',
-		entityId: personId,
-		type: 'BIRT',
-		dateRaw: null,
-		dateSort: null,
-		place: 'Leeds',
-		description: null,
-		version: 1,
-		createdAt: 1_000,
-		updatedAt: 1_000,
-		...extra
-	});
+	const eventRow = (extra: Record<string, unknown> = {}) =>
+		partialRow('events', {
+			id: eventId,
+			treeId,
+			entityType: 'INDIVIDUAL',
+			entityId: personId,
+			type: 'BIRT',
+			dateRaw: null,
+			dateSort: null,
+			place: 'Leeds',
+			description: null,
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			...extra
+		});
 	async function liveImage(id: string) {
 		const row = await t.db.select().from(events).where(eq(events.id, id)).get();
-		return row ? toImage(events, row) : null;
+		return row ? partialRow('events', toImage(events, row)) : null;
 	}
 	async function seedEvent() {
 		sequence += 1;

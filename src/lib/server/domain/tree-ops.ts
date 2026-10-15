@@ -12,11 +12,12 @@ import {
 	type IndividualRow,
 	type ParentChildRow,
 	type RecordTable,
-	type RowImage,
 	type RowOp,
+	type TableRows,
 	type TreeRows,
 	type UnionPartnerRow,
-	type UnionRow
+	type UnionRow,
+	rowOp
 } from './change-log';
 import { dateColumnsFor } from './date-columns';
 import { personName } from '../../shared/person-name';
@@ -103,7 +104,7 @@ export function applyOpsToRows(rows: TreeRows, ops: RowOp[]): TreeRows {
 	for (const op of ops) {
 		const key = TABLE_KEYS[op.table];
 		const kept = next[key].filter((row) => row.id !== op.id);
-		next[key] = op.after ? [...kept, op.after as { id: string }] : kept;
+		next[key] = op.after ? [...kept, op.after] : kept;
 	}
 	return next as unknown as TreeRows;
 }
@@ -118,7 +119,8 @@ function mergeOps(ops: RowOp[]): RowOp[] {
 			merged.set(key, { ...op });
 			continue;
 		}
-		merged.set(key, { ...earlier, after: op.after });
+		// Same row, so the same table: the spread cannot show that.
+		merged.set(key, { ...earlier, after: op.after } as RowOp);
 	}
 	return [...merged.values()].filter((op) => op.before !== null || op.after !== null);
 }
@@ -268,12 +270,12 @@ function detachFilesOf(rows: TreeRows, ctx: OpContext, ownerIds: ReadonlySet<str
 }
 
 /** An op that bumps a person or union's version because something it owns changed. */
-function bump(
-	table: 'individuals' | 'unions',
-	row: IndividualRow | UnionRow,
+function bump<T extends 'individuals' | 'unions'>(
+	table: T,
+	row: TableRows[T],
 	ctx: OpContext
 ): RowOp {
-	return { table, id: row.id, before: row, after: touch(row, ctx) };
+	return rowOp(table, row.id, row, touch(row, ctx));
 }
 
 // ---- Events ----
@@ -380,8 +382,8 @@ function relinkNames(
 		.map((n) => ({
 			table: 'person_names' as const,
 			id: n.id,
-			before: n as RowImage,
-			after: touch({ ...n, unionId: toUnionId }, ctx) as RowImage
+			before: n,
+			after: touch({ ...n, unionId: toUnionId }, ctx)
 		}));
 }
 
@@ -509,8 +511,8 @@ function deletePerson(
 	const person = requirePerson(rows, command.personId);
 	checkPersonVersion(rows, person, command.expectedVersion);
 	const ops: RowOp[] = [];
-	const remove = (table: RecordTable, row: { id: string }) =>
-		ops.push({ table, id: row.id, before: row as RowImage, after: null });
+	const remove = <T extends RecordTable>(table: T, row: TableRows[T]) =>
+		ops.push(rowOp(table, row.id, row, null));
 
 	rows.personNames
 		.filter((n) => n.personId === person.id)
