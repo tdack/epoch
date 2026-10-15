@@ -3,7 +3,6 @@
 	import NameDialog from '#lib/components/modals/NameDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import CitationList from '#lib/components/evidence/CitationList.svelte';
 	import NoteList from '#lib/components/notes/NoteList.svelte';
 	import NotesDisclosure from '#lib/components/notes/NotesDisclosure.svelte';
 	import { canAddNote } from '#lib/components/notes/note-permissions.js';
@@ -148,24 +147,21 @@
 			{/if}
 			{#if name.id !== null}
 				<CitationsDisclosure
+					{treeId}
+					{treeSlug}
+					{role}
+					{editor}
+					{toasts}
+					subjectLabel={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+					subject={{ kind: CITATION_SUBJECT_KINDS.NAME, id: name.id }}
+					citations={citationsOfSubject(
+						dto.evidence.citations,
+						CITATION_SUBJECT_KINDS.NAME,
+						name.id
+					)}
 					citationCount={name.citationCount}
 					label={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
-				>
-					<CitationList
-						{treeId}
-						{treeSlug}
-						{role}
-						{editor}
-						{toasts}
-						subjectLabel={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
-						subject={{ kind: CITATION_SUBJECT_KINDS.NAME, id: name.id }}
-						citations={citationsOfSubject(
-							dto.evidence.citations,
-							CITATION_SUBJECT_KINDS.NAME,
-							name.id
-						)}
-					/>
-				</CitationsDisclosure>
+				/>
 				<NotesDisclosure
 					noteCount={name.notes.length}
 					canAdd={canAddNote(role)}

@@ -163,24 +163,21 @@
 								class="block text-xs text-stone-500">{event.notes}</span
 							>{/if}
 						<CitationsDisclosure
+							{treeId}
+							treeSlug={data.summary.tree.slug}
+							{role}
+							{editor}
+							{toasts}
+							subjectLabel={`the ${event.label.toLowerCase()}`}
+							subject={{ kind: CITATION_SUBJECT_KINDS.EVENT, id: event.id }}
+							citations={citationsOfSubject(
+								dto.evidence.citations,
+								CITATION_SUBJECT_KINDS.EVENT,
+								event.id
+							)}
 							citationCount={event.citationCount}
 							label={`the ${event.label.toLowerCase()}`}
-						>
-							<CitationList
-								{treeId}
-								treeSlug={data.summary.tree.slug}
-								{role}
-								{editor}
-								{toasts}
-								subjectLabel={`the ${event.label.toLowerCase()}`}
-								subject={{ kind: CITATION_SUBJECT_KINDS.EVENT, id: event.id }}
-								citations={citationsOfSubject(
-									dto.evidence.citations,
-									CITATION_SUBJECT_KINDS.EVENT,
-									event.id
-								)}
-							/>
-						</CitationsDisclosure>
+						/>
 						<NotesDisclosure
 							noteCount={event.noteItems.length}
 							canAdd={canAddNote(role)}
