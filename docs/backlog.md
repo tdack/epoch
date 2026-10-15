@@ -170,25 +170,27 @@ Last reviewed: 2026-10-15.
 
 ### 3D views
 
-- **Settings page for user-configurable colours in the 3D highlights.** Let people adjust the sex
-  colours (`RING_TOKENS.male`, `.female`, `.unknownSex` and each view's variants) and the trace
-  palette and intersection colour (`HIGHLIGHT_TOKENS`). It could be an app settings page, or a
-  "Colours" entry under More > Manage beside Members and Privacy. Settle these first:
-  - **Whose choice is it?** More > Manage is per tree and for managers and owners only. A
-    viewer-level preference suits people with colour-vision differences better.
-  - **Where is it stored?** Per tree is a column on `trees` and needs an expand-and-contract
-    migration. Per member sits beside `view_mode`. Per browser is `localStorage`.
-  - **How are choices kept legible?** A picker needs a contrast check against the dark stage, and a
-    check that trace colours stay distinguishable from each other and from the sex colours. Defaults
-    stay colour-blind safe, with a reset.
-  - **What else does it affect?** Probably the flat view's card borders, which share the sex shades.
-  (ADR-035)
 - **Decide whether a 3D view becomes the product default.** Flat stays the default. Promotion needs
   the checklist from ADR-030: stage 6 parity (drag-to-relate included or deliberately excluded),
   the stage 7 performance budgets, the whole e2e suite parameterised over all view modes and green,
   and a trial on the owner's own tree.
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of
   scope today.
+
+### Settings
+
+- **More app-wide settings beyond colours and reduced motion.** Left out of the first settings page
+  (ADR-053), because the dates and names ones touch many render sites:
+  - **Date display format** (day-month-year, month-day-year, ISO). `date_value` keeps the original
+    text, so this is a display choice only. Every place that formats a date needs to read it.
+  - **Name display order** (given then surname, or surname first), including how the "née" line and
+    list sort labels read. `name-display.ts` is the start, but cards, lists, search results and the
+    3D labels each format names themselves.
+  - **Display-panel defaults** (siblings, step families, collateral depth), so the toolbar's
+    "Display" settings start where a person likes them. Today they reset to the view's defaults.
+  - **A 3D quality cap** (pixel ratio, labels) for slow devices.
+  Like colours, these would layer the way webtrees does: a built-in default, a site default the
+  install owner sets, and a per-user override.
 
 ### Charts, reports and views
 

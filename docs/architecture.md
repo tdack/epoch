@@ -138,6 +138,8 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
   the files they uploaded; managers and owners may delete any file. The install owner sees metadata
   only for trees they are not in (ADR-050, ADR-041).
 - Export is a manager action, and its background job re-checks authorization (ADR-040).
+- Settings are the caller's own: anyone signed in may change their colours and motion setting,
+  and only the install owner may change the site default (ADR-053).
 
 ## Layout and views
 
@@ -149,6 +151,13 @@ Ribbons, Orrery) share one selection and highlight model (ADR-032, ADR-033, ADR-
 default. The flat view shows a minimap once the tree no longer fits the canvas, and draws the whole
 tree too, with unconnected families side by side (ADR-046). One person view
 renders both the drawer and the person page (ADR-027).
+
+Colours and motion are settings, layered like webtrees: the built-in palette, a site default the
+install owner sets, and each person's own choice, one group at a time (sex colours, trace palette,
+focus line). There is no per-tree layer. The root layout resolves the palette once per page and
+every view paints from it; signed-out readers get the site default. Saves are refused below WCAG
+contrast floors. A person may also reduce animation, which only adds to the system's own setting
+(ADR-053).
 
 ## Research basis
 
