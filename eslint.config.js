@@ -63,9 +63,7 @@ export default ts.config(
 				'error',
 				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }
 			],
-			// A warning, not an error: about forty existing uses are tracked for a typing pass and
-			// forcing them here would mix type changes into the lint rollout.
-			'@typescript-eslint/no-explicit-any': 'warn',
+			'@typescript-eslint/no-explicit-any': 'error',
 			// The rule is for state that must react. Every hit builds a throwaway URLSearchParams,
 			// Map or Set inside a function, where a reactive copy would add cost and no behaviour.
 			'svelte/prefer-svelte-reactivity': 'off',
@@ -99,8 +97,8 @@ export default ts.config(
 		}
 	},
 	{
-		// Server and shared code is imported by workers and tests that have no DOM or SvelteKit
-		// runtime, so a pull towards UI code makes them unloadable there (it once did for palette).
+		// Server and shared code runs in workers and tests with no DOM or SvelteKit runtime. The
+		// palette once lived under components/ and the domain imported it; this keeps that from recurring.
 		files: ['src/lib/server/**/*.ts', 'src/lib/shared/**/*.ts'],
 		rules: {
 			'no-restricted-imports': [

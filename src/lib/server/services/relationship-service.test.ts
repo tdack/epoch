@@ -45,7 +45,7 @@ async function setup() {
 	const partner = async (a: { id: string }, b: { id: string }) =>
 		relationships.execute(
 			treeId,
-			{ kind: 'add_partner', person: ref(a as any), partner: ref(b as any), unionLabel: null },
+			{ kind: 'add_partner', person: ref(a), partner: ref(b), unionLabel: null },
 			ctx
 		);
 	return { actor, treeId, relationships, people, log, ctx, addPerson, graph, ref, partner };
