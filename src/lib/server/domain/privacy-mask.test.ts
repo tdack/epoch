@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { treeRows } from '../testing/rows';
+import { rowOp } from './change-log';
 import { livingCutoff } from './living-state';
 import { NotFoundError } from './errors';
 import {
@@ -7,6 +8,7 @@ import {
 	maskForScope,
 	maskRows,
 	omitForScope,
+	opsTouchPrivate,
 	privatePeople,
 	requireVisibleSubject,
 	type MaskScope
@@ -161,5 +163,41 @@ describe('requireVisibleSubject', () => {
 		expect(() =>
 			requireVisibleSubject(window, 'liv', scopeOf({ isRestricted: false }))
 		).not.toThrow();
+	});
+});
+
+describe('opsTouchPrivate on a file', () => {
+	/** Nobody here is living, so nobody is private. */
+	function noPrivatePeople() {
+		return treeRows({
+			people: [{ id: 'gran', givenName: 'Gran', surname: 'Old' }],
+			events: [
+				{ id: 'b-gran', entityId: 'gran', type: 'BIRT', dateRaw: '1850', dateSortEnd: '1850-12-31' }
+			],
+			media: [
+				{ id: 'owned', entityId: 'gran' },
+				{ id: 'loose', entityId: null }
+			]
+		});
+	}
+	const detach = (rows: ReturnType<typeof noPrivatePeople>, id: string) => {
+		const before = rows.mediaItems.find((m) => m.id === id)!;
+		return rowOp('media_items', id, before, { ...before, entityId: null });
+	};
+
+	it('treats detaching a file as editor-only in a tree with no private person', () => {
+		const rows = noPrivatePeople();
+		expect(privatePeople(rows, CUTOFF).size).toBe(0);
+		// Otherwise a scoped snapshot that left the private person out would allow what the whole
+		// tree refuses.
+		expect(opsTouchPrivate([detach(rows, 'owned')], rows, CUTOFF)).toBe(true);
+		expect(opsTouchPrivate([detach(rows, 'loose')], rows, CUTOFF)).toBe(true);
+	});
+
+	it('still allows an op that leaves a file owned', () => {
+		const rows = noPrivatePeople();
+		const before = rows.mediaItems.find((m) => m.id === 'owned')!;
+		const rename = rowOp('media_items', 'owned', before, { ...before, title: 'New' });
+		expect(opsTouchPrivate([rename], rows, CUTOFF)).toBe(false);
 	});
 });
