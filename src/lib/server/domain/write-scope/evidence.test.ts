@@ -371,10 +371,27 @@ function trapWorld(): TreeRows {
 		dateSortEnd: '1902-12-31'
 	});
 	const rows = treeRows({
-		people: ['dead1', 'dead2', 'dead3', 'dead4', 'living', 'hidden'].map((id) => ({ id })),
-		events: [dead('dead1'), dead('dead2'), dead('dead3'), dead('dead4')],
-		unions: [{ id: 'u1', partners: ['dead1', 'dead2'] }],
-		links: [{ parentId: 'dead1', childId: 'hidden', unionId: 'u1' }]
+		people: ['dead1', 'dead2', 'dead3', 'dead4', 'dead5', 'dead6', 'living', 'hidden'].map(
+			(id) => ({ id })
+		),
+		events: [
+			dead('dead1'),
+			dead('dead2'),
+			dead('dead3'),
+			dead('dead4'),
+			dead('dead5'),
+			dead('dead6')
+		],
+		unions: [
+			{ id: 'u1', partners: ['dead1', 'dead2'] },
+			// No partners: the whole tree's mask drops it as soon as anyone is private.
+			{ id: 'u-lonely', partners: [], marriage: '1920' }
+		],
+		links: [
+			{ parentId: 'dead1', childId: 'hidden', unionId: 'u1' },
+			// Its partnership has no partners.
+			{ parentId: 'dead5', childId: 'dead6', unionId: 'u-lonely' }
+		]
 	});
 	rows.individuals.find((p) => p.id === 'living')!.createdBy = CREATOR;
 	return {
@@ -847,6 +864,50 @@ describe('evidence commands plan the same over a scoped snapshot', () => {
 	it('on a small world built to catch a seed that is too small', () => {
 		const rows = trapWorld();
 		expectEquivalent(compareAll(rows, commandsFor(rows, 'trap', Infinity, rng(3))));
+	}, 120_000);
+
+	it('on a partnership with no partners, its fact and its link, wherever they are the subject', () => {
+		const rows = trapWorld();
+		const fact = rows.events.find((e) => e.entityId === 'u-lonely')!;
+		const link = rows.parentChild.find((l) => l.unionId === 'u-lonely')!;
+		const subjects: Array<{ kind: 'union' | 'event' | 'parent_child'; id: string }> = [
+			{ kind: 'union', id: 'u-lonely' },
+			{ kind: 'event', id: fact.id },
+			{ kind: 'parent_child', id: link.id }
+		];
+		const commands: RelationshipCommand[] = subjects.flatMap((subject, n) => [
+			{
+				kind: 'add_citation',
+				citationId: `new-c-${n}`,
+				subject,
+				citation: { sourceId: 's-public' }
+			},
+			{ kind: 'add_note', attachmentId: `new-a-${n}`, subject, text: 'On a lonely record' },
+			{ kind: 'reorder_citations', subject, orderedCitationIds: [] },
+			{ kind: 'reorder_notes', subject, orderedAttachmentIds: [] },
+			...(subject.kind === 'parent_child'
+				? []
+				: ([
+						{
+							kind: 'create_task',
+							taskId: `new-t-${n}`,
+							task: { title: 'T' },
+							subject: subject as { kind: 'union' | 'event'; id: string }
+						}
+					] as RelationshipCommand[]))
+		]);
+		const tally = compareAll(rows, commands);
+		expect(tally.differences).toEqual([]);
+		// The whole tree's mask drops the partnership, so the restricted viewer is refused; a scoped
+		// snapshot with nobody private would let the command through.
+		const without = (command: RelationshipCommand) => () =>
+			expectScopedEqualsWhole({
+				whole: rows,
+				commands: [command],
+				scope: scopes.restricted,
+				seed: { ...seedFor([command])!, shouldFollowEvidence: undefined }
+			});
+		expect(without(commands[1]!)).toThrow();
 	}, 120_000);
 
 	it('leaves merges on the whole tree', () => {

@@ -39,37 +39,46 @@ const EVERY_TABLE: ReadonlyArray<keyof TreeRows> = [
  */
 const WHOLE_TREE: ScopeSeed = seedOf({ wholeTables: EVERY_TABLE });
 
+/**
+ * The follow-up is on wherever a command reads the row of the record it is about: a partnership
+ * with no partners (or the fact or link of one) is hidden from a restricted viewer by the whole
+ * tree's mask only when somebody in it is private, which a scoped snapshot of it does not show, so
+ * the follow-up falls back to the whole tree for it (`seedWithFollowUp`).
+ */
+const following = (ids: Parameters<typeof seedOf>[0]) =>
+	seedOf({ ...ids, shouldFollowEvidence: true });
+
 function citationSubjectSeed(subject: CitationSubjectRef): ScopeSeed {
 	switch (subject.kind) {
 		case CITATION_SUBJECT_KINDS.PERSON:
-			return seedOf({ people: [subject.id] });
+			return following({ people: [subject.id] });
 		case CITATION_SUBJECT_KINDS.NAME:
-			return seedOf({ names: [subject.id] });
+			return following({ names: [subject.id] });
 		case CITATION_SUBJECT_KINDS.EVENT:
-			return seedOf({ events: [subject.id] });
+			return following({ events: [subject.id] });
 		case CITATION_SUBJECT_KINDS.UNION:
-			return seedOf({ unions: [subject.id] });
+			return following({ unions: [subject.id] });
 		case CITATION_SUBJECT_KINDS.PARENT_CHILD:
-			return seedOf({ links: [subject.id] });
+			return following({ links: [subject.id] });
 	}
 }
 
 function noteSubjectSeed(subject: NoteSubjectRef): ScopeSeed {
 	switch (subject.kind) {
 		case NOTE_SUBJECT_KINDS.PERSON:
-			return seedOf({ people: [subject.id] });
+			return following({ people: [subject.id] });
 		case NOTE_SUBJECT_KINDS.NAME:
-			return seedOf({ names: [subject.id] });
+			return following({ names: [subject.id] });
 		case NOTE_SUBJECT_KINDS.EVENT:
-			return seedOf({ events: [subject.id] });
+			return following({ events: [subject.id] });
 		case NOTE_SUBJECT_KINDS.UNION:
-			return seedOf({ unions: [subject.id] });
+			return following({ unions: [subject.id] });
 		case NOTE_SUBJECT_KINDS.PARENT_CHILD:
-			return seedOf({ links: [subject.id] });
+			return following({ links: [subject.id] });
 		case NOTE_SUBJECT_KINDS.SOURCE:
-			return sourceSeed(subject.id);
+			return following({ sources: [subject.id] });
 		case NOTE_SUBJECT_KINDS.CITATION:
-			return seedOf({ citations: [subject.id] });
+			return following({ citations: [subject.id] });
 		case NOTE_SUBJECT_KINDS.REPOSITORY:
 			return WHOLE_TREE;
 	}
@@ -79,13 +88,13 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
 	if (!subject) return seedOf({});
 	switch (subject.kind) {
 		case TASK_SUBJECT_KINDS.PERSON:
-			return seedOf({ people: [subject.id] });
+			return following({ people: [subject.id] });
 		case TASK_SUBJECT_KINDS.UNION:
-			return seedOf({ unions: [subject.id] });
+			return following({ unions: [subject.id] });
 		case TASK_SUBJECT_KINDS.EVENT:
-			return seedOf({ events: [subject.id] });
+			return following({ events: [subject.id] });
 		case TASK_SUBJECT_KINDS.SOURCE:
-			return sourceSeed(subject.id);
+			return following({ sources: [subject.id] });
 		case TASK_SUBJECT_KINDS.NOTE:
 			return WHOLE_TREE;
 	}

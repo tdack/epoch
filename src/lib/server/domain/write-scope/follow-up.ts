@@ -96,11 +96,12 @@ export const FOLLOW_UP_WHOLE = 'whole' as const;
 
 /**
  * The next load: a merged seed, `FOLLOW_UP_WHOLE`, or null when the snapshot already holds
- * everything. A partnership the seed names that has no partners is whole-tree, because a restricted
- * viewer's mask hides such a partnership only when the snapshot holds a private person, and a
- * scoped snapshot of it holds nobody; only the whole tree answers as it always did. A chain that
- * still has something to follow after `MAX_FOLLOW_UP_LOADS` is whole-tree as well. Both are rare,
- * so the cost does not matter.
+ * everything. A partnership in the snapshot that has no partners is whole-tree, because a
+ * restricted viewer's mask hides such a partnership, its facts and its place in a link only when the
+ * snapshot holds a private person, and a scoped snapshot of it holds nobody; only the whole tree
+ * answers as it always did. Seeded or reached as the subject of a fact, a link or a record, it can
+ * reach the snapshot in any round. A chain that still has something to follow after
+ * `MAX_FOLLOW_UP_LOADS` is whole-tree as well. Both are rare, so the cost does not matter.
  */
 export function seedWithFollowUp(
 	rows: TreeRows,
@@ -108,11 +109,8 @@ export function seedWithFollowUp(
 	loads = 1
 ): ScopeSeed | typeof FOLLOW_UP_WHOLE | null {
 	if (!seed.shouldFollowFamily && !seed.shouldFollowEvidence) return null;
-	if (loads === 1) {
-		const partnered = new Set(rows.unionPartners.map((p) => p.unionId));
-		if (rows.unions.some((u) => seed.unions.has(u.id) && !partnered.has(u.id)))
-			return FOLLOW_UP_WHOLE;
-	}
+	const partnered = new Set(rows.unionPartners.map((p) => p.unionId));
+	if (rows.unions.some((u) => !partnered.has(u.id))) return FOLLOW_UP_WHOLE;
 	const extra = followUpSeed(rows, seed, loads);
 	if (!extra) return null;
 	return loads >= MAX_FOLLOW_UP_LOADS ? FOLLOW_UP_WHOLE : mergeSeeds(seed, extra);
