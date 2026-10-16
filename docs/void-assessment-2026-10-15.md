@@ -1,6 +1,6 @@
 # Void (void.cloud): should Epoch adopt it? (2026-10-15)
 
-**Recommendation: no, not now.** Void would replace things Epoch has already built and tested, it
+**Outcome: investigated, not adopted (ADR-056, 2026-10-16).** **Recommendation: no, not now.** Void would replace things Epoch has already built and tested, it
 cannot host three things Epoch depends on, and its future is uncertain. Recheck if Cloudflare ships
 Void's ideas in Workers or the `cf` CLI, or open-sources the platform with a stated roadmap.
 
