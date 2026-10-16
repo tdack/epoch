@@ -1,10 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectScopedEqualsWhole, viewerScopes } from '../../testing/scope-equivalence';
+import duplicateFamilies from '../../../../../test/data/The Simpsons duplicate families.ged?raw';
+import { ChangeStore } from '../../repositories/change-store';
+import { MutationRunner } from '../../services/mutation-runner';
+import { createTestDatabase, createTestTree, createTestUser } from '../../testing/d1';
+import { importGedcomToDb } from '../../testing/gedcom';
+import {
+	expectScopedEqualsWhole,
+	planOutcome,
+	selectScopeWithFollowUp,
+	viewerScopes
+} from '../../testing/scope-equivalence';
 import { createWorlds, type World } from '../../testing/scope-worlds';
 import type { TestDatabase } from '../../testing/d1';
 import type { TreeRows } from '../change-log';
 import type { RelationshipCommand } from '../relationship-commands';
-import { seedOf } from '../write-scope';
+import { treeRows } from '../../testing/rows';
+import { seedOf, selectScope } from '../write-scope';
 import { seedFor } from './index';
 import { UNION_SCOPES } from './union';
 
@@ -272,6 +283,11 @@ function checkAll(
 
 const GROUPS = [
 	{
+		name: 'partnership edits',
+		make: unionCommands,
+		kinds: ['update_union', 'end_union', 'destroy_union'] as const
+	},
+	{
 		name: 'partnership creation',
 		make: unionCommands,
 		kinds: ['create_union'] as const
@@ -315,18 +331,22 @@ it('asks for every link only when asserting one', () => {
 	expect(removal?.wholeTables).toBeUndefined();
 });
 
-describe('partnership edits that name only the partnership stay whole-tree', () => {
-	it.each(['update_union', 'end_union', 'destroy_union'] as const)('%s has no seed', (kind) => {
-		expect(UNION_SCOPES[kind]).toBeUndefined();
+describe('a partnership edit needs the follow-up load', () => {
+	const rows = () => worlds.find((w) => w.label === 'Simpsons duplicate families')!.rows;
+
+	it.each(['update_union', 'end_union', 'destroy_union'] as const)('%s opts in', (kind) => {
+		const seed = seedFor([
+			{ kind, unionId: 'u', status: 'ended', event: null } as RelationshipCommand
+		]);
+		expect(seed?.shouldFollowFamily).toBe(true);
 	});
 
-	it('because a seed of the partnership alone misses its twins, which the labels count', () => {
-		const rows = worlds.find((w) => w.label === 'Simpsons duplicate families')!.rows;
+	it('and a seed of the partnership alone, without it, misses the twins the labels count', () => {
 		let isMismatched = false;
-		for (const union of rows.unions) {
+		for (const union of rows().unions) {
 			try {
 				expectScopedEqualsWhole({
-					whole: rows,
+					whole: rows(),
 					commands: [{ kind: 'destroy_union', unionId: union.id }],
 					scope: scopes.unrestricted,
 					seed: seedOf({ unions: [union.id] })
@@ -338,4 +358,115 @@ describe('partnership edits that name only the partnership stay whole-tree', () 
 		}
 		expect(isMismatched).toBe(true);
 	});
+
+	it('and with it the same seed agrees for every partnership of that world', () => {
+		for (const union of rows().unions)
+			for (const scope of Object.values(scopes))
+				expectScopedEqualsWhole({
+					whole: rows(),
+					commands: [{ kind: 'destroy_union', unionId: union.id }],
+					scope,
+					seed: seedOf({ unions: [union.id], shouldFollowFamily: true })
+				});
+	});
+
+	it('for partnerships of 0, 1 and 2 partners, three of one pair, and a private partner', () => {
+		const synthetic = treeRows({
+			people: [
+				{ id: 'a', birth: '1900', death: '1960' },
+				{ id: 'b', birth: '1905', death: '1970' },
+				{ id: 'c', birth: '1999' }
+			],
+			unions: [
+				{ id: 'none', partners: [] },
+				{ id: 'solo', partners: ['a'] },
+				{ id: 'ab1', partners: ['a', 'b'], marriage: '1925' },
+				{ id: 'ab2', partners: ['a', 'b'], marriage: '1930' },
+				{ id: 'ab3', partners: ['b', 'a'], status: 'divorced' },
+				{ id: 'ac', partners: ['a', 'c'] }
+			]
+		});
+		let compared = 0;
+		for (const union of synthetic.unions)
+			// A partnership with no partners is hidden from a restricted viewer only when the snapshot
+			// holds a private person to trigger masking; a scoped one holds nobody. See the pin below.
+			for (const scope of union.id === 'none' ? [scopes.unrestricted] : Object.values(scopes))
+				for (const command of [
+					{ kind: 'destroy_union', unionId: union.id },
+					{ kind: 'destroy_union', unionId: union.id, expectedVersion: 9 },
+					{ kind: 'end_union', unionId: union.id, status: 'ended', event: null },
+					{ kind: 'update_union', unionId: union.id, expectedVersion: 1, status: 'ended' }
+				] as RelationshipCommand[]) {
+					expectScopedEqualsWhole({
+						whole: synthetic,
+						commands: [command],
+						scope,
+						seed: (cs) => seedFor(cs)!,
+						label: JSON.stringify(command)
+					});
+					compared++;
+				}
+		expect(compared).toBe((5 * 3 + 1) * 4);
+		// Without the follow-up the labels of the twins differ, so the cases above are not vacuous.
+		expect(() =>
+			expectScopedEqualsWhole({
+				whole: synthetic,
+				commands: [{ kind: 'destroy_union', unionId: 'ab2' }],
+				scope: scopes.unrestricted,
+				seed: seedOf({ unions: ['ab2'] })
+			})
+		).toThrow();
+	});
+
+	it('except that a restricted viewer can see a partnership with no partners at all', () => {
+		// The whole tree masks a partnership with no visible partner, but only when it holds a private
+		// person; a scoped snapshot of just that partnership holds nobody, so nothing is masked. The
+		// partnership has no people, so nothing private is shown or written. Pinned so a change to
+		// either side is noticed.
+		const synthetic = treeRows({
+			people: [{ id: 'a', birth: '1990' }],
+			unions: [{ id: 'none', partners: [] }]
+		});
+		const command: RelationshipCommand[] = [{ kind: 'destroy_union', unionId: 'none' }];
+		const seed = seedFor(command)!;
+		const whole = planOutcome(synthetic, command, scopes.restricted);
+		const scoped = planOutcome(
+			selectScopeWithFollowUp(synthetic, seed),
+			command,
+			scopes.restricted
+		);
+		expect(whole.failure?.name).toBe('NotFoundError');
+		expect(scoped.failure).toBeUndefined();
+	});
+});
+
+describe('the D1 loader, with its follow-up, returns what the selector does', () => {
+	it('for the partnership edits', async () => {
+		// Its own database: the equivalence tests hold the shared connection idle for a long time.
+		const own = await createTestDatabase();
+		try {
+			const actor = await createTestUser(own.db);
+			const treeId = await createTestTree(own.db, actor);
+			await importGedcomToDb(own.d1, treeId, duplicateFamilies, 'Union loader');
+			const whole = await new ChangeStore(own.db).loadRows(treeId);
+			const runner = new MutationRunner(own.db);
+			let followed = 0;
+			for (const union of whole.unions) {
+				for (const command of [
+					{ kind: 'destroy_union', unionId: union.id },
+					{ kind: 'end_union', unionId: union.id, status: 'ended', event: null },
+					{ kind: 'update_union', unionId: union.id, status: 'separated' }
+				] as RelationshipCommand[]) {
+					const seed = seedFor([command])!;
+					const loaded = await runner.loadForSeed(treeId, seed);
+					expect(loaded, JSON.stringify(command)).toEqual(selectScopeWithFollowUp(whole, seed));
+					if (loaded.unions.length > selectScope(whole, seed).unions.length) followed++;
+				}
+			}
+			// The second load found partnerships the first did not: the twins.
+			expect(followed).toBeGreaterThan(0);
+		} finally {
+			await own.dispose();
+		}
+	}, 120_000);
 });

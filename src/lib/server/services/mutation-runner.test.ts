@@ -41,12 +41,12 @@ const SAMPLE_COMMANDS: RelationshipCommand[] = [
 	{ kind: 'delete_name', nameId: 'n' },
 	{ kind: 'create_union', unionId: 'u', personIds: ['a', 'b'] },
 	{ kind: 'assert_parent_child', parentId: 'a', childId: 'b', type: 'biological', unionId: null },
-	{ kind: 'destroy_union', unionId: 'u' }
+	{ kind: 'merge_unions', survivorId: 'u', mergedIds: ['v'] }
 ];
 
 describe('the command scope tables', () => {
 	it('leave the kinds ADR-055 keeps whole without a seed', () => {
-		const kept = new Set(['destroy_union']);
+		const kept = new Set(['merge_unions']);
 		for (const command of SAMPLE_COMMANDS) {
 			expect(seedFor([command]) === null, command.kind).toBe(kept.has(command.kind));
 		}
@@ -54,7 +54,7 @@ describe('the command scope tables', () => {
 
 	it('send a request to the whole tree if any one of its commands has no seed', () => {
 		const seeded = SAMPLE_COMMANDS.find((c) => c.kind === 'update_fact')!;
-		const unseeded = SAMPLE_COMMANDS.find((c) => c.kind === 'destroy_union')!;
+		const unseeded = SAMPLE_COMMANDS.find((c) => c.kind === 'merge_unions')!;
 		expect(seedFor([seeded, unseeded])).toBeNull();
 		expect(seedFor([])).toBeNull();
 	});
@@ -85,22 +85,25 @@ describe('the mutation runner loads', () => {
 		const { actor, treeId, fact } = await setup();
 		const whole = vi.spyOn(ChangeStore.prototype, 'loadRows');
 		const scoped = vi.spyOn(ScopedRowLoader.prototype, 'load');
-		// Removing a partnership stays whole-tree: it is one of the kinds ADR-055 keeps whole.
+		// Merging partnerships stays whole-tree: it is one of the kinds ADR-055 keeps whole.
 		const people = new PersonService(t.db);
 		const partner = (
 			await people.create(treeId, { givenName: 'Ash', surname: 'Ash' }, actor.context)
 		).individual;
-		const unionId = 'union-to-remove';
+		const pair = [fact.entityId, partner.id];
 		await new MutationRunner(t.db).run(treeId, actor.context, {
 			kind: 'create_union',
-			summary: () => 'Created a partnership',
-			commands: [{ kind: 'create_union', unionId, personIds: [fact.entityId, partner.id] }]
+			summary: () => 'Created partnerships',
+			commands: [
+				{ kind: 'create_union', unionId: 'union-to-keep', personIds: pair },
+				{ kind: 'create_union', unionId: 'union-to-merge', personIds: pair }
+			]
 		});
 		whole.mockClear();
 		scoped.mockClear();
-		await new RelationshipService(t.db).removeRelationship(
+		await new RelationshipService(t.db).mergeUnions(
 			treeId,
-			{ kind: 'destroy_union', unionId },
+			{ kind: 'merge_unions', survivorId: 'union-to-keep', mergedIds: ['union-to-merge'] },
 			actor.context
 		);
 		expect(whole).toHaveBeenCalled();

@@ -16,6 +16,7 @@ import { describeCommand } from '../domain/command-summary';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { makeLabeler } from '../domain/tree-labels';
 import { selectScope, type ScopeSeed } from '../domain/write-scope';
+import { seedWithFollowUp } from '../domain/write-scope/follow-up';
 import type { ImpactSummary, RecordChange } from '../../shared/impact';
 import { MutationRunner, previewOf } from '../services/mutation-runner';
 import type { ViewerScope } from '../services/tree-access';
@@ -123,6 +124,16 @@ export interface EquivalenceInput {
 }
 
 /**
+ * The rows the runner would plan over for this seed: the first selection, and the second over the
+ * merged seed when the seed opts into a follow-up and the first snapshot has something to follow.
+ */
+export function selectScopeWithFollowUp(whole: TreeRows, seed: ScopeSeed): TreeRows {
+	const first = selectScope(whole, seed);
+	const next = seedWithFollowUp(first, seed);
+	return next ? selectScope(whole, next) : first;
+}
+
+/**
  * Asserts the scoped outcome equals the whole-tree outcome, and returns the whole-tree one so a
  * test can also assert the case is not vacuous (a command that fails both ways proves little).
  */
@@ -130,7 +141,12 @@ export function expectScopedEqualsWhole(input: EquivalenceInput): PlanOutcome {
 	const seed = typeof input.seed === 'function' ? input.seed(input.commands) : input.seed;
 	const options = { headline: input.headline, summary: input.summary };
 	const whole = planOutcome(input.whole, input.commands, input.scope, options);
-	const scoped = planOutcome(selectScope(input.whole, seed), input.commands, input.scope, options);
+	const scoped = planOutcome(
+		selectScopeWithFollowUp(input.whole, seed),
+		input.commands,
+		input.scope,
+		options
+	);
 	expect(scoped, input.label).toEqual(whole);
 	return whole;
 }
