@@ -17,6 +17,7 @@ import {
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import { seedFor } from '../domain/write-scope/index';
+import { seedWithFollowUp } from '../domain/write-scope/follow-up';
 import type { ScopeSeed } from '../domain/write-scope';
 import {
 	OP_KINDS,
@@ -130,10 +131,15 @@ export class MutationRunner {
 
 	/**
 	 * Rows for a caller that knows what it reads better than its commands say, as the intent planner
-	 * does. A null seed is the whole tree.
+	 * does. A null seed is the whole tree. A seed that opts into a follow-up costs a second load
+	 * when the first snapshot shows partners or parents whose partnerships are not yet loaded; one
+	 * that does not opt in, or has nothing to follow, stays at one.
 	 */
-	loadForSeed(treeId: string, seed: ScopeSeed | null): Promise<TreeRows> {
-		return seed ? this.scopedLoader.load(treeId, seed) : this.store.loadRows(treeId);
+	async loadForSeed(treeId: string, seed: ScopeSeed | null): Promise<TreeRows> {
+		if (!seed) return this.store.loadRows(treeId);
+		const first = await this.scopedLoader.load(treeId, seed);
+		const next = seedWithFollowUp(first, seed);
+		return next ? this.scopedLoader.load(treeId, next) : first;
 	}
 
 	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */

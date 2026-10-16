@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { seedFor } from '../domain/write-scope/index';
+import { seedOf } from '../domain/write-scope';
 import { ChangeStore } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
@@ -122,5 +123,38 @@ describe('the mutation runner loads', () => {
 		expect(result.change?.summary).toBe('Edited the birth of Wren Ash');
 		const stored = (await t.db.select().from(events).where(eq(events.id, fact.id)).all())[0]!;
 		expect(stored.place).toBe('York');
+	});
+});
+
+describe('the follow-up load', () => {
+	async function twoPartners() {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const people = new PersonService(t.db);
+		const a = (await people.create(treeId, { givenName: 'A', surname: 'Ash' }, actor.context))
+			.individual;
+		const b = (await people.create(treeId, { givenName: 'B', surname: 'Ash' }, actor.context))
+			.individual;
+		const unionId = 'follow-union';
+		await new MutationRunner(t.db).run(treeId, actor.context, {
+			kind: 'create_union',
+			summary: () => 'Created a partnership',
+			commands: [{ kind: 'create_union', unionId, personIds: [a.id, b.id] }]
+		});
+		return { treeId, unionId };
+	}
+
+	it('loads twice only when the seed opts in and the first snapshot has partners to follow', async () => {
+		const { treeId, unionId } = await twoPartners();
+		const scoped = vi.spyOn(ScopedRowLoader.prototype, 'load');
+		const runner = new MutationRunner(t.db);
+		await runner.loadForSeed(treeId, seedOf({ unions: [unionId] }));
+		expect(scoped).toHaveBeenCalledTimes(1);
+		scoped.mockClear();
+		await runner.loadForSeed(treeId, seedOf({ unions: ['missing'], shouldFollowFamily: true }));
+		expect(scoped).toHaveBeenCalledTimes(1);
+		scoped.mockClear();
+		await runner.loadForSeed(treeId, seedOf({ unions: [unionId], shouldFollowFamily: true }));
+		expect(scoped).toHaveBeenCalledTimes(2);
 	});
 });

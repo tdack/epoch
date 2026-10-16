@@ -49,9 +49,15 @@ export interface ScopeSeed {
 	readonly tasks: ReadonlySet<string>;
 	/** Tables to read whole on top of the closure, as `assert_parent_child` does for `parentChild`. */
 	readonly wholeTables?: ReadonlyArray<keyof TreeRows>;
+	/**
+	 * Opts the command into a second load (`write-scope/follow-up.ts`): its sentence or checks read
+	 * partnerships that no seed can name, so they are found in the first snapshot and loaded next.
+	 * The selector ignores it; only `followUpSeed` and the runner read it.
+	 */
+	readonly shouldFollowFamily?: boolean;
 }
 
-type IdKey = Exclude<keyof ScopeSeed, 'wholeTables'>;
+type IdKey = Exclude<keyof ScopeSeed, 'wholeTables' | 'shouldFollowFamily'>;
 
 const ID_KEYS: readonly IdKey[] = [
 	'people',
@@ -89,6 +95,7 @@ export function emptySeed(): ScopeSeed {
 export function seedOf(
 	ids: Partial<Record<IdKey, Iterable<string | null | undefined>>> & {
 		wholeTables?: ReadonlyArray<keyof TreeRows>;
+		shouldFollowFamily?: boolean;
 	}
 ): ScopeSeed {
 	const seed: Record<string, unknown> = { ...emptySeed() };
@@ -98,6 +105,7 @@ export function seedOf(
 		seed[key] = new Set([...given].filter((id): id is string => typeof id === 'string'));
 	}
 	if (ids.wholeTables) seed.wholeTables = ids.wholeTables;
+	if (ids.shouldFollowFamily) seed.shouldFollowFamily = true;
 	return seed as unknown as ScopeSeed;
 }
 
@@ -106,6 +114,7 @@ export function mergeSeeds(a: ScopeSeed, b: ScopeSeed): ScopeSeed {
 	for (const key of ID_KEYS) merged[key] = new Set([...a[key], ...b[key]]);
 	const whole = [...new Set([...(a.wholeTables ?? []), ...(b.wholeTables ?? [])])];
 	if (whole.length > 0) merged.wholeTables = whole;
+	if (a.shouldFollowFamily || b.shouldFollowFamily) merged.shouldFollowFamily = true;
 	return merged as unknown as ScopeSeed;
 }
 
