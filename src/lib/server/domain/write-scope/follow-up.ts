@@ -19,10 +19,18 @@ export const MAX_FOLLOW_UP_LOADS = 3;
 function familyExtra(rows: TreeRows, seed: ScopeSeed): ScopeSeed | null {
 	if (!seed.shouldFollowFamily) return null;
 	const extra = new Set<string>();
+	const unions = new Set<string>();
 	for (const partner of rows.unionPartners) extra.add(partner.personId);
-	for (const link of rows.parentChild) if (seed.people.has(link.childId)) extra.add(link.parentId);
+	for (const link of rows.parentChild) {
+		if (!seed.people.has(link.childId)) continue;
+		extra.add(link.parentId);
+		// The partnership a seeded child is filed under: a command may copy it from the link, and a
+		// partnership with no partners must be seen to be one (`seedWithFollowUp`).
+		if (link.unionId) unions.add(link.unionId);
+	}
 	for (const id of seed.people) extra.delete(id);
-	return extra.size > 0 ? seedOf({ people: extra }) : null;
+	for (const id of seed.unions) unions.delete(id);
+	return extra.size + unions.size > 0 ? seedOf({ people: extra, unions }) : null;
 }
 
 /**
@@ -96,7 +104,7 @@ export const FOLLOW_UP_WHOLE = 'whole' as const;
 
 /**
  * The next load: a merged seed, `FOLLOW_UP_WHOLE`, or null when the snapshot already holds
- * everything. A partnership in the snapshot that has no partners is whole-tree, because a
+ * everything. For every seed, opted in or not, a partnership in the snapshot that has no partners is whole-tree, because a
  * restricted viewer's mask hides such a partnership, its facts and its place in a link only when the
  * snapshot holds a private person, and a scoped snapshot of it holds nobody; only the whole tree
  * answers as it always did. Seeded or reached as the subject of a fact, a link or a record, it can
@@ -108,9 +116,10 @@ export function seedWithFollowUp(
 	seed: ScopeSeed,
 	loads = 1
 ): ScopeSeed | typeof FOLLOW_UP_WHOLE | null {
-	if (!seed.shouldFollowFamily && !seed.shouldFollowEvidence) return null;
+	// Before the opt-in check: any scoped snapshot can hold such a partnership, whatever the kind.
 	const partnered = new Set(rows.unionPartners.map((p) => p.unionId));
 	if (rows.unions.some((u) => !partnered.has(u.id))) return FOLLOW_UP_WHOLE;
+	if (!seed.shouldFollowFamily && !seed.shouldFollowEvidence) return null;
 	const extra = followUpSeed(rows, seed, loads);
 	if (!extra) return null;
 	return loads >= MAX_FOLLOW_UP_LOADS ? FOLLOW_UP_WHOLE : mergeSeeds(seed, extra);

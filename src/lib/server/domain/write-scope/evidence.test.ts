@@ -17,8 +17,17 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../../testing/d1';
+import {
+	mkAttachment,
+	mkCitation,
+	mkLink,
+	mkNote,
+	mkRepository,
+	mkSource,
+	mkTask
+} from '../../testing/evidence-rows';
 import { importGedcomToDb } from '../../testing/gedcom';
-import { TEST_TREE_ID, treeRows } from '../../testing/rows';
+import { treeRows } from '../../testing/rows';
 import {
 	expectScopedEqualsWhole,
 	selectScopeWithFollowUp,
@@ -26,22 +35,12 @@ import {
 } from '../../testing/scope-equivalence';
 import { addEvidence as addEvidenceToDb, seededRandom } from '../../testing/evidence-fixtures';
 import { MutationRunner } from '../../services/mutation-runner';
-import type {
-	CitationRow,
-	NoteAttachmentRow,
-	NoteRow,
-	RepositoryRow,
-	ResearchTaskRow,
-	SourceRepositoryRow,
-	SourceRow,
-	TreeRows
-} from '../change-log';
+import type { CitationRow, NoteAttachmentRow, ResearchTaskRow, TreeRows } from '../change-log';
 import type { NoteSubjectRef } from '../../../shared/notes';
 import type { RelationshipCommand } from '../relationship-commands';
 import { selectScope, type ScopeSeed } from '../write-scope';
 import { seedFor } from './index';
 
-const T0 = 1_000_000;
 const CREATOR = 'creator-1';
 const scopes = viewerScopes(CREATOR);
 
@@ -101,152 +100,6 @@ function rng(seed: number) {
 		return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 	};
 }
-
-// ---- Row factories ----
-
-const mkSource = (id: string, o: Partial<SourceRow> = {}): SourceRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	xref: `@S-${id}@`,
-	xrefAliases: null,
-	title: `Source ${id}`,
-	author: null,
-	publication: null,
-	abbreviation: null,
-	text: null,
-	gedcomExtra: null,
-	gedcomLayout: null,
-	createdBy: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0,
-	...o
-});
-
-const mkRepository = (id: string, o: Partial<RepositoryRow> = {}): RepositoryRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	xref: `@R-${id}@`,
-	xrefAliases: null,
-	name: `Repository ${id}`,
-	address: null,
-	gedcomExtra: null,
-	gedcomLayout: null,
-	createdBy: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0,
-	...o
-});
-
-const mkLink = (id: string, sourceId: string, repositoryId: string): SourceRepositoryRow => ({
-	id,
-	sourceId,
-	repositoryId,
-	repositoryRef: null,
-	callNumber: `Call ${id}`,
-	gedcomExtra: null,
-	sortOrder: 0,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0
-});
-
-const mkNote = (id: string, o: Partial<NoteRow> = {}): NoteRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	xref: `@N-${id}@`,
-	xrefAliases: null,
-	text: `Shared note ${id}`,
-	mime: null,
-	language: null,
-	gedcomTag: null,
-	gedcomExtra: null,
-	gedcomLayout: null,
-	createdBy: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0,
-	...o
-});
-
-const mkCitation = (
-	id: string,
-	subjectKind: CitationRow['subjectKind'],
-	subjectId: string,
-	sourceId: string | null,
-	sortOrder = 0
-): CitationRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	subjectKind,
-	subjectId,
-	sortOrder,
-	sourceId,
-	sourceRef: null,
-	description: null,
-	page: `page of ${id}`,
-	quality: null,
-	entryDateRaw: null,
-	entryDateSort: null,
-	entryDateSortEnd: null,
-	entryDateQualifier: null,
-	entryDatePrecision: null,
-	entryDateCalendar: null,
-	text: null,
-	gedcomExtra: null,
-	gedcomLayout: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0
-});
-
-const mkAttachment = (
-	id: string,
-	subjectKind: NoteAttachmentRow['subjectKind'],
-	subjectId: string,
-	noteId: string | null,
-	sortOrder = 0
-): NoteAttachmentRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	subjectKind,
-	subjectId,
-	sortOrder,
-	noteId,
-	noteRef: null,
-	gedcomTag: null,
-	text: noteId ? null : `Inline note ${id}`,
-	gedcomExtra: null,
-	gedcomLayout: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0
-});
-
-const mkTask = (
-	id: string,
-	subjectKind: ResearchTaskRow['subjectKind'],
-	subjectId: string | null,
-	o: Partial<ResearchTaskRow> = {}
-): ResearchTaskRow => ({
-	id,
-	treeId: TEST_TREE_ID,
-	title: `Task ${id}`,
-	details: null,
-	status: 'open',
-	assigneeId: null,
-	dueDate: null,
-	subjectKind,
-	subjectId,
-	findingKey: null,
-	linkClearedKind: null,
-	createdBy: null,
-	version: 1,
-	createdAt: T0,
-	updatedAt: T0,
-	...o
-});
 
 type SubjectKind = 'person' | 'name' | 'event' | 'union' | 'parent_child';
 
@@ -1169,16 +1022,16 @@ describe('evidence commands plan the same over a scoped snapshot', () => {
 		]);
 		const tally = compareAll(rows, commands);
 		expect(tally.differences).toEqual([]);
-		// The whole tree's mask drops the partnership, so the restricted viewer is refused; a scoped
-		// snapshot with nobody private would let the command through.
-		const without = (command: RelationshipCommand) => () =>
+		// The whole tree's mask drops the partnership, so the restricted viewer is refused; the
+		// fallback applies to every seed, so even one without the flag agrees (partnerless.test.ts).
+		const unflagged = (command: RelationshipCommand) =>
 			expectScopedEqualsWhole({
 				whole: rows,
 				commands: [command],
 				scope: scopes.restricted,
 				seed: { ...seedFor([command])!, shouldFollowEvidence: undefined }
 			});
-		expect(without(commands[1]!)).toThrow();
+		expect(() => unflagged(commands[1]!)).not.toThrow();
 	}, 120_000);
 
 	it('plans each kind scoped by the follow-up on more than 20 cases and refuses some', () => {

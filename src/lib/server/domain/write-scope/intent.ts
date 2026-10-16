@@ -42,7 +42,10 @@ export function intentSeed(intent: RelationshipIntent): ScopeSeed | null {
 		case 'add_sibling':
 			return seedOf({
 				people: [...existing(intent.person), ...existing(intent.sibling), ...intent.parentIds],
-				wholeTables: ['parentChild']
+				wholeTables: ['parentChild'],
+				// The sibling is filed under the partnership of the person's link to each parent, which
+				// the follow-up loads so a partnership with no partners is seen to be one.
+				shouldFollowFamily: true
 			});
 		// The partnership it fills or twins is one of the person's own.
 		case 'add_partner':
