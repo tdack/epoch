@@ -105,10 +105,6 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
  * whole tree. Left out on purpose:
  *
  * - `merge_sources`, `merge_notes`: whole-tree by ADR-055.
- * - Anything that must find a repository or a source link by id (`update_repository`,
- *   `delete_repository`, `link_repository`, `update_source_repository`, `unlink_repository`): a
- *   repository exists for a restricted viewer only through the sources that link it, and those
- *   are not reachable from the repository (a link id cannot even be named in a seed).
  * - Anything keyed by an attachment, note or task id alone (`update_note`, `remove_note`,
  *   `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
  *   `delete_task`): the id does not say whether the note sits on a source or repository, or the
@@ -121,6 +117,13 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	update_source: (c) => sourceSeed(c.sourceId),
 	delete_source: (c) => sourceSeed(c.sourceId),
 	create_repository: () => seedOf({ wholeTables: ['repositories'] }),
+	// A repository is visible to a restricted viewer only through a visible source that links it, so
+	// the follow-up loads the sources its links name, and with them the citations that decide.
+	update_repository: (c) => following({ repositories: [c.repositoryId] }),
+	delete_repository: (c) => following({ repositories: [c.repositoryId] }),
+	link_repository: (c) => following({ sources: [c.sourceId], repositories: [c.repositoryId] }),
+	update_source_repository: (c) => following({ sourceRepositories: [c.linkId] }),
+	unlink_repository: (c) => following({ sourceRepositories: [c.linkId] }),
 	add_citation: (c) => ({
 		...citationSubjectSeed(c.subject),
 		sources: sourceSeed(c.citation.sourceId).sources

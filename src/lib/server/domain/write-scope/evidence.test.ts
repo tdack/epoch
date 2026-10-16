@@ -19,7 +19,13 @@ import {
 } from '../../testing/d1';
 import { importGedcomToDb } from '../../testing/gedcom';
 import { TEST_TREE_ID, treeRows } from '../../testing/rows';
-import { expectScopedEqualsWhole, viewerScopes } from '../../testing/scope-equivalence';
+import {
+	expectScopedEqualsWhole,
+	selectScopeWithFollowUp,
+	viewerScopes
+} from '../../testing/scope-equivalence';
+import { addEvidence as addEvidenceToDb, seededRandom } from '../../testing/evidence-fixtures';
+import { MutationRunner } from '../../services/mutation-runner';
 import type {
 	CitationRow,
 	NoteAttachmentRow,
@@ -30,8 +36,9 @@ import type {
 	SourceRow,
 	TreeRows
 } from '../change-log';
+import type { NoteSubjectRef } from '../../../shared/notes';
 import type { RelationshipCommand } from '../relationship-commands';
-import { seedOf, type ScopeSeed } from '../write-scope';
+import { seedOf, selectScope, type ScopeSeed } from '../write-scope';
 import { seedFor } from './index';
 
 const T0 = 1_000_000;
@@ -51,8 +58,22 @@ const ENABLED = [
 	'add_note',
 	'reorder_notes',
 	'create_note',
-	'create_task'
+	'create_task',
+	'update_repository',
+	'delete_repository',
+	'link_repository',
+	'update_source_repository',
+	'unlink_repository'
 ] as const;
+
+/** The kinds scoped with the evidence follow-up; each is proved with and without it below. */
+const NEWLY_SCOPED: string[] = [
+	'update_repository',
+	'delete_repository',
+	'link_repository',
+	'update_source_repository',
+	'unlink_repository'
+];
 
 function rng(seed: number) {
 	let state = seed >>> 0;
@@ -737,6 +758,171 @@ function commandsFor(
 				}
 			);
 	}
+
+	// ---- Repositories, notes and tasks found by id ----
+	const repoEdits = (id: string) =>
+		[
+			{
+				kind: 'update_repository',
+				repositoryId: id,
+				repository: { name: 'Renamed', address: 'Here' }
+			},
+			{ kind: 'update_repository', repositoryId: id, repository: { name: ' ' } },
+			{
+				kind: 'update_repository',
+				repositoryId: id,
+				expectedVersion: 99,
+				repository: { name: 'x' }
+			},
+			{ kind: 'delete_repository', repositoryId: id },
+			{ kind: 'delete_repository', repositoryId: id, expectedVersion: 99 }
+		] as RelationshipCommand[];
+	commands.push(
+		...repoEdits(missing),
+		{
+			kind: 'link_repository',
+			linkId: fresh('l'),
+			sourceId: missing,
+			repositoryId: anyOf(rows.repositories)
+		},
+		{ kind: 'link_repository', linkId: fresh('l'), sourceId: anySource(), repositoryId: missing },
+		{ kind: 'update_source_repository', linkId: missing, callNumber: 'x' },
+		{ kind: 'unlink_repository', linkId: missing },
+		{ kind: 'update_note', attachmentId: missing, text: 'x' },
+		{ kind: 'remove_note', attachmentId: missing },
+		{ kind: 'share_note', attachmentId: missing, noteId: fresh('n') },
+		{
+			kind: 'attach_note',
+			attachmentId: fresh('a'),
+			subject: { kind: 'person', id: missing },
+			noteId: anyOf(rows.notes)
+		},
+		{
+			kind: 'attach_note',
+			attachmentId: fresh('a'),
+			subject: { kind: 'person', id: anyOf(rows.individuals) },
+			noteId: missing
+		},
+		{ kind: 'update_shared_note', noteId: missing, note: { text: 'x' } },
+		{ kind: 'delete_shared_note', noteId: missing },
+		{ kind: 'update_task', taskId: missing, task: { title: 'x' } },
+		{ kind: 'delete_task', taskId: missing }
+	);
+	for (const r of choose(rows.repositories, limit)) {
+		commands.push(...repoEdits(r.id));
+		for (const source of choose(rows.sources, 2))
+			commands.push({
+				kind: 'link_repository',
+				linkId: fresh('l'),
+				sourceId: source.id,
+				repositoryId: r.id,
+				callNumber: 'Box 1'
+			});
+		commands.push({
+			kind: 'add_note',
+			attachmentId: fresh('a'),
+			subject: { kind: 'repository', id: r.id },
+			text: 'On a repository'
+		});
+	}
+	for (const l of choose(rows.sourceRepositories, limit)) {
+		commands.push(
+			{ kind: 'update_source_repository', linkId: l.id, callNumber: 'MS 12' },
+			{ kind: 'update_source_repository', linkId: l.id, callNumber: l.callNumber },
+			{ kind: 'update_source_repository', linkId: l.id, callNumber: null },
+			{ kind: 'update_source_repository', linkId: l.id, expectedVersion: 99, callNumber: 'x' },
+			{ kind: 'unlink_repository', linkId: l.id },
+			{ kind: 'unlink_repository', linkId: l.id, expectedVersion: 99 }
+		);
+	}
+
+	for (const a of choose(rows.noteAttachments, limit)) {
+		commands.push(
+			{ kind: 'update_note', attachmentId: a.id, text: 'Reworded' },
+			{ kind: 'update_note', attachmentId: a.id, text: ' ' },
+			{ kind: 'update_note', attachmentId: a.id, expectedVersion: 99, text: 'Stale' },
+			{ kind: 'remove_note', attachmentId: a.id },
+			{ kind: 'remove_note', attachmentId: a.id, expectedVersion: 99 },
+			{ kind: 'share_note', attachmentId: a.id, noteId: fresh('n') },
+			{ kind: 'share_note', attachmentId: a.id, noteId: `${prefix}-sharednote-new` },
+			{ kind: 'share_note', attachmentId: a.id, expectedVersion: 99, noteId: fresh('n') }
+		);
+	}
+	// Notes on a source, on a repository, on a citation and on a person are all in play: sample each.
+	for (const kind of ['source', 'repository', 'citation', 'person'] as const) {
+		for (const a of choose(
+			rows.noteAttachments.filter((x) => x.subjectKind === kind),
+			Math.min(limit, 10)
+		))
+			commands.push(
+				{ kind: 'update_note', attachmentId: a.id, text: `Edited on a ${kind}` },
+				{ kind: 'remove_note', attachmentId: a.id },
+				{ kind: 'share_note', attachmentId: a.id, noteId: fresh('n') }
+			);
+	}
+	for (let i = 0; i < Math.min(limit, 40); i++) {
+		const subject = pick<NoteSubjectRef>([
+			{ kind: 'person', id: anyOf(rows.individuals) },
+			{ kind: 'name', id: anyOf(rows.personNames) },
+			{ kind: 'event', id: anyOf(rows.events) },
+			{ kind: 'union', id: anyOf(rows.unions) },
+			{ kind: 'parent_child', id: anyOf(rows.parentChild) },
+			{ kind: 'source', id: anySource() },
+			{ kind: 'citation', id: anyOf(rows.citations) },
+			{ kind: 'repository', id: anyOf(rows.repositories) }
+		]);
+		const used = rows.noteAttachments.find(
+			(x) => x.subjectKind === subject.kind && x.subjectId === subject.id && x.noteId
+		);
+		commands.push({
+			kind: 'attach_note',
+			attachmentId: fresh('a'),
+			subject,
+			noteId: anyOf(rows.notes)
+		});
+		// Already on the record: refused.
+		if (used)
+			commands.push({
+				kind: 'attach_note',
+				attachmentId: fresh('a'),
+				subject,
+				noteId: used.noteId!
+			});
+	}
+	for (const n of choose(rows.notes, limit)) {
+		commands.push(
+			{ kind: 'update_shared_note', noteId: n.id, note: { text: 'Reworded', language: 'en-AU' } },
+			{ kind: 'update_shared_note', noteId: n.id, note: {} },
+			{ kind: 'update_shared_note', noteId: n.id, note: { text: ' ' } },
+			{ kind: 'update_shared_note', noteId: n.id, expectedVersion: 99, note: { text: 'Stale' } },
+			{ kind: 'delete_shared_note', noteId: n.id },
+			{ kind: 'delete_shared_note', noteId: n.id, shouldDetach: true },
+			{ kind: 'delete_shared_note', noteId: n.id, expectedVersion: 99, shouldDetach: true }
+		);
+	}
+
+	for (const t of choose(rows.researchTasks, limit)) {
+		commands.push(
+			{ kind: 'update_task', taskId: t.id, task: { title: 'Retitled', status: 'done' } },
+			{ kind: 'update_task', taskId: t.id, task: { details: 'More', dueDate: '2031-02-03' } },
+			{ kind: 'update_task', taskId: t.id, task: {} },
+			{ kind: 'update_task', taskId: t.id, task: { title: ' ' } },
+			{ kind: 'update_task', taskId: t.id, expectedVersion: 99, task: { title: 'Stale' } },
+			{ kind: 'delete_task', taskId: t.id },
+			{ kind: 'delete_task', taskId: t.id, expectedVersion: 99 }
+		);
+	}
+	// Tasks about each kind of subject are all in play: sample each.
+	for (const kind of ['person', 'union', 'event', 'source', 'note'] as const) {
+		for (const t of choose(
+			rows.researchTasks.filter((x) => x.subjectKind === kind),
+			Math.min(limit, 10)
+		))
+			commands.push(
+				{ kind: 'update_task', taskId: t.id, task: { status: 'dropped' } },
+				{ kind: 'delete_task', taskId: t.id }
+			);
+	}
 	return commands;
 }
 
@@ -746,6 +932,9 @@ interface Tally {
 	covered: Set<string>;
 	differences: string[];
 }
+
+/** Cases planned and cases refused (on both sides alike) per kind, across every world. */
+const totals = new Map<string, { compared: number; refused: number }>();
 
 /** Compares every command with a seed, for the three viewers; a difference is reported, not thrown. */
 function compareAll(rows: TreeRows, commands: RelationshipCommand[]): Tally {
@@ -764,6 +953,10 @@ function compareAll(rows: TreeRows, commands: RelationshipCommand[]): Tally {
 					label: `${who} ${JSON.stringify(command)}`
 				});
 				tally.compared++;
+				const total = totals.get(command.kind) ?? { compared: 0, refused: 0 };
+				total.compared++;
+				if (outcome.failure) total.refused++;
+				totals.set(command.kind, total);
 				if (!outcome.failure) tally.succeeded++;
 			} catch {
 				tally.differences.push(`${who} ${JSON.stringify(command)}`);
@@ -779,6 +972,68 @@ function expectEquivalent(tally: Tally) {
 	expect(tally.succeeded).toBeGreaterThan(tally.compared / 4);
 	expect([...tally.covered].sort()).toEqual([...ENABLED].sort());
 }
+
+type FollowUpCase = [label: string, command: RelationshipCommand];
+
+/** Kinds that have a seed with the follow-up, with the command that shows it matters. */
+const FOLLOW_UP_CASES: FollowUpCase[] = [
+	[
+		'update_repository',
+		{ kind: 'update_repository', repositoryId: 'r-public', repository: { name: 'x' } }
+	],
+	['delete_repository', { kind: 'delete_repository', repositoryId: 'r-public' }],
+	[
+		'link_repository',
+		{ kind: 'link_repository', linkId: 'new', sourceId: 's-solo', repositoryId: 'r-public' }
+	],
+	['update_source_repository', { kind: 'update_source_repository', linkId: 'l1', callNumber: 'x' }],
+	['unlink_repository', { kind: 'unlink_repository', linkId: 'l1' }]
+];
+
+/** Kinds that have no seed yet, each with the seed that looks right and fails. */
+const STILL_WHOLE: Array<[string, RelationshipCommand, ScopeSeed]> = [
+	[
+		'update_note',
+		{ kind: 'update_note', attachmentId: 'a-source', text: 'x' },
+		seedOf({ noteAttachments: ['a-source'] })
+	],
+	[
+		'remove_note',
+		{ kind: 'remove_note', attachmentId: 'a-source' },
+		seedOf({ noteAttachments: ['a-source'] })
+	],
+	[
+		'share_note',
+		{ kind: 'share_note', attachmentId: 'a-inline-source', noteId: 'new' },
+		seedOf({ noteAttachments: ['a-inline-source'] })
+	],
+	[
+		'attach_note',
+		{
+			kind: 'attach_note',
+			attachmentId: 'new',
+			subject: { kind: 'person', id: 'dead3' },
+			noteId: 'n-source'
+		},
+		seedOf({ people: ['dead3'], notes: ['n-source'] })
+	],
+	[
+		'update_shared_note',
+		{ kind: 'update_shared_note', noteId: 'n-source', note: { text: 'x' } },
+		seedOf({ notes: ['n-source'] })
+	],
+	[
+		'delete_shared_note',
+		{ kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true },
+		seedOf({ notes: ['n-source'] })
+	],
+	[
+		'update_task',
+		{ kind: 'update_task', taskId: 't-source', task: { title: 'x' } },
+		seedOf({ tasks: ['t-source'] })
+	],
+	['delete_task', { kind: 'delete_task', taskId: 't-note' }, seedOf({ tasks: ['t-note'] })]
+];
 
 // ---- The suites ----
 
@@ -910,6 +1165,14 @@ describe('evidence commands plan the same over a scoped snapshot', () => {
 		expect(without(commands[1]!)).toThrow();
 	}, 120_000);
 
+	it('plans each kind scoped by the follow-up on more than 20 cases and refuses some', () => {
+		for (const kind of NEWLY_SCOPED) {
+			const total = totals.get(kind);
+			expect(total?.compared, `${kind} compared`).toBeGreaterThan(20);
+			expect(total?.refused, `${kind} refused`).toBeGreaterThan(0);
+		}
+	});
+
 	it('leaves merges on the whole tree', () => {
 		expect(seedFor([{ kind: 'merge_sources', survivorId: 'a', mergedIds: ['b'] }])).toBeNull();
 		expect(seedFor([{ kind: 'merge_notes', survivorId: 'a', mergedIds: ['b'] }])).toBeNull();
@@ -917,9 +1180,33 @@ describe('evidence commands plan the same over a scoped snapshot', () => {
 });
 
 /**
- * Why some kinds have no seed. Each case plans a command over the seed that looks right and shows
- * a restricted viewer getting a different answer, because the record the command names exists for
- * them only through records the closure does not bring.
+ * Why the follow-up is load-bearing. Each case plans a command in the trap world as a restricted
+ * viewer: with the seed the kind has, scoped equals whole; with the same seed minus the follow-up,
+ * the answer differs, because the record the command names exists for that viewer only through
+ * records the first snapshot does not hold (the citations of a source, the sources of a repository).
+ */
+describe('the evidence follow-up is load-bearing', () => {
+	const strippedOf = (seed: ScopeSeed): ScopeSeed => ({ ...seed, shouldFollowEvidence: undefined });
+	const asRestricted = (command: RelationshipCommand, seed: ScopeSeed) => () =>
+		expectScopedEqualsWhole({
+			whole: trapWorld(),
+			commands: [command],
+			scope: scopes.restricted,
+			seed
+		});
+
+	it.each(FOLLOW_UP_CASES)('%s', (_label, command) => {
+		const seed = seedFor([command]);
+		expect(seed, `${command.kind} must have a seed`).not.toBeNull();
+		expect(seed!.shouldFollowEvidence).toBe(true);
+		expect(asRestricted(command, seed!)).not.toThrow();
+		expect(asRestricted(command, strippedOf(seed!))).toThrow();
+	});
+});
+
+/**
+ * Kinds still on the whole tree: the seed that looks right plans differently for a restricted
+ * viewer, and nothing yet follows the records it misses.
  */
 describe('kinds that stay on the whole tree', () => {
 	const asRestricted = (command: RelationshipCommand, seed: ScopeSeed) => () =>
@@ -930,65 +1217,86 @@ describe('kinds that stay on the whole tree', () => {
 			seed
 		});
 
-	it.each([
-		[
-			'update_repository',
-			{ kind: 'update_repository', repositoryId: 'r-public', repository: { name: 'x' } },
-			seedOf({ repositories: ['r-public'] })
-		],
-		[
-			'delete_repository',
-			{ kind: 'delete_repository', repositoryId: 'r-public' },
-			seedOf({ repositories: ['r-public'] })
-		],
-		[
-			'link_repository',
-			{ kind: 'link_repository', linkId: 'new', sourceId: 's-solo', repositoryId: 'r-public' },
-			seedOf({ sources: ['s-solo'], repositories: ['r-public'] })
-		],
-		[
-			'update_note',
-			{ kind: 'update_note', attachmentId: 'a-source', text: 'x' },
-			seedOf({ noteAttachments: ['a-source'] })
-		],
-		[
-			'remove_note',
-			{ kind: 'remove_note', attachmentId: 'a-source' },
-			seedOf({ noteAttachments: ['a-source'] })
-		],
-		[
-			'share_note',
-			{ kind: 'share_note', attachmentId: 'a-inline-source', noteId: 'new' },
-			seedOf({ noteAttachments: ['a-inline-source'] })
-		],
-		[
-			'attach_note',
-			{
-				kind: 'attach_note',
-				attachmentId: 'new',
-				subject: { kind: 'person', id: 'dead3' },
-				noteId: 'n-source'
-			},
-			seedOf({ people: ['dead3'], notes: ['n-source'] })
-		],
-		[
-			'update_shared_note',
-			{ kind: 'update_shared_note', noteId: 'n-source', note: { text: 'x' } },
-			seedOf({ notes: ['n-source'] })
-		],
-		[
-			'delete_shared_note',
-			{ kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true },
-			seedOf({ notes: ['n-source'] })
-		],
-		[
-			'update_task',
-			{ kind: 'update_task', taskId: 't-source', task: { title: 'x' } },
-			seedOf({ tasks: ['t-source'] })
-		],
-		['delete_task', { kind: 'delete_task', taskId: 't-note' }, seedOf({ tasks: ['t-note'] })]
-	] as Array<[string, RelationshipCommand, ScopeSeed]>)('%s', (kind, command, seed) => {
+	it.each(STILL_WHOLE)('%s', (kind, command, seed) => {
 		expect(seedFor([command]), `${kind} must not have a seed`).toBeNull();
 		expect(asRestricted(command, seed)).toThrow();
 	});
+});
+
+describe('the D1 loader, with its follow-up, returns what the selector does', () => {
+	it('for the repository, note and task kinds', async () => {
+		// Its own database: the equivalence tests hold the shared connection idle for a long time.
+		const own = await createTestDatabase();
+		try {
+			const actor = await createTestUser(own.db);
+			const treeId = await createTestTree(own.db, actor);
+			await importGedcomToDb(own.d1, treeId, simpsons, 'Evidence loader');
+			const store = new ChangeStore(own.db);
+			await addEvidenceToDb(own.db, treeId, await store.loadRows(treeId), seededRandom(31));
+			const whole = await store.loadRows(treeId);
+			const runner = new MutationRunner(own.db);
+
+			const commands: RelationshipCommand[] = [];
+			for (const r of whole.repositories)
+				commands.push(
+					{ kind: 'update_repository', repositoryId: r.id, repository: { name: 'x' } },
+					{ kind: 'delete_repository', repositoryId: r.id }
+				);
+			for (const l of whole.sourceRepositories)
+				commands.push(
+					{
+						kind: 'link_repository',
+						linkId: 'new-link',
+						sourceId: l.sourceId,
+						repositoryId: l.repositoryId!
+					},
+					{ kind: 'update_source_repository', linkId: l.id, callNumber: 'x' },
+					{ kind: 'unlink_repository', linkId: l.id }
+				);
+			for (const a of whole.noteAttachments)
+				commands.push(
+					{ kind: 'update_note', attachmentId: a.id, text: 'x' },
+					{ kind: 'remove_note', attachmentId: a.id },
+					{ kind: 'share_note', attachmentId: a.id, noteId: 'new-note' }
+				);
+			for (const subject of [
+				{ kind: 'repository' as const, id: whole.repositories[0]!.id },
+				{ kind: 'source' as const, id: whole.sources[0]!.id },
+				{ kind: 'person' as const, id: whole.individuals[0]!.id }
+			])
+				commands.push({
+					kind: 'attach_note',
+					attachmentId: 'new-att',
+					subject,
+					noteId: whole.notes[0]!.id
+				});
+			for (const n of whole.notes)
+				commands.push(
+					{ kind: 'update_shared_note', noteId: n.id, note: { text: 'x' } },
+					{ kind: 'delete_shared_note', noteId: n.id, shouldDetach: true }
+				);
+			for (const task of whole.researchTasks)
+				commands.push(
+					{ kind: 'update_task', taskId: task.id, task: { title: 'x' } },
+					{ kind: 'delete_task', taskId: task.id }
+				);
+
+			const followed = new Set<string>();
+			const compared = new Set<string>();
+			for (const command of commands) {
+				const seed = seedFor([command]);
+				if (!seed) continue;
+				const loaded = await runner.loadForSeed(treeId, seed);
+				expect(loaded, JSON.stringify(command)).toEqual(selectScopeWithFollowUp(whole, seed));
+				compared.add(command.kind);
+				const first = selectScope(whole, seed);
+				if (loaded.sources.length > first.sources.length) followed.add(command.kind);
+			}
+			expect([...compared].sort()).toEqual([...NEWLY_SCOPED].sort());
+			// The second load found records the first did not, for the kinds that need it.
+			expect(followed.size).toBeGreaterThan(0);
+		} finally {
+			await own.dispose();
+		}
+	}, 300_000);
 });
