@@ -17,6 +17,7 @@ import {
 	type RelationshipCommand,
 	type RelationshipPlan
 } from '../domain/relationship-commands';
+import { intentSeed } from '../domain/write-scope/intent';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
 import type { TreeRows } from '../domain/change-log';
 import { mergeConflictsOf } from '../domain/tree-ops';
@@ -57,7 +58,7 @@ export class RelationshipService {
 
 	private async planFor(treeId: string, intent: RelationshipIntent, context: AuthenticatedContext) {
 		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
-		const rows = await this.runner.store.loadRows(treeId);
+		const rows = await this.runner.loadForSeed(treeId, intentSeed(intent));
 		// A restricted viewer's sentence and checks run over the rows they can see, so it can name
 		// nobody they may not (ADR-015); `plan` and `execute` then guard the real ops.
 		const visible = this.runner.visibleRows(rows, scope);

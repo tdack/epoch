@@ -148,8 +148,9 @@ far past that, keep counters on the `trees` row instead of counting (Phase 8, pe
 
 Most edits now plan over the closure of the records they name (`ScopedRowLoader`), not the whole
 tree. The kinds still planned over a full `TreeRows` snapshot (`ChangeStore.loadRows`) are listed in
-ADR-055 and in `write-scope/*.ts`; the relationship intent planner (`add_partner`, `add_child`, …)
-is one of them, which is why "add partner" below has not moved.
+ADR-055 and in `write-scope/*.ts`. The relationship intent planner is scoped from a seed derived
+from the intent (`write-scope/intent.ts`), except `add_parent`, so "add partner" below has fallen
+with the rest.
 
 ### Write cost (ADR-055 baseline)
 
@@ -179,16 +180,16 @@ sequential batches, so round trips fall less than rows.
 
 | Tree | Write | Rows returned | Round trips | Wall ms |
 | --- | --- | ---: | ---: | ---: |
-| The Simpsons | fact edit | 7 | 7 | 26 |
-| The Simpsons | undo of the fact edit | 10 | 10 | 35 |
-| The Simpsons | name edit | 7 | 7 | 26 |
-| The Simpsons | person update (update_person) | 9 | 9 | 28 |
-| The Simpsons | add partner (still whole-tree) | 126 | 21 | 36 |
+| The Simpsons | fact edit | 7 | 7 | 24 |
+| The Simpsons | undo of the fact edit | 10 | 10 | 31 |
+| The Simpsons | name edit | 7 | 7 | 24 |
+| The Simpsons | person update (update_person) | 9 | 9 | 26 |
+| The Simpsons | add partner | 11 | 9 | 24 |
 | Corpus (5,324 people) | fact edit | 7 | 7 | 18 |
-| Corpus (5,324 people) | undo of the fact edit | 10 | 10 | 26 |
-| Corpus (5,324 people) | name edit | 7 | 7 | 18 |
-| Corpus (5,324 people) | person update (update_person) | 9 | 9 | 22 |
-| Corpus (5,324 people) | add partner (still whole-tree) | 34415 | 21 | 642 |
+| Corpus (5,324 people) | undo of the fact edit | 10 | 10 | 24 |
+| Corpus (5,324 people) | name edit | 7 | 7 | 25 |
+| Corpus (5,324 people) | person update (update_person) | 9 | 9 | 25 |
+| Corpus (5,324 people) | add partner | 11 | 9 | 23 |
 
 ## Name search (S6)
 
