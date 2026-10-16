@@ -171,7 +171,9 @@ describe('opsTouchPrivate on a file', () => {
 	function noPrivatePeople() {
 		return treeRows({
 			people: [{ id: 'gran', givenName: 'Gran', surname: 'Old' }],
-			events: [{ id: 'b-gran', entityId: 'gran', type: 'BIRT', dateRaw: '1850', dateSortEnd: '1850-12-31' }],
+			events: [
+				{ id: 'b-gran', entityId: 'gran', type: 'BIRT', dateRaw: '1850', dateSortEnd: '1850-12-31' }
+			],
 			media: [
 				{ id: 'owned', entityId: 'gran' },
 				{ id: 'loose', entityId: null }
