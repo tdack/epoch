@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import type { SexKey } from '#lib/shared/palette.js';
 	import {
 		COLOUR_PRESETS,
@@ -38,8 +39,11 @@
 	let { idPrefix, stored, below, inheritedName, onsave }: Props = $props();
 
 	let draft = $derived<ColourDraft>(draftFrom(stored));
-	let isSaving = $state(false);
-	let saveError = $state<string | null>(null);
+	// This endpoint is unversioned, so a conflict is not expected; if one arrives it reads as any
+	// other failed save.
+	const submission = createSubmission((message) => {
+		submission.error = message;
+	});
 	let wasSaved = $state(false);
 
 	const palette = $derived(draftPalette(draft, below));
@@ -93,19 +97,14 @@
 		event.preventDefault();
 		wasSaved = false;
 		if (breaches.length > 0) {
-			saveError = 'Some colours are too hard to read. Change the ones marked above, then save.';
+			submission.error =
+				'Some colours are too hard to read. Change the ones marked above, then save.';
 			return;
 		}
-		isSaving = true;
-		saveError = null;
-		try {
+		await submission.submit(async () => {
 			await onsave(patchFrom(draft));
 			wasSaved = true;
-		} catch (error) {
-			saveError = error instanceof Error ? error.message : 'Could not save the colours.';
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the colours.');
 	}
 </script>
 
@@ -230,15 +229,15 @@
 	<PalettePreview {palette} label="Preview of these colours" />
 
 	<div class="flex flex-wrap items-center gap-3">
-		<button type="submit" class="primary" disabled={isSaving || !isChanged}>
-			{isSaving ? 'Saving…' : 'Save colours'}
+		<button type="submit" class="primary" disabled={submission.isSaving || !isChanged}>
+			{submission.isSaving ? 'Saving…' : 'Save colours'}
 		</button>
 		<p role="status" class="text-sm text-stone-700">
 			{#if wasSaved}Saved.{:else if isChanged}Unsaved changes.{/if}
 		</p>
 	</div>
 	<p id="{idPrefix}-save-error" role="alert" class="text-sm font-medium text-red-800">
-		{saveError ?? ''}
+		{submission.error ?? ''}
 	</p>
 </form>
 
