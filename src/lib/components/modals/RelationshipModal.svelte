@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import {
 		UserPlus,
 		Baby,
@@ -14,7 +15,7 @@
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows, storedText, type ConflictRow } from './conflict.js';
-	import { isConflict, type ConflictError } from '#lib/api/client.js';
+	import type { ConflictError } from '#lib/api/client.js';
 	import { searchPeopleApi } from '#lib/api/lists.js';
 	import { planRelationshipApi, applyRelationshipApi } from '#lib/api/relationships.js';
 	import { personName } from '#lib/shared/person-name.js';
@@ -98,9 +99,10 @@
 	let plan = $state<RelationshipPlan | null>(null);
 	let isPlanning = $state(false);
 	let isSearching = $state(false);
-	let isSubmitting = $state(false);
-	let error = $state<string | null>(null);
 	let conflict = $state<ConflictError | null>(null);
+	const submission = createSubmission((_message, cause) => {
+		conflict = cause;
+	});
 
 	const typeOptions: Array<{ value: ParentChildType; label: string }> = [
 		{ value: 'biological', label: 'Biological' },
@@ -284,7 +286,7 @@
 		endDate = '';
 		endPlace = '';
 		plan = null;
-		error = null;
+		submission.error = null;
 		conflict = null;
 	}
 
@@ -308,7 +310,7 @@
 		try {
 			results = await searchPeopleApi(treeId, searchQuery);
 		} catch (e) {
-			error = messageOf(e, '');
+			submission.error = messageOf(e, '');
 		} finally {
 			isSearching = false;
 		}
@@ -391,12 +393,12 @@
 				const next = await planRelationshipApi(treeId, intent);
 				if (!isStale) {
 					plan = next;
-					error = null;
+					submission.error = null;
 				}
 			} catch (e) {
 				if (!isStale) {
 					plan = null;
-					error = messageOf(e, '');
+					submission.error = messageOf(e, '');
 				}
 			} finally {
 				if (!isStale) isPlanning = false;
@@ -414,30 +416,27 @@
 			(kind === 'end_union' && Boolean(endEventType) && !checkDateText(endDate).isValid)
 	);
 	const canSave = $derived(
-		Boolean(plan) && plan!.commands.length > 0 && !isSubmitting && !isPlanning && !hasDateProblem
+		Boolean(plan) &&
+			plan!.commands.length > 0 &&
+			!submission.isSaving &&
+			!isPlanning &&
+			!hasDateProblem
 	);
 
 	async function submit(versionOverride?: { person?: number; union?: number }) {
 		const intent = buildIntent(versionOverride);
 		if (!intent) {
-			error =
+			submission.error =
 				kind === 'end_union'
 					? 'Choose which partnership to end.'
 					: 'Select an existing person or enter a new person.';
 			return;
 		}
-		isSubmitting = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			const saved = await applyRelationshipApi(treeId, intent);
 			conflict = null;
 			onsaved(saved.change, saved.plan);
-		} catch (e) {
-			if (isConflict(e)) conflict = e;
-			else error = messageOf(e, '');
-		} finally {
-			isSubmitting = false;
-		}
+		}, '');
 	}
 
 	const conflictRows = $derived.by((): ConflictRow[] => {
@@ -496,7 +495,7 @@
 	icon={Sparkles}
 	maxWidthClass="max-w-lg"
 	{onclose}
-	{error}
+	error={submission.error}
 >
 	<div class="space-y-4">
 		<div class="grid grid-cols-3 gap-1.5 sm:grid-cols-6" role="group" aria-label="What to record">
@@ -844,7 +843,7 @@
 				>Cancel</button
 			>
 			<button type="button" onclick={() => submit()} disabled={!canSave} class="btn-primary flex-1">
-				{isSubmitting ? 'Saving…' : 'Save'}
+				{submission.isSaving ? 'Saving…' : 'Save'}
 			</button>
 		</div>
 	</div>
@@ -858,7 +857,7 @@
 			? `Partnership ${partnersLabel(chosenUnion)}`
 			: ''}
 	rows={conflictRows}
-	isWorking={isSubmitting}
+	isWorking={submission.isSaving}
 	onreload={reloadAfterConflict}
 	onreapply={reapplyAfterConflict}
 	oncancel={() => (conflict = null)}
