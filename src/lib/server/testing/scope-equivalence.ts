@@ -124,14 +124,19 @@ export interface EquivalenceInput {
 }
 
 /**
- * The rows the runner would plan over for this seed: the first selection, and the second over the
- * merged seed when the seed opts into a follow-up and the first snapshot has something to follow.
+ * The rows the runner would plan over for this seed: the first selection, then one more for each
+ * round the seed opts into while the snapshot has something to follow.
  */
 export function selectScopeWithFollowUp(whole: TreeRows, seed: ScopeSeed): TreeRows {
-	const first = selectScope(whole, seed);
-	const next = seedWithFollowUp(first, seed);
-	if (next === FOLLOW_UP_WHOLE) return whole;
-	return next ? selectScope(whole, next) : first;
+	let current = seed;
+	let rows = selectScope(whole, current);
+	for (let loads = 1; ; loads++) {
+		const next = seedWithFollowUp(rows, current, loads);
+		if (next === FOLLOW_UP_WHOLE) return whole;
+		if (!next) return rows;
+		current = next;
+		rows = selectScope(whole, current);
+	}
 }
 
 /**

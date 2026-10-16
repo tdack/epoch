@@ -87,6 +87,7 @@ export class ScopedRowLoader {
 		const rNotes = new Set(seed.notes);
 		const rAttachments = new Set(seed.noteAttachments);
 		const rTasks = new Set(seed.tasks);
+		const seededLinks = new Set(seed.sourceRepositories);
 		const seededMedia = new Set(seed.media);
 
 		const processed = new Set<string>();
@@ -201,6 +202,15 @@ export class ScopedRowLoader {
 				'task',
 				guarded(maps.researchTasks, 'task', (t) => addSubject(t.subjectKind, t.subjectId))
 			);
+			// A seeded link resolves to its source and repository; it pulls neither.
+			once(
+				seededLinks,
+				'sourceRepository',
+				guarded(maps.sourceRepositories, 'sourceRepository', (l) => {
+					addSubject(SUBJECT.SOURCE, l.sourceId);
+					addSubject(SUBJECT.REPOSITORY, l.repositoryId);
+				})
+			);
 		};
 
 		/** Ids a rule has not asked yet; marks them asked. */
@@ -291,6 +301,9 @@ export class ScopedRowLoader {
 				add('noteAttachments', reads.attachmentsOfNotes(treeId, pulledNotes));
 			const taskIds = fresh('tasksIn', rTasks);
 			if (taskIds.length > 0) add('researchTasks', reads.tasksIn(treeId, taskIds));
+			const seededLinkIds = fresh('sourceRepositoriesIn', seededLinks);
+			if (seededLinkIds.length > 0)
+				add('sourceRepositories', reads.sourceRepositoriesIn(treeId, seededLinkIds));
 			const pulledRepositories = fresh('sourceRepositoriesOfRepositories', seed.repositories);
 			if (pulledRepositories.length > 0)
 				add(

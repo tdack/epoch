@@ -24,8 +24,10 @@ import { importGedcomToDb } from '../testing/gedcom';
 import { ChangeLogService } from './change-log-service';
 import { FactService } from './fact-service';
 import { NameService } from './name-service';
+import { NoteService } from './note-service';
 import { PersonService } from './person-service';
 import { RelationshipService } from './relationship-service';
+import { TaskService } from './task-service';
 
 interface Tally {
 	rows: number;
@@ -205,6 +207,22 @@ async function measureWrites(label: string, treeId: string) {
 			},
 			ctx
 		)
+	);
+	// Rows have no baseline: these were whole-tree writes before the evidence follow-up was added.
+	// The note is shared and used on the person, the task is about the person, so each write reads
+	// what its subject brings and nothing more.
+	const { noteId } = await new NoteService(t.db).createNote(treeId, { text: 'A shared note' }, ctx);
+	await new NoteService(t.db).attachNote(treeId, { kind: 'person', id: person.id }, noteId, ctx);
+	await measure(label, 'shared note edit (update_shared_note)', (db) =>
+		new NoteService(db).updateSharedNote(treeId, noteId, { text: 'Reworded' }, 1, ctx)
+	);
+	const { taskId } = await new TaskService(t.db).createTask(
+		treeId,
+		{ task: { title: 'Find the baptism' }, subject: { kind: 'person', id: person.id } },
+		ctx
+	);
+	await measure(label, 'task update (update_task)', (db) =>
+		new TaskService(db).updateTask(treeId, taskId, { status: 'done' }, 1, ctx)
 	);
 }
 

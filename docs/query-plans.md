@@ -150,7 +150,8 @@ Most edits now plan over the closure of the records they name (`ScopedRowLoader`
 tree. The kinds still planned over a full `TreeRows` snapshot (`ChangeStore.loadRows`) are listed in
 ADR-055 and in `write-scope/*.ts`. The relationship intent planner is scoped from a seed derived
 from the intent (`write-scope/intent.ts`), so "add partner" below has fallen with the rest. A
-partnership edit and `add_parent` load twice (ADR-055, "follow-up load").
+partnership edit, `add_parent`, and an edit of a shared note, a task or a repository load twice,
+or three times for a note on a repository (ADR-055, "follow-up load", "evidence follow-up").
 
 ### Write cost (ADR-055 baseline)
 
@@ -176,26 +177,33 @@ time is local wrangler SQLite, so only its ratio between the trees means anythin
 After ADR-055 (recorded 2026-10-16, same test). The edited person is new, with one name and one
 fact, so the rows are close to the minimum; a person with many partnerships, children and citations
 reads more, but in proportion to that person, not to the tree. A scoped load is three to five
-sequential batches, so round trips fall less than rows. The partnership edit and add parent rows
-were added with the follow-up load and have no baseline row. Add parent reads every `parent_child`
-row for its cycle check, which is the 11,205 on the corpus; the other rows are bounded by the family.
+sequential batches, so round trips fall less than rows. The partnership edit, add parent, shared
+note edit and task update rows were added with the follow-up loads and have no baseline row. The
+shared note is used on the person and the task is about the person, so neither follows a source or a
+repository; each reads the person's family and evidence, which is the 19 and 20 rows. Add parent
+reads every `parent_child` row for its cycle check, which is the 11,205 on the corpus; the other
+rows are bounded by the family.
 
 | Tree | Write | Rows returned | Round trips | Wall ms |
 | --- | --- | ---: | ---: | ---: |
-| The Simpsons | fact edit | 7 | 7 | 27 |
-| The Simpsons | undo of the fact edit | 10 | 10 | 36 |
-| The Simpsons | name edit | 7 | 7 | 30 |
-| The Simpsons | person update (update_person) | 9 | 9 | 28 |
-| The Simpsons | add partner | 11 | 9 | 30 |
-| The Simpsons | partnership edit (update_union) | 23 | 9 | 48 |
-| The Simpsons | add parent | 81 | 14 | 58 |
-| Corpus (5,324 people) | fact edit | 7 | 7 | 28 |
-| Corpus (5,324 people) | undo of the fact edit | 10 | 10 | 30 |
-| Corpus (5,324 people) | name edit | 7 | 7 | 20 |
-| Corpus (5,324 people) | person update (update_person) | 9 | 9 | 25 |
-| Corpus (5,324 people) | add partner | 11 | 9 | 39 |
-| Corpus (5,324 people) | partnership edit (update_union) | 23 | 9 | 33 |
-| Corpus (5,324 people) | add parent | 11205 | 14 | 110 |
+| The Simpsons | fact edit | 7 | 7 | 39 |
+| The Simpsons | undo of the fact edit | 10 | 10 | 34 |
+| The Simpsons | name edit | 7 | 7 | 28 |
+| The Simpsons | person update (update_person) | 9 | 9 | 30 |
+| The Simpsons | add partner | 11 | 9 | 29 |
+| The Simpsons | partnership edit (update_union) | 23 | 9 | 47 |
+| The Simpsons | add parent | 81 | 14 | 63 |
+| The Simpsons | shared note edit (update_shared_note) | 19 | 9 | 40 |
+| The Simpsons | task update (update_task) | 20 | 10 | 45 |
+| Corpus (5,324 people) | fact edit | 7 | 7 | 18 |
+| Corpus (5,324 people) | undo of the fact edit | 10 | 10 | 38 |
+| Corpus (5,324 people) | name edit | 7 | 7 | 19 |
+| Corpus (5,324 people) | person update (update_person) | 9 | 9 | 23 |
+| Corpus (5,324 people) | add partner | 11 | 9 | 23 |
+| Corpus (5,324 people) | partnership edit (update_union) | 23 | 9 | 32 |
+| Corpus (5,324 people) | add parent | 11205 | 14 | 131 |
+| Corpus (5,324 people) | shared note edit (update_shared_note) | 19 | 9 | 34 |
+| Corpus (5,324 people) | task update (update_task) | 20 | 10 | 31 |
 
 ## Name search (S6)
 
