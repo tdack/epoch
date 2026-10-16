@@ -38,7 +38,7 @@ import type {
 } from '../change-log';
 import type { NoteSubjectRef } from '../../../shared/notes';
 import type { RelationshipCommand } from '../relationship-commands';
-import { seedOf, selectScope, type ScopeSeed } from '../write-scope';
+import { selectScope, type ScopeSeed } from '../write-scope';
 import { seedFor } from './index';
 
 const T0 = 1_000_000;
@@ -69,7 +69,9 @@ const ENABLED = [
 	'share_note',
 	'attach_note',
 	'update_shared_note',
-	'delete_shared_note'
+	'delete_shared_note',
+	'update_task',
+	'delete_task'
 ] as const;
 
 /** The kinds scoped with the evidence follow-up; each is proved with and without it below. */
@@ -84,7 +86,9 @@ const NEWLY_SCOPED: string[] = [
 	'share_note',
 	'attach_note',
 	'update_shared_note',
-	'delete_shared_note'
+	'delete_shared_note',
+	'update_task',
+	'delete_task'
 ];
 
 function rng(seed: number) {
@@ -1028,17 +1032,23 @@ const FOLLOW_UP_CASES: FollowUpCase[] = [
 		'update_shared_note used on a repository',
 		{ kind: 'update_shared_note', noteId: 'n-repository', note: { text: 'x' } }
 	],
-	['delete_shared_note', { kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true }]
-];
-
-/** Kinds that have no seed yet, each with the seed that looks right and fails. */
-const STILL_WHOLE: Array<[string, RelationshipCommand, ScopeSeed]> = [
+	['delete_shared_note', { kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true }],
+	// A task about a source, about a note, and about a note that is used on a repository.
+	['update_task', { kind: 'update_task', taskId: 't-source', task: { title: 'x' } }],
+	['delete_task', { kind: 'delete_task', taskId: 't-note' }],
 	[
-		'update_task',
-		{ kind: 'update_task', taskId: 't-source', task: { title: 'x' } },
-		seedOf({ tasks: ['t-source'] })
+		'delete_task about a note on a repository',
+		{ kind: 'delete_task', taskId: 't-repository-note' }
 	],
-	['delete_task', { kind: 'delete_task', taskId: 't-note' }, seedOf({ tasks: ['t-note'] })]
+	[
+		'create_task about a note used on a repository',
+		{
+			kind: 'create_task',
+			taskId: 'new',
+			task: { title: 'T' },
+			subject: { kind: 'note', id: 'n-repository' }
+		}
+	]
 ];
 
 // ---- The suites ----
@@ -1207,25 +1217,6 @@ describe('the evidence follow-up is load-bearing', () => {
 		expect(seed!.shouldFollowEvidence).toBe(true);
 		expect(asRestricted(command, seed!)).not.toThrow();
 		expect(asRestricted(command, strippedOf(seed!))).toThrow();
-	});
-});
-
-/**
- * Kinds still on the whole tree: the seed that looks right plans differently for a restricted
- * viewer, and nothing yet follows the records it misses.
- */
-describe('kinds that stay on the whole tree', () => {
-	const asRestricted = (command: RelationshipCommand, seed: ScopeSeed) => () =>
-		expectScopedEqualsWhole({
-			whole: trapWorld(),
-			commands: [command],
-			scope: scopes.restricted,
-			seed
-		});
-
-	it.each(STILL_WHOLE)('%s', (kind, command, seed) => {
-		expect(seedFor([command]), `${kind} must not have a seed`).toBeNull();
-		expect(asRestricted(command, seed)).toThrow();
 	});
 });
 

@@ -1,7 +1,6 @@
 import { CITATION_SUBJECT_KINDS, type CitationSubjectRef } from '../../../shared/evidence';
 import { NOTE_SUBJECT_KINDS, type NoteSubjectRef } from '../../../shared/notes';
 import { TASK_SUBJECT_KINDS, type TaskSubjectRef } from '../../../shared/tasks';
-import type { TreeRows } from '../change-log';
 import { mergeSeeds, seedOf, type ScopeSeed } from '../write-scope';
 import type { ScopeTable } from './types';
 
@@ -13,31 +12,6 @@ import type { ScopeTable } from './types';
  * seeded one does.
  */
 const sourceSeed = (sourceId: string | null | undefined) => seedOf({ sources: [sourceId] });
-
-const EVERY_TABLE: ReadonlyArray<keyof TreeRows> = [
-	'individuals',
-	'personNames',
-	'unions',
-	'unionPartners',
-	'parentChild',
-	'events',
-	'mediaItems',
-	'sources',
-	'repositories',
-	'sourceRepositories',
-	'citations',
-	'notes',
-	'noteAttachments',
-	'researchTasks'
-];
-
-/**
- * A seed that is the whole tree, for the one variant of a kind that cannot be scoped while the
- * other variants can. A repository exists for a restricted viewer only through the sources that
- * link it, and a shared note only through the records that use it, none of which the closure
- * reaches from the repository or the note.
- */
-const WHOLE_TREE: ScopeSeed = seedOf({ wholeTables: EVERY_TABLE });
 
 /**
  * The follow-up is on wherever a command reads the row of the record it is about: a partnership
@@ -96,20 +70,20 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
 		case TASK_SUBJECT_KINDS.SOURCE:
 			return following({ sources: [subject.id] });
 		case TASK_SUBJECT_KINDS.NOTE:
-			return WHOLE_TREE;
+			return following({ notes: [subject.id] });
 	}
 }
 
 /**
  * Seeds for sources, repositories, citations, notes and tasks. A kind with no entry loads the
- * whole tree. Left out on purpose:
+ * whole tree; the only ones left are `merge_sources` and `merge_notes`, whole-tree by ADR-055
+ * because they read every use of the records they fold.
  *
- * - `merge_sources`, `merge_notes`: whole-tree by ADR-055.
- * - Anything keyed by an attachment, note or task id alone (`update_note`, `remove_note`,
- *   `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
- *   `delete_task`): the id does not say whether the note sits on a source or repository, or the
- *   task is about a source or a note, and then what a restricted viewer sees depends on records
- *   the closure does not load. `evidence.test.ts` shows each failing.
+ * What a restricted viewer sees of a note, a task, a source or a repository depends on records that
+ * no seed can name: the attachment, note or task id does not say what the note sits on or what the
+ * task is about, and a repository is visible only through the sources that link it. Those kinds
+ * opt in to the evidence follow-up (`write-scope/follow-up.ts`), which finds them in the first
+ * snapshot and loads them next.
  */
 export const EVIDENCE_SCOPES: ScopeTable = {
 	// A new record's XREF must not collide with one already taken, so that whole table is read.
@@ -148,5 +122,9 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	attach_note: (c) => mergeSeeds(noteSubjectSeed(c.subject), following({ notes: [c.noteId] })),
 	update_shared_note: (c) => following({ notes: [c.noteId] }),
 	delete_shared_note: (c) => following({ notes: [c.noteId] }),
-	create_task: (c) => taskSubjectSeed(c.subject)
+	create_task: (c) => taskSubjectSeed(c.subject),
+	// A task is visible to a restricted viewer only if the source or note it is about is, so the
+	// follow-up seeds that source (its citations decide) or note (its attachments decide).
+	update_task: (c) => following({ tasks: [c.taskId] }),
+	delete_task: (c) => following({ tasks: [c.taskId] })
 };
