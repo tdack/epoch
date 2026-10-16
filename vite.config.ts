@@ -63,11 +63,19 @@ export default defineConfig({
 		// Component tests need Svelte's client build and a DOM, which would change how every
 		// server-side module resolves, so they run as their own project. Agent worktrees live under
 		// `.claude/worktrees/`, and the default include would test every one of them as well.
+		// Half the cores: each server test file also runs a workerd, so the default oversubscribes the
+		// host (load near 60 on 10 cores) for no gain; half took the same wall time at a third the load.
+		maxWorkers: '50%',
 		projects: [
 			{
 				extends: true,
 				test: {
 					name: 'server',
+					// Each test talks to a real local D1 in its own workerd process, so a full run loads the
+					// host heavily; the 5-second default timed out the Windsors import (1.7s alone) and, since
+					// a timed-out test keeps running, broke the next test in the file too.
+					testTimeout: 30_000,
+					hookTimeout: 30_000,
 					exclude: [
 						...defaultExclude,
 						'.claude/**',
