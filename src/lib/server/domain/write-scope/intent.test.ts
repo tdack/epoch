@@ -5,7 +5,12 @@ import { ChangeStore } from '../../repositories/change-store';
 import { ScopedRowLoader } from '../../repositories/scoped-row-loader';
 import { MutationRunner } from '../../services/mutation-runner';
 import type { ViewerScope } from '../../services/tree-access';
-import { createTestTree, createTestUser, type TestDatabase } from '../../testing/d1';
+import {
+	createTestDatabase,
+	createTestTree,
+	createTestUser,
+	type TestDatabase
+} from '../../testing/d1';
 import { addEvidence, seededRandom } from '../../testing/evidence-fixtures';
 import { importGedcomToDb } from '../../testing/gedcom';
 import { TEST_TREE_ID, sequentialIds } from '../../testing/rows';
@@ -387,22 +392,29 @@ describe('the proof is not vacuous', () => {
 
 describe('the D1 loader returns what the selector does for these seeds', () => {
 	it('for intents of each kind', async () => {
-		const actor = await createTestUser(t.db);
-		const treeId = await createTestTree(t.db, actor);
-		await importGedcomToDb(t.d1, treeId, duplicateFamilies, 'Intent loader');
-		const store = new ChangeStore(t.db);
-		await addEvidence(t.db, treeId, await store.loadRows(treeId), seededRandom(59));
-		const whole = await store.loadRows(treeId);
-		const loader = new ScopedRowLoader(t.db);
-		for (const kind of KINDS) {
-			const intents = intentsFor(kind, whole);
-			expect(intents.length).toBeGreaterThan(0);
-			for (const intent of every(intents, 6)) {
-				const seed = intentSeed(intent)!;
-				expect(await loader.load(treeId, seed), `${kind} ${JSON.stringify(intent)}`).toEqual(
-					selectScope(whole, seed)
-				);
+		// Its own database: the equivalence tests hold the shared connection idle for tens of seconds,
+		// and under a loaded run it is reset before this test starts.
+		const own = await createTestDatabase();
+		try {
+			const actor = await createTestUser(own.db);
+			const treeId = await createTestTree(own.db, actor);
+			await importGedcomToDb(own.d1, treeId, duplicateFamilies, 'Intent loader');
+			const store = new ChangeStore(own.db);
+			await addEvidence(own.db, treeId, await store.loadRows(treeId), seededRandom(59));
+			const whole = await store.loadRows(treeId);
+			const loader = new ScopedRowLoader(own.db);
+			for (const kind of KINDS) {
+				const intents = intentsFor(kind, whole);
+				expect(intents.length).toBeGreaterThan(0);
+				for (const intent of every(intents, 6)) {
+					const seed = intentSeed(intent)!;
+					expect(await loader.load(treeId, seed), `${kind} ${JSON.stringify(intent)}`).toEqual(
+						selectScope(whole, seed)
+					);
+				}
 			}
+		} finally {
+			await own.dispose();
 		}
 	}, 120_000);
 });
