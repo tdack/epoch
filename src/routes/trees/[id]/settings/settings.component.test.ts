@@ -173,8 +173,10 @@ describe('settings page', () => {
 		render();
 		type('mine-sex-male-text', '#4a86c8');
 		await submit(document.querySelector('form')!);
-		expect(document.getElementById('mine-save-error')!.textContent).toContain(
-			'Female: the sphere is too dark'
+		await vi.waitFor(() =>
+			expect(document.getElementById('mine-save-error')!.textContent).toContain(
+				'Female: the sphere is too dark'
+			)
 		);
 	});
 

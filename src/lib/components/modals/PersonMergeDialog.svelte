@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ImpactDialog from './ImpactDialog.svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
-	import { isConflict } from '#lib/api/client.js';
 	import { mergePeopleApi, reviewPersonMergeApi } from '#lib/api/people.js';
 	import type { MergeSide, PersonMergeReviewDto } from '#lib/shared/person-merge.js';
 	import { sexLabel } from '#lib/shared/sex.js';
@@ -29,10 +29,11 @@
 	let review = $state<PersonMergeReviewDto | null>(null);
 	let impact = $state<ImpactSummary | null>(null);
 	let error = $state<string | null>(null);
-	let saveError = $state<string | null>(null);
 	let isLoading = $state(false);
-	let isSaving = $state(false);
 	let request = 0;
+	const submission = createSubmission((message) => {
+		submission.error = `${message} Close this and try again.`;
+	});
 
 	const survivorId = $derived(stays === 'this' ? person.id : (other?.id ?? ''));
 	const mergedId = $derived(stays === 'this' ? (other?.id ?? '') : person.id);
@@ -45,7 +46,7 @@
 		review = null;
 		impact = null;
 		error = null;
-		saveError = null;
+		submission.clearError();
 	});
 
 	// The review and the exact preview are planned on the server for the choices made so far.
@@ -65,7 +66,7 @@
 				if (mine !== request) return;
 				review = null;
 				impact = null;
-				error = (cause as Error).message;
+				error = messageOf(cause, 'Could not review the merge');
 			})
 			.finally(() => {
 				if (mine === request) isLoading = false;
@@ -80,25 +81,18 @@
 
 	async function save() {
 		if (!review || !impact) return;
-		isSaving = true;
-		saveError = null;
-		try {
-			const { change } = await mergePeopleApi(treeId, review.survivor.id, {
-				mergedId: review.merged.id,
+		const { survivor, merged } = review;
+		await submission.submit(async () => {
+			const { change } = await mergePeopleApi(treeId, survivor.id, {
+				mergedId: merged.id,
 				keep: keepSex ? { sex: keepSex } : undefined,
 				expectedVersions: {
-					[review.survivor.id]: review.survivor.version,
-					[review.merged.id]: review.merged.version
+					[survivor.id]: survivor.version,
+					[merged.id]: merged.version
 				}
 			});
-			await onmerged(change, review.survivor.id);
-		} catch (cause: unknown) {
-			saveError = isConflict(cause)
-				? `${(cause as Error).message} Close this and try again.`
-				: messageOf(cause, 'Could not merge');
-		} finally {
-			isSaving = false;
-		}
+			await onmerged(change, survivor.id);
+		}, 'Could not merge');
 	}
 </script>
 
@@ -154,8 +148,8 @@
 	title="Merge with another record of this person"
 	{impact}
 	isLoading={isOpen && isLoading}
-	isConfirming={isSaving}
-	error={saveError ?? error}
+	isConfirming={submission.isSaving}
+	error={submission.error ?? error}
 	confirmLabel="Merge people"
 	idleMessage={other
 		? (review?.refusal ?? 'Choose what to keep to see the changes.')

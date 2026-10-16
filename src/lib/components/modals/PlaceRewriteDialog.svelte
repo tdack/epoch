@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
-	import { isConflict } from '#lib/api/client.js';
 	import { previewPlaceRewriteApi, rewritePlaceApi, suggestPlacesApi } from '#lib/api/lists.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
@@ -26,8 +26,9 @@
 	let name = $state('');
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
-	let saveError = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => {
+		submission.error = `${message} Close this and try again.`;
+	});
 	let input = $state<HTMLInputElement | null>(null);
 	let previewRequest = 0;
 	// Places already on the tree's facts: choosing one is how a merge is asked for.
@@ -40,7 +41,7 @@
 		name = currentName;
 		impact = null;
 		previewError = null;
-		saveError = null;
+		submission.clearError();
 		void tick().then(() => input?.select());
 	});
 
@@ -80,7 +81,7 @@
 			} catch (cause: unknown) {
 				if (request !== previewRequest) return;
 				impact = null;
-				previewError = (cause as Error).message;
+				previewError = messageOf(cause, 'Could not preview the change');
 			}
 		}, PREVIEW_DELAY_MS);
 		return () => clearTimeout(timer);
@@ -88,18 +89,10 @@
 
 	async function save() {
 		if (isUnchanged) return;
-		isSaving = true;
-		saveError = null;
-		try {
+		await submission.submit(async () => {
 			const { change, name: saved } = await rewritePlaceApi(treeId, placeId, name.trim());
 			await onsaved(change, saved);
-		} catch (cause: unknown) {
-			saveError = isConflict(cause)
-				? `${(cause as Error).message} Close this and try again.`
-				: messageOf(cause, 'Could not change the place');
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not change the place');
 	}
 </script>
 
@@ -108,8 +101,8 @@
 	title="Rename or merge this place"
 	{impact}
 	isLoading={isOpen && !isUnchanged && impact === null && previewError === null}
-	isConfirming={isSaving}
-	error={saveError ?? previewError}
+	isConfirming={submission.isSaving}
+	error={submission.error ?? previewError}
 	confirmLabel="Change place"
 	idleMessage="Type a new name to see which facts change."
 	isConfirmBlocked={isUnchanged}

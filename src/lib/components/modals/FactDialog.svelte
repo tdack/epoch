@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { tick, untrack } from 'svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
@@ -182,7 +183,7 @@
 			} catch (cause: unknown) {
 				if (request !== previewRequest) return;
 				impact = null;
-				previewError = (cause as Error).message;
+				previewError = messageOf(cause, 'Could not preview the change');
 			}
 		}, PREVIEW_DELAY_MS);
 		return () => clearTimeout(timer);

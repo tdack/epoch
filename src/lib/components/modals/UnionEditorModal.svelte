@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Heart, Plus, Trash2 } from '@lucide/svelte';
-	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import BaseModal from './BaseModal.svelte';
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows } from './conflict.js';
-	import { isConflict, type ConflictError } from '#lib/api/client.js';
+	import type { ConflictError } from '#lib/api/client.js';
 	import { updateUnionApi } from '#lib/api/relationships.js';
 	import {
 		UNION_EVENT_LABELS,
@@ -57,9 +57,10 @@
 	let status = $state<string>('active');
 	let rows = $state<EventRow[]>([]);
 	let nextKey = 0;
-	let isSubmitting = $state(false);
-	let error = $state<string | null>(null);
 	let conflict = $state<ConflictError | null>(null);
+	const submission = createSubmission((_message, cause) => {
+		conflict = cause;
+	});
 	let addType = $state<UnionEventType | ''>('');
 
 	const title = $derived(
@@ -84,7 +85,7 @@
 			savedDateText: e.dateText ?? '',
 			place: e.place ?? ''
 		}));
-		error = null;
+		submission.error = null;
 		conflict = null;
 		addType = '';
 	}
@@ -141,9 +142,7 @@
 
 	async function save(mergeOnto?: ConflictError) {
 		if (!union) return;
-		isSubmitting = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			const { change } = await updateUnionApi(
 				treeId,
 				union.id,
@@ -151,12 +150,7 @@
 			);
 			conflict = null;
 			onsaved(change);
-		} catch (e) {
-			if (isConflict(e)) conflict = e;
-			else error = messageOf(e, '');
-		} finally {
-			isSubmitting = false;
-		}
+		}, '');
 	}
 
 	const conflictRows = $derived.by(() => {
@@ -201,7 +195,7 @@
 	subtitle={title}
 	icon={Heart}
 	maxWidthClass="max-w-xl"
-	{error}
+	error={submission.error}
 	{onclose}
 >
 	<form
@@ -318,8 +312,12 @@
 				class="flex-1 cursor-pointer rounded-lg bg-stone-200 py-2 font-semibold text-stone-700"
 				>Cancel</button
 			>
-			<button type="submit" disabled={isSubmitting || hasDateProblem} class="btn-primary flex-1">
-				{isSubmitting ? 'Saving…' : 'Save'}
+			<button
+				type="submit"
+				disabled={submission.isSaving || hasDateProblem}
+				class="btn-primary flex-1"
+			>
+				{submission.isSaving ? 'Saving…' : 'Save'}
 			</button>
 		</div>
 	</form>
@@ -329,7 +327,7 @@
 	isOpen={conflict !== null}
 	subject={title}
 	rows={conflictRows}
-	isWorking={isSubmitting}
+	isWorking={submission.isSaving}
 	onreload={reload}
 	onreapply={() => save(conflict ?? undefined)}
 	oncancel={() => (conflict = null)}
