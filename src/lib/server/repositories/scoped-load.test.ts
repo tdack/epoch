@@ -274,4 +274,63 @@ describe('the scoped loader agrees with the selector', () => {
 		expect(loaded.personNames).toEqual(whole.personNames);
 		expect(loaded.individuals).toEqual([]);
 	}, 60_000);
+
+	it('resolves a seeded source link to its source and repository, as the selector does', async () => {
+		const loader = new ScopedRowLoader(t.db);
+		const store = new ChangeStore(t.db);
+		const check = async (label: string, treeId: string, whole: TreeRows, extra: string[]) => {
+			const links = whole.sourceRepositories.map((l) => l.id);
+			expect(links.length, label).toBeGreaterThan(2);
+			const random = rng(label.length * 101);
+			const seeds: ScopeSeed[] = [
+				seedOf({ sourceRepositories: ['no-such-link'] }),
+				seedOf({ sourceRepositories: links }),
+				...links.map((id) => seedOf({ sourceRepositories: [id] })),
+				...links.map((id) =>
+					seedOf({
+						sourceRepositories: [id],
+						people: [whole.individuals[Math.floor(random() * whole.individuals.length)]!.id],
+						sources: random() < 0.5 ? [whole.sources[0]!.id] : [],
+						notes: random() < 0.5 ? [whole.notes[0]!.id] : []
+					})
+				),
+				seedOf({ sourceRepositories: extra })
+			];
+			let selected = 0;
+			for (const [index, seed] of seeds.entries()) {
+				const loaded = await loader.load(treeId, seed);
+				expect(
+					loaded,
+					`${label} seed ${index} ${JSON.stringify(seed, (_k, v) => (v instanceof Set ? [...v] : v))}`
+				).toEqual(selectScope(whole, seed));
+				selected += loaded.sourceRepositories.length;
+			}
+			expect(selected, `${label} selected no link`).toBeGreaterThan(0);
+		};
+
+		const mine = await createTestTree(t.db, actor);
+		await importGedcomToDb(t.d1, mine, simpsons, 'Simpsons');
+		await addEvidence(mine, await store.loadRows(mine), rng(11));
+		// A link whose repository the file only named, so it has a source but no repository id.
+		const mineWhole = await store.loadRows(mine);
+		await t.db.insert(sourceRepositories).values({
+			id: `${mine.slice(0, 8)}-sr-ref`,
+			sourceId: mineWhole.sources[3]!.id,
+			repositoryId: null,
+			repositoryRef: '@R-GONE@'
+		});
+		const theirs = await createTestTree(t.db, actor);
+		await importGedcomToDb(t.d1, theirs, simpsons, 'Theirs');
+		await addEvidence(theirs, await store.loadRows(theirs), rng(12));
+		const theirLinks = (await store.loadRows(theirs)).sourceRepositories.map((l) => l.id);
+		await check('Simpsons', mine, await store.loadRows(mine), theirLinks);
+		// Another tree's link id selects nothing.
+		const foreign = await loader.load(mine, seedOf({ sourceRepositories: theirLinks }));
+		for (const rows of Object.values(foreign)) expect(rows).toEqual([]);
+
+		const corpus = await createTestTree(t.db, actor);
+		await insertCorpus(t.db, corpus, { prefix: corpus.slice(0, 8), shouldNameThePeople: true });
+		await addEvidence(corpus, await store.loadRows(corpus), rng(23));
+		await check('Corpus', corpus, await store.loadRows(corpus), []);
+	}, 600_000);
 });

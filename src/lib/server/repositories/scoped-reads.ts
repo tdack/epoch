@@ -153,6 +153,20 @@ export class ScopedReads extends GraphWindowRepository {
 		);
 	}
 
+	/** Links by id, tested through their source for the same reason. */
+	sourceRepositoriesIn(treeId: string, ids: readonly string[]): Reads<SourceRepositoryRow> {
+		return this.readIn(sourceRepositories, ids, (chunk) =>
+			this.client
+				.select({
+					...getTableColumns(sourceRepositories),
+					rid: sql<number>`${sourceRepositories}.rowid`
+				})
+				.from(sourceRepositories)
+				.innerJoin(sources, eq(sources.id, sourceRepositories.sourceId))
+				.where(and(inTree(sources.treeId, treeId), inArray(sourceRepositories.id, chunk)))
+		);
+	}
+
 	/** A source's repository links; `source_repositories` has no tree column, so the source tests it. */
 	sourceRepositoriesOfSources(
 		treeId: string,

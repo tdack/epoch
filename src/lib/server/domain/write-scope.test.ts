@@ -308,6 +308,28 @@ describe('selectScope', () => {
 		expect(picked.sources).toEqual([]);
 	});
 
+	it('resolves a seeded source link to its source and repository, and pulls neither', () => {
+		const picked = ids(selectScope(withEvidence(), seedOf({ sourceRepositories: ['sr-census'] })));
+		expect(picked.sourceRepositories).toEqual(['sr-census']);
+		expect(picked.sources).toEqual(['s-census']);
+		expect(picked.repositories).toEqual(['r-1']);
+		// Not pulled: the other link of r-1 and the citations of s-census.
+		expect(picked.citations).toEqual([]);
+		expect(ids(selectScope(withEvidence(), seedOf({ sourceRepositories: ['nope'] })))).toEqual(
+			ids(selectScope(withEvidence(), emptySeed()))
+		);
+	});
+
+	it('resolves a link with no repository to its source alone', () => {
+		const rows = withEvidence();
+		rows.sources.push(source('s-lonely'));
+		rows.sourceRepositories.push(sourceRepository('sr-ref', 's-lonely', null));
+		const picked = ids(selectScope(rows, seedOf({ sourceRepositories: ['sr-ref'] })));
+		expect(picked.sourceRepositories).toEqual(['sr-ref']);
+		expect(picked.sources).toEqual(['s-lonely']);
+		expect(picked.repositories).toEqual([]);
+	});
+
 	it('brings note attachments with their notes, and those on a loaded citation or source', () => {
 		const picked = ids(selectScope(withEvidence(), seedOf({ people: ['a'] })));
 		expect(picked.attachments).toEqual(['att-a', 'att-inline-a', 'att-on-cite', 'att-on-source']);
@@ -375,5 +397,15 @@ describe('mergeSeeds', () => {
 		expect([...merged.people]).toEqual(['a', 'b']);
 		expect([...merged.tasks]).toEqual(['t']);
 		expect(merged.wholeTables).toEqual(['parentChild', 'events']);
+	});
+
+	it('unions the link ids and keeps either follow-up flag', () => {
+		const merged = mergeSeeds(
+			seedOf({ sourceRepositories: ['l1'], shouldFollowEvidence: true }),
+			seedOf({ sourceRepositories: ['l2'] })
+		);
+		expect([...merged.sourceRepositories]).toEqual(['l1', 'l2']);
+		expect(merged.shouldFollowEvidence).toBe(true);
+		expect(mergeSeeds(seedOf({}), seedOf({})).shouldFollowEvidence).toBeUndefined();
 	});
 });

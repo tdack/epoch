@@ -11,6 +11,7 @@
  *    note attachment to its subject and its note, a task to its subject, a file to its owner, a
  *    link to both people and its partnership. This repeats until nothing new appears, because a
  *    note on a citation resolves through the citation to its subject.
+ *    A `source_repositories` link resolves to its source and its repository.
  * 2. Pull. A seeded source brings its citations, a seeded shared note its attachments, a seeded
  *    repository its `source_repositories` rows. Only a direct seed pulls: a source that is loaded
  *    merely because a citation names it does not bring every other citation of it.
@@ -47,6 +48,8 @@ export interface ScopeSeed {
 	readonly notes: ReadonlySet<string>;
 	readonly noteAttachments: ReadonlySet<string>;
 	readonly tasks: ReadonlySet<string>;
+	/** `source_repositories` row ids. A link resolves to its source and its repository; it pulls neither. */
+	readonly sourceRepositories: ReadonlySet<string>;
 	/** Tables to read whole on top of the closure, as `assert_parent_child` does for `parentChild`. */
 	readonly wholeTables?: ReadonlyArray<keyof TreeRows>;
 	/**
@@ -55,9 +58,19 @@ export interface ScopeSeed {
 	 * The selector ignores it; only `followUpSeed` and the runner read it.
 	 */
 	readonly shouldFollowFamily?: boolean;
+	/**
+	 * Opts the command into the evidence follow-up: whether a restricted viewer sees a note, task,
+	 * source or repository depends on records that are found only in the first snapshot (the sources
+	 * a repository is linked from, the citations of a source a note sits on), so they are seeded and
+	 * loaded next. The selector ignores it.
+	 */
+	readonly shouldFollowEvidence?: boolean;
 }
 
-type IdKey = Exclude<keyof ScopeSeed, 'wholeTables' | 'shouldFollowFamily'>;
+type IdKey = Exclude<
+	keyof ScopeSeed,
+	'wholeTables' | 'shouldFollowFamily' | 'shouldFollowEvidence'
+>;
 
 const ID_KEYS: readonly IdKey[] = [
 	'people',
@@ -71,7 +84,8 @@ const ID_KEYS: readonly IdKey[] = [
 	'repositories',
 	'notes',
 	'noteAttachments',
-	'tasks'
+	'tasks',
+	'sourceRepositories'
 ];
 
 export function emptySeed(): ScopeSeed {
@@ -87,7 +101,8 @@ export function emptySeed(): ScopeSeed {
 		repositories: new Set(),
 		notes: new Set(),
 		noteAttachments: new Set(),
-		tasks: new Set()
+		tasks: new Set(),
+		sourceRepositories: new Set()
 	};
 }
 
@@ -96,6 +111,7 @@ export function seedOf(
 	ids: Partial<Record<IdKey, Iterable<string | null | undefined>>> & {
 		wholeTables?: ReadonlyArray<keyof TreeRows>;
 		shouldFollowFamily?: boolean;
+		shouldFollowEvidence?: boolean;
 	}
 ): ScopeSeed {
 	const seed: Record<string, unknown> = { ...emptySeed() };
@@ -106,6 +122,7 @@ export function seedOf(
 	}
 	if (ids.wholeTables) seed.wholeTables = ids.wholeTables;
 	if (ids.shouldFollowFamily) seed.shouldFollowFamily = true;
+	if (ids.shouldFollowEvidence) seed.shouldFollowEvidence = true;
 	return seed as unknown as ScopeSeed;
 }
 
@@ -115,6 +132,7 @@ export function mergeSeeds(a: ScopeSeed, b: ScopeSeed): ScopeSeed {
 	const whole = [...new Set([...(a.wholeTables ?? []), ...(b.wholeTables ?? [])])];
 	if (whole.length > 0) merged.wholeTables = whole;
 	if (a.shouldFollowFamily || b.shouldFollowFamily) merged.shouldFollowFamily = true;
+	if (a.shouldFollowEvidence || b.shouldFollowEvidence) merged.shouldFollowEvidence = true;
 	return merged as unknown as ScopeSeed;
 }
 
@@ -160,6 +178,7 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	const noteIds = new Set(whole.notes.map((r) => r.id));
 	const attachmentById = new Map(whole.noteAttachments.map((r) => [r.id, r]));
 	const taskById = new Map(whole.researchTasks.map((r) => [r.id, r]));
+	const linkRowById = new Map(whole.sourceRepositories.map((r) => [r.id, r]));
 
 	/** Adds a record by the kind a subject column names; an id the tree does not have adds nothing. */
 	const addSubject = (kind: string | null, id: string | null) => {
@@ -207,9 +226,17 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	for (const id of seed.media) if (mediaById.has(id)) media.add(id);
 	for (const id of seed.noteAttachments) if (attachmentById.has(id)) attachments.add(id);
 	for (const id of seed.tasks) if (taskById.has(id)) tasks.add(id);
+	// A link resolves to its source and its repository and is itself selected, but pulls neither.
+	const pulledRepositoryLinks = new Set<string>();
+	for (const id of seed.sourceRepositories) {
+		const link = linkRowById.get(id);
+		if (!link) continue;
+		pulledRepositoryLinks.add(id);
+		addSubject(SUBJECT.SOURCE, link.sourceId);
+		addSubject(SUBJECT.REPOSITORY, link.repositoryId);
+	}
 
 	// Pull: only what the caller seeded directly.
-	const pulledRepositoryLinks = new Set<string>();
 	for (const c of whole.citations)
 		if (c.sourceId && seed.sources.has(c.sourceId)) citations.add(c.id);
 	for (const a of whole.noteAttachments)
