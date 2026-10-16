@@ -115,20 +115,18 @@ Last reviewed: 2026-10-15.
   folds "müller" to "Muller", but the ranking compares the stored text as written, because SQL cannot
   fold it (ADR-049). A stored "Müller" found by "muller" ranks below whole-word matches. Fixing this
   needs a folded column the triggers can fill, which SQL cannot compute. Decide with a measured case.
-- **Some writes still read the whole tree (ADR-055).** Person, fact, name, file, partnership,
-  union-link, source, citation, note-creation and task-creation edits, the relationship intents and undo now load a scoped snapshot (a
-  fact edit on the 5,324-person corpus fell from 34,412 rows to 7; query-plans.md, "Write cost").
-  Still whole, each pinned by a test in `write-scope/*.test.ts`:
-  - Repository edits and links (`update_repository`, `delete_repository`, `link_repository`,
-    `update_source_repository`, `unlink_repository`): a restricted viewer sees a repository only
-    through the sources that link it, and the closure does not walk from a repository to them.
-  - Note and task edits keyed by an attachment, note or task id (`update_note`, `remove_note`,
-    `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
-    `delete_task`): the id does not say which subject it sits on.
-  - By design: merges, `standardise_dates`, `rewrite_place`, the quality report.
-  A scoped load costs three to five sequential batches (a partnership edit or `add_parent` adds a
-  second load of the same shape), so round trips fall less than rows. `add_parent` still reads every
-  `parent_child` row for its cycle check, as `add_child` does (about 11,000 rows on the corpus).
+- **A few writes read the whole tree, by design (ADR-055).** Every other write loads a scoped
+  snapshot (a fact edit on the 5,324-person corpus fell from 34,412 rows to 7; query-plans.md,
+  "Write cost"). What stays whole: `merge_sources`, `merge_notes`, `merge_people`,
+  `merge_unions` (each reads every use of the records it folds), `standardise_dates`,
+  `rewrite_place` and the quality report. Two rare paths fall back to the whole tree for
+  correctness, not by kind: a partnership with no partners reached by a family or evidence write,
+  and a chain of more than three loads (a task about a note that is used on a repository, which
+  needs task, note, repository, link, source). Neither is worth a fourth load.
+  A scoped load costs three to five sequential batches (a partnership edit, `add_parent`, or an
+  edit of a note, task or repository adds a second or third load of the same shape), so round trips
+  fall less than rows. `add_parent` still reads every `parent_child` row for its cycle check, as
+  `add_child` does (about 11,000 rows on the corpus).
 - **A union label can number against an unrelated union.** The labeller numbers single-partner
   partnerships that share a display name elsewhere in the tree ("1 of 2"); a scoped load cannot see
   the unrelated one, so the label can differ from the whole tree's. Cosmetic; it predates ADR-055.
