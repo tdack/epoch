@@ -213,9 +213,9 @@
 				type="button"
 				onclick={onconfirm}
 				disabled={isLoading || isConfirming || isConfirmBlocked || !impact}
-				class="flex-1 cursor-pointer rounded-lg py-2 font-semibold text-white disabled:opacity-50 {isDestructive
-					? 'bg-red-700 hover:bg-red-600'
-					: 'bg-emerald-800 hover:bg-emerald-700'}"
+				class={isDestructive
+					? 'flex-1 cursor-pointer rounded-lg bg-red-700 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-50'
+					: 'btn-primary flex-1'}
 			>
 				{isConfirming ? 'Working…' : confirmLabel}
 			</button>

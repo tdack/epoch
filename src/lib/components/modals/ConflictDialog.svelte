@@ -80,12 +80,7 @@
 				Reload saved values
 			</button>
 			{#if onreapply}
-				<button
-					type="button"
-					onclick={onreapply}
-					disabled={isWorking}
-					class="flex-1 cursor-pointer rounded-lg bg-emerald-700 py-2 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-				>
+				<button type="button" onclick={onreapply} disabled={isWorking} class="btn-primary flex-1">
 					{isWorking ? 'Saving…' : 'Re-apply my changes'}
 				</button>
 			{/if}

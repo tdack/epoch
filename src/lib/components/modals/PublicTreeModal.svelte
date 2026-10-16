@@ -119,9 +119,9 @@
 					type="button"
 					onclick={() => onconfirm(confirmText)}
 					disabled={!canConfirm}
-					class="inline-flex cursor-pointer items-center space-x-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 {isWithdrawing
-						? 'bg-emerald-800 hover:bg-emerald-700'
-						: 'bg-amber-700 hover:bg-amber-600'}"
+					class="space-x-1.5 disabled:cursor-not-allowed {isWithdrawing
+						? 'btn-primary'
+						: 'inline-flex cursor-pointer items-center justify-center rounded-lg bg-amber-700 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-amber-600 disabled:opacity-50'}"
 				>
 					{#if isSaving}
 						<RefreshCw class="mr-1 h-3.5 w-3.5 animate-spin" />

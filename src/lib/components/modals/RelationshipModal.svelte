@@ -843,12 +843,7 @@
 				class="flex-1 cursor-pointer rounded-lg bg-stone-200 py-2 font-semibold text-stone-700"
 				>Cancel</button
 			>
-			<button
-				type="button"
-				onclick={() => submit()}
-				disabled={!canSave}
-				class="flex-1 cursor-pointer rounded-lg bg-emerald-700 py-2 font-semibold text-white disabled:opacity-50"
-			>
+			<button type="button" onclick={() => submit()} disabled={!canSave} class="btn-primary flex-1">
 				{isSubmitting ? 'Saving…' : 'Save'}
 			</button>
 		</div>

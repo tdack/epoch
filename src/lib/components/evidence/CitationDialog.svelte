@@ -304,7 +304,7 @@
 			<button
 				type="submit"
 				disabled={submission.isSaving || !sourceId || !isDateValid}
-				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+				class="btn-primary flex-1"
 				>{submission.isSaving ? 'Saving…' : citation ? 'Save citation' : 'Add citation'}</button
 			>
 		</div>
