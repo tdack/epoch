@@ -318,6 +318,10 @@ Last reviewed: 2026-10-15.
   `drizzle/0029_name_fts.sql`. Time Travel is not affected.
 - **Job dashboards, structured privacy-safe logs, and storage and cost metrics.**
 - **Development, staging and production configuration separation,** reproducible provisioning.
+- **A tree on its own subdomain** (`dacks.example.com` shows only that tree). Proposed in
+  [proposal-tree-subdomains.md](./proposal-tree-subdomains.md): a wildcard route set up once by
+  setup's existing OAuth sign-in, then a per-tree flag; no runtime credential. Awaiting the owner's
+  choice of option.
 
 ### Release hardening
 
