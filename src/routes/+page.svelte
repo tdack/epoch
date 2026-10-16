@@ -41,11 +41,7 @@
 			You have no trees yet. Create an empty one, or import a GEDCOM file.
 		</p>
 		<div>
-			<button
-				type="button"
-				onclick={shell.openNewTree}
-				class="mt-5 cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-emerald-700"
-			>
+			<button type="button" onclick={shell.openNewTree} class="btn-primary mt-5">
 				Create a tree
 			</button>
 		</div>

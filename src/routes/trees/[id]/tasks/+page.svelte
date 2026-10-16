@@ -109,9 +109,7 @@
 			{/each}
 		</select>
 	</div>
-	<button type="submit" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
-		>Filter</button
-	>
+	<button type="submit" class="btn-primary">Filter</button>
 	{#if data.subject}
 		<p class="text-sm text-stone-700" data-testid="task-subject-filter">
 			About {subjectLabel ?? 'one record'} ·

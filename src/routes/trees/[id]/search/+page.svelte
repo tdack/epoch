@@ -110,10 +110,7 @@
 			data-testid="search-to"
 		/>
 	</label>
-	<button
-		type="submit"
-		class="flex items-center justify-center gap-1.5 self-end rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-	>
+	<button type="submit" class="btn-primary gap-1.5 self-end">
 		<Search class="h-4 w-4" />Search
 	</button>
 </form>

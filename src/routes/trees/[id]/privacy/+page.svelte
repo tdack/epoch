@@ -99,11 +99,7 @@
 		</label>
 	</div>
 
-	<button
-		type="submit"
-		disabled={!isValid || isSaving}
-		class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-	>
+	<button type="submit" disabled={!isValid || isSaving} class="btn-primary">
 		{isSaving ? 'Saving…' : 'Save'}
 	</button>
 </form>

@@ -237,7 +237,7 @@
 			<div class="mt-2 flex flex-wrap items-center gap-3">
 				<button
 					type="button"
-					class="rounded-lg bg-emerald-800 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+					class="btn-primary-sm"
 					disabled={isStandardising}
 					onclick={standardiseDates}
 				>
@@ -367,10 +367,7 @@
 											class="mt-1 block w-80 max-w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal"
 										/>
 									</label>
-									<button
-										type="submit"
-										disabled={isSaving || !reason.trim()}
-										class="rounded-lg bg-emerald-800 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+									<button type="submit" disabled={isSaving || !reason.trim()} class="btn-primary-sm"
 										>Dismiss</button
 									>
 									<button
@@ -416,10 +413,7 @@
 				class="mt-1 block w-80 max-w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal"
 			/>
 		</label>
-		<button
-			type="submit"
-			disabled={isSaving || !bulkReason.trim()}
-			class="rounded-lg bg-emerald-800 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+		<button type="submit" disabled={isSaving || !bulkReason.trim()} class="btn-primary-sm"
 			>Dismiss {selectedKeys.length}</button
 		>
 		<button
