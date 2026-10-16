@@ -128,17 +128,10 @@ Last reviewed: 2026-10-15.
   - Note and task edits keyed by an attachment, note or task id (`update_note`, `remove_note`,
     `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
     `delete_task`): the id does not say which subject it sits on.
-  - `delete_person`, `detach_media`: blocked by the `opsTouchPrivate` item below.
   - The relationship intent planner (`add_partner`, `add_child`, …), which is the busiest path left;
     showing equality for it is the next step.
   - By design: merges, `standardise_dates`, `rewrite_place`, the quality report.
   A scoped load costs three to five sequential batches, so round trips fall less than rows.
-- **`opsTouchPrivate` treats an unowned file differently when the tree has no private person.**
-  Its `hidden.size === 0` early return skips the "a detached file is editor-only" rule, so whether a
-  contributor may touch an unowned file depends on whether anyone else in the tree is private. A
-  scoped snapshot may see no private person where the whole tree has one, which is why
-  `delete_person` and `detach_media` stay whole. Decide which behaviour is intended, make the rule
-  not depend on the rest of the tree, then scope both kinds. (`domain/privacy-mask.ts`)
 - **A union label can number against an unrelated union.** The labeller numbers single-partner
   partnerships that share a display name elsewhere in the tree ("1 of 2"); a scoped load cannot see
   the unrelated one, so the label can differ from the whole tree's. Cosmetic; it predates ADR-055.
