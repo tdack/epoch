@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import duplicateFamilies from '../../../../../test/data/The Simpsons duplicate families.ged?raw';
 import type { DbClient } from '../../db';
 import { ChangeStore } from '../../repositories/change-store';
-import { ScopedRowLoader } from '../../repositories/scoped-row-loader';
 import { MutationRunner } from '../../services/mutation-runner';
 import type { ViewerScope } from '../../services/tree-access';
 import {
@@ -14,7 +13,7 @@ import {
 import { addEvidence, seededRandom } from '../../testing/evidence-fixtures';
 import { importGedcomToDb } from '../../testing/gedcom';
 import { TEST_TREE_ID, sequentialIds } from '../../testing/rows';
-import { viewerScopes } from '../../testing/scope-equivalence';
+import { selectScopeWithFollowUp, viewerScopes } from '../../testing/scope-equivalence';
 import { createWorlds, type World } from '../../testing/scope-worlds';
 import type { TreeRows } from '../change-log';
 import { pastTense } from '../command-summary';
@@ -88,7 +87,7 @@ function compare(
 	const whole = outcomeOf(world.rows, intent, scope);
 	const seed = seeder(intent);
 	if (!seed) return { isWhole: true, whole };
-	const scoped = outcomeOf(selectScope(world.rows, seed), intent, scope);
+	const scoped = outcomeOf(selectScopeWithFollowUp(world.rows, seed), intent, scope);
 	expect(scoped, `${world.label} ${JSON.stringify(intent)}`).toEqual(whole);
 	return { isWhole: false, whole };
 }
@@ -294,6 +293,7 @@ function intentsFor(kind: Kind, rows: TreeRows): RelationshipIntent[] {
 }
 
 const KINDS: Kind[] = [
+	'add_parent',
 	'add_child',
 	'add_sibling',
 	'add_partner',
@@ -344,21 +344,22 @@ function withoutWholeTables(seed: ScopeSeed | null): ScopeSeed | null {
 	return rest;
 }
 
-describe('add_parent stays whole-tree', () => {
-	it('has no seed', () => {
+describe('add_parent needs the follow-up load', () => {
+	const named: Seeder = (intent) =>
+		intent.kind === 'add_parent'
+			? seedOf({
+					people: [intent.child, intent.parent].filter((p) => !p.isNew).map((p) => p.id),
+					unions: [intent.unionId],
+					wholeTables: ['parentChild']
+				})
+			: null;
+
+	it('opts in', () => {
 		for (const intent of intentsFor('add_parent', worlds[0]!.rows))
-			expect(intentSeed(intent)).toBeNull();
+			expect(intentSeed(intent)?.shouldFollowFamily).toBe(true);
 	});
 
 	it('because the people it names miss the family it joins and that pair’s other partnerships', () => {
-		const named: Seeder = (intent) =>
-			intent.kind === 'add_parent'
-				? seedOf({
-						people: [intent.child, intent.parent].filter((p) => !p.isNew).map((p) => p.id),
-						unions: [intent.unionId],
-						wholeTables: ['parentChild']
-					})
-				: null;
 		expect(isCaught('add_parent', named)).toBe(true);
 	});
 });
@@ -402,17 +403,26 @@ describe('the D1 loader returns what the selector does for these seeds', () => {
 			const store = new ChangeStore(own.db);
 			await addEvidence(own.db, treeId, await store.loadRows(treeId), seededRandom(59));
 			const whole = await store.loadRows(treeId);
-			const loader = new ScopedRowLoader(own.db);
+			const runner = new MutationRunner(own.db);
+			let followed = 0;
 			for (const kind of KINDS) {
 				const intents = intentsFor(kind, whole);
 				expect(intents.length).toBeGreaterThan(0);
 				for (const intent of every(intents, 6)) {
 					const seed = intentSeed(intent)!;
-					expect(await loader.load(treeId, seed), `${kind} ${JSON.stringify(intent)}`).toEqual(
-						selectScope(whole, seed)
-					);
+					expect(
+						await runner.loadForSeed(treeId, seed),
+						`${kind} ${JSON.stringify(intent)}`
+					).toEqual(selectScopeWithFollowUp(whole, seed));
+					if (seed.shouldFollowFamily) {
+						const first = selectScope(whole, seed);
+						if ((await runner.loadForSeed(treeId, seed)).unions.length > first.unions.length)
+							followed++;
+					}
 				}
 			}
+			// The second load found partnerships the first did not.
+			expect(followed).toBeGreaterThan(0);
 		} finally {
 			await own.dispose();
 		}
