@@ -107,12 +107,7 @@
 				{#each members.grantableRoles as role (role)}<option value={role}>{role}</option>{/each}
 			</select>
 		</div>
-		<button
-			type="submit"
-			disabled={isBusy || !email.trim()}
-			class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-			>Invite</button
-		>
+		<button type="submit" disabled={isBusy || !email.trim()} class="btn-primary">Invite</button>
 	</form>
 	<p id="invite-role-detail" class="mt-3 max-w-2xl text-sm text-stone-600" aria-live="polite">
 		{describeRole(inviteRole, data.summary.tree.name)}

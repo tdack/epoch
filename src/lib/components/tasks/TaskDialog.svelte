@@ -192,7 +192,7 @@
 			<button
 				type="submit"
 				disabled={submission.isSaving || !title.trim()}
-				class="flex-1 cursor-pointer rounded-lg bg-emerald-800 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+				class="btn-primary flex-1"
 				>{submission.isSaving ? 'Saving…' : task ? 'Save task' : 'Add task'}</button
 			>
 		</div>

@@ -67,11 +67,7 @@
 	{#if canCreate || canImport}
 		<div class="mt-4 flex flex-wrap justify-center gap-3">
 			{#if canCreate}
-				<button
-					type="button"
-					onclick={onAddPerson}
-					class="cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-amber-50 focus-ring hover:bg-emerald-700 coarse:min-h-11"
-				>
+				<button type="button" onclick={onAddPerson} class="btn-primary focus-ring coarse:min-h-11">
 					Add the first person
 				</button>
 			{/if}

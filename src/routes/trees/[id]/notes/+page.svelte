@@ -57,9 +57,7 @@
 			placeholder="Words in the note"
 		/>
 	</div>
-	<button type="submit" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
-		>Find</button
-	>
+	<button type="submit" class="btn-primary">Find</button>
 </form>
 
 <div class="mt-4">

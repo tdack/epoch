@@ -200,7 +200,7 @@ surfaces and tree tokens are the project's own hex values.
 
 - **Binding Emerald** (`binding-emerald`, Tailwind emerald-800): the primary action fill, the brand
   tile behind the mark in the header, links (`row-link`, `text-link`) and count pills. Text on it is
-  white or `vellum`.
+  `vellum` (amber-50), at rest and on hover; never white.
 - **Binding Emerald, Lifted** (`binding-emerald-lift`, emerald-700): the hover state of primary
   buttons, and the one keyboard focus colour of the app chrome (outlines and input focus borders).
 - **Deep Binding** (`binding-emerald-deep`, emerald-900) and **Night Binding**

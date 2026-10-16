@@ -139,8 +139,8 @@
 	<p class="text-xs">
 		<a
 			href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`}
-			class="text-link inline-flex items-center gap-1"
-			><GitBranch class="h-3 w-3" />Show in the tree</a
+			class="text-link whitespace-nowrap"
+			><GitBranch class="mr-1 inline h-3 w-3 align-[-0.1em]" />Show in the tree</a
 		> <span aria-hidden="true">·</span>
 		<a href={`${here}/pedigree`} class="text-link">Ancestors</a>
 		<span aria-hidden="true">·</span>

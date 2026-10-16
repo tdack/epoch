@@ -89,7 +89,7 @@
 			type="button"
 			onclick={onopenAddPerson}
 			aria-label="Add person"
-			class="ml-auto inline-flex min-h-9 cursor-pointer items-center space-x-1.5 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-amber-50 shadow-sm shadow-emerald-900/15 focus-ring transition-colors hover:bg-emerald-700 sm:px-3 coarse:min-h-11"
+			class="btn-primary-sm ml-auto space-x-1.5 px-2.5 focus-ring sm:px-3 coarse:min-h-11"
 		>
 			<UserPlus class="h-3.5 w-3.5" />
 			<span class="hidden sm:inline">Add person</span>

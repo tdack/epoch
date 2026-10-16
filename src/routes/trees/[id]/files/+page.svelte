@@ -593,7 +593,7 @@
 			<button
 				type="submit"
 				disabled={isBusy || !uploadFile || !chosenPerson}
-				class="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+				class="btn-primary-sm"
 			>
 				{isBusy ? 'Uploading…' : 'Upload'}
 			</button>
@@ -624,12 +624,7 @@
 				onclick={closeDialog}
 				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
 			>
-			<button
-				type="submit"
-				disabled={isBusy}
-				class="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-				>Save name</button
-			>
+			<button type="submit" disabled={isBusy} class="btn-primary-sm">Save name</button>
 		</div>
 	</form>
 </BaseModal>
@@ -665,7 +660,7 @@
 				type="button"
 				disabled={isBusy || !chosenPerson}
 				onclick={dialog === 'move' ? moveTo : attachTo}
-				class="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+				class="btn-primary-sm"
 			>
 				{dialog === 'move' ? 'Move here' : 'Attach'}
 			</button>
