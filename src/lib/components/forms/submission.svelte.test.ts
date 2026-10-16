@@ -34,8 +34,16 @@ describe('createSubmission', () => {
 			() => Promise.reject(Object.assign(new Error('stale'), { isStale: true })),
 			'f'
 		);
-		expect(onstale).toHaveBeenCalledWith('stale');
+		expect(onstale).toHaveBeenCalledWith('stale', expect.any(Error));
 		expect(save.error).toBeNull();
+	});
+
+	it('passes the conflict itself to onstale as the cause', async () => {
+		const onstale = vi.fn();
+		const save = createSubmission(onstale);
+		const conflict = Object.assign(new Error('stale'), { isStale: true });
+		await save.submit(() => Promise.reject(conflict), 'f');
+		expect(onstale).toHaveBeenCalledWith('stale', conflict);
 	});
 
 	it('clears a previous error on the next submit and via clearError', async () => {

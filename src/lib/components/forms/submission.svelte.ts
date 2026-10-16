@@ -1,11 +1,14 @@
-import { isConflict } from '#lib/api/client.js';
+import { isConflict, type ConflictError } from '#lib/api/client.js';
 import { messageOf } from '../feedback/error-message.js';
 
 /**
  * Save state shared by the dialogs. `run` calls the dialog's `onsaved` itself because some dialogs
- * pass it extra arguments; a conflict goes to `onstale`, anything else becomes `error`.
+ * pass it extra arguments; a conflict goes to `onstale` (with the
+ * error itself, for dialogs that drive a merge view from it), anything else becomes `error`.
  */
-export function createSubmission(onstale: (message: string) => Promise<void> | void) {
+export function createSubmission(
+	onstale: (message: string, cause: ConflictError) => Promise<void> | void
+) {
 	let isSaving = $state(false);
 	let error = $state<string | null>(null);
 	return {
@@ -28,7 +31,7 @@ export function createSubmission(onstale: (message: string) => Promise<void> | v
 			try {
 				await run();
 			} catch (cause) {
-				if (isConflict(cause)) await onstale(cause.message);
+				if (isConflict(cause)) await onstale(cause.message, cause);
 				else error = messageOf(cause, fallback);
 			} finally {
 				isSaving = false;
