@@ -63,7 +63,13 @@ const ENABLED = [
 	'delete_repository',
 	'link_repository',
 	'update_source_repository',
-	'unlink_repository'
+	'unlink_repository',
+	'update_note',
+	'remove_note',
+	'share_note',
+	'attach_note',
+	'update_shared_note',
+	'delete_shared_note'
 ] as const;
 
 /** The kinds scoped with the evidence follow-up; each is proved with and without it below. */
@@ -72,7 +78,13 @@ const NEWLY_SCOPED: string[] = [
 	'delete_repository',
 	'link_repository',
 	'update_source_repository',
-	'unlink_repository'
+	'unlink_repository',
+	'update_note',
+	'remove_note',
+	'share_note',
+	'attach_note',
+	'update_shared_note',
+	'delete_shared_note'
 ];
 
 function rng(seed: number) {
@@ -987,46 +999,40 @@ const FOLLOW_UP_CASES: FollowUpCase[] = [
 		{ kind: 'link_repository', linkId: 'new', sourceId: 's-solo', repositoryId: 'r-public' }
 	],
 	['update_source_repository', { kind: 'update_source_repository', linkId: 'l1', callNumber: 'x' }],
-	['unlink_repository', { kind: 'unlink_repository', linkId: 'l1' }]
-];
-
-/** Kinds that have no seed yet, each with the seed that looks right and fails. */
-const STILL_WHOLE: Array<[string, RelationshipCommand, ScopeSeed]> = [
+	['unlink_repository', { kind: 'unlink_repository', linkId: 'l1' }],
+	// A note on a source, on a repository and used on a repository.
+	['update_note', { kind: 'update_note', attachmentId: 'a-source', text: 'x' }],
+	['update_note on a repository', { kind: 'update_note', attachmentId: 'a-repository', text: 'x' }],
+	['remove_note', { kind: 'remove_note', attachmentId: 'a-source' }],
+	['share_note', { kind: 'share_note', attachmentId: 'a-inline-source', noteId: 'new' }],
 	[
-		'update_note',
-		{ kind: 'update_note', attachmentId: 'a-source', text: 'x' },
-		seedOf({ noteAttachments: ['a-source'] })
-	],
-	[
-		'remove_note',
-		{ kind: 'remove_note', attachmentId: 'a-source' },
-		seedOf({ noteAttachments: ['a-source'] })
-	],
-	[
-		'share_note',
-		{ kind: 'share_note', attachmentId: 'a-inline-source', noteId: 'new' },
-		seedOf({ noteAttachments: ['a-inline-source'] })
-	],
-	[
-		'attach_note',
+		'attach_note a note on a source',
 		{
 			kind: 'attach_note',
 			attachmentId: 'new',
 			subject: { kind: 'person', id: 'dead3' },
 			noteId: 'n-source'
-		},
-		seedOf({ people: ['dead3'], notes: ['n-source'] })
+		}
 	],
 	[
-		'update_shared_note',
-		{ kind: 'update_shared_note', noteId: 'n-source', note: { text: 'x' } },
-		seedOf({ notes: ['n-source'] })
+		'attach_note on a repository',
+		{
+			kind: 'attach_note',
+			attachmentId: 'new',
+			subject: { kind: 'repository', id: 'r-public' },
+			noteId: 'n-loose'
+		}
 	],
+	['update_shared_note', { kind: 'update_shared_note', noteId: 'n-source', note: { text: 'x' } }],
 	[
-		'delete_shared_note',
-		{ kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true },
-		seedOf({ notes: ['n-source'] })
+		'update_shared_note used on a repository',
+		{ kind: 'update_shared_note', noteId: 'n-repository', note: { text: 'x' } }
 	],
+	['delete_shared_note', { kind: 'delete_shared_note', noteId: 'n-source', shouldDetach: true }]
+];
+
+/** Kinds that have no seed yet, each with the seed that looks right and fails. */
+const STILL_WHOLE: Array<[string, RelationshipCommand, ScopeSeed]> = [
 	[
 		'update_task',
 		{ kind: 'update_task', taskId: 't-source', task: { title: 'x' } },

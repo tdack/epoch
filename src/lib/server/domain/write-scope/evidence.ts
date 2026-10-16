@@ -2,7 +2,7 @@ import { CITATION_SUBJECT_KINDS, type CitationSubjectRef } from '../../../shared
 import { NOTE_SUBJECT_KINDS, type NoteSubjectRef } from '../../../shared/notes';
 import { TASK_SUBJECT_KINDS, type TaskSubjectRef } from '../../../shared/tasks';
 import type { TreeRows } from '../change-log';
-import { seedOf, type ScopeSeed } from '../write-scope';
+import { mergeSeeds, seedOf, type ScopeSeed } from '../write-scope';
 import type { ScopeTable } from './types';
 
 /**
@@ -80,7 +80,7 @@ function noteSubjectSeed(subject: NoteSubjectRef): ScopeSeed {
 		case NOTE_SUBJECT_KINDS.CITATION:
 			return following({ citations: [subject.id] });
 		case NOTE_SUBJECT_KINDS.REPOSITORY:
-			return WHOLE_TREE;
+			return following({ repositories: [subject.id] });
 	}
 }
 
@@ -138,5 +138,15 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	add_note: (c) => noteSubjectSeed(c.subject),
 	reorder_notes: (c) => noteSubjectSeed(c.subject),
 	create_note: () => seedOf({ wholeTables: ['notes'] }),
+	// An attachment is visible to a restricted viewer only if what it sits on is, and a shared note
+	// only through the attachments that use it, so the follow-up seeds the source or repository an
+	// attachment is on (and the repository's sources), which loads the citations that decide.
+	update_note: (c) => following({ noteAttachments: [c.attachmentId] }),
+	remove_note: (c) => following({ noteAttachments: [c.attachmentId] }),
+	// The new note's XREF is picked among every note's, as for `create_note`.
+	share_note: (c) => following({ noteAttachments: [c.attachmentId], wholeTables: ['notes'] }),
+	attach_note: (c) => mergeSeeds(noteSubjectSeed(c.subject), following({ notes: [c.noteId] })),
+	update_shared_note: (c) => following({ notes: [c.noteId] }),
+	delete_shared_note: (c) => following({ notes: [c.noteId] }),
 	create_task: (c) => taskSubjectSeed(c.subject)
 };
