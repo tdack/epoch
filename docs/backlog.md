@@ -120,13 +120,15 @@ Last reviewed: 2026-10-15.
   "Write cost"). What stays whole: `merge_sources`, `merge_notes`, `merge_people`,
   `merge_unions` (each reads every use of the records it folds), `standardise_dates`,
   `rewrite_place` and the quality report. Two rare paths fall back to the whole tree for
-  correctness, not by kind: a partnership with no partners reached by a family or evidence write,
-  and a chain of more than three loads (a task about a note that is used on a repository, which
+  correctness, not by kind: a partnership with no partners in any scoped snapshot, and a chain of more than three loads (a task about a note that is used on a repository, which
   needs task, note, repository, link, source). Neither is worth a fourth load.
   A scoped load costs three to five sequential batches (a partnership edit, `add_parent`, or an
   edit of a note, task or repository adds a second or third load of the same shape), so round trips
   fall less than rows. `add_parent` still reads every `parent_child` row for its cycle check, as
-  `add_child` does (about 11,000 rows on the corpus).
+  `add_child` does (about 11,000 rows on the corpus); a recursive CTE walking only the new parent's
+  ancestors would bound it, if trees grow far past that. A loaded link can name a partnership the
+  snapshot does not hold; `write-scope/partnerless.test.ts` sweeps every scoped kind for that case
+  and finds no difference, so no rule loads those partnerships in general.
 - **A union label can number against an unrelated union.** The labeller numbers single-partner
   partnerships that share a display name elsewhere in the tree ("1 of 2"); a scoped load cannot see
   the unrelated one, so the label can differ from the whole tree's. Cosmetic; it predates ADR-055.
