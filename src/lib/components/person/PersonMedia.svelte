@@ -48,7 +48,7 @@
 			await uploadMediaApi(treeId, dto.person.id, target.files[0]!);
 			await editor.refresh();
 		} catch (cause) {
-			uploadError = (cause as Error).message;
+			uploadError = messageOf(cause, 'Could not upload the file');
 		} finally {
 			isUploading = false;
 			if (fileInput) fileInput.value = '';
