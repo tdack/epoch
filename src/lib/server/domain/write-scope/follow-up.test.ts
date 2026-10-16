@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { treeRows } from '../../testing/rows';
 import { mergeSeeds, seedOf, selectScope } from '../write-scope';
-import { followUpSeed, seedWithFollowUp } from './follow-up';
+import { FOLLOW_UP_WHOLE, followUpSeed, seedWithFollowUp } from './follow-up';
 
 /** u1 is a and b's; u2 is a second partnership of the same pair; c is their child, d a stranger. */
 const whole = treeRows({
@@ -41,6 +41,14 @@ describe('followUpSeed', () => {
 		expect(followUpSeed(selectScope(whole, seed), seed)).toBeNull();
 		const missing = seedOf({ unions: ['nope'], shouldFollowFamily: true });
 		expect(seedWithFollowUp(selectScope(whole, missing), missing)).toBeNull();
+	});
+
+	it('signals the whole tree for a named partnership with no partners', () => {
+		const lonely = treeRows({ people: [{ id: 'a' }], unions: [{ id: 'none', partners: [] }] });
+		const seed = seedOf({ unions: ['none'], shouldFollowFamily: true });
+		expect(seedWithFollowUp(selectScope(lonely, seed), seed)).toBe(FOLLOW_UP_WHOLE);
+		const unnamed = seedOf({ people: ['a'], shouldFollowFamily: true });
+		expect(seedWithFollowUp(selectScope(lonely, unnamed), unnamed)).toBeNull();
 	});
 
 	it('survives a merge', () => {

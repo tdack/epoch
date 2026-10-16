@@ -17,7 +17,7 @@ import {
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import { seedFor } from '../domain/write-scope/index';
-import { seedWithFollowUp } from '../domain/write-scope/follow-up';
+import { FOLLOW_UP_WHOLE, seedWithFollowUp } from '../domain/write-scope/follow-up';
 import type { ScopeSeed } from '../domain/write-scope';
 import {
 	OP_KINDS,
@@ -139,6 +139,7 @@ export class MutationRunner {
 		if (!seed) return this.store.loadRows(treeId);
 		const first = await this.scopedLoader.load(treeId, seed);
 		const next = seedWithFollowUp(first, seed);
+		if (next === FOLLOW_UP_WHOLE) return this.store.loadRows(treeId);
 		return next ? this.scopedLoader.load(treeId, next) : first;
 	}
 

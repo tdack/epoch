@@ -16,7 +16,7 @@ import { describeCommand } from '../domain/command-summary';
 import type { RelationshipCommand } from '../domain/relationship-commands';
 import { makeLabeler } from '../domain/tree-labels';
 import { selectScope, type ScopeSeed } from '../domain/write-scope';
-import { seedWithFollowUp } from '../domain/write-scope/follow-up';
+import { FOLLOW_UP_WHOLE, seedWithFollowUp } from '../domain/write-scope/follow-up';
 import type { ImpactSummary, RecordChange } from '../../shared/impact';
 import { MutationRunner, previewOf } from '../services/mutation-runner';
 import type { ViewerScope } from '../services/tree-access';
@@ -130,6 +130,7 @@ export interface EquivalenceInput {
 export function selectScopeWithFollowUp(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	const first = selectScope(whole, seed);
 	const next = seedWithFollowUp(first, seed);
+	if (next === FOLLOW_UP_WHOLE) return whole;
 	return next ? selectScope(whole, next) : first;
 }
 

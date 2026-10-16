@@ -6,7 +6,6 @@ import { createTestDatabase, createTestTree, createTestUser } from '../../testin
 import { importGedcomToDb } from '../../testing/gedcom';
 import {
 	expectScopedEqualsWhole,
-	planOutcome,
 	selectScopeWithFollowUp,
 	viewerScopes
 } from '../../testing/scope-equivalence';
@@ -388,9 +387,7 @@ describe('a partnership edit needs the follow-up load', () => {
 		});
 		let compared = 0;
 		for (const union of synthetic.unions)
-			// A partnership with no partners is hidden from a restricted viewer only when the snapshot
-			// holds a private person to trigger masking; a scoped one holds nobody. See the pin below.
-			for (const scope of union.id === 'none' ? [scopes.unrestricted] : Object.values(scopes))
+			for (const scope of Object.values(scopes))
 				for (const command of [
 					{ kind: 'destroy_union', unionId: union.id },
 					{ kind: 'destroy_union', unionId: union.id, expectedVersion: 9 },
@@ -406,7 +403,7 @@ describe('a partnership edit needs the follow-up load', () => {
 					});
 					compared++;
 				}
-		expect(compared).toBe((5 * 3 + 1) * 4);
+		expect(compared).toBe(6 * 3 * 4);
 		// Without the follow-up the labels of the twins differ, so the cases above are not vacuous.
 		expect(() =>
 			expectScopedEqualsWhole({
@@ -418,26 +415,32 @@ describe('a partnership edit needs the follow-up load', () => {
 		).toThrow();
 	});
 
-	it('except that a restricted viewer can see a partnership with no partners at all', () => {
-		// The whole tree masks a partnership with no visible partner, but only when it holds a private
-		// person; a scoped snapshot of just that partnership holds nobody, so nothing is masked. The
-		// partnership has no people, so nothing private is shown or written. Pinned so a change to
-		// either side is noticed.
-		const synthetic = treeRows({
-			people: [{ id: 'a', birth: '1990' }],
-			unions: [{ id: 'none', partners: [] }]
-		});
-		const command: RelationshipCommand[] = [{ kind: 'destroy_union', unionId: 'none' }];
-		const seed = seedFor(command)!;
-		const whole = planOutcome(synthetic, command, scopes.restricted);
-		const scoped = planOutcome(
-			selectScopeWithFollowUp(synthetic, seed),
-			command,
-			scopes.restricted
-		);
-		expect(whole.failure?.name).toBe('NotFoundError');
-		expect(scoped.failure).toBeUndefined();
-	});
+	it.each([
+		['holds a private person', [{ id: 'a', birth: '1990' }]],
+		['holds nobody private', [{ id: 'a', birth: '1900', death: '1950' }]]
+	])(
+		'a partnership with no partners answers as the whole tree does when the tree %s',
+		(_n, people) => {
+			const synthetic = treeRows({ people, unions: [{ id: 'none', partners: [] }] });
+			for (const kind of ['destroy_union', 'end_union', 'update_union'] as const)
+				for (const scope of Object.values(scopes)) {
+					const command = {
+						kind,
+						unionId: 'none',
+						status: 'ended',
+						event: null
+					} as RelationshipCommand;
+					const whole = expectScopedEqualsWhole({
+						whole: synthetic,
+						commands: [command],
+						scope,
+						seed: (cs) => seedFor(cs)!
+					});
+					if (scope.isRestricted && _n === 'holds a private person')
+						expect(whole.failure?.name).toBe('NotFoundError');
+				}
+		}
+	);
 });
 
 describe('the D1 loader, with its follow-up, returns what the selector does', () => {

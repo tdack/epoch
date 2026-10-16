@@ -23,8 +23,24 @@ export function followUpSeed(rows: TreeRows, seed: ScopeSeed): ScopeSeed | null 
 	return extra.size > 0 ? seedOf({ people: extra }) : null;
 }
 
-/** The seed for the second load, or null when the first snapshot already holds everything. */
-export function seedWithFollowUp(rows: TreeRows, seed: ScopeSeed): ScopeSeed | null {
+/** What the second load should read instead of a scoped snapshot: every row. */
+export const FOLLOW_UP_WHOLE = 'whole' as const;
+
+/**
+ * The second load: a merged seed, `FOLLOW_UP_WHOLE`, or null when the first snapshot already holds
+ * everything. A partnership the seed names that has no partners is whole-tree, because a restricted
+ * viewer's mask hides such a partnership only when the snapshot holds a private person, and a
+ * scoped snapshot of it holds nobody; only the whole tree answers as it always did. Rare, so the
+ * cost does not matter.
+ */
+export function seedWithFollowUp(
+	rows: TreeRows,
+	seed: ScopeSeed
+): ScopeSeed | typeof FOLLOW_UP_WHOLE | null {
+	if (!seed.shouldFollowFamily) return null;
+	const partnered = new Set(rows.unionPartners.map((p) => p.unionId));
+	if (rows.unions.some((u) => seed.unions.has(u.id) && !partnered.has(u.id)))
+		return FOLLOW_UP_WHOLE;
 	const extra = followUpSeed(rows, seed);
 	return extra ? mergeSeeds(seed, extra) : null;
 }
