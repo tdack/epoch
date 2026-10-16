@@ -17,6 +17,7 @@ import {
 import { ChangeStore, type CommittedChange } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import { seedFor } from '../domain/write-scope/index';
+import type { ScopeSeed } from '../domain/write-scope';
 import {
 	OP_KINDS,
 	describeOps,
@@ -124,7 +125,14 @@ export class MutationRunner {
 	 * whole tree (ADR-055). A kind with no seed is the default, so nothing changes until one is added.
 	 */
 	private loadFor(treeId: string, commands: RelationshipCommand[]): Promise<TreeRows> {
-		const seed = seedFor(commands);
+		return this.loadForSeed(treeId, seedFor(commands));
+	}
+
+	/**
+	 * Rows for a caller that knows what it reads better than its commands say, as the intent planner
+	 * does. A null seed is the whole tree.
+	 */
+	loadForSeed(treeId: string, seed: ScopeSeed | null): Promise<TreeRows> {
 		return seed ? this.scopedLoader.load(treeId, seed) : this.store.loadRows(treeId);
 	}
 
