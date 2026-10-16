@@ -128,8 +128,9 @@ Last reviewed: 2026-10-15.
   - Note and task edits keyed by an attachment, note or task id (`update_note`, `remove_note`,
     `share_note`, `attach_note`, `update_shared_note`, `delete_shared_note`, `update_task`,
     `delete_task`): the id does not say which subject it sits on.
-  - The relationship intent planner (`add_partner`, `add_child`, …), which is the busiest path left;
-    showing equality for it is the next step.
+  - The `add_parent` intent: the family it joins is chosen from the child's links, so the intent
+    cannot name it, and its sentence counts that pair's other partnerships, which the closure does
+    not load. The other relationship intents are scoped (`write-scope/intent.ts`).
   - By design: merges, `standardise_dates`, `rewrite_place`, the quality report.
   A scoped load costs three to five sequential batches, so round trips fall less than rows.
 - **A union label can number against an unrelated union.** The labeller numbers single-partner
