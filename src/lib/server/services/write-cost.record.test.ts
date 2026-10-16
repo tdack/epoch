@@ -11,7 +11,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, it } from 'vitest';
 import simpsons from '../../../../test/data/The Simpsons.ged?raw';
 import { getDb } from '../db';
-import { events, individuals, personNames } from '../db/schema';
+import { events, individuals, personNames, unionPartners, unions } from '../db/schema';
 import { insertCorpus } from '../testing/corpus';
 import {
 	createTestDatabase,
@@ -175,6 +175,32 @@ async function measureWrites(label: string, treeId: string) {
 				kind: 'add_partner',
 				person: { id: person.id, givenName: 'Wren W', surname: 'Ash' },
 				partner: { id: other.id, givenName: 'Ivor', surname: 'Ash' },
+				unionLabel: null
+			},
+			ctx
+		)
+	);
+	// Rows have no baseline: these two were whole-tree writes before the follow-up load was added.
+	const unionId = (
+		await t.db.select().from(unionPartners).where(eq(unionPartners.personId, person.id)).all()
+	)[0]!.unionId;
+	const union = (await t.db.select().from(unions).where(eq(unions.id, unionId)).all())[0]!;
+	await measure(label, 'partnership edit (update_union)', (db) =>
+		new RelationshipService(db).updateUnion(
+			treeId,
+			{ kind: 'update_union', unionId, expectedVersion: union.version, status: 'separated' },
+			ctx
+		)
+	);
+	await measure(label, 'add parent', (db) =>
+		new RelationshipService(db).execute(
+			treeId,
+			{
+				kind: 'add_parent',
+				child: { id: person.id, givenName: 'Wren W', surname: 'Ash' },
+				parent: { id: 'new-parent', givenName: 'Odo', surname: 'Ash', isNew: true },
+				type: 'biological',
+				role: 'parent',
 				unionLabel: null
 			},
 			ctx
