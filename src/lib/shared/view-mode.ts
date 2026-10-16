@@ -37,7 +37,7 @@ export interface ViewModeTraits {
 	shouldAskWiderGroups: boolean;
 	/** Generations each way that arriving asks for at least; null leaves the depth alone. */
 	arrivalDepth: number | null;
-	/** The drawing offers editing gestures (drag to relate, context menu); the overviews do not. */
+	/** The drawing offers editing gestures (the context menu); the overviews do not. */
 	canEdit: boolean;
 }
 

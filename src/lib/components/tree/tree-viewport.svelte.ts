@@ -80,7 +80,8 @@ export class TreeViewport {
 
 		this.zoomBehavior = zoom<Element, unknown>()
 			.scaleExtent([MIN_ZOOM, MAX_ZOOM])
-			// Dragging a card starts drag-to-relate, not a pan; the wheel still zooms everywhere.
+			// d3-zoom swallows the click after any movement, so a pan starting on a card or line would
+			// eat the click that refocuses or selects it; the wheel still zooms everywhere.
 			.filter((event: Event) => {
 				if (event.type === 'wheel') return true;
 				const target = event.target as Element | null;

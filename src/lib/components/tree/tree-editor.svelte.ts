@@ -143,7 +143,6 @@ export class TreeEditor {
 	// Relationship dialog
 	isRelationshipModalOpen = $state(false);
 	relationshipAnchor = $state<PersonRef | null>(null);
-	relationshipPreselect = $state<PersonRef | null>(null);
 	relationshipKind = $state<RelationshipKind>('add_parent');
 	relationshipUnionId = $state<string | null>(null);
 
@@ -408,10 +407,9 @@ export class TreeEditor {
 
 	openRelationship = (
 		anchor: PersonRef,
-		options: { kind?: RelationshipKind; unionId?: string | null; preselect?: PersonRef | null } = {}
+		options: { kind?: RelationshipKind; unionId?: string | null } = {}
 	) => {
 		this.relationshipAnchor = anchor;
-		this.relationshipPreselect = options.preselect ?? null;
 		this.relationshipKind = options.kind ?? 'add_parent';
 		this.relationshipUnionId = options.unionId ?? null;
 		this.isRelationshipModalOpen = true;
@@ -425,17 +423,6 @@ export class TreeEditor {
 		await this.afterChange(
 			change,
 			plan.commands.length === 0 ? 'Nothing was changed' : plan.sentence
-		);
-	};
-
-	dragRelate = (relate: {
-		source: { id: string; displayName: string };
-		target: { id: string; displayName: string };
-	}) => {
-		// Anchored on the dragged person with the drop target chosen, so the person only confirms the kind.
-		this.openRelationship(
-			{ id: relate.source.id, givenName: relate.source.displayName, surname: null },
-			{ preselect: { id: relate.target.id, givenName: relate.target.displayName, surname: null } }
 		);
 	};
 
