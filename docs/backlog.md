@@ -201,7 +201,7 @@ Last reviewed: 2026-10-15.
 ### 3D views
 
 - **Decide whether a 3D view becomes the product default.** Flat stays the default. Promotion needs
-  the checklist from ADR-030: stage 6 parity (drag-to-relate included or deliberately excluded),
+  the checklist from ADR-030: stage 6 parity,
   the stage 7 performance budgets, the whole e2e suite parameterised over all view modes and green,
   and a trial on the owner's own tree.
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of

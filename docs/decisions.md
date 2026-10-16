@@ -767,3 +767,10 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Rejected alternatives:** a hand-written loader per command kind (57 kinds, each a chance to miss a cascade); caching the whole snapshot between requests (stale under concurrent edits, and the memory cost stays); moving planning into SQL (loses the pure planner that makes previews exact).
 - **Consequences:** a command kind added later loads the whole tree until someone writes its seed and the equality test passes. A planner change that starts reading outside its seed's closure fails (b) rather than misbehaving in production.
 
+
+## ADR-056: Drag-to-relate is removed from the flat view
+- **Status:** built on `claude/flat-tree-drag-drop-vawn5f` on 2026-10-16; not yet deployed. No migration.
+- **Context:** pressing a card and letting go over another opened the relationship dialog with the two people already chosen. Nothing showed while you dragged: the card stayed where it was, nothing marked the drop target, and because a press on a card does not pan the canvas, the drag looked like it did nothing until the dialog appeared. The gesture had no keyboard or touch equivalent. The context menu, the drawer's Family section and the person page already open the same dialog in steps a person can follow.
+- **Decision:** the gesture is gone. That covers the canvas's pointer tracking, the card's press callback, the editor's `dragRelate` and the preselected counterpart it set, and the hint's "Drag one person onto another" line. The relationship dialog keeps its optional `preselect` prop.
+- **Rejected alternative:** finishing the gesture with a ghost card, drop-target highlighting and a cancel affordance. That is a lot of pointer code for a shortcut to a dialog that still has to ask what kind of relationship is meant.
+- **Consequences:** a press on a card still does not pan, because d3-zoom swallows the click after any movement and the click is what refocuses. Panning from cards (with a click distance set) is a separate choice. The 3D promotion checklist (ADR-030) no longer needs drag-to-relate parity.
