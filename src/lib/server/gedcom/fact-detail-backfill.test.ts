@@ -46,12 +46,12 @@ const DETAIL_LINE =
 	/^\d+ (ADDR|CONT|CONC|ADR1|CITY|STAE|POST|CTRY|PHON|EMAIL|FAX|WWW|TYPE|AGNC|RELI)( |$)/;
 const detailLinesOf = (all: string[]) => all.filter((line) => DETAIL_LINE.test(line)).sort();
 
-async function runBackfill(): Promise<number> {
+async function runBackfill(on: TestDatabase = t): Promise<number> {
 	const input = {} as Record<string, unknown[]>;
 	for (const [name, sql] of Object.entries(FACT_DETAIL_BACKFILL_QUERIES))
-		input[name] = (await t.d1.prepare(sql).all()).results;
+		input[name] = (await on.d1.prepare(sql).all()).results;
 	const statements = factDetailBackfillStatements(input as unknown as FactDetailBackfillInput);
-	for (const statement of statements) await t.d1.prepare(statement).run();
+	for (const statement of statements) await on.d1.prepare(statement).run();
 	return statements.length;
 }
 
@@ -151,6 +151,15 @@ describe('the Windsors file', () => {
 });
 
 describe('what the backfill leaves alone', () => {
+	// The backfill runs over every tree in the database, so these exact-count checks get a database
+	// of their own: a slower test above that is still importing cannot add a second bump here.
+	let own: TestDatabase;
+	beforeAll(async () => {
+		own = await createTestDatabase();
+	});
+	afterAll(async () => {
+		await own.dispose();
+	});
 	const file = [
 		'0 HEAD',
 		'1 GEDC',
@@ -176,22 +185,22 @@ describe('what the backfill leaves alone', () => {
 
 	it('never replaces a value already in its column; the line stays in the extra lines', async () => {
 		const treeId = crypto.randomUUID();
-		await importGedcomAsRetainedFactDetails(t.d1, treeId, file);
+		await importGedcomAsRetainedFactDetails(own.d1, treeId, file);
 		// An edit made before the backfill: the agency is the user's, not the file's.
-		await t.db
+		await own.db
 			.update(events)
 			.set({ agency: 'Edited agency' })
 			.where(eq(events.treeId, treeId))
 			.run();
 		const [birthBefore] = (
-			await t.db.select().from(events).where(eq(events.treeId, treeId)).all()
+			await own.db.select().from(events).where(eq(events.treeId, treeId)).all()
 		).filter((r) => r.type === 'BIRT');
 		const versionBefore = birthBefore!.version;
 
-		await runBackfill();
+		await runBackfill(own);
 
 		const [birth] = (
-			await t.db.select().from(events).where(eq(events.treeId, treeId)).all()
+			await own.db.select().from(events).where(eq(events.treeId, treeId)).all()
 		).filter((r) => r.type === 'BIRT');
 		expect(birth!.agency).toBe('Edited agency');
 		expect(birth!.gedcomExtra).toEqual(
@@ -205,10 +214,10 @@ describe('what the backfill leaves alone', () => {
 
 	it('keeps unrelated extra lines, and a second TYPE or ADDR, in the extra lines', async () => {
 		const treeId = crypto.randomUUID();
-		await importGedcomAsRetainedFactDetails(t.d1, treeId, file);
-		await runBackfill();
+		await importGedcomAsRetainedFactDetails(own.d1, treeId, file);
+		await runBackfill(own);
 		const [birth] = (
-			await t.db.select().from(events).where(eq(events.treeId, treeId)).all()
+			await own.db.select().from(events).where(eq(events.treeId, treeId)).all()
 		).filter((r) => r.type === 'BIRT');
 		expect(birth!.gedcomExtra).toEqual(
 			expect.arrayContaining([
