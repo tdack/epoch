@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import { StickyNote } from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { isConflict } from '#lib/api/client.js';
@@ -41,8 +41,7 @@
 	let language = $state('');
 	let query = $state('');
 	let results = $state<NoteListItem[]>([]);
-	let error = $state<string | null>(null);
-	let isSaving = $state(false);
+	const submission = createSubmission((message) => onstale(message));
 	let textArea = $state<HTMLTextAreaElement | null>(null);
 
 	const isShared = $derived(note?.isShared ?? false);
@@ -60,7 +59,7 @@
 		language = from?.language ?? '';
 		query = '';
 		results = [];
-		error = null;
+		submission.clearError();
 		void tick().then(() => textArea?.focus());
 	});
 
@@ -83,27 +82,25 @@
 	});
 
 	async function attach(chosen: NoteListItem) {
-		isSaving = true;
-		error = null;
-		try {
-			const { change } = await attachNoteApi(treeId, subject, chosen.id);
-			await onsaved(change);
-		} catch (cause: unknown) {
-			error = messageOf(cause, 'Could not attach the note');
-		} finally {
-			isSaving = false;
-		}
+		await submission.submit(async () => {
+			try {
+				const { change } = await attachNoteApi(treeId, subject, chosen.id);
+				await onsaved(change);
+			} catch (cause: unknown) {
+				// Attaching sends no version, so it has no stale-copy flow: a conflict is shown as an
+				// ordinary error rather than asking the caller to reload.
+				throw isConflict(cause) ? new Error(cause.message) : cause;
+			}
+		}, 'Could not attach the note');
 	}
 
 	async function save() {
 		const words = text.trim();
 		if (!words) {
-			error = 'A note needs some text.';
+			submission.error = 'A note needs some text.';
 			return;
 		}
-		isSaving = true;
-		error = null;
-		try {
+		await submission.submit(async () => {
 			const { change } = note
 				? note.isShared
 					? await updateSharedNoteApi(
@@ -115,12 +112,7 @@
 					: await updateNoteApi(treeId, note.id, words, note.version)
 				: await addNoteApi(treeId, subject, words);
 			await onsaved(change);
-		} catch (cause: unknown) {
-			if (isConflict(cause)) await onstale(cause.message);
-			else error = messageOf(cause, 'Could not save the note');
-		} finally {
-			isSaving = false;
-		}
+		}, 'Could not save the note');
 	}
 </script>
 
@@ -130,7 +122,7 @@
 	subtitle={`On ${subjectLabel}`}
 	icon={StickyNote}
 	maxWidthClass="max-w-lg"
-	{error}
+	error={submission.error}
 	onclose={oncancel}
 >
 	{#if !note}
@@ -181,7 +173,7 @@
 						<li>
 							<button
 								type="button"
-								disabled={isSaving}
+								disabled={submission.isSaving}
 								class="w-full cursor-pointer px-3 py-1.5 text-left hover:bg-emerald-50"
 								onclick={() => void attach(result)}
 							>
@@ -266,8 +258,11 @@
 					class="flex-1 cursor-pointer rounded-lg bg-stone-200 py-2 font-semibold text-stone-700 hover:bg-stone-300"
 					>Cancel</button
 				>
-				<button type="submit" disabled={isSaving || !text.trim()} class="btn-primary flex-1"
-					>{isSaving ? 'Saving…' : note ? 'Save note' : 'Add note'}</button
+				<button
+					type="submit"
+					disabled={submission.isSaving || !text.trim()}
+					class="btn-primary flex-1"
+					>{submission.isSaving ? 'Saving…' : note ? 'Save note' : 'Add note'}</button
 				>
 			</div>
 		</form>
