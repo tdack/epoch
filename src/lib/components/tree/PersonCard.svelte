@@ -37,8 +37,6 @@
 		onOpen: (id: string) => void;
 		/** Right-click; the handler is responsible for `preventDefault`. */
 		onContextMenu: (event: MouseEvent, node: PlacedPerson) => void;
-		/** Primary-button press, which begins a drag-to-relate gesture. */
-		onPointerDown: (event: PointerEvent, id: string) => void;
 	}
 
 	let {
@@ -52,8 +50,7 @@
 		relation,
 		onSelect,
 		onOpen,
-		onContextMenu,
-		onPointerDown
+		onContextMenu
 	}: Props = $props();
 
 	const W = LAYOUT_METRICS.cardWidth;
@@ -100,9 +97,7 @@
 	const isPrivate = $derived(person.isPrivate === true);
 
 	function onPress(event: PointerEvent) {
-		if (isPrivate) return;
-		onPointerDown(event, node.id);
-		if (event.button !== 0) return;
+		if (isPrivate || event.button !== 0) return;
 		didLongPress = false;
 		pressOrigin = { x: event.clientX, y: event.clientY };
 		cancelPress();
@@ -112,7 +107,7 @@
 		}, LONG_PRESS_MS);
 	}
 
-	// A drag (pan or drag-to-relate) is not a press, so movement cancels it.
+	// A drag is not a press, so movement cancels it.
 	function onPressMove(event: PointerEvent) {
 		if (!pressTimer) return;
 		if (

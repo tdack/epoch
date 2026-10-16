@@ -2,8 +2,6 @@
 	import { onMount } from 'svelte';
 
 	interface Props {
-		/** Whether the viewer may relate two people, so the drag gesture is worth mentioning. */
-		canRelate: boolean;
 		/**
 		 * Whether the context menu offers anything beyond "Show details", which double-click already
 		 * does. A viewer's menu holds only that, so the hint does not send them to it.
@@ -16,7 +14,7 @@
 		isOverlay?: boolean;
 	}
 
-	let { canRelate, hasMenuActions, isOverlay = false }: Props = $props();
+	let { hasMenuActions, isOverlay = false }: Props = $props();
 
 	const STORAGE_KEY = 'epoch.tree-gesture-hint.dismissed';
 
@@ -65,7 +63,6 @@
 				them. <strong class="font-semibold text-stone-900">Double-click</strong> to see their
 				details{#if hasMenuActions}, or
 					<strong class="font-semibold text-stone-900">right-click</strong> for more{/if}.
-				{#if canRelate}Drag one person onto another to relate them.{/if}
 			{/if}
 		</p>
 		<button

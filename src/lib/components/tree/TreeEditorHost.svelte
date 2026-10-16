@@ -34,7 +34,6 @@
 		treeId={editor.treeId}
 		anchor={editor.relationshipAnchor}
 		{graph}
-		preselect={editor.relationshipPreselect}
 		initialKind={editor.relationshipKind}
 		initialUnionId={editor.relationshipUnionId}
 		onclose={() => (editor.isRelationshipModalOpen = false)}

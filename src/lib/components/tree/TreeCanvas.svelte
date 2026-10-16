@@ -91,8 +91,6 @@
 		mergeableUnionIds?: Set<string>;
 		/** Chronological labels for repeated partnerships between the same people, by union id. */
 		partnershipLabels?: Map<string, PartnershipLabel>;
-		/** User dragged one person onto another. */
-		onDragRelate?: (relate: { source: PersonRef; target: PersonRef }) => void;
 		/** A "+N" stub was activated; the caller adds its id to the expanded set. */
 		onExpandStub?: (stubId: string) => void;
 		/** A collapse control was activated; the caller removes the id. */
@@ -127,7 +125,6 @@
 		onMergeUnion,
 		mergeableUnionIds,
 		partnershipLabels,
-		onDragRelate,
 		onExpandStub,
 		onCollapseStub,
 		isWholeTree = false,
@@ -162,7 +159,6 @@
 	let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
 	let selectedEdgeId = $state<string | null>(null);
 	let popover = $state<{ edgeId: string; x: number; y: number } | null>(null);
-	let dragSourceId = $state<string | null>(null);
 	/** What had focus when a menu or popover opened, so closing it can hand focus back. */
 	let overlayOpener: Element | null = null;
 	/** Card the user last moved to with the arrow keys, remembered for the focus it was chosen under. */
@@ -439,30 +435,6 @@
 		closeOverlays();
 	}
 
-	// ---- Drag to relate ----
-
-	function onCardPointerDown(event: PointerEvent, personId: string) {
-		if (event.button === 0) dragSourceId = personId;
-	}
-
-	function onSvgPointerUp(event: PointerEvent) {
-		const sourceId = dragSourceId;
-		dragSourceId = null;
-		if (!sourceId || !onDragRelate) return;
-		const targetId = document
-			.elementFromPoint(event.clientX, event.clientY)
-			?.closest?.('[data-person-id]')
-			?.getAttribute('data-person-id');
-		const source = sourceId ? peopleById.get(sourceId) : undefined;
-		const target = targetId ? peopleById.get(targetId) : undefined;
-		if (source && target && source.id !== target.id) {
-			onDragRelate({
-				source: { id: source.id, displayName: source.person.displayName },
-				target: { id: target.id, displayName: target.person.displayName }
-			});
-		}
-	}
-
 	// ---- Keyboard ----
 
 	async function moveActive(toId: string) {
@@ -551,8 +523,6 @@
 		bind:this={svgElement}
 		class="absolute inset-0 z-10 h-full w-full cursor-grab select-none active:cursor-grabbing"
 		aria-hidden={layout.people.length === 0 ? 'true' : undefined}
-		onpointerup={onSvgPointerUp}
-		onpointercancel={() => (dragSourceId = null)}
 	>
 		<g class="scene" transform="translate({transform.x},{transform.y}) scale({transform.k})">
 			{#each layout.edges as edge (edge.id)}
@@ -595,7 +565,6 @@
 					onSelect={(id) => onSelectPerson?.(id)}
 					onOpen={(id) => onOpenPerson?.(id)}
 					onContextMenu={openPersonMenu}
-					onPointerDown={onCardPointerDown}
 				/>
 			{/each}
 

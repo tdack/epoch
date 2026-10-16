@@ -49,7 +49,7 @@
 		anchor: { id: string; givenName: string | null; surname: string | null };
 		/** The graph, for the anchor's version, partnerships and existing death. */
 		graph: RelationshipGraph;
-		/** Optional counterpart already known (e.g. from drag-to-relate). */
+		/** Optional counterpart already known, selected when the dialog opens. */
 		preselect?: { id: string; givenName: string | null; surname: string | null } | null;
 		/** Which form to open on. */
 		initialKind?: RelationshipKind;

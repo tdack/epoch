@@ -541,16 +541,12 @@
 					)}
 			/>
 		</div>
-		{#if !isPhone}<TreeGestureHint
-				canRelate={canCreate && canEditDrawn}
-				hasMenuActions={(canCreate || canChange) && canEditDrawn}
-			/>{/if}
+		{#if !isPhone}<TreeGestureHint hasMenuActions={(canCreate || canChange) && canEditDrawn} />{/if}
 		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
 		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
 			<!-- Before the canvases so the legend, drawn later, stays above it. -->
 			{#if isPhone}<TreeGestureHint
-					canRelate={canCreate && canEditDrawn}
 					hasMenuActions={(canCreate || canChange) && canEditDrawn}
 					isOverlay
 				/>{/if}
@@ -636,7 +632,6 @@
 					onMergeUnion={actions.onMergeUnion}
 					mergeableUnionIds={editor.mergeableIds}
 					partnershipLabels={editor.unionLabels}
-					onDragRelate={canCreate ? editor.dragRelate : undefined}
 					onExpandStub={expandStub}
 					onCollapseStub={collapseStub}
 				/>
