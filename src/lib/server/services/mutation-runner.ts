@@ -132,15 +132,21 @@ export class MutationRunner {
 	/**
 	 * Rows for a caller that knows what it reads better than its commands say, as the intent planner
 	 * does. A null seed is the whole tree. A seed that opts into a follow-up costs a second load
-	 * when the first snapshot shows partners or parents whose partnerships are not yet loaded; one
-	 * that does not opt in, or has nothing to follow, stays at one.
+	 * when the first snapshot shows something to follow (partners or parents whose partnerships are
+	 * not yet loaded, the sources behind a note or a repository), and up to a third when that leads
+	 * further; one that does not opt in, or has nothing to follow, stays at one.
 	 */
 	async loadForSeed(treeId: string, seed: ScopeSeed | null): Promise<TreeRows> {
 		if (!seed) return this.store.loadRows(treeId);
-		const first = await this.scopedLoader.load(treeId, seed);
-		const next = seedWithFollowUp(first, seed);
-		if (next === FOLLOW_UP_WHOLE) return this.store.loadRows(treeId);
-		return next ? this.scopedLoader.load(treeId, next) : first;
+		let current = seed;
+		let rows = await this.scopedLoader.load(treeId, current);
+		for (let loads = 1; ; loads++) {
+			const next = seedWithFollowUp(rows, current, loads);
+			if (next === FOLLOW_UP_WHOLE) return this.store.loadRows(treeId);
+			if (!next) return rows;
+			current = next;
+			rows = await this.scopedLoader.load(treeId, current);
+		}
 	}
 
 	/** `actorId` is required, not defaulted: a caller that forgot it would record no author and hide the person from their creator. */
