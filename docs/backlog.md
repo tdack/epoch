@@ -170,11 +170,6 @@ Last reviewed: 2026-10-15.
 - **Test data is imported by relative path.** Tests read `test/data` files through relative
   `?raw` imports, so moving the directory breaks them at a distance. One shared path constant, or
   fixtures beside the tests, would keep the paths in one place.
-- **Flaky unit tests under load.** `union-merge.test.ts`, the "size limit" case in
-  `person-merge-service.test.ts` and three cases in `fact-detail-backfill.test.ts` (5-second
-  timeouts on The Windsors) have failed intermittently when the suite runs under load; each passes
-  alone. Find the
-  cause, or quarantine with a tracked reason.
 
 ### Code structure
 
