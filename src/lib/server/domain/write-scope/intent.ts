@@ -15,16 +15,19 @@ function existing(ref: PersonRef): string[] {
  * comes from `clock.newId` (a UUID), so it cannot clash with a row that exists. The per-command
  * `create_person` seed names its id only because a command's id can come from a client.
  *
- * Null (whole tree), on purpose:
- * - `add_parent`: the parental family it joins is picked from the child's links, so the intent
- *   cannot name it, and its sentence counts the other partnerships of that pair. Those are
- *   partnerships of two people who may be neither the child nor the new parent, so no closure of
- *   the people the intent names brings them. `intent.test.ts` pins the mismatch.
+ * `add_parent` cannot name the parental family it joins: it is picked from the child's links, and
+ * its sentence counts that pair's other partnerships. It opts into the follow-up load, which adds
+ * the child's parents, so their partnerships (the family and its twins) come with them.
  */
 export function intentSeed(intent: RelationshipIntent): ScopeSeed | null {
 	switch (intent.kind) {
 		case 'add_parent':
-			return null;
+			return seedOf({
+				people: [...existing(intent.child), ...existing(intent.parent)],
+				unions: [intent.unionId],
+				wholeTables: ['parentChild'],
+				shouldFollowFamily: true
+			});
 		// The cycle check walks every link, as `assert_parent_child` does. The partnership is one of
 		// the parent's own, so its other partnerships of the same pair (which the label counts) share
 		// the parent and come with them.
