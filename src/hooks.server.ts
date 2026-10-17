@@ -19,6 +19,13 @@ import { NotAdmittedError } from '#lib/server/domain/errors.js';
 import { PUBLIC_VISITOR } from '#lib/server/domain/identity.js';
 import { getDb } from '#lib/server/db/index.js';
 import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
+import { TreeRepository } from '#lib/server/repositories/tree-repository.js';
+import {
+	appOrigin,
+	classifyHost,
+	treeHostConfig,
+	treeHostRoute
+} from '#lib/server/http/tree-host.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
 import { applySecurityHeaders } from '#lib/server/http/security-headers.js';
 import {
@@ -36,6 +43,7 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	event.locals.correlationId = correlationId;
 	event.locals.user = null;
 	event.locals.notAdmitted = null;
+	event.locals.hostTree = null;
 
 	const bindings = getPlatformBindings();
 
@@ -72,6 +80,33 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		path: event.url.pathname,
 		method: event.request.method
 	});
+
+	// A tree host (`dacks.example.com`) shows one tree. It is settled before anyone is identified, so
+	// that an anonymous `/` on the public tree's host opens the tree rather than the splash, and a
+	// label that names no tree gets the same bare 404 whoever asks.
+	const hostConfig = treeHostConfig(bindings as Parameters<typeof treeHostConfig>[0]);
+	const host = classifyHost(event.url.hostname, hostConfig);
+	if (host.kind !== 'app') {
+		// One indexed read, never cached, so turning the subdomain off takes effect on the next request.
+		const tree =
+			host.kind === 'tree' && bindings.DB
+				? await new TreeRepository(getDb(bindings.DB)).findOnSubdomain(host.label)
+				: null;
+		if (!tree || !hostConfig) return notFound(correlationId);
+		const route = treeHostRoute(event.url, tree);
+		if (route.action === 'not-found') return notFound(correlationId);
+		if (route.action === 'redirect' || route.action === 'app') {
+			const location =
+				route.action === 'app'
+					? `${appOrigin(event.url, hostConfig)}${route.path}`
+					: route.location;
+			return new Response(null, {
+				status: 302,
+				headers: { location, 'x-correlation-id': correlationId }
+			});
+		}
+		event.locals.hostTree = { ...tree, appOrigin: appOrigin(event.url, hostConfig) };
+	}
 
 	const token = extractAccessJwt(event.request);
 	let hasInvalidToken = false;
@@ -219,6 +254,14 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	if (event.locals.user?.isPublicVisitor) response.headers.set('x-robots-tag', 'noindex');
 	return response;
 };
+
+/** A bare 404 for a tree host that serves nothing here: it names nothing, so it cannot tell what exists. */
+function notFound(correlationId: string): Response {
+	return new Response('Not found', {
+		status: 404,
+		headers: { 'content-type': 'text/plain; charset=utf-8', 'x-correlation-id': correlationId }
+	});
+}
 
 // Wraps every answer, including the redirects above: the first response a visitor gets (the sign-in
 // redirect) is where HSTS has to land.
