@@ -3,7 +3,7 @@
 
 	const NAV = [
 		{ href: '#features', label: 'Features' },
-		{ href: '#explore', label: 'Views' },
+		{ href: '#explore', label: 'Explore' },
 		{ href: '#code', label: 'Get the code' },
 		{ href: '#install', label: 'Install' },
 		{ href: '#faq', label: 'FAQ' }
