@@ -162,7 +162,8 @@ describe('publishing', () => {
 		expect(all.find((r) => r.id === secondId)).toMatchObject({
 			role: null,
 			isPublic: true,
-			memberCount: 1
+			memberCount: 1,
+			isOnSubdomain: false
 		});
 		expect(all.find((r) => r.id === firstId)).toMatchObject({ peopleCount: 4, memberCount: 2 });
 	});

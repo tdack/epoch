@@ -27,6 +27,8 @@ export interface InstallTree {
 	memberCount: number;
 	isPublic: boolean;
 	publicSince: string | null;
+	/** Also served at `<slug>.<zone>` (ADR-057). */
+	isOnSubdomain: boolean;
 }
 
 /** `POST /api/trees` */
