@@ -6,13 +6,24 @@ import { AUTH_MODES, OWNERSHIPS, loadManifest, type Manifest } from './manifest.
 import { resourceNames } from './names.ts';
 import { RESOURCE_STATES, reconcile, type ResourceKey } from './reconcile.ts';
 import { observe, observeTags } from './steps/reconcile.ts';
-import { untagResource, type TaggableKey } from './tags.ts';
+import {
+	planSubdomainTeardown,
+	removeSubdomainItem,
+	type SubdomainTeardownKey
+} from './steps/subdomains.ts';
+import { TAGGABLE, untagResource, type TaggableKey } from './tags.ts';
 
 export interface TeardownItem {
-	key: ResourceKey;
+	key: ResourceKey | SubdomainTeardownKey;
 	name: string;
 	/** Data that cannot be recovered; needs its own typed confirmation. */
 	isIrreversible: boolean;
+	/** A DNS record or route id, for the tree subdomain items. */
+	id?: string;
+}
+
+function isTaggable(key: TeardownItem['key']): key is TaggableKey {
+	return key in TAGGABLE;
 }
 
 /**
@@ -35,6 +46,17 @@ export async function planTeardown(ctx: StepContext, manifest: Manifest): Promis
 	});
 	const items: TeardownItem[] = [];
 	const isOurs = (key: ResourceKey) => result.reports[key].state === RESOURCE_STATES.ours;
+	// The tree subdomains first: the record and routes send traffic to the Worker deleted below.
+	if (manifest.subdomains) {
+		const app = (await ctx.cf.listAccessApps()).find((a) => a.id === manifest.access.app?.id);
+		for (const item of await planSubdomainTeardown(
+			ctx,
+			manifest,
+			isOurs('accessApp'),
+			app?.destinations ?? []
+		))
+			items.push({ ...item, isIrreversible: false });
+	}
 	if (isOurs('accessApp'))
 		items.push({ key: 'accessApp', name: result.reports.accessApp.name, isIrreversible: false });
 	if (
@@ -99,7 +121,14 @@ export async function runTeardown(
 	// Dependents first: the application before the policy it uses, the Worker before its queue and storage.
 	for (const item of items) {
 		// Tags first: a tag outliving its resource would be inherited by a re-created bucket of the same name.
-		if (item.key !== 'accessPolicy') await untagResource(ctx, manifest, item.key as TaggableKey);
+		if (isTaggable(item.key)) await untagResource(ctx, manifest, item.key);
+		if (
+			item.key === 'dnsRecord' ||
+			item.key === 'treeRoute' ||
+			item.key === 'exclusionRoute' ||
+			item.key === 'accessDestination'
+		)
+			await removeSubdomainItem(ctx, manifest, { ...item, key: item.key });
 		if (item.key === 'accessApp' && accessApp) await ctx.cf.deleteAccessApp(accessApp.id);
 		if (item.key === 'accessPolicy' && owned) await ctx.cf.deletePolicy(owned.id);
 		if (item.key === 'worker') await wrangler.deleteWorker(item.name);

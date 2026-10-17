@@ -330,6 +330,58 @@ describe('teardown', () => {
 			'deleteD1 d1d10000-0000-4000-8000-000000000001'
 		]);
 	});
+
+	it('removes the tree subdomains’ record and routes before the Worker they lead to', async () => {
+		const zoneId = 'zone00000000000000000000000000001';
+		const withTrees: Manifest = {
+			...manifest,
+			subdomains: {
+				zone: { id: zoneId, name: 'example.com' },
+				reservedLabels: ['www'],
+				appHost: 'epoch.example.com',
+				dnsRecordId: 'rec-star',
+				exclusionRoutes: [{ id: 'r-www', pattern: 'www.example.com/*', ownership: 'owned' }]
+			}
+		};
+		const star = {
+			id: 'rec-star',
+			name: '*.example.com',
+			type: 'AAAA',
+			content: '100::',
+			proxied: true,
+			comment: `epoch:${OURS}`
+		};
+		const routes = {
+			success: true,
+			result: [
+				{ id: 'r-tree', pattern: '*.example.com/*', script: 'epoch' },
+				{ id: 'r-www', pattern: 'www.example.com/*' }
+			]
+		};
+		const deleted: string[] = [];
+		const asker = { ...NO_ASKER, text: async () => '' as never } as Asker;
+		const { ctx } = testContext({
+			fs: withManifest(withTrees),
+			exec: fakeExec([{ match: 'cf dns records list', stdout: [star] }, ...rules(OURS)]),
+			raw: (path) =>
+				path.endsWith('/workers/routes') ? { status: 200, body: routes } : ourWorker(),
+			wrangler: { deleteWorker: async (n) => void deleted.push(`worker ${n}`) }
+		});
+		ctx.cf = new Proxy(ctx.cf, {
+			get: (t, p: string) =>
+				p.startsWith('delete')
+					? async (...ids: string[]) => void deleted.push(`${p} ${ids.join(' ')}`)
+					: (t as any)[p]
+		});
+		await runTeardown(ctx, { isYes: false, isInteractive: true }, asker);
+		expect(deleted.slice(0, 4)).toEqual([
+			`deleteDnsRecord ${zoneId} rec-star`,
+			`deleteZoneRoute ${zoneId} r-tree`,
+			`deleteZoneRoute ${zoneId} r-www`,
+			'deleteAccessApp app00000-0000-4000-8000-000000000002'
+		]);
+		expect(deleted).toContain('worker epoch');
+	});
 });
 
 describe('command line', () => {
@@ -377,6 +429,7 @@ describe('command line', () => {
 			'allow',
 			'disallow',
 			'teardown',
+			'subdomains',
 			'spike',
 			'--plan',
 			'--yes',
@@ -433,6 +486,7 @@ describe('command line', () => {
 				allow: record('allow'),
 				teardown: record('teardown'),
 				builds: record('builds'),
+				subdomains: record('subdomains'),
 				spike: record('spike')
 			} as unknown as Handlers;
 			return { calls, program: buildProgram(handlers) };
@@ -465,6 +519,26 @@ describe('command line', () => {
 			const [call] = await run(['builds', '--json']);
 			expect(call?.command).toBe('builds');
 			expect(call?.args[0]).toMatchObject({ json: true });
+		});
+
+		it('`subdomains` takes its zone, the labels to reserve, --yes and --plan', async () => {
+			const [call] = await run([
+				'subdomains',
+				'--zone',
+				'example.com',
+				'--reserve',
+				'staff',
+				'demo',
+				'--yes',
+				'--plan'
+			]);
+			expect(call?.command).toBe('subdomains');
+			expect(call?.args[0]).toMatchObject({
+				zone: 'example.com',
+				reserve: ['staff', 'demo'],
+				yes: true,
+				plan: true
+			});
 		});
 
 		it('allow and disallow pass the action and the address', async () => {
