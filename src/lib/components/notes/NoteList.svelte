@@ -88,12 +88,27 @@
 	}
 </script>
 
-{#if notes.length === 0}
-	{#if !isQuiet}
-		<p class="text-xs text-stone-600 italic" data-testid="no-notes">
-			No note on {subjectLabel}.
-		</p>
+{#snippet addButton(className: string)}
+	{#if canAddNote(role)}
+		<button
+			type="button"
+			class={['action-btn', className]}
+			onclick={() => (dialog = { note: null })}
+			aria-label={`Add a note to ${subjectLabel}`}><Plus class="h-3.5 w-3.5" />Add note</button
+		>
 	{/if}
+{/snippet}
+
+{#if notes.length === 0}
+	<!-- With no note yet, the empty line and the way to add one share a row. -->
+	<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+		{#if !isQuiet}
+			<p class="text-xs text-stone-600 italic" data-testid="no-notes">
+				No note on {subjectLabel}.
+			</p>
+		{/if}
+		{@render addButton(isQuiet ? '' : 'ml-auto')}
+	</div>
 {:else}
 	<ol class="space-y-2" data-testid="notes" aria-label={`Notes on ${subjectLabel}`}>
 		{#each notes as note, index (note.id)}
@@ -153,14 +168,7 @@
 			</li>
 		{/each}
 	</ol>
-{/if}
-{#if canAddNote(role)}
-	<button
-		type="button"
-		class="action-btn mt-2"
-		onclick={() => (dialog = { note: null })}
-		aria-label={`Add a note to ${subjectLabel}`}><Plus class="h-3.5 w-3.5" />Add note</button
-	>
+	{@render addButton('mt-2')}
 {/if}
 
 <NoteDialog

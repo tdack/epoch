@@ -309,8 +309,9 @@ display size belongs to the splash.
 Two spatial models share the app.
 
 - **Records** (person, union, place, source pages, lists, settings) are a single centred reading
-  column, usually `max-w-2xl` (672px) or `max-w-3xl` (768px). A person page stacks section cards
-  with 16px gaps; an index page holds a white list panel. The tree shell widens to `max-w-7xl`.
+  column, usually `max-w-2xl` (672px) or `max-w-3xl` (768px). A person page leads with its Life
+  timeline and Family in the wide column, and gathers the rest of the record into one section
+  card beside them; an index page holds a white list panel. The tree shell widens to `max-w-7xl`.
 - **The tree** is a full-bleed canvas under the sticky header, with floating toolbar, legend and
   zoom controls in panel cream, and the person drawer sliding in from the right (full width on
   phones, 384px from `sm`).

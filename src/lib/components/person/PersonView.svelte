@@ -30,8 +30,9 @@
 		/** The viewer's role in this tree; each section hides what it cannot do. */
 		role: TreeRole | undefined;
 		/**
-		 * `page` is two columns on a wide screen; `drawer` is one column of folding sections. The
-		 * drawer's sections are the same components, so the layout is the only difference.
+		 * `drawer` is one column of folding sections, facts grouped by kind. `page` leads with the
+		 * person's life as a timeline and family beside it, and gathers the rest of the record into
+		 * one quiet column (ADR-058). The sections are the same components either way.
 		 */
 		layout: 'drawer' | 'page';
 		relativeTarget?: RelativeTarget;
@@ -53,11 +54,19 @@
 	}: Props = $props();
 
 	const isPage = $derived(layout === 'page');
+	/** On the page the record's details share one card, so each section drops its own. */
+	const isFlush = $derived(isPage);
 	/** The person's own citations, shown once beneath the summary; a fact's or name's are on that row. */
 	const personCitations = $derived(
 		citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.PERSON, dto.person.id)
 	);
 </script>
+
+{#snippet life()}
+	<PersonSection id="life" title="Life" {layout} isOpenByDefault>
+		<PersonFacts {dto} {treeId} {treeSlug} {role} {editor} {toasts} mode="timeline" />
+	</PersonSection>
+{/snippet}
 
 {#snippet family()}
 	<PersonSection id="family" title="Family" {layout} isOpenByDefault>
@@ -72,39 +81,41 @@
 {/snippet}
 
 {#snippet names()}
-	<PersonSection id="names" title="Names" {layout}>
+	<PersonSection id="names" title="Names" {layout} {isFlush}>
 		<PersonNames {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet media()}
-	<PersonSection id="media" title="Photos and documents" {layout}>
+	<PersonSection id="media" title="Photos and documents" {layout} {isFlush}>
 		<PersonMedia {dto} {treeId} {editor} />
 	</PersonSection>
 {/snippet}
 
 {#snippet notes()}
-	<PersonSection id="notes" title="Notes" {layout}>
+	<PersonSection id="notes" title="Notes" {layout} {isFlush}>
 		<PersonNotes {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet tasks()}
-	<PersonSection id="tasks" title="Tasks" {layout}>
+	<PersonSection id="tasks" title="Tasks" {layout} {isFlush}>
 		<PersonTasks {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet privacy()}
 	{#if canSetPrivacy(role, dto)}
-		<PersonSection id="privacy" title="Privacy" {layout} testId="privacy-panel">
+		<PersonSection id="privacy" title="Privacy" {layout} {isFlush} testId="privacy-panel">
 			<PersonPrivacy {dto} {treeId} {editor} />
 		</PersonSection>
 	{/if}
 {/snippet}
 
 {#snippet history()}
-	<PersonSection id="history" title="History" {layout}><PersonHistory {dto} /></PersonSection>
+	<PersonSection id="history" title="History" {layout} {isFlush}
+		><PersonHistory {dto} /></PersonSection
+	>
 {/snippet}
 
 <div class="space-y-6">
@@ -128,17 +139,17 @@
 	</header>
 
 	{#if isPage}
-		<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+		<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 			<div class="space-y-6">
+				{@render life()}
 				{@render family()}
-				{@render facts()}
-				{@render names()}
 			</div>
-			<div class="space-y-6">
-				{@render media()}
-				{@render privacy()}
+			<div class="section-card divide-y divide-stone-200 py-0" data-testid="record-details">
 				{@render notes()}
+				{@render names()}
+				{@render media()}
 				{@render tasks()}
+				{@render privacy()}
 				{@render history()}
 			</div>
 		</div>

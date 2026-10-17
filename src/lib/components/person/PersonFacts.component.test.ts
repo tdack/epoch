@@ -46,10 +46,18 @@ function fact(overrides: Partial<FactDto> = {}): FactDto {
 	} as unknown as FactDto;
 }
 
-function render(facts: FactDto[]) {
+function render(
+	facts: FactDto[],
+	options: {
+		mode?: 'grouped' | 'timeline';
+		partnerships?: PersonPageDto['partnerships'];
+		role?: 'viewer' | 'editor';
+	} = {}
+) {
 	const dto = {
 		person: { id: 'p1' },
 		facts,
+		partnerships: options.partnerships ?? [],
 		evidence: { citations: [] }
 	} as unknown as PersonPageDto;
 	component = mount(PersonFacts, {
@@ -57,9 +65,10 @@ function render(facts: FactDto[]) {
 		props: {
 			dto,
 			treeId: 't1',
-			role: 'viewer',
+			role: options.role ?? 'viewer',
 			editor: {} as never,
-			toasts: {} as never
+			toasts: {} as never,
+			mode: options.mode
 		}
 	});
 	flushSync();
@@ -212,6 +221,99 @@ describe('PersonFacts', () => {
 		expect(visibleFactIds()).toEqual(['b2', 'b1']);
 		expect(groupButton(0)).toBeNull();
 		expect(byTestId('fact')!.getAttribute('data-conflict')).toBe('conflict');
+	});
+});
+
+describe('PersonFacts as a timeline', () => {
+	const marriage = (dateSort: string | null, dateText: string | null) =>
+		[
+			{
+				unionId: 'u1',
+				partners: [{ id: 'p2', displayName: 'Myrtle Blishen' }],
+				events: [{ id: 'm1', type: 'MARR', dateText, dateSort, place: 'Kurri Kurri' }]
+			}
+		] as unknown as PersonPageDto['partnerships'];
+
+	it('reads oldest first, with the marriage in its place and the partner named', () => {
+		render(
+			[
+				fact({ id: 'birth', sortStart: '1910-08-05', dateText: '05 AUG 1910' }),
+				fact({ id: 'death', type: 'DEAT', label: 'Death', sortStart: '1970-04-03' })
+			],
+			{ mode: 'timeline', partnerships: marriage('1935-04-06', '06 APR 1935') }
+		);
+		const rows = [...document.querySelectorAll('[data-testid="facts"] > li')];
+		expect(rows.map((row) => row.querySelector('h4')!.textContent!.trim())).toEqual([
+			'Birth',
+			'Marriage',
+			'Death'
+		]);
+		const union = byTestId('life-union-event')!;
+		expect(union.textContent).toContain('06 APR 1935 · with Myrtle Blishen');
+		expect(union.querySelector('a[href$="/people/p2"]')).not.toBeNull();
+		// A viewer may follow the partnership but not edit it.
+		expect(union.querySelector('button')).toBeNull();
+	});
+
+	it('shows every fact, so a conflict sits in place and nothing is behind a button', () => {
+		render(
+			[
+				fact({ id: 'b1', sortStart: '1900-01-01' }),
+				fact({
+					id: 'b2',
+					sortStart: '1901-01-01',
+					conflict: { kind: 'conflict', otherIds: ['b1'] } as never
+				}),
+				fact({
+					id: 'r1',
+					type: 'RESI',
+					label: 'Residence',
+					kind: 'attribute',
+					value: 'Hull',
+					sortStart: null,
+					dateText: null
+				})
+			],
+			{ mode: 'timeline' }
+		);
+		expect(visibleFactIds()).toEqual(['b1', 'b2', 'r1']);
+		expect(document.querySelector('button[aria-controls]')).toBeNull();
+		expect(byTestId('fact-group')).toBeNull();
+	});
+
+	it('lists attributes apart from the events, without a "Date unknown" on each', () => {
+		render(
+			[
+				fact({
+					id: 'o1',
+					type: 'OCCU',
+					label: 'Occupation',
+					kind: 'attribute',
+					value: 'Joiner',
+					dateText: null,
+					sortStart: null
+				})
+			],
+			{ mode: 'timeline' }
+		);
+		const attributes = byTestId('attributes')!;
+		expect(attributes.textContent).toContain('Also recorded');
+		expect(attributes.textContent).toContain('Joiner');
+		expect(attributes.textContent).not.toContain('Date unknown');
+		expect(byTestId('facts')).toBeNull();
+	});
+
+	it('moves a same-date fact up toward the earlier end', () => {
+		render(
+			[
+				fact({ id: 'o1', type: 'OCCU', label: 'Occupation', kind: 'attribute', sortStart: null }),
+				fact({ id: 'r1', type: 'RESI', label: 'Residence', kind: 'attribute', sortStart: null })
+			],
+			{ mode: 'timeline', role: 'editor' }
+		);
+		const label = (b: Element) => b.getAttribute('aria-label');
+		const moves = [...document.querySelectorAll('button[aria-label^="Move"]')].map(label);
+		expect(moves).toEqual(['Move Occupation down', 'Move Residence up']);
 	});
 });
 

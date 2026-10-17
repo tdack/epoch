@@ -9,15 +9,20 @@
 		label: string;
 		/** The viewer may add a note, so an empty record still has something to open. */
 		canAdd?: boolean;
+		/** Sits on the citations line rather than below it; opened, it takes a row of its own. */
+		isInline?: boolean;
 		children: Snippet;
 	}
 
-	let { noteCount, label, canAdd = false, children }: Props = $props();
+	let { noteCount, label, canAdd = false, isInline = false, children }: Props = $props();
 </script>
 
 <!-- A fact keeps its notes beside it, next to its citations; nothing is drawn for a record with none the viewer cannot add to. -->
 {#if noteCount > 0 || canAdd}
-	<details class="mt-2 text-xs" data-testid="notes-disclosure">
+	<details
+		class={isInline ? 'text-xs open:basis-full' : 'mt-2 text-xs'}
+		data-testid="notes-disclosure"
+	>
 		<summary
 			class="flex cursor-pointer items-center gap-1 font-semibold text-stone-700"
 			aria-label={`Notes on ${label}`}
