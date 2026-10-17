@@ -11,8 +11,7 @@ export default defineConfig({
 			enabled: true
 		},
 		domains: [
-			'www.epochgenealogy.app', 
-			'epochgenealogy.app'
+			'www.epochgenealogy.app'
 		],
 		env: {
 			ASSETS: bindings.assets()
