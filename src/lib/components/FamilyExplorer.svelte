@@ -31,6 +31,16 @@
 	/** Whether scrolling drives the lenses; off on narrow or short screens and under reduced motion. */
 	let isPinned = $state(false);
 	let isStill = $state(false);
+	let hasMoreLeft = $state(false);
+	let hasMoreRight = $state(false);
+
+	/** Which sides of the sideways-scrolling drawing have more of it out of view. */
+	function measureOverflow() {
+		if (!scroller) return;
+		const hidden = scroller.scrollWidth - scroller.clientWidth;
+		hasMoreLeft = scroller.scrollLeft > 2;
+		hasMoreRight = scroller.scrollLeft < hidden - 2;
+	}
 	let unitPx = $state(0);
 	/** Lenses scrolled through, 0 to LAST; whole numbers are a lens at rest. */
 	let progress = $state(0);
@@ -265,13 +275,19 @@
 
 	/** On a narrow screen the drawing scrolls sideways; bring the lens's middle into view. */
 	function centreOn(index: number, isInstant = false) {
-		if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
-		const focus = LAYOUTS[LENS_IDS[index]!].ellen!;
-		const ratio = (index === LAST ? ROUTE_ROWS.x + 200 : focus.x) / STAGE.width;
-		scroller.scrollTo({
-			left: ratio * scroller.scrollWidth - scroller.clientWidth / 2,
-			behavior: isStill || isInstant ? 'auto' : 'smooth'
-		});
+		if (!scroller) return;
+		if (scroller.scrollWidth <= scroller.clientWidth) return measureOverflow();
+		const lens = LENS_IDS[index]!;
+		const focus = LAYOUTS[lens].ellen!;
+		const scale = scroller.scrollWidth / STAGE.width;
+		// The charts that grow rightwards start at the person, so centring them would cut the next
+		// generation's names in half; they open with the person at the left edge instead.
+		const left =
+			lens === 'descendants' || lens === 'pedigree'
+				? (focus.x - focus.w / 2 - 12) * scale
+				: (index === LAST ? ROUTE_ROWS.x + 200 : focus.x) * scale - scroller.clientWidth / 2;
+		scroller.scrollTo({ left, behavior: isStill || isInstant ? 'auto' : 'smooth' });
+		measureOverflow();
 	}
 </script>
 
@@ -319,8 +335,24 @@
 				{/if}
 			</div>
 
-			<div class="frame">
-				<div class="scroller" bind:this={scroller}>
+			<div
+				class="frame"
+				class:has-more-left={hasMoreLeft}
+				class:has-more-right={hasMoreRight}
+				style:--ground={active === 0 ? 'var(--tree-paper)' : 'var(--field-white)'}
+			>
+				<span class="synthetic">A sample family, invented for illustration.</span>
+				<!-- Focusable only while it scrolls, so a keyboard can pan it with the arrow keys; a
+				scrolling region is the one non-control that should take focus. -->
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div
+					class="scroller"
+					bind:this={scroller}
+					onscroll={measureOverflow}
+					tabindex={isPinned ? undefined : 0}
+					role={isPinned ? undefined : 'region'}
+					aria-label={isPinned ? undefined : `${LENSES[active]!.name} drawing, scrolls sideways`}
+				>
 					<svg class="stage" viewBox="0 0 {STAGE.width} {STAGE.height}" aria-hidden="true">
 						<defs>
 							<pattern id="explore-dots" width="18" height="18" patternUnits="userSpaceOnUse">
@@ -504,7 +536,6 @@
 						{/each}
 					</svg>
 				</div>
-				<span class="synthetic">A sample family, invented for illustration.</span>
 			</div>
 
 			<div class="captions">
@@ -683,13 +714,41 @@
 		position: relative;
 		border: 1px solid var(--stone-rule);
 		border-radius: 16px;
-		background: var(--field-white);
+		background: var(--ground, var(--field-white));
 		box-shadow: 0 1px 2px rgb(28 25 23 / 0.06);
 		overflow: hidden;
 	}
 
 	/* Below about 720px the cards would shrink past reading size, so the drawing keeps its size
 	and scrolls sideways instead. */
+	/* A fade on whichever side has more drawing out of view, so it reads as scrollable. */
+	.frame::before,
+	.frame::after {
+		content: '';
+		position: absolute;
+		z-index: 1;
+		inset-block: 0;
+		width: 28px;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 200ms var(--ease-out);
+	}
+
+	.frame::before {
+		left: 0;
+		background: linear-gradient(to right, var(--ground), transparent);
+	}
+
+	.frame::after {
+		right: 0;
+		background: linear-gradient(to left, var(--ground), transparent);
+	}
+
+	.frame.has-more-left::before,
+	.frame.has-more-right::after {
+		opacity: 1;
+	}
+
 	.scroller {
 		overflow-x: auto;
 		overscroll-behavior-x: contain;
@@ -844,7 +903,23 @@
 		outline-offset: 2px;
 	}
 
+	/* The frame clips anything outside it, so the drawing's ring is drawn inside. */
+	.scroller:focus-visible {
+		outline-offset: -2px;
+		border-radius: 16px;
+	}
+
 	@media (max-width: 720px) {
+		/* The drawing scrolls under a floating label here, so it would cover a union's date. */
+		.synthetic {
+			position: static;
+			display: block;
+			padding: 8px 14px 0;
+			border-radius: 0;
+			background: none;
+			text-align: right;
+		}
+
 		.caption {
 			grid-template-columns: minmax(0, 1fr);
 		}
