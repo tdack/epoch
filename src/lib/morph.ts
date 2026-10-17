@@ -256,6 +256,8 @@ export interface Drawn {
 	textX: number;
 	textY: number;
 	textTurn: number;
+	/** 0–1; dips while a card changes shape, so names never print over each other mid-move. */
+	textAlpha: number;
 	nameX: number;
 	nameY: number;
 	nameSize: number;
@@ -378,6 +380,10 @@ export function drawAll(
 			textX: textAt[0],
 			textY: textAt[1],
 			textTurn: lerp(pa.labelTurn ?? 0, pb.labelTurn ?? 0, t),
+			// Cards changing shape pass through each other (a chart column bending into a ring); the
+			// text fades out by the middle of the move and back in, while a card that only slides
+			// keeps its name readable throughout.
+			textAlpha: pa.look === pb.look ? 1 : (1 - 2 * t) ** 2,
 			nameX: lerp(leftOf(sa, pa, nameWidthA), leftOf(sb, pb, nameWidthB), t),
 			nameY: lerp(sa.nameY, sb.nameY, t),
 			nameSize,

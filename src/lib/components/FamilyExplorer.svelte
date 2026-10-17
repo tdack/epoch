@@ -506,7 +506,10 @@
 										stroke-width={person.edgeWidth}
 										stroke-dasharray={person.isPrivate ? '6 4' : undefined}
 									/>
-									<g transform="translate({person.textX} {person.textY}) rotate({person.textTurn})">
+									<g
+										transform="translate({person.textX} {person.textY}) rotate({person.textTurn})"
+										opacity={person.textAlpha}
+									>
 										{#if person.symbolAlpha > 0.01 && person.sex !== 'u'}
 											<!-- The app's own glyphs beside the tint, so colour is never the only signal. -->
 											<text
