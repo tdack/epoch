@@ -17,6 +17,7 @@ import { preflight } from './steps/preflight.ts';
 import { provision } from './steps/provision.ts';
 import { applyAdoptions, reconcileStep } from './steps/reconcile.ts';
 import { signIn } from './steps/sign-in.ts';
+import { seedSubdomains } from './steps/subdomains.ts';
 import { TAG_STATES, TAGGABLE_KEYS, tagResources } from './tags.ts';
 import { CHECK_STATUSES, verify, type CheckResult } from './steps/verify.ts';
 import { editedDeployConfig, writeConfig } from './steps/write-config.ts';
@@ -64,7 +65,7 @@ export async function runSetup(
 
 	presenter.stage('Collect');
 	const collected = await collect(ctx, manifest, flags, signed.identity, mode, asker, defaults);
-	manifest = collected.manifest;
+	manifest = await seedSubdomains(ctx, collected.manifest, defaults);
 	let { answers } = collected;
 
 	presenter.stage('Reconcile');
