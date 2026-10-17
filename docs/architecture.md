@@ -155,7 +155,8 @@ relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL v
 Ribbons, Orrery) share one selection and highlight model (ADR-032, ADR-033, ADR-035); flat is the
 default. The flat view shows a minimap once the tree no longer fits the canvas, and draws the whole
 tree too, with unconnected families side by side (ADR-046). One person view
-renders both the drawer and the person page (ADR-027).
+renders both the drawer and the person page (ADR-027); the page leads with the person's life as a
+timeline, and the drawer groups facts by kind (ADR-053, ADR-058).
 
 Colours and motion are settings, layered like webtrees: the built-in palette, a site default the
 install owner sets, and each person's own choice, one group at a time (sex colours, trace palette,
