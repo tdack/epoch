@@ -45,6 +45,10 @@ page's rows), rippling out from the focus person; the chips jump to a view. Narr
 reduced motion get tap-to-switch chips. Every view copies the demo's own rendering (card size,
 glyphs, link curves and dashes, union labels, focus tab), so it is the product, not a drawing of
 it. It hands off to the 3D clips that follow.
+Adaptations from the app, each a setting the app allows or a legibility choice: chart cards and
+text are drawn larger for a 1040-unit stage; the hourglass shows two generations each side (the
+app's steppers reach it; its default is one); the descendants chart's focus card grows to name
+both partners, where the app cuts the line at 22 characters.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
