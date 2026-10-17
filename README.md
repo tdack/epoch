@@ -144,6 +144,7 @@ it. It also records you as the install owner.
 | `./setup disallow <email>` | Removes them again |
 | `./setup teardown` | Deletes only what this install created |
 | `./setup builds` | Gives Workers Builds this install's values, after you connect the repository |
+| `./setup subdomains` | Serves trees on their own subdomain, `<slug>.<zone>` (see below) |
 | `./setup --help` | Lists every flag, including ones that answer each prompt for scripted use |
 | `npm run deploy` | Deploys a new version from your machine: builds, applies any new migrations and deploys |
 
@@ -183,6 +184,41 @@ uses the sign-in it already has, so you don't need an API token.
 If setup can't set the variable (for example, a sign-in made before this feature, or the
 repository isn't connected yet), it prints the value for you to paste in. `./setup --force` signs
 in again with the extra permission.
+
+### Serving trees on their own subdomains
+
+`./setup subdomains` sets the install up to serve a tree at `<slug>.<zone>` as well as at
+`/trees/<slug>` (ADR-057). The install must already be on a custom domain. Run it with `--plan`
+first:
+
+```sh
+./setup subdomains --plan   # read-only: lists what the wildcard would capture
+./setup subdomains          # makes the changes below, after you confirm
+```
+
+Before it changes anything, it lists the zone's DNS records, Worker routes and Custom Domains. It
+then reports every proxied hostname that the wildcard route `*.<zone>/*` would take from whatever
+serves it now, such as a website on `www`. For each one you can:
+
+- add a route with no Worker, so the hostname stays with what serves it now;
+- choose a different zone;
+- stop.
+
+It reserves the label of every name in the zone (`www`, `demo`, `_dmarc` and so on), so no tree can
+take one. To reserve more, pass `--reserve staff demo2`. It then:
+
+- adds the routes with no Worker;
+- creates the proxied DNS record `* AAAA 100::`, marked with this install's id in its comment;
+- adds `*.<zone>/login` to the install's Access application, which keeps its AUD;
+- writes the wildcard route and the `EPOCH_TREE_HOST_ZONE`, `EPOCH_RESERVED_SUBDOMAINS` and
+  `EPOCH_APP_HOST` vars into `wrangler.deploy.jsonc`;
+- updates the Workers Builds variable, so a deploy on push keeps them.
+
+Run `npm run deploy` afterwards: a push deploys only when `src/` changes. Then a manager can turn a
+tree's subdomain on from its rename dialog. The command needs `dns.write` and
+`workers-routes.write`. If your sign-in predates them, run `./setup --force` to sign in again.
+Running it again changes only what has drifted. `./setup teardown` removes the record, the routes
+this install made and the Access destination.
 
 ### Who can get in
 

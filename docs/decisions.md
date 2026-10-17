@@ -778,11 +778,16 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Consequences:** a press on a card still does not pan, because d3-zoom swallows the click after any movement and the click is what refocuses. Panning from cards (with a click distance set) is a separate choice. The 3D promotion checklist (ADR-030) no longer needs drag-to-relate parity.
 
 ## ADR-057: A tree can be served on its own subdomain (extends ADR-041 and ADR-045)
-- **Status:** phase 1 (the app side) built on `claude/subdomain-cloudflare-oauth-9bfcc6` on 2026-10-17; not yet deployed. Migration 0033. The Cloudflare side (wildcard DNS record, Worker route, Access destination) is not built; see [proposal-tree-subdomains.md](./proposal-tree-subdomains.md).
+- **Status:** phase 1 (the app side) built on `claude/subdomain-cloudflare-oauth-9bfcc6` on 2026-10-17; not yet deployed. Migration 0033. Phase 2, the Cloudflare side, built on 2026-10-17 as `./setup subdomains` (`tools/setup/steps/subdomains.ts`) and not yet run against a real account. It creates the wildcard DNS record, the exclusion routes and the Access destination, and writes the Worker route and the vars through `DeployValues`. See [proposal-tree-subdomains.md](./proposal-tree-subdomains.md).
 - **Context:** the owner wants `dacks.epochgenealogy.app` to show only the tree at `/trees/dacks`, without anyone creating a Cloudflare API token. A wildcard DNS record and Worker route, set up once, send every subdomain to the Worker, so turning a tree's subdomain on needs no Cloudflare call at runtime and the Worker holds no Cloudflare credential.
 - **Decision:**
   - **Opt-in per tree:** `trees.is_on_subdomain`, default off. It is set from the rename dialog, by those who may change the address (`tree:update_settings`, or the install owner), through `PATCH /api/trees/[id]`.
   - **The subdomain is the slug,** so a tree without one cannot turn it on, and giving the slug up turns it off. Every valid slug is already a valid DNS label. Changing the slug moves the subdomain.
+  - **Setup owns the Cloudflare side** (`./setup subdomains`):
+    - The wildcard route and the three vars are carried in `DeployValues`, so every setup run and every Workers Builds deploy writes them. `wrangler deploy` owns the route.
+    - The DNS record is marked with `epoch:<installId>` in its comment, because DNS records carry no account tags and their own tags need a paid plan.
+    - Exclusion routes have no Worker, so they are made through the API: wrangler's routes always attach the deployed Worker. Only the routes this install made are deleted.
+    - The Access application gains `*.<zone>/login` as a second destination and keeps its AUD. The `access` step sends that destination too, because an update replaces the application.
   - **Install settings, all Worker vars:**
     - `EPOCH_TREE_HOST_ZONE`: unset turns the feature off.
     - `EPOCH_APP_HOST`: defaults to the zone.

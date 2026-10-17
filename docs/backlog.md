@@ -320,18 +320,23 @@ Last reviewed: 2026-10-15.
 - **Development, staging and production configuration separation,** reproducible provisioning.
 - **A tree on its own subdomain: the rest after phase 1** (ADR-057,
   [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
-  - **Cloudflare side for `epochgenealogy.app`:**
-    - the wildcard DNS record;
-    - the `*.epochgenealogy.app/*` route, with empty routes for `www` and `demo`;
-    - the vars `EPOCH_TREE_HOST_ZONE` and `EPOCH_RESERVED_SUBDOMAINS=demo,cf-bounce`;
-    - `*.epochgenealogy.app/login` on the Access application.
+  - **Cloudflare side for `epochgenealogy.app`:** run `./setup subdomains --zone epochgenealogy.app`
+    once the install is on the apex (proposal, "Order of work", steps 1 and 2), then
+    `npm run deploy`. Its capture check should propose exclusion routes for `www` and `demo` and
+    reserve `www`, `demo`, `cf-bounce`, `_dmarc` and `_domainkey`. Then check that demo sign-in
+    still works, and the items under "Verify on a real deploy".
+  - **`./setup subdomains`: confirm the SPIKE shapes on a real account.** These are read from the
+    API reference, not yet seen:
+    - the `--body` of `cf dns records create`;
+    - the Access application's `destinations`, and whether an update with them keeps the AUD;
+    - `/zones/{id}/workers/routes` with no `script`.
 
-    Then check that demo sign-in still works.
-  - **A `./setup subdomains` step** that does the same for any install. **It must come first:**
-    `generateDeployConfig` (`tools/setup/deploy-values.ts`) rebuilds `vars` and `routes` from fixed
-    install values on every setup run and every Workers Builds deploy. Vars and routes added by hand
-    are dropped on the next push, so `DeployValues` has to carry the zone, the reserved list and the
-    wildcard route.
+    Add them to `./setup spike`.
+  - **`./setup subdomains`: the rest.**
+    - A way to turn it off short of teardown.
+    - A `doctor` check for the record, the routes and the Access destination.
+    - Exclusion routes have no marker. One that a fresh clone finds is kept as `referenced` and is
+      never deleted, so teardown from a fresh clone leaves it behind.
   - **Short addresses** (`dacks.example.com/people/x`).
   - **Whether the app host should redirect a flagged tree to its subdomain.**
 
