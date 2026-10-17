@@ -15,7 +15,8 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "npm run format:check && npm run check",
-		"deploy": "npm run build && cf deploy --prebuilt"
+		"deploy": "npm run build && cf deploy --prebuilt",
+		"deploy:preview": "npm run build && wrangler versions upload --experimental-new-config --preview-alias \"$(git branch --show-current | tr -c 'a-zA-Z0-9\\n' - | tr A-Z a-z | cut -c1-40 | sed 's/-*$//')\""
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260911.1",

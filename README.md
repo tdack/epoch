@@ -21,6 +21,7 @@ npm run dev      # http://localhost:5173
 | `npm run build` | Prerenders the site into `.svelte-kit/cloudflare`, then packages it into `.cloudflare/output` |
 | `npm run preview` | Builds, then serves it locally with `vite preview` |
 | `npm run deploy` | Builds and deploys to epochgenealogy.app |
+| `npm run deploy:preview` | Builds and uploads a preview of the current branch, without deploying |
 
 ## Deploying
 
@@ -32,6 +33,13 @@ prerendered pages; the adapter reads it, so keep `vite.config.ts` pointing at it
 
 With Workers Builds, connect this repository, set the production branch to `website`, the build
 command to `npm run build` and the deploy command to `npx cf deploy --prebuilt`.
+
+To check a branch before it reaches the site, run `npm run deploy:preview` on it. It uploads a
+version without deploying it, under an alias made from the branch name, and prints its address,
+`https://<branch>-epoch-website.<subdomain>.workers.dev`. Production stays on the custom domain
+only. Preview URLs are a Worker setting, so they work only once a production deploy has carried
+`previewUrls: true`. In Workers Builds, set the non-production branch deploy command to
+`npx wrangler versions upload --experimental-new-config` to get the same for every pushed branch.
 
 ## Where things are
 
