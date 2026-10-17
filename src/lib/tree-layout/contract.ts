@@ -93,7 +93,7 @@ export function findDuplicatePeople(layout: TreeLayout): string[] {
 }
 
 /** A union drawn twice also breaks the canvas, which keys its nodes by union id. */
-export function findDuplicateUnions(layout: TreeLayout): string[] {
+function findDuplicateUnions(layout: TreeLayout): string[] {
 	const seen = new Set<string>();
 	const violations: string[] = [];
 	for (const u of layout.unions) {
