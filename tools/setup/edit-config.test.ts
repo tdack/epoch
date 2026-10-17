@@ -26,7 +26,10 @@ const values: DeployValues = {
 	installId: live.vars.EPOCH_INSTALL_ID,
 	emailSender: live.send_email?.[0]?.allowed_sender_addresses?.[0] ?? null,
 	r2Jurisdiction: null,
-	accessAud: live.vars.CF_ACCESS_AUD ?? null
+	accessAud: live.vars.CF_ACCESS_AUD ?? null,
+	treeHostZone: null,
+	reservedSubdomains: [],
+	appHost: null
 };
 const wanted = (over: Partial<DeployValues> = {}) =>
 	generateDeployConfig(template, { ...values, ...over });

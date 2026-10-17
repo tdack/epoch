@@ -331,3 +331,215 @@ describe('Workers Builds triggers', () => {
 		]);
 	});
 });
+
+describe('tree subdomains (ADR-057)', () => {
+	const zone = 'zone00000000000000000000000000001';
+
+	function withRequests(
+		answer: (method: string, path: string) => { status: number; body: unknown }
+	) {
+		const calls: { method: string; path: string; body: unknown }[] = [];
+		const rawRequest: RawRequest = async (method, path, body) => {
+			calls.push({ method, path, body });
+			return answer(method, path);
+		};
+		const cf = createCloudflareApi(createRunner(fakeExec([])), { rawRequest });
+		cf.useAccount('acc0000000000000000000000000001');
+		return { cf, calls };
+	}
+
+	it('reads every page of DNS records, so a record past the first still counts', async () => {
+		const page = Array.from({ length: 500 }, (_, i) => ({
+			id: `r${i}`,
+			name: `h${i}.example.com`,
+			type: 'A',
+			content: '192.0.2.1',
+			proxied: false
+		}));
+		const { cf, exec } = api([
+			{ match: /--page 1$/, stdout: page },
+			{ match: /--page 2$/, stdout: fixture('dns-records-list.json') }
+		]);
+		const records = await cf.listDnsRecords(zone);
+		expect(records).toHaveLength(507);
+		expect(exec.calls[0]?.args).toEqual([
+			'dns',
+			'records',
+			'list',
+			'--zone',
+			zone,
+			'--per-page',
+			'500',
+			'--page',
+			'1'
+		]);
+		expect(records.find((r) => r.name === 'www.example.com')).toEqual({
+			id: 'rec00000000000000000000000000001',
+			name: 'www.example.com',
+			type: 'AAAA',
+			content: '100::',
+			isProxied: true,
+			comment: null
+		});
+	});
+
+	it('creates the wildcard record proxied, with its marker in the comment', async () => {
+		const { cf, exec } = api([
+			{ match: 'cf dns records create', stdout: { id: 'rec-new', name: '*.example.com' } }
+		]);
+		const record = await cf.createDnsRecord(zone, {
+			type: 'AAAA',
+			name: '*.example.com',
+			content: '100::',
+			isProxied: true,
+			comment: 'epoch:11111111-1111-4111-8111-111111111111'
+		});
+		expect(record.id).toBe('rec-new');
+		const args = exec.calls[0]!.args;
+		expect(args.slice(0, 5)).toEqual(['dns', 'records', 'create', '--zone', zone]);
+		expect(JSON.parse(args[args.indexOf('--body') + 1]!)).toEqual({
+			type: 'AAAA',
+			name: '*.example.com',
+			content: '100::',
+			proxied: true,
+			ttl: 1,
+			comment: 'epoch:11111111-1111-4111-8111-111111111111'
+		});
+	});
+
+	it('deletes a record by id on its zone', async () => {
+		const { cf, exec } = api([{ match: 'cf dns records delete', stdout: {} }]);
+		await cf.deleteDnsRecord(zone, 'rec-1');
+		expect(exec.calls[0]?.args).toEqual(['dns', 'records', 'delete', 'rec-1', '--zone', zone]);
+	});
+
+	it('lists routes and Custom Domains through the API, which cf has no command for', async () => {
+		const { cf, calls } = withRequests((_method, path) => ({
+			status: 200,
+			body: fixture(
+				path.includes('/routes') ? 'workers-routes-list.json' : 'workers-domains-list.json'
+			)
+		}));
+		expect(await cf.listZoneRoutes(zone)).toEqual([
+			{ id: 'route0000000000000000000000000001', pattern: 'shop.example.com/*', script: 'shop' },
+			{ id: 'route0000000000000000000000000002', pattern: 'www.example.com/blog*', script: 'blog' }
+		]);
+		expect(await cf.listWorkerDomains(zone)).toContainEqual({
+			hostname: 'www.example.com',
+			service: 'website'
+		});
+		expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+			`GET /zones/${zone}/workers/routes`,
+			`GET /accounts/acc0000000000000000000000000001/workers/domains?zone_id=${zone}`
+		]);
+	});
+
+	it('makes an exclusion route with no script, so it attaches no Worker', async () => {
+		const { cf, calls } = withRequests(() => ({
+			status: 200,
+			body: { success: true, result: { id: 'route-new', pattern: 'www.example.com/*' } }
+		}));
+		expect(await cf.createExclusionRoute(zone, 'www.example.com/*')).toEqual({
+			id: 'route-new',
+			pattern: 'www.example.com/*',
+			script: null
+		});
+		await cf.deleteZoneRoute(zone, 'route-new');
+		expect(calls).toEqual([
+			{
+				method: 'POST',
+				path: `/zones/${zone}/workers/routes`,
+				body: { pattern: 'www.example.com/*' }
+			},
+			{ method: 'DELETE', path: `/zones/${zone}/workers/routes/route-new`, body: undefined }
+		]);
+	});
+
+	it('a failed route call stops with what it was doing', async () => {
+		const { cf } = withRequests(() => ({ status: 409, body: { success: false } }));
+		await expect(cf.createExclusionRoute(zone, 'www.example.com/*')).rejects.toThrow(
+			'Could not add the route www.example.com/* (HTTP 409)'
+		);
+	});
+
+	it('never writes a route under --dry-run', async () => {
+		const calls: string[] = [];
+		const cf = createCloudflareApi(createRunner(fakeExec([])), {
+			rawRequest: async (method) => {
+				calls.push(method);
+				return { status: 200, body: {} };
+			},
+			isDryRun: true
+		});
+		await cf.createExclusionRoute(zone, 'www.example.com/*');
+		await cf.deleteZoneRoute(zone, 'r');
+		expect(calls).toEqual([]);
+	});
+
+	describe('Access destinations', () => {
+		const app = { name: 'n', domain: 'example.com/login', policyIds: [], idpIds: [] };
+		const bodyOf = (exec: ReturnType<typeof api>['exec']) => {
+			const args = exec.calls[0]!.args;
+			return JSON.parse(args[args.indexOf('--body') + 1]!) as Record<string, unknown>;
+		};
+
+		it('sends the application as before when there are no extra destinations', async () => {
+			const { cf, exec } = api([
+				{ match: 'cf zero-trust access applications update', stdout: { id: 'a', aud: 'x' } }
+			]);
+			await cf.updateAccessApp('a', { ...app, isAutoRedirect: false });
+			expect(bodyOf(exec)).not.toHaveProperty('destinations');
+		});
+
+		it('lists the app host first and the tree subdomains after it', async () => {
+			const { cf, exec } = api([
+				{ match: 'cf zero-trust access applications update', stdout: { id: 'a', aud: 'x' } }
+			]);
+			await cf.updateAccessApp('a', {
+				...app,
+				extraDestinations: ['*.example.com/login'],
+				isAutoRedirect: false
+			});
+			expect(bodyOf(exec)).toMatchObject({
+				domain: 'example.com/login',
+				destinations: [
+					{ type: 'public', uri: 'example.com/login' },
+					{ type: 'public', uri: '*.example.com/login' }
+				]
+			});
+		});
+
+		it('names only the app host when the extra destinations are emptied', async () => {
+			const { cf, exec } = api([
+				{ match: 'cf zero-trust access applications update', stdout: { id: 'a', aud: 'x' } }
+			]);
+			await cf.updateAccessApp('a', { ...app, extraDestinations: [], isAutoRedirect: false });
+			expect(bodyOf(exec).destinations).toEqual([{ type: 'public', uri: 'example.com/login' }]);
+		});
+
+		it('reads destinations back, or the domain alone from an application without them', async () => {
+			const { cf } = api([
+				{
+					match: 'cf zero-trust access applications list',
+					stdout: [
+						{
+							id: 'a',
+							domain: 'example.com/login',
+							destinations: [
+								{ type: 'public', uri: 'example.com/login' },
+								{ type: 'public', uri: '*.example.com/login' },
+								{ type: 'private', hostname: 'internal' }
+							]
+						},
+						{ id: 'b', domain: 'other.example.com/login' }
+					]
+				}
+			]);
+			const apps = await cf.listAccessApps();
+			expect(apps.map((a) => a.destinations)).toEqual([
+				['example.com/login', '*.example.com/login'],
+				['other.example.com/login']
+			]);
+		});
+	});
+});

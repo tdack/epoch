@@ -24,7 +24,9 @@ export const BASE_SCOPES = [
 	'email-sending.read',
 	'tag.read',
 	'tag.write',
-	'workers-ci.write'
+	'workers-ci.write',
+	'dns.write',
+	'workers-routes.write'
 ] as const;
 
 /**
@@ -40,7 +42,13 @@ export const TAG_SCOPES = ['tag.read', 'tag.write'] as const;
  */
 export const BUILDS_SCOPES = ['workers-ci.write'] as const;
 
-const OPTIONAL_SCOPES: readonly string[] = [...TAG_SCOPES, ...BUILDS_SCOPES];
+/**
+ * `./setup subdomains` (ADR-057): the wildcard DNS record and the Worker-less exclusion routes.
+ * Optional so a profile signed in before subdomains keeps working; only that command needs them.
+ */
+export const SUBDOMAIN_SCOPES = ['dns.write', 'workers-routes.write'] as const;
+
+const OPTIONAL_SCOPES: readonly string[] = [...TAG_SCOPES, ...BUILDS_SCOPES, ...SUBDOMAIN_SCOPES];
 
 /** Broad, so asked for only when the user chose a minted deploy token. */
 const EPHEMERAL_SCOPE = 'account_api_tokens:create';
@@ -60,6 +68,10 @@ export function missingTagScopes(granted: readonly string[]): string[] {
 
 export function missingBuildsScopes(granted: readonly string[]): string[] {
 	return missingScopes(BUILDS_SCOPES, granted);
+}
+
+export function missingSubdomainScopes(granted: readonly string[]): string[] {
+	return missingScopes(SUBDOMAIN_SCOPES, granted);
 }
 
 function missingScopes(requested: readonly string[], granted: readonly string[]): string[] {

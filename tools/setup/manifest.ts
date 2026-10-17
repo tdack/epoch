@@ -50,6 +50,32 @@ export interface PolicyRef {
 	ownership: Ownership;
 }
 
+/** A Worker route with no script, so the wildcard leaves that hostname to whatever serves it. */
+export interface ExclusionRoute {
+	id: string;
+	pattern: string;
+	/** Only a route this tool created is `owned`, and only an owned one is ever deleted. */
+	ownership: Ownership;
+}
+
+/** What `./setup subdomains` set up (ADR-057). The wildcard route itself is in the deploy config. */
+export interface SubdomainSettings {
+	zone: { id: string; name: string };
+	/** Labels no tree may take, beyond the app's built-in ones. Sorted. */
+	reservedLabels: string[];
+	/** Null when the app is on the zone apex. */
+	appHost: string | null;
+	/** The proxied `*` record this install created, marked in its comment; null until it exists. */
+	dnsRecordId: string | null;
+	exclusionRoutes: ExclusionRoute[];
+	/**
+	 * False while `./setup subdomains` is still making the routes and the record. Until then the
+	 * deploy config and the Access application leave the subdomains out, so a run that fails part-way
+	 * never deploys a wildcard that captures a hostname whose exclusion route is not there yet.
+	 */
+	isActive: boolean;
+}
+
 export interface Manifest {
 	version: 1;
 	/** Written into D1, R2 and the Worker as proof that a resource belongs to this install. */
@@ -88,6 +114,8 @@ export interface Manifest {
 	taggedResources: TagTarget[];
 	/** An adopted install keeps `CF_ACCESS_AUD` as a secret; a new one carries it as a var. */
 	isAudSecret: boolean;
+	/** Null until `./setup subdomains` runs, and on every install that serves no tree subdomains. */
+	subdomains: SubdomainSettings | null;
 }
 
 export function newManifest(workerName: string, now: Date = new Date()): Manifest {
@@ -114,7 +142,8 @@ export function newManifest(workerName: string, now: Date = new Date()): Manifes
 		access: { app: null, policies: [], idps: [] },
 		tags: 'unknown',
 		taggedResources: [],
-		isAudSecret: false
+		isAudSecret: false,
+		subdomains: null
 	};
 }
 
@@ -161,8 +190,13 @@ export function parseManifest(text: string): Manifest {
 			hint: 'It was probably written by a newer version of this tool. Keep a copy, then remove .epoch/install.json to re-attach from what exists in Cloudflare.'
 		});
 	}
-	// A manifest from before resource tags has neither field.
-	return { tags: 'unknown', taggedResources: [], ...value } as unknown as Manifest;
+	// A manifest from before resource tags has neither tag field, and one from before ADR-057 no subdomains.
+	return {
+		tags: 'unknown',
+		taggedResources: [],
+		subdomains: null,
+		...value
+	} as unknown as Manifest;
 }
 
 /** Same as `readManifest`, through the context's file system so tests and the real run share one path. */

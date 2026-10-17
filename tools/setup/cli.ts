@@ -9,6 +9,7 @@ import { DEFAULT_FLAGS, DEPLOY_AUTHS, HOSTINGS, type SetupFlags } from './option
 import { installPaths } from './paths.ts';
 import { runSpike } from './spike.ts';
 import { configureBuilds } from './steps/builds.ts';
+import { runSubdomains } from './steps/subdomains.ts';
 import { runTeardown } from './teardown.ts';
 import { createUi } from './ui.ts';
 
@@ -38,6 +39,7 @@ interface RawOptions {
 	browser?: boolean;
 	device?: boolean;
 	name?: string;
+	reserve?: string[];
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -167,6 +169,7 @@ export interface Handlers {
 	allow(action: 'add' | 'remove', email: string, raw: RawOptions): Promise<void>;
 	teardown(raw: RawOptions): Promise<void>;
 	builds(raw: RawOptions): Promise<void>;
+	subdomains(raw: RawOptions): Promise<void>;
 	spike(raw: RawOptions): Promise<void>;
 }
 
@@ -238,6 +241,27 @@ const DEFAULT_HANDLERS: Handlers = {
 			return { lines };
 		});
 	},
+	async subdomains(raw) {
+		const flags = toFlags(raw);
+		await guarded(flags, async (ui) => {
+			// Not read-only unless `--plan`: the manifest records the record and route ids as they are made.
+			const ctx = createContext({
+				reporter: ui.reporter,
+				isVerbose: flags.isVerbose,
+				isReadOnly: flags.isPlanOnly
+			});
+			ui.intro('Epoch tree subdomains');
+			const result = await runSubdomains(
+				ctx,
+				{ zone: flags.zone, reserve: raw.reserve, isPlanOnly: flags.isPlanOnly },
+				modeOf(flags),
+				ui.asker,
+				ui.presenter
+			);
+			ui.outro(result.isApplied ? 'Done.' : 'Plan only; nothing was changed.');
+			return { plan: result.plan, isApplied: result.isApplied };
+		});
+	},
 	async spike(raw) {
 		const flags = toFlags(raw);
 		await guarded(flags, async (ui) => {
@@ -304,6 +328,19 @@ export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 		.option('--json', 'print one JSON result on stdout')
 		.option('--verbose', 'stream the cf output')
 		.action((raw: RawOptions) => handlers.builds(raw));
+
+	program
+		.command('subdomains')
+		.description(
+			'Serve trees on <slug>.<zone>: the wildcard DNS record, exclusion routes and Access destination (ADR-057)'
+		)
+		.option('--zone <id>', 'zone (domain) id or name; default: the install’s own')
+		.option('--reserve <labels...>', 'labels no tree may take, beyond the zone’s own records')
+		.option('-y, --yes', 'apply without asking, adding an exclusion route for every captured host')
+		.option('--plan', 'list what the wildcard would capture and print the plan; changes nothing')
+		.option('--json', 'print one JSON result on stdout')
+		.option('--verbose', 'stream the cf output')
+		.action((raw: RawOptions) => handlers.subdomains(raw));
 
 	program
 		.command('spike')

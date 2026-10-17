@@ -53,7 +53,20 @@ export function deployValuesOf(manifest: Manifest): DeployValues {
 		installId: manifest.installId,
 		emailSender: manifest.emailSender,
 		r2Jurisdiction: manifest.locations.r2Jurisdiction,
-		accessAud: manifest.isAudSecret ? null : (manifest.access.app?.aud ?? null)
+		accessAud: manifest.isAudSecret ? null : (manifest.access.app?.aud ?? null),
+		...treeHostValues(manifest)
+	};
+}
+
+function treeHostValues(
+	manifest: Manifest
+): Pick<DeployValues, 'treeHostZone' | 'reservedSubdomains' | 'appHost'> {
+	const settings = manifest.subdomains;
+	if (!settings?.isActive) return { treeHostZone: null, reservedSubdomains: [], appHost: null };
+	return {
+		treeHostZone: settings.zone.name,
+		reservedSubdomains: settings.reservedLabels,
+		appHost: settings.appHost
 	};
 }
 

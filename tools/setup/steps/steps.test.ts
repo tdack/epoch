@@ -427,7 +427,8 @@ describe('access', () => {
 						aud: 'aud1',
 						policyIds: body.policyIds,
 						isPathCookieAttributeOn: false,
-						isBindingCookieOn: false
+						isBindingCookieOn: false,
+						destinations: [body.domain]
 					};
 				}
 			})
@@ -469,7 +470,8 @@ describe('access', () => {
 						aud: 'aud1',
 						policyIds: body.policyIds,
 						isPathCookieAttributeOn: false,
-						isBindingCookieOn: false
+						isBindingCookieOn: false,
+						destinations: [body.domain]
 					};
 				}
 			})
@@ -491,6 +493,52 @@ describe('access', () => {
 		]);
 	});
 
+	it('keeps the tree subdomains’ destination when a re-run updates the application', async () => {
+		const bodies: { domain: string; extraDestinations?: string[] }[] = [];
+		const { ctx } = testContext({
+			cf: stubApi({
+				listPolicies: async () => [],
+				updateAccessApp: async (id, body) => {
+					bodies.push(body);
+					return {
+						id,
+						name: body.name,
+						domain: body.domain,
+						aud: 'aud1',
+						policyIds: body.policyIds,
+						isPathCookieAttributeOn: false,
+						isBindingCookieOn: false,
+						destinations: [body.domain, ...(body.extraDestinations ?? [])]
+					};
+				}
+			})
+		});
+		const manifest = testManifest({
+			access: {
+				app: { id: 'app-existing', name: 'Epoch (epoch)', aud: 'aud1' },
+				policies: [],
+				idps: []
+			},
+			subdomains: {
+				zone: { id: 'zone1', name: 'example.com' },
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: 'rec1',
+				exclusionRoutes: [],
+				isActive: true
+			}
+		});
+		await access(ctx, manifest, {
+			...base,
+			hostname: 'example.com',
+			policy: { existingIds: [], isNewPolicy: false }
+		});
+		expect(bodies[0]).toMatchObject({
+			domain: 'example.com/login',
+			extraDestinations: ['*.example.com/login']
+		});
+	});
+
 	it('treats a same-named policy it did not create as referenced, so allow/disallow stay refused', async () => {
 		const clash = { ...policies[0], id: 'clash', name: 'Epoch epoch sign-in' };
 		const { ctx } = testContext({
@@ -503,7 +551,8 @@ describe('access', () => {
 					aud: 'aud',
 					policyIds: body.policyIds,
 					isPathCookieAttributeOn: false,
-					isBindingCookieOn: false
+					isBindingCookieOn: false,
+					destinations: [body.domain]
 				})
 			})
 		});
@@ -565,7 +614,8 @@ describe('access', () => {
 					aud: '',
 					policyIds: [],
 					isPathCookieAttributeOn: false,
-					isBindingCookieOn: false
+					isBindingCookieOn: false,
+					destinations: [b.domain]
 				})
 			})
 		});

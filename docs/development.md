@@ -115,6 +115,12 @@ tree at …" in a tree's rename dialog. The tree is then served at `http://<slug
 browsers resolve `*.localhost` to this machine, and the dev bypass accepts it (ADR-057). A label
 that names no tree, or a tree with the box unticked, answers 404.
 
+On Cloudflare, `./setup subdomains` sets up the wildcard DNS record, the exclusion routes, the
+Access destination and the vars (README, "Serving trees on their own subdomains"). Its code is
+`tools/setup/steps/subdomains.ts`. The settings live in the manifest's `subdomains` and in
+`DeployValues`, so `generateDeployConfig` writes them on every setup run and every Workers Builds
+deploy. Never add these vars or routes to `wrangler.deploy.jsonc` by hand: the next push drops them.
+
 ## Addresses
 
 | Address | Shows |

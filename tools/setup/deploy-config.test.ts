@@ -79,11 +79,37 @@ describe('an existing wrangler.deploy.jsonc', () => {
 			d1Id: 'd1',
 			teamDomain: 't.cloudflareaccess.com',
 			installId: 'i',
-			emailSender: null
+			emailSender: null,
+			treeHostZone: null,
+			reservedSubdomains: [],
+			appHost: null
 		});
 		expect(parseDeployDefaults('{"name":"x","workers_dev":true}')).toMatchObject({
 			hosting: 'workers-dev',
 			workerName: 'x'
+		});
+	});
+
+	it('reads the custom domain beside the tree subdomains’ route, and their vars', () => {
+		const text = JSON.stringify({
+			name: 'shop',
+			workers_dev: false,
+			routes: [
+				{ pattern: '*.example.com/*', zone_name: 'example.com' },
+				{ pattern: 'example.com', custom_domain: true }
+			],
+			vars: {
+				EPOCH_TREE_HOST_ZONE: 'example.com',
+				EPOCH_RESERVED_SUBDOMAINS: 'demo, www',
+				EPOCH_APP_HOST: 'epoch.example.com'
+			}
+		});
+		expect(parseDeployDefaults(text)).toMatchObject({
+			hostname: 'example.com',
+			hosting: 'custom',
+			treeHostZone: 'example.com',
+			reservedSubdomains: ['demo', 'www'],
+			appHost: 'epoch.example.com'
 		});
 	});
 

@@ -6,6 +6,35 @@ import type { Answers } from '../options.ts';
 import { ownerOnlyRules } from '../policy.ts';
 import { TAG_STATES, tagResources } from '../tags.ts';
 
+/** The Access destination that puts the sign-in in front of every tree subdomain (ADR-057). */
+export function treeLoginDestination(zone: string): string {
+	return `*.${zone}/login`;
+}
+
+/**
+ * The whole application, as both this step and `./setup subdomains` send it. An update replaces
+ * the application, so each must carry the other's destinations or a re-run would drop them.
+ */
+export function accessAppBody(
+	manifest: Manifest,
+	hostname: string,
+	policyIds: string[],
+	idpIds: string[]
+) {
+	return {
+		name: manifest.access.app?.name ?? resourceNames(manifest.workerName).accessApp,
+		domain: `${hostname}/login`,
+		// Undefined, not empty, without subdomains: the body stays as it was before ADR-057.
+		extraDestinations: manifest.subdomains?.isActive
+			? [treeLoginDestination(manifest.subdomains.zone.name)]
+			: undefined,
+		policyIds,
+		idpIds,
+		// With exactly one provider there is nothing to choose, so skip the picker.
+		isAutoRedirect: idpIds.length === 1
+	};
+}
+
 /**
  * One Access application on `<host>/login` and its policies; nothing else in Zero Trust is read for
  * writing, and updates go by the id in the manifest, never by name. Done before the deploy so the
@@ -51,14 +80,12 @@ export async function access(
 		current = ctx.save({ ...current, access: { ...current.access, policies: refs } });
 	}
 
-	const body = {
-		name: current.access.app?.name ?? names.accessApp,
-		domain: `${answers.hostname}/login`,
-		policyIds: refs.map((ref) => ref.id),
-		idpIds: answers.idpIds,
-		// With exactly one provider there is nothing to choose, so skip the picker.
-		isAutoRedirect: answers.idpIds.length === 1
-	};
+	const body = accessAppBody(
+		current,
+		answers.hostname,
+		refs.map((ref) => ref.id),
+		answers.idpIds
+	);
 	const app = current.access.app
 		? await ctx.cf.updateAccessApp(current.access.app.id, body)
 		: await ctx.cf.createAccessApp(body);
