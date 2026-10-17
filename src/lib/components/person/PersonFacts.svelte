@@ -16,6 +16,7 @@
 	import type { FactDto, PersonPageDto } from '#lib/shared/person-page.js';
 	import { FACT_KINDS } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
+	import PersonLink from '#lib/components/PersonLink.svelte';
 	import { lifeTimeline, type LifeEntry } from './life-timeline.js';
 	import { personPath, treePath, unionPath } from './person-paths.js';
 
@@ -386,9 +387,10 @@
 						{#each entry.partners as partner, i (partner.id)}{#if i > 0}{i ===
 								entry.partners.length - 1
 									? ' and '
-									: ', '}{/if}<a href={personPath(treeRef, partner.id)} class="row-link"
-								>{partner.displayName}</a
-							>{/each}</span
+									: ', '}{/if}<PersonLink
+								person={partner}
+								href={personPath(treeRef, partner.id)}
+							/>{/each}</span
 					>{/if}
 			</p>
 			{#if entry.event.place}<p class="mt-1 flex items-center text-xs text-stone-600">
