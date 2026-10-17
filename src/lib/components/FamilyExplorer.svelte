@@ -207,6 +207,14 @@
 
 		measureRunway();
 		if (!isPinned) centreOn(active, true);
+		// The browser jumps to an address's #section before this runway (and the 3D views' one
+		// after it) grow, which leaves a section below them far off screen; jump again once they have.
+		const hashTimer = setTimeout(() => {
+			const id = decodeURIComponent(location.hash.slice(1));
+			const target = id ? document.getElementById(id) : null;
+			if (target && runwayEl.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING)
+				target.scrollIntoView({ behavior: 'instant' });
+		}, 0);
 		const resize = new ResizeObserver(measureRunway);
 		resize.observe(document.documentElement);
 		wide.addEventListener('change', measureRunway);
@@ -218,6 +226,7 @@
 			still.removeEventListener('change', measureRunway);
 			removeEventListener('scroll', onScroll);
 			cancelAnimationFrame(raf);
+			clearTimeout(hashTimer);
 		};
 	});
 
