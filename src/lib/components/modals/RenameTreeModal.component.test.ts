@@ -19,12 +19,23 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(treeSlug: string | null = 'the-windsors') {
+function render(
+	treeSlug: string | null = 'the-windsors',
+	subdomain: { subdomainZone?: string | null; isOnSubdomain?: boolean } = {}
+) {
 	const onrename = vi.fn();
 	const onclose = vi.fn();
 	component = mount(RenameTreeModal, {
 		target: document.body,
-		props: { isOpen: true, treeName: 'The Windsors', treeSlug, treeVersion: 4, onclose, onrename }
+		props: {
+			isOpen: true,
+			treeName: 'The Windsors',
+			treeSlug,
+			treeVersion: 4,
+			onclose,
+			onrename,
+			...subdomain
+		}
 	});
 	flushSync();
 	return { onrename, onclose };
@@ -57,17 +68,17 @@ describe('RenameTreeModal', () => {
 		const { onrename } = render();
 		fill('tree-rename-input', 'House of Windsor');
 		submit();
-		expect(onrename).toHaveBeenCalledWith('House of Windsor', 'the-windsors', 4);
+		expect(onrename).toHaveBeenCalledWith('House of Windsor', 'the-windsors', 4, undefined);
 	});
 
 	it('sends a new address, and null for an empty one', () => {
 		const { onrename } = render();
 		fill('tree-slug-input', 'house-of-windsor');
 		submit();
-		expect(onrename).toHaveBeenLastCalledWith('The Windsors', 'house-of-windsor', 4);
+		expect(onrename).toHaveBeenLastCalledWith('The Windsors', 'house-of-windsor', 4, undefined);
 		fill('tree-slug-input', '  ');
 		submit();
-		expect(onrename).toHaveBeenLastCalledWith('The Windsors', null, 4);
+		expect(onrename).toHaveBeenLastCalledWith('The Windsors', null, 4, undefined);
 	});
 
 	it('refuses an address the server would refuse, and says why', () => {
@@ -83,5 +94,44 @@ describe('RenameTreeModal', () => {
 		submit();
 		expect(onrename).not.toHaveBeenCalled();
 		expect(onclose).toHaveBeenCalled();
+	});
+
+	describe('subdomain', () => {
+		const checkbox = () => document.querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+		it('is not offered where the install serves no subdomains', () => {
+			render();
+			expect(checkbox()).toBeNull();
+		});
+
+		it('names the address it would open at, and sends the choice', () => {
+			const { onrename } = render('the-windsors', { subdomainZone: 'example.com' });
+			expect(document.body.textContent).toContain('the-windsors.example.com');
+			checkbox()!.click();
+			flushSync();
+			submit();
+			expect(onrename).toHaveBeenCalledWith('The Windsors', 'the-windsors', 4, true);
+		});
+
+		it('cannot be had without an address, and is dropped when the address is', () => {
+			const { onrename } = render('the-windsors', {
+				subdomainZone: 'example.com',
+				isOnSubdomain: true
+			});
+			fill('tree-slug-input', '');
+			expect(checkbox()!.disabled).toBe(true);
+			submit();
+			expect(onrename).toHaveBeenCalledWith('The Windsors', null, 4, false);
+		});
+
+		it('closes without a request when the choice is unchanged', () => {
+			const { onrename, onclose } = render('the-windsors', {
+				subdomainZone: 'example.com',
+				isOnSubdomain: true
+			});
+			submit();
+			expect(onrename).not.toHaveBeenCalled();
+			expect(onclose).toHaveBeenCalled();
+		});
 	});
 });

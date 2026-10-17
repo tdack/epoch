@@ -19,7 +19,8 @@
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';
-	import { canonicalTreeAddress, treePath } from '#lib/shared/tree-slug.js';
+	import { canonicalTreeAddress } from '#lib/shared/tree-slug.js';
+	import { appHref, isOtherOrigin, subdomainOrigin, treeHref } from '#lib/shared/tree-host.js';
 
 	interface Props {
 		data: LayoutData;
@@ -36,12 +37,17 @@
 	);
 	const isChartPage = $derived(page.route.id === '/trees/[id]');
 	// Links prefer a tree's slug (ADR-045); the switcher and the shell know only the id they chose.
+	// On a tree's own subdomain any other tree is on the app host.
 	const pathOf = (id: string) =>
-		treePath(
+		treeHref(
 			id === data.summary.tree.id
 				? data.summary.tree
-				: (data.trees.find((t) => t.id === id) ?? { id })
+				: (data.trees.find((t) => t.id === id) ?? { id }),
+			data.hostTree
 		);
+	// Client-side routing stays on this origin; another host needs a full page load.
+	const navigate = (href: string, options?: Parameters<typeof goto>[1]) =>
+		isOtherOrigin(href) ? window.location.assign(href) : goto(href, options);
 	const personPath = (treeId: string, personId: string) =>
 		`${pathOf(treeId)}/people/${encodeURIComponent(personId)}`;
 
@@ -64,10 +70,23 @@
 		treeId: () => data.summary.tree.id,
 		toasts,
 		reload,
-		goTo: (id) => void goto(id ? pathOf(id) : '/'),
+		goTo: (id) => void navigate(id ? pathOf(id) : appHref('/', data.hostTree)),
 		onAddressChange: async (tree) => {
 			const moved = canonicalTreeAddress(page.url, page.params.id!, tree);
+			// This host serves the tree only while its subdomain is its slug and is on: otherwise the
+			// page moves to wherever the tree now lives.
+			if (data.hostTree && data.subdomainZone) {
+				const rest = moved ?? `${page.url.pathname}${page.url.search}`;
+				const origin =
+					tree.isOnSubdomain && tree.slug
+						? subdomainOrigin(tree.slug, data.subdomainZone, page.url)
+						: data.hostTree.appOrigin;
+				if (origin !== page.url.origin || moved) window.location.assign(`${origin}${rest}`);
+				else await invalidate(DATA_KEY);
+				return;
+			}
 			if (moved) await goto(moved, { replaceState: true, invalidateAll: true });
+			else await invalidate(DATA_KEY);
 		}
 	});
 	// Seeded once so the server render already has the lists; the effect below adopts any later load.
@@ -131,7 +150,8 @@
 		trees={data.trees}
 		selectedTreeId={data.summary.tree.id}
 		isImporting={shell.isImporting}
-		onselectTree={(id) => void goto(pathOf(id))}
+		onselectTree={(id) => void navigate(pathOf(id))}
+		homeHref={appHref('/', data.hostTree)}
 		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
@@ -174,8 +194,10 @@
 				id: data.summary.tree.id,
 				slug: data.summary.tree.slug,
 				name: data.summary.tree.name,
-				version: data.summary.tree.version
+				version: data.summary.tree.version,
+				isOnSubdomain: data.summary.tree.isOnSubdomain
 			}}
+			subdomainZone={data.subdomainZone}
 		/>
 		<TreeNav
 			treeId={data.summary.tree.id}
@@ -186,6 +208,7 @@
 			treeCount={data.trees.length}
 			signOutHref={viewer.isPublicVisitor ? undefined : signOutHref(page.url.origin)}
 			isOutsider={viewer.isOutsider}
+			appOrigin={data.hostTree?.appOrigin}
 		/>
 		{@render children()}
 	</main>

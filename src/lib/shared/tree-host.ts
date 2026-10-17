@@ -23,7 +23,11 @@ export function appHref(path: string, hostTree: HostTree | null): string {
 }
 
 /** `https://<slug>.<zone>` with the current page's scheme and port. */
-export function subdomainOrigin(slug: string, zone: string, current: URL): string {
+export function subdomainOrigin(
+	slug: string,
+	zone: string,
+	current: { protocol: string; port: string }
+): string {
 	return `${current.protocol}//${slug}.${zone}${current.port ? `:${current.port}` : ''}`;
 }
 

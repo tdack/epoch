@@ -9,10 +9,18 @@
 	interface Props {
 		shell: TreeShell;
 		/** The tree in view, for the rename, delete and import dialogs; null on the landing page. */
-		tree: { id: string; slug: string | null; name: string; version: number } | null;
+		tree: {
+			id: string;
+			slug: string | null;
+			name: string;
+			version: number;
+			isOnSubdomain?: boolean;
+		} | null;
+		/** The zone tree subdomains sit under; null or absent where the install serves none. */
+		subdomainZone?: string | null;
 	}
 
-	let { shell, tree }: Props = $props();
+	let { shell, tree, subdomainZone = null }: Props = $props();
 </script>
 
 {#if shell.importStatus}
@@ -47,10 +55,19 @@
 		treeName={tree.name}
 		treeSlug={tree.slug}
 		treeVersion={tree.version}
+		isOnSubdomain={tree.isOnSubdomain ?? false}
+		{subdomainZone}
 		isRenaming={shell.isRenamingTree}
 		error={shell.renameTreeError}
 		onclose={() => (shell.isRenameTreeModalOpen = false)}
-		onrename={(name, slug, version) => shell.renameTree(name, slug, version, tree.slug)}
+		onrename={(name, slug, version, isOnSubdomain) =>
+			shell.renameTree(
+				name,
+				slug,
+				version,
+				{ slug: tree.slug, isOnSubdomain: tree.isOnSubdomain ?? false },
+				isOnSubdomain
+			)}
 	/>
 	<DeleteTreeModal
 		isOpen={shell.isDeleteTreeModalOpen}

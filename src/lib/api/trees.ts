@@ -28,11 +28,12 @@ export async function renameTreeApi(
 	treeId: string,
 	name: string,
 	slug: string | null,
-	version: number
-): Promise<{ id: string; slug: string | null }> {
+	version: number,
+	isOnSubdomain?: boolean
+): Promise<RenameTreeResponse['tree']> {
 	return call<RenameTreeResponse>(
 		path`/api/trees/${treeId}`,
-		json('PATCH', { name, slug, version }),
+		json('PATCH', { name, slug, version, ...(isOnSubdomain !== undefined && { isOnSubdomain }) }),
 		'Failed to rename tree'
 	).then((d) => d.tree);
 }

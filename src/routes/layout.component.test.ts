@@ -14,7 +14,14 @@ function render(isMotionReduced: boolean) {
 	component = mount(Layout, {
 		target: document.body,
 		props: {
-			data: { sourceUrl: '', sourceCommit: null, palette: DEFAULT_PALETTE, isMotionReduced },
+			data: {
+				sourceUrl: '',
+				sourceCommit: null,
+				hostTree: null,
+				subdomainZone: null,
+				palette: DEFAULT_PALETTE,
+				isMotionReduced
+			},
 			children: createRawSnippet(() => ({ render: () => '<p id="page">Page</p>' }))
 		}
 	});

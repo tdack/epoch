@@ -27,6 +27,8 @@
 		canChangeTrees?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */
 		finder?: Snippet;
+		/** Where the Epoch mark leads: `/`, or the app host's `/` on a tree's own subdomain. */
+		homeHref?: string;
 	}
 
 	let {
@@ -43,7 +45,8 @@
 		onexportGedcom,
 		canExport = false,
 		canChangeTrees = true,
-		finder
+		finder,
+		homeHref = '/'
 	}: Props = $props();
 </script>
 
@@ -51,7 +54,7 @@
 	class="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-stone-200/80 bg-[#fdfbf7]/90 px-3 py-2 shadow-xs backdrop-blur-md sm:px-6"
 >
 	<!-- `/` resolves the viewer's default tree, so the link needs no tree list of its own. -->
-	<a href="/" class="flex items-center space-x-3 rounded-xl focus-ring">
+	<a href={homeHref} class="flex items-center space-x-3 rounded-xl focus-ring">
 		<div
 			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-800 shadow-md shadow-emerald-900/15"
 		>
