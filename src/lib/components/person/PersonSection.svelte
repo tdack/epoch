@@ -8,12 +8,22 @@
 		layout: 'drawer' | 'page';
 		/** The drawer's `<details>` start open; a stored choice for this section wins over it. */
 		isOpenByDefault?: boolean;
+		/** The page only: the section sits in a card it shares with others, so it draws none itself. */
+		isFlush?: boolean;
 		/** Set on the wrapper, for the tests that find a whole section. */
 		testId?: string;
 		children: Snippet;
 	}
 
-	let { id, title, layout, isOpenByDefault = false, testId, children }: Props = $props();
+	let {
+		id,
+		title,
+		layout,
+		isOpenByDefault = false,
+		isFlush = false,
+		testId,
+		children
+	}: Props = $props();
 
 	const STORAGE_PREFIX = 'epoch.person-section.';
 
@@ -58,7 +68,7 @@
 {:else}
 	<section
 		aria-labelledby={`${id}-heading`}
-		class="section-card"
+		class={isFlush ? 'py-4' : 'section-card'}
 		data-testid={testId}
 		data-section={id}
 	>

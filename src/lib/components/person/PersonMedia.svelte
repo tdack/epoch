@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileText, Image as ImageIcon, Trash2, Upload } from '@lucide/svelte';
+	import { FileText, Trash2, Upload } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
@@ -56,9 +56,13 @@
 	}
 </script>
 
-<div class="flex justify-end">
+<!-- With nothing attached, the empty line and Upload share one row. -->
+<div class="flex items-baseline justify-between gap-3">
+	{#if dto.media.length === 0}
+		<p class="text-xs text-stone-500 italic">No photos or historical documents attached.</p>
+	{/if}
 	<label
-		class="inline-flex cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
+		class="ml-auto inline-flex shrink-0 cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
 	>
 		<Upload class="mr-1 h-3.5 w-3.5" />
 		<span>Upload</span>
@@ -79,14 +83,7 @@
 	<p class="text-xs font-medium text-orange-700">{uploadError}</p>
 {/if}
 
-{#if dto.media.length === 0}
-	<div
-		class="rounded-xl border border-dashed border-stone-300 bg-stone-50/50 p-4 text-center text-xs text-stone-500"
-	>
-		<ImageIcon class="mx-auto mb-1 h-6 w-6 text-stone-400" />
-		No photos or historical documents attached
-	</div>
-{:else}
+{#if dto.media.length > 0}
 	<ul class="grid grid-cols-2 gap-2" aria-label="Attached files">
 		{#each dto.media as item (item.id)}
 			<li class="flex flex-col gap-1">

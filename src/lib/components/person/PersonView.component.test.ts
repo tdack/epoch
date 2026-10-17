@@ -328,7 +328,7 @@ describe('page layout', () => {
 		open(pageOf('ben', 'Ben'), { layout: 'page', relativeTarget: { kind: 'link' } });
 		expect(document.querySelector('details')).toBeNull();
 		expect(headings()).toEqual(
-			expect.arrayContaining(['Family', 'Facts', 'Names', 'Photos and documents', 'History'])
+			expect.arrayContaining(['Life', 'Family', 'Names', 'Photos and documents', 'History'])
 		);
 	});
 
@@ -400,13 +400,15 @@ describe('PersonView section order', () => {
 		expect(sectionIds()).toEqual(expect.arrayContaining(['family', 'facts', 'names', 'history']));
 	});
 
-	it('keeps the same order on the page, with Family, Facts and Names in the left column', () => {
+	it('leads the page with Life and Family, and gathers the rest of the record in one column', () => {
+		const PAGE_ORDER = ['life', 'family', 'notes', 'names', 'media', 'tasks', 'privacy', 'history'];
 		open(pageOf('ben', 'Ben', {}, 'M'), { layout: 'page', role: 'owner' });
-		expect(sectionIds()).toEqual(ORDER.filter((id) => sectionIds().includes(id)));
-		expect(column('family')).toBe(column('facts'));
-		expect(column('facts')).toBe(column('names'));
-		expect(column('media')).toBe(column('history'));
-		expect(column('family')).not.toBe(column('media'));
+		expect(sectionIds()).toEqual(PAGE_ORDER.filter((id) => sectionIds().includes(id)));
+		expect(sectionIds()).not.toContain('facts');
+		expect(column('life')).toBe(column('family'));
+		expect(column('notes')).toBe(column('history'));
+		expect(column('names')).toBe(column('media'));
+		expect(column('life')).not.toBe(column('notes'));
 	});
 
 	it('has no separate sources section', () => {
