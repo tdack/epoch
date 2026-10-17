@@ -789,9 +789,9 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
     - `EPOCH_RESERVED_SUBDOMAINS`: comma-separated, added to the built-in `www`, `api`, `mail`, `login` and `welcome`. An app host beside the trees (`epoch.<zone>`) reserves its own label.
   - **Turning the flag on is checked:** it is refused for a reserved label, and where the install serves no subdomains. A rename of a tree that already has the flag is not refused if the setting is later dropped.
   - **The host is resolved first in the hook,** before anyone is identified, so an anonymous `/` on the public tree's subdomain opens the tree, not the splash.
-    - The zone, the app host, a reserved label and any host outside the zone are served as the app host. That keeps a `workers.dev` address working during a move.
+    - The zone, the app host and any host outside the zone are served as the app host. That keeps a `workers.dev` address working during a move.
     - One label under the zone is looked up (`slug = ? AND is_on_subdomain = 1`, one read, not cached).
-    - Anything else under the zone gets a bare 404. That covers deeper names, labels no slug can be, and labels that name no tree with the flag on.
+    - Anything else under the zone gets a bare 404. That covers deeper names, labels no slug can be, reserved labels (which would otherwise reach the Worker through the wildcard as a second copy of the app), and labels that name no tree with the flag on.
   - **Pinning is about what is shown, not who may see it.** The same person has the same rights on every host. On a tree host:
     - `/` redirects to `/trees/<slug>`.
     - Another tree's pages and `/api/trees/<other>` get a 404.

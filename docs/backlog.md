@@ -327,7 +327,11 @@ Last reviewed: 2026-10-15.
     - `*.epochgenealogy.app/login` on the Access application.
 
     Then check that demo sign-in still works.
-  - **A `./setup subdomains` step** that does the same for any install.
+  - **A `./setup subdomains` step** that does the same for any install. **It must come first:**
+    `generateDeployConfig` (`tools/setup/deploy-values.ts`) rebuilds `vars` and `routes` from fixed
+    install values on every setup run and every Workers Builds deploy. Vars and routes added by hand
+    are dropped on the next push, so `DeployValues` has to carry the zone, the reserved list and the
+    wildcard route.
   - **Short addresses** (`dacks.example.com/people/x`).
   - **Whether the app host should redirect a flagged tree to its subdomain.**
 

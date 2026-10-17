@@ -13,7 +13,10 @@ export interface TreeHostConfig {
 	zone: string;
 	/** Where the whole install is served; the zone itself unless `EPOCH_APP_HOST` names a sibling. */
 	appHost: string;
-	/** Labels that are never a tree: they are served as the app host is. */
+	/**
+	 * Labels no tree may take. A request on one gets the bare 404: a name with no DNS record of its
+	 * own reaches the Worker through the wildcard, and must not become a second copy of the app.
+	 */
 	reserved: ReadonlySet<string>;
 }
 
@@ -54,8 +57,9 @@ export function subdomainRefusal(label: string | null, config: TreeHostConfig): 
  * - `app`: served as the whole install. This is also every host outside the zone, such as a
  *   `workers.dev` address kept during a move, so setting the variable never cuts one off.
  * - `tree`: one label under the zone, which may name a tree; the caller looks it up.
- * - `unknown`: under the zone but never a tree (deeper names, labels no slug can be). Refused
- *   like a label that names no tree.
+ * - `unknown`: under the zone but never a tree (deeper names, labels no slug can be, reserved
+ *   labels). Refused like a label that names no tree. A name the zone serves elsewhere (`www`)
+ *   never reaches the Worker: its own route excludes it.
  */
 export type HostKind = { kind: 'app' } | { kind: 'tree'; label: string } | { kind: 'unknown' };
 
@@ -66,7 +70,7 @@ export function classifyHost(hostname: string, config: TreeHostConfig | null): H
 	if (!host.endsWith(`.${config.zone}`)) return { kind: 'app' };
 	const label = host.slice(0, -config.zone.length - 1);
 	if (label.includes('.') || !isValidTreeSlug(label)) return { kind: 'unknown' };
-	if (config.reserved.has(label)) return { kind: 'app' };
+	if (config.reserved.has(label)) return { kind: 'unknown' };
 	return { kind: 'tree', label };
 }
 

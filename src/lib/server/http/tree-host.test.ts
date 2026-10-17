@@ -32,6 +32,7 @@ describe('treeHostConfig', () => {
 			EPOCH_APP_HOST: 'epoch.example.com'
 		})!;
 		expect(beside.reserved.has('epoch')).toBe(true);
+		expect(classifyHost('epoch.example.com', beside)).toEqual({ kind: 'app' });
 	});
 });
 
@@ -43,8 +44,10 @@ describe('classifyHost', () => {
 		['epoch-genealogy.dack.workers.dev', { kind: 'app' }],
 		['localhost', { kind: 'app' }],
 		['dacks.epochgenealogy.app', { kind: 'tree', label: 'dacks' }],
-		['www.epochgenealogy.app', { kind: 'app' }],
-		['demo.epochgenealogy.app', { kind: 'app' }],
+		// Reserved: reaching the Worker through the wildcard must not serve a second copy of the app.
+		['www.epochgenealogy.app', { kind: 'unknown' }],
+		['demo.epochgenealogy.app', { kind: 'unknown' }],
+		['login.epochgenealogy.app', { kind: 'unknown' }],
 		['a.b.epochgenealogy.app', { kind: 'unknown' }],
 		['not--a-slug.epochgenealogy.app', { kind: 'unknown' }],
 		['notepochgenealogy.app', { kind: 'app' }]
