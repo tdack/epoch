@@ -396,10 +396,20 @@
 							<!-- The relationship page's answer: the sentence, the common ancestors, the link
 							types, then the steps beside a rule. -->
 							<g style:opacity={weightOf('relationship')}>
-								<text x={ROUTE_ROWS.x - 24} y="104" class="route-label">First person</text>
-								<text x={ROUTE_ROWS.x - 24} y="126" class="route-picked">Alice Dunn</text>
-								<text x={ROUTE_ROWS.x + 216} y="104" class="route-label">Second person</text>
-								<text x={ROUTE_ROWS.x + 216} y="126" class="route-picked">Tom Reed</text>
+								{#each [{ x: ROUTE_ROWS.x - 24, label: 'First person', picked: 'Alice Dunn' }, { x: ROUTE_ROWS.x + 216, label: 'Second person', picked: 'Tom Reed' }] as picker (picker.label)}
+									<text x={picker.x} y="84" class="route-label">{picker.label}</text>
+									<text x={picker.x} y="106" class="route-picked">{picker.picked}</text>
+									<rect
+										x={picker.x}
+										y="116"
+										width="220"
+										height="32"
+										rx="8"
+										fill="#fff"
+										stroke="#d6d3d1"
+									/>
+									<text x={picker.x + 10} y="137" class="route-search">Search by name</text>
+								{/each}
 								<rect
 									x={ROUTE_ROWS.x - 24}
 									y="160"
@@ -734,6 +744,12 @@
 		font-size: 19px;
 		font-weight: 600;
 		fill: var(--stone-ink);
+	}
+
+	/* The app's empty search field: its placeholder, never typed into. */
+	.route-search {
+		font-size: 13px;
+		fill: #a8a29e;
 	}
 
 	.route-note {
