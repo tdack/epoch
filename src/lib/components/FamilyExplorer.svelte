@@ -278,7 +278,7 @@
 <section id="explore" class="explore" class:is-pinned={isPinned} aria-labelledby="explore-title">
 	<div class="head">
 		<Descent />
-		<h2 id="explore-title">One family, every way Epoch draws it</h2>
+		<h2 id="explore-title">One family, drawn six ways</h2>
 		<p>
 			The same people as a family view, four charts and a relationship finder. Every chart also
 			comes as a text outline. {isPinned
