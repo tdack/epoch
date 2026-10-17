@@ -2,7 +2,7 @@
 	import CommandBlock from '#lib/components/CommandBlock.svelte';
 	import Descent from '#lib/components/Descent.svelte';
 	import EpochMark from '#lib/components/EpochMark.svelte';
-	import FamilyFigure from '#lib/components/FamilyFigure.svelte';
+	import FamilyExplorer from '#lib/components/FamilyExplorer.svelte';
 	import Hero from '#lib/components/Hero.svelte';
 	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import RichText from '#lib/components/RichText.svelte';
@@ -90,11 +90,9 @@
 				<h2 id="features-title" class="display">Families as they were, not as a form expects.</h2>
 				<p class="lede">
 					More than one family per child, partnerships that end and begin again, and dates kept
-					exactly as the record gives them. Choose a kind of link to trace it.
+					exactly as the record gives them.
 				</p>
 			</header>
-
-			<FamilyFigure />
 
 			<div class="groups">
 				{#each FEATURE_GROUPS as group (group.title)}
@@ -115,6 +113,8 @@
 			</div>
 		</div>
 	</section>
+
+	<FamilyExplorer />
 
 	<ViewsShowcase />
 
@@ -436,7 +436,6 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: clamp(36px, 4vw, 48px) clamp(32px, 5vw, 64px);
-		margin-top: clamp(56px, 7vw, 80px);
 	}
 
 	.group h3 {
