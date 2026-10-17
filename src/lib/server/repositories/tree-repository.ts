@@ -43,6 +43,7 @@ export interface InstallTreeRow {
 	memberCount: number;
 	isPublic: boolean;
 	publicSince: Date | null;
+	isOnSubdomain: boolean;
 }
 
 /**
@@ -356,6 +357,7 @@ export class TreeRepository {
 			members: number;
 			isPublic: number;
 			publicSince: number | null;
+			isOnSubdomain: number;
 		}>(sql`
 			select t.id as id, t.slug as slug, t.name as name, t.version as version,
 				(select m.role from tree_memberships m where m.tree_id = t.id and m.user_id = ${callerId}) as role,
@@ -364,7 +366,8 @@ export class TreeRepository {
 					where o.tree_id = t.id and o.role = 'owner') as owners,
 				(select count(*) from individuals i where i.tree_id = t.id) as people,
 				(select count(*) from tree_memberships c where c.tree_id = t.id) as members,
-				t.is_public as isPublic, t.public_since as publicSince
+				t.is_public as isPublic, t.public_since as publicSince,
+				t.is_on_subdomain as isOnSubdomain
 			from trees t order by t.updated_at desc, t.name`);
 		return rows.map((r) => ({
 			id: r.id,
@@ -376,7 +379,8 @@ export class TreeRepository {
 			peopleCount: r.people,
 			memberCount: r.members,
 			isPublic: r.isPublic === 1,
-			publicSince: r.publicSince === null ? null : new Date(r.publicSince * 1000)
+			publicSince: r.publicSince === null ? null : new Date(r.publicSince * 1000),
+			isOnSubdomain: r.isOnSubdomain === 1
 		}));
 	}
 

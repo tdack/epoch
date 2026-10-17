@@ -31,7 +31,8 @@
 				peopleCount: 0,
 				memberCount: 0,
 				isPublic: false,
-				publicSince: null
+				publicSince: null,
+				isOnSubdomain: false
 			}))
 	);
 	const publicTree = $derived(rows.find((t) => t.isPublic) ?? null);
@@ -71,13 +72,18 @@
 		}
 	}
 
-	async function rename(name: string, slug: string | null, version: number) {
+	async function rename(
+		name: string,
+		slug: string | null,
+		version: number,
+		isOnSubdomain?: boolean
+	) {
 		const tree = target!;
 		// This page sits under the current tree's address; a new slug for it leaves that address
 		// naming nothing, so the page moves rather than reloading in place.
 		const isMovingHere = tree.id === data.summary.tree.id && slug !== tree.slug;
 		await run(
-			() => renameTreeApi(tree.id, name, slug, version).then(() => undefined),
+			() => renameTreeApi(tree.id, name, slug, version, isOnSubdomain).then(() => undefined),
 			'Tree renamed',
 			isMovingHere ? `${treePath({ id: tree.id, slug })}/trees` : null
 		);
@@ -254,6 +260,8 @@
 		treeName={target.name}
 		treeSlug={target.slug}
 		treeVersion={target.version}
+		isOnSubdomain={target.isOnSubdomain}
+		subdomainZone={data.subdomainZone}
 		isRenaming={isBusy}
 		error={dialogError}
 		onclose={close}
