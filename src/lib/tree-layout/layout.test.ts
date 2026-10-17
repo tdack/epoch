@@ -29,8 +29,11 @@ const SWEEP: FocusViewOptions[] = [
 	{ ...d, shouldIncludeSiblings: false }
 ]);
 
-/** Only a person with three or more unions can have a partner that cannot sit beside them. */
-const EXPECTED_NON_ADJACENT = new Set(['three-unions']);
+/**
+ * Only a person with three or more unions can have a partner that cannot sit beside them, or
+ * siblings who are partners: each hangs in their parents' row from their own place in it.
+ */
+const EXPECTED_NON_ADJACENT = new Set(['three-unions', 'siblings-as-partners']);
 
 function layoutFor(graph: RelationshipGraph, name: string, options?: FocusViewOptions): TreeLayout {
 	return layoutFocusView(graph, personByName(graph, name).id, options);
@@ -256,6 +259,11 @@ describe('structures beyond the Simpsons', () => {
 		const toGrandchildren = childEdges(layout).filter((e) => e.unionId === 'ug');
 		expect(toGrandchildren).toHaveLength(2);
 		expect(toGrandchildren.filter((e) => e.isSecondaryPath)).toHaveLength(1);
+	});
+
+	it('draws a union between two siblings once', () => {
+		const layout = layoutFocusView(synthetic('siblings-as-partners'), 'Father');
+		expect(layout.unions.map((u) => u.id).sort()).toEqual(['uother', 'uparents', 'usiblings']);
 	});
 
 	it('keeps repeated unions between the same pair as distinct nodes', () => {

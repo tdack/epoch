@@ -92,6 +92,17 @@ export function findDuplicatePeople(layout: TreeLayout): string[] {
 	return violations;
 }
 
+/** A union drawn twice also breaks the canvas, which keys its nodes by union id. */
+export function findDuplicateUnions(layout: TreeLayout): string[] {
+	const seen = new Set<string>();
+	const violations: string[] = [];
+	for (const u of layout.unions) {
+		if (seen.has(u.id)) violations.push(`union ${u.id} drawn more than once`);
+		seen.add(u.id);
+	}
+	return violations;
+}
+
 /** Rule 1: every partner of a drawn union is drawn. */
 export function findMissingPartners(graph: RelationshipGraph, layout: TreeLayout): string[] {
 	const drawn = new Set(layout.people.map((p) => p.id));
@@ -304,6 +315,7 @@ export function allContractViolations(
 ): string[] {
 	return [
 		...findDuplicatePeople(layout),
+		...findDuplicateUnions(layout),
 		...findOverlaps(layout, m),
 		...findMissingPartners(graph, layout),
 		...findPartnerViolations(layout, m),

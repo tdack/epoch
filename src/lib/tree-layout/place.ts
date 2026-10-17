@@ -47,6 +47,8 @@ interface Context {
 	placed: Set<string>;
 	/** Unions already used as some drawn person's parent union. */
 	claimedParentUnions: Set<string>;
+	/** Unions already given a node; a union is drawn once. */
+	drawnUnionIds: Set<string>;
 	primaryEdgeKeys: Set<string>;
 	nonAdjacent: Set<string>;
 	/** Anchor parent of each drawn child (`stepChildAnchor`); the group holding it claims the child. */
@@ -155,8 +157,12 @@ function arrangeChain(
  */
 function chainUnions(ctx: Context, anchorId: string) {
 	const row = ctx.genOf.get(anchorId)!;
+	// Two people claimed side by side can share a union (siblings who are partners); the block laid
+	// out first draws it, and the other must not draw it again.
 	const drawn = (id: string) =>
-		(ctx.index.unionsOfPerson.get(id) ?? []).filter((u) => ctx.unionIds.has(u.id));
+		(ctx.index.unionsOfPerson.get(id) ?? []).filter(
+			(u) => ctx.unionIds.has(u.id) && !ctx.drawnUnionIds.has(u.id)
+		);
 	const unions = drawn(anchorId);
 	const seenUnions = new Set(unions.map((u) => u.id));
 	const viaPartner = new Map<string, string>();
@@ -299,6 +305,7 @@ function layoutDescendantBlock(ctx: Context, anchorId: string, hint: 'left' | 'r
 	const { m } = ctx;
 	const row = ctx.genOf.get(anchorId)!;
 	const { unions: drawnUnions, viaPartner } = chainUnions(ctx, anchorId);
+	for (const union of drawnUnions) ctx.drawnUnionIds.add(union.id);
 	const chain = arrangeChain(ctx, anchorId, drawnUnions, hint, viaPartner);
 	const anchorIdx = chain.cards.indexOf(anchorId);
 	const placedUnions = classifyUnions(chain);
@@ -464,6 +471,7 @@ function layoutParents(ctx: Context, personId: string): Sub | null {
 		.map((id) => ctx.index.unionById.get(id)!);
 	for (const union of parentUnions) {
 		ctx.claimedParentUnions.add(union.id);
+		ctx.drawnUnionIds.add(union.id);
 		ctx.primaryEdgeKeys.add(`${union.id}|${personId}`);
 	}
 	const directParents = (ctx.index.directParentIdsOfChild.get(personId) ?? []).filter(
@@ -580,6 +588,7 @@ function newContext(index: GraphIndex, selection: TreeSelection, m: LayoutMetric
 		stubIds: new Set(selection.stubs.map((s) => s.id)),
 		placed: new Set(),
 		claimedParentUnions: new Set(),
+		drawnUnionIds: new Set(),
 		primaryEdgeKeys: new Set(),
 		nonAdjacent: new Set(),
 		anchorOf: new Map(
