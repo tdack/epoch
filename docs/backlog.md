@@ -320,11 +320,6 @@ Last reviewed: 2026-10-15.
 - **Development, staging and production configuration separation,** reproducible provisioning.
 - **A tree on its own subdomain: the rest after phase 1** (ADR-057,
   [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
-  - **Cloudflare side for `epochgenealogy.app`:** run `./setup subdomains --zone epochgenealogy.app`
-    once the install is on the apex (proposal, "Order of work", steps 1 and 2), then
-    `npm run deploy`. Its capture check should propose exclusion routes for `www` and `demo` and
-    reserve `www`, `demo`, `cf-bounce`, `_dmarc` and `_domainkey`. Then check that demo sign-in
-    still works, and the items under "Verify on a real deploy".
   - **`./setup subdomains`: confirm the SPIKE shapes on a real account.** These are read from the
     API reference, not yet seen:
     - the Access application's `destinations`, and whether an update with them keeps the AUD;
