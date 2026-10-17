@@ -64,6 +64,9 @@ function labelUnder(host: string, zone: string): string | null {
 
 const sorted = (values: Iterable<string>) => [...new Set(values)].sort();
 
+/** Leaves room in the 5000-character build variable for every other install value. */
+const MAX_RESERVED_LABELS_CHARS = 3500;
+
 /**
  * Pure. The install's own hostname is left out of both lists: an exclusion route there would take
  * the app off its own Worker, and the app reserves its own label from `EPOCH_APP_HOST`.
@@ -151,6 +154,11 @@ function requireInstall(manifest: Manifest | null): Manifest & {
 	return manifest as ReturnType<typeof requireInstall>;
 }
 
+/**
+ * Checks the `cf` sign-in. The route and Custom Domain calls go through the raw API with the
+ * wrangler profile's token (app.ts), which this cannot see; a missing permission there fails the
+ * call itself, before the record or the Access destination is touched.
+ */
 async function assertScopes(ctx: StepContext): Promise<void> {
 	const identity = await ctx.cf.whoami();
 	// An API token reports no scopes; its own permissions decide, and a missing one fails loudly.
@@ -239,6 +247,18 @@ export async function planSubdomains(
 	let fallback = install.subdomains?.zone ?? install.zone;
 	for (;;) {
 		const zone = await chooseZone(zones, preferred, fallback, mode, asker);
+		if (install.subdomains && install.subdomains.zone.id !== zone.id) {
+			// The old zone's record and routes are recorded only here; replacing the settings would leave
+			// them where neither a re-run nor teardown looks.
+			throw new SetupError(
+				ERROR_CODES.usage,
+				`This install already serves trees under ${install.subdomains.zone.name}`,
+				{
+					flag: '--zone',
+					hint: `Keep --zone ${install.subdomains.zone.name}, or run \`./setup teardown\` before moving to ${zone.name}.`
+				}
+			);
+		}
 		const [records, routes, domains] = await Promise.all([
 			ctx.cf.listDnsRecords(zone.id),
 			ctx.cf.listZoneRoutes(zone.id),
@@ -262,7 +282,7 @@ export async function planSubdomains(
 			fallback = null;
 			continue;
 		}
-		return buildSubdomainPlan(install, zone, survey, routes, options);
+		return buildSubdomainPlan(ctx, install, zone, survey, routes, options);
 	}
 }
 
@@ -277,13 +297,14 @@ function reportSurvey(ctx: StepContext, zone: string, survey: ZoneSurvey): void 
 }
 
 function buildSubdomainPlan(
+	ctx: StepContext,
 	install: ReturnType<typeof requireInstall>,
 	zone: ZoneInfo,
 	survey: ZoneSurvey,
 	routes: ZoneRoute[],
 	options: SubdomainOptions
 ): SubdomainPlan {
-	const previous = install.subdomains?.zone.id === zone.id ? install.subdomains : null;
+	const previous = install.subdomains;
 	const marker = dnsMarker(install.installId);
 	if (
 		survey.wildcard &&
@@ -328,8 +349,14 @@ function buildSubdomainPlan(
 		reservedLabels,
 		appHost: hostname === zone.name ? null : hostname,
 		dnsRecordId: survey.wildcard?.id ?? null,
-		exclusionRoutes: kept
+		exclusionRoutes: kept,
+		isActive: previous?.isActive ?? false
 	};
+	if (reservedLabels.join(',').length > MAX_RESERVED_LABELS_CHARS) {
+		ctx.report.warn(
+			`${reservedLabels.length} reserved labels make a long EPOCH_DEPLOY_VALUES; Workers Builds refuses a variable over 5000 characters`
+		);
+	}
 	const isRecordCreated = survey.wildcard === null;
 	const isDestinationAdded = previous === null;
 
@@ -410,6 +437,10 @@ async function applySubdomains(
 		settings = { ...settings, dnsRecordId: record.id };
 		current = ctx.save({ ...current, subdomains: settings });
 	}
+
+	// Only now may a deploy or a re-run of `./setup` carry the wildcard: every exclusion exists.
+	settings = { ...settings, isActive: true };
+	current = ctx.save({ ...current, subdomains: settings });
 
 	const app = install.access.app;
 	const updated = await ctx.cf.updateAccessApp(
@@ -506,7 +537,9 @@ export async function seedSubdomains(
 			reservedLabels: sorted(defaults.reservedSubdomains),
 			appHost: defaults.appHost,
 			dnsRecordId: null,
-			exclusionRoutes: []
+			exclusionRoutes: [],
+			// The file it came from already deploys them.
+			isActive: true
 		}
 	});
 }

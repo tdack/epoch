@@ -340,7 +340,8 @@ describe('teardown', () => {
 				reservedLabels: ['www'],
 				appHost: 'epoch.example.com',
 				dnsRecordId: 'rec-star',
-				exclusionRoutes: [{ id: 'r-www', pattern: 'www.example.com/*', ownership: 'owned' }]
+				exclusionRoutes: [{ id: 'r-www', pattern: 'www.example.com/*', ownership: 'owned' }],
+				isActive: true
 			}
 		};
 		const star = {

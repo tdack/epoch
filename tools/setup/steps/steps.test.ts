@@ -524,7 +524,8 @@ describe('access', () => {
 				reservedLabels: [],
 				appHost: null,
 				dnsRecordId: 'rec1',
-				exclusionRoutes: []
+				exclusionRoutes: [],
+				isActive: true
 			}
 		});
 		await access(ctx, manifest, {

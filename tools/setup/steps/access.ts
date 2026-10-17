@@ -25,7 +25,7 @@ export function accessAppBody(
 		name: manifest.access.app?.name ?? resourceNames(manifest.workerName).accessApp,
 		domain: `${hostname}/login`,
 		// Undefined, not empty, without subdomains: the body stays as it was before ADR-057.
-		extraDestinations: manifest.subdomains
+		extraDestinations: manifest.subdomains?.isActive
 			? [treeLoginDestination(manifest.subdomains.zone.name)]
 			: undefined,
 		policyIds,

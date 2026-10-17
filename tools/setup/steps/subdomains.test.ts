@@ -16,6 +16,7 @@ import {
 	testContext,
 	testManifest
 } from '../testing.ts';
+import { deployValuesOf } from './write-config.ts';
 import {
 	dnsMarker,
 	planSubdomainTeardown,
@@ -257,7 +258,8 @@ describe('./setup subdomains', () => {
 			reservedLabels: ['_dmarc', '_domainkey', 'cf-bounce', 'demo', 'mail', 'shop', 'staff', 'www'],
 			appHost: null,
 			dnsRecordId: null,
-			exclusionRoutes: []
+			exclusionRoutes: [],
+			isActive: false
 		});
 		expect(plan.lines.map((l) => `${l.symbol} ${l.text}`)).toEqual([
 			'+ create the proxied DNS record * AAAA 100:: on example.com',
@@ -382,6 +384,50 @@ describe('./setup subdomains', () => {
 		expect(deployConfig).toContain('"EPOCH_RESERVED_SUBDOMAINS"');
 	});
 
+	it('a run that fails part-way leaves nothing that a deploy or ./setup would carry', async () => {
+		let made = 0;
+		const live = liveZone(
+			{},
+			{
+				createExclusionRoute: async (_zoneId, pattern) => {
+					made += 1;
+					if (made === 2) throw new SetupError(ERROR_CODES.command, 'HTTP 409');
+					return { id: `route-${pattern}`, pattern, script: null };
+				}
+			}
+		);
+		const { ctx, saved } = testContext({ cf: live.cf, fs: withInstall(install) });
+		await expect(
+			runSubdomains(ctx, { isPlanOnly: false }, YES, NO_ASKER as Asker, presenter)
+		).rejects.toThrow('HTTP 409');
+		const last = saved.at(-1)!;
+		// The route that was made is recorded, so a re-run keeps it and teardown can find it.
+		expect(last.subdomains?.exclusionRoutes.map((r) => r.id)).toEqual(['route-demo.example.com/*']);
+		expect(last.subdomains?.isActive).toBe(false);
+		expect(deployValuesOf(last).treeHostZone).toBeNull();
+		expect(live.writes.filter((w) => w.startsWith('dns') || w.startsWith('access'))).toEqual([]);
+	});
+
+	it('refuses to move to another zone, which would lose the first zone’s record and routes', async () => {
+		const { ctx } = testContext({ cf: liveZone().cf });
+		const moved: Manifest = {
+			...install,
+			subdomains: {
+				zone: ZONE,
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: 'rec-star',
+				exclusionRoutes: [],
+				isActive: true
+			}
+		};
+		const error = await failure(() =>
+			planSubdomains(ctx, moved, { zone: 'other.example' }, YES, NO_ASKER as Asker)
+		);
+		expect(error.code).toBe(ERROR_CODES.usage);
+		expect(error.hint).toContain('./setup teardown');
+	});
+
 	it('a re-run finds everything it made and changes only the Access application', async () => {
 		const first = liveZone();
 		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
@@ -409,7 +455,8 @@ describe('./setup subdomains', () => {
 			reservedLabels: ['old'],
 			appHost: null,
 			dnsRecordId: 'rec-star',
-			exclusionRoutes: [{ id: 'r-old', pattern: 'old.example.com/*', ownership: 'owned' }]
+			exclusionRoutes: [{ id: 'r-old', pattern: 'old.example.com/*', ownership: 'owned' }],
+			isActive: true
 		};
 		const { ctx } = testContext({
 			cf: liveZone({
@@ -462,7 +509,8 @@ describe('a fresh clone', () => {
 			reservedLabels: ['demo', 'www'],
 			appHost: null,
 			dnsRecordId: null,
-			exclusionRoutes: []
+			exclusionRoutes: [],
+			isActive: true
 		});
 	});
 
@@ -487,7 +535,8 @@ describe('teardown of the tree subdomains', () => {
 			{ id: 'r-www', pattern: 'www.example.com/*', ownership: 'owned' },
 			{ id: 'r-hand', pattern: 'demo.example.com/*', ownership: 'referenced' },
 			{ id: 'r-taken', pattern: 'blog.example.com/*', ownership: 'owned' }
-		]
+		],
+		isActive: true
 	};
 	const manifest = { ...install, subdomains: settings };
 	const zone = {

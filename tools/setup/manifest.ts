@@ -68,6 +68,12 @@ export interface SubdomainSettings {
 	/** The proxied `*` record this install created, marked in its comment; null until it exists. */
 	dnsRecordId: string | null;
 	exclusionRoutes: ExclusionRoute[];
+	/**
+	 * False while `./setup subdomains` is still making the routes and the record. Until then the
+	 * deploy config and the Access application leave the subdomains out, so a run that fails part-way
+	 * never deploys a wildcard that captures a hostname whose exclusion route is not there yet.
+	 */
+	isActive: boolean;
 }
 
 export interface Manifest {

@@ -998,7 +998,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			}
 			return records;
 		},
-		// SPIKE: `cf dns records create` lists no body fields in its schema, so the record goes in `--body`.
+		// `cf dns records create --help` offers `--zone` and `--body` and no per-field flags (beta.14).
 		async createDnsRecord(zoneId, record) {
 			const body = JSON.stringify({
 				type: record.type,
@@ -1011,6 +1011,7 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 			const out = await cf(['dns', 'records', 'create', '--zone', zoneId, '--body', body, ...dry]);
 			return toDnsRecord(requireRec(out, 'dns records create'));
 		},
+		// `cf dns records delete <dns-record-id> --zone <id>`, as its help shows (beta.14).
 		async deleteDnsRecord(zoneId, id) {
 			await cf(['dns', 'records', 'delete', id, '--zone', zoneId, ...dry]);
 		},
