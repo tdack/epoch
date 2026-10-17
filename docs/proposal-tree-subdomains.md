@@ -256,11 +256,95 @@ Build option A in four phases:
 
 Keep option B in mind for shared zones. It reuses phase 1 with a hostname column.
 
+## Worked example: `epochgenealogy.app`
+
+### Where things are now (2026-10-17)
+
+| Checkout | Worker | Served at |
+|---|---|---|
+| `~/Projects/epoch` (main; deploys on push through Workers Builds) | `epoch-genealogy` | `epoch-genealogy.dack.workers.dev` |
+| `~/Projects/epoch-website` (`website` branch, deploys with `cf`) | `epoch-website` | `epochgenealogy.app` and `www.epochgenealogy.app` (Custom Domains in `cloudflare.config.ts`) |
+| `~/Projects/epoch-demo` (separate clone) | `demo-epochgenealogy-app` | `demo.epochgenealogy.app` (Custom Domain) |
+
+The zone also holds Email Sending records (`cf-bounce` MX and TXT, `cf-bounce._domainkey`) and
+`_dmarc`. All of them are DNS-only.
+
+### Where things should end up
+
+| Host | Served by | How |
+|---|---|---|
+| `www.epochgenealogy.app` | `epoch-website` | Custom Domain (unchanged) |
+| `demo.epochgenealogy.app` | `demo-epochgenealogy-app` | Custom Domain (unchanged), plus the route `demo.epochgenealogy.app/*` with no Worker |
+| `epochgenealogy.app` | `epoch-genealogy` | Custom Domain (moved from the website) |
+| `<tree>.epochgenealogy.app` | `epoch-genealogy` | Route `*.epochgenealogy.app/*`, plus the proxied DNS record `* AAAA 100::` |
+
+`www.epochgenealogy.app/*` also needs a route with no Worker. Routes take precedence over Custom
+Domains on the same hostname, so without the two empty routes the wildcard would capture `www` and
+`demo`. The wildcard does not match the apex, because `*.` matches subdomains only. Universal SSL
+covers both the apex and `*.epochgenealogy.app`.
+
+**Reserved labels:** `www`, `demo`, `cf-bounce`, `_dmarc` and `_domainkey`. The app host is the
+apex, so it has no label of its own to reserve.
+
+### Order of work
+
+Steps 1 to 3 do not depend on any subdomain code and can happen now.
+
+1. **Website to `www` only.**
+   - In `epoch-website`, change `domains` to `['www.epochgenealogy.app']` and deploy.
+   - Confirm that the apex Custom Domain is detached. If `cf` does not remove a domain that is no
+     longer listed, remove it from the Worker's Domains tab.
+   - The apex is down from this step until step 2 attaches it, so do 1 and 2 together.
+   - Change the website's "open Epoch" links to `https://epochgenealogy.app`.
+2. **The live install to the apex.** In `~/Projects/epoch`, run:
+
+   ```sh
+   ./setup --hosting custom --zone epochgenealogy.app --keep-workers-dev
+   ```
+
+   with the hostname `epochgenealogy.app`. Setup's clash check (`findHostnameUse`) refuses the apex
+   while the website holds it, which enforces the order. This run:
+   - writes the Custom Domain into `wrangler.deploy.jsonc`;
+   - creates a new Access application on `epochgenealogy.app/login`, with a new AUD;
+   - must also update the Workers Builds variable (`./setup builds`). Otherwise the next push to
+     `cloudflare` redeploys with the old `workers_dev`-only values.
+3. **Keep `workers.dev` for a while.**
+   - Invitation emails link to the origin they were sent from (`url.origin` in the invitations
+     endpoint). Invitations already sent point at `epoch-genealogy.dack.workers.dev`, and members
+     signed in there have that host's cookie.
+   - Turn `workers.dev` off, and delete its Access application, once those invitations have expired
+     or been redeemed.
+4. **Subdomains,** once phase 1 of this proposal is built and deployed:
+   - the wildcard DNS record;
+   - the routes `*.epochgenealogy.app/*` (in the deploy config), plus `www.epochgenealogy.app/*`
+     and `demo.epochgenealogy.app/*` with no Worker (dashboard or API);
+   - `EPOCH_TREE_HOST_ZONE=epochgenealogy.app`;
+   - `*.epochgenealogy.app/login` added to the live install's Access application.
+5. **Check that demo sign-in still works.** The demo has its own Access application, on
+   `demo.epochgenealogy.app/login`, which the live install's `*.epochgenealogy.app/login` overlaps.
+   - Cloudflare's docs say the more specific *path* wins within an application. They do not say
+     which of two *applications* wins on overlapping hostnames.
+   - If the wildcard application wins, the demo receives a token with the live install's AUD. It
+     refuses that token (fail closed), so demo sign-in breaks without anything being exposed.
+   - **Fallback:** the demo's public tree needs no sign-in at all. Alternatively, list each tree
+     host on the live install's Access application instead of using the wildcard.
+
+**The demo clone must never push.** Its only remote is GitHub `origin`, so a stray push is
+possible. Run `git remote set-url --push origin DISABLED` in `~/Projects/epoch-demo`; fetch and
+pull keep working. To update the demo, run `git pull` and then that clone's own deploy.
+
+**Email:** the live install sends from `welcome@epoch.dack.id.au`. The `cf-bounce` records suggest
+Email Sending is already set up on `epochgenealogy.app`, so a sender such as
+`welcome@epochgenealogy.app` would match the new host. This is optional, and separate from the
+move.
+
 ## Verify on a real deploy
 
-- The app host keeps working once the `*.example.com/*` route exists. Both point at the same Worker,
-  so either match serves it, but confirm that the Custom Domain and the route can share a hostname
-  pattern without an API error.
+- Routes take precedence over Custom Domains on the same hostname, and a route with no Worker
+  cancels a less specific one
+  ([Routes](https://developers.cloudflare.com/workers/configuration/routing/routes/#matching-behavior)).
+  Confirm on the zone that `www` and `demo` still reach their own Workers once the wildcard route
+  and the two empty routes exist.
 - Signing in on `dacks.example.com` while already signed in on the app host needs no new login
   prompt, only Access redirects.
 - Whether signing out on one host ends the session on the others.
