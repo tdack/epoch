@@ -37,8 +37,14 @@ FORM: Descend the mark, ranked #1 of 6 grounded structures (dealt index 1; the u
 seed: none (the original roll printed no SEED REFERENCE; `--check-seed none` deals a fresh roll
 rather than verifying, and the structure was the user's own pick, so no key is recorded). Code-led: no image generation; the Design canvas "Epoch Website" is the
 sketch. Signature interaction: the hero mark assembles on arrival (ancestors, partners, union,
-stem, action), the connectors between sections draw on scroll, and the figure's legend highlights
-one kind of link.
+stem, action), the connectors between sections draw on scroll, and the explorer (overdrive,
+2026-10-17) redraws one invented family as each 2D view the app has: family view, descendants,
+hourglass, ancestors, fan and relationship. Scrolling a pinned stage morphs every person's card
+from one view's shape to the next (cards bend into fan wedges and flatten into the relationship
+page's rows), rippling out from the focus person; the chips jump to a view. Narrow screens and
+reduced motion get tap-to-switch chips. Every view copies the demo's own rendering (card size,
+glyphs, link curves and dashes, union labels, focus tab), so it is the product, not a drawing of
+it. It hands off to the 3D clips that follow.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 

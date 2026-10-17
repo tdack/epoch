@@ -38,8 +38,12 @@ command to `npm run build` and the deploy command to `npx cf deploy --prebuilt`.
 - `src/lib/site.ts`: every link, the principles, the feature groups and the FAQ. Most copy
   changes happen here.
 - `src/routes/+page.svelte`: the page and its sections.
-- `src/lib/components/`: the hero, the family figure, the section connectors and the copyable
+- `src/lib/components/`: the hero, the family explorer, the section connectors and the copyable
   command blocks. `EpochMark.svelte` is copied from the app; change the two together.
+- `src/lib/family.ts` and `src/lib/morph.ts`: the explorer's invented family, where each view
+  puts its people, and the bent-card geometry that morphs one view into the next. The layouts
+  copy the app's `chart-layout.ts`, `fan-layout.ts`, `PersonCard` and `TreeEdge`; check them
+  against the demo when a view changes in the app.
 - `static/brand/`: the app's brand assets, copied from `main`.
 - `static/views/`: recordings of the four 3D views, made in the demo
   (<https://demo.epochgenealogy.app>, the public "The Windsors" tree). Each clip selects
