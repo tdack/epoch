@@ -119,6 +119,19 @@ export const SYNTHETIC_GRAPHS: NamedGraph[] = [
 		})
 	},
 	{
+		// Two children of one couple who are partners, and one of them with someone else too, as in
+		// the Game of Thrones tree: walking down from the parents reaches their union from each side.
+		name: 'siblings-as-partners',
+		graph: makeGraph({
+			people: ['Father', 'Mother', 'Brother', 'Sister', 'Other', 'Kid'],
+			unions: [
+				{ id: 'uparents', partners: ['Father', 'Mother'], children: ['Brother', 'Sister'] },
+				{ id: 'usiblings', partners: ['Brother', 'Sister'], children: ['Kid'] },
+				{ id: 'uother', partners: ['Other', 'Sister'], children: ['Kid'] }
+			]
+		})
+	},
+	{
 		name: 'direct-links-only',
 		graph: makeGraph({
 			people: ['Parent', 'Kid1', 'Kid2', 'Grand'],
