@@ -46,12 +46,13 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(settings = view(), isInstallOwner = false) {
+function render(settings = view(), isInstallOwner = false, treeCount = 2) {
 	component = mount(Page, {
 		target: document.body,
 		props: {
 			data: {
 				settings,
+				trees: Array.from({ length: treeCount }, (_, i) => ({ id: `t${i + 1}` })),
 				summary: {
 					tree: { id: 't1', slug: 'smiths', name: 'Smiths' },
 					viewer: { isInstallOwner }
@@ -212,6 +213,16 @@ describe('settings page', () => {
 		render();
 		const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Trees page')!;
 		expect(link.getAttribute('href')).toBe('/trees/smiths/trees');
+	});
+
+	it('leaves the Trees page out where the menu does: one tree, and not the install owner', () => {
+		const trees = () =>
+			[...document.querySelectorAll('a')].filter((a) => a.textContent === 'Trees page');
+		render(view(), false, 1);
+		expect(trees()).toHaveLength(0);
+		unmount(component!);
+		render(view(), true, 1);
+		expect(trees()).toHaveLength(1);
 	});
 });
 
