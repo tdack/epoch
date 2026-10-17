@@ -1,0 +1,16 @@
+{
+	"success": true,
+	"errors": [],
+	"result": [
+		{
+			"id": "route0000000000000000000000000001",
+			"pattern": "shop.example.com/*",
+			"script": "shop"
+		},
+		{
+			"id": "route0000000000000000000000000002",
+			"pattern": "www.example.com/blog*",
+			"script": "blog"
+		}
+	]
+}

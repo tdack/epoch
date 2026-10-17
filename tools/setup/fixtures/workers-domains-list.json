@@ -1,0 +1,14 @@
+{
+	"success": true,
+	"errors": [],
+	"result": [
+		{ "id": "dom1", "hostname": "example.com", "service": "epoch", "zone_name": "example.com" },
+		{
+			"id": "dom2",
+			"hostname": "www.example.com",
+			"service": "website",
+			"zone_name": "example.com"
+		},
+		{ "id": "dom3", "hostname": "demo.example.com", "service": "demo", "zone_name": "example.com" }
+	]
+}

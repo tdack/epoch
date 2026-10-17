@@ -59,14 +59,53 @@ interface AccessAppInfo {
 	/** The two cookie settings ADR-026 needs off; null when the response omits them. */
 	isPathCookieAttributeOn: boolean | null;
 	isBindingCookieOn: boolean | null;
+	/** Every public hostname-and-path it protects, `domain` first; just `domain` when none are listed. */
+	destinations: string[];
 }
 
 interface AccessAppBody {
 	name: string;
 	domain: string;
+	/**
+	 * Further hostnames-and-paths beside `domain`, such as the tree subdomains' `*.<zone>/login`.
+	 * Undefined sends `domain` alone; empty sends `destinations` too, so a removal is explicit.
+	 */
+	extraDestinations?: string[];
 	policyIds: string[];
 	idpIds: string[];
 	isAutoRedirect: boolean;
+}
+
+export interface DnsRecord {
+	id: string;
+	/** The full hostname, e.g. `www.example.com`. */
+	name: string;
+	type: string;
+	content: string;
+	isProxied: boolean;
+	comment: string | null;
+}
+
+export interface NewDnsRecord {
+	type: string;
+	/** Relative or full; Cloudflare stores the full hostname. */
+	name: string;
+	content: string;
+	isProxied: boolean;
+	comment: string;
+}
+
+/** A zone's Worker route. `script` null means "no Worker": the request goes on to the origin. */
+export interface ZoneRoute {
+	id: string;
+	pattern: string;
+	script: string | null;
+}
+
+/** A Workers Custom Domain: Cloudflare keeps its DNS record itself, so it may not be in the DNS list. */
+export interface WorkerDomain {
+	hostname: string;
+	service: string;
 }
 
 interface D1Info {
@@ -148,6 +187,18 @@ export interface CloudflareApi {
 	listPolicies(): Promise<AccessPolicy[]>;
 	createPolicy(name: string, include: AccessRule[]): Promise<AccessPolicy>;
 	updatePolicy(policy: AccessPolicy, include: AccessRule[]): Promise<AccessPolicy>;
+
+	/** Every DNS record on the zone, all pages. */
+	listDnsRecords(zoneId: string): Promise<DnsRecord[]>;
+	createDnsRecord(zoneId: string, record: NewDnsRecord): Promise<DnsRecord>;
+	deleteDnsRecord(zoneId: string, id: string): Promise<void>;
+	/** Worker routes on the zone. `cf` has no command for them, so these are raw API calls. */
+	listZoneRoutes(zoneId: string): Promise<ZoneRoute[]>;
+	/** A route with no Worker. Wrangler cannot make one: its routes always attach the deployed Worker. */
+	createExclusionRoute(zoneId: string, pattern: string): Promise<ZoneRoute>;
+	deleteZoneRoute(zoneId: string, id: string): Promise<void>;
+	/** Workers Custom Domains on the zone, any Worker's. */
+	listWorkerDomains(zoneId: string): Promise<WorkerDomain[]>;
 
 	/** Email Sending domains on a zone, with whether each is verified (SPIKE: command may differ). */
 	listEmailSenderDomains(zoneId: string): Promise<{ domain: string; isVerified: boolean }[]>;
@@ -293,7 +344,41 @@ function parseApp(raw: Rec): AccessAppInfo {
 		isPathCookieAttributeOn:
 			typeof raw.path_cookie_attribute === 'boolean' ? raw.path_cookie_attribute : null,
 		isBindingCookieOn:
-			typeof raw.enable_binding_cookie === 'boolean' ? raw.enable_binding_cookie : null
+			typeof raw.enable_binding_cookie === 'boolean' ? raw.enable_binding_cookie : null,
+		destinations: destinationsOf(raw)
+	};
+}
+
+/** SPIKE: `destinations` is `[{ type: 'public', uri }]` in the API reference; older apps have only `domain`. */
+function destinationsOf(raw: Rec): string[] {
+	const listed = Array.isArray(raw.destinations)
+		? raw.destinations
+				.filter(isRec)
+				.filter((d) => d.type === undefined || d.type === 'public')
+				.map((d) => str(d.uri))
+				.filter((uri): uri is string => uri !== null)
+		: [];
+	if (listed.length > 0) return listed;
+	const domain = str(raw.domain);
+	return domain ? [domain] : [];
+}
+
+function toDnsRecord(rec: Rec): DnsRecord {
+	return {
+		id: str(rec.id) ?? '',
+		name: str(rec.name) ?? '',
+		type: str(rec.type) ?? '',
+		content: str(rec.content) ?? '',
+		isProxied: rec.proxied === true,
+		comment: str(rec.comment)
+	};
+}
+
+function toZoneRoute(rec: Rec): ZoneRoute {
+	return {
+		id: str(rec.id) ?? '',
+		pattern: str(rec.pattern) ?? '',
+		script: str(rec.script) || null
 	};
 }
 
@@ -392,6 +477,19 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 		return options.rawRequest(method, path, body);
 	}
 
+	function routesPath(zoneId: string): string {
+		return `/zones/${encodeURIComponent(zoneId)}/workers/routes`;
+	}
+
+	/** The `result` of a raw call, or a SetupError naming what failed. */
+	async function rawResult(method: string, path: string, what: string, body?: unknown) {
+		const res = await rawRequest(method, path, body);
+		if (res.status >= 400 || !isRec(res.body) || res.body.success === false) {
+			throw new SetupError(ERROR_CODES.command, `Could not ${what} (HTTP ${res.status})`);
+		}
+		return res.body.result;
+	}
+
 	function lifecyclePath(bucket: string): string {
 		return `/accounts/${account()}/r2/buckets/${encodeURIComponent(bucket)}/lifecycle`;
 	}
@@ -426,10 +524,18 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 	}
 
 	function appBody(body: AccessAppBody): string {
+		const extra = body.extraDestinations;
 		return JSON.stringify({
 			type: 'self_hosted',
 			name: body.name,
 			domain: body.domain,
+			// An update replaces the application, so a re-run that sent `domain` alone could drop the
+			// tree subdomains' destination.
+			...(extra
+				? {
+						destinations: [body.domain, ...extra].map((uri) => ({ type: 'public', uri }))
+					}
+				: {}),
 			policies: body.policyIds.map((id, index) => ({ id, precedence: index + 1 })),
 			allowed_idps: body.idpIds,
 			auto_redirect_to_identity: body.isAutoRedirect,
@@ -865,6 +971,81 @@ export function createCloudflareApi(runner: Runner, options: ApiOptions): Cloudf
 		},
 		async deletePolicy(id) {
 			await cf(['zero-trust', 'access', 'policies', 'delete', id, ...dry]);
+		},
+
+		// `cf dns records list --zone <id>` with the API's `per_page` and `page` (`cf schema dns records
+		// list`). Read until a short page, so a record past the first page still counts as captured.
+		async listDnsRecords(zoneId) {
+			const perPage = 500;
+			const records: DnsRecord[] = [];
+			for (let page = 1; page <= 100; page += 1) {
+				const batch = asList(
+					await cf([
+						'dns',
+						'records',
+						'list',
+						'--zone',
+						zoneId,
+						'--per-page',
+						String(perPage),
+						'--page',
+						String(page)
+					]),
+					'result'
+				).map(toDnsRecord);
+				records.push(...batch);
+				if (batch.length < perPage) break;
+			}
+			return records;
+		},
+		// SPIKE: `cf dns records create` lists no body fields in its schema, so the record goes in `--body`.
+		async createDnsRecord(zoneId, record) {
+			const body = JSON.stringify({
+				type: record.type,
+				name: record.name,
+				content: record.content,
+				proxied: record.isProxied,
+				ttl: 1,
+				comment: record.comment
+			});
+			const out = await cf(['dns', 'records', 'create', '--zone', zoneId, '--body', body, ...dry]);
+			return toDnsRecord(requireRec(out, 'dns records create'));
+		},
+		async deleteDnsRecord(zoneId, id) {
+			await cf(['dns', 'records', 'delete', id, '--zone', zoneId, ...dry]);
+		},
+		async listZoneRoutes(zoneId) {
+			return asList(
+				await rawResult('GET', routesPath(zoneId), 'list the Worker routes on the zone')
+			).map(toZoneRoute);
+		},
+		// No `script` field is what makes the route Worker-less. A raw call cannot take `--dry-run`,
+		// so the spike's dry run skips it, as it does the lifecycle rules.
+		async createExclusionRoute(zoneId, pattern) {
+			if (options.isDryRun) return { id: '', pattern, script: null };
+			const out = await rawResult('POST', routesPath(zoneId), `add the route ${pattern}`, {
+				pattern
+			});
+			return toZoneRoute(requireRec(out, 'routes create'));
+		},
+		async deleteZoneRoute(zoneId, id) {
+			if (options.isDryRun) return;
+			await rawResult(
+				'DELETE',
+				`${routesPath(zoneId)}/${encodeURIComponent(id)}`,
+				`delete the route ${id}`
+			);
+		},
+		async listWorkerDomains(zoneId) {
+			const out = await rawResult(
+				'GET',
+				`/accounts/${account()}/workers/domains?zone_id=${encodeURIComponent(zoneId)}`,
+				'list Workers custom domains'
+			);
+			return asList(out).map((d) => ({
+				hostname: str(d.hostname) ?? '',
+				service: str(d.service) ?? ''
+			}));
 		},
 
 		// Email Sending is per subdomain (`cf email-sending subdomains list --zone`); there is no

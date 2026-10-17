@@ -1,0 +1,58 @@
+[
+	{
+		"id": "rec00000000000000000000000000001",
+		"name": "www.example.com",
+		"type": "AAAA",
+		"content": "100::",
+		"proxied": true,
+		"comment": null
+	},
+	{
+		"id": "rec00000000000000000000000000002",
+		"name": "shop.example.com",
+		"type": "CNAME",
+		"content": "shops.example.net",
+		"proxied": true,
+		"comment": "the shop"
+	},
+	{
+		"id": "rec00000000000000000000000000003",
+		"name": "cf-bounce.example.com",
+		"type": "MX",
+		"content": "route.mx.cloudflare.net",
+		"proxied": false,
+		"comment": null
+	},
+	{
+		"id": "rec00000000000000000000000000004",
+		"name": "cf-bounce._domainkey.example.com",
+		"type": "TXT",
+		"content": "v=DKIM1; p=…",
+		"proxied": false,
+		"comment": null
+	},
+	{
+		"id": "rec00000000000000000000000000005",
+		"name": "_dmarc.example.com",
+		"type": "TXT",
+		"content": "v=DMARC1; p=none",
+		"proxied": false,
+		"comment": null
+	},
+	{
+		"id": "rec00000000000000000000000000006",
+		"name": "mail.example.com",
+		"type": "A",
+		"content": "192.0.2.10",
+		"proxied": false,
+		"comment": null
+	},
+	{
+		"id": "rec00000000000000000000000000007",
+		"name": "example.com",
+		"type": "AAAA",
+		"content": "100::",
+		"proxied": true,
+		"comment": null
+	}
+]

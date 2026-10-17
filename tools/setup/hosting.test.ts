@@ -242,7 +242,8 @@ describe('hosting', () => {
 					aud: 'aud',
 					policyIds: [policies[0].id],
 					isPathCookieAttributeOn: false,
-					isBindingCookieOn: false
+					isBindingCookieOn: false,
+					destinations: ['epoch-genealogy.me.workers.dev/login']
 				}
 			]
 		});
