@@ -31,7 +31,11 @@ export const trees = sqliteTable(
 		isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
 		publicSince: integer('public_since', { mode: 'timestamp' }),
 		// The install owner who made it public. No foreign key: removing a user must not touch the tree.
-		publishedBy: text('published_by')
+		publishedBy: text('published_by'),
+		// Whether the tree is also served at `<slug>.<EPOCH_TREE_HOST_ZONE>`, showing only this tree.
+		// The subdomain is the slug, so a tree without one cannot turn it on; off by default, because
+		// turning it on makes the tree's name visible as a hostname.
+		isOnSubdomain: integer('is_on_subdomain', { mode: 'boolean' }).notNull().default(false)
 	},
 	(table) => ({
 		slugIdx: uniqueIndex('idx_trees_slug').on(table.slug),

@@ -13,6 +13,7 @@ import { MutationRunner, type MutationClock } from './mutation-runner';
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { listAllObjects } from '../media/stored-bytes';
 import { isStagingKeyOf, stagingPrefix } from './gedcom-service';
+import { subdomainRefusal, type TreeHostConfig } from '../http/tree-host';
 
 /** R2's `delete` takes at most this many keys per call. */
 const R2_MAX_KEYS_PER_DELETE = 1000;
@@ -110,11 +111,22 @@ export class TreeService {
 		return this.treeRepo.create(name.trim(), description?.trim() || null, context.user.id);
 	}
 
+	/**
+	 * `subdomains` is the install's setting, null when it serves no tree on a subdomain. It is
+	 * checked only when the subdomain is turned on or its slug changes, so an install that later
+	 * drops the setting can still rename a tree that has the flag.
+	 */
 	async updateTree(
 		treeId: string,
 		expectedVersion: number,
-		data: { name?: string; description?: string | null; slug?: string | null },
-		context: AuthenticatedContext
+		data: {
+			name?: string;
+			description?: string | null;
+			slug?: string | null;
+			isOnSubdomain?: boolean;
+		},
+		context: AuthenticatedContext,
+		subdomains: TreeHostConfig | null = null
 	) {
 		await this.requireOwnerOrAction(treeId, context, 'tree:update_settings');
 		if (data.name !== undefined && !data.name.trim())
@@ -122,6 +134,19 @@ export class TreeService {
 		// Checked here as well as at the endpoint: a slug shaped like an id would read as another tree.
 		if (data.slug != null && !isValidTreeSlug(data.slug))
 			throw new ValidationError('Use lower-case letters, digits and single hyphens');
+		if (data.isOnSubdomain === true || (data.slug !== undefined && data.slug !== null)) {
+			const current = await this.treeRepo.findById(treeId);
+			if (!current) throw new NotFoundError('Tree', treeId);
+			const slug = data.slug !== undefined ? data.slug : current.slug;
+			const isOn = data.isOnSubdomain ?? current.isOnSubdomain === true;
+			const isChanged = !current.isOnSubdomain || slug !== current.slug;
+			if (isOn && isChanged) {
+				if (!subdomains)
+					throw new ValidationError('This install does not serve trees on subdomains');
+				const refusal = subdomainRefusal(slug, subdomains);
+				if (refusal) throw new ValidationError(refusal);
+			}
+		}
 		return this.treeRepo.update(treeId, expectedVersion, data);
 	}
 

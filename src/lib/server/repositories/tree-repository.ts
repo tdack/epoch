@@ -18,6 +18,8 @@ export interface TreeSummary {
 	defaultViewMode?: LayoutMode | null;
 	/** Whether `/` opens this tree for the caller; set on the tree list only. */
 	isDefault?: boolean;
+	/** Also served at its slug's subdomain; set by `findById` and `update` only. */
+	isOnSubdomain?: boolean;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 }
@@ -195,6 +197,7 @@ export class TreeRepository {
 			name: record.name,
 			description: record.description,
 			version: record.version,
+			isOnSubdomain: record.isOnSubdomain,
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt
 		};
@@ -255,7 +258,12 @@ export class TreeRepository {
 	async update(
 		treeId: string,
 		expectedVersion: number,
-		data: { name?: string; description?: string | null; slug?: string | null }
+		data: {
+			name?: string;
+			description?: string | null;
+			slug?: string | null;
+			isOnSubdomain?: boolean;
+		}
 	): Promise<TreeSummary> {
 		const current = await this.findById(treeId);
 		if (!current) throw new NotFoundError('Tree', treeId);
@@ -276,10 +284,14 @@ export class TreeRepository {
 				throw new ValidationError(`Another tree already uses "${slug}"`);
 		}
 
+		// Giving up the address gives up the subdomain with it: the subdomain is the slug.
+		const isOnSubdomain = slug !== null && (data.isOnSubdomain ?? current.isOnSubdomain ?? false);
+
 		const updated = await this.db
 			.update(trees)
 			.set({
 				slug,
+				isOnSubdomain,
 				name: data.name !== undefined ? data.name.trim() : current.name,
 				description: data.description !== undefined ? data.description : current.description,
 				version: nextVersion,
@@ -294,6 +306,7 @@ export class TreeRepository {
 		return {
 			id: treeId,
 			slug,
+			isOnSubdomain,
 			name: data.name !== undefined ? data.name.trim() : current.name,
 			description: data.description !== undefined ? data.description : current.description,
 			version: nextVersion,
@@ -304,6 +317,19 @@ export class TreeRepository {
 
 	async delete(treeId: string): Promise<void> {
 		await this.db.delete(trees).where(eq(trees.id, treeId));
+	}
+
+	/**
+	 * The tree served at the subdomain `label`: one read on the slug index. Null when no tree has that
+	 * slug, and equally when one has it with the subdomain off, so the two cannot be told apart.
+	 */
+	async findOnSubdomain(label: string): Promise<{ id: string; slug: string } | null> {
+		const row = await this.db
+			.select({ id: trees.id, slug: trees.slug })
+			.from(trees)
+			.where(and(eq(trees.slug, label), eq(trees.isOnSubdomain, true)))
+			.get();
+		return row?.slug ? { id: row.id, slug: row.slug } : null;
 	}
 
 	/** The install's public tree, if any: one read on the partial unique index. */

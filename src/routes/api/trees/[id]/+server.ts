@@ -2,18 +2,28 @@ import type { RenameTreeResponse } from '#lib/shared/api-contracts.js';
 import { treeHandler } from '#lib/server/http/handler.js';
 import { TreeService } from '#lib/server/services/tree-service.js';
 import { treeRenameSchema } from '#lib/server/validation/schemas.js';
+import { treeHostConfig } from '#lib/server/http/tree-host.js';
 
-/** Rename the tree or change its address; a stale `version` answers 409 with nothing changed. */
+/**
+ * Rename the tree, change its address or turn its subdomain on or off; a stale `version` answers
+ * 409 with nothing changed.
+ */
 export const PATCH = treeHandler(
 	{ failure: 'Failed to rename tree', body: treeRenameSchema },
-	async ({ db, ctx, treeId, body }): Promise<RenameTreeResponse> => ({
-		tree: await new TreeService(db).updateTree(
+	async ({ db, ctx, treeId, body, event }): Promise<RenameTreeResponse> => {
+		const tree = await new TreeService(db).updateTree(
 			treeId,
 			body.version,
-			{ name: body.name, ...(body.slug !== undefined && { slug: body.slug }) },
-			ctx
-		)
-	})
+			{
+				name: body.name,
+				...(body.slug !== undefined && { slug: body.slug }),
+				...(body.isOnSubdomain !== undefined && { isOnSubdomain: body.isOnSubdomain })
+			},
+			ctx,
+			treeHostConfig(event.platform?.env)
+		);
+		return { tree: { id: tree.id, slug: tree.slug, isOnSubdomain: tree.isOnSubdomain === true } };
+	}
 );
 
 /**

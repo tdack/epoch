@@ -100,7 +100,8 @@ export class GraphQueryService {
 				slug: tree.slug,
 				name: tree.name,
 				description: tree.description ?? null,
-				version: tree.version
+				version: tree.version,
+				isOnSubdomain: tree.isOnSubdomain === true
 			},
 			viewer: {
 				role: scope.role,

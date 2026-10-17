@@ -36,7 +36,7 @@ export interface CreateTreeResponse {
 
 /** `PATCH /api/trees/[id]` */
 export interface RenameTreeResponse {
-	tree: { id: string; slug: string | null };
+	tree: { id: string; slug: string | null; isOnSubdomain: boolean };
 }
 
 /** `GET /api/trees` */
