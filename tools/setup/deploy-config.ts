@@ -58,6 +58,10 @@ export interface DeployDefaults {
 	installId: string | null;
 	/** The `send_email` sender an earlier file had, so it is kept unless the owner says otherwise. */
 	emailSender: string | null;
+	/** `EPOCH_TREE_HOST_ZONE`, so a fresh clone keeps serving tree subdomains (ADR-057). */
+	treeHostZone: string | null;
+	reservedSubdomains: string[];
+	appHost: string | null;
 }
 
 export const NO_DEFAULTS: DeployDefaults = {
@@ -68,7 +72,10 @@ export const NO_DEFAULTS: DeployDefaults = {
 	d1Id: null,
 	teamDomain: null,
 	installId: null,
-	emailSender: null
+	emailSender: null,
+	treeHostZone: null,
+	reservedSubdomains: [],
+	appHost: null
 };
 
 function firstSender(sendEmail: unknown): string | null {
@@ -88,7 +95,10 @@ export function parseDeployDefaults(text: string | null): DeployDefaults {
 	}
 	if (!isJson(config)) return NO_DEFAULTS;
 	const str = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
-	const route = Array.isArray(config.routes) ? (config.routes[0] as Json | undefined) : undefined;
+	// By `custom_domain`, not position: the tree subdomains' wildcard route sits beside it.
+	const route = Array.isArray(config.routes)
+		? (config.routes as unknown[]).filter(isJson).find((r) => r.custom_domain === true)
+		: undefined;
 	const vars = isJson(config.vars) ? config.vars : {};
 	const d1 = Array.isArray(config.d1_databases)
 		? (config.d1_databases[0] as Json | undefined)
@@ -106,7 +116,13 @@ export function parseDeployDefaults(text: string | null): DeployDefaults {
 		d1Id: str(d1?.database_id),
 		teamDomain: str(vars.CF_ACCESS_TEAM_DOMAIN),
 		installId: str(vars.EPOCH_INSTALL_ID),
-		emailSender: firstSender(config.send_email)
+		emailSender: firstSender(config.send_email),
+		treeHostZone: str(vars.EPOCH_TREE_HOST_ZONE),
+		reservedSubdomains: (str(vars.EPOCH_RESERVED_SUBDOMAINS) ?? '')
+			.split(',')
+			.map((label) => label.trim())
+			.filter(Boolean),
+		appHost: str(vars.EPOCH_APP_HOST)
 	};
 }
 

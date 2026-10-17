@@ -23,7 +23,10 @@ const values: DeployValues = {
 	installId: '11111111-1111-4111-8111-111111111111',
 	emailSender: null,
 	r2Jurisdiction: null,
-	accessAud: 'aud-123'
+	accessAud: 'aud-123',
+	treeHostZone: null,
+	reservedSubdomains: [],
+	appHost: null
 };
 
 describe('generateDeployConfig', () => {
@@ -115,6 +118,51 @@ describe('generateDeployConfig', () => {
 		expect(kept.preview_urls).toBeUndefined();
 	});
 
+	describe('tree subdomains (ADR-057)', () => {
+		const trees: DeployValues = {
+			...values,
+			hostname: 'example.com',
+			treeHostZone: 'example.com',
+			reservedSubdomains: ['www', 'demo', 'www'],
+			appHost: null
+		};
+
+		it('adds the wildcard route beside the custom domain, and the vars', () => {
+			const on = generateDeployConfig(tracked, trees) as Record<string, any>;
+			expect(on.routes).toEqual([
+				{ pattern: 'example.com', custom_domain: true },
+				{ pattern: '*.example.com/*', zone_name: 'example.com' }
+			]);
+			expect(on.vars).toMatchObject({
+				EPOCH_TREE_HOST_ZONE: 'example.com',
+				EPOCH_RESERVED_SUBDOMAINS: 'demo,www'
+			});
+			expect(on.vars).not.toHaveProperty('EPOCH_APP_HOST');
+		});
+
+		it('names the app host only when it is not the zone apex', () => {
+			const beside = generateDeployConfig(tracked, {
+				...trees,
+				hostname: 'epoch.example.com',
+				appHost: 'epoch.example.com'
+			}) as Record<string, any>;
+			expect(beside.vars.EPOCH_APP_HOST).toBe('epoch.example.com');
+		});
+
+		it('leaves every one of them out without a zone', () => {
+			expect(config.routes).toHaveLength(1);
+			for (const key of ['EPOCH_TREE_HOST_ZONE', 'EPOCH_RESERVED_SUBDOMAINS', 'EPOCH_APP_HOST'])
+				expect(config.vars).not.toHaveProperty(key);
+		});
+
+		it('round-trip through the build variable, with the labels sorted once', () => {
+			expect(parseDeployValues(serialiseDeployValues(trees))).toEqual({
+				...trees,
+				reservedSubdomains: ['demo', 'www']
+			});
+		});
+	});
+
 	it('says what is missing when the tracked file has changed shape', () => {
 		expect(() => generateDeployConfig({ name: 'x' }, values)).toThrow('d1_databases');
 	});
@@ -130,6 +178,25 @@ describe('the EPOCH_DEPLOY_VALUES build variable', () => {
 		expect(serialiseDeployValues(reordered)).toBe(serialiseDeployValues(values));
 	});
 
+	it('leaves an install without subdomains with the variable it had before them', () => {
+		expect(serialiseDeployValues(values)).not.toContain('treeHost');
+	});
+
+	it('parses a variable set before subdomains existed, with the feature off', () => {
+		const old = JSON.stringify({
+			workerName: 'family',
+			hosting: 'custom',
+			hostname: 'family.example.com',
+			isWorkersDevKept: false,
+			teamDomain: 'team.cloudflareaccess.com',
+			installId: values.installId,
+			emailSender: null,
+			r2Jurisdiction: null,
+			accessAud: 'aud-123'
+		});
+		expect(parseDeployValues(old)).toEqual(values);
+	});
+
 	it('fits the 5000-character limit on a build variable with room to spare', () => {
 		expect(serialiseDeployValues(values).length).toBeLessThan(1000);
 	});
@@ -139,7 +206,12 @@ describe('the EPOCH_DEPLOY_VALUES build variable', () => {
 		['an array', '[]', 'is not a JSON object'],
 		['no workerName', JSON.stringify({ ...values, workerName: '' }), 'lacks "workerName"'],
 		['an unknown hosting', JSON.stringify({ ...values, hosting: 'pages' }), 'unknown hosting'],
-		['a numeric sender', JSON.stringify({ ...values, emailSender: 5 }), 'non-string "emailSender"']
+		['a numeric sender', JSON.stringify({ ...values, emailSender: 5 }), 'non-string "emailSender"'],
+		[
+			'reserved labels that are not a list',
+			JSON.stringify({ ...values, treeHostZone: 'example.com', reservedSubdomains: 'www' }),
+			'"reservedSubdomains"'
+		]
 	])('refuses %s', (_label, text, message) => {
 		expect(() => parseDeployValues(text)).toThrow(message);
 	});

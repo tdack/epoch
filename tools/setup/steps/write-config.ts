@@ -53,7 +53,10 @@ export function deployValuesOf(manifest: Manifest): DeployValues {
 		installId: manifest.installId,
 		emailSender: manifest.emailSender,
 		r2Jurisdiction: manifest.locations.r2Jurisdiction,
-		accessAud: manifest.isAudSecret ? null : (manifest.access.app?.aud ?? null)
+		accessAud: manifest.isAudSecret ? null : (manifest.access.app?.aud ?? null),
+		treeHostZone: manifest.subdomains?.zone.name ?? null,
+		reservedSubdomains: manifest.subdomains?.reservedLabels ?? [],
+		appHost: manifest.subdomains?.appHost ?? null
 	};
 }
 

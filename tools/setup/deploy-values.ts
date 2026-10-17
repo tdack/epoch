@@ -29,6 +29,17 @@ export interface DeployValues {
 	r2Jurisdiction: string | null;
 	/** Carried as a var unless the install keeps it as a secret (an adopted one). */
 	accessAud: string | null;
+	/** Trees are served on `<slug>.<zone>` (ADR-057); null leaves the feature off. */
+	treeHostZone: string | null;
+	/** Labels no tree may take beyond the app's built-in ones, sorted. Empty without a zone. */
+	reservedSubdomains: string[];
+	/** Set only when the app is not on the zone apex: the app reads an unset one as the zone. */
+	appHost: string | null;
+}
+
+/** The wildcard Worker route that sends every tree subdomain to the Worker (ADR-057). */
+export function treeHostRoute(zone: string): { pattern: string; zone_name: string } {
+	return { pattern: `*.${zone}/*`, zone_name: zone };
 }
 
 type Json = Record<string, unknown>;
@@ -49,7 +60,15 @@ export function serialiseDeployValues(values: DeployValues): string {
 		installId: values.installId,
 		emailSender: values.emailSender,
 		r2Jurisdiction: values.r2Jurisdiction,
-		accessAud: values.accessAud
+		accessAud: values.accessAud,
+		// Only with a zone, so an install without subdomains keeps the variable it has today.
+		...(values.treeHostZone
+			? {
+					treeHostZone: values.treeHostZone,
+					reservedSubdomains: [...new Set(values.reservedSubdomains)].sort(),
+					appHost: values.appHost
+				}
+			: {})
 	});
 }
 
@@ -82,6 +101,11 @@ export function parseDeployValues(text: string): DeployValues {
 	}
 	const workerName = required('workerName');
 	assertValidWorkerName(workerName);
+	const reserved = value.reservedSubdomains ?? [];
+	if (!Array.isArray(reserved) || !reserved.every((label) => typeof label === 'string')) {
+		return fail('has a "reservedSubdomains" that is not a list of labels');
+	}
+	const treeHostZone = optional('treeHostZone');
 	return {
 		workerName,
 		hosting,
@@ -91,7 +115,11 @@ export function parseDeployValues(text: string): DeployValues {
 		installId: required('installId'),
 		emailSender: optional('emailSender'),
 		r2Jurisdiction: optional('r2Jurisdiction'),
-		accessAud: optional('accessAud')
+		accessAud: optional('accessAud'),
+		// A variable set before subdomains existed has none of these, and must still build.
+		treeHostZone,
+		reservedSubdomains: treeHostZone ? (reserved as string[]) : [],
+		appHost: treeHostZone ? optional('appHost') : null
 	};
 }
 
@@ -110,17 +138,30 @@ function bindingEntry(config: Json, key: string, field: string, binding: string)
 	return found;
 }
 
+function treeHostVars(values: DeployValues): Record<string, string> {
+	if (!values.treeHostZone) return {};
+	const reserved = [...new Set(values.reservedSubdomains)].sort();
+	return {
+		EPOCH_TREE_HOST_ZONE: values.treeHostZone,
+		...(reserved.length > 0 ? { EPOCH_RESERVED_SUBDOMAINS: reserved.join(',') } : {}),
+		...(values.appHost ? { EPOCH_APP_HOST: values.appHost } : {})
+	};
+}
+
 /** The tracked config plus this install's values. Pure: the same inputs give the same config. */
 export function generateDeployConfig(tracked: Json, values: DeployValues): Json {
 	const config = structuredClone(tracked);
 	const names = resourceNames(values.workerName);
 
 	config.name = names.worker;
+	// `wrangler deploy` owns the wildcard route like the Custom Domain; setup creates only its DNS record.
+	const treeRoutes = values.treeHostZone ? [treeHostRoute(values.treeHostZone)] : [];
 	if (values.hosting === HOSTINGS.workersDev) {
 		config.workers_dev = true;
-		delete config.routes;
+		if (treeRoutes.length > 0) config.routes = treeRoutes;
+		else delete config.routes;
 	} else {
-		config.routes = [{ pattern: values.hostname, custom_domain: true }];
+		config.routes = [{ pattern: values.hostname, custom_domain: true }, ...treeRoutes];
 		config.workers_dev = values.isWorkersDevKept;
 		// Preview URLs would be a second, unprotected way in on workers.dev.
 		if (values.isWorkersDevKept) delete config.preview_urls;
@@ -132,7 +173,8 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 		EPOCH_INSTALL_ID: values.installId,
 		...(values.accessAud ? { CF_ACCESS_AUD: values.accessAud } : {}),
 		// The mailer reads its sender from here, so no install's address is in the source.
-		...(values.emailSender ? { EPOCH_EMAIL_SENDER: values.emailSender } : {})
+		...(values.emailSender ? { EPOCH_EMAIL_SENDER: values.emailSender } : {}),
+		...treeHostVars(values)
 	};
 
 	const d1 = bindingEntry(config, 'd1_databases', 'binding', 'DB');
