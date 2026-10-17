@@ -237,8 +237,10 @@ PEDIGREE.forEach((id, i) => {
 });
 
 const DESCENDANT_GRID: Grid = { x0: 140, y0: 140, w: 200, h: 54, columnGap: 80, rowHeight: 90 };
+// The app cuts the partners at 22 characters; here the person's card grows leftwards into the
+// empty margin instead, so the one card that names partners names them all.
 const descendants: Layout = {
-	ellen: cardAt(DESCENDANT_GRID, 0, 1.5, chartLine('ellen', ELLEN_PARTNERS))
+	ellen: cardAt({ ...DESCENDANT_GRID, x0: 10, w: 330 }, 0, 1.5, chartLine('ellen', ELLEN_PARTNERS))
 };
 DESCENT.forEach(({ child, grandchild }, row) => {
 	descendants[child] = cardAt(DESCENDANT_GRID, 1, row, chartLine(child));
