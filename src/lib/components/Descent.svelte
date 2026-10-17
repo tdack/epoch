@@ -16,7 +16,7 @@
 
 <!-- The line of descent that carries the mark's stem from one section to the next. Decoration:
 the section heading that follows names the place. -->
-<div class="descent {tone}" class:focus={isFocus} aria-hidden="true">
+<div class="descent {tone} from-{origin}" class:focus={isFocus} aria-hidden="true">
 	{#if origin === 'ancestors'}
 		<svg class="origin ancestors" viewBox="0 0 120 22" width="120" height="22">
 			<circle cx="11" cy="11" r="9" />
@@ -45,6 +45,13 @@ the section heading that follows names the place. -->
 		flex-direction: column;
 		align-items: center;
 		padding-bottom: clamp(32px, 4vw, 48px);
+	}
+
+	/* A plain stem carries on from the section above, so it starts at the edge. A bar has nothing
+	above it: it starts a line, and needs room, or it reads as caught on the edge. */
+	.from-ancestors,
+	.from-union {
+		padding-top: clamp(28px, 3.5vw, 44px);
 	}
 
 	.mist {
@@ -92,6 +99,12 @@ the section heading that follows names the place. -->
 		height: 18px;
 		border-radius: 9999px;
 		background: var(--ink);
+	}
+
+	/* The ancestors are faint, and the line comes into full ink as it reaches this generation,
+	so the faint stub and the line meet without a seam. 42% matches the bar's opacity. */
+	.from-ancestors .line {
+		background: linear-gradient(color-mix(in srgb, var(--ink) 42%, transparent), var(--ink) 55%);
 	}
 
 	.focus .node {
