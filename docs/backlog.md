@@ -327,9 +327,10 @@ Last reviewed: 2026-10-15.
     still works, and the items under "Verify on a real deploy".
   - **`./setup subdomains`: confirm the SPIKE shapes on a real account.** These are read from the
     API reference, not yet seen:
-    - the `--body` of `cf dns records create`;
     - the Access application's `destinations`, and whether an update with them keeps the AUD;
-    - `/zones/{id}/workers/routes` with no `script`.
+    - `/zones/{id}/workers/routes` with no `script`;
+    - that the wrangler profile's token, which the route calls use, may write routes. The
+      `workers-routes.write` check reads the `cf` sign-in only.
 
     Add them to `./setup spike`.
   - **`./setup subdomains`: the rest.**
