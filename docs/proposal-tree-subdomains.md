@@ -1,6 +1,7 @@
 # Proposal: a tree on its own subdomain
 
-- **Status:** proposal, 2026-10-16. Nothing is built. When an option is chosen, it becomes an ADR in
+- **Status:** proposal, 2026-10-16. Phase 1, the app side, was built on 2026-10-17 (ADR-057); the
+  Cloudflare side is not. When an option is chosen, it becomes an ADR in
   [decisions.md](./decisions.md) and its work moves into [backlog.md](./backlog.md).
 - **Goal:** the tree "The Dacks" at `/trees/dacks` can also be reached at `dacks.example.com`, and
   that host shows only that tree. The owner should not have to create a Cloudflare API token to set
@@ -141,16 +142,10 @@ hook also checks the path:
   the same path on the app host.
 - `/welcome`, `/login` and the static assets are served on the tree host.
 
-**Addresses on a tree host.**
-
-- **A `reroute` hook:** `dacks.example.com/people/x` resolves internally to
-  `/trees/dacks/people/x`.
-- **Why `reroute` here, when ADR-045 rejected it:** for slugs it needed a client-side lookup cache.
-  Here the mapping is the hostname itself, so the client needs no lookup. `treePath` returns the
-  empty string when the page is on the pinned tree's host, and every link built from it becomes
-  host-relative.
-- **The `/trees/dacks/...` form also works on the tree host.** It redirects to the short form, like
-  the id-to-slug redirect in ADR-045.
+**Addresses on a tree host.** As built (ADR-057), pages keep the `/trees/dacks/...` form and `/`
+redirects there. Short addresses (`dacks.example.com/people/x`) through `reroute` are a follow-up:
+`event.url` keeps the original path, so every path check in the hook would need translating, and
+`/settings` is both the user's page and the tree's.
 
 **Sign-in.**
 

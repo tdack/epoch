@@ -146,6 +146,9 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
 ## Layout and views
 
 Tree pages live under `/trees/<slug>`, and the id still works and redirects there (ADR-045).
+With `EPOCH_TREE_HOST_ZONE` set, a tree may also be served at `<slug>.<zone>`, which shows only that
+tree. Pages there keep the `/trees/<slug>/…` form, and links that leave the tree go to the app host
+(ADR-057).
 The tree page is a focus-centred hourglass: there is always a focus person, and the client fetches a
 bounded subgraph rather than the whole tree (ADR-011). Pedigree, descendant, fan, hourglass and
 relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL views (Rings, Ball,
