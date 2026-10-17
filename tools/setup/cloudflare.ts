@@ -86,7 +86,7 @@ export interface DnsRecord {
 	comment: string | null;
 }
 
-export interface NewDnsRecord {
+interface NewDnsRecord {
 	type: string;
 	/** Relative or full; Cloudflare stores the full hostname. */
 	name: string;
