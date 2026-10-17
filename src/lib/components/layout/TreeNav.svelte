@@ -3,6 +3,7 @@
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { hasTreesPage } from '#lib/shared/trees-page.js';
 
 	interface Props {
 		/** The tree these links belong to. */
@@ -91,7 +92,7 @@
 					{ href: `${base}/privacy`, label: 'Privacy', isActive: startsWith(`${base}/privacy`) }
 				]
 			: []),
-		...(isInstallOwner || treeCount > 1
+		...(hasTreesPage(isInstallOwner, treeCount)
 			? [
 					{
 						href: `${appOrigin}${base}/trees`,

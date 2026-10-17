@@ -4,6 +4,7 @@
 	import { saveMySettings, saveSiteSettings } from '#lib/api/settings.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { hasTreesPage } from '#lib/shared/trees-page.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -14,6 +15,7 @@
 
 	const settings = $derived(data.settings);
 	const isInstallOwner = $derived(data.summary.viewer.isInstallOwner);
+	const canChooseDefault = $derived(hasTreesPage(isInstallOwner, data.trees.length));
 	const base = $derived(treePath(data.summary.tree));
 
 	// The root layout reads the palette every page paints with; reloading it repaints them all.
@@ -112,10 +114,12 @@
 	<section aria-labelledby="also-yours-heading" class="flex flex-col gap-2">
 		<h3 id="also-yours-heading" class="text-lg font-bold text-stone-900">Also yours</h3>
 		<ul class="list-disc pl-5 text-sm text-stone-700">
-			<li>
-				Your default tree, the one Epoch opens first, is chosen on the
-				<a href="{base}/trees" class="font-semibold text-emerald-900 underline">Trees page</a>.
-			</li>
+			{#if canChooseDefault}
+				<li>
+					Your default tree, the one Epoch opens first, is chosen on the
+					<a href="{base}/trees" class="font-semibold text-emerald-900 underline">Trees page</a>.
+				</li>
+			{/if}
 			<li>
 				Your default view of a tree (Flat, Rings, Ball, Ribbons or Orrery) is chosen from the tree's
 				toolbar.
