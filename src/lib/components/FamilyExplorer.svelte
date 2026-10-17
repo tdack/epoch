@@ -773,6 +773,7 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		align-items: baseline;
+		align-content: start;
 		gap: 4px 20px;
 		opacity: 0;
 		visibility: hidden;
