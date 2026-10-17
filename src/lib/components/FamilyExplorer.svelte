@@ -583,7 +583,7 @@
 		--stage-w: min(
 			calc(var(--measure) - 2 * var(--gutter)),
 			calc(100vw - 2 * var(--gutter)),
-			calc((100vh - var(--nav-height) - 220px) * 1040 / 640)
+			calc((100vh - var(--nav-height) - 200px) * 1040 / 640)
 		);
 		grid-template-columns: var(--stage-w);
 		justify-content: center;
