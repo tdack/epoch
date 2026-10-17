@@ -1,3 +1,5 @@
+import type { LensId } from './family.js';
+
 export const DEMO_URL = 'https://demo.epochgenealogy.app';
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
@@ -203,5 +205,46 @@ export const VIEWS_3D: View3d[] = [
 		poster: `/views/orrery-poster.jpg?v=${CLIP_VERSION}`,
 		name: 'Orrery',
 		text: 'A star cluster. Partners circle each other as a pair of stars, and their children circle the pair.'
+	}
+];
+
+export interface Lens {
+	id: LensId;
+	/** The app's own name for the view: the chart style links and the tree toolbar. */
+	name: string;
+	text: string;
+}
+
+/** The 2D ways of seeing one family, in the order the explorer moves through them. */
+export const LENSES: Lens[] = [
+	{
+		id: 'family',
+		name: 'Family view',
+		text: 'Everyone on one page, ancestors above and descendants below. Each link is drawn as the kind it is, and a living person you may not see stays as a private placeholder.'
+	},
+	{
+		id: 'descendants',
+		name: 'Descendants',
+		text: 'Everyone descended from one person, a generation to a column, each card naming the person’s partners.'
+	},
+	{
+		id: 'hourglass',
+		name: 'Hourglass',
+		text: 'Descendants to the left and ancestors to the right, meeting at one person.'
+	},
+	{
+		id: 'pedigree',
+		name: 'Ancestors',
+		text: 'Four generations by default and up to eight. Where nobody is recorded, the place stays empty rather than guessed.'
+	},
+	{
+		id: 'fan',
+		name: 'Fan',
+		text: 'The same ancestors on a half circle: the person at the centre, a ring for each generation, and each person’s parents side by side.'
+	},
+	{
+		id: 'relationship',
+		name: 'Relationship',
+		text: 'Choose two people and every route between them is listed, nearest first, naming the common ancestors and any link that is not biological.'
 	}
 ];
