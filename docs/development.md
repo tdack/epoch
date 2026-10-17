@@ -108,6 +108,13 @@ fresh database works without setup. Add an `install_meta` row to try the not-inv
 After changing the sign-in flow, verify on a real deploy that signing in returns you to the page you
 wanted, and that API calls after sign-in authenticate from the cookie alone.
 
+## A tree on its own subdomain
+
+Add `EPOCH_TREE_HOST_ZONE=localhost` to `.dev.vars`, restart `npm run dev`, and tick "Also open this
+tree at …" in a tree's rename dialog. The tree is then served at `http://<slug>.localhost:<port>`:
+browsers resolve `*.localhost` to this machine, and the dev bypass accepts it (ADR-057). A label
+that names no tree, or a tree with the box unticked, answers 404.
+
 ## Addresses
 
 | Address | Shows |

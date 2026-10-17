@@ -1,5 +1,6 @@
 import type { D1Database, R2Bucket, Queue, SendEmail, Workflow } from '@cloudflare/workers-types';
 import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.js';
+import type { HostTree } from '#lib/shared/tree-host.js';
 import type { ImportQueueMessage } from '#lib/server/services/gedcom-service.js';
 import type { GedcomExportPayload } from '#lib/server/workflows/export-workflow.js';
 
@@ -14,6 +15,8 @@ declare global {
 			/** Who Access named when Epoch did not admit them; kept only for this request, never stored. */
 			notAdmitted: AccessIdentity | null;
 			correlationId: string;
+			/** The tree this request's host is pinned to, or null on the app host. */
+			hostTree: HostTree | null;
 		}
 		interface Platform {
 			env: {
@@ -27,6 +30,12 @@ declare global {
 				EPOCH_EMAIL_SENDER?: string;
 				/** Where visitors are offered this install's source (AGPL section 13); upstream when unset. */
 				EPOCH_SOURCE_URL?: string;
+				/** Trees with the flag on are served at `<slug>.<zone>`; unset turns the feature off. */
+				EPOCH_TREE_HOST_ZONE?: string;
+				/** The whole install's host when it is not the zone itself, such as `epoch.example.com`. */
+				EPOCH_APP_HOST?: string;
+				/** Comma-separated labels the zone uses for something else, such as `demo`. */
+				EPOCH_RESERVED_SUBDOMAINS?: string;
 				CF_ACCESS_TEAM_DOMAIN?: string;
 				CF_ACCESS_AUD?: string;
 				ACCESS_BYPASS_DEV?: string;

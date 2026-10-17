@@ -4,17 +4,22 @@ import { Logger } from '#lib/server/logging/logger.js';
 import { SettingsService } from '#lib/server/services/settings-service.js';
 import { SOURCE_COMMIT, sourceUrl } from '#lib/server/source-url.js';
 import { SETTINGS_DEPENDENCY } from '#lib/shared/settings.js';
+import { treeHostConfig } from '#lib/server/http/tree-host.js';
 import type { LayoutServerLoad } from './$types';
 
 /**
- * What every page needs from the server: where its source can be had (AGPL section 13), and the
- * colours and motion setting it is painted with (ADR-054).
+ * What every page needs from the server: where its source can be had (AGPL section 13), the
+ * colours and motion setting it is painted with (ADR-054), and, on a tree's own subdomain, which
+ * tree that is and where the rest of the install lives.
  */
 export const load: LayoutServerLoad = async ({ platform, locals, depends }) => {
 	depends(SETTINGS_DEPENDENCY);
 	return {
 		sourceUrl: sourceUrl(platform?.env),
 		sourceCommit: SOURCE_COMMIT,
+		hostTree: locals.hostTree,
+		/** The zone tree subdomains sit under; null when this install serves none. */
+		subdomainZone: treeHostConfig(platform?.env)?.zone ?? null,
 		...(await appearance(platform?.env?.DB, locals))
 	};
 };

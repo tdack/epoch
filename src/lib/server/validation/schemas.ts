@@ -231,6 +231,8 @@ export const treeRenameSchema = z.object({
 		)
 		.nullable()
 		.optional(),
+	/** Also serve the tree at its slug's subdomain. Omitted keeps the current setting. */
+	isOnSubdomain: z.boolean().optional(),
 	version: versionSchema
 });
 

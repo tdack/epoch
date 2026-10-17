@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import SourceLink from '#lib/components/layout/SourceLink.svelte';
+	import { appHref } from '#lib/shared/tree-host.js';
 </script>
 
 <svelte:head>
@@ -12,7 +13,10 @@
 	<main class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center p-6">
 		<h1 class="text-2xl font-bold text-stone-900">{page.status}</h1>
 		<p class="mt-2 text-sm text-stone-600">{page.error?.message}</p>
-		<a href="/" class="mt-5 text-sm font-semibold text-emerald-800 underline">Back to your trees</a>
+		<a
+			href={appHref('/', page.data.hostTree ?? null)}
+			class="mt-5 text-sm font-semibold text-emerald-800 underline">Back to your trees</a
+		>
 	</main>
 	<!-- From the root layout load; missing only when that load is what failed. -->
 	{#if page.data.sourceUrl}

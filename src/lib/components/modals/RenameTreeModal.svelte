@@ -11,11 +11,23 @@
 		treeSlug: string | null;
 		/** The tree's version when the dialog opened, sent back so a rename made meanwhile is refused. */
 		treeVersion: number;
+		/** Whether the tree is also served at `<address>.<subdomainZone>` as the dialog opens. */
+		isOnSubdomain?: boolean;
+		/** The zone tree subdomains sit under; null where the install serves none, and the choice is hidden. */
+		subdomainZone?: string | null;
 		isRenaming?: boolean;
 		error?: string | null;
 		onclose: () => void;
-		/** `slug` is null to give up the address and be reached by the id. */
-		onrename: (name: string, slug: string | null, version: number) => void;
+		/**
+		 * `slug` is null to give up the address and be reached by the id. `isOnSubdomain` is undefined
+		 * where the install serves no subdomains, so the setting is left as it is.
+		 */
+		onrename: (
+			name: string,
+			slug: string | null,
+			version: number,
+			isOnSubdomain: boolean | undefined
+		) => void;
 	}
 
 	let {
@@ -23,6 +35,8 @@
 		treeName,
 		treeSlug,
 		treeVersion,
+		isOnSubdomain = false,
+		subdomainZone = null,
 		isRenaming = false,
 		error = null,
 		onclose,
@@ -31,12 +45,16 @@
 
 	let name = $state('');
 	let slug = $state('');
+	let isOnSubdomainChoice = $state(false);
 	let localError = $state<string | null>(null);
+	// The subdomain is the address, so it is offered only while there is one.
+	const hasAddress = $derived(slug.trim() !== '');
 
 	$effect(() => {
 		if (isOpen) {
 			name = treeName;
 			slug = treeSlug ?? '';
+			isOnSubdomainChoice = isOnSubdomain;
 			localError = null;
 		}
 	});
@@ -54,12 +72,17 @@
 				'Use lower-case letters, digits and single hyphens in the address, such as the-windsors.';
 			return;
 		}
-		if (trimmed === treeName && nextSlug === treeSlug) {
+		const isNextOnSubdomain = subdomainZone ? nextSlug !== null && isOnSubdomainChoice : undefined;
+		if (
+			trimmed === treeName &&
+			nextSlug === treeSlug &&
+			(isNextOnSubdomain === undefined || isNextOnSubdomain === isOnSubdomain)
+		) {
 			onclose();
 			return;
 		}
 		localError = null;
-		onrename(trimmed, nextSlug, treeVersion);
+		onrename(trimmed, nextSlug, treeVersion, isNextOnSubdomain);
 	}
 </script>
 
@@ -112,6 +135,30 @@
 				one. Leave it empty to use the tree's id.
 			</p>
 		</div>
+
+		{#if subdomainZone}
+			<div>
+				<label class="flex items-start gap-2 text-sm text-stone-800">
+					<input
+						type="checkbox"
+						bind:checked={isOnSubdomainChoice}
+						disabled={isRenaming || !hasAddress}
+						aria-describedby="tree-subdomain-help"
+						class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+					/>
+					<span>
+						Also open this tree at
+						<span class="font-mono text-stone-900"
+							>{hasAddress ? slug.trim() : 'address'}.{subdomainZone}</span
+						>
+					</span>
+				</label>
+				<p id="tree-subdomain-help" class="mt-1 text-xs text-stone-600">
+					That address shows this tree and nothing else. Its name becomes visible as a web address,
+					even while the tree is private. Changing the address above moves it.
+				</p>
+			</div>
+		{/if}
 
 		<div class="flex justify-end space-x-2 border-t border-stone-200 pt-2">
 			<button

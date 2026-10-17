@@ -3,7 +3,7 @@ import { getDb } from '#lib/server/db/index.js';
 import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { LOGIN_PATH, safeNextPath } from '#lib/server/auth/public-routes.js';
 import { ACCESS_LOGOUT_PATH } from '#lib/shared/access.js';
-import { treePath } from '#lib/shared/tree-slug.js';
+import { treeHref } from '#lib/shared/tree-host.js';
 
 // The page is served to visitors nobody has identified, so it ships no client code that could
 // later be taught to call the API from here.
@@ -37,7 +37,10 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders, platform }
 		state === 'signed-out' && db ? await new PublicTreeService(getDb(db)).current() : null;
 	return {
 		state,
-		publicTree: publicTree ? { name: publicTree.name, href: treePath(publicTree) } : null,
+		// On another tree's subdomain the public tree is not served, so the link leads to the app host.
+		publicTree: publicTree
+			? { name: publicTree.name, href: treeHref(publicTree, locals.hostTree) }
+			: null,
 		actionHref: actionHrefs[state],
 		notAdmittedEmail: locals.notAdmitted?.email ?? null,
 		// Link unfurlers need absolute URLs, and the host differs between preview and production.

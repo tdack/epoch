@@ -30,6 +30,8 @@ export interface TreeSummaryDto {
 		name: string;
 		description: string | null;
 		version: number;
+		/** Also served at `<slug>.<EPOCH_TREE_HOST_ZONE>`, showing only this tree. */
+		isOnSubdomain: boolean;
 	};
 	counts: TreeCounts;
 	/** Who is looking, so the page can hide what they cannot use without a second request. */

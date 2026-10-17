@@ -318,6 +318,22 @@ Last reviewed: 2026-10-15.
   `drizzle/0029_name_fts.sql`. Time Travel is not affected.
 - **Job dashboards, structured privacy-safe logs, and storage and cost metrics.**
 - **Development, staging and production configuration separation,** reproducible provisioning.
+- **A tree on its own subdomain: the rest after phase 1** (ADR-057,
+  [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
+  - **Cloudflare side for `epochgenealogy.app`:**
+    - the wildcard DNS record;
+    - the `*.epochgenealogy.app/*` route, with empty routes for `www` and `demo`;
+    - the vars `EPOCH_TREE_HOST_ZONE` and `EPOCH_RESERVED_SUBDOMAINS=demo,cf-bounce`;
+    - `*.epochgenealogy.app/login` on the Access application.
+
+    Then check that demo sign-in still works.
+  - **A `./setup subdomains` step** that does the same for any install. **It must come first:**
+    `generateDeployConfig` (`tools/setup/deploy-values.ts`) rebuilds `vars` and `routes` from fixed
+    install values on every setup run and every Workers Builds deploy. Vars and routes added by hand
+    are dropped on the next push, so `DeployValues` has to carry the zone, the reserved list and the
+    wildcard route.
+  - **Short addresses** (`dacks.example.com/people/x`).
+  - **Whether the app host should redirect a flagged tree to its subdomain.**
 
 ### Release hardening
 

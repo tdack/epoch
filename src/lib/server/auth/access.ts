@@ -49,7 +49,9 @@ const LOCAL_HOSTNAMES: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
  * would otherwise open every other path, and nothing at the edge would catch it.
  */
 export function isLocalHostname(hostname: string): boolean {
-	return LOCAL_HOSTNAMES.includes(hostname);
+	// `*.localhost` is reserved for loopback (RFC 6761), so a tree host can be tried locally as
+	// `dacks.localhost`. The suffix match is exact: `localhost.evil.example` is not local.
+	return LOCAL_HOSTNAMES.includes(hostname) || hostname.endsWith('.localhost');
 }
 
 interface JwksCache {

@@ -776,3 +776,37 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Decision:** the gesture is gone. That covers the canvas's pointer tracking, the card's press callback, the editor's `dragRelate` and the preselected counterpart it set, and the hint's "Drag one person onto another" line. The relationship dialog keeps its optional `preselect` prop.
 - **Rejected alternative:** finishing the gesture with a ghost card, drop-target highlighting and a cancel affordance. That is a lot of pointer code for a shortcut to a dialog that still has to ask what kind of relationship is meant.
 - **Consequences:** a press on a card still does not pan, because d3-zoom swallows the click after any movement and the click is what refocuses. Panning from cards (with a click distance set) is a separate choice. The 3D promotion checklist (ADR-030) no longer needs drag-to-relate parity.
+
+## ADR-057: A tree can be served on its own subdomain (extends ADR-041 and ADR-045)
+- **Status:** phase 1 (the app side) built on `claude/subdomain-cloudflare-oauth-9bfcc6` on 2026-10-17; not yet deployed. Migration 0033. The Cloudflare side (wildcard DNS record, Worker route, Access destination) is not built; see [proposal-tree-subdomains.md](./proposal-tree-subdomains.md).
+- **Context:** the owner wants `dacks.epochgenealogy.app` to show only the tree at `/trees/dacks`, without anyone creating a Cloudflare API token. A wildcard DNS record and Worker route, set up once, send every subdomain to the Worker, so turning a tree's subdomain on needs no Cloudflare call at runtime and the Worker holds no Cloudflare credential.
+- **Decision:**
+  - **Opt-in per tree:** `trees.is_on_subdomain`, default off. It is set from the rename dialog, by those who may change the address (`tree:update_settings`, or the install owner), through `PATCH /api/trees/[id]`.
+  - **The subdomain is the slug,** so a tree without one cannot turn it on, and giving the slug up turns it off. Every valid slug is already a valid DNS label. Changing the slug moves the subdomain.
+  - **Install settings, all Worker vars:**
+    - `EPOCH_TREE_HOST_ZONE`: unset turns the feature off.
+    - `EPOCH_APP_HOST`: defaults to the zone.
+    - `EPOCH_RESERVED_SUBDOMAINS`: comma-separated, added to the built-in `www`, `api`, `mail`, `login` and `welcome`. An app host beside the trees (`epoch.<zone>`) reserves its own label.
+  - **Turning the flag on is checked:** it is refused for a reserved label, and where the install serves no subdomains. A rename of a tree that already has the flag is not refused if the setting is later dropped.
+  - **The host is resolved first in the hook,** before anyone is identified, so an anonymous `/` on the public tree's subdomain opens the tree, not the splash.
+    - The zone, the app host and any host outside the zone are served as the app host. That keeps a `workers.dev` address working during a move.
+    - One label under the zone is looked up (`slug = ? AND is_on_subdomain = 1`, one read, not cached).
+    - Anything else under the zone gets a bare 404. That covers deeper names, labels no slug can be, reserved labels (which would otherwise reach the Worker through the wildcard as a second copy of the app), and labels that name no tree with the flag on.
+  - **Pinning is about what is shown, not who may see it.** The same person has the same rights on every host. On a tree host:
+    - `/` redirects to `/trees/<slug>`.
+    - Another tree's pages and `/api/trees/<other>` get a 404.
+    - The Files and Trees pages, `/settings` and `/manage` redirect to the app host.
+    - `/welcome`, `/login` and every other API path are served as usual, and their own checks apply.
+  - **Links that leave the tree are absolute app-host URLs with a full page load:** the Epoch mark, the tree switcher, a new or imported tree, the Files and Trees menu items, the error page and the welcome page's public-tree link. The root layout carries `hostTree` (id, slug, app origin) and `subdomainZone` for them. Renaming or turning the flag off on the tree host moves the page to wherever the tree now lives.
+  - **Local trial:** `*.localhost` resolves to loopback, so `EPOCH_TREE_HOST_ZONE=localhost` serves `dacks.localhost:5173`. `isLocalHostname` accepts the `.localhost` suffix exactly, so the dev bypass works there.
+- **Given up:**
+  - **Short addresses.** Pages on a tree host keep the `/trees/<slug>/…` form. The proposal's `reroute` design would have needed every path check in the hook (`publicReadAccess`, the `next` of the sign-in redirect, the canonical redirect) to translate paths, because `event.url` keeps the original path. It would also have collided with `/settings`, which is both the user's page and the tree's. This is a follow-up.
+  - **No redirect from `/trees/<slug>` on the app host to the subdomain.** Both stay served.
+  - **The name is not private.** Turning the flag on makes the tree's name visible as a hostname: for a private tree, an anonymous visitor gets the sign-in redirect where an unknown label gets a 404. Only "unknown label" and "flag off" are indistinguishable. The dialog says so.
+- **Rejected alternatives:**
+  - A runtime Cloudflare credential, from an OAuth client per install or a token minted by setup, to create a DNS record per tree. It is more code and a credential that can change DNS, for a single-owner install.
+  - A subdomain column separate from the slug. That is a second unique name to keep in step.
+- **Consequences:**
+  - Deploy order: migrate, then code.
+  - With the var unset nothing changes.
+  - Each tree host keeps its own Access cookie and browser storage.

@@ -77,10 +77,15 @@ export interface TreeShellOptions {
 	/** Show a tree, or the landing page for null. */
 	goTo: (treeId: string | null) => void;
 	/**
-	 * The open tree's address changed (ADR-045). The page's own address now names a slug that no
-	 * longer resolves, so reloading in place would fail; the caller moves to the new one instead.
+	 * The open tree's address or subdomain changed (ADR-045). The page's own address may now name a
+	 * slug or a host that no longer serves the tree, so reloading in place could fail; the caller
+	 * moves to the new one instead.
 	 */
-	onAddressChange?: (tree: { id: string; slug: string | null }) => Promise<void>;
+	onAddressChange?: (tree: {
+		id: string;
+		slug: string | null;
+		isOnSubdomain: boolean;
+	}) => Promise<void>;
 }
 
 export class TreeShell {
@@ -148,22 +153,24 @@ export class TreeShell {
 	};
 
 	/** `version` is the tree's as the dialog was opened, so a rename made meanwhile answers 409. */
+	/** `isOnSubdomain` is undefined where the install serves no subdomains, so the setting is left alone. */
 	renameTree = async (
 		name: string,
 		slug: string | null,
 		version: number,
-		wasSlug: string | null
+		was: { slug: string | null; isOnSubdomain: boolean },
+		isOnSubdomain?: boolean
 	) => {
 		const treeId = this.options.treeId();
 		if (!treeId) return;
 		this.isRenamingTree = true;
 		this.renameTreeError = null;
 		try {
-			const renamed = await renameTreeApi(treeId, name, slug, version);
+			const renamed = await renameTreeApi(treeId, name, slug, version, isOnSubdomain);
 			this.isRenameTreeModalOpen = false;
 			this.options.toasts.push('Tree renamed');
-			if (renamed.slug !== wasSlug && this.options.onAddressChange)
-				await this.options.onAddressChange(renamed);
+			const isMoved = renamed.slug !== was.slug || renamed.isOnSubdomain !== was.isOnSubdomain;
+			if (isMoved && this.options.onAddressChange) await this.options.onAddressChange(renamed);
 			else await this.options.reload();
 		} catch (err) {
 			this.renameTreeError = messageOf(err, 'Failed to rename tree');

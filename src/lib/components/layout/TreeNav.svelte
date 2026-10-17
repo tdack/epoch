@@ -24,6 +24,11 @@
 		signOutHref?: string;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
+		/**
+		 * On a tree's own subdomain, the app host's origin: the Files and Trees pages span trees, so
+		 * they are served there instead. Absent on the app host.
+		 */
+		appOrigin?: string;
 	}
 
 	let {
@@ -34,7 +39,8 @@
 		isInstallOwner = false,
 		treeCount = 0,
 		signOutHref,
-		isOutsider = false
+		isOutsider = false,
+		appOrigin = ''
 	}: Props = $props();
 
 	interface NavLink {
@@ -71,7 +77,13 @@
 	const manage = $derived<NavLink[]>([
 		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
 		...(role && !isOutsider
-			? [{ href: `${base}/files`, label: 'Files', isActive: startsWith(`${base}/files`) }]
+			? [
+					{
+						href: `${appOrigin}${base}/files`,
+						label: 'Files',
+						isActive: startsWith(`${base}/files`)
+					}
+				]
 			: []),
 		...(isManagerOrAbove(role)
 			? [
@@ -80,7 +92,13 @@
 				]
 			: []),
 		...(isInstallOwner || treeCount > 1
-			? [{ href: `${base}/trees`, label: 'Trees', isActive: startsWith(`${base}/trees`) }]
+			? [
+					{
+						href: `${appOrigin}${base}/trees`,
+						label: 'Trees',
+						isActive: startsWith(`${base}/trees`)
+					}
+				]
 			: [])
 	]);
 	const settingsLink = $derived<NavLink>({
