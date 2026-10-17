@@ -10,9 +10,7 @@ export default defineConfig({
 		observability: {
 			enabled: true
 		},
-		domains: [
-			'www.epochgenealogy.app'
-		],
+		domains: ['www.epochgenealogy.app'],
 		env: {
 			ASSETS: bindings.assets()
 		}
