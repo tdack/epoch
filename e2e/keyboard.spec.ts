@@ -1,6 +1,7 @@
 import {
 	activate,
 	card,
+	DRAWER,
 	chooseMenuItem,
 	expect,
 	openMenuByKeyboard,
@@ -48,8 +49,14 @@ test('a keyboard-only flow adds a parent and a partner', async ({ page, api }) =
 
 	const graph = await api.graph();
 	const byName = (n: string) => graph.people.find((p) => p.displayName.startsWith(n))!;
+	// Matched, not equal: the graph also carries each link's id, which this flow cannot know.
 	expect(graph.parentChild).toEqual([
-		{ parentId: byName('Nia').id, childId: sam.id, type: 'biological', unionId: null }
+		expect.objectContaining({
+			parentId: byName('Nia').id,
+			childId: sam.id,
+			type: 'biological',
+			unionId: null
+		})
 	]);
 	expect(graph.unions).toHaveLength(1);
 	expect([...graph.unions[0].partnerIds].sort()).toEqual([sam.id, byName('Pat').id].sort());
@@ -108,9 +115,7 @@ test('the card menu opens the details drawer', async ({ page, api }) => {
 	await openTree(page, api, john);
 	await openMenuByKeyboard(page, 'John');
 	await chooseMenuItem(page, 'Show details');
-	await expect(
-		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /John Smith/ })
-	).toBeVisible();
+	await expect(page.locator(DRAWER).getByRole('heading', { name: /John Smith/ })).toBeVisible();
 });
 
 test('the card menu opens the profile page', async ({ page, api }) => {

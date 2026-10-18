@@ -9,6 +9,7 @@ import {
 	addRelationship,
 	card,
 	chooseMenuItem,
+	DRAWER,
 	expect,
 	open,
 	openMenuByKeyboard,
@@ -236,10 +237,10 @@ test.describe('screen reader', () => {
 		const { john } = await family(api);
 		await openTree(page, api, john);
 		await card(page, 'John').dblclick();
-		const drawer = page.locator('div.fixed.inset-y-0');
+		const drawer = page.locator(DRAWER);
 		await expect(drawer.getByRole('heading', { name: /John Smith/ })).toBeVisible();
 		await expect(drawer.getByRole('button', { name: 'Close details' })).toBeVisible();
-		expect(await violations(page, 'div.fixed.inset-y-0')).toEqual([]);
+		expect(await violations(page, DRAWER)).toEqual([]);
 	});
 });
 
@@ -273,7 +274,7 @@ test.describe('phone-sized screen', () => {
 		const { john } = await family(api);
 		await openTree(page, api, john);
 		await card(page, 'John').dblclick();
-		const box = (await page.locator('div.fixed.inset-y-0').boundingBox())!;
+		const box = (await page.locator(DRAWER).boundingBox())!;
 		expect(box.width).toBeLessThanOrEqual(375);
 		expect(await fitsWidth(page)).toBe(true);
 	});

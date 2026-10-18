@@ -248,6 +248,7 @@
 			{@render resizeHandle('absolute inset-y-0 left-0 w-4')}
 			<div
 				bind:this={panel}
+				data-testid="person-drawer"
 				role={page ? 'complementary' : 'alert'}
 				aria-label={page ? 'Person details' : undefined}
 				onkeydown={keydown}
@@ -262,6 +263,7 @@
 	{:else}
 		<div
 			bind:this={panel}
+			data-testid="person-drawer"
 			role={page ? 'complementary' : 'alert'}
 			aria-label={page ? 'Person details' : undefined}
 			onkeydown={keydown}

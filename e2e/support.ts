@@ -131,6 +131,12 @@ export const test = base.extend<{ api: Api }>({
 
 export { expect };
 
+/**
+ * The person drawer, docked beside the canvas or floating over it. A test id rather than its
+ * classes, which differ between the two frames.
+ */
+export const DRAWER = '[data-testid="person-drawer"]';
+
 export function card(page: Page, name: string | RegExp): Locator {
 	return page.locator('[data-person-id]').filter({ hasText: name }).first();
 }

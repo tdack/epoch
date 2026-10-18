@@ -1,7 +1,5 @@
-import { card, expect, openTree, test, type Api, type Person } from './support';
+import { card, DRAWER, expect, openTree, test, type Api, type Person } from './support';
 import type { Page } from '@playwright/test';
-
-const DRAWER = 'div.fixed.inset-y-0';
 
 /** Two parents who are partners, and a child of both. */
 async function family(api: Api) {
