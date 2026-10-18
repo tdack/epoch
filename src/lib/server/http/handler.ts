@@ -11,7 +11,10 @@ import {
 import { parseBody, parseQuery } from '../validation';
 import { errorResponse } from './error-response';
 import { PublicTreeService } from '../services/public-tree-service';
+import { SubtreeService } from '../services/subtree-service';
 import { TreeService } from '../services/tree-service';
+import { splitTreeSegment } from '../../shared/tree-slug';
+import type { SubtreeSummaryDto } from '../../shared/subtrees';
 
 type Schema = z.ZodTypeAny | undefined;
 type Parsed<S extends Schema> = S extends z.ZodTypeAny ? z.infer<S> : undefined;
@@ -50,6 +53,11 @@ export interface ApiArgs<B, Q> {
 
 export interface TreeArgs<B, Q> extends ApiArgs<B, Q> {
 	treeId: string;
+	/**
+	 * The sub-tree lens the address carried (`<tree>~<subtree>`), or null. Only scoped reads look at
+	 * it; every write and every tree-wide read ignores it.
+	 */
+	subtree: SubtreeSummaryDto | null;
 }
 
 /**
@@ -156,8 +164,8 @@ export function apiHandler<B extends Schema = undefined, Q extends Schema = unde
  * anonymous public visitor (ADR-052): it is refused for any tree but the public one, so a handler
  * that forgot its own guard cannot show it another tree.
  *
- * The segment may be the tree's slug (ADR-045); it is turned into the id here, once, so no service
- * ever sees a slug. A segment that names no tree is passed on unchanged, and the service refuses it
+ * The segment may be the tree's slug (ADR-045) and may carry a sub-tree (`<tree>~<subtree>`, id or
+ * slug); both are turned into ids here, once, so no service ever sees a slug. A segment that names no tree is passed on unchanged, and the service refuses it
  * exactly as it refuses a missing id, so an unknown slug says no more than an unknown id.
  */
 export function treeHandler<B extends Schema = undefined, Q extends Schema = undefined>(
@@ -167,14 +175,22 @@ export function treeHandler<B extends Schema = undefined, Q extends Schema = und
 	return mark(
 		(event) =>
 			handle(event, options, ['id', ...(options.params ?? [])], async (args) => {
-				const treeId = await new TreeService(args.db).resolveSegment(args.params.id);
+				const { tree: treeSegment, subtree: subtreeSegment } = splitTreeSegment(args.params.id!);
+				const treeId = await new TreeService(args.db).resolveSegment(treeSegment);
 				// Only the public tree is open to the visitor, by the id the segment resolved to, so a
 				// slug and an id cannot disagree about which tree this is.
 				if (args.ctx.user.isPublicVisitor) {
 					const publicTree = await new PublicTreeService(args.db).current();
 					if (publicTree?.id !== treeId) throw new UnauthorizedError(VISITOR_REFUSED_MESSAGE);
 				}
-				return run({ ...args, treeId });
+				// Unknown, and one whose root the viewer may not see, are both a 404 from the service.
+				const found = subtreeSegment
+					? await new SubtreeService(args.db).get(treeId, subtreeSegment, args.ctx)
+					: null;
+				const subtree = found
+					? { id: found.id, slug: found.slug, name: found.name, rootPersonId: found.rootPersonId }
+					: null;
+				return run({ ...args, treeId, subtree });
 			}),
 		options
 	);
