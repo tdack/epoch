@@ -2,8 +2,9 @@
 	import EpochMark from './EpochMark.svelte';
 
 	const NAV = [
-		{ href: '#features', label: 'Features' },
 		{ href: '#explore', label: 'Explore' },
+		{ href: '#features', label: 'Features' },
+		{ href: '#views', label: '3D Views' },
 		{ href: '#code', label: 'Get the code' },
 		{ href: '#install', label: 'Install' },
 		{ href: '#faq', label: 'FAQ' }

@@ -83,6 +83,8 @@
 		</div>
 	</section>
 
+	<FamilyExplorer />
+
 	<section id="features" class="features" aria-labelledby="features-title">
 		<div class="wrap">
 			<Descent origin="union" />
@@ -113,8 +115,6 @@
 			</div>
 		</div>
 	</section>
-
-	<FamilyExplorer />
 
 	<ViewsShowcase />
 
