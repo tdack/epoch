@@ -5,6 +5,7 @@
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
+	import { FACT_KINDS } from '#lib/shared/fact-types.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import PersonActions from './PersonActions.svelte';
@@ -30,9 +31,10 @@
 		/** The viewer's role in this tree; each section hides what it cannot do. */
 		role: TreeRole | undefined;
 		/**
-		 * `drawer` is one column of folding sections, facts grouped by kind. `page` leads with the
-		 * person's life as a timeline and family beside it, and gathers the rest of the record into
-		 * one quiet column (ADR-058). The sections are the same components either way.
+		 * `drawer` is one column of folding sections, facts grouped by kind. `page` opens on the
+		 * newest of each kind of attribute, then the person's life as a timeline and their family,
+		 * and gathers the rest of the record into one quiet column (ADR-058, ADR-059). The sections
+		 * are the same components either way.
 		 */
 		layout: 'drawer' | 'page';
 		relativeTarget?: RelativeTarget;
@@ -57,10 +59,19 @@
 	/** On the page the record's details share one card, so each section drops its own. */
 	const isFlush = $derived(isPage);
 	/** The person's own citations, shown once beneath the summary; a fact's or name's are on that row. */
+	const hasAttributes = $derived(dto.facts.some((fact) => fact.kind === FACT_KINDS.ATTRIBUTE));
 	const personCitations = $derived(
 		citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.PERSON, dto.person.id)
 	);
 </script>
+
+{#snippet glance()}
+	{#if hasAttributes}
+		<PersonSection id="glance" title="At a glance" {layout}>
+			<PersonFacts {dto} {treeId} {treeSlug} {role} {editor} {toasts} mode="attributes" />
+		</PersonSection>
+	{/if}
+{/snippet}
 
 {#snippet life()}
 	<PersonSection id="life" title="Life" {layout} isOpenByDefault>
@@ -141,6 +152,7 @@
 	{#if isPage}
 		<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 			<div class="space-y-6">
+				{@render glance()}
 				{@render life()}
 				{@render family()}
 			</div>
