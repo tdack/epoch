@@ -1,363 +1,878 @@
 {
-	"schemaVersion": 2,
-	"generatedAt": "2026-10-17T12:00:00Z",
-	"title": "Design System: Epoch",
-	"extensions": {
-		"colorMeta": {
-			"binding-emerald": {
-				"role": "primary",
-				"displayName": "Binding Emerald",
-				"canonical": "oklch(43.2% 0.095 166.913)",
-				"tonalRamp": [
-					"#022c22",
-					"#064e3b",
-					"#065f46",
-					"#047857",
-					"#059669",
-					"#34d399",
-					"#a7f3d0",
-					"#ecfdf5"
-				]
-			},
-			"ledger-amber-wash": {
-				"role": "secondary",
-				"displayName": "Ledger Amber",
-				"canonical": "oklch(98.7% 0.022 95.277)",
-				"tonalRamp": [
-					"#451a03",
-					"#78350f",
-					"#92400e",
-					"#b45309",
-					"#d97706",
-					"#fcd34d",
-					"#fef3c7",
-					"#fffbeb"
-				]
-			},
-			"error-red": {
-				"role": "tertiary",
-				"displayName": "Error Red",
-				"canonical": "oklch(50.5% 0.213 27.518)",
-				"tonalRamp": [
-					"#450a0a",
-					"#7f1d1d",
-					"#991b1b",
-					"#b91c1c",
-					"#dc2626",
-					"#fca5a5",
-					"#fee2e2",
-					"#fef2f2"
-				]
-			},
-			"page-cream": {
-				"role": "neutral",
-				"displayName": "Page Cream",
-				"canonical": "#fcf9f2"
-			},
-			"panel-cream": {
-				"role": "neutral",
-				"displayName": "Panel Cream",
-				"canonical": "#fdfbf7"
-			},
-			"dialog-cream": {
-				"role": "neutral",
-				"displayName": "Dialog Cream",
-				"canonical": "#fcfaf5"
-			},
-			"vellum": {
-				"role": "secondary",
-				"displayName": "Vellum",
-				"canonical": "oklch(98.7% 0.022 95.277)"
-			},
-			"stone-ink": {
-				"role": "neutral",
-				"displayName": "Stone Ink",
-				"canonical": "oklch(21.6% 0.006 56.043)",
-				"tonalRamp": [
-					"#1c1917",
-					"#292524",
-					"#44403c",
-					"#57534e",
-					"#78716c",
-					"#a8a29e",
-					"#e7e5e4",
-					"#fafaf9"
-				]
-			},
-			"tree-paper": {
-				"role": "neutral",
-				"displayName": "Chart Paper",
-				"canonical": "#f7f3ea"
-			},
-			"union-gilt": {
-				"role": "tertiary",
-				"displayName": "Union Gilt",
-				"canonical": "#8a5a14"
-			},
-			"tree-accent-teal": {
-				"role": "tertiary",
-				"displayName": "Teal Accent",
-				"canonical": "#0f766e"
-			},
-			"field-white": {
-				"role": "neutral",
-				"displayName": "Field White",
-				"canonical": "#ffffff"
-			},
-			"stone-shelf": {
-				"role": "neutral",
-				"displayName": "Stone Shelf",
-				"canonical": "#f5f5f4"
-			},
-			"stone-edge": {
-				"role": "neutral",
-				"displayName": "Stone Edge",
-				"canonical": "#d6d3d1"
-			},
-			"tree-focus": {
-				"role": "neutral",
-				"displayName": "Focus Ink",
-				"canonical": "#0f172a"
-			}
-		},
-		"typographyMeta": {
-			"display": {
-				"displayName": "Display",
-				"purpose": "The word Epoch on the welcome splash only."
-			},
-			"headline": {
-				"displayName": "Headline",
-				"purpose": "Record and chart page titles."
-			},
-			"title": {
-				"displayName": "Title",
-				"purpose": "Dialog titles, one line."
-			},
-			"body": {
-				"displayName": "Body",
-				"purpose": "Record content, fields, dialog prose."
-			},
-			"body-small": {
-				"displayName": "Body small",
-				"purpose": "Dense rows, metadata, dates, help text; the most used size."
-			},
-			"label": {
-				"displayName": "Label",
-				"purpose": "Buttons, field labels, toolbar controls."
-			},
-			"section-label": {
-				"displayName": "Section label",
-				"purpose": "Uppercase heading of every record section card."
-			}
-		},
-		"shadows": [
-			{
-				"name": "resting-hairline",
-				"value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-				"purpose": "Primary buttons, sticky header, notices."
-			},
-			{
-				"name": "tinted-lift",
-				"value": "0 4px 6px -1px rgb(6 78 59 / 0.15), 0 2px 4px -2px rgb(6 78 59 / 0.15)",
-				"purpose": "The emerald brand tile in the header."
-			},
-			{
-				"name": "floating-panel",
-				"value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-				"purpose": "Pills and controls floating over the tree canvas."
-			},
-			{
-				"name": "overlay",
-				"value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
-				"purpose": "Dialogs and the person drawer."
-			},
-			{
-				"name": "splash-cta",
-				"value": "0 10px 15px -3px rgb(2 44 34 / 0.3), 0 4px 6px -4px rgb(2 44 34 / 0.3)",
-				"purpose": "The welcome page's single button."
-			}
-		],
-		"motion": [
-			{
-				"name": "drawer-slide",
-				"value": "transform 300ms",
-				"purpose": "Person drawer entering from the right."
-			},
-			{
-				"name": "card-edge",
-				"value": "stroke-width 120ms",
-				"purpose": "Person card edge thickening on hover."
-			},
-			{
-				"name": "color-hover",
-				"value": "color, background-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
-				"purpose": "Button fill changes."
-			}
-		],
-		"breakpoints": [
-			{
-				"name": "sm",
-				"value": "640px"
-			},
-			{
-				"name": "md",
-				"value": "768px"
-			},
-			{
-				"name": "lg",
-				"value": "1024px"
-			},
-			{
-				"name": "coarse",
-				"value": "(pointer: coarse)"
-			}
-		]
-	},
-	"components": [
-		{
-			"name": "Primary Button",
-			"kind": "button",
-			"refersTo": "button-primary",
-			"description": "The one primary action of a view.",
-			"html": "<button class=\"ds-btn-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/></svg><span>Add person</span></button>",
-			"css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; border-radius: 8px; background: #065f46; color: #fffbeb; padding: 8px 16px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #047857; } .ds-btn-primary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
-		},
-		{
-			"name": "Secondary Button",
-			"kind": "button",
-			"refersTo": "button-secondary",
-			"description": "Section actions on record pages (action-btn).",
-			"html": "<button class=\"ds-btn-secondary\">Add fact</button>",
-			"css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 8px; border: 1px solid #d6d3d1; background: #f5f5f4; padding: 6px 12px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-btn-secondary:hover { background: #e7e5e4; } .ds-btn-secondary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
-		},
-		{
-			"name": "Splash Button",
-			"kind": "button",
-			"refersTo": "button-splash",
-			"description": "The welcome page's single call to action, on dark emerald.",
-			"html": "<div class=\"ds-splash-bg\"><a href=\"#\" class=\"ds-btn-splash\">Sign in</a></div>",
-			"css": ".ds-splash-bg { background: linear-gradient(to bottom right, rgb(2 44 34 / 0.9), rgb(6 78 59 / 0.8)); padding: 32px; } .ds-btn-splash { display: inline-flex; align-items: center; min-height: 48px; padding: 0 28px; border-radius: 12px; background: #fffbeb; color: #064e3b; font: 600 1rem/1.5rem ui-sans-serif, system-ui, sans-serif; text-decoration: none; box-shadow: 0 10px 15px -3px rgb(2 44 34 / 0.3), 0 4px 6px -4px rgb(2 44 34 / 0.3); } .ds-btn-splash:hover { background: #ffffff; } .ds-btn-splash:focus-visible { outline: 2px solid #fcd34d; outline-offset: 4px; }"
-		},
-		{
-			"name": "Text Field",
-			"kind": "input",
-			"refersTo": "field-input",
-			"description": "Label above a white field; emerald border on focus.",
-			"html": "<label class=\"ds-field-label\" for=\"ds-born\">Born</label><input id=\"ds-born\" class=\"ds-field-input\" placeholder=\"e.g. 14 APR 1912\" />",
-			"css": ".ds-field-label { display: block; margin-bottom: 4px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; color: #44403c; } .ds-field-input { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #d6d3d1; background: #fff; padding: 8px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-field-input:focus { border-color: #047857; box-shadow: 0 0 0 1px #047857; outline: none; }"
-		},
-		{
-			"name": "Section Card",
-			"kind": "card",
-			"refersTo": "section-card",
-			"description": "A record page section: stone wash, border, uppercase label. The person page opens with its Life section, one row per event oldest first: a label column, then the date as written, the place, and the evidence and controls on one quiet line. Rows divide by stone rules, never nested panels.",
-			"html": "<section class=\"ds-section-card\" aria-labelledby=\"ds-life\"><h3 id=\"ds-life\" class=\"ds-section-heading\">Life</h3><ol class=\"ds-timeline\"><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Birth</h4><div><p class=\"ds-tdate\">05 AUG 1910</p><p class=\"ds-tplace\">West Flegg, Norfolk, England</p><p class=\"ds-tline\"><span class=\"ds-claim\">Unsourced</span><a href=\"#\" class=\"ds-row-link\">Add a note</a><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Marriage</h4><div><p class=\"ds-tdate\">06 APR 1935 <span class=\"ds-muted-inline\">· with <a href=\"#\" class=\"ds-row-link\">Myrtle May Blishen</a></span></p><p class=\"ds-tplace\">Kurri Kurri, New South Wales</p><p class=\"ds-tline\"><a href=\"#\" class=\"ds-row-link\">Partnership</a><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Death</h4><div><p class=\"ds-tdate\">ABT 1970 <span class=\"ds-approx\">(approximate)</span></p><p class=\"ds-tline\"><span class=\"ds-claim ds-sourced\">Sourced · 1 citation</span><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li></ol></section>",
-			"css": ".ds-section-card { border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-section-heading { margin: 0 0 4px; font: 700 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #57534e; } .ds-timeline { list-style: none; margin: 0; padding: 0; } .ds-trow { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); column-gap: 16px; padding: 12px 0; border-top: 1px solid #e7e5e4; } .ds-trow:first-child { border-top: none; } .ds-tlabel { margin: 0; font: 600 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-tdate { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: #1c1917; } .ds-muted-inline { color: #57534e; } .ds-approx { font-size: 0.75rem; color: #78716c; } .ds-tplace { margin: 4px 0 0; font-size: 0.75rem; line-height: 1rem; color: #57534e; } .ds-tline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0 0; font-size: 0.75rem; line-height: 1rem; } .ds-claim { font-weight: 600; color: #57534e; } .ds-sourced { color: #065f46; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-row-link:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } @media (max-width: 639px) { .ds-trow { grid-template-columns: minmax(0, 1fr); row-gap: 4px; } }"
-		},
-		{
-			"name": "List Panel",
-			"kind": "card",
-			"refersTo": "list-panel",
-			"description": "White panel of divided rows on an index page.",
-			"html": "<ul class=\"ds-list\"><li><a href=\"#\" class=\"ds-row-link\">Doe, Arthur</a> <span class=\"ds-muted\">1902–1978</span></li><li><a href=\"#\" class=\"ds-row-link\">Doe, Mary</a> <span class=\"ds-muted\">ABT 1905–1990</span></li></ul>",
-			"css": ".ds-list { list-style: none; margin: 0; padding: 0; border-radius: 12px; border: 1px solid #e7e5e4; background: #fff; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; } .ds-list li { padding: 12px 16px; border-top: 1px solid #e7e5e4; } .ds-list li:first-child { border-top: none; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-muted { color: #78716c; font-size: 0.75rem; }"
-		},
-		{
-			"name": "App Header",
-			"kind": "nav",
-			"refersTo": "app-header",
-			"description": "Sticky translucent cream header with the emerald brand tile.",
-			"html": "<header class=\"ds-header\"><div class=\"ds-brand-tile\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 32 33\" fill=\"none\" stroke=\"#fffbeb\" stroke-linecap=\"round\"><path d=\"M3.5 5H10.5M7 5V15M21.5 5H28.5M25 5V15\" stroke-width=\"2.2\" stroke-opacity=\"0.5\"/><path d=\"M7 15H25M16 15V22\" stroke-width=\"2.6\"/><circle cx=\"7\" cy=\"15\" r=\"3.8\" fill=\"#fffbeb\" stroke=\"none\"/><circle cx=\"25\" cy=\"15\" r=\"3.8\" fill=\"#fffbeb\" stroke=\"none\"/><circle cx=\"16\" cy=\"25\" r=\"4\" fill=\"#fbbf24\" stroke=\"none\"/></svg></div><div><div class=\"ds-wordmark\">Epoch</div><div class=\"ds-sub\">Family history</div></div><button class=\"ds-header-btn\">Add person</button></header>",
-			"css": ".ds-header { display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 8px 24px; background: rgb(253 251 247 / 0.9); border-bottom: 1px solid rgb(231 229 228 / 0.8); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); backdrop-filter: blur(12px); font-family: ui-sans-serif, system-ui, sans-serif; } .ds-brand-tile { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; background: #065f46; box-shadow: 0 4px 6px -1px rgb(6 78 59 / 0.15); } .ds-wordmark { font-weight: 700; font-size: 1rem; letter-spacing: -0.025em; color: #1c1917; } .ds-sub { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.025em; color: #78716c; } .ds-header-btn { margin-left: auto; cursor: pointer; border: none; border-radius: 8px; background: #065f46; color: #fffbeb; padding: 6px 12px; font: 600 0.75rem/1rem inherit; } .ds-header-btn:hover { background: #047857; } .ds-header-btn:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
-		},
-		{
-			"name": "Menu Row",
-			"kind": "nav",
-			"refersTo": "menu-item",
-			"description": "Menu and listbox rows; selected row is an emerald wash with an inset outline.",
-			"html": "<ul class=\"ds-menu\" role=\"listbox\"><li class=\"ds-menu-item\" role=\"option\">The Simpsons</li><li class=\"ds-menu-item\" role=\"option\" aria-selected=\"true\">The Names</li><li class=\"ds-menu-item\" role=\"option\">New tree…</li></ul>",
-			"css": ".ds-menu { list-style: none; margin: 0; padding: 4px; width: 220px; border-radius: 12px; border: 1px solid #d6d3d1; background: #fdfbf7; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-menu-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; } .ds-menu-item:hover { background: #f5f5f4; } .ds-menu-item[aria-selected='true'] { background: #ecfdf5; outline: 2px solid #047857; outline-offset: -2px; }"
-		},
-		{
-			"name": "Amber Notice",
-			"kind": "card",
-			"refersTo": "notice-amber",
-			"description": "Attention without alarm: an import to confirm, a relationship caveat.",
-			"html": "<div class=\"ds-notice\">This import will add 214 people to The Simpsons.</div>",
-			"css": ".ds-notice { border-radius: 8px; border: 1px solid #fcd34d; background: #fffbeb; padding: 12px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #78350f; }"
-		},
-		{
-			"name": "Person Card",
-			"kind": "custom",
-			"description": "The tree's unit: sex-tinted card with symbol, bold name and muted dates; teal edge when selected; the focus person carries a double ink rule and a Focus tab.",
-			"html": "<div class=\"ds-tree\"><div class=\"ds-pcard ds-pcard-m ds-focus\"><span class=\"ds-focus-tab\">Focus</span><span class=\"ds-sym\">♂</span><div><div class=\"ds-pname\">Arthur Doe</div><div class=\"ds-pdates\">1902–1978</div></div></div><div class=\"ds-pcard ds-pcard-f ds-selected\"><span class=\"ds-sym\">♀</span><div><div class=\"ds-pname\">Mary Doe</div><div class=\"ds-pdates\">ABT 1905–1990</div></div></div></div>",
-			"css": ".ds-tree { display: flex; gap: 16px; padding: 24px; background-color: #f7f3ea; background-image: radial-gradient(#d6cebf 1px, transparent 1px); background-size: 16px 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-pcard { position: relative; display: flex; gap: 8px; align-items: flex-start; width: 180px; padding: 10px 12px; border-radius: 12px; border: 1.75px solid; cursor: pointer; transition: border-width 120ms; } .ds-pcard:hover { border-width: 3px; } .ds-pcard-m { background: #dbe8f5; border-color: #5a84b5; } .ds-pcard-f { background: #f6dde6; border-color: #b8607f; } .ds-selected { border-color: #0f766e; border-width: 3.5px; } .ds-sym { color: #57534e; font-size: 18px; line-height: 1; } .ds-pname { font-weight: 700; font-size: 14px; color: #1c1917; } .ds-pdates { font-size: 12px; color: #57534e; } .ds-focus { position: relative; border: 3px solid #1c1917; box-shadow: 0 0 0 2px #fdfbf7, 0 0 0 3.5px #1c1917; } .ds-focus-tab { position: absolute; top: -9px; left: 12px; padding: 0 6px; border-radius: 4px; background: #1c1917; color: #fffbeb; font-size: 10px; font-weight: 700; line-height: 14px; }"
-		}
-	],
-	"narrative": {
-		"northStar": "The Family Archive",
-		"overview": "Epoch is a well-kept reading room for one family's history. Pages are warm cream paper rather than white, text is set in archival stone inks rather than grey, and a single deep emerald, the colour of a cloth book binding, marks the few things that act. The welcome page is the only place the room is shown literally: a library photograph under an emerald wash, with the mark and the tagline in vellum. Everywhere else the archive is implied by material and restraint, not by ornament.\n\nThe mood is calm and scholarly, warm rather than clinical, and approachable for relatives who are not researchers. Record pages are dense and quiet: small type, uppercase section labels, bordered sections, plain links. Detail is welcome; decoration is not. Warmth comes from the cream and stone palette instead of the white-and-slate of enterprise tools, so the app feels like the family's own. Touch targets grow on coarse pointers and dialog fields never trigger a phone's zoom, so the people who visit occasionally are not punished for it.\n\nThe tree canvas is the one place colour carries data. There the archive gives way to a chart table: a slightly darker paper with a dot grid, person cards tinted by a muted sex palette plus a symbol, and parent-child lines distinguished by line style first and hue second.",
-		"keyCharacteristics": [
-			"Cream paper surfaces (`page-cream`, `panel-cream`, `dialog-cream`); white is reserved for what you scan or type into: list panels, tables and fields.",
-			"Stone inks for all text and rules; emerald for action and the brand only.",
-			"One system sans stack at small sizes; hierarchy comes from weight and uppercase labels.",
-			"Flat by default: borders and tonal steps carry structure, shadows mean \"floating\".",
-			"Light theme only. There is no dark mode.",
-			"Lucide line icons at 14–16px beside labels."
-		],
-		"rules": [
-			{
-				"name": "The One Binding Rule",
-				"body": "Emerald is the only saturated colour in the chrome. It marks what acts (primary buttons, links, the selected row, focus) and the brand mark, and nothing else. A second accent in the chrome is a defect.",
-				"section": "colors"
-			},
-			{
-				"name": "The Paper, Not White Rule",
-				"body": "The page and its chrome are cream; section cards are stone-washed. Pure white is earned by content you scan or type into: fields, list panels and tables.",
-				"section": "colors"
-			},
-			{
-				"name": "The Line Before Hue Rule",
-				"body": "On the tree, a relationship type is told by line style first and colour second, and a person's sex by a symbol as well as a tint. Nothing on the canvas depends on colour alone.",
-				"section": "colors"
-			},
-			{
-				"name": "The Weight Not Size Rule",
-				"body": "Hierarchy inside the app comes from weight (400, 600, 700) and the uppercase section label, not from large type. Nothing in the app chrome exceeds 1.5rem; the display size belongs to the splash.",
-				"section": "typography"
-			},
-			{
-				"name": "The Sixteen-Pixel Field Rule",
-				"body": "On a coarse pointer every input, select and textarea renders at 16px or larger, so iOS never zooms when a dialog focuses a field.",
-				"section": "typography"
-			},
-			{
-				"name": "The Flat-By-Default Rule",
-				"body": "A surface that sits on the page has a border and nothing heavier than the hairline. A real shadow means the element floats above the page: a header, a floating control, a dialog, a drawer.",
-				"section": "elevation"
-			},
-			{
-				"name": "The Translucent Chrome Rule",
-				"body": "Chrome that overlays content (the sticky header, the drawer) is panel or dialog cream at 90–98% with a backdrop blur, so the record scrolls visibly underneath.",
-				"section": "elevation"
-			}
-		],
-		"dos": [
-			"**Do** use page cream (`#fcf9f2`) for the page, stone wash for section cards, and white for fields, list panels and tables.",
-			"**Do** keep emerald-800 as the only fill for primary actions, with emerald-700 for hover and focus.",
-			"**Do** open every record section with the uppercase 0.75rem bold stone-600 section label.",
-			"**Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead of new focus styles.",
-			"**Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.",
-			"**Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the parent-child type, a dashed edge for privacy.",
-			"**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them."
-		],
-		"donts": [
-			"**Don't** introduce a second accent colour in the chrome; amber is for notices and red for errors.",
-			"**Don't** give cards or panels that sit on the page more than the hairline shadow; a real shadow means the element floats.",
-			"**Don't** use blue or pink for parent-child lines; they would read as sex.",
-			"**Don't** set app-chrome text larger than 1.5rem; the display size belongs to the splash.",
-			"**Don't** name a global class `.card`, `.btn`, `.link` or `.heading`; components scope those names, and a global rule would leak into them.",
-			"**Don't** use a white page background, or white for section cards; white is for fields, list panels and tables."
-		]
-	}
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-18T06:51:41Z",
+  "title": "Design System: Epoch",
+  "extensions": {
+    "colorMeta": {
+      "binding-emerald": {
+        "role": "primary",
+        "displayName": "Binding Emerald",
+        "canonical": "oklch(43.2% 0.095 166.913)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "binding-emerald-lift": {
+        "role": "primary",
+        "displayName": "Binding Emerald, Lifted",
+        "canonical": "oklch(50.8% 0.118 165.612)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "binding-emerald-deep": {
+        "role": "primary",
+        "displayName": "Deep Binding",
+        "canonical": "oklch(37.8% 0.077 168.94)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "binding-emerald-night": {
+        "role": "primary",
+        "displayName": "Night Binding",
+        "canonical": "oklch(26.2% 0.051 172.552)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "emerald-wash": {
+        "role": "primary",
+        "displayName": "Emerald Wash",
+        "canonical": "oklch(97.9% 0.021 166.113)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "emerald-mist": {
+        "role": "primary",
+        "displayName": "Emerald Mist",
+        "canonical": "oklch(84.5% 0.143 164.978)",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#34d399",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "page-cream": {
+        "role": "neutral",
+        "displayName": "Page Cream",
+        "canonical": "#fcf9f2",
+        "tonalRamp": [
+          "#0d0b07",
+          "#282621",
+          "#47453f",
+          "#686660",
+          "#8c8983",
+          "#b0aea7",
+          "#d4d1ca",
+          "#f1eee7"
+        ]
+      },
+      "panel-cream": {
+        "role": "neutral",
+        "displayName": "Panel Cream",
+        "canonical": "#fdfbf7",
+        "tonalRamp": [
+          "#0c0b09",
+          "#282623",
+          "#464542",
+          "#676662",
+          "#8b8985",
+          "#afaeaa",
+          "#d3d1cd",
+          "#f0eeea"
+        ]
+      },
+      "dialog-cream": {
+        "role": "neutral",
+        "displayName": "Dialog Cream",
+        "canonical": "#fcfaf5",
+        "tonalRamp": [
+          "#0c0b08",
+          "#282623",
+          "#464541",
+          "#686662",
+          "#8b8984",
+          "#b0aea9",
+          "#d3d1cc",
+          "#f0eee9"
+        ]
+      },
+      "vellum": {
+        "role": "secondary",
+        "displayName": "Vellum",
+        "canonical": "oklch(98.7% 0.022 95.277)",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fcd34d",
+          "#fef3c7",
+          "#fffbeb"
+        ]
+      },
+      "field-white": {
+        "role": "neutral",
+        "displayName": "Field White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0c0b09",
+          "#272624",
+          "#464543",
+          "#676663",
+          "#8a8986",
+          "#afaeab",
+          "#d2d1ce",
+          "#efeeeb"
+        ]
+      },
+      "stone-wash": {
+        "role": "neutral",
+        "displayName": "Stone Wash",
+        "canonical": "oklch(98.5% 0.001 106.423)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-shelf": {
+        "role": "neutral",
+        "displayName": "Stone Shelf",
+        "canonical": "#f5f5f4",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-rule": {
+        "role": "neutral",
+        "displayName": "Stone Rule",
+        "canonical": "oklch(92.3% 0.003 48.717)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-edge": {
+        "role": "neutral",
+        "displayName": "Stone Edge",
+        "canonical": "#d6d3d1",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-faint": {
+        "role": "neutral",
+        "displayName": "Stone Faint",
+        "canonical": "oklch(70.9% 0.01 56.259)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-quiet": {
+        "role": "neutral",
+        "displayName": "Stone Quiet",
+        "canonical": "oklch(55.3% 0.013 58.071)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-text": {
+        "role": "neutral",
+        "displayName": "Stone Text",
+        "canonical": "oklch(44.4% 0.011 73.639)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-strong": {
+        "role": "neutral",
+        "displayName": "Stone Strong",
+        "canonical": "oklch(37.4% 0.01 67.558)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-body": {
+        "role": "neutral",
+        "displayName": "Stone Body",
+        "canonical": "oklch(26.8% 0.007 34.298)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "stone-ink": {
+        "role": "neutral",
+        "displayName": "Stone Ink",
+        "canonical": "oklch(21.6% 0.006 56.043)",
+        "tonalRamp": [
+          "#1c1917",
+          "#292524",
+          "#44403c",
+          "#57534e",
+          "#78716c",
+          "#a8a29e",
+          "#e7e5e4",
+          "#fafaf9"
+        ]
+      },
+      "ledger-amber-wash": {
+        "role": "secondary",
+        "displayName": "Ledger Amber",
+        "canonical": "oklch(98.7% 0.022 95.277)",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fcd34d",
+          "#fef3c7",
+          "#fffbeb"
+        ]
+      },
+      "ledger-amber-edge": {
+        "role": "secondary",
+        "displayName": "Ledger Amber Edge",
+        "canonical": "oklch(87.9% 0.169 91.605)",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fcd34d",
+          "#fef3c7",
+          "#fffbeb"
+        ]
+      },
+      "ledger-amber-ink": {
+        "role": "secondary",
+        "displayName": "Ledger Amber Ink",
+        "canonical": "oklch(41.4% 0.112 45.904)",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fcd34d",
+          "#fef3c7",
+          "#fffbeb"
+        ]
+      },
+      "error-red": {
+        "role": "tertiary",
+        "displayName": "Error Red",
+        "canonical": "oklch(50.5% 0.213 27.518)",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#fca5a5",
+          "#fee2e2",
+          "#fef2f2"
+        ]
+      },
+      "error-wash": {
+        "role": "tertiary",
+        "displayName": "Error Wash",
+        "canonical": "oklch(97.1% 0.013 17.38)",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#fca5a5",
+          "#fee2e2",
+          "#fef2f2"
+        ]
+      },
+      "tree-paper": {
+        "role": "neutral",
+        "displayName": "Chart Paper",
+        "canonical": "#f7f3ea",
+        "tonalRamp": [
+          "#0d0b06",
+          "#29261f",
+          "#48453d",
+          "#69665e",
+          "#8c8981",
+          "#b1aea5",
+          "#d4d1c8",
+          "#f2eee5"
+        ]
+      },
+      "tree-dot": {
+        "role": "tree",
+        "displayName": "Dot Grid",
+        "canonical": "#d6cebf",
+        "tonalRamp": [
+          "#100a02",
+          "#2c261a",
+          "#4b4438",
+          "#6c6558",
+          "#90887a",
+          "#b5ad9e",
+          "#d8d0c1",
+          "#f6eede"
+        ]
+      },
+      "tree-accent-teal": {
+        "role": "tertiary",
+        "displayName": "Teal Accent",
+        "canonical": "#0f766e",
+        "tonalRamp": [
+          "#000f0d",
+          "#042d2a",
+          "#03504b",
+          "#0e766e",
+          "#419a91",
+          "#68c0b6",
+          "#8ce4da",
+          "#bbfef5"
+        ]
+      },
+      "tree-focus": {
+        "role": "neutral",
+        "displayName": "Focus Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#040a1c",
+          "#1d263a",
+          "#3b455b",
+          "#5b667e",
+          "#7e89a2",
+          "#a2aec8",
+          "#c5d1ec",
+          "#e7effe"
+        ]
+      },
+      "sex-m-fill": {
+        "role": "tree",
+        "displayName": "Male Fill",
+        "canonical": "#dbe8f5",
+        "tonalRamp": [
+          "#040c14",
+          "#1e2831",
+          "#3c4651",
+          "#5c6873",
+          "#7f8b96",
+          "#a3b0bc",
+          "#c6d3df",
+          "#e3f0fd"
+        ]
+      },
+      "sex-m-edge": {
+        "role": "tree",
+        "displayName": "Male Edge",
+        "canonical": "#5a84b5",
+        "tonalRamp": [
+          "#000b1d",
+          "#01264d",
+          "#1e4673",
+          "#3f6898",
+          "#628cbe",
+          "#86b2e5",
+          "#b2d4fe",
+          "#e4f0fe"
+        ]
+      },
+      "sex-f-fill": {
+        "role": "tree",
+        "displayName": "Female Fill",
+        "canonical": "#f6dde6",
+        "tonalRamp": [
+          "#15060c",
+          "#322027",
+          "#523f46",
+          "#755f67",
+          "#99828a",
+          "#bea7af",
+          "#e2c9d2",
+          "#ffe7f0"
+        ]
+      },
+      "sex-f-edge": {
+        "role": "tree",
+        "displayName": "Female Edge",
+        "canonical": "#b8607f",
+        "tonalRamp": [
+          "#1d000b",
+          "#4c0125",
+          "#742244",
+          "#9a4565",
+          "#c26988",
+          "#ea8dac",
+          "#fdbcd0",
+          "#ffe8ee"
+        ]
+      },
+      "sex-u-fill": {
+        "role": "tree",
+        "displayName": "Unknown-Sex Fill",
+        "canonical": "#ebe7e0",
+        "tonalRamp": [
+          "#0d0b07",
+          "#292621",
+          "#48453f",
+          "#696660",
+          "#8c8982",
+          "#b1ada7",
+          "#d4d0ca",
+          "#f2eee7"
+        ]
+      },
+      "sex-u-edge": {
+        "role": "tree",
+        "displayName": "Unknown-Sex Edge",
+        "canonical": "#7d756a",
+        "tonalRamp": [
+          "#100a03",
+          "#2c251c",
+          "#4b443a",
+          "#6d655a",
+          "#90887d",
+          "#b5ada1",
+          "#d8d0c3",
+          "#f6ede1"
+        ]
+      },
+      "rel-biological": {
+        "role": "tree",
+        "displayName": "Biological Line Ink",
+        "canonical": "#44403c",
+        "tonalRamp": [
+          "#0e0a07",
+          "#292622",
+          "#484440",
+          "#6a6561",
+          "#8d8884",
+          "#b2ada8",
+          "#d5d0cb",
+          "#f3ede8"
+        ]
+      },
+      "rel-adoptive": {
+        "role": "tree",
+        "displayName": "Adoptive Line Ink",
+        "canonical": "#4d7c4f",
+        "tonalRamp": [
+          "#001001",
+          "#04300a",
+          "#235126",
+          "#447347",
+          "#679769",
+          "#8bbd8d",
+          "#aee1af",
+          "#cbffcc"
+        ]
+      },
+      "rel-foster": {
+        "role": "tree",
+        "displayName": "Foster Line Ink",
+        "canonical": "#a16207",
+        "tonalRamp": [
+          "#150800",
+          "#392002",
+          "#633a00",
+          "#905706",
+          "#ba792c",
+          "#e19e54",
+          "#ffc488",
+          "#feebd9"
+        ]
+      },
+      "rel-guardian": {
+        "role": "tree",
+        "displayName": "Guardian Line Ink",
+        "canonical": "#475569",
+        "tonalRamp": [
+          "#030b1b",
+          "#1b2739",
+          "#384659",
+          "#59677c",
+          "#7b8aa0",
+          "#9fafc6",
+          "#c2d2ea",
+          "#e5effe"
+        ]
+      },
+      "rel-unknown": {
+        "role": "tree",
+        "displayName": "Unknown Line Ink",
+        "canonical": "#80858e",
+        "tonalRamp": [
+          "#080b11",
+          "#23272e",
+          "#41454d",
+          "#61666f",
+          "#848992",
+          "#a9aeb8",
+          "#ccd1db",
+          "#e9eff9"
+        ]
+      },
+      "union-gilt": {
+        "role": "tertiary",
+        "displayName": "Union Gilt",
+        "canonical": "#8a5a14",
+        "tonalRamp": [
+          "#130800",
+          "#382101",
+          "#5f3c08",
+          "#8a5a15",
+          "#b07e3e",
+          "#d7a363",
+          "#fcc686",
+          "#feebd6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The word Epoch on the welcome splash only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Record and chart page titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Dialog titles, one line."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Record content, fields, dialog prose."
+      },
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Dense rows, metadata, dates, help text; the most used size."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, field labels, toolbar controls."
+      },
+      "section-label": {
+        "displayName": "Section label",
+        "purpose": "Uppercase heading of every record section card."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-hairline",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Primary buttons, sticky header, notices."
+      },
+      {
+        "name": "tinted-lift",
+        "value": "0 4px 6px -1px rgb(6 78 59 / 0.15), 0 2px 4px -2px rgb(6 78 59 / 0.15)",
+        "purpose": "The emerald brand tile in the header."
+      },
+      {
+        "name": "floating-panel",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Pills and controls floating over the tree canvas."
+      },
+      {
+        "name": "overlay",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "Dialogs and the person drawer."
+      },
+      {
+        "name": "splash-cta",
+        "value": "0 10px 15px -3px rgb(2 44 34 / 0.3), 0 4px 6px -4px rgb(2 44 34 / 0.3)",
+        "purpose": "The welcome page's single button."
+      }
+    ],
+    "motion": [
+      {
+        "name": "drawer-slide",
+        "value": "transform 300ms",
+        "purpose": "Person drawer entering from the right."
+      },
+      {
+        "name": "card-edge",
+        "value": "stroke-width 120ms",
+        "purpose": "Person card edge thickening on hover."
+      },
+      {
+        "name": "color-hover",
+        "value": "color, background-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Button fill changes."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "coarse",
+        "value": "(pointer: coarse)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action of a view.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/></svg><span>Add person</span></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; border-radius: 8px; background: #065f46; color: #fffbeb; padding: 8px 16px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #047857; } .ds-btn-primary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Section actions on record pages (action-btn).",
+      "html": "<button class=\"ds-btn-secondary\">Add fact</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 8px; border: 1px solid #d6d3d1; background: #f5f5f4; padding: 6px 12px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-btn-secondary:hover { background: #e7e5e4; } .ds-btn-secondary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Splash Button",
+      "kind": "button",
+      "refersTo": "button-splash",
+      "description": "The welcome page's single call to action, on dark emerald.",
+      "html": "<div class=\"ds-splash-bg\"><a href=\"#\" class=\"ds-btn-splash\">Sign in</a></div>",
+      "css": ".ds-splash-bg { background: linear-gradient(to bottom right, rgb(2 44 34 / 0.9), rgb(6 78 59 / 0.8)); padding: 32px; } .ds-btn-splash { display: inline-flex; align-items: center; min-height: 48px; padding: 0 28px; border-radius: 12px; background: #fffbeb; color: #064e3b; font: 600 1rem/1.5rem ui-sans-serif, system-ui, sans-serif; text-decoration: none; box-shadow: 0 10px 15px -3px rgb(2 44 34 / 0.3), 0 4px 6px -4px rgb(2 44 34 / 0.3); } .ds-btn-splash:hover { background: #ffffff; } .ds-btn-splash:focus-visible { outline: 2px solid #fcd34d; outline-offset: 4px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field-input",
+      "description": "Label above a white field; emerald border on focus.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-born\">Born</label><input id=\"ds-born\" class=\"ds-field-input\" placeholder=\"e.g. 14 APR 1912\" />",
+      "css": ".ds-field-label { display: block; margin-bottom: 4px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; color: #44403c; } .ds-field-input { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #d6d3d1; background: #fff; padding: 8px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-field-input:focus { border-color: #047857; box-shadow: 0 0 0 1px #047857; outline: none; }"
+    },
+    {
+      "name": "Section Card",
+      "kind": "card",
+      "refersTo": "section-card",
+      "description": "A record page section: stone wash, border, uppercase label. The person page opens with its Life section, one row per event oldest first: a label column, then the date as written, the place, and the evidence and controls on one quiet line. Rows divide by stone rules, never nested panels.",
+      "html": "<section class=\"ds-section-card\" aria-labelledby=\"ds-life\"><h3 id=\"ds-life\" class=\"ds-section-heading\">Life</h3><ol class=\"ds-timeline\"><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Birth</h4><div><p class=\"ds-tdate\">05 AUG 1910</p><p class=\"ds-tplace\">West Flegg, Norfolk, England</p><p class=\"ds-tline\"><span class=\"ds-claim\">Unsourced</span><a href=\"#\" class=\"ds-row-link\">Add a note</a><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Marriage</h4><div><p class=\"ds-tdate\">06 APR 1935 <span class=\"ds-muted-inline\">· with <a href=\"#\" class=\"ds-row-link\">Myrtle May Blishen</a></span></p><p class=\"ds-tplace\">Kurri Kurri, New South Wales</p><p class=\"ds-tline\"><a href=\"#\" class=\"ds-row-link\">Partnership</a><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li><li class=\"ds-trow\"><h4 class=\"ds-tlabel\">Death</h4><div><p class=\"ds-tdate\">ABT 1970 <span class=\"ds-approx\">(approximate)</span></p><p class=\"ds-tline\"><span class=\"ds-claim ds-sourced\">Sourced · 1 citation</span><a href=\"#\" class=\"ds-row-link\">Edit</a></p></div></li></ol></section>",
+      "css": ".ds-section-card { border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-section-heading { margin: 0 0 4px; font: 700 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #57534e; } .ds-timeline { list-style: none; margin: 0; padding: 0; } .ds-trow { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); column-gap: 16px; padding: 12px 0; border-top: 1px solid #e7e5e4; } .ds-trow:first-child { border-top: none; } .ds-tlabel { margin: 0; font: 600 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-tdate { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: #1c1917; } .ds-muted-inline { color: #57534e; } .ds-approx { font-size: 0.75rem; color: #78716c; } .ds-tplace { margin: 4px 0 0; font-size: 0.75rem; line-height: 1rem; color: #57534e; } .ds-tline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0 0; font-size: 0.75rem; line-height: 1rem; } .ds-claim { font-weight: 600; color: #57534e; } .ds-sourced { color: #065f46; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-row-link:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } @media (max-width: 639px) { .ds-trow { grid-template-columns: minmax(0, 1fr); row-gap: 4px; } }"
+    },
+    {
+      "name": "List Panel",
+      "kind": "card",
+      "refersTo": "list-panel",
+      "description": "White panel of divided rows on an index page.",
+      "html": "<ul class=\"ds-list\"><li><a href=\"#\" class=\"ds-row-link\">Doe, Arthur</a> <span class=\"ds-muted\">1902–1978</span></li><li><a href=\"#\" class=\"ds-row-link\">Doe, Mary</a> <span class=\"ds-muted\">ABT 1905–1990</span></li></ul>",
+      "css": ".ds-list { list-style: none; margin: 0; padding: 0; border-radius: 12px; border: 1px solid #e7e5e4; background: #fff; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; } .ds-list li { padding: 12px 16px; border-top: 1px solid #e7e5e4; } .ds-list li:first-child { border-top: none; } .ds-row-link { font-weight: 500; color: #065f46; text-decoration: none; } .ds-row-link:hover { text-decoration: underline; } .ds-muted { color: #78716c; font-size: 0.75rem; }"
+    },
+    {
+      "name": "App Header",
+      "kind": "nav",
+      "refersTo": "app-header",
+      "description": "Sticky translucent cream header with the emerald brand tile.",
+      "html": "<header class=\"ds-header\"><div class=\"ds-brand-tile\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 32 33\" fill=\"none\" stroke=\"#fffbeb\" stroke-linecap=\"round\"><path d=\"M3.5 5H10.5M7 5V15M21.5 5H28.5M25 5V15\" stroke-width=\"2.2\" stroke-opacity=\"0.5\"/><path d=\"M7 15H25M16 15V22\" stroke-width=\"2.6\"/><circle cx=\"7\" cy=\"15\" r=\"3.8\" fill=\"#fffbeb\" stroke=\"none\"/><circle cx=\"25\" cy=\"15\" r=\"3.8\" fill=\"#fffbeb\" stroke=\"none\"/><circle cx=\"16\" cy=\"25\" r=\"4\" fill=\"#fbbf24\" stroke=\"none\"/></svg></div><div><div class=\"ds-wordmark\">Epoch</div><div class=\"ds-sub\">Family history</div></div><button class=\"ds-header-btn\">Add person</button></header>",
+      "css": ".ds-header { display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 8px 24px; background: rgb(253 251 247 / 0.9); border-bottom: 1px solid rgb(231 229 228 / 0.8); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); backdrop-filter: blur(12px); font-family: ui-sans-serif, system-ui, sans-serif; } .ds-brand-tile { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; background: #065f46; box-shadow: 0 4px 6px -1px rgb(6 78 59 / 0.15); } .ds-wordmark { font-weight: 700; font-size: 1rem; letter-spacing: -0.025em; color: #1c1917; } .ds-sub { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.025em; color: #78716c; } .ds-header-btn { margin-left: auto; cursor: pointer; border: none; border-radius: 8px; background: #065f46; color: #fffbeb; padding: 6px 12px; font: 600 0.75rem/1rem inherit; } .ds-header-btn:hover { background: #047857; } .ds-header-btn:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Menu Row",
+      "kind": "nav",
+      "refersTo": "menu-item",
+      "description": "Menu and listbox rows; selected row is an emerald wash with an inset outline.",
+      "html": "<ul class=\"ds-menu\" role=\"listbox\"><li class=\"ds-menu-item\" role=\"option\">The Simpsons</li><li class=\"ds-menu-item\" role=\"option\" aria-selected=\"true\">The Names</li><li class=\"ds-menu-item\" role=\"option\">New tree…</li></ul>",
+      "css": ".ds-menu { list-style: none; margin: 0; padding: 4px; width: 220px; border-radius: 12px; border: 1px solid #d6d3d1; background: #fdfbf7; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-menu-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; } .ds-menu-item:hover { background: #f5f5f4; } .ds-menu-item[aria-selected='true'] { background: #ecfdf5; outline: 2px solid #047857; outline-offset: -2px; }"
+    },
+    {
+      "name": "Amber Notice",
+      "kind": "card",
+      "refersTo": "notice-amber",
+      "description": "Attention without alarm: an import to confirm, a relationship caveat.",
+      "html": "<div class=\"ds-notice\">This import will add 214 people to The Simpsons.</div>",
+      "css": ".ds-notice { border-radius: 8px; border: 1px solid #fcd34d; background: #fffbeb; padding: 12px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #78350f; }"
+    },
+    {
+      "name": "Person Card",
+      "kind": "custom",
+      "description": "The tree's unit: sex-tinted card with symbol, bold name and muted dates; teal edge when selected; the focus person carries a double ink rule and a Focus tab.",
+      "html": "<div class=\"ds-tree\"><div class=\"ds-pcard ds-pcard-m ds-focus\"><span class=\"ds-focus-tab\">Focus</span><span class=\"ds-sym\">♂</span><div><div class=\"ds-pname\">Arthur Doe</div><div class=\"ds-pdates\">1902–1978</div></div></div><div class=\"ds-pcard ds-pcard-f ds-selected\"><span class=\"ds-sym\">♀</span><div><div class=\"ds-pname\">Mary Doe</div><div class=\"ds-pdates\">ABT 1905–1990</div></div></div></div>",
+      "css": ".ds-tree { display: flex; gap: 16px; padding: 24px; background-color: #f7f3ea; background-image: radial-gradient(#d6cebf 1px, transparent 1px); background-size: 16px 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-pcard { position: relative; display: flex; gap: 8px; align-items: flex-start; width: 180px; padding: 10px 12px; border-radius: 12px; border: 1.75px solid; cursor: pointer; transition: border-width 120ms; } .ds-pcard:hover { border-width: 3px; } .ds-pcard-m { background: #dbe8f5; border-color: #5a84b5; } .ds-pcard-f { background: #f6dde6; border-color: #b8607f; } .ds-selected { border-color: #0f766e; border-width: 3.5px; } .ds-sym { color: #57534e; font-size: 18px; line-height: 1; } .ds-pname { font-weight: 700; font-size: 14px; color: #1c1917; } .ds-pdates { font-size: 12px; color: #57534e; } .ds-focus { position: relative; border: 3px solid #1c1917; box-shadow: 0 0 0 2px #fdfbf7, 0 0 0 3.5px #1c1917; } .ds-focus-tab { position: absolute; top: -9px; left: 12px; padding: 0 6px; border-radius: 4px; background: #1c1917; color: #fffbeb; font-size: 10px; font-weight: 700; line-height: 14px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Family Archive",
+    "overview": "Epoch is a well-kept reading room for one family's history. Pages are warm cream paper rather than white, text is set in archival stone inks rather than grey, and a single deep emerald, the colour of a cloth book binding, marks the few things that act. The welcome page is the only place the room is shown literally: a library photograph under an emerald wash, with the mark and the tagline in vellum. Everywhere else the archive is implied by material and restraint, not by ornament.\n\nThe mood is calm and scholarly, warm rather than clinical, and approachable for relatives who are not researchers. Record pages are dense and quiet: small type, uppercase section labels, bordered sections, plain links. Detail is welcome; decoration is not. Warmth comes from the cream and stone palette instead of the white-and-slate of enterprise tools, so the app feels like the family's own. Touch targets grow on coarse pointers and dialog fields never trigger a phone's zoom, so the people who visit occasionally are not punished for it.\n\nThe tree canvas is the one place colour carries data. There the archive gives way to a chart table: a slightly darker paper with a dot grid, person cards tinted by a muted sex palette plus a symbol, and parent-child lines distinguished by line style first and hue second.",
+    "keyCharacteristics": [
+      "Cream paper surfaces (`page-cream`, `panel-cream`, `dialog-cream`); white is reserved for what you scan or type into: list panels, tables and fields.",
+      "Stone inks for all text and rules; emerald for action and the brand only.",
+      "One system sans stack at small sizes; hierarchy comes from weight and uppercase labels.",
+      "Flat by default: borders and tonal steps carry structure, shadows mean \"floating\".",
+      "Light theme only. There is no dark mode.",
+      "Lucide line icons at 14–16px beside labels."
+    ],
+    "rules": [
+      {
+        "name": "The One Binding Rule",
+        "body": "Emerald is the only saturated colour in the chrome. It marks what acts (primary buttons, links, the selected row, focus) and the brand mark, and nothing else. A second accent in the chrome is a defect.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper, Not White Rule",
+        "body": "The page and its chrome are cream; section cards are stone-washed. Pure white is earned by content you scan or type into: fields, list panels and tables.",
+        "section": "colors"
+      },
+      {
+        "name": "The Line Before Hue Rule",
+        "body": "On the tree, a relationship type is told by line style first and colour second, and a person's sex by a symbol as well as a tint. Nothing on the canvas depends on colour alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight Not Size Rule",
+        "body": "Hierarchy inside the app comes from weight (400, 600, 700) and the uppercase section label, not from large type. Nothing in the app chrome exceeds 1.5rem; the display size belongs to the splash.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sixteen-Pixel Field Rule",
+        "body": "On a coarse pointer every input, select and textarea renders at 16px or larger, so iOS never zooms when a dialog focuses a field.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "A surface that sits on the page has a border and nothing heavier than the hairline. A real shadow means the element floats above the page: a header, a floating control, a dialog, a drawer.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Translucent Chrome Rule",
+        "body": "Chrome that overlays content (the sticky header, the drawer) is panel or dialog cream at 90–98% with a backdrop blur, so the record scrolls visibly underneath.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use page cream (`#fcf9f2`) for the page, stone wash for section cards, and white for fields, list panels and tables.",
+      "**Do** keep emerald-800 as the only fill for primary actions, with emerald-700 for hover and focus.",
+      "**Do** open every record section with the uppercase 0.75rem bold stone-600 section label.",
+      "**Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead of new focus styles.",
+      "**Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.",
+      "**Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the parent-child type, a dashed edge for privacy.",
+      "**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them."
+    ],
+    "donts": [
+      "**Don't** introduce a second accent colour in the chrome; amber is for notices and red for errors.",
+      "**Don't** give cards or panels that sit on the page more than the hairline shadow; a real shadow means the element floats.",
+      "**Don't** use blue or pink for parent-child lines; they would read as sex.",
+      "**Don't** set app-chrome text larger than 1.5rem; the display size belongs to the splash.",
+      "**Don't** name a global class `.card`, `.btn`, `.link` or `.heading`; components scope those names, and a global rule would leak into them.",
+      "**Don't** use a white page background, or white for section cards; white is for fields, list panels and tables."
+    ]
+  }
 }
