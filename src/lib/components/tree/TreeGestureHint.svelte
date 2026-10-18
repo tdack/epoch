@@ -3,8 +3,9 @@
 
 	interface Props {
 		/**
-		 * Whether the context menu offers anything beyond "Show details", which double-click already
-		 * does. A viewer's menu holds only that, so the hint does not send them to it.
+		 * Whether the chart has a context menu. The overviews have none, so the hint does not send
+		 * anyone to it there; elsewhere even a viewer's menu offers Open profile, which double-click
+		 * does not.
 		 */
 		hasMenuActions: boolean;
 		/**
