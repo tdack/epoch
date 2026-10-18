@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { type APIRequestContext, type Page } from '@playwright/test';
-import { chooseMenuItem, expect, test, type Api } from './support';
+import { chooseMenuItem, DRAWER, expect, test, type Api } from './support';
 
 const DIRTY_GED = readFileSync('test/data/The Simpsons duplicate families.ged');
 const XREF = { bart: '@I_c2773035@', jessica: '@I_cc833eb7@' } as const;
@@ -44,7 +44,7 @@ test('repeated partnerships between one pair are labelled 1st and 2nd, in the ca
 
 	// The drawer shows what is stored: both partnerships, not a collapsed one.
 	await page.locator('[data-person-id]').filter({ hasText: 'Bart' }).first().dblclick();
-	const drawer = page.locator('div.fixed.inset-y-0');
+	const drawer = page.locator(DRAWER);
 	await expect(drawer.getByText('1st partnership (m. 3 Nov 2014)')).toBeVisible();
 	await expect(drawer.getByText('2nd partnership (m. 3 Nov 2014)')).toBeVisible();
 	// The drawer also has a Merge… for the person, so count the partnerships' own.
@@ -184,7 +184,7 @@ test('a partnership with one recorded parent says so in the drawer, and its edit
 	const person = page.locator('[data-person-id]').filter({ hasText: 'Homer' }).first();
 	await expect(person).toBeVisible();
 	await person.dblclick();
-	const drawer = page.locator('div.fixed.inset-y-0');
+	const drawer = page.locator(DRAWER);
 	await expect(drawer.getByText('Children, other parent not recorded').first()).toBeVisible();
 
 	const editButtons = drawer.getByRole('button', { name: 'Dates & status', exact: true });

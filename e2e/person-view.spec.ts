@@ -1,7 +1,5 @@
-import { card, expect, open, openTree, test, type Api, type Person } from './support';
+import { card, DRAWER, expect, open, openTree, test, type Api, type Person } from './support';
 import type { Page } from '@playwright/test';
-
-const DRAWER = 'div.fixed.inset-y-0';
 
 async function openDrawer(page: Page, api: Api, who: Person) {
 	await openTree(page, api, who);
@@ -95,4 +93,24 @@ test('closing the drawer returns focus to the card that opened it', async ({ pag
 	await page.keyboard.press('Escape');
 	await expect(page.locator(DRAWER)).toHaveCount(0);
 	await expect(card(page, 'Wren')).toBeFocused();
+});
+
+test('on a wide screen the drawer docks beside the tree, and floats over it on a tablet', async ({
+	page,
+	api
+}) => {
+	const wren = await api.addPerson('Wren', 'Ash');
+	await page.setViewportSize({ width: 1280, height: 800 });
+	const drawer = await openDrawer(page, api, wren);
+	const canvas = page.locator('.tree-canvas');
+	const docked = (await drawer.boundingBox())!;
+	const narrowed = (await canvas.boundingBox())!;
+	expect(narrowed.x + narrowed.width).toBeLessThanOrEqual(docked.x);
+	expect(docked.y).toBeCloseTo(narrowed.y, 0);
+	expect(docked.height).toBeCloseTo(narrowed.height, 0);
+
+	await page.setViewportSize({ width: 900, height: 800 });
+	await expect(drawer).toHaveCSS('position', 'fixed');
+	const full = (await canvas.boundingBox())!;
+	expect(full.width).toBeGreaterThan(narrowed.width);
 });

@@ -1,6 +1,7 @@
 import {
 	activate,
 	card,
+	DRAWER,
 	chooseMenuItem,
 	expect,
 	openMenuByKeyboard,
@@ -108,9 +109,7 @@ test('the card menu opens the details drawer', async ({ page, api }) => {
 	await openTree(page, api, john);
 	await openMenuByKeyboard(page, 'John');
 	await chooseMenuItem(page, 'Show details');
-	await expect(
-		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /John Smith/ })
-	).toBeVisible();
+	await expect(page.locator(DRAWER).getByRole('heading', { name: /John Smith/ })).toBeVisible();
 });
 
 test('the card menu opens the profile page', async ({ page, api }) => {
