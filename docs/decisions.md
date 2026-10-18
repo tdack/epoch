@@ -855,7 +855,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 
 ## ADR-061: A source can own files, visible exactly when the source is (extends ADR-028 and ADR-050)
 
-- **Status:** built on `claude/source-files-dac2d6` on 2026-10-18; not yet deployed. No migration.
+- **Status:** built on `claude/source-files-dac2d6` on 2026-10-18 and deployed. No migration.
 - **Context:** the owner wants sources managed on their own, with their scans attached, and reached from More > Research. Files hung off a person or a partnership only (ADR-050), and ADR-028 left the `OBJE` in a citation retained.
 - **Decision:**
   - **The owner is still one id.** `media_items.entity_id` may now name a source. It has no foreign key and no owner-kind column, and ids are UUIDs, so the repository tells the kinds apart by lookup in the tree (`recordKindsOf`, `ownerOf`), as it already did for a person and a partnership. This needs no migration, so nothing is expand-and-contract.
