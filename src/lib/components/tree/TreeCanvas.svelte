@@ -58,6 +58,8 @@
 		onSelectPerson?: (id: string) => void;
 		/** Double-click, long-press or Shift+Enter on a person: open their details. */
 		onOpenPerson?: (id: string) => void;
+		/** The context menu's Open profile: go to the person's own page. */
+		onOpenProfile?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
 		onClearSelection?: () => void;
 		/** "Edit person" from a card's context menu. */
@@ -110,6 +112,7 @@
 		selectedPersonId = null,
 		onSelectPerson,
 		onOpenPerson,
+		onOpenProfile,
 		onClearSelection,
 		onEditPerson,
 		onDeletePerson,
@@ -320,6 +323,7 @@
 	/** The page's editing actions as one object, for the menu entries shared with the 3D views. */
 	const actions = $derived<TreeEditActions>({
 		onOpenPerson,
+		onOpenProfile,
 		onEditPerson,
 		onDeletePerson,
 		onAddRelationship,

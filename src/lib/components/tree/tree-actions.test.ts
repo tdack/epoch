@@ -7,6 +7,7 @@ describe('personMenuItems', () => {
 	it('lists only what the page allows, in the order the flat menu has always used', () => {
 		const all = personMenuItems(anna, true, {
 			onOpenPerson: vi.fn(),
+			onOpenProfile: vi.fn(),
 			onEditPerson: vi.fn(),
 			onAddRelationship: vi.fn(),
 			onRecordDeath: vi.fn(),
@@ -15,6 +16,7 @@ describe('personMenuItems', () => {
 		});
 		expect(all.map((i) => i.label)).toEqual([
 			'Show details',
+			'Open profile',
 			'Edit person',
 			'Add relationship',
 			'Record death…',
@@ -30,6 +32,16 @@ describe('personMenuItems', () => {
 		expect(personMenuItems(anna, false, actions)).toEqual([]);
 		personMenuItems(anna, true, actions)[0].onClick();
 		expect(actions.onEndPartnership).toHaveBeenCalledWith('p1');
+	});
+
+	it('opens the drawer and the profile page as two entries', () => {
+		const actions = { onOpenPerson: vi.fn(), onOpenProfile: vi.fn() };
+		const [details, profile] = personMenuItems(anna, false, actions);
+		details.onClick();
+		expect(actions.onOpenPerson).toHaveBeenCalledWith('p1');
+		expect(actions.onOpenProfile).not.toHaveBeenCalled();
+		profile.onClick();
+		expect(actions.onOpenProfile).toHaveBeenCalledWith('p1');
 	});
 
 	it('hands the person to Add relationship', () => {

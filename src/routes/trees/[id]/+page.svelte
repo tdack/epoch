@@ -48,7 +48,7 @@
 	import { VIEW_MODE_TRAITS, resolveLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
 	import { canChangeRecords, canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
 	import type { PageData } from './$types';
-	import { treePath } from '#lib/shared/tree-slug.js';
+	import { personPath } from '#lib/components/person/person-paths.js';
 
 	interface Props {
 		data: PageData;
@@ -409,6 +409,7 @@
 	/** What the 3D canvases' context menus can do; the flat canvas takes the same actions one by one. */
 	const actions = $derived<TreeEditActions>({
 		onOpenPerson: handleOpenPerson,
+		onOpenProfile: openProfile,
 		...(canCreate ? { onAddRelationship: addRelationship } : {}),
 		...(canChange
 			? {
@@ -503,6 +504,10 @@
 		navigate({ focusId: id, personId: id }, { kind: HISTORY_KINDS.FOCUS });
 	}
 
+	function openProfile(id: string) {
+		void goto(personPath(data.summary.tree, id));
+	}
+
 	/** From the drawer: clicking the selected person again closes it; the tree stays focused on them. */
 	function handleSelectPerson(id: string) {
 		if (selectedPersonId === id) {
@@ -530,8 +535,7 @@
 				{focusPerson}
 				onchangeFocus={() => finder.focusInput?.()}
 				onshowDetails={handleOpenPerson}
-				onopenProfile={(id) =>
-					void goto(`${treePath(data.summary.tree)}/people/${encodeURIComponent(id)}`)}
+				onopenProfile={openProfile}
 				onChange={(change) =>
 					navigate(
 						// Switching view redraws the same graph, so what the person opened stays open. Flat
@@ -617,6 +621,7 @@
 					{selectedPersonId}
 					onSelectPerson={handleFocusPerson}
 					onOpenPerson={handleOpenPerson}
+					onOpenProfile={openProfile}
 					onClearSelection={clearSelection}
 					onEditPerson={actions.onEditPerson}
 					onDeletePerson={actions.onDeletePerson}
