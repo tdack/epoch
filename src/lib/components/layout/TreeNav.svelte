@@ -56,10 +56,10 @@
 		{ href: base, label: 'Tree', isActive: pathname === base },
 		{ href: `${base}/people`, label: 'People', isActive: pathname === `${base}/people` },
 		{ href: `${base}/unions`, label: 'Partnerships', isActive: pathname === `${base}/unions` },
-		{ href: `${base}/sources`, label: 'Sources', isActive: startsWith(`${base}/sources`) },
 		{ href: `${base}/places`, label: 'Places', isActive: startsWith(`${base}/place`) }
 	]);
 	const research = $derived<NavLink[]>([
+		{ href: `${base}/sources`, label: 'Sources', isActive: startsWith(`${base}/sources`) },
 		{ href: `${base}/notes`, label: 'Notes', isActive: startsWith(`${base}/notes`) },
 		...(isOutsider
 			? []

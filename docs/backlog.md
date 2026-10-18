@@ -21,12 +21,11 @@ Last reviewed: 2026-10-15.
 - **Restricted-viewer read cost.** A restricted viewer's surname list reads about 12 rows per person,
   and the partnership list's first page reads 650 rows. The stored-column alternative in ADR-015 is
   the next step if a tree outgrows it.
-- **Media privacy follows only the person or partnership a file hangs off.** A restricted viewer sees
-  a file only when every person it hangs off is visible, and a detached file is hidden from them. A
-  file can attach only to a person or a partnership, so no other record (an event, a source) has a
-  privacy rule of its own for its files. (ADR-050, ADR-039)
-- **`partnerIds(unionId)` in `media-repository.ts` has no tree predicate.** It is the same class of
-  gap as the id-lookup helpers ADR-052 scoped. Add a `treeId`. (F14)
+- **Media privacy has a rule for people, partnerships and sources only.** A restricted viewer sees
+  a file on a person or partnership only when every person it hangs off is visible, a file on a
+  source only when the source is (ADR-028's rule), and a detached file never. A file can attach to
+  nothing else, so an event, a note or a repository has no privacy rule of its own for files.
+  (ADR-050, ADR-060)
 - **Two reads do not chunk their id lists.** `visibleAmong` (`visibility.ts`) and
   `SearchRepository.factsMatching` (which binds the list twice) can pass D1's 100-parameter limit
   on a large list. Chunk them. (F13)
@@ -278,19 +277,6 @@ Last reviewed: 2026-10-15.
 - **Show the sub-type on the person page for every fact that has one.** Only `EVEN` and `FACT` show
   it today.
 
-### Evidence and sources
-
-Decided with the owner on 2026-10-18. Most facts will never have a source, so being unsourced is
-the normal state and is not shown; citing happens while editing.
-
-- **Sources move to More > Research; sources carry files (session B).** Sources leaves the top-level
-  tabs and becomes the first entry of the Research group in `TreeNav`. A source page gains a Files
-  section: attach an existing file or upload one, and detach. Media's owner kinds grow from
-  person/union to include source; a file on a source is visible to whoever can see the source
-  (ADR-028's source rule), which closes the matching item under Security and privacy. `OBJE`
-  pointers under a `SOUR` record, retained today, become these links on import and are written back
-  from them on export, never twice. New ADR.
-
 ### Collaboration and change control
 
 - **Audit UI.** The change log is the start of it; there is no audit screen. Entries need actor,
@@ -308,8 +294,13 @@ the normal state and is not shown; citing happens while editing.
 
 ### Media and documents
 
-- **Media records.** `OBJE` is retained, not modelled. Model metadata, ownership, dates, notes,
-  citations and links to several records or facts.
+- **Media records.** `OBJE` is retained, not modelled: an import creates no file, so an `OBJE` under a
+  `SOUR` stays a kept line and is not linked to the files a source has in Epoch, and an export
+  writes no attached file (ADR-060). Model metadata, ownership, dates, notes, citations and links to
+  several records or facts.
+- **The Files manager attaches and moves to people only.** A file on a source is attached from the
+  source page; the manager lists it and can detach it, but its attach and move dialogs offer no
+  source. (ADR-060)
 - **Image dimensions and safe derivatives generated asynchronously,** idempotently.
 - **Galleries, record thumbnails, ordering, captions and download permissions.**
 - **Scanned documents** (certificates) with transcription and citation workflows.

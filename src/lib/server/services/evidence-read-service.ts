@@ -10,6 +10,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { CitationRow, SourceRow } from '../domain/change-log';
 import { eventLabel } from '../domain/tree-labels';
 import { EvidenceRepository } from '../repositories/evidence-repository';
+import { MediaRepository } from '../repositories/media-repository';
 import { NoteRepository } from '../repositories/note-repository';
 import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
 import { loadNoteDtos, notesOf } from './note-dto';
@@ -39,6 +40,7 @@ const clampPage = (query: { offset?: number; limit?: number }) => ({
 export class EvidenceReadService {
 	private evidence: EvidenceRepository;
 	private notes: NoteRepository;
+	private media: MediaRepository;
 	private graph: GraphWindowRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
@@ -49,6 +51,7 @@ export class EvidenceReadService {
 	) {
 		this.evidence = new EvidenceRepository(db);
 		this.notes = new NoteRepository(db);
+		this.media = new MediaRepository(db);
 		this.graph = new GraphWindowRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
@@ -71,9 +74,11 @@ export class EvidenceReadService {
 			page,
 			scope
 		);
-		const [rows, counts] = await Promise.all([
+		const [rows, counts, fileCounts] = await Promise.all([
 			this.evidence.sourcesByIds(treeId, ids),
-			this.evidence.visibleCitationCounts(treeId, ids, scope)
+			this.evidence.visibleCitationCounts(treeId, ids, scope),
+			// No privacy join: a source that is listed has all of its files visible (ADR-060).
+			this.media.fileCountsOf(treeId, ids)
 		]);
 		const byId = new Map(rows.map((s) => [s.id, s]));
 		const items = ids.flatMap((id) => {
@@ -82,11 +87,13 @@ export class EvidenceReadService {
 				? [
 						{
 							id,
+							version: s.version,
 							xref: s.xref,
 							title: s.title,
 							author: s.author,
 							abbreviation: s.abbreviation,
-							citationCount: counts.get(id) ?? 0
+							citationCount: counts.get(id) ?? 0,
+							fileCount: fileCounts.get(id) ?? 0
 						}
 					]
 				: [];

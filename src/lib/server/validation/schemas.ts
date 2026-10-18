@@ -718,6 +718,10 @@ export const publicTreeSchema = z.object({
 /** The Files listing: a tree to narrow to, a cursor from the last page, and a page size. */
 export const fileListQuerySchema = z.object({
 	treeId: idSchema.optional(),
+	/** Only files on this person, partnership or source. */
+	entityId: idSchema.optional(),
+	/** `detached` lists files with no owner, for the attach picker. */
+	owner: z.enum(['detached']).optional(),
 	cursor: z.string().min(1).max(200).optional(),
 	limit: z.coerce.number().int().min(1).max(100).optional()
 });

@@ -93,3 +93,59 @@ describe('importing again changes nothing', () => {
 		expect(withoutHeader(await exportOf(again))).toEqual(withoutHeader(firstText.split('\n')));
 	});
 });
+
+/**
+ * A source can have files in Epoch (ADR-060), but a GEDCOM `OBJE` carries a path, never bytes, so an
+ * import creates no file and an export has no file to write. The `OBJE` under a `SOUR` stays a
+ * retained line, written once; a file attached in Epoch adds nothing to the export.
+ */
+describe('an OBJE under a source', () => {
+	const SOURCE_OBJE = `0 HEAD
+0 @S1@ SOUR
+1 TITL Parish register
+1 OBJE @M1@
+1 OBJE
+2 FILE scan.png
+0 @M1@ OBJE
+1 FILE register.png
+0 @I1@ INDI
+1 NAME Ann /Ash/
+0 TRLR`;
+
+	it.each(['551', '7'] as const)('is written back once in %s', async (format) => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, SOURCE_OBJE, 'Source OBJE');
+		const out = await exportOf(treeId, format);
+		const source = out.slice(out.indexOf('0 @S1@ SOUR'));
+		const block = source.slice(
+			0,
+			source.findIndex((line, i) => i > 0 && line.startsWith('0 '))
+		);
+		expect(block.filter((line) => line === '1 OBJE @M1@')).toHaveLength(1);
+		expect(block).toContain('1 OBJE');
+		expect(block).toContain('2 FILE scan.png');
+		expect(out.filter((line) => line === '0 @M1@ OBJE')).toHaveLength(1);
+	});
+
+	it('is unchanged by a file attached to the source in Epoch', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, SOURCE_OBJE, 'Source OBJE');
+		const before = withoutHeader(await exportOf(treeId));
+		const before7 = withoutHeader(await exportOf(treeId, '7'));
+		const source = (await t.d1
+			.prepare('select id from sources where tree_id = ?')
+			.bind(treeId)
+			.first<{
+				id: string;
+			}>())!;
+		await t.d1
+			.prepare(
+				`insert into media_items (id, tree_id, entity_id, r2_object_key, title, mime_type, version)
+				 values (?, ?, ?, ?, 'Scan', 'image/png', 1)`
+			)
+			.bind('m-1', treeId, source.id, `media/${treeId}/m-1.png`)
+			.run();
+		expect(withoutHeader(await exportOf(treeId))).toEqual(before);
+		expect(withoutHeader(await exportOf(treeId, '7'))).toEqual(before7);
+	});
+});

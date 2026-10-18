@@ -152,12 +152,16 @@ export interface UnionEvidenceDto {
 
 export interface SourceListItem {
 	id: string;
+	/** Send this back when merging; a newer stored version is a conflict. */
+	version: number;
 	xref: string | null;
 	title: string | null;
 	author: string | null;
 	abbreviation: string | null;
 	/** Citations the viewer may see. */
 	citationCount: number;
+	/** Files attached to the source; a listed source's files are all visible to the viewer. */
+	fileCount: number;
 }
 
 export interface RepositoryListItem {

@@ -1,18 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Plus } from '@lucide/svelte';
+	import { GitMerge, Pencil, Plus } from '@lucide/svelte';
 	import { canCite, canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import RepositoryDialog from '#lib/components/evidence/RepositoryDialog.svelte';
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';
+	import SourceMergeDialog from '#lib/components/evidence/SourceMergeDialog.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { deleteRepositoryApi, previewEvidenceApi } from '#lib/api/evidence.js';
-	import type { RepositoryListItem } from '#lib/shared/evidence.js';
+	import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { deleteRepositoryApi, fetchSource, previewEvidenceApi } from '#lib/api/evidence.js';
+	import {
+		type RepositoryListItem,
+		type SourceDto,
+		type SourceListItem
+	} from '#lib/shared/evidence.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
-	const { editor } = getTreeContext();
+	const { editor, toasts } = getTreeContext();
 
 	const treeId = $derived(data.summary.tree.id);
 	const base = $derived(treePath(data.summary.tree));
@@ -26,6 +33,22 @@
 	};
 
 	let isSourceDialogOpen = $state(false);
+	/** The source being edited from the list, read in full because a list row lacks its text. */
+	let editing = $state<SourceDto | null>(null);
+	let merging = $state<SourceListItem | null>(null);
+	const nameOf = (item: SourceListItem) => item.title ?? item.abbreviation ?? 'Untitled source';
+
+	async function edit(item: SourceListItem) {
+		try {
+			editing = await fetchSource(
+				treeId,
+				item.id,
+				new URLSearchParams({ offset: '0', limit: '1' })
+			);
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not open the source'), { tone: TOAST_TONES.ERROR });
+		}
+	}
 	let repositoryDialog = $state<{ repository: RepositoryListItem | null } | null>(null);
 
 	function removeRepository(repository: RepositoryListItem) {
@@ -91,14 +114,34 @@
 					<span>
 						<a
 							href={`${base}/sources/${encodeURIComponent(item.id)}`}
-							class="font-semibold text-emerald-900 hover:underline"
-							>{item.title ?? item.abbreviation ?? 'Untitled source'}</a
+							class="font-semibold text-emerald-900 hover:underline">{nameOf(item)}</a
 						>
 						{#if item.author}<span class="text-xs text-stone-600"> · {item.author}</span>{/if}
 					</span>
-					<span class="text-stone-600"
-						>{item.citationCount} {item.citationCount === 1 ? 'citation' : 'citations'}</span
-					>
+					<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-stone-600">
+						<span>{item.citationCount} {item.citationCount === 1 ? 'citation' : 'citations'}</span>
+						{#if item.fileCount > 0}
+							<span data-testid="source-file-count"
+								>{item.fileCount} {item.fileCount === 1 ? 'file' : 'files'}</span
+							>
+						{/if}
+						{#if canChangeEvidence(role)}
+							<button
+								type="button"
+								class="row-link inline-flex items-center gap-1 text-xs font-semibold"
+								onclick={() => void edit(item)}
+								aria-label={`Edit ${nameOf(item)}`}
+								><Pencil class="h-3 w-3" aria-hidden="true" />Edit</button
+							>
+							<button
+								type="button"
+								class="row-link inline-flex items-center gap-1 text-xs font-semibold"
+								onclick={() => (merging = item)}
+								aria-label={`Merge other sources into ${nameOf(item)}`}
+								><GitMerge class="h-3 w-3" aria-hidden="true" />Merge…</button
+							>
+						{/if}
+					</span>
 				</li>
 			{/each}
 		</ul>
@@ -170,6 +213,34 @@
 	}}
 	oncancel={() => (isSourceDialogOpen = false)}
 />
+
+<SourceDialog
+	isOpen={editing !== null}
+	{treeId}
+	source={editing}
+	onsaved={async (change) => {
+		editing = null;
+		await editor.afterChange(change, 'Source saved');
+	}}
+	onstale={async () => {
+		editing = null;
+		await editor.refresh();
+	}}
+	oncancel={() => (editing = null)}
+/>
+
+{#if merging}
+	<SourceMergeDialog
+		isOpen
+		{treeId}
+		survivor={{ id: merging.id, version: merging.version, label: nameOf(merging) }}
+		onmerged={async (change) => {
+			merging = null;
+			await editor.afterChange(change, 'Sources merged');
+		}}
+		oncancel={() => (merging = null)}
+	/>
+{/if}
 
 <RepositoryDialog
 	isOpen={repositoryDialog !== null}
