@@ -4,7 +4,7 @@ export const DEMO_URL = 'https://demo.epochgenealogy.app';
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';
-export const SITE_URL = 'https://epochgenealogy.app';
+export const SITE_URL = 'https://www.epochgenealogy.app';
 
 /** The app's own tagline (PRODUCT.md, Brand Commitments); keep it word for word. */
 export const TAGLINE = 'A private family history, shared with the people who help keep it.';
@@ -147,7 +147,7 @@ export const FAQS: Faq[] = [
 	{
 		question: 'How is it related to webtrees?',
 		answer: [
-			'Epoch is inspired by the capabilities of webtrees, not its screens or code. It is a separate application, written for Cloudflare, and exchanges data with other software through GEDCOM.'
+			'Epoch is inspired by the capabilities of webtrees, not its screens or code. It is a separate application, written to be hosted using Cloudflare, and exchanges data with other software through GEDCOM.'
 		]
 	},
 	{
