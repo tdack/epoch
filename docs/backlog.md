@@ -219,6 +219,9 @@ Last reviewed: 2026-10-15.
   of their own and their partnerships' events; a tree-wide or comparative view is still open.
 - **Children's births in the person page's Life timeline.** `PersonSummaryDto` carries a child's
   birth as text without a sort key, so placing them needs a sortable birth on the summary (ADR-058).
+- **Open-ended periods have no sort key.** `parseDateValue` reads `FROM x TO y` but not `FROM x`
+  or `TO y` alone, so `FROM 1980` sorts as undated: last in Life and never the newest shown in the
+  person page's At a glance (ADR-059). GEDCOM allows both forms.
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
 - **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
