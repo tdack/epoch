@@ -142,6 +142,19 @@
 		query.addEventListener('change', onChange);
 		return () => query.removeEventListener('change', onChange);
 	});
+	/**
+	 * From this width the drawer docks beside the canvas, which narrows to make room, instead of
+	 * covering it; below it a docked card would leave too little tree to be worth seeing.
+	 */
+	const DOCKED_DRAWER_MIN_WIDTH_PX = 1024;
+	let isDrawerDocked = $state(false);
+	$effect(() => {
+		const query = matchMedia(`(min-width: ${DOCKED_DRAWER_MIN_WIDTH_PX}px)`);
+		isDrawerDocked = query.matches;
+		const onChange = (event: MediaQueryListEvent) => (isDrawerDocked = event.matches);
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
 	/** The overviews do not edit, so the gesture hints leave out the drag and menu actions there. */
 	const canEditDrawn = $derived(VIEW_MODE_TRAITS[mode].canEdit);
 	/**
@@ -548,123 +561,126 @@
 		{#if !isPhone}<TreeGestureHint hasMenuActions={canEditDrawn} />{/if}
 		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
-		<div class="relative flex flex-1 touch-none flex-col" aria-busy={isLoading}>
-			<!-- Before the canvases so the legend, drawn later, stays above it. -->
-			{#if isPhone}<TreeGestureHint hasMenuActions={canEditDrawn} isOverlay />{/if}
-			{#if ringsLayout}
-				<RingsCanvas
-					layout={ringsLayout}
-					{palette}
-					isMotionReduced={data.isMotionReduced}
-					{fitKey}
-					{selectedPersonId}
-					isWholeTree={isWholeTreeDrawn}
-					isTruncated={isWholeTreeTruncated}
-					onToggleWholeTree={toggleWholeTree}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-				/>
-			{:else if poincareLayout}
-				<PoincareCanvas
-					layout={poincareLayout}
-					{palette}
-					isMotionReduced={data.isMotionReduced}
-					{fitKey}
-					{selectedPersonId}
-					isWholeTree={isWholeTreeDrawn}
-					isTruncated={isWholeTreeTruncated}
-					onToggleWholeTree={toggleWholeTree}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-				/>
-			{:else if ribbonsLayout}
-				<RibbonsCanvas
-					layout={ribbonsLayout}
-					{palette}
-					isMotionReduced={data.isMotionReduced}
-					{fitKey}
-					{selectedPersonId}
-					isWholeTree={isWholeTreeDrawn}
-					isTruncated={isWholeTreeTruncated}
-					onToggleWholeTree={toggleWholeTree}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-				/>
-			{:else if orreryLayout}
-				<OrreryCanvas
-					layout={orreryLayout}
-					{palette}
-					isMotionReduced={data.isMotionReduced}
-					{fitKey}
-					{selectedPersonId}
-					isWholeTree={isWholeTreeDrawn}
-					isTruncated={isWholeTreeTruncated}
-					onToggleWholeTree={toggleWholeTree}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onClearSelection={clearSelection}
-				/>
-			{:else}
-				<TreeCanvas
-					{layout}
-					{palette}
-					{fitKey}
-					isWholeTree={isWholeTreeDrawn}
-					isTruncated={isWholeTreeTruncated}
-					onToggleWholeTree={toggleWholeTree}
-					{selectedPersonId}
-					onSelectPerson={handleFocusPerson}
-					onOpenPerson={handleOpenPerson}
-					onOpenProfile={openProfile}
-					onClearSelection={clearSelection}
-					onEditPerson={actions.onEditPerson}
-					onDeletePerson={actions.onDeletePerson}
-					onAddRelationship={actions.onAddRelationship}
-					onRemoveLink={canChange ? editor.removeLink : undefined}
-					onRecordDeath={actions.onRecordDeath}
-					onEndPartnership={actions.onEndPartnership}
-					onEditUnion={actions.onEditUnion}
-					onEndUnion={actions.onEndUnion}
-					onRemoveAssertion={canChange ? editor.removeAssertion : undefined}
-					onChangeLinkType={canChange ? editor.changeLinkType : undefined}
-					onRemoveUnion={actions.onRemoveUnion}
-					onMergeUnion={actions.onMergeUnion}
-					mergeableUnionIds={editor.mergeableIds}
-					partnershipLabels={editor.unionLabels}
-					onExpandStub={expandStub}
-					onCollapseStub={collapseStub}
-				/>
-			{/if}
-			{#if recentreCue && !isLoading}
-				<!-- Hidden from screen readers: the canvas already announces the new focus. -->
-				<div
-					class="cue pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
-					aria-hidden="true"
-				>
-					<span
-						class="max-w-[calc(100%-2rem)] truncate rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm text-stone-700 shadow-md"
+		<div class="flex flex-1">
+			<div class="relative flex min-w-0 flex-1 touch-none flex-col" aria-busy={isLoading}>
+				<!-- Before the canvases so the legend, drawn later, stays above it. -->
+				{#if isPhone}<TreeGestureHint hasMenuActions={canEditDrawn} isOverlay />{/if}
+				{#if ringsLayout}
+					<RingsCanvas
+						layout={ringsLayout}
+						{palette}
+						isMotionReduced={data.isMotionReduced}
+						{fitKey}
+						{selectedPersonId}
+						isWholeTree={isWholeTreeDrawn}
+						isTruncated={isWholeTreeTruncated}
+						onToggleWholeTree={toggleWholeTree}
+						onSelectPerson={handleFocusPerson}
+						onOpenPerson={handleOpenPerson}
+						onClearSelection={clearSelection}
+					/>
+				{:else if poincareLayout}
+					<PoincareCanvas
+						layout={poincareLayout}
+						{palette}
+						isMotionReduced={data.isMotionReduced}
+						{fitKey}
+						{selectedPersonId}
+						isWholeTree={isWholeTreeDrawn}
+						isTruncated={isWholeTreeTruncated}
+						onToggleWholeTree={toggleWholeTree}
+						onSelectPerson={handleFocusPerson}
+						onOpenPerson={handleOpenPerson}
+						onClearSelection={clearSelection}
+					/>
+				{:else if ribbonsLayout}
+					<RibbonsCanvas
+						layout={ribbonsLayout}
+						{palette}
+						isMotionReduced={data.isMotionReduced}
+						{fitKey}
+						{selectedPersonId}
+						isWholeTree={isWholeTreeDrawn}
+						isTruncated={isWholeTreeTruncated}
+						onToggleWholeTree={toggleWholeTree}
+						onSelectPerson={handleFocusPerson}
+						onOpenPerson={handleOpenPerson}
+						onClearSelection={clearSelection}
+					/>
+				{:else if orreryLayout}
+					<OrreryCanvas
+						layout={orreryLayout}
+						{palette}
+						isMotionReduced={data.isMotionReduced}
+						{fitKey}
+						{selectedPersonId}
+						isWholeTree={isWholeTreeDrawn}
+						isTruncated={isWholeTreeTruncated}
+						onToggleWholeTree={toggleWholeTree}
+						onSelectPerson={handleFocusPerson}
+						onOpenPerson={handleOpenPerson}
+						onClearSelection={clearSelection}
+					/>
+				{:else}
+					<TreeCanvas
+						{layout}
+						{palette}
+						{fitKey}
+						isWholeTree={isWholeTreeDrawn}
+						isTruncated={isWholeTreeTruncated}
+						onToggleWholeTree={toggleWholeTree}
+						{selectedPersonId}
+						onSelectPerson={handleFocusPerson}
+						onOpenPerson={handleOpenPerson}
+						onOpenProfile={openProfile}
+						onClearSelection={clearSelection}
+						onEditPerson={actions.onEditPerson}
+						onDeletePerson={actions.onDeletePerson}
+						onAddRelationship={actions.onAddRelationship}
+						onRemoveLink={canChange ? editor.removeLink : undefined}
+						onRecordDeath={actions.onRecordDeath}
+						onEndPartnership={actions.onEndPartnership}
+						onEditUnion={actions.onEditUnion}
+						onEndUnion={actions.onEndUnion}
+						onRemoveAssertion={canChange ? editor.removeAssertion : undefined}
+						onChangeLinkType={canChange ? editor.changeLinkType : undefined}
+						onRemoveUnion={actions.onRemoveUnion}
+						onMergeUnion={actions.onMergeUnion}
+						mergeableUnionIds={editor.mergeableIds}
+						partnershipLabels={editor.unionLabels}
+						onExpandStub={expandStub}
+						onCollapseStub={collapseStub}
+					/>
+				{/if}
+				{#if recentreCue && !isLoading}
+					<!-- Hidden from screen readers: the canvas already announces the new focus. -->
+					<div
+						class="cue pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
+						aria-hidden="true"
 					>
-						Centred on <span class="font-semibold text-stone-900">{recentreCue}</span>
-					</span>
-				</div>
-			{/if}
-			{#if isLoading}
-				<!-- Held back a beat by the animation delay, so a quick load never flashes it. -->
-				<div
-					class="loading pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
-					role="status"
-				>
-					<span
-						class="flex items-center gap-2 rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm font-medium text-stone-700 shadow-md"
+						<span
+							class="max-w-[calc(100%-2rem)] truncate rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm text-stone-700 shadow-md"
+						>
+							Centred on <span class="font-semibold text-stone-900">{recentreCue}</span>
+						</span>
+					</div>
+				{/if}
+				{#if isLoading}
+					<!-- Held back a beat by the animation delay, so a quick load never flashes it. -->
+					<div
+						class="loading pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center"
+						role="status"
 					>
-						<Loader2 class="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
-						Loading…
-					</span>
-				</div>
-			{/if}
+						<span
+							class="flex items-center gap-2 rounded-full border border-stone-300 bg-[#fdfbf7] px-3 py-1 text-sm font-medium text-stone-700 shadow-md"
+						>
+							<Loader2 class="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
+							Loading…
+						</span>
+					</div>
+				{/if}
+			</div>
+			{#if selectedPersonId && isDrawerDocked}{@render personDrawer(true)}{/if}
 		</div>
 	{:else}
 		<EmptyTreePrompt
@@ -677,8 +693,9 @@
 	{/if}
 </div>
 
-{#if selectedPersonId}
+{#snippet personDrawer(isDocked: boolean)}
 	<PersonDrawer
+		{isDocked}
 		page={drawer.page}
 		{treeId}
 		treeSlug={data.summary.tree.slug}
@@ -690,7 +707,10 @@
 		{toasts}
 		{marks}
 	/>
-{/if}
+{/snippet}
+
+<!-- An empty tree has no canvas to dock beside, so a drawer there floats as it does on a phone. -->
+{#if selectedPersonId && !(isDrawerDocked && graph)}{@render personDrawer(false)}{/if}
 
 <style>
 	.loading {
