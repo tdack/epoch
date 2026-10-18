@@ -112,7 +112,7 @@ describe('scoped reads, with the lens fragment present', () => {
 				['name, one letter', { ...base, words: ['a'] }],
 				['place', { ...base, place: 'cork' }],
 				['name and place and years', { ...base, words: ['ann'], place: 'cork', from: '1850' }]
-			] as const) {
+			] as [string, typeof base][]) {
 				const plan = await measure(repo.findSql(treeId, filters, scope, rootId));
 				const name = `${label}${scope.isRestricted ? ', restricted' : ''}`;
 				expect(tableScans(plan.details), `${name}: ${plan.details.join(' | ')}`).toEqual([]);
