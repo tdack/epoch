@@ -170,7 +170,7 @@
 	}
 
 	/** Runs one change: a failure stays in the dialog, a success closes it and reloads. */
-	async function run(work: () => Promise<void>, done: string) {
+	async function run(work: () => Promise<unknown>, done: string) {
 		if (isBusy) return;
 		isBusy = true;
 		dialogError = null;
