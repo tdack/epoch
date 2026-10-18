@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from '@lucide/svelte';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
@@ -164,7 +165,7 @@
 							>{/if}
 						<CitationsDisclosure
 							{treeId}
-							treeSlug={data.summary.tree.slug}
+							treeSlug={treeLinkSlug(data.summary.tree)}
 							{role}
 							{editor}
 							{toasts}
@@ -185,7 +186,7 @@
 						>
 							<NoteList
 								{treeId}
-								treeSlug={data.summary.tree.slug}
+								treeSlug={treeLinkSlug(data.summary.tree)}
 								{role}
 								{editor}
 								{toasts}
@@ -204,7 +205,7 @@
 			<div class="mt-2">
 				<NoteList
 					{treeId}
-					treeSlug={data.summary.tree.slug}
+					treeSlug={treeLinkSlug(data.summary.tree)}
 					{role}
 					{editor}
 					{toasts}
@@ -219,7 +220,7 @@
 					<div class="mt-1">
 						<NoteList
 							{treeId}
-							treeSlug={data.summary.tree.slug}
+							treeSlug={treeLinkSlug(data.summary.tree)}
 							{role}
 							{editor}
 							{toasts}
@@ -247,7 +248,7 @@
 			<div class="mt-2">
 				<CitationList
 					{treeId}
-					treeSlug={data.summary.tree.slug}
+					treeSlug={treeLinkSlug(data.summary.tree)}
 					{role}
 					{editor}
 					{toasts}
@@ -266,7 +267,7 @@
 					<div class="mt-1">
 						<CitationList
 							{treeId}
-							treeSlug={data.summary.tree.slug}
+							treeSlug={treeLinkSlug(data.summary.tree)}
 							{role}
 							{editor}
 							{toasts}
