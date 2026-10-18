@@ -161,6 +161,7 @@
 					)}
 					citationCount={name.citationCount}
 					label={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+					isAddLinkShown={false}
 				/>
 				<NotesDisclosure
 					noteCount={name.notes.length}

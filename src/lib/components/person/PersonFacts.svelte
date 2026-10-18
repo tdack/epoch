@@ -280,6 +280,7 @@
 		citationCount={fact.citationCount}
 		isConflicting={fact.conflict?.kind === CONFLICT_KINDS.CONFLICT}
 		label={`the ${fact.label.toLowerCase()}`}
+		isAddLinkShown={false}
 	>
 		{#snippet controls()}
 			<!-- The page keeps a fact's evidence, notes and controls on one line. -->
