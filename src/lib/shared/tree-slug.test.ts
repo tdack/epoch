@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	subtreePath,
 	canonicalTreeAddress,
 	isValidTreeSlug,
 	slugifyTreeName,
@@ -95,5 +96,26 @@ describe('treePath with a sub-tree', () => {
 		expect(
 			canonicalTreeAddress(url, 't-id~s-id', { id: 't-id', slug: 'dacks', subtree: 'bouvier' })
 		).toBe('/trees/dacks~bouvier/people?q=1');
+	});
+});
+
+describe('subtreePath', () => {
+	it('adds the sub-tree to the tree', () => {
+		expect(subtreePath({ id: 't1', slug: 'dacks' }, 'bouvier-line')).toBe(
+			'/trees/dacks~bouvier-line'
+		);
+	});
+
+	it('replaces a lens the ref already carries, in its slug or as its subtree', () => {
+		expect(subtreePath({ id: 't1', slug: 'dacks~simpson-line' }, 'bouvier-line')).toBe(
+			'/trees/dacks~bouvier-line'
+		);
+		expect(subtreePath({ id: 't1', slug: 'dacks', subtree: 'simpson-line' }, 'bouvier-line')).toBe(
+			'/trees/dacks~bouvier-line'
+		);
+	});
+
+	it('falls back to the id for a tree with no slug', () => {
+		expect(subtreePath({ id: 't1' }, 'x')).toBe('/trees/t1~x');
 	});
 });

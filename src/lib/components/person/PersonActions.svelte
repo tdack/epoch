@@ -19,6 +19,7 @@
 	import { setFavoriteApi } from '#lib/api/lists.js';
 	import { undoApi } from '#lib/api/relationships.js';
 	import { createSubtree } from '#lib/api/subtrees.js';
+	import { subtreePath } from '#lib/shared/tree-slug.js';
 	import { DATA_KEY } from '#lib/api/load-helpers.js';
 	import {
 		canChangeRecords,
@@ -93,7 +94,7 @@
 			isMakingSubtree = false;
 			// The summary lists the sub-tree, so the switcher needs the layout reloaded.
 			await invalidate(DATA_KEY);
-			await goto(`${treeHref}~${encodeURIComponent(slug)}`);
+			await goto(subtreePath(treeRef, slug));
 		} catch (cause) {
 			subtreeError = messageOf(cause, 'Could not make the sub-tree');
 		} finally {

@@ -73,6 +73,15 @@ export function treePath(tree: TreeRef): string {
 }
 
 /**
+ * `/trees/<tree>~<subtree>` for a given sub-tree, replacing any lens `tree` already carries: a ref
+ * from `treeLinkSlug` holds `dacks~a` as its slug, and appending to that would give `dacks~a~b`.
+ */
+export function subtreePath(tree: TreeRef, subtree: string): string {
+	const base = splitTreeSegment(tree.slug ?? tree.id).tree;
+	return treePath({ id: tree.id, slug: base, subtree });
+}
+
+/**
  * The same address under the tree's canonical segment, or null when `url` already uses it. Only
  * the segment after `/trees/` changes; the rest of the path and the query are kept.
  */

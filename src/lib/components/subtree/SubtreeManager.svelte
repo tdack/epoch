@@ -8,7 +8,7 @@
 	import { undoApi } from '#lib/api/relationships.js';
 	import { deleteSubtree, updateSubtree } from '#lib/api/subtrees.js';
 	import type { SubtreeDto, UpdateSubtreeInput } from '#lib/shared/subtrees.js';
-	import { treePath, type TreeRef } from '#lib/shared/tree-slug.js';
+	import { subtreePath, type TreeRef } from '#lib/shared/tree-slug.js';
 	import SubtreeDialog from './SubtreeDialog.svelte';
 
 	interface Props {
@@ -127,9 +127,7 @@
 							class="inline-flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-900"
 						>
 							<Network class="h-3.5 w-3.5 text-stone-500" aria-hidden="true" />
-							<a href="{treePath(tree)}~{encodeURIComponent(subtree.slug)}" class="hover:underline"
-								>{subtree.name}</a
-							>
+							<a href={subtreePath(tree, subtree.slug)} class="hover:underline">{subtree.name}</a>
 							{#if subtree.isRootMissing}
 								<span
 									class="rounded-full bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-900"
