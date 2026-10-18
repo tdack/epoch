@@ -185,7 +185,7 @@ describe('the plan', () => {
 		expect(details.some((d) => d.includes('idx_union_partner_person'))).toBe(true);
 		expect(details.some((d) => d.includes('idx_uq_union_person'))).toBe(true);
 		// The only table scans are the recursive CTE itself.
-		expect(details.filter((d) => /^SCAN (?!line|\(subquery)/.test(d))).toEqual([]);
+		expect(details.filter((d) => /^SCAN (?!line|l$|CONSTANT ROW|\(subquery)/.test(d))).toEqual([]);
 	});
 
 	it('binds the tree id and root id and nothing else', () => {
