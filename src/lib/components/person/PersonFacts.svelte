@@ -496,6 +496,10 @@
 	{treeId}
 	personId={dto.person.id}
 	fact={factDialog?.fact ?? null}
+	{role}
+	citations={factDialog?.fact
+		? citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.EVENT, factDialog.fact.id)
+		: []}
 	onsaved={factSaved}
 	onstale={factStale}
 	oncancel={() => (factDialog = null)}

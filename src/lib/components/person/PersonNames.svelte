@@ -234,6 +234,10 @@
 	{treeId}
 	personId={dto.person.id}
 	name={nameDialog?.name ?? null}
+	{role}
+	citations={nameDialog?.name?.id
+		? citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.NAME, nameDialog.name.id)
+		: []}
 	partnerships={partnershipChoices}
 	onsaved={nameSaved}
 	onstale={nameStale}

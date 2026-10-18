@@ -3,6 +3,9 @@
 	import { tick, untrack } from 'svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
+	import SourceSection from '#lib/components/evidence/SourceSection.svelte';
+	import type { CitationDto, CitationInput } from '#lib/shared/evidence.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
@@ -22,6 +25,10 @@
 		personId: string;
 		/** The fact being edited, or null to add one. */
 		fact: FactDto | null;
+		/** The viewer's role; the optional Source section is shown only to a role that can cite. */
+		role: TreeRole | undefined;
+		/** The fact's existing citations, listed in the Source section when editing. */
+		citations?: CitationDto[];
 		/** Called after a save, with the change so the caller can offer Undo. */
 		onsaved: (change: ChangeSummary | null) => void | Promise<void>;
 		/** Called when the fact changed under the person; the caller reloads and reopens with what is stored. */
@@ -29,7 +36,17 @@
 		oncancel: () => void;
 	}
 
-	let { isOpen, treeId, personId, fact, onsaved, onstale, oncancel }: Props = $props();
+	let {
+		isOpen,
+		treeId,
+		personId,
+		fact,
+		role,
+		citations = [],
+		onsaved,
+		onstale,
+		oncancel
+	}: Props = $props();
 
 	const PREVIEW_DELAY_MS = 250;
 	const EVENT_TYPES = FACT_TYPE_LIST.filter((t) => t.kind === FACT_KINDS.EVENT);
@@ -53,6 +70,7 @@
 	let latitude = $state('');
 	let longitude = $state('');
 	let isDetailsOpen = $state(false);
+	let citation = $state<CitationInput | null>(null);
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
@@ -197,8 +215,8 @@
 		await submission.submit(async () => {
 			const input = toInput();
 			const { change } = fact
-				? await updateFactApi(treeId, fact.id, input, fact.version)
-				: await createFactApi(treeId, personId, input);
+				? await updateFactApi(treeId, fact.id, input, fact.version, citation)
+				: await createFactApi(treeId, personId, input, citation);
 			await onsaved(change);
 		}, 'Could not save the fact');
 	}
@@ -423,6 +441,16 @@
 				<label for="fact-notes" class="field-label">Notes</label>
 				<textarea id="fact-notes" rows="2" bind:value={notes} class={field}></textarea>
 			</div>
+
+			<SourceSection
+				{treeId}
+				idPrefix="fact-source"
+				{role}
+				{isOpen}
+				existing={citations}
+				bind:citation
+				onerror={(message) => (submission.error = message)}
+			/>
 		</form>
 	{/snippet}
 </ImpactDialog>

@@ -5,6 +5,7 @@ import type {
 } from '#lib/shared/api-contracts.js';
 import type { PersonFormData, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
+import type { CitationInput } from '#lib/shared/evidence.js';
 import type { FactInput } from '#lib/shared/fact-types.js';
 import type { NameInput } from '#lib/shared/name-types.js';
 import type { PersonPrivacy, PrivacySettingsDto } from '#lib/shared/privacy.js';
@@ -68,11 +69,12 @@ export function fetchPersonPage(
 export async function createFactApi(
 	treeId: string,
 	personId: string,
-	fact: FactInput
+	fact: FactInput,
+	citation: CitationInput | null = null
 ): Promise<{ factId: string; change: ChangeSummary | null }> {
 	return call(
 		path`/api/trees/${treeId}/people/${personId}/facts`,
-		json('POST', fact),
+		json('POST', citation ? { ...fact, citation } : fact),
 		'Failed to add the fact'
 	);
 }
@@ -81,11 +83,12 @@ export async function updateFactApi(
 	treeId: string,
 	factId: string,
 	fact: Partial<FactInput>,
-	version: number
+	version: number,
+	citation: CitationInput | null = null
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
 		path`/api/trees/${treeId}/facts/${factId}`,
-		json('PUT', { ...fact, version }),
+		json('PUT', { ...fact, version, ...(citation ? { citation } : {}) }),
 		'Failed to save the fact'
 	);
 }
@@ -135,11 +138,12 @@ export async function createNameApi(
 	treeId: string,
 	personId: string,
 	name: NameInput,
-	isPreferred = false
+	isPreferred = false,
+	citation: CitationInput | null = null
 ): Promise<{ nameId: string; change: ChangeSummary | null }> {
 	return call(
 		path`/api/trees/${treeId}/people/${personId}/names`,
-		json('POST', { ...name, isPreferred }),
+		json('POST', { ...name, isPreferred, ...(citation ? { citation } : {}) }),
 		'Failed to add the name'
 	);
 }
@@ -148,11 +152,12 @@ export async function updateNameApi(
 	treeId: string,
 	nameId: string,
 	name: Partial<NameInput>,
-	version: number
+	version: number,
+	citation: CitationInput | null = null
 ): Promise<{ change: ChangeSummary | null }> {
 	return call(
 		path`/api/trees/${treeId}/names/${nameId}`,
-		json('PUT', { ...name, version }),
+		json('PUT', { ...name, version, ...(citation ? { citation } : {}) }),
 		'Failed to save the name'
 	);
 }
