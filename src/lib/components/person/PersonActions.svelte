@@ -1,14 +1,31 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
-	import { Combine, Cross, GitBranch, Pencil, Star, Trash2, UserPlus } from '@lucide/svelte';
+	import {
+		Combine,
+		Cross,
+		GitBranch,
+		Network,
+		Pencil,
+		Star,
+		Trash2,
+		UserPlus
+	} from '@lucide/svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
+	import SubtreeDialog from '#lib/components/subtree/SubtreeDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { setFavoriteApi } from '#lib/api/lists.js';
 	import { undoApi } from '#lib/api/relationships.js';
-	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
+	import { createSubtree } from '#lib/api/subtrees.js';
+	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import {
+		canChangeRecords,
+		canCreateRecords,
+		isManagerOrAbove,
+		type TreeRole
+	} from '#lib/shared/roles.js';
 	import { canMergePerson } from './person-permissions.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { personPath, treePath } from './person-paths.js';
@@ -57,6 +74,32 @@
 	const canAdd = $derived(canCreateRecords(role));
 	const canChange = $derived(canChangeRecords(role));
 	let isMerging = $state(false);
+
+	// `tree:manage_subtrees` is manager and above; the server still decides.
+	const canMakeSubtree = $derived(isManagerOrAbove(role));
+	let isMakingSubtree = $state(false);
+	let isSavingSubtree = $state(false);
+	let subtreeError = $state<string | null>(null);
+	const subtreeSuggestion = $derived.by(() => {
+		const name = dto.names.find((n) => n.isPreferred) ?? dto.names[0];
+		return name?.surname ? `${name.surname} line` : `${dto.person.displayName} line`;
+	});
+
+	async function makeSubtree(name: string, slug: string) {
+		isSavingSubtree = true;
+		subtreeError = null;
+		try {
+			await createSubtree(treeId, { name, slug, rootPersonId: dto.person.id });
+			isMakingSubtree = false;
+			// The summary lists the sub-tree, so the switcher needs the layout reloaded.
+			await invalidate(DATA_KEY);
+			await goto(`${treeHref}~${encodeURIComponent(slug)}`);
+		} catch (cause) {
+			subtreeError = messageOf(cause, 'Could not make the sub-tree');
+		} finally {
+			isSavingSubtree = false;
+		}
+	}
 
 	async function showPerson(id: string) {
 		if (relativeTarget.kind === 'select') {
@@ -130,6 +173,17 @@
 				data-testid="merge-person"><Combine class="h-3.5 w-3.5" />Merge…</button
 			>
 		{/if}
+		{#if canMakeSubtree}
+			<button
+				type="button"
+				onclick={() => {
+					subtreeError = null;
+					isMakingSubtree = true;
+				}}
+				class="action-btn"
+				data-testid="make-subtree"><Network class="h-3.5 w-3.5" />Make sub-tree from here…</button
+			>
+		{/if}
 		{#if canChange}<button
 				type="button"
 				onclick={() => editor.requestDeletePerson(dto.person.id)}
@@ -162,5 +216,18 @@
 		person={{ id: dto.person.id, name: dto.person.displayName }}
 		onmerged={merged}
 		oncancel={() => (isMerging = false)}
+	/>
+{/if}
+
+{#if canMakeSubtree}
+	<SubtreeDialog
+		isOpen={isMakingSubtree}
+		mode="create"
+		initialName={subtreeSuggestion}
+		rootName={dto.person.displayName}
+		isSaving={isSavingSubtree}
+		error={subtreeError}
+		onclose={() => (isMakingSubtree = false)}
+		onsave={makeSubtree}
 	/>
 {/if}
