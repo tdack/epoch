@@ -6,12 +6,13 @@
  * Writes are not here: they go through the mutation runner and the change log.
  */
 
-import { sql, type SQL } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import type { SubtreeRow } from '../domain/change-log';
 import type { ViewerScope } from '../services/tree-access';
 import { toImage } from './change-store';
-import { subtrees } from '../db/schema';
+import { individuals, personNames, subtrees } from '../db/schema';
+import { displayNameWith } from '../../shared/name-types';
 import { andVisible } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -72,5 +73,24 @@ export class SubtreeRepository {
 			sql` and (s.id = ${idOrSlug} or s.slug = ${idOrSlug})`
 		);
 		return matches[0];
+	}
+
+	/**
+	 * The root's display name for the banner. The caller has already found the sub-tree through
+	 * `find`, which shows it only for a root the viewer may see, so no visibility test repeats here.
+	 */
+	async rootDisplayName(treeId: string, personId: string): Promise<string | null> {
+		const person = await this.db
+			.select()
+			.from(individuals)
+			.where(and(eq(individuals.treeId, treeId), eq(individuals.id, personId)))
+			.get();
+		if (!person) return null;
+		const names = await this.db
+			.select()
+			.from(personNames)
+			.where(eq(personNames.personId, personId))
+			.all();
+		return displayNameWith(person, names);
 	}
 }

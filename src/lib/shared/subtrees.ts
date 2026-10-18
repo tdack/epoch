@@ -26,6 +26,12 @@ export interface SubtreeSummaryDto {
 	rootPersonId: string;
 }
 
+/** The sub-tree the address named, as the summary returns it: the banner shows its root by name. */
+export interface ActiveSubtreeDto extends SubtreeSummaryDto {
+	/** The root person's display name; null when the root no longer exists. */
+	rootName: string | null;
+}
+
 export interface CreateSubtreeInput {
 	name: string;
 	slug: string;
