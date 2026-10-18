@@ -97,7 +97,7 @@ are gone.
   place's other sub-lines, each in a nullable column, so the fact editor can show and edit them
   (ADR-051). Any other line under a fact is kept verbatim and shown read-only.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person, a
-  partnership or a source, or is null for a detached file (ADR-060). The R2 key names the file, not its owner, so attaching,
+  partnership or a source, or is null for a detached file (ADR-061). The R2 key names the file, not its owner, so attaching,
   detaching and moving are row updates that never touch the bytes (ADR-050).
 - `date_value`: the original GEDCOM text plus parsed lower and upper bounds, precision, calendar
   and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day (ADR-004).

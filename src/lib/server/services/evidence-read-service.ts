@@ -77,7 +77,7 @@ export class EvidenceReadService {
 		const [rows, counts, fileCounts] = await Promise.all([
 			this.evidence.sourcesByIds(treeId, ids),
 			this.evidence.visibleCitationCounts(treeId, ids, scope),
-			// No privacy join: a source that is listed has all of its files visible (ADR-060).
+			// No privacy join: a source that is listed has all of its files visible (ADR-061).
 			this.media.fileCountsOf(treeId, ids)
 		]);
 		const byId = new Map(rows.map((s) => [s.id, s]));

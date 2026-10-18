@@ -95,7 +95,7 @@ describe('importing again changes nothing', () => {
 });
 
 /**
- * A source can have files in Epoch (ADR-060), but a GEDCOM `OBJE` carries a path, never bytes, so an
+ * A source can have files in Epoch (ADR-061), but a GEDCOM `OBJE` carries a path, never bytes, so an
  * import creates no file and an export has no file to write. The `OBJE` under a `SOUR` stays a
  * retained line, written once; a file attached in Epoch adds nothing to the export.
  */

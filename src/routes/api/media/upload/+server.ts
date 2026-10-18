@@ -4,15 +4,18 @@ import { errorResponse } from '#lib/server/http/error-response.js';
 import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
-import { ValidationError } from '#lib/server/domain/errors.js';
+import {
+	BindingUnavailableError,
+	UnauthenticatedError,
+	ValidationError
+} from '#lib/server/domain/errors.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
-	if (!locals.user) {
-		return Response.json({ error: 'Authentication required' }, { status: 401 });
-	}
+	const failure = 'Failed to upload media';
+	if (!locals.user) return errorResponse(new UnauthenticatedError(), failure);
 	if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
-		return Response.json({ error: 'R2 or DB binding unavailable' }, { status: 500 });
+		return errorResponse(new BindingUnavailableError('MEDIA_BUCKET or DB'), failure);
 	}
 
 	try {
@@ -90,6 +93,6 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			{ status: 201 }
 		);
 	} catch (err) {
-		return errorResponse(err, 'Failed to upload media');
+		return errorResponse(err, failure);
 	}
 };

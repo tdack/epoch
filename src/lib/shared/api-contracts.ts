@@ -107,3 +107,13 @@ export interface UndoResponse extends ChangeResponse {
 	/** The change that was reverted. */
 	undone: { id: string; summary: string };
 }
+
+/**
+ * The body of every failed `/api` response. `code` is always present so a client can branch on it;
+ * `details` appears only when the error has something to act on (the current version on a 409).
+ */
+export interface ApiErrorBody {
+	error: string;
+	code: string;
+	details?: Record<string, unknown>;
+}

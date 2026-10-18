@@ -10,7 +10,7 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 	const hasFiles = !summary.viewer.isPublicVisitor && !summary.viewer.isOutsider;
 	const [source, files] = await Promise.all([
 		fetchSource(params.id, params.sourceId, listQuery(url), fetch),
-		// A listing, not part of the source: the same visibility rule decides each file (ADR-060).
+		// A listing, not part of the source: the same visibility rule decides each file (ADR-061).
 		// The address may carry the tree's slug, which the list does not recognise: the layout has the id.
 		hasFiles
 			? fetchFiles({ treeId: summary.tree.id, entityId: params.sourceId, limit: 100 }, fetch)

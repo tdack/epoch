@@ -68,7 +68,7 @@ describe('treeHandler: what it refuses before the handler runs', () => {
 		const response = await treeHandler({ failure: 'x' }, run)(eventOf({ user: null }));
 		expect(await read(response)).toEqual({
 			status: 401,
-			body: { error: 'Authentication required' }
+			body: { error: 'Authentication required', code: 'UNAUTHENTICATED' }
 		});
 		expect(run).not.toHaveBeenCalled();
 	});
@@ -76,23 +76,30 @@ describe('treeHandler: what it refuses before the handler runs', () => {
 	it('answers 400 for a missing tree id', async () => {
 		const run = vi.fn();
 		const response = await treeHandler({ failure: 'x' }, run)(eventOf({ params: {} }));
-		expect(await read(response)).toEqual({ status: 400, body: { error: 'id required' } });
+		expect(await read(response)).toEqual({
+			status: 400,
+			body: { error: 'id required', code: 'VALIDATION_ERROR' }
+		});
 		expect(run).not.toHaveBeenCalled();
 	});
 
 	it('answers 400 for a missing named parameter', async () => {
 		const run = vi.fn();
 		const handler = treeHandler({ failure: 'x', params: ['factId'] }, run);
-		expect((await read(await handler(eventOf()))).body).toEqual({ error: 'factId required' });
+		expect((await read(await handler(eventOf()))).body).toEqual({
+			error: 'factId required',
+			code: 'VALIDATION_ERROR'
+		});
 		expect(run).not.toHaveBeenCalled();
 	});
 
 	it('answers 500 when the database binding is missing', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 		const run = vi.fn();
 		const response = await treeHandler({ failure: 'x' }, run)(eventOf({ hasDb: false }));
 		expect(await read(response)).toEqual({
 			status: 500,
-			body: { error: 'Database binding unavailable' }
+			body: { error: 'The service is temporarily unavailable', code: 'INTERNAL_ERROR' }
 		});
 		expect(run).not.toHaveBeenCalled();
 	});
@@ -206,7 +213,7 @@ describe('treeHandler: errors go through errorResponse', () => {
 		});
 		expect(await read(await handler(eventOf()))).toEqual({
 			status: 500,
-			body: { error: 'Failed to save the fact' }
+			body: { error: 'Failed to save the fact', code: 'INTERNAL_ERROR' }
 		});
 		expect(log).toHaveBeenCalledTimes(1);
 	});
@@ -222,7 +229,7 @@ describe('treeHandler: errors go through errorResponse', () => {
 		const result = await read(await handler(eventOf()));
 		expect(result).toEqual({
 			status: 500,
-			body: { error: 'Export failed: Could not read file' }
+			body: { error: 'Export failed: Could not read file', code: 'INTERNAL_ERROR' }
 		});
 		expect(JSON.stringify(result.body)).not.toContain('no such column');
 	});

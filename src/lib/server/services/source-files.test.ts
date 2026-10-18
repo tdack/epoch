@@ -1,5 +1,5 @@
 /**
- * Files on a source (ADR-060). A file on a source is visible exactly when the source is: the SQL
+ * Files on a source (ADR-061). A file on a source is visible exactly when the source is: the SQL
  * that serves and lists files and the row filter that masks a loaded tree must give one answer for a
  * cited source, an uncited one, one the viewer made, and a tree where nobody is private.
  */

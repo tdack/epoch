@@ -2,7 +2,12 @@ import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import type { z } from 'zod';
 import { getDb, type DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
-import { UnauthorizedError } from '../domain/errors';
+import {
+	BindingUnavailableError,
+	UnauthenticatedError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import { parseBody, parseQuery } from '../validation';
 import { errorResponse } from './error-response';
 import { PublicTreeService } from '../services/public-tree-service';
@@ -94,15 +99,15 @@ async function handle<B extends Schema, Q extends Schema>(
 	const { locals, platform } = event;
 	// Present and non-empty once the loop below passes; the generated route types cannot say so.
 	const params = event.params as Record<string, string>;
-	if (!locals.user) return Response.json({ error: 'Authentication required' }, { status: 401 });
+	if (!locals.user) return errorResponse(new UnauthenticatedError(), options.failure);
 	// A 403, never a 401: the client restarts sign-in on a 401, and a visitor has nothing to sign in to.
 	if (locals.user.isPublicVisitor && !options.allowPublicVisitor)
 		return errorResponse(new UnauthorizedError(VISITOR_REFUSED_MESSAGE), options.failure);
 	for (const name of requiredParams) {
-		if (!params[name]) return Response.json({ error: `${name} required` }, { status: 400 });
+		if (!params[name])
+			return errorResponse(new ValidationError(`${name} required`), options.failure);
 	}
-	if (!platform?.env?.DB)
-		return Response.json({ error: 'Database binding unavailable' }, { status: 500 });
+	if (!platform?.env?.DB) return errorResponse(new BindingUnavailableError('DB'), options.failure);
 
 	try {
 		const body = (

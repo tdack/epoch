@@ -25,7 +25,7 @@ Last reviewed: 2026-10-15.
   a file on a person or partnership only when every person it hangs off is visible, a file on a
   source only when the source is (ADR-028's rule), and a detached file never. A file can attach to
   nothing else, so an event, a note or a repository has no privacy rule of its own for files.
-  (ADR-050, ADR-060)
+  (ADR-050, ADR-061)
 - **Two reads do not chunk their id lists.** `visibleAmong` (`visibility.ts`) and
   `SearchRepository.factsMatching` (which binds the list twice) can pass D1's 100-parameter limit
   on a large list. Chunk them. (F13)
@@ -296,11 +296,11 @@ Last reviewed: 2026-10-15.
 
 - **Media records.** `OBJE` is retained, not modelled: an import creates no file, so an `OBJE` under a
   `SOUR` stays a kept line and is not linked to the files a source has in Epoch, and an export
-  writes no attached file (ADR-060). Model metadata, ownership, dates, notes, citations and links to
+  writes no attached file (ADR-061). Model metadata, ownership, dates, notes, citations and links to
   several records or facts.
 - **The Files manager attaches and moves to people only.** A file on a source is attached from the
   source page; the manager lists it and can detach it, but its attach and move dialogs offer no
-  source. (ADR-060)
+  source. (ADR-061)
 - **Image dimensions and safe derivatives generated asynchronously,** idempotently.
 - **Galleries, record thumbnails, ordering, captions and download permissions.**
 - **Scanned documents** (certificates) with transcription and citation workflows.
