@@ -112,3 +112,14 @@ test('the card menu opens the details drawer', async ({ page, api }) => {
 		page.locator('div.fixed.inset-y-0').getByRole('heading', { name: /John Smith/ })
 	).toBeVisible();
 });
+
+test('the card menu opens the profile page', async ({ page, api }) => {
+	const john = await api.addPerson('John', 'Smith');
+	await openTree(page, api, john);
+	await openMenuByKeyboard(page, 'John');
+	await page.keyboard.press('ArrowDown');
+	await expect(page.getByRole('menuitem', { name: 'Open profile' })).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(/\/people\/[^/?]+$/);
+	await expect(page.getByRole('heading', { name: /John Smith/ }).first()).toBeVisible();
+});
