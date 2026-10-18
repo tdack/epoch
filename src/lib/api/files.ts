@@ -1,12 +1,13 @@
+import type { ChangeSummary } from '#lib/types/genealogy.js';
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import { ApiError, call, json, path, restartSignIn } from './client.js';
 
-/** Attach a photo or document to a person; the server checks the caller may add media to them. */
-export async function uploadMediaApi(treeId: string, personId: string, file: File): Promise<void> {
+/** Attach a photo or document to a person, partnership or source; the server checks the caller may add media to it. */
+export async function uploadMediaApi(treeId: string, entityId: string, file: File): Promise<void> {
 	const body = new FormData();
 	body.append('file', file);
 	body.append('treeId', treeId);
-	body.append('entityId', personId);
+	body.append('entityId', entityId);
 	body.append('title', file.name);
 	await call('/api/media/upload', { method: 'POST', body }, 'Upload failed');
 }
@@ -172,11 +173,21 @@ export function exportDownloadUrl(instanceId: string): string {
 
 /** A page of the files the caller may see; `treeId` narrows it, `cursor` continues it. */
 export async function fetchFiles(
-	query: { treeId?: string | null; cursor?: string | null; limit?: number },
+	query: {
+		treeId?: string | null;
+		/** Only files on this person, partnership or source. */
+		entityId?: string | null;
+		/** Only files with no owner. */
+		isDetachedOnly?: boolean;
+		cursor?: string | null;
+		limit?: number;
+	},
 	fetcher: typeof fetch = fetch
 ): Promise<FileListDto> {
 	const params = new URLSearchParams();
 	if (query.treeId) params.set('treeId', query.treeId);
+	if (query.entityId) params.set('entityId', query.entityId);
+	if (query.isDetachedOnly) params.set('owner', 'detached');
 	if (query.cursor) params.set('cursor', query.cursor);
 	if (query.limit) params.set('limit', String(query.limit));
 	const qs = params.size > 0 ? `?${params}` : '';
@@ -221,8 +232,8 @@ export async function attachFileApi(
 	treeId: string,
 	entityId: string,
 	version: number | undefined
-): Promise<void> {
-	await call(
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
 		path`/api/files/${fileId}/attach`,
 		json('POST', { treeId, entityId, version }),
 		'Failed to attach the file'
@@ -234,8 +245,8 @@ export async function detachFileApi(
 	fileId: string,
 	treeId: string,
 	version: number | undefined
-): Promise<void> {
-	await call(
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
 		path`/api/files/${fileId}/detach`,
 		json('POST', { treeId, version }),
 		'Failed to detach the file'
