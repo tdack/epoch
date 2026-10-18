@@ -26,7 +26,11 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(role: TreeRole | undefined, citationCount = 0) {
+function render(
+	role: TreeRole | undefined,
+	citationCount = 0,
+	extra: Record<string, unknown> = {}
+) {
 	component = mount(CitationsDisclosure, {
 		target: document.body,
 		props: {
@@ -38,7 +42,8 @@ function render(role: TreeRole | undefined, citationCount = 0) {
 			citationCount,
 			label: 'the birth',
 			editor: { afterChange: vi.fn(), refresh: vi.fn() } as never,
-			toasts: { push: vi.fn() } as never
+			toasts: { push: vi.fn() } as never,
+			...extra
 		}
 	});
 	flushSync();
@@ -46,15 +51,29 @@ function render(role: TreeRole | undefined, citationCount = 0) {
 
 const addButton = () =>
 	document.querySelector<HTMLButtonElement>(
-		'button[aria-label="Add a citation for the birth of Ann Ash"]'
+		'button[aria-label="Add a source for the birth of Ann Ash"]'
 	);
 
 describe('CitationsDisclosure without citations', () => {
-	it('makes Unsourced a button that opens the citation dialog for an editor', async () => {
-		render('editor');
+	it('shows nothing at all: no word, no marker, and no empty line', () => {
+		render('viewer');
+		expect(document.body.textContent?.trim()).toBe('');
+		expect(document.querySelector('[data-testid="claim-state"]')).toBeNull();
+		expect(document.querySelector('[data-testid="add-citation"]')).toBeNull();
+		// The line stays in the DOM but is hidden by CSS while nothing sits on it.
+		expect(document.body.firstElementChild?.children).toHaveLength(0);
+	});
+
+	it('shows nothing to the public visitor', () => {
+		render(undefined);
+		expect(document.body.textContent?.trim()).toBe('');
+	});
+
+	it('offers a quiet Add source link to a role that can cite, opening the dialog', async () => {
+		render('contributor');
 		const button = addButton();
 		expect(button).not.toBeNull();
-		expect(button!.textContent).toContain('Unsourced');
+		expect(button!.textContent).toBe('Add source');
 		expect(document.querySelector('[data-testid="citation-form"]')).toBeNull();
 
 		button!.click();
@@ -63,30 +82,37 @@ describe('CitationsDisclosure without citations', () => {
 		expect(document.querySelector('[data-testid="citation-form"]')).not.toBeNull();
 	});
 
-	it('shows Unsourced as plain text to a viewer, with no way to add a citation', () => {
-		render('viewer');
+	it('leaves the link out where an edit dialog is the way in', () => {
+		render('editor', 0, { isAddLinkShown: false });
 		expect(addButton()).toBeNull();
-		expect(document.querySelector('[data-testid="claim-state"]')!.textContent).toContain(
-			'Unsourced'
-		);
-		expect(document.querySelector('[data-testid="add-citation"]')).toBeNull();
-	});
-
-	it('shows Unsourced as plain text to the public visitor', () => {
-		render(undefined);
-		expect(addButton()).toBeNull();
-		expect(document.querySelector('[data-testid="claim-state"]')).not.toBeNull();
 	});
 });
 
 describe('CitationsDisclosure with citations', () => {
-	it('shows the sourced marker as the disclosure, not an add button', () => {
+	it('shows a quote icon and the count as the disclosure, named by count and subject', () => {
 		render('editor', 2);
 		expect(document.querySelector('[data-testid="add-citation"]')).toBeNull();
 		const disclosure = document.querySelector('[data-testid="citations-disclosure"]');
 		expect(disclosure?.tagName).toBe('DETAILS');
-		expect(document.querySelector('[data-testid="claim-state"]')!.textContent).toContain(
-			'2 citations'
+		const summary = disclosure!.querySelector('summary')!;
+		expect(summary.getAttribute('aria-label')).toBe('2 citations for the birth');
+		expect(summary.textContent?.trim()).toBe('2');
+		expect(summary.textContent).not.toMatch(/sourced/i);
+	});
+
+	it('says citation in the singular for one', () => {
+		render('viewer', 1);
+		expect(document.querySelector('summary')!.getAttribute('aria-label')).toBe(
+			'1 citation for the birth'
 		);
+	});
+});
+
+describe('CitationsDisclosure when conflicting', () => {
+	it('keeps the amber word even without citations', () => {
+		render('viewer', 0, { isConflicting: true });
+		const marker = document.querySelector('[data-testid="claim-state"]');
+		expect(marker?.getAttribute('data-state')).toBe('conflicting');
+		expect(marker?.textContent).toContain('Conflicting');
 	});
 });

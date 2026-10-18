@@ -540,6 +540,12 @@ export const citationCreateSchema = z.object({
 	text: sourceTextSchema.default(null)
 });
 
+/**
+ * The citation a fact or name form may send with its own save (ADR-028): the same fields, and the
+ * subject is the record being saved, so the request does not name one.
+ */
+export const citationAttachSchema = citationCreateSchema.omit({ subject: true });
+
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const citationUpdateSchema = z.object({
 	version: versionSchema,

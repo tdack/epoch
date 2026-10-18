@@ -3,6 +3,9 @@
 	import { tick, untrack } from 'svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
+	import SourceSection from '#lib/components/evidence/SourceSection.svelte';
+	import type { CitationDto, CitationInput } from '#lib/shared/evidence.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
@@ -22,6 +25,10 @@
 		personId: string;
 		/** The name being edited, or null to add one. A derived name (no id) is edited on the person form, not here. */
 		name: NameDto | null;
+		/** The viewer's role; the optional Source section is shown only to a role that can cite. */
+		role: TreeRole | undefined;
+		/** The name's existing citations, listed in the Source section when editing. */
+		citations?: CitationDto[];
 		/** The partnerships this person is in, for "came from a partnership". */
 		partnerships: Array<{ unionId: string; label: string }>;
 		/** Called after a save, with the change so the caller can offer Undo. */
@@ -31,8 +38,18 @@
 		oncancel: () => void;
 	}
 
-	let { isOpen, treeId, personId, name, partnerships, onsaved, onstale, oncancel }: Props =
-		$props();
+	let {
+		isOpen,
+		treeId,
+		personId,
+		name,
+		role,
+		citations = [],
+		partnerships,
+		onsaved,
+		onstale,
+		oncancel
+	}: Props = $props();
 
 	const PREVIEW_DELAY_MS = 250;
 
@@ -46,6 +63,7 @@
 	let dateText = $state('');
 	let unionId = $state('');
 	let isPreferred = $state(false);
+	let citation = $state<CitationInput | null>(null);
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
@@ -144,8 +162,8 @@
 		await submission.submit(async () => {
 			const input = toInput();
 			const { change } = name?.id
-				? await updateNameApi(treeId, name.id, input, name.version ?? 0)
-				: await createNameApi(treeId, personId, input, isPreferred);
+				? await updateNameApi(treeId, name.id, input, name.version ?? 0, citation)
+				: await createNameApi(treeId, personId, input, isPreferred, citation);
 			await onsaved(change);
 		}, 'Could not save the name');
 	}
@@ -269,6 +287,16 @@
 					Show this person by this name
 				</label>
 			{/if}
+
+			<SourceSection
+				{treeId}
+				idPrefix="name-source"
+				{role}
+				{isOpen}
+				existing={citations}
+				onchange={(next) => (citation = next)}
+				onerror={(message) => (submission.error = message)}
+			/>
 		</form>
 	{/snippet}
 </ImpactDialog>

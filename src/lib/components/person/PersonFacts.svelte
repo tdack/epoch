@@ -280,6 +280,7 @@
 		citationCount={fact.citationCount}
 		isConflicting={fact.conflict?.kind === CONFLICT_KINDS.CONFLICT}
 		label={`the ${fact.label.toLowerCase()}`}
+		isAddLinkShown={false}
 	>
 		{#snippet controls()}
 			<!-- The page keeps a fact's evidence, notes and controls on one line. -->
@@ -495,6 +496,10 @@
 	{treeId}
 	personId={dto.person.id}
 	fact={factDialog?.fact ?? null}
+	{role}
+	citations={factDialog?.fact
+		? citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.EVENT, factDialog.fact.id)
+		: []}
 	onsaved={factSaved}
 	onstale={factStale}
 	oncancel={() => (factDialog = null)}

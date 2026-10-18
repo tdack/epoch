@@ -161,6 +161,7 @@
 					)}
 					citationCount={name.citationCount}
 					label={`the ${typeLabel(name).toLowerCase()} ${name.displayName}`}
+					isAddLinkShown={false}
 				/>
 				<NotesDisclosure
 					noteCount={name.notes.length}
@@ -233,6 +234,10 @@
 	{treeId}
 	personId={dto.person.id}
 	name={nameDialog?.name ?? null}
+	{role}
+	citations={nameDialog?.name?.id
+		? citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.NAME, nameDialog.name.id)
+		: []}
 	partnerships={partnershipChoices}
 	onsaved={nameSaved}
 	onstale={nameStale}

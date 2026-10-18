@@ -9,6 +9,13 @@ vi.mock('#lib/api/lists.js', () => ({
 	suggestPlacesApi: vi.fn()
 }));
 
+vi.mock('#lib/api/evidence.js', () => ({
+	fetchSources: vi.fn(async () => ({
+		items: [{ id: 's1', title: 'Parish register', author: null }]
+	})),
+	createSourceApi: vi.fn()
+}));
+
 vi.mock('#lib/api/people.js', () => ({
 	createFactApi: vi.fn(),
 	previewFactApi: vi.fn(),
@@ -17,6 +24,7 @@ vi.mock('#lib/api/people.js', () => ({
 
 import { suggestPlacesApi } from '#lib/api/lists.js';
 import { createFactApi, previewFactApi, updateFactApi } from '#lib/api/people.js';
+import type { TreeRole } from '#lib/shared/roles.js';
 import type { FactDto } from '#lib/shared/person-page.js';
 import FactDialog from './FactDialog.svelte';
 
@@ -85,7 +93,7 @@ const DETAIL_FIELDS = {
 	religion: 'Anglican'
 };
 
-function render(fact: FactDto | null) {
+function render(fact: FactDto | null, role: TreeRole | undefined = 'editor') {
 	vi.mocked(previewFactApi).mockResolvedValue({
 		headline: '',
 		records: [],
@@ -103,6 +111,7 @@ function render(fact: FactDto | null) {
 			treeId: 't1',
 			personId: 'p1',
 			fact,
+			role,
 			onsaved: vi.fn(),
 			onstale: vi.fn(),
 			oncancel: vi.fn()
@@ -148,7 +157,8 @@ describe('FactDialog', () => {
 			't1',
 			'f1',
 			expect.objectContaining({ dateText: '1 JAN 1900', ...DETAIL_FIELDS }),
-			3
+			3,
+			null
 		);
 	});
 
@@ -236,5 +246,24 @@ describe('FactDialog', () => {
 			latitude: null,
 			religion: null
 		});
+	});
+
+	it('offers a collapsed Source section that cites nothing while closed or empty', async () => {
+		render(null);
+		const section = document.querySelector<HTMLDetailsElement>(
+			'details:has(#fact-source-source-search)'
+		);
+		expect(section).not.toBeNull();
+		expect(section!.open).toBe(false);
+		expect(section!.querySelector('summary')!.textContent).toBe('Source (optional)');
+		save();
+		await Promise.resolve();
+		expect(createFactApi).toHaveBeenCalledWith('t1', 'p1', expect.anything(), null);
+	});
+
+	it('hides the Source section from a role that cannot cite', () => {
+		render(null, 'viewer');
+		expect(document.querySelector('#fact-source-source-search')).toBeNull();
+		expect(document.body.textContent).not.toContain('Source (optional)');
 	});
 });
