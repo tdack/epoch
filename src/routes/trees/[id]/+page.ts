@@ -26,9 +26,9 @@ const FETCHED_PARAMS = new Set([
 	'scope'
 ]);
 
-function rememberedFocus(treeId: string): string | null {
+function rememberedFocus(treeId: string, subtreeId: string | null): string | null {
 	try {
-		return localStorage.getItem(rememberedFocusKey(treeId));
+		return localStorage.getItem(rememberedFocusKey(treeId, subtreeId));
 	} catch {
 		// Storage can be unavailable (private mode, blocked site data); the default still works.
 		return null;
@@ -74,9 +74,12 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 		exp: view.expandedStubs
 	};
 
+	// Inside a lens: the address, what was last viewed in this lens, the lens's root, then the tree's.
+	const lens = summary.subtree;
 	const candidates = [
 		view.focusId,
-		rememberedFocus(summary.tree.id),
+		rememberedFocus(summary.tree.id, lens?.id ?? null),
+		lens?.rootPersonId ?? null,
 		summary.defaultFocusPersonId
 	].filter((id, index, all): id is string => id !== null && all.indexOf(id) === index);
 	for (const [index, focusId] of candidates.entries()) {

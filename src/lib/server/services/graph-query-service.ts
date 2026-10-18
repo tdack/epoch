@@ -19,7 +19,8 @@ import {
 	type WholeTreeGraphDto
 } from '../../shared/graph-views';
 import { loadWholeTreeWindow } from './whole-tree-window';
-import { summaryOfSubtrees } from './subtree-service';
+import { activeSubtree, summaryOfSubtrees } from './subtree-service';
+import type { SubtreeSummaryDto } from '../../shared/subtrees';
 
 export class GraphQueryService {
 	private repo: GraphWindowRepository;
@@ -84,7 +85,11 @@ export class GraphQueryService {
 		};
 	}
 
-	async summary(treeId: string, context: AuthenticatedContext): Promise<TreeSummaryDto> {
+	async summary(
+		treeId: string,
+		context: AuthenticatedContext,
+		subtree: SubtreeSummaryDto | null = null
+	): Promise<TreeSummaryDto> {
 		const scope = await this.requireView(treeId, context);
 		const tree = await this.trees.findById(treeId);
 		if (!tree) throw new NotFoundError('Tree', treeId);
@@ -114,7 +119,8 @@ export class GraphQueryService {
 			},
 			counts,
 			defaultFocusPersonId,
-			subtrees
+			subtrees,
+			subtree: await activeSubtree(this.db, treeId, subtree)
 		};
 	}
 }

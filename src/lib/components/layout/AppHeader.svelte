@@ -5,6 +5,7 @@
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
 	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
+	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
 
 	interface Props {
 		trees: TreeSummary[];
@@ -12,7 +13,12 @@
 		/** Counts from the tree summary, shown under the tree's name; omitted where no tree is open. */
 		counts?: { people: number; unions: number };
 		isImporting?: boolean;
+		/** The selected tree's sub-trees, for the switcher. */
+		subtrees?: SubtreeSummaryDto[];
+		/** The sub-tree lens in force, if any. */
+		activeSubtreeId?: string | null;
 		onselectTree: (id: string) => void;
+		onselectSubtree?: (subtree: SubtreeSummaryDto) => void;
 		onopenNewTree: () => void;
 		onopenDeleteTree: () => void;
 		/** Absent below manager, who may not rename the tree, so the menu item is not shown. */
@@ -36,7 +42,10 @@
 		selectedTreeId,
 		counts,
 		isImporting = false,
+		subtrees = [],
+		activeSubtreeId = null,
 		onselectTree,
+		onselectSubtree,
 		onopenNewTree,
 		onopenDeleteTree,
 		onopenRenameTree,
@@ -72,7 +81,10 @@
 		{selectedTreeId}
 		{counts}
 		{isImporting}
+		{subtrees}
+		{activeSubtreeId}
 		{onselectTree}
+		{onselectSubtree}
 		{onopenNewTree}
 		{onopenDeleteTree}
 		{onopenRenameTree}

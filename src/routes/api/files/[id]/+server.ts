@@ -1,6 +1,7 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 import { fileDeleteQuerySchema, fileRenameSchema } from '#lib/server/validation/schemas.js';
+import { BindingUnavailableError } from '#lib/server/domain/errors.js';
 
 /** Renames one file in the tree named in the body. The change is logged and can be undone. */
 export const PATCH = apiHandler(
@@ -22,7 +23,7 @@ export const DELETE = apiHandler(
 	{ failure: 'Failed to delete the file', query: fileDeleteQuerySchema, params: ['id'] },
 	({ db, ctx, event, params, query }) => {
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
-		if (!bucket) return Response.json({ error: 'R2 binding unavailable' }, { status: 500 });
+		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		return new MediaService(db).delete(ctx, { treeId: query.treeId, mediaId: params.id! }, bucket);
 	}
 );

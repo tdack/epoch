@@ -15,6 +15,7 @@ import { SubtreeRepository, type SubtreeRead } from '../repositories/subtree-rep
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import type {
+	ActiveSubtreeDto,
 	CreateSubtreeInput,
 	SubtreeDto,
 	SubtreeSummaryDto,
@@ -46,6 +47,17 @@ export async function summaryOfSubtrees(
 		name: row.name,
 		rootPersonId: row.rootPersonId
 	}));
+}
+
+/** The sub-tree the address named, with its root's name for the banner. */
+export async function activeSubtree(
+	db: DbClient,
+	treeId: string,
+	subtree: SubtreeSummaryDto | null
+): Promise<ActiveSubtreeDto | null> {
+	if (!subtree) return null;
+	const rootName = await new SubtreeRepository(db).rootDisplayName(treeId, subtree.rootPersonId);
+	return { ...subtree, rootName };
 }
 
 export class SubtreeService {

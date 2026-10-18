@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import AncestorOutline from '#lib/components/charts/AncestorOutline.svelte';
 	import ChartPage from '#lib/components/charts/ChartPage.svelte';
 	import FanChart from '#lib/components/charts/FanChart.svelte';
@@ -16,7 +17,7 @@
 
 <ChartPage
 	{treeId}
-	treeSlug={data.summary.tree.slug}
+	treeSlug={treeLinkSlug(data.summary.tree)}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="fan"

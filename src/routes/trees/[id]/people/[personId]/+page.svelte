@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import PersonView from '#lib/components/person/PersonView.svelte';
 	import { treePath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -51,7 +52,7 @@
 <PersonView
 	{dto}
 	{treeId}
-	treeSlug={data.summary.tree.slug}
+	treeSlug={treeLinkSlug(data.summary.tree)}
 	{role}
 	{editor}
 	{toasts}

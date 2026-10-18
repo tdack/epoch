@@ -1,4 +1,5 @@
 import { WELCOME_PATH } from '../../shared/access';
+import { splitTreeSegment } from '../../shared/tree-slug';
 
 // Defined beside the sign-out address, which the client builds and which returns here.
 export { WELCOME_PATH };
@@ -72,12 +73,16 @@ export function isPublicTreeSegment(
 	return publicTree !== null && (publicTree.id === segment || publicTree.slug === segment);
 }
 
-/** The tree segment (an id or a slug) of `/trees/<segment>` and `/trees/<segment>/...`, or null for any other path. */
+/**
+ * The tree (an id or a slug) of `/trees/<segment>` and `/trees/<segment>/...`, or null for any other
+ * path. A sub-tree riding in the segment (`dacks~x`) is dropped: whether the tree is public, or this
+ * host's, does not depend on the lens.
+ */
 export function treeIdOfPath(pathname: string): string | null {
 	const match = /^\/trees\/([^/]+)(?:\/|$)/.exec(pathname);
 	if (!match) return null;
 	try {
-		return decodeURIComponent(match[1]!);
+		return splitTreeSegment(decodeURIComponent(match[1]!)).tree;
 	} catch {
 		return null;
 	}

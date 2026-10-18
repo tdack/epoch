@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import AncestorOutline from '#lib/components/charts/AncestorOutline.svelte';
 	import ChartCanvas from '#lib/components/charts/ChartCanvas.svelte';
 	import ChartPage from '#lib/components/charts/ChartPage.svelte';
@@ -45,7 +46,7 @@
 
 <ChartPage
 	{treeId}
-	treeSlug={data.summary.tree.slug}
+	treeSlug={treeLinkSlug(data.summary.tree)}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="hourglass"

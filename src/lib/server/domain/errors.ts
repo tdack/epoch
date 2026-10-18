@@ -154,3 +154,16 @@ export class ExportUnavailableError extends DomainError {
 		this.name = 'ExportUnavailableError';
 	}
 }
+
+/**
+ * A Cloudflare binding the endpoint needs is missing from this deployment. A 500 with a fixed
+ * message: the binding's name says how the install is wired, which a client has no use for. `name`
+ * goes to the log only.
+ */
+export class BindingUnavailableError extends DomainError {
+	constructor(name: string) {
+		super('The service is temporarily unavailable', 'INTERNAL_ERROR', 500);
+		this.name = 'BindingUnavailableError';
+		console.error(`Binding unavailable: ${name}`);
+	}
+}

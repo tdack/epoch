@@ -1,4 +1,4 @@
-import { DomainError } from '../domain/errors';
+import { DomainError, type ErrorCode } from '../domain/errors';
 
 /**
  * The one place a route handler's failure becomes a response, so every endpoint answers the same
@@ -26,5 +26,7 @@ export function errorResponse(
 	console.error(`${fallback}:`, err);
 	// Never the thrown message: a driver error can carry SQL or schema names, and the cause is
 	// already in the log above.
-	return Response.json({ error: `${options.messagePrefix ?? ''}${fallback}` }, { status: 500 });
+	const error = `${options.messagePrefix ?? ''}${fallback}`;
+	const code: ErrorCode = 'INTERNAL_ERROR';
+	return Response.json({ error, code }, { status: 500 });
 }
