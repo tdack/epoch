@@ -21,22 +21,14 @@
 		/** The record's existing citations, listed when editing. They are changed on the page. */
 		existing?: CitationDto[];
 		/**
-		 * What to cite with the save, or null for none. Empty or closed means no citation, so a record
-		 * is never forced to carry one.
+		 * Called with what to cite with the save, or null for none. Empty or closed means no citation,
+		 * so a record is never forced to carry one.
 		 */
-		citation: CitationInput | null;
+		onchange: (citation: CitationInput | null) => void;
 		onerror: (message: string | null) => void;
 	}
 
-	let {
-		treeId,
-		idPrefix,
-		role,
-		isOpen,
-		existing = [],
-		citation = $bindable(),
-		onerror
-	}: Props = $props();
+	let { treeId, idPrefix, role, isOpen, existing = [], onchange, onerror }: Props = $props();
 
 	const field =
 		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 coarse:text-base';
@@ -64,15 +56,15 @@
 	// A section that is closed, or has no source chosen, cites nothing even if a page was typed.
 	$effect(() => {
 		if (!isDisclosed || sourceId === null) {
-			citation = null;
+			onchange(null);
 			return;
 		}
 		const parsed = quality === '' ? null : Number(quality);
-		citation = {
+		onchange({
 			sourceId,
 			page: page.trim() || null,
 			quality: isCitationQuality(parsed) ? parsed : null
-		};
+		});
 	});
 </script>
 

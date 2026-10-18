@@ -31,12 +31,7 @@ function render(extra: Record<string, unknown> = {}) {
 			idPrefix: 'x',
 			role: 'editor',
 			isOpen: true,
-			get citation() {
-				return seen.current;
-			},
-			set citation(value: unknown) {
-				seen.current = value;
-			},
+			onchange: (value: unknown) => (seen.current = value),
 			onerror: vi.fn(),
 			...extra
 		}

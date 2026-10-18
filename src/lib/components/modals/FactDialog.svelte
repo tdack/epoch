@@ -448,7 +448,7 @@
 				{role}
 				{isOpen}
 				existing={citations}
-				bind:citation
+				onchange={(next) => (citation = next)}
 				onerror={(message) => (submission.error = message)}
 			/>
 		</form>

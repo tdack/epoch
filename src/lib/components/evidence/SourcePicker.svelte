@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { tick } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { createSourceApi, fetchSources } from '#lib/api/evidence.js';
 	import type { SourceListItem } from '#lib/shared/evidence.js';
@@ -30,7 +30,8 @@
 	const SEARCH_DELAY_MS = 250;
 	const RESULTS_SHOWN = 8;
 
-	let isChoosing = $state(untrack(() => sourceId === null));
+	// Follows the chosen source; "Change source" overrides it until another is chosen.
+	let isChoosing = $derived(sourceId === null);
 	let query = $state('');
 	let results = $state<SourceListItem[]>([]);
 	let activeIndex = $state(-1);
@@ -44,11 +45,6 @@
 		'w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 coarse:text-base';
 	const listId = $derived(`${idPrefix}-source-results`);
 	const optionId = (index: number) => `${idPrefix}-source-option-${index}`;
-
-	// The parent may clear or fill the choice (a dialog reopening); follow it.
-	$effect(() => {
-		isChoosing = sourceId === null;
-	});
 
 	// Sources matching what is typed, a few at a time: the tree may hold thousands.
 	$effect(() => {
