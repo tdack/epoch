@@ -278,6 +278,34 @@ Last reviewed: 2026-10-15.
 - **Show the sub-type on the person page for every fact that has one.** Only `EVEN` and `FACT` show
   it today.
 
+### Evidence and sources
+
+Decided with the owner on 2026-10-18. Most facts will never have a source, so being unsourced is
+the normal state and is not shown; citing happens while editing.
+
+- **Quiet claim marker (session A).** On record pages (`PersonFacts`, `PersonNames`,
+  `PersonFamily`, the union page) an unsourced fact or name shows nothing: no "Unsourced" word, no
+  add button. A sourced one shows a small quote icon and its count in stone ink (emerald on hover
+  and when open), which still opens the citation list; its accessible name says the count and the
+  subject ("2 citations for the birth"). Conflicting keeps its amber word. Where a subject has no
+  edit dialog to cite from, a quiet "Add source" row link joins the Edit controls, for those who
+  can cite. The Quality report keeps `unsourced_key_fact`. Updates ADR-028, which promised a visible
+  unsourced state.
+- **Optional source when adding or editing a fact or name (session A).** `FactDialog` and
+  `NameDialog` gain a collapsed "Source" section: a searchable source combobox (extracted from
+  `CitationDialog` so both share it, with "Add a new source" inline), page and quality. Leaving it
+  closed or empty saves no citation. In edit mode the section lists the existing citations. The
+  fact create and update endpoints take an optional `citation`, run as a second command in the same
+  `runner.run` call, so the fact and its citation are one change and one Undo; adding the citation
+  still needs `record:create`.
+- **Sources move to More > Research; sources carry files (session B).** Sources leaves the top-level
+  tabs and becomes the first entry of the Research group in `TreeNav`. A source page gains a Files
+  section: attach an existing file or upload one, and detach. Media's owner kinds grow from
+  person/union to include source; a file on a source is visible to whoever can see the source
+  (ADR-028's source rule), which closes the matching item under Security and privacy. `OBJE`
+  pointers under a `SOUR` record, retained today, become these links on import and are written back
+  from them on export, never twice. New ADR.
+
 ### Collaboration and change control
 
 - **Audit UI.** The change log is the start of it; there is no audit screen. Entries need actor,
