@@ -50,3 +50,27 @@ describe('TreeToolbar palette', () => {
 		expect(render().style.getPropertyValue('--sex-m-border')).toBe('#5a84b5');
 	});
 });
+
+describe('TreeToolbar on a tablet', () => {
+	it('folds the generation steppers into one button', () => {
+		// Only the tablet query matches: the phone layout would hide the steppers altogether.
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			matches: query.includes('1023px'),
+			addEventListener() {},
+			removeEventListener() {}
+		}));
+		const root = render();
+		expect(root.querySelector('button[aria-label="More ancestors generations"]')).toBeNull();
+		const button = [...root.querySelectorAll('button')].find((b) =>
+			b.textContent?.includes('Generations')
+		)!;
+		expect(button.textContent).toContain(
+			`${DEFAULT_VIEW_STATE.ancestorDepth} up, ${DEFAULT_VIEW_STATE.descendantDepth} down`
+		);
+		button.click();
+		flushSync();
+		expect(
+			document.querySelector('button[aria-label="More ancestors generations"]')
+		).not.toBeNull();
+	});
+});

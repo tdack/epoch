@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, Minus, Plus, SlidersHorizontal } from '@lucide/svelte';
+	import { ArrowDown, ArrowUp, ChevronDown, Minus, Plus, SlidersHorizontal } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
 	import { countDisplayChanges, displayDefaults } from './display-settings.js';
@@ -92,6 +92,20 @@
 		const query = matchMedia(`(max-width: ${PHONE_MAX_WIDTH_PX}px)`);
 		isNarrow = query.matches;
 		const onQueryChange = (event: MediaQueryListEvent) => (isNarrow = event.matches);
+		query.addEventListener('change', onQueryChange);
+		return () => query.removeEventListener('change', onQueryChange);
+	});
+
+	/**
+	 * Below this width the two depth steppers fold into one Generations button, so a tablet keeps
+	 * the toolbar to one row instead of stacking them and taking the height from the canvas.
+	 */
+	const COMPACT_MAX_WIDTH_PX = 1023;
+	let isCompact = $state(false);
+	$effect(() => {
+		const query = matchMedia(`(max-width: ${COMPACT_MAX_WIDTH_PX}px)`);
+		isCompact = query.matches;
+		const onQueryChange = (event: MediaQueryListEvent) => (isCompact = event.matches);
 		query.addEventListener('change', onQueryChange);
 		return () => query.removeEventListener('change', onQueryChange);
 	});
@@ -526,17 +540,44 @@
 		<!-- Its own wrapping group: the chip shrinks and this wraps, so Display never drops alone onto a row. -->
 		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
 			{@render layoutControl()}
-			<div
-				class="flex flex-wrap items-center gap-x-3 gap-y-2"
-				role="group"
-				aria-label="Generations"
-			>
-				<span class={captionClass}>Generations</span>
-				{@render stepper('Ancestors', 'ancestorDepth')}
-				{@render stepper('Descendants', 'descendantDepth')}
-				{#if view.isWholeTree}<span class={hintClass}>The whole tree shows every generation.</span
-					>{/if}
-			</div>
+			{#if isCompact}
+				<Popover label="Generations" role="dialog" panelClass="w-64 p-3">
+					{#snippet trigger(attrs)}
+						<button type="button" {...attrs} class={controlClass}>
+							<span class={captionClass}>Generations</span>
+							{#if view.isWholeTree}
+								<span class="font-bold">All</span>
+							{:else}
+								<span class="inline-flex items-center font-bold tabular-nums" aria-hidden="true">
+									<ArrowUp class="h-3 w-3" />{view.ancestorDepth}
+									<ArrowDown class="ml-1 h-3 w-3" />{view.descendantDepth}
+								</span>
+								<span class="sr-only">{view.ancestorDepth} up, {view.descendantDepth} down</span>
+							{/if}
+							<ChevronDown class="h-3.5 w-3.5 shrink-0 text-stone-500" aria-hidden="true" />
+						</button>
+					{/snippet}
+					<div class="grid gap-1">
+						{@render stepper('Ancestors', 'ancestorDepth')}
+						{@render stepper('Descendants', 'descendantDepth')}
+						{#if view.isWholeTree}<p class={hintClass}>
+								The whole tree shows every generation.
+							</p>{/if}
+					</div>
+				</Popover>
+			{:else}
+				<div
+					class="flex flex-wrap items-center gap-x-3 gap-y-2"
+					role="group"
+					aria-label="Generations"
+				>
+					<span class={captionClass}>Generations</span>
+					{@render stepper('Ancestors', 'ancestorDepth')}
+					{@render stepper('Descendants', 'descendantDepth')}
+					{#if view.isWholeTree}<span class={hintClass}>The whole tree shows every generation.</span
+						>{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 
