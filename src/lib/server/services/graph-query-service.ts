@@ -19,6 +19,7 @@ import {
 	type WholeTreeGraphDto
 } from '../../shared/graph-views';
 import { loadWholeTreeWindow } from './whole-tree-window';
+import { summaryOfSubtrees } from './subtree-service';
 
 export class GraphQueryService {
 	private repo: GraphWindowRepository;
@@ -94,6 +95,7 @@ export class GraphQueryService {
 				? [visibleCounts(this.db, treeId, scope), firstVisiblePersonId(this.db, treeId, scope)]
 				: [this.repo.counts(treeId), this.repo.firstPersonId(treeId)]
 		);
+		const subtrees = await summaryOfSubtrees(this.db, treeId, scope);
 		return {
 			tree: {
 				id: tree.id,
@@ -111,7 +113,8 @@ export class GraphQueryService {
 				isTreePublic: scope.isPublic
 			},
 			counts,
-			defaultFocusPersonId
+			defaultFocusPersonId,
+			subtrees
 		};
 	}
 }

@@ -22,6 +22,7 @@ import type {
 	researchTasks,
 	sourceRepositories,
 	sources,
+	subtrees,
 	unionPartners,
 	unions
 } from '../db/schema';
@@ -61,6 +62,7 @@ export type CitationRow = Imaged<typeof citations.$inferSelect>;
 export type NoteRow = Imaged<typeof notes.$inferSelect>;
 export type NoteAttachmentRow = Imaged<typeof noteAttachments.$inferSelect>;
 export type ResearchTaskRow = Imaged<typeof researchTasks.$inferSelect>;
+export type SubtreeRow = Imaged<typeof subtrees.$inferSelect>;
 
 /** Every row a tree owns that a mutation can touch. */
 export interface TreeRows {
@@ -78,6 +80,7 @@ export interface TreeRows {
 	notes: NoteRow[];
 	noteAttachments: NoteAttachmentRow[];
 	researchTasks: ResearchTaskRow[];
+	subtrees: SubtreeRow[];
 }
 
 /** Each table's row type, which is what `RowOp` carries so a switch on `table` narrows the row. */
@@ -96,6 +99,7 @@ export interface TableRows {
 	notes: NoteRow;
 	note_attachments: NoteAttachmentRow;
 	research_tasks: ResearchTaskRow;
+	subtree: SubtreeRow;
 }
 
 export type RecordTable = keyof TableRows;
@@ -120,7 +124,9 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	notes: 11,
 	note_attachments: 12,
 	// A task points at a record of any of the above and nothing points at it.
-	research_tasks: 13
+	research_tasks: 13,
+	// Points at a person by id with no foreign key, and nothing points at it.
+	subtree: 14
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -138,7 +144,8 @@ const ENTITY_TYPES = {
 	citations: 'citation',
 	notes: 'note',
 	note_attachments: 'note_link',
-	research_tasks: 'task'
+	research_tasks: 'task',
+	subtree: 'subtree'
 } as const satisfies Record<RecordTable, EntityType>;
 
 /**

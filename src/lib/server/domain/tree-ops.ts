@@ -17,6 +17,7 @@ import type { LabelableUnion } from '../../shared/partnership-labels';
 import { buildFactOps } from './fact-ops';
 import { buildEvidenceOps, citationCascadeOps } from './evidence-ops';
 import { buildNoteOps, noteCascadeOps } from './note-ops';
+import { buildSubtreeOps } from './subtree-ops';
 import { buildTaskOps, taskCascadeOps } from './task-ops';
 import { buildMediaOps } from './media-ops';
 import { buildPersonMergeOps } from './person-merge';
@@ -54,7 +55,8 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	citations: 'citations',
 	notes: 'notes',
 	note_attachments: 'noteAttachments',
-	research_tasks: 'researchTasks'
+	research_tasks: 'researchTasks',
+	subtree: 'subtrees'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
@@ -160,6 +162,10 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'update_task':
 		case 'delete_task':
 			return buildTaskOps(rows, command, ctx);
+		case 'create_subtree':
+		case 'update_subtree':
+		case 'delete_subtree':
+			return buildSubtreeOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
 		case 'standardise_dates':
