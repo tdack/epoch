@@ -274,6 +274,26 @@ function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 		}
 	}
 
+	// An open-ended period keeps FROM_TO: it is still a period, and a new qualifier would reach the
+	// stored columns' enums for no gain. Like AFT/BEF, the missing side stays null (unbounded).
+	const openPeriod = body.match(/^(FROM|TO)\s+(.+)$/);
+	if (openPeriod) {
+		const parts = parseDateParts(openPeriod[2]);
+		if (parts) {
+			const bounds = boundsForParts(parts);
+			const isFrom = openPeriod[1] === 'FROM';
+			return {
+				raw,
+				qualifier: DATE_QUALIFIERS.FROM_TO,
+				precision: precisionForParts(parts),
+				calendar,
+				sortStart: isFrom ? bounds.start : null,
+				sortEnd: isFrom ? null : bounds.end,
+				isApproximate: true
+			};
+		}
+	}
+
 	// Single-value qualifiers.
 	const single = body.match(
 		/^(ABT|ABOUT|EST|ESTIMATED|CAL|CALCULATED|BEF|BEFORE|AFT|AFTER|INT)\s+(.+)$/
@@ -395,6 +415,8 @@ export const DATE_EXAMPLES = [
 	{ text: 'AFT 1912', meaning: 'After then' },
 	{ text: 'BET 1910 AND 1912', meaning: 'Some time between the two' },
 	{ text: 'FROM 1910 TO 1912', meaning: 'Lasting from one to the other' },
+	{ text: 'FROM 1910', meaning: 'Began then, with no known end' },
+	{ text: 'TO 1912', meaning: 'Ended then, with no known start' },
 	{ text: '11 FEB 1731/32', meaning: 'Old and new style year' },
 	{ text: '(after the war)', meaning: 'Free text, kept as written' }
 ] as const;
