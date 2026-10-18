@@ -33,7 +33,8 @@ export class ConflictError extends ApiError {
 				| 'source_link'
 				| 'note'
 				| 'note_link'
-				| 'task';
+				| 'task'
+				| 'subtree';
 			id: string;
 			expectedVersion: number;
 			currentVersion: number;

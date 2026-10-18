@@ -10,6 +10,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { lensCounts } from '../repositories/subtree-membership';
 import { firstVisiblePersonId, visibleCounts } from '../repositories/visibility';
 import { loadFocusWindow, type FocusWindowOptions } from './focus-window';
 import { requireTreeScope, type ViewerScope } from './tree-access';
@@ -19,6 +20,8 @@ import {
 	type WholeTreeGraphDto
 } from '../../shared/graph-views';
 import { loadWholeTreeWindow } from './whole-tree-window';
+import { activeSubtree, summaryOfSubtrees } from './subtree-service';
+import type { SubtreeSummaryDto } from '../../shared/subtrees';
 
 export class GraphQueryService {
 	private repo: GraphWindowRepository;
@@ -62,12 +65,18 @@ export class GraphQueryService {
 	}
 
 	/** Everyone the viewer may see, up to the cap, with no focus. */
-	async wholeTreeGraph(treeId: string, context: AuthenticatedContext): Promise<WholeTreeGraphDto> {
+	async wholeTreeGraph(
+		treeId: string,
+		context: AuthenticatedContext,
+		subtree: SubtreeSummaryDto | null = null
+	): Promise<WholeTreeGraphDto> {
 		const scope = await this.requireView(treeId, context);
 		const window = await loadWholeTreeWindow(
 			this.repo,
 			treeId,
-			scope.isRestricted ? scope : undefined
+			scope.isRestricted ? scope : undefined,
+			undefined,
+			subtree?.rootPersonId ?? null
 		);
 		const drawn = new Set(window.personIds);
 		return {
@@ -83,7 +92,11 @@ export class GraphQueryService {
 		};
 	}
 
-	async summary(treeId: string, context: AuthenticatedContext): Promise<TreeSummaryDto> {
+	async summary(
+		treeId: string,
+		context: AuthenticatedContext,
+		subtree: SubtreeSummaryDto | null = null
+	): Promise<TreeSummaryDto> {
 		const scope = await this.requireView(treeId, context);
 		const tree = await this.trees.findById(treeId);
 		if (!tree) throw new NotFoundError('Tree', treeId);
@@ -94,6 +107,7 @@ export class GraphQueryService {
 				? [visibleCounts(this.db, treeId, scope), firstVisiblePersonId(this.db, treeId, scope)]
 				: [this.repo.counts(treeId), this.repo.firstPersonId(treeId)]
 		);
+		const subtrees = await summaryOfSubtrees(this.db, treeId, scope);
 		return {
 			tree: {
 				id: tree.id,
@@ -110,8 +124,10 @@ export class GraphQueryService {
 				isInstallOwner: context.user.isInstallOwner === true,
 				isTreePublic: scope.isPublic
 			},
-			counts,
-			defaultFocusPersonId
+			counts: subtree ? await lensCounts(this.db, treeId, subtree.rootPersonId, scope) : counts,
+			defaultFocusPersonId,
+			subtrees,
+			subtree: await activeSubtree(this.db, treeId, subtree)
 		};
 	}
 }

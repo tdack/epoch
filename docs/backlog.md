@@ -385,3 +385,22 @@ The tool is built in `tools/setup/`.
   touches DNS).
 - **Post-deploy tag check.** Mark-configured restores tags a deploy dropped but does not report that
   they were dropped; report it.
+
+### Sub-trees (ADR-062)
+
+- **List every tree's sub-trees in the switcher.** Only the current tree's arrive with its summary.
+  Listing all of them would make the tree-list endpoint resolve visibility for every tree, so it
+  needs a cheap, per-viewer list first.
+- **An `_EPOCH_SUBTREE` GEDCOM extension,** so a sub-tree survives an export and a re-import. Follows
+  the rules in [gedcom-extensions.md](./gedcom-extensions.md).
+- **An undoable move.** Moving a sub-tree is two PATCHes today and has no Undo. One PATCH with a
+  position swap, logged as one change, would close that.
+- **A scoped seed for sub-tree writes,** so an edit to a sub-tree loads only the rows its scope
+  needs. Measure first, as the scoped reads were measured (ADR-062).
+- **Materialise membership if trees grow large.** The lens is a recursive read over indexed edges.
+  If the plan tests or a measured scoped read fail on a tree of tens of thousands of people, store
+  members and maintain them in the same mutations that change `parent_child`, `union_partner` or a
+  person.
+- **Tests not yet done:** a tree host (`dacks.example.com/trees/dacks~bouvier-line`), a public
+  visitor reading a shared sub-tree, and the remembered-focus order (URL `focus`, then the focus
+  remembered for this sub-tree, then its root, then the tree's default) end to end.

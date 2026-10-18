@@ -5,10 +5,15 @@ import { parseSearchParams } from '#lib/shared/search.js';
 
 export const GET = treeHandler(
 	{ allowPublicVisitor: true, failure: 'Failed to search people' },
-	async ({ db, ctx, treeId, url }): Promise<PeopleSearchResponse> => {
+	async ({ db, ctx, treeId, subtree, url }): Promise<PeopleSearchResponse> => {
 		// The focus box and relationship dialog ask for names only, so place and dates are not read.
 		const { text, limit } = parseSearchParams(url.searchParams);
-		const { people } = await new SearchService(db).search(treeId, { text, limit }, ctx);
+		const { people } = await new SearchService(db).search(
+			treeId,
+			{ text, limit },
+			ctx,
+			subtree?.rootPersonId ?? null
+		);
 		return { people };
 	}
 );

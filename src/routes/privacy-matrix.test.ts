@@ -39,6 +39,8 @@ const EVIDENCE = 'services/privacy-evidence.test.ts';
 const NOTES = 'services/privacy-notes.test.ts';
 const TASKS = 'services/privacy-tasks.test.ts';
 
+const SUBTREES = 'services/subtree-service.test.ts';
+
 const PUBLIC_TREE = 'services/public-tree.test.ts';
 
 const FILES = 'services/media-files.test.ts';
@@ -222,6 +224,11 @@ const ENTRIES: Record<string, Entry> = {
 		covers: EVIDENCE
 	},
 	[`${API}/trees/[id]/sources/impact/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/subtrees/+server.ts`]: { kind: 'masked-rows', covers: SUBTREES },
+	[`${API}/trees/[id]/subtrees/[subtreeId]/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: SUBTREES
+	},
 	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	// The GET lists tasks in SQL with the visibility predicate beside `tree_id`; the POST, PUT and
 	// DELETE are the more dangerous half, so the entries name the write kind.
@@ -327,6 +334,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only' | 'site-setti
 	[`${API}/trees/[id]/relationship/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/subtrees/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/tasks/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',

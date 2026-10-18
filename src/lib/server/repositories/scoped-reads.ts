@@ -19,6 +19,7 @@ import {
 	personNames,
 	repositories,
 	researchTasks,
+	subtrees,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -34,6 +35,7 @@ import type {
 	PersonNameRow,
 	RepositoryRow,
 	ResearchTaskRow,
+	SubtreeRow,
 	SourceRepositoryRow,
 	SourceRow,
 	UnionPartnerRow
@@ -259,6 +261,25 @@ export class ScopedReads extends GraphWindowRepository {
 				})
 				.from(noteAttachments)
 				.where(and(eq(noteAttachments.treeId, treeId), inArray(noteAttachments.noteId, chunk)))
+		);
+	}
+
+	subtreesIn(treeId: string, ids: readonly string[]): Reads<SubtreeRow> {
+		return this.readIn(subtrees, ids, (chunk) =>
+			this.client
+				.select({ ...getTableColumns(subtrees), rid: sql<number>`${subtrees}.rowid` })
+				.from(subtrees)
+				.where(and(inTree(subtrees.treeId, treeId), inArray(subtrees.id, chunk)))
+		);
+	}
+
+	/** The sub-trees whose root is one of these people: what a merge must repoint. */
+	subtreesRootedAt(treeId: string, personIds: readonly string[]): Reads<SubtreeRow> {
+		return this.readIn(subtrees, personIds, (chunk) =>
+			this.client
+				.select({ ...getTableColumns(subtrees), rid: sql<number>`${subtrees}.rowid` })
+				.from(subtrees)
+				.where(and(inTree(subtrees.treeId, treeId), inArray(subtrees.rootPersonId, chunk)))
 		);
 	}
 

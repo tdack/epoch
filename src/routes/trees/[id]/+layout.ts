@@ -15,8 +15,13 @@ export const load: LayoutLoad = treeLoad(async ({ params, fetch, url }) => {
 	]);
 	// An address by id, from an old bookmark or a link that only knew the id, moves to the slug, so
 	// the address bar always shows the readable form and one tree has one address (ADR-045).
-	const canonical = canonicalTreeAddress(url, params.id, summary.tree);
+	// The sub-tree rides in the segment, and canonicalises to its slug like the tree does.
+	const lens = summary.subtree ?? null;
+	const tree = { ...summary.tree, subtree: lens?.slug ?? null };
+	const canonical = canonicalTreeAddress(url, params.id, tree);
 	// Not permanent: a browser caches a 308, and the slug can be changed or given up.
 	if (canonical) redirect(302, canonical);
-	return { trees, summary, marks: await marks };
+	// `tree.subtree` makes every `treePath(data.summary.tree)` link keep the lens; a link that leaves
+	// it passes `subtree: null`. Writes use `tree.id` and never see it.
+	return { trees, summary: { ...summary, tree }, marks: await marks };
 });

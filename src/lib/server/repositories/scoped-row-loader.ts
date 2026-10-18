@@ -71,7 +71,8 @@ export class ScopedRowLoader {
 			citations: new Map(),
 			notes: new Map(),
 			noteAttachments: new Map(),
-			researchTasks: new Map()
+			researchTasks: new Map(),
+			subtrees: new Map()
 		};
 
 		// Resolved ids: what the seeds name, and what those records are about. They may name records
@@ -301,6 +302,11 @@ export class ScopedRowLoader {
 				add('noteAttachments', reads.attachmentsOfNotes(treeId, pulledNotes));
 			const taskIds = fresh('tasksIn', rTasks);
 			if (taskIds.length > 0) add('researchTasks', reads.tasksIn(treeId, taskIds));
+			// Sub-trees: the seeded ones, and any rooted at a resolved person.
+			const subtreeIds = fresh('subtreesIn', seed.subtrees);
+			if (subtreeIds.length > 0) add('subtrees', reads.subtreesIn(treeId, subtreeIds));
+			const rootedAt = fresh('subtreesRootedAt', rPeople);
+			if (rootedAt.length > 0) add('subtrees', reads.subtreesRootedAt(treeId, rootedAt));
 			const seededLinkIds = fresh('sourceRepositoriesIn', seededLinks);
 			if (seededLinkIds.length > 0)
 				add('sourceRepositories', reads.sourceRepositoriesIn(treeId, seededLinkIds));
@@ -433,7 +439,8 @@ export class ScopedRowLoader {
 			citations: table('citations'),
 			notes: table('notes'),
 			noteAttachments: table('noteAttachments'),
-			researchTasks: table('researchTasks')
+			researchTasks: table('researchTasks'),
+			subtrees: table('subtrees')
 		} as TreeRows;
 		wholeKeys.forEach((key, i) => {
 			(result as unknown as Record<string, unknown>)[key] = wholeRows[i];

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
@@ -355,7 +356,7 @@
 
 	function rememberFocus(id: string) {
 		try {
-			localStorage.setItem(rememberedFocusKey(treeId), id);
+			localStorage.setItem(rememberedFocusKey(treeId, data.summary.subtree?.id ?? null), id);
 		} catch {
 			// Remembering the focus is a convenience only.
 		}
@@ -698,7 +699,7 @@
 		{isDocked}
 		page={drawer.page}
 		{treeId}
-		treeSlug={data.summary.tree.slug}
+		treeSlug={treeLinkSlug(data.summary.tree)}
 		{role}
 		error={drawer.error}
 		onClose={clearSelection}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { goto } from '$app/navigation';
 	import { GitMerge, Pencil, Plus, Trash2 } from '@lucide/svelte';
 	import { canCite, canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
@@ -238,7 +239,7 @@
 			<div class="mt-2">
 				<NoteList
 					{treeId}
-					treeSlug={data.summary.tree.slug}
+					treeSlug={treeLinkSlug(data.summary.tree)}
 					{role}
 					{editor}
 					{toasts}

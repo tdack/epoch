@@ -32,6 +32,7 @@ import {
 import { factTypeInfo } from '../../shared/fact-types';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { makeEvidenceMover } from './evidence-ops';
+import { subtreeRepointOps } from './subtree-ops';
 import {
 	MAX_PERSON_MERGE_OPS,
 	PERSON_MERGE_REFUSALS,
@@ -376,6 +377,9 @@ export function buildPersonMergeOps(
 			after: touch({ ...item, entityId: survivor.id }, ctx)
 		});
 	}
+
+	// ---- Sub-trees rooted at the person folded away follow the survivor ----
+	ops.push(...subtreeRepointOps(rows, merged.id, survivor.id, ctx));
 
 	// ---- The two person rows ----
 	const aliases = [...(survivor.xrefAliases ?? [])];

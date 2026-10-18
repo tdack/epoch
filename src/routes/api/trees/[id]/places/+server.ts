@@ -9,11 +9,12 @@ import { parseListParams } from '#lib/shared/lists.js';
  */
 export const GET = treeHandler(
 	{ allowPublicVisitor: true, failure: 'Failed to list places' },
-	({ db, ctx, treeId, url }) => {
+	({ db, ctx, treeId, subtree, url }) => {
 		const service = new PlaceService(db);
 		const page = parseListParams(url.searchParams);
+		const lens = subtree?.rootPersonId ?? null;
 		const name = url.searchParams.get('name');
-		if (name) return service.detail(treeId, name, page, ctx);
-		return service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, ctx);
+		if (name) return service.detail(treeId, name, page, ctx, lens);
+		return service.list(treeId, { q: url.searchParams.get('q') ?? '', ...page }, ctx, lens);
 	}
 );
