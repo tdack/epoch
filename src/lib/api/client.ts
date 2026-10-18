@@ -1,4 +1,5 @@
 import { browser } from '$app/env';
+import type { ApiErrorBody } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary } from '#lib/types/genealogy.js';
 
 /** A failed API call, with the server's code and details so callers can react to specific cases. */
@@ -76,11 +77,8 @@ export async function call<T>(
 	fetchFn: typeof fetch = fetch
 ): Promise<T> {
 	const res = await fetchFn(url, init);
-	const data = (await res.json().catch(() => ({}))) as {
-		error?: string;
-		code?: string;
-		details?: Record<string, unknown>;
-	};
+	// A body that is not JSON (a proxy's HTML error page) has none of these fields.
+	const data = (await res.json().catch(() => ({}))) as Partial<ApiErrorBody>;
 	if (!res.ok) {
 		// The error is still thrown, so callers stop while the page navigates away.
 		if (res.status === 401) restartSignIn();

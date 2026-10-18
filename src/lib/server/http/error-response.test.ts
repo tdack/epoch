@@ -66,7 +66,10 @@ describe('errorResponse: anything else is a logged 500', () => {
 		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const cause = new Error('D1_ERROR: UNIQUE constraint failed: trees.slug');
 		const result = await read(errorResponse(cause, 'Failed to create tree'));
-		expect(result).toEqual({ status: 500, body: { error: 'Failed to create tree' } });
+		expect(result).toEqual({
+			status: 500,
+			body: { error: 'Failed to create tree', code: 'INTERNAL_ERROR' }
+		});
 		expect(JSON.stringify(result.body)).not.toContain('D1_ERROR');
 		expect(log).toHaveBeenCalledTimes(1);
 		expect(log).toHaveBeenCalledWith('Failed to create tree:', cause);
@@ -76,7 +79,8 @@ describe('errorResponse: anything else is a logged 500', () => {
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		for (const thrown of [undefined, null, '', {}, { message: '' }, new Error('secret')]) {
 			expect((await read(errorResponse(thrown, 'Failed to load graph'))).body).toEqual({
-				error: 'Failed to load graph'
+				error: 'Failed to load graph',
+				code: 'INTERNAL_ERROR'
 			});
 		}
 	});
@@ -92,7 +96,8 @@ describe('errorResponse: anything else is a logged 500', () => {
 				)
 			).body
 		).toEqual({
-			error: 'Export failed: Could not read file'
+			error: 'Export failed: Could not read file',
+			code: 'INTERNAL_ERROR'
 		});
 	});
 });
