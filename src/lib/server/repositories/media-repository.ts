@@ -3,13 +3,24 @@
  * `media/<treeId>/<entityId>/<file>`); who a file belongs to is `media_items.entity_id`, never the key.
  */
 
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { individuals, mediaItems, personNames, unionPartners, unions, users } from '../db/schema';
+import {
+	individuals,
+	mediaItems,
+	personNames,
+	sources,
+	unionPartners,
+	unions,
+	users
+} from '../db/schema';
 import { displayNameWith } from '../../shared/name-types';
+import { sourceLabel } from '../../shared/evidence';
 
-export type MediaOwner = { kind: 'person'; id: string } | { kind: 'union'; id: string };
+export type MediaOwnerKind = 'person' | 'union' | 'source';
+
+export type MediaOwner = { kind: MediaOwnerKind; id: string };
 
 export type MediaItemRow = typeof mediaItems.$inferSelect;
 
@@ -47,12 +58,18 @@ export class MediaRepository {
 	 */
 	async listNewestFirst(options: {
 		treeId?: string;
+		/** Only files hanging off this record. */
+		entityId?: string;
+		/** Only files with no owner. */
+		isDetachedOnly?: boolean;
 		after?: FileCursor;
 		limit: number;
 	}): Promise<MediaItemRow[]> {
 		const createdKey = sql`coalesce(${mediaItems.createdAt}, 0)`;
 		const conditions = [
 			options.treeId === undefined ? undefined : eq(mediaItems.treeId, options.treeId),
+			options.entityId === undefined ? undefined : eq(mediaItems.entityId, options.entityId),
+			options.isDetachedOnly === true ? isNull(mediaItems.entityId) : undefined,
 			options.after === undefined
 				? undefined
 				: sql`(${createdKey}, ${mediaItems.id}) < (${options.after.createdAt}, ${options.after.id})`
@@ -66,12 +83,12 @@ export class MediaRepository {
 			.all();
 	}
 
-	/** Which of these ids are people and which are partnerships in the tree. Ids named by no record are absent. */
+	/** Which of these ids are people, partnerships or sources in the tree. Ids named by no record are absent. */
 	async recordKindsOf(
 		treeId: string,
 		ids: readonly string[]
-	): Promise<Map<string, 'person' | 'union'>> {
-		const kinds = new Map<string, 'person' | 'union'>();
+	): Promise<Map<string, MediaOwnerKind>> {
+		const kinds = new Map<string, MediaOwnerKind>();
 		for (const part of chunks([...new Set(ids)])) {
 			const people = await this.db
 				.select({ id: individuals.id })
@@ -85,6 +102,12 @@ export class MediaRepository {
 				.where(and(eq(unions.treeId, treeId), inArray(unions.id, part)))
 				.all();
 			for (const row of found) kinds.set(row.id, 'union');
+			const library = await this.db
+				.select({ id: sources.id })
+				.from(sources)
+				.where(and(eq(sources.treeId, treeId), inArray(sources.id, part)))
+				.all();
+			for (const row of library) kinds.set(row.id, 'source');
 		}
 		return kinds;
 	}
@@ -127,6 +150,35 @@ export class MediaRepository {
 		return names;
 	}
 
+	/** How many files hang off each of these records, for the ones that have any. */
+	async fileCountsOf(treeId: string, entityIds: readonly string[]): Promise<Map<string, number>> {
+		const counts = new Map<string, number>();
+		for (const part of chunks([...new Set(entityIds)])) {
+			const rows = await this.db
+				.select({ entityId: mediaItems.entityId, n: count() })
+				.from(mediaItems)
+				.where(and(eq(mediaItems.treeId, treeId), inArray(mediaItems.entityId, part)))
+				.groupBy(mediaItems.entityId)
+				.all();
+			for (const row of rows) if (row.entityId !== null) counts.set(row.entityId, row.n);
+		}
+		return counts;
+	}
+
+	/** Titles of sources in the tree, keyed by source id, for naming what a file hangs off. */
+	async sourceTitlesOf(treeId: string, sourceIds: readonly string[]): Promise<Map<string, string>> {
+		const titles = new Map<string, string>();
+		for (const part of chunks([...new Set(sourceIds)])) {
+			const rows = await this.db
+				.select()
+				.from(sources)
+				.where(and(eq(sources.treeId, treeId), inArray(sources.id, part)))
+				.all();
+			for (const row of rows) titles.set(row.id, sourceLabel(row));
+		}
+		return titles;
+	}
+
 	/** Display names of the users who uploaded files, keyed by user id; a user with no name shows their email. */
 	async uploaderNamesOf(userIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
@@ -143,17 +195,20 @@ export class MediaRepository {
 
 	/** What kind of record in this tree an id names, or null when it names none. */
 	async ownerOf(treeId: string, entityId: string): Promise<MediaOwner | null> {
-		const rows = await this.db.all<{ kind: 'person' | 'union' }>(sql`
+		const rows = await this.db.all<{ kind: MediaOwnerKind }>(sql`
 			select 'person' as kind from individuals where tree_id = ${treeId} and id = ${entityId}
 			union all
-			select 'union' as kind from unions where tree_id = ${treeId} and id = ${entityId}`);
+			select 'union' as kind from unions where tree_id = ${treeId} and id = ${entityId}
+			union all
+			select 'source' as kind from sources where tree_id = ${treeId} and id = ${entityId}`);
 		return rows[0] ? { kind: rows[0].kind, id: entityId } : null;
 	}
 
 	/** The people in a partnership, for deciding whether its media may be seen. */
-	async partnerIds(unionId: string): Promise<string[]> {
+	async partnerIds(treeId: string, unionId: string): Promise<string[]> {
 		const rows = await this.db.all<{ person_id: string }>(
-			sql`select person_id from union_partners where union_id = ${unionId}`
+			sql`select up.person_id from union_partners up join unions u on u.id = up.union_id
+				where u.tree_id = ${treeId} and up.union_id = ${unionId}`
 		);
 		return rows.map((r) => r.person_id);
 	}

@@ -41,11 +41,20 @@ export const PERSON_COMMAND_SCOPES: ScopeTable = {
 	record_death: (c) => seedOf({ people: [c.personId] })
 };
 
-/** A file's owner is loaded through it; the target of an attach is a person or a union. */
+/**
+ * A file's owner is loaded through it; the target of an attach is a person, a union or a source. A
+ * seeded source also brings its files, which is how `delete_source` finds the ones to detach.
+ */
 export const MEDIA_SCOPES: ScopeTable = {
 	rename_media: (c) => seedOf({ media: [c.mediaId] }),
 	detach_media: (c) => seedOf({ media: [c.mediaId] }),
-	attach_media: (c) => seedOf({ media: [c.mediaId], people: [c.entityId], unions: [c.entityId] })
+	attach_media: (c) =>
+		seedOf({
+			media: [c.mediaId],
+			people: [c.entityId],
+			unions: [c.entityId],
+			sources: [c.entityId]
+		})
 };
 
 /** Seeds for commands about people, their names and facts. */

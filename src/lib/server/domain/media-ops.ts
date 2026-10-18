@@ -16,7 +16,7 @@ export type MediaCommand =
 	| {
 			kind: 'attach_media';
 			mediaId: string;
-			/** A person or a union in the same tree; a file on a record is attached to it. */
+			/** A person, a union or a source in the same tree; a file on a record is attached to it. */
 			entityId: string;
 			expectedVersion?: number;
 	  }
@@ -82,7 +82,8 @@ export function buildMediaOps(rows: TreeRows, command: MediaCommand, ctx: MediaC
 		case 'attach_media': {
 			const isKnownRecord =
 				rows.individuals.some((p) => p.id === command.entityId) ||
-				rows.unions.some((u) => u.id === command.entityId);
+				rows.unions.some((u) => u.id === command.entityId) ||
+				rows.sources.some((s) => s.id === command.entityId);
 			if (!isKnownRecord) throw new NotFoundError('Record for the file', command.entityId);
 			if (before.entityId === command.entityId) return [];
 			return update(before, touch({ ...before, entityId: command.entityId }, ctx));
