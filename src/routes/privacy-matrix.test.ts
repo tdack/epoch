@@ -334,7 +334,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only' | 'site-setti
 	[`${API}/trees/[id]/relationship/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/subtrees/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/subtrees/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/tasks/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
