@@ -138,7 +138,8 @@ export class WindowState {
 			citations: [],
 			notes: [],
 			noteAttachments: [],
-			researchTasks: []
+			researchTasks: [],
+			subtrees: []
 		};
 	}
 

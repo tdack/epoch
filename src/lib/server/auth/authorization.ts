@@ -7,6 +7,7 @@ export type TreeAction =
 	| 'tree:manage_members'
 	| 'tree:delete'
 	| 'tree:update_settings'
+	| 'tree:manage_subtrees'
 	| 'tree:set_default_view'
 	| 'person:set_privacy'
 	| 'media:manage'
@@ -26,6 +27,8 @@ const ACTION_MIN_ROLES: Record<TreeAction, TreeRole> = {
 	'record:delete': 'editor',
 	'tree:import': 'editor',
 	'tree:update_settings': 'manager',
+	// A lens on the tree, not an access boundary; the people it names are still the viewer's to see.
+	'tree:manage_subtrees': 'manager',
 	// Decides how everyone's link without a `mode` opens, so it is the owner's alone (S16 stage 8).
 	'tree:set_default_view': 'owner',
 	'person:set_privacy': 'manager',

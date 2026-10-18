@@ -13,3 +13,4 @@ export * from './notes';
 export * from './tasks';
 export * from './install';
 export * from './settings';
+export * from './subtrees';
