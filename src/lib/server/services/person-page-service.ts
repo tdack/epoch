@@ -16,6 +16,7 @@ import type { NameType } from '../domain/genealogy-model';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { EvidenceRepository } from '../repositories/evidence-repository';
 import { NoteRepository } from '../repositories/note-repository';
+import { isSubtreeMember } from '../repositories/subtree-membership';
 import { visibleAmong } from '../repositories/visibility';
 import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
@@ -199,7 +200,8 @@ export class PersonPageService {
 	async getPerson(
 		treeId: string,
 		personId: string,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<PersonPageDto> {
 		const scope = await this.requireView(treeId, context);
 
@@ -367,6 +369,9 @@ export class PersonPageService {
 
 		return {
 			...privacyOf(self.row),
+			...(lensRootId === null
+				? {}
+				: { isInSubtree: await isSubtreeMember(this.repo.client, treeId, lensRootId, personId) }),
 			privacy: scope.isRestricted
 				? null
 				: {

@@ -12,6 +12,8 @@
 		selectedTreeId: string | null;
 		/** Counts from the tree summary, shown under the name; omitted where no tree is open. */
 		counts?: { people: number; unions: number };
+		/** The active sub-tree's name: counts then describe its members, and read "<name> · N people". */
+		subtreeName?: string | null;
 		isImporting?: boolean;
 		/** The selected tree's sub-trees, listed indented under it; none for the public visitor. */
 		subtrees?: SubtreeSummaryDto[];
@@ -37,6 +39,7 @@
 		trees,
 		selectedTreeId,
 		counts,
+		subtreeName = null,
 		isImporting = false,
 		subtrees = [],
 		activeSubtreeId = null,
@@ -112,11 +115,15 @@
 				</span>
 				{#if counts}
 					<span class="hidden truncate text-xs text-stone-500 sm:block">
-						{plural(counts.people, 'person', 'people')} · {plural(
-							counts.unions,
-							'partnership',
-							'partnerships'
-						)}
+						{#if subtreeName}
+							{subtreeName} · {plural(counts.people, 'person', 'people')}
+						{:else}
+							{plural(counts.people, 'person', 'people')} · {plural(
+								counts.unions,
+								'partnership',
+								'partnerships'
+							)}
+						{/if}
 					</span>
 				{/if}
 			</span>

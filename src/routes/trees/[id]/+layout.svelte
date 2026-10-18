@@ -174,6 +174,7 @@
 			void navigate(treeHref({ ...data.summary.tree, subtree: sub.slug }, data.hostTree))}
 		homeHref={appHref('/', data.hostTree)}
 		counts={data.summary.counts}
+		subtreeName={lens?.name ?? null}
 		onopenNewTree={shell.openNewTree}
 		onopenDeleteTree={shell.openDeleteTree}
 		onopenRenameTree={isManagerOrAbove(role) ? shell.openRenameTree : undefined}
