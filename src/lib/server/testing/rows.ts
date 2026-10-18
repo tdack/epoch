@@ -56,7 +56,8 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		citations: [],
 		notes: [],
 		noteAttachments: [],
-		researchTasks: []
+		researchTasks: [],
+		subtrees: []
 	};
 	for (const m of spec.media ?? []) {
 		rows.mediaItems.push({

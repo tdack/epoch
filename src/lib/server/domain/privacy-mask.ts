@@ -201,7 +201,9 @@ export function maskRows(
 	const visible = visibleEvidence(rows, hiddenKeys, creatorId);
 	const evidence = {
 		...visible,
-		researchTasks: visibleTasks(rows, hidden, unionsWithHiddenPartner, hiddenKeys, visible)
+		researchTasks: visibleTasks(rows, hidden, unionsWithHiddenPartner, hiddenKeys, visible),
+		// A sub-tree's name can name its root, so one rooted at a private person is as absent as they are.
+		subtrees: rows.subtrees.filter((s) => !hidden.has(s.rootPersonId))
 	};
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
@@ -389,6 +391,8 @@ function touchesHidden(
 					? hiddenCitations.has(r.subjectId)
 					: hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`)
 			);
+		case 'subtree':
+			return some(op.before, op.after, (r) => hidden.has(r.rootPersonId));
 		case 'research_tasks':
 			// A task about a record the viewer cannot see is hidden with it, however it is changed.
 			return some(op.before, op.after, (r) => {

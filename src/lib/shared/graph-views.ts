@@ -6,6 +6,7 @@ import type { TreeRole } from './roles';
 
 import type { SelectionStub } from '../tree-layout/types';
 import type { RelationshipGraph } from './relationship-graph';
+import type { SubtreeSummaryDto } from './subtrees';
 
 /** What `GET /graph?focus=` answers. */
 export interface FocusGraphDto {
@@ -48,6 +49,8 @@ export interface TreeSummaryDto {
 	};
 	/** The person the tree opens on when nobody has chosen one; null for an empty tree. */
 	defaultFocusPersonId: string | null;
+	/** The sub-trees the viewer may open, in `position` order (docs/proposal-subtrees.md). */
+	subtrees: SubtreeSummaryDto[];
 }
 
 export interface TreeCounts {
