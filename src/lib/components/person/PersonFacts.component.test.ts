@@ -49,7 +49,7 @@ function fact(overrides: Partial<FactDto> = {}): FactDto {
 function render(
 	facts: FactDto[],
 	options: {
-		mode?: 'grouped' | 'timeline';
+		mode?: 'grouped' | 'timeline' | 'attributes';
 		partnerships?: PersonPageDto['partnerships'];
 		role?: 'viewer' | 'editor';
 	} = {}
@@ -255,7 +255,7 @@ describe('PersonFacts as a timeline', () => {
 		expect(union.querySelector('button')).toBeNull();
 	});
 
-	it('shows every fact, so a conflict sits in place and nothing is behind a button', () => {
+	it('shows every event, so a conflict sits in place and nothing is behind a button', () => {
 		render(
 			[
 				fact({ id: 'b1', sortStart: '1900-01-01' }),
@@ -263,27 +263,41 @@ describe('PersonFacts as a timeline', () => {
 					id: 'b2',
 					sortStart: '1901-01-01',
 					conflict: { kind: 'conflict', otherIds: ['b1'] } as never
-				}),
-				fact({
-					id: 'r1',
-					type: 'RESI',
-					label: 'Residence',
-					kind: 'attribute',
-					value: 'Hull',
-					sortStart: null,
-					dateText: null
 				})
 			],
 			{ mode: 'timeline' }
 		);
-		expect(visibleFactIds()).toEqual(['b1', 'b2', 'r1']);
+		expect(visibleFactIds()).toEqual(['b1', 'b2']);
 		expect(document.querySelector('button[aria-controls]')).toBeNull();
 		expect(byTestId('fact-group')).toBeNull();
 	});
 
-	it('lists attributes apart from the events, without a "Date unknown" on each', () => {
+	it('leaves the attributes to their own list', () => {
+		render([fact({ id: 'b1' }), residence('r1', null)], { mode: 'timeline' });
+		expect(visibleFactIds()).toEqual(['b1']);
+		expect(byTestId('attributes')).toBeNull();
+	});
+
+	it('moves a same-date event up toward the earlier end', () => {
 		render(
 			[
+				fact({ id: 'b1', type: 'BAPM', label: 'Baptism' }),
+				fact({ id: 'c1', type: 'CHR', label: 'Christening' })
+			],
+			{ mode: 'timeline', role: 'editor' }
+		);
+		const label = (b: Element) => b.getAttribute('aria-label');
+		const moves = [...document.querySelectorAll('button[aria-label^="Move"]')].map(label);
+		expect(moves).toEqual(['Move Baptism down', 'Move Christening up']);
+	});
+});
+
+describe('PersonFacts as the page’s attributes', () => {
+	it('shows one row per kind with its newest, and no "Date unknown" on an undated one', () => {
+		render(
+			[
+				fact({ id: 'b1' }),
+				residence('r1', '1900-01-01'),
 				fact({
 					id: 'o1',
 					type: 'OCCU',
@@ -292,30 +306,81 @@ describe('PersonFacts as a timeline', () => {
 					value: 'Joiner',
 					dateText: null,
 					sortStart: null
-				})
+				}),
+				residence('r2', '1920-01-01')
 			],
-			{ mode: 'timeline' }
+			{ mode: 'attributes' }
 		);
-		const attributes = byTestId('attributes')!;
-		expect(attributes.textContent).toContain('Also recorded');
-		expect(attributes.textContent).toContain('Joiner');
-		expect(attributes.textContent).not.toContain('Date unknown');
-		expect(byTestId('facts')).toBeNull();
+		expect(groupCount()).toBe(2);
+		expect([groupHeading(0), groupHeading(1)]).toEqual(['Residence', 'Occupation']);
+		expect(visibleFactIds()).toEqual(['r2', 'o1']);
+		expect(byTestId('attributes')!.textContent).not.toContain('Date unknown');
 	});
 
-	it('moves a same-date fact up toward the earlier end', () => {
+	it('reveals the earlier ones newest first behind a button', () => {
+		render(
+			[residence('r1', '1900-01-01'), residence('r2', '1920-01-01'), residence('r3', '1910-01-01')],
+			{
+				mode: 'attributes'
+			}
+		);
+		const toggle = groupButton(0)!;
+		expect(toggle.textContent!.trim()).toBe('Show 2 earlier');
+		toggle.click();
+		flushSync();
+		expect(visibleFactIds()).toEqual(['r2', 'r3', 'r1']);
+		expect(toggle.getAttribute('aria-expanded')).toBe('true');
+	});
+
+	it('never folds a group with a conflict', () => {
 		render(
 			[
-				fact({ id: 'o1', type: 'OCCU', label: 'Occupation', kind: 'attribute', sortStart: null }),
-				fact({ id: 'r1', type: 'RESI', label: 'Residence', kind: 'attribute', sortStart: null })
+				residence('r1', '1900-01-01'),
+				residence('r2', '1920-01-01', { conflict: { kind: 'repeat', otherIds: ['r1'] } as never })
 			],
-			{ mode: 'timeline', role: 'editor' }
+			{ mode: 'attributes' }
 		);
-		const label = (b: Element) => b.getAttribute('aria-label');
-		const moves = [...document.querySelectorAll('button[aria-label^="Move"]')].map(label);
-		expect(moves).toEqual(['Move Occupation down', 'Move Residence up']);
+		expect(visibleFactIds()).toEqual(['r2', 'r1']);
+		expect(groupButton(0)).toBeNull();
+	});
+
+	it('moves a same-date attribute only within its kind, up toward the newer end', () => {
+		render(
+			[
+				residence('r1', null),
+				residence('r2', null),
+				fact({ id: 'o1', type: 'OCCU', label: 'Occupation', kind: 'attribute', sortStart: null })
+			],
+			{ mode: 'attributes', role: 'editor' }
+		);
+		const ids = (selector: string) =>
+			[...document.querySelectorAll(selector)].map((b) =>
+				b.closest('[data-fact-id]')!.getAttribute('data-fact-id')
+			);
+		expect(ids('button[aria-label="Move Residence up"]')).toEqual(['r1']);
+		expect(ids('button[aria-label="Move Residence down"]')).toEqual(['r2']);
+		expect(document.querySelector('button[aria-label^="Move Occupation"]')).toBeNull();
+		// Adding a fact is the Life section's job; the attributes list draws no second button.
+		expect(document.body.textContent).not.toContain('Add fact');
 	});
 });
+
+function residence(
+	id: string,
+	sortStart: string | null,
+	overrides: Partial<FactDto> = {}
+): FactDto {
+	return fact({
+		id,
+		type: 'RESI',
+		label: 'Residence',
+		kind: 'attribute',
+		value: id,
+		dateText: sortStart,
+		sortStart,
+		...overrides
+	});
+}
 
 /** The panel headings, as the reader sees them: a label and, for more than one fact, its count. */
 const groups = () => [...document.querySelectorAll('[data-testid="fact-group"]')];

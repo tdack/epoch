@@ -73,6 +73,26 @@ describe('parseDateValue', () => {
 		expect(v.sortEnd).toBe('1905-12-31');
 	});
 
+	it('gives FROM x a start and no end', () => {
+		const v = parseDateValue('FROM 1980');
+		expect(v.qualifier).toBe(DATE_QUALIFIERS.FROM_TO);
+		expect(v.precision).toBe(DATE_PRECISIONS.YEAR);
+		expect(v.sortStart).toBe('1980-01-01');
+		expect(v.sortEnd).toBeNull();
+		expect(parseDateValue('FROM MAR 1980').sortStart).toBe('1980-03-01');
+	});
+
+	it('gives TO y an end and no start', () => {
+		const v = parseDateValue('TO 1985');
+		expect(v.qualifier).toBe(DATE_QUALIFIERS.FROM_TO);
+		expect(v.sortStart).toBeNull();
+		expect(v.sortEnd).toBe('1985-12-31');
+	});
+
+	it('leaves an unreadable open period unknown', () => {
+		expect(parseDateValue('FROM sometime').qualifier).toBe(DATE_QUALIFIERS.UNKNOWN);
+	});
+
 	it('treats phrase dates as unsortable', () => {
 		const v = parseDateValue('(about 1900)');
 		expect(v.qualifier).toBe(DATE_QUALIFIERS.PHRASE);

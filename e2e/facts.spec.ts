@@ -50,7 +50,8 @@ test('removing a fact lists what goes, and undo brings it back', async ({ page, 
 	await dialog.getByLabel('Type', { exact: true }).selectOption('OCCU');
 	await dialog.getByLabel('Value', { exact: true }).fill('Carpenter');
 	await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
-	await expect(page.getByTestId('fact')).toContainText('Occupation: Carpenter');
+	await expect(page.locator('[data-section="glance"]')).toContainText('Occupation');
+	await expect(page.getByTestId('fact')).toContainText('Carpenter');
 
 	await page.getByRole('button', { name: 'Remove Occupation' }).click();
 	const confirm = page.getByRole('dialog', { name: 'Remove this occupation?' });
@@ -59,7 +60,8 @@ test('removing a fact lists what goes, and undo brings it back', async ({ page, 
 	await expect(page.getByTestId('fact')).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Undo' }).click();
-	await expect(page.getByTestId('fact')).toContainText('Occupation: Carpenter');
+	await expect(page.locator('[data-section="glance"]')).toContainText('Occupation');
+	await expect(page.getByTestId('fact')).toContainText('Carpenter');
 });
 
 test('an invalid date blocks the save with a reason, and same-date facts can be reordered', async ({
@@ -69,8 +71,8 @@ test('an invalid date blocks the save with a reason, and same-date facts can be 
 	const wren = await api.addPerson('Wren', 'Ash');
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(wren.id)}`);
 	for (const [type, value] of [
-		['OCCU', 'Joiner'],
-		['RESI', 'Hull']
+		['RESI', 'Hull'],
+		['RESI', 'York']
 	] as const) {
 		await page.getByRole('button', { name: 'Add fact' }).click();
 		const dialog = page.getByRole('dialog', { name: 'Add a fact' });
@@ -79,11 +81,13 @@ test('an invalid date blocks the save with a reason, and same-date facts can be 
 		await dialog.getByRole('button', { name: 'Add fact', exact: true }).click();
 		await expect(dialog).toBeHidden();
 	}
+	// Undated, so the later one is the newest shown and the earlier one is behind the button.
 	const facts = page.getByTestId('fact');
-	await expect(facts.nth(0)).toContainText('Joiner');
+	await expect(facts.nth(0)).toContainText('York');
+	await page.getByRole('button', { name: 'Show 1 earlier' }).click();
 
 	await facts.nth(1).getByRole('button', { name: 'Move Residence up' }).click();
-	await expect(facts.nth(0)).toContainText('Residence');
+	await expect(facts.nth(0)).toContainText('Hull');
 
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add a fact' });

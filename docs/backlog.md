@@ -219,6 +219,10 @@ Last reviewed: 2026-10-15.
   of their own and their partnerships' events; a tree-wide or comparative view is still open.
 - **Children's births in the person page's Life timeline.** `PersonSummaryDto` carries a child's
   birth as text without a sort key, so placing them needs a sortable birth on the summary (ADR-058).
+- **Re-derive the sort keys of stored open-ended dates.** `parseDateValue` now bounds a lone
+  `FROM x` or `TO y`, but rows written before that keep a null sort key until the fact is edited
+  (a save with an unchanged date is a no-op), so they still sort as undated in Life and At a
+  glance (ADR-059). A one-off backfill, or re-deriving on read, would fix existing trees.
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
 - **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
