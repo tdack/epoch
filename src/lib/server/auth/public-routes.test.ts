@@ -190,6 +190,7 @@ describe('the public visitor (ADR-041)', () => {
 		expect(treeIdOfPath('/trees/t1')).toBe('t1');
 		expect(treeIdOfPath('/trees/t1/people/p9')).toBe('t1');
 		expect(treeIdOfPath('/trees/a%20b/x')).toBe('a b');
+		expect(treeIdOfPath('/trees/t1~s1/people')).toBe('t1');
 		expect(treeIdOfPath('/trees')).toBeNull();
 		expect(treeIdOfPath('/trees/')).toBeNull();
 		expect(treeIdOfPath('/manage/trees')).toBeNull();

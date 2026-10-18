@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import ChartCanvas from '#lib/components/charts/ChartCanvas.svelte';
 	import ChartPage from '#lib/components/charts/ChartPage.svelte';
 	import DescendantOutline from '#lib/components/charts/DescendantOutline.svelte';
@@ -16,7 +17,7 @@
 
 <ChartPage
 	{treeId}
-	treeSlug={data.summary.tree.slug}
+	treeSlug={treeLinkSlug(data.summary.tree)}
 	treeName={data.summary.tree.name}
 	{subject}
 	style="descendants"

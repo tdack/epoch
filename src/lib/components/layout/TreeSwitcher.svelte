@@ -3,6 +3,7 @@
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
+	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
 	import { GEDCOM_FILE_ACCEPT } from '#lib/shared/gedcom-files.js';
 
 	interface Props {
@@ -12,7 +13,13 @@
 		/** Counts from the tree summary, shown under the name; omitted where no tree is open. */
 		counts?: { people: number; unions: number };
 		isImporting?: boolean;
+		/** The selected tree's sub-trees, listed indented under it; none for the public visitor. */
+		subtrees?: SubtreeSummaryDto[];
+		/** The sub-tree lens in force, if any; the tree's own entry is checked when there is none. */
+		activeSubtreeId?: string | null;
+		/** Opens the whole tree: a lens in force is dropped. */
 		onselectTree: (id: string) => void;
+		onselectSubtree?: (subtree: SubtreeSummaryDto) => void;
 		onopenNewTree: () => void;
 		onopenDeleteTree: () => void;
 		/** Absent below manager, who may not rename (`tree:update_settings`), so the item is not shown. */
@@ -31,7 +38,10 @@
 		selectedTreeId,
 		counts,
 		isImporting = false,
+		subtrees = [],
+		activeSubtreeId = null,
 		onselectTree,
+		onselectSubtree,
 		onopenNewTree,
 		onopenDeleteTree,
 		onopenRenameTree,
@@ -122,16 +132,37 @@
 			<button
 				type="button"
 				role="menuitemradio"
-				aria-checked={t.id === selectedTreeId}
+				aria-checked={t.id === selectedTreeId && !activeSubtreeId}
 				class={itemClass}
-				onclick={() => t.id !== selectedTreeId && onselectTree(t.id)}
+				onclick={() => (t.id !== selectedTreeId || activeSubtreeId) && onselectTree(t.id)}
 			>
 				<Check
-					class="h-3.5 w-3.5 shrink-0 text-emerald-800 {t.id === selectedTreeId ? '' : 'invisible'}"
+					class="h-3.5 w-3.5 shrink-0 text-emerald-800 {t.id === selectedTreeId && !activeSubtreeId
+						? ''
+						: 'invisible'}"
 					aria-hidden="true"
 				/>
 				<span class="truncate">{t.name}</span>
 			</button>
+			{#if t.id === selectedTreeId}
+				{#each subtrees as sub (sub.id)}
+					<button
+						type="button"
+						role="menuitemradio"
+						aria-checked={sub.id === activeSubtreeId}
+						class="{itemClass} pl-7"
+						onclick={() => sub.id !== activeSubtreeId && onselectSubtree?.(sub)}
+					>
+						<Check
+							class="h-3.5 w-3.5 shrink-0 text-emerald-800 {sub.id === activeSubtreeId
+								? ''
+								: 'invisible'}"
+							aria-hidden="true"
+						/>
+						<span class="truncate">{sub.name}</span>
+					</button>
+				{/each}
+			{/if}
 		{/each}
 		<div role="separator" class="my-1 border-t border-stone-200"></div>
 	{/if}

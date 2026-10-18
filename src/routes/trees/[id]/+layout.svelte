@@ -19,7 +19,7 @@
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';
-	import { canonicalTreeAddress } from '#lib/shared/tree-slug.js';
+	import { canonicalTreeAddress, treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { appHref, isOtherOrigin, subdomainOrigin, treeHref } from '#lib/shared/tree-host.js';
 
 	interface Props {
@@ -45,6 +45,20 @@
 				: (data.trees.find((t) => t.id === id) ?? { id }),
 			data.hostTree
 		);
+	// The switcher's tree entry and "Show whole tree" leave the lens; every other link keeps it.
+	const wholeTreePath = (id: string) =>
+		treeHref(
+			id === data.summary.tree.id
+				? { ...data.summary.tree, subtree: null }
+				: (data.trees.find((t) => t.id === id) ?? { id }),
+			data.hostTree
+		);
+	const lens = $derived(data.summary.subtree);
+	// The same page without the lens (the banner's link), not the tree's front page.
+	const sameWithoutLens = $derived(
+		canonicalTreeAddress(page.url, page.params.id!, { ...data.summary.tree, subtree: null }) ??
+			`${page.url.pathname}${page.url.search}`
+	);
 	// Client-side routing stays on this origin; another host needs a full page load.
 	const navigate = (href: string, options?: Parameters<typeof goto>[1]) =>
 		isOtherOrigin(href) ? window.location.assign(href) : goto(href, options);
@@ -72,7 +86,10 @@
 		reload,
 		goTo: (id) => void navigate(id ? pathOf(id) : appHref('/', data.hostTree)),
 		onAddressChange: async (tree) => {
-			const moved = canonicalTreeAddress(page.url, page.params.id!, tree);
+			const moved = canonicalTreeAddress(page.url, page.params.id!, {
+				...tree,
+				subtree: data.summary.tree.subtree
+			});
 			// This host serves the tree only while its subdomain is its slug and is on: otherwise the
 			// page moves to wherever the tree now lives.
 			if (data.hostTree && data.subdomainZone) {
@@ -150,7 +167,11 @@
 		trees={data.trees}
 		selectedTreeId={data.summary.tree.id}
 		isImporting={shell.isImporting}
-		onselectTree={(id) => void navigate(pathOf(id))}
+		subtrees={viewer.isPublicVisitor ? [] : data.summary.subtrees}
+		activeSubtreeId={lens?.id ?? null}
+		onselectTree={(id) => void navigate(wholeTreePath(id))}
+		onselectSubtree={(sub) =>
+			void navigate(treeHref({ ...data.summary.tree, subtree: sub.slug }, data.hostTree))}
 		homeHref={appHref('/', data.hostTree)}
 		counts={data.summary.counts}
 		onopenNewTree={shell.openNewTree}
@@ -166,7 +187,7 @@
 			<PersonFinder
 				bind:this={personFinder}
 				treeId={data.summary.tree.id}
-				treeSlug={data.summary.tree.slug}
+				treeSlug={treeLinkSlug(data.summary.tree)}
 				searchPeople={(q) => searchPeopleApi(data.summary.tree.id, q)}
 				suggestions={marks}
 				onpickFocus={isChartPage
@@ -181,6 +202,29 @@
 			/>
 		{/snippet}
 	</AppHeader>
+
+	{#if lens}
+		<div
+			role="note"
+			aria-label="Sub-tree"
+			class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-emerald-900/10 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-950 sm:px-6"
+		>
+			<span class="font-semibold">{lens.name}</span>
+			{#if lens.rootName}
+				<span aria-hidden="true">·</span>
+				<span>
+					rooted at
+					<a href={personPath(data.summary.tree.id, lens.rootPersonId)} class="underline">
+						{lens.rootName}
+					</a>
+				</span>
+			{/if}
+			<span aria-hidden="true">·</span>
+			<a href={sameWithoutLens} class="rounded-sm font-semibold underline focus-ring">
+				Show whole tree
+			</a>
+		</div>
+	{/if}
 
 	<!-- The chart is the one page that wants the whole window; the lists and forms stay readable at 7xl. -->
 	<main
@@ -204,7 +248,7 @@
 			{role}
 			pathname={page.url.pathname}
 			isInstallOwner={viewer.isInstallOwner}
-			treeSlug={data.summary.tree.slug}
+			treeSlug={treeLinkSlug(data.summary.tree)}
 			treeCount={data.trees.length}
 			signOutHref={viewer.isPublicVisitor ? undefined : signOutHref(page.url.origin)}
 			isOutsider={viewer.isOutsider}

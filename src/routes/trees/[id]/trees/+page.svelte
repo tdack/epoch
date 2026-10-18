@@ -5,6 +5,8 @@
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import PublicTreeModal from '#lib/components/modals/PublicTreeModal.svelte';
 	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
+	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
+	import { isManagerOrAbove } from '#lib/shared/roles.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { DATA_KEY } from '#lib/api/load-helpers.js';
 	import { saveDefaultTree } from '#lib/api/settings.js';
@@ -253,6 +255,15 @@
 		</tbody>
 	</table>
 </div>
+
+<SubtreeManager
+	tree={data.summary.tree}
+	subtrees={data.subtrees}
+	rootNames={data.rootNames}
+	canManage={isManagerOrAbove(data.summary.viewer.role)}
+	{toasts}
+	onchanged={() => invalidate(DATA_KEY)}
+/>
 
 {#if target}
 	<RenameTreeModal

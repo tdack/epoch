@@ -170,6 +170,8 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			}
 			case 'notes':
 				return `Shared note “${noteTitle(row.text, 40)}”`;
+			case 'subtree':
+				return `Sub-tree “${String(row.name ?? '').slice(0, 60)}”`;
 			case 'research_tasks':
 				return `Task “${String(row.title ?? '').slice(0, 60)}”`;
 			case 'note_attachments': {

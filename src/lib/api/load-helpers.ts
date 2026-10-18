@@ -59,7 +59,8 @@ export function listQuery(url: URL, extra: Record<string, string> = {}): URLSear
 	return new URLSearchParams({ ...extra, offset: String(offset), limit: String(limit) });
 }
 
-/** Where the last person viewed in a tree is remembered, so reopening the tree resumes there. */
-export function rememberedFocusKey(treeId: string): string {
-	return `epoch:focus:${treeId}`;
+/** Where the last person viewed in a tree (or in one of its sub-trees) is remembered, so reopening the tree resumes there. */
+export function rememberedFocusKey(treeId: string, subtreeId: string | null = null): string {
+	// Separate from the whole tree's, so leaving a lens does not move where the tree reopens.
+	return subtreeId ? `epoch:focus:${treeId}~${subtreeId}` : `epoch:focus:${treeId}`;
 }

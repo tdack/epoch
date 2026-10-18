@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { Plus } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
@@ -126,7 +127,7 @@
 	{:else}
 		<TaskList
 			{treeId}
-			treeSlug={data.summary.tree.slug}
+			treeSlug={treeLinkSlug(data.summary.tree)}
 			{role}
 			tasks={page.items}
 			members={page.members}

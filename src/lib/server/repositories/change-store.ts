@@ -22,6 +22,7 @@ import {
 	personNames,
 	repositories,
 	researchTasks,
+	subtrees,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -61,7 +62,8 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	citations,
 	notes,
 	note_attachments: noteAttachments,
-	research_tasks: researchTasks
+	research_tasks: researchTasks,
+	subtree: subtrees
 };
 
 /** Each `TreeRows` key's table. */
@@ -79,7 +81,8 @@ const TREE_ROW_TABLES: Record<keyof TreeRows, SQLiteTable> = {
 	citations,
 	notes,
 	noteAttachments,
-	researchTasks
+	researchTasks,
+	subtrees
 };
 
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */

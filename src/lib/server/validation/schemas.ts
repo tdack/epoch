@@ -10,6 +10,7 @@
 
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isValidTreeSlug } from '../../shared/tree-slug';
+import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
 import { TREE_ROLES } from '../../shared/roles';
 import {
 	MAX_MAX_ALIVE_YEARS,
@@ -784,4 +785,20 @@ export const settingsDocumentSchema = z.object({
 	tracePalette: tracePaletteSchema.optional(),
 	focusColours: focusColoursSchema.optional(),
 	isMotionReduced: z.boolean().optional()
+});
+
+/** A sub-tree to make: a name, its address within the tree, and the person it is rooted at. */
+export const subtreeCreateSchema = z.object({
+	name: z.string().min(1).max(MAX_SUBTREE_NAME_LENGTH),
+	slug: z.string().refine(isValidTreeSlug, 'Not a valid address'),
+	rootPersonId: idSchema
+});
+
+/** Only the fields to change, with the version the caller last saw. */
+export const subtreeUpdateSchema = z.object({
+	version: versionSchema.optional(),
+	name: z.string().min(1).max(MAX_SUBTREE_NAME_LENGTH).optional(),
+	slug: z.string().refine(isValidTreeSlug, 'Not a valid address').optional(),
+	rootPersonId: idSchema.optional(),
+	position: z.number().int().optional()
 });

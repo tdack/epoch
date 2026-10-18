@@ -32,20 +32,53 @@ export function slugifyTreeName(name: string): string | null {
 	return slug && isValidTreeSlug(slug) ? slug : null;
 }
 
-/** What a link to a tree needs: its id, and its slug when it has one. */
+// Neither a slug nor a UUID can contain it, and `encodeURIComponent` leaves it alone.
+const SUBTREE_SEPARATOR = '~';
+
+/**
+ * Splits the address segment after `/trees/` into the tree and the sub-tree riding inside it
+ * (`dacks~bouvier-line`). The only code that knows the separator; an empty half counts as absent.
+ */
+export function splitTreeSegment(segment: string): { tree: string; subtree: string | null } {
+	const at = segment.indexOf(SUBTREE_SEPARATOR);
+	if (at === -1) return { tree: segment, subtree: null };
+	return { tree: segment.slice(0, at), subtree: segment.slice(at + 1) || null };
+}
+
+/** What a link to a tree needs: its id, its slug when it has one, and the sub-tree lens when one is active. */
 export interface TreeRef {
 	id: string;
 	slug?: string | null;
+	/** The active sub-tree's slug (or id): links built from this ref keep the lens. */
+	subtree?: string | null;
 }
 
-/** The segment a tree's pages live under: its slug when it has one, else its id. */
+/** The segment a tree's pages live under: its slug when it has one, else its id, plus any lens. */
 function treeSegment(tree: TreeRef): string {
-	return tree.slug ?? tree.id;
+	const base = tree.slug ?? tree.id;
+	return tree.subtree ? `${base}${SUBTREE_SEPARATOR}${tree.subtree}` : base;
+}
+
+/**
+ * The slug to hand a component that builds its links from `{ id, slug }` alone: the whole segment
+ * (`dacks~bouvier-line`) while a lens is active, so those links keep it, else the plain slug.
+ */
+export function treeLinkSlug(tree: TreeRef): string | null {
+	return tree.subtree ? treeSegment(tree) : (tree.slug ?? null);
 }
 
 /** `/trees/<segment>`, the root every page of the tree hangs from. */
 export function treePath(tree: TreeRef): string {
 	return `/trees/${encodeURIComponent(treeSegment(tree))}`;
+}
+
+/**
+ * `/trees/<tree>~<subtree>` for a given sub-tree, replacing any lens `tree` already carries: a ref
+ * from `treeLinkSlug` holds `dacks~a` as its slug, and appending to that would give `dacks~a~b`.
+ */
+export function subtreePath(tree: TreeRef, subtree: string): string {
+	const base = splitTreeSegment(tree.slug ?? tree.id).tree;
+	return treePath({ id: tree.id, slug: base, subtree });
 }
 
 /**

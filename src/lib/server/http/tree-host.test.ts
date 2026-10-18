@@ -92,6 +92,14 @@ describe('treeHostRoute', () => {
 		expect(route(`/trees/${dacks.id}/people`)).toEqual({ action: 'serve' });
 	});
 
+	it('serves a sub-tree of this tree, and refuses one of another', () => {
+		expect(route('/trees/dacks~bouvier-line/people')).toEqual({ action: 'serve' });
+		expect(route(`/trees/${dacks.id}~x`)).toEqual({ action: 'serve' });
+		expect(route('/api/trees/dacks~x/lists/individuals')).toEqual({ action: 'serve' });
+		expect(route('/trees/windsors~x')).toEqual({ action: 'not-found' });
+		expect(route('/trees/dacks~x/trees')).toEqual({ action: 'app', path: '/trees/dacks~x/trees' });
+	});
+
 	it('refuses another tree, in pages and in the API', () => {
 		expect(route('/trees/windsors')).toEqual({ action: 'not-found' });
 		expect(route('/api/trees/windsors/summary')).toEqual({ action: 'not-found' });

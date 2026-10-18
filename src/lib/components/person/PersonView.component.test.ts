@@ -251,6 +251,20 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 	});
 });
 
+describe('Make sub-tree from here', () => {
+	const offered = () => document.querySelector('[data-testid="make-subtree"]') !== null;
+
+	it.each([
+		['viewer', false],
+		['editor', false],
+		['manager', true],
+		['owner', true]
+	] as const)('is %s-visible: %s', (role, isShown) => {
+		open(pageOf('ben', 'Ben'), { role });
+		expect(offered()).toBe(isShown);
+	});
+});
+
 describe('relativeTarget', () => {
 	const family = () =>
 		pageOf('cat', 'Cat', { siblings: { full: [summary('dan', 'Dan')], half: [] } });
