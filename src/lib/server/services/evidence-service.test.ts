@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
-import { citations, repositories, sourceRepositories, sources } from '../db/schema';
+import { citations, events, repositories, sourceRepositories, sources } from '../db/schema';
 import { ConcurrencyConflictError, SourceInUseError, UnauthorizedError } from '../domain/errors';
 import {
 	addTestMember,
@@ -316,5 +316,98 @@ describe('who may write evidence', () => {
 
 		await evidence.updateCitation(treeId, row.id, { page: 'x' }, row.version, editor.context);
 		expect((await citationsOf(birthId))[0].page).toBe('x');
+	});
+});
+
+describe('a citation saved with its fact or name', () => {
+	const nameInput = {
+		type: 'birth' as const,
+		givenName: 'Wren',
+		surname: 'Ash',
+		prefix: null,
+		suffix: null,
+		nickname: null,
+		surnamePrefix: null,
+		dateText: null,
+		unionId: null
+	};
+
+	it('creates the fact and its citation as one change, and one undo removes both', async () => {
+		const { treeId, ctx, person, facts, sourceId, citationsOf, log } = await setup();
+		const created = await facts.create(
+			treeId,
+			person.id,
+			{ ...blank, type: 'RESI', place: 'Leeds' },
+			ctx,
+			{ sourceId, page: 'p 3', quality: 2 }
+		);
+		expect(await citationsOf(created.factId)).toMatchObject([
+			{ sourceId, page: 'p 3', quality: 2, subjectKind: 'event' }
+		]);
+		expect(created.change?.summary).toMatch(/residence/i);
+
+		await log.undoLast(treeId, ctx);
+		expect(await citationsOf(created.factId)).toEqual([]);
+		const rows = await t.db.select().from(events).where(eq(events.id, created.factId)).all();
+		expect(rows).toEqual([]);
+	});
+
+	it('cites an existing fact in the same change as its edit', async () => {
+		const { treeId, ctx, facts, birthId, sourceId, citationsOf, log } = await setup();
+		await facts.update(treeId, birthId, { place: 'Hull' }, 1, ctx, { sourceId });
+		expect(await citationsOf(birthId)).toHaveLength(1);
+		await log.undoLast(treeId, ctx);
+		expect(await citationsOf(birthId)).toEqual([]);
+		const row = await t.db.select().from(events).where(eq(events.id, birthId)).get();
+		expect(row?.place).toBeNull();
+	});
+
+	it('saves nothing when the source is missing, so no fact is left uncited by accident', async () => {
+		const { treeId, ctx, person, facts } = await setup();
+		const before = await t.db.select().from(events).all();
+		await expect(
+			facts.create(treeId, person.id, { ...blank, type: 'RESI' }, ctx, { sourceId: 'nope' })
+		).rejects.toThrow();
+		expect(await t.db.select().from(events).all()).toHaveLength(before.length);
+	});
+
+	it('lets a contributor add a fact with a source and refuses a viewer', async () => {
+		const { treeId, person, facts, evidence, sourceId } = await setup();
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		// A contributor sees the sources they made, not every source in the tree (ADR-028).
+		const own = await evidence.createSource(treeId, { title: 'Own notes' }, contributor.context);
+		const made = await facts.create(
+			treeId,
+			person.id,
+			{ ...blank, type: 'OCCU', value: 'Weaver' },
+			contributor.context,
+			{ sourceId: own.sourceId }
+		);
+		expect(made.change).not.toBeNull();
+
+		const viewer = await createTestUser(t.db, 'viewer');
+		await addTestMember(t.db, treeId, viewer, 'viewer');
+		await expect(
+			facts.create(treeId, person.id, { ...blank, type: 'OCCU' }, viewer.context, { sourceId })
+		).rejects.toBeInstanceOf(UnauthorizedError);
+	});
+
+	it('creates a name and its citation as one change', async () => {
+		const { treeId, ctx, person, sourceId, citationsOf, log } = await setup();
+		const names = new NameService(t.db);
+		const created = await names.create(
+			treeId,
+			person.id,
+			{ ...nameInput, type: 'aka', givenName: 'Wrennie' },
+			false,
+			ctx,
+			{ sourceId, page: 'p 9' }
+		);
+		expect(await citationsOf(created.nameId)).toMatchObject([
+			{ sourceId, page: 'p 9', subjectKind: 'name' }
+		]);
+		await log.undoLast(treeId, ctx);
+		expect(await citationsOf(created.nameId)).toEqual([]);
 	});
 });

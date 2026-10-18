@@ -96,14 +96,15 @@ export function describeImpact(headline: string, rows: TreeRows, ops: RowOp[]): 
 		}
 	}
 	const partnersOf = (unionId: string) => partnerIds.get(unionId) ?? [];
-	// A file's owner is a person or a partnership. A partnership with nobody in it is still a
+	// A file's owner is a person, a partnership or a source (a library record, so no person). A partnership with nobody in it is still a
 	// partnership, so the test is whether the id is one, not whether it has partners.
 	const unionIds = new Set([
 		...rows.unions.map((u) => u.id),
 		...ops.filter((op) => op.table === 'unions' && op.after).map((op) => op.id)
 	]);
+	const sourceIds = new Set(rows.sources.map((s) => s.id));
 	const fileOwnerPeople = (entityId: string) =>
-		unionIds.has(entityId) ? partnersOf(entityId) : [entityId];
+		sourceIds.has(entityId) ? [] : unionIds.has(entityId) ? partnersOf(entityId) : [entityId];
 
 	// The people a citation is about, from its subject, whether the change creates, keeps or deletes it.
 	const subjects = new Map<string, Subject>();

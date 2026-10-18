@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { GitMerge, Pencil, Plus, Trash2 } from '@lucide/svelte';
 	import { canCite, canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
+	import SourceFiles from '#lib/components/evidence/SourceFiles.svelte';
 	import RepositoryLinkDialog from '#lib/components/evidence/RepositoryLinkDialog.svelte';
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';
 	import SourceMergeDialog from '#lib/components/evidence/SourceMergeDialog.svelte';
@@ -222,6 +223,16 @@
 				</ul>
 			{/if}
 		</section>
+
+		{#if data.files !== null}
+			<SourceFiles
+				{treeId}
+				sourceId={source.id}
+				files={data.files}
+				canManage={canChangeEvidence(role)}
+				{editor}
+			/>
+		{/if}
 
 		<section aria-labelledby="source-notes-heading" class="section-card" data-testid="source-notes">
 			<h3 id="source-notes-heading" class="section-heading">Notes</h3>

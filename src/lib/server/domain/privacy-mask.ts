@@ -205,13 +205,21 @@ export function maskRows(
 		// A sub-tree's name can name its root, so one rooted at a private person is as absent as they are.
 		subtrees: rows.subtrees.filter((s) => !hidden.has(s.rootPersonId))
 	};
+	// A file on a source is as visible as the source (ADR-028), whether or not anyone is private.
+	const knownSources = new Set(rows.sources.map((s) => s.id));
+	const keptSources = new Set(visible.sources.map((s) => s.id));
+	const isSourceFileKept = (m: { entityId: string | null }) =>
+		m.entityId === null || !knownSources.has(m.entityId) || keptSources.has(m.entityId);
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
-		const isEvidenceWhole = (Object.keys(evidence) as Array<keyof typeof evidence>).every(
-			(key) => evidence[key].length === rows[key].length
-		);
+		const sourceMedia = rows.mediaItems.filter(isSourceFileKept);
+		const isEvidenceWhole =
+			sourceMedia.length === rows.mediaItems.length &&
+			(Object.keys(evidence) as Array<keyof typeof evidence>).every(
+				(key) => evidence[key].length === rows[key].length
+			);
 		return {
-			rows: isEvidenceWhole ? rows : { ...rows, ...evidence },
+			rows: isEvidenceWhole ? rows : { ...rows, ...evidence, mediaItems: sourceMedia },
 			placeholderIds: new Set()
 		};
 	}
@@ -223,7 +231,9 @@ export function maskRows(
 	const personNames = rows.personNames.filter((n) => !hidden.has(n.personId));
 	// Media of a private person is theirs; the window never carries media, but a reader that does must not show it.
 	// A detached file has no owner to be private with, so a restricted viewer does not see it either.
-	const mediaItems = rows.mediaItems.filter((m) => m.entityId !== null && !hidden.has(m.entityId));
+	const mediaItems = rows.mediaItems.filter(
+		(m) => m.entityId !== null && !hidden.has(m.entityId) && isSourceFileKept(m)
+	);
 
 	if (shouldShowStructure) {
 		return {

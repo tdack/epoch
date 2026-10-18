@@ -541,6 +541,12 @@ export const citationCreateSchema = z.object({
 	text: sourceTextSchema.default(null)
 });
 
+/**
+ * The citation a fact or name form may send with its own save (ADR-028): the same fields, and the
+ * subject is the record being saved, so the request does not name one.
+ */
+export const citationAttachSchema = citationCreateSchema.omit({ subject: true });
+
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const citationUpdateSchema = z.object({
 	version: versionSchema,
@@ -713,6 +719,10 @@ export const publicTreeSchema = z.object({
 /** The Files listing: a tree to narrow to, a cursor from the last page, and a page size. */
 export const fileListQuerySchema = z.object({
 	treeId: idSchema.optional(),
+	/** Only files on this person, partnership or source. */
+	entityId: idSchema.optional(),
+	/** `detached` lists files with no owner, for the attach picker. */
+	owner: z.enum(['detached']).optional(),
 	cursor: z.string().min(1).max(200).optional(),
 	limit: z.coerce.number().int().min(1).max(100).optional()
 });

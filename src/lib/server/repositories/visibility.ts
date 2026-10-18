@@ -202,6 +202,32 @@ export function andSourceVisible(alias: string, scope: Scope, treeId: string): S
 	return sql` and (${isOwn}${s}.id in (${visibleCitedSourceIds(treeId)}))`;
 }
 
+/**
+ * Which of these sources the viewer may see: the SQL form of the source rule in `maskRows`, so a
+ * file hung off a source is exactly as visible as the source (ADR-028). Ids are chunked under D1's
+ * bound-parameter cap.
+ */
+export async function visibleSourcesAmong(
+	db: DbClient,
+	treeId: string,
+	sourceIds: readonly string[],
+	scope: Scope
+): Promise<Set<string>> {
+	const visible = new Set<string>();
+	const unique = [...new Set(sourceIds)];
+	for (let start = 0; start < unique.length; start += 90) {
+		const ids = sql.join(
+			unique.slice(start, start + 90).map((id) => sql`${id}`),
+			sql`, `
+		);
+		const rows = await db.all<{ id: string }>(
+			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id in (${ids})${andSourceVisible('s', scope, treeId)}`
+		);
+		for (const row of rows) visible.add(row.id);
+	}
+	return visible;
+}
+
 /** The same for a repository row: one of their visible sources is kept there, or they made it. */
 export function andRepositoryVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;

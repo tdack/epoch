@@ -92,7 +92,10 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Edited the source ${sourceName(rows, command.sourceId)}`;
 		case 'delete_source': {
 			const count = rows.citations.filter((c) => c.sourceId === command.sourceId).length;
-			return `Deleted the source ${sourceName(rows, command.sourceId)}${count > 0 ? ` and its ${count} ${count === 1 ? 'citation' : 'citations'}` : ''}`;
+			const files = rows.mediaItems.filter((m) => m.entityId === command.sourceId).length;
+			const kept =
+				files > 0 ? `; its ${files === 1 ? 'file is' : `${files} files are`} kept, detached` : '';
+			return `Deleted the source ${sourceName(rows, command.sourceId)}${count > 0 ? ` and its ${count} ${count === 1 ? 'citation' : 'citations'}` : ''}${kept}`;
 		}
 		case 'merge_sources':
 			return `Merged ${command.mergedIds.length + 1} sources into ${sourceName(rows, command.survivorId)}`;
@@ -159,7 +162,9 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			const name = `“${(file?.title ?? 'a file').slice(0, 60)}”`;
 			const target = rows.individuals.some((p) => p.id === command.entityId)
 				? nameOf(rows, command.entityId)
-				: partnershipOf(rows, command.entityId);
+				: rows.sources.some((s) => s.id === command.entityId)
+					? `the source ${sourceName(rows, command.entityId)}`
+					: partnershipOf(rows, command.entityId);
 			if (file?.entityId && file.entityId !== command.entityId)
 				return `Moved the file ${name} to ${target}`;
 			return `Attached the file ${name} to ${target}`;

@@ -38,6 +38,7 @@ import type {
 	UnionRow
 } from '../domain/change-log';
 import { toImage } from './change-store';
+import { isMemberOf } from './subtree-membership';
 import { type TreeCounts } from '../../shared/graph-views';
 
 /** Ids per `IN (...)`: 80 leaves room under D1's 100-parameter cap for the tree id and filters. */
@@ -317,13 +318,24 @@ export class GraphWindowRepository {
 		return names;
 	}
 
-	private personIdsAfterQuery(treeId: string, afterRowId: number, limit: number) {
+	private personIdsAfterQuery(
+		treeId: string,
+		afterRowId: number,
+		limit: number,
+		lensRootId: string | null = null
+	) {
 		// Not `inTree`: here the tree filter should lead, then walk its rows in rowid order and stop
 		// at the limit, which is what the (tree_id) index gives for free.
 		return this.db
 			.select({ id: individuals.id, rid: sql<number>`${individuals}.rowid` })
 			.from(individuals)
-			.where(and(eq(individuals.treeId, treeId), sql`${individuals}.rowid > ${afterRowId}`))
+			.where(
+				and(
+					eq(individuals.treeId, treeId),
+					sql`${individuals}.rowid > ${afterRowId}`,
+					lensRootId === null ? undefined : isMemberOf('individuals', treeId, lensRootId)
+				)
+			)
 			.orderBy(asc(sql`${individuals}.rowid`))
 			.limit(limit);
 	}
@@ -335,9 +347,10 @@ export class GraphWindowRepository {
 	async personIdsAfter(
 		treeId: string,
 		afterRowId: number,
-		limit: number
+		limit: number,
+		lensRootId: string | null = null
 	): Promise<Array<{ id: string; rid: number }>> {
-		return this.personIdsAfterQuery(treeId, afterRowId, limit).all();
+		return this.personIdsAfterQuery(treeId, afterRowId, limit, lensRootId).all();
 	}
 
 	private firstPersonQuery(treeId: string) {

@@ -17,19 +17,22 @@ test('a source is made while citing a fact, cited again from the drawer, and lis
 	// From the person page: open the birth's citations and cite a source made on the spot.
 	await open(page, `${base}/people/${encodeURIComponent(wren.id)}`);
 	const birth = page.getByTestId('fact').first();
-	await expect(birth.getByTestId('claim-state')).toHaveText(/Unsourced/);
-	await birth.getByText('Unsourced').click();
-	await birth.getByRole('button', { name: 'Add a citation for the birth' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Add a citation' });
+	// An unsourced fact says nothing; the source is added while editing it.
+	await expect(birth.getByTestId('claim-state')).toHaveCount(0);
+	await expect(birth).not.toContainText('Unsourced');
+	await birth.getByRole('button', { name: /^Edit/ }).click();
+	const dialog = page.getByRole('dialog', { name: 'Edit fact' });
+	await dialog.getByText('Source (optional)').click();
 	await dialog.getByRole('button', { name: 'Make a new source…' }).click();
 	await dialog.getByLabel('Title of the new source').fill('Parish register of St Mary');
 	await dialog.getByRole('button', { name: 'Add this source' }).click();
 	await expect(dialog.getByTestId('chosen-source')).toHaveText('Parish register of St Mary');
 	await dialog.getByLabel('Where in it').fill('page 12');
 	await dialog.getByLabel('How reliable is it').selectOption({ label: 'Direct, primary evidence' });
-	await dialog.getByRole('button', { name: 'Add citation', exact: true }).click();
+	await dialog.getByRole('button', { name: 'Save fact' }).click();
 	await expect(dialog).toBeHidden();
-	await expect(birth.getByTestId('claim-state')).toHaveText(/Sourced · 1 citation/);
+	await expect(birth.getByTestId('claim-state')).toHaveText('1');
+	await birth.getByLabel('1 citation for the birth').click();
 	await expect(birth.getByTestId('citation')).toContainText('Parish register of St Mary');
 	await expect(birth.getByTestId('citation')).toContainText('Direct, primary evidence');
 
@@ -40,18 +43,18 @@ test('a source is made while citing a fact, cited again from the drawer, and lis
 	const drawer = page.getByRole('complementary').or(page.locator('[data-testid="person-drawer"]'));
 	await expect(drawer.getByRole('heading', { name: 'Wren Ash' }).first()).toBeVisible();
 	const drawerBirth = drawer.getByTestId('fact').first();
-	await drawerBirth.getByText('Sourced').click();
+	await drawerBirth.getByLabel('1 citation for the birth').click();
 	await drawerBirth.getByRole('button', { name: 'Add a citation for the birth' }).click();
 	const again = page.getByRole('dialog', { name: 'Add a citation' });
 	await again.getByLabel('Search sources by title or author').fill('Parish');
 	await again
 		.getByTestId('source-results')
-		.getByRole('button', { name: /Parish register/ })
+		.getByRole('option', { name: /Parish register/ })
 		.click();
 	await again.getByLabel('Where in it').fill('page 14');
 	await again.getByRole('button', { name: 'Add citation', exact: true }).click();
 	await expect(again).toBeHidden();
-	await expect(drawerBirth.getByTestId('claim-state')).toHaveText(/Sourced · 2 citations/);
+	await expect(drawerBirth.getByTestId('claim-state')).toHaveText('2');
 
 	// The source's page lists both, grouped under what they support, and links to the person.
 	await open(page, `${base}/sources`);

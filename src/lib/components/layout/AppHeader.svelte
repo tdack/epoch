@@ -12,6 +12,8 @@
 		selectedTreeId: string | null;
 		/** Counts from the tree summary, shown under the tree's name; omitted where no tree is open. */
 		counts?: { people: number; unions: number };
+		/** The active sub-tree's name; the counts then describe its members. */
+		subtreeName?: string | null;
 		isImporting?: boolean;
 		/** The selected tree's sub-trees, for the switcher. */
 		subtrees?: SubtreeSummaryDto[];
@@ -41,6 +43,7 @@
 		trees = [],
 		selectedTreeId,
 		counts,
+		subtreeName = null,
 		isImporting = false,
 		subtrees = [],
 		activeSubtreeId = null,
@@ -80,6 +83,7 @@
 		{trees}
 		{selectedTreeId}
 		{counts}
+		{subtreeName}
 		{isImporting}
 		{subtrees}
 		{activeSubtreeId}

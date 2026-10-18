@@ -29,12 +29,13 @@ const menuLabels = () =>
 	[...document.querySelectorAll('[role="menuitem"]')].map((el) => el.textContent?.trim());
 
 describe('TreeNav', () => {
-	it('shows five tabs and keeps the rest in the More menu', () => {
+	it('shows four tabs and keeps the rest in the More menu', () => {
 		render({ role: 'editor' });
 		const tabs = [...document.querySelectorAll('nav > div a')].map((a) => a.textContent?.trim());
-		expect(tabs).toEqual(['Tree', 'People', 'Partnerships', 'Sources', 'Places']);
+		expect(tabs).toEqual(['Tree', 'People', 'Partnerships', 'Places']);
 		openMore();
 		expect(menuLabels()).toEqual([
+			'Sources',
 			'Notes',
 			'Tasks',
 			'Relationship',
@@ -44,6 +45,17 @@ describe('TreeNav', () => {
 			'Files'
 		]);
 		expect(document.querySelector('[role="group"][aria-label="Manage"]')).not.toBeNull();
+	});
+
+	it('names Sources as the active section on its pages, including a single source', () => {
+		for (const pathname of ['/trees/t1/sources', '/trees/t1/sources/s9']) {
+			render({ role: 'editor', pathname });
+			const trigger = document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+			expect(trigger.textContent).toContain('More: Sources');
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
 	});
 
 	it('offers Files to every member, and to no one outside the tree', () => {

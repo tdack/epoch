@@ -80,7 +80,7 @@ test.describe('screen reader', () => {
 
 		// The person page with its citations open, then the dialog that adds one.
 		await open(page, `${base}/people/${encodeURIComponent(wren.id)}`);
-		await page.getByTestId('fact').first().getByText('Sourced').click();
+		await page.getByTestId('fact').first().getByLabel('1 citation for the birth').click();
 		expect(await violations(page)).toEqual([]);
 		await page
 			.getByTestId('fact')

@@ -11,9 +11,9 @@ import { parseFocusQuery } from '#lib/server/validation/graph-query.js';
  */
 export const GET = treeHandler(
 	{ allowPublicVisitor: true, failure: 'Failed to load relationship graph' },
-	({ db, ctx, treeId, url }) => {
+	({ db, ctx, treeId, subtree, url }) => {
 		const { focusPersonId, options, isWholeTree } = parseFocusQuery(url.searchParams);
-		if (isWholeTree) return new GraphQueryService(db).wholeTreeGraph(treeId, ctx);
+		if (isWholeTree) return new GraphQueryService(db).wholeTreeGraph(treeId, ctx, subtree);
 		if (!focusPersonId) throw new ValidationError('focus: a person to centre the graph on');
 		return new GraphQueryService(db).focusGraph(treeId, focusPersonId, options, ctx);
 	}

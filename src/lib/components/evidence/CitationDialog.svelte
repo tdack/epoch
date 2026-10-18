@@ -1,24 +1,18 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
-	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import { untrack } from 'svelte';
 	import { Quote } from '@lucide/svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
-	import {
-		addCitationApi,
-		createSourceApi,
-		fetchSources,
-		updateCitationApi
-	} from '#lib/api/evidence.js';
+	import { addCitationApi, updateCitationApi } from '#lib/api/evidence.js';
+	import SourcePicker from './SourcePicker.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
 		CITATION_QUALITY_LABELS,
 		isCitationQuality,
 		type CitationDto,
 		type CitationQuality,
-		type CitationSubjectRef,
-		type SourceListItem
+		type CitationSubjectRef
 	} from '#lib/shared/evidence.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 
@@ -40,24 +34,14 @@
 	let { isOpen, treeId, subjectLabel, subject, citation, onsaved, onstale, oncancel }: Props =
 		$props();
 
-	const SEARCH_DELAY_MS = 250;
-	const RESULTS_SHOWN = 8;
-
 	let sourceId = $state<string | null>(null);
 	let sourceName = $state('');
-	let isChoosing = $state(true);
-	let query = $state('');
-	let results = $state<SourceListItem[]>([]);
-	let isNewSource = $state(false);
-	let newTitle = $state('');
-	let newAuthor = $state('');
 	let page = $state('');
 	let quality = $state<string>('');
 	let entryDate = $state('');
 	let savedEntryDate = $state<string | null>(null);
 	let text = $state('');
 	const submission = createSubmission((message) => onstale(message));
-	let searchInput = $state<HTMLInputElement | null>(null);
 
 	const isDateValid = $derived(checkDateEdit(entryDate, savedEntryDate).isValid);
 	const field =
@@ -73,66 +57,13 @@
 		const from = untrack(() => citation);
 		sourceId = from?.sourceId ?? null;
 		sourceName = from?.sourceLabel ?? '';
-		isChoosing = from === null;
-		query = '';
-		results = [];
-		isNewSource = false;
-		newTitle = '';
-		newAuthor = '';
 		page = from?.page ?? '';
 		quality = from?.quality === null || from?.quality === undefined ? '' : String(from.quality);
 		entryDate = from?.entryDate ?? '';
 		savedEntryDate = from?.entryDate ?? null;
 		text = from?.text ?? '';
 		submission.error = null;
-		void tick().then(() => searchInput?.focus());
 	});
-
-	// Sources matching what is typed, a few at a time: the tree may hold thousands.
-	$effect(() => {
-		const typed = query.trim();
-		if (!isOpen || !isChoosing) return;
-		const timer = setTimeout(async () => {
-			try {
-				const found = await fetchSources(
-					treeId,
-					new URLSearchParams({ q: typed, limit: String(RESULTS_SHOWN) })
-				);
-				results = found.items;
-			} catch {
-				results = [];
-			}
-		}, SEARCH_DELAY_MS);
-		return () => clearTimeout(timer);
-	});
-
-	const labelOf = (source: SourceListItem) =>
-		source.title || source.abbreviation || source.author || 'Untitled source';
-
-	function choose(source: SourceListItem) {
-		sourceId = source.id;
-		sourceName = labelOf(source);
-		isChoosing = false;
-		isNewSource = false;
-	}
-
-	async function makeSource() {
-		const title = newTitle.trim();
-		if (!title) {
-			submission.error = 'Give the new source a title.';
-			return;
-		}
-		submission.error = null;
-		try {
-			const created = await createSourceApi(treeId, { title, author: newAuthor.trim() || null });
-			sourceId = created.sourceId;
-			sourceName = title;
-			isChoosing = false;
-			isNewSource = false;
-		} catch (cause: unknown) {
-			submission.error = messageOf(cause, 'Could not add the source');
-		}
-	}
 
 	async function save() {
 		if (!sourceId) {
@@ -183,78 +114,14 @@
 	>
 		<fieldset class="space-y-2">
 			<legend class="field-label">Source</legend>
-			{#if !isChoosing && sourceId}
-				<p class="flex items-center justify-between gap-2 text-sm">
-					<span class="font-semibold text-stone-900" data-testid="chosen-source">{sourceName}</span>
-					<button
-						type="button"
-						class="row-link text-xs font-semibold"
-						onclick={() => (isChoosing = true)}>Change source</button
-					>
-				</p>
-			{:else if isNewSource}
-				<div class="space-y-2 rounded-lg border border-stone-300 bg-white p-3">
-					<div>
-						<label for="new-source-title" class="field-label">Title of the new source</label>
-						<input id="new-source-title" type="text" bind:value={newTitle} class={field} />
-					</div>
-					<div>
-						<label for="new-source-author" class="field-label"
-							>Author <span class="font-normal text-stone-500">(optional)</span></label
-						>
-						<input id="new-source-author" type="text" bind:value={newAuthor} class={field} />
-					</div>
-					<div class="flex gap-2 text-sm font-semibold">
-						<button type="button" class="action-btn" onclick={() => void makeSource()}
-							>Add this source</button
-						>
-						<button type="button" class="row-link" onclick={() => (isNewSource = false)}
-							>Back to search</button
-						>
-					</div>
-				</div>
-			{:else}
-				<label for="citation-source-search" class="sr-only">Search sources by title or author</label
-				>
-				<input
-					id="citation-source-search"
-					type="search"
-					bind:this={searchInput}
-					bind:value={query}
-					autocomplete="off"
-					class={field}
-					placeholder="Search by title or author"
-				/>
-				{#if results.length > 0}
-					<ul
-						class="max-h-40 divide-y divide-stone-200 overflow-y-auto rounded-lg border border-stone-300 bg-white text-sm"
-						aria-label="Matching sources"
-						data-testid="source-results"
-					>
-						{#each results as result (result.id)}
-							<li>
-								<button
-									type="button"
-									class="w-full cursor-pointer px-3 py-1.5 text-left hover:bg-emerald-50"
-									onclick={() => choose(result)}
-								>
-									<span class="font-semibold text-stone-900">{labelOf(result)}</span>
-									{#if result.author}<span class="text-xs text-stone-600">
-											· {result.author}</span
-										>{/if}
-								</button>
-							</li>
-						{/each}
-					</ul>
-				{:else if query.trim()}
-					<p class="text-xs text-stone-600">No source matches.</p>
-				{/if}
-				<button
-					type="button"
-					class="row-link text-xs font-semibold"
-					onclick={() => (isNewSource = true)}>Make a new source…</button
-				>
-			{/if}
+			<SourcePicker
+				{treeId}
+				idPrefix="citation"
+				bind:sourceId
+				bind:sourceName
+				onerror={(message) => (submission.error = message)}
+				shouldFocus={isOpen}
+			/>
 		</fieldset>
 
 		<div class="grid grid-cols-2 gap-3">

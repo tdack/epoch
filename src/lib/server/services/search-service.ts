@@ -52,7 +52,8 @@ export class SearchService {
 	async search(
 		treeId: string,
 		query: Partial<SearchQuery>,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<SearchResponse> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -71,11 +72,12 @@ export class SearchService {
 		const words = searchWords(text);
 
 		// An XREF is exact and is checked on the first page only; it leads, then the name hits.
-		const xrefIds = offset === 0 ? await this.repo.byXref(treeId, text, scope) : [];
+		const xrefIds = offset === 0 ? await this.repo.byXref(treeId, text, scope, lensRootId) : [];
 		const { hits, hasMore } = await this.repo.find(
 			treeId,
 			{ words, place, from, to, limit, offset },
-			scope
+			scope,
+			lensRootId
 		);
 		if (words.length === 0 && !place && !from && !to && xrefIds.length === 0)
 			return { people: [], hasMore: false };

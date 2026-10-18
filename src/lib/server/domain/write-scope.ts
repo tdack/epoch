@@ -332,7 +332,8 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 			.filter(
 				(m) =>
 					media.has(m.id) ||
-					(m.entityId !== null && (everyone.has(m.entityId) || unions.has(m.entityId)))
+					(m.entityId !== null &&
+						(everyone.has(m.entityId) || unions.has(m.entityId) || seed.sources.has(m.entityId)))
 			)
 			.map((m) => m.id)
 	);

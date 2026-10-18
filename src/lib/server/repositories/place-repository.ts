@@ -11,6 +11,7 @@ import type { DbClient } from '../db';
 import { events, places } from '../db/schema';
 import type { ViewerScope } from '../services/tree-access';
 import { placeKey } from '../../shared/places';
+import { andInLens, andUnionInLens } from './subtree-membership';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -34,18 +35,18 @@ export interface PlaceAggregateRow {
 const likePattern = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** The facts of this tree that carry a place, visible to the viewer, as one relation. */
-function visibleFacts(treeId: string, scope: Scope, match: SQL): SQL {
+function visibleFacts(treeId: string, scope: Scope, match: SQL, lensRootId: string | null): SQL {
 	const partnersVisible = scope.isRestricted
 		? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
 		: sql``;
 	return sql`
 		select e.id as id, e.place as place, e.place_id as place_id, e.entity_type as entity_type, e.entity_id as entity_id, e.type as type, e.date_raw as date_raw, e.date_sort as date_sort
 		from events e join individuals i on i.id = e.entity_id
-		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place_id is not null${match}${andVisible('i', scope)}
+		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place_id is not null${match}${andVisible('i', scope)}${andInLens('i', treeId, lensRootId)}
 		union all
 		select e.id, e.place, e.place_id, e.entity_type, e.entity_id, e.type, e.date_raw, e.date_sort
 		from events e join unions u on u.id = e.entity_id
-		where e.tree_id = ${treeId} and e.entity_type = 'FAMILY' and e.place_id is not null${match}${partnersVisible}`;
+		where e.tree_id = ${treeId} and e.entity_type = 'FAMILY' and e.place_id is not null${match}${partnersVisible}${andUnionInLens('u', treeId, lensRootId)}`;
 }
 
 /** The place record's id for the text an event row carries; null when it has none. */
@@ -84,12 +85,13 @@ export class PlaceRepository {
 		treeId: string,
 		query: string,
 		page: { offset: number; limit: number },
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): SQL {
 		const match = query ? sql` and e.place like ${likePattern(query)} escape '\\'` : sql``;
 		return sql`
 			select f.place_id as id, min(f.place) as name, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
-			from (${visibleFacts(treeId, scope, match)}) f
+			from (${visibleFacts(treeId, scope, match, lensRootId)}) f
 			group by f.place_id
 			order by min(f.place) collate nocase, f.place_id
 			limit ${page.limit + 1} offset ${page.offset}`;
@@ -99,9 +101,12 @@ export class PlaceRepository {
 		treeId: string,
 		query: string,
 		page: { offset: number; limit: number },
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ rows: PlaceAggregateRow[]; hasMore: boolean }> {
-		const rows = await this.db.all<PlaceAggregateRow>(this.listSql(treeId, query, page, scope));
+		const rows = await this.db.all<PlaceAggregateRow>(
+			this.listSql(treeId, query, page, scope, lensRootId)
+		);
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}
 
@@ -109,11 +114,12 @@ export class PlaceRepository {
 		treeId: string,
 		name: string,
 		page: { offset: number; limit: number },
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): SQL {
 		const match = sql` and e.place_id = (select id from places where tree_id = ${treeId} and name_key = ${placeKey(name)})`;
 		return sql`select f.id as id, f.place as place, min(f.place) over () as name, f.place_id as placeId, f.entity_type as entityType, f.entity_id as entityId, f.type as type, f.date_raw as dateRaw
-			from (${visibleFacts(treeId, scope, match)}) f
+			from (${visibleFacts(treeId, scope, match, lensRootId)}) f
 			order by f.date_sort is null, f.date_sort, f.id
 			limit ${page.limit + 1} offset ${page.offset}`;
 	}
@@ -122,10 +128,11 @@ export class PlaceRepository {
 		treeId: string,
 		name: string,
 		page: { offset: number; limit: number },
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ rows: Array<PlaceFactRow & { name: string; placeId: string }>; hasMore: boolean }> {
 		const rows = await this.db.all<PlaceFactRow & { name: string; placeId: string }>(
-			this.factsSql(treeId, name, page, scope)
+			this.factsSql(treeId, name, page, scope, lensRootId)
 		);
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}

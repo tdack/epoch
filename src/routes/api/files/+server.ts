@@ -9,5 +9,12 @@ import { fileListQuerySchema } from '#lib/server/validation/schemas.js';
  */
 export const GET = apiHandler(
 	{ failure: 'Failed to list files', query: fileListQuerySchema },
-	({ db, ctx, query }) => new MediaService(db).list(ctx, query)
+	({ db, ctx, query }) =>
+		new MediaService(db).list(ctx, {
+			treeId: query.treeId,
+			entityId: query.entityId,
+			isDetachedOnly: query.owner === 'detached',
+			cursor: query.cursor,
+			limit: query.limit
+		})
 );

@@ -16,6 +16,10 @@
 	const dto = $derived(data.person);
 	const treeId = $derived(data.summary.tree.id);
 	const treeHref = $derived(treePath(data.summary.tree));
+	const wholeTreeHref = $derived(
+		`${treePath({ ...data.summary.tree, subtree: null })}/people/${encodeURIComponent(dto.person.id)}`
+	);
+	const lens = $derived(data.summary.subtree);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
 
 	// The dialogs read versions and names from the graph the screen shows.
@@ -48,6 +52,13 @@
 	<span aria-hidden="true"> › </span>
 	<span aria-current="page">{dto.person.displayName}</span>
 </nav>
+
+{#if lens && dto.isInSubtree === false}
+	<p class="text-xs text-stone-600" data-testid="not-in-subtree">
+		Not in {lens.name} ·
+		<a href={wholeTreeHref} class="text-link">Show in the whole tree</a>
+	</p>
+{/if}
 
 <PersonView
 	{dto}

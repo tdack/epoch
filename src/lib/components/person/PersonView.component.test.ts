@@ -201,10 +201,10 @@ describe.each(['drawer', 'page'] as const)('PersonView relatives in the %s layou
 		expect(rows[0]!.querySelector('[data-testid="claim-state"]')?.getAttribute('data-state')).toBe(
 			'sourced'
 		);
-		const dad = rows[1]!.querySelector('[data-testid="claim-state"]');
-		expect(dad?.getAttribute('data-state')).toBe('unsourced');
+		// An unsourced link shows nothing, and a first source comes from the quiet link.
+		expect(rows[1]!.querySelector('[data-testid="claim-state"]')).toBeNull();
 		expect(
-			rows[1]!.querySelector('button[aria-label="Add a citation for Dad as parent"]')
+			rows[1]!.querySelector('button[aria-label="Add a source for Dad as parent"]')
 		).not.toBeNull();
 	});
 

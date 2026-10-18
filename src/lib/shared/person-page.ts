@@ -146,6 +146,8 @@ interface PersonPrivacyDto {
 }
 
 export interface PersonPageDto extends PrivacyFlag {
+	/** Present only when the page was asked for through a sub-tree address: is the person a member of that lens. */
+	isInSubtree?: boolean;
 	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
 	privacy: PersonPrivacyDto | null;
 	person: {

@@ -10,6 +10,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { INDIVIDUAL_SORTS, type IndividualSort } from '../../shared/lists';
 import type { ViewerScope } from '../services/tree-access';
+import { andInLens, andUnionInLens } from './subtree-membership';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -38,7 +39,8 @@ export class ListRepository {
 		sort: IndividualSort,
 		surname: string,
 		page: PageRequest,
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): SQL {
 		// The surname filter is the surname list's own rule (see `surnamesSql`): the display surname,
 		// or any stored name's. The stored-name half joins through individuals to bound it to this
@@ -46,7 +48,7 @@ export class ListRepository {
 		const filter = surname
 			? sql` and (i.surname = ${surname} collate nocase or i.id in (select n.person_id from person_names n join individuals i2 on i2.id = n.person_id where i2.tree_id = ${treeId} and n.surname = ${surname} collate nocase))`
 			: sql``;
-		return sql`select i.id as id from individuals i where i.tree_id = ${treeId}${filter}${andVisible('i', scope)} order by ${ORDER[sort]} limit ${page.limit + 1} offset ${page.offset}`;
+		return sql`select i.id as id from individuals i where i.tree_id = ${treeId}${filter}${andVisible('i', scope)}${andInLens('i', treeId, lensRootId)} order by ${ORDER[sort]} limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
 	async individualIds(
@@ -54,30 +56,37 @@ export class ListRepository {
 		sort: IndividualSort,
 		surname: string,
 		page: PageRequest,
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ ids: string[]; hasMore: boolean }> {
 		const rows = await this.db.all<{ id: string }>(
-			this.individualsSql(treeId, sort, surname, page, scope)
+			this.individualsSql(treeId, sort, surname, page, scope, lensRootId)
 		);
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
 
-	unionsSql(treeId: string, page: PageRequest, scope: Scope): SQL {
+	unionsSql(
+		treeId: string,
+		page: PageRequest,
+		scope: Scope,
+		lensRootId: string | null = null
+	): SQL {
 		// Creation order: the `(tree_id)` index is in rowid order, so a page reads offset + limit entries.
 		// A partnership is listed only when every partner is visible: its marriage date and place are
 		// facts about the people in it, so a private partner makes them private too (ADR-015).
 		const allPartnersVisible = scope.isRestricted
 			? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
 			: sql``;
-		return sql`select u.id as id from unions u where u.tree_id = ${treeId}${allPartnersVisible} order by u.rowid limit ${page.limit + 1} offset ${page.offset}`;
+		return sql`select u.id as id from unions u where u.tree_id = ${treeId}${allPartnersVisible}${andUnionInLens('u', treeId, lensRootId)} order by u.rowid limit ${page.limit + 1} offset ${page.offset}`;
 	}
 
 	async unionIds(
 		treeId: string,
 		page: PageRequest,
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ ids: string[]; hasMore: boolean }> {
-		const rows = await this.db.all<{ id: string }>(this.unionsSql(treeId, page, scope));
+		const rows = await this.db.all<{ id: string }>(this.unionsSql(treeId, page, scope, lensRootId));
 		return { ids: rows.slice(0, page.limit).map((r) => r.id), hasMore: rows.length > page.limit };
 	}
 
@@ -87,13 +96,19 @@ export class ListRepository {
 	 * two casings of a surname are one (`collate nocase`, the same rule the list filter uses, so a
 	 * count here equals the rows of the filtered individuals list).
 	 */
-	surnamesSql(treeId: string, page: PageRequest, scope: Scope): SQL {
+	surnamesSql(
+		treeId: string,
+		page: PageRequest,
+		scope: Scope,
+		lensRootId: string | null = null
+	): SQL {
+		const lens = andInLens('i', treeId, lensRootId);
 		return sql`
 			with pairs as (
 				select pid, min(s) as shown from (
-					select i.id as pid, i.surname as s from individuals i where i.tree_id = ${treeId} and i.surname <> ''${andVisible('i', scope)}
+					select i.id as pid, i.surname as s from individuals i where i.tree_id = ${treeId} and i.surname <> ''${andVisible('i', scope)}${lens}
 					union all
-					select n.person_id, n.surname from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId} and n.surname <> ''${andVisible('i', scope)}
+					select n.person_id, n.surname from person_names n join individuals i on i.id = n.person_id where i.tree_id = ${treeId} and n.surname <> ''${andVisible('i', scope)}${lens}
 				) group by pid, s collate nocase
 			)
 			select min(shown) as surname, count(*) as people from pairs
@@ -103,9 +118,10 @@ export class ListRepository {
 	async surnames(
 		treeId: string,
 		page: PageRequest,
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ rows: SurnameCount[]; hasMore: boolean }> {
-		const rows = await this.db.all<SurnameCount>(this.surnamesSql(treeId, page, scope));
+		const rows = await this.db.all<SurnameCount>(this.surnamesSql(treeId, page, scope, lensRootId));
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
 	}
 }

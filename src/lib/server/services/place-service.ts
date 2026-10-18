@@ -61,7 +61,8 @@ export class PlaceService {
 	async list(
 		treeId: string,
 		query: { q?: string; offset?: number; limit?: number },
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<Page<PlaceListItem>> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -72,7 +73,13 @@ export class PlaceService {
 			this.now()
 		);
 		const page = clampPage(query);
-		const { rows, hasMore } = await this.places.list(treeId, placeText(query.q ?? ''), page, scope);
+		const { rows, hasMore } = await this.places.list(
+			treeId,
+			placeText(query.q ?? ''),
+			page,
+			scope,
+			lensRootId
+		);
 		return {
 			items: rows.map((r) => ({ id: r.id, name: r.name, facts: r.facts, people: r.people })),
 			hasMore,
@@ -84,7 +91,8 @@ export class PlaceService {
 		treeId: string,
 		name: string,
 		query: { offset?: number; limit?: number },
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<PlaceDto> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -95,7 +103,13 @@ export class PlaceService {
 			this.now()
 		);
 		const page = clampPage(query);
-		const { rows, hasMore } = await this.places.facts(treeId, placeText(name), page, scope);
+		const { rows, hasMore } = await this.places.facts(
+			treeId,
+			placeText(name),
+			page,
+			scope,
+			lensRootId
+		);
 		// An empty page is not found at any offset: the id below is the record's, which a place with no
 		// fact the viewer may see must not give away, and a stale link past the end (after a rename moved
 		// the facts) has nothing to show.

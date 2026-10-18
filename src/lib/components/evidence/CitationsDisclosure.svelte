@@ -1,9 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Plus } from '@lucide/svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { claimStateOf, type CitationDto, type CitationSubjectRef } from '#lib/shared/evidence.js';
+	import {
+		CLAIM_STATES,
+		claimStateOf,
+		type CitationDto,
+		type CitationSubjectRef
+	} from '#lib/shared/evidence.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import CitationDialog from './CitationDialog.svelte';
 	import CitationList from './CitationList.svelte';
@@ -31,6 +35,11 @@
 		label: string;
 		/** Edit, remove and reorder buttons, drawn on the same line as the marker. */
 		controls?: Snippet;
+		/**
+		 * Offers a quiet "Add source" link while there are no citations. Off where an edit dialog has
+		 * its own Source section (facts, names), so the way in is not offered twice.
+		 */
+		isAddLinkShown?: boolean;
 	}
 
 	let {
@@ -45,11 +54,13 @@
 		citationCount,
 		isConflicting = false,
 		label,
-		controls
+		controls,
+		isAddLinkShown = true
 	}: Props = $props();
 
 	const claim = $derived(claimStateOf({ citationCount, isConflicting }));
-	const canAdd = $derived(citationCount === 0 && canCite(role));
+	const canAdd = $derived(isAddLinkShown && citationCount === 0 && canCite(role));
+	const citationNoun = $derived(citationCount === 1 ? 'citation' : 'citations');
 
 	/** Set while the add dialog is open from an unsourced claim; the list has its own for edits. */
 	let isAdding = $state(false);
@@ -66,14 +77,18 @@
 </script>
 
 <!--
-	The marker is the way in: with citations it opens them; without, an editor who can cite gets the
-	Unsourced word as the button that adds one. The controls share the line, and the open list wraps
-	to a row of its own, so they do not sit beside a long list.
+	A sourced claim shows a quote icon and count that opens its citations; an unsourced one shows
+	nothing, because that is the normal state. Citing a claim with nothing yet happens in the edit
+	dialog, or through the quiet Add source link where there is no dialog. The controls share the
+	line, the open list wraps to a row of its own, and an empty line takes no space.
 -->
-<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs not-has-[>*]:hidden">
 	{#if citationCount > 0}
-		<details class="open:basis-full" data-testid="citations-disclosure">
-			<summary class="flex cursor-pointer items-center gap-2" aria-label={`Citations for ${label}`}>
+		<details class="group open:basis-full" data-testid="citations-disclosure">
+			<summary
+				class="inline-flex cursor-pointer list-none items-center rounded text-stone-600 focus-ring group-open:text-emerald-800 hover:text-emerald-800 coarse:min-h-11 coarse:min-w-11 [&::-webkit-details-marker]:hidden"
+				aria-label={`${citationCount} ${citationNoun} for ${label}`}
+			>
 				<ClaimStateMarker state={claim} {citationCount} />
 			</summary>
 			<div class="mt-2">
@@ -89,17 +104,18 @@
 				/>
 			</div>
 		</details>
-	{:else if canAdd}
+	{:else if claim === CLAIM_STATES.CONFLICTING}
+		<ClaimStateMarker state={claim} {citationCount} />
+	{/if}
+	{@render controls?.()}
+	{#if canAdd}
 		<button
 			type="button"
-			class="inline-flex cursor-pointer items-center gap-1 rounded focus-ring hover:underline coarse:min-h-11"
+			class="row-link coarse:min-h-11"
 			onclick={() => (isAdding = true)}
-			aria-label={`Add a citation for ${subjectLabel}`}
-			data-testid="add-citation"
+			aria-label={`Add a source for ${subjectLabel}`}
+			data-testid="add-citation">Add source</button
 		>
-			<ClaimStateMarker state={claim} citationCount={0} />
-			<Plus class="h-3.5 w-3.5 text-emerald-800" aria-hidden="true" />
-		</button>
 		<CitationDialog
 			isOpen={isAdding}
 			{treeId}
@@ -110,8 +126,5 @@
 			onstale={stale}
 			oncancel={() => (isAdding = false)}
 		/>
-	{:else}
-		<ClaimStateMarker state={claim} citationCount={0} />
 	{/if}
-	{@render controls?.()}
 </div>

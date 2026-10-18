@@ -5,7 +5,7 @@ import { parseListParams, INDIVIDUAL_SORTS } from '#lib/shared/lists.js';
 /** One page of people: `?sort=surname|given&surname=&offset=&limit=`. */
 export const GET = treeHandler(
 	{ allowPublicVisitor: true, failure: 'Failed to list people' },
-	({ db, ctx, treeId, url }) =>
+	({ db, ctx, treeId, subtree, url }) =>
 		new ListService(db).individuals(
 			treeId,
 			{
@@ -16,6 +16,7 @@ export const GET = treeHandler(
 						: INDIVIDUAL_SORTS.SURNAME,
 				surname: url.searchParams.get('surname') ?? ''
 			},
-			ctx
+			ctx,
+			subtree?.rootPersonId ?? null
 		)
 );

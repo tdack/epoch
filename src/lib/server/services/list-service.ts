@@ -52,7 +52,8 @@ export class ListService {
 	async individuals(
 		treeId: string,
 		query: Partial<IndividualListQuery>,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<Page<IndividualListItem>> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -69,7 +70,8 @@ export class ListService {
 			sort,
 			(query.surname ?? '').trim(),
 			page,
-			scope
+			scope,
+			lensRootId
 		);
 		const [people, vitals, names] = await this.graphRepo.run(
 			this.graphRepo.individualsIn(treeId, ids),
@@ -105,7 +107,8 @@ export class ListService {
 	async unions(
 		treeId: string,
 		query: { offset?: number; limit?: number },
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<Page<UnionListItem>> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -116,7 +119,7 @@ export class ListService {
 			this.now()
 		);
 		const page = clampPage(query);
-		const { ids, hasMore } = await this.lists.unionIds(treeId, page, scope);
+		const { ids, hasMore } = await this.lists.unionIds(treeId, page, scope, lensRootId);
 		const [unionRows, partnerRows, familyEvents] = await this.graphRepo.run(
 			this.graphRepo.unionsIn(treeId, ids),
 			this.graphRepo.partnerRowsOfUnions(treeId, ids),
@@ -154,7 +157,8 @@ export class ListService {
 	async surnames(
 		treeId: string,
 		query: { offset?: number; limit?: number },
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
 	): Promise<Page<SurnameListItem>> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -165,7 +169,7 @@ export class ListService {
 			this.now()
 		);
 		const page = clampPage(query);
-		const { rows, hasMore } = await this.lists.surnames(treeId, page, scope);
+		const { rows, hasMore } = await this.lists.surnames(treeId, page, scope, lensRootId);
 		const items = rows.map((r) => ({ ...privacyOf(r), surname: r.surname, people: r.people }));
 		return { items, hasMore, ...page };
 	}

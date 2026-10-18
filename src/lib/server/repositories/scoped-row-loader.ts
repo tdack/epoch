@@ -346,7 +346,8 @@ export class ScopedRowLoader {
 			if (eventPeople.length > 0) add('events', reads.eventsOf(treeId, 'INDIVIDUAL', eventPeople));
 			const eventUnions = fresh('eventsOfUnions', unionSet);
 			if (eventUnions.length > 0) add('events', reads.eventsOf(treeId, 'FAMILY', eventUnions));
-			const mediaOwners = fresh('mediaOf', [...everyone, ...unionSet]);
+			// A seeded source brings its files too, so a delete or merge of it sees what to detach or move.
+			const mediaOwners = fresh('mediaOf', [...everyone, ...unionSet, ...seed.sources]);
 			if (mediaOwners.length > 0) add('mediaItems', reads.mediaOf(treeId, mediaOwners));
 
 			// What is attached to everything loaded.

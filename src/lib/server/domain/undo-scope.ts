@@ -78,6 +78,7 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 				for (const image of [op.before, op.after]) {
 					ids.people.push(image?.entityId ?? null);
 					ids.unions.push(image?.entityId ?? null);
+					ids.sources.push(image?.entityId ?? null);
 				}
 				break;
 			case 'sources':
