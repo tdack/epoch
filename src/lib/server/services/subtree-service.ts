@@ -23,7 +23,7 @@ import type {
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
-export const toSubtreeDto = ({ row, isRootMissing }: SubtreeRead): SubtreeDto => ({
+const toSubtreeDto = ({ row, isRootMissing }: SubtreeRead): SubtreeDto => ({
 	id: row.id,
 	slug: row.slug,
 	name: row.name,

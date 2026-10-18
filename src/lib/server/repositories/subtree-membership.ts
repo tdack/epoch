@@ -31,7 +31,7 @@ export function inSubtree(alias: string, treeId: string, rootPersonId: string): 
 }
 
 /** The members' ids as a self-contained select, for a caller that composes it itself. */
-export function subtreeMembersSql(treeId: string, rootPersonId: string): SQL {
+function subtreeMembersSql(treeId: string, rootPersonId: string): SQL {
 	return sql`with recursive line(id) as (
 			select ${rootPersonId}
 			union

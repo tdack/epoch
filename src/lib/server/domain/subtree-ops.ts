@@ -33,7 +33,7 @@ export interface SubtreeContext {
 	actorId: string | null;
 }
 
-export function requireSubtree(rows: TreeRows, id: string): SubtreeRow {
+function requireSubtree(rows: TreeRows, id: string): SubtreeRow {
 	const subtree = rows.subtrees.find((s) => s.id === id);
 	if (!subtree) throw new NotFoundError('Sub-tree', id);
 	return subtree;
