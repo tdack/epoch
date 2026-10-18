@@ -83,7 +83,7 @@
 	async function move(subtree: SubtreeDto, by: -1 | 1) {
 		const neighbour = subtrees[subtrees.indexOf(subtree) + by];
 		if (isBusy || !neighbour) return;
-		const ok = await apply(async () => {
+		const didMove = await apply(async () => {
 			await updateSubtree(tree.id, subtree.id, {
 				position: neighbour.position,
 				version: subtree.version
@@ -94,7 +94,7 @@
 			}).then(() => ({ change: null }));
 		}, 'Sub-tree moved');
 		// A move has no dialog to hold the refusal, so it goes to the toast.
-		if (!ok && dialogError) toasts.push(dialogError, { tone: 'error' });
+		if (!didMove && dialogError) toasts.push(dialogError, { tone: 'error' });
 	}
 
 	const rootLabel = (s: SubtreeDto) =>
