@@ -82,7 +82,7 @@
 	dialog, or through the quiet Add source link where there is no dialog. The controls share the
 	line, the open list wraps to a row of its own, and an empty line takes no space.
 -->
-<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs empty:hidden">
+<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs not-has-[>*]:hidden">
 	{#if citationCount > 0}
 		<details class="group open:basis-full" data-testid="citations-disclosure">
 			<summary

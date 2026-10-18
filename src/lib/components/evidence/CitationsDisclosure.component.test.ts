@@ -60,7 +60,8 @@ describe('CitationsDisclosure without citations', () => {
 		expect(document.body.textContent?.trim()).toBe('');
 		expect(document.querySelector('[data-testid="claim-state"]')).toBeNull();
 		expect(document.querySelector('[data-testid="add-citation"]')).toBeNull();
-		expect(document.body.firstElementChild?.innerHTML).toBe('');
+		// The line stays in the DOM but is hidden by CSS while nothing sits on it.
+		expect(document.body.firstElementChild?.children).toHaveLength(0);
 	});
 
 	it('shows nothing to the public visitor', () => {
