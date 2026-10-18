@@ -99,6 +99,10 @@ are gone.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person, a
   partnership or a source, or is null for a detached file (ADR-061). The R2 key names the file, not its owner, so attaching,
   detaching and moving are row updates that never touch the bytes (ADR-050).
+- `subtree`: a named lens on a tree, rooted at one person (ADR-062). It holds `root_person_id` with
+  no foreign key, so an undo of a person delete brings the sub-tree back. Membership is not stored:
+  the root, its descendants through `parent_child` of any type whose status is not `disputed`, and
+  their partners are computed by `inSubtree` in `subtree-membership.ts`. Unique on `(tree_id, slug)`.
 - `date_value`: the original GEDCOM text plus parsed lower and upper bounds, precision, calendar
   and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day (ADR-004).
 - Evidence: sources, repositories, citations, shared notes and research tasks are records
@@ -129,6 +133,8 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
 - Living people, and anyone whose state cannot be determined, are private by default, with a
   per-person override (ADR-015). One `ViewerScope` per request carries the rule into every query,
   so totals, paging and counts never leak.
+- Sub-trees are managed by `tree:manage_subtrees` (manager and above). A sub-tree whose root the
+  viewer may not see is left out of the list and its address is a 404 (ADR-062).
 - Members join by invitation (ADR-016, ADR-031). Only the install owner, members and invitees are
   admitted (ADR-034). A tree can be made public to read without signing in (ADR-041).
   Each member may mark one of their trees as the default that `/` opens (ADR-044).
@@ -149,6 +155,17 @@ Tree pages live under `/trees/<slug>`, and the id still works and redirects ther
 With `EPOCH_TREE_HOST_ZONE` set, a tree may also be served at `<slug>.<zone>`, which shows only that
 tree. Pages there keep the `/trees/<slug>/…` form, and links that leave the tree go to the app host
 (ADR-057).
+
+A sub-tree rides inside the tree's path segment: `/trees/<tree>~<sub>/…`, and the API takes the same
+segment. `~` cannot appear in a slug or a UUID. `splitTreeSegment` in `shared/tree-slug.ts` is the
+only code that knows the separator, and `treeHandler` resolves the sub-tree and passes it to the
+handler beside `treeId` (ADR-062). Keeping the segment positional means the host and redirect checks
+in `hooks.server.ts` and `tree-host.ts` need no change (ADR-057).
+
+A sub-tree is a lens, not an access boundary. Under a lens the chart opens on the root, and the
+people, surname, union and place lists, search, the person finder and the header counts read only
+the members (`inSubtree` is ANDed with `tree_id` and the visibility predicate, so totals and paging
+stay in scope). Sources, files, tasks, writes, undo and GEDCOM export stay tree-wide (ADR-062).
 The tree page is a focus-centred hourglass: there is always a focus person, and the client fetches a
 bounded subgraph rather than the whole tree (ADR-011). Pedigree, descendant, fan, hourglass and
 relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL views (Rings, Ball,

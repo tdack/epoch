@@ -1,7 +1,9 @@
 # Proposal: sub-trees of a tree
 
-- **Status:** proposal, 2026-10-18. When accepted it becomes ADR-060 in
-  [decisions.md](./decisions.md) and its work moves into [backlog.md](./backlog.md).
+- **Status:** accepted as [ADR-062](./decisions.md), built 2026-10-18 on
+  `claude/tree-subtrees-exploration-dcc030`; not yet deployed. Where this proposal and the built code
+  differ, the ADR and the code are the source of truth. Open follow-ups are in
+  [backlog.md](./backlog.md).
 - **Goal:** a manager marks a person as the root of a named sub-tree ("Bouvier line", rooted at
   Clancy Bouvier). The sub-tree appears indented under its tree in the tree switcher.
   Choosing it opens the chart on the root, and the people, surname, union and place lists, search
@@ -158,6 +160,6 @@ have none today), but a shared sub-tree address works for them when the root is 
 | 2     | `splitTreeSegment`, resolvers, host checks, canonical redirect, `TreeRef.subtree`, layout, switcher entries, chart focus order, banner | 1          | Sonnet |
 | 3     | Management UI: "Make sub-tree from here" dialog, Trees page section                                      | 1          | Sonnet |
 | 4     | Scoped reads: lists, search, finder, whole-tree graph, counts, "not in this sub-tree" note               | 2          | Sonnet |
-| 5     | ADR-060 final text, architecture.md, backlog updates                                                     | 4          | Haiku  |
+| 5     | ADR-062 final text, architecture.md, backlog updates                                                     | 4          | Haiku  |
 
 Phases 2 and 3 touch disjoint files and can run at the same time after phase 1 merges.
