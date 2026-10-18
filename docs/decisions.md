@@ -328,7 +328,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - Relatives look the same on both screens, which changes both: the drawer lost its bordered cards for plain rows, and the page gained trash buttons and add links.
   - The person page's header buttons moved from the right of the name to beside it, and Privacy moved into the right column.
   - A docked side-by-side layout is not built; `PersonView` makes it a third `layout` value rather than another fork.
-- **Consequences:** `PersonDrawer` is a frame only (fixed panel, Close, Escape, Open full page, focus to the heading on open, focus back to the opening card on close). The page is a breadcrumb and a `PersonView`. No API, DTO or schema changes. Supersedes an earlier decision to leave the drawer and page separate.
+- **Consequences:** `PersonDrawer` is a frame only (a panel over everything below 1024px, a card docked beside the canvas, which narrows and refits, from 1024px; a width the viewer drags from 384px up from 768px, kept in `localStorage`; Close, Escape, Open full page, focus to the heading on open, focus back to the opening card on close). The page is a breadcrumb and a `PersonView`. No API, DTO or schema changes. Supersedes an earlier decision to leave the drawer and page separate.
 
 ## ADR-028: Sources, repositories and citations are records (Phase 5 item 9, S15b)
 - **Context:** ADR-023 made a file's evidence round-trip whole as retained lines. Phase 5 asks for sources, repositories and citations to be records: shown beside the facts they support, editable, privacy-aware and still lossless.

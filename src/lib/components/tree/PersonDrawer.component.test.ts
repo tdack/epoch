@@ -93,6 +93,19 @@ describe('PersonDrawer frame', () => {
 		expect(document.activeElement).toBe(document.querySelector('h2'));
 	});
 
+	it('docks in the page flow and widens from its handle', () => {
+		vi.stubGlobal('innerWidth', 1440);
+		open({ isDocked: true });
+		const panel = document.querySelector<HTMLElement>('[aria-label="Person details"]')!;
+		expect(panel.classList.contains('fixed')).toBe(false);
+		const handle = document.querySelector<HTMLElement>('[role="separator"]')!;
+		const before = Number(handle.getAttribute('aria-valuenow'));
+		handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+		flushSync();
+		expect(Number(handle.getAttribute('aria-valuenow'))).toBeGreaterThan(before);
+		vi.unstubAllGlobals();
+	});
+
 	it('says why it could not load', () => {
 		open({ page: null, error: 'Person not found' });
 		expect(document.querySelector('[role="alert"]')!.textContent).toContain('Person not found');
