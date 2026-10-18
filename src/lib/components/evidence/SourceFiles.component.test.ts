@@ -109,7 +109,7 @@ describe('SourceFiles', () => {
 			expect(document.querySelector('[data-testid="attach-picker"]')).not.toBeNull()
 		);
 		expect(listApi).toHaveBeenCalledWith({ treeId: 't1', isDetachedOnly: true, limit: 100 });
-		button('Attach')!.click();
+		document.querySelector<HTMLButtonElement>('[aria-label^="Attach loose"]')!.click();
 		await vi.waitFor(() => expect(attachApi).toHaveBeenCalledWith('loose', 't1', 's1', undefined));
 	});
 });
