@@ -5,7 +5,7 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md), a
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
 it changes a decision.
 
-Last reviewed: 2026-10-15.
+Last reviewed: 2026-10-18.
 
 ## Part 1: Open fixes
 
@@ -161,9 +161,6 @@ Last reviewed: 2026-10-15.
 
 ### Tests
 
-- **Flaky e2e specs.** `union-choice.spec.ts` has failed about 1 run in 4 to 8, and
-  `undo-and-conflict.spec.ts` ("a concurrent edit opens the conflict dialog") failed once in a full
-  run. Find the race and fix it, or quarantine with a tracked reason.
 - **E2E specs find a fact's fields by label.** `getByLabel('Type')` also matches "Sub-type", so use
   `{ exact: true }` for any label that is part of another (see `e2e/facts.spec.ts`).
 - **Test data is imported by relative path.** Tests read `test/data` files through relative
