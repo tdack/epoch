@@ -26,6 +26,9 @@
  *    `source_repositories` rows and repositories; note attachments on anything loaded (people,
  *    names, events, partnerships, links, sources, repositories, citations) with their notes; tasks
  *    about anything loaded.
+ * 7. Sub-trees: the seeded ones, and those rooted at a resolved person (step 1), so a merge sees
+ *    the sub-trees it must repoint. A sub-tree has no foreign key to its root, so deleting a person
+ *    does not touch one.
  *
  * `wholeTables` copies whole tables on top, for the one command that reads a table end to end.
  * Every table keeps the order of `whole`, because chronology tie-breaks depend on `rowid`.
@@ -48,6 +51,8 @@ export interface ScopeSeed {
 	readonly notes: ReadonlySet<string>;
 	readonly noteAttachments: ReadonlySet<string>;
 	readonly tasks: ReadonlySet<string>;
+	/** `subtree` row ids. A person in the seed also brings the sub-trees rooted at them. */
+	readonly subtrees: ReadonlySet<string>;
 	/** `source_repositories` row ids. A link resolves to its source and its repository; it pulls neither. */
 	readonly sourceRepositories: ReadonlySet<string>;
 	/** Tables to read whole on top of the closure, as `assert_parent_child` does for `parentChild`. */
@@ -85,6 +90,7 @@ const ID_KEYS: readonly IdKey[] = [
 	'notes',
 	'noteAttachments',
 	'tasks',
+	'subtrees',
 	'sourceRepositories'
 ];
 
@@ -102,6 +108,7 @@ export function emptySeed(): ScopeSeed {
 		notes: new Set(),
 		noteAttachments: new Set(),
 		tasks: new Set(),
+		subtrees: new Set(),
 		sourceRepositories: new Set()
 	};
 }
@@ -378,6 +385,8 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	}
 	for (const t of whole.researchTasks)
 		if (t.subjectKind && t.subjectId && has(t.subjectKind, t.subjectId)) tasks.add(t.id);
+	const subtreeIds = new Set(seed.subtrees);
+	for (const s of whole.subtrees) if (resolvedPeople.has(s.rootPersonId)) subtreeIds.add(s.id);
 
 	const isWhole = (table: keyof TreeRows) => seed.wholeTables?.includes(table) ?? false;
 	const pick = <T extends { id: string }>(
@@ -402,6 +411,7 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 		citations: pick('citations', whole.citations, (r) => citations.has(r.id)),
 		notes: pick('notes', whole.notes, (r) => notes.has(r.id)),
 		noteAttachments: pick('noteAttachments', whole.noteAttachments, (r) => attachments.has(r.id)),
-		researchTasks: pick('researchTasks', whole.researchTasks, (r) => tasks.has(r.id))
+		researchTasks: pick('researchTasks', whole.researchTasks, (r) => tasks.has(r.id)),
+		subtrees: pick('subtrees', whole.subtrees, (r) => subtreeIds.has(r.id))
 	};
 }
