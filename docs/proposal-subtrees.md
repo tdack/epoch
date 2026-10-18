@@ -1,7 +1,7 @@
 # Proposal: sub-trees of a tree
 
 - **Status:** accepted as [ADR-062](./decisions.md), built 2026-10-18 on
-  `claude/tree-subtrees-exploration-dcc030`; not yet deployed. Where this proposal and the built code
+  `claude/tree-subtrees-exploration-dcc030` and deployed. Where this proposal and the built code
   differ, the ADR and the code are the source of truth. Open follow-ups are in
   [backlog.md](./backlog.md).
 - **Goal:** a manager marks a person as the root of a named sub-tree ("Bouvier line", rooted at
