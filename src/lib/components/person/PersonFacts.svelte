@@ -396,9 +396,11 @@
 		{#each groups as group, groupIndex (group.key)}
 			{@const [newest, ...earlier] = group.members}
 			{@const earlierId = `${uid}-earlier-${groupIndex}`}
+			{@const headingId = `${uid}-group-${groupIndex}`}
 			{@const isOpen = expanded[group.key] === true}
 			<li class={timelineRow} data-testid="fact-group">
-				<h4 class={timelineHeading}>
+				<!-- Names the row's "Show N earlier", which would otherwise repeat on the page unlabelled. -->
+				<h4 id={headingId} class={timelineHeading}>
 					{group.label}
 					{#if group.members.length > 1}<span
 							class="ml-1 text-xs font-normal text-stone-500 tabular-nums"
@@ -420,6 +422,7 @@
 								class="row-link mt-2 inline-flex items-center gap-1 text-xs coarse:min-h-11"
 								aria-expanded={isOpen}
 								aria-controls={earlierId}
+								aria-describedby={headingId}
 								onclick={() => (expanded[group.key] = !isOpen)}
 								><ChevronDown
 									class={['h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180']}

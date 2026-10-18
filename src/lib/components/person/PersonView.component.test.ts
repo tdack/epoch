@@ -332,6 +332,31 @@ describe('page layout', () => {
 		);
 	});
 
+	it('leads with At a glance only for a person with attributes', () => {
+		const sections = () =>
+			[...document.querySelectorAll('[data-section]')].map((el) => el.getAttribute('data-section'));
+		open(pageOf('ben', 'Ben'), { layout: 'page' });
+		expect(sections()).not.toContain('glance');
+		document.body.innerHTML = '';
+		const occupation = {
+			id: 'o1',
+			type: 'OCCU',
+			label: 'Occupation',
+			kind: 'attribute',
+			dateText: null,
+			sortStart: null,
+			place: null,
+			value: 'Joiner',
+			notes: null,
+			citationCount: 0,
+			noteItems: [],
+			retainedLines: [],
+			conflict: null
+		} as never;
+		open(pageOf('ben', 'Ben', { facts: [occupation] }), { layout: 'page' });
+		expect(sections().slice(0, 2)).toEqual(['glance', 'life']);
+	});
+
 	it('shows privacy only to a manager whose DTO carries the setting', () => {
 		const dto = pageOf('ben', 'Ben', {
 			privacy: { setting: 'auto', isLikelyLiving: false } as never
