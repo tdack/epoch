@@ -16,6 +16,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { dateBound, foldQuery } from '../../shared/search';
 import type { ViewerScope } from '../services/tree-access';
+import { andInLens } from './subtree-membership';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -116,30 +117,41 @@ export function xrefCandidates(text: string): string[] {
 export class SearchRepository {
 	constructor(private db: DbClient) {}
 
-	xrefSql(treeId: string, candidates: string[], scope: Scope): SQL {
+	xrefSql(
+		treeId: string,
+		candidates: string[],
+		scope: Scope,
+		lensRootId: string | null = null
+	): SQL {
 		// Named, because SQLite picks the tree index when both can serve and then reads the whole tree.
 		return sql`select i.id as id from individuals i indexed by idx_ind_xref where i.tree_id = ${treeId} and i.xref_id in (${sql.join(
 			candidates.map((c) => sql`${c}`),
 			sql`, `
-		)})${andVisible('i', scope)} order by i.rowid`;
+		)})${andVisible('i', scope)}${andInLens('i', treeId, lensRootId)} order by i.rowid`;
 	}
 
 	/** People whose XREF is exactly this, with or without the `@`s (the importer stores them with). */
-	async byXref(treeId: string, text: string, scope: Scope): Promise<string[]> {
+	async byXref(
+		treeId: string,
+		text: string,
+		scope: Scope,
+		lensRootId: string | null = null
+	): Promise<string[]> {
 		const candidates = xrefCandidates(text);
 		if (candidates.length === 0) return [];
-		return (await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates, scope))).map(
-			(r) => r.id
-		);
+		return (
+			await this.db.all<{ id: string }>(this.xrefSql(treeId, candidates, scope, lensRootId))
+		).map((r) => r.id);
 	}
 
 	async find(
 		treeId: string,
 		filters: SearchFilters,
-		scope: Scope
+		scope: Scope,
+		lensRootId: string | null = null
 	): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
 		const rows = await this.db.all<{ id: string; name_id: string | null }>(
-			this.findSql(treeId, filters, scope)
+			this.findSql(treeId, filters, scope, lensRootId)
 		);
 		return {
 			hits: rows.slice(0, filters.limit).map((r) => ({ personId: r.id, nameId: r.name_id })),
@@ -148,7 +160,14 @@ export class SearchRepository {
 	}
 
 	/** The search statement, unrun: the plan test measures exactly what `find` sends. */
-	findSql(treeId: string, filters: SearchFilters, scope: Scope): SQL {
+	findSql(
+		treeId: string,
+		filters: SearchFilters,
+		scope: Scope,
+		lensRootId: string | null = null
+	): SQL {
+		// Beside tree_id and the visibility predicate, so the page fills and hasMore are in scope.
+		const lens = andInLens('i', treeId, lensRootId);
 		const { words, limit, offset } = filters;
 		const factFilter = hasFactFilter(filters)
 			? sql` and (exists (select 1 from events e where e.entity_type = 'INDIVIDUAL' and e.entity_id = i.id and ${factCondition(filters.place, filters.from, filters.to)})
@@ -159,9 +178,9 @@ export class SearchRepository {
 		return words.length === 0
 			? sql`
 				select i.id as id, null as name_id from individuals i
-				where i.tree_id = ${treeId}${factFilter}${andVisible('i', scope)}
+				where i.tree_id = ${treeId}${factFilter}${andVisible('i', scope)}${lens}
 				order by lower(i.surname), lower(i.given_name), i.id ${page}`
-			: this.rankedNames(treeId, words, sql`${factFilter}${andVisible('i', scope)}`, page);
+			: this.rankedNames(treeId, words, sql`${factFilter}${andVisible('i', scope)}${lens}`, page);
 	}
 
 	private rankedNames(treeId: string, words: string[], factFilter: SQL, page: SQL): SQL {

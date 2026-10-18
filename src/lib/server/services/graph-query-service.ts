@@ -10,6 +10,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
+import { lensCounts } from '../repositories/subtree-membership';
 import { firstVisiblePersonId, visibleCounts } from '../repositories/visibility';
 import { loadFocusWindow, type FocusWindowOptions } from './focus-window';
 import { requireTreeScope, type ViewerScope } from './tree-access';
@@ -64,12 +65,18 @@ export class GraphQueryService {
 	}
 
 	/** Everyone the viewer may see, up to the cap, with no focus. */
-	async wholeTreeGraph(treeId: string, context: AuthenticatedContext): Promise<WholeTreeGraphDto> {
+	async wholeTreeGraph(
+		treeId: string,
+		context: AuthenticatedContext,
+		subtree: SubtreeSummaryDto | null = null
+	): Promise<WholeTreeGraphDto> {
 		const scope = await this.requireView(treeId, context);
 		const window = await loadWholeTreeWindow(
 			this.repo,
 			treeId,
-			scope.isRestricted ? scope : undefined
+			scope.isRestricted ? scope : undefined,
+			undefined,
+			subtree?.rootPersonId ?? null
 		);
 		const drawn = new Set(window.personIds);
 		return {
@@ -117,7 +124,7 @@ export class GraphQueryService {
 				isInstallOwner: context.user.isInstallOwner === true,
 				isTreePublic: scope.isPublic
 			},
-			counts,
+			counts: subtree ? await lensCounts(this.db, treeId, subtree.rootPersonId, scope) : counts,
 			defaultFocusPersonId,
 			subtrees,
 			subtree: await activeSubtree(this.db, treeId, subtree)

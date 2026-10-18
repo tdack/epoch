@@ -35,7 +35,8 @@ export async function loadWholeTreeWindow(
 	repo: GraphWindowRepository,
 	treeId: string,
 	privacy?: WindowPrivacy,
-	cap = MAX_WHOLE_TREE_PEOPLE
+	cap = MAX_WHOLE_TREE_PEOPLE,
+	lensRootId: string | null = null
 ): Promise<WholeTreeWindow> {
 	const state = new WindowState(privacy);
 	const rankOf = new Map<string, number>();
@@ -44,7 +45,7 @@ export async function loadWholeTreeWindow(
 	let visible: string[] = [];
 
 	while (!isExhausted && visible.length <= cap) {
-		const page = await repo.personIdsAfter(treeId, after, PAGE_PEOPLE);
+		const page = await repo.personIdsAfter(treeId, after, PAGE_PEOPLE, lensRootId);
 		if (page.length < PAGE_PEOPLE) isExhausted = true;
 		if (page.length === 0) break;
 		after = page[page.length - 1].rid;
