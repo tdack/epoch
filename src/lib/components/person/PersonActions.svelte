@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
-	import { Combine, Cross, GitBranch, Network, Pencil, Star, Trash2, UserPlus } from '@lucide/svelte';
+	import {
+		Combine,
+		Cross,
+		GitBranch,
+		Network,
+		Pencil,
+		Star,
+		Trash2,
+		UserPlus
+	} from '@lucide/svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
 	import SubtreeDialog from '#lib/components/subtree/SubtreeDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -11,7 +20,12 @@
 	import { undoApi } from '#lib/api/relationships.js';
 	import { createSubtree } from '#lib/api/subtrees.js';
 	import { DATA_KEY } from '#lib/api/load-helpers.js';
-	import { canChangeRecords, canCreateRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+	import {
+		canChangeRecords,
+		canCreateRecords,
+		isManagerOrAbove,
+		type TreeRole
+	} from '#lib/shared/roles.js';
 	import { canMergePerson } from './person-permissions.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import { personPath, treePath } from './person-paths.js';
