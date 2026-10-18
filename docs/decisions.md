@@ -839,3 +839,13 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **"Newest" is the newest recorded, never "current".** The heading says only the kind; nothing claims a person still lives or works there.
 - **Rejected alternatives:** grouping repeated events such as census in Life (it would break the date order the timeline exists for); a "lives at / works as" line in the header (newest by start date is not current, above all for the dead or for a long-running period that started earlier); keeping "Also recorded" flat beneath Life.
 - **Consequences:** ADR-058's "every fact is shown" now holds for events only. A move control in At a glance swaps with a same-date neighbour of the same kind, and up means newer, as in the drawer. A date written `FROM 1980` with no `TO` sorts from 1980 once saved; rows stored before the parser read open-ended periods keep a null sort key until re-derived (backlog).
+
+## ADR-060: Every `/api` error is `{ error, code, details? }`
+- **Status:** built on `claude/api-error-envelope-821bdc`; not yet deployed. No migration.
+- **Context:** `DomainError` already rendered as `{ error, code, details }`, but about sixteen routes and the handler factories answered a missing sign-in, route parameter, form field or binding with a bare `{ error }`, so a client could not branch on `code` for those.
+- **Decision:**
+  - **One path.** A failure is thrown as a `DomainError` (`ValidationError`, `UnauthenticatedError`) and rendered by `errorResponse`; no route builds its own error body. The unexpected-error fallback carries `INTERNAL_ERROR`.
+  - **`BindingUnavailableError`** is the 500 for a missing Cloudflare binding. Its message is fixed and the binding's name goes to the log only, since it says how the install is wired.
+  - **`ApiErrorBody`** in `api-contracts.ts` is the shape the client reads.
+  - **A test holds it:** `src/routes/api/error-envelope.test.ts` fails if a route or the handler writes a `json({ error … })` body without `code`.
+- **Consequences:** status codes and messages are unchanged except the binding errors, which no longer name the binding.
