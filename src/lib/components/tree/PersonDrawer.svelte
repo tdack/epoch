@@ -8,10 +8,18 @@
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
 	import type { TreeEditor } from './tree-editor.svelte.js';
+	import {
+		DRAWER_MIN_WIDTH_PX,
+		DRAWER_WIDTH_STORAGE_KEY,
+		canResizeDrawer,
+		clampDrawerWidth,
+		maxDrawerWidth
+	} from './drawer-width.js';
 
 	/**
-	 * The frame around a person beside the canvas: the fixed panel, Close and Escape, and the link
-	 * to the full page. What is inside it is the same `PersonView` the person page renders.
+	 * The frame around a person beside the canvas: the fixed panel, its resize handle on wide
+	 * windows, Close and Escape, and the link to the full page. What is inside it is the same
+	 * `PersonView` the person page renders.
 	 */
 	interface Props {
 		/** The person's page data; null while it loads. */
@@ -56,6 +64,80 @@
 		void tick().then(() => panel?.querySelector<HTMLElement>('h2')?.focus());
 	});
 
+	const KEY_STEP_PX = 16;
+
+	let viewportWidthPx = $state(0);
+	/** What the viewer asked for; the drawn width is this held inside the current window. */
+	let wantedWidthPx = $state(readStoredWidth());
+	const isResizable = $derived(canResizeDrawer(viewportWidthPx));
+	const widthPx = $derived(clampDrawerWidth(wantedWidthPx, viewportWidthPx));
+	// Inline only when resizable: below the breakpoint the classes keep the phone and tablet layout.
+	const widthStyle = $derived(isResizable ? `width: ${widthPx}px` : undefined);
+
+	function readStoredWidth(): number {
+		try {
+			const stored = localStorage.getItem(DRAWER_WIDTH_STORAGE_KEY);
+			return stored === null ? DRAWER_MIN_WIDTH_PX : Number(stored);
+		} catch {
+			return DRAWER_MIN_WIDTH_PX;
+		}
+	}
+
+	function storeWidth() {
+		try {
+			localStorage.setItem(DRAWER_WIDTH_STORAGE_KEY, String(widthPx));
+		} catch {
+			// A remembered width is a convenience only.
+		}
+	}
+
+	let drag: { pointerId: number; startX: number; startWidthPx: number } | null = $state(null);
+
+	function startDrag(event: PointerEvent) {
+		if (event.button !== 0) return;
+		// Captured, so a fast drag that leaves the thin handle never reaches the canvas and pans it.
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		drag = { pointerId: event.pointerId, startX: event.clientX, startWidthPx: widthPx };
+		event.preventDefault();
+	}
+
+	function moveDrag(event: PointerEvent) {
+		if (drag?.pointerId !== event.pointerId) return;
+		// Relative to where it was grabbed, so the edge does not jump to the pointer on the first move.
+		wantedWidthPx = clampDrawerWidth(
+			drag.startWidthPx + drag.startX - event.clientX,
+			viewportWidthPx
+		);
+	}
+
+	function endDrag(event: PointerEvent) {
+		if (drag?.pointerId !== event.pointerId) return;
+		drag = null;
+		storeWidth();
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		const next =
+			event.key === 'ArrowLeft'
+				? widthPx + KEY_STEP_PX
+				: event.key === 'ArrowRight'
+					? widthPx - KEY_STEP_PX
+					: event.key === 'Home'
+						? DRAWER_MIN_WIDTH_PX
+						: event.key === 'End'
+							? maxDrawerWidth(viewportWidthPx)
+							: null;
+		if (next === null) return;
+		event.preventDefault();
+		wantedWidthPx = clampDrawerWidth(next, viewportWidthPx);
+		storeWidth();
+	}
+
+	function resetWidth() {
+		wantedWidthPx = DRAWER_MIN_WIDTH_PX;
+		storeWidth();
+	}
+
 	function keydown(event: KeyboardEvent) {
 		// A dialog opened from a section sits inside this panel; its own Escape must not close the panel too.
 		if (event.key !== 'Escape' || event.defaultPrevented) return;
@@ -64,6 +146,40 @@
 	}
 </script>
 
+<svelte:window bind:innerWidth={viewportWidthPx} />
+
+{#snippet resizeHandle()}
+	{#if isResizable}
+		<!-- A focusable separator is the ARIA pattern for a splitter, so it takes keys like a control. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+		<div
+			role="separator"
+			aria-orientation="vertical"
+			aria-label="Resize details panel"
+			aria-valuenow={widthPx}
+			aria-valuemin={DRAWER_MIN_WIDTH_PX}
+			aria-valuemax={maxDrawerWidth(viewportWidthPx)}
+			tabindex="0"
+			title="Drag to resize; double-click to reset"
+			onpointerdown={startDrag}
+			onpointermove={moveDrag}
+			onpointerup={endDrag}
+			onpointercancel={endDrag}
+			ondblclick={resetWidth}
+			onkeydown={handleKeydown}
+			class="group absolute inset-y-0 -left-1.5 z-10 flex w-3 cursor-col-resize touch-none items-center justify-center focus-ring"
+		>
+			<span
+				class={[
+					'h-10 w-1 rounded-full transition-colors group-hover:bg-stone-500 group-focus-visible:bg-stone-500',
+					drag ? 'bg-stone-600' : 'bg-stone-300'
+				]}
+				aria-hidden="true"
+			></span>
+		</div>
+	{/if}
+{/snippet}
+
 {#if page}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
@@ -71,8 +187,13 @@
 		role="complementary"
 		aria-label="Person details"
 		onkeydown={keydown}
-		class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-stone-300 bg-[#fcfaf5]/98 shadow-2xl backdrop-blur-xl transition-transform duration-300 sm:w-96"
+		style={widthStyle}
+		class={[
+			'fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-stone-300 bg-[#fcfaf5]/98 shadow-2xl backdrop-blur-xl transition-transform duration-300 sm:w-96',
+			{ 'select-none': drag }
+		]}
 	>
+		{@render resizeHandle()}
 		<div
 			class="flex items-center justify-between border-b border-stone-200/90 bg-[#fbf8f0] px-6 py-3"
 		>
@@ -108,9 +229,11 @@
 	</div>
 {:else if error}
 	<div
+		style={widthStyle}
 		class="fixed inset-y-0 right-0 z-50 w-full border-l border-stone-300 bg-[#fcfaf5] p-6 shadow-2xl sm:w-96"
 		role="alert"
 	>
+		{@render resizeHandle()}
 		<button
 			type="button"
 			onclick={onClose}
