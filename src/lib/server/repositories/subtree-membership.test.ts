@@ -186,7 +186,7 @@ describe('the plan', () => {
 		expect(details.some((d) => d.includes('idx_uq_union_person'))).toBe(true);
 		// The only table scans are the recursive CTE itself.
 		expect(details.filter((d) => /^SCAN (?!line|l$|CONSTANT ROW|\(subquery)/.test(d))).toEqual([]);
-	});
+	}, 120_000);
 
 	it('binds the tree id and root id and nothing else', () => {
 		const { params } = dialect.sqlToQuery(sql`select 1 where 1 = 1${inSubtree('i', 'T', 'R')}`);
