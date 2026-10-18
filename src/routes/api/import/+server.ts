@@ -32,7 +32,7 @@ const previewFailure = {
 export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
 	const file = formData.get('file');
-	if (!file) return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
+	if (!file) throw new ValidationError('GEDCOM file is required');
 	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
 	const text = await readGedcom(file);
@@ -69,7 +69,7 @@ export const PUT = apiHandler(previewFailure, async ({ db, ctx, event }) => {
 	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
 	const file = formData.get('file');
 	const treeId = formData.get('treeId') as string | null;
-	if (!file) return Response.json({ error: 'GEDCOM file is required' }, { status: 400 });
+	if (!file) throw new ValidationError('GEDCOM file is required');
 	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
 	const service = new GedcomService(db);

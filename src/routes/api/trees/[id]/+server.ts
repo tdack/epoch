@@ -3,6 +3,7 @@ import { treeHandler } from '#lib/server/http/handler.js';
 import { TreeService } from '#lib/server/services/tree-service.js';
 import { treeRenameSchema } from '#lib/server/validation/schemas.js';
 import { treeHostConfig } from '#lib/server/http/tree-host.js';
+import { BindingUnavailableError } from '#lib/server/domain/errors.js';
 
 /**
  * Rename the tree, change its address or turn its subdomain on or off; a stale `version` answers
@@ -34,7 +35,7 @@ export const DELETE = treeHandler(
 	{ failure: 'Failed to delete tree' },
 	async ({ db, ctx, treeId, event }) => {
 		const bucket = event.platform?.env?.MEDIA_BUCKET;
-		if (!bucket) return Response.json({ error: 'R2 binding unavailable' }, { status: 500 });
+		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		await new TreeService(db).deleteTree(treeId, ctx, bucket);
 		return {};
 	}

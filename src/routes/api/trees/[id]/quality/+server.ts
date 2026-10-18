@@ -1,6 +1,7 @@
 import { treeHandler } from '#lib/server/http/handler.js';
 import { QualityService } from '#lib/server/services/quality-service.js';
 import { qualityDismissSchema } from '#lib/server/validation/schemas.js';
+import { ValidationError } from '#lib/server/domain/errors.js';
 
 /** The data-quality report: findings over what the caller may see, and the ones dismissed with a reason. */
 export const GET = treeHandler({ failure: 'Failed to load the report' }, ({ db, ctx, treeId }) =>
@@ -21,7 +22,7 @@ export const DELETE = treeHandler(
 	{ failure: 'Failed to restore the finding' },
 	async ({ db, ctx, treeId, url }) => {
 		const key = url.searchParams.get('key');
-		if (!key) return Response.json({ error: 'A finding key is required' }, { status: 400 });
+		if (!key) throw new ValidationError('A finding key is required');
 		await new QualityService(db).restore(treeId, key, ctx);
 		return { ok: true };
 	}
