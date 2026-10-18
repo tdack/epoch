@@ -10,6 +10,7 @@ import type { ImpactSummary } from '../../shared/impact';
 import type { NameCommand } from '../domain/name-ops';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import type { NameInput } from '../../shared/name-types';
+import { CITATION_SUBJECT_KINDS, type CitationInput } from '../../shared/evidence';
 
 export class NameService {
 	readonly runner: MutationRunner;
@@ -18,15 +19,27 @@ export class NameService {
 		this.runner = new MutationRunner(db, clock);
 	}
 
+	/** A citation sent with the name rides in the same run: one change, one Undo (as for facts). */
 	private run(
 		treeId: string,
 		command: NameCommand,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		cited?: { nameId: string; citation: CitationInput }
 	): Promise<MutationResult> {
 		return this.runner.run(treeId, context, {
 			kind: command.kind,
 			summary: (rows) => describeCommand(command, rows),
-			commands: [command]
+			commands: cited
+				? [
+						command,
+						{
+							kind: 'add_citation',
+							citationId: this.runner.clock.newId(),
+							subject: { kind: CITATION_SUBJECT_KINDS.NAME, id: cited.nameId },
+							citation: cited.citation
+						}
+					]
+				: [command]
 		});
 	}
 
@@ -46,13 +59,15 @@ export class NameService {
 		personId: string,
 		name: NameInput,
 		isPreferred: boolean,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		citation?: CitationInput
 	): Promise<{ nameId: string } & MutationResult> {
 		const nameId = this.runner.clock.newId();
 		const result = await this.run(
 			treeId,
 			{ kind: 'create_name', personId, nameId, name, isPreferred },
-			context
+			context,
+			citation && { nameId, citation }
 		);
 		return { nameId, ...result };
 	}
@@ -62,9 +77,15 @@ export class NameService {
 		nameId: string,
 		name: Partial<NameInput>,
 		expectedVersion: number,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		citation?: CitationInput
 	) {
-		return this.run(treeId, { kind: 'update_name', nameId, expectedVersion, name }, context);
+		return this.run(
+			treeId,
+			{ kind: 'update_name', nameId, expectedVersion, name },
+			context,
+			citation && { nameId, citation }
+		);
 	}
 
 	remove(

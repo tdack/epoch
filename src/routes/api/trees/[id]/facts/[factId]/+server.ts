@@ -1,11 +1,22 @@
 import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
 import { FactService } from '#lib/server/services/fact-service.js';
-import { factUpdateSchema } from '#lib/server/validation/schemas.js';
+import { citationAttachSchema, factUpdateSchema } from '#lib/server/validation/schemas.js';
 
 export const PUT = treeHandler(
-	{ failure: 'Failed to save the fact', params: ['factId'], body: factUpdateSchema },
-	async ({ db, ctx, treeId, params, body: { version, ...fact } }) => {
-		const { change } = await new FactService(db).update(treeId, params.factId, fact, version, ctx);
+	{
+		failure: 'Failed to save the fact',
+		params: ['factId'],
+		body: factUpdateSchema.extend({ citation: citationAttachSchema.optional() })
+	},
+	async ({ db, ctx, treeId, params, body: { version, citation, ...fact } }) => {
+		const { change } = await new FactService(db).update(
+			treeId,
+			params.factId,
+			fact,
+			version,
+			ctx,
+			citation
+		);
 		return { change };
 	}
 );
