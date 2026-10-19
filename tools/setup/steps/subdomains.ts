@@ -651,6 +651,12 @@ async function recordSubdomains(ctx: StepContext, manifest: Manifest): Promise<v
 			d1.id,
 			writeSubdomainsSql(manifest.installId, installSubdomainsOf(manifest.subdomains))
 		);
+		// An UPDATE that matches no row succeeds, so only a read-back shows that nothing was kept.
+		const rows = await ctx.cf.queryD1(d1.id, readSubdomainsSql(manifest.installId));
+		if (rows.length === 0)
+			ctx.report.warn(
+				`${d1.name} has no install_meta row for install ${manifest.installId}, so the tree subdomains are recorded in the manifest only`
+			);
 	} catch (error) {
 		ctx.report.warn(
 			isNotMigrated(error)
@@ -660,16 +666,20 @@ async function recordSubdomains(ctx: StepContext, manifest: Manifest): Promise<v
 	}
 }
 
+/**
+ * Quiet when the D1 id comes only from the deploy config: on a first install, or before reconcile
+ * has found the database, it may not exist yet, and that is not worth a warning.
+ */
 async function readRecordedSubdomains(
 	ctx: StepContext,
 	installId: string,
-	d1Id: string | null
+	d1: { id: string; isKnown: boolean } | null
 ): Promise<InstallSubdomains | null> {
-	if (!d1Id) return null;
+	if (!d1) return null;
 	try {
-		return parseSubdomainsRows(await ctx.cf.queryD1(d1Id, readSubdomainsSql(installId)));
+		return parseSubdomainsRows(await ctx.cf.queryD1(d1.id, readSubdomainsSql(installId)));
 	} catch (error) {
-		if (!isNotMigrated(error))
+		if (d1.isKnown && !isNotMigrated(error))
 			ctx.report.warn(`Could not read the tree subdomains from D1: ${(error as Error).message}`);
 		return null;
 	}
@@ -686,10 +696,15 @@ export async function recoverSubdomainSettings(
 	manifest: Manifest,
 	defaults: DeployDefaults
 ): Promise<SubdomainSettings | null> {
+	const known = manifest.resources.d1;
 	const recorded = await readRecordedSubdomains(
 		ctx,
 		manifest.installId,
-		manifest.resources.d1?.id ?? defaults.d1Id
+		known
+			? { id: known.id, isKnown: true }
+			: defaults.d1Id
+				? { id: defaults.d1Id, isKnown: false }
+				: null
 	);
 	if (!defaults.treeHostZone && !recorded) return null;
 	let zone: ZoneInfo | undefined = recorded?.zone;

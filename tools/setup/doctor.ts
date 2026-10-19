@@ -214,7 +214,10 @@ export function subdomainFindings(observation: SubdomainObservation): Finding[] 
 	const findings: Finding[] = [];
 	const add = (level: Finding['level'], text: string) => findings.push({ level, text });
 
-	const record = records.find((r) => r.id === settings.dnsRecordId);
+	// A clone seeded from the deploy config alone has no record id; the marker still names it.
+	const record =
+		records.find((r) => r.id === settings.dnsRecordId) ??
+		records.find((r) => r.name === `*.${zone}` && r.comment === dnsMarker(installId));
 	if (!record) {
 		add(FINDING_LEVELS.fail, `DNS record *.${zone} is gone, so no tree subdomain resolves`);
 	} else {

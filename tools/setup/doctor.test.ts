@@ -64,6 +64,12 @@ describe('subdomainFindings', () => {
 		]);
 	});
 
+	it('finds the record by its marker when the settings were seeded without its id', () => {
+		expect(findings({ settings: { ...SETTINGS, dnsRecordId: null } })).toContain(
+			'ok: DNS record *.example.com is proxied'
+		);
+	});
+
 	it('fails a deleted or unproxied record and warns on a lost marker', () => {
 		expect(findings({ records: [] })).toContain(
 			'fail: DNS record *.example.com is gone, so no tree subdomain resolves'

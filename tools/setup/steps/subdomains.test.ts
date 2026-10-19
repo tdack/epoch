@@ -808,7 +808,7 @@ describe('the tree subdomains kept in D1', () => {
 			...accessAppsWith(['example.com/login']),
 			queryD1: async (_id, sql) => {
 				queries.push(sql);
-				return [];
+				return sql.startsWith('SELECT') ? [{ subdomains: null }] : [];
 			}
 		});
 		const manifest: Manifest = {
@@ -828,7 +828,8 @@ describe('the tree subdomains kept in D1', () => {
 		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
 		const { ctx } = testContext({ cf: live.cf, fs: withInstall(manifest), exec });
 		await runSubdomains(ctx, { isPlanOnly: false, isOff: true }, YES, NO_ASKER as Asker, presenter);
-		expect(queries).toHaveLength(1);
+		expect(queries).toHaveLength(2);
+		expect(queries[1]).toMatch(/^SELECT subdomains FROM install_meta/);
 		expect(queries[0]).toContain(`"exclusionRouteIds":["${OWNED_ROUTE}"]`);
 		expect(queries[0]).toContain(`"dnsRecordId":"${RECORD_ID}"`);
 		expect(queries[0]).toContain('"isActive":false');
@@ -853,6 +854,40 @@ describe('the tree subdomains kept in D1', () => {
 			`dnsRecord ${RECORD_ID}`,
 			`exclusionRoute ${OWNED_ROUTE}`
 		]);
+	});
+
+	it('warns when the install has no install_meta row, since the write then changes nothing', async () => {
+		const live = liveZone(zone, { ...accessAppsWith([]), queryD1: async () => [] });
+		const manifest: Manifest = {
+			...withD1,
+			subdomains: {
+				zone: HEX_ZONE,
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: RECORD_ID,
+				exclusionRoutes: [],
+				isActive: true
+			}
+		};
+		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+		const { ctx, report } = testContext({ cf: live.cf, fs: withInstall(manifest), exec });
+		await runSubdomains(ctx, { isPlanOnly: false, isOff: true }, YES, NO_ASKER as Asker, presenter);
+		expect(report.warnings.some((w) => w.includes('has no install_meta row'))).toBe(true);
+	});
+
+	it('stays quiet when the D1 named only by the deploy config cannot be read', async () => {
+		const live = liveZone(zone, {
+			queryD1: async () => {
+				throw new Error('HTTP 404: database not found');
+			}
+		});
+		const { ctx, report } = testContext({ cf: live.cf });
+		const recovered = await recoverSubdomainSettings(ctx, install, {
+			...NO_DEFAULTS,
+			d1Id: 'placeholder'
+		});
+		expect(recovered).toBeNull();
+		expect(report.warnings).toEqual([]);
 	});
 
 	it('reads the D1 named by the deploy config when the manifest has no D1 yet', async () => {
