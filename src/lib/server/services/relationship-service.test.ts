@@ -659,7 +659,7 @@ describe('deleting a person', () => {
 		expect(shape(impact.records)).toEqual([
 			'deleted name Birth name Homer Simpson of Homer Simpson',
 			'deleted person Homer Simpson',
-			'updated media Unattached file'
+			'updated media Unattached file “Homer.png”'
 		]);
 		await s.people.remove(s.treeId, homer.id, s.ctx);
 		expect(await file()).toMatchObject({
@@ -742,7 +742,7 @@ describe('removing relationships', () => {
 			expectedVersion: union.version
 		};
 		const impact = await s.relationships.previewRemoval(s.treeId, command, s.ctx);
-		expect(shape(impact.records)).toContain('updated media Unattached file');
+		expect(shape(impact.records)).toContain('updated media Unattached file “file-of-couple.png”');
 		expect(impact.people.map((p) => p.id).sort()).toEqual([homer.id, marge.id].sort());
 
 		await s.relationships.removeRelationship(s.treeId, command, s.ctx);
