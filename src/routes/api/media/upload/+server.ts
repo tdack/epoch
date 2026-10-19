@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDb } from '#lib/server/db/index.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { enforceRateLimit } from '#lib/server/http/rate-limit.js';
 import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
@@ -19,6 +20,13 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 
 	try {
+		// Before the body is read, so a refused upload costs nothing to parse.
+		await enforceRateLimit({
+			binding: platform.env.UPLOAD_RATE_LIMIT,
+			bindingName: 'UPLOAD_RATE_LIMIT',
+			key: locals.user.id,
+			message: 'Too many uploads; try again in a minute'
+		});
 		const formData = await parseBoundedFormData(request, MAX_MEDIA_UPLOAD_BYTES);
 		const file = formData.get('file');
 		const treeId = formData.get('treeId');

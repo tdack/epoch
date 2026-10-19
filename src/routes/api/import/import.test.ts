@@ -16,6 +16,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
+import { FakeRateLimit } from '#lib/server/testing/fake-rate-limit.js';
 import { POST, PUT } from './+server.js';
 
 const GEDCOM = '0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Ada /Lovelace/\n0 TRLR\n';
@@ -37,7 +38,7 @@ afterAll(async () => {
 	await t.dispose();
 });
 
-function call(handler: typeof POST, actor: TestActor) {
+function call(handler: typeof POST, actor: TestActor, limiter?: FakeRateLimit) {
 	const body = new FormData();
 	body.set('file', new File([GEDCOM], 'tiny.ged'));
 	body.set('treeId', treeId);
@@ -45,7 +46,7 @@ function call(handler: typeof POST, actor: TestActor) {
 	const event = {
 		request: new Request('http://epoch.test/api/import', { method: 'POST', body }),
 		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
-		platform: { env: { DB: t.d1 } }
+		platform: { env: { DB: t.d1, IMPORT_RATE_LIMIT: limiter } }
 	} as unknown as RequestEvent;
 	return handler(event);
 }
@@ -104,5 +105,30 @@ describe('import size limits', () => {
 		const archive = zipSync({ 'gedcom.ged': new TextEncoder().encode(GEDCOM) });
 		const response = await post(new File([archive], 'small.gdz'), actors.editor);
 		expect(response.status).toBe(200);
+	});
+});
+
+describe.each([
+	['import', POST],
+	['import preview', PUT]
+])('%s rate limit', (_name, handler) => {
+	it('answers 429 with Retry-After once the user is over the limit', async () => {
+		const limiter = new FakeRateLimit(0);
+		const response = await call(handler, actors.owner, limiter);
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('60');
+		expect(((await response.json()) as { code: string }).code).toBe('RATE_LIMITED');
+		expect(limiter.keys).toEqual([actors.owner.context.user.id]);
+	});
+
+	it('goes on to the normal checks under the limit', async () => {
+		// A viewer is refused by the permission check, which proves the request got past the limiter.
+		const response = await call(handler, actors.viewer, new FakeRateLimit(1));
+		expect(response.status).toBe(403);
+	});
+
+	it('allows the request when the binding is missing', async () => {
+		const response = await call(handler, actors.viewer);
+		expect(response.status).toBe(403);
 	});
 });
