@@ -1,4 +1,11 @@
-import type { D1Database, R2Bucket, Queue, SendEmail, Workflow } from '@cloudflare/workers-types';
+import type {
+	D1Database,
+	Queue,
+	R2Bucket,
+	RateLimit,
+	SendEmail,
+	Workflow
+} from '@cloudflare/workers-types';
 import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.js';
 import type { HostTree } from '#lib/shared/tree-host.js';
 import type { ImportQueueMessage } from '#lib/server/services/gedcom-service.js';
@@ -24,6 +31,10 @@ declare global {
 				MEDIA_BUCKET: R2Bucket;
 				GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
+				/** The three below are absent in unit tests and bare previews; a missing one allows the request (ADR-065). */
+				UPLOAD_RATE_LIMIT?: RateLimit;
+				IMPORT_RATE_LIMIT?: RateLimit;
+				CSP_REPORT_RATE_LIMIT?: RateLimit;
 				/** Absent in unit tests and bare previews; invitations are then saved but not emailed. */
 				EMAIL?: SendEmail;
 				/** Set by setup alongside `EMAIL`; the one address its `allowed_sender_addresses` names. */
