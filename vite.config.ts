@@ -49,7 +49,12 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			// Vitest starts a Vite server per project, and the adapter boots a platform proxy for each
+			// one. Left at the default, every run's proxies share this checkout's `.wrangler/state` (as
+			// does `npm run dev`), and with two runs at once a workerd failed to start with
+			// SQLITE_BUSY_RECOVERY, ending its whole run. No test reads that state, so under Vitest it
+			// stays in memory.
+			adapter: adapter(process.env.VITEST ? { platformProxy: { persist: false } } : undefined),
 			// Report-only until the policy has been watched against the real UI (ADR-048). Kit requires
 			// a report target for report-only, so violations POST to the same-origin report endpoint.
 			// Kit quotes the keywords itself and compares them bare ('unsafe-inline', not
