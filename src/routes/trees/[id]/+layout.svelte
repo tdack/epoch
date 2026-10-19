@@ -167,7 +167,7 @@
 		trees={data.trees}
 		selectedTreeId={data.summary.tree.id}
 		isImporting={shell.isImporting}
-		subtrees={viewer.isPublicVisitor ? [] : data.summary.subtrees}
+		subtrees={data.summary.subtrees}
 		activeSubtreeId={lens?.id ?? null}
 		onselectTree={(id) => void navigate(wholeTreePath(id))}
 		onselectSubtree={(sub) =>
