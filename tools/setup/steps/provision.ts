@@ -1,5 +1,5 @@
 import type { StepContext } from '../context.ts';
-import { mergeExportRule } from '../lifecycle.ts';
+import { mergeLifecycleRules } from '../lifecycle.ts';
 import { withStepDone, type Manifest } from '../manifest.ts';
 import { resourceNames } from '../names.ts';
 import type { Answers } from '../options.ts';
@@ -28,10 +28,10 @@ export async function provision(
 		await ctx.cf.createR2Bucket(names.r2, answers.r2Location, answers.r2Jurisdiction);
 		current = ctx.save({ ...current, resources: { ...current.resources, r2: { name: names.r2 } } });
 	}
-	// Scope the export lifecycle rule, whether the bucket was just made or adopted before this run:
+	// Scope the export and staging lifecycle rules, whether the bucket was just made or adopted before this run:
 	// the R2 API replaces the whole rule set, so read what is there and keep everything unrelated —
 	// including Cloudflare's Default Multipart Abort Rule, which every new bucket carries.
-	await ctx.cf.putR2Lifecycle(names.r2, mergeExportRule(await ctx.cf.getR2Lifecycle(names.r2)));
+	await ctx.cf.putR2Lifecycle(names.r2, mergeLifecycleRules(await ctx.cf.getR2Lifecycle(names.r2)));
 	if (!current.resources.queue) {
 		const created = await ctx.cf.createQueue(names.queue);
 		current = ctx.save({

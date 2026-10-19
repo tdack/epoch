@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { STAGED_IMPORT_MAX_AGE_MS } from '../../src/lib/server/gedcom/limits.ts';
 import { SetupError } from './errors.ts';
 import {
 	EXPORT_LIFECYCLE_PREFIX,
@@ -6,9 +7,13 @@ import {
 	exportLifecycleRule,
 	isDangerousRule,
 	isExportOnlyRule,
-	mergeExportRule,
+	isOwnStagingRule,
+	mergeLifecycleRules,
 	overlapsReservedPrefix,
 	reservedRisk,
+	STAGING_LIFECYCLE_PREFIX,
+	STAGING_RULE_MAX_AGE_SECONDS,
+	stagingLifecycleRule,
 	type R2LifecycleRule
 } from './lifecycle.ts';
 
@@ -20,15 +25,15 @@ const expiring = (prefix: string): R2LifecycleRule => ({
 	deleteObjectsTransition: { condition: { type: 'Age', maxAge: 3600 } }
 });
 
-describe('mergeExportRule', () => {
+describe('mergeLifecycleRules', () => {
 	it('adds the export rule when the bucket has none', () => {
-		const rules = mergeExportRule([]);
-		expect(rules).toEqual([ours()]);
+		const rules = mergeLifecycleRules([]);
+		expect(rules).toEqual([ours(), stagingLifecycleRule()]);
 	});
 
 	it('keeps every unrelated rule untouched and appends ours', () => {
 		const other: R2LifecycleRule = { id: 'logs', conditions: { prefix: 'logs/' }, enabled: true };
-		const rules = mergeExportRule([other]);
+		const rules = mergeLifecycleRules([other]);
 		expect(rules[0]).toEqual(other);
 		expect(rules.some((rule) => isExportOnlyRule(rule))).toBe(true);
 	});
@@ -40,7 +45,7 @@ describe('mergeExportRule', () => {
 			conditions: { prefix: '' },
 			abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } }
 		};
-		const rules = mergeExportRule([abort]);
+		const rules = mergeLifecycleRules([abort]);
 		expect(rules).toContainEqual(abort);
 		expect(rules.some((rule) => isExportOnlyRule(rule))).toBe(true);
 	});
@@ -51,7 +56,7 @@ describe('mergeExportRule', () => {
 			conditions: { prefix: 'm' },
 			abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 60 } }
 		};
-		expect(mergeExportRule([abort])).toContainEqual(abort);
+		expect(mergeLifecycleRules([abort])).toContainEqual(abort);
 	});
 
 	it('replaces an existing export rule rather than adding a second', () => {
@@ -59,22 +64,78 @@ describe('mergeExportRule', () => {
 			conditions: { prefix: EXPORT_LIFECYCLE_PREFIX },
 			enabled: false
 		};
-		const rules = mergeExportRule([stale]);
-		expect(rules).toHaveLength(1);
-		expect(rules[0]!.enabled).toBe(true);
+		const rules = mergeLifecycleRules([stale]);
+		expect(rules).toEqual([ours(), stagingLifecycleRule()]);
+	});
+
+	it('is idempotent: merging its own output changes nothing', () => {
+		const other: R2LifecycleRule = { id: 'logs', conditions: { prefix: 'logs/' } };
+		const once = mergeLifecycleRules([other]);
+		expect(mergeLifecycleRules(once)).toEqual(once);
+	});
+
+	it('replaces a shortened copy of our staging rule instead of refusing it', () => {
+		const shortened: R2LifecycleRule = {
+			...stagingLifecycleRule(),
+			deleteObjectsTransition: { condition: { type: 'Age', maxAge: 3600 } }
+		};
+		expect(mergeLifecycleRules([shortened])).toEqual([ours(), stagingLifecycleRule()]);
+	});
+
+	it('refuses a foreign destructive rule over staging/ even with our id on another prefix', () => {
+		expect(() => mergeLifecycleRules([expiring(STAGING_LIFECYCLE_PREFIX)])).toThrow(SetupError);
+		expect(() =>
+			mergeLifecycleRules([{ ...expiring('staging/gedcom-'), id: 'epoch-staging-expiry' }])
+		).toThrow(SetupError);
+	});
+
+	it('refuses a foreign rule over staging/ that borrows our id only in name', () => {
+		expect(() =>
+			mergeLifecycleRules([{ ...expiring('staging'), id: 'epoch-staging-expiry' }])
+		).toThrow(SetupError);
 	});
 
 	it('refuses a destructive rule with no prefix, which would expire the whole bucket', () => {
-		expect(() => mergeExportRule([expiring('')])).toThrow(/no prefix/);
-		expect(() => mergeExportRule([{ id: 'all', deleteObjectsTransition: {} }])).toThrow(SetupError);
+		expect(() => mergeLifecycleRules([expiring('')])).toThrow(/no prefix/);
+		expect(() => mergeLifecycleRules([{ id: 'all', deleteObjectsTransition: {} }])).toThrow(
+			SetupError
+		);
 	});
 
 	it.each(['m', 'me', 'med', 'medi', 'media', 'media/', 'media/photos', 'staging', 'staging/', ''])(
 		'refuses to run beside a destructive rule scoped to %s',
 		(prefix) => {
-			expect(() => mergeExportRule([expiring(prefix)])).toThrow(SetupError);
+			expect(() => mergeLifecycleRules([expiring(prefix)])).toThrow(SetupError);
 		}
 	);
+});
+
+describe('staging rule', () => {
+	it('expires staged imports strictly later than the app stops counting them', () => {
+		expect(STAGING_RULE_MAX_AGE_SECONDS).toBeGreaterThan(STAGED_IMPORT_MAX_AGE_MS / 1000);
+	});
+
+	it('is recognised, and exempt from the reserved-prefix guard', () => {
+		expect(isOwnStagingRule(stagingLifecycleRule())).toBe(true);
+		expect(reservedRisk(stagingLifecycleRule())).toBeNull();
+	});
+
+	it.each([
+		[
+			'too short',
+			{
+				...stagingLifecycleRule(),
+				deleteObjectsTransition: {
+					condition: { type: 'Age', maxAge: STAGED_IMPORT_MAX_AGE_MS / 1000 }
+				}
+			}
+		],
+		['another prefix', { ...stagingLifecycleRule(), conditions: { prefix: 'staging' } }],
+		['another id', { ...stagingLifecycleRule(), id: 'other' }]
+	])('is not recognised when %s, so the guard reports it', (_label, rule) => {
+		expect(isOwnStagingRule(rule as R2LifecycleRule)).toBe(false);
+		expect(reservedRisk(rule as R2LifecycleRule)).toMatch(/overlaps/);
+	});
 });
 
 describe('isDangerousRule', () => {

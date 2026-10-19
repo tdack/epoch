@@ -2,7 +2,7 @@ import type { DnsRecord, ZoneRoute } from './cloudflare.ts';
 import type { StepContext } from './context.ts';
 import { treeHostRoute } from './deploy-values.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
-import { isExportOnlyRule, reservedRisk } from './lifecycle.ts';
+import { isExportOnlyRule, isOwnStagingRule, reservedRisk } from './lifecycle.ts';
 import { OWNERSHIPS, loadManifest, type Manifest, type SubdomainSettings } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_KEYS, RESOURCE_STATES, reconcile } from './reconcile.ts';
@@ -123,7 +123,7 @@ export async function runDoctor(
 		}
 	}
 
-	// The export lifecycle rule is what expires finished exports. A missing or wider rule means they
+	// The export lifecycle rule is what expires finished exports (and a staging rule, stranded imports). A missing or wider rule means they
 	// pile up in the bucket; a destructive rule that could expire live media is worse, and is named
 	// on its own line rather than folded into the one below.
 	const lifecycleRules = await ctx.cf.getR2Lifecycle(names.r2);
@@ -136,6 +136,12 @@ export async function runDoctor(
 	add(
 		lifecycleRules.some((rule) => isExportOnlyRule(rule)) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
 		'R2 bucket has an exports/-scoped lifecycle rule that expires after a day'
+	);
+	// A stranded staged import stays in R2 until this rule removes it; the app's four-day cap only
+	// stops counting it. Missing is a fail: `npm run setup` adds it.
+	add(
+		lifecycleRules.some((rule) => isOwnStagingRule(rule)) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+		'R2 bucket has a staging/-scoped lifecycle rule that expires stranded imports after a week'
 	);
 
 	// Drift in the two cookie settings ADR-026 depends on, which are easy to change in the dashboard.
