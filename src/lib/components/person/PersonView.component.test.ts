@@ -22,6 +22,7 @@ const summary = (id: string, displayName: string): PersonSummaryDto => ({
 	displayName,
 	sex: 'U',
 	birthDate: null,
+	birthSort: null,
 	deathDate: null,
 	isDeceased: false,
 	isPrivate: false

@@ -40,6 +40,11 @@ export interface RelationshipGraphPerson extends Partial<PrivacyFlag> {
 	/** Original date text of the first birth and death events. Absent on older captured graphs. */
 	birthDate?: string | null;
 	deathDate?: string | null;
+	/**
+	 * Sort key of the birth (else baptism), for ordering siblings; see `shared/birth-order`. Absent
+	 * on older captured graphs, whose children then keep the order they were recorded in.
+	 */
+	birthSort?: string | null;
 	/** Version to send back when editing this person. Absent on older captured graphs. */
 	version?: number;
 	/** Parents grouped by union context (`__direct__` for none). */

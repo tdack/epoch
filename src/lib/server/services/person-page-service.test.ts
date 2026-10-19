@@ -4,13 +4,15 @@ import { REPRESENTATIVE_GEDCOM_FIXTURE } from '../fixtures/genealogy-fixtures';
 import { importGedcomToDb } from '../testing/gedcom';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import { graphFromRows } from '../domain/relationship-graph';
+import { PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
 import { ChangeStore } from '../repositories/change-store';
 import { CONFLICT_KINDS } from '../../shared/fact-timeline';
 import { relativesOf } from '../../shared/relatives';
-import { eq } from 'drizzle-orm';
-import { personNames, trees, treeMemberships } from '../db/schema';
+import { and, eq } from 'drizzle-orm';
+import { individuals, personNames, trees, treeMemberships } from '../db/schema';
 import { insertCorpus } from '../testing/corpus';
 import {
+	addTestMember,
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
@@ -323,5 +325,121 @@ describe('facts, names and history on the page', () => {
 		await expect(service().getPerson(treeId, other.wren.id, actor.context)).rejects.toBeInstanceOf(
 			NotFoundError
 		);
+	});
+});
+
+describe('children in birth order', () => {
+	const NOW = new Date('2026-10-01T12:00:00Z');
+	/**
+	 * Pa has four children with Ma, and one with nobody on record. Eve has only a baptism, Una
+	 * nothing at all, and Liv (born 1960, no death) is still living, so hidden from a viewer.
+	 */
+	const FIXTURE = `0 HEAD
+0 @I1@ INDI
+1 NAME Pa /Kin/
+1 BIRT
+2 DATE 1930
+1 DEAT
+2 DATE 2000
+1 FAMS @F1@
+1 FAMS @F2@
+0 @I2@ INDI
+1 NAME Ma /Kin/
+1 BIRT
+2 DATE 1932
+1 DEAT
+2 DATE 2002
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Zed /Kin/
+1 BIRT
+2 DATE 1985
+1 DEAT
+2 DATE 2020
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Amy /Kin/
+1 BIRT
+2 DATE 3 MAR 1981
+1 DEAT
+2 DATE 2021
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Eve /Kin/
+1 CHR
+2 DATE 1983
+1 DEAT
+2 DATE 2022
+1 FAMC @F1@
+0 @I6@ INDI
+1 NAME Una /Kin/
+1 DEAT
+2 DATE 2010
+1 FAMC @F1@
+0 @I7@ INDI
+1 NAME Liv /Kin/
+1 BIRT
+2 DATE 1960
+1 FAMC @F1@
+0 @I8@ INDI
+1 NAME Dot /Kin/
+1 BIRT
+2 DATE 1950
+1 DEAT
+2 DATE 2015
+1 FAMC @F2@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I6@
+1 CHIL @I7@
+1 CHIL @I5@
+1 CHIL @I4@
+0 @F2@ FAM
+1 HUSB @I1@
+1 CHIL @I8@
+0 TRLR
+`;
+	let treeId: string;
+	let paId: string;
+	beforeAll(async () => {
+		treeId = await importedTree(FIXTURE);
+		const [pa] = await t.db
+			.select({ id: individuals.id })
+			.from(individuals)
+			.where(and(eq(individuals.treeId, treeId), eq(individuals.xrefId, '@I1@')));
+		paId = pa!.id;
+	}, 60_000);
+
+	const names = (children: Array<{ person: { displayName: string } }>) =>
+		children.map((c) => c.person.displayName.split(' ')[0]);
+
+	it('lists each partnership’s children oldest first, a baptism standing in for a birth, undated last', async () => {
+		const page = await new PersonPageService(t.db, () => NOW).getPerson(
+			treeId,
+			paId,
+			actor.context
+		);
+		const family = page.partnerships.find((p) => p.children.length === 5)!;
+		expect(names(family.children)).toEqual(['Liv', 'Amy', 'Eve', 'Zed', 'Una']);
+		expect(family.children[0]!.person.birthSort).toBe('1960-01-01');
+	});
+
+	it('does not let a restricted viewer place a hidden child by their birth', async () => {
+		await t.db.update(trees).set({ shouldShowPrivateStructure: true }).where(eq(trees.id, treeId));
+		const viewer = await createTestUser(t.db, 'viewer');
+		await addTestMember(t.db, treeId, viewer, 'viewer');
+		const page = await new PersonPageService(t.db, () => NOW).getPerson(
+			treeId,
+			paId,
+			viewer.context
+		);
+		const family = page.partnerships.find((p) => p.children.length === 5)!;
+		const liv = family.children.find((c) => c.person.displayName === PRIVATE_PLACEHOLDER_NAME)!;
+		expect(liv.person.birthSort).toBeNull();
+		// Liv, born first, sits among the undated at the end: nothing in the order gives 1960 away.
+		expect(names(family.children).slice(0, 3)).toEqual(['Amy', 'Eve', 'Zed']);
+		expect(family.children.slice(3).map((c) => c.person.birthSort)).toEqual([null, null]);
 	});
 });
