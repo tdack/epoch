@@ -4,6 +4,7 @@
 	const NAV = [
 		{ href: '#explore', label: 'Explore' },
 		{ href: '#features', label: 'Features' },
+		{ href: '#roles', label: 'Roles' },
 		{ href: '#views', label: '3D Views' },
 		{ href: '#code', label: 'Get the code' },
 		{ href: '#install', label: 'Install' },
@@ -120,6 +121,7 @@ down, so the photograph still runs to the top edge. -->
 		color: var(--emerald-100);
 		font-weight: 600;
 		font-size: 0.9375rem;
+		white-space: nowrap;
 		text-decoration: none;
 	}
 
@@ -171,7 +173,8 @@ down, so the photograph still runs to the top edge. -->
 		display: flex;
 	}
 
-	@media (max-width: 760px) {
+	/* Seven links on one line need about 760px; below that a label would break inside its link. */
+	@media (max-width: 820px) {
 		.links {
 			display: none;
 		}
