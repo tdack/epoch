@@ -31,8 +31,15 @@ const base = {
 function render(over: Record<string, unknown> = {}) {
 	const data = {
 		summary: { tree: { id: 't1', slug: null, name: 'Tree' } },
-		recordId: null,
+		filters: { recordId: null, actorId: null, from: null, to: null },
 		audit: {
+			page: 2,
+			pageCount: 5,
+			total: 110,
+			actors: [
+				{ id: 'u1', name: 'Ann' },
+				{ id: 'u2', name: 'Bo' }
+			],
 			entries: [
 				{
 					...base,
@@ -68,8 +75,7 @@ function render(over: Record<string, unknown> = {}) {
 					undoneAt: 0,
 					records: []
 				}
-			],
-			nextBefore: 2
+			]
 		},
 		...over
 	};
@@ -91,23 +97,51 @@ describe('audit page', () => {
 		render();
 		document.querySelector<HTMLButtonElement>('button[aria-label="Undo: Edited Wren"]')!.click();
 		expect(undoChange).toHaveBeenCalledWith('c3');
-		expect(document.querySelectorAll('button')).toHaveLength(1);
+		expect(document.querySelectorAll('button[aria-label^="Undo"]')).toHaveLength(1);
 		expect(document.querySelector('[data-testid="audit-undone"]')!.textContent).toContain('Bo');
 	});
 
-	it('pages with Show older, keeping the record filter, and offers to clear it', () => {
-		render({ recordId: 'p1' });
-		expect(document.querySelector('[data-testid="audit-older"]')!.getAttribute('href')).toBe(
-			'/trees/t1/audit?before=2&record=p1'
+	it('pages with numbered links that keep the filters, and offers to clear them', () => {
+		render({ filters: { recordId: 'p1', actorId: 'u2', from: '2026-01-02', to: null } });
+		const hrefs = [...document.querySelectorAll('[data-testid="audit-pager"] a')].map((a) =>
+			a.getAttribute('href')
 		);
-		expect(document.querySelector('[data-testid="audit-filter"] a')!.getAttribute('href')).toBe(
+		expect(hrefs).toContain('/trees/t1/audit?record=p1&actor=u2&from=2026-01-02');
+		expect(hrefs).toContain('/trees/t1/audit?record=p1&actor=u2&from=2026-01-02&page=5');
+		expect(document.querySelector('[aria-current="page"]')!.textContent).toBe('2');
+		expect(document.body.textContent).toContain('Showing 26 to 27 of 110');
+		expect(document.querySelector('[data-testid="audit-filter"]')!.textContent).toContain('Bo');
+		expect(document.querySelector('[data-testid="audit-clear"]')!.getAttribute('href')).toBe(
 			'/trees/t1/audit'
 		);
 	});
 
-	it('says so when there is nothing to show', () => {
-		render({ audit: { entries: [], nextBefore: null } });
+	it('offers the actors and the dates as a form that resets the page', () => {
+		render();
+		const form = document.querySelector<HTMLFormElement>('[data-testid="audit-filters"]')!;
+		expect(form.method).toBe('get');
+		expect([...form.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+			'Anyone',
+			'Ann',
+			'Bo'
+		]);
+		expect(form.querySelector('input[name="page"]')).toBeNull();
+		expect(form.querySelectorAll('input[type="date"]')).toHaveLength(2);
+	});
+
+	it('tells an empty filtered list from an empty log', () => {
+		render({
+			audit: { entries: [], page: 1, pageCount: 1, total: 0, actors: [] },
+			filters: { recordId: null, actorId: null, from: '2026-01-01', to: null }
+		});
+		expect(document.querySelector('[data-testid="audit-empty"]')!.textContent).toContain(
+			'No changes match these filters'
+		);
+		expect(document.querySelector('[data-testid="audit-pager"]')).toBeNull();
+	});
+
+	it('says so when the log is empty', () => {
+		render({ audit: { entries: [], page: 1, pageCount: 1, total: 0, actors: [] } });
 		expect(document.body.textContent).toContain('No changes are logged');
-		expect(document.querySelector('[data-testid="audit-older"]')).toBeNull();
 	});
 });

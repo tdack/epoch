@@ -2,7 +2,12 @@
 	import { ChevronRight } from '@lucide/svelte';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import type { AuditRecordDto } from '#lib/shared/change-audit.js';
+	import Pager from '#lib/components/lists/Pager.svelte';
+	import {
+		AUDIT_PAGE_SIZE,
+		type AuditFilters,
+		type AuditRecordDto
+	} from '#lib/shared/change-audit.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import type { PageProps } from './$types';
 
@@ -22,11 +27,26 @@
 		record.entityType === 'person'
 			? personPath(tree, record.entityId)
 			: unionPath(tree, record.entityId);
-	const olderHref = $derived(
-		data.audit.nextBefore === null
-			? null
-			: `${base}/audit?before=${data.audit.nextBefore}${data.recordId ? `&record=${encodeURIComponent(data.recordId)}` : ''}`
+	const filters = $derived(data.filters);
+	const audit = $derived(data.audit);
+
+	/** The audit address for these filters; a page of 1 is left out so the first page has one address. */
+	function addressFor(next: AuditFilters, page = 1) {
+		const params = new URLSearchParams();
+		if (next.recordId) params.set('record', next.recordId);
+		if (next.actorId) params.set('actor', next.actorId);
+		if (next.from) params.set('from', next.from);
+		if (next.to) params.set('to', next.to);
+		if (page > 1) params.set('page', String(page));
+		const query = params.toString();
+		return `${base}/audit${query ? `?${query}` : ''}`;
+	}
+	const hrefFor = (page: number) => addressFor(filters, page);
+	const actorName = $derived(audit.actors.find((a) => a.id === filters.actorId)?.name ?? 'someone');
+	const isFiltered = $derived(
+		Boolean(filters.recordId || filters.actorId || filters.from || filters.to)
 	);
+	const first = $derived((audit.page - 1) * AUDIT_PAGE_SIZE + 1);
 </script>
 
 <svelte:head>
@@ -41,23 +61,77 @@
 	</p>
 </header>
 
-{#if data.recordId}
+<form
+	method="GET"
+	action={`${base}/audit`}
+	class="mt-4 flex flex-wrap items-end gap-3 text-xs font-semibold text-stone-700"
+	data-testid="audit-filters"
+>
+	{#if filters.recordId}<input type="hidden" name="record" value={filters.recordId} />{/if}
+	<label>
+		Made by
+		<select
+			name="actor"
+			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
+			value={filters.actorId ?? ''}
+		>
+			<option value="">Anyone</option>
+			{#each audit.actors as actor (actor.id)}
+				<option value={actor.id}>{actor.name}</option>
+			{/each}
+		</select>
+	</label>
+	<label>
+		From
+		<input
+			type="date"
+			name="from"
+			value={filters.from ?? ''}
+			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
+		/>
+	</label>
+	<label>
+		To
+		<input
+			type="date"
+			name="to"
+			value={filters.to ?? ''}
+			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
+		/>
+	</label>
+	<button type="submit" class="btn-primary-sm coarse:min-h-11">Filter</button>
+	<span class="font-normal text-stone-500">Days are UTC days, both ends included.</span>
+</form>
+
+{#if isFiltered}
 	<p class="mt-3 text-sm text-stone-700" data-testid="audit-filter">
-		Showing changes to one record. <a href={`${base}/audit`} class="text-link">Show all changes</a>
+		Showing
+		{#if filters.recordId}changes to one record{:else}all changes{/if}{#if filters.actorId}
+			made by {actorName}{/if}{#if filters.from || filters.to}, {filters.from
+				? `from ${filters.from}`
+				: ''}{filters.from && filters.to ? ' ' : ''}{filters.to ? `to ${filters.to}` : ''}{/if}.
+		{#if filters.recordId}
+			<a href={addressFor({ ...filters, recordId: null })} class="text-link">Show all records</a>
+			·
+		{/if}
+		<a href={`${base}/audit`} class="text-link" data-testid="audit-clear">Clear filters</a>
 	</p>
 {/if}
 
-{#if data.audit.entries.length === 0}
-	<p class="mt-6 text-sm text-stone-600 italic">
-		No changes are logged{data.recordId ? ' for this record' : ''}. Imported records have no
-		history.
+{#if audit.entries.length === 0}
+	<p class="mt-6 text-sm text-stone-600 italic" data-testid="audit-empty">
+		{#if isFiltered}
+			No changes match these filters.
+		{:else}
+			No changes are logged. Imported records have no history.
+		{/if}
 	</p>
 {:else}
 	<ul
 		class="mt-4 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white"
 		data-testid="audit"
 	>
-		{#each data.audit.entries as entry (entry.id)}
+		{#each audit.entries as entry (entry.id)}
 			<li class="px-4 py-3 text-sm" data-testid="audit-entry">
 				<div class="flex flex-wrap items-baseline justify-between gap-2">
 					<span class="min-w-0">
@@ -130,9 +204,14 @@
 			</li>
 		{/each}
 	</ul>
-	{#if olderHref}
-		<p class="mt-4">
-			<a href={olderHref} class="text-link text-sm" data-testid="audit-older">Show older</a>
-		</p>
+	{#if audit.pageCount > 1}
+		<div class="mt-4" data-testid="audit-pager">
+			<Pager
+				summary={`Showing ${first} to ${first + audit.entries.length - 1} of ${audit.total}`}
+				previousHref={audit.page > 1 ? hrefFor(audit.page - 1) : null}
+				nextHref={audit.page < audit.pageCount ? hrefFor(audit.page + 1) : null}
+				pages={{ current: audit.page, count: audit.pageCount, hrefFor }}
+			/>
+		</div>
 	{/if}
 {/if}
