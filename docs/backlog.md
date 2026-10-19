@@ -153,10 +153,6 @@ Last reviewed: 2026-10-18.
   with, so a renamed field there would not fail the typecheck. Annotate them as they are touched.
 - **The tree page is still about 740 lines** after navigation and the drawer moved out. What is left
   is the saved-view state and the per-mode layout derivations; extract those next if the page grows.
-- **Universal loads call the app's own API through `event.fetch`.** On a server render that runs
-  `handle` twice (schema check, JWT validation, user upsert). Moving the read-only loads to
-  `+page.server.ts` would remove the second pass and about a dozen GET endpoints. Deliberately
-  deferred; write an ADR if render latency becomes noticeable.
 - **`RelationshipModal.svelte` is about 860 lines.** Reviewed and left whole because its per-intent
   sections share state with the parent. Revisit when a new intent is added.
 
