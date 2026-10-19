@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { ChevronRight } from '@lucide/svelte';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -37,6 +38,7 @@
 		if (next.actorId) params.set('actor', next.actorId);
 		if (next.from) params.set('from', next.from);
 		if (next.to) params.set('to', next.to);
+		if (next.tz) params.set('tz', next.tz);
 		if (page > 1) params.set('page', String(page));
 		const query = params.toString();
 		return `${base}/audit${query ? `?${query}` : ''}`;
@@ -46,6 +48,9 @@
 	const isFiltered = $derived(
 		Boolean(filters.recordId || filters.actorId || filters.from || filters.to)
 	);
+	// Set after mount: the form cannot know the reader's zone until the browser runs.
+	let tz = $state('');
+	onMount(() => (tz = Intl.DateTimeFormat().resolvedOptions().timeZone));
 	const first = $derived((audit.page - 1) * AUDIT_PAGE_SIZE + 1);
 </script>
 
@@ -68,6 +73,7 @@
 	data-testid="audit-filters"
 >
 	{#if filters.recordId}<input type="hidden" name="record" value={filters.recordId} />{/if}
+	<input type="hidden" name="tz" value={tz || (filters.tz ?? '')} />
 	<label>
 		Made by
 		<select
@@ -100,7 +106,9 @@
 		/>
 	</label>
 	<button type="submit" class="btn-primary-sm coarse:min-h-11">Filter</button>
-	<span class="font-normal text-stone-500">Days are UTC days, both ends included.</span>
+	<span class="font-normal text-stone-500"
+		>Days are in {audit.timeZone} time, both ends included.</span
+	>
 </form>
 
 {#if isFiltered}

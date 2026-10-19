@@ -19,7 +19,8 @@ export const load: PageServerLoad = treeServerLoad(
 			recordId: q.get('record') || null,
 			actorId: q.get('actor') || null,
 			from: dayOf(q.get('from')),
-			to: dayOf(q.get('to'))
+			to: dayOf(q.get('to')),
+			tz: q.get('tz') || null
 		};
 		const page = Number.parseInt(q.get('page') ?? '', 10);
 		return {

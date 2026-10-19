@@ -37,18 +37,21 @@ export interface AuditPageDto {
 	/** The page shown, 1-based, after an out-of-range request was brought back into range. */
 	page: number;
 	pageCount: number;
+	/** The zone the From and To days were read in: the reader's, or UTC when none was sent or it is unknown. */
+	timeZone: string;
 	/** Entries matching the filters, across all pages. */
 	total: number;
 	/** Everyone who has made a change in the tree, for the actor filter. */
 	actors: Array<{ id: string; name: string }>;
 }
 
-/** The filters the address carries; a day is `YYYY-MM-DD` and counts as a UTC day. */
+/** The filters the address carries; a day is `YYYY-MM-DD` in the zone `tz` names (an IANA name, or null for UTC). */
 export interface AuditFilters {
 	recordId: string | null;
 	actorId: string | null;
 	from: string | null;
 	to: string | null;
+	tz: string | null;
 }
 
 /**

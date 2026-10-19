@@ -31,11 +31,12 @@ const base = {
 function render(over: Record<string, unknown> = {}) {
 	const data = {
 		summary: { tree: { id: 't1', slug: null, name: 'Tree' } },
-		filters: { recordId: null, actorId: null, from: null, to: null },
+		filters: { recordId: null, actorId: null, from: null, to: null, tz: null },
 		audit: {
 			page: 2,
 			pageCount: 5,
 			total: 110,
+			timeZone: 'UTC',
 			actors: [
 				{ id: 'u1', name: 'Ann' },
 				{ id: 'u2', name: 'Bo' }
@@ -102,12 +103,24 @@ describe('audit page', () => {
 	});
 
 	it('pages with numbered links that keep the filters, and offers to clear them', () => {
-		render({ filters: { recordId: 'p1', actorId: 'u2', from: '2026-01-02', to: null } });
+		render({
+			filters: {
+				recordId: 'p1',
+				actorId: 'u2',
+				from: '2026-01-02',
+				to: null,
+				tz: 'Australia/Adelaide'
+			}
+		});
 		const hrefs = [...document.querySelectorAll('[data-testid="audit-pager"] a')].map((a) =>
 			a.getAttribute('href')
 		);
-		expect(hrefs).toContain('/trees/t1/audit?record=p1&actor=u2&from=2026-01-02');
-		expect(hrefs).toContain('/trees/t1/audit?record=p1&actor=u2&from=2026-01-02&page=5');
+		expect(hrefs).toContain(
+			'/trees/t1/audit?record=p1&actor=u2&from=2026-01-02&tz=Australia%2FAdelaide'
+		);
+		expect(hrefs).toContain(
+			'/trees/t1/audit?record=p1&actor=u2&from=2026-01-02&tz=Australia%2FAdelaide&page=5'
+		);
 		expect(document.querySelector('[aria-current="page"]')!.textContent).toBe('2');
 		expect(document.body.textContent).toContain('Showing 26 to 27 of 110');
 		expect(document.querySelector('[data-testid="audit-filter"]')!.textContent).toContain('Bo');
@@ -131,8 +144,8 @@ describe('audit page', () => {
 
 	it('tells an empty filtered list from an empty log', () => {
 		render({
-			audit: { entries: [], page: 1, pageCount: 1, total: 0, actors: [] },
-			filters: { recordId: null, actorId: null, from: '2026-01-01', to: null }
+			audit: { entries: [], page: 1, pageCount: 1, total: 0, timeZone: 'UTC', actors: [] },
+			filters: { recordId: null, actorId: null, from: '2026-01-01', to: null, tz: null }
 		});
 		expect(document.querySelector('[data-testid="audit-empty"]')!.textContent).toContain(
 			'No changes match these filters'
@@ -141,7 +154,9 @@ describe('audit page', () => {
 	});
 
 	it('says so when the log is empty', () => {
-		render({ audit: { entries: [], page: 1, pageCount: 1, total: 0, actors: [] } });
+		render({
+			audit: { entries: [], page: 1, pageCount: 1, total: 0, timeZone: 'UTC', actors: [] }
+		});
 		expect(document.body.textContent).toContain('No changes are logged');
 	});
 });

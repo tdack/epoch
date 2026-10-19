@@ -180,6 +180,25 @@ describe('audit', () => {
 		expect(await between('2026-03-05', null)).toEqual([]);
 	});
 
+	it("reads the days in the reader's zone: 23:30 UTC on the 19th is the 20th in Adelaide", async () => {
+		const tree = await createTestTree(t.db, owner);
+		await addTestMember(t.db, tree, editor, 'editor');
+		const made = await addPerson('Late', editor, tree);
+		await t.db
+			.update(changeLog)
+			.set({ createdAt: new Date('2026-01-19T23:30:00Z') })
+			.where(eq(changeLog.id, made.changeId));
+		const on = async (day: string, tz?: string) =>
+			(await log().audit(tree, editor.context, { from: day, to: day, tz })).total;
+		expect(await on('2026-01-20', 'Australia/Adelaide')).toBe(1);
+		expect(await on('2026-01-19', 'Australia/Adelaide')).toBe(0);
+		expect(await on('2026-01-19')).toBe(1);
+		expect(await on('2026-01-19', 'Not/AZone')).toBe(1);
+		const page = await log().audit(tree, editor.context, { tz: 'Australia/Adelaide' });
+		expect(page.timeZone).toBe('Australia/Adelaide');
+		expect((await log().audit(tree, editor.context, { tz: 'junk' })).timeZone).toBe('UTC');
+	});
+
 	it('combines the filters and counts under them', async () => {
 		const tree = await createTestTree(t.db, owner);
 		await addTestMember(t.db, tree, editor, 'editor');

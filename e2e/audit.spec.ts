@@ -45,6 +45,8 @@ test('undoes an earlier change from the audit log, and one from a person history
 	await expect(page.getByTestId('person-name')).toHaveText('Cara');
 });
 
+test.use({ timezoneId: 'Australia/Adelaide' });
+
 test('filters the log by who made the change, and moves between numbered pages', async ({
 	page,
 	api
@@ -70,6 +72,8 @@ test('filters the log by who made the change, and moves between numbered pages',
 	await page.getByLabel('To', { exact: true }).fill('2001-01-02');
 	await page.getByRole('button', { name: 'Filter' }).click();
 	await expect(page.getByTestId('audit-empty')).toContainText('No changes match these filters');
+	await expect(page).toHaveURL(/tz=Australia%2FAdelaide/);
+	await expect(page.getByTestId('audit-filters')).toContainText('Australia/Adelaide time');
 	await page.getByTestId('audit-clear').click();
 	await expect(page.getByTestId('audit-entry')).toHaveCount(25);
 });

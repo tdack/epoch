@@ -15,6 +15,7 @@ import {
 	UNDO_REFUSALS
 } from '../domain/change-log';
 import { UndoRefusedError } from '../domain/errors';
+import { localDayRange, resolveTimeZone } from '../../shared/local-day';
 import { isManagerOrAbove } from '../../shared/roles';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
@@ -38,8 +39,6 @@ export interface UndoResult extends MutationResult {
 	/** The change that was reverted. */
 	undone: { id: string; summary: string };
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function nothingToUndo() {
 	return new UndoRefusedError(
@@ -170,7 +169,7 @@ export class ChangeLogService {
 
 	/**
 	 * One page of the audit log, newest first, filtered by record, actor and an inclusive range of
-	 * UTC days (ADR-068). Needs `record:edit` for the reason `listRecent` does.
+	 * days in the reader's time zone (ADR-068). Needs `record:edit` for the reason `listRecent` does.
 	 */
 	async audit(
 		treeId: string,
@@ -179,14 +178,15 @@ export class ChangeLogService {
 	): Promise<AuditPageDto> {
 		const scope = await this.runner.scopeFor(treeId, context, 'record:edit');
 		const { store } = this.runner;
+		const timeZone = resolveTimeZone(options.tz);
 		const page = await store.auditPage(treeId, {
 			page: options.page ?? 1,
 			limit: AUDIT_PAGE_SIZE,
 			recordId: options.recordId,
 			actorId: options.actorId,
-			since: options.from ? Date.parse(`${options.from}T00:00:00Z`) : null,
+			since: options.from ? localDayRange(options.from, timeZone).start : null,
 			// Exclusive end: the start of the day after `to`, so the whole of `to` is included.
-			until: options.to ? Date.parse(`${options.to}T00:00:00Z`) + DAY_MS : null
+			until: options.to ? localDayRange(options.to, timeZone).end : null
 		});
 		const logActors = await store.actorIdsInLog(treeId);
 		const repo = new GraphWindowRepository(this.db);
@@ -203,6 +203,7 @@ export class ChangeLogService {
 			page: page.page,
 			pageCount: page.pageCount,
 			total: page.total,
+			timeZone,
 			actors: logActors
 				.map((id) => ({ id, name: names.get(id) ?? 'Someone' }))
 				.sort((a, b) => a.name.localeCompare(b.name)),
