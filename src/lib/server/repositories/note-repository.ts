@@ -4,6 +4,7 @@
  * record's own notes come in one batch of bounded reads, keyed by the index on subject.
  */
 
+import { chunkIds } from './param-chunks';
 import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { noteAttachments, notes } from '../db/schema';
@@ -19,16 +20,6 @@ export interface PageRequest {
 	offset: number;
 	limit: number;
 }
-
-/** Ids per `IN (...)`, under D1's 100 bound parameters with the tree id and filters. */
-const IDS_PER_QUERY = 80;
-
-const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
-	const unique = [...new Set(items)];
-	const chunks: T[][] = [];
-	for (let i = 0; i < unique.length; i += size) chunks.push(unique.slice(i, i + size));
-	return chunks;
-};
 
 /** `%` and `_` in a search are the text, not wildcards. */
 const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -63,7 +54,7 @@ export class NoteRepository {
 
 	async notesByIds(treeId: string, ids: readonly string[]): Promise<NoteRow[]> {
 		const out: NoteRow[] = [];
-		for (const chunk of chunksOf(ids)) {
+		for (const chunk of chunkIds([...new Set(ids)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(notes)
@@ -97,7 +88,7 @@ export class NoteRepository {
 		scope: Scope
 	): Promise<Map<string, number>> {
 		const counts = new Map<string, number>();
-		for (const chunk of chunksOf(noteIds)) {
+		for (const chunk of chunkIds([...new Set(noteIds)], 80)) {
 			const rows = await this.db.all<{ id: string; n: number }>(
 				this.useCountsSql(treeId, chunk, scope)
 			);
@@ -118,7 +109,7 @@ export class NoteRepository {
 		);
 		const wanted = ids.slice(0, page.limit).map((r) => r.id);
 		const found = new Map<string, NoteAttachmentRow>();
-		for (const chunk of chunksOf(wanted)) {
+		for (const chunk of chunkIds([...new Set(wanted)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(noteAttachments)
@@ -151,7 +142,7 @@ export class NoteRepository {
 	 */
 	async attachmentsOf(treeId: string, subjects: SubjectIds): Promise<NoteAttachmentRow[]> {
 		const queries = Object.entries(subjects).flatMap(([kind, ids]) =>
-			chunksOf(ids ?? []).map((chunk) =>
+			chunkIds([...new Set(ids ?? [])], 80).map((chunk) =>
 				this.db
 					.select()
 					.from(noteAttachments)

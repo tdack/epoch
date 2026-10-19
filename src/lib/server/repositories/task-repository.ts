@@ -4,6 +4,7 @@
  * see; a record's own tasks come in one bounded read keyed by `idx_task_subject`.
  */
 
+import { chunkIds } from './param-chunks';
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { researchTasks } from '../db/schema';
@@ -35,16 +36,6 @@ export interface PageRequest {
 	offset: number;
 	limit: number;
 }
-
-/** Ids per `IN (...)`, under D1's 100 bound parameters with the tree id and filters. */
-const IDS_PER_QUERY = 80;
-
-const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
-	const unique = [...new Set(items)];
-	const chunks: T[][] = [];
-	for (let i = 0; i < unique.length; i += size) chunks.push(unique.slice(i, i + size));
-	return chunks;
-};
 
 const taskImage = (row: typeof researchTasks.$inferSelect) =>
 	toImage(researchTasks, row) as ResearchTaskRow;
@@ -86,7 +77,7 @@ export class TaskRepository {
 
 	async tasksByIds(treeId: string, ids: readonly string[]): Promise<ResearchTaskRow[]> {
 		const out: ResearchTaskRow[] = [];
-		for (const chunk of chunksOf(ids)) {
+		for (const chunk of chunkIds([...new Set(ids)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(researchTasks)
@@ -140,7 +131,7 @@ export class TaskRepository {
 		subjects: Partial<Record<TaskSubjectKind, readonly string[]>>
 	): Promise<ResearchTaskRow[]> {
 		const queries = Object.entries(subjects).flatMap(([kind, ids]) =>
-			chunksOf(ids ?? []).map((chunk) =>
+			chunkIds([...new Set(ids ?? [])], 80).map((chunk) =>
 				this.db
 					.select()
 					.from(researchTasks)

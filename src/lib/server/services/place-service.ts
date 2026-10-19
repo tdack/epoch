@@ -14,6 +14,7 @@ import type { PlaceCommand } from '../domain/place-ops';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventLabel } from '../domain/tree-labels';
+import { chunkIds } from '../repositories/param-chunks';
 import { PlaceRepository } from '../repositories/place-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -29,11 +30,6 @@ import { personName } from './kinship-service';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 
-const IDS_PER_QUERY = 80;
-const chunks = <T>(items: readonly T[]): T[][] =>
-	Array.from({ length: Math.ceil(items.length / IDS_PER_QUERY) }, (_, i) =>
-		items.slice(i * IDS_PER_QUERY, (i + 1) * IDS_PER_QUERY)
-	);
 const clampPage = (query: { offset?: number; limit?: number }) => ({
 	offset: Math.max(0, query.offset ?? 0),
 	limit: Math.min(Math.max(query.limit ?? DEFAULT_LIST_LIMIT, 1), MAX_LIST_LIMIT)
@@ -122,7 +118,7 @@ export class PlaceService {
 			...new Set(rows.filter((r) => r.entityType === 'FAMILY').map((r) => r.entityId))
 		];
 		const names = new Map<string, string>();
-		for (const chunk of chunks(personIds)) {
+		for (const chunk of chunkIds(personIds, 80)) {
 			for (const p of await this.db
 				.select({
 					id: individuals.id,
@@ -134,7 +130,7 @@ export class PlaceService {
 				names.set(p.id, personName(p));
 		}
 		const partners = new Map<string, string[]>();
-		for (const chunk of chunks(unionIds)) {
+		for (const chunk of chunkIds(unionIds, 80)) {
 			const found = await this.db
 				.select({
 					unionId: unionPartners.unionId,

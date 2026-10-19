@@ -184,30 +184,9 @@ export class MemberRepository {
 			.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
 	}
 
-	/** Whether an unexpired invitation waits for this address, in any tree. */
-	async hasPendingFor(email: string, now: Date): Promise<boolean> {
-		const row = await this.db
-			.select({ id: treeInvitations.id })
-			.from(treeInvitations)
-			.where(
-				and(
-					eq(treeInvitations.email, email.trim().toLowerCase()),
-					gt(treeInvitations.expiresAt, now)
-				)
-			)
-			.limit(1)
-			.get();
-		return row !== undefined;
-	}
-
-	/**
-	 * Turn every unexpired invitation to this address into a membership, then delete it. Run on each
-	 * authenticated request, so a person invited to a second tree gets it on their next one. A person
-	 * who is already a member keeps the role they have: an invitation never lowers one. Insert first,
-	 * delete after, so a failure between them leaves an invitation that redeems again harmlessly.
-	 */
-	async redeemFor(userId: string, email: string, now: Date): Promise<number> {
-		const pending = await this.db
+	/** Every unexpired invitation to this address, in any tree. */
+	async pendingFor(email: string, now: Date) {
+		return this.db
 			.select()
 			.from(treeInvitations)
 			.where(
@@ -216,6 +195,19 @@ export class MemberRepository {
 					gt(treeInvitations.expiresAt, now)
 				)
 			);
+	}
+
+	/**
+	 * Turn the unexpired invitations `pendingFor` returned into memberships, then delete them. Run on
+	 * each authenticated request, so a person invited to a second tree gets it on their next one. A person
+	 * who is already a member keeps the role they have: an invitation never lowers one. Insert first,
+	 * delete after, so a failure between them leaves an invitation that redeems again harmlessly.
+	 */
+	async redeem(
+		userId: string,
+		pending: Awaited<ReturnType<MemberRepository['pendingFor']>>,
+		now: Date
+	): Promise<number> {
 		for (const invitation of pending) {
 			await this.db
 				.insert(treeMemberships)
