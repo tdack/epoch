@@ -42,6 +42,7 @@ Svelte 5 / SvelteKit 3 on Cloudflare Workers, with D1 (Drizzle ORM), R2, Queues 
 | R2 | `MEDIA_BUCKET` | Private media files (`media/<treeId>/<mediaId>.<ext>`; legacy `media/<treeId>/<entityId>/<file>` keys are still read), GEDCOM staging (`staging/` prefix; an object a crashed consumer left behind is expired after 7 days by a lifecycle rule the setup tool writes), exports (`exports/` prefix, 24-hour expiry) |
 | Queue | `GEDCOM_IMPORT_QUEUE` | Large or retryable GEDCOM imports |
 | Workflow | `GedcomExportWorkflow` | Exports above 5,000 people (ADR-040) |
+| Rate limit | `UPLOAD_RATE_LIMIT`, `IMPORT_RATE_LIMIT`, `CSP_REPORT_RATE_LIMIT` | Workers Rate Limiting counters for `/api/media/upload`, `/api/import` and `/api/csp-report` (ADR-066) |
 | Cloudflare Access | n/a | Authenticated identity; the Worker validates the JWT (issuer, audience, rotating JWKS) |
 
 Queues and Workflows are reserved for large or retryable import, export and media jobs. Durable

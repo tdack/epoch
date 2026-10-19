@@ -1,8 +1,10 @@
+import type { RequestEvent } from '@sveltejs/kit';
 import { decodeGedcomFile } from '#lib/server/gedcom/decode.js';
 import { MAX_DATASET_BYTES, MAX_IMPORT_BYTES } from '#lib/server/gedcom/limits.js';
 import { PayloadTooLargeError, ValidationError } from '#lib/server/domain/errors.js';
 import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { apiHandler } from '#lib/server/http/handler.js';
+import { enforceRateLimit } from '#lib/server/http/rate-limit.js';
 import { GedcomService } from '#lib/server/services/gedcom-service.js';
 
 const importFailure = {
@@ -25,11 +27,22 @@ async function readGedcom(file: File): Promise<string> {
 	return text;
 }
 
+/** One budget for the preview and the import: both parse a whole file, and a client does one then the other. */
+function limitImports(event: RequestEvent, userId: string): Promise<void> {
+	return enforceRateLimit({
+		binding: event.platform?.env?.IMPORT_RATE_LIMIT,
+		bindingName: 'IMPORT_RATE_LIMIT',
+		key: userId,
+		message: 'Too many imports; try again in a minute'
+	});
+}
+
 const previewFailure = {
 	failure: 'Failed to preview GEDCOM'
 };
 
 export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
+	await limitImports(event, ctx.user.id);
 	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
 	const file = formData.get('file');
 	if (!file) throw new ValidationError('GEDCOM file is required');
@@ -66,6 +79,7 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 });
 
 export const PUT = apiHandler(previewFailure, async ({ db, ctx, event }) => {
+	await limitImports(event, ctx.user.id);
 	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
 	const file = formData.get('file');
 	const treeId = formData.get('treeId') as string | null;

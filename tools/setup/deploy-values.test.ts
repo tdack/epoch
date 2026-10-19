@@ -45,6 +45,15 @@ describe('generateDeployConfig', () => {
 		expect(config.workflows[0].name).toBe('family-export-workflow');
 	});
 
+	it('carries the tracked rate-limit bindings through unchanged', () => {
+		expect(config.ratelimits.map((entry: { name: string }) => entry.name)).toEqual([
+			'UPLOAD_RATE_LIMIT',
+			'IMPORT_RATE_LIMIT',
+			'CSP_REPORT_RATE_LIMIT'
+		]);
+		expect(config.ratelimits).toEqual((tracked as Record<string, any>).ratelimits);
+	});
+
 	it('names the database but never its id: wrangler resolves it by name', () => {
 		expect(config.d1_databases[0]).not.toHaveProperty('database_id', expect.anything());
 		const stale = structuredClone(tracked) as Record<string, any>;
