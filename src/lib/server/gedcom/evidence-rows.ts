@@ -69,6 +69,7 @@ export function repositoryRow(
  */
 export function sourceRepositoryRow(
 	id: string,
+	treeId: string,
 	sourceId: string,
 	link: ParsedSourceRepository,
 	repositoryId: string | null,
@@ -77,6 +78,7 @@ export function sourceRepositoryRow(
 ): SourceRepositoryInsert {
 	return {
 		id,
+		treeId,
 		sourceId,
 		repositoryId,
 		repositoryRef: repositoryId === null ? orNull(link.pointer) : null,

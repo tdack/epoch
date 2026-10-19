@@ -327,7 +327,13 @@ export async function insertCorpus(
 		const nameRows: Array<typeof personNames.$inferInsert> = [];
 		for (const p of people) {
 			const { given, surname } = nameOf.get(p.id)!;
-			const base = { personId: p.id, createdAt: new Date(0), updatedAt: new Date(0), version: 1 };
+			const base = {
+				treeId,
+				personId: p.id,
+				createdAt: new Date(0),
+				updatedAt: new Date(0),
+				version: 1
+			};
 			nameRows.push({
 				...base,
 				id: `${p.id}-n0`,
@@ -378,6 +384,7 @@ export async function insertCorpus(
 	const partnerRows = unionRows.flatMap((u) =>
 		u.partners.map((personId, order) => ({
 			id: `${u.id}-p${order}`,
+			treeId,
 			unionId: u.id,
 			personId,
 			order,

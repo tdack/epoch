@@ -46,9 +46,9 @@ export async function addEvidence(
 		.insert(repositories)
 		.values(repositoryIds.map((id) => ({ id, treeId, name: id, version: 1 })));
 	await db.insert(sourceRepositories).values([
-		{ id: `${prefix}-sr-1`, sourceId: sourceIds[0]!, repositoryId: repositoryIds[0]! },
-		{ id: `${prefix}-sr-2`, sourceId: sourceIds[1]!, repositoryId: repositoryIds[0]! },
-		{ id: `${prefix}-sr-3`, sourceId: sourceIds[2]!, repositoryId: repositoryIds[1]! }
+		{ id: `${prefix}-sr-1`, treeId, sourceId: sourceIds[0]!, repositoryId: repositoryIds[0]! },
+		{ id: `${prefix}-sr-2`, treeId, sourceId: sourceIds[1]!, repositoryId: repositoryIds[0]! },
+		{ id: `${prefix}-sr-3`, treeId, sourceId: sourceIds[2]!, repositoryId: repositoryIds[1]! }
 	]);
 	await db.insert(notes).values(noteIds.map((id) => ({ id, treeId, text: id, version: 1 })));
 
