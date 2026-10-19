@@ -34,8 +34,21 @@ interface AuditEntryDto {
 
 export interface AuditPageDto {
 	entries: AuditEntryDto[];
-	/** Pass as `before` for the next, older page; null when this is the last. */
-	nextBefore: number | null;
+	/** The page shown, 1-based, after an out-of-range request was brought back into range. */
+	page: number;
+	pageCount: number;
+	/** Entries matching the filters, across all pages. */
+	total: number;
+	/** Everyone who has made a change in the tree, for the actor filter. */
+	actors: Array<{ id: string; name: string }>;
+}
+
+/** The filters the address carries; a day is `YYYY-MM-DD` and counts as a UTC day. */
+export interface AuditFilters {
+	recordId: string | null;
+	actorId: string | null;
+	from: string | null;
+	to: string | null;
 }
 
 /**

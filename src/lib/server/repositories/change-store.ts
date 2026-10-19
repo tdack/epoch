@@ -11,6 +11,7 @@ import {
 	eq,
 	getTableColumns,
 	gt,
+	gte,
 	inArray,
 	isNotNull,
 	isNull,
@@ -436,16 +437,39 @@ export class ChangeStore {
 	}
 
 	/**
-	 * One page of the audit log, newest first (ADR-068). `beforeSeq` is a keyset cursor: `seq` is
-	 * the order the log is read in and never repeats, so a page never skips or doubles an entry
-	 * when changes arrive between requests. One extra row is read so the caller can tell whether
-	 * an older page exists.
+	 * One page of the audit log, newest first, with the count of everything the filters match
+	 * (ADR-068). A page past the end is the last page and one below 1 is the first. `since` is
+	 * inclusive and `until` exclusive, both epoch milliseconds.
 	 */
 	async auditPage(
 		treeId: string,
-		options: { beforeSeq?: number | null; recordId?: string | null; limit: number }
+		options: {
+			page: number;
+			limit: number;
+			recordId?: string | null;
+			actorId?: string | null;
+			since?: number | null;
+			until?: number | null;
+		}
 	) {
 		const undo = alias(changeLog, 'undo');
+		const where = and(
+			eq(changeLog.treeId, treeId),
+			options.actorId ? eq(changeLog.actorId, options.actorId) : undefined,
+			options.since == null ? undefined : gte(changeLog.createdAt, new Date(options.since)),
+			options.until == null ? undefined : lt(changeLog.createdAt, new Date(options.until)),
+			options.recordId
+				? sql`exists (select 1 from change_log_records r where r.change_id = ${changeLog.id} and r.entity_id = ${options.recordId})`
+				: undefined
+		);
+		const counted = await this.db
+			.select({ total: sql<number>`count(*)` })
+			.from(changeLog)
+			.where(where)
+			.get();
+		const total = counted?.total ?? 0;
+		const pageCount = Math.max(1, Math.ceil(total / options.limit));
+		const page = Math.min(Math.max(1, options.page), pageCount);
 		const rows = await this.db
 			.select({
 				id: changeLog.id,
@@ -462,20 +486,16 @@ export class ChangeStore {
 			})
 			.from(changeLog)
 			.leftJoin(undo, eq(undo.revertsChangeId, changeLog.id))
-			.where(
-				and(
-					eq(changeLog.treeId, treeId),
-					options.beforeSeq == null ? undefined : lt(changeLog.seq, options.beforeSeq),
-					options.recordId
-						? sql`exists (select 1 from change_log_records r where r.change_id = ${changeLog.id} and r.entity_id = ${options.recordId})`
-						: undefined
-				)
-			)
+			.where(where)
 			.orderBy(desc(changeLog.seq))
-			.limit(options.limit + 1)
+			.limit(options.limit)
+			.offset((page - 1) * options.limit)
 			.all();
 		return {
-			rows: rows.slice(0, options.limit).map((row) => ({
+			total,
+			page,
+			pageCount,
+			rows: rows.map((row) => ({
 				id: row.id,
 				seq: row.seq,
 				actorId: row.actorId,
@@ -488,9 +508,18 @@ export class ChangeStore {
 				undoneActorId: row.undoneActorId,
 				undoneAt: row.undoneAt?.getTime() ?? null,
 				changes: JSON.parse(row.changesJson) as RecordChange[]
-			})),
-			hasMore: rows.length > options.limit
+			}))
 		};
+	}
+
+	/** Everyone who has made a change in the tree, for the audit log's actor filter. */
+	async actorIdsInLog(treeId: string): Promise<string[]> {
+		const rows = await this.db
+			.selectDistinct({ id: changeLog.actorId })
+			.from(changeLog)
+			.where(eq(changeLog.treeId, treeId))
+			.all();
+		return rows.map((r) => r.id);
 	}
 
 	/** Which of these people and partnerships still exist in the tree, so the log links only those. */

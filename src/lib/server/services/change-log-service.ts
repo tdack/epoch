@@ -18,7 +18,12 @@ import { UndoRefusedError } from '../domain/errors';
 import { isManagerOrAbove } from '../../shared/roles';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
-import { AUDIT_PAGE_SIZE, canUndoChange, type AuditPageDto } from '../../shared/change-audit';
+import {
+	AUDIT_PAGE_SIZE,
+	canUndoChange,
+	type AuditFilters,
+	type AuditPageDto
+} from '../../shared/change-audit';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { loadRowsForUndo } from '../domain/undo-scope';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
@@ -33,6 +38,8 @@ export interface UndoResult extends MutationResult {
 	/** The change that was reverted. */
 	undone: { id: string; summary: string };
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function nothingToUndo() {
 	return new UndoRefusedError(
@@ -162,41 +169,53 @@ export class ChangeLogService {
 	}
 
 	/**
-	 * One page of the audit log, newest first, optionally only the changes that wrote one record
-	 * (ADR-068). Needs `record:edit` for the reason `listRecent` does.
+	 * One page of the audit log, newest first, filtered by record, actor and an inclusive range of
+	 * UTC days (ADR-068). Needs `record:edit` for the reason `listRecent` does.
 	 */
 	async audit(
 		treeId: string,
 		context: AuthenticatedContext,
-		options: { before?: number | null; recordId?: string | null } = {}
+		options: Partial<AuditFilters> & { page?: number } = {}
 	): Promise<AuditPageDto> {
 		const scope = await this.runner.scopeFor(treeId, context, 'record:edit');
 		const { store } = this.runner;
 		const page = await store.auditPage(treeId, {
-			beforeSeq: options.before,
+			page: options.page ?? 1,
+			limit: AUDIT_PAGE_SIZE,
 			recordId: options.recordId,
-			limit: AUDIT_PAGE_SIZE
+			actorId: options.actorId,
+			since: options.from ? Date.parse(`${options.from}T00:00:00Z`) : null,
+			// Exclusive end: the start of the day after `to`, so the whole of `to` is included.
+			until: options.to ? Date.parse(`${options.to}T00:00:00Z`) + DAY_MS : null
 		});
-		const actors = await new GraphWindowRepository(this.db).actorNames(
-			treeId,
-			page.rows.flatMap((r) => (r.undoneActorId ? [r.actorId, r.undoneActorId] : [r.actorId]))
-		);
+		const logActors = await store.actorIdsInLog(treeId);
+		const repo = new GraphWindowRepository(this.db);
+		const names = await repo.actorNames(treeId, [
+			...logActors,
+			...page.rows.flatMap((r) => (r.undoneActorId ? [r.undoneActorId] : []))
+		]);
 		const existing = await store.existingRecordIds(
 			treeId,
 			page.rows.flatMap((r) => r.changes.map((c) => c.entityId))
 		);
 		const viewer = { role: scope.role, userId: scope.userId };
 		return {
+			page: page.page,
+			pageCount: page.pageCount,
+			total: page.total,
+			actors: logActors
+				.map((id) => ({ id, name: names.get(id) ?? 'Someone' }))
+				.sort((a, b) => a.name.localeCompare(b.name)),
 			entries: page.rows.map((r) => ({
 				id: r.id,
 				seq: r.seq,
 				kind: r.kind,
 				summary: r.summary,
-				actorName: actors.get(r.actorId) ?? null,
+				actorName: names.get(r.actorId) ?? null,
 				createdAt: r.createdAt,
 				isUndo: r.isUndo,
 				isUndone: r.isUndone,
-				undoneByName: r.undoneActorId ? (actors.get(r.undoneActorId) ?? null) : null,
+				undoneByName: r.undoneActorId ? (names.get(r.undoneActorId) ?? null) : null,
 				undoneAt: r.undoneAt,
 				canUndo: canUndoChange(viewer, r),
 				records: r.changes.map((c) => ({
@@ -204,8 +223,7 @@ export class ChangeLogService {
 					isLinkable:
 						(c.entityType === 'person' || c.entityType === 'union') && existing.has(c.entityId)
 				}))
-			})),
-			nextBefore: page.hasMore ? (page.rows.at(-1)?.seq ?? null) : null
+			}))
 		};
 	}
 }

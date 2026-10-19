@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { changeLog } from '../db/schema';
 import { UnauthorizedError } from '../domain/errors';
 import { AUDIT_PAGE_SIZE } from '../../shared/change-audit';
 import {
@@ -109,26 +111,94 @@ describe('audit', () => {
 		await expect(log().audit(treeId, viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 
-	it('pages newest first by cursor and filters to one record', async () => {
+	it('pages newest first with a total, clamps the page, and filters to one record', async () => {
 		const tree = await createTestTree(t.db, owner);
 		await addTestMember(t.db, tree, editor, 'editor');
 		const made = [];
 		for (let i = 0; i < AUDIT_PAGE_SIZE + 1; i++) made.push(await addPerson(`P${i}`, editor, tree));
 
 		const first = await log().audit(tree, editor.context);
+		expect(first).toMatchObject({ page: 1, pageCount: 2, total: AUDIT_PAGE_SIZE + 1 });
 		expect(first.entries).toHaveLength(AUDIT_PAGE_SIZE);
 		expect(first.entries[0]!.id).toBe(made.at(-1)!.changeId);
-		expect(first.nextBefore).toBe(first.entries.at(-1)!.seq);
 
-		const second = await log().audit(tree, editor.context, { before: first.nextBefore });
+		const second = await log().audit(tree, editor.context, { page: 2 });
 		expect(second.entries.map((e) => e.id)).toEqual([made[0]!.changeId]);
-		expect(second.nextBefore).toBeNull();
+
+		// Past the end is the last page; below one is the first.
+		expect((await log().audit(tree, editor.context, { page: 99 })).page).toBe(2);
+		expect((await log().audit(tree, editor.context, { page: -3 })).page).toBe(1);
 
 		const one = await log().audit(tree, editor.context, { recordId: made[3]!.personId });
+		expect(one).toMatchObject({ total: 1, pageCount: 1 });
 		expect(one.entries.map((e) => e.id)).toEqual([made[3]!.changeId]);
 		expect(one.entries[0]!.records.some((r) => r.isLinkable && r.entityType === 'person')).toBe(
 			true
 		);
+	});
+
+	it('filters by actor and lists the actors in the log', async () => {
+		const tree = await createTestTree(t.db, owner);
+		await addTestMember(t.db, tree, editor, 'editor');
+		await addTestMember(t.db, tree, otherEditor, 'editor');
+		const mine = await addPerson('Mine', editor, tree);
+		await addPerson('Theirs', otherEditor, tree);
+		const page = await log().audit(tree, editor.context, { actorId: editor.userId });
+		expect(page.entries.map((e) => e.id)).toEqual([mine.changeId]);
+		expect(page.total).toBe(1);
+		expect(page.actors.map((a) => a.name)).toEqual(['editor', 'other']);
+	});
+
+	it('takes whole UTC days, both ends included', async () => {
+		const tree = await createTestTree(t.db, owner);
+		await addTestMember(t.db, tree, editor, 'editor');
+		const stamp = (iso: string) =>
+			t.db
+				.update(changeLog)
+				.set({ createdAt: new Date(iso) })
+				.where(eq(changeLog.id, ids.get(iso)!));
+		const ids = new Map<string, string>();
+		for (const iso of [
+			'2026-03-01T23:59:59.999Z',
+			'2026-03-02T00:00:00.000Z',
+			'2026-03-03T23:59:59.999Z',
+			'2026-03-04T00:00:00.000Z'
+		]) {
+			ids.set(iso, (await addPerson(iso, editor, tree)).changeId);
+			await stamp(iso);
+		}
+		const between = async (from: string | null, to: string | null) =>
+			(await log().audit(tree, editor.context, { from, to })).entries
+				.map((e) => e.summary.replace('Added ', ''))
+				.sort();
+		expect(await between('2026-03-02', '2026-03-03')).toEqual([
+			'2026-03-02T00:00:00.000Z',
+			'2026-03-03T23:59:59.999Z'
+		]);
+		expect(await between('2026-03-04', null)).toEqual(['2026-03-04T00:00:00.000Z']);
+		expect(await between(null, '2026-03-01')).toEqual(['2026-03-01T23:59:59.999Z']);
+		expect(await between('2026-03-05', null)).toEqual([]);
+	});
+
+	it('combines the filters and counts under them', async () => {
+		const tree = await createTestTree(t.db, owner);
+		await addTestMember(t.db, tree, editor, 'editor');
+		await addTestMember(t.db, tree, otherEditor, 'editor');
+		const mine = await addPerson('Mine', editor, tree);
+		await addPerson('Theirs', otherEditor, tree);
+		const none = await log().audit(tree, editor.context, {
+			actorId: editor.userId,
+			recordId: mine.personId,
+			from: '2000-01-01',
+			to: '2000-01-02'
+		});
+		expect(none).toMatchObject({ total: 0, entries: [] });
+		const some = await log().audit(tree, editor.context, {
+			actorId: editor.userId,
+			recordId: mine.personId,
+			from: '2000-01-01'
+		});
+		expect(some.total).toBe(1);
 	});
 
 	it('says who undid a change and whether the viewer may undo it', async () => {
