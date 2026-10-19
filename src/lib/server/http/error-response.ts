@@ -1,4 +1,4 @@
-import { DomainError, type ErrorCode } from '../domain/errors';
+import { DomainError, RateLimitedError, type ErrorCode } from '../domain/errors';
 
 /**
  * The one place a route handler's failure becomes a response, so every endpoint answers the same
@@ -20,7 +20,12 @@ export function errorResponse(
 	if (err instanceof DomainError) {
 		return Response.json(
 			{ error: err.message, code: err.code, details: err.details },
-			{ status: err.status }
+			{
+				status: err.status,
+				...(err instanceof RateLimitedError
+					? { headers: { 'Retry-After': String(err.retryAfterSeconds) } }
+					: {})
+			}
 		);
 	}
 	console.error(`${fallback}:`, err);

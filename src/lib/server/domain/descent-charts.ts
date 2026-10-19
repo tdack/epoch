@@ -9,6 +9,8 @@
  */
 
 import type { EventRow, TreeRows } from './change-log';
+import { birthSortOfEvents } from './birth-sort';
+import { sortByBirth } from '../../shared/birth-order';
 import type { ChartPerson, DescendantNode, PedigreeDto } from '../../shared/charts';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { PRIVATE_PLACEHOLDER_NAME } from './privacy-mask';
@@ -66,7 +68,8 @@ class ChartIndex {
 			this.firstDates.set(i.id, {
 				birth: birth?.dateRaw ?? null,
 				death: first('DEAT')?.dateRaw ?? null,
-				sort: birth?.dateSort ?? null
+				// A placeholder is ordered as undated, like the birth text it is shown without.
+				sort: isPrivate ? null : birthSortOfEvents(own)
 			});
 			this.sexOf.set(i.id, i.sex);
 			this.people.set(i.id, {
@@ -106,8 +109,16 @@ class ChartIndex {
 		return this.sexOf.get(id) ?? null;
 	}
 
-	birthSort(id: string): string {
-		return this.firstDates.get(id)?.sort ?? '9999';
+	birthSort(id: string): string | null {
+		return this.firstDates.get(id)?.sort ?? null;
+	}
+
+	/** The people in birth order, oldest first, undated last (see `shared/birth-order`). */
+	inBirthOrder(ids: readonly string[]): string[] {
+		return sortByBirth(ids, (id) => ({
+			birthSort: this.birthSort(id),
+			name: this.people.get(id)?.name ?? id
+		}));
 	}
 
 	/** At most two parents, biological first, then by sex (M, F) and id so the order is stable. */
@@ -182,9 +193,7 @@ export function buildDescendants(
 			if (childIds.length > 0) hasMoreBelow = true;
 		} else {
 			const next = new Set(path).add(id);
-			for (const childId of childIds.sort(
-				(a, b) => index.birthSort(a).localeCompare(index.birthSort(b)) || a.localeCompare(b)
-			))
+			for (const childId of index.inBirthOrder(childIds))
 				children.push(node(childId, depth + 1, next));
 		}
 		return { person: index.person(id)!, partners, children };

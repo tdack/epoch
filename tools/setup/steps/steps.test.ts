@@ -25,7 +25,7 @@ import { detectEnvToken, preflight } from './preflight.ts';
 import { provision } from './provision.ts';
 import { assertSameIdentity, signIn } from './sign-in.ts';
 import { verify } from './verify.ts';
-import { isExportOnlyRule, type R2LifecycleRule } from '../lifecycle.ts';
+import { isExportOnlyRule, isOwnStagingRule, type R2LifecycleRule } from '../lifecycle.ts';
 import { RESOURCE_STATES, reconcile, type Observed } from '../reconcile.ts';
 import { resourceNames } from '../names.ts';
 
@@ -909,7 +909,7 @@ describe('the whole flow', () => {
 });
 
 describe('provision', () => {
-	it('scopes the export lifecycle rule after making the bucket, keeping unrelated rules', async () => {
+	it('scopes the export and staging lifecycle rules after making the bucket, keeping unrelated rules', async () => {
 		const written: R2LifecycleRule[][] = [];
 		const created: string[] = [];
 		const { ctx } = testContext({
@@ -941,6 +941,7 @@ describe('provision', () => {
 		expect(manifest.resources.r2).toEqual({ name: 'epoch-media' });
 		expect(written).toHaveLength(1);
 		expect(written[0]!.some((rule) => isExportOnlyRule(rule))).toBe(true);
+		expect(written[0]!.some((rule) => isOwnStagingRule(rule))).toBe(true);
 		expect(written[0]!.some((rule) => rule.conditions?.prefix === 'logs/')).toBe(true);
 	});
 });

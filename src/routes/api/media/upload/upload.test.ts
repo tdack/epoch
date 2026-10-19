@@ -18,6 +18,7 @@ import {
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
 import { MAX_FORM_FIELDS_BYTES } from '#lib/server/http/bounded-form.js';
+import { FakeRateLimit } from '#lib/server/testing/fake-rate-limit.js';
 import { FakeMediaBucket } from '#lib/server/testing/fake-bucket.js';
 import { MAX_MEDIA_UPLOAD_BYTES, MAX_TREE_MEDIA_BYTES } from '#lib/shared/media.js';
 import { POST } from './+server.js';
@@ -65,11 +66,11 @@ beforeEach(() => {
 	bucket = new FakeMediaBucket();
 });
 
-function makeEvent(actor: TestActor, request: Request) {
+function makeEvent(actor: TestActor, request: Request, limiter?: FakeRateLimit) {
 	return {
 		request,
 		locals: { user: actor.context.user, correlationId: actor.context.correlationId },
-		platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket } }
+		platform: { env: { DB: t.d1, MEDIA_BUCKET: bucket, UPLOAD_RATE_LIMIT: limiter } }
 	} as unknown as RequestEvent;
 }
 
@@ -302,5 +303,38 @@ describe('media upload size limits', () => {
 		);
 		expect(response.status).toBe(400);
 		expect(bucket.objects.size).toBe(0);
+	});
+});
+
+describe('rate limit', () => {
+	function uploadRequest() {
+		const body = new FormData();
+		body.set('file', new File([PNG_BYTES], 'a.png', { type: 'image/png' }));
+		body.set('treeId', treeId);
+		body.set('entityId', personId);
+		return formRequest(body);
+	}
+
+	it('allows an upload under the limit, keyed by the user', async () => {
+		const limiter = new FakeRateLimit(1);
+		const response = await POST(makeEvent(owner, uploadRequest(), limiter));
+		expect(response.status).toBe(201);
+		expect(limiter.keys).toEqual([owner.context.user.id]);
+	});
+
+	it('answers 429 with Retry-After before reading the body', async () => {
+		const request = uploadRequest();
+		const formData = vi.spyOn(request, 'formData');
+		const response = await POST(makeEvent(owner, request, new FakeRateLimit(0)));
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('60');
+		expect(((await response.json()) as { code: string }).code).toBe('RATE_LIMITED');
+		expect(formData).not.toHaveBeenCalled();
+		expect(bucket.objects.size).toBe(0);
+	});
+
+	it('allows the upload when the binding is missing', async () => {
+		const response = await POST(makeEvent(owner, uploadRequest()));
+		expect(response.status).toBe(201);
 	});
 });

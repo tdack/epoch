@@ -12,6 +12,7 @@ export type ErrorCode =
 	| 'NOTE_IN_USE'
 	| 'export_expired'
 	| 'export_unavailable'
+	| 'RATE_LIMITED'
 	| 'INTERNAL_ERROR'
 	| 'BAD_REQUEST';
 
@@ -165,5 +166,19 @@ export class BindingUnavailableError extends DomainError {
 		super('The service is temporarily unavailable', 'INTERNAL_ERROR', 500);
 		this.name = 'BindingUnavailableError';
 		console.error(`Binding unavailable: ${name}`);
+	}
+}
+
+/**
+ * The caller has made too many requests to this endpoint for now (HTTP 429). `retryAfterSeconds`
+ * becomes the `Retry-After` header in `errorResponse` and is repeated in `details` for the client.
+ */
+export class RateLimitedError extends DomainError {
+	constructor(
+		message: string,
+		public readonly retryAfterSeconds: number
+	) {
+		super(message, 'RATE_LIMITED', 429, { retryAfterSeconds });
+		this.name = 'RateLimitedError';
 	}
 }
