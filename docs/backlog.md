@@ -335,10 +335,6 @@ Last reviewed: 2026-10-15.
     application's `destinations` and AUD (`subdomains-access-destinations`), the Worker-less routes
     (`subdomains-zone-routes`), and that the raw calls' credential may write a route, on a throwaway
     one (`subdomains-route-write`). They have not yet run against `epochgenealogy.app`.
-  - **`./setup subdomains`: the rest.**
-    - A way to turn it off short of teardown.
-    - Exclusion routes have no marker. One that a fresh clone finds is kept as `referenced` and is
-      never deleted, so teardown from a fresh clone leaves it behind.
   - **Short addresses** (`dacks.example.com/people/x`).
   - **Whether the app host should redirect a flagged tree to its subdomain.**
 
