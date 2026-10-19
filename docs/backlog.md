@@ -23,10 +23,9 @@ Last reviewed: 2026-10-18.
   nothing else, so an event, a note or a repository has no privacy rule of its own for files.
   (ADR-050, ADR-061)
 - **Make `tree_id` NOT NULL on `person_names`, `union_partners` and `source_repositories`.**
-  Migration 0036 added it nullable and backfilled; `ChangeStore` treats a null as its own row for
-  rows old code wrote between the migration and the deploy. Once deployed, run the backfill UPDATEs
-  from 0036 again with `--remote`, then a contract migration sets NOT NULL and the fallback in
-  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes.
+  Migration 0036 added it nullable, and the deployed database has no nulls left (checked after the
+  deploy, 2026-10-19). A contract migration can now set NOT NULL, and the null fallback in
+  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes with it.
 
 ### Abuse controls
 
