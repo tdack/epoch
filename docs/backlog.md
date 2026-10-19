@@ -25,17 +25,14 @@ Last reviewed: 2026-10-18.
 
 ### Abuse controls
 
-- **Rate limits on `/api/media/upload`, `/api/import` and `/api/csp-report` are not in source.**
-  Configure Cloudflare rate-limiting rules for all three paths in the dashboard or Terraform; a Worker cannot enforce them.
-  Per-user rate limiting in the app waits for a demonstrated coordination need, which would bring
-  a Durable Object. (F9)
 - **Staged imports are not cleaned up after a crash.** A staged object left behind by a consumer
   that ran out of retries stops counting against its tree's cap after four days
   (`STAGED_IMPORT_MAX_AGE_MS`) but stays in the bucket. Add an R2 lifecycle rule for `staging/` at
   the Cloudflare layer, as with `exports/`. (F9)
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
-  is never capped. Accepted for now; the Cloudflare rate-limit rules above are the other half. (F9)
+  is never capped. Accepted for now; the per-user rate limits on import and upload (ADR-065) slow a loop but do not
+  cap how many trees a user may make. (F9)
 ### Media and files
 
 - **Editors cannot delete legacy files.** Files stored before migration 0029 have no recorded
