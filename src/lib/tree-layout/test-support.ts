@@ -31,6 +31,8 @@ export const CAPTURED_GRAPHS: NamedGraph[] = [
 export interface PersonSpec {
 	id: string;
 	sex?: 'M' | 'F' | 'X' | 'U' | null;
+	/** Sort key of the birth; leave off to keep the person in recorded order. */
+	birthSort?: string | null;
 }
 export interface UnionSpec {
 	id: string;
@@ -89,7 +91,8 @@ export function makeGraph(input: {
 			givenName: p.id,
 			surname: null,
 			sex: p.sex ?? 'U',
-			isDeceased: false
+			isDeceased: false,
+			...(p.birthSort === undefined ? {} : { birthSort: p.birthSort })
 		})),
 		unions,
 		parentChild

@@ -173,6 +173,57 @@ describe('known bugs from the plan', () => {
 	});
 });
 
+describe('siblings in birth order', () => {
+	const xOf = (layout: TreeLayout, id: string) => layout.people.find((p) => p.id === id)!.x;
+	const options = { ancestorDepth: 1, descendantDepth: 1, shouldIncludeSiblings: true };
+
+	it('places the children of a union oldest on the left, undated on the right', () => {
+		const graph = makeGraph({
+			people: [
+				'Pa',
+				'Ma',
+				{ id: 'Youngest', birthSort: '1905-01-01' },
+				{ id: 'Undated' },
+				{ id: 'Oldest', birthSort: '1901-06-01' },
+				{ id: 'Middle', birthSort: '1903-01-01' }
+			],
+			unions: [
+				{ id: 'u', partners: ['Pa', 'Ma'], children: ['Youngest', 'Undated', 'Oldest', 'Middle'] }
+			]
+		});
+		const layout = layoutFocusView(graph, 'Pa', options);
+		const left = ['Oldest', 'Middle', 'Youngest', 'Undated'].map((id) => xOf(layout, id));
+		expect(left).toEqual([...left].sort((a, b) => a - b));
+		expect(new Set(left).size).toBe(4);
+		expect(findOverlaps(layout)).toEqual([]);
+	});
+
+	it('orders the children of a parent with no partnership the same way', () => {
+		const graph = makeGraph({
+			people: [
+				'Parent',
+				{ id: 'Late', birthSort: '1950-01-01' },
+				{ id: 'Early', birthSort: '1940-01-01' }
+			],
+			direct: [
+				{ parentId: 'Parent', childId: 'Late' },
+				{ parentId: 'Parent', childId: 'Early' }
+			]
+		});
+		const layout = layoutFocusView(graph, 'Parent', options);
+		expect(xOf(layout, 'Early')).toBeLessThan(xOf(layout, 'Late'));
+	});
+
+	it('keeps the recorded order for a graph that carries no birth keys', () => {
+		const graph = makeGraph({
+			people: ['Pa', 'Ma', 'B', 'A'],
+			unions: [{ id: 'u', partners: ['Pa', 'Ma'], children: ['B', 'A'] }]
+		});
+		const layout = layoutFocusView(graph, 'Pa', options);
+		expect(xOf(layout, 'B')).toBeLessThan(xOf(layout, 'A'));
+	});
+});
+
 describe('structures beyond the Simpsons', () => {
 	it("keeps a later partner's hidden-children stub off the earlier union's children", () => {
 		// Charles's children by Diana spread right under Camilla, whose own children (by another

@@ -74,6 +74,33 @@ describe('the descendants', () => {
 		expect(down.hasMoreBelow).toBe(false);
 		expect(buildDescendants(context, 'dad', 2)!.hasMoreBelow).toBe(true);
 	});
+	it('puts children oldest first: a baptism stands in for a birth, undated last, a hidden birth as undated', () => {
+		const family = treeRows({
+			people: [
+				{ id: 'p' },
+				{ id: 'late', birth: '1 MAR 1930' },
+				{ id: 'none' },
+				{ id: 'early', birth: 'ABT 1920' },
+				{ id: 'bapt' },
+				{ id: 'hidden', birth: '1900' }
+			],
+			events: [
+				{ id: 'chr', entityId: 'bapt', type: 'CHR', dateRaw: '1925', dateSort: '1925-01-01' }
+			],
+			links: ['late', 'none', 'early', 'bapt', 'hidden'].map((childId) => ({
+				parentId: 'p',
+				childId
+			}))
+		} as never);
+		const order = (placeholderIds: string[]) =>
+			buildDescendants(
+				{ rows: family, placeholderIds: new Set(placeholderIds) },
+				'p',
+				2
+			)!.root.children.map((c) => c.person.id);
+		expect(order([])).toEqual(['hidden', 'early', 'bapt', 'late', 'none']);
+		expect(order(['hidden'])).toEqual(['early', 'bapt', 'late', 'none', 'hidden']);
+	});
 	it('is absent for an unknown person', () => {
 		expect(buildDescendants(context, 'nobody', 3)).toBeNull();
 	});
