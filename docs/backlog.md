@@ -26,7 +26,8 @@ Last reviewed: 2026-10-18.
 ### Abuse controls
 
 - **Rate limits on `/api/media/upload`, `/api/import` and `/api/csp-report` are not in source.**
-  Configure Cloudflare rate-limiting rules for all three paths in the dashboard or Terraform; a Worker cannot enforce them.
+  Configure Cloudflare rate-limiting rules for all three paths in the dashboard, or add a setup step on the
+  rulesets API (ADR-065); a Worker cannot enforce them.
   Per-user rate limiting in the app waits for a demonstrated coordination need, which would bring
   a Durable Object. (F9)
 - **Staged imports are not cleaned up after a crash.** A staged object left behind by a consumer
