@@ -13,6 +13,8 @@ export interface SubtreeDto {
 	name: string;
 	rootPersonId: string;
 	position: number;
+	/** A signed-out visitor of a public tree may open it (the root must be visible to them too). */
+	isPublic: boolean;
 	version: number;
 	/** The root person no longer exists (deleted, and an undo would bring them back). */
 	isRootMissing: boolean;
@@ -36,6 +38,7 @@ export interface CreateSubtreeInput {
 	name: string;
 	slug: string;
 	rootPersonId: string;
+	isPublic?: boolean;
 }
 
 /** Fields to change; `version` is the one the caller last saw. */
@@ -44,5 +47,6 @@ export interface UpdateSubtreeInput {
 	slug?: string;
 	rootPersonId?: string;
 	position?: number;
+	isPublic?: boolean;
 	version?: number;
 }

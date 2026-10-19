@@ -2,6 +2,7 @@
  * Reads for sub-trees. A sub-tree is listed, and answers by id or slug, only for a viewer who may
  * see its root person, because its name could otherwise give the person away. The test is the
  * visibility predicate (`visibility.ts`) on the root, in the same statement as the sub-tree.
+ * An outsider (someone reading a public tree with no membership) also needs `is_public` on it.
  *
  * Writes are not here: they go through the mutation runner and the change log.
  */
@@ -15,7 +16,7 @@ import { individuals, personNames, subtrees } from '../db/schema';
 import { displayNameWith } from '../../shared/name-types';
 import { andVisible } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId' | 'isOutsider'>;
 
 export interface SubtreeRead {
 	row: SubtreeRow;
@@ -47,7 +48,7 @@ export class SubtreeRepository {
 			select s.id as id,
 				exists (select 1 from individuals i where i.id = s.root_person_id and i.tree_id = s.tree_id${andVisible('i', scope)}) as isRootVisible,
 				exists (select 1 from individuals i where i.id = s.root_person_id and i.tree_id = s.tree_id) as isRootPresent
-			from subtree s where s.tree_id = ${treeId}${where}
+			from subtree s where s.tree_id = ${treeId}${scope.isOutsider ? sql` and s.is_public = 1` : sql``}${where}
 			order by s.position, s.rowid`);
 		const kept = found.filter((f) => (f.isRootPresent ? f.isRootVisible : shouldShowMissingRoots));
 		if (kept.length === 0) return [];

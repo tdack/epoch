@@ -7,6 +7,7 @@ const dto = {
 	name: 'Line',
 	rootPersonId: 'p1',
 	position: 0,
+	isPublic: false,
 	version: 1,
 	isRootMissing: false
 };

@@ -23,6 +23,8 @@ export const subtrees = sqliteTable(
 		slug: text('slug').notNull(),
 		rootPersonId: text('root_person_id').notNull(),
 		position: integer('position').notNull().default(0),
+		// A public visitor of a public tree sees only the sub-trees a manager opted in (ADR-069).
+		isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
 		version: integer('version').notNull().default(1),
 		createdBy: text('created_by'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

@@ -356,6 +356,7 @@ The tool is built in `tools/setup/`.
   If the plan tests or a measured scoped read fail on a tree of tens of thousands of people, store
   members and maintain them in the same mutations that change `parent_child`, `union_partner` or a
   person.
-- **Tests not yet done:** a tree host (`dacks.example.com/trees/dacks~bouvier-line`), a public
-  visitor reading a shared sub-tree, and the remembered-focus order (URL `focus`, then the focus
-  remembered for this sub-tree, then its root, then the tree's default) end to end.
+- **Tests not yet done:** a tree host (`dacks.example.com/trees/dacks~bouvier-line`) and the
+  remembered-focus order (URL `focus`, then the focus remembered for this sub-tree, then its root,
+  then the tree's default) end to end. A public visitor reading a sub-tree is covered by ADR-069's
+  tests at the load level; a browser e2e needs a way to run signed out, which the dev bypass lacks.

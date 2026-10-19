@@ -334,3 +334,42 @@ describe.each(LENS_READS)('%s: the sub-tree lens', (route, prototype, method, ro
 		expect(rootOf(spy.mock.calls.at(-1) as unknown[]) ?? null).toBeNull();
 	});
 });
+
+describe('the public visitor and sub-trees (ADR-069)', () => {
+	beforeAll(async () => {
+		const sub = new SubtreeService(t.db);
+		const rootPersonId = `${publicId}:@I1@`;
+		await sub.create(
+			publicId,
+			{ name: 'Open line', slug: 'open-line', rootPersonId, isPublic: true },
+			owner.context
+		);
+		await sub.create(
+			publicId,
+			{ name: 'Members line', slug: 'members-line', rootPersonId },
+			owner.context
+		);
+	});
+
+	const layout = (segment: string) =>
+		modules[LAYOUT]!.load(eventFor(LAYOUT, PUBLIC_VISITOR, paramsFor(LAYOUT, publicId, segment)));
+
+	it('opens a public sub-tree by its tree~slug address and lists it in the switcher', async () => {
+		const data = (await layout(`${publicId}~open-line`)) as {
+			summary: { subtrees: Array<{ slug: string }>; subtree: { slug: string } | null };
+		};
+		expect(data.summary.subtree?.slug).toBe('open-line');
+		expect(data.summary.subtrees.map((x) => x.slug)).toEqual(['open-line']);
+	});
+
+	it('answers a sub-tree that is not public with the 404 of one that does not exist', async () => {
+		const hidden = await layout(`${publicId}~members-line`).catch((e) => e);
+		const unknown = await layout(`${publicId}~no-such-line`).catch((e) => e);
+		expect(hidden.status).toBe(404);
+		expect(unknown.status).toBe(404);
+		// The message names only the address asked for, so nothing tells the two apart.
+		expect(hidden.body.message.replace('members-line', 'x')).toBe(
+			unknown.body.message.replace('no-such-line', 'x')
+		);
+	});
+});

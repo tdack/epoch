@@ -16,6 +16,7 @@ export type SubtreeCommand =
 			name: string;
 			slug: string;
 			rootPersonId: string;
+			isPublic?: boolean;
 	  }
 	| {
 			kind: 'update_subtree';
@@ -75,7 +76,8 @@ function checkVersion(subtree: SubtreeRow, expected: number | undefined): void {
 				name: subtree.name,
 				slug: subtree.slug,
 				rootPersonId: subtree.rootPersonId,
-				position: subtree.position
+				position: subtree.position,
+				isPublic: subtree.isPublic
 			}
 		}
 	);
@@ -98,6 +100,7 @@ export function buildSubtreeOps(
 				slug: validateSlug(rows, command.slug, null),
 				rootPersonId: command.rootPersonId,
 				position,
+				isPublic: command.isPublic ?? false,
 				version: 1,
 				createdBy: ctx.actorId,
 				createdAt: ctx.now,
@@ -117,7 +120,8 @@ export function buildSubtreeOps(
 				name: patch.name !== undefined ? validateName(patch.name) : before.name,
 				slug: patch.slug !== undefined ? validateSlug(rows, patch.slug, before.id) : before.slug,
 				rootPersonId: patch.rootPersonId ?? before.rootPersonId,
-				position: patch.position ?? before.position
+				position: patch.position ?? before.position,
+				isPublic: patch.isPublic ?? before.isPublic
 			};
 			if (JSON.stringify(after) === JSON.stringify(before)) return [];
 			return [
