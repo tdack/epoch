@@ -18,6 +18,8 @@
 	} from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
+	import FileOwnerPicker from '#lib/components/FileOwnerPicker.svelte';
+	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
 		attachFileApi,
@@ -49,6 +51,8 @@
 	const canEdit = $derived(canChangeRecords(role));
 	/** Clearing stored files with no record is a manager's job. */
 	const canManage = $derived(isManagerOrAbove(role));
+	/** A source is evidence, so it is offered as a target to the roles that may change evidence. */
+	const canPickSource = $derived(canChangeEvidence(role));
 
 	/** The filter's value for every tree the caller belongs to. */
 	const ALL_TREES = 'all';
@@ -72,6 +76,8 @@
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
 	let chosenPerson = $state<{ id: string; name: string } | null>(null);
+	/** The person or source the attach and move dialogs have chosen. */
+	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
 	const actionClass =
 		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 coarse:min-h-11';
@@ -161,6 +167,7 @@
 		dialogError = null;
 		isBusy = false;
 		chosenPerson = null;
+		chosenOwner = null;
 		if (kind === 'rename') renameTitle = file?.title ?? '';
 		if (kind === 'upload') uploadFile = null;
 	}
@@ -204,16 +211,16 @@
 
 	const attachTo = () => {
 		const file = target!;
-		const person = chosenPerson;
-		if (!person) return;
-		void run(() => attachFileApi(file.id, file.treeId, person.id, undefined), 'File attached');
+		const owner = chosenOwner;
+		if (!owner) return;
+		void run(() => attachFileApi(file.id, file.treeId, owner.id, undefined), 'File attached');
 	};
 
 	const moveTo = () => {
 		const file = target!;
-		const person = chosenPerson;
-		if (!person) return;
-		void run(() => moveFileApi(file.id, file.treeId, person.id, undefined), 'File moved');
+		const owner = chosenOwner;
+		if (!owner) return;
+		void run(() => moveFileApi(file.id, file.treeId, owner.id, undefined), 'File moved');
 	};
 
 	const removeFile = () => {
@@ -260,8 +267,8 @@
 	<div>
 		<h2 class="text-2xl font-bold text-stone-900">Files</h2>
 		<p class="mt-1 max-w-2xl text-sm text-stone-600">
-			Photos and documents stored in your trees. A file shows on the person it is attached to, and
-			anyone who can see that person can see the file.
+			Photos and documents stored in your trees. A file shows on the person or source it is attached
+			to, and anyone who can see that record can see the file.
 		</p>
 	</div>
 	{#if canEdit}
@@ -416,7 +423,7 @@
 									type="button"
 									class={actionClass}
 									onclick={() => openDialog('attach', file)}
-									title="Attach to a person"
+									title="Attach to a person or source"
 								>
 									<Link class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Attach '}{file.title ?? 'file'}</span>
@@ -427,7 +434,7 @@
 									type="button"
 									class={actionClass}
 									onclick={() => openDialog('move', file)}
-									title="Move to another person"
+									title="Move to another person or source"
 								>
 									<ArrowRightLeft class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Move '}{file.title ?? 'file'}</span>
@@ -438,7 +445,7 @@
 									type="button"
 									class={actionClass}
 									onclick={() => detach(file)}
-									title="Unlink from person"
+									title="Unlink from its owner"
 								>
 									<Unlink class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Detach '}{file.title ?? 'file'}</span>
@@ -640,15 +647,17 @@
 		<p class="text-xs text-stone-600">
 			{dialog === 'move' ? 'Move' : 'Attach'}
 			<span class="font-semibold">{target?.title ?? 'this file'}</span>
-			to a person in {target?.treeName ?? 'this tree'}.
+			to {canPickSource ? 'a person or a source' : 'a person'} in {target?.treeName ?? 'this tree'}.
 		</p>
 		{#if target}
-			<PersonPicker
-				treeId={target.treeId}
-				label="Person"
-				picked={chosenPerson}
-				onpick={(person) => (chosenPerson = person)}
-			/>
+			{#key `${dialog}-${target.id}`}
+				<FileOwnerPicker
+					treeId={target.treeId}
+					idPrefix="files-owner"
+					{canPickSource}
+					bind:picked={chosenOwner}
+				/>
+			{/key}
 		{/if}
 		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
 			<button
@@ -658,7 +667,7 @@
 			>
 			<button
 				type="button"
-				disabled={isBusy || !chosenPerson}
+				disabled={isBusy || !chosenOwner}
 				onclick={dialog === 'move' ? moveTo : attachTo}
 				class="btn-primary-sm"
 			>
