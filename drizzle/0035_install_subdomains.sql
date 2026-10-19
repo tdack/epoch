@@ -1,0 +1,1 @@
+ALTER TABLE `install_meta` ADD `subdomains` text;

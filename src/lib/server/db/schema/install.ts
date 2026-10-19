@@ -8,5 +8,9 @@ export const installMeta = sqliteTable('install_meta', {
 	installId: text('install_id').primaryKey(),
 	// Compared lower-cased with the address Access asserts; the setup tool stores it lower-cased.
 	ownerEmail: text('owner_email').notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
+	createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+	// What `./setup subdomains` made on the zone, as JSON (ADR-057). The app never reads it: it is
+	// kept here, not only in the setup manifest, so a fresh clone can still find and remove the
+	// record and the exclusion routes, which carry no marker of their own.
+	subdomains: text('subdomains')
 });
