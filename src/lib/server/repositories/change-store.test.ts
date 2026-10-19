@@ -445,6 +445,9 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 			return partialRow(c.table, toImage(c.schema, row!));
 		};
 		const stored = () => t.db.select().from(c.schema).get();
+		// `c.table` is a union across the cases, which TypeScript cannot pair with its row type.
+		const childOp = (before: RowImage | null, after: RowImage | null) =>
+			({ table: c.table, id: 'c1', before, after }) as RowOp;
 
 		it(`${c.table}: refuses an update, delete and undo lookup from another tree`, async () => {
 			await t.db.delete(individuals);
@@ -460,24 +463,19 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 				store.commit({
 					...base(),
 					treeId: otherTree,
-					ops: [{ table: c.table, id: 'c1', before, after: partialRow(c.table, c.edit(before)) }]
+					ops: [childOp(before, partialRow(c.table, c.edit(before)))]
 				})
 			).rejects.toBeInstanceOf(ConcurrencyConflictError);
 			await expect(
 				store.commit({
 					...base(),
 					treeId: otherTree,
-					ops: [{ table: c.table, id: 'c1', before, after: null }]
+					ops: [childOp(before, null)]
 				})
 			).rejects.toBeInstanceOf(ConcurrencyConflictError);
 			expect(await stored()).toBeDefined();
-			expect(
-				await store.currentImages([{ table: c.table, id: 'c1', before, after: null }], otherTree)
-			).toEqual(new Map());
-			expect(
-				(await store.currentImages([{ table: c.table, id: 'c1', before, after: null }], treeId))
-					.size
-			).toBe(1);
+			expect(await store.currentImages([childOp(before, null)], otherTree)).toEqual(new Map());
+			expect((await store.currentImages([childOp(before, null)], treeId)).size).toBe(1);
 		});
 
 		it(`${c.table}: stamps the commit's tree on insert`, async () => {
@@ -490,7 +488,7 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 			await t.db.delete(c.schema);
 			await store.commit({
 				...base(),
-				ops: [{ table: c.table, id: 'c1', before: null, after: image }]
+				ops: [childOp(null, image)]
 			});
 			expect((await stored())?.treeId).toBe(treeId);
 		});
@@ -504,13 +502,10 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 			const before = await imageOfChild();
 			await store.commit({
 				...base(),
-				ops: [{ table: c.table, id: 'c1', before, after: partialRow(c.table, c.edit(before)) }]
+				ops: [childOp(before, partialRow(c.table, c.edit(before)))]
 			});
 			expect(matchesImage(c.edit(before), toImage(c.schema, (await stored())!))).toBe(true);
-			expect(
-				(await store.currentImages([{ table: c.table, id: 'c1', before, after: null }], treeId))
-					.size
-			).toBe(1);
+			expect((await store.currentImages([childOp(before, null)], treeId)).size).toBe(1);
 		});
 	}
 });
