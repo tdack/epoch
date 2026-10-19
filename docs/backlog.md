@@ -328,10 +328,6 @@ Last reviewed: 2026-10-15.
 - **Development, staging and production configuration separation,** reproducible provisioning.
 - **A tree on its own subdomain: the rest after phase 1** (ADR-057,
   [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
-  - **`./setup subdomains`: run the new spike checks once.** `./setup spike` now checks the Access
-    application's `destinations` and AUD (`subdomains-access-destinations`), the Worker-less routes
-    (`subdomains-zone-routes`), and that the raw calls' credential may write a route, on a throwaway
-    one (`subdomains-route-write`). They have not yet run against `epochgenealogy.app`.
   - **Short addresses** (`dacks.example.com/people/x`).
   - **Whether the app host should redirect a flagged tree to its subdomain.**
 
