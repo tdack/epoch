@@ -22,7 +22,7 @@ export type InlineMediaType = (typeof INLINE_MEDIA_TYPES)[number];
  * would show a broken image. They are stored and served as downloads, and the UI falls back to its
  * no-preview icon, as it does for a PDF.
  */
-export const DOWNLOAD_ONLY_IMAGE_TYPES = ['image/heic', 'image/heif'] as const;
+const DOWNLOAD_ONLY_IMAGE_TYPES = ['image/heic', 'image/heif'] as const;
 
 export const UPLOAD_MEDIA_TYPES = [
 	...INLINE_MEDIA_TYPES,

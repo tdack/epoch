@@ -14,7 +14,7 @@ export function chunkByParamLimit<T>(rows: T[], columnsPerRow: number): T[][] {
 }
 
 /** A lookup by id list binds one parameter per id plus a few fixed ones, so 90 stays under D1's 100. */
-export const IDS_PER_QUERY = 90;
+const IDS_PER_QUERY = 90;
 
 /** Split an id list into runs of at most `size`, for a statement that binds each id `ids per statement` times. */
 export function chunkIds<T>(ids: readonly T[], size: number = IDS_PER_QUERY): T[][] {
