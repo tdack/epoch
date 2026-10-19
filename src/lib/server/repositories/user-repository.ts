@@ -28,14 +28,15 @@ export class UserRepository {
 		const isInstallOwner =
 			ownerEmail !== null && identity.email.trim().toLowerCase() === ownerEmail;
 		const members = new MemberRepository(this.db);
+		const pending = await members.pendingFor(identity.email, now);
 		const isAdmitted =
 			isInstallOwner ||
-			(await members.hasPendingFor(identity.email, now)) ||
+			pending.length > 0 ||
 			(await this.hasAnyMembershipBySub(identity.accessSub));
 		if (!isAdmitted) return null;
 
 		const user = await this.upsertUser(identity);
-		await members.redeemFor(user.id, user.email, now);
+		await members.redeem(user.id, pending, now);
 		return { ...user, isInstallOwner };
 	}
 
