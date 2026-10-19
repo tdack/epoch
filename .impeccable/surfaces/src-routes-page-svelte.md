@@ -49,10 +49,23 @@ Adaptations from the app, each a setting the app allows or a legibility choice: 
 text are drawn larger for a 1040-unit stage; the hourglass shows two generations each side (the
 app's steppers reach it; its default is one); the descendants chart's focus card grows to name
 both partners, where the app cuts the line at 22 characters.
+Roles and sub-trees (2026-10-20): after the feature groups, a stem drops to "Who can do what", a
+five-rung ladder down one 3px emerald line with round nodes, viewer to owner, each rung naming only
+what it adds (`ROLES` in `site.ts`, checked against `authorization.ts`, `roles.ts`,
+`member-service.ts`, `change-audit.ts` and `visibility.ts` on `main`). No amber: the ladder is the
+line, not the action. Below it, #subtrees draws the explorer's family as the app's family view cut
+to the Marsh line (William Marsh, his descendants and their partners); the people outside it fade
+and grey as the figure scrolls in, the section's one moment, static under reduced motion. Copy
+holds that a sub-tree is a lens, not an access boundary (ADR-062), and members-only until a manager
+shows it to visitors (ADR-069).
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
 ## Unresolved
 
 - What the demo shows (assumed: one public tree browsable without signing in).
-- Licence: the repository has no LICENSE file, so the site makes no open-source claim.
+- Licence: the repository is AGPL-3.0-or-later (`LICENSE`, `package.json` on `main`); the site says
+  so in one FAQ answer and nowhere louder.
+- Demo sub-tree link: public sub-trees are built (ADR-069), but the demo shows none to a visitor
+  yet. When one starting at a deceased person is made public, link it from #subtrees after
+  opening it signed out.
