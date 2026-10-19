@@ -7,6 +7,16 @@ const people = [
 	{ id: 'b', givenName: 'Ben' }
 ];
 
+describe('file labels in previews', () => {
+	it('names a detached file by its title, and falls back when it has none', () => {
+		const label = makeLabeler(treeRows({ people }), []);
+		expect(label('media_items', { id: 'm', entityId: null, title: 'Deed.png' })).toBe(
+			'Unattached file “Deed.png”'
+		);
+		expect(label('media_items', { id: 'm', entityId: null, title: null })).toBe('Unattached file');
+	});
+});
+
 describe('partnership labels in previews', () => {
 	it('tells repeated partnerships between two people apart by chronology, with dates', () => {
 		const rows = treeRows({
