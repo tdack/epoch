@@ -29,10 +29,6 @@ Last reviewed: 2026-10-18.
   Configure Cloudflare rate-limiting rules for all three paths in the dashboard or Terraform; a Worker cannot enforce them.
   Per-user rate limiting in the app waits for a demonstrated coordination need, which would bring
   a Durable Object. (F9)
-- **Staged imports are not cleaned up after a crash.** A staged object left behind by a consumer
-  that ran out of retries stops counting against its tree's cap after four days
-  (`STAGED_IMPORT_MAX_AGE_MS`) but stays in the bucket. Add an R2 lifecycle rule for `staging/` at
-  the Cloudflare layer, as with `exports/`. (F9)
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
   is never capped. Accepted for now; the Cloudflare rate-limit rules above are the other half. (F9)
@@ -285,7 +281,7 @@ Last reviewed: 2026-10-18.
 - **Scanned documents** (certificates) with transcription and citation workflows.
 - **Retention and orphan cleanup for uploads and imports.** Exports are covered by the 24-hour
   expiry and the `exports/` lifecycle rule (ADR-040). A manager can list and delete media objects
-  that no file row points at (ADR-050). Staged imports have no cleanup beyond the four-day cap.
+  that no file row points at (ADR-050). Staged imports left by a crashed consumer are expired after a week by the `staging/` lifecycle rule (ADR-040).
 - **Checksums and a backup policy for R2.**
 - **Move legacy media keys, if they are ever to change.** Legacy keys (`media/<treeId>/<entityId>/<file>`)
   are still read and are not moved; new uploads use `media/<treeId>/<mediaId>.<ext>` (ADR-050). Any

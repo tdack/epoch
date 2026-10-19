@@ -39,7 +39,7 @@ Svelte 5 / SvelteKit 3 on Cloudflare Workers, with D1 (Drizzle ORM), R2, Queues 
 | Resource | Binding | Use |
 |---|---|---|
 | D1 | `DB` | Normalized genealogy, permissions, citations, change log, jobs |
-| R2 | `MEDIA_BUCKET` | Private media files (`media/<treeId>/<mediaId>.<ext>`; legacy `media/<treeId>/<entityId>/<file>` keys are still read), GEDCOM staging, exports (`exports/` prefix, 24-hour expiry) |
+| R2 | `MEDIA_BUCKET` | Private media files (`media/<treeId>/<mediaId>.<ext>`; legacy `media/<treeId>/<entityId>/<file>` keys are still read), GEDCOM staging (`staging/` prefix; an object a crashed consumer left behind is expired after 7 days by a lifecycle rule the setup tool writes), exports (`exports/` prefix, 24-hour expiry) |
 | Queue | `GEDCOM_IMPORT_QUEUE` | Large or retryable GEDCOM imports |
 | Workflow | `GedcomExportWorkflow` | Exports above 5,000 people (ADR-040) |
 | Cloudflare Access | n/a | Authenticated identity; the Worker validates the JWT (issuer, audience, rotating JWKS) |
