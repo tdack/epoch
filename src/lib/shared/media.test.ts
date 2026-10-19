@@ -40,6 +40,14 @@ describe('upload allowlist', () => {
 		expect(isUploadMediaType('text/html')).toBe(false);
 	});
 
+	it('accepts HEIC and HEIF but never renders them inline', () => {
+		for (const mime of ['image/heic', 'image/heif']) {
+			expect(isUploadMediaType(mime)).toBe(true);
+			expect(isInlineMediaType(mime)).toBe(false);
+			expect(MEDIA_UPLOAD_ACCEPT).toContain(mime);
+		}
+	});
+
 	it('builds the accept attribute from the allowlist', () => {
 		expect(MEDIA_UPLOAD_ACCEPT).toBe(UPLOAD_MEDIA_TYPES.join(','));
 		expect(MEDIA_UPLOAD_ACCEPT).not.toContain('svg');
