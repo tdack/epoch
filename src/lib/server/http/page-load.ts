@@ -55,7 +55,7 @@ export function serverLoad<Event extends ServerLoadEvent, Result>(
 	options: PageLoadOptions,
 	run: (scope: PageScope, event: Event) => Result
 ): (event: Event) => Promise<Awaited<Result>> {
-	return async (event) => {
+	return async (event): Promise<Awaited<Result>> => {
 		try {
 			return await run(openScope(event, options), event);
 		} catch (cause) {
@@ -72,7 +72,7 @@ export function treeServerLoad<Event extends ServerLoadEvent, Result>(
 	options: PageLoadOptions,
 	run: (scope: TreePageScope, event: Event) => Result
 ): (event: Event) => Promise<Awaited<Result>> {
-	return async (event) => {
+	return async (event): Promise<Awaited<Result>> => {
 		event.depends(DATA_KEY);
 		try {
 			const scope = openScope(event, options);
