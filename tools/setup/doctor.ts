@@ -207,7 +207,7 @@ export function subdomainFindings(observation: SubdomainObservation): Finding[] 
 		return [
 			{
 				level: FINDING_LEVELS.warn,
-				text: `Tree subdomains on ${zone} are set up part-way; run \`./setup subdomains\` to finish`
+				text: `Tree subdomains on ${zone} are off, or a run stopped part-way; \`./setup subdomains\` turns them on`
 			}
 		];
 	}

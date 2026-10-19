@@ -56,11 +56,11 @@ describe('subdomainFindings', () => {
 		]);
 	});
 
-	it('only warns while `./setup subdomains` has not finished', () => {
+	it('only warns while the subdomains are off or `./setup subdomains` has not finished', () => {
 		expect(
 			findings({ settings: { ...SETTINGS, isActive: false }, records: [], routes: [] })
 		).toEqual([
-			'warn: Tree subdomains on example.com are set up part-way; run `./setup subdomains` to finish'
+			'warn: Tree subdomains on example.com are off, or a run stopped part-way; `./setup subdomains` turns them on'
 		]);
 	});
 

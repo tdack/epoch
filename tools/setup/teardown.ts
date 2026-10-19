@@ -5,9 +5,11 @@ import { ERROR_CODES, SetupError } from './errors.ts';
 import { AUTH_MODES, OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_STATES, reconcile, type ResourceKey } from './reconcile.ts';
+import { readDeployDefaults } from './steps/name.ts';
 import { observe, observeTags } from './steps/reconcile.ts';
 import {
 	planSubdomainTeardown,
+	recoverSubdomainSettings,
 	removeSubdomainItem,
 	type SubdomainTeardownKey
 } from './steps/subdomains.ts';
@@ -20,6 +22,8 @@ export interface TeardownItem {
 	isIrreversible: boolean;
 	/** A DNS record or route id, for the tree subdomain items. */
 	id?: string;
+	/** The zone of a tree subdomain record or route. */
+	zoneId?: string;
 }
 
 function isTaggable(key: TeardownItem['key']): key is TaggableKey {
@@ -46,12 +50,15 @@ export async function planTeardown(ctx: StepContext, manifest: Manifest): Promis
 	});
 	const items: TeardownItem[] = [];
 	const isOurs = (key: ResourceKey) => result.reports[key].state === RESOURCE_STATES.ours;
-	// The tree subdomains first: the record and routes send traffic to the Worker deleted below.
-	if (manifest.subdomains) {
+	// The tree subdomains first: the record and routes send traffic to the Worker deleted below. A
+	// manifest without them may still have them in D1 (turned off, or a fresh clone).
+	const subdomains =
+		manifest.subdomains ?? (await recoverSubdomainSettings(ctx, manifest, readDeployDefaults(ctx)));
+	if (subdomains) {
 		const app = (await ctx.cf.listAccessApps()).find((a) => a.id === manifest.access.app?.id);
 		for (const item of await planSubdomainTeardown(
 			ctx,
-			manifest,
+			{ ...manifest, subdomains },
 			isOurs('accessApp'),
 			app?.destinations ?? []
 		))
