@@ -30,6 +30,7 @@ const toSubtreeDto = ({ row, isRootMissing }: SubtreeRead): SubtreeDto => ({
 	name: row.name,
 	rootPersonId: row.rootPersonId,
 	position: row.position,
+	isPublic: row.isPublic,
 	version: row.version,
 	isRootMissing
 });

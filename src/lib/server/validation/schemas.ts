@@ -794,7 +794,8 @@ export const settingsDocumentSchema = z.object({
 export const subtreeCreateSchema = z.object({
 	name: z.string().min(1).max(MAX_SUBTREE_NAME_LENGTH),
 	slug: z.string().refine(isValidTreeSlug, 'Not a valid address'),
-	rootPersonId: idSchema
+	rootPersonId: idSchema,
+	isPublic: z.boolean().optional()
 });
 
 /** Only the fields to change, with the version the caller last saw. */
@@ -803,5 +804,6 @@ export const subtreeUpdateSchema = z.object({
 	name: z.string().min(1).max(MAX_SUBTREE_NAME_LENGTH).optional(),
 	slug: z.string().refine(isValidTreeSlug, 'Not a valid address').optional(),
 	rootPersonId: idSchema.optional(),
-	position: z.number().int().optional()
+	position: z.number().int().optional(),
+	isPublic: z.boolean().optional()
 });

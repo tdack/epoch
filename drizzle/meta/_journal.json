@@ -267,6 +267,13 @@
       "when": 1792405566467,
       "tag": "0037_tree_id_not_null",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1792443656207,
+      "tag": "0038_subtree_is_public",
+      "breakpoints": true
     }
   ]
 }
