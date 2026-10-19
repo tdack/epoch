@@ -104,6 +104,7 @@ describe('linksOfSource is scoped to the tree it is given', () => {
 		// A link in tree A's source that names tree B's repository: the case the join must refuse.
 		await t.db.insert(sourceRepositories).values({
 			id: crypto.randomUUID(),
+			treeId: a,
 			sourceId: sourceA[0]!,
 			repositoryId: foreignRepositoryId,
 			sortOrder: 99

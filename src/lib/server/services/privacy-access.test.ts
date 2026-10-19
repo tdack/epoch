@@ -78,6 +78,7 @@ async function addUnionMedia(partnerIds: string[]): Promise<string> {
 	for (const [order, personId] of partnerIds.entries()) {
 		await t.db.insert(unionPartners).values({
 			id: crypto.randomUUID(),
+			treeId,
 			unionId,
 			personId,
 			order

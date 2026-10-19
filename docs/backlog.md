@@ -22,10 +22,6 @@ Last reviewed: 2026-10-18.
   source only when the source is (ADR-028's rule), and a detached file never. A file can attach to
   nothing else, so an event, a note or a repository has no privacy rule of its own for files.
   (ADR-050, ADR-061)
-- **Make `tree_id` NOT NULL on `person_names`, `union_partners` and `source_repositories`.**
-  Migration 0036 added it nullable, and the deployed database has no nulls left (checked after the
-  deploy, 2026-10-19). A contract migration can now set NOT NULL, and the null fallback in
-  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes with it.
 
 ### Abuse controls
 

@@ -62,9 +62,24 @@ async function addEvidence(treeId: string, rows: TreeRows, random: () => number)
 		.insert(repositories)
 		.values(repositoryIds.map((id) => ({ id, treeId, name: id, version: 1 })));
 	await t.db.insert(sourceRepositories).values([
-		{ id: `${treeId.slice(0, 8)}-sr-1`, sourceId: sourceIds[0]!, repositoryId: repositoryIds[0]! },
-		{ id: `${treeId.slice(0, 8)}-sr-2`, sourceId: sourceIds[1]!, repositoryId: repositoryIds[0]! },
-		{ id: `${treeId.slice(0, 8)}-sr-3`, sourceId: sourceIds[2]!, repositoryId: repositoryIds[1]! }
+		{
+			id: `${treeId.slice(0, 8)}-sr-1`,
+			treeId,
+			sourceId: sourceIds[0]!,
+			repositoryId: repositoryIds[0]!
+		},
+		{
+			id: `${treeId.slice(0, 8)}-sr-2`,
+			treeId,
+			sourceId: sourceIds[1]!,
+			repositoryId: repositoryIds[0]!
+		},
+		{
+			id: `${treeId.slice(0, 8)}-sr-3`,
+			treeId,
+			sourceId: sourceIds[2]!,
+			repositoryId: repositoryIds[1]!
+		}
 	]);
 	await t.db.insert(notes).values(noteIds.map((id) => ({ id, treeId, text: id, version: 1 })));
 
@@ -315,6 +330,7 @@ describe('the scoped loader agrees with the selector', () => {
 		const mineWhole = await store.loadRows(mine);
 		await t.db.insert(sourceRepositories).values({
 			id: `${mine.slice(0, 8)}-sr-ref`,
+			treeId: mine,
 			sourceId: mineWhole.sources[3]!.id,
 			repositoryId: null,
 			repositoryRef: '@R-GONE@'

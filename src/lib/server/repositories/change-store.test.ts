@@ -401,7 +401,8 @@ describe('ChangeStore tree scoping', () => {
 });
 
 describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
-	// Each case seeds a parent in `treeId` and one child row of it, tree_id as the test sets it.
+	// Each case seeds a parent in `treeId` and one child row of it, tree_id as the test sets it (the
+	// null cast exists only to prove the column refuses it).
 	const cases = [
 		{
 			table: 'person_names' as const,
@@ -410,7 +411,7 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 				await t.db.insert(individuals).values({ id: 'cp', treeId: tree, version: 1 });
 				await t.db
 					.insert(personNames)
-					.values({ id: 'c1', treeId: childTree, personId: 'cp', givenName: 'Ann' });
+					.values({ id: 'c1', treeId: childTree as string, personId: 'cp', givenName: 'Ann' });
 			},
 			edit: (row: RowImage) => ({ ...row, givenName: 'Anna', version: 2 })
 		},
@@ -420,9 +421,13 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 			seed: async (tree: string, childTree: string | null) => {
 				await t.db.insert(individuals).values({ id: 'cp', treeId: tree, version: 1 });
 				await t.db.insert(unions).values({ id: 'cu', treeId: tree });
-				await t.db
-					.insert(unionPartners)
-					.values({ id: 'c1', treeId: childTree, unionId: 'cu', personId: 'cp', order: 0 });
+				await t.db.insert(unionPartners).values({
+					id: 'c1',
+					treeId: childTree as string,
+					unionId: 'cu',
+					personId: 'cp',
+					order: 0
+				});
 			},
 			edit: (row: RowImage) => ({ ...row, order: 1 })
 		},
@@ -433,7 +438,7 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 				await t.db.insert(sources).values({ id: 'cs', treeId: tree, title: 'S', version: 1 });
 				await t.db
 					.insert(sourceRepositories)
-					.values({ id: 'c1', treeId: childTree, sourceId: 'cs', callNumber: 'A1' });
+					.values({ id: 'c1', treeId: childTree as string, sourceId: 'cs', callNumber: 'A1' });
 			},
 			edit: (row: RowImage) => ({ ...row, callNumber: 'A2', version: 2 })
 		}
@@ -493,19 +498,14 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 			expect((await stored())?.treeId).toBe(treeId);
 		});
 
-		it(`${c.table}: still edits a row whose tree_id is null (written before the backfill)`, async () => {
+		it(`${c.table}: refuses an insert without a tree`, async () => {
 			await t.db.delete(individuals);
 			await t.db.delete(unions);
 			await t.db.delete(sources);
 			await freshTree();
-			await c.seed(treeId, null);
-			const before = await imageOfChild();
-			await store.commit({
-				...base(),
-				ops: [childOp(before, partialRow(c.table, c.edit(before)))]
-			});
-			expect(matchesImage(c.edit(before), toImage(c.schema, (await stored())!))).toBe(true);
-			expect((await store.currentImages([childOp(before, null)], treeId)).size).toBe(1);
+			// The store always stamps the commit's tree, so the constraint is checked on the table itself.
+			await expect(c.seed(treeId, null)).rejects.toThrow();
+			expect(await stored()).toBeUndefined();
 		});
 	}
 });
