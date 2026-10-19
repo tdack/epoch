@@ -253,7 +253,7 @@ export async function detachFileApi(
 	);
 }
 
-/** Moves an attached file to another person in the same tree, as one logged change. */
+/** Moves an attached file to another person or a source in the same tree, as one logged change. */
 export async function moveFileApi(
 	fileId: string,
 	treeId: string,
