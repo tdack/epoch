@@ -6,6 +6,14 @@ import type { DeployDefaults } from '../deploy-config.ts';
 import { treeHostRoute } from '../deploy-values.ts';
 import { ERROR_CODES, SetupError } from '../errors.ts';
 import {
+	isMissingColumn,
+	isMissingTable,
+	parseSubdomainsRows,
+	readSubdomainsSql,
+	writeSubdomainsSql,
+	type InstallSubdomains
+} from '../install-meta.ts';
+import {
 	OWNERSHIPS,
 	loadManifest,
 	type ExclusionRoute,
@@ -467,6 +475,7 @@ async function applySubdomains(
 	}
 
 	current = await writeConfig(ctx, current);
+	await recordSubdomains(ctx, current);
 	const builds = await configureBuilds(ctx, current);
 	return {
 		manifest: current,
@@ -484,64 +493,264 @@ interface SubdomainPresenter {
 	showHandOff(lines: string[]): void;
 }
 
+export interface SubdomainRunOptions extends SubdomainOptions {
+	isPlanOnly: boolean;
+	/** `--off`: stop serving trees on subdomains, keeping the record and exclusion routes. */
+	isOff?: boolean;
+	/** `--remove`, with `--off` only: delete the record and this install's exclusion routes too. */
+	isRemove?: boolean;
+}
+
+function assertRunOptions(options: SubdomainRunOptions): void {
+	if (options.isRemove && !options.isOff)
+		throw new SetupError(ERROR_CODES.usage, '--remove only goes with --off', { flag: '--remove' });
+	if (options.isOff && (options.zone || (options.reserve ?? []).length > 0))
+		throw new SetupError(ERROR_CODES.usage, '--off takes neither --zone nor --reserve', {
+			flag: '--off'
+		});
+}
+
+async function confirmApply(mode: AnswerMode, asker: Asker): Promise<void> {
+	if (mode.isYes) return;
+	if (!mode.isInteractive) {
+		throw new SetupError(
+			ERROR_CODES.missingAnswer,
+			'Applying the plan needs confirmation, and there is no terminal to ask on',
+			{ flag: '--yes', hint: 'Pass --yes to apply the plan above, or --plan to stop here.' }
+		);
+	}
+	if (!(await asker.confirm({ message: 'Apply this plan?', isInitiallyYes: false }))) {
+		throw new SetupError(ERROR_CODES.cancelled, 'Nothing was changed');
+	}
+}
+
 export async function runSubdomains(
 	ctx: StepContext,
-	options: SubdomainOptions & { isPlanOnly: boolean },
+	options: SubdomainRunOptions,
 	mode: AnswerMode,
 	asker: Asker,
 	presenter: SubdomainPresenter
 ): Promise<{ plan: PlanLine[]; isApplied: boolean; manifest: Manifest | null }> {
+	assertRunOptions(options);
 	const manifest = requireInstall(loadManifest(ctx.fs, ctx.paths.manifestFile));
+	if (options.isOff) {
+		const off = await planSubdomainsOff(ctx, manifest, options.isRemove ?? false);
+		presenter.showPlan(off.lines);
+		if (options.isPlanOnly) return { plan: off.lines, isApplied: false, manifest: null };
+		await confirmApply(mode, asker);
+		const applied = await applySubdomainsOff(ctx, manifest, off.items, options.isRemove ?? false);
+		presenter.showHandOff(applied.lines);
+		return { plan: off.lines, isApplied: true, manifest: applied.manifest };
+	}
 	const plan = await planSubdomains(ctx, manifest, options, mode, asker);
 	presenter.showPlan(plan.lines);
 	if (options.isPlanOnly) return { plan: plan.lines, isApplied: false, manifest: null };
-	if (!mode.isYes) {
-		if (!mode.isInteractive) {
-			throw new SetupError(
-				ERROR_CODES.missingAnswer,
-				'Applying the plan needs confirmation, and there is no terminal to ask on',
-				{ flag: '--yes', hint: 'Pass --yes to apply the plan above, or --plan to stop here.' }
-			);
-		}
-		if (!(await asker.confirm({ message: 'Apply this plan?', isInitiallyYes: false }))) {
-			throw new SetupError(ERROR_CODES.cancelled, 'Nothing was changed');
-		}
-	}
+	await confirmApply(mode, asker);
 	const applied = await applySubdomains(ctx, manifest, plan);
 	presenter.showHandOff(applied.lines);
 	return { plan: plan.lines, isApplied: true, manifest: applied.manifest };
 }
 
+/** Teardown items that `--off` removes; `--off --remove` removes every one. */
+const OFF_KEYS: readonly SubdomainTeardownKey[] = ['treeRoute', 'accessDestination'];
+
+/** Read-only, like the plan for turning them on. */
+async function planSubdomainsOff(
+	ctx: StepContext,
+	manifest: ReturnType<typeof requireInstall>,
+	isRemove: boolean
+): Promise<{ items: SubdomainTeardownItem[]; lines: PlanLine[] }> {
+	const settings = manifest.subdomains;
+	if (!settings)
+		throw new SetupError(ERROR_CODES.usage, 'This install does not serve trees on subdomains', {
+			flag: '--off'
+		});
+	ctx.cf.useAccount(manifest.account.id);
+	await assertScopes(ctx);
+	const app = (await ctx.cf.listAccessApps()).find((a) => a.id === manifest.access.app.id);
+	const items = (
+		await planSubdomainTeardown(ctx, manifest, app === undefined, app?.destinations ?? [])
+	).filter((item) => isRemove || OFF_KEYS.includes(item.key));
+	const zone = settings.zone.name;
+	const lines: PlanLine[] = [
+		{
+			symbol: PLAN_SYMBOLS.remove,
+			text: `wrangler.deploy.jsonc: route ${treeHostRoute(zone).pattern} and the tree subdomain vars`
+		},
+		...items.map((item) => ({ symbol: PLAN_SYMBOLS.remove, text: `delete the ${item.name}` }))
+	];
+	if (!isRemove) {
+		const routes = settings.exclusionRoutes.length;
+		lines.push({
+			symbol: PLAN_SYMBOLS.unchanged,
+			text: `DNS record *.${zone} and ${routes} exclusion route(s) kept, so \`./setup subdomains\` turns trees back on`
+		});
+	}
+	return { items, lines };
+}
+
 /**
- * A fresh clone has no manifest settings, only the vars in `wrangler.deploy.jsonc`. Without this a
- * re-run of `./setup` would regenerate the file without them and drop every tree subdomain. The
- * record and route ids are not in the file; `./setup subdomains` finds them again.
+ * The deploy config first, so no deploy started part-way puts the wildcard route back, then the
+ * live route and the Access destination, then (with `--remove`) the record and exclusion routes.
+ */
+async function applySubdomainsOff(
+	ctx: StepContext,
+	manifest: ReturnType<typeof requireInstall>,
+	items: SubdomainTeardownItem[],
+	isRemove: boolean
+): Promise<{ manifest: Manifest; lines: string[] }> {
+	const settings = manifest.subdomains;
+	if (!settings)
+		throw new SetupError(ERROR_CODES.usage, 'This install does not serve trees on subdomains');
+	let current: Manifest = ctx.save({ ...manifest, subdomains: { ...settings, isActive: false } });
+	current = await writeConfig(ctx, current);
+	const builds = await configureBuilds(ctx, current);
+	for (const item of items) await removeSubdomainItem(ctx, current, item);
+	if (isRemove) current = ctx.save({ ...current, subdomains: null });
+	await recordSubdomains(ctx, current);
+	return {
+		manifest: current,
+		lines: [
+			`Trees are no longer served on <slug>.${settings.zone.name}.`,
+			'The deployed Worker keeps its tree subdomain vars until the next deploy: run `npm run deploy` (a push deploys only when src/ changes).',
+			isRemove
+				? '`./setup subdomains` sets them up again from the start.'
+				: '`./setup subdomains` turns them back on.',
+			...builds
+		]
+	};
+}
+
+/** What this install made, for `install_meta.subdomains`; null once nothing is left. */
+function installSubdomainsOf(settings: SubdomainSettings | null): InstallSubdomains | null {
+	if (!settings) return null;
+	return {
+		zone: settings.zone,
+		dnsRecordId: settings.dnsRecordId,
+		exclusionRouteIds: settings.exclusionRoutes
+			.filter((route) => route.ownership === OWNERSHIPS.owned)
+			.map((route) => route.id),
+		isActive: settings.isActive
+	};
+}
+
+function isNotMigrated(error: unknown): boolean {
+	const message = String((error as Error).message);
+	return isMissingColumn(message) || isMissingTable(message);
+}
+
+/**
+ * Keeps D1 in step with the manifest. A failure warns rather than throws: the changes on the zone
+ * are already made and the manifest holds them; only a clone with no manifest would miss them.
+ */
+async function recordSubdomains(ctx: StepContext, manifest: Manifest): Promise<void> {
+	const d1 = manifest.resources.d1;
+	if (!d1) return;
+	try {
+		await ctx.cf.queryD1(
+			d1.id,
+			writeSubdomainsSql(manifest.installId, installSubdomainsOf(manifest.subdomains))
+		);
+		// An UPDATE that matches no row succeeds, so only a read-back shows that nothing was kept.
+		const rows = await ctx.cf.queryD1(d1.id, readSubdomainsSql(manifest.installId));
+		if (rows.length === 0)
+			ctx.report.warn(
+				`${d1.name} has no install_meta row for install ${manifest.installId}, so the tree subdomains are recorded in the manifest only`
+			);
+	} catch (error) {
+		ctx.report.warn(
+			isNotMigrated(error)
+				? `${d1.name} has no install_meta.subdomains yet (migration 0035); run \`npm run db:migrate\`, then \`./setup subdomains\` again so a fresh clone can find what it made`
+				: `Could not record the tree subdomains in ${d1.name}: ${(error as Error).message}`
+		);
+	}
+}
+
+/**
+ * Quiet when the D1 id comes only from the deploy config: on a first install, or before reconcile
+ * has found the database, it may not exist yet, and that is not worth a warning.
+ */
+async function readRecordedSubdomains(
+	ctx: StepContext,
+	installId: string,
+	d1: { id: string; isKnown: boolean } | null
+): Promise<InstallSubdomains | null> {
+	if (!d1) return null;
+	try {
+		return parseSubdomainsRows(await ctx.cf.queryD1(d1.id, readSubdomainsSql(installId)));
+	} catch (error) {
+		if (d1.isKnown && !isNotMigrated(error))
+			ctx.report.warn(`Could not read the tree subdomains from D1: ${(error as Error).message}`);
+		return null;
+	}
+}
+
+/**
+ * Rebuilds the settings for a checkout whose manifest has none: the zone and vars from
+ * `wrangler.deploy.jsonc`, and the record and exclusion routes from D1, which is the only place
+ * that knows them once the config is silent (after `--off`) or the manifest is gone. A recorded
+ * route counts only while it still has no Worker, and it takes its pattern from the live route.
+ */
+export async function recoverSubdomainSettings(
+	ctx: StepContext,
+	manifest: Manifest,
+	defaults: DeployDefaults
+): Promise<SubdomainSettings | null> {
+	const known = manifest.resources.d1;
+	const recorded = await readRecordedSubdomains(
+		ctx,
+		manifest.installId,
+		known
+			? { id: known.id, isKnown: true }
+			: defaults.d1Id
+				? { id: defaults.d1Id, isKnown: false }
+				: null
+	);
+	if (!defaults.treeHostZone && !recorded) return null;
+	let zone: ZoneInfo | undefined = recorded?.zone;
+	if (defaults.treeHostZone) {
+		zone = (await ctx.cf.listActiveZones()).find((z) => z.name === defaults.treeHostZone);
+		if (!zone) {
+			ctx.report.warn(
+				`wrangler.deploy.jsonc serves trees under ${defaults.treeHostZone}, which is not an active zone in this account; the tree subdomains are left out`
+			);
+			return null;
+		}
+	}
+	if (!zone) return null;
+	// A record for another zone than the config names describes something this checkout cannot see.
+	const isRecordedHere = recorded !== null && recorded.zone.id === zone.id;
+	const recordedIds = new Set(isRecordedHere ? recorded.exclusionRouteIds : []);
+	const exclusionRoutes: ExclusionRoute[] =
+		recordedIds.size === 0
+			? []
+			: (await ctx.cf.listZoneRoutes(zone.id))
+					.filter((route) => recordedIds.has(route.id) && route.script === null)
+					.map((route) => ({ id: route.id, pattern: route.pattern, ownership: OWNERSHIPS.owned }));
+	return {
+		zone: { id: zone.id, name: zone.name },
+		reservedLabels: sorted(defaults.reservedSubdomains),
+		appHost: defaults.appHost,
+		dnsRecordId: isRecordedHere ? recorded.dnsRecordId : null,
+		exclusionRoutes,
+		// A config that names the zone already deploys them.
+		isActive: defaults.treeHostZone ? true : (recorded?.isActive ?? false)
+	};
+}
+
+/**
+ * A fresh clone has no manifest settings. Without this a re-run of `./setup` would regenerate the
+ * deploy config without the vars and drop every tree subdomain, and teardown would leave the
+ * record and the exclusion routes behind.
  */
 export async function seedSubdomains(
 	ctx: StepContext,
 	manifest: Manifest,
 	defaults: DeployDefaults
 ): Promise<Manifest> {
-	if (manifest.subdomains || !defaults.treeHostZone) return manifest;
-	const zone = (await ctx.cf.listActiveZones()).find((z) => z.name === defaults.treeHostZone);
-	if (!zone) {
-		ctx.report.warn(
-			`wrangler.deploy.jsonc serves trees under ${defaults.treeHostZone}, which is not an active zone in this account; the tree subdomains are left out`
-		);
-		return manifest;
-	}
-	return ctx.save({
-		...manifest,
-		subdomains: {
-			zone,
-			reservedLabels: sorted(defaults.reservedSubdomains),
-			appHost: defaults.appHost,
-			dnsRecordId: null,
-			exclusionRoutes: [],
-			// The file it came from already deploys them.
-			isActive: true
-		}
-	});
+	if (manifest.subdomains) return manifest;
+	const subdomains = await recoverSubdomainSettings(ctx, manifest, defaults);
+	return subdomains ? ctx.save({ ...manifest, subdomains }) : manifest;
 }
 
 /** What teardown removes for the tree subdomains, each proved ours or recorded as made by us. */
@@ -553,6 +762,8 @@ export interface SubdomainTeardownItem {
 	name: string;
 	/** The record or route id; absent for the Access destination. */
 	id?: string;
+	/** The zone the record or route is on, so removing it needs no manifest settings. */
+	zoneId?: string;
 }
 
 /**
@@ -575,7 +786,12 @@ export async function planSubdomainTeardown(
 		const marker = dnsMarker(manifest.installId);
 		for (const record of await ctx.cf.listDnsRecords(zone.id)) {
 			if (record.name === `*.${zone.name}` && record.comment === marker)
-				items.push({ key: 'dnsRecord', name: `DNS record *.${zone.name}`, id: record.id });
+				items.push({
+					key: 'dnsRecord',
+					name: `DNS record *.${zone.name}`,
+					id: record.id,
+					zoneId: zone.id
+				});
 		}
 	} catch (error) {
 		ctx.report.warn(`Could not list the DNS records on ${zone.name}: ${(error as Error).message}`);
@@ -586,7 +802,12 @@ export async function planSubdomainTeardown(
 		const wildcard = treeHostRoute(zone.name).pattern;
 		for (const route of routes) {
 			if (route.pattern === wildcard && route.script === worker)
-				items.push({ key: 'treeRoute', name: `route ${route.pattern}`, id: route.id });
+				items.push({
+					key: 'treeRoute',
+					name: `route ${route.pattern}`,
+					id: route.id,
+					zoneId: zone.id
+				});
 		}
 		for (const owned of settings.exclusionRoutes) {
 			const live = routes.find((r) => r.id === owned.id);
@@ -596,7 +817,12 @@ export async function planSubdomainTeardown(
 				live.script === null &&
 				live.pattern === owned.pattern
 			)
-				items.push({ key: 'exclusionRoute', name: `route ${owned.pattern}`, id: owned.id });
+				items.push({
+					key: 'exclusionRoute',
+					name: `route ${owned.pattern}`,
+					id: owned.id,
+					zoneId: zone.id
+				});
 		}
 	} catch (error) {
 		ctx.report.warn(
@@ -615,11 +841,10 @@ export async function removeSubdomainItem(
 	manifest: Manifest,
 	item: SubdomainTeardownItem
 ): Promise<void> {
-	const settings = manifest.subdomains;
-	if (!settings) return;
-	if (item.key === 'dnsRecord' && item.id) await ctx.cf.deleteDnsRecord(settings.zone.id, item.id);
-	if ((item.key === 'treeRoute' || item.key === 'exclusionRoute') && item.id)
-		await ctx.cf.deleteZoneRoute(settings.zone.id, item.id);
+	if (item.key === 'dnsRecord' && item.id && item.zoneId)
+		await ctx.cf.deleteDnsRecord(item.zoneId, item.id);
+	if ((item.key === 'treeRoute' || item.key === 'exclusionRoute') && item.id && item.zoneId)
+		await ctx.cf.deleteZoneRoute(item.zoneId, item.id);
 	if (item.key === 'accessDestination' && manifest.access.app && manifest.hostname) {
 		// An empty list, not none, so the body names the app host as the only destination left.
 		await ctx.cf.updateAccessApp(manifest.access.app.id, {

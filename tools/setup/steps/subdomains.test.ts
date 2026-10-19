@@ -21,6 +21,7 @@ import {
 	dnsMarker,
 	planSubdomainTeardown,
 	planSubdomains,
+	recoverSubdomainSettings,
 	removeSubdomainItem,
 	runSubdomains,
 	seedSubdomains,
@@ -575,9 +576,9 @@ describe('teardown of the tree subdomains', () => {
 			'*.example.com/login'
 		]);
 		expect(items).toEqual([
-			{ key: 'dnsRecord', name: 'DNS record *.example.com', id: 'rec-star' },
-			{ key: 'treeRoute', name: 'route *.example.com/*', id: 'r-tree' },
-			{ key: 'exclusionRoute', name: 'route www.example.com/*', id: 'r-www' },
+			{ key: 'dnsRecord', name: 'DNS record *.example.com', id: 'rec-star', zoneId: ZONE.id },
+			{ key: 'treeRoute', name: 'route *.example.com/*', id: 'r-tree', zoneId: ZONE.id },
+			{ key: 'exclusionRoute', name: 'route www.example.com/*', id: 'r-www', zoneId: ZONE.id },
 			{ key: 'accessDestination', name: 'Access destination *.example.com/login' }
 		]);
 	});
@@ -608,11 +609,334 @@ describe('teardown of the tree subdomains', () => {
 			key: 'accessDestination',
 			name: 'Access destination *.example.com/login'
 		});
-		await removeSubdomainItem(ctx, manifest, { key: 'dnsRecord', name: 'r', id: 'rec-star' });
+		await removeSubdomainItem(ctx, manifest, {
+			key: 'dnsRecord',
+			name: 'r',
+			id: 'rec-star',
+			zoneId: ZONE.id
+		});
 		expect(live.appBodies[0]).toMatchObject({
 			domain: 'example.com/login',
 			extraDestinations: []
 		});
 		expect(live.writes).toEqual(['access app00000-0000-4000-8000-000000000002', 'dns - rec-star']);
+	});
+});
+
+const APP_ID = 'app00000-0000-4000-8000-000000000002';
+const STAR_RECORD: DnsRecord = {
+	id: 'rec-star',
+	name: '*.example.com',
+	type: 'AAAA',
+	content: '100::',
+	isProxied: true,
+	comment: dnsMarker(install.installId)
+};
+
+/** The Access application as Cloudflare lists it, protecting the given destinations. */
+function accessAppsWith(destinations: string[]): Partial<CloudflareApi> {
+	return {
+		listAccessApps: async () => [
+			{
+				id: APP_ID,
+				name: 'Epoch (epoch)',
+				domain: 'example.com/login',
+				aud: 'aud-epoch',
+				policyIds: ['pol1'],
+				isPathCookieAttributeOn: false,
+				isBindingCookieOn: false,
+				destinations
+			}
+		]
+	};
+}
+
+describe('turning the tree subdomains off', () => {
+	const settings: SubdomainSettings = {
+		zone: ZONE,
+		reservedLabels: [],
+		appHost: null,
+		dnsRecordId: 'rec-star',
+		exclusionRoutes: [{ id: 'r-www', pattern: 'www.example.com/*', ownership: 'owned' }],
+		isActive: true
+	};
+	const on: Manifest = { ...install, subdomains: settings };
+	const zone = {
+		records: [...records, STAR_RECORD],
+		routes: [
+			...routes,
+			{ id: 'r-tree', pattern: '*.example.com/*', script: 'epoch' },
+			{ id: 'r-www', pattern: 'www.example.com/*', script: null }
+		]
+	};
+	const offExec = () => fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+
+	it('refuses --remove without --off, and --off with --zone or --reserve', async () => {
+		const { ctx } = testContext({ cf: liveZone(zone).cf, fs: withInstall(on) });
+		const run = (options: Parameters<typeof runSubdomains>[1]) =>
+			failure(() => runSubdomains(ctx, options, YES, NO_ASKER as Asker, presenter));
+		expect((await run({ isPlanOnly: false, isRemove: true })).code).toBe(ERROR_CODES.usage);
+		expect((await run({ isPlanOnly: false, isOff: true, zone: 'example.com' })).code).toBe(
+			ERROR_CODES.usage
+		);
+		expect((await run({ isPlanOnly: false, isOff: true, reserve: ['x'] })).code).toBe(
+			ERROR_CODES.usage
+		);
+	});
+
+	it('refuses to turn off what was never set up', async () => {
+		const { ctx } = testContext({ cf: liveZone(zone).cf, fs: withInstall(install) });
+		const error = await failure(() =>
+			runSubdomains(ctx, { isPlanOnly: false, isOff: true }, YES, NO_ASKER as Asker, presenter)
+		);
+		expect(error.code).toBe(ERROR_CODES.usage);
+	});
+
+	it('with --plan, says what it would do and changes nothing', async () => {
+		const live = liveZone(zone, accessAppsWith(['example.com/login', '*.example.com/login']));
+		const { ctx, saved } = testContext({ cf: live.cf, fs: withInstall(on) });
+		const result = await runSubdomains(
+			ctx,
+			{ isPlanOnly: true, isOff: true },
+			YES,
+			NO_ASKER as Asker,
+			presenter
+		);
+		expect(result.isApplied).toBe(false);
+		expect(result.plan.map((line) => line.text)).toEqual([
+			'wrangler.deploy.jsonc: route *.example.com/* and the tree subdomain vars',
+			'delete the route *.example.com/*',
+			'delete the Access destination *.example.com/login',
+			'DNS record *.example.com and 1 exclusion route(s) kept, so `./setup subdomains` turns trees back on'
+		]);
+		expect(live.writes).toEqual([]);
+		expect(saved).toEqual([]);
+	});
+
+	it('takes the wildcard out of the config, then deletes the live route and the destination, keeping the record and routes', async () => {
+		const live = liveZone(zone, accessAppsWith(['example.com/login', '*.example.com/login']));
+		const { ctx, fs, saved } = testContext({ cf: live.cf, fs: withInstall(on), exec: offExec() });
+		const result = await runSubdomains(
+			ctx,
+			{ isPlanOnly: false, isOff: true },
+			YES,
+			NO_ASKER as Asker,
+			presenter
+		);
+		expect(live.writes).toEqual(['route - r-tree', `access ${APP_ID}`]);
+		expect(live.appBodies[0]).toMatchObject({ extraDestinations: [] });
+		// The first save is the switch, before any live change.
+		expect(saved[0]?.subdomains?.isActive).toBe(false);
+		expect(result.manifest?.subdomains).toEqual({ ...settings, isActive: false });
+		expect(deployValuesOf(result.manifest!).treeHostZone).toBeNull();
+		expect(fs.files[ctx.paths.deployConfigFile]).not.toContain('"*.example.com/*"');
+	});
+
+	it('with --remove, also deletes the record and its own exclusion routes, and forgets the settings', async () => {
+		const live = liveZone(zone, accessAppsWith(['example.com/login', '*.example.com/login']));
+		const { ctx } = testContext({ cf: live.cf, fs: withInstall(on), exec: offExec() });
+		const result = await runSubdomains(
+			ctx,
+			{ isPlanOnly: false, isOff: true, isRemove: true },
+			YES,
+			NO_ASKER as Asker,
+			presenter
+		);
+		expect(live.writes).toEqual([
+			'dns - rec-star',
+			'route - r-tree',
+			'route - r-www',
+			`access ${APP_ID}`
+		]);
+		expect(result.manifest?.subdomains).toBeNull();
+	});
+
+	it('turns back on without making the record or the kept routes again', async () => {
+		const off: Manifest = { ...install, subdomains: { ...settings, isActive: false } };
+		const live = liveZone({
+			records: zone.records,
+			routes: zone.routes.filter((r) => r.id !== 'r-tree')
+		});
+		const { ctx } = testContext({ cf: live.cf, fs: withInstall(off), exec: offExec() });
+		const result = await runSubdomains(
+			ctx,
+			{ isPlanOnly: false },
+			YES,
+			NO_ASKER as Asker,
+			presenter
+		);
+		expect(live.writes.filter((w) => w.startsWith('dns'))).toEqual([]);
+		expect(live.writes).not.toContain('route + www.example.com/*');
+		expect(live.appBodies.at(-1)).toMatchObject({ extraDestinations: ['*.example.com/login'] });
+		expect(result.manifest?.subdomains?.isActive).toBe(true);
+		expect(deployValuesOf(result.manifest!).treeHostZone).toBe('example.com');
+	});
+});
+
+describe('the tree subdomains kept in D1', () => {
+	const HEX_ZONE = { id: 'a'.repeat(32), name: 'example.com' };
+	const RECORD_ID = 'b'.repeat(32);
+	const OWNED_ROUTE = 'c'.repeat(32);
+	const FOUND_ROUTE = 'd'.repeat(32);
+	const GONE_ROUTE = 'e'.repeat(32);
+	const withD1: Manifest = {
+		...install,
+		resources: { ...install.resources, d1: { id: 'd1-id', name: 'epoch-db' } }
+	};
+	const recordedRow = (isActive: boolean) => [
+		{
+			subdomains: JSON.stringify({
+				zone: HEX_ZONE,
+				dnsRecordId: RECORD_ID,
+				exclusionRouteIds: [OWNED_ROUTE, GONE_ROUTE],
+				isActive
+			})
+		}
+	];
+	const zone = {
+		records: [...records, { ...STAR_RECORD, id: RECORD_ID }],
+		routes: [
+			...routes,
+			{ id: OWNED_ROUTE, pattern: 'www.example.com/*', script: null },
+			{ id: FOUND_ROUTE, pattern: 'demo.example.com/*', script: null }
+		]
+	};
+
+	it('records what the install made, and not a route it only found', async () => {
+		const queries: string[] = [];
+		const live = liveZone(zone, {
+			...accessAppsWith(['example.com/login']),
+			queryD1: async (_id, sql) => {
+				queries.push(sql);
+				return sql.startsWith('SELECT') ? [{ subdomains: null }] : [];
+			}
+		});
+		const manifest: Manifest = {
+			...withD1,
+			subdomains: {
+				zone: HEX_ZONE,
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: RECORD_ID,
+				exclusionRoutes: [
+					{ id: OWNED_ROUTE, pattern: 'www.example.com/*', ownership: 'owned' },
+					{ id: FOUND_ROUTE, pattern: 'demo.example.com/*', ownership: 'referenced' }
+				],
+				isActive: true
+			}
+		};
+		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+		const { ctx } = testContext({ cf: live.cf, fs: withInstall(manifest), exec });
+		await runSubdomains(ctx, { isPlanOnly: false, isOff: true }, YES, NO_ASKER as Asker, presenter);
+		expect(queries).toHaveLength(2);
+		expect(queries[1]).toMatch(/^SELECT subdomains FROM install_meta/);
+		expect(queries[0]).toContain(`"exclusionRouteIds":["${OWNED_ROUTE}"]`);
+		expect(queries[0]).toContain(`"dnsRecordId":"${RECORD_ID}"`);
+		expect(queries[0]).toContain('"isActive":false');
+		expect(queries[0]).not.toContain(FOUND_ROUTE);
+	});
+
+	it('lets a checkout with no settings and a silent config find the record and its routes', async () => {
+		const live = liveZone(zone, { queryD1: async () => recordedRow(false) });
+		const { ctx } = testContext({ cf: live.cf });
+		const recovered = await recoverSubdomainSettings(ctx, withD1, NO_DEFAULTS);
+		expect(recovered).toEqual({
+			zone: HEX_ZONE,
+			reservedLabels: [],
+			appHost: null,
+			dnsRecordId: RECORD_ID,
+			// The deleted one is dropped; one this install only found was never recorded.
+			exclusionRoutes: [{ id: OWNED_ROUTE, pattern: 'www.example.com/*', ownership: 'owned' }],
+			isActive: false
+		});
+		const items = await planSubdomainTeardown(ctx, { ...withD1, subdomains: recovered }, false, []);
+		expect(items.map((i) => `${i.key} ${i.id ?? ''}`)).toEqual([
+			`dnsRecord ${RECORD_ID}`,
+			`exclusionRoute ${OWNED_ROUTE}`
+		]);
+	});
+
+	it('warns when the install has no install_meta row, since the write then changes nothing', async () => {
+		const live = liveZone(zone, { ...accessAppsWith([]), queryD1: async () => [] });
+		const manifest: Manifest = {
+			...withD1,
+			subdomains: {
+				zone: HEX_ZONE,
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: RECORD_ID,
+				exclusionRoutes: [],
+				isActive: true
+			}
+		};
+		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+		const { ctx, report } = testContext({ cf: live.cf, fs: withInstall(manifest), exec });
+		await runSubdomains(ctx, { isPlanOnly: false, isOff: true }, YES, NO_ASKER as Asker, presenter);
+		expect(report.warnings.some((w) => w.includes('has no install_meta row'))).toBe(true);
+	});
+
+	it('stays quiet when the D1 named only by the deploy config cannot be read', async () => {
+		const live = liveZone(zone, {
+			queryD1: async () => {
+				throw new Error('HTTP 404: database not found');
+			}
+		});
+		const { ctx, report } = testContext({ cf: live.cf });
+		const recovered = await recoverSubdomainSettings(ctx, install, {
+			...NO_DEFAULTS,
+			d1Id: 'placeholder'
+		});
+		expect(recovered).toBeNull();
+		expect(report.warnings).toEqual([]);
+	});
+
+	it('reads the D1 named by the deploy config when the manifest has no D1 yet', async () => {
+		const asked: string[] = [];
+		const live = liveZone(zone, {
+			queryD1: async (id) => {
+				asked.push(id);
+				return recordedRow(true);
+			}
+		});
+		const { ctx } = testContext({ cf: live.cf });
+		const recovered = await recoverSubdomainSettings(ctx, install, {
+			...NO_DEFAULTS,
+			d1Id: 'from-config'
+		});
+		expect(asked).toEqual(['from-config']);
+		expect(recovered?.isActive).toBe(true);
+	});
+
+	it('falls back to the manifest alone before migration 0035, and says so when recording', async () => {
+		const notMigrated = async () => {
+			throw new Error('D1_ERROR: no such column: subdomains: SQLITE_ERROR');
+		};
+		const reading = testContext({ cf: liveZone(zone, { queryD1: notMigrated }).cf });
+		expect(await recoverSubdomainSettings(reading.ctx, withD1, NO_DEFAULTS)).toBeNull();
+		expect(reading.report.warnings).toEqual([]);
+
+		const manifest: Manifest = {
+			...withD1,
+			subdomains: {
+				zone: HEX_ZONE,
+				reservedLabels: [],
+				appHost: null,
+				dnsRecordId: RECORD_ID,
+				exclusionRoutes: [],
+				isActive: true
+			}
+		};
+		const live = liveZone(zone, { ...accessAppsWith([]), queryD1: notMigrated });
+		const exec = fakeExec([{ match: 'node scripts/deploy-config.mjs', stdout: '' }]);
+		const { ctx, report } = testContext({ cf: live.cf, fs: withInstall(manifest), exec });
+		const result = await runSubdomains(
+			ctx,
+			{ isPlanOnly: false, isOff: true },
+			YES,
+			NO_ASKER as Asker,
+			presenter
+		);
+		expect(result.isApplied).toBe(true);
+		expect(report.warnings.some((w) => w.includes('migration 0035'))).toBe(true);
 	});
 });
