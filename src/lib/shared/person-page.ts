@@ -141,6 +141,9 @@ export interface ChangeEntryDto {
 	/** Epoch milliseconds. */
 	createdAt: number;
 	isUndo: boolean;
+	isUndone: boolean;
+	/** Whether the viewer may undo it now (ADR-068); decided on the server. */
+	canUndo: boolean;
 }
 
 interface PersonPrivacyDto {

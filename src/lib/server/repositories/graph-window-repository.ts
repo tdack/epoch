@@ -74,6 +74,10 @@ export interface ChangeHistoryRow {
 	/** Epoch milliseconds. */
 	createdAt: number;
 	revertsChangeId: string | null;
+	/** Whether the row carries an inverse, so it could be undone at all (ADR-068). */
+	hasInverse: boolean;
+	/** Whether an undo row already reverts it. */
+	isUndone: boolean;
 }
 
 /**
@@ -258,7 +262,9 @@ export class GraphWindowRepository {
 				summary: changeLog.summary,
 				actorId: changeLog.actorId,
 				createdAt: changeLog.createdAt,
-				revertsChangeId: changeLog.revertsChangeId
+				revertsChangeId: changeLog.revertsChangeId,
+				hasInverse: sql<boolean>`${changeLog.inverseJson} is not null`,
+				isUndone: sql<boolean>`exists (select 1 from change_log u where u.reverts_change_id = ${changeLog.id})`
 			})
 			.from(changeLogRecords)
 			.innerJoin(changeLog, eq(changeLogRecords.changeId, changeLog.id))
@@ -283,7 +289,12 @@ export class GraphWindowRepository {
 		)) as unknown as Array<Array<Omit<ChangeHistoryRow, 'createdAt'> & { createdAt: Date }>>;
 		const byId = new Map<string, ChangeHistoryRow>();
 		for (const row of results.flat())
-			byId.set(row.id, { ...row, createdAt: row.createdAt.getTime() });
+			byId.set(row.id, {
+				...row,
+				createdAt: row.createdAt.getTime(),
+				hasInverse: Boolean(row.hasInverse),
+				isUndone: Boolean(row.isUndone)
+			});
 		return [...byId.values()].sort((a, b) => b.seq - a.seq).slice(0, limit);
 	}
 

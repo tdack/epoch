@@ -673,6 +673,9 @@ const taskDueSchema = z
 	.nullable();
 
 /** A task as the form sends it: a title, and the optional rest; it may be about one record and one finding. */
+/** `POST /undo`: which change to reverse; absent means the caller's latest. */
+export const undoSchema = z.object({ changeId: z.string().min(1).optional() });
+
 export const taskCreateSchema = z.object({
 	title: taskTitleSchema,
 	details: taskDetailsSchema.default(null),

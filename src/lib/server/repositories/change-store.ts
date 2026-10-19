@@ -5,8 +5,19 @@
  * in the server writes the mutable tree tables outside an import.
  */
 
-import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import {
+	and,
+	desc,
+	eq,
+	getTableColumns,
+	gt,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	sql
+} from 'drizzle-orm';
+import { alias, type SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
 import {
 	changeLog,
@@ -402,6 +413,100 @@ export class ChangeStore {
 			inverse: row.inverseJson ? (JSON.parse(row.inverseJson) as RowOp[]) : null,
 			revertsChangeId: row.revertsChangeId
 		};
+	}
+
+	/** One change of this tree by id, with its inverse. Another tree's id is not found. */
+	async getById(treeId: string, changeId: string): Promise<LoggedChange | null> {
+		const row = await this.db
+			.select()
+			.from(changeLog)
+			.where(and(eq(changeLog.treeId, treeId), eq(changeLog.id, changeId)))
+			.get();
+		return row ? this.toLogged(row) : null;
+	}
+
+	/** The undo row that reverts this change, or null if it has not been undone. */
+	async undoRowOf(changeId: string) {
+		const row = await this.db
+			.select({ id: changeLog.id, actorId: changeLog.actorId, createdAt: changeLog.createdAt })
+			.from(changeLog)
+			.where(eq(changeLog.revertsChangeId, changeId))
+			.get();
+		return row ? { ...row, createdAt: row.createdAt.getTime() } : null;
+	}
+
+	/**
+	 * One page of the audit log, newest first (ADR-068). `beforeSeq` is a keyset cursor: `seq` is
+	 * the order the log is read in and never repeats, so a page never skips or doubles an entry
+	 * when changes arrive between requests. One extra row is read so the caller can tell whether
+	 * an older page exists.
+	 */
+	async auditPage(
+		treeId: string,
+		options: { beforeSeq?: number | null; recordId?: string | null; limit: number }
+	) {
+		const undo = alias(changeLog, 'undo');
+		const rows = await this.db
+			.select({
+				id: changeLog.id,
+				seq: changeLog.seq,
+				actorId: changeLog.actorId,
+				kind: changeLog.kind,
+				summary: changeLog.summary,
+				createdAt: changeLog.createdAt,
+				revertsChangeId: changeLog.revertsChangeId,
+				changesJson: changeLog.changesJson,
+				hasInverse: sql<boolean>`${changeLog.inverseJson} is not null`,
+				undoneActorId: undo.actorId,
+				undoneAt: undo.createdAt
+			})
+			.from(changeLog)
+			.leftJoin(undo, eq(undo.revertsChangeId, changeLog.id))
+			.where(
+				and(
+					eq(changeLog.treeId, treeId),
+					options.beforeSeq == null ? undefined : lt(changeLog.seq, options.beforeSeq),
+					options.recordId
+						? sql`exists (select 1 from change_log_records r where r.change_id = ${changeLog.id} and r.entity_id = ${options.recordId})`
+						: undefined
+				)
+			)
+			.orderBy(desc(changeLog.seq))
+			.limit(options.limit + 1)
+			.all();
+		return {
+			rows: rows.slice(0, options.limit).map((row) => ({
+				id: row.id,
+				seq: row.seq,
+				actorId: row.actorId,
+				kind: row.kind,
+				summary: row.summary,
+				createdAt: row.createdAt.getTime(),
+				isUndo: row.revertsChangeId !== null,
+				hasInverse: Boolean(row.hasInverse),
+				isUndone: row.undoneAt !== null,
+				undoneActorId: row.undoneActorId,
+				undoneAt: row.undoneAt?.getTime() ?? null,
+				changes: JSON.parse(row.changesJson) as RecordChange[]
+			})),
+			hasMore: rows.length > options.limit
+		};
+	}
+
+	/** Which of these people and partnerships still exist in the tree, so the log links only those. */
+	async existingRecordIds(treeId: string, ids: readonly string[]): Promise<Set<string>> {
+		const found = new Set<string>();
+		for (const part of chunkIds([...new Set(ids)], 80)) {
+			for (const table of [individuals, unions]) {
+				const rows = await this.db
+					.select({ id: table.id })
+					.from(table)
+					.where(and(eq(table.treeId, treeId), inArray(table.id, part)))
+					.all();
+				for (const row of rows) found.add(row.id);
+			}
+		}
+		return found;
 	}
 
 	/** The actor's newest change in the tree that can be undone and has not been. */
