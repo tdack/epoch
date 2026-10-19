@@ -46,6 +46,7 @@ import {
 import { type RecordChange } from '../../shared/impact';
 import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
 import { placeKey } from '../../shared/places';
+import { chunkIds } from './param-chunks';
 import { placeIdOfEvent } from './place-repository';
 
 const TABLES: Record<RecordTable, SQLiteTable> = {
@@ -276,7 +277,7 @@ export class ChangeStore {
 				revertsChangeId: input.revertsChangeId ?? null,
 				correlationId: input.correlationId ?? null
 			}),
-			...chunk(recordsOf(applied), RECORDS_PER_INSERT).map((refs) =>
+			...chunkIds(recordsOf(applied), RECORDS_PER_INSERT).map((refs) =>
 				db.insert(changeLogRecords).values(refs.map((ref) => ({ changeId, ...ref })))
 			)
 		];
@@ -342,7 +343,7 @@ export class ChangeStore {
 				.values({ id: crypto.randomUUID(), treeId, nameKey: key, createdAt: new Date() })
 				.onConflictDoNothing()
 		);
-		const points = chunk(written, PLACE_IDS_PER_UPDATE).map((group) =>
+		const points = chunkIds(written, PLACE_IDS_PER_UPDATE).map((group) =>
 			db
 				.update(events)
 				.set({ placeId: placeIdOfEvent })
@@ -439,7 +440,7 @@ export class ChangeStore {
 		// D1 binds at most 100 variables a statement and a change can name hundreds of records (a place
 		// rename does), so ask a chunk at a time and keep the earliest answer.
 		let first: { summary: string; seq: number } | null = null;
-		for (const part of chunk(refs, 80)) {
+		for (const part of chunkIds(refs, 80)) {
 			const row = await this.db
 				.select({ summary: changeLog.summary, seq: changeLog.seq })
 				.from(changeLog)
@@ -474,7 +475,7 @@ export class ChangeStore {
 			// Every table in TABLES has an `id` column; the generic SQLiteTable type cannot say so.
 			const idColumn = (table as unknown as { id: never }).id;
 			const treeColumn = treeColumnOf(table);
-			for (const part of chunk(ids, 90)) {
+			for (const part of chunkIds(ids)) {
 				const isInTree = treeColumn
 					? and(inArray(idColumn, part), eq(treeColumn, treeId))
 					: inArray(idColumn, part);
@@ -503,12 +504,6 @@ export class ChangeStore {
 			.limit(limit)
 			.all();
 	}
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-	const parts: T[][] = [];
-	for (let i = 0; i < items.length; i += size) parts.push(items.slice(i, i + size));
-	return parts;
 }
 
 const GUARD_FAILURE = /NOT NULL constraint failed: change_log\./;

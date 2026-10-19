@@ -12,6 +12,7 @@
  * window costs a few round trips per generation rather than a dozen.
  */
 
+import { chunkIds } from './param-chunks';
 import { and, asc, count, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
@@ -84,14 +85,6 @@ export interface ChangeHistoryRow {
  */
 export const inTree = (column: SQLiteColumn, treeId: string) => sql`+${column} = ${treeId}`;
 
-function chunked<T>(items: readonly T[]): T[][] {
-	const unique = [...new Set(items)];
-	const chunks: T[][] = [];
-	for (let i = 0; i < unique.length; i += IDS_PER_QUERY)
-		chunks.push(unique.slice(i, i + IDS_PER_QUERY));
-	return chunks;
-}
-
 function ranked<T>(
 	table: SQLiteTable,
 	rows: Array<Record<string, unknown> & { rid: number }>
@@ -135,7 +128,7 @@ export class GraphWindowRepository {
 		build: (chunk: Id[]) => BatchItem<'sqlite'>
 	): Read<Array<Ranked<T>>> {
 		return {
-			queries: chunked(ids).map(build),
+			queries: chunkIds([...new Set(ids)], IDS_PER_QUERY).map(build),
 			finish: (results) =>
 				ranked<T>(table, results.flat() as Array<Record<string, unknown> & { rid: number }>)
 		};
@@ -280,7 +273,7 @@ export class GraphWindowRepository {
 		entityIds: readonly string[],
 		limit: number
 	): Promise<ChangeHistoryRow[]> {
-		const chunks = chunked(entityIds);
+		const chunks = chunkIds([...new Set(entityIds)], IDS_PER_QUERY);
 		if (chunks.length === 0) return [];
 		const results = (await this.db.batch(
 			chunks.map((chunk) => this.changeHistoryQuery(treeId, chunk, limit)) as [
@@ -301,7 +294,7 @@ export class GraphWindowRepository {
 	 */
 	async actorNames(treeId: string, userIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
-		for (const chunk of chunked(userIds)) {
+		for (const chunk of chunkIds([...new Set(userIds)], IDS_PER_QUERY)) {
 			for (const row of await this.db
 				.select({ id: users.id, name: users.name, email: users.email })
 				.from(users)

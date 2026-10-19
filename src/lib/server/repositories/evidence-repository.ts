@@ -4,6 +4,7 @@
  * the viewer may see; a person's or partnership's citations come in one batch of bounded reads.
  */
 
+import { chunkIds } from './param-chunks';
 import { and, asc, eq, getTableColumns, inArray, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import {
@@ -33,17 +34,6 @@ export interface PageRequest {
 	offset: number;
 	limit: number;
 }
-
-/** Ids per `IN (...)`, under D1's 100 bound parameters with the tree id and filters. */
-const IDS_PER_QUERY = 80;
-const CITATION_COUNT_IDS_PER_QUERY = 50;
-
-const chunksOf = <T>(items: readonly T[], size = IDS_PER_QUERY): T[][] => {
-	const unique = [...new Set(items)];
-	const chunks: T[][] = [];
-	for (let i = 0; i < unique.length; i += size) chunks.push(unique.slice(i, i + size));
-	return chunks;
-};
 
 /** `%` and `_` in a search are the text, not wildcards. */
 const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -80,7 +70,7 @@ export class EvidenceRepository {
 
 	async sourcesByIds(treeId: string, ids: readonly string[]): Promise<SourceRow[]> {
 		const out: SourceRow[] = [];
-		for (const chunk of chunksOf(ids)) {
+		for (const chunk of chunkIds([...new Set(ids)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(sources)
@@ -113,7 +103,7 @@ export class EvidenceRepository {
 		const counts = new Map<string, number>();
 		// Not the 80-id default: the visibility fragment binds about 25 parameters with a creator test,
 		// so 80 ids pass D1's limit of 100 for a contributor (found by the F12 to F18 review).
-		for (const chunk of chunksOf(sourceIds, CITATION_COUNT_IDS_PER_QUERY)) {
+		for (const chunk of chunkIds([...new Set(sourceIds)], 50)) {
 			const rows = await this.db
 				.select({ sourceId: citations.sourceId, n: sql<number>`count(*)` })
 				.from(citations)
@@ -179,7 +169,7 @@ export class EvidenceRepository {
 
 	async repositoriesByIds(treeId: string, ids: readonly string[]): Promise<RepositoryRow[]> {
 		const out: RepositoryRow[] = [];
-		for (const chunk of chunksOf(ids)) {
+		for (const chunk of chunkIds([...new Set(ids)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(repositories)
@@ -197,7 +187,7 @@ export class EvidenceRepository {
 		scope: Scope
 	): Promise<Map<string, number>> {
 		const counts = new Map<string, number>();
-		for (const chunk of chunksOf(repositoryIds)) {
+		for (const chunk of chunkIds([...new Set(repositoryIds)], 80)) {
 			const rows = await this.db.all<{ id: string; n: number }>(
 				sql`${withVisiblePeople(treeId, scope)}select l.repository_id as id, count(distinct l.source_id) as n from source_repositories l join sources s on s.id = l.source_id where s.tree_id = ${treeId} and l.repository_id in (${sql.join(
 					chunk.map((id) => sql`${id}`),
@@ -212,7 +202,7 @@ export class EvidenceRepository {
 	/** Citations by id, as the mutation snapshot has them, for naming what a note on one is about. */
 	async citationsByIds(treeId: string, ids: readonly string[]): Promise<CitationRow[]> {
 		const out: CitationRow[] = [];
-		for (const chunk of chunksOf(ids)) {
+		for (const chunk of chunkIds([...new Set(ids)], 80)) {
 			const rows = await this.db
 				.select()
 				.from(citations)
@@ -366,7 +356,7 @@ export class EvidenceRepository {
 	/** Every id-and-subject of the citations whose source or subject a page names, for resolving labels. */
 	async namesByIds(treeId: string, ids: readonly string[]) {
 		const out: Array<typeof personNames.$inferSelect> = [];
-		for (const chunk of chunksOf(ids))
+		for (const chunk of chunkIds([...new Set(ids)], 80))
 			out.push(
 				...(await this.db
 					.select(getTableColumns(personNames))
@@ -380,7 +370,7 @@ export class EvidenceRepository {
 
 	async eventsByIds(treeId: string, ids: readonly string[]) {
 		const out: Array<typeof events.$inferSelect> = [];
-		for (const chunk of chunksOf(ids))
+		for (const chunk of chunkIds([...new Set(ids)], 80))
 			out.push(
 				...(await this.db
 					.select()
@@ -393,7 +383,7 @@ export class EvidenceRepository {
 
 	async linksByIds(treeId: string, ids: readonly string[]) {
 		const out: Array<typeof parentChild.$inferSelect> = [];
-		for (const chunk of chunksOf(ids))
+		for (const chunk of chunkIds([...new Set(ids)], 80))
 			out.push(
 				...(await this.db
 					.select()

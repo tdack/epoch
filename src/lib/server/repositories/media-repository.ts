@@ -3,6 +3,7 @@
  * `media/<treeId>/<entityId>/<file>`); who a file belongs to is `media_items.entity_id`, never the key.
  */
 
+import { chunkIds } from './param-chunks';
 import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
@@ -31,16 +32,6 @@ export interface StoredMedia {
 	mimeType: string;
 	sizeBytes: number;
 	uploadedBy: string;
-}
-
-/** D1 caps bound parameters per statement at 100; a lookup by id list stays under it. */
-const IDS_PER_QUERY = 90;
-
-function chunks<T>(values: readonly T[]): T[][] {
-	const parts: T[][] = [];
-	for (let i = 0; i < values.length; i += IDS_PER_QUERY)
-		parts.push(values.slice(i, i + IDS_PER_QUERY));
-	return parts;
 }
 
 /** A position in the Files listing: the newest-first key of the last row scanned. */
@@ -89,7 +80,7 @@ export class MediaRepository {
 		ids: readonly string[]
 	): Promise<Map<string, MediaOwnerKind>> {
 		const kinds = new Map<string, MediaOwnerKind>();
-		for (const part of chunks([...new Set(ids)])) {
+		for (const part of chunkIds([...new Set(ids)])) {
 			const people = await this.db
 				.select({ id: individuals.id })
 				.from(individuals)
@@ -115,7 +106,7 @@ export class MediaRepository {
 	/** The partners of each partnership, in partner order, for the partnerships that have any. */
 	async partnersOf(unionIds: readonly string[]): Promise<Map<string, string[]>> {
 		const partners = new Map<string, string[]>();
-		for (const part of chunks([...new Set(unionIds)])) {
+		for (const part of chunkIds([...new Set(unionIds)])) {
 			const rows = await this.db
 				.select({ unionId: unionPartners.unionId, personId: unionPartners.personId })
 				.from(unionPartners)
@@ -131,7 +122,7 @@ export class MediaRepository {
 	/** Display names of people in the tree, keyed by person id. */
 	async personNamesOf(treeId: string, personIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
-		for (const part of chunks([...new Set(personIds)])) {
+		for (const part of chunkIds([...new Set(personIds)])) {
 			const people = await this.db
 				.select()
 				.from(individuals)
@@ -153,7 +144,7 @@ export class MediaRepository {
 	/** How many files hang off each of these records, for the ones that have any. */
 	async fileCountsOf(treeId: string, entityIds: readonly string[]): Promise<Map<string, number>> {
 		const counts = new Map<string, number>();
-		for (const part of chunks([...new Set(entityIds)])) {
+		for (const part of chunkIds([...new Set(entityIds)])) {
 			const rows = await this.db
 				.select({ entityId: mediaItems.entityId, n: count() })
 				.from(mediaItems)
@@ -168,7 +159,7 @@ export class MediaRepository {
 	/** Titles of sources in the tree, keyed by source id, for naming what a file hangs off. */
 	async sourceTitlesOf(treeId: string, sourceIds: readonly string[]): Promise<Map<string, string>> {
 		const titles = new Map<string, string>();
-		for (const part of chunks([...new Set(sourceIds)])) {
+		for (const part of chunkIds([...new Set(sourceIds)])) {
 			const rows = await this.db
 				.select()
 				.from(sources)
@@ -182,7 +173,7 @@ export class MediaRepository {
 	/** Display names of the users who uploaded files, keyed by user id; a user with no name shows their email. */
 	async uploaderNamesOf(userIds: readonly string[]): Promise<Map<string, string>> {
 		const names = new Map<string, string>();
-		for (const part of chunks([...new Set(userIds)])) {
+		for (const part of chunkIds([...new Set(userIds)])) {
 			const rows = await this.db
 				.select({ id: users.id, name: users.name, email: users.email })
 				.from(users)
