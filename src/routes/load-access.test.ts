@@ -212,7 +212,6 @@ async function statusOf(
 }
 
 const loads = Object.entries(EXPECTED);
-const treeLoads = loads.filter(([, e]) => e.isTree);
 
 describe('the table covers every server load', () => {
 	it('names each load on disk, and none that is gone', () => {
@@ -318,10 +317,9 @@ const LENS_READS: Array<[string, object, string, (args: unknown[]) => unknown, s
 
 describe.each(LENS_READS)('%s: the sub-tree lens', (route, prototype, method, rootOf, search) => {
 	it(`hands ${method} the lens's root person, and null without one`, async () => {
-		const spy = vi
-			.spyOn(prototype as Record<string, never>, method as never)
-			// What the services answer is not under test; only what the load asked them.
-			.mockResolvedValue({ tree: {}, subtree: null, person: {} } as never);
+		// What the services answer is not under test; only what the load asked them.
+		const spy = vi.spyOn(prototype as Record<string, () => unknown>, method);
+		spy.mockResolvedValue({ tree: {}, subtree: null, person: {} });
 		const run = (segment: string) =>
 			statusOf(route, people.owner!, paramsFor(route, privateId, segment), search);
 		await run(`${privateId}~rex-line`);
