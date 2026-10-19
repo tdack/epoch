@@ -47,6 +47,55 @@ describe('sniffMediaType', () => {
 		expect(sniffMediaType(bytesOf([0, 0, 0, 0x20], 'ftypavis'))).toBe('image/avif');
 	});
 
+	it('recognises HEIC brands as image/heic', () => {
+		for (const brand of ['heic', 'heix', 'hevc', 'heim', 'heis']) {
+			expect(sniffMediaType(bytesOf([0, 0, 0, 0x18], `ftyp${brand}`, [0, 0, 0, 0]))).toBe(
+				'image/heic'
+			);
+		}
+	});
+
+	it('treats a bare mif1 or msf1 file as image/heif', () => {
+		for (const brand of ['mif1', 'msf1']) {
+			expect(sniffMediaType(bytesOf([0, 0, 0, 0x18], `ftyp${brand}`, [0, 0, 0, 0], 'heic'))).toBe(
+				'image/heif'
+			);
+		}
+	});
+
+	it('treats a mif1 major brand listing avif as compatible as image/avif', () => {
+		expect(sniffMediaType(bytesOf([0, 0, 0, 0x1c], 'ftypmif1', [0, 0, 0, 0], 'miaf', 'avif'))).toBe(
+			'image/avif'
+		);
+	});
+
+	it('does not read compatible brands past the end of the ftyp box', () => {
+		expect(sniffMediaType(bytesOf([0, 0, 0, 0x14], 'ftypmif1', [0, 0, 0, 0], 'miaf', 'avif'))).toBe(
+			'image/heif'
+		);
+	});
+
+	it('rejects other ISO-BMFF brands such as video', () => {
+		expect(sniffMediaType(bytesOf([0, 0, 0, 0x18], 'ftypisom', [0, 0, 0, 0]))).toBeNull();
+	});
+
+	it('accepts HEIC and HEIF uploads with their own extensions', () => {
+		expect(validateMediaUpload('', bytesOf([0, 0, 0, 0x18], 'ftypheic', [0, 0, 0, 0]))).toEqual({
+			mimeType: 'image/heic',
+			extension: 'heic'
+		});
+		expect(validateMediaUpload('', bytesOf([0, 0, 0, 0x18], 'ftypmif1', [0, 0, 0, 0]))).toEqual({
+			mimeType: 'image/heif',
+			extension: 'heif'
+		});
+	});
+
+	it('serves HEIC and HEIF as downloads, never inline', () => {
+		const decision = mediaServeDecision('image/heic', 'media/t/abc.heic');
+		expect(decision.contentType).toBe('application/octet-stream');
+		expect(decision.contentDisposition).toContain('attachment');
+	});
+
 	it('recognises PDF at the start', () => {
 		expect(sniffMediaType(bytesOf('%PDF-1.7\n'))).toBe('application/pdf');
 	});

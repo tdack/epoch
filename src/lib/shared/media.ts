@@ -17,7 +17,18 @@ export const INLINE_MEDIA_TYPES = [
 
 export type InlineMediaType = (typeof INLINE_MEDIA_TYPES)[number];
 
-export const UPLOAD_MEDIA_TYPES = [...INLINE_MEDIA_TYPES, 'application/pdf'] as const;
+/**
+ * Accepted for upload but never served inline: most browsers cannot render HEIC/HEIF, so an `<img>`
+ * would show a broken image. They are stored and served as downloads, and the UI falls back to its
+ * no-preview icon, as it does for a PDF.
+ */
+export const DOWNLOAD_ONLY_IMAGE_TYPES = ['image/heic', 'image/heif'] as const;
+
+export const UPLOAD_MEDIA_TYPES = [
+	...INLINE_MEDIA_TYPES,
+	...DOWNLOAD_ONLY_IMAGE_TYPES,
+	'application/pdf'
+] as const;
 
 export type UploadMediaType = (typeof UPLOAD_MEDIA_TYPES)[number];
 
@@ -55,6 +66,8 @@ const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
 	'image/gif': 'gif',
 	'image/webp': 'webp',
 	'image/avif': 'avif',
+	'image/heic': 'heic',
+	'image/heif': 'heif',
 	'application/pdf': 'pdf'
 };
 

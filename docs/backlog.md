@@ -11,10 +11,6 @@ Last reviewed: 2026-10-15.
 
 ### Security and privacy
 
-- **A legitimate file sent with 64 KB or more of other form fields is refused** with a 413, because
-  the streaming bound adds only 64 KB of multipart slack above the 25 MB file cap. (ADR-039)
-- **HEIC and `mif1`-brand AVIF uploads are rejected.** The sniffer accepts ISO-BMFF only for the
-  `avif` and `avis` brands. Extend the sniff, or note the limit in the release notes. (ADR-039)
 - **Relationships through a private ancestor are hidden** from a restricted viewer with no sign they
   exist, when private people are omitted. Decide whether that is the intended behaviour. (ADR-015)
 - **`confidential` imports as private but exports as `privacy`.** The word is not kept. (ADR-015)

@@ -14,7 +14,7 @@ import {
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const PDF_MAGIC = '%PDF-';
-/** ISO-BMFF (AVIF) and PDF can carry leading bytes; see the matching code below. */
+/** PDF can carry leading bytes; see the matching code below. */
 const PDF_SEARCH_WINDOW = 1024;
 
 function startsWithBytes(bytes: Uint8Array, signature: readonly number[], offset = 0): boolean {
@@ -33,6 +33,45 @@ function matchesAscii(bytes: Uint8Array, text: string, offset = 0): boolean {
 	return true;
 }
 
+const AVIF_BRANDS = ['avif', 'avis'];
+const HEIC_BRANDS = ['heic', 'heix', 'hevc', 'heim', 'heis'];
+/** Generic image-sequence brands: the file is HEIF, or AVIF if `avif` is also listed as compatible. */
+const HEIF_GENERIC_BRANDS = ['mif1', 'msf1'];
+/** How many compatible brands to read; real files list a handful, so this only bounds the loop. */
+const MAX_COMPATIBLE_BRANDS = 32;
+
+function brandAt(bytes: Uint8Array, offset: number): string | null {
+	if (bytes.length < offset + 4) return null;
+	return String.fromCharCode(...bytes.subarray(offset, offset + 4));
+}
+
+/**
+ * Read the `ftyp` box: a major brand at 8, a minor version at 12, then compatible brands to the end
+ * of the box. A `mif1` major brand says only "HEIF structure", so AVIF is told apart by `avif`
+ * among the compatible brands.
+ */
+function sniffIsoBmffImage(bytes: Uint8Array): string | null {
+	if (!matchesAscii(bytes, 'ftyp', 4)) return null;
+	const major = brandAt(bytes, 8);
+	if (major === null) return null;
+	if (AVIF_BRANDS.includes(major)) return 'image/avif';
+	if (HEIC_BRANDS.includes(major)) return 'image/heic';
+	if (!HEIF_GENERIC_BRANDS.includes(major)) return null;
+
+	const boxEnd = Math.min(
+		bytes.length,
+		((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0
+	);
+	for (
+		let i = 0, offset = 16;
+		i < MAX_COMPATIBLE_BRANDS && offset + 4 <= boxEnd;
+		i++, offset += 4
+	) {
+		if (AVIF_BRANDS.includes(brandAt(bytes, offset) ?? '')) return 'image/avif';
+	}
+	return 'image/heif';
+}
+
 /**
  * Identify a file from its magic bytes alone, returning null when nothing matches. The declared
  * type and filename are attacker-controlled, so they never participate.
@@ -42,11 +81,8 @@ export function sniffMediaType(bytes: Uint8Array): string | null {
 	if (startsWithBytes(bytes, PNG_SIGNATURE)) return 'image/png';
 	if (matchesAscii(bytes, 'GIF87a') || matchesAscii(bytes, 'GIF89a')) return 'image/gif';
 	if (matchesAscii(bytes, 'RIFF') && matchesAscii(bytes, 'WEBP', 8)) return 'image/webp';
-	if (
-		matchesAscii(bytes, 'ftyp', 4) &&
-		(matchesAscii(bytes, 'avif', 8) || matchesAscii(bytes, 'avis', 8))
-	)
-		return 'image/avif';
+	const isoImageType = sniffIsoBmffImage(bytes);
+	if (isoImageType) return isoImageType;
 
 	// A PDF may carry a byte-order mark or leading whitespace, so its magic is searched, not assumed first.
 	const limit = Math.min(bytes.length, PDF_SEARCH_WINDOW);
