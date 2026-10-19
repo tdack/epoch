@@ -69,7 +69,7 @@ test('a place is renamed, merged into another and put back with one undo each', 
 	await expect(page).toHaveURL(/name=Cork$/);
 	await expect(page.getByTestId('place-facts').getByRole('listitem')).toHaveCount(2);
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page).toHaveURL(/name=Corke$/);
 	await expect(page.getByTestId('place-facts').getByRole('listitem')).toHaveCount(1);
 });

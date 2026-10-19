@@ -14,6 +14,7 @@
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
 	import type { PageData } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import ChangeList from '#lib/components/person/ChangeList.svelte';
 
 	interface Props {
 		data: PageData;
@@ -347,22 +348,13 @@
 			{#if dto.union.xrefAliases.length > 0}<p class="mt-1 text-xs text-stone-500">
 					Merged from {dto.union.xrefAliases.join(', ')}
 				</p>{/if}
-			{#if dto.changes.recent.length === 0}
-				<p class="mt-2 text-xs text-stone-500 italic">
-					No changes are logged for this partnership. Imported records have no history.
-				</p>
-			{:else}
-				<ul class="mt-2 space-y-1.5 text-xs" data-testid="history">
-					{#each dto.changes.recent as change (change.id)}
-						<li>
-							<span class="font-medium text-stone-800">{change.summary}</span>
-							<span class="block text-stone-500"
-								>{change.actorName ?? 'Someone'} · {when(change.createdAt)}</span
-							>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			<ChangeList
+				changes={dto.changes.recent}
+				recordId={dto.union.id}
+				tree={data.summary.tree}
+				{editor}
+				emptyText="No changes are logged for this partnership. Imported records have no history."
+			/>
 		</section>
 	</div>
 </div>

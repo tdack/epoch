@@ -37,7 +37,7 @@ test('a person keeps two conflicting births, edits one, and undo restores it', a
 	await expect(facts.nth(1)).toContainText('York');
 
 	// Undo from the toast restores the second and leaves the first alone.
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(facts.nth(1)).toContainText('Hull');
 	await expect(facts.nth(0)).toContainText('Leeds');
 });
@@ -59,7 +59,7 @@ test('removing a fact lists what goes, and undo brings it back', async ({ page, 
 	await confirm.getByRole('button', { name: 'Remove fact' }).click();
 	await expect(page.getByTestId('fact')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page.locator('[data-section="glance"]')).toContainText('Occupation');
 	await expect(page.getByTestId('fact')).toContainText('Carpenter');
 });
@@ -166,7 +166,7 @@ test('a fact keeps its address and agency, and an edit to the address is undone'
 	await expect(edit).toBeHidden();
 	await expect(fact.getByTestId('fact-address')).toContainText('14 High St');
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(fact.getByTestId('fact-address')).toContainText('12 High St');
 	await expect(fact.getByTestId('fact-address')).not.toContainText('14 High St');
 });

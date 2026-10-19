@@ -84,7 +84,7 @@ test('merging duplicate partnerships from the union menu previews the change, th
 		page.locator('[data-union-id][aria-label*="Bartholomew"][aria-label*="Jessica"]')
 	).toHaveCount(1);
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect.poll(async () => (await api.graph()).unions.length).toBe(10);
 });
 

@@ -17,7 +17,7 @@ test('undo from the toast reverts the change', async ({ page, api }) => {
 	await expect(toast).toBeVisible();
 	expect((await api.graph()).unions).toHaveLength(1);
 
-	await toast.getByRole('button', { name: 'Undo' }).click();
+	await toast.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page.getByRole('status').filter({ hasText: 'Undid:' })).toBeVisible();
 	expect((await api.graph()).unions).toHaveLength(0);
 	expect(b.id).toBeTruthy();
@@ -52,7 +52,7 @@ test('a refused undo tells the person why', async ({ page, api }) => {
 	await page
 		.getByRole('status')
 		.filter({ hasText: 'Edited Ann' })
-		.getByRole('button', { name: 'Undo' })
+		.getByRole('button', { name: 'Undo', exact: true })
 		.click();
 	await expect(page.getByRole('alert').filter({ hasText: "Can't undo" })).toBeVisible();
 });

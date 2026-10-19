@@ -125,7 +125,7 @@
 
 {#snippet history()}
 	<PersonSection id="history" title="History" {layout} {isFlush}
-		><PersonHistory {dto} /></PersonSection
+		><PersonHistory {dto} tree={{ id: treeId, slug: treeSlug }} {editor} /></PersonSection
 	>
 {/snippet}
 

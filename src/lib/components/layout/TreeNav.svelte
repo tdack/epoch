@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChevronDown, LogOut, Settings } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+	import { canChangeRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import { hasTreesPage } from '#lib/shared/trees-page.js';
 
@@ -85,6 +85,10 @@
 						isActive: startsWith(`${base}/files`)
 					}
 				]
+			: []),
+		// The log names whoever a change touched, so only roles that see every record read it (ADR-068).
+		...(canChangeRecords(role) && !isOutsider
+			? [{ href: `${base}/audit`, label: 'Audit log', isActive: startsWith(`${base}/audit`) }]
 			: []),
 		...(isManagerOrAbove(role)
 			? [

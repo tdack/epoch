@@ -119,7 +119,7 @@ test('the trash button on a partner asks what happened; "not a partner" previews
 	await expect
 		.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id)))
 		.toBe(false);
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect
 		.poll(async () => (await api.graph()).unions.some((u) => u.partnerIds.includes(dad.id)))
 		.toBe(true);

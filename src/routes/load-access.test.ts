@@ -39,8 +39,8 @@ interface LoadModule {
  * did not, and `not-theirs` where the page is a 404 for the visitor before it reads anything.
  */
 type Visitor = 'open' | 'closed' | 'not-theirs';
-/** `manager` where the service needs more than a viewer (`tree:manage_members`, `tree:update_settings`). */
-type Needs = 'viewer' | 'manager';
+/** `manager` or `editor` where the service needs more than a viewer (`tree:manage_members`, `record:edit`). */
+type Needs = 'viewer' | 'editor' | 'manager';
 
 interface Expected {
 	visitor: Visitor;
@@ -51,6 +51,7 @@ interface Expected {
 
 const TREE: Expected = { visitor: 'open', needs: 'viewer', isTree: true };
 const CLOSED: Expected = { visitor: 'closed', needs: 'viewer', isTree: true };
+const EDITOR: Expected = { visitor: 'closed', needs: 'editor', isTree: true };
 const MANAGER: Expected = { visitor: 'closed', needs: 'manager', isTree: true };
 const NOT_THEIRS: Expected = { visitor: 'not-theirs', needs: 'viewer', isTree: true };
 const ROOT: Expected = { visitor: 'open', needs: 'viewer', isTree: false };
@@ -79,6 +80,7 @@ const EXPECTED: Record<string, Expected> = {
 	'./trees/[id]/sources/[sourceId]/+page.server.ts': TREE,
 	'./trees/[id]/tasks/+page.server.ts': CLOSED,
 	'./trees/[id]/quality/+page.server.ts': CLOSED,
+	'./trees/[id]/audit/+page.server.ts': EDITOR,
 	'./trees/[id]/members/+page.server.ts': MANAGER,
 	'./trees/[id]/privacy/+page.server.ts': MANAGER,
 	'./trees/[id]/files/+page.server.ts': NOT_THEIRS,
@@ -274,7 +276,10 @@ describe.each(loads)('%s', (route, expected) => {
 	it.runIf(expected.isTree)('asks for the role the service needs, and no more', async () => {
 		const isRefused = async (who: string) =>
 			(await statusOf(route, people[who]!, paramsFor(route, privateId))).status === 403;
-		if (expected.needs === 'manager') {
+		if (expected.needs === 'editor') {
+			expect(await isRefused('viewer')).toBe(true);
+			expect(await isRefused('editor')).toBe(false);
+		} else if (expected.needs === 'manager') {
 			expect(await isRefused('viewer')).toBe(true);
 			expect(await isRefused('editor')).toBe(true);
 			expect(await isRefused('manager')).toBe(false);
