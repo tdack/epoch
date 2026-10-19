@@ -4,6 +4,7 @@ export const DEMO_URL = 'https://demo.epochgenealogy.app';
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';
+export const LICENSE_URL = 'https://github.com/tdack/epoch/blob/main/LICENSE';
 export const SITE_URL = 'https://www.epochgenealogy.app';
 
 /** The app's own tagline (PRODUCT.md, Brand Commitments); keep it word for word. */
@@ -217,6 +218,14 @@ export const FAQS: Faq[] = [
 		question: 'Can I leave, or take the data with me?',
 		answer: [
 			'Export the whole tree as GEDCOM 5.5.1 or 7.0 at any time. If you stop using Epoch, `./setup teardown` deletes only what setup created.'
+		]
+	},
+	{
+		question: 'Is it open source?',
+		answer: [
+			'Yes. Epoch is licensed under the [GNU Affero General Public License, version 3 or later](' +
+				LICENSE_URL +
+				').'
 		]
 	},
 	{
