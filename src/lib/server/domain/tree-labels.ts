@@ -148,7 +148,8 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				return `${eventLabel(row.type)}${detail} of ${owner}`;
 			}
 			case 'media_items': {
-				if (row.entityId === null) return 'Unattached file';
+				if (row.entityId === null)
+					return row.title ? `Unattached file “${row.title.slice(0, 60)}”` : 'Unattached file';
 				const owningSource = known.sources.find((s) => s.id === row.entityId);
 				if (owningSource) return `Attachment of source “${sourceLabel(owningSource)}”`;
 				const isPartnership = known.unions.some((u) => u.id === row.entityId);

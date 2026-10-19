@@ -93,6 +93,10 @@ export const sourceRepositories = sqliteTable(
 	'source_repositories',
 	{
 		id: text('id').primaryKey(),
+		// Denormalised from the parent so ChangeStore can scope writes to the tree. Nullable: rows written
+		// by code older than migration 0036 have none until backfilled, and the change store treats a
+		// null as "own row" so they stay editable. Not part of the logged row image (see PersonNameRow).
+		treeId: text('tree_id').references(() => trees.id, { onDelete: 'cascade' }),
 		sourceId: text('source_id')
 			.notNull()
 			.references(() => sources.id, { onDelete: 'cascade' }),

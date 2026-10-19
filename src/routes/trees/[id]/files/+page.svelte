@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { isConflict } from '#lib/api/client.js';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import {
 		ArrowRightLeft,
@@ -173,6 +174,13 @@
 		dialog = null;
 	}
 
+	/** The row moved on under the dialog: close it and reload so the next try carries the new version. */
+	async function handleStale(message: string) {
+		dialog = null;
+		await reload();
+		toasts.push(`${message} Review the file and try again.`, { tone: 'error', durationMs: 10_000 });
+	}
+
 	/** Runs one change: a failure stays in the dialog, a success closes it and reloads. */
 	async function run(work: () => Promise<unknown>, done: string) {
 		if (isBusy) return;
@@ -184,6 +192,7 @@
 			toasts.push(done);
 			await reload();
 		} catch (cause) {
+			if (isConflict(cause)) return handleStale(cause.message);
 			dialogError = messageOf(cause, 'That did not work');
 		} finally {
 			isBusy = false;
@@ -201,7 +210,7 @@
 		event.preventDefault();
 		const file = target!;
 		void run(
-			() => renameFileApi(file.id, file.treeId, renameTitle.trim(), undefined),
+			() => renameFileApi(file.id, file.treeId, renameTitle.trim(), file.version),
 			'File renamed'
 		);
 	}
@@ -210,14 +219,14 @@
 		const file = target!;
 		const owner = chosenOwner;
 		if (!owner) return;
-		void run(() => attachFileApi(file.id, file.treeId, owner.id, undefined), 'File attached');
+		void run(() => attachFileApi(file.id, file.treeId, owner.id, file.version), 'File attached');
 	};
 
 	const moveTo = () => {
 		const file = target!;
 		const owner = chosenOwner;
 		if (!owner) return;
-		void run(() => moveFileApi(file.id, file.treeId, owner.id, undefined), 'File moved');
+		void run(() => moveFileApi(file.id, file.treeId, owner.id, file.version), 'File moved');
 	};
 
 	const removeFile = () => {
@@ -227,10 +236,11 @@
 
 	async function detach(file: FileRowDto) {
 		try {
-			await detachFileApi(file.id, file.treeId, undefined);
+			await detachFileApi(file.id, file.treeId, file.version);
 			toasts.push('File detached');
 			await reload();
 		} catch (cause) {
+			if (isConflict(cause)) return handleStale(cause.message);
 			toasts.push(messageOf(cause, 'Could not detach the file'), { tone: 'error' });
 		}
 	}

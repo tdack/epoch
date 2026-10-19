@@ -17,6 +17,7 @@ import {
 	EVERYONE_SHOWN_CUTOFF
 } from '../domain/living-state';
 import type { ViewerScope } from '../services/tree-access';
+import { chunkIds } from './param-chunks';
 
 /**
  * A list of event types as SQL literals. They are inline rather than bound because every visibility
@@ -80,22 +81,29 @@ export function andVisible(
 	return scope.isRestricted ? sql` and ${isVisibleSql(alias, scope)}` : sql``;
 }
 
-/** Which of these people exist in the tree and the viewer may see: a private person is exactly as absent as a missing one. */
+/**
+ * Which of these people exist in the tree and the viewer may see: a private person is exactly as
+ * absent as a missing one. Ids are chunked under D1's bound-parameter cap; the tree id and the
+ * restricted-scope cutoff and creator add three more, which the chunk size leaves room for.
+ */
 export async function visibleAmong(
 	db: DbClient,
 	treeId: string,
 	personIds: readonly string[],
 	scope: Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>
 ): Promise<Set<string>> {
-	if (personIds.length === 0) return new Set();
-	const ids = sql.join(
-		personIds.map((id) => sql`${id}`),
-		sql`, `
-	);
-	const rows = await db.all<{ id: string }>(
-		sql`select i.id as id from individuals i where i.tree_id = ${treeId} and i.id in (${ids})${andVisible('i', scope)}`
-	);
-	return new Set(rows.map((r) => r.id));
+	const visible = new Set<string>();
+	for (const part of chunkIds([...new Set(personIds)])) {
+		const ids = sql.join(
+			part.map((id) => sql`${id}`),
+			sql`, `
+		);
+		const rows = await db.all<{ id: string }>(
+			sql`select i.id as id from individuals i where i.tree_id = ${treeId} and i.id in (${ids})${andVisible('i', scope)}`
+		);
+		for (const row of rows) visible.add(row.id);
+	}
+	return visible;
 }
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -214,10 +222,9 @@ export async function visibleSourcesAmong(
 	scope: Scope
 ): Promise<Set<string>> {
 	const visible = new Set<string>();
-	const unique = [...new Set(sourceIds)];
-	for (let start = 0; start < unique.length; start += 90) {
+	for (const part of chunkIds([...new Set(sourceIds)])) {
 		const ids = sql.join(
-			unique.slice(start, start + 90).map((id) => sql`${id}`),
+			part.map((id) => sql`${id}`),
 			sql`, `
 		);
 		const rows = await db.all<{ id: string }>(

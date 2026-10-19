@@ -524,6 +524,47 @@ describe('editing files', () => {
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
 	});
 
+	it('lists a file with its current version, and refuses attach, detach and move from a stale one', async () => {
+		const detached = await fileOn(null, 'e-ver-a');
+		const attached = await fileOn(owners().pub, 'e-ver-b');
+		const listed = async (id: string) =>
+			(await service.list(ctxOf(editor), { treeId })).files.find((f) => f.id === id)!;
+		expect((await listed(detached)).version).toBe(1);
+		await service.rename(ctxOf(editor), {
+			treeId,
+			mediaId: detached,
+			title: 'N.png',
+			expectedVersion: 1
+		});
+		expect((await listed(detached)).version).toBe(2);
+		await expect(
+			service.attach(ctxOf(editor), {
+				treeId,
+				mediaId: detached,
+				entityId: owners().pub,
+				expectedVersion: 1
+			})
+		).rejects.toBeInstanceOf(ConcurrencyConflictError);
+		await service.rename(ctxOf(editor), {
+			treeId,
+			mediaId: attached,
+			title: 'M.png',
+			expectedVersion: 1
+		});
+		await expect(
+			service.detach(ctxOf(editor), { treeId, mediaId: attached, expectedVersion: 1 })
+		).rejects.toBeInstanceOf(ConcurrencyConflictError);
+		await expect(
+			service.move(ctxOf(editor), {
+				treeId,
+				mediaId: attached,
+				entityId: owners().other,
+				expectedVersion: 1
+			})
+		).rejects.toBeInstanceOf(ConcurrencyConflictError);
+		await service.detach(ctxOf(editor), { treeId, mediaId: attached, expectedVersion: 2 });
+	});
+
 	it('names a file in another tree as missing when asked through this tree', async () => {
 		await expect(
 			service.rename(ctxOf(editor), { treeId, mediaId: 'f-other', title: 'Nope.png' })

@@ -274,6 +274,7 @@ export function evidenceBackfillStatements(input: BackfillInput, now = new Date(
 						sourceRepositories,
 						sourceRepositoryRow(
 							crypto.randomUUID(),
+							treeId,
 							id,
 							link,
 							link.pointer ? (index.repositoryByXref.get(link.pointer) ?? null) : null,

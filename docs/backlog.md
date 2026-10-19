@@ -5,16 +5,12 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md), a
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
 it changes a decision.
 
-Last reviewed: 2026-10-15.
+Last reviewed: 2026-10-18.
 
 ## Part 1: Open fixes
 
 ### Security and privacy
 
-- **A legitimate file sent with 64 KB or more of other form fields is refused** with a 413, because
-  the streaming bound adds only 64 KB of multipart slack above the 25 MB file cap. (ADR-039)
-- **HEIC and `mif1`-brand AVIF uploads are rejected.** The sniffer accepts ISO-BMFF only for the
-  `avif` and `avis` brands. Extend the sniff, or note the limit in the release notes. (ADR-039)
 - **Relationships through a private ancestor are hidden** from a restricted viewer with no sign they
   exist, when private people are omitted. Decide whether that is the intended behaviour. (ADR-015)
 - **`confidential` imports as private but exports as `privacy`.** The word is not kept. (ADR-015)
@@ -26,12 +22,11 @@ Last reviewed: 2026-10-15.
   source only when the source is (ADR-028's rule), and a detached file never. A file can attach to
   nothing else, so an event, a note or a repository has no privacy rule of its own for files.
   (ADR-050, ADR-061)
-- **Two reads do not chunk their id lists.** `visibleAmong` (`visibility.ts`) and
-  `SearchRepository.factsMatching` (which binds the list twice) can pass D1's 100-parameter limit
-  on a large list. Chunk them. (F13)
-- **`person_names`, `union_partners` and `source_repositories` have no `tree_id` column,** so
-  `ChangeStore` writes to them by id alone and its undo guard skips the tree check for them. Add the
-  column, or keep relying on the tree-scoped parent the planner read them through. (F8, F14)
+- **Make `tree_id` NOT NULL on `person_names`, `union_partners` and `source_repositories`.**
+  Migration 0036 added it nullable and backfilled; `ChangeStore` treats a null as its own row for
+  rows old code wrote between the migration and the deploy. Once deployed, run the backfill UPDATEs
+  from 0036 again with `--remote`, then a contract migration sets NOT NULL and the fallback in
+  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes.
 
 ### Abuse controls
 
@@ -64,17 +59,12 @@ Last reviewed: 2026-10-15.
 - **Deleting a file is not undoable, and it blocks earlier undos.** A file delete is not in the
   change log. Once it is gone, an earlier change that touches the row refuses its undo. The confirm
   dialog says so. Decide whether deletes should be logged. (ADR-050)
-- **Rename, attach, detach and move from the Files page do not send `version`.** `FileRowDto` has no
-  `version`, so the page sends `undefined` and optimistic concurrency is not used there. Add
-  `version` to the DTO and send it back. (ADR-050)
 - **Uploads on the Files page go to the tree the page belongs to.** A file for another tree has to be
   uploaded from that tree's Files page. (ADR-050)
 - **The install owner sees metadata of trees they are not in** (ADR-041): file names, sizes, counts
   and totals. They cannot preview or change anything there. The Files link is hidden from
   non-members, so decide whether that metadata should be reachable from the navigation at all.
   (ADR-050)
-- **The change-log label for a detached file has no title.** The impact text reads "updated media
-  Unattached file". The detach summary names the file, but the row label does not. (ADR-050)
 - **Union-owned files follow the partnership.** A merged partnership's files move to the survivor.
   Deleting a partnership, or its last partner, detaches its files rather than deleting them. Confirm
   this is the intended rule. (ADR-050)
@@ -161,9 +151,6 @@ Last reviewed: 2026-10-15.
 
 ### Tests
 
-- **Flaky e2e specs.** `union-choice.spec.ts` has failed about 1 run in 4 to 8, and
-  `undo-and-conflict.spec.ts` ("a concurrent edit opens the conflict dialog") failed once in a full
-  run. Find the race and fix it, or quarantine with a tracked reason.
 - **E2E specs find a fact's fields by label.** `getByLabel('Type')` also matches "Sub-type", so use
   `{ exact: true }` for any label that is part of another (see `e2e/facts.spec.ts`).
 - **Test data is imported by relative path.** Tests read `test/data` files through relative

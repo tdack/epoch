@@ -17,6 +17,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '#lib/server/testing/d1.js';
+import { MAX_FORM_FIELDS_BYTES } from '#lib/server/http/bounded-form.js';
 import { FakeMediaBucket } from '#lib/server/testing/fake-bucket.js';
 import { MAX_MEDIA_UPLOAD_BYTES, MAX_TREE_MEDIA_BYTES } from '#lib/shared/media.js';
 import { POST } from './+server.js';
@@ -253,7 +254,11 @@ describe('media upload type checks', () => {
 describe('media upload size limits', () => {
 	it('rejects an oversized Content-Length before reading the body', async () => {
 		const headers = new Headers();
-		headers.set('content-length', String(MAX_MEDIA_UPLOAD_BYTES + 1024 * 1024));
+		// Past the file cap and the separate allowance for the other form fields.
+		headers.set(
+			'content-length',
+			String(MAX_MEDIA_UPLOAD_BYTES + MAX_FORM_FIELDS_BYTES + 1024 * 1024)
+		);
 		const request = {
 			headers,
 			body: null,

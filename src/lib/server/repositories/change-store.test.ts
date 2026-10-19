@@ -1,6 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { changeLog, changeLogRecords, events, individuals, mediaItems } from '../db/schema';
+import {
+	changeLog,
+	changeLogRecords,
+	events,
+	individuals,
+	mediaItems,
+	personNames,
+	sourceRepositories,
+	sources,
+	unionPartners,
+	unions
+} from '../db/schema';
 import { ConcurrencyConflictError, ValidationError } from '../domain/errors';
 import {
 	describeOps,
@@ -387,6 +398,116 @@ describe('ChangeStore tree scoping', () => {
 		expect(await t.db.select().from(individuals).where(eq(individuals.id, 's2'))).toEqual([]);
 		expect((await store.listRecent(treeId, 10)).length).toBe(0);
 	});
+});
+
+describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
+	// Each case seeds a parent in `treeId` and one child row of it, tree_id as the test sets it.
+	const cases = [
+		{
+			table: 'person_names' as const,
+			schema: personNames,
+			seed: async (tree: string, childTree: string | null) => {
+				await t.db.insert(individuals).values({ id: 'cp', treeId: tree, version: 1 });
+				await t.db
+					.insert(personNames)
+					.values({ id: 'c1', treeId: childTree, personId: 'cp', givenName: 'Ann' });
+			},
+			edit: (row: RowImage) => ({ ...row, givenName: 'Anna', version: 2 })
+		},
+		{
+			table: 'union_partners' as const,
+			schema: unionPartners,
+			seed: async (tree: string, childTree: string | null) => {
+				await t.db.insert(individuals).values({ id: 'cp', treeId: tree, version: 1 });
+				await t.db.insert(unions).values({ id: 'cu', treeId: tree });
+				await t.db
+					.insert(unionPartners)
+					.values({ id: 'c1', treeId: childTree, unionId: 'cu', personId: 'cp', order: 0 });
+			},
+			edit: (row: RowImage) => ({ ...row, order: 1 })
+		},
+		{
+			table: 'source_repositories' as const,
+			schema: sourceRepositories,
+			seed: async (tree: string, childTree: string | null) => {
+				await t.db.insert(sources).values({ id: 'cs', treeId: tree, title: 'S', version: 1 });
+				await t.db
+					.insert(sourceRepositories)
+					.values({ id: 'c1', treeId: childTree, sourceId: 'cs', callNumber: 'A1' });
+			},
+			edit: (row: RowImage) => ({ ...row, callNumber: 'A2', version: 2 })
+		}
+	];
+
+	for (const c of cases) {
+		const imageOfChild = async () => {
+			const row = await t.db.select().from(c.schema).get();
+			return partialRow(c.table, toImage(c.schema, row!));
+		};
+		const stored = () => t.db.select().from(c.schema).get();
+		// `c.table` is a union across the cases, which TypeScript cannot pair with its row type.
+		const childOp = (before: RowImage | null, after: RowImage | null) =>
+			({ table: c.table, id: 'c1', before, after }) as RowOp;
+
+		it(`${c.table}: refuses an update, delete and undo lookup from another tree`, async () => {
+			await t.db.delete(individuals);
+			await t.db.delete(unions);
+			await t.db.delete(sources);
+			await freshTree();
+			const otherTree = await createTestTree(t.db, actor);
+			await c.seed(treeId, treeId);
+			const before = await imageOfChild();
+			expect(before).not.toHaveProperty('treeId');
+
+			await expect(
+				store.commit({
+					...base(),
+					treeId: otherTree,
+					ops: [childOp(before, partialRow(c.table, c.edit(before)))]
+				})
+			).rejects.toBeInstanceOf(ConcurrencyConflictError);
+			await expect(
+				store.commit({
+					...base(),
+					treeId: otherTree,
+					ops: [childOp(before, null)]
+				})
+			).rejects.toBeInstanceOf(ConcurrencyConflictError);
+			expect(await stored()).toBeDefined();
+			expect(await store.currentImages([childOp(before, null)], otherTree)).toEqual(new Map());
+			expect((await store.currentImages([childOp(before, null)], treeId)).size).toBe(1);
+		});
+
+		it(`${c.table}: stamps the commit's tree on insert`, async () => {
+			await t.db.delete(individuals);
+			await t.db.delete(unions);
+			await t.db.delete(sources);
+			await freshTree();
+			await c.seed(treeId, treeId);
+			const image = await imageOfChild();
+			await t.db.delete(c.schema);
+			await store.commit({
+				...base(),
+				ops: [childOp(null, image)]
+			});
+			expect((await stored())?.treeId).toBe(treeId);
+		});
+
+		it(`${c.table}: still edits a row whose tree_id is null (written before the backfill)`, async () => {
+			await t.db.delete(individuals);
+			await t.db.delete(unions);
+			await t.db.delete(sources);
+			await freshTree();
+			await c.seed(treeId, null);
+			const before = await imageOfChild();
+			await store.commit({
+				...base(),
+				ops: [childOp(before, partialRow(c.table, c.edit(before)))]
+			});
+			expect(matchesImage(c.edit(before), toImage(c.schema, (await stored())!))).toBe(true);
+			expect((await store.currentImages([childOp(before, null)], treeId)).size).toBe(1);
+		});
+	}
 });
 
 describe('media row images and the file-manager columns', () => {

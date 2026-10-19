@@ -28,7 +28,7 @@ import { chunkByParamLimit } from './param-chunks';
 /** Columns Drizzle writes for each table; an insert is chunked by it under D1's parameter cap. */
 const SOURCE_COLUMNS = 15;
 const REPOSITORY_COLUMNS = 12;
-const SOURCE_REPOSITORY_COLUMNS = 10;
+const SOURCE_REPOSITORY_COLUMNS = 11;
 const CITATION_COLUMNS = 22;
 
 /** The citations a parsed structure carries, and the stored row they belong to. */
@@ -94,6 +94,7 @@ export async function importRecords(
 			linkRows.push(
 				sourceRepositoryRow(
 					crypto.randomUUID(),
+					treeId,
 					id,
 					link,
 					link.pointer ? (repositoryIds.get(link.pointer) ?? null) : null,

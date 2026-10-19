@@ -214,7 +214,7 @@
 			{#if lens.rootName}
 				<span aria-hidden="true">·</span>
 				<span>
-					rooted at
+					anchored at
 					<a href={personPath(data.summary.tree.id, lens.rootPersonId)} class="underline">
 						{lens.rootName}
 					</a>
