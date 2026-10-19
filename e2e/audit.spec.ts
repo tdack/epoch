@@ -66,8 +66,8 @@ test('filters the log by who made the change, and moves between numbered pages',
 	await expect(page.getByTestId('audit-entry')).toHaveCount(25);
 
 	// A day with no changes is an empty filtered list, and clearing brings the log back.
-	await page.getByLabel('From').fill('2001-01-01');
-	await page.getByLabel('To').fill('2001-01-02');
+	await page.getByLabel('From', { exact: true }).fill('2001-01-01');
+	await page.getByLabel('To', { exact: true }).fill('2001-01-02');
 	await page.getByRole('button', { name: 'Filter' }).click();
 	await expect(page.getByTestId('audit-empty')).toContainText('No changes match these filters');
 	await page.getByTestId('audit-clear').click();
