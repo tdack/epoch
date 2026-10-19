@@ -250,8 +250,6 @@ Last reviewed: 2026-10-18.
 
 ### Collaboration and change control
 
-- **Audit UI.** The change log is the start of it; there is no audit screen. Entries need actor,
-  command, affected records and a before/after summary.
 - **Contributor suggestions and pending changes,** with manager approval and rejection, and a
   matching capability. Editors keep editing directly.
 - **Record history, revert-by-command where safe, and conflict review.**

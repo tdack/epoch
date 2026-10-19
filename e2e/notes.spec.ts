@@ -50,7 +50,7 @@ test('a note is added to a fact from the drawer and from the person page', async
 	await edit.getByRole('button', { name: 'Save note' }).click();
 	await expect(edit).toBeHidden();
 	await expect(drawerBirth.getByTestId('note').first()).toHaveText(/^\s*Born at home\.\s/);
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(drawerBirth.getByTestId('note').first()).toContainText('in the back bedroom');
 });
 

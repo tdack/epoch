@@ -122,7 +122,14 @@ export async function mergeUnionsApi(
 	return { change: res.change };
 }
 
-/** Undo the signed-in user's most recent change. Refusals (a later change touched it) come back as ApiError. */
-export async function undoApi(treeId: string): Promise<UndoResponse> {
-	return call<UndoResponse>(path`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
+/**
+ * Undo the change `changeId` names, or the signed-in user's most recent one without it. Refusals (a
+ * later change touched it) come back as ApiError.
+ */
+export async function undoApi(treeId: string, changeId?: string): Promise<UndoResponse> {
+	return call<UndoResponse>(
+		path`/api/trees/${treeId}/undo`,
+		changeId ? json('POST', { changeId }) : { method: 'POST' },
+		'Failed to undo'
+	);
 }

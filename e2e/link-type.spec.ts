@@ -33,6 +33,6 @@ test('changing one parent’s link to adoptive previews the change, leaves the o
 		);
 	expect(await types()).toEqual({ ann: 'biological', ben: 'adoptive' });
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect.poll(types).toEqual({ ann: 'biological', ben: 'biological' });
 });

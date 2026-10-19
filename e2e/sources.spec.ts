@@ -118,7 +118,7 @@ test('a source can be edited, merged into another, and deleted with its citation
 	await merge.getByRole('button', { name: 'Merge sources' }).click();
 	await expect(merge).toBeHidden();
 	await expect(page.getByTestId('source-group')).toContainText('folio b');
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page.getByTestId('source-group')).not.toContainText('folio b');
 
 	// Deleting a cited source says how many citations go with it.

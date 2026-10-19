@@ -20,7 +20,12 @@ import { NoteRepository } from '../repositories/note-repository';
 import { isSubtreeMember } from '../repositories/subtree-membership';
 import { visibleAmong } from '../repositories/visibility';
 import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
-import { GraphWindowRepository } from '../repositories/graph-window-repository';
+import {
+	GraphWindowRepository,
+	type ChangeHistoryRow
+} from '../repositories/graph-window-repository';
+import { canUndoChange } from '../../shared/change-audit';
+import type { TreeRole } from '../../shared/roles';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
 import {
@@ -42,6 +47,7 @@ import { widowhoods } from '../../shared/widowhood';
 import { loadFocusWindow } from './focus-window';
 import { personSummaries } from './person-summaries';
 import type {
+	ChangeEntryDto,
 	FactDto,
 	NameDto,
 	PartnershipDto,
@@ -55,6 +61,25 @@ import { requireTreeScope, type ViewerScope } from './tree-access';
 
 /** How many changes the page lists; the full history is Phase 4's change view. */
 export const RECENT_CHANGES_SHOWN = 15;
+
+/** A history row as the page lists it, with whether this viewer may undo it (ADR-068). */
+export function changeEntryDto(
+	c: ChangeHistoryRow,
+	actors: Map<string, string>,
+	scope: { role: TreeRole; userId: string }
+): ChangeEntryDto {
+	const isUndo = c.revertsChangeId !== null;
+	return {
+		id: c.id,
+		kind: c.kind,
+		summary: c.summary,
+		actorName: actors.get(c.actorId) ?? null,
+		createdAt: c.createdAt,
+		isUndo,
+		isUndone: c.isUndone,
+		canUndo: canUndoChange(scope, { ...c, isUndo })
+	};
+}
 
 /**
  * The note a fact's form shows: its first note written on the fact itself, or the legacy imported
@@ -471,14 +496,7 @@ export class PersonPageService {
 				}))
 			},
 			changes: {
-				recent: recent.map((c) => ({
-					id: c.id,
-					kind: c.kind,
-					summary: c.summary,
-					actorName: actors.get(c.actorId) ?? null,
-					createdAt: c.createdAt,
-					isUndo: c.revertsChangeId !== null
-				})),
+				recent: recent.map((c) => changeEntryDto(c, actors, scope)),
 				createdAt: self.row.createdAt,
 				updatedAt: self.row.updatedAt
 			},

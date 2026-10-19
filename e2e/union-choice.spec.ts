@@ -62,7 +62,7 @@ test('adding a child to Homer, who has several copies of one partnership, asks w
 	expect(link?.unionId).toBe(otherId);
 	expect(link?.unionId).not.toBe(defaultId);
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect
 		.poll(async () => (await api.graph(homerId)).parentChild.some((l) => l.childId === newborn.id))
 		.toBe(false);

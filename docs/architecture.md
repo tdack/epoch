@@ -88,7 +88,10 @@ calls after load (drawers, pickers, dialogs, the canvas) and for writes.
 
 Types both sides read live in `src/lib/shared/`; server modules import from `shared/`, never the
 reverse. Every edit goes through one mutation runner that plans, previews, applies and records an
-append-only change log with undo (ADR-007).
+append-only change log with undo (ADR-007). Any change can be undone by id, and the audit log at
+`/trees/[id]/audit` (More > Manage, editors and above) lists the log newest first with each
+change's before/after summary and an Undo button; the person, drawer and partnership histories
+share that button and link to the log filtered to their record (ADR-068).
 
 ## Data model
 

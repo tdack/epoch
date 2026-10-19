@@ -193,7 +193,9 @@ export class TreeEditor {
 	afterChange = async (change: ChangeSummary | null, fallback: string) => {
 		await this.refresh();
 		this.toasts.push(change?.summary ?? fallback, {
-			action: change?.isUndoable ? { label: 'Undo', run: this.undoLast } : undefined
+			action: change?.isUndoable
+				? { label: 'Undo', run: () => this.undoChange(change.id) }
+				: undefined
 		});
 	};
 
@@ -217,9 +219,10 @@ export class TreeEditor {
 		}
 	};
 
-	undoLast = async () => {
+	/** Undo one change by id, so a button always reverses the change it names. */
+	undoChange = async (changeId: string) => {
 		try {
-			const { undone } = await undoApi(this.treeId);
+			const { undone } = await undoApi(this.treeId, changeId);
 			await this.refresh();
 			this.toasts.push(`Undid: ${undone.summary}`);
 		} catch (e) {

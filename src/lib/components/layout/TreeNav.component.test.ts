@@ -42,7 +42,8 @@ describe('TreeNav', () => {
 			'Surnames',
 			'Quality',
 			'Fact search',
-			'Files'
+			'Files',
+			'Audit log'
 		]);
 		expect(document.querySelector('[role="group"][aria-label="Manage"]')).not.toBeNull();
 	});
@@ -77,6 +78,28 @@ describe('TreeNav', () => {
 		render({});
 		openMore();
 		expect(menuLabels()).not.toContain('Files');
+	});
+
+	it('offers the Audit log to editors and above only', () => {
+		for (const role of ['editor', 'manager', 'owner']) {
+			render({ role });
+			openMore();
+			expect(menuLabels()).toContain('Audit log');
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		for (const role of ['viewer', 'contributor']) {
+			render({ role });
+			openMore();
+			expect(menuLabels()).not.toContain('Audit log');
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		render({ role: 'editor', isOutsider: true });
+		openMore();
+		expect(menuLabels()).not.toContain('Audit log');
 	});
 
 	it('names Files as the active section on its page', () => {

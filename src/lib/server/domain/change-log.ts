@@ -329,7 +329,10 @@ export const UNDO_REFUSALS = {
 	NOTHING_TO_UNDO: 'nothing_to_undo',
 	TOUCHED_LATER: 'touched_later',
 	STATE_CHANGED: 'state_changed',
-	HAS_DEPENDENTS: 'has_dependents'
+	HAS_DEPENDENTS: 'has_dependents',
+	ALREADY_UNDONE: 'already_undone',
+	NOT_UNDOABLE: 'not_undoable',
+	NOT_YOURS: 'not_yours'
 } as const;
 
 /**

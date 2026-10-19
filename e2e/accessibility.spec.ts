@@ -203,7 +203,7 @@ test.describe('screen reader', () => {
 		await addRelationship(page, 'John', 'Add child', { newGiven: 'Wren' });
 		const status = page.getByRole('status').filter({ hasText: 'Wren' });
 		await expect(status).toBeVisible();
-		await expect(status.getByRole('button', { name: 'Undo' })).toBeVisible();
+		await expect(status.getByRole('button', { name: 'Undo', exact: true })).toBeVisible();
 	});
 
 	test('cards and links have names that say who they are and how they relate', async ({

@@ -49,7 +49,7 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	await edit.getByRole('button', { name: 'Save name' }).click();
 	await expect(edit).toBeHidden();
 	await expect(page.getByTestId('person-name')).toHaveText('Jane Smith-Jones (née Doe)');
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page.getByTestId('person-name')).toHaveText('Jane Smith (née Doe)');
 
 	// Export and re-import into a new tree: both names, the date and the partnership come back.

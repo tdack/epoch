@@ -67,7 +67,7 @@ test('two records of one person are compared, merged in one change, and the merg
 		.toBe(false);
 	await expect(page.getByTestId('facts').getByText(/1900/).first()).toBeVisible();
 
-	await page.getByRole('button', { name: 'Undo' }).click();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(page.getByTestId('person-name')).toHaveText('Ann Merge');
 	await expect.poll(async () => (await api.graph()).people.some((p) => p.id === ann.id)).toBe(true);
 	void kid;

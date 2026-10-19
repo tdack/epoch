@@ -27,7 +27,7 @@ import { boundsOf, unionWarnings } from '../../shared/union-warnings';
 import { citationDto, inSubjectOrder } from './evidence-dto';
 import { loadNoteDtos, notesOf } from './note-dto';
 import { loadFocusWindow } from './focus-window';
-import { RECENT_CHANGES_SHOWN } from './person-page-service';
+import { changeEntryDto, RECENT_CHANGES_SHOWN } from './person-page-service';
 import { personSummaries } from './person-summaries';
 import { sortByBirth } from '../../shared/birth-order';
 import { type PersonSummaryDto } from '../../shared/person-page';
@@ -330,14 +330,7 @@ export class UnionPageService {
 				}))
 			},
 			changes: {
-				recent: recent.map((c) => ({
-					id: c.id,
-					kind: c.kind,
-					summary: c.summary,
-					actorName: actors.get(c.actorId) ?? null,
-					createdAt: c.createdAt,
-					isUndo: c.revertsChangeId !== null
-				})),
+				recent: recent.map((c) => changeEntryDto(c, actors, scope)),
 				createdAt: union.createdAt,
 				updatedAt: union.updatedAt
 			},
