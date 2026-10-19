@@ -44,3 +44,32 @@ test('undoes an earlier change from the audit log, and one from a person history
 	await expect(toast.getByText(/^Undid: Edited/)).toBeVisible();
 	await expect(page.getByTestId('person-name')).toHaveText('Cara');
 });
+
+test('filters the log by who made the change, and moves between numbered pages', async ({
+	page,
+	api
+}) => {
+	for (let i = 0; i < 27; i++) await api.addPerson(`Person${i}`);
+	await open(page, `/trees/${api.treeId}/audit`);
+	await expect(page.getByTestId('audit-entry')).toHaveCount(25);
+
+	await page.getByTestId('audit-pager').getByRole('link', { name: 'Page 2' }).click();
+	await expect(page).toHaveURL(/page=2/);
+	await expect(page.getByTestId('audit-entry')).toHaveCount(2);
+	await expect(page.getByTestId('audit-pager').locator('[aria-current="page"]')).toHaveText('2');
+
+	// Changing a filter starts again from the first page.
+	await page.getByLabel('Made by').selectOption({ index: 1 });
+	await page.getByRole('button', { name: 'Filter' }).click();
+	await expect(page).toHaveURL(/actor=/);
+	await expect(page).not.toHaveURL(/page=/);
+	await expect(page.getByTestId('audit-entry')).toHaveCount(25);
+
+	// A day with no changes is an empty filtered list, and clearing brings the log back.
+	await page.getByLabel('From').fill('2001-01-01');
+	await page.getByLabel('To').fill('2001-01-02');
+	await page.getByRole('button', { name: 'Filter' }).click();
+	await expect(page.getByTestId('audit-empty')).toContainText('No changes match these filters');
+	await page.getByTestId('audit-clear').click();
+	await expect(page.getByTestId('audit-entry')).toHaveCount(25);
+});
