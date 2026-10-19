@@ -211,7 +211,6 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'guarded-write',
 		covers: SUBTREES
 	},
-	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
 	[`${API}/trees/[id]/tasks/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/tasks/impact/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
@@ -289,19 +288,16 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/notes/[noteId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/undo/+server.ts`]: 'refused'
 };

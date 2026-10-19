@@ -122,7 +122,7 @@ test('a restricted viewer is never sent a private person by the whole tree', asy
 			data: { email: identity['x-dev-user-email'], role: 'viewer' }
 		});
 		expect(invited.status()).toBe(201);
-		expect((await viewerContext.request.get('/api/trees')).ok()).toBe(true);
+		expect((await viewerContext.request.get(`/trees/${api.treeId}/people`)).ok()).toBe(true);
 
 		// The API: the dead are there, the living are in no field of the answer.
 		const answer = await viewerContext.request.get(`/api/trees/${api.treeId}/graph?scope=all`);
