@@ -34,7 +34,8 @@ export class ConflictError extends ApiError {
 				| 'note'
 				| 'note_link'
 				| 'task'
-				| 'subtree';
+				| 'subtree'
+				| 'media';
 			id: string;
 			expectedVersion: number;
 			currentVersion: number;
