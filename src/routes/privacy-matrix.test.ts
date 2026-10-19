@@ -224,6 +224,7 @@ const LOADS = [
 	'./+page.server.ts',
 	'./trees/[id]/+layout.server.ts',
 	'./trees/[id]/+page.ts',
+	'./trees/[id]/audit/+page.server.ts',
 	'./trees/[id]/members/+page.server.ts',
 	'./trees/[id]/files/+page.server.ts',
 	'./trees/[id]/people/+page.server.ts',
