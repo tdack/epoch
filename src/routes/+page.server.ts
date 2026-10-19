@@ -1,0 +1,28 @@
+import { redirect } from '@sveltejs/kit';
+import { serverLoad } from '#lib/server/http/page-load.js';
+import { TreeService } from '#lib/server/services/tree-service.js';
+import { treePath } from '#lib/shared/tree-slug.js';
+import type { PageServerLoad } from './$types';
+
+/**
+ * `/` is no longer a screen of its own. The old address carried the tree and the view in its query
+ * (`/?tree=…&focus=…&up=2`); it moves to the tree's own path and keeps the rest of the query, so
+ * bookmarks and shared links still open the same view. A bare `/` opens the user's default tree, else the most recent one, and
+ * only a user with no trees at all sees the page below.
+ */
+export const load: PageServerLoad = serverLoad(
+	{ failure: 'Failed to load trees', allowPublicVisitor: true },
+	async ({ db, ctx }, { url }) => {
+		const legacyTreeId = url.searchParams.get('tree');
+		if (legacyTreeId) {
+			const rest = new URLSearchParams(url.searchParams);
+			rest.delete('tree');
+			redirect(308, `/trees/${encodeURIComponent(legacyTreeId)}${rest.size > 0 ? `?${rest}` : ''}`);
+		}
+
+		const trees = await new TreeService(db).listTrees(ctx);
+		const opening = trees.find((t) => t.isDefault) ?? trees[0];
+		if (opening) redirect(302, treePath(opening));
+		return { trees };
+	}
+);

@@ -98,6 +98,50 @@ function mark(handler: RequestHandler, options: { allowPublicVisitor?: boolean }
 	return handler;
 }
 
+/**
+ * Refuses a caller before anything is read: signed out is a 401, and the public visitor is a 403
+ * unless the operation opted in (ADR-041). A 403, never a 401: the client restarts sign-in on a
+ * 401, and a visitor has nothing to sign in to. Shared by API handlers and server page loads, so
+ * the two cannot disagree about who may read.
+ */
+export function assertCaller(
+	user: App.Locals['user'],
+	allowPublicVisitor: boolean | undefined
+): asserts user is NonNullable<App.Locals['user']> {
+	if (!user) throw new UnauthenticatedError();
+	if (user.isPublicVisitor && !allowPublicVisitor)
+		throw new UnauthorizedError(VISITOR_REFUSED_MESSAGE);
+}
+
+/**
+ * Turns the address's tree segment (an id or slug, optionally `<tree>~<subtree>`) into ids, once,
+ * so no service ever sees a slug, and refuses the public visitor any tree but the public one. A
+ * segment that names no tree is passed on unchanged, and the service refuses it exactly as it
+ * refuses a missing id, so an unknown slug says no more than an unknown id.
+ */
+export async function resolveTreeScope(
+	db: DbClient,
+	ctx: AuthenticatedContext,
+	segment: string
+): Promise<{ treeId: string; subtree: SubtreeSummaryDto | null }> {
+	const { tree: treeSegment, subtree: subtreeSegment } = splitTreeSegment(segment);
+	const treeId = await new TreeService(db).resolveSegment(treeSegment);
+	// Only the public tree is open to the visitor, by the id the segment resolved to, so a
+	// slug and an id cannot disagree about which tree this is.
+	if (ctx.user.isPublicVisitor) {
+		const publicTree = await new PublicTreeService(db).current();
+		if (publicTree?.id !== treeId) throw new UnauthorizedError(VISITOR_REFUSED_MESSAGE);
+	}
+	// Unknown, and one whose root the viewer may not see, are both a 404 from the service.
+	const found = subtreeSegment
+		? await new SubtreeService(db).get(treeId, subtreeSegment, ctx)
+		: null;
+	const subtree = found
+		? { id: found.id, slug: found.slug, name: found.name, rootPersonId: found.rootPersonId }
+		: null;
+	return { treeId, subtree };
+}
+
 async function handle<B extends Schema, Q extends Schema>(
 	event: RequestEvent,
 	options: HandlerOptions<B, Q>,
@@ -107,10 +151,11 @@ async function handle<B extends Schema, Q extends Schema>(
 	const { locals, platform } = event;
 	// Present and non-empty once the loop below passes; the generated route types cannot say so.
 	const params = event.params as Record<string, string>;
-	if (!locals.user) return errorResponse(new UnauthenticatedError(), options.failure);
-	// A 403, never a 401: the client restarts sign-in on a 401, and a visitor has nothing to sign in to.
-	if (locals.user.isPublicVisitor && !options.allowPublicVisitor)
-		return errorResponse(new UnauthorizedError(VISITOR_REFUSED_MESSAGE), options.failure);
+	try {
+		assertCaller(locals.user, options.allowPublicVisitor);
+	} catch (err) {
+		return errorResponse(err, options.failure);
+	}
 	for (const name of requiredParams) {
 		if (!params[name])
 			return errorResponse(new ValidationError(`${name} required`), options.failure);
@@ -128,7 +173,7 @@ async function handle<B extends Schema, Q extends Schema>(
 		) as Parsed<Q>;
 		const result = await run({
 			db: getDb(platform.env.DB),
-			ctx: { user: locals.user, correlationId: locals.correlationId },
+			ctx: { user: locals.user!, correlationId: locals.correlationId },
 			event,
 			params,
 			url: event.url,
@@ -175,21 +220,7 @@ export function treeHandler<B extends Schema = undefined, Q extends Schema = und
 	return mark(
 		(event) =>
 			handle(event, options, ['id', ...(options.params ?? [])], async (args) => {
-				const { tree: treeSegment, subtree: subtreeSegment } = splitTreeSegment(args.params.id!);
-				const treeId = await new TreeService(args.db).resolveSegment(treeSegment);
-				// Only the public tree is open to the visitor, by the id the segment resolved to, so a
-				// slug and an id cannot disagree about which tree this is.
-				if (args.ctx.user.isPublicVisitor) {
-					const publicTree = await new PublicTreeService(args.db).current();
-					if (publicTree?.id !== treeId) throw new UnauthorizedError(VISITOR_REFUSED_MESSAGE);
-				}
-				// Unknown, and one whose root the viewer may not see, are both a 404 from the service.
-				const found = subtreeSegment
-					? await new SubtreeService(args.db).get(treeId, subtreeSegment, args.ctx)
-					: null;
-				const subtree = found
-					? { id: found.id, slug: found.slug, name: found.name, rootPersonId: found.rootPersonId }
-					: null;
+				const { treeId, subtree } = await resolveTreeScope(args.db, args.ctx, args.params.id!);
 				return run({ ...args, treeId, subtree });
 			}),
 		options

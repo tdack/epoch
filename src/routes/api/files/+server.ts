@@ -1,20 +1,12 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
-import { fileListQuerySchema } from '#lib/server/validation/schemas.js';
+import { parseFileListQuery } from '#lib/server/validation/file-query.js';
 
 /**
  * A page of the files the caller may see across every tree they belong to, newest first, narrowed
  * by `?treeId=` and paged by `?cursor=` (from the last page's `nextCursor`). A page can be short or
  * empty for a restricted viewer while `nextCursor` is still set.
  */
-export const GET = apiHandler(
-	{ failure: 'Failed to list files', query: fileListQuerySchema },
-	({ db, ctx, query }) =>
-		new MediaService(db).list(ctx, {
-			treeId: query.treeId,
-			entityId: query.entityId,
-			isDetachedOnly: query.owner === 'detached',
-			cursor: query.cursor,
-			limit: query.limit
-		})
+export const GET = apiHandler({ failure: 'Failed to list files' }, ({ db, ctx, url }) =>
+	new MediaService(db).list(ctx, parseFileListQuery(url.searchParams))
 );

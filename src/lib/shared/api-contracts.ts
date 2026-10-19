@@ -8,8 +8,7 @@ import type {
 	ChangeSummary,
 	ImpactSummary,
 	PeopleSearchResult,
-	RelationshipPlan,
-	TreeSummary
+	RelationshipPlan
 } from '#lib/types/genealogy.js';
 import type { MergeConflict } from './union-merge.js';
 import type { TreeRole } from './roles.js';
@@ -39,16 +38,6 @@ export interface CreateTreeResponse {
 /** `PATCH /api/trees/[id]` */
 export interface RenameTreeResponse {
 	tree: { id: string; slug: string | null; isOnSubdomain: boolean };
-}
-
-/** `GET /api/trees` */
-export interface TreeListResponse {
-	trees: TreeSummary[];
-}
-
-/** `GET /api/admin/trees` */
-export interface InstallTreesResponse {
-	trees: InstallTree[];
 }
 
 /** What deleting a tree would remove. */

@@ -1,18 +1,6 @@
 import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
-import { NoteReadService } from '#lib/server/services/note-read-service.js';
 import { NoteService } from '#lib/server/services/note-service.js';
-import { parseListParams } from '#lib/shared/lists.js';
 import { sharedNoteUpdateSchema } from '#lib/server/validation/schemas.js';
-
-/**
- * A shared note and a page of the records that use it (`?offset=&limit=`). A note that no record the
- * viewer may see uses, and that they did not make, answers 404, as a private person does.
- */
-export const GET = treeHandler(
-	{ allowPublicVisitor: true, failure: 'Failed to load the note', params: ['noteId'] },
-	({ db, ctx, treeId, params, url }) =>
-		new NoteReadService(db).getNote(treeId, params.noteId, parseListParams(url.searchParams), ctx)
-);
 
 export const PUT = treeHandler(
 	{ failure: 'Failed to save the note', params: ['noteId'], body: sharedNoteUpdateSchema },

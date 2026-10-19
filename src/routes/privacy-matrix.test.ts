@@ -21,8 +21,8 @@ type Kind =
 	| 'own-data'
 	/** Carries no record of a tree at all. */
 	| 'no-record-data'
-	/** A page load: it only calls the endpoints above. */
-	| 'via-api';
+	/** A page load: it only calls the services behind the endpoints above. */
+	| 'via-service';
 
 interface Entry {
 	kind: Kind;
@@ -47,7 +47,6 @@ const FILES = 'services/media-files.test.ts';
 
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
-	[`${API}/admin/trees/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
 	[`${API}/admin/public-tree/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
 	[`${API}/export/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/files/+server.ts`]: { kind: 'paged-sql', covers: FILES },
@@ -65,14 +64,6 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
-	[`${API}/trees/[id]/charts/descendants/+server.ts`]: {
-		kind: 'masked-rows',
-		covers: 'services/chart-service.test.ts'
-	},
-	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: {
-		kind: 'masked-rows',
-		covers: 'services/chart-service.test.ts'
-	},
 	[`${API}/trees/[id]/citations/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/citations/[citationId]/+server.ts`]: {
 		kind: 'guarded-write',
@@ -90,11 +81,8 @@ const ENTRIES: Record<string, Entry> = {
 	},
 	[`${API}/trees/[id]/members/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
-	[`${API}/trees/[id]/lists/individuals/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
-	[`${API}/trees/[id]/lists/surnames/+server.ts`]: { kind: 'paged-sql', covers: READS },
-	[`${API}/trees/[id]/lists/unions/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/default-view/+server.ts`]: {
 		kind: 'role-gated',
 		covers: 'services/tree-view-mode.test.ts'
@@ -112,14 +100,13 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'no-record-data',
 		covers: 'services/tree-view-mode.test.ts'
 	},
-	[`${API}/trees/[id]/marks/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/marks/favorites/[personId]/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/marks/recents/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: { kind: 'paged-sql', covers: NOTES },
 	[`${API}/trees/[id]/names/[nameId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/names/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/quality/+server.ts`]: {
-		kind: 'masked-rows',
+		kind: 'guarded-write',
 		covers: 'services/quality-service.test.ts'
 	},
 	[`${API}/trees/[id]/places/+server.ts`]: {
@@ -197,16 +184,11 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/relationships/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/relationships/plan/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/relationships/remove/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
-	[`${API}/trees/[id]/relationship/+server.ts`]: {
-		kind: 'masked-rows',
-		covers: 'services/kinship-service.test.ts'
-	},
 	[`${API}/trees/[id]/repositories/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
 	[`${API}/trees/[id]/repositories/[repositoryId]/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: EVIDENCE
 	},
-	[`${API}/trees/[id]/search/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/trees/[id]/source-links/[linkId]/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: EVIDENCE
@@ -224,51 +206,48 @@ const ENTRIES: Record<string, Entry> = {
 		covers: EVIDENCE
 	},
 	[`${API}/trees/[id]/sources/impact/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
-	[`${API}/trees/[id]/subtrees/+server.ts`]: { kind: 'masked-rows', covers: SUBTREES },
+	[`${API}/trees/[id]/subtrees/+server.ts`]: { kind: 'guarded-write', covers: SUBTREES },
 	[`${API}/trees/[id]/subtrees/[subtreeId]/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: SUBTREES
 	},
-	[`${API}/trees/[id]/summary/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
-	// The GET lists tasks in SQL with the visibility predicate beside `tree_id`; the POST, PUT and
-	// DELETE are the more dangerous half, so the entries name the write kind.
 	[`${API}/trees/[id]/tasks/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/tasks/impact/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
-	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
+	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/merge/+server.ts`]: { kind: 'guarded-write', covers: WRITES }
 };
 
-/** Page and layout loads fetch the endpoints above and hold no data of their own. */
+/** Page and layout loads read only through the services behind the endpoints above, and hold no data of their own. */
 const LOADS = [
-	'./+page.ts',
-	'./trees/[id]/+layout.ts',
+	'./+page.server.ts',
+	'./trees/[id]/+layout.server.ts',
 	'./trees/[id]/+page.ts',
-	'./trees/[id]/members/+page.ts',
-	'./trees/[id]/files/+page.ts',
-	'./trees/[id]/people/+page.ts',
-	'./trees/[id]/notes/+page.ts',
-	'./trees/[id]/notes/[noteId]/+page.ts',
-	'./trees/[id]/place/+page.ts',
-	'./trees/[id]/places/+page.ts',
-	'./trees/[id]/people/[personId]/+page.ts',
-	'./trees/[id]/people/[personId]/descendants/+page.ts',
-	'./trees/[id]/people/[personId]/fan/+page.ts',
-	'./trees/[id]/people/[personId]/hourglass/+page.ts',
-	'./trees/[id]/people/[personId]/pedigree/+page.ts',
-	'./trees/[id]/privacy/+page.ts',
-	'./trees/[id]/quality/+page.ts',
-	'./trees/[id]/relationship/+page.ts',
-	'./trees/[id]/search/+page.ts',
-	'./trees/[id]/settings/+page.ts',
-	'./trees/[id]/sources/+page.ts',
-	'./trees/[id]/sources/[sourceId]/+page.ts',
-	'./trees/[id]/surnames/+page.ts',
-	'./trees/[id]/tasks/+page.ts',
-	'./trees/[id]/trees/+page.ts',
-	'./trees/[id]/unions/+page.ts',
-	'./trees/[id]/unions/[unionId]/+page.ts'
+	'./trees/[id]/members/+page.server.ts',
+	'./trees/[id]/files/+page.server.ts',
+	'./trees/[id]/people/+page.server.ts',
+	'./trees/[id]/notes/+page.server.ts',
+	'./trees/[id]/notes/[noteId]/+page.server.ts',
+	'./trees/[id]/place/+page.server.ts',
+	'./trees/[id]/places/+page.server.ts',
+	'./trees/[id]/people/[personId]/+page.server.ts',
+	'./trees/[id]/people/[personId]/descendants/+page.server.ts',
+	'./trees/[id]/people/[personId]/fan/+page.server.ts',
+	'./trees/[id]/people/[personId]/hourglass/+page.server.ts',
+	'./trees/[id]/people/[personId]/pedigree/+page.server.ts',
+	'./trees/[id]/privacy/+page.server.ts',
+	'./trees/[id]/quality/+page.server.ts',
+	'./trees/[id]/relationship/+page.server.ts',
+	'./trees/[id]/search/+page.server.ts',
+	'./trees/[id]/settings/+page.server.ts',
+	'./trees/[id]/sources/+page.server.ts',
+	'./trees/[id]/sources/[sourceId]/+page.server.ts',
+	'./trees/[id]/surnames/+page.server.ts',
+	'./trees/[id]/tasks/+page.server.ts',
+	'./trees/[id]/trees/+page.server.ts',
+	'./trees/[id]/unions/+page.server.ts',
+	'./trees/[id]/unions/[unionId]/+page.server.ts'
 ];
 
 const endpoints = Object.keys(import.meta.glob('./**/+server.ts')).sort();
@@ -288,9 +267,9 @@ const NO_RECORD_LOADS = [
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
 	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
-	'./manage/trees/+page.ts',
+	'./manage/trees/+page.server.ts',
 	// Only redirects to the settings under a tree, chosen the same way.
-	'./settings/+page.ts'
+	'./settings/+page.server.ts'
 ];
 
 /**
@@ -301,8 +280,7 @@ const NO_RECORD_LOADS = [
  * for a private tree. `public-tree-only` is that opt-in; `refused` is no opt-in at all. The
  * private people of the public tree stay hidden through the services' own visibility rules.
  */
-const VISITOR_READS: Record<string, 'refused' | 'public-tree-only' | 'site-settings-only'> = {
-	[`${API}/admin/trees/+server.ts`]: 'refused',
+const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/export/+server.ts`]: 'refused',
 	[`${API}/files/+server.ts`]: 'refused',
 	[`${API}/files/unlinked/+server.ts`]: 'refused',
@@ -310,36 +288,18 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only' | 'site-setti
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
-	// The site default's colours and the visitor's empty own layer: no tree, no record.
-	[`${API}/settings/+server.ts`]: 'site-settings-only',
-	[`${API}/trees/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/charts/descendants/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/charts/pedigree/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/lists/individuals/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/lists/surnames/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/marks/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/notes/[noteId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/privacy/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/quality/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/relationship/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/subtrees/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/summary/+server.ts`]: 'public-tree-only',
-	[`${API}/trees/[id]/tasks/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/undo/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: 'public-tree-only'
+	[`${API}/trees/[id]/undo/+server.ts`]: 'refused'
 };
 const endpointSources = import.meta.glob('./**/+server.ts', {
 	query: '?raw',
@@ -408,7 +368,7 @@ describe('the public visitor reads only what a route opts into (ADR-041)', () =>
 		for (const [route, module] of Object.entries(ROUTE_MODULES)) {
 			if (!module.GET || route === HAND_ROLLED_GET_ROUTE) continue;
 			expect(allowsPublicVisitor(module.GET), route).toBe(
-				VISITOR_READS[route] === 'public-tree-only' || VISITOR_READS[route] === 'site-settings-only'
+				VISITOR_READS[route] === 'public-tree-only'
 			);
 		}
 	});

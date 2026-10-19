@@ -129,7 +129,7 @@ test('a viewer never sees a task about a private person, title included', async 
 			data: { email: identity['x-dev-user-email'], role: 'viewer' }
 		});
 		expect(invited.status()).toBe(201);
-		expect((await viewerContext.request.get('/api/trees')).ok()).toBe(true);
+		expect((await viewerContext.request.get(`/trees/${api.treeId}/people`)).ok()).toBe(true);
 
 		const viewer = await viewerContext.newPage();
 		const base = `/trees/${api.treeId}`;

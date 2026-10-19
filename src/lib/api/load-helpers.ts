@@ -1,11 +1,8 @@
 /** Helpers shared by the route load functions. */
 
 import { error } from '@sveltejs/kit';
-import { parseListParams } from '../shared/lists.js';
+import { DATA_KEY } from '../shared/data-key.js';
 import { ApiError } from './client.js';
-
-/** The key every tree screen's load function depends on; invalidating it reloads what is on screen. */
-export const DATA_KEY = 'epoch:data';
 
 /** Turn a failed API call into the SvelteKit error page with the same status, rather than a blank screen. */
 function rethrowAsPageError(cause: unknown): never {
@@ -51,12 +48,6 @@ export function generationsParam(
 	const asked = Number(url.searchParams.get(key));
 	if (!Number.isInteger(asked) || asked <= 0) return fallback;
 	return max === undefined ? asked : Math.min(asked, max);
-}
-
-/** The paging query for a list endpoint: the address's offset and limit, normalised, after any `extra`. */
-export function listQuery(url: URL, extra: Record<string, string> = {}): URLSearchParams {
-	const { offset, limit } = parseListParams(url.searchParams);
-	return new URLSearchParams({ ...extra, offset: String(offset), limit: String(limit) });
 }
 
 /** Where the last person viewed in a tree (or in one of its sub-trees) is remembered, so reopening the tree resumes there. */

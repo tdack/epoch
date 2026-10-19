@@ -1,20 +1,7 @@
 import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
-import type { TaskInput, TaskPageDto, TaskSubjectRef } from '#lib/shared/tasks.js';
+import type { TaskInput, TaskSubjectRef } from '#lib/shared/tasks.js';
 import { type Changed, call, json, path } from './client.js';
-
-export async function fetchTasks(
-	treeId: string,
-	params: URLSearchParams,
-	fetcher: typeof fetch = fetch
-): Promise<TaskPageDto> {
-	return call(
-		path`/api/trees/${treeId}/tasks` + `?${params}`,
-		{ method: 'GET' },
-		'Failed to list the tasks',
-		fetcher
-	);
-}
 
 export async function createTaskApi(
 	treeId: string,

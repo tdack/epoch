@@ -2,19 +2,6 @@ import type { CreateSubtreeInput, SubtreeDto, UpdateSubtreeInput } from '#lib/sh
 import type { Changed } from './client.js';
 import { call, json, path } from './client.js';
 
-export async function fetchSubtrees(
-	treeId: string,
-	fetcher: typeof fetch = fetch
-): Promise<SubtreeDto[]> {
-	const data = await call<{ subtrees: SubtreeDto[] }>(
-		path`/api/trees/${treeId}/subtrees`,
-		{ method: 'GET' },
-		'Failed to list the sub-trees',
-		fetcher
-	);
-	return data.subtrees;
-}
-
 export function createSubtree(
 	treeId: string,
 	input: CreateSubtreeInput

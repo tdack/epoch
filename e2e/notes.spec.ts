@@ -156,7 +156,7 @@ test('a viewer never sees a private person’s notes, or a shared note only they
 			data: { email: identity['x-dev-user-email'], role: 'viewer' }
 		});
 		expect(invited.status()).toBe(201);
-		expect((await viewerContext.request.get('/api/trees')).ok()).toBe(true);
+		expect((await viewerContext.request.get(`/trees/${api.treeId}/people`)).ok()).toBe(true);
 
 		const viewer = await viewerContext.newPage();
 		const base = `/trees/${api.treeId}`;
@@ -165,10 +165,8 @@ test('a viewer never sees a private person’s notes, or a shared note only they
 		await expect(viewer.getByText('Livia')).toHaveCount(0);
 
 		// The shared note only a private person uses answers like one that is not there.
-		const hidden = await viewer.request.get(
-			`/api/trees/${api.treeId}/notes/${encodeURIComponent(shared)}`
-		);
-		const missing = await viewer.request.get(`/api/trees/${api.treeId}/notes/no-such-note`);
+		const hidden = await viewer.request.get(`${base}/notes/${encodeURIComponent(shared)}`);
+		const missing = await viewer.request.get(`${base}/notes/no-such-note`);
 		expect(hidden.status()).toBe(404);
 		expect(missing.status()).toBe(404);
 		await open(viewer, `${base}/notes?q=Livia`);

@@ -75,6 +75,15 @@ Routes never touch the database directly (ADR-006):
    views. Handlers only parse input, call services and format responses (`treeHandler` and
    `apiHandler`).
 
+**How pages load data (ADR-067).** A read-only screen loads in a `+page.server.ts` or
+`+layout.server.ts`, which calls a service through `treeServerLoad` or `serverLoad`
+(`server/http/page-load.ts`). They apply the same caller, visitor and tree-scope checks as the
+handlers and turn a failure into the error page, so a server render passes `handle` once and no
+load fetches the app's own API. `invalidate(DATA_KEY)` re-runs the server loads. The tree canvas
+(`trees/[id]/+page.ts`) stays universal: it has no server render, reads `localStorage`, and
+refetches `GET /api/trees/[id]/graph` as the focus changes. Endpoints exist for what the browser
+calls after load (drawers, pickers, dialogs, the canvas) and for writes.
+
 `server/` and `shared/` never import `components/` (or `$app`); ESLint enforces it.
 
 Types both sides read live in `src/lib/shared/`; server modules import from `shared/`, never the

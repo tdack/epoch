@@ -1,14 +1,10 @@
 import type {
 	CreateTreeResponse,
-	InstallTree,
-	InstallTreesResponse,
 	RenameTreeResponse,
 	TreeImpact,
-	TreeImpactResponse,
-	TreeListResponse
+	TreeImpactResponse
 } from '#lib/shared/api-contracts.js';
-import type { TreeSummary } from '#lib/types/genealogy.js';
-import type { FocusGraphDto, TreeSummaryDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
+import type { FocusGraphDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
 import { call, json, path } from './client.js';
 
 export async function createTreeApi(payload: {
@@ -36,15 +32,6 @@ export async function renameTreeApi(
 		json('PATCH', { name, slug, version, ...(isOnSubdomain !== undefined && { isOnSubdomain }) }),
 		'Failed to rename tree'
 	).then((d) => d.tree);
-}
-
-export function fetchInstallTrees(fetchFn: typeof fetch = fetch): Promise<InstallTree[]> {
-	return call<InstallTreesResponse>(
-		'/api/admin/trees',
-		undefined,
-		'Failed to load trees',
-		fetchFn
-	).then((d) => d.trees);
 }
 
 /** Makes `treeId` the public tree, or none for null. The name is the typed confirmation, re-checked by the server. */
@@ -117,18 +104,5 @@ export function fetchWholeTreeGraph(
 		undefined,
 		'Failed to load the tree',
 		fetchFn
-	);
-}
-
-export function fetchTreeSummary(
-	treeId: string,
-	fetchFn: typeof fetch = fetch
-): Promise<TreeSummaryDto> {
-	return call(path`/api/trees/${treeId}/summary`, undefined, 'Failed to load the tree', fetchFn);
-}
-
-export function fetchTreeList(fetchFn: typeof fetch = fetch): Promise<TreeSummary[]> {
-	return call<TreeListResponse>('/api/trees', undefined, 'Failed to load trees', fetchFn).then(
-		(d) => d.trees || []
 	);
 }

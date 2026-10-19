@@ -91,24 +91,27 @@ export class Api {
 		});
 	}
 
+	/** The whole tree as the owner sees it: unconnected families included, capped for a very large one. */
+	private async wholeTree() {
+		const res = await this.request.get(`/api/trees/${this.treeId}/graph?scope=all`);
+		expect(res.ok(), await res.text()).toBe(true);
+		return res.json();
+	}
+
 	/** How many people and partnerships the tree holds, wherever they sit. */
 	async counts(): Promise<{ people: number; unions: number }> {
-		const res = await this.request.get(`/api/trees/${this.treeId}/summary`);
-		return (await res.json()).counts;
+		const whole = await this.wholeTree();
+		return { people: whole.drawnPersonIds.length, unions: whole.drawnUnionIds.length };
 	}
 
 	/**
-	 * Everyone reachable from the tree's default person, as far as the view allows. No endpoint
-	 * answers the whole tree, so a spec that needs a person outside that reach passes one as `focus`.
+	 * The graph around `focus`, as far as the view allows. Without one, the whole tree, so a spec
+	 * can reach any person.
 	 */
 	async graph(focus?: string): Promise<GraphView> {
-		let focusId = focus;
-		if (!focusId) {
-			const summary = await this.request.get(`/api/trees/${this.treeId}/summary`);
-			focusId = (await summary.json()).defaultFocusPersonId as string;
-		}
+		if (!focus) return (await this.wholeTree()).graph;
 		const res = await this.request.get(
-			`/api/trees/${this.treeId}/graph?focus=${focusId}&up=8&down=8&siblings=1&step=1`
+			`/api/trees/${this.treeId}/graph?focus=${focus}&up=8&down=8&siblings=1&step=1`
 		);
 		expect(res.ok(), await res.text()).toBe(true);
 		return (await res.json()).graph;
