@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { ArrowDown, ArrowUp, Network, Pencil, Trash2, UserRoundCog } from '@lucide/svelte';
+	import {
+		ArrowDown,
+		ArrowUp,
+		Eye,
+		EyeOff,
+		Network,
+		Pencil,
+		Trash2,
+		UserRoundCog
+	} from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
@@ -107,7 +116,8 @@
 	<h3 id="subtrees-heading" class="text-lg font-bold text-stone-900">Sub-trees</h3>
 	<p class="mt-1 max-w-2xl text-sm text-stone-600">
 		A sub-tree is a view of one person's descendants and their partners, opened from the tree
-		switcher. It narrows lists and the chart; it hides nothing.
+		switcher. It narrows lists and the chart; it hides nothing. On a public tree, visitors who are
+		not signed in see only the sub-trees marked public.
 		{#if canManage}Make one from a person's page.{/if}
 	</p>
 
@@ -128,6 +138,12 @@
 						>
 							<Network class="h-3.5 w-3.5 text-stone-500" aria-hidden="true" />
 							<a href={subtreePath(tree, subtree.slug)} class="hover:underline">{subtree.name}</a>
+							{#if subtree.isPublic}
+								<span
+									class="rounded-full bg-sky-100 px-2 py-0.5 text-[0.7rem] font-semibold text-sky-900"
+									>Public</span
+								>
+							{/if}
 							{#if subtree.isRootMissing}
 								<span
 									class="rounded-full bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-900"
@@ -166,6 +182,25 @@
 							<button type="button" class={actionClass} onclick={() => open('edit', subtree)}>
 								<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
 								Rename<span class="sr-only"> {subtree.name}</span>
+							</button>
+							<button
+								type="button"
+								class={actionClass}
+								disabled={isBusy}
+								onclick={() =>
+									patch(
+										subtree,
+										{ isPublic: !subtree.isPublic },
+										subtree.isPublic ? 'Sub-tree is members only' : 'Sub-tree is public'
+									)}
+							>
+								{#if subtree.isPublic}
+									<EyeOff class="h-3.5 w-3.5" aria-hidden="true" />
+									Hide from visitors<span class="sr-only"> {subtree.name}</span>
+								{:else}
+									<Eye class="h-3.5 w-3.5" aria-hidden="true" />
+									Show to visitors<span class="sr-only"> {subtree.name}</span>
+								{/if}
 							</button>
 							<button type="button" class={actionClass} onclick={() => open('root', subtree)}>
 								<UserRoundCog class="h-3.5 w-3.5" aria-hidden="true" />
