@@ -16,6 +16,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { dateBound, foldQuery } from '../../shared/search';
 import type { ViewerScope } from '../services/tree-access';
+import { chunkIds } from './param-chunks';
 import { andInLens } from './subtree-membership';
 import { andVisible, isVisibleOf } from './visibility';
 
@@ -113,6 +114,12 @@ export function xrefCandidates(text: string): string[] {
 	// The index is case-sensitive and so are XREFs, but nobody types "i4" meaning anything else.
 	return [...new Set([bare, bare.toUpperCase()].flatMap((c) => [c, `@${c}@`]))];
 }
+
+/**
+ * Ids per `factsMatching` statement. The list is bound twice, so 2n + 8 fixed parameters must stay
+ * under D1's 100: n = 46 at most, and 40 leaves margin.
+ */
+const FACT_IDS_PER_QUERY = 40;
 
 export class SearchRepository {
 	constructor(private db: DbClient) {}
@@ -254,32 +261,39 @@ export class SearchRepository {
 			!hasFactFilter({ words: [], place, from, to, limit: 0, offset: 0 })
 		)
 			return [];
-		const ids = sql.join(
-			personIds.map((id) => sql`${id}`),
-			sql`, `
-		);
 		const condition = factCondition(place, from, to);
-		const rows = await this.db.all<{
-			fact_id: string;
-			person_id: string;
-			type: string;
-			place: string | null;
-			date_raw: string | null;
-			is_partnership: number;
-		}>(sql`
+		const hits: FactHit[] = [];
+		// Each half of the union binds the list, so a chunk costs twice its length; the place and
+		// date terms (three, in both halves) and the scope's cutoff and creator take the other eight.
+		for (const part of chunkIds([...new Set(personIds)], FACT_IDS_PER_QUERY)) {
+			const ids = sql.join(
+				part.map((id) => sql`${id}`),
+				sql`, `
+			);
+			const rows = await this.db.all<{
+				fact_id: string;
+				person_id: string;
+				type: string;
+				place: string | null;
+				date_raw: string | null;
+				is_partnership: number;
+			}>(sql`
 			select e.id as fact_id, e.entity_id as person_id, e.type, e.place, e.date_raw, 0 as is_partnership
 			from events e where e.entity_type = 'INDIVIDUAL' and e.entity_id in (${ids}) and ${condition}
 			union all
 			select e.id, up.person_id, e.type, e.place, e.date_raw, 1
 			from union_partners up join events e on e.entity_type = 'FAMILY' and e.entity_id = up.union_id
 			where up.person_id in (${ids}) and ${condition}${allPartnersVisible(sql`up.union_id`, scope)}`);
-		return rows.map((r) => ({
-			factId: r.fact_id,
-			personId: r.person_id,
-			type: r.type,
-			place: r.place,
-			dateRaw: r.date_raw,
-			isPartnershipFact: r.is_partnership === 1
-		}));
+			for (const r of rows)
+				hits.push({
+					factId: r.fact_id,
+					personId: r.person_id,
+					type: r.type,
+					place: r.place,
+					dateRaw: r.date_raw,
+					isPartnershipFact: r.is_partnership === 1
+				});
+		}
+		return hits;
 	}
 }
