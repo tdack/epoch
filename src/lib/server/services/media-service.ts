@@ -542,8 +542,9 @@ export class MediaService {
 	}
 
 	/**
-	 * Move an attached file to another person in the same tree: a detach and an attach in one logged
-	 * change. A partnership is not a destination, and a detached file is attached rather than moved.
+	 * Move an attached file to another person or a source in the same tree: a detach and an attach in
+	 * one logged change. A partnership is not a destination, and a detached file is attached rather
+	 * than moved.
 	 */
 	async move(context: AuthenticatedContext, input: FileAttachInput): Promise<MutationResult> {
 		requireRealUser(context);
@@ -556,8 +557,11 @@ export class MediaService {
 			this.now()
 		);
 		const destination = await this.media.recordKindsOf(input.treeId, [input.entityId]);
-		if (destination.get(input.entityId) !== 'person')
-			throw new ValidationError('A file can only be moved to a person in the same tree');
+		const kind = destination.get(input.entityId);
+		if (kind !== 'person' && kind !== 'source')
+			throw new ValidationError(
+				'A file can only be moved to a person or a source in the same tree'
+			);
 		const file = await this.media.findById(input.mediaId);
 		if (!file || file.treeId !== input.treeId) throw new NotFoundError('File', input.mediaId);
 		if (file.entityId === null)

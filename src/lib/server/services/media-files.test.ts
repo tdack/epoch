@@ -6,7 +6,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { changeLog, individuals, mediaItems, trees, unions } from '../db/schema';
+import { changeLog, individuals, mediaItems, sources, trees, unions } from '../db/schema';
 import { PUBLIC_VISITOR, type AuthenticatedContext } from '../domain/identity';
 import {
 	ConcurrencyConflictError,
@@ -426,6 +426,16 @@ describe('editing files', () => {
 		const id = await fileOn(owners().pub, 'e-move');
 		await service.move(ctxOf(editor), { treeId, mediaId: id, entityId: owners().other });
 		expect(await rowOf(id)).toMatchObject({ entityId: owners().other });
+		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
+		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+	});
+
+	it('moves a file to a source, and undoes the move', async () => {
+		const sourceId = 'src-move-target';
+		await t.db.insert(sources).values({ id: sourceId, treeId, title: 'Parish register' });
+		const id = await fileOn(owners().pub, 'e-move-source');
+		await service.move(ctxOf(editor), { treeId, mediaId: id, entityId: sourceId });
+		expect(await rowOf(id)).toMatchObject({ entityId: sourceId });
 		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
 		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
 	});

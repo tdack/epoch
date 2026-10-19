@@ -8,6 +8,7 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 	getTreeContext: () => ({ toasts })
 }));
 vi.mock('#lib/components/PersonPicker.svelte', () => ({ default: function () {} }));
+vi.mock('#lib/api/evidence.js', () => ({ fetchSources: vi.fn(), createSourceApi: vi.fn() }));
 vi.mock('#lib/api/files.js', () => ({
 	attachFileApi: vi.fn(),
 	deleteFileApi: vi.fn(),
@@ -21,10 +22,23 @@ vi.mock('#lib/api/files.js', () => ({
 	uploadMediaApi: vi.fn()
 }));
 
-import { deleteFileApi, fetchFiles, fetchFileUsage, fetchUnlinkedFiles } from '#lib/api/files.js';
+import {
+	attachFileApi,
+	deleteFileApi,
+	fetchFiles,
+	fetchFileUsage,
+	fetchUnlinkedFiles,
+	moveFileApi,
+	uploadMediaApi
+} from '#lib/api/files.js';
+import { fetchSources } from '#lib/api/evidence.js';
 import Page from './+page.svelte';
 
 const remove = vi.mocked(deleteFileApi);
+const attach = vi.mocked(attachFileApi);
+const move = vi.mocked(moveFileApi);
+const upload = vi.mocked(uploadMediaApi);
+const sources = vi.mocked(fetchSources);
 const listFiles = vi.mocked(fetchFiles);
 const usage = vi.mocked(fetchFileUsage);
 const unlinked = vi.mocked(fetchUnlinkedFiles);
@@ -43,6 +57,10 @@ let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	toasts.push.mockReset();
 	remove.mockReset();
+	attach.mockReset();
+	move.mockReset();
+	upload.mockReset();
+	sources.mockReset();
 	listFiles.mockReset();
 	usage.mockResolvedValue({ trees: [], installBytes: null });
 	unlinked.mockReset();
@@ -256,5 +274,77 @@ describe('Files page paging', () => {
 		await vi.waitFor(() => expect(document.body.textContent).toContain('Found.pdf'));
 		expect(listFiles).toHaveBeenCalledTimes(2);
 		expect(listFiles).toHaveBeenLastCalledWith({ treeId: 't1', cursor: 'c2' });
+	});
+});
+
+describe('Files page attach and move to a source', () => {
+	const click = (name: string) =>
+		[...document.querySelectorAll<HTMLButtonElement>('button')]
+			.find((b) => b.textContent?.trim() === name)!
+			.click();
+
+	async function pickSource() {
+		sources.mockResolvedValue({
+			items: [{ id: 's1', title: 'Parish register', author: null }]
+		} as never);
+		click('Source');
+		flushSync();
+		await vi.waitFor(() => expect(document.querySelector('[role="option"]')).not.toBeNull());
+		document.querySelector<HTMLElement>('[role="option"]')!.click();
+		flushSync();
+	}
+
+	it('attaches a detached file to the source chosen', async () => {
+		attach.mockResolvedValue({ change: null });
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [row({ attachedTo: null, canAttach: true })] });
+		click('Attach Certificate.pdf');
+		flushSync();
+		await pickSource();
+		click('Attach');
+		await vi.waitFor(() => expect(attach).toHaveBeenCalledWith('f1', 't1', 's1', undefined));
+	});
+
+	it('moves an attached file to the source chosen', async () => {
+		move.mockResolvedValue(undefined);
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [row({ canMove: true })] });
+		click('Move Certificate.pdf');
+		flushSync();
+		await pickSource();
+		click('Move here');
+		await vi.waitFor(() => expect(move).toHaveBeenCalledWith('f1', 't1', 's1', undefined));
+	});
+
+	it('uploads a file to the source chosen', async () => {
+		upload.mockResolvedValue(undefined);
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [] });
+		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
+		flushSync();
+		const input = document.querySelector<HTMLInputElement>('#upload-file')!;
+		const file = new File(['x'], 'scan.png', { type: 'image/png' });
+		Object.defineProperty(input, 'files', { value: [file] });
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		await pickSource();
+		click('Upload');
+		await vi.waitFor(() => expect(upload).toHaveBeenCalledWith('t1', 's1', file));
+	});
+
+	it('offers a contributor neither the upload dialog nor a source', () => {
+		render({ role: 'contributor', files: [] });
+		expect(document.querySelector('[data-testid="files-add"]')).toBeNull();
+		expect(
+			[...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Source')
+		).toBe(false);
+	});
+
+	it('offers no source to a role that cannot change evidence', () => {
+		render({ role: 'contributor', files: [row({ attachedTo: null, canAttach: true })] });
+		click('Attach Certificate.pdf');
+		flushSync();
+		expect(
+			[...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Source')
+		).toBe(false);
 	});
 });

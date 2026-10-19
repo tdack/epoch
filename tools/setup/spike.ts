@@ -11,12 +11,14 @@ import { installPaths } from './paths.ts';
 import { createExec, createRedactor, type Exec, type ExecResult } from './run.ts';
 import { BASE_SCOPES, BUILDS_SCOPES, TAG_SCOPES } from './scopes.ts';
 import { TagConflictError } from './errors.ts';
+import { treeLoginDestination } from './steps/access.ts';
 import { TAG_KEYS } from './tags.ts';
 
 /**
  * `./setup spike`: the plan's step 0, run once by the owner against their own account.
  * Everything is read-only; writes are only ever sent with `--dry-run`, except `tag-write-etag-412`,
- * which creates a throwaway queue, tags it twice and deletes both again. Each raw response is saved
+ * which creates a throwaway queue, tags it twice and deletes both again, and `subdomains-route-write`,
+ * which creates a throwaway Worker-less route and deletes it again. Each raw response is saved
  * under `.epoch/spike/` (git-ignored) so a test fixture can be replaced with the real shape.
  */
 interface SpikeState {
@@ -205,6 +207,72 @@ const CHECKS: Check[] = [
 				'none'
 			);
 			return clash ?? 'a free hostname reads as free';
+		}
+	},
+	{
+		id: 'subdomains-access-destinations',
+		claim:
+			'The Access application lists `destinations` as `[{ type: "public", uri }]`, and the update `./setup subdomains` sent with them kept its AUD (ADR-057)',
+		async run(ctx) {
+			const manifest = loadManifest(ctx.fs, ctx.paths.manifestFile);
+			const settings = manifest?.subdomains;
+			const recorded = manifest?.access.app;
+			if (!settings || !recorded)
+				throw new Skip('`./setup subdomains` has not run on this install');
+			const live = (await ctx.cf.listAccessApps()).find((app) => app.id === recorded.id);
+			if (!live) throw new Error(`no Access application ${recorded.id} (${recorded.name})`);
+			const wanted = treeLoginDestination(settings.zone.name);
+			if (!live.destinations.includes(wanted))
+				throw new Error(
+					`${wanted} is not among the destinations read back (${live.destinations.join(', ')}); the shape differs, or an update sent \`domain\` alone`
+				);
+			// Apply refuses an AUD change, so the manifest still holds the AUD from before the update.
+			if (live.aud !== recorded.aud)
+				throw new Error(`the AUD is ${live.aud}, but the install recorded ${recorded.aud}`);
+			return `${live.destinations.length} destination(s) including ${wanted}, AUD unchanged`;
+		}
+	},
+	{
+		id: 'subdomains-zone-routes',
+		claim:
+			'GET /zones/{id}/workers/routes (no cf command) lists {id, pattern, script}, and an exclusion route reads back with no `script`',
+		async run(ctx) {
+			const settings = loadManifest(ctx.fs, ctx.paths.manifestFile)?.subdomains;
+			if (!settings) throw new Skip('`./setup subdomains` has not run on this install');
+			const routes = await ctx.cf.listZoneRoutes(settings.zone.id);
+			const byId = new Map(routes.map((route) => [route.id, route]));
+			const missing = settings.exclusionRoutes.filter((route) => !byId.has(route.id));
+			if (missing.length > 0)
+				throw new Error(`recorded but not listed: ${missing.map((r) => r.pattern).join(', ')}`);
+			const scripted = settings.exclusionRoutes.filter((route) => byId.get(route.id)?.script);
+			if (scripted.length > 0)
+				throw new Error(
+					`read back with a Worker: ${scripted.map((r) => r.pattern).join(', ')}; the \`script\` field is named differently`
+				);
+			return `${routes.length} route(s), all ${settings.exclusionRoutes.length} exclusion route(s) Worker-less`;
+		}
+	},
+	{
+		id: 'subdomains-route-write',
+		claim:
+			'The credential the raw calls use (the environment token, else the wrangler profile’s) may create and delete a Worker-less route; `workers-routes.write` is checked on the `cf` sign-in only. Tried on a throwaway route',
+		async run(ctx) {
+			const settings = loadManifest(ctx.fs, ctx.paths.manifestFile)?.subdomains;
+			if (!settings) throw new Skip('`./setup subdomains` has not run on this install');
+			// A host with no DNS record, so the route matches no request while it exists.
+			const pattern = `epoch-spike-${ctx.now().getTime()}.${settings.zone.name}/*`;
+			const route = await ctx.cf.createExclusionRoute(settings.zone.id, pattern);
+			if (!route.id) throw new Error('the create answered with no route id');
+			const cleanUp = () => ctx.cf.deleteZoneRoute(settings.zone.id, route.id);
+			// A Ctrl-C mid-check must not leave the route behind: nothing else would find it.
+			const forget = ctx.cleanup.add(`delete the spike route ${pattern}`, cleanUp);
+			try {
+				if (route.script) throw new Error(`the route was created for the Worker ${route.script}`);
+			} finally {
+				await cleanUp();
+				forget();
+			}
+			return `created and deleted ${pattern}`;
 		}
 	},
 	{

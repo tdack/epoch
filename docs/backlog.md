@@ -295,9 +295,6 @@ Last reviewed: 2026-10-18.
   `SOUR` stays a kept line and is not linked to the files a source has in Epoch, and an export
   writes no attached file (ADR-061). Model metadata, ownership, dates, notes, citations and links to
   several records or facts.
-- **The Files manager attaches and moves to people only.** A file on a source is attached from the
-  source page; the manager lists it and can detach it, but its attach and move dialogs offer no
-  source. (ADR-061)
 - **Image dimensions and safe derivatives generated asynchronously,** idempotently.
 - **Galleries, record thumbnails, ordering, captions and download permissions.**
 - **Scanned documents** (certificates) with transcription and citation workflows.
@@ -328,17 +325,6 @@ Last reviewed: 2026-10-18.
 - **Development, staging and production configuration separation,** reproducible provisioning.
 - **A tree on its own subdomain: the rest after phase 1** (ADR-057,
   [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
-  - **`./setup subdomains`: add its API shapes to `./setup spike`.** They worked on a real account
-    (`epochgenealogy.app`, 2026-10-17) but nothing checks them for drift:
-    - the Access application's `destinations`, and whether an update with them keeps the AUD;
-    - `/zones/{id}/workers/routes` with no `script`;
-    - that the wrangler profile's token, which the route calls use, may write routes. The
-      `workers-routes.write` check reads the `cf` sign-in only.
-  - **`./setup subdomains`: the rest.**
-    - A way to turn it off short of teardown.
-    - A `doctor` check for the record, the routes and the Access destination.
-    - Exclusion routes have no marker. One that a fresh clone finds is kept as `referenced` and is
-      never deleted, so teardown from a fresh clone leaves it behind.
   - **Short addresses** (`dacks.example.com/people/x`).
   - **Whether the app host should redirect a flagged tree to its subdomain.**
 

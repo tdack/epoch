@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
 	assertUuid,
 	insertMarkerSql,
+	isMissingColumn,
 	isMissingTable,
 	parseMarkerRows,
+	parseSubdomainsRows,
 	readMarkerSql,
-	updateOwnerSql
+	readSubdomainsSql,
+	updateOwnerSql,
+	writeSubdomainsSql,
+	type InstallSubdomains
 } from './install-meta.ts';
 
 const meta = { installId: '11111111-1111-4111-8111-111111111111', ownerEmail: 'Owner@Example.com' };
@@ -55,5 +60,66 @@ describe('the install_meta marker (coded to migration 0025)', () => {
 	it('treats a missing table as "marker pending"', () => {
 		expect(isMissingTable('D1_ERROR: no such table: install_meta: SQLITE_ERROR')).toBe(true);
 		expect(isMissingTable('network down')).toBe(false);
+	});
+});
+
+describe('the tree subdomains kept in install_meta (migration 0035)', () => {
+	const recorded: InstallSubdomains = {
+		zone: { id: 'a'.repeat(32), name: 'Example.com' },
+		dnsRecordId: 'b'.repeat(32),
+		exclusionRouteIds: ['c'.repeat(32)],
+		isActive: false
+	};
+
+	it('writes this install’s row only, as JSON that reads back the same', () => {
+		const sql = writeSubdomainsSql(meta.installId, recorded);
+		expect(sql).toMatch(
+			/^UPDATE install_meta SET subdomains = '.*' WHERE install_id = '11111111-1111-4111-8111-111111111111'$/
+		);
+		const json = sql.slice(sql.indexOf("'") + 1, sql.indexOf("' WHERE"));
+		expect(parseSubdomainsRows([{ subdomains: json }])).toEqual({
+			...recorded,
+			zone: { id: 'a'.repeat(32), name: 'example.com' }
+		});
+		expect(readSubdomainsSql(meta.installId)).toBe(
+			"SELECT subdomains FROM install_meta WHERE install_id = '11111111-1111-4111-8111-111111111111'"
+		);
+	});
+
+	it('clears the value when the subdomains are removed', () => {
+		expect(writeSubdomainsSql(meta.installId, null)).toBe(
+			"UPDATE install_meta SET subdomains = NULL WHERE install_id = '11111111-1111-4111-8111-111111111111'"
+		);
+	});
+
+	it('refuses an id or zone name that could carry SQL', () => {
+		expect(() =>
+			writeSubdomainsSql(meta.installId, {
+				...recorded,
+				exclusionRouteIds: ["x'; DROP TABLE users; --"]
+			})
+		).toThrow('is not a Cloudflare id');
+		expect(() =>
+			writeSubdomainsSql(meta.installId, {
+				...recorded,
+				zone: { id: 'a'.repeat(32), name: "a'.com" }
+			})
+		).toThrow('is not a zone name');
+	});
+
+	it('reads no row, no value or a malformed value as nothing recorded', () => {
+		expect(parseSubdomainsRows([])).toBeNull();
+		expect(parseSubdomainsRows([{ subdomains: null }])).toBeNull();
+		expect(parseSubdomainsRows([{ subdomains: '{not json' }])).toBeNull();
+		expect(
+			parseSubdomainsRows([
+				{ subdomains: JSON.stringify({ ...recorded, exclusionRouteIds: ['nope'] }) }
+			])
+		).toBeNull();
+	});
+
+	it('treats a missing column as "not migrated yet"', () => {
+		expect(isMissingColumn('D1_ERROR: no such column: subdomains: SQLITE_ERROR')).toBe(true);
+		expect(isMissingColumn('no such table: install_meta')).toBe(false);
 	});
 });

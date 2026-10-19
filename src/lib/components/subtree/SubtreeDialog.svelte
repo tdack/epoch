@@ -84,7 +84,7 @@
 	<form onsubmit={handleSubmit} class="space-y-4">
 		{#if mode === 'create' && rootName}
 			<div>
-				<span class="field-label">Root person</span>
+				<span class="field-label">Anchor person</span>
 				<p class="text-sm font-medium text-stone-900" data-testid="subtree-root">{rootName}</p>
 				<p class="mt-1 text-xs text-stone-600">
 					The sub-tree covers this person's descendants and their partners.

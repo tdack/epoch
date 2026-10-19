@@ -40,6 +40,8 @@ interface RawOptions {
 	device?: boolean;
 	name?: string;
 	reserve?: string[];
+	off?: boolean;
+	remove?: boolean;
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -253,7 +255,13 @@ const DEFAULT_HANDLERS: Handlers = {
 			ui.intro('Epoch tree subdomains');
 			const result = await runSubdomains(
 				ctx,
-				{ zone: flags.zone, reserve: raw.reserve, isPlanOnly: flags.isPlanOnly },
+				{
+					zone: flags.zone,
+					reserve: raw.reserve,
+					isPlanOnly: flags.isPlanOnly,
+					isOff: raw.off ?? false,
+					isRemove: raw.remove ?? false
+				},
 				modeOf(flags),
 				ui.asker,
 				ui.presenter
@@ -336,6 +344,14 @@ export function buildProgram(handlers: Handlers = DEFAULT_HANDLERS): Command {
 		)
 		.option('--zone <id>', 'zone (domain) id or name; default: the install’s own')
 		.option('--reserve <labels...>', 'labels no tree may take, beyond the zone’s own records')
+		.option(
+			'--off',
+			'stop serving trees on subdomains; keeps the DNS record and exclusion routes for turning them back on'
+		)
+		.option(
+			'--remove',
+			'with --off: also delete the DNS record and this install’s exclusion routes'
+		)
 		.option('-y, --yes', 'apply without asking, adding an exclusion route for every captured host')
 		.option('--plan', 'list what the wildcard would capture and print the plan; changes nothing')
 		.option('--json', 'print one JSON result on stdout')

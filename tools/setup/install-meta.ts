@@ -88,6 +88,80 @@ export function parseMarkerRows(rows: unknown): InstallMeta | null {
 	};
 }
 
+/**
+ * What `./setup subdomains` made, kept in `install_meta.subdomains` (migration 0035) so a clone with
+ * no manifest can find it: the exclusion routes carry no marker, and turning the subdomains off
+ * takes the zone out of the deploy config, which is otherwise the only thing a fresh clone reads.
+ * Only routes this install made are listed, never ones it found and kept.
+ */
+export interface InstallSubdomains {
+	zone: { id: string; name: string };
+	dnsRecordId: string | null;
+	exclusionRouteIds: string[];
+	isActive: boolean;
+}
+
+const CLOUDFLARE_ID_PATTERN = /^[0-9a-f]{32}$/i;
+const ZONE_NAME_PATTERN = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+function assertCloudflareId(value: string): string {
+	if (!CLOUDFLARE_ID_PATTERN.test(value))
+		throw new SetupError(ERROR_CODES.usage, `"${value}" is not a Cloudflare id`);
+	return value;
+}
+
+export function writeSubdomainsSql(installId: string, value: InstallSubdomains | null): string {
+	const id = assertUuid(installId);
+	if (value === null)
+		return `UPDATE ${INSTALL_META_TABLE} SET subdomains = NULL WHERE install_id = ${sqlText(id)}`;
+	if (!ZONE_NAME_PATTERN.test(value.zone.name))
+		throw new SetupError(ERROR_CODES.usage, `"${value.zone.name}" is not a zone name`);
+	const json = JSON.stringify({
+		zone: { id: assertCloudflareId(value.zone.id), name: value.zone.name.toLowerCase() },
+		dnsRecordId: value.dnsRecordId === null ? null : assertCloudflareId(value.dnsRecordId),
+		exclusionRouteIds: value.exclusionRouteIds.map(assertCloudflareId),
+		isActive: value.isActive
+	});
+	return `UPDATE ${INSTALL_META_TABLE} SET subdomains = ${sqlText(json)} WHERE install_id = ${sqlText(id)}`;
+}
+
+export function readSubdomainsSql(installId: string): string {
+	return `SELECT subdomains FROM ${INSTALL_META_TABLE} WHERE install_id = ${sqlText(assertUuid(installId))}`;
+}
+
+/** Null for no row, no value, or one that does not parse: each means "nothing recorded". */
+export function parseSubdomainsRows(rows: unknown): InstallSubdomains | null {
+	if (!Array.isArray(rows) || rows.length === 0) return null;
+	const raw = (rows[0] as Record<string, unknown>).subdomains;
+	if (typeof raw !== 'string') return null;
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	if (typeof value !== 'object' || value === null) return null;
+	const { zone, dnsRecordId, exclusionRouteIds, isActive } = value as Record<string, unknown>;
+	const zoneRec =
+		typeof zone === 'object' && zone !== null ? (zone as Record<string, unknown>) : null;
+	const isId = (v: unknown): v is string => typeof v === 'string' && CLOUDFLARE_ID_PATTERN.test(v);
+	if (!zoneRec || !isId(zoneRec.id) || typeof zoneRec.name !== 'string') return null;
+	if (dnsRecordId !== null && !isId(dnsRecordId)) return null;
+	if (!Array.isArray(exclusionRouteIds) || !exclusionRouteIds.every(isId)) return null;
+	if (typeof isActive !== 'boolean') return null;
+	return {
+		zone: { id: zoneRec.id, name: zoneRec.name },
+		dnsRecordId,
+		exclusionRouteIds,
+		isActive
+	};
+}
+
+/** Before migration 0035 there is no `subdomains` column; setup then relies on the manifest alone. */
+export function isMissingColumn(message: string): boolean {
+	return /no such column/i.test(message);
+}
+
 /** Before the migration has run there is no table; that means "marker pending", not a failure. */
 export function isMissingTable(message: string): boolean {
 	return /no such table/i.test(message);
