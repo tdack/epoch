@@ -66,8 +66,8 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 describe('SubtreeManager', () => {
 	it('lists roots and marks a missing one', () => {
 		render();
-		expect(document.body.textContent).toContain('Rooted at Ann Line');
-		expect(document.body.textContent).toContain('Root missing');
+		expect(document.body.textContent).toContain('Anchored at Ann Line');
+		expect(document.body.textContent).toContain('Anchor missing');
 	});
 
 	it('is read-only below manager', () => {

@@ -131,15 +131,15 @@
 							{#if subtree.isRootMissing}
 								<span
 									class="rounded-full bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-900"
-									>Root missing</span
+									>Anchor missing</span
 								>
 							{/if}
 						</span>
 						<p class="text-xs text-stone-600">
 							{#if subtree.isRootMissing}
-								The root person was deleted. Undoing that restores it, or choose another root.
+								The anchor person was deleted. Undoing that restores it, or choose another anchor.
 							{:else}
-								Rooted at {rootLabel(subtree)} · <span class="font-mono">~{subtree.slug}</span>
+								Anchored at {rootLabel(subtree)} · <span class="font-mono">~{subtree.slug}</span>
 							{/if}
 						</p>
 					</div>
@@ -169,7 +169,7 @@
 							</button>
 							<button type="button" class={actionClass} onclick={() => open('root', subtree)}>
 								<UserRoundCog class="h-3.5 w-3.5" aria-hidden="true" />
-								Change root<span class="sr-only"> of {subtree.name}</span>
+								Change anchor<span class="sr-only"> of {subtree.name}</span>
 							</button>
 							<button
 								type="button"
@@ -202,7 +202,7 @@
 
 	<BaseModal
 		isOpen={dialog === 'root'}
-		title="Change Root"
+		title="Change Anchor"
 		icon={UserRoundCog}
 		error={dialogError}
 		onclose={close}
@@ -211,15 +211,15 @@
 			class="space-y-4"
 			onsubmit={(e) => {
 				e.preventDefault();
-				if (newRoot) void patch(target!, { rootPersonId: newRoot.id }, 'Root changed');
+				if (newRoot) void patch(target!, { rootPersonId: newRoot.id }, 'Anchor changed');
 			}}
 		>
 			<p class="text-sm text-stone-700">
-				Choose the person {target.name} is rooted at.
+				Choose the person {target.name} is anchored at.
 			</p>
 			<PersonPicker
 				treeId={tree.id}
-				label="New root"
+				label="New anchor"
 				picked={newRoot}
 				onpick={(p) => (newRoot = p)}
 			/>
@@ -231,7 +231,9 @@
 					class="cursor-pointer rounded-lg px-4 py-2 text-xs font-medium text-stone-600 hover:bg-stone-200/60 disabled:opacity-50"
 					>Cancel</button
 				>
-				<button type="submit" disabled={isBusy || !newRoot} class="btn-primary">Change root</button>
+				<button type="submit" disabled={isBusy || !newRoot} class="btn-primary"
+					>Change anchor</button
+				>
 			</div>
 		</form>
 	</BaseModal>

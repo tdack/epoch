@@ -107,7 +107,7 @@ relatives.
 **Chart focus order** in a sub-tree: the URL's `focus` → the focus remembered *for this sub-tree*
 (localStorage key `…:<treeId>~<subtreeId>`) → the sub-tree's root → the tree's default.
 
-A banner under the header names the lens: "Bouvier line · rooted at Clancy Bouvier ·
+A banner under the header names the lens: "Bouvier line · anchored at Clancy Bouvier ·
 Show whole tree".
 
 ### Switcher
@@ -135,7 +135,7 @@ have none today), but a shared sub-tree address works for them when the root is 
 - **From the person:** "Make sub-tree from here" in the person page's actions and the drawer
   (manager and above). A dialog asks for a name, suggesting "<surname> line", and a slug made from
   it; on save it opens the new sub-tree.
-- **Trees page:** under the current tree, its sub-trees with rename (and slug), change root (the
+- **Trees page:** under the current tree, its sub-trees with rename (and slug), change anchor (the
   person finder), move up/down, and delete.
 - **The tree summary** carries `subtrees: { id, slug, name, rootPersonId }[]` and the active
   `subtree` (or null), so the layout and the switcher need no second request.
@@ -144,7 +144,7 @@ have none today), but a shared sub-tree address works for them when the root is 
 
 - **Root deleted:** person deletion is a hard delete with undo, so `root_person_id` has no foreign
   key: an undo brings the same id back and the sub-tree works again. Until then the sub-tree shows
-  as "root missing" on the Trees page, and opening it shows the whole tree with a notice.
+  as "anchor missing" on the Trees page, and opening it shows the whole tree with a notice.
 - **Root merged:** `PersonMergeService` repoints `root_person_id` from the merged-away person to the
   survivor, in the same mutation.
 - **Tree deleted:** cascades.
