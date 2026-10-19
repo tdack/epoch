@@ -298,9 +298,6 @@ Last reviewed: 2026-10-15.
   `SOUR` stays a kept line and is not linked to the files a source has in Epoch, and an export
   writes no attached file (ADR-061). Model metadata, ownership, dates, notes, citations and links to
   several records or facts.
-- **The Files manager attaches and moves to people only.** A file on a source is attached from the
-  source page; the manager lists it and can detach it, but its attach and move dialogs offer no
-  source. (ADR-061)
 - **Image dimensions and safe derivatives generated asynchronously,** idempotently.
 - **Galleries, record thumbnails, ordering, captions and download permissions.**
 - **Scanned documents** (certificates) with transcription and citation workflows.

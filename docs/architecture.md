@@ -98,7 +98,7 @@ are gone.
   (ADR-051). Any other line under a fact is kept verbatim and shown read-only.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person, a
   partnership or a source, or is null for a detached file (ADR-061). The R2 key names the file, not its owner, so attaching,
-  detaching and moving are row updates that never touch the bytes (ADR-050).
+  detaching and moving are row updates that never touch the bytes (ADR-050). The Files manager and the source page both attach to a source, and a move may land on a person or a source (ADR-061).
 - `subtree`: a named lens on a tree, rooted at one person (ADR-062). It holds `root_person_id` with
   no foreign key, so an undo of a person delete brings the sub-tree back. Membership is not stored:
   the root, its descendants through `parent_child` of any type whose status is not `disputed`, and
