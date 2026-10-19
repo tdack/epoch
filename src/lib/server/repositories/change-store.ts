@@ -5,8 +5,8 @@
  * in the server writes the mutable tree tables outside an import.
  */
 
-import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
-import type { AnySQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
 import {
 	changeLog,
@@ -101,14 +101,11 @@ type ColumnMap = Record<string, { dataType: string }>;
 const DERIVED_COLUMNS = new Set(['placeId', 'sizeBytes', 'uploadedBy']);
 
 /**
- * Child tables whose `tree_id` (migration 0036) is nullable and kept out of row images. Rows written
- * by code older than the migration have a null until backfilled, and the migration runs before the
- * new code deploys, so nulls can appear in that window and cannot be ruled out by the backfill alone.
- * Treating a null as "own row" keeps those rows editable and undoable; a row with a non-null
- * `tree_id` of another tree is still refused. A later contract migration can make the column NOT
- * NULL and drop this fallback (docs/backlog.md).
+ * Child tables whose `tree_id` stays out of row images. Their logged images predate migration 0036,
+ * so an inverse written before it has no such key and would never match a row that has one; the
+ * commit's own tree is stamped on insert instead.
  */
-const NULLABLE_TREE_TABLES = new Set<SQLiteTable>([personNames, unionPartners, sourceRepositories]);
+const STAMPED_TREE_TABLES = new Set<SQLiteTable>([personNames, unionPartners, sourceRepositories]);
 
 /**
  * The table's `tree_id` column, or undefined for a table without one. Read from the Drizzle table so
@@ -119,18 +116,11 @@ function treeColumnOf(table: SQLiteTable) {
 	return 'treeId' in columns ? columns.treeId : undefined;
 }
 
-/** `tree_id = ?`, or also null for the tables in `NULLABLE_TREE_TABLES`. */
-function inTree(table: SQLiteTable, treeColumn: AnySQLiteColumn, treeId: string) {
-	return NULLABLE_TREE_TABLES.has(table)
-		? or(eq(treeColumn, treeId), isNull(treeColumn))
-		: eq(treeColumn, treeId);
-}
-
 function columnsOf(table: SQLiteTable): ColumnMap {
 	// `getTableColumns` on a generic table is not indexable by column name, which every table here is.
 	return Object.fromEntries(
 		Object.entries(getTableColumns(table)).filter(
-			([key]) => !DERIVED_COLUMNS.has(key) && !(key === 'treeId' && NULLABLE_TREE_TABLES.has(table))
+			([key]) => !DERIVED_COLUMNS.has(key) && !(key === 'treeId' && STAMPED_TREE_TABLES.has(table))
 		)
 	) as unknown as ColumnMap;
 }
@@ -320,11 +310,7 @@ export class ChangeStore {
 		// A row in another tree must fail the guard exactly like a missing row: that is the conflict path.
 		const treeColumn = treeColumnOf(TABLES[op.table]);
 		const treeName = treeColumn ? sql.identifier(treeColumn.name) : sql``;
-		const isSameTree = !treeColumn
-			? sql``
-			: NULLABLE_TREE_TABLES.has(TABLES[op.table])
-				? sql` and (${treeName} = ${treeId} or ${treeName} is null)`
-				: sql` and ${treeName} = ${treeId}`;
+		const isSameTree = treeColumn ? sql` and ${treeName} = ${treeId}` : sql``;
 		const nulls = sql.join(
 			Object.keys(getTableColumns(changeLog)).map(() => sql`null`),
 			sql`, `
@@ -384,7 +370,7 @@ export class ChangeStore {
 		const idColumn = (table as unknown as { id: never }).id;
 		const treeColumn = treeColumnOf(table);
 		const isOwnRow = treeColumn
-			? and(eq(idColumn, op.id), inTree(table, treeColumn, treeId))
+			? and(eq(idColumn, op.id), eq(treeColumn, treeId))
 			: eq(idColumn, op.id);
 		switch (opKind(op)) {
 			case OP_KINDS.CREATE:
@@ -392,7 +378,7 @@ export class ChangeStore {
 				return this.db
 					.insert(table)
 					.values(
-						NULLABLE_TREE_TABLES.has(table)
+						STAMPED_TREE_TABLES.has(table)
 							? { ...revive(table, op.after!), treeId }
 							: revive(table, op.after!)
 					);
@@ -490,7 +476,7 @@ export class ChangeStore {
 			const treeColumn = treeColumnOf(table);
 			for (const part of chunk(ids, 90)) {
 				const isInTree = treeColumn
-					? and(inArray(idColumn, part), inTree(table, treeColumn, treeId))
+					? and(inArray(idColumn, part), eq(treeColumn, treeId))
 					: inArray(idColumn, part);
 				const rows = await this.db.select().from(table).where(isInTree).all();
 				for (const row of rows) images.set(`${name}:${row.id}`, toImage(table, row));
