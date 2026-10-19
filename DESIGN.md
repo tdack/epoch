@@ -430,6 +430,25 @@ stone backdrop, capped at 90% of the viewport height and scrolling inside. The h
 tinted icon tile with a one-line bold title and an 11px subtitle. Warnings inside a dialog use an
 orange or amber notice.
 
+### Disclosures
+
+Native `<details>` and `<summary>`, never a scripted accordion. They open with the keyboard and stay
+open across reloads of the data. Closed by default, unless the content is the reason the page was
+opened.
+
+- **Section fold:** for a long list the visitor has already settled, such as the dismissed findings
+  on the Quality page. The summary is the section's title in its heading weight (1.125rem bold
+  stone ink), with the count in normal-weight stone-600, e.g. "Dismissed (12)". A 16px Lucide
+  chevron in stone-500 replaces the browser marker and turns 90° when open (no turn under reduced
+  motion). It has `focus-ring` and is 44px tall on touch screens. The panel inside is the usual list
+  panel.
+- **Inline aside:** a 0.75rem stone-600 summary ("Why this is flagged") under a heading. It keeps
+  the browser marker and holds a sentence or two of explanation.
+- **Record annex:** notes and citations beside a fact. The summary is a 14px icon with a count, or a
+  claim marker, and turns emerald when open or hovered.
+- **Optional form part:** a semibold emerald summary that names what it adds ("Add another source")
+  and opens fields beneath.
+
 ### Person Card (signature)
 
 The unit of the tree. An SVG card tinted by the muted sex palette with a darker edge and a symbol at
