@@ -1,7 +1,7 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 import { DATA_KEY } from '../shared/data-key';
-import { generationsParam, listQuery, treeLoad } from './load-helpers';
+import { generationsParam, treeLoad } from './load-helpers';
 import { ApiError } from './client';
 
 const url = (query: string) => new URL(`https://epoch.test/trees/t1?${query}`);
@@ -27,25 +27,6 @@ describe('generationsParam', () => {
 
 	it('reads the key it is asked for', () => {
 		expect(generationsParam(url('up=3&down=5'), 'down', options)).toBe(5);
-	});
-});
-
-describe('listQuery', () => {
-	it('carries the normalised offset and limit', () => {
-		const query = listQuery(url('offset=50&limit=25'));
-		expect(query.get('offset')).toBe('50');
-		expect(query.get('limit')).toBe('25');
-	});
-
-	it('falls back to the defaults for nonsense', () => {
-		const query = listQuery(url('offset=-5&limit=abc'));
-		expect(query.get('offset')).toBe('0');
-		expect(Number(query.get('limit'))).toBeGreaterThan(0);
-	});
-
-	it('puts the extra parameters in beside them', () => {
-		const query = listQuery(url('offset=10'), { sort: 'given', q: '' });
-		expect(Object.fromEntries(query)).toMatchObject({ sort: 'given', q: '', offset: '10' });
 	});
 });
 

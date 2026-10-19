@@ -1,17 +1,8 @@
 import type { ImpactResponse, PeopleSearchResponse } from '#lib/shared/api-contracts.js';
 import type { PeopleSearchResult, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
-import type { SearchResponse } from '#lib/shared/search.js';
 import type { MarksDto } from '#lib/shared/marks.js';
-import type { RelationshipDto } from '#lib/shared/kinship.js';
-import type { DescendantsDto, PedigreeDto } from '#lib/shared/charts.js';
-import type { QualityReport } from '#lib/shared/quality.js';
-import { MAX_PLACE_SUGGESTIONS, type PlaceDto, type PlaceListItem } from '#lib/shared/places.js';
-import type {
-	IndividualListItem,
-	Page,
-	SurnameListItem,
-	UnionListItem
-} from '#lib/shared/lists.js';
+import { MAX_PLACE_SUGGESTIONS, type PlaceListItem } from '#lib/shared/places.js';
+import type { Page } from '#lib/shared/lists.js';
 import { call, json, path } from './client.js';
 
 export async function searchPeopleApi(
@@ -24,44 +15,6 @@ export async function searchPeopleApi(
 		'Failed to search people'
 	);
 	return data.people || [];
-}
-
-/** The search page's results for its own URL parameters (`q`, `place`, `from`, `to`, `offset`). */
-export function searchTreeApi(
-	treeId: string,
-	params: URLSearchParams,
-	fetchFn: typeof fetch = fetch
-): Promise<SearchResponse> {
-	return call(
-		path`/api/trees/${treeId}/search` + `?${params}`,
-		undefined,
-		'Failed to search the tree',
-		fetchFn
-	);
-}
-
-/** One page of a list, for the list page's own URL parameters. */
-export function fetchList<T extends IndividualListItem | UnionListItem | SurnameListItem>(
-	treeId: string,
-	list: 'individuals' | 'unions' | 'surnames',
-	params: URLSearchParams,
-	fetchFn: typeof fetch = fetch
-): Promise<Page<T>> {
-	return call(
-		path`/api/trees/${treeId}/lists/${list}` + `?${params}`,
-		undefined,
-		'Failed to load the list',
-		fetchFn
-	);
-}
-
-export function fetchMarks(treeId: string, fetchFn: typeof fetch = fetch): Promise<MarksDto> {
-	return call(
-		path`/api/trees/${treeId}/marks`,
-		undefined,
-		'Failed to load favourites and recents',
-		fetchFn
-	);
 }
 
 /** Record a visit; answers with the user's marks as they now stand. */
@@ -85,52 +38,7 @@ export function setFavoriteApi(
 	);
 }
 
-export async function fetchRelationship(
-	treeId: string,
-	fromId: string,
-	toId: string,
-	fetcher: typeof fetch = fetch
-): Promise<RelationshipDto> {
-	return call(
-		path`/api/trees/${treeId}/relationship` +
-			`?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
-		{ method: 'GET' },
-		'Failed to work out the relationship',
-		fetcher
-	);
-}
-
-export async function fetchPedigree(
-	treeId: string,
-	personId: string,
-	generations: number,
-	fetcher: typeof fetch = fetch
-): Promise<PedigreeDto> {
-	return call(
-		path`/api/trees/${treeId}/charts/pedigree` +
-			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
-		{ method: 'GET' },
-		'Failed to load the pedigree',
-		fetcher
-	);
-}
-
-export async function fetchDescendants(
-	treeId: string,
-	personId: string,
-	generations: number,
-	fetcher: typeof fetch = fetch
-): Promise<DescendantsDto> {
-	return call(
-		path`/api/trees/${treeId}/charts/descendants` +
-			`?person=${encodeURIComponent(personId)}&generations=${generations}`,
-		{ method: 'GET' },
-		'Failed to load the descendants',
-		fetcher
-	);
-}
-
-export async function fetchPlaces(
+async function fetchPlaces(
 	treeId: string,
 	params: URLSearchParams,
 	fetcher: typeof fetch = fetch
@@ -139,22 +47,6 @@ export async function fetchPlaces(
 		path`/api/trees/${treeId}/places` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the places',
-		fetcher
-	);
-}
-
-export async function fetchPlace(
-	treeId: string,
-	name: string,
-	params: URLSearchParams,
-	fetcher: typeof fetch = fetch
-): Promise<PlaceDto> {
-	const query = new URLSearchParams(params);
-	query.set('name', name);
-	return call(
-		path`/api/trees/${treeId}/places` + `?${query}`,
-		{ method: 'GET' },
-		'Failed to load the place',
 		fetcher
 	);
 }
@@ -214,18 +106,6 @@ export async function previewPlaceRewriteApi(
 		'Failed to preview the change'
 	);
 	return data.impact;
-}
-
-export async function fetchQuality(
-	treeId: string,
-	fetcher: typeof fetch = fetch
-): Promise<QualityReport> {
-	return call(
-		path`/api/trees/${treeId}/quality`,
-		{ method: 'GET' },
-		'Failed to load the report',
-		fetcher
-	);
 }
 
 /** Dismisses every finding named with the one reason, or none of them. */

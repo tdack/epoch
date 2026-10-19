@@ -20,29 +20,29 @@ describe('a 401 from the API', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	it('starts a full navigation to /login in the browser, and still throws', async () => {
-		const { fetchTreeList, ApiError } = await loadApi(true);
+		const { deleteTreeApi, ApiError } = await loadApi(true);
 		vi.stubGlobal('fetch', unauthorized());
 
-		await expect(fetchTreeList()).rejects.toBeInstanceOf(ApiError);
+		await expect(deleteTreeApi('t1')).rejects.toBeInstanceOf(ApiError);
 		expect(assign).toHaveBeenCalledWith('/login?next=%2Ftrees%2Ft1%3Ffocus%3Dp2');
 	});
 
 	it('only throws on the server', async () => {
-		const { fetchTreeList, ApiError } = await loadApi(false);
+		const { deleteTreeApi, ApiError } = await loadApi(false);
 		vi.stubGlobal('fetch', unauthorized());
 
-		await expect(fetchTreeList()).rejects.toBeInstanceOf(ApiError);
+		await expect(deleteTreeApi('t1')).rejects.toBeInstanceOf(ApiError);
 		expect(assign).not.toHaveBeenCalled();
 	});
 
 	it('leaves other failures alone', async () => {
-		const { fetchTreeList } = await loadApi(true);
+		const { deleteTreeApi } = await loadApi(true);
 		vi.stubGlobal(
 			'fetch',
 			vi.fn(async () => Response.json({ error: 'Forbidden' }, { status: 403 }))
 		);
 
-		await expect(fetchTreeList()).rejects.toThrow('Forbidden');
+		await expect(deleteTreeApi('t1')).rejects.toThrow('Forbidden');
 		expect(assign).not.toHaveBeenCalled();
 	});
 });

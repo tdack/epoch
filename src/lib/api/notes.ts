@@ -1,11 +1,6 @@
 import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
-import type {
-	NoteListItem,
-	NoteSubjectRef,
-	SharedNoteDto,
-	SharedNoteInput
-} from '#lib/shared/notes.js';
+import type { NoteListItem, NoteSubjectRef, SharedNoteInput } from '#lib/shared/notes.js';
 import type { Page } from '#lib/shared/lists.js';
 import { type Changed, call, json, path } from './client.js';
 
@@ -18,20 +13,6 @@ export async function fetchNotes(
 		path`/api/trees/${treeId}/lists/notes` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the notes',
-		fetcher
-	);
-}
-
-export async function fetchNote(
-	treeId: string,
-	noteId: string,
-	params: URLSearchParams,
-	fetcher: typeof fetch = fetch
-): Promise<SharedNoteDto> {
-	return call(
-		path`/api/trees/${treeId}/notes/${noteId}` + `?${params}`,
-		{ method: 'GET' },
-		'Failed to load the note',
 		fetcher
 	);
 }

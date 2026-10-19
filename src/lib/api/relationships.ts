@@ -15,7 +15,6 @@ import type {
 } from '#lib/types/genealogy.js';
 import type { ParentChildType } from '#lib/shared/relationship-model.js';
 import type { MergeChoices } from '#lib/shared/union-merge.js';
-import type { UnionPageDto } from '#lib/shared/union-page.js';
 import { call, json, path } from './client.js';
 
 /** Preview an intent: the sentence, warnings and the exact records a save would write. Saves nothing. */
@@ -126,17 +125,4 @@ export async function mergeUnionsApi(
 /** Undo the signed-in user's most recent change. Refusals (a later change touched it) come back as ApiError. */
 export async function undoApi(treeId: string): Promise<UndoResponse> {
 	return call<UndoResponse>(path`/api/trees/${treeId}/undo`, { method: 'POST' }, 'Failed to undo');
-}
-
-export function fetchUnionPage(
-	treeId: string,
-	unionId: string,
-	fetchFn: typeof fetch = fetch
-): Promise<UnionPageDto> {
-	return call(
-		path`/api/trees/${treeId}/unions/${unionId}`,
-		undefined,
-		'Failed to load the partnership',
-		fetchFn
-	);
 }

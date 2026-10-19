@@ -25,11 +25,6 @@ export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | nul
 	);
 }
 
-/** The caller's own colour layer, the site default and what they resolve to (ADR-054). */
-export function fetchSettings(fetchFn: typeof fetch = fetch): Promise<SettingsView> {
-	return call('/api/settings', undefined, 'Failed to load settings', fetchFn);
-}
-
 /** Changes the caller's own layer; a group sent as null inherits the site default again. */
 export function saveMySettings(patch: SettingsPatch): Promise<SettingsView> {
 	return call('/api/settings', json('PUT', patch), 'Failed to save your settings');

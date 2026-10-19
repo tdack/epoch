@@ -46,11 +46,6 @@ export interface TreeListResponse {
 	trees: TreeSummary[];
 }
 
-/** `GET /api/admin/trees` */
-export interface InstallTreesResponse {
-	trees: InstallTree[];
-}
-
 /** What deleting a tree would remove. */
 export interface TreeImpact {
 	people: number;

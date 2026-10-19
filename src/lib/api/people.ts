@@ -213,18 +213,6 @@ export async function setPersonPrivacyApi(
 	);
 }
 
-export async function fetchPrivacySettings(
-	treeId: string,
-	fetcher: typeof fetch = fetch
-): Promise<PrivacySettingsDto> {
-	return call(
-		path`/api/trees/${treeId}/privacy`,
-		{ method: 'GET' },
-		'Failed to load the privacy settings',
-		fetcher
-	);
-}
-
 export async function savePrivacySettings(
 	treeId: string,
 	patch: Partial<PrivacySettingsDto>

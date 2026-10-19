@@ -3,11 +3,6 @@ import { QualityService } from '#lib/server/services/quality-service.js';
 import { qualityDismissSchema } from '#lib/server/validation/schemas.js';
 import { ValidationError } from '#lib/server/domain/errors.js';
 
-/** The data-quality report: findings over what the caller may see, and the ones dismissed with a reason. */
-export const GET = treeHandler({ failure: 'Failed to load the report' }, ({ db, ctx, treeId }) =>
-	new QualityService(db).report(treeId, ctx)
-);
-
 /** Dismiss one finding or several with a reason, all or none; dismissing again replaces the reason. */
 export const PUT = treeHandler(
 	{ failure: 'Failed to dismiss the findings', body: qualityDismissSchema },
