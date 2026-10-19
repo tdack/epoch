@@ -28,7 +28,8 @@ import {
 	fetchFiles,
 	fetchFileUsage,
 	fetchUnlinkedFiles,
-	moveFileApi
+	moveFileApi,
+	uploadMediaApi
 } from '#lib/api/files.js';
 import { fetchSources } from '#lib/api/evidence.js';
 import Page from './+page.svelte';
@@ -36,6 +37,7 @@ import Page from './+page.svelte';
 const remove = vi.mocked(deleteFileApi);
 const attach = vi.mocked(attachFileApi);
 const move = vi.mocked(moveFileApi);
+const upload = vi.mocked(uploadMediaApi);
 const sources = vi.mocked(fetchSources);
 const listFiles = vi.mocked(fetchFiles);
 const usage = vi.mocked(fetchFileUsage);
@@ -57,6 +59,7 @@ beforeEach(() => {
 	remove.mockReset();
 	attach.mockReset();
 	move.mockReset();
+	upload.mockReset();
 	sources.mockReset();
 	listFiles.mockReset();
 	usage.mockResolvedValue({ trees: [], installBytes: null });
@@ -311,6 +314,29 @@ describe('Files page attach and move to a source', () => {
 		await pickSource();
 		click('Move here');
 		await vi.waitFor(() => expect(move).toHaveBeenCalledWith('f1', 't1', 's1', undefined));
+	});
+
+	it('uploads a file to the source chosen', async () => {
+		upload.mockResolvedValue(undefined);
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [] });
+		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
+		flushSync();
+		const input = document.querySelector<HTMLInputElement>('#upload-file')!;
+		const file = new File(['x'], 'scan.png', { type: 'image/png' });
+		Object.defineProperty(input, 'files', { value: [file] });
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		await pickSource();
+		click('Upload');
+		await vi.waitFor(() => expect(upload).toHaveBeenCalledWith('t1', 's1', file));
+	});
+
+	it('offers a contributor neither the upload dialog nor a source', () => {
+		render({ role: 'contributor', files: [] });
+		expect(document.querySelector('[data-testid="files-add"]')).toBeNull();
+		expect(
+			[...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Source')
+		).toBe(false);
 	});
 
 	it('offers no source to a role that cannot change evidence', () => {

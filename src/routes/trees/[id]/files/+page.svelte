@@ -17,7 +17,6 @@
 		X
 	} from '@lucide/svelte';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
-	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import FileOwnerPicker from '#lib/components/FileOwnerPicker.svelte';
 	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -75,8 +74,7 @@
 	let dialogError = $state<string | null>(null);
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
-	let chosenPerson = $state<{ id: string; name: string } | null>(null);
-	/** The person or source the attach and move dialogs have chosen. */
+	/** The person or source the upload, attach and move dialogs have chosen. */
 	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
 	const actionClass =
@@ -166,7 +164,6 @@
 		dialog = kind;
 		dialogError = null;
 		isBusy = false;
-		chosenPerson = null;
 		chosenOwner = null;
 		if (kind === 'rename') renameTitle = file?.title ?? '';
 		if (kind === 'upload') uploadFile = null;
@@ -195,9 +192,9 @@
 
 	const uploadTo = () => {
 		const file = uploadFile;
-		const person = chosenPerson;
-		if (!file || !person) return;
-		return run(() => uploadMediaApi(treeId, person.id, file), `Uploaded ${file.name}`);
+		const owner = chosenOwner;
+		if (!file || !owner) return;
+		return run(() => uploadMediaApi(treeId, owner.id, file), `Uploaded ${file.name}`);
 	};
 
 	function rename(event: SubmitEvent) {
@@ -559,7 +556,7 @@
 	</section>
 {/if}
 
-<!-- Upload: the file goes to the person chosen; the server checks the caller may add media to them. -->
+<!-- Upload: the file goes to the person or source chosen; the server checks the caller may add media to them. -->
 <BaseModal
 	isOpen={dialog === 'upload'}
 	title="Add a file"
@@ -585,23 +582,21 @@
 				class="mt-1 text-xs"
 			/>
 		</div>
-		<PersonPicker
-			{treeId}
-			label="Attach to person"
-			picked={chosenPerson}
-			onpick={(person) => (chosenPerson = person)}
-		/>
+		{#if dialog === 'upload'}
+			<FileOwnerPicker
+				{treeId}
+				idPrefix="files-upload-owner"
+				{canPickSource}
+				bind:picked={chosenOwner}
+			/>
+		{/if}
 		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
 			<button
 				type="button"
 				onclick={closeDialog}
 				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
 			>
-			<button
-				type="submit"
-				disabled={isBusy || !uploadFile || !chosenPerson}
-				class="btn-primary-sm"
-			>
+			<button type="submit" disabled={isBusy || !uploadFile || !chosenOwner} class="btn-primary-sm">
 				{isBusy ? 'Uploading…' : 'Upload'}
 			</button>
 		</div>
