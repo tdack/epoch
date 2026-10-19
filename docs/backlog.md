@@ -337,7 +337,6 @@ Last reviewed: 2026-10-15.
     one (`subdomains-route-write`). They have not yet run against `epochgenealogy.app`.
   - **`./setup subdomains`: the rest.**
     - A way to turn it off short of teardown.
-    - A `doctor` check for the record, the routes and the Access destination.
     - Exclusion routes have no marker. One that a fresh clone finds is kept as `referenced` and is
       never deleted, so teardown from a fresh clone leaves it behind.
   - **Short addresses** (`dacks.example.com/people/x`).

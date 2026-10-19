@@ -1,10 +1,14 @@
+import type { DnsRecord, ZoneRoute } from './cloudflare.ts';
 import type { StepContext } from './context.ts';
+import { treeHostRoute } from './deploy-values.ts';
 import { ERROR_CODES, SetupError } from './errors.ts';
 import { isExportOnlyRule, reservedRisk } from './lifecycle.ts';
-import { OWNERSHIPS, loadManifest, type Manifest } from './manifest.ts';
+import { OWNERSHIPS, loadManifest, type Manifest, type SubdomainSettings } from './manifest.ts';
 import { resourceNames } from './names.ts';
 import { RESOURCE_KEYS, RESOURCE_STATES, reconcile } from './reconcile.ts';
+import { treeLoginDestination } from './steps/access.ts';
 import { observe, observeTags } from './steps/reconcile.ts';
+import { dnsMarker } from './steps/subdomains.ts';
 import { TAGGABLE, TAGGABLE_KEYS, TAG_AVAILABILITY, TAG_STATES } from './tags.ts';
 import { CHECK_STATUSES, verify, type CheckResult } from './steps/verify.ts';
 
@@ -146,6 +150,22 @@ export async function runDoctor(
 			'Access application: Binding Cookie is off'
 		);
 	}
+	if (manifest.subdomains) {
+		const zoneId = manifest.subdomains.zone.id;
+		const [records, routes] = await Promise.all([
+			ctx.cf.listDnsRecords(zoneId),
+			ctx.cf.listZoneRoutes(zoneId)
+		]);
+		for (const finding of subdomainFindings({
+			installId: manifest.installId,
+			workerName: manifest.workerName,
+			settings: manifest.subdomains,
+			records,
+			routes,
+			accessDestinations: app?.destinations ?? null
+		}))
+			findings.push(finding);
+	}
 	// Referenced policies belong to someone else and may have been deleted or turned into Block.
 	const policies = await ctx.cf.listPolicies();
 	for (const ref of manifest.access.policies) {
@@ -163,4 +183,84 @@ export async function runDoctor(
 		);
 	}
 	return { findings, manifest };
+}
+
+interface SubdomainObservation {
+	installId: string;
+	workerName: string;
+	settings: SubdomainSettings;
+	records: DnsRecord[];
+	routes: ZoneRoute[];
+	/** Null when the install's Access application is gone; reconcile already reports that. */
+	accessDestinations: string[] | null;
+}
+
+/**
+ * Drift in what `./setup subdomains` made (ADR-057): the wildcard record, the wildcard Worker route,
+ * the exclusion routes and the Access destination. Each is easy to change in the dashboard, and a
+ * missing one fails quietly: trees stop resolving, or the wildcard takes a hostname it should not.
+ */
+export function subdomainFindings(observation: SubdomainObservation): Finding[] {
+	const { installId, workerName, settings, records, routes, accessDestinations } = observation;
+	const zone = settings.zone.name;
+	if (!settings.isActive) {
+		return [
+			{
+				level: FINDING_LEVELS.warn,
+				text: `Tree subdomains on ${zone} are set up part-way; run \`./setup subdomains\` to finish`
+			}
+		];
+	}
+	const findings: Finding[] = [];
+	const add = (level: Finding['level'], text: string) => findings.push({ level, text });
+
+	const record = records.find((r) => r.id === settings.dnsRecordId);
+	if (!record) {
+		add(FINDING_LEVELS.fail, `DNS record *.${zone} is gone, so no tree subdomain resolves`);
+	} else {
+		add(
+			record.isProxied ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+			`DNS record *.${zone} is proxied`
+		);
+		// Teardown deletes the record by its id, so a lost marker only weakens re-attaching a fresh clone.
+		if (record.comment !== dnsMarker(installId))
+			add(FINDING_LEVELS.warn, `DNS record *.${zone} has lost its ${dnsMarker(installId)} comment`);
+	}
+
+	const { pattern } = treeHostRoute(zone);
+	const wildcard = routes.find((r) => r.pattern === pattern);
+	if (!wildcard) {
+		add(FINDING_LEVELS.fail, `Worker route ${pattern} is missing; \`npm run deploy\` adds it`);
+	} else {
+		add(
+			wildcard.script === workerName ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+			`Worker route ${pattern} sends trees to ${workerName}${wildcard.script === workerName ? '' : ` (it names ${wildcard.script ?? 'no Worker'})`}`
+		);
+	}
+
+	for (const excluded of settings.exclusionRoutes) {
+		const live = routes.find((r) => r.id === excluded.id);
+		const host = excluded.pattern.replace(/\/\*$/, '');
+		if (!live)
+			add(
+				FINDING_LEVELS.fail,
+				`Exclusion route ${excluded.pattern} is gone, so the wildcard takes ${host}`
+			);
+		else if (live.script !== null)
+			add(
+				FINDING_LEVELS.fail,
+				`Exclusion route ${excluded.pattern} now sends ${host} to ${live.script}`
+			);
+	}
+	if (settings.exclusionRoutes.length > 0 && !findings.some((f) => f.text.startsWith('Exclusion')))
+		add(FINDING_LEVELS.ok, `${settings.exclusionRoutes.length} exclusion route(s) in place`);
+
+	if (accessDestinations !== null) {
+		const destination = treeLoginDestination(zone);
+		add(
+			accessDestinations.includes(destination) ? FINDING_LEVELS.ok : FINDING_LEVELS.fail,
+			`Access application protects ${destination}`
+		);
+	}
+	return findings;
 }
