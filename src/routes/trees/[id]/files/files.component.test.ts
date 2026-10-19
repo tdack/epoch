@@ -25,18 +25,21 @@ vi.mock('#lib/api/files.js', () => ({
 import {
 	attachFileApi,
 	deleteFileApi,
+	detachFileApi,
 	fetchFiles,
 	fetchFileUsage,
 	fetchUnlinkedFiles,
 	moveFileApi,
 	uploadMediaApi
 } from '#lib/api/files.js';
+import { ConflictError } from '#lib/api/client.js';
 import { fetchSources } from '#lib/api/evidence.js';
 import Page from './+page.svelte';
 
 const remove = vi.mocked(deleteFileApi);
 const attach = vi.mocked(attachFileApi);
 const move = vi.mocked(moveFileApi);
+const detach = vi.mocked(detachFileApi);
 const upload = vi.mocked(uploadMediaApi);
 const sources = vi.mocked(fetchSources);
 const listFiles = vi.mocked(fetchFiles);
@@ -59,6 +62,7 @@ beforeEach(() => {
 	remove.mockReset();
 	attach.mockReset();
 	move.mockReset();
+	detach.mockReset();
 	upload.mockReset();
 	sources.mockReset();
 	listFiles.mockReset();
@@ -78,6 +82,7 @@ function row(overrides: Partial<FileRowDto>): FileRowDto {
 	return {
 		id: 'f1',
 		title: 'Certificate.pdf',
+		version: 3,
 		mimeType: 'application/pdf',
 		sizeBytes: 2048,
 		treeId: 't1',
@@ -302,7 +307,7 @@ describe('Files page attach and move to a source', () => {
 		flushSync();
 		await pickSource();
 		click('Attach');
-		await vi.waitFor(() => expect(attach).toHaveBeenCalledWith('f1', 't1', 's1', undefined));
+		await vi.waitFor(() => expect(attach).toHaveBeenCalledWith('f1', 't1', 's1', 3));
 	});
 
 	it('moves an attached file to the source chosen', async () => {
@@ -313,7 +318,41 @@ describe('Files page attach and move to a source', () => {
 		flushSync();
 		await pickSource();
 		click('Move here');
-		await vi.waitFor(() => expect(move).toHaveBeenCalledWith('f1', 't1', 's1', undefined));
+		await vi.waitFor(() => expect(move).toHaveBeenCalledWith('f1', 't1', 's1', 3));
+	});
+
+	it('sends the row version on detach', async () => {
+		detach.mockResolvedValue({ change: null });
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [row({ canDetach: true })] });
+		click('Detach Certificate.pdf');
+		await vi.waitFor(() => expect(detach).toHaveBeenCalledWith('f1', 't1', 3));
+	});
+
+	it('closes the dialog, reloads and says so when the file changed under it', async () => {
+		move.mockRejectedValue(
+			new ConflictError('This file was changed by someone else.', 409, undefined, {
+				reason: 'STALE_VERSION',
+				entity: 'media',
+				id: 'f1',
+				expectedVersion: 3,
+				currentVersion: 4,
+				current: {}
+			})
+		);
+		listFiles.mockResolvedValue({ files: [row({ version: 4, canMove: true })], nextCursor: null });
+		render({ role: 'editor', files: [row({ canMove: true })] });
+		click('Move Certificate.pdf');
+		flushSync();
+		await pickSource();
+		click('Move here');
+		await vi.waitFor(() => expect(listFiles).toHaveBeenCalled());
+		await vi.waitFor(() =>
+			expect(toasts.push).toHaveBeenCalledWith(
+				expect.stringContaining('changed by someone else'),
+				expect.objectContaining({ tone: 'error' })
+			)
+		);
 	});
 
 	it('uploads a file to the source chosen', async () => {

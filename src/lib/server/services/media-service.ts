@@ -205,6 +205,7 @@ function fileDto(
 	return {
 		id: row.id,
 		title: row.title,
+		version: row.version,
 		mimeType: row.mimeType,
 		sizeBytes: row.sizeBytes,
 		treeId: row.treeId,

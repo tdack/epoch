@@ -8,6 +8,8 @@
 export interface FileRowDto {
 	id: string;
 	title: string | null;
+	/** The row's version, sent back on rename, attach, detach and move so a stale edit is refused. */
+	version: number;
 	mimeType: string;
 	/** Null for a file stored before sizes were recorded, until the size backfill has run. */
 	sizeBytes: number | null;
