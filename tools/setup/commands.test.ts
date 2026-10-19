@@ -192,6 +192,7 @@ describe('doctor', () => {
 			},
 			{ id: 'wide', conditions: { prefix: '' }, deleteObjectsTransition: {} },
 			{ id: 'media', conditions: { prefix: 'med' }, deleteObjectsTransition: {} },
+			{ id: 'staging', conditions: { prefix: 'staging/' }, deleteObjectsTransition: {} },
 			exportLifecycleRule()
 		];
 		const original = ctx.cf;
@@ -216,6 +217,10 @@ describe('doctor', () => {
 		expect(text).not.toContain('Default Multipart Abort Rule');
 		expect(text).toContain(
 			'ok: R2 bucket has an exports/-scoped lifecycle rule that expires after a day'
+		);
+		expect(text).toContain('fail: R2 lifecycle rule "staging" is unsafe');
+		expect(text).toContain(
+			'fail: R2 bucket has a staging/-scoped lifecycle rule that expires stranded imports after a week'
 		);
 	});
 });
