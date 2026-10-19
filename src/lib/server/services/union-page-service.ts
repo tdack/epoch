@@ -29,6 +29,7 @@ import { loadNoteDtos, notesOf } from './note-dto';
 import { loadFocusWindow } from './focus-window';
 import { RECENT_CHANGES_SHOWN } from './person-page-service';
 import { personSummaries } from './person-summaries';
+import { sortByBirth } from '../../shared/birth-order';
 import { type PersonSummaryDto } from '../../shared/person-page';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 import {
@@ -187,7 +188,10 @@ export class UnionPageService {
 				noteItems: eventNotes(row.id)
 			}));
 
-		const children: UnionChildDto[] = childIds.map((childId) => ({
+		const children: UnionChildDto[] = sortByBirth(childIds, (childId) => ({
+			birthSort: people.get(childId)!.birthSort,
+			name: people.get(childId)!.displayName
+		})).map((childId) => ({
 			person: people.get(childId)!,
 			links: links
 				.filter((l) => l.childId === childId)

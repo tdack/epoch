@@ -1,3 +1,4 @@
+import { sortByBirth } from '#lib/shared/birth-order.js';
 import type {
 	ParentChildType,
 	RelationshipGraph,
@@ -95,8 +96,20 @@ export function buildIndex(graph: RelationshipGraph): GraphIndex {
 		for (const c of u.children) pushUnique(childIdsOfUnion, u.id, c.childId);
 	}
 
+	// Siblings are laid out in the order listed here, so this is where they become oldest (left)
+	// to youngest (right); sorting after placement would have to move cards that are already placed.
+	const personById = new Map(graph.people.map((p) => [p.id, p]));
+	const inBirthOrder = (ids: string[]) =>
+		sortByBirth(ids, (id) => ({
+			birthSort: personById.get(id)?.birthSort ?? null,
+			name: personById.get(id)?.displayName ?? id
+		}));
+	for (const [key, ids] of childIdsOfUnion) childIdsOfUnion.set(key, inBirthOrder(ids));
+	for (const [key, ids] of directChildIdsOfParent)
+		directChildIdsOfParent.set(key, inBirthOrder(ids));
+
 	return {
-		personById: new Map(graph.people.map((p) => [p.id, p])),
+		personById,
 		unionById,
 		unionsOfPerson,
 		parentUnionIdsOfChild,

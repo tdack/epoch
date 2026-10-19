@@ -4,6 +4,7 @@
  * shows a bare id for someone the window happened not to include.
  */
 
+import { birthSortOfEvents } from '../domain/birth-sort';
 import { PRIVATE_PLACEHOLDER_NAME } from '../domain/privacy-mask';
 import type { ViewerScope } from './tree-access';
 import type { EventRow, IndividualRow, PersonNameRow } from '../domain/change-log';
@@ -18,12 +19,14 @@ import { isSex } from '../../shared/sex';
 /** Birth and death text of the first such fact, in the order the graph reads them. */
 function vitalsOf(rows: EventRow[]): {
 	birthDate: string | null;
+	birthSort: string | null;
 	deathDate: string | null;
 	isDeceased: boolean;
 } {
 	const first = (type: string) => rows.find((e) => e.type === type);
 	return {
 		birthDate: first('BIRT')?.dateRaw ?? null,
+		birthSort: birthSortOfEvents(rows),
 		deathDate: first('DEAT')?.dateRaw ?? null,
 		isDeceased: first('DEAT') !== undefined
 	};
@@ -36,6 +39,7 @@ function summaryOfGraphPerson(person: RelationshipGraphPerson): PersonSummaryDto
 		displayName: person.displayName,
 		sex: person.sex,
 		birthDate: person.birthDate ?? null,
+		birthSort: person.birthSort ?? null,
 		deathDate: person.deathDate ?? null,
 		isDeceased: person.isDeceased
 	};
@@ -81,6 +85,7 @@ export async function personSummaries(
 				displayName: PRIVATE_PLACEHOLDER_NAME,
 				sex: null,
 				birthDate: null,
+				birthSort: null,
 				deathDate: null,
 				isDeceased: false
 			});
@@ -88,7 +93,7 @@ export async function personSummaries(
 	if (missing.length > 0) {
 		const [records, vitalEvents, nameRows] = await repo.run(
 			repo.individualsIn(treeId, missing),
-			repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT']),
+			repo.eventsOf(treeId, 'INDIVIDUAL', missing, ['BIRT', 'DEAT', 'CHR', 'BAPM']),
 			repo.namesOf(treeId, missing)
 		);
 		for (const { row } of records) {
@@ -110,6 +115,7 @@ export async function personSummaries(
 				displayName: 'Unknown',
 				sex: null,
 				birthDate: null,
+				birthSort: null,
 				deathDate: null,
 				isDeceased: false
 			});

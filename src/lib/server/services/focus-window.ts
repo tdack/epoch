@@ -39,8 +39,11 @@ import type { GraphWindowRepository, Ranked } from '../repositories/graph-window
 /** More rounds than any legal view needs (depth 8 each way); a guard against a loop, not a limit. */
 const MAX_ROUNDS = 64;
 
-/** The event types a graph person carries: birth and death text, and whether they are deceased. */
-const GRAPH_PERSON_EVENT_TYPES = ['BIRT', 'DEAT'] as const;
+/**
+ * The event types a graph person carries: birth and death text, whether they are deceased, and the
+ * christening or baptism that dates a birth nobody recorded (siblings are ordered by it).
+ */
+const GRAPH_PERSON_EVENT_TYPES = ['BIRT', 'DEAT', 'CHR', 'BAPM'] as const;
 /** What privacy needs beyond the vitals: a burial or a christening also says whether someone is living. */
 const PRIVACY_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as const;
 

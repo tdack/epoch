@@ -20,6 +20,11 @@ export interface PersonSummaryDto extends PrivacyFlag {
 	displayName: string;
 	sex: Sex | null;
 	birthDate: string | null;
+	/**
+	 * Sort key of the birth, else the baptism, for putting children in birth order; null when
+	 * undated or hidden from this viewer (it is null wherever `birthDate` is masked).
+	 */
+	birthSort: string | null;
 	deathDate: string | null;
 	isDeceased: boolean;
 }

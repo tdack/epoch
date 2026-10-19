@@ -8,7 +8,8 @@
  * and deceased markers are derived from death events.
  */
 
-import type { PersonNameRow, TreeRows } from './change-log';
+import type { EventRow, PersonNameRow, TreeRows } from './change-log';
+import { birthSortOfEvents } from './birth-sort';
 import { birthSurnameOf } from '../../shared/name-types';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import { isUnionEventType, UNION_EVENT_TYPE_LIST } from '../../shared/union-events';
@@ -31,6 +32,8 @@ export interface GraphPersonInput {
 	/** Birth and death as the original GEDCOM date text, when recorded. */
 	birthDate?: string | null;
 	deathDate?: string | null;
+	/** Sort key of the birth, or of the baptism without one. */
+	birthSort?: string | null;
 	/** Optimistic-concurrency version of the person record. */
 	version?: number;
 	/** The person's stored names, so the card can say "(née Doe)". */
@@ -132,6 +135,8 @@ export function buildRelationshipGraph(input: {
 			isDeceased: p.isDeceased,
 			birthDate: p.birthDate ?? null,
 			deathDate: p.deathDate ?? null,
+			// Left off when the input has none, so a hand-written graph keeps its recorded order.
+			...(p.birthSort === undefined ? {} : { birthSort: p.birthSort }),
 			...(p.version === undefined ? {} : { version: p.version }),
 			parentsByUnion,
 			unionIds,
@@ -190,6 +195,11 @@ export function graphFromRows(
 		dates.set(e.entityId, entry);
 	}
 
+	const eventsByPerson = new Map<string, EventRow[]>();
+	for (const e of rows.events)
+		if (e.entityType === 'INDIVIDUAL')
+			eventsByPerson.set(e.entityId, [...(eventsByPerson.get(e.entityId) ?? []), e]);
+
 	const namesByPerson = new Map<string, PersonNameRow[]>();
 	for (const n of rows.personNames)
 		namesByPerson.set(n.personId, [...(namesByPerson.get(n.personId) ?? []), n]);
@@ -222,6 +232,7 @@ export function graphFromRows(
 			isDeceased: deceased.has(i.id),
 			birthDate: dates.get(i.id)?.birth ?? null,
 			deathDate: dates.get(i.id)?.death ?? null,
+			birthSort: birthSortOfEvents(eventsByPerson.get(i.id) ?? []),
 			version: i.version,
 			names: namesByPerson.get(i.id)
 		})),

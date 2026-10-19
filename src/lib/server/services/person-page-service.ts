@@ -13,6 +13,7 @@ import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
 import type { NameType } from '../domain/genealogy-model';
+import { sortByBirth } from '../../shared/birth-order';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { EvidenceRepository } from '../repositories/evidence-repository';
 import { NoteRepository } from '../repositories/note-repository';
@@ -335,6 +336,13 @@ export class PersonPageService {
 			person: summary(c.personId),
 			types: c.types
 		});
+		// Oldest first, by the key the viewer's own masked rows gave: a hidden child has none, so
+		// the order says nothing about their birth beyond "undated".
+		const inBirthOrder = (children: Array<{ personId: string; types: ParentChildType[] }>) =>
+			sortByBirth(children.map(childEntry), (c) => ({
+				birthSort: c.person.birthSort,
+				name: c.person.displayName
+			}));
 
 		const partnerships: PartnershipDto[] = relatives.partnerships.map((p) => {
 			const union = unionById.get(p.unionId)!;
@@ -347,7 +355,7 @@ export class PersonPageService {
 				isWidowed: widowed.has(p.unionId),
 				isMergeable: mergeable.has(p.unionId),
 				partners: p.partnerIds.map(summary),
-				children: p.children.map(childEntry),
+				children: inBirthOrder(p.children),
 				events: union.events ?? []
 			};
 		});
@@ -412,7 +420,7 @@ export class PersonPageService {
 				}))
 			})),
 			partnerships,
-			directChildren: relatives.directChildren.map(childEntry),
+			directChildren: inBirthOrder(relatives.directChildren),
 			siblings: {
 				full: relatives.siblings.full.map(summary),
 				half: relatives.siblings.half.map(summary)
