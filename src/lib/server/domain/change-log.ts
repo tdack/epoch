@@ -40,9 +40,15 @@ type Imaged<T> = {
 };
 
 export type IndividualRow = Imaged<typeof individuals.$inferSelect>;
-export type PersonNameRow = Imaged<typeof personNames.$inferSelect>;
+/**
+ * `treeId` is left out of the image of `person_names`, `union_partners` and `source_repositories`
+ * on purpose, like `placeId` below: it arrived with migration 0036, so an inverse logged before it
+ * lacks the key and must still match the row as it is now. The change store stamps it on insert and
+ * scopes writes by it, so no op planner has to carry it.
+ */
+export type PersonNameRow = Omit<Imaged<typeof personNames.$inferSelect>, 'treeId'>;
 export type UnionRow = Imaged<typeof unions.$inferSelect>;
-export type UnionPartnerRow = Imaged<typeof unionPartners.$inferSelect>;
+export type UnionPartnerRow = Omit<Imaged<typeof unionPartners.$inferSelect>, 'treeId'>;
 export type ParentChildRow = Imaged<typeof parentChild.$inferSelect>;
 /**
  * `placeId` is left out of the image on purpose (ADR-019): it is derived from `place` by the change
@@ -57,7 +63,7 @@ export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
 export type MediaRow = Omit<Imaged<typeof mediaItems.$inferSelect>, 'sizeBytes' | 'uploadedBy'>;
 export type SourceRow = Imaged<typeof sources.$inferSelect>;
 export type RepositoryRow = Imaged<typeof repositories.$inferSelect>;
-export type SourceRepositoryRow = Imaged<typeof sourceRepositories.$inferSelect>;
+export type SourceRepositoryRow = Omit<Imaged<typeof sourceRepositories.$inferSelect>, 'treeId'>;
 export type CitationRow = Imaged<typeof citations.$inferSelect>;
 export type NoteRow = Imaged<typeof notes.$inferSelect>;
 export type NoteAttachmentRow = Imaged<typeof noteAttachments.$inferSelect>;
