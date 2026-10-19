@@ -331,12 +331,10 @@ Last reviewed: 2026-10-15.
 - **Development, staging and production configuration separation,** reproducible provisioning.
 - **A tree on its own subdomain: the rest after phase 1** (ADR-057,
   [proposal-tree-subdomains.md](./proposal-tree-subdomains.md)).
-  - **`./setup subdomains`: add its API shapes to `./setup spike`.** They worked on a real account
-    (`epochgenealogy.app`, 2026-10-17) but nothing checks them for drift:
-    - the Access application's `destinations`, and whether an update with them keeps the AUD;
-    - `/zones/{id}/workers/routes` with no `script`;
-    - that the wrangler profile's token, which the route calls use, may write routes. The
-      `workers-routes.write` check reads the `cf` sign-in only.
+  - **`./setup subdomains`: run the new spike checks once.** `./setup spike` now checks the Access
+    application's `destinations` and AUD (`subdomains-access-destinations`), the Worker-less routes
+    (`subdomains-zone-routes`), and that the raw calls' credential may write a route, on a throwaway
+    one (`subdomains-route-write`). They have not yet run against `epochgenealogy.app`.
   - **`./setup subdomains`: the rest.**
     - A way to turn it off short of teardown.
     - A `doctor` check for the record, the routes and the Access destination.
