@@ -53,8 +53,11 @@ test('the quality report lists what the record contradicts, links to it, and a d
 	await deathRule.getByRole('button', { name: 'Dismiss' }).last().click();
 	await expect(page.getByText('Finding dismissed')).toBeVisible();
 	await expect(page.getByTestId('rule-death_before_birth')).toHaveCount(0);
-	await expect(page.getByTestId('dismissed')).toContainText('The register says so');
 	await expect(page.getByTestId('quality-total')).toContainText('1 dismissed');
+	// The dismissed list starts folded away.
+	await expect(page.getByTestId('dismissed')).toBeHidden();
+	await page.getByTestId('dismissed-disclosure').locator('summary').click();
+	await expect(page.getByTestId('dismissed')).toContainText('The register says so');
 
 	await page.getByTestId('dismissed').getByRole('button', { name: 'Restore' }).click();
 	await expect(page.getByTestId('rule-death_before_birth')).toBeVisible();

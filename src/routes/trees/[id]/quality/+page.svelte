@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { ChevronRight } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { SvelteSet } from 'svelte/reactivity';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
@@ -426,8 +427,17 @@
 {/if}
 
 {#if report.dismissed.length > 0}
-	<section class="mt-8" aria-labelledby="dismissed-heading">
-		<h3 id="dismissed-heading" class="text-lg font-bold text-stone-900">Dismissed</h3>
+	<!-- Closed by default: dismissed findings are settled, and a long list of them buries nothing new. -->
+	<details class="group mt-8" data-testid="dismissed-disclosure">
+		<summary
+			class="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-lg text-lg font-bold text-stone-900 focus-ring coarse:min-h-11 [&::-webkit-details-marker]:hidden"
+		>
+			<ChevronRight
+				class="h-4 w-4 text-stone-500 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+				aria-hidden="true"
+			/>
+			Dismissed <span class="font-normal text-stone-600">({report.dismissed.length})</span>
+		</summary>
 		<ul
 			class="mt-3 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white"
 			data-testid="dismissed"
@@ -453,7 +463,7 @@
 				</li>
 			{/each}
 		</ul>
-	</section>
+	</details>
 {/if}
 
 <TaskDialog
