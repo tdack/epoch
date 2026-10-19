@@ -46,7 +46,7 @@ async function build(names: string[], links: Link[], partnerships: string[][] = 
 		for (const [order, p] of partners.entries())
 			await t.db
 				.insert(unionPartners)
-				.values({ id: `${unionId}:${order}`, unionId, personId: id(p), order });
+				.values({ id: `${unionId}:${order}`, treeId, unionId, personId: id(p), order });
 	}
 	return { treeId, id };
 }

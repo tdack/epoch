@@ -59,7 +59,7 @@ async function addEvidence(treeId: string, rows: TreeRows, every: number) {
 	await t.db.insert(repositories).values({ id: `${tag}-repo`, treeId, name: 'r', version: 1 });
 	await t.db
 		.insert(sourceRepositories)
-		.values({ id: `${tag}-sr`, sourceId: sourceIds[0]!, repositoryId: `${tag}-repo` });
+		.values({ id: `${tag}-sr`, treeId, sourceId: sourceIds[0]!, repositoryId: `${tag}-repo` });
 	await t.db.insert(notes).values(noteIds.map((id) => ({ id, treeId, text: id, version: 1 })));
 	let n = 0;
 	const cite = async (kind: 'person' | 'name' | 'event', id: string) => {

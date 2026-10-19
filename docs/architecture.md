@@ -88,7 +88,7 @@ are gone.
 - `person`: identity container, privacy and living-state inputs, record metadata.
 - `person_name`: multiple names with types, components and a preferred display name (ADR-013).
   `person_names`, `union_partners` and `source_repositories` also carry a denormalised `tree_id`
-  (migration 0036) that `ChangeStore` stamps on insert and scopes updates and deletes by; it is not
+  (migration 0036, NOT NULL since 0037) that `ChangeStore` stamps on insert and scopes updates and deletes by; it is not
   part of the logged row image, so inverses logged before it still match.
 - `union`: a partnership episode, never inferred to mean marriage.
 - `union_partner`: ordered participants with neutral roles. GEDCOM spouse-role metadata is an
