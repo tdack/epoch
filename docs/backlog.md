@@ -29,9 +29,11 @@ Last reviewed: 2026-10-15.
 - **Two reads do not chunk their id lists.** `visibleAmong` (`visibility.ts`) and
   `SearchRepository.factsMatching` (which binds the list twice) can pass D1's 100-parameter limit
   on a large list. Chunk them. (F13)
-- **`person_names`, `union_partners` and `source_repositories` have no `tree_id` column,** so
-  `ChangeStore` writes to them by id alone and its undo guard skips the tree check for them. Add the
-  column, or keep relying on the tree-scoped parent the planner read them through. (F8, F14)
+- **Make `tree_id` NOT NULL on `person_names`, `union_partners` and `source_repositories`.**
+  Migration 0036 added it nullable and backfilled; `ChangeStore` treats a null as its own row for
+  rows old code wrote between the migration and the deploy. Once deployed, run the backfill UPDATEs
+  from 0036 again with `--remote`, then a contract migration sets NOT NULL and the fallback in
+  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes.
 
 ### Abuse controls
 
