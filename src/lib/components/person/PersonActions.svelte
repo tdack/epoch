@@ -20,7 +20,7 @@
 	import { undoApi } from '#lib/api/relationships.js';
 	import { createSubtree } from '#lib/api/subtrees.js';
 	import { subtreePath } from '#lib/shared/tree-slug.js';
-	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import {
 		canChangeRecords,
 		canCreateRecords,

@@ -8,7 +8,7 @@
 	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
 	import { isManagerOrAbove } from '#lib/shared/roles.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { saveDefaultTree } from '#lib/api/settings.js';
 	import { deleteTreeApi, renameTreeApi, setPublicTreeApi } from '#lib/api/trees.js';
 	import type { InstallTree } from '#lib/shared/api-contracts.js';

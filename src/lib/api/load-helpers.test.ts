@@ -1,6 +1,7 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
-import { DATA_KEY, generationsParam, listQuery, treeLoad } from './load-helpers';
+import { DATA_KEY } from '../shared/data-key';
+import { generationsParam, listQuery, treeLoad } from './load-helpers';
 import { ApiError } from './client';
 
 const url = (query: string) => new URL(`https://epoch.test/trees/t1?${query}`);

@@ -1,11 +1,9 @@
 /** Helpers shared by the route load functions. */
 
 import { error } from '@sveltejs/kit';
+import { DATA_KEY } from '../shared/data-key.js';
 import { parseListParams } from '../shared/lists.js';
 import { ApiError } from './client.js';
-
-/** The key every tree screen's load function depends on; invalidating it reloads what is on screen. */
-export const DATA_KEY = 'epoch:data';
 
 /** Turn a failed API call into the SvelteKit error page with the same status, rather than a blank screen. */
 function rethrowAsPageError(cause: unknown): never {

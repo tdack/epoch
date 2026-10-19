@@ -6,7 +6,7 @@
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
 	import { canAddTask } from '#lib/components/tasks/task-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { DATA_KEY } from '#lib/api/load-helpers.js';
+	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import {
 		dismissFindingsApi,
 		previewStandardiseDatesApi,
