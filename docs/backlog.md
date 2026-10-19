@@ -22,9 +22,11 @@ Last reviewed: 2026-10-18.
   source only when the source is (ADR-028's rule), and a detached file never. A file can attach to
   nothing else, so an event, a note or a repository has no privacy rule of its own for files.
   (ADR-050, ADR-061)
-- **`person_names`, `union_partners` and `source_repositories` have no `tree_id` column,** so
-  `ChangeStore` writes to them by id alone and its undo guard skips the tree check for them. Add the
-  column, or keep relying on the tree-scoped parent the planner read them through. (F8, F14)
+- **Make `tree_id` NOT NULL on `person_names`, `union_partners` and `source_repositories`.**
+  Migration 0036 added it nullable and backfilled; `ChangeStore` treats a null as its own row for
+  rows old code wrote between the migration and the deploy. Once deployed, run the backfill UPDATEs
+  from 0036 again with `--remote`, then a contract migration sets NOT NULL and the fallback in
+  `change-store.ts` (`NULLABLE_TREE_TABLES`) goes.
 
 ### Abuse controls
 

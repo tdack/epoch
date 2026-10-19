@@ -5,8 +5,8 @@
  * in the server writes the mutable tree tables outside an import.
  */
 
-import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import type { AnySQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
 import {
 	changeLog,
@@ -101,18 +101,37 @@ type ColumnMap = Record<string, { dataType: string }>;
 const DERIVED_COLUMNS = new Set(['placeId', 'sizeBytes', 'uploadedBy']);
 
 /**
- * The table's `tree_id` column, or undefined for the tables keyed by id alone (person_names,
- * union_partners, source_repositories). Read from the Drizzle table so this cannot drift from the schema.
+ * Child tables whose `tree_id` (migration 0036) is nullable and kept out of row images. Rows written
+ * by code older than the migration have a null until backfilled, and the migration runs before the
+ * new code deploys, so nulls can appear in that window and cannot be ruled out by the backfill alone.
+ * Treating a null as "own row" keeps those rows editable and undoable; a row with a non-null
+ * `tree_id` of another tree is still refused. A later contract migration can make the column NOT
+ * NULL and drop this fallback (docs/backlog.md).
+ */
+const NULLABLE_TREE_TABLES = new Set<SQLiteTable>([personNames, unionPartners, sourceRepositories]);
+
+/**
+ * The table's `tree_id` column, or undefined for a table without one. Read from the Drizzle table so
+ * this cannot drift from the schema.
  */
 function treeColumnOf(table: SQLiteTable) {
 	const columns = getTableColumns(table);
 	return 'treeId' in columns ? columns.treeId : undefined;
 }
 
+/** `tree_id = ?`, or also null for the tables in `NULLABLE_TREE_TABLES`. */
+function inTree(table: SQLiteTable, treeColumn: AnySQLiteColumn, treeId: string) {
+	return NULLABLE_TREE_TABLES.has(table)
+		? or(eq(treeColumn, treeId), isNull(treeColumn))
+		: eq(treeColumn, treeId);
+}
+
 function columnsOf(table: SQLiteTable): ColumnMap {
 	// `getTableColumns` on a generic table is not indexable by column name, which every table here is.
 	return Object.fromEntries(
-		Object.entries(getTableColumns(table)).filter(([key]) => !DERIVED_COLUMNS.has(key))
+		Object.entries(getTableColumns(table)).filter(
+			([key]) => !DERIVED_COLUMNS.has(key) && !(key === 'treeId' && NULLABLE_TREE_TABLES.has(table))
+		)
 	) as unknown as ColumnMap;
 }
 
@@ -181,7 +200,8 @@ export class ChangeStore {
 		const { db } = this;
 		const table = TREE_ROW_TABLES[key];
 		const byRowid = sql`${table}.rowid`;
-		// Tables with no tree column of their own are scoped through the row they belong to.
+		// The child tables are read through their parent rather than by their own `tree_id`: that column
+		// can be null on a row written before migration 0036 was backfilled, the parent never is.
 		const rows =
 			key === 'unionPartners'
 				? await db
@@ -219,8 +239,8 @@ export class ChangeStore {
 	/**
 	 * The WHERE clauses scope updates and deletes to the tree, but an insert writes whatever `treeId`
 	 * its image carries and an update's SET could move a row into another tree, so no image may name
-	 * a tree other than the one being committed. Tables without a tree column are bounded by the
-	 * tree-scoped parent the planner read them through.
+	 * a tree other than the one being committed. The three child tables carry no `tree_id` in their
+	 * images; the commit stamps it on insert, and an update or delete is scoped by it in the WHERE.
 	 */
 	private requireSingleTree(ops: RowOp[], treeId: string) {
 		for (const op of ops) {
@@ -299,9 +319,12 @@ export class ChangeStore {
 		const isVersionMatch = version === null ? sql`` : sql` and version = ${version}`;
 		// A row in another tree must fail the guard exactly like a missing row: that is the conflict path.
 		const treeColumn = treeColumnOf(TABLES[op.table]);
-		const isSameTree = treeColumn
-			? sql` and ${sql.identifier(treeColumn.name)} = ${treeId}`
-			: sql``;
+		const treeName = treeColumn ? sql.identifier(treeColumn.name) : sql``;
+		const isSameTree = !treeColumn
+			? sql``
+			: NULLABLE_TREE_TABLES.has(TABLES[op.table])
+				? sql` and (${treeName} = ${treeId} or ${treeName} is null)`
+				: sql` and ${treeName} = ${treeId}`;
 		const nulls = sql.join(
 			Object.keys(getTableColumns(changeLog)).map(() => sql`null`),
 			sql`, `
@@ -361,11 +384,18 @@ export class ChangeStore {
 		const idColumn = (table as unknown as { id: never }).id;
 		const treeColumn = treeColumnOf(table);
 		const isOwnRow = treeColumn
-			? and(eq(idColumn, op.id), eq(treeColumn, treeId))
+			? and(eq(idColumn, op.id), inTree(table, treeColumn, treeId))
 			: eq(idColumn, op.id);
 		switch (opKind(op)) {
 			case OP_KINDS.CREATE:
-				return this.db.insert(table).values(revive(table, op.after!));
+				// The image has no `tree_id` for these tables, so the commit's own tree is stamped here.
+				return this.db
+					.insert(table)
+					.values(
+						NULLABLE_TREE_TABLES.has(table)
+							? { ...revive(table, op.after!), treeId }
+							: revive(table, op.after!)
+					);
 			case OP_KINDS.UPDATE:
 				return this.db.update(table).set(revive(table, op.after!)).where(isOwnRow);
 			case OP_KINDS.DELETE:
@@ -460,7 +490,7 @@ export class ChangeStore {
 			const treeColumn = treeColumnOf(table);
 			for (const part of chunk(ids, 90)) {
 				const isInTree = treeColumn
-					? and(inArray(idColumn, part), eq(treeColumn, treeId))
+					? and(inArray(idColumn, part), inTree(table, treeColumn, treeId))
 					: inArray(idColumn, part);
 				const rows = await this.db.select().from(table).where(isInTree).all();
 				for (const row of rows) images.set(`${name}:${row.id}`, toImage(table, row));

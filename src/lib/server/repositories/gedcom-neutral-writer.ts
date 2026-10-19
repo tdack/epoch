@@ -48,7 +48,7 @@ function deriveUnionStatus(fam: ParsedGedcomData['families'][number]): 'active' 
 }
 
 /** Columns Drizzle writes for a `person_names` row; the insert is chunked by it under D1's parameter cap. */
-const PERSON_NAME_COLUMNS = 23;
+const PERSON_NAME_COLUMNS = 24;
 
 /** What makes two names the same for merge-mode de-duplication, as `eventContentKey` does for facts. */
 function nameContentKey(
@@ -154,6 +154,7 @@ export async function importNeutralModel(
 			});
 			nameRows.push({
 				id: nameId,
+				treeId,
 				personId,
 				type: name.type,
 				givenName: name.givenName || null,
@@ -203,11 +204,12 @@ export async function importNeutralModel(
 
 		const partnerRows = participants.map((personId, index) => ({
 			id: crypto.randomUUID(),
+			treeId,
 			unionId,
 			personId: scoped(personId),
 			order: index
 		}));
-		for (const chunk of chunkByParamLimit(partnerRows, 4)) {
+		for (const chunk of chunkByParamLimit(partnerRows, 5)) {
 			await db.insert(unionPartners).values(chunk).onConflictDoNothing();
 		}
 
