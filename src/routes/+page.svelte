@@ -7,6 +7,7 @@
 	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import RichText from '#lib/components/RichText.svelte';
 	import SiteNav from '#lib/components/SiteNav.svelte';
+	import SubtreeFigure from '#lib/components/SubtreeFigure.svelte';
 	import {
 		DEMO_URL,
 		FAQS,
@@ -14,7 +15,9 @@
 		PRINCIPLES,
 		REPO_CLONE_URL,
 		REPO_URL,
+		ROLES,
 		SITE_URL,
+		SUBTREE_SCOPE,
 		TAGLINE
 	} from '#lib/site.js';
 
@@ -112,6 +115,81 @@
 					<p>See it with a real tree before you install anything.</p>
 					<a class="button vellum" href={DEMO_URL}>Explore the demo tree</a>
 				</aside>
+			</div>
+		</div>
+	</section>
+
+	<section id="roles" class="roles" aria-labelledby="roles-title">
+		<div class="wrap">
+			<Descent />
+			<header class="centred">
+				<h2 id="roles-title" class="display">Who can do what</h2>
+				<p class="lede">
+					Everyone in a tree has one role. Each role can do everything the one before it can, and
+					adds the things listed with it.
+				</p>
+			</header>
+
+			<ol class="ladder">
+				{#each ROLES as role (role.name)}
+					<li>
+						<span class="rung" aria-hidden="true"></span>
+						<div class="who">
+							<h3>{role.name}</h3>
+							<p>{role.summary}</p>
+						</div>
+						<div class="what">
+							<ul>
+								{#each role.adds as item (item)}
+									<li><RichText text={item} /></li>
+								{/each}
+							</ul>
+							{#if role.note}
+								<p class="aside">{role.note}</p>
+							{/if}
+						</div>
+					</li>
+				{/each}
+			</ol>
+
+			<div id="subtrees" class="subtrees">
+				<div class="stack">
+					<h3 class="title">Sub-trees: one family line from a large tree</h3>
+					<p>
+						A tree of several hundred people is several families in one file. A manager can name a
+						sub-tree that starts at one person, such as a Marsh line starting at William Marsh. It
+						appears under the tree in the tree switcher and has its own address to share.
+					</p>
+					<p>
+						In it are the person it starts at, everyone descended from them through any parentage
+						that is not disputed, and all of their partners. Lines can overlap, so one person can be
+						in several.
+					</p>
+				</div>
+				<SubtreeFigure />
+				<div class="scope">
+					<div>
+						<h4 class="label">Narrowed to the line</h4>
+						<ul>
+							{#each SUBTREE_SCOPE.narrowed as item (item)}
+								<li>{item}</li>
+							{/each}
+						</ul>
+					</div>
+					<div>
+						<h4 class="label">Still the whole tree</h4>
+						<ul>
+							{#each SUBTREE_SCOPE.whole as item (item)}
+								<li>{item}</li>
+							{/each}
+						</ul>
+					</div>
+					<p class="note">
+						A sub-tree is a way into the tree, not a wall around part of it. Nobody outside the line
+						is hidden, and privacy works as it does everywhere else. A sub-tree is for members until
+						a manager shows it to visitors of a public tree, and every change to one can be undone.
+					</p>
+				</div>
 			</div>
 		</div>
 	</section>
@@ -501,6 +579,149 @@
 		outline-offset: 3px;
 	}
 
+	/* Roles: a ladder down the line of descent, each rung adding to the last. */
+	.ladder {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: 0;
+		list-style: none;
+	}
+
+	.ladder > li {
+		position: relative;
+		display: grid;
+		grid-template-columns: 18px minmax(0, 15rem) minmax(0, 1fr);
+		gap: 8px clamp(20px, 3vw, 40px);
+		padding: 22px 0;
+	}
+
+	/* The line runs from each rung's node to the next one's, so it stops at the owner. */
+	.ladder > li:not(:last-child)::before {
+		content: '';
+		position: absolute;
+		left: 7.5px;
+		top: 38px;
+		bottom: -38px;
+		width: 3px;
+		background: var(--emerald-800);
+	}
+
+	/* The rule between rungs starts after the line, so the line reads unbroken. */
+	.ladder > li + li::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: calc(18px + clamp(20px, 3vw, 40px));
+		right: 0;
+		border-top: 1px solid var(--stone-rule);
+	}
+
+	.rung {
+		position: relative;
+		margin-top: 7px;
+		width: 18px;
+		height: 18px;
+		border-radius: 9999px;
+		background: var(--emerald-800);
+	}
+
+	.who h3 {
+		margin: 0;
+		font-size: 1.3125rem;
+		line-height: 1.3;
+	}
+
+	.who p {
+		margin: 2px 0 0;
+		color: var(--stone-text);
+	}
+
+	.what ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.what li,
+	.scope li {
+		position: relative;
+		padding: 3px 0 3px 20px;
+		color: var(--stone-strong);
+		line-height: 1.5;
+	}
+
+	.what li::before,
+	.scope li::before {
+		content: '';
+		position: absolute;
+		left: 2px;
+		top: 0.82em;
+		width: 7px;
+		height: 7px;
+		border-radius: 9999px;
+		background: var(--emerald-800);
+	}
+
+	.what .aside {
+		margin: 8px 0 0;
+		padding-left: 20px;
+		font-size: 0.9375rem;
+		color: var(--stone-text);
+		font-style: italic;
+	}
+
+	.subtrees {
+		display: grid;
+		grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+		gap: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 64px);
+		align-items: center;
+		margin-top: clamp(56px, 7vw, 88px);
+		padding-top: clamp(40px, 5vw, 56px);
+		border-top: 1px solid var(--stone-edge);
+	}
+
+	.subtrees .title {
+		margin: 0;
+		font-size: clamp(1.5rem, 2.6vw, 1.875rem);
+		line-height: 1.2;
+		letter-spacing: -0.015em;
+	}
+
+	.subtrees p {
+		margin: 0;
+		color: var(--stone-strong);
+		max-width: 62ch;
+	}
+
+	.scope {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 20px clamp(28px, 4vw, 56px);
+		padding-top: clamp(24px, 3vw, 32px);
+		border-top: 1px solid var(--stone-rule);
+	}
+
+	.scope .label {
+		margin-bottom: 8px;
+		color: var(--emerald-800);
+	}
+
+	.scope ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.scope li {
+		font-size: 0.96875rem;
+	}
+
+	.subtrees .note {
+		color: var(--stone-text);
+		font-size: 0.96875rem;
+	}
+
 	/* Get the code */
 	.code {
 		background: var(--emerald-950);
@@ -777,8 +998,25 @@
 	@media (max-width: 860px) {
 		.split,
 		.groups,
-		.steps {
+		.steps,
+		.subtrees {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ladder > li {
+			grid-template-columns: 18px minmax(0, 1fr);
+		}
+
+		.scope {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.scope .note {
+			grid-column: 1 / -1;
+		}
+
+		.what {
+			grid-column: 2;
 		}
 
 		th {
@@ -787,7 +1025,8 @@
 	}
 
 	@media (max-width: 560px) {
-		.ledger div {
+		.ledger div,
+		.scope {
 			grid-template-columns: minmax(0, 1fr);
 		}
 

@@ -4,6 +4,7 @@ export const DEMO_URL = 'https://demo.epochgenealogy.app';
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';
+export const LICENSE_URL = 'https://github.com/tdack/epoch/blob/main/LICENSE';
 export const SITE_URL = 'https://www.epochgenealogy.app';
 
 /** The app's own tagline (PRODUCT.md, Brand Commitments); keep it word for word. */
@@ -71,8 +72,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		title: 'Editing safely together',
 		text: 'Several people can work on one tree without stepping on each other.',
 		points: [
-			'Owner, manager, editor, contributor and viewer roles per tree',
-			'Every change shows an Undo, and the change log keeps the rest',
+			'Five roles per tree, from viewer to owner, each adding to the one before',
+			'Every change shows an Undo, and an audit log keeps the rest, by person and day',
 			'Two saves to the same record at once: the second is refused, not merged blind'
 		]
 	},
@@ -86,6 +87,87 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		]
 	}
 ];
+
+export interface Role {
+	name: string;
+	/** What the role is for, in a few words. */
+	summary: string;
+	/** Only what this role adds to the one before it; the ladder carries the rest. `[text](#id)` links. */
+	adds: string[];
+	/** What this role sees where it differs from the role before, or a rule that binds it. */
+	note?: string;
+}
+
+/**
+ * Each tree role, lowest first, as `authorization.ts`, `roles.ts`, `member-service.ts` and
+ * `change-audit.ts` on `main` decide them. Contributor suggestions awaiting approval are still in
+ * the backlog, so nothing here may imply them.
+ */
+export const ROLES: Role[] = [
+	{
+		name: 'Viewer',
+		summary: 'Looks the family up.',
+		adds: ['Browses people, places, the charts and the 3D views', 'Searches and opens files'],
+		note: 'Living and private people are hidden.'
+	},
+	{
+		name: 'Contributor',
+		summary: 'Adds what they know.',
+		adds: [
+			'Adds people and the relationships between them',
+			'Adds citations, notes and research tasks',
+			'Changes their own tasks'
+		],
+		note: 'Sees the living people they added. Anyone marked private stays hidden.'
+	},
+	{
+		name: 'Editor',
+		summary: 'Keeps the records right.',
+		adds: [
+			'Changes and deletes any record',
+			'Imports GEDCOM files',
+			'Uploads files, and deletes their own',
+			'Reads the audit log and undoes their own changes'
+		],
+		note: 'Sees everyone, private people included.'
+	},
+	{
+		name: 'Manager',
+		summary: 'Looks after the tree and its members.',
+		adds: [
+			'Invites editors, contributors and viewers, and changes their roles',
+			'Decides who is private, and sets the tree’s settings',
+			'Exports the tree as GEDCOM, living people included',
+			'[Makes sub-trees](#subtrees) for one family line at a time',
+			'Chooses which sub-trees visitors to a public tree can open',
+			'Undoes anyone’s change and deletes anyone’s files'
+		]
+	},
+	{
+		name: 'Owner',
+		summary: 'Holds the tree.',
+		adds: [
+			'Invites managers and other owners',
+			'Chooses the view the tree opens in',
+			'Deletes the tree'
+		],
+		note: 'A tree always keeps at least one owner.'
+	}
+];
+
+/** What a sub-tree narrows and what it leaves whole (ADR-062 on `main`). */
+export const SUBTREE_SCOPE = {
+	narrowed: [
+		'The person the chart opens on',
+		'The people, surname, partnership and place lists',
+		'Search, the person finder and the people count'
+	],
+	whole: [
+		'Sources, notes, tasks and files',
+		'Every edit, the change log and Undo',
+		'GEDCOM export, always the whole tree'
+	]
+} as const;
 
 export interface Faq {
 	question: string;
@@ -104,7 +186,7 @@ export const FAQS: Faq[] = [
 		question: 'Who can see our tree?',
 		answer: [
 			'Only the people you let in. Cloudflare Access handles sign-in, and Epoch then admits only the install owner, members of a tree and people with an open invitation. Anyone else who signs in is told to ask the owner for an invitation, and nothing is stored about them.',
-			'Inside a tree, each person has a role, and living people are hidden from anyone without the right to see them. Tree managers set that per tree.'
+			'Inside a tree, each person has a role, and living people are hidden from anyone without the right to see them. Tree managers set that per tree. [What each role can do](#roles).'
 		]
 	},
 	{
@@ -136,6 +218,14 @@ export const FAQS: Faq[] = [
 		question: 'Can I leave, or take the data with me?',
 		answer: [
 			'Export the whole tree as GEDCOM 5.5.1 or 7.0 at any time. If you stop using Epoch, `./setup teardown` deletes only what setup created.'
+		]
+	},
+	{
+		question: 'Is it open source?',
+		answer: [
+			'Yes. Epoch is licensed under the [GNU Affero General Public License, version 3 or later](' +
+				LICENSE_URL +
+				').'
 		]
 	},
 	{
