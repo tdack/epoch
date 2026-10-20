@@ -11,6 +11,7 @@ export const load: PageServerLoad = treeServerLoad(
 	async ({ db, ctx }, { parent }) => {
 		// The layout is what refuses a tree the caller cannot open; this page reads none of its data.
 		await parent();
-		return { profile: await new ProfileService(db).view(ctx) };
+		const service = new ProfileService(db);
+		return { profile: await service.view(ctx), leave: await service.leaveBlockers(ctx) };
 	}
 );

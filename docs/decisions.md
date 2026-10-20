@@ -991,7 +991,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 
 ## ADR-070: A profile page, an avatar copied into R2, and what leaving Epoch will mean
 
-- **Status:** built on `main` on 2026-10-20 (not deployed). **Migration 0039 adds `users.avatar_key`** (text, nullable; expand only). The Leave and Erase behaviour below is a recommendation and is not built.
+- **Status:** built on `main` on 2026-10-20 (not deployed). **Migration 0039 adds `users.avatar_key`** (text, nullable; expand only). Leave was built on 2026-10-21 (ADR-072); Erase is still a recommendation.
 - **Context:** a signed-in person had nowhere to see their email, change their display name or choose a picture, and Settings and Sign out sat in the tree nav's More menu. The Google picture is not in the Access token unless the IdP is told to send it.
 - **Decision:**
   - **Profile:** `/profile` redirects into the default tree's `/trees/<tree>/profile`, as `/settings` does, to keep the header. It shows the email (read-only), an editable display name (trimmed, 1 to 100 characters) and the picture. It is the person's own data, so it is written by `ProfileService` directly and not through the mutation runner or the change log, like settings.
@@ -1000,7 +1000,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **Picture storage:** the image is **copied into R2** at `avatars/<user id>` (overwritten on re-upload), not hot-linked. Hot-linking would need Google's image host in the CSP, would break when Google's URLs expire, and would send every viewer's IP to Google. The copy happens on the insert of a new `users` row only, in the background (`waitUntil`), from the token's `custom.picture`. Only `https` URLs on `*.googleusercontent.com` are fetched, without following redirects, capped at 2 MB, and the bytes must sniff as an inline image type; any failure leaves initials. People who already have a row get a "Use my Google picture" button, shown while the current token carries a picture and there is no avatar. An upload is limited to 2 MB and the same image types, decided from the bytes.
   - **Serving:** `GET /api/profile/avatar/<user id>` allows the person and anyone who shares a tree membership with them, and nobody else, the public visitor included. It is `private` cached; the URL carries `?v=<updated_at>`. Usage and quota listings read the `media/` prefix, so `avatars/` objects are never counted against a tree.
   - **Manual step:** add `picture` as an OIDC claim on the Google IdP in Zero Trust (see development.md); until then there is no Google picture to import.
-- **Recommendation for Leave (not built):**
+- **Recommendation for Leave (built as ADR-072):**
   - `change_log.actor_id` has no foreign key on purpose, so the audit log outlives a user. Memberships, settings and marks cascade from `users`, and `upsertUser` already keeps a row for someone with no memberships, whom admission then refuses.
   - **Leave** deletes the person's memberships, settings, marks and R2 avatar and keeps the `users` row, so history still names them. Admission then turns them away; an invitation can readmit them.
   - **Blocked:** the sole owner of any tree, and the install owner, cannot leave until ownership is transferred.
@@ -1019,3 +1019,24 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - Pickers offer only people the caller can see; if a hidden person is named anyway, the runner's visible-rows-first planning fails the whole batch.
 - **Rejected alternatives:** a shared event with participants (events have one owner, GEDCOM has no shared individual event, and the round-trip rule forbids inventing one); one citation shared by several subjects (breaks ADR-028).
 - **Consequences:** a later edit to one copy does not reach the others. Bulk-editing all copies, and citing a specific fact (e.g. each birth) in bulk, are in the backlog.
+
+## ADR-072: Leave Epoch, as built
+
+- **Status:** built on `main` on 2026-10-21 (not deployed). No migration.
+- **Context:** ADR-070 recommended Leave. This records what was built and what happens to every table that holds a user id.
+- **Decision:**
+  - **Endpoint:** `POST /api/profile/leave` with `{ confirmEmail }`. The address must equal the caller's Access email, trimmed and case-insensitive, or it is a 400. The public visitor gets the usual 403. The profile page load returns the blockers so the dialog explains them up front, and the endpoint re-checks them.
+  - **Blocked (409, `LEAVE_BLOCKED`, `details` carries the blockers):** the install owner, and the sole owner of any tree (no other `owner` membership).
+  - **One D1 batch** deletes the person's `tree_memberships`, `user_settings`, `person_marks` and the pending `tree_invitations` addressed to their email, unassigns their `research_tasks`, and clears `users.avatar_key`. The R2 object `avatars/<id>` is deleted after the commit; a failure there is logged only. The `users` row stays.
+  - **Invitations go because** `admitFromAccess` admits anyone with an unexpired invitation, so one left in place would readmit the person on the next request. A test proves a person who left is refused.
+  - **Each table that stores a user id:**
+    - `tree_memberships`, `user_settings`, `person_marks`: deleted (the person's own data).
+    - `tree_invitations.email`: deleted for their address. `tree_invitations.invited_by`: kept; no foreign key, and it is only a label for who invited.
+    - `research_tasks.assignee_id`: set to null, as when a member is removed (ADR-029). `research_tasks.created_by`: kept.
+    - `change_log.actor_id`: kept; the audit log keeps naming them, which is why the `users` row stays.
+    - `people.created_by`, `sources`/`repositories` and `notes.created_by`, `subtrees.created_by`, `media.uploaded_by`, `trees.published_by`, `quality_dismissals.dismissed_by`: kept; none has a foreign key and each is history or attribution.
+    - `users`: the row stays (name, email, `access_sub`); only `avatar_key` is cleared.
+  - **Farewell email:** after the commit, `renderFarewellEmail` is sent through the `EMAIL` binding in `waitUntil`. It says what was removed and what stays, and lists each tree with its other owners' names and addresses, read before the deletes. A send failure is logged and never undoes the leave; with no `EMAIL` binding or sender it is skipped. It shares `email-shell.ts` with the invitation email, whose output is unchanged.
+  - **UI:** a red Leave button opens the dialog. It says the person cannot undo this themselves, shows any blockers (which disable confirmation), and needs the email typed. Success is a full reload to the Access sign-out URL.
+- **Rejected alternatives:** deleting pending invitations only when they were sent by the person (an invitation to the leaver's address is theirs to refuse, and it would readmit them); also nulling `created_by` and similar columns (it rewrites history for no benefit).
+- **Consequences:** a race between two sole owners leaving at once could orphan a tree; the guard is a read before the batch, not part of it. Erase is still to do. Covered by `profile-service-leave.test.ts`, `api/profile/leave/leave.test.ts`, `farewell-template.test.ts` and `LeaveEpochDialog.component.test.ts`.
