@@ -19,6 +19,8 @@ import { localDayRange, resolveTimeZone } from '../../shared/local-day';
 import { isManagerOrAbove } from '../../shared/roles';
 import type { AuthenticatedContext } from '../domain/identity';
 import { makeLabeler } from '../domain/tree-labels';
+import { displayNameOf } from '../domain/tree-ops';
+import { seedOf } from '../domain/write-scope';
 import {
 	AUDIT_PAGE_SIZE,
 	canUndoChange,
@@ -200,6 +202,7 @@ export class ChangeLogService {
 		);
 		const viewer = { role: scope.role, userId: scope.userId };
 		return {
+			record: options.recordId ? await this.recordNamed(treeId, options.recordId) : null,
 			page: page.page,
 			pageCount: page.pageCount,
 			total: page.total,
@@ -226,5 +229,14 @@ export class ChangeLogService {
 				}))
 			}))
 		};
+	}
+
+	/** The person or partnership an audit filter names, for the filter line and the person field. */
+	private async recordNamed(treeId: string, id: string): Promise<AuditPageDto['record']> {
+		const rows = await this.scopedLoader.load(treeId, seedOf({ people: [id], unions: [id] }));
+		if (rows.individuals.some((p) => p.id === id))
+			return { id, kind: 'person', name: displayNameOf(rows, id) };
+		const union = rows.unions.find((u) => u.id === id);
+		return union ? { id, kind: 'union', name: makeLabeler(rows, [])('unions', union) } : null;
 	}
 }

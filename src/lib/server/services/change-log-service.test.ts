@@ -12,6 +12,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { ChangeLogService } from './change-log-service';
+import { FactService } from './fact-service';
 import { PersonService } from './person-service';
 
 let t: TestDatabase;
@@ -135,6 +136,34 @@ describe('audit', () => {
 		expect(one.entries[0]!.records.some((r) => r.isLinkable && r.entityType === 'person')).toBe(
 			true
 		);
+	});
+
+	it('filters to a person with their facts, and names them', async () => {
+		const tree = await createTestTree(t.db, owner);
+		await addTestMember(t.db, tree, editor, 'editor');
+		const wren = await addPerson('Wren', editor, tree);
+		await addPerson('Other', editor, tree);
+		// An occupation is not a vital, so the change writes the event row and not the person.
+		const { change } = await new FactService(t.db).create(
+			tree,
+			wren.personId,
+			{
+				type: 'OCCU',
+				dateText: null,
+				place: null,
+				value: 'Weaver',
+				cause: null,
+				age: null,
+				notes: null
+			},
+			editor.context
+		);
+
+		const filtered = await log().audit(tree, editor.context, { recordId: wren.personId });
+		expect(filtered.entries.map((e) => e.id)).toEqual([change!.id, wren.changeId]);
+		expect(filtered.record).toEqual({ id: wren.personId, kind: 'person', name: 'Wren' });
+		expect((await log().audit(tree, editor.context)).record).toBeNull();
+		expect((await log().audit(tree, editor.context, { recordId: 'gone' })).record).toBeNull();
 	});
 
 	it('filters by actor and lists the actors in the log', async () => {

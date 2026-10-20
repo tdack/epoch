@@ -458,8 +458,12 @@ export class ChangeStore {
 			options.actorId ? eq(changeLog.actorId, options.actorId) : undefined,
 			options.since == null ? undefined : gte(changeLog.createdAt, new Date(options.since)),
 			options.until == null ? undefined : lt(changeLog.createdAt, new Date(options.until)),
+			// A person's or partnership's history includes its facts and names, as their pages show it:
+			// an occupation edit writes only the event row, never the person.
 			options.recordId
-				? sql`exists (select 1 from change_log_records r where r.change_id = ${changeLog.id} and r.entity_id = ${options.recordId})`
+				? sql`exists (select 1 from change_log_records r where r.change_id = ${changeLog.id} and (r.entity_id = ${options.recordId}
+					or r.entity_id in (select e.id from events e where e.tree_id = ${treeId} and e.entity_id = ${options.recordId})
+					or r.entity_id in (select n.id from person_names n where n.tree_id = ${treeId} and n.person_id = ${options.recordId})))`
 				: undefined
 		);
 		const counted = await this.db
