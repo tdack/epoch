@@ -3,6 +3,7 @@ import { users, treeMemberships, trees } from '../db/schema';
 import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
 import { eq, and } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { MemberRepository } from './member-repository';
 
 export class UserRepository {
@@ -131,6 +132,48 @@ export class UserRepository {
 			email: user.email,
 			name: user.name
 		};
+	}
+
+	/** The columns the profile page and header read; null for an id that is no user. */
+	async findProfile(userId: string): Promise<{
+		email: string;
+		name: string | null;
+		avatarKey: string | null;
+		updatedAt: Date;
+	} | null> {
+		const row = await this.db
+			.select({
+				email: users.email,
+				name: users.name,
+				avatarKey: users.avatarKey,
+				updatedAt: users.updatedAt
+			})
+			.from(users)
+			.where(eq(users.id, userId))
+			.get();
+		return row ? { ...row, updatedAt: row.updatedAt ?? new Date(0) } : null;
+	}
+
+	async updateName(userId: string, name: string, now: Date): Promise<void> {
+		await this.db.update(users).set({ name, updatedAt: now }).where(eq(users.id, userId));
+	}
+
+	/** Also bumps `updated_at`, which is the avatar URL's cache-busting version. */
+	async setAvatarKey(userId: string, avatarKey: string | null, now: Date): Promise<void> {
+		await this.db.update(users).set({ avatarKey, updatedAt: now }).where(eq(users.id, userId));
+	}
+
+	/** Whether two people are members of at least one tree in common. */
+	async sharesTree(userId: string, otherUserId: string): Promise<boolean> {
+		const other = alias(treeMemberships, 'other_membership');
+		const row = await this.db
+			.select({ id: treeMemberships.id })
+			.from(treeMemberships)
+			.innerJoin(other, eq(other.treeId, treeMemberships.treeId))
+			.where(and(eq(treeMemberships.userId, userId), eq(other.userId, otherUserId)))
+			.limit(1)
+			.get();
+		return row !== undefined;
 	}
 
 	async getMembership(treeId: string, userId: string): Promise<TreeMembership | null> {

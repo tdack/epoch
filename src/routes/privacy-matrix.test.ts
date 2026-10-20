@@ -88,6 +88,19 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/tree-view-mode.test.ts'
 	},
 	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
+	[`${API}/profile/+server.ts`]: { kind: 'own-data', covers: 'services/profile-service.test.ts' },
+	[`${API}/profile/access-picture/+server.ts`]: {
+		kind: 'own-data',
+		covers: 'services/profile-service.test.ts'
+	},
+	[`${API}/profile/avatar/+server.ts`]: {
+		kind: 'own-data',
+		covers: 'services/profile-service.test.ts'
+	},
+	[`${API}/profile/avatar/[userId]/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/profile-service.test.ts'
+	},
 	[`${API}/admin/settings/+server.ts`]: {
 		kind: 'role-gated',
 		covers: 'services/settings-service.test.ts'
@@ -289,6 +302,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
+	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',

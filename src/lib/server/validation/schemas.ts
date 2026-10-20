@@ -11,6 +11,7 @@
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
+import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
 import { TREE_ROLES } from '../../shared/roles';
 import {
 	MAX_MAX_ALIVE_YEARS,
@@ -770,6 +771,11 @@ const focusColoursSchema = z.object({
 	ancestor: colourSchema,
 	descendant: colourSchema,
 	partner: colourSchema
+});
+
+/** The caller's display name; trimmed, so a blank name is rejected here as well as in the service. */
+export const profileNameSchema = z.object({
+	name: z.string().trim().min(1, 'Name is required').max(MAX_DISPLAY_NAME_LENGTH)
 });
 
 /** A change to a settings layer: a group replaces, `null` clears it, an absent key is left alone. */
