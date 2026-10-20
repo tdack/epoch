@@ -1,11 +1,11 @@
 import { COLOR, escapeHtml, renderEmailShell, type RenderedEmail } from './email-shell';
 
-export interface FarewellOwner {
+interface FarewellOwner {
 	name: string | null;
 	email: string;
 }
 
-export interface FarewellTree {
+interface FarewellTree {
 	name: string;
 	/** The tree's owners other than the person leaving; empty if the tree has no other owner on record. */
 	owners: FarewellOwner[];
