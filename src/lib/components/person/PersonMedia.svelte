@@ -106,6 +106,7 @@
 							>{item.title ?? item.r2ObjectKey}</span
 						>
 					{/if}
+					<span class="sr-only">(opens in a new tab)</span>
 				</a>
 				{#if item.canDelete}
 					{#if confirmingId === item.id}

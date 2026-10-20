@@ -201,9 +201,9 @@ describe('reading an object', () => {
 	it('is allowed for a viewer when the record is visible, and for an owner always', async () => {
 		const visible = await addMedia(idOf('@I1@'));
 		const hidden = await addMedia(idOf('@I2@'));
-		await expect(media().requireRead(visible, actors.viewer.context)).resolves.toBeUndefined();
-		await expect(media().requireRead(hidden, actors.owner.context)).resolves.toBeUndefined();
-		await expect(media().requireRead(hidden, actors.editor.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(visible, actors.viewer.context)).resolves.toBeDefined();
+		await expect(media().requireRead(hidden, actors.owner.context)).resolves.toBeDefined();
+		await expect(media().requireRead(hidden, actors.editor.context)).resolves.toBeDefined();
 	});
 	it("answers a private person's object exactly as a missing one", async () => {
 		const hidden = await addMedia(idOf('@I2@'));
@@ -220,8 +220,8 @@ describe('reading an object', () => {
 	});
 	it('reads a current-shape key by its row, and a detached file only as an editor or above', async () => {
 		const loose = await addMedia(null, 'current');
-		await expect(media().requireRead(loose, actors.editor.context)).resolves.toBeUndefined();
-		await expect(media().requireRead(loose, actors.owner.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(loose, actors.editor.context)).resolves.toBeDefined();
+		await expect(media().requireRead(loose, actors.owner.context)).resolves.toBeDefined();
 		for (const role of ['contributor', 'viewer'] as const) {
 			await expect(media().requireRead(loose, actors[role].context)).rejects.toBeInstanceOf(
 				NotFoundError
@@ -231,7 +231,7 @@ describe('reading an object', () => {
 	it('answers a current-shape key for a visible person to a viewer, and a private one as missing', async () => {
 		const visible = await addMedia(idOf('@I1@'), 'current');
 		const hidden = await addMedia(idOf('@I2@'), 'current');
-		await expect(media().requireRead(visible, actors.viewer.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(visible, actors.viewer.context)).resolves.toBeDefined();
 		await expect(media().requireRead(hidden, actors.viewer.context)).rejects.toBeInstanceOf(
 			NotFoundError
 		);
@@ -240,14 +240,14 @@ describe('reading an object', () => {
 		const visibleUnion = await addUnionMedia([idOf('@I1@')]);
 		const mixedUnion = await addUnionMedia([idOf('@I1@'), idOf('@I2@')]);
 		const noPartners = await addUnionMedia([]);
-		await expect(media().requireRead(visibleUnion, actors.viewer.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(visibleUnion, actors.viewer.context)).resolves.toBeDefined();
 		await expect(media().requireRead(mixedUnion, actors.viewer.context)).rejects.toBeInstanceOf(
 			NotFoundError
 		);
 		await expect(media().requireRead(noPartners, actors.viewer.context)).rejects.toBeInstanceOf(
 			NotFoundError
 		);
-		await expect(media().requireRead(noPartners, actors.editor.context)).resolves.toBeUndefined();
+		await expect(media().requireRead(noPartners, actors.editor.context)).resolves.toBeDefined();
 	});
 	it('does not trust a key that names another tree', async () => {
 		const other = await createTestTree(t.db, actors.owner);

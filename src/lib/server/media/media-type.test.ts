@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../domain/errors';
 import {
 	contentDispositionFor,
+	inlineDispositionFor,
+	safeDownloadName,
 	mediaServeDecision,
 	sniffMediaType,
 	validateMediaUpload
@@ -100,14 +102,15 @@ describe('sniffMediaType', () => {
 		expect(sniffMediaType(bytesOf('%PDF-1.7\n'))).toBe('application/pdf');
 	});
 
-	it('recognises PDF after leading bytes within the search window', () => {
-		const leading = new Array<number>(100).fill(0xef);
-		expect(sniffMediaType(bytesOf(leading, '%PDF-1.4'))).toBe('application/pdf');
+	it('recognises PDF after a BOM and whitespace', () => {
+		expect(sniffMediaType(bytesOf([0xef, 0xbb, 0xbf, 0x20, 0x0d, 0x0a], '%PDF-1.4'))).toBe(
+			'application/pdf'
+		);
 	});
 
-	it('does not look for PDF past the search window', () => {
-		const leading = new Array<number>(1100).fill(0xef);
-		expect(sniffMediaType(bytesOf(leading, '%PDF-1.4'))).toBeNull();
+	it('does not accept %PDF- after other content (polyglot)', () => {
+		expect(sniffMediaType(bytesOf('<html>', '%PDF-1.4'))).toBeNull();
+		expect(sniffMediaType(bytesOf(new Array<number>(100).fill(0xef), '%PDF-1.4'))).toBeNull();
 	});
 
 	it('returns null for truncated, empty and garbage input', () => {
@@ -176,15 +179,19 @@ describe('mediaServeDecision', () => {
 	it('serves raster images inline as themselves', () => {
 		expect(mediaServeDecision('image/png', 'media/t/1/x.png')).toEqual({
 			contentType: 'image/png',
-			contentDisposition: 'inline'
+			contentDisposition: 'inline',
+			shouldSandbox: true
 		});
 	});
 
-	it('downloads PDFs as attachments', () => {
-		expect(mediaServeDecision('application/pdf', 'media/t/1/x.pdf')).toEqual({
+	it('serves PDFs inline, named after the title, unsandboxed', () => {
+		expect(mediaServeDecision('application/pdf', 'media/t/1/x.pdf', 'Will.docx')).toEqual({
 			contentType: 'application/pdf',
-			contentDisposition: 'attachment'
+			contentDisposition: 'inline; filename="Will.pdf"; filename*=UTF-8\'\'Will.pdf',
+			shouldSandbox: false
 		});
+		expect(mediaServeDecision('image/png', 'k').shouldSandbox).toBe(true);
+		expect(mediaServeDecision(undefined, 'k').shouldSandbox).toBe(true);
 	});
 
 	it('serves a legacy HTML or SVG object as an opaque attachment', () => {
@@ -198,7 +205,43 @@ describe('mediaServeDecision', () => {
 	it('serves an object with no stored type as an opaque attachment', () => {
 		expect(mediaServeDecision(undefined, 'media/t/1/mystery')).toEqual({
 			contentType: 'application/octet-stream',
-			contentDisposition: 'attachment; filename="mystery"'
+			contentDisposition: 'attachment; filename="mystery"',
+			shouldSandbox: true
 		});
+	});
+});
+
+describe('safeDownloadName and inlineDispositionFor', () => {
+	it('keeps only the last path segment', () => {
+		expect(safeDownloadName('../../etc/passwd', 'pdf')).toBe('passwd.pdf');
+		expect(safeDownloadName('..\\x', 'pdf')).toBe('x.pdf');
+		expect(safeDownloadName('..', 'pdf')).toBe('download.pdf');
+	});
+
+	it('strips CR, LF, quotes and separators so no header can be injected', () => {
+		const header = inlineDispositionFor('a"\r\nX-Evil: 1;.pdf', 'pdf');
+		expect(header).not.toMatch(/[\r\n]/);
+		expect(header).toBe('inline; filename="a X-Evil 1.pdf"; filename*=UTF-8\'\'a%20X-Evil%201.pdf');
+	});
+
+	it('strips leading dots, collapses whitespace and swaps the extension', () => {
+		expect(safeDownloadName('.hidden   file.docx', 'pdf')).toBe('hidden file.pdf');
+		expect(safeDownloadName('report', 'pdf')).toBe('report.pdf');
+	});
+
+	it('falls back for empty or null titles', () => {
+		expect(safeDownloadName('', 'pdf')).toBe('download.pdf');
+		expect(safeDownloadName(null, 'pdf')).toBe('download.pdf');
+		expect(safeDownloadName('"";', 'pdf')).toBe('download.pdf');
+	});
+
+	it('caps the length', () => {
+		expect(safeDownloadName('x'.repeat(500), 'pdf')).toBe(`${'x'.repeat(100)}.pdf`);
+	});
+
+	it('survives non-ASCII titles through filename*', () => {
+		expect(inlineDispositionFor('Zoë 日本.pdf', 'pdf')).toBe(
+			`inline; filename="Zo_ __.pdf"; filename*=UTF-8''Zo%C3%AB%20%E6%97%A5%E6%9C%AC.pdf`
+		);
 	});
 });

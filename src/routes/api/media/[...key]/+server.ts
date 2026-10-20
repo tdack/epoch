@@ -29,12 +29,13 @@ export const GET: RequestHandler = async ({ params, locals, platform, request, s
 
 	// Authorization runs before any cacheable answer: a request from a revoked viewer must never
 	// receive a 304, and its failure must not be cached.
+	let title: string | null;
 	try {
 		// The key is not a credential: the caller must be able to see the tree and the record it names.
-		await new MediaService(getDb(platform.env.DB)).requireRead(key, {
+		({ title } = await new MediaService(getDb(platform.env.DB)).requireRead(key, {
 			user: locals.user,
 			correlationId: locals.correlationId
-		});
+		}));
 	} catch (err) {
 		return refuse(err);
 	}
@@ -49,13 +50,14 @@ export const GET: RequestHandler = async ({ params, locals, platform, request, s
 	// The stored content type comes from whoever uploaded the object, so it is never replayed: the
 	// response type is chosen from an allowlist. This is what stops an uploaded `text/html` or
 	// `image/svg+xml` from running as script on our own origin.
-	const decision = mediaServeDecision(object.httpMetadata?.contentType, key);
+	const decision = mediaServeDecision(object.httpMetadata?.contentType, key, title);
 	const headers = new Headers();
 	headers.set('Content-Type', decision.contentType);
 	headers.set('Content-Disposition', decision.contentDisposition);
 	headers.set('etag', object.httpEtag);
 	headers.set('X-Content-Type-Options', 'nosniff');
-	headers.set('Content-Security-Policy', 'sandbox');
+	// A PDF cannot render under a sandbox CSP in Chrome; see ADR-073 for what that leaves exposed.
+	if (decision.shouldSandbox) headers.set('Content-Security-Policy', 'sandbox');
 	headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 	headers.set('Referrer-Policy', 'no-referrer');
 	// Private, not public: a shared cache would hand the object to someone who never passed the

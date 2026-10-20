@@ -14,8 +14,6 @@ import {
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const PDF_MAGIC = '%PDF-';
-/** PDF can carry leading bytes; see the matching code below. */
-const PDF_SEARCH_WINDOW = 1024;
 
 function startsWithBytes(bytes: Uint8Array, signature: readonly number[], offset = 0): boolean {
 	if (bytes.length < offset + signature.length) return false;
@@ -84,11 +82,13 @@ export function sniffMediaType(bytes: Uint8Array): string | null {
 	const isoImageType = sniffIsoBmffImage(bytes);
 	if (isoImageType) return isoImageType;
 
-	// A PDF may carry a byte-order mark or leading whitespace, so its magic is searched, not assumed first.
-	const limit = Math.min(bytes.length, PDF_SEARCH_WINDOW);
-	for (let i = 0; i + PDF_MAGIC.length <= limit; i++) {
-		if (matchesAscii(bytes, PDF_MAGIC, i)) return 'application/pdf';
-	}
+	// PDFs render inline in our origin now (ADR-073), so the magic must open the file: searching a
+	// window let a polyglot with `%PDF-` buried in other content pass. Only a UTF-8 BOM and ASCII
+	// whitespace may precede it.
+	let start = startsWithBytes(bytes, [0xef, 0xbb, 0xbf]) ? 3 : 0;
+	while (start < bytes.length && [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20].includes(bytes[start]))
+		start++;
+	if (matchesAscii(bytes, PDF_MAGIC, start)) return 'application/pdf';
 
 	return null;
 }
@@ -133,23 +133,67 @@ export function contentDispositionFor(objectKey: string): string {
 	return `attachment; filename="${safe}"`;
 }
 
+const MAX_FILENAME_STEM_LENGTH = 100;
+
+/**
+ * Turn an uploaded title into a download name that is safe in a header: only the last path segment,
+ * no control characters, quotes, `;` or other header-unsafe characters, no leading dots, a bounded
+ * length, and the extension of the sniffed type in place of whatever the title carried.
+ */
+export function safeDownloadName(title: string | null | undefined, extension: string): string {
+	const last = (title ?? '').split(/[/\\]/).pop() ?? '';
+	const stem = last
+		// eslint-disable-next-line no-control-regex
+		.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029"';:*?<>|%]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.replace(/^[.\s]+/, '')
+		.replace(/\.[A-Za-z0-9]{1,8}$/, '')
+		.slice(0, MAX_FILENAME_STEM_LENGTH)
+		.trim();
+	return `${stem || 'download'}.${extension}`;
+}
+
+/**
+ * `Content-Disposition` for a file shown in the browser, named after its title. An ASCII
+ * `filename` serves old clients; `filename*` (RFC 5987) carries the real name so non-ASCII titles
+ * survive.
+ */
+export function inlineDispositionFor(title: string | null | undefined, extension: string): string {
+	const name = safeDownloadName(title, extension);
+	const ascii = name.replace(/[^\x20-\x7e]/g, '_');
+	const encoded = encodeURIComponent(name).replace(
+		/['()*!]/g,
+		(c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+	);
+	return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 /**
  * How to serve a stored object, decided from an allowlist rather than the stored type. Raster
- * images render inline; PDFs and everything else (including `text/html`, `image/svg+xml` and a
- * missing type) download as an opaque octet stream so a browser never executes them on our origin.
+ * images render inline; a PDF renders inline too, named after `title`; everything else (including
+ * `text/html`, `image/svg+xml` and a missing type) downloads as an opaque octet stream so a browser
+ * never executes it on our origin. `shouldSandbox` is false for a PDF only, because Chrome will not
+ * render a PDF under `Content-Security-Policy: sandbox`.
  */
 export function mediaServeDecision(
 	storedType: string | undefined,
-	objectKey: string
-): { contentType: string; contentDisposition: string } {
+	objectKey: string,
+	title?: string | null
+): { contentType: string; contentDisposition: string; shouldSandbox: boolean } {
 	if (isInlineMediaType(storedType)) {
-		return { contentType: storedType, contentDisposition: 'inline' };
+		return { contentType: storedType, contentDisposition: 'inline', shouldSandbox: true };
 	}
 	if (storedType === 'application/pdf') {
-		return { contentType: 'application/pdf', contentDisposition: 'attachment' };
+		return {
+			contentType: 'application/pdf',
+			contentDisposition: inlineDispositionFor(title, 'pdf'),
+			shouldSandbox: false
+		};
 	}
 	return {
 		contentType: 'application/octet-stream',
-		contentDisposition: contentDispositionFor(objectKey)
+		contentDisposition: contentDispositionFor(objectKey),
+		shouldSandbox: true
 	};
 }

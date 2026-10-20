@@ -62,7 +62,7 @@ afterAll(async () => {
 });
 
 /** Gives an object key a row owned by `entityId`, once. `null` makes the file detached. */
-async function ensureRow(key: string, entityId: string | null) {
+async function ensureRow(key: string, entityId: string | null, title = 'x') {
 	if (rowedKeys.has(key)) return;
 	rowedKeys.add(key);
 	await t.db.insert(mediaItems).values({
@@ -70,7 +70,7 @@ async function ensureRow(key: string, entityId: string | null) {
 		treeId,
 		entityId,
 		r2ObjectKey: key,
-		title: 'x',
+		title,
 		mimeType: 'application/octet-stream'
 	});
 }
@@ -78,7 +78,12 @@ async function ensureRow(key: string, entityId: string | null) {
 function fetchMedia(
 	key: string,
 	object: FakeObject | null,
-	options: { ifNoneMatch?: string; actor?: TestActor; entityId?: string | null } = {}
+	options: {
+		ifNoneMatch?: string;
+		actor?: TestActor;
+		entityId?: string | null;
+		title?: string;
+	} = {}
 ) {
 	const actor = options.actor ?? owner;
 	bucket.objects.clear();
@@ -90,7 +95,11 @@ function fetchMedia(
 			httpEtag: object.httpEtag
 		});
 	}
-	return ensureRow(key, options.entityId === undefined ? personId : options.entityId).then(() => {
+	return ensureRow(
+		key,
+		options.entityId === undefined ? personId : options.entityId,
+		options.title
+	).then(() => {
 		const event = {
 			params: { key },
 			request: new Request(`http://epoch.test/api/media/${key}`, {
@@ -149,6 +158,28 @@ describe('media serve safety', () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('image/png');
 		expect(response.headers.get('content-disposition')).toBe('inline');
+	});
+
+	it('serves a PDF inline, named after its title, without a sandbox CSP', async () => {
+		const pdf = { contentType: 'application/pdf', body: HTML_BYTES, httpEtag: '"pdf"' };
+		const key = keyFor('doc.pdf');
+		const response = await fetchMedia(key, pdf, { title: '../Grandma\r\n"s will.docx' });
+
+		expect(response.headers.get('content-type')).toBe('application/pdf');
+		expect(response.headers.get('content-disposition')).toBe(
+			`inline; filename="Grandma s will.pdf"; filename*=UTF-8''Grandma%20s%20will.pdf`
+		);
+		expect(response.headers.get('content-security-policy')).toBeNull();
+		expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+		expect(response.headers.get('cross-origin-resource-policy')).toBe('same-origin');
+
+		// The 304 carries the same headers as the 200.
+		const cached = await fetchMedia(key, pdf, { ifNoneMatch: '"pdf"' });
+		expect(cached.status).toBe(304);
+		expect(cached.headers.get('content-disposition')).toBe(
+			response.headers.get('content-disposition')
+		);
+		expect(cached.headers.get('content-security-policy')).toBeNull();
 	});
 
 	it('emits no CR or LF in any response header', async () => {
