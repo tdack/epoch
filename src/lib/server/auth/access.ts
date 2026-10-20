@@ -5,6 +5,8 @@ interface AccessTokenPayload {
 	sub: string;
 	email: string;
 	name?: string;
+	/** Present only when the Google IdP's OIDC Claims include `picture`; Access nests it here. */
+	custom?: { picture?: unknown };
 	iss: string;
 	aud: string | string[];
 	exp: number;
@@ -301,11 +303,13 @@ export async function validateAccessJwt(
 		throw new UnauthenticatedError('Missing sub or email in Access token payload');
 	}
 
+	const picture = payload.custom?.picture;
 	return {
 		id: '',
 		accessSub: payload.sub,
 		email: payload.email,
-		name: payload.name || payload.email.split('@')[0]
+		name: payload.name || payload.email.split('@')[0],
+		...(typeof picture === 'string' && { pictureUrl: picture })
 	};
 }
 

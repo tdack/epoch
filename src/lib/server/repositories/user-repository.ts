@@ -37,7 +37,11 @@ export class UserRepository {
 
 		const user = await this.upsertUser(identity);
 		await members.redeem(user.id, pending, now);
-		return { ...user, isInstallOwner };
+		return {
+			...user,
+			isInstallOwner,
+			...(identity.pictureUrl && { pictureUrl: identity.pictureUrl })
+		};
 	}
 
 	/** Whether the tree is the install's public one (ADR-041). One primary-key read. */
@@ -80,21 +84,20 @@ export class UserRepository {
 			.get();
 
 		if (existing) {
-			if (existing.email !== identity.email || existing.name !== identity.name) {
+			// The name is only a starting value from Access: the person can change it on their profile,
+			// and syncing it here would undo that on the next request. Email stays Access's to say.
+			const name = existing.name || identity.name || null;
+			if (existing.email !== identity.email || existing.name !== name) {
 				await this.db
 					.update(users)
-					.set({
-						email: identity.email,
-						name: identity.name || existing.name,
-						updatedAt: new Date()
-					})
+					.set({ email: identity.email, name, updatedAt: new Date() })
 					.where(eq(users.id, existing.id));
 			}
 			return {
 				id: existing.id,
 				accessSub: existing.accessSub,
 				email: identity.email,
-				name: identity.name || existing.name
+				name
 			};
 		}
 
@@ -114,7 +117,8 @@ export class UserRepository {
 			id: newUserId,
 			accessSub: identity.accessSub,
 			email: identity.email,
-			name: identity.name || null
+			name: identity.name || null,
+			isNewUser: true
 		};
 	}
 

@@ -34,7 +34,7 @@ async function userRowsFor(accessSub: string) {
 }
 
 describe('resolveUser', () => {
-	it('upserts the owner by the stable sub: the same sub is the same user, and profile changes follow', async () => {
+	it('upserts the owner by the stable sub: the same sub is the same user, and the email follows', async () => {
 		await withOwner(OWNER_EMAIL, async () => {
 			const first = await resolveUser(
 				t.d1,
@@ -50,10 +50,54 @@ describe('resolveUser', () => {
 			expect(again.user).toMatchObject({
 				accessSub: 'sub-resolve',
 				email: 'Owner@Epoch.test',
-				name: 'B',
+				// Access's name only seeds the row; a later one must not overwrite it.
+				name: 'A',
 				isInstallOwner: true
 			});
 			expect(first.user?.id).not.toBe('unused');
+		});
+	});
+
+	it('keeps a name the person edited, and fills one that was never set', async () => {
+		await withOwner(OWNER_EMAIL, async () => {
+			const first = await resolveUser(
+				t.d1,
+				{ accessSub: 'sub-name', email: OWNER_EMAIL, name: 'From Access' },
+				asOwnerless
+			);
+			expect(first.user?.isNewUser).toBe(true);
+			await t.db.update(users).set({ name: 'My Own Name' }).where(eq(users.accessSub, 'sub-name'));
+			const again = await resolveUser(
+				t.d1,
+				{ accessSub: 'sub-name', email: OWNER_EMAIL, name: 'From Access' },
+				asOwnerless
+			);
+			expect(again.user?.name).toBe('My Own Name');
+			expect(again.user?.isNewUser).toBeUndefined();
+			await t.db.update(users).set({ name: null }).where(eq(users.accessSub, 'sub-name'));
+			await resolveUser(
+				t.d1,
+				{ accessSub: 'sub-name', email: OWNER_EMAIL, name: 'From Access' },
+				asOwnerless
+			);
+			expect((await userRowsFor('sub-name'))[0]?.name).toBe('From Access');
+		});
+	});
+
+	it('carries the Access picture on the request without storing it', async () => {
+		await withOwner(OWNER_EMAIL, async () => {
+			const admission = await resolveUser(
+				t.d1,
+				{
+					accessSub: 'sub-pic',
+					email: OWNER_EMAIL,
+					name: 'P',
+					pictureUrl: 'https://lh3.googleusercontent.com/a'
+				},
+				asOwnerless
+			);
+			expect(admission.user?.pictureUrl).toBe('https://lh3.googleusercontent.com/a');
+			expect(JSON.stringify(await userRowsFor('sub-pic'))).not.toContain('googleusercontent');
 		});
 	});
 
