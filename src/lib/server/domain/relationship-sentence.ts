@@ -8,6 +8,7 @@
  * and sex/gender separate.
  */
 
+import type { Sex } from '../../shared/sex';
 import type { ParentChildType } from '../../shared/relationship-model';
 import type { EndedUnionStatus, UnionEventType } from '../../shared/union-events';
 
@@ -17,6 +18,8 @@ export interface PersonRef {
 	surname: string | null;
 	/** True for someone the intent creates; `id` is then a placeholder the server replaces. */
 	isNew?: boolean;
+	/** Sex marker for a new person; defaults to unknown. */
+	sex?: Sex;
 }
 
 type ParentRole = 'parent' | 'mother' | 'father';

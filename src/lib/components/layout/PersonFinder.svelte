@@ -2,6 +2,7 @@
 	import { ArrowRight, Search } from '@lucide/svelte';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { namesWithBirth } from '#lib/shared/person-name.js';
 
 	interface Props {
 		/** The tree being searched; profile and fact-search links are built from it. */
@@ -88,15 +89,16 @@
 				group: 'Recent'
 			}))
 	]);
+	const resultLabels = $derived(namesWithBirth(results, label));
 	const trimmed = $derived(query.trim());
 	const options = $derived<Option[]>(
 		trimmed
 			? [
-					...results.map((r) => ({
+					...results.map((r, i) => ({
 						kind: 'person' as const,
 						key: `person:${r.id}`,
 						id: r.id,
-						label: label(r),
+						label: resultLabels[i],
 						alias: r.matchedName
 					})),
 					{

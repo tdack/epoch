@@ -189,10 +189,18 @@ describe('preview matches result, for every intent', () => {
 			"Sam Smith will be recorded as Alex Walker's biological child in the Alex Walker–Robin Reed family."
 		);
 		const union = after.unions.find((u) => u.partnerIds.includes(alex.id))!;
+		// The other partner becomes a parent too, not a step-parent.
 		expect(after.parentChild).toEqual([
 			{
 				id: expect.any(String),
 				parentId: alex.id,
+				childId: sam.id,
+				type: 'biological',
+				unionId: union.id
+			},
+			{
+				id: expect.any(String),
+				parentId: robin.id,
 				childId: sam.id,
 				type: 'biological',
 				unionId: union.id
@@ -439,7 +447,7 @@ describe('choosing a partnership when there are several', () => {
 			s.ctx
 		);
 		const links = (await s.graph()).parentChild.filter((l) => l.childId === sam.id);
-		expect(links.map((l) => l.unionId)).toEqual([unionIds[1], unionIds[1]]);
+		expect(links.map((l) => l.unionId)).toEqual([unionIds[1], unionIds[1], unionIds[1]]);
 	});
 });
 
@@ -476,7 +484,8 @@ describe('changing a parent link’s type', () => {
 		expect(executed.sentence).toContain(
 			'adoptive parent instead of biological parent in the Alex Walker–Robin Reed family'
 		);
-		expect(before.parentChild).toEqual([
+		const alexLink = (g: typeof before) => g.parentChild.filter((l) => l.parentId === alex.id);
+		expect(alexLink(before)).toEqual([
 			{
 				id: expect.any(String),
 				parentId: alex.id,
@@ -485,15 +494,19 @@ describe('changing a parent link’s type', () => {
 				unionId: expect.any(String)
 			}
 		]);
-		expect(after.parentChild).toEqual([
+		expect(alexLink(after)).toEqual([
 			{
 				id: expect.any(String),
 				parentId: alex.id,
 				childId: sam.id,
 				type: 'adoptive',
-				unionId: before.parentChild[0].unionId
+				unionId: alexLink(before)[0].unionId
 			}
 		]);
+		// The other partner's link is untouched.
+		expect(after.parentChild.filter((l) => l.parentId !== alex.id)).toEqual(
+			before.parentChild.filter((l) => l.parentId !== alex.id)
+		);
 		expect(after.people.map((p) => p.id).sort()).toEqual(before.people.map((p) => p.id).sort());
 	});
 
@@ -628,11 +641,11 @@ describe('deleting a person', () => {
 
 		const after = await s.graph();
 		expect(after.people.map((p) => p.id).sort()).toEqual([marge.id, bart.id, jessica.id].sort());
-		// Marge's partnership survives with her in it; the child link is gone; Bart is untouched.
+		// Marge's partnership survives with her in it; Homer's child link is gone, hers stays.
 		const survivor = after.unions.find((u) => u.id === union.id)!;
 		expect(survivor.partnerIds).toEqual([marge.id]);
 		expect(survivor.marriageDate).toBe('1975');
-		expect(after.parentChild).toEqual([]);
+		expect(after.parentChild.map((l) => l.parentId)).toEqual([marge.id]);
 		expect(after.unions).toHaveLength(before.unions.length);
 	});
 
@@ -793,7 +806,8 @@ describe('removing relationships', () => {
 			'deleted partner Homer Simpson in the Homer Simpson–Marge Simpson partnership',
 			'deleted partner Marge Simpson in the Homer Simpson–Marge Simpson partnership',
 			'deleted union Homer Simpson–Marge Simpson partnership',
-			'updated link Homer Simpson as biological parent of Bart Simpson'
+			'updated link Homer Simpson as biological parent of Bart Simpson',
+			'updated link Marge Simpson as biological parent of Bart Simpson'
 		]);
 		expect(impact.people.every((p) => p.role === 'affected')).toBe(true);
 
@@ -806,6 +820,13 @@ describe('removing relationships', () => {
 			{
 				id: expect.any(String),
 				parentId: homer.id,
+				childId: bart.id,
+				type: 'biological',
+				unionId: null
+			},
+			{
+				id: expect.any(String),
+				parentId: marge.id,
 				childId: bart.id,
 				type: 'biological',
 				unionId: null
@@ -1075,7 +1096,8 @@ describe('the change log and undo', () => {
 		});
 		const after = await s.graph();
 		expect(after.unions).toHaveLength(1);
-		expect(after.unions[0].children).toHaveLength(1);
+		// One child, filed under both partners.
+		expect(after.unions[0].children).toHaveLength(2);
 	});
 
 	it('refuses to undo the same change twice', async () => {

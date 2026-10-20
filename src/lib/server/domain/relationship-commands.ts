@@ -277,7 +277,7 @@ export function planRelationshipCommand(
 			personId: id,
 			givenName: ref.givenName,
 			surname: ref.surname,
-			sex: 'U'
+			sex: ref.sex ?? 'U'
 		});
 		return { ...ref, id };
 	};
@@ -351,6 +351,20 @@ export function planRelationshipCommand(
 				unionId
 			});
 			warnIfCycle(parent.id, child.id, intent.type, unionId);
+			// The child belongs to the whole partnership, so every other partner is a parent too;
+			// otherwise they read as a step-parent until someone adds the link by hand.
+			for (const partnerId of unionId ? partnerIdsOf(rows, unionId) : []) {
+				const isLinked = assertions.some((a) => a.parentId === partnerId && a.childId === child.id);
+				if (partnerId === parent.id || isLinked) continue;
+				commands.push({
+					kind: 'assert_parent_child',
+					parentId: partnerId,
+					childId: child.id,
+					type: intent.type,
+					unionId
+				});
+				warnIfCycle(partnerId, child.id, intent.type, unionId);
+			}
 			facts.unionPhrase = unionId ? unionPhraseOf(rows, unionId) : null;
 			sentenceIntent = { ...intent, parent, child };
 			break;

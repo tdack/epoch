@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { searchPeopleApi } from '#lib/api/lists.js';
+	import { namesWithBirth } from '#lib/shared/person-name.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -57,7 +58,8 @@
 				const found = await searchPeopleApi(treeId, query.trim());
 				// A slower earlier answer must not replace a later one.
 				if (request !== latest) return;
-				results = found.map((p) => ({ id: p.id, name: nameOf(p), alias: p.matchedName }));
+				const names = namesWithBirth(found, nameOf);
+				results = found.map((p, i) => ({ id: p.id, name: names[i], alias: p.matchedName }));
 				highlighted = 0;
 				isOpen = true;
 			} catch {
