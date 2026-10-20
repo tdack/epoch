@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { Heart, Plus, Trash2 } from '@lucide/svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import BaseModal from './BaseModal.svelte';
@@ -262,11 +263,11 @@
 					</div>
 					<div class="max-sm:col-span-2 max-sm:row-start-3">
 						<label class="block text-[11px] text-stone-500" for="ev-place-{row.key}">Place</label>
-						<input
+						<PlaceInput
 							id="ev-place-{row.key}"
-							type="text"
+							{treeId}
 							bind:value={row.place}
-							class="w-full rounded-md border border-stone-300 p-1.5 text-sm"
+							inputClass="w-full rounded-md border border-stone-300 p-1.5 text-sm"
 						/>
 					</div>
 					<button

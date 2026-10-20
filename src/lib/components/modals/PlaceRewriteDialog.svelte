@@ -1,9 +1,10 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { tick } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import ImpactDialog from './ImpactDialog.svelte';
-	import { previewPlaceRewriteApi, rewritePlaceApi, suggestPlacesApi } from '#lib/api/lists.js';
+	import { previewPlaceRewriteApi, rewritePlaceApi } from '#lib/api/lists.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
@@ -31,8 +32,6 @@
 	});
 	let input = $state<HTMLInputElement | null>(null);
 	let previewRequest = 0;
-	// Places already on the tree's facts: choosing one is how a merge is asked for.
-	let placeOptions = $state<string[]>([]);
 
 	const isUnchanged = $derived(name.trim() === '' || name.trim() === currentName);
 
@@ -43,22 +42,6 @@
 		previewError = null;
 		submission.clearError();
 		void tick().then(() => input?.select());
-	});
-
-	$effect(() => {
-		const typed = name.trim();
-		if (!isOpen || typed.length < 2) {
-			placeOptions = [];
-			return;
-		}
-		const timer = setTimeout(async () => {
-			try {
-				placeOptions = await suggestPlacesApi(treeId, typed);
-			} catch {
-				placeOptions = [];
-			}
-		}, PREVIEW_DELAY_MS);
-		return () => clearTimeout(timer);
 	});
 
 	// What the change would write, planned on the server, so the list is the one the save runs.
@@ -121,18 +104,13 @@
 			<label for="place-name" class="block text-xs font-semibold text-stone-700"
 				>Name on every fact at this place</label
 			>
-			<input
+			<PlaceInput
 				id="place-name"
-				type="text"
-				bind:this={input}
+				{treeId}
+				bind:element={input}
 				bind:value={name}
-				list="place-name-options"
-				autocomplete="off"
-				class={field}
+				inputClass={field}
 			/>
-			<datalist id="place-name-options"
-				>{#each placeOptions as option (option)}<option value={option}></option>{/each}</datalist
-			>
 			<p class="text-xs text-stone-600">
 				Choose the name of another place to merge this one into it. One Undo puts everything back.
 			</p>

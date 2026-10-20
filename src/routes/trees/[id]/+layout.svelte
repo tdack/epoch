@@ -19,7 +19,7 @@
 	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';
-	import { canonicalTreeAddress, treeLinkSlug } from '#lib/shared/tree-slug.js';
+	import { canonicalTreeAddress, treeLinkSlug, treePath } from '#lib/shared/tree-slug.js';
 	import { appHref, isOtherOrigin, subdomainOrigin, treeHref } from '#lib/shared/tree-host.js';
 
 	interface Props {
@@ -34,6 +34,9 @@
 	const role = $derived(
 		data.trees.find((t) => t.id === data.summary.tree.id)?.role ??
 			(viewer.isOutsider ? viewer.role : undefined)
+	);
+	const treeBase = $derived(
+		treePath({ id: data.summary.tree.id, slug: treeLinkSlug(data.summary.tree) })
 	);
 	const isChartPage = $derived(page.route.id === '/trees/[id]');
 	// Links prefer a tree's slug (ADR-045); the switcher and the shell know only the id they chose.
@@ -183,6 +186,10 @@
 		onexportGedcom={shell.exportGedcom}
 		canExport={isManagerOrAbove(role)}
 		canChangeTrees={!viewer.isPublicVisitor}
+		viewer={data.viewer}
+		profileHref="{treeBase}/profile"
+		settingsHref="{treeBase}/settings"
+		signOutHref={signOutHref(page.url.origin)}
 	>
 		{#snippet finder()}
 			<PersonFinder
@@ -251,7 +258,6 @@
 			isInstallOwner={viewer.isInstallOwner}
 			treeSlug={treeLinkSlug(data.summary.tree)}
 			treeCount={data.trees.length}
-			signOutHref={viewer.isPublicVisitor ? undefined : signOutHref(page.url.origin)}
 			isOutsider={viewer.isOutsider}
 			appOrigin={data.hostTree?.appOrigin}
 		/>

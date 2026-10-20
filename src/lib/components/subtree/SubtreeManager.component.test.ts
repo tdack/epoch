@@ -37,6 +37,7 @@ const sub = (id: string, position: number, extra: Partial<SubtreeDto> = {}): Sub
 	rootPersonId: `p-${id}`,
 	position,
 	version: 3,
+	isPublic: false,
 	isRootMissing: false,
 	...extra
 });

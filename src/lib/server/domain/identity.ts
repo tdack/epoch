@@ -15,6 +15,13 @@ export interface UserIdentity {
 	 * (ADR-041). Absent means a real user.
 	 */
 	isPublicVisitor?: boolean;
+	/**
+	 * The Google picture Access put in this request's token, if the IdP is set to send one. Never
+	 * stored: it is only the address to copy the image from, and it expires.
+	 */
+	pictureUrl?: string | null;
+	/** True on the one request that created this `users` row: the only time the picture is copied unasked. */
+	isNewUser?: boolean;
 }
 
 /**
@@ -35,6 +42,7 @@ export interface AccessIdentity {
 	accessSub: string;
 	email: string;
 	name?: string | null;
+	pictureUrl?: string | null;
 }
 
 export interface TreeMembership {

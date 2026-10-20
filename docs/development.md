@@ -105,6 +105,15 @@ request without a valid Access token is rejected with 401. While the local datab
 `install_meta` row, the default developer (`dev-local-user`) stands in for the install owner, so a
 fresh database works without setup. Add an `install_meta` row to try the not-invited page locally.
 
+### Using the Google picture as the avatar (manual Zero Trust step)
+
+Access leaves the Google `picture` out of its token unless you ask for it. In the Zero Trust
+dashboard, go to **Integrations > Identity providers**, edit the Google provider, and under
+**OIDC Claims** add `picture`. Access then puts it in the token's `custom` claim (best effort, about
+1 KB). Without this step nobody has a Google picture to import and everyone starts on initials; they
+can still upload one. Only `https://*.googleusercontent.com` addresses are fetched (ADR-070), and the
+dev bypass never has a picture.
+
 After changing the sign-in flow, verify on a real deploy that signing in returns you to the page you
 wanted, and that API calls after sign-in authenticate from the cookie alone.
 

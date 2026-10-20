@@ -75,6 +75,32 @@ describe('root layout load', () => {
 		expect(data.isMotionReduced).toBe(false);
 	});
 
+	it('names the signed-in user for the header, and nobody for a visitor or a signed-out reader', async () => {
+		const user = await createTestUser(t.db, 'viewer');
+		const { data } = await run(user.context.user);
+		expect((data as unknown as { viewer: unknown }).viewer).toEqual({
+			email: expect.stringContaining('@epoch.test'),
+			name: 'viewer',
+			avatarUrl: null,
+			canUseAccessPicture: false
+		});
+		for (const none of [null, PUBLIC_VISITOR]) {
+			const { data: anon } = await run(none);
+			expect((anon as unknown as { viewer: unknown }).viewer).toBeNull();
+		}
+	});
+
+	it('keeps the user in the header when the profile cannot be read', async () => {
+		const broken = {
+			prepare: () => {
+				throw new Error('no such table: users');
+			}
+		} as unknown as D1Database;
+		const user = await createTestUser(t.db, 'broken');
+		const { data } = await run(user.context.user, broken);
+		expect((data as unknown as { viewer: { name: string } }).viewer.name).toBe('broken');
+	});
+
 	it('falls back without a database at all', async () => {
 		const { data } = await run(null, null);
 		expect(data.palette).toEqual(DEFAULT_PALETTE);

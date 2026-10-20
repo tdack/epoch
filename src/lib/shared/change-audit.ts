@@ -43,6 +43,8 @@ export interface AuditPageDto {
 	total: number;
 	/** Everyone who has made a change in the tree, for the actor filter. */
 	actors: Array<{ id: string; name: string }>;
+	/** The person or partnership the log is filtered to, named; null when unfiltered or it no longer exists. */
+	record: { id: string; kind: 'person' | 'union'; name: string } | null;
 }
 
 /** The filters the address carries; a day is `YYYY-MM-DD` in the zone `tz` names (an IANA name, or null for UTC). */

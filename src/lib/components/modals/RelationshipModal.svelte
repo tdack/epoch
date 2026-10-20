@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
@@ -18,7 +19,8 @@
 	import type { ConflictError } from '#lib/api/client.js';
 	import { searchPeopleApi } from '#lib/api/lists.js';
 	import { planRelationshipApi, applyRelationshipApi } from '#lib/api/relationships.js';
-	import { personName } from '#lib/shared/person-name.js';
+	import { namesWithBirth, personName } from '#lib/shared/person-name.js';
+	import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
 	import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateText } from '#lib/shared/date-value.js';
@@ -84,6 +86,8 @@
 	let selected = $state<PeopleSearchResult | null>(null);
 	let newGivenName = $state('');
 	let newSurname = $state('');
+	let newSex = $state<Sex>('U');
+	const resultLabels = $derived(namesWithBirth(results, personName));
 	let isAddingNewPerson = $state(false);
 	let deathDate = $state('');
 	let deathPlace = $state('');
@@ -269,6 +273,7 @@
 			: null;
 		newGivenName = '';
 		newSurname = '';
+		newSex = 'U';
 		isAddingNewPerson = false;
 		deathDate = anchorPerson?.deathDate ?? '';
 		deathPlace = '';
@@ -323,7 +328,8 @@
 				id: 'new',
 				givenName: newGivenName.trim() || null,
 				surname: newSurname.trim() || null,
-				isNew: true
+				isNew: true,
+				sex: newSex
 			};
 		}
 		return selected
@@ -569,6 +575,12 @@
 					<label class="block text-xs font-semibold text-stone-700" for="new-surname">Surname</label
 					>
 					<input id="new-surname" type="text" bind:value={newSurname} class="field-input" />
+					<label class="block text-xs font-semibold text-stone-700" for="new-sex">Sex</label>
+					<select id="new-sex" bind:value={newSex} class="field-input">
+						{#each SEX_VALUES as value (value)}
+							<option {value}>{SEX_LABELS[value]}</option>
+						{/each}
+					</select>
 				</div>
 			{:else}
 				<div class="space-y-2">
@@ -606,7 +618,7 @@
 						<p class="text-xs text-stone-500">Searching…</p>
 					{:else if results.length > 0}
 						<ul class="max-h-40 space-y-1 overflow-y-auto" aria-label="Search results">
-							{#each results as r (r.id)}
+							{#each results as r, i (r.id)}
 								<li>
 									<button
 										type="button"
@@ -617,7 +629,7 @@
 											? 'border-emerald-400 bg-emerald-100'
 											: 'border-stone-200 bg-white'}"
 									>
-										{personName(r)}
+										{resultLabels[i]}
 										{#if r.matchedName}
 											<span class="block text-xs text-stone-500">also known as {r.matchedName}</span
 											>
@@ -713,7 +725,7 @@
 				<label class="block text-xs font-semibold text-stone-700" for="death-place"
 					>Place of death</label
 				>
-				<input id="death-place" type="text" bind:value={deathPlace} class="field-input" />
+				<PlaceInput id="death-place" {treeId} bind:value={deathPlace} inputClass="field-input" />
 				<p class="text-[11px] text-stone-500">
 					Leave both empty to record only that they have died. A death never ends or changes a
 					partnership.
@@ -794,7 +806,7 @@
 						<div>
 							<label class="block text-xs font-semibold text-stone-700" for="end-place">Place</label
 							>
-							<input id="end-place" type="text" bind:value={endPlace} class="field-input" />
+							<PlaceInput id="end-place" {treeId} bind:value={endPlace} inputClass="field-input" />
 						</div>
 					</div>
 				{/if}

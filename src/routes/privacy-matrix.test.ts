@@ -70,6 +70,12 @@ const ENTRIES: Record<string, Entry> = {
 		covers: EVIDENCE
 	},
 	[`${API}/trees/[id]/citations/reorder/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/people/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/people/impact/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/facts/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },
@@ -88,6 +94,19 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/tree-view-mode.test.ts'
 	},
 	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
+	[`${API}/profile/+server.ts`]: { kind: 'own-data', covers: 'services/profile-service.test.ts' },
+	[`${API}/profile/access-picture/+server.ts`]: {
+		kind: 'own-data',
+		covers: 'services/profile-service.test.ts'
+	},
+	[`${API}/profile/avatar/+server.ts`]: {
+		kind: 'own-data',
+		covers: 'services/profile-service.test.ts'
+	},
+	[`${API}/profile/avatar/[userId]/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/profile-service.test.ts'
+	},
 	[`${API}/admin/settings/+server.ts`]: {
 		kind: 'role-gated',
 		covers: 'services/settings-service.test.ts'
@@ -238,6 +257,7 @@ const LOADS = [
 	'./trees/[id]/people/[personId]/hourglass/+page.server.ts',
 	'./trees/[id]/people/[personId]/pedigree/+page.server.ts',
 	'./trees/[id]/privacy/+page.server.ts',
+	'./trees/[id]/profile/+page.server.ts',
 	'./trees/[id]/quality/+page.server.ts',
 	'./trees/[id]/relationship/+page.server.ts',
 	'./trees/[id]/search/+page.server.ts',
@@ -270,7 +290,9 @@ const NO_RECORD_LOADS = [
 	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
 	'./manage/trees/+page.server.ts',
 	// Only redirects to the settings under a tree, chosen the same way.
-	'./settings/+page.server.ts'
+	'./settings/+page.server.ts',
+	// The same, for the profile.
+	'./profile/+page.server.ts'
 ];
 
 /**
@@ -289,6 +311,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
+	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',

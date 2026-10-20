@@ -5,7 +5,11 @@
  */
 
 import type { DbClient } from '../db';
-import { describeCommand } from '../domain/command-summary';
+import { describeCommand, describeGroupCitation } from '../domain/command-summary';
+import { ValidationError } from '../domain/errors';
+import { seedFor } from '../domain/write-scope/index';
+import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
+import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import type { EvidenceCommand } from '../domain/evidence-ops';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { ImpactSummary } from '../../shared/impact';
@@ -204,6 +208,81 @@ export class EvidenceService {
 			context
 		);
 		return { citationId, ...result };
+	}
+
+	/** One command per person, minus anyone the caller can see already cites this source. */
+	private async citeManyPlan(
+		treeId: string,
+		sourceId: string,
+		personIds: string[],
+		citation: CitationInput,
+		context: AuthenticatedContext
+	) {
+		const unique = [...new Set(personIds)];
+		if (unique.length === 0 || unique.length > MAX_GROUP_FACT_PEOPLE)
+			throw new ValidationError(`Choose between 1 and ${MAX_GROUP_FACT_PEOPLE} people.`);
+		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
+		const all = unique.map((id): EvidenceCommand => ({
+			kind: 'add_citation',
+			citationId: this.runner.clock.newId(),
+			subject: { kind: CITATION_SUBJECT_KINDS.PERSON, id },
+			citation: { ...citation, sourceId }
+		}));
+		const rows = this.runner.visibleRows(
+			await this.runner.loadForSeed(treeId, seedFor(all)),
+			scope
+		);
+		const cited = new Set(
+			rows.citations
+				.filter((c) => c.sourceId === sourceId && c.subjectKind === CITATION_SUBJECT_KINDS.PERSON)
+				.map((c) => c.subjectId)
+		);
+		const skippedPersonIds = unique.filter((id) => cited.has(id));
+		const commands = all.filter((c) => c.kind === 'add_citation' && !cited.has(c.subject.id));
+		return { commands, skippedPersonIds };
+	}
+
+	/**
+	 * Cite one source for each person, as a citation on the person (ADR-028 gives a citation one
+	 * subject, so this is N citations, not one shared). People already cited for it are skipped.
+	 */
+	async citeMany(
+		treeId: string,
+		sourceId: string,
+		personIds: string[],
+		citation: CitationInput,
+		context: AuthenticatedContext
+	): Promise<{ skippedPersonIds: string[] } & MutationResult> {
+		await this.runner.requireAccess(treeId, context, 'record:create');
+		const { commands, skippedPersonIds } = await this.citeManyPlan(
+			treeId,
+			sourceId,
+			personIds,
+			citation,
+			context
+		);
+		if (commands.length === 0) return { skippedPersonIds, change: null, affected: [] };
+		const result = await this.runner.run(treeId, context, {
+			kind: 'cite_people',
+			summary: (rows) => describeGroupCitation(rows, sourceId, commands.length),
+			commands
+		});
+		return { skippedPersonIds, ...result };
+	}
+
+	/** What `citeMany` would write, without writing it. */
+	async previewMany(
+		treeId: string,
+		sourceId: string,
+		personIds: string[],
+		citation: CitationInput,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		await this.runner.requireAccess(treeId, context, 'record:create');
+		const { commands } = await this.citeManyPlan(treeId, sourceId, personIds, citation, context);
+		return this.runner.preview(treeId, context, commands, (rows) =>
+			describeGroupCitation(rows, sourceId, commands.length)
+		);
 	}
 
 	updateCitation(

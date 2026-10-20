@@ -11,6 +11,7 @@
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
+import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
 import { TREE_ROLES } from '../../shared/roles';
 import {
 	MAX_MAX_ALIVE_YEARS,
@@ -18,6 +19,7 @@ import {
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
+import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import { LAYOUT_MODE_VALUES } from '../../shared/view-mode';
 import {
 	END_EVENT_TYPES,
@@ -64,7 +66,8 @@ const personRefSchema = z.object({
 	id: idSchema,
 	givenName: nullableSingleLine,
 	surname: nullableSingleLine,
-	isNew: z.boolean().optional()
+	isNew: z.boolean().optional(),
+	sex: z.enum(SEX_VALUES).optional()
 });
 
 /** A version read from a DTO and sent back on an update; never defaulted, or a stale save would slip through. */
@@ -343,9 +346,21 @@ export const factUpdateSchema = z.object({
 
 export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).max(500) });
 
+/** Who a group fact or bulk citation is for; the services dedupe, the cap is enforced here too. */
+const groupPeopleSchema = z.array(idSchema).min(1).max(MAX_GROUP_FACT_PEOPLE);
+
+export const groupFactCreateSchema = factCreateSchema.extend({
+	personIds: groupPeopleSchema
+});
+
 /** A preview of a fact change: the same commands the writes take, minus the ids the server mints. */
 export const factImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('create_fact'), personId: idSchema, fact: factCreateSchema }),
+	z.object({
+		kind: z.literal('create_group_fact'),
+		personIds: groupPeopleSchema,
+		fact: factCreateSchema
+	}),
 	z.object({
 		kind: z.literal('update_fact'),
 		factId: idSchema,
@@ -546,6 +561,11 @@ export const citationCreateSchema = z.object({
  * subject is the record being saved, so the request does not name one.
  */
 export const citationAttachSchema = citationCreateSchema.omit({ subject: true });
+
+/** One source cited for each of several people. */
+export const citationPeopleSchema = citationCreateSchema
+	.omit({ subject: true })
+	.extend({ personIds: groupPeopleSchema });
 
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const citationUpdateSchema = z.object({
@@ -770,6 +790,11 @@ const focusColoursSchema = z.object({
 	ancestor: colourSchema,
 	descendant: colourSchema,
 	partner: colourSchema
+});
+
+/** The caller's display name; trimmed, so a blank name is rejected here as well as in the service. */
+export const profileNameSchema = z.object({
+	name: z.string().trim().min(1, 'Name is required').max(MAX_DISPLAY_NAME_LENGTH)
 });
 
 /** A change to a settings layer: a group replaces, `null` clears it, an absent key is left alone. */

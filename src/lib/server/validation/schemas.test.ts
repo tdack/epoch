@@ -186,3 +186,24 @@ describe('imported fact details at the write boundary', () => {
 		expect(factUpdateSchema.parse({ version: 1, agency: null }).agency).toBeNull();
 	});
 });
+
+describe('relationshipPayloadSchema new-person sex', () => {
+	const intent = (sex: string) => ({
+		intent: {
+			kind: 'add_child',
+			parent: { id: 'p1', givenName: 'Ann', surname: null },
+			child: { id: 'new', givenName: 'Kit', surname: null, isNew: true, sex },
+			type: 'biological',
+			unionLabel: null
+		}
+	});
+
+	it('keeps the chosen sex rather than stripping it', () => {
+		const parsed = relationshipPayloadSchema.parse(intent('F'));
+		expect(parsed.intent.kind === 'add_child' && parsed.intent.child.sex).toBe('F');
+	});
+
+	it('rejects a sex outside the known values', () => {
+		expect(relationshipPayloadSchema.safeParse(intent('Z')).success).toBe(false);
+	});
+});

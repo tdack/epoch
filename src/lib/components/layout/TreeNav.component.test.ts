@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import { signOutHref } from '#lib/shared/access.js';
 import TreeNav from './TreeNav.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -137,53 +136,11 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Trees');
 	});
 
-	it('offers Sign out to anyone signed in, through Access, outside the client router', () => {
-		render({ role: 'viewer', signOutHref: signOutHref('https://epoch.test') });
-		openMore();
-		const signOut = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')].find(
-			(a) => a.textContent?.trim() === 'Sign out'
-		)!;
-		expect(signOut.getAttribute('href')).toBe(
-			'/cdn-cgi/access/logout?returnTo=https%3A%2F%2Fepoch.test%2Fwelcome'
-		);
-		expect(signOut.hasAttribute('data-sveltekit-reload')).toBe(true);
-		unmount(component!);
-		component = null;
-		document.body.innerHTML = '';
+	it('no longer carries Settings or Sign out: the avatar menu in the header does', () => {
 		render({ role: 'viewer' });
 		openMore();
-		expect(menuLabels()).not.toContain('Sign out');
-	});
-
-	it('offers Settings to anyone signed in, member or not, and never to the public visitor', () => {
-		const signOut = signOutHref('https://epoch.test');
-		for (const props of [{ role: 'viewer' }, { role: 'viewer', isOutsider: true }, {}]) {
-			render({ ...props, signOutHref: signOut, treeSlug: 'the-smiths' });
-			openMore();
-			const settings = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')].find(
-				(a) => a.textContent?.trim() === 'Settings'
-			);
-			expect(settings?.getAttribute('href')).toBe('/trees/the-smiths/settings');
-			// Outside Manage, which a non-member reader does not get.
-			expect(settings?.closest('[aria-label="Manage"]')).toBeNull();
-			unmount(component!);
-			component = null;
-			document.body.innerHTML = '';
-		}
-		render({ role: 'viewer', isOutsider: true });
-		openMore();
 		expect(menuLabels()).not.toContain('Settings');
-	});
-
-	it('marks Settings active on its page', () => {
-		render({
-			role: 'viewer',
-			signOutHref: signOutHref('https://epoch.test'),
-			pathname: '/trees/t1/settings'
-		});
-		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(
-			'More: Settings'
-		);
+		expect(menuLabels()).not.toContain('Sign out');
 	});
 
 	it('marks Trees active on its page', () => {

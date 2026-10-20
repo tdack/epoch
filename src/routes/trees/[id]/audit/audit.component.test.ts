@@ -37,6 +37,7 @@ function render(over: Record<string, unknown> = {}) {
 			pageCount: 5,
 			total: 110,
 			timeZone: 'UTC',
+			record: null,
 			actors: [
 				{ id: 'u1', name: 'Ann' },
 				{ id: 'u2', name: 'Bo' }
@@ -142,9 +143,49 @@ describe('audit page', () => {
 		expect(form.querySelectorAll('input[type="date"]')).toHaveLength(2);
 	});
 
+	it("names the reader's own zone before anything is filtered", () => {
+		render();
+		flushSync();
+		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		expect(document.querySelector('[data-testid="audit-filters"]')!.textContent).toContain(
+			`Days are in ${zone} time`
+		);
+		expect(document.querySelector<HTMLInputElement>('input[name="tz"]')!.value).toBe(zone);
+	});
+
+	it('names the person the log is filtered to, and keeps them in the form', () => {
+		render({
+			filters: { recordId: 'p1', actorId: null, from: null, to: null, tz: null },
+			audit: {
+				entries: [],
+				page: 1,
+				pageCount: 1,
+				total: 0,
+				timeZone: 'UTC',
+				actors: [],
+				record: { id: 'p1', kind: 'person', name: 'Wren Ash' }
+			}
+		});
+		expect(document.querySelector('[data-testid="audit-filter"]')!.textContent).toContain(
+			'changes to Wren Ash'
+		);
+		expect(document.querySelector<HTMLInputElement>('input[role="combobox"]')!.placeholder).toBe(
+			'Wren Ash'
+		);
+		expect(document.querySelector<HTMLInputElement>('input[name="record"]')!.value).toBe('p1');
+	});
+
 	it('tells an empty filtered list from an empty log', () => {
 		render({
-			audit: { entries: [], page: 1, pageCount: 1, total: 0, timeZone: 'UTC', actors: [] },
+			audit: {
+				entries: [],
+				page: 1,
+				pageCount: 1,
+				total: 0,
+				timeZone: 'UTC',
+				actors: [],
+				record: null
+			},
 			filters: { recordId: null, actorId: null, from: '2026-01-01', to: null, tz: null }
 		});
 		expect(document.querySelector('[data-testid="audit-empty"]')!.textContent).toContain(
@@ -155,7 +196,15 @@ describe('audit page', () => {
 
 	it('says so when the log is empty', () => {
 		render({
-			audit: { entries: [], page: 1, pageCount: 1, total: 0, timeZone: 'UTC', actors: [] }
+			audit: {
+				entries: [],
+				page: 1,
+				pageCount: 1,
+				total: 0,
+				timeZone: 'UTC',
+				actors: [],
+				record: null
+			}
 		});
 		expect(document.body.textContent).toContain('No changes are logged');
 	});

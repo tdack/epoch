@@ -96,7 +96,7 @@ npm run seed
 ```
 
 This imports [test/data/The Simpsons.ged](<./test/data/The Simpsons.ged>) as a tree named "The
-Simpsons", and does nothing if that tree already exists. If the dev server is on
+Simpsons", and does nothing if the dev database already has any tree. If the dev server is on
 another port, set `SEED_URL`, for example `SEED_URL=http://localhost:5178 npm run seed`.
 
 For a larger tree with sources, places and media links, import

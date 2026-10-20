@@ -8,6 +8,8 @@ export const users = sqliteTable(
 		accessSub: text('access_sub').notNull().unique(), // Cloudflare Access stable 'sub'
 		email: text('email').notNull(),
 		name: text('name'),
+		/** R2 key of the profile picture (`avatars/<id>`); null shows initials. */
+		avatarKey: text('avatar_key'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 	},

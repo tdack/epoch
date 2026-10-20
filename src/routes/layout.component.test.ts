@@ -19,6 +19,7 @@ function render(isMotionReduced: boolean) {
 				sourceCommit: null,
 				hostTree: null,
 				subdomainZone: null,
+				viewer: null,
 				palette: DEFAULT_PALETTE,
 				isMotionReduced
 			},

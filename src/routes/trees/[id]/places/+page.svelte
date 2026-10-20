@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
@@ -7,6 +8,7 @@
 
 	const base = $derived(treePath(data.summary.tree));
 	const page = $derived(data.page);
+	let filterText = $derived(data.q);
 	const pageHref = (offset: number) => {
 		const params = new URLSearchParams();
 		if (data.q) params.set('q', data.q);
@@ -31,13 +33,13 @@
 	<div>
 		<label for="place-filter" class="block text-xs font-semibold text-stone-700">Find a place</label
 		>
-		<input
+		<PlaceInput
 			id="place-filter"
 			name="q"
 			type="search"
-			value={data.q}
-			autocomplete="off"
-			class="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+			treeId={data.summary.tree.id}
+			bind:value={filterText}
+			inputClass="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
 		/>
 	</div>
 	<button type="submit" class="btn-primary">Find</button>

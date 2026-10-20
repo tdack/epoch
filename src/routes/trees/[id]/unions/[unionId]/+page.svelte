@@ -1,6 +1,20 @@
 <script lang="ts">
 	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
-	import { GitMerge, Pencil, TriangleAlert, Info, Trash2, UserPlus } from '@lucide/svelte';
+	import {
+		GitMerge,
+		Pencil,
+		TriangleAlert,
+		Info,
+		Plus,
+		Quote,
+		Trash2,
+		UserPlus
+	} from '@lucide/svelte';
+	import CitePeopleDialog from '#lib/components/evidence/CitePeopleDialog.svelte';
+	import FactDialog from '#lib/components/modals/FactDialog.svelte';
+	import { canCite } from '#lib/components/evidence/evidence-permissions.js';
+	import { canCreateRecords } from '#lib/shared/roles.js';
+	import type { FactRelative } from '#lib/shared/fact-types.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import CitationList from '#lib/components/evidence/CitationList.svelte';
 	import CitationsDisclosure from '#lib/components/evidence/CitationsDisclosure.svelte';
@@ -44,6 +58,22 @@
 		return () => (editor.graph = null);
 	});
 
+	/** The family: partners then children, as people a fact or citation can be added to together. */
+	const members = $derived(
+		[
+			...dto.partners.map((p) => ({ person: p, relation: 'Partner' })),
+			...dto.children.map((c) => ({ person: c.person, relation: 'Child' }))
+		]
+			.filter((m) => !m.person.isPrivate)
+			.map((m): FactRelative => ({
+				id: m.person.id,
+				name: m.person.displayName,
+				relation: m.relation
+			}))
+	);
+	let isAddingFact = $state(false);
+	let isCiting = $state(false);
+
 	const when = (ms: number | null) => (ms ? new Date(ms).toLocaleString() : 'unknown');
 </script>
 
@@ -84,6 +114,16 @@
 			>
 				<UserPlus class="h-3.5 w-3.5" />Add child
 			</button>
+		{/if}
+		{#if canCreateRecords(role) && members.length > 0}
+			<button type="button" onclick={() => (isAddingFact = true)} class="action-btn"
+				><Plus class="h-3.5 w-3.5" />Add a fact to this family</button
+			>
+		{/if}
+		{#if canCite(role) && members.length > 0}
+			<button type="button" onclick={() => (isCiting = true)} class="action-btn"
+				><Quote class="h-3.5 w-3.5" />Cite a source for this family</button
+			>
 		{/if}
 		{#if dto.union.status === 'active'}
 			<button type="button" onclick={() => editor.endUnion(dto.union.id)} class="action-btn"
@@ -358,3 +398,36 @@
 		</section>
 	</div>
 </div>
+
+<FactDialog
+	isOpen={isAddingFact}
+	{treeId}
+	personId={null}
+	fact={null}
+	{role}
+	relatives={members}
+	preTickedIds={members.map((m) => m.id)}
+	onsaved={async (change) => {
+		isAddingFact = false;
+		await editor.afterChange(change, 'Fact added');
+	}}
+	onstale={async () => {
+		isAddingFact = false;
+		await editor.refresh();
+	}}
+	oncancel={() => (isAddingFact = false)}
+/>
+
+<CitePeopleDialog
+	isOpen={isCiting}
+	{treeId}
+	source={null}
+	initialPeople={members.map((m) => ({ id: m.id, name: m.name }))}
+	onsaved={async (change, skippedNames) => {
+		isCiting = false;
+		await editor.afterChange(change, 'Nothing to add');
+		if (skippedNames.length > 0)
+			toasts.push(`Already cited, so skipped: ${skippedNames.join(', ')}.`, { durationMs: 10_000 });
+	}}
+	oncancel={() => (isCiting = false)}
+/>

@@ -4,12 +4,14 @@
  */
 
 import type { DbClient } from '../db';
-import { describeCommand } from '../domain/command-summary';
+import { describeCommand, describeGroupFact } from '../domain/command-summary';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { ImpactSummary } from '../../shared/impact';
 import type { FactCommand } from '../domain/fact-ops';
+import type { RelationshipCommand } from '../domain/relationship-commands';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
-import type { FactInput } from '../../shared/fact-types';
+import { MAX_GROUP_FACT_PEOPLE, type FactInput } from '../../shared/fact-types';
+import { ValidationError } from '../domain/errors';
 import { CITATION_SUBJECT_KINDS, type CitationInput } from '../../shared/evidence';
 
 export class FactService {
@@ -45,6 +47,65 @@ export class FactService {
 					]
 				: [command]
 		});
+	}
+
+	/** The group's commands: one fact per person, each with its own copy of the citation. */
+	private groupCommands(
+		personIds: string[],
+		fact: FactInput,
+		citation?: CitationInput
+	): { factIds: string[]; commands: RelationshipCommand[] } {
+		const unique = [...new Set(personIds)];
+		if (unique.length === 0 || unique.length > MAX_GROUP_FACT_PEOPLE)
+			throw new ValidationError(`Choose between 1 and ${MAX_GROUP_FACT_PEOPLE} people.`);
+		const factIds = unique.map(() => this.runner.clock.newId());
+		const commands = unique.flatMap((personId, i): RelationshipCommand[] => [
+			{ kind: 'create_fact', personId, factId: factIds[i], fact },
+			...(citation
+				? [
+						{
+							kind: 'add_citation' as const,
+							citationId: this.runner.clock.newId(),
+							subject: { kind: CITATION_SUBJECT_KINDS.EVENT, id: factIds[i] },
+							citation
+						}
+					]
+				: [])
+		]);
+		return { factIds, commands };
+	}
+
+	/**
+	 * One fact copied onto each person: N independent events, so a later edit of one copy does not
+	 * reach the others (ADR-071). All in one run, so one change-log entry and one Undo.
+	 */
+	async createMany(
+		treeId: string,
+		personIds: string[],
+		fact: FactInput,
+		context: AuthenticatedContext,
+		citation?: CitationInput
+	): Promise<{ factIds: string[] } & MutationResult> {
+		const { factIds, commands } = this.groupCommands(personIds, fact, citation);
+		const result = await this.runner.run(treeId, context, {
+			kind: 'create_group_fact',
+			summary: () => describeGroupFact(fact.type, factIds.length),
+			commands
+		});
+		return { factIds, ...result };
+	}
+
+	/** What `createMany` would write, without writing it. */
+	previewMany(
+		treeId: string,
+		personIds: string[],
+		fact: FactInput,
+		context: AuthenticatedContext
+	): Promise<ImpactSummary> {
+		const { factIds, commands } = this.groupCommands(personIds, fact);
+		return this.runner.preview(treeId, context, commands, () =>
+			describeGroupFact(fact.type, factIds.length)
+		);
 	}
 
 	/** What a fact change would write, without writing it. */

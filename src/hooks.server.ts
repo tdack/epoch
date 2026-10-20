@@ -18,6 +18,7 @@ import {
 import { NotAdmittedError } from '#lib/server/domain/errors.js';
 import { PUBLIC_VISITOR } from '#lib/server/domain/identity.js';
 import { getDb } from '#lib/server/db/index.js';
+import { ProfileService } from '#lib/server/services/profile-service.js';
 import { PublicTreeService } from '#lib/server/services/public-tree-service.js';
 import { TreeRepository } from '#lib/server/repositories/tree-repository.js';
 import {
@@ -159,6 +160,17 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 			});
 			event.locals.user = admission.user;
 			event.locals.notAdmitted = admission.notAdmitted;
+
+			// Only on the request that created the row: the copy is a one-off, so a person who later
+			// removes their picture is not handed it back on every sign-in. After the response, so a
+			// slow or failing Google fetch never delays or breaks the page.
+			const newUser = admission.user;
+			const context = (event.platform as { context?: ExecutionContext } | undefined)?.context;
+			if (newUser?.isNewUser && newUser.pictureUrl && bindings.DB && bindings.MEDIA_BUCKET) {
+				context?.waitUntil?.(
+					new ProfileService(getDb(bindings.DB)).importForNewUser(newUser, bindings.MEDIA_BUCKET)
+				);
+			}
 		} catch (err: unknown) {
 			hasInvalidToken = true;
 			requestLogger.warn('Cloudflare Access token validation failed', {

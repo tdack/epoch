@@ -13,8 +13,8 @@
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
-	import type { FactDto, PersonPageDto } from '#lib/shared/person-page.js';
-	import { FACT_KINDS } from '#lib/shared/fact-types.js';
+	import type { FactDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
+	import { FACT_KINDS, type FactRelative } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import { groupFacts, groupKeyOf, groupLabelOf, type FactMember } from './fact-groups.js';
@@ -58,6 +58,22 @@
 				)
 	);
 
+	/** The people a new fact can also be added to, once each however they are related (ADR-071). */
+	const relatives = $derived.by((): FactRelative[] => {
+		const seen = new Set([dto.person.id]);
+		const out: FactRelative[] = [];
+		const add = (person: PersonSummaryDto, relation: string) => {
+			if (seen.has(person.id) || person.isPrivate) return;
+			seen.add(person.id);
+			out.push({ id: person.id, name: person.displayName, relation });
+		};
+		for (const p of dto.partnerships) p.partners.forEach((x) => add(x, 'Partner'));
+		for (const p of dto.partnerships) p.children.forEach((c) => add(c.person, 'Child'));
+		dto.directChildren.forEach((c) => add(c.person, 'Child'));
+		dto.parentFamilies.forEach((f) => f.parents.forEach((x) => add(x.person, 'Parent')));
+		[...dto.siblings.full, ...dto.siblings.half].forEach((x) => add(x, 'Sibling'));
+		return out;
+	});
 	let factDialog = $state<{ fact: FactDto | null } | null>(null);
 
 	const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
@@ -497,6 +513,7 @@
 	personId={dto.person.id}
 	fact={factDialog?.fact ?? null}
 	{role}
+	relatives={factDialog !== null && factDialog.fact === null ? relatives : []}
 	citations={factDialog?.fact
 		? citationsOfSubject(dto.evidence.citations, CITATION_SUBJECT_KINDS.EVENT, factDialog.fact.id)
 		: []}

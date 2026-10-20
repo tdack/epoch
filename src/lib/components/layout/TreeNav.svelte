@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, LogOut, Settings } from '@lucide/svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import { canChangeRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
@@ -18,11 +18,6 @@
 		isInstallOwner?: boolean;
 		/** How many trees the viewer belongs to; with more than one they get the Trees page to pick a default. */
 		treeCount?: number;
-		/**
-		 * Where Sign out goes, for someone Access identified; absent for the public visitor, who has a
-		 * "Sign in" banner instead.
-		 */
-		signOutHref?: string;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
 		/**
@@ -39,7 +34,6 @@
 		pathname,
 		isInstallOwner = false,
 		treeCount = 0,
-		signOutHref,
 		isOutsider = false,
 		appOrigin = ''
 	}: Props = $props();
@@ -106,14 +100,7 @@
 				]
 			: [])
 	]);
-	const settingsLink = $derived<NavLink>({
-		href: `${base}/settings`,
-		label: 'Settings',
-		isActive: startsWith(`${base}/settings`)
-	});
-	const activeInMore = $derived(
-		[...research, ...manage, ...(signOutHref ? [settingsLink] : [])].find((link) => link.isActive)
-	);
+	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
 		`focus-ring-inset shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap coarse:inline-flex coarse:min-h-11 coarse:items-center ${
@@ -176,31 +163,6 @@
 						class={itemClass(link.isActive)}>{link.label}</a
 					>
 				{/each}
-			</div>
-		{/if}
-		{#if signOutHref}
-			<!-- Its own group, not under Manage: a signed-in reader who is not a member is offered no Manage links. -->
-			<!-- Settings are the person's own (ADR-054), so they sit with Sign out, for anyone signed in. -->
-			<div class="mt-1 border-t border-stone-200 pt-1">
-				<a
-					href={settingsLink.href}
-					role="menuitem"
-					aria-current={settingsLink.isActive ? 'page' : undefined}
-					class="{itemClass(settingsLink.isActive)} gap-2"
-				>
-					<Settings class="h-3.5 w-3.5" aria-hidden="true" />
-					Settings
-				</a>
-				<!-- A Cloudflare path, not a route: the reload keeps the client router from answering it with a 404. -->
-				<a
-					href={signOutHref}
-					role="menuitem"
-					data-sveltekit-reload
-					class="{itemClass(false)} gap-2"
-				>
-					<LogOut class="h-3.5 w-3.5" aria-hidden="true" />
-					Sign out
-				</a>
 			</div>
 		{/if}
 	</Popover>

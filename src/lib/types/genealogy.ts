@@ -132,6 +132,8 @@ interface PersonRef {
 	surname: string | null;
 	/** True for someone the intent creates; the server replaces `id`. */
 	isNew?: boolean;
+	/** Sex marker for a new person; ignored for existing ones. Defaults to unknown. */
+	sex?: Sex;
 }
 
 interface RelationshipPlanWarning {
@@ -175,4 +177,6 @@ export interface PeopleSearchResult {
 	surname: string | null;
 	/** Set when the person matched through another of their names, not the one they are shown by. */
 	matchedName?: string;
+	/** Birth date as recorded, to tell namesakes apart. */
+	birthDate?: string | null;
 }

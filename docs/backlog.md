@@ -27,16 +27,10 @@ Last reviewed: 2026-10-18.
 
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
-  is never capped. Accepted for now; the per-user rate limits on import and upload (ADR-066) slow a loop but do not
-  cap how many trees a user may make. (F9)
+  is never capped. Accepted for now; the per-user rate limits on import and upload (ADR-066) slow a loop but do not cap how many trees a user may make. (F9)
+  
 ### Media and files
 
-- **Editors cannot delete legacy files.** Files stored before migration 0029 have no recorded
-  uploader, so only a manager or owner may delete them. Their sizes show as unknown until the size
-  backfill has run. The backfill (`npm run db:backfill:media-sizes`) has only been run against a
-  local database. On a deployed database it downloads each unsized object, because Wrangler cannot
-  list or head R2 objects, so it is slow for a large library. Run it with `--remote`, then decide
-  whether editors may delete legacy files. (ADR-050)
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
@@ -68,9 +62,6 @@ Last reviewed: 2026-10-18.
   kept as an extra line, not modelled. (ADR-013)
 - **A `NAME` line that disagrees with its `GIVN`/`SURN`, or carries a quoted nickname, comes back in
   canonical form.** Known round-trip loss. (ADR-013)
-- **People imported before names were modelled have one name.** Re-import in replace mode brings the
-  others back; nothing was migrated. A person created in the editor before then has no name row
-  until the first name command. (ADR-013)
 - **`events.notes` is still read once on export.** Drop the column in a later contract migration.
   (ADR-029)
 - **A source merge or delete touching more than 300 records is refused.** Raise or batch the limit.
@@ -160,10 +151,6 @@ Last reviewed: 2026-10-18.
 
 ### 3D views
 
-- **Decide whether a 3D view becomes the product default.** Flat stays the default. Promotion needs
-  the checklist from ADR-030: stage 6 parity,
-  the stage 7 performance budgets, the whole e2e suite parameterised over all view modes and green,
-  and a trial on the owner's own tree.
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of
   scope today.
 
@@ -181,6 +168,16 @@ Last reviewed: 2026-10-18.
   - **A 3D quality cap** (pixel ratio, labels) for slow devices.
   Like colours, these would layer the way webtrees does: a built-in default, a site default the
   install owner sets, and a per-user override.
+
+### Profile and leaving
+
+- **Wire up Leave Epoch and Erase** (ADR-070). The profile page's button only explains today. Build
+  Leave (delete memberships, settings, marks and the R2 avatar; keep the `users` row; block the sole
+  owner of any tree and the install owner until ownership moves), then optionally Erase (blank email
+  and name to "Former member"). Needs a confirm dialog, a way to hand over ownership, and a test that
+  admission turns the person away afterwards and an invitation readmits them.
+- **Remove a stale avatar object when a user is deleted by hand,** and a periodic sweep for
+  `avatars/` objects with no `users.avatar_key`.
 
 ### Charts, reports and views
 
@@ -360,3 +357,11 @@ The tool is built in `tools/setup/`.
   remembered-focus order (URL `focus`, then the focus remembered for this sub-tree, then its root,
   then the tree's default) end to end. A public visitor reading a sub-tree is covered by ADR-069's
   tests at the load level; a browser e2e needs a way to run signed out, which the dev bypass lacks.
+
+## Group facts and bulk citations (ADR-071)
+
+- **Edit all copies of a group fact.** Copies are independent events, so fixing the date of an
+  Emigration means editing each. Offer "apply to the other copies" by matching type, date and place
+  among the family.
+- **Cite a source on each person's specific facts in bulk** (for example every birth in a family
+  book). Today a bulk citation sits on the person, not on a fact.
