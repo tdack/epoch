@@ -65,7 +65,8 @@ const personRefSchema = z.object({
 	id: idSchema,
 	givenName: nullableSingleLine,
 	surname: nullableSingleLine,
-	isNew: z.boolean().optional()
+	isNew: z.boolean().optional(),
+	sex: z.enum(SEX_VALUES).optional()
 });
 
 /** A version read from a DTO and sent back on an update; never defaulted, or a stale save would slip through. */

@@ -141,6 +141,20 @@ describe('preview matches result, for every intent', () => {
 		]);
 	});
 
+	it('a new person is created with the sex chosen for them', async () => {
+		const s = await setup();
+		const child = await s.addPerson('Sam', 'Smith');
+		const { after } = await runAndCompare(s, {
+			kind: 'add_parent',
+			child: s.ref(child),
+			parent: { id: 'placeholder', givenName: 'Nia', surname: 'Novak', isNew: true, sex: 'F' },
+			type: 'biological',
+			role: 'parent',
+			unionLabel: null
+		});
+		expect(after.people.find((p) => p.displayName === 'Nia Novak')!.sex).toBe('F');
+	});
+
 	it('add_parent with a new person: the created person is in the preview and in the graph', async () => {
 		const s = await setup();
 		const child = await s.addPerson('Sam', 'Smith');
