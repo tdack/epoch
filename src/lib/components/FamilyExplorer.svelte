@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Descent from './Descent.svelte';
 	import {
 		CHART_EDGES,
@@ -18,18 +19,16 @@
 	import { LENSES } from '#lib/site.js';
 
 	const LAST = LENS_IDS.length - 1;
-	/** Lenses of scroll after the last arrives, so it holds before the page moves on. */
-	const TAIL_LENSES = 0.45;
-	/** The share of each lens's scroll spent moving; the rest holds the lens still to be read. */
-	const MOVE = { from: 0.22, to: 0.82 } as const;
-	const TAB_MORPH_MS = 1100;
+	const MORPH_MS = 1100;
+	/** How long each view holds while playing, its morph included: long enough to read its caption. */
+	const DWELL_MS = 7000;
+	/** A frame later than this was the tab hidden or throttled, and does not count as watching. */
+	const MAX_FRAME_MS = 100;
 
-	let runway = $state<HTMLElement>();
-	let pin = $state<HTMLElement>();
+	let section = $state<HTMLElement>();
+	let frameEl = $state<HTMLElement>();
 	let scroller = $state<HTMLElement>();
 
-	/** Whether scrolling drives the lenses; off on narrow or short screens and under reduced motion. */
-	let isPinned = $state(false);
 	let isStill = $state(false);
 	let hasMoreLeft = $state(false);
 	let hasMoreRight = $state(false);
@@ -41,27 +40,32 @@
 		hasMoreLeft = scroller.scrollLeft > 2;
 		hasMoreRight = scroller.scrollLeft < hidden - 2;
 	}
-	let unitPx = $state(0);
-	/** Lenses scrolled through, 0 to LAST; whole numbers are a lens at rest. */
-	let progress = $state(0);
-	/** Tab mode: the morph between two lenses, driven by time instead of scroll. */
+	/** The morph between two lenses; `t` runs 0 to 1 over `MORPH_MS`. */
 	let tab = $state<{ from: number; to: number; t: number }>({ from: 0, to: 0, t: 1 });
 	let measure = $state<Measure>();
 
-	const frame = $derived.by(() => {
-		if (!isPinned) return { from: tab.from, to: tab.to, t: tab.t };
-		const unit = Math.min(LAST, Math.floor(progress));
-		if (unit >= LAST) return { from: LAST, to: LAST, t: 1 };
-		return {
-			from: unit,
-			to: unit + 1,
-			t: window01(progress - unit, MOVE.from, MOVE.to)
-		};
-	});
+	/** Whether the views advance by themselves. The clock still waits while the drawing is off screen. */
+	let isPlaying = $state(false);
+	let isInView = $state(false);
+	/** The showing view's share of its dwell, 0 to 1; the clock moves it and its pill fills with it. */
+	let dwell = $state(0);
+	/** Started once, on first sight; after that only the visitor's Play starts it. */
+	let hasStarted = $state(false);
+	/** The drawing is being scrolled by `centreOn`, not by a reader. */
+	let isAutoScrolling = false;
+
+	const frame = $derived(tab);
+	/** The view the drawing looks most like; the caption and the ground follow it. */
 	const active = $derived(frame.t < 0.5 ? frame.from : frame.to);
+	/** The view the drawing is becoming; the pills, the clock and Replay follow it at once. */
+	const shown = $derived(frame.to);
 	const fromId = $derived(LENS_IDS[frame.from]!);
 	const toId = $derived(LENS_IDS[frame.to]!);
 	const people = $derived(drawAll(fromId, toId, frame.t, measure));
+	const isAtEnd = $derived(!isPlaying && shown === LAST && dwell >= 1);
+	/** A view picked while paused shows its pill full, one paused part way how far it got, and the
+	first view waits empty until it starts playing. */
+	const fill = $derived(isPlaying || dwell > 0 ? dwell : hasStarted || isStill ? 1 : 0);
 
 	/** How present a lens's own lines and labels are: they leave early and arrive late. */
 	const weightOf = (lens: LensId) => {
@@ -187,90 +191,114 @@
 	});
 
 	$effect(() => {
-		if (!runway || !pin) return;
-		const wide = matchMedia('(min-width: 900px) and (min-height: 640px)');
+		if (!section || !frameEl) return;
+		const sectionEl = section;
 		const still = matchMedia('(prefers-reduced-motion: reduce)');
-		const runwayEl = runway;
-		const pinEl = pin;
-		let raf = 0;
-		let pinTopPx = 0;
-
-		const update = () => {
-			raf = 0;
-			if (!isPinned) return;
-			const scrolled = pinTopPx - runwayEl.getBoundingClientRect().top;
-			progress = Math.min(LAST, Math.max(0, scrolled / unitPx));
-		};
-		const measureRunway = () => {
+		const readStill = () => {
 			isStill = still.matches;
-			const wasPinned = isPinned;
-			isPinned = wide.matches && !still.matches;
-			pinTopPx = Number.parseFloat(getComputedStyle(pinEl).top) || 0;
-			unitPx = Math.round(innerHeight * 0.7);
-			// Leaving the pin keeps whichever lens was showing, and entering it starts from the scroll.
-			if (wasPinned && !isPinned) tab = { from: active, to: active, t: 1 };
-			update();
+			if (isStill) isPlaying = false;
 		};
-		const onScroll = () => {
-			if (!raf) raf = requestAnimationFrame(update);
-		};
-
-		measureRunway();
-		if (!isPinned) centreOn(active, true);
-		// The browser jumps to an address's #section before this runway (and the 3D views' one
-		// after it) grow, which leaves a section below them far off screen; jump again once they have.
+		readStill();
+		untrack(() => centreOn(active, true));
+		// The clock waits whenever none of the drawing is in sight. It starts by itself once, when
+		// most of the drawing is, or most of a screen too short to hold it; reduced motion waits for
+		// the visitor's Play.
+		const sight = new IntersectionObserver(
+			([entry]) => {
+				isInView = entry!.isIntersecting;
+				const isMostlySeen =
+					entry!.intersectionRatio >= 0.6 ||
+					entry!.intersectionRect.height >= 0.6 * (entry!.rootBounds?.height ?? Infinity);
+				if (isMostlySeen && !hasStarted && !isStill) {
+					hasStarted = true;
+					isPlaying = true;
+				}
+			},
+			{ threshold: [0, 0.3, 0.6] }
+		);
+		sight.observe(frameEl);
+		// The browser jumps to an address's #section before the 3D views' runway below grows, which
+		// leaves a section after it far off screen; jump again once it has.
 		const hashTimer = setTimeout(() => {
 			const id = decodeURIComponent(location.hash.slice(1));
 			const target = id ? document.getElementById(id) : null;
-			if (target && runwayEl.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING)
+			if (target && sectionEl.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING)
 				target.scrollIntoView({ behavior: 'instant' });
 		}, 0);
-		const resize = new ResizeObserver(measureRunway);
-		resize.observe(document.documentElement);
-		wide.addEventListener('change', measureRunway);
-		still.addEventListener('change', measureRunway);
-		addEventListener('scroll', onScroll, { passive: true });
+		// A new width moves the drawing's middle, so the view is brought back into sight.
+		const resize = new ResizeObserver(() => untrack(() => centreOn(shown, true)));
+		resize.observe(frameEl);
+		still.addEventListener('change', readStill);
 		return () => {
+			cancelAnimationFrame(morphRaf);
+			sight.disconnect();
 			resize.disconnect();
-			wide.removeEventListener('change', measureRunway);
-			still.removeEventListener('change', measureRunway);
-			removeEventListener('scroll', onScroll);
-			cancelAnimationFrame(raf);
+			still.removeEventListener('change', readStill);
 			clearTimeout(hashTimer);
 		};
 	});
 
-	let tabRaf = 0;
-	function choose(index: number, event?: MouseEvent) {
-		// The chip row scrolls sideways on narrow screens; keep the chosen one in sight there.
-		if (!isPinned)
-			(event?.currentTarget as HTMLElement | undefined)?.scrollIntoView({
-				block: 'nearest',
-				inline: 'nearest',
-				behavior: isStill ? 'auto' : 'smooth'
-			});
-		if (isPinned && runway && pin) {
-			// Scroll to the lens at rest; the morph plays on the way, through the lenses between.
-			const pinTopPx = Number.parseFloat(getComputedStyle(pin).top) || 0;
-			const top = scrollY + runway.getBoundingClientRect().top - pinTopPx + index * unitPx;
-			scrollTo({ top: Math.ceil(top), behavior: 'smooth' });
-			return;
-		}
-		cancelAnimationFrame(tabRaf);
+	// The clock: it runs only while playing and in sight, and a hidden tab draws no frames, so a
+	// view never moves on while nobody can see it.
+	$effect(() => {
+		if (!isPlaying || !isInView) return;
+		let raf = 0;
+		let last = performance.now();
+		const step = (now: number) => {
+			dwell = Math.min(1, dwell + Math.min(now - last, MAX_FRAME_MS) / DWELL_MS);
+			last = now;
+			if (dwell >= 1) {
+				// The last view holds, and the button offers to play them again.
+				if (shown === LAST) {
+					isPlaying = false;
+					return;
+				}
+				go(shown + 1);
+			}
+			raf = requestAnimationFrame(step);
+		};
+		raf = requestAnimationFrame(step);
+		return () => cancelAnimationFrame(raf);
+	});
+
+	let morphRaf = 0;
+	/** Redraw the family as another view, and start that view's dwell from nothing. */
+	function go(index: number) {
+		dwell = 0;
+		centreOn(index);
+		// Already there or on its way: let a morph in flight finish rather than freeze it part way.
+		if (index === shown) return;
+		cancelAnimationFrame(morphRaf);
 		const from = active;
-		if (from === index) return;
 		if (isStill) {
 			tab = { from: index, to: index, t: 1 };
 			return;
 		}
 		const started = performance.now();
 		const step = (now: number) => {
-			const t = Math.min(1, (now - started) / TAB_MORPH_MS);
+			const t = Math.min(1, (now - started) / MORPH_MS);
 			tab = { from, to: index, t };
-			if (t < 1) tabRaf = requestAnimationFrame(step);
+			if (t < 1) morphRaf = requestAnimationFrame(step);
 		};
-		tabRaf = requestAnimationFrame(step);
-		centreOn(index);
+		morphRaf = requestAnimationFrame(step);
+	}
+
+	function togglePlay() {
+		if (isPlaying) {
+			isPlaying = false;
+			return;
+		}
+		hasStarted = true;
+		if (isAtEnd) go(0);
+		isPlaying = true;
+	}
+
+	/** Someone panning the drawing is reading it, so it stops moving under them; the scrolls
+	`centreOn` makes are not theirs. */
+	function onDrawingScroll() {
+		measureOverflow();
+		if (!isAutoScrolling && scroller && scroller.scrollWidth > scroller.clientWidth)
+			isPlaying = false;
 	}
 
 	/** On a narrow screen the drawing scrolls sideways; bring the lens's middle into view. */
@@ -286,287 +314,313 @@
 			lens === 'descendants' || lens === 'pedigree'
 				? (focus.x - focus.w / 2 - 12) * scale
 				: (index === LAST ? ROUTE_ROWS.x + 200 : focus.x) * scale - scroller.clientWidth / 2;
+		if (Math.abs(scroller.scrollLeft - left) > 1) {
+			isAutoScrolling = true;
+			const done = () => (isAutoScrolling = false);
+			scroller.addEventListener('scrollend', done, { once: true });
+			// Browsers without `scrollend` still let the reader take over once the move is done.
+			setTimeout(done, 900);
+		}
 		scroller.scrollTo({ left, behavior: isStill || isInstant ? 'auto' : 'smooth' });
 		measureOverflow();
 	}
 </script>
 
-<section id="explore" class="explore" class:is-pinned={isPinned} aria-labelledby="explore-title">
+<section id="explore" class="explore" bind:this={section} aria-labelledby="explore-title">
 	<div class="head">
 		<Descent origin="union" />
 		<h2 id="explore-title">One family, drawn six ways</h2>
 		<p>
 			The same people as a family view, four charts and a relationship finder. Every chart also
-			comes as a text outline. {isPinned
-				? 'Scroll to move between them, or pick one.'
-				: 'Pick one to redraw the family.'}
+			comes as a text outline.
 		</p>
 	</div>
 
-	<!-- While pinned, the runway is taller than the space under the nav bar by exactly the lenses'
-	scroll, so the page moves on once the last lens has held. -->
-	<div
-		class="runway"
-		bind:this={runway}
-		style:height={isPinned
-			? `calc(100vh - var(--nav-height) + ${Math.round((LAST + TAIL_LENSES) * unitPx)}px)`
-			: undefined}
-	>
-		<div class="pin" bind:this={pin}>
-			<div class="bar">
-				<ul class="lenses" aria-label="Ways to see the family">
-					{#each LENSES as lens, i (lens.id)}
-						<li>
-							<button
-								type="button"
-								aria-pressed={active === i}
-								onclick={(event) => choose(i, event)}
-							>
-								{lens.name}
-							</button>
-						</li>
-					{/each}
-					<li><a class="onward" href="#views">3D views</a></li>
-				</ul>
-				{#if isPinned}
-					<span class="track" aria-hidden="true">
-						<span class="fill" style:scale="{progress / LAST} 1"></span>
-					</span>
-				{/if}
-			</div>
+	<div class="show">
+		<!-- Every caption shares one cell, so changing view never moves the drawing. -->
+		<div class="captions">
+			{#each LENSES as lens, i (lens.id)}
+				<div class="caption" class:is-active={active === i} aria-hidden={active !== i}>
+					<p><strong>{lens.name}.</strong> {lens.text}</p>
+					{#if lens.id === 'family'}
+						<ul class="key" aria-label="Kinds of link">
+							{#each KEY as kind (kind.label)}
+								<li>
+									<svg width="30" height="8" aria-hidden="true">
+										<path
+											d="M2 4H28"
+											stroke={kind.ink}
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-dasharray={kind.dash || undefined}
+										/>
+									</svg>
+									{kind.label}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/each}
+		</div>
 
-			<div
-				class="frame"
-				class:has-more-left={hasMoreLeft}
-				class:has-more-right={hasMoreRight}
-				style:--ground={active === 0 ? 'var(--tree-paper)' : 'var(--field-white)'}
-			>
-				<span class="synthetic">A sample family, invented for illustration.</span>
-				<!-- Focusable only while it scrolls, so a keyboard can pan it with the arrow keys; a
+		<div
+			class="frame"
+			bind:this={frameEl}
+			class:has-more-left={hasMoreLeft}
+			class:has-more-right={hasMoreRight}
+			style:--ground={active === 0 ? 'var(--tree-paper)' : 'var(--field-white)'}
+		>
+			<span class="synthetic">A sample family, invented for illustration.</span>
+			<!-- Focusable only while it scrolls, so a keyboard can pan it with the arrow keys; a
 				scrolling region is the one non-control that should take focus. -->
-				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<div
-					class="scroller"
-					bind:this={scroller}
-					onscroll={measureOverflow}
-					tabindex={isPinned ? undefined : 0}
-					role={isPinned ? undefined : 'region'}
-					aria-label={isPinned ? undefined : `${LENSES[active]!.name} drawing, scrolls sideways`}
-				>
-					<svg class="stage" viewBox="0 0 {STAGE.width} {STAGE.height}" aria-hidden="true">
-						<defs>
-							<pattern id="explore-dots" width="18" height="18" patternUnits="userSpaceOnUse">
-								<circle cx="2" cy="2" r="1.3" fill="var(--tree-dot)" />
-							</pattern>
-						</defs>
-						<!-- The charts sit on white; the family view on the tree's dotted chart paper. -->
-						<g style:opacity={weightOf('family')}>
-							<rect width={STAGE.width} height={STAGE.height} fill="var(--tree-paper)" />
-							<rect width={STAGE.width} height={STAGE.height} fill="url(#explore-dots)" />
-						</g>
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="scroller"
+				bind:this={scroller}
+				onscroll={onDrawingScroll}
+				tabindex={hasMoreLeft || hasMoreRight ? 0 : undefined}
+				role={hasMoreLeft || hasMoreRight ? 'region' : undefined}
+				aria-label={hasMoreLeft || hasMoreRight
+					? `${LENSES[active]!.name} drawing, scrolls sideways`
+					: undefined}
+			>
+				<svg class="stage" viewBox="0 0 {STAGE.width} {STAGE.height}" aria-hidden="true">
+					<defs>
+						<pattern id="explore-dots" width="18" height="18" patternUnits="userSpaceOnUse">
+							<circle cx="2" cy="2" r="1.3" fill="var(--tree-dot)" />
+						</pattern>
+					</defs>
+					<!-- The charts sit on white; the family view on the tree's dotted chart paper. -->
+					<g style:opacity={weightOf('family')}>
+						<rect width={STAGE.width} height={STAGE.height} fill="var(--tree-paper)" />
+						<rect width={STAGE.width} height={STAGE.height} fill="url(#explore-dots)" />
+					</g>
 
-						<g fill="none" style:opacity={weightOf('family')}>
-							{#each PARTNER_LINES as line (line.d)}
-								<path
-									d={line.d}
-									stroke={INK.union}
-									stroke-width="2.25"
-									stroke-dasharray={line.isEnded ? '7 5' : undefined}
-								/>
-							{/each}
-							{#each CHILD_LINES as line (line.d)}
-								<path
-									d={line.d}
-									stroke={kindOf(line.kind).ink}
-									stroke-width="2"
-									stroke-dasharray={kindOf(line.kind).dash || undefined}
-								/>
-							{/each}
-							<!-- The app's union marker (UnionMarker.svelte): a disc holding two linked rings,
+					<g fill="none" style:opacity={weightOf('family')}>
+						{#each PARTNER_LINES as line (line.d)}
+							<path
+								d={line.d}
+								stroke={INK.union}
+								stroke-width="2.25"
+								stroke-dasharray={line.isEnded ? '7 5' : undefined}
+							/>
+						{/each}
+						{#each CHILD_LINES as line (line.d)}
+							<path
+								d={line.d}
+								stroke={kindOf(line.kind).ink}
+								stroke-width="2"
+								stroke-dasharray={kindOf(line.kind).dash || undefined}
+							/>
+						{/each}
+						<!-- The app's union marker (UnionMarker.svelte): a disc holding two linked rings,
 							dashed and slashed through for a partnership that ended, its date above. -->
-							{#each UNIONS as union (union.x + union.y)}
-								<g transform="translate({union.x} {union.y})">
-									<circle
-										r={UNION_R}
-										fill="#fdfbf7"
+						{#each UNIONS as union (union.x + union.y)}
+							<g transform="translate({union.x} {union.y})">
+								<circle
+									r={UNION_R}
+									fill="#fdfbf7"
+									stroke={INK.union}
+									stroke-width="2"
+									stroke-dasharray={union.isEnded ? '4 3' : undefined}
+								/>
+								<circle cx="-3.2" r="4.6" stroke={INK.union} stroke-width="1.5" />
+								<circle cx="3.2" r="4.6" stroke={INK.union} stroke-width="1.5" />
+								{#if union.isEnded}
+									<line
+										x1={-UNION_R * 0.7}
+										y1={UNION_R * 0.7}
+										x2={UNION_R * 0.7}
+										y2={-UNION_R * 0.7}
 										stroke={INK.union}
 										stroke-width="2"
-										stroke-dasharray={union.isEnded ? '4 3' : undefined}
+										stroke-linecap="round"
 									/>
-									<circle cx="-3.2" r="4.6" stroke={INK.union} stroke-width="1.5" />
-									<circle cx="3.2" r="4.6" stroke={INK.union} stroke-width="1.5" />
-									{#if union.isEnded}
-										<line
-											x1={-UNION_R * 0.7}
-											y1={UNION_R * 0.7}
-											x2={UNION_R * 0.7}
-											y2={-UNION_R * 0.7}
-											stroke={INK.union}
-											stroke-width="2"
-											stroke-linecap="round"
-										/>
-									{/if}
-									<text y={-TREE_CARD.h / 2 - 6} text-anchor="middle" class="union-label"
-										>{union.label}</text
-									>
-								</g>
-							{/each}
-						</g>
-
-						{#each CHART_LENSES as chart (chart.lens)}
-							{@const weight = weightOf(chart.lens)}
-							{#if weight > 0}
-								<g fill="none" stroke="#d6d3d1" stroke-width="2" style:opacity={weight}>
-									{#each chart.paths as d (d)}
-										<path {d} />
-									{/each}
-								</g>
-							{/if}
+								{/if}
+								<text y={-TREE_CARD.h / 2 - 6} text-anchor="middle" class="union-label"
+									>{union.label}</text
+								>
+							</g>
 						{/each}
+					</g>
 
-						{#if weightOf('relationship') > 0}
-							<!-- The relationship page's answer: the sentence, the common ancestors, the link
-							types, then the steps beside a rule. -->
-							<g style:opacity={weightOf('relationship')}>
-								{#each [{ x: ROUTE_ROWS.x - 24, label: 'First person', picked: 'Alice Dunn' }, { x: ROUTE_ROWS.x + 216, label: 'Second person', picked: 'Tom Reed' }] as picker (picker.label)}
-									<text x={picker.x} y="84" class="route-label">{picker.label}</text>
-									<text x={picker.x} y="106" class="route-picked">{picker.picked}</text>
-									<rect
-										x={picker.x}
-										y="116"
-										width="220"
-										height="32"
-										rx="8"
-										fill="#fff"
-										stroke="#d6d3d1"
-									/>
-									<text x={picker.x + 10} y="137" class="route-search">Search by name</text>
-								{/each}
-								<rect
-									x={ROUTE_ROWS.x - 24}
-									y="160"
-									width="520"
-									height={ROUTE_ROWS.y0 + ROUTE.length * ROUTE_ROWS.step + 26 - 160}
-									rx="12"
-									fill="#fff"
-									stroke="#e7e5e4"
-								/>
-								<text x={ROUTE_ROWS.x} y="204" class="route-title"
-									>Tom Reed is Alice Dunn’s 1st cousin.</text
-								>
-								<text x={ROUTE_ROWS.x} y="234" class="route-note"
-									>Through Thomas Reed and Ellen Marsh.</text
-								>
-								<text x={ROUTE_ROWS.x} y="258" class="route-note amber"
-									>Includes adoptive links.</text
-								>
-								<path
-									d="M{ROUTE_ROWS.x} {ROUTE_ROWS.y0}V{ROUTE_ROWS.y0 +
-										ROUTE.length * ROUTE_ROWS.step -
-										6}"
-									stroke="#a7f3d0"
-									stroke-width="2"
-								/>
-								{#each ROUTE as step, i (step.id)}
-									{@const width = routeNameWidth(nameOf(step.id))}
-									{@const baseline = ROUTE_ROWS.y0 + i * ROUTE_ROWS.step + ROUTE_ROWS.h / 2 + 5}
-									<path
-										d="M{ROUTE_ROWS.x + 14} {baseline + 3}h{width}"
-										stroke="#065f46"
-										stroke-width="1"
-									/>
-									{#if step.relation}
-										<text x={ROUTE_ROWS.x + 14 + width + 6} y={baseline} class="route-step"
-											>— {step.relation}</text
-										>
-									{/if}
+					{#each CHART_LENSES as chart (chart.lens)}
+						{@const weight = weightOf(chart.lens)}
+						{#if weight > 0}
+							<g fill="none" stroke="#d6d3d1" stroke-width="2" style:opacity={weight}>
+								{#each chart.paths as d (d)}
+									<path {d} />
 								{/each}
 							</g>
 						{/if}
+					{/each}
 
-						{#each people as person (person.id)}
-							{#if person.opacity > 0.005}
-								<!-- A private placeholder as the app draws it: faded, dashed, its name in italic. -->
-								<g style:opacity={person.isPrivate ? person.opacity * 0.7 : person.opacity}>
-									{#if person.ringPath}
-										<g opacity={person.ringAlpha}>
-											<path d={person.ringPath} fill="none" stroke="#1c1917" stroke-width="1.25" />
-											<g transform="translate({person.textX} {person.textY + person.ringTop})">
-												<rect x="-34" y="-17" width="68" height="20" rx="4" fill="#1c1917" />
-												<text y="-3" text-anchor="middle" class="focus-tab">Focus</text>
-											</g>
-										</g>
-									{/if}
-									<path
-										d={person.path}
-										fill={person.fill}
-										fill-opacity={person.fillAlpha}
-										stroke={person.edge}
-										stroke-opacity={person.edgeAlpha}
-										stroke-width={person.edgeWidth}
-										stroke-dasharray={person.isPrivate ? '6 4' : undefined}
-									/>
-									<g
-										transform="translate({person.textX} {person.textY}) rotate({person.textTurn})"
-										opacity={person.textAlpha}
+					{#if weightOf('relationship') > 0}
+						<!-- The relationship page's answer: the sentence, the common ancestors, the link
+							types, then the steps beside a rule. -->
+						<g style:opacity={weightOf('relationship')}>
+							{#each [{ x: ROUTE_ROWS.x - 24, label: 'First person', picked: 'Alice Dunn' }, { x: ROUTE_ROWS.x + 216, label: 'Second person', picked: 'Tom Reed' }] as picker (picker.label)}
+								<text x={picker.x} y="84" class="route-label">{picker.label}</text>
+								<text x={picker.x} y="106" class="route-picked">{picker.picked}</text>
+								<rect
+									x={picker.x}
+									y="116"
+									width="220"
+									height="32"
+									rx="8"
+									fill="#fff"
+									stroke="#d6d3d1"
+								/>
+								<text x={picker.x + 10} y="137" class="route-search">Search by name</text>
+							{/each}
+							<rect
+								x={ROUTE_ROWS.x - 24}
+								y="160"
+								width="520"
+								height={ROUTE_ROWS.y0 + ROUTE.length * ROUTE_ROWS.step + 26 - 160}
+								rx="12"
+								fill="#fff"
+								stroke="#e7e5e4"
+							/>
+							<text x={ROUTE_ROWS.x} y="204" class="route-title"
+								>Tom Reed is Alice Dunn’s 1st cousin.</text
+							>
+							<text x={ROUTE_ROWS.x} y="234" class="route-note"
+								>Through Thomas Reed and Ellen Marsh.</text
+							>
+							<text x={ROUTE_ROWS.x} y="258" class="route-note amber">Includes adoptive links.</text
+							>
+							<path
+								d="M{ROUTE_ROWS.x} {ROUTE_ROWS.y0}V{ROUTE_ROWS.y0 +
+									ROUTE.length * ROUTE_ROWS.step -
+									6}"
+								stroke="#a7f3d0"
+								stroke-width="2"
+							/>
+							{#each ROUTE as step, i (step.id)}
+								{@const width = routeNameWidth(nameOf(step.id))}
+								{@const baseline = ROUTE_ROWS.y0 + i * ROUTE_ROWS.step + ROUTE_ROWS.h / 2 + 5}
+								<path
+									d="M{ROUTE_ROWS.x + 14} {baseline + 3}h{width}"
+									stroke="#065f46"
+									stroke-width="1"
+								/>
+								{#if step.relation}
+									<text x={ROUTE_ROWS.x + 14 + width + 6} y={baseline} class="route-step"
+										>— {step.relation}</text
 									>
-										{#if person.symbolAlpha > 0.01 && person.sex !== 'u'}
-											<!-- The app's own glyphs beside the tint, so colour is never the only signal. -->
-											<text
-												x={person.symbolX}
-												y="-7"
-												text-anchor="middle"
-												class="symbol"
-												opacity={person.symbolAlpha}>{person.sex === 'f' ? '♀' : '♂'}</text
-											>
-										{/if}
-										<text
-											x={person.nameX}
-											y={person.nameY}
-											fill={person.nameFill}
-											font-size={person.nameSize}
-											font-weight={person.nameWeight}
-											font-style={person.isPrivate ? 'italic' : undefined}>{person.name}</text
-										>
-										{#each person.lines as line, i (i)}
-											<text x={line.x} y={line.y} opacity={line.alpha} class="line"
-												>{line.text}</text
-											>
-										{/each}
-									</g>
-								</g>
-							{/if}
-						{/each}
-					</svg>
-				</div>
-			</div>
+								{/if}
+							{/each}
+						</g>
+					{/if}
 
-			<div class="captions">
-				{#each LENSES as lens, i (lens.id)}
-					<div class="caption" class:is-active={active === i} aria-hidden={active !== i}>
-						<h3>{lens.name}</h3>
-						<p>{lens.text}</p>
-						{#if lens.id === 'family'}
-							<ul class="key" aria-label="Kinds of link">
-								{#each KEY as kind (kind.label)}
-									<li>
-										<svg width="30" height="8" aria-hidden="true">
-											<path
-												d="M2 4H28"
-												stroke={kind.ink}
-												stroke-width="2.5"
-												stroke-linecap="round"
-												stroke-dasharray={kind.dash || undefined}
-											/>
-										</svg>
-										{kind.label}
-									</li>
-								{/each}
-							</ul>
+					{#each people as person (person.id)}
+						{#if person.opacity > 0.005}
+							<!-- A private placeholder as the app draws it: faded, dashed, its name in italic. -->
+							<g style:opacity={person.isPrivate ? person.opacity * 0.7 : person.opacity}>
+								{#if person.ringPath}
+									<g opacity={person.ringAlpha}>
+										<path d={person.ringPath} fill="none" stroke="#1c1917" stroke-width="1.25" />
+										<g transform="translate({person.textX} {person.textY + person.ringTop})">
+											<rect x="-34" y="-17" width="68" height="20" rx="4" fill="#1c1917" />
+											<text y="-3" text-anchor="middle" class="focus-tab">Focus</text>
+										</g>
+									</g>
+								{/if}
+								<path
+									d={person.path}
+									fill={person.fill}
+									fill-opacity={person.fillAlpha}
+									stroke={person.edge}
+									stroke-opacity={person.edgeAlpha}
+									stroke-width={person.edgeWidth}
+									stroke-dasharray={person.isPrivate ? '6 4' : undefined}
+								/>
+								<g
+									transform="translate({person.textX} {person.textY}) rotate({person.textTurn})"
+									opacity={person.textAlpha}
+								>
+									{#if person.symbolAlpha > 0.01 && person.sex !== 'u'}
+										<!-- The app's own glyphs beside the tint, so colour is never the only signal. -->
+										<text
+											x={person.symbolX}
+											y="-7"
+											text-anchor="middle"
+											class="symbol"
+											opacity={person.symbolAlpha}>{person.sex === 'f' ? '♀' : '♂'}</text
+										>
+									{/if}
+									<text
+										x={person.nameX}
+										y={person.nameY}
+										fill={person.nameFill}
+										font-size={person.nameSize}
+										font-weight={person.nameWeight}
+										font-style={person.isPrivate ? 'italic' : undefined}>{person.name}</text
+									>
+									{#each person.lines as line, i (i)}
+										<text x={line.x} y={line.y} opacity={line.alpha} class="line">{line.text}</text>
+									{/each}
+								</g>
+							</g>
 						{/if}
-					</div>
-				{/each}
+					{/each}
+				</svg>
 			</div>
+		</div>
+
+		<div class="controls">
+			<ul class="pills" aria-label="Ways to see the family">
+				{#each LENSES as lens, i (lens.id)}
+					<li>
+						<button
+							type="button"
+							class="pill"
+							aria-pressed={shown === i}
+							onclick={() => go(i)}
+							style:--fill={shown === i ? fill : 0}
+						>
+							<span class="track">
+								<span class="label">{lens.name}</span>
+								<!-- The same label again in the fill's ink, clipped to how far the view has
+								played, so the name turns over as the fill passes it. -->
+								<span class="filled" aria-hidden="true"><span>{lens.name}</span></span>
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+			<button
+				type="button"
+				class="play"
+				onclick={togglePlay}
+				aria-label={isPlaying
+					? 'Pause the views'
+					: isAtEnd
+						? 'Play the views again'
+						: 'Play the views'}
+			>
+				<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+					{#if isPlaying}
+						<rect x="6" y="5" width="4" height="14" rx="1.5" />
+						<rect x="14" y="5" width="4" height="14" rx="1.5" />
+					{:else if isAtEnd}
+						<path
+							d="M4 12a8 8 0 1 0 2.6-5.9M4 4v5h5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.4"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					{:else}
+						<path
+							d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"
+						/>
+					{/if}
+				</svg>
+			</button>
 		</div>
 	</div>
 
@@ -609,108 +663,19 @@
 		line-height: 1.6;
 	}
 
-	.pin {
-		--stage-w: min(calc(var(--measure) - 2 * var(--gutter)), calc(100vw - 2 * var(--gutter)));
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 14px;
-		max-width: var(--measure);
-		margin: 0 auto;
-		padding: 0 var(--gutter) var(--section-gap);
-	}
-
-	.is-pinned .pin {
-		position: sticky;
-		top: var(--nav-height);
-		height: calc(100vh - var(--nav-height));
-		/* The stage takes what the bar and the caption leave, at the drawing's own proportions. */
+	/* The stage is as wide as the page allows and short enough that the caption, the drawing and
+	its controls fit one screen together, at the drawing's own proportions. */
+	.show {
 		--stage-w: min(
 			calc(var(--measure) - 2 * var(--gutter)),
 			calc(100vw - 2 * var(--gutter)),
-			calc((100vh - var(--nav-height) - 200px) * 1040 / 640)
+			calc((100svh - var(--nav-height) - 260px) * 1040 / 640)
 		);
-		grid-template-columns: var(--stage-w);
+		display: grid;
+		grid-template-columns: max(var(--stage-w), min(720px, calc(100vw - 2 * var(--gutter))));
 		justify-content: center;
-		align-content: center;
-		padding-bottom: 16px;
-	}
-
-	.bar {
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
-	.lenses {
-		display: flex;
-		gap: 6px;
-		margin: 0;
-		padding: 0 0 4px;
-		list-style: none;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
-
-	/* The app's chart style links: a rounded outline, the current one filled emerald. */
-	.lenses button,
-	.onward {
-		display: inline-flex;
-		align-items: center;
-		min-height: 44px;
-		padding: 0 16px;
-		border: 1px solid var(--stone-edge);
-		border-radius: 8px;
-		background: var(--field-white);
-		color: var(--emerald-900);
-		font: inherit;
-		font-size: 0.9375rem;
-		font-weight: 600;
-		white-space: nowrap;
-		cursor: pointer;
-		transition:
-			background-color 200ms var(--ease-out),
-			color 200ms var(--ease-out),
-			border-color 200ms var(--ease-out);
-	}
-
-	.lenses button:hover {
-		background: var(--stone-shelf);
-	}
-
-	.lenses button[aria-pressed='true'] {
-		border-color: var(--emerald-700);
-		background: var(--emerald-700);
-		color: var(--field-white);
-	}
-
-	.onward {
-		margin-left: auto;
-		border-color: transparent;
-		background: transparent;
-		text-decoration: underline;
-		text-underline-offset: 4px;
-		text-decoration-color: rgb(6 95 70 / 0.35);
-	}
-
-	.onward:hover {
-		text-decoration-color: currentColor;
-	}
-
-	/* The line of descent again, filling as the family is redrawn. */
-	.track {
-		position: relative;
-		height: 3px;
-		border-radius: 9999px;
-		background: var(--stone-rule);
-	}
-
-	.fill {
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		background: var(--emerald-800);
-		transform-origin: left center;
+		gap: 20px;
+		padding: 0 var(--gutter) var(--section-gap);
 	}
 
 	.frame {
@@ -841,18 +806,20 @@
 		pointer-events: none;
 	}
 
-	/* Every caption shares one cell, so changing lens never moves the page. */
 	.captions {
 		display: grid;
+		justify-items: center;
+		text-align: center;
 	}
 
+	/* A short caption sits down against the drawing it describes, not up at the top of the cell. */
 	.caption {
 		grid-area: 1 / 1;
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		align-items: baseline;
-		align-content: start;
-		gap: 4px 20px;
+		align-self: end;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
 		opacity: 0;
 		visibility: hidden;
 		translate: 0 6px;
@@ -867,25 +834,112 @@
 		visibility: visible;
 		translate: 0 0;
 		transition:
-			opacity 320ms var(--ease-out) 60ms,
-			translate 320ms var(--ease-out) 60ms;
-	}
-
-	.caption h3 {
-		margin: 0;
-		font-size: 1.25rem;
-		color: var(--stone-ink);
+			opacity 360ms var(--ease-out) 120ms,
+			translate 360ms var(--ease-out) 120ms;
 	}
 
 	.caption p {
 		margin: 0;
-		max-width: 70ch;
+		max-width: 60ch;
+		font-size: clamp(1.0625rem, 1.4vw, 1.1875rem);
+		line-height: 1.55;
 		color: var(--stone-strong);
+		text-wrap: balance;
+	}
+
+	.caption strong {
+		color: var(--stone-ink);
+	}
+
+	/* The controls under the drawing: a tray of the views, each filling as it plays, and Play. */
+	.controls {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.pills {
+		display: flex;
+		gap: 2px;
+		margin: 0;
+		padding: 4px;
+		list-style: none;
+		border: 1px solid var(--stone-rule);
+		border-radius: 9999px;
+		background: var(--stone-shelf);
+	}
+
+	.pill {
+		display: block;
+		padding: 0;
+		border: 0;
+		border-radius: 9999px;
+		background: none;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.track {
+		position: relative;
+		display: grid;
+		place-items: center;
+		min-height: 40px;
+		padding: 0 16px;
+		border-radius: 9999px;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		white-space: nowrap;
+		color: var(--stone-strong);
+		transition: background-color 200ms var(--ease-out);
+	}
+
+	.pill:hover .track {
+		background: var(--field-white);
+		color: var(--emerald-900);
+	}
+
+	.pill[aria-pressed='true'] .track {
+		background: var(--field-white);
+		color: var(--emerald-900);
+		box-shadow: 0 1px 2px rgb(28 25 23 / 0.08);
+	}
+
+	/* The fill and its own copy of the label, cut back to the share of the view played. */
+	.filled {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		border-radius: inherit;
+		background: var(--emerald-800);
+		color: var(--vellum);
+		clip-path: inset(0 calc((1 - var(--fill, 0)) * 100%) 0 0);
+	}
+
+	.play {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 50px;
+		height: 50px;
+		padding: 0;
+		border: 1px solid var(--stone-rule);
+		border-radius: 9999px;
+		background: var(--stone-shelf);
+		color: var(--emerald-900);
+		fill: currentColor;
+		cursor: pointer;
+		transition: background-color 200ms var(--ease-out);
+	}
+
+	.play:hover {
+		background: var(--field-white);
 	}
 
 	.key {
-		grid-column: 2;
 		display: flex;
+		justify-content: center;
 		flex-wrap: wrap;
 		gap: 4px 18px;
 		margin: 4px 0 0;
@@ -922,23 +976,66 @@
 			background: none;
 			text-align: right;
 		}
+	}
 
-		.caption {
-			grid-template-columns: minmax(0, 1fr);
+	/* Six names do not fit a phone, so each view is a dot, and the playing one a capsule that fills,
+	its name in the caption above. The button keeps a 24px target around the dot. */
+	@media (max-width: 760px) {
+		.pills {
+			gap: 0;
+			padding: 0 6px;
 		}
 
-		.key {
-			grid-column: 1;
+		.pill {
+			display: grid;
+			place-items: center;
+			min-width: 24px;
+			height: 36px;
+			padding: 0 2px;
 		}
 
-		.onward {
-			margin-left: 0;
+		.track {
+			min-height: 0;
+			width: 8px;
+			height: 8px;
+			padding: 0;
+			/* stone-500: a dot is the control's only mark here, so it needs 3:1 against the tray. */
+			background: #78716c;
+			font-size: 0;
+			transition:
+				width 300ms var(--ease-out),
+				background-color 200ms var(--ease-out);
+		}
+
+		.pill:hover .track {
+			background: var(--stone-body);
+		}
+
+		.pill[aria-pressed='true'] .track {
+			width: 36px;
+			background: #78716c;
+			box-shadow: none;
+		}
+
+		.track .label,
+		.filled span {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+
+		.play {
+			width: 44px;
+			height: 44px;
 		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.caption,
-		.caption.is-active {
+		.caption.is-active,
+		.track {
 			transition: none;
 		}
 	}

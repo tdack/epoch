@@ -39,10 +39,15 @@ rather than verifying, and the structure was the user's own pick, so no key is r
 sketch. Signature interaction: the hero mark assembles on arrival (ancestors, partners, union,
 stem, action), the connectors between sections draw on scroll, and the explorer (overdrive,
 2026-10-17) redraws one invented family as each 2D view the app has: family view, descendants,
-hourglass, ancestors, fan and relationship. Scrolling a pinned stage morphs every person's card
-from one view's shape to the next (cards bend into fan wedges and flatten into the relationship
-page's rows), rippling out from the focus person; the chips jump to a view. Narrow screens and
-reduced motion get tap-to-switch chips. Every view copies the demo's own rendering (card size,
+hourglass, ancestors, fan and relationship. It plays like a highlights reel (2026-10-21, after
+Apple's "Get the highlights"): the view's caption sits above the drawing, and under it a stone
+tray holds one pill per view beside a round Play/Pause. Each view holds for 7s while an emerald fill
+sweeps across its pill, the name turning vellum as the fill passes, then every person's card morphs
+to the next view's shape (cards bend into fan wedges and flatten into the relationship page's rows),
+rippling out from the focus person. It starts the first time the drawing is in sight, waits while
+it is off screen or the tab is hidden, stops on the last view with Replay, and stops for a reader
+who pans the drawing. Phones get dots, the playing one a filling capsule. Reduced motion starts
+paused and switches views without the morph. The scroll-pinned stage it replaced is gone. Every view copies the demo's own rendering (card size,
 glyphs, link curves and dashes, union labels, focus tab), so it is the product, not a drawing of
 it. It hands off to the 3D clips that follow.
 Adaptations from the app, each a setting the app allows or a legibility choice: chart cards and
@@ -66,6 +71,3 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 - What the demo shows (assumed: one public tree browsable without signing in).
 - Licence: the repository is AGPL-3.0-or-later (`LICENSE`, `package.json` on `main`); the site says
   so in one FAQ answer and nowhere louder.
-- Demo sub-tree link: public sub-trees are built (ADR-069), but the demo shows none to a visitor
-  yet. When one starting at a deceased person is made public, link it from #subtrees after
-  opening it signed out.

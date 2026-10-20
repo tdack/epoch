@@ -9,6 +9,7 @@
 	import SiteNav from '#lib/components/SiteNav.svelte';
 	import SubtreeFigure from '#lib/components/SubtreeFigure.svelte';
 	import {
+		DEMO_SUBTREE_URL,
 		DEMO_URL,
 		FAQS,
 		FEATURE_GROUPS,
@@ -164,6 +165,10 @@
 						In it are the person it starts at, everyone descended from them through any parentage
 						that is not disputed, and all of their partners. Lines can overlap, so one person can be
 						in several.
+					</p>
+					<p>
+						The demo has one to open: <a href={DEMO_SUBTREE_URL}>the Windsor line</a>, starting at
+						Elizabeth II.
 					</p>
 				</div>
 				<SubtreeFigure />
