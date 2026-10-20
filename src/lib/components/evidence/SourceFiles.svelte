@@ -176,6 +176,7 @@
 						{:else}
 							<FileText class="h-8 w-8 text-stone-500" aria-hidden="true" />
 						{/if}
+						<span class="sr-only">{nameOf(file)} (opens in a new tab)</span>
 					</a>
 					<span class="truncate text-xs font-medium text-stone-800" title={nameOf(file)}
 						>{nameOf(file)}</span

@@ -781,15 +781,25 @@
 				class="max-h-[70vh] w-full object-contain"
 			/>
 		{:else if target?.previewKey && target.mimeType === 'application/pdf'}
-			<p>PDF files open as a download rather than on this page.</p>
-			<a
-				href={mediaUrl(target.previewKey)}
-				download={target.title ?? 'file.pdf'}
-				class="inline-flex items-center gap-1.5 font-semibold text-emerald-800 underline"
-			>
-				<Download class="h-3.5 w-3.5" aria-hidden="true" />
-				Download {target.title ?? 'the PDF'}
-			</a>
+			<p>PDF files open in a new browser tab rather than on this page.</p>
+			<div class="flex flex-wrap gap-4">
+				<a
+					href={mediaUrl(target.previewKey)}
+					target="_blank"
+					rel="noopener"
+					class="inline-flex items-center gap-1.5 font-semibold text-emerald-800 underline"
+				>
+					Open {target.title ?? 'the PDF'}<span class="sr-only"> (opens in a new tab)</span>
+				</a>
+				<a
+					href={mediaUrl(target.previewKey)}
+					download={target.title ?? 'file.pdf'}
+					class="inline-flex items-center gap-1.5 font-semibold text-emerald-800 underline"
+				>
+					<Download class="h-3.5 w-3.5" aria-hidden="true" />
+					Download
+				</a>
+			</div>
 		{:else}
 			<p>This type of file has no preview.</p>
 		{/if}
