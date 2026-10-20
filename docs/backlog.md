@@ -357,3 +357,11 @@ The tool is built in `tools/setup/`.
   remembered-focus order (URL `focus`, then the focus remembered for this sub-tree, then its root,
   then the tree's default) end to end. A public visitor reading a sub-tree is covered by ADR-069's
   tests at the load level; a browser e2e needs a way to run signed out, which the dev bypass lacks.
+
+## Group facts and bulk citations (ADR-071)
+
+- **Edit all copies of a group fact.** Copies are independent events, so fixing the date of an
+  Emigration means editing each. Offer "apply to the other copies" by matching type, date and place
+  among the family.
+- **Cite a source on each person's specific facts in bulk** (for example every birth in a family
+  book). Today a bulk citation sits on the person, not on a fact.

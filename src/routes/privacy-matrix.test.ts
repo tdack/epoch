@@ -70,6 +70,12 @@ const ENTRIES: Record<string, Entry> = {
 		covers: EVIDENCE
 	},
 	[`${API}/trees/[id]/citations/reorder/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/people/+server.ts`]: { kind: 'guarded-write', covers: EVIDENCE },
+	[`${API}/trees/[id]/citations/people/impact/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: EVIDENCE
+	},
+	[`${API}/trees/[id]/facts/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/[factId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/facts/impact/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/graph/+server.ts`]: { kind: 'masked-rows', covers: RECORDS },

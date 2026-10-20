@@ -1007,3 +1007,15 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **Erase** (later, optional) tombstones the row: email and name become "Former member", and the id stays for the audit log.
 - **Rejected alternatives:** hot-linking the Google URL (above); fetching on every sign-in (re-imports a picture the person removed, and costs a fetch per request); deleting the `users` row on leave (orphans the audit log's actor).
 - **Consequences:** the profile page has a disabled-looking Leave button that only explains the above. The name bug fix means a name changed in Google no longer reaches Epoch after the first sign-in; the person edits it on their profile. Covered by `profile-service.test.ts`, `api/profile/profile.test.ts`, `access-picture.test.ts` and `resolve-user.test.ts`.
+
+## ADR-071: Group facts are copies and bulk sources are per-person citations
+
+- **Status:** built on `claude/group-facts-citations-8c8e7f` on 2026-10-20. No migration.
+- **Context:** a family emigrates, or one book is the source for a whole family. Entering the same fact or citation person by person is tedious.
+- **Decision:**
+  - A **group fact** is N independent `event` rows, one per person, each with its own id. `FactService.createMany` builds one `create_fact` per person (plus one `add_citation` per fact when the dialog carries a source) and runs them in **one** mutation-runner change, so there is one change-log entry and one Undo. Entry points: "Also add to…" in the fact dialog, and "Add a fact to this family" on the partnership page.
+  - A **bulk source** is N `citations` rows with subject kind `person` (ADR-028: a citation has exactly one subject), in one change (`EvidenceService.citeMany`). People who already have a person-level citation of that source are skipped and reported. Entry points: "Cite for people…" on the source page and "Cite a source for this family" on the partnership page.
+  - Both are capped at `MAX_GROUP_FACT_PEOPLE` (50) and deduplicated; the runner has no generic op cap. The batch has its own run kinds (`create_group_fact`, `cite_people`) and summaries ("Added Emigration to 6 people").
+  - Pickers offer only people the caller can see; if a hidden person is named anyway, the runner's visible-rows-first planning fails the whole batch.
+- **Rejected alternatives:** a shared event with participants (events have one owner, GEDCOM has no shared individual event, and the round-trip rule forbids inventing one); one citation shared by several subjects (breaks ADR-028).
+- **Consequences:** a later edit to one copy does not reach the others. Bulk-editing all copies, and citing a specific fact (e.g. each birth) in bulk, are in the backlog.
