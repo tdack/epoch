@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
+	import { signOutHref } from '#lib/shared/access.js';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
 	import SourceLink from '#lib/components/layout/SourceLink.svelte';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
@@ -33,6 +35,8 @@
 		onopenAddPerson={() => {}}
 		onfileSelect={shell.selectFile}
 		onexportGedcom={() => {}}
+		viewer={data.viewer}
+		signOutHref={signOutHref(page.url.origin)}
 	/>
 	<main class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center p-6">
 		<TreeShellHost {shell} tree={null} />

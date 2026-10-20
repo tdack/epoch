@@ -3,6 +3,8 @@
 	import type { Snippet } from 'svelte';
 	import EpochMark from '#lib/components/brand/EpochMark.svelte';
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
+	import AvatarMenu from '#lib/components/profile/AvatarMenu.svelte';
+	import type { ProfileViewDto } from '#lib/shared/profile.js';
 	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
@@ -37,6 +39,12 @@
 		finder?: Snippet;
 		/** Where the Epoch mark leads: `/`, or the app host's `/` on a tree's own subdomain. */
 		homeHref?: string;
+		/** Who is signed in; absent for the public visitor, who gets no account menu. */
+		viewer?: ProfileViewDto | null;
+		profileHref?: string;
+		settingsHref?: string;
+		/** Where Sign out goes (see `signOutHref`); the menu is shown only with it. */
+		signOutHref?: string;
 	}
 
 	let {
@@ -58,7 +66,11 @@
 		canExport = false,
 		canChangeTrees = true,
 		finder,
-		homeHref = '/'
+		homeHref = '/',
+		viewer = null,
+		profileHref = '/profile',
+		settingsHref = '/settings',
+		signOutHref
 	}: Props = $props();
 </script>
 
@@ -103,15 +115,20 @@
 		{@render finder?.()}
 	</div>
 
-	{#if selectedTreeId && onopenAddPerson}
-		<button
-			type="button"
-			onclick={onopenAddPerson}
-			aria-label="Add person"
-			class="btn-primary-sm ml-auto space-x-1.5 px-2.5 focus-ring sm:px-3 coarse:min-h-11"
-		>
-			<UserPlus class="h-3.5 w-3.5" />
-			<span class="hidden sm:inline">Add person</span>
-		</button>
-	{/if}
+	<div class="ml-auto flex items-center gap-3">
+		{#if selectedTreeId && onopenAddPerson}
+			<button
+				type="button"
+				onclick={onopenAddPerson}
+				aria-label="Add person"
+				class="btn-primary-sm space-x-1.5 px-2.5 focus-ring sm:px-3 coarse:min-h-11"
+			>
+				<UserPlus class="h-3.5 w-3.5" />
+				<span class="hidden sm:inline">Add person</span>
+			</button>
+		{/if}
+		{#if viewer && signOutHref}
+			<AvatarMenu {viewer} {profileHref} {settingsHref} {signOutHref} />
+		{/if}
+	</div>
 </header>
