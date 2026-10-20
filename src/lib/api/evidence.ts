@@ -189,6 +189,19 @@ export async function unlinkRepositoryApi(
 	);
 }
 
+/** One source cited for each person; people already cited for it come back as skipped. */
+export async function citePeopleApi(
+	treeId: string,
+	personIds: string[],
+	citation: CitationInput
+): Promise<{ skippedPersonIds: string[]; change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/citations/people`,
+		json('POST', { ...citation, personIds }),
+		'Failed to add the citations'
+	);
+}
+
 export async function addCitationApi(
 	treeId: string,
 	subject: CitationSubjectRef,

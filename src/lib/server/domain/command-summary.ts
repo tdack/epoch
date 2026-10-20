@@ -76,6 +76,18 @@ const PRIVACY_SENTENCES = {
 	private: (name: string) => `Made ${name} always private`
 } as const;
 
+const peopleCount = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`;
+
+/** "Added Emigration to 6 people": the summary of one fact copied onto a group. */
+export function describeGroupFact(type: string, count: number): string {
+	return `Added ${factLabel(type)} to ${peopleCount(count)}`;
+}
+
+/** "Cited “Smith family book” for 6 people". */
+export function describeGroupCitation(rows: TreeRows, sourceId: string, count: number): string {
+	return `Cited ${sourceName(rows, sourceId)} for ${peopleCount(count)}`;
+}
+
 export function describeCommand(command: RelationshipCommand, rows: TreeRows): string {
 	switch (command.kind) {
 		case 'create_fact':

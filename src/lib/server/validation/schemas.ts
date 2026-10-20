@@ -19,6 +19,7 @@ import {
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
+import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import { LAYOUT_MODE_VALUES } from '../../shared/view-mode';
 import {
 	END_EVENT_TYPES,
@@ -345,9 +346,21 @@ export const factUpdateSchema = z.object({
 
 export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).max(500) });
 
+/** Who a group fact or bulk citation is for; the services dedupe, the cap is enforced here too. */
+export const groupPeopleSchema = z.array(idSchema).min(1).max(MAX_GROUP_FACT_PEOPLE);
+
+export const groupFactCreateSchema = factCreateSchema.extend({
+	personIds: groupPeopleSchema
+});
+
 /** A preview of a fact change: the same commands the writes take, minus the ids the server mints. */
 export const factImpactSchema = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('create_fact'), personId: idSchema, fact: factCreateSchema }),
+	z.object({
+		kind: z.literal('create_group_fact'),
+		personIds: groupPeopleSchema,
+		fact: factCreateSchema
+	}),
 	z.object({
 		kind: z.literal('update_fact'),
 		factId: idSchema,
@@ -548,6 +561,11 @@ export const citationCreateSchema = z.object({
  * subject is the record being saved, so the request does not name one.
  */
 export const citationAttachSchema = citationCreateSchema.omit({ subject: true });
+
+/** One source cited for each of several people. */
+export const citationPeopleSchema = citationCreateSchema
+	.omit({ subject: true })
+	.extend({ personIds: groupPeopleSchema });
 
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const citationUpdateSchema = z.object({

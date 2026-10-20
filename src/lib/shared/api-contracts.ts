@@ -59,6 +59,16 @@ export interface ImpactResponse {
 	impact: ImpactSummary;
 }
 
+/** `POST /api/trees/[id]/facts`: one fact copied onto each person in one change. */
+export interface GroupFactResponse extends ChangeResponse {
+	factIds: string[];
+}
+
+/** `POST /api/trees/[id]/citations/people`: people who already cited the source are skipped. */
+export interface CitePeopleResponse extends ChangeResponse {
+	skippedPersonIds: string[];
+}
+
 /** A write that logs a change; `change` is null when the request changed nothing. */
 export interface ChangeResponse {
 	change: ChangeSummary | null;

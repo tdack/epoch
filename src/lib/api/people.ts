@@ -66,6 +66,20 @@ export function fetchPersonPage(
 	);
 }
 
+/** One fact copied onto each person, in one change (ADR-071). */
+export async function createGroupFactApi(
+	treeId: string,
+	personIds: string[],
+	fact: FactInput,
+	citation: CitationInput | null = null
+): Promise<{ factIds: string[]; change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/facts`,
+		json('POST', { ...fact, personIds, ...(citation ? { citation } : {}) }),
+		'Failed to add the fact'
+	);
+}
+
 export async function createFactApi(
 	treeId: string,
 	personId: string,
@@ -118,6 +132,7 @@ export async function reorderFactsApi(
 }
 
 export type FactImpactRequest =
+	| { kind: 'create_group_fact'; personIds: string[]; fact: FactInput }
 	| { kind: 'create_fact'; personId: string; fact: FactInput }
 	| { kind: 'update_fact'; factId: string; version?: number; fact: Partial<FactInput> }
 	| { kind: 'delete_fact'; factId: string; version?: number };

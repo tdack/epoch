@@ -7,6 +7,10 @@ import { factImpactSchema } from '#lib/server/validation/schemas.js';
 export const POST = treeHandler(
 	{ failure: 'Failed to preview the fact change', body: factImpactSchema },
 	async ({ db, ctx, treeId, body }): Promise<ImpactResponse> => {
+		if (body.kind === 'create_group_fact')
+			return {
+				impact: await new FactService(db).previewMany(treeId, body.personIds, body.fact, ctx)
+			};
 		// A previewed create needs an id to plan against; it is discarded, and the save mints its own.
 		const command =
 			body.kind === 'create_fact'
