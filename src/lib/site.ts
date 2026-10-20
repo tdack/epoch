@@ -1,6 +1,8 @@
 import type { LensId } from './family.js';
 
 export const DEMO_URL = 'https://demo.epochgenealogy.app';
+/** A public sub-tree on the demo (ADR-069); a bare address opens on its starting person. */
+export const DEMO_SUBTREE_URL = `${DEMO_URL}/trees/windsor-glucksburg-extended-lineage~windsor-line`;
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';

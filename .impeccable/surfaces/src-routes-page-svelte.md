@@ -66,6 +66,3 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 - What the demo shows (assumed: one public tree browsable without signing in).
 - Licence: the repository is AGPL-3.0-or-later (`LICENSE`, `package.json` on `main`); the site says
   so in one FAQ answer and nowhere louder.
-- Demo sub-tree link: public sub-trees are built (ADR-069), but the demo shows none to a visitor
-  yet. When one starting at a deceased person is made public, link it from #subtrees after
-  opening it signed out.
