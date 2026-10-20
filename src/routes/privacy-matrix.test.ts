@@ -251,6 +251,7 @@ const LOADS = [
 	'./trees/[id]/people/[personId]/hourglass/+page.server.ts',
 	'./trees/[id]/people/[personId]/pedigree/+page.server.ts',
 	'./trees/[id]/privacy/+page.server.ts',
+	'./trees/[id]/profile/+page.server.ts',
 	'./trees/[id]/quality/+page.server.ts',
 	'./trees/[id]/relationship/+page.server.ts',
 	'./trees/[id]/search/+page.server.ts',
@@ -283,7 +284,9 @@ const NO_RECORD_LOADS = [
 	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
 	'./manage/trees/+page.server.ts',
 	// Only redirects to the settings under a tree, chosen the same way.
-	'./settings/+page.server.ts'
+	'./settings/+page.server.ts',
+	// The same, for the profile.
+	'./profile/+page.server.ts'
 ];
 
 /**

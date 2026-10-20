@@ -60,6 +60,8 @@ const EXPECTED: Record<string, Expected> = {
 	'./+page.server.ts': ROOT,
 	'./manage/trees/+page.server.ts': ROOT,
 	'./settings/+page.server.ts': ROOT,
+	'./profile/+page.server.ts': { ...ROOT, visitor: 'closed' },
+	'./trees/[id]/profile/+page.server.ts': CLOSED,
 	'./trees/[id]/+layout.server.ts': TREE,
 	'./trees/[id]/people/+page.server.ts': TREE,
 	'./trees/[id]/surnames/+page.server.ts': TREE,
