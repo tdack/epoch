@@ -362,6 +362,6 @@ describe('files on a merged person', () => {
 		const [moved] = await t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-on-b'));
 		expect(moved).toMatchObject({ entityId: a, version: 2, r2ObjectKey: key });
 		expect([...bucket.objects.keys()].sort()).toEqual(objectsBefore);
-		await expect(media.requireRead(key, reader.context)).resolves.toBeUndefined();
+		await expect(media.requireRead(key, reader.context)).resolves.toBeDefined();
 	});
 });

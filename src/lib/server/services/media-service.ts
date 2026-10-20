@@ -240,11 +240,11 @@ export class MediaService {
 	}
 
 	/**
-	 * Throws unless the caller may read this object. A key that is not ours, or whose row they cannot
+	 * Throws unless the caller may read this object; returns the row's title so the serve route can name the download without a second query. A key that is not ours, or whose row they cannot
 	 * see, is a missing object. The tree is checked before the row is read, so a caller outside the
 	 * tree is refused without learning whether a key exists in it.
 	 */
-	async requireRead(key: string, context: AuthenticatedContext): Promise<void> {
+	async requireRead(key: string, context: AuthenticatedContext): Promise<{ title: string | null }> {
 		const parsed = parseMediaKey(key);
 		if (!parsed) throw new NotFoundError('Media', key);
 		const scope = await requireTreeScope(
@@ -257,7 +257,7 @@ export class MediaService {
 		);
 		const row = await this.media.findByKey(parsed.treeId, key);
 		if (!row) throw new NotFoundError('Media', key);
-		if (!scope.isRestricted) return;
+		if (!scope.isRestricted) return { title: row.title };
 		const owner = await this.ownerOf(row);
 		const visible: VisibleOwners = {
 			people:
@@ -270,6 +270,7 @@ export class MediaService {
 					: new Set<string>()
 		};
 		if (!canReadRow(owner, scope, visible)) throw new NotFoundError('Media', key);
+		return { title: row.title };
 	}
 
 	/** What a file hangs off: nothing when detached, no people when its owner is gone. */
