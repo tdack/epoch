@@ -31,12 +31,6 @@ Last reviewed: 2026-10-18.
   
 ### Media and files
 
-- **Editors cannot delete legacy files.** Files stored before migration 0029 have no recorded
-  uploader, so only a manager or owner may delete them. Their sizes show as unknown until the size
-  backfill has run. The backfill (`npm run db:backfill:media-sizes`) has only been run against a
-  local database. On a deployed database it downloads each unsized object, because Wrangler cannot
-  list or head R2 objects, so it is slow for a large library. Run it with `--remote`, then decide
-  whether editors may delete legacy files. (ADR-050)
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
@@ -68,9 +62,6 @@ Last reviewed: 2026-10-18.
   kept as an extra line, not modelled. (ADR-013)
 - **A `NAME` line that disagrees with its `GIVN`/`SURN`, or carries a quoted nickname, comes back in
   canonical form.** Known round-trip loss. (ADR-013)
-- **People imported before names were modelled have one name.** Re-import in replace mode brings the
-  others back; nothing was migrated. A person created in the editor before then has no name row
-  until the first name command. (ADR-013)
 - **`events.notes` is still read once on export.** Drop the column in a later contract migration.
   (ADR-029)
 - **A source merge or delete touching more than 300 records is refused.** Raise or batch the limit.
@@ -160,10 +151,6 @@ Last reviewed: 2026-10-18.
 
 ### 3D views
 
-- **Decide whether a 3D view becomes the product default.** Flat stays the default. Promotion needs
-  the checklist from ADR-030: stage 6 parity,
-  the stage 7 performance budgets, the whole e2e suite parameterised over all view modes and green,
-  and a trial on the owner's own tree.
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of
   scope today.
 
