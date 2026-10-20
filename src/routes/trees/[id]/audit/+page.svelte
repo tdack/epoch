@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ChevronRight } from '@lucide/svelte';
+	import { ChevronDown, ChevronRight } from '@lucide/svelte';
+	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import Pager from '#lib/components/lists/Pager.svelte';
@@ -52,6 +53,16 @@
 	let tz = $state('');
 	onMount(() => (tz = Intl.DateTimeFormat().resolvedOptions().timeZone));
 	const first = $derived((audit.page - 1) * AUDIT_PAGE_SIZE + 1);
+	/** A person picked in the form but not yet applied; a new page of results starts from the address again. */
+	let picked = $state<{ id: string; name: string } | null>(null);
+	$effect.pre(() => {
+		void audit.record;
+		picked = null;
+	});
+	const person = $derived(picked ?? audit.record);
+	// Native selects and date fields differ in height between browsers; one fixed height lines them up.
+	const field =
+		'mt-1 block h-9 rounded-lg border border-stone-300 bg-white px-2 text-sm font-normal coarse:h-11';
 </script>
 
 <svelte:head>
@@ -72,54 +83,57 @@
 	class="mt-4 flex flex-wrap items-end gap-3 text-xs font-semibold text-stone-700"
 	data-testid="audit-filters"
 >
-	{#if filters.recordId}<input type="hidden" name="record" value={filters.recordId} />{/if}
+	{#if person}<input type="hidden" name="record" value={person.id} />{/if}
 	<input type="hidden" name="tz" value={tz || (filters.tz ?? '')} />
+	<div class="font-normal">
+		<PersonPicker
+			treeId={tree.id}
+			label="Person"
+			emptyName="Search by name"
+			isInline
+			picked={person}
+			onpick={(p) => (picked = p)}
+		/>
+	</div>
 	<label>
 		Made by
-		<select
-			name="actor"
-			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
-			value={filters.actorId ?? ''}
-		>
-			<option value="">Anyone</option>
-			{#each audit.actors as actor (actor.id)}
-				<option value={actor.id}>{actor.name}</option>
-			{/each}
-		</select>
+		<span class="relative block">
+			<select name="actor" class="{field} appearance-none pr-8" value={filters.actorId ?? ''}>
+				<option value="">Anyone</option>
+				{#each audit.actors as actor (actor.id)}
+					<option value={actor.id}>{actor.name}</option>
+				{/each}
+			</select>
+			<ChevronDown
+				class="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-stone-500"
+				aria-hidden="true"
+			/>
+		</span>
 	</label>
 	<label>
 		From
-		<input
-			type="date"
-			name="from"
-			value={filters.from ?? ''}
-			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
-		/>
+		<input type="date" name="from" value={filters.from ?? ''} class={field} />
 	</label>
 	<label>
 		To
-		<input
-			type="date"
-			name="to"
-			value={filters.to ?? ''}
-			class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5 text-sm font-normal coarse:min-h-11"
-		/>
+		<input type="date" name="to" value={filters.to ?? ''} class={field} />
 	</label>
-	<button type="submit" class="btn-primary-sm coarse:min-h-11">Filter</button>
+	<button type="submit" class="btn-primary-sm h-9 coarse:h-11">Filter</button>
+	<!-- The reader's zone is known before the first filter; the server's answer only once one is sent. -->
 	<span class="font-normal text-stone-500"
-		>Days are in {audit.timeZone} time, both ends included.</span
+		>Days are in {tz || audit.timeZone} time, both ends included.</span
 	>
 </form>
 
 {#if isFiltered}
 	<p class="mt-3 text-sm text-stone-700" data-testid="audit-filter">
 		Showing
-		{#if filters.recordId}changes to one record{:else}all changes{/if}{#if filters.actorId}
+		{#if filters.recordId}changes to {audit.record?.name ?? 'one record'}{:else}all changes{/if}{#if filters.actorId}
 			made by {actorName}{/if}{#if filters.from || filters.to}, {filters.from
 				? `from ${filters.from}`
 				: ''}{filters.from && filters.to ? ' ' : ''}{filters.to ? `to ${filters.to}` : ''}{/if}.
 		{#if filters.recordId}
-			<a href={addressFor({ ...filters, recordId: null })} class="text-link">Show all records</a>
+			<a href={addressFor({ ...filters, recordId: null })} class="text-link">Any person</a>
 			·
 		{/if}
 		<a href={`${base}/audit`} class="text-link" data-testid="audit-clear">Clear filters</a>

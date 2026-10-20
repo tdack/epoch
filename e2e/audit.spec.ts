@@ -26,10 +26,23 @@ test('undoes an earlier change from the audit log, and one from a person history
 	await expect(page.getByTestId('audit-undone')).toContainText('Undone by');
 	await expect.poll(async () => (await api.counts()).people).toBe(2);
 
-	// Filtered to a record, the log says so and offers the way back.
-	await open(page, `/trees/${api.treeId}/audit?record=${encodeURIComponent(cara.id)}`);
-	await expect(page.getByTestId('audit-filter')).toBeVisible();
-	await expect(page.getByTestId('audit-entry')).toHaveCount(2);
+	// An occupation writes only its own event row, yet it is still part of Cara's history.
+	const fact = await request.post(
+		`/api/trees/${api.treeId}/people/${encodeURIComponent(cara.id)}/facts`,
+		{ data: { type: 'OCCU', value: 'Weaver' } }
+	);
+	expect(fact.ok()).toBe(true);
+
+	// Picking a person filters the log to them, and the log says so and offers the way back.
+	await open(page, `/trees/${api.treeId}/audit`);
+	await page.getByTestId('audit-filters').getByRole('combobox', { name: 'Person' }).fill('Cara');
+	await page.getByRole('option', { name: /Cara/ }).click();
+	await page.getByRole('button', { name: 'Filter' }).click();
+	await expect(page).toHaveURL(new RegExp(`record=${encodeURIComponent(cara.id)}`));
+	await expect(page.getByTestId('audit-filter')).toContainText('changes to Cara');
+	await expect(page.getByTestId('audit-entry')).toHaveCount(3);
+	await page.getByTestId('audit-filter').getByRole('link', { name: 'Any person' }).click();
+	await expect(page).not.toHaveURL(/record=/);
 
 	// The same Undo sits in the person's own history, behind a link to the filtered log.
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(cara.id)}`);

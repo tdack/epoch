@@ -11,9 +11,23 @@
 		picked: { id: string; name: string } | null;
 		/** Called with the person the user picks from the results. */
 		onpick: (person: { id: string; name: string }) => void;
+		/** Shown in place of a name while nobody is picked. */
+		emptyName?: string;
+		/**
+		 * For a row of filters: the picked name sits in the field itself rather than on a line above
+		 * it, so the field lines up with its neighbours.
+		 */
+		isInline?: boolean;
 	}
 
-	let { treeId, label, picked, onpick }: Props = $props();
+	let {
+		treeId,
+		label,
+		picked,
+		onpick,
+		emptyName = 'Nobody chosen',
+		isInline = false
+	}: Props = $props();
 
 	const SEARCH_DEBOUNCE_MS = 200;
 	const uid = $props.id();
@@ -78,15 +92,17 @@
 
 <div class="relative">
 	<label for="{uid}-input" class="block text-xs font-semibold text-stone-700">{label}</label>
-	<p class="mt-0.5 text-sm font-medium text-stone-900" data-testid="picked-{label.toLowerCase()}">
-		{picked ? picked.name : 'Nobody chosen'}
-	</p>
+	{#if !isInline}
+		<p class="mt-0.5 text-sm font-medium text-stone-900" data-testid="picked-{label.toLowerCase()}">
+			{picked ? picked.name : emptyName}
+		</p>
+	{/if}
 	<input
 		id="{uid}-input"
 		type="text"
 		role="combobox"
 		autocomplete="off"
-		placeholder="Search by name"
+		placeholder={isInline ? (picked?.name ?? emptyName) : 'Search by name'}
 		bind:value={query}
 		oninput={onInput}
 		onkeydown={onKeydown}
@@ -96,7 +112,9 @@
 		aria-activedescendant={isOpen && results[highlighted]
 			? `${uid}-option-${highlighted}`
 			: undefined}
-		class="mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+		class={isInline
+			? `mt-1 h-9 w-56 rounded-lg border border-stone-300 bg-white px-2 text-sm font-normal coarse:h-11 ${picked ? 'placeholder:text-stone-900' : 'placeholder:text-stone-500'}`
+			: 'mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm'}
 	/>
 	{#if isOpen}
 		<ul
