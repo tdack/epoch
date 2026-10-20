@@ -8,11 +8,13 @@ const treeName = 'The Simpsons';
 const gedcomPath = new URL('../test/data/The Simpsons.ged', import.meta.url);
 
 async function main() {
-	let trees;
+	// No endpoint lists trees any more (ADR-067). `/` redirects to a tree whenever the user has
+	// one and renders only when they have none, so a redirect means the database is already seeded.
+	let hasTrees;
 	try {
-		const res = await fetch(`${baseUrl}/api/trees`);
-		if (!res.ok) throw new Error(`GET /api/trees returned ${res.status}`);
-		trees = (await res.json()).trees;
+		const res = await fetch(`${baseUrl}/`, { redirect: 'manual' });
+		hasTrees = res.status >= 300 && res.status < 400;
+		if (!hasTrees && !res.ok) throw new Error(`GET / returned ${res.status}`);
 	} catch (err) {
 		console.error(
 			`Could not reach the dev server at ${baseUrl} (${err.message}).\n` +
@@ -22,9 +24,8 @@ async function main() {
 		process.exit(1);
 	}
 
-	const existing = trees.find((t) => t.name === treeName);
-	if (existing) {
-		console.log(`"${treeName}" already exists (${existing.id}); nothing to do.`);
+	if (hasTrees) {
+		console.log('The dev database already has a tree; nothing to do.');
 		return;
 	}
 
@@ -37,7 +38,7 @@ async function main() {
 		console.error(`Import failed (${res.status}):`, body);
 		process.exit(1);
 	}
-	console.log(`Imported "${treeName}" as tree ${body.treeId ?? '(see /api/trees)'}.`);
+	console.log(`Imported "${treeName}" as tree ${body.treeId}.`);
 }
 
 await main();
