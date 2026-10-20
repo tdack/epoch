@@ -363,8 +363,15 @@ describe('the public visitor and sub-trees (ADR-069)', () => {
 	});
 
 	it('answers a sub-tree that is not public with the 404 of one that does not exist', async () => {
-		const hidden = await layout(`${publicId}~members-line`).catch((e) => e);
-		const unknown = await layout(`${publicId}~no-such-line`).catch((e) => e);
+		const refusalOf = (segment: string) =>
+			layout(segment).then(
+				() => {
+					throw new Error(`expected ${segment} to be refused`);
+				},
+				(e: unknown) => e as { status: number; body: { message: string } }
+			);
+		const hidden = await refusalOf(`${publicId}~members-line`);
+		const unknown = await refusalOf(`${publicId}~no-such-line`);
 		expect(hidden.status).toBe(404);
 		expect(unknown.status).toBe(404);
 		// The message names only the address asked for, so nothing tells the two apart.
