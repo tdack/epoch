@@ -95,3 +95,19 @@ test('editing a partnership updates the label on the canvas', async ({ page, api
 
 	await expect(page.locator('text.label', { hasText: '1975' })).toBeVisible();
 });
+
+test('the place of death offers places already on the tree', async ({ page, api }) => {
+	const [john, jane] = [await api.addPerson('John', 'Smith'), await api.addPerson('Jane', 'Smith')];
+	await api.addPerson('Corky', 'Placed', { birthDate: '1850', birthPlace: 'Cork, Ireland' });
+	await api.partner(john, jane);
+	await openTree(page, api, john);
+
+	await openMenuByKeyboard(page, 'John');
+	await chooseMenuItem(page, 'Record death…');
+	const dialog = page.getByRole('dialog', { name: 'Record death' });
+	await dialog.getByLabel('Place of death').fill('cork');
+	await expect(dialog.locator('#death-place + datalist option')).toHaveAttribute(
+		'value',
+		'Cork, Ireland'
+	);
+});

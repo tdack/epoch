@@ -1,5 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
+vi.mock('#lib/api/lists.js', () => ({ suggestPlacesApi: vi.fn() }));
+
 import PersonModal from './PersonModal.svelte';
 
 beforeAll(() => {
@@ -28,6 +30,7 @@ function render() {
 		target: document.body,
 		props: {
 			isOpen: true,
+			treeId: 't',
 			mode: 'edit',
 			initialPerson: {
 				id: 'p1',
@@ -100,5 +103,13 @@ describe('PersonModal', () => {
 		type(birthField(), SAVED_BIRTH);
 		submit();
 		expect(onsubmit).toHaveBeenCalledWith(expect.objectContaining({ birthDate: SAVED_BIRTH }));
+	});
+
+	it('offers place suggestions on the birth and death place fields', () => {
+		render();
+		for (const id of ['person-birth-place-field', 'person-death-place-field']) {
+			const input = document.querySelector<HTMLInputElement>(`#${id}`)!;
+			expect(input.list).toBeInstanceOf(HTMLDataListElement);
+		}
 	});
 });

@@ -43,8 +43,8 @@ test('places are listed once however their case varies, open onto their facts, a
 	await open(page, `/trees/${api.treeId}/people/${encodeURIComponent(one.id)}`);
 	await page.getByRole('button', { name: 'Add fact' }).click();
 	await page.getByRole('dialog', { name: 'Add a fact' }).getByLabel('Place').fill('cork');
-	await expect(page.locator('#fact-place-options option')).toHaveCount(1);
-	await expect(page.locator('#fact-place-options option').first()).toHaveAttribute(
+	await expect(page.locator('#fact-place + datalist option')).toHaveCount(1);
+	await expect(page.locator('#fact-place + datalist option').first()).toHaveAttribute(
 		'value',
 		'Cork, Ireland'
 	);

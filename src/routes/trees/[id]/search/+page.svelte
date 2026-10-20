@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { Search } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { lifeDates } from '#lib/shared/life-dates.js';
@@ -16,6 +17,8 @@
 	const base = $derived(treePath(data.summary.tree));
 	const query = $derived(data.query);
 	const response = $derived(data.response);
+	// Seeded from the URL; the form is a plain GET, so this only drives the suggestions.
+	let placeText = $derived(query.place);
 
 	const personHref = (id: string) => `${base}/people/${encodeURIComponent(id)}`;
 
@@ -79,12 +82,13 @@
 	</label>
 	<label class="flex flex-col gap-1 text-xs font-semibold text-stone-700">
 		Place contains
-		<input
+		<PlaceInput
+			id="search-place"
 			name="place"
 			type="search"
-			value={query.place}
-			autocomplete="off"
-			class="field"
+			treeId={data.summary.tree.id}
+			bind:value={placeText}
+			inputClass="field"
 			data-testid="search-place"
 		/>
 	</label>

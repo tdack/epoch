@@ -20,6 +20,7 @@
 
 <PersonModal
 	isOpen={editor.isPersonModalOpen}
+	treeId={editor.treeId}
 	mode={editor.personModalMode}
 	initialPerson={editor.personToEdit}
 	isSubmitting={editor.isSubmittingPerson}

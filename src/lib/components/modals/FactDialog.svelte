@@ -15,7 +15,7 @@
 		type FactInput
 	} from '#lib/shared/fact-types.js';
 	import type { FactDto } from '#lib/shared/person-page.js';
-	import { suggestPlacesApi } from '#lib/api/lists.js';
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { createFactApi, previewFactApi, updateFactApi } from '#lib/api/people.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
@@ -77,25 +77,6 @@
 	const submission = createSubmission((message) => onstale(message));
 	let typeSelect = $state<HTMLSelectElement | null>(null);
 	let previewRequest = 0;
-	// Places already on the tree's facts, offered as the user types so one place keeps one spelling.
-	// A suggestion fills in the text only; what is saved is whatever the field holds.
-	let placeOptions = $state<string[]>([]);
-	$effect(() => {
-		const typed = place.trim();
-		if (!isOpen || typed.length < 2) {
-			placeOptions = [];
-			return;
-		}
-		const timer = setTimeout(async () => {
-			try {
-				placeOptions = await suggestPlacesApi(treeId, typed);
-			} catch {
-				placeOptions = [];
-			}
-		}, PREVIEW_DELAY_MS);
-		return () => clearTimeout(timer);
-	});
-
 	const isEdit = $derived(fact !== null);
 	const isAttribute = $derived(factTypeInfo(type)?.kind === FACT_KINDS.ATTRIBUTE);
 	const isDateValid = $derived(checkDateEdit(dateText, fact?.dateText).isValid);
@@ -301,19 +282,13 @@
 				</div>
 				<div>
 					<label for="fact-place" class="field-label">Place</label>
-					<input
+					<PlaceInput
 						id="fact-place"
-						type="text"
+						{treeId}
 						bind:value={place}
-						list="fact-place-options"
-						autocomplete="off"
-						class={field}
+						inputClass={field}
 						placeholder="e.g. Leeds, Yorkshire"
 					/>
-					<datalist id="fact-place-options"
-						>{#each placeOptions as option (option)}<option value={option}
-							></option>{/each}</datalist
-					>
 				</div>
 			</div>
 
