@@ -240,7 +240,8 @@ export class MediaService {
 	}
 
 	/**
-	 * Throws unless the caller may read this object; returns the row's title so the serve route can name the download without a second query. A key that is not ours, or whose row they cannot
+	 * Throws unless the caller may read this object; returns the row's title so the serve route can
+	 * name the download without a second query. A key that is not ours, or whose row they cannot
 	 * see, is a missing object. The tree is checked before the row is read, so a caller outside the
 	 * tree is refused without learning whether a key exists in it.
 	 */
