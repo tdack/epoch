@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
+import type { LeaveBlockersDto } from '#lib/shared/profile.js';
 import LeaveEpochDialog from './LeaveEpochDialog.svelte';
 
 beforeAll(() => {
@@ -19,9 +20,9 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-const NO_BLOCKERS = { isInstallOwner: false, soleOwnerTrees: [] };
+const NO_BLOCKERS: LeaveBlockersDto = { isInstallOwner: false, soleOwnerTrees: [] };
 
-function open(blockers = NO_BLOCKERS, onleave = vi.fn()) {
+function open(blockers: LeaveBlockersDto = NO_BLOCKERS, onleave = vi.fn()) {
 	component = mount(LeaveEpochDialog, {
 		target: document.body,
 		props: { isOpen: true, email: 'Ada@Example.com', blockers, onclose: vi.fn(), onleave }

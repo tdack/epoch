@@ -56,16 +56,14 @@ describe('ProfileService leave', () => {
 		const treeId = await createTestTree(t.db, owner);
 		await addTestMember(t.db, treeId, me, 'editor');
 		await t.db.insert(userSettings).values({ userId: me.userId, data: '{}' });
-		await t.db
-			.insert(personMarks)
-			.values({
-				id: 'm1',
-				userId: me.userId,
-				treeId,
-				personId: 'p',
-				kind: 'favorite',
-				touchedAt: 1
-			});
+		await t.db.insert(personMarks).values({
+			id: 'm1',
+			userId: me.userId,
+			treeId,
+			personId: 'p',
+			kind: 'favorite',
+			touchedAt: 1
+		});
 		await t.db
 			.insert(researchTasks)
 			.values({ id: 'task1', treeId, title: 'x', assigneeId: me.userId });

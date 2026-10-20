@@ -28,6 +28,6 @@ export const POST = apiHandler(
 			if (context?.waitUntil) context.waitUntil(sending);
 			else await sending;
 		}
-		return { left: true };
+		return { didLeave: true };
 	}
 );

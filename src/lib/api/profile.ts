@@ -23,3 +23,8 @@ export function useMyAccessPicture(): Promise<ProfileViewDto> {
 		'Failed to use your Google picture'
 	);
 }
+
+/** Leaves Epoch for good; the server re-checks the address and the blockers. */
+export function leaveEpoch(confirmEmail: string): Promise<{ didLeave: true }> {
+	return call('/api/profile/leave', json('POST', { confirmEmail }), 'Failed to leave Epoch');
+}
