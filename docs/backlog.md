@@ -27,8 +27,8 @@ Last reviewed: 2026-10-18.
 
 - **The quotas do not bound a user who makes new trees.** Both caps are per tree, and any member
   can create a tree, which starts with a fresh media quota, and a queued import that creates a tree
-  is never capped. Accepted for now; the per-user rate limits on import and upload (ADR-066) slow a loop but do not
-  cap how many trees a user may make. (F9)
+  is never capped. Accepted for now; the per-user rate limits on import and upload (ADR-066) slow a loop but do not cap how many trees a user may make. (F9)
+  
 ### Media and files
 
 - **Editors cannot delete legacy files.** Files stored before migration 0029 have no recorded
