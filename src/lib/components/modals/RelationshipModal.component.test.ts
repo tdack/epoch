@@ -6,7 +6,8 @@ vi.mock('#lib/api/client.js', () => ({
 }));
 
 vi.mock('#lib/api/lists.js', () => ({
-	searchPeopleApi: vi.fn()
+	searchPeopleApi: vi.fn(),
+	suggestPlacesApi: vi.fn()
 }));
 
 vi.mock('#lib/api/relationships.js', () => ({
@@ -141,5 +142,18 @@ describe('RelationshipModal partnership chooser', () => {
 		expect(document.querySelector('fieldset legend')!.textContent).toBe(
 			'Which partnership to fill'
 		);
+	});
+
+	it('offers place suggestions on the place of death and the partnership end place', async () => {
+		await open(graphOf([union('u1', ['john', 'jane'])]), 'add_child');
+		for (const [kind, id] of [
+			['Record death', 'death-place'],
+			['End partnership', 'end-place']
+		]) {
+			[...document.querySelectorAll('button')].find((b) => b.textContent?.includes(kind))!.click();
+			flushSync();
+			const input = document.querySelector<HTMLInputElement>(`#${id}`)!;
+			expect(input.list).toBeInstanceOf(HTMLDataListElement);
+		}
 	});
 });

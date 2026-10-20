@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
@@ -713,7 +714,7 @@
 				<label class="block text-xs font-semibold text-stone-700" for="death-place"
 					>Place of death</label
 				>
-				<input id="death-place" type="text" bind:value={deathPlace} class="field-input" />
+				<PlaceInput id="death-place" {treeId} bind:value={deathPlace} inputClass="field-input" />
 				<p class="text-[11px] text-stone-500">
 					Leave both empty to record only that they have died. A death never ends or changes a
 					partnership.
@@ -794,7 +795,7 @@
 						<div>
 							<label class="block text-xs font-semibold text-stone-700" for="end-place">Place</label
 							>
-							<input id="end-place" type="text" bind:value={endPlace} class="field-input" />
+							<PlaceInput id="end-place" {treeId} bind:value={endPlace} inputClass="field-input" />
 						</div>
 					</div>
 				{/if}

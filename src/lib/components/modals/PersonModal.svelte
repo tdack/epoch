@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { UserPlus, Pencil, RefreshCw } from '@lucide/svelte';
 	import BaseModal from './BaseModal.svelte';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
@@ -9,6 +10,8 @@
 
 	interface Props {
 		isOpen: boolean;
+		/** The tree whose places are suggested in the place fields. */
+		treeId: string;
 		mode: 'add' | 'edit';
 		initialPerson?: EditablePerson | null;
 		isSubmitting?: boolean;
@@ -19,6 +22,7 @@
 
 	let {
 		isOpen,
+		treeId,
 		mode,
 		initialPerson = null,
 		isSubmitting = false,
@@ -192,13 +196,13 @@
 							for="person-birth-place-field"
 							class="mb-1 block text-xs font-medium text-stone-600">Birth Place</label
 						>
-						<input
+						<PlaceInput
 							id="person-birth-place-field"
-							type="text"
+							{treeId}
 							bind:value={birthPlace}
 							placeholder="e.g. Southampton, England"
 							disabled={isSubmitting}
-							class="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
+							inputClass="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
 						/>
 					</div>
 				</div>
@@ -226,13 +230,13 @@
 							for="person-death-place-field"
 							class="mb-1 block text-xs font-medium text-stone-600">Death Place</label
 						>
-						<input
+						<PlaceInput
 							id="person-death-place-field"
-							type="text"
+							{treeId}
 							bind:value={deathPlace}
 							placeholder="e.g. New York, USA"
 							disabled={isSubmitting}
-							class="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
+							inputClass="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50"
 						/>
 					</div>
 				</div>
