@@ -56,7 +56,7 @@ export const GET: RequestHandler = async ({ params, locals, platform, request, s
 	headers.set('Content-Disposition', decision.contentDisposition);
 	headers.set('etag', object.httpEtag);
 	headers.set('X-Content-Type-Options', 'nosniff');
-	// A PDF cannot render under a sandbox CSP in Chrome; see ADR-072 for what that leaves exposed.
+	// A PDF cannot render under a sandbox CSP in Chrome; see ADR-073 for what that leaves exposed.
 	if (decision.shouldSandbox) headers.set('Content-Security-Policy', 'sandbox');
 	headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 	headers.set('Referrer-Policy', 'no-referrer');

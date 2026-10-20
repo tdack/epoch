@@ -1,8 +1,16 @@
 import type { DbClient } from '../db';
-import { users, treeMemberships, trees } from '../db/schema';
+import {
+	personMarks,
+	researchTasks,
+	treeInvitations,
+	treeMemberships,
+	trees,
+	userSettings,
+	users
+} from '../db/schema';
 import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
-import { eq, and } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { MemberRepository } from './member-repository';
 
@@ -218,5 +226,74 @@ export class UserRepository {
 			createdAt: now,
 			updatedAt: now
 		};
+	}
+
+	/** The trees where this person is an owner and no one else is. */
+	async soleOwnerTrees(userId: string): Promise<{ id: string; name: string }[]> {
+		const other = alias(treeMemberships, 'other_owner');
+		return this.db
+			.select({ id: trees.id, name: trees.name })
+			.from(treeMemberships)
+			.innerJoin(trees, eq(trees.id, treeMemberships.treeId))
+			.where(
+				and(
+					eq(treeMemberships.userId, userId),
+					eq(treeMemberships.role, 'owner'),
+					sql`not exists (select 1 from tree_memberships ${other} where ${other.treeId} = ${treeMemberships.treeId} and ${other.role} = 'owner' and ${other.userId} <> ${userId})`
+				)
+			);
+	}
+
+	/** Each tree the person belongs to with its other owners: what the farewell email lists, read before the memberships go. */
+	async treesWithOwners(
+		userId: string
+	): Promise<{ name: string; owners: { name: string | null; email: string }[] }[]> {
+		const mine = await this.db
+			.select({ id: trees.id, name: trees.name })
+			.from(treeMemberships)
+			.innerJoin(trees, eq(trees.id, treeMemberships.treeId))
+			.where(eq(treeMemberships.userId, userId));
+		if (mine.length === 0) return [];
+		const owners = await this.db
+			.select({ treeId: treeMemberships.treeId, name: users.name, email: users.email })
+			.from(treeMemberships)
+			.innerJoin(users, eq(users.id, treeMemberships.userId))
+			.where(
+				and(
+					inArray(
+						treeMemberships.treeId,
+						mine.map((tree) => tree.id)
+					),
+					eq(treeMemberships.role, 'owner'),
+					ne(treeMemberships.userId, userId)
+				)
+			);
+		return mine.map((tree) => ({
+			name: tree.name,
+			owners: owners
+				.filter((owner) => owner.treeId === tree.id)
+				.map(({ name, email }) => ({ name, email }))
+		}));
+	}
+
+	/**
+	 * Removes everything that ties the person to Epoch except the `users` row, in one batch: the
+	 * `users` row stays so the change log still names them. Memberships, settings and marks would
+	 * cascade from a user delete anyway; they are listed because the row is not deleted. Pending
+	 * invitations go too, or admission would take the person straight back. Tasks they were assigned
+	 * become unassigned, as when a member is removed (ADR-029).
+	 */
+	async leave(userId: string, email: string, now: Date): Promise<void> {
+		await this.db.batch([
+			this.db.delete(treeMemberships).where(eq(treeMemberships.userId, userId)),
+			this.db.delete(userSettings).where(eq(userSettings.userId, userId)),
+			this.db.delete(personMarks).where(eq(personMarks.userId, userId)),
+			this.db.delete(treeInvitations).where(eq(treeInvitations.email, email.trim().toLowerCase())),
+			this.db
+				.update(researchTasks)
+				.set({ assigneeId: null })
+				.where(eq(researchTasks.assigneeId, userId)),
+			this.db.update(users).set({ avatarKey: null, updatedAt: now }).where(eq(users.id, userId))
+		]);
 	}
 }

@@ -171,11 +171,9 @@ Last reviewed: 2026-10-18.
 
 ### Profile and leaving
 
-- **Wire up Leave Epoch and Erase** (ADR-070). The profile page's button only explains today. Build
-  Leave (delete memberships, settings, marks and the R2 avatar; keep the `users` row; block the sole
-  owner of any tree and the install owner until ownership moves), then optionally Erase (blank email
-  and name to "Former member"). Needs a confirm dialog, a way to hand over ownership, and a test that
-  admission turns the person away afterwards and an invitation readmits them.
+- **Erase** (ADR-070, after Leave in ADR-072). Blank the email and name of a person who has left to
+  "Former member", keeping the id for the audit log. Needs a way for the install owner to ask for it,
+  and a test that the erased person is still refused by admission.
 - **Remove a stale avatar object when a user is deleted by hand,** and a periodic sweep for
   `avatars/` objects with no `users.avatar_key`.
 

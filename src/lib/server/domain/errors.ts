@@ -13,6 +13,7 @@ export type ErrorCode =
 	| 'export_expired'
 	| 'export_unavailable'
 	| 'RATE_LIMITED'
+	| 'LEAVE_BLOCKED'
 	| 'INTERNAL_ERROR'
 	| 'BAD_REQUEST';
 
@@ -180,5 +181,13 @@ export class RateLimitedError extends DomainError {
 	) {
 		super(message, 'RATE_LIMITED', 429, { retryAfterSeconds });
 		this.name = 'RateLimitedError';
+	}
+}
+
+/** Leaving is blocked until ownership moves; `details` is the `LeaveBlockersDto` so a client can say which trees. */
+export class LeaveBlockedError extends DomainError {
+	constructor(message: string, blockers: { isInstallOwner: boolean; soleOwnerTrees: unknown[] }) {
+		super(message, 'LEAVE_BLOCKED', 409, { ...blockers });
+		this.name = 'LeaveBlockedError';
 	}
 }

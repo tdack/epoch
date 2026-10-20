@@ -99,6 +99,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'own-data',
 		covers: 'services/profile-service.test.ts'
 	},
+	[`${API}/profile/leave/+server.ts`]: {
+		kind: 'own-data',
+		covers: 'services/profile-service-leave.test.ts'
+	},
 	[`${API}/profile/avatar/+server.ts`]: {
 		kind: 'own-data',
 		covers: 'services/profile-service.test.ts'

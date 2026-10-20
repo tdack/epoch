@@ -82,7 +82,7 @@ export function sniffMediaType(bytes: Uint8Array): string | null {
 	const isoImageType = sniffIsoBmffImage(bytes);
 	if (isoImageType) return isoImageType;
 
-	// PDFs render inline in our origin now (ADR-072), so the magic must open the file: searching a
+	// PDFs render inline in our origin now (ADR-073), so the magic must open the file: searching a
 	// window let a polyglot with `%PDF-` buried in other content pass. Only a UTF-8 BOM and ASCII
 	// whitespace may precede it.
 	let start = startsWithBytes(bytes, [0xef, 0xbb, 0xbf]) ? 3 : 0;

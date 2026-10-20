@@ -797,6 +797,9 @@ export const profileNameSchema = z.object({
 	name: z.string().trim().min(1, 'Name is required').max(MAX_DISPLAY_NAME_LENGTH)
 });
 
+/** The address typed to confirm leaving; the service compares it with the caller's own. */
+export const leaveSchema = z.object({ confirmEmail: z.string().max(320) });
+
 /** A change to a settings layer: a group replaces, `null` clears it, an absent key is left alone. */
 export const settingsPatchSchema = z.object({
 	sexColours: sexColoursSchema.nullable().optional(),

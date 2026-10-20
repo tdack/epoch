@@ -2,7 +2,10 @@
 	import { invalidateAll } from '$app/navigation';
 	import Avatar from '#lib/components/profile/Avatar.svelte';
 	import LeaveEpochDialog from '#lib/components/modals/LeaveEpochDialog.svelte';
+	import { page } from '$app/state';
+	import { signOutHref } from '#lib/shared/access.js';
 	import {
+		leaveEpoch,
 		removeMyAvatar,
 		saveMyName,
 		uploadMyAvatar,
@@ -24,6 +27,21 @@
 	let isBusy = $state(false);
 	let message = $state<{ text: string; isError: boolean } | null>(null);
 	let isLeaveOpen = $state(false);
+	let isLeaving = $state(false);
+	let leaveError = $state<string | null>(null);
+
+	async function leave() {
+		isLeaving = true;
+		leaveError = null;
+		try {
+			await leaveEpoch(profile.email);
+			// A full load, not goto: the Access session is what ends, and it is cleared by the server.
+			window.location.assign(signOutHref(page.url.origin));
+		} catch (error) {
+			leaveError = error instanceof Error ? error.message : 'Something went wrong.';
+			isLeaving = false;
+		}
+	}
 
 	// The header reads the viewer from the root layout, so everything is reloaded after a change.
 	async function run(action: () => Promise<unknown>, done: string) {
@@ -151,17 +169,18 @@
 		class="flex flex-col gap-2 border-t border-stone-200 pt-6"
 	>
 		<h3 id="leave-heading" class="text-lg font-bold text-stone-900">Leave Epoch</h3>
-		<p id="leave-hint" class="text-sm text-stone-600">
-			Leaving is not available yet. Select the button to see what it will do.
+		<p class="text-sm text-stone-600">
+			Remove yourself from every tree. You cannot undo this yourself; a tree owner would have to
+			invite you back.
 		</p>
 		<div class="flex flex-wrap gap-2">
-			<!-- aria-disabled, not disabled: it looks off but still opens the explanation. -->
 			<button
 				type="button"
-				class="btn-primary-sm opacity-50"
-				aria-disabled="true"
-				aria-describedby="leave-hint"
-				onclick={() => (isLeaveOpen = true)}
+				class="inline-flex cursor-pointer items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-red-600"
+				onclick={() => {
+					leaveError = null;
+					isLeaveOpen = true;
+				}}
 			>
 				Leave Epoch
 			</button>
@@ -169,4 +188,12 @@
 	</section>
 </div>
 
-<LeaveEpochDialog isOpen={isLeaveOpen} onclose={() => (isLeaveOpen = false)} />
+<LeaveEpochDialog
+	isOpen={isLeaveOpen}
+	email={profile.email}
+	blockers={data.leave}
+	{isLeaving}
+	error={leaveError}
+	onclose={() => (isLeaveOpen = false)}
+	onleave={leave}
+/>

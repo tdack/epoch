@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, renderInvitationEmail } from './invitation-template';
+import { escapeHtml } from './email-shell';
+import { renderInvitationEmail } from './invitation-template';
 
 const input = {
 	inviterName: 'Ada Lovelace',

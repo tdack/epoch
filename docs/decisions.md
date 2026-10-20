@@ -503,7 +503,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Rejected alternatives:** a separate media host (defers the fix; the allowlist closes the hole now); a site-wide CSP (a broader change than the vulnerability needs, and recorded as later hardening); a migration of `media_items.mime_type` (unnecessary, because the column is not on the serve path).
 - **Consequences:** every stored object is served through the new decision on its next request, and `MEDIA_URL_VERSION` in `PersonMedia.svelte` is bumped to 2 so a browser that cached the old immutable response re-fetches. The residuals the review accepted are recorded in [backlog.md](./backlog.md).
 - **Amended by ADR-050:** new uploads are keyed `media/<treeId>/<mediaId>.<ext>`, and the owner is read from the row rather than the key. The sniffing, the serve allowlist and the headers are unchanged.
-- **Amended by ADR-072:** a PDF is served inline without the sandbox CSP, and its magic must open the file.
+- **Amended by ADR-073:** a PDF is served inline without the sandbox CSP, and its magic must open the file.
 
 ## ADR-040: A large export runs in a workflow; expiry is enforced at read time and a lifecycle rule is the GC
 - **Status:** complete; built on 2026-10-11 on `feat/gedcom-export-and-workflow` and deployed. No migration. Checked by unit and route tests for the size thresholds, the instance id and object key, the status and download routes, the lifecycle merge and the doctor's R2 findings, and by the GEDCOM injection sweep. The export audit and the `@`/`CONC`/C0 dialect work were deferred here; the dialect work and the tree-name round trip were done in ADR-042, and the export audit is now parked (not planned).
@@ -690,7 +690,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
     - Install owner sees names, sizes, counts and totals for trees they are not in (via `TreeRepository.listAll`), and nothing that would show or change a file there. The install-wide total is shown to the install owner only. This keeps ADR-041's rule that a non-member has no access to a tree's content, and extends it to metadata.
     - Per-tree usage and quota totals are shown to editors and above only.
   - **Quota.** The usage bar is the R2 total for the tree, since that is what an upload refusal enforces. Each file's own size comes from its row, shown as unknown until backfilled.
-  - **Preview.** Images preview inline through the serve route (ADR-039). A PDF opens in a new tab (ADR-072).
+  - **Preview.** Images preview inline through the serve route (ADR-039). A PDF opens in a new tab (ADR-073).
   - **Size backfill.** `scripts/backfill-media-sizes.mjs` (`npm run db:backfill:media-sizes`) is a one-off, idempotent script. It writes only rows with no size, and never runs on a GET.
 - **Rejected alternatives:** copying or renaming R2 objects when a file moves between records (a copy per file, and a window where the key and row disagree); keeping the owner in the key and rewriting keys on merge (the same copy); deleting a deleted person's files (the bytes would be lost and undo could not restore them); letting editors delete any file (a manager's call, as with members in ADR-016); logging deletes in the change log now (undo would have to keep the bytes until the window closed, which is not built).
 - **Rollback caveat:** `wrangler rollback` restores the code, never the schema. The previous parser reads a key as `<tree>/<entity>/<file>` and answers 404 for every `media/<treeId>/<mediaId>.<ext>` key. Files uploaded after this deploy are unreachable under the old code until it is deployed again. Roll back only with that in mind, or redeploy this code instead.
@@ -992,7 +992,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 
 ## ADR-070: A profile page, an avatar copied into R2, and what leaving Epoch will mean
 
-- **Status:** built on `main` on 2026-10-20 (not deployed). **Migration 0039 adds `users.avatar_key`** (text, nullable; expand only). The Leave and Erase behaviour below is a recommendation and is not built.
+- **Status:** built on `main` on 2026-10-20 (not deployed). **Migration 0039 adds `users.avatar_key`** (text, nullable; expand only). Leave was built on 2026-10-21 (ADR-072); Erase is still a recommendation.
 - **Context:** a signed-in person had nowhere to see their email, change their display name or choose a picture, and Settings and Sign out sat in the tree nav's More menu. The Google picture is not in the Access token unless the IdP is told to send it.
 - **Decision:**
   - **Profile:** `/profile` redirects into the default tree's `/trees/<tree>/profile`, as `/settings` does, to keep the header. It shows the email (read-only), an editable display name (trimmed, 1 to 100 characters) and the picture. It is the person's own data, so it is written by `ProfileService` directly and not through the mutation runner or the change log, like settings.
@@ -1001,7 +1001,7 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
   - **Picture storage:** the image is **copied into R2** at `avatars/<user id>` (overwritten on re-upload), not hot-linked. Hot-linking would need Google's image host in the CSP, would break when Google's URLs expire, and would send every viewer's IP to Google. The copy happens on the insert of a new `users` row only, in the background (`waitUntil`), from the token's `custom.picture`. Only `https` URLs on `*.googleusercontent.com` are fetched, without following redirects, capped at 2 MB, and the bytes must sniff as an inline image type; any failure leaves initials. People who already have a row get a "Use my Google picture" button, shown while the current token carries a picture and there is no avatar. An upload is limited to 2 MB and the same image types, decided from the bytes.
   - **Serving:** `GET /api/profile/avatar/<user id>` allows the person and anyone who shares a tree membership with them, and nobody else, the public visitor included. It is `private` cached; the URL carries `?v=<updated_at>`. Usage and quota listings read the `media/` prefix, so `avatars/` objects are never counted against a tree.
   - **Manual step:** add `picture` as an OIDC claim on the Google IdP in Zero Trust (see development.md); until then there is no Google picture to import.
-- **Recommendation for Leave (not built):**
+- **Recommendation for Leave (built as ADR-072):**
   - `change_log.actor_id` has no foreign key on purpose, so the audit log outlives a user. Memberships, settings and marks cascade from `users`, and `upsertUser` already keeps a row for someone with no memberships, whom admission then refuses.
   - **Leave** deletes the person's memberships, settings, marks and R2 avatar and keeps the `users` row, so history still names them. Admission then turns them away; an invitation can readmit them.
   - **Blocked:** the sole owner of any tree, and the install owner, cannot leave until ownership is transferred.
@@ -1021,7 +1021,28 @@ _Partly superseded by ADR-019: a place record now exists. The text stays the aut
 - **Rejected alternatives:** a shared event with participants (events have one owner, GEDCOM has no shared individual event, and the round-trip rule forbids inventing one); one citation shared by several subjects (breaks ADR-028).
 - **Consequences:** a later edit to one copy does not reach the others. Bulk-editing all copies, and citing a specific fact (e.g. each birth) in bulk, are in the backlog.
 
-## ADR-072: PDFs are served inline in a new tab (amends ADR-039)
+## ADR-072: Leave Epoch, as built
+
+- **Status:** built on `main` on 2026-10-21 (not deployed). No migration.
+- **Context:** ADR-070 recommended Leave. This records what was built and what happens to every table that holds a user id.
+- **Decision:**
+  - **Endpoint:** `POST /api/profile/leave` with `{ confirmEmail }`. The address must equal the caller's Access email, trimmed and case-insensitive, or it is a 400. The public visitor gets the usual 403. The profile page load returns the blockers so the dialog explains them up front, and the endpoint re-checks them.
+  - **Blocked (409, `LEAVE_BLOCKED`, `details` carries the blockers):** the install owner, and the sole owner of any tree (no other `owner` membership).
+  - **One D1 batch** deletes the person's `tree_memberships`, `user_settings`, `person_marks` and the pending `tree_invitations` addressed to their email, unassigns their `research_tasks`, and clears `users.avatar_key`. The R2 object `avatars/<id>` is deleted after the commit; a failure there is logged only. The `users` row stays.
+  - **Invitations go because** `admitFromAccess` admits anyone with an unexpired invitation, so one left in place would readmit the person on the next request. A test proves a person who left is refused.
+  - **Each table that stores a user id:**
+    - `tree_memberships`, `user_settings`, `person_marks`: deleted (the person's own data).
+    - `tree_invitations.email`: deleted for their address. `tree_invitations.invited_by`: kept; no foreign key, and it is only a label for who invited.
+    - `research_tasks.assignee_id`: set to null, as when a member is removed (ADR-029). `research_tasks.created_by`: kept.
+    - `change_log.actor_id`: kept; the audit log keeps naming them, which is why the `users` row stays.
+    - `people.created_by`, `sources`/`repositories` and `notes.created_by`, `subtrees.created_by`, `media.uploaded_by`, `trees.published_by`, `quality_dismissals.dismissed_by`: kept; none has a foreign key and each is history or attribution.
+    - `users`: the row stays (name, email, `access_sub`); only `avatar_key` is cleared.
+  - **Farewell email:** after the commit, `renderFarewellEmail` is sent through the `EMAIL` binding in `waitUntil`. It says what was removed and what stays, and lists each tree with its other owners' names and addresses, read before the deletes. A send failure is logged and never undoes the leave; with no `EMAIL` binding or sender it is skipped. It shares `email-shell.ts` with the invitation email, whose output is unchanged.
+  - **UI:** a red Leave button opens the dialog. It says the person cannot undo this themselves, shows any blockers (which disable confirmation), and needs the email typed. Success is a full reload to the Access sign-out URL.
+- **Rejected alternatives:** deleting pending invitations only when they were sent by the person (an invitation to the leaver's address is theirs to refuse, and it would readmit them); also nulling `created_by` and similar columns (it rewrites history for no benefit).
+- **Consequences:** a race between two sole owners leaving at once could orphan a tree; the guard is a read before the batch, not part of it. Erase is still to do. Covered by `profile-service-leave.test.ts`, `api/profile/leave/leave.test.ts`, `farewell-template.test.ts` and `LeaveEpochDialog.component.test.ts`.
+
+## ADR-073: PDFs are served inline in a new tab (amends ADR-039)
 
 - **Status:** built on `claude/pdf-document-preview-ux-46075b` on 2026-10-21. No migration.
 - **Context:** ADR-039 served a PDF as an attachment, so a collaborator could not read one without saving it. Chrome will not render a PDF under `Content-Security-Policy: sandbox`, which the serve route sets on every response, so inline display needs that header gone for PDFs.
