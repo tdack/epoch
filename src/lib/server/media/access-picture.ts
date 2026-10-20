@@ -53,8 +53,8 @@ export async function fetchAccessPicture(
 		let total = 0;
 		const reader = response.body.getReader();
 		for (;;) {
-			const { done, value } = await reader.read();
-			if (done) break;
+			const { done: isDone, value } = await reader.read();
+			if (isDone) break;
 			total += value.byteLength;
 			if (total > MAX_AVATAR_BYTES) {
 				await reader.cancel();

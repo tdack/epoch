@@ -119,6 +119,9 @@ are gone.
   no foreign key, so an undo of a person delete brings the sub-tree back. Membership is not stored:
   the root, its descendants through `parent_child` of any type whose status is not `disputed`, and
   their partners are computed by `inSubtree` in `subtree-membership.ts`. Unique on `(tree_id, slug)`.
+- `users`: one row per signed-in person, keyed by Access's stable `sub`. Beyond `email` and `name`
+  it holds `avatar_key`, the R2 key of the profile picture (`avatars/<user id>`), null for initials
+  (ADR-070). The row outlives leaving Epoch so the audit log still names the person.
 - `date_value`: the original GEDCOM text plus parsed lower and upper bounds, precision, calendar
   and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day (ADR-004).
 - Evidence: sources, repositories, citations, shared notes and research tasks are records
@@ -164,6 +167,8 @@ Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate action
 - Export is a manager action, and its background job re-checks authorization (ADR-040).
 - Settings are the caller's own: anyone signed in may change their colours and motion setting,
   and only the install owner may change the site default (ADR-054).
+- A profile (display name, picture) is the caller's own too. A picture is served to its owner and to
+  people who share a tree with them, never to the public visitor (ADR-070).
 
 ## Layout and views
 
