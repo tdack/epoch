@@ -127,3 +127,10 @@ export interface FactInput {
  * record) per person, and D1 allows 1,000 queries an invocation, so a larger group is refused.
  */
 export const MAX_GROUP_FACT_PEOPLE = 50;
+
+/** Someone a new fact can also be added to, with how they relate, for the "Also add to…" list. */
+export interface FactRelative {
+	id: string;
+	name: string;
+	relation: string;
+}

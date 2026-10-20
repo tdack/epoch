@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { GitMerge, Pencil, Plus, Trash2 } from '@lucide/svelte';
 	import { canCite, canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
+	import CitePeopleDialog from '#lib/components/evidence/CitePeopleDialog.svelte';
 	import SourceFiles from '#lib/components/evidence/SourceFiles.svelte';
 	import RepositoryLinkDialog from '#lib/components/evidence/RepositoryLinkDialog.svelte';
 	import SourceDialog from '#lib/components/evidence/SourceDialog.svelte';
@@ -33,6 +34,7 @@
 
 	let isEditing = $state(false);
 	let isMerging = $state(false);
+	let isCitingPeople = $state(false);
 	let linking = $state<{ link: SourceRepositoryDto | null } | null>(null);
 
 	function remove() {
@@ -133,6 +135,14 @@
 				>· {source.citationCount} {source.citationCount === 1 ? 'citation' : 'citations'}</span
 			>
 		</h3>
+		{#if canCite(role)}
+			<button
+				type="button"
+				class="action-btn mt-2"
+				data-testid="cite-for-people"
+				onclick={() => (isCitingPeople = true)}><Plus class="h-3.5 w-3.5" />Cite for people…</button
+			>
+		{/if}
 		{#if source.groups.length === 0}
 			<p class="mt-2 text-xs text-stone-500 italic" data-testid="not-cited">
 				Nothing you can see cites this source yet. Cite it from a fact, a name or a partnership.
@@ -255,6 +265,19 @@
 		{/if}
 	</div>
 </div>
+
+<CitePeopleDialog
+	isOpen={isCitingPeople}
+	{treeId}
+	source={{ id: source.id, name: title }}
+	onsaved={async (change, skippedNames) => {
+		isCitingPeople = false;
+		await editor.afterChange(change, 'Nothing to add');
+		if (skippedNames.length > 0)
+			toasts.push(`Already cited, so skipped: ${skippedNames.join(', ')}.`, { durationMs: 10_000 });
+	}}
+	oncancel={() => (isCitingPeople = false)}
+/>
 
 <SourceDialog
 	isOpen={isEditing}

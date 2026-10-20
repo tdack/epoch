@@ -347,7 +347,7 @@ export const factUpdateSchema = z.object({
 export const factReorderSchema = z.object({ orderedFactIds: z.array(idSchema).max(500) });
 
 /** Who a group fact or bulk citation is for; the services dedupe, the cap is enforced here too. */
-export const groupPeopleSchema = z.array(idSchema).min(1).max(MAX_GROUP_FACT_PEOPLE);
+const groupPeopleSchema = z.array(idSchema).min(1).max(MAX_GROUP_FACT_PEOPLE);
 
 export const groupFactCreateSchema = factCreateSchema.extend({
 	personIds: groupPeopleSchema

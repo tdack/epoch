@@ -12,23 +12,34 @@
 		FACT_KINDS,
 		FACT_TYPE_LIST,
 		factTypeInfo,
-		type FactInput
+		type FactInput,
+		type FactRelative
 	} from '#lib/shared/fact-types.js';
 	import type { FactDto } from '#lib/shared/person-page.js';
 	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
-	import { createFactApi, previewFactApi, updateFactApi } from '#lib/api/people.js';
+	import {
+		createFactApi,
+		createGroupFactApi,
+		previewFactApi,
+		updateFactApi
+	} from '#lib/api/people.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 
 	interface Props {
 		isOpen: boolean;
 		treeId: string;
-		personId: string;
+		/** Who the fact is for; null when it is added only to the people ticked in `relatives`. */
+		personId: string | null;
 		/** The fact being edited, or null to add one. */
 		fact: FactDto | null;
 		/** The viewer's role; the optional Source section is shown only to a role that can cite. */
 		role: TreeRole | undefined;
 		/** The fact's existing citations, listed in the Source section when editing. */
 		citations?: CitationDto[];
+		/** When adding: people the same fact can also be added to, as separate copies (ADR-071). */
+		relatives?: FactRelative[];
+		/** The `relatives` ticked when the dialog opens. */
+		preTickedIds?: string[];
 		/** Called after a save, with the change so the caller can offer Undo. */
 		onsaved: (change: ChangeSummary | null) => void | Promise<void>;
 		/** Called when the fact changed under the person; the caller reloads and reopens with what is stored. */
@@ -43,6 +54,8 @@
 		fact,
 		role,
 		citations = [],
+		relatives = [],
+		preTickedIds = [],
 		onsaved,
 		onstale,
 		oncancel
@@ -71,6 +84,7 @@
 	let longitude = $state('');
 	let isDetailsOpen = $state(false);
 	let citation = $state<CitationInput | null>(null);
+	let tickedIds = $state<string[]>([]);
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
@@ -78,6 +92,8 @@
 	let typeSelect = $state<HTMLSelectElement | null>(null);
 	let previewRequest = 0;
 	const isEdit = $derived(fact !== null);
+	const targetIds = $derived(personId === null ? tickedIds : [personId, ...tickedIds]);
+	const isGroup = $derived(!isEdit && (personId === null || tickedIds.length > 0));
 	const isAttribute = $derived(factTypeInfo(type)?.kind === FACT_KINDS.ATTRIBUTE);
 	const isDateValid = $derived(checkDateEdit(dateText, fact?.dateText).isValid);
 	const field =
@@ -148,6 +164,7 @@
 		latitude = source?.latitude ?? '';
 		longitude = source?.longitude ?? '';
 		isDetailsOpen = hasAnyDetail(source);
+		tickedIds = untrack(() => [...preTickedIds]);
 		impact = null;
 		previewError = null;
 		submission.error = null;
@@ -160,10 +177,12 @@
 		if (!isOpen) return;
 		const input = toInput();
 		const isValid = isDateValid;
+		const targets = targetIds;
+		const isMany = isGroup;
 		const source = untrack(() => fact);
 		const timer = setTimeout(async () => {
 			const request = ++previewRequest;
-			if (!isValid) {
+			if (!isValid || (!source && targets.length === 0)) {
 				impact = null;
 				return;
 			}
@@ -175,7 +194,17 @@
 							version: source.version,
 							fact: input
 						})
-					: await previewFactApi(treeId, { kind: 'create_fact', personId, fact: input });
+					: isMany
+						? await previewFactApi(treeId, {
+								kind: 'create_group_fact',
+								personIds: targets,
+								fact: input
+							})
+						: await previewFactApi(treeId, {
+								kind: 'create_fact',
+								personId: targets[0],
+								fact: input
+							});
 				if (request !== previewRequest) return;
 				impact = next;
 				previewError = null;
@@ -193,11 +222,17 @@
 			submission.error = 'Fix the highlighted date before saving.';
 			return;
 		}
+		if (!isEdit && targetIds.length === 0) {
+			submission.error = 'Choose at least one person.';
+			return;
+		}
 		await submission.submit(async () => {
 			const input = toInput();
 			const { change } = fact
 				? await updateFactApi(treeId, fact.id, input, fact.version, citation)
-				: await createFactApi(treeId, personId, input, citation);
+				: isGroup
+					? await createGroupFactApi(treeId, targetIds, input, citation)
+					: await createFactApi(treeId, targetIds[0], input, citation);
 			await onsaved(change);
 		}, 'Could not save the fact');
 	}
@@ -223,9 +258,9 @@
 	isLoading={isOpen && impact === null && previewError === null && isDateValid}
 	isConfirming={submission.isSaving}
 	error={submission.error ?? previewError}
-	confirmLabel={isEdit ? 'Save fact' : 'Add fact'}
+	confirmLabel={isEdit ? 'Save fact' : isGroup ? `Add to ${targetIds.length}` : 'Add fact'}
 	idleMessage="Fix the date to see what will change."
-	isConfirmBlocked={!isDateValid}
+	isConfirmBlocked={!isDateValid || (!isEdit && targetIds.length === 0)}
 	onconfirm={save}
 	{oncancel}
 >
@@ -416,6 +451,26 @@
 				<label for="fact-notes" class="field-label">Notes</label>
 				<textarea id="fact-notes" rows="2" bind:value={notes} class={field}></textarea>
 			</div>
+
+			{#if !isEdit && relatives.length > 0}
+				<fieldset class="rounded-lg border border-stone-200 px-3 py-2" data-testid="fact-also-add">
+					<legend class="px-1 text-sm font-semibold text-emerald-900">Also add to…</legend>
+					<p class="text-xs text-stone-600">
+						Each person gets their own copy. Editing one later does not change the others.
+					</p>
+					<ul class="mt-2 max-h-40 space-y-1 overflow-y-auto">
+						{#each relatives as relative (relative.id)}
+							<li>
+								<label class="flex items-center gap-2 text-sm coarse:min-h-11">
+									<input type="checkbox" value={relative.id} bind:group={tickedIds} />
+									{relative.name}
+									<span class="text-xs text-stone-500">{relative.relation}</span>
+								</label>
+							</li>
+						{/each}
+					</ul>
+				</fieldset>
+			{/if}
 
 			<SourceSection
 				{treeId}
