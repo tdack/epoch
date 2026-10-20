@@ -1,6 +1,7 @@
 import type { R2Bucket, R2ObjectBody } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
 import {
+	LeaveBlockedError,
 	NotFoundError,
 	PayloadTooLargeError,
 	UnauthorizedError,
@@ -11,7 +12,14 @@ import { fetchAccessPicture } from '../media/access-picture';
 import { sniffMediaType } from '../media/media-type';
 import { UserRepository } from '../repositories/user-repository';
 import { isInlineMediaType } from '../../shared/media';
-import { avatarKeyFor, MAX_AVATAR_BYTES, type ProfileViewDto } from '../../shared/profile';
+import {
+	avatarKeyFor,
+	isSameEmail,
+	MAX_AVATAR_BYTES,
+	type LeaveBlockersDto,
+	type ProfileViewDto
+} from '../../shared/profile';
+import type { FarewellTemplateInput } from '../email/farewell-template';
 import { requireRealUser } from './tree-access';
 
 /**
@@ -133,6 +141,61 @@ export class ProfileService {
 		const object = row?.avatarKey ? await bucket.get(row.avatarKey) : null;
 		if (!object) throw new NotFoundError('Avatar');
 		return object;
+	}
+
+	/** What stops the caller leaving; the profile page shows it up front and `leave` enforces it. */
+	async leaveBlockers(context: AuthenticatedContext): Promise<LeaveBlockersDto> {
+		requireRealUser(context);
+		return {
+			isInstallOwner: context.user.isInstallOwner === true,
+			soleOwnerTrees: await this.users.soleOwnerTrees(context.user.id)
+		};
+	}
+
+	/**
+	 * Leaves Epoch (ADR-070): memberships, settings, marks, pending invitations and the avatar go;
+	 * the `users` row stays. Returns what the farewell email needs, read before the deletes since
+	 * the memberships it lists are gone afterwards. The avatar object is deleted after the commit and
+	 * a failure there is only logged: the person is already out, and a stray object harms no one.
+	 */
+	async leave(
+		confirmEmail: string,
+		bucket: R2Bucket,
+		context: AuthenticatedContext
+	): Promise<Pick<FarewellTemplateInput, 'name' | 'trees'> & { to: string }> {
+		requireRealUser(context);
+		const { user } = context;
+		if (!isSameEmail(confirmEmail, user.email)) {
+			throw new ValidationError('Type your email address exactly to confirm');
+		}
+		const blockers = await this.leaveBlockers(context);
+		if (blockers.isInstallOwner) {
+			throw new LeaveBlockedError(
+				'You own this Epoch, so you cannot leave until ownership is handed over.',
+				blockers
+			);
+		}
+		if (blockers.soleOwnerTrees.length > 0) {
+			const names = blockers.soleOwnerTrees.map((tree) => tree.name).join(', ');
+			throw new LeaveBlockedError(
+				`You are the only owner of ${names}. Make someone else an owner first.`,
+				blockers
+			);
+		}
+		const farewell = {
+			to: user.email,
+			name: user.name ?? null,
+			trees: await this.users.treesWithOwners(user.id)
+		};
+		// shortcut: the sole-owner check and the batch are separate statements, so two sole owners
+		// leaving at the same instant could orphan a tree; upgrade if that ever happens.
+		await this.users.leave(user.id, user.email, this.now());
+		try {
+			await bucket.delete(avatarKeyFor(user.id));
+		} catch (error) {
+			console.warn('Could not delete the avatar of a person who left', error);
+		}
+		return farewell;
 	}
 
 	private async store(

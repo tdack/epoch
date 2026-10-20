@@ -37,3 +37,21 @@ export function initialsOf(
 	}
 	return ([...(email ?? '').trim()][0] ?? '').toUpperCase();
 }
+
+/** What stops a person leaving Epoch yet; both empty means they can. */
+export interface LeaveBlockersDto {
+	/** The install owner runs the deployment and cannot leave until that moves. */
+	isInstallOwner: boolean;
+	/** Trees where this person is the only owner. */
+	soleOwnerTrees: { id: string; name: string }[];
+}
+
+/** What `POST /api/profile/leave` takes. */
+export interface LeaveRequestDto {
+	confirmEmail: string;
+}
+
+/** Whether the typed address is the person's own: trimmed and case-insensitive, as the server checks it. */
+export function isSameEmail(typed: string, email: string): boolean {
+	return typed.trim().toLowerCase() === email.trim().toLowerCase();
+}
