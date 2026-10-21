@@ -37,7 +37,7 @@
 		{ id: 'profile', label: 'Profile' },
 		{ id: 'trees', label: 'My trees' },
 		{ id: 'appearance', label: 'Appearance' },
-		{ id: 'leave', label: 'Leave' }
+		{ id: 'leave', label: 'Leave Epoch' }
 	] as const;
 	const tab = $derived(hashTab(page.url.hash, ['profile', 'trees', 'appearance', 'leave']));
 
