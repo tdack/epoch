@@ -1,44 +1,40 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
-import type { SettingsView } from '#lib/shared/settings.js';
 
-const navigation = vi.hoisted(() => ({ invalidate: vi.fn() }));
+const navigation = vi.hoisted(() => ({ invalidate: vi.fn(), goto: vi.fn() }));
 vi.mock('$app/navigation', () => navigation);
-vi.mock('#lib/api/settings.js', () => ({
-	saveMySettings: vi.fn(),
-	saveSiteSettings: vi.fn()
+vi.mock('$app/state', () => ({
+	page: { url: new URL('https://epoch.test/trees/smiths/settings'), params: { id: 'smiths' } }
 }));
+const toasts = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('#lib/components/tree/tree-context.js', () => ({
+	getTreeContext: () => ({ toasts })
+}));
+vi.mock('#lib/api/trees.js', () => ({ renameTreeApi: vi.fn(), deleteTreeApi: vi.fn() }));
+vi.mock('#lib/api/people.js', () => ({ savePrivacySettings: vi.fn() }));
+vi.mock('#lib/api/files.js', () => ({
+	startGedcomExport: vi.fn(),
+	gedcomExportUrl: vi.fn(() => '/api/export')
+}));
+vi.mock('#lib/api/subtrees.js', () => ({ deleteSubtree: vi.fn(), updateSubtree: vi.fn() }));
+vi.mock('#lib/api/relationships.js', () => ({ undoApi: vi.fn() }));
 
-import { saveMySettings, saveSiteSettings } from '#lib/api/settings.js';
+import { renameTreeApi } from '#lib/api/trees.js';
+import { savePrivacySettings } from '#lib/api/people.js';
 import Page from './+page.svelte';
 
-const saveMine = vi.mocked(saveMySettings);
-const saveSite = vi.mocked(saveSiteSettings);
-
-const SITE_SEX = { male: '#3a6ea5', female: '#b8607f', unknown: '#7d756a' };
-
-function view(overrides: Partial<SettingsView> = {}): SettingsView {
-	return {
-		user: {},
-		site: { sexColours: SITE_SEX },
-		effective: {
-			sexColours: SITE_SEX,
-			tracePalette: {
-				trace: ['#e69f00', '#00a57a', '#d55e00', '#f0e442', '#7b5fd1', '#2f6fd0'],
-				intersection: '#c026d3'
-			},
-			focusColours: { ancestor: '#8a5a14', descendant: '#0f766e', partner: '#7c3a72' },
-			isMotionReduced: false
-		},
-		...overrides
-	};
-}
+const rename = vi.mocked(renameTreeApi);
+const savePrivacy = vi.mocked(savePrivacySettings);
 
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
-	saveMine.mockReset().mockResolvedValue(view());
-	saveSite.mockReset().mockResolvedValue(view());
+	rename.mockReset().mockResolvedValue({ id: 't1', slug: 'smiths', isOnSubdomain: false });
+	savePrivacy
+		.mockReset()
+		.mockResolvedValue({ maxAliveYears: 100, shouldShowPrivateStructure: true });
 	navigation.invalidate.mockReset().mockResolvedValue(undefined);
+	navigation.goto.mockReset().mockResolvedValue(undefined);
+	toasts.push.mockReset();
 });
 afterEach(() => {
 	if (component) unmount(component);
@@ -46,16 +42,31 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(settings = view(), isInstallOwner = false, treeCount = 2) {
+interface Options {
+	can?: Partial<{ canManageSubtrees: boolean; canExport: boolean; canDelete: boolean }>;
+	isInstallOwner?: boolean;
+	isTreePublic?: boolean;
+	subdomainZone?: string | null;
+}
+
+function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...rest }: Options = {}) {
 	component = mount(Page, {
 		target: document.body,
 		props: {
 			data: {
-				settings,
-				trees: Array.from({ length: treeCount }, (_, i) => ({ id: `t${i + 1}` })),
+				subdomainZone: null,
+				hostTree: null,
+				...rest,
+				privacy: { maxAliveYears: 100, shouldShowPrivateStructure: false },
+				subtrees: [],
+				rootNames: {},
+				canManageSubtrees: true,
+				canExport: true,
+				canDelete: false,
+				...can,
 				summary: {
-					tree: { id: 't1', slug: 'smiths', name: 'Smiths' },
-					viewer: { isInstallOwner }
+					tree: { id: 't1', slug: 'smiths', name: 'Smiths', version: 3, isOnSubdomain: false },
+					viewer: { isInstallOwner, isTreePublic }
 				}
 			} as never
 		}
@@ -63,15 +74,11 @@ function render(settings = view(), isInstallOwner = false, treeCount = 2) {
 	flushSync();
 }
 
-const field = (id: string) => document.getElementById(id) as HTMLInputElement;
-function type(id: string, value: string) {
-	const input = field(id);
-	input.value = value;
-	input.dispatchEvent(new Event('input', { bubbles: true }));
-	flushSync();
-}
-const button = (name: string, within: Element | Document = document) =>
-	[...within.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith(name))!;
+const sections = () => [...document.querySelectorAll('section[id]')].map((s) => s.id);
+const nameOf = (id: string) =>
+	document.getElementById(document.getElementById(id)!.getAttribute('aria-labelledby')!)!
+		.textContent;
+
 async function submit(form: HTMLFormElement) {
 	form.requestSubmit();
 	await tick();
@@ -79,160 +86,98 @@ async function submit(form: HTMLFormElement) {
 	await tick();
 }
 
-describe('settings page', () => {
-	it('labels every colour, shows the inherited site default and contrast figures as text', () => {
-		render();
-		for (const label of ['Male', 'Female', 'Unknown or other', 'Trace 1', 'Ancestor line'])
-			expect(document.querySelector(`label[for="mine-${idOf(label)}-text"]`)?.textContent).toBe(
-				label
-			);
-		expect(field('mine-sex-male-text').value).toBe('#3a6ea5');
-		expect(field('mine-sex-male-picker').getAttribute('aria-label')).toBe(
-			'Male: choose with a colour picker'
+describe('tree settings page', () => {
+	it('shows every section to an owner, each named by its heading', () => {
+		render({ can: { canDelete: true } });
+		expect(sections()).toEqual([
+			'general',
+			'address',
+			'visibility',
+			'subtrees',
+			'export',
+			'delete'
+		]);
+		expect(nameOf('delete')).toBe('Delete this tree');
+		expect(document.querySelector('h2')!.textContent).toBe('Tree settings');
+		expect(document.body.textContent).toContain('apply to everyone in Smiths');
+	});
+
+	it('leaves out the sections the viewer cannot use', () => {
+		render({ can: { canManageSubtrees: false, canExport: false, canDelete: false } });
+		expect(sections()).toEqual(['general', 'address', 'visibility']);
+	});
+
+	it('says whether the tree is public, and offers the install owner only the link to change it', () => {
+		render({ isTreePublic: true });
+		expect(document.getElementById('visibility')!.textContent).toContain(
+			'This tree is public: anyone with the link can read it.'
 		);
-		const hint = document.getElementById(
-			field('mine-sex-male-text').getAttribute('aria-describedby')!
-		)!;
-		expect(hint.textContent).toMatch(/Border on fill \d+\.\d:1 \(needs 3:1\)/);
-		expect(document.getElementById('mine-sexColours-status')!.textContent).toContain(
-			'Using the site default'
-		);
-		expect(document.body.textContent).not.toContain('Site default');
-		expect(document.querySelectorAll('fieldset legend').length).toBe(3);
-	});
-
-	it('saves a changed colour as its whole group and repaints the app', async () => {
-		render();
-		type('mine-sex-male-text', '#4A86C8');
-		expect(document.getElementById('mine-sexColours-status')!.textContent).toContain(
-			'Your own colours'
-		);
-		await submit(document.querySelector('form')!);
-		expect(saveMine).toHaveBeenCalledWith({
-			sexColours: { ...SITE_SEX, male: '#4a86c8' },
-			tracePalette: null,
-			focusColours: null
-		});
-		expect(navigation.invalidate).toHaveBeenCalledWith('app:settings');
-	});
-
-	it('keeps text that is not a colour, marked invalid, without changing the colour', () => {
-		render();
-		type('mine-sex-female-text', 'pink');
-		const input = field('mine-sex-female-text');
-		expect(input.getAttribute('aria-invalid')).toBe('true');
-		const error = document.getElementById('mine-sex-female-error')!;
-		expect(input.getAttribute('aria-describedby')).toContain(error.id);
-		expect(error.textContent).toContain('six hex digits');
-		expect(field('mine-sex-female-picker').value).toBe('#b8607f');
-	});
-
-	it('marks a colour that breaks a floor and refuses to send it', async () => {
-		render();
-		type('mine-sex-male-text', '#ffff00');
-		const error = document.getElementById('mine-sex-male-error')!;
-		expect(error.textContent).toContain('Male: the card border is too close to its fill');
-		expect(field('mine-sex-male-text').getAttribute('aria-invalid')).toBe('true');
-		await submit(document.querySelector('form')!);
-		expect(saveMine).not.toHaveBeenCalled();
-		expect(document.querySelector('[role="alert"]')!.textContent).toContain('too hard to read');
-	});
-
-	it('clears one group back to the site default', async () => {
-		render(
-			view({
-				user: {
-					focusColours: { ancestor: '#6b4410', descendant: '#0f766e', partner: '#7c3a72' }
-				}
-			})
-		);
-		expect(field('mine-focus-ancestor-text').value).toBe('#6b4410');
-		button('Use the site default', document.querySelectorAll('fieldset')[2]).click();
-		flushSync();
-		expect(field('mine-focus-ancestor-text').value).toBe('#8a5a14');
-		await submit(document.querySelector('form')!);
-		expect(saveMine).toHaveBeenCalledWith({
-			sexColours: null,
-			tracePalette: null,
-			focusColours: null
-		});
-	});
-
-	it('fills every group from a preset, and resets them all', () => {
-		render();
-		button('Colour-blind safe').click();
-		flushSync();
-		expect(field('mine-sex-male-text').value).toBe('#0072b2');
-		expect(field('mine-trace-2-text').value).toBe('#56b4e9');
-		button('Reset all to the site default').click();
-		flushSync();
-		expect(field('mine-sex-male-text').value).toBe('#3a6ea5');
-	});
-
-	it('shows what the server refused', async () => {
-		saveMine.mockRejectedValue(new Error('Female: the sphere is too dark'));
-		render();
-		type('mine-sex-male-text', '#4a86c8');
-		await submit(document.querySelector('form')!);
-		await vi.waitFor(() =>
-			expect(document.getElementById('mine-save-error')!.textContent).toContain(
-				'Female: the sphere is too dark'
-			)
-		);
-	});
-
-	it('gives the install owner the site default too, saved to its own endpoint', async () => {
-		render(view(), true);
-		expect(document.body.textContent).toContain('Site default');
-		expect(field('site-sex-male-text').value).toBe('#3a6ea5');
-		type('site-sex-male-text', '#4a86c8');
-		await submit(document.querySelectorAll('form')[1]);
-		expect(saveSite).toHaveBeenCalledWith(
-			expect.objectContaining({ sexColours: { ...SITE_SEX, male: '#4a86c8' } })
-		);
-		expect(saveMine).not.toHaveBeenCalled();
-	});
-
-	it('saves Reduce animation on change, and clears it rather than storing off', async () => {
-		render();
-		const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-		expect(box.closest('label')!.textContent).toContain('Reduce animation');
-		expect(box.checked).toBe(false);
-		box.click();
-		await tick();
-		expect(saveMine).toHaveBeenLastCalledWith({ isMotionReduced: true });
-		expect(navigation.invalidate).toHaveBeenCalledWith('app:settings');
-		await vi.waitFor(() => expect(box.disabled).toBe(false));
-		expect(box.checked).toBe(true);
-		box.click();
-		await tick();
-		expect(saveMine).toHaveBeenLastCalledWith({ isMotionReduced: null });
-	});
-
-	it('points at the Trees page for the default tree', () => {
-		render();
-		const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Trees page')!;
-		expect(link.getAttribute('href')).toBe('/trees/smiths/trees');
-	});
-
-	it('leaves the Trees page out where the menu does: one tree, and not the install owner', () => {
-		const trees = () =>
-			[...document.querySelectorAll('a')].filter((a) => a.textContent === 'Trees page');
-		render(view(), false, 1);
-		expect(trees()).toHaveLength(0);
+		expect(document.querySelector('a[href="/admin#trees"]')).toBeNull();
 		unmount(component!);
-		render(view(), true, 1);
-		expect(trees()).toHaveLength(1);
+		document.body.innerHTML = '';
+		render({ isInstallOwner: true });
+		expect(document.getElementById('visibility')!.textContent).toContain('Not public');
+		expect(document.querySelector('a[href="/admin#trees"]')).not.toBeNull();
+	});
+
+	it('hides the subdomain choice where the install serves none', () => {
+		render();
+		expect(document.getElementById('tree-subdomain-help')).toBeNull();
+		unmount(component!);
+		document.body.innerHTML = '';
+		render({ subdomainZone: 'epoch.test' });
+		expect(document.getElementById('tree-subdomain-help')!.textContent).toContain(
+			'Its name becomes visible as a web address'
+		);
+	});
+
+	it('saves a new name with the address as it stands, then reloads in place', async () => {
+		render();
+		const input = document.getElementById('tree-name') as HTMLInputElement;
+		input.value = 'The Smiths';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+		await submit(input.closest('form')!);
+		expect(rename).toHaveBeenCalledWith('t1', 'The Smiths', 'smiths', 3, undefined);
+		expect(toasts.push).toHaveBeenCalledWith('Tree saved');
+		expect(navigation.invalidate).toHaveBeenCalled();
+	});
+
+	it('sends nothing when the address is unchanged, and refuses a malformed one', async () => {
+		render();
+		const slug = document.getElementById('tree-slug') as HTMLInputElement;
+		await submit(slug.closest('form')!);
+		expect(rename).not.toHaveBeenCalled();
+		slug.value = 'Not A Slug';
+		slug.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+		await submit(slug.closest('form')!);
+		expect(rename).not.toHaveBeenCalled();
+		expect(document.querySelector('[role="alert"]')!.textContent).toContain('lower-case letters');
+	});
+
+	it('moves the page when the address changes', async () => {
+		rename.mockResolvedValue({ id: 't1', slug: 'the-smiths', isOnSubdomain: false });
+		render();
+		const slug = document.getElementById('tree-slug') as HTMLInputElement;
+		slug.value = 'the-smiths';
+		slug.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+		await submit(slug.closest('form')!);
+		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'the-smiths', 3, undefined);
+		expect(navigation.goto).toHaveBeenCalledWith('/trees/the-smiths/settings#address', {
+			replaceState: true,
+			invalidateAll: true
+		});
+	});
+
+	it('saves the "Private" placeholder choice as soon as it is ticked', async () => {
+		render();
+		const box = document.querySelector<HTMLInputElement>('#visibility input[type="checkbox"]')!;
+		box.click();
+		await tick();
+		await Promise.resolve();
+		expect(savePrivacy).toHaveBeenCalledWith('t1', { shouldShowPrivateStructure: true });
+		expect(toasts.push).toHaveBeenCalledWith('Hidden people now show as Private');
 	});
 });
-
-function idOf(label: string): string {
-	const ids: Record<string, string> = {
-		Male: 'sex-male',
-		Female: 'sex-female',
-		'Unknown or other': 'sex-unknown',
-		'Trace 1': 'trace-0',
-		'Ancestor line': 'focus-ancestor'
-	};
-	return ids[label];
-}
