@@ -107,6 +107,17 @@ describe('schema status', () => {
 		expect(await isSchemaCurrent(t.d1)).toBe(false);
 	});
 
+	it('rethrows a database failure that is not a missing table', async () => {
+		const broken = {
+			prepare: () => ({
+				all: async () => {
+					throw new Error('D1_ERROR: Network connection lost');
+				}
+			})
+		} as unknown as typeof t.d1;
+		await expect(pendingMigrations(broken)).rejects.toThrow(/Network connection lost/);
+	});
+
 	it('names only the migrations that are missing', async () => {
 		await recordApplied(EXPECTED_MIGRATIONS.slice(0, -1));
 		expect(await pendingMigrations(t.d1)).toEqual([EXPECTED_MIGRATIONS.at(-1)]);

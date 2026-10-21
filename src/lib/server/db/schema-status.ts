@@ -22,8 +22,12 @@ export async function pendingMigrations(d1: D1Database): Promise<string[]> {
 	try {
 		const { results } = await d1.prepare('SELECT name FROM d1_migrations').all<{ name: string }>();
 		applied = new Set(results.map((row) => row.name));
-	} catch {
-		// No bookkeeping table: nothing has been migrated (or it was built some other way).
+	} catch (err) {
+		// Only a missing table means "not migrated"; any other failure (a D1 outage) must surface as
+		// itself rather than tell the operator to run a migration that is fine.
+		if (!(err instanceof Error) || !/no such table/i.test(`${err.message} ${err.cause ?? ''}`)) {
+			throw err;
+		}
 		applied = new Set();
 	}
 	return EXPECTED_MIGRATIONS.filter((name) => !applied.has(name));
