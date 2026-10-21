@@ -159,7 +159,7 @@
 			? 'Add to or remove from the trace.'
 			: isWholeTree
 				? 'Light their line.'
-				: `Mark them. Shift+Enter centres ${subject} on them and shows their details.`
+				: `Light their line. Shift+Enter centres ${subject} on them and shows their details.`
 	);
 	/**
 	 * Names on screen: the focus line, whoever the pointer is over and the open drawer. Every name at
@@ -376,12 +376,10 @@
 	function selectPerson(id: string) {
 		if (lit.isTracing) {
 			lit.toggleTrace({ kind: 'person', personId: id });
-		} else if (isWholeTree) {
-			// Nobody is the focus here, so a person lights their line where they stand.
-			lit.select({ kind: 'focus', personId: id });
-			onSelectPerson?.(id);
 		} else {
-			lit.select(null);
+			// The click no longer moves the focus, so their line is lit in place, as in the whole tree
+			// where nobody is the focus. A double-click that refocuses drops this with the old layout.
+			lit.select({ kind: 'focus', personId: id });
 			onSelectPerson?.(id);
 		}
 	}
@@ -468,7 +466,6 @@
 		{kin}
 		{highlight}
 		{palette}
-		{isWholeTree}
 		isTracing={lit.isTracing}
 		{labelOf}
 	/>

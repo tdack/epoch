@@ -33,8 +33,6 @@
 		/** What is lit now, for saying why the hovered item is. */
 		highlight: Highlight;
 		palette: Palette;
-		/** The whole tree is drawn: a click lights a person's line instead of refocusing. */
-		isWholeTree: boolean;
 		isTracing: boolean;
 		/** What to call a source in a sentence; see `sourceLabel`. */
 		labelOf: (source: HighlightSource) => string;
@@ -49,7 +47,6 @@
 		kin,
 		highlight,
 		palette,
-		isWholeTree,
 		isTracing,
 		labelOf
 	}: Props = $props();
@@ -151,11 +148,8 @@
 				{card.childrenInView === 1 ? 'child' : 'children'} in view
 			</p>
 			<p class="hint">
-				{isTracing
-					? 'Click to add to or remove from the trace'
-					: isWholeTree
-						? 'Click to light their line'
-						: 'Click to mark'} · double-click to centre and see details
+				{isTracing ? 'Click to add to or remove from the trace' : 'Click to light their line'} · double-click
+				to centre and see details
 			</p>
 		{:else if itemCard}
 			<p class="name">{itemCard.title}</p>
