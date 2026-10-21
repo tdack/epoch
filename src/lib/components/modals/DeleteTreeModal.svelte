@@ -52,7 +52,7 @@
 
 <BaseModal
 	{isOpen}
-	title="Delete Tree Permanently"
+	title="Delete tree permanently"
 	icon={Trash2}
 	iconBgClass="bg-red-100"
 	iconBorderClass="border-red-300"
@@ -113,7 +113,7 @@
 					<span>Deleting...</span>
 				{:else}
 					<Trash2 class="h-3.5 w-3.5" />
-					<span>Delete Tree</span>
+					<span>Delete tree</span>
 				{/if}
 			</button>
 		</div>
