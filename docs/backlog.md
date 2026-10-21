@@ -258,6 +258,7 @@ Last reviewed: 2026-10-18.
 
 ### Media and documents
 
+- **GEDZIP import and export (ADR-074).** Phase 1 moves large `.ged` imports (>2 MB) to an R2 → Workflow path with an `import_job` table for status. Phase 2 adds `.gdz` media import as detached files, with a `gedcom_path` migration. Phase 3 exports with segments. Phase 4 models OBJE so imported files attach to their owners.
 - **Media records.** `OBJE` is retained, not modelled: an import creates no file, so an `OBJE` under a
   `SOUR` stays a kept line and is not linked to the files a source has in Epoch, and an export
   writes no attached file (ADR-061). Model metadata, ownership, dates, notes, citations and links to
