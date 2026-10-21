@@ -122,7 +122,6 @@ Last reviewed: 2026-10-21.
 
 ### Members and invitations
 
-- **No audit entry for membership changes.** (ADR-016)
 - **No "leave this tree"** for a member: Leave Epoch (ADR-072) leaves every tree at once. It
   belongs in Account › My trees (ADR-075). No transfer wizard either (an owner makes another owner,
   then steps down). (ADR-016)
@@ -158,8 +157,6 @@ Last reviewed: 2026-10-21.
 
 ### Settings
 
-- **Build ADR-075** (one page per scope): `/account`, Tree settings, `/admin`, the menu changes and
-  the redirects; remove the default view for everyone.
 - **Drop `trees.default_view_mode`** in its own migration, after the ADR-075 code that ignores it is
   deployed (expand-and-contract).
 - **More app-wide settings beyond colours and reduced motion.** Left out of the first settings page
