@@ -4,7 +4,7 @@
 	interface Props {
 		/**
 		 * Whether the chart has a context menu. The overviews have none, so the hint does not send
-		 * anyone to it there; elsewhere even a viewer's menu offers Open profile, which double-click
+		 * anyone to it there; elsewhere even a viewer's menu offers Open full page, which double-click
 		 * does not.
 		 */
 		hasMenuActions: boolean;

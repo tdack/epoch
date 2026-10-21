@@ -14,7 +14,7 @@ export interface PersonRef {
 export interface TreeEditActions {
 	/** "Show details": open the person in the drawer. */
 	onOpenPerson?: (id: string) => void;
-	/** "Open profile": go to the person's own page, as the toolbar's entry of that name does. */
+	/** "Open full page": go to the person's own page, as the drawer's link of that name does. */
 	onOpenProfile?: (id: string) => void;
 	onEditPerson?: (id: string) => void;
 	onDeletePerson?: (id: string) => void;
@@ -39,16 +39,17 @@ export function personMenuItems(
 	const items: MenuItem[] = [];
 	const { onOpenPerson, onOpenProfile, onEditPerson, onAddRelationship } = actions;
 	if (onOpenPerson) items.push({ label: 'Show details', onClick: () => onOpenPerson(person.id) });
-	if (onOpenProfile) items.push({ label: 'Open profile', onClick: () => onOpenProfile(person.id) });
 	if (onEditPerson) items.push({ label: 'Edit person', onClick: () => onEditPerson(person.id) });
 	if (onAddRelationship)
 		items.push({ label: 'Add relationship', onClick: () => onAddRelationship(person) });
 	const { onRecordDeath, onEndPartnership, onDeletePerson } = actions;
-	if (onRecordDeath)
-		items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
 	if (onEndPartnership && hasPartnerships) {
 		items.push({ label: 'End partnership…', onClick: () => onEndPartnership(person.id) });
 	}
+	if (onRecordDeath)
+		items.push({ label: 'Record death…', onClick: () => onRecordDeath(person.id) });
+	if (onOpenProfile)
+		items.push({ label: 'Open full page', onClick: () => onOpenProfile(person.id) });
 	if (onDeletePerson)
 		items.push({
 			label: 'Delete person…',

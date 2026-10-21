@@ -609,6 +609,7 @@
 						selectedPersonId={markedPersonId}
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
+						onShowPerson={handleShowDetails}
 						onOpenProfile={openProfile}
 						onClearSelection={clearSelection}
 						onEditPerson={actions.onEditPerson}

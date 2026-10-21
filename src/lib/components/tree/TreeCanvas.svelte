@@ -60,7 +60,7 @@
 		onOpenPerson?: (id: string) => void;
 		/** "Show details" in a card's menu: open the drawer on them without refocusing. */
 		onShowPerson?: (id: string) => void;
-		/** The context menu's Open profile: go to the person's own page. */
+		/** The context menu's Open full page: go to the person's own page. */
 		onOpenProfile?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
 		onClearSelection?: () => void;

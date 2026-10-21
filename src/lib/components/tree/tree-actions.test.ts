@@ -4,7 +4,7 @@ import { personMenuItems, unionMenuItems } from './tree-actions';
 const anna = { id: 'p1', displayName: 'Anna' };
 
 describe('personMenuItems', () => {
-	it('lists only what the page allows, in the order the flat menu has always used', () => {
+	it('lists only what the page allows, in the order the menu is laid out', () => {
 		const all = personMenuItems(anna, true, {
 			onOpenPerson: vi.fn(),
 			onOpenProfile: vi.fn(),
@@ -16,11 +16,11 @@ describe('personMenuItems', () => {
 		});
 		expect(all.map((i) => i.label)).toEqual([
 			'Show details',
-			'Open profile',
 			'Edit person',
 			'Add relationship',
-			'Record death…',
 			'End partnership…',
+			'Record death…',
+			'Open full page',
 			'Delete person…'
 		]);
 		expect(all.at(-1)?.isDanger).toBe(true);
@@ -34,13 +34,13 @@ describe('personMenuItems', () => {
 		expect(actions.onEndPartnership).toHaveBeenCalledWith('p1');
 	});
 
-	it('opens the drawer and the profile page as two entries', () => {
+	it('opens the drawer and the full page as two entries', () => {
 		const actions = { onOpenPerson: vi.fn(), onOpenProfile: vi.fn() };
-		const [details, profile] = personMenuItems(anna, false, actions);
+		const [details, fullPage] = personMenuItems(anna, false, actions);
 		details.onClick();
 		expect(actions.onOpenPerson).toHaveBeenCalledWith('p1');
 		expect(actions.onOpenProfile).not.toHaveBeenCalled();
-		profile.onClick();
+		fullPage.onClick();
 		expect(actions.onOpenProfile).toHaveBeenCalledWith('p1');
 	});
 
