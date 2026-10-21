@@ -275,7 +275,7 @@
 		background: #fdfbf7;
 		color: #292524;
 		padding: 0.25rem 0.625rem;
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
 	}
 	.secondary:not(:disabled):hover {
 		background: #f5f5f4;

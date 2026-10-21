@@ -16,15 +16,6 @@ export async function saveDefaultTree(treeId: string | null): Promise<void> {
 	await call('/api/default-tree', json('PUT', { treeId }), 'Failed to save the default tree');
 }
 
-/** The view members with no choice of their own get; the owner's to set. */
-export async function saveDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
-	await call(
-		path`/api/trees/${treeId}/default-view`,
-		json('PUT', { mode }),
-		'Failed to save the default view'
-	);
-}
-
 /** Changes the caller's own layer; a group sent as null inherits the site default again. */
 export function saveMySettings(patch: SettingsPatch): Promise<SettingsView> {
 	return call('/api/settings', json('PUT', patch), 'Failed to save your settings');

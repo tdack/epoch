@@ -5,7 +5,7 @@
 
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { treeInvitations, treeMemberships } from '../db/schema';
+import { changeLog, treeInvitations, treeMemberships, users } from '../db/schema';
 import {
 	ConcurrencyConflictError,
 	NotFoundError,
@@ -48,6 +48,14 @@ const versionOf = async (treeId: string, actor: TestActor) =>
 const roleOf = async (treeId: string, actor: TestActor) =>
 	(await t.db.select().from(treeMemberships).where(eq(treeMemberships.userId, actor.userId)))[0]
 		?.role;
+
+const change = async (treeId: string, by: TestActor, target: TestActor, role: TreeRole) =>
+	service().changeRole(
+		treeId,
+		target.userId,
+		{ role, version: await versionOf(treeId, target) },
+		by.context
+	);
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -373,14 +381,6 @@ describe('taking up an invitation', () => {
 });
 
 describe('changing a role', () => {
-	const change = async (treeId: string, by: TestActor, target: TestActor, role: TreeRole) =>
-		service().changeRole(
-			treeId,
-			target.userId,
-			{ role, version: await versionOf(treeId, target) },
-			by.context
-		);
-
 	it('lets a manager move editors, contributors and viewers between the roles below manager', async () => {
 		const { treeId, actors } = await tree();
 		await expect(change(treeId, actors.manager, actors.viewer, 'editor')).resolves.toMatchObject({
@@ -523,5 +523,109 @@ describe('removing', () => {
 			service().remove(treeId, actors.viewer.userId, 99, actors.manager.context)
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
 		expect(await roleOf(treeId, actors.viewer)).toBe('viewer');
+	});
+});
+
+describe('the audit log', () => {
+	const logOf = async (treeId: string) =>
+		t.db
+			.select({
+				kind: changeLog.kind,
+				summary: changeLog.summary,
+				actorId: changeLog.actorId,
+				inverseJson: changeLog.inverseJson
+			})
+			.from(changeLog)
+			.where(eq(changeLog.treeId, treeId))
+			.orderBy(changeLog.seq);
+
+	it('records a role change, a removal, an invitation and its withdrawal, none of them undoable', async () => {
+		const { treeId, actors } = await tree();
+		const members = service();
+		await members.changeRole(
+			treeId,
+			actors.viewer.userId,
+			{ role: 'editor', version: await versionOf(treeId, actors.viewer) },
+			actors.manager.context
+		);
+		await members.remove(
+			treeId,
+			actors.contributor.userId,
+			await versionOf(treeId, actors.contributor),
+			actors.manager.context
+		);
+		const invited = await members.invite(
+			treeId,
+			{ email: 'new@example.com', role: 'viewer' },
+			actors.manager.context
+		);
+		await members.revokeInvitation(treeId, invited.id, actors.manager.context);
+		expect(await logOf(treeId)).toEqual([
+			{
+				kind: 'change_member_role',
+				summary: "Changed viewer's role from viewer to editor",
+				actorId: actors.manager.userId,
+				inverseJson: null
+			},
+			{
+				kind: 'remove_member',
+				summary: 'Removed contributor from the tree',
+				actorId: actors.manager.userId,
+				inverseJson: null
+			},
+			{
+				kind: 'invite_member',
+				summary: 'Invited someone to join as viewer',
+				actorId: actors.manager.userId,
+				inverseJson: null
+			},
+			{
+				kind: 'withdraw_invitation',
+				summary: 'Withdrew an invitation to join as viewer',
+				actorId: actors.manager.userId,
+				inverseJson: null
+			}
+		]);
+	});
+
+	it('records nothing for a refused change, or for choosing the role someone already has', async () => {
+		const { treeId, actors } = await tree();
+		const stale = await versionOf(treeId, actors.viewer);
+		await service().changeRole(
+			treeId,
+			actors.viewer.userId,
+			{ role: 'viewer', version: stale },
+			actors.owner.context
+		);
+		await service()
+			.changeRole(
+				treeId,
+				actors.viewer.userId,
+				{ role: 'editor', version: stale },
+				actors.owner.context
+			)
+			.catch(() => null);
+		await service()
+			.remove(
+				treeId,
+				actors.owner.userId,
+				await versionOf(treeId, actors.owner),
+				actors.owner.context
+			)
+			.catch(() => null);
+		expect(await logOf(treeId)).toEqual([]);
+	});
+
+	it('never names an email address, since editors read the log', async () => {
+		const { treeId, actors } = await tree();
+		// A member with no name is the case most tempted to fall back to their email.
+		await t.db.update(users).set({ name: null }).where(eq(users.id, actors.viewer.userId));
+		await change(treeId, actors.owner, actors.viewer, 'contributor');
+		await service().invite(
+			treeId,
+			{ email: 'private@example.com', role: 'viewer' },
+			actors.owner.context
+		);
+		expect((await logOf(treeId)).map((e) => e.summary).join(' ')).not.toContain('@');
 	});
 });

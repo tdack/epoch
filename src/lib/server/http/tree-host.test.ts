@@ -124,6 +124,8 @@ describe('treeHostRoute', () => {
 		});
 		expect(route('/settings')).toEqual({ action: 'app', path: '/settings' });
 		expect(route('/manage/trees')).toEqual({ action: 'app', path: '/manage/trees' });
+		expect(route('/account')).toEqual({ action: 'app', path: '/account' });
+		expect(route('/admin')).toEqual({ action: 'app', path: '/admin' });
 	});
 
 	it('does not mistake a longer name for an install-wide page', () => {

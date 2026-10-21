@@ -89,10 +89,6 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
-	[`${API}/trees/[id]/default-view/+server.ts`]: {
-		kind: 'role-gated',
-		covers: 'services/tree-view-mode.test.ts'
-	},
 	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
 	[`${API}/profile/+server.ts`]: { kind: 'own-data', covers: 'services/profile-service.test.ts' },
 	[`${API}/profile/access-picture/+server.ts`]: {
@@ -291,11 +287,14 @@ const NO_RECORD_LOADS = [
 	'./+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
-	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
+	// The person's own pages (ADR-075): their tree list with roles, their profile and colours, and,
+	// for the install owner alone, every tree's name and counts. No person record of any tree.
+	'./(app)/+layout.server.ts',
+	'./(app)/account/+page.server.ts',
+	'./(app)/admin/+page.server.ts',
+	// Only redirect to Administration or the account, by who is asking.
 	'./manage/trees/+page.server.ts',
-	// Only redirects to the settings under a tree, chosen the same way.
 	'./settings/+page.server.ts',
-	// The same, for the profile.
 	'./profile/+page.server.ts'
 ];
 

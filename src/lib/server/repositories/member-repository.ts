@@ -1,6 +1,13 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, gt, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { researchTasks, treeInvitations, treeMemberships, trees, users } from '../db/schema';
+import {
+	changeLog,
+	researchTasks,
+	treeInvitations,
+	treeMemberships,
+	trees,
+	users
+} from '../db/schema';
 import type { TreeRole } from '../../shared/roles';
 
 export interface MemberRow {
@@ -25,6 +32,15 @@ export interface InvitationRow {
  */
 const keepsAnOwner = (treeId: string) =>
 	sql`(select count(*) from tree_memberships o where o.tree_id = ${treeId} and o.role = 'owner') > 1`;
+
+/** A membership change for the audit log (ADR-075): who did it, and what it says. Never undoable. */
+export interface MembershipLogEntry {
+	treeId: string;
+	actorId: string;
+	kind: 'change_member_role' | 'remove_member' | 'invite_member' | 'withdraw_invitation';
+	summary: string;
+	correlationId?: string | null;
+}
 
 export class MemberRepository {
 	constructor(private db: DbClient) {}
@@ -68,9 +84,10 @@ export class MemberRepository {
 		userId: string,
 		role: TreeRole,
 		expectedVersion: number,
-		now: Date
+		now: Date,
+		log?: MembershipLogEntry
 	): Promise<boolean> {
-		const changed = await this.db
+		const update = this.db
 			.update(treeMemberships)
 			.set({ role, version: sql`${treeMemberships.version} + 1`, updatedAt: now })
 			.where(
@@ -82,6 +99,8 @@ export class MemberRepository {
 				)
 			)
 			.returning({ id: treeMemberships.id });
+		if (!log) return (await update).length > 0;
+		const [changed] = await this.db.batch([update, this.logIfChanged(log)]);
 		return changed.length > 0;
 	}
 
@@ -89,7 +108,12 @@ export class MemberRepository {
 	 * Remove a member under the same two conditions as `changeRole`. Their tasks stay and become
 	 * unassigned in the same batch, and only if the removal happened (ADR-029).
 	 */
-	async remove(treeId: string, userId: string, expectedVersion: number): Promise<boolean> {
+	async remove(
+		treeId: string,
+		userId: string,
+		expectedVersion: number,
+		log: MembershipLogEntry
+	): Promise<boolean> {
 		const [removed] = await this.db.batch([
 			this.db
 				.delete(treeMemberships)
@@ -102,6 +126,7 @@ export class MemberRepository {
 					)
 				)
 				.returning({ id: treeMemberships.id }),
+			this.logIfChanged(log),
 			this.db
 				.update(researchTasks)
 				.set({ assigneeId: null })
@@ -152,9 +177,10 @@ export class MemberRepository {
 
 	/** One pending offer per tree and address: inviting again replaces the role and restarts the clock. */
 	async upsertInvitation(
-		invitation: InvitationRow & { invitedBy: string; now: Date }
+		invitation: InvitationRow & { invitedBy: string; now: Date },
+		log: MembershipLogEntry
 	): Promise<InvitationRow> {
-		const rows = await this.db
+		const upsert = this.db
 			.insert(treeInvitations)
 			.values({
 				id: invitation.id,
@@ -175,13 +201,21 @@ export class MemberRepository {
 				}
 			})
 			.returning();
+		const [rows] = await this.db.batch([upsert, this.logIfChanged(log)]);
 		return rows[0] as InvitationRow;
 	}
 
-	async deleteInvitation(treeId: string, invitationId: string): Promise<void> {
-		await this.db
-			.delete(treeInvitations)
-			.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId)));
+	async deleteInvitation(
+		treeId: string,
+		invitationId: string,
+		log: MembershipLogEntry
+	): Promise<void> {
+		await this.db.batch([
+			this.db
+				.delete(treeInvitations)
+				.where(and(eq(treeInvitations.treeId, treeId), eq(treeInvitations.id, invitationId))),
+			this.logIfChanged(log)
+		]);
 	}
 
 	/** Every unexpired invitation to this address, in any tree. */
@@ -223,5 +257,34 @@ export class MemberRepository {
 			await this.db.delete(treeInvitations).where(eq(treeInvitations.id, invitation.id));
 		}
 		return pending.length;
+	}
+
+	/**
+	 * Appends `entry` to the change log only if the statement just before it in the batch wrote a
+	 * row, so a refused or raced change leaves no entry. It must sit directly after that statement:
+	 * `changes()` counts the most recent write.
+	 */
+	private logIfChanged(entry: MembershipLogEntry) {
+		const values: Partial<Record<keyof typeof changeLog.$inferInsert, unknown>> = {
+			id: crypto.randomUUID(),
+			treeId: entry.treeId,
+			actorId: entry.actorId,
+			kind: entry.kind,
+			summary: entry.summary,
+			changesJson: '[]',
+			correlationId: entry.correlationId ?? null,
+			createdAt: Date.now()
+		};
+		const row = sql.join(
+			Object.keys(getTableColumns(changeLog)).map(
+				(key) => sql`${values[key as keyof typeof values] ?? null}`
+			),
+			sql`, `
+		);
+		// `changes()` is the previous statement in the batch: log only a write that happened. Drizzle's
+		// typed insert-select cannot take a raw guard, as in change-store.
+		return (this.db.insert(changeLog) as unknown as { select: (query: unknown) => never }).select(
+			sql`select ${row} where changes() > 0`
+		);
 	}
 }

@@ -27,6 +27,8 @@ describe('public routes', () => {
 		expect(isPublicPagePath('/')).toBe(false);
 		expect(isPublicPagePath('/welcome/extra')).toBe(false);
 		expect(isPublicPagePath('/trees/t1')).toBe(false);
+		expect(isPublicPagePath('/account')).toBe(false);
+		expect(isPublicPagePath('/admin')).toBe(false);
 	});
 
 	it('sends a signed-out page load to the welcome page, remembering where it was going', () => {

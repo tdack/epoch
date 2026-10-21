@@ -1,9 +1,8 @@
 /**
  * How a tree is drawn: the flat hourglass, or one of the WebGL views: rings (ADR-032) and the Ball,
- * Ribbons and Orrery alternatives. Shared by the server, which stores a member's choice and the
- * tree's default, and the page, which turns them into the view on screen. A stored or linked mode
- * that is no longer here (Layers and Floors, ADR-047) parses as none, so the next choice in line
- * applies.
+ * Ribbons and Orrery alternatives. Shared by the server, which stores a member's choice, and the
+ * page, which turns it into the view on screen. A stored or linked mode that is no longer here
+ * (Layers and Floors, ADR-047) parses as none, so the next choice in line applies.
  */
 
 export const LAYOUT_MODES = {
@@ -68,6 +67,15 @@ export const WEBGL_LAYOUT_MODES: readonly LayoutMode[] = LAYOUT_MODE_VALUES.filt
 	(mode) => VIEW_MODE_TRAITS[mode].isWebGl
 );
 
+/** What each mode is called on screen; "Ball" is the Poincaré view. */
+export const MODE_LABELS: Record<LayoutMode, string> = {
+	flat: 'Flat',
+	rings: 'Rings',
+	poincare: 'Ball',
+	ribbons: 'Ribbons',
+	orrery: 'Orrery'
+};
+
 /** The stored or typed value as a mode, or null when it is absent or not one (a column holds text). */
 export function parseLayoutMode(value: unknown): LayoutMode | null {
 	return LAYOUT_MODE_VALUES.find((mode) => mode === value) ?? null;
@@ -75,12 +83,11 @@ export function parseLayoutMode(value: unknown): LayoutMode | null {
 
 /**
  * The view to draw. What the address says wins, so a shared link or a Back step lands as it was;
- * then the member's own setting; then the tree's default; and flat when nobody has chosen.
+ * then the member's own setting; and flat when they have not chosen (ADR-075).
  */
 export function resolveLayoutMode(choices: {
 	fromAddress: LayoutMode | null;
 	fromMember: LayoutMode | null;
-	fromTree: LayoutMode | null;
 }): LayoutMode {
-	return choices.fromAddress ?? choices.fromMember ?? choices.fromTree ?? LAYOUT_MODES.FLAT;
+	return choices.fromAddress ?? choices.fromMember ?? LAYOUT_MODES.FLAT;
 }

@@ -19,9 +19,7 @@ export const trees = sqliteTable(
 		shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
 			.notNull()
 			.default(false),
-		// The view a member with no setting of their own sees (a `LayoutMode`); null is flat, and a
-		// mode since removed reads as null.
-		// Set by the owner; changing it does not bump `version`, which guards the name and description.
+		// No longer read (ADR-075); dropped in a later migration once this code is deployed.
 		defaultViewMode: text('default_view_mode'),
 		version: integer('version').notNull().default(1),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

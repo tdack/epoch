@@ -8,6 +8,7 @@
 import { getContext, setContext } from 'svelte';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
+import type { GedcomExportChoice } from '#lib/api/files.js';
 import type { TreeEditor } from './tree-editor.svelte.js';
 
 const KEY = Symbol('epoch-tree-context');
@@ -32,6 +33,14 @@ export interface TreeContext {
 	openNewTree: () => void;
 	/** Previews a GEDCOM file for this tree and asks before importing it, as the header's import does. */
 	importGedcom: (file: File) => void;
+	/** Starts a GEDCOM export through the layout's shell, which polls a large one and shows its progress. */
+	exportGedcom: (choice: GedcomExportChoice) => Promise<void>;
+	/** After the tree's address or subdomain changes: move to where the tree now lives (ADR-045). */
+	followAddress: (tree: {
+		id: string;
+		slug: string | null;
+		isOnSubdomain: boolean;
+	}) => Promise<void>;
 	/**
 	 * Nobody is signed in: the reader of the public tree. A screen must not call an endpoint that
 	 * stores something for a user, since the answer is a 401 and the API client reacts to a 401 by

@@ -16,7 +16,7 @@ import {
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
 import { requireTreeAction } from './tree-access';
-import { MemberRepository } from '../repositories/member-repository';
+import { MemberRepository, type MembershipLogEntry } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { type InvitationSentDto, type MemberDto, type MembersDto } from '../../shared/members';
 import { Logger } from '../logging/logger';
@@ -25,6 +25,23 @@ import type { InvitationMailer } from './invitation-mailer';
 export const INVITATION_TTL_DAYS = 14;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The audit log is read by editors, who may not see members' addresses (a manager's view), so an
+ * entry names a person and never their email.
+ */
+function nameOf(member: { name: string | null }): string {
+	return member.name?.trim() || 'a member with no name set';
+}
+
+function logEntry(
+	treeId: string,
+	context: AuthenticatedContext,
+	kind: MembershipLogEntry['kind'],
+	summary: string
+): MembershipLogEntry {
+	return { treeId, actorId: context.user.id, kind, summary, correlationId: context.correlationId };
+}
 
 export class MemberService {
 	private members: MemberRepository;
@@ -92,15 +109,18 @@ export class MemberService {
 			throw new ValidationError('That person is already a member; change their role instead');
 		const now = this.now();
 		const expiresAt = new Date(now.getTime() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000);
-		const saved = await this.members.upsertInvitation({
-			id: crypto.randomUUID(),
-			treeId,
-			email,
-			role: input.role,
-			invitedBy: context.user.id,
-			expiresAt,
-			now
-		});
+		const saved = await this.members.upsertInvitation(
+			{
+				id: crypto.randomUUID(),
+				treeId,
+				email,
+				role: input.role,
+				invitedBy: context.user.id,
+				expiresAt,
+				now
+			},
+			logEntry(treeId, context, 'invite_member', `Invited someone to join as ${input.role}`)
+		);
 		const wasEmailSent = await this.sendInvitationEmail(treeId, saved, context);
 		return {
 			id: saved.id,
@@ -150,7 +170,16 @@ export class MemberService {
 		// An offer of a role the caller could not give is not theirs to withdraw.
 		if (!grantableRoles(actor).includes(invitation.role))
 			throw new UnauthorizedError('Forbidden: you cannot withdraw this invitation');
-		await this.members.deleteInvitation(treeId, invitationId);
+		await this.members.deleteInvitation(
+			treeId,
+			invitationId,
+			logEntry(
+				treeId,
+				context,
+				'withdraw_invitation',
+				`Withdrew an invitation to join as ${invitation.role}`
+			)
+		);
 	}
 
 	async changeRole(
@@ -168,7 +197,16 @@ export class MemberService {
 			userId,
 			input.role,
 			input.version,
-			this.now()
+			this.now(),
+			// Choosing the role someone already has bumps the version but changes nothing worth logging.
+			input.role === target.role
+				? undefined
+				: logEntry(
+						treeId,
+						context,
+						'change_member_role',
+						`Changed ${nameOf(target)}'s role from ${target.role} to ${input.role}`
+					)
 		);
 		if (!didChange) await this.explainRefusal(treeId, userId, input.version, target.role);
 		const changed = (await this.members.getMember(treeId, userId))!;
@@ -187,7 +225,12 @@ export class MemberService {
 	): Promise<void> {
 		const actor = await this.requireManager(treeId, context);
 		const target = await this.requireTarget(treeId, userId, actor);
-		const didRemove = await this.members.remove(treeId, userId, version);
+		const didRemove = await this.members.remove(
+			treeId,
+			userId,
+			version,
+			logEntry(treeId, context, 'remove_member', `Removed ${nameOf(target)} from the tree`)
+		);
 		if (!didRemove) await this.explainRefusal(treeId, userId, version, target.role);
 	}
 

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
+	import { page } from '$app/state';
+	import { treePath } from '#lib/shared/tree-slug.js';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -11,9 +14,13 @@
 	} from '#lib/api/members.js';
 	import { describeRole } from '#lib/shared/membership-policy.js';
 	import type { TreeRole } from '#lib/shared/roles.js';
-	import type { PageProps } from './$types';
+	import type { PageData } from './$types';
 
-	let { data }: PageProps = $props();
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
 	const { toasts } = getTreeContext();
 	const treeId = $derived(data.summary.tree.id);
 
@@ -23,6 +30,8 @@
 	let inviteRole = $state<TreeRole>(untrack(() => data.members.grantableRoles.at(-1) ?? 'viewer'));
 	let isBusy = $state(false);
 	let removing = $state<string | null>(null);
+	// A role changes what someone else can see and do, so the select only proposes it (ADR-075).
+	let proposedRole = $state<{ userId: string; role: TreeRole } | null>(null);
 	// A refused role change leaves the select showing the choice that was refused, because the stored
 	// role did not change and so nothing re-rendered it; keying the list on each reload resets it.
 	let reloads = $state(0);
@@ -47,6 +56,7 @@
 			// Always reload: a refused change usually means someone else changed the list first.
 			members = await fetchMembers(treeId).catch(() => members);
 			removing = null;
+			proposedRole = null;
 			reloads += 1;
 			isBusy = false;
 		}
@@ -70,8 +80,12 @@
 	<title>Members · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
+<TreeAdminTabs
+	base={treePath({ ...data.summary.tree, subtree: null })}
+	pathname={page.url.pathname}
+/>
 <h2 class="text-2xl font-bold text-stone-900">Members</h2>
-<p class="mt-1 max-w-2xl text-sm text-stone-600">
+<p class="mt-1 max-w-prose text-sm text-stone-600">
 	An invitation gives an email address a role here and is emailed to that address. The role is taken
 	up when that person next signs in with it. Cloudflare Access is a separate gate: the address must
 	also be allowed by the Access policy for this app.
@@ -172,11 +186,11 @@
 								value={member.role}
 								disabled={isBusy}
 								onchange={(event) => {
-									const role = event.currentTarget.value as TreeRole;
-									void run(
-										() => changeMemberRoleApi(treeId, member.userId, role, member.version),
-										`${member.email} is now ${role}`
-									);
+									removing = null;
+									proposedRole = {
+										userId: member.userId,
+										role: event.currentTarget.value as TreeRole
+									};
 								}}
 								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize"
 							>
@@ -187,7 +201,30 @@
 									>
 								{/each}
 							</select>
-							{#if removing === member.userId}
+							{#if proposedRole?.userId === member.userId}
+								{@const role = proposedRole.role}
+								<button
+									type="button"
+									disabled={isBusy}
+									onclick={() =>
+										run(
+											() => changeMemberRoleApi(treeId, member.userId, role, member.version),
+											`${member.email} is now ${role}`
+										)}
+									class="rounded-lg bg-emerald-800 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+									>Make {role}</button
+								>
+								<button
+									type="button"
+									onclick={() => {
+										proposedRole = null;
+										// Re-keys the list so the select shows the stored role again.
+										reloads += 1;
+									}}
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700"
+									>Cancel</button
+								>
+							{:else if removing === member.userId}
 								<button
 									type="button"
 									disabled={isBusy}

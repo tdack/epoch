@@ -5,7 +5,6 @@
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
 	import AvatarMenu from '#lib/components/profile/AvatarMenu.svelte';
 	import type { ProfileViewDto } from '#lib/shared/profile.js';
-	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
 
@@ -24,16 +23,12 @@
 		onselectTree: (id: string) => void;
 		onselectSubtree?: (subtree: SubtreeSummaryDto) => void;
 		onopenNewTree: () => void;
-		onopenDeleteTree: () => void;
-		/** Absent below manager, who may not rename the tree, so the menu item is not shown. */
-		onopenRenameTree?: () => void;
 		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
 		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
-		onexportGedcom: (choice: GedcomExportChoice) => void;
-		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
-		canExport?: boolean;
-		/** False for the public visitor, who is offered no way to start, import or delete a tree. */
+		/** Where a tree's settings are, or null where the viewer cannot manage it; see TreeSwitcher. */
+		settingsHref?: (tree: TreeSummary) => string | null;
+		/** False for the public visitor, who is offered no way to start or import a tree. */
 		canChangeTrees?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */
 		finder?: Snippet;
@@ -41,8 +36,10 @@
 		homeHref?: string;
 		/** Who is signed in; absent for the public visitor, who gets no account menu. */
 		viewer?: ProfileViewDto | null;
-		profileHref?: string;
-		settingsHref?: string;
+		/** The account page; on a tree's own subdomain it is on the app host. */
+		accountHref?: string;
+		/** The install owner's Administration page; absent for everyone else. */
+		adminHref?: string;
 		/** Where Sign out goes (see `signOutHref`); the menu is shown only with it. */
 		signOutHref?: string;
 	}
@@ -58,18 +55,15 @@
 		onselectTree,
 		onselectSubtree,
 		onopenNewTree,
-		onopenDeleteTree,
-		onopenRenameTree,
 		onopenAddPerson,
 		onfileSelect,
-		onexportGedcom,
-		canExport = false,
+		settingsHref,
 		canChangeTrees = true,
 		finder,
 		homeHref = '/',
 		viewer = null,
-		profileHref = '/profile',
-		settingsHref = '/settings',
+		accountHref = '/account',
+		adminHref,
 		signOutHref
 	}: Props = $props();
 </script>
@@ -102,11 +96,8 @@
 		{onselectTree}
 		{onselectSubtree}
 		{onopenNewTree}
-		{onopenDeleteTree}
-		{onopenRenameTree}
 		{onfileSelect}
-		{onexportGedcom}
-		{canExport}
+		{settingsHref}
 		{canChangeTrees}
 	/>
 
@@ -128,7 +119,7 @@
 			</button>
 		{/if}
 		{#if viewer && signOutHref}
-			<AvatarMenu {viewer} {profileHref} {settingsHref} {signOutHref} />
+			<AvatarMenu {viewer} {accountHref} {adminHref} {signOutHref} />
 		{/if}
 	</div>
 </header>

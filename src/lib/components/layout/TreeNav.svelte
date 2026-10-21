@@ -1,28 +1,23 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import { canChangeRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
-	import { hasTreesPage } from '#lib/shared/trees-page.js';
 
 	interface Props {
 		/** The tree these links belong to. */
 		treeId: string;
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
-		/** The viewer's role; managers and owners also get the members and privacy screens. */
+		/** The viewer's role; editors and above also get the Audit log. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
-		/** The install owner also gets the app-wide Trees page, in every tree. */
-		isInstallOwner?: boolean;
-		/** How many trees the viewer belongs to; with more than one they get the Trees page to pick a default. */
-		treeCount?: number;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
 		/**
-		 * On a tree's own subdomain, the app host's origin: the Files and Trees pages span trees, so
-		 * they are served there instead. Absent on the app host.
+		 * On a tree's own subdomain, the app host's origin: the Files page spans trees, so it is
+		 * served there instead. Absent on the app host.
 		 */
 		appOrigin?: string;
 	}
@@ -32,8 +27,6 @@
 		treeSlug = null,
 		role,
 		pathname,
-		isInstallOwner = false,
-		treeCount = 0,
 		isOutsider = false,
 		appOrigin = ''
 	}: Props = $props();
@@ -54,6 +47,16 @@
 	]);
 	const research = $derived<NavLink[]>([
 		{ href: `${base}/sources`, label: 'Sources', isActive: startsWith(`${base}/sources`) },
+		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
+		...(role && !isOutsider
+			? [
+					{
+						href: `${appOrigin}${base}/files`,
+						label: 'Files',
+						isActive: startsWith(`${base}/files`)
+					}
+				]
+			: []),
 		{ href: `${base}/notes`, label: 'Notes', isActive: startsWith(`${base}/notes`) },
 		...(isOutsider
 			? []
@@ -69,38 +72,14 @@
 			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
-	const manage = $derived<NavLink[]>([
-		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
-		...(role && !isOutsider
-			? [
-					{
-						href: `${appOrigin}${base}/files`,
-						label: 'Files',
-						isActive: startsWith(`${base}/files`)
-					}
-				]
-			: []),
-		// The log names whoever a change touched, so only roles that see every record read it (ADR-068).
-		...(canChangeRecords(role) && !isOutsider
+	// The tree's administration is behind the gear in the tree switcher (ADR-075); its change log
+	// stays here, because editors read it and they administer nothing.
+	const history = $derived<NavLink[]>(
+		canChangeRecords(role) && !isOutsider
 			? [{ href: `${base}/audit`, label: 'Audit log', isActive: startsWith(`${base}/audit`) }]
-			: []),
-		...(isManagerOrAbove(role)
-			? [
-					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
-					{ href: `${base}/privacy`, label: 'Privacy', isActive: startsWith(`${base}/privacy`) }
-				]
-			: []),
-		...(hasTreesPage(isInstallOwner, treeCount)
-			? [
-					{
-						href: `${appOrigin}${base}/trees`,
-						label: 'Trees',
-						isActive: startsWith(`${base}/trees`)
-					}
-				]
-			: [])
-	]);
-	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
+			: []
+	);
+	const activeInMore = $derived([...research, ...history].find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
 		`focus-ring-inset shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap coarse:inline-flex coarse:min-h-11 coarse:items-center ${
@@ -133,7 +112,8 @@
 				{...attrs}
 				class="{tabClass(!!activeInMore)} inline-flex cursor-pointer items-center gap-1"
 			>
-				{activeInMore ? `More: ${activeInMore.label}` : 'More'}
+				<!-- On a phone the name would push the tabs off; the highlight alone says you are in More. -->
+				More{#if activeInMore}<span class="hidden sm:inline">: {activeInMore.label}</span>{/if}
 				<ChevronDown class="h-3.5 w-3.5" aria-hidden="true" />
 			</button>
 		{/snippet}
@@ -150,12 +130,12 @@
 				>
 			{/each}
 		</div>
-		{#if manage.length > 0}
-			<div role="group" aria-label="Manage" class="mt-1 border-t border-stone-200">
+		{#if history.length > 0}
+			<div role="group" aria-label="History" class="mt-1 border-t border-stone-200">
 				<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-					Manage
+					History
 				</p>
-				{#each manage as link (link.href)}
+				{#each history as link (link.href)}
 					<a
 						href={link.href}
 						role="menuitem"

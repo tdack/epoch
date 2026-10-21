@@ -78,3 +78,4 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 72 | Leave Epoch, as built | [ADR-072.md](adr/ADR-072.md) | Implemented |
 | 73 | PDFs are served inline in a new tab | [ADR-073.md](adr/ADR-073.md) | Implemented |
 | 74 | GEDZIP import and export with media, staged in R2 and processed by Workflow | [ADR-074.md](adr/ADR-074.md) | Draft |
+| 75 | One page per scope: Account, Tree settings and Administration | [ADR-075.md](adr/ADR-075.md) | Implemented |

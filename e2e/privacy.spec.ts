@@ -102,16 +102,16 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 			.getByRole('navigation', { name: 'Tree sections' })
 			.getByRole('button', { name: 'More' })
 			.click();
-		await expect(viewer.getByRole('menuitem', { name: 'Privacy' })).toHaveCount(0);
+		await expect(viewer.getByRole('menuitem', { name: 'Tree settings' })).toHaveCount(0);
 		await expect(viewer.getByRole('menuitem', { name: 'Members' })).toHaveCount(0);
 		await viewer.keyboard.press('Escape');
 		expect((await viewer.request.get(`/api/trees/${api.treeId}/members`)).status()).toBe(403);
 
 		// The owner turns placeholders on.
-		await open(page, `${base}/privacy`);
+		await open(page, `${base}/settings#visibility`);
+		// A checkbox saves on change (ADR-075).
 		await page.getByLabel(/Show hidden people as/).check();
-		await page.getByRole('button', { name: 'Save' }).click();
-		await expect(page.getByText('Privacy settings saved')).toBeVisible();
+		await expect(page.getByText('Hidden people now show as Private')).toBeVisible();
 		await page.screenshot({ path: `${SHOTS}/privacy-settings.png` });
 
 		await open(viewer, `${base}?focus=${encodeURIComponent(kin.id)}`);

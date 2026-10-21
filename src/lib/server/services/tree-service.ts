@@ -178,13 +178,6 @@ export class TreeService {
 		return { defaultTreeId: treeId };
 	}
 
-	/** The view members with no choice of their own get; the owner's to set. */
-	async setDefaultViewMode(treeId: string, mode: LayoutMode | null, context: AuthenticatedContext) {
-		await requireTreeAction(this.userRepo, treeId, context, 'tree:set_default_view');
-		await this.treeRepo.setDefaultViewMode(treeId, mode);
-		return { defaultViewMode: mode };
-	}
-
 	/**
 	 * The rows go first. Had the bytes gone first, a failure between the two would leave a tree that
 	 * still exists with its files gone, so every file in it would fail to open. Going rows-first, a
