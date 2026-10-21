@@ -81,7 +81,13 @@ export function appOrigin(url: URL, config: TreeHostConfig): string {
 
 /** Pages that span trees: on a tree host they are served from the app host instead. */
 const INSTALL_WIDE_TREE_PAGES: readonly string[] = ['trees', 'files'];
-const INSTALL_WIDE_PREFIXES: readonly string[] = ['/settings', '/manage'];
+const INSTALL_WIDE_PREFIXES: readonly string[] = [
+	'/account',
+	'/admin',
+	'/profile',
+	'/settings',
+	'/manage'
+];
 
 /**
  * What a tree host does with a path, so that the host shows only its own tree.
