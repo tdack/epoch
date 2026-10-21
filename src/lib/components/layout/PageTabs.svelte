@@ -25,7 +25,7 @@
 		<a
 			href={tab.href}
 			aria-current={tab.isCurrent ? 'page' : undefined}
-			data-sveltekit-noscroll
+			data-sveltekit-reset="false"
 			class="shrink-0 border-b-2 px-3 py-2 font-semibold whitespace-nowrap focus-ring-inset coarse:inline-flex coarse:min-h-11 coarse:items-center {tab.isCurrent
 				? 'border-emerald-800 text-emerald-900'
 				: 'border-transparent text-stone-600 hover:text-stone-900'}"
