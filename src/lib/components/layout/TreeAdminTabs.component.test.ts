@@ -12,7 +12,7 @@ afterEach(() => {
 function tabsFor(role: string) {
 	component = mount(TreeAdminTabs, {
 		target: document.body,
-		props: { base: '/trees/smiths', current: 'audit', role } as never
+		props: { treeName: 'The Smiths', base: '/trees/smiths', current: 'audit', role } as never
 	});
 	flushSync();
 	return [...document.querySelectorAll('a')].map((a) => [

@@ -141,19 +141,19 @@
 </svelte:head>
 
 <TreeAdminTabs
+	treeName={tree.name}
 	base={treePath({ ...data.summary.tree, subtree: null })}
 	current={tab}
 	role={viewer.role}
 />
 {#if tab === 'settings'}
-	<h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
-	<p class="mt-1 max-w-prose text-sm text-stone-600">
+	<p class="max-w-prose text-sm text-stone-600">
 		These settings apply to everyone in {tree.name}. Your own colours and defaults are on your
 		<a href={appHref('/account', data.hostTree)} class="text-link">account</a>.
 	</p>
 
 	<section id="general" class="mt-8 scroll-mt-20" aria-labelledby="general-heading">
-		<h3 id="general-heading" class={sectionHeadingClass}>General</h3>
+		<h2 id="general-heading" class={sectionHeadingClass}>General</h2>
 		<form onsubmit={saveName} class="mt-3 max-w-2xl">
 			<label for="tree-name" class="field-label">Tree name</label>
 			<div class="flex flex-wrap items-center gap-2">
@@ -176,7 +176,7 @@
 	</section>
 
 	<section id="address" class="mt-10 scroll-mt-20" aria-labelledby="address-heading">
-		<h3 id="address-heading" class={sectionHeadingClass}>Address</h3>
+		<h2 id="address-heading" class={sectionHeadingClass}>Address</h2>
 		<form onsubmit={saveAddress} class="mt-3 max-w-2xl space-y-4">
 			<div>
 				<label for="tree-slug" class="field-label">Web address</label>
@@ -233,7 +233,7 @@
 	</section>
 
 	<section id="visibility" class="mt-10 scroll-mt-20" aria-labelledby="visibility-heading">
-		<h3 id="visibility-heading" class={sectionHeadingClass}>Visibility</h3>
+		<h2 id="visibility-heading" class={sectionHeadingClass}>Visibility</h2>
 		<VisibilitySettings treeId={tree.id} settings={data.privacy} {toasts} />
 		<div class="mt-4 max-w-prose text-sm text-stone-700">
 			<p>
@@ -257,13 +257,13 @@
 
 	{#if data.canDelete}
 		<section id="delete" class="mt-10 scroll-mt-20" aria-labelledby="delete-heading">
-			<h3 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h3>
+			<h2 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h2>
 			<p class="mt-1 max-w-prose text-sm text-stone-600">
 				Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
 			</p>
 			<button
 				type="button"
-				class="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 focus-ring hover:bg-red-50"
+				class="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 focus-ring hover:bg-red-50 coarse:min-h-11"
 				onclick={() => {
 					deleteError = null;
 					isDeleteOpen = true;
@@ -283,9 +283,8 @@
 		onchanged={() => invalidate(DATA_KEY)}
 	/>
 {:else if tab === 'export' && data.canExport}
-	<section id="export-tab" class="scroll-mt-20" aria-labelledby="export-heading">
-		<h2 id="export-heading" class="text-2xl font-bold text-stone-900">Export</h2>
-		<p class="mt-1 max-w-prose text-sm text-stone-600">
+	<section id="export-tab" class="scroll-mt-20" aria-label="Export">
+		<p class="max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
 		</p>
 		<GedcomExportChoices {isExporting} onexport={exportGedcom} />

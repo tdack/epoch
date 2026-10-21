@@ -90,7 +90,7 @@ describe('tree settings page', () => {
 		render({ can: { canDelete: true } });
 		expect(sections()).toEqual(['general', 'address', 'visibility', 'delete']);
 		expect(nameOf('delete')).toBe('Delete this tree');
-		expect(document.querySelector('h2')!.textContent).toBe('Tree settings');
+		expect(document.querySelector('h1')!.textContent).toBe('Manage Smiths');
 		expect(document.body.textContent).toContain('apply to everyone in Smiths');
 	});
 
