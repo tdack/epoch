@@ -26,6 +26,8 @@
 		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
 		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
+		/** Where a tree's settings are, or null where the viewer cannot manage it; see TreeSwitcher. */
+		settingsHref?: (tree: TreeSummary) => string | null;
 		/** False for the public visitor, who is offered no way to start or import a tree. */
 		canChangeTrees?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */
@@ -55,6 +57,7 @@
 		onopenNewTree,
 		onopenAddPerson,
 		onfileSelect,
+		settingsHref,
 		canChangeTrees = true,
 		finder,
 		homeHref = '/',
@@ -94,6 +97,7 @@
 		{onselectSubtree}
 		{onopenNewTree}
 		{onfileSelect}
+		{settingsHref}
 		{canChangeTrees}
 	/>
 

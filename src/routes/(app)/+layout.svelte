@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { signOutHref } from '#lib/shared/access.js';
+	import { isManagerOrAbove } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
 	import SourceLink from '#lib/components/layout/SourceLink.svelte';
@@ -43,6 +44,7 @@
 		onopenNewTree={shell.openNewTree}
 		onopenAddPerson={() => {}}
 		onfileSelect={shell.selectFile}
+		settingsHref={(t) => (isManagerOrAbove(t.role) ? `${treePath(t)}/settings` : null)}
 		viewer={data.viewer}
 		adminHref={data.isInstallOwner ? '/admin' : undefined}
 		signOutHref={signOutHref(page.url.origin)}

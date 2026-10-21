@@ -23,6 +23,7 @@ function render(
 		activeSubtreeId?: string | null;
 		onselectTree?: (id: string) => void;
 		onselectSubtree?: (subtree: { id: string }) => void;
+		settingsHref?: (tree: TreeSummary) => string | null;
 	} = {}
 ) {
 	component = mount(TreeSwitcher, {
@@ -116,5 +117,20 @@ describe('TreeSwitcher', () => {
 			radios()[1].click();
 			expect(onselectTree).toHaveBeenCalledWith('b');
 		});
+	});
+
+	it('puts a settings gear beside each tree the viewer manages, and none beside the rest', () => {
+		const trigger = render('a', {
+			settingsHref: (t) => (t.id === 'b' ? null : `/trees/${t.id}/settings`)
+		});
+		trigger.click();
+		flushSync();
+		const gears = [...document.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]')].map(
+			(a) => [a.getAttribute('aria-label'), a.getAttribute('href')]
+		);
+		expect(gears).toEqual([
+			['Settings for Alpha', '/trees/a/settings'],
+			['Settings for Gamma', '/trees/c/settings']
+		]);
 	});
 });

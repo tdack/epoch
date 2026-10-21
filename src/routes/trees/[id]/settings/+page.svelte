@@ -1,4 +1,6 @@
 <script lang="ts">
+	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
@@ -11,7 +13,7 @@
 	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { appHref } from '#lib/shared/tree-host.js';
-	import { MAX_TREE_SLUG_LENGTH, isValidTreeSlug } from '#lib/shared/tree-slug.js';
+	import { MAX_TREE_SLUG_LENGTH, isValidTreeSlug, treePath } from '#lib/shared/tree-slug.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -128,6 +130,10 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
+<TreeAdminTabs
+	base={treePath({ ...data.summary.tree, subtree: null })}
+	pathname={page.url.pathname}
+/>
 <h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
 <p class="mt-1 max-w-prose text-sm text-stone-600">
 	These settings apply to everyone in {tree.name}. Your own colours and defaults are on your

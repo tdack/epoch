@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, ChevronDown, Plus, Upload } from '@lucide/svelte';
+	import { Check, ChevronDown, Plus, Settings, Upload } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
@@ -23,6 +23,11 @@
 		onselectSubtree?: (subtree: SubtreeSummaryDto) => void;
 		onopenNewTree: () => void;
 		onfileSelect: (e: Event) => void;
+		/**
+		 * Where a tree's settings are, or null for a tree the viewer cannot manage, which then shows no
+		 * gear. Absent where no tree's settings are offered (ADR-075).
+		 */
+		settingsHref?: (tree: TreeSummary) => string | null;
 		/** False for the public visitor: no way to start or import a tree. Defaults to true. */
 		canChangeTrees?: boolean;
 	}
@@ -39,6 +44,7 @@
 		onselectSubtree,
 		onopenNewTree,
 		onfileSelect,
+		settingsHref,
 		canChangeTrees = true
 	}: Props = $props();
 
@@ -96,21 +102,37 @@
 			{canChangeTrees ? 'Your trees' : 'Public tree'}
 		</p>
 		{#each trees as t (t.id)}
-			<button
-				type="button"
-				role="menuitemradio"
-				aria-checked={t.id === selectedTreeId && !activeSubtreeId}
-				class={itemClass}
-				onclick={() => (t.id !== selectedTreeId || activeSubtreeId) && onselectTree(t.id)}
-			>
-				<Check
-					class="h-3.5 w-3.5 shrink-0 text-emerald-800 {t.id === selectedTreeId && !activeSubtreeId
-						? ''
-						: 'invisible'}"
-					aria-hidden="true"
-				/>
-				<span class="truncate">{t.name}</span>
-			</button>
+			{@const gearHref = settingsHref?.(t) ?? null}
+			<div class="flex items-stretch">
+				<button
+					type="button"
+					role="menuitemradio"
+					aria-checked={t.id === selectedTreeId && !activeSubtreeId}
+					class="{itemClass} min-w-0 flex-1"
+					onclick={() => (t.id !== selectedTreeId || activeSubtreeId) && onselectTree(t.id)}
+				>
+					<Check
+						class="h-3.5 w-3.5 shrink-0 text-emerald-800 {t.id === selectedTreeId &&
+						!activeSubtreeId
+							? ''
+							: 'invisible'}"
+						aria-hidden="true"
+					/>
+					<span class="truncate">{t.name}</span>
+				</button>
+				{#if gearHref}
+					<!-- Beside the name it belongs to, so a tree's settings are found where the tree is chosen. -->
+					<a
+						href={gearHref}
+						role="menuitem"
+						aria-label="Settings for {t.name}"
+						title="Tree settings"
+						class="flex menu-item w-9 shrink-0 items-center justify-center text-stone-500 hover:text-stone-900 coarse:w-11"
+					>
+						<Settings class="h-3.5 w-3.5" aria-hidden="true" />
+					</a>
+				{/if}
+			</div>
 			{#if t.id === selectedTreeId}
 				{#each subtrees as sub (sub.id)}
 					<button

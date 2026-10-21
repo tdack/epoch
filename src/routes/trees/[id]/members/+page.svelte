@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
+	import { page } from '$app/state';
+	import { treePath } from '#lib/shared/tree-slug.js';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -77,6 +80,10 @@
 	<title>Members · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
+<TreeAdminTabs
+	base={treePath({ ...data.summary.tree, subtree: null })}
+	pathname={page.url.pathname}
+/>
 <h2 class="text-2xl font-bold text-stone-900">Members</h2>
 <p class="mt-1 max-w-prose text-sm text-stone-600">
 	An invitation gives an email address a role here and is emailed to that address. The role is taken

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import { canChangeRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
@@ -9,7 +9,7 @@
 		treeId: string;
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
-		/** The viewer's role; managers and owners also get Members and Tree settings. */
+		/** The viewer's role; editors and above also get the Audit log. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
@@ -72,24 +72,14 @@
 			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
-	// The tree's own administration (ADR-075); a viewer or contributor has none, so sees no group.
-	const manage = $derived<NavLink[]>([
-		...(isManagerOrAbove(role)
-			? [
-					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
-					{
-						href: `${base}/settings`,
-						label: 'Tree settings',
-						isActive: startsWith(`${base}/settings`)
-					}
-				]
-			: []),
-		// The log names whoever a change touched, so only roles that see every record read it (ADR-068).
-		...(canChangeRecords(role) && !isOutsider
+	// The tree's administration is behind the gear in the tree switcher (ADR-075); its change log
+	// stays here, because editors read it and they administer nothing.
+	const history = $derived<NavLink[]>(
+		canChangeRecords(role) && !isOutsider
 			? [{ href: `${base}/audit`, label: 'Audit log', isActive: startsWith(`${base}/audit`) }]
-			: [])
-	]);
-	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
+			: []
+	);
+	const activeInMore = $derived([...research, ...history].find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
 		`focus-ring-inset shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap coarse:inline-flex coarse:min-h-11 coarse:items-center ${
@@ -140,12 +130,12 @@
 				>
 			{/each}
 		</div>
-		{#if manage.length > 0}
-			<div role="group" aria-label="Tree" class="mt-1 border-t border-stone-200">
+		{#if history.length > 0}
+			<div role="group" aria-label="History" class="mt-1 border-t border-stone-200">
 				<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-					Tree
+					History
 				</p>
-				{#each manage as link (link.href)}
+				{#each history as link (link.href)}
 					<a
 						href={link.href}
 						role="menuitem"

@@ -3,6 +3,9 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 
 const navigation = vi.hoisted(() => ({ invalidate: vi.fn() }));
 vi.mock('$app/navigation', () => navigation);
+vi.mock('$app/state', () => ({
+	page: { url: new URL('https://epoch.test/trees/smiths/settings') }
+}));
 const toasts = vi.hoisted(() => ({ push: vi.fn() }));
 const context = vi.hoisted(() => ({ followAddress: vi.fn(), exportGedcom: vi.fn() }));
 vi.mock('#lib/components/tree/tree-context.js', () => ({

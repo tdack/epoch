@@ -44,7 +44,7 @@ describe('TreeNav', () => {
 			'Fact search',
 			'Audit log'
 		]);
-		expect(document.querySelector('[role="group"][aria-label="Tree"]')).not.toBeNull();
+		expect(document.querySelector('[role="group"][aria-label="History"]')).not.toBeNull();
 	});
 
 	it('names Sources as the active section on its pages, including a single source', () => {
@@ -107,25 +107,17 @@ describe('TreeNav', () => {
 		expect(trigger.textContent).toContain('More: Files');
 	});
 
-	it('offers Members and Tree settings to managers and owners only', () => {
-		for (const role of ['manager', 'owner']) {
-			render({ role });
-			openMore();
-			expect(menuLabels()).toEqual(expect.arrayContaining(['Members', 'Tree settings']));
-			unmount(component!);
-			component = null;
-			document.body.innerHTML = '';
-		}
-		render({ role: 'contributor' });
+	it('leaves the tree administration to the switcher gear: no Members or Tree settings', () => {
+		render({ role: 'owner' });
 		openMore();
 		expect(menuLabels()).not.toContain('Members');
 		expect(menuLabels()).not.toContain('Tree settings');
 	});
 
-	it('shows no Tree group to a viewer, who manages nothing', () => {
+	it('shows no History group to a viewer, who cannot read the log', () => {
 		render({ role: 'viewer' });
 		openMore();
-		expect(document.querySelector('[role="group"][aria-label="Tree"]')).toBeNull();
+		expect(document.querySelector('[role="group"][aria-label="History"]')).toBeNull();
 	});
 
 	it('no longer carries Settings or Sign out: the avatar menu in the header does', () => {
@@ -133,13 +125,6 @@ describe('TreeNav', () => {
 		openMore();
 		expect(menuLabels()).not.toContain('Settings');
 		expect(menuLabels()).not.toContain('Sign out');
-	});
-
-	it('marks Tree settings active on its page', () => {
-		render({ role: 'manager', pathname: '/trees/t1/settings' });
-		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(
-			'More: Tree settings'
-		);
 	});
 
 	it('names the page inside More on the trigger and styles it active', () => {
