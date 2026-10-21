@@ -2,7 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { signOutHref } from '#lib/shared/access.js';
-	import { isManagerOrAbove } from '#lib/shared/roles.js';
+	import { treeAdminPage } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import AppHeader from '#lib/components/layout/AppHeader.svelte';
 	import SourceLink from '#lib/components/layout/SourceLink.svelte';
@@ -44,12 +44,16 @@
 		onopenNewTree={shell.openNewTree}
 		onopenAddPerson={() => {}}
 		onfileSelect={shell.selectFile}
-		settingsHref={(t) => (isManagerOrAbove(t.role) ? `${treePath(t)}/settings` : null)}
+		settingsHref={(t) => {
+			const admin = treeAdminPage(t.role);
+			return admin && `${treePath(t)}/${admin}`;
+		}}
 		viewer={data.viewer}
 		adminHref={data.isInstallOwner ? '/admin' : undefined}
 		signOutHref={signOutHref(page.url.origin)}
 	/>
-	<main class="mx-auto w-full max-w-3xl flex-1 p-6">
+	<!-- The same column as a tree's pages, so Account and Administration line up with Tree settings. -->
+	<main class="mx-auto w-full max-w-7xl flex-1 p-6">
 		<TreeShellHost {shell} tree={null} />
 		{@render children()}
 	</main>
