@@ -5,7 +5,7 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md) (o
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR (a file in `docs/adr/` and a row in decisions.md) if
 it changes a decision.
 
-Last reviewed: 2026-10-18.
+Last reviewed: 2026-10-21.
 
 ## Part 1: Open fixes
 
@@ -55,8 +55,9 @@ Last reviewed: 2026-10-18.
 
 - **5.5.1 `CONC` wrapping at 255 bytes** is not implemented. No reader in scope needs it. (ADR-042)
 - **Events written before ADR-004's date columns** (`date_raw` with no `date_sort`) never match a
-  year-range search. Run `npm run db:backfill:dates -- --remote` on any deployed database that may
-  hold them. (ADR-004)
+  year-range search, and a lone `FROM x` or `TO y` stored before the parser bounded it sorts as
+  undated in Life and At a glance (ADR-059). Run `npm run db:backfill:dates -- --remote` on any
+  deployed database that may hold them; it re-derives every stored date from its text. (ADR-004)
 - **`_MARNM` handling is unconfirmed against webtrees.** The reading rests on a recollection: level 1
   on the `INDI`, either `Given /Surname/` or a bare surname. A level-2 `_MARNM` under a `NAME` is
   kept as an extra line, not modelled. (ADR-013)
@@ -122,8 +123,8 @@ Last reviewed: 2026-10-18.
 ### Members and invitations
 
 - **No audit entry for membership changes.** (ADR-016)
-- **No "leave this tree"** for a member, and no transfer wizard (an owner makes another owner, then
-  steps down). (ADR-016)
+- **No "leave this tree"** for a member: Leave Epoch (ADR-072) leaves every tree at once. No transfer
+  wizard either (an owner makes another owner, then steps down). (ADR-016)
 - **Cloudflare Access is configured separately.** An invited address must also be allowed by the
   Access policy; the app cannot edit it. `npm run setup -- allow <email>` covers a policy the setup
   tool created.
@@ -184,10 +185,6 @@ Last reviewed: 2026-10-18.
   of their own and their partnerships' events; a tree-wide or comparative view is still open.
 - **Children's births in the person page's Life timeline.** `PersonSummaryDto` carries a child's
   birth as text without a sort key, so placing them needs a sortable birth on the summary (ADR-058).
-- **Re-derive the sort keys of stored open-ended dates.** `parseDateValue` now bounds a lone
-  `FROM x` or `TO y`, but rows written before that keep a null sort key until the fact is edited
-  (a save with an unchanged date is a no-op), so they still sort as undated in Life and At a
-  glance (ADR-059). A one-off backfill, or re-deriving on read, would fix existing trees.
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
 - **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
@@ -247,7 +244,7 @@ Last reviewed: 2026-10-18.
 
 - **Contributor suggestions and pending changes,** with manager approval and rejection, and a
   matching capability. Editors keep editing directly.
-- **Record history, revert-by-command where safe, and conflict review.**
+- **Conflict review.** Record history and undo of any change by id shipped in ADR-068.
 - **Filtered export for lesser roles,** and a review of logs, caches, R2 keys and metadata and error
   messages for privacy leaks.
 - **Authorization matrix coverage for every background job and queue consumer,** not only HTTP
@@ -314,8 +311,7 @@ Nothing below has started as a phase. Findings return to the area that owns them
   and concurrent edits.
 - **Production observability:** error tracking and job alerts.
 - **Documentation:** deployment, Access setup, role model, backup and restore, migration, import
-  diagnostics, privacy behaviour and a collaborator guide. Replace the README's hand-made Access
-  steps with `npm run setup`.
+  diagnostics, privacy behaviour and a collaborator guide.
 - **Release migration rehearsal and rollback procedure,** with smoke tests on a fresh deployment and
   an upgraded snapshot.
 - **Dependency and licence review,** and removal of dead paths.
@@ -357,7 +353,7 @@ The tool is built in `tools/setup/`.
   then the tree's default) end to end. A public visitor reading a sub-tree is covered by ADR-069's
   tests at the load level; a browser e2e needs a way to run signed out, which the dev bypass lacks.
 
-## Group facts and bulk citations (ADR-071)
+### Group facts and bulk citations (ADR-071)
 
 - **Edit all copies of a group fact.** Copies are independent events, so fixing the date of an
   Emigration means editing each. Offer "apply to the other copies" by matching type, date and place
