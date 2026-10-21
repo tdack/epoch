@@ -132,7 +132,7 @@
 <div class="space-y-6">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<div class="min-w-0 space-y-2">
-			<PersonSummary {dto} />
+			<PersonSummary {dto} isPageTitle={isPage} />
 			<CitationsDisclosure
 				{treeId}
 				{treeSlug}
