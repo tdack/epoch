@@ -183,14 +183,13 @@
 							<label class="sr-only" for="role-{member.userId}">Role of {member.email}</label>
 							<select
 								id="role-{member.userId}"
-								value={member.role}
+								value={proposedRole?.userId === member.userId ? proposedRole.role : member.role}
 								disabled={isBusy}
 								onchange={(event) => {
 									removing = null;
-									proposedRole = {
-										userId: member.userId,
-										role: event.currentTarget.value as TreeRole
-									};
+									const role = event.currentTarget.value as TreeRole;
+									// Any other row's unconfirmed choice snaps back to its stored role through `value`.
+									proposedRole = role === member.role ? null : { userId: member.userId, role };
 								}}
 								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize"
 							>
@@ -216,11 +215,7 @@
 								>
 								<button
 									type="button"
-									onclick={() => {
-										proposedRole = null;
-										// Re-keys the list so the select shows the stored role again.
-										reloads += 1;
-									}}
+									onclick={() => (proposedRole = null)}
 									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700"
 									>Cancel</button
 								>

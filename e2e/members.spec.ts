@@ -27,6 +27,7 @@ test('the only owner cannot be removed or lowered', async ({ api, page }) => {
 	await open(page, `/trees/${api.treeId}/members`);
 	const me = page.getByTestId('member');
 	await me.getByRole('combobox').selectOption('viewer');
+	await me.getByRole('button', { name: 'Make viewer' }).click();
 	await expect(page.getByText('A tree must keep at least one owner')).toBeVisible();
 	await expect(me.getByRole('combobox')).toHaveValue('owner');
 	await me.getByRole('button', { name: 'Remove' }).click();
