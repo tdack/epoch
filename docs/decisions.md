@@ -73,7 +73,7 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 67 | Read-only page data loads on the server, through the services | [ADR-067.md](adr/ADR-067.md) | Implemented |
 | 68 | The audit log, and undo of any change by id | [ADR-068.md](adr/ADR-068.md) | Implemented |
 | 69 | A sub-tree is shown to the public only when a manager makes it public | [ADR-069.md](adr/ADR-069.md) | Implemented |
-| 70 | A profile page, an avatar copied into R2, and what leaving Epoch will mean | [ADR-070.md](adr/ADR-070.md) | Partially implemented |
+| 70 | A profile page, an avatar copied into R2, and what leaving Epoch will mean | [ADR-070.md](adr/ADR-070.md) | Implemented |
 | 71 | Group facts are copies and bulk sources are per-person citations | [ADR-071.md](adr/ADR-071.md) | Implemented |
 | 72 | Leave Epoch, as built | [ADR-072.md](adr/ADR-072.md) | Implemented |
 | 73 | PDFs are served inline in a new tab | [ADR-073.md](adr/ADR-073.md) | Implemented |
