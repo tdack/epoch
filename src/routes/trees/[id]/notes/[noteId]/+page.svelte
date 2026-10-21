@@ -79,7 +79,7 @@
 
 <header class="flex flex-wrap items-start justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">Shared note</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Shared note</h1>
 		<p class="mt-1 text-sm text-stone-600" data-testid="note-use-count">
 			Used by {note.useCount}
 			{note.useCount === 1 ? 'record' : 'records'}{#if note.language}

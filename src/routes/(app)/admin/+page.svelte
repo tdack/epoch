@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import PageTabs from '#lib/components/layout/PageTabs.svelte';
 	import { hashTab } from '#lib/components/layout/hash-tab.js';
-	import { Globe, GlobeLock, Pencil, Trash2 } from '@lucide/svelte';
+	import { Globe, GlobeLock, Pencil, Settings, Trash2 } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -15,6 +15,7 @@
 	import { deleteTreeApi, renameTreeApi, setPublicTreeApi } from '#lib/api/trees.js';
 	import type { InstallTree } from '#lib/shared/api-contracts.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
+	import { isManagerOrAbove } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import type { PageProps } from './$types';
 
@@ -81,7 +82,11 @@
 
 	const roleLabel = (role: InstallTree['role']) => role ?? 'Not a member';
 	const actionClass =
-		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-50 coarse:min-h-11';
+		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-50 coarse:min-h-11 coarse:min-w-11 coarse:justify-center';
+	// Below sm each row is a card: the table's own display values are swapped out so one set of
+	// cells serves both layouts, and `data-label` names the figure the header would have.
+	const cellClass =
+		'text-stone-600 before:text-stone-500 before:content-[attr(data-label)] max-sm:before:mr-1 sm:table-cell sm:px-3 sm:py-2 sm:before:content-none';
 </script>
 
 <svelte:head>
@@ -103,12 +108,7 @@
 			tabs={TABS.map((t) => ({ href: `#${t.id}`, label: t.label, isCurrent: t.id === tab }))}
 		/>
 		{#if tab === 'trees'}
-			<section
-				id="trees-tab"
-				aria-labelledby="trees-heading"
-				class="flex scroll-mt-24 flex-col gap-3"
-			>
-				<h2 id="trees-heading" class="text-lg font-bold text-stone-900">Trees</h2>
+			<section id="trees-tab" aria-label="Trees" class="flex scroll-mt-24 flex-col gap-3">
 				<p class="max-w-2xl text-sm text-stone-600">
 					Every tree in this Epoch is listed. Only one can be public.
 					{#if publicTree}
@@ -117,9 +117,11 @@
 						No tree is public.
 					{/if}
 				</p>
-				<div class="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-xs">
-					<table class="w-full min-w-[36rem] text-left text-xs">
-						<thead class="border-b border-stone-200 bg-stone-50 text-stone-600">
+				<div class="rounded-xl border border-stone-200 bg-white shadow-xs sm:overflow-x-auto">
+					<table class="block w-full text-left text-xs sm:table">
+						<thead
+							class="hidden border-b border-stone-200 bg-stone-50 text-stone-600 sm:table-header-group"
+						>
 							<tr>
 								<th scope="col" class="px-3 py-2 font-semibold">Name</th>
 								<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
@@ -131,10 +133,13 @@
 								>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-stone-100">
+						<tbody class="block divide-y divide-stone-100 sm:table-row-group">
 							{#each rows as tree (tree.id)}
-								<tr>
-									<th scope="row" class="px-3 py-2 font-semibold text-stone-900">
+								<tr class="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 sm:table-row sm:p-0">
+									<th
+										scope="row"
+										class="w-full text-left font-semibold text-stone-900 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
+									>
 										<span class="inline-flex flex-wrap items-center gap-2">
 											{#if tree.role}
 												<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
@@ -151,14 +156,26 @@
 											{/if}
 										</span>
 									</th>
-									<td class="px-3 py-2 text-stone-600 capitalize">{roleLabel(tree.role)}</td>
-									<td class="px-3 py-2 text-stone-600">
+									<td class="{cellClass} capitalize" data-label="Your role:"
+										>{roleLabel(tree.role)}</td
+									>
+									<td class={cellClass} data-label="Owners:">
 										{tree.ownerNames.length ? tree.ownerNames.join(', ') : '—'}
 									</td>
-									<td class="px-3 py-2 text-right tabular-nums">{tree.peopleCount}</td>
-									<td class="px-3 py-2 text-right tabular-nums">{tree.memberCount}</td>
-									<td class="px-3 py-2">
-										<div class="flex justify-end gap-1">
+									<td class="{cellClass} tabular-nums sm:text-right" data-label="People:">
+										{tree.peopleCount}
+									</td>
+									<td class="{cellClass} tabular-nums sm:text-right" data-label="Members:">
+										{tree.memberCount}
+									</td>
+									<td class="w-full sm:table-cell sm:w-auto sm:px-3 sm:py-2">
+										<div class="flex gap-1 sm:justify-end">
+											{#if isManagerOrAbove(tree.role ?? undefined)}
+												<a href="{treePath(tree)}/settings" class={actionClass} title="Settings">
+													<Settings class="h-3.5 w-3.5" aria-hidden="true" />
+													<span class="sr-only">Settings for {tree.name}</span>
+												</a>
+											{/if}
 											<button
 												type="button"
 												class={actionClass}
@@ -202,10 +219,9 @@
 		{:else}
 			<section
 				id="appearance-tab"
-				aria-labelledby="appearance-heading"
+				aria-label="Site appearance"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-3"
 			>
-				<h2 id="appearance-heading" class="text-lg font-bold text-stone-900">Site appearance</h2>
 				<p class="text-sm text-stone-600">
 					What everyone sees who has not chosen their own colours, including readers of the public
 					tree.

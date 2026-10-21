@@ -22,7 +22,7 @@
 </svelte:head>
 
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Places</h2>
+	<h1 class="text-2xl font-bold text-stone-900">Places</h1>
 	<p class="mt-1 max-w-2xl text-sm text-stone-600">
 		Every place a fact names, written once however its case varies. The text on each fact is kept
 		exactly as entered.

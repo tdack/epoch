@@ -111,6 +111,7 @@ export default defineConfig({
 				test: {
 					name: 'components',
 					environment: 'jsdom',
+					setupFiles: ['src/lib/components/jsdom-layout.setup.ts'],
 					include: ['src/**/*.component.test.{ts,svelte.ts}']
 				}
 			}

@@ -60,7 +60,7 @@
 	<a href="{base}/places" class="text-link">Places</a>
 </nav>
 <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-	<h2 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h2>
+	<h1 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h1>
 	{#if canEdit}
 		<button
 			type="button"

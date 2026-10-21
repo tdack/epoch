@@ -19,7 +19,7 @@
 </svelte:head>
 
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Surnames</h2>
+	<h1 class="text-2xl font-bold text-stone-900">Surnames</h1>
 	<p class="mt-1 text-sm text-stone-600">
 		Every surname on any name a person has. A person counts once under each surname they carry.
 	</p>

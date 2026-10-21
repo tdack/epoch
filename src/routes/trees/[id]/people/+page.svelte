@@ -32,9 +32,9 @@
 
 <header class="flex flex-wrap items-end justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">
+		<h1 class="text-2xl font-bold text-stone-900">
 			People{#if data.surname}<span class="font-normal"> named {data.surname}</span>{/if}
-		</h2>
+		</h1>
 		{#if data.surname}
 			<p class="mt-1 text-sm">
 				<a href={listHref({ surname: '', offset: 0 })} class="text-link">Show everyone</a>

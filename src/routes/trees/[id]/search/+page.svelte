@@ -55,7 +55,7 @@
 </svelte:head>
 
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Search</h2>
+	<h1 class="text-2xl font-bold text-stone-900">Search</h1>
 	<p class="mt-1 text-sm text-stone-600">
 		Any name a person has, a surname, a nickname, an XREF, a place, or a range of years.
 	</p>

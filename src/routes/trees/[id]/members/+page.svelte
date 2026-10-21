@@ -80,11 +80,11 @@
 </svelte:head>
 
 <TreeAdminTabs
+	treeName={data.summary.tree.name}
 	base={treePath({ ...data.summary.tree, subtree: null })}
 	current="members"
 	role={data.summary.viewer.role}
 />
-<h2 class="text-2xl font-bold text-stone-900">Members</h2>
 <!-- The Make/Cancel buttons appear beside the select with no focus move, so say so. -->
 <p class="sr-only" aria-live="polite">
 	{#if proposedRole}
@@ -103,7 +103,7 @@
 	class="mt-6 max-w-3xl rounded-xl border border-stone-200 bg-white p-5"
 	aria-labelledby="invite-heading"
 >
-	<h3 id="invite-heading" class="text-sm font-semibold text-stone-800">Invite someone</h3>
+	<h2 id="invite-heading" class="text-sm font-semibold text-stone-800">Invite someone</h2>
 	<form onsubmit={invite} class="mt-3 flex flex-wrap items-end gap-3">
 		<div>
 			<label for="invite-email" class="block text-xs font-semibold text-stone-700"
@@ -115,7 +115,7 @@
 				required
 				bind:value={email}
 				autocomplete="off"
-				class="mt-1 w-72 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+				class="mt-1 w-72 max-w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm coarse:min-h-11"
 			/>
 		</div>
 		<div>
@@ -124,7 +124,7 @@
 				id="invite-role"
 				bind:value={inviteRole}
 				aria-describedby="invite-role-detail"
-				class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize"
+				class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize coarse:min-h-11"
 			>
 				{#each members.grantableRoles as role (role)}<option value={role}>{role}</option>{/each}
 			</select>
@@ -138,9 +138,9 @@
 
 {#if members.invitations.length > 0}
 	<section class="mt-6 max-w-3xl" aria-labelledby="pending-heading">
-		<h3 id="pending-heading" class="text-sm font-semibold text-stone-800">
+		<h2 id="pending-heading" class="text-sm font-semibold text-stone-800">
 			Waiting to be taken up
-		</h3>
+		</h2>
 		<ul class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 			{#each members.invitations as invitation (invitation.id)}
 				<li
@@ -160,7 +160,7 @@
 						disabled={isBusy}
 						onclick={() =>
 							run(() => withdrawInvitationApi(treeId, invitation.id), 'Invitation withdrawn')}
-						class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50"
+						class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50 coarse:min-h-11"
 					>
 						Withdraw
 					</button>
@@ -171,7 +171,7 @@
 {/if}
 
 <section class="mt-6 max-w-3xl" aria-labelledby="members-heading">
-	<h3 id="members-heading" class="text-sm font-semibold text-stone-800">People with access</h3>
+	<h2 id="members-heading" class="text-sm font-semibold text-stone-800">People with access</h2>
 	<ul class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 		{#key reloads}
 			{#each members.members as member (member.userId)}
@@ -199,7 +199,7 @@
 									// Any other row's unconfirmed choice snaps back to its stored role through `value`.
 									proposedRole = role === member.role ? null : { userId: member.userId, role };
 								}}
-								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize"
+								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize coarse:min-h-11"
 							>
 								<!-- A member's present role stays listed even when the caller could not give it, so the box reads true. -->
 								{#each [...new Set([member.role, ...members.grantableRoles])] as role (role)}
@@ -218,13 +218,13 @@
 											() => changeMemberRoleApi(treeId, member.userId, role, member.version),
 											`${member.email} is now ${role}`
 										)}
-									class="rounded-lg bg-emerald-800 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+									class="rounded-lg bg-emerald-800 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50 coarse:min-h-11"
 									>Make {role}</button
 								>
 								<button
 									type="button"
 									onclick={() => (proposedRole = null)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700"
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 coarse:min-h-11"
 									>Cancel</button
 								>
 							{:else if removing === member.userId}
@@ -236,13 +236,13 @@
 											() => removeMemberApi(treeId, member.userId, member.version),
 											`Removed ${member.email}`
 										)}
-									class="rounded-lg bg-red-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+									class="rounded-lg bg-red-700 px-3 py-1 text-xs font-semibold text-white focus-ring hover:bg-red-600 disabled:opacity-50 coarse:min-h-11"
 									>Confirm remove</button
 								>
 								<button
 									type="button"
 									onclick={() => (removing = null)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700"
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 coarse:min-h-11"
 									>Cancel</button
 								>
 							{:else}
@@ -250,7 +250,7 @@
 									type="button"
 									disabled={isBusy}
 									onclick={() => (removing = member.userId)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50"
+									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50 coarse:min-h-11"
 									>Remove</button
 								>
 							{/if}

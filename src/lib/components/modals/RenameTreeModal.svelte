@@ -88,7 +88,7 @@
 
 <BaseModal
 	{isOpen}
-	title="Rename Tree"
+	title="Rename tree"
 	icon={Pencil}
 	iconBgClass="bg-emerald-100"
 	iconBorderClass="border-emerald-300"
@@ -99,7 +99,7 @@
 	<form onsubmit={handleSubmit} class="space-y-4">
 		<div>
 			<label for="tree-rename-input" class="field-label">
-				Tree Name <span class="text-orange-600">*</span>
+				Tree name <span class="text-orange-600">*</span>
 			</label>
 			<input
 				id="tree-rename-input"
@@ -174,7 +174,7 @@
 					<RefreshCw class="mr-1 h-3.5 w-3.5 animate-spin" />
 					<span>Renaming...</span>
 				{:else}
-					<span>Rename Tree</span>
+					<span>Rename tree</span>
 				{/if}
 			</button>
 		</div>
