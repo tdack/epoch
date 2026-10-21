@@ -37,6 +37,13 @@ function limitImports(event: RequestEvent, userId: string): Promise<void> {
 	});
 }
 
+/** A text field of the form, or null when absent. A file in its place is a 400, not a cast. */
+function formText(formData: FormData, name: string): string | null {
+	const value = formData.get(name);
+	if (value === null || typeof value === 'string') return value;
+	throw new ValidationError(`${name} must be text`);
+}
+
 const previewFailure = {
 	failure: 'Failed to preview GEDCOM'
 };
@@ -55,13 +62,13 @@ export const POST = apiHandler(importFailure, async ({ db, ctx, event }) => {
 		queue: env?.GEDCOM_IMPORT_QUEUE
 	}).importFile(
 		{
-			treeId: formData.get('treeId') as string | null,
-			treeName: formData.get('treeName') as string | null,
+			treeId: formText(formData, 'treeId'),
+			treeName: formText(formData, 'treeName'),
 			fileName: file.name,
 			text,
 			// A .gdz is compressed, so its file size understates the import; the text decides the queue.
 			sizeBytes: Math.max(file.size, text.length),
-			mode: (formData.get('mode') as string | null) === 'merge' ? 'merge' : 'replace',
+			mode: formText(formData, 'mode') === 'merge' ? 'merge' : 'replace',
 			shouldMergeDuplicateFamilies: formData.get('mergeDuplicates') === 'true'
 		},
 		ctx
@@ -82,7 +89,7 @@ export const PUT = apiHandler(previewFailure, async ({ db, ctx, event }) => {
 	await limitImports(event, ctx.user.id);
 	const formData = await parseBoundedFormData(event.request, MAX_IMPORT_BYTES);
 	const file = formData.get('file');
-	const treeId = formData.get('treeId') as string | null;
+	const treeId = formText(formData, 'treeId');
 	if (!file) throw new ValidationError('GEDCOM file is required');
 	if (!(file instanceof File)) throw new ValidationError('GEDCOM file must be a file upload');
 
