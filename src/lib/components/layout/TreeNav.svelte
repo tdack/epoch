@@ -3,26 +3,21 @@
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import { canChangeRecords, isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
-	import { hasTreesPage } from '#lib/shared/trees-page.js';
 
 	interface Props {
 		/** The tree these links belong to. */
 		treeId: string;
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
-		/** The viewer's role; managers and owners also get the members and privacy screens. */
+		/** The viewer's role; managers and owners also get Members and Tree settings. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
-		/** The install owner also gets the app-wide Trees page, in every tree. */
-		isInstallOwner?: boolean;
-		/** How many trees the viewer belongs to; with more than one they get the Trees page to pick a default. */
-		treeCount?: number;
 		/** Reading the public tree without membership: the working screens (tasks, quality) are for members. */
 		isOutsider?: boolean;
 		/**
-		 * On a tree's own subdomain, the app host's origin: the Files and Trees pages span trees, so
-		 * they are served there instead. Absent on the app host.
+		 * On a tree's own subdomain, the app host's origin: the Files page spans trees, so it is
+		 * served there instead. Absent on the app host.
 		 */
 		appOrigin?: string;
 	}
@@ -32,8 +27,6 @@
 		treeSlug = null,
 		role,
 		pathname,
-		isInstallOwner = false,
-		treeCount = 0,
 		isOutsider = false,
 		appOrigin = ''
 	}: Props = $props();
@@ -54,6 +47,16 @@
 	]);
 	const research = $derived<NavLink[]>([
 		{ href: `${base}/sources`, label: 'Sources', isActive: startsWith(`${base}/sources`) },
+		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
+		...(role && !isOutsider
+			? [
+					{
+						href: `${appOrigin}${base}/files`,
+						label: 'Files',
+						isActive: startsWith(`${base}/files`)
+					}
+				]
+			: []),
 		{ href: `${base}/notes`, label: 'Notes', isActive: startsWith(`${base}/notes`) },
 		...(isOutsider
 			? []
@@ -69,35 +72,21 @@
 			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
+	// The tree's own administration (ADR-075); a viewer or contributor has none, so sees no group.
 	const manage = $derived<NavLink[]>([
-		// Any member may open the Files manager: what it lists and changes is decided per file on the server.
-		...(role && !isOutsider
+		...(isManagerOrAbove(role)
 			? [
+					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
 					{
-						href: `${appOrigin}${base}/files`,
-						label: 'Files',
-						isActive: startsWith(`${base}/files`)
+						href: `${base}/settings`,
+						label: 'Tree settings',
+						isActive: startsWith(`${base}/settings`)
 					}
 				]
 			: []),
 		// The log names whoever a change touched, so only roles that see every record read it (ADR-068).
 		...(canChangeRecords(role) && !isOutsider
 			? [{ href: `${base}/audit`, label: 'Audit log', isActive: startsWith(`${base}/audit`) }]
-			: []),
-		...(isManagerOrAbove(role)
-			? [
-					{ href: `${base}/members`, label: 'Members', isActive: startsWith(`${base}/members`) },
-					{ href: `${base}/privacy`, label: 'Privacy', isActive: startsWith(`${base}/privacy`) }
-				]
-			: []),
-		...(hasTreesPage(isInstallOwner, treeCount)
-			? [
-					{
-						href: `${appOrigin}${base}/trees`,
-						label: 'Trees',
-						isActive: startsWith(`${base}/trees`)
-					}
-				]
 			: [])
 	]);
 	const activeInMore = $derived([...research, ...manage].find((link) => link.isActive));
@@ -151,9 +140,9 @@
 			{/each}
 		</div>
 		{#if manage.length > 0}
-			<div role="group" aria-label="Manage" class="mt-1 border-t border-stone-200">
+			<div role="group" aria-label="Tree" class="mt-1 border-t border-stone-200">
 				<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-					Manage
+					Tree
 				</p>
 				{#each manage as link (link.href)}
 					<a

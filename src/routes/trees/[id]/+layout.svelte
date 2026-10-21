@@ -187,8 +187,8 @@
 		canExport={isManagerOrAbove(role)}
 		canChangeTrees={!viewer.isPublicVisitor}
 		viewer={data.viewer}
-		profileHref="{treeBase}/profile"
-		settingsHref="{treeBase}/settings"
+		accountHref={appHref('/account', data.hostTree)}
+		adminHref={viewer.isInstallOwner ? appHref('/admin', data.hostTree) : undefined}
 		signOutHref={signOutHref(page.url.origin)}
 	>
 		{#snippet finder()}
@@ -255,9 +255,7 @@
 			treeId={data.summary.tree.id}
 			{role}
 			pathname={page.url.pathname}
-			isInstallOwner={viewer.isInstallOwner}
 			treeSlug={treeLinkSlug(data.summary.tree)}
-			treeCount={data.trees.length}
 			isOutsider={viewer.isOutsider}
 			appOrigin={data.hostTree?.appOrigin}
 		/>

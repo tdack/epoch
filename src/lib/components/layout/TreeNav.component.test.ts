@@ -35,16 +35,16 @@ describe('TreeNav', () => {
 		openMore();
 		expect(menuLabels()).toEqual([
 			'Sources',
+			'Files',
 			'Notes',
 			'Tasks',
 			'Relationship',
 			'Surnames',
 			'Quality',
 			'Fact search',
-			'Files',
 			'Audit log'
 		]);
-		expect(document.querySelector('[role="group"][aria-label="Manage"]')).not.toBeNull();
+		expect(document.querySelector('[role="group"][aria-label="Tree"]')).not.toBeNull();
 	});
 
 	it('names Sources as the active section on its pages, including a single source', () => {
@@ -73,7 +73,7 @@ describe('TreeNav', () => {
 		unmount(component!);
 		component = null;
 		document.body.innerHTML = '';
-		// A signed-in user with no membership of this tree, and no outsider role, sees no Manage links.
+		// A signed-in user with no membership of this tree, and no outsider role, gets no Files.
 		render({});
 		openMore();
 		expect(menuLabels()).not.toContain('Files');
@@ -107,33 +107,25 @@ describe('TreeNav', () => {
 		expect(trigger.textContent).toContain('More: Files');
 	});
 
-	it('offers Members and Privacy to managers and owners only', () => {
+	it('offers Members and Tree settings to managers and owners only', () => {
 		for (const role of ['manager', 'owner']) {
 			render({ role });
 			openMore();
-			expect(menuLabels()).toEqual(expect.arrayContaining(['Members', 'Privacy']));
+			expect(menuLabels()).toEqual(expect.arrayContaining(['Members', 'Tree settings']));
 			unmount(component!);
 			component = null;
 			document.body.innerHTML = '';
 		}
-		render({ role: 'viewer' });
+		render({ role: 'contributor' });
 		openMore();
 		expect(menuLabels()).not.toContain('Members');
-		expect(menuLabels()).not.toContain('Privacy');
+		expect(menuLabels()).not.toContain('Tree settings');
 	});
 
-	it('offers Trees to the install owner and to members of more than one tree', () => {
-		for (const props of [{ isInstallOwner: true, treeCount: 1 }, { treeCount: 2 }]) {
-			render({ role: 'viewer', ...props });
-			openMore();
-			expect(menuLabels()).toContain('Trees');
-			unmount(component!);
-			component = null;
-			document.body.innerHTML = '';
-		}
-		render({ role: 'owner', treeCount: 1 });
+	it('shows no Tree group to a viewer, who manages nothing', () => {
+		render({ role: 'viewer' });
 		openMore();
-		expect(menuLabels()).not.toContain('Trees');
+		expect(document.querySelector('[role="group"][aria-label="Tree"]')).toBeNull();
 	});
 
 	it('no longer carries Settings or Sign out: the avatar menu in the header does', () => {
@@ -143,10 +135,10 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Sign out');
 	});
 
-	it('marks Trees active on its page', () => {
-		render({ role: 'viewer', treeCount: 2, pathname: '/trees/t1/trees' });
+	it('marks Tree settings active on its page', () => {
+		render({ role: 'manager', pathname: '/trees/t1/settings' });
 		expect(document.querySelector('button[aria-haspopup="menu"]')!.textContent).toContain(
-			'More: Trees'
+			'More: Tree settings'
 		);
 	});
 

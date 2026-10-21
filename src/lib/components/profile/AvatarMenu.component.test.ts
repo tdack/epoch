@@ -9,13 +9,13 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-function render(viewer: { name: string | null; avatarUrl: string | null }) {
+function render(viewer: { name: string | null; avatarUrl: string | null }, adminHref?: string) {
 	component = mount(AvatarMenu, {
 		target: document.body,
 		props: {
 			viewer: { email: 'troy@dack.com.au', canUseAccessPicture: false, ...viewer },
-			profileHref: '/trees/t1/profile',
-			settingsHref: '/trees/t1/settings',
+			accountHref: '/account',
+			adminHref,
 			signOutHref: '/cdn-cgi/access/logout?returnTo=x'
 		}
 	});
@@ -23,7 +23,7 @@ function render(viewer: { name: string | null; avatarUrl: string | null }) {
 }
 
 describe('AvatarMenu', () => {
-	it('shows initials on the trigger, and Profile, Settings and Sign out when opened', () => {
+	it('shows initials on the trigger, and Account and Sign out when opened', () => {
 		render({ name: 'Troy Dack', avatarUrl: null });
 		const trigger = document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
 		expect(trigger.getAttribute('aria-label')).toBe('Account menu');
@@ -32,11 +32,20 @@ describe('AvatarMenu', () => {
 		flushSync();
 		const items = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')];
 		expect(items.map((a) => [a.textContent?.trim(), a.getAttribute('href')])).toEqual([
-			['Profile', '/trees/t1/profile'],
-			['Settings', '/trees/t1/settings'],
+			['Account', '/account'],
 			['Sign out', '/cdn-cgi/access/logout?returnTo=x']
 		]);
-		expect(items[2].hasAttribute('data-sveltekit-reload')).toBe(true);
+		expect(items[1].hasAttribute('data-sveltekit-reload')).toBe(true);
+	});
+
+	it('offers Administration only when given its address', () => {
+		render({ name: 'Troy Dack', avatarUrl: null }, '/admin');
+		document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click();
+		flushSync();
+		const labels = [...document.querySelectorAll('[role="menuitem"]')].map((a) =>
+			a.textContent?.trim()
+		);
+		expect(labels).toEqual(['Account', 'Administration', 'Sign out']);
 	});
 
 	it('shows the picture, labelled, when there is one, and the email initial with no name', () => {

@@ -41,8 +41,10 @@
 		homeHref?: string;
 		/** Who is signed in; absent for the public visitor, who gets no account menu. */
 		viewer?: ProfileViewDto | null;
-		profileHref?: string;
-		settingsHref?: string;
+		/** The account page; on a tree's own subdomain it is on the app host. */
+		accountHref?: string;
+		/** The install owner's Administration page; absent for everyone else. */
+		adminHref?: string;
 		/** Where Sign out goes (see `signOutHref`); the menu is shown only with it. */
 		signOutHref?: string;
 	}
@@ -68,8 +70,8 @@
 		finder,
 		homeHref = '/',
 		viewer = null,
-		profileHref = '/profile',
-		settingsHref = '/settings',
+		accountHref = '/account',
+		adminHref,
 		signOutHref
 	}: Props = $props();
 </script>
@@ -128,7 +130,7 @@
 			</button>
 		{/if}
 		{#if viewer && signOutHref}
-			<AvatarMenu {viewer} {profileHref} {settingsHref} {signOutHref} />
+			<AvatarMenu {viewer} {accountHref} {adminHref} {signOutHref} />
 		{/if}
 	</div>
 </header>
