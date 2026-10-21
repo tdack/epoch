@@ -56,7 +56,7 @@ const tree = (id: string, name: string, role: string, extra = {}) => ({
 describe('account page', () => {
 	it('lists each tree with the viewer’s role and a Default choice', () => {
 		render([tree('a', 'Smiths', 'owner', { isDefault: true }), tree('b', 'Joneses', 'viewer')]);
-		const rows = [...document.querySelectorAll('#trees tbody tr')];
+		const rows = [...document.querySelectorAll('#trees-tab tbody tr')];
 		expect(rows.map((r) => r.querySelector('th')!.textContent!.trim())).toEqual([
 			'Smiths',
 			'Joneses'
@@ -72,7 +72,7 @@ describe('account page', () => {
 	it('hides the Default choice for a single tree and saves the open-in view on change', async () => {
 		render([tree('a', 'Smiths', 'editor')]);
 		expect(document.querySelector('input[name="default-tree"]')).toBeNull();
-		const select = document.querySelector('#trees select') as unknown as HTMLSelectElement;
+		const select = document.querySelector('#trees-tab select') as unknown as HTMLSelectElement;
 		select.value = 'rings';
 		select.dispatchEvent(new Event('change', { bubbles: true }));
 		await Promise.resolve();

@@ -103,7 +103,11 @@
 			tabs={TABS.map((t) => ({ href: `#${t.id}`, label: t.label, isCurrent: t.id === tab }))}
 		/>
 		{#if tab === 'trees'}
-			<section id="trees" aria-labelledby="trees-heading" class="flex scroll-mt-24 flex-col gap-3">
+			<section
+				id="trees-tab"
+				aria-labelledby="trees-heading"
+				class="flex scroll-mt-24 flex-col gap-3"
+			>
 				<h2 id="trees-heading" class="text-lg font-bold text-stone-900">Trees</h2>
 				<p class="max-w-2xl text-sm text-stone-600">
 					Every tree in this Epoch is listed. Only one can be public.
@@ -197,7 +201,7 @@
 			</section>
 		{:else}
 			<section
-				id="appearance"
+				id="appearance-tab"
 				aria-labelledby="appearance-heading"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-3"
 			>
