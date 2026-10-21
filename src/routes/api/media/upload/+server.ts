@@ -1,33 +1,25 @@
-import type { RequestHandler } from '@sveltejs/kit';
-import { getDb } from '#lib/server/db/index.js';
-import { errorResponse } from '#lib/server/http/error-response.js';
+import { apiHandler } from '#lib/server/http/handler.js';
 import { enforceRateLimit } from '#lib/server/http/rate-limit.js';
 import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
-import {
-	BindingUnavailableError,
-	UnauthenticatedError,
-	ValidationError
-} from '#lib/server/domain/errors.js';
+import { BindingUnavailableError, ValidationError } from '#lib/server/domain/errors.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
 
-export const POST: RequestHandler = async ({ request, locals, platform }) => {
-	const failure = 'Failed to upload media';
-	if (!locals.user) return errorResponse(new UnauthenticatedError(), failure);
-	if (!platform?.env?.MEDIA_BUCKET || !platform?.env?.DB) {
-		return errorResponse(new BindingUnavailableError('MEDIA_BUCKET or DB'), failure);
-	}
+export const POST = apiHandler(
+	{ failure: 'Failed to upload media', status: 201 },
+	async ({ db, ctx, event }) => {
+		const bucket = event.platform?.env?.MEDIA_BUCKET;
+		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 
-	try {
 		// Before the body is read, so a refused upload costs nothing to parse.
 		await enforceRateLimit({
-			binding: platform.env.UPLOAD_RATE_LIMIT,
+			binding: event.platform?.env?.UPLOAD_RATE_LIMIT,
 			bindingName: 'UPLOAD_RATE_LIMIT',
-			key: locals.user.id,
+			key: ctx.user.id,
 			message: 'Too many uploads; try again in a minute'
 		});
-		const formData = await parseBoundedFormData(request, MAX_MEDIA_UPLOAD_BYTES);
+		const formData = await parseBoundedFormData(event.request, MAX_MEDIA_UPLOAD_BYTES);
 		const file = formData.get('file');
 		const treeId = formData.get('treeId');
 		const entityId = formData.get('entityId');
@@ -48,14 +40,10 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		assertUploadWithinSizeLimit(file.size);
 
 		// Before a byte is stored: the caller must be allowed to add media to this record of this tree.
-		const db = getDb(platform.env.DB);
 		const service = new MediaService(db);
-		await service.requireUpload(treeId, entityId, {
-			user: locals.user,
-			correlationId: locals.correlationId
-		});
+		await service.requireUpload(treeId, entityId, ctx);
 		// Still before any byte is written: a full tree refuses the file rather than storing it.
-		await service.requireQuotaFor(treeId, file.size, platform.env.MEDIA_BUCKET);
+		await service.requireQuotaFor(treeId, file.size, bucket);
 
 		// The bytes decide the type; the declared type and filename are attacker-controlled and are
 		// ignored. The extension comes from the sniffed type so it cannot disagree with the content.
@@ -66,11 +54,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		const mediaId = crypto.randomUUID();
 		const objectKey = `media/${treeId}/${mediaId}.${extension}`;
 
-		await platform.env.MEDIA_BUCKET.put(objectKey, bytes, {
-			httpMetadata: {
-				contentType: mimeType
-			}
-		});
+		await bucket.put(objectKey, bytes, { httpMetadata: { contentType: mimeType } });
 
 		const mediaTitle = typeof title === 'string' && title !== '' ? title : file.name;
 		try {
@@ -80,27 +64,15 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 				title: mediaTitle,
 				mimeType,
 				sizeBytes: file.size,
-				uploadedBy: locals.user.id
+				uploadedBy: ctx.user.id
 			});
 		} catch (err) {
 			// The object would otherwise be unreachable and still counted against the quota. A failed
 			// cleanup leaves that one object behind, which is no worse than before this was added.
-			await platform.env.MEDIA_BUCKET.delete(objectKey).catch(() => undefined);
+			await bucket.delete(objectKey).catch(() => undefined);
 			throw err;
 		}
 
-		return Response.json(
-			{
-				media: {
-					id: mediaId,
-					objectKey,
-					title: mediaTitle,
-					mimeType
-				}
-			},
-			{ status: 201 }
-		);
-	} catch (err) {
-		return errorResponse(err, failure);
+		return { media: { id: mediaId, objectKey, title: mediaTitle, mimeType } };
 	}
-};
+);

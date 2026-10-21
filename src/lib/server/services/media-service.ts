@@ -300,7 +300,9 @@ export class MediaService {
 	/**
 	 * Throws when storing `incomingBytes` more would take the tree past `MAX_TREE_MEDIA_BYTES`. Runs
 	 * before the bytes are written. The total is read and then the write follows, so two uploads
-	 * racing at the edge can both pass; the quota is soft and that overshoot is accepted. Call only
+	 * racing at the edge can both pass; the quota is soft and that overshoot is accepted.
+	 * shortcut: lists R2 on every upload (one call per 1,000 objects) and is not atomic; move to a
+	 * running per-tree byte counter in D1 once a tree holds thousands of files. Call only
 	 * after `requireUpload`, so a caller who may not add media never learns how full the tree is.
 	 */
 	async requireQuotaFor(treeId: string, incomingBytes: number, bucket: R2Bucket): Promise<void> {
