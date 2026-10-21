@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
+	import { hashTab } from '#lib/components/layout/hash-tab.js';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { invalidate } from '$app/navigation';
@@ -27,6 +28,15 @@
 	const tree = $derived(data.summary.tree);
 	const viewer = $derived(data.summary.viewer);
 	const zone = $derived(data.subdomainZone);
+	// Sub-trees and Export are tabs of this page; old links to a section of Settings still land on it.
+	const tab = $derived(
+		hashTab<'settings' | 'subtrees' | 'export'>(page.url.hash, ['settings', 'subtrees', 'export'], {
+			general: 'settings',
+			address: 'settings',
+			visibility: 'settings',
+			delete: 'settings'
+		})
+	);
 
 	// The fields start from the tree as loaded and are the source of truth until the next visit.
 	let name = $state(untrack(() => data.summary.tree.name));
@@ -132,118 +142,138 @@
 
 <TreeAdminTabs
 	base={treePath({ ...data.summary.tree, subtree: null })}
-	pathname={page.url.pathname}
+	current={tab}
+	role={viewer.role}
 />
-<h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
-<p class="mt-1 max-w-prose text-sm text-stone-600">
-	These settings apply to everyone in {tree.name}. Your own colours and defaults are on your
-	<a href={appHref('/account', data.hostTree)} class="text-link">account</a>.
-</p>
+{#if tab === 'settings'}
+	<h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
+	<p class="mt-1 max-w-prose text-sm text-stone-600">
+		These settings apply to everyone in {tree.name}. Your own colours and defaults are on your
+		<a href={appHref('/account', data.hostTree)} class="text-link">account</a>.
+	</p>
 
-<section id="general" class="mt-8 scroll-mt-20" aria-labelledby="general-heading">
-	<h3 id="general-heading" class={sectionHeadingClass}>General</h3>
-	<form onsubmit={saveName} class="mt-3 max-w-2xl">
-		<label for="tree-name" class="field-label">Tree name</label>
-		<div class="flex flex-wrap items-center gap-2">
-			<input
-				id="tree-name"
-				type="text"
-				bind:value={name}
-				maxlength={200}
-				disabled={isSaving}
-				aria-invalid={nameError ? 'true' : undefined}
-				aria-describedby={nameError ? 'tree-name-error' : undefined}
-				class="{inputClass} max-w-md flex-1"
-			/>
-			<button type="submit" disabled={isSaving} class="btn-primary">Save</button>
-		</div>
-		{#if nameError}<p id="tree-name-error" class="mt-1 text-xs text-red-700" role="alert">
-				{nameError}
-			</p>{/if}
-	</form>
-</section>
-
-<section id="address" class="mt-10 scroll-mt-20" aria-labelledby="address-heading">
-	<h3 id="address-heading" class={sectionHeadingClass}>Address</h3>
-	<form onsubmit={saveAddress} class="mt-3 max-w-2xl space-y-4">
-		<div>
-			<label for="tree-slug" class="field-label">Web address</label>
-			<div
-				class="flex items-center rounded-lg border border-stone-300 bg-white focus-within:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600"
-			>
-				<span class="pl-3 text-sm text-stone-500" aria-hidden="true">/trees/</span>
+	<section id="general" class="mt-8 scroll-mt-20" aria-labelledby="general-heading">
+		<h3 id="general-heading" class={sectionHeadingClass}>General</h3>
+		<form onsubmit={saveName} class="mt-3 max-w-2xl">
+			<label for="tree-name" class="field-label">Tree name</label>
+			<div class="flex flex-wrap items-center gap-2">
 				<input
-					id="tree-slug"
+					id="tree-name"
 					type="text"
-					bind:value={slug}
-					maxlength={MAX_TREE_SLUG_LENGTH}
+					bind:value={name}
+					maxlength={200}
 					disabled={isSaving}
-					autocomplete="off"
-					spellcheck="false"
-					placeholder="the-windsors"
-					aria-describedby="tree-slug-help"
-					class="w-full min-w-0 rounded-r-lg bg-transparent py-2 pr-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none disabled:opacity-50"
+					aria-invalid={nameError ? 'true' : undefined}
+					aria-describedby={nameError ? 'tree-name-error' : undefined}
+					class="{inputClass} max-w-md flex-1"
 				/>
+				<button type="submit" disabled={isSaving} class="btn-primary">Save</button>
 			</div>
-			<p id="tree-slug-help" class="mt-1 text-xs text-stone-600">
-				Renaming the tree keeps the address, so bookmarks still work. Changing the address breaks
-				links to the old one. Leave it empty to use the tree's id.
-			</p>
-		</div>
+			{#if nameError}<p id="tree-name-error" class="mt-1 text-xs text-red-700" role="alert">
+					{nameError}
+				</p>{/if}
+		</form>
+	</section>
 
-		{#if zone}
+	<section id="address" class="mt-10 scroll-mt-20" aria-labelledby="address-heading">
+		<h3 id="address-heading" class={sectionHeadingClass}>Address</h3>
+		<form onsubmit={saveAddress} class="mt-3 max-w-2xl space-y-4">
 			<div>
-				<label class="flex items-start gap-2 text-sm text-stone-800">
+				<label for="tree-slug" class="field-label">Web address</label>
+				<div
+					class="flex items-center rounded-lg border border-stone-300 bg-white focus-within:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600"
+				>
+					<span class="pl-3 text-sm text-stone-500" aria-hidden="true">/trees/</span>
 					<input
-						type="checkbox"
-						bind:checked={isOnSubdomain}
-						disabled={isSaving || !hasAddress}
-						aria-describedby="tree-subdomain-help"
-						class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+						id="tree-slug"
+						type="text"
+						bind:value={slug}
+						maxlength={MAX_TREE_SLUG_LENGTH}
+						disabled={isSaving}
+						autocomplete="off"
+						spellcheck="false"
+						placeholder="the-windsors"
+						aria-describedby="tree-slug-help"
+						class="w-full min-w-0 rounded-r-lg bg-transparent py-2 pr-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none disabled:opacity-50"
 					/>
-					<span>
-						Also open this tree at
-						<span class="font-mono text-stone-900"
-							>{hasAddress ? slug.trim() : 'address'}.{zone}</span
-						>
-					</span>
-				</label>
-				<p id="tree-subdomain-help" class="mt-1 text-xs text-stone-600">
-					That address shows this tree and nothing else. Its name becomes visible as a web address,
-					even while the tree is private. Changing the address above moves it.
+				</div>
+				<p id="tree-slug-help" class="mt-1 text-xs text-stone-600">
+					Renaming the tree keeps the address, so bookmarks still work. Changing the address breaks
+					links to the old one. Leave it empty to use the tree's id.
 				</p>
 			</div>
-		{/if}
 
-		{#if addressError}<p class="text-xs text-red-700" role="alert">{addressError}</p>{/if}
-		<button type="submit" disabled={isSaving} class="btn-primary">Save address</button>
-	</form>
-</section>
-
-<section id="visibility" class="mt-10 scroll-mt-20" aria-labelledby="visibility-heading">
-	<h3 id="visibility-heading" class={sectionHeadingClass}>Visibility</h3>
-	<VisibilitySettings treeId={tree.id} settings={data.privacy} {toasts} />
-	<div class="mt-4 max-w-prose text-sm text-stone-700">
-		<p>
-			{#if viewer.isTreePublic}
-				This tree is public: anyone with the link can read it.
-			{:else}
-				Not public: only the people invited to this tree can read it.
+			{#if zone}
+				<div>
+					<label class="flex items-start gap-2 text-sm text-stone-800">
+						<input
+							type="checkbox"
+							bind:checked={isOnSubdomain}
+							disabled={isSaving || !hasAddress}
+							aria-describedby="tree-subdomain-help"
+							class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+						/>
+						<span>
+							Also open this tree at
+							<span class="font-mono text-stone-900"
+								>{hasAddress ? slug.trim() : 'address'}.{zone}</span
+							>
+						</span>
+					</label>
+					<p id="tree-subdomain-help" class="mt-1 text-xs text-stone-600">
+						That address shows this tree and nothing else. Its name becomes visible as a web
+						address, even while the tree is private. Changing the address above moves it.
+					</p>
+				</div>
 			{/if}
-			{#if viewer.isInstallOwner}
-				You choose the public tree in
-				<a href={appHref('/admin#trees', data.hostTree)} class="text-link">Administration</a>.
-			{:else}
-				The person who runs this Epoch chooses which tree is public.
-			{/if}
-		</p>
-		<p class="mt-2 text-stone-600">
-			One person can be made always public or always private on their own page.
-		</p>
-	</div>
-</section>
 
-{#if data.canManageSubtrees}
+			{#if addressError}<p class="text-xs text-red-700" role="alert">{addressError}</p>{/if}
+			<button type="submit" disabled={isSaving} class="btn-primary">Save address</button>
+		</form>
+	</section>
+
+	<section id="visibility" class="mt-10 scroll-mt-20" aria-labelledby="visibility-heading">
+		<h3 id="visibility-heading" class={sectionHeadingClass}>Visibility</h3>
+		<VisibilitySettings treeId={tree.id} settings={data.privacy} {toasts} />
+		<div class="mt-4 max-w-prose text-sm text-stone-700">
+			<p>
+				{#if viewer.isTreePublic}
+					This tree is public: anyone with the link can read it.
+				{:else}
+					Not public: only the people invited to this tree can read it.
+				{/if}
+				{#if viewer.isInstallOwner}
+					You choose the public tree in
+					<a href={appHref('/admin#trees', data.hostTree)} class="text-link">Administration</a>.
+				{:else}
+					The person who runs this Epoch chooses which tree is public.
+				{/if}
+			</p>
+			<p class="mt-2 text-stone-600">
+				One person can be made always public or always private on their own page.
+			</p>
+		</div>
+	</section>
+
+	{#if data.canDelete}
+		<section id="delete" class="mt-10 scroll-mt-20" aria-labelledby="delete-heading">
+			<h3 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h3>
+			<p class="mt-1 max-w-prose text-sm text-stone-600">
+				Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
+			</p>
+			<button
+				type="button"
+				class="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 focus-ring hover:bg-red-50"
+				onclick={() => {
+					deleteError = null;
+					isDeleteOpen = true;
+				}}
+			>
+				Delete this tree…
+			</button>
+		</section>
+	{/if}
+{:else if tab === 'subtrees' && data.canManageSubtrees}
 	<SubtreeManager
 		{tree}
 		subtrees={data.subtrees}
@@ -252,11 +282,9 @@
 		{toasts}
 		onchanged={() => invalidate(DATA_KEY)}
 	/>
-{/if}
-
-{#if data.canExport}
-	<section id="export" class="mt-10 scroll-mt-20" aria-labelledby="export-heading">
-		<h3 id="export-heading" class={sectionHeadingClass}>Export</h3>
+{:else if tab === 'export' && data.canExport}
+	<section id="export" class="scroll-mt-20" aria-labelledby="export-heading">
+		<h2 id="export-heading" class="text-2xl font-bold text-stone-900">Export</h2>
 		<p class="mt-1 max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
 		</p>
@@ -265,22 +293,6 @@
 {/if}
 
 {#if data.canDelete}
-	<section id="delete" class="mt-10 scroll-mt-20" aria-labelledby="delete-heading">
-		<h3 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h3>
-		<p class="mt-1 max-w-prose text-sm text-stone-600">
-			Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
-		</p>
-		<button
-			type="button"
-			class="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 focus-ring hover:bg-red-50"
-			onclick={() => {
-				deleteError = null;
-				isDeleteOpen = true;
-			}}
-		>
-			Delete this tree…
-		</button>
-	</section>
 	<DeleteTreeModal
 		isOpen={isDeleteOpen}
 		treeId={tree.id}

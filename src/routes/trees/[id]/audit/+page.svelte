@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { ChevronDown, ChevronRight } from '@lucide/svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
+	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import Pager from '#lib/components/lists/Pager.svelte';
@@ -69,6 +70,11 @@
 	<title>Audit log · {tree.name} · Epoch</title>
 </svelte:head>
 
+<TreeAdminTabs
+	base={treePath({ ...tree, subtree: null })}
+	current="audit"
+	role={data.summary.viewer.role}
+/>
 <header>
 	<h2 class="text-2xl font-bold text-stone-900">Audit log</h2>
 	<p class="mt-1 max-w-2xl text-sm text-stone-600">

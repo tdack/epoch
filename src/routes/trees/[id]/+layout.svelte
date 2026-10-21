@@ -16,7 +16,7 @@
 	import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { searchPeopleApi } from '#lib/api/lists.js';
-	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
+	import { canCreateRecords, treeAdminPage } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';
 	import { canonicalTreeAddress, treeLinkSlug } from '#lib/shared/tree-slug.js';
@@ -184,7 +184,10 @@
 		onopenNewTree={shell.openNewTree}
 		onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
 		onfileSelect={shell.selectFile}
-		settingsHref={(t) => (isManagerOrAbove(t.role) ? `${wholeTreePath(t.id)}/settings` : null)}
+		settingsHref={(t) => {
+			const admin = treeAdminPage(t.role);
+			return admin && `${wholeTreePath(t.id)}/${admin}`;
+		}}
 		canChangeTrees={!viewer.isPublicVisitor}
 		viewer={data.viewer}
 		accountHref={appHref('/account', data.hostTree)}
