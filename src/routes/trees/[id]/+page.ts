@@ -48,8 +48,7 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 	// Same fallback as the page, or a link without a mode would fetch for one view and draw another.
 	const fallbackMode = resolveLayoutMode({
 		fromAddress: null,
-		fromMember: saved?.viewMode ?? null,
-		fromTree: saved?.defaultViewMode ?? null
+		fromMember: saved?.viewMode ?? null
 	});
 	const modeAndScope = parseViewState(
 		{ get: (key) => (key === 'mode' || key === 'scope' ? url.searchParams.get(key) : null) },

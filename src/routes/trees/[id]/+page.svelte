@@ -33,7 +33,7 @@
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import { recordRecentApi } from '#lib/api/lists.js';
-	import { saveDefaultViewMode, saveViewMode } from '#lib/api/settings.js';
+	import { saveViewMode } from '#lib/api/settings.js';
 	import {
 		EMPTY_LAYOUT,
 		filterParentChildTypes,
@@ -78,23 +78,18 @@
 	 * shared links restore it. Everything below derives from it rather than keeping a second copy.
 	 */
 	/**
-	 * The view saved for this tree: what the viewer chose, else what the owner set. A change made
-	 * here shows at once; a reload reads the same from the tree list. Reset when the tree changes.
+	 * The view the viewer saved for this tree. A change made here shows at once; a reload reads the
+	 * same from the tree list. Reset when the tree changes.
 	 */
-	let savedViews = $state<{ treeId: string; member?: LayoutMode | null; tree?: LayoutMode | null }>(
-		{ treeId: '' }
-	);
+	let savedViews = $state<{ treeId: string; member?: LayoutMode | null }>({ treeId: '' });
 	const savedFor = $derived(savedViews.treeId === treeId ? savedViews : { treeId });
 	const memberTree = $derived(data.trees.find((t) => t.id === treeId));
 	const savedMemberMode = $derived(
 		'member' in savedFor ? (savedFor.member ?? null) : (memberTree?.viewMode ?? null)
 	);
-	const savedTreeMode = $derived(
-		'tree' in savedFor ? (savedFor.tree ?? null) : (memberTree?.defaultViewMode ?? null)
-	);
 	/** A link with no `mode` opens here; the address wins when it names one. */
 	const startingMode = $derived(
-		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode, fromTree: savedTreeMode })
+		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode })
 	);
 	const view = $derived(
 		parseViewState(new URLSearchParams(navigation.pendingSearch ?? page.url.search), startingMode)
@@ -453,15 +448,14 @@
 		editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' });
 	}
 
-	/** Save a default view, showing it at once and saying so when the save fails. */
-	async function setDefaultView(scope: 'member' | 'tree', mode: LayoutMode | null) {
+	/** Save the member's own default view, showing it at once and saying so when the save fails. */
+	async function setMemberDefault(mode: LayoutMode | null) {
 		const before = savedFor;
-		savedViews = { ...savedFor, [scope]: mode };
+		savedViews = { ...savedFor, member: mode };
 		// The public visitor has no saved views, only the one on screen.
 		if (isPublicVisitor) return;
 		try {
-			if (scope === 'member') await saveViewMode(treeId, mode);
-			else await saveDefaultViewMode(treeId, mode);
+			await saveViewMode(treeId, mode);
 		} catch (cause) {
 			savedViews = before;
 			toasts.push(cause instanceof Error ? cause.message : 'Could not save the default view', {
@@ -539,13 +533,8 @@
 			<TreeToolbar
 				{view}
 				{palette}
-				defaults={{
-					member: savedMemberMode,
-					tree: savedTreeMode,
-					canSetTree: role === 'owner'
-				}}
-				onSetMemberDefault={(mode) => void setDefaultView('member', mode)}
-				onSetTreeDefault={(mode) => void setDefaultView('tree', mode)}
+				defaults={{ member: savedMemberMode }}
+				onSetMemberDefault={(mode) => void setMemberDefault(mode)}
 				{focusPerson}
 				onchangeFocus={() => finder.focusInput?.()}
 				onshowDetails={handleOpenPerson}
