@@ -8,5 +8,8 @@ import type { LayoutServerLoad } from './$types';
  */
 export const load: LayoutServerLoad = serverLoad(
 	{ failure: 'Failed to load trees' },
-	async ({ db, ctx }) => ({ trees: await new TreeService(db).listTrees(ctx) })
+	async ({ db, ctx }) => ({
+		trees: await new TreeService(db).listTrees(ctx),
+		isInstallOwner: ctx.user.isInstallOwner
+	})
 );

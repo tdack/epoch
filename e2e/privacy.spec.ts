@@ -102,7 +102,7 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 			.getByRole('navigation', { name: 'Tree sections' })
 			.getByRole('button', { name: 'More' })
 			.click();
-		await expect(viewer.getByRole('menuitem', { name: 'Privacy' })).toHaveCount(0);
+		await expect(viewer.getByRole('menuitem', { name: 'Tree settings' })).toHaveCount(0);
 		await expect(viewer.getByRole('menuitem', { name: 'Members' })).toHaveCount(0);
 		await viewer.keyboard.press('Escape');
 		expect((await viewer.request.get(`/api/trees/${api.treeId}/members`)).status()).toBe(403);

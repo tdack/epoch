@@ -41,13 +41,10 @@
 		isImporting={shell.isImporting}
 		onselectTree={selectTree}
 		onopenNewTree={shell.openNewTree}
-		onopenDeleteTree={() => {}}
 		onopenAddPerson={() => {}}
 		onfileSelect={shell.selectFile}
-		onexportGedcom={() => {}}
 		viewer={data.viewer}
-		profileHref="/account"
-		settingsHref="/account#appearance"
+		adminHref={data.isInstallOwner ? '/admin' : undefined}
 		signOutHref={signOutHref(page.url.origin)}
 	/>
 	<main class="mx-auto w-full max-w-3xl flex-1 p-6">

@@ -1,21 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
 
-const navigation = vi.hoisted(() => ({ invalidate: vi.fn(), goto: vi.fn() }));
+const navigation = vi.hoisted(() => ({ invalidate: vi.fn() }));
 vi.mock('$app/navigation', () => navigation);
-vi.mock('$app/state', () => ({
-	page: { url: new URL('https://epoch.test/trees/smiths/settings'), params: { id: 'smiths' } }
-}));
 const toasts = vi.hoisted(() => ({ push: vi.fn() }));
+const context = vi.hoisted(() => ({ followAddress: vi.fn(), exportGedcom: vi.fn() }));
 vi.mock('#lib/components/tree/tree-context.js', () => ({
-	getTreeContext: () => ({ toasts })
+	getTreeContext: () => ({ toasts, ...context })
 }));
 vi.mock('#lib/api/trees.js', () => ({ renameTreeApi: vi.fn(), deleteTreeApi: vi.fn() }));
 vi.mock('#lib/api/people.js', () => ({ savePrivacySettings: vi.fn() }));
-vi.mock('#lib/api/files.js', () => ({
-	startGedcomExport: vi.fn(),
-	gedcomExportUrl: vi.fn(() => '/api/export')
-}));
 vi.mock('#lib/api/subtrees.js', () => ({ deleteSubtree: vi.fn(), updateSubtree: vi.fn() }));
 vi.mock('#lib/api/relationships.js', () => ({ undoApi: vi.fn() }));
 
@@ -33,7 +27,7 @@ beforeEach(() => {
 		.mockReset()
 		.mockResolvedValue({ maxAliveYears: 100, shouldShowPrivateStructure: true });
 	navigation.invalidate.mockReset().mockResolvedValue(undefined);
-	navigation.goto.mockReset().mockResolvedValue(undefined);
+	context.followAddress.mockReset().mockResolvedValue(undefined);
 	toasts.push.mockReset();
 });
 afterEach(() => {
@@ -68,8 +62,8 @@ function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...res
 					tree: { id: 't1', slug: 'smiths', name: 'Smiths', version: 3, isOnSubdomain: false },
 					viewer: { isInstallOwner, isTreePublic }
 				}
-			} as never
-		}
+			}
+		} as never
 	});
 	flushSync();
 }
@@ -165,9 +159,10 @@ describe('tree settings page', () => {
 		flushSync();
 		await submit(slug.closest('form')!);
 		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'the-smiths', 3, undefined);
-		expect(navigation.goto).toHaveBeenCalledWith('/trees/the-smiths/settings#address', {
-			replaceState: true,
-			invalidateAll: true
+		expect(context.followAddress).toHaveBeenCalledWith({
+			id: 't1',
+			slug: 'the-smiths',
+			isOnSubdomain: false
 		});
 	});
 

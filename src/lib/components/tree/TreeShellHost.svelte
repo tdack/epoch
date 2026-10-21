@@ -1,26 +1,16 @@
 <script lang="ts">
 	import { Sparkles } from '@lucide/svelte';
-	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import ImportConfirmModal from '#lib/components/modals/ImportConfirmModal.svelte';
 	import NewTreeModal from '#lib/components/modals/NewTreeModal.svelte';
-	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
 	import type { TreeShell } from './tree-shell.svelte.js';
 
 	interface Props {
 		shell: TreeShell;
-		/** The tree in view, for the rename, delete and import dialogs; null on the landing page. */
-		tree: {
-			id: string;
-			slug: string | null;
-			name: string;
-			version: number;
-			isOnSubdomain?: boolean;
-		} | null;
-		/** The zone tree subdomains sit under; null or absent where the install serves none. */
-		subdomainZone?: string | null;
+		/** The tree in view, which an import goes into; null on the landing page. */
+		tree: { name: string } | null;
 	}
 
-	let { shell, tree, subdomainZone = null }: Props = $props();
+	let { shell, tree }: Props = $props();
 </script>
 
 {#if shell.importStatus}
@@ -48,37 +38,6 @@
 	onclose={() => (shell.isNewTreeModalOpen = false)}
 	oncreate={shell.createTree}
 />
-
-{#if tree}
-	<RenameTreeModal
-		isOpen={shell.isRenameTreeModalOpen}
-		treeName={tree.name}
-		treeSlug={tree.slug}
-		treeVersion={tree.version}
-		isOnSubdomain={tree.isOnSubdomain ?? false}
-		{subdomainZone}
-		isRenaming={shell.isRenamingTree}
-		error={shell.renameTreeError}
-		onclose={() => (shell.isRenameTreeModalOpen = false)}
-		onrename={(name, slug, version, isOnSubdomain) =>
-			shell.renameTree(
-				name,
-				slug,
-				version,
-				{ slug: tree.slug, isOnSubdomain: tree.isOnSubdomain ?? false },
-				isOnSubdomain
-			)}
-	/>
-	<DeleteTreeModal
-		isOpen={shell.isDeleteTreeModalOpen}
-		treeId={tree.id}
-		treeName={tree.name}
-		isDeleting={shell.isDeletingTree}
-		error={shell.deleteTreeError}
-		onclose={() => (shell.isDeleteTreeModalOpen = false)}
-		ondelete={shell.deleteTree}
-	/>
-{/if}
 
 <ImportConfirmModal
 	isOpen={shell.isImportConfirmModalOpen}

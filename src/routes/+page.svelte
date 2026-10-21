@@ -31,10 +31,8 @@
 		isImporting={shell.isImporting}
 		onselectTree={() => {}}
 		onopenNewTree={shell.openNewTree}
-		onopenDeleteTree={() => {}}
 		onopenAddPerson={() => {}}
 		onfileSelect={shell.selectFile}
-		onexportGedcom={() => {}}
 		viewer={data.viewer}
 		signOutHref={signOutHref(page.url.origin)}
 	/>

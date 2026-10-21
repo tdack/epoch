@@ -287,11 +287,14 @@ const NO_RECORD_LOADS = [
 	'./+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
-	// Only redirects to the Trees page under a tree, reading the tree list to choose one.
+	// The person's own pages (ADR-075): their tree list with roles, their profile and colours, and,
+	// for the install owner alone, every tree's name and counts. No person record of any tree.
+	'./(app)/+layout.server.ts',
+	'./(app)/account/+page.server.ts',
+	'./(app)/admin/+page.server.ts',
+	// Only redirect to Administration or the account, by who is asking.
 	'./manage/trees/+page.server.ts',
-	// Only redirects to the settings under a tree, chosen the same way.
 	'./settings/+page.server.ts',
-	// The same, for the profile.
 	'./profile/+page.server.ts'
 ];
 

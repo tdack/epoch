@@ -5,7 +5,6 @@
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
 	import AvatarMenu from '#lib/components/profile/AvatarMenu.svelte';
 	import type { ProfileViewDto } from '#lib/shared/profile.js';
-	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import type { TreeSummary } from '#lib/types/genealogy.js';
 	import type { SubtreeSummaryDto } from '#lib/shared/subtrees.js';
 
@@ -24,16 +23,10 @@
 		onselectTree: (id: string) => void;
 		onselectSubtree?: (subtree: SubtreeSummaryDto) => void;
 		onopenNewTree: () => void;
-		onopenDeleteTree: () => void;
-		/** Absent below manager, who may not rename the tree, so the menu item is not shown. */
-		onopenRenameTree?: () => void;
 		/** Absent for a viewer, who cannot add anyone, so the button is not shown. */
 		onopenAddPerson?: () => void;
 		onfileSelect: (e: Event) => void;
-		onexportGedcom: (choice: GedcomExportChoice) => void;
-		/** Export carries every person, living ones included, so it is offered to managers and owners only. */
-		canExport?: boolean;
-		/** False for the public visitor, who is offered no way to start, import or delete a tree. */
+		/** False for the public visitor, who is offered no way to start or import a tree. */
 		canChangeTrees?: boolean;
 		/** The person finder, placed between the tree switcher and Add person on tree pages. */
 		finder?: Snippet;
@@ -60,12 +53,8 @@
 		onselectTree,
 		onselectSubtree,
 		onopenNewTree,
-		onopenDeleteTree,
-		onopenRenameTree,
 		onopenAddPerson,
 		onfileSelect,
-		onexportGedcom,
-		canExport = false,
 		canChangeTrees = true,
 		finder,
 		homeHref = '/',
@@ -104,11 +93,7 @@
 		{onselectTree}
 		{onselectSubtree}
 		{onopenNewTree}
-		{onopenDeleteTree}
-		{onopenRenameTree}
 		{onfileSelect}
-		{onexportGedcom}
-		{canExport}
 		{canChangeTrees}
 	/>
 

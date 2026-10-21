@@ -16,10 +16,10 @@
 	import { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { searchPeopleApi } from '#lib/api/lists.js';
-	import { canCreateRecords, isManagerOrAbove } from '#lib/shared/roles.js';
+	import { canCreateRecords } from '#lib/shared/roles.js';
 	import type { LayoutData } from './$types';
 	import { signOutHref } from '#lib/shared/access.js';
-	import { canonicalTreeAddress, treeLinkSlug, treePath } from '#lib/shared/tree-slug.js';
+	import { canonicalTreeAddress, treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { appHref, isOtherOrigin, subdomainOrigin, treeHref } from '#lib/shared/tree-host.js';
 
 	interface Props {
@@ -34,9 +34,6 @@
 	const role = $derived(
 		data.trees.find((t) => t.id === data.summary.tree.id)?.role ??
 			(viewer.isOutsider ? viewer.role : undefined)
-	);
-	const treeBase = $derived(
-		treePath({ id: data.summary.tree.id, slug: treeLinkSlug(data.summary.tree) })
 	);
 	const isChartPage = $derived(page.route.id === '/trees/[id]');
 	// Links prefer a tree's slug (ADR-045); the switcher and the shell know only the id they chose.
@@ -87,28 +84,32 @@
 		treeId: () => data.summary.tree.id,
 		toasts,
 		reload,
-		goTo: (id) => void navigate(id ? pathOf(id) : appHref('/', data.hostTree)),
-		onAddressChange: async (tree) => {
-			const moved = canonicalTreeAddress(page.url, page.params.id!, {
-				...tree,
-				subtree: data.summary.tree.subtree
-			});
-			// This host serves the tree only while its subdomain is its slug and is on: otherwise the
-			// page moves to wherever the tree now lives.
-			if (data.hostTree && data.subdomainZone) {
-				const rest = moved ?? `${page.url.pathname}${page.url.search}`;
-				const origin =
-					tree.isOnSubdomain && tree.slug
-						? subdomainOrigin(tree.slug, data.subdomainZone, page.url)
-						: data.hostTree.appOrigin;
-				if (origin !== page.url.origin || moved) window.location.assign(`${origin}${rest}`);
-				else await invalidate(DATA_KEY);
-				return;
-			}
-			if (moved) await goto(moved, { replaceState: true, invalidateAll: true });
-			else await invalidate(DATA_KEY);
-		}
+		goTo: (id) => void navigate(id ? pathOf(id) : appHref('/', data.hostTree))
 	});
+	/**
+	 * The tree's address or subdomain changed (ADR-045). The page's own address may now name a slug or
+	 * a host that no longer serves the tree, so reloading in place could fail; move to the new one.
+	 */
+	async function followAddress(tree: { id: string; slug: string | null; isOnSubdomain: boolean }) {
+		const moved = canonicalTreeAddress(page.url, page.params.id!, {
+			...tree,
+			subtree: data.summary.tree.subtree
+		});
+		// This host serves the tree only while its subdomain is its slug and is on: otherwise the
+		// page moves to wherever the tree now lives.
+		if (data.hostTree && data.subdomainZone) {
+			const rest = moved ?? `${page.url.pathname}${page.url.search}`;
+			const origin =
+				tree.isOnSubdomain && tree.slug
+					? subdomainOrigin(tree.slug, data.subdomainZone, page.url)
+					: data.hostTree.appOrigin;
+			if (origin !== page.url.origin || moved) window.location.assign(`${origin}${rest}`);
+			else await invalidate(DATA_KEY);
+			return;
+		}
+		if (moved) await goto(moved, { replaceState: true, invalidateAll: true });
+		else await invalidate(DATA_KEY);
+	}
 	// Seeded once so the server render already has the lists; the effect below adopts any later load.
 	const marks = new MarksStore(
 		untrack(() => data.marks),
@@ -129,6 +130,8 @@
 		finder: finderBridge,
 		openNewTree: shell.openNewTree,
 		importGedcom: shell.importFile,
+		exportGedcom: shell.exportGedcom,
+		followAddress,
 		get isPublicVisitor() {
 			return viewer.isPublicVisitor;
 		}
@@ -179,12 +182,8 @@
 		counts={data.summary.counts}
 		subtreeName={lens?.name ?? null}
 		onopenNewTree={shell.openNewTree}
-		onopenDeleteTree={shell.openDeleteTree}
-		onopenRenameTree={isManagerOrAbove(role) ? shell.openRenameTree : undefined}
 		onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
 		onfileSelect={shell.selectFile}
-		onexportGedcom={shell.exportGedcom}
-		canExport={isManagerOrAbove(role)}
 		canChangeTrees={!viewer.isPublicVisitor}
 		viewer={data.viewer}
 		accountHref={appHref('/account', data.hostTree)}
@@ -240,17 +239,7 @@
 			? 'max-w-none'
 			: 'max-w-7xl'}"
 	>
-		<TreeShellHost
-			{shell}
-			tree={{
-				id: data.summary.tree.id,
-				slug: data.summary.tree.slug,
-				name: data.summary.tree.name,
-				version: data.summary.tree.version,
-				isOnSubdomain: data.summary.tree.isOnSubdomain
-			}}
-			subdomainZone={data.subdomainZone}
-		/>
+		<TreeShellHost {shell} tree={data.summary.tree} />
 		<TreeNav
 			treeId={data.summary.tree.id}
 			{role}

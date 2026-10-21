@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import TreeSwitcher from './TreeSwitcher.svelte';
-import type { GedcomExportChoice } from '#lib/api/files.js';
 import type { TreeSummary } from '#lib/types/genealogy.js';
 
 let component: Record<string, unknown> | null = null;
@@ -20,8 +19,6 @@ const trees = [
 function render(
 	selectedTreeId: string,
 	extra: {
-		canExport?: boolean;
-		onexportGedcom?: (choice: GedcomExportChoice) => void;
 		subtrees?: { id: string; slug: string; name: string; rootPersonId: string }[];
 		activeSubtreeId?: string | null;
 		onselectTree?: (id: string) => void;
@@ -35,9 +32,7 @@ function render(
 			selectedTreeId,
 			onselectTree: () => {},
 			onopenNewTree: () => {},
-			onopenDeleteTree: () => {},
 			onfileSelect: () => {},
-			onexportGedcom: () => {},
 			...extra
 		}
 	});
@@ -120,77 +115,6 @@ describe('TreeSwitcher', () => {
 			]);
 			radios()[1].click();
 			expect(onselectTree).toHaveBeenCalledWith('b');
-		});
-	});
-
-	describe('export', () => {
-		const item = (name: string) =>
-			[...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find(
-				(el) => el.textContent?.trim() === name || el.getAttribute('aria-label') === name
-			)!;
-		const isMenuOpen = () => document.querySelector('[role="menu"]') !== null;
-
-		function open(onexportGedcom: (choice: GedcomExportChoice) => void) {
-			const trigger = render('a', { canExport: true, onexportGedcom });
-			trigger.click();
-			flushSync();
-			return trigger;
-		}
-
-		it('exports GEDCOM 7.0, uncompressed, with one click', () => {
-			const onexportGedcom = vi.fn();
-			open(onexportGedcom);
-			item('Export GEDCOM 7.0').click();
-			expect(onexportGedcom).toHaveBeenCalledWith({ format: 'gedcom7', shouldCompress: false });
-		});
-
-		it('keeps the options behind the chevron, and the menu open while they are chosen', () => {
-			const onexportGedcom = vi.fn();
-			open(onexportGedcom);
-			expect(document.querySelector('[role="menuitemcheckbox"]')).toBeNull();
-			const chevron = item('Export options');
-			chevron.click();
-			flushSync();
-			expect(chevron.getAttribute('aria-expanded')).toBe('true');
-			item('Compress to .gdz').click();
-			flushSync();
-			expect(isMenuOpen()).toBe(true);
-			item('Export GEDCOM 7.0 (.gdz)').click();
-			expect(onexportGedcom).toHaveBeenCalledWith({ format: 'gedcom7', shouldCompress: true });
-		});
-
-		it('offers 5.5.1 without GEDZip, which holds 7.0 only', () => {
-			const onexportGedcom = vi.fn();
-			open(onexportGedcom);
-			item('Export options').click();
-			flushSync();
-			item('Compress to .gdz').click();
-			flushSync();
-			item('GEDCOM 5.5.1 (legacy)').click();
-			flushSync();
-			const compress = item('Compress to .gdz');
-			expect(compress.getAttribute('aria-checked')).toBe('false');
-			expect(compress.getAttribute('aria-disabled')).toBe('true');
-			compress.click();
-			flushSync();
-			item('Export GEDCOM 5.5.1').click();
-			expect(onexportGedcom).toHaveBeenCalledWith({ format: 'gedcom551', shouldCompress: false });
-		});
-
-		it('starts again from 7.0 each time the menu opens', () => {
-			const onexportGedcom = vi.fn();
-			const trigger = open(onexportGedcom);
-			item('Export options').click();
-			flushSync();
-			item('GEDCOM 5.5.1 (legacy)').click();
-			flushSync();
-			trigger.click();
-			flushSync();
-			trigger.click();
-			flushSync();
-			expect(document.querySelector('[role="menuitemcheckbox"]')).toBeNull();
-			item('Export GEDCOM 7.0').click();
-			expect(onexportGedcom).toHaveBeenCalledWith({ format: 'gedcom7', shouldCompress: false });
 		});
 	});
 });

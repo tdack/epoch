@@ -33,12 +33,14 @@ export interface TreeContext {
 	openNewTree: () => void;
 	/** Previews a GEDCOM file for this tree and asks before importing it, as the header's import does. */
 	importGedcom: (file: File) => void;
-	/**
-	 * Starts a GEDCOM export through the layout's shell, which polls a large one and shows its
-	 * progress. Absent in a layout that has not wired it, and Tree settings then falls back to a
-	 * plain download.
-	 */
-	exportGedcom?: (choice: GedcomExportChoice) => Promise<void>;
+	/** Starts a GEDCOM export through the layout's shell, which polls a large one and shows its progress. */
+	exportGedcom: (choice: GedcomExportChoice) => Promise<void>;
+	/** After the tree's address or subdomain changes: move to where the tree now lives (ADR-045). */
+	followAddress: (tree: {
+		id: string;
+		slug: string | null;
+		isOnSubdomain: boolean;
+	}) => Promise<void>;
 	/**
 	 * Nobody is signed in: the reader of the public tree. A screen must not call an endpoint that
 	 * stores something for a user, since the answer is a 401 and the API client reacts to a 401 by

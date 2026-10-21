@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { goto, invalidate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { invalidate } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import GedcomExportChoices from '#lib/components/settings/GedcomExportChoices.svelte';
@@ -9,17 +8,17 @@
 	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
-	import { gedcomExportUrl, startGedcomExport, type GedcomExportChoice } from '#lib/api/files.js';
+	import type { GedcomExportChoice } from '#lib/api/files.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
-	import { appHref, subdomainOrigin } from '#lib/shared/tree-host.js';
-	import {
-		MAX_TREE_SLUG_LENGTH,
-		canonicalTreeAddress,
-		isValidTreeSlug
-	} from '#lib/shared/tree-slug.js';
-	import type { PageProps } from './$types';
+	import { appHref } from '#lib/shared/tree-host.js';
+	import { MAX_TREE_SLUG_LENGTH, isValidTreeSlug } from '#lib/shared/tree-slug.js';
+	import type { PageData } from './$types';
 
-	let { data }: PageProps = $props();
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
 	const context = getTreeContext();
 	const { toasts } = context;
 
@@ -37,29 +36,6 @@
 	// The subdomain is the address, so it is offered only while there is one.
 	const hasAddress = $derived(slug.trim() !== '');
 
-	/** Where the page goes once the tree's address has changed: this one no longer names it. */
-	async function followAddress(next: { slug: string | null; isOnSubdomain: boolean }) {
-		const moved = canonicalTreeAddress(page.url, page.params.id!, {
-			id: tree.id,
-			slug: next.slug,
-			subtree: tree.subtree
-		});
-		// shortcut: the layout's own address hook is not reachable from a page, so this repeats its
-		// rule; when the layout exposes the hook in the tree context, call that instead.
-		if (data.hostTree && zone) {
-			const rest = moved ?? `${page.url.pathname}${page.url.search}`;
-			const origin =
-				next.isOnSubdomain && next.slug
-					? subdomainOrigin(next.slug, zone, page.url)
-					: data.hostTree.appOrigin;
-			if (origin !== page.url.origin || moved) window.location.assign(`${origin}${rest}`);
-			else await invalidate(DATA_KEY);
-			return;
-		}
-		if (moved) await goto(`${moved}#address`, { replaceState: true, invalidateAll: true });
-		else await invalidate(DATA_KEY);
-	}
-
 	async function save(nextName: string, nextSlug: string | null, isNextOnSubdomain?: boolean) {
 		isSaving = true;
 		try {
@@ -72,7 +48,7 @@
 			);
 			toasts.push('Tree saved');
 			const isMoved = renamed.slug !== tree.slug || renamed.isOnSubdomain !== tree.isOnSubdomain;
-			if (isMoved) await followAddress(renamed);
+			if (isMoved) await context.followAddress(renamed);
 			else await invalidate(DATA_KEY);
 			return true;
 		} catch (cause) {
@@ -116,12 +92,7 @@
 		if (isExporting) return;
 		isExporting = true;
 		try {
-			if (context.exportGedcom) return await context.exportGedcom(choice);
-			// shortcut: without the layout's shell a large export cannot be followed here; it only
-			// downloads one built in the request. Remove once the layout provides exportGedcom.
-			const start = await startGedcomExport(tree.id, choice);
-			if (start.status === 'sync') window.location.href = gedcomExportUrl(tree.id, choice);
-			else toasts.push('Use Export in the tree menu for a large tree.');
+			await context.exportGedcom(choice);
 		} catch (cause) {
 			toasts.push(messageOf(cause, 'Could not start the export'), { tone: 'error' });
 		} finally {
