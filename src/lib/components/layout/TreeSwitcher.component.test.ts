@@ -133,4 +133,14 @@ describe('TreeSwitcher', () => {
 			['Settings for Gamma', '/trees/c/settings']
 		]);
 	});
+
+	it('names a gear that opens the audit log for the audit log, not for settings', () => {
+		render('a', {
+			settingsHref: (t) => `/trees/${t.id}/audit`
+		}).click();
+		flushSync();
+		const gear = document.querySelector<HTMLAnchorElement>('a[role="menuitem"]')!;
+		expect(gear.getAttribute('aria-label')).toBe('Audit log for Alpha');
+		expect(gear.getAttribute('title')).toBe('Audit log');
+	});
 });
