@@ -49,7 +49,7 @@
 	<title>Relationship · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
-<h2 class="text-2xl font-bold text-stone-900">How are they related?</h2>
+<h1 class="text-2xl font-bold text-stone-900">How are they related?</h1>
 <p class="mt-1 max-w-2xl text-sm text-stone-600">
 	Choose two people. Every route between them is listed, nearest first.
 </p>

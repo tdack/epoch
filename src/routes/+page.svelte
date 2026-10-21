@@ -38,7 +38,7 @@
 	/>
 	<main class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center p-6">
 		<TreeShellHost {shell} tree={null} />
-		<h2 class="text-2xl font-bold text-stone-900">Start your family tree</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Start your family tree</h1>
 		<p class="mt-2 text-sm text-stone-600">
 			You have no trees yet. Create an empty one, or import a GEDCOM file.
 		</p>

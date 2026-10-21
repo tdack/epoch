@@ -69,7 +69,7 @@
 
 <header class="flex flex-wrap items-start justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">Sources</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Sources</h1>
 		<p class="mt-1 max-w-2xl text-sm text-stone-600">
 			The records the tree's facts are drawn from. Open a source to see everything it supports.
 		</p>

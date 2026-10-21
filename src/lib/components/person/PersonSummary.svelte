@@ -36,9 +36,9 @@
 	</div>
 	<div class="min-w-0">
 		<!-- Focusable so the drawer can move focus here when it opens. -->
-		<h2 class="text-2xl font-bold text-stone-900" data-testid="person-name" tabindex="-1">
+		<h1 class="text-2xl font-bold text-stone-900" data-testid="person-name" tabindex="-1">
 			{dto.person.displayName}
-		</h2>
+		</h1>
 		<p class="mt-1 text-sm text-stone-600">
 			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
 				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}

@@ -21,7 +21,7 @@
 </svelte:head>
 
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Partnerships</h2>
+	<h1 class="text-2xl font-bold text-stone-900">Partnerships</h1>
 	<p class="mt-1 text-sm text-stone-600">
 		In the order they were added. A partnership is not assumed to be a marriage.
 	</p>
