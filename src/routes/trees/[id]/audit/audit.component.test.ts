@@ -30,7 +30,7 @@ const base = {
 
 function render(over: Record<string, unknown> = {}) {
 	const data = {
-		summary: { tree: { id: 't1', slug: null, name: 'Tree' } },
+		summary: { tree: { id: 't1', slug: null, name: 'Tree' }, viewer: { role: 'editor' } },
 		filters: { recordId: null, actorId: null, from: null, to: null, tz: null },
 		audit: {
 			page: 2,
@@ -122,7 +122,9 @@ describe('audit page', () => {
 		expect(hrefs).toContain(
 			'/trees/t1/audit?record=p1&actor=u2&from=2026-01-02&tz=Australia%2FAdelaide&page=5'
 		);
-		expect(document.querySelector('[aria-current="page"]')!.textContent).toBe('2');
+		expect(
+			document.querySelector('[data-testid="audit-pager"] [aria-current="page"]')!.textContent
+		).toBe('2');
 		expect(document.body.textContent).toContain('Showing 26 to 27 of 110');
 		expect(document.querySelector('[data-testid="audit-filter"]')!.textContent).toContain('Bo');
 		expect(document.querySelector('[data-testid="audit-clear"]')!.getAttribute('href')).toBe(
