@@ -37,9 +37,23 @@ const keepsAnOwner = (treeId: string) =>
 export interface MembershipLogEntry {
 	treeId: string;
 	actorId: string;
-	kind: 'change_member_role' | 'remove_member' | 'invite_member' | 'withdraw_invitation';
+	kind:
+		| 'change_member_role'
+		| 'remove_member'
+		| 'invite_member'
+		| 'withdraw_invitation'
+		| 'join_tree'
+		| 'leave_epoch';
 	summary: string;
 	correlationId?: string | null;
+}
+
+/**
+ * The audit log is read by editors, who may not see members' addresses (a manager's view), so an
+ * entry names a person and never their email.
+ */
+export function memberLabel(member: { name?: string | null }): string {
+	return member.name?.trim() || 'a member with no name set';
 }
 
 export class MemberRepository {
@@ -238,23 +252,32 @@ export class MemberRepository {
 	 * delete after, so a failure between them leaves an invitation that redeems again harmlessly.
 	 */
 	async redeem(
-		userId: string,
+		user: { id: string; name?: string | null },
 		pending: Awaited<ReturnType<MemberRepository['pendingFor']>>,
 		now: Date
 	): Promise<number> {
 		for (const invitation of pending) {
-			await this.db
-				.insert(treeMemberships)
-				.values({
-					id: crypto.randomUUID(),
+			await this.db.batch([
+				this.db
+					.insert(treeMemberships)
+					.values({
+						id: crypto.randomUUID(),
+						treeId: invitation.treeId,
+						userId: user.id,
+						role: invitation.role,
+						createdAt: now,
+						updatedAt: now
+					})
+					.onConflictDoNothing(),
+				// A person who was already a member did not join, so nothing is logged for them.
+				this.logIfChanged({
 					treeId: invitation.treeId,
-					userId,
-					role: invitation.role,
-					createdAt: now,
-					updatedAt: now
-				})
-				.onConflictDoNothing();
-			await this.db.delete(treeInvitations).where(eq(treeInvitations.id, invitation.id));
+					actorId: user.id,
+					kind: 'join_tree',
+					summary: `${memberLabel(user)} joined as ${invitation.role}`
+				}),
+				this.db.delete(treeInvitations).where(eq(treeInvitations.id, invitation.id))
+			]);
 		}
 		return pending.length;
 	}
@@ -264,7 +287,7 @@ export class MemberRepository {
 	 * row, so a refused or raced change leaves no entry. It must sit directly after that statement:
 	 * `changes()` counts the most recent write.
 	 */
-	private logIfChanged(entry: MembershipLogEntry) {
+	logIfChanged(entry: MembershipLogEntry) {
 		const values: Partial<Record<keyof typeof changeLog.$inferInsert, unknown>> = {
 			id: crypto.randomUUID(),
 			treeId: entry.treeId,

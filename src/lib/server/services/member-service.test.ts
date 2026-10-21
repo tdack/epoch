@@ -628,4 +628,34 @@ describe('the audit log', () => {
 		);
 		expect((await logOf(treeId)).map((e) => e.summary).join(' ')).not.toContain('@');
 	});
+
+	it('records a newcomer joining, and nothing for someone who was already a member', async () => {
+		const { treeId, actors } = await tree();
+		await service().invite(
+			treeId,
+			{ email: 'joiner@example.com', role: 'viewer' },
+			actors.owner.context
+		);
+		const repository = new UserRepository(t.db);
+		await repository.admitFromAccess(
+			{ accessSub: 'sub-joiner', email: 'joiner@example.com', name: 'Newcomer' },
+			null,
+			clockNow
+		);
+		// An offer left over for someone who already belongs redeems to nothing.
+		await t.db.insert(treeInvitations).values({
+			id: crypto.randomUUID(),
+			treeId,
+			email: 'joiner@example.com',
+			role: 'editor',
+			expiresAt: new Date(clockNow.getTime() + 86_400_000)
+		});
+		await repository.admitFromAccess(
+			{ accessSub: 'sub-joiner', email: 'joiner@example.com', name: 'Newcomer' },
+			null,
+			clockNow
+		);
+		const joins = (await logOf(treeId)).filter((e) => e.kind === 'join_tree');
+		expect(joins.map((e) => e.summary)).toEqual(['Newcomer joined as viewer']);
+	});
 });

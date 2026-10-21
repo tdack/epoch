@@ -12,7 +12,7 @@ import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/ide
 import type { TreeRole } from '../../shared/roles';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
-import { MemberRepository } from './member-repository';
+import { MemberRepository, memberLabel } from './member-repository';
 
 export class UserRepository {
 	constructor(private db: DbClient) {}
@@ -45,7 +45,7 @@ export class UserRepository {
 		if (!isAdmitted) return null;
 
 		const user = await this.upsertUser(identity);
-		await members.redeem(user.id, pending, now);
+		await members.redeem(user, pending, now);
 		return {
 			...user,
 			isInstallOwner,
@@ -283,12 +283,39 @@ export class UserRepository {
 	 * invitations go too, or admission would take the person straight back. Tasks they were assigned
 	 * become unassigned, as when a member is removed (ADR-029).
 	 */
-	async leave(userId: string, email: string, now: Date): Promise<void> {
+	async leave(
+		user: { id: string; email: string; name?: string | null },
+		now: Date,
+		correlationId: string | null = null
+	): Promise<void> {
+		const userId = user.id;
+		const members = new MemberRepository(this.db);
+		const memberships = await this.db
+			.select({ treeId: treeMemberships.treeId })
+			.from(treeMemberships)
+			.where(eq(treeMemberships.userId, userId));
+		// One delete per tree, each followed by its own log entry, so every tree's log says who left.
+		const departures = memberships.flatMap(({ treeId }) => [
+			this.db
+				.delete(treeMemberships)
+				.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId))),
+			members.logIfChanged({
+				treeId,
+				actorId: userId,
+				kind: 'leave_epoch',
+				summary: `${memberLabel(user)} left Epoch`,
+				correlationId
+			})
+		]);
 		await this.db.batch([
-			this.db.delete(treeMemberships).where(eq(treeMemberships.userId, userId)),
 			this.db.delete(userSettings).where(eq(userSettings.userId, userId)),
+			...departures,
+			// Catches a membership added after the read above; it is gone too, if unlogged.
+			this.db.delete(treeMemberships).where(eq(treeMemberships.userId, userId)),
 			this.db.delete(personMarks).where(eq(personMarks.userId, userId)),
-			this.db.delete(treeInvitations).where(eq(treeInvitations.email, email.trim().toLowerCase())),
+			this.db
+				.delete(treeInvitations)
+				.where(eq(treeInvitations.email, user.email.trim().toLowerCase())),
 			this.db
 				.update(researchTasks)
 				.set({ assigneeId: null })

@@ -2,6 +2,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+	changeLog,
 	personMarks,
 	researchTasks,
 	treeInvitations,
@@ -50,6 +51,27 @@ async function leaver(label: string): Promise<TestActor> {
 }
 
 describe('ProfileService leave', () => {
+	it('writes "left Epoch" into the log of every tree the person was in', async () => {
+		const owner = await leaver('o-log');
+		const me = await leaver('logged leaver');
+		const first = await createTestTree(t.db, owner);
+		const second = await createTestTree(t.db, owner);
+		const untouched = await createTestTree(t.db, owner);
+		await addTestMember(t.db, first, me, 'editor');
+		await addTestMember(t.db, second, me, 'viewer');
+
+		await service.leave(me.context.user.email, bucket, me.context);
+
+		const entries = await t.db
+			.select({ treeId: changeLog.treeId, summary: changeLog.summary, kind: changeLog.kind })
+			.from(changeLog)
+			.where(eq(changeLog.actorId, me.userId));
+		expect(entries).toHaveLength(2);
+		expect(new Set(entries.map((e) => e.treeId))).toEqual(new Set([first, second]));
+		expect(entries.every((e) => e.kind === 'leave_epoch' && !e.summary.includes('@'))).toBe(true);
+		expect(entries.some((e) => e.treeId === untouched)).toBe(false);
+	});
+
 	it('removes the ties, keeps the row, and returns the farewell data', async () => {
 		const owner = await leaver('owner');
 		const me = await leaver('leaver');

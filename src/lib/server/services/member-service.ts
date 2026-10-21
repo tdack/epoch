@@ -16,7 +16,11 @@ import {
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
 import { requireTreeAction } from './tree-access';
-import { MemberRepository, type MembershipLogEntry } from '../repositories/member-repository';
+import {
+	MemberRepository,
+	memberLabel,
+	type MembershipLogEntry
+} from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { type InvitationSentDto, type MemberDto, type MembersDto } from '../../shared/members';
 import { Logger } from '../logging/logger';
@@ -25,14 +29,6 @@ import type { InvitationMailer } from './invitation-mailer';
 export const INVITATION_TTL_DAYS = 14;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * The audit log is read by editors, who may not see members' addresses (a manager's view), so an
- * entry names a person and never their email.
- */
-function nameOf(member: { name: string | null }): string {
-	return member.name?.trim() || 'a member with no name set';
-}
 
 function logEntry(
 	treeId: string,
@@ -205,7 +201,7 @@ export class MemberService {
 						treeId,
 						context,
 						'change_member_role',
-						`Changed ${nameOf(target)}'s role from ${target.role} to ${input.role}`
+						`Changed ${memberLabel(target)}'s role from ${target.role} to ${input.role}`
 					)
 		);
 		if (!didChange) await this.explainRefusal(treeId, userId, input.version, target.role);
@@ -229,7 +225,7 @@ export class MemberService {
 			treeId,
 			userId,
 			version,
-			logEntry(treeId, context, 'remove_member', `Removed ${nameOf(target)} from the tree`)
+			logEntry(treeId, context, 'remove_member', `Removed ${memberLabel(target)} from the tree`)
 		);
 		if (!didRemove) await this.explainRefusal(treeId, userId, version, target.role);
 	}

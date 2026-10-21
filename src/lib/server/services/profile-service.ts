@@ -189,7 +189,7 @@ export class ProfileService {
 		};
 		// shortcut: the sole-owner check and the batch are separate statements, so two sole owners
 		// leaving at the same instant could orphan a tree; upgrade if that ever happens.
-		await this.users.leave(user.id, user.email, this.now());
+		await this.users.leave(user, this.now(), context.correlationId);
 		try {
 			await bucket.delete(avatarKeyFor(user.id));
 		} catch (error) {
