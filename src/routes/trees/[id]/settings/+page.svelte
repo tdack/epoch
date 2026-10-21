@@ -283,7 +283,7 @@
 		onchanged={() => invalidate(DATA_KEY)}
 	/>
 {:else if tab === 'export' && data.canExport}
-	<section id="export" class="scroll-mt-20" aria-labelledby="export-heading">
+	<section id="export-tab" class="scroll-mt-20" aria-labelledby="export-heading">
 		<h2 id="export-heading" class="text-2xl font-bold text-stone-900">Export</h2>
 		<p class="mt-1 max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
