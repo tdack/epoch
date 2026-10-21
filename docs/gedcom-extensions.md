@@ -24,7 +24,7 @@ example, a child is born to one partner and adopted by the other. Standard `PEDI
 3 PEDI ADOPTED
 ```
 
-Written in GEDCOM 5.5.1 and 7.0. See ADR-009 in [decisions.md](decisions.md).
+Written in GEDCOM 5.5.1 and 7.0. See [ADR-009](adr/ADR-009.md).
 
 ## `_EPOCH_PRIVACY`
 
@@ -38,10 +38,10 @@ record as deliberately public.
 1 _EPOCH_PRIVACY public
 ```
 
-Written in GEDCOM 5.5.1 and 7.0. See ADR-015 in [decisions.md](decisions.md).
+Written in GEDCOM 5.5.1 and 7.0. See [ADR-015](adr/ADR-015.md).
 
 ## `_EPOCH_SEX`
 
 Only a 5.5.1 export writes this tag. GEDCOM 5.5.1's `SEX` has no `X`, so the export writes
 `SEX U` followed by `_EPOCH_SEX X`. Epoch restores `X` when `SEX` is still `U`. GEDCOM 7.0 writes
-`SEX X` directly. See ADR-010 in [decisions.md](decisions.md).
+`SEX X` directly. See [ADR-010](adr/ADR-010.md).

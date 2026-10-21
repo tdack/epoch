@@ -74,7 +74,7 @@ The current brand is settled and must be kept:
   `test/data/The Simpsons names.ged`.
 - Brand assets in `static/brand/` (icons, maskable and monochrome icons, Open Graph image, splash
   photograph, web manifest).
-- Architecture decisions in `docs/decisions.md` (ADR-001 onward).
+- Architecture decisions indexed in `docs/decisions.md`, one file per ADR in `docs/adr/` (ADR-001 onward).
 - There are no testimonials, user counts, benchmarks or public deployments to cite; none may be
   invented.
 
