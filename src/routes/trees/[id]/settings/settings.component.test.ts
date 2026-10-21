@@ -128,8 +128,8 @@ describe('tree settings page', () => {
 
 	it('says whether the tree is public, and offers the install owner only the link to change it', () => {
 		render({ isTreePublic: true });
-		expect(document.getElementById('visibility')!.textContent).toContain(
-			'This tree is public: anyone with the link can read it.'
+		expect(document.getElementById('visibility')!.textContent!.replace(/\s+/g, ' ')).toContain(
+			'Public Anyone with the link can read it.'
 		);
 		expect(document.querySelector('a[href="/admin#trees"]')).toBeNull();
 		unmount(component!);

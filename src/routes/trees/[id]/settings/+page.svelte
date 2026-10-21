@@ -238,9 +238,17 @@
 		<div class="mt-4 max-w-prose text-sm text-stone-700">
 			<p>
 				{#if viewer.isTreePublic}
-					This tree is public: anyone with the link can read it.
+					<span
+						class="mr-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
+						>Public</span
+					>
+					Anyone with the link can read it.
 				{:else}
-					Not public: only the people invited to this tree can read it.
+					<span
+						class="mr-1 inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-700"
+						>Not public</span
+					>
+					Only the people invited to this tree can read it.
 				{/if}
 				{#if viewer.isInstallOwner}
 					You choose the public tree in
@@ -260,6 +268,7 @@
 			<h2 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h2>
 			<p class="mt-1 max-w-prose text-sm text-stone-600">
 				Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
+				{#if data.canExport}<a href="#export" class="text-link">Export it first</a> to keep a copy.{/if}
 			</p>
 			<button
 				type="button"
