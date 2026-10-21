@@ -25,6 +25,8 @@
 
 	// Seeded from the load; every change below refetches, so the versions sent back are current.
 	let members = $state(untrack(() => data.members));
+	// A tree always keeps an owner, so the last one is offered neither a lower role nor removal.
+	const ownerCount = $derived(members.members.filter((m) => m.role === 'owner').length);
 	let email = $state('');
 	let inviteRole = $state<TreeRole>(untrack(() => data.members.grantableRoles.at(-1) ?? 'viewer'));
 	let isBusy = $state(false);
@@ -175,6 +177,7 @@
 	<ul class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 		{#key reloads}
 			{#each members.members as member (member.userId)}
+				{@const isOnlyOwner = member.role === 'owner' && ownerCount === 1}
 				<li
 					class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm"
 					data-testid="member"
@@ -203,8 +206,10 @@
 							>
 								<!-- A member's present role stays listed even when the caller could not give it, so the box reads true. -->
 								{#each [...new Set([member.role, ...members.grantableRoles])] as role (role)}
-									<option value={role} disabled={!members.grantableRoles.includes(role)}
-										>{role}</option
+									<option
+										value={role}
+										disabled={!members.grantableRoles.includes(role) ||
+											(isOnlyOwner && role !== 'owner')}>{role}</option
 									>
 								{/each}
 							</select>
@@ -245,7 +250,7 @@
 									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 coarse:min-h-11"
 									>Cancel</button
 								>
-							{:else}
+							{:else if !isOnlyOwner}
 								<button
 									type="button"
 									disabled={isBusy}

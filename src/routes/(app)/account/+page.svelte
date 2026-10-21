@@ -417,10 +417,26 @@
 					Remove yourself from every tree. You cannot undo this yourself; a tree owner would have to
 					invite you back.
 				</p>
+				<!-- Shown before the dialog, so nobody opens it only to learn they cannot leave yet. -->
+				{#if data.leave.isInstallOwner}
+					<p class="text-sm text-stone-700" data-testid="leave-blocker">
+						You run this Epoch, so you cannot leave it.
+					</p>
+				{:else if data.leave.soleOwnerTrees.length > 0}
+					<div class="text-sm text-stone-700" data-testid="leave-blocker">
+						<p>First give each of these trees another owner:</p>
+						<ul class="mt-1 list-disc pl-5">
+							{#each data.leave.soleOwnerTrees as tree (tree.id)}
+								<li><a href="{treePath(tree)}/members" class="text-link">{tree.name}</a></li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 				<div class="flex flex-wrap gap-2">
 					<button
 						type="button"
-						class="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-xs focus-ring transition-colors hover:bg-red-50 coarse:min-h-11"
+						disabled={data.leave.isInstallOwner || data.leave.soleOwnerTrees.length > 0}
+						class="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-xs focus-ring transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 coarse:min-h-11"
 						onclick={() => {
 							leaveError = null;
 							isLeaveOpen = true;
