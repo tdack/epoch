@@ -113,7 +113,7 @@
 </script>
 
 <section
-	id="subtrees"
+	id="subtrees-tab"
 	class="scroll-mt-20"
 	aria-labelledby="subtrees-heading"
 	data-testid="subtree-manager"

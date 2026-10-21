@@ -172,7 +172,7 @@
 		/>
 		{#if tab === 'profile'}
 			<section
-				id="profile"
+				id="profile-tab"
 				aria-labelledby="profile-heading"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-4"
 			>
@@ -262,7 +262,7 @@
 			</section>
 		{:else if tab === 'trees'}
 			<section
-				id="trees"
+				id="trees-tab"
 				aria-labelledby="trees-heading"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-3"
 			>
@@ -354,7 +354,7 @@
 			</section>
 		{:else if tab === 'appearance'}
 			<section
-				id="appearance"
+				id="appearance-tab"
 				aria-labelledby="appearance-heading"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-4"
 			>
@@ -401,7 +401,7 @@
 			</section>
 		{:else}
 			<section
-				id="leave"
+				id="leave-tab"
 				aria-labelledby="leave-heading"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-2"
 			>
