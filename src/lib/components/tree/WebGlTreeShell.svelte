@@ -128,6 +128,8 @@
 	const CLICK_SLOP_PX = 5;
 	/** How long a press on a person must be held to count as a long-press. */
 	const LONG_PRESS_MS = 500;
+	/** Two clicks on one person within this are a double-click. */
+	const DOUBLE_CLICK_MS = 400;
 
 	let host = $state<HTMLDivElement>();
 	let didFail = $state(false);
@@ -336,7 +338,15 @@
 		Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) <= CLICK_SLOP_PX;
 
 	/** Who the last click landed on, for a double-click whose own pick finds nobody. */
-	let lastHit: { id: string; x: number; y: number } | null = null;
+	let lastHit: { id: string; x: number; y: number; at: number } | null = null;
+	let lastOpenAt = -Infinity;
+	/** Opens a person's details and focuses them; one gesture can arrive by two routes, so it acts once. */
+	function openPerson(id: string) {
+		const now = performance.now();
+		if (now - lastOpenAt < DOUBLE_CLICK_MS) return;
+		lastOpenAt = now;
+		onOpenPerson?.(id);
+	}
 	let pressTimer: ReturnType<typeof setTimeout> | undefined;
 	/** Set when a long-press fired so the release that follows does not also act as a click. */
 	let didLongPress = false;
@@ -356,7 +366,7 @@
 		if (target?.kind !== 'person') return;
 		pressTimer = setTimeout(() => {
 			didLongPress = true;
-			onOpenPerson?.(target.id);
+			openPerson(target.id);
 		}, LONG_PRESS_MS);
 	}
 	function onPointerUp(event: PointerEvent) {
@@ -369,8 +379,23 @@
 		const target = scene.pick(event.clientX, event.clientY, {
 			isCoarse: event.pointerType !== 'mouse'
 		});
+		const previous = lastHit;
 		lastHit =
-			target?.kind === 'person' ? { id: target.id, x: event.clientX, y: event.clientY } : null;
+			target?.kind === 'person'
+				? { id: target.id, x: event.clientX, y: event.clientY, at: performance.now() }
+				: null;
+		// The browser's own dblclick is not reliable on a canvas that captures the pointer to orbit,
+		// so two clicks on the same person in quick succession are counted here too.
+		if (
+			lastHit &&
+			previous?.id === lastHit.id &&
+			lastHit.at - previous.at < DOUBLE_CLICK_MS &&
+			Math.hypot(lastHit.x - previous.x, lastHit.y - previous.y) <= CLICK_SLOP_PX
+		) {
+			lastHit = null;
+			openPerson(target!.id);
+			return;
+		}
 		if (target) activate(target);
 		// Trace mode keeps what it holds on a stray click; Clear and Escape are for that.
 		else if (!lit.isTracing) lit.clearHighlight();
@@ -383,7 +408,7 @@
 			lastHit !== null &&
 			Math.hypot(event.clientX - lastHit.x, event.clientY - lastHit.y) <= CLICK_SLOP_PX;
 		const id = target?.kind === 'person' ? target.id : isSameSpot ? lastHit!.id : null;
-		if (id) onOpenPerson?.(id);
+		if (id) openPerson(id);
 	}
 	function onPointerMove(event: PointerEvent) {
 		if (
