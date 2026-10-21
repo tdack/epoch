@@ -58,9 +58,11 @@ const ROOT: Expected = { visitor: 'open', needs: 'viewer', isTree: false };
 
 const EXPECTED: Record<string, Expected> = {
 	'./+page.server.ts': ROOT,
-	'./manage/trees/+page.server.ts': ROOT,
-	'./settings/+page.server.ts': ROOT,
+	'./manage/trees/+page.server.ts': { ...ROOT, visitor: 'closed' },
+	'./settings/+page.server.ts': { ...ROOT, visitor: 'closed' },
 	'./profile/+page.server.ts': { ...ROOT, visitor: 'closed' },
+	'./(app)/account/+page.server.ts': { ...ROOT, visitor: 'closed' },
+	'./(app)/admin/+page.server.ts': { ...ROOT, visitor: 'closed' },
 	'./trees/[id]/profile/+page.server.ts': CLOSED,
 	'./trees/[id]/+layout.server.ts': TREE,
 	'./trees/[id]/people/+page.server.ts': TREE,
@@ -93,6 +95,7 @@ const EXPECTED: Record<string, Expected> = {
 /** Loads that read no tree and no person: the app's own details and the sign-in pages. */
 const NOT_ABOUT_A_TREE = [
 	'./+layout.server.ts',
+	'./(app)/+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts'
 ];
