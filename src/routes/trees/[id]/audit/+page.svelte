@@ -166,8 +166,7 @@
 					<span class="min-w-0">
 						<span class="font-medium text-stone-900">{entry.summary}</span>
 						<span class="block text-xs text-stone-600">
-							{entry.actorName ?? 'Someone'} · {when(entry.createdAt)} ·
-							<span class="font-mono">{entry.kind}</span>
+							{entry.actorName ?? 'Someone'} · {when(entry.createdAt)}
 						</span>
 					</span>
 					{#if entry.canUndo}
