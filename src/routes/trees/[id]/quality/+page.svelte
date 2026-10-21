@@ -168,7 +168,7 @@
 </svelte:head>
 
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Data quality</h2>
+	<h1 class="text-2xl font-bold text-stone-900">Data quality</h1>
 	<p class="mt-1 max-w-2xl text-sm text-stone-600">
 		Places where the record disagrees with itself, or where more research could help. A finding is a
 		prompt to look, not a verdict: nothing here stops a save, and an unusual history can stand. A

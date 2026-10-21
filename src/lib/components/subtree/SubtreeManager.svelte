@@ -17,7 +17,7 @@
 	import { undoApi } from '#lib/api/relationships.js';
 	import { deleteSubtree, updateSubtree } from '#lib/api/subtrees.js';
 	import type { SubtreeDto, UpdateSubtreeInput } from '#lib/shared/subtrees.js';
-	import { subtreePath, type TreeRef } from '#lib/shared/tree-slug.js';
+	import { subtreePath, treePath, type TreeRef } from '#lib/shared/tree-slug.js';
 	import SubtreeDialog from './SubtreeDialog.svelte';
 
 	interface Props {
@@ -115,15 +115,16 @@
 <section
 	id="subtrees-tab"
 	class="scroll-mt-20"
-	aria-labelledby="subtrees-heading"
+	aria-label="Sub-trees"
 	data-testid="subtree-manager"
 >
-	<h2 id="subtrees-heading" class="text-2xl font-bold text-stone-900">Sub-trees</h2>
-	<p class="mt-1 max-w-prose text-sm text-stone-600">
+	<p class="max-w-prose text-sm text-stone-600">
 		A sub-tree is a view of one person's descendants and their partners, opened from the tree
 		switcher. It narrows lists and the chart; it hides nothing. On a public tree, visitors who are
 		not signed in see only the sub-trees marked public.
-		{#if canManage}Make one from a person's page.{/if}
+		{#if canManage}Make one from a
+			<a href="{treePath({ ...tree, subtree: null })}/people" class="text-link">person's page</a
+			>.{/if}
 	</p>
 
 	{#if subtrees.length === 0}

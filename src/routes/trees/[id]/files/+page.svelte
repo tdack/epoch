@@ -272,7 +272,7 @@
 
 <div class="flex flex-wrap items-end justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">Files</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Files</h1>
 		<p class="mt-1 max-w-2xl text-sm text-stone-600">
 			Photos and documents stored in your trees. A file shows on the person or source it is attached
 			to, and anyone who can see that record can see the file.

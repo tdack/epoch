@@ -59,7 +59,7 @@
 
 <header class="flex flex-wrap items-start justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">Research tasks</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Research tasks</h1>
 		<p class="mt-1 max-w-2xl text-sm text-stone-600">
 			Things still to find out or check, on a person, a fact, a partnership, a source or a quality
 			finding. Tasks are for working in Epoch; they are not part of an exported file.

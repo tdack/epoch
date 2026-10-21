@@ -5,8 +5,9 @@ vi.mock('$app/navigation', () => ({
 	invalidate: vi.fn().mockResolvedValue(undefined),
 	invalidateAll: vi.fn().mockResolvedValue(undefined)
 }));
-// The tree list is the My trees tab.
-vi.mock('$app/state', () => ({ page: { url: new URL('https://epoch.test/account#trees') } }));
+// The tree list is the My trees tab; a test may open another.
+const page = vi.hoisted(() => ({ url: new URL('https://epoch.test/account#trees') }));
+vi.mock('$app/state', () => ({ page }));
 vi.mock('#lib/api/settings.js', () => ({
 	saveMySettings: vi.fn(),
 	saveDefaultTree: vi.fn(),
@@ -18,12 +19,16 @@ import Page from './+page.svelte';
 
 let component: Record<string, unknown> | null = null;
 afterEach(() => {
+	page.url = new URL('https://epoch.test/account#trees');
 	if (component) unmount(component);
 	component = null;
 	document.body.innerHTML = '';
 });
 
-function render(trees: Array<Record<string, unknown>>) {
+function render(
+	trees: Array<Record<string, unknown>>,
+	leave: Record<string, unknown> = { isInstallOwner: false, soleOwnerTrees: [] }
+) {
 	component = mount(Page, {
 		target: document.body,
 		props: {
@@ -34,7 +39,7 @@ function render(trees: Array<Record<string, unknown>>) {
 					avatarUrl: null,
 					canUseAccessPicture: false
 				},
-				leave: { isInstallOwner: false, soleOwnerTrees: [] },
+				leave,
 				settings: { user: {}, site: {}, effective: {} },
 				trees
 			} as never
@@ -77,5 +82,17 @@ describe('account page', () => {
 		select.dispatchEvent(new Event('change', { bubbles: true }));
 		await Promise.resolve();
 		expect(saveViewMode).toHaveBeenCalledWith('a', 'rings');
+	});
+
+	it('names the trees that block leaving and disables Leave until they have another owner', () => {
+		page.url = new URL('https://epoch.test/account#leave');
+		render([], { isInstallOwner: false, soleOwnerTrees: [{ id: 't1', name: 'Smiths' }] });
+		const link = document.querySelector<HTMLAnchorElement>('[data-testid="leave-blocker"] a')!;
+		expect(link.textContent).toBe('Smiths');
+		expect(link.getAttribute('href')).toBe('/trees/t1/members');
+		const leave = [...document.querySelectorAll('button')].find(
+			(b) => b.textContent?.trim() === 'Leave Epoch'
+		)!;
+		expect(leave.disabled).toBe(true);
 	});
 });

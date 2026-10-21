@@ -516,6 +516,7 @@
 </script>
 
 <div class="flex min-h-[600px] flex-1 flex-col">
+	<h1 class="sr-only">{data.summary.tree.name}</h1>
 	{#if graph}
 		<div class="mb-2 sm:mb-3">
 			<TreeToolbar

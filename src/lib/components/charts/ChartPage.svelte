@@ -58,7 +58,7 @@
 	/
 	<a href="{base}/people/{encodeURIComponent(subject.id)}" class="text-link">{subject.name}</a>
 </nav>
-<h2 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h2>
+<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
 {#if hint}<p class="mt-1 text-sm text-stone-600">{hint}</p>{/if}
 
 <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">

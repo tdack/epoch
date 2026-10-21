@@ -31,7 +31,7 @@
 
 <header class="flex flex-wrap items-start justify-between gap-3">
 	<div>
-		<h2 class="text-2xl font-bold text-stone-900">Shared notes</h2>
+		<h1 class="text-2xl font-bold text-stone-900">Shared notes</h1>
 		<p class="mt-1 max-w-2xl text-sm text-stone-600">
 			Notes that more than one record uses. Open one to see every record it is on. A note written on
 			a single record is on that record's page.

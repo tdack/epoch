@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import type { TreeRole } from '#lib/shared/roles.js';
+	import { fadeWhenClipped } from '#lib/components/layout/fade-when-clipped.js';
+	import { treeAdminPage, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
@@ -9,7 +10,7 @@
 		treeId: string;
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
-		/** The viewer's role; any member also gets Files. */
+		/** The viewer's role; any member also gets Files, and an editor or above gets Manage. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
@@ -72,8 +73,12 @@
 			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
-	// The tree's administration, its audit log included, is behind the gear in the tree switcher
-	// (ADR-075), so this menu holds research and nothing else.
+	// The tree's administration is a tab of its own, after Research (and behind the switcher gear,
+	// ADR-075), so the Research menu holds research and nothing else. An outsider is no member.
+	const adminPage = $derived(isOutsider ? null : treeAdminPage(role));
+	const isManageActive = $derived(
+		['settings', 'members', 'audit'].some((page) => startsWith(`${base}/${page}`))
+	);
 	const activeInResearch = $derived(research.find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
@@ -89,7 +94,7 @@
 <!-- The tabs scroll sideways on a phone rather than wrapping into a second and third row. -->
 <!-- The menu sits beside the scrolling row, not in it: a scroll container would clip its panel. -->
 <nav aria-label="Tree sections" class="flex items-center gap-1 text-sm">
-	<div class="flex min-w-0 items-center gap-1 overflow-x-auto">
+	<div class="flex min-w-0 items-center gap-1 overflow-x-auto" {@attach fadeWhenClipped}>
 		{#each tabs as link (link.href)}
 			<a
 				href={link.href}
@@ -123,4 +128,11 @@
 			>
 		{/each}
 	</Popover>
+	{#if adminPage}
+		<a
+			href={`${base}/${adminPage}`}
+			aria-current={isManageActive ? 'page' : undefined}
+			class={tabClass(isManageActive)}>Manage</a
+		>
+	{/if}
 </nav>
