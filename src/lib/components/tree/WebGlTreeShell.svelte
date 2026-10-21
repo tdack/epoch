@@ -115,7 +115,7 @@
 		isMotionReduced = false,
 		selectedPersonId = null,
 		legend = [],
-		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click to focus and see details',
+		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click or hold to focus and see details',
 		controls,
 		onSelectPerson,
 		onOpenPerson,
@@ -126,6 +126,8 @@
 	const NAME_LIFT_PX = 10;
 	/** Pointer travel under which a press counts as a click rather than the start of an orbit. */
 	const CLICK_SLOP_PX = 5;
+	/** How long a press on a person must be held to count as a long-press. */
+	const LONG_PRESS_MS = 500;
 
 	let host = $state<HTMLDivElement>();
 	let didFail = $state(false);
@@ -333,23 +335,63 @@
 		downAt !== null &&
 		Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) <= CLICK_SLOP_PX;
 
+	/** Who the last click landed on, for a double-click whose own pick finds nobody. */
+	let lastHit: { id: string; x: number; y: number } | null = null;
+	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	/** Set when a long-press fired so the release that follows does not also act as a click. */
+	let didLongPress = false;
+	function cancelPress() {
+		clearTimeout(pressTimer);
+		pressTimer = undefined;
+	}
+
 	function onPointerDown(event: PointerEvent) {
 		downAt = { x: event.clientX, y: event.clientY };
+		didLongPress = false;
+		cancelPress();
+		if (!scene || event.button !== 0 || lit.isTracing) return;
+		const target = scene.pick(event.clientX, event.clientY, {
+			isCoarse: event.pointerType !== 'mouse'
+		});
+		if (target?.kind !== 'person') return;
+		pressTimer = setTimeout(() => {
+			didLongPress = true;
+			onOpenPerson?.(target.id);
+		}, LONG_PRESS_MS);
 	}
 	function onPointerUp(event: PointerEvent) {
+		cancelPress();
+		if (didLongPress) {
+			didLongPress = false;
+			return;
+		}
 		if (!scene || !isClick(event) || event.button !== 0) return;
 		const target = scene.pick(event.clientX, event.clientY, {
 			isCoarse: event.pointerType !== 'mouse'
 		});
+		lastHit =
+			target?.kind === 'person' ? { id: target.id, x: event.clientX, y: event.clientY } : null;
 		if (target) activate(target);
 		// Trace mode keeps what it holds on a stray click; Clear and Escape are for that.
 		else if (!lit.isTracing) lit.clearHighlight();
 	}
 	function onDoubleClick(event: MouseEvent) {
 		const target = scene?.pick(event.clientX, event.clientY);
-		if (target?.kind === 'person') onOpenPerson?.(target.id);
+		// The first click relights the scene, which can leave this pick empty for a frame; the
+		// click's own hit, at the same spot, says who was meant.
+		const isSameSpot =
+			lastHit !== null &&
+			Math.hypot(event.clientX - lastHit.x, event.clientY - lastHit.y) <= CLICK_SLOP_PX;
+		const id = target?.kind === 'person' ? target.id : isSameSpot ? lastHit!.id : null;
+		if (id) onOpenPerson?.(id);
 	}
 	function onPointerMove(event: PointerEvent) {
+		if (
+			pressTimer &&
+			downAt &&
+			Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > CLICK_SLOP_PX
+		)
+			cancelPress();
 		// Touch has no hover; a name appearing under a finger mid-orbit only gets in the way.
 		if (event.pointerType !== 'mouse' || !scene) return;
 		// A pressed button is an orbit or a pan; a card chasing the drag hides the scene it moves.
@@ -420,7 +462,9 @@
 		onpointerdown={onPointerDown}
 		onpointerup={onPointerUp}
 		onpointermove={onPointerMove}
+		onpointercancel={cancelPress}
 		onpointerleave={() => {
+			cancelPress();
 			hovered = null;
 			pointerAt = null;
 		}}
