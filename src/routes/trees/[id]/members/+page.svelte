@@ -85,6 +85,14 @@
 	role={data.summary.viewer.role}
 />
 <h2 class="text-2xl font-bold text-stone-900">Members</h2>
+<!-- The Make/Cancel buttons appear beside the select with no focus move, so say so. -->
+<p class="sr-only" aria-live="polite">
+	{#if proposedRole}
+		{@const proposed = members.members.find((m) => m.userId === proposedRole!.userId)}
+		Confirm the change: make {proposed?.email}
+		{proposedRole.role}.
+	{/if}
+</p>
 <p class="mt-1 max-w-prose text-sm text-stone-600">
 	An invitation gives an email address a role here and is emailed to that address. The role is taken
 	up when that person next signs in with it. Cloudflare Access is a separate gate: the address must
