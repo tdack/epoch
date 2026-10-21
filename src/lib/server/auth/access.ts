@@ -328,7 +328,12 @@ export function extractAccessJwt(request: Request): string | null {
 	if (cookie) {
 		const match = cookie.match(/(?:^|;\s*)CF_Authorization=([^;]+)/);
 		if (match) {
-			return decodeURIComponent(match[1]).trim();
+			// A malformed escape must read as signed out: this runs in the hook outside any try.
+			try {
+				return decodeURIComponent(match[1]).trim();
+			} catch {
+				return null;
+			}
 		}
 	}
 

@@ -27,6 +27,13 @@ describe('Cloudflare Access JWT & Authorization', () => {
 		expect(extractAccessJwt(req)).toBe('cookie-jwt-token');
 	});
 
+	it('treats a cookie with a malformed percent escape as no token', () => {
+		const req = new Request('https://epoch.example.com', {
+			headers: { cookie: 'CF_Authorization=%E0%A4%A' }
+		});
+		expect(extractAccessJwt(req)).toBeNull();
+	});
+
 	it('ignores an Authorization: Bearer header', () => {
 		const req = new Request('https://epoch.example.com', {
 			headers: { authorization: 'Bearer bearer-token' }
