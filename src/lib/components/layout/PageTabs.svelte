@@ -32,7 +32,10 @@
 			href={tab.href}
 			aria-current={tab.isCurrent ? 'page' : undefined}
 			data-sveltekit-reset="false"
-			onclick={() => (hrefToRefocus = tab.href.startsWith('#') ? null : tab.href)}
+			onclick={() =>
+				// A tab on this same page (`#export`, `settings#export`) keeps its nav, so only another page needs it.
+				(hrefToRefocus =
+					new URL(tab.href, location.href).pathname === location.pathname ? null : tab.href)}
 			{@attach (link) => {
 				if (hrefToRefocus !== tab.href) return;
 				hrefToRefocus = null;
