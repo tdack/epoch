@@ -173,10 +173,9 @@
 		{#if tab === 'profile'}
 			<section
 				id="profile-tab"
-				aria-labelledby="profile-heading"
+				aria-label="Profile"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-4"
 			>
-				<h2 id="profile-heading" class="text-lg font-bold text-stone-900">Profile</h2>
 				<div class="flex flex-wrap items-center gap-4">
 					<Avatar name={profile.name} email={profile.email} src={profile.avatarUrl} size="lg" />
 					<div class="flex flex-wrap gap-2">
@@ -263,10 +262,9 @@
 		{:else if tab === 'trees'}
 			<section
 				id="trees-tab"
-				aria-labelledby="trees-heading"
+				aria-label="My trees"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-3"
 			>
-				<h2 id="trees-heading" class="text-lg font-bold text-stone-900">My trees</h2>
 				<p class="text-sm text-stone-600">
 					{#if trees.length > 1}
 						Your default tree is the one Epoch opens when you sign in or select the Epoch mark.
@@ -278,9 +276,13 @@
 				{#if trees.length === 0}
 					<p class="text-sm text-stone-700">You are not in any tree yet.</p>
 				{:else}
-					<div class="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-xs">
-						<table class="w-full text-left text-sm">
-							<thead class="border-b border-stone-200 bg-stone-50 text-xs text-stone-600">
+					<div class="rounded-xl border border-stone-200 bg-white shadow-xs sm:overflow-x-auto">
+						<!-- Below sm each row is a card: the table's display values are swapped out so one set of
+						     cells serves both layouts. -->
+						<table class="block w-full text-left text-sm sm:table">
+							<thead
+								class="hidden border-b border-stone-200 bg-stone-50 text-xs text-stone-600 sm:table-header-group"
+							>
 								<tr>
 									<th scope="col" class="px-3 py-2 font-semibold">Tree</th>
 									<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
@@ -290,15 +292,22 @@
 									<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
 								</tr>
 							</thead>
-							<tbody class="divide-y divide-stone-100">
+							<tbody class="block divide-y divide-stone-100 sm:table-row-group">
 								{#each trees as tree (tree.id)}
-									<tr>
-										<th scope="row" class="px-3 py-2 font-semibold text-stone-900">
+									<tr class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 sm:table-row sm:p-0">
+										<th
+											scope="row"
+											class="w-full text-left font-semibold text-stone-900 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
+										>
 											<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
 										</th>
-										<td class="px-3 py-2 text-stone-600 capitalize">{tree.role ?? ''}</td>
+										<td class="text-stone-600 capitalize sm:table-cell sm:px-3 sm:py-2">
+											{tree.role ?? ''}
+										</td>
 										{#if trees.length > 1}
-											<td class="px-3 py-2">
+											<td
+												class="flex items-center gap-2 max-sm:before:text-stone-600 max-sm:before:content-['Default'] sm:table-cell sm:px-3 sm:py-2"
+											>
 												<input
 													type="radio"
 													name="default-tree"
@@ -310,9 +319,9 @@
 												/>
 											</td>
 										{/if}
-										<td class="px-3 py-2">
+										<td class="w-full sm:table-cell sm:w-auto sm:px-3 sm:py-2">
 											<select
-												class="field-input w-auto py-1 text-xs"
+												class="field-input w-auto py-1 text-xs coarse:min-h-11"
 												aria-label="Open {tree.name} in"
 												value={tree.viewMode === LAYOUT_MODES.FLAT ? '' : (tree.viewMode ?? '')}
 												disabled={isSavingTree}
@@ -355,12 +364,11 @@
 		{:else if tab === 'appearance'}
 			<section
 				id="appearance-tab"
-				aria-labelledby="appearance-heading"
+				aria-label="Appearance"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-4"
 			>
-				<h2 id="appearance-heading" class="text-lg font-bold text-stone-900">Appearance</h2>
 				<div class="flex flex-col gap-3">
-					<h3 class="text-sm font-semibold text-stone-900">My colours</h3>
+					<h2 class="text-sm font-semibold text-stone-900">My colours</h2>
 					<PaletteEditor
 						idPrefix="mine"
 						stored={settings.user}
@@ -402,10 +410,9 @@
 		{:else}
 			<section
 				id="leave-tab"
-				aria-labelledby="leave-heading"
+				aria-label="Leave Epoch"
 				class="flex max-w-3xl scroll-mt-24 flex-col gap-2"
 			>
-				<h2 id="leave-heading" class="text-lg font-bold text-stone-900">Leave Epoch</h2>
 				<p class="text-sm text-stone-600">
 					Remove yourself from every tree. You cannot undo this yourself; a tree owner would have to
 					invite you back.
@@ -413,7 +420,7 @@
 				<div class="flex flex-wrap gap-2">
 					<button
 						type="button"
-						class="inline-flex cursor-pointer items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-red-600"
+						class="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-xs focus-ring transition-colors hover:bg-red-50 coarse:min-h-11"
 						onclick={() => {
 							leaveError = null;
 							isLeaveOpen = true;
