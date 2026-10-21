@@ -29,7 +29,6 @@ describe('view mode settings', () => {
 		const s = await setup();
 		const tree = await treeFor(s, s.viewer);
 		expect(tree.viewMode).toBeNull();
-		expect(tree.defaultViewMode).toBeNull();
 	});
 
 	it('lets any member choose their own view, and clear it', async () => {
@@ -42,20 +41,9 @@ describe('view mode settings', () => {
 		expect((await treeFor(s, s.viewer)).viewMode).toBeNull();
 	});
 
-	it('lets only the owner set the tree default, and shows it to every member', async () => {
-		const s = await setup();
-		await expect(s.service.setDefaultViewMode(s.treeId, 'rings', s.viewer.context)).rejects.toThrow(
-			'Forbidden'
-		);
-		await s.service.setDefaultViewMode(s.treeId, 'rings', s.owner.context);
-		expect((await treeFor(s, s.viewer)).defaultViewMode).toBe('rings');
-		expect((await treeFor(s, s.owner)).defaultViewMode).toBe('rings');
-	});
-
 	it('leaves the tree and member versions alone, since neither is a record edit', async () => {
 		const s = await setup();
 		const before = await treeFor(s, s.owner);
-		await s.service.setDefaultViewMode(s.treeId, 'orrery', s.owner.context);
 		await s.service.setViewMode(s.treeId, 'rings', s.owner.context);
 		const after = await treeFor(s, s.owner);
 		expect(after.version).toBe(before.version);
@@ -65,15 +53,6 @@ describe('view mode settings', () => {
 			.bind(s.treeId, s.owner.context.user.id)
 			.first<{ version: number }>();
 		expect(member?.version).toBe(1);
-	});
-
-	it('reads a stored value that is not a mode as unset', async () => {
-		const s = await setup();
-		await t.d1
-			.prepare('UPDATE trees SET default_view_mode = ? WHERE id = ?')
-			.bind('orbit', s.treeId)
-			.run();
-		expect((await treeFor(s, s.owner)).defaultViewMode).toBeNull();
 	});
 
 	it('does not let a non-member write', async () => {

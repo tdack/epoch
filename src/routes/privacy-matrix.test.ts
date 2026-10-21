@@ -89,10 +89,6 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
-	[`${API}/trees/[id]/default-view/+server.ts`]: {
-		kind: 'role-gated',
-		covers: 'services/tree-view-mode.test.ts'
-	},
 	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
 	[`${API}/profile/+server.ts`]: { kind: 'own-data', covers: 'services/profile-service.test.ts' },
 	[`${API}/profile/access-picture/+server.ts`]: {
