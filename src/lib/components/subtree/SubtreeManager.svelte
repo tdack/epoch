@@ -112,7 +112,12 @@
 		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-50 coarse:min-h-11';
 </script>
 
-<section class="mt-10" aria-labelledby="subtrees-heading" data-testid="subtree-manager">
+<section
+	id="subtrees"
+	class="mt-10 scroll-mt-20"
+	aria-labelledby="subtrees-heading"
+	data-testid="subtree-manager"
+>
 	<h3 id="subtrees-heading" class="text-lg font-bold text-stone-900">Sub-trees</h3>
 	<p class="mt-1 max-w-2xl text-sm text-stone-600">
 		A sub-tree is a view of one person's descendants and their partners, opened from the tree
@@ -140,13 +145,13 @@
 							<a href={subtreePath(tree, subtree.slug)} class="hover:underline">{subtree.name}</a>
 							{#if subtree.isPublic}
 								<span
-									class="rounded-full bg-sky-100 px-2 py-0.5 text-[0.7rem] font-semibold text-sky-900"
+									class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
 									>Public</span
 								>
 							{/if}
 							{#if subtree.isRootMissing}
 								<span
-									class="rounded-full bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-900"
+									class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
 									>Anchor missing</span
 								>
 							{/if}
