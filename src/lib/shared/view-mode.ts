@@ -67,6 +67,15 @@ export const WEBGL_LAYOUT_MODES: readonly LayoutMode[] = LAYOUT_MODE_VALUES.filt
 	(mode) => VIEW_MODE_TRAITS[mode].isWebGl
 );
 
+/** What each mode is called on screen; "Ball" is the Poincaré view. */
+export const MODE_LABELS: Record<LayoutMode, string> = {
+	flat: 'Flat',
+	rings: 'Rings',
+	poincare: 'Ball',
+	ribbons: 'Ribbons',
+	orrery: 'Orrery'
+};
+
 /** The stored or typed value as a mode, or null when it is absent or not one (a column holds text). */
 export function parseLayoutMode(value: unknown): LayoutMode | null {
 	return LAYOUT_MODE_VALUES.find((mode) => mode === value) ?? null;

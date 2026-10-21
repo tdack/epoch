@@ -13,6 +13,7 @@
 	} from './tree-url.js';
 	import {
 		LAYOUT_MODE_VALUES,
+		MODE_LABELS,
 		VIEW_MODE_TRAITS,
 		WEBGL_LAYOUT_MODES,
 		parseLayoutMode
@@ -56,13 +57,6 @@
 		onChange
 	}: Props = $props();
 
-	const MODE_LABELS: Record<LayoutMode, string> = {
-		flat: 'Flat',
-		rings: 'Rings',
-		poincare: 'Ball',
-		ribbons: 'Ribbons',
-		orrery: 'Orrery'
-	};
 	/** What each layout draws, in a relative's words: the labels alone were the tool's own names. */
 	const MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
 		flat: 'Everyone on one page: ancestors above, descendants below.',

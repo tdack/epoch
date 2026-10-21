@@ -17,7 +17,7 @@
 	import { MAX_DISPLAY_NAME_LENGTH } from '#lib/shared/profile.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
-	import { LAYOUT_MODE_VALUES, parseLayoutMode, type LayoutMode } from '#lib/shared/view-mode.js';
+	import { LAYOUT_MODE_VALUES, MODE_LABELS, parseLayoutMode } from '#lib/shared/view-mode.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -26,14 +26,6 @@
 
 	let { data }: Props = $props();
 
-	// Mirrors the toolbar's labels; the toolbar keeps its own copy beside the descriptions it needs.
-	const MODE_LABELS: Record<LayoutMode, string> = {
-		flat: 'Flat',
-		rings: 'Rings',
-		poincare: 'Ball',
-		ribbons: 'Ribbons',
-		orrery: 'Orrery'
-	};
 	const quietButton =
 		'inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-xs focus-ring transition-colors hover:bg-stone-100 disabled:opacity-50';
 
