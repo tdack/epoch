@@ -90,7 +90,7 @@ describe('tree settings page', () => {
 		render({ can: { canDelete: true } });
 		expect(sections()).toEqual(['general', 'address', 'visibility', 'delete']);
 		expect(nameOf('delete')).toBe('Delete this tree');
-		expect(document.querySelector('h2')!.textContent).toBe('Tree settings');
+		expect(document.querySelector('h1')!.textContent).toBe('Manage Smiths');
 		expect(document.body.textContent).toContain('apply to everyone in Smiths');
 	});
 
@@ -128,8 +128,8 @@ describe('tree settings page', () => {
 
 	it('says whether the tree is public, and offers the install owner only the link to change it', () => {
 		render({ isTreePublic: true });
-		expect(document.getElementById('visibility')!.textContent).toContain(
-			'This tree is public: anyone with the link can read it.'
+		expect(document.getElementById('visibility')!.textContent!.replace(/\s+/g, ' ')).toContain(
+			'Public Anyone with the link can read it.'
 		);
 		expect(document.querySelector('a[href="/admin#trees"]')).toBeNull();
 		unmount(component!);

@@ -71,13 +71,13 @@
 </svelte:head>
 
 <TreeAdminTabs
+	treeName={tree.name}
 	base={treePath({ ...tree, subtree: null })}
 	current="audit"
 	role={data.summary.viewer.role}
 />
 <header>
-	<h2 class="text-2xl font-bold text-stone-900">Audit log</h2>
-	<p class="mt-1 max-w-2xl text-sm text-stone-600">
+	<p class="max-w-2xl text-sm text-stone-600">
 		Every change to the tree's records and members, newest first. A change to records can be undone
 		if nothing has changed the same records since. Managers can undo anyone's; everyone else, their
 		own.
@@ -166,8 +166,7 @@
 					<span class="min-w-0">
 						<span class="font-medium text-stone-900">{entry.summary}</span>
 						<span class="block text-xs text-stone-600">
-							{entry.actorName ?? 'Someone'} · {when(entry.createdAt)} ·
-							<span class="font-mono">{entry.kind}</span>
+							{entry.actorName ?? 'Someone'} · {when(entry.createdAt)}
 						</span>
 					</span>
 					{#if entry.canUndo}

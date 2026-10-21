@@ -103,6 +103,8 @@
 		</p>
 		{#each trees as t (t.id)}
 			{@const gearHref = settingsHref?.(t) ?? null}
+			<!-- An editor's gear opens the audit log, so it is named for that rather than for settings. -->
+			{@const isAuditGear = gearHref?.endsWith('/audit') ?? false}
 			<div class="flex items-stretch">
 				<button
 					type="button"
@@ -125,8 +127,8 @@
 					<a
 						href={gearHref}
 						role="menuitem"
-						aria-label="Settings for {t.name}"
-						title="Tree settings"
+						aria-label={isAuditGear ? `Audit log for ${t.name}` : `Settings for ${t.name}`}
+						title={isAuditGear ? 'Audit log' : 'Tree settings'}
 						class="flex menu-item w-9 shrink-0 items-center justify-center text-stone-500 hover:text-stone-900 coarse:w-11"
 					>
 						<Settings class="h-3.5 w-3.5" aria-hidden="true" />

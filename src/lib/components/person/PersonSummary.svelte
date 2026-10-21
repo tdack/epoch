@@ -5,9 +5,11 @@
 
 	interface Props {
 		dto: PersonPageDto;
+		/** The person page's one h1; in the drawer the name sits under the tree page's own h1. */
+		isPageTitle: boolean;
 	}
 
-	let { dto }: Props = $props();
+	let { dto, isPageTitle }: Props = $props();
 
 	/** First letter of the first given name and of the surname: "Jane Mary Doe" is JD. */
 	const initials = $derived.by(() => {
@@ -36,9 +38,14 @@
 	</div>
 	<div class="min-w-0">
 		<!-- Focusable so the drawer can move focus here when it opens. -->
-		<h2 class="text-2xl font-bold text-stone-900" data-testid="person-name" tabindex="-1">
+		<svelte:element
+			this={isPageTitle ? 'h1' : 'h2'}
+			class="text-2xl font-bold text-stone-900"
+			data-testid="person-name"
+			tabindex="-1"
+		>
 			{dto.person.displayName}
-		</h2>
+		</svelte:element>
 		<p class="mt-1 text-sm text-stone-600">
 			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
 				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}

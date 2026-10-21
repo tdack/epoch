@@ -78,9 +78,9 @@
 		>
 			<EpochMark size={26} ink="#fffbeb" ancestryOpacity={0.5} />
 		</div>
-		<!-- sr-only below lg, not hidden: the page keeps its h1 where the wordmark has no room. -->
+		<!-- sr-only below lg, not hidden: the page's own h1 stands where the wordmark has no room. -->
 		<div class="sr-only lg:not-sr-only">
-			<h1 class="text-base font-bold tracking-tight text-stone-900">Epoch</h1>
+			<p class="text-base font-bold tracking-tight text-stone-900">Epoch</p>
 			<p class="text-xs font-medium tracking-wide text-stone-500">Family history</p>
 		</div>
 	</a>

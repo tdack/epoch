@@ -38,11 +38,20 @@ describe('whose membership a person may change or remove', () => {
 
 describe('what a role is described as allowing', () => {
 	it('names the tree for every role', () => {
-		for (const role of TREE_ROLES) expect(describeRole(role, 'Doe')).toContain('the Doe tree');
+		for (const role of TREE_ROLES) expect(describeRole(role, 'Doe')).toContain('Doe');
+	});
+
+	it('never puts an article before the tree name', () => {
+		for (const role of TREE_ROLES)
+			expect(describeRole(role, 'The Simpsons')).not.toMatch(/\bthe The Simpsons\b/i);
 	});
 
 	it('tells a viewer they may only look', () => {
-		expect(describeRole('viewer', 'Doe')).toBe('View the Doe tree and its media.');
+		expect(describeRole('viewer', 'Doe')).toBe('View Doe and its media.');
+	});
+
+	it('does not offer the removed default view', () => {
+		expect(describeRole('owner', 'Doe')).not.toContain('default view');
 	});
 });
 
