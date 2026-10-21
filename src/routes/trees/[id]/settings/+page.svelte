@@ -1,129 +1,316 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import PaletteEditor from '#lib/components/settings/PaletteEditor.svelte';
-	import { saveMySettings, saveSiteSettings } from '#lib/api/settings.js';
-	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
-	import { treePath } from '#lib/shared/tree-slug.js';
-	import { hasTreesPage } from '#lib/shared/trees-page.js';
-	import type { PageData } from './$types';
+	import { untrack } from 'svelte';
+	import { goto, invalidate } from '$app/navigation';
+	import { page } from '$app/state';
+	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
+	import GedcomExportChoices from '#lib/components/settings/GedcomExportChoices.svelte';
+	import VisibilitySettings from '#lib/components/settings/VisibilitySettings.svelte';
+	import SubtreeManager from '#lib/components/subtree/SubtreeManager.svelte';
+	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import { deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
+	import { gedcomExportUrl, startGedcomExport, type GedcomExportChoice } from '#lib/api/files.js';
+	import { DATA_KEY } from '#lib/shared/data-key.js';
+	import { appHref, subdomainOrigin } from '#lib/shared/tree-host.js';
+	import {
+		MAX_TREE_SLUG_LENGTH,
+		canonicalTreeAddress,
+		isValidTreeSlug
+	} from '#lib/shared/tree-slug.js';
+	import type { PageProps } from './$types';
 
-	interface Props {
-		data: PageData;
+	let { data }: PageProps = $props();
+	const context = getTreeContext();
+	const { toasts } = context;
+
+	const tree = $derived(data.summary.tree);
+	const viewer = $derived(data.summary.viewer);
+	const zone = $derived(data.subdomainZone);
+
+	// The fields start from the tree as loaded and are the source of truth until the next visit.
+	let name = $state(untrack(() => data.summary.tree.name));
+	let slug = $state(untrack(() => data.summary.tree.slug ?? ''));
+	let isOnSubdomain = $state(untrack(() => data.summary.tree.isOnSubdomain));
+	let isSaving = $state(false);
+	let nameError = $state<string | null>(null);
+	let addressError = $state<string | null>(null);
+	// The subdomain is the address, so it is offered only while there is one.
+	const hasAddress = $derived(slug.trim() !== '');
+
+	/** Where the page goes once the tree's address has changed: this one no longer names it. */
+	async function followAddress(next: { slug: string | null; isOnSubdomain: boolean }) {
+		const moved = canonicalTreeAddress(page.url, page.params.id!, {
+			id: tree.id,
+			slug: next.slug,
+			subtree: tree.subtree
+		});
+		// shortcut: the layout's own address hook is not reachable from a page, so this repeats its
+		// rule; when the layout exposes the hook in the tree context, call that instead.
+		if (data.hostTree && zone) {
+			const rest = moved ?? `${page.url.pathname}${page.url.search}`;
+			const origin =
+				next.isOnSubdomain && next.slug
+					? subdomainOrigin(next.slug, zone, page.url)
+					: data.hostTree.appOrigin;
+			if (origin !== page.url.origin || moved) window.location.assign(`${origin}${rest}`);
+			else await invalidate(DATA_KEY);
+			return;
+		}
+		if (moved) await goto(`${moved}#address`, { replaceState: true, invalidateAll: true });
+		else await invalidate(DATA_KEY);
 	}
 
-	let { data }: Props = $props();
-
-	const settings = $derived(data.settings);
-	const isInstallOwner = $derived(data.summary.viewer.isInstallOwner);
-	const canChooseDefault = $derived(hasTreesPage(isInstallOwner, data.trees.length));
-	const base = $derived(treePath(data.summary.tree));
-
-	// The root layout reads the palette every page paints with; reloading it repaints them all.
-	async function saveMine(patch: SettingsPatch) {
-		await saveMySettings(patch);
-		await invalidate(SETTINGS_DEPENDENCY);
-	}
-	// Follows the stored choice; flipped at once on change so the box answers before the save does.
-	let isMotionReduced = $derived(settings.user.isMotionReduced ?? false);
-	let isSavingMotion = $state(false);
-	let motionError = $state<string | null>(null);
-	async function saveMotion(isChecked: boolean) {
-		isMotionReduced = isChecked;
-		isSavingMotion = true;
-		motionError = null;
+	async function save(nextName: string, nextSlug: string | null, isNextOnSubdomain?: boolean) {
+		isSaving = true;
 		try {
-			// Off clears the choice rather than storing false: there is no site default to override.
-			await saveMine({ isMotionReduced: isChecked ? true : null });
-		} catch (error) {
-			isMotionReduced = !isChecked;
-			motionError = error instanceof Error ? error.message : 'Could not save the setting.';
+			const renamed = await renameTreeApi(
+				tree.id,
+				nextName,
+				nextSlug,
+				tree.version,
+				isNextOnSubdomain
+			);
+			toasts.push('Tree saved');
+			const isMoved = renamed.slug !== tree.slug || renamed.isOnSubdomain !== tree.isOnSubdomain;
+			if (isMoved) await followAddress(renamed);
+			else await invalidate(DATA_KEY);
+			return true;
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not save the tree'), { tone: 'error' });
+			return false;
 		} finally {
-			isSavingMotion = false;
+			isSaving = false;
 		}
 	}
-	async function saveSite(patch: SettingsPatch) {
-		await saveSiteSettings(patch);
-		await invalidate(SETTINGS_DEPENDENCY);
+
+	function saveName(event: SubmitEvent) {
+		event.preventDefault();
+		const trimmed = name.trim();
+		nameError = trimmed ? null : 'Enter a name for the tree.';
+		if (!trimmed || trimmed === tree.name || isSaving) return;
+		// The address is sent back as it stands, so a name change never moves it.
+		void save(trimmed, tree.slug ?? null, zone ? tree.isOnSubdomain : undefined);
 	}
+
+	function saveAddress(event: SubmitEvent) {
+		event.preventDefault();
+		const next = slug.trim() || null;
+		if (next !== null && !isValidTreeSlug(next)) {
+			addressError =
+				'Use lower-case letters, digits and single hyphens in the address, such as the-windsors.';
+			return;
+		}
+		addressError = null;
+		const isNextOnSubdomain = zone ? next !== null && isOnSubdomain : undefined;
+		if (
+			isSaving ||
+			(next === (tree.slug ?? null) &&
+				(isNextOnSubdomain === undefined || isNextOnSubdomain === tree.isOnSubdomain))
+		)
+			return;
+		void save(tree.name, next, isNextOnSubdomain);
+	}
+
+	let isExporting = $state(false);
+	async function exportGedcom(choice: GedcomExportChoice) {
+		if (isExporting) return;
+		isExporting = true;
+		try {
+			if (context.exportGedcom) return await context.exportGedcom(choice);
+			// shortcut: without the layout's shell a large export cannot be followed here; it only
+			// downloads one built in the request. Remove once the layout provides exportGedcom.
+			const start = await startGedcomExport(tree.id, choice);
+			if (start.status === 'sync') window.location.href = gedcomExportUrl(tree.id, choice);
+			else toasts.push('Use Export in the tree menu for a large tree.');
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not start the export'), { tone: 'error' });
+		} finally {
+			isExporting = false;
+		}
+	}
+
+	let isDeleteOpen = $state(false);
+	let isDeleting = $state(false);
+	let deleteError = $state<string | null>(null);
+	async function remove() {
+		isDeleting = true;
+		deleteError = null;
+		try {
+			await deleteTreeApi(tree.id);
+			toasts.push('Tree deleted');
+			isDeleteOpen = false;
+			window.location.assign(appHref('/', data.hostTree));
+		} catch (cause) {
+			deleteError = messageOf(cause, 'Failed to delete tree');
+		} finally {
+			isDeleting = false;
+		}
+	}
+
+	const inputClass =
+		'w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:opacity-50';
+	const sectionHeadingClass = 'text-lg font-bold text-stone-900';
 </script>
 
 <svelte:head>
-	<title>Settings · Epoch</title>
+	<title>Tree settings · {tree.name} · Epoch</title>
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="mx-auto flex w-full max-w-4xl flex-col gap-8">
-	<header>
-		<h2 class="text-2xl font-bold text-stone-900">Settings</h2>
-		<p class="mt-1 text-sm text-stone-600">
-			These are yours, in every tree. Anything you leave alone follows the site default.
-		</p>
-	</header>
+<h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
+<p class="mt-1 max-w-2xl text-sm text-stone-600">
+	These settings apply to everyone in {tree.name}. Your own colours and defaults are on your
+	<a href={appHref('/account', data.hostTree)} class="text-link">account</a>.
+</p>
 
-	<section aria-labelledby="my-colours-heading" class="flex flex-col gap-3">
-		<h3 id="my-colours-heading" class="text-lg font-bold text-stone-900">My colours</h3>
-		<PaletteEditor
-			idPrefix="mine"
-			stored={settings.user}
-			below={[settings.site]}
-			inheritedName="the site default"
-			onsave={saveMine}
-		/>
-	</section>
-
-	<section aria-labelledby="motion-heading" class="flex flex-col gap-2">
-		<h3 id="motion-heading" class="text-lg font-bold text-stone-900">Motion</h3>
-		<label class="flex items-start gap-2 text-sm text-stone-800">
+<section id="general" class="mt-8 scroll-mt-20" aria-labelledby="general-heading">
+	<h3 id="general-heading" class={sectionHeadingClass}>General</h3>
+	<form onsubmit={saveName} class="mt-3 max-w-2xl">
+		<label for="tree-name" class="field-label">Tree name</label>
+		<div class="flex flex-wrap items-center gap-2">
 			<input
-				type="checkbox"
-				class="mt-0.5 h-4 w-4"
-				checked={isMotionReduced}
-				disabled={isSavingMotion}
-				onchange={(event) => void saveMotion(event.currentTarget.checked)}
-				aria-describedby="motion-hint motion-error"
+				id="tree-name"
+				type="text"
+				bind:value={name}
+				maxlength={200}
+				disabled={isSaving}
+				aria-invalid={nameError ? 'true' : undefined}
+				aria-describedby={nameError ? 'tree-name-error' : undefined}
+				class="{inputClass} max-w-md flex-1"
 			/>
-			<span>
-				<span class="font-semibold">Reduce animation</span>
-				<span id="motion-hint" class="block text-xs text-stone-600">
-					Holds the tree still: no gliding between people, no spinning or drifting in the 3D views.
-					If your device already asks for less motion, that applies whatever you choose here.
-				</span>
-			</span>
-		</label>
-		<p id="motion-error" role="alert" class="text-sm font-medium text-red-800">
-			{motionError ?? ''}
-		</p>
-	</section>
+			<button type="submit" disabled={isSaving} class="btn-primary">Save</button>
+		</div>
+		{#if nameError}<p id="tree-name-error" class="mt-1 text-xs text-red-700" role="alert">
+				{nameError}
+			</p>{/if}
+	</form>
+</section>
 
-	{#if isInstallOwner}
-		<section aria-labelledby="site-colours-heading" class="flex flex-col gap-3">
-			<h3 id="site-colours-heading" class="text-lg font-bold text-stone-900">Site default</h3>
-			<p class="text-sm text-stone-600">
-				What everyone sees who has not chosen their own colours, including readers of the public
-				tree. You set it as the install owner.
+<section id="address" class="mt-10 scroll-mt-20" aria-labelledby="address-heading">
+	<h3 id="address-heading" class={sectionHeadingClass}>Address</h3>
+	<form onsubmit={saveAddress} class="mt-3 max-w-2xl space-y-4">
+		<div>
+			<label for="tree-slug" class="field-label">Address</label>
+			<div
+				class="flex items-center rounded-lg border border-stone-300 bg-white focus-within:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600"
+			>
+				<span class="pl-3 text-sm text-stone-500" aria-hidden="true">/trees/</span>
+				<input
+					id="tree-slug"
+					type="text"
+					bind:value={slug}
+					maxlength={MAX_TREE_SLUG_LENGTH}
+					disabled={isSaving}
+					autocomplete="off"
+					spellcheck="false"
+					placeholder="the-windsors"
+					aria-describedby="tree-slug-help"
+					class="w-full min-w-0 rounded-r-lg bg-transparent py-2 pr-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none disabled:opacity-50"
+				/>
+			</div>
+			<p id="tree-slug-help" class="mt-1 text-xs text-stone-600">
+				Renaming the tree keeps the address, so bookmarks still work. Changing the address breaks
+				links to the old one. Leave it empty to use the tree's id.
 			</p>
-			<PaletteEditor
-				idPrefix="site"
-				stored={settings.site}
-				below={[]}
-				inheritedName="the built-in colours"
-				onsave={saveSite}
-			/>
-		</section>
-	{/if}
+		</div>
 
-	<section aria-labelledby="also-yours-heading" class="flex flex-col gap-2">
-		<h3 id="also-yours-heading" class="text-lg font-bold text-stone-900">Also yours</h3>
-		<ul class="list-disc pl-5 text-sm text-stone-700">
-			{#if canChooseDefault}
-				<li>
-					Your default tree, the one Epoch opens first, is chosen on the
-					<a href="{base}/trees" class="font-semibold text-emerald-900 underline">Trees page</a>.
-				</li>
+		{#if zone}
+			<div>
+				<label class="flex items-start gap-2 text-sm text-stone-800">
+					<input
+						type="checkbox"
+						bind:checked={isOnSubdomain}
+						disabled={isSaving || !hasAddress}
+						aria-describedby="tree-subdomain-help"
+						class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+					/>
+					<span>
+						Also open this tree at
+						<span class="font-mono text-stone-900"
+							>{hasAddress ? slug.trim() : 'address'}.{zone}</span
+						>
+					</span>
+				</label>
+				<p id="tree-subdomain-help" class="mt-1 text-xs text-stone-600">
+					That address shows this tree and nothing else. Its name becomes visible as a web address,
+					even while the tree is private. Changing the address above moves it.
+				</p>
+			</div>
+		{/if}
+
+		{#if addressError}<p class="text-xs text-red-700" role="alert">{addressError}</p>{/if}
+		<button type="submit" disabled={isSaving} class="btn-primary">Save address</button>
+	</form>
+</section>
+
+<section id="visibility" class="mt-10 scroll-mt-20" aria-labelledby="visibility-heading">
+	<h3 id="visibility-heading" class={sectionHeadingClass}>Visibility</h3>
+	<VisibilitySettings treeId={tree.id} settings={data.privacy} {toasts} />
+	<div class="mt-4 max-w-2xl text-sm text-stone-700">
+		<p>
+			{#if viewer.isTreePublic}
+				This tree is public: anyone with the link can read it.
+			{:else}
+				Not public: only the people invited to this tree can read it.
 			{/if}
-			<li>
-				Your default view of a tree (Flat, Rings, Ball, Ribbons or Orrery) is chosen from the tree's
-				toolbar.
-			</li>
-		</ul>
+			Only the owner of this Epoch decides that.
+			{#if viewer.isInstallOwner}
+				<a href={appHref('/admin#trees', data.hostTree)} class="text-link"
+					>Change it in Administration</a
+				>.
+			{/if}
+		</p>
+		<p class="mt-2 text-stone-600">
+			One person can be made always public or always private on their own page.
+		</p>
+	</div>
+</section>
+
+{#if data.canManageSubtrees}
+	<SubtreeManager
+		{tree}
+		subtrees={data.subtrees}
+		rootNames={data.rootNames}
+		canManage={data.canManageSubtrees}
+		{toasts}
+		onchanged={() => invalidate(DATA_KEY)}
+	/>
+{/if}
+
+{#if data.canExport}
+	<section id="export" class="mt-10 scroll-mt-20" aria-labelledby="export-heading">
+		<h3 id="export-heading" class={sectionHeadingClass}>Export</h3>
+		<p class="mt-1 max-w-2xl text-sm text-stone-600">
+			Download the whole tree as a GEDCOM file. It includes living people.
+		</p>
+		<GedcomExportChoices {isExporting} onexport={exportGedcom} />
 	</section>
-</div>
+{/if}
+
+{#if data.canDelete}
+	<section id="delete" class="mt-10 scroll-mt-20" aria-labelledby="delete-heading">
+		<h3 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h3>
+		<p class="mt-1 max-w-2xl text-sm text-stone-600">
+			Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
+		</p>
+		<button
+			type="button"
+			class="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 focus-ring hover:bg-red-50"
+			onclick={() => {
+				deleteError = null;
+				isDeleteOpen = true;
+			}}
+		>
+			Delete this tree…
+		</button>
+	</section>
+	<DeleteTreeModal
+		isOpen={isDeleteOpen}
+		treeId={tree.id}
+		treeName={tree.name}
+		{isDeleting}
+		error={deleteError}
+		onclose={() => (isDeleteOpen = false)}
+		ondelete={remove}
+	/>
+{/if}

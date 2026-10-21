@@ -45,6 +45,8 @@ type Needs = 'viewer' | 'editor' | 'manager';
 interface Expected {
 	visitor: Visitor;
 	needs: Needs;
+	/** A caller below `needs` is sent elsewhere with a 302 instead of refused with a 403. */
+	isRedirectedBelow?: true;
 	/** Whether the address names a tree. The three redirect pages at the root do not. */
 	isTree: boolean;
 }
@@ -54,6 +56,8 @@ const CLOSED: Expected = { visitor: 'closed', needs: 'viewer', isTree: true };
 const EDITOR: Expected = { visitor: 'closed', needs: 'editor', isTree: true };
 const MANAGER: Expected = { visitor: 'closed', needs: 'manager', isTree: true };
 const NOT_THEIRS: Expected = { visitor: 'not-theirs', needs: 'viewer', isTree: true };
+// Tree settings: an old bookmark of the personal colours that lived here goes to the account.
+const SETTINGS: Expected = { ...NOT_THEIRS, needs: 'manager', isRedirectedBelow: true };
 const ROOT: Expected = { visitor: 'open', needs: 'viewer', isTree: false };
 
 const EXPECTED: Record<string, Expected> = {
@@ -84,9 +88,10 @@ const EXPECTED: Record<string, Expected> = {
 	'./trees/[id]/quality/+page.server.ts': CLOSED,
 	'./trees/[id]/audit/+page.server.ts': EDITOR,
 	'./trees/[id]/members/+page.server.ts': MANAGER,
-	'./trees/[id]/privacy/+page.server.ts': MANAGER,
+	// Only redirects to Tree settings, for every member.
+	'./trees/[id]/privacy/+page.server.ts': CLOSED,
 	'./trees/[id]/files/+page.server.ts': NOT_THEIRS,
-	'./trees/[id]/settings/+page.server.ts': NOT_THEIRS,
+	'./trees/[id]/settings/+page.server.ts': SETTINGS,
 	'./trees/[id]/trees/+page.server.ts': NOT_THEIRS
 };
 
@@ -276,8 +281,9 @@ describe.each(loads)('%s', (route, expected) => {
 	});
 
 	it.runIf(expected.isTree)('asks for the role the service needs, and no more', async () => {
+		const refusal = expected.isRedirectedBelow ? 302 : 403;
 		const isRefused = async (who: string) =>
-			(await statusOf(route, people[who]!, paramsFor(route, privateId))).status === 403;
+			(await statusOf(route, people[who]!, paramsFor(route, privateId))).status === refusal;
 		if (expected.needs === 'editor') {
 			expect(await isRefused('viewer')).toBe(true);
 			expect(await isRefused('editor')).toBe(false);
