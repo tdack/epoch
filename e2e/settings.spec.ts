@@ -22,7 +22,7 @@ test('changing the male colour repaints the flat card border', async ({ api, pag
 		await expect(canvas).toBeVisible();
 		expect(await borderVariable()).not.toBe('#3a6ea5');
 
-		await open(page, `${tree}/settings`);
+		await open(page, '/account#appearance');
 		const male = page.getByRole('textbox', { name: 'Male', exact: true }).first();
 		await male.fill('#3a6ea5');
 		await page.getByRole('button', { name: 'Save colours' }).first().click();
@@ -41,11 +41,10 @@ test('changing the male colour repaints the flat card border', async ({ api, pag
 	}
 });
 
-test('the settings page has no detectable accessibility violations, even with an error shown', async ({
-	api,
+test('the account page has no detectable accessibility violations, even with an error shown', async ({
 	page
 }) => {
-	await open(page, `/trees/${api.treeSlug}/settings`);
+	await open(page, '/account');
 	await page.getByRole('textbox', { name: 'Female', exact: true }).first().fill('pink');
 	const result = await new AxeBuilder({ page })
 		.withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
