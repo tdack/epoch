@@ -148,9 +148,9 @@ have none today), but a shared sub-tree address works for them when the root is 
 - **Root merged:** `PersonMergeService` repoints `root_person_id` from the merged-away person to the
   survivor, in the same mutation.
 - **Tree deleted:** cascades.
-- **GEDCOM:** sub-trees are not exported in this phase, as tasks are not; they are a view over the
-  tree, not genealogy. Recorded in the ADR. An `_EPOCH_SUBTREE` extension record is a follow-up
-  (see [gedcom-extensions.md](./gedcom-extensions.md)).
+- **GEDCOM:** sub-trees are not exported, as tasks are not; they are a view over the tree, not
+  genealogy. Recorded in the ADR. No GEDCOM extension is planned: export sticks to the spec, and
+  sub-trees are an app feature.
 
 ## Implementation phases
 
