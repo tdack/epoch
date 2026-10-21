@@ -2,7 +2,7 @@
 
 - **Status:** proposal, 2026-10-16. Phase 1, the app side, was built on 2026-10-17 (ADR-057), and
   `epochgenealogy.app` serves trees on its subdomains from the same day. When an option is chosen, it becomes an ADR in
-  [decisions.md](./decisions.md) and its work moves into [backlog.md](./backlog.md).
+  [docs/adr/](./adr/) and its work moves into [backlog.md](./backlog.md).
 - **Goal:** the tree "The Dacks" at `/trees/dacks` can also be reached at `dacks.example.com`, and
   that host shows only that tree. The owner should not have to create a Cloudflare API token to set
   it up.

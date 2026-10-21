@@ -1,8 +1,8 @@
 # Backlog
 
 Open fixes first, then proposed additions and changes, grouped by area. Finished work is not listed
-here; the reasons behind past decisions are in [decisions.md](./decisions.md), and the shape of the
-system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR if
+here; the reasons behind past decisions are in [decisions.md](./decisions.md) (one file per ADR in `adr/`), and the shape of the
+system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR (a file in `docs/adr/` and a row in decisions.md) if
 it changes a decision.
 
 Last reviewed: 2026-10-18.
