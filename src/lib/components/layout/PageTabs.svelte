@@ -5,6 +5,8 @@
 </script>
 
 <script lang="ts">
+	import { fadeWhenClipped } from '#lib/components/layout/fade-when-clipped.js';
+
 	interface Tab {
 		href: string;
 		label: string;
@@ -18,21 +20,6 @@
 	}
 
 	let { label, tabs }: Props = $props();
-
-	// Whether tabs are hidden past the right edge; the fade tells a phone user the row scrolls.
-	let isClippedRight = $state(false);
-
-	function watchOverflow(nav: HTMLElement) {
-		const measure = () => (isClippedRight = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
-		measure();
-		nav.addEventListener('scroll', measure, { passive: true });
-		const observer = new ResizeObserver(measure);
-		observer.observe(nav);
-		return () => {
-			nav.removeEventListener('scroll', measure);
-			observer.disconnect();
-		};
-	}
 </script>
 
 <!-- Links rather than an ARIA tablist: each tab is an address, so it can be bookmarked and shared. -->
@@ -40,10 +27,8 @@
      would overflow the scrolling row and show a scrollbar beside the tabs. -->
 <nav
 	aria-label={label}
-	class="mb-6 flex gap-1 overflow-x-auto text-sm shadow-[inset_0_-1px_0_var(--color-stone-200)] {isClippedRight
-		? 'mask-r-from-[calc(100%-2rem)]'
-		: ''}"
-	{@attach watchOverflow}
+	class="mb-6 flex gap-1 overflow-x-auto text-sm shadow-[inset_0_-1px_0_var(--color-stone-200)]"
+	{@attach fadeWhenClipped}
 >
 	{#each tabs as tab (tab.href)}
 		<a

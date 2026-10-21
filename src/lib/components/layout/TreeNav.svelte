@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
+	import { fadeWhenClipped } from '#lib/components/layout/fade-when-clipped.js';
 	import { treeAdminPage, type TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
@@ -93,7 +94,7 @@
 <!-- The tabs scroll sideways on a phone rather than wrapping into a second and third row. -->
 <!-- The menu sits beside the scrolling row, not in it: a scroll container would clip its panel. -->
 <nav aria-label="Tree sections" class="flex items-center gap-1 text-sm">
-	<div class="flex min-w-0 items-center gap-1 overflow-x-auto">
+	<div class="flex min-w-0 items-center gap-1 overflow-x-auto" {@attach fadeWhenClipped}>
 		{#each tabs as link (link.href)}
 			<a
 				href={link.href}

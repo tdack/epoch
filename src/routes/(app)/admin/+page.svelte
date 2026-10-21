@@ -86,7 +86,7 @@
 	// Below sm each row is a card: the table's own display values are swapped out so one set of
 	// cells serves both layouts, and `data-label` names the figure the header would have.
 	const cellClass =
-		'text-stone-600 before:text-stone-500 before:content-[attr(data-label)] max-sm:before:mr-1 sm:table-cell sm:px-3 sm:py-2 sm:before:content-none';
+		'text-stone-600 before:text-stone-500 before:normal-case before:content-[attr(data-label)] max-sm:before:mr-1 sm:table-cell sm:px-3 sm:py-2 sm:before:content-none';
 </script>
 
 <svelte:head>
