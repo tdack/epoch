@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
 	import Popover from '#lib/components/layout/Popover.svelte';
-	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
+	import type { TreeRole } from '#lib/shared/roles.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
@@ -9,7 +9,7 @@
 		treeId: string;
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
-		/** The viewer's role; editors and above also get the Audit log. */
+		/** The viewer's role; any member also gets Files. */
 		role?: TreeRole;
 		/** The current path, so the section the viewer is in reads as active. */
 		pathname: string;
@@ -72,14 +72,9 @@
 			: [{ href: `${base}/quality`, label: 'Quality', isActive: startsWith(`${base}/quality`) }]),
 		{ href: `${base}/search`, label: 'Fact search', isActive: startsWith(`${base}/search`) }
 	]);
-	// The tree's administration is behind the gear in the tree switcher (ADR-075); its change log
-	// stays here, because editors read it and they administer nothing.
-	const history = $derived<NavLink[]>(
-		canChangeRecords(role) && !isOutsider
-			? [{ href: `${base}/audit`, label: 'Audit log', isActive: startsWith(`${base}/audit`) }]
-			: []
-	);
-	const activeInMore = $derived([...research, ...history].find((link) => link.isActive));
+	// The tree's administration, its audit log included, is behind the gear in the tree switcher
+	// (ADR-075), so this menu holds research and nothing else.
+	const activeInResearch = $derived(research.find((link) => link.isActive));
 
 	const tabClass = (isActive: boolean) =>
 		`focus-ring-inset shrink-0 rounded-lg px-3 py-1.5 font-semibold whitespace-nowrap coarse:inline-flex coarse:min-h-11 coarse:items-center ${
@@ -105,45 +100,27 @@
 			</a>
 		{/each}
 	</div>
-	<Popover label="More sections" align="end" panelClass="w-48 py-1">
+	<Popover label="Research" align="end" panelClass="w-48 py-1">
 		{#snippet trigger(attrs)}
 			<button
 				type="button"
 				{...attrs}
-				class="{tabClass(!!activeInMore)} inline-flex cursor-pointer items-center gap-1"
+				class="{tabClass(!!activeInResearch)} inline-flex cursor-pointer items-center gap-1"
 			>
-				<!-- On a phone the name would push the tabs off; the highlight alone says you are in More. -->
-				More{#if activeInMore}<span class="hidden sm:inline">: {activeInMore.label}</span>{/if}
+				<!-- On a phone the name would push the tabs off; the highlight alone says you are in Research. -->
+				Research{#if activeInResearch}<span class="hidden sm:inline"
+						>: {activeInResearch.label}</span
+					>{/if}
 				<ChevronDown class="h-3.5 w-3.5" aria-hidden="true" />
 			</button>
 		{/snippet}
-		<div role="group" aria-label="Research">
-			<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-				Research
-			</p>
-			{#each research as link (link.href)}
-				<a
-					href={link.href}
-					role="menuitem"
-					aria-current={link.isActive ? 'page' : undefined}
-					class={itemClass(link.isActive)}>{link.label}</a
-				>
-			{/each}
-		</div>
-		{#if history.length > 0}
-			<div role="group" aria-label="History" class="mt-1 border-t border-stone-200">
-				<p class="px-3 pt-1.5 pb-1 text-xs font-bold tracking-wide text-stone-600 uppercase">
-					History
-				</p>
-				{#each history as link (link.href)}
-					<a
-						href={link.href}
-						role="menuitem"
-						aria-current={link.isActive ? 'page' : undefined}
-						class={itemClass(link.isActive)}>{link.label}</a
-					>
-				{/each}
-			</div>
-		{/if}
+		{#each research as link (link.href)}
+			<a
+				href={link.href}
+				role="menuitem"
+				aria-current={link.isActive ? 'page' : undefined}
+				class={itemClass(link.isActive)}>{link.label}</a
+			>
+		{/each}
 	</Popover>
 </nav>

@@ -100,7 +100,7 @@ test('a viewer is shown the dead and never the living, and a manager can change 
 		expect((await viewer.request.get(`/api/export?treeId=${api.treeId}`)).status()).toBe(403);
 		await viewer
 			.getByRole('navigation', { name: 'Tree sections' })
-			.getByRole('button', { name: 'More' })
+			.getByRole('button', { name: 'Research' })
 			.click();
 		await expect(viewer.getByRole('menuitem', { name: 'Tree settings' })).toHaveCount(0);
 		await expect(viewer.getByRole('menuitem', { name: 'Members' })).toHaveCount(0);
