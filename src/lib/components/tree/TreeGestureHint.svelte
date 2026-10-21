@@ -54,15 +54,16 @@
 	>
 		<p class="min-w-0 flex-1">
 			{#if isTouch && isOverlay}
-				<strong class="font-semibold text-stone-900">Tap</strong> to centre.
-				<strong class="font-semibold text-stone-900">Hold</strong> for details.
+				<strong class="font-semibold text-stone-900">Tap</strong> to mark.
+				<strong class="font-semibold text-stone-900">Hold</strong> to centre and see details.
 			{:else if isTouch}
-				<strong class="font-semibold text-stone-900">Tap</strong> a person to centre the tree on
-				them. <strong class="font-semibold text-stone-900">Press and hold</strong> to see their details.
+				<strong class="font-semibold text-stone-900">Tap</strong> a person to mark them.
+				<strong class="font-semibold text-stone-900">Press and hold</strong> to centre the tree on them
+				and see their details.
 			{:else}
-				<strong class="font-semibold text-stone-900">Click</strong> a person to centre the tree on
-				them. <strong class="font-semibold text-stone-900">Double-click</strong> to see their
-				details{#if hasMenuActions}, or
+				<strong class="font-semibold text-stone-900">Click</strong> a person to mark them.
+				<strong class="font-semibold text-stone-900">Double-click</strong> to centre the tree on
+				them and see their details{#if hasMenuActions}, or
 					<strong class="font-semibold text-stone-900">right-click</strong> for more{/if}.
 			{/if}
 		</p>

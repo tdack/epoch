@@ -352,11 +352,6 @@
 		}
 	}
 
-	function setFocus(id: string) {
-		rememberFocus(id);
-		navigate(withOpenDrawer(id), { kind: HISTORY_KINDS.FOCUS });
-	}
-
 	/** A new focus takes an open drawer along, so the drawer keeps describing the person at the centre. */
 	const withOpenDrawer = (id: string): Partial<TreeViewState> => ({
 		focusId: id,
@@ -366,6 +361,12 @@
 	// ---- The details drawer ----
 	/** The drawer lives in the address, so a reload, Back and a shared link all find it as it was. */
 	const selectedPersonId = $derived(view.personId);
+	/**
+	 * Who is marked on the chart with the green border. A single click marks someone without opening
+	 * the drawer or moving the focus; while the drawer is open it is always the person it describes.
+	 */
+	let highlightedId = $state<string | null>(null);
+	const markedPersonId = $derived(selectedPersonId ?? highlightedId);
 	const drawer = createDrawerLoader({
 		treeId: () => treeId,
 		onMissing: () =>
@@ -383,6 +384,7 @@
 
 	/** Close the drawer; the tree stays as it is, and focus returns to the card that opened it if it is still drawn. */
 	function clearSelection() {
+		highlightedId = null;
 		if (!selectedPersonId) return;
 		navigate({ personId: null, expandedStubs: view.expandedStubs }, { kind: HISTORY_KINDS.ADJUST });
 		const card = openerCardId;
@@ -412,7 +414,7 @@
 
 	/** What the 3D canvases' context menus can do; the flat canvas takes the same actions one by one. */
 	const actions = $derived<TreeEditActions>({
-		onOpenPerson: handleOpenPerson,
+		onOpenPerson: handleShowDetails,
 		onOpenProfile: openProfile,
 		...(canCreate ? { onAddRelationship: addRelationship } : {}),
 		...(canChange
@@ -467,25 +469,33 @@
 		navigate({ isWholeTree: !view.isWholeTree }, { kind: HISTORY_KINDS.ADJUST });
 	}
 
-	/** Canvas single-click: refocus the chart only. An already-open drawer follows the focus. */
-	function handleFocusPerson(id: string) {
-		// The flat whole tree lights no line, so a card there is a way in: focus them and leave it.
-		if (isWholeTreeDrawn && mode === LAYOUT_MODES.FLAT) {
-			rememberFocus(id);
-			navigate({ ...withOpenDrawer(id), isWholeTree: false }, { kind: HISTORY_KINDS.FOCUS });
-			return;
+	/**
+	 * Canvas single-click: mark the person. The focus and the chart stay as they are; an open drawer
+	 * moves to them, so it keeps describing whoever was last clicked.
+	 */
+	function handleHighlightPerson(id: string) {
+		highlightedId = id;
+		if (selectedPersonId && selectedPersonId !== id) {
+			navigate({ personId: id }, { kind: HISTORY_KINDS.ADJUST });
 		}
-		// The first click of a double-click lands here too; re-centring on the person already at the
-		// centre would only flash the cue and, before stubs were kept, wipe the branches just opened.
-		if (id === (view.focusId ?? focusPersonId)) return;
-		recentreCue = null;
-		recentreTargetId = id;
-		setFocus(id);
+	}
+
+	/** "Show details" (menu or toolbar): open the drawer on the person and mark them, without refocusing. */
+	function handleShowDetails(id: string) {
+		if (!selectedPersonId) openerCardId = id;
+		highlightedId = id;
+		navigate({ personId: id }, { kind: HISTORY_KINDS.ADJUST });
 	}
 
 	/** Canvas double-click or long-press: focus the person and show their details. */
 	function handleOpenPerson(id: string) {
 		if (!selectedPersonId) openerCardId = id;
+		highlightedId = id;
+		// Re-centring on the person already at the centre would only flash the cue.
+		if (id !== (view.focusId ?? focusPersonId) && !isWholeTreeDrawn) {
+			recentreCue = null;
+			recentreTargetId = id;
+		}
 		rememberFocus(id);
 		navigate({ focusId: id, personId: id }, { kind: HISTORY_KINDS.FOCUS });
 	}
@@ -513,7 +523,7 @@
 				{palette}
 				{focusPerson}
 				onchangeFocus={() => finder.focusInput?.()}
-				onshowDetails={handleOpenPerson}
+				onshowDetails={handleShowDetails}
 				onopenProfile={openProfile}
 				onChange={(change) =>
 					navigate(
@@ -537,11 +547,11 @@
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
-						{selectedPersonId}
+						selectedPersonId={markedPersonId}
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
-						onSelectPerson={handleFocusPerson}
+						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
 					/>
@@ -551,11 +561,11 @@
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
-						{selectedPersonId}
+						selectedPersonId={markedPersonId}
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
-						onSelectPerson={handleFocusPerson}
+						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
 					/>
@@ -565,11 +575,11 @@
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
-						{selectedPersonId}
+						selectedPersonId={markedPersonId}
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
-						onSelectPerson={handleFocusPerson}
+						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
 					/>
@@ -579,11 +589,11 @@
 						{palette}
 						isMotionReduced={data.isMotionReduced}
 						{fitKey}
-						{selectedPersonId}
+						selectedPersonId={markedPersonId}
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
-						onSelectPerson={handleFocusPerson}
+						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
 					/>
@@ -595,8 +605,8 @@
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
-						{selectedPersonId}
-						onSelectPerson={handleFocusPerson}
+						selectedPersonId={markedPersonId}
+						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onOpenProfile={openProfile}
 						onClearSelection={clearSelection}

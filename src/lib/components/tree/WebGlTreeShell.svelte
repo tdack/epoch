@@ -48,7 +48,7 @@
 		label: string;
 		/** What the view is called in the WebGL-failure message, such as "Rings". */
 		viewName: string;
-		/** Completes "Centre … on them." in each name button's accessible name, such as "the rings". */
+		/** Completes "Shift+Enter centres … on them" in each name button's accessible name, such as "the rings". */
 		subject: string;
 		/** Spoken when the focus or the counts change. */
 		announcement: string;
@@ -78,7 +78,7 @@
 		shouldReduceMotion?: boolean;
 		/** The viewer chose "Reduce animation" in their settings (ADR-054). */
 		isMotionReduced?: boolean;
-		/** Person whose details are open in the drawer, if any. */
+		/** Person marked on the chart: whoever the drawer shows, else the last one clicked. */
 		selectedPersonId?: string | null;
 		/** Legend entries, shown top left. */
 		legend?: LegendEntry[];
@@ -86,9 +86,9 @@
 		hint?: string;
 		/** Extra buttons in the control panel, after Spin. Give them `class="view"`. */
 		controls?: Snippet;
-		/** A sphere or name was clicked or activated with Enter: refocus on them. */
+		/** A sphere or name was clicked or activated with Enter: mark them; the focus stays put. */
 		onSelectPerson?: (id: string) => void;
-		/** Double-click or Shift+Enter on a person: open their details. */
+		/** Double-click or Shift+Enter on a person: focus them and open their details. */
 		onOpenPerson?: (id: string) => void;
 		/** Escape: drop the selection. */
 		onClearSelection?: () => void;
@@ -115,7 +115,7 @@
 		isMotionReduced = false,
 		selectedPersonId = null,
 		legend = [],
-		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click for details',
+		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click to focus and see details',
 		controls,
 		onSelectPerson,
 		onOpenPerson,
@@ -159,7 +159,7 @@
 			? 'Add to or remove from the trace.'
 			: isWholeTree
 				? 'Light their line.'
-				: `Centre ${subject} on them.`
+				: `Mark them. Shift+Enter centres ${subject} on them and shows their details.`
 	);
 	/**
 	 * Names on screen: the focus line, whoever the pointer is over and the open drawer. Every name at
@@ -379,6 +379,7 @@
 		} else if (isWholeTree) {
 			// Nobody is the focus here, so a person lights their line where they stand.
 			lit.select({ kind: 'focus', personId: id });
+			onSelectPerson?.(id);
 		} else {
 			lit.select(null);
 			onSelectPerson?.(id);

@@ -52,12 +52,14 @@
 		 * deliberately not when a stub is expanded, so opening a branch does not move the view.
 		 */
 		fitKey: string;
-		/** Person whose details are open in the drawer, if any. */
+		/** Person marked with the green border: whoever the drawer shows, else the last one clicked. */
 		selectedPersonId?: string | null;
-		/** A card was clicked or activated with Enter/Space. */
+		/** A card was clicked or activated with Enter/Space: mark it, without moving the focus. */
 		onSelectPerson?: (id: string) => void;
-		/** Double-click, long-press or Shift+Enter on a person: open their details. */
+		/** Double-click, long-press or Shift+Enter on a person: focus them and open their details. */
 		onOpenPerson?: (id: string) => void;
+		/** "Show details" in a card's menu: open the drawer on them without refocusing. */
+		onShowPerson?: (id: string) => void;
 		/** The context menu's Open profile: go to the person's own page. */
 		onOpenProfile?: (id: string) => void;
 		/** Escape with nothing else to close: drop the selection. */
@@ -112,6 +114,7 @@
 		selectedPersonId = null,
 		onSelectPerson,
 		onOpenPerson,
+		onShowPerson,
 		onOpenProfile,
 		onClearSelection,
 		onEditPerson,
@@ -322,7 +325,7 @@
 
 	/** The page's editing actions as one object, for the menu entries shared with the 3D views. */
 	const actions = $derived<TreeEditActions>({
-		onOpenPerson,
+		onOpenPerson: onShowPerson,
 		onOpenProfile,
 		onEditPerson,
 		onDeletePerson,

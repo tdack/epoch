@@ -23,7 +23,7 @@
 		zoom: number;
 		/** True for the person the whole view is centred on. */
 		isFocus: boolean;
-		/** True while this person's details are open in the drawer. */
+		/** True for the marked person: the one the drawer shows, else the last one clicked. */
 		isSelected: boolean;
 		/** True for the one card in the tab order (roving tabindex). */
 		isActive: boolean;
@@ -31,9 +31,9 @@
 		hasMultiplePaths: boolean;
 		/** Relationship to the focus person ("child", "partner of Alex"), spoken with the name. */
 		relation: string;
-		/** Click or Enter/Space on the card: refocus the chart on this person. */
+		/** Click or Enter/Space on the card: mark this person; the focus stays where it is. */
 		onSelect: (id: string) => void;
-		/** Double-click, long-press or Shift+Enter: open this person's details. */
+		/** Double-click, long-press or Shift+Enter: focus this person and open their details. */
 		onOpen: (id: string) => void;
 		/** Right-click; the handler is responsible for `preventDefault`. */
 		onContextMenu: (event: MouseEvent, node: PlacedPerson) => void;
@@ -82,7 +82,7 @@
 
 	let pressTimer: ReturnType<typeof setTimeout> | undefined;
 	let pressOrigin = { x: 0, y: 0 };
-	/** Set when a long-press fired so the click that follows the release doesn't also refocus. */
+	/** Set when a long-press fired so the click that follows the release doesn't also mark. */
 	let didLongPress = false;
 
 	function cancelPress() {

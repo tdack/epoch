@@ -66,9 +66,9 @@ export interface WebGlCanvasProps<TLayout> {
 	onToggleWholeTree?: () => void;
 	/** The whole tree stopped at its cap, so the picture is missing people the viewer may see. */
 	isTruncated?: boolean;
-	/** A sphere or name was clicked or activated with Enter: refocus the view on them. */
+	/** A sphere or name was clicked or activated with Enter: mark them; the focus stays put. */
 	onSelectPerson?: (id: string) => void;
-	/** Double-click or Shift+Enter on a person: open their details. */
+	/** Double-click or Shift+Enter on a person: focus them and open their details. */
 	onOpenPerson?: (id: string) => void;
 	/** Escape: drop the selection. */
 	onClearSelection?: () => void;

@@ -155,7 +155,7 @@
 					? 'Click to add to or remove from the trace'
 					: isWholeTree
 						? 'Click to light their line'
-						: 'Click to centre'} · double-click for details
+						: 'Click to mark'} · double-click to centre and see details
 			</p>
 		{:else if itemCard}
 			<p class="name">{itemCard.title}</p>
