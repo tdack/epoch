@@ -37,10 +37,6 @@
 		 * long-press; this is the route that needs neither, and that a touch screen can see.
 		 */
 		onshowDetails?: (personId: string) => void;
-		/** The viewer's own saved view for this tree, when it can be changed here. */
-		defaults?: { member: LayoutMode | null };
-		/** Save the viewer's own default view; null clears it so Flat applies. */
-		onSetMemberDefault?: (mode: LayoutMode | null) => void;
 		/** Merge these fields into the view. */
 		onChange: (change: Partial<TreeViewState>) => void;
 	}
@@ -52,8 +48,6 @@
 		onchangeFocus,
 		onopenProfile,
 		onshowDetails,
-		defaults,
-		onSetMemberDefault,
 		onChange
 	}: Props = $props();
 
@@ -413,36 +407,6 @@
 				{/each}
 			</div>
 		</details>
-
-		{#if defaults}
-			<details open={!isNarrow} class="grid gap-1">
-				<summary
-					class="{headingClass} {isNarrow
-						? 'min-h-11 leading-[2.75rem]'
-						: ''} cursor-pointer focus-ring"
-				>
-					Open this tree in
-				</summary>
-				<label class="flex items-center justify-between gap-3 {isNarrow ? 'min-h-11' : ''}">
-					<span class={captionClass}>Mine</span>
-					<select
-						aria-label="Open this tree in"
-						class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
-							? 'min-h-11'
-							: ''}"
-						value={defaults.member === LAYOUT_MODES.FLAT ? '' : (defaults.member ?? '')}
-						onchange={(event) =>
-							onSetMemberDefault?.((event.currentTarget.value || null) as LayoutMode | null)}
-					>
-						<option value="">Flat (the default)</option>
-						{#each LAYOUT_MODE_VALUES.filter((m) => m !== LAYOUT_MODES.FLAT) as mode (mode)}
-							<option value={mode}>{MODE_LABELS[mode]}</option>
-						{/each}
-					</select>
-				</label>
-				<p class="text-xs text-stone-600">Links that name a view still open in it.</p>
-			</details>
-		{/if}
 
 		<button
 			type="button"
