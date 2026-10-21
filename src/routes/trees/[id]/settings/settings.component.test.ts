@@ -96,8 +96,8 @@ describe('tree settings page', () => {
 
 	it('shows Sub-trees and Export as tabs of their own, and an old section link on Settings', () => {
 		for (const [hash, expected] of [
-			['#subtrees', ['subtrees']],
-			['#export', ['export']],
+			['#subtrees', ['subtrees-tab']],
+			['#export', ['export-tab']],
 			['#visibility', ['general', 'address', 'visibility']]
 		] as const) {
 			state.page.url = new URL(`https://epoch.test/trees/smiths/settings${hash}`);
@@ -108,7 +108,11 @@ describe('tree settings page', () => {
 					.querySelector('nav[aria-label="Tree administration"] [aria-current="page"]')!
 					.textContent!.trim()
 			).toBe(
-				hash === '#visibility' ? 'Settings' : expected[0] === 'subtrees' ? 'Sub-trees' : 'Export'
+				hash === '#visibility'
+					? 'Settings'
+					: expected[0] === 'subtrees-tab'
+						? 'Sub-trees'
+						: 'Export'
 			);
 			unmount(component!);
 			component = null;
