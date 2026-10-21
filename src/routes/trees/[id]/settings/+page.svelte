@@ -129,7 +129,7 @@
 </svelte:head>
 
 <h2 class="text-2xl font-bold text-stone-900">Tree settings</h2>
-<p class="mt-1 max-w-2xl text-sm text-stone-600">
+<p class="mt-1 max-w-prose text-sm text-stone-600">
 	These settings apply to everyone in {tree.name}. Your own colours and defaults are on your
 	<a href={appHref('/account', data.hostTree)} class="text-link">account</a>.
 </p>
@@ -161,7 +161,7 @@
 	<h3 id="address-heading" class={sectionHeadingClass}>Address</h3>
 	<form onsubmit={saveAddress} class="mt-3 max-w-2xl space-y-4">
 		<div>
-			<label for="tree-slug" class="field-label">Address</label>
+			<label for="tree-slug" class="field-label">Web address</label>
 			<div
 				class="flex items-center rounded-lg border border-stone-300 bg-white focus-within:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600"
 			>
@@ -217,18 +217,18 @@
 <section id="visibility" class="mt-10 scroll-mt-20" aria-labelledby="visibility-heading">
 	<h3 id="visibility-heading" class={sectionHeadingClass}>Visibility</h3>
 	<VisibilitySettings treeId={tree.id} settings={data.privacy} {toasts} />
-	<div class="mt-4 max-w-2xl text-sm text-stone-700">
+	<div class="mt-4 max-w-prose text-sm text-stone-700">
 		<p>
 			{#if viewer.isTreePublic}
 				This tree is public: anyone with the link can read it.
 			{:else}
 				Not public: only the people invited to this tree can read it.
 			{/if}
-			Only the owner of this Epoch decides that.
 			{#if viewer.isInstallOwner}
-				<a href={appHref('/admin#trees', data.hostTree)} class="text-link"
-					>Change it in Administration</a
-				>.
+				You choose the public tree in
+				<a href={appHref('/admin#trees', data.hostTree)} class="text-link">Administration</a>.
+			{:else}
+				The person who runs this Epoch chooses which tree is public.
 			{/if}
 		</p>
 		<p class="mt-2 text-stone-600">
@@ -251,7 +251,7 @@
 {#if data.canExport}
 	<section id="export" class="mt-10 scroll-mt-20" aria-labelledby="export-heading">
 		<h3 id="export-heading" class={sectionHeadingClass}>Export</h3>
-		<p class="mt-1 max-w-2xl text-sm text-stone-600">
+		<p class="mt-1 max-w-prose text-sm text-stone-600">
 			Download the whole tree as a GEDCOM file. It includes living people.
 		</p>
 		<GedcomExportChoices {isExporting} onexport={exportGedcom} />
@@ -261,7 +261,7 @@
 {#if data.canDelete}
 	<section id="delete" class="mt-10 scroll-mt-20" aria-labelledby="delete-heading">
 		<h3 id="delete-heading" class={sectionHeadingClass}>Delete this tree</h3>
-		<p class="mt-1 max-w-2xl text-sm text-stone-600">
+		<p class="mt-1 max-w-prose text-sm text-stone-600">
 			Deletes {tree.name} and everything in it, for everyone. You confirm by typing its name.
 		</p>
 		<button

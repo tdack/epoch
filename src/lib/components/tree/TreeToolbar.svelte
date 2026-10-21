@@ -430,12 +430,12 @@
 						class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
 							? 'min-h-11'
 							: ''}"
-						value={defaults.member ?? ''}
+						value={defaults.member === LAYOUT_MODES.FLAT ? '' : (defaults.member ?? '')}
 						onchange={(event) =>
 							onSetMemberDefault?.((event.currentTarget.value || null) as LayoutMode | null)}
 					>
 						<option value="">Flat (the default)</option>
-						{#each LAYOUT_MODE_VALUES as mode (mode)}
+						{#each LAYOUT_MODE_VALUES.filter((m) => m !== LAYOUT_MODES.FLAT) as mode (mode)}
 							<option value={mode}>{MODE_LABELS[mode]}</option>
 						{/each}
 					</select>

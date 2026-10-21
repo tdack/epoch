@@ -17,7 +17,12 @@
 	import { MAX_DISPLAY_NAME_LENGTH } from '#lib/shared/profile.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
-	import { LAYOUT_MODE_VALUES, MODE_LABELS, parseLayoutMode } from '#lib/shared/view-mode.js';
+	import {
+		LAYOUT_MODES,
+		LAYOUT_MODE_VALUES,
+		MODE_LABELS,
+		parseLayoutMode
+	} from '#lib/shared/view-mode.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -146,7 +151,7 @@
 	<header>
 		<h1 class="text-2xl font-bold text-stone-900">Account</h1>
 		<p class="mt-1 text-sm text-stone-600">
-			These are yours, in every tree. Anything you leave alone follows the site default.
+			Your profile and preferences. They apply in every tree you belong to.
 		</p>
 	</header>
 
@@ -229,6 +234,94 @@
 		</p>
 	</section>
 
+	<section id="trees" aria-labelledby="trees-heading" class="flex scroll-mt-24 flex-col gap-3">
+		<h2 id="trees-heading" class="text-lg font-bold text-stone-900">My trees</h2>
+		<p class="text-sm text-stone-600">
+			{#if trees.length > 1}
+				Your default tree is the one Epoch opens when you sign in or select the Epoch mark.
+			{:else}
+				Your default tree is the one Epoch opens when you sign in.
+			{/if}
+			A tree opens in the view you choose here, unless a link names another.
+		</p>
+		{#if trees.length === 0}
+			<p class="text-sm text-stone-700">You are not in any tree yet.</p>
+		{:else}
+			<div class="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-xs">
+				<table class="w-full text-left text-sm">
+					<thead class="border-b border-stone-200 bg-stone-50 text-xs text-stone-600">
+						<tr>
+							<th scope="col" class="px-3 py-2 font-semibold">Tree</th>
+							<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
+							{#if trees.length > 1}
+								<th scope="col" class="px-3 py-2 font-semibold">Default</th>
+							{/if}
+							<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-stone-100">
+						{#each trees as tree (tree.id)}
+							<tr>
+								<th scope="row" class="px-3 py-2 font-semibold text-stone-900">
+									<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
+								</th>
+								<td class="px-3 py-2 text-stone-600 capitalize">{tree.role ?? ''}</td>
+								{#if trees.length > 1}
+									<td class="px-3 py-2">
+										<input
+											type="radio"
+											name="default-tree"
+											class="h-4 w-4"
+											aria-label="Default tree: {tree.name}"
+											checked={tree.id === defaultTreeId}
+											disabled={isSavingTree}
+											onchange={() => void setDefault(tree.id, tree.name)}
+										/>
+									</td>
+								{/if}
+								<td class="px-3 py-2">
+									<select
+										class="field-input w-auto py-1 text-xs"
+										aria-label="Open {tree.name} in"
+										value={tree.viewMode === LAYOUT_MODES.FLAT ? '' : (tree.viewMode ?? '')}
+										disabled={isSavingTree}
+										onchange={(event) =>
+											void setViewMode(tree.id, tree.name, event.currentTarget.value)}
+									>
+										<option value="">Flat (the default)</option>
+										{#each LAYOUT_MODE_VALUES.filter((m) => m !== LAYOUT_MODES.FLAT) as mode (mode)}
+											<option value={mode}>{MODE_LABELS[mode]}</option>
+										{/each}
+									</select>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			{#if trees.length > 1 && defaultTreeId}
+				<div>
+					<button
+						type="button"
+						class={quietButton}
+						disabled={isSavingTree}
+						onclick={() => void setDefault(null, '')}
+					>
+						No default tree
+					</button>
+				</div>
+			{/if}
+		{/if}
+		<p
+			role="status"
+			class="min-h-5 text-sm font-medium {treesMessage?.isError
+				? 'text-red-800'
+				: 'text-emerald-900'}"
+		>
+			{treesMessage?.text ?? ''}
+		</p>
+	</section>
+
 	<section
 		id="appearance"
 		aria-labelledby="appearance-heading"
@@ -272,94 +365,6 @@
 				{motion?.text ?? ''}
 			</p>
 		</div>
-	</section>
-
-	<section id="trees" aria-labelledby="trees-heading" class="flex scroll-mt-24 flex-col gap-3">
-		<h2 id="trees-heading" class="text-lg font-bold text-stone-900">My trees</h2>
-		<p class="text-sm text-stone-600">
-			{#if trees.length > 1}
-				Your default tree is the one Epoch opens when you sign in or select the Epoch mark.
-			{:else}
-				Your default tree is the one Epoch opens when you sign in.
-			{/if}
-			A tree opens in the view you choose here, unless a link names another.
-		</p>
-		{#if trees.length === 0}
-			<p class="text-sm text-stone-700">You are not in any tree yet.</p>
-		{:else}
-			<div class="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-xs">
-				<table class="w-full min-w-[34rem] text-left text-sm">
-					<thead class="border-b border-stone-200 bg-stone-50 text-xs text-stone-600">
-						<tr>
-							<th scope="col" class="px-3 py-2 font-semibold">Tree</th>
-							<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
-							{#if trees.length > 1}
-								<th scope="col" class="px-3 py-2 font-semibold">Default</th>
-							{/if}
-							<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-stone-100">
-						{#each trees as tree (tree.id)}
-							<tr>
-								<th scope="row" class="px-3 py-2 font-semibold text-stone-900">
-									<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
-								</th>
-								<td class="px-3 py-2 text-stone-600 capitalize">{tree.role ?? ''}</td>
-								{#if trees.length > 1}
-									<td class="px-3 py-2">
-										<input
-											type="radio"
-											name="default-tree"
-											class="h-4 w-4"
-											aria-label="Default tree: {tree.name}"
-											checked={tree.id === defaultTreeId}
-											disabled={isSavingTree}
-											onchange={() => void setDefault(tree.id, tree.name)}
-										/>
-									</td>
-								{/if}
-								<td class="px-3 py-2">
-									<select
-										class="field-input w-auto py-1 text-xs"
-										aria-label="Open {tree.name} in"
-										value={tree.viewMode ?? ''}
-										disabled={isSavingTree}
-										onchange={(event) =>
-											void setViewMode(tree.id, tree.name, event.currentTarget.value)}
-									>
-										<option value="">Flat (the default)</option>
-										{#each LAYOUT_MODE_VALUES as mode (mode)}
-											<option value={mode}>{MODE_LABELS[mode]}</option>
-										{/each}
-									</select>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-			{#if trees.length > 1 && defaultTreeId}
-				<div>
-					<button
-						type="button"
-						class={quietButton}
-						disabled={isSavingTree}
-						onclick={() => void setDefault(null, '')}
-					>
-						No default tree
-					</button>
-				</div>
-			{/if}
-		{/if}
-		<p
-			role="status"
-			class="min-h-5 text-sm font-medium {treesMessage?.isError
-				? 'text-red-800'
-				: 'text-emerald-900'}"
-		>
-			{treesMessage?.text ?? ''}
-		</p>
 	</section>
 
 	<section

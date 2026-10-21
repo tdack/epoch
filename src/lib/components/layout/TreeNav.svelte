@@ -122,7 +122,8 @@
 				{...attrs}
 				class="{tabClass(!!activeInMore)} inline-flex cursor-pointer items-center gap-1"
 			>
-				{activeInMore ? `More: ${activeInMore.label}` : 'More'}
+				<!-- On a phone the name would push the tabs off; the highlight alone says you are in More. -->
+				More{#if activeInMore}<span class="hidden sm:inline">: {activeInMore.label}</span>{/if}
 				<ChevronDown class="h-3.5 w-3.5" aria-hidden="true" />
 			</button>
 		{/snippet}

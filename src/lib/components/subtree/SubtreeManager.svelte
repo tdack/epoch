@@ -119,7 +119,7 @@
 	data-testid="subtree-manager"
 >
 	<h3 id="subtrees-heading" class="text-lg font-bold text-stone-900">Sub-trees</h3>
-	<p class="mt-1 max-w-2xl text-sm text-stone-600">
+	<p class="mt-1 max-w-prose text-sm text-stone-600">
 		A sub-tree is a view of one person's descendants and their partners, opened from the tree
 		switcher. It narrows lists and the chart; it hides nothing. On a public tree, visitors who are
 		not signed in see only the sub-trees marked public.
