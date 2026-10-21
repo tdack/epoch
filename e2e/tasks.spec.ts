@@ -30,7 +30,7 @@ test('a task is made from a quality finding, shown on it, and completed without 
 	// The tasks page lists it, about the person, open by default.
 	await page
 		.getByRole('navigation', { name: 'Tree sections' })
-		.getByRole('button', { name: 'More' })
+		.getByRole('button', { name: 'Research' })
 		.click();
 	await page.getByRole('menuitem', { name: 'Tasks' }).click();
 	const task = page.getByTestId('task').first();

@@ -3,9 +3,11 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 
 const navigation = vi.hoisted(() => ({ invalidate: vi.fn() }));
 vi.mock('$app/navigation', () => navigation);
-vi.mock('$app/state', () => ({
+// Mutable, so a test can open the page on one of its tabs (`#subtrees`, `#export`).
+const state = vi.hoisted(() => ({
 	page: { url: new URL('https://epoch.test/trees/smiths/settings') }
 }));
+vi.mock('$app/state', () => state);
 const toasts = vi.hoisted(() => ({ push: vi.fn() }));
 const context = vi.hoisted(() => ({ followAddress: vi.fn(), exportGedcom: vi.fn() }));
 vi.mock('#lib/components/tree/tree-context.js', () => ({
@@ -63,7 +65,7 @@ function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...res
 				...can,
 				summary: {
 					tree: { id: 't1', slug: 'smiths', name: 'Smiths', version: 3, isOnSubdomain: false },
-					viewer: { isInstallOwner, isTreePublic }
+					viewer: { role: 'owner', isInstallOwner, isTreePublic }
 				}
 			}
 		} as never
@@ -84,19 +86,35 @@ async function submit(form: HTMLFormElement) {
 }
 
 describe('tree settings page', () => {
-	it('shows every section to an owner, each named by its heading', () => {
+	it('shows the settings sections to an owner, each named by its heading', () => {
 		render({ can: { canDelete: true } });
-		expect(sections()).toEqual([
-			'general',
-			'address',
-			'visibility',
-			'subtrees',
-			'export',
-			'delete'
-		]);
+		expect(sections()).toEqual(['general', 'address', 'visibility', 'delete']);
 		expect(nameOf('delete')).toBe('Delete this tree');
 		expect(document.querySelector('h2')!.textContent).toBe('Tree settings');
 		expect(document.body.textContent).toContain('apply to everyone in Smiths');
+	});
+
+	it('shows Sub-trees and Export as tabs of their own, and an old section link on Settings', () => {
+		for (const [hash, expected] of [
+			['#subtrees', ['subtrees']],
+			['#export', ['export']],
+			['#visibility', ['general', 'address', 'visibility']]
+		] as const) {
+			state.page.url = new URL(`https://epoch.test/trees/smiths/settings${hash}`);
+			render();
+			expect(sections()).toEqual(expected);
+			expect(
+				document
+					.querySelector('nav[aria-label="Tree administration"] [aria-current="page"]')!
+					.textContent!.trim()
+			).toBe(
+				hash === '#visibility' ? 'Settings' : expected[0] === 'subtrees' ? 'Sub-trees' : 'Export'
+			);
+			unmount(component!);
+			component = null;
+			document.body.innerHTML = '';
+		}
+		state.page.url = new URL('https://epoch.test/trees/smiths/settings');
 	});
 
 	it('leaves out the sections the viewer cannot use', () => {
@@ -123,9 +141,9 @@ describe('tree settings page', () => {
 		unmount(component!);
 		document.body.innerHTML = '';
 		render({ subdomainZone: 'epoch.test' });
-		expect(document.getElementById('tree-subdomain-help')!.textContent).toContain(
-			'Its name becomes visible as a web address'
-		);
+		expect(
+			document.getElementById('tree-subdomain-help')!.textContent!.replace(/\s+/g, ' ')
+		).toContain('Its name becomes visible as a web address');
 	});
 
 	it('saves a new name with the address as it stands, then reloads in place', async () => {

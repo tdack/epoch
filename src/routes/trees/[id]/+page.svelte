@@ -33,7 +33,6 @@
 		type TreeViewState
 	} from '#lib/components/tree/tree-url.js';
 	import { recordRecentApi } from '#lib/api/lists.js';
-	import { saveViewMode } from '#lib/api/settings.js';
 	import {
 		EMPTY_LAYOUT,
 		filterParentChildTypes,
@@ -81,12 +80,8 @@
 	 * The view the viewer saved for this tree. A change made here shows at once; a reload reads the
 	 * same from the tree list. Reset when the tree changes.
 	 */
-	let savedViews = $state<{ treeId: string; member?: LayoutMode | null }>({ treeId: '' });
-	const savedFor = $derived(savedViews.treeId === treeId ? savedViews : { treeId });
-	const memberTree = $derived(data.trees.find((t) => t.id === treeId));
-	const savedMemberMode = $derived(
-		'member' in savedFor ? (savedFor.member ?? null) : (memberTree?.viewMode ?? null)
-	);
+	// The member's own default is chosen on their account (ADR-075).
+	const savedMemberMode = $derived(data.trees.find((t) => t.id === treeId)?.viewMode ?? null);
 	/** A link with no `mode` opens here; the address wins when it names one. */
 	const startingMode = $derived(
 		resolveLayoutMode({ fromAddress: null, fromMember: savedMemberMode })
@@ -448,23 +443,6 @@
 		editor.openRelationship(editor.anchorFor(id), { kind: 'end_union' });
 	}
 
-	/** Save the member's own default view, showing it at once and saying so when the save fails. */
-	async function setMemberDefault(mode: LayoutMode | null) {
-		const before = savedFor;
-		savedViews = { ...savedFor, member: mode };
-		// The public visitor has no saved views, only the one on screen.
-		if (isPublicVisitor) return;
-		try {
-			await saveViewMode(treeId, mode);
-		} catch (cause) {
-			savedViews = before;
-			toasts.push(cause instanceof Error ? cause.message : 'Could not save the default view', {
-				tone: 'error',
-				durationMs: 10_000
-			});
-		}
-	}
-
 	/**
 	 * A click on a card re-centres the chart, which on a large tree can read as nothing happening, or
 	 * as the tree jumping. A short cue names who it is now centred on once the new view has drawn.
@@ -533,8 +511,6 @@
 			<TreeToolbar
 				{view}
 				{palette}
-				defaults={{ member: savedMemberMode }}
-				onSetMemberDefault={(mode) => void setMemberDefault(mode)}
 				{focusPerson}
 				onchangeFocus={() => finder.focusInput?.()}
 				onshowDetails={handleOpenPerson}

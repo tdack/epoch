@@ -1,32 +1,32 @@
 <script lang="ts">
+	import PageTabs from '#lib/components/layout/PageTabs.svelte';
+	import { isManagerOrAbove, type TreeRole } from '#lib/shared/roles.js';
+
 	interface Props {
-		/** The tree's own path (`treePath`), without a sub-tree lens: both pages are about the whole tree. */
+		/** The tree's own path (`treePath`), without a sub-tree lens: every tab is about the whole tree. */
 		base: string;
-		/** The current path, so the page being shown reads as current. */
-		pathname: string;
+		/** Which tab is showing. */
+		current: 'settings' | 'subtrees' | 'export' | 'members' | 'audit';
+		/** The viewer's role: an editor reads the audit log and administers nothing else. */
+		role: TreeRole | undefined;
 	}
 
-	let { base, pathname }: Props = $props();
+	let { base, current, role }: Props = $props();
 
-	// The gear in the tree switcher opens Settings; Members sits beside it so a tree's administration
-	// is one place rather than two menu items (ADR-075).
-	const tabs = $derived([
-		{ href: `${base}/settings`, label: 'Settings' },
-		{ href: `${base}/members`, label: 'Members' }
-	]);
+	// The gear in the tree switcher opens these, so a tree's administration is one place (ADR-075).
+	const tabs = $derived(
+		[
+			...(isManagerOrAbove(role)
+				? ([
+						['settings', `${base}/settings`, 'Settings'],
+						['subtrees', `${base}/settings#subtrees`, 'Sub-trees'],
+						['export', `${base}/settings#export`, 'Export'],
+						['members', `${base}/members`, 'Members']
+					] as const)
+				: []),
+			['audit', `${base}/audit`, 'Audit log'] as const
+		].map(([id, href, label]) => ({ href, label, isCurrent: id === current }))
+	);
 </script>
 
-<nav aria-label="Tree administration" class="mb-6 flex gap-1 border-b border-stone-200 text-sm">
-	{#each tabs as tab (tab.href)}
-		{@const isCurrent = pathname.startsWith(tab.href)}
-		<a
-			href={tab.href}
-			aria-current={isCurrent ? 'page' : undefined}
-			class="-mb-px border-b-2 px-3 py-2 font-semibold focus-ring-inset coarse:inline-flex coarse:min-h-11 coarse:items-center {isCurrent
-				? 'border-emerald-800 text-emerald-900'
-				: 'border-transparent text-stone-600 hover:text-stone-900'}"
-		>
-			{tab.label}
-		</a>
-	{/each}
-</nav>
+<PageTabs label="Tree administration" {tabs} />

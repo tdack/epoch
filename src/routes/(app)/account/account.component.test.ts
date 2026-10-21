@@ -5,7 +5,8 @@ vi.mock('$app/navigation', () => ({
 	invalidate: vi.fn().mockResolvedValue(undefined),
 	invalidateAll: vi.fn().mockResolvedValue(undefined)
 }));
-vi.mock('$app/state', () => ({ page: { url: new URL('https://epoch.test/account') } }));
+// The tree list is the My trees tab.
+vi.mock('$app/state', () => ({ page: { url: new URL('https://epoch.test/account#trees') } }));
 vi.mock('#lib/api/settings.js', () => ({
 	saveMySettings: vi.fn(),
 	saveDefaultTree: vi.fn(),

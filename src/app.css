@@ -60,6 +60,12 @@
 }
 
 @layer base {
+	/* The page column is centred, so a scrollbar that comes and goes with the page's length would
+	   shift it sideways between a short page and a long one (Settings to Members). */
+	html {
+		scrollbar-gutter: stable;
+	}
+
 	body {
 		background-color: #fcf9f2;
 		color: #292524;

@@ -114,11 +114,11 @@
 
 <section
 	id="subtrees"
-	class="mt-10 scroll-mt-20"
+	class="scroll-mt-20"
 	aria-labelledby="subtrees-heading"
 	data-testid="subtree-manager"
 >
-	<h3 id="subtrees-heading" class="text-lg font-bold text-stone-900">Sub-trees</h3>
+	<h2 id="subtrees-heading" class="text-2xl font-bold text-stone-900">Sub-trees</h2>
 	<p class="mt-1 max-w-prose text-sm text-stone-600">
 		A sub-tree is a view of one person's descendants and their partners, opened from the tree
 		switcher. It narrows lists and the chart; it hides nothing. On a public tree, visitors who are

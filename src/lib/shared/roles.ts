@@ -33,3 +33,11 @@ export function canChangeRecords(role: TreeRole | undefined): boolean {
 export function canImportGedcom(role: TreeRole | undefined): boolean {
 	return role !== undefined && hasMinimumRole(role, 'editor');
 }
+
+/**
+ * Which of a tree's administration pages the gear in the tree switcher opens (ADR-075): settings for
+ * a manager, the audit log for an editor, who reads it and administers nothing else, none below.
+ */
+export function treeAdminPage(role: TreeRole | undefined): 'settings' | 'audit' | null {
+	return isManagerOrAbove(role) ? 'settings' : canChangeRecords(role) ? 'audit' : null;
+}

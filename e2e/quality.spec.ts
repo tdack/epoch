@@ -15,7 +15,7 @@ test('the quality report lists what the record contradicts, links to it, and a d
 	await open(page, `/trees/${api.treeId}`);
 	await page
 		.getByRole('navigation', { name: 'Tree sections' })
-		.getByRole('button', { name: 'More' })
+		.getByRole('button', { name: 'Research' })
 		.click();
 	await page.getByRole('menuitem', { name: 'Quality' }).click();
 	await expect(page.getByRole('heading', { name: 'Data quality' })).toBeVisible();
