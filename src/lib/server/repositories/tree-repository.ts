@@ -15,7 +15,6 @@ export interface TreeSummary {
 	version: number;
 	role?: TreeRole;
 	viewMode?: LayoutMode | null;
-	defaultViewMode?: LayoutMode | null;
 	/** Whether `/` opens this tree for the caller; set on the tree list only. */
 	isDefault?: boolean;
 	/** Also served at its slug's subdomain; set by `findById` and `update` only. */
@@ -84,7 +83,6 @@ export class TreeRepository {
 				role: treeMemberships.role,
 				viewMode: treeMemberships.viewMode,
 				isDefault: treeMemberships.isDefault,
-				defaultViewMode: trees.defaultViewMode,
 				createdAt: trees.createdAt,
 				updatedAt: trees.updatedAt
 			})
@@ -98,8 +96,7 @@ export class TreeRepository {
 			...r,
 			role: r.role as TreeRole,
 			// A column holds text, so a value that is not a mode (a hand edit) reads as unset.
-			viewMode: parseLayoutMode(r.viewMode),
-			defaultViewMode: parseLayoutMode(r.defaultViewMode)
+			viewMode: parseLayoutMode(r.viewMode)
 		}));
 	}
 
@@ -182,11 +179,6 @@ export class TreeRepository {
 				.returning({ id: treeMemberships.id })
 		]);
 		return set.length > 0;
-	}
-
-	/** The tree's default view; `version` stays, as it guards the name and description. */
-	async setDefaultViewMode(treeId: string, mode: LayoutMode | null): Promise<void> {
-		await this.db.update(trees).set({ defaultViewMode: mode }).where(eq(trees.id, treeId));
 	}
 
 	async findById(treeId: string): Promise<TreeSummary | null> {

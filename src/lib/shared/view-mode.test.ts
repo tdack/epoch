@@ -27,18 +27,16 @@ describe('parseLayoutMode', () => {
 });
 
 describe('resolveLayoutMode', () => {
-	const none = { fromAddress: null, fromMember: null, fromTree: null };
+	const none = { fromAddress: null, fromMember: null };
 
 	it('is flat when nobody has chosen', () => {
 		expect(resolveLayoutMode(none)).toBe(LAYOUT_MODES.FLAT);
 	});
 
-	it('prefers the address, then the member, then the tree', () => {
-		expect(resolveLayoutMode({ ...none, fromTree: 'rings' })).toBe('rings');
-		expect(resolveLayoutMode({ ...none, fromTree: 'rings', fromMember: 'orrery' })).toBe('orrery');
-		expect(
-			resolveLayoutMode({ fromAddress: 'flat', fromMember: 'orrery', fromTree: 'rings' })
-		).toBe('flat');
+	it('prefers the address, then the member', () => {
+		expect(resolveLayoutMode({ ...none, fromMember: 'orrery' })).toBe('orrery');
+		expect(resolveLayoutMode({ fromAddress: 'flat', fromMember: 'orrery' })).toBe('flat');
+		expect(resolveLayoutMode({ fromAddress: 'rings', fromMember: null })).toBe('rings');
 	});
 });
 

@@ -11,8 +11,6 @@ export interface TreeSummary {
 	role?: TreeRole;
 	/** The caller's own choice of view in this tree; null until they make one. */
 	viewMode?: LayoutMode | null;
-	/** The view for members with no choice of their own; null is flat. */
-	defaultViewMode?: LayoutMode | null;
 	/** Whether `/` opens this tree for the caller. */
 	isDefault?: boolean;
 }

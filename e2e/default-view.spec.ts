@@ -1,6 +1,6 @@
 /**
- * The default view (S16 stage 8): the owner sets one for the tree, a member sets their own, and a
- * link with no `mode` opens in the one that applies. A link that names a mode always wins.
+ * The member's own default view (S16 stage 8, ADR-075): a link with no `mode` opens in the one the
+ * member chose, else Flat. A link that names a mode always wins.
  */
 import { expect, open, test } from './support';
 import type { Page } from '@playwright/test';
@@ -9,18 +9,20 @@ const flatCanvas = (page: Page) =>
 	page.getByRole('application', { name: 'Family tree', exact: true });
 const ringsCanvas = (page: Page) => page.getByRole('group', { name: 'Generation rings' });
 
-/** The default-view pickers live in the Display options; opens them, and closes them with Escape. */
+/** The default-view picker lives in the Display options; opens them, and closes them with Escape. */
 async function withDisplay(page: Page, act: () => Promise<void>) {
 	await page.getByRole('button', { name: /^Display/ }).click();
 	await act();
 	await page.keyboard.press('Escape');
 }
 
-async function chooseDefault(page: Page, label: string, option: string) {
-	await withDisplay(page, () => page.getByLabel(label).selectOption({ label: option }));
+async function chooseDefault(page: Page, option: string) {
+	await withDisplay(page, () =>
+		page.getByLabel('Open this tree in').selectOption({ label: option })
+	);
 }
 
-test('the owner’s tree default, a member’s own choice and an explicit link open the view they should', async ({
+test('a member’s own default view and an explicit link open the view they should', async ({
 	api,
 	page
 }) => {
@@ -35,17 +37,21 @@ test('the owner’s tree default, a member’s own choice and an explicit link o
 
 	// Flat and the four WebGL views are offered.
 	await withDisplay(page, () =>
-		expect(
-			page.getByRole('combobox', { name: 'Default view for everyone' }).locator('option')
-		).toHaveText(['Flat', 'Rings', 'Ball', 'Ribbons', 'Orrery'])
+		expect(page.getByRole('combobox', { name: 'Open this tree in' }).locator('option')).toHaveText([
+			'Flat (the default)',
+			'Rings',
+			'Ball',
+			'Ribbons',
+			'Orrery'
+		])
 	);
 
-	// The owner sets the tree's default, and a link with no mode now opens in it.
-	await chooseDefault(page, 'Default view for everyone', 'Rings');
+	// A member's own choice opens a link with no mode in it.
+	await chooseDefault(page, 'Rings');
 	await open(page, bare);
 	await expect(ringsCanvas(page)).toBeVisible();
 
-	// A link that names a mode wins over every default.
+	// A link that names a mode wins over the member's choice.
 	await open(page, `${bare}&mode=flat`);
 	await expect(flatCanvas(page)).toBeVisible();
 
@@ -57,18 +63,18 @@ test('the owner’s tree default, a member’s own choice and an explicit link o
 	await page.reload();
 	await expect(flatCanvas(page)).toBeVisible();
 
-	// A member's own choice beats the tree's, and clearing it hands back to the tree's.
-	await chooseDefault(page, 'My default view', 'Flat');
+	// Clearing the choice hands back to Flat.
+	await chooseDefault(page, 'Rings');
+	await chooseDefault(page, 'Flat (the default)');
 	await open(page, bare);
 	await expect(flatCanvas(page)).toBeVisible();
-	await chooseDefault(page, 'My default view', 'Tree default (Rings)');
+
+	// The choice is saved on the server, so it outlasts the page.
+	await chooseDefault(page, 'Rings');
+	await page.reload();
 	await open(page, bare);
 	await expect(ringsCanvas(page)).toBeVisible();
-
-	// Both are saved on the server, so they outlast the page.
-	await page.reload();
-	await expect(ringsCanvas(page)).toBeVisible();
 	await withDisplay(page, () =>
-		expect(page.getByRole('combobox', { name: 'Default view for everyone' })).toHaveValue('rings')
+		expect(page.getByRole('combobox', { name: 'Open this tree in' })).toHaveValue('rings')
 	);
 });

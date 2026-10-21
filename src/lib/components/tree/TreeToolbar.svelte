@@ -36,15 +36,10 @@
 		 * long-press; this is the route that needs neither, and that a touch screen can see.
 		 */
 		onshowDetails?: (personId: string) => void;
-		/**
-		 * The saved defaults the view starts from, when they can be changed here: the viewer's own,
-		 * the tree's, and whether the viewer may set the tree's (the owner).
-		 */
-		defaults?: { member: LayoutMode | null; tree: LayoutMode | null; canSetTree: boolean };
-		/** Save the viewer's own default view; null clears it so the tree's applies. */
+		/** The viewer's own saved view for this tree, when it can be changed here. */
+		defaults?: { member: LayoutMode | null };
+		/** Save the viewer's own default view; null clears it so Flat applies. */
 		onSetMemberDefault?: (mode: LayoutMode | null) => void;
-		/** Save the tree's default view for everyone with no choice of their own. */
-		onSetTreeDefault?: (mode: LayoutMode | null) => void;
 		/** Merge these fields into the view. */
 		onChange: (change: Partial<TreeViewState>) => void;
 	}
@@ -58,7 +53,6 @@
 		onshowDetails,
 		defaults,
 		onSetMemberDefault,
-		onSetTreeDefault,
 		onChange
 	}: Props = $props();
 
@@ -433,12 +427,12 @@
 						? 'min-h-11 leading-[2.75rem]'
 						: ''} cursor-pointer focus-ring"
 				>
-					Default view
+					Open this tree in
 				</summary>
 				<label class="flex items-center justify-between gap-3 {isNarrow ? 'min-h-11' : ''}">
 					<span class={captionClass}>Mine</span>
 					<select
-						aria-label="My default view"
+						aria-label="Open this tree in"
 						class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
 							? 'min-h-11'
 							: ''}"
@@ -446,31 +440,12 @@
 						onchange={(event) =>
 							onSetMemberDefault?.((event.currentTarget.value || null) as LayoutMode | null)}
 					>
-						<option value=""
-							>Tree default ({MODE_LABELS[defaults.tree ?? LAYOUT_MODES.FLAT]})</option
-						>
+						<option value="">Flat (the default)</option>
 						{#each LAYOUT_MODE_VALUES as mode (mode)}
 							<option value={mode}>{MODE_LABELS[mode]}</option>
 						{/each}
 					</select>
 				</label>
-				{#if defaults.canSetTree}
-					<label class="flex items-center justify-between gap-3 {isNarrow ? 'min-h-11' : ''}">
-						<span class={captionClass}>Everyone</span>
-						<select
-							aria-label="Default view for everyone"
-							class="rounded-md border border-stone-300 bg-white px-1.5 py-1 focus-ring {isNarrow
-								? 'min-h-11'
-								: ''}"
-							value={defaults.tree ?? LAYOUT_MODES.FLAT}
-							onchange={(event) => onSetTreeDefault?.(event.currentTarget.value as LayoutMode)}
-						>
-							{#each LAYOUT_MODE_VALUES as mode (mode)}
-								<option value={mode}>{MODE_LABELS[mode]}</option>
-							{/each}
-						</select>
-					</label>
-				{/if}
 				<p class="text-xs text-stone-600">Links that name a view still open in it.</p>
 			</details>
 		{/if}
@@ -483,7 +458,7 @@
 			disabled={changeCount === 0}
 			onclick={() => onChange(displayDefaults(view.layoutMode))}
 		>
-			Reset to defaults
+			Reset display
 		</button>
 	</div>
 {/snippet}
