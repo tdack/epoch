@@ -24,7 +24,15 @@
 	const uid = $props.id();
 	let button = $state<HTMLButtonElement>();
 	let announcement = $state('');
-	let drag: { from: number; to: number; startY: number; rows: HTMLElement[] } | null = null;
+	let drag: {
+		from: number;
+		to: number;
+		startY: number;
+		rows: HTMLElement[];
+		/** Each row's top and height at rest, in viewport pixels. */
+		tops: number[];
+		heights: number[];
+	} | null = null;
 
 	const index = $derived(ids.indexOf(id));
 	const rowOf = () => button!.closest<HTMLElement>('[data-reorder-id]')!;
@@ -51,7 +59,17 @@
 		const rows = [...row.parentElement!.children].filter((c): c is HTMLElement =>
 			c.hasAttribute('data-reorder-id')
 		);
-		drag = { from: index, to: index, startY: event.clientY, rows };
+		// Measured once, before any style lands: a positioned table row reports `offsetTop` from the
+		// page rather than the table, so measuring later would mix two frames.
+		const rects = rows.map((r) => r.getBoundingClientRect());
+		drag = {
+			from: index,
+			to: index,
+			startY: event.clientY,
+			rows,
+			tops: rects.map((r) => r.top),
+			heights: rects.map((r) => r.height)
+		};
 		button!.setPointerCapture(event.pointerId);
 		const transition = shouldReduceMotion() ? '' : 'transform 120ms';
 		for (const r of rows) r.style.transition = r === row ? 'none' : transition;
@@ -62,11 +80,10 @@
 	function onpointermove(event: PointerEvent) {
 		if (!drag) return;
 		const dy = event.clientY - drag.startY;
-		const own = drag.rows[drag.from]!;
-		// offsetTop ignores the transforms already applied, so rows are measured at rest.
-		const centres = drag.rows.map((r) => r.offsetTop + r.offsetHeight / 2);
+		const { tops, heights } = drag;
+		const centres = tops.map((top, i) => top + heights[i]! / 2);
 		drag.to = dropIndex(centres, drag.from, centres[drag.from]! + dy);
-		const shift = own.offsetHeight;
+		const shift = heights[drag.from]!;
 		drag.rows.forEach((r, i) => {
 			if (i === drag!.from) r.style.transform = `translateY(${dy}px)`;
 			else if (drag!.from < drag!.to && i > drag!.from && i <= drag!.to)
@@ -77,13 +94,27 @@
 		});
 	}
 
-	function finish(event: PointerEvent, isCancelled: boolean) {
+	async function finish(event: PointerEvent, isCancelled: boolean) {
 		if (!drag) return;
-		const { from, to, rows } = drag;
+		const { from, to, rows, tops, heights } = drag;
 		drag = null;
 		button?.releasePointerCapture(event.pointerId);
-		for (const r of rows) r.removeAttribute('style');
-		if (!isCancelled && to !== from) void commit(moveItem(ids, from, to));
+		const clear = () => rows.forEach((r) => r.removeAttribute('style'));
+		if (isCancelled || to === from) return clear();
+		// The list re-renders in the new order only after the save and reload, so hold every row
+		// where it was dropped until then; clearing now would show the old order in between.
+		const offset =
+			to > from
+				? tops[to]! + heights[to]! - (tops[from]! + heights[from]!)
+				: tops[to]! - tops[from]!;
+		rows[from]!.style.transform = `translateY(${offset}px)`;
+		try {
+			await commit(moveItem(ids, from, to));
+		} finally {
+			// No transition, so the rows do not glide away from where the re-render put them.
+			rows.forEach((r) => (r.style.transition = 'none'));
+			clear();
+		}
 	}
 </script>
 
