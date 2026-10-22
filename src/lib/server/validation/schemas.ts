@@ -739,6 +739,9 @@ export const publicTreeSchema = z.object({
 	confirmName: z.string()
 });
 
+/** Every tree id, once, in the order the install owner wants them listed. */
+export const treeOrderSchema = z.object({ order: z.array(z.string().min(1)) });
+
 /** The Files listing: a tree to narrow to, a cursor from the last page, and a page size. */
 export const fileListQuerySchema = z.object({
 	treeId: idSchema.optional(),

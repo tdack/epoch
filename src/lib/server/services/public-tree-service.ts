@@ -6,7 +6,7 @@
 
 import type { InstallTree } from '#lib/shared/api-contracts.js';
 import type { DbClient } from '../db';
-import { NotFoundError, ValidationError } from '../domain/errors';
+import { ConcurrencyConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { TreeRepository, type PublicTreeRef } from '../repositories/tree-repository';
 import { requireInstallOwner } from './tree-access';
@@ -57,5 +57,18 @@ export class PublicTreeService {
 		// The name changed between the read and the write.
 		if (!didChange) throw new ValidationError('The tree was renamed; check the name and try again');
 		return { publicTree: await this.trees.findPublic() };
+	}
+
+	/**
+	 * Sets the order every tree list uses. `order` must name each tree exactly once: a tree added or
+	 * deleted since the owner loaded the page is a conflict (reload), not something to guess around.
+	 */
+	async reorder(order: string[], context: AuthenticatedContext): Promise<void> {
+		requireInstallOwner(context);
+		if (new Set(order).size !== order.length) throw new ValidationError('The order repeats a tree');
+		const current = new Set(await this.trees.allIds());
+		if (order.length !== current.size || order.some((id) => !current.has(id)))
+			throw new ConcurrencyConflictError('The trees changed; reload the page and try again');
+		await this.trees.setOrder(order);
 	}
 }
