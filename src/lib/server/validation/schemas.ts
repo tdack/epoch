@@ -832,6 +832,10 @@ export const subtreeUpdateSchema = z.object({
 	name: z.string().min(1).max(MAX_SUBTREE_NAME_LENGTH).optional(),
 	slug: z.string().refine(isValidTreeSlug, 'Not a valid address').optional(),
 	rootPersonId: idSchema.optional(),
-	position: z.number().int().optional(),
 	isPublic: z.boolean().optional()
+});
+
+/** Every sub-tree of the tree, once, in the order to keep. */
+export const subtreeReorderSchema = z.object({
+	order: z.array(z.object({ id: idSchema, version: versionSchema }))
 });

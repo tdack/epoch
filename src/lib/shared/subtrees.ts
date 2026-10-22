@@ -34,6 +34,11 @@ export interface ActiveSubtreeDto extends SubtreeSummaryDto {
 	rootName: string | null;
 }
 
+/** The whole list in its new order, each with the version the caller last saw. */
+export interface ReorderSubtreesInput {
+	order: { id: string; version: number }[];
+}
+
 export interface CreateSubtreeInput {
 	name: string;
 	slug: string;
@@ -46,7 +51,6 @@ export interface UpdateSubtreeInput {
 	name?: string;
 	slug?: string;
 	rootPersonId?: string;
-	position?: number;
 	isPublic?: boolean;
 	version?: number;
 }

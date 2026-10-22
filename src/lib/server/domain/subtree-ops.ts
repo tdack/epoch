@@ -24,7 +24,8 @@ export type SubtreeCommand =
 			subtree: Omit<UpdateSubtreeInput, 'version'>;
 			expectedVersion?: number;
 	  }
-	| { kind: 'delete_subtree'; subtreeId: string; expectedVersion?: number };
+	| { kind: 'delete_subtree'; subtreeId: string; expectedVersion?: number }
+	| { kind: 'reorder_subtrees'; order: { id: string; version: number }[] };
 
 export interface SubtreeContext {
 	treeId: string;
@@ -113,14 +114,11 @@ export function buildSubtreeOps(
 			checkVersion(before, command.expectedVersion);
 			const patch = command.subtree;
 			if (patch.rootPersonId !== undefined) requireRoot(rows, patch.rootPersonId);
-			if (patch.position !== undefined && !Number.isInteger(patch.position))
-				throw new ValidationError('A sub-tree position is a whole number.');
 			const after: SubtreeRow = {
 				...before,
 				name: patch.name !== undefined ? validateName(patch.name) : before.name,
 				slug: patch.slug !== undefined ? validateSlug(rows, patch.slug, before.id) : before.slug,
 				rootPersonId: patch.rootPersonId ?? before.rootPersonId,
-				position: patch.position ?? before.position,
 				isPublic: patch.isPublic ?? before.isPublic
 			};
 			if (JSON.stringify(after) === JSON.stringify(before)) return [];
@@ -132,6 +130,30 @@ export function buildSubtreeOps(
 					after: { ...after, version: before.version + 1, updatedAt: ctx.now }
 				}
 			];
+		}
+		case 'reorder_subtrees': {
+			const ids = new Set(command.order.map((o) => o.id));
+			if (ids.size !== command.order.length)
+				throw new ValidationError('A sub-tree appears twice in the new order.');
+			// A different set means someone added or removed one meanwhile, not that the request is malformed.
+			if (ids.size !== rows.subtrees.length || rows.subtrees.some((s) => !ids.has(s.id)))
+				throw new ConcurrencyConflictError(
+					'The sub-trees were changed by someone else. Reload to see the current list.',
+					{ reason: 'STALE_VERSION', entity: 'subtree' }
+				);
+			const ops: RowOp[] = [];
+			command.order.forEach(({ id, version }, position) => {
+				const before = requireSubtree(rows, id);
+				checkVersion(before, version);
+				if (before.position === position) return;
+				ops.push({
+					table: 'subtree',
+					id,
+					before,
+					after: { ...before, position, version: before.version + 1, updatedAt: ctx.now }
+				});
+			});
+			return ops;
 		}
 		case 'delete_subtree': {
 			const subtree = requireSubtree(rows, command.subtreeId);

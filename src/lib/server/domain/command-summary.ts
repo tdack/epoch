@@ -204,6 +204,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Edited the sub-tree “${(rows.subtrees.find((s) => s.id === command.subtreeId)?.name ?? 'a sub-tree').slice(0, 60)}”`;
 		case 'delete_subtree':
 			return `Deleted the sub-tree “${(rows.subtrees.find((s) => s.id === command.subtreeId)?.name ?? 'a sub-tree').slice(0, 60)}”`;
+		case 'reorder_subtrees':
+			return 'Reordered the sub-trees';
 		case 'standardise_dates': {
 			const count = Math.min(dateRewrites(rows).length, MAX_DATE_REWRITES);
 			return `Standardised ${count === 1 ? '1 date' : `${count} dates`}`;
