@@ -1,4 +1,9 @@
-import type { CreateSubtreeInput, SubtreeDto, UpdateSubtreeInput } from '#lib/shared/subtrees.js';
+import type {
+	CreateSubtreeInput,
+	ReorderSubtreesInput,
+	SubtreeDto,
+	UpdateSubtreeInput
+} from '#lib/shared/subtrees.js';
 import type { Changed } from './client.js';
 import { call, json, path } from './client.js';
 
@@ -22,6 +27,15 @@ export function updateSubtree(
 		path`/api/trees/${treeId}/subtrees/${subtreeId}`,
 		json('PATCH', input),
 		'Failed to save the sub-tree'
+	);
+}
+
+/** Saves the whole list's order as one change. */
+export function reorderSubtrees(treeId: string, input: ReorderSubtreesInput): Promise<Changed> {
+	return call(
+		path`/api/trees/${treeId}/subtrees`,
+		json('PUT', input),
+		'Failed to save the sub-tree order'
 	);
 }
 

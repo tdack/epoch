@@ -340,8 +340,6 @@ The tool is built in `tools/setup/`.
 - **List every tree's sub-trees in the switcher.** Only the current tree's arrive with its summary.
   Listing all of them would make the tree-list endpoint resolve visibility for every tree, so it
   needs a cheap, per-viewer list first.
-- **An undoable move.** Moving a sub-tree is two PATCHes today and has no Undo. One PATCH with a
-  position swap, logged as one change, would close that.
 - **A scoped seed for sub-tree writes,** so an edit to a sub-tree loads only the rows its scope
   needs. Measure first, as the scoped reads were measured (ADR-062).
 - **Materialise membership if trees grow large.** The lens is a recursive read over indexed edges.

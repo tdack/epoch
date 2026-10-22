@@ -165,6 +165,7 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'create_subtree':
 		case 'update_subtree':
 		case 'delete_subtree':
+		case 'reorder_subtrees':
 			return buildSubtreeOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);

@@ -6,7 +6,12 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { individuals, subtrees, trees } from '../db/schema';
-import { ConcurrencyConflictError, NotFoundError, UnauthorizedError } from '../domain/errors';
+import {
+	ConcurrencyConflictError,
+	NotFoundError,
+	UnauthorizedError,
+	ValidationError
+} from '../domain/errors';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -90,11 +95,62 @@ describe('managing sub-trees', () => {
 		await t.db.insert(individuals).values({ id: 'p-own', treeId: own, privacy: 'public' });
 		const mk = (slug: string) =>
 			s.create(own, { name: slug, slug, rootPersonId: 'p-own' }, owner.context);
-		const a = await mk('a');
+		await mk('a');
 		await mk('b');
 		await mk('c');
-		await s.update(own, a.subtreeId, { position: 10 }, owner.context);
-		expect((await s.list(own, owner.context)).map((x) => x.slug)).toEqual(['b', 'c', 'a']);
+		expect((await s.list(own, owner.context)).map((x) => x.slug)).toEqual(['a', 'b', 'c']);
+	});
+
+	describe('reordering', () => {
+		async function three() {
+			const own = await createTestTree(t.db, owner);
+			await addTestMember(t.db, own, editor, 'editor');
+			await t.db.insert(individuals).values({ id: `p-${own}`, treeId: own, privacy: 'public' });
+			const s = new SubtreeService(t.db);
+			for (const slug of ['a', 'b', 'c'])
+				await s.create(own, { name: slug, slug, rootPersonId: `p-${own}` }, owner.context);
+			return { own, s, list: () => s.list(own, owner.context) };
+		}
+		const order = (
+			list: { id: string; version: number }[],
+			slugs: string[],
+			all: { slug: string }[]
+		) =>
+			slugs.map((slug) => {
+				const i = all.findIndex((x) => x.slug === slug);
+				return { id: list[i]!.id, version: list[i]!.version };
+			});
+
+		it('writes the positions as one change, and one undo restores the old order', async () => {
+			const { own, s, list } = await three();
+			const before = await list();
+			const { change } = await s.reorder(
+				own,
+				order(before, ['c', 'a', 'b'], before),
+				owner.context
+			);
+			expect(change?.isUndoable).toBe(true);
+			expect((await list()).map((x) => x.slug)).toEqual(['c', 'a', 'b']);
+			await new ChangeLogService(t.db).undoLast(own, owner.context);
+			expect((await list()).map((x) => x.slug)).toEqual(['a', 'b', 'c']);
+		});
+
+		it('is refused on a stale version, a changed set, a duplicate, or without the role', async () => {
+			const { own, s, list } = await three();
+			const all = await list();
+			const good = order(all, ['b', 'a', 'c'], all);
+			await expect(
+				s.reorder(own, [{ ...good[0]!, version: 99 }, ...good.slice(1)], owner.context)
+			).rejects.toBeInstanceOf(ConcurrencyConflictError);
+			await expect(s.reorder(own, good.slice(1), owner.context)).rejects.toBeInstanceOf(
+				ConcurrencyConflictError
+			);
+			await expect(
+				s.reorder(own, [good[0]!, good[0]!, good[1]!], owner.context)
+			).rejects.toBeInstanceOf(ValidationError);
+			await expect(s.reorder(own, good, editor.context)).rejects.toBeInstanceOf(UnauthorizedError);
+			expect((await list()).map((x) => x.slug)).toEqual(['a', 'b', 'c']);
+		});
 	});
 
 	it('gets by id or slug, and a delete is undoable', async () => {

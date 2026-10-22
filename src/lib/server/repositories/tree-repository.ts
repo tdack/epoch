@@ -1,6 +1,6 @@
 import type { DbClient } from '../db';
 import { trees, treeMemberships } from '../db/schema';
-import { eq, desc, and, exists, like, or, sql } from 'drizzle-orm';
+import { eq, and, exists, like, or, sql } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { parseLayoutMode, type LayoutMode } from '../../shared/view-mode';
@@ -69,6 +69,15 @@ export async function availableTreeSlug(db: DbClient, name: string): Promise<str
 	}
 }
 
+/** One past the last tree, so a new tree lands at the end of the owner's order. */
+export async function nextTreePosition(db: DbClient): Promise<number> {
+	const row = await db
+		.select({ next: sql<number>`coalesce(max(${trees.position}), -1) + 1` })
+		.from(trees)
+		.get();
+	return row?.next ?? 0;
+}
+
 export class TreeRepository {
 	constructor(private db: DbClient) {}
 
@@ -89,7 +98,7 @@ export class TreeRepository {
 			.from(treeMemberships)
 			.innerJoin(trees, eq(treeMemberships.treeId, trees.id))
 			.where(eq(treeMemberships.userId, userId))
-			.orderBy(desc(trees.updatedAt))
+			.orderBy(trees.position, trees.name, trees.id)
 			.all();
 
 		return records.map((r) => ({
@@ -222,6 +231,7 @@ export class TreeRepository {
 
 		const newTree = {
 			id: treeId,
+			position: await nextTreePosition(this.db),
 			slug: await availableTreeSlug(this.db, name),
 			name: name.trim(),
 			description: description?.trim() || null,
@@ -336,7 +346,7 @@ export class TreeRepository {
 		return row ?? null;
 	}
 
-	/** Every tree in the install, newest activity first, with the caller's own role in each. */
+	/** Every tree in the install in the owner's order, with the caller's own role in each. */
 	async listAll(callerId: string): Promise<InstallTreeRow[]> {
 		const rows = await this.db.all<{
 			id: string;
@@ -360,7 +370,7 @@ export class TreeRepository {
 				(select count(*) from tree_memberships c where c.tree_id = t.id) as members,
 				t.is_public as isPublic, t.public_since as publicSince,
 				t.is_on_subdomain as isOnSubdomain
-			from trees t order by t.updated_at desc, t.name`);
+			from trees t order by t.position, t.name, t.id`);
 		return rows.map((r) => ({
 			id: r.id,
 			slug: r.slug,
@@ -374,6 +384,23 @@ export class TreeRepository {
 			publicSince: r.publicSince === null ? null : new Date(r.publicSince * 1000),
 			isOnSubdomain: r.isOnSubdomain === 1
 		}));
+	}
+
+	/** The ids of every tree in the install, for checking a submitted order against. */
+	async allIds(): Promise<string[]> {
+		return (await this.db.select({ id: trees.id }).from(trees).all()).map((r) => r.id);
+	}
+
+	/**
+	 * Writes the order in one batch, so a half-applied order cannot be seen. Leaves `version` and
+	 * `updatedAt` alone: the order is not tree content and is not in the change log (ADR-007).
+	 */
+	async setOrder(orderedIds: string[]): Promise<void> {
+		if (orderedIds.length === 0) return;
+		const [first, ...rest] = orderedIds.map((id, position) =>
+			this.db.update(trees).set({ position }).where(eq(trees.id, id))
+		);
+		await this.db.batch([first, ...rest]);
 	}
 
 	/**

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSubtree, deleteSubtree, updateSubtree } from './subtrees';
+import { createSubtree, deleteSubtree, reorderSubtrees, updateSubtree } from './subtrees';
 
 const dto = {
 	id: 's1',
@@ -24,12 +24,14 @@ describe('the sub-tree helpers', () => {
 		await createSubtree('t1', { name: 'Line', slug: 'line', rootPersonId: 'p1' });
 		await updateSubtree('t1', 's1', { name: 'New', version: 1 });
 		await deleteSubtree('t1', 's1', 2);
+		await reorderSubtrees('t1', { order: [{ id: 's1', version: 2 }] });
 
 		const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
 		expect(calls.map(([url, init]) => [init.method, url])).toEqual([
 			['POST', '/api/trees/t1/subtrees'],
 			['PATCH', '/api/trees/t1/subtrees/s1'],
-			['DELETE', '/api/trees/t1/subtrees/s1?version=2']
+			['DELETE', '/api/trees/t1/subtrees/s1?version=2'],
+			['PUT', '/api/trees/t1/subtrees']
 		]);
 		expect(JSON.parse(calls[1]![1].body as string)).toEqual({ name: 'New', version: 1 });
 	});

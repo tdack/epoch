@@ -43,6 +43,11 @@ export async function setPublicTreeApi(treeId: string | null, confirmName: strin
 	);
 }
 
+/** Saves the install-wide tree order; `order` is every tree id, once, first to last. */
+export async function reorderTreesApi(order: string[]): Promise<void> {
+	await call('/api/admin/tree-order', json('PUT', { order }), 'Failed to save the tree order');
+}
+
 export async function deleteTreeApi(treeId: string): Promise<void> {
 	await call(path`/api/trees/${treeId}`, { method: 'DELETE' }, 'Failed to delete tree');
 }

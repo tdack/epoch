@@ -107,6 +107,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: 'services/profile-service.test.ts'
 	},
+	[`${API}/admin/tree-order/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/tree-order.test.ts'
+	},
 	[`${API}/admin/settings/+server.ts`]: {
 		kind: 'role-gated',
 		covers: 'services/settings-service.test.ts'

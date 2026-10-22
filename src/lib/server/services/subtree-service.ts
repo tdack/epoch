@@ -17,6 +17,7 @@ import { UserRepository } from '../repositories/user-repository';
 import type {
 	ActiveSubtreeDto,
 	CreateSubtreeInput,
+	ReorderSubtreesInput,
 	SubtreeDto,
 	SubtreeSummaryDto,
 	UpdateSubtreeInput
@@ -118,6 +119,15 @@ export class SubtreeService {
 			{ kind: 'update_subtree', subtreeId, subtree, expectedVersion: version },
 			context
 		);
+	}
+
+	/** Positions become 0..n-1 in `order`, in one change so a single undo restores the old order. */
+	reorder(
+		treeId: string,
+		order: ReorderSubtreesInput['order'],
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		return this.run(treeId, { kind: 'reorder_subtrees', order }, context);
 	}
 
 	delete(
