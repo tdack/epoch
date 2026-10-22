@@ -20,7 +20,7 @@ const exportButton = () =>
 	[...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Export')!;
 const radio = (label: string) =>
 	[...document.querySelectorAll('label')]
-		.find((l) => l.textContent?.trim() === label)!
+		.find((l) => l.textContent?.includes(label))!
 		.querySelector('input')!;
 const compress = () => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
 
