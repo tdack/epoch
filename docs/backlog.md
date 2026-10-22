@@ -350,8 +350,8 @@ The tool is built in `tools/setup/`.
   - **Trees:** the same handle on Administration › Trees. `trees` has no order column, and the
     switcher lists a member's trees by `updatedAt` (`listForUser`), so this needs a `position`
     column in its own migration (expand-and-contract), the same batched write, and the switcher
-    sorted by it. Decide whether the order is the install owner's for everyone, or per member (a
-    column on `tree_memberships`). Tree rows are not tree content, so this write is not in the
+    sorted by it. The install owner sets the order once and every member's switcher uses it, so the
+    column is on `trees`, not `tree_memberships`. Tree rows are not tree content, so this write is not in the
     change log (ADR-007).
   - **Accessibility:** dragging alone fails WCAG 2.2 2.5.7 (Dragging Movements). The handle must
     also move a row by keyboard (arrow keys while it has focus, announced through a live region),
