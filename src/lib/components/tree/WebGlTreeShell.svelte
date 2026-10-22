@@ -8,10 +8,12 @@
 		type KinSource
 	} from '#lib/tree-layout/highlight.js';
 	import WebGlHoverCard from './WebGlHoverCard.svelte';
+	import TreeContextMenu from './TreeContextMenu.svelte';
+	import { personMenuItems, type TreeEditActions } from './tree-actions.js';
 	import { createHighlightState } from './webgl-highlight.svelte.js';
 	import { RING_TOKENS } from '#lib/shared/tree-tokens.js';
 	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
-	import { yearsLine } from './tree-view.js';
+	import { yearsLine, type MenuItem } from './tree-view.js';
 	import {
 		capitalised,
 		sourceLabel,
@@ -92,6 +94,11 @@
 		onOpenPerson?: (id: string) => void;
 		/** Escape: drop the selection. */
 		onClearSelection?: () => void;
+		/**
+		 * The page's editing actions for a person's right-click menu; absent entries are left out. Not
+		 * `onOpenPerson`: that one here focuses and opens details, the menu's means details only.
+		 */
+		actions?: TreeEditActions;
 	}
 
 	let {
@@ -115,11 +122,12 @@
 		isMotionReduced = false,
 		selectedPersonId = null,
 		legend = [],
-		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click or hold to focus and see details',
+		hint = 'Drag to orbit · scroll to zoom · right-drag to pan · click empty space to clear the highlight · double-click or hold to focus and see details · right-click for more',
 		controls,
 		onSelectPerson,
 		onOpenPerson,
-		onClearSelection
+		onClearSelection,
+		actions
 	}: Props = $props();
 
 	/** How far a name sits above its sphere's centre, in CSS pixels. */
@@ -132,6 +140,7 @@
 	const DOUBLE_CLICK_MS = 400;
 
 	let host = $state<HTMLDivElement>();
+	let shell = $state<HTMLDivElement>();
 	let didFail = $state(false);
 	let camera = $state(untrack(() => cameras[0].id));
 	let isSpinning = $state(false);
@@ -154,6 +163,8 @@
 	}
 	/** The pointer inside the canvas, in CSS pixels; null while orbiting or off the canvas. */
 	let pointerAt = $state<{ x: number; y: number } | null>(null);
+	let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
+	let menuOpener: Element | null = null;
 	let shellWidth = $state(0);
 	let shellHeight = $state(0);
 
@@ -355,7 +366,47 @@
 		pressTimer = undefined;
 	}
 
+	/** Opens the person menu at a point inside the shell; private people and empty menus get none. */
+	function openPersonMenu(id: string, x: number, y: number) {
+		const entry = people.find((p) => p.id === id);
+		if (!entry || entry.person.isPrivate === true) return;
+		const items = personMenuItems(
+			{ id, displayName: entry.person.displayName },
+			entry.person.unionIds.length > 0,
+			actions ?? {}
+		);
+		if (items.length === 0) return;
+		const active = document.activeElement;
+		menuOpener = active && shell?.contains(active) && active !== shell ? active : null;
+		// The hover card is z-30 too and would sit over the menu.
+		hovered = null;
+		pointerAt = null;
+		menu = { x, y, items };
+	}
+	function closeMenu() {
+		menu = null;
+		const opener = menuOpener;
+		menuOpener = null;
+		if (opener?.isConnected) (opener as HTMLElement).focus({ preventScroll: true });
+	}
+	function shellPoint(clientX: number, clientY: number) {
+		const rect = shell!.getBoundingClientRect();
+		return { x: clientX - rect.left, y: clientY - rect.top };
+	}
+	function onTagContextMenu(event: MouseEvent, id: string) {
+		event.preventDefault();
+		// The Menu key and Shift+F10 arrive with no pointer position; the name's middle stands in.
+		const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const isKeyboard = event.clientX === 0 && event.clientY === 0;
+		const { x, y } = shellPoint(
+			isKeyboard ? box.left + box.width / 2 : event.clientX,
+			isKeyboard ? box.top + box.height / 2 : event.clientY
+		);
+		openPersonMenu(id, x, y);
+	}
+
 	function onPointerDown(event: PointerEvent) {
+		closeMenu();
 		downAt = { x: event.clientX, y: event.clientY };
 		didLongPress = false;
 		cancelPress();
@@ -375,10 +426,20 @@
 			didLongPress = false;
 			return;
 		}
-		if (!scene || !isClick(event) || event.button !== 0) return;
+		// Not the contextmenu event: macOS fires it on mousedown, which would pop the menu at the
+		// start of every right-drag pan. Ctrl+click is the same gesture there, and ctrl+drag pans too.
+		const isMenuGesture = event.button === 2 || (event.button === 0 && event.ctrlKey);
+		if (!scene || !isClick(event) || (event.button !== 0 && !isMenuGesture)) return;
 		const target = scene.pick(event.clientX, event.clientY, {
 			isCoarse: event.pointerType !== 'mouse'
 		});
+		if (isMenuGesture) {
+			if (target?.kind === 'person') {
+				const { x, y } = shellPoint(event.clientX, event.clientY);
+				openPersonMenu(target.id, x, y);
+			}
+			return;
+		}
 		const previous = lastHit;
 		lastHit =
 			target?.kind === 'person'
@@ -461,6 +522,8 @@
 <svelte:window
 	onkeydown={(event) => {
 		if (event.key !== 'Escape') return;
+		// The menu closes itself; this step back is for it alone.
+		if (menu) return;
 		// One step back at a time: an open drawer closes first, then trace mode ends (dropping what it
 		// held), then the highlight clears.
 		if (selectedPersonId) onClearSelection?.();
@@ -475,6 +538,7 @@
 		.partner};background:{RING_TOKENS.stage}"
 	role="group"
 	aria-label={label}
+	bind:this={shell}
 	bind:clientWidth={shellWidth}
 	bind:clientHeight={shellHeight}
 >
@@ -494,6 +558,7 @@
 			pointerAt = null;
 		}}
 		ondblclick={onDoubleClick}
+		oncontextmenu={(event) => event.preventDefault()}
 	></div>
 
 	{#if scene}
@@ -517,6 +582,7 @@
 					aria-label="{p.person.displayName}{years ? `, ${years}` : ''}. {personAction}"
 					onclick={() => selectPerson(p.id)}
 					ondblclick={() => onOpenPerson?.(p.id)}
+					oncontextmenu={(event) => onTagContextMenu(event, p.id)}
 					onkeydown={(event) => onTagKey(event, p.id)}
 					{@attach tracked(p.id)}
 				>
@@ -697,6 +763,10 @@
 	</div>
 
 	<p class="sr-only" aria-live="polite">{statusMessage}</p>
+
+	{#if menu}
+		<TreeContextMenu items={menu.items} x={menu.x} y={menu.y} onClose={closeMenu} />
+	{/if}
 </div>
 
 <style>

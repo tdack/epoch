@@ -3,19 +3,13 @@
 
 	interface Props {
 		/**
-		 * Whether the chart has a context menu. The overviews have none, so the hint does not send
-		 * anyone to it there; elsewhere even a viewer's menu offers Open full page, which double-click
-		 * does not.
-		 */
-		hasMenuActions: boolean;
-		/**
 		 * Float over the top of the chart as one line instead of taking a row above it. On a phone that
 		 * row is height the chart needs, and the hint matters only until it is read once.
 		 */
 		isOverlay?: boolean;
 	}
 
-	let { hasMenuActions, isOverlay = false }: Props = $props();
+	let { isOverlay = false }: Props = $props();
 
 	const STORAGE_KEY = 'epoch.tree-gesture-hint.dismissed';
 
@@ -63,8 +57,8 @@
 			{:else}
 				<strong class="font-semibold text-stone-900">Click</strong> a person to mark them.
 				<strong class="font-semibold text-stone-900">Double-click</strong> to centre the tree on
-				them and see their details{#if hasMenuActions}, or
-					<strong class="font-semibold text-stone-900">right-click</strong> for more{/if}.
+				them and see their details, or
+				<strong class="font-semibold text-stone-900">right-click</strong> for more.
 			{/if}
 		</p>
 		<button

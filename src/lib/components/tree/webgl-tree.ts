@@ -5,6 +5,7 @@
  */
 
 import type { Palette } from '#lib/shared/palette.js';
+import type { TreeEditActions } from './tree-actions.js';
 import { sexLabel } from '#lib/shared/sex.js';
 import {
 	linkKey,
@@ -72,6 +73,8 @@ export interface WebGlCanvasProps<TLayout> {
 	onOpenPerson?: (id: string) => void;
 	/** Escape: drop the selection. */
 	onClearSelection?: () => void;
+	/** The page's editing actions for a person's right-click menu; absent entries are left out. */
+	actions?: TreeEditActions;
 }
 
 /** What a sphere or line stands for on the focus person's line; absent is everyone else. */
