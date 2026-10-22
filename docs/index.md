@@ -5,7 +5,6 @@
 | [backlog.md](./backlog.md) | Open fixes and proposed additions |
 | [development.md](./development.md) | Working on Epoch itself |
 | [architecture.md](./architecture.md) | Stack, layering, data model, authorization, layout and views |
-| [adr/](./adr/) | One file per decision, `ADR-001.md` onward |
 | [decisions.md](./decisions.md) | Index of every architecture decision, with status |
 | [query-plans.md](./query-plans.md) | Measured query plans for the bounded graph |
 | [gedcom-extensions.md](./gedcom-extensions.md) | Epoch's own GEDCOM extension tags |
