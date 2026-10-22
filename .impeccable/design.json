@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T11:01:50Z",
+  "generatedAt": "2026-10-22T11:30:45Z",
   "title": "Design System: Epoch",
   "extensions": {
     "colorMeta": {
@@ -875,15 +875,15 @@
       "refersTo": "option-tile",
       "description": "A radio choice whose options each need a hint, such as the GEDCOM version on Export.",
       "html": "<div class=\"ds-tiles\"><label class=\"ds-tile\"><input type=\"radio\" name=\"ds-v\" checked><span><b>GEDCOM 7.0</b><small>The current standard.</small></span></label><label class=\"ds-tile\"><input type=\"radio\" name=\"ds-v\"><span><b>GEDCOM 5.5.1 (legacy)</b><small>For older programs that cannot read 7.0.</small></span></label></div>",
-      "css": ".ds-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 8px; max-width: 36rem; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-tile { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; transition: border-color 150ms, background-color 150ms; } .ds-tile:hover { border-color: #a8a29e; } .ds-tile:has(:checked) { border-color: #047857; background: #ecfdf5; box-shadow: 0 0 0 1px #047857; } .ds-tile input { margin: 2px 0 0; width: 16px; height: 16px; accent-color: #065f46; } .ds-tile input:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-tile b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-tile small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; }"
+      "css": ".ds-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 8px; max-width: 36rem; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-tile { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; transition: border-color 150ms, background-color 150ms; } .ds-tile:hover { border-color: #a8a29e; } .ds-tile:has(:checked) { border-color: #047857; background: #ecfdf5; box-shadow: 0 0 0 1px #047857; } .ds-tile input { margin: 2px 0 0; width: 16px; height: 16px; appearance: none; flex-shrink: 0; border: 1px solid #a8a29e; border-radius: 9999px; background: #ffffff; cursor: pointer; } .ds-tile input:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-tile b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-tile small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; } .ds-tile input:checked { border-color: #065f46; background: radial-gradient(circle, #fffbeb 0 30%, transparent 32%) #065f46; }"
     },
     {
       "name": "Switch",
       "kind": "input",
       "refersTo": "option-tile",
-      "description": "An on/off option in a row tile; a native checkbox drawn as a switch.",
+      "description": "A setting that saves when flipped, or an option of the pending action; a native checkbox with the switch class.",
       "html": "<label class=\"ds-switch-row\"><span><b>Compress to .gdz</b><small>Packs the file as a GEDZip archive.</small></span><input type=\"checkbox\" class=\"ds-switch\" checked></label>",
-      "css": ".ds-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 36rem; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-switch-row b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-switch-row small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; } .ds-switch { position: relative; flex-shrink: 0; width: 36px; height: 20px; margin: 0; appearance: none; cursor: pointer; border-radius: 9999px; background: #d6d3d1; transition: background-color 150ms; } .ds-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-switch:checked { background: #065f46; } .ds-switch:checked::before { transform: translateX(16px); } .ds-switch:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-switch:disabled { opacity: 0.5; cursor: not-allowed; }"
+      "css": ".ds-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 36rem; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-switch-row b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-switch-row small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; } .ds-switch { position: relative; flex-shrink: 0; width: 36px; height: 20px; margin: 0; appearance: none; cursor: pointer; border-radius: 9999px; background: #d6d3d1; transition: background-color 150ms; } .ds-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-switch:hover:not(:checked):not(:disabled) { background: #a8a29e; } .ds-switch:checked { background: #065f46; } .ds-switch:checked::before { transform: translateX(16px); } .ds-switch:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-switch:disabled { opacity: 0.5; cursor: not-allowed; }"
     },
     {
       "name": "Page Tabs",
@@ -900,6 +900,22 @@
       "description": "Bottom-left confirmation of an action, with an optional Undo.",
       "html": "<div class=\"ds-toast\" role=\"status\"><p>Moved Bart Simpson to position 2.</p><button class=\"ds-toast-action\">Undo</button><button class=\"ds-toast-x\" aria-label=\"Dismiss\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button></div>",
       "css": ".ds-toast { display: flex; align-items: flex-start; gap: 12px; max-width: 24rem; border: 1px solid #d6d3d1; border-radius: 12px; background: #fcfaf5; color: #1c1917; padding: 12px 16px; font: 400 0.875rem/1.375 ui-sans-serif, system-ui, sans-serif; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); } .ds-toast p { flex: 1; margin: 0; } .ds-toast-action { cursor: pointer; border: none; border-radius: 6px; background: none; padding: 2px 8px; font: inherit; font-weight: 600; color: #065f46; text-decoration: underline; text-underline-offset: 2px; } .ds-toast-action:hover { background: #d1fae5; } .ds-toast-x { cursor: pointer; border: none; border-radius: 6px; background: none; padding: 2px; color: #78716c; display: inline-flex; } .ds-toast-x:hover { background: rgb(231 229 228 / 0.7); color: #1c1917; } .ds-toast button:focus-visible { outline: 2px solid #047857; }"
+    },
+    {
+      "name": "Drop-down",
+      "kind": "input",
+      "refersTo": "field-select",
+      "description": "Every single select: field styling with one stone chevron in place of the browser arrow.",
+      "html": "<label class=\"ds-select-label\">Role<select class=\"ds-select\"><option>Editor</option><option>Viewer</option></select></label>",
+      "css": ".ds-select-label { display: grid; gap: 4px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; color: #44403c; width: 12rem; } .ds-select { appearance: none; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\") no-repeat right 0.5rem center / 1rem; padding: 6px 32px 6px 8px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-select:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 1px #047857; } .ds-select:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Checkbox and Radio",
+      "kind": "input",
+      "refersTo": "checkbox",
+      "description": "The shared 16px tick and radio, for choices that wait for a Save or Filter.",
+      "html": "<div class=\"ds-checks\"><label><input type=\"checkbox\" class=\"ds-check\" checked> Assigned to me</label><label><input type=\"checkbox\" class=\"ds-check\"> Include notes</label><label><input type=\"radio\" name=\"ds-r\" class=\"ds-check ds-radio\" checked> Default tree</label><label><input type=\"radio\" name=\"ds-r\" class=\"ds-check ds-radio\"> Other tree</label></div>",
+      "css": ".ds-checks { display: grid; gap: 8px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-checks label { display: flex; align-items: center; gap: 8px; cursor: pointer; } .ds-check { appearance: none; flex-shrink: 0; width: 16px; height: 16px; margin: 0; cursor: pointer; border: 1px solid #a8a29e; border-radius: 4px; background: #ffffff center / 75% no-repeat; transition: background-color 150ms, border-color 150ms; } .ds-check:hover { border-color: #78716c; } .ds-check:checked { border-color: #065f46; background-color: #065f46; background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fffbeb' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E\"); } .ds-radio { border-radius: 9999px; } .ds-radio:checked { background-image: radial-gradient(circle, #fffbeb 0 30%, transparent 32%); background-size: 100%; } .ds-check:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
     }
   ],
   "narrative": {
@@ -948,12 +964,23 @@
         "name": "The Translucent Chrome Rule",
         "body": "Chrome that overlays content (the sticky header, the drawer) is panel or dialog cream at 90–98% with a backdrop blur, so the record scrolls visibly underneath.",
         "section": "elevation"
+      },
+      {
+        "name": "The Switch Or Tick Rule",
+        "body": "A setting that saves the moment it changes is a switch. A choice that waits for a Save, Filter or Merge button is a checkbox. Never style one as the other.",
+        "section": "components"
+      },
+      {
+        "name": "The No Browser Chrome Rule",
+        "body": "Selects, checkboxes, radios and switches always use the shared styles in `app.css`. A form control showing the browser's own arrow, tick or blue fill is a defect.",
+        "section": "components"
       }
     ],
     "dos": [
       "**Do** use page cream (`#fcf9f2`) for the page, stone wash for section cards, and white for fields, list panels and tables.",
       "**Do** keep emerald-800 as the only fill for primary actions, with emerald-700 for hover and focus.",
       "**Do** open every record section with the uppercase 0.75rem bold stone-600 section label.",
+      "**Do** use a plain `select`, checkbox or radio and let `app.css` style it; add the `switch` class for a setting that saves when flipped.",
       "**Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead of new focus styles.",
       "**Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.",
       "**Do** keep motion to short colour and transform transitions, and let it go: `motion-reduce` and the viewer's own \"Reduce animation\" setting (`data-reduce-motion`) both remove it.",
@@ -962,6 +989,7 @@
       "**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them."
     ],
     "donts": [
+      "**Don't** add a chevron icon beside a select or restyle a checkbox per component; the shared styles already draw them.",
       "**Don't** introduce a second accent colour in the chrome; amber is for notices and red for errors.",
       "**Don't** give cards or panels that sit on the page more than the hairline shadow; a real shadow means the element floats.",
       "**Don't** use blue or pink for parent-child lines; they would read as sex.",

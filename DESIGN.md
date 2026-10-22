@@ -173,6 +173,26 @@ components:
     textColor: '{colors.error-ink}'
     rounded: '{rounded.lg}'
     padding: '12px'
+  field-select:
+    backgroundColor: '{colors.field-white}'
+    textColor: '{colors.stone-ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.lg}'
+    padding: '8px 32px 8px 8px'
+  checkbox:
+    backgroundColor: '{colors.field-white}'
+    rounded: '4px'
+    size: '16px'
+  checkbox-checked:
+    backgroundColor: '{colors.binding-emerald}'
+    textColor: '{colors.vellum}'
+  switch:
+    backgroundColor: '{colors.stone-edge}'
+    rounded: '{rounded.full}'
+    width: '36px'
+    height: '20px'
+  switch-on:
+    backgroundColor: '{colors.binding-emerald}'
   option-tile:
     backgroundColor: '{colors.field-white}'
     textColor: '{colors.stone-ink}'
@@ -463,20 +483,41 @@ rows to scan on an index page.
   semibold stone-strong label above.
 - **Focus:** the border turns emerald-700 and gains a 1px emerald-700 ring (`focus-input`); no glow.
 - **Error:** a 0.75rem or 11px red-700 message under the field, announced with `role="alert"`.
+- **Drop-down:** every single select has the field's border, radius and white fill, with the
+  browser's arrow replaced by one 16px stone-500 chevron 8px from the right edge, and 32px of room
+  for it. `app.css` draws this for every `select` in the app; a component never adds its own
+  chevron icon. Disabled, it fades to 60% with a not-allowed cursor.
+- **Checkbox:** a 16px white square with a 4px radius and a 1px stone-400 border (stone-500 on
+  hover). Checked, it fills emerald-800 with a vellum tick. It is for choosing items from a list
+  ("Assigned to me", relatives to copy a fact to, records to merge) and for an option that is
+  saved with the rest of a form, such as "Also open this tree at …" under Save address.
+- **Radio:** the same 16px control, round; checked, an emerald-800 fill with a vellum centre dot.
+  Both are drawn globally in `app.css`, so a plain `<input type="checkbox">` already matches.
 - **Option tile:** a radio choice whose options need a word of explanation, such as the GEDCOM
   version on Export. Each option is a white 8px tile with a 1px stone-300 border, a semibold name
-  and a 0.75rem stone-600 hint, side by side from `sm` and stacked on phones. The native radio
-  stays visible, tinted emerald-800. The checked tile takes an emerald-700 border and 1px ring on
+  and a 0.75rem stone-600 hint, side by side from `sm` and stacked on phones. The radio stays
+  visible at the left. The checked tile takes an emerald-700 border and 1px ring on
   an emerald wash; hover darkens the border to stone-400.
-- **Switch:** an on/off option that applies to what the page is about to do, such as "Compress to
-  .gdz". It is a native checkbox drawn as a 36 × 20px track (stone-300 off, emerald-800 on) with
-  a white knob, at the right of a white row tile that carries the label and a hint. Disabled, the
-  row turns stone-50 and the hint says why it cannot be used, rather than hiding the option.
+- **Switch (`switch`):** an on/off setting that takes effect the moment it is flipped ("Reduce
+  animation", "Show hidden people as Private") or an option of the action the page is about to
+  run ("Compress to .gdz"). A native checkbox with the `switch` class, drawn as a 36 × 20px track
+  (stone-300 off, stone-400 on hover, emerald-800 on) with a white knob that slides across. It
+  sits at the right of its label and hint, inside a white row tile when it stands alone on the
+  page. Disabled, the row turns stone-50 and the hint says why it cannot be used, rather than
+  hiding the option.
 - **Reorder handle:** a grip button at the start of a reorderable row, stone-500 on transparent,
   stone tint on hover, a grab cursor, 32px (44px on touch screens). It moves the row by drag or
   by the up and down arrow keys, and announces the new position.
 - **Date input:** free text first, because `ABT 1900`, `BET 1900 AND 1905` and `1912` are all real
   dates, with a picker beside it for exact days; a problem is explained inline under the field.
+  The browser's own date fields and pickers are tinted emerald-800 by the body's `accent-color`.
+
+**The Switch Or Tick Rule.** A setting that saves the moment it changes is a switch. A choice
+that waits for a Save, Filter or Merge button is a checkbox. Never style one as the other.
+
+**The No Browser Chrome Rule.** Selects, checkboxes, radios and switches always use the shared
+styles in `app.css`. A form control showing the browser's own arrow, tick or blue fill is a
+defect.
 
 ### Navigation
 
@@ -552,6 +593,8 @@ without a trace. Zoomed out, the card compacts to a larger name and dates, then 
   fields, list panels and tables.
 - **Do** keep emerald-800 as the only fill for primary actions, with emerald-700 for hover and focus.
 - **Do** open every record section with the uppercase 0.75rem bold stone-600 section label.
+- **Do** use a plain `select`, checkbox or radio and let `app.css` style it; add the `switch` class
+  for a setting that saves when flipped.
 - **Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead
   of new focus styles.
 - **Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.
@@ -565,6 +608,8 @@ without a trace. Zoomed out, the card compacts to a larger name and dates, then 
 
 ### Don't:
 
+- **Don't** add a chevron icon beside a select or restyle a checkbox per component; the shared
+  styles already draw them.
 - **Don't** introduce a second accent colour in the chrome; amber is for notices and red for errors.
 - **Don't** give cards or panels that sit on the page more than the hairline shadow; a real shadow
   means the element floats.
