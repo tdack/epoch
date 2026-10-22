@@ -70,193 +70,64 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - Export writes the tree back out, including structures Epoch does not yet show, which are kept
   from the import rather than discarded. Merged families keep their original ids.
 
-## Requirements
+## Roles
 
-- **Node 24 or later** (see `.nvmrc`).
-- To deploy: a Cloudflare account with a **paid Workers plan**, a **Zero Trust organisation with an
-  identity provider**, and somewhere to serve from (a workers.dev subdomain or an active domain).
+Each tree has five roles. Each role can do everything the role before it can, plus the additions
+below.
 
-## Running locally
+| Role        | Adds                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewer      | Browse people, places, charts and 3D views, and search. Living and private people are hidden.                                                                             |
+| Contributor | Add people, relationships, citations, notes and research tasks. You see living people you added, but private people stay hidden.                                           |
+| Editor      | Change or delete any record, import GEDCOM and upload media. You see everyone, can read the change log and can undo your own changes.                                      |
+| Manager     | Invite people and change the roles of editors, contributors and viewers. Decide who is private, set tree options, export GEDCOM and undo anyone's change.                  |
+| Owner       | Invite managers and other owners, and delete the tree. A tree always keeps at least one owner.                                                                             |
 
-```sh
-nvm use                       # or otherwise install Node 24
-npm install
-cp .dev.vars.example .dev.vars
-npm run db:migrate:local      # creates the local database
-npm run dev
-```
+The install owner is separate from tree roles: setup records you as the install owner, and you
+invite everyone else from a tree's **Members** page.
 
-The app runs at <http://localhost:5173>. If the database has not been migrated (or new migrations
-have been pulled since), every page answers with a message saying to run `npm run db:migrate:local`.
+## FAQ
 
-### Sample data
+**What does it cost?** You pay Cloudflare directly for a paid Workers plan. There is no Epoch
+subscription.
 
-With the dev server running:
+**Who can see my tree?** Only people you invite. Cloudflare Access handles sign-in, and anyone else
+who signs in is told to ask the owner for an invitation. Nothing is stored about them.
 
-```sh
-npm run seed
-```
+**Can I bring my tree from other software?** Yes, through GEDCOM. Epoch validates the file, shows a
+preview before anything is written, and offers to merge duplicate families.
 
-This imports [test/data/The Simpsons.ged](<./test/data/The Simpsons.ged>) as a tree named "The
-Simpsons", and does nothing if the dev database already has any tree. If the dev server is on
-another port, set `SEED_URL`, for example `SEED_URL=http://localhost:5178 npm run seed`.
+**What happens to data Epoch doesn't support yet?** It is kept and written back on export.
 
-For a larger tree with sources, places and media links, import
-[test/data/The Windsors.ged](<./test/data/The Windsors.ged>) from the app. All the files in
-`test/data/` are fictional or public, so they are safe to share.
+**What if two people edit the same person?** The first save wins and the second is refused, with an
+explanation. Undo reverts your latest change, and warns you if the records have changed since.
 
-### Signing in locally
+**Do I need my own domain?** No. Setup can use a workers.dev address or an active domain on your
+Cloudflare account.
 
-In a deployment, sign-in comes from Cloudflare Access. Locally, `.dev.vars` sets
-`ACCESS_BYPASS_DEV=true`, so requests act as a local developer (`developer@epoch.local`) who stands
-in for the install owner. To act as someone else, send the `x-dev-user-sub`, `x-dev-user-email` and
-`x-dev-user-name` headers; that person must be invited to a tree first, as in a real install.
+**Can I take my data with me?** Yes. Export GEDCOM at any time. `./setup teardown` removes only what
+setup created.
 
-The bypass only applies when the flag is set and the app runs from the dev server (`npm run dev`); a
-built bundle ignores it. **Never set it in a deployed environment.**
-`.dev.vars` is git-ignored.
+**Is it open source?** Yes, under the GNU Affero General Public License, version 3 or later.
 
-## Installing into Cloudflare
+**Does it work on a phone?** Record pages, lists and the family view have phone layouts. The 3D
+views suit larger screens.
 
-```sh
-./setup --plan   # read-only: shows what would be created or changed
-./setup          # signs in, creates everything, deploys and checks the result
-```
+**How does it relate to webtrees?** Epoch is inspired by webtrees' capabilities, not its screens or
+code. It is a separate application that exchanges data with it through GEDCOM.
 
-`./setup …` is the same as `npm run setup -- …`; either works.
+**Is it ready for real records?** Epoch is young and in active development. Known gaps are in
+[docs/backlog.md](./docs/backlog.md). Export GEDCOM regularly.
 
-Setup signs in through your browser (there is no API token to create) and asks only what it cannot
-find out itself. It creates:
+## Getting started
 
-- the database, storage bucket, queue and Worker;
-- a workers.dev address or one custom domain;
-- one Cloudflare Access application on `<host>/login`, with an Allow policy chosen from your
-  existing ones or a new one for your email address.
-
-It never creates your account, plan, Zero Trust organisation or domain, never edits an Access policy
-it did not create, and checks that anything it finds by name belongs to this install before using
-it. It also records you as the install owner.
-
-### Looking after an install
-
-| Command | Does |
-|---|---|
-| `./setup doctor` | Reports anything that has drifted from what setup created |
-| `./setup allow <email>` | Lets someone through the Access policy setup created |
-| `./setup disallow <email>` | Removes them again |
-| `./setup teardown` | Deletes only what this install created |
-| `./setup builds` | Gives Workers Builds this install's values, after you connect the repository |
-| `./setup subdomains` | Serves trees on their own subdomain, `<slug>.<zone>` (see below) |
-| `./setup --help` | Lists every flag, including ones that answer each prompt for scripted use |
-| `npm run deploy` | Deploys a new version from your machine: builds, applies any new migrations and deploys |
-
-With `--json`, only the result is printed (through npm, use `npm run -s setup -- …` so npm's own
-banner stays off the output). Setup keeps its state in `.epoch/install.json` and writes your
-values to `wrangler.deploy.jsonc`. Both are git-ignored, so none of your configuration ends up in
-the repository. If you'd rather not use setup, copy `wrangler.jsonc` to `wrangler.deploy.jsonc` and
-fill in your own Worker name, route, vars and sender address. The sender goes in both the
-`EMAIL` binding's `allowed_sender_addresses` and an `EPOCH_EMAIL_SENDER` var; without the var,
-invitations are saved but not emailed. No database id is needed:
-Cloudflare finds the database by its name.
-
-Every page links to Epoch's source code, as the AGPL asks of a copy people use over a network. The
-link goes to `https://github.com/tdack/epoch`. If you run a modified copy, set `EPOCH_SOURCE_URL` in
-the `vars` of your fork's `wrangler.jsonc` to your own repository; setup and Workers Builds carry it
-into the deploy config.
-
-### Deploying on every push
-
-To deploy on every push with Workers Builds:
-
-1. In the Cloudflare dashboard, go to **Workers & Pages → your Worker → Settings → Builds** and
-   connect the repository.
-2. Run `./setup builds`.
-
-Setup sets one build variable, `EPOCH_DEPLOY_VALUES`, which the build turns into
-`wrangler.deploy.jsonc`. It also sets the production trigger:
-
-- the build command to `npm run build:worker` and the deploy command to `npm run deploy:worker`, so
-  the Worker is built once;
-- the watch paths to `src/**`, so documentation and tooling changes don't start a build.
-
-A push that changes only migrations, `wrangler.jsonc` or `package.json` therefore doesn't deploy on
-its own. Run `npm run deploy` for those, or let them go out with the next change to `src/`. Setup
-uses the sign-in it already has, so you don't need an API token.
-
-If setup can't set the variable (for example, a sign-in made before this feature, or the
-repository isn't connected yet), it prints the value for you to paste in. `./setup --force` signs
-in again with the extra permission.
-
-### Serving trees on their own subdomains
-
-`./setup subdomains` sets the install up to serve a tree at `<slug>.<zone>` as well as at
-`/trees/<slug>` (ADR-057). The install must already be on a custom domain. Run it with `--plan`
-first:
-
-```sh
-./setup subdomains --plan   # read-only: lists what the wildcard would capture
-./setup subdomains          # makes the changes below, after you confirm
-```
-
-Before it changes anything, it lists the zone's DNS records, Worker routes and Custom Domains. It
-then reports every proxied hostname that the wildcard route `*.<zone>/*` would take from whatever
-serves it now, such as a website on `www`. For each one you can:
-
-- add a route with no Worker, so the hostname stays with what serves it now;
-- choose a different zone;
-- stop.
-
-It reserves the label of every name in the zone (`www`, `demo`, `_dmarc` and so on), so no tree can
-take one. To reserve more, pass `--reserve staff demo2`. It then:
-
-- adds the routes with no Worker;
-- creates the proxied DNS record `* AAAA 100::`, marked with this install's id in its comment;
-- adds `*.<zone>/login` to the install's Access application, which keeps its AUD;
-- writes the wildcard route and the `EPOCH_TREE_HOST_ZONE`, `EPOCH_RESERVED_SUBDOMAINS` and
-  `EPOCH_APP_HOST` vars into `wrangler.deploy.jsonc`;
-- updates the Workers Builds variable, so a deploy on push keeps them.
-
-Run `npm run deploy` afterwards: a push deploys only when `src/` changes. Then a manager can turn a
-tree's subdomain on from its rename dialog. The command needs `dns.write` and
-`workers-routes.write`. If your sign-in predates them, run `./setup --force` to sign in again.
-Running it again changes only what has drifted. `./setup teardown` removes the record, the routes
-this install made and the Access destination.
-
-### Who can get in
-
-Letting someone through Cloudflare Access is not enough on its own. Epoch then admits only the
-install owner, members of any tree and people with an unexpired invitation (which is accepted on
-their first visit). So a broad Access policy, such as everyone at your email domain, is safe; invite
-people from a tree's **Members** page.
-
-If you set up Access by hand instead of with `./setup`, the application needs:
-
-- the path `/login` only, with an Allow policy for the people you will invite;
-- **Cookie Path Attribute off** (otherwise sign-in does not carry over to other pages);
-- **Binding Cookie off**.
-
-and an install owner recorded in the database. Use a lower-case email address:
-
-```bash
-npx wrangler d1 execute epoch-genealogy-db --remote --command "INSERT INTO install_meta (install_id, owner_email, created_at) VALUES ('$(uuidgen | tr A-Z a-z)', 'you@example.com', unixepoch())"
-```
-
-### Moving from whole-site Access
-
-If an older install has the whole site behind Access plus a Bypass application:
-
-1. Deploy the current version first; it works under the old arrangement too.
-2. **Change the existing Access application's path to `/login`** rather than creating a new one,
-   so its audience tag and the `CF_ACCESS_AUD` secret stay the same. If you do create a new one,
-   update the secret to its audience tag.
-3. Delete the Bypass application.
-
-Then check that signing in returns you to the page you asked for.
+To run Epoch on your own machine or install it into your own Cloudflare account, follow
+[INSTALL.md](./INSTALL.md).
 
 ## Developing Epoch
 
 Commands, tests, deploy internals and data backfills are in
-[docs](https://github.dack.com.au/epoch/).
+[docs](https://github.dack.com.au/epoch/) and [docs/development.md](./docs/development.md).
 
 ## Licence
 

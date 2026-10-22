@@ -1,7 +1,7 @@
 # Developing Epoch
 
-Notes for working on Epoch itself. For features and installation, see the
-[README](../README.md).
+Notes for working on Epoch itself. For features, see the [README](../README.md). For installation, see
+[INSTALL.md](../INSTALL.md).
 
 - [AGENTS.md](../AGENTS.md): architecture, layering and code conventions.
 - [architecture.md](./architecture.md): direction, layering, data model and authorization.
@@ -125,7 +125,7 @@ browsers resolve `*.localhost` to this machine, and the dev bypass accepts it (A
 that names no tree, or a tree with the box unticked, answers 404.
 
 On Cloudflare, `./setup subdomains` sets up the wildcard DNS record, the exclusion routes, the
-Access destination and the vars (README, "Serving trees on their own subdomains"). Its code is
+Access destination and the vars (INSTALL.md, "Serving trees on their own subdomains"). Its code is
 `tools/setup/steps/subdomains.ts`. The settings live in the manifest's `subdomains` and in
 `DeployValues`, so `generateDeployConfig` writes them on every setup run and every Workers Builds
 deploy. Never add these vars or routes to `wrangler.deploy.jsonc` by hand: the next push drops them.
