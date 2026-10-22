@@ -254,7 +254,7 @@ Then check that signing in returns you to the page you asked for.
 ## Developing Epoch
 
 Commands, tests, deploy internals and data backfills are in
-[docs/development.md](./docs/development.md).
+[docs](https://github.dack.com.au/epoch/).
 
 ## Licence
 
