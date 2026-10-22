@@ -1,4 +1,6 @@
-# Epoch
+![Epoch Genealogy](static/brand/og-image.png)
+
+# Epoch Genealogy
 
 A private family-tree application for one owner and the relatives and researchers they invite.
 Each family runs its own copy on its own Cloudflare account, so no platform holds or mines the
