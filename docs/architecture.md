@@ -203,6 +203,50 @@ every view paints from it; signed-out readers get the site default. Saves are re
 contrast floors. A person may also reduce animation, which only adds to the system's own setting
 ([ADR-054](./adr/ADR-054.md)).
 
+## Architecture Diagram
+```mermaid
+flowchart TB
+    user([Browser<br/>Svelte 5 UI])
+    access[Cloudflare Access<br/>protects /login only]
+
+    subgraph worker["Cloudflare Worker — workers/entry.ts"]
+        direction TB
+        hooks["SvelteKit hooks<br/>JWT check: issuer, audience, JWKS<br/>upsert user by sub"]
+        rl[[Rate limits<br/>upload · import · CSP report]]
+
+        subgraph layers["Layers: each calls only the one below"]
+            direction TB
+            routes["Routes and API handlers<br/>src/routes · treeHandler / apiHandler<br/>+page.server.ts loads"]
+            services["Services<br/>tree authorization: isActionAllowed<br/>ViewerScope privacy · DTOs"]
+            runner["Mutation runner<br/>plan → preview → apply<br/>append-only change log and undo"]
+            repos["Repositories<br/>Drizzle · version columns"]
+            domain["Domain<br/>pure models · invariants · typed errors"]
+        end
+
+        consumer["Queue consumer<br/>GEDCOM import"]
+        wf["GedcomExportWorkflow<br/>large exports"]
+    end
+
+    d1[(D1 · DB<br/>person, person_name, union,<br/>parent_child, event, date_value,<br/>roles, citations, change log, jobs)]
+    r2[(R2 · MEDIA_BUCKET<br/>media/ · staging/ · exports/)]
+    q>Queue<br/>GEDCOM_IMPORT_QUEUE]
+    mail[/Email · EMAIL<br/>invitations/]
+
+    user -- "sign-in" --> access --> hooks
+    user -- "pages and fetch" --> hooks
+    hooks --> rl --> routes
+    routes --> services
+    services --> runner --> repos
+    services --> repos
+    services -.-> domain
+    repos -.-> domain
+    repos --> d1
+    services --> r2
+    services -- "large or retryable import" --> q --> consumer --> services
+    services -- "export above 5,000 people" --> wf --> services
+    services --> mail
+```
+
 ## Research basis
 
 - [webtrees](https://github.com/fisharebest/webtrees): editing, charts, multiple trees,
