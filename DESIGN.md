@@ -28,6 +28,8 @@ colors:
   ledger-amber-ink: '#78350f'
   error-red: '#b91c1c'
   error-wash: '#fef2f2'
+  error-edge: '#fca5a5'
+  error-ink: '#7f1d1d'
   tree-paper: '#f7f3ea'
   tree-dot: '#d6cebf'
   tree-accent-teal: '#0f766e'
@@ -154,6 +156,48 @@ components:
     textColor: '{colors.vellum}'
     rounded: '{rounded.full}'
     padding: '0 6px'
+  button-destructive-trigger:
+    backgroundColor: '{colors.field-white}'
+    textColor: '{colors.error-red}'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '8px 16px'
+  button-destructive:
+    backgroundColor: '{colors.error-red}'
+    textColor: '{colors.field-white}'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '8px 16px'
+  notice-error:
+    backgroundColor: '{colors.error-wash}'
+    textColor: '{colors.error-ink}'
+    rounded: '{rounded.lg}'
+    padding: '12px'
+  option-tile:
+    backgroundColor: '{colors.field-white}'
+    textColor: '{colors.stone-ink}'
+    rounded: '{rounded.lg}'
+    padding: '12px'
+  option-tile-selected:
+    backgroundColor: '{colors.emerald-wash}'
+    textColor: '{colors.stone-ink}'
+  page-tab:
+    textColor: '{colors.stone-text}'
+    typography: '{typography.body}'
+    padding: '8px 12px'
+  page-tab-current:
+    textColor: '{colors.binding-emerald-deep}'
+  section-nav-current:
+    backgroundColor: '{colors.binding-emerald}'
+    textColor: '{colors.vellum}'
+    rounded: '{rounded.lg}'
+    padding: '6px 12px'
+  toast:
+    backgroundColor: '{colors.dialog-cream}'
+    textColor: '{colors.stone-ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.xl}'
+    padding: '12px 16px'
 ---
 
 # Design System: Epoch
@@ -221,7 +265,11 @@ surfaces and tree tokens are the project's own hex values.
 ### Tertiary
 
 - **Error Red** (`error-red`, red-700) on **Error Wash** (`error-wash`): field errors, failed
-  searches and overdue tasks. Used as text far more than as a fill.
+  searches and overdue tasks. Used as text far more than as a fill. The one red fill is the
+  confirm button of a destructive dialog; the trigger that opens it is red text on white.
+- **Error Edge** (`error-edge`, red-300) and **Error Ink** (`error-ink`, red-900): the border and
+  text of an error notice or error toast on the error wash, and the border of a destructive
+  trigger.
 - **Known exception, orange:** the dialog error strip in `BaseModal` (orange-50, 300 and 900), the
   required-field asterisk in `NewTreeModal` and the upload error in `PersonMedia` use Tailwind
   orange instead of red. It is incumbent, not a second system; new errors use red.
@@ -337,6 +385,7 @@ their size says how far they float.
 - **Tinted lift** (`shadow-md shadow-emerald-900/15`): the emerald brand tile in the header, so the
   binding colour casts its own shade.
 - **Floating panel** (`shadow-md`): pills and controls that sit over the tree canvas.
+- **Toast** (`shadow-lg`): notifications stacked in the bottom-left corner over any page.
 - **Overlay** (`shadow-2xl`): dialogs and the person drawer, with a backdrop of stone-950 at 40%
   and a light blur.
 - **Splash call to action** (`shadow-lg shadow-emerald-950/30`): the one button on the welcome page.
@@ -372,6 +421,11 @@ Calm and solid; one primary per view.
   emerald-700 outline 2px outside (inset by 2px inside scroll containers).
 - **Secondary (`action-btn`):** stone-shelf fill, 1px stone-edge border, stone-body label at 0.75rem
   semibold, 6px × 12px padding, an optional 14px Lucide icon. Hover darkens to stone-rule.
+- **Compact primary (`btn-primary-sm`):** the same emerald fill at 6px × 12px and at least 36px
+  tall, for toolbars and table rows.
+- **Destructive:** two steps, never one. The trigger on the page ("Delete this tree…", "Leave")
+  is red-700 text on white with a 1px red-300 border, turning red-50 on hover; it opens a dialog
+  whose confirm is the only red fill in the app (red-700, white label, red-600 on hover).
 - **Splash:** the welcome page's single button is inverted: a vellum fill, deep emerald label,
   12px radius, 48px tall, with an amber focus outline offset 4px so it shows on the dark photograph.
 
@@ -409,6 +463,18 @@ rows to scan on an index page.
   semibold stone-strong label above.
 - **Focus:** the border turns emerald-700 and gains a 1px emerald-700 ring (`focus-input`); no glow.
 - **Error:** a 0.75rem or 11px red-700 message under the field, announced with `role="alert"`.
+- **Option tile:** a radio choice whose options need a word of explanation, such as the GEDCOM
+  version on Export. Each option is a white 8px tile with a 1px stone-300 border, a semibold name
+  and a 0.75rem stone-600 hint, side by side from `sm` and stacked on phones. The native radio
+  stays visible, tinted emerald-800. The checked tile takes an emerald-700 border and 1px ring on
+  an emerald wash; hover darkens the border to stone-400.
+- **Switch:** an on/off option that applies to what the page is about to do, such as "Compress to
+  .gdz". It is a native checkbox drawn as a 36 × 20px track (stone-300 off, emerald-800 on) with
+  a white knob, at the right of a white row tile that carries the label and a hint. Disabled, the
+  row turns stone-50 and the hint says why it cannot be used, rather than hiding the option.
+- **Reorder handle:** a grip button at the start of a reorderable row, stone-500 on transparent,
+  stone tint on hover, a grab cursor, 32px (44px on touch screens). It moves the row by drag or
+  by the up and down arrow keys, and announces the new position.
 - **Date input:** free text first, because `ABT 1900`, `BET 1900 AND 1905` and `1912` are all real
   dates, with a picker beside it for exact days; a problem is explained inline under the field.
 
@@ -417,6 +483,15 @@ rows to scan on an index page.
 - **Header:** sticky, panel cream at 90% with a blur and a stone hairline beneath. From left: the
   emerald brand tile with the mark, the tree switcher, the person finder, and the primary "Add
   person" action pushed to the right (icon only on phones).
+- **Tree sections:** the row under the header (Tree, People, Partnerships, Places, Research,
+  Manage). Each is an 8px rounded label; the current section is filled binding emerald, the rest
+  stone-700 with a stone-200 hover. Research opens a menu of the research pages.
+- **Page tabs:** the second level, such as Settings, Sub-trees, Export, Members and Audit log
+  under Manage, or the tabs of Account and Administration. Each tab is a link with an address, not
+  an ARIA tablist, so it can be bookmarked. Semibold 0.875rem stone-600 labels over a stone-200
+  hairline; the current tab has a 2px emerald-800 underline and emerald-900 text. A row too wide
+  for the screen scrolls sideways, fades at the clipped edge and scrolls the current tab into
+  view.
 - **Menus and listboxes (`menu-item`):** hover is a faint stone-shelf tint; the keyboard-focused or
   `aria-selected` row is an emerald wash with an inset 2px emerald-700 outline. Rows are 44px on
   touch screens.
@@ -429,6 +504,14 @@ Native `<dialog>` in dialog cream, 16px radius, a stone border, an overlay shado
 stone backdrop, capped at 90% of the viewport height and scrolling inside. The header pairs a 28px
 tinted icon tile with a one-line bold title and an 11px subtitle. Warnings inside a dialog use an
 orange or amber notice.
+
+### Toasts
+
+The answer to an action that does not open or change a page: a save, an undo, a failure. They
+stack in the bottom-left corner, at most 24rem wide, in dialog cream with a stone-300 border, a
+12px radius and the toast shadow. An error toast is error ink on the error wash with an error edge
+and is announced as an alert; the rest are announced politely. An action ("Undo") is a semibold,
+underlined emerald text button. Hover or focus pauses the timer, and a stone × dismisses.
 
 ### Disclosures
 
@@ -472,6 +555,10 @@ without a trace. Zoomed out, the card compacts to a larger name and dates, then 
 - **Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead
   of new focus styles.
 - **Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.
+- **Do** keep motion to short colour and transform transitions, and let it go: `motion-reduce`
+  and the viewer's own "Reduce animation" setting (`data-reduce-motion`) both remove it.
+- **Do** make a destructive action two steps: a red-outlined trigger, then a dialog with the one
+  red-filled confirm.
 - **Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the
   parent-child type, a dashed edge for privacy.
 - **Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T11:30:41Z",
+  "generatedAt": "2026-10-22T11:01:50Z",
   "title": "Design System: Epoch",
   "extensions": {
     "colorMeta": {
@@ -633,6 +633,36 @@
           "#fcc686",
           "#feebd6"
         ]
+      },
+      "error-edge": {
+        "role": "tertiary",
+        "displayName": "Error Edge",
+        "canonical": "oklch(80.8% 0.114 19.571)",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#fca5a5",
+          "#fee2e2",
+          "#fef2f2"
+        ]
+      },
+      "error-ink": {
+        "role": "tertiary",
+        "displayName": "Error Ink",
+        "canonical": "oklch(39.6% 0.141 25.723)",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#fca5a5",
+          "#fee2e2",
+          "#fef2f2"
+        ]
       }
     },
     "typographyMeta": {
@@ -690,6 +720,11 @@
         "name": "splash-cta",
         "value": "0 10px 15px -3px rgb(2 44 34 / 0.3), 0 4px 6px -4px rgb(2 44 34 / 0.3)",
         "purpose": "The welcome page's single button."
+      },
+      {
+        "name": "toast",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Toasts stacked in the bottom-left corner."
       }
     ],
     "motion": [
@@ -707,6 +742,16 @@
         "name": "color-hover",
         "value": "color, background-color 150ms cubic-bezier(0.4, 0, 0.2, 1)",
         "purpose": "Button fill changes."
+      },
+      {
+        "name": "switch-knob",
+        "value": "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "The switch knob sliding on and off; removed under reduced motion."
+      },
+      {
+        "name": "reduce-motion",
+        "value": "transition-duration: 0s",
+        "purpose": "Applied everywhere when the viewer turns on Reduce animation (data-reduce-motion) or the system asks for less motion."
       }
     ],
     "breakpoints": [
@@ -815,6 +860,46 @@
       "description": "The tree's unit: sex-tinted card with symbol, bold name and muted dates; teal edge when selected; the focus person carries a double ink rule and a Focus tab.",
       "html": "<div class=\"ds-tree\"><div class=\"ds-pcard ds-pcard-m ds-focus\"><span class=\"ds-focus-tab\">Focus</span><span class=\"ds-sym\">♂</span><div><div class=\"ds-pname\">Arthur Doe</div><div class=\"ds-pdates\">1902–1978</div></div></div><div class=\"ds-pcard ds-pcard-f ds-selected\"><span class=\"ds-sym\">♀</span><div><div class=\"ds-pname\">Mary Doe</div><div class=\"ds-pdates\">ABT 1905–1990</div></div></div></div>",
       "css": ".ds-tree { display: flex; gap: 16px; padding: 24px; background-color: #f7f3ea; background-image: radial-gradient(#d6cebf 1px, transparent 1px); background-size: 16px 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-pcard { position: relative; display: flex; gap: 8px; align-items: flex-start; width: 180px; padding: 10px 12px; border-radius: 12px; border: 1.75px solid; cursor: pointer; transition: border-width 120ms; } .ds-pcard:hover { border-width: 3px; } .ds-pcard-m { background: #dbe8f5; border-color: #5a84b5; } .ds-pcard-f { background: #f6dde6; border-color: #b8607f; } .ds-selected { border-color: #0f766e; border-width: 3.5px; } .ds-sym { color: #57534e; font-size: 18px; line-height: 1; } .ds-pname { font-weight: 700; font-size: 14px; color: #1c1917; } .ds-pdates { font-size: 12px; color: #57534e; } .ds-focus { position: relative; border: 3px solid #1c1917; box-shadow: 0 0 0 2px #fdfbf7, 0 0 0 3.5px #1c1917; } .ds-focus-tab { position: absolute; top: -9px; left: 12px; padding: 0 6px; border-radius: 4px; background: #1c1917; color: #fffbeb; font-size: 10px; font-weight: 700; line-height: 14px; }"
+    },
+    {
+      "name": "Destructive Trigger",
+      "kind": "button",
+      "refersTo": "button-destructive-trigger",
+      "description": "Opens the confirm dialog of a destructive action; the confirm is the one red fill.",
+      "html": "<button class=\"ds-btn-destructive-trigger\">Delete this tree…</button>",
+      "css": ".ds-btn-destructive-trigger { display: inline-flex; align-items: center; cursor: pointer; border: 1px solid #fca5a5; border-radius: 8px; background: #ffffff; color: #b91c1c; padding: 8px 16px; font: 600 0.75rem/1rem ui-sans-serif, system-ui, sans-serif; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-destructive-trigger:hover { background: #fef2f2; } .ds-btn-destructive-trigger:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Option Tile",
+      "kind": "custom",
+      "refersTo": "option-tile",
+      "description": "A radio choice whose options each need a hint, such as the GEDCOM version on Export.",
+      "html": "<div class=\"ds-tiles\"><label class=\"ds-tile\"><input type=\"radio\" name=\"ds-v\" checked><span><b>GEDCOM 7.0</b><small>The current standard.</small></span></label><label class=\"ds-tile\"><input type=\"radio\" name=\"ds-v\"><span><b>GEDCOM 5.5.1 (legacy)</b><small>For older programs that cannot read 7.0.</small></span></label></div>",
+      "css": ".ds-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 8px; max-width: 36rem; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-tile { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; transition: border-color 150ms, background-color 150ms; } .ds-tile:hover { border-color: #a8a29e; } .ds-tile:has(:checked) { border-color: #047857; background: #ecfdf5; box-shadow: 0 0 0 1px #047857; } .ds-tile input { margin: 2px 0 0; width: 16px; height: 16px; accent-color: #065f46; } .ds-tile input:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-tile b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-tile small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; }"
+    },
+    {
+      "name": "Switch",
+      "kind": "input",
+      "refersTo": "option-tile",
+      "description": "An on/off option in a row tile; a native checkbox drawn as a switch.",
+      "html": "<label class=\"ds-switch-row\"><span><b>Compress to .gdz</b><small>Packs the file as a GEDZip archive.</small></span><input type=\"checkbox\" class=\"ds-switch\" checked></label>",
+      "css": ".ds-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 36rem; cursor: pointer; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; padding: 12px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-switch-row b { display: block; font-size: 0.875rem; font-weight: 600; color: #1c1917; } .ds-switch-row small { display: block; margin-top: 2px; font-size: 0.75rem; color: #57534e; } .ds-switch { position: relative; flex-shrink: 0; width: 36px; height: 20px; margin: 0; appearance: none; cursor: pointer; border-radius: 9999px; background: #d6d3d1; transition: background-color 150ms; } .ds-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-switch:checked { background: #065f46; } .ds-switch:checked::before { transform: translateX(16px); } .ds-switch:focus-visible { outline: 2px solid #047857; outline-offset: 2px; } .ds-switch:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Page Tabs",
+      "kind": "nav",
+      "refersTo": "page-tab",
+      "description": "Second-level tabs that are links, with an emerald underline on the current one.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Tree administration\"><a href=\"#\">Settings</a><a href=\"#\">Sub-trees</a><a href=\"#\" aria-current=\"page\">Export</a><a href=\"#\">Members</a><a href=\"#\">Audit log</a></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; overflow-x: auto; box-shadow: inset 0 -1px 0 #e7e5e4; font: 600 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; } .ds-tabs a { flex-shrink: 0; padding: 8px 12px; white-space: nowrap; text-decoration: none; color: #57534e; border-bottom: 2px solid transparent; } .ds-tabs a:hover { color: #1c1917; } .ds-tabs a[aria-current='page'] { color: #064e3b; border-bottom-color: #065f46; } .ds-tabs a:focus-visible { outline: 2px solid #047857; outline-offset: -2px; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Bottom-left confirmation of an action, with an optional Undo.",
+      "html": "<div class=\"ds-toast\" role=\"status\"><p>Moved Bart Simpson to position 2.</p><button class=\"ds-toast-action\">Undo</button><button class=\"ds-toast-x\" aria-label=\"Dismiss\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button></div>",
+      "css": ".ds-toast { display: flex; align-items: flex-start; gap: 12px; max-width: 24rem; border: 1px solid #d6d3d1; border-radius: 12px; background: #fcfaf5; color: #1c1917; padding: 12px 16px; font: 400 0.875rem/1.375 ui-sans-serif, system-ui, sans-serif; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); } .ds-toast p { flex: 1; margin: 0; } .ds-toast-action { cursor: pointer; border: none; border-radius: 6px; background: none; padding: 2px 8px; font: inherit; font-weight: 600; color: #065f46; text-decoration: underline; text-underline-offset: 2px; } .ds-toast-action:hover { background: #d1fae5; } .ds-toast-x { cursor: pointer; border: none; border-radius: 6px; background: none; padding: 2px; color: #78716c; display: inline-flex; } .ds-toast-x:hover { background: rgb(231 229 228 / 0.7); color: #1c1917; } .ds-toast button:focus-visible { outline: 2px solid #047857; }"
     }
   ],
   "narrative": {
@@ -871,6 +956,8 @@
       "**Do** open every record section with the uppercase 0.75rem bold stone-600 section label.",
       "**Do** use the `focus-ring`, `focus-ring-inset`, `focus-input` and `menu-item` utilities instead of new focus styles.",
       "**Do** give touch screens 44px targets with the `coarse:` variant, and keep fields at 16px there.",
+      "**Do** keep motion to short colour and transform transitions, and let it go: `motion-reduce` and the viewer's own \"Reduce animation\" setting (`data-reduce-motion`) both remove it.",
+      "**Do** make a destructive action two steps: a red-outlined trigger, then a dialog with the one red-filled confirm.",
       "**Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the parent-child type, a dashed edge for privacy.",
       "**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them."
     ],
