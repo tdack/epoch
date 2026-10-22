@@ -44,7 +44,7 @@
 						type="radio"
 						name="{uid}-format"
 						value={f.value}
-						class="mt-0.5 h-4 w-4 shrink-0 accent-emerald-800 focus-ring"
+						class="mt-0.5 h-4 w-4 shrink-0 focus-ring"
 						checked={format === f.value}
 						aria-describedby="{uid}-{f.value}-hint"
 						onchange={() => chooseFormat(f.value)}
@@ -76,13 +76,12 @@
 					: 'GEDZip holds GEDCOM 7.0 files only.'}
 			</span>
 		</span>
-		<!-- A checkbox drawn as a switch: it keeps checkbox semantics and keyboard handling. -->
 		<input
 			type="checkbox"
 			bind:checked={shouldCompress}
 			disabled={!isGedzipPossible}
 			aria-describedby="{uid}-gdz-note"
-			class="relative h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-stone-300 focus-ring transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-4 before:w-4 before:rounded-full before:bg-white before:shadow-xs before:transition-transform checked:bg-emerald-800 checked:before:translate-x-4 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:before:transition-none"
+			class="switch"
 		/>
 	</label>
 </div>
