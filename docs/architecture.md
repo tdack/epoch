@@ -2,7 +2,7 @@
 
 Epoch is a private, single-owner family-tree application with invited collaborators. It is inspired
 by the capabilities of [webtrees](https://github.com/fisharebest/webtrees), not its screens or its
-implementation. Decisions and their reasons are recorded in [decisions.md](./decisions.md) (ADR-001
+implementation. Decisions and their reasons are recorded in [decisions.md](./decisions.md) ([ADR-001](./adr/ADR-001.md)
 onward); open work is in [backlog.md](./backlog.md).
 
 ## Product direction
@@ -11,8 +11,8 @@ Identity comes from Cloudflare Access; Epoch stores roles and permissions. The f
 correct genealogy graph and an editor that makes complex relationships understandable.
 
 The canonical model is GEDCOM-aware and must round-trip every supported structure without loss.
-Unsupported imported structures are retained and written back on export (ADR-003, ADR-023). Under
-an event, the structures with a column are modelled (ADR-051); the rest, such as `RESN`, custom tags
+Unsupported imported structures are retained and written back on export ([ADR-003](./adr/ADR-003.md), [ADR-023](./adr/ADR-023.md)). Under
+an event, the structures with a column are modelled ([ADR-051](./adr/ADR-051.md)); the rest, such as `RESN`, custom tags
 and objects, stay verbatim and are listed on the fact as read-only, so nothing is lost silently.
 
 A collaborator can safely create and understand a tree containing:
@@ -41,13 +41,13 @@ Svelte 5 / SvelteKit 3 on Cloudflare Workers, with D1 (Drizzle ORM), R2, Queues 
 | D1 | `DB` | Normalized genealogy, permissions, citations, change log, jobs |
 | R2 | `MEDIA_BUCKET` | Private media files (`media/<treeId>/<mediaId>.<ext>`; legacy `media/<treeId>/<entityId>/<file>` keys are still read), GEDCOM staging (`staging/` prefix; an object a crashed consumer left behind is expired after 7 days by a lifecycle rule the setup tool writes), exports (`exports/` prefix, 24-hour expiry) |
 | Queue | `GEDCOM_IMPORT_QUEUE` | Large or retryable GEDCOM imports |
-| Workflow | `GedcomExportWorkflow` | Exports above 5,000 people (ADR-040) |
-| Rate limit | `UPLOAD_RATE_LIMIT`, `IMPORT_RATE_LIMIT`, `CSP_REPORT_RATE_LIMIT` | Workers Rate Limiting counters for `/api/media/upload`, `/api/import` and `/api/csp-report` (ADR-066) |
+| Workflow | `GedcomExportWorkflow` | Exports above 5,000 people ([ADR-040](./adr/ADR-040.md)) |
+| Rate limit | `UPLOAD_RATE_LIMIT`, `IMPORT_RATE_LIMIT`, `CSP_REPORT_RATE_LIMIT` | Workers Rate Limiting counters for `/api/media/upload`, `/api/import` and `/api/csp-report` ([ADR-066](./adr/ADR-066.md)) |
 | Cloudflare Access | n/a | Authenticated identity; the Worker validates the JWT (issuer, audience, rotating JWKS) |
 
 Queues and Workflows are reserved for large or retryable import, export and media jobs. Durable
 Objects are deferred until a demonstrated coordination need exists: D1 transactions and optimistic
-concurrency (ADR-005) are enough for the collaborative editor.
+concurrency ([ADR-005](./adr/ADR-005.md)) are enough for the collaborative editor.
 
 Constraints that are easy to break:
 
@@ -62,7 +62,7 @@ Constraints that are easy to break:
 
 ## Layering
 
-Routes never touch the database directly (ADR-006):
+Routes never touch the database directly ([ADR-006](./adr/ADR-006.md)):
 
 1. **Domain** (`src/lib/server/domain/`): pure models, command interfaces, typed errors
    (`DomainError`, `UnauthorizedError`, `NotFoundError`, `ConcurrencyConflictError`,
@@ -75,7 +75,7 @@ Routes never touch the database directly (ADR-006):
    views. Handlers only parse input, call services and format responses (`treeHandler` and
    `apiHandler`).
 
-**How pages load data (ADR-067).** A read-only screen loads in a `+page.server.ts` or
+**How pages load data ([ADR-067](./adr/ADR-067.md)).** A read-only screen loads in a `+page.server.ts` or
 `+layout.server.ts`, which calls a service through `treeServerLoad` or `serverLoad`
 (`server/http/page-load.ts`). They apply the same caller, visitor and tree-scope checks as the
 handlers and turn a failure into the error page, so a server render passes `handle` once and no
@@ -88,10 +88,10 @@ calls after load (drawers, pickers, dialogs, the canvas) and for writes.
 
 Types both sides read live in `src/lib/shared/`; server modules import from `shared/`, never the
 reverse. Every edit goes through one mutation runner that plans, previews, applies and records an
-append-only change log with undo (ADR-007). Any change can be undone by id, and the audit log at
+append-only change log with undo ([ADR-007](./adr/ADR-007.md)). Any change can be undone by id, and the audit log at
 `/trees/[id]/audit` (the gear's Audit log tab, editors and above) lists the log newest first with each
 change's before/after summary and an Undo button; the person, drawer and partnership histories
-share that button and link to the log filtered to their record (ADR-068).
+share that button and link to the log filtered to their record ([ADR-068](./adr/ADR-068.md)).
 
 ## Data model
 
@@ -99,7 +99,7 @@ The neutral model is the single source of truth; the gendered `families`/`family
 are gone.
 
 - `person`: identity container, privacy and living-state inputs, record metadata.
-- `person_name`: multiple names with types, components and a preferred display name (ADR-013).
+- `person_name`: multiple names with types, components and a preferred display name ([ADR-013](./adr/ADR-013.md)).
   `person_names`, `union_partners` and `source_repositories` also carry a denormalised `tree_id`
   (migration 0036, NOT NULL since 0037) that `ChangeStore` stamps on insert and scopes updates and deletes by; it is not
   part of the logged row image, so inverses logged before it still match.
@@ -111,97 +111,97 @@ are gone.
 - `event`: typed, repeatable facts for a person or union. A fact also carries its address (with the
   file's own layout), `TYPE`, agency, religion, phone, email, fax and web values, coordinates, and the
   place's other sub-lines, each in a nullable column, so the fact editor can show and edit them
-  (ADR-051). Any other line under a fact is kept verbatim and shown read-only.
+  ([ADR-051](./adr/ADR-051.md)). Any other line under a fact is kept verbatim and shown read-only.
 - `media_items`: a stored file. Ownership is the row's `entity_id`, which names a person, a
-  partnership or a source, or is null for a detached file (ADR-061). The R2 key names the file, not its owner, so attaching,
-  detaching and moving are row updates that never touch the bytes (ADR-050). The Files manager (upload, attach, move) and the source page both put a file on a source, and a move may land on a person or a source (ADR-061).
-- `subtree`: a named lens on a tree, rooted at one person (ADR-062). It holds `root_person_id` with
+  partnership or a source, or is null for a detached file ([ADR-061](./adr/ADR-061.md)). The R2 key names the file, not its owner, so attaching,
+  detaching and moving are row updates that never touch the bytes ([ADR-050](./adr/ADR-050.md)). The Files manager (upload, attach, move) and the source page both put a file on a source, and a move may land on a person or a source ([ADR-061](./adr/ADR-061.md)).
+- `subtree`: a named lens on a tree, rooted at one person ([ADR-062](./adr/ADR-062.md)). It holds `root_person_id` with
   no foreign key, so an undo of a person delete brings the sub-tree back. Membership is not stored:
   the root, its descendants through `parent_child` of any type whose status is not `disputed`, and
   their partners are computed by `inSubtree` in `subtree-membership.ts`. Unique on `(tree_id, slug)`.
 - `users`: one row per signed-in person, keyed by Access's stable `sub`. Beyond `email` and `name`
   it holds `avatar_key`, the R2 key of the profile picture (`avatars/<user id>`), null for initials
-  (ADR-070). The row outlives leaving Epoch so the audit log still names the person.
+  ([ADR-070](./adr/ADR-070.md)). The row outlives leaving Epoch so the audit log still names the person.
 - `date_value`: the original GEDCOM text plus parsed lower and upper bounds, precision, calendar
-  and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day (ADR-004).
+  and qualifier. It never turns `1900` or `ABT 1900` into a fabricated exact day ([ADR-004](./adr/ADR-004.md)).
 - Evidence: sources, repositories, citations, shared notes and research tasks are records
-  (ADR-028, ADR-029).
+  ([ADR-028](./adr/ADR-028.md), [ADR-029](./adr/ADR-029.md)).
 - Places: records derived from each fact's text, with rename and merge; the literal place text on
-  an event is never overwritten (ADR-018, ADR-019).
+  an event is never overwritten ([ADR-018](./adr/ADR-018.md), [ADR-019](./adr/ADR-019.md)).
 
 Step relationships are derived from a parent's union; widowhood from partner death and union
 history. Death never deletes or rewrites a union. Multiple unions between the same people stay
 distinct. Duplicate unions from dirty GEDCOM are merged explicitly, with XREF aliases kept
-(ADR-008, ADR-022).
+([ADR-008](./adr/ADR-008.md), [ADR-022](./adr/ADR-022.md)).
 
-Genealogy identifiers are separate from GEDCOM XREFs (ADR-002). GEDCOM 7 is the default export,
-with 5.5.1 as a compatibility profile (ADR-010, ADR-036). Measured query plans are in
+Genealogy identifiers are separate from GEDCOM XREFs ([ADR-002](./adr/ADR-002.md)). GEDCOM 7 is the default export,
+with 5.5.1 as a compatibility profile ([ADR-010](./adr/ADR-010.md), [ADR-036](./adr/ADR-036.md)). Measured query plans are in
 [query-plans.md](./query-plans.md); Epoch's own GEDCOM extension tags are in
 [gedcom-extensions.md](./gedcom-extensions.md).
 
 ## Authorization and privacy
 
 Cloudflare Access supplies the identity; the Worker validates the JWT and upserts the user by stable
-`sub` (ADR-001). The Access audience check fails closed, and local development uses an explicit,
+`sub` ([ADR-001](./adr/ADR-001.md)). The Access audience check fails closed, and local development uses an explicit,
 non-production identity adapter (`ACCESS_BYPASS_DEV`). One Access application protects `/login`;
-the Worker gates everything else (ADR-026).
+the Worker gates everything else ([ADR-026](./adr/ADR-026.md)).
 
 Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate actions through
 `isActionAllowed`. Every endpoint denies by default.
 
 - Living people, and anyone whose state cannot be determined, are private by default, with a
-  per-person override (ADR-015). One `ViewerScope` per request carries the rule into every query,
+  per-person override ([ADR-015](./adr/ADR-015.md)). One `ViewerScope` per request carries the rule into every query,
   so totals, paging and counts never leak.
 - Sub-trees are managed by `tree:manage_subtrees` (manager and above). A sub-tree whose root the
-  viewer may not see is left out of the list and its address is a 404 (ADR-062).
-- Members join by invitation (ADR-016, ADR-031). Only the install owner, members and invitees are
-  admitted (ADR-034). A tree can be made public to read without signing in (ADR-041).
-  Each member may mark one of their trees as the default that `/` opens (ADR-044).
+  viewer may not see is left out of the list and its address is a 404 ([ADR-062](./adr/ADR-062.md)).
+- Members join by invitation ([ADR-016](./adr/ADR-016.md), [ADR-031](./adr/ADR-031.md)). Only the install owner, members and invitees are
+  admitted ([ADR-034](./adr/ADR-034.md)). A tree can be made public to read without signing in ([ADR-041](./adr/ADR-041.md)).
+  Each member may mark one of their trees as the default that `/` opens ([ADR-044](./adr/ADR-044.md)).
 - Media reads check the tree first, then the file's row, then the role, so a caller outside the tree
   learns nothing about a key. Uploads are sniffed and capped, and served by `Content-Type` allowlist
-  (ADR-039).
+  ([ADR-039](./adr/ADR-039.md)).
 - The Files manager lists files across the trees a caller may see, and each row carries the actions
   the server allowed for it. Editors may upload, rename, attach, detach and move files, and delete
   the files they uploaded; managers and owners may delete any file. The install owner sees metadata
-  only for trees they are not in (ADR-050, ADR-041).
-- Export is a manager action, and its background job re-checks authorization (ADR-040).
+  only for trees they are not in ([ADR-050](./adr/ADR-050.md), [ADR-041](./adr/ADR-041.md)).
+- Export is a manager action, and its background job re-checks authorization ([ADR-040](./adr/ADR-040.md)).
 - Settings are the caller's own: anyone signed in may change their colours and motion setting,
-  and only the install owner may change the site default (ADR-054).
+  and only the install owner may change the site default ([ADR-054](./adr/ADR-054.md)).
 - A profile (display name, picture) is the caller's own too. A picture is served to its owner and to
-  people who share a tree with them, never to the public visitor (ADR-070).
+  people who share a tree with them, never to the public visitor ([ADR-070](./adr/ADR-070.md)).
 
 ## Layout and views
 
-Tree pages live under `/trees/<slug>`, and the id still works and redirects there (ADR-045).
+Tree pages live under `/trees/<slug>`, and the id still works and redirects there ([ADR-045](./adr/ADR-045.md)).
 With `EPOCH_TREE_HOST_ZONE` set, a tree may also be served at `<slug>.<zone>`, which shows only that
 tree. Pages there keep the `/trees/<slug>/…` form, and links that leave the tree go to the app host
-(ADR-057).
+([ADR-057](./adr/ADR-057.md)).
 
 A sub-tree rides inside the tree's path segment: `/trees/<tree>~<sub>/…`, and the API takes the same
 segment. `~` cannot appear in a slug or a UUID. `splitTreeSegment` in `shared/tree-slug.ts` is the
 only code that knows the separator, and `treeHandler` resolves the sub-tree and passes it to the
-handler beside `treeId` (ADR-062). Keeping the segment positional means the host and redirect checks
-in `hooks.server.ts` and `tree-host.ts` need no change (ADR-057).
+handler beside `treeId` ([ADR-062](./adr/ADR-062.md)). Keeping the segment positional means the host and redirect checks
+in `hooks.server.ts` and `tree-host.ts` need no change ([ADR-057](./adr/ADR-057.md)).
 
 A sub-tree is a lens, not an access boundary. Under a lens the chart opens on the root, and the
 people, surname, union and place lists, search, the person finder and the header counts read only
 the members (`inSubtree` is ANDed with `tree_id` and the visibility predicate, so totals and paging
-stay in scope). Sources, files, tasks, writes, undo and GEDCOM export stay tree-wide (ADR-062).
+stay in scope). Sources, files, tasks, writes, undo and GEDCOM export stay tree-wide ([ADR-062](./adr/ADR-062.md)).
 The tree page is a focus-centred hourglass: there is always a focus person, and the client fetches a
-bounded subgraph rather than the whole tree (ADR-011). Pedigree, descendant, fan, hourglass and
-relationship views read the same kin loader (ADR-017, ADR-020). Optional WebGL views (Rings, Ball,
-Ribbons, Orrery) share one selection and highlight model (ADR-032, ADR-033, ADR-035); flat is the
+bounded subgraph rather than the whole tree ([ADR-011](./adr/ADR-011.md)). Pedigree, descendant, fan, hourglass and
+relationship views read the same kin loader ([ADR-017](./adr/ADR-017.md), [ADR-020](./adr/ADR-020.md)). Optional WebGL views (Rings, Ball,
+Ribbons, Orrery) share one selection and highlight model ([ADR-032](./adr/ADR-032.md), [ADR-033](./adr/ADR-033.md), [ADR-035](./adr/ADR-035.md)); flat is the
 default. The flat view shows a minimap once the tree no longer fits the canvas, and draws the whole
-tree too, with unconnected families side by side (ADR-046). One person view
-renders both the drawer and the person page (ADR-027); the page leads with the person's life as a
-timeline, and the drawer groups facts by kind (ADR-053, ADR-058).
+tree too, with unconnected families side by side ([ADR-046](./adr/ADR-046.md)). One person view
+renders both the drawer and the person page ([ADR-027](./adr/ADR-027.md)); the page leads with the person's life as a
+timeline, and the drawer groups facts by kind ([ADR-053](./adr/ADR-053.md), [ADR-058](./adr/ADR-058.md)).
 
 Colours and motion are settings, layered like webtrees: the built-in palette, a site default the
 install owner sets, and each person's own choice, one group at a time (sex colours, trace palette,
 focus line). There is no per-tree layer. The root layout resolves the palette once per page and
 every view paints from it; signed-out readers get the site default. Saves are refused below WCAG
 contrast floors. A person may also reduce animation, which only adds to the system's own setting
-(ADR-054).
+([ADR-054](./adr/ADR-054.md)).
 
 ## Research basis
 
