@@ -70,6 +70,55 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - Export writes the tree back out, including structures Epoch does not yet show, which are kept
   from the import rather than discarded. Merged families keep their original ids.
 
+## Roles
+
+Each tree has five roles. Each role can do everything the role before it can, plus the additions
+below.
+
+| Role        | Adds                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewer      | Browse people, places, charts and 3D views, and search. Living and private people are hidden.                                                                             |
+| Contributor | Add people, relationships, citations, notes and research tasks. You see living people you added, but private people stay hidden.                                           |
+| Editor      | Change or delete any record, import GEDCOM and upload media. You see everyone, can read the change log and can undo your own changes.                                      |
+| Manager     | Invite people and change the roles of editors, contributors and viewers. Decide who is private, set tree options, export GEDCOM and undo anyone's change.                  |
+| Owner       | Invite managers and other owners, and delete the tree. A tree always keeps at least one owner.                                                                             |
+
+The install owner is separate from tree roles: setup records you as the install owner, and you
+invite everyone else from a tree's **Members** page.
+
+## FAQ
+
+**What does it cost?** You pay Cloudflare directly for a paid Workers plan. There is no Epoch
+subscription.
+
+**Who can see my tree?** Only people you invite. Cloudflare Access handles sign-in, and anyone else
+who signs in is told to ask the owner for an invitation. Nothing is stored about them.
+
+**Can I bring my tree from other software?** Yes, through GEDCOM. Epoch validates the file, shows a
+preview before anything is written, and offers to merge duplicate families.
+
+**What happens to data Epoch doesn't support yet?** It is kept and written back on export.
+
+**What if two people edit the same person?** The first save wins and the second is refused, with an
+explanation. Undo reverts your latest change, and warns you if the records have changed since.
+
+**Do I need my own domain?** No. Setup can use a workers.dev address or an active domain on your
+Cloudflare account.
+
+**Can I take my data with me?** Yes. Export GEDCOM at any time. `./setup teardown` removes only what
+setup created.
+
+**Is it open source?** Yes, under the GNU Affero General Public License, version 3 or later.
+
+**Does it work on a phone?** Record pages, lists and the family view have phone layouts. The 3D
+views suit larger screens.
+
+**How does it relate to webtrees?** Epoch is inspired by webtrees' capabilities, not its screens or
+code. It is a separate application that exchanges data with it through GEDCOM.
+
+**Is it ready for real records?** Epoch is young and in active development. Known gaps are in
+[docs/backlog.md](./docs/backlog.md). Export GEDCOM regularly.
+
 ## Getting started
 
 To run Epoch on your own machine or install it into your own Cloudflare account, follow
