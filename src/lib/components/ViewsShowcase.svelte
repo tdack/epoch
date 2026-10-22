@@ -81,7 +81,18 @@
 				</p>
 			</div>
 
-			<ul class="track" bind:this={track} style:translate="{-offsetPx}px 0">
+			<!-- Unpinned and animated, the track is a sideways scroller with nothing focusable inside (the
+				videos have no controls), so it takes focus itself and arrow keys can scroll it. Pinned, the
+				page scroll moves it and it stays out of the tab order. Under reduced motion the video
+				controls are the tab stops. -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<ul
+				class="track"
+				bind:this={track}
+				style:translate="{-offsetPx}px 0"
+				tabindex={!isPinned && isAnimated ? 0 : undefined}
+				aria-label={!isPinned && isAnimated ? 'The four 3D views, scrolling sideways' : undefined}
+			>
 				{#each VIEWS_3D as view, i (view.id)}
 					<li class="panel">
 						<div class="stage">
@@ -147,7 +158,7 @@
 	h2 {
 		margin: 0 0 12px;
 		color: var(--vellum);
-		font-size: clamp(2rem, 4.2vw, 2.875rem);
+		font-size: var(--site-display);
 		line-height: 1.1;
 		letter-spacing: -0.02em;
 	}
@@ -156,7 +167,7 @@
 		margin: 0 auto clamp(28px, 3.5vw, 40px);
 		max-width: 56ch;
 		color: var(--emerald-200);
-		font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+		font-size: var(--site-lede);
 	}
 
 	.track {
@@ -205,7 +216,7 @@
 		border-radius: 16px;
 		overflow: hidden;
 		/* Emerald night rather than the app's slate stage, so the panels belong to this page. */
-		background: radial-gradient(120% 90% at 50% 30%, #0b3b2e 0%, var(--emerald-950) 70%);
+		background: radial-gradient(120% 90% at 50% 30%, var(--emerald-900) 0%, var(--emerald-950) 70%);
 		border: 1px solid rgb(110 231 183 / 0.18);
 		box-shadow: 0 18px 40px rgb(2 44 34 / 0.45);
 	}
@@ -240,12 +251,12 @@
 		gap: 12px;
 		margin: 0 0 6px;
 		color: var(--vellum);
-		font-size: 1.375rem;
+		font-size: var(--site-h3);
 	}
 
 	.count {
 		color: var(--emerald-mist);
-		font-size: 0.8125rem;
+		font-size: var(--site-label);
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 	}
@@ -275,5 +286,10 @@
 	.views :focus-visible {
 		outline-color: var(--amber-300);
 		outline-offset: 3px;
+	}
+
+	/* The scroller's own outline would be clipped by the section edge, so it draws inside. */
+	.views .track:focus-visible {
+		outline-offset: -3px;
 	}
 </style>

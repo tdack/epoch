@@ -147,7 +147,7 @@ keeps vellum text above contrast over the brightest spines. -->
 	h1 {
 		margin: 0;
 		color: var(--vellum);
-		font-size: clamp(3.5rem, 9vw, 6rem);
+		font-size: var(--site-hero);
 		line-height: 1;
 		letter-spacing: -0.025em;
 		font-weight: 700;
@@ -223,7 +223,7 @@ keeps vellum text above contrast over the brightest spines. -->
 		background: var(--amber);
 		color: var(--emerald-950);
 		font-weight: 700;
-		font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
+		font-size: var(--site-lede);
 		text-decoration: none;
 		box-shadow: 0 10px 30px rgb(2 44 34 / 0.45);
 		transition:
@@ -253,7 +253,7 @@ keeps vellum text above contrast over the brightest spines. -->
 		min-height: 44px;
 		color: var(--emerald-100);
 		font-weight: 600;
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		text-align: center;
 	}
 

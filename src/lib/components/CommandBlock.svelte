@@ -79,8 +79,19 @@
 		padding: 18px 108px 18px 20px;
 		border-radius: inherit;
 		overflow-x: auto;
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		line-height: 1.8;
+	}
+
+	/* Commands are copied, so the glyphs must be the characters typed: a ligating monospace font draws
+	`--plan` and `--help` with one long dash. */
+	pre,
+	code {
+		font-family: var(--mono);
+		font-variant-ligatures: none;
+		font-feature-settings:
+			'liga' 0,
+			'calt' 0;
 	}
 
 	.line {
@@ -112,7 +123,7 @@
 		padding: 0 12px;
 		border-radius: 8px;
 		font: inherit;
-		font-size: 0.8125rem;
+		font-size: var(--site-label);
 		font-weight: 600;
 		cursor: pointer;
 	}

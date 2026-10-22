@@ -7,6 +7,7 @@
 	--emerald-ink: #011c16;
 	--emerald-200: #a7f3d0;
 	--emerald-100: #d1fae5;
+	--emerald-wash: #ecfdf5;
 	--emerald-mist: #6ee7b7;
 	--vellum: #fffbeb;
 	--amber: #fbbf24;
@@ -23,10 +24,24 @@
 	--tree-paper: #f7f3ea;
 	--tree-dot: #d6cebf;
 
+	/* The site type ramp: DESIGN.md "Site Marketing Ramp". Nine sizes, no others. */
+	--site-label: 0.8125rem;
+	--site-small: 0.9375rem;
+	--site-body: 1rem;
+	--site-lede: clamp(1.0625rem, 1.5vw, 1.1875rem);
+	--site-h4: 1.125rem;
+	--site-h3: 1.3125rem;
+	--site-h2: clamp(1.625rem, 2.8vw, 1.875rem);
+	--site-display: clamp(2rem, 4.2vw, 2.875rem);
+	--site-hero: clamp(3.5rem, 9vw, 6rem);
+	--emerald-mist-20: rgb(167 243 208 / 0.2);
+
 	--sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
 	--measure: 1200px;
+	/* DESIGN.md `rounded.md`: the small-tag step, also the focus ring's corner. */
+	--radius-md: 6px;
 	--gutter: clamp(16px, 4vw, 32px);
 	--nav-height: 76px;
 	--section-gap: clamp(72px, 9vw, 112px);
@@ -58,7 +73,7 @@ body {
 	background: var(--page-cream);
 	color: var(--stone-body);
 	font-family: var(--sans);
-	font-size: 1.0625rem;
+	font-size: var(--site-body);
 	line-height: 1.6;
 	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 	-webkit-font-smoothing: antialiased;
@@ -95,13 +110,62 @@ a:hover {
 :focus-visible {
 	outline: 2px solid var(--emerald-700);
 	outline-offset: 2px;
-	border-radius: 4px;
+	border-radius: var(--radius-md);
 }
 
 code,
 pre {
 	font-family: var(--mono);
+	font-variant-ligatures: none;
+	font-feature-settings:
+		'liga' 0,
+		'calt' 0;
 	font-variant-numeric: tabular-nums;
+}
+
+/* Button-like links, all on an emerald ground. One rule (DESIGN.md "Buttons"): the primary action,
+   opening the demo tree, is the amber pill (.action); every other link-button is the quiet outline
+   (.quiet). Amber is the action and nothing else. */
+.button {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 48px;
+	padding: 0 24px;
+	border: 1px solid transparent;
+	border-radius: 9999px;
+	font-weight: 700;
+	font-size: var(--site-body);
+	text-decoration: none;
+	transition:
+		background-color 160ms var(--ease-out),
+		border-color 160ms var(--ease-out);
+}
+
+.button:focus-visible {
+	outline-color: var(--amber-300);
+	outline-offset: 4px;
+}
+
+.button.action {
+	background: var(--amber);
+	color: var(--emerald-950);
+	box-shadow: 0 10px 30px rgb(2 44 34 / 0.4);
+}
+
+.button.action:hover {
+	background: var(--amber-300);
+	color: var(--emerald-950);
+}
+
+.button.quiet {
+	border-color: var(--emerald-mist);
+	color: var(--vellum);
+}
+
+.button.quiet:hover {
+	background: var(--emerald-900);
+	color: var(--vellum);
 }
 
 .visually-hidden {

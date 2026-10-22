@@ -292,6 +292,11 @@ they only take effect where the system font supports them.
 - **Section label** (700, 0.75rem, 0.05em tracking, uppercase, `stone-text`): the heading of every
   section card on a record page.
 
+**Drawing text.** SVG text inside the explorer and sub-tree figures is sized in the drawing's user
+units (11, 13, 16, 19 and 20, copied from the app's tree cards) and scales with the figure, so it is
+not on the page ramp. The design detector ignores those values in `FamilyExplorer.svelte` and
+`SubtreeFigure.svelte` only.
+
 Text inside the tree's SVG cards uses its own scale: names at 14px bold and dates at 12px in the
 standard card, larger when the card is compacted for a zoomed-out view.
 
@@ -303,6 +308,37 @@ display size belongs to the splash.
 
 **The Sixteen-Pixel Field Rule.** On a coarse pointer every input, select and textarea renders at
 16px or larger, so iOS never zooms when a dialog focuses a field.
+
+## Site Marketing Ramp
+
+The public website (epochgenealogy.app) is a marketing page, not app chrome, so it may set type
+larger than the app's 1.5rem ceiling. It still uses one scale: the sizes below are tokens defined on
+`:root` in `src/app.css`, and the page uses no other font size. Where two near-identical
+sizes existed (0.9375 and 0.96875rem; 1.1875 and 1.125rem; 1.25 and 1.3125rem), one was kept.
+
+| Token | Size | Used for |
+| --- | --- | --- |
+| `--site-label` | 0.8125rem | Uppercase eyebrow labels and ledger terms. Matches the app's section label in role. |
+| `--site-small` | 0.9375rem | Secondary text: notes, list items, table cells, footer line, asides. |
+| `--site-body` | 1rem | Running text and the standard button label. |
+| `--site-lede` | clamp(1.0625rem, 1.5vw, 1.1875rem) | The intro paragraph under a section heading. |
+| `--site-h4` | 1.125rem | Step titles, FAQ questions and the closing call to action. Same as the app's Title. |
+| `--site-h3` | 1.3125rem | Group and role titles, and the demo prompt. |
+| `--site-h2` | clamp(1.625rem, 2.8vw, 1.875rem) | A sub-section heading and the closing statement. |
+| `--site-display` | clamp(2rem, 4.2vw, 2.875rem) | Section headings. |
+| `--site-hero` | clamp(3.5rem, 9vw, 6rem) | The home hero title only. The one display size above `--site-display`; no other element uses it. |
+
+Add a new size only by adding a token here first.
+
+The site's link-buttons sit on emerald grounds and follow one rule (`.button` in `src/app.css`):
+the primary action, opening the demo tree, is the amber pill (`.button.action`: amber fill,
+emerald-950 label, an amber-300 focus outline); every other link-button is the quiet vellum outline
+(`.button.quiet`). Amber marks the action and nothing else, so the install step numbers are all
+emerald outlines. Full-bleed section bands are page cream or an emerald ground; the neutral
+`stone-shelf` grey is not used as a band.
+
+`--emerald-mist-20` (`rgb(167 243 208 / 0.2)`, emerald-200 at 20%) is the hairline rule above the
+footer colophon, on the emerald ground.
 
 ## Layout
 

@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "files": [
+          "src/lib/components/FamilyExplorer.svelte"
+        ],
+        "createdAt": "2026-10-22T07:14:45.378Z",
+        "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "11px",
+        "files": [
+          "src/lib/components/FamilyExplorer.svelte"
+        ],
+        "createdAt": "2026-10-22T07:14:45.399Z",
+        "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "19px",
+        "files": [
+          "src/lib/components/FamilyExplorer.svelte"
+        ],
+        "createdAt": "2026-10-22T07:14:45.416Z",
+        "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "13px",
+        "files": [
+          "src/lib/components/FamilyExplorer.svelte"
+        ],
+        "createdAt": "2026-10-22T07:14:45.432Z",
+        "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "files": [
+          "src/lib/components/SubtreeFigure.svelte"
+        ],
+        "createdAt": "2026-10-22T07:14:45.448Z",
+        "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
+      }
+    ]
+  }
+}
