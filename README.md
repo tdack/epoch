@@ -3,7 +3,7 @@
 The public website for [Epoch](https://github.com/tdack/epoch), a private family-tree application.
 This branch (`website`) holds only the site; it shares no history with the application on `main`.
 
-The site is one prerendered SvelteKit page, served by a Cloudflare Worker at
+The site is three prerendered SvelteKit pages (home, roles and sub-trees), served by a Cloudflare Worker at
 <https://epochgenealogy.app>. It links to the demo at <https://demo.epochgenealogy.app>.
 
 ## Running it
@@ -45,7 +45,9 @@ only. Preview URLs are a Worker setting, so they work only once a production dep
 
 - `src/lib/site.ts`: every link, the principles, the feature groups and the FAQ. Most copy
   changes happen here.
-- `src/routes/+page.svelte`: the page and its sections.
+- `src/routes/+page.svelte`: the home page and its sections. `src/routes/roles/` and
+  `src/routes/sub-trees/` are the two pages below it; `+layout.svelte` holds the nav they share.
+  Add a new page to `static/sitemap.xml` and to the footer links in `SiteFooter.svelte`.
 - `src/lib/components/`: the hero, the family explorer, the section connectors and the copyable
   command blocks. `EpochMark.svelte` is copied from the app; change the two together.
 - `src/lib/family.ts` and `src/lib/morph.ts`: the explorer's invented family, where each view

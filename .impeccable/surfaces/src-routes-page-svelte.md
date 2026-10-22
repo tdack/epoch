@@ -7,11 +7,19 @@ related_targets: []
 
 ## Scope
 
-The public site at epochgenealogy.app, one page. Mode: Persuade. Visitors are families and
-researchers deciding whether to try Epoch, and technical relatives who would install it. The
-action is the demo (demo.epochgenealogy.app); the second action is the code and the install.
+The public site at epochgenealogy.app: the home page (`src/routes/+page.svelte`) and two detail
+pages in the same design, `/roles` and `/sub-trees` (2026-10-22). Mode: Persuade. Visitors are
+families and researchers deciding whether to try Epoch, and technical relatives who would install
+it. The action is the demo (demo.epochgenealogy.app); the second action is the code and the install.
 Proof is the product's own drawing of a family, labelled as synthetic. No invented claims:
 no users, testimonials, prices or benchmarks.
+
+Home page order (2026-10-22, after the critique): why, the explorer, features, the 3D views, get
+the code, install, FAQ, then the close. Roles and sub-trees are second-order depth, so they left
+the home page; the features section ends with a sentence linking to both. The nav follows the home
+order (Explore, Features, 3D Views, Get the code, Install, FAQ) and ends with Roles, a page of its
+own. Its in-page links are `/#…`, so they work from the detail pages, which share the nav, the
+close and the footer (`SiteFooter`) and open with a compact emerald header (`PageHeader`).
 
 ## Direction contract
 
@@ -41,12 +49,15 @@ stem, action), the connectors between sections draw on scroll, and the explorer 
 2026-10-17) redraws one invented family as each 2D view the app has: family view, descendants,
 hourglass, ancestors, fan and relationship. It plays like a highlights reel (2026-10-21, after
 Apple's "Get the highlights"): the view's caption sits above the drawing, and under it a stone
-tray holds one pill per view beside a round Play/Pause. Each view holds for 7s while an emerald fill
+tray holds one pill per view beside a round Play/Pause. A visually hidden live region says "Now
+showing" and the view's name when it changes. Each view holds for 7s while an emerald fill
 sweeps across its pill, the name turning vellum as the fill passes, then every person's card morphs
 to the next view's shape (cards bend into fan wedges and flatten into the relationship page's rows),
 rippling out from the focus person. It starts the first time the drawing is in sight, waits while
 it is off screen or the tab is hidden, stops on the last view with Replay, and stops for a reader
-who pans the drawing. Phones get dots, the playing one a filling capsule. Reduced motion starts
+who pans the drawing. Phones get dots with 44px targets (38px at 320px wide), the playing one a
+filling capsule; the drawing keeps a 960px minimum width and scrolls, and stops where no card is
+cut by the frame's edge. Reduced motion starts
 paused and switches views without the morph. The scroll-pinned stage it replaced is gone. Every view copies the demo's own rendering (card size,
 glyphs, link curves and dashes, union labels, focus tab), so it is the product, not a drawing of
 it. It hands off to the 3D clips that follow.
@@ -54,15 +65,22 @@ Adaptations from the app, each a setting the app allows or a legibility choice: 
 text are drawn larger for a 1040-unit stage; the hourglass shows two generations each side (the
 app's steppers reach it; its default is one); the descendants chart's focus card grows to name
 both partners, where the app cuts the line at 22 characters.
-Roles and sub-trees (2026-10-20): after the feature groups, a stem drops to "Who can do what", a
-five-rung ladder down one 3px emerald line with round nodes, viewer to owner, each rung naming only
-what it adds (`ROLES` in `site.ts`, checked against `authorization.ts`, `roles.ts`,
+Roles and sub-trees (2026-10-20; moved to their own pages 2026-10-22): `/roles` is "Who can do
+what", a five-rung ladder down one 3px emerald line with round nodes, viewer to owner, each rung
+naming only what it adds (`ROLES` in `site.ts`, checked against `authorization.ts`, `roles.ts`,
 `member-service.ts`, `change-audit.ts` and `visibility.ts` on `main`). No amber: the ladder is the
-line, not the action. Below it, #subtrees draws the explorer's family as the app's family view cut
-to the Marsh line (William Marsh, his descendants and their partners); the people outside it fade
-and grey as the figure scrolls in, the section's one moment, static under reduced motion. Copy
-holds that a sub-tree is a lens, not an access boundary (ADR-062), and members-only until a manager
-shows it to visitors (ADR-069).
+line, not the action. `/sub-trees` draws the explorer's family as the app's family view cut to the
+Marsh line (William Marsh, his descendants and their partners); the people outside it fade and grey
+as the figure scrolls in, the page's one moment, static under reduced motion. On a phone the
+figure scrolls sideways inside its frame, with an edge fade, so its names stay legible. Copy holds
+that a sub-tree is a lens, not an access boundary (ADR-062), and members-only until a manager shows
+it to visitors (ADR-069). Page copy is `ROLES_PAGE` and `SUBTREES_PAGE` in `site.ts`.
+
+Colour and buttons (2026-10-22): amber marks the action and the child, nothing else. The primary
+action, opening the demo tree, is the amber pill (`.button.action` in `app.css`) in the hero, the
+features aside and the close; every other link-button is the quiet vellum outline (`.button.quiet`).
+The install steps are numbered in emerald, one ledger row each. Section bands are page cream or an
+emerald ground, never the neutral `stone-shelf` grey. Type uses the `--site-*` ramp in DESIGN.md.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 

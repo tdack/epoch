@@ -94,7 +94,7 @@ export interface Role {
 	name: string;
 	/** What the role is for, in a few words. */
 	summary: string;
-	/** Only what this role adds to the one before it; the ladder carries the rest. `[text](#id)` links. */
+	/** Only what this role adds to the one before it; the ladder carries the rest. `[text](url)` links. */
 	adds: string[];
 	/** What this role sees where it differs from the role before, or a rule that binds it. */
 	note?: string;
@@ -140,7 +140,7 @@ export const ROLES: Role[] = [
 			'Invites editors, contributors and viewers, and changes their roles',
 			'Decides who is private, and sets the tree’s settings',
 			'Exports the tree as GEDCOM, living people included',
-			'[Makes sub-trees](#subtrees) for one family line at a time',
+			'[Makes sub-trees](/sub-trees) for one family line at a time',
 			'Chooses which sub-trees visitors to a public tree can open',
 			'Undoes anyone’s change and deletes anyone’s files'
 		]
@@ -156,6 +156,38 @@ export const ROLES: Role[] = [
 		note: 'A tree always keeps at least one owner.'
 	}
 ];
+
+/** The roles page: the ladder of tree roles. */
+export const ROLES_PAGE = {
+	path: '/roles',
+	title: 'Who can do what',
+	description:
+		'The five roles in an Epoch tree, from viewer to owner. Each role can do everything the one before it can, and adds the things listed with it.',
+	lede: 'Everyone in a tree has one role. Each role can do everything the one before it can, and adds the things listed with it.'
+};
+
+/** The sub-trees page: what a sub-tree holds, what it narrows and what it leaves whole. */
+export const SUBTREES_PAGE = {
+	path: '/sub-trees',
+	title: 'Sub-trees',
+	description:
+		'A sub-tree is one family line from a large Epoch tree: a person, their descendants and the partners of all of them. It narrows the lists, not what people can see.',
+	lede: 'One family line from a large tree.',
+	/** Plain paragraphs; `[text](url)` becomes a link. */
+	paragraphs: [
+		'A tree of several hundred people is several families in one file. A [manager](/roles) can name a sub-tree that starts at one person, such as a Marsh line starting at William Marsh. It appears under the tree in the tree switcher and has its own address to share.',
+		'A sub-tree holds the person it starts at, everyone descended from them through any parentage that is not disputed, and the partners of all of those people. Lines can overlap, so one person can be in several sub-trees.',
+		`The demo has one to open: [the Windsor line](${DEMO_SUBTREE_URL}), starting at Elizabeth II.`
+	],
+	/** The note under the scope lists. */
+	note: 'A sub-tree is a way into the tree, not a wall around part of it. Nobody outside the line is hidden, and privacy works as it does everywhere else. A sub-tree is for members until a manager shows it to visitors of a public tree, and every change to one can be undone.',
+	closeTitle: 'Open a sub-tree in the demo.',
+	closeAction: 'Open the Windsor line'
+};
+
+/** The sentence on the home page that points to the two pages above. `[text](url)` links. */
+export const FEATURES_MORE =
+	'Every tree role adds to the one before it: see [who can do what](/roles). A manager can also cut a large tree down to one family line with [sub-trees](/sub-trees).';
 
 /** What a sub-tree narrows and what it leaves whole (ADR-062 on `main`). */
 export const SUBTREE_SCOPE = {
@@ -188,7 +220,7 @@ export const FAQS: Faq[] = [
 		question: 'Who can see our tree?',
 		answer: [
 			'Only the people you let in. Cloudflare Access handles sign-in, and Epoch then admits only the install owner, members of a tree and people with an open invitation. Anyone else who signs in is told to ask the owner for an invitation, and nothing is stored about them.',
-			'Inside a tree, each person has a role, and living people are hidden from anyone without the right to see them. Tree managers set that per tree. [What each role can do](#roles).'
+			'Inside a tree, each person has a role, and living people are hidden from anyone without the right to see them. Tree managers set that per tree. [What each role can do](/roles).'
 		]
 	},
 	{

@@ -1,15 +1,21 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import EpochMark from './EpochMark.svelte';
 
+	// The in-page links follow the home page's order and start with `/`, so they also work from the
+	// pages below it. Roles is a page of its own, so it comes last.
 	const NAV = [
-		{ href: '#explore', label: 'Explore' },
-		{ href: '#features', label: 'Features' },
-		{ href: '#roles', label: 'Roles' },
-		{ href: '#views', label: '3D Views' },
-		{ href: '#code', label: 'Get the code' },
-		{ href: '#install', label: 'Install' },
-		{ href: '#faq', label: 'FAQ' }
+		{ href: '/#explore', label: 'Explore' },
+		{ href: '/#features', label: 'Features' },
+		{ href: '/#views', label: '3D Views' },
+		{ href: '/#code', label: 'Get the code' },
+		{ href: '/#install', label: 'Install' },
+		{ href: '/#faq', label: 'FAQ' },
+		{ href: '/roles', label: 'Roles' }
 	];
+
+	/** `page` marks the link to the page being read; a jump link to a section never is. */
+	const current = (href: string) => (page.url.pathname === href ? 'page' : undefined);
 
 	let scrollY = $state(0);
 	let menu = $state<HTMLDetailsElement>();
@@ -29,20 +35,26 @@
 down, so the photograph still runs to the top edge. -->
 <div class="bar" class:is-solid={isSolid}>
 	<nav aria-label="Main" class="nav">
-		<a href="#top" class="brand">
+		<a href="/#top" class="brand">
 			<EpochMark size={30} ink="var(--vellum)" />
 			<span>Epoch</span>
 		</a>
 		<ul class="links">
 			{#each NAV as item (item.href)}
-				<li><a href={item.href}>{item.label}</a></li>
+				<li>
+					<a href={item.href} aria-current={current(item.href)}>{item.label}</a>
+				</li>
 			{/each}
 		</ul>
 		<details class="menu" bind:this={menu}>
 			<summary>Menu</summary>
 			<ul>
 				{#each NAV as item (item.href)}
-					<li><a href={item.href} onclick={closeMenu}>{item.label}</a></li>
+					<li>
+						<a href={item.href} aria-current={current(item.href)} onclick={closeMenu}
+							>{item.label}</a
+						>
+					</li>
 				{/each}
 			</ul>
 		</details>
@@ -95,7 +107,7 @@ down, so the photograph still runs to the top edge. -->
 		min-height: 44px;
 		color: var(--vellum);
 		font-weight: 700;
-		font-size: 1.125rem;
+		font-size: var(--site-h4);
 		text-decoration: none;
 	}
 
@@ -120,9 +132,15 @@ down, so the photograph still runs to the top edge. -->
 		border-radius: 8px;
 		color: var(--emerald-100);
 		font-weight: 600;
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		white-space: nowrap;
 		text-decoration: none;
+	}
+
+	.links a[aria-current='page'],
+	.menu a[aria-current='page'] {
+		color: var(--vellum);
+		background: rgb(255 251 235 / 0.12);
 	}
 
 	.links a:hover,

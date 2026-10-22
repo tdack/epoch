@@ -4,10 +4,13 @@
 	// The explorer's invented family, drawn as the app's family view (cards tinted by sex with
 	// their glyphs, union markers, link inks and dashes) and cut to the Marsh line: William, everyone
 	// descended from him and their partners. His parents and Mary's are drawn only to be left out.
-	const CARD = { w: 132, h: 58 } as const;
+	// 140 wide so the longest date ("BET 1908 AND 1910 –", 12 units) stays inside its card.
+	const CARD = { w: 140, h: 58 } as const;
 	const UNION_R = 11;
 	const ROW = [38, 150, 262, 374] as const;
-	const MIN_WIDTH_PX = 540;
+	// 640px for 680 units is a scale of 0.94: names (16 units) never render under about 15px and
+	// dates (12 units) under about 11px, so a narrower screen pans the drawing instead of shrinking it.
+	const MIN_WIDTH_PX = 640;
 
 	const INK = {
 		biological: '#44403c',
@@ -30,14 +33,14 @@
 	}
 	const CARDS: Card[] = [
 		{ id: 'john', x: 76, y: ROW[0], isOutside: true },
-		{ id: 'ann', x: 236, y: ROW[0], isOutside: true },
-		{ id: 'george', x: 444, y: ROW[0], isOutside: true },
+		{ id: 'ann', x: 244, y: ROW[0], isOutside: true },
+		{ id: 'george', x: 436, y: ROW[0], isOutside: true },
 		{ id: 'sarah', x: 604, y: ROW[0], isOutside: true },
 		{ id: 'william', x: 156, y: ROW[1], isRoot: true },
 		{ id: 'mary', x: 524, y: ROW[1] },
-		{ id: 'thomas', x: 180, y: ROW[2] },
+		{ id: 'thomas', x: 170, y: ROW[2] },
 		{ id: 'ellen', x: 340, y: ROW[2] },
-		{ id: 'arthur', x: 500, y: ROW[2] },
+		{ id: 'arthur', x: 510, y: ROW[2] },
 		{ id: 'rose', x: 115, y: ROW[3] },
 		{ id: 'henry', x: 265, y: ROW[3] },
 		{ id: 'jack', x: 415, y: ROW[3] },
@@ -121,7 +124,12 @@
 		aria-label={isScrolling ? 'Sub-tree drawing, scrolls sideways' : undefined}
 		aria-describedby={isScrolling ? 'subtree-caption' : undefined}
 	>
-		<svg viewBox="0 0 680 420" aria-hidden="true" style:min-width="{MIN_WIDTH_PX}px">
+		<svg
+			viewBox="0 0 680 420"
+			role="img"
+			aria-labelledby="subtree-caption"
+			style:min-width="{MIN_WIDTH_PX}px"
+		>
 			<defs>
 				<pattern id="subtree-dots" width="18" height="18" patternUnits="userSpaceOnUse">
 					<circle cx="2" cy="2" r="1.3" fill="var(--tree-dot)" />
@@ -239,7 +247,7 @@
 
 	/* The half of the family past the edge fades out, so a phone shows there is more to pan to. */
 	.scroller.has-more {
-		mask-image: linear-gradient(to left, transparent, #000 48px);
+		mask-image: linear-gradient(to left, transparent, #1c1917 40px);
 	}
 
 	.scroller:focus-visible {
@@ -254,13 +262,13 @@
 	}
 
 	.name {
-		font-size: 15px;
+		font-size: 16px;
 		font-weight: 600;
 		fill: var(--stone-ink);
 	}
 
 	.dates {
-		font-size: 11px;
+		font-size: 12px;
 		fill: var(--stone-strong);
 		font-variant-numeric: tabular-nums;
 	}
@@ -271,13 +279,13 @@
 	}
 
 	.union-label {
-		font-size: 11px;
+		font-size: 12px;
 		fill: #8a5a14;
 		font-variant-numeric: tabular-nums;
 	}
 
 	.tab {
-		font-size: 11px;
+		font-size: 12px;
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		fill: #fff;
@@ -318,7 +326,7 @@
 	}
 
 	figcaption {
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		line-height: 1.55;
 		color: var(--stone-text);
 		max-width: 62ch;

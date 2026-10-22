@@ -1,24 +1,20 @@
 <script lang="ts">
 	import CommandBlock from '#lib/components/CommandBlock.svelte';
 	import Descent from '#lib/components/Descent.svelte';
-	import EpochMark from '#lib/components/EpochMark.svelte';
 	import FamilyExplorer from '#lib/components/FamilyExplorer.svelte';
 	import Hero from '#lib/components/Hero.svelte';
-	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import RichText from '#lib/components/RichText.svelte';
-	import SiteNav from '#lib/components/SiteNav.svelte';
-	import SubtreeFigure from '#lib/components/SubtreeFigure.svelte';
+	import SiteFooter from '#lib/components/SiteFooter.svelte';
+	import ViewsShowcase from '#lib/components/ViewsShowcase.svelte';
 	import {
-		DEMO_SUBTREE_URL,
 		DEMO_URL,
 		FAQS,
 		FEATURE_GROUPS,
+		FEATURES_MORE,
 		PRINCIPLES,
 		REPO_CLONE_URL,
 		REPO_URL,
-		ROLES,
 		SITE_URL,
-		SUBTREE_SCOPE,
 		TAGLINE
 	} from '#lib/site.js';
 
@@ -66,7 +62,6 @@
 	<link rel="preload" as="image" href="/brand/splash-library.webp" type="image/webp" />
 </svelte:head>
 
-<SiteNav />
 <Hero />
 
 <main>
@@ -114,88 +109,11 @@
 				{/each}
 				<aside class="try">
 					<p>See it with a real tree before you install anything.</p>
-					<a class="button vellum" href={DEMO_URL}>Explore the demo tree</a>
+					<a class="button action" href={DEMO_URL}>Explore the demo tree</a>
 				</aside>
 			</div>
-		</div>
-	</section>
 
-	<section id="roles" class="roles" aria-labelledby="roles-title">
-		<div class="wrap">
-			<Descent />
-			<header class="centred">
-				<h2 id="roles-title" class="display">Who can do what</h2>
-				<p class="lede">
-					Everyone in a tree has one role. Each role can do everything the one before it can, and
-					adds the things listed with it.
-				</p>
-			</header>
-
-			<ol class="ladder">
-				{#each ROLES as role (role.name)}
-					<li>
-						<span class="rung" aria-hidden="true"></span>
-						<div class="who">
-							<h3>{role.name}</h3>
-							<p>{role.summary}</p>
-						</div>
-						<div class="what">
-							<ul>
-								{#each role.adds as item (item)}
-									<li><RichText text={item} /></li>
-								{/each}
-							</ul>
-							{#if role.note}
-								<p class="aside">{role.note}</p>
-							{/if}
-						</div>
-					</li>
-				{/each}
-			</ol>
-
-			<div id="subtrees" class="subtrees">
-				<div class="stack">
-					<h3 class="title">Sub-trees: one family line from a large tree</h3>
-					<p>
-						A tree of several hundred people is several families in one file. A manager can name a
-						sub-tree that starts at one person, such as a Marsh line starting at William Marsh. It
-						appears under the tree in the tree switcher and has its own address to share.
-					</p>
-					<p>
-						In it are the person it starts at, everyone descended from them through any parentage
-						that is not disputed, and all of their partners. Lines can overlap, so one person can be
-						in several.
-					</p>
-					<p>
-						The demo has one to open: <a href={DEMO_SUBTREE_URL}>the Windsor line</a>, starting at
-						Elizabeth II.
-					</p>
-				</div>
-				<SubtreeFigure />
-				<div class="scope">
-					<div>
-						<h4 class="label">Narrowed to the line</h4>
-						<ul>
-							{#each SUBTREE_SCOPE.narrowed as item (item)}
-								<li>{item}</li>
-							{/each}
-						</ul>
-					</div>
-					<div>
-						<h4 class="label">Still the whole tree</h4>
-						<ul>
-							{#each SUBTREE_SCOPE.whole as item (item)}
-								<li>{item}</li>
-							{/each}
-						</ul>
-					</div>
-					<p class="note">
-						A sub-tree is a way into the tree, not a wall around part of it. Nobody outside the line
-						is hidden, and privacy works as it does everywhere else. A sub-tree is for members until
-						a manager shows it to visitors of a public tree, and every change to one can be undone.
-					</p>
-				</div>
-			</div>
+			<p class="more"><RichText text={FEATURES_MORE} /></p>
 		</div>
 	</section>
 
@@ -211,7 +129,7 @@
 						Epoch is one SvelteKit application, in a single repository on GitHub. Clone it, run it
 						on your own machine with a sample tree, then decide whether to install it.
 					</p>
-					<a class="button vellum" href={REPO_URL}>
+					<a class="button quiet" href={REPO_URL}>
 						<svg
 							width="18"
 							height="18"
@@ -272,6 +190,8 @@
 					<div>
 						<h3>See the plan</h3>
 						<p>Read-only: it shows what would be created or changed, and touches nothing.</p>
+					</div>
+					<div class="command">
 						<CommandBlock lines={['./setup --plan']} label="the setup plan command" />
 					</div>
 				</li>
@@ -284,11 +204,13 @@
 							deploys, checks the result and records you as the install owner. It asks only what it
 							cannot find out itself.
 						</p>
+					</div>
+					<div class="command">
 						<CommandBlock lines={['./setup']} label="the setup command" />
 					</div>
 				</li>
 				<li>
-					<span class="step focus" aria-hidden="true">4</span>
+					<span class="step" aria-hidden="true">4</span>
 					<div>
 						<h3>Invite your family</h3>
 						<p>
@@ -351,25 +273,7 @@
 	</section>
 </main>
 
-<footer class="close">
-	<div class="wrap">
-		<Descent tone="vellum" isFocus />
-		<p class="close-title">Start with someone else's tree.</p>
-		<a class="button amber" href={DEMO_URL}>Explore the demo tree</a>
-		<div class="colophon">
-			<a href="#top" class="mark-link">
-				<EpochMark size={28} ink="var(--vellum)" />
-				<span>Epoch</span>
-			</a>
-			<p>Inspired by the capabilities of webtrees, not its screens or code.</p>
-			<ul>
-				<li><a href={REPO_URL}>GitHub</a></li>
-				<li><a href={DEMO_URL}>Demo</a></li>
-				<li><a href="#install">Install</a></li>
-			</ul>
-		</div>
-	</div>
-</footer>
+<SiteFooter />
 
 <style>
 	.wrap {
@@ -384,21 +288,21 @@
 
 	.display {
 		margin: 0;
-		font-size: clamp(2rem, 4.2vw, 2.875rem);
+		font-size: var(--site-display);
 		line-height: 1.1;
 		letter-spacing: -0.02em;
 	}
 
 	.lede {
 		margin: 0;
-		font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+		font-size: var(--site-lede);
 		line-height: 1.6;
 		color: var(--stone-text);
 	}
 
 	.label {
 		margin: 0;
-		font-size: 0.8125rem;
+		font-size: var(--site-label);
 		font-weight: 700;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
@@ -406,7 +310,7 @@
 
 	.note {
 		margin: 0;
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		line-height: 1.6;
 	}
 
@@ -442,44 +346,6 @@
 		align-self: stretch;
 	}
 
-	.button {
-		display: inline-flex;
-		align-items: center;
-		gap: 10px;
-		min-height: 48px;
-		padding: 0 22px;
-		border-radius: 12px;
-		font-weight: 700;
-		font-size: 1rem;
-		text-decoration: none;
-		transition: background-color 160ms var(--ease-out);
-	}
-
-	.button.vellum {
-		background: var(--vellum);
-		color: var(--emerald-900);
-	}
-
-	.button.vellum:hover {
-		background: var(--field-white);
-		color: var(--emerald-900);
-	}
-
-	.button.amber {
-		min-height: 56px;
-		padding: 0 28px;
-		border-radius: 9999px;
-		background: var(--amber);
-		color: var(--emerald-950);
-		font-size: 1.125rem;
-		box-shadow: 0 10px 30px rgb(2 44 34 / 0.4);
-	}
-
-	.button.amber:hover {
-		background: var(--amber-300);
-		color: var(--emerald-950);
-	}
-
 	/* Why: a ledger of terms beside the claim. */
 	.ledger {
 		margin: 0;
@@ -496,7 +362,7 @@
 
 	.ledger dt {
 		padding-top: 3px;
-		font-size: 0.8125rem;
+		font-size: var(--site-label);
 		font-weight: 700;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
@@ -511,7 +377,7 @@
 
 	/* Features */
 	.features {
-		background: var(--stone-shelf);
+		background: var(--page-cream);
 		border-block: 1px solid var(--stone-rule);
 	}
 
@@ -523,7 +389,7 @@
 
 	.group h3 {
 		margin: 0 0 8px;
-		font-size: 1.3125rem;
+		font-size: var(--site-h3);
 		line-height: 1.3;
 	}
 
@@ -543,7 +409,7 @@
 		position: relative;
 		padding: 9px 0 9px 22px;
 		border-bottom: 1px solid var(--stone-rule);
-		font-size: 0.96875rem;
+		font-size: var(--site-small);
 		line-height: 1.5;
 		color: var(--stone-strong);
 	}
@@ -560,6 +426,14 @@
 		background: var(--emerald-800);
 	}
 
+	/* The way on to the two pages below the home page. */
+	.more {
+		max-width: 62ch;
+		margin: clamp(36px, 4vw, 48px) auto 0;
+		text-align: center;
+		color: var(--stone-strong);
+	}
+
 	.try {
 		display: flex;
 		flex-direction: column;
@@ -574,157 +448,9 @@
 
 	.try p {
 		margin: 0;
-		font-size: 1.25rem;
+		font-size: var(--site-h3);
 		line-height: 1.4;
 		font-weight: 600;
-	}
-
-	.try .button:focus-visible {
-		outline-color: var(--amber-300);
-		outline-offset: 3px;
-	}
-
-	/* Roles: a ladder down the line of descent, each rung adding to the last. */
-	.ladder {
-		max-width: 1000px;
-		margin: 0 auto;
-		padding: 0;
-		list-style: none;
-	}
-
-	.ladder > li {
-		position: relative;
-		display: grid;
-		grid-template-columns: 18px minmax(0, 15rem) minmax(0, 1fr);
-		gap: 8px clamp(20px, 3vw, 40px);
-		padding: 22px 0;
-	}
-
-	/* The line runs from each rung's node to the next one's, so it stops at the owner. */
-	.ladder > li:not(:last-child)::before {
-		content: '';
-		position: absolute;
-		left: 7.5px;
-		top: 38px;
-		bottom: -38px;
-		width: 3px;
-		background: var(--emerald-800);
-	}
-
-	/* The rule between rungs starts after the line, so the line reads unbroken. */
-	.ladder > li + li::after {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: calc(18px + clamp(20px, 3vw, 40px));
-		right: 0;
-		border-top: 1px solid var(--stone-rule);
-	}
-
-	.rung {
-		position: relative;
-		margin-top: 7px;
-		width: 18px;
-		height: 18px;
-		border-radius: 9999px;
-		background: var(--emerald-800);
-	}
-
-	.who h3 {
-		margin: 0;
-		font-size: 1.3125rem;
-		line-height: 1.3;
-	}
-
-	.who p {
-		margin: 2px 0 0;
-		color: var(--stone-text);
-	}
-
-	.what ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.what li,
-	.scope li {
-		position: relative;
-		padding: 3px 0 3px 20px;
-		color: var(--stone-strong);
-		line-height: 1.5;
-	}
-
-	.what li::before,
-	.scope li::before {
-		content: '';
-		position: absolute;
-		left: 2px;
-		top: 0.82em;
-		width: 7px;
-		height: 7px;
-		border-radius: 9999px;
-		background: var(--emerald-800);
-	}
-
-	.what .aside {
-		margin: 8px 0 0;
-		padding-left: 20px;
-		font-size: 0.9375rem;
-		color: var(--stone-text);
-		font-style: italic;
-	}
-
-	.subtrees {
-		display: grid;
-		grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
-		gap: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 64px);
-		align-items: center;
-		margin-top: clamp(56px, 7vw, 88px);
-		padding-top: clamp(40px, 5vw, 56px);
-		border-top: 1px solid var(--stone-edge);
-	}
-
-	.subtrees .title {
-		margin: 0;
-		font-size: clamp(1.5rem, 2.6vw, 1.875rem);
-		line-height: 1.2;
-		letter-spacing: -0.015em;
-	}
-
-	.subtrees p {
-		margin: 0;
-		color: var(--stone-strong);
-		max-width: 62ch;
-	}
-
-	.scope {
-		grid-column: 1 / -1;
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 20px clamp(28px, 4vw, 56px);
-		padding-top: clamp(24px, 3vw, 32px);
-		border-top: 1px solid var(--stone-rule);
-	}
-
-	.scope .label {
-		margin-bottom: 8px;
-		color: var(--emerald-800);
-	}
-
-	.scope ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.scope li {
-		font-size: 0.96875rem;
-	}
-
-	.subtrees .note {
-		color: var(--stone-text);
-		font-size: 0.96875rem;
 	}
 
 	/* Get the code */
@@ -747,33 +473,41 @@
 	}
 
 	.code code {
-		color: #ecfdf5;
+		color: var(--emerald-wash);
 	}
 
 	.code :focus-visible {
 		outline-color: var(--amber-300);
-		outline-offset: 3px;
+		outline-offset: 4px;
 	}
 
 	/* Install */
+	/* A ledger, one step to a row: the number, the words, then the command if there is one. Steps
+	   without a command leave that column empty, so the rows align instead of leaving a hole. */
 	.steps {
 		list-style: none;
 		margin: 0;
 		padding: 0;
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: clamp(32px, 4vw, 44px) clamp(32px, 5vw, 64px);
+		border-bottom: 1px solid var(--stone-rule);
 	}
 
 	.steps li {
 		display: grid;
-		grid-template-columns: 44px minmax(0, 1fr);
-		gap: 16px;
+		grid-template-columns: 44px minmax(0, 5fr) minmax(0, 6fr);
+		gap: 16px clamp(16px, 3vw, 40px);
+		align-items: start;
+		padding: clamp(20px, 3vw, 28px) 0;
+		border-top: 1px solid var(--stone-rule);
+	}
+
+	.command {
+		grid-column: 3;
+		margin-top: 6px;
 	}
 
 	.steps h3 {
 		margin: 6px 0 8px;
-		font-size: 1.1875rem;
+		font-size: var(--site-h4);
 	}
 
 	.steps p {
@@ -791,12 +525,6 @@
 		color: var(--emerald-800);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
-	}
-
-	.step.focus {
-		border-color: var(--amber);
-		background: var(--amber);
-		color: var(--emerald-950);
 	}
 
 	.care {
@@ -819,7 +547,7 @@
 		border: 1px solid var(--stone-rule);
 		border-radius: 12px;
 		overflow: hidden;
-		font-size: 0.96875rem;
+		font-size: var(--site-small);
 	}
 
 	th,
@@ -843,7 +571,7 @@
 
 	th code {
 		color: var(--emerald-900);
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 	}
 
 	td {
@@ -856,7 +584,7 @@
 
 	/* FAQ */
 	.faq {
-		background: var(--stone-shelf);
+		background: var(--page-cream);
 		border-top: 1px solid var(--stone-rule);
 	}
 
@@ -881,7 +609,7 @@
 		gap: 16px;
 		min-height: 64px;
 		padding: 16px clamp(16px, 3vw, 24px);
-		font-size: 1.125rem;
+		font-size: var(--site-h4);
 		font-weight: 700;
 		color: var(--stone-ink);
 		cursor: pointer;
@@ -926,102 +654,19 @@
 		color: var(--emerald-900);
 	}
 
-	/* Close: the line arrives at the amber child, the one action. */
-	.close {
-		background: var(--emerald-900);
-		color: var(--vellum);
-	}
-
-	.close .wrap {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		gap: 24px;
-		padding-bottom: 40px;
-	}
-
-	.close-title {
-		margin: 0;
-		font-size: clamp(1.75rem, 3.4vw, 2.25rem);
-		font-weight: 700;
-		line-height: 1.15;
-		letter-spacing: -0.015em;
-	}
-
-	.close :focus-visible {
-		outline-color: var(--amber-300);
-		outline-offset: 4px;
-	}
-
-	.colophon {
-		width: 100%;
-		margin-top: clamp(56px, 7vw, 88px);
-		padding-top: 24px;
-		border-top: 1px solid rgb(167 243 208 / 0.2);
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px 24px;
-		font-size: 0.9375rem;
-		color: var(--emerald-200);
-	}
-
-	.colophon p {
-		margin: 0;
-	}
-
-	.colophon ul {
-		display: flex;
-		gap: 4px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.colophon a {
-		display: inline-flex;
-		align-items: center;
-		min-height: 44px;
-		padding: 0 10px;
-		color: var(--emerald-100);
-	}
-
-	.colophon a:hover {
-		color: var(--vellum);
-	}
-
-	.colophon .mark-link {
-		gap: 10px;
-		padding: 0;
-		font-weight: 700;
-		text-decoration: none;
-		color: var(--vellum);
-	}
-
 	@media (max-width: 860px) {
 		.split,
-		.groups,
-		.steps,
-		.subtrees {
+		.groups {
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		.ladder > li {
-			grid-template-columns: 18px minmax(0, 1fr);
+		.steps li {
+			grid-template-columns: 44px minmax(0, 1fr);
 		}
 
-		.scope {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
-		.scope .note {
-			grid-column: 1 / -1;
-		}
-
-		.what {
+		.command {
 			grid-column: 2;
+			margin-top: 0;
 		}
 
 		th {
@@ -1030,8 +675,7 @@
 	}
 
 	@media (max-width: 560px) {
-		.ledger div,
-		.scope {
+		.ledger div {
 			grid-template-columns: minmax(0, 1fr);
 		}
 
@@ -1047,11 +691,6 @@
 			padding-bottom: 2px;
 			border-bottom: 0;
 			white-space: normal;
-		}
-
-		.colophon {
-			flex-direction: column;
-			align-items: flex-start;
 		}
 	}
 </style>
