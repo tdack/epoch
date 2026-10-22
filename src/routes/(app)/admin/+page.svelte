@@ -4,7 +4,7 @@
 	import PageTabs from '#lib/components/layout/PageTabs.svelte';
 	import ReorderHandle from '#lib/components/forms/ReorderHandle.svelte';
 	import { hashTab } from '#lib/components/layout/hash-tab.js';
-	import { Globe, GlobeLock, Pencil, Settings, Trash2 } from '@lucide/svelte';
+	import { Download, Globe, GlobeLock, Pencil, Settings, Trash2 } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ToastHost from '#lib/components/feedback/ToastHost.svelte';
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -214,6 +214,15 @@
 												<a href="{treePath(tree)}/settings" class={actionClass} title="Settings">
 													<Settings class="h-3.5 w-3.5" aria-hidden="true" />
 													<span class="sr-only">Settings for {tree.name}</span>
+												</a>
+												<!-- Export needs tree:export, which is manager and above, the same gate as Settings. -->
+												<a
+													href="{treePath(tree)}/settings#export"
+													class={actionClass}
+													title="Export"
+												>
+													<Download class="h-3.5 w-3.5" aria-hidden="true" />
+													<span class="sr-only">Export {tree.name}</span>
 												</a>
 											{/if}
 											<button
