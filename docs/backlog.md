@@ -340,23 +340,6 @@ The tool is built in `tools/setup/`.
 - **List every tree's sub-trees in the switcher.** Only the current tree's arrive with its summary.
   Listing all of them would make the tree-list endpoint resolve visibility for every tree, so it
   needs a cheap, per-viewer list first.
-- **Drag to reorder sub-trees and trees, saved as one batch.** Moving a sub-tree is two PATCHes today
-  (a position swap with its neighbour), has no Undo, and a failed second PATCH leaves two rows on one
-  position.
-  - **Sub-trees:** replace the Up/Down buttons in the sub-tree manager with a drag handle (⠿) at one
-    end of each row. On drop, send the whole new order in one request; the service writes every
-    `position` in one mutation, logged as one change, so record history (ADR-068) can undo it. No
-    Undo toast is needed.
-  - **Trees:** the same handle on Administration › Trees. `trees` has no order column, and the
-    switcher lists a member's trees by `updatedAt` (`listForUser`), so this needs a `position`
-    column in its own migration (expand-and-contract), the same batched write, and the switcher
-    sorted by it. The install owner sets the order once and every member's switcher uses it, so the
-    column is on `trees`, not `tree_memberships`. Tree rows are not tree content, so this write is not in the
-    change log (ADR-007).
-  - **Accessibility:** the handle moves a row by keyboard (arrow keys while it has focus, announced
-    through a live region), which WCAG 2.1.1 (Level A) needs. There is no single-pointer
-    alternative to dragging, a known and accepted failure of WCAG 2.2 2.5.7 (Dragging Movements,
-    AA); the accessibility audit should record it rather than reopen it.
 - **A scoped seed for sub-tree writes,** so an edit to a sub-tree loads only the rows its scope
   needs. Measure first, as the scoped reads were measured (ADR-062).
 - **Materialise membership if trees grow large.** The lens is a recursive read over indexed edges.
