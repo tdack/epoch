@@ -301,6 +301,60 @@
 			isPlaying = false;
 	}
 
+	/** The frame's edge fade, in pixels: a name under it is dimmed, so it counts as cut. */
+	const FADE_PX = 28;
+	/** Breathing room kept between a card and the fade it is snapped beside. */
+	const SNAP_GAP_PX = 6;
+
+	/**
+	 * Nudge a scroll position so no card is cut by the frame's edge or hidden under its fade:
+	 * a card is either wholly in sight or wholly out of it. Of the positions that line a card up
+	 * with an edge, it takes the one that cuts fewest cards (and keeps Ellen whole), nearest the
+	 * `ideal`. Where the drawing is wider than the frame some card is always partly out of sight
+	 * at one end, and this finds the least bad place to stop.
+	 */
+	function clearOfEdges(
+		lens: LensId,
+		ideal: number,
+		scale: number,
+		view: number,
+		total: number
+	): number {
+		const max = Math.max(0, total - view);
+		const clamp = (x: number) => Math.min(max, Math.max(0, x));
+		const cards = Object.values(LAYOUTS[lens]).map((p) => ({
+			l: (p.x - p.w / 2) * scale,
+			r: (p.x + p.w / 2) * scale
+		}));
+		const focus = LAYOUTS[lens].ellen!;
+		const focusL = (focus.x - focus.w / 2) * scale;
+		const focusR = (focus.x + focus.w / 2) * scale;
+		const cost = (at: number) => {
+			let cut = 0;
+			// An edge only fades when there is more drawing beyond it.
+			const hasFadeLeft = at > 2;
+			const hasFadeRight = at < max - 2;
+			for (const { l, r } of cards) {
+				if (hasFadeLeft && l < at + FADE_PX && r > at) cut++;
+				if (hasFadeRight && l < at + view && r > at + view - FADE_PX) cut++;
+			}
+			if (focusL < at || focusR > at + view) cut++;
+			return cut * 1000 + Math.abs(at - ideal);
+		};
+		const aim = clamp(ideal);
+		const options = [aim];
+		for (const { l, r } of cards) {
+			// A card just clear of the left fade, just off the left edge, or the same at the right.
+			options.push(
+				clamp(l - FADE_PX - SNAP_GAP_PX),
+				clamp(r + SNAP_GAP_PX),
+				clamp(r + FADE_PX + SNAP_GAP_PX - view),
+				clamp(l - SNAP_GAP_PX - view)
+			);
+		}
+		return options.reduce((best, at) => (cost(at) < cost(best) ? at : best), aim);
+	}
+
 	/** On a narrow screen the drawing scrolls sideways; bring the lens's middle into view. */
 	function centreOn(index: number, isInstant = false) {
 		if (!scroller) return;
@@ -310,10 +364,13 @@
 		const scale = scroller.scrollWidth / STAGE.width;
 		// The charts that grow rightwards start at the person, so centring them would cut the next
 		// generation's names in half; they open with the person at the left edge instead.
-		const left =
+		let left =
 			lens === 'descendants' || lens === 'pedigree'
 				? (focus.x - focus.w / 2 - 12) * scale
 				: (index === LAST ? ROUTE_ROWS.x + 200 : focus.x) * scale - scroller.clientWidth / 2;
+		// The fan's wedges and the relationship page are not rows of cards, so only the cards snap.
+		if (lens !== 'fan' && lens !== 'relationship')
+			left = clearOfEdges(lens, left, scale, scroller.clientWidth, scroller.scrollWidth);
 		if (Math.abs(scroller.scrollLeft - left) > 1) {
 			isAutoScrolling = true;
 			const done = () => (isAutoScrolling = false);
@@ -337,6 +394,14 @@
 	</div>
 
 	<div class="show">
+		<!-- The view's name, said aloud when the view changes: the pills are dots on a phone and the
+			inactive captions are hidden from assistive tech, so a reader would not hear a change.
+			Seen, the caption already opens with the same name, so this is for screen readers only.
+			Polite, so it waits for a reader to finish rather than cutting in. -->
+		<p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+			Now showing: {LENSES[active]!.name}
+		</p>
+
 		<!-- Every caption shares one cell, so changing view never moves the drawing. -->
 		<div class="captions">
 			{#each LENSES as lens, i (lens.id)}
@@ -385,7 +450,17 @@
 					? `${LENSES[active]!.name} drawing, scrolls sideways`
 					: undefined}
 			>
-				<svg class="stage" viewBox="0 0 {STAGE.width} {STAGE.height}" aria-hidden="true">
+				<!-- A picture, not a document: its names and dates are drawn as text that would be read
+					out in a jumble while the cards morph, so it is one image with a name. The people it
+					shows are in words in the outline after the controls, and the caption above says what
+					the view is for. -->
+				<svg
+					class="stage"
+					viewBox="0 0 {STAGE.width} {STAGE.height}"
+					role="img"
+					aria-label="{LENSES[active]!
+						.name} view of a sample family, invented for illustration; the outline after the controls describes every view in words."
+				>
 					<defs>
 						<pattern id="explore-dots" width="18" height="18" patternUnits="userSpaceOnUse">
 							<circle cx="2" cy="2" r="1.3" fill="var(--tree-dot)" />
@@ -577,6 +652,7 @@
 						<button
 							type="button"
 							class="pill"
+							aria-label={lens.name}
 							aria-pressed={shown === i}
 							onclick={() => go(i)}
 							style:--fill={shown === i ? fill : 0}
@@ -649,7 +725,7 @@
 
 	h2 {
 		margin: 0 0 14px;
-		font-size: clamp(2rem, 4.2vw, 2.875rem);
+		font-size: var(--site-display);
 		line-height: 1.1;
 		letter-spacing: -0.02em;
 		text-wrap: balance;
@@ -659,7 +735,7 @@
 		margin: 0 auto;
 		max-width: 58ch;
 		color: var(--stone-text);
-		font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+		font-size: var(--site-lede);
 		line-height: 1.6;
 	}
 
@@ -785,7 +861,7 @@
 	}
 
 	.route-note.amber {
-		fill: #92400e;
+		fill: #78350f;
 	}
 
 	.route-step {
@@ -800,7 +876,7 @@
 		padding: 2px 10px;
 		border-radius: 9999px;
 		background: rgb(253 251 247 / 0.9);
-		font-size: 0.8125rem;
+		font-size: var(--site-label);
 		font-style: italic;
 		color: var(--stone-text);
 		pointer-events: none;
@@ -841,7 +917,7 @@
 	.caption p {
 		margin: 0;
 		max-width: 60ch;
-		font-size: clamp(1.0625rem, 1.4vw, 1.1875rem);
+		font-size: var(--site-lede);
 		line-height: 1.55;
 		color: var(--stone-strong);
 		text-wrap: balance;
@@ -887,7 +963,7 @@
 		min-height: 40px;
 		padding: 0 16px;
 		border-radius: 9999px;
-		font-size: 0.9375rem;
+		font-size: var(--site-small);
 		font-weight: 600;
 		white-space: nowrap;
 		color: var(--stone-strong);
@@ -923,6 +999,8 @@
 		flex: none;
 		width: 50px;
 		height: 50px;
+		min-width: 44px;
+		min-height: 44px;
 		padding: 0;
 		border: 1px solid var(--stone-rule);
 		border-radius: 9999px;
@@ -967,6 +1045,13 @@
 	}
 
 	@media (max-width: 720px) {
+		/* The drawing keeps a size at which a card's name is about 13px and its dates 11px on screen
+		(960 / 1040 of the drawing's own sizes), and the frame scrolls over it; at 720 they were 9
+		and 8. Each view stops where no card is cut by the frame's edge (`clearOfEdges`). */
+		.stage {
+			min-width: 960px;
+		}
+
 		/* The drawing scrolls under a floating label here, so it would cover a union's date. */
 		.synthetic {
 			position: static;
@@ -979,24 +1064,44 @@
 	}
 
 	/* Six names do not fit a phone, so each view is a dot, and the playing one a capsule that fills,
-	its name in the caption above. The button keeps a 24px target around the dot. */
+	its name in the caption above. The button is a 44px target around the dot: 44 wide too wherever
+	the tray and Play fit in one row (from 360px of screen), and below that each target narrows
+	evenly, to about 38px at 320, rather than the row overflowing. */
 	@media (max-width: 760px) {
+		.controls {
+			gap: 6px;
+		}
+
+		/* The tray takes the room there is, up to six 44px targets and their gaps (6 x 44 + 5 x 2),
+		and the targets share it evenly. Left to size itself it shrank around the dots. */
 		.pills {
-			gap: 0;
-			padding: 0 6px;
+			flex: 1 1 auto;
+			min-width: 0;
+			max-width: 274px;
+			gap: 2px;
+			padding: 0;
+		}
+
+		.pills li {
+			display: flex;
+			flex: 1 1 0;
+			min-width: 0;
+			max-width: 44px;
 		}
 
 		.pill {
 			display: grid;
 			place-items: center;
-			min-width: 24px;
-			height: 36px;
-			padding: 0 2px;
+			flex: 1;
+			min-width: 0;
+			height: 44px;
 		}
 
 		.track {
 			min-height: 0;
 			width: 8px;
+			/* The capsule never outgrows a target that has narrowed. */
+			max-width: 100%;
 			height: 8px;
 			padding: 0;
 			/* stone-500: a dot is the control's only mark here, so it needs 3:1 against the tray. */
