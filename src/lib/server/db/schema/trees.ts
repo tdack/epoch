@@ -22,6 +22,9 @@ export const trees = sqliteTable(
 		// No longer read (ADR-075); dropped in a later migration once this code is deployed.
 		defaultViewMode: text('default_view_mode'),
 		version: integer('version').notNull().default(1),
+		// The install owner's order for every tree list, lowest first. Its own column rather than
+		// `updated_at`: reordering must not bump `version` (it guards renames) or look like an edit.
+		position: integer('position').notNull().default(0),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 		// ADR-041. At most one tree in the install is readable without signing in; the partial unique

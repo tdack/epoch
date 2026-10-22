@@ -281,6 +281,13 @@
       "when": 1792490595695,
       "tag": "0039_user_avatar_key",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1792662039229,
+      "tag": "0040_tree_position",
+      "breakpoints": true
     }
   ]
 }
