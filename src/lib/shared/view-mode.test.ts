@@ -52,8 +52,7 @@ describe('VIEW_MODE_TRAITS', () => {
 		expect(VIEW_MODE_TRAITS.flat.arrivalDepth).toBeNull();
 	});
 
-	it('draws the WebGL views read-only', () => {
+	it('lists the WebGL views', () => {
 		expect(WEBGL_LAYOUT_MODES).toEqual(['rings', 'poincare', 'ribbons', 'orrery']);
-		for (const mode of WEBGL_LAYOUT_MODES) expect(VIEW_MODE_TRAITS[mode].canEdit).toBe(false);
 	});
 });

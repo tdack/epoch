@@ -36,16 +36,13 @@ export interface ViewModeTraits {
 	shouldAskWiderGroups: boolean;
 	/** Generations each way that arriving asks for at least; null leaves the depth alone. */
 	arrivalDepth: number | null;
-	/** The drawing offers editing gestures (the context menu); the overviews do not. */
-	canEdit: boolean;
 }
 
 const WEBGL_TRAITS: ViewModeTraits = {
 	isWebGl: true,
 	hasWiderGroups: true,
 	shouldAskWiderGroups: true,
-	arrivalDepth: RINGS_ARRIVAL_DEPTH,
-	canEdit: false
+	arrivalDepth: RINGS_ARRIVAL_DEPTH
 };
 
 export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
@@ -53,8 +50,7 @@ export const VIEW_MODE_TRAITS: Record<LayoutMode, ViewModeTraits> = {
 		isWebGl: false,
 		hasWiderGroups: false,
 		shouldAskWiderGroups: false,
-		arrivalDepth: null,
-		canEdit: true
+		arrivalDepth: null
 	},
 	rings: WEBGL_TRAITS,
 	poincare: WEBGL_TRAITS,

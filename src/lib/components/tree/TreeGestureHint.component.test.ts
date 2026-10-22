@@ -14,20 +14,14 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-function hintText(props: { hasMenuActions: boolean }): string {
-	component = mount(TreeGestureHint, { target: document.body, props });
+function hintText(): string {
+	component = mount(TreeGestureHint, { target: document.body, props: {} });
 	flushSync();
 	return document.body.textContent?.replace(/\s+/g, ' ') ?? '';
 }
 
 describe('TreeGestureHint', () => {
-	it('points a role with menu actions at right-click', () => {
-		expect(hintText({ hasMenuActions: true })).toContain('right-click for more');
-	});
-
-	it('does not send a viewer to a menu that only repeats double-click', () => {
-		const text = hintText({ hasMenuActions: false });
-		expect(text).toContain('Double-click to centre the tree on them and see their details.');
-		expect(text).not.toContain('right-click');
+	it('points at right-click for the person menu', () => {
+		expect(hintText()).toContain('right-click for more');
 	});
 });

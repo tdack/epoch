@@ -146,8 +146,6 @@
 		query.addEventListener('change', onChange);
 		return () => query.removeEventListener('change', onChange);
 	});
-	/** The overviews do not edit, so the gesture hints leave out the drag and menu actions there. */
-	const canEditDrawn = $derived(VIEW_MODE_TRAITS[mode].canEdit);
 	/**
 	 * A new focus, depth or option waits on the server for its graph, and the 3D views then lay it
 	 * out, so the chart on screen is stale for a moment. The address is ahead of the load while this
@@ -535,13 +533,13 @@
 					)}
 			/>
 		</div>
-		{#if !isPhone}<TreeGestureHint hasMenuActions={canEditDrawn} />{/if}
+		{#if !isPhone}<TreeGestureHint />{/if}
 		<!-- touch-none covers the overlays too: a pinch that starts on the zoom buttons or legend would
 		     otherwise reach the browser and zoom the whole page instead of the chart. -->
 		<div class="flex flex-1">
 			<div class="relative flex min-w-0 flex-1 touch-none flex-col" aria-busy={isLoading}>
 				<!-- Before the canvases so the legend, drawn later, stays above it. -->
-				{#if isPhone}<TreeGestureHint hasMenuActions={canEditDrawn} isOverlay />{/if}
+				{#if isPhone}<TreeGestureHint isOverlay />{/if}
 				{#if ringsLayout}
 					<RingsCanvas
 						layout={ringsLayout}
@@ -555,6 +553,7 @@
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
+						{actions}
 					/>
 				{:else if poincareLayout}
 					<PoincareCanvas
@@ -569,6 +568,7 @@
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
+						{actions}
 					/>
 				{:else if ribbonsLayout}
 					<RibbonsCanvas
@@ -583,6 +583,7 @@
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
+						{actions}
 					/>
 				{:else if orreryLayout}
 					<OrreryCanvas
@@ -597,6 +598,7 @@
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
 						onClearSelection={clearSelection}
+						{actions}
 					/>
 				{:else}
 					<TreeCanvas
