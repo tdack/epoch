@@ -3,7 +3,11 @@ import { flushSync, mount, unmount } from 'svelte';
 import SubtreeManager from './SubtreeManager.svelte';
 import type { SubtreeDto } from '#lib/shared/subtrees.js';
 
-const api = vi.hoisted(() => ({ updateSubtree: vi.fn(), deleteSubtree: vi.fn() }));
+const api = vi.hoisted(() => ({
+	updateSubtree: vi.fn(),
+	deleteSubtree: vi.fn(),
+	reorderSubtrees: vi.fn()
+}));
 vi.mock('#lib/api/subtrees.js', () => api);
 vi.mock('#lib/api/relationships.js', () => ({ undoApi: vi.fn() }));
 vi.mock('#lib/api/lists.js', () => ({ searchPeopleApi: vi.fn().mockResolvedValue([]) }));
@@ -20,6 +24,7 @@ beforeAll(() => {
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	api.updateSubtree.mockReset().mockResolvedValue({ change: null });
+	api.reorderSubtrees.mockReset().mockResolvedValue({ change: null });
 	api.deleteSubtree
 		.mockReset()
 		.mockResolvedValue({ change: { summary: 'Deleted sub-tree', isUndoable: true } });
@@ -77,14 +82,36 @@ describe('SubtreeManager', () => {
 		expect(button(/Delete/)).toBeUndefined();
 	});
 
-	it('swaps positions when moving down, without an Undo offer', async () => {
+	it('reorders from the handle by keyboard with one write and no Undo offer', async () => {
 		const { toasts, onchanged } = render();
-		button(/Move down/).click();
+		const handle = document.querySelector<HTMLButtonElement>('[aria-label="Reorder Line a"]')!;
+		handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
 		await settle();
-		expect(api.updateSubtree).toHaveBeenNthCalledWith(1, 't', 'a', { position: 5, version: 3 });
-		expect(api.updateSubtree).toHaveBeenNthCalledWith(2, 't', 'b', { position: 0, version: 3 });
+		expect(api.reorderSubtrees).toHaveBeenCalledTimes(1);
+		expect(api.reorderSubtrees).toHaveBeenCalledWith('t', {
+			order: [
+				{ id: 'b', version: 3 },
+				{ id: 'a', version: 3 }
+			]
+		});
 		expect(onchanged).toHaveBeenCalled();
-		expect(toasts.push).toHaveBeenCalledWith('Sub-tree moved', { action: undefined });
+		expect(toasts.push).not.toHaveBeenCalled();
+		expect(document.body.textContent).toContain('Line a moved to position 2 of 2');
+	});
+
+	it('reports a refused reorder in a toast', async () => {
+		api.reorderSubtrees.mockRejectedValue(new Error('Changed by someone else'));
+		const { toasts } = render();
+		document
+			.querySelector('[aria-label="Reorder Line a"]')!
+			.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+		await settle();
+		expect(toasts.push).toHaveBeenCalledWith('Changed by someone else', { tone: 'error' });
+	});
+
+	it('has no handle below manager', () => {
+		render(false);
+		expect(document.querySelector('[aria-label^="Reorder"]')).toBeNull();
 	});
 
 	it('deletes after confirmation and offers Undo', async () => {

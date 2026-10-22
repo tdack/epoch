@@ -1,21 +1,13 @@
 <script lang="ts">
-	import {
-		ArrowDown,
-		ArrowUp,
-		Eye,
-		EyeOff,
-		Network,
-		Pencil,
-		Trash2,
-		UserRoundCog
-	} from '@lucide/svelte';
+	import { Eye, EyeOff, Network, Pencil, Trash2, UserRoundCog } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import ReorderHandle from '#lib/components/forms/ReorderHandle.svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import type { Changed } from '#lib/api/client.js';
 	import { undoApi } from '#lib/api/relationships.js';
-	import { deleteSubtree, updateSubtree } from '#lib/api/subtrees.js';
+	import { deleteSubtree, reorderSubtrees, updateSubtree } from '#lib/api/subtrees.js';
 	import type { SubtreeDto, UpdateSubtreeInput } from '#lib/shared/subtrees.js';
 	import { subtreePath, treePath, type TreeRef } from '#lib/shared/tree-slug.js';
 	import SubtreeDialog from './SubtreeDialog.svelte';
@@ -85,25 +77,22 @@
 		apply(() => updateSubtree(tree.id, subtree.id, { ...input, version: subtree.version }), done);
 
 	/**
-	 * Swaps positions with the neighbour: a position is a plain integer with gaps (deletes leave
-	 * them), so setting one value could tie with a third sub-tree and order by row. Two writes make
-	 * two changes, and Undo would revert only the last, leaving a tie, so a move offers none.
+	 * One write for the whole order, and no Undo offer: a reorder is cheap to redo by hand. Awaited so
+	 * the handle keeps focus until the list has reloaded. There is no dialog to hold a refusal, so it
+	 * goes to the toast.
 	 */
-	async function move(subtree: SubtreeDto, by: -1 | 1) {
-		const neighbour = subtrees[subtrees.indexOf(subtree) + by];
-		if (isBusy || !neighbour) return;
-		const didMove = await apply(async () => {
-			await updateSubtree(tree.id, subtree.id, {
-				position: neighbour.position,
-				version: subtree.version
+	async function reorder(ids: string[]) {
+		isBusy = true;
+		try {
+			await reorderSubtrees(tree.id, {
+				order: ids.map((id) => ({ id, version: subtrees.find((s) => s.id === id)!.version }))
 			});
-			return updateSubtree(tree.id, neighbour.id, {
-				position: subtree.position,
-				version: neighbour.version
-			}).then(() => ({ change: null }));
-		}, 'Sub-tree moved');
-		// A move has no dialog to hold the refusal, so it goes to the toast.
-		if (!didMove && dialogError) toasts.push(dialogError, { tone: 'error' });
+			await onchanged();
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not save the order'), { tone: 'error' });
+		} finally {
+			isBusy = false;
+		}
 	}
 
 	const rootLabel = (s: SubtreeDto) =>
@@ -133,12 +122,22 @@
 		<ul
 			class="mt-4 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white shadow-xs"
 		>
-			{#each subtrees as subtree, i (subtree.id)}
+			{#each subtrees as subtree (subtree.id)}
 				<li
 					class="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
 					data-subtree={subtree.slug}
+					data-reorder-id={subtree.id}
 				>
-					<div class="min-w-0">
+					{#if canManage}
+						<ReorderHandle
+							id={subtree.id}
+							name={subtree.name}
+							ids={subtrees.map((s) => s.id)}
+							isDisabled={isBusy}
+							onreorder={reorder}
+						/>
+					{/if}
+					<div class="min-w-0 flex-1">
 						<span
 							class="inline-flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-900"
 						>
@@ -167,24 +166,6 @@
 					</div>
 					{#if canManage}
 						<div class="flex flex-wrap justify-end gap-1">
-							<button
-								type="button"
-								class={actionClass}
-								disabled={isBusy || i === 0}
-								onclick={() => move(subtree, -1)}
-							>
-								<ArrowUp class="h-3.5 w-3.5" aria-hidden="true" />
-								Move up<span class="sr-only"> {subtree.name}</span>
-							</button>
-							<button
-								type="button"
-								class={actionClass}
-								disabled={isBusy || i === subtrees.length - 1}
-								onclick={() => move(subtree, 1)}
-							>
-								<ArrowDown class="h-3.5 w-3.5" aria-hidden="true" />
-								Move down<span class="sr-only"> {subtree.name}</span>
-							</button>
 							<button type="button" class={actionClass} onclick={() => open('edit', subtree)}>
 								<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
 								Rename<span class="sr-only"> {subtree.name}</span>
