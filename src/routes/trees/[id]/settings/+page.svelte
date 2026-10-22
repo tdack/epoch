@@ -211,7 +211,7 @@
 							bind:checked={isOnSubdomain}
 							disabled={isSaving || !hasAddress}
 							aria-describedby="tree-subdomain-help"
-							class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+							class="mt-0.5"
 						/>
 						<span>
 							Also open this tree at

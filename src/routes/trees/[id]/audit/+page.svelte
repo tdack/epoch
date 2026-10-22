@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ChevronDown, ChevronRight } from '@lucide/svelte';
+	import { ChevronRight } from '@lucide/svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import TreeAdminTabs from '#lib/components/layout/TreeAdminTabs.svelte';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
@@ -104,18 +104,12 @@
 	</div>
 	<label>
 		Made by
-		<span class="relative block">
-			<select name="actor" class="{field} appearance-none pr-8" value={filters.actorId ?? ''}>
-				<option value="">Anyone</option>
-				{#each audit.actors as actor (actor.id)}
-					<option value={actor.id}>{actor.name}</option>
-				{/each}
-			</select>
-			<ChevronDown
-				class="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-stone-500"
-				aria-hidden="true"
-			/>
-		</span>
+		<select name="actor" class={field} value={filters.actorId ?? ''}>
+			<option value="">Anyone</option>
+			{#each audit.actors as actor (actor.id)}
+				<option value={actor.id}>{actor.name}</option>
+			{/each}
+		</select>
 	</label>
 	<label>
 		From

@@ -85,7 +85,16 @@
 			</p>{/if}
 	</form>
 
-	<label class="flex items-start gap-2 text-sm font-semibold text-stone-800">
+	<label
+		class="flex cursor-pointer items-start justify-between gap-4 text-sm font-semibold text-stone-800"
+	>
+		<span>
+			Show hidden people as "Private" in the tree
+			<span class="mt-1 block text-xs font-normal text-stone-600">
+				Relationships stay visible, with no name, dates, places or notes. Off, hidden people are
+				left out, and so is anyone only reachable through them.
+			</span>
+		</span>
 		<input
 			type="checkbox"
 			bind:checked={shouldShowPrivateStructure}
@@ -97,15 +106,8 @@
 						? 'Hidden people now show as Private'
 						: 'Hidden people are left out'
 				)}
-			class="mt-0.5"
+			class="switch mt-0.5"
 		/>
-		<span>
-			Show hidden people as "Private" in the tree
-			<span class="mt-1 block text-xs font-normal text-stone-600">
-				Relationships stay visible, with no name, dates, places or notes. Off, hidden people are
-				left out, and so is anyone only reachable through them.
-			</span>
-		</span>
 	</label>
 	<p class="sr-only" role="status" aria-live="polite">{announcement}</p>
 </div>

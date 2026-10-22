@@ -156,9 +156,11 @@
 	select {
 		max-width: 6.5rem;
 		border-radius: 6px;
-		padding: 3px 4px;
+		/* Right padding leaves room for the shared chevron (app.css); background-color keeps it. */
+		padding: 3px 1.5rem 3px 4px;
 		border: 1px solid var(--tree-panel-border);
-		background: white;
+		background-color: white;
+		background-position: right 0.25rem center;
 		font-size: 0.75rem;
 	}
 	button {

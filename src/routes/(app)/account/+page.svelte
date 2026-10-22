@@ -378,23 +378,25 @@
 					/>
 				</div>
 				<div class="flex flex-col gap-2">
-					<label class="flex items-start gap-2 text-sm text-stone-800">
-						<input
-							type="checkbox"
-							class="mt-0.5 h-4 w-4"
-							checked={isMotionReduced}
-							disabled={isSavingMotion}
-							onchange={(event) => void saveMotion(event.currentTarget.checked)}
-							aria-describedby="motion-hint motion-status"
-						/>
+					<label
+						class="flex max-w-2xl cursor-pointer items-start justify-between gap-4 rounded-lg border border-stone-300 bg-white p-3 text-sm text-stone-800"
+					>
 						<span>
 							<span class="font-semibold">Reduce animation</span>
-							<span id="motion-hint" class="block text-xs text-stone-600">
+							<span id="motion-hint" class="mt-0.5 block text-xs text-stone-600">
 								Holds the tree still: no gliding between people, no spinning or drifting in the 3D
 								views. If your device already asks for less motion, that applies whatever you choose
 								here.
 							</span>
 						</span>
+						<input
+							type="checkbox"
+							class="switch mt-0.5"
+							checked={isMotionReduced}
+							disabled={isSavingMotion}
+							onchange={(event) => void saveMotion(event.currentTarget.checked)}
+							aria-describedby="motion-hint motion-status"
+						/>
 					</label>
 					<p
 						id="motion-status"

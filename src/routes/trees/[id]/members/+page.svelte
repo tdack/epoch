@@ -117,7 +117,7 @@
 				required
 				bind:value={email}
 				autocomplete="off"
-				class="mt-1 w-72 max-w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm coarse:min-h-11"
+				class="mt-1 w-72 max-w-full rounded-lg border focus-input border-stone-300 px-2 py-1.5 text-sm coarse:min-h-11"
 			/>
 		</div>
 		<div>
@@ -126,7 +126,7 @@
 				id="invite-role"
 				bind:value={inviteRole}
 				aria-describedby="invite-role-detail"
-				class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm capitalize coarse:min-h-11"
+				class="mt-1 rounded-lg border focus-input border-stone-300 bg-white px-2 py-1.5 text-sm capitalize coarse:min-h-11"
 			>
 				{#each members.grantableRoles as role (role)}<option value={role}>{role}</option>{/each}
 			</select>
@@ -162,7 +162,7 @@
 						disabled={isBusy}
 						onclick={() =>
 							run(() => withdrawInvitationApi(treeId, invitation.id), 'Invitation withdrawn')}
-						class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50 coarse:min-h-11"
+						class="rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 					>
 						Withdraw
 					</button>
@@ -202,7 +202,7 @@
 									// Any other row's unconfirmed choice snaps back to its stored role through `value`.
 									proposedRole = role === member.role ? null : { userId: member.userId, role };
 								}}
-								class="rounded-lg border border-stone-300 px-2 py-1 text-sm capitalize coarse:min-h-11"
+								class="rounded-lg border focus-input border-stone-300 bg-white px-2 py-1 text-sm capitalize coarse:min-h-11"
 							>
 								<!-- A member's present role stays listed even when the caller could not give it, so the box reads true. -->
 								{#each [...new Set([member.role, ...members.grantableRoles])] as role (role)}
@@ -223,13 +223,13 @@
 											() => changeMemberRoleApi(treeId, member.userId, role, member.version),
 											`${member.email} is now ${role}`
 										)}
-									class="rounded-lg bg-emerald-800 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50 coarse:min-h-11"
+									class="rounded-lg bg-emerald-800 px-3 py-1 text-xs font-semibold text-amber-50 focus-ring hover:bg-emerald-700 disabled:opacity-50 coarse:min-h-11"
 									>Make {role}</button
 								>
 								<button
 									type="button"
 									onclick={() => (proposedRole = null)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 coarse:min-h-11"
+									class="rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 									>Cancel</button
 								>
 							{:else if removing === member.userId}
@@ -247,7 +247,7 @@
 								<button
 									type="button"
 									onclick={() => (removing = null)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 coarse:min-h-11"
+									class="rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 									>Cancel</button
 								>
 							{:else if !isOnlyOwner}
@@ -255,8 +255,13 @@
 									type="button"
 									disabled={isBusy}
 									onclick={() => (removing = member.userId)}
-									class="rounded-lg border border-stone-300 px-3 py-1 text-xs font-semibold text-stone-700 disabled:opacity-50 coarse:min-h-11"
+									class="rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 									>Remove</button
+								>
+							{:else}
+								<!-- Holds the Remove button's width, so the only owner's select lines up with the rest. -->
+								<span aria-hidden="true" class="invisible border px-3 text-xs font-semibold"
+									>Remove</span
 								>
 							{/if}
 						</span>
