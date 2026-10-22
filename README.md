@@ -88,36 +88,83 @@ invite everyone else from a tree's **Members** page.
 
 ## FAQ
 
-**What does it cost?** You pay Cloudflare directly for a paid Workers plan. There is no Epoch
-subscription.
+<details>
+<summary>What does it cost?</summary>
 
-**Who can see my tree?** Only people you invite. Cloudflare Access handles sign-in, and anyone else
-who signs in is told to ask the owner for an invitation. Nothing is stored about them.
+You pay Cloudflare directly for a paid Workers plan. There is no Epoch subscription.
 
-**Can I bring my tree from other software?** Yes, through GEDCOM. Epoch validates the file, shows a
-preview before anything is written, and offers to merge duplicate families.
+</details>
 
-**What happens to data Epoch doesn't support yet?** It is kept and written back on export.
+<details>
+<summary>Who can see my tree?</summary>
 
-**What if two people edit the same person?** The first save wins and the second is refused, with an
-explanation. Undo reverts your latest change, and warns you if the records have changed since.
+Only people you invite. Cloudflare Access handles sign-in, and anyone else who signs in is told to ask the owner for an invitation. Nothing is stored about them.
 
-**Do I need my own domain?** No. Setup can use a workers.dev address or an active domain on your
+</details>
+
+<details>
+<summary>Can I bring my tree from other software?</summary>
+
+Yes, through GEDCOM. Epoch validates the file, shows a preview before anything is written, and offers to merge duplicate families.
+
+</details>
+
+<details>
+<summary>What happens to data Epoch doesn't support yet?</summary>
+
+It is kept and written back on export.
+
+</details>
+
+<details>
+<summary>What if o people edit the same person?</summary>
+
+The first save wins and the second is refused, with an explanation. Undo reverts your latest change, and warns you if the records have changed since.
+
+</details>
+
+<details>
+<summary>Do I need my own domain?</summary>
+
+No. Setup can use a workers.dev address or an active domain on your
 Cloudflare account.
 
-**Can I take my data with me?** Yes. Export GEDCOM at any time. `./setup teardown` removes only what
-setup created.
+</details>
 
-**Is it open source?** Yes, under the GNU Affero General Public License, version 3 or later.
+<details>
+<summary>Can I take my data with me?</summary>
 
-**Does it work on a phone?** Record pages, lists and the family view have phone layouts. The 3D
-views suit larger screens.
+Yes. Export GEDCOM at any time. `./setup teardown` removes only what setup created.
 
-**How does it relate to webtrees?** Epoch is inspired by webtrees' capabilities, not its screens or
-code. It is a separate application that exchanges data with it through GEDCOM.
+</details>
 
-**Is it ready for real records?** Epoch is young and in active development. Known gaps are in
-[docs/backlog.md](./docs/backlog.md). Export GEDCOM regularly.
+<details>
+<summary>Is it open source?</summary>
+
+Yes, under the GNU Affero General Public License, version 3 or later.
+
+</details>
+
+<details>
+<summary>Does it work on a phone?</summary>
+
+Record pages, lists and the family view have phone layouts. The 3D views suit larger screens.
+
+</details>
+
+<details>
+<summary>How does it relate to webtrees?</summary>
+
+Epoch is inspired by webtrees' capabilities, not its screens or code. It is a separate application that exchanges data with it through GEDCOM.
+
+</details>
+
+<details>
+<summary>Is it ready for real records?</summary>
+
+Epoch is young and in active development. Known gaps are in [docs/backlog.md](./docs/backlog.md). Export GEDCOM regularly.
+
+</details>
 
 ## Getting started
 
