@@ -2,6 +2,7 @@
 	import { invalidate, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import PageTabs from '#lib/components/layout/PageTabs.svelte';
+	import ReorderHandle from '#lib/components/forms/ReorderHandle.svelte';
 	import { hashTab } from '#lib/components/layout/hash-tab.js';
 	import { Globe, GlobeLock, Pencil, Settings, Trash2 } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
@@ -12,7 +13,12 @@
 	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
 	import PaletteEditor from '#lib/components/settings/PaletteEditor.svelte';
 	import { saveSiteSettings } from '#lib/api/settings.js';
-	import { deleteTreeApi, renameTreeApi, setPublicTreeApi } from '#lib/api/trees.js';
+	import {
+		deleteTreeApi,
+		renameTreeApi,
+		reorderTreesApi,
+		setPublicTreeApi
+	} from '#lib/api/trees.js';
 	import type { InstallTree } from '#lib/shared/api-contracts.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
 	import { isManagerOrAbove } from '#lib/shared/roles.js';
@@ -30,6 +36,9 @@
 	const toasts = new ToastStore();
 	const rows = $derived(data.installTrees);
 	const publicTree = $derived(rows.find((t) => t.isPublic) ?? null);
+	const rowIds = $derived(rows.map((t) => t.id));
+	// A single tree has no order to change, so its handle would do nothing.
+	const canReorder = $derived(rows.length > 1);
 
 	// One dialog at a time, so a single target and a single kind describe whichever is open.
 	type Dialog = 'rename' | 'delete' | 'public' | null;
@@ -37,6 +46,7 @@
 	let target = $state<InstallTree | null>(null);
 	let isBusy = $state(false);
 	let dialogError = $state<string | null>(null);
+	let isReordering = $state(false);
 
 	function open(kind: Exclude<Dialog, null>, tree: InstallTree) {
 		target = tree;
@@ -74,6 +84,19 @@
 			() => setPublicTreeApi(target!.isPublic ? null : target!.id, confirmName),
 			target!.isPublic ? 'Tree is now private' : 'Tree is now public'
 		);
+
+	// Awaited by the handle so focus returns only after the reload. No dialog is open to show errors.
+	async function reorder(ids: string[]) {
+		isReordering = true;
+		try {
+			await reorderTreesApi(ids);
+			await invalidateAll();
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not save the tree order'), { tone: 'error' });
+		} finally {
+			isReordering = false;
+		}
+	}
 
 	async function saveSite(patch: SettingsPatch) {
 		await saveSiteSettings(patch);
@@ -123,6 +146,9 @@
 							class="hidden border-b border-stone-200 bg-stone-50 text-stone-600 sm:table-header-group"
 						>
 							<tr>
+								<th scope="col" class="w-0 px-1 py-2 font-semibold"
+									><span class="sr-only">Reorder</span></th
+								>
 								<th scope="col" class="px-3 py-2 font-semibold">Name</th>
 								<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
 								<th scope="col" class="px-3 py-2 font-semibold">Owners</th>
@@ -135,10 +161,24 @@
 						</thead>
 						<tbody class="block divide-y divide-stone-100 sm:table-row-group">
 							{#each rows as tree (tree.id)}
-								<tr class="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 sm:table-row sm:p-0">
+								<tr
+									class="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 sm:table-row sm:p-0"
+									data-reorder-id={tree.id}
+								>
+									<td class="sm:table-cell sm:px-1 sm:py-2 {canReorder ? '' : 'max-sm:hidden'}">
+										{#if canReorder}
+											<ReorderHandle
+												id={tree.id}
+												name={tree.name}
+												ids={rowIds}
+												isDisabled={isReordering}
+												onreorder={reorder}
+											/>
+										{/if}
+									</td>
 									<th
 										scope="row"
-										class="w-full text-left font-semibold text-stone-900 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
+										class="min-w-0 text-left font-semibold text-stone-900 max-sm:flex-1 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
 									>
 										<span class="inline-flex flex-wrap items-center gap-2">
 											{#if tree.role}
