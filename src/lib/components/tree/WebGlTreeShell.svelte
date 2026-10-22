@@ -410,7 +410,7 @@
 		downAt = { x: event.clientX, y: event.clientY };
 		didLongPress = false;
 		cancelPress();
-		if (!scene || event.button !== 0 || lit.isTracing) return;
+		if (!scene || event.button !== 0 || event.ctrlKey || lit.isTracing) return;
 		const target = scene.pick(event.clientX, event.clientY, {
 			isCoarse: event.pointerType !== 'mouse'
 		});
