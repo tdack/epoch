@@ -11,6 +11,7 @@
 		{ href: '/#code', label: 'Get the code' },
 		{ href: '/#install', label: 'Install' },
 		{ href: '/#faq', label: 'FAQ' },
+		{ href: '/sub-trees', label: 'Sub-Trees' }
 		{ href: '/roles', label: 'Roles' }
 	];
 
