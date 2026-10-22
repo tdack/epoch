@@ -353,9 +353,10 @@ The tool is built in `tools/setup/`.
     sorted by it. The install owner sets the order once and every member's switcher uses it, so the
     column is on `trees`, not `tree_memberships`. Tree rows are not tree content, so this write is not in the
     change log (ADR-007).
-  - **Accessibility:** dragging alone fails WCAG 2.2 2.5.7 (Dragging Movements). The handle must
-    also move a row by keyboard (arrow keys while it has focus, announced through a live region),
-    and offer a single-pointer alternative, such as a "Move to top / up / down" menu on the handle.
+  - **Accessibility:** the handle moves a row by keyboard (arrow keys while it has focus, announced
+    through a live region), which WCAG 2.1.1 (Level A) needs. There is no single-pointer
+    alternative to dragging, a known and accepted failure of WCAG 2.2 2.5.7 (Dragging Movements,
+    AA); the accessibility audit should record it rather than reopen it.
 - **A scoped seed for sub-tree writes,** so an edit to a sub-tree loads only the rows its scope
   needs. Measure first, as the scoped reads were measured (ADR-062).
 - **Materialise membership if trees grow large.** The lens is a recursive read over indexed edges.
