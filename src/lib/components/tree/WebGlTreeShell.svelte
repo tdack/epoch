@@ -56,8 +56,10 @@
 		announcement: string;
 		/** Changes when the view should be re-framed; see `TreeCanvas`. */
 		fitKey: string;
-		/** Camera presets, in button order; the first is the starting one. */
+		/** Camera presets, in button order; the first is the starting one unless `initialCamera` says otherwise. */
 		cameras: ReadonlyArray<{ id: string; label: string }>;
+		/** The preset the view opens on, when the best first look is not the first button. */
+		initialCamera?: string;
 		/**
 		 * Fetches the mode's scene module and makes the scene; called once on mount. Import three.js
 		 * inside it (`import('./x-scene.js')`) so only someone who opens the view pays for it. A
@@ -115,6 +117,7 @@
 		announcement,
 		fitKey,
 		cameras,
+		initialCamera,
 		createScene,
 		applyLayout,
 		scene = $bindable(null),
@@ -142,7 +145,7 @@
 	let host = $state<HTMLDivElement>();
 	let shell = $state<HTMLDivElement>();
 	let didFail = $state(false);
-	let camera = $state(untrack(() => cameras[0].id));
+	let camera = $state(untrack(() => initialCamera ?? cameras[0].id));
 	let isSpinning = $state(false);
 	let shouldShowAllNames = $state(false);
 	let hovered = $state.raw<PickTarget | null>(null);

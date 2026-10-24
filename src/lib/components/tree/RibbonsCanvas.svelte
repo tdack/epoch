@@ -43,6 +43,7 @@
 	subject="the ribbons"
 	{announcement}
 	cameras={CAMERAS}
+	initialCamera={RIBBONS_CAMERAS.SIDE}
 	legend={LEGEND}
 	{...shellProps}
 	{palette}
