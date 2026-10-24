@@ -382,10 +382,18 @@ export function rebaseInverse(
 	const ops: RowOp[] = [];
 	for (const op of inverse) {
 		const current = currentImage(op.table, op.id);
-		if (!matchesImage(current, op.before))
+		// Images logged before a column was dropped still name it (media_items.entity_id). The live image
+		// lists exactly the current columns, so keys outside it are retired: left in, they would read as a
+		// changed value against the live null and block the undo.
+		const live = current && new Set(Object.keys(current));
+		const withoutRetired = (image: RowImage | null) =>
+			image && live
+				? (Object.fromEntries(Object.entries(image).filter(([key]) => live.has(key))) as RowImage)
+				: image;
+		if (!matchesImage(current, withoutRetired(op.before)))
 			return { isOk: false, mismatch: { table: op.table, id: op.id } };
 		// The stored inverse is JSON read back from `change_log`, so here the images really are generic.
-		let after: RowImage | null = op.after;
+		let after: RowImage | null = withoutRetired(op.after);
 		if (after) {
 			const previous = versionOf(current) ?? versionOf(after);
 			// The restored row gets every column the live row has, so a column the old image predates is

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { changeLog } from '../db/schema';
+import { changeLog, mediaItems } from '../db/schema';
 import { UnauthorizedError } from '../domain/errors';
 import { AUDIT_PAGE_SIZE } from '../../shared/change-audit';
 import {
@@ -138,6 +138,42 @@ describe('undoing a change from before files linked to several records', () => {
 		await expect(
 			log().undoChange(treeId, 'legacy-rename', editor.context)
 		).rejects.not.toMatchObject({ message: expect.stringContaining('before files could link') });
+	});
+
+	it('undoes a rename whose images still name the retired entityId column', async () => {
+		await t.db.insert(mediaItems).values({
+			id: 'm-old',
+			treeId,
+			r2ObjectKey: `media/${treeId}/m-old.png`,
+			mimeType: 'image/png',
+			title: 'b'
+		});
+		const image = (title: string) => ({
+			id: 'm-old',
+			treeId,
+			entityId: 'p1',
+			r2ObjectKey: `media/${treeId}/m-old.png`,
+			cfImageId: null,
+			title,
+			mimeType: 'image/png',
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000
+		});
+		await t.db.insert(changeLog).values({
+			id: 'legacy-old-rename',
+			treeId,
+			actorId: editor.userId,
+			kind: 'rename_media',
+			summary: 'Renamed a file',
+			changesJson: '[]',
+			inverseJson: JSON.stringify([
+				{ table: 'media_items', id: 'm-old', before: image('b'), after: image('a') }
+			])
+		});
+		await log().undoChange(treeId, 'legacy-old-rename', editor.context);
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, 'm-old')).get();
+		expect(row?.title).toBe('a');
 	});
 });
 
