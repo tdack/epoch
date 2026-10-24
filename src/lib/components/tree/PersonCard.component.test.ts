@@ -20,7 +20,7 @@ const node = {
 	person: { id: 'p1', displayName: 'Ada Lovelace', sex: 'F', isDeceased: false }
 } as unknown as PlacedPerson;
 
-function render(level: LevelOfDetail, isFocus: boolean, isSelected = false) {
+function render(level: LevelOfDetail, isFocus: boolean, isSelected = false, isSelf = false) {
 	document.body.innerHTML = '<svg></svg>';
 	const target = document.querySelector('svg')!;
 	component = mount(PersonCard, {
@@ -29,6 +29,7 @@ function render(level: LevelOfDetail, isFocus: boolean, isSelected = false) {
 			node,
 			level,
 			zoom: 1,
+			isSelf,
 			isFocus,
 			isSelected,
 			isActive: true,
@@ -67,5 +68,19 @@ describe('PersonCard focus mark', () => {
 	it('hides the decoration from assistive tech', () => {
 		const card = render('full', true);
 		expect(card.querySelector('.focus-tab')!.getAttribute('aria-hidden')).toBe('true');
+	});
+});
+
+describe('PersonCard "You" marker', () => {
+	it('marks the member’s own card, and says so to assistive tech', () => {
+		const card = render('full', false, false, true);
+		expect(card.querySelector('.you-pill')!.getAttribute('aria-hidden')).toBe('true');
+		expect(card.getAttribute('aria-label')).toContain('this is you');
+	});
+
+	it('leaves other cards alone', () => {
+		const card = render('full', false);
+		expect(card.querySelector('.you-pill')).toBeNull();
+		expect(card.getAttribute('aria-label')).not.toContain('this is you');
 	});
 });

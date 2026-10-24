@@ -16,7 +16,7 @@ beforeEach(() => {
 /** The people the load tried, in order. */
 async function tried(
 	search: string,
-	{ home, lens = null }: { home?: string; lens?: object | null } = {}
+	{ home, self, lens = null }: { home?: string; self?: string; lens?: object | null } = {}
 ) {
 	await load({
 		params: { id: TREE },
@@ -25,7 +25,7 @@ async function tried(
 		depends: vi.fn(),
 		parent: async () => ({
 			summary: { tree: { id: TREE }, defaultFocusPersonId: 'first', subtree: lens },
-			trees: [{ id: TREE, viewMode: null, homePersonId: home ?? null }]
+			trees: [{ id: TREE, viewMode: null, homePersonId: home ?? null, selfPersonId: self ?? null }]
 		})
 	} as never);
 	return api.fetchFocusGraph.mock.calls.map((c) => c[1]);
@@ -39,6 +39,19 @@ describe('which person a tree opens on', () => {
 		expect(await tried('', { home: 'home' })).toEqual(['home']);
 		api.fetchFocusGraph.mockClear();
 		expect(await tried('')).toEqual(['remembered']);
+	});
+
+	it('puts the member’s own person after the starting person and before the remembered one', async () => {
+		localStorage.setItem(rememberedFocusKey(TREE), 'remembered');
+		expect(await tried('', { home: 'home', self: 'me' })).toEqual(['home']);
+		api.fetchFocusGraph.mockClear();
+		expect(await tried('', { self: 'me' })).toEqual(['me']);
+		api.fetchFocusGraph.mockClear();
+		expect(await tried('?focus=url', { self: 'me' })).toEqual(['url']);
+		api.fetchFocusGraph.mockClear();
+		expect(await tried('', { self: 'me', lens: { id: 'lens', rootPersonId: 'root' } })).toEqual([
+			'root'
+		]);
 	});
 
 	it('falls through a starting person who is gone', async () => {

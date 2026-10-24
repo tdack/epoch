@@ -9,6 +9,10 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 	getTreeContext: () => ({ toasts: { push: () => {} } })
 }));
 
+vi.mock('#lib/api/settings.js', () => ({ saveSelfPerson: vi.fn().mockResolvedValue({}) }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn(), invalidate: vi.fn() }));
+import { saveSelfPerson } from '#lib/api/settings.js';
+
 let component: Record<string, unknown> | null = null;
 afterEach(() => {
 	if (component) unmount(component);
@@ -72,6 +76,8 @@ function open(
 	options: {
 		layout?: 'drawer' | 'page';
 		role?: TreeRole;
+		selfPersonId?: string | null;
+		isReadOnly?: boolean;
 		relativeTarget?: Record<string, unknown>;
 	} = {}
 ) {
@@ -82,11 +88,12 @@ function open(
 			dto,
 			treeId: 't',
 			role: options.role ?? 'owner',
+			selfPersonId: options.selfPersonId ?? null,
 			layout: options.layout ?? 'drawer',
 			relativeTarget: (options.relativeTarget ?? { kind: 'select', onSelect }) as never,
 			editor: { openRelationship: vi.fn(), anchorFor: (id: string) => ({ id }) } as never,
 			toasts: { push: vi.fn() } as never,
-			marks: { favorites: [] } as never
+			marks: { favorites: [], isReadOnly: options.isReadOnly ?? false } as never
 		}
 	});
 	flushSync();
@@ -454,5 +461,33 @@ describe('PersonView section order', () => {
 	it('has no separate sources section', () => {
 		open(pageOf('ben', 'Ben'), { layout: 'drawer' });
 		expect(document.querySelector('[data-section="evidence"]')).toBeNull();
+	});
+});
+
+describe('PersonView "This is me"', () => {
+	const toggle = () => document.querySelector<HTMLButtonElement>('[data-testid="self-toggle"]');
+	const badge = () => document.querySelector('[data-testid="you-badge"]');
+
+	it('links the member to the person, and shows no badge until they are', async () => {
+		open(pageOf('ben', 'Ben'));
+		expect(badge()).toBeNull();
+		expect(toggle()!.textContent).toContain('This is me');
+		toggle()!.click();
+		await Promise.resolve();
+		expect(saveSelfPerson).toHaveBeenCalledWith('t', 'ben');
+	});
+
+	it('badges the member’s own person and offers Not me, which clears it', async () => {
+		open(pageOf('ben', 'Ben'), { selfPersonId: 'ben' });
+		expect(badge()!.textContent).toContain('You');
+		expect(toggle()!.textContent).toContain('Not me');
+		toggle()!.click();
+		await Promise.resolve();
+		expect(saveSelfPerson).toHaveBeenCalledWith('t', null);
+	});
+
+	it('offers nothing to a reader with no account', () => {
+		open(pageOf('ben', 'Ben'), { isReadOnly: true });
+		expect(toggle()).toBeNull();
 	});
 });

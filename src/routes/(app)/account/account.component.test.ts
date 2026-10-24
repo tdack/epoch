@@ -12,13 +12,14 @@ vi.mock('#lib/api/settings.js', () => ({
 	saveMySettings: vi.fn(),
 	saveDefaultTree: vi.fn(),
 	saveViewMode: vi.fn().mockResolvedValue(undefined),
-	saveHomePerson: vi.fn().mockResolvedValue(undefined)
+	saveHomePerson: vi.fn().mockResolvedValue(undefined),
+	saveSelfPerson: vi.fn().mockResolvedValue(undefined)
 }));
 vi.mock('#lib/api/lists.js', () => ({
 	searchPeopleApi: vi.fn().mockResolvedValue([{ id: 'p9', givenName: 'Ada', surname: 'Lovelace' }])
 }));
 
-import { saveHomePerson, saveViewMode } from '#lib/api/settings.js';
+import { saveHomePerson, saveSelfPerson, saveViewMode } from '#lib/api/settings.js';
 import Page from './+page.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -32,7 +33,8 @@ afterEach(() => {
 function render(
 	trees: Array<Record<string, unknown>>,
 	leave: Record<string, unknown> = { isInstallOwner: false, soleOwnerTrees: [] },
-	homePersonNames: Record<string, string> = {}
+	homePersonNames: Record<string, string> = {},
+	selfPersonNames: Record<string, string> = {}
 ) {
 	component = mount(Page, {
 		target: document.body,
@@ -47,7 +49,8 @@ function render(
 				leave,
 				settings: { user: {}, site: {}, effective: {} },
 				trees,
-				homePersonNames
+				homePersonNames,
+				selfPersonNames
 			} as never
 		}
 	});
@@ -113,9 +116,9 @@ describe('account page', () => {
 			const placeholders = [
 				...document.querySelectorAll<HTMLInputElement>('input[role="combobox"]')
 			].map((i) => i.placeholder);
-			expect(placeholders).toEqual(['Olda Oldman', 'No preference']);
+			expect(placeholders).toEqual(['Olda Oldman', 'Not linked', 'No preference', 'Not linked']);
 
-			const input = document.querySelectorAll<HTMLInputElement>('input[role="combobox"]')[1]!;
+			const input = document.querySelectorAll<HTMLInputElement>('input[role="combobox"]')[2]!;
 			input.value = 'ada';
 			input.dispatchEvent(new Event('input', { bubbles: true }));
 			await vi.advanceTimersByTimeAsync(300);
@@ -129,6 +132,36 @@ describe('account page', () => {
 				.click();
 			await vi.advanceTimersByTimeAsync(0);
 			expect(saveHomePerson).toHaveBeenCalledWith('a', null);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('saves and clears the member’s own person per tree', async () => {
+		vi.useFakeTimers();
+		try {
+			render(
+				[tree('a', 'Smiths', 'editor', { selfPersonId: 'p1' }), tree('b', 'Joneses', 'viewer')],
+				undefined,
+				{},
+				{ a: 'Olda Oldman' }
+			);
+			const boxes = document.querySelectorAll<HTMLInputElement>('input[role="combobox"]');
+			expect(boxes[1]!.placeholder).toBe('Olda Oldman');
+			const input = boxes[3]!;
+			input.value = 'ada';
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			await vi.advanceTimersByTimeAsync(300);
+			flushSync();
+			(document.querySelector('[role="option"]') as HTMLElement).click();
+			await vi.advanceTimersByTimeAsync(0);
+			expect(saveSelfPerson).toHaveBeenCalledWith('b', 'p9');
+
+			[...document.querySelectorAll('button')]
+				.find((b) => b.textContent?.trim() === 'Clear')!
+				.click();
+			await vi.advanceTimersByTimeAsync(0);
+			expect(saveSelfPerson).toHaveBeenCalledWith('a', null);
 		} finally {
 			vi.useRealTimers();
 		}
