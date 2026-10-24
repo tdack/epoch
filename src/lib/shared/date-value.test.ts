@@ -100,6 +100,18 @@ describe('parseDateValue', () => {
 		expect(v.sortEnd).toBeNull();
 	});
 
+	it.each([
+		['a long whitespace run', '1' + ' '.repeat(200_000) + 'b'],
+		['a trailing slash with no digits', '1' + ' '.repeat(200_000) + '/'],
+		['a long run inside BET', 'BET 1' + ' '.repeat(200_000) + 'b'],
+		['a long run inside FROM', 'FROM 1' + ' '.repeat(200_000) + 'b']
+	])('parses %s in linear time', (_label, raw) => {
+		const started = performance.now();
+		const v = parseDateValue(raw);
+		expect(performance.now() - started).toBeLessThan(200);
+		expect(v.calendar).not.toBe('JULIAN');
+	});
+
 	it('handles empty and unknown input', () => {
 		expect(parseDateValue('').qualifier).toBe(DATE_QUALIFIERS.UNKNOWN);
 		expect(parseDateValue(null).precision).toBe(DATE_PRECISIONS.NONE);

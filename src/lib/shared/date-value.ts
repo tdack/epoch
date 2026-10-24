@@ -179,7 +179,8 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
 }
 
 /** A date followed by the last digits of its later year: `30 JAN 1648/49`. */
-const DUAL_DATE = /^(.+?)\s*\/\s*(\d{1,2})$/;
+// Ending the group on \S keeps backtracking linear on a long whitespace run; lazy `.+?\s*` was quadratic.
+const DUAL_DATE = /^(.*\S)\s*\/\s*(\d{1,2})$/;
 
 /**
  * Replace the year that ends `body` with the later year of a dual date, read from its last digits:
@@ -240,7 +241,7 @@ function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 	const body = dual ? withLaterDualYear(dual[1].trim(), dual[2]) : raw;
 
 	// Ranged qualifiers.
-	const between = body.match(/^BET(?:WEEN)?\s+(.+?)\s+AND\s+(.+)$/);
+	const between = body.match(/^BET(?:WEEN)?\s+(.*?\S)\s+AND\s+(.+)$/);
 	if (between) {
 		const startParts = parseDateParts(between[1]);
 		const endParts = parseDateParts(between[2]);
@@ -257,7 +258,7 @@ function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 		}
 	}
 
-	const fromTo = body.match(/^FROM\s+(.+?)\s+TO\s+(.+)$/);
+	const fromTo = body.match(/^FROM\s+(.*?\S)\s+TO\s+(.+)$/);
 	if (fromTo) {
 		const startParts = parseDateParts(fromTo[1]);
 		const endParts = parseDateParts(fromTo[2]);
