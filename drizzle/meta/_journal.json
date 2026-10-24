@@ -302,13 +302,6 @@
       "when": 1792814247723,
       "tag": "0042_media_links",
       "breakpoints": true
-    },
-    {
-      "idx": 43,
-      "version": "6",
-      "when": 1792840183623,
-      "tag": "0043_drop_retired_columns",
-      "breakpoints": true
     }
   ]
 }

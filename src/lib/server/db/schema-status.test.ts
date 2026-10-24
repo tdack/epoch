@@ -59,18 +59,28 @@ describe('the Drizzle schema and the migrations agree', () => {
 		expect(tables.sort()).toEqual([...declared.keys()].sort());
 	});
 
+	// Columns the code no longer declares whose drop migration is held until that code is live
+	// (expand-and-contract; see the backlog). Empty this when the drop migration lands.
+	const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+		media_items: ['entity_id'],
+		trees: ['default_view_mode']
+	};
+
 	it.each([...declared.keys()])(
 		'%s has the same columns, types, nullability and indexes',
 		async (table) => {
 			const actual = await all<{ name: string; type: string; notnull: number; pk: number }>(
 				`PRAGMA table_info('${table}')`
 			);
-			const migrated = actual.map((c) => ({
-				name: c.name,
-				type: c.type.toLowerCase(),
-				isRequired: c.notnull === 1 || c.pk > 0,
-				isPrimaryKey: c.pk > 0
-			}));
+			const retired = new Set(RETIRED_COLUMNS[table] ?? []);
+			const migrated = actual
+				.filter((c) => !retired.has(c.name))
+				.map((c) => ({
+					name: c.name,
+					type: c.type.toLowerCase(),
+					isRequired: c.notnull === 1 || c.pk > 0,
+					isPrimaryKey: c.pk > 0
+				}));
 			const expected = declared
 				.get(table)!
 				.columns.map((c) => ({ ...c, isRequired: c.isRequired || c.isPrimaryKey }));

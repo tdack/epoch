@@ -31,6 +31,7 @@ Last reviewed: 2026-10-21.
   
 ### Media and files
 
+- **Deploy migration 0043 once the code without its columns is live.** The code no longer declares `media_items.entity_id` or `trees.default_view_mode`, but the deployed Worker before it still selected them, so the drop is held back: revert the commit "hold migration 0043" and deploy it after this code is live (expand-and-contract).
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
