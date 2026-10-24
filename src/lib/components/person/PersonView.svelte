@@ -99,7 +99,7 @@
 
 {#snippet media()}
 	<PersonSection id="media" title="Photos and documents" {layout} {isFlush}>
-		<PersonMedia {dto} {treeId} {editor} />
+		<PersonMedia {dto} {treeId} {editor} {role} />
 	</PersonSection>
 {/snippet}
 

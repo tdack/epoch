@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import type { PersonPageDto } from '#lib/shared/person-page.js';
+import type { TreeRole } from '#lib/shared/roles.js';
 import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 
 const toasts = vi.hoisted(() => ({ push: vi.fn() }));
@@ -40,12 +41,12 @@ const file = (id: string, canDelete: boolean) => ({
 	isPrivate: false
 });
 
-function render(media: ReturnType<typeof file>[]) {
+function render(media: ReturnType<typeof file>[], role: TreeRole | undefined = 'editor') {
 	const refresh = vi.fn().mockResolvedValue(undefined);
 	const dto = { person: { id: 'p1' }, media } as unknown as PersonPageDto;
 	component = mount(PersonMedia, {
 		target: document.body,
-		props: { dto, treeId: 't1', editor: { refresh } as unknown as TreeEditor }
+		props: { dto, treeId: 't1', editor: { refresh } as unknown as TreeEditor, role }
 	});
 	flushSync();
 	return refresh;
@@ -142,5 +143,16 @@ describe('PersonMedia drop', () => {
 		zone().dispatchEvent(dragEvent('dragleave', ['Files']));
 		flushSync();
 		expect(document.body.textContent).not.toContain('Drop to upload');
+	});
+});
+
+describe('PersonMedia without upload rights', () => {
+	it('hides Upload and ignores a dropped file for a viewer', () => {
+		render([], 'viewer');
+		expect(document.body.textContent).not.toContain('Upload');
+		const drop = dragEvent('drop', ['Files'], [new File(['a'], 'a.png')]);
+		document.querySelector('[data-testid="person-media-drop"]')!.dispatchEvent(drop);
+		expect(drop.defaultPrevented).toBe(false);
+		expect(upload).not.toHaveBeenCalled();
 	});
 });

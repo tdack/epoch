@@ -3,6 +3,7 @@
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
+	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { fileDrop } from '#lib/components/forms/fileDrop.js';
 	import { deleteFileApi, uploadMediaApi } from '#lib/api/files.js';
 	import { isInlineMediaType, mediaUrl, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
@@ -13,11 +14,14 @@
 		treeId: string;
 		/** Reloads what the screen shows once a file is stored. */
 		editor: TreeEditor;
+		/** The viewer's role; uploading needs `media:manage` (editor and up), so lower roles see no Upload. */
+		role: TreeRole | undefined;
 	}
 
-	let { dto, treeId, editor }: Props = $props();
+	let { dto, treeId, editor, role }: Props = $props();
 
 	let isUploading = $state(false);
+	const canUpload = $derived(canChangeRecords(role));
 	let isDragOver = $state(false);
 	let uploadError = $state<string | null>(null);
 	let fileInput: HTMLInputElement | null = $state(null);
@@ -73,7 +77,7 @@
 		: 'outline-transparent'}"
 	data-testid="person-media-drop"
 	use:fileDrop={{
-		isEnabled: true,
+		isEnabled: canUpload,
 		onActiveChange: (isActive) => (isDragOver = isActive),
 		onFiles: (files) => void upload(files)
 	}}
@@ -83,20 +87,22 @@
 		{#if dto.media.length === 0}
 			<p class="text-xs text-stone-500 italic">No photos or historical documents attached.</p>
 		{/if}
-		<label
-			class="ml-auto inline-flex shrink-0 cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
-		>
-			<Upload class="mr-1 h-3.5 w-3.5" />
-			<span>Upload</span>
-			<input
-				bind:this={fileInput}
-				type="file"
-				accept={MEDIA_UPLOAD_ACCEPT}
-				multiple
-				onchange={handleFileUpload}
-				class="hidden"
-			/>
-		</label>
+		{#if canUpload}
+			<label
+				class="ml-auto inline-flex shrink-0 cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
+			>
+				<Upload class="mr-1 h-3.5 w-3.5" />
+				<span>Upload</span>
+				<input
+					bind:this={fileInput}
+					type="file"
+					accept={MEDIA_UPLOAD_ACCEPT}
+					multiple
+					onchange={handleFileUpload}
+					class="hidden"
+				/>
+			</label>
+		{/if}
 	</div>
 
 	{#if isDragOver}
