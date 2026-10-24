@@ -83,6 +83,8 @@ export async function nextTreePosition(db: DbClient): Promise<number> {
 }
 
 export class TreeRepository {
+	constructor(private db: DbClient) {}
+
 	/**
 	 * Points members' "This is me" and "Start at" people at `toId` where they named `fromId`, for a
 	 * person merge. Memberships are not in the change log, so a merge's undo cannot move these back;
@@ -96,7 +98,6 @@ export class TreeRepository {
 				.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships[column], fromId)));
 		}
 	}
-	constructor(private db: DbClient) {}
 
 	async listForUser(userId: string): Promise<TreeSummary[]> {
 		const records = await this.db
