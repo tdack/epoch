@@ -52,6 +52,8 @@
 		 * deliberately not when a stub is expanded, so opening a branch does not move the view.
 		 */
 		fitKey: string;
+		/** The signed-in member's own person, marked "You" on their card. */
+		selfPersonId?: string | null;
 		/** Person marked with the green border: whoever the drawer shows, else the last one clicked. */
 		selectedPersonId?: string | null;
 		/** A card was clicked or activated with Enter/Space: mark it, without moving the focus. */
@@ -111,6 +113,7 @@
 		layout,
 		palette = DEFAULT_PALETTE,
 		fitKey,
+		selfPersonId = null,
 		selectedPersonId = null,
 		onSelectPerson,
 		onOpenPerson,
@@ -564,6 +567,7 @@
 					{node}
 					{level}
 					zoom={level === 'block' ? transform.k : 1}
+					isSelf={node.id === selfPersonId}
 					isFocus={node.id === layout.focusPersonId}
 					isSelected={node.id === selectedPersonId}
 					isActive={node.id === activeId}

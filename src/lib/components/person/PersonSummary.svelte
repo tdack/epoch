@@ -7,9 +7,11 @@
 		dto: PersonPageDto;
 		/** The person page's one h1; in the drawer the name sits under the tree page's own h1. */
 		isPageTitle: boolean;
+		/** The signed-in member says this is them; private to that member. */
+		isSelf?: boolean;
 	}
 
-	let { dto, isPageTitle }: Props = $props();
+	let { dto, isPageTitle, isSelf = false }: Props = $props();
 
 	/** First letter of the first given name and of the surname: "Jane Mary Doe" is JD. */
 	const initials = $derived.by(() => {
@@ -46,6 +48,10 @@
 		>
 			{dto.person.displayName}
 		</svelte:element>
+		{#if isSelf}<span
+				class="mt-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900"
+				data-testid="you-badge">You<span class="sr-only"> (this is you)</span></span
+			>{/if}
 		<p class="mt-1 text-sm text-stone-600">
 			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
 				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}

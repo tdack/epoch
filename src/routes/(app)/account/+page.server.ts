@@ -15,12 +15,13 @@ export const load: PageServerLoad = serverLoad(
 	async ({ db, ctx }, { depends }) => {
 		depends(SETTINGS_DEPENDENCY);
 		const profiles = new ProfileService(db);
-		const [profile, leave, settings, homePersonNames] = await Promise.all([
+		const [profile, leave, settings, homePersonNames, selfPersonNames] = await Promise.all([
 			profiles.view(ctx),
 			profiles.leaveBlockers(ctx),
 			new SettingsService(db).view(ctx),
-			new TreeService(db).homePersonNames(ctx)
+			new TreeService(db).homePersonNames(ctx),
+			new TreeService(db).selfPersonNames(ctx)
 		]);
-		return { profile, leave, settings, homePersonNames };
+		return { profile, leave, settings, homePersonNames, selfPersonNames };
 	}
 );

@@ -18,6 +18,7 @@
 	import {
 		saveDefaultTree,
 		saveHomePerson,
+		saveSelfPerson,
 		saveMySettings,
 		saveViewMode
 	} from '#lib/api/settings.js';
@@ -153,6 +154,21 @@
 			person
 				? `Saved: ${treeName} starts at ${person.name}.`
 				: `Saved: ${treeName} has no starting person.`
+		);
+
+	const selfName = (id: string) => data.selfPersonNames[id] ?? null;
+	const setSelfPerson = (
+		id: string,
+		treeName: string,
+		person: { id: string; name: string } | null
+	) =>
+		saveTree(
+			async () => {
+				await saveSelfPerson(id, person?.id ?? null);
+			},
+			person
+				? `Saved: you are ${person.name} in ${treeName}.`
+				: `Saved: you are not linked to a person in ${treeName}.`
 		);
 
 	// Leave Epoch
@@ -313,6 +329,7 @@
 									{/if}
 									<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
 									<th scope="col" class="px-3 py-2 font-semibold">Start at</th>
+									<th scope="col" class="px-3 py-2 font-semibold">This is me</th>
 								</tr>
 							</thead>
 							<tbody class="block divide-y divide-stone-100 sm:table-row-group">
@@ -374,6 +391,28 @@
 													class={quietButton}
 													disabled={isSavingTree}
 													onclick={() => void setHomePerson(tree.id, tree.name, null)}
+												>
+													Clear
+												</button>
+											{/if}
+										</td>
+										<td class="flex w-full items-end gap-2 sm:table-cell sm:w-auto sm:px-3 sm:py-2">
+											<PersonPicker
+												treeId={tree.id}
+												label="This is me in {tree.name}"
+												picked={selfName(tree.id)
+													? { id: tree.selfPersonId ?? '', name: selfName(tree.id)! }
+													: null}
+												emptyName="Not linked"
+												isInline
+												onpick={(person) => void setSelfPerson(tree.id, tree.name, person)}
+											/>
+											{#if selfName(tree.id)}
+												<button
+													type="button"
+													class={quietButton}
+													disabled={isSavingTree}
+													onclick={() => void setSelfPerson(tree.id, tree.name, null)}
 												>
 													Clear
 												</button>

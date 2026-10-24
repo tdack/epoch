@@ -200,6 +200,18 @@ export class TreeService {
 		return { selfPersonId: personId, selfPersonName: name };
 	}
 
+	/** The caller's own person in this tree, if still visible to them; null for a public visitor. */
+	async selfPerson(
+		treeId: string,
+		context: AuthenticatedContext
+	): Promise<{ id: string; name: string } | null> {
+		if (context.user.isPublicVisitor) return null;
+		const mine = (await this.treeRepo.listForUser(context.user.id)).find((t) => t.id === treeId);
+		if (!mine?.selfPersonId) return null;
+		const name = await this.visibleName(treeId, mine.selfPersonId, context);
+		return name === null ? null : { id: mine.selfPersonId, name };
+	}
+
 	/** The display names of the caller's own "this is me" people, by tree; stale or hidden ones are left out. */
 	async selfPersonNames(context: AuthenticatedContext): Promise<Record<string, string>> {
 		const names: Record<string, string> = {};

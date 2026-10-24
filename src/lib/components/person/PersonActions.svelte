@@ -9,6 +9,7 @@
 		Pencil,
 		Star,
 		Trash2,
+		User,
 		UserPlus
 	} from '@lucide/svelte';
 	import PersonMergeDialog from '#lib/components/modals/PersonMergeDialog.svelte';
@@ -17,6 +18,7 @@
 	import type { MarksStore } from '#lib/components/layout/marks-store.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { setFavoriteApi } from '#lib/api/lists.js';
+	import { saveSelfPerson } from '#lib/api/settings.js';
 	import { undoApi } from '#lib/api/relationships.js';
 	import { createSubtree } from '#lib/api/subtrees.js';
 	import { subtreePath } from '#lib/shared/tree-slug.js';
@@ -39,6 +41,8 @@
 		treeSlug?: string | null;
 		/** The viewer's role in this tree; merging deletes a record, so it needs an editor. */
 		role: TreeRole | undefined;
+		/** The member's own person in this tree; private to them. */
+		selfPersonId?: string | null;
 		editor: TreeEditor;
 		toasts: ToastStore;
 		marks: MarksStore;
@@ -51,6 +55,7 @@
 		treeId,
 		treeSlug = null,
 		role,
+		selfPersonId = null,
 		editor,
 		toasts,
 		marks,
@@ -68,6 +73,18 @@
 			marks.set(await setFavoriteApi(treeId, dto.person.id, !isFavorite));
 		} catch (cause) {
 			toasts.push(messageOf(cause, 'Could not change the favourite'), { tone: 'error' });
+		}
+	}
+
+	const isMe = $derived(selfPersonId === dto.person.id);
+
+	async function toggleMe() {
+		try {
+			await saveSelfPerson(treeId, isMe ? null : dto.person.id);
+			// The tree list carries it, and the layout loads that.
+			await invalidate(DATA_KEY);
+		} catch (cause) {
+			toasts.push(messageOf(cause, 'Could not save who you are'), { tone: 'error' });
 		}
 	}
 
@@ -149,6 +166,15 @@
 				<Star class="h-3.5 w-3.5 {isFavorite ? 'fill-amber-400 text-amber-500' : ''}" />{isFavorite
 					? 'Favourite'
 					: 'Add to favourites'}
+			</button>{/if}
+		{#if !marks.isReadOnly}<button
+				type="button"
+				onclick={toggleMe}
+				aria-pressed={isMe}
+				class="action-btn"
+				data-testid="self-toggle"
+			>
+				<User class="h-3.5 w-3.5" />{isMe ? 'Not me' : 'This is me'}
 			</button>{/if}
 		{#if canChange}<button
 				type="button"

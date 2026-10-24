@@ -59,6 +59,7 @@
 	const palette = $derived(safePalette(data.palette));
 	const { editor, marks, toasts, finder, isPublicVisitor, importGedcom } = getTreeContext();
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
+	const selfPersonId = $derived(data.trees.find((t) => t.id === treeId)?.selfPersonId ?? null);
 	/** What the chart offers: a viewer explores, a contributor adds, an editor also changes and deletes. */
 	const canCreate = $derived(canCreateRecords(role));
 	const canChange = $derived(canChangeRecords(role));
@@ -608,6 +609,7 @@
 						isWholeTree={isWholeTreeDrawn}
 						isTruncated={isWholeTreeTruncated}
 						onToggleWholeTree={toggleWholeTree}
+						{selfPersonId}
 						selectedPersonId={markedPersonId}
 						onSelectPerson={handleHighlightPerson}
 						onOpenPerson={handleOpenPerson}
@@ -680,6 +682,7 @@
 		{treeId}
 		treeSlug={treeLinkSlug(data.summary.tree)}
 		{role}
+		{selfPersonId}
 		error={drawer.error}
 		onClose={clearSelection}
 		onSelectPerson={handleSelectPerson}

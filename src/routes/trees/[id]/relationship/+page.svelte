@@ -17,11 +17,20 @@
 				? { id: data.result.from.id, name: data.result.from.name }
 				: data.from && data.fromName
 					? { id: data.from, name: data.fromName }
-					: null
+					: data.from
+						? null
+						: data.me
 		)
 	);
+	// With no result yet, the empty end starts as the member themself; choosing it asks the question.
 	let second = $state<Picked>(
-		untrack(() => (data.result ? { id: data.result.to.id, name: data.result.to.name } : null))
+		untrack(() =>
+			data.result
+				? { id: data.result.to.id, name: data.result.to.name }
+				: data.from && !data.to
+					? data.me
+					: null
+		)
 	);
 
 	// Choosing the second person asks the question: the address changes, and the load answers it.

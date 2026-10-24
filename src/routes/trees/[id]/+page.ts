@@ -36,8 +36,8 @@ function rememberedFocus(treeId: string, subtreeId: string | null): string | nul
 }
 
 /**
- * The bounded graph around the focus person: the URL's, else the member's starting person, else the
- * last one viewed, else the tree's first. A starting, remembered or requested person who no longer exists falls back to the default rather
+ * The bounded graph around the focus person: the URL's, else the member's starting person, else the member's
+ * own person, else the last one viewed, else the tree's first. A starting, remembered or requested person who no longer exists falls back to the default rather
  * than showing an error page for a stale bookmark.
  */
 export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) => {
@@ -75,11 +75,13 @@ export const load: PageLoad = treeLoad(async ({ params, url, fetch, parent }) =>
 
 	// Inside a lens: the address, what was last viewed in this lens, the lens's root, then the tree's.
 	// Outside one, the member's chosen starting person sits between the address and what was last
-	// viewed; a lens keeps its own order, since the starting person may not belong to it.
+	// viewed, and the member's own person comes after that; a lens keeps its own order, since neither
+	// may belong to it.
 	const lens = summary.subtree;
 	const candidates = [
 		view.focusId,
 		lens ? null : (saved?.homePersonId ?? null),
+		lens ? null : (saved?.selfPersonId ?? null),
 		rememberedFocus(summary.tree.id, lens?.id ?? null),
 		lens?.rootPersonId ?? null,
 		summary.defaultFocusPersonId

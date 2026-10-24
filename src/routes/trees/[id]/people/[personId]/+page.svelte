@@ -21,6 +21,7 @@
 	);
 	const lens = $derived(data.summary.subtree);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
+	const selfPersonId = $derived(data.trees.find((t) => t.id === treeId)?.selfPersonId ?? null);
 
 	// The dialogs read versions and names from the graph the screen shows.
 	$effect(() => {
@@ -65,6 +66,7 @@
 	{treeId}
 	treeSlug={treeLinkSlug(data.summary.tree)}
 	{role}
+	{selfPersonId}
 	{editor}
 	{toasts}
 	{marks}

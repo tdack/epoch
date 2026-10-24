@@ -30,6 +30,8 @@
 		treeSlug?: string | null;
 		/** The viewer's role in this tree; each section hides what it cannot do. */
 		role: TreeRole | undefined;
+		/** The member's own person in this tree; private to them. */
+		selfPersonId?: string | null;
 		/**
 		 * `drawer` is one column of folding sections, facts grouped by kind. `page` opens on the
 		 * newest of each kind of attribute, then the person's life as a timeline and their family,
@@ -48,6 +50,7 @@
 		treeId,
 		treeSlug = null,
 		role,
+		selfPersonId = null,
 		layout,
 		relativeTarget = LINK_TARGET,
 		editor,
@@ -132,7 +135,7 @@
 <div class="space-y-6">
 	<header class="flex flex-wrap items-start justify-between gap-3">
 		<div class="min-w-0 space-y-2">
-			<PersonSummary {dto} isPageTitle={isPage} />
+			<PersonSummary {dto} isPageTitle={isPage} isSelf={dto.person.id === selfPersonId} />
 			<CitationsDisclosure
 				{treeId}
 				{treeSlug}
@@ -146,7 +149,17 @@
 				label={dto.person.displayName}
 			/>
 		</div>
-		<PersonActions {dto} {treeId} {treeSlug} {role} {editor} {toasts} {marks} {relativeTarget} />
+		<PersonActions
+			{dto}
+			{treeId}
+			{treeSlug}
+			{role}
+			{selfPersonId}
+			{editor}
+			{toasts}
+			{marks}
+			{relativeTarget}
+		/>
 	</header>
 
 	{#if isPage}

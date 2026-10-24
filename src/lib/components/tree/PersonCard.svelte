@@ -21,6 +21,8 @@
 		level: LevelOfDetail;
 		/** Current zoom scale; only used to keep the click target usable when zoomed out. */
 		zoom: number;
+		/** True when the signed-in member said this card is them; private to that member. */
+		isSelf?: boolean;
 		/** True for the person the whole view is centred on. */
 		isFocus: boolean;
 		/** True for the marked person: the one the drawer shows, else the last one clicked. */
@@ -43,6 +45,7 @@
 		node,
 		level,
 		zoom,
+		isSelf = false,
 		isFocus,
 		isSelected,
 		isActive,
@@ -59,6 +62,7 @@
 	const person = $derived(node.person);
 	/** The name and the "née …" half drawn apart: a full name and its birth surname do not fit one line. */
 	const shown = $derived(splitDisplayName(person.displayName));
+	const label = $derived(accessibleName(node, relation) + (isSelf ? ', this is you' : ''));
 	const hit = $derived(hitSize(zoom));
 	/** Blocks grow a little when zoomed far out so they stay a target, but never touch the next row. */
 	const blockHeight = $derived(Math.min(H * 1.6, Math.max(H, 22 / Math.max(zoom, 0.01))));
@@ -149,7 +153,7 @@
 	transform="translate({node.x}, {node.y})"
 	role="button"
 	tabindex={isActive ? 0 : -1}
-	aria-label={accessibleName(node, relation)}
+	aria-label={label}
 	aria-current={isFocus ? 'true' : undefined}
 	onclick={onClick}
 	ondblclick={() => {
@@ -224,6 +228,18 @@
 			</g>
 		{/if}
 	{/if}
+	{#if isSelf}
+		<!-- A pill beside the frame's corner for sighted users; the name carries it for a screen reader
+		     (see the label above), so the pill itself is hidden from them. -->
+		<g
+			class="you-pill"
+			transform="translate({W / 2 - 4 * scale}, {frameHeight / 2 - 2 * scale})"
+			aria-hidden="true"
+		>
+			<rect x={-26 * scale} y={-9 * scale} width={52 * scale} height={18 * scale} rx={9 * scale} />
+			<text y={4 * scale} text-anchor="middle" style="font-size: {10 * scale}px">You</text>
+		</g>
+	{/if}
 	{#if isFocus}
 		<!-- Drawn as marks of their own, not as a restyled frame: hover and selection both restyle the
 		     frame, and the focus person must still read when either applies. Decorative because
@@ -246,7 +262,7 @@
 			<text y={-3 * scale} text-anchor="middle" style="font-size: {11 * scale}px">Focus</text>
 		</g>
 	{/if}
-	<title>{accessibleName(node, relation)}</title>
+	<title>{label}</title>
 </g>
 
 <style>
@@ -365,6 +381,16 @@
 	.dagger-block {
 		fill: var(--tree-ink-muted);
 		font-size: 30px;
+	}
+	.you-pill {
+		pointer-events: none;
+	}
+	.you-pill rect {
+		fill: var(--tree-accent);
+	}
+	.you-pill text {
+		fill: var(--tree-bg);
+		font-weight: 700;
 	}
 	.badge rect {
 		fill: var(--tree-panel);

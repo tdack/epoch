@@ -28,6 +28,8 @@
 		/** The tree's slug, for the links this builds (ADR-045); without one they use the id. */
 		treeSlug?: string | null;
 		role: TreeRole | undefined;
+		/** The member's own person in this tree; private to them. */
+		selfPersonId?: string | null;
 		/** Set when the page data could not be loaded. */
 		error?: string | null;
 		onClose: () => void;
@@ -48,6 +50,7 @@
 		treeId,
 		treeSlug = null,
 		role,
+		selfPersonId = null,
 		error = null,
 		onClose,
 		onSelectPerson,
@@ -219,6 +222,7 @@
 				{treeId}
 				{treeSlug}
 				{role}
+				{selfPersonId}
 				layout="drawer"
 				relativeTarget={{ kind: 'select', onSelect: onSelectPerson }}
 				{editor}
