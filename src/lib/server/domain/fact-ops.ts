@@ -172,6 +172,9 @@ function createFact(
 		latitude: clean(command.fact.latitude),
 		longitude: clean(command.fact.longitude),
 		placeExtra: null,
+		dateExtra: null,
+		causeExtra: null,
+		ageExtra: null,
 		religion: clean(command.fact.religion),
 		// The fact's note is a note record (ADR-029); the column that held it is no longer written.
 		notes: null,
@@ -200,13 +203,20 @@ function updateFact(
 
 	const isAddressChanged =
 		patch.address !== undefined && clean(patch.address) !== clean(before.address);
+	const isDateChanged = patch.dateText !== undefined && clean(patch.dateText) !== before.dateRaw;
+	const isCauseChanged = patch.cause !== undefined && clean(patch.cause) !== before.cause;
+	const isAgeChanged = patch.age !== undefined && clean(patch.age) !== before.age;
 	const after: EventRow = {
 		...before,
 		type: patch.type ?? before.type,
 		// Unchanged text keeps its columns as they are, so re-saving a form is not a write.
-		...(patch.dateText !== undefined && clean(patch.dateText) !== before.dateRaw
+		...(isDateChanged
 			? { dateRaw: clean(patch.dateText), ...dateColumnsFor(clean(patch.dateText)) }
 			: {}),
+		// A sub-line (a TIME, a CONT, a PHRASE) describes the value it hung under; once that changes it is stale.
+		dateExtra: isDateChanged ? null : before.dateExtra,
+		causeExtra: isCauseChanged ? null : before.causeExtra,
+		ageExtra: isAgeChanged ? null : before.ageExtra,
 		place: patch.place !== undefined ? clean(patch.place) : before.place,
 		value: patch.value !== undefined ? clean(patch.value) : before.value,
 		cause: patch.cause !== undefined ? clean(patch.cause) : before.cause,

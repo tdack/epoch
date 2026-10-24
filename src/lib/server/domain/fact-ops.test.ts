@@ -95,6 +95,29 @@ describe('facts as row operations', () => {
 		expect(after(ops, 'b2')).toMatchObject({ dateRaw: '6 MAR 1900', place: 'Hull', version: 2 });
 	});
 
+	it('clears a kept sub-line only when the value it hung under is edited', () => {
+		const rows = wren();
+		Object.assign(rows.events[0]!, {
+			dateExtra: ['3 TIME 10:30'],
+			causeExtra: ['3 CONT more'],
+			ageExtra: ['3 PHRASE old']
+		});
+		const edit = (fact: object) =>
+			after(buildFactOps(rows, { kind: 'update_fact', factId: 'b1', fact }, ctx), 'b1')!;
+		expect(edit({ place: 'York' })).toMatchObject({
+			dateExtra: ['3 TIME 10:30'],
+			causeExtra: ['3 CONT more']
+		});
+		// Re-saving the same date is not a write, so nothing is cleared.
+		expect(edit({ dateText: '4 MAR 1900' })).toBeUndefined();
+		expect(edit({ dateText: '5 MAR 1900' })).toMatchObject({
+			dateExtra: null,
+			causeExtra: ['3 CONT more']
+		});
+		expect(edit({ cause: 'x' }).causeExtra).toBeNull();
+		expect(edit({ age: '1' }).ageExtra).toBeNull();
+	});
+
 	it('changes only the fields sent, and clears a field sent as null', () => {
 		const ops = buildFactOps(
 			wren(),

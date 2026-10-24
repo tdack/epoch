@@ -354,8 +354,9 @@ describe('no payload field can forge a GEDCOM line', () => {
 		}
 	});
 
-	it.each<[string, { placeExtra?: string[]; addressLayout?: string[] }]>([
+	it.each<[string, { placeExtra?: string[]; addressLayout?: string[]; dateExtra?: string[] }]>([
 		['placeExtra', { placeExtra: ['3 FORM form', '0 @X@ INDI', '1 DEAT', '2 FONE f'] }],
+		['dateExtra', { dateExtra: ['3 TIME 10:30', '0 @X@ INDI', '1 DEAT', '2 FONE f'] }],
 		['addressLayout', { addressLayout: ['2 ADDR addr', '1 DEAT', '0 @X@ INDI', '3 CITY city'] }]
 	])('keeps a stored %s line from rising above its structure', (_field, detail) => {
 		const event = base.individuals[0]!.events![0]!;

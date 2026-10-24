@@ -139,6 +139,9 @@ const factKey = (e: EventRow) =>
 		e.latitude,
 		e.longitude,
 		e.placeExtra,
+		e.dateExtra,
+		e.causeExtra,
+		e.ageExtra,
 		e.religion
 	]);
 

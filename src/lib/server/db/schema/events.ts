@@ -105,6 +105,11 @@ export const events = sqliteTable(
 		// verbatim from level 3 and in file order. They sit with the place text, so they stay in place
 		// on export and do not leave the fact with nowhere to go. JSON, as gedcom_extra is.
 		placeExtra: text('place_extra', { mode: 'json' }).$type<string[]>(),
+		// The same for the sub-lines of DATE (a TIME), CAUS (a CONT) and AGE (a PHRASE): the model keeps
+		// the value, these keep what hangs under it. Each goes stale when its own value is edited.
+		dateExtra: text('date_extra', { mode: 'json' }).$type<string[]>(),
+		causeExtra: text('cause_extra', { mode: 'json' }).$type<string[]>(),
+		ageExtra: text('age_extra', { mode: 'json' }).$type<string[]>(),
 		// RELI: the religion of a fact (a christening or burial record).
 		religion: text('religion'),
 		// Manual order among facts that sort together (same date, or both undated). Never a substitute

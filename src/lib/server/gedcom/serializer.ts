@@ -123,6 +123,10 @@ interface ExportFactDetails {
 	longitude?: string | null;
 	/** The place's sub-lines other than MAP, verbatim with their levels. */
 	placeExtra?: string[] | null;
+	/** Sub-lines of the fact's DATE, CAUS and AGE, written right under each. */
+	dateExtra?: string[] | null;
+	causeExtra?: string[] | null;
+	ageExtra?: string[] | null;
 	religion?: string | null;
 }
 
@@ -302,11 +306,12 @@ function individualEventLines(
 	const tag = requireSingleLineToken(ev.type, 'An event type');
 	const lines = [ev.value ? `1 ${tag} ${escapedSingleLine(ev.value)}` : `1 ${tag}`];
 	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
-	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
+	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));
 	lines.push(...addressAndContactLines(ev));
-	if (ev.cause) lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`);
-	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`);
+	if (ev.cause)
+		lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`, ...keptUnder(3, 3, ev.causeExtra));
+	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`, ...keptUnder(3, 3, ev.ageExtra));
 	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
 	// written until the backfill moves it, so no export loses it. The legacy description stands in for
 	// a note only when the fact has none of its own. Both are text and may span lines.
@@ -329,7 +334,7 @@ function familyEventLines(
 ): string[] {
 	const lines = [`1 ${requireSingleLineToken(ev.type, 'An event type')}`];
 	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
-	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`);
+	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));
 	lines.push(...addressAndContactLines(ev));
 	if (ev.description) lines.push(...fieldLines(2, 'NOTE', ev.description));

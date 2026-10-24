@@ -26,6 +26,10 @@ export interface FactDetails {
 	longitude?: string;
 	/** The `PLAC` sub-lines other than `MAP`, verbatim with their levels, in file order. */
 	placeExtra?: string[];
+	/** Sub-lines of `DATE` (a `TIME`), `CAUS` (a `CONT`) and `AGE` (a `PHRASE`), verbatim from level 3. */
+	dateExtra?: string[];
+	causeExtra?: string[];
+	ageExtra?: string[];
 	religion?: string;
 }
 
@@ -143,6 +147,9 @@ export function factDetailColumns(details: FactDetails) {
 		latitude: text(details.latitude),
 		longitude: text(details.longitude),
 		placeExtra: lines(details.placeExtra),
+		dateExtra: lines(details.dateExtra),
+		causeExtra: lines(details.causeExtra),
+		ageExtra: lines(details.ageExtra),
 		religion: text(details.religion)
 	};
 }

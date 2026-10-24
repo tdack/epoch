@@ -335,6 +335,20 @@ function dateTextOf(dateNode: GedcomNode | undefined, version: GedcomVersion): s
 }
 
 /**
+ * A node's sub-lines, verbatim with their levels, or nothing. Kept so a `TIME` under a `DATE`, a
+ * `CONT` under a `CAUS` or a `PHRASE` under an `AGE` survives the round trip; the model has no
+ * column for them. Spread into the event so an absent set leaves no key.
+ */
+function subLinesOf(
+	key: 'dateExtra' | 'causeExtra' | 'ageExtra',
+	node: GedcomNode | undefined,
+	skipTag?: string
+) {
+	const lines = (node?.children ?? []).filter((c) => c.tag !== skipTag).flatMap(collectLines);
+	return lines.length > 0 ? { [key]: lines } : {};
+}
+
+/**
  * Normalise the parsed values in place: drop the code points GEDCOM forbids in text, and put back a
  * leading `@` the file escaped as `@@` (7.0's way of saying "text, not a pointer"). Applies to both
  * dialects, because a 5.5.1 file can carry the same `@@` text even though the standard never named
@@ -624,6 +638,20 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						value: child.value?.trim() || undefined,
 						cause: textOf('CAUS'),
 						age: textOf('AGE'),
+						// A 7.0 DATE's PHRASE is already folded into the date text, so it is not kept twice.
+						...(areFactDetailsModelled
+							? {
+									...subLinesOf('dateExtra', dateNode, version === '7.0' ? 'PHRASE' : undefined),
+									...subLinesOf(
+										'causeExtra',
+										child.children.find((c) => c.tag === 'CAUS')
+									),
+									...subLinesOf(
+										'ageExtra',
+										child.children.find((c) => c.tag === 'AGE')
+									)
+								}
+							: {}),
 						// The first note as the file wrote its payload, escape and all, so the backfill can
 						// rebuild the line and classify it again exactly as a fresh read does. The model text
 						// is not enough: `@@N1@` (text) and `@N1@` (a pointer) both normalise to `@N1@`.
@@ -710,6 +738,9 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
 						description: child.value?.trim(),
+						...(areFactDetailsModelled
+							? subLinesOf('dateExtra', dateNode, version === '7.0' ? 'PHRASE' : undefined)
+							: {}),
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						...(details ? details.details : {}),
