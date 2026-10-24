@@ -314,55 +314,45 @@
 				{#if trees.length === 0}
 					<p class="text-sm text-stone-700">You are not in any tree yet.</p>
 				{:else}
-					<div class="rounded-xl border border-stone-200 bg-white shadow-xs sm:overflow-x-auto">
-						<!-- Below sm each row is a card: the table's display values are swapped out so one set of
-						     cells serves both layouts. -->
-						<table class="block w-full text-left text-sm sm:table">
-							<thead
-								class="hidden border-b border-stone-200 bg-stone-50 text-xs text-stone-600 sm:table-header-group"
-							>
-								<tr>
-									<th scope="col" class="px-3 py-2 font-semibold">Tree</th>
-									<th scope="col" class="px-3 py-2 font-semibold">Your role</th>
-									{#if trees.length > 1}
-										<th scope="col" class="px-3 py-2 font-semibold">Default</th>
-									{/if}
-									<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
-									<th scope="col" class="px-3 py-2 font-semibold">Start at</th>
-									<th scope="col" class="px-3 py-2 font-semibold">This is me</th>
-								</tr>
-							</thead>
-							<tbody class="block divide-y divide-stone-100 sm:table-row-group">
-								{#each trees as tree (tree.id)}
-									<tr class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 sm:table-row sm:p-0">
-										<th
-											scope="row"
-											class="w-full text-left font-semibold text-stone-900 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
-										>
-											<a href={treePath(tree)} class="hover:underline">{tree.name}</a>
-										</th>
-										<td class="text-stone-600 capitalize sm:table-cell sm:px-3 sm:py-2">
-											{tree.role ?? ''}
-										</td>
+					<ul
+						class="divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white shadow-xs"
+					>
+						{#each trees as tree (tree.id)}
+							<li class="p-4">
+								<div role="group" aria-labelledby="tree-{tree.id}-name">
+									<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+										<h2>
+											<a
+												id="tree-{tree.id}-name"
+												href={treePath(tree)}
+												class="text-link text-sm font-semibold">{tree.name}</a
+											>
+											<span class="ml-2 text-xs font-normal text-stone-600 capitalize">
+												{tree.role ?? ''}
+											</span>
+										</h2>
 										{#if trees.length > 1}
-											<td
-												class="flex items-center gap-2 max-sm:before:text-stone-600 max-sm:before:content-['Default'] sm:table-cell sm:px-3 sm:py-2"
+											<label
+												class="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-stone-700 coarse:min-h-11"
 											>
 												<input
 													type="radio"
 													name="default-tree"
 													class="h-4 w-4"
-													aria-label="Default tree: {tree.name}"
 													checked={tree.id === defaultTreeId}
 													disabled={isSavingTree}
 													onchange={() => void setDefault(tree.id, tree.name)}
 												/>
-											</td>
+												Default
+											</label>
 										{/if}
-										<td class="w-full sm:table-cell sm:w-auto sm:px-3 sm:py-2">
+									</div>
+									<div class="mt-3 grid gap-3 sm:grid-cols-3">
+										<div>
+											<label class="field-label" for="view-{tree.id}">Open in</label>
 											<select
-												class="field-input w-auto py-1 text-xs coarse:min-h-11"
-												aria-label="Open {tree.name} in"
+												id="view-{tree.id}"
+												class="field-input coarse:min-h-11"
 												value={tree.viewMode === LAYOUT_MODES.FLAT ? '' : (tree.viewMode ?? '')}
 												disabled={isSavingTree}
 												onchange={(event) =>
@@ -373,18 +363,20 @@
 													<option value={mode}>{MODE_LABELS[mode]}</option>
 												{/each}
 											</select>
-										</td>
-										<td class="flex w-full items-end gap-2 sm:table-cell sm:w-auto sm:px-3 sm:py-2">
-											<PersonPicker
-												treeId={tree.id}
-												label="Start {tree.name} at"
-												picked={homeName(tree.id)
-													? { id: tree.homePersonId ?? '', name: homeName(tree.id)! }
-													: null}
-												emptyName="No preference"
-												isInline
-												onpick={(person) => void setHomePerson(tree.id, tree.name, person)}
-											/>
+										</div>
+										<div class="flex items-end gap-2">
+											<div class="min-w-0 flex-1 [&_input]:sm:w-full">
+												<PersonPicker
+													treeId={tree.id}
+													label="Start at"
+													picked={homeName(tree.id)
+														? { id: tree.homePersonId ?? '', name: homeName(tree.id)! }
+														: null}
+													emptyName="No preference"
+													isInline
+													onpick={(person) => void setHomePerson(tree.id, tree.name, person)}
+												/>
+											</div>
 											{#if homeName(tree.id)}
 												<button
 													type="button"
@@ -392,21 +384,23 @@
 													disabled={isSavingTree}
 													onclick={() => void setHomePerson(tree.id, tree.name, null)}
 												>
-													Clear
+													Clear<span class="sr-only"> start person</span>
 												</button>
 											{/if}
-										</td>
-										<td class="flex w-full items-end gap-2 sm:table-cell sm:w-auto sm:px-3 sm:py-2">
-											<PersonPicker
-												treeId={tree.id}
-												label="This is me in {tree.name}"
-												picked={selfName(tree.id)
-													? { id: tree.selfPersonId ?? '', name: selfName(tree.id)! }
-													: null}
-												emptyName="Not linked"
-												isInline
-												onpick={(person) => void setSelfPerson(tree.id, tree.name, person)}
-											/>
+										</div>
+										<div class="flex items-end gap-2">
+											<div class="min-w-0 flex-1 [&_input]:sm:w-full">
+												<PersonPicker
+													treeId={tree.id}
+													label="This is me"
+													picked={selfName(tree.id)
+														? { id: tree.selfPersonId ?? '', name: selfName(tree.id)! }
+														: null}
+													emptyName="Not linked"
+													isInline
+													onpick={(person) => void setSelfPerson(tree.id, tree.name, person)}
+												/>
+											</div>
 											{#if selfName(tree.id)}
 												<button
 													type="button"
@@ -414,15 +408,15 @@
 													disabled={isSavingTree}
 													onclick={() => void setSelfPerson(tree.id, tree.name, null)}
 												>
-													Clear
+													Clear<span class="sr-only"> this is me</span>
 												</button>
 											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
+										</div>
+									</div>
+								</div>
+							</li>
+						{/each}
+					</ul>
 					{#if trees.length > 1 && defaultTreeId}
 						<div>
 							<button

@@ -389,7 +389,10 @@ dialogs. The header is at least 64px tall and wraps on phones, giving the person
 full-width row. On a coarse pointer, menu rows and header buttons grow to 44px targets
 (`coarse:` variant), whatever the screen width.
 
-Breakpoints are Tailwind's defaults (`sm` 640px, `md` 768px, `lg` 1024px). The wordmark beside the
+Breakpoints are Tailwind's defaults (`sm` 640px, `md` 768px, `lg` 1024px). A list panel with
+more than three columns (Administration's trees, Files) is a table only from `lg`; below that each
+row is a card whose cells name themselves through `data-label`, so a tablet never scrolls sideways.
+Selects and person pickers fill their column on phones. The wordmark beside the
 mark appears only from `lg`; below that it stays as a screen-reader heading.
 
 ## Elevation & Depth
@@ -443,6 +446,12 @@ Calm and solid; one primary per view.
   semibold, 6px × 12px padding, an optional 14px Lucide icon. Hover darkens to stone-rule.
 - **Compact primary (`btn-primary-sm`):** the same emerald fill at 6px × 12px and at least 36px
   tall, for toolbars and table rows.
+- **Row action (`row-action`, `row-action-danger`):** the quiet actions of a list row (Settings,
+  Rename, Delete…). Transparent, stone-700 (red-700 for danger), a 14px Lucide icon beside a
+  visible verb, 8px radius, stone tint on hover, 44px on touch. The record's name rides in an
+  sr-only span ("Rename<span class="sr-only"> The Simpsons</span>"). Never icon-only: a touch
+  screen has no tooltip. In a table row they sit right-aligned on one line; on a card below `lg`
+  they take a row of their own under a hairline, two to a row on phones.
 - **Destructive:** two steps, never one. The trigger on the page ("Delete this tree…", "Leave")
   is red-700 text on white with a 1px red-300 border, turning red-50 on hover; it opens a dialog
   whose confirm is the only red fill in the app (red-700, white label, red-600 on hover).

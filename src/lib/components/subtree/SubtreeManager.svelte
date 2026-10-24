@@ -97,8 +97,6 @@
 
 	const rootLabel = (s: SubtreeDto) =>
 		s.isRootMissing ? null : (rootNames[s.rootPersonId] ?? 'A person you cannot see');
-	const actionClass =
-		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-50 coarse:min-h-11';
 </script>
 
 <section
@@ -124,7 +122,9 @@
 		>
 			{#each subtrees as subtree (subtree.id)}
 				<li
-					class="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+					class="grid items-center gap-x-2 gap-y-2 px-3 py-3 lg:py-2 {canManage
+						? 'grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_auto]'
+						: 'grid-cols-1'}"
 					data-subtree={subtree.slug}
 					data-reorder-id={subtree.id}
 				>
@@ -137,26 +137,27 @@
 							onreorder={reorder}
 						/>
 					{/if}
-					<div class="min-w-0 flex-1">
-						<span
-							class="inline-flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-900"
-						>
-							<Network class="h-3.5 w-3.5 text-stone-500" aria-hidden="true" />
-							<a href={subtreePath(tree, subtree.slug)} class="hover:underline">{subtree.name}</a>
-							{#if subtree.isPublic}
-								<span
-									class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
-									>Public</span
+					<div class="min-w-0">
+						<div class="flex min-w-0 items-start gap-2 text-sm font-semibold text-stone-900">
+							<Network class="mt-0.5 h-3.5 w-3.5 shrink-0 text-stone-500" aria-hidden="true" /><span
+								class="min-w-0"
+								><a href={subtreePath(tree, subtree.slug)} class="hover:underline">{subtree.name}</a
 								>
-							{/if}
-							{#if subtree.isRootMissing}
-								<span
-									class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
-									>Anchor missing</span
-								>
-							{/if}
-						</span>
-						<p class="text-xs text-stone-600">
+								{#if subtree.isPublic}
+									<span
+										class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-900"
+										>Public</span
+									>
+								{/if}
+								{#if subtree.isRootMissing}
+									<span
+										class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-900"
+										>Anchor missing</span
+									>
+								{/if}
+							</span>
+						</div>
+						<p class="pl-5.5 text-xs text-stone-600">
 							{#if subtree.isRootMissing}
 								The anchor person was deleted. Undoing that restores it, or choose another anchor.
 							{:else}
@@ -165,14 +166,16 @@
 						</p>
 					</div>
 					{#if canManage}
-						<div class="flex flex-wrap justify-end gap-1">
-							<button type="button" class={actionClass} onclick={() => open('edit', subtree)}>
-								<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
+						<div
+							class="col-span-full grid grid-cols-2 gap-1 border-t border-stone-100 pt-2 sm:flex sm:flex-wrap lg:col-span-1 lg:flex-nowrap lg:justify-end lg:border-0 lg:pt-0"
+						>
+							<button type="button" class="row-action" onclick={() => open('edit', subtree)}>
+								<Pencil aria-hidden="true" />
 								Rename<span class="sr-only"> {subtree.name}</span>
 							</button>
 							<button
 								type="button"
-								class={actionClass}
+								class="row-action lg:min-w-36 lg:justify-start"
 								disabled={isBusy}
 								onclick={() =>
 									patch(
@@ -182,23 +185,23 @@
 									)}
 							>
 								{#if subtree.isPublic}
-									<EyeOff class="h-3.5 w-3.5" aria-hidden="true" />
+									<EyeOff aria-hidden="true" />
 									Hide from visitors<span class="sr-only"> {subtree.name}</span>
 								{:else}
-									<Eye class="h-3.5 w-3.5" aria-hidden="true" />
+									<Eye aria-hidden="true" />
 									Show to visitors<span class="sr-only"> {subtree.name}</span>
 								{/if}
 							</button>
-							<button type="button" class={actionClass} onclick={() => open('root', subtree)}>
-								<UserRoundCog class="h-3.5 w-3.5" aria-hidden="true" />
+							<button type="button" class="row-action" onclick={() => open('root', subtree)}>
+								<UserRoundCog aria-hidden="true" />
 								Change anchor<span class="sr-only"> of {subtree.name}</span>
 							</button>
 							<button
 								type="button"
-								class="{actionClass} text-red-700"
+								class="row-action row-action-danger"
 								onclick={() => open('delete', subtree)}
 							>
-								<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
+								<Trash2 aria-hidden="true" />
 								Delete<span class="sr-only"> {subtree.name}</span>
 							</button>
 						</div>

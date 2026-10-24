@@ -104,12 +104,10 @@
 	}
 
 	const roleLabel = (role: InstallTree['role']) => role ?? 'Not a member';
-	const actionClass =
-		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 disabled:cursor-default disabled:opacity-50 coarse:min-h-11 coarse:min-w-11 coarse:justify-center';
-	// Below sm each row is a card: the table's own display values are swapped out so one set of
+	// Below lg each row is a card: the table's own display values are swapped out so one set of
 	// cells serves both layouts, and `data-label` names the figure the header would have.
 	const cellClass =
-		'text-stone-600 before:text-stone-500 before:normal-case before:content-[attr(data-label)] max-sm:before:mr-1 sm:table-cell sm:px-3 sm:py-2 sm:before:content-none';
+		'text-stone-600 before:text-stone-500 before:normal-case before:content-[attr(data-label)] max-lg:before:mr-1 lg:table-cell lg:px-3 lg:py-2 lg:before:content-none';
 </script>
 
 <svelte:head>
@@ -140,10 +138,10 @@
 						No tree is public.
 					{/if}
 				</p>
-				<div class="rounded-xl border border-stone-200 bg-white shadow-xs sm:overflow-x-auto">
-					<table class="block w-full text-left text-xs sm:table">
+				<div class="rounded-xl border border-stone-200 bg-white shadow-xs lg:overflow-x-auto">
+					<table class="block w-full text-left text-xs lg:table">
 						<thead
-							class="hidden border-b border-stone-200 bg-stone-50 text-stone-600 sm:table-header-group"
+							class="hidden border-b border-stone-200 bg-stone-50 text-stone-600 lg:table-header-group"
 						>
 							<tr>
 								<th scope="col" class="w-0 px-1 py-2 font-semibold"
@@ -159,13 +157,13 @@
 								>
 							</tr>
 						</thead>
-						<tbody class="block divide-y divide-stone-100 sm:table-row-group">
+						<tbody class="block divide-y divide-stone-100 lg:table-row-group">
 							{#each rows as tree (tree.id)}
 								<tr
-									class="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 sm:table-row sm:p-0"
+									class="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 lg:table-row lg:p-0"
 									data-reorder-id={tree.id}
 								>
-									<td class="sm:table-cell sm:px-1 sm:py-2 {canReorder ? '' : 'max-sm:hidden'}">
+									<td class="lg:table-cell lg:px-1 lg:py-2 {canReorder ? '' : 'max-lg:hidden'}">
 										{#if canReorder}
 											<ReorderHandle
 												id={tree.id}
@@ -178,7 +176,7 @@
 									</td>
 									<th
 										scope="row"
-										class="min-w-0 text-left font-semibold text-stone-900 max-sm:flex-1 sm:table-cell sm:w-auto sm:px-3 sm:py-2"
+										class="min-w-0 text-left font-semibold text-stone-900 max-lg:flex-1 lg:table-cell lg:w-auto lg:px-3 lg:py-2"
 									>
 										<span class="inline-flex flex-wrap items-center gap-2">
 											{#if tree.role}
@@ -202,60 +200,53 @@
 									<td class={cellClass} data-label="Owners:">
 										{tree.ownerNames.length ? tree.ownerNames.join(', ') : '—'}
 									</td>
-									<td class="{cellClass} tabular-nums sm:text-right" data-label="People:">
+									<td class="{cellClass} tabular-nums lg:text-right" data-label="People:">
 										{tree.peopleCount}
 									</td>
-									<td class="{cellClass} tabular-nums sm:text-right" data-label="Members:">
+									<td class="{cellClass} tabular-nums lg:text-right" data-label="Members:">
 										{tree.memberCount}
 									</td>
-									<td class="w-full sm:table-cell sm:w-auto sm:px-3 sm:py-2">
-										<div class="flex gap-1 sm:justify-end">
+									<td
+										class="w-full max-lg:border-t max-lg:border-stone-100 max-lg:pt-2 lg:table-cell lg:w-px lg:px-3 lg:py-2 lg:whitespace-nowrap"
+									>
+										<div
+											class="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap lg:flex-nowrap lg:justify-end"
+										>
 											{#if isManagerOrAbove(tree.role ?? undefined)}
-												<a href="{treePath(tree)}/settings" class={actionClass} title="Settings">
-													<Settings class="h-3.5 w-3.5" aria-hidden="true" />
-													<span class="sr-only">Settings for {tree.name}</span>
+												<a href="{treePath(tree)}/settings" class="row-action">
+													<Settings aria-hidden="true" />
+													Settings<span class="sr-only"> for {tree.name}</span>
 												</a>
 												<!-- Export needs tree:export, which is manager and above, the same gate as Settings. -->
-												<a
-													href="{treePath(tree)}/settings#export"
-													class={actionClass}
-													title="Export"
-												>
-													<Download class="h-3.5 w-3.5" aria-hidden="true" />
-													<span class="sr-only">Export {tree.name}</span>
+												<a href="{treePath(tree)}/settings#export" class="row-action">
+													<Download aria-hidden="true" />
+													Export<span class="sr-only"> {tree.name}</span>
 												</a>
 											{/if}
-											<button
-												type="button"
-												class={actionClass}
-												title="Rename"
-												onclick={() => open('rename', tree)}
-											>
-												<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
-												<span class="sr-only">Rename {tree.name}</span>
+											<button type="button" class="row-action" onclick={() => open('rename', tree)}>
+												<Pencil aria-hidden="true" />
+												Rename<span class="sr-only"> {tree.name}</span>
 											</button>
-											<button
-												type="button"
-												class={actionClass}
-												title={tree.isPublic ? 'Make private' : 'Make public'}
-												onclick={() => open('public', tree)}
-											>
+											<button type="button" class="row-action" onclick={() => open('public', tree)}>
 												{#if tree.isPublic}
-													<GlobeLock class="h-3.5 w-3.5" aria-hidden="true" />
-													<span class="sr-only">Make {tree.name} private</span>
+													<GlobeLock aria-hidden="true" />
+													<span aria-hidden="true">Make private</span><span class="sr-only"
+														>Make {tree.name} private</span
+													>
 												{:else}
-													<Globe class="h-3.5 w-3.5" aria-hidden="true" />
-													<span class="sr-only">Make {tree.name} public</span>
+													<Globe aria-hidden="true" />
+													<span aria-hidden="true">Make public</span><span class="sr-only"
+														>Make {tree.name} public</span
+													>
 												{/if}
 											</button>
 											<button
 												type="button"
-												class="{actionClass} text-red-700"
-												title="Delete"
+												class="row-action-danger"
 												onclick={() => open('delete', tree)}
 											>
-												<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
-												<span class="sr-only">Delete {tree.name}</span>
+												<Trash2 aria-hidden="true" />
+												Delete<span class="sr-only"> {tree.name}</span>
 											</button>
 										</div>
 									</td>

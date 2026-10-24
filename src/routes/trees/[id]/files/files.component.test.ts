@@ -406,10 +406,10 @@ describe('Files page link chips', () => {
 		expect(chip('Byron')).toBeDefined();
 	});
 
-	it('hides unlink and Link to without canLink', () => {
+	it('hides unlink and Link without canLink', () => {
 		render({ role: 'viewer', files: [row({ canLink: false })] });
 		expect(unlinkButton('Ada Lovelace')).toBeUndefined();
-		expect(document.body.textContent).not.toContain('Link to…');
+		expect(document.body.textContent).not.toMatch(/Link .* to a record/);
 	});
 
 	it('unlinks one record with the row version, then reloads', async () => {
@@ -421,7 +421,7 @@ describe('Files page link chips', () => {
 		await vi.waitFor(() => expect(listFiles).toHaveBeenCalled());
 	});
 
-	it('links a chosen record from Link to…', async () => {
+	it('links a chosen record from Link', async () => {
 		link.mockResolvedValue(undefined as never);
 		listFiles.mockResolvedValue({ files: [], nextCursor: null });
 		sources.mockResolvedValue({
@@ -429,7 +429,7 @@ describe('Files page link chips', () => {
 		} as never);
 		render({ role: 'editor', files: [row({ canLink: true })] });
 		[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
-			.find((b) => b.textContent?.includes('Link to'))!
+			.find((b) => b.textContent?.trim().startsWith('Link '))!
 			.click();
 		flushSync();
 		const buttons = () => [...document.querySelectorAll<HTMLButtonElement>('button')];

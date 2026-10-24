@@ -80,8 +80,11 @@
 	/** The person or source the upload dialog has chosen. */
 	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
-	const actionClass =
+	const closeClass =
 		'inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-stone-700 focus-ring hover:bg-stone-200/70 coarse:min-h-11';
+	// Below lg a row is a card, so each figure carries its own label in place of the column header.
+	const cellClass =
+		'col-start-2 text-stone-600 before:text-stone-500 before:content-[attr(data-label)] max-lg:before:mr-1 lg:table-cell lg:px-3 lg:py-2 lg:before:content-none';
 	const scopeOf = (value: string) => (value === ALL_TREES ? null : value);
 	const hasUploader = $derived(files.some((file) => file.uploadedBy !== null));
 	const thisTreeUsage = $derived(usage.trees.find((t) => t.treeId === treeId) ?? null);
@@ -313,7 +316,7 @@
 				of {formatMediaSize(thisTreeUsage.limitBytes)} used
 			</p>
 			<progress
-				class="mt-1 h-2 w-full"
+				class="mt-1 h-2 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-emerald-800 [&::-webkit-progress-bar]:bg-stone-200 [&::-webkit-progress-value]:bg-emerald-800"
 				max={thisTreeUsage.limitBytes}
 				value={thisTreeUsage.storedBytes}
 				aria-label="Storage used in {data.summary.tree.name}"
@@ -331,13 +334,13 @@
 </section>
 
 <div class="mt-6 flex flex-wrap items-end gap-3">
-	<div>
+	<div class="w-full sm:w-auto">
 		<label for="files-tree" class="block text-xs font-semibold text-stone-700">Tree</label>
 		<select
 			id="files-tree"
 			value={filter}
 			onchange={(event) => changeFilter((event.currentTarget as HTMLSelectElement).value)}
-			class="mt-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+			class="mt-1 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm sm:w-auto sm:max-w-xs"
 		>
 			<option value={ALL_TREES}>All my trees</option>
 			{#each data.trees as tree (tree.id)}
@@ -357,7 +360,7 @@
 {/if}
 
 <div
-	class="mt-4 overflow-x-auto rounded-xl border bg-white shadow-xs {isDragOver
+	class="mt-4 rounded-xl border bg-white shadow-xs lg:overflow-x-auto {isDragOver
 		? 'border-dashed border-emerald-700 bg-emerald-50'
 		: 'border-stone-200'}"
 	data-testid="files-drop"
@@ -370,9 +373,11 @@
 	{#if isDragOver}
 		<p class="px-3 py-2 text-xs font-medium text-emerald-800">Drop to add a file</p>
 	{/if}
-	<table class="w-full min-w-[46rem] text-left text-xs">
+	<table class="block w-full text-left text-xs lg:table">
 		<caption class="sr-only">Files in the trees you belong to</caption>
-		<thead class="border-b border-stone-200 bg-stone-50 text-stone-600">
+		<thead
+			class="hidden border-b border-stone-200 bg-stone-50 text-stone-600 lg:table-header-group"
+		>
 			<tr>
 				<th scope="col" class="w-12 px-3 py-2 font-semibold"
 					><span class="sr-only">Preview</span></th
@@ -389,10 +394,13 @@
 				<th scope="col" class="px-3 py-2 font-semibold"><span class="sr-only">Actions</span></th>
 			</tr>
 		</thead>
-		<tbody class="divide-y divide-stone-100">
+		<tbody class="block divide-y divide-stone-100 lg:table-row-group">
 			{#each files as file (file.id)}
-				<tr data-testid="file-row">
-					<td class="px-3 py-2">
+				<tr
+					data-testid="file-row"
+					class="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 p-3 lg:table-row lg:p-0"
+				>
+					<td class="row-span-2 lg:table-cell lg:px-3 lg:py-2">
 						{#if file.previewKey && isInlineMediaType(file.mimeType)}
 							<img
 								src={mediaUrl(file.previewKey)}
@@ -408,15 +416,15 @@
 					</td>
 					<th
 						scope="row"
-						class="max-w-xs px-3 py-2 text-left font-semibold break-words text-stone-900"
+						class="text-left text-sm font-semibold break-words text-stone-900 lg:table-cell lg:max-w-xs lg:px-3 lg:py-2 lg:text-xs"
 					>
 						{file.title ?? 'Untitled'}
 					</th>
-					<td class="px-3 py-2 text-stone-600">{file.mimeType}</td>
-					<td class="px-3 py-2 text-right text-stone-600 tabular-nums"
+					<td class={cellClass} data-label="Type:">{file.mimeType}</td>
+					<td class="{cellClass} whitespace-nowrap tabular-nums lg:text-right" data-label="Size:"
 						>{formatMediaSize(file.sizeBytes)}</td
 					>
-					<td class="px-3 py-2">
+					<td class="col-start-2 max-lg:order-1 max-lg:pt-1 lg:table-cell lg:px-3 lg:py-2">
 						{#if file.links.length === 0}
 							<span class="text-stone-600">Not linked</span>
 						{:else}
@@ -452,55 +460,50 @@
 						{/if}
 					</td>
 					{#if hasUploader}
-						<td class="px-3 py-2 text-stone-600">{file.uploadedBy ?? '—'}</td>
+						<td class={cellClass} data-label="Uploaded by:">{file.uploadedBy ?? '—'}</td>
 					{/if}
-					<td class="px-3 py-2 text-stone-600">{file.treeName}</td>
-					<td class="px-3 py-2 whitespace-nowrap text-stone-600">{formatDate(file.createdAt)}</td>
-					<td class="px-3 py-2">
-						<div class="flex flex-wrap justify-end gap-1">
+					<td class={cellClass} data-label="Tree:">{file.treeName}</td>
+					<td class="{cellClass} whitespace-nowrap" data-label="Added:"
+						>{formatDate(file.createdAt)}</td
+					>
+					<td
+						class="col-span-full max-lg:order-2 max-lg:mt-1 max-lg:border-t max-lg:border-stone-100 max-lg:pt-2 lg:table-cell lg:w-px lg:px-3 lg:py-2"
+					>
+						<div class="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap lg:flex-nowrap lg:justify-end">
 							{#if file.canPreview}
 								<button
 									type="button"
-									class={actionClass}
+									class="row-action"
 									onclick={() => openDialog('preview', file)}
-									title="Preview"
 								>
-									<Eye class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Preview '}{file.title ?? 'file'}</span>
+									<Eye aria-hidden="true" />Preview<span class="sr-only"
+										>{' '}{file.title ?? 'file'}</span
+									>
 								</button>
 							{/if}
 							{#if file.canRename}
-								<button
-									type="button"
-									class={actionClass}
-									onclick={() => openDialog('rename', file)}
-									title="Rename"
-								>
-									<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Rename '}{file.title ?? 'file'}</span>
+								<button type="button" class="row-action" onclick={() => openDialog('rename', file)}>
+									<Pencil aria-hidden="true" />Rename<span class="sr-only"
+										>{' '}{file.title ?? 'file'}</span
+									>
 								</button>
 							{/if}
 							{#if file.canLink}
-								<button
-									type="button"
-									class={actionClass}
-									onclick={() => openDialog('link', file)}
-									title="Link to a person or source"
-								>
-									<Link class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Link '}{file.title ?? 'file'}{' to a record'}</span>
-									<span aria-hidden="true">Link to…</span>
+								<button type="button" class="row-action" onclick={() => openDialog('link', file)}>
+									<Link aria-hidden="true" />Link<span class="sr-only"
+										>{' '}{file.title ?? 'file'} to a record</span
+									>
 								</button>
 							{/if}
 							{#if file.canDelete}
 								<button
 									type="button"
-									class="{actionClass} text-red-700"
+									class="row-action-danger"
 									onclick={() => openDialog('delete', file)}
-									title="Delete permanently"
 								>
-									<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Delete '}{file.title ?? 'file'}</span>
+									<Trash2 aria-hidden="true" />Delete<span class="sr-only"
+										>{' '}{file.title ?? 'file'}</span
+									>
 								</button>
 							{/if}
 							{#if !file.canPreview}
@@ -511,8 +514,10 @@
 				</tr>
 			{:else}
 				{#if !isLoading}
-					<tr>
-						<td colspan="9" class="px-3 py-6 text-center text-stone-500">No files to show.</td>
+					<tr class="block lg:table-row">
+						<td colspan="9" class="block px-3 py-6 text-center text-stone-500 lg:table-cell"
+							>No files to show.</td
+						>
 					</tr>
 				{/if}
 			{/each}
@@ -526,7 +531,7 @@
 			type="button"
 			onclick={loadMore}
 			disabled={isLoading}
-			class="rounded-lg border border-stone-300 px-4 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+			class="rounded-lg border border-stone-300 px-4 py-1.5 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 		>
 			Load more files
 		</button>
@@ -546,7 +551,7 @@
 			type="button"
 			onclick={checkUnlinked}
 			disabled={isCheckingUnlinked}
-			class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+			class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 focus-ring hover:bg-stone-100 disabled:opacity-50 coarse:min-h-11"
 		>
 			<Search class="h-3.5 w-3.5" aria-hidden="true" />
 			{isCheckingUnlinked ? 'Checking…' : 'Check storage'}
@@ -590,7 +595,7 @@
 					type="button"
 					data-testid="unlinked-delete"
 					onclick={() => openDialog('unlinked')}
-					class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+					class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white focus-ring hover:bg-red-600 coarse:min-h-11"
 				>
 					<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
 					Delete these {unlinked.files.length} stored files
@@ -803,7 +808,7 @@
 	{#snippet headerExtra()}
 		<button
 			type="button"
-			class={actionClass}
+			class={closeClass}
 			title="Close preview"
 			onclick={closeDialog}
 			data-testid="preview-close"

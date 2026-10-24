@@ -12,9 +12,9 @@ const ringsCanvas = (page: Page) => page.getByRole('group', { name: 'Generation 
 /** The member's own view of this tree, on Account › My trees (ADR-075). */
 function viewSelect(page: Page, api: Api) {
 	return page
-		.getByRole('row')
+		.getByRole('group')
 		.filter({ has: page.locator(`a[href="/trees/${api.treeSlug}"]`) })
-		.getByRole('combobox', { name: /^Open .* in$/ });
+		.getByRole('combobox', { name: 'Open in' });
 }
 
 async function chooseDefault(page: Page, api: Api, option: string) {

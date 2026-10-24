@@ -18,10 +18,26 @@
 			"purpose": "maskable"
 		},
 		{
-			"src": "/brand/icon-monochrome.svg",
-			"sizes": "any",
-			"type": "image/svg+xml",
+			"src": "/brand/icon-monochrome-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
 			"purpose": "monochrome"
+		}
+	],
+	"screenshots": [
+		{
+			"src": "/brand/screenshot-wide.webp",
+			"sizes": "1280x800",
+			"type": "image/webp",
+			"form_factor": "wide",
+			"label": "A family tree centred on one person, with parents, partner and children"
+		},
+		{
+			"src": "/brand/screenshot-narrow.webp",
+			"sizes": "780x1688",
+			"type": "image/webp",
+			"form_factor": "narrow",
+			"label": "The same family tree on a phone"
 		}
 	]
 }

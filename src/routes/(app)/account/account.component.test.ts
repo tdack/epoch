@@ -70,12 +70,12 @@ const tree = (id: string, name: string, role: string, extra = {}) => ({
 describe('account page', () => {
 	it('lists each tree with the viewer’s role and a Default choice', () => {
 		render([tree('a', 'Smiths', 'owner', { isDefault: true }), tree('b', 'Joneses', 'viewer')]);
-		const rows = [...document.querySelectorAll('#trees-tab tbody tr')];
-		expect(rows.map((r) => r.querySelector('th')!.textContent!.trim())).toEqual([
+		const cards = [...document.querySelectorAll('#trees-tab li')];
+		expect(cards.map((c) => c.querySelector('h2 a')!.textContent!.trim())).toEqual([
 			'Smiths',
 			'Joneses'
 		]);
-		expect(rows.map((r) => r.querySelectorAll('td')[0]!.textContent!.trim())).toEqual([
+		expect(cards.map((c) => c.querySelector('h2 span')!.textContent!.trim())).toEqual([
 			'owner',
 			'viewer'
 		]);
@@ -128,7 +128,7 @@ describe('account page', () => {
 			expect(saveHomePerson).toHaveBeenCalledWith('b', 'p9');
 
 			[...document.querySelectorAll('button')]
-				.find((b) => b.textContent?.trim() === 'Clear')!
+				.find((b) => b.textContent?.trim().startsWith('Clear'))!
 				.click();
 			await vi.advanceTimersByTimeAsync(0);
 			expect(saveHomePerson).toHaveBeenCalledWith('a', null);
@@ -158,7 +158,7 @@ describe('account page', () => {
 			expect(saveSelfPerson).toHaveBeenCalledWith('b', 'p9');
 
 			[...document.querySelectorAll('button')]
-				.find((b) => b.textContent?.trim() === 'Clear')!
+				.find((b) => b.textContent?.trim().startsWith('Clear'))!
 				.click();
 			await vi.advanceTimersByTimeAsync(0);
 			expect(saveSelfPerson).toHaveBeenCalledWith('a', null);
