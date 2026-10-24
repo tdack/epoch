@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import {
 	individuals,
 	mediaItems,
+	mediaLinks,
 	treeMemberships,
 	trees,
 	unionPartners,
@@ -63,11 +64,14 @@ async function addMedia(
 	await t.db.insert(mediaItems).values({
 		id: mediaId,
 		treeId,
-		entityId,
 		r2ObjectKey: key,
 		title: 'x',
 		mimeType: 'image/jpeg'
 	});
+	if (entityId !== null)
+		await t.db
+			.insert(mediaLinks)
+			.values({ id: `${mediaId}:${entityId}`, treeId, mediaId, entityId });
 	return key;
 }
 

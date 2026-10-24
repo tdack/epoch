@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { mediaItems } from '../db/schema';
+import { mediaItems, mediaLinks } from '../db/schema';
 import { UndoRefusedError, ValidationError } from '../domain/errors';
 import type { RelationshipGraph } from '../../shared/relationship-graph';
 import type { RelationshipIntent } from '../domain/relationship-sentence';
@@ -58,7 +58,6 @@ async function attachFile(s: Setup, id: string, entityId: string) {
 	await t.db.insert(mediaItems).values({
 		id,
 		treeId: s.treeId,
-		entityId,
 		r2ObjectKey: `media/${s.treeId}/${id}.png`,
 		title: `${id}.png`,
 		mimeType: 'image/png',
@@ -68,8 +67,14 @@ async function attachFile(s: Setup, id: string, entityId: string) {
 		createdAt: new Date(),
 		updatedAt: new Date()
 	});
+	await t.db
+		.insert(mediaLinks)
+		.values({ id: `${id}:${entityId}`, treeId: s.treeId, mediaId: id, entityId });
 }
 const fileRow = (id: string) => t.db.select().from(mediaItems).where(eq(mediaItems.id, id)).get();
+/** The records a file is linked to. */
+const linksOf = async (id: string) =>
+	(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, id))).map((l) => l.entityId);
 
 /** A graph without versions, which an undo deliberately moves on, and with arrays in a stable order. */
 function canonical(graph: RelationshipGraph) {
@@ -663,13 +668,12 @@ describe('deleting a person', () => {
 		expect(after.unions).toHaveLength(before.unions.length);
 	});
 
-	it('keeps a file of the person as an unattached file, and undo hangs it back on them', async () => {
+	it('keeps a file of the person with no link, and undo links it back to them', async () => {
 		const s = await setup();
 		const homer = await s.addPerson('Homer', 'Simpson');
 		await t.db.insert(mediaItems).values({
 			id: 'file-of-homer',
 			treeId: s.treeId,
-			entityId: homer.id,
 			r2ObjectKey: `media/${s.treeId}/file-of-homer.png`,
 			title: 'Homer.png',
 			mimeType: 'image/png',
@@ -679,33 +683,31 @@ describe('deleting a person', () => {
 			createdAt: new Date(),
 			updatedAt: new Date()
 		});
+		await t.db.insert(mediaLinks).values({
+			id: `file-of-homer:${homer.id}`,
+			treeId: s.treeId,
+			mediaId: 'file-of-homer',
+			entityId: homer.id
+		});
 		const file = () =>
 			t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-of-homer')).get();
 
 		const impact = await s.people.previewDelete(s.treeId, homer.id, s.ctx);
 		expect(shape(impact.records)).toEqual([
+			'deleted media_link Link of a file to Homer Simpson',
 			'deleted name Birth name Homer Simpson of Homer Simpson',
-			'deleted person Homer Simpson',
-			'updated media Unattached file “Homer.png”'
+			'deleted person Homer Simpson'
 		]);
 		await s.people.remove(s.treeId, homer.id, s.ctx);
-		expect(await file()).toMatchObject({
-			entityId: null,
-			version: 2,
-			sizeBytes: 42,
-			uploadedBy: s.actor.userId
-		});
+		expect(await file()).toMatchObject({ sizeBytes: 42, uploadedBy: s.actor.userId });
+		expect(await linksOf('file-of-homer')).toEqual([]);
 
 		await s.log.undoLast(s.treeId, s.ctx);
-		expect(await file()).toMatchObject({
-			entityId: homer.id,
-			version: 3,
-			sizeBytes: 42,
-			uploadedBy: s.actor.userId
-		});
+		expect(await file()).toMatchObject({ sizeBytes: 42, uploadedBy: s.actor.userId });
+		expect(await linksOf('file-of-homer')).toEqual([homer.id]);
 	});
 
-	it('takes a partnership left with nobody to its file as unattached, and undo hangs it back', async () => {
+	it('unlinks the file of a partnership left with nobody, and undo links it back', async () => {
 		const s = await setup();
 		const solo = await s.addPerson('Solo');
 		await s.relationships.execute(
@@ -724,10 +726,10 @@ describe('deleting a person', () => {
 		await s.people.remove(s.treeId, other, s.ctx);
 
 		await s.people.remove(s.treeId, solo.id, s.ctx);
-		expect(await fileRow('file-of-union')).toMatchObject({ entityId: null, version: 2 });
+		expect(await linksOf('file-of-union')).toEqual([]);
 
 		await s.log.undoLast(s.treeId, s.ctx);
-		expect(await fileRow('file-of-union')).toMatchObject({ entityId: union.id, version: 3 });
+		expect(await linksOf('file-of-union')).toEqual([union.id]);
 	});
 
 	it('removes a partnership that would be left with nobody, along with its own events', async () => {
@@ -756,7 +758,7 @@ describe('deleting a person', () => {
 });
 
 describe('removing relationships', () => {
-	it('deleting a partnership unattaches its file, and undo puts it back on the partnership', async () => {
+	it('deleting a partnership unlinks its file, and undo puts it back on the partnership', async () => {
 		const s = await setup();
 		const [homer, marge] = [await s.addPerson('Homer'), await s.addPerson('Marge')];
 		await s.partner(homer, marge);
@@ -769,13 +771,13 @@ describe('removing relationships', () => {
 			expectedVersion: union.version
 		};
 		const impact = await s.relationships.previewRemoval(s.treeId, command, s.ctx);
-		expect(shape(impact.records)).toContain('updated media Unattached file “file-of-couple.png”');
+		expect(shape(impact.records).join('|')).toMatch(/deleted media_link Link of a file to /);
 		expect(impact.people.map((p) => p.id).sort()).toEqual([homer.id, marge.id].sort());
 
 		await s.relationships.removeRelationship(s.treeId, command, s.ctx);
-		expect(await fileRow('file-of-couple')).toMatchObject({ entityId: null, version: 2 });
+		expect(await linksOf('file-of-couple')).toEqual([]);
 		await s.log.undoLast(s.treeId, s.ctx);
-		expect(await fileRow('file-of-couple')).toMatchObject({ entityId: union.id, version: 3 });
+		expect(await linksOf('file-of-couple')).toEqual([union.id]);
 	});
 
 	it('refuses to undo the creation of a partnership while a file hangs on it', async () => {
@@ -786,7 +788,7 @@ describe('removing relationships', () => {
 		await attachFile(s, 'file-of-new-couple', union.id);
 
 		await expect(s.log.undoLast(s.treeId, s.ctx)).rejects.toBeInstanceOf(UndoRefusedError);
-		expect(await fileRow('file-of-new-couple')).toMatchObject({ entityId: union.id });
+		expect(await linksOf('file-of-new-couple')).toEqual([union.id]);
 	});
 
 	it('deleting a partnership keeps the people and keeps the parent links, ungrouped', async () => {

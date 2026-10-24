@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TreeRows } from '../domain/change-log';
 import type { RecordChange } from '../../shared/impact';
-import { mediaItems } from '../db/schema';
+import { mediaItems, mediaLinks } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import {
 	addTestMember,
@@ -220,7 +220,6 @@ describe('merging partnerships between the same people', () => {
 		await t.db.insert(mediaItems).values({
 			id: 'file-of-merged',
 			treeId: s.treeId,
-			entityId: s.unionIds[1],
 			r2ObjectKey: `media/${s.treeId}/file-of-merged.png`,
 			title: 'Wedding.png',
 			mimeType: 'image/png',
@@ -230,20 +229,32 @@ describe('merging partnerships between the same people', () => {
 			createdAt: new Date(),
 			updatedAt: new Date()
 		});
+		await t.db.insert(mediaLinks).values({
+			id: `file-of-merged:${s.unionIds[1]}`,
+			treeId: s.treeId,
+			mediaId: 'file-of-merged',
+			entityId: s.unionIds[1]!
+		});
 		const file = () =>
 			t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-of-merged')).get();
+		const linkedTo = async () =>
+			(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, 'file-of-merged'))).map(
+				(l) => l.entityId
+			);
 
 		const command = await s.command();
 		// The file's owner is a partnership, so its preview names the partnership, not an unknown record.
 		const { impact } = await s.relationships.previewMerge(s.treeId, command, s.ctx);
-		const fileChange = impact!.records.find((r) => r.entityType === 'media');
-		expect(fileChange?.label).toMatch(/^Attachment of Homer Simpson–Marge Simpson partnership/);
+		const fileChange = impact!.records.find((r) => r.entityType === 'media_link');
+		expect(fileChange?.label).toMatch(/^Link of a file to Homer Simpson–Marge Simpson partnership/);
 
 		await s.relationships.mergeUnions(s.treeId, command, s.ctx);
-		expect(await file()).toMatchObject({ entityId: s.unionIds[0], version: 2, sizeBytes: 7 });
+		expect(await file()).toMatchObject({ sizeBytes: 7 });
+		expect(await linkedTo()).toEqual([s.unionIds[0]]);
 
 		await s.log.undoLast(s.treeId, s.ctx);
-		expect(await file()).toMatchObject({ entityId: s.unionIds[1], version: 3, sizeBytes: 7 });
+		expect(await file()).toMatchObject({ sizeBytes: 7 });
+		expect(await linkedTo()).toEqual([s.unionIds[1]]);
 	});
 
 	it('never merges two different marriage dates on its own: the preview and the command both refuse', async () => {

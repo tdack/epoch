@@ -6,7 +6,15 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { changeLog, individuals, mediaItems, sources, trees, unions } from '../db/schema';
+import {
+	changeLog,
+	individuals,
+	mediaItems,
+	mediaLinks,
+	sources,
+	trees,
+	unions
+} from '../db/schema';
 import { PUBLIC_VISITOR, type AuthenticatedContext } from '../domain/identity';
 import {
 	ConcurrencyConflictError,
@@ -14,7 +22,7 @@ import {
 	UnauthorizedError,
 	ValidationError
 } from '../domain/errors';
-import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
+import { MAX_TREE_MEDIA_BYTES, mediaLinkId } from '../../shared/media';
 import type { FileRowDto } from '../../shared/files';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
@@ -66,14 +74,14 @@ const EMPTY_UNION = 'union-empty';
 /** A tree-scoped file row, inserted directly so every ownership state can be set. */
 async function addFile(
 	tree: string,
-	entityId: string | null,
+	entityIds: string | string[] | null,
 	uploadedBy: string | null,
 	options: { id: string; title: string; sizeBytes?: number; createdAt?: number }
 ) {
+	// A string links the file to one record, an array to many, null to none (a detached file).
 	await t.db.insert(mediaItems).values({
 		id: options.id,
 		treeId: tree,
-		entityId,
 		r2ObjectKey: `media/${tree}/${options.id}.png`,
 		title: options.title,
 		mimeType: 'image/png',
@@ -83,6 +91,13 @@ async function addFile(
 		createdAt: new Date((options.createdAt ?? 1_700_000_000) * 1000),
 		updatedAt: new Date((options.createdAt ?? 1_700_000_000) * 1000)
 	});
+	for (const linked of entityIds === null ? [] : [entityIds].flat())
+		await t.db.insert(mediaLinks).values({
+			id: mediaLinkId(options.id, linked),
+			treeId: tree,
+			mediaId: options.id,
+			entityId: linked
+		});
 }
 
 /** Every page of the caller's listing, following the cursor to its end. */
@@ -171,6 +186,12 @@ beforeAll(async () => {
 		title: 'Union.png',
 		createdAt: 1_700_000_001
 	});
+	// Linked to a visible and a private person: a restricted viewer must not see it on either.
+	await addFile(treeId, [personId('@I1@'), personId('@I3@')], editor.userId, {
+		id: 'f-mixed',
+		title: 'Mixed.png',
+		createdAt: 1_700_000_000
+	});
 	await addFile(treeId, EMPTY_UNION, null, {
 		id: 'f-empty',
 		title: 'Empty union.png',
@@ -188,6 +209,7 @@ const ALL_IN_TREE = [
 	'Empty union.png',
 	'Living.png',
 	'Loose.png',
+	'Mixed.png',
 	'Private.png',
 	'Public.png',
 	'Union.png'
@@ -198,9 +220,7 @@ describe('who sees which files', () => {
 	it('lets an owner see every file in the tree, with every action on the ones they may manage', async () => {
 		const files = await listAll(ctxOf(owner), { treeId });
 		expect(titlesOf(files)).toEqual(ALL_IN_TREE);
-		expect(files.every((f) => f.canPreview && f.canRename && f.canAttach !== f.canDetach)).toBe(
-			true
-		);
+		expect(files.every((f) => f.canPreview && f.canRename && f.canLink)).toBe(true);
 		expect(files.every((f) => f.canDelete)).toBe(true);
 	});
 
@@ -221,22 +241,20 @@ describe('who sees which files', () => {
 		expect(files.every((f) => f.uploadedBy === null)).toBe(true);
 	});
 
-	it('lets an editor rename, attach and move, and offers attach only on a detached file', async () => {
+	it('lets an editor rename and link, and sends every record a file is linked to', async () => {
 		const files = await listAll(ctxOf(editor), { treeId });
 		const loose = files.find((f) => f.title === 'Loose.png')!;
 		const pub = files.find((f) => f.title === 'Public.png')!;
-		expect(loose).toMatchObject({
-			canRename: true,
-			canAttach: true,
-			canDetach: false,
-			canMove: false
-		});
-		expect(pub).toMatchObject({
-			canRename: true,
-			canAttach: false,
-			canDetach: true,
-			canMove: true
-		});
+		expect(loose).toMatchObject({ canRename: true, canLink: true, links: [] });
+		expect(pub).toMatchObject({ canRename: true, canLink: true });
+		expect(pub.links).toEqual([
+			{
+				entityId: personId('@I1@'),
+				kind: 'person',
+				label: expect.stringContaining('Pub'),
+				href: `/trees/${treeId}/people/${personId('@I1@')}`
+			}
+		]);
 	});
 
 	it('shows a contributor only the files attached to people they may see', async () => {
@@ -254,12 +272,26 @@ describe('who sees which files', () => {
 		}
 	});
 
+	it('hides a file linked to a private person from a restricted viewer, though it is also on a visible one', async () => {
+		for (const actor of [viewer, contributor]) {
+			expect(titlesOf(await listAll(ctxOf(actor), { treeId }))).not.toContain('Mixed.png');
+			// Nor does the visible person's own filter list it.
+			const onVisible = await service.list(ctxOf(actor), {
+				treeId,
+				entityId: personId('@I1@')
+			});
+			expect(titlesOf(onVisible.files)).toEqual(['Public.png']);
+			await expect(
+				service.requireRead(`media/${treeId}/f-mixed.png`, ctxOf(actor))
+			).rejects.toBeInstanceOf(NotFoundError);
+		}
+		expect(titlesOf(await listAll(ctxOf(editor), { treeId }))).toContain('Mixed.png');
+	});
+
 	it('shows a viewer the same restricted set, with no action on any file', async () => {
 		const files = await listAll(ctxOf(viewer), { treeId });
 		expect(titlesOf(files)).toEqual(['Public.png']);
-		expect(
-			files.every((f) => !f.canRename && !f.canAttach && !f.canDetach && !f.canMove && !f.canDelete)
-		).toBe(true);
+		expect(files.every((f) => !f.canRename && !f.canLink && !f.canDelete)).toBe(true);
 	});
 
 	it('shows a user only the files of the trees they belong to', async () => {
@@ -276,13 +308,11 @@ describe('who sees which files', () => {
 		expect(titlesOf(files)).toEqual(ALL_IN_TREE);
 		for (const file of files) {
 			expect(file).toMatchObject({
-				attachedTo: null,
+				links: [],
 				uploadedBy: null,
 				canPreview: false,
 				canRename: false,
-				canAttach: false,
-				canDetach: false,
-				canMove: false,
+				canLink: false,
 				canDelete: false
 			});
 		}
@@ -406,60 +436,84 @@ describe('editing files', () => {
 		expect(await rowOf(id)).toMatchObject({ title: 'e-rename.png' });
 	});
 
-	it('attaches a detached file to a person and undoes the attach', async () => {
-		const id = await fileOn(null, 'e-attach');
-		await service.attach(ctxOf(editor), { treeId, mediaId: id, entityId: owners().pub });
-		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+	const linksOf = async (id: string) =>
+		(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, id)))
+			.map((l) => l.entityId)
+			.sort();
+
+	it('links a detached file to a person and undoes the link', async () => {
+		const id = await fileOn(null, 'e-link');
+		await service.link(ctxOf(editor), { treeId, mediaId: id, entityId: owners().pub });
+		expect(await linksOf(id)).toEqual([owners().pub]);
+		expect(await rowOf(id)).toMatchObject({ version: 2 });
 		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
-		expect(await rowOf(id)).toMatchObject({ entityId: null });
+		expect(await linksOf(id)).toEqual([]);
 	});
 
-	it('detaches a file, keeping it, and undoes the detach', async () => {
-		const id = await fileOn(owners().pub, 'e-detach');
-		await service.detach(ctxOf(editor), { treeId, mediaId: id });
-		expect(await rowOf(id)).toMatchObject({ entityId: null });
+	it('unlinks a file, keeping it, and undoes the unlink', async () => {
+		const id = await fileOn(owners().pub, 'e-unlink');
+		await service.unlink(ctxOf(editor), { treeId, mediaId: id, entityId: owners().pub });
+		expect(await linksOf(id)).toEqual([]);
+		expect((await rowOf(id)).id).toBe(id);
 		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
-		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+		expect(await linksOf(id)).toEqual([owners().pub]);
 	});
 
-	it('moves a file to another person in one change, and undoes the move', async () => {
-		const id = await fileOn(owners().pub, 'e-move');
-		await service.move(ctxOf(editor), { treeId, mediaId: id, entityId: owners().other });
-		expect(await rowOf(id)).toMatchObject({ entityId: owners().other });
-		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
-		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
-	});
-
-	it('moves a file to a source, and undoes the move', async () => {
-		const sourceId = 'src-move-target';
+	it('links one file to two people and a source, and lists it once with all three', async () => {
+		const sourceId = 'src-link-target';
 		await t.db.insert(sources).values({ id: sourceId, treeId, title: 'Parish register' });
-		const id = await fileOn(owners().pub, 'e-move-source');
-		await service.move(ctxOf(editor), { treeId, mediaId: id, entityId: sourceId });
-		expect(await rowOf(id)).toMatchObject({ entityId: sourceId });
+		const id = await fileOn(owners().pub, 'e-many');
+		await service.link(ctxOf(editor), { treeId, mediaId: id, entityId: owners().other });
+		await service.link(ctxOf(editor), { treeId, mediaId: id, entityId: sourceId });
+		expect(await linksOf(id)).toEqual([owners().pub, owners().other, sourceId].sort());
+		const listed = (await service.list(ctxOf(editor), { treeId })).files.filter((f) => f.id === id);
+		expect(listed).toHaveLength(1);
+		expect(listed[0]!.links.map((l) => l.kind).sort()).toEqual(['person', 'person', 'source']);
 		await new ChangeLogService(t.db).undoLast(treeId, ctxOf(editor));
-		expect(await rowOf(id)).toMatchObject({ entityId: owners().pub });
+		expect(await linksOf(id)).toEqual([owners().pub, owners().other].sort());
 	});
 
-	it('refuses a move to a partnership, to a person in another tree, and of a detached file', async () => {
-		const attached = await fileOn(owners().pub, 'e-move-refused');
-		const detached = await fileOn(null, 'e-move-detached');
+	it('shows the file on each linked person, and filters the list by either', async () => {
+		const id = await fileOn([owners().pub, owners().other], 'e-two-people');
+		for (const entityId of [owners().pub, owners().other]) {
+			const files = (await service.list(ctxOf(editor), { treeId, entityId })).files;
+			expect(files.map((f) => f.id)).toContain(id);
+		}
+	});
+
+	it('links a file to a partnership but refuses a record in another tree', async () => {
+		const id = await fileOn(owners().pub, 'e-link-refused');
 		const otherPerson = await t.db
 			.select({ id: individuals.id })
 			.from(individuals)
 			.where(eq(individuals.treeId, otherTreeId));
+		await service.link(ctxOf(editor), { treeId, mediaId: id, entityId: unionId });
+		expect(await linksOf(id)).toContain(unionId);
 		await expect(
-			service.move(ctxOf(editor), { treeId, mediaId: attached, entityId: unionId })
-		).rejects.toBeInstanceOf(ValidationError);
-		await expect(
-			service.move(ctxOf(editor), {
+			service.link(ctxOf(editor), {
 				treeId,
-				mediaId: attached,
+				mediaId: id,
 				entityId: otherPerson[0]?.id ?? 'none'
 			})
-		).rejects.toBeInstanceOf(ValidationError);
-		await expect(
-			service.move(ctxOf(editor), { treeId, mediaId: detached, entityId: owners().pub })
-		).rejects.toBeInstanceOf(ValidationError);
+		).rejects.toBeInstanceOf(NotFoundError);
+	});
+
+	it('answers linking the same record twice and unlinking a missing link with no change', async () => {
+		const id = await fileOn(owners().pub, 'e-idempotent');
+		const before = await changesIn();
+		const again = await service.link(ctxOf(editor), {
+			treeId,
+			mediaId: id,
+			entityId: owners().pub
+		});
+		const missing = await service.unlink(ctxOf(editor), {
+			treeId,
+			mediaId: id,
+			entityId: owners().other
+		});
+		expect(again.change).toBeNull();
+		expect(missing.change).toBeNull();
+		expect(await changesIn()).toBe(before);
 	});
 
 	it('lets an editor edit a file uploaded by someone else', async () => {
@@ -507,7 +561,7 @@ describe('editing files', () => {
 	it('refuses a public visitor', async () => {
 		const id = await fileOn(null, 'e-visitor');
 		await expect(
-			service.attach(visitorCtx, { treeId, mediaId: id, entityId: owners().pub })
+			service.link(visitorCtx, { treeId, mediaId: id, entityId: owners().pub })
 		).rejects.toBeInstanceOf(UnauthorizedError);
 	});
 
@@ -524,9 +578,9 @@ describe('editing files', () => {
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
 	});
 
-	it('lists a file with its current version, and refuses attach, detach and move from a stale one', async () => {
+	it('lists a file with its current version, and refuses link and unlink from a stale one', async () => {
 		const detached = await fileOn(null, 'e-ver-a');
-		const attached = await fileOn(owners().pub, 'e-ver-b');
+		const linked = await fileOn(owners().pub, 'e-ver-b');
 		const listed = async (id: string) =>
 			(await service.list(ctxOf(editor), { treeId })).files.find((f) => f.id === id)!;
 		expect((await listed(detached)).version).toBe(1);
@@ -538,7 +592,7 @@ describe('editing files', () => {
 		});
 		expect((await listed(detached)).version).toBe(2);
 		await expect(
-			service.attach(ctxOf(editor), {
+			service.link(ctxOf(editor), {
 				treeId,
 				mediaId: detached,
 				entityId: owners().pub,
@@ -547,22 +601,24 @@ describe('editing files', () => {
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
 		await service.rename(ctxOf(editor), {
 			treeId,
-			mediaId: attached,
+			mediaId: linked,
 			title: 'M.png',
 			expectedVersion: 1
 		});
 		await expect(
-			service.detach(ctxOf(editor), { treeId, mediaId: attached, expectedVersion: 1 })
-		).rejects.toBeInstanceOf(ConcurrencyConflictError);
-		await expect(
-			service.move(ctxOf(editor), {
+			service.unlink(ctxOf(editor), {
 				treeId,
-				mediaId: attached,
-				entityId: owners().other,
+				mediaId: linked,
+				entityId: owners().pub,
 				expectedVersion: 1
 			})
 		).rejects.toBeInstanceOf(ConcurrencyConflictError);
-		await service.detach(ctxOf(editor), { treeId, mediaId: attached, expectedVersion: 2 });
+		await service.unlink(ctxOf(editor), {
+			treeId,
+			mediaId: linked,
+			entityId: owners().pub,
+			expectedVersion: 2
+		});
 	});
 
 	it('names a file in another tree as missing when asked through this tree', async () => {
@@ -605,6 +661,21 @@ describe('deleting a file', () => {
 		expect(result).toEqual({ wasObjectRemoved: true });
 		expect(await rowExists(file.id)).toBe(false);
 		expect(bucket.objects.has(file.key)).toBe(false);
+	});
+
+	it('removes the file with its links', async () => {
+		await addFile(treeId, personId('@I1@'), manager.userId, {
+			id: 'd-links',
+			title: 'd-links.png'
+		});
+		await service.delete(
+			ctxOf(manager),
+			{ treeId, mediaId: 'd-links' },
+			bucketHolding(`media/${treeId}/d-links.png`) as unknown as R2Bucket
+		);
+		expect(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, 'd-links'))).toEqual(
+			[]
+		);
 	});
 
 	it('removes the row even when the object cannot be removed, and reports that the object remains', async () => {

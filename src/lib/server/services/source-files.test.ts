@@ -6,7 +6,7 @@
 
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mediaItems, sources } from '../db/schema';
+import { mediaItems, mediaLinks, sources } from '../db/schema';
 import { NotFoundError, ValidationError } from '../domain/errors';
 import { maskRows } from '../domain/privacy-mask';
 import { livingCutoff } from '../domain/living-state';
@@ -75,7 +75,6 @@ async function addFile(tree: string, entityId: string | null, id: string) {
 	await t.db.insert(mediaItems).values({
 		id,
 		treeId: tree,
-		entityId,
 		r2ObjectKey: `media/${tree}/${id}.png`,
 		title: `${id}.png`,
 		mimeType: 'image/png',
@@ -85,10 +84,16 @@ async function addFile(tree: string, entityId: string | null, id: string) {
 		createdAt: new Date(1_700_000_000_000),
 		updatedAt: new Date(1_700_000_000_000)
 	});
+	if (entityId !== null)
+		await t.db
+			.insert(mediaLinks)
+			.values({ id: `${id}:${entityId}`, treeId: tree, mediaId: id, entityId });
 }
 
-const rowOf = async (id: string) =>
-	(await t.db.select().from(mediaItems).where(eq(mediaItems.id, id)))[0]!;
+const linksOf = async (id: string) =>
+	(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, id)))
+		.map((l) => l.entityId)
+		.sort();
 
 beforeAll(async () => {
 	t = await createTestDatabase();
@@ -133,7 +138,8 @@ async function visibleBothWays(tree: string, role: 'contributor' | 'viewer') {
 	const listed = new Set<string>();
 	const served = new Set<string>();
 	for (const file of rows.mediaItems) {
-		const page = await media.list(actor.context, { treeId: tree, entityId: file.entityId! });
+		const entityId = rows.mediaLinks.find((l) => l.mediaId === file.id)!.entityId;
+		const page = await media.list(actor.context, { treeId: tree, entityId });
 		if (page.files.some((f) => f.id === file.id)) listed.add(file.id);
 		try {
 			await media.requireRead(`media/${tree}/${file.id}.png`, actor.context);
@@ -177,29 +183,31 @@ describe('a file on a source is visible exactly when the source is', () => {
 			'file-@S3@',
 			'file-@S4@'
 		]);
-		expect(page.files.find((f) => f.id === 'file-@S2@')?.attachedTo).toBe('Census 1851');
+		expect(page.files.find((f) => f.id === 'file-@S2@')?.links.map((l) => l.label)).toEqual([
+			'Census 1851'
+		]);
 	});
 });
 
-describe('attaching, detaching and undoing a file on a source', () => {
-	it('attaches a detached file to a source, and undo detaches it again', async () => {
+describe('linking, unlinking and undoing a file on a source', () => {
+	it('links a detached file to a source, and undo detaches it again', async () => {
 		await addFile(treeId, null, 'loose');
-		const result = await media.attach(actors.editor.context, {
+		const result = await media.link(actors.editor.context, {
 			treeId,
 			mediaId: 'loose',
 			entityId: sourceIds['@S3@']!
 		});
 		expect(JSON.stringify(result)).toContain('Nobody cites this');
-		expect((await rowOf('loose')).entityId).toBe(sourceIds['@S3@']);
+		expect(await linksOf('loose')).toEqual([sourceIds['@S3@']]);
 		const detached = await media.list(actors.editor.context, { treeId, isDetachedOnly: true });
 		expect(detached.files.map((f) => f.id)).not.toContain('loose');
 		await new ChangeLogService(t.db).undoLast(treeId, actors.editor.context);
-		expect((await rowOf('loose')).entityId).toBeNull();
+		expect(await linksOf('loose')).toEqual([]);
 	});
 
 	it('refuses a source in another tree', async () => {
 		await expect(
-			media.attach(actors.editor.context, {
+			media.link(actors.editor.context, {
 				treeId,
 				mediaId: 'loose',
 				entityId: openSourceIds['@S1@']!
@@ -226,10 +234,10 @@ describe('deleting and merging a source carries its files', () => {
 		const target = sourceIds['@S3@']!;
 		await addFile(treeId, target, 'del-1');
 		await evidence.deleteSource(treeId, target, {}, actors.editor.context);
-		expect((await rowOf('del-1')).entityId).toBeNull();
-		expect((await rowOf('file-@S3@')).entityId).toBeNull();
+		expect(await linksOf('del-1')).toEqual([]);
+		expect(await linksOf('file-@S3@')).toEqual([]);
 		await new ChangeLogService(t.db).undoLast(treeId, actors.editor.context);
-		expect((await rowOf('del-1')).entityId).toBe(target);
+		expect(await linksOf('del-1')).toEqual([target]);
 	});
 
 	it('moves the files of a merged source to the survivor and undo moves them back', async () => {
@@ -237,9 +245,9 @@ describe('deleting and merging a source carries its files', () => {
 		const survivor = sourceIds['@S2@']!;
 		const merged = sourceIds['@S4@']!;
 		await evidence.mergeSources(treeId, survivor, [merged], undefined, actors.editor.context);
-		expect((await rowOf('file-@S4@')).entityId).toBe(survivor);
+		expect(await linksOf('file-@S4@')).toEqual([survivor]);
 		await new ChangeLogService(t.db).undoLast(treeId, actors.editor.context);
-		expect((await rowOf('file-@S4@')).entityId).toBe(merged);
+		expect(await linksOf('file-@S4@')).toEqual([merged]);
 	});
 });
 

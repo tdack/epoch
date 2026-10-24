@@ -6,7 +6,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { mediaItems, personMarks } from '../db/schema';
+import { mediaItems, mediaLinks, personMarks } from '../db/schema';
 import {
 	ConcurrencyConflictError,
 	NotFoundError,
@@ -343,7 +343,6 @@ describe('files on a merged person', () => {
 		await t.db.insert(mediaItems).values({
 			id: 'file-on-b',
 			treeId: tree,
-			entityId: b,
 			r2ObjectKey: key,
 			title: 'Ann.png',
 			mimeType: 'image/png',
@@ -353,6 +352,9 @@ describe('files on a merged person', () => {
 			createdAt: new Date(),
 			updatedAt: new Date()
 		});
+		await t.db
+			.insert(mediaLinks)
+			.values({ id: `file-on-b:${b}`, treeId: tree, mediaId: 'file-on-b', entityId: b });
 		const media = new MediaService(t.db);
 		await expect(media.requireRead(key, reader.context)).rejects.toBeInstanceOf(NotFoundError);
 
@@ -360,7 +362,9 @@ describe('files on a merged person', () => {
 		await new PersonMergeService(t.db).merge(tree, { survivorId: a, mergedId: b }, owner.context);
 
 		const [moved] = await t.db.select().from(mediaItems).where(eq(mediaItems.id, 'file-on-b'));
-		expect(moved).toMatchObject({ entityId: a, version: 2, r2ObjectKey: key });
+		expect(moved).toMatchObject({ r2ObjectKey: key });
+		const links = await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, 'file-on-b'));
+		expect(links.map((l) => l.entityId)).toEqual([a]);
 		expect([...bucket.objects.keys()].sort()).toEqual(objectsBefore);
 		await expect(media.requireRead(key, reader.context)).resolves.toBeDefined();
 	});

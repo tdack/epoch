@@ -4,17 +4,17 @@ import type { FileRowDto } from '#lib/shared/files.js';
 import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 
 vi.mock('#lib/api/files.js', () => ({
-	attachFileApi: vi.fn(),
-	detachFileApi: vi.fn(),
+	linkFileApi: vi.fn(),
+	unlinkFileApi: vi.fn(),
 	fetchFiles: vi.fn(),
 	uploadMediaApi: vi.fn()
 }));
 
-import { attachFileApi, detachFileApi, fetchFiles } from '#lib/api/files.js';
+import { linkFileApi, unlinkFileApi, fetchFiles } from '#lib/api/files.js';
 import SourceFiles from './SourceFiles.svelte';
 
-const detachApi = vi.mocked(detachFileApi);
-const attachApi = vi.mocked(attachFileApi);
+const detachApi = vi.mocked(unlinkFileApi);
+const attachApi = vi.mocked(linkFileApi);
 const listApi = vi.mocked(fetchFiles);
 
 let component: Record<string, unknown> | null = null;
@@ -37,15 +37,13 @@ const file = (id: string, overrides: Partial<FileRowDto> = {}): FileRowDto => ({
 	sizeBytes: 2048,
 	treeId: 't1',
 	treeName: 'Tree',
-	attachedTo: 'Census 1851',
+	links: [{ entityId: 's1', kind: 'source', label: 'Census 1851', href: '/trees/t1/sources/s1' }],
 	uploadedBy: null,
 	createdAt: 0,
 	previewKey: `media/t1/${id}.png`,
 	canPreview: true,
 	canRename: true,
-	canAttach: false,
-	canDetach: true,
-	canMove: true,
+	canLink: true,
 	canDelete: false,
 	...overrides
 });
@@ -82,26 +80,26 @@ describe('SourceFiles', () => {
 	});
 
 	it('is read-only for a viewer: no upload, attach or detach', () => {
-		render([file('a', { canDetach: false })], false);
+		render([file('a', { canLink: false })], false);
 		expect(button('Attach existing')).toBeUndefined();
 		expect(button('Detach')).toBeUndefined();
 		expect(document.querySelector('input[type="file"]')).toBeNull();
 	});
 
 	it('detaches only where the server allows it, in this tree', async () => {
-		const mutate = render([file('a'), file('b', { canDetach: false })], true);
+		const mutate = render([file('a'), file('b', { canLink: false })], true);
 		const detaches = [...document.querySelectorAll('button')].filter((b) =>
 			b.textContent?.includes('Detach')
 		);
 		expect(detaches).toHaveLength(1);
 		detaches[0]!.click();
-		await vi.waitFor(() => expect(detachApi).toHaveBeenCalledWith('a', 't1', undefined));
+		await vi.waitFor(() => expect(detachApi).toHaveBeenCalledWith('a', 't1', 's1', undefined));
 		expect(mutate).toHaveBeenCalledOnce();
 	});
 
 	it('lists unattached files and attaches the chosen one to this source', async () => {
 		listApi.mockResolvedValue({
-			files: [file('loose', { attachedTo: null, canAttach: true, canDetach: false })],
+			files: [file('loose', { links: [], canLink: true })],
 			nextCursor: null
 		});
 		render([], true);
