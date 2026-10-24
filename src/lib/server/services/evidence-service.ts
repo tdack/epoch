@@ -238,7 +238,9 @@ export class EvidenceService {
 			scope
 		);
 		const cited = new Set(
-			rows.citations.filter((c) => c.sourceId === sourceId).map((c) => `${c.subjectKind}:${c.subjectId}`)
+			rows.citations
+				.filter((c) => c.sourceId === sourceId)
+				.map((c) => `${c.subjectKind}:${c.subjectId}`)
 		);
 		const isCited = (kind: string, id: string) => cited.has(`${kind}:${id}`);
 		if (!factType) {
