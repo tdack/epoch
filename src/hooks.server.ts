@@ -272,10 +272,21 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		});
 	}
 
+	const startedAt = Date.now();
 	const response = await resolve(event);
 	response.headers.set('x-correlation-id', correlationId);
 	// Everything served to the anonymous reader stays out of search indexes (ADR-041).
 	if (event.locals.user?.isPublicVisitor) response.headers.set('x-robots-tag', 'noindex');
+	// One line per request, so Workers Observability can find a person's requests by `context.user`;
+	// route errors are logged without context, and the correlation id joins them to this line.
+	const user = event.locals.user;
+	requestLogger
+		.child(
+			user && !user.isPublicVisitor
+				? { user: user.email, sub: user.accessSub, userId: user.id }
+				: {}
+		)
+		.info('request', { status: response.status, durationMs: Date.now() - startedAt });
 	return response;
 };
 
