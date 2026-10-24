@@ -7,6 +7,10 @@
 		Eye,
 		FileText,
 		Image as ImageIcon,
+		Link,
+		User,
+		Users,
+		BookOpen,
 		Pencil,
 		Plus,
 		Search,
@@ -25,7 +29,9 @@
 		fetchFiles,
 		fetchFileUsage,
 		fetchUnlinkedFiles,
+		linkFileApi,
 		renameFileApi,
+		unlinkFileApi,
 		uploadMediaApi
 	} from '#lib/api/files.js';
 	import type { FileRowDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
@@ -63,7 +69,7 @@
 	let unlinked = $state<UnlinkedListDto | null>(null);
 	let isCheckingUnlinked = $state(false);
 
-	type Dialog = 'upload' | 'rename' | 'delete' | 'preview' | 'unlinked' | null;
+	type Dialog = 'upload' | 'rename' | 'link' | 'delete' | 'preview' | 'unlinked' | null;
 	let dialog = $state<Dialog>(null);
 	let target = $state<FileRowDto | null>(null);
 	let isBusy = $state(false);
@@ -172,6 +178,29 @@
 		uploadFile = dropped[0]!;
 		if (dropped.length > 1)
 			toasts.push('Files are added one at a time, so only the first is selected.');
+	}
+
+	const linkTo = () => {
+		const file = target!;
+		const owner = chosenOwner;
+		if (!owner) return;
+		// The server treats a repeat as a no-op too; this just skips the round trip.
+		if (file.links.some((l) => l.entityId === owner.id)) {
+			dialogError = `Already linked to ${owner.name}.`;
+			return;
+		}
+		void run(() => linkFileApi(file.id, file.treeId, owner.id, file.version), 'File linked');
+	};
+
+	async function unlink(file: FileRowDto, link: FileRowDto['links'][number]) {
+		try {
+			await unlinkFileApi(file.id, file.treeId, link.entityId, file.version);
+			toasts.push(`Unlinked from ${link.label}`);
+			await reload();
+		} catch (cause) {
+			if (isConflict(cause)) return handleStale(cause.message);
+			toasts.push(messageOf(cause, 'Could not unlink the file'), { tone: 'error' });
+		}
 	}
 
 	function closeDialog() {
@@ -351,7 +380,7 @@
 				<th scope="col" class="px-3 py-2 font-semibold">Name</th>
 				<th scope="col" class="px-3 py-2 font-semibold">Type</th>
 				<th scope="col" class="px-3 py-2 text-right font-semibold">Size</th>
-				<th scope="col" class="px-3 py-2 font-semibold">Attached to</th>
+				<th scope="col" class="px-3 py-2 font-semibold">Linked to</th>
 				{#if hasUploader}
 					<th scope="col" class="px-3 py-2 font-semibold">Uploaded by</th>
 				{/if}
@@ -387,9 +416,41 @@
 					<td class="px-3 py-2 text-right text-stone-600 tabular-nums"
 						>{formatMediaSize(file.sizeBytes)}</td
 					>
-					<td class="px-3 py-2 text-stone-600"
-						>{file.links.length > 0 ? file.links.map((l) => l.label).join(', ') : 'Not linked'}</td
-					>
+					<td class="px-3 py-2">
+						{#if file.links.length === 0}
+							<span class="text-stone-600">Not linked</span>
+						{:else}
+							<ul class="flex flex-wrap gap-1" aria-label="Linked records">
+								{#each file.links as link (link.entityId)}
+									{@const KindIcon =
+										link.kind === 'person' ? User : link.kind === 'union' ? Users : BookOpen}
+									<li
+										class="inline-flex items-center rounded-full border border-stone-300 bg-stone-50 text-stone-800"
+									>
+										<a
+											href={link.href}
+											class="inline-flex items-center gap-1 rounded-full py-0.5 pr-2 pl-2 focus-ring hover:text-emerald-800 {file.canLink
+												? 'pr-1'
+												: ''}"
+										>
+											<KindIcon class="h-3 w-3 text-stone-500" aria-hidden="true" />
+											{link.label}
+										</a>
+										{#if file.canLink}
+											<button
+												type="button"
+												class="mr-0.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-stone-500 focus-ring hover:bg-stone-200 hover:text-stone-900 coarse:h-8 coarse:w-8"
+												onclick={() => unlink(file, link)}
+											>
+												<X class="h-3 w-3" aria-hidden="true" />
+												<span class="sr-only">Unlink {link.label}</span>
+											</button>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</td>
 					{#if hasUploader}
 						<td class="px-3 py-2 text-stone-600">{file.uploadedBy ?? '—'}</td>
 					{/if}
@@ -417,6 +478,18 @@
 								>
 									<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Rename '}{file.title ?? 'file'}</span>
+								</button>
+							{/if}
+							{#if file.canLink}
+								<button
+									type="button"
+									class={actionClass}
+									onclick={() => openDialog('link', file)}
+									title="Link to a person or source"
+								>
+									<Link class="h-3.5 w-3.5" aria-hidden="true" />
+									<span class="sr-only">{'Link '}{file.title ?? 'file'}{' to a record'}</span>
+									<span aria-hidden="true">Link to…</span>
 								</button>
 							{/if}
 							{#if file.canDelete}
@@ -577,6 +650,47 @@
 			</button>
 		</div>
 	</form>
+</BaseModal>
+
+<BaseModal
+	isOpen={dialog === 'link'}
+	title="Link file"
+	icon={Link}
+	error={dialogError}
+	onclose={closeDialog}
+>
+	<div class="space-y-4">
+		<p class="text-xs text-stone-600">
+			Link <span class="font-semibold">{target?.title ?? 'this file'}</span>
+			to {canPickSource ? 'a person or a source' : 'a person'} in {target?.treeName ?? 'this tree'}.
+			It stays linked to what it is already linked to.
+		</p>
+		{#if target}
+			{#key target.id}
+				<FileOwnerPicker
+					treeId={target.treeId}
+					idPrefix="files-link-owner"
+					{canPickSource}
+					bind:picked={chosenOwner}
+				/>
+			{/key}
+		{/if}
+		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
+			<button
+				type="button"
+				onclick={closeDialog}
+				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
+			>
+			<button
+				type="button"
+				disabled={isBusy || !chosenOwner}
+				onclick={linkTo}
+				class="btn-primary-sm"
+			>
+				Link
+			</button>
+		</div>
+	</div>
 </BaseModal>
 
 <BaseModal

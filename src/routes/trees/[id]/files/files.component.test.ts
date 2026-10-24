@@ -15,7 +15,9 @@ vi.mock('#lib/api/files.js', () => ({
 	fetchFiles: vi.fn(),
 	fetchFileUsage: vi.fn(),
 	fetchUnlinkedFiles: vi.fn(),
+	linkFileApi: vi.fn(),
 	renameFileApi: vi.fn(),
+	unlinkFileApi: vi.fn(),
 	uploadMediaApi: vi.fn()
 }));
 
@@ -24,7 +26,9 @@ import {
 	fetchFiles,
 	fetchFileUsage,
 	fetchUnlinkedFiles,
+	linkFileApi,
 	renameFileApi,
+	unlinkFileApi,
 	uploadMediaApi
 } from '#lib/api/files.js';
 import { ConflictError } from '#lib/api/client.js';
@@ -34,6 +38,8 @@ import Page from './+page.svelte';
 const remove = vi.mocked(deleteFileApi);
 const upload = vi.mocked(uploadMediaApi);
 const rename = vi.mocked(renameFileApi);
+const link = vi.mocked(linkFileApi);
+const unlink = vi.mocked(unlinkFileApi);
 const sources = vi.mocked(fetchSources);
 const listFiles = vi.mocked(fetchFiles);
 const usage = vi.mocked(fetchFileUsage);
@@ -55,6 +61,8 @@ beforeEach(() => {
 	remove.mockReset();
 	rename.mockReset();
 	upload.mockReset();
+	link.mockReset();
+	unlink.mockReset();
 	sources.mockReset();
 	listFiles.mockReset();
 	usage.mockResolvedValue({ trees: [], installBytes: null });
@@ -150,7 +158,7 @@ describe('Files page visibility', () => {
 
 	it('lists every record a file is linked to, and says so for a file with none', () => {
 		render({ role: 'editor', files: [row({}), row({ id: 'f2', links: [] })] });
-		expect(document.body.textContent).toContain('Ada Lovelace, Byron');
+		expect(document.body.textContent).toMatch(/Ada Lovelace\s*Byron/);
 		expect(document.body.textContent).toContain('Not linked');
 	});
 
@@ -379,5 +387,62 @@ describe('Files page drop', () => {
 		zone().dispatchEvent(dragEvent('drop', ['text/plain'], []));
 		flushSync();
 		expect(document.querySelector('[data-testid="upload-chosen"]')).toBeNull();
+	});
+});
+
+describe('Files page link chips', () => {
+	const chip = (label: string) =>
+		[...document.querySelectorAll<HTMLAnchorElement>('tbody a')].find((a) =>
+			a.textContent?.includes(label)
+		);
+	const unlinkButton = (label: string) =>
+		[...document.querySelectorAll<HTMLButtonElement>('tbody button')].find(
+			(b) => b.textContent?.trim() === `Unlink ${label}`
+		);
+
+	it('shows each link as a chip that goes to the record', () => {
+		render({ role: 'editor', files: [row({})] });
+		expect(chip('Ada Lovelace')?.getAttribute('href')).toBe('/trees/t1/people/p1');
+		expect(chip('Byron')).toBeDefined();
+	});
+
+	it('hides unlink and Link to without canLink', () => {
+		render({ role: 'viewer', files: [row({ canLink: false })] });
+		expect(unlinkButton('Ada Lovelace')).toBeUndefined();
+		expect(document.body.textContent).not.toContain('Link to…');
+	});
+
+	it('unlinks one record with the row version, then reloads', async () => {
+		unlink.mockResolvedValue(undefined as never);
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [row({ canLink: true })] });
+		unlinkButton('Byron')!.click();
+		await vi.waitFor(() => expect(unlink).toHaveBeenCalledWith('f1', 't1', 'p2', 3));
+		await vi.waitFor(() => expect(listFiles).toHaveBeenCalled());
+	});
+
+	it('links a chosen record from Link to…', async () => {
+		link.mockResolvedValue(undefined as never);
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		sources.mockResolvedValue({
+			items: [{ id: 's1', title: 'Parish register', author: null }]
+		} as never);
+		render({ role: 'editor', files: [row({ canLink: true })] });
+		[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
+			.find((b) => b.textContent?.includes('Link to'))!
+			.click();
+		flushSync();
+		const buttons = () => [...document.querySelectorAll<HTMLButtonElement>('button')];
+		buttons()
+			.find((b) => b.textContent?.trim() === 'Source')!
+			.click();
+		flushSync();
+		await vi.waitFor(() => expect(document.querySelector('[role="option"]')).not.toBeNull());
+		document.querySelector<HTMLElement>('[role="option"]')!.click();
+		flushSync();
+		buttons()
+			.find((b) => b.textContent?.trim() === 'Link')!
+			.click();
+		await vi.waitFor(() => expect(link).toHaveBeenCalledWith('f1', 't1', 's1', 3));
 	});
 });
