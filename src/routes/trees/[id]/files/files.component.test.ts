@@ -387,3 +387,59 @@ describe('Files page attach and move to a source', () => {
 		).toBe(false);
 	});
 });
+
+/** jsdom has no DataTransfer; a plain event carrying the two fields the drop code reads. */
+function dragEvent(type: string, types: string[], files: File[] = []) {
+	const event = new Event(type, { bubbles: true, cancelable: true });
+	Object.defineProperty(event, 'dataTransfer', { value: { types, files, dropEffect: 'none' } });
+	return event;
+}
+
+describe('Files page drop', () => {
+	const zone = () => document.querySelector<HTMLElement>('[data-testid="files-drop"]')!;
+	const dropped = new File(['x'], 'scan.png', { type: 'image/png' });
+
+	it('opens the upload dialog with the dropped file chosen', () => {
+		render({ role: 'editor', files: [] });
+		zone().dispatchEvent(dragEvent('drop', ['Files'], [dropped]));
+		flushSync();
+		expect(document.querySelector('[data-testid="upload-chosen"]')?.textContent).toContain(
+			'scan.png'
+		);
+		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it('takes the first of several files and says so', () => {
+		render({ role: 'editor', files: [] });
+		const second = new File(['y'], 'other.png', { type: 'image/png' });
+		zone().dispatchEvent(dragEvent('drop', ['Files'], [dropped, second]));
+		flushSync();
+		expect(toasts.push).toHaveBeenCalledWith(expect.stringContaining('one at a time'));
+		expect(document.querySelector('[data-testid="upload-chosen"]')?.textContent).toContain(
+			'scan.png'
+		);
+	});
+
+	it('shows the drag-over state while a file is over', () => {
+		render({ role: 'editor', files: [] });
+		zone().dispatchEvent(dragEvent('dragenter', ['Files']));
+		flushSync();
+		expect(document.body.textContent).toContain('Drop to add a file');
+	});
+
+	it('ignores drops from a viewer and non-file drags', () => {
+		render({ role: 'viewer', files: [] });
+		const enter = dragEvent('dragenter', ['Files']);
+		zone().dispatchEvent(enter);
+		zone().dispatchEvent(dragEvent('drop', ['Files'], [dropped]));
+		flushSync();
+		expect(enter.defaultPrevented).toBe(false);
+		expect(document.querySelector('[data-testid="upload-chosen"]')).toBeNull();
+		expect(document.body.textContent).not.toContain('Drop to add a file');
+		unmountAll();
+		render({ role: 'editor', files: [] });
+		zone().dispatchEvent(dragEvent('drop', ['text/plain'], []));
+		flushSync();
+		expect(document.querySelector('[data-testid="upload-chosen"]')).toBeNull();
+	});
+});

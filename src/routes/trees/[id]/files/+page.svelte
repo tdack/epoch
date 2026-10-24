@@ -17,6 +17,7 @@
 		Upload,
 		X
 	} from '@lucide/svelte';
+	import { fileDrop } from '#lib/components/forms/fileDrop.js';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
 	import FileOwnerPicker from '#lib/components/FileOwnerPicker.svelte';
 	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
@@ -72,6 +73,7 @@
 	let dialog = $state<Dialog>(null);
 	let target = $state<FileRowDto | null>(null);
 	let isBusy = $state(false);
+	let isDragOver = $state(false);
 	let dialogError = $state<string | null>(null);
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
@@ -168,6 +170,14 @@
 		chosenOwner = null;
 		if (kind === 'rename') renameTitle = file?.title ?? '';
 		if (kind === 'upload') uploadFile = null;
+	}
+
+	/** A file dropped on the list opens the upload dialog with it chosen; the record is still the user's pick. */
+	function dropToUpload(dropped: File[]) {
+		openDialog('upload');
+		uploadFile = dropped[0]!;
+		if (dropped.length > 1)
+			toasts.push('Files are added one at a time, so only the first is selected.');
 	}
 
 	function closeDialog() {
@@ -348,7 +358,20 @@
 	<p role="alert" class="mt-3 text-xs font-medium text-orange-700">{listError}</p>
 {/if}
 
-<div class="mt-4 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-xs">
+<div
+	class="mt-4 overflow-x-auto rounded-xl border bg-white shadow-xs {isDragOver
+		? 'border-dashed border-emerald-700 bg-emerald-50'
+		: 'border-stone-200'}"
+	data-testid="files-drop"
+	use:fileDrop={{
+		isEnabled: canEdit,
+		onActiveChange: (isActive) => (isDragOver = isActive),
+		onFiles: dropToUpload
+	}}
+>
+	{#if isDragOver}
+		<p class="px-3 py-2 text-xs font-medium text-emerald-800">Drop to add a file</p>
+	{/if}
 	<table class="w-full min-w-[46rem] text-left text-xs">
 		<caption class="sr-only">Files in the trees you belong to</caption>
 		<thead class="border-b border-stone-200 bg-stone-50 text-stone-600">
@@ -591,6 +614,11 @@
 					(uploadFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null)}
 				class="mt-1 text-xs"
 			/>
+			{#if uploadFile}
+				<p class="mt-1 text-xs text-stone-600" data-testid="upload-chosen">
+					Selected: {uploadFile.name}
+				</p>
+			{/if}
 		</div>
 		{#if dialog === 'upload'}
 			<FileOwnerPicker
