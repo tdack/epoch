@@ -119,11 +119,15 @@
 			: 'mt-1 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm sm:w-64'}
 	/>
 	{#if isOpen}
+		<!-- Floating only in a filter row: a dialog's own scroll would clip a floating list, so there
+		     the results push the content down instead. -->
 		<ul
 			id="{uid}-results"
 			role="listbox"
 			aria-label="{label} results"
-			class="absolute inset-x-0 z-20 mt-1 max-h-72 overflow-auto rounded-lg border border-stone-300 bg-white py-1 shadow-lg sm:right-auto sm:w-max sm:max-w-sm sm:min-w-64"
+			class="mt-1 max-h-72 overflow-auto rounded-lg border border-stone-300 bg-white py-1 {isInline
+				? 'absolute inset-x-0 z-20 shadow-lg sm:right-auto sm:w-max sm:max-w-sm sm:min-w-64'
+				: 'sm:w-64'}"
 		>
 			{#each results as option, i (option.id)}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
