@@ -1,5 +1,6 @@
 import { serverLoad } from '#lib/server/http/page-load.js';
 import { ProfileService } from '#lib/server/services/profile-service.js';
+import { TreeService } from '#lib/server/services/tree-service.js';
 import { SettingsService } from '#lib/server/services/settings-service.js';
 import { SETTINGS_DEPENDENCY } from '#lib/shared/settings.js';
 import type { PageServerLoad } from './$types';
@@ -14,11 +15,12 @@ export const load: PageServerLoad = serverLoad(
 	async ({ db, ctx }, { depends }) => {
 		depends(SETTINGS_DEPENDENCY);
 		const profiles = new ProfileService(db);
-		const [profile, leave, settings] = await Promise.all([
+		const [profile, leave, settings, homePersonNames] = await Promise.all([
 			profiles.view(ctx),
 			profiles.leaveBlockers(ctx),
-			new SettingsService(db).view(ctx)
+			new SettingsService(db).view(ctx),
+			new TreeService(db).homePersonNames(ctx)
 		]);
-		return { profile, leave, settings };
+		return { profile, leave, settings, homePersonNames };
 	}
 );

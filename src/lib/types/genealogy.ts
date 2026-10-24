@@ -11,6 +11,8 @@ export interface TreeSummary {
 	role?: TreeRole;
 	/** The caller's own choice of view in this tree; null until they make one. */
 	viewMode?: LayoutMode | null;
+	/** Who the caller's view starts on when the address names no one; may be stale. */
+	homePersonId?: string | null;
 	/** Whether `/` opens this tree for the caller. */
 	isDefault?: boolean;
 }

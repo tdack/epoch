@@ -11,10 +11,14 @@ vi.mock('$app/state', () => ({ page }));
 vi.mock('#lib/api/settings.js', () => ({
 	saveMySettings: vi.fn(),
 	saveDefaultTree: vi.fn(),
-	saveViewMode: vi.fn().mockResolvedValue(undefined)
+	saveViewMode: vi.fn().mockResolvedValue(undefined),
+	saveHomePerson: vi.fn().mockResolvedValue(undefined)
+}));
+vi.mock('#lib/api/lists.js', () => ({
+	searchPeopleApi: vi.fn().mockResolvedValue([{ id: 'p9', givenName: 'Ada', surname: 'Lovelace' }])
 }));
 
-import { saveViewMode } from '#lib/api/settings.js';
+import { saveHomePerson, saveViewMode } from '#lib/api/settings.js';
 import Page from './+page.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -27,7 +31,8 @@ afterEach(() => {
 
 function render(
 	trees: Array<Record<string, unknown>>,
-	leave: Record<string, unknown> = { isInstallOwner: false, soleOwnerTrees: [] }
+	leave: Record<string, unknown> = { isInstallOwner: false, soleOwnerTrees: [] },
+	homePersonNames: Record<string, string> = {}
 ) {
 	component = mount(Page, {
 		target: document.body,
@@ -41,7 +46,8 @@ function render(
 				},
 				leave,
 				settings: { user: {}, site: {}, effective: {} },
-				trees
+				trees,
+				homePersonNames
 			} as never
 		}
 	});
@@ -94,5 +100,37 @@ describe('account page', () => {
 			(b) => b.textContent?.trim() === 'Leave Epoch'
 		)!;
 		expect(leave.disabled).toBe(true);
+	});
+
+	it('shows the starting person, or No preference, and saves a pick and a clear', async () => {
+		vi.useFakeTimers();
+		try {
+			render(
+				[tree('a', 'Smiths', 'editor', { homePersonId: 'p1' }), tree('b', 'Joneses', 'viewer')],
+				undefined,
+				{ a: 'Olda Oldman' }
+			);
+			const placeholders = [
+				...document.querySelectorAll<HTMLInputElement>('input[role="combobox"]')
+			].map((i) => i.placeholder);
+			expect(placeholders).toEqual(['Olda Oldman', 'No preference']);
+
+			const input = document.querySelectorAll<HTMLInputElement>('input[role="combobox"]')[1]!;
+			input.value = 'ada';
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			await vi.advanceTimersByTimeAsync(300);
+			flushSync();
+			(document.querySelector('[role="option"]') as HTMLElement).click();
+			await vi.advanceTimersByTimeAsync(0);
+			expect(saveHomePerson).toHaveBeenCalledWith('b', 'p9');
+
+			[...document.querySelectorAll('button')]
+				.find((b) => b.textContent?.trim() === 'Clear')!
+				.click();
+			await vi.advanceTimersByTimeAsync(0);
+			expect(saveHomePerson).toHaveBeenCalledWith('a', null);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

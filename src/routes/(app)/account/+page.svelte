@@ -5,6 +5,7 @@
 	import { hashTab } from '#lib/components/layout/hash-tab.js';
 	import Avatar from '#lib/components/profile/Avatar.svelte';
 	import LeaveEpochDialog from '#lib/components/modals/LeaveEpochDialog.svelte';
+	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import PaletteEditor from '#lib/components/settings/PaletteEditor.svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import {
@@ -14,7 +15,12 @@
 		uploadMyAvatar,
 		useMyAccessPicture
 	} from '#lib/api/profile.js';
-	import { saveDefaultTree, saveMySettings, saveViewMode } from '#lib/api/settings.js';
+	import {
+		saveDefaultTree,
+		saveHomePerson,
+		saveMySettings,
+		saveViewMode
+	} from '#lib/api/settings.js';
 	import { signOutHref } from '#lib/shared/access.js';
 	import { MAX_DISPLAY_NAME_LENGTH } from '#lib/shared/profile.js';
 	import { SETTINGS_DEPENDENCY, type SettingsPatch } from '#lib/shared/settings.js';
@@ -132,6 +138,21 @@
 		saveTree(
 			() => saveViewMode(id, parseLayoutMode(value)),
 			`Saved: ${treeName} opens in ${value ? MODE_LABELS[parseLayoutMode(value)!] : 'Flat'}.`
+		);
+
+	const homeName = (id: string) => data.homePersonNames[id] ?? null;
+	const setHomePerson = (
+		id: string,
+		treeName: string,
+		person: { id: string; name: string } | null
+	) =>
+		saveTree(
+			async () => {
+				await saveHomePerson(id, person?.id ?? null);
+			},
+			person
+				? `Saved: ${treeName} starts at ${person.name}.`
+				: `Saved: ${treeName} has no starting person.`
 		);
 
 	// Leave Epoch
@@ -271,7 +292,8 @@
 					{:else}
 						Your default tree is the one Epoch opens when you sign in.
 					{/if}
-					A tree opens in the view you choose here, unless a link names another.
+					A tree opens in the view you choose here, and on the person you start at, unless a link names
+					another.
 				</p>
 				{#if trees.length === 0}
 					<p class="text-sm text-stone-700">You are not in any tree yet.</p>
@@ -290,6 +312,7 @@
 										<th scope="col" class="px-3 py-2 font-semibold">Default</th>
 									{/if}
 									<th scope="col" class="px-3 py-2 font-semibold">Open in</th>
+									<th scope="col" class="px-3 py-2 font-semibold">Start at</th>
 								</tr>
 							</thead>
 							<tbody class="block divide-y divide-stone-100 sm:table-row-group">
@@ -333,6 +356,28 @@
 													<option value={mode}>{MODE_LABELS[mode]}</option>
 												{/each}
 											</select>
+										</td>
+										<td class="flex w-full items-end gap-2 sm:table-cell sm:w-auto sm:px-3 sm:py-2">
+											<PersonPicker
+												treeId={tree.id}
+												label="Start {tree.name} at"
+												picked={homeName(tree.id)
+													? { id: tree.homePersonId ?? '', name: homeName(tree.id)! }
+													: null}
+												emptyName="No preference"
+												isInline
+												onpick={(person) => void setHomePerson(tree.id, tree.name, person)}
+											/>
+											{#if homeName(tree.id)}
+												<button
+													type="button"
+													class={quietButton}
+													disabled={isSavingTree}
+													onclick={() => void setHomePerson(tree.id, tree.name, null)}
+												>
+													Clear
+												</button>
+											{/if}
 										</td>
 									</tr>
 								{/each}

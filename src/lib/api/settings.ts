@@ -11,6 +11,18 @@ export async function saveViewMode(treeId: string, mode: LayoutMode | null): Pro
 	);
 }
 
+/** The caller's own starting person in this tree; `null` clears it. */
+export async function saveHomePerson(
+	treeId: string,
+	personId: string | null
+): Promise<{ homePersonId: string | null; homePersonName: string | null }> {
+	return call(
+		path`/api/trees/${treeId}/home-person`,
+		json('PUT', { personId }),
+		'Failed to save the starting person'
+	);
+}
+
 /** The tree `/` opens for the signed-in user; null clears it. */
 export async function saveDefaultTree(treeId: string | null): Promise<void> {
 	await call('/api/default-tree', json('PUT', { treeId }), 'Failed to save the default tree');

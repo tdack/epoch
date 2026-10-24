@@ -123,6 +123,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'no-record-data',
 		covers: 'services/tree-view-mode.test.ts'
 	},
+	[`${API}/trees/[id]/home-person/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/tree-home-person.test.ts'
+	},
 	[`${API}/trees/[id]/marks/favorites/[personId]/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/marks/recents/+server.ts`]: { kind: 'own-data', covers: READS },
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: { kind: 'paged-sql', covers: NOTES },

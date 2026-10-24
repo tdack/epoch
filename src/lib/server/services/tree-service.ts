@@ -6,7 +6,9 @@ import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import type { TreeAction } from '../auth/authorization';
 import type { LayoutMode } from '../../shared/view-mode';
 import { isValidTreeSlug } from '../../shared/tree-slug';
-import { requireRealUser, requireTreeAction } from './tree-access';
+import { requireRealUser, requireTreeAction, requireTreeScope } from './tree-access';
+import { SubtreeRepository } from '../repositories/subtree-repository';
+import { visibleAmong } from '../repositories/visibility';
 import { NotAdmittedError, NotFoundError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { MutationRunner, type MutationClock } from './mutation-runner';
@@ -159,6 +161,53 @@ export class TreeService {
 		await requireTreeAction(this.userRepo, treeId, context, 'tree:view');
 		await this.treeRepo.setMemberViewMode(context.user.id, treeId, mode);
 		return { viewMode: mode };
+	}
+
+	/**
+	 * The person the caller's view starts on in this tree; null clears it. Their own setting like the
+	 * view mode. The person must be one the caller may see: a hidden person is refused exactly as a
+	 * missing one, so the choice cannot be used to probe for private people.
+	 */
+	async setHomePerson(treeId: string, personId: string | null, context: AuthenticatedContext) {
+		requireRealUser(context);
+		if (personId === null) {
+			await requireTreeAction(this.userRepo, treeId, context, 'tree:view');
+			await this.treeRepo.setMemberHomePerson(context.user.id, treeId, null);
+			return { homePersonId: null, homePersonName: null };
+		}
+		const name = await this.visibleName(treeId, personId, context);
+		if (name === null) throw new ValidationError('That person is not in this tree');
+		if (!(await this.treeRepo.setMemberHomePerson(context.user.id, treeId, personId)))
+			throw new ValidationError('Only a tree you are a member of can have a starting person');
+		return { homePersonId: personId, homePersonName: name };
+	}
+
+	/** The display names of the caller's saved starting people, by tree; stale or hidden ones are left out. */
+	async homePersonNames(context: AuthenticatedContext): Promise<Record<string, string>> {
+		const names: Record<string, string> = {};
+		for (const tree of await this.treeRepo.listForUser(context.user.id)) {
+			if (!tree.homePersonId) continue;
+			const name = await this.visibleName(tree.id, tree.homePersonId, context);
+			if (name !== null) names[tree.id] = name;
+		}
+		return names;
+	}
+
+	/** The person's display name if they exist in the tree and the caller may see them, else null. */
+	private async visibleName(
+		treeId: string,
+		personId: string,
+		context: AuthenticatedContext
+	): Promise<string | null> {
+		const scope = await requireTreeScope(
+			this.userRepo,
+			this.treeRepo,
+			treeId,
+			context,
+			'tree:view'
+		);
+		if (!(await visibleAmong(this.db, treeId, [personId], scope)).has(personId)) return null;
+		return new SubtreeRepository(this.db).rootDisplayName(treeId, personId);
 	}
 
 	/**

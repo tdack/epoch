@@ -460,6 +460,8 @@ export const personPrivacySchema = z.object({
 });
 /** A view setting, or null to clear it. */
 export const viewModeSchema = z.object({ mode: z.enum(LAYOUT_MODE_VALUES).nullable() });
+/** A starting person, or null to clear it. */
+export const homePersonSchema = z.object({ personId: z.string().min(1).nullable() });
 export const defaultTreeSchema = z.object({ treeId: z.string().min(1).nullable() });
 export const privacySettingsSchema = z
 	.object({
