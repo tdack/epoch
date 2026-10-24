@@ -5,7 +5,7 @@
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
 	import { fileDrop } from '#lib/components/forms/fileDrop.js';
-	import { deleteFileApi, uploadMediaApi } from '#lib/api/files.js';
+	import { deleteFileApi, unlinkFileApi, uploadMediaApi } from '#lib/api/files.js';
 	import { isInlineMediaType, mediaUrl, MEDIA_UPLOAD_ACCEPT } from '#lib/shared/media.js';
 	import type { PersonPageDto } from '#lib/shared/person-page.js';
 
@@ -30,15 +30,18 @@
 	let confirmingId = $state<string | null>(null);
 	let isDeleting = $state(false);
 
-	async function confirmDelete(fileId: string) {
+	/** A file on other records too is only unlinked here; deleting it would take it from them all. */
+	async function confirmDelete(item: PersonPageDto['media'][number]) {
 		if (isDeleting) return;
 		isDeleting = true;
 		try {
-			await deleteFileApi(fileId, treeId);
+			if (item.isShared) await unlinkFileApi(item.id, treeId, dto.person.id, item.version);
+			else await deleteFileApi(item.id, treeId);
 			confirmingId = null;
 			await editor.refresh();
 		} catch (cause) {
-			toasts.push(messageOf(cause, 'Could not delete the file'), { tone: 'error' });
+			const fallback = item.isShared ? 'Could not remove the file' : 'Could not delete the file';
+			toasts.push(messageOf(cause, fallback), { tone: 'error' });
 		} finally {
 			isDeleting = false;
 		}
@@ -140,19 +143,23 @@
 						{/if}
 						<span class="sr-only">(opens in a new tab)</span>
 					</a>
-					{#if item.canDelete}
+					{#if item.isShared ? item.canUnlink : item.canDelete}
 						{#if confirmingId === item.id}
 							<div
 								class="space-y-1.5 rounded-lg border border-red-300 bg-red-50 p-2 text-[11px] text-red-900"
 							>
-								<p>Delete this file for good? It is removed from storage and cannot be undone.</p>
+								<p>
+									{item.isShared
+										? 'Remove this file from this person? It stays on the other records it is linked to.'
+										: 'Delete this file for good? It is removed from storage and cannot be undone.'}
+								</p>
 								<div class="flex flex-wrap gap-1.5">
 									<button
 										type="button"
 										disabled={isDeleting}
-										onclick={() => confirmDelete(item.id)}
+										onclick={() => confirmDelete(item)}
 										class="rounded-md bg-red-700 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
-										>Confirm delete</button
+										>{item.isShared ? 'Confirm remove' : 'Confirm delete'}</button
 									>
 									<button
 										type="button"
@@ -170,7 +177,11 @@
 								class="inline-flex items-center justify-center gap-1 self-end rounded-md px-1.5 py-0.5 text-[11px] font-medium text-red-700 hover:bg-red-50"
 							>
 								<Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
-								<span>Delete<span class="sr-only"> {item.title ?? 'file'}</span></span>
+								<span
+									>{item.isShared ? 'Remove' : 'Delete'}<span class="sr-only">
+										{item.title ?? 'file'}</span
+									></span
+								>
 							</button>
 						{/if}
 					{/if}

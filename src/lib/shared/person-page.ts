@@ -129,6 +129,10 @@ interface MediaDto extends PrivacyFlag {
 	title: string | null;
 	mimeType: string;
 	r2ObjectKey: string;
+	version: number;
+	/** Linked to another record as well, so removing it here unlinks rather than deletes. */
+	isShared: boolean;
+	canUnlink: boolean;
 	/** Computed on the server: editors may delete the files they uploaded, managers any. */
 	canDelete: boolean;
 }

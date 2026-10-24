@@ -5,6 +5,7 @@
  * someone's family is.
  */
 
+import { isActionAllowed } from '../auth/authorization';
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import { MediaRepository } from '../repositories/media-repository';
@@ -265,6 +266,10 @@ export class PersonPageService {
 		);
 		const mediaRows = linkedMedia.filter(({ row }) => readable.has(row.id));
 		const uploaders = await this.media.uploadersOf(treeId, personId);
+		const fileLinks = await this.media.linksOf(
+			treeId,
+			mediaRows.map(({ row }) => row.id)
+		);
 
 		// Evidence: every citation of the person and of what they have, in one batch, then the sources
 		// those name. A fact or name that none cites is unsourced.
@@ -476,6 +481,9 @@ export class PersonPageService {
 				title: row.title,
 				mimeType: row.mimeType,
 				r2ObjectKey: row.r2ObjectKey,
+				version: row.version,
+				isShared: (fileLinks.get(row.id)?.length ?? 0) > 1,
+				canUnlink: isActionAllowed(scope.role, 'media:manage'),
 				canDelete: canDeleteMedia(scope, uploaders.get(row.id) ?? null)
 			})),
 			notes: notesOf(noteItems, NOTE_SUBJECT_KINDS.PERSON, personId),

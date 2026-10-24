@@ -11,19 +11,22 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 }));
 vi.mock('#lib/api/files.js', () => ({
 	deleteFileApi: vi.fn(),
+	unlinkFileApi: vi.fn(),
 	uploadMediaApi: vi.fn()
 }));
 
-import { deleteFileApi, uploadMediaApi } from '#lib/api/files.js';
+import { deleteFileApi, unlinkFileApi, uploadMediaApi } from '#lib/api/files.js';
 import PersonMedia from './PersonMedia.svelte';
 
 const remove = vi.mocked(deleteFileApi);
 const upload = vi.mocked(uploadMediaApi);
+const unlink = vi.mocked(unlinkFileApi);
 
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	remove.mockReset();
 	upload.mockReset();
+	unlink.mockReset();
 	toasts.push.mockReset();
 });
 afterEach(() => {
@@ -32,11 +35,14 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-const file = (id: string, canDelete: boolean) => ({
+const file = (id: string, canDelete: boolean, isShared = false) => ({
 	id,
 	title: `${id}.pdf`,
 	mimeType: 'application/pdf',
 	r2ObjectKey: `media/t1/${id}.pdf`,
+	version: 3,
+	isShared,
+	canUnlink: true,
 	canDelete,
 	isPrivate: false
 });
@@ -100,6 +106,20 @@ describe('PersonMedia delete', () => {
 		);
 		expect(refresh).not.toHaveBeenCalled();
 		expect(document.querySelectorAll('[aria-label="Attached files"] li')).toHaveLength(1);
+	});
+});
+
+describe('PersonMedia on a file linked elsewhere too', () => {
+	it('removes it from this person only, never deleting it', async () => {
+		unlink.mockResolvedValue({ change: null });
+		const refresh = render([file('a', false, true)]);
+		button('Remove')!.click();
+		flushSync();
+		expect(document.body.textContent).toContain('stays on the other records');
+		button('Confirm remove')!.click();
+		await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+		expect(unlink).toHaveBeenCalledWith('a', 't1', 'p1', 3);
+		expect(remove).not.toHaveBeenCalled();
 	});
 });
 
