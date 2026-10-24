@@ -71,11 +71,11 @@ describe('account page', () => {
 	it('lists each tree with the viewer’s role and a Default choice', () => {
 		render([tree('a', 'Smiths', 'owner', { isDefault: true }), tree('b', 'Joneses', 'viewer')]);
 		const cards = [...document.querySelectorAll('#trees-tab li')];
-		expect(cards.map((c) => c.querySelector('h3 a')!.textContent!.trim())).toEqual([
+		expect(cards.map((c) => c.querySelector('h2 a')!.textContent!.trim())).toEqual([
 			'Smiths',
 			'Joneses'
 		]);
-		expect(cards.map((c) => c.querySelector('h3 span')!.textContent!.trim())).toEqual([
+		expect(cards.map((c) => c.querySelector('h2 span')!.textContent!.trim())).toEqual([
 			'owner',
 			'viewer'
 		]);
