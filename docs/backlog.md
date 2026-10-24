@@ -31,6 +31,8 @@ Last reviewed: 2026-10-21.
   
 ### Media and files
 
+- **Drop `media_items.entity_id`** in its own migration, once the 0042 code that no longer reads it is deployed (expand-and-contract; ADR-050 amendment).
+- **Link to… cannot pick a partnership.** The Files page's record picker offers people and sources; a partnership's files are linked from the partnership page's upload only.
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
