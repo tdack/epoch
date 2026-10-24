@@ -205,7 +205,7 @@ describe('media upload type checks', () => {
 
 		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, body.media.id)).get();
 		expect(row).toMatchObject({
-			entityId: personId,
+			entityId: null,
 			sizeBytes: PNG_BYTES.byteLength,
 			uploadedBy: owner.userId,
 			version: 1
