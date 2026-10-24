@@ -83,6 +83,19 @@ export async function nextTreePosition(db: DbClient): Promise<number> {
 }
 
 export class TreeRepository {
+	/**
+	 * Points members' "This is me" and "Start at" people at `toId` where they named `fromId`, for a
+	 * person merge. Memberships are not in the change log, so a merge's undo cannot move these back;
+	 * the survivor still exists after an undo, so the pointers stay valid there.
+	 */
+	async repointPerson(treeId: string, fromId: string, toId: string): Promise<void> {
+		for (const column of ['selfPersonId', 'homePersonId'] as const) {
+			await this.db
+				.update(treeMemberships)
+				.set({ [column]: toId })
+				.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships[column], fromId)));
+		}
+	}
 	constructor(private db: DbClient) {}
 
 	async listForUser(userId: string): Promise<TreeSummary[]> {

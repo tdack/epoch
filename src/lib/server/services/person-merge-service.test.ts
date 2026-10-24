@@ -17,6 +17,7 @@ import {
 import type { TreeRole } from '../../shared/roles';
 import { buildGedcom551String } from '../gedcom/serializer';
 import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { TreeRepository } from '../repositories/tree-repository';
 import { ChangeStore } from '../repositories/change-store';
 import {
 	addTestMember,
@@ -232,6 +233,21 @@ describe('merging and undoing', () => {
 
 		await new ChangeLogService(t.db).undoLast(treeId, actors.editor.context);
 		expect(await rowsNow()).toEqual(before);
+	});
+
+	it('carries a member’s own and start-at person to the survivor, which an undo leaves there', async () => {
+		const trees = new TreeRepository(t.db);
+		const userId = actors.viewer.context.user.id;
+		await trees.setMemberSelfPerson(userId, treeId, annAgain);
+		await trees.setMemberHomePerson(userId, treeId, annAgain);
+		const pointers = async () => (await trees.listForUser(userId)).find((r) => r.id === treeId)!;
+
+		await service().merge(treeId, { survivorId: ann, mergedId: annAgain }, actors.owner.context);
+		expect(await pointers()).toMatchObject({ selfPersonId: ann, homePersonId: ann });
+
+		// Memberships are not in the change log, so the pointers stay on the survivor, which still exists.
+		await new ChangeLogService(t.db).undoLast(treeId, actors.owner.context);
+		expect(await pointers()).toMatchObject({ selfPersonId: ann, homePersonId: ann });
 	});
 
 	it('writes a file with no pointer to the merged record, and keeps what was kept under it', async () => {
