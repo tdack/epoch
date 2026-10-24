@@ -31,7 +31,7 @@ Last reviewed: 2026-10-21.
   
 ### Media and files
 
-- **Deploy migration 0043 once the code without its columns is live.** The code no longer declares `media_items.entity_id` or `trees.default_view_mode`, but the deployed Worker before it still selected them, so the drop is held back: revert the commit "hold migration 0043" and deploy it after this code is live (expand-and-contract).
+- **Add migration 0044 once the code without the retired columns is live.** The code no longer declares `media_items.entity_id` or `trees.default_view_mode`, but the deployed Worker before it still selected them, so the drop is held back. Hand-write `drizzle/0044_<name>.sql` (drizzle-kit will not generate it, since the snapshot already omits the columns): `DROP INDEX \`idx_media_entity\`;`, `ALTER TABLE \`media_items\` DROP COLUMN \`entity_id\`;`, `ALTER TABLE \`trees\` DROP COLUMN \`default_view_mode\`;` (expand-and-contract). Empty `RETIRED_COLUMNS` in `src/lib/server/db/schema-status.test.ts` in the same commit.
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
