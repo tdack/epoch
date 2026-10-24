@@ -18,6 +18,13 @@ export interface MemberRow {
 	version: number;
 }
 
+/** An invitation that made its holder a member, for telling whoever sent it. */
+export interface JoinedInvitation {
+	treeId: string;
+	role: TreeRole;
+	invitedBy: string | null;
+}
+
 export interface InvitationRow {
 	id: string;
 	treeId: string;
@@ -255,9 +262,10 @@ export class MemberRepository {
 		user: { id: string; name?: string | null },
 		pending: Awaited<ReturnType<MemberRepository['pendingFor']>>,
 		now: Date
-	): Promise<number> {
+	): Promise<JoinedInvitation[]> {
+		const joined: JoinedInvitation[] = [];
 		for (const invitation of pending) {
-			await this.db.batch([
+			const [inserted] = await this.db.batch([
 				this.db
 					.insert(treeMemberships)
 					.values({
@@ -268,7 +276,9 @@ export class MemberRepository {
 						createdAt: now,
 						updatedAt: now
 					})
-					.onConflictDoNothing(),
+					.onConflictDoNothing()
+					// An empty result is the conflict: the row that did not go in is how "joined" is told.
+					.returning({ id: treeMemberships.id }),
 				// A person who was already a member did not join, so nothing is logged for them.
 				this.logIfChanged({
 					treeId: invitation.treeId,
@@ -278,8 +288,15 @@ export class MemberRepository {
 				}),
 				this.db.delete(treeInvitations).where(eq(treeInvitations.id, invitation.id))
 			]);
+			if (inserted.length > 0) {
+				joined.push({
+					treeId: invitation.treeId,
+					role: invitation.role,
+					invitedBy: invitation.invitedBy
+				});
+			}
 		}
-		return pending.length;
+		return joined;
 	}
 
 	/**

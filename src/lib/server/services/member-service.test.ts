@@ -30,6 +30,7 @@ const NOW = new Date('2026-10-01T12:00:00Z');
 let t: TestDatabase;
 let clockNow = NOW;
 const service = () => new MemberService(t.db, () => clockNow);
+const noAcceptedNotice = async () => {};
 
 /** A tree with an owner, a manager and one member of each lower role. */
 async function tree() {
@@ -208,6 +209,7 @@ describe('emailing an invitation', () => {
 		const { treeId, actors } = await tree();
 		const sent: InvitationEmail[] = [];
 		const mailer: InvitationMailer = {
+			sendInvitationAccepted: noAcceptedNotice,
 			sendInvitation: async (invitation) => {
 				// Saved before it is sent, so a failure here could never take the offer with it.
 				expect(await pendingFor('mail1@example.com')).toBe(1);
@@ -234,7 +236,10 @@ describe('emailing an invitation', () => {
 	it('sends again on a re-invite, with the replacing role', async () => {
 		const { treeId, actors } = await tree();
 		const roles: TreeRole[] = [];
-		const mailer: InvitationMailer = { sendInvitation: async (i) => void roles.push(i.role) };
+		const mailer: InvitationMailer = {
+			sendInvitationAccepted: noAcceptedNotice,
+			sendInvitation: async (i) => void roles.push(i.role)
+		};
 		const svc = new MemberService(t.db, () => clockNow, mailer);
 		await svc.invite(
 			treeId,
@@ -253,6 +258,7 @@ describe('emailing an invitation', () => {
 	it('keeps the invitation when the email fails, and says it was not sent', async () => {
 		const { treeId, actors } = await tree();
 		const mailer: InvitationMailer = {
+			sendInvitationAccepted: noAcceptedNotice,
 			sendInvitation: async () => {
 				throw Object.assign(new Error('nope'), { code: 'E_SENDER_NOT_VERIFIED' });
 			}

@@ -6,7 +6,8 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
-import { installMeta, treeInvitations, users } from '../db/schema';
+import { installMeta, treeInvitations, treeMemberships, users } from '../db/schema';
+import type { InvitationAcceptedEmail, InvitationMailer } from '../services/invitation-mailer';
 import { resolveUser, type ResolveOptions } from './resolve-user';
 
 let t: TestDatabase;
@@ -179,5 +180,78 @@ describe('resolveUser', () => {
 			user: { id: 'dev-user-id', accessSub: 'sub', email: 'e@epoch.test', name: 'N' },
 			notAdmitted: null
 		});
+	});
+});
+
+describe('telling the inviter their invitation was taken up', () => {
+	const sent: InvitationAcceptedEmail[] = [];
+	const mailer = (isFailing = false): InvitationMailer => ({
+		sendInvitation: async () => {},
+		sendInvitationAccepted: async (accepted) => {
+			if (isFailing) throw new Error('mail is down');
+			sent.push(accepted);
+		}
+	});
+	const invite = (treeId: string, email: string, invitedBy: string | null) =>
+		t.db.insert(treeInvitations).values({
+			id: crypto.randomUUID(),
+			treeId,
+			email,
+			role: 'editor',
+			invitedBy,
+			expiresAt: new Date(Date.now() + 1e9)
+		});
+	const signIn = (email: string, m: InvitationMailer = mailer()) =>
+		resolveUser(
+			t.d1,
+			{ accessSub: `sub-${email}`, email, name: 'Grace' },
+			{
+				...asOwnerless,
+				mailer: m
+			}
+		);
+
+	it('emails the inviter when the invitee really joins', async () => {
+		sent.length = 0;
+		const inviter = await createTestUser(t.db, 'inviter');
+		const treeId = await createTestTree(t.db, inviter);
+		await invite(treeId, 'joins@epoch.test', inviter.userId);
+		await signIn('joins@epoch.test');
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).toMatchObject({
+			to: expect.stringContaining('@epoch.test'),
+			inviteeName: 'Grace',
+			inviteeEmail: 'joins@epoch.test',
+			treeId,
+			role: 'editor'
+		});
+	});
+
+	it('stays quiet for an existing member, a missing inviter, or no inviter at all', async () => {
+		sent.length = 0;
+		const inviter = await createTestUser(t.db, 'inviter');
+		const treeId = await createTestTree(t.db, inviter);
+		await invite(treeId, 'member@epoch.test', inviter.userId);
+		await signIn('member@epoch.test');
+		sent.length = 0;
+		await invite(treeId, 'member@epoch.test', inviter.userId); // already a member now
+		await signIn('member@epoch.test');
+		await invite(treeId, 'gone@epoch.test', crypto.randomUUID());
+		await signIn('gone@epoch.test');
+		await invite(treeId, 'nobody@epoch.test', null);
+		await signIn('nobody@epoch.test');
+		expect(sent).toEqual([]);
+	});
+
+	it('keeps the membership when the email fails', async () => {
+		const inviter = await createTestUser(t.db, 'inviter');
+		const treeId = await createTestTree(t.db, inviter);
+		await invite(treeId, 'fails@epoch.test', inviter.userId);
+		const admission = await signIn('fails@epoch.test', mailer(true));
+		const rows = await t.db
+			.select()
+			.from(treeMemberships)
+			.where(eq(treeMemberships.userId, admission.user!.id));
+		expect(rows).toHaveLength(1);
 	});
 });

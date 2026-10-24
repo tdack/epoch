@@ -12,7 +12,7 @@ import type { AccessIdentity, UserIdentity, TreeMembership } from '../domain/ide
 import type { TreeRole } from '../../shared/roles';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
-import { MemberRepository, memberLabel } from './member-repository';
+import { MemberRepository, memberLabel, type JoinedInvitation } from './member-repository';
 
 export class UserRepository {
 	constructor(private db: DbClient) {}
@@ -33,7 +33,7 @@ export class UserRepository {
 		identity: AccessIdentity,
 		ownerEmail: string | null,
 		now: Date
-	): Promise<UserIdentity | null> {
+	): Promise<(UserIdentity & { joined: JoinedInvitation[] }) | null> {
 		const isInstallOwner =
 			ownerEmail !== null && identity.email.trim().toLowerCase() === ownerEmail;
 		const members = new MemberRepository(this.db);
@@ -45,9 +45,10 @@ export class UserRepository {
 		if (!isAdmitted) return null;
 
 		const user = await this.upsertUser(identity);
-		await members.redeem(user, pending, now);
+		const joined = await members.redeem(user, pending, now);
 		return {
 			...user,
+			joined,
 			isInstallOwner,
 			...(identity.pictureUrl && { pictureUrl: identity.pictureUrl })
 		};

@@ -1,5 +1,10 @@
 import type { SendEmail } from '@cloudflare/workers-types';
-import type { InvitationEmail, InvitationMailer } from '../services/invitation-mailer';
+import type {
+	InvitationAcceptedEmail,
+	InvitationEmail,
+	InvitationMailer
+} from '../services/invitation-mailer';
+import { renderInvitationAcceptedEmail } from './invitation-accepted-template';
 import { renderInvitationEmail } from './invitation-template';
 
 /**
@@ -25,5 +30,28 @@ export class WorkersInvitationMailer implements InvitationMailer {
 			html,
 			text
 		});
+	}
+
+	async sendInvitationAccepted(accepted: InvitationAcceptedEmail): Promise<void> {
+		const membersUrl = new URL(`/trees/${encodeURIComponent(accepted.treeId)}/members`, this.origin)
+			.href;
+		const { subject, html, text } = renderInvitationAcceptedEmail({ ...accepted, membersUrl });
+		await this.binding.send({
+			from: { email: this.senderAddress, name: 'Epoch' },
+			to: accepted.to,
+			subject,
+			html,
+			text
+		});
+	}
+
+	/** Null where nothing can send (no binding, or no sender configured): callers then skip emailing. */
+	static fromEnv(
+		env: { EMAIL?: SendEmail; EPOCH_EMAIL_SENDER?: string } | undefined,
+		origin: string
+	): WorkersInvitationMailer | undefined {
+		return env?.EMAIL && env.EPOCH_EMAIL_SENDER
+			? new WorkersInvitationMailer(env.EMAIL, env.EPOCH_EMAIL_SENDER, origin)
+			: undefined;
 	}
 }

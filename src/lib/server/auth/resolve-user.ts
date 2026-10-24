@@ -3,6 +3,8 @@ import { getDb } from '../db';
 import type { AccessIdentity, UserIdentity } from '../domain/identity';
 import { InstallRepository } from '../repositories/install-repository';
 import { UserRepository } from '../repositories/user-repository';
+import type { InvitationMailer } from '../services/invitation-mailer';
+import { MemberService } from '../services/member-service';
 
 /** What a request carries once Access has named someone: an admitted user, or a stranger. */
 export type Admission =
@@ -18,6 +20,11 @@ export interface ResolveOptions {
 	 */
 	fallbackOwnerEmail: string | null;
 	now?: Date;
+	/** Where inviters are told their invitation was taken up; absent where nothing can send. */
+	mailer?: InvitationMailer;
+	/** Runs the notice after the response (`ExecutionContext.waitUntil`); without it the notice is awaited. */
+	runInBackground?: (work: Promise<unknown>) => void;
+	correlationId?: string;
 }
 
 /**
@@ -49,15 +56,26 @@ export async function resolveUser(
 		(await new InstallRepository(db).findOwnerEmail()) ??
 		options.fallbackOwnerEmail?.trim().toLowerCase() ??
 		null;
-	const user = await new UserRepository(db).admitFromAccess(
+	const admitted = await new UserRepository(db).admitFromAccess(
 		identity,
 		ownerEmail,
 		options.now ?? new Date()
 	);
-	return user
-		? { user, notAdmitted: null }
-		: {
-				user: null,
-				notAdmitted: { accessSub: identity.accessSub, email: identity.email, name: identity.name }
-			};
+	if (admitted) {
+		const { joined, ...user } = admitted;
+		if (joined.length > 0) {
+			const notifying = new MemberService(db, undefined, options.mailer).notifyInvitersOfJoin(
+				user,
+				joined,
+				options.correlationId
+			);
+			if (options.runInBackground) options.runInBackground(notifying);
+			else await notifying;
+		}
+		return { user, notAdmitted: null };
+	}
+	return {
+		user: null,
+		notAdmitted: { accessSub: identity.accessSub, email: identity.email, name: identity.name }
+	};
 }

@@ -8,6 +8,7 @@ import {
 	isLocalHostname,
 	validateAccessJwt
 } from '#lib/server/auth/access.js';
+import { WorkersInvitationMailer } from '#lib/server/email/workers-invitation-mailer.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
 import {
 	notAdmittedOutcome,
@@ -146,6 +147,16 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	// members and invitees only, never whoever signs in first (ADR-034).
 	const fallbackOwnerEmail = allowDevBypass ? DEV_BYPASS_EMAIL : null;
 
+	// After the response, so telling an inviter never delays the invitee's first page.
+	const executionContext = (event.platform as { context?: ExecutionContext } | undefined)?.context;
+	const inviterNotice = {
+		mailer: WorkersInvitationMailer.fromEnv(event.platform?.env, event.url.origin),
+		runInBackground: executionContext?.waitUntil
+			? (work: Promise<unknown>) => executionContext.waitUntil(work)
+			: undefined,
+		correlationId
+	};
+
 	if (token) {
 		try {
 			const validated = await validateAccessJwt(token, {
@@ -156,7 +167,8 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 
 			const admission = await resolveUser(bindings.DB, validated, {
 				fallbackId: validated.id || crypto.randomUUID(),
-				fallbackOwnerEmail
+				fallbackOwnerEmail,
+				...inviterNotice
 			});
 			event.locals.user = admission.user;
 			event.locals.notAdmitted = admission.notAdmitted;
@@ -190,7 +202,7 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 		const admission = await resolveUser(
 			bindings.DB,
 			{ accessSub: devSub, email: devEmail, name: devName },
-			{ fallbackId: 'dev-user-id', fallbackOwnerEmail }
+			{ fallbackId: 'dev-user-id', fallbackOwnerEmail, ...inviterNotice }
 		);
 		event.locals.user = admission.user;
 		event.locals.notAdmitted = admission.notAdmitted;

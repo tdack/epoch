@@ -19,6 +19,7 @@ import { requireTreeAction } from './tree-access';
 import {
 	MemberRepository,
 	memberLabel,
+	type JoinedInvitation,
 	type MembershipLogEntry
 } from '../repositories/member-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -153,6 +154,42 @@ export class MemberService {
 			);
 			return false;
 		}
+	}
+
+	/**
+	 * Tell each inviter that their invitation was taken up. Never throws: the join has already
+	 * committed and a failed email must not undo or break it (ADR-031).
+	 */
+	async notifyInvitersOfJoin(
+		invitee: { id: string; email: string; name?: string | null },
+		joined: JoinedInvitation[],
+		correlationId?: string
+	): Promise<void> {
+		const mailer = this.mailer;
+		if (!mailer) return;
+		await Promise.all(
+			joined.map(async (join) => {
+				try {
+					if (!join.invitedBy || join.invitedBy === invitee.id) return;
+					const inviter = await this.users.findById(join.invitedBy);
+					if (!inviter?.email) return;
+					await mailer.sendInvitationAccepted({
+						to: inviter.email,
+						inviteeName: invitee.name?.trim() || invitee.email,
+						inviteeEmail: invitee.email,
+						treeId: join.treeId,
+						treeName: (await this.members.getTreeName(join.treeId)) ?? 'a family tree',
+						role: join.role
+					});
+				} catch (cause) {
+					new Logger({ correlationId, treeId: join.treeId }).error(
+						'Invitation accepted email was not sent',
+						cause,
+						{ code: (cause as { code?: unknown } | null)?.code }
+					);
+				}
+			})
+		);
 	}
 
 	async revokeInvitation(
