@@ -13,14 +13,16 @@ vi.mock('#lib/api/files.js', () => ({
 	uploadMediaApi: vi.fn()
 }));
 
-import { deleteFileApi } from '#lib/api/files.js';
+import { deleteFileApi, uploadMediaApi } from '#lib/api/files.js';
 import PersonMedia from './PersonMedia.svelte';
 
 const remove = vi.mocked(deleteFileApi);
+const upload = vi.mocked(uploadMediaApi);
 
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	remove.mockReset();
+	upload.mockReset();
 	toasts.push.mockReset();
 });
 afterEach(() => {
@@ -97,5 +99,48 @@ describe('PersonMedia delete', () => {
 		);
 		expect(refresh).not.toHaveBeenCalled();
 		expect(document.querySelectorAll('[aria-label="Attached files"] li')).toHaveLength(1);
+	});
+});
+
+/** jsdom has no DataTransfer; a plain event carrying the two fields the drop code reads. */
+function dragEvent(type: string, types: string[], files: File[] = []) {
+	const event = new Event(type, { bubbles: true, cancelable: true });
+	Object.defineProperty(event, 'dataTransfer', { value: { types, files, dropEffect: 'none' } });
+	return event;
+}
+
+describe('PersonMedia drop', () => {
+	const zone = () => document.querySelector<HTMLElement>('[data-testid="person-media-drop"]')!;
+
+	it('uploads each dropped file to the person, then reloads', async () => {
+		upload.mockResolvedValue(undefined);
+		const refresh = render([]);
+		const a = new File(['a'], 'a.png', { type: 'image/png' });
+		const b = new File(['b'], 'b.png', { type: 'image/png' });
+		zone().dispatchEvent(dragEvent('drop', ['Files'], [a, b]));
+		await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+		expect(upload).toHaveBeenCalledWith('t1', 'p1', a);
+		expect(upload).toHaveBeenCalledWith('t1', 'p1', b);
+	});
+
+	it('ignores a drag that carries no files', () => {
+		render([]);
+		const over = dragEvent('dragenter', ['text/plain']);
+		zone().dispatchEvent(over);
+		flushSync();
+		expect(over.defaultPrevented).toBe(false);
+		expect(document.body.textContent).not.toContain('Drop to upload');
+		zone().dispatchEvent(dragEvent('drop', ['text/plain']));
+		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it('shows the drop hint while a file is over, and clears it on leave', () => {
+		render([]);
+		zone().dispatchEvent(dragEvent('dragenter', ['Files']));
+		flushSync();
+		expect(document.body.textContent).toContain('Drop to upload');
+		zone().dispatchEvent(dragEvent('dragleave', ['Files']));
+		flushSync();
+		expect(document.body.textContent).not.toContain('Drop to upload');
 	});
 });
