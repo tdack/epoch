@@ -80,3 +80,4 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 74 | GEDZIP import and export with media, staged in R2 and processed by Workflow | [ADR-074.md](adr/ADR-074.md) | Draft |
 | 75 | One page per scope: Account, Tree settings and Administration | [ADR-075.md](adr/ADR-075.md) | Implemented |
 | 76 | Sub-trees and trees are reordered by dragging, saved as one batch | [ADR-076.md](adr/ADR-076.md) | Implemented |
+| 77 | Epoch is an installable PWA; its service worker caches no private data | [ADR-077.md](adr/ADR-077.md) | Implemented |
