@@ -17,6 +17,8 @@ export interface TreeSummary {
 	viewMode?: LayoutMode | null;
 	/** Who the caller's view starts on; set on the tree list only. May be stale. */
 	homePersonId?: string | null;
+	/** Who the caller says they are; private to them, set on the tree list only. May be stale. */
+	selfPersonId?: string | null;
 	/** Whether `/` opens this tree for the caller; set on the tree list only. */
 	isDefault?: boolean;
 	/** Also served at its slug's subdomain; set by `findById` and `update` only. */
@@ -94,6 +96,7 @@ export class TreeRepository {
 				role: treeMemberships.role,
 				viewMode: treeMemberships.viewMode,
 				homePersonId: treeMemberships.homePersonId,
+				selfPersonId: treeMemberships.selfPersonId,
 				isDefault: treeMemberships.isDefault,
 				createdAt: trees.createdAt,
 				updatedAt: trees.updatedAt
@@ -166,6 +169,20 @@ export class TreeRepository {
 		const updated = await this.db
 			.update(treeMemberships)
 			.set({ homePersonId: personId })
+			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
+			.returning({ id: treeMemberships.id });
+		return updated.length > 0;
+	}
+
+	/** The person a member says they are; same rules as the starting person. */
+	async setMemberSelfPerson(
+		userId: string,
+		treeId: string,
+		personId: string | null
+	): Promise<boolean> {
+		const updated = await this.db
+			.update(treeMemberships)
+			.set({ selfPersonId: personId })
 			.where(and(eq(treeMemberships.treeId, treeId), eq(treeMemberships.userId, userId)))
 			.returning({ id: treeMemberships.id });
 		return updated.length > 0;

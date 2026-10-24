@@ -182,6 +182,35 @@ export class TreeService {
 		return { homePersonId: personId, homePersonName: name };
 	}
 
+	/**
+	 * Who the caller says they are in this tree; null clears it. Private to the member: only their own
+	 * tree list reads it. Validated like the starting person, so a hidden person is refused as a missing one.
+	 */
+	async setSelfPerson(treeId: string, personId: string | null, context: AuthenticatedContext) {
+		requireRealUser(context);
+		if (personId === null) {
+			await requireTreeAction(this.userRepo, treeId, context, 'tree:view');
+			await this.treeRepo.setMemberSelfPerson(context.user.id, treeId, null);
+			return { selfPersonId: null, selfPersonName: null };
+		}
+		const name = await this.visibleName(treeId, personId, context);
+		if (name === null) throw new ValidationError('That person is not in this tree');
+		if (!(await this.treeRepo.setMemberSelfPerson(context.user.id, treeId, personId)))
+			throw new ValidationError('Only a tree you are a member of can link you to a person');
+		return { selfPersonId: personId, selfPersonName: name };
+	}
+
+	/** The display names of the caller's own "this is me" people, by tree; stale or hidden ones are left out. */
+	async selfPersonNames(context: AuthenticatedContext): Promise<Record<string, string>> {
+		const names: Record<string, string> = {};
+		for (const tree of await this.treeRepo.listForUser(context.user.id)) {
+			if (!tree.selfPersonId) continue;
+			const name = await this.visibleName(tree.id, tree.selfPersonId, context);
+			if (name !== null) names[tree.id] = name;
+		}
+		return names;
+	}
+
 	/** The display names of the caller's saved starting people, by tree; stale or hidden ones are left out. */
 	async homePersonNames(context: AuthenticatedContext): Promise<Record<string, string>> {
 		const names: Record<string, string> = {};

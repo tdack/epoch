@@ -13,6 +13,8 @@ export interface TreeSummary {
 	viewMode?: LayoutMode | null;
 	/** Who the caller's view starts on when the address names no one; may be stale. */
 	homePersonId?: string | null;
+	/** Who the caller says they are in this tree; private to them, may be stale. */
+	selfPersonId?: string | null;
 	/** Whether `/` opens this tree for the caller. */
 	isDefault?: boolean;
 }

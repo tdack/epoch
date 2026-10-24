@@ -23,6 +23,18 @@ export async function saveHomePerson(
 	);
 }
 
+/** The caller's own "this is me" person in this tree; `null` clears it. */
+export async function saveSelfPerson(
+	treeId: string,
+	personId: string | null
+): Promise<{ selfPersonId: string | null; selfPersonName: string | null }> {
+	return call(
+		path`/api/trees/${treeId}/self-person`,
+		json('PUT', { personId }),
+		'Failed to save who you are'
+	);
+}
+
 /** The tree `/` opens for the signed-in user; null clears it. */
 export async function saveDefaultTree(treeId: string | null): Promise<void> {
 	await call('/api/default-tree', json('PUT', { treeId }), 'Failed to save the default tree');
