@@ -1,0 +1,1 @@
+ALTER TABLE `tree_memberships` ADD `self_person_id` text;

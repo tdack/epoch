@@ -309,6 +309,13 @@
       "when": 1792842468785,
       "tag": "0043_tree_membership_home_person",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792848587243,
+      "tag": "0044_tree_membership_self_person",
+      "breakpoints": true
     }
   ]
 }

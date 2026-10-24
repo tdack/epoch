@@ -69,6 +69,9 @@ export const treeMemberships = sqliteTable(
 		// `viewMode` it does not bump `version`. No foreign key: people are deleted and merged, and a
 		// stale id simply falls through to the next default.
 		homePersonId: text('home_person_id'),
+		// The person this member says they are. Private to them: never in the members list, the change
+		// log or an export. No foreign key, for the same reason as `homePersonId`.
+		selfPersonId: text('self_person_id'),
 		// Two managers can change the same member at once; the second sees a conflict, not a silent overwrite.
 		version: integer('version').notNull().default(1),
 		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
