@@ -548,7 +548,7 @@ function famcLines(
 	childId: string,
 	index: ReturnType<typeof pedigreeIndex>,
 	format: GedcomFormat,
-	preserved: GedcomExportPayload['preserved']
+	preserved: PreservedByOwner
 ): string[] {
 	const lines = [`1 FAMC ${asXref(familyId)}`];
 	const link = index.get(`${familyId}|${childId}`);
@@ -562,13 +562,8 @@ function famcLines(
 	lines.push(...citationLines(2, link?.citations, format));
 	// A child linked to a merged family once per copy has several blocks for one link; write each line once.
 	const written = new Set<string>();
-	for (const entry of preserved ?? []) {
-		if (
-			entry.xref !== childId ||
-			!isFamcExtra(entry) ||
-			asXref(famcTarget(entry)) !== asXref(familyId)
-		)
-			continue;
+	for (const entry of preserved.get(childId) ?? []) {
+		if (!isFamcExtra(entry) || asXref(famcTarget(entry)) !== asXref(familyId)) continue;
 		for (const line of entry.lines.slice(1)) {
 			const folded = singleLine(line) ?? '';
 			if (written.has(folded)) continue;
@@ -597,6 +592,19 @@ function aliasLines(aliases: string[] | undefined): string[] {
 	]);
 }
 
+type PreservedByOwner = Map<string | null, NonNullable<GedcomExportPayload['preserved']>>;
+
+/** Grouped once per export: scanning the whole list per record is quadratic on a large import. */
+function indexPreserved(preserved: GedcomExportPayload['preserved']): PreservedByOwner {
+	const byOwner: PreservedByOwner = new Map();
+	for (const entry of preserved ?? []) {
+		const group = byOwner.get(entry.xref);
+		if (group) group.push(entry);
+		else byOwner.set(entry.xref, [entry]);
+	}
+	return byOwner;
+}
+
 /**
  * Append preserved (unmodeled) GEDCOM structures to the output.
  * Structures owned by a specific record are emitted immediately after that
@@ -604,12 +612,11 @@ function aliasLines(aliases: string[] | undefined): string[] {
  */
 function appendPreserved(
 	lines: string[],
-	preserved: Array<{ xref: string | null; lines: string[] }> | undefined,
+	preserved: PreservedByOwner,
 	ownerXref: string | null
 ): void {
-	if (!preserved) return;
-	for (const entry of preserved) {
-		if (entry.xref === ownerXref && !(ownerXref !== null && isFamcExtra(entry))) {
+	for (const entry of preserved.get(ownerXref) ?? []) {
+		if (!(ownerXref !== null && isFamcExtra(entry))) {
 			lines.push(...foldLines(entry.lines));
 		}
 	}
@@ -637,6 +644,7 @@ function appendRootRecords(lines: string[], data: GedcomExportPayload, format: G
 export function buildGedcom551String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
+	const preserved = indexPreserved(data.preserved);
 
 	// Header
 	lines.push('0 HEAD');
@@ -671,7 +679,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', data.preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', preserved));
 			}
 		}
 
@@ -680,7 +688,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, data.preserved, xref);
+		appendPreserved(lines, preserved, xref);
 		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
 	}
 
@@ -704,11 +712,11 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
-		appendPreserved(lines, data.preserved, xref);
+		appendPreserved(lines, preserved, xref);
 		lines.push(...noteLines(1, fam.notes, 'gedcom551'));
 	}
 
-	appendPreserved(lines, data.preserved, null);
+	appendPreserved(lines, preserved, null);
 	appendRootRecords(lines, data, 'gedcom551');
 
 	// Trailer
@@ -728,6 +736,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 export function buildGedcom7String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
+	const preserved = indexPreserved(data.preserved);
 
 	// Header
 	lines.push('0 HEAD');
@@ -755,7 +764,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', data.preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', preserved));
 			}
 		}
 
@@ -764,7 +773,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, data.preserved, xref);
+		appendPreserved(lines, preserved, xref);
 		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
 	}
 
@@ -788,11 +797,11 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
-		appendPreserved(lines, data.preserved, xref);
+		appendPreserved(lines, preserved, xref);
 		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
 	}
 
-	appendPreserved(lines, data.preserved, null);
+	appendPreserved(lines, preserved, null);
 	appendRootRecords(lines, data, 'gedcom7');
 
 	// Trailer

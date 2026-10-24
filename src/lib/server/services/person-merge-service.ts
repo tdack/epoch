@@ -25,6 +25,7 @@ import { eventLabel } from '../domain/tree-labels';
 import { applyOpsToRows, personName } from '../domain/tree-ops';
 import { citationsOfPerson, notesOfPerson } from '../domain/evidence-carry';
 import { MarkRepository } from '../repositories/mark-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { formatFullName } from '../../shared/name-types';
 import type {
 	MergeSideDto,
@@ -152,6 +153,7 @@ function notesFor(rows: TreeRows, ops: RowOp[], survivorId: string, mergedId: st
 export class PersonMergeService {
 	readonly runner: MutationRunner;
 	private marks: MarkRepository;
+	private trees: TreeRepository;
 
 	constructor(
 		private db: DbClient,
@@ -159,6 +161,7 @@ export class PersonMergeService {
 	) {
 		this.runner = new MutationRunner(db, clock);
 		this.marks = new MarkRepository(db);
+		this.trees = new TreeRepository(db);
 	}
 
 	/** Both records side by side, whether they can be merged and what must be chosen first. Writes nothing. */
@@ -205,6 +208,7 @@ export class PersonMergeService {
 			commands: [command]
 		});
 		await this.marks.copyPerson(treeId, request.mergedId, request.survivorId);
+		await this.trees.repointPerson(treeId, request.mergedId, request.survivorId);
 		return result;
 	}
 
