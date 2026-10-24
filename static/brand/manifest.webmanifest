@@ -2,6 +2,8 @@
 	"name": "Epoch",
 	"short_name": "Epoch",
 	"description": "A private family history, shared with the people who help keep it.",
+	"id": "/",
+	"scope": "/",
 	"start_url": "/",
 	"display": "standalone",
 	"background_color": "#fcf9f2",
