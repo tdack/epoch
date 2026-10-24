@@ -26,6 +26,8 @@ export interface MergeFact {
 	religion: string | null;
 	/** The place's sub-lines, one string with a line break between each line. */
 	placeExtra: string | null;
+	/** The date's sub-lines (a TIME), joined the same way. */
+	dateExtra: string | null;
 }
 
 /** What a stored or parsed event holds, under the names both use. */
@@ -45,6 +47,7 @@ interface MergeFactSource {
 	longitude?: string | null;
 	religion?: string | null;
 	placeExtra?: string[] | null;
+	dateExtra?: string[] | null;
 }
 
 /** The fact the merge rules compare for this event. */
@@ -65,7 +68,8 @@ export function mergeFactOf(source: MergeFactSource): MergeFact {
 		latitude: text(source.latitude),
 		longitude: text(source.longitude),
 		religion: text(source.religion),
-		placeExtra: source.placeExtra?.length ? source.placeExtra.join('\n') : null
+		placeExtra: source.placeExtra?.length ? source.placeExtra.join('\n') : null,
+		dateExtra: source.dateExtra?.length ? source.dateExtra.join('\n') : null
 	};
 }
 
@@ -108,7 +112,8 @@ export function factKey(fact: MergeFact): string {
 			fact.latitude,
 			fact.longitude,
 			fact.religion,
-			fact.placeExtra
+			fact.placeExtra,
+			fact.dateExtra
 		].map(normalise)
 	);
 }

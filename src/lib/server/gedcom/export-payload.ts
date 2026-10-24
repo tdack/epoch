@@ -278,6 +278,9 @@ export function exportPayloadFrom(
 			...(ev.gedcomExtra?.length ? { gedcomExtra: ev.gedcomExtra.map(remap) } : {}),
 			// The place's sub-lines and the address's own lines can name a record too (a NOTE or SOUR pointer).
 			...(ev.placeExtra?.length ? { placeExtra: ev.placeExtra.map(remap) } : {}),
+			...(ev.dateExtra?.length ? { dateExtra: ev.dateExtra.map(remap) } : {}),
+			...(ev.causeExtra?.length ? { causeExtra: ev.causeExtra.map(remap) } : {}),
+			...(ev.ageExtra?.length ? { ageExtra: ev.ageExtra.map(remap) } : {}),
 			...(ev.addressLayout?.length ? { addressLayout: ev.addressLayout.map(remap) } : {}),
 			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id),
 			noteLinks: notesFor(NOTE_SUBJECT_KINDS.EVENT, ev.id)

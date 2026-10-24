@@ -97,6 +97,9 @@ export interface EventKeyInput {
 	latitude?: string | null;
 	longitude?: string | null;
 	placeExtra?: string[] | null;
+	dateExtra?: string[] | null;
+	causeExtra?: string[] | null;
+	ageExtra?: string[] | null;
 	religion?: string | null;
 }
 
@@ -132,6 +135,9 @@ function eventKeyOfParsed(
 		latitude: ev.latitude,
 		longitude: ev.longitude,
 		placeExtra: ev.placeExtra,
+		dateExtra: ev.dateExtra,
+		causeExtra: ev.causeExtra,
+		ageExtra: ev.ageExtra,
 		religion: ev.religion
 	};
 }
@@ -175,6 +181,9 @@ export function eventContentKey(e: EventKeyInput): string {
 		e.longitude,
 		// JSON, so a line break inside one line cannot read as two.
 		e.placeExtra?.length ? JSON.stringify(e.placeExtra) : '',
+		e.dateExtra?.length ? JSON.stringify(e.dateExtra) : '',
+		e.causeExtra?.length ? JSON.stringify(e.causeExtra) : '',
+		e.ageExtra?.length ? JSON.stringify(e.ageExtra) : '',
 		e.religion
 	]
 		.map((part) => part ?? '')
