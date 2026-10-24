@@ -10,7 +10,8 @@
  * pair.
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, getTableColumns, sql } from 'drizzle-orm';
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
 import {
 	individuals,
@@ -66,6 +67,18 @@ function nameContentKey(
 	return [type, n.givenName, n.surname, n.namePrefix, n.nameSuffix, n.nickname, n.surnamePrefix]
 		.map((part) => part ?? '')
 		.join('\u0000');
+}
+
+/** Queue `rows` as multi-row inserts, each under D1's bound-parameter cap. */
+function queueInserts<T extends SQLiteTable>(
+	db: DbClient,
+	writes: ImportBatch['writes'],
+	table: T,
+	rows: Array<T['$inferInsert']>
+): void {
+	for (const chunk of chunkByParamLimit(rows, Object.keys(getTableColumns(table)).length)) {
+		writes.push(db.insert(table).values(chunk).onConflictDoNothing());
+	}
 }
 
 /**
@@ -210,33 +223,31 @@ export async function importNeutralModel(
 					.all()
 		).map((row) => [linkKey(row), row.id])
 	);
+	// Gathered across the file and written in multi-row chunks: one statement per row made a family-heavy
+	// file thousands of statements, all in the one batch D1 gives 30 seconds.
+	const unionRows: Array<typeof unions.$inferInsert> = [];
+	const partnerRows: Array<typeof unionPartners.$inferInsert> = [];
+	const linkRows: Array<typeof parentChild.$inferInsert> = [];
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
 		const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
 
-		writes.push(
-			db
-				.insert(unions)
-				.values({
-					id: unionId,
-					treeId,
-					createdAt: importedAt,
-					status: deriveUnionStatus(fam),
-					xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
-				})
-				.onConflictDoNothing()
-		);
-
-		const partnerRows = participants.map((personId, index) => ({
-			id: crypto.randomUUID(),
+		unionRows.push({
+			id: unionId,
 			treeId,
-			unionId,
-			personId: scoped(personId),
-			order: index
-		}));
-		for (const chunk of chunkByParamLimit(partnerRows, 5)) {
-			writes.push(db.insert(unionPartners).values(chunk).onConflictDoNothing());
-		}
+			createdAt: importedAt,
+			status: deriveUnionStatus(fam),
+			xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
+		});
+		participants.forEach((personId, index) =>
+			partnerRows.push({
+				id: crypto.randomUUID(),
+				treeId,
+				unionId,
+				personId: scoped(personId),
+				order: index
+			})
+		);
 
 		// Per-parent assertions: expand family-wide pedigree into per-parent type.
 		for (const child of fam.children) {
@@ -273,10 +284,14 @@ export async function importNeutralModel(
 				// The unique (parent, child, type) index keeps the first row, so the first one is the link.
 				const key = linkKey(link);
 				if (!storedLinks.has(key)) storedLinks.set(key, link.id);
-				writes.push(db.insert(parentChild).values(link).onConflictDoNothing());
+				linkRows.push(link);
 			}
 		}
 	}
+	// Partners and links name their partnership, so the partnerships go first.
+	queueInserts(db, writes, unions, unionRows);
+	queueInserts(db, writes, unionPartners, partnerRows);
+	queueInserts(db, writes, parentChild, linkRows);
 
 	for (const link of linkCitations) {
 		const id = storedLinks.get(linkKey(link));
@@ -311,22 +326,19 @@ export async function importNeutralModel(
 					.where(eq(gedcomPreserved.treeId, treeId))
 					.get()
 			)?.n ?? 0);
+	const preservedRows: Array<typeof gedcomPreserved.$inferInsert> = [];
 	for (const entry of parsed.preserved) {
 		const key = JSON.stringify([entry.xref, entry.lines]);
 		if (kept.has(key)) continue;
 		kept.add(key);
-		writes.push(
-			db
-				.insert(gedcomPreserved)
-				.values({
-					id: crypto.randomUUID(),
-					treeId,
-					ownerXref: entry.xref,
-					lines: entry.lines,
-					order: order++
-				})
-				.onConflictDoNothing()
-		);
+		preservedRows.push({
+			id: crypto.randomUUID(),
+			treeId,
+			ownerXref: entry.xref,
+			lines: entry.lines,
+			order: order++
+		});
 	}
+	queueInserts(db, writes, gedcomPreserved, preservedRows);
 	return targets;
 }
