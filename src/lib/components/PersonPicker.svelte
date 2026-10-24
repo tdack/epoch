@@ -115,15 +115,15 @@
 			? `${uid}-option-${highlighted}`
 			: undefined}
 		class={isInline
-			? `mt-1 h-9 w-56 rounded-lg border border-stone-300 bg-white px-2 text-sm font-normal coarse:h-11 ${picked ? 'placeholder:text-stone-900' : 'placeholder:text-stone-500'}`
-			: 'mt-1 w-64 rounded-lg border border-stone-300 px-2 py-1.5 text-sm'}
+			? `mt-1 h-9 w-full rounded-lg border border-stone-300 bg-white px-2 text-sm font-normal sm:w-56 coarse:h-11 ${picked ? 'placeholder:text-stone-900' : 'placeholder:text-stone-500'}`
+			: 'mt-1 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm sm:w-64'}
 	/>
 	{#if isOpen}
 		<ul
 			id="{uid}-results"
 			role="listbox"
 			aria-label="{label} results"
-			class="absolute z-10 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-stone-200 bg-white shadow"
+			class="absolute inset-x-0 z-20 mt-1 max-h-72 overflow-auto rounded-lg border border-stone-300 bg-white py-1 shadow-lg sm:right-auto sm:w-max sm:max-w-sm sm:min-w-64"
 		>
 			{#each results as option, i (option.id)}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -133,7 +133,7 @@
 					aria-selected={i === highlighted}
 					onclick={() => choose(option)}
 					onmouseenter={() => (highlighted = i)}
-					class="cursor-pointer px-3 py-1.5 text-sm {i === highlighted ? 'bg-emerald-50' : ''}"
+					class="flex menu-item cursor-pointer flex-col justify-center px-3 py-1.5 text-sm"
 				>
 					{option.name}{#if option.alias}<span class="block text-xs text-stone-500"
 							>also {option.alias}</span
@@ -144,7 +144,7 @@
 					role="option"
 					aria-selected="false"
 					aria-disabled="true"
-					class="px-3 py-1.5 text-sm text-stone-500"
+					class="flex min-h-9 items-center px-3 py-1.5 text-sm text-stone-500 coarse:min-h-11"
 				>
 					No matching people
 				</li>

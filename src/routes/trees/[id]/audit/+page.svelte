@@ -92,7 +92,7 @@
 >
 	{#if person}<input type="hidden" name="record" value={person.id} />{/if}
 	<input type="hidden" name="tz" value={tz || (filters.tz ?? '')} />
-	<div class="font-normal">
+	<div class="w-full font-normal sm:w-auto">
 		<PersonPicker
 			treeId={tree.id}
 			label="Person"
