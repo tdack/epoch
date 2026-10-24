@@ -117,7 +117,11 @@ describe('route handlers', () => {
 		'%s maps errors only through the shared helper',
 		(_path, source) => {
 			expect(source).not.toMatch(/instanceof DomainError/);
-			if (/catch \(/.test(source)) expect(source).toContain('errorResponse(');
+			if (!/catch \(/.test(source)) return;
+			// A route on the shared handler may catch to clean up, as long as it rethrows for the handler to map.
+			if (/(api|tree)Handler\(/.test(source))
+				expect(source).toMatch(/catch \((\w+)\)[\s\S]*?throw \1;/);
+			else expect(source).toContain('errorResponse(');
 		}
 	);
 });

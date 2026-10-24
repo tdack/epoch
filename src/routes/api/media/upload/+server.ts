@@ -49,8 +49,8 @@ export const POST = apiHandler(
 		// ignored. The extension comes from the sniffed type so it cannot disagree with the content.
 		const bytes = new Uint8Array(await file.arrayBuffer());
 		const { mimeType, extension } = validateMediaUpload(file.type, bytes);
-		// The key names the file, not its owner: ownership is the row's entity_id, so a file can be
-		// moved or detached without touching R2.
+		// The key names the file, not its owner: ownership is its media_links rows, so a file can be
+		// linked or unlinked without touching R2.
 		const mediaId = crypto.randomUUID();
 		const objectKey = `media/${treeId}/${mediaId}.${extension}`;
 
