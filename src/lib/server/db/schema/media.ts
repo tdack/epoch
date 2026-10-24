@@ -10,8 +10,8 @@ export const mediaItems = sqliteTable(
 		treeId: text('tree_id')
 			.notNull()
 			.references(() => trees.id, { onDelete: 'cascade' }),
-		// No longer read (ADR-050 amended): links are rows of `media_links`. Still written by the
-		// upload so a rollback keeps working; dropped in a later migration (expand-and-contract).
+		// Neither read nor written now (ADR-050 amended): links are rows of `media_links`. Left null
+		// for new files; dropped in a later migration (expand-and-contract).
 		entityId: text('entity_id'),
 		r2ObjectKey: text('r2_object_key').notNull(),
 		cfImageId: text('cf_image_id'),

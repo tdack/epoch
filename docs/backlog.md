@@ -31,7 +31,7 @@ Last reviewed: 2026-10-21.
   
 ### Media and files
 
-- **Drop `media_items.entity_id`** in its own migration, once the 0042 code that no longer reads it is deployed (expand-and-contract; ADR-050 amendment).
+- **Drop `media_items.entity_id`** in its own migration, once the code that neither reads nor writes it is deployed (expand-and-contract; ADR-050 amendment).
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a

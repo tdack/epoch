@@ -233,8 +233,6 @@ export class MediaRepository {
 			this.db.insert(mediaItems).values({
 				id: media.id,
 				treeId,
-				// Still written so a rollback to code that reads it keeps working; never read here.
-				entityId,
 				r2ObjectKey: media.objectKey,
 				title: media.title,
 				mimeType: media.mimeType,
