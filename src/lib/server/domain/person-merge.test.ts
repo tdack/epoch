@@ -212,10 +212,17 @@ describe('what moves and what is kept once', () => {
 	it('moves media, and records the gone XREF (and the ones it had absorbed) as aliases of the survivor', () => {
 		const rows = treeRows({ people: [{ id: 'a' }, { id: 'b' }] });
 		rows.individuals[1] = { ...rows.individuals[1]!, xrefAliases: ['@OLD@'] };
+		rows.mediaLinks.push({
+			id: 'm1:b',
+			treeId: TEST_TREE_ID,
+			mediaId: 'm1',
+			entityId: 'b',
+			createdAt: 1
+		});
 		rows.mediaItems.push({
 			id: 'm1',
 			treeId: TEST_TREE_ID,
-			entityId: 'b',
+			entityId: null,
 			r2ObjectKey: 'k',
 			cfImageId: null,
 			title: null,
@@ -225,10 +232,8 @@ describe('what moves and what is kept once', () => {
 			updatedAt: 1
 		} as never);
 		const ops = buildPersonMergeOps(rows, merge('a', 'b'), ctx());
-		const moved = afterOf<{ entityId: string; version: number }>(ops, 'media_items', 'm1')!;
-		expect(moved.entityId).toBe('a');
-		// Its version moves too, so an editor who loaded the file before the merge gets a conflict.
-		expect(moved.version).toBe(2);
+		expect(opFor(ops, 'media_links', 'm1:b')?.after).toBeNull();
+		expect(afterOf<{ entityId: string }>(ops, 'media_links', 'm1:a')!.entityId).toBe('a');
 		expect(afterOf<IndividualRow>(ops, 'individuals', 'a')!.xrefAliases).toEqual(['@b@', '@OLD@']);
 		expect(opFor(ops, 'individuals', 'b')?.after).toBeNull();
 	});
@@ -337,16 +342,32 @@ describe('who cannot be one person', () => {
 		).not.toThrow();
 	});
 
+	it('links a file on both people once, to the survivor', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			media: [
+				{ id: 'both', linkedTo: ['a', 'b'] },
+				{ id: 'only-b', linkedTo: ['b'] }
+			]
+		});
+		const ops = buildPersonMergeOps(rows, merge('a', 'b'), ctx());
+		const after = applyOpsToRows(rows, ops)
+			.mediaLinks.map((l) => l.id)
+			.sort();
+		expect(after).toEqual(['both:a', 'only-b:a']);
+	});
+
 	it('counts a moved file toward the same limit as every other record in the merge', () => {
 		const rowsWith = (count: number) =>
 			treeRows({
 				people: [{ id: 'a' }, { id: 'b' }],
-				media: Array.from({ length: count }, (_, i) => ({ id: `m${i}`, entityId: 'b' }))
+				media: Array.from({ length: count }, (_, i) => ({ id: `m${i}`, linkedTo: ['b'] }))
 			});
 		const baseline = buildPersonMergeOps(rowsWith(0), merge('a', 'b'), ctx()).length;
-		const room = MAX_PERSON_MERGE_OPS - baseline;
-		expect(buildPersonMergeOps(rowsWith(room), merge('a', 'b'), ctx()).length).toBe(
-			MAX_PERSON_MERGE_OPS
+		// A moved file is two ops: its old link goes and the survivor's comes.
+		const room = Math.floor((MAX_PERSON_MERGE_OPS - baseline) / 2);
+		expect(buildPersonMergeOps(rowsWith(room), merge('a', 'b'), ctx()).length).toBeGreaterThan(
+			MAX_PERSON_MERGE_OPS - 2
 		);
 		expect(() => buildPersonMergeOps(rowsWith(room + 1), merge('a', 'b'), ctx())).toThrow(
 			/at most/

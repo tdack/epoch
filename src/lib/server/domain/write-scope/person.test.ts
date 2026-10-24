@@ -11,6 +11,7 @@ import factDetails from '../../../../../test/data/fact-details.ged?raw';
 import {
 	citations,
 	mediaItems,
+	mediaLinks,
 	noteAttachments,
 	notes,
 	repositories,
@@ -22,6 +23,7 @@ import {
 	REPRESENTATIVE_GEDCOM_7_FIXTURE,
 	REPRESENTATIVE_GEDCOM_FIXTURE
 } from '../../fixtures/genealogy-fixtures';
+import { mediaLinkId } from '../../../shared/media';
 import { ChangeStore } from '../../repositories/change-store';
 import { insertCorpus } from '../../testing/corpus';
 import {
@@ -111,14 +113,18 @@ async function addEvidence(treeId: string, rows: TreeRows, every: number) {
 		n++;
 	};
 	const addFile = async (entityId: string | null) => {
+		const id = `${tag}-m${n}`;
 		await t.db.insert(mediaItems).values({
-			id: `${tag}-m${n}`,
+			id,
 			treeId,
-			entityId,
 			r2ObjectKey: `media/${treeId}/${n}.png`,
 			mimeType: 'image/png',
 			version: 1
 		});
+		if (entityId !== null)
+			await t.db
+				.insert(mediaLinks)
+				.values({ id: mediaLinkId(id, entityId), treeId, mediaId: id, entityId });
 		n++;
 	};
 	for (const [index, person] of rows.individuals.entries()) {
@@ -213,7 +219,10 @@ const FACT = {
 function commandsFor(rows: TreeRows, personId: string): RelationshipCommand[] {
 	const facts = rows.events.filter((e) => e.entityType === 'INDIVIDUAL' && e.entityId === personId);
 	const names = rows.personNames.filter((n) => n.personId === personId);
-	const files = rows.mediaItems.filter((m) => m.entityId === personId);
+	const linkedIds = new Set(
+		rows.mediaLinks.filter((l) => l.entityId === personId).map((l) => l.mediaId)
+	);
+	const files = rows.mediaItems.filter((m) => linkedIds.has(m.id));
 	const someoneElse = rows.events.find((e) => e.entityId !== personId);
 	const otherName = rows.personNames.find((n) => n.personId !== personId);
 	const partnerships = rows.unionPartners.filter((p) => p.personId === personId);
@@ -266,8 +275,8 @@ function commandsFor(rows: TreeRows, personId: string): RelationshipCommand[] {
 		{ kind: 'record_death', personId, dateText: '1 JAN 1950', place: 'Rome' },
 		{ kind: 'record_death', personId, dateText: null, place: null },
 		{ kind: 'rename_media', mediaId: 'no-such-file', title: 'x' },
-		{ kind: 'attach_media', mediaId: 'no-such-file', entityId: personId },
-		{ kind: 'detach_media', mediaId: 'no-such-file' }
+		{ kind: 'link_media', mediaId: 'no-such-file', entityId: personId },
+		{ kind: 'unlink_media', mediaId: 'no-such-file', entityId: personId }
 	];
 	for (const f of facts.slice(0, 4)) {
 		out.push(
@@ -319,16 +328,16 @@ function commandsFor(rows: TreeRows, personId: string): RelationshipCommand[] {
 		out.push(
 			{ kind: 'rename_media', mediaId: m.id, title: 'Renamed' },
 			{ kind: 'rename_media', mediaId: m.id, title: '   ' },
-			{ kind: 'detach_media', mediaId: m.id },
-			{ kind: 'attach_media', mediaId: m.id, entityId: personId },
-			{ kind: 'attach_media', mediaId: m.id, entityId: 'no-such-record' },
-			{ kind: 'detach_media', mediaId: m.id, expectedVersion: 99 }
+			{ kind: 'unlink_media', mediaId: m.id, entityId: personId },
+			{ kind: 'link_media', mediaId: m.id, entityId: personId },
+			{ kind: 'link_media', mediaId: m.id, entityId: 'no-such-record' },
+			{ kind: 'unlink_media', mediaId: m.id, entityId: personId, expectedVersion: 99 }
 		);
-		if (anyUnion) out.push({ kind: 'attach_media', mediaId: m.id, entityId: anyUnion.id });
+		if (anyUnion) out.push({ kind: 'link_media', mediaId: m.id, entityId: anyUnion.id });
 	}
 	if (anyFile) {
 		out.push(
-			{ kind: 'attach_media', mediaId: anyFile.id, entityId: personId },
+			{ kind: 'link_media', mediaId: anyFile.id, entityId: personId },
 			{ kind: 'rename_media', mediaId: anyFile.id, title: 'Moved' }
 		);
 	}
@@ -402,7 +411,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			const partnerships = world.rows.unionPartners.filter((p) => p.personId === id);
 			return (
 				partnerships.length > 0 &&
-				world.rows.mediaItems.some((m) => m.entityId === id) &&
+				world.rows.mediaLinks.some((l) => l.entityId === id) &&
 				world.rows.parentChild.some((l) => l.parentId === id || l.childId === id)
 			);
 		})!;
@@ -415,7 +424,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			seed
 		});
 		const touched = new Set(outcome.ops?.map((op) => op.table));
-		for (const table of ['person_names', 'union_partners', 'parent_child', 'media_items'])
+		for (const table of ['person_names', 'union_partners', 'parent_child', 'media_links'])
 			expect(touched).toContain(table);
 		expect(touched).toContain('citations');
 		// A seed that names no one gives the planner nothing to delete, so it must not pass.
@@ -429,17 +438,21 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 		).toThrow();
 	});
 
-	it('covers detaching a file: the owner is read through the file', () => {
+	it('covers unlinking a file: the linked records are read through the file', () => {
 		const world = worlds.find((w) => w.label === 'Representative 5.5.1')!;
-		const file = world.rows.mediaItems.find((m) => m.entityId !== null)!;
-		const command: RelationshipCommand = { kind: 'detach_media', mediaId: file.id };
+		const link = world.rows.mediaLinks[0]!;
+		const command: RelationshipCommand = {
+			kind: 'unlink_media',
+			mediaId: link.mediaId,
+			entityId: link.entityId
+		};
 		const outcome = expectScopedEqualsWhole({
 			whole: world.rows,
 			commands: [command],
 			scope: scopes.unrestricted,
-			seed: MEDIA_SCOPES.detach_media!(command as never)
+			seed: MEDIA_SCOPES.unlink_media!(command as never)
 		});
-		expect(outcome.ops).toHaveLength(1);
+		expect(outcome.ops).toHaveLength(2);
 		// Deliberately weakened: with no seed the file is not in the snapshot, so it is "not found".
 		expect(() =>
 			expectScopedEqualsWhole({
@@ -451,24 +464,29 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 		).toThrow();
 	});
 
-	it('refuses a restricted viewer a detach the same way over a snapshot with no private person', () => {
+	it('refuses a restricted viewer an unlink the same way over a snapshot with no private person', () => {
 		// The whole tree has private people, the file's snapshot does not: the refusal must not
 		// depend on that (the unowned-file rule in opsTouchPrivate).
 		const found = worlds
 			.map((world) => {
 				const hidden = privatePeople(world.rows, scopes.restricted.cutoff, null);
-				const file = world.rows.mediaItems.find(
-					(m) =>
-						m.entityId !== null &&
-						world.rows.individuals.some((p) => p.id === m.entityId) &&
-						!hidden.has(m.entityId)
+				// A file whose only link is to a visible person, so unlinking it leaves it detached.
+				const file = world.rows.mediaLinks.find(
+					(l) =>
+						world.rows.individuals.some((p) => p.id === l.entityId) &&
+						!hidden.has(l.entityId) &&
+						world.rows.mediaLinks.filter((x) => x.mediaId === l.mediaId).length === 1
 				);
 				return { world, file, isMixed: hidden.size > 0 };
 			})
 			.find((x) => x.file && x.isMixed)!;
 		const { world, file } = found as { world: World; file: NonNullable<typeof found.file> };
-		const command: RelationshipCommand = { kind: 'detach_media', mediaId: file.id };
-		const seed = MEDIA_SCOPES.detach_media!(command as never);
+		const command: RelationshipCommand = {
+			kind: 'unlink_media',
+			mediaId: file.mediaId,
+			entityId: file.entityId
+		};
+		const seed = MEDIA_SCOPES.unlink_media!(command as never);
 		const restricted = expectScopedEqualsWhole({
 			whole: world.rows,
 			commands: [command],

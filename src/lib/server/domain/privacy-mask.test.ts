@@ -174,15 +174,17 @@ describe('opsTouchPrivate on a file', () => {
 			events: [
 				{ id: 'b-gran', entityId: 'gran', type: 'BIRT', dateRaw: '1850', dateSortEnd: '1850-12-31' }
 			],
-			media: [
-				{ id: 'owned', entityId: 'gran' },
-				{ id: 'loose', entityId: null }
-			]
+			media: [{ id: 'owned', linkedTo: ['gran'] }, { id: 'loose' }]
 		});
 	}
+	// Unlinking is the media bump plus the link going, which is what leaves the file editor-only.
 	const detach = (rows: ReturnType<typeof noPrivatePeople>, id: string) => {
 		const before = rows.mediaItems.find((m) => m.id === id)!;
-		return rowOp('media_items', id, before, { ...before, entityId: null });
+		const link = rows.mediaLinks.find((l) => l.mediaId === id);
+		return [
+			rowOp('media_items', id, before, { ...before, version: before.version + 1 }),
+			...(link ? [rowOp('media_links', link.id, link, null)] : [])
+		];
 	};
 
 	it('treats detaching a file as editor-only in a tree with no private person', () => {
@@ -190,8 +192,8 @@ describe('opsTouchPrivate on a file', () => {
 		expect(privatePeople(rows, CUTOFF).size).toBe(0);
 		// Otherwise a scoped snapshot that left the private person out would allow what the whole
 		// tree refuses.
-		expect(opsTouchPrivate([detach(rows, 'owned')], rows, CUTOFF)).toBe(true);
-		expect(opsTouchPrivate([detach(rows, 'loose')], rows, CUTOFF)).toBe(true);
+		expect(opsTouchPrivate(detach(rows, 'owned'), rows, CUTOFF)).toBe(true);
+		expect(opsTouchPrivate(detach(rows, 'loose'), rows, CUTOFF)).toBe(true);
 	});
 
 	it('still allows an op that leaves a file owned', () => {

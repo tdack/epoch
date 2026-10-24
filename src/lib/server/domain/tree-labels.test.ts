@@ -8,12 +8,17 @@ const people = [
 ];
 
 describe('file labels in previews', () => {
-	it('names a detached file by its title, and falls back when it has none', () => {
+	it('names a file by its title, and falls back when it has none', () => {
 		const label = makeLabeler(treeRows({ people }), []);
-		expect(label('media_items', { id: 'm', entityId: null, title: 'Deed.png' })).toBe(
-			'Unattached file “Deed.png”'
+		expect(label('media_items', { id: 'm', title: 'Deed.png' })).toBe('File “Deed.png”');
+		expect(label('media_items', { id: 'm', title: null })).toBe('File');
+	});
+
+	it('names a link by the record the file is linked to', () => {
+		const label = makeLabeler(treeRows({ people }), []);
+		expect(label('media_links', { id: 'm:a', mediaId: 'm', entityId: 'a' })).toBe(
+			'Link of a file to Ann'
 		);
-		expect(label('media_items', { id: 'm', entityId: null, title: null })).toBe('Unattached file');
 	});
 });
 

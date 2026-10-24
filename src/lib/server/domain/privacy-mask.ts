@@ -343,10 +343,15 @@ export function opsTouchPrivate(
 	creatorId: string | null = null
 ): boolean {
 	const hidden = privatePeople(rows, cutoff, creatorId);
-	// An unowned file is editor-only whether or not anyone is private, so a snapshot that happens to
-	// hold no private person must answer as the whole tree does. Only that one rule survives an
-	// empty `hidden`, which keeps the early return cheap for every other op.
-	if (hidden.size === 0 && !ops.some((op) => touchesUnownedFile(op, rows))) return false;
+	// A file left with no link is editor-only whether or not anyone is private, so a snapshot that
+	// happens to hold no private person must answer as the whole tree does. Only that one rule
+	// survives an empty `hidden`, which keeps the early return cheap for every other op.
+	const files = fileLinksAround(rows, ops);
+	if (
+		hidden.size === 0 &&
+		!ops.some((op) => op.table === 'media_items' && !files.linked.has(op.id))
+	)
+		return false;
 	const hiddenUnions = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
@@ -362,21 +367,29 @@ export function opsTouchPrivate(
 		notes: new Set(rows.notes.filter((n) => !keptNotes.has(n.id)).map((n) => n.id))
 	};
 	return ops.some((op) =>
-		touchesHidden(
-			op,
-			hidden,
-			hiddenUnions,
-			hiddenKeys,
-			hiddenCitations,
-			hiddenRecords,
-			rows.mediaLinks
-		)
+		touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations, hiddenRecords, files)
 	);
 }
 
-/** A file row with no link in the snapshot is unowned, so an op on it is editor-only. */
-function touchesUnownedFile(op: RowOp, rows: TreeRows): boolean {
-	return op.table === 'media_items' && !rows.mediaLinks.some((l) => l.mediaId === op.id);
+/**
+ * The links a change touches around: every link before or after it (so a link either side hides
+ * the op), and the files that still have one once it is applied (a file left with none is
+ * editor-only).
+ */
+function fileLinksAround(rows: TreeRows, ops: readonly RowOp[]) {
+	const after = new Map(rows.mediaLinks.map((l) => [l.id, l]));
+	const around = new Map(after);
+	for (const op of ops) {
+		if (op.table !== 'media_links') continue;
+		if (op.after) {
+			after.set(op.id, op.after);
+			around.set(op.id, op.after);
+		} else after.delete(op.id);
+	}
+	return {
+		links: [...around.values()],
+		linked: new Set([...after.values()].map((l) => l.mediaId))
+	};
 }
 
 function touchesHidden(
@@ -386,7 +399,7 @@ function touchesHidden(
 	hiddenKeys: Set<string>,
 	hiddenCitations: Set<string>,
 	hiddenRecords: { sources: Set<string>; notes: Set<string> },
-	fileLinks: readonly MediaLinkRow[]
+	files: { links: readonly MediaLinkRow[]; linked: ReadonlySet<string> }
 ): boolean {
 	// Either image may carry the link to a hidden record, so a row hidden before or after hides the op.
 	const some = <R>(before: R | null, after: R | null, isHidden: (row: R) => boolean) =>
@@ -415,10 +428,10 @@ function touchesHidden(
 				r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId) : hiddenUnions.has(r.entityId)
 			);
 		case 'media_items':
-			// A file linked to a hidden record is theirs too; a file with no link is editor-only.
+			// A file linked to a hidden record is theirs too; a file left with no link is editor-only.
 			return (
-				!fileLinks.some((l) => l.mediaId === op.id) ||
-				fileLinks.some(
+				!files.linked.has(op.id) ||
+				files.links.some(
 					(l) =>
 						l.mediaId === op.id &&
 						(hidden.has(l.entityId) ||

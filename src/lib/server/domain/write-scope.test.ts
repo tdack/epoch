@@ -28,10 +28,10 @@ function world(): TreeRows {
 			personId
 		})),
 		media: [
-			{ id: 'file-a', entityId: 'a' },
-			{ id: 'file-g', entityId: 'g' },
-			{ id: 'file-u1', entityId: 'u1' },
-			{ id: 'file-loose', entityId: null }
+			{ id: 'file-a', linkedTo: ['a'] },
+			{ id: 'file-g', linkedTo: ['g'] },
+			{ id: 'file-u1', linkedTo: ['u1'] },
+			{ id: 'file-loose' }
 		]
 	});
 	return rows;

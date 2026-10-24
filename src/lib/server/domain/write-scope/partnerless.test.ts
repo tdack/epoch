@@ -71,8 +71,8 @@ function world(): TreeRows {
 			{ id: 'name-dead6', personId: 'dead6' }
 		],
 		media: [
-			{ id: 'file-lonely', entityId: UNION },
-			{ id: 'file-dead5', entityId: 'dead5' }
+			{ id: 'file-lonely', linkedTo: [UNION] },
+			{ id: 'file-dead5', linkedTo: ['dead5'] }
 		]
 	});
 	rows.individuals.find((p) => p.id === 'living')!.createdBy = CREATOR;
@@ -158,10 +158,10 @@ function commandsFor(rows: TreeRows): RelationshipCommand[] {
 		{ kind: 'record_death', personId: 'dead5', dateText: '1980', place: null },
 		// Files
 		{ kind: 'rename_media', mediaId: 'file-lonely', title: 'Renamed' },
-		{ kind: 'detach_media', mediaId: 'file-lonely' },
-		{ kind: 'attach_media', mediaId: 'file-lonely', entityId: UNION },
-		{ kind: 'attach_media', mediaId: 'file-dead5', entityId: UNION },
-		{ kind: 'attach_media', mediaId: 'file-lonely', entityId: 'dead5' },
+		{ kind: 'unlink_media', mediaId: 'file-lonely', entityId: UNION },
+		{ kind: 'link_media', mediaId: 'file-lonely', entityId: UNION },
+		{ kind: 'link_media', mediaId: 'file-dead5', entityId: UNION },
+		{ kind: 'link_media', mediaId: 'file-lonely', entityId: 'dead5' },
 		// Partnerships and links
 		{ kind: 'update_union', unionId: UNION, expectedVersion: 1, status: 'separated' },
 		{ kind: 'end_union', unionId: UNION, status: 'ended', event: null },
