@@ -3,6 +3,7 @@ import simpsons from '../../../../test/data/The Simpsons.ged?raw';
 import {
 	citations,
 	mediaItems,
+	mediaLinks,
 	noteAttachments,
 	notes,
 	repositories,
@@ -10,6 +11,7 @@ import {
 	sourceRepositories,
 	sources
 } from '../db/schema';
+import { mediaLinkId } from '../../shared/media';
 import type { TreeRows } from '../domain/change-log';
 import { emptySeed, seedOf, selectScope, type ScopeSeed } from '../domain/write-scope';
 import { insertCorpus } from '../testing/corpus';
@@ -159,14 +161,18 @@ async function addEvidence(treeId: string, rows: TreeRows, random: () => number)
 	for (let i = 0; i < 12; i++) {
 		const owner =
 			i % 4 === 0 && rows.unions.length > 0 ? pick(rows.unions) : pick(rows.individuals);
+		const mediaId = `${treeId.slice(0, 8)}-media-${i}`;
 		await t.db.insert(mediaItems).values({
-			id: `${treeId.slice(0, 8)}-media-${i}`,
+			id: mediaId,
 			treeId,
-			entityId: i % 6 === 5 ? null : owner.id,
 			r2ObjectKey: `media/${treeId}/${i}.png`,
 			mimeType: 'image/png',
 			version: 1
 		});
+		if (i % 6 !== 5)
+			await t.db
+				.insert(mediaLinks)
+				.values({ id: mediaLinkId(mediaId, owner.id), treeId, mediaId, entityId: owner.id });
 	}
 }
 

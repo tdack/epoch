@@ -8,7 +8,8 @@
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { individuals, mediaItems } from '#lib/server/db/index.js';
+import { mediaLinkId } from '#lib/shared/media.js';
+import { individuals, mediaItems, mediaLinks } from '#lib/server/db/index.js';
 import {
 	addTestMember,
 	createTestDatabase,
@@ -65,14 +66,18 @@ afterAll(async () => {
 async function ensureRow(key: string, entityId: string | null, title = 'x') {
 	if (rowedKeys.has(key)) return;
 	rowedKeys.add(key);
+	const mediaId = crypto.randomUUID();
 	await t.db.insert(mediaItems).values({
-		id: crypto.randomUUID(),
+		id: mediaId,
 		treeId,
-		entityId,
 		r2ObjectKey: key,
 		title,
 		mimeType: 'application/octet-stream'
 	});
+	if (entityId)
+		await t.db
+			.insert(mediaLinks)
+			.values({ id: mediaLinkId(mediaId, entityId), treeId, mediaId, entityId });
 }
 
 function fetchMedia(

@@ -222,7 +222,6 @@ describe('what moves and what is kept once', () => {
 		rows.mediaItems.push({
 			id: 'm1',
 			treeId: TEST_TREE_ID,
-			entityId: null,
 			r2ObjectKey: 'k',
 			cfImageId: null,
 			title: null,

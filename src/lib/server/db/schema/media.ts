@@ -10,9 +10,6 @@ export const mediaItems = sqliteTable(
 		treeId: text('tree_id')
 			.notNull()
 			.references(() => trees.id, { onDelete: 'cascade' }),
-		// Neither read nor written now (ADR-050 amended): links are rows of `media_links`. Left null
-		// for new files; dropped in a later migration (expand-and-contract).
-		entityId: text('entity_id'),
 		r2ObjectKey: text('r2_object_key').notNull(),
 		cfImageId: text('cf_image_id'),
 		title: text('title'),
@@ -26,7 +23,6 @@ export const mediaItems = sqliteTable(
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
 	},
 	(table) => ({
-		entityIdx: index('idx_media_entity').on(table.entityId),
 		treeIdx: index('idx_media_tree').on(table.treeId),
 		treeKeyIdx: index('idx_media_tree_key').on(table.treeId, table.r2ObjectKey)
 	})

@@ -31,7 +31,6 @@ Last reviewed: 2026-10-21.
   
 ### Media and files
 
-- **Drop `media_items.entity_id`** in its own migration, once the code that neither reads nor writes it is deployed (expand-and-contract; ADR-050 amendment).
 - **Tree deletion can leave unreachable objects.** `deleteTree` removes the rows first, then sweeps
   the tree's `media/` and `staging/` objects. A failed sweep is logged and leaves its objects behind.
   The Files page's unlinked scan skips trees that no longer exist, so the app cannot find them. Add a
@@ -158,8 +157,6 @@ Last reviewed: 2026-10-21.
 
 ### Settings
 
-- **Drop `trees.default_view_mode`** in its own migration, after the ADR-075 code that ignores it is
-  deployed (expand-and-contract).
 - **More app-wide settings beyond colours and reduced motion.** Left out of the first settings page
   (ADR-054), because the dates and names ones touch many render sites:
   - **Date display format** (day-month-year, month-day-year, ISO). `date_value` keeps the original

@@ -511,11 +511,10 @@ describe('ChangeStore scoping of the child tables that carry a tree_id', () => {
 });
 
 describe('media row images and the file-manager columns', () => {
-	const mediaRow = (entityId: string) =>
+	const mediaRow = () =>
 		partialRow('media_items', {
 			id: 'm1',
 			treeId,
-			entityId,
 			r2ObjectKey: `media/${treeId}/m1.png`,
 			cfImageId: null,
 			title: 'Portrait',
@@ -533,7 +532,7 @@ describe('media row images and the file-manager columns', () => {
 		await freshTree();
 		await store.commit({
 			...base(),
-			ops: [{ table: 'media_items', id: 'm1', before: null, after: mediaRow('p1') }]
+			ops: [{ table: 'media_items', id: 'm1', before: null, after: mediaRow() }]
 		});
 		const image = await imageOf('m1');
 		expect(image).not.toHaveProperty('sizeBytes');
@@ -542,7 +541,7 @@ describe('media row images and the file-manager columns', () => {
 		expect(matchesImage(image, { ...image! })).toBe(true);
 	});
 
-	it('undoes a move of a file, using an inverse written before migration 0029', async () => {
+	it('undoes a rename of a file, using an inverse written before migration 0029', async () => {
 		await freshTree();
 		await store.commit({
 			...base(),
@@ -551,12 +550,12 @@ describe('media row images and the file-manager columns', () => {
 					table: 'media_items',
 					id: 'm2',
 					before: null,
-					after: { ...mediaRow('p1'), id: 'm2', r2ObjectKey: `media/${treeId}/m2.png` }
+					after: { ...mediaRow(), id: 'm2', r2ObjectKey: `media/${treeId}/m2.png` }
 				}
 			]
 		});
 		const original = (await imageOf('m2'))!;
-		// The merge moves the file from p1 to p2: version 2, one more row touch.
+		// A rename: version 2, one more row touch.
 		const beforeMove = (await imageOf('m2'))!;
 		await store.commit({
 			...base(),
@@ -565,7 +564,7 @@ describe('media row images and the file-manager columns', () => {
 					table: 'media_items',
 					id: 'm2',
 					before: beforeMove,
-					after: { ...beforeMove, entityId: 'p2', version: Number(beforeMove.version) + 1 }
+					after: { ...beforeMove, title: 'Renamed', version: Number(beforeMove.version) + 1 }
 				}
 			]
 		});
@@ -579,7 +578,7 @@ describe('media row images and the file-manager columns', () => {
 		expect(rebased.isOk).toBe(true);
 		if (!rebased.isOk) return;
 		await store.commit({ ...base(), ops: rebased.ops });
-		expect((await imageOf('m2'))?.entityId).toBe('p1');
+		expect((await imageOf('m2'))?.title).toBe('Portrait');
 	});
 });
 

@@ -19,8 +19,6 @@ export const trees = sqliteTable(
 		shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
 			.notNull()
 			.default(false),
-		// No longer read (ADR-075); dropped in a later migration once this code is deployed.
-		defaultViewMode: text('default_view_mode'),
 		version: integer('version').notNull().default(1),
 		// The install owner's order for every tree list, lowest first. Its own column rather than
 		// `updated_at`: reordering must not bump `version` (it guards renames) or look like an edit.

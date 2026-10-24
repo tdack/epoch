@@ -158,7 +158,6 @@ describe('counting what deleting a tree would erase', () => {
 		await t.db.insert(mediaItems).values({
 			id: crypto.randomUUID(),
 			treeId,
-			entityId: child,
 			r2ObjectKey: `media/${treeId}/photo.jpg`,
 			mimeType: 'image/jpeg'
 		});

@@ -96,11 +96,12 @@ export class ChangeLogService {
 		}
 		// Before 0042 ownership was media_items.entity_id; undoing that now would rewrite a column
 		// nothing reads, and look as if the file had moved back.
+		// Read from the stored JSON: the column is gone from the table type, not from old images.
+		const ownerOf = (image: object | null) =>
+			(image as Record<string, unknown> | null)?.entityId ?? null;
 		if (
 			target.inverse.some(
-				(op) =>
-					op.table === 'media_items' &&
-					(op.before?.entityId ?? null) !== (op.after?.entityId ?? null)
+				(op) => op.table === 'media_items' && ownerOf(op.before) !== ownerOf(op.after)
 			)
 		) {
 			throw new UndoRefusedError(

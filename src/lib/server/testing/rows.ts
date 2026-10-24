@@ -73,7 +73,6 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			});
 		rows.mediaItems.push({
 			treeId: TEST_TREE_ID,
-			entityId: null,
 			r2ObjectKey: `media/${TEST_TREE_ID}/${m.id}.png`,
 			cfImageId: null,
 			title: null,
