@@ -61,10 +61,7 @@ describe('the Drizzle schema and the migrations agree', () => {
 
 	// Columns the code no longer declares whose drop migration is held until that code is live
 	// (expand-and-contract; see the backlog). Empty this when the drop migration lands.
-	const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
-		media_items: ['entity_id'],
-		trees: ['default_view_mode']
-	};
+	const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {};
 
 	it.each([...declared.keys()])(
 		'%s has the same columns, types, nullability and indexes',
