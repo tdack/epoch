@@ -1,4 +1,4 @@
-import { and, eq, getTableColumns, gt, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, gt, lt, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import {
 	changeLog,
@@ -186,6 +186,13 @@ export class MemberRepository {
 			.select()
 			.from(treeInvitations)
 			.where(eq(treeInvitations.treeId, treeId))) as InvitationRow[];
+	}
+
+	/** Drop this tree's invitations that lapsed before `cutoff`; later ones still show as expired. */
+	async deleteExpiredBefore(treeId: string, cutoff: Date): Promise<void> {
+		await this.db
+			.delete(treeInvitations)
+			.where(and(eq(treeInvitations.treeId, treeId), lt(treeInvitations.expiresAt, cutoff)));
 	}
 
 	async getInvitation(treeId: string, invitationId: string): Promise<InvitationRow | null> {

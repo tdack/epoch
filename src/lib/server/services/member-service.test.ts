@@ -201,6 +201,33 @@ describe('inviting', () => {
 	});
 });
 
+describe('pruning old invitations', () => {
+	const DAY_MS = 24 * 60 * 60 * 1000;
+	const offer = (treeId: string, email: string, expiredDaysAgo: number) =>
+		t.db.insert(treeInvitations).values({
+			id: crypto.randomUUID(),
+			treeId,
+			email,
+			role: 'viewer',
+			expiresAt: new Date(clockNow.getTime() - expiredDaysAgo * DAY_MS)
+		});
+
+	it('drops what lapsed over 30 days ago, keeps recent expiries, and leaves other trees alone', async () => {
+		const { treeId, actors } = await tree();
+		const other = await tree();
+		await offer(treeId, 'old@example.com', 31);
+		await offer(treeId, 'recent@example.com', 5);
+		await offer(other.treeId, 'old@example.com', 31);
+		const { invitations } = await service().list(treeId, actors.owner.context);
+		expect(invitations.map((i) => [i.email, i.isExpired])).toEqual([['recent@example.com', true]]);
+		const elsewhere = await t.db
+			.select()
+			.from(treeInvitations)
+			.where(eq(treeInvitations.treeId, other.treeId));
+		expect(elsewhere).toHaveLength(1);
+	});
+});
+
 describe('emailing an invitation', () => {
 	const pendingFor = async (email: string) =>
 		(await t.db.select().from(treeInvitations).where(eq(treeInvitations.email, email))).length;

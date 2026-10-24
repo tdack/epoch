@@ -28,6 +28,9 @@ import { Logger } from '../logging/logger';
 import type { InvitationMailer } from './invitation-mailer';
 
 export const INVITATION_TTL_DAYS = 14;
+/** How long a lapsed invitation stays on the Members page as Expired before it is dropped. */
+const EXPIRED_INVITATION_RETENTION_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,6 +65,10 @@ export class MemberService {
 	async list(treeId: string, context: AuthenticatedContext): Promise<MembersDto> {
 		const actor = await this.requireManager(treeId, context);
 		const now = this.now();
+		await this.members.deleteExpiredBefore(
+			treeId,
+			new Date(now.getTime() - EXPIRED_INVITATION_RETENTION_DAYS * MS_PER_DAY)
+		);
 		const [members, invitations] = await Promise.all([
 			this.members.listMembers(treeId),
 			this.members.listInvitations(treeId)
