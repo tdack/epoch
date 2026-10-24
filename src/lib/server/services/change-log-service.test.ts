@@ -107,6 +107,40 @@ describe('undoChange', () => {
 	});
 });
 
+describe('undoing a change from before files linked to several records', () => {
+	const legacy = (id: string, before: string | null, after: string | null) =>
+		t.db.insert(changeLog).values({
+			id,
+			treeId,
+			actorId: editor.userId,
+			kind: 'attach_media',
+			summary: 'Attached a file',
+			changesJson: '[]',
+			inverseJson: JSON.stringify([
+				{
+					table: 'media_items',
+					id: 'm',
+					before: { id: 'm', entityId: before, title: 'a' },
+					after: { id: 'm', entityId: after, title: 'a' }
+				}
+			])
+		});
+
+	it('refuses when the change moved the file between records', async () => {
+		await legacy('legacy-move', null, 'p1');
+		await expect(log().undoChange(treeId, 'legacy-move', editor.context)).rejects.toMatchObject({
+			message: expect.stringContaining('before files could link to several records')
+		});
+	});
+
+	it('does not refuse on that ground when only the title changed', async () => {
+		await legacy('legacy-rename', 'p1', 'p1');
+		await expect(
+			log().undoChange(treeId, 'legacy-rename', editor.context)
+		).rejects.not.toMatchObject({ message: expect.stringContaining('before files could link') });
+	});
+});
+
 describe('audit', () => {
 	it('is read only by roles that see every record', async () => {
 		await expect(log().audit(treeId, viewer.context)).rejects.toBeInstanceOf(UnauthorizedError);

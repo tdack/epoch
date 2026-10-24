@@ -94,6 +94,20 @@ export class ChangeLogService {
 				UNDO_REFUSALS.NOT_UNDOABLE
 			);
 		}
+		// Before 0042 ownership was media_items.entity_id; undoing that now would rewrite a column
+		// nothing reads, and look as if the file had moved back.
+		if (
+			target.inverse.some(
+				(op) =>
+					op.table === 'media_items' &&
+					(op.before?.entityId ?? null) !== (op.after?.entityId ?? null)
+			)
+		) {
+			throw new UndoRefusedError(
+				'This change was made before files could link to several records, so it cannot be undone. Link or unlink the file on Research › Files.',
+				UNDO_REFUSALS.NOT_UNDOABLE
+			);
+		}
 		if (target.actorId !== context.user.id && !isManagerOrAbove(scope.role)) {
 			throw new UndoRefusedError(
 				"Only a manager or owner can undo someone else's change.",
