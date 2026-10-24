@@ -67,13 +67,13 @@ Last reviewed: 2026-10-21.
   (ADR-029)
 - **A source merge or delete touching more than 300 records is refused.** Raise or batch the limit.
   (ADR-028)
-- **Event structures still dropped on import.** `AGE > PHRASE`, `CAUS` with `CONT` or `CONC`, and
-  `DATE > TIME` are read, and their children are lost. Keep them verbatim, as the place's children
-  are kept now. (ADR-051, ADR-023)
 - **`FONE` and `ROMN` under a place are kept verbatim,** so a 7.0 export writes them as 5.5.1 tags,
   not as 7.0 `TRAN`. Convert them when the place model needs transliterations. (ADR-051)
 - **`@@` inside an email or web value** follows the codebase-wide text rule, like every other text
   field. Contact fields may need their own rule about escaping. (ADR-051)
+- **Sub-lines dropped by earlier imports are not recovered.** `DATE`, `CAUS` and `AGE` children are
+  kept from migration 0041 on (ADR-051). Trees imported before it lost them; a replace-mode re-import
+  of the file recovers them, and the fact-details backfill does not.
 
 ### Search, lists and performance
 
@@ -356,5 +356,3 @@ The tool is built in `tools/setup/`.
 - **Edit all copies of a group fact.** Copies are independent events, so fixing the date of an
   Emigration means editing each. Offer "apply to the other copies" by matching type, date and place
   among the family.
-- **Cite a source on each person's specific facts in bulk** (for example every birth in a family
-  book). Today a bulk citation sits on the person, not on a fact.
