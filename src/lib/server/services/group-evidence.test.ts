@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { citations, events } from '../db/schema';
-import { ValidationError } from '../domain/errors';
+import { NotFoundError, ValidationError } from '../domain/errors';
 import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import {
 	createTestDatabase,
@@ -99,7 +99,14 @@ describe('citing a source for many people', () => {
 	it('cites each person, skips those already cited, and undoes in one step', async () => {
 		const { treeId, ctx, ids, sourceId, evidence, allCitations, log } = await setup();
 		await evidence.addCitation(treeId, { kind: 'person', id: ids[0] }, { sourceId }, ctx);
-		const result = await evidence.citeMany(treeId, sourceId, [...ids, ids[1]], { sourceId }, ctx);
+		const result = await evidence.citeMany(
+			treeId,
+			sourceId,
+			[...ids, ids[1]],
+			{ sourceId },
+			undefined,
+			ctx
+		);
 		expect(result.skippedPersonIds).toEqual([ids[0]]);
 		expect(result.change?.summary).toBe('Cited “Ash family book” for 2 people');
 		expect(await allCitations()).toHaveLength(3);
@@ -109,14 +116,45 @@ describe('citing a source for many people', () => {
 
 	it('writes nothing when everyone is already cited, and refuses 51 people', async () => {
 		const { treeId, ctx, ids, sourceId, evidence, allCitations } = await setup();
-		await evidence.citeMany(treeId, sourceId, ids, { sourceId }, ctx);
-		const again = await evidence.citeMany(treeId, sourceId, ids, { sourceId }, ctx);
+		await evidence.citeMany(treeId, sourceId, ids, { sourceId }, undefined, ctx);
+		const again = await evidence.citeMany(treeId, sourceId, ids, { sourceId }, undefined, ctx);
 		expect(again.change).toBeNull();
 		expect(again.skippedPersonIds).toHaveLength(3);
 		expect(await allCitations()).toHaveLength(3);
 		const many = Array.from({ length: MAX_GROUP_FACT_PEOPLE + 1 }, (_, i) => `p${i}`);
 		await expect(
-			evidence.citeMany(treeId, sourceId, many, { sourceId }, ctx)
+			evidence.citeMany(treeId, sourceId, many, { sourceId }, undefined, ctx)
 		).rejects.toBeInstanceOf(ValidationError);
+	});
+});
+
+describe('citing a fact type for many people', () => {
+	const birth = (type = 'BIRT') => ({ ...blank, type });
+
+	it('cites each matching fact, skips cited ones, reports people without one, undoes in one step', async () => {
+		const { treeId, ctx, ids, sourceId, evidence, facts, allCitations, log } = await setup();
+		const a = await facts.create(treeId, ids[0], birth(), ctx);
+		const b1 = await facts.create(treeId, ids[1], birth(), ctx);
+		const b2 = await facts.create(treeId, ids[1], birth(), ctx);
+		await evidence.addCitation(treeId, { kind: 'event', id: a.factId }, { sourceId }, ctx);
+		const before = (await allCitations()).length;
+		const logBefore = (await log.listRecent(treeId, ctx)).length;
+		const result = await evidence.citeMany(treeId, sourceId, ids, { sourceId }, 'BIRT', ctx);
+		expect(result.skippedPersonIds).toEqual([ids[0]]);
+		expect(result.missingFactPersonIds).toEqual([ids[2]]);
+		expect(result.change?.summary).toBe('Cited “Ash family book” on 2 births');
+		const added = (await allCitations()).filter((c) => c.subjectKind === 'event');
+		expect(added.map((c) => c.subjectId).sort()).toEqual([a.factId, b1.factId, b2.factId].sort());
+		expect((await log.listRecent(treeId, ctx)).length).toBe(logBefore + 1);
+		await log.undoLast(treeId, ctx);
+		expect(await allCitations()).toHaveLength(before);
+	});
+
+	it('refuses a person that does not exist, as the person-level batch does', async () => {
+		const { treeId, ctx, ids, sourceId, evidence, allCitations } = await setup();
+		await expect(
+			evidence.citeMany(treeId, sourceId, [ids[0], 'nobody'], { sourceId }, 'BIRT', ctx)
+		).rejects.toBeInstanceOf(NotFoundError);
+		expect(await allCitations()).toHaveLength(0);
 	});
 });

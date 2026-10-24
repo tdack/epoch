@@ -6,7 +6,7 @@
 
 import type { DbClient } from '../db';
 import { describeCommand, describeGroupCitation } from '../domain/command-summary';
-import { ValidationError } from '../domain/errors';
+import { NotFoundError, ValidationError } from '../domain/errors';
 import { seedFor } from '../domain/write-scope/index';
 import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
@@ -210,64 +210,92 @@ export class EvidenceService {
 		return { citationId, ...result };
 	}
 
-	/** One command per person, minus anyone the caller can see already cites this source. */
+	/**
+	 * One command per person, or per matching fact of each person when `factType` is set, minus
+	 * whatever the caller can see already cites this source.
+	 */
 	private async citeManyPlan(
 		treeId: string,
 		sourceId: string,
 		personIds: string[],
 		citation: CitationInput,
+		factType: string | undefined,
 		context: AuthenticatedContext
 	) {
 		const unique = [...new Set(personIds)];
 		if (unique.length === 0 || unique.length > MAX_GROUP_FACT_PEOPLE)
 			throw new ValidationError(`Choose between 1 and ${MAX_GROUP_FACT_PEOPLE} people.`);
 		const scope = await this.runner.scopeFor(treeId, context, 'record:create');
-		const all = unique.map((id): EvidenceCommand => ({
+		const add = (kind: CitationSubjectRef['kind'], id: string): EvidenceCommand => ({
 			kind: 'add_citation',
 			citationId: this.runner.clock.newId(),
-			subject: { kind: CITATION_SUBJECT_KINDS.PERSON, id },
+			subject: { kind, id } as CitationSubjectRef,
 			citation: { ...citation, sourceId }
-		}));
+		});
+		const all = unique.map((id) => add(CITATION_SUBJECT_KINDS.PERSON, id));
 		const rows = this.runner.visibleRows(
 			await this.runner.loadForSeed(treeId, seedFor(all)),
 			scope
 		);
 		const cited = new Set(
-			rows.citations
-				.filter((c) => c.sourceId === sourceId && c.subjectKind === CITATION_SUBJECT_KINDS.PERSON)
-				.map((c) => c.subjectId)
+			rows.citations.filter((c) => c.sourceId === sourceId).map((c) => `${c.subjectKind}:${c.subjectId}`)
 		);
-		const skippedPersonIds = unique.filter((id) => cited.has(id));
-		const commands = all.filter((c) => c.kind === 'add_citation' && !cited.has(c.subject.id));
-		return { commands, skippedPersonIds };
+		const isCited = (kind: string, id: string) => cited.has(`${kind}:${id}`);
+		if (!factType) {
+			const skippedPersonIds = unique.filter((id) => isCited(CITATION_SUBJECT_KINDS.PERSON, id));
+			const commands = all.filter(
+				(c) => c.kind === 'add_citation' && !isCited(CITATION_SUBJECT_KINDS.PERSON, c.subject.id)
+			);
+			return { commands, skippedPersonIds, missingFactPersonIds: [] as string[] };
+		}
+		// A person the caller cannot see answers as a missing one, as the person-level plan does.
+		const known = new Set(rows.individuals.map((i) => i.id));
+		for (const id of unique) if (!known.has(id)) throw new NotFoundError('Person', id);
+		const commands: EvidenceCommand[] = [];
+		const skippedPersonIds: string[] = [];
+		const missingFactPersonIds: string[] = [];
+		for (const id of unique) {
+			const facts = rows.events.filter(
+				(e) => e.entityType === 'INDIVIDUAL' && e.entityId === id && e.type === factType
+			);
+			if (facts.length === 0) missingFactPersonIds.push(id);
+			const todo = facts.filter((e) => !isCited(CITATION_SUBJECT_KINDS.EVENT, e.id));
+			if (facts.length > 0 && todo.length === 0) skippedPersonIds.push(id);
+			for (const e of todo) commands.push(add(CITATION_SUBJECT_KINDS.EVENT, e.id));
+		}
+		return { commands, skippedPersonIds, missingFactPersonIds };
 	}
 
 	/**
-	 * Cite one source for each person, as a citation on the person (ADR-028 gives a citation one
-	 * subject, so this is N citations, not one shared). People already cited for it are skipped.
+	 * Cite one source for each person, as a citation on the person, or on each of their `factType`
+	 * facts (ADR-028 gives a citation one subject, so this is N citations, not one shared). Already
+	 * cited people or facts are skipped, and people with no such fact are reported.
 	 */
 	async citeMany(
 		treeId: string,
 		sourceId: string,
 		personIds: string[],
 		citation: CitationInput,
+		factType: string | undefined,
 		context: AuthenticatedContext
-	): Promise<{ skippedPersonIds: string[] } & MutationResult> {
+	): Promise<{ skippedPersonIds: string[]; missingFactPersonIds: string[] } & MutationResult> {
 		await this.runner.requireAccess(treeId, context, 'record:create');
-		const { commands, skippedPersonIds } = await this.citeManyPlan(
+		const { commands, skippedPersonIds, missingFactPersonIds } = await this.citeManyPlan(
 			treeId,
 			sourceId,
 			personIds,
 			citation,
+			factType,
 			context
 		);
-		if (commands.length === 0) return { skippedPersonIds, change: null, affected: [] };
+		if (commands.length === 0)
+			return { skippedPersonIds, missingFactPersonIds, change: null, affected: [] };
 		const result = await this.runner.run(treeId, context, {
 			kind: 'cite_people',
-			summary: (rows) => describeGroupCitation(rows, sourceId, commands.length),
+			summary: (rows) => describeGroupCitation(rows, sourceId, commands.length, factType),
 			commands
 		});
-		return { skippedPersonIds, ...result };
+		return { skippedPersonIds, missingFactPersonIds, ...result };
 	}
 
 	/** What `citeMany` would write, without writing it. */
@@ -276,12 +304,20 @@ export class EvidenceService {
 		sourceId: string,
 		personIds: string[],
 		citation: CitationInput,
+		factType: string | undefined,
 		context: AuthenticatedContext
 	): Promise<ImpactSummary> {
 		await this.runner.requireAccess(treeId, context, 'record:create');
-		const { commands } = await this.citeManyPlan(treeId, sourceId, personIds, citation, context);
+		const { commands } = await this.citeManyPlan(
+			treeId,
+			sourceId,
+			personIds,
+			citation,
+			factType,
+			context
+		);
 		return this.runner.preview(treeId, context, commands, (rows) =>
-			describeGroupCitation(rows, sourceId, commands.length)
+			describeGroupCitation(rows, sourceId, commands.length, factType)
 		);
 	}
 

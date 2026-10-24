@@ -189,15 +189,23 @@ export async function unlinkRepositoryApi(
 	);
 }
 
-/** One source cited for each person; people already cited for it come back as skipped. */
+/**
+ * One source cited for each person, or each person's facts of `factType`; people already cited
+ * for it come back as skipped, and those with no such fact as missing.
+ */
 export async function citePeopleApi(
 	treeId: string,
 	personIds: string[],
-	citation: CitationInput
-): Promise<{ skippedPersonIds: string[]; change: ChangeSummary | null }> {
+	citation: CitationInput,
+	factType?: string
+): Promise<{
+	skippedPersonIds: string[];
+	missingFactPersonIds: string[];
+	change: ChangeSummary | null;
+}> {
 	return call(
 		path`/api/trees/${treeId}/citations/people`,
-		json('POST', { ...citation, personIds }),
+		json('POST', { ...citation, personIds, factType }),
 		'Failed to add the citations'
 	);
 }

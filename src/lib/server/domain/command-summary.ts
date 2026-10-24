@@ -83,8 +83,15 @@ export function describeGroupFact(type: string, count: number): string {
 	return `Added ${factLabel(type)} to ${peopleCount(count)}`;
 }
 
-/** "Cited “Smith family book” for 6 people". */
-export function describeGroupCitation(rows: TreeRows, sourceId: string, count: number): string {
+/** "Cited “Smith family book” for 6 people", or "… on 6 births" when it cites a fact type. */
+export function describeGroupCitation(
+	rows: TreeRows,
+	sourceId: string,
+	count: number,
+	factType?: string
+): string {
+	if (factType)
+		return `Cited ${sourceName(rows, sourceId)} on ${count} ${factLabel(factType).toLowerCase()}${count === 1 ? '' : 's'}`;
 	return `Cited ${sourceName(rows, sourceId)} for ${peopleCount(count)}`;
 }
 

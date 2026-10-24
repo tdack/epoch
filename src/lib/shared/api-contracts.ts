@@ -67,6 +67,8 @@ export interface GroupFactResponse extends ChangeResponse {
 /** `POST /api/trees/[id]/citations/people`: people who already cited the source are skipped. */
 export interface CitePeopleResponse extends ChangeResponse {
 	skippedPersonIds: string[];
+	/** With a `factType`: people who have no fact of that type, so nothing was cited for them. */
+	missingFactPersonIds: string[];
 }
 
 /** A write that logs a change; `change` is null when the request changed nothing. */

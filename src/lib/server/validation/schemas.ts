@@ -562,10 +562,13 @@ export const citationCreateSchema = z.object({
  */
 export const citationAttachSchema = citationCreateSchema.omit({ subject: true });
 
-/** One source cited for each of several people. */
+/**
+ * One source cited for each of several people, or, with `factType` (an event tag), for each of
+ * their facts of that type.
+ */
 export const citationPeopleSchema = citationCreateSchema
 	.omit({ subject: true })
-	.extend({ personIds: groupPeopleSchema });
+	.extend({ personIds: groupPeopleSchema, factType: z.string().min(1).max(16).optional() });
 
 /** Only the fields to change; absent leaves a field alone, null clears it. */
 export const citationUpdateSchema = z.object({
