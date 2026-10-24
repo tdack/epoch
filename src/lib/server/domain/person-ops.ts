@@ -12,7 +12,7 @@ import {
 	bump,
 	cleanText,
 	createEvent,
-	detachFilesOf,
+	unlinkFilesOf,
 	eventsOf,
 	partnerIdsOf,
 	requirePerson,
@@ -215,7 +215,7 @@ function deletePerson(
 		.filter((l) => l.parentId === person.id || l.childId === person.id)
 		.forEach((l) => remove('parent_child', l));
 	eventsOf(rows, 'INDIVIDUAL', person.id).forEach((e) => remove('events', e));
-	ops.push(...detachFilesOf(rows, ctx, new Set([person.id])));
+	ops.push(...unlinkFilesOf(rows, new Set([person.id])));
 
 	for (const membership of rows.unionPartners.filter((p) => p.personId === person.id)) {
 		remove('union_partners', membership);
@@ -228,7 +228,7 @@ function deletePerson(
 			// Nobody left in it: the union, its own events, and any links still filed under it go too.
 			// Links are kept as direct parent links where the parent is someone other than the deleted person.
 			eventsOf(rows, 'FAMILY', union.id).forEach((e) => remove('events', e));
-			ops.push(...detachFilesOf(rows, ctx, new Set([union.id])));
+			ops.push(...unlinkFilesOf(rows, new Set([union.id])));
 			for (const link of rows.parentChild.filter(
 				(l) => l.unionId === union.id && l.parentId !== person.id && l.childId !== person.id
 			)) {

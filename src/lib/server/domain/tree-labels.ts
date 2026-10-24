@@ -147,13 +147,13 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				const detail = row.value ? ` (${row.value})` : '';
 				return `${eventLabel(row.type)}${detail} of ${owner}`;
 			}
-			case 'media_items': {
-				if (row.entityId === null)
-					return row.title ? `Unattached file “${row.title.slice(0, 60)}”` : 'Unattached file';
+			case 'media_items':
+				return row.title ? `File “${row.title.slice(0, 60)}”` : 'File';
+			case 'media_links': {
 				const owningSource = known.sources.find((s) => s.id === row.entityId);
-				if (owningSource) return `Attachment of source “${sourceLabel(owningSource)}”`;
+				if (owningSource) return `Link of a file to source “${sourceLabel(owningSource)}”`;
 				const isPartnership = known.unions.some((u) => u.id === row.entityId);
-				return `Attachment of ${isPartnership ? union(row.entityId) : person(row.entityId)}`;
+				return `Link of a file to ${isPartnership ? union(row.entityId) : person(row.entityId)}`;
 			}
 			case 'sources':
 				return `Source “${sourceLabel(row)}”`;

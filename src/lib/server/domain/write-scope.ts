@@ -278,11 +278,12 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 			addSubject(SUBJECT.PERSON, l.childId);
 			addSubject(SUBJECT.UNION, l.unionId);
 		}
-		for (const id of [...media]) {
-			const owner = mediaById.get(id)!.entityId;
-			addSubject(SUBJECT.PERSON, owner);
-			addSubject(SUBJECT.UNION, owner);
-		}
+		// A seeded file resolves the records it is linked to (a source link needs no row of its own here).
+		for (const l of whole.mediaLinks)
+			if (media.has(l.mediaId)) {
+				addSubject(SUBJECT.PERSON, l.entityId);
+				addSubject(SUBJECT.UNION, l.entityId);
+			}
 		for (const id of [...citations]) {
 			const c = citationById.get(id)!;
 			addSubject(c.subjectKind, c.subjectId);
@@ -327,16 +328,22 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 			(e.entityType === FAMILY && unions.has(e.entityId)) ||
 			events.has(e.id)
 	);
-	const loadedMedia = new Set(
-		whole.mediaItems
+	// Links of a seeded file, and links to anything loaded (a seeded source included); the files those
+	// links name are loaded with them, but their other links are not.
+	const fileLinkIds = new Set(
+		whole.mediaLinks
 			.filter(
-				(m) =>
-					media.has(m.id) ||
-					(m.entityId !== null &&
-						(everyone.has(m.entityId) || unions.has(m.entityId) || seed.sources.has(m.entityId)))
+				(l) =>
+					media.has(l.mediaId) ||
+					everyone.has(l.entityId) ||
+					unions.has(l.entityId) ||
+					seed.sources.has(l.entityId)
 			)
-			.map((m) => m.id)
+			.map((l) => l.id)
 	);
+	const loadedMedia = new Set(media);
+	for (const l of whole.mediaLinks)
+		if (fileLinkIds.has(l.id) && mediaById.has(l.mediaId)) loadedMedia.add(l.mediaId);
 
 	// What is attached to everything loaded so far. Names, events and links are now final.
 	const loadedNames = new Set(nameRows.map((n) => n.id));
@@ -404,6 +411,7 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 		parentChild: pick('parentChild', whole.parentChild, (r) => links.has(r.id)),
 		events: pick('events', whole.events, (r) => loadedEvents.has(r.id)),
 		mediaItems: pick('mediaItems', whole.mediaItems, (r) => loadedMedia.has(r.id)),
+		mediaLinks: pick('mediaLinks', whole.mediaLinks, (r) => fileLinkIds.has(r.id)),
 		sources: pick('sources', whole.sources, (r) => sources.has(r.id)),
 		repositories: pick('repositories', whole.repositories, (r) => repositories.has(r.id)),
 		sourceRepositories: pick('sourceRepositories', whole.sourceRepositories, (r) =>

@@ -1,12 +1,12 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { MediaService } from '#lib/server/services/media-service.js';
-import { fileAttachSchema } from '#lib/server/validation/schemas.js';
+import { fileLinkSchema } from '#lib/server/validation/schemas.js';
 
-/** Attaches a detached file to a person or partnership in the same tree. */
+/** Links a file to a person, partnership or source in the same tree. A file can have many links. */
 export const POST = apiHandler(
-	{ failure: 'Failed to attach the file', body: fileAttachSchema, params: ['id'] },
+	{ failure: 'Failed to link the file', body: fileLinkSchema, params: ['id'] },
 	({ db, ctx, params, body }) =>
-		new MediaService(db).attach(ctx, {
+		new MediaService(db).link(ctx, {
 			treeId: body.treeId,
 			mediaId: params.id!,
 			entityId: body.entityId,

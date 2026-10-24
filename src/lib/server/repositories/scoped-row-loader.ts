@@ -65,6 +65,7 @@ export class ScopedRowLoader {
 			parentChild: new Map(),
 			events: new Map(),
 			mediaItems: new Map(),
+			mediaLinks: new Map(),
 			sources: new Map(),
 			repositories: new Map(),
 			sourceRepositories: new Map(),
@@ -174,14 +175,12 @@ export class ScopedRowLoader {
 					addSubject(SUBJECT.UNION, l.unionId);
 				})
 			);
-			once(
-				seededMedia,
-				'media',
-				guarded(maps.mediaItems, 'media', (m) => {
-					addSubject(SUBJECT.PERSON, m.entityId);
-					addSubject(SUBJECT.UNION, m.entityId);
-				})
-			);
+			// A seeded file resolves the records it is linked to; the files other links name do not.
+			for (const { row } of maps.mediaLinks.values())
+				if (seededMedia.has(row.mediaId)) {
+					addSubject(SUBJECT.PERSON, row.entityId);
+					addSubject(SUBJECT.UNION, row.entityId);
+				}
 			once(
 				rCitations,
 				'citation',
@@ -280,7 +279,14 @@ export class ScopedRowLoader {
 			if (nameIds.length > 0) add('personNames', reads.namesIn(treeId, nameIds));
 			const linkIds = fresh('linksIn', rLinks);
 			if (linkIds.length > 0) add('parentChild', reads.linksIn(treeId, linkIds));
-			const mediaIds = fresh('mediaIn', seededMedia);
+			// A seeded file brings all its links; the file a link names comes with it.
+			const seededMediaIds = fresh('mediaLinksOfMedia', seededMedia);
+			if (seededMediaIds.length > 0)
+				add('mediaLinks', reads.mediaLinksOfMedia(treeId, seededMediaIds));
+			const mediaIds = fresh('mediaIn', [
+				...seededMedia,
+				...[...maps.mediaLinks.values()].map(({ row }) => row.mediaId)
+			]);
 			if (mediaIds.length > 0) add('mediaItems', reads.mediaIn(treeId, mediaIds));
 			const citationIds = fresh('citationsIn', rCitations);
 			if (citationIds.length > 0) add('citations', reads.citationsIn(treeId, citationIds));
@@ -348,7 +354,7 @@ export class ScopedRowLoader {
 			if (eventUnions.length > 0) add('events', reads.eventsOf(treeId, 'FAMILY', eventUnions));
 			// A seeded source brings its files too, so a delete or merge of it sees what to detach or move.
 			const mediaOwners = fresh('mediaOf', [...everyone, ...unionSet, ...seed.sources]);
-			if (mediaOwners.length > 0) add('mediaItems', reads.mediaOf(treeId, mediaOwners));
+			if (mediaOwners.length > 0) add('mediaLinks', reads.mediaLinksOf(treeId, mediaOwners));
 
 			// What is attached to everything loaded.
 			const subjectSets: Array<[string, Iterable<string>]> = [
@@ -433,6 +439,7 @@ export class ScopedRowLoader {
 			parentChild: table('parentChild'),
 			events: table('events'),
 			mediaItems: table('mediaItems'),
+			mediaLinks: table('mediaLinks'),
 			sources: table('sources'),
 			repositories: table('repositories'),
 			sourceRepositories: table('sourceRepositories'),

@@ -8,6 +8,7 @@ import type { DbClient } from '../db';
 import {
 	citations,
 	mediaItems,
+	mediaLinks,
 	noteAttachments,
 	notes,
 	repositories,
@@ -16,6 +17,7 @@ import {
 	sources
 } from '../db/schema';
 import type { TreeRows } from '../domain/change-log';
+import { mediaLinkId } from '../../shared/media';
 
 /** A small deterministic generator, so the draws are the same on every run. */
 export function seededRandom(seed: number): () => number {
@@ -143,13 +145,17 @@ export async function addEvidence(
 	for (let i = 0; i < 12; i++) {
 		const owner =
 			i % 4 === 0 && rows.unions.length > 0 ? pick(rows.unions) : pick(rows.individuals);
+		const mediaId = `${prefix}-media-${i}`;
 		await db.insert(mediaItems).values({
-			id: `${prefix}-media-${i}`,
+			id: mediaId,
 			treeId,
-			entityId: i % 6 === 5 ? null : owner.id,
 			r2ObjectKey: `media/${treeId}/${i}.png`,
 			mimeType: 'image/png',
 			version: 1
 		});
+		if (i % 6 !== 5)
+			await db
+				.insert(mediaLinks)
+				.values({ id: mediaLinkId(mediaId, owner.id), treeId, mediaId, entityId: owner.id });
 	}
 }

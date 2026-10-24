@@ -54,10 +54,13 @@ function peopleOf(
 			const row = (op.after ?? op.before)!;
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
 		}
-		case 'media_items': {
+		case 'media_items':
+			// A file row on its own (a rename) is about no person; its links say whose it is.
+			return [];
+		case 'media_links': {
+			// A link to a partnership touches its partners.
 			const row = (op.after ?? op.before)!;
-			// A detached file touches no person; a file of a partnership touches its partners.
-			return row.entityId === null ? [] : fileOwnerPeople(row.entityId);
+			return fileOwnerPeople(row.entityId);
 		}
 		case 'citations':
 		case 'note_attachments': {

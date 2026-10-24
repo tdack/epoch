@@ -14,7 +14,7 @@
  */
 
 import { isPersonPrivate, type LivingFact } from './living-state';
-import type { IndividualRow, RowOp, TreeRows } from './change-log';
+import type { IndividualRow, MediaLinkRow, RowOp, TreeRows } from './change-log';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import { NotFoundError } from './errors';
@@ -208,18 +208,36 @@ export function maskRows(
 	// A file on a source is as visible as the source (ADR-028), whether or not anyone is private.
 	const knownSources = new Set(rows.sources.map((s) => s.id));
 	const keptSources = new Set(visible.sources.map((s) => s.id));
-	const isSourceFileKept = (m: { entityId: string | null }) =>
-		m.entityId === null || !knownSources.has(m.entityId) || keptSources.has(m.entityId);
+	const linksOfFile = new Map<string, MediaLinkRow[]>();
+	for (const link of rows.mediaLinks)
+		linksOfFile.set(link.mediaId, [...(linksOfFile.get(link.mediaId) ?? []), link]);
+	// A file is seen only when every record it is linked to is (ADR-050). A file with no link is
+	// editor-only, which `hasOwner` asks for; nobody being private does not make it public.
+	const isFileKept = (m: { id: string }, hasOwner: boolean) => {
+		const links = linksOfFile.get(m.id) ?? [];
+		if (links.length === 0) return !hasOwner;
+		return links.every(
+			(l) =>
+				!hidden.has(l.entityId) &&
+				!unionsWithHiddenPartner.has(l.entityId) &&
+				(!knownSources.has(l.entityId) || keptSources.has(l.entityId))
+		);
+	};
+	const filesOf = (hasOwner: boolean) => {
+		const mediaItems = rows.mediaItems.filter((m) => isFileKept(m, hasOwner));
+		const keptIds = new Set(mediaItems.map((m) => m.id));
+		return { mediaItems, mediaLinks: rows.mediaLinks.filter((l) => keptIds.has(l.mediaId)) };
+	};
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
-		const sourceMedia = rows.mediaItems.filter(isSourceFileKept);
+		const files = filesOf(false);
 		const isEvidenceWhole =
-			sourceMedia.length === rows.mediaItems.length &&
+			files.mediaItems.length === rows.mediaItems.length &&
 			(Object.keys(evidence) as Array<keyof typeof evidence>).every(
 				(key) => evidence[key].length === rows[key].length
 			);
 		return {
-			rows: isEvidenceWhole ? rows : { ...rows, ...evidence, mediaItems: sourceMedia },
+			rows: isEvidenceWhole ? rows : { ...rows, ...evidence, ...files },
 			placeholderIds: new Set()
 		};
 	}
@@ -231,9 +249,7 @@ export function maskRows(
 	const personNames = rows.personNames.filter((n) => !hidden.has(n.personId));
 	// Media of a private person is theirs; the window never carries media, but a reader that does must not show it.
 	// A detached file has no owner to be private with, so a restricted viewer does not see it either.
-	const mediaItems = rows.mediaItems.filter(
-		(m) => m.entityId !== null && !hidden.has(m.entityId) && isSourceFileKept(m)
-	);
+	const files = filesOf(true);
 
 	if (shouldShowStructure) {
 		return {
@@ -242,7 +258,7 @@ export function maskRows(
 				individuals: rows.individuals.map((i) => (hidden.has(i.id) ? placeholderOf(i) : i)),
 				personNames,
 				events,
-				mediaItems,
+				...files,
 				...evidence
 			},
 			placeholderIds: hidden
@@ -266,7 +282,7 @@ export function maskRows(
 				.filter((l) => !hidden.has(l.parentId) && !hidden.has(l.childId))
 				.map((l) => (l.unionId && !keptUnions.has(l.unionId) ? { ...l, unionId: null } : l)),
 			events: events.filter((e) => e.entityType === 'INDIVIDUAL' || keptUnions.has(e.entityId)),
-			mediaItems,
+			...files,
 			...evidence
 		},
 		placeholderIds: new Set()
@@ -330,7 +346,7 @@ export function opsTouchPrivate(
 	// An unowned file is editor-only whether or not anyone is private, so a snapshot that happens to
 	// hold no private person must answer as the whole tree does. Only that one rule survives an
 	// empty `hidden`, which keeps the early return cheap for every other op.
-	if (hidden.size === 0 && !ops.some(touchesUnownedFile)) return false;
+	if (hidden.size === 0 && !ops.some((op) => touchesUnownedFile(op, rows))) return false;
 	const hiddenUnions = new Set(
 		rows.unionPartners.filter((p) => hidden.has(p.personId)).map((p) => p.unionId)
 	);
@@ -346,12 +362,21 @@ export function opsTouchPrivate(
 		notes: new Set(rows.notes.filter((n) => !keptNotes.has(n.id)).map((n) => n.id))
 	};
 	return ops.some((op) =>
-		touchesHidden(op, hidden, hiddenUnions, hiddenKeys, hiddenCitations, hiddenRecords)
+		touchesHidden(
+			op,
+			hidden,
+			hiddenUnions,
+			hiddenKeys,
+			hiddenCitations,
+			hiddenRecords,
+			rows.mediaLinks
+		)
 	);
 }
 
-function touchesUnownedFile(op: RowOp): boolean {
-	return op.table === 'media_items' && [op.before, op.after].some((r) => r !== null && !r.entityId);
+/** A file row with no link in the snapshot is unowned, so an op on it is editor-only. */
+function touchesUnownedFile(op: RowOp, rows: TreeRows): boolean {
+	return op.table === 'media_items' && !rows.mediaLinks.some((l) => l.mediaId === op.id);
 }
 
 function touchesHidden(
@@ -360,7 +385,8 @@ function touchesHidden(
 	hiddenUnions: Set<string>,
 	hiddenKeys: Set<string>,
 	hiddenCitations: Set<string>,
-	hiddenRecords: { sources: Set<string>; notes: Set<string> }
+	hiddenRecords: { sources: Set<string>; notes: Set<string> },
+	fileLinks: readonly MediaLinkRow[]
 ): boolean {
 	// Either image may carry the link to a hidden record, so a row hidden before or after hides the op.
 	const some = <R>(before: R | null, after: R | null, isHidden: (row: R) => boolean) =>
@@ -389,8 +415,26 @@ function touchesHidden(
 				r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId) : hiddenUnions.has(r.entityId)
 			);
 		case 'media_items':
-			// A detached file is editor-only, so an op on it is one a restricted viewer must not see.
-			return some(op.before, op.after, (r) => !r.entityId || hidden.has(r.entityId));
+			// A file linked to a hidden record is theirs too; a file with no link is editor-only.
+			return (
+				!fileLinks.some((l) => l.mediaId === op.id) ||
+				fileLinks.some(
+					(l) =>
+						l.mediaId === op.id &&
+						(hidden.has(l.entityId) ||
+							hiddenUnions.has(l.entityId) ||
+							hiddenRecords.sources.has(l.entityId))
+				)
+			);
+		case 'media_links':
+			return some(
+				op.before,
+				op.after,
+				(r) =>
+					hidden.has(r.entityId) ||
+					hiddenUnions.has(r.entityId) ||
+					hiddenRecords.sources.has(r.entityId)
+			);
 		case 'citations':
 			return some(op.before, op.after, (r) => hiddenKeys.has(`${r.subjectKind}|${r.subjectId}`));
 		case 'note_attachments':

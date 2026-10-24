@@ -3,17 +3,14 @@
 	import { isConflict } from '#lib/api/client.js';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import {
-		ArrowRightLeft,
 		Download,
 		Eye,
 		FileText,
 		Image as ImageIcon,
-		Link,
 		Pencil,
 		Plus,
 		Search,
 		Trash2,
-		Unlink,
 		Upload,
 		X
 	} from '@lucide/svelte';
@@ -22,14 +19,11 @@
 	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import {
-		attachFileApi,
 		deleteFileApi,
 		deleteUnlinkedFilesApi,
-		detachFileApi,
 		fetchFiles,
 		fetchFileUsage,
 		fetchUnlinkedFiles,
-		moveFileApi,
 		renameFileApi,
 		uploadMediaApi
 	} from '#lib/api/files.js';
@@ -47,7 +41,7 @@
 	const { toasts } = getTreeContext();
 	const treeId = $derived(data.summary.tree.id);
 	const role = $derived(data.trees.find((t) => t.id === treeId)?.role);
-	/** Uploads, renames and moves are offered to editors and up; the server checks each one again. */
+	/** Uploads, and renames are offered to editors and up; the server checks each one again. */
 	const canEdit = $derived(canChangeRecords(role));
 	/** Clearing stored files with no record is a manager's job. */
 	const canManage = $derived(isManagerOrAbove(role));
@@ -68,14 +62,14 @@
 	let unlinked = $state<UnlinkedListDto | null>(null);
 	let isCheckingUnlinked = $state(false);
 
-	type Dialog = 'upload' | 'rename' | 'attach' | 'move' | 'delete' | 'preview' | 'unlinked' | null;
+	type Dialog = 'upload' | 'rename' | 'delete' | 'preview' | 'unlinked' | null;
 	let dialog = $state<Dialog>(null);
 	let target = $state<FileRowDto | null>(null);
 	let isBusy = $state(false);
 	let dialogError = $state<string | null>(null);
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
-	/** The person or source the upload, attach and move dialogs have chosen. */
+	/** The person or source the upload dialog has chosen. */
 	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
 	const actionClass =
@@ -215,35 +209,10 @@
 		);
 	}
 
-	const attachTo = () => {
-		const file = target!;
-		const owner = chosenOwner;
-		if (!owner) return;
-		void run(() => attachFileApi(file.id, file.treeId, owner.id, file.version), 'File attached');
-	};
-
-	const moveTo = () => {
-		const file = target!;
-		const owner = chosenOwner;
-		if (!owner) return;
-		void run(() => moveFileApi(file.id, file.treeId, owner.id, file.version), 'File moved');
-	};
-
 	const removeFile = () => {
 		const file = target!;
 		void run(() => deleteFileApi(file.id, file.treeId), 'File deleted');
 	};
-
-	async function detach(file: FileRowDto) {
-		try {
-			await detachFileApi(file.id, file.treeId, file.version);
-			toasts.push('File detached');
-			await reload();
-		} catch (cause) {
-			if (isConflict(cause)) return handleStale(cause.message);
-			toasts.push(messageOf(cause, 'Could not detach the file'), { tone: 'error' });
-		}
-	}
 
 	async function checkUnlinked() {
 		isCheckingUnlinked = true;
@@ -395,7 +364,9 @@
 					<td class="px-3 py-2 text-right text-stone-600 tabular-nums"
 						>{formatMediaSize(file.sizeBytes)}</td
 					>
-					<td class="px-3 py-2 text-stone-600">{file.attachedTo ?? 'Not attached'}</td>
+					<td class="px-3 py-2 text-stone-600"
+						>{file.links.length > 0 ? file.links.map((l) => l.label).join(', ') : 'Not linked'}</td
+					>
 					{#if hasUploader}
 						<td class="px-3 py-2 text-stone-600">{file.uploadedBy ?? '—'}</td>
 					{/if}
@@ -423,39 +394,6 @@
 								>
 									<Pencil class="h-3.5 w-3.5" aria-hidden="true" />
 									<span class="sr-only">{'Rename '}{file.title ?? 'file'}</span>
-								</button>
-							{/if}
-							{#if file.canAttach}
-								<button
-									type="button"
-									class={actionClass}
-									onclick={() => openDialog('attach', file)}
-									title="Attach to a person or source"
-								>
-									<Link class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Attach '}{file.title ?? 'file'}</span>
-								</button>
-							{/if}
-							{#if file.canMove}
-								<button
-									type="button"
-									class={actionClass}
-									onclick={() => openDialog('move', file)}
-									title="Move to another person or source"
-								>
-									<ArrowRightLeft class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Move '}{file.title ?? 'file'}</span>
-								</button>
-							{/if}
-							{#if file.canDetach}
-								<button
-									type="button"
-									class={actionClass}
-									onclick={() => detach(file)}
-									title="Unlink from its owner"
-								>
-									<Unlink class="h-3.5 w-3.5" aria-hidden="true" />
-									<span class="sr-only">{'Detach '}{file.title ?? 'file'}</span>
 								</button>
 							{/if}
 							{#if file.canDelete}
@@ -639,47 +577,6 @@
 			<button type="submit" disabled={isBusy} class="btn-primary-sm">Save name</button>
 		</div>
 	</form>
-</BaseModal>
-
-<BaseModal
-	isOpen={dialog === 'attach' || dialog === 'move'}
-	title={dialog === 'move' ? 'Move file' : 'Attach file'}
-	icon={dialog === 'move' ? ArrowRightLeft : Link}
-	error={dialogError}
-	onclose={closeDialog}
->
-	<div class="space-y-4">
-		<p class="text-xs text-stone-600">
-			{dialog === 'move' ? 'Move' : 'Attach'}
-			<span class="font-semibold">{target?.title ?? 'this file'}</span>
-			to {canPickSource ? 'a person or a source' : 'a person'} in {target?.treeName ?? 'this tree'}.
-		</p>
-		{#if target}
-			{#key `${dialog}-${target.id}`}
-				<FileOwnerPicker
-					treeId={target.treeId}
-					idPrefix="files-owner"
-					{canPickSource}
-					bind:picked={chosenOwner}
-				/>
-			{/key}
-		{/if}
-		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
-			<button
-				type="button"
-				onclick={closeDialog}
-				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
-			>
-			<button
-				type="button"
-				disabled={isBusy || !chosenOwner}
-				onclick={dialog === 'move' ? moveTo : attachTo}
-				class="btn-primary-sm"
-			>
-				{dialog === 'move' ? 'Move here' : 'Attach'}
-			</button>
-		</div>
-	</div>
 </BaseModal>
 
 <BaseModal

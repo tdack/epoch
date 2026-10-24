@@ -76,6 +76,9 @@ export interface ChangeResponse {
 	change: ChangeSummary | null;
 }
 
+/** `POST /api/files/[id]/links` and `DELETE /api/files/[id]/links/[entityId]` */
+export type FileLinkResponse = ChangeResponse;
+
 /** `POST /api/trees/[id]/people` and `PUT /api/trees/[id]/people/[personId]` */
 export interface PersonWriteResponse extends ChangeResponse {
 	individual: { id: string };

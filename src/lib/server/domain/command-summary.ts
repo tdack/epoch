@@ -112,7 +112,7 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Edited the source ${sourceName(rows, command.sourceId)}`;
 		case 'delete_source': {
 			const count = rows.citations.filter((c) => c.sourceId === command.sourceId).length;
-			const files = rows.mediaItems.filter((m) => m.entityId === command.sourceId).length;
+			const files = rows.mediaLinks.filter((l) => l.entityId === command.sourceId).length;
 			const kept =
 				files > 0 ? `; its ${files === 1 ? 'file is' : `${files} files are`} kept, detached` : '';
 			return `Deleted the source ${sourceName(rows, command.sourceId)}${count > 0 ? ` and its ${count} ${count === 1 ? 'citation' : 'citations'}` : ''}${kept}`;
@@ -177,7 +177,8 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			return `Merged ${command.mergedIds.length + 1} shared notes into ${sharedNoteLabel(rows, command.survivorId)}`;
 		case 'rename_media':
 			return `Renamed the file “${command.title.trim().slice(0, 60)}”`;
-		case 'attach_media': {
+		case 'link_media':
+		case 'unlink_media': {
 			const file = rows.mediaItems.find((m) => m.id === command.mediaId);
 			const name = `“${(file?.title ?? 'a file').slice(0, 60)}”`;
 			const target = rows.individuals.some((p) => p.id === command.entityId)
@@ -185,13 +186,9 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 				: rows.sources.some((s) => s.id === command.entityId)
 					? `the source ${sourceName(rows, command.entityId)}`
 					: partnershipOf(rows, command.entityId);
-			if (file?.entityId && file.entityId !== command.entityId)
-				return `Moved the file ${name} to ${target}`;
-			return `Attached the file ${name} to ${target}`;
-		}
-		case 'detach_media': {
-			const file = rows.mediaItems.find((m) => m.id === command.mediaId);
-			return `Detached the file “${(file?.title ?? 'a file').slice(0, 60)}”`;
+			return command.kind === 'link_media'
+				? `Linked the file ${name} to ${target}`
+				: `Unlinked the file ${name} from ${target}`;
 		}
 		case 'create_task':
 			return `Added the task “${command.task.title.trim().slice(0, 60)}”`;

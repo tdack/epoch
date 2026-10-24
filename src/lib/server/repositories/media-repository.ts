@@ -1,15 +1,16 @@
 /**
  * Media metadata. The bytes are in R2 under `media/<treeId>/<mediaId>.<ext>` (or the legacy
- * `media/<treeId>/<entityId>/<file>`); who a file belongs to is `media_items.entity_id`, never the key.
+ * `media/<treeId>/<entityId>/<file>`); who a file belongs to is its `media_links` rows, never the key.
  */
 
 import { chunkIds } from './param-chunks';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import {
 	individuals,
 	mediaItems,
+	mediaLinks,
 	personNames,
 	sources,
 	unionPartners,
@@ -18,6 +19,7 @@ import {
 } from '../db/schema';
 import { displayNameWith } from '../../shared/name-types';
 import { sourceLabel } from '../../shared/evidence';
+import { mediaLinkId } from '../../shared/media';
 
 export type MediaOwnerKind = 'person' | 'union' | 'source';
 
@@ -51,7 +53,7 @@ export class MediaRepository {
 		treeId?: string;
 		/** Only files hanging off this record. */
 		entityId?: string;
-		/** Only files with no owner. */
+		/** Only files linked to nothing. */
 		isDetachedOnly?: boolean;
 		after?: FileCursor;
 		limit: number;
@@ -59,8 +61,12 @@ export class MediaRepository {
 		const createdKey = sql`coalesce(${mediaItems.createdAt}, 0)`;
 		const conditions = [
 			options.treeId === undefined ? undefined : eq(mediaItems.treeId, options.treeId),
-			options.entityId === undefined ? undefined : eq(mediaItems.entityId, options.entityId),
-			options.isDetachedOnly === true ? isNull(mediaItems.entityId) : undefined,
+			options.entityId === undefined
+				? undefined
+				: sql`exists (select 1 from media_links l where l.media_id = ${mediaItems.id} and l.entity_id = ${options.entityId})`,
+			options.isDetachedOnly === true
+				? sql`not exists (select 1 from media_links l where l.media_id = ${mediaItems.id})`
+				: undefined,
 			options.after === undefined
 				? undefined
 				: sql`(${createdKey}, ${mediaItems.id}) < (${options.after.createdAt}, ${options.after.id})`
@@ -101,6 +107,22 @@ export class MediaRepository {
 			for (const row of library) kinds.set(row.id, 'source');
 		}
 		return kinds;
+	}
+
+	/** The records each of these files is linked to, keyed by media id; a file with no link is absent. */
+	async linksOf(treeId: string, mediaIds: readonly string[]): Promise<Map<string, string[]>> {
+		const links = new Map<string, string[]>();
+		for (const part of chunkIds([...new Set(mediaIds)])) {
+			const rows = await this.db
+				.select({ mediaId: mediaLinks.mediaId, entityId: mediaLinks.entityId })
+				.from(mediaLinks)
+				.where(and(eq(mediaLinks.treeId, treeId), inArray(mediaLinks.mediaId, part)))
+				.orderBy(sql`${mediaLinks}.rowid`)
+				.all();
+			for (const row of rows)
+				links.set(row.mediaId, [...(links.get(row.mediaId) ?? []), row.entityId]);
+		}
+		return links;
 	}
 
 	/** The partners of each partnership, in partner order, for the partnerships that have any. */
@@ -146,12 +168,12 @@ export class MediaRepository {
 		const counts = new Map<string, number>();
 		for (const part of chunkIds([...new Set(entityIds)])) {
 			const rows = await this.db
-				.select({ entityId: mediaItems.entityId, n: count() })
-				.from(mediaItems)
-				.where(and(eq(mediaItems.treeId, treeId), inArray(mediaItems.entityId, part)))
-				.groupBy(mediaItems.entityId)
+				.select({ entityId: mediaLinks.entityId, n: count() })
+				.from(mediaLinks)
+				.where(and(eq(mediaLinks.treeId, treeId), inArray(mediaLinks.entityId, part)))
+				.groupBy(mediaLinks.entityId)
 				.all();
-			for (const row of rows) if (row.entityId !== null) counts.set(row.entityId, row.n);
+			for (const row of rows) counts.set(row.entityId, row.n);
 		}
 		return counts;
 	}
@@ -204,19 +226,31 @@ export class MediaRepository {
 		return rows.map((r) => r.person_id);
 	}
 
+	/** The file and its first link in one batch, so an upload is never a file nobody can reach. */
 	async insert(treeId: string, entityId: string, media: StoredMedia): Promise<void> {
-		await this.db.insert(mediaItems).values({
-			id: media.id,
-			treeId,
-			entityId,
-			r2ObjectKey: media.objectKey,
-			title: media.title,
-			mimeType: media.mimeType,
-			sizeBytes: media.sizeBytes,
-			uploadedBy: media.uploadedBy,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		});
+		const now = new Date();
+		await this.db.batch([
+			this.db.insert(mediaItems).values({
+				id: media.id,
+				treeId,
+				// Still written so a rollback to code that reads it keeps working; never read here.
+				entityId,
+				r2ObjectKey: media.objectKey,
+				title: media.title,
+				mimeType: media.mimeType,
+				sizeBytes: media.sizeBytes,
+				uploadedBy: media.uploadedBy,
+				createdAt: now,
+				updatedAt: now
+			}),
+			this.db.insert(mediaLinks).values({
+				id: mediaLinkId(media.id, entityId),
+				treeId,
+				mediaId: media.id,
+				entityId,
+				createdAt: now
+			})
+		]);
 	}
 
 	/**
@@ -243,14 +277,19 @@ export class MediaRepository {
 		const rows = await this.db
 			.select({ id: mediaItems.id, uploadedBy: mediaItems.uploadedBy })
 			.from(mediaItems)
-			.where(and(eq(mediaItems.treeId, treeId), eq(mediaItems.entityId, entityId)))
+			.innerJoin(mediaLinks, eq(mediaLinks.mediaId, mediaItems.id))
+			.where(and(eq(mediaItems.treeId, treeId), eq(mediaLinks.entityId, entityId)))
 			.all();
 		return new Map(rows.map((row) => [row.id, row.uploadedBy]));
 	}
 
 	/** Removes the row. The object is removed separately, after this, so a failure leaves an orphan the cleanup finds rather than a row that points at nothing. */
 	async deleteRow(mediaId: string): Promise<void> {
-		await this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId));
+		// Links first, in the same batch: the cascade would do it, but a delete should not rest on it.
+		await this.db.batch([
+			this.db.delete(mediaLinks).where(eq(mediaLinks.mediaId, mediaId)),
+			this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId))
+		]);
 	}
 
 	/** Every object key a file row in the tree points at. */

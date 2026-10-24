@@ -4,19 +4,29 @@
  * reason to trust the client, since every write checks again.
  */
 
+/** A record a file is linked to. A file is visible to a restricted viewer only when all of them are. */
+export interface FileLinkDto {
+	entityId: string;
+	kind: 'person' | 'union' | 'source';
+	/** The person's name, the partners' names, or the source's title. */
+	label: string;
+	/** The record's page. */
+	href: string;
+}
+
 /** One file as the caller may see it. */
 export interface FileRowDto {
 	id: string;
 	title: string | null;
-	/** The row's version, sent back on rename, attach, detach and move so a stale edit is refused. */
+	/** The row's version, sent back on rename, link and unlink so a stale edit is refused. */
 	version: number;
 	mimeType: string;
 	/** Null for a file stored before sizes were recorded, until the size backfill has run. */
 	sizeBytes: number | null;
 	treeId: string;
 	treeName: string;
-	/** The person or partnership the file hangs off, or null when it is detached or hidden from the caller. */
-	attachedTo: string | null;
+	/** Every record the file is linked to; empty when it is detached or the caller has no role in the tree. */
+	links: FileLinkDto[];
 	/** Who uploaded it, shown to managers and owners only; null for everyone else and for unknown uploaders. */
 	uploadedBy: string | null;
 	/** Epoch milliseconds, or null for a row with no recorded time. */
@@ -28,9 +38,8 @@ export interface FileRowDto {
 	previewKey: string | null;
 	canPreview: boolean;
 	canRename: boolean;
-	canAttach: boolean;
-	canDetach: boolean;
-	canMove: boolean;
+	/** Link the file to a record or unlink it (`media:manage`). */
+	canLink: boolean;
 	canDelete: boolean;
 }
 

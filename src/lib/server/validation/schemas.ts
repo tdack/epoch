@@ -766,14 +766,18 @@ export const fileRenameSchema = z.object({
 	version: versionSchema.optional()
 });
 
-/** An attach, or a move: the tree, the record to attach the file to, and the version read. */
-export const fileAttachSchema = z.object({
+/** A link: the tree, the record to link the file to, and the version read. */
+export const fileLinkSchema = z.object({
 	treeId: idSchema,
 	entityId: idSchema,
 	version: versionSchema.optional()
 });
 
-export const fileDetachSchema = z.object({ treeId: idSchema, version: versionSchema.optional() });
+/** An unlink names its tree and the version read in the query: DELETE carries no body. */
+export const fileUnlinkQuerySchema = z.object({
+	treeId: idSchema,
+	version: z.coerce.number().int().nonnegative().optional()
+});
 
 /** A delete names its tree in the query: DELETE carries no body. */
 export const fileDeleteQuerySchema = z.object({ treeId: idSchema });

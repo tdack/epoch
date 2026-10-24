@@ -2,7 +2,7 @@
 	import { FileText, Link2, Unlink, Upload } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { attachFileApi, detachFileApi, fetchFiles, uploadMediaApi } from '#lib/api/files.js';
+	import { linkFileApi, unlinkFileApi, fetchFiles, uploadMediaApi } from '#lib/api/files.js';
 	import type { FileRowDto } from '#lib/shared/files.js';
 	import {
 		formatMediaSize,
@@ -57,7 +57,7 @@
 		pickerError = null;
 		try {
 			const page = await fetchFiles({ treeId, isDetachedOnly: true, limit: 100 });
-			detached = page.files.filter((file) => file.canAttach);
+			detached = page.files.filter((file) => file.canLink);
 		} catch (cause) {
 			pickerError = messageOf(cause, 'Could not list the unattached files');
 			detached = [];
@@ -67,7 +67,7 @@
 	}
 
 	async function attach(file: FileRowDto) {
-		const isDone = await editor.mutate(() => attachFileApi(file.id, treeId, sourceId, undefined), {
+		const isDone = await editor.mutate(() => linkFileApi(file.id, treeId, sourceId, undefined), {
 			done: 'File attached to the source',
 			failure: 'Could not attach the file'
 		});
@@ -75,7 +75,7 @@
 	}
 
 	async function detach(file: FileRowDto) {
-		await editor.mutate(() => detachFileApi(file.id, treeId, undefined), {
+		await editor.mutate(() => unlinkFileApi(file.id, treeId, sourceId, undefined), {
 			done: 'File detached from the source',
 			failure: 'Could not detach the file'
 		});
@@ -181,7 +181,7 @@
 					<span class="truncate text-xs font-medium text-stone-800" title={nameOf(file)}
 						>{nameOf(file)}</span
 					>
-					{#if file.canDetach}
+					{#if file.canLink}
 						<button
 							type="button"
 							class="row-link inline-flex items-center gap-1 self-start text-xs"

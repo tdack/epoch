@@ -23,6 +23,7 @@ import {
 	events,
 	individuals,
 	mediaItems,
+	mediaLinks,
 	parentChild,
 	personNames,
 	unionPartners,
@@ -32,6 +33,7 @@ import {
 import type {
 	EventRow,
 	IndividualRow,
+	MediaLinkRow,
 	MediaRow,
 	ParentChildRow,
 	PersonNameRow,
@@ -244,12 +246,47 @@ export class GraphWindowRepository {
 		);
 	}
 
+	/** The files linked to any of these records, each once however many of them it is linked to. */
 	mediaOf(treeId: string, entityIds: readonly string[]): Read<Array<Ranked<MediaRow>>> {
 		return this.readIn(mediaItems, entityIds, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(mediaItems), rid: sql<number>`${mediaItems}.rowid` })
 				.from(mediaItems)
-				.where(and(inTree(mediaItems.treeId, treeId), inArray(mediaItems.entityId, chunk)))
+				.where(
+					and(
+						inTree(mediaItems.treeId, treeId),
+						inArray(
+							mediaItems.id,
+							this.db
+								.select({ id: mediaLinks.mediaId })
+								.from(mediaLinks)
+								.where(and(inTree(mediaLinks.treeId, treeId), inArray(mediaLinks.entityId, chunk)))
+						)
+					)
+				)
+		);
+	}
+
+	/** The link rows of these records. */
+	mediaLinksOf(treeId: string, entityIds: readonly string[]): Read<Array<Ranked<MediaLinkRow>>> {
+		return this.readIn(mediaLinks, entityIds, (chunk) =>
+			this.db
+				.select({ ...getTableColumns(mediaLinks), rid: sql<number>`${mediaLinks}.rowid` })
+				.from(mediaLinks)
+				.where(and(inTree(mediaLinks.treeId, treeId), inArray(mediaLinks.entityId, chunk)))
+		);
+	}
+
+	/** Every link row of these files, to whatever record. */
+	mediaLinksOfMedia(
+		treeId: string,
+		mediaIds: readonly string[]
+	): Read<Array<Ranked<MediaLinkRow>>> {
+		return this.readIn(mediaLinks, mediaIds, (chunk) =>
+			this.db
+				.select({ ...getTableColumns(mediaLinks), rid: sql<number>`${mediaLinks}.rowid` })
+				.from(mediaLinks)
+				.where(and(inTree(mediaLinks.treeId, treeId), inArray(mediaLinks.mediaId, chunk)))
 		);
 	}
 
@@ -444,6 +481,8 @@ export class GraphWindowRepository {
 			'union events': only(this.eventsOf(treeId, 'FAMILY', sample.unionIds)),
 			'names of people': only(this.namesOf(treeId, sample.personIds)),
 			'media of people': only(this.mediaOf(treeId, sample.personIds)),
+			'media links of people': only(this.mediaLinksOf(treeId, sample.personIds)),
+			'media links of media': only(this.mediaLinksOfMedia(treeId, sample.personIds)),
 			'changes touching records': this.changeHistoryQuery(treeId, sample.personIds, 15),
 			'person ids in order': this.personIdsAfterQuery(treeId, 0, 3),
 			'first person': this.firstPersonQuery(treeId),

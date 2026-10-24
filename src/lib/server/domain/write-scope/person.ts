@@ -42,13 +42,13 @@ export const PERSON_COMMAND_SCOPES: ScopeTable = {
 };
 
 /**
- * A file's owner is loaded through it; the target of an attach is a person, a union or a source. A
- * seeded source also brings its files, which is how `delete_source` finds the ones to detach.
+ * A file brings its links; the target of a link is a person, a union or a source. A seeded record
+ * also brings the links to it, which is how a delete or merge finds the ones to remove or move.
  */
 export const MEDIA_SCOPES: ScopeTable = {
 	rename_media: (c) => seedOf({ media: [c.mediaId] }),
-	detach_media: (c) => seedOf({ media: [c.mediaId] }),
-	attach_media: (c) =>
+	unlink_media: (c) => seedOf({ media: [c.mediaId] }),
+	link_media: (c) =>
 		seedOf({
 			media: [c.mediaId],
 			people: [c.entityId],

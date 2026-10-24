@@ -32,6 +32,7 @@ import {
 import { factTypeInfo } from '../../shared/fact-types';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { makeEvidenceMover } from './evidence-ops';
+import { relinkFiles } from './op-helpers';
 import { subtreeRepointOps } from './subtree-ops';
 import {
 	MAX_PERSON_MERGE_OPS,
@@ -371,15 +372,7 @@ export function buildPersonMergeOps(
 	);
 
 	// ---- Media ----
-	for (const item of rows.mediaItems.filter((m) => m.entityId === merged.id)) {
-		ops.push({
-			table: 'media_items',
-			id: item.id,
-			before: item,
-			// A file's version is its concurrency guard, so a stale editor must conflict after the move.
-			after: touch({ ...item, entityId: survivor.id }, ctx)
-		});
-	}
+	ops.push(...relinkFiles(rows, ctx, new Set([merged.id]), survivor.id));
 
 	// ---- Sub-trees rooted at the person folded away follow the survivor ----
 	ops.push(...subtreeRepointOps(rows, merged.id, survivor.id, ctx));

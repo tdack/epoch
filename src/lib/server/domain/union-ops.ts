@@ -23,7 +23,8 @@ import {
 	bump,
 	cleanText,
 	createEvent,
-	detachFilesOf,
+	relinkFiles,
+	unlinkFilesOf,
 	eventsOf,
 	partnerIdsOf,
 	requirePerson,
@@ -319,7 +320,7 @@ function destroyUnion(
 	eventsOf(rows, 'FAMILY', union.id).forEach((e) =>
 		ops.push({ table: 'events', id: e.id, before: e, after: null })
 	);
-	ops.push(...detachFilesOf(rows, ctx, new Set([union.id])));
+	ops.push(...unlinkFilesOf(rows, new Set([union.id])));
 	// Parentage is a fact about the parent and child, not about the partnership, so the links stay
 	// and only lose their grouping. Deleting them would erase who someone's parents were.
 	for (const link of rows.parentChild.filter((l) => l.unionId === union.id)) {
@@ -558,15 +559,7 @@ function mergeUnions(
 	}
 
 	// A file of a merged partnership is the survivor's now, as it would be if it had been theirs.
-	for (const media of rows.mediaItems) {
-		if (media.entityId === null || !mergedSet.has(media.entityId)) continue;
-		ops.push({
-			table: 'media_items',
-			id: media.id,
-			before: media,
-			after: touch({ ...media, entityId: survivor.id }, ctx)
-		});
-	}
+	ops.push(...relinkFiles(rows, ctx, mergedSet, survivor.id));
 
 	ops.push(...relinkNames(rows, ctx, mergedIds, survivor.id));
 

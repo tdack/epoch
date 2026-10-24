@@ -104,3 +104,8 @@ export function formatMediaSize(bytes: number | null): string {
 	}
 	return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
+
+/** A link's row id: one link per file and record, so a second link to the same record is the same row. */
+export function mediaLinkId(mediaId: string, entityId: string): string {
+	return `${mediaId}:${entityId}`;
+}

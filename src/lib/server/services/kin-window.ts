@@ -133,6 +133,7 @@ export async function loadKinWindow(
 			),
 			events: rowsOf<EventRow>(events),
 			mediaItems: [],
+			mediaLinks: [],
 			sources: [],
 			repositories: [],
 			sourceRepositories: [],

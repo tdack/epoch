@@ -16,7 +16,7 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 		events: [] as Array<string | null>,
 		names: [] as Array<string | null>,
 		links: [] as Array<string | null>,
-		media: [] as string[],
+		media: [] as Array<string | null>,
 		citations: [] as Array<string | null>,
 		sources: [] as Array<string | null>,
 		repositories: [] as Array<string | null>,
@@ -75,7 +75,10 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 				break;
 			case 'media_items':
 				ids.media.push(op.id);
+				break;
+			case 'media_links':
 				for (const image of [op.before, op.after]) {
+					ids.media.push(image?.mediaId ?? null);
 					ids.people.push(image?.entityId ?? null);
 					ids.unions.push(image?.entityId ?? null);
 					ids.sources.push(image?.entityId ?? null);

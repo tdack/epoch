@@ -1,5 +1,13 @@
 import type { DbClient } from '../db';
-import { individuals, unions, unionPartners, parentChild, events, mediaItems } from '../db/schema';
+import {
+	individuals,
+	unions,
+	unionPartners,
+	parentChild,
+	events,
+	mediaItems,
+	mediaLinks
+} from '../db/schema';
 import { eq, and, getTableColumns, sql } from 'drizzle-orm';
 
 /** Map a neutral parent-child type to the legacy family-wide pedigree value. */
@@ -15,27 +23,29 @@ export class GenealogyRepository {
 	constructor(private db: DbClient) {}
 
 	async getTreeData(treeId: string) {
-		const [indList, unionList, partnerList, pcList, eventList, mediaList] = await Promise.all([
-			this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
-			this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
-			// union_partners has no tree_id; unscoped, this read every tree's partners on each load.
-			this.db
-				.select(getTableColumns(unionPartners))
-				.from(unionPartners)
-				.innerJoin(unions, eq(unionPartners.unionId, unions.id))
-				.where(eq(unions.treeId, treeId))
-				.all(),
-			this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
-			// Insertion order, said outright: export writes conflicting births in it, and without it the
-			// plan picks whichever index it likes (adding `idx_event_place` once reordered them).
-			this.db
-				.select()
-				.from(events)
-				.where(eq(events.treeId, treeId))
-				.orderBy(sql`${events}.rowid`)
-				.all(),
-			this.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all()
-		]);
+		const [indList, unionList, partnerList, pcList, eventList, mediaList, linkList] =
+			await Promise.all([
+				this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
+				this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
+				// union_partners has no tree_id; unscoped, this read every tree's partners on each load.
+				this.db
+					.select(getTableColumns(unionPartners))
+					.from(unionPartners)
+					.innerJoin(unions, eq(unionPartners.unionId, unions.id))
+					.where(eq(unions.treeId, treeId))
+					.all(),
+				this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
+				// Insertion order, said outright: export writes conflicting births in it, and without it the
+				// plan picks whichever index it likes (adding `idx_event_place` once reordered them).
+				this.db
+					.select()
+					.from(events)
+					.where(eq(events.treeId, treeId))
+					.orderBy(sql`${events}.rowid`)
+					.all(),
+				this.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId)).all(),
+				this.db.select().from(mediaLinks).where(eq(mediaLinks.treeId, treeId)).all()
+			]);
 
 		const eventsByEntity: Record<string, typeof eventList> = {};
 		for (const ev of eventList) {
@@ -44,11 +54,11 @@ export class GenealogyRepository {
 		}
 
 		const mediaByEntity: Record<string, typeof mediaList> = {};
-		for (const med of mediaList) {
-			// A detached file belongs to no entity, so it is in no entity's list.
-			if (med.entityId === null) continue;
-			if (!mediaByEntity[med.entityId]) mediaByEntity[med.entityId] = [];
-			mediaByEntity[med.entityId].push(med);
+		const mediaById = new Map(mediaList.map((med) => [med.id, med]));
+		for (const link of linkList) {
+			const med = mediaById.get(link.mediaId);
+			if (!med) continue;
+			(mediaByEntity[link.entityId] ??= []).push(med);
 		}
 
 		// Ordered partners per union, projected to a binary (partner1/partner2)

@@ -23,7 +23,7 @@ import {
 	ValidationError
 } from './errors';
 import { makeNoteMover } from './note-ops';
-import { detachFilesOf } from './op-helpers';
+import { relinkFiles, unlinkFilesOf } from './op-helpers';
 import { makeTaskMover } from './task-ops';
 import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import {
@@ -286,7 +286,7 @@ function deleteSource(
 			.filter((l) => l.sourceId === source.id)
 			.map((l): RowOp => ({ table: 'source_repositories', id: l.id, before: l, after: null })),
 		// Files are kept, as they are when a person is deleted: the bytes stay and undo hangs them back.
-		...detachFilesOf(rows, ctx, new Set([source.id])),
+		...unlinkFilesOf(rows, new Set([source.id])),
 		{ table: 'sources', id: source.id, before: source, after: null }
 	];
 	return limited(ops, 'This source has too many citations to delete in one change');
@@ -326,15 +326,7 @@ function mergeSources(
 	}
 
 	// A file on a merged source is the survivor's now, so merging never leaves a file pointing at nothing.
-	for (const media of rows.mediaItems) {
-		if (media.entityId === null || !mergedSet.has(media.entityId)) continue;
-		ops.push({
-			table: 'media_items',
-			id: media.id,
-			before: media,
-			after: touch({ ...media, entityId: survivor.id }, ctx)
-		});
-	}
+	ops.push(...relinkFiles(rows, ctx, mergedSet, survivor.id));
 
 	// Notes on a source are about the source: they follow it to the survivor, in the order they had.
 	const notes = makeNoteMover(rows, ctx);

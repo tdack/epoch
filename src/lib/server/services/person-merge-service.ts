@@ -100,7 +100,7 @@ function sideOf(rows: TreeRows, personId: string): MergeSideDto {
 		children: [
 			...new Set(rows.parentChild.filter((l) => l.parentId === personId).map((l) => l.childId))
 		].map((id) => ({ id, name: nameOf(id) })),
-		mediaCount: rows.mediaItems.filter((m) => m.entityId === personId).length
+		mediaCount: rows.mediaLinks.filter((l) => l.entityId === personId).length
 	};
 }
 

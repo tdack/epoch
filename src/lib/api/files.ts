@@ -1,4 +1,4 @@
-import type { ChangeSummary } from '#lib/types/genealogy.js';
+import type { FileLinkResponse } from '#lib/shared/api-contracts.js';
 import type { FileListDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 import { ApiError, call, json, path, restartSignIn } from './client.js';
 
@@ -226,44 +226,33 @@ export async function deleteFileApi(fileId: string, treeId: string): Promise<voi
 	);
 }
 
-/** Attaches a detached file to a person or partnership in the same tree. */
-export async function attachFileApi(
+/** Links a file to a person, partnership or source in the same tree. */
+export async function linkFileApi(
 	fileId: string,
 	treeId: string,
 	entityId: string,
 	version: number | undefined
-): Promise<{ change: ChangeSummary | null }> {
+): Promise<FileLinkResponse> {
 	return call(
-		path`/api/files/${fileId}/attach`,
+		path`/api/files/${fileId}/links`,
 		json('POST', { treeId, entityId, version }),
-		'Failed to attach the file'
+		'Failed to link the file'
 	);
 }
 
-/** Detaches a file from its person or partnership; the file itself is kept. */
-export async function detachFileApi(
-	fileId: string,
-	treeId: string,
-	version: number | undefined
-): Promise<{ change: ChangeSummary | null }> {
-	return call(
-		path`/api/files/${fileId}/detach`,
-		json('POST', { treeId, version }),
-		'Failed to detach the file'
-	);
-}
-
-/** Moves an attached file to another person or a source in the same tree, as one logged change. */
-export async function moveFileApi(
+/** Unlinks a file from one record; the file itself is kept. */
+export async function unlinkFileApi(
 	fileId: string,
 	treeId: string,
 	entityId: string,
 	version: number | undefined
-): Promise<void> {
-	await call(
-		path`/api/files/${fileId}/move`,
-		json('POST', { treeId, entityId, version }),
-		'Failed to move the file'
+): Promise<FileLinkResponse> {
+	const query = new URLSearchParams({ treeId });
+	if (version !== undefined) query.set('version', String(version));
+	return call(
+		path`/api/files/${fileId}/links/${entityId}` + `?${query}`,
+		{ method: 'DELETE' },
+		'Failed to unlink the file'
 	);
 }
 

@@ -135,6 +135,7 @@ export class WindowState {
 			parentChild: inOrder(this.links),
 			events: inOrder(this.events),
 			mediaItems: [],
+			mediaLinks: [],
 			sources: [],
 			repositories: [],
 			sourceRepositories: [],

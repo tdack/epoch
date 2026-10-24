@@ -15,6 +15,7 @@ import {
 } from './change-log';
 import { dateColumnsFor } from './date-columns';
 import { ConcurrencyConflictError, NotFoundError } from './errors';
+import { mediaLinkId } from '../../shared/media';
 
 export interface OpContext {
 	treeId: string;
@@ -79,23 +80,41 @@ export function touch<T extends { version: number; updatedAt: number | null }>(
 }
 
 /**
- * Files of the given records are detached, not deleted: the bytes stay, and undo hangs each file
- * back on its record. A file that is merely detached is also never orphaned, so nothing points
- * at a record that is gone.
+ * Links of the given records are removed, not the files: the bytes stay, and undo hangs each file
+ * back on its record. A file linked to a record that survives stays on it. The media row is not
+ * bumped, so a file reached by two of these in one change (a person and their sole partnership) is
+ * never written twice against one version.
  */
-export function detachFilesOf(
+export function unlinkFilesOf(rows: TreeRows, ownerIds: ReadonlySet<string>): RowOp[] {
+	return rows.mediaLinks
+		.filter((l) => ownerIds.has(l.entityId))
+		.map((link) => ({ table: 'media_links' as const, id: link.id, before: link, after: null }));
+}
+
+/**
+ * Moves the files of `fromIds` to `toId`: each link is removed and the survivor is linked unless it
+ * already is, so a file on both sides of a merge ends with one link.
+ */
+export function relinkFiles(
 	rows: TreeRows,
-	ctx: OpContext,
-	ownerIds: ReadonlySet<string>
+	ctx: Pick<OpContext, 'now'>,
+	fromIds: ReadonlySet<string>,
+	toId: string
 ): RowOp[] {
-	return rows.mediaItems
-		.filter((m) => m.entityId !== null && ownerIds.has(m.entityId))
-		.map((media) => ({
-			table: 'media_items' as const,
-			id: media.id,
-			before: media,
-			after: touch({ ...media, entityId: null }, ctx)
-		}));
+	const ops: RowOp[] = [];
+	const linked = new Set(rows.mediaLinks.filter((l) => l.entityId === toId).map((l) => l.mediaId));
+	for (const link of rows.mediaLinks.filter((l) => fromIds.has(l.entityId))) {
+		ops.push({ table: 'media_links', id: link.id, before: link, after: null });
+		if (linked.has(link.mediaId)) continue;
+		linked.add(link.mediaId);
+		ops.push({
+			table: 'media_links',
+			id: mediaLinkId(link.mediaId, toId),
+			before: null,
+			after: { ...link, id: mediaLinkId(link.mediaId, toId), entityId: toId, createdAt: ctx.now }
+		});
+	}
+	return ops;
 }
 
 /** An op that bumps a person or union's version because something it owns changed. */

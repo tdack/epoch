@@ -8,7 +8,7 @@
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
 import { MediaRepository } from '../repositories/media-repository';
-import { canDeleteMedia } from './media-service';
+import { canDeleteMedia, readableFileIds } from './media-service';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { EventRow, IndividualRow, MediaRow, PersonNameRow } from '../domain/change-log';
 import { eventDateValue } from '../domain/date-columns';
@@ -208,7 +208,10 @@ export class PersonPageService {
 	private users: UserRepository;
 	private trees: TreeRepository;
 
-	constructor(db: DbClient, now: () => Date = () => new Date()) {
+	constructor(
+		private db: DbClient,
+		now: () => Date = () => new Date()
+	) {
 		this.now = now;
 		this.repo = new GraphWindowRepository(db);
 		this.media = new MediaRepository(db);
@@ -246,13 +249,21 @@ export class PersonPageService {
 		const { graph } = window;
 		const relatives = relativesOf(graph, personId);
 
-		const [[self], nameRows, factRows, mediaRows] = await this.repo.run(
+		const [[self], nameRows, factRows, linkedMedia] = await this.repo.run(
 			this.repo.individualsIn(treeId, [personId]),
 			this.repo.namesOf(treeId, [personId]),
 			this.repo.eventsOf(treeId, 'INDIVIDUAL', [personId]),
 			this.repo.mediaOf(treeId, [personId])
 		);
 		if (!self) throw new NotFoundError('Person', personId);
+		// A file also linked to someone the viewer cannot see is not shown on this page either.
+		const readable = await readableFileIds(
+			this.db,
+			treeId,
+			linkedMedia.map(({ row }) => row.id),
+			scope
+		);
+		const mediaRows = linkedMedia.filter(({ row }) => readable.has(row.id));
 		const uploaders = await this.media.uploadersOf(treeId, personId);
 
 		// Evidence: every citation of the person and of what they have, in one batch, then the sources

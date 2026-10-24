@@ -17,6 +17,7 @@ import { parseMediaKey } from '../media/media-key';
 import { listAllObjects, storedBytesByTree, sumStoredBytes } from '../media/stored-bytes';
 import {
 	MediaRepository,
+	type MediaOwnerKind,
 	type FileCursor,
 	type MediaItemRow,
 	type StoredMedia
@@ -26,6 +27,7 @@ import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong, visibleSourcesAmong } from '../repositories/visibility';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import type {
+	FileLinkDto,
 	FileListDto,
 	FileRowDto,
 	FileUsageDto,
@@ -41,6 +43,9 @@ import { MutationRunner, type MutationResult } from './mutation-runner';
 
 export { parseMediaKey };
 
+/** Where each kind of linked record has its page, under the tree. */
+const LINK_ROUTES = { person: 'people', union: 'unions', source: 'sources' } as const;
+
 export interface FileRenameInput {
 	treeId: string;
 	mediaId: string;
@@ -48,50 +53,132 @@ export interface FileRenameInput {
 	expectedVersion?: number;
 }
 
-export interface FileAttachInput {
+export interface FileLinkInput {
 	treeId: string;
 	mediaId: string;
-	/** The person or partnership the file is attached to. */
+	/** The person, partnership or source the file is linked to or unlinked from. */
 	entityId: string;
 	expectedVersion?: number;
 }
 
-export interface FileDetachInput {
-	treeId: string;
-	mediaId: string;
-	expectedVersion?: number;
+/**
+ * What a file is linked to, for deciding who may read it. A link to a partnership counts as its
+ * partners. `isDangling` is a link to a record that is not there, or to a partnership with no
+ * partners: nothing to check it against, so it is hidden.
+ */
+interface FileLinks {
+	people: readonly string[];
+	sources: readonly string[];
+	isDangling: boolean;
 }
 
-/**
- * What a file hangs off, for deciding who may read it: nothing (a detached file), people (a person,
- * or a partnership's partners; empty when the owner no longer exists), or a source.
- */
-type FileOwner = null | { people: readonly string[] } | { source: string };
-
-/** The records the viewer can see among a batch's owners. */
+/** The records the viewer can see among a batch's linked records. */
 interface VisibleOwners {
 	people: ReadonlySet<string>;
 	sources: ReadonlySet<string>;
 }
 
 /**
- * Whether a viewer may read a file. A file on people needs every one of them visible; a file on a
- * source is visible exactly when the source is (ADR-028's rule, held to `maskRows` by a test). Kept
- * as one function so every read path shares the rule.
+ * Whether a viewer may read a file: every record it is linked to must be visible, a person, every
+ * partner of a partnership, a source (ADR-028's rule, held to `maskRows` by a test). A file with no
+ * link is editor-only. Kept as one function so every read path shares the rule.
  */
 function canReadRow(
-	owner: FileOwner,
+	links: FileLinks,
 	scope: Pick<ViewerScope, 'isRestricted'>,
 	visible: VisibleOwners
 ): boolean {
 	if (!scope.isRestricted) return true;
-	if (owner === null) return false;
-	if ('source' in owner) return visible.sources.has(owner.source);
-	return owner.people.length > 0 && owner.people.every((id) => visible.people.has(id));
+	if (links.isDangling || (links.people.length === 0 && links.sources.length === 0)) return false;
+	return (
+		links.people.every((id) => visible.people.has(id)) &&
+		links.sources.every((id) => visible.sources.has(id))
+	);
+}
+
+/** What a batch of files is linked to, resolved to kinds and partners once for the whole batch. */
+interface ResolvedLinks {
+	kinds: ReadonlyMap<string, MediaOwnerKind>;
+	partners: ReadonlyMap<string, string[]>;
+	entityIds: string[];
+	personIds: Set<string>;
+	sourceIds: string[];
+	unionIds: string[];
+	linksOf: (mediaId: string) => FileLinks;
+	entitiesOf: (mediaId: string) => readonly string[];
+}
+
+async function resolveLinks(
+	media: MediaRepository,
+	treeId: string,
+	mediaIds: readonly string[]
+): Promise<ResolvedLinks> {
+	const byMedia = await media.linksOf(treeId, mediaIds);
+	const entityIds = [...new Set([...byMedia.values()].flat())];
+	const kinds = await media.recordKindsOf(treeId, entityIds);
+	const unionIds = entityIds.filter((id) => kinds.get(id) === 'union');
+	const sourceIds = entityIds.filter((id) => kinds.get(id) === 'source');
+	const partners = await media.partnersOf(unionIds);
+	const personIds = new Set(entityIds.filter((id) => kinds.get(id) === 'person'));
+	for (const list of partners.values()) for (const id of list) personIds.add(id);
+	return {
+		kinds,
+		partners,
+		entityIds,
+		personIds,
+		sourceIds,
+		unionIds,
+		entitiesOf: (mediaId) => byMedia.get(mediaId) ?? [],
+		linksOf: (mediaId) => {
+			const people: string[] = [];
+			const sources: string[] = [];
+			let isDangling = false;
+			for (const id of byMedia.get(mediaId) ?? []) {
+				const kind = kinds.get(id);
+				if (kind === 'person') people.push(id);
+				else if (kind === 'source') sources.push(id);
+				else if (kind === 'union') {
+					const list = partners.get(id) ?? [];
+					if (list.length === 0) isDangling = true;
+					people.push(...list);
+				} else isDangling = true;
+			}
+			return { people, sources, isDangling };
+		}
+	};
+}
+
+/** The linked records the viewer can see, for the files in `resolved`; only asked of a restricted viewer. */
+async function visibleOf(
+	db: DbClient,
+	treeId: string,
+	resolved: ResolvedLinks,
+	scope: ViewerScope
+): Promise<VisibleOwners> {
+	return {
+		people: await visibleAmong(db, treeId, [...resolved.personIds], scope),
+		sources: await visibleSourcesAmong(db, treeId, resolved.sourceIds, scope)
+	};
 }
 
 /**
- * Whether the viewer may delete a file attached to a person. A manager may delete any; an editor
+ * Which of these files the viewer may read, by the one rule in `canReadRow`. The Files list, a
+ * direct read and a person's page all go through it, so they cannot disagree.
+ */
+export async function readableFileIds(
+	db: DbClient,
+	treeId: string,
+	mediaIds: readonly string[],
+	scope: ViewerScope
+): Promise<Set<string>> {
+	if (!scope.isRestricted || mediaIds.length === 0) return new Set(mediaIds);
+	const resolved = await resolveLinks(new MediaRepository(db), treeId, mediaIds);
+	const visible = await visibleOf(db, treeId, resolved, scope);
+	return new Set(mediaIds.filter((id) => canReadRow(resolved.linksOf(id), scope, visible)));
+}
+
+/**
+ * Whether the viewer may delete a file. A manager may delete any; an editor
  * may delete the files they uploaded. A file with no recorded uploader (every file uploaded before
  * migration 0029) is a manager's to delete.
  */
@@ -114,17 +201,16 @@ interface TreeView {
 	isRestricted: boolean;
 	/** Records in the tree the caller may see; only consulted when `isRestricted`. */
 	visible: VisibleOwners;
-	/** What a file hangs off. */
-	ownerOf: (row: MediaItemRow) => FileOwner;
-	/** Names shown beside a file, keyed by the record it is attached to. */
+	resolved: ResolvedLinks;
+	/** Names shown beside a file, keyed by the record it is linked to. */
 	labels: ReadonlyMap<string, string>;
 }
 
 export interface FileQuery {
 	treeId?: string;
-	/** Only files hanging off this person, partnership or source. */
+	/** Only files linked to this person, partnership or source. */
 	entityId?: string;
-	/** Only files with no owner; the attach picker's list. */
+	/** Only files linked to nothing. */
 	isDetachedOnly?: boolean;
 	cursor?: string;
 	limit?: number;
@@ -176,20 +262,15 @@ function rightsOf(row: MediaItemRow, role: TreeRole | null, userId: string) {
 		return {
 			canPreview: false,
 			canRename: false,
-			canAttach: false,
-			canDetach: false,
-			canMove: false,
+			canLink: false,
 			canDelete: false
 		};
 	}
 	const canEdit = isActionAllowed(role, 'media:manage');
-	const isAttached = row.entityId !== null;
 	return {
 		canPreview: true,
 		canRename: canEdit,
-		canAttach: canEdit && !isAttached,
-		canDetach: canEdit && isAttached,
-		canMove: canEdit && isAttached,
+		canLink: canEdit,
 		canDelete: canDeleteMedia({ role, userId }, row.uploadedBy)
 	};
 }
@@ -197,7 +278,7 @@ function rightsOf(row: MediaItemRow, role: TreeRole | null, userId: string) {
 function fileDto(
 	row: MediaItemRow,
 	tree: CallerTree,
-	attachedTo: string | null,
+	links: FileLinkDto[],
 	uploadedBy: string | null,
 	userId: string
 ): FileRowDto {
@@ -210,7 +291,7 @@ function fileDto(
 		sizeBytes: row.sizeBytes,
 		treeId: row.treeId,
 		treeName: tree.name,
-		attachedTo,
+		links,
 		uploadedBy,
 		createdAt: row.createdAt ? row.createdAt.getTime() : null,
 		// The object key is what the serve route reads by, so it goes only to a caller who may preview.
@@ -258,32 +339,9 @@ export class MediaService {
 		);
 		const row = await this.media.findByKey(parsed.treeId, key);
 		if (!row) throw new NotFoundError('Media', key);
-		if (!scope.isRestricted) return { title: row.title };
-		const owner = await this.ownerOf(row);
-		const visible: VisibleOwners = {
-			people:
-				owner && 'people' in owner && owner.people.length > 0
-					? await visibleAmong(this.db, parsed.treeId, owner.people, scope)
-					: new Set<string>(),
-			sources:
-				owner && 'source' in owner
-					? await visibleSourcesAmong(this.db, parsed.treeId, [owner.source], scope)
-					: new Set<string>()
-		};
-		if (!canReadRow(owner, scope, visible)) throw new NotFoundError('Media', key);
+		if (!(await readableFileIds(this.db, parsed.treeId, [row.id], scope)).has(row.id))
+			throw new NotFoundError('Media', key);
 		return { title: row.title };
-	}
-
-	/** What a file hangs off: nothing when detached, no people when its owner is gone. */
-	private async ownerOf(row: MediaItemRow): Promise<FileOwner> {
-		if (row.entityId === null) return null;
-		const owner = await this.media.ownerOf(row.treeId, row.entityId);
-		if (!owner) return { people: [] };
-		if (owner.kind === 'source') return { source: owner.id };
-		return {
-			people:
-				owner.kind === 'person' ? [owner.id] : await this.media.partnerIds(row.treeId, owner.id)
-		};
 	}
 
 	/** Throws unless the caller may add media to this record of this tree. */
@@ -331,7 +389,7 @@ export class MediaService {
 	/**
 	 * Whether each file may be seen, and what the caller may do with it, for one batch of rows. The
 	 * visibility answer comes from the same `canReadRow` `requireRead` uses, fed by the same owner
-	 * lookup (a detached file, a person, a partnership, a partnership with no partners), so the list
+	 * lookup (a detached file, people, partnerships, a partnership with no partners), so the list
 	 * and a direct read cannot disagree. Lookups are batched per tree, so a batch costs a handful of
 	 * queries however many files it holds.
 	 */
@@ -354,22 +412,33 @@ export class MediaService {
 			const tree = trees.get(row.treeId);
 			if (!tree) return null;
 			// A tree the caller is not a member of (install owner only): metadata, nothing that names a person.
-			if (tree.role === null) return fileDto(row, tree, null, null, context.user.id);
+			if (tree.role === null) return fileDto(row, tree, [], null, context.user.id);
 			const view = views.get(row.treeId);
-			if (!view || !canReadRow(view.ownerOf(row), view, view.visible)) return null;
-			const attachedTo = row.entityId === null ? null : (view.labels.get(row.entityId) ?? null);
+			if (!view || !canReadRow(view.resolved.linksOf(row.id), view, view.visible)) return null;
+			const links = view.resolved.entitiesOf(row.id).flatMap((entityId): FileLinkDto[] => {
+				const kind = view.resolved.kinds.get(entityId);
+				if (!kind) return [];
+				return [
+					{
+						entityId,
+						kind,
+						label: view.labels.get(entityId) ?? '',
+						href: `/trees/${row.treeId}/${LINK_ROUTES[kind]}/${entityId}`
+					}
+				];
+			});
 			const uploadedBy =
 				row.uploadedBy !== null && isManagerRole(tree.role)
 					? (uploaders.get(row.uploadedBy) ?? null)
 					: null;
-			return fileDto(row, tree, attachedTo, uploadedBy, context.user.id);
+			return fileDto(row, tree, links, uploadedBy, context.user.id);
 		});
 	}
 
 	/**
-	 * What one tree's rows need to be decided: the owner of each file, which of the people involved
-	 * the caller may see, and the names to show. Restricted viewers get a visibility check; everyone
-	 * else sees every person, so only names are needed.
+	 * What one tree's rows need to be decided: what each file is linked to, which of the people
+	 * involved the caller may see, and the names to show. Restricted viewers get a visibility check;
+	 * everyone else sees every person, so only names are needed.
 	 */
 	private async viewOf(
 		treeId: string,
@@ -377,57 +446,33 @@ export class MediaService {
 		rows: MediaItemRow[],
 		context: AuthenticatedContext
 	): Promise<TreeView> {
-		const entityIds = [
-			...new Set(
-				rows
-					.filter((r) => r.treeId === treeId)
-					.map((r) => r.entityId)
-					.filter((id): id is string => id !== null)
-			)
-		];
-		const kinds = await this.media.recordKindsOf(treeId, entityIds);
-		const sourceIds = entityIds.filter((id) => kinds.get(id) === 'source');
-		const unionIds = entityIds.filter((id) => kinds.get(id) === 'union');
-		const partners = await this.media.partnersOf(unionIds);
-		const personIds = new Set<string>();
-		for (const id of entityIds) {
-			if (kinds.get(id) === 'person') personIds.add(id);
-		}
-		for (const list of partners.values()) for (const id of list) personIds.add(id);
+		const resolved = await resolveLinks(
+			this.media,
+			treeId,
+			rows.filter((r) => r.treeId === treeId).map((r) => r.id)
+		);
 		const isRestricted = !canSeePrivatePeople(role);
 		const scope = isRestricted
 			? await requireTreeScope(this.users, this.trees, treeId, context, 'media:view', this.now())
 			: null;
 		const visible: VisibleOwners = scope
-			? {
-					people: await visibleAmong(this.db, treeId, [...personIds], scope),
-					sources: await visibleSourcesAmong(this.db, treeId, sourceIds, scope)
-				}
+			? await visibleOf(this.db, treeId, resolved, scope)
 			: { people: new Set<string>(), sources: new Set<string>() };
-		const sourceTitles = await this.media.sourceTitlesOf(treeId, sourceIds);
-		const names = await this.media.personNamesOf(treeId, [...personIds]);
+		const sourceTitles = await this.media.sourceTitlesOf(treeId, resolved.sourceIds);
+		const names = await this.media.personNamesOf(treeId, [...resolved.personIds]);
 		const labels = new Map<string, string>();
-		for (const id of entityIds) {
-			if (kinds.get(id) === 'person') labels.set(id, names.get(id) ?? 'Unknown');
-			if (kinds.get(id) === 'source') labels.set(id, sourceTitles.get(id) ?? 'A source');
-			if (kinds.get(id) === 'union') {
-				const partnerNames = (partners.get(id) ?? []).map((p) => names.get(p) ?? 'Unknown');
+		for (const id of resolved.entityIds) {
+			const kind = resolved.kinds.get(id);
+			if (kind === 'person') labels.set(id, names.get(id) ?? 'Unknown');
+			if (kind === 'source') labels.set(id, sourceTitles.get(id) ?? 'A source');
+			if (kind === 'union') {
+				const partnerNames = (resolved.partners.get(id) ?? []).map(
+					(p) => names.get(p) ?? 'Unknown'
+				);
 				labels.set(id, partnerNames.length > 0 ? partnerNames.join(' and ') : 'A partnership');
 			}
 		}
-		return {
-			isRestricted,
-			visible,
-			labels,
-			ownerOf: (row: MediaItemRow): FileOwner => {
-				if (row.entityId === null) return null;
-				const kind = kinds.get(row.entityId);
-				if (kind === 'person') return { people: [row.entityId] };
-				if (kind === 'union') return { people: partners.get(row.entityId) ?? [] };
-				if (kind === 'source') return { source: row.entityId };
-				return { people: [] };
-			}
-		};
+		return { isRestricted, visible, labels, resolved };
 	}
 
 	/**
@@ -527,52 +572,20 @@ export class MediaService {
 		});
 	}
 
-	/** Attach a detached file to a person or partnership in the same tree. */
-	attach(context: AuthenticatedContext, input: FileAttachInput): Promise<MutationResult> {
+	/** Link a file to a person, partnership or source in the same tree; linking again changes nothing. */
+	link(context: AuthenticatedContext, input: FileLinkInput): Promise<MutationResult> {
 		return this.editFile(input.treeId, context, {
-			kind: 'attach_media',
+			kind: 'link_media',
 			mediaId: input.mediaId,
 			entityId: input.entityId,
 			expectedVersion: input.expectedVersion
 		});
 	}
 
-	/** Detach a file from its person or partnership; the file itself is kept. */
-	detach(context: AuthenticatedContext, input: FileDetachInput): Promise<MutationResult> {
+	/** Unlink a file from one record; the file is kept, and is detached when this was its last link. */
+	unlink(context: AuthenticatedContext, input: FileLinkInput): Promise<MutationResult> {
 		return this.editFile(input.treeId, context, {
-			kind: 'detach_media',
-			mediaId: input.mediaId,
-			expectedVersion: input.expectedVersion
-		});
-	}
-
-	/**
-	 * Move an attached file to another person or a source in the same tree: a detach and an attach in
-	 * one logged change. A partnership is not a destination, and a detached file is attached rather
-	 * than moved.
-	 */
-	async move(context: AuthenticatedContext, input: FileAttachInput): Promise<MutationResult> {
-		requireRealUser(context);
-		await requireTreeScope(
-			this.users,
-			this.trees,
-			input.treeId,
-			context,
-			'media:manage',
-			this.now()
-		);
-		const destination = await this.media.recordKindsOf(input.treeId, [input.entityId]);
-		const kind = destination.get(input.entityId);
-		if (kind !== 'person' && kind !== 'source')
-			throw new ValidationError(
-				'A file can only be moved to a person or a source in the same tree'
-			);
-		const file = await this.media.findById(input.mediaId);
-		if (!file || file.treeId !== input.treeId) throw new NotFoundError('File', input.mediaId);
-		if (file.entityId === null)
-			throw new ValidationError('This file is not attached to anyone, so attach it instead');
-		return this.editFile(input.treeId, context, {
-			kind: 'attach_media',
+			kind: 'unlink_media',
 			mediaId: input.mediaId,
 			entityId: input.entityId,
 			expectedVersion: input.expectedVersion

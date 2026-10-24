@@ -49,6 +49,7 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	parent_child: 'parentChild',
 	events: 'events',
 	media_items: 'mediaItems',
+	media_links: 'mediaLinks',
 	sources: 'sources',
 	repositories: 'repositories',
 	source_repositories: 'sourceRepositories',
@@ -155,8 +156,8 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'merge_notes':
 			return buildNoteOps(rows, command, ctx);
 		case 'rename_media':
-		case 'attach_media':
-		case 'detach_media':
+		case 'link_media':
+		case 'unlink_media':
 			return buildMediaOps(rows, command, { treeId: ctx.treeId, now: ctx.now });
 		case 'create_task':
 		case 'update_task':

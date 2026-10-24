@@ -14,6 +14,7 @@ import type {
 	events,
 	individuals,
 	mediaItems,
+	mediaLinks,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -61,6 +62,8 @@ export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
  * an inverse written before migration 0029 lacks them, and must still match the row as it is now.
  */
 export type MediaRow = Omit<Imaged<typeof mediaItems.$inferSelect>, 'sizeBytes' | 'uploadedBy'>;
+/** A file's link to a person, union or source. `id` is `<mediaId>:<entityId>`, see the schema. */
+export type MediaLinkRow = Imaged<typeof mediaLinks.$inferSelect>;
 export type SourceRow = Imaged<typeof sources.$inferSelect>;
 export type RepositoryRow = Imaged<typeof repositories.$inferSelect>;
 export type SourceRepositoryRow = Omit<Imaged<typeof sourceRepositories.$inferSelect>, 'treeId'>;
@@ -79,6 +82,7 @@ export interface TreeRows {
 	parentChild: ParentChildRow[];
 	events: EventRow[];
 	mediaItems: MediaRow[];
+	mediaLinks: MediaLinkRow[];
 	sources: SourceRow[];
 	repositories: RepositoryRow[];
 	sourceRepositories: SourceRepositoryRow[];
@@ -98,6 +102,7 @@ export interface TableRows {
 	parent_child: ParentChildRow;
 	events: EventRow;
 	media_items: MediaRow;
+	media_links: MediaLinkRow;
 	sources: SourceRow;
 	repositories: RepositoryRow;
 	source_repositories: SourceRepositoryRow;
@@ -132,7 +137,9 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	// A task points at a record of any of the above and nothing points at it.
 	research_tasks: 13,
 	// Points at a person by id with no foreign key, and nothing points at it.
-	subtree: 14
+	subtree: 14,
+	// Points at a file and nothing points at it; a link is created after its file and deleted before.
+	media_links: 15
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -144,6 +151,7 @@ const ENTITY_TYPES = {
 	parent_child: 'link',
 	events: 'event',
 	media_items: 'media',
+	media_links: 'media_link',
 	sources: 'source',
 	repositories: 'repository',
 	source_repositories: 'source_link',
@@ -452,13 +460,14 @@ export function dependentsOfDeletions(
 		)
 			add('person_names', name);
 	}
-	// A file of a person or partnership that is going would be left pointing at nothing.
-	for (const media of rows.mediaItems)
+	// A file link to a person, partnership or source that is going would be left pointing at nothing.
+	for (const link of rows.mediaLinks)
 		if (
-			media.entityId !== null &&
-			(deletedPeople.has(media.entityId) || deletedUnions.has(media.entityId))
+			deletedPeople.has(link.entityId) ||
+			deletedUnions.has(link.entityId) ||
+			deletedSources.has(link.entityId)
 		)
-			add('media_items', media);
+			add('media_links', link);
 	// Evidence: a citation of a subject or source that is going, and a repository link of a source or
 	// repository that is going, would be left pointing at nothing.
 	const isSubjectDeleted = (kind: string, id: string) => {

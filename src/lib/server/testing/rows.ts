@@ -3,6 +3,7 @@
 import type { EventRow, MediaRow, PersonNameRow, TreeRows } from '../domain/change-log';
 import type { ParentChildType, UnionStatus } from '../../shared/relationship-model';
 import type { Sex } from '../../shared/sex';
+import { mediaLinkId } from '../../shared/media';
 
 export const TEST_TREE_ID = 'tree-1';
 const T0 = 1_000_000;
@@ -33,7 +34,8 @@ export interface RowsSpec {
 	}>;
 	events?: Array<Partial<EventRow> & { id: string; entityId: string; type: string }>;
 	names?: Array<Partial<PersonNameRow> & { id: string; personId: string }>;
-	media?: Array<Partial<MediaRow> & { id: string }>;
+	/** `linkedTo` is the records the file is linked to; a file with none is detached. */
+	media?: Array<Partial<MediaRow> & { id: string; linkedTo?: string[] }>;
 	/** Citations of the facts, names, people or partnerships above, by what they support. */
 	citations?: Array<{
 		subjectKind: 'person' | 'name' | 'event' | 'union' | 'parent_child';
@@ -50,6 +52,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		parentChild: [],
 		events: [],
 		mediaItems: [],
+		mediaLinks: [],
 		sources: [],
 		repositories: [],
 		sourceRepositories: [],
@@ -59,7 +62,15 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		researchTasks: [],
 		subtrees: []
 	};
-	for (const m of spec.media ?? []) {
+	for (const { linkedTo = [], ...m } of spec.media ?? []) {
+		for (const entityId of linkedTo)
+			rows.mediaLinks.push({
+				id: mediaLinkId(m.id, entityId),
+				treeId: TEST_TREE_ID,
+				mediaId: m.id,
+				entityId,
+				createdAt: 1_000
+			});
 		rows.mediaItems.push({
 			treeId: TEST_TREE_ID,
 			entityId: null,
