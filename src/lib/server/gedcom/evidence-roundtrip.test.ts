@@ -140,10 +140,14 @@ describe('an OBJE under a source', () => {
 			}>())!;
 		await t.d1
 			.prepare(
-				`insert into media_items (id, tree_id, entity_id, r2_object_key, title, mime_type, version)
-				 values (?, ?, ?, ?, 'Scan', 'image/png', 1)`
+				`insert into media_items (id, tree_id, r2_object_key, title, mime_type, version)
+				 values (?, ?, ?, 'Scan', 'image/png', 1)`
 			)
-			.bind('m-1', treeId, source.id, `media/${treeId}/m-1.png`)
+			.bind('m-1', treeId, `media/${treeId}/m-1.png`)
+			.run();
+		await t.d1
+			.prepare(`insert into media_links (id, tree_id, media_id, entity_id) values (?, ?, 'm-1', ?)`)
+			.bind(`m-1:${source.id}`, treeId, source.id)
 			.run();
 		expect(withoutHeader(await exportOf(treeId))).toEqual(before);
 		expect(withoutHeader(await exportOf(treeId, '7'))).toEqual(before7);
