@@ -423,11 +423,15 @@
 	{treeId}
 	source={null}
 	initialPeople={members.map((m) => ({ id: m.id, name: m.name }))}
-	onsaved={async (change, skippedNames) => {
+	onsaved={async (change, skippedNames, missingFactNames) => {
 		isCiting = false;
 		await editor.afterChange(change, 'Nothing to add');
 		if (skippedNames.length > 0)
 			toasts.push(`Already cited, so skipped: ${skippedNames.join(', ')}.`, { durationMs: 10_000 });
+		if (missingFactNames.length > 0)
+			toasts.push(`No such fact, so skipped: ${missingFactNames.join(', ')}.`, {
+				durationMs: 10_000
+			});
 	}}
 	oncancel={() => (isCiting = false)}
 />

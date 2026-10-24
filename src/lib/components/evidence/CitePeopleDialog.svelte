@@ -12,7 +12,7 @@
 		isCitationQuality,
 		type CitationQuality
 	} from '#lib/shared/evidence.js';
-	import { MAX_GROUP_FACT_PEOPLE } from '#lib/shared/fact-types.js';
+	import { FACT_TYPE_LIST, MAX_GROUP_FACT_PEOPLE } from '#lib/shared/fact-types.js';
 	import type { ChangeSummary, PeopleSearchResult } from '#lib/types/genealogy.js';
 	import SourcePicker from './SourcePicker.svelte';
 
@@ -23,8 +23,15 @@
 		source: { id: string; name: string } | null;
 		/** The people chosen when the dialog opens, e.g. a family's partners and children. */
 		initialPeople?: Array<{ id: string; name: string }>;
-		/** Called after a save, with the change and the names already cited (so skipped). */
-		onsaved: (change: ChangeSummary | null, skippedNames: string[]) => void | Promise<void>;
+		/**
+		 * Called after a save, with the change, the names already cited (so skipped), and, when citing
+		 * a fact type, the names with no such fact.
+		 */
+		onsaved: (
+			change: ChangeSummary | null,
+			skippedNames: string[],
+			missingFactNames: string[]
+		) => void | Promise<void>;
 		oncancel: () => void;
 	}
 
@@ -43,6 +50,8 @@
 	let results = $state<PeopleSearchResult[]>([]);
 	let sourceId = $state<string | null>(null);
 	let sourceName = $state('');
+	let isCitingFact = $state(false);
+	let factType = $state('BIRT');
 	let page = $state('');
 	let quality = $state('');
 	let entryDate = $state('');
@@ -63,6 +72,8 @@
 			results = [];
 			sourceId = null;
 			sourceName = '';
+			isCitingFact = false;
+			factType = 'BIRT';
 			page = '';
 			quality = '';
 			entryDate = '';
@@ -115,7 +126,7 @@
 		}
 		const parsed = quality === '' ? null : Number(quality);
 		await submission.submit(async () => {
-			const { change, skippedPersonIds } = await citePeopleApi(
+			const { change, skippedPersonIds, missingFactPersonIds } = await citePeopleApi(
 				treeId,
 				people.map((p) => p.id),
 				{
@@ -124,13 +135,12 @@
 					quality: isCitationQuality(parsed) ? parsed : null,
 					entryDate: entryDate.trim() || null,
 					text: text.trim() || null
-				}
+				},
+				isCitingFact ? factType : undefined
 			);
-			const skipped = new Set(skippedPersonIds);
-			await onsaved(
-				change,
-				people.filter((p) => skipped.has(p.id)).map((p) => p.name)
-			);
+			const namesOf = (ids: string[]) =>
+				people.filter((p) => ids.includes(p.id)).map((p) => p.name);
+			await onsaved(change, namesOf(skippedPersonIds), namesOf(missingFactPersonIds));
 		}, 'Could not add the citations');
 	}
 </script>
@@ -138,7 +148,7 @@
 <BaseModal
 	{isOpen}
 	title="Cite for people"
-	subtitle={source ? `“${source.name}”` : 'One citation on each person'}
+	subtitle={source ? `“${source.name}”` : 'One citation on each person or fact'}
 	icon={Quote}
 	maxWidthClass="max-w-lg"
 	error={submission.error}
@@ -212,6 +222,30 @@
 				</ul>
 			{/if}
 		</div>
+
+		<fieldset class="space-y-2">
+			<legend class="field-label">Cite on</legend>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="radio" name="cite-people-target" value={false} bind:group={isCitingFact} />
+				Each person
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="radio" name="cite-people-target" value={true} bind:group={isCitingFact} />
+				A fact of each person
+			</label>
+			{#if isCitingFact}
+				<select
+					bind:value={factType}
+					class={field}
+					aria-label="Fact type"
+					data-testid="cite-people-fact-type"
+				>
+					{#each FACT_TYPE_LIST as info (info.code)}
+						<option value={info.code}>{info.label}</option>
+					{/each}
+				</select>
+			{/if}
+		</fieldset>
 
 		<div class="grid grid-cols-2 gap-3">
 			<div>
