@@ -142,7 +142,7 @@ describe('citing a fact type for many people', () => {
 		const result = await evidence.citeMany(treeId, sourceId, ids, { sourceId }, 'BIRT', ctx);
 		expect(result.skippedPersonIds).toEqual([ids[0]]);
 		expect(result.missingFactPersonIds).toEqual([ids[2]]);
-		expect(result.change?.summary).toBe('Cited “Ash family book” on 2 births');
+		expect(result.change?.summary).toBe('Cited “Ash family book” on 2 Birth facts');
 		const added = (await allCitations()).filter((c) => c.subjectKind === 'event');
 		expect(added.map((c) => c.subjectId).sort()).toEqual([a.factId, b1.factId, b2.factId].sort());
 		expect((await log.listRecent(treeId, ctx)).length).toBe(logBefore + 1);
