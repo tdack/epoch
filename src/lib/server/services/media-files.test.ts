@@ -411,7 +411,7 @@ describe('storage use', () => {
 
 describe('editing files', () => {
 	/** A file in the tree, on a person, with its own id so each test undoes only its own change. */
-	async function fileOn(entityId: string | null, id: string, title = `${id}.png`) {
+	async function fileOn(entityId: string | string[] | null, id: string, title = `${id}.png`) {
 		await addFile(treeId, entityId, editor.userId, { id, title });
 		return id;
 	}

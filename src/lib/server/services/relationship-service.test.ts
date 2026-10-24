@@ -71,7 +71,6 @@ async function attachFile(s: Setup, id: string, entityId: string) {
 		.insert(mediaLinks)
 		.values({ id: `${id}:${entityId}`, treeId: s.treeId, mediaId: id, entityId });
 }
-const fileRow = (id: string) => t.db.select().from(mediaItems).where(eq(mediaItems.id, id)).get();
 /** The records a file is linked to. */
 const linksOf = async (id: string) =>
 	(await t.db.select().from(mediaLinks).where(eq(mediaLinks.mediaId, id))).map((l) => l.entityId);
