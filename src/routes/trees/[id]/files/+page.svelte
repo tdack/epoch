@@ -662,7 +662,7 @@
 	<div class="space-y-4">
 		<p class="text-xs text-stone-600">
 			Link <span class="font-semibold">{target?.title ?? 'this file'}</span>
-			to {canPickSource ? 'a person or a source' : 'a person'} in {target?.treeName ?? 'this tree'}.
+			to {canPickSource ? 'a person, partnership or source' : 'a person or partnership'} in {target?.treeName ?? 'this tree'}.
 			It stays linked to what it is already linked to.
 		</p>
 		{#if target}

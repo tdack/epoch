@@ -9,7 +9,7 @@ import type {
 	SourceInput,
 	SourceListItem
 } from '#lib/shared/evidence.js';
-import type { Page } from '#lib/shared/lists.js';
+import type { Page, UnionListItem } from '#lib/shared/lists.js';
 import { type Changed, call, json, path } from './client.js';
 
 export async function fetchSources(
@@ -21,6 +21,19 @@ export async function fetchSources(
 		path`/api/trees/${treeId}/lists/sources` + `?${params}`,
 		{ method: 'GET' },
 		'Failed to list the sources',
+		fetcher
+	);
+}
+
+export async function fetchUnions(
+	treeId: string,
+	params: URLSearchParams,
+	fetcher: typeof fetch = fetch
+): Promise<Page<UnionListItem>> {
+	return call(
+		path`/api/trees/${treeId}/lists/unions` + `?${params}`,
+		{ method: 'GET' },
+		'Failed to list the partnerships',
 		fetcher
 	);
 }

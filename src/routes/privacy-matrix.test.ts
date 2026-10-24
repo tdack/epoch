@@ -88,6 +88,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/members/[userId]/+server.ts`]: { kind: 'role-gated', covers: MEMBERS },
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: { kind: 'paged-sql', covers: EVIDENCE },
+	[`${API}/trees/[id]/lists/unions/+server.ts`]: { kind: 'paged-sql', covers: READS },
 	[`${API}/settings/+server.ts`]: { kind: 'own-data', covers: 'services/settings-service.test.ts' },
 	[`${API}/profile/+server.ts`]: { kind: 'own-data', covers: 'services/profile-service.test.ts' },
 	[`${API}/profile/access-picture/+server.ts`]: {
@@ -323,6 +324,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/repositories/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
+	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',

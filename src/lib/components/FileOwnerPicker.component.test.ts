@@ -2,19 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
 vi.mock('#lib/api/lists.js', () => ({ searchPeopleApi: vi.fn() }));
-vi.mock('#lib/api/evidence.js', () => ({ fetchSources: vi.fn(), createSourceApi: vi.fn() }));
+vi.mock('#lib/api/evidence.js', () => ({
+	fetchSources: vi.fn(),
+	fetchUnions: vi.fn(),
+	createSourceApi: vi.fn()
+}));
 
 import { searchPeopleApi } from '#lib/api/lists.js';
-import { fetchSources } from '#lib/api/evidence.js';
+import { fetchSources, fetchUnions } from '#lib/api/evidence.js';
 import FileOwnerPicker from './FileOwnerPicker.svelte';
 
 const people = vi.mocked(searchPeopleApi);
 const sources = vi.mocked(fetchSources);
+const unions = vi.mocked(fetchUnions);
 
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	people.mockReset();
 	sources.mockReset();
+	unions.mockReset();
 });
 afterEach(() => {
 	if (component) unmount(component);
@@ -55,9 +61,10 @@ function offerOneSource() {
 }
 
 describe('FileOwnerPicker', () => {
-	it('offers only people to a role that cannot change evidence', () => {
+	it('offers people and partnerships, but no sources, to a role that cannot change evidence', () => {
 		render(false);
 		expect(button('Source')).toBeUndefined();
+		expect(button('Partnership')).toBeDefined();
 		expect(document.querySelector('input[role="combobox"]')).not.toBeNull();
 	});
 
@@ -85,5 +92,29 @@ describe('FileOwnerPicker', () => {
 		flushSync();
 		expect(state.picked).toBeNull();
 		expect(document.querySelector('[data-testid="chosen-source"]')).toBeNull();
+	});
+
+	it('lists partnerships by their partners and reports the one chosen', async () => {
+		unions.mockResolvedValue({
+			items: [
+				{ id: 'u1', partners: [{ displayName: 'Ann' }, { displayName: 'Bob' }] },
+				{ id: 'u2', partners: [] }
+			],
+			hasMore: false
+		} as never);
+		const state = render(false);
+		button('Partnership')!.click();
+		flushSync();
+		await vi.waitFor(() => expect(document.querySelectorAll('option').length).toBe(3));
+		expect([...document.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+			'Choose a partnership',
+			'Ann & Bob',
+			'Partnership'
+		]);
+		const select = document.querySelector('select')!;
+		select.value = 'u1';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		flushSync();
+		expect(state.picked).toEqual({ id: 'u1', name: 'Ann & Bob' });
 	});
 });
