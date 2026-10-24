@@ -240,8 +240,6 @@ Last reviewed: 2026-10-21.
   place. A place-level coordinate would serve the places model (ADR-051).
 - **`HUSB` and `WIFE` `AGE` under family events** stay retained. Model them with the partnership
   details (ADR-051).
-- **Show the sub-type on the person page for every fact that has one.** Only `EVEN` and `FACT` show
-  it today.
 
 ### Collaboration and change control
 

@@ -1,7 +1,13 @@
 import type { FactDto } from '#lib/shared/person-page.js';
 
-/** Event types whose sub-type reads as part of the heading, e.g. "Other event (Anniversary)". */
-const QUALIFIED_TYPES: ReadonlySet<string> = new Set(['EVEN', 'FACT']);
+/**
+ * The sub-type to show beside the label, e.g. "Occupation (Apprentice)"; null when there is none
+ * or it only repeats the label.
+ */
+function subTypeOf(fact: FactDto): string | null {
+	const subType = fact.classification?.trim();
+	return subType && subType.toLowerCase() !== fact.label.toLowerCase() ? subType : null;
+}
 
 export interface FactMember {
 	fact: FactDto;
@@ -18,16 +24,14 @@ export interface FactGroup {
 	isConflicting: boolean;
 }
 
-/** Facts of one kind group together; a custom event's sub-type is part of its kind (ADR-051). */
+/** Facts of one kind group together; a fact's sub-type is part of its kind (ADR-051). */
 export function groupKeyOf(fact: FactDto): string {
-	return JSON.stringify([fact.type, QUALIFIED_TYPES.has(fact.type) ? fact.classification : null]);
+	return JSON.stringify([fact.type, subTypeOf(fact)]);
 }
 
 export function groupLabelOf(fact: FactDto): string {
-	return (
-		fact.label +
-		(QUALIFIED_TYPES.has(fact.type) && fact.classification ? ` (${fact.classification})` : '')
-	);
+	const subType = subTypeOf(fact);
+	return subType ? `${fact.label} (${subType})` : fact.label;
 }
 
 /**

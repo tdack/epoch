@@ -149,6 +149,15 @@ describe('PersonFacts', () => {
 		expect(groupHeading(0)).toBe('Other event (Anniversary)');
 	});
 
+	it('shows the sub-type of any fact that has one, unless it repeats the label', () => {
+		render([
+			fact({ id: 'o1', type: 'OCCU', label: 'Occupation', classification: 'Apprentice' }),
+			fact({ id: 'r1', type: 'RESI', label: 'Residence', classification: 'residence' })
+		]);
+		expect(groupHeading(0)).toBe('Occupation (Apprentice)');
+		expect(groupHeading(1)).toBe('Residence');
+	});
+
 	it('groups facts of one kind under one panel, in order of first appearance', () => {
 		render([
 			fact({ id: 'r1', type: 'RESI', label: 'Residence', sortStart: '1900-01-01' }),
