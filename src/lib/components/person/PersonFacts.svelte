@@ -17,7 +17,13 @@
 	import { FACT_KINDS, type FactRelative } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
-	import { groupFacts, groupKeyOf, groupLabelOf, type FactMember } from './fact-groups.js';
+	import {
+		factLabelOf,
+		groupFacts,
+		groupKeyOf,
+		memberSubTypeOf,
+		type FactMember
+	} from './fact-groups.js';
 	import { lifeTimeline, type LifeEntry } from './life-timeline.js';
 	import { personPath, treePath, unionPath } from './person-paths.js';
 
@@ -191,7 +197,11 @@
 {#snippet factDetail(fact: FactDto, index: number, isPanel: boolean)}
 	{#if isPanel}
 		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-			{#if fact.value}<span class="text-sm text-stone-900">{fact.value}</span>{/if}
+			{#if fact.value || memberSubTypeOf(fact)}<span class="text-sm text-stone-900"
+					>{fact.value ?? ''}{#if memberSubTypeOf(fact)}<span class="text-stone-500"
+							>{fact.value ? ' · ' : ''}{memberSubTypeOf(fact)}</span
+						>{/if}</span
+				>{/if}
 			<span class="text-xs text-stone-600"
 				>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}{' '}
 					<span class="text-stone-400">(approximate)</span>{/if}</span
@@ -400,7 +410,7 @@
 		<ol class="divide-y divide-stone-200" data-testid="facts">
 			{#each life as entry (entry.kind === 'fact' ? entry.fact.id : entry.event.id)}
 				{#if entry.kind === 'fact'}
-					{@render factRow(entry.fact, entry.index, groupLabelOf(entry.fact))}
+					{@render factRow(entry.fact, entry.index, factLabelOf(entry.fact))}
 				{:else}
 					{@render unionRow(entry)}
 				{/if}

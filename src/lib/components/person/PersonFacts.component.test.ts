@@ -154,8 +154,11 @@ describe('PersonFacts', () => {
 			fact({ id: 'o1', type: 'OCCU', label: 'Occupation', classification: 'Apprentice' }),
 			fact({ id: 'r1', type: 'RESI', label: 'Residence', classification: 'residence' })
 		]);
-		expect(groupHeading(0)).toBe('Occupation (Apprentice)');
+		// The heading names the kind, so a sub-typed fact still groups with its kind; the row names the sub-type.
+		expect(groupHeading(0)).toBe('Occupation');
+		expect(groups()[0]!.textContent).toContain('Apprentice');
 		expect(groupHeading(1)).toBe('Residence');
+		expect(groups()[1]!.textContent).not.toContain('residence');
 	});
 
 	it('groups facts of one kind under one panel, in order of first appearance', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FactDto } from '#lib/shared/person-page.js';
-import { groupFacts, groupLabelOf } from './fact-groups';
+import { factLabelOf, groupFacts, groupLabelOf, memberSubTypeOf } from './fact-groups';
 
 function fact(
 	id: string,
@@ -66,5 +66,17 @@ describe('groupFacts', () => {
 		const facts = [anniversary, fact('e2', 'EVEN', null, { classification: 'Graduation' })];
 		expect(groupFacts(facts)).toHaveLength(2);
 		expect(groupLabelOf(anniversary)).toBe('Other event (Anniversary)');
+	});
+
+	it('keeps a sub-typed birth with the other births, naming the sub-type on the fact itself', () => {
+		const registered = fact('b1', 'BIRT', null, { label: 'Birth', classification: 'Registered' });
+		const plain = fact('b2', 'BIRT', null, { label: 'Birth' });
+		expect(shape([registered, plain])).toEqual([['Birth', ['b2', 'b1']]]);
+		expect(factLabelOf(registered)).toBe('Birth (Registered)');
+		expect(memberSubTypeOf(registered)).toBe('Registered');
+		expect(memberSubTypeOf(fact('e1', 'EVEN', null, { classification: 'Anniversary' }))).toBeNull();
+		expect(
+			factLabelOf(fact('o1', 'OCCU', null, { label: 'Occupation', classification: 'occupation' }))
+		).toBe('Occupation');
 	});
 });

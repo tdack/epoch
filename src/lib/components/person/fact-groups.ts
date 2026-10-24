@@ -1,9 +1,9 @@
 import type { FactDto } from '#lib/shared/person-page.js';
 
-/**
- * The sub-type to show beside the label, e.g. "Occupation (Apprentice)"; null when there is none
- * or it only repeats the label.
- */
+/** Event types whose sub-type is part of their kind, e.g. "Other event (Anniversary)" (ADR-051). */
+const QUALIFIED_TYPES: ReadonlySet<string> = new Set(['EVEN', 'FACT']);
+
+/** The fact's sub-type, or null when there is none or it only repeats the label. */
 function subTypeOf(fact: FactDto): string | null {
 	const subType = fact.classification?.trim();
 	return subType && subType.toLowerCase() !== fact.label.toLowerCase() ? subType : null;
@@ -24,14 +24,28 @@ export interface FactGroup {
 	isConflicting: boolean;
 }
 
-/** Facts of one kind group together; a fact's sub-type is part of its kind (ADR-051). */
+/**
+ * Facts of one kind group together; only a custom event's sub-type is part of its kind, so a
+ * "Birth (Registered)" still sits, and conflicts, with the other births.
+ */
 export function groupKeyOf(fact: FactDto): string {
-	return JSON.stringify([fact.type, subTypeOf(fact)]);
+	return JSON.stringify([fact.type, QUALIFIED_TYPES.has(fact.type) ? subTypeOf(fact) : null]);
 }
 
 export function groupLabelOf(fact: FactDto): string {
+	const subType = QUALIFIED_TYPES.has(fact.type) ? subTypeOf(fact) : null;
+	return subType ? `${fact.label} (${subType})` : fact.label;
+}
+
+/** A fact's own heading, with any sub-type, e.g. "Occupation (Apprentice)". */
+export function factLabelOf(fact: FactDto): string {
 	const subType = subTypeOf(fact);
 	return subType ? `${fact.label} (${subType})` : fact.label;
+}
+
+/** The sub-type a grouped fact shows on its own row, since its group heading does not carry it. */
+export function memberSubTypeOf(fact: FactDto): string | null {
+	return QUALIFIED_TYPES.has(fact.type) ? null : subTypeOf(fact);
 }
 
 /**
