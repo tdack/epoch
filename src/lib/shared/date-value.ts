@@ -178,6 +178,9 @@ function maxPrecision(a: DatePrecision, b: DatePrecision): DatePrecision {
 	return PRECISION_ORDER[a] >= PRECISION_ORDER[b] ? a : b;
 }
 
+/** Longer than any date with an interpreted phrase a person would write. */
+const MAX_DATE_CHARS = 500;
+
 /** A date followed by the last digits of its later year: `30 JAN 1648/49`. */
 // Ending the group on \S keeps backtracking linear on a long whitespace run; lazy `.+?\s*` was quadratic.
 const DUAL_DATE = /^(.*\S)\s*\/\s*(\d{1,2})$/;
@@ -227,6 +230,20 @@ function parseStrictDateValue(rawInput: string | null | undefined): DateValue {
 			sortStart: null,
 			sortEnd: null,
 			isApproximate: true
+		};
+	}
+
+	// A real date is a few dozen characters. The patterns below backtrack quadratically on a long run
+	// of whitespace, so junk this long is kept as written and never matched.
+	if (raw.length > MAX_DATE_CHARS) {
+		return {
+			raw,
+			qualifier: DATE_QUALIFIERS.UNKNOWN,
+			precision: DATE_PRECISIONS.NONE,
+			calendar: CALENDARS.UNKNOWN,
+			sortStart: null,
+			sortEnd: null,
+			isApproximate: false
 		};
 	}
 

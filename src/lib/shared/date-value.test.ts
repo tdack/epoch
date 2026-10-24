@@ -104,7 +104,9 @@ describe('parseDateValue', () => {
 		['a long whitespace run', '1' + ' '.repeat(200_000) + 'b'],
 		['a trailing slash with no digits', '1' + ' '.repeat(200_000) + '/'],
 		['a long run inside BET', 'BET 1' + ' '.repeat(200_000) + 'b'],
-		['a long run inside FROM', 'FROM 1' + ' '.repeat(200_000) + 'b']
+		['a long run inside FROM', 'FROM 1' + ' '.repeat(200_000) + 'b'],
+		['a long run after BET', 'BET' + ' '.repeat(200_000) + 'x'],
+		['a long run after FROM', 'FROM' + ' '.repeat(200_000) + 'x']
 	])('parses %s in linear time', (_label, raw) => {
 		const started = performance.now();
 		const v = parseDateValue(raw);
