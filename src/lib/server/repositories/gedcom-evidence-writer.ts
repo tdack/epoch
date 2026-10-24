@@ -24,6 +24,7 @@ import {
 	storedCitationKey
 } from '../gedcom/evidence-rows';
 import { chunkByParamLimit } from './param-chunks';
+import type { ImportBatch } from './import-batch';
 
 /** Columns Drizzle writes for each table; an insert is chunked by it under D1's parameter cap. */
 const SOURCE_COLUMNS = 15;
@@ -50,24 +51,29 @@ type SourceLookup = (pointer: string | undefined) => string | null;
 export async function importRecords(
 	db: DbClient,
 	treeId: string,
-	parsed: ParsedGedcomData
+	parsed: ParsedGedcomData,
+	{ writes, isTreeEmpty }: ImportBatch
 ): Promise<{ sourceOf: SourceLookup; noteTargets: NoteTarget[] }> {
 	const importedAt = new Date();
 	const repositoryIds = new Map<string, string>();
-	for (const row of await db
-		.select({ id: repositories.id, xref: repositories.xref, aliases: repositories.xrefAliases })
-		.from(repositories)
-		.where(eq(repositories.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({ id: repositories.id, xref: repositories.xref, aliases: repositories.xrefAliases })
+				.from(repositories)
+				.where(eq(repositories.treeId, treeId))
+				.all()) {
 		if (row.xref) repositoryIds.set(row.xref, row.id);
 		for (const alias of row.aliases ?? []) repositoryIds.set(alias, row.id);
 	}
 	const sourceIds = new Map<string, string>();
-	for (const row of await db
-		.select({ id: sources.id, xref: sources.xref, aliases: sources.xrefAliases })
-		.from(sources)
-		.where(eq(sources.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({ id: sources.id, xref: sources.xref, aliases: sources.xrefAliases })
+				.from(sources)
+				.where(eq(sources.treeId, treeId))
+				.all()) {
 		if (row.xref) sourceIds.set(row.xref, row.id);
 		for (const alias of row.aliases ?? []) sourceIds.set(alias, row.id);
 	}
@@ -80,7 +86,7 @@ export async function importRecords(
 		repositoryRows.push(repositoryRow(treeId, id, repository, importedAt));
 	}
 	for (const chunk of chunkByParamLimit(repositoryRows, REPOSITORY_COLUMNS)) {
-		await db.insert(repositories).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(repositories).values(chunk).onConflictDoNothing());
 	}
 
 	const sourceRows: Array<ReturnType<typeof sourceRow>> = [];
@@ -105,10 +111,10 @@ export async function importRecords(
 		);
 	}
 	for (const chunk of chunkByParamLimit(sourceRows, SOURCE_COLUMNS)) {
-		await db.insert(sources).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(sources).values(chunk).onConflictDoNothing());
 	}
 	for (const chunk of chunkByParamLimit(linkRows, SOURCE_REPOSITORY_COLUMNS)) {
-		await db.insert(sourceRepositories).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(sourceRepositories).values(chunk).onConflictDoNothing());
 	}
 
 	const noteTargets: NoteTarget[] = [
@@ -137,26 +143,29 @@ export async function importCitations(
 	db: DbClient,
 	treeId: string,
 	targets: CitationTarget[],
-	sourceOf: SourceLookup
+	sourceOf: SourceLookup,
+	{ writes, isTreeEmpty }: ImportBatch
 ): Promise<NoteTarget[]> {
 	if (targets.every((t) => t.citations.length === 0)) return [];
 	const importedAt = new Date();
 	const known = new Map<string, { keys: Map<string, string>; next: number }>();
-	for (const row of await db
-		.select({
-			kind: citations.subjectKind,
-			subjectId: citations.subjectId,
-			sortOrder: citations.sortOrder,
-			sourceId: citations.sourceId,
-			sourceRef: citations.sourceRef,
-			description: citations.description,
-			page: citations.page,
-			text: citations.text,
-			id: citations.id
-		})
-		.from(citations)
-		.where(eq(citations.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({
+					kind: citations.subjectKind,
+					subjectId: citations.subjectId,
+					sortOrder: citations.sortOrder,
+					sourceId: citations.sourceId,
+					sourceRef: citations.sourceRef,
+					description: citations.description,
+					page: citations.page,
+					text: citations.text,
+					id: citations.id
+				})
+				.from(citations)
+				.where(eq(citations.treeId, treeId))
+				.all()) {
 		const entry = known.get(`${row.kind}|${row.subjectId}`) ?? { keys: new Map(), next: 0 };
 		entry.keys.set(storedCitationKey(row), row.id);
 		entry.next = Math.max(entry.next, row.sortOrder + 1);
@@ -205,7 +214,7 @@ export async function importCitations(
 		}
 	}
 	for (const chunk of chunkByParamLimit(rows, CITATION_COLUMNS)) {
-		await db.insert(citations).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(citations).values(chunk).onConflictDoNothing());
 	}
 	return noteTargets;
 }

@@ -253,6 +253,25 @@ describe('importFile', () => {
 	});
 });
 
+describe('runImport', () => {
+	it('leaves the tree as it was when a replace import fails part way', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db);
+		await service.runImport(s.treeId, FILE);
+		// The child the family names is not in the file, so its link fails its foreign key after the
+		// people and the partnership are already queued.
+		const broken =
+			'0 HEAD\n0 @I7@ INDI\n1 NAME Cy /Oak/\n0 @F1@ FAM\n1 HUSB @I7@\n1 CHIL @I99@\n0 TRLR';
+		await expect(service.runImport(s.treeId, broken, undefined, 'replace')).rejects.toThrow();
+		const people = await t.db
+			.select({ xref: individuals.xrefId })
+			.from(individuals)
+			.where(eq(individuals.treeId, s.treeId))
+			.all();
+		expect(people.map((p) => p.xref).sort()).toEqual(['@I1@', '@I2@']);
+	});
+});
+
 describe('importStaged authorization', () => {
 	const REPLACEMENT = '0 HEAD\n0 @I1@ INDI\n1 NAME Solo /Fox/\n0 TRLR';
 

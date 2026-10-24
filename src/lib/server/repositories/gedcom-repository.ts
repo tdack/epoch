@@ -53,6 +53,7 @@ import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { importNeutralModel } from './gedcom-neutral-writer';
 import { chunkByParamLimit } from './param-chunks';
 import { pointFactsAtPlaces } from './place-repository';
+import type { ImportBatch } from './import-batch';
 
 export interface ImportWrite {
 	treeId: string;
@@ -160,8 +161,12 @@ export class GedcomRepository {
 	}
 
 	/**
-	 * Persists parsed GEDCOM data using batch inserts chunked to D1's bound-parameter limit. Not
-	 * atomic: a failure part way leaves what was written, as it always has.
+	 * Persists parsed GEDCOM data as one D1 batch, so the import is all or nothing: a replace that
+	 * fails cannot leave the tree wiped or half written. Inserts are chunked to D1's bound-parameter
+	 * limit; the batch counts as one query against the per-invocation cap.
+	 *
+	 * shortcut: D1 gives a batch 30 seconds, so a file too large to write in that time fails whole
+	 * and changes nothing; split it into resumable steps if real files reach that size.
 	 */
 	async writeImport({
 		treeId,
@@ -171,43 +176,49 @@ export class GedcomRepository {
 		isExistingTree
 	}: ImportWrite): Promise<ImportWritten> {
 		const db = this.db;
+		const batch: ImportBatch = { writes: [], isTreeEmpty: !isExistingTree || mode === 'replace' };
+		const { writes } = batch;
 		if (!isExistingTree) {
 			const name = treeName || parsed.treeName || 'Imported Tree';
-			await db.insert(trees).values({
-				id: treeId,
-				slug: await availableTreeSlug(db, name),
-				position: await nextTreePosition(db),
-				name,
-				description: `Imported with ${parsed.individuals.length} individuals and ${parsed.families.length} families`,
-				createdAt: new Date(),
-				updatedAt: new Date()
-			});
+			writes.push(
+				db.insert(trees).values({
+					id: treeId,
+					slug: await availableTreeSlug(db, name),
+					position: await nextTreePosition(db),
+					name,
+					description: `Imported with ${parsed.individuals.length} individuals and ${parsed.families.length} families`,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				})
+			);
 		} else if (mode === 'replace') {
-			// Wipe all existing tree data before re-import. Notes first, then citations: attachments point
+			// Wipe all existing tree data, in the same batch as the writes that follow. Notes first, then citations: attachments point
 			// at shared notes and citations at sources, and the links between sources and repositories go
 			// with their source.
 			// A task about a fact would point at a record the new file gives another id; it stays, with
 			// its link cleared. Tasks about people, partnerships, sources and notes keep theirs: those
 			// records are given the same ids again from the file's XREFs.
-			await db
-				.update(researchTasks)
-				.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
-				.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')));
-			await db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId));
-			await db.delete(notes).where(eq(notes.treeId, treeId));
-			await db.delete(citations).where(eq(citations.treeId, treeId));
-			await db.delete(sources).where(eq(sources.treeId, treeId));
-			await db.delete(repositories).where(eq(repositories.treeId, treeId));
-			await db.delete(events).where(eq(events.treeId, treeId));
+			writes.push(
+				db
+					.update(researchTasks)
+					.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
+					.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')))
+			);
+			writes.push(db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId)));
+			writes.push(db.delete(notes).where(eq(notes.treeId, treeId)));
+			writes.push(db.delete(citations).where(eq(citations.treeId, treeId)));
+			writes.push(db.delete(sources).where(eq(sources.treeId, treeId)));
+			writes.push(db.delete(repositories).where(eq(repositories.treeId, treeId)));
+			writes.push(db.delete(events).where(eq(events.treeId, treeId)));
 			// What the old file kept verbatim goes with it; the new file brings its own, and a stale copy
 			// would be written back beside it on every export.
-			await db.delete(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId));
+			writes.push(db.delete(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId)));
 			// Records for the old facts' places would only be orphans; the import makes the ones it needs.
-			await db.delete(places).where(eq(places.treeId, treeId));
+			writes.push(db.delete(places).where(eq(places.treeId, treeId)));
 			// Neutral tables: deleting unions cascades union_partners; parent_child and
 			// person_names are removed via the individuals cascade below.
-			await db.delete(unions).where(eq(unions.treeId, treeId));
-			await db.delete(individuals).where(eq(individuals.treeId, treeId));
+			writes.push(db.delete(unions).where(eq(unions.treeId, treeId)));
+			writes.push(db.delete(individuals).where(eq(individuals.treeId, treeId)));
 		}
 
 		// 1. Prepare Individual Inserts
@@ -225,16 +236,21 @@ export class GedcomRepository {
 		// Batch insert individuals (10 columns generated by Drizzle: id, treeId, xrefId, givenName, surname, sex, privacy, version, createdAt, updatedAt)
 		if (indValues.length > 0) {
 			for (const chunk of chunkByParamLimit(indValues, 10)) {
-				await db.insert(individuals).values(chunk).onConflictDoNothing();
+				writes.push(db.insert(individuals).values(chunk).onConflictDoNothing());
 			}
 		}
 
 		// 2. Neutral model: unions + union_partners + parent_child + person_names.
 		// This is now the single source of truth; the legacy `families`/`family_children`
 		// tables have been expunged.
-		const neutralTargets = await importNeutralModel(db, treeId, parsed);
-		const { sourceOf, noteTargets: recordNoteTargets } = await importRecords(db, treeId, parsed);
-		const noteOf = await importSharedNotes(db, treeId, parsed);
+		const neutralTargets = await importNeutralModel(db, treeId, parsed, batch);
+		const { sourceOf, noteTargets: recordNoteTargets } = await importRecords(
+			db,
+			treeId,
+			parsed,
+			batch
+		);
+		const noteOf = await importSharedNotes(db, treeId, parsed, batch);
 		const scoped = (xref: string) => treeScopedId(treeId, xref);
 		const targets: CitationTarget[] = [...recordTargets(parsed, scoped), ...neutralTargets];
 		const noteTargets: NoteTarget[] = [...noteRecordTargets(parsed, scoped), ...recordNoteTargets];
@@ -338,11 +354,11 @@ export class GedcomRepository {
 		if (eventValues.length > 0) {
 			const eventColumnCount = Object.keys(getTableColumns(events)).length;
 			for (const chunk of chunkByParamLimit(eventValues, eventColumnCount)) {
-				await db.insert(events).values(chunk).onConflictDoNothing();
+				writes.push(db.insert(events).values(chunk).onConflictDoNothing());
 			}
-			await db.batch(pointFactsAtPlaces(db, treeId));
+			writes.push(...pointFactsAtPlaces(db, treeId));
 		}
-		const citationNoteTargets = await importCitations(db, treeId, targets, sourceOf);
+		const citationNoteTargets = await importCitations(db, treeId, targets, sourceOf, batch);
 		await importNoteAttachments(
 			db,
 			treeId,
@@ -351,8 +367,11 @@ export class GedcomRepository {
 				...citationNoteTargets,
 				...targets.map((t) => ({ kind: t.kind, id: t.id, notes: t.notes ?? [] }))
 			],
-			noteOf
+			noteOf,
+			batch
 		);
+		const [first, ...rest] = writes;
+		if (first) await db.batch([first, ...rest]);
 
 		return {
 			individualsCount: indValues.length,

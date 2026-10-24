@@ -16,6 +16,7 @@ import type { ParsedGedcomData } from '../gedcom/parser';
 import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { noteAttachmentRow, noteRow, storedNoteKey } from '../gedcom/note-rows';
 import { chunkByParamLimit } from './param-chunks';
+import type { ImportBatch } from './import-batch';
 
 /** Columns Drizzle writes for each table; an insert is chunked by it under D1's parameter cap. */
 const NOTE_COLUMNS = 14;
@@ -34,14 +35,17 @@ export type NoteLookup = (pointer: string | undefined) => string | null;
 export async function importSharedNotes(
 	db: DbClient,
 	treeId: string,
-	parsed: ParsedGedcomData
+	parsed: ParsedGedcomData,
+	{ writes, isTreeEmpty }: ImportBatch
 ): Promise<NoteLookup> {
 	const noteIds = new Map<string, string>();
-	for (const row of await db
-		.select({ id: notes.id, xref: notes.xref, aliases: notes.xrefAliases })
-		.from(notes)
-		.where(eq(notes.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({ id: notes.id, xref: notes.xref, aliases: notes.xrefAliases })
+				.from(notes)
+				.where(eq(notes.treeId, treeId))
+				.all()) {
 		if (row.xref) noteIds.set(row.xref, row.id);
 		for (const alias of row.aliases ?? []) noteIds.set(alias, row.id);
 	}
@@ -54,7 +58,7 @@ export async function importSharedNotes(
 		rows.push(noteRow(treeId, id, note, importedAt));
 	}
 	for (const chunk of chunkByParamLimit(rows, NOTE_COLUMNS)) {
-		await db.insert(notes).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(notes).values(chunk).onConflictDoNothing());
 	}
 	return (pointer) => (pointer ? (noteIds.get(pointer) ?? null) : null);
 }
@@ -67,23 +71,26 @@ export async function importNoteAttachments(
 	db: DbClient,
 	treeId: string,
 	targets: NoteTarget[],
-	noteOf: NoteLookup
+	noteOf: NoteLookup,
+	{ writes, isTreeEmpty }: ImportBatch
 ): Promise<void> {
 	if (targets.every((t) => t.notes.length === 0)) return;
 	const importedAt = new Date();
 	const known = new Map<string, { have: Map<string, number>; next: number }>();
-	for (const row of await db
-		.select({
-			kind: noteAttachments.subjectKind,
-			subjectId: noteAttachments.subjectId,
-			sortOrder: noteAttachments.sortOrder,
-			noteId: noteAttachments.noteId,
-			noteRef: noteAttachments.noteRef,
-			text: noteAttachments.text
-		})
-		.from(noteAttachments)
-		.where(eq(noteAttachments.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({
+					kind: noteAttachments.subjectKind,
+					subjectId: noteAttachments.subjectId,
+					sortOrder: noteAttachments.sortOrder,
+					noteId: noteAttachments.noteId,
+					noteRef: noteAttachments.noteRef,
+					text: noteAttachments.text
+				})
+				.from(noteAttachments)
+				.where(eq(noteAttachments.treeId, treeId))
+				.all()) {
 		const entry = known.get(`${row.kind}|${row.subjectId}`) ?? { have: new Map(), next: 0 };
 		const key = storedNoteKey(row);
 		entry.have.set(key, (entry.have.get(key) ?? 0) + 1);
@@ -123,7 +130,7 @@ export async function importNoteAttachments(
 		}
 	}
 	for (const chunk of chunkByParamLimit(rows, NOTE_ATTACHMENT_COLUMNS)) {
-		await db.insert(noteAttachments).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(noteAttachments).values(chunk).onConflictDoNothing());
 	}
 }
 

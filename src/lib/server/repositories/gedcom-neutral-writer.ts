@@ -26,6 +26,7 @@ import { treeScopedId } from '../gedcom/import-preview';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import type { CitationTarget } from './gedcom-evidence-writer';
 import { chunkByParamLimit } from './param-chunks';
+import type { ImportBatch } from './import-batch';
 
 /**
  * `sealing` and `other` have no neutral type; they become `unknown` and keep the PEDI word in
@@ -77,7 +78,8 @@ function nameContentKey(
 export async function importNeutralModel(
 	db: DbClient,
 	treeId: string,
-	parsed: ParsedGedcomData
+	parsed: ParsedGedcomData,
+	{ writes, isTreeEmpty }: ImportBatch
 ): Promise<CitationTarget[]> {
 	const targets: CitationTarget[] = [];
 	const scoped = (xrefOrId: string) => treeScopedId(treeId, xrefOrId);
@@ -90,22 +92,24 @@ export async function importNeutralModel(
 	// A merge import meets people who already have names, so a name is skipped when the person
 	// already has one with the same content, and nobody gains a second preferred name.
 	const known = new Map<string, Map<string, string>>();
-	for (const row of await db
-		.select({
-			id: personNames.id,
-			personId: personNames.personId,
-			type: personNames.type,
-			givenName: personNames.givenName,
-			surname: personNames.surname,
-			namePrefix: personNames.namePrefix,
-			nameSuffix: personNames.nameSuffix,
-			nickname: personNames.nickname,
-			surnamePrefix: personNames.surnamePrefix
-		})
-		.from(personNames)
-		.innerJoin(individuals, eq(personNames.personId, individuals.id))
-		.where(eq(individuals.treeId, treeId))
-		.all()) {
+	for (const row of isTreeEmpty
+		? []
+		: await db
+				.select({
+					id: personNames.id,
+					personId: personNames.personId,
+					type: personNames.type,
+					givenName: personNames.givenName,
+					surname: personNames.surname,
+					namePrefix: personNames.namePrefix,
+					nameSuffix: personNames.nameSuffix,
+					nickname: personNames.nickname,
+					surnamePrefix: personNames.surnamePrefix
+				})
+				.from(personNames)
+				.innerJoin(individuals, eq(personNames.personId, individuals.id))
+				.where(eq(individuals.treeId, treeId))
+				.all()) {
 		const keys = known.get(row.personId) ?? new Map<string, string>();
 		keys.set(nameContentKey(row.type, row), row.id);
 		known.set(row.personId, keys);
@@ -176,7 +180,7 @@ export async function importNeutralModel(
 	}
 
 	for (const chunk of chunkByParamLimit(nameRows, PERSON_NAME_COLUMNS)) {
-		await db.insert(personNames).values(chunk).onConflictDoNothing();
+		writes.push(db.insert(personNames).values(chunk).onConflictDoNothing());
 	}
 
 	// 2. unions + union_partners + parent_child per family
@@ -187,20 +191,41 @@ export async function importNeutralModel(
 		citations: NonNullable<ParsedGedcomData['families'][number]['children'][number]['citations']>;
 		notes: NonNullable<ParsedGedcomData['families'][number]['children'][number]['notes']>;
 	}> = [];
+	// The row that holds each link: one a merge-mode import finds stored, else the first this file
+	// writes. Worked out here rather than read back, because nothing is written until the batch runs.
+	const linkKey = (row: { parentId: string; childId: string; type: string }) =>
+		`${row.parentId}|${row.childId}|${row.type}`;
+	const storedLinks = new Map(
+		(isTreeEmpty
+			? []
+			: await db
+					.select({
+						id: parentChild.id,
+						parentId: parentChild.parentId,
+						childId: parentChild.childId,
+						type: parentChild.type
+					})
+					.from(parentChild)
+					.where(eq(parentChild.treeId, treeId))
+					.all()
+		).map((row) => [linkKey(row), row.id])
+	);
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
 		const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
 
-		await db
-			.insert(unions)
-			.values({
-				id: unionId,
-				treeId,
-				createdAt: importedAt,
-				status: deriveUnionStatus(fam),
-				xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
-			})
-			.onConflictDoNothing();
+		writes.push(
+			db
+				.insert(unions)
+				.values({
+					id: unionId,
+					treeId,
+					createdAt: importedAt,
+					status: deriveUnionStatus(fam),
+					xrefAliases: fam.aliases && fam.aliases.length > 0 ? fam.aliases : null
+				})
+				.onConflictDoNothing()
+		);
 
 		const partnerRows = participants.map((personId, index) => ({
 			id: crypto.randomUUID(),
@@ -210,7 +235,7 @@ export async function importNeutralModel(
 			order: index
 		}));
 		for (const chunk of chunkByParamLimit(partnerRows, 5)) {
-			await db.insert(unionPartners).values(chunk).onConflictDoNothing();
+			writes.push(db.insert(unionPartners).values(chunk).onConflictDoNothing());
 		}
 
 		// Per-parent assertions: expand family-wide pedigree into per-parent type.
@@ -235,85 +260,73 @@ export async function importNeutralModel(
 			for (const parentId of participants) {
 				// PEDI is per link to the family; Epoch's `_PEDI_PARENT` refines it for one parent.
 				const pedigree = child.parentPedigrees?.[parentId] ?? child.pedigree ?? 'birth';
-				await db
-					.insert(parentChild)
-					.values({
-						id: crypto.randomUUID(),
-						treeId,
-						parentId: scoped(parentId),
-						childId,
-						type: PEDIGREE_TO_TYPE[pedigree],
-						gedcomPedi: pedigree === 'sealing' || pedigree === 'other' ? pedigree : null,
-						status: 'active',
-						unionId
-					})
-					.onConflictDoNothing();
+				const link = {
+					id: crypto.randomUUID(),
+					treeId,
+					parentId: scoped(parentId),
+					childId,
+					type: PEDIGREE_TO_TYPE[pedigree],
+					gedcomPedi: pedigree === 'sealing' || pedigree === 'other' ? pedigree : null,
+					status: 'active' as const,
+					unionId
+				};
+				// The unique (parent, child, type) index keeps the first row, so the first one is the link.
+				const key = linkKey(link);
+				if (!storedLinks.has(key)) storedLinks.set(key, link.id);
+				writes.push(db.insert(parentChild).values(link).onConflictDoNothing());
 			}
 		}
 	}
 
-	if (linkCitations.length > 0) {
-		// The row that holds each link now: a merge-mode import may have found it already stored.
-		const stored = new Map(
-			(
-				await db
-					.select({
-						id: parentChild.id,
-						parentId: parentChild.parentId,
-						childId: parentChild.childId,
-						type: parentChild.type
-					})
-					.from(parentChild)
-					.where(eq(parentChild.treeId, treeId))
-					.all()
-			).map((row) => [`${row.parentId}|${row.childId}|${row.type}`, row.id])
-		);
-		for (const link of linkCitations) {
-			const id = stored.get(`${link.parentId}|${link.childId}|${link.type}`);
-			if (id)
-				targets.push({
-					kind: CITATION_SUBJECT_KINDS.PARENT_CHILD,
-					id,
-					citations: link.citations,
-					notes: link.notes
-				});
-		}
+	for (const link of linkCitations) {
+		const id = storedLinks.get(linkKey(link));
+		if (id)
+			targets.push({
+				kind: CITATION_SUBJECT_KINDS.PARENT_CHILD,
+				id,
+				citations: link.citations,
+				notes: link.notes
+			});
 	}
 
 	// 3. Preserve unmodeled GEDCOM structures verbatim for lossless export.
 	// A merge import meets structures it kept the last time; the same lines under the same owner are
 	// not kept twice, or a root record would be written twice and its XREF would repeat.
 	const kept = new Set(
-		(
-			await db
-				.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines })
-				.from(gedcomPreserved)
-				.where(eq(gedcomPreserved.treeId, treeId))
-				.all()
+		(isTreeEmpty
+			? []
+			: await db
+					.select({ owner: gedcomPreserved.ownerXref, lines: gedcomPreserved.lines })
+					.from(gedcomPreserved)
+					.where(eq(gedcomPreserved.treeId, treeId))
+					.all()
 		).map((r) => JSON.stringify([r.owner, r.lines]))
 	);
-	let order =
-		(
-			await db
-				.select({ n: sql<number>`coalesce(max(${gedcomPreserved.order}), -1) + 1` })
-				.from(gedcomPreserved)
-				.where(eq(gedcomPreserved.treeId, treeId))
-				.get()
-		)?.n ?? 0;
+	let order = isTreeEmpty
+		? 0
+		: ((
+				await db
+					.select({ n: sql<number>`coalesce(max(${gedcomPreserved.order}), -1) + 1` })
+					.from(gedcomPreserved)
+					.where(eq(gedcomPreserved.treeId, treeId))
+					.get()
+			)?.n ?? 0);
 	for (const entry of parsed.preserved) {
 		const key = JSON.stringify([entry.xref, entry.lines]);
 		if (kept.has(key)) continue;
 		kept.add(key);
-		await db
-			.insert(gedcomPreserved)
-			.values({
-				id: crypto.randomUUID(),
-				treeId,
-				ownerXref: entry.xref,
-				lines: entry.lines,
-				order: order++
-			})
-			.onConflictDoNothing();
+		writes.push(
+			db
+				.insert(gedcomPreserved)
+				.values({
+					id: crypto.randomUUID(),
+					treeId,
+					ownerXref: entry.xref,
+					lines: entry.lines,
+					order: order++
+				})
+				.onConflictDoNothing()
+		);
 	}
 	return targets;
 }
