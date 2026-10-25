@@ -434,7 +434,13 @@ export class GedcomService {
 				actorId: message.actorId
 			}
 		);
-		await bucket.delete(message.r2ObjectKey);
+		try {
+			await bucket.delete(message.r2ObjectKey);
+		} catch (err) {
+			// The import is written, so the message must still be acked: a retry would run it again over
+			// whatever was edited since. A left-over file stops counting against the cap once it is old.
+			console.error(`Imported ${message.r2ObjectKey} but could not delete it:`, err);
+		}
 		return true;
 	}
 

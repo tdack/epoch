@@ -270,6 +270,23 @@ describe('runImport', () => {
 			.all();
 		expect(people.map((p) => p.xref).sort()).toEqual(['@I1@', '@I2@']);
 	});
+
+	it('answers done for a queued import whose staged file cannot be deleted, so it is not rerun', async () => {
+		const s = await tree();
+		const { bucket } = fakeBucket();
+		const key = `staging/gedcom-${s.treeId}-stuck.ged`;
+		await bucket.put(key, FILE);
+		bucket.delete = async () => {
+			throw new Error('R2 unavailable');
+		};
+		const service = new GedcomService(t.db, { bucket });
+		expect(
+			await service.importStaged({ treeId: s.treeId, r2ObjectKey: key, actorId: s.owner.userId })
+		).toBe(true);
+		expect(
+			(await t.db.select().from(individuals).where(eq(individuals.treeId, s.treeId))).length
+		).toBe(2);
+	});
 });
 
 describe('importStaged authorization', () => {
