@@ -5,6 +5,7 @@ import type { RelationshipCommand } from '../domain/relationship-commands';
 import type { TreeRows } from '../domain/change-log';
 import { seedFor } from '../domain/write-scope/index';
 import { seedOf } from '../domain/write-scope';
+import { UnauthorizedError } from '../domain/errors';
 import { ChangeStore } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
@@ -16,6 +17,7 @@ import {
 } from '../testing/d1';
 import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
+import { NoteService } from './note-service';
 import { MutationRunner } from './mutation-runner';
 import { PersonService } from './person-service';
 import { RelationshipService } from './relationship-service';
@@ -222,5 +224,39 @@ describe('editing or citing a source', () => {
 				.catch(() => null)
 		);
 		expect(new Set(loaded.map((c) => c.id)).size).toBe(3);
+	});
+});
+
+describe('a restricted caller', () => {
+	it('is refused alike, and told no count, when only private rows make a plan fail', async () => {
+		const owner = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, owner);
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		// No dates, so living, and hidden from the contributor.
+		const { individual: hidden } = await new PersonService(t.db).create(
+			treeId,
+			{ givenName: 'Livia', surname: 'Ash' },
+			owner.context
+		);
+		const notes = new NoteService(t.db);
+		const { noteId } = await notes.createNote(treeId, { text: 'Mine' }, contributor.context);
+		await notes.attachNote(treeId, { kind: 'person', id: hidden.id }, noteId, owner.context);
+
+		const refusal = (shouldDetach: boolean) =>
+			new MutationRunner(t.db)
+				.run(treeId, contributor.context, {
+					kind: 'delete_shared_note',
+					summary: () => 'Deleted a note',
+					commands: [{ kind: 'delete_shared_note', noteId, shouldDetach }]
+				})
+				.catch((error: unknown) => error);
+		// Over the rows they see the note is unused; over every row it is in use by the private person.
+		const inUse = await refusal(false);
+		const detaching = await refusal(true);
+		expect(inUse).toBeInstanceOf(UnauthorizedError);
+		expect(detaching).toBeInstanceOf(UnauthorizedError);
+		expect((inUse as Error).message).toBe((detaching as Error).message);
+		expect(inUse).not.toHaveProperty('useCount');
 	});
 });

@@ -28,7 +28,7 @@ import {
 	type TreeRows
 } from '../domain/change-log';
 import { type RecordChange } from '../../shared/impact';
-import { UnauthorizedError } from '../domain/errors';
+import { DomainError, UnauthorizedError } from '../domain/errors';
 import { describeImpact } from '../domain/impact';
 import { carriedCitations, carriedNotes } from '../domain/evidence-carry';
 import { type ImpactSummary } from '../../shared/impact';
@@ -180,7 +180,9 @@ export class MutationRunner {
 	 * Plan for a caller with this scope. A restricted viewer's commands are first planned over the
 	 * rows they can see, so naming a private person fails exactly as naming a missing one does; the
 	 * real ops are then planned over every row, and refused if they would read or write anything of
-	 * a private person (ADR-015). The refusal reads as a missing permission, not as a reason.
+	 * a private person (ADR-015). The refusal reads as a missing permission, not as a reason. A
+	 * domain error only the second plan raises came from private rows (a note in use by a private
+	 * person, with how many uses), so it is refused the same way rather than passed on.
 	 */
 	planFor(
 		treeId: string,
@@ -189,13 +191,17 @@ export class MutationRunner {
 		scope: ViewerScope
 	): RowOp[] {
 		if (!scope.isRestricted) return this.plan(treeId, rows, commands, scope.userId);
-		this.plan(treeId, this.visibleRows(rows, scope), commands, scope.userId);
-		const ops = this.plan(treeId, rows, commands, scope.userId);
-		if (opsTouchPrivate(ops, rows, scope.cutoff, scope.creatorId)) {
-			throw new UnauthorizedError(
-				`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`
-			);
+		const seen = this.plan(treeId, this.visibleRows(rows, scope), commands, scope.userId);
+		const refusal = (ops: RowOp[]) =>
+			new UnauthorizedError(`Forbidden: insufficient privileges for action '${actionForOps(ops)}'`);
+		let ops: RowOp[];
+		try {
+			ops = this.plan(treeId, rows, commands, scope.userId);
+		} catch (error) {
+			if (error instanceof DomainError) throw refusal(seen);
+			throw error;
 		}
+		if (opsTouchPrivate(ops, rows, scope.cutoff, scope.creatorId)) throw refusal(ops);
 		return ops;
 	}
 
