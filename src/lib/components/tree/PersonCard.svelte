@@ -228,18 +228,6 @@
 			</g>
 		{/if}
 	{/if}
-	{#if isSelf}
-		<!-- A pill beside the frame's corner for sighted users; the name carries it for a screen reader
-		     (see the label above), so the pill itself is hidden from them. -->
-		<g
-			class="you-pill"
-			transform="translate({W / 2 - 4 * scale}, {frameHeight / 2 - 2 * scale})"
-			aria-hidden="true"
-		>
-			<rect x={-26 * scale} y={-9 * scale} width={52 * scale} height={18 * scale} rx={9 * scale} />
-			<text y={4 * scale} text-anchor="middle" style="font-size: {10 * scale}px">You</text>
-		</g>
-	{/if}
 	{#if isFocus}
 		<!-- Drawn as marks of their own, not as a restyled frame: hover and selection both restyle the
 		     frame, and the focus person must still read when either applies. Decorative because
@@ -260,6 +248,19 @@
 		>
 			<rect x={-34 * scale} y={-17 * scale} width={68 * scale} height={20 * scale} rx={4 * scale} />
 			<text y={-3 * scale} text-anchor="middle" style="font-size: {11 * scale}px">Focus</text>
+		</g>
+	{/if}
+	{#if isSelf}
+		<!-- A pill beside the frame's corner for sighted users; the name carries it for a screen reader
+		     (see the label above), so the pill itself is hidden from them. Drawn after the focus marks so
+		     it sits on top of the outer rule. -->
+		<g
+			class="you-pill"
+			transform="translate({W / 2 - 4 * scale}, {frameHeight / 2 - 2 * scale})"
+			aria-hidden="true"
+		>
+			<rect x={-26 * scale} y={-9 * scale} width={52 * scale} height={18 * scale} rx={9 * scale} />
+			<text y={4 * scale} text-anchor="middle" style="font-size: {10 * scale}px">You</text>
 		</g>
 	{/if}
 	<title>{label}</title>
