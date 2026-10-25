@@ -1,7 +1,7 @@
 /**
  * Row operations for sources, repositories and citations (ADR-028): create, edit, delete, link,
  * merge, and cite. A citation is owned by one subject, so a merge or a delete of the subject moves or
- * removes it in the same change (`citationCascadeOps`, `makeCitationMover`) and an undo brings it back.
+ * removes it in the same change (`citationCascadeOps`, `makeEvidenceMover`) and an undo brings it back.
  *
  * Adding a citation does not touch its subject's version: a contributor may cite what they may see,
  * and citing is not an edit of the claim. Editing or removing one is an edit, like any other.
@@ -380,7 +380,9 @@ function mergeSources(
 	const extras = [...(survivor.gedcomExtra ?? [])];
 	for (const source of merged) {
 		const block = source.gedcomExtra ?? [];
-		if (block.length > 0 && !extras.join('\n').includes(block.join('\n'))) extras.push(...block);
+		// Whole lines only: `1 _FOO a` is not already there because the survivor has `1 _FOO ab`.
+		const isKept = `\n${extras.join('\n')}\n`.includes(`\n${block.join('\n')}\n`);
+		if (block.length > 0 && !isKept) extras.push(...block);
 	}
 	const aliases = [...(survivor.xrefAliases ?? [])];
 	for (const source of merged) {

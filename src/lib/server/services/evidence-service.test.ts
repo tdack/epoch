@@ -9,6 +9,8 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { importGedcomToDb } from '../testing/gedcom';
+import { describeCommand } from '../domain/command-summary';
 import { ChangeLogService } from './change-log-service';
 import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
@@ -201,6 +203,47 @@ describe('sources', () => {
 		expect(await t.db.select().from(sources).where(eq(sources.id, sourceId)).all()).toEqual([]);
 		await log.undoLast(treeId, ctx);
 		expect((await citationsOf(birthId)).map((c) => c.page)).toEqual(['p 1', 'p 2']);
+	});
+
+	it("keeps a merged source's extra lines unless the survivor has the very same lines", async () => {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const gedcom = [
+			'0 HEAD',
+			'0 @S1@ SOUR',
+			'1 TITL Survivor',
+			'1 _FOO ab',
+			'0 @S2@ SOUR',
+			'1 TITL Prefix',
+			'1 _FOO a',
+			'0 @S3@ SOUR',
+			'1 TITL Same',
+			'1 _FOO ab',
+			'0 TRLR'
+		].join('\n');
+		await importGedcomToDb(t.d1, treeId, gedcom, 'Sources', 'merge');
+		const id = (x: string) => `${treeId}:@${x}@`;
+		const extraOf = async (sourceId: string) =>
+			(await t.db.select().from(sources).where(eq(sources.id, sourceId)).get())!.gedcomExtra;
+		expect(await extraOf(id('S1'))).toEqual(['1 _FOO ab']);
+		await new EvidenceService(t.db).mergeSources(
+			treeId,
+			id('S1'),
+			[id('S2'), id('S3')],
+			undefined,
+			actor.context
+		);
+		expect(await extraOf(id('S1'))).toEqual(['1 _FOO ab', '1 _FOO a']);
+	});
+
+	it('counts the sources of a merge once each, without the survivor among them', () => {
+		const command = {
+			kind: 'merge_sources' as const,
+			survivorId: 'a',
+			mergedIds: ['b', 'b', 'a']
+		};
+		const rows = { sources: [] } as unknown as Parameters<typeof describeCommand>[1];
+		expect(describeCommand(command, rows)).toMatch(/^Merged 2 sources into /);
 	});
 
 	it('merges two sources, moving every citation in order, and undo moves them back', async () => {
