@@ -63,11 +63,18 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
 export function applyOpsToRows(rows: TreeRows, ops: RowOp[]): TreeRows {
 	const next = { ...rows } as Record<keyof TreeRows, { id: string }[]>;
+	// One map per table an op touches: filtering the whole table per op was quadratic on a
+	// whole-tree command.
+	const touched = new Map<keyof TreeRows, Map<string, { id: string }>>();
 	for (const op of ops) {
 		const key = TABLE_KEYS[op.table];
-		const kept = next[key].filter((row) => row.id !== op.id);
-		next[key] = op.after ? [...kept, op.after] : kept;
+		let byId = touched.get(key);
+		if (!byId) touched.set(key, (byId = new Map(next[key].map((row) => [row.id, row]))));
+		// Deleted first, so a rewritten row moves to the end as the filter-and-append put it.
+		byId.delete(op.id);
+		if (op.after) byId.set(op.id, op.after);
 	}
+	for (const [key, byId] of touched) next[key] = [...byId.values()];
 	return next as unknown as TreeRows;
 }
 
@@ -93,13 +100,21 @@ export function unionIdsOf(rows: TreeRows, personId: string): string[] {
 
 /** Every union with its partners and events, in the shape `partnershipLabels` reads. */
 export function labelableUnionsOf(rows: TreeRows): LabelableUnion[] {
+	// Grouped once: filtering every partner and fact per union was quadratic on a whole tree.
+	const partners = Map.groupBy(rows.unionPartners, (p) => p.unionId);
+	const events = Map.groupBy(
+		rows.events.filter((e) => e.entityType === 'FAMILY'),
+		(e) => e.entityId
+	);
 	return rows.unions.map((u) => ({
 		id: u.id,
 		createdAt: u.createdAt,
-		partnerIds: partnerIdsOf(rows, u.id),
-		events: rows.events
-			.filter((e) => e.entityType === 'FAMILY' && e.entityId === u.id)
-			.map((e) => ({ type: e.type, dateText: e.dateRaw, dateSort: e.dateSort }))
+		partnerIds: (partners.get(u.id) ?? []).sort((a, b) => a.order - b.order).map((p) => p.personId),
+		events: (events.get(u.id) ?? []).map((e) => ({
+			type: e.type,
+			dateText: e.dateRaw,
+			dateSort: e.dateSort
+		}))
 	}));
 }
 

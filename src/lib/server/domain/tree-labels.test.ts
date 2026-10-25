@@ -71,3 +71,30 @@ describe('partnership labels in previews', () => {
 		expect(label('unions', { id: 'full' })).toBe('Ann–Ben partnership');
 	});
 });
+
+describe('labelling a whole tree', () => {
+	it('labels every fact of a large tree in linear time', () => {
+		const count = 20_000;
+		const many = Array.from({ length: count }, (_, i) => ({ id: `p${i}`, givenName: `P${i}` }));
+		const rows = treeRows({
+			people: many,
+			unions: Array.from({ length: count / 2 }, (_, i) => ({
+				id: `u${i}`,
+				partners: [`p${2 * i}`, `p${2 * i + 1}`]
+			})),
+			events: Array.from({ length: count }, (_, i) => ({
+				id: `e${i}`,
+				entityType: 'FAMILY',
+				entityId: `u${i % (count / 2)}`,
+				type: 'MARR'
+			}))
+		});
+		const started = performance.now();
+		const label = makeLabeler(rows, []);
+		for (const event of rows.events) label('events', event);
+		for (const event of rows.events)
+			label('citations', { ...event, subjectKind: 'event', subjectId: event.id, sourceId: null });
+		// Under 100 ms; scanning per partnership and per label took over three seconds at this size.
+		expect(performance.now() - started).toBeLessThan(1000);
+	});
+});

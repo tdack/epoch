@@ -6,13 +6,11 @@
 
 import {
 	type IndividualRow,
-	type PersonNameRow,
 	type RecordTable,
 	type RowImage,
 	type RowOp,
 	type TableRow,
-	type TreeRows,
-	type UnionPartnerRow
+	type TreeRows
 } from './change-log';
 import { personName, applyOpsToRows, labelableUnionsOf } from './tree-ops';
 import { displayNameWith } from '../../shared/name-types';
@@ -38,21 +36,28 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 		ops.filter((op) => op.after !== null && op.before === null)
 	);
 	const people = new Map<string, IndividualRow>(known.individuals.map((p) => [p.id, p]));
-	const partnersByUnion = new Map<string, UnionPartnerRow[]>();
-	for (const partner of known.unionPartners) {
-		partnersByUnion.set(partner.unionId, [
-			...(partnersByUnion.get(partner.unionId) ?? []),
-			partner
-		]);
-	}
+	const partnersByUnion = Map.groupBy(known.unionPartners, (p) => p.unionId);
+	// Built on first use: a label per op, each scanning a whole table, was quadratic on a whole-tree
+	// command.
+	const indexes = new Map<keyof TreeRows, Map<string, unknown>>();
+	const rowOf = <K extends keyof TreeRows>(
+		table: K,
+		id: string | null
+	): TreeRows[K][number] | undefined => {
+		if (id === null) return undefined;
+		let index = indexes.get(table);
+		if (!index) {
+			index = new Map(known[table].map((row) => [row.id, row]));
+			indexes.set(table, index);
+		}
+		return index.get(id) as TreeRows[K][number] | undefined;
+	};
 
 	// Two partnerships between the same pair share a name, so a preview could not say which one
 	// goes; the chronological label tells them apart.
 	const chronology = partnershipLabels(labelableUnionsOf(known));
 
-	const namesOfPerson = new Map<string, PersonNameRow[]>();
-	for (const n of known.personNames)
-		namesOfPerson.set(n.personId, [...(namesOfPerson.get(n.personId) ?? []), n]);
+	const namesOfPerson = Map.groupBy(known.personNames, (n) => n.personId);
 	const person = (id: string) => displayNameWith(people.get(id), namesOfPerson.get(id));
 	const nameOfUnion = (id: string) => {
 		const members = (partnersByUnion.get(id) ?? [])
@@ -81,19 +86,19 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case CITATION_SUBJECT_KINDS.UNION:
 				return union(id);
 			case CITATION_SUBJECT_KINDS.NAME: {
-				const name = known.personNames.find((n) => n.id === id);
+				const name = rowOf('personNames', id);
 				return name
 					? `${NAME_TYPE_LABELS[(name.type as NameType) ?? 'other']} of ${person(name.personId)}`
 					: 'a name';
 			}
 			case CITATION_SUBJECT_KINDS.EVENT: {
-				const event = known.events.find((e) => e.id === id);
+				const event = rowOf('events', id);
 				return event
 					? `${eventLabel(event.type)} of ${event.entityType === 'FAMILY' ? union(event.entityId) : person(event.entityId)}`
 					: 'a fact';
 			}
 			default: {
-				const link = known.parentChild.find((l) => l.id === id);
+				const link = rowOf('parentChild', id);
 				return link
 					? `${person(link.parentId)} as parent of ${person(link.childId)}`
 					: 'a parent link';
@@ -106,17 +111,17 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 	const noteSubjectOf = (kind: string, id: string): string => {
 		switch (kind) {
 			case NOTE_SUBJECT_KINDS.SOURCE: {
-				const source = known.sources.find((s) => s.id === id);
+				const source = rowOf('sources', id);
 				return source ? `source “${sourceLabel(source)}”` : 'a source';
 			}
 			case NOTE_SUBJECT_KINDS.REPOSITORY: {
-				const repository = known.repositories.find((r) => r.id === id);
+				const repository = rowOf('repositories', id);
 				return repository ? `repository “${repository.name ?? 'Unnamed'}”` : 'a repository';
 			}
 			case NOTE_SUBJECT_KINDS.CITATION: {
-				const citation = known.citations.find((c) => c.id === id);
+				const citation = rowOf('citations', id);
 				if (!citation) return 'a citation';
-				const source = known.sources.find((s) => s.id === citation.sourceId);
+				const source = rowOf('sources', citation.sourceId);
 				return `a citation of “${source ? sourceLabel(source) : (citation.description ?? 'a source')}”`;
 			}
 			default:
@@ -150,9 +155,9 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case 'media_items':
 				return row.title ? `File “${row.title.slice(0, 60)}”` : 'File';
 			case 'media_links': {
-				const owningSource = known.sources.find((s) => s.id === row.entityId);
+				const owningSource = rowOf('sources', row.entityId);
 				if (owningSource) return `Link of a file to source “${sourceLabel(owningSource)}”`;
-				const isPartnership = known.unions.some((u) => u.id === row.entityId);
+				const isPartnership = rowOf('unions', row.entityId) !== undefined;
 				return `Link of a file to ${isPartnership ? union(row.entityId) : person(row.entityId)}`;
 			}
 			case 'sources':
@@ -160,12 +165,12 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case 'repositories':
 				return `Repository “${row.name ?? 'Unnamed'}”`;
 			case 'source_repositories': {
-				const source = known.sources.find((s) => s.id === row.sourceId);
-				const repository = known.repositories.find((r) => r.id === row.repositoryId);
+				const source = rowOf('sources', row.sourceId);
+				const repository = rowOf('repositories', row.repositoryId);
 				return `${source ? sourceLabel(source) : 'Source'} at ${repository?.name ?? 'a repository'}`;
 			}
 			case 'citations': {
-				const source = known.sources.find((s) => s.id === row.sourceId);
+				const source = rowOf('sources', row.sourceId);
 				const page = row.page ? `, ${row.page}` : '';
 				return `Citation of “${source ? sourceLabel(source) : (row.description ?? 'a source')}”${page} for ${subjectOf(row.subjectKind, row.subjectId)}`;
 			}
@@ -176,7 +181,7 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			case 'research_tasks':
 				return `Task “${String(row.title ?? '').slice(0, 60)}”`;
 			case 'note_attachments': {
-				const shared = row.noteId ? known.notes.find((n) => n.id === row.noteId) : undefined;
+				const shared = row.noteId ? rowOf('notes', row.noteId) : undefined;
 				const what = row.noteId ? `Shared note “${noteTitle(shared?.text ?? null, 40)}”` : 'Note';
 				return `${what} on ${noteSubjectOf(row.subjectKind, row.subjectId)}`;
 			}
