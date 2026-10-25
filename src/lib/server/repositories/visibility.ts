@@ -264,8 +264,9 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
 	const people = sql`(select id from vp)`;
 	const isOwn = (row: string) =>
 		scope.creatorId === null ? sql`` : sql`${ident(row)}.created_by is ${scope.creatorId} or `;
+	// Led by the tree's unions: `union_partners` has no tree index, so its own tree_id would still read every tree.
 	return sql`with vp(id) as (select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)}),
-		hu(id) as (select up.union_id from union_partners up where up.person_id not in ${people}),
+		hu(id) as (select up.union_id from unions hun join union_partners up on up.union_id = hun.id where hun.tree_id = ${treeId} and up.person_id not in ${people}),
 		vn(id) as (select n.id from person_names n where n.person_id in ${people}),
 		ve(id) as (select e.id from events e where e.tree_id = ${treeId} and (
 			(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
