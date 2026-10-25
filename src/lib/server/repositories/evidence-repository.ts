@@ -19,6 +19,7 @@ import {
 } from '../db/schema';
 import type { CitationRow, RepositoryRow, SourceRow } from '../domain/change-log';
 import { toImage } from './change-store';
+import { likePattern } from './like-pattern';
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
 import type { ViewerScope } from '../services/tree-access';
 import {
@@ -34,9 +35,6 @@ export interface PageRequest {
 	offset: number;
 	limit: number;
 }
-
-/** `%` and `_` in a search are the text, not wildcards. */
-const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** A citation row as the mutation snapshot has it, so the read services and the planner share one shape. */
 const citationImage = (row: typeof citations.$inferSelect) =>

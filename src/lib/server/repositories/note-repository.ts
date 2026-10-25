@@ -12,6 +12,7 @@ import type { NoteAttachmentRow, NoteRow } from '../domain/change-log';
 import { toImage } from './change-store';
 import type { NoteSubjectKind } from '../../shared/notes';
 import type { ViewerScope } from '../services/tree-access';
+import { likePattern } from './like-pattern';
 import { andNoteAttachmentVisible, andNoteVisible, withVisibleNoteScope } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -20,9 +21,6 @@ export interface PageRequest {
 	offset: number;
 	limit: number;
 }
-
-/** `%` and `_` in a search are the text, not wildcards. */
-const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** Rows as the mutation snapshot has them, so the read services and the planner share one shape. */
 const noteImage = (row: typeof notes.$inferSelect) => toImage(notes, row) as NoteRow;
