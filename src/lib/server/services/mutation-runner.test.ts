@@ -2,17 +2,22 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import type { RelationshipCommand } from '../domain/relationship-commands';
+import type { TreeRows } from '../domain/change-log';
 import { seedFor } from '../domain/write-scope/index';
 import { seedOf } from '../domain/write-scope';
+import { UnauthorizedError } from '../domain/errors';
 import { ChangeStore } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
+	addTestMember,
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
+import { NoteService } from './note-service';
 import { MutationRunner } from './mutation-runner';
 import { PersonService } from './person-service';
 import { RelationshipService } from './relationship-service';
@@ -159,5 +164,99 @@ describe('the follow-up load', () => {
 		scoped.mockClear();
 		await runner.loadForSeed(treeId, seedOf({ unions: [unionId], shouldFollowFamily: true }));
 		expect(scoped).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('editing or citing a source', () => {
+	/** A source cited on three people, so a load that pulled its citations would show them. */
+	async function citedSource() {
+		const owner = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, owner);
+		const people = new PersonService(t.db);
+		const evidence = new EvidenceService(t.db);
+		const { sourceId } = await evidence.createSource(treeId, { title: 'Census' }, owner.context);
+		const ids: string[] = [];
+		for (const givenName of ['A', 'B', 'C', 'D']) {
+			const { individual } = await people.create(
+				treeId,
+				{ givenName, surname: 'Ash' },
+				owner.context
+			);
+			ids.push(individual.id);
+		}
+		for (const id of ids.slice(0, 3))
+			await evidence.addCitation(treeId, { kind: 'person', id }, { sourceId }, owner.context);
+		return { owner, treeId, evidence, sourceId, uncited: ids[3]! };
+	}
+
+	/** Every citation row the scoped loads of `act` returned. */
+	async function citationsLoaded(act: () => Promise<unknown>) {
+		const load = vi.spyOn(ScopedRowLoader.prototype, 'load');
+		await act();
+		const rows = await Promise.all(load.mock.results.map((r) => r.value as Promise<TreeRows>));
+		load.mockRestore();
+		return rows.flatMap((r) => r.citations);
+	}
+
+	it('reads no citation of it for a caller who sees everyone', async () => {
+		const { owner, treeId, evidence, sourceId, uncited } = await citedSource();
+		expect(
+			await citationsLoaded(() =>
+				evidence.updateSource(treeId, sourceId, { title: 'Census 1851' }, 1, owner.context)
+			)
+		).toEqual([]);
+		expect(
+			await citationsLoaded(() =>
+				evidence.addCitation(treeId, { kind: 'person', id: uncited }, { sourceId }, owner.context)
+			)
+		).toEqual([]);
+	});
+
+	it('reads every citation of it for a contributor, who must tell hidden from present', async () => {
+		const { treeId, evidence, sourceId, uncited } = await citedSource();
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		// The people have no dates, so are living and hidden from them: the citing is refused, and
+		// what it loaded on the way is what is under test.
+		const loaded = await citationsLoaded(() =>
+			evidence
+				.addCitation(treeId, { kind: 'person', id: uncited }, { sourceId }, contributor.context)
+				.catch(() => null)
+		);
+		expect(new Set(loaded.map((c) => c.id)).size).toBe(3);
+	});
+});
+
+describe('a restricted caller', () => {
+	it('is refused alike, and told no count, when only private rows make a plan fail', async () => {
+		const owner = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, owner);
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		// No dates, so living, and hidden from the contributor.
+		const { individual: hidden } = await new PersonService(t.db).create(
+			treeId,
+			{ givenName: 'Livia', surname: 'Ash' },
+			owner.context
+		);
+		const notes = new NoteService(t.db);
+		const { noteId } = await notes.createNote(treeId, { text: 'Mine' }, contributor.context);
+		await notes.attachNote(treeId, { kind: 'person', id: hidden.id }, noteId, owner.context);
+
+		const refusal = (shouldDetach: boolean) =>
+			new MutationRunner(t.db)
+				.run(treeId, contributor.context, {
+					kind: 'delete_shared_note',
+					summary: () => 'Deleted a note',
+					commands: [{ kind: 'delete_shared_note', noteId, shouldDetach }]
+				})
+				.catch((error: unknown) => error);
+		// Over the rows they see the note is unused; over every row it is in use by the private person.
+		const inUse = await refusal(false);
+		const detaching = await refusal(true);
+		expect(inUse).toBeInstanceOf(UnauthorizedError);
+		expect(detaching).toBeInstanceOf(UnauthorizedError);
+		expect((inUse as Error).message).toBe((detaching as Error).message);
+		expect(inUse).not.toHaveProperty('useCount');
 	});
 });

@@ -9,9 +9,11 @@ import type { ScopeTable } from './types';
  * exists only while some citation of it sits on a record they may see, and the planners first plan
  * over the viewer's rows, so "hidden" and "present" can only be told apart if every citation of the
  * source is loaded. A source reached merely through one citation does not bring the others; a
- * seeded one does.
+ * seeded one does. A caller who sees everything needs only the row, so a source with thousands of
+ * citations costs one read to edit or cite.
  */
-const sourceSeed = (sourceId: string | null | undefined) => seedOf({ sources: [sourceId] });
+const sourceSeed = (sourceId: string | null | undefined, isRestricted: boolean) =>
+	seedOf(isRestricted ? { sources: [sourceId] } : { bareSources: [sourceId] });
 
 /**
  * The follow-up is on wherever a command reads the row of the record it is about: a partnership
@@ -86,11 +88,12 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
  * snapshot and loads them next.
  */
 export const EVIDENCE_SCOPES: ScopeTable = {
-	// A new record's XREF must not collide with one already taken, so that whole table is read.
-	create_source: () => seedOf({ wholeTables: ['sources'] }),
-	update_source: (c) => sourceSeed(c.sourceId),
-	delete_source: (c) => sourceSeed(c.sourceId),
-	create_repository: () => seedOf({ wholeTables: ['repositories'] }),
+	// A new record reads nothing: its XREF comes from its own id, and the unique index catches a clash.
+	create_source: () => seedOf({}),
+	update_source: (c, isRestricted) => sourceSeed(c.sourceId, isRestricted),
+	// Deleting reads every citation and file of the source, whoever asks.
+	delete_source: (c) => sourceSeed(c.sourceId, true),
+	create_repository: () => seedOf({}),
 	// A repository is visible to a restricted viewer only through a visible source that links it, so
 	// the follow-up loads the sources its links name, and with them the citations that decide.
 	update_repository: (c) => following({ repositories: [c.repositoryId] }),
@@ -98,27 +101,25 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	link_repository: (c) => following({ sources: [c.sourceId], repositories: [c.repositoryId] }),
 	update_source_repository: (c) => following({ sourceRepositories: [c.linkId] }),
 	unlink_repository: (c) => following({ sourceRepositories: [c.linkId] }),
-	add_citation: (c) => ({
-		...citationSubjectSeed(c.subject),
-		sources: sourceSeed(c.citation.sourceId).sources
-	}),
-	update_citation: (c) => ({
-		...seedOf({ citations: [c.citationId] }),
-		sources: sourceSeed(c.citation.sourceId).sources
-	}),
+	add_citation: (c, isRestricted) =>
+		mergeSeeds(citationSubjectSeed(c.subject), sourceSeed(c.citation.sourceId, isRestricted)),
+	update_citation: (c, isRestricted) =>
+		mergeSeeds(
+			seedOf({ citations: [c.citationId] }),
+			sourceSeed(c.citation.sourceId, isRestricted)
+		),
 	remove_citation: (c) => seedOf({ citations: [c.citationId] }),
 	// The subject brings every citation on it, which is every sibling to reorder.
 	reorder_citations: (c) => citationSubjectSeed(c.subject),
 	add_note: (c) => noteSubjectSeed(c.subject),
 	reorder_notes: (c) => noteSubjectSeed(c.subject),
-	create_note: () => seedOf({ wholeTables: ['notes'] }),
+	create_note: () => seedOf({}),
 	// An attachment is visible to a restricted viewer only if what it sits on is, and a shared note
 	// only through the attachments that use it, so the follow-up seeds the source or repository an
 	// attachment is on (and the repository's sources), which loads the citations that decide.
 	update_note: (c) => following({ noteAttachments: [c.attachmentId] }),
 	remove_note: (c) => following({ noteAttachments: [c.attachmentId] }),
-	// The new note's XREF is picked among every note's, as for `create_note`.
-	share_note: (c) => following({ noteAttachments: [c.attachmentId], wholeTables: ['notes'] }),
+	share_note: (c) => following({ noteAttachments: [c.attachmentId] }),
 	attach_note: (c) => mergeSeeds(noteSubjectSeed(c.subject), following({ notes: [c.noteId] })),
 	update_shared_note: (c) => following({ notes: [c.noteId] }),
 	delete_shared_note: (c) => following({ notes: [c.noteId] }),

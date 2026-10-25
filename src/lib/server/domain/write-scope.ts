@@ -47,6 +47,12 @@ export interface ScopeSeed {
 	readonly media: ReadonlySet<string>;
 	readonly citations: ReadonlySet<string>;
 	readonly sources: ReadonlySet<string>;
+	/**
+	 * Sources loaded as rows alone, as one a citation names is: they pull neither their citations nor
+	 * their files. Only for a caller who sees everything, who never needs every citation to tell a
+	 * hidden source from a present one.
+	 */
+	readonly bareSources: ReadonlySet<string>;
 	readonly repositories: ReadonlySet<string>;
 	readonly notes: ReadonlySet<string>;
 	readonly noteAttachments: ReadonlySet<string>;
@@ -86,6 +92,7 @@ const ID_KEYS: readonly IdKey[] = [
 	'media',
 	'citations',
 	'sources',
+	'bareSources',
 	'repositories',
 	'notes',
 	'noteAttachments',
@@ -104,6 +111,7 @@ export function emptySeed(): ScopeSeed {
 		media: new Set(),
 		citations: new Set(),
 		sources: new Set(),
+		bareSources: new Set(),
 		repositories: new Set(),
 		notes: new Set(),
 		noteAttachments: new Set(),
@@ -228,6 +236,7 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 	for (const id of seed.links) addSubject(SUBJECT.LINK, id);
 	for (const id of seed.citations) addSubject(SUBJECT.CITATION, id);
 	for (const id of seed.sources) addSubject(SUBJECT.SOURCE, id);
+	for (const id of seed.bareSources) addSubject(SUBJECT.SOURCE, id);
 	for (const id of seed.repositories) addSubject(SUBJECT.REPOSITORY, id);
 	for (const id of seed.notes) addSubject(SUBJECT.NOTE, id);
 	for (const id of seed.media) if (mediaById.has(id)) media.add(id);

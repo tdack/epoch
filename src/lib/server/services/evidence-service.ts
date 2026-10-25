@@ -238,7 +238,7 @@ export class EvidenceService {
 		});
 		const all = unique.map((id) => add(CITATION_SUBJECT_KINDS.PERSON, id));
 		const rows = this.runner.visibleRows(
-			await this.runner.loadForSeed(treeId, seedFor(all)),
+			await this.runner.loadForSeed(treeId, seedFor(all, scope.isRestricted)),
 			scope
 		);
 		const cited = new Set(

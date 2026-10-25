@@ -16,17 +16,24 @@ const SCOPES: ScopeTable[] = [PERSON_SCOPES, EVIDENCE_SCOPES, UNION_SCOPES];
 function seedFunctionFor(kind: CommandKind) {
 	const found = SCOPES.filter((table) => table[kind]);
 	if (found.length > 1) throw new Error(`Command kind '${kind}' has a scope in two domains`);
-	return found[0]?.[kind] as ((command: RelationshipCommand) => ScopeSeed) | undefined;
+	return found[0]?.[kind] as
+		((command: RelationshipCommand, isRestricted: boolean) => ScopeSeed) | undefined;
 }
 
-/** The union of the commands' seeds, or null when any of them must load the whole tree. */
-export function seedFor(commands: readonly RelationshipCommand[]): ScopeSeed | null {
+/**
+ * The union of the commands' seeds, or null when any of them must load the whole tree. Restricted
+ * by default, the seed that is right for every caller.
+ */
+export function seedFor(
+	commands: readonly RelationshipCommand[],
+	isRestricted = true
+): ScopeSeed | null {
 	if (commands.length === 0) return null;
 	let seed = emptySeed();
 	for (const command of commands) {
 		const seedOfCommand = seedFunctionFor(command.kind);
 		if (!seedOfCommand) return null;
-		seed = mergeSeeds(seed, seedOfCommand(command));
+		seed = mergeSeeds(seed, seedOfCommand(command, isRestricted));
 	}
 	return seed;
 }

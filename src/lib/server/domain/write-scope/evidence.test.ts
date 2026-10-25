@@ -109,7 +109,7 @@ type SubjectKind = 'person' | 'name' | 'event' | 'union' | 'parent_child';
  * people, shared notes used by many records and notes that sit only on a source or a repository,
  * inline notes, notes on citations, tasks about every kind of record, and a share of the records
  * made by the contributor. The first source, repository and note own the XREF a new record's id
- * would try first, so creating one has to look at the XREFs already taken.
+ * would take, so a clash plans the same whatever is loaded (the unique index refuses it on write).
  */
 function addEvidence(rows: TreeRows, random: () => number, prefix: string): TreeRows {
 	const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)]!;
@@ -809,10 +809,11 @@ const totals = new Map<string, { compared: number; refused: number }>();
 function compareAll(rows: TreeRows, commands: RelationshipCommand[]): Tally {
 	const tally: Tally = { compared: 0, succeeded: 0, covered: new Set(), differences: [] };
 	for (const command of commands) {
-		const seed = seedFor([command]);
-		if (!seed) continue;
+		if (!seedFor([command])) continue;
 		tally.covered.add(command.kind);
 		for (const [who, scope] of Object.entries(scopes)) {
+			// The seed this viewer gets: one who sees everything may read less.
+			const seed = seedFor([command], scope.isRestricted)!;
 			try {
 				const outcome = expectScopedEqualsWhole({
 					whole: rows,
@@ -1145,6 +1146,39 @@ describe('the D1 loader, with its follow-up, returns what the selector does', ()
 			expect([...compared].sort()).toEqual([...NEWLY_SCOPED].sort());
 			// The second load found records the first did not, for the kinds that need it.
 			expect(followed.size).toBeGreaterThan(0);
+		} finally {
+			await own.dispose();
+		}
+	}, 300_000);
+
+	it('for the source kinds an unrestricted caller seeds as bare rows', async () => {
+		const own = await createTestDatabase();
+		try {
+			const actor = await createTestUser(own.db);
+			const treeId = await createTestTree(own.db, actor);
+			await importGedcomToDb(own.d1, treeId, simpsons, 'Bare sources');
+			const store = new ChangeStore(own.db);
+			await addEvidenceToDb(own.db, treeId, await store.loadRows(treeId), seededRandom(37));
+			const whole = await store.loadRows(treeId);
+			const runner = new MutationRunner(own.db);
+			const citation = whole.citations[0]!;
+			const person = whole.individuals[0]!.id;
+			const commands: RelationshipCommand[] = whole.sources.flatMap((s) => [
+				{ kind: 'update_source', sourceId: s.id, source: { title: 'x' } },
+				{
+					kind: 'add_citation',
+					citationId: 'new-c',
+					subject: { kind: 'person', id: person },
+					citation: { sourceId: s.id }
+				},
+				{ kind: 'update_citation', citationId: citation.id, citation: { sourceId: s.id } }
+			]);
+			for (const command of commands) {
+				const seed = seedFor([command], false)!;
+				expect(seed.sources.size, command.kind).toBe(0);
+				const loaded = await runner.loadForSeed(treeId, seed);
+				expect(loaded, JSON.stringify(command)).toEqual(selectScopeWithFollowUp(whole, seed));
+			}
 		} finally {
 			await own.dispose();
 		}
