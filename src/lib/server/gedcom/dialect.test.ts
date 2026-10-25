@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 
 describe('toGedcom7Lines', () => {
+	it('leaves a line with an absurd level alone rather than throw', () => {
+		expect(toGedcom7Lines(['1 BIRT', '99999999999 FOO x'])).toEqual([
+			'1 BIRT',
+			'99999999999 FOO x'
+		]);
+	});
+
 	it('folds CONC into the line it continues, or the CONT before it', () => {
 		expect(
 			toGedcom7Lines([

@@ -88,6 +88,14 @@ export class ChangeLogService {
 
 		const target = await store.getById(treeId, changeId);
 		if (!target) throw nothingToUndo();
+		// Before any refusal that quotes target.summary, which can name a person the caller may not see.
+		if (target.actorId !== context.user.id && !isManagerOrAbove(scope.role)) {
+			throw new UndoRefusedError(
+				"Only a manager or owner can undo someone else's change.",
+				UNDO_REFUSALS.NOT_YOURS,
+				403
+			);
+		}
 		if (target.revertsChangeId !== null || !target.inverse) {
 			throw new UndoRefusedError(
 				`Can't undo "${target.summary}": ${target.revertsChangeId ? 'an undo is final, make the change again instead' : 'it was not recorded in a way that can be reversed'}.`,
@@ -107,13 +115,6 @@ export class ChangeLogService {
 			throw new UndoRefusedError(
 				'This change was made before files could link to several records, so it cannot be undone. Link or unlink the file on Research › Files.',
 				UNDO_REFUSALS.NOT_UNDOABLE
-			);
-		}
-		if (target.actorId !== context.user.id && !isManagerOrAbove(scope.role)) {
-			throw new UndoRefusedError(
-				"Only a manager or owner can undo someone else's change.",
-				UNDO_REFUSALS.NOT_YOURS,
-				403
 			);
 		}
 		if (await store.undoRowOf(target.id)) {

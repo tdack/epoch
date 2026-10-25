@@ -36,6 +36,11 @@ describe('every line terminator splits a file', () => {
 });
 
 describe('a stray segment is a continuation, not lost', () => {
+	it('treats a line whose level is over 99 as text, not a structure', () => {
+		const nodes = buildGedcomTree(['0 @I1@ INDI', '1 NOTE a', '99999999999 FOO x']);
+		expect(nodes[0].children).toHaveLength(1);
+	});
+
 	it('keeps a segment that is not a GEDCOM line as the previous line’s text', () => {
 		const nodes = buildGedcomTree(['0 @I1@ INDI', '1 NOTE first', 'second']);
 		const note = nodes[0].children.find((c) => c.tag === 'NOTE')!;

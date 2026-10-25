@@ -69,6 +69,16 @@ describe('undoChange', () => {
 		await expect(log().undoChange(treeId, theirs.changeId, manager.context)).resolves.toBeTruthy();
 	});
 
+	it("does not quote someone else's change to a viewer who tries to undo it", async () => {
+		const theirs = await addPerson('Secretname', otherEditor);
+		await log().undoChange(treeId, theirs.changeId, otherEditor.context);
+		const refusal = await log()
+			.undoChange(treeId, theirs.changeId, viewer.context)
+			.catch((e: Error) => e);
+		expect(refusal).toMatchObject({ details: { reason: 'not_yours' } });
+		expect((refusal as Error).message).not.toContain('Secretname');
+	});
+
 	it('refuses a change that was already undone', async () => {
 		const made = await addPerson('Twice');
 		await log().undoChange(treeId, made.changeId, editor.context);
