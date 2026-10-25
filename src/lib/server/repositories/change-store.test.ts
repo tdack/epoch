@@ -166,6 +166,118 @@ describe('ChangeStore.commit', () => {
 	});
 });
 
+describe('ChangeStore.commit against another editor', () => {
+	const link = (id: string, parentId: string, childId: string) =>
+		partialRow('parent_child', {
+			id,
+			treeId,
+			parentId,
+			childId,
+			type: 'biological',
+			status: 'active',
+			unionId: null,
+			gedcomPedi: null,
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000
+		});
+	const add = (...ops: RowOp[]) => store.commit({ ...base(), ops });
+	const conflict = { status: 409, details: { reason: 'CONCURRENT_WRITE' } };
+
+	async function twoPeople(a: string, b: string) {
+		await freshTree();
+		await add(
+			{ table: 'individuals', id: a, before: null, after: person(a, 'Ann') },
+			{ table: 'individuals', id: b, before: null, after: person(b, 'Ben') }
+		);
+	}
+
+	it('refuses a parent link that, with one just saved, makes someone their own ancestor', async () => {
+		await twoPeople('race-r1', 'race-r2');
+		await add({
+			table: 'parent_child',
+			id: 'race-r1>r2',
+			before: null,
+			after: link('race-r1>r2', 'race-r1', 'race-r2')
+		});
+		// Planned before the link above existed, so its own cycle check passed.
+		await expect(
+			add({
+				table: 'parent_child',
+				id: 'race-r2>r1',
+				before: null,
+				after: link('race-r2>r1', 'race-r2', 'race-r1')
+			})
+		).rejects.toMatchObject(conflict);
+	});
+
+	it('answers a conflict, not a server error, when both editors add the same link', async () => {
+		await twoPeople('race-s1', 'race-s2');
+		await add({
+			table: 'parent_child',
+			id: 'race-s-a',
+			before: null,
+			after: link('race-s-a', 'race-s1', 'race-s2')
+		});
+		await expect(
+			add({
+				table: 'parent_child',
+				id: 'race-s-b',
+				before: null,
+				after: link('race-s-b', 'race-s1', 'race-s2')
+			})
+		).rejects.toMatchObject(conflict);
+	});
+
+	it('refuses to delete a person someone has just linked, rather than drop the link unlogged', async () => {
+		await twoPeople('race-d1', 'race-d2');
+		await add({
+			table: 'parent_child',
+			id: 'race-d1>d2',
+			before: null,
+			after: link('race-d1>d2', 'race-d1', 'race-d2')
+		});
+		// The delete was planned before the link, so it does not delete it.
+		await expect(
+			add({ table: 'individuals', id: 'race-d2', before: person('race-d2', 'Ben'), after: null })
+		).rejects.toMatchObject(conflict);
+		expect(
+			await t.db.select().from(individuals).where(eq(individuals.id, 'race-d2')).get()
+		).toBeDefined();
+	});
+
+	it('still deletes a person whose links the change itself deletes', async () => {
+		await twoPeople('race-k1', 'race-k2');
+		const kept = link('race-k1>race-k2', 'race-k1', 'race-k2');
+		await add({ table: 'parent_child', id: 'race-k1>race-k2', before: null, after: kept });
+		await add(
+			{ table: 'parent_child', id: 'race-k1>race-k2', before: kept, after: null },
+			{ table: 'individuals', id: 'race-k2', before: person('race-k2', 'Ben'), after: null }
+		);
+		expect(
+			await t.db.select().from(individuals).where(eq(individuals.id, 'race-k2')).get()
+		).toBeUndefined();
+	});
+
+	it('refuses a link to a person someone has just deleted', async () => {
+		await twoPeople('race-f1', 'race-f2');
+		await add({
+			table: 'individuals',
+			id: 'race-f2',
+			before: person('race-f2', 'Ben'),
+			after: null
+		});
+		await expect(
+			add({
+				table: 'parent_child',
+				id: 'race-f1>f2',
+				before: null,
+				after: link('race-f1>f2', 'race-f1', 'race-f2')
+			})
+		).rejects.toMatchObject(conflict);
+	});
+});
+
 describe('ChangeStore undo lookups', () => {
 	it('finds the newest undoable change of the actor and skips changes already undone', async () => {
 		await freshTree();

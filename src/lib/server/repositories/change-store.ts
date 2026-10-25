@@ -16,7 +16,8 @@ import {
 	isNotNull,
 	isNull,
 	lt,
-	sql
+	sql,
+	type SQL
 } from 'drizzle-orm';
 import { alias, type SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
@@ -279,7 +280,7 @@ export class ChangeStore {
 
 		const statements = [
 			...applied.filter((op) => op.before !== null).map((op) => this.guard(op, input.treeId)),
-			...applied.map((op) => this.statementFor(op, input.treeId)),
+			...applied.flatMap((op) => this.guardedStatementsFor(op, input.treeId)),
 			...this.placeStatements(input.treeId, applied),
 			db.insert(changeLog).values({
 				id: changeId,
@@ -327,14 +328,57 @@ export class ChangeStore {
 		const treeColumn = treeColumnOf(TABLES[op.table]);
 		const treeName = treeColumn ? sql.identifier(treeColumn.name) : sql``;
 		const isSameTree = treeColumn ? sql` and ${treeName} = ${treeId}` : sql``;
+		return this.failIf(
+			sql`not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch}${isSameTree})`
+		);
+	}
+
+	/** Abort the batch as a guard failure when `condition` holds at this point in it. */
+	private failIf(condition: SQL) {
 		const nulls = sql.join(
 			Object.keys(getTableColumns(changeLog)).map(() => sql`null`),
 			sql`, `
 		);
-		// Drizzle's typed insert-select cannot take a raw `select ... where not exists` guard.
+		// Drizzle's typed insert-select cannot take a raw `select ... where <condition>` guard.
 		return (this.db.insert(changeLog) as unknown as { select: (query: unknown) => never }).select(
-			sql`select ${nulls} where not exists (select 1 from ${sql.identifier(op.table)} where id = ${op.id}${isVersionMatch}${isSameTree})`
+			sql`select ${nulls} where ${condition}`
 		);
+	}
+
+	/**
+	 * An op's write, with the checks the version guards cannot make because they only see the rows
+	 * the change itself writes. Another editor may, between planning and writing:
+	 * - attach a name, partnership or parent link to a person this change deletes, which the
+	 *   foreign keys would silently delete with them, past the change log;
+	 * - add the link that, with this one, makes someone their own ancestor.
+	 */
+	private guardedStatementsFor(op: RowOp, treeId: string) {
+		const statement = this.statementFor(op, treeId);
+		if (op.table === 'individuals' && op.after === null) {
+			// The change deletes the person's own rows earlier in the batch, so any still here are new.
+			return [
+				this.failIf(
+					sql`exists (select 1 from person_names where person_id = ${op.id})
+						or exists (select 1 from union_partners where person_id = ${op.id})
+						or exists (select 1 from parent_child where parent_id = ${op.id} or child_id = ${op.id})`
+				),
+				statement
+			];
+		}
+		if (op.table === 'parent_child' && op.after !== null) {
+			const { parentId, childId } = op.after;
+			return [
+				statement,
+				this.failIf(
+					sql`exists (with recursive ancestors(id) as (
+						select parent_id from parent_child where child_id = ${parentId} and tree_id = ${treeId}
+						union
+						select pc.parent_id from parent_child pc join ancestors a on pc.child_id = a.id
+					) select 1 from ancestors where id = ${childId})`
+				)
+			];
+		}
+		return [statement];
 	}
 
 	/**
@@ -649,6 +693,8 @@ export class ChangeStore {
 
 const GUARD_FAILURE = /NOT NULL constraint failed: change_log\./;
 const ALREADY_REVERTED = /UNIQUE constraint failed: change_log\.reverts_change_id/;
+/** The op builders check uniqueness and references first, so at commit these mean another write won. */
+const LOST_RACE = /UNIQUE constraint failed|FOREIGN KEY constraint failed/;
 
 function translateBatchError(error: unknown): unknown {
 	const message = `${(error as Error)?.message ?? ''} ${(error as { cause?: Error })?.cause?.message ?? ''}`;
@@ -666,6 +712,12 @@ function translateBatchError(error: unknown): unknown {
 		return new ConcurrencyConflictError('That change was already undone.', {
 			reason: 'ALREADY_UNDONE'
 		});
+	}
+	if (LOST_RACE.test(message)) {
+		return new ConcurrencyConflictError(
+			'Someone else changed this while you were saving it. Reload and try again.',
+			{ reason: 'CONCURRENT_WRITE' }
+		);
 	}
 	return error;
 }
