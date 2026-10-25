@@ -111,6 +111,10 @@ export class MemberService {
 			throw new UnauthorizedError(`Forbidden: you cannot give the role '${input.role}'`);
 		if (await this.members.isMemberEmail(treeId, email))
 			throw new ValidationError('That person is already a member; change their role instead');
+		// Inviting again replaces the offer, so it needs the same right as withdrawing it.
+		const earlier = (await this.members.listInvitations(treeId)).find((i) => i.email === email);
+		if (earlier && !grantableRoles(actor).includes(earlier.role))
+			throw new UnauthorizedError('Forbidden: you cannot replace this invitation');
 		const now = this.now();
 		const expiresAt = new Date(now.getTime() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000);
 		const saved = await this.members.upsertInvitation(

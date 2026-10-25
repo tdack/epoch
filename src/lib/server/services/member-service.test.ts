@@ -121,6 +121,20 @@ describe('inviting', () => {
 		}
 	});
 
+	it("does not let a manager replace an owner's invitation to a higher role", async () => {
+		const { treeId, actors } = await tree();
+		await service().invite(
+			treeId,
+			{ email: 'm@example.com', role: 'manager' },
+			actors.owner.context
+		);
+		await expect(
+			service().invite(treeId, { email: 'm@example.com', role: 'viewer' }, actors.manager.context)
+		).rejects.toBeInstanceOf(UnauthorizedError);
+		const pending = (await service().list(treeId, actors.owner.context)).invitations;
+		expect(pending.find((i) => i.email === 'm@example.com')?.role).toBe('manager');
+	});
+
 	it('lets an owner invite anyone, and refuses every lower role', async () => {
 		const { treeId, actors } = await tree();
 		await expect(
