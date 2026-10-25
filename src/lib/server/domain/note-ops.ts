@@ -20,7 +20,17 @@ import {
 import { makeTaskMover } from './task-ops';
 
 export type NoteCommand =
-	| { kind: 'add_note'; attachmentId: string; subject: NoteSubjectRef; text: string }
+	| {
+			kind: 'add_note';
+			attachmentId: string;
+			subject: NoteSubjectRef;
+			text: string;
+			/**
+			 * Move a legacy fact description into the note first. That edits the fact, so the service
+			 * sets it only for a caller who may edit; omitted, the description stays where it is.
+			 */
+			shouldMoveLegacyDescription?: boolean;
+	  }
 	| { kind: 'update_note'; attachmentId: string; expectedVersion?: number; text: string }
 	| { kind: 'remove_note'; attachmentId: string; expectedVersion?: number }
 	| {
@@ -198,7 +208,9 @@ function addNote(
 	const text = cleanBlock(command.text);
 	if (!text) throw new ValidationError('A note needs some text.');
 	const own = ownOf(rows, command.subject);
-	const ops = legacyDescriptionOps(rows, ctx, command.subject);
+	const ops = command.shouldMoveLegacyDescription
+		? legacyDescriptionOps(rows, ctx, command.subject)
+		: [];
 	const row = newAttachment(
 		ctx,
 		command.attachmentId,

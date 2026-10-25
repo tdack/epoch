@@ -285,6 +285,27 @@ describe('who may write notes', () => {
 		await service.removeNote(treeId, fresh.id, fresh.version, editor.context);
 		expect(await noteOf(person.id)).toEqual([]);
 	});
+
+	it('lets a contributor note a fact with a legacy description without editing the fact', async () => {
+		const { treeId, ctx, service, birthId, noteOf } = await setup();
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		await t.db.run(sql`update individuals set privacy = 'public' where tree_id = ${treeId}`);
+		await t.db.update(events).set({ description: 'imported words' }).where(eq(events.id, birthId));
+		const fact = async () =>
+			(await t.db.select().from(events).where(eq(events.id, birthId)).get())!;
+		const before = await fact();
+
+		await service.addNote(treeId, { kind: 'event', id: birthId }, 'mine', contributor.context);
+		expect((await noteOf(birthId)).map((n) => n.text)).toEqual(['mine']);
+		expect(await fact()).toEqual(before);
+
+		// An editor's next note still moves the description, which the first note no longer hides.
+		await t.db.delete(noteAttachments).where(eq(noteAttachments.subjectId, birthId));
+		await service.addNote(treeId, { kind: 'event', id: birthId }, 'theirs', ctx);
+		expect((await noteOf(birthId)).map((n) => n.text)).toEqual(['imported words', 'theirs']);
+		expect(await fact()).toMatchObject({ description: null, version: before.version + 1 });
+	});
 });
 
 describe('a fact’s notes', () => {

@@ -10,7 +10,9 @@ import type { NoteCommand } from '../domain/note-ops';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { ImpactSummary } from '../../shared/impact';
 import type { NoteSubjectRef, SharedNoteInput } from '../../shared/notes';
-import type { TreeAction } from '../auth/authorization';
+import { isActionAllowed, type TreeAction } from '../auth/authorization';
+import { UserRepository } from '../repositories/user-repository';
+import { requireTreeAction } from './tree-access';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
 
 /**
@@ -34,17 +36,40 @@ const REQUIRED_ACTION: Record<NoteCommand['kind'], TreeAction> = {
 
 export class NoteService {
 	readonly runner: MutationRunner;
+	private users: UserRepository;
 
 	constructor(db: DbClient, clock?: MutationClock) {
 		this.runner = new MutationRunner(db, clock);
+		this.users = new UserRepository(db);
+	}
+
+	/**
+	 * The access check, and the command as this caller may run it. Moving a fact's legacy description
+	 * into a new note edits the fact, so a caller who may only create leaves the description alone
+	 * rather than being refused the note; the runner still checks every op it writes.
+	 */
+	private async permitted(
+		treeId: string,
+		command: NoteCommand,
+		context: AuthenticatedContext
+	): Promise<NoteCommand> {
+		const role = await requireTreeAction(
+			this.users,
+			treeId,
+			context,
+			REQUIRED_ACTION[command.kind]
+		);
+		return command.kind === 'add_note'
+			? { ...command, shouldMoveLegacyDescription: isActionAllowed(role, 'record:edit') }
+			: command;
 	}
 
 	private async run(
 		treeId: string,
-		command: NoteCommand,
+		requested: NoteCommand,
 		context: AuthenticatedContext
 	): Promise<MutationResult> {
-		await this.runner.requireAccess(treeId, context, REQUIRED_ACTION[command.kind]);
+		const command = await this.permitted(treeId, requested, context);
 		return this.runner.run(treeId, context, {
 			kind: command.kind,
 			summary: (rows) => describeCommand(command, rows),
@@ -55,10 +80,10 @@ export class NoteService {
 	/** What a note change would write, without writing it. */
 	async preview(
 		treeId: string,
-		command: NoteCommand,
+		requested: NoteCommand,
 		context: AuthenticatedContext
 	): Promise<ImpactSummary> {
-		await this.runner.requireAccess(treeId, context, REQUIRED_ACTION[command.kind]);
+		const command = await this.permitted(treeId, requested, context);
 		return this.runner.preview(treeId, context, [command], (rows) =>
 			describeCommand(command, rows)
 		);
