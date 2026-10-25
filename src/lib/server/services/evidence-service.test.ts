@@ -10,6 +10,7 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { importGedcomToDb } from '../testing/gedcom';
+import { MAX_EVIDENCE_OPS } from '../../shared/evidence';
 import { describeCommand } from '../domain/command-summary';
 import { ChangeLogService } from './change-log-service';
 import { EvidenceService } from './evidence-service';
@@ -452,5 +453,49 @@ describe('a citation saved with its fact or name', () => {
 		]);
 		await log.undoLast(treeId, ctx);
 		expect(await citationsOf(created.nameId)).toEqual([]);
+	});
+});
+
+describe('changes over the row limit', () => {
+	const over = MAX_EVIDENCE_OPS + 1;
+
+	it('refuses to reorder more citations than one change writes, with a reason', async () => {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const cites = Array.from({ length: over }, (_, i) => `1 SOUR @S1@\n2 PAGE p${i}`);
+		const gedcom = ['0 HEAD', '0 @S1@ SOUR', '1 TITL Book', '0 @I1@ INDI', ...cites, '0 TRLR'];
+		await importGedcomToDb(t.d1, treeId, gedcom.join('\n'), 'Many', 'merge');
+		const subject = { kind: 'person' as const, id: `${treeId}:@I1@` };
+		const ids = (
+			await t.db.select().from(citations).where(eq(citations.subjectId, subject.id)).all()
+		)
+			.sort((a, b) => a.sortOrder - b.sortOrder)
+			.map((c) => c.id);
+		expect(ids).toHaveLength(over);
+		// Rotated by one, so every citation moves.
+		const rotated = [...ids.slice(1), ids[0]];
+		await expect(
+			new EvidenceService(t.db).reorderCitations(treeId, subject, rotated, actor.context)
+		).rejects.toMatchObject({ code: 'VALIDATION_ERROR', message: expect.stringContaining('300') });
+	});
+
+	it('refuses to cite more facts than one change writes, before writing any', async () => {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const births = Array.from({ length: over }, (_, i) => `1 BIRT\n2 DATE ${1800 + i}`);
+		const gedcom = ['0 HEAD', '0 @S1@ SOUR', '1 TITL Book', '0 @I1@ INDI', ...births, '0 TRLR'];
+		await importGedcomToDb(t.d1, treeId, gedcom.join('\n'), 'Many', 'merge');
+		const sourceId = `${treeId}:@S1@`;
+		const evidence = new EvidenceService(t.db);
+		const people = [`${treeId}:@I1@`];
+		await expect(
+			evidence.previewMany(treeId, sourceId, people, { sourceId }, 'BIRT', actor.context)
+		).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+		await expect(
+			evidence.citeMany(treeId, sourceId, people, { sourceId }, 'BIRT', actor.context)
+		).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+		expect(await t.db.select().from(citations).where(eq(citations.treeId, treeId)).all()).toEqual(
+			[]
+		);
 	});
 });

@@ -651,7 +651,7 @@ function reorderCitations(
 				after: touch({ ...citation, sortOrder: index }, ctx)
 			});
 	});
-	return ops;
+	return limited(ops, 'This record has too many citations to reorder in one change');
 }
 
 export function buildEvidenceOps(
