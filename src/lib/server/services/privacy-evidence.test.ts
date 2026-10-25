@@ -304,6 +304,19 @@ describe('the SQL and the row filters agree on what evidence a viewer sees', () 
 			scope
 		);
 		expect([...among].sort()).toEqual([...sourceIdsMasked].sort());
+		const kept = await repo.visibleSourceCounts(
+			treeId,
+			rows.repositories.map((r) => r.id),
+			scope
+		);
+		for (const repository of rows.repositories) {
+			const visibleHere = new Set(
+				rows.sourceRepositories
+					.filter((l) => l.repositoryId === repository.id && sourceIdsMasked.has(l.sourceId))
+					.map((l) => l.sourceId)
+			);
+			expect(kept.get(repository.id) ?? 0, repository.name ?? '').toBe(visibleHere.size);
+		}
 		if (role !== 'public')
 			expect(sourceIdsMasked.has(ids['@S1@']!), 'S1 is cited only on private people').toBe(false);
 
