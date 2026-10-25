@@ -2,16 +2,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { eq } from 'drizzle-orm';
 import { events } from '../db/schema';
 import type { RelationshipCommand } from '../domain/relationship-commands';
+import type { TreeRows } from '../domain/change-log';
 import { seedFor } from '../domain/write-scope/index';
 import { seedOf } from '../domain/write-scope';
 import { ChangeStore } from '../repositories/change-store';
 import { ScopedRowLoader } from '../repositories/scoped-row-loader';
 import {
+	addTestMember,
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { EvidenceService } from './evidence-service';
 import { FactService } from './fact-service';
 import { MutationRunner } from './mutation-runner';
 import { PersonService } from './person-service';
@@ -159,5 +162,65 @@ describe('the follow-up load', () => {
 		scoped.mockClear();
 		await runner.loadForSeed(treeId, seedOf({ unions: [unionId], shouldFollowFamily: true }));
 		expect(scoped).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('editing or citing a source', () => {
+	/** A source cited on three people, so a load that pulled its citations would show them. */
+	async function citedSource() {
+		const owner = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, owner);
+		const people = new PersonService(t.db);
+		const evidence = new EvidenceService(t.db);
+		const { sourceId } = await evidence.createSource(treeId, { title: 'Census' }, owner.context);
+		const ids: string[] = [];
+		for (const givenName of ['A', 'B', 'C', 'D']) {
+			const { individual } = await people.create(
+				treeId,
+				{ givenName, surname: 'Ash' },
+				owner.context
+			);
+			ids.push(individual.id);
+		}
+		for (const id of ids.slice(0, 3))
+			await evidence.addCitation(treeId, { kind: 'person', id }, { sourceId }, owner.context);
+		return { owner, treeId, evidence, sourceId, uncited: ids[3]! };
+	}
+
+	/** Every citation row the scoped loads of `act` returned. */
+	async function citationsLoaded(act: () => Promise<unknown>) {
+		const load = vi.spyOn(ScopedRowLoader.prototype, 'load');
+		await act();
+		const rows = await Promise.all(load.mock.results.map((r) => r.value as Promise<TreeRows>));
+		load.mockRestore();
+		return rows.flatMap((r) => r.citations);
+	}
+
+	it('reads no citation of it for a caller who sees everyone', async () => {
+		const { owner, treeId, evidence, sourceId, uncited } = await citedSource();
+		expect(
+			await citationsLoaded(() =>
+				evidence.updateSource(treeId, sourceId, { title: 'Census 1851' }, 1, owner.context)
+			)
+		).toEqual([]);
+		expect(
+			await citationsLoaded(() =>
+				evidence.addCitation(treeId, { kind: 'person', id: uncited }, { sourceId }, owner.context)
+			)
+		).toEqual([]);
+	});
+
+	it('reads every citation of it for a contributor, who must tell hidden from present', async () => {
+		const { treeId, evidence, sourceId, uncited } = await citedSource();
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		// The people have no dates, so are living and hidden from them: the citing is refused, and
+		// what it loaded on the way is what is under test.
+		const loaded = await citationsLoaded(() =>
+			evidence
+				.addCitation(treeId, { kind: 'person', id: uncited }, { sourceId }, contributor.context)
+				.catch(() => null)
+		);
+		expect(new Set(loaded.map((c) => c.id)).size).toBe(3);
 	});
 });

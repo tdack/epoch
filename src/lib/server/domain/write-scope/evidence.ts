@@ -9,9 +9,11 @@ import type { ScopeTable } from './types';
  * exists only while some citation of it sits on a record they may see, and the planners first plan
  * over the viewer's rows, so "hidden" and "present" can only be told apart if every citation of the
  * source is loaded. A source reached merely through one citation does not bring the others; a
- * seeded one does.
+ * seeded one does. A caller who sees everything needs only the row, so a source with thousands of
+ * citations costs one read to edit or cite.
  */
-const sourceSeed = (sourceId: string | null | undefined) => seedOf({ sources: [sourceId] });
+const sourceSeed = (sourceId: string | null | undefined, isRestricted: boolean) =>
+	seedOf(isRestricted ? { sources: [sourceId] } : { bareSources: [sourceId] });
 
 /**
  * The follow-up is on wherever a command reads the row of the record it is about: a partnership
@@ -88,8 +90,9 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
 export const EVIDENCE_SCOPES: ScopeTable = {
 	// A new record's XREF must not collide with one already taken, so that whole table is read.
 	create_source: () => seedOf({ wholeTables: ['sources'] }),
-	update_source: (c) => sourceSeed(c.sourceId),
-	delete_source: (c) => sourceSeed(c.sourceId),
+	update_source: (c, isRestricted) => sourceSeed(c.sourceId, isRestricted),
+	// Deleting reads every citation and file of the source, whoever asks.
+	delete_source: (c) => sourceSeed(c.sourceId, true),
 	create_repository: () => seedOf({ wholeTables: ['repositories'] }),
 	// A repository is visible to a restricted viewer only through a visible source that links it, so
 	// the follow-up loads the sources its links name, and with them the citations that decide.
@@ -98,14 +101,13 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	link_repository: (c) => following({ sources: [c.sourceId], repositories: [c.repositoryId] }),
 	update_source_repository: (c) => following({ sourceRepositories: [c.linkId] }),
 	unlink_repository: (c) => following({ sourceRepositories: [c.linkId] }),
-	add_citation: (c) => ({
-		...citationSubjectSeed(c.subject),
-		sources: sourceSeed(c.citation.sourceId).sources
-	}),
-	update_citation: (c) => ({
-		...seedOf({ citations: [c.citationId] }),
-		sources: sourceSeed(c.citation.sourceId).sources
-	}),
+	add_citation: (c, isRestricted) =>
+		mergeSeeds(citationSubjectSeed(c.subject), sourceSeed(c.citation.sourceId, isRestricted)),
+	update_citation: (c, isRestricted) =>
+		mergeSeeds(
+			seedOf({ citations: [c.citationId] }),
+			sourceSeed(c.citation.sourceId, isRestricted)
+		),
 	remove_citation: (c) => seedOf({ citations: [c.citationId] }),
 	// The subject brings every citation on it, which is every sibling to reorder.
 	reorder_citations: (c) => citationSubjectSeed(c.subject),

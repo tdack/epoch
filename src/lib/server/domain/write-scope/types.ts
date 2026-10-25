@@ -7,10 +7,11 @@ export type CommandKind = RelationshipCommand['kind'];
 type CommandOf<K extends CommandKind> = Extract<RelationshipCommand, { kind: K }>;
 
 /**
- * A command kind's seed: the records it reads (ADR-055). A kind with no entry loads the whole
+ * A command kind's seed: the records it reads (ADR-055). `isRestricted` is whether the caller has
+ * private people hidden; a kind may read less for one who sees everything. A kind with no entry loads the whole
  * tree. An entry may only be added together with an equivalence test (`expectScopedEqualsWhole`)
  * that passes for an unrestricted, a restricted and a contributor-creator viewer.
  */
 export type ScopeTable = Partial<{
-	[K in CommandKind]: (command: CommandOf<K>) => ScopeSeed;
+	[K in CommandKind]: (command: CommandOf<K>, isRestricted: boolean) => ScopeSeed;
 }>;

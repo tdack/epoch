@@ -84,7 +84,7 @@ export class ScopedRowLoader {
 		const rNames = new Set(seed.names);
 		const rLinks = new Set(seed.links);
 		const rCitations = new Set(seed.citations);
-		const rSources = new Set(seed.sources);
+		const rSources = new Set([...seed.sources, ...seed.bareSources]);
 		const rRepositories = new Set(seed.repositories);
 		const rNotes = new Set(seed.notes);
 		const rAttachments = new Set(seed.noteAttachments);

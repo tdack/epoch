@@ -125,8 +125,12 @@ export class MutationRunner {
 	 * The rows these commands plan over: the scoped snapshot when every kind has a seed, else the
 	 * whole tree (ADR-055). A kind with no seed is the default, so nothing changes until one is added.
 	 */
-	private loadFor(treeId: string, commands: RelationshipCommand[]): Promise<TreeRows> {
-		return this.loadForSeed(treeId, seedFor(commands));
+	private loadFor(
+		treeId: string,
+		commands: RelationshipCommand[],
+		scope: ViewerScope
+	): Promise<TreeRows> {
+		return this.loadForSeed(treeId, seedFor(commands, scope.isRestricted));
 	}
 
 	/**
@@ -208,7 +212,7 @@ export class MutationRunner {
 		// `record:create` first, the weakest right any change needs: a role that can change nothing is
 		// refused before planning, so it cannot tell a private record from a missing one by the error.
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const rows = await this.loadFor(treeId, commands);
+		const rows = await this.loadFor(treeId, commands, scope);
 		const ops = this.planFor(treeId, rows, commands, scope);
 		await this.requireAccess(treeId, context, actionForOps(ops));
 		return { rows, visible: this.visibleRows(rows, scope), ops };
@@ -247,7 +251,7 @@ export class MutationRunner {
 		// Before the role check and any read, so the refusal never depends on what the tree holds.
 		requireRealUser(context);
 		const scope = await this.scopeFor(treeId, context, 'record:create');
-		const snapshot = rows ?? (await this.loadFor(treeId, change.commands));
+		const snapshot = rows ?? (await this.loadFor(treeId, change.commands, scope));
 		const ops = this.planFor(treeId, snapshot, change.commands, scope);
 		await this.requireAccess(
 			treeId,
