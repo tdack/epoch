@@ -3,8 +3,8 @@
  *
  * Identity on a merge-mode import: a source or repository is the same record when its XREF, or an
  * alias it was merged under, is already in the tree; a citation is the same when its subject, source,
- * inline text, page and text are. Nothing already stored is changed, so importing a file twice
- * writes it once.
+ * inline text, page, quality, entry date, text and retained lines are (`storedCitationKey`).
+ * Nothing already stored is changed, so importing a file twice writes it once.
  */
 
 import { eq } from 'drizzle-orm';
@@ -160,7 +160,10 @@ export async function importCitations(
 					sourceRef: citations.sourceRef,
 					description: citations.description,
 					page: citations.page,
+					quality: citations.quality,
+					entryDateRaw: citations.entryDateRaw,
 					text: citations.text,
+					gedcomExtra: citations.gedcomExtra,
 					id: citations.id
 				})
 				.from(citations)
@@ -181,13 +184,17 @@ export async function importCitations(
 		known.set(slot, entry);
 		for (const citation of target.citations) {
 			const sourceId = sourceOf(citation.pointer);
-			const key = storedCitationKey({
+			// Keyed from the row it would insert, so it normalises exactly as a stored row reads back.
+			const row = citationRow(
+				treeId,
+				crypto.randomUUID(),
+				{ kind: target.kind, id: target.id },
+				citation,
 				sourceId,
-				sourceRef: sourceId === null ? (citation.pointer ?? null) : null,
-				description: citation.description ?? null,
-				page: citation.page ?? null,
-				text: citation.text ?? null
-			});
+				entry.next,
+				importedAt
+			);
+			const key = storedCitationKey(row);
 			const storedId = entry.keys.get(key);
 			if (storedId) {
 				noteTargets.push({
@@ -197,20 +204,10 @@ export async function importCitations(
 				});
 				continue;
 			}
-			const id = crypto.randomUUID();
-			entry.keys.set(key, id);
-			noteTargets.push({ kind: NOTE_SUBJECT_KINDS.CITATION, id, notes: citation.notes });
-			rows.push(
-				citationRow(
-					treeId,
-					id,
-					{ kind: target.kind, id: target.id },
-					citation,
-					sourceId,
-					entry.next++,
-					importedAt
-				)
-			);
+			entry.keys.set(key, row.id);
+			entry.next++;
+			noteTargets.push({ kind: NOTE_SUBJECT_KINDS.CITATION, id: row.id, notes: citation.notes });
+			rows.push(row);
 		}
 	}
 	for (const chunk of chunkByParamLimit(rows, CITATION_COLUMNS)) {

@@ -7,11 +7,12 @@
 import type { citations, repositories, sourceRepositories, sources } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
 import type { CitationSubjectKind } from '../../shared/evidence';
-import type {
-	ParsedCitation,
-	ParsedRepository,
-	ParsedSource,
-	ParsedSourceRepository
+import {
+	citationIdentity,
+	type ParsedCitation,
+	type ParsedRepository,
+	type ParsedSource,
+	type ParsedSourceRepository
 } from './evidence-parse';
 
 type SourceInsert = typeof sources.$inferInsert;
@@ -107,7 +108,7 @@ export function citationRow(
 	sourceId: string | null,
 	sortOrder: number,
 	createdAt: Date
-): CitationInsert {
+): CitationInsert & CitationIdentityColumns {
 	const entryDate = parsed.entryDate ? dateColumnsFor(parsed.entryDate) : null;
 	return {
 		id,
@@ -134,18 +135,29 @@ export function citationRow(
 	};
 }
 
-/**
- * What makes two citations of one subject the same on a merge-mode import or a backfill: the
- * source (by id, or by the pointer it could not resolve), the inline text, the page and the text.
- */
-export function storedCitationKey(c: {
+// A type, not an interface: the backfill passes a row where a `Record<string, unknown>` is wanted.
+type CitationIdentityColumns = {
 	sourceId: string | null;
 	sourceRef: string | null;
 	description: string | null;
 	page: string | null;
+	quality: number | null;
+	entryDateRaw: string | null;
 	text: string | null;
-}): string {
-	return [c.sourceId ?? c.sourceRef, c.description, c.page, c.text]
-		.map((p) => p ?? '')
-		.join('\u0000');
+	gedcomExtra: string[] | null;
+};
+
+/**
+ * What makes two citations of one subject the same on a merge-mode import: the source (by id, or by
+ * the pointer it could not resolve), the inline text, the page, the quality, the entry date as
+ * written, the text and the retained lines. Keyed through `citationIdentity`, as parsed citations
+ * are, so the import's own rows match what it later reads back.
+ */
+export function storedCitationKey(c: CitationIdentityColumns): string {
+	return citationIdentity({
+		...c,
+		source: c.sourceId ?? c.sourceRef,
+		entryDate: c.entryDateRaw,
+		extra: c.gedcomExtra
+	});
 }
