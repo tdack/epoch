@@ -145,3 +145,19 @@ describe('what counts as exact', () => {
 		expect(merged.families[0].aliases).toEqual(['@X@', '@F2@']);
 	});
 });
+
+describe('citations of merged duplicates', () => {
+	const cited = (quality: number) =>
+		`${couple}\n1 SOUR @S1@\n2 PAGE 1\n2 QUAY ${quality}\n2 DATA\n3 DATE ABT 1900\n2 _X kept`;
+	const citationsAfterMerge = (a: string, b: string) =>
+		mergeExactDuplicateFamilies(parseGedcom(file(fam('@F1@', a), fam('@F2@', b)))).parsed
+			.families[0].citations;
+
+	it('keeps an identical citation once', () => {
+		expect(citationsAfterMerge(cited(2), cited(2))).toHaveLength(1);
+	});
+
+	it('keeps both when they differ only in quality', () => {
+		expect(citationsAfterMerge(cited(2), cited(0)).map((c) => c.quality)).toEqual([2, 0]);
+	});
+});

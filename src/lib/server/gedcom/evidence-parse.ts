@@ -149,15 +149,36 @@ export function parseCitation(node: GedcomNode, isNotesModelled = true): ParsedC
 	};
 }
 
-/** The identity of a citation among a subject's own, for merging two files' evidence without repeats. */
-function citationKey(c: {
-	pointer?: string | null;
+/**
+ * The identity of a citation among a subject's own: its source, inline text, page, quality, entry
+ * date as written, text and retained lines. Both the parsed and the stored side key through this,
+ * so a merge-mode re-import matches what it wrote: an absent value and `null` are the same, and so
+ * are no extra lines and `[]` (the stored row keeps an empty list as `null`). `??`, not `||`, so
+ * `QUAY 0` is not taken for no quality.
+ */
+export function citationIdentity(c: {
+	source?: string | null;
 	description?: string | null;
 	page?: string | null;
+	quality?: number | null;
+	entryDate?: string | null;
 	text?: string | null;
+	extra?: string[] | null;
 }): string {
-	return [c.pointer, c.description, c.page, c.text].map((part) => part ?? '').join('\u0000');
+	return [
+		c.source,
+		c.description,
+		c.page,
+		c.quality,
+		c.entryDate,
+		c.text,
+		(c.extra ?? []).join('\n')
+	]
+		.map((part) => part ?? '')
+		.join('\u0000');
 }
+
+const citationKey = (c: ParsedCitation) => citationIdentity({ ...c, source: c.pointer });
 
 /** `into` followed by whatever `from` adds that `into` does not already say. */
 export function mergeCitations(into: ParsedCitation[], from: ParsedCitation[]): ParsedCitation[] {

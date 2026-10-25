@@ -164,3 +164,40 @@ describe('importing again', () => {
 		expect(onBirth.map((c) => c.page)).toEqual(['first', 'second', 'third', 'fourth']);
 	});
 });
+
+describe('citations that differ only in quality, entry date or retained lines', () => {
+	const cite = (body: string) => `1 SOUR @S1@\n2 PAGE 12${body ? `\n${body}` : ''}`;
+	const FILE = [
+		'0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @S1@ SOUR\n1 TITL Register\n0 @I1@ INDI\n1 NAME Ann /Ash/',
+		cite('2 QUAY 3'),
+		cite('2 QUAY 1'),
+		cite('2 QUAY 0'),
+		cite('2 DATA\n3 DATE ABT 1901'),
+		cite('2 DATA\n3 DATE 1902'),
+		cite('2 _X one'),
+		cite('2 _X two'),
+		cite(''),
+		// The same as the one before it, so it is written once.
+		cite(''),
+		'0 TRLR'
+	].join('\n');
+
+	it('keeps each one, and writes none twice on a merge import of the same file', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, FILE, 'Quality');
+		const first = await citationsOf(treeId);
+		expect(first.map((c) => [c.quality, c.entryDateRaw, c.gedcomExtra])).toEqual([
+			[3, null, null],
+			[1, null, null],
+			[0, null, null],
+			[null, 'ABT 1901', null],
+			[null, '1902', null],
+			[null, null, ['2 _X one']],
+			[null, null, ['2 _X two']],
+			[null, null, null]
+		]);
+
+		await importGedcomToDb(t.d1, treeId, FILE, 'Quality', 'merge');
+		expect((await citationsOf(treeId)).map((c) => c.id)).toEqual(first.map((c) => c.id));
+	});
+});
