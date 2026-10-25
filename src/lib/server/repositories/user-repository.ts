@@ -121,7 +121,27 @@ export class UserRepository {
 			updatedAt: new Date()
 		};
 
-		await this.db.insert(users).values(newUser);
+		// Two first requests can both miss the select above; the loser's insert hits the UNIQUE
+		// access_sub and must adopt the winner's row instead of failing.
+		const inserted = await this.db
+			.insert(users)
+			.values(newUser)
+			.onConflictDoNothing({ target: users.accessSub })
+			.returning({ id: users.id });
+		if (inserted.length === 0) {
+			const winner = await this.db
+				.select()
+				.from(users)
+				.where(eq(users.accessSub, identity.accessSub))
+				.get();
+			if (!winner) throw new Error('User row vanished after a conflicting insert');
+			return {
+				id: winner.id,
+				accessSub: winner.accessSub,
+				email: winner.email,
+				name: winner.name
+			};
+		}
 
 		return {
 			id: newUserId,

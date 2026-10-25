@@ -158,18 +158,39 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	};
 
 	if (token) {
+		let validated: Awaited<ReturnType<typeof validateAccessJwt>> | null = null;
 		try {
-			const validated = await validateAccessJwt(token, {
+			validated = await validateAccessJwt(token, {
 				teamDomain: accessTeamDomain,
 				aud: accessAud,
 				allowDevBypass
 			});
-
-			const admission = await resolveUser(bindings.DB, validated, {
-				fallbackId: validated.id || crypto.randomUUID(),
-				fallbackOwnerEmail,
-				...inviterNotice
+		} catch (err: unknown) {
+			hasInvalidToken = true;
+			requestLogger.warn('Cloudflare Access token validation failed', {
+				error: err instanceof Error ? err.message : String(err)
 			});
+		}
+		if (validated) {
+			// Kept apart from validation: a D1 hiccup here is not a bad sign-in, so it must not send
+			// the person to `/login` or answer 401.
+			let admission: Awaited<ReturnType<typeof resolveUser>>;
+			try {
+				admission = await resolveUser(bindings.DB, validated, {
+					fallbackId: validated.id || crypto.randomUUID(),
+					fallbackOwnerEmail,
+					...inviterNotice
+				});
+			} catch (err: unknown) {
+				requestLogger.error('User lookup failed', {
+					error: err instanceof Error ? err.message : String(err)
+				});
+				if (!event.url.pathname.startsWith('/api/')) throw err;
+				return Response.json(
+					{ error: 'The service is temporarily unavailable', code: 'USER_LOOKUP_FAILED' },
+					{ status: 503, headers: { 'x-correlation-id': correlationId } }
+				);
+			}
 			event.locals.user = admission.user;
 			event.locals.notAdmitted = admission.notAdmitted;
 
@@ -183,11 +204,6 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 					new ProfileService(getDb(bindings.DB)).importForNewUser(newUser, bindings.MEDIA_BUCKET)
 				);
 			}
-		} catch (err: unknown) {
-			hasInvalidToken = true;
-			requestLogger.warn('Cloudflare Access token validation failed', {
-				error: err instanceof Error ? err.message : String(err)
-			});
 		}
 	} else if (allowDevBypass) {
 		// Development / test fallback when running locally without active Access tunnel

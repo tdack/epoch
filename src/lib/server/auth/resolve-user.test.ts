@@ -35,6 +35,18 @@ async function userRowsFor(accessSub: string) {
 }
 
 describe('resolveUser', () => {
+	it('creates a first-time user once when two requests race', async () => {
+		await withOwner(OWNER_EMAIL, async () => {
+			const identity = { accessSub: 'sub-race', email: OWNER_EMAIL, name: 'Racer' };
+			const [a, b] = await Promise.all([
+				resolveUser(t.d1, identity, asOwnerless),
+				resolveUser(t.d1, identity, asOwnerless)
+			]);
+			expect(a.user?.id).toBe(b.user?.id);
+			expect(await userRowsFor('sub-race')).toHaveLength(1);
+		});
+	});
+
 	it('upserts the owner by the stable sub: the same sub is the same user, and the email follows', async () => {
 		await withOwner(OWNER_EMAIL, async () => {
 			const first = await resolveUser(
