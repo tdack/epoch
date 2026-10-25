@@ -541,6 +541,15 @@ viewer who sees everyone these are the whole cost. For a restricted viewer the l
 evaluate `with vp` (the visible people of the tree, as the tree summary counts do) once per request.
 These were not run against the 5,300-person corpus; the plan test there does not yet cover them.
 
+A check of a few known sources (one source's page, `visibleSourcesAmong`, the source counts of a
+page of repositories) tests each source against its own citations: the per-source test is
+correlated to the source row and led by `idx_citation_source`, where the list form reads every
+citation of the tree. `src/lib/server/repositories/visibility-plans.test.ts` holds the plan; on a
+733-person tree whose citations all hang off two sources, one source with three citations read
+3,232 rows against 7,614 in the list form. Almost all of what is left is `vp`, still the whole tree's
+visible people; removing it would mean testing each citation's people by lookup, as tasks do. The
+lists themselves keep the uncorrelated form, which would otherwise run once per source of the tree.
+
 ## Notes and research tasks (ADR-030)
 
 Measured by `src/lib/server/repositories/note-task-plans.test.ts` over the 5,300-person corpus ("big")
@@ -566,7 +575,11 @@ for about every thirty of them (five uses each) and a task for about every twelf
 - **Notes for a restricted viewer cost a pass over the visible sets** (people, names, facts, links,
   citations, sources, repositories, notes: CTEs, evaluated once per request), about 24,000 rows on the
   big tree, as the sources list does. They are named sets because the per-record form nested past D1's
-  100 levels of expression. A person page pays it only when it shows a shared note.
+  100 levels of expression. A person page pays it only when it shows a shared note. One shared note's
+  page narrows the notes set (`vo`) to that note's own attachments by `idx_note_attachment_note`;
+  the sets it is tested against are not narrowed, since `hu` hides and a narrowed one would show.
+  `hu` (partnerships with a hidden partner) is led by the tree's unions on `idx_union_tree`:
+  `union_partners` has no tree index, and before this it read the partner links of every tree.
 - **Mutations** load the notes, attachments and tasks tables with the rest of the tree
   (`ChangeStore.loadRows`, two more indexed reads by `tree_id`); a fact's note and a task are each
   one row, so the planning work is unchanged. The 300-record limit applies to note changes.
