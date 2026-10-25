@@ -176,23 +176,32 @@ export function withVisiblePeople(treeId: string, scope: Scope): SQL {
 /**
  * The ids of the sources that cite something the viewer may see, as one compound select (five
  * terms, the most D1 allows): a branch per kind of subject. Needs `withVisiblePeople` before it.
+ *
+ * Given `sourceId`, a column of the outer row, each branch reads only that source's citations by
+ * `idx_citation_source` instead of every citation of the tree. Correlated, it binds no ids, so the
+ * five branches stay under D1's parameter cap; it is for a query whose sources are already a few.
  */
-function visibleCitedSourceIds(treeId: string): SQL {
+function visibleCitedSourceIds(treeId: string, sourceId?: SQL): SQL {
 	const people = sql`(select id from vp)`;
 	const unionOk = (column: SQL) =>
 		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
-	const from = sql`from citations vc where vc.tree_id = ${treeId} and vc.source_id is not null`;
+	// `+` keeps the tree and kind tests off `idx_citation_tree` and `idx_citation_subject`, which the
+	// planner otherwise prefers, probing the citations of every visible person instead.
+	const from = sourceId
+		? sql`from citations vc where vc.source_id = ${sourceId} and +vc.tree_id = ${treeId}`
+		: sql`from citations vc where vc.tree_id = ${treeId} and vc.source_id is not null`;
+	const kind = sourceId ? sql`+vc.subject_kind` : sql`vc.subject_kind`;
 	return sql`
-		select vc.source_id as id ${from} and vc.subject_kind = 'person' and vc.subject_id in ${people}
-		union select vc.source_id ${from} and vc.subject_kind = 'name'
+		select vc.source_id as id ${from} and ${kind} = 'person' and vc.subject_id in ${people}
+		union select vc.source_id ${from} and ${kind} = 'name'
 			and vc.subject_id in (select n.id from person_names n where n.person_id in ${people})
-		union select vc.source_id ${from} and vc.subject_kind = 'event' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'event' and vc.subject_id in (
 			select e.id from events e where e.tree_id = ${treeId} and (
 				(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
 				or (e.entity_type = 'FAMILY' and ${unionOk(sql`e.entity_id`)})))
-		union select vc.source_id ${from} and vc.subject_kind = 'union' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'union' and vc.subject_id in (
 			select u.id from unions u where u.tree_id = ${treeId} and ${unionOk(sql`u.id`)})
-		union select vc.source_id ${from} and vc.subject_kind = 'parent_child' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'parent_child' and vc.subject_id in (
 			select l.id from parent_child l where l.tree_id = ${treeId}
 				and l.parent_id in ${people} and l.child_id in ${people}
 				and (l.union_id is null or ${unionOk(sql`l.union_id`)}))`;
@@ -202,12 +211,22 @@ function visibleCitedSourceIds(treeId: string): SQL {
  * ` and <visible>` for a source row (aliased `alias`): it supports a citation the viewer can see,
  * or they made it. Empty for a viewer who sees everyone. The statement must start with
  * `withVisiblePeople`.
+ *
+ * `isBounded` is for a query whose sources are already a few ids (one source, a chunk): each is
+ * then tested against its own citations. A list that pages over the tree leaves it off, since the
+ * correlated test would run once per source of the tree.
  */
-export function andSourceVisible(alias: string, scope: Scope, treeId: string): SQL {
+export function andSourceVisible(
+	alias: string,
+	scope: Scope,
+	treeId: string,
+	isBounded = false
+): SQL {
 	if (!scope.isRestricted) return sql``;
 	const s = ident(alias);
 	const isOwn = scope.creatorId === null ? sql`` : sql`${s}.created_by is ${scope.creatorId} or `;
-	return sql` and (${isOwn}${s}.id in (${visibleCitedSourceIds(treeId)}))`;
+	const cited = visibleCitedSourceIds(treeId, isBounded ? sql`${s}.id` : undefined);
+	return sql` and (${isOwn}${s}.id in (${cited}))`;
 }
 
 /**
@@ -228,7 +247,7 @@ export async function visibleSourcesAmong(
 			sql`, `
 		);
 		const rows = await db.all<{ id: string }>(
-			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id in (${ids})${andSourceVisible('s', scope, treeId)}`
+			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id in (${ids})${andSourceVisible('s', scope, treeId, true)}`
 		);
 		for (const row of rows) visible.add(row.id);
 	}

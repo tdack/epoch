@@ -79,15 +79,17 @@ export class EvidenceRepository {
 		return out;
 	}
 
+	visibleSourceSql(treeId: string, sourceId: string, scope: Scope): SQL {
+		return sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id = ${sourceId}${andSourceVisible('s', scope, treeId, true)}`;
+	}
+
 	/** One source, or undefined when it is not in the tree or the viewer may not see it. */
 	async visibleSource(
 		treeId: string,
 		sourceId: string,
 		scope: Scope
 	): Promise<SourceRow | undefined> {
-		const rows = await this.db.all<{ id: string }>(
-			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id = ${sourceId}${andSourceVisible('s', scope, treeId)}`
-		);
+		const rows = await this.db.all<{ id: string }>(this.visibleSourceSql(treeId, sourceId, scope));
 		if (rows.length === 0) return undefined;
 		return (await this.sourcesByIds(treeId, [sourceId]))[0];
 	}
@@ -190,7 +192,7 @@ export class EvidenceRepository {
 				sql`${withVisiblePeople(treeId, scope)}select l.repository_id as id, count(distinct l.source_id) as n from source_repositories l join sources s on s.id = l.source_id where s.tree_id = ${treeId} and l.repository_id in (${sql.join(
 					chunk.map((id) => sql`${id}`),
 					sql`, `
-				)})${andSourceVisible('s', scope, treeId)} group by l.repository_id`
+				)})${andSourceVisible('s', scope, treeId, true)} group by l.repository_id`
 			);
 			for (const row of rows) counts.set(row.id, row.n);
 		}
