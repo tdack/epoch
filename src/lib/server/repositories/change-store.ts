@@ -82,6 +82,37 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	subtree: subtrees
 };
 
+/** The rows that name their record by `subject_kind, subject_id`, which no foreign key checks. */
+const SUBJECT_ROW_TABLES: readonly RecordTable[] = [
+	'citations',
+	'note_attachments',
+	'research_tasks'
+];
+
+/** The subject kind each record table answers to, the same word in all three of those tables. */
+const SUBJECT_KIND_OF_TABLE: Partial<Record<RecordTable, string>> = {
+	individuals: 'person',
+	person_names: 'name',
+	events: 'event',
+	unions: 'union',
+	parent_child: 'parent_child',
+	sources: 'source',
+	citations: 'citation',
+	notes: 'note',
+	repositories: 'repository'
+};
+const SUBJECT_TABLE_OF_KIND = Object.fromEntries(
+	Object.entries(SUBJECT_KIND_OF_TABLE).map(([table, kind]) => [kind, table])
+) as Record<string, RecordTable>;
+
+interface SubjectRef {
+	kind: string;
+	id: string;
+}
+
+/** Two bound values per record in each of the three tables, under D1's 100 per statement. */
+const DELETED_SUBJECTS_PER_GUARD = 15;
+
 /** Each `TreeRows` key's table. */
 const TREE_ROW_TABLES: Record<keyof TreeRows, SQLiteTable> = {
 	individuals,
@@ -281,6 +312,7 @@ export class ChangeStore {
 		const statements = [
 			...applied.filter((op) => op.before !== null).map((op) => this.guard(op, input.treeId)),
 			...applied.flatMap((op) => this.guardedStatementsFor(op, input.treeId)),
+			...this.subjectGuards(applied, input.treeId),
 			...this.placeStatements(input.treeId, applied),
 			db.insert(changeLog).values({
 				id: changeId,
@@ -379,6 +411,66 @@ export class ChangeStore {
 			];
 		}
 		return [statement];
+	}
+
+	/**
+	 * Citations, note attachments and tasks name their record by kind and id, with no foreign key to
+	 * stop another editor's change from pointing one at a record this change deletes, or deleting the
+	 * record one of this change's rows points at. Run after every write of the change, so rows it
+	 * moves or removes itself are already settled: a row still naming a deleted record is new, and a
+	 * written row naming a missing record has lost a race.
+	 */
+	private subjectGuards(ops: RowOp[], treeId: string) {
+		const key = (kind: string, id: string) => `${kind}|${id}`;
+		const deleted = new Map<string, SubjectRef>();
+		const named = new Map<string, SubjectRef>();
+		for (const op of ops) {
+			const kind = SUBJECT_KIND_OF_TABLE[op.table];
+			if (kind && op.after === null) deleted.set(key(kind, op.id), { kind, id: op.id });
+			if (!SUBJECT_ROW_TABLES.includes(op.table) || op.after === null) continue;
+			const { subjectKind, subjectId } = op.after as {
+				subjectKind: string | null;
+				subjectId: string | null;
+			};
+			const before = op.before as { subjectKind: string | null; subjectId: string | null } | null;
+			// A row that keeps its record was checked when it was written; an orphan stays editable.
+			if (!subjectKind || !subjectId) continue;
+			if (before?.subjectKind === subjectKind && before.subjectId === subjectId) continue;
+			named.set(key(subjectKind, subjectId), { kind: subjectKind, id: subjectId });
+		}
+		const values = (refs: SubjectRef[]) =>
+			sql.join(
+				refs.map((r) => sql`(${r.kind}, ${r.id})`),
+				sql`, `
+			);
+		const remaining = chunkIds([...deleted.values()], DELETED_SUBJECTS_PER_GUARD).map((refs) =>
+			this.failIf(
+				sql.join(
+					SUBJECT_ROW_TABLES.map(
+						(table) =>
+							sql`exists (select 1 from ${sql.identifier(table)} where (subject_kind, subject_id) in (values ${values(refs)}))`
+					),
+					sql` or `
+				)
+			)
+		);
+		const missing = [...Map.groupBy(named.values(), (ref) => ref.kind)].flatMap(([kind, refs]) => {
+			const table = SUBJECT_TABLE_OF_KIND[kind];
+			if (!table) return [];
+			const treeColumn = treeColumnOf(TABLES[table]);
+			const isSameTree = treeColumn
+				? sql` and ${sql.identifier(treeColumn.name)} = ${treeId}`
+				: sql``;
+			return chunkIds(refs.map((r) => r.id)).map((ids) =>
+				this.failIf(
+					sql`(select count(*) from ${sql.identifier(table)} where id in (${sql.join(
+						ids.map((id) => sql`${id}`),
+						sql`, `
+					)})${isSameTree}) < ${ids.length}`
+				)
+			);
+		});
+		return [...remaining, ...missing];
 	}
 
 	/**

@@ -276,6 +276,89 @@ describe('ChangeStore.commit against another editor', () => {
 			})
 		).rejects.toMatchObject(conflict);
 	});
+
+	const citation = (id: string, subjectId: string) =>
+		partialRow('citations', {
+			id,
+			treeId,
+			subjectKind: 'person',
+			subjectId,
+			sortOrder: 0,
+			sourceId: null,
+			sourceRef: null,
+			description: 'Parish register',
+			page: null,
+			quality: null,
+			entryDateRaw: null,
+			entryDateSort: null,
+			entryDateSortEnd: null,
+			entryDateQualifier: null,
+			entryDatePrecision: null,
+			entryDateCalendar: null,
+			text: null,
+			gedcomExtra: null,
+			gedcomLayout: null,
+			version: 1,
+			createdAt: 1_000,
+			updatedAt: 1_000
+		});
+
+	it('refuses to delete a person someone has just cited, rather than leave the citation orphaned', async () => {
+		await twoPeople('race-c1', 'race-c2');
+		await add({
+			table: 'citations',
+			id: 'race-c-cite',
+			before: null,
+			after: citation('race-c-cite', 'race-c2')
+		});
+		await expect(
+			add({ table: 'individuals', id: 'race-c2', before: person('race-c2', 'Ben'), after: null })
+		).rejects.toMatchObject(conflict);
+	});
+
+	it('still deletes a person whose citations the change itself deletes', async () => {
+		await twoPeople('race-e1', 'race-e2');
+		const cited = citation('race-e-cite', 'race-e2');
+		await add({ table: 'citations', id: 'race-e-cite', before: null, after: cited });
+		await add(
+			{ table: 'citations', id: 'race-e-cite', before: cited, after: null },
+			{ table: 'individuals', id: 'race-e2', before: person('race-e2', 'Ben'), after: null }
+		);
+		expect(
+			await t.db.select().from(individuals).where(eq(individuals.id, 'race-e2')).get()
+		).toBeUndefined();
+	});
+
+	it('refuses a citation of a person someone has just deleted', async () => {
+		await twoPeople('race-g1', 'race-g2');
+		await add({
+			table: 'individuals',
+			id: 'race-g2',
+			before: person('race-g2', 'Ben'),
+			after: null
+		});
+		await expect(
+			add({
+				table: 'citations',
+				id: 'race-g-cite',
+				before: null,
+				after: citation('race-g-cite', 'race-g2')
+			})
+		).rejects.toMatchObject(conflict);
+	});
+
+	it('cites a person created in the same change', async () => {
+		await freshTree();
+		await add(
+			{
+				table: 'citations',
+				id: 'race-h-cite',
+				before: null,
+				after: citation('race-h-cite', 'race-h1')
+			},
+			{ table: 'individuals', id: 'race-h1', before: null, after: person('race-h1', 'Ann') }
+		);
+	});
 });
 
 describe('ChangeStore undo lookups', () => {
