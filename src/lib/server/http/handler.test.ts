@@ -159,6 +159,14 @@ describe('treeHandler: what it hands the handler', () => {
 		expect(run).not.toHaveBeenCalled();
 	});
 
+	it('answers 413 for a body over the cap, without parsing it', async () => {
+		const run = vi.fn();
+		const handler = treeHandler({ failure: 'x', body: z.object({ name: z.string() }) }, run);
+		const huge = JSON.stringify({ name: 'x'.repeat(2 * 1024 * 1024) });
+		expect((await handler(eventOf({ body: huge }))).status).toBe(413);
+		expect(run).not.toHaveBeenCalled();
+	});
+
 	it('parses and validates the query', async () => {
 		const run = vi.fn(async ({ query }: { query: { generations: number } }) => query);
 		const handler = treeHandler(

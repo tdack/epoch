@@ -4,12 +4,14 @@ import { getDb, type DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
 import {
 	BindingUnavailableError,
+	PayloadTooLargeError,
 	UnauthenticatedError,
 	UnauthorizedError,
 	ValidationError
 } from '../domain/errors';
 import { parseBody, parseQuery } from '../validation';
 import { errorResponse } from './error-response';
+import { readBoundedText } from './csp-report';
 import { PublicTreeService } from '../services/public-tree-service';
 import { SubtreeService } from '../services/subtree-service';
 import { TreeService } from '../services/tree-service';
@@ -142,6 +144,20 @@ export async function resolveTreeScope(
 	return { treeId, subtree };
 }
 
+/** Far above any edit the app sends; files come as form data. A larger body is refused unread. */
+const MAX_JSON_BODY_BYTES = 1024 * 1024;
+
+/** The body as JSON, read under the cap; one that does not parse reads as `{}` for the schema to refuse. */
+async function readJsonBody(request: Request): Promise<unknown> {
+	const text = await readBoundedText(request, MAX_JSON_BODY_BYTES);
+	if (text === null) throw new PayloadTooLargeError('The request is too large');
+	try {
+		return text ? JSON.parse(text) : {};
+	} catch {
+		return {};
+	}
+}
+
 async function handle<B extends Schema, Q extends Schema>(
 	event: RequestEvent,
 	options: HandlerOptions<B, Q>,
@@ -164,9 +180,7 @@ async function handle<B extends Schema, Q extends Schema>(
 
 	try {
 		const body = (
-			options.body
-				? parseBody(options.body, await event.request.json().catch(() => ({})))
-				: undefined
+			options.body ? parseBody(options.body, await readJsonBody(event.request)) : undefined
 		) as Parsed<B>;
 		const query = (
 			options.query ? parseQuery(options.query, event.url.searchParams) : undefined
