@@ -39,22 +39,30 @@
 
 	function remove() {
 		const hasCitations = source.citationCount > 0;
+		// The count the preview listed, from the same plan the delete runs; the page's count if it failed.
+		let shownCount = source.citationCount;
 		void editor.confirmWithImpact({
 			title: hasCitations
 				? `Delete “${title}” and its ${source.citationCount} ${source.citationCount === 1 ? 'citation' : 'citations'}?`
 				: `Delete “${title}”?`,
 			confirmLabel: hasCitations ? 'Delete source and citations' : 'Delete source',
-			preview: () =>
-				previewEvidenceApi(treeId, {
+			preview: async () => {
+				const impact = await previewEvidenceApi(treeId, {
 					kind: 'delete_source',
 					sourceId: source.id,
 					version: source.version,
 					shouldRemoveCitations: true
-				}),
+				});
+				shownCount = impact.records.filter(
+					(r) => r.entityType === 'citation' && r.action === 'deleted'
+				).length;
+				return impact;
+			},
 			run: async () => {
 				const result = await deleteSourceApi(treeId, source.id, {
 					version: source.version,
-					shouldRemoveCitations: true
+					shouldRemoveCitations: true,
+					citationCount: shownCount
 				});
 				await goto(`${base}/sources`, { replace: true });
 				return result;

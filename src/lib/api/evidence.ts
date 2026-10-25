@@ -88,10 +88,12 @@ export async function updateSourceApi(
 export async function deleteSourceApi(
 	treeId: string,
 	sourceId: string,
-	options: { version: number; shouldRemoveCitations?: boolean }
+	options: { version: number; shouldRemoveCitations?: boolean; citationCount?: number }
 ): Promise<Changed> {
 	const query = new URLSearchParams({ version: String(options.version) });
 	if (options.shouldRemoveCitations) query.set('removeCitations', 'true');
+	if (options.citationCount !== undefined)
+		query.set('citationCount', String(options.citationCount));
 	return call(
 		path`/api/trees/${treeId}/sources/${sourceId}` + `?${query}`,
 		{ method: 'DELETE' },

@@ -50,6 +50,8 @@ export type EvidenceCommand =
 			expectedVersion?: number;
 			/** Without this, a source that is cited is refused. */
 			shouldRemoveCitations?: boolean;
+			/** The citation count the confirmation showed; a different count now is a conflict, not a delete. */
+			expectedCitationCount?: number;
 	  }
 	| {
 			kind: 'merge_sources';
@@ -274,6 +276,18 @@ function deleteSource(
 	const source = requireSource(rows, command.sourceId);
 	checkVersion(source, command.expectedVersion, 'source', sourceSnapshot(source));
 	const cited = citationsOfSource(rows, source.id);
+	const expected = command.expectedCitationCount;
+	if (command.shouldRemoveCitations && expected !== undefined && expected !== cited.length)
+		throw new ConcurrencyConflictError(
+			`This source is cited ${cited.length} ${cited.length === 1 ? 'time' : 'times'} now, not ${expected} as you were shown.`,
+			{
+				reason: 'CITATION_COUNT_CHANGED',
+				entity: 'source',
+				id: source.id,
+				expectedCitationCount: expected,
+				currentCitationCount: cited.length
+			}
+		);
 	if (cited.length > 0 && !command.shouldRemoveCitations) {
 		throw new SourceInUseError(
 			`${cited.length} ${cited.length === 1 ? 'citation cites' : 'citations cite'} this source. Remove ${cited.length === 1 ? 'it' : 'them'} too to delete the source.`,

@@ -2,7 +2,7 @@ import { expectedVersion, treeHandler } from '#lib/server/http/handler.js';
 import { EvidenceReadService } from '#lib/server/services/evidence-read-service.js';
 import { EvidenceService } from '#lib/server/services/evidence-service.js';
 import { parseListParams } from '#lib/shared/lists.js';
-import { sourceUpdateSchema } from '#lib/server/validation/schemas.js';
+import { sourceDeleteQuerySchema, sourceUpdateSchema } from '#lib/server/validation/schemas.js';
 
 /**
  * A source, its repositories and a page of the records that cite it (`?offset=&limit=`). A source
@@ -35,17 +35,19 @@ export const PUT = treeHandler(
 
 /**
  * Delete a source. A cited source is refused with the citation count (409, `SOURCE_IN_USE`) unless
- * the request says to remove the citations too (`?removeCitations=true`).
+ * the request says to remove the citations too (`?removeCitations=true&citationCount=N`, the count
+ * the caller was shown; a different count now is a 409 and nothing is deleted).
  */
 export const DELETE = treeHandler(
-	{ failure: 'Failed to delete the source', params: ['sourceId'] },
-	async ({ db, ctx, treeId, params, url }) => {
+	{ failure: 'Failed to delete the source', params: ['sourceId'], query: sourceDeleteQuerySchema },
+	async ({ db, ctx, treeId, params, url, query }) => {
 		const { change } = await new EvidenceService(db).deleteSource(
 			treeId,
 			params.sourceId,
 			{
 				expectedVersion: expectedVersion(url),
-				shouldRemoveCitations: url.searchParams.get('removeCitations') === 'true'
+				shouldRemoveCitations: query.removeCitations === 'true',
+				expectedCitationCount: query.citationCount
 			},
 			ctx
 		);

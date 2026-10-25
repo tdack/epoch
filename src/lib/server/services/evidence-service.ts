@@ -99,7 +99,11 @@ export class EvidenceService {
 	deleteSource(
 		treeId: string,
 		sourceId: string,
-		options: { expectedVersion?: number; shouldRemoveCitations?: boolean },
+		options: {
+			expectedVersion?: number;
+			shouldRemoveCitations?: boolean;
+			expectedCitationCount?: number;
+		},
 		context: AuthenticatedContext
 	) {
 		return this.run(treeId, { kind: 'delete_source', sourceId, ...options }, context);

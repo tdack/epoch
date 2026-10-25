@@ -206,6 +206,44 @@ describe('sources', () => {
 		expect((await citationsOf(birthId)).map((c) => c.page)).toEqual(['p 1', 'p 2']);
 	});
 
+	it('refuses to remove citations when the count differs from the one shown, deleting nothing', async () => {
+		const { treeId, ctx, evidence, birthId, sourceId, citationsOf } = await setup();
+		const subject = { kind: 'event' as const, id: birthId };
+		await evidence.addCitation(treeId, subject, { sourceId, page: 'p 1' }, ctx);
+		const preview = await evidence.preview(
+			treeId,
+			{ kind: 'delete_source', sourceId, shouldRemoveCitations: true },
+			ctx
+		);
+		expect(preview.records.filter((r) => r.entityType === 'citation')).toHaveLength(1);
+		await evidence.addCitation(treeId, subject, { sourceId, page: 'p 2' }, ctx);
+
+		const refused = await evidence
+			.deleteSource(
+				treeId,
+				sourceId,
+				{ shouldRemoveCitations: true, expectedCitationCount: 1 },
+				ctx
+			)
+			.catch((e) => e);
+		expect(refused).toBeInstanceOf(ConcurrencyConflictError);
+		expect(refused.details).toMatchObject({
+			reason: 'CITATION_COUNT_CHANGED',
+			expectedCitationCount: 1,
+			currentCitationCount: 2
+		});
+		expect(await citationsOf(birthId)).toHaveLength(2);
+		expect(await t.db.select().from(sources).where(eq(sources.id, sourceId)).all()).toHaveLength(1);
+
+		await evidence.deleteSource(
+			treeId,
+			sourceId,
+			{ shouldRemoveCitations: true, expectedCitationCount: 2 },
+			ctx
+		);
+		expect(await citationsOf(birthId)).toEqual([]);
+	});
+
 	it("keeps a merged source's extra lines unless the survivor has the very same lines", async () => {
 		const actor = await createTestUser(t.db);
 		const treeId = await createTestTree(t.db, actor);
