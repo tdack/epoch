@@ -186,8 +186,11 @@ export function noteBackfillStatements(input: NoteBackfillInput, now = new Date(
 	};
 
 	const preservedByTree = new Map<string, NoteBackfillInput['preserved']>();
-	for (const p of input.preserved)
-		preservedByTree.set(p.tree_id, [...(preservedByTree.get(p.tree_id) ?? []), p]);
+	for (const p of input.preserved) {
+		const list = preservedByTree.get(p.tree_id);
+		if (list) list.push(p);
+		else preservedByTree.set(p.tree_id, [p]);
+	}
 
 	for (const [treeId, entries] of preservedByTree) {
 		const index = trees.get(treeId);
