@@ -88,12 +88,12 @@ function taskSubjectSeed(subject: TaskSubjectRef | null | undefined): ScopeSeed 
  * snapshot and loads them next.
  */
 export const EVIDENCE_SCOPES: ScopeTable = {
-	// A new record's XREF must not collide with one already taken, so that whole table is read.
-	create_source: () => seedOf({ wholeTables: ['sources'] }),
+	// A new record reads nothing: its XREF comes from its own id, and the unique index catches a clash.
+	create_source: () => seedOf({}),
 	update_source: (c, isRestricted) => sourceSeed(c.sourceId, isRestricted),
 	// Deleting reads every citation and file of the source, whoever asks.
 	delete_source: (c) => sourceSeed(c.sourceId, true),
-	create_repository: () => seedOf({ wholeTables: ['repositories'] }),
+	create_repository: () => seedOf({}),
 	// A repository is visible to a restricted viewer only through a visible source that links it, so
 	// the follow-up loads the sources its links name, and with them the citations that decide.
 	update_repository: (c) => following({ repositories: [c.repositoryId] }),
@@ -113,14 +113,13 @@ export const EVIDENCE_SCOPES: ScopeTable = {
 	reorder_citations: (c) => citationSubjectSeed(c.subject),
 	add_note: (c) => noteSubjectSeed(c.subject),
 	reorder_notes: (c) => noteSubjectSeed(c.subject),
-	create_note: () => seedOf({ wholeTables: ['notes'] }),
+	create_note: () => seedOf({}),
 	// An attachment is visible to a restricted viewer only if what it sits on is, and a shared note
 	// only through the attachments that use it, so the follow-up seeds the source or repository an
 	// attachment is on (and the repository's sources), which loads the citations that decide.
 	update_note: (c) => following({ noteAttachments: [c.attachmentId] }),
 	remove_note: (c) => following({ noteAttachments: [c.attachmentId] }),
-	// The new note's XREF is picked among every note's, as for `create_note`.
-	share_note: (c) => following({ noteAttachments: [c.attachmentId], wholeTables: ['notes'] }),
+	share_note: (c) => following({ noteAttachments: [c.attachmentId] }),
 	attach_note: (c) => mergeSeeds(noteSubjectSeed(c.subject), following({ notes: [c.noteId] })),
 	update_shared_note: (c) => following({ notes: [c.noteId] }),
 	delete_shared_note: (c) => following({ notes: [c.noteId] }),

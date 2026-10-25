@@ -139,18 +139,18 @@ function requireSubject(rows: TreeRows, subject: NoteSubjectRef): void {
 		throw new NotFoundError('Record to annotate', subject.id);
 }
 
-/** A short XREF for a note made here: stable, in the file's own style, and not one already taken. */
-function newXref(id: string, taken: Set<string>): string {
-	const token = id.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-	for (let length = 8; length <= token.length; length++) {
-		const xref = `@N${token.slice(0, length)}@`;
-		if (!taken.has(xref)) return xref;
-	}
-	return `@N${token}${taken.size}@`;
-}
-
-const takenXrefs = (list: Array<{ xref: string | null; xrefAliases: string[] | null }>) =>
-	new Set(list.flatMap((r) => [...(r.xref ? [r.xref] : []), ...(r.xrefAliases ?? [])]));
+/**
+ * A short XREF for a note made here, in the file's own style: eight characters of its random id.
+ * The unique index on (tree, xref) turns a clash into a refused write the caller retries, so the
+ * planner reads no other note to avoid one.
+ * shortcut: a clash with another note's XREF alias is not caught, accepted for an 8+-char random
+ * token; check aliases here if imported aliases ever take this shape.
+ */
+const newXref = (id: string) =>
+	`@N${id
+		.replace(/[^A-Za-z0-9]/g, '')
+		.toUpperCase()
+		.slice(0, 8)}@`;
 
 const noteSnapshot = (n: NoteRow) => ({ text: n.text, mime: n.mime, language: n.language });
 const attachmentSnapshot = (a: NoteAttachmentRow) => ({ text: a.text });
@@ -314,18 +314,13 @@ function reorderNotes(
 	return ops;
 }
 
-function createSharedNoteRow(
-	rows: TreeRows,
-	ctx: NoteContext,
-	id: string,
-	input: SharedNoteInput
-): NoteRow {
+function createSharedNoteRow(ctx: NoteContext, id: string, input: SharedNoteInput): NoteRow {
 	const text = cleanBlock(input.text);
 	if (!text) throw new ValidationError('A note needs some text.');
 	return {
 		id,
 		treeId: ctx.treeId,
-		xref: newXref(id, takenXrefs(rows.notes)),
+		xref: newXref(id),
 		xrefAliases: null,
 		text,
 		mime: clean(input.mime),
@@ -349,7 +344,7 @@ function shareNote(
 	checkVersion(before, command.expectedVersion, 'note_link', attachmentSnapshot(before));
 	if (!isInlineAttachment(before) || !before.text)
 		throw new ValidationError('Only a note written on a record can be shared.');
-	const note = createSharedNoteRow(rows, ctx, command.noteId, { text: before.text });
+	const note = createSharedNoteRow(ctx, command.noteId, { text: before.text });
 	// The inline note's own line split and the lines kept under it move to the record, so
 	// nothing the file said about this note is lost by sharing it.
 	const shared: NoteRow = {
@@ -405,7 +400,7 @@ function createNote(
 	ctx: NoteContext,
 	command: Extract<NoteCommand, { kind: 'create_note' }>
 ): RowOp[] {
-	const row = createSharedNoteRow(rows, ctx, command.noteId, command.note);
+	const row = createSharedNoteRow(ctx, command.noteId, command.note);
 	return [{ table: 'notes', id: row.id, before: null, after: row }];
 }
 

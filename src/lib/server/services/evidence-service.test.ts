@@ -169,6 +169,19 @@ describe('citations through the mutation runner', () => {
 });
 
 describe('sources', () => {
+	it('refuses a new source whose XREF clashes, as a write to retry, without reading the others', async () => {
+		const { treeId, ctx } = await setup();
+		const ids = ['clashing-source-1', 'clashing-source-2'];
+		const evidence = new EvidenceService(t.db, {
+			now: () => Date.now(),
+			newId: () => ids.shift()!
+		});
+		await evidence.createSource(treeId, { title: 'First' }, ctx);
+		const error = await evidence.createSource(treeId, { title: 'Second' }, ctx).catch((e) => e);
+		expect(error).toBeInstanceOf(ConcurrencyConflictError);
+		expect(error.details).toMatchObject({ reason: 'CONCURRENT_WRITE' });
+	});
+
 	it('gives a new source a stable XREF and requires it to say something', async () => {
 		const { treeId, ctx, evidence, sourceId } = await setup();
 		const row = (await t.db.select().from(sources).where(eq(sources.id, sourceId)).get())!;

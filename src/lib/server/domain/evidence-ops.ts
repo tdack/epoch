@@ -180,18 +180,17 @@ function requireSubject(rows: TreeRows, subject: CitationSubjectRef): void {
 		throw new NotFoundError('Record to cite', subject.id);
 }
 
-/** A short XREF for a source made here: stable, in the file's own style, and not one already taken. */
-function newXref(prefix: 'S' | 'R', id: string, taken: Set<string>): string {
-	const token = id.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-	for (let length = 8; length <= token.length; length++) {
-		const xref = `@${prefix}${token.slice(0, length)}@`;
-		if (!taken.has(xref)) return xref;
-	}
-	return `@${prefix}${token}${taken.size}@`;
-}
-
-const takenXrefs = (list: Array<{ xref: string | null; xrefAliases: string[] | null }>) =>
-	new Set(list.flatMap((r) => [...(r.xref ? [r.xref] : []), ...(r.xrefAliases ?? [])]));
+/**
+ * A short XREF for a source or repository made here: eight characters of its random id. The unique
+ * index on (tree, xref) refuses a clash as a write to retry, so no other row is read to avoid one.
+ * shortcut: a clash with another record's XREF alias is not caught, accepted for an 8+-char random
+ * token; check aliases here if imported aliases ever take this shape.
+ */
+const newXref = (prefix: 'S' | 'R', id: string) =>
+	`@${prefix}${id
+		.replace(/[^A-Za-z0-9]/g, '')
+		.toUpperCase()
+		.slice(0, 8)}@`;
 
 const sourceSnapshot = (s: SourceRow) => ({
 	title: s.title,
@@ -220,7 +219,7 @@ function createSource(
 	const row: SourceRow = {
 		id: command.sourceId,
 		treeId: ctx.treeId,
-		xref: newXref('S', command.sourceId, takenXrefs(rows.sources)),
+		xref: newXref('S', command.sourceId),
 		xrefAliases: null,
 		title: cleanBlock(source.title),
 		author: cleanBlock(source.author),
@@ -422,7 +421,7 @@ function createRepository(
 	const row: RepositoryRow = {
 		id: command.repositoryId,
 		treeId: ctx.treeId,
-		xref: newXref('R', command.repositoryId, takenXrefs(rows.repositories)),
+		xref: newXref('R', command.repositoryId),
 		xrefAliases: null,
 		name,
 		address: cleanBlock(command.repository.address),

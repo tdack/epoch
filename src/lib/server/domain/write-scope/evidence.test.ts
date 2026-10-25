@@ -109,7 +109,7 @@ type SubjectKind = 'person' | 'name' | 'event' | 'union' | 'parent_child';
  * people, shared notes used by many records and notes that sit only on a source or a repository,
  * inline notes, notes on citations, tasks about every kind of record, and a share of the records
  * made by the contributor. The first source, repository and note own the XREF a new record's id
- * would try first, so creating one has to look at the XREFs already taken.
+ * would take, so a clash plans the same whatever is loaded (the unique index refuses it on write).
  */
 function addEvidence(rows: TreeRows, random: () => number, prefix: string): TreeRows {
 	const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)]!;
