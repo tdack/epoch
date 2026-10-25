@@ -16,6 +16,8 @@
 		isLoading?: boolean;
 		/** True while the confirmed action is running. */
 		isConfirming?: boolean;
+		/** How far a change made in steps has got, shown while it runs, e.g. "512 citations to go…". */
+		progress?: string | null;
 		/** A failure to preview or to confirm. */
 		error?: string | null;
 		/** Label of the confirm button, e.g. "Delete person". */
@@ -36,6 +38,7 @@
 		impact,
 		isLoading = false,
 		isConfirming = false,
+		progress = null,
 		error = null,
 		confirmLabel,
 		controls,
@@ -217,7 +220,7 @@
 					? 'flex-1 cursor-pointer rounded-lg bg-red-700 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-50'
 					: 'btn-primary flex-1'}
 			>
-				{isConfirming ? 'Working…' : confirmLabel}
+				{isConfirming ? (progress ?? 'Working…') : confirmLabel}
 			</button>
 		</div>
 	</div>

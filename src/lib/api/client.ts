@@ -119,3 +119,26 @@ export function path(strings: TemplateStringsArray, ...parts: Array<string | num
 }
 
 export type Changed = { change: ChangeSummary | null };
+
+/** A merge or a delete that may be made in steps: `remaining` is what is left after this one. */
+export type Stepped = Changed & { remaining: number };
+
+/**
+ * Repeats a change made in steps until nothing remains, calling `step` with what the last one left
+ * (null the first time). Stops on the first error, or on a step that left as much as before. Each
+ * step is its own undoable change; the last one's is returned.
+ */
+export async function runInSteps(
+	step: (remaining: number | null) => Promise<Stepped>,
+	onprogress?: (remaining: number) => void
+): Promise<Stepped> {
+	let result = await step(null);
+	while (result.remaining > 0) {
+		onprogress?.(result.remaining);
+		const before = result.remaining;
+		result = await step(before);
+		if (result.remaining >= before)
+			throw new Error('This stopped making progress, as someone else is changing it. Try again.');
+	}
+	return result;
+}

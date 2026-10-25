@@ -90,9 +90,11 @@ interface PendingImpact {
 	impact: ImpactSummary | null;
 	error: string | null;
 	isConfirming: boolean;
+	/** How far a change made in steps has got, while it runs. */
+	progress: string | null;
 	/** Toast text when the change comes back without a summary. */
 	done: string;
-	run: () => Promise<{ change: ChangeSummary | null }>;
+	run: (onprogress: (text: string) => void) => Promise<{ change: ChangeSummary | null }>;
 }
 
 /** The record the person form edits, in the shape it reads. */
@@ -439,7 +441,8 @@ export class TreeEditor {
 		title: string;
 		confirmLabel: string;
 		preview: () => Promise<ImpactSummary>;
-		run: () => Promise<{ change: ChangeSummary | null }>;
+		/** May report progress, for a change made in steps. */
+		run: (onprogress: (text: string) => void) => Promise<{ change: ChangeSummary | null }>;
 		done: string;
 	}) => {
 		this.pendingImpact = {
@@ -448,6 +451,7 @@ export class TreeEditor {
 			impact: null,
 			error: null,
 			isConfirming: false,
+			progress: null,
 			done: options.done,
 			run: options.run
 		};
@@ -466,7 +470,7 @@ export class TreeEditor {
 		pending.isConfirming = true;
 		pending.error = null;
 		try {
-			const { change } = await pending.run();
+			const { change } = await pending.run((text) => (pending.progress = text));
 			this.pendingImpact = null;
 			await this.afterChange(change, pending.done);
 		} catch (e) {
@@ -475,7 +479,8 @@ export class TreeEditor {
 				// Changed by someone else after the preview: show the current state rather than delete on stale information.
 				this.pendingImpact = null;
 				await this.refresh();
-				this.toasts.push(`${e.message} Nothing was deleted. Review it and try again.`, {
+				const kept = pending.progress ? 'The steps already made are kept.' : 'Nothing was deleted.';
+				this.toasts.push(`${e.message} ${kept} Review it and try again.`, {
 					tone: TOAST_TONES.ERROR,
 					durationMs: 10_000
 				});

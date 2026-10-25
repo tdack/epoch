@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from '#lib/components/modals/ImpactDialog.svelte';
+	import { runInSteps } from '#lib/api/client.js';
 	import { fetchNotes, mergeNotesApi, previewNoteApi } from '#lib/api/notes.js';
 	import type { NoteListItem } from '#lib/shared/notes.js';
 	import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
@@ -25,6 +26,7 @@
 	let impact = $state<ImpactSummary | null>(null);
 	let error = $state<string | null>(null);
 	let isMerging = $state(false);
+	let progress = $state<string | null>(null);
 	let request = 0;
 
 	const chosenIds = $derived(chosen.map((s) => s.id));
@@ -91,15 +93,21 @@
 		isMerging = true;
 		error = null;
 		try {
-			const { change } = await mergeNotesApi(treeId, survivor.id, {
-				mergedIds: chosenIds,
-				expectedVersions: { [survivor.id]: survivor.version }
-			});
+			// A merge too big for one change moves its uses in steps; the survivor is not written until the last.
+			const { change } = await runInSteps(
+				() =>
+					mergeNotesApi(treeId, survivor.id, {
+						mergedIds: chosenIds,
+						expectedVersions: { [survivor.id]: survivor.version }
+					}),
+				(left) => (progress = `${left} uses to go…`)
+			);
 			await onmerged(change);
 		} catch (cause: unknown) {
 			error = messageOf(cause, 'Could not merge the notes');
 		} finally {
 			isMerging = false;
+			progress = null;
 		}
 	}
 </script>
@@ -110,6 +118,7 @@
 	{impact}
 	isLoading={isOpen && chosen.length > 0 && impact === null && error === null}
 	isConfirming={isMerging}
+	{progress}
 	{error}
 	confirmLabel="Merge notes"
 	idleMessage="Choose the duplicate notes to fold into this one."

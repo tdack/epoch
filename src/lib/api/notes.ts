@@ -2,7 +2,7 @@ import type { ImpactResponse } from '#lib/shared/api-contracts.js';
 import type { ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { NoteListItem, NoteSubjectRef, SharedNoteInput } from '#lib/shared/notes.js';
 import type { Page } from '#lib/shared/lists.js';
-import { type Changed, call, json, path } from './client.js';
+import { type Changed, type Stepped, call, json, path } from './client.js';
 
 export async function fetchNotes(
 	treeId: string,
@@ -41,7 +41,7 @@ export async function deleteSharedNoteApi(
 	treeId: string,
 	noteId: string,
 	options: { version: number; shouldDetach?: boolean }
-): Promise<Changed> {
+): Promise<Stepped> {
 	const query = new URLSearchParams({ version: String(options.version) });
 	if (options.shouldDetach) query.set('detach', 'true');
 	return call(
@@ -55,7 +55,7 @@ export async function mergeNotesApi(
 	treeId: string,
 	survivorId: string,
 	body: { mergedIds: string[]; expectedVersions?: Record<string, number> }
-): Promise<Changed> {
+): Promise<Stepped> {
 	return call(
 		path`/api/trees/${treeId}/notes/${survivorId}/merge`,
 		json('POST', body),

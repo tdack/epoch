@@ -6,6 +6,7 @@
 	import SharedNoteDialog from '#lib/components/notes/SharedNoteDialog.svelte';
 	import { canChangeNote } from '#lib/components/notes/note-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import { runInSteps } from '#lib/api/client.js';
 	import { deleteSharedNoteApi, previewNoteApi } from '#lib/api/notes.js';
 	import { noteTitle } from '#lib/shared/notes.js';
 	import type { PageProps } from './$types';
@@ -39,11 +40,16 @@
 					version: note.version,
 					shouldDetach: true
 				}),
-			run: async () => {
-				const result = await deleteSharedNoteApi(treeId, note.id, {
-					version: note.version,
-					shouldDetach: true
-				});
+			run: async (onprogress) => {
+				// A note used more than one change writes is detached in steps; it is deleted with the last.
+				const result = await runInSteps(
+					() =>
+						deleteSharedNoteApi(treeId, note.id, {
+							version: note.version,
+							shouldDetach: true
+						}),
+					(left) => onprogress(`${left} uses to go…`)
+				);
 				await goto(`${base}/notes`, { replace: true });
 				return result;
 			},

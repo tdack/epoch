@@ -10,7 +10,7 @@ import type {
 	SourceListItem
 } from '#lib/shared/evidence.js';
 import type { Page, UnionListItem } from '#lib/shared/lists.js';
-import { type Changed, call, json, path } from './client.js';
+import { type Changed, type Stepped, call, json, path } from './client.js';
 
 export async function fetchSources(
 	treeId: string,
@@ -89,7 +89,7 @@ export async function deleteSourceApi(
 	treeId: string,
 	sourceId: string,
 	options: { version: number; shouldRemoveCitations?: boolean; citationCount?: number }
-): Promise<Changed> {
+): Promise<Stepped> {
 	const query = new URLSearchParams({ version: String(options.version) });
 	if (options.shouldRemoveCitations) query.set('removeCitations', 'true');
 	if (options.citationCount !== undefined)
@@ -105,7 +105,7 @@ export async function mergeSourcesApi(
 	treeId: string,
 	survivorId: string,
 	body: { mergedIds: string[]; expectedVersions?: Record<string, number> }
-): Promise<Changed> {
+): Promise<Stepped> {
 	return call(
 		path`/api/trees/${treeId}/sources/${survivorId}/merge`,
 		json('POST', body),

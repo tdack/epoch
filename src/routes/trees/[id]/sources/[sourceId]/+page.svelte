@@ -12,6 +12,7 @@
 	import NoteList from '#lib/components/notes/NoteList.svelte';
 	import { NOTE_SUBJECT_KINDS } from '#lib/shared/notes.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
+	import { runInSteps } from '#lib/api/client.js';
 	import { deleteSourceApi, previewEvidenceApi, unlinkRepositoryApi } from '#lib/api/evidence.js';
 	import {
 		CITATION_QUALITY_LABELS,
@@ -53,17 +54,23 @@
 					version: source.version,
 					shouldRemoveCitations: true
 				});
-				shownCount = impact.records.filter(
-					(r) => r.entityType === 'citation' && r.action === 'deleted'
-				).length;
+				// A source cited more than one change writes is deleted in steps; the preview lists the first.
+				shownCount =
+					impact.records.filter((r) => r.entityType === 'citation' && r.action === 'deleted')
+						.length + (impact.remaining ?? 0);
 				return impact;
 			},
-			run: async () => {
-				const result = await deleteSourceApi(treeId, source.id, {
-					version: source.version,
-					shouldRemoveCitations: true,
-					citationCount: shownCount
-				});
+			run: async (onprogress) => {
+				// Each later step expects what the last one left, so a citation added meanwhile is a conflict.
+				const result = await runInSteps(
+					(left) =>
+						deleteSourceApi(treeId, source.id, {
+							version: source.version,
+							shouldRemoveCitations: true,
+							citationCount: left ?? shownCount
+						}),
+					(left) => onprogress(`${left} citations to go…`)
+				);
 				await goto(`${base}/sources`, { replace: true });
 				return result;
 			},

@@ -68,6 +68,7 @@
 		editor.pendingImpact.impact === null &&
 		editor.pendingImpact.error === null}
 	isConfirming={editor.pendingImpact?.isConfirming ?? false}
+	progress={editor.pendingImpact?.progress ?? null}
 	error={editor.pendingImpact?.error ?? null}
 	confirmLabel={editor.pendingImpact?.confirmLabel ?? 'Confirm'}
 	onconfirm={editor.runPendingImpact}
