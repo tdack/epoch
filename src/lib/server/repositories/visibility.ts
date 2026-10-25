@@ -277,12 +277,18 @@ export function andRepositoryVisible(alias: string, scope: Scope, treeId: string
  * (`vp`), partnerships with a private partner (`hu`), and then the names, facts and links of
  * visible people (`vn`, `ve`, `vl`), the citations of those (`vc`), and the sources and repositories
  * they support or the viewer made (`vs`, `vr`). A test holds the two to the same answers.
+ *
+ * Given `noteId`, the shared notes (`vo`) are only that one, read by `idx_note_attachment_note`
+ * rather than every attachment of the tree. Only `vo` is narrowed: the earlier sets are what an
+ * attachment is tested against, and `hu` hides, so narrowing it would show what it should not.
  */
-export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
+export function withVisibleNoteScope(treeId: string, scope: Scope, noteId?: string): SQL {
 	if (!scope.isRestricted) return sql``;
 	const people = sql`(select id from vp)`;
 	const isOwn = (row: string) =>
 		scope.creatorId === null ? sql`` : sql`${ident(row)}.created_by is ${scope.creatorId} or `;
+	const oneNote = (column: string) =>
+		noteId === undefined ? sql`` : sql` and ${sql.raw(column)} = ${noteId}`;
 	// Led by the tree's unions: `union_partners` has no tree index, so its own tree_id would still read every tree.
 	return sql`with vp(id) as (select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)}),
 		hu(id) as (select up.union_id from unions hun join union_partners up on up.union_id = hun.id where hun.tree_id = ${treeId} and up.person_id not in ${people}),
@@ -301,7 +307,7 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
 			or (c.subject_kind = 'parent_child' and c.subject_id in (select id from vl)))),
 		vs(id) as (select s.id from sources s where s.tree_id = ${treeId} and (${isOwn('s')}s.id in (select vsc.source_id from citations vsc where vsc.tree_id = ${treeId} and vsc.source_id is not null and vsc.id in (select id from vc)))),
 		vr(id) as (select r.id from repositories r where r.tree_id = ${treeId} and (${isOwn('r')}r.id in (select vl2.repository_id from source_repositories vl2 where vl2.repository_id is not null and vl2.source_id in (select id from vs)))),
-		vo(id) as (select n.id from notes n where n.tree_id = ${treeId} and (${isOwn('n')}n.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null and ${isNoteAttachmentVisibleOf('na', treeId)}))) `;
+		vo(id) as (select n.id from notes n where n.tree_id = ${treeId}${oneNote('n.id')} and (${isOwn('n')}n.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null${oneNote('na.note_id')} and ${isNoteAttachmentVisibleOf('na', treeId)}))) `;
 }
 
 /**

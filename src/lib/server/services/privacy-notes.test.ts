@@ -22,7 +22,7 @@ import {
 import { maskRows } from '../domain/privacy-mask';
 import { ChangeStore } from '../repositories/change-store';
 import { NoteRepository } from '../repositories/note-repository';
-import { livingCutoff } from '../domain/living-state';
+import { EVERYONE_SHOWN_CUTOFF, livingCutoff } from '../domain/living-state';
 import { NoteReadService } from './note-read-service';
 import { NoteService } from './note-service';
 import { PersonPageService } from './person-page-service';
@@ -271,11 +271,11 @@ describe('reading notes as an editor', () => {
 });
 
 describe('the SQL and the row filters agree on what notes a viewer sees', () => {
-	it.each(['contributor', 'viewer'] as const)('for a %s', async (role) => {
+	it.each(['contributor', 'viewer', 'public'] as const)('for a %s', async (role) => {
 		const rows = await new ChangeStore(t.db).loadRows(treeId);
 		const scope = {
 			isRestricted: true,
-			cutoff: livingCutoff(NOW, 110),
+			cutoff: role === 'public' ? EVERYONE_SHOWN_CUTOFF : livingCutoff(NOW, 110),
 			creatorId: role === 'contributor' ? actors.contributor.userId : null
 		};
 		const masked = maskRows(rows, scope.cutoff, false, scope.creatorId).rows;
@@ -299,6 +299,18 @@ describe('the SQL and the row filters agree on what notes a viewer sees', () => 
 
 		const noteIds = (await repo.noteIds(treeId, '', { offset: 0, limit: 100 }, scope)).ids.sort();
 		expect(noteIds).toEqual(masked.notes.map((n) => n.id).sort());
+
+		// Looked up singly, a note is narrowed to its own attachments and answers as the list does.
+		const noteIdsMasked = new Set(masked.notes.map((n) => n.id));
+		for (const note of rows.notes) {
+			const one = await repo.visibleNote(treeId, note.id, scope);
+			expect(one !== undefined, note.xref ?? '').toBe(noteIdsMasked.has(note.id));
+		}
+		if (role !== 'public')
+			expect(
+				rows.notes.some((n) => n.xref === '@N1@' && !noteIdsMasked.has(n.id)),
+				'N1 is used only by a private person'
+			).toBe(true);
 
 		const counts = await repo.visibleUseCounts(
 			treeId,
