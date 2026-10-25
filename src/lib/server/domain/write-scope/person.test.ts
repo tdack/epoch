@@ -397,7 +397,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			whole: world.rows,
 			commands: [command],
 			scope: scopes.unrestricted,
-			seed: FACT_SCOPES.delete_fact!(command as never)
+			seed: FACT_SCOPES.delete_fact!(command as never, false)
 		});
 		const touched = new Set(outcome.ops?.map((op) => op.table));
 		expect(touched).toContain('citations');
@@ -416,7 +416,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			);
 		})!;
 		const command: RelationshipCommand = { kind: 'delete_person', personId };
-		const seed = PERSON_COMMAND_SCOPES.delete_person!(command as never);
+		const seed = PERSON_COMMAND_SCOPES.delete_person!(command as never, true);
 		const outcome = expectScopedEqualsWhole({
 			whole: world.rows,
 			commands: [command],
@@ -450,7 +450,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			whole: world.rows,
 			commands: [command],
 			scope: scopes.unrestricted,
-			seed: MEDIA_SCOPES.unlink_media!(command as never)
+			seed: MEDIA_SCOPES.unlink_media!(command as never, false)
 		});
 		expect(outcome.ops).toHaveLength(2);
 		// Deliberately weakened: with no seed the file is not in the snapshot, so it is "not found".
@@ -486,7 +486,7 @@ describe('person-domain scoped planning equals whole-tree planning', () => {
 			mediaId: file.mediaId,
 			entityId: file.entityId
 		};
-		const seed = MEDIA_SCOPES.unlink_media!(command as never);
+		const seed = MEDIA_SCOPES.unlink_media!(command as never, true);
 		const restricted = expectScopedEqualsWhole({
 			whole: world.rows,
 			commands: [command],
