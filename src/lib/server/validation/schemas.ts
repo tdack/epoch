@@ -584,6 +584,20 @@ export const citationUpdateSchema = z.object({
 	text: sourceTextSchema.optional()
 });
 
+/**
+ * Deleting a source; removing its citations needs the count the confirmation showed, so a citation
+ * added since is a conflict rather than deleted unseen. `version` is read by `expectedVersion`.
+ */
+export const sourceDeleteQuerySchema = z
+	.object({
+		removeCitations: z.enum(['true', 'false']).optional(),
+		citationCount: z.coerce.number().int().nonnegative().optional()
+	})
+	.refine((q) => q.removeCitations !== 'true' || q.citationCount !== undefined, {
+		message: 'Say how many citations you were shown would be removed.',
+		path: ['citationCount']
+	});
+
 export const citationReorderSchema = z.object({
 	subject: citationSubjectSchema,
 	orderedCitationIds: z.array(idSchema).max(500)

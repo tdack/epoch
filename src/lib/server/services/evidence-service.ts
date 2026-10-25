@@ -9,7 +9,7 @@ import { describeCommand, describeGroupCitation } from '../domain/command-summar
 import { NotFoundError, ValidationError } from '../domain/errors';
 import { seedFor } from '../domain/write-scope/index';
 import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
-import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import { CITATION_SUBJECT_KINDS, MAX_EVIDENCE_OPS } from '../../shared/evidence';
 import type { EvidenceCommand } from '../domain/evidence-ops';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { ImpactSummary } from '../../shared/impact';
@@ -99,7 +99,11 @@ export class EvidenceService {
 	deleteSource(
 		treeId: string,
 		sourceId: string,
-		options: { expectedVersion?: number; shouldRemoveCitations?: boolean },
+		options: {
+			expectedVersion?: number;
+			shouldRemoveCitations?: boolean;
+			expectedCitationCount?: number;
+		},
 		context: AuthenticatedContext
 	) {
 		return this.run(treeId, { kind: 'delete_source', sourceId, ...options }, context);
@@ -265,6 +269,11 @@ export class EvidenceService {
 			if (facts.length > 0 && todo.length === 0) skippedPersonIds.push(id);
 			for (const e of todo) commands.push(add(CITATION_SUBJECT_KINDS.EVENT, e.id));
 		}
+		// Each citation added is one row written, so the command count is the change's size.
+		if (commands.length > MAX_EVIDENCE_OPS)
+			throw new ValidationError(
+				`That would add ${commands.length} citations, and one change writes at most ${MAX_EVIDENCE_OPS}. Choose fewer people.`
+			);
 		return { commands, skippedPersonIds, missingFactPersonIds };
 	}
 

@@ -1,7 +1,7 @@
 /**
  * Row operations for sources, repositories and citations (ADR-028): create, edit, delete, link,
  * merge, and cite. A citation is owned by one subject, so a merge or a delete of the subject moves or
- * removes it in the same change (`citationCascadeOps`, `makeCitationMover`) and an undo brings it back.
+ * removes it in the same change (`citationCascadeOps`, `makeEvidenceMover`) and an undo brings it back.
  *
  * Adding a citation does not touch its subject's version: a contributor may cite what they may see,
  * and citing is not an edit of the claim. Editing or removing one is an edit, like any other.
@@ -50,6 +50,8 @@ export type EvidenceCommand =
 			expectedVersion?: number;
 			/** Without this, a source that is cited is refused. */
 			shouldRemoveCitations?: boolean;
+			/** The citation count the confirmation showed; a different count now is a conflict, not a delete. */
+			expectedCitationCount?: number;
 	  }
 	| {
 			kind: 'merge_sources';
@@ -274,6 +276,18 @@ function deleteSource(
 	const source = requireSource(rows, command.sourceId);
 	checkVersion(source, command.expectedVersion, 'source', sourceSnapshot(source));
 	const cited = citationsOfSource(rows, source.id);
+	const expected = command.expectedCitationCount;
+	if (command.shouldRemoveCitations && expected !== undefined && expected !== cited.length)
+		throw new ConcurrencyConflictError(
+			`This source is cited ${cited.length} ${cited.length === 1 ? 'time' : 'times'} now, not ${expected} as you were shown.`,
+			{
+				reason: 'CITATION_COUNT_CHANGED',
+				entity: 'source',
+				id: source.id,
+				expectedCitationCount: expected,
+				currentCitationCount: cited.length
+			}
+		);
 	if (cited.length > 0 && !command.shouldRemoveCitations) {
 		throw new SourceInUseError(
 			`${cited.length} ${cited.length === 1 ? 'citation cites' : 'citations cite'} this source. Remove ${cited.length === 1 ? 'it' : 'them'} too to delete the source.`,
@@ -380,7 +394,9 @@ function mergeSources(
 	const extras = [...(survivor.gedcomExtra ?? [])];
 	for (const source of merged) {
 		const block = source.gedcomExtra ?? [];
-		if (block.length > 0 && !extras.join('\n').includes(block.join('\n'))) extras.push(...block);
+		// Whole lines only: `1 _FOO a` is not already there because the survivor has `1 _FOO ab`.
+		const isKept = `\n${extras.join('\n')}\n`.includes(`\n${block.join('\n')}\n`);
+		if (block.length > 0 && !isKept) extras.push(...block);
 	}
 	const aliases = [...(survivor.xrefAliases ?? [])];
 	for (const source of merged) {
@@ -649,7 +665,7 @@ function reorderCitations(
 				after: touch({ ...citation, sortOrder: index }, ctx)
 			});
 	});
-	return ops;
+	return limited(ops, 'This record has too many citations to reorder in one change');
 }
 
 export function buildEvidenceOps(

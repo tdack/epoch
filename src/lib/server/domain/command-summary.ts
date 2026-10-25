@@ -117,8 +117,11 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 				files > 0 ? `; its ${files === 1 ? 'file is' : `${files} files are`} kept, detached` : '';
 			return `Deleted the source ${sourceName(rows, command.sourceId)}${count > 0 ? ` and its ${count} ${count === 1 ? 'citation' : 'citations'}` : ''}${kept}`;
 		}
-		case 'merge_sources':
-			return `Merged ${command.mergedIds.length + 1} sources into ${sourceName(rows, command.survivorId)}`;
+		case 'merge_sources': {
+			// The op ignores repeats and the survivor in `mergedIds`, so the count does too.
+			const merged = new Set(command.mergedIds.filter((id) => id !== command.survivorId));
+			return `Merged ${merged.size + 1} sources into ${sourceName(rows, command.survivorId)}`;
+		}
 		case 'create_repository':
 			return `Added the repository ${repositoryName(rows, command.repositoryId, command.repository.name)}`;
 		case 'update_repository':
