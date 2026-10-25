@@ -195,6 +195,13 @@
 				</p>
 			{/if}
 
+			{#if impact.remaining}
+				<p class="text-sm text-stone-700">
+					This is too big for one change, so it is made in steps: the list above is the first, and {impact.remaining}
+					more follow. Each step is its own change; undo reverts one step.
+				</p>
+			{/if}
+
 			{#if groups.length === 0 && moves.length === 0}
 				<p class="text-sm text-stone-600">Nothing would change.</p>
 			{/if}
