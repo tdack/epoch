@@ -29,6 +29,7 @@ import {
 	treeHostRoute
 } from '#lib/server/http/tree-host.js';
 import { errorResponse } from '#lib/server/http/error-response.js';
+import { enforceRateLimit } from '#lib/server/http/rate-limit.js';
 import { applySecurityHeaders } from '#lib/server/http/security-headers.js';
 import {
 	isSchemaCurrent,
@@ -246,7 +247,20 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 				await new PublicTreeService(getDb(bindings.DB)).current(),
 				publicRead.treeId
 			);
-		if (isPublicRead) event.locals.user = PUBLIC_VISITOR;
+		if (isPublicRead) {
+			event.locals.user = PUBLIC_VISITOR;
+			// Anyone can ask, and each page costs several D1 reads, so one address is capped.
+			try {
+				await enforceRateLimit({
+					binding: bindings.PUBLIC_READ_RATE_LIMIT,
+					bindingName: 'PUBLIC_READ_RATE_LIMIT',
+					key: event.request.headers.get('cf-connecting-ip') ?? 'unknown',
+					message: 'Too many requests; try again in a minute'
+				});
+			} catch (err) {
+				return errorResponse(err, 'Failed to read the public tree');
+			}
+		}
 	}
 
 	// Someone Access named but Epoch does not admit has no user, so nothing past here would serve

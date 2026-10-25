@@ -7,6 +7,7 @@ import {
 	CSP_REPORT_RATE_LIMIT_PER_MINUTE,
 	enforceRateLimit,
 	IMPORT_RATE_LIMIT_PER_MINUTE,
+	PUBLIC_READ_RATE_LIMIT_PER_MINUTE,
 	RATE_LIMIT_PERIOD_SECONDS,
 	resetRateLimitWarnings,
 	UPLOAD_RATE_LIMIT_PER_MINUTE
@@ -70,7 +71,8 @@ describe('wrangler.jsonc ratelimits', () => {
 	it.each([
 		['UPLOAD_RATE_LIMIT', UPLOAD_RATE_LIMIT_PER_MINUTE],
 		['IMPORT_RATE_LIMIT', IMPORT_RATE_LIMIT_PER_MINUTE],
-		['CSP_REPORT_RATE_LIMIT', CSP_REPORT_RATE_LIMIT_PER_MINUTE]
+		['CSP_REPORT_RATE_LIMIT', CSP_REPORT_RATE_LIMIT_PER_MINUTE],
+		['PUBLIC_READ_RATE_LIMIT', PUBLIC_READ_RATE_LIMIT_PER_MINUTE]
 	])('%s agrees with its constant', (name, perMinute) => {
 		expect(byName[name]).toEqual({ limit: perMinute, period: RATE_LIMIT_PERIOD_SECONDS });
 	});

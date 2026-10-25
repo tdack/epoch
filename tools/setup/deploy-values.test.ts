@@ -49,7 +49,8 @@ describe('generateDeployConfig', () => {
 		expect(config.ratelimits.map((entry: { name: string }) => entry.name)).toEqual([
 			'UPLOAD_RATE_LIMIT',
 			'IMPORT_RATE_LIMIT',
-			'CSP_REPORT_RATE_LIMIT'
+			'CSP_REPORT_RATE_LIMIT',
+			'PUBLIC_READ_RATE_LIMIT'
 		]);
 		expect(config.ratelimits).toEqual((tracked as Record<string, any>).ratelimits);
 	});

@@ -9,10 +9,13 @@ import { RateLimitedError } from '../domain/errors';
  * - imports: 10 a minute covers a preview and an import for a few trees; each one parses a file of
  *   up to the import cap, so it is the costly path.
  * - CSP reports: 60 a minute per address is a page load that trips several directives, many times.
+ * - public tree reads: 600 a minute per address is ten requests a second, far past a person
+ *   browsing the public tree, whose every page load costs several D1 reads.
  */
 export const UPLOAD_RATE_LIMIT_PER_MINUTE = 60;
 export const IMPORT_RATE_LIMIT_PER_MINUTE = 10;
 export const CSP_REPORT_RATE_LIMIT_PER_MINUTE = 60;
+export const PUBLIC_READ_RATE_LIMIT_PER_MINUTE = 600;
 
 /** The window every binding uses; Workers Rate Limiting allows only 10 or 60 seconds. */
 export const RATE_LIMIT_PERIOD_SECONDS = 60;

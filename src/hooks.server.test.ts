@@ -2,14 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$app/env/public', () => ({ CF_ACCESS_TEAM_DOMAIN: 'team.example' }));
 vi.mock('$app/env/private', () => ({ CF_ACCESS_AUD: 'aud', ACCESS_BYPASS_DEV: '' }));
-vi.mock('#lib/server/platform.js', () => ({ getPlatformBindings: () => ({ DB: {} }) }));
+const bindings: Record<string, unknown> = { DB: {} };
+vi.mock('#lib/server/platform.js', () => ({ getPlatformBindings: () => bindings }));
 vi.mock('#lib/server/db/schema-status.js', () => ({
 	isSchemaCurrent: async () => true,
 	SCHEMA_NOT_MIGRATED_CODE: 'SCHEMA_NOT_MIGRATED',
 	SCHEMA_NOT_MIGRATED_MESSAGE: 'migrate'
 }));
 vi.mock('#lib/server/auth/access.js', () => ({
-	extractAccessJwt: () => 'token',
+	extractAccessJwt: vi.fn(() => 'token'),
 	isDevBypassEnabled: () => false,
 	isLocalHostname: () => false,
 	validateAccessJwt: vi.fn()
@@ -17,7 +18,7 @@ vi.mock('#lib/server/auth/access.js', () => ({
 vi.mock('#lib/server/auth/resolve-user.js', () => ({ resolveUser: vi.fn() }));
 
 import { handle } from './hooks.server';
-import { validateAccessJwt } from '#lib/server/auth/access.js';
+import { extractAccessJwt, validateAccessJwt } from '#lib/server/auth/access.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
 
 function run(path: string) {
@@ -63,5 +64,20 @@ describe('handle: Access identity', () => {
 		expect(response.status).toBe(303);
 		expect(response.headers.get('location')).toMatch(/^\/login/);
 		expect(resolveUser).not.toHaveBeenCalled();
+	});
+});
+
+describe('handle: the public tree', () => {
+	it('answers 429 to an address reading the public tree too fast', async () => {
+		vi.mocked(extractAccessJwt).mockReturnValueOnce(null);
+		bindings.PUBLIC_READ_RATE_LIMIT = { limit: async () => ({ success: false }) };
+		try {
+			const { resolve, result } = run('/api/trees/t/people');
+			const response = await result;
+			expect(response.status).toBe(429);
+			expect(resolve).not.toHaveBeenCalled();
+		} finally {
+			delete bindings.PUBLIC_READ_RATE_LIMIT;
+		}
 	});
 });

@@ -31,10 +31,11 @@ declare global {
 				MEDIA_BUCKET: R2Bucket;
 				GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
-				/** The three below are absent in unit tests and bare previews; a missing one allows the request (ADR-066). */
+				/** The four below are absent in unit tests and bare previews; a missing one allows the request (ADR-066). */
 				UPLOAD_RATE_LIMIT?: RateLimit;
 				IMPORT_RATE_LIMIT?: RateLimit;
 				CSP_REPORT_RATE_LIMIT?: RateLimit;
+				PUBLIC_READ_RATE_LIMIT?: RateLimit;
 				/** Absent in unit tests and bare previews; invitations are then saved but not emailed. */
 				EMAIL?: SendEmail;
 				/** Set by setup alongside `EMAIL`; the one address its `allowed_sender_addresses` names. */
