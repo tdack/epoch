@@ -98,7 +98,8 @@ export interface CitationSubjectRef {
 /**
  * The most rows one evidence change writes. D1 counts each statement of a batch as a query with
  * 1,000 allowed per invocation, and a row costs a version guard, a write and its log record
- * (ADR-022 sets the same bound for a person merge). A change over it is refused, not half made.
+ * (ADR-022 sets the same bound for a person merge). A source merge or delete over it is made in
+ * steps, each its own change (`stepOps`); any other change over it is refused, not half made.
  */
 export const MAX_EVIDENCE_OPS = 300;
 

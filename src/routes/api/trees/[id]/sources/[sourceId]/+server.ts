@@ -36,12 +36,14 @@ export const PUT = treeHandler(
 /**
  * Delete a source. A cited source is refused with the citation count (409, `SOURCE_IN_USE`) unless
  * the request says to remove the citations too (`?removeCitations=true&citationCount=N`, the count
- * the caller was shown; a different count now is a 409 and nothing is deleted).
+ * the caller was shown; a different count now is a 409 and nothing is deleted). A source cited
+ * more than one change can write is deleted in steps: `remaining` is the citations still to go,
+ * and the caller repeats the request with that as the count until it is 0.
  */
 export const DELETE = treeHandler(
 	{ failure: 'Failed to delete the source', params: ['sourceId'], query: sourceDeleteQuerySchema },
 	async ({ db, ctx, treeId, params, url, query }) => {
-		const { change } = await new EvidenceService(db).deleteSource(
+		const { change, remaining = 0 } = await new EvidenceService(db).deleteSource(
 			treeId,
 			params.sourceId,
 			{
@@ -51,6 +53,6 @@ export const DELETE = treeHandler(
 			},
 			ctx
 		);
-		return { change };
+		return { change, remaining };
 	}
 );

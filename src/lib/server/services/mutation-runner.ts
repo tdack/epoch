@@ -30,7 +30,7 @@ import {
 import { type RecordChange } from '../../shared/impact';
 import { DomainError, UnauthorizedError } from '../domain/errors';
 import { describeImpact } from '../domain/impact';
-import { carriedCitations, carriedNotes } from '../domain/evidence-carry';
+import { carriedCitations, carriedNotes, stepRemaining } from '../domain/evidence-carry';
 import { type ImpactSummary } from '../../shared/impact';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { RelationshipCommand } from '../domain/relationship-commands';
@@ -51,6 +51,8 @@ export interface MutationResult {
 	change: CommittedChange | null;
 	/** Every record written, for the caller's own preview-versus-result checks. */
 	affected: RecordChange[];
+	/** Set when this change is one step of a merge or delete made in steps: the uses still to go. */
+	remaining?: number;
 }
 
 /** The strongest action a set of ops needs: deleting outranks editing outranks creating. */
@@ -74,10 +76,12 @@ export function previewOf(
 ): ImpactSummary {
 	const carried = carriedCitations(visible, commands);
 	const carriedNote = carriedNotes(visible, commands);
+	const remaining = stepRemaining(visible, commands);
 	return {
 		...describeImpact(headline(visible), visible, ops),
 		...(carried ? { carriedCitations: carried } : {}),
-		...(carriedNote ? { carriedNotes: carriedNote } : {})
+		...(carriedNote ? { carriedNotes: carriedNote } : {}),
+		...(remaining ? { remaining } : {})
 	};
 }
 
@@ -277,6 +281,12 @@ export class MutationRunner {
 			isUndoable: true,
 			correlationId: context.correlationId
 		});
-		return { change: committed, affected: committed ? affected : [] };
+		// Counted on the snapshot this step planned on, so a use added since is never taken as seen.
+		const remaining = stepRemaining(snapshot, change.commands);
+		return {
+			change: committed,
+			affected: committed ? affected : [],
+			...(remaining ? { remaining } : {})
+		};
 	}
 }

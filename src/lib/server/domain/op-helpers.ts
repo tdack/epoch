@@ -14,7 +14,7 @@ import {
 	rowOp
 } from './change-log';
 import { dateColumnsFor } from './date-columns';
-import { ConcurrencyConflictError, NotFoundError } from './errors';
+import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
 import { mediaLinkId } from '../../shared/media';
 
 export interface OpContext {
@@ -77,6 +77,43 @@ export function touch<T extends { version: number; updatedAt: number | null }>(
 	ctx: OpContext
 ): T {
 	return { ...row, version: row.version + 1, updatedAt: ctx.now };
+}
+
+/** One use a merge or a delete moves or removes, with the rows it costs once its cascades are added. */
+export interface StepUse {
+	op: RowOp;
+	cost: number;
+}
+
+/** A step of a change made in steps: how many of the record's uses it takes, of all it has now. */
+export interface StepProgress {
+	taken: number;
+	total: number;
+}
+
+/**
+ * One step of a merge or a delete that may be too big for one change (`max` rows, a D1 batch's
+ * worth). When everything fits it is the whole change. Otherwise it is the first uses that fit
+ * beside room kept for `fixed`, without `fixed`: the record stays until the step that finishes it,
+ * every step is a valid tree on its own, and the kept room means a partial step always leaves a use.
+ * Looping inside one request would hit the same per-invocation cap, so the caller repeats the request.
+ */
+export function stepOps(
+	uses: StepUse[],
+	fixed: RowOp[],
+	fixedCost: number,
+	max: number,
+	reason: string
+): StepProgress & { ops: RowOp[] } {
+	const total = uses.length;
+	if (uses.reduce((sum, u) => sum + u.cost, fixedCost) <= max)
+		return { ops: [...uses.map((u) => u.op), ...fixed], taken: total, total };
+	let room = max - fixedCost;
+	let taken = 0;
+	while (taken < total && uses[taken].cost <= room) room -= uses[taken++].cost;
+	if (taken === 0)
+		throw new ValidationError(`${reason}: one change writes at most ${max} records.`);
+	return { ops: uses.slice(0, taken).map((u) => u.op), taken, total };
 }
 
 /**

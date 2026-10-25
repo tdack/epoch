@@ -510,6 +510,126 @@ describe('a citation saved with its fact or name', () => {
 describe('changes over the row limit', () => {
 	const over = MAX_EVIDENCE_OPS + 1;
 
+	/** A tree whose @S2@ is cited `over` times, each citation with a note when `hasNotes`. */
+	async function manyCitations(hasNotes = false) {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const cites = Array.from(
+			{ length: over },
+			(_, i) => `1 SOUR @S2@\n2 PAGE p${i}${hasNotes ? `\n2 NOTE n${i}` : ''}`
+		);
+		const gedcom = [
+			'0 HEAD',
+			'0 @S1@ SOUR',
+			'1 TITL Kept',
+			'0 @S2@ SOUR',
+			'1 TITL Dup',
+			'0 @I1@ INDI',
+			...cites,
+			'0 TRLR'
+		];
+		await importGedcomToDb(t.d1, treeId, gedcom.join('\n'), 'Many', 'merge');
+		const citing = async (sourceId: string) =>
+			(await t.db.select().from(citations).where(eq(citations.sourceId, sourceId)).all()).length;
+		const sourceRow = (id: string) => t.db.select().from(sources).where(eq(sources.id, id)).get();
+		return {
+			treeId,
+			ctx: actor.context,
+			kept: `${treeId}:@S1@`,
+			dup: `${treeId}:@S2@`,
+			citing,
+			sourceRow,
+			evidence: new EvidenceService(t.db),
+			log: new ChangeLogService(t.db)
+		};
+	}
+
+	it('merges a source cited more than one change writes in steps, each its own change', async () => {
+		const { treeId, ctx, kept, dup, citing, sourceRow, evidence } = await manyCitations();
+		const version = (await sourceRow(kept))!.version;
+		const preview = await evidence.preview(
+			treeId,
+			{ kind: 'merge_sources', survivorId: kept, mergedIds: [dup] },
+			ctx
+		);
+		expect(preview.carriedCitations).toBe(over);
+		expect(preview.remaining).toBeGreaterThan(0);
+
+		const first = await evidence.mergeSources(treeId, kept, [dup], { [kept]: version }, ctx);
+		expect(first.change?.summary).toMatch(new RegExp(`^Moved \\d+ of ${over} citations to “Kept”`));
+		expect(first.remaining).toBe(await citing(dup));
+		expect(first.affected.length).toBeLessThanOrEqual(MAX_EVIDENCE_OPS);
+		// A partial step writes neither source, so the versions the client sent still hold.
+		expect((await sourceRow(kept))!.version).toBe(version);
+		expect(await sourceRow(dup)).toBeDefined();
+
+		const last = await evidence.mergeSources(treeId, kept, [dup], { [kept]: version }, ctx);
+		expect(last.remaining).toBeUndefined();
+		expect(last.change?.summary).toMatch(/^Merged 2 sources/);
+		expect(await citing(kept)).toBe(over);
+		expect(await sourceRow(dup)).toBeUndefined();
+	});
+
+	it('deletes a source with its citations in steps, counting their notes against each one', async () => {
+		const { treeId, ctx, dup, citing, sourceRow, evidence } = await manyCitations(true);
+		const version = (await sourceRow(dup))!.version;
+		const preview = await evidence.preview(
+			treeId,
+			{ kind: 'delete_source', sourceId: dup, shouldRemoveCitations: true },
+			ctx
+		);
+		const listed = preview.records.filter(
+			(r) => r.entityType === 'citation' && r.action === 'deleted'
+		).length;
+		expect(listed + (preview.remaining ?? 0)).toBe(over);
+
+		const steps = [];
+		for (let left = over; left > 0 && steps.length < 5;) {
+			const step = await evidence.deleteSource(
+				treeId,
+				dup,
+				{ expectedVersion: version, shouldRemoveCitations: true, expectedCitationCount: left },
+				ctx
+			);
+			expect(step.affected.length).toBeLessThanOrEqual(MAX_EVIDENCE_OPS);
+			left = step.remaining ?? 0;
+			if (left > 0) expect(await citing(dup)).toBe(left);
+			steps.push(step);
+		}
+		// Each citation costs two rows with its note, so about 150 go per step.
+		expect(steps.length).toBe(3);
+		expect(steps[0].change?.summary).toMatch(
+			new RegExp(`^Removed \\d+ of ${over} citations of the source “Dup”, to delete it$`)
+		);
+		expect(await citing(dup)).toBe(0);
+		expect(await sourceRow(dup)).toBeUndefined();
+	});
+
+	it('refuses a later delete step when a citation was added since, and undoes a step on its own', async () => {
+		const { treeId, ctx, dup, citing, evidence, log } = await manyCitations();
+		const options = { shouldRemoveCitations: true, expectedCitationCount: over };
+		const first = await evidence.deleteSource(treeId, dup, options, ctx);
+		const left = first.remaining!;
+		expect(left).toBeGreaterThan(0);
+
+		await evidence.addCitation(
+			treeId,
+			{ kind: 'person', id: `${treeId}:@I1@` },
+			{ sourceId: dup },
+			ctx
+		);
+		const error = await evidence
+			.deleteSource(treeId, dup, { ...options, expectedCitationCount: left }, ctx)
+			.catch((e) => e);
+		expect(error).toBeInstanceOf(ConcurrencyConflictError);
+		expect(error.details).toMatchObject({ reason: 'CITATION_COUNT_CHANGED' });
+		expect(await citing(dup)).toBe(left + 1);
+
+		await log.undoLast(treeId, ctx); // the added citation
+		await log.undoLast(treeId, ctx); // the first step
+		expect(await citing(dup)).toBe(over);
+	});
+
 	it('refuses to reorder more citations than one change writes, with a reason', async () => {
 		const actor = await createTestUser(t.db);
 		const treeId = await createTestTree(t.db, actor);

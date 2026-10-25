@@ -18,6 +18,7 @@ import {
 	type SharedNoteInput
 } from '../../shared/notes';
 import { makeTaskMover } from './task-ops';
+import { stepOps, type StepProgress } from './op-helpers';
 
 export type NoteCommand =
 	| {
@@ -163,14 +164,6 @@ const ownOf = (rows: TreeRows, subject: NoteSubjectRef) =>
 /** An attachment that holds its own text: neither a pointer at a record nor at one the file lacked. */
 export const isInlineAttachment = (a: Pick<NoteAttachmentRow, 'noteId' | 'noteRef'>) =>
 	a.noteId === null && a.noteRef === null;
-
-function limited(ops: RowOp[], reason: string): RowOp[] {
-	if (ops.length > MAX_NOTE_OPS)
-		throw new ValidationError(
-			`${reason}: it would change ${ops.length} records, and one change writes at most ${MAX_NOTE_OPS}.`
-		);
-	return ops;
-}
 
 function newAttachment(
 	ctx: NoteContext,
@@ -429,11 +422,10 @@ function updateSharedNote(
 const usesOf = (rows: TreeRows, noteId: string) =>
 	rows.noteAttachments.filter((a) => a.noteId === noteId);
 
-function deleteSharedNote(
+function deleteSharedNoteStep(
 	rows: TreeRows,
-	_ctx: NoteContext,
 	command: Extract<NoteCommand, { kind: 'delete_shared_note' }>
-): RowOp[] {
+) {
 	const note = requireNote(rows, command.noteId);
 	checkVersion(note, command.expectedVersion, 'note', noteSnapshot(note));
 	const uses = usesOf(rows, note.id);
@@ -443,20 +435,27 @@ function deleteSharedNote(
 			uses.length
 		);
 	}
-	return limited(
-		[
-			...uses.map((a): RowOp => ({ table: 'note_attachments', id: a.id, before: a, after: null })),
-			{ table: 'notes', id: note.id, before: note, after: null }
-		],
-		'This note is used too widely to delete in one change'
+	// The plan clears the link of each task about the note after this.
+	const tasks = rows.researchTasks.filter(
+		(t) => t.subjectKind === 'note' && t.subjectId === note.id
+	);
+	return stepOps(
+		uses.map((a) => ({
+			op: { table: 'note_attachments', id: a.id, before: a, after: null } as RowOp,
+			cost: 1
+		})),
+		[{ table: 'notes', id: note.id, before: note, after: null }],
+		1 + tasks.length,
+		MAX_NOTE_OPS,
+		'This note has too many tasks to delete'
 	);
 }
 
-function mergeNotes(
+function mergeNotesStep(
 	rows: TreeRows,
-	ctx: NoteContext,
+	ctx: Pick<NoteContext, 'now'>,
 	command: Extract<NoteCommand, { kind: 'merge_notes' }>
-): RowOp[] {
+) {
 	const mergedIds = [...new Set(command.mergedIds)].filter((id) => id !== command.survivorId);
 	if (mergedIds.length === 0) throw new ValidationError('Choose at least two notes to merge.');
 	const survivor = requireNote(rows, command.survivorId);
@@ -476,20 +475,20 @@ function mergeNotes(
 			.filter((a) => a.noteId === survivor.id)
 			.map((a) => `${a.subjectKind}|${a.subjectId}`)
 	);
-	for (const use of rows.noteAttachments.filter((a) => a.noteId && mergedSet.has(a.noteId))) {
-		const slot = `${use.subjectKind}|${use.subjectId}`;
-		if (pointing.has(slot)) {
-			ops.push({ table: 'note_attachments', id: use.id, before: use, after: null });
-			continue;
-		}
-		pointing.add(slot);
-		ops.push({
-			table: 'note_attachments',
-			id: use.id,
-			before: use,
-			after: touch({ ...use, noteId: survivor.id }, ctx)
+	const uses = rows.noteAttachments
+		.filter((a) => a.noteId && mergedSet.has(a.noteId))
+		.map((use) => {
+			const slot = `${use.subjectKind}|${use.subjectId}`;
+			const isRepeat = pointing.has(slot);
+			pointing.add(slot);
+			const op: RowOp = {
+				table: 'note_attachments',
+				id: use.id,
+				before: use,
+				after: isRepeat ? null : touch({ ...use, noteId: survivor.id }, ctx)
+			};
+			return { op, cost: 1 };
 		});
-	}
 
 	// The survivor's own words win; a blank one is filled from the others, and lines the model keeps
 	// are carried over rather than dropped. Format and language describe the words, so they come
@@ -523,7 +522,7 @@ function mergeNotes(
 			ctx
 		)
 	});
-	return limited(ops, 'These notes are used too widely to merge in one change');
+	return stepOps(uses, ops, ops.length, MAX_NOTE_OPS, 'These notes have too many tasks to merge');
 }
 
 export function buildNoteOps(rows: TreeRows, command: NoteCommand, ctx: NoteContext): RowOp[] {
@@ -545,10 +544,24 @@ export function buildNoteOps(rows: TreeRows, command: NoteCommand, ctx: NoteCont
 		case 'update_shared_note':
 			return updateSharedNote(rows, ctx, command);
 		case 'delete_shared_note':
-			return deleteSharedNote(rows, ctx, command);
+			return deleteSharedNoteStep(rows, command).ops;
 		case 'merge_notes':
-			return mergeNotes(rows, ctx, command);
+			return mergeNotesStep(rows, ctx, command).ops;
 	}
+}
+
+/**
+ * How far the next step of a note merge or a delete-and-detach gets: the uses it takes of those
+ * the notes have now. Null when the command is neither, or the step finishes it.
+ */
+export function noteStep(rows: TreeRows, command: NoteCommand): StepProgress | null {
+	const step =
+		command.kind === 'merge_notes'
+			? mergeNotesStep(rows, { now: 0 }, command)
+			: command.kind === 'delete_shared_note' && command.shouldDetach
+				? deleteSharedNoteStep(rows, command)
+				: null;
+	return step && step.taken < step.total ? { taken: step.taken, total: step.total } : null;
 }
 
 // ---- A fact's note, for the fact editor ----

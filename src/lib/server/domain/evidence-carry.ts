@@ -7,6 +7,9 @@
 import type { TreeRows } from './change-log';
 import type { RelationshipCommand } from './relationship-commands';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
+import { evidenceStep } from './evidence-ops';
+import { noteStep } from './note-ops';
+import type { StepProgress } from './op-helpers';
 
 /** What a person owns, as `kind|id` keys: themself, their names and facts, and the parent links they are in. */
 function subjectKeysOfPerson(rows: TreeRows, personId: string): Set<string> {
@@ -95,4 +98,29 @@ export function carriedCitations(
 		}
 	}
 	return total > 0 ? total : undefined;
+}
+
+/**
+ * The step a merge or a delete made in steps takes on these rows; null when it finishes the change,
+ * or on rows it cannot be planned on, as a summary may be written for rows it never ran against.
+ */
+export function stepOf(rows: TreeRows, command: RelationshipCommand): StepProgress | null {
+	try {
+		return command.kind === 'merge_sources' || command.kind === 'delete_source'
+			? evidenceStep(rows, command)
+			: command.kind === 'merge_notes' || command.kind === 'delete_shared_note'
+				? noteStep(rows, command)
+				: null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * The uses a merge or a delete made in steps still has after this step; 0 when this step finishes
+ * it. Only a lone command steps: a later command in a plan would see rows this one already changed.
+ */
+export function stepRemaining(rows: TreeRows, commands: readonly RelationshipCommand[]): number {
+	const step = commands.length === 1 ? stepOf(rows, commands[0]) : null;
+	return step ? step.total - step.taken : 0;
 }

@@ -13,6 +13,7 @@ import { factLabel } from '../../shared/fact-types';
 import { NAME_TYPE_LABELS, formatFullName, type NameType } from '../../shared/name-types';
 import { noteSubjectLabel, sharedNoteLabel, subjectLabel } from './evidence-labels';
 import { sourceLabel } from '../../shared/evidence';
+import { stepOf } from './evidence-carry';
 
 /** “Parish register” for the source a command names, whether it exists yet or not. */
 function sourceName(rows: TreeRows, id: string, input?: { title?: string | null }): string {
@@ -111,6 +112,9 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		case 'update_source':
 			return `Edited the source ${sourceName(rows, command.sourceId)}`;
 		case 'delete_source': {
+			const step = stepOf(rows, command);
+			if (step)
+				return `Removed ${step.taken} of ${step.total} citations of the source ${sourceName(rows, command.sourceId)}, to delete it`;
 			const count = rows.citations.filter((c) => c.sourceId === command.sourceId).length;
 			const files = rows.mediaLinks.filter((l) => l.entityId === command.sourceId).length;
 			const kept =
@@ -120,6 +124,9 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		case 'merge_sources': {
 			// The op ignores repeats and the survivor in `mergedIds`, so the count does too.
 			const merged = new Set(command.mergedIds.filter((id) => id !== command.survivorId));
+			const step = stepOf(rows, command);
+			if (step)
+				return `Moved ${step.taken} of ${step.total} citations to ${sourceName(rows, command.survivorId)}, to merge ${merged.size + 1} sources`;
 			return `Merged ${merged.size + 1} sources into ${sourceName(rows, command.survivorId)}`;
 		}
 		case 'create_repository':
@@ -173,11 +180,18 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		case 'update_shared_note':
 			return `Edited the shared note ${sharedNoteLabel(rows, command.noteId)}`;
 		case 'delete_shared_note': {
+			const step = stepOf(rows, command);
+			if (step)
+				return `Detached the shared note ${sharedNoteLabel(rows, command.noteId)} from ${step.taken} of ${step.total} records, to delete it`;
 			const uses = rows.noteAttachments.filter((a) => a.noteId === command.noteId).length;
 			return `Deleted the shared note ${sharedNoteLabel(rows, command.noteId)}${uses > 0 ? ` and detached it from ${uses} ${uses === 1 ? 'record' : 'records'}` : ''}`;
 		}
-		case 'merge_notes':
+		case 'merge_notes': {
+			const step = stepOf(rows, command);
+			if (step)
+				return `Moved ${step.taken} of ${step.total} uses to the shared note ${sharedNoteLabel(rows, command.survivorId)}, to merge ${command.mergedIds.length + 1} notes`;
 			return `Merged ${command.mergedIds.length + 1} shared notes into ${sharedNoteLabel(rows, command.survivorId)}`;
+		}
 		case 'rename_media':
 			return `Renamed the file “${command.title.trim().slice(0, 60)}”`;
 		case 'link_media':

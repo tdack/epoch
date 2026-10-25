@@ -83,4 +83,9 @@ export interface ImpactSummary {
 	carriedCitations?: number;
 	/** For a merge: how many notes of the record folded away end up on the one that remains (ADR-029). */
 	carriedNotes?: number;
+	/**
+	 * For a merge or a delete too big for one change: the uses this first step leaves for the steps
+	 * after it. The records listed are this step's only.
+	 */
+	remaining?: number;
 }

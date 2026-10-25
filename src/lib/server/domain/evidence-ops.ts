@@ -23,7 +23,7 @@ import {
 	ValidationError
 } from './errors';
 import { makeNoteMover } from './note-ops';
-import { relinkFiles, unlinkFilesOf } from './op-helpers';
+import { relinkFiles, stepOps, unlinkFilesOf, type StepProgress } from './op-helpers';
 import { makeTaskMover } from './task-ops';
 import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import {
@@ -267,11 +267,10 @@ function updateSource(
 const citationsOfSource = (rows: TreeRows, sourceId: string) =>
 	rows.citations.filter((c) => c.sourceId === sourceId);
 
-function deleteSource(
+function deleteSourceStep(
 	rows: TreeRows,
-	ctx: EvidenceContext,
 	command: Extract<EvidenceCommand, { kind: 'delete_source' }>
-): RowOp[] {
+) {
 	const source = requireSource(rows, command.sourceId);
 	checkVersion(source, command.expectedVersion, 'source', sourceSnapshot(source));
 	const cited = citationsOfSource(rows, source.id);
@@ -293,8 +292,7 @@ function deleteSource(
 			cited.length
 		);
 	}
-	const ops: RowOp[] = [
-		...cited.map((c): RowOp => ({ table: 'citations', id: c.id, before: c, after: null })),
+	const fixed: RowOp[] = [
 		...rows.sourceRepositories
 			.filter((l) => l.sourceId === source.id)
 			.map((l): RowOp => ({ table: 'source_repositories', id: l.id, before: l, after: null })),
@@ -302,7 +300,26 @@ function deleteSource(
 		...unlinkFilesOf(rows, new Set([source.id])),
 		{ table: 'sources', id: source.id, before: source, after: null }
 	];
-	return limited(ops, 'This source has too many citations to delete in one change');
+	// The plan adds the notes on each deleted citation, and the source's own notes and tasks, after this.
+	const notesOn = (kind: string, id: string) =>
+		rows.noteAttachments.filter((a) => a.subjectKind === kind && a.subjectId === id).length;
+	const fixedCost =
+		fixed.length +
+		notesOn(NOTE_SUBJECT_KINDS.SOURCE, source.id) +
+		rows.researchTasks.filter(
+			(t) => t.subjectKind === NOTE_SUBJECT_KINDS.SOURCE && t.subjectId === source.id
+		).length;
+	const uses = cited.map((c) => ({
+		op: { table: 'citations', id: c.id, before: c, after: null } as RowOp,
+		cost: 1 + notesOn(NOTE_SUBJECT_KINDS.CITATION, c.id)
+	}));
+	return stepOps(
+		uses,
+		fixed,
+		fixedCost,
+		MAX_EVIDENCE_OPS,
+		'This source has too many links, files and notes to delete'
+	);
 }
 
 function limited(ops: RowOp[], reason: string): RowOp[] {
@@ -313,11 +330,11 @@ function limited(ops: RowOp[], reason: string): RowOp[] {
 	return ops;
 }
 
-function mergeSources(
+function mergeSourcesStep(
 	rows: TreeRows,
 	ctx: EvidenceContext,
 	command: Extract<EvidenceCommand, { kind: 'merge_sources' }>
-): RowOp[] {
+) {
 	const mergedIds = [...new Set(command.mergedIds)].filter((id) => id !== command.survivorId);
 	if (mergedIds.length === 0) throw new ValidationError('Choose at least two sources to merge.');
 	const survivor = requireSource(rows, command.survivorId);
@@ -329,14 +346,17 @@ function mergeSources(
 	const mergedSet = new Set(mergedIds);
 
 	// Citations are evidence: every one moves to the survivor, in the order it had.
-	for (const citation of rows.citations.filter((c) => c.sourceId && mergedSet.has(c.sourceId))) {
-		ops.push({
-			table: 'citations',
-			id: citation.id,
-			before: citation,
-			after: touch({ ...citation, sourceId: survivor.id }, ctx)
-		});
-	}
+	const uses = rows.citations
+		.filter((c) => c.sourceId && mergedSet.has(c.sourceId))
+		.map((citation) => ({
+			op: {
+				table: 'citations',
+				id: citation.id,
+				before: citation,
+				after: touch({ ...citation, sourceId: survivor.id }, ctx)
+			} as RowOp,
+			cost: 1
+		}));
 
 	// A file on a merged source is the survivor's now, so merging never leaves a file pointing at nothing.
 	ops.push(...relinkFiles(rows, ctx, mergedSet, survivor.id));
@@ -422,7 +442,13 @@ function mergeSources(
 			ctx
 		)
 	});
-	return limited(ops, 'These sources have too many citations to merge in one change');
+	return stepOps(
+		uses,
+		ops,
+		ops.length,
+		MAX_EVIDENCE_OPS,
+		'These sources have too many files, notes and links to merge'
+	);
 }
 
 // ---- Repositories ----
@@ -678,9 +704,9 @@ export function buildEvidenceOps(
 		case 'update_source':
 			return updateSource(rows, ctx, command);
 		case 'delete_source':
-			return deleteSource(rows, ctx, command);
+			return deleteSourceStep(rows, command).ops;
 		case 'merge_sources':
-			return mergeSources(rows, ctx, command);
+			return mergeSourcesStep(rows, ctx, command).ops;
 		case 'create_repository':
 			return createRepository(rows, ctx, command);
 		case 'update_repository':
@@ -702,6 +728,23 @@ export function buildEvidenceOps(
 		case 'reorder_citations':
 			return reorderCitations(rows, ctx, command);
 	}
+}
+
+/** Progress only counts, so the stamp on the rows it plans is never kept. */
+const COUNT_ONLY: EvidenceContext = { treeId: '', now: 0, newId: () => '', actorId: null };
+
+/**
+ * How far the next step of a merge or a delete-with-citations gets: the citations it takes of those
+ * the sources have now. Null when the command is neither, or the step finishes it.
+ */
+export function evidenceStep(rows: TreeRows, command: EvidenceCommand): StepProgress | null {
+	const step =
+		command.kind === 'merge_sources'
+			? mergeSourcesStep(rows, COUNT_ONLY, command)
+			: command.kind === 'delete_source' && command.shouldRemoveCitations
+				? deleteSourceStep(rows, command)
+				: null;
+	return step && step.taken < step.total ? { taken: step.taken, total: step.total } : null;
 }
 
 // ---- Citations follow their subject ----

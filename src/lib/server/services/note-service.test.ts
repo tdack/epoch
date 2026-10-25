@@ -124,35 +124,43 @@ describe('a subject’s notes through the mutation runner', () => {
 		).rejects.toMatchObject({ code: 'NOT_FOUND' });
 	});
 
-	it('refuses a change that would write more than 300 records', async () => {
-		const { treeId, ctx, service, person, noteOf } = await setup();
-		const made = await service.createNote(treeId, { text: 'shared widely' }, ctx);
-		const now = Date.now();
-		// 301 attachments, written straight to the table: no command makes this many one at a time.
-		const rows = Array.from({ length: 301 }, (_, i) => ({
-			id: crypto.randomUUID(),
-			treeId,
-			subjectKind: 'person' as const,
-			subjectId: person.id,
-			sortOrder: i,
-			noteId: made.noteId,
-			noteRef: null,
-			gedcomTag: null,
-			text: null,
-			gedcomExtra: null,
-			gedcomLayout: null,
-			version: 1,
-			createdAt: new Date(now),
-			updatedAt: new Date(now)
-		}));
-		for (let i = 0; i < rows.length; i += 5)
-			await t.db.insert(noteAttachments).values(rows.slice(i, i + 5));
-		const error = await service
-			.deleteSharedNote(treeId, made.noteId, { shouldDetach: true }, ctx)
-			.catch((e) => e);
-		expect(error).toBeInstanceOf(ValidationError);
-		expect(error.message).toContain('at most 300');
-		expect(await noteOf(person.id)).toHaveLength(301);
+	it('merges and deletes a note used more than one change writes, in steps', async () => {
+		const actor = await createTestUser(t.db);
+		const treeId = await createTestTree(t.db, actor);
+		const ctx = actor.context;
+		const people = Array.from({ length: 301 }, (_, i) => `0 @I${i}@ INDI\n1 NOTE @N2@`);
+		const gedcom = ['0 HEAD', '0 @N1@ NOTE kept', '0 @N2@ NOTE dup', ...people, '0 TRLR'];
+		await importGedcomToDb(t.d1, treeId, gedcom.join('\n'), 'Many', 'merge');
+		const [kept, dup] = [`${treeId}:@N1@`, `${treeId}:@N2@`];
+		const usesOf = async (noteId: string) =>
+			(await t.db.select().from(noteAttachments).where(eq(noteAttachments.noteId, noteId)).all())
+				.length;
+		const service = new NoteService(t.db);
+		const version = (await t.db.select().from(notes).where(eq(notes.id, kept)).get())!.version;
+
+		// The same versions every step: a partial step writes neither note.
+		const merges = [];
+		for (let left = 1; left > 0 && merges.length < 5;) {
+			const step = await service.mergeNotes(treeId, kept, [dup], { [kept]: version }, ctx);
+			left = step.remaining ?? 0;
+			merges.push(step);
+		}
+		expect(merges.length).toBeGreaterThan(1);
+		expect(merges[0].change?.summary).toMatch(/^Moved \d+ of 301 uses/);
+		expect(merges.at(-1)?.change?.summary).toMatch(/^Merged 2 shared notes/);
+		expect(await usesOf(kept)).toBe(301);
+		expect(await t.db.select().from(notes).where(eq(notes.id, dup)).get()).toBeUndefined();
+
+		const deletes = [];
+		for (let left = 1; left > 0 && deletes.length < 5;) {
+			const step = await service.deleteSharedNote(treeId, kept, { shouldDetach: true }, ctx);
+			left = step.remaining ?? 0;
+			deletes.push(step);
+		}
+		expect(deletes.length).toBeGreaterThan(1);
+		expect(deletes[0].change?.summary).toMatch(/from \d+ of 301 records, to delete it$/);
+		expect(await usesOf(kept)).toBe(0);
+		expect(await t.db.select().from(notes).where(eq(notes.id, kept)).get()).toBeUndefined();
 	});
 });
 

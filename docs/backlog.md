@@ -65,8 +65,11 @@ Last reviewed: 2026-10-21.
   canonical form.** Known round-trip loss. (ADR-013)
 - **`events.notes` is still read once on export.** Drop the column in a later contract migration.
   (ADR-029)
-- **A source merge or delete touching more than 300 records is refused.** Raise or batch the limit.
-  (ADR-028)
+- **A source or shared-note merge or delete is refused when what it moves besides citations and
+  note uses (files, notes, tasks, repository links) passes 300 rows.** Citations and uses go in
+  steps (`stepOps`); the rest does not. Step those too if a source ever carries that much. (ADR-028)
+- **Undo after a stepped merge or delete reverts only its last step.** Each step is its own change;
+  undo the earlier ones from the change history.
 - **`FONE` and `ROMN` under a place are kept verbatim,** so a 7.0 export writes them as 5.5.1 tags,
   not as 7.0 `TRAN`. Convert them when the place model needs transliterations. (ADR-051)
 - **`@@` inside an email or web value** follows the codebase-wide text rule, like every other text

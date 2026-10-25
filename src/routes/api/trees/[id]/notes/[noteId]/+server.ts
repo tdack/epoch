@@ -18,12 +18,14 @@ export const PUT = treeHandler(
 
 /**
  * Delete a shared note. A note that is used is refused with the count (409, `NOTE_IN_USE`) unless
- * the request says to detach it from the records that use it (`?detach=true`).
+ * the request says to detach it from the records that use it (`?detach=true`). A note used more
+ * than one change can write is detached in steps: `remaining` is the uses still to go, and the
+ * caller repeats the request until it is 0.
  */
 export const DELETE = treeHandler(
 	{ failure: 'Failed to delete the note', params: ['noteId'] },
 	async ({ db, ctx, treeId, params, url }) => {
-		const { change } = await new NoteService(db).deleteSharedNote(
+		const { change, remaining = 0 } = await new NoteService(db).deleteSharedNote(
 			treeId,
 			params.noteId,
 			{
@@ -32,6 +34,6 @@ export const DELETE = treeHandler(
 			},
 			ctx
 		);
-		return { change };
+		return { change, remaining };
 	}
 );
