@@ -231,13 +231,26 @@ describe('shared notes', () => {
 
 		await service.mergeNotes(treeId, keep.noteId, [fold.noteId], undefined, ctx);
 		const survivor = (await t.db.select().from(notes).where(eq(notes.id, keep.noteId)).get())!;
-		expect(survivor).toMatchObject({ text: 'keep', language: 'en', mime: 'text/html' });
+		// The survivor's words keep their own format, even unset, rather than the folded note's.
+		expect(survivor).toMatchObject({ text: 'keep', language: 'en', mime: null });
 		expect(survivor.xrefAliases).toEqual([folded.xref]);
 		// The person that pointed at both now points at the survivor once.
 		expect((await noteOf(person.id)).map((n) => n.noteId)).toEqual([keep.noteId]);
 		expect((await noteOf(other.id)).map((n) => n.noteId)).toEqual([keep.noteId]);
 		await log.undoLast(treeId, ctx);
 		expect((await noteOf(person.id)).map((n) => n.noteId)).toEqual([keep.noteId, fold.noteId]);
+	});
+
+	it('fills a blank survivor with the text, format and language of one note, never mixed', async () => {
+		const { treeId, ctx, service } = await setup();
+		const keep = await service.createNote(treeId, { text: 'blank', language: 'fr' }, ctx);
+		const plain = await service.createNote(treeId, { text: 'plain' }, ctx);
+		const html = await service.createNote(treeId, { text: '<b>x</b>', mime: 'text/html' }, ctx);
+		await t.db.update(notes).set({ text: null }).where(eq(notes.id, keep.noteId));
+
+		await service.mergeNotes(treeId, keep.noteId, [plain.noteId, html.noteId], undefined, ctx);
+		const survivor = (await t.db.select().from(notes).where(eq(notes.id, keep.noteId)).get())!;
+		expect(survivor).toMatchObject({ text: 'plain', mime: null, language: null });
 	});
 });
 
@@ -271,6 +284,27 @@ describe('who may write notes', () => {
 		const fresh = (await noteOf(person.id)).find((n) => n.id === added.attachmentId)!;
 		await service.removeNote(treeId, fresh.id, fresh.version, editor.context);
 		expect(await noteOf(person.id)).toEqual([]);
+	});
+
+	it('lets a contributor note a fact with a legacy description without editing the fact', async () => {
+		const { treeId, ctx, service, birthId, noteOf } = await setup();
+		const contributor = await createTestUser(t.db, 'contributor');
+		await addTestMember(t.db, treeId, contributor, 'contributor');
+		await t.db.run(sql`update individuals set privacy = 'public' where tree_id = ${treeId}`);
+		await t.db.update(events).set({ description: 'imported words' }).where(eq(events.id, birthId));
+		const fact = async () =>
+			(await t.db.select().from(events).where(eq(events.id, birthId)).get())!;
+		const before = await fact();
+
+		await service.addNote(treeId, { kind: 'event', id: birthId }, 'mine', contributor.context);
+		expect((await noteOf(birthId)).map((n) => n.text)).toEqual(['mine']);
+		expect(await fact()).toEqual(before);
+
+		// An editor's next note still moves the description, which the first note no longer hides.
+		await t.db.delete(noteAttachments).where(eq(noteAttachments.subjectId, birthId));
+		await service.addNote(treeId, { kind: 'event', id: birthId }, 'theirs', ctx);
+		expect((await noteOf(birthId)).map((n) => n.text)).toEqual(['imported words', 'theirs']);
+		expect(await fact()).toMatchObject({ description: null, version: before.version + 1 });
 	});
 });
 

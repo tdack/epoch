@@ -20,7 +20,17 @@ import {
 import { makeTaskMover } from './task-ops';
 
 export type NoteCommand =
-	| { kind: 'add_note'; attachmentId: string; subject: NoteSubjectRef; text: string }
+	| {
+			kind: 'add_note';
+			attachmentId: string;
+			subject: NoteSubjectRef;
+			text: string;
+			/**
+			 * Move a legacy fact description into the note first. That edits the fact, so the service
+			 * sets it only for a caller who may edit; omitted, the description stays where it is.
+			 */
+			shouldMoveLegacyDescription?: boolean;
+	  }
 	| { kind: 'update_note'; attachmentId: string; expectedVersion?: number; text: string }
 	| { kind: 'remove_note'; attachmentId: string; expectedVersion?: number }
 	| {
@@ -198,7 +208,9 @@ function addNote(
 	const text = cleanBlock(command.text);
 	if (!text) throw new ValidationError('A note needs some text.');
 	const own = ownOf(rows, command.subject);
-	const ops = legacyDescriptionOps(rows, ctx, command.subject);
+	const ops = command.shouldMoveLegacyDescription
+		? legacyDescriptionOps(rows, ctx, command.subject)
+		: [];
 	const row = newAttachment(
 		ctx,
 		command.attachmentId,
@@ -485,9 +497,9 @@ function mergeNotes(
 	}
 
 	// The survivor's own words win; a blank one is filled from the others, and lines the model keeps
-	// are carried over rather than dropped.
-	const fill = <K extends 'text' | 'mime' | 'language'>(key: K) =>
-		survivor[key] ?? merged.map((m) => m[key]).find((v) => v !== null) ?? null;
+	// are carried over rather than dropped. Format and language describe the words, so they come
+	// from whichever note supplies the text, never mixed from another.
+	const wording = survivor.text !== null ? survivor : merged.find((m) => m.text !== null);
 	const extras = [...(survivor.gedcomExtra ?? [])];
 	for (const note of merged) {
 		const block = note.gedcomExtra ?? [];
@@ -507,9 +519,9 @@ function mergeNotes(
 		after: touch(
 			{
 				...survivor,
-				text: fill('text'),
-				mime: fill('mime'),
-				language: fill('language'),
+				text: wording?.text ?? null,
+				mime: wording ? wording.mime : survivor.mime,
+				language: wording ? wording.language : survivor.language,
 				gedcomExtra: extras.length > 0 ? extras : null,
 				xrefAliases: aliases.length > 0 ? aliases : null
 			},
