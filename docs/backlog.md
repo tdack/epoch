@@ -106,6 +106,15 @@ Last reviewed: 2026-10-21.
   `(surname, given_name, id)` fixes deep pages; surname counters help only unrestricted roles; the
   stored inputs in ADR-015 (`has_death`, `birth_upper`) are the step for restricted reads. Measure on
   a real large tree first. (ADR-014, ADR-015)
+- **Restricted source, repository and note list pages still build their visibility sets over the
+  whole tree.** Single-record and known-id checks now read only that record's citations or
+  attachments (query-plans.md, "Evidence"), but a paged list cannot test visibility after `LIMIT`
+  without changing page contents and `hasMore`. Most of what remains is `vp`, every visible person,
+  built per request. Storing visibility inputs as columns (ADR-015) is the step if a tree outgrows it.
+- **Small evidence and notes races, accepted.** Two people bulk-citing one source for the same
+  people at the same moment can both add a citation to the same person, and notes added at the same
+  moment can share a sort order. A shared note with no text cannot have its format or language
+  edited.
 - **The restricted-viewer Files list scans up to 500 rows per request.** `FILE_SCAN_CAP` bounds the
   cost, but the sort is not covered by an index, so each page reads the table in order. A page can
   be short or empty while `nextCursor` is still set. Index the sort, or store visibility as a
