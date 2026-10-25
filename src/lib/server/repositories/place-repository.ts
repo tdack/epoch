@@ -12,6 +12,7 @@ import { events, places } from '../db/schema';
 import type { ViewerScope } from '../services/tree-access';
 import { placeKey } from '../../shared/places';
 import { andInLens, andUnionInLens } from './subtree-membership';
+import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -30,9 +31,6 @@ export interface PlaceAggregateRow {
 	facts: number;
 	people: number;
 }
-
-/** Escape LIKE's wildcards so a search for "100%" finds the text and not everything. */
-const likePattern = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** The facts of this tree that carry a place, visible to the viewer, as one relation. */
 function visibleFacts(treeId: string, scope: Scope, match: SQL, lensRootId: string | null): SQL {

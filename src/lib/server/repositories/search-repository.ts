@@ -18,6 +18,7 @@ import { dateBound, foldQuery } from '../../shared/search';
 import type { ViewerScope } from '../services/tree-access';
 import { chunkIds } from './param-chunks';
 import { andInLens } from './subtree-membership';
+import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
@@ -46,7 +47,6 @@ export interface FactHit {
 	isPartnershipFact: boolean;
 }
 
-const escapeLike = (word: string) => word.replace(/[%_\\]/g, (c) => `\\${c}`);
 const like = (column: SQL, pattern: string) => sql`${column} like ${pattern} escape '\\'`;
 
 /** Lower-cased "prefix given nickname surname-prefix surname suffix", single-spaced, for matching. */
@@ -65,7 +65,7 @@ const OWN_HAY = sql.raw(
  */
 function factCondition(place: string, from: string, to: string): SQL {
 	const parts: SQL[] = [];
-	if (place) parts.push(like(sql.raw('e.place'), `%${escapeLike(place.toLowerCase())}%`));
+	if (place) parts.push(like(sql.raw('e.place'), likePattern(place.toLowerCase())));
 	const start = dateBound(from, 'start');
 	const end = dateBound(to, 'end');
 	if (start || end) {
@@ -224,16 +224,16 @@ export class SearchRepository {
 				select person_id, name_id,
 					case
 						when hay = ${whole} then 0
-						when ${all((w) => like(sql.raw(`(' ' || hay || ' ')`), `% ${escapeLike(w)} %`))} then 1
-						when ${like(sql.raw('hay'), `${escapeLike(whole)}%`)} then 2
-						when ${all((w) => like(sql.raw(`(' ' || hay)`), `% ${escapeLike(w)}%`))} then 3
+						when ${all((w) => like(sql.raw(`(' ' || hay || ' ')`), likePattern(w, '% ', ' %')))} then 1
+						when ${like(sql.raw('hay'), likePattern(whole, '', '%'))} then 2
+						when ${all((w) => like(sql.raw(`(' ' || hay)`), likePattern(w, '% ', '%')))} then 3
 						else 4
 					end * 1000 + tie as rank_key
 				from cand where ${
 					filtered.length === 0
 						? sql`1 = 1`
 						: sql.join(
-								filtered.map((w) => like(sql.raw('hay'), `%${escapeLike(w)}%`)),
+								filtered.map((w) => like(sql.raw('hay'), likePattern(w))),
 								sql` and `
 							)
 				}
