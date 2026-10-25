@@ -23,9 +23,10 @@ import { maskRows } from '../domain/privacy-mask';
 import { ChangeStore } from '../repositories/change-store';
 import { EvidenceReadService } from './evidence-read-service';
 import { EvidenceRepository } from '../repositories/evidence-repository';
+import { visibleSourcesAmong } from '../repositories/visibility';
 import { PersonPageService } from './person-page-service';
 import { UnionPageService } from './union-page-service';
-import { livingCutoff } from '../domain/living-state';
+import { EVERYONE_SHOWN_CUTOFF, livingCutoff } from '../domain/living-state';
 import { EvidenceService } from './evidence-service';
 
 const FIXTURE = `0 HEAD
@@ -275,11 +276,11 @@ describe('reading evidence as an editor', () => {
 });
 
 describe('the SQL and the row filters agree on what evidence a viewer sees', () => {
-	it.each(['contributor', 'viewer'] as const)('for a %s', async (role) => {
+	it.each(['contributor', 'viewer', 'public'] as const)('for a %s', async (role) => {
 		const rows = await new ChangeStore(t.db).loadRows(treeId);
 		const scope = {
 			isRestricted: true,
-			cutoff: livingCutoff(NOW, 110),
+			cutoff: role === 'public' ? EVERYONE_SHOWN_CUTOFF : livingCutoff(NOW, 110),
 			creatorId: role === 'contributor' ? actors.contributor.userId : null
 		};
 		const masked = maskRows(rows, scope.cutoff, false, scope.creatorId).rows;
@@ -290,6 +291,35 @@ describe('the SQL and the row filters agree on what evidence a viewer sees', () 
 			await repo.repositoryIds(treeId, '', { offset: 0, limit: 100 }, scope)
 		).ids;
 		expect(repositoryIdsSql.sort()).toEqual(masked.repositories.map((r) => r.id).sort());
+		// Looked up singly or as a set, the correlated per-source test answers as the list does.
+		const sourceIdsMasked = new Set(masked.sources.map((s) => s.id));
+		for (const source of rows.sources) {
+			const one = await repo.visibleSource(treeId, source.id, scope);
+			expect(one !== undefined, source.title ?? '').toBe(sourceIdsMasked.has(source.id));
+		}
+		const among = await visibleSourcesAmong(
+			t.db,
+			treeId,
+			rows.sources.map((s) => s.id),
+			scope
+		);
+		expect([...among].sort()).toEqual([...sourceIdsMasked].sort());
+		const kept = await repo.visibleSourceCounts(
+			treeId,
+			rows.repositories.map((r) => r.id),
+			scope
+		);
+		for (const repository of rows.repositories) {
+			const visibleHere = new Set(
+				rows.sourceRepositories
+					.filter((l) => l.repositoryId === repository.id && sourceIdsMasked.has(l.sourceId))
+					.map((l) => l.sourceId)
+			);
+			expect(kept.get(repository.id) ?? 0, repository.name ?? '').toBe(visibleHere.size);
+		}
+		if (role !== 'public')
+			expect(sourceIdsMasked.has(ids['@S1@']!), 'S1 is cited only on private people').toBe(false);
+
 		const counts = await repo.visibleCitationCounts(
 			treeId,
 			rows.sources.map((s) => s.id),

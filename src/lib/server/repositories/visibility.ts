@@ -176,23 +176,32 @@ export function withVisiblePeople(treeId: string, scope: Scope): SQL {
 /**
  * The ids of the sources that cite something the viewer may see, as one compound select (five
  * terms, the most D1 allows): a branch per kind of subject. Needs `withVisiblePeople` before it.
+ *
+ * Given `sourceId`, a column of the outer row, each branch reads only that source's citations by
+ * `idx_citation_source` instead of every citation of the tree. Correlated, it binds no ids, so the
+ * five branches stay under D1's parameter cap; it is for a query whose sources are already a few.
  */
-function visibleCitedSourceIds(treeId: string): SQL {
+function visibleCitedSourceIds(treeId: string, sourceId?: SQL): SQL {
 	const people = sql`(select id from vp)`;
 	const unionOk = (column: SQL) =>
 		sql`not exists (select 1 from union_partners up where up.union_id = ${column} and up.person_id not in ${people})`;
-	const from = sql`from citations vc where vc.tree_id = ${treeId} and vc.source_id is not null`;
+	// `+` keeps the tree and kind tests off `idx_citation_tree` and `idx_citation_subject`, which the
+	// planner otherwise prefers, probing the citations of every visible person instead.
+	const from = sourceId
+		? sql`from citations vc where vc.source_id = ${sourceId} and +vc.tree_id = ${treeId}`
+		: sql`from citations vc where vc.tree_id = ${treeId} and vc.source_id is not null`;
+	const kind = sourceId ? sql`+vc.subject_kind` : sql`vc.subject_kind`;
 	return sql`
-		select vc.source_id as id ${from} and vc.subject_kind = 'person' and vc.subject_id in ${people}
-		union select vc.source_id ${from} and vc.subject_kind = 'name'
+		select vc.source_id as id ${from} and ${kind} = 'person' and vc.subject_id in ${people}
+		union select vc.source_id ${from} and ${kind} = 'name'
 			and vc.subject_id in (select n.id from person_names n where n.person_id in ${people})
-		union select vc.source_id ${from} and vc.subject_kind = 'event' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'event' and vc.subject_id in (
 			select e.id from events e where e.tree_id = ${treeId} and (
 				(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
 				or (e.entity_type = 'FAMILY' and ${unionOk(sql`e.entity_id`)})))
-		union select vc.source_id ${from} and vc.subject_kind = 'union' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'union' and vc.subject_id in (
 			select u.id from unions u where u.tree_id = ${treeId} and ${unionOk(sql`u.id`)})
-		union select vc.source_id ${from} and vc.subject_kind = 'parent_child' and vc.subject_id in (
+		union select vc.source_id ${from} and ${kind} = 'parent_child' and vc.subject_id in (
 			select l.id from parent_child l where l.tree_id = ${treeId}
 				and l.parent_id in ${people} and l.child_id in ${people}
 				and (l.union_id is null or ${unionOk(sql`l.union_id`)}))`;
@@ -202,12 +211,22 @@ function visibleCitedSourceIds(treeId: string): SQL {
  * ` and <visible>` for a source row (aliased `alias`): it supports a citation the viewer can see,
  * or they made it. Empty for a viewer who sees everyone. The statement must start with
  * `withVisiblePeople`.
+ *
+ * `isBounded` is for a query whose sources are already a few ids (one source, a chunk): each is
+ * then tested against its own citations. A list that pages over the tree leaves it off, since the
+ * correlated test would run once per source of the tree.
  */
-export function andSourceVisible(alias: string, scope: Scope, treeId: string): SQL {
+export function andSourceVisible(
+	alias: string,
+	scope: Scope,
+	treeId: string,
+	isBounded = false
+): SQL {
 	if (!scope.isRestricted) return sql``;
 	const s = ident(alias);
 	const isOwn = scope.creatorId === null ? sql`` : sql`${s}.created_by is ${scope.creatorId} or `;
-	return sql` and (${isOwn}${s}.id in (${visibleCitedSourceIds(treeId)}))`;
+	const cited = visibleCitedSourceIds(treeId, isBounded ? sql`${s}.id` : undefined);
+	return sql` and (${isOwn}${s}.id in (${cited}))`;
 }
 
 /**
@@ -228,7 +247,7 @@ export async function visibleSourcesAmong(
 			sql`, `
 		);
 		const rows = await db.all<{ id: string }>(
-			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id in (${ids})${andSourceVisible('s', scope, treeId)}`
+			sql`${withVisiblePeople(treeId, scope)}select s.id as id from sources s where s.tree_id = ${treeId} and s.id in (${ids})${andSourceVisible('s', scope, treeId, true)}`
 		);
 		for (const row of rows) visible.add(row.id);
 	}
@@ -258,14 +277,21 @@ export function andRepositoryVisible(alias: string, scope: Scope, treeId: string
  * (`vp`), partnerships with a private partner (`hu`), and then the names, facts and links of
  * visible people (`vn`, `ve`, `vl`), the citations of those (`vc`), and the sources and repositories
  * they support or the viewer made (`vs`, `vr`). A test holds the two to the same answers.
+ *
+ * Given `noteId`, the shared notes (`vo`) are only that one, read by `idx_note_attachment_note`
+ * rather than every attachment of the tree. Only `vo` is narrowed: the earlier sets are what an
+ * attachment is tested against, and `hu` hides, so narrowing it would show what it should not.
  */
-export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
+export function withVisibleNoteScope(treeId: string, scope: Scope, noteId?: string): SQL {
 	if (!scope.isRestricted) return sql``;
 	const people = sql`(select id from vp)`;
 	const isOwn = (row: string) =>
 		scope.creatorId === null ? sql`` : sql`${ident(row)}.created_by is ${scope.creatorId} or `;
+	const oneNote = (column: string) =>
+		noteId === undefined ? sql`` : sql` and ${sql.raw(column)} = ${noteId}`;
+	// Led by the tree's unions: `union_partners` has no tree index, so its own tree_id would still read every tree.
 	return sql`with vp(id) as (select ip.id from individuals ip where ip.tree_id = ${treeId} and ${isVisibleSql('ip', scope)}),
-		hu(id) as (select up.union_id from union_partners up where up.person_id not in ${people}),
+		hu(id) as (select up.union_id from unions hun join union_partners up on up.union_id = hun.id where hun.tree_id = ${treeId} and up.person_id not in ${people}),
 		vn(id) as (select n.id from person_names n where n.person_id in ${people}),
 		ve(id) as (select e.id from events e where e.tree_id = ${treeId} and (
 			(e.entity_type = 'INDIVIDUAL' and e.entity_id in ${people})
@@ -281,7 +307,7 @@ export function withVisibleNoteScope(treeId: string, scope: Scope): SQL {
 			or (c.subject_kind = 'parent_child' and c.subject_id in (select id from vl)))),
 		vs(id) as (select s.id from sources s where s.tree_id = ${treeId} and (${isOwn('s')}s.id in (select vsc.source_id from citations vsc where vsc.tree_id = ${treeId} and vsc.source_id is not null and vsc.id in (select id from vc)))),
 		vr(id) as (select r.id from repositories r where r.tree_id = ${treeId} and (${isOwn('r')}r.id in (select vl2.repository_id from source_repositories vl2 where vl2.repository_id is not null and vl2.source_id in (select id from vs)))),
-		vo(id) as (select n.id from notes n where n.tree_id = ${treeId} and (${isOwn('n')}n.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null and ${isNoteAttachmentVisibleOf('na', treeId)}))) `;
+		vo(id) as (select n.id from notes n where n.tree_id = ${treeId}${oneNote('n.id')} and (${isOwn('n')}n.id in (select na.note_id from note_attachments na where na.tree_id = ${treeId} and na.note_id is not null${oneNote('na.note_id')} and ${isNoteAttachmentVisibleOf('na', treeId)}))) `;
 }
 
 /**
