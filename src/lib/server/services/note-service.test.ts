@@ -231,13 +231,26 @@ describe('shared notes', () => {
 
 		await service.mergeNotes(treeId, keep.noteId, [fold.noteId], undefined, ctx);
 		const survivor = (await t.db.select().from(notes).where(eq(notes.id, keep.noteId)).get())!;
-		expect(survivor).toMatchObject({ text: 'keep', language: 'en', mime: 'text/html' });
+		// The survivor's words keep their own format, even unset, rather than the folded note's.
+		expect(survivor).toMatchObject({ text: 'keep', language: 'en', mime: null });
 		expect(survivor.xrefAliases).toEqual([folded.xref]);
 		// The person that pointed at both now points at the survivor once.
 		expect((await noteOf(person.id)).map((n) => n.noteId)).toEqual([keep.noteId]);
 		expect((await noteOf(other.id)).map((n) => n.noteId)).toEqual([keep.noteId]);
 		await log.undoLast(treeId, ctx);
 		expect((await noteOf(person.id)).map((n) => n.noteId)).toEqual([keep.noteId, fold.noteId]);
+	});
+
+	it('fills a blank survivor with the text, format and language of one note, never mixed', async () => {
+		const { treeId, ctx, service } = await setup();
+		const keep = await service.createNote(treeId, { text: 'blank', language: 'fr' }, ctx);
+		const plain = await service.createNote(treeId, { text: 'plain' }, ctx);
+		const html = await service.createNote(treeId, { text: '<b>x</b>', mime: 'text/html' }, ctx);
+		await t.db.update(notes).set({ text: null }).where(eq(notes.id, keep.noteId));
+
+		await service.mergeNotes(treeId, keep.noteId, [plain.noteId, html.noteId], undefined, ctx);
+		const survivor = (await t.db.select().from(notes).where(eq(notes.id, keep.noteId)).get())!;
+		expect(survivor).toMatchObject({ text: 'plain', mime: null, language: null });
 	});
 });
 
