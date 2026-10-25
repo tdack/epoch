@@ -8,7 +8,8 @@ import { escapeText } from './evidence-lines';
 import { toGedcom551Date, toGedcom7Date } from './date-dialect';
 
 /** `level [@xref@] tag [payload]`. The payload keeps its leading spaces, which `CONC` depends on. */
-const LINE = /^(\d+) (?:(@[^@\s]+@) )?(\S+)(?: (.*))?$/;
+// Two digits at most, so rows kept before the parser enforced it cannot make `tags.length` throw.
+const LINE = /^(\d{1,2}) (?:(@[^@\s]+@) )?(\S+)(?: (.*))?$/;
 
 interface Line {
 	level: number;

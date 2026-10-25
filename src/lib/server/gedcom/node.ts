@@ -38,7 +38,9 @@ function parseGedcomLine(
 	const trimmed = line.trim();
 	if (!trimmed) return null;
 
-	const match = trimmed.match(/^(\d+)(?:\s+(@[^@]+@))?(?:\s+([^\s]+))?(?:\s+(.*))?$/);
+	// At most two digits: no real file nests past 99, and a huge level would make the array length
+	// assignment in dialect.ts throw. A longer number is not a line, so it joins the previous text.
+	const match = trimmed.match(/^(\d{1,2})(?:\s+(@[^@]+@))?(?:\s+([^\s]+))?(?:\s+(.*))?$/);
 	if (!match) return null;
 
 	const level = parseInt(match[1], 10);
