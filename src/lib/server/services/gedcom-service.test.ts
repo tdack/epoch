@@ -386,6 +386,21 @@ describe('previewImport', () => {
 });
 
 describe('export', () => {
+	it('keeps the children of a family whose XREF contains a bar', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db);
+		await service.runImport(
+			s.treeId,
+			'0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n0 @I2@ INDI\n1 NAME Cy /Fox/\n1 FAMC @F|1@\n0 @F|1@ FAM\n1 WIFE @I1@\n1 CHIL @I2@\n0 TRLR'
+		);
+		const { content } = await service.exportDownload(
+			s.treeId,
+			{ format: 'gedcom551' },
+			s.owner.context
+		);
+		expect(content).toMatch(/0 @F\|1@ FAM[^]*1 CHIL @I2@/);
+	});
+
 	it('names a download and the stored copy alike, by the tree', async () => {
 		const s = await tree();
 		await t.db.update(trees).set({ name: 'Fox / family: 1900' }).where(eq(trees.id, s.treeId));

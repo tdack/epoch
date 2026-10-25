@@ -151,8 +151,10 @@ export function exportPayloadFrom(
 		famXrefMap.set(u.id, withoutTreePrefix(u.id, treeId));
 	}
 
-	for (const [key, links] of linksByChildUnion) {
-		const [unionId, childId] = key.split('|');
+	for (const links of linksByChildUnion.values()) {
+		// From the rows, not the key: an XREF may itself contain `|`.
+		const [{ unionId, childId }] = links;
+		if (!unionId) continue;
 		const ordered = [...links].sort(
 			(a, b) => orderOfParent(unionId, a.parentId) - orderOfParent(unionId, b.parentId)
 		);
