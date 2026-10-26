@@ -3,6 +3,7 @@
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { lifeDates } from '#lib/shared/life-dates.js';
 	import {
 		nextOccurrence,
 		UPCOMING_DAYS,
@@ -45,8 +46,8 @@
 		dated.filter((a) => a.isCurrent && a.next.days > 0 && a.next.days <= UPCOMING_DAYS)
 	);
 	const VERBS: Record<AnniversaryType, string> = {
-		BIRT: 'born',
-		MARR: 'married',
+		BIRT: 'was born',
+		MARR: 'were married',
 		DEAT: 'died'
 	};
 	const href = (a: AnniversaryDto) =>
@@ -95,7 +96,6 @@
 				{#each onThisDay as a (a.id)}
 					<li>
 						<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
-						{a.type === 'MARR' ? 'were' : 'was'}
 						{VERBS[a.type]} in {a.year}
 						<span class="text-stone-600">
 							({plural(a.next.year - a.year, 'year', 'years')} ago)</span
@@ -124,7 +124,9 @@
 							<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a
 							>
 							<span class="text-stone-600">
-								{a.type === 'BIRT' ? `turns ${years}` : `${years} years married`}
+								{a.type === 'BIRT'
+									? `turns ${years}`
+									: plural(years, 'year married', 'years married')}
 							</span>
 						</span>
 						<span class="shrink-0 text-stone-600">{dayName(a.next.days)}</span>
@@ -163,7 +165,7 @@
 				>
 					{work.myTasks.open > work.myTasks.items.length
 						? `All ${work.myTasks.open} of your tasks`
-						: 'Tasks'}
+						: 'Your tasks'}
 				</a>
 			{/if}
 			{#if work.recentChanges?.length}
@@ -184,7 +186,7 @@
 					{/each}
 				</ul>
 				<a href="{base}/audit" class="mt-1 inline-block text-sm text-emerald-900 underline">
-					Audit log
+					All changes in the audit log
 				</a>
 			{/if}
 		</section>
@@ -204,15 +206,14 @@
 					</h3>
 					<ul class="mt-1 space-y-1 text-sm">
 						{#each group.people as person (person.id)}
+							{@const dates = lifeDates(person.birthDate, person.deathDate, person.isDeceased)}
 							<li>
 								<a
 									href={personPath(data.summary.tree, person.id)}
 									class="font-semibold text-emerald-900 hover:underline">{person.displayName}</a
 								>
-								{#if person.birthDate || person.deathDate}
-									<span class="text-stone-600">
-										{person.birthDate ?? '?'}–{person.deathDate ?? ''}
-									</span>
+								{#if dates}
+									<span class="text-stone-600">{dates}</span>
 								{/if}
 							</li>
 						{/each}
