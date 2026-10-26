@@ -60,7 +60,8 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 		notes: [],
 		noteAttachments: [],
 		researchTasks: [],
-		subtrees: []
+		subtrees: [],
+		placeLocations: []
 	};
 	for (const { linkedTo = [], ...m } of spec.media ?? []) {
 		for (const entityId of linkedTo)

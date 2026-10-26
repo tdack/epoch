@@ -18,7 +18,8 @@ export const ENTITY_ORDER = [
 	'note',
 	'note_link',
 	'task',
-	'subtree'
+	'subtree',
+	'place_location'
 ] as const;
 
 export function groupRecords(

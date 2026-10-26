@@ -37,6 +37,7 @@ import {
 	repositories,
 	researchTasks,
 	subtrees,
+	placeLocations,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -79,7 +80,8 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	notes,
 	note_attachments: noteAttachments,
 	research_tasks: researchTasks,
-	subtree: subtrees
+	subtree: subtrees,
+	place_locations: placeLocations
 };
 
 /** The rows that name their record by `subject_kind, subject_id`, which no foreign key checks. */
@@ -130,7 +132,8 @@ const TREE_ROW_TABLES: Record<keyof TreeRows, SQLiteTable> = {
 	notes,
 	noteAttachments,
 	researchTasks,
-	subtrees
+	subtrees,
+	placeLocations
 };
 
 /** D1 caps bound parameters per statement at 100; the records insert uses three per row. */

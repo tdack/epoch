@@ -18,6 +18,7 @@ import type {
 	noteAttachments,
 	notes,
 	parentChild,
+	placeLocations,
 	personNames,
 	repositories,
 	researchTasks,
@@ -72,6 +73,8 @@ export type NoteRow = Imaged<typeof notes.$inferSelect>;
 export type NoteAttachmentRow = Imaged<typeof noteAttachments.$inferSelect>;
 export type ResearchTaskRow = Imaged<typeof researchTasks.$inferSelect>;
 export type SubtreeRow = Imaged<typeof subtrees.$inferSelect>;
+/** `id` is the place record's id (ADR-078), so a location needs no key of its own in the log. */
+export type PlaceLocationRow = Imaged<typeof placeLocations.$inferSelect>;
 
 /** Every row a tree owns that a mutation can touch. */
 export interface TreeRows {
@@ -91,6 +94,7 @@ export interface TreeRows {
 	noteAttachments: NoteAttachmentRow[];
 	researchTasks: ResearchTaskRow[];
 	subtrees: SubtreeRow[];
+	placeLocations: PlaceLocationRow[];
 }
 
 /** Each table's row type, which is what `RowOp` carries so a switch on `table` narrows the row. */
@@ -111,6 +115,7 @@ export interface TableRows {
 	note_attachments: NoteAttachmentRow;
 	research_tasks: ResearchTaskRow;
 	subtree: SubtreeRow;
+	place_locations: PlaceLocationRow;
 }
 
 export type RecordTable = keyof TableRows;
@@ -139,7 +144,11 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	// Points at a person by id with no foreign key, and nothing points at it.
 	subtree: 14,
 	// Points at a file and nothing points at it; a link is created after its file and deleted before.
-	media_links: 15
+	media_links: 15,
+	// Points at a place record, which is not a record table: the change store derives places from fact
+	// text and a location is only ever set on one that exists, so no create here depends on an op in
+	// the same change. Nothing points at it.
+	place_locations: 16
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -159,7 +168,8 @@ const ENTITY_TYPES = {
 	notes: 'note',
 	note_attachments: 'note_link',
 	research_tasks: 'task',
-	subtree: 'subtree'
+	subtree: 'subtree',
+	place_locations: 'place_location'
 } as const satisfies Record<RecordTable, EntityType>;
 
 /**

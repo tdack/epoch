@@ -20,6 +20,7 @@ import {
 	repositories,
 	researchTasks,
 	subtrees,
+	placeLocations,
 	sourceRepositories,
 	sources,
 	unionPartners,
@@ -36,6 +37,7 @@ import type {
 	RepositoryRow,
 	ResearchTaskRow,
 	SubtreeRow,
+	PlaceLocationRow,
 	SourceRepositoryRow,
 	SourceRow,
 	UnionPartnerRow
@@ -270,6 +272,15 @@ export class ScopedReads extends GraphWindowRepository {
 				.select({ ...getTableColumns(subtrees), rid: sql<number>`${subtrees}.rowid` })
 				.from(subtrees)
 				.where(and(inTree(subtrees.treeId, treeId), inArray(subtrees.id, chunk)))
+		);
+	}
+
+	placeLocationsIn(treeId: string, ids: readonly string[]): Reads<PlaceLocationRow> {
+		return this.readIn(placeLocations, ids, (chunk) =>
+			this.client
+				.select({ ...getTableColumns(placeLocations), rid: sql<number>`${placeLocations}.rowid` })
+				.from(placeLocations)
+				.where(and(inTree(placeLocations.treeId, treeId), inArray(placeLocations.id, chunk)))
 		);
 	}
 

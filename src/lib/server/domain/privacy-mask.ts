@@ -203,7 +203,10 @@ export function maskRows(
 		...visible,
 		researchTasks: visibleTasks(rows, hidden, unionsWithHiddenPartner, hiddenKeys, visible),
 		// A sub-tree's name can name its root, so one rooted at a private person is as absent as they are.
-		subtrees: rows.subtrees.filter((s) => !hidden.has(s.rootPersonId))
+		subtrees: rows.subtrees.filter((s) => !hidden.has(s.rootPersonId)),
+		// Only editors set a location and they are never restricted; what a restricted viewer may know
+		// of a place's location comes from the place reads, which apply the visibility predicates.
+		placeLocations: []
 	};
 	// A file on a source is as visible as the source (ADR-028), whether or not anyone is private.
 	const knownSources = new Set(rows.sources.map((s) => s.id));
@@ -460,6 +463,10 @@ function touchesHidden(
 			);
 		case 'subtree':
 			return some(op.before, op.after, (r) => hidden.has(r.rootPersonId));
+		case 'place_locations':
+			// An op carries a place's id and not its text, so whether a restricted viewer may see the
+			// place cannot be told here; hiding it all is exact, since only editors write locations.
+			return true;
 		case 'research_tasks':
 			// A task about a record the viewer cannot see is hidden with it, however it is changed.
 			return some(op.before, op.after, (r) => {

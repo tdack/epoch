@@ -73,7 +73,8 @@ export class ScopedRowLoader {
 			notes: new Map(),
 			noteAttachments: new Map(),
 			researchTasks: new Map(),
-			subtrees: new Map()
+			subtrees: new Map(),
+			placeLocations: new Map()
 		};
 
 		// Resolved ids: what the seeds name, and what those records are about. They may name records
@@ -313,6 +314,9 @@ export class ScopedRowLoader {
 			if (subtreeIds.length > 0) add('subtrees', reads.subtreesIn(treeId, subtreeIds));
 			const rootedAt = fresh('subtreesRootedAt', rPeople);
 			if (rootedAt.length > 0) add('subtrees', reads.subtreesRootedAt(treeId, rootedAt));
+			const locationIds = fresh('placeLocationsIn', seed.placeLocations);
+			if (locationIds.length > 0)
+				add('placeLocations', reads.placeLocationsIn(treeId, locationIds));
 			const seededLinkIds = fresh('sourceRepositoriesIn', seededLinks);
 			if (seededLinkIds.length > 0)
 				add('sourceRepositories', reads.sourceRepositoriesIn(treeId, seededLinkIds));
@@ -447,7 +451,8 @@ export class ScopedRowLoader {
 			notes: table('notes'),
 			noteAttachments: table('noteAttachments'),
 			researchTasks: table('researchTasks'),
-			subtrees: table('subtrees')
+			subtrees: table('subtrees'),
+			placeLocations: table('placeLocations')
 		} as TreeRows;
 		wholeKeys.forEach((key, i) => {
 			(result as unknown as Record<string, unknown>)[key] = wholeRows[i];

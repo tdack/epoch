@@ -59,6 +59,8 @@ export interface ScopeSeed {
 	readonly tasks: ReadonlySet<string>;
 	/** `subtree` row ids. A person in the seed also brings the sub-trees rooted at them. */
 	readonly subtrees: ReadonlySet<string>;
+	/** `place_locations` row ids, which are place record ids. */
+	readonly placeLocations: ReadonlySet<string>;
 	/** `source_repositories` row ids. A link resolves to its source and its repository; it pulls neither. */
 	readonly sourceRepositories: ReadonlySet<string>;
 	/** Tables to read whole on top of the closure, as `assert_parent_child` does for `parentChild`. */
@@ -98,6 +100,7 @@ const ID_KEYS: readonly IdKey[] = [
 	'noteAttachments',
 	'tasks',
 	'subtrees',
+	'placeLocations',
 	'sourceRepositories'
 ];
 
@@ -117,6 +120,7 @@ export function emptySeed(): ScopeSeed {
 		noteAttachments: new Set(),
 		tasks: new Set(),
 		subtrees: new Set(),
+		placeLocations: new Set(),
 		sourceRepositories: new Set()
 	};
 }
@@ -430,6 +434,9 @@ export function selectScope(whole: TreeRows, seed: ScopeSeed): TreeRows {
 		notes: pick('notes', whole.notes, (r) => notes.has(r.id)),
 		noteAttachments: pick('noteAttachments', whole.noteAttachments, (r) => attachments.has(r.id)),
 		researchTasks: pick('researchTasks', whole.researchTasks, (r) => tasks.has(r.id)),
-		subtrees: pick('subtrees', whole.subtrees, (r) => subtreeIds.has(r.id))
+		subtrees: pick('subtrees', whole.subtrees, (r) => subtreeIds.has(r.id)),
+		placeLocations: pick('placeLocations', whole.placeLocations, (r) =>
+			seed.placeLocations.has(r.id)
+		)
 	};
 }

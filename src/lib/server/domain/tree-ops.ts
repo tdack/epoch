@@ -23,6 +23,7 @@ import { buildMediaOps } from './media-ops';
 import { buildPersonMergeOps } from './person-merge';
 import { buildDateOps } from './date-ops';
 import { buildPlaceOps } from './place-ops';
+import { buildPlaceLocationOps } from './place-location-ops';
 import { buildNameOps } from './name-ops';
 import { buildPersonOps } from './person-ops';
 import { buildUnionOps } from './union-ops';
@@ -57,7 +58,8 @@ const TABLE_KEYS: Record<RecordTable, keyof TreeRows> = {
 	notes: 'notes',
 	note_attachments: 'noteAttachments',
 	research_tasks: 'researchTasks',
-	subtree: 'subtrees'
+	subtree: 'subtrees',
+	place_locations: 'placeLocations'
 };
 
 /** The snapshot after `ops`, so a later command in the same plan sees an earlier one's rows. */
@@ -185,6 +187,10 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 			return buildSubtreeOps(rows, command, ctx);
 		case 'rewrite_place':
 			return buildPlaceOps(rows, command, ctx);
+		case 'set_place_location':
+		case 'ignore_place_location':
+		case 'clear_place_location':
+			return buildPlaceLocationOps(rows, command, ctx);
 		case 'standardise_dates':
 			return buildDateOps(rows, command, ctx);
 		case 'merge_people':

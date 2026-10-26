@@ -23,7 +23,8 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 		notes: [] as Array<string | null>,
 		noteAttachments: [] as string[],
 		tasks: [] as string[],
-		subtrees: [] as string[]
+		subtrees: [] as string[],
+		placeLocations: [] as string[]
 	};
 	/** What a subject column names. An image may be of a row that is not in the tree yet. */
 	const buckets: Record<string, Array<string | null>> = {
@@ -116,6 +117,9 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 			case 'subtree':
 				ids.subtrees.push(op.id);
 				for (const image of [op.before, op.after]) ids.people.push(image?.rootPersonId ?? null);
+				break;
+			case 'place_locations':
+				ids.placeLocations.push(op.id);
 				break;
 			case 'research_tasks':
 				ids.tasks.push(op.id);

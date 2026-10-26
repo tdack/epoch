@@ -73,6 +73,7 @@ function peopleOf(
 		case 'notes':
 		case 'research_tasks':
 		case 'subtree':
+		case 'place_locations':
 			// Records of the library, not of any person; who they matter to is what cites or attaches them.
 			return [];
 	}
