@@ -91,7 +91,10 @@
 			spellcheck="false"
 			class={inputClass}
 		/>
-		<p class="mt-1 text-xs text-stone-600">Use {'{z}'}, {'{x}'} and {'{y}'} where the tile goes.</p>
+		<p class="mt-1 text-xs text-stone-600">
+			Use {'{z}'}, {'{x}'} and {'{y}'} where the tile goes. A host other than tile.openstreetmap.org must
+			also be added to the content security policy, which needs a deploy.
+		</p>
 	</div>
 	<div>
 		<label for="maps-attribution" class="field-label">Map credit</label>
