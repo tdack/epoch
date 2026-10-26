@@ -3,7 +3,7 @@ import { PUBLIC_VISITOR } from '../domain/identity';
 import { UnauthorizedError, ValidationError } from '../domain/errors';
 import { createTestDatabase, createTestUser } from '../testing/d1';
 import type { TestDatabase } from '../testing/d1';
-import { settingsPatchSchema } from '../validation/schemas';
+import { settingsPatchSchema, siteSettingsPatchSchema } from '../validation/schemas';
 import { SettingsService } from './settings-service';
 
 let t: TestDatabase;
@@ -89,6 +89,23 @@ describe('settings', () => {
 		expect(reader.isMotionReduced).toBe(false);
 	});
 
+	it('reads the map defaults, then a change by the owner', async () => {
+		const defaults = await service().maps();
+		expect(defaults.isGeocodingEnabled).toBe(true);
+		expect(defaults.photonUrl).toBe('https://photon.komoot.io');
+		const owner = await createTestUser(t.db, 'maps-owner');
+		const ownerContext = {
+			...owner.context,
+			user: { ...owner.context.user, isInstallOwner: true }
+		};
+		await service().updateSite({ maps: { isGeocodingEnabled: false } }, ownerContext);
+		const changed = await service().maps();
+		expect(changed.isGeocodingEnabled).toBe(false);
+		expect(changed.tileUrl).toBe(defaults.tileUrl);
+		await service().updateSite({ maps: null }, ownerContext);
+		expect((await service().maps()).isGeocodingEnabled).toBe(true);
+	});
+
 	it('keeps motion a personal setting', async () => {
 		const user = await createTestUser(t.db, 'motion');
 		const view = await service().updateMine({ isMotionReduced: true }, user.context);
@@ -109,6 +126,21 @@ describe('settings request validation', () => {
 				focusColours: { ancestor: 'javascript:alert(1)', descendant: '#0f766e', partner: '#7c3a72' }
 			}).success
 		).toBe(false);
+	});
+
+	it('accepts https map addresses, and http only for this machine', () => {
+		const ok = (maps: object) => siteSettingsPatchSchema.safeParse({ maps }).success;
+		expect(ok({ photonUrl: 'https://photon.example.org' })).toBe(true);
+		expect(ok({ photonUrl: 'http://localhost:2322' })).toBe(true);
+		expect(ok({ tileUrl: 'http://tiles.localhost/{z}/{x}/{y}.png' })).toBe(true);
+		expect(ok({ photonUrl: 'http://photon.example.org' })).toBe(false);
+		expect(ok({ photonUrl: 'http://localhost.evil.example' })).toBe(false);
+		expect(ok({ tileUrl: 'javascript:alert(1)' })).toBe(false);
+		expect(ok({ tileUrl: 'not a url' })).toBe(false);
+	});
+
+	it('does not let a personal patch carry map settings', () => {
+		expect(settingsPatchSchema.parse({ maps: { photonUrl: 'https://x.example' } })).toEqual({});
 	});
 
 	it('strips keys it does not know rather than storing them', () => {

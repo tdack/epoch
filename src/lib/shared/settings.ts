@@ -11,6 +11,7 @@ import {
 	type SexBases,
 	type SexKey
 } from './palette.js';
+import type { MapsSettings } from './geo.js';
 import { contrastRatio, oklabDistance } from './colour.js';
 
 interface TracePaletteSettings {
@@ -25,6 +26,8 @@ export interface SettingsDocument {
 	focusColours?: FocusShades;
 	/** A user's own choice only; the site default has no motion setting. */
 	isMotionReduced?: boolean;
+	/** Site layer only (ADR-078); each field is optional and falls back to its default. */
+	maps?: Partial<MapsSettings>;
 }
 
 /**
@@ -36,6 +39,7 @@ export interface SettingsPatch {
 	tracePalette?: TracePaletteSettings | null;
 	focusColours?: FocusShades | null;
 	isMotionReduced?: boolean | null;
+	maps?: Partial<MapsSettings> | null;
 }
 
 /** What the settings page reads: each layer as stored, and the choices the caller ends up with. */

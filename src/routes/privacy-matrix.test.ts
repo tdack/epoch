@@ -162,6 +162,10 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/date-service.test.ts'
 	},
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/geo/search/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/geo-service.test.ts'
+	},
 	[`${API}/trees/[id]/note-links/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/note-links/[linkId]/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/note-links/[linkId]/share/+server.ts`]: {
@@ -339,6 +343,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/geo/search/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',
