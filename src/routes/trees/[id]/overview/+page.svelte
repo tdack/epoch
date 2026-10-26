@@ -12,6 +12,7 @@
 		type AnniversaryDto,
 		type AnniversaryType
 	} from '#lib/shared/overview.js';
+	import type { TaskDto } from '#lib/shared/tasks.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -69,6 +70,18 @@
 			month: 'short'
 		});
 	};
+	const ANNIVERSARIES_SHOWN = 5;
+	const hasWork = $derived((work.myTasks?.open ?? 0) > 0 || (work.recentChanges?.length ?? 0) > 0);
+	const hasFigures = $derived(stats.averageLifespanYears !== null || stats.topSurnames.length > 0);
+	// A task opens its record; one about nothing opens the tasks list, as the Tasks page does.
+	const taskHref = (task: TaskDto) => {
+		const s = task.subject;
+		if (s?.personId) return `${base}/people/${encodeURIComponent(s.personId)}`;
+		if (s?.unionId) return `${base}/unions/${encodeURIComponent(s.unionId)}`;
+		if (s?.sourceId) return `${base}/sources/${encodeURIComponent(s.sourceId)}`;
+		if (s?.noteId) return `${base}/notes/${encodeURIComponent(s.noteId)}`;
+		return `${base}/tasks?mine=true`;
+	};
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
 </script>
@@ -97,33 +110,60 @@
 		onReject={(message) => toasts.push(message, { tone: 'error', durationMs: 10_000 })}
 	/>
 {:else}
-	<div class="grid gap-4 md:grid-cols-2">
+	{#snippet onThisDayRow(a: (typeof onThisDay)[number])}
+		<li>
+			<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
+			{VERBS[a.type]} in {a.year}
+			<span class="text-stone-600"> ({plural(a.next.year - a.year, 'year', 'years')} ago)</span>.
+		</li>
+	{/snippet}
+	{#snippet comingUpRow(a: (typeof comingUp)[number])}
+		{@const years = a.next.year - a.year}
+		<li class="flex justify-between gap-3">
+			<span>
+				<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
+				<span class="text-stone-600">
+					{a.type === 'BIRT' ? `turns ${years}` : plural(years, 'year married', 'years married')}
+				</span>
+			</span>
+			<span class="shrink-0 text-stone-600">{dayName(a.next.days)}</span>
+		</li>
+	{/snippet}
+
+	<div class="grid items-start gap-4 md:grid-cols-2">
 		{#if onThisDay.length > 0}
 			<section
 				aria-labelledby="on-this-day"
-				class="rounded-xl border border-stone-200 bg-white p-4"
+				class="rounded-xl border border-stone-200 bg-white p-4 {comingUp.length === 0
+					? 'md:col-span-2'
+					: ''}"
 				data-testid="overview-on-this-day"
 			>
 				<h2 id="on-this-day" class="font-semibold text-stone-900">On this day</h2>
 				<ul class="mt-2 space-y-1 text-sm">
-					{#each onThisDay as a (a.id)}
-						<li>
-							<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a
-							>
-							{VERBS[a.type]} in {a.year}
-							<span class="text-stone-600">
-								({plural(a.next.year - a.year, 'year', 'years')} ago)</span
-							>.
-						</li>
+					{#each onThisDay.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
+						{@render onThisDayRow(a)}
 					{/each}
 				</ul>
+				{#if onThisDay.length > ANNIVERSARIES_SHOWN}
+					<details class="mt-1 text-sm">
+						<summary class="cursor-pointer text-emerald-900">Show all {onThisDay.length}</summary>
+						<ul class="mt-1 space-y-1">
+							{#each onThisDay.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
+								{@render onThisDayRow(a)}
+							{/each}
+						</ul>
+					</details>
+				{/if}
 			</section>
 		{/if}
 
 		{#if comingUp.length > 0}
 			<section
 				aria-labelledby="coming-up"
-				class="rounded-xl border border-stone-200 bg-white p-4"
+				class="rounded-xl border border-stone-200 bg-white p-4 {onThisDay.length === 0
+					? 'md:col-span-2'
+					: ''}"
 				data-testid="overview-coming-up"
 			>
 				<h2 id="coming-up" class="font-semibold text-stone-900">Coming up</h2>
@@ -131,49 +171,46 @@
 					Birthdays and wedding anniversaries in the next {UPCOMING_DAYS} days.
 				</p>
 				<ul class="mt-2 space-y-1 text-sm">
-					{#each comingUp as a (a.id)}
-						{@const years = a.next.year - a.year}
-						<li class="flex justify-between gap-3">
-							<span>
-								<a href={href(a)} class="font-semibold text-emerald-900 hover:underline"
-									>{names(a)}</a
-								>
-								<span class="text-stone-600">
-									{a.type === 'BIRT'
-										? `turns ${years}`
-										: plural(years, 'year married', 'years married')}
-								</span>
-							</span>
-							<span class="shrink-0 text-stone-600">{dayName(a.next.days)}</span>
-						</li>
+					{#each comingUp.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
+						{@render comingUpRow(a)}
 					{/each}
 				</ul>
+				{#if comingUp.length > ANNIVERSARIES_SHOWN}
+					<details class="mt-1 text-sm">
+						<summary class="cursor-pointer text-emerald-900">Show all {comingUp.length}</summary>
+						<ul class="mt-1 space-y-1">
+							{#each comingUp.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
+								{@render comingUpRow(a)}
+							{/each}
+						</ul>
+					</details>
+				{/if}
 			</section>
 		{/if}
+	</div>
 
-		{#if work.myTasks || work.recentChanges?.length}
+	<div class="mt-4 grid items-start gap-4 md:grid-cols-2">
+		{#if hasWork}
 			<section
 				aria-labelledby="your-work"
 				class="rounded-xl border border-stone-200 bg-white p-4"
 				data-testid="overview-work"
 			>
 				<h2 id="your-work" class="font-semibold text-stone-900">Your work</h2>
-				{#if work.myTasks}
+				{#if work.myTasks && work.myTasks.open > 0}
 					<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
 						Your open tasks
 					</h3>
-					{#if work.myTasks.items.length === 0}
-						<p class="mt-1 text-sm text-stone-700">None given to you.</p>
-					{:else}
-						<ul class="mt-1 space-y-1 text-sm">
-							{#each work.myTasks.items as task (task.id)}
-								<li>
-									<span class="font-semibold text-stone-900">{task.title}</span>
-									{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
+					<ul class="mt-1 space-y-1 text-sm">
+						{#each work.myTasks.items as task (task.id)}
+							<li>
+								<a href={taskHref(task)} class="font-semibold text-emerald-900 hover:underline"
+									>{task.title}</a
+								>
+								{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
+							</li>
+						{/each}
+					</ul>
 					<a
 						href="{base}/tasks?mine=true"
 						class="mt-1 inline-block text-sm text-emerald-900 underline"
@@ -237,79 +274,87 @@
 				{/each}
 			</section>
 		{/if}
-
-		{#if stats.birthsByCentury.length > 0}
-			<section
-				aria-labelledby="births-by-century"
-				class="rounded-xl border border-stone-200 bg-white p-4"
-				data-testid="overview-centuries"
-			>
-				<h2 id="births-by-century" class="font-semibold text-stone-900">Births by century</h2>
-				<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
-				<dl class="mt-3 space-y-1 text-sm">
-					{#each stats.birthsByCentury as row (row.century)}
-						<div class="grid grid-cols-[4rem_1fr_3rem] items-center gap-2">
-							<dt class="text-stone-700">{row.century}s</dt>
-							<dd class="h-3 rounded-sm bg-stone-100" aria-hidden="true">
-								<div
-									class="h-3 rounded-sm bg-emerald-700"
-									style:width="{(row.people / widest) * 100}%"
-								></div>
-							</dd>
-							<dd class="text-right text-stone-700 tabular-nums">{row.people.toLocaleString()}</dd>
-						</div>
-					{/each}
-				</dl>
-			</section>
-		{/if}
-
-		{#if stats.averageLifespanYears !== null || stats.topSurnames.length > 0}
-			<section
-				aria-labelledby="tree-figures"
-				class="rounded-xl border border-stone-200 bg-white p-4"
-				data-testid="overview-figures"
-			>
-				<h2 id="tree-figures" class="font-semibold text-stone-900">Figures</h2>
-				<dl class="mt-2 space-y-2 text-sm">
-					{#if stats.averageLifespanYears !== null}
-						<div>
-							<dt class="text-stone-600">Average lifespan</dt>
-							<dd class="font-semibold text-stone-900">
-								{plural(stats.averageLifespanYears, 'year', 'years')}
-							</dd>
-						</div>
-					{/if}
-					{#if stats.oldest}
-						<div>
-							<dt class="text-stone-600">Longest life recorded</dt>
-							<dd>
-								<a
-									href={personPath(data.summary.tree, stats.oldest.id)}
-									class="font-semibold text-emerald-900 hover:underline">{stats.oldest.name}</a
-								>, {plural(stats.oldest.years, 'year', 'years')}
-							</dd>
-						</div>
-					{/if}
-					{#if stats.topSurnames.length > 0}
-						<div>
-							<dt class="text-stone-600">Most common surnames</dt>
-							<dd>
-								<ol class="mt-1 space-y-0.5">
-									{#each stats.topSurnames as row (row.surname)}
-										<li class="flex justify-between gap-2">
-											<a
-												href="{base}/people?surname={encodeURIComponent(row.surname)}"
-												class="font-semibold text-emerald-900 hover:underline">{row.surname}</a
-											>
-											<span class="text-stone-600 tabular-nums">{row.people.toLocaleString()}</span>
-										</li>
-									{/each}
-								</ol>
-							</dd>
-						</div>
-					{/if}
-				</dl>
-			</section>
-		{/if}
 	</div>
+
+	{#if stats.birthsByCentury.length > 0 || hasFigures}
+		<div class="mt-8 grid items-start gap-4 border-t border-stone-200 pt-6 md:grid-cols-2">
+			{#if stats.birthsByCentury.length > 0}
+				<section
+					aria-labelledby="births-by-century"
+					class="rounded-xl border border-stone-200 bg-white p-4"
+					data-testid="overview-centuries"
+				>
+					<h2 id="births-by-century" class="font-semibold text-stone-900">Births by century</h2>
+					<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
+					<dl class="mt-3 space-y-1 text-sm">
+						{#each stats.birthsByCentury as row (row.century)}
+							<div class="grid grid-cols-[4rem_1fr_3rem] items-center gap-2">
+								<dt class="text-stone-700">{row.century}s</dt>
+								<dd class="h-3 rounded-sm bg-stone-100" aria-hidden="true">
+									<div
+										class="h-3 rounded-sm bg-emerald-700"
+										style:width="{(row.people / widest) * 100}%"
+									></div>
+								</dd>
+								<dd class="text-right text-stone-700 tabular-nums">
+									{row.people.toLocaleString()}
+								</dd>
+							</div>
+						{/each}
+					</dl>
+				</section>
+			{/if}
+
+			{#if hasFigures}
+				<section
+					aria-labelledby="tree-figures"
+					class="rounded-xl border border-stone-200 bg-white p-4"
+					data-testid="overview-figures"
+				>
+					<h2 id="tree-figures" class="font-semibold text-stone-900">Figures</h2>
+					<dl class="mt-2 space-y-2 text-sm">
+						{#if stats.averageLifespanYears !== null}
+							<div>
+								<dt class="text-stone-600">Average lifespan</dt>
+								<dd class="font-semibold text-stone-900">
+									{plural(stats.averageLifespanYears, 'year', 'years')}
+								</dd>
+							</div>
+						{/if}
+						{#if stats.oldest}
+							<div>
+								<dt class="text-stone-600">Longest life recorded</dt>
+								<dd>
+									<a
+										href={personPath(data.summary.tree, stats.oldest.id)}
+										class="font-semibold text-emerald-900 hover:underline">{stats.oldest.name}</a
+									>, {plural(stats.oldest.years, 'year', 'years')}
+								</dd>
+							</div>
+						{/if}
+						{#if stats.topSurnames.length > 0}
+							<div>
+								<dt class="text-stone-600">Most common surnames</dt>
+								<dd>
+									<ol class="mt-1 space-y-0.5">
+										{#each stats.topSurnames as row (row.surname)}
+											<li class="flex justify-between gap-2">
+												<a
+													href="{base}/people?surname={encodeURIComponent(row.surname)}"
+													class="font-semibold text-emerald-900 hover:underline">{row.surname}</a
+												>
+												<span class="text-stone-600 tabular-nums"
+													>{row.people.toLocaleString()}</span
+												>
+											</li>
+										{/each}
+									</ol>
+								</dd>
+							</div>
+						{/if}
+					</dl>
+				</section>
+			{/if}
+		</div>
+	{/if}
 {/if}
