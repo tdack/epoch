@@ -238,14 +238,55 @@ describe('PersonFacts', () => {
 });
 
 describe('PersonFacts as a timeline', () => {
-	const marriage = (dateSort: string | null, dateText: string | null) =>
+	const marriage = (dateSort: string | null, dateText: string | null, children: unknown[] = []) =>
 		[
 			{
 				unionId: 'u1',
 				partners: [{ id: 'p2', displayName: 'Myrtle Blishen' }],
+				children,
 				events: [{ id: 'm1', type: 'MARR', dateText, dateSort, place: 'Kurri Kurri' }]
 			}
 		] as unknown as PersonPageDto['partnerships'];
+
+	it('lists a child’s birth in its place, with the person’s age then and the child linked', () => {
+		const child = {
+			person: {
+				id: 'c1',
+				displayName: 'Jean Blishen',
+				sex: 'F',
+				birthDate: '12 MAY 1937',
+				birthSort: '1937-05-12',
+				isPrivate: false
+			},
+			types: ['biological']
+		};
+		render(
+			[
+				fact({
+					id: 'birth',
+					sortStart: '1910-08-05',
+					sortEnd: '1910-08-05',
+					dateText: '05 AUG 1910'
+				}),
+				fact({ id: 'death', type: 'DEAT', label: 'Death', sortStart: '1970-04-03' })
+			],
+			{ mode: 'timeline', partnerships: marriage('1935-04-06', '06 APR 1935', [child]) }
+		);
+		const rows = [...document.querySelectorAll('[data-testid="facts"] > li')];
+		expect(rows.map((row) => row.querySelector('h4')!.textContent!.trim())).toEqual([
+			'Birth',
+			'Marriage',
+			'Birth of daughter',
+			'Death'
+		]);
+		const birth = byTestId('life-child-birth')!;
+		expect(birth.querySelector('[aria-hidden]')!.textContent).toBe(' · aged 26');
+		expect(birth.querySelector('a[href$="/people/c1"]')!.textContent).toContain('Jean Blishen');
+		// The marriage gets an age too, from its date text.
+		expect(byTestId('life-union-event')!.querySelector('[aria-hidden]')!.textContent).toBe(
+			' · aged 24'
+		);
+	});
 
 	it('reads oldest first, with the marriage in its place and the partner named', () => {
 		render(

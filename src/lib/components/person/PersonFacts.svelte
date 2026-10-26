@@ -15,6 +15,7 @@
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import type { FactDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 	import { ageAt, birthSpan } from '#lib/shared/age.js';
+	import { parseDateValue } from '#lib/shared/date-value.js';
 	import { FACT_KINDS, type FactRelative } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
@@ -26,7 +27,7 @@
 		type FactMember
 	} from './fact-groups.js';
 	import AgeText from './AgeText.svelte';
-	import { lifeTimeline, type LifeEntry } from './life-timeline.js';
+	import { childWord, lifeTimeline, type LifeEntry } from './life-timeline.js';
 	import { personPath, treePath, unionPath } from './person-paths.js';
 
 	interface Props {
@@ -56,7 +57,9 @@
 	/** Both page modes set a fact as a heading column and its details, with controls on one line. */
 	const isPageRow = $derived(mode !== 'grouped');
 
-	const life = $derived(isTimeline ? lifeTimeline(dto.facts, dto.partnerships) : []);
+	const life = $derived(
+		isTimeline ? lifeTimeline(dto.facts, dto.partnerships, dto.directChildren) : []
+	);
 	const birth = $derived(birthSpan(dto.facts));
 	const NO_AGE_TYPES = ['BIRT', 'CHR', 'BAPM', 'BURI', 'CREM'];
 	/**
@@ -66,6 +69,9 @@
 	 */
 	const ageOf = (fact: FactDto) =>
 		!birth || fact.age || NO_AGE_TYPES.includes(fact.type) ? null : ageAt(birth, fact);
+	// A partnership's or a child's date reaches the page only as text, so it is parsed here.
+	const ageAtText = (dateText: string | null) =>
+		birth && dateText ? ageAt(birth, parseDateValue(dateText)) : null;
 	const groups = $derived(
 		isTimeline
 			? []
@@ -362,13 +368,35 @@
 	{#if !isPageRow}{@render factNotes(fact)}{/if}
 {/snippet}
 
+{#snippet textAge(dateText: string | null)}
+	{@const text = ageAtText(dateText)}
+	{#if text}<span class="text-xs"><AgeText age={text} testId="fact-age" /></span>{/if}
+{/snippet}
+
+{#snippet childRow(entry: Extract<LifeEntry, { kind: 'child' }>)}
+	<li class={timelineRow} data-testid="life-child-birth">
+		<h4 class={timelineHeading}>Birth of {childWord(entry.child, entry.types)}</h4>
+		<div class="min-w-0">
+			<p class="text-sm text-stone-900">
+				{entry.child.birthDate}{@render textAge(entry.child.birthDate)}<span class="text-stone-600"
+					>{' · '}<PersonLink
+						person={entry.child}
+						href={personPath(treeRef, entry.child.id)}
+					/></span
+				>
+			</p>
+		</div>
+	</li>
+{/snippet}
+
 {#snippet unionRow(entry: Extract<LifeEntry, { kind: 'union' }>)}
 	<li class={timelineRow} data-testid="life-union-event" data-union-id={entry.unionId}>
 		<h4 class={timelineHeading}>{UNION_EVENT_LABELS[entry.event.type]}</h4>
 		<div class="min-w-0">
 			<p class="text-sm text-stone-900">
-				{entry.event.dateText ?? 'Date unknown'}{#if entry.partners.length > 0}<span
-						class="text-stone-600"
+				{entry.event.dateText ?? 'Date unknown'}{@render textAge(
+					entry.event.dateText
+				)}{#if entry.partners.length > 0}<span class="text-stone-600"
 						>{' · with'}
 						{#each entry.partners as partner, i (partner.id)}{#if i > 0}{i ===
 								entry.partners.length - 1
@@ -424,11 +452,13 @@
 		<p class="text-sm text-stone-500 italic">No events recorded.</p>
 	{:else}
 		<ol class="divide-y divide-stone-200" data-testid="facts">
-			{#each life as entry (entry.kind === 'fact' ? entry.fact.id : entry.event.id)}
+			{#each life as entry (entry.kind === 'fact' ? entry.fact.id : entry.kind === 'union' ? entry.event.id : `child-${entry.child.id}`)}
 				{#if entry.kind === 'fact'}
 					{@render factRow(entry.fact, entry.index, factLabelOf(entry.fact))}
-				{:else}
+				{:else if entry.kind === 'union'}
 					{@render unionRow(entry)}
+				{:else}
+					{@render childRow(entry)}
 				{/if}
 			{/each}
 		</ol>

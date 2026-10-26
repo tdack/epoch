@@ -55,6 +55,12 @@ describe('birthSpan', () => {
 	});
 });
 
+it('shows nothing for bounds the wrong way round', () => {
+	expect(
+		ageAt({ sortStart: '1910-08-05', sortEnd: '1900-12-31' }, parseDateValue('1935'))
+	).toBeNull();
+});
+
 describe('spokenAge', () => {
 	it('reads a range with "to"', () => {
 		expect(spokenAge('aged 10–11')).toBe('aged 10 to 11');

@@ -33,6 +33,8 @@ export function ageAt(birth: DateBounds, event: DateBounds): string | null {
 	const oldest = yearsBetween(birth.sortStart, event.sortEnd);
 	if (oldest < 0) return null;
 	const youngest = Math.max(0, yearsBetween(birth.sortEnd, event.sortStart));
+	// Bounds the wrong way round are bad data; any age from them would be nonsense.
+	if (youngest > oldest) return null;
 	if (oldest === 0) return 'aged under 1';
 	const isAbout = [birth.qualifier, event.qualifier].some((q) => q && ABOUT_QUALIFIERS.includes(q));
 	if (isAbout) return `aged about ${Math.round((youngest + oldest) / 2)}`;

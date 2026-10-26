@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { FactDto, PartnershipDto } from '#lib/shared/person-page.js';
 import type { GraphUnionEvent } from '#lib/shared/relationship-graph.js';
-import { lifeTimeline, type LifeEntry } from './life-timeline';
+import type { PersonSummaryDto } from '#lib/shared/person-page.js';
+import { childWord, lifeTimeline, type LifeEntry } from './life-timeline';
 
 function fact(id: string, sortStart: string | null, kind: FactDto['kind'] = 'event'): FactDto {
 	return { id, kind, sortStart } as FactDto;
@@ -11,6 +12,7 @@ function union(unionId: string, events: Array<Partial<GraphUnionEvent>>): Partne
 	return {
 		unionId,
 		partners: [],
+		children: [],
 		events: events.map((e, i) => ({
 			id: `${unionId}-${i}`,
 			type: 'MARR',
@@ -22,7 +24,21 @@ function union(unionId: string, events: Array<Partial<GraphUnionEvent>>): Partne
 }
 
 const ids = (entries: LifeEntry[]) =>
-	entries.map((e) => (e.kind === 'fact' ? e.fact.id : e.event.id));
+	entries.map((e) =>
+		e.kind === 'fact' ? e.fact.id : e.kind === 'union' ? e.event.id : e.child.id
+	);
+
+const kid = (id: string, birthSort: string | null, extra: Partial<PersonSummaryDto> = {}) => ({
+	person: {
+		id,
+		birthSort,
+		birthDate: birthSort,
+		isPrivate: false,
+		sex: 'U',
+		...extra
+	} as PersonSummaryDto,
+	types: []
+});
 
 describe('lifeTimeline', () => {
 	it('places partnership events among the person’s own by date, undated last', () => {
@@ -67,5 +83,33 @@ describe('lifeTimeline', () => {
 			'first-0',
 			'second-0'
 		]);
+	});
+});
+
+describe('children in the life timeline', () => {
+	it('places each recorded birth once, after a same-day partnership event', () => {
+		const partnerships = [
+			{ ...union('u1', [{ dateSort: '1935-06-01' }]), children: [kid('ann', '1935-06-01')] }
+		];
+		const facts = [fact('birth', '1910-08-05'), fact('death', '1970-04-03')];
+		expect(
+			ids(lifeTimeline(facts, partnerships, [kid('ann', '1935-06-01'), kid('bob', '1940-01-01')]))
+		).toEqual(['birth', 'u1-0', 'ann', 'bob', 'death']);
+	});
+
+	it('leaves out a hidden child and one with no recorded birth', () => {
+		const hidden = kid('hid', null, { isPrivate: true, birthDate: null });
+		const unborn = kid('nob', '1940-01-01', { birthDate: null });
+		expect(ids(lifeTimeline([], [], [hidden, unborn]))).toEqual([]);
+	});
+
+	it('names what the child is to the person', () => {
+		const p = (sex: PersonSummaryDto['sex']) => ({ sex }) as PersonSummaryDto;
+		expect(childWord(p('M'), ['biological'])).toBe('son');
+		expect(childWord(p('F'), [])).toBe('daughter');
+		expect(childWord(p('U'), ['adoptive'])).toBe('adopted child');
+		expect(childWord(p('F'), ['foster'])).toBe('foster daughter');
+		expect(childWord(p('M'), ['adoptive', 'biological'])).toBe('son');
+		expect(childWord(p('M'), ['guardian'])).toBe('ward');
 	});
 });

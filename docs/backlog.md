@@ -202,8 +202,9 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Compact chart.** The remaining item of the fan, hourglass and compact set. (ADR-020)
 - **Timeline and lifespan view.** The person page's Life section (ADR-058) is a per-person timeline
   of their own and their partnerships' events; a tree-wide or comparative view is still open.
-- **Children's births in the person page's Life timeline.** `PersonSummaryDto` carries a child's
-  birth as text without a sort key, so placing them needs a sortable birth on the summary (ADR-058).
+- **Other relatives' events in the person page's Life timeline.** Children's births are shown
+  (from the summary's `birthSort`); a parent's, sibling's or partner's death and grandchildren's
+  births, as webtrees offers, are not. (ADR-058)
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
 - **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
