@@ -14,6 +14,9 @@ export const trees = sqliteTable(
 		description: text('description'),
 		// ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
 		maxAliveYears: integer('max_alive_years').notNull().default(120),
+		// ADR-015, amended. A death this many years ago or less keeps the person private; 0 is off, so
+		// a tree that never sets it shows the dead as it did before the setting existed.
+		recentDeathYears: integer('recent_death_years').notNull().default(0),
 		// Whether viewers see a private person as a "Private" placeholder in the graph and on partnerships;
 		// off omits them. Off by default so the safe behaviour needs no action.
 		shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })

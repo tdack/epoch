@@ -1,0 +1,1 @@
+ALTER TABLE `trees` ADD `recent_death_years` integer DEFAULT 0 NOT NULL;
