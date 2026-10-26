@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
+import type { FactDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import PersonView from './PersonView.svelte';
 
@@ -489,5 +489,23 @@ describe('PersonView "This is me"', () => {
 	it('offers nothing to a reader with no account', () => {
 		open(pageOf('ben', 'Ben'), { isReadOnly: true });
 		expect(toggle()).toBeNull();
+	});
+});
+
+describe('PersonView summary', () => {
+	it('gives the age at death beside the lifespan', () => {
+		const vital = (id: string, type: string, sortStart: string, sortEnd: string) =>
+			({ id, type, sortStart, sortEnd, age: null }) as unknown as FactDto;
+		open(
+			pageOf('ida', 'Ida', {
+				vitals: {
+					birth: vital('b', 'BIRT', '1900-03-15', '1900-03-15'),
+					death: vital('d', 'DEAT', '1950-01-01', '1950-12-31'),
+					lifespan: '15 MAR 1900 – 1950',
+					hasConflict: false
+				}
+			})
+		);
+		expect(document.querySelector('[data-testid="death-age"]')!.textContent).toBe('aged 49–50');
 	});
 });

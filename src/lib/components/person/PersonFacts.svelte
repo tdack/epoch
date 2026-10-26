@@ -14,6 +14,7 @@
 	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import type { FactDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
+	import { ageAt } from '#lib/shared/age.js';
 	import { FACT_KINDS, type FactRelative } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
@@ -55,6 +56,11 @@
 	const isPageRow = $derived(mode !== 'grouped');
 
 	const life = $derived(isTimeline ? lifeTimeline(dto.facts, dto.partnerships) : []);
+	/** The age at a fact, from the birth; none on the birth itself, or where the record states one. */
+	const ageOf = (fact: FactDto) => {
+		const birth = dto.vitals.birth;
+		return !birth || fact.id === birth.id || fact.age ? null : ageAt(birth, fact);
+	};
 	const groups = $derived(
 		isTimeline
 			? []
@@ -194,6 +200,11 @@
 	</li>
 {/snippet}
 
+{#snippet age(fact: FactDto)}
+	{@const text = ageOf(fact)}
+	{#if text}<span class="text-xs text-stone-500" data-testid="fact-age">{' · '}{text}</span>{/if}
+{/snippet}
+
 {#snippet factDetail(fact: FactDto, index: number, isPanel: boolean)}
 	{#if isPanel}
 		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -204,16 +215,16 @@
 				>{/if}
 			<span class="text-xs text-stone-600"
 				>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}{' '}
-					<span class="text-stone-400">(approximate)</span>{/if}</span
+					<span class="text-stone-400">(approximate)</span>{/if}{@render age(fact)}</span
 			>
 		</div>
 	{:else if fact.kind !== FACT_KINDS.ATTRIBUTE}
 		<!-- An event is placed by its date; an undated one says so rather than looking complete. -->
 		<p class="text-sm text-stone-900">
 			{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}{' '}
-				<span class="text-xs text-stone-500">(approximate)</span>{/if}{#if fact.value}<span
-					class="text-stone-600">{' · '}{fact.value}</span
-				>{/if}
+				<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(
+				fact
+			)}{#if fact.value}<span class="text-stone-600">{' · '}{fact.value}</span>{/if}
 		</p>
 	{:else}
 		<!-- An attribute is its value; most have no date, and "Date unknown" on each would be noise. -->
@@ -221,7 +232,7 @@
 			{fact.value ?? ''}{#if fact.dateText}<span class="text-xs text-stone-600"
 					>{fact.value ? ' · ' : ''}{fact.dateText}</span
 				>{#if fact.isApproximate}{' '}
-					<span class="text-xs text-stone-500">(approximate)</span>{/if}{/if}
+					<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(fact)}{/if}
 		</p>
 	{/if}
 	{#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600">

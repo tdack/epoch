@@ -19,6 +19,7 @@ function fact(overrides: Partial<FactDto> = {}): FactDto {
 		kind: 'event',
 		dateText: '1900',
 		sortStart: '1900-01-01',
+		sortEnd: '1900-12-31',
 		isApproximate: false,
 		place: null,
 		value: null,
@@ -57,6 +58,7 @@ function render(
 	const dto = {
 		person: { id: 'p1' },
 		facts,
+		vitals: { birth: facts.find((f) => f.type === 'BIRT') ?? null },
 		partnerships: options.partnerships ?? [],
 		evidence: { citations: [] }
 	} as unknown as PersonPageDto;
@@ -265,6 +267,32 @@ describe('PersonFacts as a timeline', () => {
 		expect(union.querySelector('a[href$="/people/p2"]')).not.toBeNull();
 		// A viewer may follow the partnership but not edit it.
 		expect(union.querySelector('button')).toBeNull();
+	});
+
+	it('gives the age at each event from the birth, and none where the record states one', () => {
+		const day = (id: string, type: string, label: string, sort: string, dateText: string) =>
+			fact({ id, type, label, sortStart: sort, sortEnd: sort, dateText });
+		render(
+			[
+				day('birth', 'BIRT', 'Birth', '1910-08-05', '05 AUG 1910'),
+				day('cens', 'CENS', 'Census', '1921-04-03', '03 APR 1921'),
+				fact({
+					id: 'grad',
+					type: 'GRAD',
+					label: 'Graduation',
+					dateText: '1931',
+					sortStart: '1931-01-01',
+					sortEnd: '1931-12-31'
+				}),
+				{ ...day('death', 'DEAT', 'Death', '1970-04-03', '03 APR 1970'), age: '59' }
+			],
+			{ mode: 'timeline' }
+		);
+		const ages = [...document.querySelectorAll('[data-testid="fact-age"]')].map((a) =>
+			a.textContent!.trim()
+		);
+		// The graduation's year only, so it could be either side of the birthday.
+		expect(ages).toEqual(['· aged 10', '· aged 20–21']);
 	});
 
 	it('shows every event, so a conflict sits in place and nothing is behind a button', () => {

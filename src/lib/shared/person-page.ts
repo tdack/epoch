@@ -38,6 +38,8 @@ export interface FactDto extends PrivacyFlag {
 	dateText: string | null;
 	/** Inclusive lower bound, for ordering; null when undated or not a date. */
 	sortStart: string | null;
+	/** Inclusive upper bound, for an age at the fact; null when undated or open-ended. */
+	sortEnd: string | null;
 	isApproximate: boolean;
 	place: string | null;
 	value: string | null;

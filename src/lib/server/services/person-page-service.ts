@@ -108,6 +108,7 @@ function factDto(
 		kind: info?.kind ?? FACT_KINDS.EVENT,
 		dateText: row.dateRaw,
 		sortStart: date.sortStart,
+		sortEnd: date.sortEnd,
 		isApproximate: date.isApproximate,
 		place: row.place,
 		value: row.value,
