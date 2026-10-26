@@ -13,6 +13,7 @@
 	} from '#lib/shared/tasks.js';
 	import TaskDialog from './TaskDialog.svelte';
 	import { canDeleteTask } from './task-permissions.js';
+	import { taskSubjectPath } from './task-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	interface Props {
@@ -47,15 +48,7 @@
 	let dialog = $state<{ task: TaskDto } | null>(null);
 	const base = $derived(treePath(treeRef));
 
-	const hrefOf = (task: TaskDto) => {
-		const s = task.subject;
-		if (!s) return null;
-		if (s.personId) return `${base}/people/${encodeURIComponent(s.personId)}`;
-		if (s.unionId) return `${base}/unions/${encodeURIComponent(s.unionId)}`;
-		if (s.sourceId) return `${base}/sources/${encodeURIComponent(s.sourceId)}`;
-		if (s.noteId) return `${base}/notes/${encodeURIComponent(s.noteId)}`;
-		return null;
-	};
+	const hrefOf = (task: TaskDto) => taskSubjectPath(base, task);
 
 	const KIND_WORDS = {
 		person: 'person',

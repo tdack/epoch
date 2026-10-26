@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { taskSubjectPath } from '#lib/components/tasks/task-paths.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import EmptyTreePrompt from '#lib/components/tree/EmptyTreePrompt.svelte';
 	import { canCreateRecords, canImportGedcom } from '#lib/shared/roles.js';
@@ -74,14 +75,7 @@
 	const hasWork = $derived((work.myTasks?.open ?? 0) > 0 || (work.recentChanges?.length ?? 0) > 0);
 	const hasFigures = $derived(stats.averageLifespanYears !== null || stats.topSurnames.length > 0);
 	// A task opens its record; one about nothing opens the tasks list, as the Tasks page does.
-	const taskHref = (task: TaskDto) => {
-		const s = task.subject;
-		if (s?.personId) return `${base}/people/${encodeURIComponent(s.personId)}`;
-		if (s?.unionId) return `${base}/unions/${encodeURIComponent(s.unionId)}`;
-		if (s?.sourceId) return `${base}/sources/${encodeURIComponent(s.sourceId)}`;
-		if (s?.noteId) return `${base}/notes/${encodeURIComponent(s.noteId)}`;
-		return `${base}/tasks?mine=true`;
-	};
+	const taskHref = (task: TaskDto) => taskSubjectPath(base, task) ?? `${base}/tasks?mine=true`;
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
 </script>
