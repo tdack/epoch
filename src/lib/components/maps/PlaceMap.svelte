@@ -3,6 +3,7 @@
 	import type { LeafletMap, LayerGroup, Marker } from 'leaflet';
 	import { shouldReduceMotion } from '#lib/components/motion.js';
 	import type { MapBounds, MapMarker } from '#lib/shared/geo.js';
+	import type { LifeStop } from '#lib/shared/life-map.js';
 	import { clusterPoints } from './cluster.js';
 
 	type LeafletModule = typeof import('leaflet');
@@ -22,6 +23,13 @@
 		 * page's list or text must carry the same information.
 		 */
 		label: string;
+		/**
+		 * A person's stops, for the person page: numbered, coloured by `group`, never clustered (a life
+		 * has few). Draws in place of `markers`; the view fits them with `path`.
+		 */
+		stops?: LifeStop[];
+		/** Joined by a line, in order. Used with `stops`. */
+		path?: Array<[number, number]>;
 		/** One editable pin, for the place page. Null shows none. */
 		pin?: { latitude: number; longitude: number } | null;
 		/** When true a click on the map or a drag of the pin calls `onpick`. */
@@ -36,6 +44,8 @@
 
 	let {
 		markers = [],
+		stops = [],
+		path = [],
 		tileUrl,
 		tileAttribution,
 		label,
@@ -82,7 +92,10 @@
 					crossOrigin: true,
 					maxZoom: MAX_ZOOM
 				}).addTo(created);
-				const points: Array<[number, number]> = markers.map((m) => [m.latitude, m.longitude]);
+				const points: Array<[number, number]> = [
+					...markers.map((m): [number, number] => [m.latitude, m.longitude]),
+					...stops.map((s): [number, number] => [s.latitude, s.longitude])
+				];
 				if (points.length > 0)
 					created.fitBounds(points, { padding: [30, 30], maxZoom: FIT_MAX_ZOOM, animate: false });
 				else if (pin)
@@ -180,6 +193,49 @@
 		};
 	});
 
+	/** The facts at a stop, as DOM nodes so place names are never parsed as HTML. */
+	function stopPopup(stop: LifeStop): HTMLElement {
+		const list = document.createElement('ul');
+		list.className = 'place-map-popup';
+		for (const line of stop.lines) {
+			const item = document.createElement('li');
+			item.textContent = line;
+			list.appendChild(item);
+		}
+		return list;
+	}
+
+	// A person's stops and the line between them. Numbers are generated here, never user text.
+	$effect(() => {
+		if (!lib || !map || stops.length === 0) return;
+		const leaflet = lib;
+		const group: LayerGroup = new leaflet.LayerGroup().addTo(map);
+		if (path.length > 1)
+			new leaflet.Polyline(path, {
+				color: '#57534e',
+				weight: 2,
+				opacity: 0.7,
+				interactive: false
+			}).addTo(group);
+		for (const stop of stops) {
+			const text = stop.numbers.join(',');
+			const marker = new leaflet.Marker([stop.latitude, stop.longitude], {
+				// A zero-size icon with a centred child: a label of any width stays on its coordinate.
+				icon: new leaflet.DivIcon({
+					html: `<span class="life-stop life-stop-${stop.group}">${text}</span>`,
+					className: 'life-stop-icon',
+					iconSize: [0, 0]
+				}),
+				keyboard: false,
+				title: stop.lines.join('; ')
+			}).addTo(group);
+			marker.bindPopup(stopPopup(stop));
+		}
+		return () => {
+			group.remove();
+		};
+	});
+
 	// The single pin of the place page. Rebuilt when it moves or the mode changes, because Leaflet
 	// fixes a marker's draggability when it is made.
 	$effect(() => {
@@ -250,6 +306,44 @@
 		font-weight: 600;
 		justify-content: center;
 		margin: -15px 0 0 -15px !important;
+	}
+	.place-map :global(.life-stop) {
+		align-items: center;
+		background: var(--color-stone-700);
+		border: 2px solid white;
+		border-radius: 999px;
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+		color: white;
+		display: flex;
+		font-size: 12px;
+		font-weight: 600;
+		height: 24px;
+		justify-content: center;
+		min-width: 24px;
+		padding: 0 6px;
+		transform: translate(-50%, -50%);
+		width: max-content;
+	}
+	/* An undated stop has no number: a small dot. */
+	.place-map :global(.life-stop:empty) {
+		height: 14px;
+		min-width: 14px;
+		padding: 0;
+	}
+	.place-map :global(.life-stop-birth) {
+		background: var(--color-emerald-700);
+	}
+	.place-map :global(.life-stop-partnership) {
+		background: var(--color-rose-700);
+	}
+	.place-map :global(.life-stop-residence) {
+		background: var(--color-sky-700);
+	}
+	.place-map :global(.life-stop-death) {
+		background: var(--color-stone-800);
+	}
+	.place-map :global(.life-stop-other) {
+		background: var(--color-amber-700);
 	}
 	.place-map :global(.place-map-popup) {
 		margin: 0;

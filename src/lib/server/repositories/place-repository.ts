@@ -48,6 +48,11 @@ export interface PlaceAggregateRow {
 /** Fact types that name where a person lived; a living person's are left off maps (ADR-078). */
 const RESIDENCE_EVENT_TYPES = ['RESI', 'CENS'] as const;
 
+/** ` and <not a living person's home>` over `events e` and `individuals i`; the rule ignores the viewer. */
+function andNotLivingHome(scope: Scope): SQL {
+	return sql` and (e.type not in (${literalList(RESIDENCE_EVENT_TYPES)}) or ${isVisibleOf('i', { cutoff: scope.cutoff, creatorId: null })})`;
+}
+
 /**
  * The facts of this tree that carry a place, visible to the viewer, as one relation. With
  * `isMapped`, a person's residence or census fact is also dropped unless the living rule shows the
@@ -61,9 +66,7 @@ function visibleFacts(
 	lensRootId: string | null,
 	isMapped = false
 ): SQL {
-	const notLivingHome = isMapped
-		? sql` and (e.type not in (${literalList(RESIDENCE_EVENT_TYPES)}) or ${isVisibleOf('i', { cutoff: scope.cutoff, creatorId: null })})`
-		: sql``;
+	const notLivingHome = isMapped ? andNotLivingHome(scope) : sql``;
 	const partnersVisible = scope.isRestricted
 		? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
 		: sql``;
@@ -149,6 +152,29 @@ export function seedLocationsFromFacts(db: DbClient, treeId: string) {
 
 export class PlaceRepository {
 	constructor(private db: DbClient) {}
+
+	/**
+	 * Where a person's facts happened: fact id to the confirmed location of its place. One query for
+	 * the whole page. A restricted viewer gets nothing for a person they may not see, and a living
+	 * person's residence and census facts are left off, as on the Places map (ADR-078).
+	 */
+	async factLocationsOf(
+		treeId: string,
+		personId: string,
+		scope: Scope
+	): Promise<Record<string, { latitude: number; longitude: number }>> {
+		const rows = await this.db.all<{ id: string; latitude: number; longitude: number }>(sql`
+			select e.id as id, pl.latitude as latitude, pl.longitude as longitude
+			from events e
+			join individuals i on i.id = e.entity_id
+			join place_locations pl on pl.id = e.place_id
+			where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.entity_id = ${personId}
+				and pl.tree_id = ${treeId} and pl.status = 'confirmed'
+				and pl.latitude is not null and pl.longitude is not null${andVisible('i', scope)}${andNotLivingHome(scope)}`);
+		return Object.fromEntries(
+			rows.map((r) => [r.id, { latitude: r.latitude, longitude: r.longitude }])
+		);
+	}
 
 	/** The locations of these place records, which the caller has already limited to places it may see. */
 	async locationsOf(treeId: string, placeIds: string[]): Promise<Map<string, PlaceLocationDto>> {

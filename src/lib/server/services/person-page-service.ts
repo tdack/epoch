@@ -18,6 +18,7 @@ import { sortByBirth } from '../../shared/birth-order';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { EvidenceRepository } from '../repositories/evidence-repository';
 import { NoteRepository } from '../repositories/note-repository';
+import { PlaceRepository } from '../repositories/place-repository';
 import { isSubtreeMember } from '../repositories/subtree-membership';
 import { visibleAmong } from '../repositories/visibility';
 import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
@@ -210,6 +211,7 @@ export class PersonPageService {
 	private tasks: TaskReadService;
 	private users: UserRepository;
 	private trees: TreeRepository;
+	private places: PlaceRepository;
 
 	constructor(
 		private db: DbClient,
@@ -223,6 +225,7 @@ export class PersonPageService {
 		this.tasks = new TaskReadService(db, now);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
+		this.places = new PlaceRepository(db);
 	}
 
 	private requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
@@ -424,6 +427,7 @@ export class PersonPageService {
 		}));
 
 		return {
+			factLocations: await this.places.factLocationsOf(treeId, personId, scope),
 			...privacyOf(self.row),
 			...(lensRootId === null
 				? {}

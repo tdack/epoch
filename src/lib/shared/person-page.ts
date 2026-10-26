@@ -164,6 +164,11 @@ interface PersonPrivacyDto {
 }
 
 export interface PersonPageDto extends PrivacyFlag {
+	/**
+	 * Fact id to the confirmed location of its place, only for facts that may be mapped (ADR-078): a
+	 * living person's residence and census facts are absent though the facts themselves show.
+	 */
+	factLocations: Record<string, { latitude: number; longitude: number }>;
 	/** Present only when the page was asked for through a sub-tree address: is the person a member of that lens. */
 	isInSubtree?: boolean;
 	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
