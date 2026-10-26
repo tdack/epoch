@@ -223,7 +223,7 @@ describe('the commands', () => {
 					latitude: 1,
 					longitude: 2,
 					source: 'photon',
-					ifUnset: true
+					shouldSkipIfLocated: true
 				},
 				actor.context
 			);

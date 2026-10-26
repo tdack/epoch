@@ -391,7 +391,7 @@ export const placeLocationSchema = z.discriminatedUnion('status', [
 		osmType: z.enum(OSM_TYPES).nullish(),
 		osmId: z.number().int().nullish(),
 		displayName: z.string().max(500).nullish(),
-		ifUnset: z.boolean().optional(),
+		shouldSkipIfLocated: z.boolean().optional(),
 		version: versionSchema.optional()
 	}),
 	z.object({ status: z.literal('ignored'), version: versionSchema.optional() })

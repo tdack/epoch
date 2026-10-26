@@ -43,7 +43,7 @@ export async function attachCandidateLocationApi(
 				osmId: hasOsmRef ? candidate.osmId : null,
 				displayName: candidate.displayName,
 				// The place may have been located since the list above was read; the server then does nothing.
-				ifUnset: true
+				shouldSkipIfLocated: true
 			}),
 			'Failed to save the location'
 		);
