@@ -46,6 +46,7 @@ import { isSex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
 import { widowhoods } from '../../shared/widowhood';
 import { loadFocusWindow } from './focus-window';
+import { personAssociations } from './person-associations';
 import { personSummaries } from './person-summaries';
 import type {
 	ChangeEntryDto,
@@ -480,6 +481,15 @@ export class PersonPageService {
 				via: summary(s.viaPartnerId),
 				unionId: s.unionId
 			})),
+			associations: await personAssociations(
+				this.repo,
+				treeId,
+				self.row,
+				rows,
+				relatives.partnerships.map((p) => p.unionId),
+				graph,
+				scope
+			),
 			media: mediaRows.map(({ row }: { row: MediaRow }) => ({
 				...privacyOf(row),
 				id: row.id,
