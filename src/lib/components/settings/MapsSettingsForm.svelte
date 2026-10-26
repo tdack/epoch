@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { createSubmission } from '#lib/components/forms/submission.svelte.js';
 	import {
 		DEFAULT_MAPS_SETTINGS,
@@ -19,7 +20,9 @@
 	const submission = createSubmission((message) => {
 		submission.error = message;
 	});
-	let draft = $derived<MapsSettings>(resolveMapsSettings(stored));
+	// State, not a derived: the inputs write into its fields, and a derived object is not deeply
+	// reactive, so `isChanged` never saw an edit and Save stayed disabled.
+	let draft = $state<MapsSettings>(untrack(() => resolveMapsSettings(stored)));
 	let wasSaved = $state(false);
 
 	const isChanged = $derived(JSON.stringify(draft) !== JSON.stringify(resolveMapsSettings(stored)));
@@ -45,8 +48,14 @@
 
 	async function useDefaults() {
 		wasSaved = false;
+		// Nothing stored means the defaults are already saved; only the unsaved edit needs undoing.
+		if (stored === undefined) {
+			draft = resolveMapsSettings(undefined);
+			return;
+		}
 		await submission.submit(async () => {
 			await onsave({ maps: null });
+			draft = resolveMapsSettings(undefined);
 			wasSaved = true;
 		}, 'Could not save the map settings.');
 	}
@@ -121,7 +130,7 @@
 		<button
 			type="button"
 			class="rounded-lg border border-stone-400 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800 hover:bg-stone-100 disabled:opacity-55"
-			disabled={submission.isSaving || stored === undefined}
+			disabled={submission.isSaving || (stored === undefined && !isChanged)}
 			onclick={useDefaults}
 		>
 			Use the defaults
