@@ -43,6 +43,7 @@ describe('generateDeployConfig', () => {
 		expect(config.queues.producers[0].queue).toBe('family-import-queue');
 		expect(config.queues.consumers[0].queue).toBe('family-import-queue');
 		expect(config.workflows[0].name).toBe('family-export-workflow');
+		expect(config.workflows[1].name).toBe('family-match-workflow');
 	});
 
 	it('carries the tracked rate-limit bindings through unchanged', () => {

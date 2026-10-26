@@ -8,6 +8,7 @@ interface __BaseEnv_Env {
 	GEDCOM_IMPORT_QUEUE: Queue;
 	ASSETS: Fetcher;
 	GEDCOM_EXPORT_WORKFLOW: Workflow /* GedcomExportWorkflow */;
+	PLACE_MATCH_WORKFLOW: Workflow /* PlaceMatchWorkflow */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

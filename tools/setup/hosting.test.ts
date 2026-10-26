@@ -59,6 +59,7 @@ describe('Worker names', () => {
 			r2: 'shop-media',
 			queue: 'shop-import-queue',
 			workflow: 'shop-export-workflow',
+			placeMatchWorkflow: 'shop-match-workflow',
 			accessApp: 'Epoch (shop)',
 			profile: 'epoch-shop'
 		});

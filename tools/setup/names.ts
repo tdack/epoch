@@ -26,6 +26,7 @@ export function resourceNames(workerName: string) {
 		r2: `${workerName}-media`,
 		queue: `${workerName}-import-queue`,
 		workflow: `${workerName}-export-workflow`,
+		placeMatchWorkflow: `${workerName}-match-workflow`,
 		accessApp: `Epoch (${workerName})`,
 		accessPolicy: `Epoch ${workerName} sign-in`,
 		profile: `epoch-${workerName}`,
