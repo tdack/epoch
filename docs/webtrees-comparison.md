@@ -145,8 +145,8 @@ Epoch's places are a flat list derived from the text on each fact (ADR-018, ADR-
 ADR-078, a place can have a location. It comes from a fact's GEDCOM `MAP`, is set by hand, or is
 picked from OpenStreetMap through Photon, which also suggests places while you type. The Places
 tab shows located places on a map, with clustering. The place page has a pin, and the person page
-has a life map of the person's facts. Epoch uses Photon and OSM tiles only, so the other three
-geocoders and four map providers are not offered.
+has a life map of the person's facts. Epoch offers Photon for geocoding and OSM tiles for maps, by
+design (ADR-078).
 
 Still missing: hierarchy, `_LOC` records, the pedigree map, and map data import and export.
 
@@ -274,7 +274,7 @@ Already done, though the comparison might suggest otherwise:
 | Lifespans | none | BACKLOG ("timeline and lifespan view") |
 | Timeline, comparing several people | none (Life is one person only) | BACKLOG |
 | Statistics charts | none | BACKLOG |
-| Pedigree map | none; a life map of one person's facts on the person page | BACKLOG / OUT (lower priority) |
+| Pedigree map | none | BACKLOG / OUT (lower priority) |
 | Pedigree collapse | none | BACKLOG |
 | 3D views (Rings, Ball, Ribbons, Orrery) | Epoch only | — |
 
@@ -286,7 +286,9 @@ Already done, though the comparison might suggest otherwise:
 | Families | `/unions` | HAS |
 | Surnames | `/surnames` | HAS |
 | Branches (`BranchesListModule`) | none | GAP |
-| Places, with hierarchy | `/places` (flat) | PARTIAL / BACKLOG |
+| Places, with hierarchy | `/places` (flat), with a map of located places and clustering | PARTIAL / BACKLOG |
+| Place locations (`MAP`, by hand, or OSM) | `place_locations`, set from a fact's `MAP`, by hand, or from a Photon pick (ADR-078) | HAS |
+| Place pin | Pin on the place page, with "Set location" | HAS |
 | Locations (`_LOC`) | none | BACKLOG |
 | Sources | `/sources` | HAS |
 | Repositories | Inside `/sources`; no page of its own | PARTIAL |
@@ -310,9 +312,7 @@ All 16 report modules are **BACKLOG** ("printable reports"). They are listed in 
 | Family navigator sidebar | Drawer | HAS |
 | Sources, notes and media tabs | Evidence sections | HAS |
 | Stories | none | GAP |
-| Places tab, with a map | `/places` map of located places, with clustering | PARTIAL (no hierarchy) |
-| Place locations (`MAP`, by hand, or OSM) | `place_locations`, set from a fact's `MAP`, by hand, or from a Photon pick (ADR-078) | HAS |
-| Place pin | Pin on the place page, with "Set location" | HAS |
+| Places tab, with a map | Life map of one person's facts on the person page; partnership events are not shown (ADR-078) | PARTIAL |
 | Associates (`ASSO`) | Kept, not shown | GAP |
 | Raw GEDCOM view | none | GAP |
 | Change history, in metadata | Record history and audit filter (ADR-068) | HAS, and better: undo by id |
@@ -393,7 +393,7 @@ The webtrees media features (thumbnails, watermarks, albums, slideshow, multi-fi
 
 ### Places and maps
 
-These are covered in section 1.9. Locations, the Places map with clustering, the place pin, the person's life map and OSM suggestions while typing are **HAS**. Hierarchy, `_LOC` records and the pedigree map are **BACKLOG**. Geocoding import and export are **GAP**. Photon only sends place text, never a person, date or tree id, so the constraint that it must not leak private people holds (ADR-078).
+These are covered in section 1.9. Locations, the Places map with clustering, the place pin, the person's life map and OSM suggestions while typing are **HAS**. Hierarchy, `_LOC` records and the pedigree map are **BACKLOG**. Exporting geocoded coordinates is **BACKLOG**, and ADR-078 leaves it undecided. Photon only sends place text, never a person, date or tree id, so the constraint that it must not leak private people holds (ADR-078).
 
 ### Dates
 
