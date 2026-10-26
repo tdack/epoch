@@ -375,6 +375,7 @@ describe('places on the map', () => {
 3 MAP
 4 LATI N51.9
 4 LONG W8.47
+1 FAMS @F1@
 0 @I2@ INDI
 1 NAME Bob /Far/
 1 BIRT
@@ -399,6 +400,12 @@ describe('places on the map', () => {
 1 BIRT
 2 DATE 1904
 2 PLAC Broome
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I5@
+1 WIFE @I1@
+1 MARR
+2 PLAC Lisbon
 0 TRLR`;
 	let placesTree: string;
 
@@ -428,7 +435,7 @@ describe('places on the map', () => {
 
 	it('lists each unlocated place a visible fact names, and not one that is located or ignored', async () => {
 		const found = await findingsOf('place_without_location', 'owner');
-		expect(found.map((f) => f.subjects[0]!.name).sort()).toEqual(['Broome', 'Hobart']);
+		expect(found.map((f) => f.subjects[0]!.name).sort()).toEqual(['Broome', 'Hobart', 'Lisbon']);
 		expect(found[0]!.subjects[0]!.kind).toBe('place');
 	});
 
@@ -445,6 +452,8 @@ describe('places on the map', () => {
 		const report = await service().report(placesTree, actors.viewer.context);
 		expect(JSON.stringify(report)).not.toContain('Broome');
 		expect(JSON.stringify(report)).not.toContain('Secret');
+		// A partnership with a private partner is hidden with that partner, so its place is too.
+		expect(JSON.stringify(report)).not.toContain('Lisbon');
 		// The far fact is a visible person's, so it is still found; the located place is not reported.
 		expect((await findingsOf('fact_coordinates_far_from_place', 'viewer')).length).toBe(1);
 	});
