@@ -15,6 +15,12 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Relationships through a private ancestor are hidden** from a restricted viewer with no sign they
   exist, when private people are omitted. Decide whether that is the intended behaviour. (ADR-015)
 - **`confidential` imports as private but exports as `privacy`.** The word is not kept. (ADR-015)
+- **The living rule does not read relatives' dates** (webtrees' parent, partner, partnership,
+  child and grandchild offsets). The `probably_dead_no_death` quality rule lists those people
+  instead. Reading them in the predicate needs ADR-015's stored inputs. (ADR-015, amended 2026-10-26)
+- **Re-measure the restricted-viewer predicate** in query-plans.md: the 2026-10-26 amendment makes the
+  living test one lookup for a death or any old fact, plus one when the recent-death window is on.
+  (ADR-015)
 - **Restricted-viewer read cost.** A restricted viewer's surname list reads about 12 rows per person,
   and the partnership list's first page reads 650 rows. The stored-column alternative in ADR-015 is
   the next step if a tree outgrows it.
