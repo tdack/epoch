@@ -73,6 +73,46 @@ export async function rewritePlaceApi(
 	);
 }
 
+/** Pin a place by hand. `version` is the location's, absent when it has none yet. */
+export async function setPlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	where: { latitude: number; longitude: number },
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location`,
+		json('PUT', { status: 'confirmed', ...where, source: 'manual', version }),
+		'Failed to save the location'
+	);
+}
+
+/** Leave a place off the maps; it has no real location. */
+export async function ignorePlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location`,
+		json('PUT', { status: 'ignored', version }),
+		'Failed to ignore the location'
+	);
+}
+
+export async function clearPlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location` +
+			(version === undefined ? '' : `?version=${version}`),
+		{ method: 'DELETE' },
+		'Failed to clear the location'
+	);
+}
+
 /** The dates that would take their standard spelling, before and after. Saves nothing. */
 export async function previewStandardiseDatesApi(
 	treeId: string

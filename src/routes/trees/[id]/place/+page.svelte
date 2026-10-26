@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
+	import PlaceLocation from '#lib/components/maps/PlaceLocation.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -70,6 +71,15 @@
 		>
 	{/if}
 </div>
+
+<PlaceLocation
+	treeId={data.summary.tree.id}
+	placeId={place.id}
+	location={place.location}
+	{canEdit}
+	tileUrl={data.tiles.tileUrl}
+	tileAttribution={data.tiles.tileAttribution}
+/>
 
 <ul
 	class="mt-4 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white"
