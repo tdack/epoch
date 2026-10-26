@@ -2,6 +2,7 @@
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
 	import { sexLabel } from '#lib/shared/sex.js';
 	import { ageAt, birthSpan } from '#lib/shared/age.js';
+	import AgeText from './AgeText.svelte';
 	import type { NameDto, PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
@@ -60,11 +61,10 @@
 			>{/if}
 		<p class="mt-1 text-sm text-stone-600">
 			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
-				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}{#if deathAge}<span
-					aria-hidden="true">{' · '}</span
-				><span data-testid="death-age" title="Calculated from the birth date"
-					>{deathAge}<span class="sr-only">, calculated from the birth date</span></span
-				>{/if}
+				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}{#if deathAge}<AgeText
+					age={deathAge}
+					testId="death-age"
+				/>{/if}
 			{#if dto.vitals.hasConflict}<span
 					class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900"
 					>dates disagree</span

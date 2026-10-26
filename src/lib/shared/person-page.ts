@@ -7,6 +7,7 @@ import type { PersonEvidenceDto } from './evidence';
 import type { NoteDto } from './notes';
 import type { PersonTasksDto } from './tasks';
 import type { FactConflict } from './fact-timeline';
+import type { DateQualifier } from './date-value';
 import type { FactKind } from './fact-types';
 import type { NameType } from './name-types';
 import type { PartnershipLabel } from './partnership-labels';
@@ -40,6 +41,7 @@ export interface FactDto extends PrivacyFlag {
 	sortStart: string | null;
 	/** Inclusive upper bound, for an age at the fact; null when undated or open-ended. */
 	sortEnd: string | null;
+	qualifier: DateQualifier;
 	isApproximate: boolean;
 	place: string | null;
 	value: string | null;

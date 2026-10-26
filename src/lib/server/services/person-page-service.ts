@@ -109,6 +109,7 @@ function factDto(
 		dateText: row.dateRaw,
 		sortStart: date.sortStart,
 		sortEnd: date.sortEnd,
+		qualifier: date.qualifier,
 		isApproximate: date.isApproximate,
 		place: row.place,
 		value: row.value,

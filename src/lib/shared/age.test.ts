@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageAt, birthSpan } from './age';
+import { ageAt, birthSpan, spokenAge } from './age';
 import { parseDateValue } from './date-value';
 
 const age = (birth: string, event: string) => ageAt(parseDateValue(birth), parseDateValue(event));
@@ -12,7 +12,10 @@ describe('ageAt', () => {
 		['years only, which could fall either side', '1900', '1934', 'aged 33–34'],
 		['a month and a year', 'MAR 1900', '20 APR 1934', 'aged 34'],
 		['a range of births', 'BET 1850 AND 1860', '1900', 'aged 39–50'],
-		['an approximate birth, read as its year', 'ABT 1900', '10 JUN 1950', 'aged 49–50'],
+		['an approximate birth, said as about', 'ABT 1900', '10 JUN 1950', 'aged about 50'],
+		['an approximate event, said as about', '15 MAR 1900', 'ABT 1939', 'aged about 39'],
+		['an estimated birth', 'EST 1900', '1950', 'aged about 50'],
+		['a range that starts at 0', '1900', '1901', 'aged under 2'],
 		['an infant death', '3 JAN 1900', '20 MAY 1900', 'aged under 1'],
 		['a birth year and a death that year', '1900', '1900', 'aged under 1']
 	])('%s', (_name, birth, event, expected) => {
@@ -49,5 +52,12 @@ describe('birthSpan', () => {
 		});
 		expect(birthSpan([birth('BEF 1900'), birth('1890')])!.sortStart).toBeNull();
 		expect(birthSpan([birth(null)])).toBeNull();
+	});
+});
+
+describe('spokenAge', () => {
+	it('reads a range with "to"', () => {
+		expect(spokenAge('aged 10–11')).toBe('aged 10 to 11');
+		expect(spokenAge('aged 34')).toBe('aged 34');
 	});
 });

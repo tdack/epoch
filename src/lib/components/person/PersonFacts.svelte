@@ -25,6 +25,7 @@
 		memberSubTypeOf,
 		type FactMember
 	} from './fact-groups.js';
+	import AgeText from './AgeText.svelte';
 	import { lifeTimeline, type LifeEntry } from './life-timeline.js';
 	import { personPath, treePath, unionPath } from './person-paths.js';
 
@@ -57,13 +58,14 @@
 
 	const life = $derived(isTimeline ? lifeTimeline(dto.facts, dto.partnerships) : []);
 	const birth = $derived(birthSpan(dto.facts));
-	const AGE_HINT = 'Calculated from the birth date';
+	const NO_AGE_TYPES = ['BIRT', 'CHR', 'BAPM', 'BURI', 'CREM'];
 	/**
-	 * The age at a fact, from every recorded birth. None on a birth, where the record states one,
-	 * or on a burial or cremation, which would contradict the death's age when they share a range.
+	 * The age at a fact, from every recorded birth. None where the record states one, on the birth
+	 * itself or a christening or baptism (nearly always "under 1"), or on a burial or cremation,
+	 * which would contradict the death's age when they share a range.
 	 */
 	const ageOf = (fact: FactDto) =>
-		!birth || fact.age || ['BIRT', 'BURI', 'CREM'].includes(fact.type) ? null : ageAt(birth, fact);
+		!birth || fact.age || NO_AGE_TYPES.includes(fact.type) ? null : ageAt(birth, fact);
 	const groups = $derived(
 		isTimeline
 			? []
@@ -205,9 +207,7 @@
 
 {#snippet age(fact: FactDto)}
 	{@const text = ageOf(fact)}
-	{#if text}<span class="text-xs text-stone-500" data-testid="fact-age" title={AGE_HINT}
-			>{' · '}{text}<span class="sr-only">, {AGE_HINT.toLowerCase()}</span></span
-		>{/if}
+	{#if text}<span class="text-xs"><AgeText age={text} testId="fact-age" /></span>{/if}
 {/snippet}
 
 {#snippet factDetail(fact: FactDto, index: number, isPanel: boolean)}

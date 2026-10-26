@@ -275,6 +275,7 @@ describe('PersonFacts as a timeline', () => {
 			[
 				day('birth', 'BIRT', 'Birth', '1910-08-05', '05 AUG 1910'),
 				day('cens', 'CENS', 'Census', '1921-04-03', '03 APR 1921'),
+				day('chr', 'CHR', 'Christening', '1910-09-01', '01 SEP 1910'),
 				day('buri', 'BURI', 'Burial', '1970-04-10', '10 APR 1970'),
 				fact({
 					id: 'grad',
@@ -288,13 +289,15 @@ describe('PersonFacts as a timeline', () => {
 			],
 			{ mode: 'timeline' }
 		);
-		const ages = [...document.querySelectorAll('[data-testid="fact-age"]')].map((a) =>
-			a.textContent!.trim()
-		);
+		const ages = [...document.querySelectorAll('[data-testid="fact-age"]')];
 		// The graduation's year only, so it could be either side of the birthday. A burial has none,
-		// so it cannot contradict the death's.
-		expect(ages).toEqual(
-			['· aged 10', '· aged 20–21'].map((a) => `${a}, calculated from the birth date`)
+		// so it cannot contradict the death's, and nor has a christening (nearly always under 1).
+		expect(ages.map((a) => a.querySelector('[aria-hidden]')!.textContent!.trim())).toEqual([
+			'· aged 10',
+			'· aged 20–21'
+		]);
+		expect(ages[1]!.querySelector('.sr-only')!.textContent).toBe(
+			', aged 20 to 21, calculated from the birth date'
 		);
 	});
 

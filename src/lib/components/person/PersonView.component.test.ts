@@ -522,7 +522,7 @@ describe('PersonView summary', () => {
 			})
 		);
 		const age = document.querySelector('[data-testid="death-age"]')!;
-		expect(age.textContent).toBe('aged 48–50, calculated from the birth date');
+		expect(age.querySelector('[aria-hidden]')!.textContent).toBe(' · aged 48–50');
 		expect(age.getAttribute('title')).toBe('Calculated from the birth date');
 	});
 });
