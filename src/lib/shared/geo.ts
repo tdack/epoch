@@ -69,3 +69,35 @@ export const DEFAULT_MAPS_SETTINGS: Readonly<MapsSettings> = {
 export function resolveMapsSettings(stored: Partial<MapsSettings> | undefined): MapsSettings {
 	return { ...DEFAULT_MAPS_SETTINGS, ...stored };
 }
+
+/** One place on a map; `href` is where its popup links. */
+export interface MapMarker {
+	id: string;
+	label: string;
+	href: string;
+	latitude: number;
+	longitude: number;
+	/** Facts at the place, shown in the popup. */
+	count: number;
+}
+
+/** A map viewport in degrees. */
+export interface MapBounds {
+	south: number;
+	west: number;
+	north: number;
+	east: number;
+}
+
+/**
+ * Whether a point lies inside the viewport. shortcut: no antimeridian handling, so a viewport that
+ * straddles 180 degrees lists too few places; upgrade if a tree spans the Pacific.
+ */
+export function isInBounds(latitude: number, longitude: number, bounds: MapBounds): boolean {
+	return (
+		latitude >= bounds.south &&
+		latitude <= bounds.north &&
+		longitude >= bounds.west &&
+		longitude <= bounds.east
+	);
+}

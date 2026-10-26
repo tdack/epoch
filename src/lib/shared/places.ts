@@ -45,7 +45,7 @@ export interface PlaceListItem {
 }
 
 /** One located place for the map (ADR-078). */
-export interface PlaceMapPoint {
+interface PlaceMapPoint {
 	placeId: string;
 	name: string;
 	latitude: number;
