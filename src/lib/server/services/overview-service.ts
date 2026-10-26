@@ -8,6 +8,7 @@ import type { DbClient } from '../db';
 import type { TreeRows } from '../domain/change-log';
 import type { AuthenticatedContext } from '../domain/identity';
 import { anniversariesAround, overviewStats } from '../domain/overview';
+import { livingCutoff } from '../domain/living-state';
 import { omitForScope } from '../domain/privacy-mask';
 import { ChangeStore } from '../repositories/change-store';
 import { TreeRepository } from '../repositories/tree-repository';
@@ -91,10 +92,17 @@ export class OverviewService {
 			subtrees: []
 		};
 		const visible = omitForScope(rows, scope);
-		const today = new Date(this.now()).toISOString().slice(0, 10);
+		const now = new Date(this.now());
+		const today = now.toISOString().slice(0, 10);
+		const settings = await this.trees.privacySettings(treeId);
 		return {
 			stats: overviewStats(visible),
-			anniversaries: anniversariesAround(visible, today, scope.cutoff),
+			anniversaries: anniversariesAround(
+				visible,
+				today,
+				livingCutoff(now, settings?.maxAliveYears),
+				scope.isOutsider
+			),
 			work: { myTasks, recentChanges }
 		};
 	}

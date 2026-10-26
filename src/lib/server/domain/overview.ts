@@ -91,11 +91,16 @@ function daysAround(today: string): Set<string> {
  * Births, marriages and deaths recorded to one Gregorian day whose day falls around `today`. Only an
  * exact day counts: `ABT 1 MAR 1900` or `MAR 1900` would make up an anniversary. A dual-dated
  * (Julian) day is skipped, as its sort bound has moved to the following year's calendar.
+ *
+ * `livingCutoff` is the tree's own living rule, not the viewer's privacy cutoff: a public tree
+ * switches that off, which would make nobody living and leave "Coming up" empty for everyone.
+ * `shouldOmitLiving` drops anything about a living person, for a reader who is not a member.
  */
 export function anniversariesAround(
 	rows: TreeRows,
 	today: string,
-	cutoff: string
+	livingCutoff: string,
+	shouldOmitLiving = false
 ): AnniversaryDto[] {
 	const window = daysAround(today);
 	const people = new Map(rows.individuals.map((p) => [p.id, p]));
@@ -106,7 +111,7 @@ export function anniversariesAround(
 			factsOf.set(e.entityId, [...(factsOf.get(e.entityId) ?? []), e]);
 		else if (PARTED_TYPES.has(e.type)) parted.add(e.entityId);
 	}
-	const isLiving = (id: string) => isLikelyLiving(factsOf.get(id) ?? [], cutoff);
+	const isLiving = (id: string) => isLikelyLiving(factsOf.get(id) ?? [], livingCutoff);
 	const partnersOf = new Map<string, string[]>();
 	for (const p of rows.unionPartners)
 		partnersOf.set(p.unionId, [...(partnersOf.get(p.unionId) ?? []), p.personId]);
@@ -124,7 +129,7 @@ export function anniversariesAround(
 			const person = people.get(id);
 			return person ? [{ id, name: personName(person) }] : [];
 		});
-		if (named.length === 0) continue;
+		if (named.length === 0 || (shouldOmitLiving && ids.some(isLiving))) continue;
 		found.push({
 			id: e.id,
 			type,

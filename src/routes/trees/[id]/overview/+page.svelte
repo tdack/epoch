@@ -55,14 +55,16 @@
 			? unionPath(data.summary.tree, a.unionId)
 			: personPath(data.summary.tree, a.people[0]!.id);
 	const names = (a: AnniversaryDto) => a.people.map((p) => p.name).join(' and ');
-	const dayName = (days: number) =>
-		days === 1
-			? 'Tomorrow'
-			: new Date(Date.now() + days * 86_400_000).toLocaleDateString(undefined, {
-					weekday: 'short',
-					day: 'numeric',
-					month: 'short'
-				});
+	// From the local day, not now plus whole days: a daylight-saving change would move it a day.
+	const dayName = (days: number) => {
+		if (days === 1) return 'Tomorrow';
+		const [year, month, day] = today!.split('-').map(Number) as [number, number, number];
+		return new Date(year, month - 1, day + days).toLocaleDateString(undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short'
+		});
+	};
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
 </script>
