@@ -14,6 +14,8 @@ const MAX_MATCH_CANDIDATES = 5;
  * this is a half-hour job; a bigger tree runs again after the first batch is reviewed.
  */
 export const MAX_PLACES_PER_MATCH_RUN = 2000;
+/** The most places a run with no workflow bound looks up inside one request (`vite dev`). */
+export const MAX_INLINE_MATCH_PLACES = 20;
 /**
  * The places looked up in one workflow step. A step per place would spend two of the instance's
  * steps (lookup and sleep) on each, and the platform limits the steps of an instance, so 2,000

@@ -29,6 +29,7 @@ import { isGeocodable, type GeoCandidate } from '../../shared/geo';
 import {
 	HIGH_MATCH_SCORE,
 	MAX_BULK_ACCEPT_PLACES,
+	MAX_INLINE_MATCH_PLACES,
 	MAX_PLACES_PER_MATCH_RUN,
 	MEDIUM_MATCH_SCORE,
 	STALE_MATCH_RUN_SECONDS,
@@ -120,8 +121,6 @@ export class PlaceMatchService {
 		requireRealUser(context);
 		await requireMemberAction(this.users, treeId, context.user.id, MATCH_ACTION);
 		await this.requireGeocoding();
-		if (!workflow)
-			throw new DomainError('Place matching is not available here', 'INTERNAL_ERROR', 503);
 
 		const now = this.now();
 		const staleBefore = new Date(now.getTime() - STALE_MATCH_RUN_SECONDS * 1000);
@@ -131,12 +130,40 @@ export class PlaceMatchService {
 			});
 
 		const instanceId = `placematch_${treeId}_${now.getTime()}`;
+		if (!workflow) return this.runInline(treeId, context.user.id, instanceId);
 		try {
 			await workflow.create({ id: instanceId, params: { treeId, userId: context.user.id } });
 		} catch {
 			// The slot was taken but nothing will ever give it back.
 			await this.repo.finishRun(treeId, 'failed', this.now());
 			throw new DomainError('Place matching could not be started', 'INTERNAL_ERROR', 503);
+		}
+		return { instanceId };
+	}
+
+	/**
+	 * With no workflow bound (`vite dev`, or an install without the binding), a small run happens in
+	 * the request, as a small export does. A larger one is refused: one request must not spend
+	 * minutes calling Photon.
+	 */
+	private async runInline(
+		treeId: string,
+		userId: string,
+		instanceId: string
+	): Promise<{ instanceId: string }> {
+		try {
+			const selection = await this.selectForRun(treeId, userId);
+			if (selection.places.length > MAX_INLINE_MATCH_PLACES)
+				throw new DomainError(
+					`Without the matching workflow, at most ${MAX_INLINE_MATCH_PLACES} places can be matched at a time`,
+					'INTERNAL_ERROR',
+					503
+				);
+			await this.matchPlaces(treeId, selection.places, selection);
+			await this.finish(treeId, 'done');
+		} catch (error) {
+			await this.finish(treeId, 'failed');
+			throw error;
 		}
 		return { instanceId };
 	}

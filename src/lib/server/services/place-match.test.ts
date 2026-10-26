@@ -15,7 +15,11 @@ import {
 	ValidationError
 } from '../domain/errors';
 import type { GeoCandidate } from '../../shared/geo';
-import { HIGH_MATCH_SCORE, MAX_PLACES_PER_MATCH_RUN } from '../../shared/place-match';
+import {
+	HIGH_MATCH_SCORE,
+	MAX_INLINE_MATCH_PLACES,
+	MAX_PLACES_PER_MATCH_RUN
+} from '../../shared/place-match';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
@@ -289,9 +293,16 @@ describe('one run per tree', () => {
 		await match.finish(treeId, 'done');
 	});
 
-	it('refuses when the workflow is not bound, when geocoding is off, and non-managers', async () => {
+	it('runs a small match in the request when no workflow is bound', async () => {
+		expect(MAX_INLINE_MATCH_PLACES).toBeGreaterThanOrEqual(ALLOWED.length);
+		const { match, search } = service();
+		await match.start(treeId, owner(), undefined);
+		expect(search).toHaveBeenCalledTimes(ALLOWED.length);
+		expect((await repo().run(treeId))!.status).toBe('done');
+	});
+
+	it('refuses when geocoding is off, and non-managers', async () => {
 		const { match } = service();
-		await expect(match.start(treeId, owner(), undefined)).rejects.toThrow(/not available/);
 		await expect(
 			match.start(treeId, actors.editor.context, fakeWorkflow().binding)
 		).rejects.toThrow(UnauthorizedError);
