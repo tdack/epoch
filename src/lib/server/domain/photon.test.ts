@@ -34,6 +34,15 @@ describe('candidatesFromPhoton', () => {
 		]);
 	});
 
+	it('keeps only the first of two features with the same display name', () => {
+		const council = {
+			...BALLARAT,
+			properties: { ...BALLARAT.properties, osm_value: 'administrative' }
+		};
+		const found = candidatesFromPhoton({ features: [BALLARAT, council] });
+		expect(found.map((c) => c.kind)).toEqual(['city']);
+	});
+
 	it('skips features without a name or usable point, and caps the list at eight', () => {
 		const bad = [
 			{ geometry: { coordinates: [1, 2] }, properties: {} },
@@ -41,7 +50,11 @@ describe('candidatesFromPhoton', () => {
 			{ geometry: { coordinates: [1, 99] }, properties: { name: 'Off the map' } }
 		];
 		expect(candidatesFromPhoton({ features: bad })).toEqual([]);
-		expect(candidatesFromPhoton({ features: Array(12).fill(BALLARAT) })).toHaveLength(8);
+		const many = Array.from({ length: 12 }, (_, i) => ({
+			...BALLARAT,
+			properties: { ...BALLARAT.properties, name: `Ballarat ${i}` }
+		}));
+		expect(candidatesFromPhoton({ features: many })).toHaveLength(8);
 		expect(candidatesFromPhoton('nonsense')).toEqual([]);
 	});
 });

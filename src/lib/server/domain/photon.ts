@@ -35,6 +35,8 @@ export function candidatesFromPhoton(json: unknown): GeoCandidate[] {
 		const displayName = [...new Set([name, city, county, state, country].filter(Boolean))].join(
 			', '
 		);
+		// A town and its council area often share a name; the user picks text, so the first one wins.
+		if (found.some((c) => c.displayName === displayName)) continue;
 		found.push({
 			name,
 			displayName,
