@@ -4,7 +4,7 @@
  */
 
 /** Shorter text matches too much to be worth a call. */
-export const MIN_GEOCODE_QUERY_LENGTH = 3;
+const MIN_GEOCODE_QUERY_LENGTH = 3;
 
 /** Lower-cased with runs of whitespace collapsed: the form that is cached and searched. */
 export function normaliseGeoQuery(text: string): string {
