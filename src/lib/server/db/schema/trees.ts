@@ -12,7 +12,7 @@ export const trees = sqliteTable(
 		// bookmark survives; null when the name has nothing to make one from, and the id serves.
 		slug: text('slug'),
 		description: text('description'),
-		// ADR-015. A birth this many years ago (its latest upper bound) is what makes a person not living.
+		// ADR-015. Any own fact that ended this many years ago makes a person not living.
 		maxAliveYears: integer('max_alive_years').notNull().default(120),
 		// ADR-015, amended. A death this many years ago or less keeps the person private; 0 is off, so
 		// a tree that never sets it shows the dead as it did before the setting existed.

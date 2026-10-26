@@ -80,9 +80,10 @@
 			>Assume someone has died after this many years</label
 		>
 		<p id="max-alive-help" class="mt-1 text-xs text-stone-600">
-			A person with a death, burial or cremation fact, or any fact (a birth, census, marriage or
-			residence) that ended more than this many years ago, is shown. Everyone else, including anyone
-			with no dated fact, is hidden from contributors and viewers. Owners, managers and editors see
+			A person with a death, burial or cremation fact, or any of their own facts (a birth, census,
+			occupation or residence) that ended more than this many years ago, is shown. A marriage
+			belongs to the partnership, so it does not count. Everyone else, including anyone with no
+			dated fact, is hidden from contributors and viewers. Owners, managers and editors see
 			everyone.
 		</p>
 		<div class="mt-2 flex flex-wrap items-center gap-2">

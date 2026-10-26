@@ -78,8 +78,8 @@ const isDeath = (type: string) => (DEATH_EVENT_TYPES as readonly string[]).inclu
 
 /**
  * True unless the facts show the person has died, was born before the cutoff, or has any other fact
- * that ended before it (a census or marriage that long ago means they cannot still be alive, as
- * webtrees' `isDead()` also reads it). A fact with no upper bound (`AFT 1900`, undated) proves
+ * that ended before it (a census that long ago means they cannot still be alive, as webtrees'
+ * `isDead()` also reads it). A marriage is the partnership's fact, not theirs, so it is not read. A fact with no upper bound (`AFT 1900`, undated) proves
  * nothing, so it keeps the person living: the rule errs toward private, never toward showing
  * someone who might be alive. Relatives' dates are not read; that needs the stored inputs ADR-015
  * names, and the `probably_dead_no_death` quality rule points a manager at those people instead.
