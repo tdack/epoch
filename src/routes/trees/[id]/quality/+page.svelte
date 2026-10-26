@@ -13,6 +13,7 @@
 		restoreFindingApi,
 		standardiseDatesApi
 	} from '#lib/api/lists.js';
+	import { createGroupFactApi } from '#lib/api/people.js';
 	import type { DateTidyPreview } from '#lib/shared/date-tidy.js';
 	import {
 		MAX_DISMISSAL_REASON_LENGTH,
@@ -71,6 +72,37 @@
 			});
 		} finally {
 			isStandardising = false;
+		}
+	}
+
+	/** Which finding's person is having a death recorded, so its button cannot be pressed twice. */
+	let recordingDeathFor = $state<string | null>(null);
+
+	/**
+	 * Records a death with no date, as `1 DEAT Y` (the GEDCOM for "died, details unknown"), which
+	 * is what webtrees' FixMissingDeaths writes; Undo takes it back.
+	 */
+	async function recordDeath(finding: QualityFinding) {
+		const personId = finding.subjects[0]!.id;
+		recordingDeathFor = finding.key;
+		try {
+			const { change } = await createGroupFactApi(treeId, [personId], {
+				type: 'DEAT',
+				dateText: null,
+				place: null,
+				value: 'Y',
+				cause: null,
+				age: null,
+				notes: null
+			});
+			await editor.afterChange(change, `Recorded a death for ${finding.subjects[0]!.name}`);
+		} catch (cause: unknown) {
+			toasts.push(messageOf(cause, 'Could not record the death'), {
+				tone: 'error',
+				durationMs: 10_000
+			});
+		} finally {
+			recordingDeathFor = null;
 		}
 	}
 
@@ -321,6 +353,16 @@
 									>
 								</span>
 								<span class="flex items-baseline gap-3">
+									{#if canDismiss && finding.rule === 'probably_dead_no_death'}
+										<button
+											type="button"
+											class="text-link text-xs"
+											disabled={recordingDeathFor !== null}
+											onclick={() => recordDeath(finding)}
+											aria-label={`Record a death with no date for ${finding.subjects[0]?.name}`}
+											>Record death</button
+										>
+									{/if}
 									{#if canAddTask(role) && !finding.task}
 										<button
 											type="button"
