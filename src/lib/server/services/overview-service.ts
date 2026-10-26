@@ -7,7 +7,7 @@
 import type { DbClient } from '../db';
 import type { TreeRows } from '../domain/change-log';
 import type { AuthenticatedContext } from '../domain/identity';
-import { overviewStats } from '../domain/overview';
+import { anniversariesAround, overviewStats } from '../domain/overview';
 import { omitForScope } from '../domain/privacy-mask';
 import { ChangeStore } from '../repositories/change-store';
 import { TreeRepository } from '../repositories/tree-repository';
@@ -66,6 +66,11 @@ export class OverviewService {
 			researchTasks: [],
 			subtrees: []
 		};
-		return { stats: overviewStats(omitForScope(rows, scope)) };
+		const visible = omitForScope(rows, scope);
+		const today = new Date(this.now()).toISOString().slice(0, 10);
+		return {
+			stats: overviewStats(visible),
+			anniversaries: anniversariesAround(visible, today, scope.cutoff)
+		};
 	}
 }

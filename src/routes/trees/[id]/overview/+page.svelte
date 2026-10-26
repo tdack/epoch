@@ -1,7 +1,14 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { personPath } from '#lib/components/person/person-paths.js';
+	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import {
+		nextOccurrence,
+		UPCOMING_DAYS,
+		type AnniversaryDto,
+		type AnniversaryType
+	} from '#lib/shared/overview.js';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -18,6 +25,43 @@
 	const recents = $derived(
 		marks.recents.filter((r) => !marks.favorites.some((f) => f.id === r.id)).slice(0, RECENTS_SHOWN)
 	);
+	// Today by the reader's clock, not the server's UTC one, so set only once the page runs here.
+	let today = $state<string | null>(null);
+	onMount(() => {
+		const now = new Date();
+		today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+			.map((n, i) => String(n).padStart(i === 0 ? 4 : 2, '0'))
+			.join('-');
+	});
+	const dated = $derived(
+		today === null
+			? []
+			: data.overview.anniversaries
+					.map((a) => ({ ...a, next: nextOccurrence(a.monthDay, today!) }))
+					.sort((a, b) => a.next.days - b.next.days || a.year - b.year)
+	);
+	const onThisDay = $derived(dated.filter((a) => a.next.days === 0));
+	const comingUp = $derived(
+		dated.filter((a) => a.isCurrent && a.next.days > 0 && a.next.days <= UPCOMING_DAYS)
+	);
+	const VERBS: Record<AnniversaryType, string> = {
+		BIRT: 'born',
+		MARR: 'married',
+		DEAT: 'died'
+	};
+	const href = (a: AnniversaryDto) =>
+		a.unionId
+			? unionPath(data.summary.tree, a.unionId)
+			: personPath(data.summary.tree, a.people[0]!.id);
+	const names = (a: AnniversaryDto) => a.people.map((p) => p.name).join(' and ');
+	const dayName = (days: number) =>
+		days === 1
+			? 'Tomorrow'
+			: new Date(Date.now() + days * 86_400_000).toLocaleDateString(undefined, {
+					weekday: 'short',
+					day: 'numeric',
+					month: 'short'
+				});
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
 </script>
@@ -38,6 +82,56 @@
 </header>
 
 <div class="grid gap-4 md:grid-cols-2">
+	{#if onThisDay.length > 0}
+		<section
+			aria-labelledby="on-this-day"
+			class="rounded-xl border border-stone-200 bg-white p-4"
+			data-testid="overview-on-this-day"
+		>
+			<h2 id="on-this-day" class="font-semibold text-stone-900">On this day</h2>
+			<ul class="mt-2 space-y-1 text-sm">
+				{#each onThisDay as a (a.id)}
+					<li>
+						<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
+						{a.type === 'MARR' ? 'were' : 'was'}
+						{VERBS[a.type]} in {a.year}
+						<span class="text-stone-600">
+							({plural(a.next.year - a.year, 'year', 'years')} ago)</span
+						>.
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
+	{#if comingUp.length > 0}
+		<section
+			aria-labelledby="coming-up"
+			class="rounded-xl border border-stone-200 bg-white p-4"
+			data-testid="overview-coming-up"
+		>
+			<h2 id="coming-up" class="font-semibold text-stone-900">Coming up</h2>
+			<p class="text-xs text-stone-600">
+				Birthdays and wedding anniversaries in the next {UPCOMING_DAYS} days.
+			</p>
+			<ul class="mt-2 space-y-1 text-sm">
+				{#each comingUp as a (a.id)}
+					{@const years = a.next.year - a.year}
+					<li class="flex justify-between gap-3">
+						<span>
+							<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a
+							>
+							<span class="text-stone-600">
+								{a.type === 'BIRT' ? `turns ${years}` : `${years} years married`}
+							</span>
+						</span>
+						<span class="shrink-0 text-stone-600">{dayName(a.next.days)}</span>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	{#if marks.favorites.length > 0 || recents.length > 0}
 		<section
 			aria-labelledby="jump-back"

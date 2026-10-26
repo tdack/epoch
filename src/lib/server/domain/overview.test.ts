@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { overviewStats } from './overview';
+import { anniversariesAround, overviewStats } from './overview';
+import { livingCutoff } from './living-state';
+import { nextOccurrence } from '../../shared/overview';
 import { treeRows as rawRows, type RowsSpec } from '../testing/rows';
 import { dateColumnsFor } from './date-columns';
 
@@ -43,5 +45,57 @@ describe('overviewStats', () => {
 		const stats = overviewStats(treeRows({ people: [{ id: 'a', birth: '1900' }] }));
 		expect(stats.averageLifespanYears).toBeNull();
 		expect(stats.oldest).toBeNull();
+	});
+});
+
+describe('anniversariesAround', () => {
+	const TODAY = '2026-10-26';
+	const cutoff = livingCutoff(new Date(`${TODAY}T00:00:00Z`));
+	const found = (spec: RowsSpec) =>
+		anniversariesAround(treeRows(spec), TODAY, cutoff).map((a) => [a.id, a.isCurrent]);
+
+	it('takes only exact Gregorian days near today', () => {
+		expect(
+			found({
+				people: [
+					{ id: 'a', birth: '26 OCT 1990' },
+					{ id: 'b', birth: 'ABT 26 OCT 1900' },
+					{ id: 'c', birth: 'OCT 1900' },
+					{ id: 'd', birth: 'BEF 26 OCT 1900' },
+					{ id: 'e', birth: '26 OCT 1900', death: '25 NOV 1970' },
+					{ id: 'f', birth: '1 MAR 1900' }
+				]
+			})
+		).toEqual([
+			['birt-e', false],
+			['birt-a', true],
+			['deat-e', false]
+		]);
+	});
+
+	it('marks a wedding only while both partners live and are not parted', () => {
+		const spec = (extra: RowsSpec['events'] = []): RowsSpec => ({
+			people: [
+				{ id: 'a', birth: '1990' },
+				{ id: 'b', birth: '1991' }
+			],
+			unions: [{ id: 'u', partners: ['a', 'b'], marriage: '1 NOV 2015' }],
+			events: extra
+		});
+		const wedding = (s: RowsSpec) => found(s).find(([id]) => String(id).includes('u'));
+		expect(wedding(spec())?.[1]).toBe(true);
+		expect(
+			wedding(spec([{ id: 'div', entityId: 'u', entityType: 'FAMILY', type: 'DIV' }]))?.[1]
+		).toBe(false);
+	});
+});
+
+describe('nextOccurrence', () => {
+	it('counts days to the next one, crossing the year and keeping 29 February on the 28th', () => {
+		expect(nextOccurrence('10-26', '2026-10-26')).toEqual({ days: 0, year: 2026 });
+		expect(nextOccurrence('01-02', '2026-12-31')).toEqual({ days: 2, year: 2027 });
+		expect(nextOccurrence('10-25', '2026-10-26').year).toBe(2027);
+		expect(nextOccurrence('02-29', '2027-02-27')).toEqual({ days: 1, year: 2027 });
+		expect(nextOccurrence('02-29', '2028-02-28')).toEqual({ days: 1, year: 2028 });
 	});
 });
