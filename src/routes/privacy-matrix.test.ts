@@ -148,6 +148,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
 	},
+	[`${API}/trees/[id]/places/[placeId]/location/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/place-location.test.ts'
+	},
 	[`${API}/trees/[id]/places/[placeId]/impact/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
