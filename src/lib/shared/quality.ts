@@ -167,6 +167,12 @@ export const QUALITY_RULES = [
 		severity: 'suggestion',
 		title: 'Only one parent recorded',
 		why: 'A child has a single parent on record. The other parent may be worth finding.'
+	},
+	{
+		code: 'unconnected_people',
+		severity: 'suggestion',
+		title: 'Not connected to the rest of the tree',
+		why: 'No chain of parents, children or partners links these people to the largest connected family in the tree. They may be waiting for a relationship to be recorded, or have come in with an import and belong in another tree.'
 	}
 ] as const satisfies readonly QualityRule[];
 

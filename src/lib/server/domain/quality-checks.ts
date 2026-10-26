@@ -426,3 +426,57 @@ export function cyclesOf(edges: ReadonlyArray<readonly [string, string]>): strin
 	}
 	return found.sort((a, b) => a[0]!.localeCompare(b[0]!));
 }
+
+/** How many people of a detached group a finding names; the rest are counted. */
+const MAX_NAMED_UNCONNECTED = 5;
+
+/**
+ * One finding per group of people that no parent, child or partner link joins to the tree's
+ * largest group. The largest group stands in for "the tree" because a home or self person is each
+ * member's own choice, and a finding must read the same to everyone. Run it over every row: over a
+ * restricted viewer's rows, a person joined only through someone hidden would look detached.
+ */
+export function checkConnections(rows: TreeRows): QualityFinding[] {
+	const root = new Map<string, string>(rows.individuals.map((p) => [p.id, p.id]));
+	const find = (id: string): string => {
+		const up = root.get(id)!;
+		if (up === id) return id;
+		const top = find(up);
+		root.set(id, top);
+		return top;
+	};
+	const join = (a: string, b: string) => {
+		if (root.has(a) && root.has(b)) root.set(find(a), find(b));
+	};
+	for (const l of rows.parentChild) join(l.parentId, l.childId);
+	const firstPartner = new Map<string, string>();
+	for (const p of rows.unionPartners) {
+		const first = firstPartner.get(p.unionId);
+		if (first) join(first, p.personId);
+		else firstPartner.set(p.unionId, p.personId);
+	}
+
+	const groups = new Map<string, IndividualRow[]>();
+	for (const p of rows.individuals) groups.set(find(p.id), [...(groups.get(find(p.id)) ?? []), p]);
+	const sorted = [...groups.values()].sort((a, b) => b.length - a.length);
+	// One group, or nothing larger than a lone person, leaves nothing to be detached from.
+	if (sorted.length < 2 || sorted[0]!.length < 2) return [];
+	return sorted.slice(1).map((group) => {
+		const people = [...group].sort((a, b) => personName(a).localeCompare(personName(b)));
+		const named = people.slice(0, MAX_NAMED_UNCONNECTED).map((p) => personName(p));
+		const more = people.length - named.length;
+		const who =
+			people.length === 1
+				? `${named[0]} is`
+				: `${named.join(', ')}${more > 0 ? ` and ${more} more` : ''} are`;
+		return {
+			key: findingKey('unconnected_people', [...group.map((p) => p.id)].sort()[0]!),
+			rule: 'unconnected_people',
+			severity: QUALITY_RULE_BY_CODE.get('unconnected_people')!.severity,
+			message: `${who} not connected to the rest of the tree.`,
+			subjects: people
+				.slice(0, MAX_NAMED_UNCONNECTED)
+				.map((p) => ({ kind: 'person', id: p.id, name: personName(p) }))
+		};
+	});
+}

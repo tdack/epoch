@@ -12,7 +12,7 @@ import type { DbClient } from '../db';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { omitForScope } from '../domain/privacy-mask';
-import { checkQuality } from '../domain/quality-checks';
+import { checkConnections, checkQuality } from '../domain/quality-checks';
 import { checkPrivacyLeaks } from '../domain/quality-privacy';
 import { isManagerOrAbove } from '../../shared/roles';
 import { TaskReadService } from './task-read-service';
@@ -71,7 +71,10 @@ export class QualityService {
 		// The privacy-leak checks read every row and name the private person they are about, so only a
 		// manager or owner is shown them (ADR-029).
 		const leaks = isManagerOrAbove(scope.role) ? checkPrivacyLeaks(rows, scope.cutoff) : [];
-		const findings = [...checkQuality(omitForScope(rows, scope)), ...leaks].sort(
+		// Over every row, so a viewer who sees everyone gets it; to anyone else a person joined only
+		// through someone hidden would look detached.
+		const detached = scope.isRestricted ? [] : checkConnections(rows);
+		const findings = [...checkQuality(omitForScope(rows, scope)), ...leaks, ...detached].sort(
 			(a, b) =>
 				(SEVERITY_ORDER.get(a.severity) ?? 0) - (SEVERITY_ORDER.get(b.severity) ?? 0) ||
 				(RULE_ORDER.get(a.rule) ?? 0) - (RULE_ORDER.get(b.rule) ?? 0) ||

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addYears, checkQuality, cyclesOf } from './quality-checks';
+import { addYears, checkConnections, checkQuality, cyclesOf } from './quality-checks';
 import { treeRows } from '../testing/rows';
 
 /**
@@ -363,5 +363,46 @@ describe('unsourced key facts', () => {
 		const rows = treeRows({ people: [{ id: 'a', birth: '1900' }] });
 		expect(unsourced(rows)[0]!.key).toBe('unsourced_key_fact:birt-a');
 		expect(checkQuality(rows)).toEqual(checkQuality(rows));
+	});
+});
+
+describe('people not connected to the rest of the tree', () => {
+	const g = (id: string) => ({ id, givenName: id[0]!.toUpperCase() + id.slice(1), surname: 'X' });
+	const main = {
+		people: ['ann', 'bob', 'cat'].map(g),
+		unions: [{ id: 'u1', partners: ['ann', 'bob'] }],
+		links: [{ parentId: 'ann', childId: 'cat' }]
+	};
+
+	it('flags each detached group once, against the largest group, and the main tree never', () => {
+		const rows = treeRows({
+			...main,
+			people: [...main.people, ...['dan', 'eve', 'fay'].map(g)],
+			links: [...main.links, { parentId: 'dan', childId: 'eve' }]
+		});
+		const found = checkConnections(rows);
+		expect(found.map((f) => f.message)).toEqual([
+			'Dan X, Eve X are not connected to the rest of the tree.',
+			'Fay X is not connected to the rest of the tree.'
+		]);
+		expect(found[0]!.subjects.map((s) => s.id)).toEqual(['dan', 'eve']);
+	});
+
+	it('names five people of a large group and counts the rest', () => {
+		const kids = ['k1', 'k2', 'k3', 'k4', 'k5'];
+		const rest = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'];
+		const rows = treeRows({
+			people: [...main.people, ...kids.map(g), ...rest.map(g)],
+			unions: [...main.unions, { id: 'u2', partners: [...rest] }],
+			links: [...main.links, ...kids.map((childId) => ({ parentId: 'ann', childId }))]
+		});
+		const [detached] = checkConnections(rows);
+		expect(detached!.subjects).toHaveLength(5);
+		expect(detached!.message).toContain('and 2 more are not connected');
+	});
+
+	it('finds nothing in a connected tree, or one where everyone stands alone', () => {
+		expect(checkConnections(treeRows(main))).toEqual([]);
+		expect(checkConnections(treeRows({ people: ['ann', 'bob'].map(g) }))).toEqual([]);
 	});
 });
