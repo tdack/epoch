@@ -8,7 +8,7 @@ import type { GeoCandidate } from './geo';
 import type { OSM_TYPES } from './places';
 
 /** Candidates kept per place; Photon is asked for more, the reviewer sees the best few. */
-export const MAX_MATCH_CANDIDATES = 5;
+const MAX_MATCH_CANDIDATES = 5;
 /**
  * The most places one run looks up. A run takes about a second a place (Photon's courtesy gap), so
  * this is a half-hour job; a bigger tree runs again after the first batch is reviewed.
@@ -229,7 +229,7 @@ export interface LatLng {
 	longitude: number;
 }
 
-export type ScoredCandidate = Pick<
+type ScoredCandidate = Pick<
 	GeoCandidate,
 	'name' | 'city' | 'county' | 'state' | 'country' | 'kind' | 'latitude' | 'longitude'
 >;
