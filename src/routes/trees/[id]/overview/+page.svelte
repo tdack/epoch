@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { personPath, unionPath } from '#lib/components/person/person-paths.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
@@ -26,8 +26,9 @@
 	const recents = $derived(
 		marks.recents.filter((r) => !marks.favorites.some((f) => f.id === r.id)).slice(0, RECENTS_SHOWN)
 	);
-	// Today by the reader's clock, not the server's UTC one, so set only once the page runs here.
-	let today = $state<string | null>(null);
+	// Starts on the server's UTC day so the anniversary cards render in the first HTML instead of
+	// shifting the page when they appear; the reader's own day replaces it once the page runs here.
+	let today = $state(untrack(() => data.overview.today));
 	onMount(() => {
 		const now = new Date();
 		today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
@@ -35,11 +36,9 @@
 			.join('-');
 	});
 	const dated = $derived(
-		today === null
-			? []
-			: data.overview.anniversaries
-					.map((a) => ({ ...a, next: nextOccurrence(a.monthDay, today!) }))
-					.sort((a, b) => a.next.days - b.next.days || a.year - b.year)
+		data.overview.anniversaries
+			.map((a) => ({ ...a, next: nextOccurrence(a.monthDay, today) }))
+			.sort((a, b) => a.next.days - b.next.days || a.year - b.year)
 	);
 	const onThisDay = $derived(dated.filter((a) => a.next.days === 0));
 	const comingUp = $derived(
@@ -58,7 +57,7 @@
 	// From the local day, not now plus whole days: a daylight-saving change would move it a day.
 	const dayName = (days: number) => {
 		if (days === 1) return 'Tomorrow';
-		const [year, month, day] = today!.split('-').map(Number) as [number, number, number];
+		const [year, month, day] = today.split('-').map(Number) as [number, number, number];
 		return new Date(year, month - 1, day + days).toLocaleDateString(undefined, {
 			weekday: 'short',
 			day: 'numeric',

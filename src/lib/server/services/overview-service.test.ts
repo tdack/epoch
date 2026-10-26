@@ -56,7 +56,8 @@ afterAll(async () => {
 
 describe('OverviewService', () => {
 	it('counts everyone for the owner', async () => {
-		const { stats } = await overview().load(treeId, owner.context);
+		const { stats, today } = await overview().load(treeId, owner.context);
+		expect(today).toBe('2026-10-01');
 		expect(stats).toMatchObject({
 			people: 3,
 			partnerships: 1,

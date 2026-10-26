@@ -46,6 +46,8 @@ export interface OverviewDto {
 	 * today by their own, which can be a day either side.
 	 */
 	anniversaries: AnniversaryDto[];
+	/** The server's UTC day (`YYYY-MM-DD`): the starting guess until the reader's own clock takes over. */
+	today: string;
 }
 
 /** How many days after today "Coming up" reaches. */

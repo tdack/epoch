@@ -103,7 +103,8 @@ export class OverviewService {
 				livingCutoff(now, settings?.maxAliveYears),
 				scope.isOutsider
 			),
-			work: { myTasks, recentChanges }
+			work: { myTasks, recentChanges },
+			today
 		};
 	}
 }
