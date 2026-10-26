@@ -264,8 +264,6 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Structured address editing (`ADR1` to `CTRY`).** The address is edited as text, so its
   structured parts are kept only while the text still matches them, the rule ADR-028 applies to
   `gedcom_layout`. Editing the parts would need its own staleness rule (ADR-051).
-- **Feed fact coordinates into the places model.** Latitude and longitude sit on the fact and need a
-  place. A place-level coordinate would serve the places model (ADR-051).
 - **`HUSB` and `WIFE` `AGE` under family events** stay retained. Model them with the partnership
   details (ADR-051).
 
@@ -306,10 +304,18 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 ### Places and maps
 
 - **Hierarchical places** that keep the exact historical text on each event.
-- **Aliases, historical names, coordinates, confidence and provenance** on places.
-- **Event maps, then ancestor and pedigree maps,** only after place quality is adequate. Optional
-  third-party geocoding must never send private-person details outside, and must never overwrite
-  historical labels.
+- **Aliases and historical names** on places, and confidence in a place's location.
+- **Pedigree map and migration arrows** on the ancestor view.
+- **Time slider over the maps,** so a place's facts can be seen by date.
+- **OpenHistoricalMap boundaries** for places whose extent has changed.
+- **Hierarchical places seeded from geocoder address parts** (ADR-078).
+- **Deciding ODbL for exporting geocoded coordinates** (ADR-078). Until it is decided, they are not
+  exported.
+- **The CSP is fixed at build time,** so a custom tile host needs a code change (ADR-078).
+- **The Places page reloads the whole map data on every list page.**
+- **Partnership events are not on the person life map.**
+- **The place-field OSM suggestions are only in the fact and partnership-event editors,** not the
+  add-person and relationship dialogs.
 
 ### Operations
 
