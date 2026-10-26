@@ -28,10 +28,10 @@ const menuLabels = () =>
 	[...document.querySelectorAll('[role="menuitem"]')].map((el) => el.textContent?.trim());
 
 describe('TreeNav', () => {
-	it('shows four tabs and keeps the research pages in the Research menu', () => {
+	it('shows five tabs and keeps the research pages in the Research menu', () => {
 		render({ role: 'editor' });
 		const tabs = [...document.querySelectorAll('nav > div a')].map((a) => a.textContent?.trim());
-		expect(tabs).toEqual(['Tree', 'People', 'Partnerships', 'Places']);
+		expect(tabs).toEqual(['Overview', 'Tree', 'People', 'Partnerships', 'Places']);
 		openResearch();
 		expect(menuLabels()).toEqual([
 			'Sources',

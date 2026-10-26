@@ -41,6 +41,7 @@
 	const base = $derived(treePath({ id: treeId, slug: treeSlug }));
 	const startsWith = (path: string) => pathname.startsWith(path);
 	const tabs = $derived<NavLink[]>([
+		{ href: `${base}/overview`, label: 'Overview', isActive: startsWith(`${base}/overview`) },
 		{ href: base, label: 'Tree', isActive: pathname === base },
 		{ href: `${base}/people`, label: 'People', isActive: pathname === `${base}/people` },
 		{ href: `${base}/unions`, label: 'Partnerships', isActive: pathname === `${base}/unions` },
