@@ -214,6 +214,12 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   the latest changes. It does not yet honour a sub-tree lens (it says so), show quality-finding
   counts (the report reads every table, too heavy for a page opened often), or name who made each
   change. A dual-dated (Julian) day is never an anniversary.
+- **Dates read as GEDCOM everywhere.** Lists, the person page and the Overview show a date as
+  written ("BET 1968 AND 1970", "ABT 1900"), which reads as jargon to a relative. A shared
+  plain-English rendering ("between 1968 and 1970") would need to apply app-wide, not per page.
+- **The tree tabs overflow a phone.** At 375px the tab row shows about 218px; Tree, People,
+  Partnerships and Places alone need about 315px, so the row scrolls behind a fade, and Overview
+  added another 90px. Fixing it means regrouping the tabs on narrow screens, not shortening one.
 - **Branch (clippings) export** for a selected person and bounded relatives, with privacy enforced.
   Export is whole-tree only today.
 - **Pedigree collapse in charts.** An ancestor reached twice should render once, with a dashed link
