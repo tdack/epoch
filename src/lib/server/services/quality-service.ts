@@ -12,11 +12,12 @@ import type { DbClient } from '../db';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { omitForScope } from '../domain/privacy-mask';
-import { checkConnections, checkQuality } from '../domain/quality-checks';
+import { checkConnections, checkPlaces, checkQuality } from '../domain/quality-checks';
 import { checkPrivacyLeaks } from '../domain/quality-privacy';
 import { isManagerOrAbove } from '../../shared/roles';
 import { TaskReadService } from './task-read-service';
 import { ChangeStore } from '../repositories/change-store';
+import { PlaceRepository } from '../repositories/place-repository';
 import { QualityRepository } from '../repositories/quality-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -41,6 +42,7 @@ export class QualityService {
 	private tasks: TaskReadService;
 	private users: UserRepository;
 	private trees: TreeRepository;
+	private places: PlaceRepository;
 
 	constructor(
 		db: DbClient,
@@ -51,6 +53,7 @@ export class QualityService {
 		this.dismissals = new QualityRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
+		this.places = new PlaceRepository(db);
 	}
 
 	/** Every finding the viewer may see, dismissed or not, in the order the report lists them. */
@@ -68,13 +71,18 @@ export class QualityService {
 			new Date(this.now())
 		);
 		const rows = await this.store.loadRows(treeId);
+		const placeRecords = await this.places.records(treeId);
+		const visible = omitForScope(rows, scope);
 		// The privacy-leak checks read every row and name the private person they are about, so only a
 		// manager or owner is shown them (ADR-029).
 		const leaks = isManagerOrAbove(scope.role) ? checkPrivacyLeaks(rows, scope.cutoff) : [];
 		// Over every row, so a viewer who sees everyone gets it; to anyone else a person joined only
 		// through someone hidden would look detached.
 		const detached = scope.isRestricted ? [] : checkConnections(rows);
-		const findings = [...checkQuality(omitForScope(rows, scope)), ...leaks, ...detached].sort(
+		// The place rules read the whole tree's locations, not the masked copy: a restricted viewer's
+		// copy has none, and a place having a location is not private.
+		const placeFindings = checkPlaces(visible, placeRecords, rows.placeLocations);
+		const findings = [...checkQuality(visible), ...placeFindings, ...leaks, ...detached].sort(
 			(a, b) =>
 				(SEVERITY_ORDER.get(a.severity) ?? 0) - (SEVERITY_ORDER.get(b.severity) ?? 0) ||
 				(RULE_ORDER.get(a.rule) ?? 0) - (RULE_ORDER.get(b.rule) ?? 0) ||

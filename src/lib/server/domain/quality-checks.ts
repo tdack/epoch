@@ -21,7 +21,10 @@ import {
 	type QualityRuleCode
 } from '../../shared/quality';
 import { KEY_FACT_TYPES } from '../../shared/evidence';
-import type { EventRow, IndividualRow, TreeRows } from './change-log';
+import { distanceKm } from '../../shared/distance';
+import { placeKey } from '../../shared/places';
+import { parseGedcomCoordinate } from '../../shared/places-coordinates';
+import type { EventRow, IndividualRow, PlaceLocationRow, TreeRows } from './change-log';
 import { personName } from './tree-ops';
 
 /** A group of namesakes is listed up to this many people; the finding still counts them all. */
@@ -32,6 +35,12 @@ const MAX_LIFESPAN_YEARS = 120;
 const LATE_BIRTH_GRACE_YEARS = 1;
 /** Burial, cremation and probate follow a death by design, however long after. */
 const POSTHUMOUS_TYPES: ReadonlySet<string> = new Set(['DEAT', 'BURI', 'CREM', 'PROB']);
+/**
+ * A fact's own map point further than this from its place's confirmed location is a mistyped
+ * coordinate or the wrong place. Fifty kilometres is well past a town's own spread, so a real
+ * place never trips it.
+ */
+const FAR_FROM_PLACE_KM = 50;
 
 /** `YYYY-MM-DD` plus whole years, by the year only; a 29 February moves to a day that compares the same way. */
 export function addYears(day: string, years: number): string {
@@ -479,4 +488,88 @@ export function checkConnections(rows: TreeRows): QualityFinding[] {
 				.map((p) => ({ kind: 'person', id: p.id, name: personName(p) }))
 		};
 	});
+}
+
+/** A place record as the tree stores it (ADR-019): its id, and the key its facts' text is grouped by. */
+export interface PlaceRecordRow {
+	id: string;
+	nameKey: string;
+}
+
+/**
+ * The rules over the places the tree's facts name (ADR-078). `rows` are what the viewer may see, so
+ * only their facts are counted and a place that only a hidden person's facts name is absent for
+ * them. `locations` must be the whole tree's: a restricted viewer's rows carry none, and whether a
+ * place has a location is not private, so a finding must not depend on who is looking.
+ */
+export function checkPlaces(
+	rows: TreeRows,
+	places: readonly PlaceRecordRow[],
+	locations: readonly PlaceLocationRow[]
+): QualityFinding[] {
+	const findings: QualityFinding[] = [];
+	const people = new Map<string, IndividualRow>(rows.individuals.map((p) => [p.id, p]));
+	const unionIds = new Set(rows.unions.map((u) => u.id));
+	const partnersOfUnion = new Map<string, string[]>();
+	for (const p of rows.unionPartners)
+		partnersOfUnion.set(p.unionId, [...(partnersOfUnion.get(p.unionId) ?? []), p.personId]);
+	const nameOf = (id: string) => (people.has(id) ? personName(people.get(id)!) : 'Someone');
+	const partnersLabel = (unionId: string) =>
+		(partnersOfUnion.get(unionId) ?? []).map(nameOf).join(' and ') || 'a partnership';
+	const attached = (e: EventRow) =>
+		e.entityType === 'INDIVIDUAL' ? people.has(e.entityId) : unionIds.has(e.entityId);
+
+	const placeIdOf = new Map<string, string>(places.map((p) => [p.nameKey, p.id]));
+	const placeIdOfFact = (e: EventRow) => (e.place ? placeIdOf.get(placeKey(e.place)) : undefined);
+	// A place with any row is handled, ignored or not: only a confirmed point can place a fact.
+	const handled = new Set(locations.map((l) => l.id));
+	const confirmed = new Map<string, { latitude: number; longitude: number }>();
+	for (const l of locations)
+		if (l.status === 'confirmed' && l.latitude !== null && l.longitude !== null)
+			confirmed.set(l.id, { latitude: l.latitude, longitude: l.longitude });
+
+	// The place text is the least of the visible facts' texts, as the place list shows it.
+	const shownNameOf = new Map<string, string>();
+	for (const e of rows.events) {
+		const placeId = placeIdOfFact(e);
+		if (placeId === undefined || handled.has(placeId) || !attached(e)) continue;
+		const shown = shownNameOf.get(placeId);
+		if (shown === undefined || e.place! < shown) shownNameOf.set(placeId, e.place!);
+	}
+	for (const [placeId, shown] of shownNameOf) {
+		findings.push({
+			key: findingKey('place_without_location', placeId),
+			rule: 'place_without_location',
+			severity: QUALITY_RULE_BY_CODE.get('place_without_location')!.severity,
+			message: `The place “${shown}” has no location, so it is not on the map.`,
+			subjects: [{ kind: 'place', id: placeId, name: shown }]
+		});
+	}
+
+	for (const e of rows.events) {
+		const placeId = placeIdOfFact(e);
+		const location = placeId === undefined ? undefined : confirmed.get(placeId);
+		if (!location || !attached(e) || e.latitude === null || e.longitude === null) continue;
+		const at = {
+			latitude: parseGedcomCoordinate(e.latitude, 'latitude'),
+			longitude: parseGedcomCoordinate(e.longitude, 'longitude')
+		};
+		if (at.latitude === null || at.longitude === null) continue;
+		const km = distanceKm({ latitude: at.latitude, longitude: at.longitude }, location);
+		if (km <= FAR_FROM_PLACE_KM) continue;
+
+		const label = (factTypeInfo(e.type)?.label ?? e.type).toLowerCase();
+		const isOfPerson = e.entityType === 'INDIVIDUAL';
+		const who = isOfPerson ? nameOf(e.entityId) : partnersLabel(e.entityId);
+		findings.push({
+			key: findingKey('fact_coordinates_far_from_place', e.id),
+			rule: 'fact_coordinates_far_from_place',
+			severity: QUALITY_RULE_BY_CODE.get('fact_coordinates_far_from_place')!.severity,
+			message: `The map point of the ${label} of ${who} is ${Math.round(km)} km from the place “${e.place}”.`,
+			subjects: isOfPerson
+				? [{ kind: 'person', id: e.entityId, name: nameOf(e.entityId) }]
+				: [{ kind: 'partnership', id: e.entityId, name: who }]
+		});
+	}
+	return findings;
 }
