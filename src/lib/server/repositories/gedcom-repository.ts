@@ -16,6 +16,7 @@ import {
 	notes,
 	parentChild,
 	personNames,
+	placeLocations,
 	places,
 	repositories,
 	researchTasks,
@@ -52,7 +53,7 @@ import {
 import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { importNeutralModel } from './gedcom-neutral-writer';
 import { chunkByParamLimit } from './param-chunks';
-import { pointFactsAtPlaces } from './place-repository';
+import { pointFactsAtPlaces, seedLocationsFromFacts } from './place-repository';
 import type { ImportBatch } from './import-batch';
 
 export interface ImportWrite {
@@ -214,6 +215,9 @@ export class GedcomRepository {
 			// would be written back beside it on every export.
 			writes.push(db.delete(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId)));
 			// Records for the old facts' places would only be orphans; the import makes the ones it needs.
+			// A location points at its place record, so it goes first. A replace starts from the new
+			// file, so a hand-set location goes with the old places (as the old change log's rows do).
+			writes.push(db.delete(placeLocations).where(eq(placeLocations.treeId, treeId)));
 			writes.push(db.delete(places).where(eq(places.treeId, treeId)));
 			// Neutral tables: deleting unions cascades union_partners; parent_child and
 			// person_names are removed via the individuals cascade below.
@@ -356,7 +360,7 @@ export class GedcomRepository {
 			for (const chunk of chunkByParamLimit(eventValues, eventColumnCount)) {
 				writes.push(db.insert(events).values(chunk).onConflictDoNothing());
 			}
-			writes.push(...pointFactsAtPlaces(db, treeId));
+			writes.push(...pointFactsAtPlaces(db, treeId), seedLocationsFromFacts(db, treeId));
 		}
 		const citationNoteTargets = await importCitations(db, treeId, targets, sourceOf, batch);
 		await importNoteAttachments(

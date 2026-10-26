@@ -20,6 +20,7 @@ import {
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
+import { COMMAND_LOCATION_SOURCES, OSM_TYPES } from '../../shared/places';
 import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import { LAYOUT_MODE_VALUES } from '../../shared/view-mode';
 import {
@@ -375,6 +376,24 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 
 /** The text every fact at a place will carry; a name another place has makes it a merge into that place. */
 export const placeRewriteSchema = z.object({ name: z.string().trim().min(1).max(200) });
+
+/**
+ * Where a place is, or that it is to stay off maps (ADR-078). Ranges are the command's to check, so
+ * the refusal reads the same from every caller; this only fixes the shape.
+ */
+export const placeLocationSchema = z.discriminatedUnion('status', [
+	z.object({
+		status: z.literal('confirmed'),
+		latitude: z.number().finite(),
+		longitude: z.number().finite(),
+		source: z.enum(COMMAND_LOCATION_SOURCES),
+		osmType: z.enum(OSM_TYPES).nullish(),
+		osmId: z.number().int().nullish(),
+		displayName: z.string().max(500).nullish(),
+		version: versionSchema.optional()
+	}),
+	z.object({ status: z.literal('ignored'), version: versionSchema.optional() })
+]);
 
 /** Dismissing a data-quality finding: the finding's key, and why it is fine. */
 /**

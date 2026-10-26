@@ -77,6 +77,8 @@ const PRIVACY_SENTENCES = {
 	private: (name: string) => `Made ${name} always private`
 } as const;
 
+const placeNamed = (rows: TreeRows, key: string) => factsAtPlace(rows, key)[0]?.place ?? 'a place';
+
 const peopleCount = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`;
 
 /**
@@ -246,6 +248,12 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 			const from = factsAtPlace(rows, command.fromKey)[0]?.place ?? 'a place';
 			return `Changed the place ${from} to ${command.to.trim()}`;
 		}
+		case 'set_place_location':
+			return `Set the location of the place ${placeNamed(rows, command.placeKey)}`;
+		case 'ignore_place_location':
+			return `Left the place ${placeNamed(rows, command.placeKey)} off the map`;
+		case 'clear_place_location':
+			return 'Cleared the location of a place';
 		case 'merge_people':
 			return `Merged ${nameOf(rows, command.mergedId)} into ${nameOf(rows, command.survivorId)}`;
 		case 'create_name':

@@ -6,11 +6,12 @@
  * (the S8 search leak, again).
  */
 
-import { and, eq, isNotNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import { events, places } from '../db/schema';
+import { events, placeLocations, places } from '../db/schema';
 import type { ViewerScope } from '../services/tree-access';
-import { placeKey } from '../../shared/places';
+import { placeKey, type PlaceLocationDto } from '../../shared/places';
+import { chunkIds } from './param-chunks';
 import { andInLens, andUnionInLens } from './subtree-membership';
 import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf } from './visibility';
@@ -76,8 +77,69 @@ export function pointFactsAtPlaces(db: DbClient, treeId: string) {
 	] as const;
 }
 
+/**
+ * A statement that gives every place of the tree that has no location the first fact's coordinates
+ * (ADR-078), set-based like `pointFactsAtPlaces` and to run after it. The parse is the SQL of
+ * migration 0047, restricted to one tree; `parseGedcomCoordinate` is its reference and
+ * place-locations.test.ts keeps them equal. A place that already has a location, of any status or
+ * source, keeps it, so a merge-mode import never overwrites a manual pick.
+ */
+export function seedLocationsFromFacts(db: DbClient, treeId: string) {
+	const insert = (
+		db.insert(placeLocations) as unknown as {
+			select: (query: SQL) => { onConflictDoNothing: () => never };
+		}
+	).select(
+		sql`with raw as (
+				select e.place_id as place_id, e.rowid as rid,
+					upper(substr(trim(e.latitude), 1, 1)) as lc, trim(e.latitude) as lt,
+					upper(substr(trim(e.longitude), 1, 1)) as gc, trim(e.longitude) as gt
+				from events e
+				where e.tree_id = ${treeId} and e.place_id is not null and e.latitude is not null and e.longitude is not null
+			), split as (
+				select place_id, rid,
+					case when lc in ('N', 'S', '-', '+') then substr(lt, 2) else lt end as lr,
+					case when lc in ('S', '-') then -1.0 else 1.0 end as ls,
+					case when gc in ('E', 'W', '-', '+') then substr(gt, 2) else gt end as gr,
+					case when gc in ('W', '-') then -1.0 else 1.0 end as gs
+				from raw
+			), parsed as (
+				select place_id, rid, ls * cast(lr as real) as lat, gs * cast(gr as real) as lng
+				from split
+				where lr <> '' and lr not glob '*[^0-9.]*' and lr glob '*[0-9]*' and length(lr) - length(replace(lr, '.', '')) <= 1
+					and gr <> '' and gr not glob '*[^0-9.]*' and gr glob '*[0-9]*' and length(gr) - length(replace(gr, '.', '')) <= 1
+			), in_range as (
+				select * from parsed where lat between -90 and 90 and lng between -180 and 180
+			)
+			select p.id, p.tree_id, v.lat, v.lng, 'confirmed', 'gedcom', null, null, null, 1, unixepoch(), unixepoch()
+			from places p join in_range v on v.place_id = p.id
+			where v.rid = (select min(w.rid) from in_range w where w.place_id = p.id)`
+	);
+	return insert.onConflictDoNothing();
+}
+
 export class PlaceRepository {
 	constructor(private db: DbClient) {}
+
+	/** The locations of these place records, which the caller has already limited to places it may see. */
+	async locationsOf(treeId: string, placeIds: string[]): Promise<Map<string, PlaceLocationDto>> {
+		const found = new Map<string, PlaceLocationDto>();
+		for (const chunk of chunkIds(placeIds, 80)) {
+			const rows = await this.db
+				.select()
+				.from(placeLocations)
+				.where(and(eq(placeLocations.treeId, treeId), inArray(placeLocations.id, chunk)));
+			for (const r of rows)
+				found.set(r.id, {
+					latitude: r.latitude,
+					longitude: r.longitude,
+					status: r.status,
+					source: r.source,
+					version: r.version
+				});
+		}
+		return found;
+	}
 
 	listSql(
 		treeId: string,
