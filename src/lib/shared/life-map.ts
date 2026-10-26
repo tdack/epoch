@@ -3,7 +3,7 @@
  * joined by a line (ADR-078). Pure, so the order and the grouping are tested without a map.
  */
 
-export const LIFE_GROUPS = {
+const LIFE_GROUPS = {
 	BIRTH: 'birth',
 	PARTNERSHIP: 'partnership',
 	RESIDENCE: 'residence',
@@ -61,7 +61,7 @@ export interface LifeStop extends FactLocation {
 	lines: string[];
 }
 
-export interface LifeItem {
+interface LifeItem {
 	/** Null for an undated fact. */
 	n: number | null;
 	text: string;

@@ -36,6 +36,13 @@ declare module 'leaflet' {
 		);
 	}
 
+	class Polyline extends Layer {
+		constructor(
+			latlngs: LatLngTuple[],
+			options: { color: string; weight: number; opacity: number; interactive: boolean }
+		);
+	}
+
 	class DivIcon {
 		constructor(options: { html: string; className: string; iconSize: LatLngTuple });
 	}

@@ -11,6 +11,7 @@
 	import PersonActions from './PersonActions.svelte';
 	import PersonFacts from './PersonFacts.svelte';
 	import PersonFamily from './PersonFamily.svelte';
+	import PersonLifeMap from './PersonLifeMap.svelte';
 	import PersonHistory from './PersonHistory.svelte';
 	import PersonMedia from './PersonMedia.svelte';
 	import PersonNames from './PersonNames.svelte';
@@ -40,6 +41,8 @@
 		 */
 		layout: 'drawer' | 'page';
 		relativeTarget?: RelativeTarget;
+		/** Map tiles from the site settings; without them the page shows no map (the drawer passes none). */
+		tiles?: { tileUrl: string; tileAttribution: string } | null;
 		editor: TreeEditor;
 		toasts: ToastStore;
 		marks: MarksStore;
@@ -53,6 +56,7 @@
 		selfPersonId = null,
 		layout,
 		relativeTarget = LINK_TARGET,
+		tiles = null,
 		editor,
 		toasts,
 		marks
@@ -80,6 +84,19 @@
 	<PersonSection id="life" title="Life" {layout} isOpenByDefault>
 		<PersonFacts {dto} {treeId} {treeSlug} {role} {editor} {toasts} mode="timeline" />
 	</PersonSection>
+{/snippet}
+
+{#snippet lifeMap()}
+	{#if tiles && Object.keys(dto.factLocations).length > 0}
+		<PersonSection id="map" title="Map" {layout} isOpenByDefault>
+			<PersonLifeMap
+				facts={dto.facts}
+				locations={dto.factLocations}
+				{tiles}
+				personName={dto.person.displayName}
+			/>
+		</PersonSection>
+	{/if}
 {/snippet}
 
 {#snippet family()}
@@ -167,6 +184,7 @@
 			<div class="space-y-6">
 				{@render glance()}
 				{@render life()}
+				{@render lifeMap()}
 				{@render family()}
 			</div>
 			<div class="section-card divide-y divide-stone-200 py-0" data-testid="record-details">
