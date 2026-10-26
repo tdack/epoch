@@ -125,7 +125,9 @@ export async function requireTreeScope(
 		isRestricted: !canSeePrivatePeople(role),
 		// On the public tree the living rule is switched off for the restricted roles, not the whole
 		// filter: a person marked private must stay hidden, and `isRestricted: false` would show them.
-		cutoff: settings.isPublic ? EVERYONE_SHOWN_CUTOFF : livingCutoff(now, settings.maxAliveYears),
+		cutoff: settings.isPublic
+			? EVERYONE_SHOWN_CUTOFF
+			: livingCutoff(now, settings.maxAliveYears, settings.recentDeathYears),
 		shouldShowPrivateStructure: settings.shouldShowPrivateStructure
 	};
 }

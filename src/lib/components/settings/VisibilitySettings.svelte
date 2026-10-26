@@ -3,7 +3,11 @@
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import { savePrivacySettings } from '#lib/api/people.js';
-	import { MAX_MAX_ALIVE_YEARS, MIN_MAX_ALIVE_YEARS } from '#lib/shared/privacy.js';
+	import {
+		MAX_MAX_ALIVE_YEARS,
+		MAX_RECENT_DEATH_YEARS,
+		MIN_MAX_ALIVE_YEARS
+	} from '#lib/shared/privacy.js';
 	import type { PrivacySettingsDto } from '#lib/shared/privacy.js';
 
 	interface Props {
@@ -16,6 +20,7 @@
 	let { treeId, settings, toasts }: Props = $props();
 
 	let maxAliveYears = $state(untrack(() => settings.maxAliveYears));
+	let recentDeathYears = $state(untrack(() => settings.recentDeathYears));
 	let shouldShowPrivateStructure = $state(untrack(() => settings.shouldShowPrivateStructure));
 	// What the server holds now, to put a refused checkbox back where it was.
 	let wasShowingStructure = untrack(() => settings.shouldShowPrivateStructure);
@@ -28,6 +33,11 @@
 			maxAliveYears >= MIN_MAX_ALIVE_YEARS &&
 			maxAliveYears <= MAX_MAX_ALIVE_YEARS
 	);
+	const isRecentDeathValid = $derived(
+		Number.isInteger(recentDeathYears) &&
+			recentDeathYears >= 0 &&
+			recentDeathYears <= MAX_RECENT_DEATH_YEARS
+	);
 
 	/** Sends only what changed, so a half-typed number is never saved by ticking the box. */
 	async function save(patch: Partial<PrivacySettingsDto>, done: string) {
@@ -36,6 +46,7 @@
 		try {
 			const saved = await savePrivacySettings(treeId, patch);
 			maxAliveYears = saved.maxAliveYears;
+			recentDeathYears = saved.recentDeathYears;
 			shouldShowPrivateStructure = wasShowingStructure = saved.shouldShowPrivateStructure;
 			announcement = done;
 			toasts.push(done);
@@ -52,6 +63,15 @@
 		event.preventDefault();
 		if (isValid) void save({ maxAliveYears }, 'Living-person rule saved');
 	}
+
+	function saveRecentDeath(event: SubmitEvent) {
+		event.preventDefault();
+		if (isRecentDeathValid)
+			void save(
+				{ recentDeathYears },
+				recentDeathYears === 0 ? 'The recently dead are shown' : 'Recent-death rule saved'
+			);
+	}
 </script>
 
 <div class="mt-4 max-w-2xl space-y-6 rounded-xl border border-stone-200 bg-white p-5">
@@ -60,9 +80,10 @@
 			>Assume someone has died after this many years</label
 		>
 		<p id="max-alive-help" class="mt-1 text-xs text-stone-600">
-			A person with a death, burial or cremation fact, or whose birth or baptism ended more than
-			this many years ago, is shown. Everyone else, including anyone with no dated fact, is hidden
-			from contributors and viewers. Owners, managers and editors see everyone.
+			A person with a death, burial or cremation fact, or any fact (a birth, census, marriage or
+			residence) that ended more than this many years ago, is shown. Everyone else, including anyone
+			with no dated fact, is hidden from contributors and viewers. Owners, managers and editors see
+			everyone.
 		</p>
 		<div class="mt-2 flex flex-wrap items-center gap-2">
 			<input
@@ -82,6 +103,35 @@
 		</div>
 		{#if !isValid}<p class="mt-1 text-xs text-red-700" role="alert">
 				Enter a whole number from {MIN_MAX_ALIVE_YEARS} to {MAX_MAX_ALIVE_YEARS}.
+			</p>{/if}
+	</form>
+
+	<form onsubmit={saveRecentDeath}>
+		<label for="recent-death" class="block text-sm font-semibold text-stone-800"
+			>Keep people hidden for this many years after they die</label
+		>
+		<p id="recent-death-help" class="mt-1 text-xs text-stone-600">
+			A death, burial or cremation dated this recently hides the person as if they were living. A
+			death with no date counts as long ago. 0 shows the dead however recently they died.
+		</p>
+		<div class="mt-2 flex flex-wrap items-center gap-2">
+			<input
+				id="recent-death"
+				type="number"
+				min="0"
+				max={MAX_RECENT_DEATH_YEARS}
+				step="1"
+				bind:value={recentDeathYears}
+				aria-describedby="recent-death-help"
+				class="w-24 rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+			/>
+			<span class="text-sm text-stone-600">years (0 to {MAX_RECENT_DEATH_YEARS})</span>
+			<button type="submit" disabled={!isRecentDeathValid || isSaving} class="btn-primary"
+				>Save</button
+			>
+		</div>
+		{#if !isRecentDeathValid}<p class="mt-1 text-xs text-red-700" role="alert">
+				Enter a whole number from 0 to {MAX_RECENT_DEATH_YEARS}.
 			</p>{/if}
 	</form>
 

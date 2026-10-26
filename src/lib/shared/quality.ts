@@ -138,7 +138,7 @@ export const QUALITY_RULES = [
 		code: 'public_override_likely_living',
 		severity: 'warning',
 		title: 'Always public, but probably still living',
-		why: 'A person is set to always public, and their dates do not show that they have died or were born long enough ago to be dead: no death, burial or cremation is recorded, and no birth is dated before the tree’s living-person cut-off. The override is yours to make; this only asks whether it was meant.',
+		why: 'A person is set to always public, and their dates do not show that they have died or were born long enough ago to be dead: no death, burial or cremation is recorded, and no birth or other fact is dated before the tree’s living-person cut-off. The override is yours to make; this only asks whether it was meant.',
 		isManagerOnly: true
 	},
 	{

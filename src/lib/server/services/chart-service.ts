@@ -63,7 +63,8 @@ export class ChartService {
 			startIds: [personId],
 			ancestorGenerations: generations - 1,
 			descendantGenerations: null,
-			partnersOf: 'none'
+			partnersOf: 'none',
+			cutoff: scope.isRestricted ? scope.cutoff : undefined
 		});
 		const dto = buildPedigree(
 			requireVisibleSubject(window, personId, scope),
@@ -94,7 +95,8 @@ export class ChartService {
 			startIds: [personId],
 			ancestorGenerations: null,
 			descendantGenerations: generations - 1,
-			partnersOf: 'all'
+			partnersOf: 'all',
+			cutoff: scope.isRestricted ? scope.cutoff : undefined
 		});
 		const built = buildDescendants(
 			requireVisibleSubject(window, personId, scope),

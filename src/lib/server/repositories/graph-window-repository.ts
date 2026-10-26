@@ -13,7 +13,7 @@
  */
 
 import { chunkIds } from './param-chunks';
-import { and, asc, count, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, inArray, lt, or, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { DbClient } from '../db';
@@ -207,15 +207,19 @@ export class GraphWindowRepository {
 	}
 
 	/**
-	 * Events of one kind of entity. `types` narrows to those event types; the entity type is always
-	 * in the predicate so the `(entity_type, entity_id)` index is usable.
+	 * Events of one kind of entity. `types` narrows to those event types, and `endedBefore` adds back
+	 * any fact whose upper bound is before that day, which the living rule reads as proof of age
+	 * (ADR-015). The entity type is always in the predicate so the `(entity_type, entity_id)` index
+	 * is usable.
 	 */
 	eventsOf(
 		treeId: string,
 		entityType: 'INDIVIDUAL' | 'FAMILY',
 		entityIds: readonly string[],
-		types?: readonly string[]
+		types?: readonly string[],
+		endedBefore?: string
 	): Read<Array<Ranked<EventRow>>> {
+		const ofType = types && inArray(events.type, [...types]);
 		return this.readIn(events, entityIds, (chunk) =>
 			this.db
 				.select({ ...getTableColumns(events), rid: sql<number>`${events}.rowid` })
@@ -225,7 +229,7 @@ export class GraphWindowRepository {
 						inTree(events.treeId, treeId),
 						eq(events.entityType, entityType),
 						inArray(events.entityId, chunk),
-						types ? inArray(events.type, [...types]) : undefined
+						ofType && endedBefore ? or(ofType, lt(events.dateSortEnd, endedBefore)) : ofType
 					)
 				)
 		);

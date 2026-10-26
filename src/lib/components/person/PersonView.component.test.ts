@@ -381,7 +381,7 @@ describe('page layout', () => {
 
 	it('shows privacy only to a manager whose DTO carries the setting', () => {
 		const dto = pageOf('ben', 'Ben', {
-			privacy: { setting: 'auto', isLikelyLiving: false } as never
+			privacy: { setting: 'auto', isLikelyLiving: false, isRecentlyDead: false } as never
 		});
 		open(dto, { layout: 'page', role: 'editor' });
 		expect(document.querySelector('[data-testid="privacy-panel"]')).toBeNull();

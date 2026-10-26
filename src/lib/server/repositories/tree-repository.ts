@@ -132,12 +132,14 @@ export class TreeRepository {
 	/** The per-tree privacy settings (ADR-015); null when the tree does not exist. */
 	async privacySettings(treeId: string): Promise<{
 		maxAliveYears: number;
+		recentDeathYears: number;
 		shouldShowPrivateStructure: boolean;
 		isPublic: boolean;
 	} | null> {
 		const record = await this.db
 			.select({
 				maxAliveYears: trees.maxAliveYears,
+				recentDeathYears: trees.recentDeathYears,
 				shouldShowPrivateStructure: trees.shouldShowPrivateStructure,
 				isPublic: trees.isPublic
 			})
@@ -149,7 +151,11 @@ export class TreeRepository {
 
 	async updatePrivacySettings(
 		treeId: string,
-		patch: { maxAliveYears?: number; shouldShowPrivateStructure?: boolean }
+		patch: {
+			maxAliveYears?: number;
+			recentDeathYears?: number;
+			shouldShowPrivateStructure?: boolean;
+		}
 	): Promise<void> {
 		await this.db
 			.update(trees)

@@ -139,6 +139,7 @@ describe('the SQL predicate and the pure rule', () => {
 			const person = (await t.db.select().from(individuals).where(eq(individuals.id, id)))[0]!;
 			const facts = (await t.db.select().from(events).where(eq(events.entityId, id))).map((e) => ({
 				type: e.type,
+				dateSort: e.dateSort,
 				dateSortEnd: e.dateSortEnd
 			}));
 			expect(!isPersonPrivate(person.privacy, facts, CUTOFF), `pure rule for ${xref}`).toBe(

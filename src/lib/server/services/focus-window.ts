@@ -28,6 +28,7 @@ import type {
 	UnionPartnerRow,
 	UnionRow
 } from '../domain/change-log';
+import { oldFactsBefore } from '../domain/living-state';
 import { maskRows, privatePeople } from '../domain/privacy-mask';
 import { graphFromRows } from '../domain/relationship-graph';
 import { type RelationshipGraph } from '../../shared/relationship-graph';
@@ -237,7 +238,13 @@ export async function loadNeighbourhood(
 	const withoutNames = [...named].filter((id) => !state.hasNames.has(id));
 	const [records, personEvents, personNameRows] = await repo.run(
 		repo.individualsIn(treeId, missing),
-		repo.eventsOf(treeId, 'INDIVIDUAL', withoutVitals, personEventTypes),
+		repo.eventsOf(
+			treeId,
+			'INDIVIDUAL',
+			withoutVitals,
+			personEventTypes,
+			privacy ? oldFactsBefore(privacy.cutoff) : undefined
+		),
 		repo.namesOf(treeId, withoutNames)
 	);
 	state.addIndividuals(records);

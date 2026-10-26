@@ -22,7 +22,12 @@ export type PersonPrivacy = (typeof PERSON_PRIVACY_VALUES)[number];
 export const MIN_MAX_ALIVE_YEARS = 50;
 export const MAX_MAX_ALIVE_YEARS = 150;
 
+/** Recent-death window in years; 0 shows the dead however recently they died. */
+export const MAX_RECENT_DEATH_YEARS = 100;
+
 export interface PrivacySettingsDto {
 	maxAliveYears: number;
+	/** A death this many years ago or less keeps the person hidden as if living; 0 turns it off. */
+	recentDeathYears: number;
 	shouldShowPrivateStructure: boolean;
 }

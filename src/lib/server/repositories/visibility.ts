@@ -5,17 +5,14 @@
  * finished page cannot do. A test holds this and the pure function to the same answers.
  *
  * It is empty for a viewer who sees everyone, so an owner's, manager's or editor's query is the one
- * measured before privacy existed. For a restricted viewer it is two correlated lookups on
- * `idx_event_entity`, about 4.5 index rows per person (query-plans.md).
+ * measured before privacy existed. For a restricted viewer it is one correlated lookup on
+ * `idx_event_entity` (two with the recent-death window), which stops at the first fact that
+ * decides (query-plans.md predates the 2026-10-26 amendment).
  */
 
 import { sql, type SQL } from 'drizzle-orm';
 import type { DbClient } from '../db';
-import {
-	BIRTH_EVENT_TYPES,
-	DEATH_EVENT_TYPES,
-	EVERYONE_SHOWN_CUTOFF
-} from '../domain/living-state';
+import { cutoffParts, DEATH_EVENT_TYPES, EVERYONE_SHOWN_CUTOFF } from '../domain/living-state';
 import type { ViewerScope } from '../services/tree-access';
 import { chunkIds } from './param-chunks';
 
@@ -41,14 +38,23 @@ export function ident(name: string): SQL {
 	return sql.raw(name);
 }
 
+/**
+ * A `YYYY-MM-DD` day as a SQL literal, inline for the reason `literalList` gives: the rule tests it
+ * up to three times per person, and each bound copy would cost a parameter near D1's cap.
+ */
+function dayLiteral(day: string): SQL {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error(`not a day: ${JSON.stringify(day)}`);
+	return sql.raw(`'${day}'`);
+}
+
 const DEATH_TYPES_SQL = literalList(DEATH_EVENT_TYPES);
-const BIRTH_TYPES_SQL = literalList(BIRTH_EVENT_TYPES);
 
 type Viewer = Pick<ViewerScope, 'cutoff' | 'creatorId'>;
 
 /**
  * A person row is visible: not forced private, and either forced public, created by this viewer, or
- * shown not to be living. The creator test comes first so a contributor's own people cost no event
+ * shown not to be living (a death, or any fact that ended before the cutoff) and not recently
+ * dead. The creator test comes first so a contributor's own people cost no event
  * lookups.
  */
 function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
@@ -59,10 +65,21 @@ function isVisibleSql(alias: string, { cutoff, creatorId }: Viewer): SQL {
 	// turns `false or <birth test>` into null where the viewer's form gives false. `not` of that null
 	// is null too, so a partnership with a private partner would pass the all-partners-visible test.
 	const isOwn = creatorId === null ? sql`` : sql`${person}.created_by is ${creatorId} or `;
-	return sql`(${person}.privacy = 'public' or (${person}.privacy = 'auto' and (${isOwn}
-		exists (select 1 from events de where de.entity_type = 'INDIVIDUAL' and de.entity_id = ${person}.id and de.type in (${DEATH_TYPES_SQL}))
-		or (select max(coalesce(be.date_sort_end, '9999-12-31')) from events be where be.entity_type = 'INDIVIDUAL' and be.entity_id = ${person}.id and be.type in (${BIRTH_TYPES_SQL})) < ${cutoff}
-	)))`;
+	const { livedBefore, diedBefore } = cutoffParts(cutoff);
+	const lived = dayLiteral(livedBefore);
+	// Undated deaths are taken as long ago and open-ended ones as possibly recent, as `isRecentlyDead` does.
+	const isNotRecentlyDead =
+		diedBefore === null
+			? sql``
+			: sql` and not exists (select 1 from events rd where rd.entity_type = 'INDIVIDUAL' and rd.entity_id = ${person}.id and rd.type in (${DEATH_TYPES_SQL}) and (rd.date_sort_end >= ${dayLiteral(diedBefore)} or (rd.date_sort_end is null and rd.date_sort is not null)))`;
+	// `in ('public', 'auto') and (… or …)` rather than `public or (auto and (… or …))`, and one
+	// `exists` for a death or an old fact: D1 caps a statement's expression tree at 100 levels,
+	// counting each subquery's, and the note and task reads nest this predicate deep in their named
+	// sets. The `exists` also stops at the first fact that decides. A birth counts like any fact, so
+	// one old birth among conflicting ones is enough (ADR-015, amended 2026-10-26).
+	return sql`(${person}.privacy in ('public', 'auto') and (${person}.privacy = 'public' or ${isOwn}
+		exists (select 1 from events de where de.entity_type = 'INDIVIDUAL' and de.entity_id = ${person}.id and (de.type in (${DEATH_TYPES_SQL}) or de.date_sort_end < ${lived}))${isNotRecentlyDead}
+	))`;
 }
 
 /** The bare predicate, for a caller that composes it inside its own subquery. */
@@ -355,6 +372,10 @@ export function andNoteVisible(alias: string, scope: Scope): SQL {
  * the named sets the same list read about a hundred and twenty thousand rows for twenty-six tasks.
  * A source and a shared note are visible through the sets (`withVisibleNoteScope`, which the
  * statement must start with); those are read only when a task about one is met.
+ *
+ * A fact's two owners are two joined lookups, not an `exists` inside an `or` inside an `exists`:
+ * D1 caps a statement's expression tree at 100 levels, counting each subquery's, and this
+ * statement also carries every named set.
  */
 export function andTaskVisible(alias: string, scope: Scope, treeId: string): SQL {
 	if (!scope.isRestricted) return sql``;
@@ -366,9 +387,8 @@ export function andTaskVisible(alias: string, scope: Scope, treeId: string): SQL
 	return sql` and (${t}.subject_kind is null or (case ${t}.subject_kind
 		when 'person' then not ${hiddenPerson(sql`${t}.subject_id`)}
 		when 'union' then not ${hiddenPartner(sql`${t}.subject_id`)}
-		when 'event' then not exists (select 1 from events he where he.id = ${t}.subject_id and he.tree_id = ${treeId} and (
-			(he.entity_type = 'INDIVIDUAL' and ${hiddenPerson(sql`he.entity_id`)})
-			or (he.entity_type = 'FAMILY' and ${hiddenPartner(sql`he.entity_id`)})))
+		when 'event' then not exists (select 1 from events he join individuals hp on hp.id = he.entity_id where he.id = ${t}.subject_id and he.tree_id = ${treeId} and he.entity_type = 'INDIVIDUAL' and not ${isVisibleSql('hp', scope)})
+			and not exists (select 1 from events he join union_partners hup on hup.union_id = he.entity_id join individuals hpp on hpp.id = hup.person_id where he.id = ${t}.subject_id and he.tree_id = ${treeId} and he.entity_type = 'FAMILY' and not ${isVisibleSql('hpp', scope)})
 		when 'source' then ${t}.subject_id in (select id from vs)
 		when 'note' then ${t}.subject_id in (select id from vo)
 		else 0

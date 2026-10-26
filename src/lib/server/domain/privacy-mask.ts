@@ -37,7 +37,7 @@ export function privatePeople(
 	for (const e of rows.events) {
 		if (e.entityType !== 'INDIVIDUAL') continue;
 		const facts = factsOf.get(e.entityId) ?? [];
-		facts.push({ type: e.type, dateSortEnd: e.dateSortEnd });
+		facts.push({ type: e.type, dateSort: e.dateSort, dateSortEnd: e.dateSortEnd });
 		factsOf.set(e.entityId, facts);
 	}
 	return new Set(

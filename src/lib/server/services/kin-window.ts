@@ -19,6 +19,7 @@ import type {
 	UnionRow
 } from '../domain/change-log';
 import type { GraphWindowRepository, Ranked } from '../repositories/graph-window-repository';
+import { oldFactsBefore } from '../domain/living-state';
 
 /** What privacy and a chart card both need: vitals and the facts that say someone has died. */
 const VITAL_EVENT_TYPES = ['BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'BAPM'] as const;
@@ -35,6 +36,8 @@ export interface KinWindowRequest {
 	descendantGenerations: number | null;
 	/** Load no partners, those of the start people only, or those of everyone loaded (a descendant chart shows couples). */
 	partnersOf: 'none' | 'starts' | 'all';
+	/** A restricted viewer's living cutoff, so the window also holds the old facts the rule reads. */
+	cutoff?: string;
 }
 
 export interface KinWindow {
@@ -117,7 +120,13 @@ export async function loadKinWindow(
 	const ids = [...people];
 	const [individuals, events, names] = await repo.run(
 		repo.individualsIn(treeId, ids),
-		repo.eventsOf(treeId, 'INDIVIDUAL', ids, VITAL_EVENT_TYPES),
+		repo.eventsOf(
+			treeId,
+			'INDIVIDUAL',
+			ids,
+			VITAL_EVENT_TYPES,
+			request.cutoff === undefined ? undefined : oldFactsBefore(request.cutoff)
+		),
 		repo.namesOf(treeId, ids)
 	);
 	const existing = new Set(individuals.map((i) => i.row.id));

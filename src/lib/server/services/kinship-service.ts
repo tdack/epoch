@@ -85,7 +85,8 @@ export class KinshipService {
 			startIds,
 			ancestorGenerations: MAX_GENERATIONS,
 			descendantGenerations: null,
-			partnersOf: 'starts'
+			partnersOf: 'starts',
+			cutoff: scope.isRestricted ? scope.cutoff : undefined
 		});
 
 		const { rows, placeholderIds } = requireVisibleSubject(window, [fromId, toId], scope);

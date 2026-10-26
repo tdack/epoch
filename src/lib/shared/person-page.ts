@@ -155,6 +155,8 @@ interface PersonPrivacyDto {
 	setting: PersonPrivacy;
 	/** What the dates alone say, so a manager sees why someone is hidden from viewers. */
 	isLikelyLiving: boolean;
+	/** Died within the tree's recent-death window, which hides them as living people are hidden. */
+	isRecentlyDead: boolean;
 }
 
 export interface PersonPageDto extends PrivacyFlag {

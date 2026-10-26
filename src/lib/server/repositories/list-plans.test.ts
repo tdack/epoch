@@ -23,6 +23,7 @@ const VIEWER: { isRestricted: boolean; cutoff: string; creatorId: string | null 
 	creatorId: null
 };
 const CONTRIBUTOR = { ...VIEWER, creatorId: 'a-contributor' };
+const CONTRIBUTOR_WINDOW = { ...CONTRIBUTOR, cutoff: '1906-10-01/2006-10-01' };
 
 const dialect = new SQLiteSyncDialect();
 interface Plan {
@@ -95,7 +96,9 @@ describe('the list queries, against two trees of different size', () => {
 		for (const [viewer, scope] of [
 			['', EVERYONE],
 			[', restricted viewer', VIEWER],
-			[', restricted contributor', CONTRIBUTOR]
+			[', restricted contributor', CONTRIBUTOR],
+			// The deepest form of the predicate: D1 caps a statement's expression tree at 100 levels.
+			[', restricted contributor, recent-death window', CONTRIBUTOR_WINDOW]
 		] as const) {
 			for (const [label, treeId] of [
 				['small', small],

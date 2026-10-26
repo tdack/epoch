@@ -16,6 +16,7 @@ import { TREE_ROLES } from '../../shared/roles';
 import {
 	MAX_MAX_ALIVE_YEARS,
 	MIN_MAX_ALIVE_YEARS,
+	MAX_RECENT_DEATH_YEARS,
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
@@ -468,11 +469,15 @@ export const defaultTreeSchema = z.object({ treeId: z.string().min(1).nullable()
 export const privacySettingsSchema = z
 	.object({
 		maxAliveYears: z.number().int().min(MIN_MAX_ALIVE_YEARS).max(MAX_MAX_ALIVE_YEARS),
+		recentDeathYears: z.number().int().min(0).max(MAX_RECENT_DEATH_YEARS),
 		shouldShowPrivateStructure: z.boolean()
 	})
 	.partial()
 	.refine(
-		(v) => v.maxAliveYears !== undefined || v.shouldShowPrivateStructure !== undefined,
+		(v) =>
+			v.maxAliveYears !== undefined ||
+			v.recentDeathYears !== undefined ||
+			v.shouldShowPrivateStructure !== undefined,
 		'Nothing to change'
 	);
 

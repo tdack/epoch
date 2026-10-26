@@ -40,7 +40,7 @@ import { displayNameWith, formatFullName } from '../../shared/name-types';
 import { personName } from '../../shared/person-name';
 import { partnershipLabels } from '../../shared/partnership-labels';
 import { privacyOf } from '../../shared/privacy';
-import { isLikelyLiving } from '../domain/living-state';
+import { isLikelyLiving, isRecentlyDead } from '../domain/living-state';
 import { relativesOf } from '../../shared/relatives';
 import { isSex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
@@ -415,6 +415,11 @@ export class PersonPageService {
 			treeId,
 			recent.map((c) => c.actorId)
 		);
+		const livingFacts = rows.map((r) => ({
+			type: r.type,
+			dateSort: r.dateSort,
+			dateSortEnd: r.dateSortEnd
+		}));
 
 		return {
 			...privacyOf(self.row),
@@ -425,10 +430,8 @@ export class PersonPageService {
 				? null
 				: {
 						setting: self.row.privacy,
-						isLikelyLiving: isLikelyLiving(
-							rows.map((r) => ({ type: r.type, dateSortEnd: r.dateSortEnd })),
-							scope.cutoff
-						)
+						isLikelyLiving: isLikelyLiving(livingFacts, scope.cutoff),
+						isRecentlyDead: isRecentlyDead(livingFacts, scope.cutoff)
 					},
 			person: {
 				id: self.row.id,

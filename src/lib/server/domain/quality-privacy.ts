@@ -14,7 +14,7 @@
  * Run over every row, for a manager or owner only: the finding itself names the private person.
  */
 
-import { isLikelyLiving } from './living-state';
+import { isLikelyLiving, type LivingFact } from './living-state';
 import type { IndividualRow, NoteAttachmentRow, TreeRows } from './change-log';
 import { maskRows, privatePeople } from './privacy-mask';
 import { personName } from './tree-ops';
@@ -81,12 +81,12 @@ export function checkPrivacyLeaks(rows: TreeRows, cutoff: string): QualityFindin
 	}
 
 	// ---- Always public, but probably living ----
-	const factsOf = new Map<string, Array<{ type: string; dateSortEnd: string | null }>>();
+	const factsOf = new Map<string, LivingFact[]>();
 	for (const e of rows.events) {
 		if (e.entityType !== 'INDIVIDUAL') continue;
 		factsOf.set(e.entityId, [
 			...(factsOf.get(e.entityId) ?? []),
-			{ type: e.type, dateSortEnd: e.dateSortEnd }
+			{ type: e.type, dateSort: e.dateSort, dateSortEnd: e.dateSortEnd }
 		]);
 	}
 	for (const p of rows.individuals) {

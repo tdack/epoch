@@ -13,6 +13,7 @@ import { UserRepository } from '../repositories/user-repository';
 import {
 	MAX_MAX_ALIVE_YEARS,
 	MIN_MAX_ALIVE_YEARS,
+	MAX_RECENT_DEATH_YEARS,
 	PERSON_PRIVACY_VALUES,
 	type PersonPrivacy
 } from '../../shared/privacy';
@@ -56,6 +57,7 @@ export class PrivacyService {
 		if (!settings) throw new ValidationError('Tree not found');
 		return {
 			maxAliveYears: settings.maxAliveYears,
+			recentDeathYears: settings.recentDeathYears,
 			shouldShowPrivateStructure: settings.shouldShowPrivateStructure
 		};
 	}
@@ -75,6 +77,17 @@ export class PrivacyService {
 		) {
 			throw new ValidationError(
 				`The age after which someone is assumed to have died must be between ${MIN_MAX_ALIVE_YEARS} and ${MAX_MAX_ALIVE_YEARS} years`
+			);
+		}
+		const { recentDeathYears } = patch;
+		if (
+			recentDeathYears !== undefined &&
+			(!Number.isInteger(recentDeathYears) ||
+				recentDeathYears < 0 ||
+				recentDeathYears > MAX_RECENT_DEATH_YEARS)
+		) {
+			throw new ValidationError(
+				`The recent-death window must be between 0 and ${MAX_RECENT_DEATH_YEARS} years`
 			);
 		}
 		await this.trees.updatePrivacySettings(treeId, patch);

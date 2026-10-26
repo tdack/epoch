@@ -109,9 +109,17 @@ describe("a person's override", () => {
 	it('shows a manager the setting and what the dates alone say, and a viewer neither', async () => {
 		const pages = new PersonPageService(t.db, () => NOW);
 		const asManager = await pages.getPerson(treeId, idOf('@I3@'), actors.manager.context);
-		expect(asManager.privacy).toEqual({ setting: 'auto', isLikelyLiving: true });
+		expect(asManager.privacy).toEqual({
+			setting: 'auto',
+			isLikelyLiving: true,
+			isRecentlyDead: false
+		});
 		const old = await pages.getPerson(treeId, idOf('@I1@'), actors.manager.context);
-		expect(old.privacy).toEqual({ setting: 'auto', isLikelyLiving: false });
+		expect(old.privacy).toEqual({
+			setting: 'auto',
+			isLikelyLiving: false,
+			isRecentlyDead: false
+		});
 		const asViewer = await pages.getPerson(treeId, idOf('@I1@'), actors.viewer.context);
 		expect(asViewer.privacy).toBeNull();
 	});
@@ -121,6 +129,7 @@ describe('the tree settings', () => {
 	it('are read and changed by a manager only', async () => {
 		expect(await service().getSettings(treeId, actors.manager.context)).toEqual({
 			maxAliveYears: 120,
+			recentDeathYears: 0,
 			shouldShowPrivateStructure: false
 		});
 		for (const role of ['editor', 'contributor', 'viewer'] as const) {
@@ -140,6 +149,21 @@ describe('the tree settings', () => {
 		expect(await found('Mida')).toBe(0);
 		await service().updateSettings(treeId, { maxAliveYears: 120 }, actors.manager.context);
 		expect(await found('Mida')).toBe(1);
+	});
+
+	it('refuse a recent-death window outside 0 to 100 years', async () => {
+		for (const bad of [-1, 101, 2.5]) {
+			await expect(
+				service().updateSettings(treeId, { recentDeathYears: bad }, actors.manager.context)
+			).rejects.toBeInstanceOf(ValidationError);
+		}
+		const saved = await service().updateSettings(
+			treeId,
+			{ recentDeathYears: 25 },
+			actors.manager.context
+		);
+		expect(saved.recentDeathYears).toBe(25);
+		await service().updateSettings(treeId, { recentDeathYears: 0 }, actors.manager.context);
 	});
 
 	it('refuse an age that would show the living or hide everyone', async () => {

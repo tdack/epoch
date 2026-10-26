@@ -28,9 +28,11 @@ const savePrivacy = vi.mocked(savePrivacySettings);
 let component: Record<string, unknown> | null = null;
 beforeEach(() => {
 	rename.mockReset().mockResolvedValue({ id: 't1', slug: 'smiths', isOnSubdomain: false });
-	savePrivacy
-		.mockReset()
-		.mockResolvedValue({ maxAliveYears: 100, shouldShowPrivateStructure: true });
+	savePrivacy.mockReset().mockResolvedValue({
+		maxAliveYears: 100,
+		recentDeathYears: 0,
+		shouldShowPrivateStructure: true
+	});
 	navigation.invalidate.mockReset().mockResolvedValue(undefined);
 	context.followAddress.mockReset().mockResolvedValue(undefined);
 	toasts.push.mockReset();
@@ -56,7 +58,7 @@ function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...res
 				subdomainZone: null,
 				hostTree: null,
 				...rest,
-				privacy: { maxAliveYears: 100, shouldShowPrivateStructure: false },
+				privacy: { maxAliveYears: 100, recentDeathYears: 0, shouldShowPrivateStructure: false },
 				subtrees: [],
 				rootNames: {},
 				canManageSubtrees: true,
