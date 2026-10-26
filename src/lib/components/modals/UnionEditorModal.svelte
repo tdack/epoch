@@ -6,6 +6,8 @@
 	import ConflictDialog from './ConflictDialog.svelte';
 	import { differingRows } from './conflict.js';
 	import type { ConflictError } from '#lib/api/client.js';
+	import { attachCandidateLocationApi } from '#lib/api/geo.js';
+	import type { GeoCandidate } from '#lib/shared/geo.js';
 	import { updateUnionApi } from '#lib/api/relationships.js';
 	import {
 		UNION_EVENT_LABELS,
@@ -53,6 +55,8 @@
 		/** The date as saved, so one Epoch cannot read is kept rather than refused. */
 		savedDateText: string;
 		place: string;
+		/** The OpenStreetMap place picked for `place`; PlaceInput clears it when the text moves off it. */
+		osmPick?: GeoCandidate | null;
 	}
 
 	let status = $state<string>('active');
@@ -151,6 +155,9 @@
 			);
 			conflict = null;
 			onsaved(change);
+			// Saved events make their places exist. A second undo entry; a contributor's attempt is refused and skipped.
+			for (const row of rows)
+				if (row.osmPick) await attachCandidateLocationApi(treeId, row.place, row.osmPick);
 		}, '');
 	}
 
@@ -267,6 +274,8 @@
 							id="ev-place-{row.key}"
 							{treeId}
 							bind:value={row.place}
+							shouldSuggestOsm
+							onosmpick={(candidate) => (row.osmPick = candidate)}
 							inputClass="w-full rounded-md border border-stone-300 p-1.5 text-sm"
 						/>
 					</div>

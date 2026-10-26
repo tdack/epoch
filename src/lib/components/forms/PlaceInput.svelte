@@ -229,7 +229,7 @@
 							In this tree
 						</div>
 						{#each options as option, i (option)}
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
 							<div
 								id="{uid}-option-{i}"
 								role="option"
@@ -255,7 +255,7 @@
 						</div>
 						{#each osmResults as candidate, j (`${candidate.osmType}${candidate.osmId}${candidate.displayName}`)}
 							{@const i = options.length + j}
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
 							<div
 								id="{uid}-option-{i}"
 								role="option"
