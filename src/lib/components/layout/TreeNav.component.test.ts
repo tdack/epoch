@@ -91,34 +91,9 @@ describe('TreeNav', () => {
 		expect(menuLabels()).not.toContain('Audit log');
 	});
 
-	it('adds a Manage tab for editors and above, linking to their administration page', () => {
-		const manage = () =>
-			[...document.querySelectorAll<HTMLAnchorElement>('nav > a')].find(
-				(a) => a.textContent?.trim() === 'Manage'
-			);
-		const cases: [Record<string, unknown>, string | null][] = [
-			[{ role: 'owner' }, '/trees/t1/settings'],
-			[{ role: 'manager' }, '/trees/t1/settings'],
-			[{ role: 'editor' }, '/trees/t1/audit'],
-			[{ role: 'contributor' }, null],
-			[{ role: 'viewer' }, null],
-			[{ role: 'editor', isOutsider: true }, null],
-			[{}, null]
-		];
-		for (const [props, href] of cases) {
-			render(props);
-			expect(manage()?.getAttribute('href') ?? null).toBe(href);
-			unmount(component!);
-			component = null;
-			document.body.innerHTML = '';
-		}
-	});
-
-	it('reads Manage as active on the administration pages', () => {
-		render({ role: 'owner', pathname: '/trees/t1/members' });
-		const manage = document.querySelector('nav > a')!;
-		expect(manage.getAttribute('aria-current')).toBe('page');
-		expect(manage.className).toContain('bg-emerald-800');
+	it('has no Manage tab: the switcher gear and /admin open the administration (ADR-075)', () => {
+		render({ role: 'owner', pathname: '/trees/t1/settings' });
+		expect(document.querySelector('nav > a')).toBeNull();
 	});
 
 	it('no longer carries Settings or Sign out: the avatar menu in the header does', () => {
