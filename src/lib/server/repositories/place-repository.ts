@@ -16,7 +16,7 @@ import { andInLens, andUnionInLens } from './subtree-membership';
 import { likePattern } from './like-pattern';
 import { andVisible, isVisibleOf, literalList } from './visibility';
 
-type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
+export type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
 
 export interface PlaceFactRow {
 	id: string;
@@ -36,7 +36,7 @@ export interface PlaceMapRow {
 }
 
 /** A place with no location row at all; an ignored place has one, so it is not "unlocated". */
-const hasNoLocation = sql` and not exists (select 1 from place_locations pl where pl.id = e.place_id)`;
+export const hasNoLocation = sql` and not exists (select 1 from place_locations pl where pl.id = e.place_id)`;
 
 export interface PlaceAggregateRow {
 	id: string;
@@ -54,7 +54,7 @@ const RESIDENCE_EVENT_TYPES = ['RESI', 'CENS'] as const;
  * person as dead or the person is marked public: the rule is the viewer-independent one, so an
  * owner's map leaves living people's homes off too.
  */
-function visibleFacts(
+export function visibleFacts(
 	treeId: string,
 	scope: Scope,
 	match: SQL,

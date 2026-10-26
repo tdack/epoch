@@ -22,7 +22,12 @@ const ballarat: GeoCandidate = {
 	county: null,
 	city: null
 };
-const farm: GeoCandidate = { ...ballarat, name: 'Ballarat Farm', kind: 'farm', city: 'Smythesdale' };
+const farm: GeoCandidate = {
+	...ballarat,
+	name: 'Ballarat Farm',
+	kind: 'farm',
+	city: 'Smythesdale'
+};
 const melbourne = { latitude: -37.81, longitude: 144.96 };
 const london = { latitude: 51.5, longitude: -0.12 };
 
