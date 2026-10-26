@@ -1,3 +1,4 @@
+import { resolveMapsSettings, type MapsSettings } from '#lib/shared/geo.js';
 import { resolvePalette, type Palette } from '#lib/shared/palette.js';
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
@@ -39,6 +40,11 @@ export class SettingsService {
 		const site = await this.readSite();
 		const user = userId === null ? {} : await this.readUser(userId);
 		return { palette: resolvePalette(user, site), isMotionReduced: user.isMotionReduced ?? false };
+	}
+
+	/** The install's map settings with defaults applied (ADR-078). Unauthenticated: callers gate. */
+	async maps(): Promise<MapsSettings> {
+		return resolveMapsSettings((await this.readSite()).maps);
 	}
 
 	/** Changes the caller's own layer. A group that is null clears back to the site default. */

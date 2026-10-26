@@ -11,7 +11,7 @@ import { ValidationError } from './errors';
 /** Applies a patch to a stored document. Pure: the caller decides what to persist. */
 export function applyPatch(current: SettingsDocument, patch: SettingsPatch): SettingsDocument {
 	const next: SettingsDocument = { ...current };
-	for (const key of ['sexColours', 'tracePalette', 'focusColours', 'isMotionReduced'] as const) {
+	for (const key of ['sexColours', 'tracePalette', 'focusColours', 'isMotionReduced', 'maps'] as const) {
 		if (patch[key] === undefined) continue;
 		if (patch[key] === null) delete next[key];
 		else (next as Record<string, unknown>)[key] = patch[key];

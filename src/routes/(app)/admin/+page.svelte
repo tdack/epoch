@@ -11,6 +11,7 @@
 	import DeleteTreeModal from '#lib/components/modals/DeleteTreeModal.svelte';
 	import PublicTreeModal from '#lib/components/modals/PublicTreeModal.svelte';
 	import RenameTreeModal from '#lib/components/modals/RenameTreeModal.svelte';
+	import MapsSettingsForm from '#lib/components/settings/MapsSettingsForm.svelte';
 	import PaletteEditor from '#lib/components/settings/PaletteEditor.svelte';
 	import { saveSiteSettings } from '#lib/api/settings.js';
 	import {
@@ -29,9 +30,10 @@
 
 	const TABS = [
 		{ id: 'trees', label: 'Trees' },
-		{ id: 'appearance', label: 'Site appearance' }
+		{ id: 'appearance', label: 'Site appearance' },
+		{ id: 'maps', label: 'Maps' }
 	] as const;
-	const tab = $derived(hashTab(page.url.hash, ['trees', 'appearance']));
+	const tab = $derived(hashTab(page.url.hash, ['trees', 'appearance', 'maps']));
 
 	const toasts = new ToastStore();
 	const rows = $derived(data.installTrees);
@@ -255,6 +257,14 @@
 						</tbody>
 					</table>
 				</div>
+			</section>
+		{:else if tab === 'maps'}
+			<section id="maps-tab" aria-label="Maps" class="flex max-w-3xl scroll-mt-24 flex-col gap-3">
+				<p class="text-sm text-stone-600">
+					Where Epoch finds places and draws maps. The defaults use free OpenStreetMap services;
+					change them to use your own.
+				</p>
+				<MapsSettingsForm stored={data.settings.site.maps} onsave={saveSite} />
 			</section>
 		{:else}
 			<section
