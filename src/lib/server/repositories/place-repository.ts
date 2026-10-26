@@ -205,7 +205,11 @@ export class PlaceRepository {
 	 * Every place with a confirmed location, counted over the facts the viewer may see and the map
 	 * may show. Not paged: a map needs all its markers. A place with no such fact is absent.
 	 */
-	async mapRows(treeId: string, scope: Scope, lensRootId: string | null = null): Promise<PlaceMapRow[]> {
+	async mapRows(
+		treeId: string,
+		scope: Scope,
+		lensRootId: string | null = null
+	): Promise<PlaceMapRow[]> {
 		return this.db.all<PlaceMapRow>(sql`
 			select f.place_id as id, min(f.place) as name, pl.latitude as latitude, pl.longitude as longitude, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
 			from (${visibleFacts(treeId, scope, sql``, lensRootId, true)}) f
@@ -216,7 +220,11 @@ export class PlaceRepository {
 	}
 
 	/** How many places the viewer may see have no location row yet. */
-	async unlocatedCount(treeId: string, scope: Scope, lensRootId: string | null = null): Promise<number> {
+	async unlocatedCount(
+		treeId: string,
+		scope: Scope,
+		lensRootId: string | null = null
+	): Promise<number> {
 		const [row] = await this.db.all<{ n: number }>(
 			sql`select count(distinct f.place_id) as n from (${visibleFacts(treeId, scope, hasNoLocation, lensRootId)}) f`
 		);
