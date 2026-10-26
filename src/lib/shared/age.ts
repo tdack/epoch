@@ -24,3 +24,21 @@ export function ageAt(birth: DateBounds, event: DateBounds): string | null {
 	if (oldest === 0) return 'aged under 1';
 	return youngest === oldest ? `aged ${oldest}` : `aged ${youngest}–${oldest}`;
 }
+
+/**
+ * Every recorded birth's bounds as one span, so conflicting births widen the age range rather
+ * than one of them being picked; open when any dated birth is open on that side. Undated births
+ * say nothing and are skipped. Null when no birth is dated.
+ */
+export function birthSpan(
+	facts: readonly (DateBounds & { type: string; dateText: string | null })[]
+): DateBounds | null {
+	const births = facts.filter((f) => f.type === 'BIRT' && f.dateText);
+	if (births.length === 0) return null;
+	const starts = births.map((b) => b.sortStart);
+	const ends = births.map((b) => b.sortEnd);
+	return {
+		sortStart: starts.includes(null) ? null : starts.reduce((a, b) => (b! < a! ? b : a)),
+		sortEnd: ends.includes(null) ? null : ends.reduce((a, b) => (b! > a! ? b : a))
+	};
+}

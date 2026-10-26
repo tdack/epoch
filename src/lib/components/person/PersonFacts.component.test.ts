@@ -58,7 +58,6 @@ function render(
 	const dto = {
 		person: { id: 'p1' },
 		facts,
-		vitals: { birth: facts.find((f) => f.type === 'BIRT') ?? null },
 		partnerships: options.partnerships ?? [],
 		evidence: { citations: [] }
 	} as unknown as PersonPageDto;
@@ -276,6 +275,7 @@ describe('PersonFacts as a timeline', () => {
 			[
 				day('birth', 'BIRT', 'Birth', '1910-08-05', '05 AUG 1910'),
 				day('cens', 'CENS', 'Census', '1921-04-03', '03 APR 1921'),
+				day('buri', 'BURI', 'Burial', '1970-04-10', '10 APR 1970'),
 				fact({
 					id: 'grad',
 					type: 'GRAD',
@@ -291,8 +291,11 @@ describe('PersonFacts as a timeline', () => {
 		const ages = [...document.querySelectorAll('[data-testid="fact-age"]')].map((a) =>
 			a.textContent!.trim()
 		);
-		// The graduation's year only, so it could be either side of the birthday.
-		expect(ages).toEqual(['· aged 10', '· aged 20–21']);
+		// The graduation's year only, so it could be either side of the birthday. A burial has none,
+		// so it cannot contradict the death's.
+		expect(ages).toEqual(
+			['· aged 10', '· aged 20–21'].map((a) => `${a}, calculated from the birth date`)
+		);
 	});
 
 	it('shows every event, so a conflict sits in place and nothing is behind a button', () => {

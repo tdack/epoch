@@ -14,7 +14,7 @@
 	import { CONFLICT_KINDS } from '#lib/shared/fact-timeline.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
 	import type { FactDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
-	import { ageAt } from '#lib/shared/age.js';
+	import { ageAt, birthSpan } from '#lib/shared/age.js';
 	import { FACT_KINDS, type FactRelative } from '#lib/shared/fact-types.js';
 	import { UNION_EVENT_LABELS } from '#lib/shared/union-events.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
@@ -56,11 +56,14 @@
 	const isPageRow = $derived(mode !== 'grouped');
 
 	const life = $derived(isTimeline ? lifeTimeline(dto.facts, dto.partnerships) : []);
-	/** The age at a fact, from the birth; none on the birth itself, or where the record states one. */
-	const ageOf = (fact: FactDto) => {
-		const birth = dto.vitals.birth;
-		return !birth || fact.id === birth.id || fact.age ? null : ageAt(birth, fact);
-	};
+	const birth = $derived(birthSpan(dto.facts));
+	const AGE_HINT = 'Calculated from the birth date';
+	/**
+	 * The age at a fact, from every recorded birth. None on a birth, where the record states one,
+	 * or on a burial or cremation, which would contradict the death's age when they share a range.
+	 */
+	const ageOf = (fact: FactDto) =>
+		!birth || fact.age || ['BIRT', 'BURI', 'CREM'].includes(fact.type) ? null : ageAt(birth, fact);
 	const groups = $derived(
 		isTimeline
 			? []
@@ -202,7 +205,9 @@
 
 {#snippet age(fact: FactDto)}
 	{@const text = ageOf(fact)}
-	{#if text}<span class="text-xs text-stone-500" data-testid="fact-age">{' · '}{text}</span>{/if}
+	{#if text}<span class="text-xs text-stone-500" data-testid="fact-age" title={AGE_HINT}
+			>{' · '}{text}<span class="sr-only">, {AGE_HINT.toLowerCase()}</span></span
+		>{/if}
 {/snippet}
 
 {#snippet factDetail(fact: FactDto, index: number, isPanel: boolean)}

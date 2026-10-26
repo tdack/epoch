@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageAt } from './age';
+import { ageAt, birthSpan } from './age';
 import { parseDateValue } from './date-value';
 
 const age = (birth: string, event: string) => ageAt(parseDateValue(birth), parseDateValue(event));
@@ -26,5 +26,28 @@ describe('ageAt', () => {
 		['an event before the birth', '1900', '1850']
 	])('shows nothing for %s', (_name, birth, event) => {
 		expect(age(birth, event)).toBeNull();
+	});
+});
+
+describe('birthSpan', () => {
+	const birth = (dateText: string | null) => ({
+		type: 'BIRT',
+		dateText,
+		...parseDateValue(dateText)
+	});
+
+	it('widens across conflicting births, so neither is picked', () => {
+		const span = birthSpan([birth('1900'), birth('1902'), { ...birth('1850'), type: 'CHR' }]);
+		expect(span).toEqual({ sortStart: '1900-01-01', sortEnd: '1902-12-31' });
+		expect(ageAt(span!, parseDateValue('1950'))).toBe('aged 47–50');
+	});
+
+	it('skips an undated birth, and is open when a dated one is', () => {
+		expect(birthSpan([birth(null), birth('1900')])).toEqual({
+			sortStart: '1900-01-01',
+			sortEnd: '1900-12-31'
+		});
+		expect(birthSpan([birth('BEF 1900'), birth('1890')])!.sortStart).toBeNull();
+		expect(birthSpan([birth(null)])).toBeNull();
 	});
 });

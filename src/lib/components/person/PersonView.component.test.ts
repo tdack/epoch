@@ -493,11 +493,26 @@ describe('PersonView "This is me"', () => {
 });
 
 describe('PersonView summary', () => {
-	it('gives the age at death beside the lifespan', () => {
+	it('gives the age at death beside the lifespan, across conflicting births', () => {
 		const vital = (id: string, type: string, sortStart: string, sortEnd: string) =>
-			({ id, type, sortStart, sortEnd, age: null }) as unknown as FactDto;
+			({
+				id,
+				type,
+				label: type,
+				kind: 'event',
+				sortStart,
+				sortEnd,
+				age: null,
+				retainedLines: [],
+				noteItems: [],
+				citationCount: 0
+			}) as unknown as FactDto;
 		open(
 			pageOf('ida', 'Ida', {
+				facts: [
+					{ ...vital('b', 'BIRT', '1900-03-15', '1900-03-15'), dateText: '15 MAR 1900' },
+					{ ...vital('b2', 'BIRT', '1901-03-15', '1901-03-15'), dateText: '15 MAR 1901' }
+				],
 				vitals: {
 					birth: vital('b', 'BIRT', '1900-03-15', '1900-03-15'),
 					death: vital('d', 'DEAT', '1950-01-01', '1950-12-31'),
@@ -506,6 +521,8 @@ describe('PersonView summary', () => {
 				}
 			})
 		);
-		expect(document.querySelector('[data-testid="death-age"]')!.textContent).toBe('aged 49–50');
+		const age = document.querySelector('[data-testid="death-age"]')!;
+		expect(age.textContent).toBe('aged 48–50, calculated from the birth date');
+		expect(age.getAttribute('title')).toBe('Calculated from the birth date');
 	});
 });

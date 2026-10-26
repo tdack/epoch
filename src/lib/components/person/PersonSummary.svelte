@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { NAME_TYPE_LABELS, splitDisplayName } from '#lib/shared/name-types.js';
 	import { sexLabel } from '#lib/shared/sex.js';
-	import { ageAt } from '#lib/shared/age.js';
+	import { ageAt, birthSpan } from '#lib/shared/age.js';
 	import type { NameDto, PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
@@ -26,12 +26,12 @@
 		);
 	});
 
+	const deathAge = $derived.by(() => {
+		const birth = birthSpan(dto.facts);
+		const death = dto.vitals.death;
+		return birth && death && !death.age ? ageAt(birth, death) : null;
+	});
 	/** The names the person is not shown by; they are edited under Names. */
-	const deathAge = $derived(
-		dto.vitals.birth && dto.vitals.death && !dto.vitals.death.age
-			? ageAt(dto.vitals.birth, dto.vitals.death)
-			: null
-	);
 	const otherNames = $derived(dto.names.filter((n) => !n.isPreferred && n.id !== null));
 	const nameNote = (n: NameDto) =>
 		n.type === 'other' && n.gedcomType ? n.gedcomType : NAME_TYPE_LABELS[n.type].toLowerCase();
@@ -62,7 +62,9 @@
 			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
 				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}{#if deathAge}<span
 					aria-hidden="true">{' · '}</span
-				><span data-testid="death-age">{deathAge}</span>{/if}
+				><span data-testid="death-age" title="Calculated from the birth date"
+					>{deathAge}<span class="sr-only">, calculated from the birth date</span></span
+				>{/if}
 			{#if dto.vitals.hasConflict}<span
 					class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900"
 					>dates disagree</span
