@@ -116,9 +116,9 @@ const changeCount = async () =>
 	(await t.db.select().from(changeLog).where(eq(changeLog.treeId, treeId))).length;
 
 /** A fake workflow binding that records what it was asked to start. */
-function fakeWorkflow(fail = false) {
+function fakeWorkflow(shouldFail = false) {
 	const create = vi.fn(async (_options: { id: string; params: PlaceMatchPayload }) => {
-		if (fail) throw new Error('binding down');
+		if (shouldFail) throw new Error('binding down');
 		return {};
 	});
 	return { create, binding: { create } as unknown as Workflow<PlaceMatchPayload> };
