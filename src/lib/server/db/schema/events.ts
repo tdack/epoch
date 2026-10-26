@@ -165,6 +165,11 @@ export const events = sqliteTable(
 	(table) => ({
 		entityIdx: index('idx_event_entity').on(table.entityType, table.entityId),
 		treeIdx: index('idx_event_tree').on(table.treeId),
+		// Only the facts whose kept lines hold an association, so the person page finds the ones naming
+		// a person without reading every fact of the tree. A query uses it only by repeating the term.
+		assoIdx: index('idx_event_asso')
+			.on(table.treeId)
+			.where(sql`instr(gedcom_extra, 'ASSO @') > 0`),
 		// A place is the text on a fact, grouped and looked up without regard to case (ADR-018); the
 		// place page finds its facts by this, and the place list scans it in order.
 		placeRecordIdx: index('idx_event_place_id').on(table.placeId),

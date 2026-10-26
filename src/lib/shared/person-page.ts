@@ -114,6 +114,20 @@ interface ParentFamilyDto {
 	}>;
 }
 
+/** One association between the person and someone else, as an imported file recorded it. */
+export interface AssociationDto {
+	person: PersonSummaryDto;
+	/** What the associate was ("godfather"), as the file wrote it; null when it says nothing. */
+	role: string | null;
+	/** The fact it was recorded on ("Christening"); null for one recorded on a person. */
+	factLabel: string | null;
+	/**
+	 * True when it is recorded on the other person's record or fact, naming this person as the
+	 * associate; false when this person's own record names the other.
+	 */
+	isNamedBy: boolean;
+}
+
 export interface PartnershipDto extends PrivacyFlag {
 	unionId: string;
 	version: number;
@@ -199,6 +213,8 @@ export interface PersonPageDto extends PrivacyFlag {
 	siblings: { full: PersonSummaryDto[]; half: PersonSummaryDto[] };
 	stepParents: Array<{ person: PersonSummaryDto; unionId: string }>;
 	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
+	/** Godparents, witnesses and the like, read from imported `ASSO` lines; never anyone hidden. */
+	associations: AssociationDto[];
 	media: MediaDto[];
 	/** The notes on the person themself, in order (ADR-029). */
 	notes: NoteDto[];

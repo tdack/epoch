@@ -264,6 +264,10 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Structured address editing (`ADR1` to `CTRY`).** The address is edited as text, so its
   structured parts are kept only while the text still matches them, the rule ADR-028 applies to
   `gedcom_layout`. Editing the parts would need its own staleness rule (ADR-051).
+- **Edit associations (`ASSO`).** The person page's Family section shows imported godparents,
+  witnesses and the like in both directions, read from the kept lines through two partial indexes
+  (migration 0047); nothing can add or change one. Editing would want associations stored as rows,
+  not text found inside kept lines.
 - **`HUSB` and `WIFE` `AGE` under family events** stay retained. Model them with the partnership
   details (ADR-051).
 

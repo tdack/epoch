@@ -23,7 +23,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
-import migration from '../../../../drizzle/0047_place_locations.sql?raw';
+import migration from '../../../../drizzle/0048_place_locations.sql?raw';
 import { ChangeLogService } from './change-log-service';
 import { PlaceService } from './place-service';
 

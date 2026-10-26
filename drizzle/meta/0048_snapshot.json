@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "05dcf564-a30e-4600-a021-2b9f4f9e5726",
-  "prevId": "9cf1fb44-5f54-44bf-9e42-5f759edf75c5",
+  "id": "9cf1fb44-5f54-44bf-9e42-5f759edf75c5",
+  "prevId": "7d44dc44-67c9-4871-81e8-5ee0ec563c85",
   "tables": {
     "change_log": {
       "name": "change_log",
@@ -705,6 +705,14 @@
           ],
           "isUnique": false
         },
+        "idx_event_asso": {
+          "name": "idx_event_asso",
+          "columns": [
+            "tree_id"
+          ],
+          "isUnique": false,
+          "where": "instr(gedcom_extra, 'ASSO @') > 0"
+        },
         "idx_event_place_id": {
           "name": "idx_event_place_id",
           "columns": [
@@ -815,6 +823,14 @@
             "owner_xref"
           ],
           "isUnique": false
+        },
+        "idx_preserved_asso": {
+          "name": "idx_preserved_asso",
+          "columns": [
+            "tree_id"
+          ],
+          "isUnique": false,
+          "where": "instr(lines, 'ASSO @') > 0"
         }
       },
       "foreignKeys": {
@@ -832,37 +848,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "geo_cache": {
-      "name": "geo_cache",
-      "columns": {
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "results": {
-          "name": "results",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

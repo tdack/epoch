@@ -37,6 +37,7 @@ const page = {
 	siblings: { full: [], half: [] },
 	stepParents: [],
 	stepChildren: [],
+	associations: [],
 	media: [],
 	notes: [],
 	linkNotes: [],

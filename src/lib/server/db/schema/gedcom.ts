@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { trees } from './trees';
 
@@ -17,6 +18,10 @@ export const gedcomPreserved = sqliteTable(
 	},
 	(table) => ({
 		treeIdx: index('idx_preserved_tree').on(table.treeId),
-		ownerIdx: index('idx_preserved_owner').on(table.treeId, table.ownerXref)
+		ownerIdx: index('idx_preserved_owner').on(table.treeId, table.ownerXref),
+		// Only the kept blocks that hold an association (see `idx_event_asso`).
+		assoIdx: index('idx_preserved_asso')
+			.on(table.treeId)
+			.where(sql`instr(lines, 'ASSO @') > 0`)
 	})
 );
