@@ -69,7 +69,11 @@ const people = ['john', 'jane', 'lisa', 'sam'].map((id) =>
 );
 const graphOf = (unions: ReturnType<typeof union>[]) => ({ people, unions, parentChild: [] });
 
-async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' | 'add_partner') {
+async function open(
+	graph: ReturnType<typeof graphOf>,
+	initialKind: 'add_child' | 'add_partner',
+	anchorSurname: string | null = null
+) {
 	plan.mockResolvedValue({
 		sentence: 'Sam will be recorded as …',
 		commands: [{}],
@@ -86,7 +90,7 @@ async function open(graph: ReturnType<typeof graphOf>, initialKind: 'add_child' 
 		props: {
 			isOpen: true,
 			treeId: 't',
-			anchor: { id: 'john', givenName: 'John', surname: null },
+			anchor: { id: 'john', givenName: 'John', surname: anchorSurname },
 			graph,
 			preselect: { id: 'sam', givenName: 'Sam', surname: null },
 			initialKind,
@@ -155,5 +159,34 @@ describe('RelationshipModal partnership chooser', () => {
 			const input = document.querySelector<HTMLInputElement>(`#${id}`)!;
 			expect(input.list).toBeInstanceOf(HTMLDataListElement);
 		}
+	});
+});
+
+describe('RelationshipModal surname suggestion', () => {
+	const newPerson = () => {
+		[...document.querySelectorAll('button')]
+			.find((b) => b.textContent!.trim() === 'New person')!
+			.click();
+		flushSync();
+	};
+	const suggestion = () =>
+		document.querySelector<HTMLButtonElement>('[data-testid="suggest-surname"]');
+
+	it('offers the anchor’s surname for a new child without filling it in, and hides once used', async () => {
+		await open(graphOf([union('u1', ['john', 'jane'])]), 'add_child', 'Smith');
+		newPerson();
+		const surname = document.querySelector<HTMLInputElement>('#new-surname')!;
+		expect(surname.value).toBe('');
+		expect(suggestion()!.textContent).toBe('Use Smith');
+		suggestion()!.click();
+		flushSync();
+		expect(surname.value).toBe('Smith');
+		expect(suggestion()).toBeNull();
+	});
+
+	it('offers nothing when adding a partner', async () => {
+		await open(graphOf([union('u1', ['john'])]), 'add_partner', 'Smith');
+		newPerson();
+		expect(suggestion()).toBeNull();
 	});
 });

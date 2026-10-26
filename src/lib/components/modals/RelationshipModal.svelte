@@ -139,6 +139,13 @@
 		chosenUnionId ?? (anchorUnions.length === 1 ? anchorUnions[0].id : null)
 	);
 	const chosenUnion = $derived(anchorUnions.find((u) => u.id === effectiveUnionId) ?? null);
+	const suggestedSurname = $derived(
+		(kind === 'add_child' || kind === 'add_sibling') &&
+			anchor.surname &&
+			newSurname.trim() !== anchor.surname
+			? anchor.surname
+			: null
+	);
 	const nameOf = (id: string) => graph.people.find((p) => p.id === id)?.displayName ?? id;
 	const unionLabels = $derived(partnershipLabels(graph.unions));
 
@@ -575,6 +582,13 @@
 					<label class="block text-xs font-semibold text-stone-700" for="new-surname">Surname</label
 					>
 					<input id="new-surname" type="text" bind:value={newSurname} class="field-input" />
+					<!-- Offered, never filled in: a mother's stored surname may be her birth name. -->
+					{#if suggestedSurname}<button
+							type="button"
+							class="text-link text-xs"
+							data-testid="suggest-surname"
+							onclick={() => (newSurname = suggestedSurname)}>Use {suggestedSurname}</button
+						>{/if}
 					<label class="block text-xs font-semibold text-stone-700" for="new-sex">Sex</label>
 					<select id="new-sex" bind:value={newSex} class="field-input">
 						{#each SEX_VALUES as value (value)}
