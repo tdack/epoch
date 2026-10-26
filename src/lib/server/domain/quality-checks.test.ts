@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { addYears, checkConnections, checkQuality, cyclesOf } from './quality-checks';
-import { treeRows } from '../testing/rows';
+import { addYears, checkConnections, checkPlaces, checkQuality, cyclesOf } from './quality-checks';
+import type { PlaceLocationRow } from './change-log';
+import { TEST_TREE_ID, treeRows } from '../testing/rows';
 
 /**
  * What the date rules found. The rows here carry no citations, so every key fact is also an
@@ -404,5 +405,140 @@ describe('people not connected to the rest of the tree', () => {
 	it('finds nothing in a connected tree, or one where everyone stands alone', () => {
 		expect(checkConnections(treeRows(main))).toEqual([]);
 		expect(checkConnections(treeRows({ people: ['ann', 'bob'].map(g) }))).toEqual([]);
+	});
+});
+
+const location = (
+	id: string,
+	latitude: number | null,
+	longitude: number | null,
+	status: 'confirmed' | 'ignored' = 'confirmed'
+): PlaceLocationRow => ({
+	id,
+	treeId: TEST_TREE_ID,
+	latitude,
+	longitude,
+	status,
+	source: status === 'ignored' ? 'manual' : 'gedcom',
+	osmType: null,
+	osmId: null,
+	displayName: null,
+	version: 1,
+	createdAt: 1_000,
+	updatedAt: 1_000
+});
+
+describe('places', () => {
+	const places = [
+		{ id: 'p-cork', nameKey: 'cork' },
+		{ id: 'p-hobart', nameKey: 'hobart' },
+		{ id: 'p-perth', nameKey: 'perth' }
+	];
+
+	it('flags a place a visible fact names with no location, once, and not an ignored one', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			events: [
+				{ id: 'e1', entityId: 'a', type: 'RESI', place: 'Cork' },
+				{ id: 'e2', entityId: 'b', type: 'RESI', place: 'cork' },
+				{ id: 'e3', entityId: 'a', type: 'RESI', place: 'Hobart' },
+				{ id: 'e4', entityId: 'b', type: 'RESI', place: 'Perth' }
+			]
+		});
+		const found = checkPlaces(rows, places, [
+			location('p-cork', -51.9, -8.47),
+			location('p-perth', null, null, 'ignored')
+		]);
+		expect(found).toEqual([
+			{
+				key: 'place_without_location:p-hobart',
+				rule: 'place_without_location',
+				severity: 'suggestion',
+				message: 'The place “Hobart” has no location, so it is not on the map.',
+				subjects: [{ kind: 'place', id: 'p-hobart', name: 'Hobart' }]
+			}
+		]);
+	});
+
+	it('does not flag a place that no fact names, or whose only fact belongs to nobody in the tree', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }],
+			events: [{ id: 'e1', entityId: 'gone', type: 'RESI', place: 'Hobart' }]
+		});
+		expect(checkPlaces(rows, places, [])).toEqual([]);
+	});
+
+	it('flags a fact whose map point is more than 50 km from its place, and not one that is close', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			events: [
+				{
+					id: 'near',
+					entityId: 'a',
+					type: 'BIRT',
+					place: 'Cork',
+					latitude: 'N51.95',
+					longitude: 'W8.5'
+				},
+				{ id: 'far', entityId: 'b', type: 'BIRT', place: 'Cork', latitude: 'N10', longitude: 'E10' }
+			]
+		});
+		const found = checkPlaces(rows, places, [location('p-cork', 51.9, -8.47)]);
+		expect(found.map((f) => f.key)).toEqual(['fact_coordinates_far_from_place:far']);
+		expect(found[0]!.severity).toBe('warning');
+		expect(found[0]!.message).toMatch(
+			/^The map point of the birth of .+ is \d+ km from the place “Cork”\.$/
+		);
+		expect(found[0]!.subjects).toEqual([{ kind: 'person', id: 'b', name: 'b' }]);
+	});
+
+	it('measures only against a confirmed location, and skips a point it cannot read', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }],
+			events: [
+				{
+					id: 'ignored',
+					entityId: 'a',
+					type: 'BIRT',
+					place: 'Perth',
+					latitude: 'N10',
+					longitude: 'E10'
+				},
+				{
+					id: 'garbled',
+					entityId: 'a',
+					type: 'BIRT',
+					place: 'Cork',
+					latitude: 'X1',
+					longitude: 'E10'
+				}
+			]
+		});
+		expect(
+			checkPlaces(rows, places, [
+				location('p-perth', null, null, 'ignored'),
+				location('p-cork', 51.9, -8.47)
+			])
+		).toEqual([]);
+	});
+
+	it('names a partnership whose fact is far from its place', () => {
+		const rows = treeRows({
+			people: [{ id: 'a' }, { id: 'b' }],
+			unions: [{ id: 'u', partners: ['a', 'b'] }],
+			events: [
+				{
+					id: 'm',
+					entityId: 'u',
+					entityType: 'FAMILY',
+					type: 'MARR',
+					place: 'Cork',
+					latitude: 'N10',
+					longitude: 'E10'
+				}
+			]
+		});
+		const found = checkPlaces(rows, places, [location('p-cork', 51.9, -8.47)]);
+		expect(found[0]!.subjects).toEqual([{ kind: 'partnership', id: 'u', name: 'a and b' }]);
 	});
 });

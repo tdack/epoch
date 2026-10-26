@@ -245,6 +245,14 @@ export class PlaceRepository {
 			order by min(f.place) collate nocase, f.place_id`);
 	}
 
+	/** Every place record of the tree, which is what the quality checks match a fact's text against. */
+	async records(treeId: string): Promise<Array<{ id: string; nameKey: string }>> {
+		return this.db
+			.select({ id: places.id, nameKey: places.nameKey })
+			.from(places)
+			.where(eq(places.treeId, treeId));
+	}
+
 	/** How many places the viewer may see have no location row yet. */
 	async unlocatedCount(
 		treeId: string,

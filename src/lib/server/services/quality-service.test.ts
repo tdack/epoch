@@ -5,7 +5,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { events } from '../db/schema';
+import { events, placeLocations, places } from '../db/schema';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { importGedcomToDb } from '../testing/gedcom';
@@ -363,4 +363,89 @@ describe('a badly tangled tree', () => {
 		);
 		expect(report.truncatedRules).toEqual(['one_parent_recorded']);
 	}, 60_000);
+});
+
+describe('places on the map', () => {
+	const PLACES_FIXTURE = `0 HEAD
+0 @I1@ INDI
+1 NAME Ann /Ok/
+1 BIRT
+2 DATE 1900
+2 PLAC Cork
+3 MAP
+4 LATI N51.9
+4 LONG W8.47
+0 @I2@ INDI
+1 NAME Bob /Far/
+1 BIRT
+2 DATE 1901
+2 PLAC Cork
+3 MAP
+4 LATI N10
+4 LONG E10
+0 @I3@ INDI
+1 NAME Cy /Bare/
+1 BIRT
+2 DATE 1902
+2 PLAC Hobart
+0 @I4@ INDI
+1 NAME Di /Quiet/
+1 BIRT
+2 DATE 1903
+2 PLAC Perth
+0 @I5@ INDI
+1 NAME Secret /Hidden/
+1 RESN privacy
+1 BIRT
+2 DATE 1904
+2 PLAC Broome
+0 TRLR`;
+	let placesTree: string;
+
+	beforeAll(async () => {
+		placesTree = await createTestTree(t.db, actors.owner);
+		await addTestMember(t.db, placesTree, actors.viewer, 'viewer');
+		await importGedcomToDb(t.d1, placesTree, PLACES_FIXTURE, 'Places');
+		// Perth is ignored: a location row with no coordinates counts as handled.
+		const [perth] = await t.db
+			.select({ id: places.id })
+			.from(places)
+			.where(and(eq(places.treeId, placesTree), eq(places.nameKey, 'perth')));
+		await t.db.insert(placeLocations).values({
+			id: perth!.id,
+			treeId: placesTree,
+			latitude: null,
+			longitude: null,
+			status: 'ignored',
+			source: 'manual'
+		});
+	}, 60_000);
+
+	const findingsOf = async (rule: string, who: TreeRole) =>
+		(await service().report(placesTree, actors[who].context)).findings.filter(
+			(f) => f.rule === rule
+		);
+
+	it('lists each unlocated place a visible fact names, and not one that is located or ignored', async () => {
+		const found = await findingsOf('place_without_location', 'owner');
+		expect(found.map((f) => f.subjects[0]!.name).sort()).toEqual(['Broome', 'Hobart']);
+		expect(found[0]!.subjects[0]!.kind).toBe('place');
+	});
+
+	it('flags a fact whose map point is far from its place, naming the person', async () => {
+		const found = await findingsOf('fact_coordinates_far_from_place', 'owner');
+		expect(found).toHaveLength(1);
+		expect(found[0]!.subjects).toEqual([expect.objectContaining({ kind: 'person' })]);
+		expect(found[0]!.subjects[0]!.name).toBe('Bob Far');
+	});
+
+	it('does not tell a restricted viewer about a place only a private person’s fact names', async () => {
+		const found = await findingsOf('place_without_location', 'viewer');
+		expect(found.map((f) => f.subjects[0]!.name)).toEqual(['Hobart']);
+		const report = await service().report(placesTree, actors.viewer.context);
+		expect(JSON.stringify(report)).not.toContain('Broome');
+		expect(JSON.stringify(report)).not.toContain('Secret');
+		// The far fact is a visible person's, so it is still found; the located place is not reported.
+		expect((await findingsOf('fact_coordinates_far_from_place', 'viewer')).length).toBe(1);
+	});
 });
