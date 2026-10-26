@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
 vi.mock('#lib/api/lists.js', () => ({ suggestPlacesApi: vi.fn() }));
+vi.mock('#lib/api/geo.js', () => ({ searchGeoApi: vi.fn(), attachCandidateLocationApi: vi.fn() }));
 vi.mock('#lib/api/relationships.js', () => ({ updateUnionApi: vi.fn() }));
 
 import UnionEditorModal from './UnionEditorModal.svelte';
@@ -52,6 +53,9 @@ describe('UnionEditorModal', () => {
 		flushSync();
 		const fields = document.querySelectorAll<HTMLInputElement>('input[id^="ev-place-"]');
 		expect(fields).toHaveLength(2);
-		for (const field of fields) expect(field.list).toBeInstanceOf(HTMLDataListElement);
+		for (const field of fields) {
+			expect(field.getAttribute('role')).toBe('combobox');
+			expect(document.getElementById(field.getAttribute('aria-controls')!)).not.toBeNull();
+		}
 	});
 });
