@@ -2,6 +2,7 @@ import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import { getDb } from '../db';
 import { assertSchemaCurrent } from '../db/schema-status';
 import { DomainError } from '../domain/errors';
+import { Logger } from '../logging/logger';
 import { MATCH_PLACES_PER_STEP } from '../../shared/place-match';
 import { PlaceMatchService, type MatchSelection } from '../services/place-match-service';
 import { NonRetryableError, WorkflowEntrypoint } from './workflow-runtime';
@@ -44,7 +45,13 @@ export class PlaceMatchWorkflow extends WorkflowEntrypoint<App.Platform['env'], 
 		step: WorkflowStep
 	): Promise<PlaceMatchResult> {
 		const { treeId, userId } = event.payload;
-		const service = new PlaceMatchService(getDb(this.env.DB));
+		const log = new Logger({
+			treeId,
+			userId,
+			workflow: 'place-match',
+			instanceId: event.instanceId
+		});
+		const service = new PlaceMatchService(getDb(this.env.DB), undefined, undefined, log);
 		try {
 			const selection: MatchSelection = await step.do(
 				'select-places',
@@ -66,7 +73,13 @@ export class PlaceMatchWorkflow extends WorkflowEntrypoint<App.Platform['env'], 
 				const done = await step.do(
 					`match-${index}`,
 					{ retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' } },
-					() => refusalsEndTheRun(() => service.matchPlaces(treeId, batch, selection))
+					// Logged inside the step: code outside one runs again on every resume.
+					() =>
+						refusalsEndTheRun(async () => {
+							const result = await service.matchPlaces(treeId, batch, selection);
+							log.info('Place match batch done', { batch: index, ...result });
+							return result;
+						})
 				);
 				total.searched += done.searched;
 				total.matched += done.matched;
@@ -74,9 +87,13 @@ export class PlaceMatchWorkflow extends WorkflowEntrypoint<App.Platform['env'], 
 					await step.sleep(`pause-${index}`, '1 second');
 			}
 
-			await step.do('finish', () => service.finish(treeId, 'done'));
+			await step.do('finish', async () => {
+				await service.finish(treeId, 'done');
+				log.info('Place match finished', { places: selection.places.length, ...total });
+			});
 			return total;
 		} catch (err) {
+			log.error('Place match failed', err);
 			// Without this the tree's run would read "running" until it went stale.
 			await step.do('mark-failed', () => service.finish(treeId, 'failed'));
 			throw err;

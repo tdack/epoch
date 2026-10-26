@@ -45,7 +45,9 @@ export class GeoService {
 
 	constructor(
 		db: DbClient,
-		private readonly fetchFn: typeof fetch = fetch,
+		// Wrapped, not `fetch` itself: called as `this.fetchFn(...)`, the Workers runtime throws
+		// "Illegal invocation" because `this` is not the global object.
+		private readonly fetchFn: typeof fetch = (input, init) => fetch(input, init),
 		private readonly log: Logger = new Logger()
 	) {
 		this.cache = new GeoCacheRepository(db);
@@ -70,10 +72,18 @@ export class GeoService {
 	/** Up to eight candidates; empty when refused, switched off or unavailable. Never throws. */
 	async search(query: string, options: GeoSearchOptions = {}): Promise<GeoCandidate[]> {
 		const text = normaliseGeoQuery(query);
-		if (!isGeocodable(text)) return [];
+		// Each early return is logged with its reason, so an empty answer can be told apart in the
+		// Worker's logs: refused text, the switch, a cached answer, or what Photon said.
+		if (!isGeocodable(text)) {
+			this.log.info('Place search refused', { query: text, reason: 'not geocodable' });
+			return [];
+		}
 		try {
 			const maps = await this.settings.maps();
-			if (!maps.isGeocodingEnabled) return [];
+			if (!maps.isGeocodingEnabled) {
+				this.log.info('Place search refused', { query: text, reason: 'switched off' });
+				return [];
+			}
 
 			const lang = PHOTON_LANGUAGES.includes(options.lang ?? '') ? options.lang! : 'en';
 			const hasBias = Number.isFinite(options.latitude) && Number.isFinite(options.longitude);
@@ -84,7 +94,11 @@ export class GeoService {
 			const key = [maps.photonUrl, text, lang, bias].join('|');
 
 			const cached = await this.cache.find(key);
-			if (cached !== null) return JSON.parse(cached) as GeoCandidate[];
+			if (cached !== null) {
+				const results = JSON.parse(cached) as GeoCandidate[];
+				this.log.info('Place search answered from cache', { query: text, count: results.length });
+				return results;
+			}
 
 			const url = new URL('/api', maps.photonUrl);
 			url.searchParams.set('q', text);
@@ -101,12 +115,25 @@ export class GeoService {
 				headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
 				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
 			});
-			if (!response.ok) throw new Error(`Photon answered ${response.status}`);
-			const results = candidatesFromPhoton(await response.json());
-			await this.cache.save(key, JSON.stringify(results), new Date());
+			if (!response.ok) {
+				const body = (await response.text().catch(() => '')).slice(0, 300);
+				throw new Error(`Photon answered ${response.status}: ${body}`);
+			}
+			const json: unknown = await response.json();
+			const results = candidatesFromPhoton(json);
+			const features = (json as { features?: unknown } | null)?.features;
+			this.log.info('Place search answered by Photon', {
+				query: text,
+				url: url.toString(),
+				features: Array.isArray(features) ? features.length : null,
+				count: results.length
+			});
+			// An empty answer is not kept: it may be a Photon hiccup, and kept it would hide the place forever.
+			if (results.length > 0) await this.cache.save(key, JSON.stringify(results), new Date());
 			return results;
 		} catch (cause) {
 			this.log.warn('Place search failed', {
+				query: text,
 				reason: cause instanceof Error ? cause.message : 'unknown'
 			});
 			return [];

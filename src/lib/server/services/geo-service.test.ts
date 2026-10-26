@@ -77,6 +77,28 @@ describe('GeoService.search', () => {
 		expect(working).toHaveBeenCalledTimes(1);
 	});
 
+	it('calls the global fetch with the global `this`, as the Workers runtime requires', async () => {
+		const strictFetch = vi.fn(function (this: unknown) {
+			if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+			return Promise.resolve(answer());
+		});
+		vi.stubGlobal('fetch', strictFetch);
+		try {
+			expect(await new GeoService(t.db, undefined, quiet).search('Warrnambool')).toHaveLength(1);
+			expect(strictFetch).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('does not keep an empty answer, so the place is asked again', async () => {
+		const empty = vi.fn(async () => Response.json({ features: [] }));
+		const service = new GeoService(t.db, empty as unknown as typeof fetch, quiet);
+		expect(await service.search('Nowhere Creek')).toEqual([]);
+		expect(await service.search('Nowhere Creek')).toEqual([]);
+		expect(empty).toHaveBeenCalledTimes(2);
+	});
+
 	it('survives a fetch that throws', async () => {
 		const throwing = vi.fn(async () => {
 			throw new Error('network down');

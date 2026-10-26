@@ -41,6 +41,7 @@ import {
 } from '../../shared/place-match';
 import type { OSM_TYPES } from '../../shared/places';
 import type { PlaceMatchPayload } from '../workflows/place-match-workflow';
+import { Logger } from '../logging/logger';
 import { GeoService } from './geo-service';
 import { MutationRunner, type MutationResult } from './mutation-runner';
 import { SettingsService } from './settings-service';
@@ -97,13 +98,14 @@ export class PlaceMatchService {
 	constructor(
 		db: DbClient,
 		private readonly now: () => Date = () => new Date(),
-		geo?: Searcher
+		geo?: Searcher,
+		private readonly log: Logger = new Logger()
 	) {
 		this.repo = new PlaceMatchRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 		this.settings = new SettingsService(db);
-		this.geo = geo ?? new GeoService(db);
+		this.geo = geo ?? new GeoService(db, undefined, log);
 		this.runner = new MutationRunner(db);
 	}
 
@@ -184,14 +186,22 @@ export class PlaceMatchService {
 		// Always the tree's real rule: the public tree's "show everyone" cutoff would send living people.
 		const cutoff = livingCutoff(this.now(), privacy.maxAliveYears, privacy.recentDeathYears);
 
-		const eligible = (await this.repo.matchablePlaces(treeId, cutoff)).filter((p) =>
-			isGeocodable(p.name)
-		);
+		const matchable = await this.repo.matchablePlaces(treeId, cutoff);
+		const eligible = matchable.filter((p) => isGeocodable(p.name));
 		const places = eligible.slice(0, MAX_PLACES_PER_MATCH_RUN);
 		const anchors = (await this.repo.anchors(treeId, MAX_ANCHORS)).map((a) => ({
 			latitude: round2(a.latitude),
 			longitude: round2(a.longitude)
 		}));
+		this.log.info('Place match selected places', {
+			treeId,
+			cutoff,
+			matchable: matchable.length,
+			notGeocodable: matchable.length - eligible.length,
+			selected: places.length,
+			skippedByCap: eligible.length - places.length,
+			anchors: anchors.length
+		});
 		await this.repo.clearCandidates(treeId);
 		await this.repo.setTotals(treeId, places.length, eligible.length - places.length);
 		return {
@@ -216,6 +226,15 @@ export class PlaceMatchService {
 		for (const place of places) {
 			const found = await this.geo.search(place.name, selection.centroid ?? {});
 			const ranked = rankCandidates(place.name, found, selection.anchors);
+			this.log.info('Place match looked up a place', {
+				treeId,
+				placeId: place.id,
+				query: place.name,
+				found: found.length,
+				best: ranked[0]
+					? { name: ranked[0].displayName, kind: ranked[0].kind, score: ranked[0].score }
+					: null
+			});
 			if (ranked.length === 0) continue;
 			await this.repo.replaceCandidates(treeId, place.id, stored(ranked), this.now());
 			matched++;
