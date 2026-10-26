@@ -106,7 +106,11 @@
 {:else}
 	{#snippet onThisDayRow(a: (typeof onThisDay)[number])}
 		<li>
-			<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
+			<a
+				href={href(a)}
+				class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+				>{names(a)}</a
+			>
 			{VERBS[a.type]} in {a.year}
 			<span class="text-stone-600"> ({plural(a.next.year - a.year, 'year', 'years')} ago)</span>.
 		</li>
@@ -115,7 +119,11 @@
 		{@const years = a.next.year - a.year}
 		<li class="flex justify-between gap-3">
 			<span>
-				<a href={href(a)} class="font-semibold text-emerald-900 hover:underline">{names(a)}</a>
+				<a
+					href={href(a)}
+					class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+					>{names(a)}</a
+				>
 				<span class="text-stone-600">
 					{a.type === 'BIRT' ? `turns ${years}` : plural(years, 'year married', 'years married')}
 				</span>
@@ -128,12 +136,10 @@
 		{#if onThisDay.length > 0}
 			<section
 				aria-labelledby="on-this-day"
-				class="rounded-xl border border-stone-200 bg-white p-4 {comingUp.length === 0
-					? 'md:col-span-2'
-					: ''}"
+				class="section-card {comingUp.length === 0 ? 'md:col-span-2' : ''}"
 				data-testid="overview-on-this-day"
 			>
-				<h2 id="on-this-day" class="font-semibold text-stone-900">On this day</h2>
+				<h2 id="on-this-day" class="section-heading">On this day</h2>
 				<ul class="mt-2 space-y-1 text-sm">
 					{#each onThisDay.slice(0, ANNIVERSARIES_SHOWN) as a (a.id)}
 						{@render onThisDayRow(a)}
@@ -141,7 +147,10 @@
 				</ul>
 				{#if onThisDay.length > ANNIVERSARIES_SHOWN}
 					<details class="mt-1 text-sm">
-						<summary class="cursor-pointer text-emerald-900">Show all {onThisDay.length}</summary>
+						<summary
+							class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
+							>Show all {onThisDay.length}</summary
+						>
 						<ul class="mt-1 space-y-1">
 							{#each onThisDay.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
 								{@render onThisDayRow(a)}
@@ -155,12 +164,10 @@
 		{#if comingUp.length > 0}
 			<section
 				aria-labelledby="coming-up"
-				class="rounded-xl border border-stone-200 bg-white p-4 {onThisDay.length === 0
-					? 'md:col-span-2'
-					: ''}"
+				class="section-card {onThisDay.length === 0 ? 'md:col-span-2' : ''}"
 				data-testid="overview-coming-up"
 			>
-				<h2 id="coming-up" class="font-semibold text-stone-900">Coming up</h2>
+				<h2 id="coming-up" class="section-heading">Coming up</h2>
 				<p class="text-xs text-stone-600">
 					Birthdays and wedding anniversaries in the next {UPCOMING_DAYS} days.
 				</p>
@@ -171,7 +178,10 @@
 				</ul>
 				{#if comingUp.length > ANNIVERSARIES_SHOWN}
 					<details class="mt-1 text-sm">
-						<summary class="cursor-pointer text-emerald-900">Show all {comingUp.length}</summary>
+						<summary
+							class="cursor-pointer rounded-sm text-xs font-medium text-stone-600 focus-ring hover:text-stone-800 coarse:min-h-11"
+							>Show all {comingUp.length}</summary
+						>
 						<ul class="mt-1 space-y-1">
 							{#each comingUp.slice(ANNIVERSARIES_SHOWN) as a (a.id)}
 								{@render comingUpRow(a)}
@@ -185,20 +195,16 @@
 
 	<div class="mt-4 grid items-start gap-4 md:grid-cols-2">
 		{#if hasWork}
-			<section
-				aria-labelledby="your-work"
-				class="rounded-xl border border-stone-200 bg-white p-4"
-				data-testid="overview-work"
-			>
-				<h2 id="your-work" class="font-semibold text-stone-900">Your work</h2>
+			<section aria-labelledby="your-work" class="section-card" data-testid="overview-work">
+				<h2 id="your-work" class="section-heading">Your work</h2>
 				{#if work.myTasks && work.myTasks.open > 0}
-					<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
-						Your open tasks
-					</h3>
+					<h3 class="mt-3 text-xs font-semibold text-stone-600">Your open tasks</h3>
 					<ul class="mt-1 space-y-1 text-sm">
 						{#each work.myTasks.items as task (task.id)}
 							<li>
-								<a href={taskHref(task)} class="font-semibold text-emerald-900 hover:underline"
+								<a
+									href={taskHref(task)}
+									class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
 									>{task.title}</a
 								>
 								{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
@@ -207,7 +213,7 @@
 					</ul>
 					<a
 						href="{base}/tasks?mine=true"
-						class="mt-1 inline-block text-sm text-emerald-900 underline"
+						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
 					>
 						{work.myTasks.open > work.myTasks.items.length
 							? `All ${work.myTasks.open} of your tasks`
@@ -215,23 +221,29 @@
 					</a>
 				{/if}
 				{#if work.recentChanges?.length}
-					<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
-						Latest changes
-					</h3>
+					<h3 class="mt-3 text-xs font-semibold text-stone-600">Latest changes</h3>
 					<ul class="mt-1 space-y-1 text-sm">
 						{#each work.recentChanges as change (change.id)}
 							<li class="flex justify-between gap-3">
 								<span class="text-stone-800">{change.summary}</span>
 								<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
-									>{change.createdAt.toLocaleDateString(undefined, {
-										day: 'numeric',
-										month: 'short'
-									})}</time
+									>{change.createdAt.toDateString() === new Date().toDateString()
+										? change.createdAt.toLocaleTimeString(undefined, {
+												hour: 'numeric',
+												minute: '2-digit'
+											})
+										: change.createdAt.toLocaleDateString(undefined, {
+												day: 'numeric',
+												month: 'short'
+											})}</time
 								>
 							</li>
 						{/each}
 					</ul>
-					<a href="{base}/audit" class="mt-1 inline-block text-sm text-emerald-900 underline">
+					<a
+						href="{base}/audit"
+						class="row-link mt-1 inline-block rounded-sm text-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+					>
 						All changes in the audit log
 					</a>
 				{/if}
@@ -239,15 +251,11 @@
 		{/if}
 
 		{#if marks.favorites.length > 0 || recents.length > 0}
-			<section
-				aria-labelledby="jump-back"
-				class="rounded-xl border border-stone-200 bg-white p-4"
-				data-testid="overview-marks"
-			>
-				<h2 id="jump-back" class="font-semibold text-stone-900">Jump back in</h2>
+			<section aria-labelledby="jump-back" class="section-card" data-testid="overview-marks">
+				<h2 id="jump-back" class="section-heading">Jump back in</h2>
 				{#each [{ label: 'Favourites', people: marks.favorites }, { label: 'Recently viewed', people: recents }] as group (group.label)}
 					{#if group.people.length > 0}
-						<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
+						<h3 class="mt-3 text-xs font-semibold text-stone-600">
 							{group.label}
 						</h3>
 						<ul class="mt-1 space-y-1 text-sm">
@@ -256,7 +264,8 @@
 								<li>
 									<a
 										href={personPath(data.summary.tree, person.id)}
-										class="font-semibold text-emerald-900 hover:underline">{person.displayName}</a
+										class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+										>{person.displayName}</a
 									>
 									{#if dates}
 										<span class="text-stone-600">{dates}</span>
@@ -275,10 +284,10 @@
 			{#if stats.birthsByCentury.length > 0}
 				<section
 					aria-labelledby="births-by-century"
-					class="rounded-xl border border-stone-200 bg-white p-4"
+					class="section-card"
 					data-testid="overview-centuries"
 				>
-					<h2 id="births-by-century" class="font-semibold text-stone-900">Births by century</h2>
+					<h2 id="births-by-century" class="section-heading">Births by century</h2>
 					<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
 					<dl class="mt-3 space-y-1 text-sm">
 						{#each stats.birthsByCentury as row (row.century)}
@@ -286,7 +295,7 @@
 								<dt class="text-stone-700">{row.century}s</dt>
 								<dd class="h-3 rounded-sm bg-stone-100" aria-hidden="true">
 									<div
-										class="h-3 rounded-sm bg-emerald-700"
+										class="h-3 rounded-sm bg-stone-400"
 										style:width="{(row.people / widest) * 100}%"
 									></div>
 								</dd>
@@ -300,12 +309,8 @@
 			{/if}
 
 			{#if hasFigures}
-				<section
-					aria-labelledby="tree-figures"
-					class="rounded-xl border border-stone-200 bg-white p-4"
-					data-testid="overview-figures"
-				>
-					<h2 id="tree-figures" class="font-semibold text-stone-900">Figures</h2>
+				<section aria-labelledby="tree-figures" class="section-card" data-testid="overview-figures">
+					<h2 id="tree-figures" class="section-heading">Figures</h2>
 					<dl class="mt-2 space-y-2 text-sm">
 						{#if stats.averageLifespanYears !== null}
 							<div>
@@ -321,7 +326,8 @@
 								<dd>
 									<a
 										href={personPath(data.summary.tree, stats.oldest.id)}
-										class="font-semibold text-emerald-900 hover:underline">{stats.oldest.name}</a
+										class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+										>{stats.oldest.name}</a
 									>, {plural(stats.oldest.years, 'year', 'years')}
 								</dd>
 							</div>
@@ -335,7 +341,8 @@
 											<li class="flex justify-between gap-2">
 												<a
 													href="{base}/people?surname={encodeURIComponent(row.surname)}"
-													class="font-semibold text-emerald-900 hover:underline">{row.surname}</a
+													class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+													>{row.surname}</a
 												>
 												<span class="text-stone-600 tabular-nums"
 													>{row.people.toLocaleString()}</span
