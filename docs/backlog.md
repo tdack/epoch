@@ -266,6 +266,11 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   `gedcom_layout`. Editing the parts would need its own staleness rule (ADR-051).
 - **Feed fact coordinates into the places model.** Latitude and longitude sit on the fact and need a
   place. A place-level coordinate would serve the places model (ADR-051).
+- **Edit associations (`ASSO`).** The person page's Family section shows imported godparents,
+  witnesses and the like in both directions, read from the kept lines; nothing can add or change
+  one. Finding the facts that name a person reads every fact of the tree with kept lines, so a tree
+  of very many imported facts would want associations stored as rows, which editing would need
+  anyway.
 - **`HUSB` and `WIFE` `AGE` under family events** stay retained. Model them with the partnership
   details (ADR-051).
 
