@@ -17,7 +17,7 @@ import {
 } from '../testing/d1';
 import { ChangeStore } from '../repositories/change-store';
 import { checkPrivacyLeaks } from '../domain/quality-privacy';
-import { livingCutoff } from '../domain/living-state';
+import { EVERYONE_SHOWN_CUTOFF, livingCutoff } from '../domain/living-state';
 import { QualityService } from './quality-service';
 import { TaskService } from './task-service';
 
@@ -159,6 +159,96 @@ describe('what the privacy-leak rules fire on', () => {
 				cutoff
 			).filter((f) => f.rule !== 'public_override_likely_living')
 		).toEqual([]);
+	});
+});
+
+// Each undated person is kept private by their own facts; only their relatives' dates differ.
+const RELATIVES_FIXTURE = `0 HEAD
+0 @OLD@ INDI
+1 NAME Old /Parent/
+1 BIRT
+2 DATE 1700
+1 FAMS @F1@
+0 @I1@ INDI
+1 NAME Via /Parent/
+1 FAMC @F1@
+0 @I2@ INDI
+1 NAME Has /Death/
+1 FAMC @F1@
+1 DEAT Y
+0 @I3@ INDI
+1 NAME Set /Public/
+1 _EPOCH_PRIVACY public
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Set /Private/
+1 RESN privacy
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Via /Child/
+1 FAMS @F2@
+0 @I6@ INDI
+1 NAME Old /Child/
+1 BIRT
+2 DATE 1850
+1 FAMC @F2@
+0 @I7@ INDI
+1 NAME Recent /Parent/
+1 BIRT
+2 DATE 1990
+1 FAMS @F3@
+0 @I8@ INDI
+1 NAME Young /Child/
+1 FAMC @F3@
+0 @I9@ INDI
+1 NAME Undated /Parent/
+1 BIRT
+1 FAMS @F4@
+0 @I10@ INDI
+1 NAME Unknown /Child/
+1 FAMC @F4@
+0 @F1@ FAM
+1 HUSB @OLD@
+1 CHIL @I1@
+1 CHIL @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+0 @F2@ FAM
+1 HUSB @I5@
+1 CHIL @I6@
+0 @F3@ FAM
+1 HUSB @I7@
+1 CHIL @I8@
+0 @F4@ FAM
+1 HUSB @I9@
+1 CHIL @I10@
+0 TRLR`;
+
+describe('probably dead, but no death recorded', () => {
+	const fired = async (cutoff: string) => {
+		const relatives = await createTestTree(t.db, actors.owner);
+		await importGedcomToDb(t.d1, relatives, RELATIVES_FIXTURE, 'Relatives');
+		return checkPrivacyLeaks(await new ChangeStore(t.db).loadRows(relatives), cutoff)
+			.filter((f) => f.rule === 'probably_dead_no_death')
+			.map((f) => f.subjects[0].name)
+			.sort();
+	};
+
+	it('fires through an old parent or child, not a recent or undated one, a death or an override', async () => {
+		// Not Has Death (a death), Set Public or Set Private (overrides), Young Child (a parent born
+		// in 1990), or Unknown Child (a parent with an undated birth).
+		expect(await fired(livingCutoff(NOW, 120))).toEqual(['Via Child', 'Via Parent']);
+	});
+
+	it('is quiet on a public tree, where nobody counts as living', async () => {
+		expect(await fired(EVERYONE_SHOWN_CUTOFF)).toEqual([]);
+	});
+
+	it('is a manager-only suggestion', async () => {
+		const { QUALITY_RULE_BY_CODE } = await import('../../shared/quality');
+		const rule = QUALITY_RULE_BY_CODE.get('probably_dead_no_death')!;
+		expect(rule.severity).toBe('suggestion');
+		expect(rule.isManagerOnly).toBe(true);
 	});
 });
 

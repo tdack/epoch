@@ -142,6 +142,13 @@ export const QUALITY_RULES = [
 		isManagerOnly: true
 	},
 	{
+		code: 'probably_dead_no_death',
+		severity: 'suggestion',
+		title: 'Probably dead, but no death recorded',
+		why: 'A person has no death, burial or cremation and no birth before the tree’s living-person cut-off, so they are kept private as possibly living, but the dates of their parents, partners, partnerships, children or grandchildren show they must have died. Recording a death, even one with no date, or setting them to always public would show them.',
+		isManagerOnly: true
+	},
+	{
 		code: 'note_names_private_person',
 		severity: 'warning',
 		title: 'A note others can see names a private person',
