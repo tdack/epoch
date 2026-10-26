@@ -36,7 +36,10 @@
 	// Starts on the server's UTC day so the anniversary cards render in the first HTML instead of
 	// shifting the page when they appear; the reader's own day replaces it once the page runs here.
 	let today = $state(untrack(() => data.overview.today));
+	// A change's time is the reader's clock too; the server's UTC text would survive hydration.
+	let isOnReaderClock = $state(false);
 	onMount(() => {
+		isOnReaderClock = true;
 		const now = new Date();
 		today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
 			.map((n, i) => String(n).padStart(i === 0 ? 4 : 2, '0'))
@@ -76,6 +79,11 @@
 	const hasFigures = $derived(stats.averageLifespanYears !== null || stats.topSurnames.length > 0);
 	// A task opens its record; one about nothing opens the tasks list, as the Tasks page does.
 	const taskHref = (task: TaskDto) => taskSubjectPath(base, task) ?? `${base}/tasks?mine=true`;
+	// The time for a change made today, else the day: five "26 Oct" stamps would say nothing.
+	const stampOf = (at: Date) =>
+		at.toDateString() === new Date().toDateString()
+			? at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+			: at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 	const plural = (n: number, one: string, many: string) =>
 		`${n.toLocaleString()} ${n === 1 ? one : many}`;
 </script>
@@ -227,15 +235,7 @@
 							<li class="flex justify-between gap-3">
 								<span class="text-stone-800">{change.summary}</span>
 								<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
-									>{change.createdAt.toDateString() === new Date().toDateString()
-										? change.createdAt.toLocaleTimeString(undefined, {
-												hour: 'numeric',
-												minute: '2-digit'
-											})
-										: change.createdAt.toLocaleDateString(undefined, {
-												day: 'numeric',
-												month: 'short'
-											})}</time
+									>{isOnReaderClock ? stampOf(change.createdAt) : ''}</time
 								>
 							</li>
 						{/each}
