@@ -25,6 +25,11 @@ export type PlaceLocationCommand =
 			osmId?: number | null;
 			displayName?: string | null;
 			expectedVersion?: number;
+			/**
+			 * Do nothing when the place already has a location, of any status or source. A fact editor
+			 * sets this because it cannot know whether someone located the place since it loaded.
+			 */
+			ifUnset?: boolean;
 	  }
 	| { kind: 'ignore_place_location'; placeId: string; placeKey: string; expectedVersion?: number }
 	| { kind: 'clear_place_location'; placeId: string; expectedVersion?: number };
@@ -120,6 +125,7 @@ export function buildPlaceLocationOps(
 	switch (command.kind) {
 		case 'set_place_location': {
 			requirePlaceWithFacts(rows, command.placeId, command.placeKey);
+			if (command.ifUnset && before) return [];
 			validate(command);
 			return writeOp(
 				before,
