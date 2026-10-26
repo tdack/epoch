@@ -191,6 +191,8 @@ export function generateDeployConfig(tracked: Json, values: DeployValues): Json 
 	for (const entry of queues?.consumers ?? []) entry.queue = names.queue;
 
 	bindingEntry(config, 'workflows', 'binding', 'GEDCOM_EXPORT_WORKFLOW').name = names.workflow;
+	bindingEntry(config, 'workflows', 'binding', 'PLACE_MATCH_WORKFLOW').name =
+		names.placeMatchWorkflow;
 
 	// A binding that names an unverified sender may fail the deploy (spike), and the app already
 	// treats a missing binding as "not sent", so leaving it out is the safe default.

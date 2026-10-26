@@ -156,6 +156,20 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
 	},
+	// Sends place text to a third party and sweeps every place, so a manager's alone, and the text
+	// it sends is chosen by the living rule and never by the caller's view.
+	[`${API}/trees/[id]/places/match/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
+	},
+	[`${API}/trees/[id]/places/match/accept/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
+	},
+	[`${API}/trees/[id]/places/[placeId]/match/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
+	},
 	// Sweeps every date, private people's included, so it is a manager's alone.
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: {
 		kind: 'role-gated',
@@ -272,6 +286,7 @@ const LOADS = [
 	'./trees/[id]/overview/+page.server.ts',
 	'./trees/[id]/place/+page.server.ts',
 	'./trees/[id]/places/+page.server.ts',
+	'./trees/[id]/places/match/+page.server.ts',
 	'./trees/[id]/people/[personId]/+page.server.ts',
 	'./trees/[id]/people/[personId]/descendants/+page.server.ts',
 	'./trees/[id]/people/[personId]/fan/+page.server.ts',
@@ -344,6 +359,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/geo/search/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/places/match/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',

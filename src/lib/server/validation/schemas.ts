@@ -397,6 +397,12 @@ export const placeLocationSchema = z.discriminatedUnion('status', [
 	z.object({ status: z.literal('ignored'), version: versionSchema.optional() })
 ]);
 
+/** Edited text for one place's "Search again" (ADR-078). Whether it may be sent is the service's call. */
+export const placeMatchSearchSchema = z.object({ text: z.string().trim().min(1).max(200) });
+
+/** Bulk accept: every top candidate scoring at least `minScore`; the range is the service's to check. */
+export const placeMatchAcceptSchema = z.object({ minScore: z.number().finite() });
+
 /** Dismissing a data-quality finding: the finding's key, and why it is fine. */
 /**
  * One finding (`key`) or several (`keys`) dismissed with one reason. `key` stays for a page loaded

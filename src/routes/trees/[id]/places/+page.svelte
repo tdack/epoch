@@ -5,11 +5,14 @@
 	import { isInBounds, type MapBounds, type MapMarker } from '#lib/shared/geo.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
+	import { hasMinimumRole } from '#lib/shared/roles.js';
 
 	let { data }: PageProps = $props();
 
 	const base = $derived(treePath(data.summary.tree));
 	const page = $derived(data.page);
+	const role = $derived(data.trees.find((t) => t.id === data.summary.tree.id)?.role);
+	const canMatch = $derived(role !== undefined && hasMinimumRole(role, 'manager'));
 	let filterText = $derived(data.q);
 	const placeHref = (name: string) => `${base}/place?name=${encodeURIComponent(name)}`;
 	const markers = $derived<MapMarker[]>(
@@ -104,6 +107,11 @@
 					{data.map.unlocatedCount}
 					{data.map.unlocatedCount === 1 ? 'place has' : 'places have'} no location.
 					<a href={query(true)} class="text-link">Show them</a>
+				{/if}
+				{#if canMatch && data.map.unlocatedCount > 0}
+					<a href="{base}/places/match" class="text-link ml-2" data-testid="match-places-link"
+						>Match places</a
+					>
 				{/if}
 			</p>
 		{/if}
