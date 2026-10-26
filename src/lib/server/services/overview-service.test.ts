@@ -68,4 +68,12 @@ describe('OverviewService', () => {
 			topSurnames: [{ surname: 'Hill', people: 1 }]
 		});
 	});
+
+	it('lists the latest changes only for an editor or above', async () => {
+		const forOwner = await new OverviewService(t.db).load(treeId, owner.context);
+		const forViewer = await new OverviewService(t.db).load(treeId, viewer.context);
+		expect(forOwner.work.recentChanges).toBeInstanceOf(Array);
+		expect(forViewer.work.recentChanges).toBeNull();
+		expect(forViewer.work.myTasks).toEqual({ items: [], open: 0 });
+	});
 });

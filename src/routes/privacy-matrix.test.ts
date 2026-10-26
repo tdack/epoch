@@ -261,6 +261,7 @@ const LOADS = [
 	'./trees/[id]/people/+page.server.ts',
 	'./trees/[id]/notes/+page.server.ts',
 	'./trees/[id]/notes/[noteId]/+page.server.ts',
+	'./trees/[id]/overview/+page.server.ts',
 	'./trees/[id]/place/+page.server.ts',
 	'./trees/[id]/places/+page.server.ts',
 	'./trees/[id]/people/[personId]/+page.server.ts',

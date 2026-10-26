@@ -71,6 +71,7 @@ const EXPECTED: Record<string, Expected> = {
 	'./trees/[id]/+layout.server.ts': TREE,
 	'./trees/[id]/people/+page.server.ts': TREE,
 	'./trees/[id]/surnames/+page.server.ts': TREE,
+	'./trees/[id]/overview/+page.server.ts': TREE,
 	'./trees/[id]/unions/+page.server.ts': TREE,
 	'./trees/[id]/places/+page.server.ts': TREE,
 	'./trees/[id]/place/+page.server.ts': TREE,

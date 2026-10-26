@@ -1,3 +1,5 @@
+import type { TaskDto } from './tasks';
+
 /** What a tree's Overview page shows: counts and spreads over the people the viewer may see. */
 export interface OverviewStatsDto {
 	people: number;
@@ -28,8 +30,17 @@ export interface AnniversaryDto {
 	isCurrent: boolean;
 }
 
+/** The viewer's own work in the tree; absent where their role has none of it. */
+interface OverviewWorkDto {
+	/** Open tasks given to the viewer, and how many there are; null for a non-member. */
+	myTasks: { items: TaskDto[]; open: number } | null;
+	/** The newest changes to the tree; null below editor, as the log names whoever a change touched. */
+	recentChanges: { id: string; summary: string; createdAt: Date }[] | null;
+}
+
 export interface OverviewDto {
 	stats: OverviewStatsDto;
+	work: OverviewWorkDto;
 	/**
 	 * Days from the day before today to a month after, by the server's UTC clock: the reader picks
 	 * today by their own, which can be a day either side.

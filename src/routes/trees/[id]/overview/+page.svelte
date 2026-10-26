@@ -21,6 +21,7 @@
 	const RECENTS_SHOWN = 5;
 	const base = $derived(treePath(data.summary.tree));
 	const stats = $derived(data.overview.stats);
+	const work = $derived(data.overview.work);
 	const widest = $derived(Math.max(1, ...stats.birthsByCentury.map((c) => c.people)));
 	const recents = $derived(
 		marks.recents.filter((r) => !marks.favorites.some((f) => f.id === r.id)).slice(0, RECENTS_SHOWN)
@@ -129,6 +130,62 @@
 					</li>
 				{/each}
 			</ul>
+		</section>
+	{/if}
+
+	{#if work.myTasks || work.recentChanges?.length}
+		<section
+			aria-labelledby="your-work"
+			class="rounded-xl border border-stone-200 bg-white p-4"
+			data-testid="overview-work"
+		>
+			<h2 id="your-work" class="font-semibold text-stone-900">Your work</h2>
+			{#if work.myTasks}
+				<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
+					Your open tasks
+				</h3>
+				{#if work.myTasks.items.length === 0}
+					<p class="mt-1 text-sm text-stone-700">None given to you.</p>
+				{:else}
+					<ul class="mt-1 space-y-1 text-sm">
+						{#each work.myTasks.items as task (task.id)}
+							<li>
+								<span class="font-semibold text-stone-900">{task.title}</span>
+								{#if task.subject}<span class="text-stone-600"> · {task.subject.label}</span>{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<a
+					href="{base}/tasks?mine=true"
+					class="mt-1 inline-block text-sm text-emerald-900 underline"
+				>
+					{work.myTasks.open > work.myTasks.items.length
+						? `All ${work.myTasks.open} of your tasks`
+						: 'Tasks'}
+				</a>
+			{/if}
+			{#if work.recentChanges?.length}
+				<h3 class="mt-3 text-xs font-semibold tracking-wide text-stone-600 uppercase">
+					Latest changes
+				</h3>
+				<ul class="mt-1 space-y-1 text-sm">
+					{#each work.recentChanges as change (change.id)}
+						<li class="flex justify-between gap-3">
+							<span class="text-stone-800">{change.summary}</span>
+							<time datetime={change.createdAt.toISOString()} class="shrink-0 text-stone-600"
+								>{change.createdAt.toLocaleDateString(undefined, {
+									day: 'numeric',
+									month: 'short'
+								})}</time
+							>
+						</li>
+					{/each}
+				</ul>
+				<a href="{base}/audit" class="mt-1 inline-block text-sm text-emerald-900 underline">
+					Audit log
+				</a>
+			{/if}
 		</section>
 	{/if}
 
