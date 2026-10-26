@@ -127,7 +127,10 @@ are gone.
 - Evidence: sources, repositories, citations, shared notes and research tasks are records
   ([ADR-028](./adr/ADR-028.md), [ADR-029](./adr/ADR-029.md)).
 - Places: records derived from each fact's text, with rename and merge; the literal place text on
-  an event is never overwritten ([ADR-018](./adr/ADR-018.md), [ADR-019](./adr/ADR-019.md)).
+  an event is never overwritten ([ADR-018](./adr/ADR-018.md), [ADR-019](./adr/ADR-019.md)). A place
+  may have a location, a command-written `place_locations` record seeded from the file's `MAP` or
+  found through the Photon geocoder via a caching Worker proxy; maps use Leaflet and OSM tiles
+  ([ADR-078](./adr/ADR-078.md)).
 
 Step relationships are derived from a parent's union; widowhood from partner death and union
 history. Death never deletes or rewrites a union. Multiple unions between the same people stay
