@@ -5,7 +5,8 @@ here; the reasons behind past decisions are in [decisions.md](./decisions.md) (o
 system is in [architecture.md](./architecture.md). Remove an item when it ships, and add an ADR (a file in `docs/adr/` and a row in decisions.md) if
 it changes a decision.
 
-Last reviewed: 2026-10-21.
+Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
+[webtrees-comparison.md](./webtrees-comparison.md).
 
 ## Part 1: Open fixes
 
@@ -200,6 +201,9 @@ Last reviewed: 2026-10-21.
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
 - **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
+  These face visitors more than members, so they wait on a **request access** flow: a signed-out
+  visitor (or a signed-in non-member) asks to join a tree, and a manager accepts (sending the
+  usual invitation) or declines. None exists today; admission is invitation only (ADR-034).
 - **Branch (clippings) export** for a selected person and bounded relatives, with privacy enforced.
   Export is whole-tree only today.
 - **Pedigree collapse in charts.** An ancestor reached twice should render once, with a dashed link
@@ -253,7 +257,10 @@ Last reviewed: 2026-10-21.
 ### Collaboration and change control
 
 - **Contributor suggestions and pending changes,** with manager approval and rejection, and a
-  matching capability. Editors keep editing directly.
+  matching capability. Editors keep editing directly. Optional, not a priority: if built, everyone
+  is trusted by default (every member already invited and accepted keeps editing directly), and the
+  invitation offers a "changes need approval" choice per invitee, like webtrees' per-user
+  `AUTO_ACCEPT`.
 - **Conflict review.** Record history and undo of any change by id shipped in ADR-068.
 - **Filtered export for lesser roles,** and a review of logs, caches, R2 keys and metadata and error
   messages for privacy leaks.
