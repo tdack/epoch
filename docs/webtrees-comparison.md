@@ -131,7 +131,7 @@ webtrees has the following, and Epoch has none of it:
 
 Epoch serves the original bytes for every preview. The Files list renders each image from its `previewKey`, which is the stored original, so a 20 MB scan in the list costs 20 MB. Watermarks and thumbnails in charts are not in the backlog. Galleries and thumbnails are.
 
-### 1.9 Places have no hierarchy or map (BACKLOG; maps are deprioritised)
+### 1.9 Places have no hierarchy, `_LOC` records or pedigree map (PARTIAL; the rest is BACKLOG)
 
 webtrees has the following:
 
@@ -141,7 +141,14 @@ webtrees has the following:
 - `MapData*` admin pages with CSV and GeoJSON import and export
 - Four geocoders and five map providers
 
-Epoch's places are a flat list derived from the text on each fact (ADR-018, ADR-019).
+Epoch's places are a flat list derived from the text on each fact (ADR-018, ADR-019). Since
+ADR-078, a place can have a location. It comes from a fact's GEDCOM `MAP`, is set by hand, or is
+picked from OpenStreetMap through Photon, which also suggests places while you type. The Places
+tab shows located places on a map, with clustering. The place page has a pin, and the person page
+has a life map of the person's facts. Epoch uses Photon and OSM tiles only, so the other three
+geocoders and four map providers are not offered.
+
+Still missing: hierarchy, `_LOC` records, the pedigree map, and map data import and export.
 
 ### 1.10 Search is shallow (PARTIAL; part is in the backlog)
 
@@ -267,7 +274,7 @@ Already done, though the comparison might suggest otherwise:
 | Lifespans | none | BACKLOG ("timeline and lifespan view") |
 | Timeline, comparing several people | none (Life is one person only) | BACKLOG |
 | Statistics charts | none | BACKLOG |
-| Pedigree map | none | BACKLOG / OUT (lower priority) |
+| Pedigree map | none; a life map of one person's facts on the person page | BACKLOG / OUT (lower priority) |
 | Pedigree collapse | none | BACKLOG |
 | 3D views (Rings, Ball, Ribbons, Orrery) | Epoch only | — |
 
@@ -303,7 +310,9 @@ All 16 report modules are **BACKLOG** ("printable reports"). They are listed in 
 | Family navigator sidebar | Drawer | HAS |
 | Sources, notes and media tabs | Evidence sections | HAS |
 | Stories | none | GAP |
-| Places tab, with a map | none | BACKLOG |
+| Places tab, with a map | `/places` map of located places, with clustering | PARTIAL (no hierarchy) |
+| Place locations (`MAP`, by hand, or OSM) | `place_locations`, set from a fact's `MAP`, by hand, or from a Photon pick (ADR-078) | HAS |
+| Place pin | Pin on the place page, with "Set location" | HAS |
 | Associates (`ASSO`) | Kept, not shown | GAP |
 | Raw GEDCOM view | none | GAP |
 | Change history, in metadata | Record history and audit filter (ADR-068) | HAS, and better: undo by id |
@@ -327,7 +336,7 @@ All 16 report modules are **BACKLOG** ("printable reports"). They are listed in 
 | Optimistic concurrency and conflict UI | Yes | Epoch only |
 | Pending-change moderation | none | BACKLOG |
 | Census assistant | none | GAP (medium value for UK census work) |
-| Place autocomplete | `PlaceInput.svelte` suggests the tree's places | HAS |
+| Place autocomplete | `PlaceInput.svelte` suggests the tree's places, and OSM places while typing in the fact and partnership-event editors | HAS |
 
 ### Search
 
@@ -384,7 +393,7 @@ The webtrees media features (thumbnails, watermarks, albums, slideshow, multi-fi
 
 ### Places and maps
 
-These are covered in section 1.9. Hierarchy, locations and maps are **BACKLOG**. Geocoding is **BACKLOG**, with the backlog's constraint that it must not leak private people.
+These are covered in section 1.9. Locations, the Places map with clustering, the place pin, the person's life map and OSM suggestions while typing are **HAS**. Hierarchy, `_LOC` records and the pedigree map are **BACKLOG**. Geocoding import and export are **GAP**. Photon only sends place text, never a person, date or tree id, so the constraint that it must not leak private people holds (ADR-078).
 
 ### Dates
 
