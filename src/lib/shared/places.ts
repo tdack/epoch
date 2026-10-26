@@ -44,6 +44,22 @@ export interface PlaceListItem {
 	location: PlaceLocationDto | null;
 }
 
+/** One located place for the map (ADR-078). */
+export interface PlaceMapPoint {
+	placeId: string;
+	name: string;
+	latitude: number;
+	longitude: number;
+	factCount: number;
+	peopleCount: number;
+}
+
+export interface PlaceMapData {
+	points: PlaceMapPoint[];
+	/** Places the viewer may see that have no location row yet (ignored ones are not counted). */
+	unlocatedCount: number;
+}
+
 export interface PlaceFactDto {
 	id: string;
 	/** The fact type's label, e.g. "Birth". */

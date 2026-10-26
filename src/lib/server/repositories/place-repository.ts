@@ -14,7 +14,7 @@ import { placeKey, type PlaceLocationDto } from '../../shared/places';
 import { chunkIds } from './param-chunks';
 import { andInLens, andUnionInLens } from './subtree-membership';
 import { likePattern } from './like-pattern';
-import { andVisible, isVisibleOf } from './visibility';
+import { andVisible, isVisibleOf, literalList } from './visibility';
 
 type Scope = Pick<ViewerScope, 'isRestricted' | 'cutoff' | 'creatorId'>;
 
@@ -26,6 +26,18 @@ export interface PlaceFactRow {
 	dateRaw: string | null;
 }
 
+export interface PlaceMapRow {
+	id: string;
+	name: string;
+	latitude: number;
+	longitude: number;
+	facts: number;
+	people: number;
+}
+
+/** A place with no location row at all; an ignored place has one, so it is not "unlocated". */
+const hasNoLocation = sql` and not exists (select 1 from place_locations pl where pl.id = e.place_id)`;
+
 export interface PlaceAggregateRow {
 	id: string;
 	name: string;
@@ -33,15 +45,32 @@ export interface PlaceAggregateRow {
 	people: number;
 }
 
-/** The facts of this tree that carry a place, visible to the viewer, as one relation. */
-function visibleFacts(treeId: string, scope: Scope, match: SQL, lensRootId: string | null): SQL {
+/** Fact types that name where a person lived; a living person's are left off maps (ADR-078). */
+const RESIDENCE_EVENT_TYPES = ['RESI', 'CENS'] as const;
+
+/**
+ * The facts of this tree that carry a place, visible to the viewer, as one relation. With
+ * `isMapped`, a person's residence or census fact is also dropped unless the living rule shows the
+ * person as dead or the person is marked public: the rule is the viewer-independent one, so an
+ * owner's map leaves living people's homes off too.
+ */
+function visibleFacts(
+	treeId: string,
+	scope: Scope,
+	match: SQL,
+	lensRootId: string | null,
+	isMapped = false
+): SQL {
+	const notLivingHome = isMapped
+		? sql` and (e.type not in (${literalList(RESIDENCE_EVENT_TYPES)}) or ${isVisibleOf('i', { cutoff: scope.cutoff, creatorId: null })})`
+		: sql``;
 	const partnersVisible = scope.isRestricted
 		? sql` and not exists (select 1 from union_partners up join individuals p on p.id = up.person_id where up.union_id = u.id and not ${isVisibleOf('p', scope)})`
 		: sql``;
 	return sql`
 		select e.id as id, e.place as place, e.place_id as place_id, e.entity_type as entity_type, e.entity_id as entity_id, e.type as type, e.date_raw as date_raw, e.date_sort as date_sort
 		from events e join individuals i on i.id = e.entity_id
-		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place_id is not null${match}${andVisible('i', scope)}${andInLens('i', treeId, lensRootId)}
+		where e.tree_id = ${treeId} and e.entity_type = 'INDIVIDUAL' and e.place_id is not null${match}${andVisible('i', scope)}${notLivingHome}${andInLens('i', treeId, lensRootId)}
 		union all
 		select e.id, e.place, e.place_id, e.entity_type, e.entity_id, e.type, e.date_raw, e.date_sort
 		from events e join unions u on u.id = e.entity_id
@@ -146,9 +175,10 @@ export class PlaceRepository {
 		query: string,
 		page: { offset: number; limit: number },
 		scope: Scope,
-		lensRootId: string | null = null
+		lensRootId: string | null = null,
+		isUnlocated = false
 	): SQL {
-		const match = query ? sql` and e.place like ${likePattern(query)} escape '\\'` : sql``;
+		const match = sql`${query ? sql` and e.place like ${likePattern(query)} escape '\\'` : sql``}${isUnlocated ? hasNoLocation : sql``}`;
 		return sql`
 			select f.place_id as id, min(f.place) as name, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
 			from (${visibleFacts(treeId, scope, match, lensRootId)}) f
@@ -162,12 +192,35 @@ export class PlaceRepository {
 		query: string,
 		page: { offset: number; limit: number },
 		scope: Scope,
-		lensRootId: string | null = null
+		lensRootId: string | null = null,
+		isUnlocated = false
 	): Promise<{ rows: PlaceAggregateRow[]; hasMore: boolean }> {
 		const rows = await this.db.all<PlaceAggregateRow>(
-			this.listSql(treeId, query, page, scope, lensRootId)
+			this.listSql(treeId, query, page, scope, lensRootId, isUnlocated)
 		);
 		return { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
+	}
+
+	/**
+	 * Every place with a confirmed location, counted over the facts the viewer may see and the map
+	 * may show. Not paged: a map needs all its markers. A place with no such fact is absent.
+	 */
+	async mapRows(treeId: string, scope: Scope, lensRootId: string | null = null): Promise<PlaceMapRow[]> {
+		return this.db.all<PlaceMapRow>(sql`
+			select f.place_id as id, min(f.place) as name, pl.latitude as latitude, pl.longitude as longitude, count(*) as facts, count(distinct case when f.entity_type = 'INDIVIDUAL' then f.entity_id end) as people
+			from (${visibleFacts(treeId, scope, sql``, lensRootId, true)}) f
+			join place_locations pl on pl.id = f.place_id
+			where pl.tree_id = ${treeId} and pl.status = 'confirmed' and pl.latitude is not null and pl.longitude is not null
+			group by f.place_id
+			order by min(f.place) collate nocase, f.place_id`);
+	}
+
+	/** How many places the viewer may see have no location row yet. */
+	async unlocatedCount(treeId: string, scope: Scope, lensRootId: string | null = null): Promise<number> {
+		const [row] = await this.db.all<{ n: number }>(
+			sql`select count(distinct f.place_id) as n from (${visibleFacts(treeId, scope, hasNoLocation, lensRootId)}) f`
+		);
+		return row?.n ?? 0;
 	}
 
 	factsSql(
