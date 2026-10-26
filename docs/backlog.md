@@ -207,15 +207,17 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   births, as webtrees offers, are not. (ADR-058)
 - **Printable reports:** family group, individual summary, ancestors and descendants. Must be
   accessible and printable.
-- **Anniversaries, recent changes and basic statistics.** Today only a counts banner exists.
-  These face visitors more than members, so they wait on a **request access** flow: a signed-out
-  visitor (or a signed-in non-member) asks to join a tree, and a manager accepts (sending the
-  usual invitation) or declines. None exists today; admission is invitation only (ADR-034).
+- **A request access flow:** a signed-out visitor (or a signed-in non-member) asks to join a tree,
+  and a manager accepts (sending the usual invitation) or declines. None exists today; admission is
+  invitation only (ADR-034).
+- **Overview follow-ups.** The Overview tab has on-this-day, coming-up, figures, your tasks and
+  the latest changes. It does not yet honour a sub-tree lens (it says so), show quality-finding
+  counts (the report reads every table, too heavy for a page opened often), or name who made each
+  change. A dual-dated (Julian) day is never an anniversary.
 - **Branch (clippings) export** for a selected person and bounded relatives, with privacy enforced.
   Export is whole-tree only today.
 - **Pedigree collapse in charts.** An ancestor reached twice should render once, with a dashed link
   or an "also appears as" badge, never a duplicate card.
-- **Home dashboard.** Favourites and recents exist; there is no dashboard.
 - **A text alternative to the graph for screen readers,** with arrow-key navigation between
   related nodes (confirm what shipped against the accessibility audit below). The flat view's
   minimap shipped (pointer only, hidden from assistive technology); the 3D views have none.
