@@ -9,5 +9,6 @@
 | [query-plans.md](./query-plans.md) | Measured query plans for the bounded graph |
 | [gedcom-extensions.md](./gedcom-extensions.md) | Epoch's own GEDCOM extension tags |
 | [webtrees-comparison.md](./webtrees-comparison.md) | Feature gaps against webtrees 2.2.6, and quick wins (2026-10-26) |
+| [reports-research.md](./reports-research.md) | Reports, print styles and PDF options: research and suggestions (2026-10-26) |
 
 Start with [architecture.md](./architecture.md); the reasons behind it are in [decisions.md](./decisions.md).
