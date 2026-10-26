@@ -76,7 +76,9 @@
 	};
 	const ANNIVERSARIES_SHOWN = 5;
 	const hasWork = $derived((work.myTasks?.open ?? 0) > 0 || (work.recentChanges?.length ?? 0) > 0);
-	const hasFigures = $derived(stats.averageLifespanYears !== null || stats.topSurnames.length > 0);
+	// Bars for one or two centuries show nothing the two numbers don't; they go in Figures instead.
+	const MIN_CENTURIES_CHARTED = 3;
+	const isCenturyChart = $derived(stats.birthsByCentury.length >= MIN_CENTURIES_CHARTED);
 	// A task opens its record; one about nothing opens the tasks list, as the Tasks page does.
 	const taskHref = (task: TaskDto) => taskSubjectPath(base, task) ?? `${base}/tasks?mine=true`;
 	// The time for a change made today, else the day: five "26 Oct" stamps would say nothing.
@@ -94,13 +96,11 @@
 
 <header>
 	<h1 class="text-2xl font-bold text-stone-900">Overview</h1>
-	<p class="mt-1 text-sm text-stone-600">
-		{plural(stats.people, 'person', 'people')} and {plural(
-			stats.partnerships,
-			'partnership',
-			'partnerships'
-		)}{data.summary.subtree ? ' across the whole tree, not only this sub-tree' : ''}.
-	</p>
+	{#if data.summary.subtree}
+		<p class="mt-1 text-sm text-stone-600">
+			Everything here covers the whole tree, not only this sub-tree.
+		</p>
+	{/if}
 </header>
 
 {#if stats.people === 0}
@@ -261,7 +261,7 @@
 						<ul class="mt-1 space-y-1 text-sm">
 							{#each group.people as person (person.id)}
 								{@const dates = lifeDates(person.birthDate, person.deathDate, person.isDeceased)}
-								<li>
+								<li class="flex flex-wrap items-center gap-x-1.5">
 									<a
 										href={personPath(data.summary.tree, person.id)}
 										class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
@@ -279,83 +279,97 @@
 		{/if}
 	</div>
 
-	{#if stats.birthsByCentury.length > 0 || hasFigures}
-		<div class="mt-8 grid items-start gap-4 border-t border-stone-200 pt-6 md:grid-cols-2">
-			{#if stats.birthsByCentury.length > 0}
-				<section
-					aria-labelledby="births-by-century"
-					class="section-card"
-					data-testid="overview-centuries"
-				>
-					<h2 id="births-by-century" class="section-heading">Births by century</h2>
-					<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
-					<dl class="mt-3 space-y-1 text-sm">
-						{#each stats.birthsByCentury as row (row.century)}
-							<div class="grid grid-cols-[4rem_1fr_3rem] items-center gap-2">
-								<dt class="text-stone-700">{row.century}s</dt>
-								<dd class="h-3 rounded-sm bg-stone-100" aria-hidden="true">
-									<div
-										class="h-3 rounded-sm bg-stone-400"
-										style:width="{(row.people / widest) * 100}%"
-									></div>
-								</dd>
-								<dd class="text-right text-stone-700 tabular-nums">
-									{row.people.toLocaleString()}
-								</dd>
-							</div>
-						{/each}
-					</dl>
-				</section>
-			{/if}
+	<div class="mt-8 grid items-start gap-4 border-t border-stone-200 pt-6 md:grid-cols-2">
+		{#if isCenturyChart}
+			<section
+				aria-labelledby="births-by-century"
+				class="section-card"
+				data-testid="overview-centuries"
+			>
+				<h2 id="births-by-century" class="section-heading">Births by century</h2>
+				<p class="text-xs text-stone-600">People whose birth is dated to a single year.</p>
+				<dl class="mt-3 space-y-1 text-sm">
+					{#each stats.birthsByCentury as row (row.century)}
+						<div class="grid grid-cols-[4rem_1fr_3rem] items-center gap-2">
+							<dt class="text-stone-700">{row.century}s</dt>
+							<dd class="h-3 rounded-sm bg-stone-100" aria-hidden="true">
+								<div
+									class="h-3 rounded-sm bg-stone-400"
+									style:width="{(row.people / widest) * 100}%"
+								></div>
+							</dd>
+							<dd class="text-right text-stone-700 tabular-nums">
+								{row.people.toLocaleString()}
+							</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
+		{/if}
 
-			{#if hasFigures}
-				<section aria-labelledby="tree-figures" class="section-card" data-testid="overview-figures">
-					<h2 id="tree-figures" class="section-heading">Figures</h2>
-					<dl class="mt-2 space-y-2 text-sm">
-						{#if stats.averageLifespanYears !== null}
-							<div>
-								<dt class="text-stone-600">Average lifespan</dt>
-								<dd class="font-semibold text-stone-900">
-									{plural(stats.averageLifespanYears, 'year', 'years')}
-								</dd>
-							</div>
-						{/if}
-						{#if stats.oldest}
-							<div>
-								<dt class="text-stone-600">Longest life recorded</dt>
-								<dd>
-									<a
-										href={personPath(data.summary.tree, stats.oldest.id)}
-										class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
-										>{stats.oldest.name}</a
-									>, {plural(stats.oldest.years, 'year', 'years')}
-								</dd>
-							</div>
-						{/if}
-						{#if stats.topSurnames.length > 0}
-							<div>
-								<dt class="text-stone-600">Most common surnames</dt>
-								<dd>
-									<ol class="mt-1 space-y-0.5">
-										{#each stats.topSurnames as row (row.surname)}
-											<li class="flex justify-between gap-2">
-												<a
-													href="{base}/people?surname={encodeURIComponent(row.surname)}"
-													class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
-													>{row.surname}</a
-												>
-												<span class="text-stone-600 tabular-nums"
-													>{row.people.toLocaleString()}</span
-												>
-											</li>
-										{/each}
-									</ol>
-								</dd>
-							</div>
-						{/if}
-					</dl>
-				</section>
-			{/if}
-		</div>
-	{/if}
+		<section aria-labelledby="tree-figures" class="section-card" data-testid="overview-figures">
+			<h2 id="tree-figures" class="section-heading">Figures</h2>
+			<dl class="mt-2 space-y-2 text-sm">
+				<div>
+					<dt class="text-stone-600">People and partnerships</dt>
+					<dd class="font-semibold text-stone-900">
+						{plural(stats.people, 'person', 'people')}, {plural(
+							stats.partnerships,
+							'partnership',
+							'partnerships'
+						)}
+					</dd>
+				</div>
+				{#if stats.birthsByCentury.length > 0 && !isCenturyChart}
+					<div>
+						<dt class="text-stone-600">Births dated to a single year</dt>
+						<dd class="font-semibold text-stone-900">
+							{stats.birthsByCentury
+								.map((c) => `${c.people.toLocaleString()} in the ${c.century}s`)
+								.join(', ')}
+						</dd>
+					</div>
+				{/if}
+				{#if stats.averageLifespanYears !== null}
+					<div>
+						<dt class="text-stone-600">Average lifespan</dt>
+						<dd class="font-semibold text-stone-900">
+							{plural(stats.averageLifespanYears, 'year', 'years')}
+						</dd>
+					</div>
+				{/if}
+				{#if stats.oldest}
+					<div>
+						<dt class="text-stone-600">Longest life recorded</dt>
+						<dd>
+							<a
+								href={personPath(data.summary.tree, stats.oldest.id)}
+								class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+								>{stats.oldest.name}</a
+							>, {plural(stats.oldest.years, 'year', 'years')}
+						</dd>
+					</div>
+				{/if}
+				{#if stats.topSurnames.length > 0}
+					<div>
+						<dt class="text-stone-600">Most common surnames</dt>
+						<dd>
+							<ol class="mt-1 space-y-0.5">
+								{#each stats.topSurnames as row (row.surname)}
+									<li class="flex items-center justify-between gap-2">
+										<a
+											href="{base}/people?surname={encodeURIComponent(row.surname)}"
+											class="text-link rounded-sm focus-ring coarse:inline-flex coarse:min-h-11 coarse:items-center"
+											>{row.surname}</a
+										>
+										<span class="text-stone-600 tabular-nums">{row.people.toLocaleString()}</span>
+									</li>
+								{/each}
+							</ol>
+						</dd>
+					</div>
+				{/if}
+			</dl>
+		</section>
+	</div>
 {/if}
