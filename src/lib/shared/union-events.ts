@@ -1,18 +1,25 @@
 /**
  * The events a partnership can carry in the editor, and how a status pairs with them.
  *
- * GEDCOM 5.5.1 has tags for engagement, marriage, divorce and annulment but none for the start of
- * an unmarried partnership or for a separation. Those two use user-defined tags (`_PSTART`,
- * `_SEPR`), which the importer treats as family events so they survive a round trip through Epoch.
+ * GEDCOM 5.5.1 has tags for engagement, banns, contract, licence, settlement, marriage, divorce
+ * filed, divorce and annulment but none for the start of an unmarried partnership or for a
+ * separation. Those two use user-defined tags (`_PSTART`, `_SEPR`), which the importer treats as
+ * family events so they survive a round trip through Epoch. A family `EVEN` is not offered: it
+ * needs a free-text type the partnership editor has no field for, so it stays read-only.
  */
 
 import type { UnionStatus } from './relationship-model';
 
 export const UNION_EVENT_TYPES = {
 	ENGAGEMENT: 'ENGA',
+	BANNS: 'MARB',
+	CONTRACT: 'MARC',
+	LICENCE: 'MARL',
+	SETTLEMENT: 'MARS',
 	PARTNERSHIP_START: '_PSTART',
 	MARRIAGE: 'MARR',
 	SEPARATION: '_SEPR',
+	DIVORCE_FILED: 'DIVF',
 	DIVORCE: 'DIV',
 	ANNULMENT: 'ANUL'
 } as const;
@@ -21,18 +28,28 @@ export type UnionEventType = (typeof UNION_EVENT_TYPES)[keyof typeof UNION_EVENT
 /** Editor order: the usual order things happen in. */
 export const UNION_EVENT_TYPE_LIST = [
 	UNION_EVENT_TYPES.ENGAGEMENT,
+	UNION_EVENT_TYPES.BANNS,
+	UNION_EVENT_TYPES.CONTRACT,
+	UNION_EVENT_TYPES.LICENCE,
+	UNION_EVENT_TYPES.SETTLEMENT,
 	UNION_EVENT_TYPES.PARTNERSHIP_START,
 	UNION_EVENT_TYPES.MARRIAGE,
 	UNION_EVENT_TYPES.SEPARATION,
+	UNION_EVENT_TYPES.DIVORCE_FILED,
 	UNION_EVENT_TYPES.DIVORCE,
 	UNION_EVENT_TYPES.ANNULMENT
 ] as const;
 
 export const UNION_EVENT_LABELS: Record<UnionEventType, string> = {
 	ENGA: 'Engagement',
+	MARB: 'Marriage banns',
+	MARC: 'Marriage contract',
+	MARL: 'Marriage licence',
+	MARS: 'Marriage settlement',
 	_PSTART: 'Partnership start',
 	MARR: 'Marriage',
 	_SEPR: 'Separation',
+	DIVF: 'Divorce filed',
 	DIV: 'Divorce',
 	ANUL: 'Annulment'
 };
@@ -40,9 +57,14 @@ export const UNION_EVENT_LABELS: Record<UnionEventType, string> = {
 /** Short forms for the label under a union node. */
 export const UNION_EVENT_ABBREVIATIONS: Record<UnionEventType, string> = {
 	ENGA: 'engaged',
+	MARB: 'banns',
+	MARC: 'contract',
+	MARL: 'licence',
+	MARS: 'settlement',
 	_PSTART: 'from',
 	MARR: 'm.',
 	_SEPR: 'sep.',
+	DIVF: 'div. filed',
 	DIV: 'div.',
 	ANUL: 'annulled'
 };

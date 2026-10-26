@@ -230,6 +230,9 @@ const INDIVIDUAL_EVENT_TAGS = new Set([
 	'RESI',
 	'SSN',
 	'TITL',
+	'NATI',
+	'CAST',
+	'_MILT',
 	'FACT'
 ]);
 

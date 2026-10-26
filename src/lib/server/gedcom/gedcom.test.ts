@@ -292,3 +292,29 @@ describe('partnership events with user-defined tags', () => {
 		]);
 	});
 });
+
+describe('nationality, caste and military service', () => {
+	const gedcom = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Ada /King/
+1 NATI British
+1 CAST Brahmin
+1 _MILT
+2 DATE 1916
+2 PLAC Somme
+0 TRLR
+`;
+
+	it('imports them as facts and exports them under the same tags', () => {
+		const parsed = parseGedcom(gedcom);
+		expect(parsed.individuals[0].events.map((e) => e.type)).toEqual(['NATI', 'CAST', '_MILT']);
+		const out = buildGedcom551String({
+			individuals: parsed.individuals,
+			families: parsed.families
+		} as never);
+		expect(out).toContain('1 NATI British');
+		expect(out).toContain('1 _MILT\r\n2 DATE 1916\r\n2 PLAC Somme');
+	});
+});
