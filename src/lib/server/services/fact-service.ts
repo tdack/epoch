@@ -54,7 +54,7 @@ export class FactService {
 		personIds: string[],
 		fact: FactInput,
 		citation?: CitationInput
-	): { factIds: string[]; commands: RelationshipCommand[] } {
+	): { factIds: string[]; commands: RelationshipCommand[]; unique: string[] } {
 		const unique = [...new Set(personIds)];
 		if (unique.length === 0 || unique.length > MAX_GROUP_FACT_PEOPLE)
 			throw new ValidationError(`Choose between 1 and ${MAX_GROUP_FACT_PEOPLE} people.`);
@@ -72,7 +72,7 @@ export class FactService {
 					]
 				: [])
 		]);
-		return { factIds, commands };
+		return { factIds, commands, unique };
 	}
 
 	/**
@@ -86,10 +86,10 @@ export class FactService {
 		context: AuthenticatedContext,
 		citation?: CitationInput
 	): Promise<{ factIds: string[] } & MutationResult> {
-		const { factIds, commands } = this.groupCommands(personIds, fact, citation);
+		const { factIds, commands, unique } = this.groupCommands(personIds, fact, citation);
 		const result = await this.runner.run(treeId, context, {
 			kind: 'create_group_fact',
-			summary: () => describeGroupFact(fact.type, factIds.length),
+			summary: (rows) => describeGroupFact(rows, fact.type, unique),
 			commands
 		});
 		return { factIds, ...result };
@@ -102,9 +102,9 @@ export class FactService {
 		fact: FactInput,
 		context: AuthenticatedContext
 	): Promise<ImpactSummary> {
-		const { factIds, commands } = this.groupCommands(personIds, fact);
-		return this.runner.preview(treeId, context, commands, () =>
-			describeGroupFact(fact.type, factIds.length)
+		const { commands, unique } = this.groupCommands(personIds, fact);
+		return this.runner.preview(treeId, context, commands, (rows) =>
+			describeGroupFact(rows, fact.type, unique)
 		);
 	}
 

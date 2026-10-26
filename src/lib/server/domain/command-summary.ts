@@ -79,9 +79,19 @@ const PRIVACY_SENTENCES = {
 
 const peopleCount = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`;
 
-/** "Added Emigration to 6 people": the summary of one fact copied onto a group. */
-export function describeGroupFact(type: string, count: number): string {
-	return `Added ${factLabel(type)} to ${peopleCount(count)}`;
+/**
+ * "Added emigration to 6 people": the summary of one fact copied onto a group. A group of one is
+ * named, as a single added fact is, rather than reading "to 1 person".
+ */
+export function describeGroupFact(
+	rows: TreeRows,
+	type: string,
+	personIds: readonly string[]
+): string {
+	const fact = factLabel(type).toLowerCase();
+	return personIds.length === 1
+		? `Added ${fact} to ${nameOf(rows, personIds[0]!)}`
+		: `Added ${fact} to ${peopleCount(personIds.length)}`;
 }
 
 /** "Cited “Smith family book” for 6 people", or "… on 6 Birth facts" when it cites a fact type. */

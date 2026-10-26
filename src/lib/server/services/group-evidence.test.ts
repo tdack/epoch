@@ -69,7 +69,7 @@ describe('group facts', () => {
 				.sort()
 		).toEqual([...ids].sort());
 		expect(await allCitations()).toHaveLength(3);
-		expect(change?.summary).toBe('Added Emigration to 3 people');
+		expect(change?.summary).toBe('Added emigration to 3 people');
 		await log.undoLast(treeId, ctx);
 		expect((await allEvents()).filter((e) => e.type === 'EMIG')).toHaveLength(0);
 		expect(await allCitations()).toHaveLength(0);
