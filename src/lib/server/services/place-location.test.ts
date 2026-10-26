@@ -213,6 +213,34 @@ describe('the commands', () => {
 		expect(await locationOf('Nowhere')).toBeNull();
 	});
 
+	it('sets a location only when the place has none, whatever the version', async () => {
+		const set = (placeId: string, actor: TestActor) =>
+			places().changeLocation(
+				treeId,
+				{
+					kind: 'set_place_location',
+					placeId,
+					latitude: 1,
+					longitude: 2,
+					source: 'photon',
+					shouldSkipIfLocated: true
+				},
+				actor.context
+			);
+		// Left off maps by an earlier test: an ignored location counts as one too.
+		const { change } = await set(await idOf('Hobart'), actors.owner);
+		expect(change).toBeNull();
+		expect(await locationOf('Hobart')).toMatchObject({ status: 'ignored', latitude: null });
+
+		const id = await idOf('Nowhere');
+		await expect(set(id, actors.contributor)).rejects.toBeInstanceOf(UnauthorizedError);
+		expect(await locationOf('Nowhere')).toBeNull();
+		await set(id, actors.owner);
+		expect(await locationOf('Nowhere')).toMatchObject({ latitude: 1, source: 'photon' });
+		await log().undoLast(treeId, actors.owner.context);
+		expect(await locationOf('Nowhere')).toBeNull();
+	});
+
 	it('changes a location, bumping its version, and undo restores the earlier one', async () => {
 		const id = await idOf('Bare');
 		await places().changeLocation(

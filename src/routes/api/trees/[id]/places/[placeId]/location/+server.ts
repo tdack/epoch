@@ -19,7 +19,8 @@ export const PUT = treeHandler(
 						source: body.source,
 						osmType: body.osmType,
 						osmId: body.osmId,
-						displayName: body.displayName
+						displayName: body.displayName,
+						shouldSkipIfLocated: body.shouldSkipIfLocated
 					};
 		const { change: logged } = await new PlaceService(db).changeLocation(treeId, change, ctx);
 		return { change: logged };
