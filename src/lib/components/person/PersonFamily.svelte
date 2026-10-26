@@ -66,12 +66,14 @@
 	const hasSiblings = $derived(dto.siblings.full.length > 0 || dto.siblings.half.length > 0);
 
 	/** Read as the linked person's part: "godfather at christening", or this person's part in theirs. */
-	function associationNote({ role, factLabel, isNamedBy }: AssociationDto): string {
-		const fact = factLabel?.toLowerCase();
-		if (!isNamedBy) return fact ? `${role ?? 'associate'} at ${fact}` : (role ?? 'associate');
-		return fact
-			? `this person was ${role ?? 'an associate'} at their ${fact}`
-			: `this person was their ${role ?? 'associate'}`;
+	function associationNote(association: AssociationDto): string {
+		const fact = association.factLabel?.toLowerCase();
+		// Files often capitalise the word ("Godfather"); it sits mid-sentence here.
+		const role = association.role?.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()) ?? null;
+		if (!association.isNamedBy)
+			return fact ? `${role ?? 'associate'} at ${fact}` : (role ?? 'associate');
+		if (fact) return role ? `this person was ${role} at their ${fact}` : `named at their ${fact}`;
+		return role ? `this person was their ${role}` : 'names this person as an associate';
 	}
 
 	function add(kind: RelationshipKind, unionId?: string) {
