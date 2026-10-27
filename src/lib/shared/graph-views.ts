@@ -4,6 +4,7 @@ import type { TreeRole } from './roles';
  * stays on the server; only the shapes live here.
  */
 
+import type { DateFormat } from './date-display';
 import type { SelectionStub } from '../tree-layout/types';
 import type { RelationshipGraph } from './relationship-graph';
 import type { ActiveSubtreeDto, SubtreeSummaryDto } from './subtrees';
@@ -33,6 +34,8 @@ export interface TreeSummaryDto {
 		version: number;
 		/** Also served at `<slug>.<EPOCH_TREE_HOST_ZONE>`, showing only this tree. */
 		isOnSubdomain: boolean;
+		/** How dates read as words in this tree (ADR-079); every reader gets it, public visitors too. */
+		dateFormat: DateFormat;
 	};
 	counts: TreeCounts;
 	/** Who is looking, so the page can hide what they cannot use without a second request. */

@@ -6,6 +6,7 @@
 
 import type { DbClient } from '../db';
 import { NotFoundError } from '../domain/errors';
+import { DEFAULT_DATE_FORMAT } from '../../shared/date-display';
 import type { AuthenticatedContext } from '../domain/identity';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
@@ -115,7 +116,8 @@ export class GraphQueryService {
 				name: tree.name,
 				description: tree.description ?? null,
 				version: tree.version,
-				isOnSubdomain: tree.isOnSubdomain === true
+				isOnSubdomain: tree.isOnSubdomain === true,
+				dateFormat: tree.dateFormat ?? DEFAULT_DATE_FORMAT
 			},
 			viewer: {
 				role: scope.role,

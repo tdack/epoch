@@ -4,6 +4,7 @@ import { eq, and, exists, like, or, sql } from 'drizzle-orm';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import type { TreeRole } from '../../shared/roles';
 import { parseLayoutMode, type LayoutMode } from '../../shared/view-mode';
+import { DEFAULT_DATE_FORMAT, isDateFormat, type DateFormat } from '../../shared/date-display';
 import { MAX_TREE_SLUG_LENGTH, slugifyTreeName } from '../../shared/tree-slug';
 
 export interface TreeSummary {
@@ -23,6 +24,8 @@ export interface TreeSummary {
 	isDefault?: boolean;
 	/** Also served at its slug's subdomain; set by `findById` and `update` only. */
 	isOnSubdomain?: boolean;
+	/** How the tree's dates read as words (ADR-079); set by `findById` and `update` only. */
+	dateFormat?: DateFormat;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 }
@@ -254,6 +257,8 @@ export class TreeRepository {
 			description: record.description,
 			version: record.version,
 			isOnSubdomain: record.isOnSubdomain,
+			// A column holds text, so a value that is not a format (a hand edit) reads as the default.
+			dateFormat: isDateFormat(record.dateFormat) ? record.dateFormat : DEFAULT_DATE_FORMAT,
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt
 		};
@@ -320,6 +325,7 @@ export class TreeRepository {
 			description?: string | null;
 			slug?: string | null;
 			isOnSubdomain?: boolean;
+			dateFormat?: DateFormat;
 		}
 	): Promise<TreeSummary> {
 		const current = await this.findById(treeId);
@@ -344,11 +350,13 @@ export class TreeRepository {
 		// Giving up the address gives up the subdomain with it: the subdomain is the slug.
 		const isOnSubdomain = slug !== null && (data.isOnSubdomain ?? current.isOnSubdomain ?? false);
 
+		const dateFormat = data.dateFormat ?? current.dateFormat ?? DEFAULT_DATE_FORMAT;
 		const updated = await this.db
 			.update(trees)
 			.set({
 				slug,
 				isOnSubdomain,
+				dateFormat,
 				name: data.name !== undefined ? data.name.trim() : current.name,
 				description: data.description !== undefined ? data.description : current.description,
 				version: nextVersion,
@@ -364,6 +372,7 @@ export class TreeRepository {
 			id: treeId,
 			slug,
 			isOnSubdomain,
+			dateFormat,
 			name: data.name !== undefined ? data.name.trim() : current.name,
 			description: data.description !== undefined ? data.description : current.description,
 			version: nextVersion,
