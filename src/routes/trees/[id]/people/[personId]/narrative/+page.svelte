@@ -1,5 +1,6 @@
 <script lang="ts">
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
+	import NarrativeBody from '#lib/components/reports/NarrativeBody.svelte';
 	import {
 		DESCENDANT_NUMBERING_LABELS,
 		DESCENDANT_NUMBERINGS,
@@ -23,7 +24,6 @@
 	const heading = $derived(
 		`${dto.kind === NARRATIVE_KINDS.ANCESTORS ? 'Ancestors' : 'Descendants'} of ${dto.person.name}`
 	);
-	const generationNumbers = $derived([...new Set(dto.entries.map((e) => e.generation))]);
 	const numberingId = $props.id();
 </script>
 
@@ -78,52 +78,4 @@
 	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
 </div>
 
-{#each generationNumbers as generation (generation)}
-	<section aria-labelledby="generation-{generation}" class="mt-6">
-		<h2 id="generation-{generation}" class="break-after-avoid text-lg font-bold text-stone-900">
-			Generation {generation}
-		</h2>
-		{#each dto.entries.filter((e) => e.generation === generation) as entry (entry.number)}
-			<article id="entry-{entry.number}" class="mt-3 max-w-3xl text-sm leading-relaxed">
-				<h3 class="break-after-avoid font-semibold">
-					{entry.number}.
-					{#if entry.isPrivate}
-						<span class="text-stone-600 italic">Private</span>
-					{:else}
-						<a href={personHref(entry.personId)} class="text-link">{entry.name}</a>
-					{/if}
-				</h3>
-				{#if !entry.isPrivate}
-					{#if entry.seeNumber}
-						<p>
-							See number <a href="#entry-{entry.seeNumber}" class="text-link">{entry.seeNumber}</a>.
-						</p>
-					{:else}
-						<p>
-							{#each entry.sentences as sentence, i (i)}{i > 0
-									? ' '
-									: ''}{sentence.text}{#each sentence.notes as n (n)}<sup
-										><a href="#note-{n}" aria-label="Note {n}" class="text-link">{n}</a></sup
-									>{/each}{/each}
-						</p>
-					{/if}
-				{/if}
-			</article>
-		{/each}
-	</section>
-{/each}
-
-{#if dto.hasMore}
-	<p class="mt-6 text-sm text-stone-600" data-testid="more">
-		More generations exist past generation {dto.generations}. Add a generation to read them.
-	</p>
-{/if}
-
-{#if dto.endnotes.length > 0}
-	<section aria-labelledby="endnotes" class="mt-8 border-t border-stone-300 pt-3">
-		<h2 id="endnotes" class="text-lg font-bold text-stone-900">Notes</h2>
-		<ol class="mt-2 list-decimal space-y-1 pl-5 text-sm">
-			{#each dto.endnotes as note (note.number)}<li id="note-{note.number}">{note.text}</li>{/each}
-		</ol>
-	</section>
-{/if}
+<NarrativeBody narrative={dto} {personHref} />
