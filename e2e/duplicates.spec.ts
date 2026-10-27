@@ -39,14 +39,14 @@ test('repeated partnerships between one pair are labelled 1st and 2nd, in the ca
 
 	await expect(bartJessicaMarker(page, '1st')).toBeAttached();
 	await expect(bartJessicaMarker(page, '2nd')).toBeAttached();
-	await expect(page.locator('text.label', { hasText: '1st · 3 Nov 2014' })).toBeVisible();
-	await expect(page.locator('text.label', { hasText: '2nd · 3 Nov 2014' })).toBeVisible();
+	await expect(page.locator('text.label', { hasText: '1st · 3 November 2014' })).toBeVisible();
+	await expect(page.locator('text.label', { hasText: '2nd · 3 November 2014' })).toBeVisible();
 
 	// The drawer shows what is stored: both partnerships, not a collapsed one.
 	await page.locator('[data-person-id]').filter({ hasText: 'Bart' }).first().dblclick();
 	const drawer = page.locator(DRAWER);
-	await expect(drawer.getByText('1st partnership (m. 3 Nov 2014)')).toBeVisible();
-	await expect(drawer.getByText('2nd partnership (m. 3 Nov 2014)')).toBeVisible();
+	await expect(drawer.getByText('1st partnership (m. 3 November 2014)')).toBeVisible();
+	await expect(drawer.getByText('2nd partnership (m. 3 November 2014)')).toBeVisible();
 	// The drawer also has a Merge… for the person, so count the partnerships' own.
 	await expect(
 		drawer.getByTestId('partnership').getByRole('button', { name: 'Merge…' })
@@ -74,7 +74,9 @@ test('merging duplicate partnerships from the union menu previews the change, th
 	await expect(dialog.getByRole('checkbox')).toHaveCount(2);
 	await expect(dialog.getByText('This is exactly what will change:')).toBeVisible();
 	// Both share a name, so the preview tells them apart by chronology.
-	await expect(dialog.getByText(/partnership \(2nd of 2, m\. 3 Nov 2014\)/).first()).toBeVisible();
+	await expect(
+		dialog.getByText(/partnership \(2nd of 2, m\. 3 November 2014\)/).first()
+	).toBeVisible();
 	await expect(dialog.getByText('Deleted').first()).toBeVisible();
 	await dialog.getByRole('button', { name: 'Merge partnerships' }).click();
 

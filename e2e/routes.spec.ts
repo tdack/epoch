@@ -65,7 +65,7 @@ test('a person page deep-links, survives a refresh and follows browser history',
 	await importWindsors(request, api);
 	await open(page, personPath(api, XREF.elizabeth));
 	await expect(page.getByTestId('person-name')).toHaveText(ELIZABETH_NAME);
-	await expect(page.getByTestId('lifespan')).toContainText('21 APR 1926');
+	await expect(page.getByTestId('lifespan')).toContainText('21 April 1926');
 
 	await page.reload();
 	await page.locator('body[data-hydrated]').waitFor({ state: 'attached' });
@@ -117,7 +117,7 @@ test('a partnership page shows partners, events, children and chronology, and de
 	await expect(page.getByTestId('union-children')).toContainText('Margaret');
 	await expect(page.getByTestId('chronology').locator('li').first()).toBeVisible();
 	await expect(page.getByTestId('union-events')).toContainText('Marriage');
-	await expect(page.getByTestId('union-events')).toContainText('26 APR 1923');
+	await expect(page.getByTestId('union-events')).toContainText('26 April 1923');
 
 	const url = page.url();
 	await page.reload();

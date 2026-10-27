@@ -19,7 +19,7 @@ test('ending a union shows the ended connector', async ({ page, api }) => {
 
 	// A horizontal connector has no height, so it is attached rather than "visible" to Playwright.
 	await expect(page.locator('path.line.partner.ended').first()).toBeAttached();
-	await expect(page.getByText('div. 12 MAR 1999')).toBeVisible();
+	await expect(page.getByText('div. 12 March 1999')).toBeVisible();
 	const union = (await api.graph()).unions[0];
 	expect(union.status).toBe('divorced');
 	expect(union.events).toMatchObject([{ type: 'DIV', dateText: '12 MAR 1999' }]);
