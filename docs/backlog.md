@@ -316,6 +316,11 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Deciding ODbL for exporting geocoded coordinates** (ADR-078). Until it is decided, they are not
   exported.
 - **The CSP is fixed at build time,** so a custom tile host needs a code change (ADR-078).
+- **Photon's public server is unreliable from Workers.** On 2026-10-27, `photon.komoot.io` answered
+  Cloudflare error 521 (the origin refused the connection) to the place-matching job. Changing the
+  Photon address in Administration → Maps to another server fixed it. The job does not retry, so a
+  run against a failing server leaves places with no candidates until it is run again. Options:
+  retry 520–527 answers with a backoff, change the default server, or self-host Photon (ADR-078).
 - **The Places page reloads the whole map data on every list page.**
 - **Partnership events are not on the person life map.**
 - **The place-field OSM suggestions are only in the fact and partnership-event editors,** not the
