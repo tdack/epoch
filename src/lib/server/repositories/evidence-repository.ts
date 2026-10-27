@@ -354,6 +354,32 @@ export class EvidenceRepository {
 	}
 
 	/** Every id-and-subject of the citations whose source or subject a page names, for resolving labels. */
+	/** The citations of these facts that the viewer may see, for a report's endnotes. */
+	async citationsOfEvents(
+		treeId: string,
+		eventIds: readonly string[],
+		scope: Scope
+	): Promise<CitationRow[]> {
+		const out: CitationRow[] = [];
+		// The visibility predicate binds a few parameters of its own.
+		for (const chunk of chunkIds([...new Set(eventIds)], 60)) {
+			const rows = await this.db
+				.select()
+				.from(citations)
+				.where(
+					and(
+						eq(citations.treeId, treeId),
+						eq(citations.subjectKind, CITATION_SUBJECT_KINDS.EVENT),
+						inArray(citations.subjectId, chunk),
+						visibleCitation(treeId, scope)
+					)
+				)
+				.all();
+			out.push(...rows.map(citationImage));
+		}
+		return out;
+	}
+
 	async namesByIds(treeId: string, ids: readonly string[]) {
 		const out: Array<typeof personNames.$inferSelect> = [];
 		for (const chunk of chunkIds([...new Set(ids)], 80))
