@@ -18,14 +18,17 @@
 		chartDates(birth, death, dateFormat());
 </script>
 
-<div class="overflow-auto rounded-xl border border-stone-200 bg-white" tabindex="-1">
+<div
+	class="overflow-auto rounded-xl border border-stone-200 bg-white print:overflow-visible print:border-0"
+	tabindex="-1"
+>
 	<svg
 		role="group"
 		aria-label={label}
 		width={layout.width}
 		height={layout.height}
 		viewBox="0 0 {layout.width} {layout.height}"
-		class="mx-auto block"
+		class="mx-auto block print:h-auto print:max-h-[170mm] print:w-full"
 	>
 		{#each layout.segments as segment (segment.key)}
 			{@const person = segment.person}

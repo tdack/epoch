@@ -32,12 +32,15 @@
 		n === 1 ? 'the person' : `${n % 2 === 0 ? 'first' : 'second'} parent of ${Math.floor(n / 2)}`;
 </script>
 
-<details class="mt-4 rounded-xl border border-stone-200 bg-white p-3 text-sm" data-testid={testId}>
+<details
+	class="mt-4 rounded-xl border border-stone-200 bg-white p-3 text-sm print:border-0 print:p-0"
+	data-testid={testId}
+>
 	<summary class="cursor-pointer font-semibold text-stone-800">{summary}</summary>
 	<p class="mt-2 text-xs text-stone-600">
 		Numbered so that a person's first parent is twice their number and the second is twice plus one.
 	</p>
-	<ol class="mt-2 space-y-1">
+	<ol class="mt-2 space-y-1 print:list-decimal print:pl-8">
 		{#each entries as entry (entry.number)}
 			<li value={entry.number}>
 				{#if entry.person.isPrivate}

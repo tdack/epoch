@@ -35,14 +35,17 @@
 		chartDates(birth, death, dateFormat());
 </script>
 
-<div class="overflow-auto rounded-xl border border-stone-200 bg-white" tabindex="-1">
+<div
+	class="overflow-auto rounded-xl border border-stone-200 bg-white print:overflow-visible print:border-0"
+	tabindex="-1"
+>
 	<svg
 		role="group"
 		aria-label={label}
 		width={layout.width + PADDING * 2}
 		height={layout.height + PADDING * 2}
 		viewBox="{-PADDING} {-PADDING} {layout.width + PADDING * 2} {layout.height + PADDING * 2}"
-		class="block"
+		class="block print:h-auto print:w-full"
 	>
 		<g fill="none" stroke="currentColor" class="text-stone-300" aria-hidden="true">
 			{#each layout.edges as edge (`${edge.from}-${edge.to}`)}

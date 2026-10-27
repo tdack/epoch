@@ -53,34 +53,37 @@
 	<title>{heading} · {treeName} · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-sm text-stone-600">
-	<a href={base} class="text-link">{treeName}</a>
-	/
-	<a href="{base}/people/{encodeURIComponent(subject.id)}" class="text-link">{subject.name}</a>
-</nav>
-<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
-{#if hint}<p class="mt-1 text-sm text-stone-600">{hint}</p>{/if}
+<!-- The marker lets app.css put the whole printout, footer included, on a landscape page. -->
+<div data-print-page="chart">
+	<nav aria-label="Breadcrumb" class="text-sm text-stone-600">
+		<a href={base} class="text-link">{treeName}</a>
+		/
+		<a href="{base}/people/{encodeURIComponent(subject.id)}" class="text-link">{subject.name}</a>
+	</nav>
+	<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
+	{#if hint}<p class="mt-1 text-sm text-stone-600">{hint}</p>{/if}
 
-<div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
-	<ChartStyleNav
-		current={style}
-		hrefFor={(other) => chartAddress(treeRef, subject.id, other, generations)}
-	/>
-	{#if controls}
-		{@render controls()}
-	{:else if stepper}
-		<GenerationStepper
-			label="Generations"
-			value={stepper.value}
-			max={stepper.max}
-			hrefFor={stepper.hrefFor}
+	<div class="mt-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
+		<ChartStyleNav
+			current={style}
+			hrefFor={(other) => chartAddress(treeRef, subject.id, other, generations)}
 		/>
-	{/if}
-	<a href="{base}?focus={encodeURIComponent(subject.id)}" class="text-link">Show in the tree</a>
-</div>
+		{#if controls}
+			{@render controls()}
+		{:else if stepper}
+			<GenerationStepper
+				label="Generations"
+				value={stepper.value}
+				max={stepper.max}
+				hrefFor={stepper.hrefFor}
+			/>
+		{/if}
+		<a href="{base}?focus={encodeURIComponent(subject.id)}" class="text-link">Show in the tree</a>
+	</div>
 
-{#if notice}<p class="mt-2 text-sm text-stone-600" data-testid="more">{notice}</p>{/if}
+	{#if notice}<p class="mt-2 text-sm text-stone-600" data-testid="more">{notice}</p>{/if}
 
-<div class="mt-4">
-	{@render children()}
+	<div class="mt-4">
+		{@render children()}
+	</div>
 </div>
