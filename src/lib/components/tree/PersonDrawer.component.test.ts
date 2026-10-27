@@ -29,7 +29,7 @@ const page = {
 		isDeceased: false
 	},
 	names: [],
-	vitals: { birth: null, death: null, lifespan: null, hasConflict: false },
+	vitals: { birth: null, death: null, hasConflict: false },
 	facts: [],
 	parentFamilies: [],
 	partnerships: [],

@@ -177,7 +177,7 @@
 		</p>{/if}
 	{#each dto.partnerships as union (union.unionId)}
 		<div
-			class="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5"
+			class="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 print:border-stone-300 print:bg-white"
 			data-testid="partnership"
 		>
 			<div class="flex flex-wrap items-baseline justify-between gap-x-2">

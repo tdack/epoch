@@ -109,6 +109,16 @@ export function anniversariesAround(
 	shouldOmitLiving = false
 ): AnniversaryDto[] {
 	const window = daysAround(today);
+	return anniversariesOn(rows, (monthDay) => window.has(monthDay), livingCutoff, shouldOmitLiving);
+}
+
+/** The same days as `anniversariesAround`, for whichever `MM-DD` days `isDay` accepts (the calendar's month). */
+export function anniversariesOn(
+	rows: TreeRows,
+	isDay: (monthDay: string) => boolean,
+	livingCutoff: string,
+	shouldOmitLiving = false
+): AnniversaryDto[] {
 	const people = new Map(rows.individuals.map((p) => [p.id, p]));
 	const factsOf = new Map<string, LivingFact[]>();
 	const parted = new Set<string>();
@@ -127,7 +137,7 @@ export function anniversariesAround(
 		const type = e.type as AnniversaryType;
 		if (!ANNIVERSARY_TYPES.includes(type) || !e.dateSort) continue;
 		if (e.datePrecision !== 'DAY' || e.dateQualifier !== 'EXACT') continue;
-		if (e.dateCalendar !== 'GREGORIAN' || !window.has(e.dateSort.slice(5))) continue;
+		if (e.dateCalendar !== 'GREGORIAN' || !isDay(e.dateSort.slice(5))) continue;
 		const isUnion = e.entityType === 'FAMILY';
 		if (isUnion !== (type === 'MARR')) continue;
 		const ids = isUnion ? (partnersOf.get(e.entityId) ?? []) : [e.entityId];

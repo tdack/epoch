@@ -256,7 +256,7 @@
 	});
 </script>
 
-<div class="relative {className}">
+<div class="relative {className} print:hidden">
 	<div
 		bind:this={element}
 		role="region"

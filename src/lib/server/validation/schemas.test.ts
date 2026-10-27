@@ -100,6 +100,12 @@ describe('line terminators at the write boundary', () => {
 	it('rejects a terminator in a tree name', () => {
 		expect(treeCreateSchema.safeParse({ name: lf }).success).toBe(false);
 		expect(treeRenameSchema.safeParse({ name: cr, version: 1 }).success).toBe(false);
+		expect(treeRenameSchema.safeParse({ name: 'T', version: 1, dateFormat: 'short' }).success).toBe(
+			true
+		);
+		expect(treeRenameSchema.safeParse({ name: 'T', version: 1, dateFormat: 'nope' }).success).toBe(
+			false
+		);
 	});
 
 	it('rejects a terminator in a citation entry date and a call number', () => {

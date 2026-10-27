@@ -14,6 +14,7 @@ import { messageOf } from '#lib/components/feedback/error-message.js';
 import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 import { TOAST_TONES } from '#lib/components/feedback/toasts.svelte.js';
 import type { RelationshipGraph } from '#lib/shared/relationship-graph.js';
+import type { DateFormat } from '#lib/shared/date-display.js';
 import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 import { mergeCandidatesFor, mergeableUnionIds } from './merge-candidates.js';
 import { isConflict, type ConflictError } from '#lib/api/client.js';
@@ -75,6 +76,8 @@ export interface RelativeAction {
 
 export interface TreeEditorOptions {
 	treeId: () => string;
+	/** The tree's date format, for the dates inside partnership labels; the default when omitted. */
+	dateFormat?: () => DateFormat;
 	toasts: ToastStore;
 	/** Reload what the current screen shows; resolves when the new data is in. */
 	refresh: () => Promise<void>;
@@ -158,7 +161,9 @@ export class TreeEditor {
 	relativeAction = $state<RelativeAction | null>(null);
 
 	/** "1st partnership" and so on; computed over every partnership the graph holds. */
-	unionLabels = $derived(this.graph ? partnershipLabels(this.graph.unions) : new Map());
+	unionLabels = $derived(
+		this.graph ? partnershipLabels(this.graph.unions, this.dateFormat()) : new Map()
+	);
 	mergeableIds = $derived(this.graph ? mergeableUnionIds(this.graph.unions) : new Set<string>());
 	mergeCandidates = $derived(
 		this.graph && this.mergingUnionId
@@ -174,6 +179,11 @@ export class TreeEditor {
 	editingUnion = $derived(this.graph?.unions.find((u) => u.id === this.editingUnionId) ?? null);
 
 	constructor(private options: TreeEditorOptions) {}
+
+	// A method, not an inline read: a field initialiser runs before the constructor stores `options`.
+	private dateFormat(): DateFormat | undefined {
+		return this.options.dateFormat?.();
+	}
 
 	get treeId(): string {
 		return this.options.treeId();

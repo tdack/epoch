@@ -231,6 +231,17 @@ describe('reading evidence as a contributor', () => {
 		expect(leaks(source)).toEqual([]);
 	});
 
+	it('gives the usage report the same citations and the same refusal as the source page', async () => {
+		const page = await reads().getSource(treeId, ids['@S2@'], {}, ctx());
+		const usage = await reads().getSourceUsage(treeId, ids['@S2@'], ctx());
+		expect(usage.groups).toEqual(page.groups);
+		expect(usage.hasMore).toBe(false);
+		expect(usage.groups.find((g) => g.fact)?.fact).toMatchObject({ dateText: '1850' });
+		await expect(reads().getSourceUsage(treeId, ids['@S1@'], ctx())).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+	});
+
 	it('does not list a repository kept only for a source they cannot see', async () => {
 		const page = await reads().listRepositories(treeId, {}, ctx());
 		expect(page.items).toEqual([]);

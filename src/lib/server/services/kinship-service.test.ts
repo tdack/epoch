@@ -123,6 +123,37 @@ describe('for a viewer or contributor, with private people omitted', () => {
 	});
 });
 
+describe('the kinship list', () => {
+	const list = (who: TreeRole, n: number, generations = 2) =>
+		service().kinshipList(treeId, idOf(n), generations, actors[who].context);
+	it('labels every relative from one walk, nearest first', async () => {
+		const r = await list('owner', 4);
+		expect(r.entries.map((e) => [e.name, e.label])).toEqual(
+			expect.arrayContaining([
+				['Dad Oldman', 'parent'],
+				['Gran Oldman', 'grandparent'],
+				['Cuz Oldman', '1st cousin']
+			])
+		);
+		expect(r.entries[0]!.name).toBe('Dad Oldman');
+		expect(r.entries.map((e) => e.name)).not.toContain('Loner Smith');
+		expect(r.entries.map((e) => e.name)).not.toContain('Me Oldman');
+	});
+	it('stops at the generations asked for', async () => {
+		const names = (await list('owner', 4, 1)).entries.map((e) => e.name);
+		expect(names).toContain('Dad Oldman');
+		expect(names).not.toContain('Cuz Oldman');
+	});
+	it('leaves out a private person and anyone related only through them', async () => {
+		const r = await list('viewer', 4);
+		expect(JSON.stringify(r)).not.toMatch(/Secretia|Hidden/);
+		expect(r.entries.map((e) => e.name)).toContain('Cuz Oldman');
+	});
+	it('refuses a depth out of range', async () => {
+		await expect(list('owner', 4, 9)).rejects.toThrow(/Generations/);
+	});
+});
+
 describe('with the tree set to show private people as placeholders', () => {
 	beforeAll(async () => {
 		await new PrivacyService(t.db, {

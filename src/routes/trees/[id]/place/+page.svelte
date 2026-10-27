@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { goto } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import PlaceLocation from '#lib/components/maps/PlaceLocation.svelte';
@@ -6,12 +7,14 @@
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { undoApi } from '#lib/api/relationships.js';
+	import { MAX_PLACES_WITHIN } from '#lib/shared/places.js';
 	import { hasMinimumRole } from '#lib/shared/roles.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 	import type { PageProps } from './$types';
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
+	const showDate = dateReader();
 	const { toasts } = getTreeContext();
 
 	const base = $derived(treePath(data.summary.tree));
@@ -62,6 +65,10 @@
 </nav>
 <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 	<h1 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h1>
+	<a
+		href="{base}/place/report?name={encodeURIComponent(place.name)}"
+		class="text-link text-sm print:hidden">Report</a
+	>
 	{#if canEdit}
 		<button
 			type="button"
@@ -72,8 +79,8 @@
 	{/if}
 </div>
 
-<div class="mt-4 grid gap-6 lg:grid-cols-2 lg:items-start">
-	<div class="lg:sticky lg:top-4">
+<div class="mt-4 grid gap-6 lg:grid-cols-2 lg:items-start print:grid-cols-1">
+	<div class="lg:sticky lg:top-4 print:static">
 		<PlaceLocation
 			treeId={data.summary.tree.id}
 			placeId={place.id}
@@ -100,7 +107,7 @@
 							class="font-semibold text-emerald-900 hover:underline">{fact.entityName}</a
 						>
 					</span>
-					<span class="text-stone-600">{fact.dateText ?? 'Date unknown'}</span>
+					<span class="text-stone-600">{showDate(fact.dateText) || 'Date unknown'}</span>
 				</li>
 			{/each}
 		</ul>
@@ -109,6 +116,29 @@
 			previousHref={place.offset > 0 ? pageHref(Math.max(0, place.offset - place.limit)) : null}
 			nextHref={place.hasMore ? pageHref(place.offset + place.limit) : null}
 		/>
+
+		{#if data.within.places.length > 0}
+			<h2 id="within-heading" class="mt-6 text-sm font-semibold text-stone-900">
+				Places within {place.name}
+			</h2>
+			<ul
+				class="mt-2 space-y-1 text-sm"
+				aria-labelledby="within-heading"
+				data-testid="places-within"
+			>
+				{#each data.within.places as inner (inner.name)}
+					<li>
+						<a href={placeHref(inner.name)} class="text-link">{inner.name}</a>
+						<span class="text-stone-600">
+							· {inner.facts} {inner.facts === 1 ? 'fact' : 'facts'}</span
+						>
+					</li>
+				{/each}
+			</ul>
+			{#if data.within.hasMore}
+				<p class="mt-1 text-xs text-stone-600">Only the first {MAX_PLACES_WITHIN} are listed.</p>
+			{/if}
+		{/if}
 	</section>
 </div>
 

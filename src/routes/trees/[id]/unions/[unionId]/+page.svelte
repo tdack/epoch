@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import {
 		GitMerge,
@@ -35,6 +36,7 @@
 	}
 
 	let { data }: Props = $props();
+	const showDate = dateReader();
 	const { editor, toasts } = getTreeContext();
 
 	const dto = $derived(data.union);
@@ -98,7 +100,8 @@
 			]}
 		</p>
 	</div>
-	<div class="flex flex-wrap gap-2">
+	<div class="flex flex-wrap gap-2 print:hidden">
+		<a href="{unionHref(dto.union.id)}/sheet" class="action-btn">Family group sheet</a>
 		<button type="button" onclick={() => editor.editUnion(dto.union.id)} class="action-btn"
 			><Pencil class="h-3.5 w-3.5" />Edit</button
 		>
@@ -144,7 +147,11 @@
 </header>
 
 {#if dto.warnings.length > 0}
-	<section aria-labelledby="warnings-heading" class="section-card" data-testid="warnings">
+	<section
+		aria-labelledby="warnings-heading"
+		class="section-card print:hidden"
+		data-testid="warnings"
+	>
 		<h3 id="warnings-heading" class="section-heading">Warnings</h3>
 		<ul class="mt-2 space-y-1.5 text-sm">
 			{#each dto.warnings as warning (warning.code + warning.subjectIds.join())}
@@ -165,11 +172,12 @@
 	</section>
 {/if}
 
-<div class="grid gap-6 lg:grid-cols-2">
-	<div class="space-y-6">
-		<section aria-labelledby="partners-heading" class="section-card">
+<!-- On paper the two columns dissolve into one list in family-group-sheet order (the order-* classes). -->
+<div class="grid gap-6 lg:grid-cols-2 print:flex print:flex-col">
+	<div class="space-y-6 print:contents">
+		<section aria-labelledby="partners-heading" class="section-card print:order-1">
 			<h3 id="partners-heading" class="section-heading">Partners</h3>
-			{#if dto.partners.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.partners.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					No partners recorded.
 				</p>{/if}
 			<ul class="mt-2 space-y-1 text-sm" data-testid="partners">
@@ -177,8 +185,8 @@
 					<li>
 						<PersonLink person={partner} href={personHref(partner.id)} />
 						<span class="text-xs text-stone-500"
-							>{partner.birthDate ?? ''}{partner.isDeceased
-								? ` – ${partner.deathDate ?? 'deceased'}`
+							>{showDate(partner.birthDate)}{partner.isDeceased
+								? ` – ${showDate(partner.deathDate) || 'deceased'}`
 								: ''}</span
 						>
 					</li>
@@ -186,9 +194,12 @@
 			</ul>
 		</section>
 
-		<section aria-labelledby="events-heading" class="section-card">
+		<section
+			aria-labelledby="events-heading"
+			class={['section-card print:order-2', dto.events.length === 0 && 'print:hidden']}
+		>
 			<h3 id="events-heading" class="section-heading">Relationship events</h3>
-			{#if dto.events.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.events.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					None recorded. Use Edit to add a marriage, separation or divorce.
 				</p>{/if}
 			<ul class="mt-2 space-y-1.5 text-sm" data-testid="union-events">
@@ -196,7 +207,7 @@
 					<li>
 						<span class="font-medium">{event.label}</span>
 						<span class="text-xs text-stone-600"
-							>{event.dateText ?? 'Date unknown'}{#if event.place}{' · '}<a
+							>{showDate(event.dateText) || 'Date unknown'}{#if event.place}{' · '}<a
 									href="{treePath(data.summary.tree)}/place?name={encodeURIComponent(event.place)}"
 									class="hover:underline">{event.place}</a
 								>{/if}</span
@@ -241,7 +252,14 @@
 			</ul>
 		</section>
 
-		<section aria-labelledby="union-notes-heading" class="section-card" data-testid="union-notes">
+		<section
+			aria-labelledby="union-notes-heading"
+			class={[
+				'section-card print:order-5',
+				dto.notes.length === 0 && dto.linkNotes.length === 0 && 'print:hidden'
+			]}
+			data-testid="union-notes"
+		>
 			<h3 id="union-notes-heading" class="section-heading">Notes</h3>
 			<div class="mt-2">
 				<NoteList
@@ -277,7 +295,7 @@
 
 		<section
 			aria-labelledby="union-evidence-heading"
-			class="section-card"
+			class={['section-card print:order-6', dto.evidence.citations.length === 0 && 'print:hidden']}
 			data-testid="union-evidence"
 		>
 			<h3 id="union-evidence-heading" class="section-heading">Sources and evidence</h3>
@@ -325,16 +343,16 @@
 			{/each}
 		</section>
 
-		<section aria-labelledby="children-heading" class="section-card">
+		<section aria-labelledby="children-heading" class="section-card print:order-3">
 			<h3 id="children-heading" class="section-heading">Children</h3>
-			{#if dto.children.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.children.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					No children recorded.
 				</p>{/if}
 			<ul class="mt-2 space-y-1.5 text-sm" data-testid="union-children">
 				{#each dto.children as child (child.person.id)}
 					<li>
 						<PersonLink person={child.person} href={personHref(child.person.id)} />
-						<span class="text-xs text-stone-500">{child.person.birthDate ?? ''}</span>
+						<span class="text-xs text-stone-500">{showDate(child.person.birthDate)}</span>
 						<span class="block text-xs text-stone-500"
 							>{child.links.map((l) => `${l.parentName}: ${l.type}`).join(' · ')}</span
 						>
@@ -344,16 +362,18 @@
 		</section>
 	</div>
 
-	<div class="space-y-6">
-		<section aria-labelledby="chronology-heading" class="section-card">
+	<div class="space-y-6 print:contents">
+		<section aria-labelledby="chronology-heading" class="section-card print:order-4">
 			<h3 id="chronology-heading" class="section-heading">Chronology</h3>
-			{#if dto.chronology.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.chronology.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					Nothing dated yet.
 				</p>{/if}
 			<ol class="mt-2 space-y-1 text-sm" data-testid="chronology">
 				{#each dto.chronology as entry, index (index)}
 					<li class="flex gap-3">
-						<span class="w-28 shrink-0 text-xs text-stone-500">{entry.dateText ?? 'undated'}</span>
+						<span class="w-28 shrink-0 text-xs text-stone-500"
+							>{showDate(entry.dateText) || 'undated'}</span
+						>
 						<span class={entry.kind === 'union_event' ? 'font-semibold text-emerald-900' : ''}>
 							{#if entry.personId && !privateIds.has(entry.personId)}<a
 									class="row-link"
@@ -366,7 +386,7 @@
 		</section>
 
 		{#if dto.twins.length > 0}
-			<section aria-labelledby="twins-heading" class="section-card">
+			<section aria-labelledby="twins-heading" class="section-card print:hidden">
 				<h3 id="twins-heading" class="section-heading">Same partners</h3>
 				<ul class="mt-2 space-y-1 text-sm">
 					{#each dto.twins as twin (twin.unionId)}
@@ -380,7 +400,7 @@
 			</section>
 		{/if}
 
-		<section aria-labelledby="history-heading" class="section-card">
+		<section aria-labelledby="history-heading" class="section-card print:hidden">
 			<h3 id="history-heading" class="section-heading">History</h3>
 			<p class="mt-1 text-xs text-stone-500">
 				Created {when(dto.changes.createdAt)} · last written {when(dto.changes.updatedAt)}

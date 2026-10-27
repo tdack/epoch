@@ -10,6 +10,8 @@
 		isOpenByDefault?: boolean;
 		/** The page only: the section sits in a card it shares with others, so it draws none itself. */
 		isFlush?: boolean;
+		/** Left off the printed page: a control, or a section that holds only an empty state. */
+		isPrintHidden?: boolean;
 		/** Set on the wrapper, for the tests that find a whole section. */
 		testId?: string;
 		children: Snippet;
@@ -21,6 +23,7 @@
 		layout,
 		isOpenByDefault = false,
 		isFlush = false,
+		isPrintHidden = false,
 		testId,
 		children
 	}: Props = $props();
@@ -54,7 +57,7 @@
 
 {#if layout === 'drawer'}
 	<details
-		class="section-card"
+		class={isPrintHidden ? 'section-card print:hidden' : 'section-card'}
 		open={isOpen}
 		ontoggle={toggled}
 		data-testid={testId}
@@ -68,7 +71,7 @@
 {:else}
 	<section
 		aria-labelledby={`${id}-heading`}
-		class={isFlush ? 'py-4' : 'section-card'}
+		class={[isFlush ? 'py-4' : 'section-card', isPrintHidden && 'print:hidden']}
 		data-testid={testId}
 		data-section={id}
 	>

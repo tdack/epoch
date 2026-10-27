@@ -269,7 +269,12 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/trees/[id]/tasks/impact/+server.ts`]: { kind: 'guarded-write', covers: TASKS },
 	[`${API}/trees/[id]/undo/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
 	[`${API}/trees/[id]/unions/[unionId]/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
-	[`${API}/trees/[id]/unions/merge/+server.ts`]: { kind: 'guarded-write', covers: WRITES }
+	[`${API}/trees/[id]/unions/merge/+server.ts`]: { kind: 'guarded-write', covers: WRITES },
+	// Outside /api: a download of the calendar's visible events, masked like the page.
+	['./trees/[id]/calendar/anniversaries.ics/+server.ts']: {
+		kind: 'masked-rows',
+		covers: 'services/calendar.test.ts'
+	}
 };
 
 /** Page and layout loads read only through the services behind the endpoints above, and hold no data of their own. */
@@ -304,7 +309,18 @@ const LOADS = [
 	'./trees/[id]/tasks/+page.server.ts',
 	'./trees/[id]/trees/+page.server.ts',
 	'./trees/[id]/unions/+page.server.ts',
-	'./trees/[id]/unions/[unionId]/+page.server.ts'
+	'./trees/[id]/unions/[unionId]/+page.server.ts',
+	'./trees/[id]/unions/[unionId]/sheet/+page.server.ts',
+	'./trees/[id]/people/[personId]/narrative/+page.server.ts',
+	'./trees/[id]/people/[personId]/kin/+page.server.ts',
+	'./trees/[id]/people/[personId]/gaps/+page.server.ts',
+	'./trees/[id]/people/[personId]/evidence/+page.server.ts',
+	'./trees/[id]/people/[personId]/interview/+page.server.ts',
+	'./trees/[id]/people/[personId]/book/+page.server.ts',
+	'./trees/[id]/reports/+page.server.ts',
+	'./trees/[id]/sources/[sourceId]/usage/+page.server.ts',
+	'./trees/[id]/place/report/+page.server.ts',
+	'./trees/[id]/calendar/+page.server.ts'
 ];
 
 const endpoints = Object.keys(import.meta.glob('./**/+server.ts')).sort();
@@ -365,7 +381,8 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/sources/[sourceId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/tasks/[taskId]/+server.ts`]: 'refused',
-	[`${API}/trees/[id]/undo/+server.ts`]: 'refused'
+	[`${API}/trees/[id]/undo/+server.ts`]: 'refused',
+	['./trees/[id]/calendar/anniversaries.ics/+server.ts']: 'public-tree-only'
 };
 const endpointSources = import.meta.glob('./**/+server.ts', {
 	query: '?raw',

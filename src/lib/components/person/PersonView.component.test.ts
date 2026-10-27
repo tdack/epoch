@@ -53,7 +53,7 @@ function pageOf(
 			isDeceased: false
 		},
 		names: [],
-		vitals: { birth: null, death: null, lifespan: null, hasConflict: false },
+		vitals: { birth: null, death: null, hasConflict: false },
 		facts: [],
 		parentFamilies: [],
 		partnerships: [],
@@ -517,7 +517,6 @@ describe('PersonView summary', () => {
 				vitals: {
 					birth: vital('b', 'BIRT', '1900-03-15', '1900-03-15'),
 					death: vital('d', 'DEAT', '1950-01-01', '1950-12-31'),
-					lifespan: '15 MAR 1900 – 1950',
 					hasConflict: false
 				}
 			})

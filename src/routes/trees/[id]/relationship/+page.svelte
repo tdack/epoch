@@ -59,11 +59,11 @@
 </svelte:head>
 
 <h1 class="text-2xl font-bold text-stone-900">How are they related?</h1>
-<p class="mt-1 max-w-2xl text-sm text-stone-600">
+<p class="mt-1 max-w-2xl text-sm text-stone-600 print:hidden">
 	Choose two people. Every route between them is listed, nearest first.
 </p>
 
-<div class="mt-5 flex flex-wrap items-start gap-6">
+<div class="mt-5 flex flex-wrap items-start gap-6 print:hidden">
 	<PersonPicker
 		{treeId}
 		label="First person"

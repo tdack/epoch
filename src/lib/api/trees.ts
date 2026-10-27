@@ -5,6 +5,7 @@ import type {
 	TreeImpactResponse
 } from '#lib/shared/api-contracts.js';
 import type { FocusGraphDto, WholeTreeGraphDto } from '#lib/shared/graph-views.js';
+import type { DateFormat } from '#lib/shared/date-display.js';
 import { call, json, path } from './client.js';
 
 export async function createTreeApi(payload: {
@@ -25,11 +26,18 @@ export async function renameTreeApi(
 	name: string,
 	slug: string | null,
 	version: number,
-	isOnSubdomain?: boolean
+	isOnSubdomain?: boolean,
+	dateFormat?: DateFormat
 ): Promise<RenameTreeResponse['tree']> {
 	return call<RenameTreeResponse>(
 		path`/api/trees/${treeId}`,
-		json('PATCH', { name, slug, version, ...(isOnSubdomain !== undefined && { isOnSubdomain }) }),
+		json('PATCH', {
+			name,
+			slug,
+			version,
+			...(isOnSubdomain !== undefined && { isOnSubdomain }),
+			...(dateFormat !== undefined && { dateFormat })
+		}),
 		'Failed to rename tree'
 	).then((d) => d.tree);
 }

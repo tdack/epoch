@@ -18,7 +18,8 @@ export const PATCH = treeHandler(
 			{
 				name: body.name,
 				...(body.slug !== undefined && { slug: body.slug }),
-				...(body.isOnSubdomain !== undefined && { isOnSubdomain: body.isOnSubdomain })
+				...(body.isOnSubdomain !== undefined && { isOnSubdomain: body.isOnSubdomain }),
+				...(body.dateFormat !== undefined && { dateFormat: body.dateFormat })
 			},
 			ctx,
 			treeHostConfig(event.platform?.env)

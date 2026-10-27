@@ -242,3 +242,141 @@ select:not([multiple]) {
 [data-reduce-motion] .motion-safe\:animate-spin {
 	animation: none;
 }
+
+/*
+ * Paper (reports-research.md, section 6). Black on white whatever the palette, without the app's
+ * chrome: a printout is read, not used. Unlayered so it outranks the utilities. Chrome, header and
+ * dialogs are hidden in the markup with `print:hidden`; what can be said once for every page is here.
+ */
+@media print {
+	@page {
+		margin: 15mm;
+		/* Margin boxes are Chrome 131+; elsewhere the page simply has no number. */
+		@bottom-right {
+			content: counter(page) ' / ' counter(pages);
+			font-size: 8pt;
+			color: #57534e;
+		}
+	}
+	/* A chart is wider than it is tall, and the page it is on says so. */
+	@page chart {
+		size: A4 landscape;
+		margin: 12mm;
+	}
+	body:has([data-print-page='chart']) {
+		page: chart;
+	}
+	/* shortcut: one sheet per size, no tiling across A4 pages; the print dialog's poster or PDF tools tile it. */
+	@page chart-a3 {
+		size: A3 landscape;
+		margin: 12mm;
+	}
+	/* CSS names no A2 to A0, so those sheets are given landscape in millimetres. */
+	@page chart-a2 {
+		size: 594mm 420mm;
+		margin: 15mm;
+	}
+	@page chart-a1 {
+		size: 841mm 594mm;
+		margin: 20mm;
+	}
+	@page chart-a0 {
+		size: 1189mm 841mm;
+		margin: 25mm;
+	}
+	/*
+	 * A wall chart fits its drawing to one sheet: the height less margins, heading and footer. A4
+	 * keeps the full width and runs on over pages, because a deep pedigree squeezed onto one A4 sheet
+	 * is too small to read.
+	 */
+	[data-print-paper]:not([data-print-paper='a4']) svg[role='group'] {
+		/* Full width, height capped: the viewBox fits a tall drawing or a wide one inside that box. */
+		width: 100% !important;
+		height: auto !important;
+		max-height: var(--print-chart-height) !important;
+	}
+	/* A poster is the drawing alone; the outline that follows it is for A4 and the screen. */
+	main:has([data-print-paper]:not([data-print-paper='a4'])) details {
+		display: none !important;
+	}
+	[data-print-paper='a3'] {
+		--print-chart-height: 225mm;
+	}
+	[data-print-paper='a2'] {
+		--print-chart-height: 340mm;
+	}
+	[data-print-paper='a1'] {
+		--print-chart-height: 500mm;
+	}
+	[data-print-paper='a0'] {
+		--print-chart-height: 730mm;
+	}
+	body:has([data-print-paper='a3']) {
+		page: chart-a3;
+	}
+	body:has([data-print-paper='a2']) {
+		page: chart-a2;
+	}
+	body:has([data-print-paper='a1']) {
+		page: chart-a1;
+	}
+	body:has([data-print-paper='a0']) {
+		page: chart-a0;
+	}
+	html,
+	body {
+		background: #fff !important;
+		color: #000;
+	}
+	/* Chrome ignores a forced page break on a flex item, so the page column prints as plain blocks. */
+	div:has(> main),
+	main {
+		display: block !important;
+	}
+	/* The sheet sets the width: a wall chart on A0 must not stop at the screen's column. */
+	main {
+		max-width: none !important;
+	}
+	/* Nothing on paper can be pressed. */
+	button,
+	[role='button']:not(svg *),
+	.leaflet-container {
+		display: none !important;
+	}
+	.section-card {
+		background: #fff;
+		border-color: #d6d3d1;
+		padding: 0.5rem 0;
+		border-width: 0 0 1px;
+		border-radius: 0;
+	}
+	h1,
+	h2,
+	h3,
+	h4,
+	summary {
+		break-after: avoid;
+	}
+	li,
+	tr,
+	figure,
+	svg {
+		break-inside: avoid;
+	}
+	a {
+		color: inherit !important;
+		text-decoration: none !important;
+	}
+	/* A source's web address is evidence; the app's own links are not. */
+	main a[href^='http']:not([href*='/trees/'])::after {
+		content: ' <' attr(href) '>';
+		font-size: 0.85em;
+		word-break: break-all;
+	}
+	summary {
+		list-style: none;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+}

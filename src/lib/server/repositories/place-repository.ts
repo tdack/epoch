@@ -265,6 +265,28 @@ export class PlaceRepository {
 		return row?.n ?? 0;
 	}
 
+	/**
+	 * The places whose text ends with `, <name>`: one level or many ("Cork, Ireland" and
+	 * "Cobh, Cork, Ireland" are both within "Ireland"). Counted over what the viewer may see, so a
+	 * place with no such fact is absent. One more than `limit` is read, to say the list was cut.
+	 */
+	async within(
+		treeId: string,
+		name: string,
+		limit: number,
+		scope: Scope,
+		lensRootId: string | null = null
+	): Promise<{ rows: Array<{ name: string; facts: number }>; hasMore: boolean }> {
+		const match = sql` and e.place like ${likePattern(`, ${name}`, '%', '')} escape '\\'`;
+		const rows = await this.db.all<{ name: string; facts: number }>(sql`
+			select min(f.place) as name, count(*) as facts
+			from (${visibleFacts(treeId, scope, match, lensRootId)}) f
+			group by f.place_id
+			order by min(f.place) collate nocase, f.place_id
+			limit ${limit + 1}`);
+		return { rows: rows.slice(0, limit), hasMore: rows.length > limit };
+	}
+
 	factsSql(
 		treeId: string,
 		name: string,

@@ -88,7 +88,7 @@
 
 {#snippet lifeMap()}
 	{#if tiles && Object.keys(dto.factLocations).length > 0}
-		<PersonSection id="map" title="Map" {layout} isOpenByDefault>
+		<PersonSection id="map" title="Map and places" {layout} isOpenByDefault>
 			<PersonLifeMap
 				facts={dto.facts}
 				locations={dto.factLocations}
@@ -118,33 +118,58 @@
 {/snippet}
 
 {#snippet media()}
-	<PersonSection id="media" title="Photos and documents" {layout} {isFlush}>
+	<PersonSection
+		id="media"
+		title="Photos and documents"
+		{layout}
+		{isFlush}
+		isPrintHidden={dto.media.length === 0}
+	>
 		<PersonMedia {dto} {treeId} {editor} {role} />
 	</PersonSection>
 {/snippet}
 
 {#snippet notes()}
-	<PersonSection id="notes" title="Notes" {layout} {isFlush}>
+	<PersonSection
+		id="notes"
+		title="Notes"
+		{layout}
+		{isFlush}
+		isPrintHidden={dto.notes.length === 0 && dto.linkNotes.length === 0}
+	>
 		<PersonNotes {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet tasks()}
-	<PersonSection id="tasks" title="Tasks" {layout} {isFlush}>
+	<PersonSection
+		id="tasks"
+		title="Tasks"
+		{layout}
+		{isFlush}
+		isPrintHidden={dto.tasks.items.length === 0}
+	>
 		<PersonTasks {dto} {treeId} {treeSlug} {role} {editor} {toasts} />
 	</PersonSection>
 {/snippet}
 
 {#snippet privacy()}
 	{#if canSetPrivacy(role, dto)}
-		<PersonSection id="privacy" title="Privacy" {layout} {isFlush} testId="privacy-panel">
+		<PersonSection
+			id="privacy"
+			title="Privacy"
+			{layout}
+			{isFlush}
+			isPrintHidden
+			testId="privacy-panel"
+		>
 			<PersonPrivacy {dto} {treeId} {editor} />
 		</PersonSection>
 	{/if}
 {/snippet}
 
 {#snippet history()}
-	<PersonSection id="history" title="History" {layout} {isFlush}
+	<PersonSection id="history" title="History" {layout} {isFlush} isPrintHidden
 		><PersonHistory {dto} tree={{ id: treeId, slug: treeSlug }} {editor} /></PersonSection
 	>
 {/snippet}
@@ -180,7 +205,9 @@
 	</header>
 
 	{#if isPage}
-		<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+		<div
+			class="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] print:grid-cols-1"
+		>
 			<div class="space-y-6">
 				{@render glance()}
 				{@render life()}

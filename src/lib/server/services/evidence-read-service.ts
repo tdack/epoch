@@ -21,6 +21,7 @@ import {
 	CITATION_SUBJECT_KINDS,
 	DEFAULT_EVIDENCE_PAGE_SIZE,
 	MAX_EVIDENCE_PAGE_SIZE,
+	MAX_SOURCE_USAGE_CITATIONS,
 	type RepositoryListItem,
 	type SourceCitationGroup,
 	type SourceDto,
@@ -142,10 +143,36 @@ export class EvidenceReadService {
 		query: { offset?: number; limit?: number },
 		context: AuthenticatedContext
 	): Promise<SourceDto> {
+		return this.readSource(treeId, sourceId, clampPage(query), context);
+	}
+
+	/**
+	 * Everything a source supports that the viewer may see, up to `MAX_SOURCE_USAGE_CITATIONS`, for
+	 * the printable report. The same read as `getSource`, so privacy cannot differ: `hasMore` says the
+	 * cap was reached.
+	 */
+	getSourceUsage(
+		treeId: string,
+		sourceId: string,
+		context: AuthenticatedContext
+	): Promise<SourceDto> {
+		return this.readSource(
+			treeId,
+			sourceId,
+			{ offset: 0, limit: MAX_SOURCE_USAGE_CITATIONS },
+			context
+		);
+	}
+
+	private async readSource(
+		treeId: string,
+		sourceId: string,
+		page: { offset: number; limit: number },
+		context: AuthenticatedContext
+	): Promise<SourceDto> {
 		const scope = await this.requireView(treeId, context);
 		const source = await this.evidence.visibleSource(treeId, sourceId, scope);
 		if (!source) throw new NotFoundError('Source', sourceId);
-		const page = clampPage(query);
 		const [links, cited, counts] = await Promise.all([
 			this.evidence.linksOfSource(treeId, sourceId),
 			this.evidence.citationsOfSource(treeId, sourceId, page, scope),
@@ -241,6 +268,7 @@ export class EvidenceReadService {
 					label: 'a record',
 					personId: null,
 					unionId: null,
+					fact: null,
 					citations: []
 				};
 				switch (row.subjectKind) {
@@ -262,6 +290,7 @@ export class EvidenceReadService {
 					}
 					case CITATION_SUBJECT_KINDS.EVENT: {
 						const event = byEvent.get(row.subjectId);
+						if (event) group.fact = { dateText: event.dateRaw, place: event.place };
 						if (event?.entityType === 'INDIVIDUAL') {
 							group.label = `the ${eventLabel(event.type).toLowerCase()} of ${nameOf(event.entityId)}`;
 							group.personId = event.entityId;

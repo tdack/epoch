@@ -39,6 +39,7 @@ describe('TreeNav', () => {
 			'Notes',
 			'Tasks',
 			'Relationship',
+			'Reports',
 			'Surnames',
 			'Quality',
 			'Fact search'

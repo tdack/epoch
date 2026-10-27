@@ -10,6 +10,10 @@
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TreeEditorHost from '#lib/components/tree/TreeEditorHost.svelte';
 	import TreeShellHost from '#lib/components/tree/TreeShellHost.svelte';
+	import { setDateFormat } from '#lib/components/date-format.js';
+	import { onPrint, openForPrint } from '#lib/components/layout/print.js';
+	import { displayDate } from '#lib/shared/date-display.js';
+	import { MONTH_ABBREVIATIONS } from '#lib/shared/date-value.js';
 	import { setTreeContext, type FinderBridge } from '#lib/components/tree/tree-context.js';
 	import { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
@@ -71,6 +75,7 @@
 	const reload = () => invalidate(DATA_KEY);
 	const editor = new TreeEditor({
 		treeId: () => data.summary.tree.id,
+		dateFormat: () => data.summary.tree.dateFormat,
 		toasts,
 		refresh: reload,
 		onPersonCreated: (personId) => void goto(personPath(data.summary.tree.id, personId)),
@@ -123,6 +128,20 @@
 		finderBridge.focusInput = () => personFinder?.focus();
 		return () => (finderBridge.focusInput = null);
 	});
+	setDateFormat(() => data.summary.tree.dateFormat);
+
+	// A printout leaves access control behind, so it says whose view of the tree it is, and when.
+	let printedOn = $state('');
+	$effect(() =>
+		onPrint(() => {
+			const today = new Date();
+			printedOn = displayDate(
+				`${today.getDate()} ${MONTH_ABBREVIATIONS[today.getMonth()]} ${today.getFullYear()}`,
+				data.summary.tree.dateFormat
+			);
+			return openForPrint(document.querySelector('main') ?? document);
+		})
+	);
 	setTreeContext({
 		toasts,
 		editor,
@@ -155,7 +174,7 @@
 {#if viewer.isPublicVisitor}
 	<div
 		role="note"
-		class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-amber-100 px-4 py-1.5 text-xs font-medium text-amber-950"
+		class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-amber-100 px-4 py-1.5 text-xs font-medium text-amber-950 print:hidden"
 	>
 		<span>Public · read-only</span>
 		<span aria-hidden="true">·</span>
@@ -168,51 +187,53 @@
 	</div>
 {/if}
 
-<div class="flex min-h-screen flex-col bg-[#fcf9f2] font-sans text-stone-800">
-	<AppHeader
-		trees={data.trees}
-		selectedTreeId={data.summary.tree.id}
-		isImporting={shell.isImporting}
-		subtrees={data.summary.subtrees}
-		activeSubtreeId={lens?.id ?? null}
-		onselectTree={(id) => void navigate(wholeTreePath(id))}
-		onselectSubtree={(sub) =>
-			void navigate(treeHref({ ...data.summary.tree, subtree: sub.slug }, data.hostTree))}
-		homeHref={appHref('/', data.hostTree)}
-		counts={data.summary.counts}
-		subtreeName={lens?.name ?? null}
-		onopenNewTree={shell.openNewTree}
-		onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
-		onfileSelect={shell.selectFile}
-		settingsHref={(t) => {
-			const admin = treeAdminPage(t.role);
-			return admin && `${wholeTreePath(t.id)}/${admin}`;
-		}}
-		canChangeTrees={!viewer.isPublicVisitor}
-		viewer={data.viewer}
-		accountHref={appHref('/account', data.hostTree)}
-		adminHref={viewer.isInstallOwner ? appHref('/admin', data.hostTree) : undefined}
-		signOutHref={signOutHref(page.url.origin)}
-	>
-		{#snippet finder()}
-			<PersonFinder
-				bind:this={personFinder}
-				treeId={data.summary.tree.id}
-				treeSlug={treeLinkSlug(data.summary.tree)}
-				searchPeople={(q) => searchPeopleApi(data.summary.tree.id, q)}
-				suggestions={marks}
-				onpickFocus={isChartPage
-					? (id) =>
-							// The chart registers itself while it is mounted; with no chart to refocus (an empty
-							// tree), the person's profile is the next best place to go.
-							finderBridge.pickFocus
-								? finderBridge.pickFocus(id)
-								: void goto(personPath(data.summary.tree.id, id))
-					: undefined}
-				onnavigate={(href) => void goto(href)}
-			/>
-		{/snippet}
-	</AppHeader>
+<div class="flex min-h-screen flex-col bg-[#fcf9f2] font-sans text-stone-800 print:bg-white">
+	<div class="contents print:hidden">
+		<AppHeader
+			trees={data.trees}
+			selectedTreeId={data.summary.tree.id}
+			isImporting={shell.isImporting}
+			subtrees={data.summary.subtrees}
+			activeSubtreeId={lens?.id ?? null}
+			onselectTree={(id) => void navigate(wholeTreePath(id))}
+			onselectSubtree={(sub) =>
+				void navigate(treeHref({ ...data.summary.tree, subtree: sub.slug }, data.hostTree))}
+			homeHref={appHref('/', data.hostTree)}
+			counts={data.summary.counts}
+			subtreeName={lens?.name ?? null}
+			onopenNewTree={shell.openNewTree}
+			onopenAddPerson={canCreateRecords(role) ? editor.openAddPerson : undefined}
+			onfileSelect={shell.selectFile}
+			settingsHref={(t) => {
+				const admin = treeAdminPage(t.role);
+				return admin && `${wholeTreePath(t.id)}/${admin}`;
+			}}
+			canChangeTrees={!viewer.isPublicVisitor}
+			viewer={data.viewer}
+			accountHref={appHref('/account', data.hostTree)}
+			adminHref={viewer.isInstallOwner ? appHref('/admin', data.hostTree) : undefined}
+			signOutHref={signOutHref(page.url.origin)}
+		>
+			{#snippet finder()}
+				<PersonFinder
+					bind:this={personFinder}
+					treeId={data.summary.tree.id}
+					treeSlug={treeLinkSlug(data.summary.tree)}
+					searchPeople={(q) => searchPeopleApi(data.summary.tree.id, q)}
+					suggestions={marks}
+					onpickFocus={isChartPage
+						? (id) =>
+								// The chart registers itself while it is mounted; with no chart to refocus (an empty
+								// tree), the person's profile is the next best place to go.
+								finderBridge.pickFocus
+									? finderBridge.pickFocus(id)
+									: void goto(personPath(data.summary.tree.id, id))
+						: undefined}
+					onnavigate={(href) => void goto(href)}
+				/>
+			{/snippet}
+		</AppHeader>
+	</div>
 
 	{#if lens}
 		<div
@@ -230,8 +251,8 @@
 					</a>
 				</span>
 			{/if}
-			<span aria-hidden="true">·</span>
-			<a href={sameWithoutLens} class="rounded-sm font-semibold underline focus-ring">
+			<span aria-hidden="true" class="print:hidden">·</span>
+			<a href={sameWithoutLens} class="rounded-sm font-semibold underline focus-ring print:hidden">
 				Show whole tree
 			</a>
 		</div>
@@ -243,21 +264,29 @@
 			? 'max-w-none'
 			: 'max-w-7xl'}"
 	>
-		<TreeShellHost {shell} tree={data.summary.tree} />
-		<TreeNav
-			treeId={data.summary.tree.id}
-			{role}
-			pathname={page.url.pathname}
-			treeSlug={treeLinkSlug(data.summary.tree)}
-			isOutsider={viewer.isOutsider}
-			appOrigin={data.hostTree?.appOrigin}
-		/>
+		<div class="contents print:hidden">
+			<TreeShellHost {shell} tree={data.summary.tree} />
+			<TreeNav
+				treeId={data.summary.tree.id}
+				{role}
+				pathname={page.url.pathname}
+				treeSlug={treeLinkSlug(data.summary.tree)}
+				isOutsider={viewer.isOutsider}
+				appOrigin={data.hostTree?.appOrigin}
+			/>
+		</div>
 		{@render children()}
+		<p class="hidden text-xs text-stone-600 print:block" data-testid="print-footer">
+			{data.summary.tree.name}{lens ? ` · ${lens.name}` : ''} · printed {printedOn} from Epoch · seen
+			as: {role ?? 'viewer'}
+		</p>
 	</main>
-	<footer class="px-6 pb-4 text-center">
+	<footer class="px-6 pb-4 text-center print:hidden">
 		<SourceLink href={data.sourceUrl} commit={data.sourceCommit} />
 	</footer>
 </div>
 
-<TreeEditorHost {editor} />
-<ToastHost store={toasts} />
+<div class="contents print:hidden">
+	<TreeEditorHost {editor} />
+	<ToastHost store={toasts} />
+</div>

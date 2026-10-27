@@ -31,7 +31,7 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 	// The preferred name is listed and exported first, so it cannot move and nothing moves above it.
 	await expect(page.getByRole('button', { name: /^Move .* (up|down)$/ })).toHaveCount(0);
 	await expect(names.filter({ hasText: 'Married name' }).getByTestId('name-context')).toContainText(
-		'In use from 8 OCT 2001, taken through Partnership with John Smith'
+		'In use from 8 October 2001, taken through Partnership with John Smith'
 	);
 
 	// The card in the tree says the same.
@@ -69,7 +69,7 @@ test('a married name is previewed, shown as (née …) on the page and the card,
 		await open(page, `/trees/${newTreeId}/people/${encodeURIComponent(search.people[0].id)}`);
 		await expect(page.getByTestId('person-name')).toHaveText('Jane Smith (née Doe)');
 		await expect(page.getByTestId('name')).toHaveCount(2);
-		await expect(page.getByTestId('name-context')).toContainText('In use from 8 OCT 2001');
+		await expect(page.getByTestId('name-context')).toContainText('In use from 8 October 2001');
 	} finally {
 		await request.delete(`/api/trees/${newTreeId}`);
 	}

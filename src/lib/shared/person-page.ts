@@ -201,7 +201,6 @@ export interface PersonPageDto extends PrivacyFlag {
 	vitals: {
 		birth: FactDto | null;
 		death: FactDto | null;
-		lifespan: string | null;
 		hasConflict: boolean;
 	};
 	/** Every fact, in timeline order. */

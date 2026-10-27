@@ -103,7 +103,7 @@
 	<!-- With no note yet, the empty line and the way to add one share a row. -->
 	<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 		{#if !isQuiet}
-			<p class="text-xs text-stone-600 italic" data-testid="no-notes">
+			<p class="text-xs text-stone-600 italic print:hidden" data-testid="no-notes">
 				No note on {subjectLabel}.
 			</p>
 		{/if}

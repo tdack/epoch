@@ -68,6 +68,7 @@
 			label: 'Relationship',
 			isActive: startsWith(`${base}/relationship`)
 		},
+		{ href: `${base}/reports`, label: 'Reports', isActive: startsWith(`${base}/reports`) },
 		{ href: `${base}/surnames`, label: 'Surnames', isActive: startsWith(`${base}/surnames`) },
 		...(isOutsider
 			? []

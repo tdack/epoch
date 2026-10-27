@@ -12,6 +12,7 @@
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { deleteTreeApi, renameTreeApi } from '#lib/api/trees.js';
 	import type { GedcomExportChoice } from '#lib/api/files.js';
+	import { DATE_FORMATS, DATE_FORMAT_LABELS, type DateFormat } from '#lib/shared/date-display.js';
 	import { DATA_KEY } from '#lib/shared/data-key.js';
 	import { appHref } from '#lib/shared/tree-host.js';
 	import { MAX_TREE_SLUG_LENGTH, isValidTreeSlug, treePath } from '#lib/shared/tree-slug.js';
@@ -42,13 +43,19 @@
 	let name = $state(untrack(() => data.summary.tree.name));
 	let slug = $state(untrack(() => data.summary.tree.slug ?? ''));
 	let isOnSubdomain = $state(untrack(() => data.summary.tree.isOnSubdomain));
+	let dateFormat = $state<DateFormat>(untrack(() => data.summary.tree.dateFormat));
 	let isSaving = $state(false);
 	let nameError = $state<string | null>(null);
 	let addressError = $state<string | null>(null);
 	// The subdomain is the address, so it is offered only while there is one.
 	const hasAddress = $derived(slug.trim() !== '');
 
-	async function save(nextName: string, nextSlug: string | null, isNextOnSubdomain?: boolean) {
+	async function save(
+		nextName: string,
+		nextSlug: string | null,
+		isNextOnSubdomain?: boolean,
+		nextDateFormat?: DateFormat
+	) {
 		isSaving = true;
 		try {
 			const renamed = await renameTreeApi(
@@ -56,7 +63,8 @@
 				nextName,
 				nextSlug,
 				tree.version,
-				isNextOnSubdomain
+				isNextOnSubdomain,
+				nextDateFormat
 			);
 			toasts.push('Tree saved');
 			const isMoved = renamed.slug !== tree.slug || renamed.isOnSubdomain !== tree.isOnSubdomain;
@@ -78,6 +86,13 @@
 		if (!trimmed || trimmed === tree.name || isSaving) return;
 		// The address is sent back as it stands, so a name change never moves it.
 		void save(trimmed, tree.slug ?? null, zone ? tree.isOnSubdomain : undefined);
+	}
+
+	function saveDateFormat(event: SubmitEvent) {
+		event.preventDefault();
+		if (isSaving || dateFormat === tree.dateFormat) return;
+		// Name and address go back as they stand, so this save changes only the format.
+		void save(tree.name, tree.slug ?? null, zone ? tree.isOnSubdomain : undefined, dateFormat);
 	}
 
 	function saveAddress(event: SubmitEvent) {
@@ -172,6 +187,29 @@
 			{#if nameError}<p id="tree-name-error" class="mt-1 text-xs text-red-700" role="alert">
 					{nameError}
 				</p>{/if}
+		</form>
+		<form onsubmit={saveDateFormat} class="mt-6 max-w-2xl">
+			<fieldset class="min-w-0" aria-describedby="tree-date-format-help">
+				<legend class="field-label">Date format</legend>
+				<p id="tree-date-format-help" class="mb-2 text-xs text-stone-600">
+					How dates read across this tree. The dates as stored, and any export, do not change.
+				</p>
+				<div class="space-y-1">
+					{#each Object.values(DATE_FORMATS) as format (format)}
+						<label class="flex items-center gap-2 text-sm text-stone-800">
+							<input
+								type="radio"
+								name="tree-date-format"
+								value={format}
+								bind:group={dateFormat}
+								disabled={isSaving}
+							/>
+							{DATE_FORMAT_LABELS[format]}
+						</label>
+					{/each}
+				</div>
+			</fieldset>
+			<button type="submit" disabled={isSaving} class="btn-primary mt-3">Save</button>
 		</form>
 	</section>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { untrack } from 'svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import ImpactDialog from './ImpactDialog.svelte';
@@ -27,6 +28,7 @@
 	}
 
 	let { isOpen, partners, candidates, onpreview, onconfirm, oncancel }: Props = $props();
+	const showDate = dateReader();
 
 	let selectedIds = $state<string[]>([]);
 	let survivorId = $state('');
@@ -121,7 +123,7 @@
 			.map(
 				(f) =>
 					[
-						f.dateText,
+						showDate(f.dateText),
 						f.place,
 						f.description,
 						f.classification && `type ${f.classification}`,

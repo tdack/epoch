@@ -72,7 +72,14 @@
 	{/if}
 </header>
 
-<nav aria-label="Task status" class="mt-4 flex flex-wrap items-center gap-1 text-sm">
+<!-- The tabs and filters hide on paper, so say what the list holds. -->
+<p class="mt-3 hidden text-sm font-semibold print:block">
+	{data.status === 'all'
+		? 'All tasks'
+		: `${TASK_STATUS_LABELS[data.status as keyof typeof TASK_STATUS_LABELS]} tasks`}
+</p>
+
+<nav aria-label="Task status" class="mt-4 flex flex-wrap items-center gap-1 text-sm print:hidden">
 	{#each [...TASK_STATUS_VALUES, 'all' as const] as status (status)}
 		<a
 			href={href({ status: status === 'open' ? null : status })}
@@ -88,7 +95,7 @@
 	{/each}
 </nav>
 
-<form method="get" class="mt-3 flex flex-wrap items-end gap-3" role="search">
+<form method="get" class="mt-3 flex flex-wrap items-end gap-3 print:hidden" role="search">
 	{#if data.status !== 'open'}<input type="hidden" name="status" value={data.status} />{/if}
 	<label class="flex items-center gap-2 text-sm font-semibold text-stone-700">
 		<input type="checkbox" name="mine" value="true" checked={data.isMine} />

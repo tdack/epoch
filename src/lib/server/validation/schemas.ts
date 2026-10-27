@@ -9,6 +9,7 @@
  */
 
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
+import { isDateFormat } from '../../shared/date-display';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
 import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
@@ -240,6 +241,8 @@ export const treeRenameSchema = z.object({
 		.optional(),
 	/** Also serve the tree at its slug's subdomain. Omitted keeps the current setting. */
 	isOnSubdomain: z.boolean().optional(),
+	/** How the tree's dates read as words (ADR-079). Omitted keeps the current setting. */
+	dateFormat: z.string().refine(isDateFormat, 'Not a date format').optional(),
 	version: versionSchema
 });
 

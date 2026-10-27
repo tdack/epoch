@@ -5,6 +5,7 @@ import { GenealogyRepository } from '../repositories/genealogy-repository';
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import type { TreeAction } from '../auth/authorization';
 import type { LayoutMode } from '../../shared/view-mode';
+import type { DateFormat } from '../../shared/date-display';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { requireRealUser, requireTreeAction, requireTreeScope } from './tree-access';
 import { SubtreeRepository } from '../repositories/subtree-repository';
@@ -126,6 +127,7 @@ export class TreeService {
 			description?: string | null;
 			slug?: string | null;
 			isOnSubdomain?: boolean;
+			dateFormat?: DateFormat;
 		},
 		context: AuthenticatedContext,
 		subdomains: TreeHostConfig | null = null

@@ -11,10 +11,18 @@ describe('namesWithBirth', () => {
 			{ n: 'Ann Lee', birthDate: '1 JAN 1900' }
 		];
 		expect(namesWithBirth(people, name)).toEqual([
-			'David Little (b. MAR 1812)',
+			'David Little (b. March 1812)',
 			'David Little (b. 1840)',
 			'Ann Lee'
 		]);
+	});
+
+	it('writes the month in the tree’s format', () => {
+		const people = [
+			{ n: 'David Little', birthDate: '12 MAR 1812' },
+			{ n: 'David Little', birthDate: '1840' }
+		];
+		expect(namesWithBirth(people, name, 'numeric')[0]).toBe('David Little (b. 03/1812)');
 	});
 
 	it('leaves namesakes with no readable birth bare', () => {

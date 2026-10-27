@@ -218,6 +218,28 @@ describe('when a name came into use, and from which partnership', () => {
 		);
 	});
 
+	it('points at a family made in Epoch, whose id has no @, so the note reads back', async () => {
+		const { data } = await importAndExport(namesFixture);
+		// A partnership added in the app has a bare id where an imported one keeps its @F1@.
+		const swap = (id: string) => (id === '@F1@' ? 'fam-1' : id);
+		data.families = data.families.map((f) => ({ ...f, id: swap(f.id) }));
+		for (const person of data.individuals) {
+			person.famc = person.famc?.map(swap);
+			person.fams = person.fams?.map(swap);
+			for (const name of person.names ?? []) {
+				if (name.type === 'married') {
+					name.dateText = 'ABT 1998';
+					name.unionXref = 'fam-1';
+				}
+			}
+		}
+		const text = buildGedcom551String(data);
+		expect(text).toContain('0 @fam-1@ FAM');
+		expect(text).toContain('2 NOTE Name in use from ABT 1998, through family @fam-1@.');
+		const married = namesOf(text)['@I1@']!.find((n) => n.type === 'married');
+		expect(married).toMatchObject({ dateText: 'ABT 1998', unionXref: '@fam-1@' });
+	});
+
 	it('handles a date alone, a family alone, and a note naming a family the file lacks (kept as written)', async () => {
 		const ged = (note: string) =>
 			`0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME A /B/\n1 NAME A /C/\n2 TYPE married\n2 NOTE ${note}\n0 @F1@ FAM\n1 WIFE @I1@\n0 TRLR`;

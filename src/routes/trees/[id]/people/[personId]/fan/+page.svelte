@@ -10,7 +10,9 @@
 	let { data }: PageProps = $props();
 	const treeId = $derived(data.summary.tree.id);
 	const subject = $derived(data.chart.person);
-	const layout = $derived(layoutFan(data.chart.slots, data.chart.generations));
+	const layout = $derived(
+		layoutFan(data.chart.slots, data.chart.generations, data.summary.tree.dateFormat)
+	);
 	const address = (id: string, generations = data.chart.generations) =>
 		chartAddress(data.summary.tree, id, 'fan', generations);
 </script>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { isActivationKey } from './activate-on-key.js';
+	import { dateFormatReader } from '#lib/components/date-format.js';
 	import { LAYOUT_METRICS, type PlacedPerson } from '#lib/tree-layout/index.js';
 	import {
 		accessibleName,
@@ -56,13 +57,16 @@
 		onContextMenu
 	}: Props = $props();
 
+	const dateFormat = dateFormatReader();
 	const W = LAYOUT_METRICS.cardWidth;
 	const H = LAYOUT_METRICS.cardHeight;
 
 	const person = $derived(node.person);
 	/** The name and the "née …" half drawn apart: a full name and its birth surname do not fit one line. */
 	const shown = $derived(splitDisplayName(person.displayName));
-	const label = $derived(accessibleName(node, relation) + (isSelf ? ', this is you' : ''));
+	const label = $derived(
+		accessibleName(node, relation, dateFormat()) + (isSelf ? ', this is you' : '')
+	);
 	const hit = $derived(hitSize(zoom));
 	/** Blocks grow a little when zoomed far out so they stay a target, but never touch the next row. */
 	const blockHeight = $derived(Math.min(H * 1.6, Math.max(H, 22 / Math.max(zoom, 0.01))));
@@ -216,7 +220,7 @@
 			<text class="dates" x={-W / 2 + 34} y={-H / 2 + 60}>{yearsLine(person)}</text>
 		{:else}
 			<text class="name" x={-W / 2 + 34} y={-H / 2 + 30}>{truncate(shown.name, 22)}</text>
-			{#each dateLines(person).slice(0, 2) as line, i (i)}
+			{#each dateLines(person, dateFormat()).slice(0, 2) as line, i (i)}
 				<text class="dates" x={-W / 2 + 34} y={-H / 2 + 50 + i * 16}>{truncate(line, 26)}</text>
 			{/each}
 		{/if}

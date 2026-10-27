@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { goto } from '$app/navigation';
 	import { GitMerge, Pencil, Plus, Trash2 } from '@lucide/svelte';
@@ -23,6 +24,7 @@
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
+	const showDate = dateReader();
 	const { editor, toasts } = getTreeContext();
 
 	const source = $derived(data.source);
@@ -118,8 +120,9 @@
 				.join(' · ') || 'No author or publication recorded'}
 		</p>
 	</div>
-	{#if canChangeEvidence(role)}
-		<div class="flex flex-wrap gap-2">
+	<div class="flex flex-wrap gap-2 print:hidden">
+		<a href={`${base}/sources/${encodeURIComponent(source.id)}/usage`} class="action-btn">Report</a>
+		{#if canChangeEvidence(role)}
 			<button type="button" class="action-btn" onclick={() => (isEditing = true)}
 				><Pencil class="h-3.5 w-3.5" />Edit</button
 			>
@@ -129,8 +132,8 @@
 			<button type="button" class="action-btn text-red-700" onclick={remove}
 				><Trash2 class="h-3.5 w-3.5" />Delete…</button
 			>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </header>
 
 {#if source.text}
@@ -142,7 +145,7 @@
 	</blockquote>
 {/if}
 
-<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] print:grid-cols-1">
 	<section aria-labelledby="cited-heading" class="section-card">
 		<h3 id="cited-heading" class="section-heading">
 			What it supports
@@ -159,7 +162,7 @@
 			>
 		{/if}
 		{#if source.groups.length === 0}
-			<p class="mt-2 text-xs text-stone-500 italic" data-testid="not-cited">
+			<p class="mt-2 text-xs text-stone-500 italic print:hidden" data-testid="not-cited">
 				Nothing you can see cites this source yet. Cite it from a fact, a name or a partnership.
 			</p>
 		{:else}
@@ -176,7 +179,7 @@
 									{[
 										citation.page,
 										citation.quality !== null ? CITATION_QUALITY_LABELS[citation.quality] : null,
-										citation.entryDate ? `Recorded ${citation.entryDate}` : null
+										citation.entryDate ? `Recorded ${showDate(citation.entryDate)}` : null
 									]
 										.filter(Boolean)
 										.join(' · ') || 'No page or detail'}
@@ -215,7 +218,9 @@
 				{/if}
 			</div>
 			{#if source.repositories.length === 0}
-				<p class="mt-2 text-xs text-stone-500 italic">No repository is recorded for this source.</p>
+				<p class="mt-2 text-xs text-stone-500 italic print:hidden">
+					No repository is recorded for this source.
+				</p>
 			{:else}
 				<ul class="mt-2 space-y-2 text-sm" data-testid="source-repositories">
 					{#each source.repositories as link (link.linkId)}
@@ -259,7 +264,11 @@
 			/>
 		{/if}
 
-		<section aria-labelledby="source-notes-heading" class="section-card" data-testid="source-notes">
+		<section
+			aria-labelledby="source-notes-heading"
+			class={['section-card', source.notes.length === 0 && 'print:hidden']}
+			data-testid="source-notes"
+		>
 			<h3 id="source-notes-heading" class="section-heading">Notes</h3>
 			<div class="mt-2">
 				<NoteList

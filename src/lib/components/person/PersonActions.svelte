@@ -217,7 +217,7 @@
 				class="action-btn text-red-700"><Trash2 class="h-3.5 w-3.5" />Delete…</button
 			>{/if}
 	</div>
-	<p class="text-xs">
+	<p class="text-xs print:hidden">
 		<a
 			href={`${treeHref}?focus=${encodeURIComponent(dto.person.id)}`}
 			class="text-link whitespace-nowrap"

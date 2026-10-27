@@ -6,6 +6,7 @@ import {
 	MIN_HIT_TARGET_PX,
 	MIN_ZOOM,
 	accessibleName,
+	dateLines,
 	childEdgeStyle,
 	contrastRatio,
 	hitSize,
@@ -202,9 +203,22 @@ describe('accessible names', () => {
 			person: { ...jessica.person, birthDate: '9 Mar 1966', deathDate: '1 JAN 2040' }
 		};
 		expect(accessibleName(dated, 'focus person')).toBe(
-			'Jessica Lovejoy, born 9 Mar 1966, died 1 JAN 2040, focus person'
+			'Jessica Lovejoy, born 9 March 1966, died 1 January 2040, focus person'
+		);
+		expect(accessibleName(dated, 'focus person', 'month_day_year')).toBe(
+			'Jessica Lovejoy, born March 9, 1966, died January 1, 2040, focus person'
 		);
 		expect(accessibleName(jessica, 'focus person')).toBe('Jessica Lovejoy, focus person');
+	});
+
+	it('shows card date lines as words in the tree’s format', () => {
+		const person = {
+			...focusLayout('Jessica Lovejoy').people[0]!.person,
+			birthDate: 'ABT 1900',
+			deathDate: '3 MAR 1950'
+		};
+		expect(dateLines(person)).toEqual(['b. about 1900', '† 3 March 1950']);
+		expect(dateLines(person, 'numeric')).toEqual(['b. about 1900', '† 03/03/1950']);
 	});
 
 	it('names no relationship in the whole tree, where nobody is the focus', () => {

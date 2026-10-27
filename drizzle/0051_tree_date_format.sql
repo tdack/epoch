@@ -1,0 +1,1 @@
+ALTER TABLE `trees` ADD `date_format` text DEFAULT 'day_month_year' NOT NULL;

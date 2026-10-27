@@ -3,6 +3,8 @@
 	import { sexLabel } from '#lib/shared/sex.js';
 	import { ageAt, birthSpan } from '#lib/shared/age.js';
 	import AgeText from './AgeText.svelte';
+	import { dateFormatReader } from '#lib/components/date-format.js';
+	import { chartDates } from '#lib/shared/charts.js';
 	import type { NameDto, PersonPageDto } from '#lib/shared/person-page.js';
 
 	interface Props {
@@ -14,6 +16,11 @@
 	}
 
 	let { dto, isPageTitle, isSelf = false }: Props = $props();
+
+	const dateFormat = dateFormatReader();
+	const lifespan = $derived(
+		chartDates(dto.vitals.birth?.dateText ?? null, dto.vitals.death?.dateText ?? null, dateFormat())
+	);
 
 	/** First letter of the first given name and of the surname: "Jane Mary Doe" is JD. */
 	const initials = $derived.by(() => {
@@ -60,11 +67,9 @@
 				data-testid="you-badge">You<span class="sr-only"> (this is you)</span></span
 			>{/if}
 		<p class="mt-1 text-sm text-stone-600">
-			{sexLabel(dto.person.sex)}{#if dto.vitals.lifespan}<span aria-hidden="true">{' · '}</span
-				><span data-testid="lifespan">{dto.vitals.lifespan}</span>{/if}{#if deathAge}<AgeText
-					age={deathAge}
-					testId="death-age"
-				/>{/if}
+			{sexLabel(dto.person.sex)}{#if lifespan}<span aria-hidden="true">{' · '}</span><span
+					data-testid="lifespan">{lifespan}</span
+				>{/if}{#if deathAge}<AgeText age={deathAge} testId="death-age" />{/if}
 			{#if dto.vitals.hasConflict}<span
 					class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900"
 					>dates disagree</span

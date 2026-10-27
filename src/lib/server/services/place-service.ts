@@ -26,7 +26,10 @@ import {
 	type PlaceDto,
 	type PlaceFactDto,
 	type PlaceListItem,
-	type PlaceMapData
+	type PlaceMapData,
+	type PlaceWithinItem,
+	MAX_PLACE_REPORT_FACTS,
+	MAX_PLACES_WITHIN
 } from '../../shared/places';
 import { personName } from './kinship-service';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
@@ -131,12 +134,66 @@ export class PlaceService {
 		};
 	}
 
+	/** The places that end with `, <name>`, with the facts the viewer may see at each. */
+	async within(
+		treeId: string,
+		name: string,
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
+	): Promise<{ places: PlaceWithinItem[]; hasMore: boolean }> {
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
+		const { rows, hasMore } = await this.places.within(
+			treeId,
+			placeText(name),
+			MAX_PLACES_WITHIN,
+			scope,
+			lensRootId
+		);
+		return { places: rows, hasMore };
+	}
+
 	async detail(
 		treeId: string,
 		name: string,
 		query: { offset?: number; limit?: number },
 		context: AuthenticatedContext,
 		lensRootId: string | null = null
+	): Promise<PlaceDto> {
+		return this.readDetail(treeId, name, clampPage(query), context, lensRootId);
+	}
+
+	/**
+	 * Every fact at the place the viewer may see, up to `MAX_PLACE_REPORT_FACTS`, for the printable
+	 * report. The same read as `detail`, so privacy cannot differ: `hasMore` says the cap was reached.
+	 */
+	report(
+		treeId: string,
+		name: string,
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
+	): Promise<PlaceDto> {
+		return this.readDetail(
+			treeId,
+			name,
+			{ offset: 0, limit: MAX_PLACE_REPORT_FACTS },
+			context,
+			lensRootId
+		);
+	}
+
+	private async readDetail(
+		treeId: string,
+		name: string,
+		page: { offset: number; limit: number },
+		context: AuthenticatedContext,
+		lensRootId: string | null
 	): Promise<PlaceDto> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -146,7 +203,6 @@ export class PlaceService {
 			'tree:view',
 			this.now()
 		);
-		const page = clampPage(query);
 		const { rows, hasMore } = await this.places.facts(
 			treeId,
 			placeText(name),

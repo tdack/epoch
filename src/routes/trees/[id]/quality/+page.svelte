@@ -220,7 +220,7 @@
 
 {#if canStandardise}
 	<section
-		class="mt-6 rounded-xl border border-stone-200 bg-white px-4 py-3"
+		class="mt-6 rounded-xl border border-stone-200 bg-white px-4 py-3 print:hidden"
 		aria-labelledby="date-spellings"
 		data-testid="date-spellings"
 	>
@@ -314,7 +314,7 @@
 						</h4>
 						{#if canDismiss}
 							{@const ticked = group.findings.filter((f) => selected.has(f.key)).length}
-							<label class="flex items-center gap-1.5 text-xs text-stone-700">
+							<label class="flex items-center gap-1.5 text-xs text-stone-700 print:hidden">
 								<input
 									type="checkbox"
 									class="coarse:h-5 coarse:w-5"
@@ -340,7 +340,7 @@
 									{#if canDismiss}
 										<input
 											type="checkbox"
-											class="shrink-0 translate-y-0.5 coarse:h-5 coarse:w-5"
+											class="shrink-0 translate-y-0.5 print:hidden coarse:h-5 coarse:w-5"
 											checked={selected.has(finding.key)}
 											onchange={(event) =>
 												event.currentTarget.checked
@@ -440,7 +440,7 @@
 {#if selectedKeys.length > 0}
 	<!-- Sticky, so the reason stays in reach while more findings are ticked further down. -->
 	<form
-		class="sticky bottom-4 z-10 mt-6 flex flex-wrap items-end gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 shadow-md"
+		class="sticky bottom-4 z-10 mt-6 flex flex-wrap items-end gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 shadow-md print:hidden"
 		aria-label="Dismiss the selected findings"
 		data-testid="bulk-dismiss"
 		onsubmit={(event) => {

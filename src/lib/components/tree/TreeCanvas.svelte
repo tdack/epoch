@@ -20,6 +20,7 @@
 	import TreeMinimap from './TreeMinimap.svelte';
 	import UnionMarker from './UnionMarker.svelte';
 	import ZoomControls from './ZoomControls.svelte';
+	import { dateFormatReader } from '#lib/components/date-format.js';
 	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
@@ -141,6 +142,7 @@
 		isTruncated = false
 	}: Props = $props();
 
+	const dateFormat = dateFormatReader();
 	const ZOOM_STEP = 1.35;
 
 	let containerElement: HTMLDivElement | null = $state(null);
@@ -555,7 +557,7 @@
 					{level}
 					isEnded={isEndedUnion(union.union.status)}
 					isNonAdjacent={nonAdjacentIds.has(union.id)}
-					label={unionLabelText(union.union)}
+					label={unionLabelText(union.union, dateFormat())}
 					ordinalTitle={partnershipLabels?.get(union.id)?.title}
 					zoom={transform.k}
 					onContextMenu={openUnionMenu}
@@ -606,7 +608,7 @@
 					isNonAdjacent={nonAdjacentIds.has(union.id)}
 					isTabbable={tabbableUnionIds.has(union.id)}
 					partnerNames={union.union.partnerIds.map(nameOf).join(' and ')}
-					label={unionLabelText(union.union)}
+					label={unionLabelText(union.union, dateFormat())}
 					ordinalTitle={partnershipLabels?.get(union.id)?.title}
 					zoom={transform.k}
 					onOpen={(u) => onEditUnion?.(u.id)}

@@ -17,6 +17,14 @@ export const MAX_PLACE_SUGGESTIONS = 10;
  */
 export const MAX_PLACE_REWRITE_FACTS = 200;
 
+/**
+ * The most facts the place report lists, and the most places it names within a place. A report is
+ * printed, not paged, so it reads past `MAX_LIST_LIMIT`; the cap bounds one request and the page
+ * says when it was reached.
+ */
+export const MAX_PLACE_REPORT_FACTS = 500;
+export const MAX_PLACES_WITHIN = 200;
+
 export const OSM_TYPES = ['node', 'way', 'relation'] as const;
 /** `gedcom` is written by the importer and the backfill only; a command cannot claim the file said so. */
 export const COMMAND_LOCATION_SOURCES = ['photon', 'manual'] as const;
@@ -58,6 +66,13 @@ export interface PlaceMapData {
 	points: PlaceMapPoint[];
 	/** Places the viewer may see that have no location row yet (ignored ones are not counted). */
 	unlocatedCount: number;
+}
+
+/** A place whose text ends with `, ` and the name of the place being read. */
+export interface PlaceWithinItem {
+	name: string;
+	/** Facts the viewer may see at this place. */
+	facts: number;
 }
 
 export interface PlaceFactDto {

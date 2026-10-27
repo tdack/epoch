@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { dateFormatReader } from '#lib/components/date-format.js';
+	import { chartDates } from '#lib/shared/charts.js';
 	import { CARD, type ChartLayout } from '#lib/charts/chart-layout.js';
 
 	interface Props {
@@ -28,18 +30,22 @@
 		return `M${x1} ${y1} H${mid} V${y2} H${x2}`;
 	}
 
+	const dateFormat = dateFormatReader();
 	const dates = (birth: string | null, death: string | null) =>
-		birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
+		chartDates(birth, death, dateFormat());
 </script>
 
-<div class="overflow-auto rounded-xl border border-stone-200 bg-white" tabindex="-1">
+<div
+	class="overflow-auto rounded-xl border border-stone-200 bg-white print:overflow-visible print:border-0"
+	tabindex="-1"
+>
 	<svg
 		role="group"
 		aria-label={label}
 		width={layout.width + PADDING * 2}
 		height={layout.height + PADDING * 2}
 		viewBox="{-PADDING} {-PADDING} {layout.width + PADDING * 2} {layout.height + PADDING * 2}"
-		class="block"
+		class="block print:h-auto print:w-full"
 	>
 		<g fill="none" stroke="currentColor" class="text-stone-300" aria-hidden="true">
 			{#each layout.edges as edge (`${edge.from}-${edge.to}`)}

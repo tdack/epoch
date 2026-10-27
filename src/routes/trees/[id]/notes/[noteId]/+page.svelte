@@ -115,7 +115,7 @@
 <section aria-labelledby="used-heading" class="section-card">
 	<h3 id="used-heading" class="section-heading">Where it is used</h3>
 	{#if note.uses.length === 0}
-		<p class="mt-2 text-xs text-stone-500 italic" data-testid="not-used">
+		<p class="mt-2 text-xs text-stone-500 italic print:hidden" data-testid="not-used">
 			No record you can see uses this note yet. Attach it from a person, a fact or a partnership.
 		</p>
 	{:else}

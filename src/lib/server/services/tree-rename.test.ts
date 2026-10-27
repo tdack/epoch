@@ -40,6 +40,24 @@ describe('renaming a tree', () => {
 		expect(await s.version()).toBe(before + 1);
 	});
 
+	it('saves the date format, defaults it, and refuses an editor changing it', async () => {
+		const s = await setup();
+		expect((await s.repo.findById(s.treeId))!.dateFormat).toBe('day_month_year');
+		const before = await s.version();
+		await s.service.updateTree(
+			s.treeId,
+			before,
+			{ dateFormat: 'month_day_year' },
+			s.manager.context
+		);
+		const after = (await s.repo.findById(s.treeId))!;
+		expect(after.dateFormat).toBe('month_day_year');
+		expect(after.version).toBe(before + 1);
+		await expect(
+			s.service.updateTree(s.treeId, after.version, { dateFormat: 'short' }, s.editor.context)
+		).rejects.toThrow('Forbidden');
+	});
+
 	it('refuses an editor', async () => {
 		const s = await setup();
 		await expect(

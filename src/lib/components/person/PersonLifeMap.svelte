@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateFormatReader } from '#lib/components/date-format.js';
 	import PlaceMap from '#lib/components/maps/PlaceMap.svelte';
 	import { lifeMap, type FactLocation } from '#lib/shared/life-map.js';
 	import type { FactDto } from '#lib/shared/person-page.js';
@@ -16,7 +17,8 @@
 
 	let { facts, locations, tiles, personName }: Props = $props();
 
-	const data = $derived(lifeMap(facts, locations));
+	const dateFormat = dateFormatReader();
+	const data = $derived(lifeMap(facts, locations, dateFormat()));
 	const dated = $derived(data.items.filter((i) => i.n !== null));
 	const undated = $derived(data.items.filter((i) => i.n === null));
 </script>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { Quote, X } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { citePeopleApi } from '#lib/api/evidence.js';
@@ -36,6 +37,7 @@
 	}
 
 	let { isOpen, treeId, source, initialPeople = [], onsaved, oncancel }: Props = $props();
+	const showDate = dateReader();
 
 	const SEARCH_DELAY_MS = 250;
 	const RESULTS_SHOWN = 8;
@@ -214,7 +216,7 @@
 								onclick={() => add(person)}
 								>{nameOf(person)}
 								{#if person.birthDate}<span class="text-xs text-stone-500"
-										>b. {person.birthDate}</span
+										>b. {showDate(person.birthDate)}</span
 									>{/if}</button
 							>
 						</li>

@@ -121,6 +121,18 @@ describe('for someone who sees everyone', () => {
 			label: 'Marriage'
 		});
 	});
+	it('lists the places within a place, with counts, and every fact in the report', async () => {
+		const within = await places().within(treeId, 'Ireland', actors.owner.context);
+		expect(within).toEqual({ places: [{ name: 'Cork, Ireland', facts: 2 }], hasMore: false });
+		// A place is not within itself, and `_` and `%` in the name are text.
+		expect((await places().within(treeId, 'Cork, Ireland', actors.owner.context)).places).toEqual(
+			[]
+		);
+		expect((await places().within(treeId, 'Ire_and', actors.owner.context)).places).toEqual([]);
+		const report = await places().report(treeId, 'cork, ireland', actors.owner.context);
+		expect(report.facts).toHaveLength(2);
+		expect(report.hasMore).toBe(false);
+	});
 	it('answers a page past the end as not found, not as a crash', async () => {
 		await expect(
 			places().detail(treeId, 'Chapelton', { offset: 50 }, actors.owner.context)
