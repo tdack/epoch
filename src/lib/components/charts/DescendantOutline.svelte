@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { dateFormatReader } from '#lib/components/date-format.js';
+	import { DESCENDANT_NUMBERINGS, descendantNumber } from '#lib/shared/descendant-numbers.js';
 	import { chartDates } from '#lib/shared/charts.js';
 	import type { ChartPerson, DescendantNode } from '#lib/shared/charts.js';
 
@@ -36,8 +37,12 @@
 	{/if}
 {/snippet}
 
-{#snippet branch(node: DescendantNode)}
+<!-- d'Aboville alone: Henry numbers are the narrative's choice, and one style keeps the chart and the outline agreeing. -->
+{#snippet branch(node: DescendantNode, path: number[])}
 	<li>
+		<span class="text-stone-600" data-testid="outline-number"
+			>{descendantNumber(path, DESCENDANT_NUMBERINGS.DABOVILLE)}</span
+		>
 		{@render name(node.person)}
 		<span class="text-stone-600">{dates(node.person.birth, node.person.death)}</span>
 		{#if node.partners.length > 0}
@@ -50,7 +55,7 @@
 		{#if node.children.length > 0}
 			<!-- Keyed by position: cousins who marry put one person under two parents. -->
 			<ul class="mt-1 ml-5 list-disc space-y-1">
-				{#each node.children as child, i (i)}{@render branch(child)}{/each}
+				{#each node.children as child, i (i)}{@render branch(child, [...path, i + 1])}{/each}
 			</ul>
 		{/if}
 	</li>
@@ -62,5 +67,5 @@
 >
 	<summary class="cursor-pointer font-semibold text-stone-800">{summary}</summary>
 	<p class="mt-2 text-xs text-stone-600">Each person's children are listed under them.</p>
-	<ul class="mt-2 space-y-1">{@render branch(root)}</ul>
+	<ul class="mt-2 space-y-1">{@render branch(root, [])}</ul>
 </details>
