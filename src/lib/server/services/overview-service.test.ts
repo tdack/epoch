@@ -61,10 +61,11 @@ describe('OverviewService', () => {
 		expect(stats).toMatchObject({
 			people: 3,
 			partnerships: 1,
-			birthsByCentury: [
-				{ century: 1800, people: 1 },
-				{ century: 1900, people: 2 }
+			birthsByDecade: [
+				{ decade: 1850, people: 1 },
+				{ decade: 1990, people: 2 }
 			],
+			birthSpan: { earliest: { name: 'Old Hill' }, latest: { name: 'Young Hill', year: 1990 } },
 			topSurnames: [
 				{ surname: 'Hill', people: 2 },
 				{ surname: 'Ross', people: 1 }
@@ -77,7 +78,8 @@ describe('OverviewService', () => {
 		expect(stats).toMatchObject({
 			people: 1,
 			partnerships: 0,
-			birthsByCentury: [{ century: 1800, people: 1 }],
+			birthsByDecade: [{ decade: 1850, people: 1 }],
+			birthSpan: { earliest: { name: 'Old Hill' }, latest: { name: 'Old Hill' } },
 			topSurnames: [{ surname: 'Hill', people: 1 }]
 		});
 	});

@@ -28,10 +28,11 @@ describe('overviewStats', () => {
 		expect(stats).toMatchObject({
 			people: 5,
 			partnerships: 1,
-			birthsByCentury: [
-				{ century: 1800, people: 1 },
-				{ century: 1900, people: 1 }
+			birthsByDecade: [
+				{ decade: 1850, people: 1 },
+				{ decade: 1900, people: 1 }
 			],
+			birthSpan: { earliest: { id: 'a', year: 1850 }, latest: { id: 'b', year: 1901 } },
 			averageLifespanYears: 65,
 			oldest: { id: 'a', years: 70 },
 			topSurnames: [
@@ -45,6 +46,12 @@ describe('overviewStats', () => {
 		const stats = overviewStats(treeRows({ people: [{ id: 'a', birth: '1900' }] }));
 		expect(stats.averageLifespanYears).toBeNull();
 		expect(stats.oldest).toBeNull();
+	});
+
+	it('has no birth span without a birth dated to one year', () => {
+		const stats = overviewStats(treeRows({ people: [{ id: 'a', birth: 'BET 1890 AND 1910' }] }));
+		expect(stats.birthSpan).toBeNull();
+		expect(stats.birthsByDecade).toEqual([]);
 	});
 });
 
