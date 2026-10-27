@@ -60,3 +60,27 @@ test('a printed tree canvas points to a chart instead', async ({ page, api }) =>
 	await page.emulateMedia({ media: 'print' });
 	await expect(page.getByTestId('print-note')).toBeVisible();
 });
+
+test('the family group sheet and a narrative print as plain documents', async ({ page, api }) => {
+	const ann = await api.addPerson('Ann', 'Fox', { birthDate: '1900', birthPlace: 'Leeds' });
+	const bob = await api.addPerson('Bob', 'Fox');
+	const kit = await api.addPerson('Kit', 'Fox', { birthDate: '1930' });
+	await api.partner(ann, bob);
+	await api.child(ann, kit);
+	const [union] = (await api.graph()).unions;
+
+	await open(page, `/trees/${api.treeSlug}/unions/${encodeURIComponent(union.id)}/sheet`);
+	await page.emulateMedia({ media: 'print' });
+	await expect(page.getByRole('heading', { name: 'Partner 1' })).toBeVisible();
+	await expect(page.getByRole('table').getByText('Kit Fox')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Print' })).toBeHidden();
+	await expect(page.getByTestId('print-footer')).toBeVisible();
+
+	await open(
+		page,
+		`/trees/${api.treeSlug}/people/${encodeURIComponent(ann.id)}/narrative?generations=2`
+	);
+	await expect(page.getByRole('heading', { name: 'Generation 2' })).toBeVisible();
+	await expect(page.getByRole('article').filter({ hasText: 'Kit Fox' }).last()).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Print' })).toBeHidden();
+});

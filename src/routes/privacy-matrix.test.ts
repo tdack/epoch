@@ -304,7 +304,10 @@ const LOADS = [
 	'./trees/[id]/tasks/+page.server.ts',
 	'./trees/[id]/trees/+page.server.ts',
 	'./trees/[id]/unions/+page.server.ts',
-	'./trees/[id]/unions/[unionId]/+page.server.ts'
+	'./trees/[id]/unions/[unionId]/+page.server.ts',
+	'./trees/[id]/unions/[unionId]/sheet/+page.server.ts',
+	'./trees/[id]/people/[personId]/narrative/+page.server.ts',
+	'./trees/[id]/reports/+page.server.ts'
 ];
 
 const endpoints = Object.keys(import.meta.glob('./**/+server.ts')).sort();
