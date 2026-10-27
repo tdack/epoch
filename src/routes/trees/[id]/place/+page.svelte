@@ -7,6 +7,7 @@
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
 	import { undoApi } from '#lib/api/relationships.js';
+	import { MAX_PLACES_WITHIN } from '#lib/shared/places.js';
 	import { hasMinimumRole } from '#lib/shared/roles.js';
 	import type { ChangeSummary } from '#lib/types/genealogy.js';
 	import type { PageProps } from './$types';
@@ -64,6 +65,10 @@
 </nav>
 <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 	<h1 class="text-2xl font-bold text-stone-900" data-testid="place-name">{place.name}</h1>
+	<a
+		href="{base}/place/report?name={encodeURIComponent(place.name)}"
+		class="text-link text-sm print:hidden">Report</a
+	>
 	{#if canEdit}
 		<button
 			type="button"
@@ -111,6 +116,29 @@
 			previousHref={place.offset > 0 ? pageHref(Math.max(0, place.offset - place.limit)) : null}
 			nextHref={place.hasMore ? pageHref(place.offset + place.limit) : null}
 		/>
+
+		{#if data.within.places.length > 0}
+			<h2 id="within-heading" class="mt-6 text-sm font-semibold text-stone-900">
+				Places within {place.name}
+			</h2>
+			<ul
+				class="mt-2 space-y-1 text-sm"
+				aria-labelledby="within-heading"
+				data-testid="places-within"
+			>
+				{#each data.within.places as inner (inner.name)}
+					<li>
+						<a href={placeHref(inner.name)} class="text-link">{inner.name}</a>
+						<span class="text-stone-600">
+							· {inner.facts} {inner.facts === 1 ? 'fact' : 'facts'}</span
+						>
+					</li>
+				{/each}
+			</ul>
+			{#if data.within.hasMore}
+				<p class="mt-1 text-xs text-stone-600">Only the first {MAX_PLACES_WITHIN} are listed.</p>
+			{/if}
+		{/if}
 	</section>
 </div>
 

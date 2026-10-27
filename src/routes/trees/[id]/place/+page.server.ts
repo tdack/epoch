@@ -12,14 +12,15 @@ export const load: PageServerLoad = treeServerLoad(
 		const name = url.searchParams.get('name');
 		if (!name) error(404, 'Place not found');
 		const { tileUrl, tileAttribution } = await new SettingsService(db).maps();
+		const places = new PlaceService(db);
+		const lensRootId = subtree?.rootPersonId ?? null;
+		const [place, within] = await Promise.all([
+			places.detail(treeId, name, parseListParams(url.searchParams), ctx, lensRootId),
+			places.within(treeId, name, ctx, lensRootId)
+		]);
 		return {
-			place: await new PlaceService(db).detail(
-				treeId,
-				name,
-				parseListParams(url.searchParams),
-				ctx,
-				subtree?.rootPersonId ?? null
-			),
+			place,
+			within,
 			tiles: { tileUrl, tileAttribution }
 		};
 	}
