@@ -138,13 +138,15 @@ export class TreeRepository {
 		recentDeathYears: number;
 		shouldShowPrivateStructure: boolean;
 		isPublic: boolean;
+		dateFormat: string;
 	} | null> {
 		const record = await this.db
 			.select({
 				maxAliveYears: trees.maxAliveYears,
 				recentDeathYears: trees.recentDeathYears,
 				shouldShowPrivateStructure: trees.shouldShowPrivateStructure,
-				isPublic: trees.isPublic
+				isPublic: trees.isPublic,
+				dateFormat: trees.dateFormat
 			})
 			.from(trees)
 			.where(eq(trees.id, treeId))

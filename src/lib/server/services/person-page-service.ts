@@ -356,18 +356,14 @@ export class PersonPageService {
 		);
 		const birth = facts.find((f) => f.type === 'BIRT') ?? null;
 		const death = facts.find((f) => f.type === 'DEAT') ?? null;
-		const lifespanParts = [birth?.dateText, death?.dateText];
 		const vitals = {
 			birth,
 			death,
-			lifespan: lifespanParts.some(Boolean)
-				? `${lifespanParts[0] ?? '?'} – ${lifespanParts[1] ?? ''}`.trim()
-				: null,
 			hasConflict: [birth, death].some((f) => f?.conflict?.kind === CONFLICT_KINDS.CONFLICT)
 		};
 
 		// ---- Partnerships ----
-		const labels = partnershipLabels(graph.unions, (await this.trees.findById(treeId))?.dateFormat);
+		const labels = partnershipLabels(graph.unions, scope.dateFormat);
 		const mergeable = mergeableUnionIds(graph.unions);
 		const deceased = new Set(graph.people.filter((p) => p.isDeceased).map((p) => p.id));
 		const widowed = new Set(

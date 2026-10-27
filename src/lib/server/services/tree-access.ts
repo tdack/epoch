@@ -1,4 +1,5 @@
 import { canSeePrivatePeople, isActionAllowed, type TreeAction } from '../auth/authorization';
+import { DEFAULT_DATE_FORMAT, isDateFormat, type DateFormat } from '../../shared/date-display';
 import { NotFoundError, UnauthorizedError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import type { TreeRole } from '../../shared/roles';
@@ -30,6 +31,11 @@ export interface ViewerScope {
 	cutoff: string;
 	/** Show a restricted viewer a "Private" placeholder in the graph and on partnerships, or omit them. */
 	shouldShowPrivateStructure: boolean;
+	/**
+	 * How the tree's dates read (ADR-079). Display only, carried here because every service that
+	 * bakes a date into a label has already read the tree for its scope.
+	 */
+	dateFormat?: DateFormat;
 }
 
 /**
@@ -128,6 +134,7 @@ export async function requireTreeScope(
 		cutoff: settings.isPublic
 			? EVERYONE_SHOWN_CUTOFF
 			: livingCutoff(now, settings.maxAliveYears, settings.recentDeathYears),
-		shouldShowPrivateStructure: settings.shouldShowPrivateStructure
+		shouldShowPrivateStructure: settings.shouldShowPrivateStructure,
+		dateFormat: isDateFormat(settings.dateFormat) ? settings.dateFormat : DEFAULT_DATE_FORMAT
 	};
 }

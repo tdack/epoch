@@ -18,7 +18,6 @@
 	let { dto, isPageTitle, isSelf = false }: Props = $props();
 
 	const dateFormat = dateFormatReader();
-	/** Built here, not read from `vitals.lifespan`, which the server writes from the raw GEDCOM text. */
 	const lifespan = $derived(
 		chartDates(dto.vitals.birth?.dateText ?? null, dto.vitals.death?.dateText ?? null, dateFormat())
 	);
