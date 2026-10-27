@@ -242,3 +242,67 @@ select:not([multiple]) {
 [data-reduce-motion] .motion-safe\:animate-spin {
 	animation: none;
 }
+
+/*
+ * Paper (reports-research.md, section 6). Black on white whatever the palette, without the app's
+ * chrome: a printout is read, not used. Unlayered so it outranks the utilities. Chrome, header and
+ * dialogs are hidden in the markup with `print:hidden`; what can be said once for every page is here.
+ */
+@media print {
+	@page {
+		margin: 15mm;
+		/* Margin boxes are Chrome 131+; elsewhere the page simply has no number. */
+		@bottom-right {
+			content: counter(page) ' / ' counter(pages);
+			font-size: 8pt;
+			color: #57534e;
+		}
+	}
+	html,
+	body {
+		background: #fff !important;
+		color: #000;
+	}
+	/* Nothing on paper can be pressed. */
+	button,
+	[role='button']:not(svg *),
+	.leaflet-container {
+		display: none !important;
+	}
+	.section-card {
+		background: #fff;
+		border-color: #d6d3d1;
+		padding: 0.5rem 0;
+		border-width: 0 0 1px;
+		border-radius: 0;
+	}
+	h1,
+	h2,
+	h3,
+	h4,
+	summary {
+		break-after: avoid;
+	}
+	li,
+	tr,
+	figure,
+	svg {
+		break-inside: avoid;
+	}
+	a {
+		color: inherit !important;
+		text-decoration: none !important;
+	}
+	/* A source's web address is evidence; the app's own links are not. */
+	main a[href^='http']:not([href*='/trees/'])::after {
+		content: ' <' attr(href) '>';
+		font-size: 0.85em;
+		word-break: break-all;
+	}
+	summary {
+		list-style: none;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+}
