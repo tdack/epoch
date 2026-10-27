@@ -36,28 +36,34 @@ export function overviewStats(rows: TreeRows): OverviewStatsDto {
 	const births = firstOf('BIRT');
 	const deaths = firstOf('DEAT');
 
-	const centuries = new Map<number, number>();
+	const decades = new Map<number, number>();
+	const born: { id: string; name: string; year: number }[] = [];
 	const lifespans: { id: string; name: string; years: number }[] = [];
 	const surnames = new Map<string, number>();
 	for (const person of rows.individuals) {
-		const born = yearOf(births.get(person.id));
-		if (born !== null) {
-			const century = Math.floor(born / 100) * 100;
-			centuries.set(century, (centuries.get(century) ?? 0) + 1);
+		const year = yearOf(births.get(person.id));
+		if (year !== null) {
+			const decade = Math.floor(year / 10) * 10;
+			decades.set(decade, (decades.get(decade) ?? 0) + 1);
+			born.push({ id: person.id, name: personName(person), year });
 			const died = yearOf(deaths.get(person.id));
-			if (died !== null && died >= born && died - born <= MAX_LIFESPAN_YEARS)
-				lifespans.push({ id: person.id, name: personName(person), years: died - born });
+			if (died !== null && died >= year && died - year <= MAX_LIFESPAN_YEARS)
+				lifespans.push({ id: person.id, name: personName(person), years: died - year });
 		}
 		const surname = person.surname?.trim();
 		if (surname) surnames.set(surname, (surnames.get(surname) ?? 0) + 1);
 	}
 
+	// By name within a year, so the same tree always names the same two people.
+	born.sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
+
 	return {
 		people: rows.individuals.length,
 		partnerships: rows.unions.length,
-		birthsByCentury: [...centuries]
+		birthsByDecade: [...decades]
 			.sort(([a], [b]) => a - b)
-			.map(([century, people]) => ({ century, people })),
+			.map(([decade, people]) => ({ decade, people })),
+		birthSpan: born.length === 0 ? null : { earliest: born[0]!, latest: born.at(-1)! },
 		averageLifespanYears:
 			lifespans.length === 0
 				? null
