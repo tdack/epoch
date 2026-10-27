@@ -74,7 +74,9 @@
 
 <!-- The tabs and filters hide on paper, so say what the list holds. -->
 <p class="mt-3 hidden text-sm font-semibold print:block">
-	{data.status === 'all' ? 'All tasks' : `${TASK_STATUS_LABELS[data.status]} tasks`}
+	{data.status === 'all'
+		? 'All tasks'
+		: `${TASK_STATUS_LABELS[data.status as keyof typeof TASK_STATUS_LABELS]} tasks`}
 </p>
 
 <nav aria-label="Task status" class="mt-4 flex flex-wrap items-center gap-1 text-sm print:hidden">
