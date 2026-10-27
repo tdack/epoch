@@ -22,6 +22,9 @@ export const trees = sqliteTable(
 		shouldShowPrivateStructure: integer('should_show_private_structure', { mode: 'boolean' })
 			.notNull()
 			.default(false),
+		// ADR-079. How the tree's dates read as words, a `DateFormat`; a tree that never sets it
+		// keeps the day-month-year order.
+		dateFormat: text('date_format').notNull().default('day_month_year'),
 		version: integer('version').notNull().default(1),
 		// The install owner's order for every tree list, lowest first. Its own column rather than
 		// `updated_at`: reordering must not bump `version` (it guards renames) or look like an edit.
