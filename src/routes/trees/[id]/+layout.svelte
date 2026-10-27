@@ -10,6 +10,7 @@
 	import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TreeEditorHost from '#lib/components/tree/TreeEditorHost.svelte';
 	import TreeShellHost from '#lib/components/tree/TreeShellHost.svelte';
+	import { setDateFormat } from '#lib/components/date-format.js';
 	import { setTreeContext, type FinderBridge } from '#lib/components/tree/tree-context.js';
 	import { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import { TreeShell } from '#lib/components/tree/tree-shell.svelte.js';
@@ -123,6 +124,7 @@
 		finderBridge.focusInput = () => personFinder?.focus();
 		return () => (finderBridge.focusInput = null);
 	});
+	setDateFormat(() => data.summary.tree.dateFormat);
 	setTreeContext({
 		toasts,
 		editor,

@@ -66,7 +66,14 @@ function render({ can = {}, isInstallOwner = false, isTreePublic = false, ...res
 				canDelete: false,
 				...can,
 				summary: {
-					tree: { id: 't1', slug: 'smiths', name: 'Smiths', version: 3, isOnSubdomain: false },
+					tree: {
+						id: 't1',
+						slug: 'smiths',
+						name: 'Smiths',
+						version: 3,
+						isOnSubdomain: false,
+						dateFormat: 'day_month_year'
+					},
 					viewer: { role: 'owner', isInstallOwner, isTreePublic }
 				}
 			}
@@ -159,9 +166,29 @@ describe('tree settings page', () => {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
 		await submit(input.closest('form')!);
-		expect(rename).toHaveBeenCalledWith('t1', 'The Smiths', 'smiths', 3, undefined);
+		expect(rename).toHaveBeenCalledWith('t1', 'The Smiths', 'smiths', 3, undefined, undefined);
 		expect(toasts.push).toHaveBeenCalledWith('Tree saved');
 		expect(navigation.invalidate).toHaveBeenCalled();
+	});
+
+	it('saves a chosen date format with the name and address as they stand', async () => {
+		render();
+		const radios = [
+			...document.querySelectorAll<HTMLInputElement>('input[name="tree-date-format"]')
+		];
+		expect(radios).toHaveLength(4);
+		expect(radios.find((r) => r.checked)!.value).toBe('day_month_year');
+		const other = radios.find((r) => r.value !== 'day_month_year')!;
+		other.click();
+		flushSync();
+		await submit(other.closest('form')!);
+		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'smiths', 3, undefined, other.value);
+	});
+
+	it('sends nothing when the date format is unchanged', async () => {
+		render();
+		await submit(document.querySelector('input[name="tree-date-format"]')!.closest('form')!);
+		expect(rename).not.toHaveBeenCalled();
 	});
 
 	it('sends nothing when the address is unchanged, and refuses a malformed one', async () => {
@@ -185,7 +212,7 @@ describe('tree settings page', () => {
 		slug.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
 		await submit(slug.closest('form')!);
-		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'the-smiths', 3, undefined);
+		expect(rename).toHaveBeenCalledWith('t1', 'Smiths', 'the-smiths', 3, undefined, undefined);
 		expect(context.followAddress).toHaveBeenCalledWith({
 			id: 't1',
 			slug: 'the-smiths',
