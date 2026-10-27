@@ -271,6 +271,11 @@ select:not([multiple]) {
 		background: #fff !important;
 		color: #000;
 	}
+	/* Chrome ignores a forced page break on a flex item, so the page column prints as plain blocks. */
+	div:has(> main),
+	main {
+		display: block !important;
+	}
 	/* Nothing on paper can be pressed. */
 	button,
 	[role='button']:not(svg *),

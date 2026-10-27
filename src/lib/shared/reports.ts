@@ -15,6 +15,22 @@ export function isNarrativeKind(value: unknown): value is NarrativeKind {
 export const DEFAULT_NARRATIVE_GENERATIONS = 3;
 export const MAX_NARRATIVE_GENERATIONS = 6;
 
+/** What a family book can hold; the name index covers whichever narratives are ticked. */
+export const BOOK_SECTIONS = {
+	ANCESTORS: 'ancestors',
+	DESCENDANTS: 'descendants',
+	GAPS: 'gaps',
+	INDEX: 'index'
+} as const;
+export type BookSection = (typeof BOOK_SECTIONS)[keyof typeof BOOK_SECTIONS];
+
+export const BOOK_SECTION_LABELS: Record<BookSection, string> = {
+	ancestors: 'Ancestors',
+	descendants: 'Descendants',
+	gaps: 'Research gaps',
+	index: 'Index of names'
+};
+
 export interface NarrativeEntryDto {
 	/** Ahnentafel for ancestors; d'Aboville or Henry for descendants. */
 	number: string;
