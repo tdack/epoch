@@ -36,7 +36,7 @@ export interface NarrativeChild {
 	type: ParentChildType;
 }
 
-export interface NarrativePartnership {
+interface NarrativePartnership {
 	/** Null when no partner is recorded. */
 	partnerName: string | null;
 	events: NarrativeFact[];

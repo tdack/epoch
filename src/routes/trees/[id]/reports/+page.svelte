@@ -14,13 +14,18 @@
 	const personBase = (id: string) => `${base}/people/${encodeURIComponent(id)}`;
 	const narrative = (id: string, kind: string) =>
 		`${personBase(id)}/narrative?kind=${kind}&generations=${DEFAULT_NARRATIVE_GENERATIONS}`;
+	// Tasks and Quality are members' working screens, which the Research menu hides from outsiders.
 	const acrossTheTree = $derived([
-		{
-			href: `${base}/quality`,
-			label: 'Quality',
-			hint: 'Findings to check, such as dates that disagree.'
-		},
-		{ href: `${base}/tasks`, label: 'Tasks', hint: 'Research to do, by person and status.' },
+		...(data.summary.viewer.isOutsider
+			? []
+			: [
+					{
+						href: `${base}/quality`,
+						label: 'Quality',
+						hint: 'Findings to check, such as dates that disagree.'
+					},
+					{ href: `${base}/tasks`, label: 'Tasks', hint: 'Research to do, by person and status.' }
+				]),
 		{
 			href: `${base}/places`,
 			label: 'Places',
