@@ -47,6 +47,10 @@
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	const base = $derived(treePath(treeRef));
+	// A wall chart is the same drawing on a bigger sheet; app.css has a named page for each size.
+	const PAPERS = ['a4', 'a3', 'a2', 'a1', 'a0'] as const;
+	let paper = $state<(typeof PAPERS)[number]>('a4');
+	const paperId = $props.id();
 </script>
 
 <svelte:head>
@@ -54,7 +58,7 @@
 </svelte:head>
 
 <!-- The marker lets app.css put the whole printout, footer included, on a landscape page. -->
-<div data-print-page="chart">
+<div data-print-page="chart" data-print-paper={paper}>
 	<nav aria-label="Breadcrumb" class="text-sm text-stone-600">
 		<a href={base} class="text-link">{treeName}</a>
 		/
@@ -79,6 +83,12 @@
 			/>
 		{/if}
 		<a href="{base}?focus={encodeURIComponent(subject.id)}" class="text-link">Show in the tree</a>
+		<label for={paperId} class="font-semibold text-stone-700">Print on</label>
+		<select id={paperId} class="field-input w-auto" bind:value={paper}>
+			{#each PAPERS as size (size)}
+				<option value={size}>{size.toUpperCase()}{size === 'a4' ? '' : ' wall chart'}</option>
+			{/each}
+		</select>
 	</div>
 
 	{#if notice}<p class="mt-2 text-sm text-stone-600" data-testid="more">{notice}</p>{/if}
