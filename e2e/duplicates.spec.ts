@@ -124,7 +124,7 @@ test('two different marriage dates are never merged silently: a choice is requir
 	const dialog = page.getByRole('dialog', { name: 'Merge duplicate partnerships?' });
 	await expect(dialog.getByText(/record a different marriage/)).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Merge partnerships' })).toBeDisabled();
-	await dialog.getByRole('radio', { name: /1 Jan 2012/ }).check();
+	await dialog.getByRole('radio', { name: /1 January 2012/ }).check();
 	await expect(dialog.getByText('This is exactly what will change:')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Merge partnerships' }).click();
 
