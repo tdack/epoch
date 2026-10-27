@@ -93,6 +93,9 @@
 				<li>
 					<a class="text-link" href="{personBase(picked.id)}/interview">Interview sheet</a>
 				</li>
+				<li>
+					<a class="text-link" href="{personBase(picked.id)}/book">Family book</a>
+				</li>
 			</ul>
 		{/if}
 	</section>
@@ -116,10 +119,5 @@
 				</li>
 			{/each}
 		</ul>
-	</section>
-
-	<section aria-labelledby="coming-later" class="section-card">
-		<h2 id="coming-later" class="section-heading">Coming later</h2>
-		<p class="mt-2 text-sm text-stone-700">A family book.</p>
 	</section>
 </div>
