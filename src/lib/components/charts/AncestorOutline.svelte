@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { dateFormatReader } from '#lib/components/date-format.js';
+	import { chartDates } from '#lib/shared/charts.js';
 	import type { ChartPerson } from '#lib/shared/charts.js';
 
 	interface Props {
@@ -19,8 +21,9 @@
 		testId = 'outline'
 	}: Props = $props();
 
+	const dateFormat = dateFormatReader();
 	const dates = (birth: string | null, death: string | null) =>
-		birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
+		chartDates(birth, death, dateFormat());
 	const entries = $derived(
 		slots.flatMap((person, i) => (person ? [{ number: i + 1, person }] : []))
 	);

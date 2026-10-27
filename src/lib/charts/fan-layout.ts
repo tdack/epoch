@@ -5,7 +5,8 @@
  * person on the left (the pedigree's heap order, which puts a person's parents side by side).
  */
 
-import type { ChartPerson } from '../shared/charts';
+import { chartDates, type ChartPerson } from '../shared/charts';
+import { DEFAULT_DATE_FORMAT, type DateFormat } from '../shared/date-display';
 
 /** A ring is this wide; the person's disc is `CENTRE_RADIUS`. */
 export const FAN = { centreRadius: 52, ringWidth: 74, padding: 10 } as const;
@@ -46,8 +47,6 @@ const point = (cx: number, cy: number, radius: number, angle: number) => ({
 });
 const clip = (text: string, max: number) =>
 	text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
-const dates = (birth: string | null, death: string | null) =>
-	birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
 
 /** Room for a label in characters: radial text has one ring's width, and horizontal text a chord. */
 function labelFor(
@@ -58,12 +57,13 @@ function labelFor(
 	inner: number,
 	outer: number,
 	start: number,
-	end: number
+	end: number,
+	format: DateFormat
 ): FanLabel {
 	const mid = (start + end) / 2;
 	const radius = (inner + outer) / 2;
 	const { x, y } = point(cx, cy, radius, mid);
-	const dated = dates(person.birth, person.death);
+	const dated = chartDates(person.birth, person.death, format);
 	if (generation <= 2) {
 		return { x, y, rotate: 0, lines: [clip(person.name, 17), ...(dated ? [clip(dated, 17)] : [])] };
 	}
@@ -76,7 +76,8 @@ function labelFor(
 
 export function layoutFan(
 	slots: ReadonlyArray<ChartPerson | null>,
-	generations: number
+	generations: number,
+	format: DateFormat = DEFAULT_DATE_FORMAT
 ): FanLayout {
 	const outer = FAN.centreRadius + (generations - 1) * FAN.ringWidth;
 	const cx = outer + FAN.padding;
@@ -110,12 +111,12 @@ export function layoutFan(
 						rotate: 0,
 						lines: [
 							clip(person.name, 14),
-							...(dates(person.birth, person.death)
-								? [clip(dates(person.birth, person.death), 14)]
+							...(chartDates(person.birth, person.death, format)
+								? [clip(chartDates(person.birth, person.death, format), 14)]
 								: [])
 						]
 					}
-				: labelFor(person, generation, cx, cy, inner, outerRadius, start, end);
+				: labelFor(person, generation, cx, cy, inner, outerRadius, start, end, format);
 		segments.push({ key: `f${i}`, slot: i, generation, person, path, label });
 	});
 

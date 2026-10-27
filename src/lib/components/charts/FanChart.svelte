@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { dateFormatReader } from '#lib/components/date-format.js';
+	import { chartDates } from '#lib/shared/charts.js';
 	import type { FanLayout } from '#lib/charts/fan-layout.js';
 
 	interface Props {
@@ -11,8 +13,9 @@
 
 	let { layout, label, hrefFor }: Props = $props();
 
+	const dateFormat = dateFormatReader();
 	const dates = (birth: string | null, death: string | null) =>
-		birth || death ? `${birth ?? '?'} – ${death ?? ''}`.trim() : '';
+		chartDates(birth, death, dateFormat());
 </script>
 
 <div class="overflow-auto rounded-xl border border-stone-200 bg-white" tabindex="-1">

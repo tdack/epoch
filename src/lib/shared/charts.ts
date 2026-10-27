@@ -1,6 +1,18 @@
 /** What the pedigree and descendant charts are drawn from. */
 
 import { treePath, type TreeRef } from './tree-slug';
+import { DEFAULT_DATE_FORMAT, displayDate, type DateFormat } from './date-display';
+
+/** "1850 – 1920", "1850 –" or "? – 1920" in the tree's date format; empty when neither is known. */
+export function chartDates(
+	birth: string | null,
+	death: string | null,
+	format: DateFormat = DEFAULT_DATE_FORMAT
+): string {
+	return birth || death
+		? `${birth ? displayDate(birth, format) : '?'} – ${displayDate(death, format)}`.trim()
+		: '';
+}
 
 export interface ChartPerson {
 	id: string;

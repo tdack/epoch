@@ -7,6 +7,7 @@
 import type { UnionStatus } from '#lib/shared/relationship-model.js';
 import { END_EVENT_TYPES, UNION_EVENT_ABBREVIATIONS } from '#lib/shared/union-events.js';
 import { splitDisplayName } from '#lib/shared/name-types.js';
+import { DEFAULT_DATE_FORMAT, displayDate, type DateFormat } from '#lib/shared/date-display.js';
 import {
 	LAYOUT_METRICS,
 	type ChildEdge,
@@ -123,19 +124,26 @@ function yearOf(text: string | null | undefined): string | null {
  * The text under a union node: how the partnership began, then how it ended, e.g. "1975 – div. 1999".
  * Falls back to the marriage columns for graphs that carry no event list.
  */
-export function unionLabelText(union: RelationshipGraphUnion): string {
+export function unionLabelText(
+	union: RelationshipGraphUnion,
+	format: DateFormat = DEFAULT_DATE_FORMAT
+): string {
 	const events = union.events ?? [];
 	const start = events.find((e) => e.type === 'ENGA' || e.type === '_PSTART');
 	const begin =
-		union.marriageDate ||
+		displayDate(union.marriageDate, format) ||
 		union.marriagePlace ||
 		(start
-			? [UNION_EVENT_ABBREVIATIONS[start.type], start.dateText].filter(Boolean).join(' ')
+			? [UNION_EVENT_ABBREVIATIONS[start.type], displayDate(start.dateText, format)]
+					.filter(Boolean)
+					.join(' ')
 			: '');
 	const end = END_EVENT_TYPES.map((type) => events.find((e) => e.type === type)).find(
 		(e) => e?.dateText
 	);
-	const ending = end ? `${UNION_EVENT_ABBREVIATIONS[end.type]} ${end.dateText}` : '';
+	const ending = end
+		? `${UNION_EVENT_ABBREVIATIONS[end.type]} ${displayDate(end.dateText, format)}`
+		: '';
 	return [begin, ending].filter(Boolean).join(' – ');
 }
 
@@ -164,11 +172,14 @@ export function yearsLine(person: PlacedPerson['person']): string {
 	return person.isDeceased ? DEATH_MARK : '';
 }
 
-/** Full-card date lines: the original text, so `ABT 1900` is not shown as an exact year. */
-export function dateLines(person: PlacedPerson['person']): string[] {
+/** Full-card date lines in the tree's format; `ABT 1900` stays "about 1900", never an exact year. */
+export function dateLines(
+	person: PlacedPerson['person'],
+	format: DateFormat = DEFAULT_DATE_FORMAT
+): string[] {
 	const lines: string[] = [];
-	if (person.birthDate) lines.push(`b. ${person.birthDate}`);
-	if (person.deathDate) lines.push(`${DEATH_MARK} ${person.deathDate}`);
+	if (person.birthDate) lines.push(`b. ${displayDate(person.birthDate, format)}`);
+	if (person.deathDate) lines.push(`${DEATH_MARK} ${displayDate(person.deathDate, format)}`);
 	else if (person.isDeceased) lines.push(DEATH_MARK);
 	return lines;
 }
@@ -239,10 +250,14 @@ export function relationLabel(person: PlacedPerson, layout: TreeLayout): string 
 }
 
 /** The card's screen-reader name: person, dates, then the relationship to the focus person. */
-export function accessibleName(person: PlacedPerson, relation: string): string {
+export function accessibleName(
+	person: PlacedPerson,
+	relation: string,
+	format: DateFormat = DEFAULT_DATE_FORMAT
+): string {
 	const parts = [person.person.displayName];
-	if (person.person.birthDate) parts.push(`born ${person.person.birthDate}`);
-	if (person.person.deathDate) parts.push(`died ${person.person.deathDate}`);
+	if (person.person.birthDate) parts.push(`born ${displayDate(person.person.birthDate, format)}`);
+	if (person.person.deathDate) parts.push(`died ${displayDate(person.person.deathDate, format)}`);
 	else if (person.person.isDeceased) parts.push('deceased');
 	if (relation) parts.push(relation);
 	return parts.join(', ');
