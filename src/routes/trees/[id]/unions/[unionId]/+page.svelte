@@ -146,7 +146,11 @@
 </header>
 
 {#if dto.warnings.length > 0}
-	<section aria-labelledby="warnings-heading" class="section-card" data-testid="warnings">
+	<section
+		aria-labelledby="warnings-heading"
+		class="section-card print:hidden"
+		data-testid="warnings"
+	>
 		<h3 id="warnings-heading" class="section-heading">Warnings</h3>
 		<ul class="mt-2 space-y-1.5 text-sm">
 			{#each dto.warnings as warning (warning.code + warning.subjectIds.join())}
@@ -167,11 +171,12 @@
 	</section>
 {/if}
 
-<div class="grid gap-6 lg:grid-cols-2">
-	<div class="space-y-6">
-		<section aria-labelledby="partners-heading" class="section-card">
+<!-- On paper the two columns dissolve into one list in family-group-sheet order (the order-* classes). -->
+<div class="grid gap-6 lg:grid-cols-2 print:flex print:flex-col">
+	<div class="space-y-6 print:contents">
+		<section aria-labelledby="partners-heading" class="section-card print:order-1">
 			<h3 id="partners-heading" class="section-heading">Partners</h3>
-			{#if dto.partners.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.partners.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					No partners recorded.
 				</p>{/if}
 			<ul class="mt-2 space-y-1 text-sm" data-testid="partners">
@@ -188,9 +193,12 @@
 			</ul>
 		</section>
 
-		<section aria-labelledby="events-heading" class="section-card">
+		<section
+			aria-labelledby="events-heading"
+			class={['section-card print:order-2', dto.events.length === 0 && 'print:hidden']}
+		>
 			<h3 id="events-heading" class="section-heading">Relationship events</h3>
-			{#if dto.events.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.events.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					None recorded. Use Edit to add a marriage, separation or divorce.
 				</p>{/if}
 			<ul class="mt-2 space-y-1.5 text-sm" data-testid="union-events">
@@ -243,7 +251,14 @@
 			</ul>
 		</section>
 
-		<section aria-labelledby="union-notes-heading" class="section-card" data-testid="union-notes">
+		<section
+			aria-labelledby="union-notes-heading"
+			class={[
+				'section-card print:order-5',
+				dto.notes.length === 0 && dto.linkNotes.length === 0 && 'print:hidden'
+			]}
+			data-testid="union-notes"
+		>
 			<h3 id="union-notes-heading" class="section-heading">Notes</h3>
 			<div class="mt-2">
 				<NoteList
@@ -279,7 +294,7 @@
 
 		<section
 			aria-labelledby="union-evidence-heading"
-			class="section-card"
+			class={['section-card print:order-6', dto.evidence.citations.length === 0 && 'print:hidden']}
 			data-testid="union-evidence"
 		>
 			<h3 id="union-evidence-heading" class="section-heading">Sources and evidence</h3>
@@ -327,9 +342,9 @@
 			{/each}
 		</section>
 
-		<section aria-labelledby="children-heading" class="section-card">
+		<section aria-labelledby="children-heading" class="section-card print:order-3">
 			<h3 id="children-heading" class="section-heading">Children</h3>
-			{#if dto.children.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.children.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					No children recorded.
 				</p>{/if}
 			<ul class="mt-2 space-y-1.5 text-sm" data-testid="union-children">
@@ -346,10 +361,10 @@
 		</section>
 	</div>
 
-	<div class="space-y-6">
-		<section aria-labelledby="chronology-heading" class="section-card">
+	<div class="space-y-6 print:contents">
+		<section aria-labelledby="chronology-heading" class="section-card print:order-4">
 			<h3 id="chronology-heading" class="section-heading">Chronology</h3>
-			{#if dto.chronology.length === 0}<p class="mt-2 text-xs text-stone-500 italic">
+			{#if dto.chronology.length === 0}<p class="mt-2 text-xs text-stone-500 italic print:hidden">
 					Nothing dated yet.
 				</p>{/if}
 			<ol class="mt-2 space-y-1 text-sm" data-testid="chronology">
@@ -370,7 +385,7 @@
 		</section>
 
 		{#if dto.twins.length > 0}
-			<section aria-labelledby="twins-heading" class="section-card">
+			<section aria-labelledby="twins-heading" class="section-card print:hidden">
 				<h3 id="twins-heading" class="section-heading">Same partners</h3>
 				<ul class="mt-2 space-y-1 text-sm">
 					{#each dto.twins as twin (twin.unionId)}
@@ -384,7 +399,7 @@
 			</section>
 		{/if}
 
-		<section aria-labelledby="history-heading" class="section-card">
+		<section aria-labelledby="history-heading" class="section-card print:hidden">
 			<h3 id="history-heading" class="section-heading">History</h3>
 			<p class="mt-1 text-xs text-stone-500">
 				Created {when(dto.changes.createdAt)} · last written {when(dto.changes.updatedAt)}
