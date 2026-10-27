@@ -136,7 +136,9 @@
 				>
 				<span class="text-xs text-stone-600">
 					{typeLabel(name)}{#if name.isPreferred}
-						· <span class="font-semibold text-emerald-800">shown as</span>{/if}
+						<span class="print:hidden"
+							>· <span class="font-semibold text-emerald-800">shown as</span></span
+						>{/if}
 				</span>
 			</div>
 			{#if name.dateText || partnershipLabel(name.unionId)}

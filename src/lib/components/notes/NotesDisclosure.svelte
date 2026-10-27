@@ -20,7 +20,10 @@
 <!-- A fact keeps its notes beside it, next to its citations; nothing is drawn for a record with none the viewer cannot add to. -->
 {#if noteCount > 0 || canAdd}
 	<details
-		class={isInline ? 'text-xs open:basis-full' : 'mt-2 text-xs'}
+		class={[
+			isInline ? 'text-xs open:basis-full' : 'mt-2 text-xs',
+			noteCount === 0 && 'print:hidden'
+		]}
 		data-testid="notes-disclosure"
 	>
 		<summary

@@ -88,11 +88,13 @@
 	<!-- With nothing attached, the empty line and Upload share one row. -->
 	<div class="flex items-baseline justify-between gap-3">
 		{#if dto.media.length === 0}
-			<p class="text-xs text-stone-500 italic">No photos or historical documents attached.</p>
+			<p class="text-xs text-stone-500 italic print:hidden">
+				No photos or historical documents attached.
+			</p>
 		{/if}
 		{#if canUpload}
 			<label
-				class="ml-auto inline-flex shrink-0 cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700"
+				class="ml-auto inline-flex shrink-0 cursor-pointer items-center text-xs font-semibold text-emerald-800 hover:text-emerald-700 print:hidden"
 			>
 				<Upload class="mr-1 h-3.5 w-3.5" />
 				<span>Upload</span>
@@ -119,7 +121,7 @@
 	{/if}
 
 	{#if dto.media.length > 0}
-		<ul class="grid grid-cols-2 gap-2" aria-label="Attached files">
+		<ul class="grid grid-cols-2 gap-2 print:grid-cols-4" aria-label="Attached files">
 			{#each dto.media as item (item.id)}
 				<li class="flex flex-col gap-1">
 					<a
@@ -133,6 +135,7 @@
 								src={mediaUrl(item.r2ObjectKey)}
 								alt={item.title || 'Media'}
 								class="h-full w-full object-cover transition-transform group-hover:scale-105"
+								loading="eager"
 							/>
 						{:else}
 							<FileText class="h-8 w-8 text-stone-500" />
@@ -143,6 +146,12 @@
 						{/if}
 						<span class="sr-only">(opens in a new tab)</span>
 					</a>
+					<!-- On paper the tile may print blank (a file that is not an image, or no network), so the name stays. -->
+					{#if isInlineMediaType(item.mimeType)}
+						<span class="hidden text-[10px] break-words print:block"
+							>{item.title ?? item.r2ObjectKey}</span
+						>
+					{/if}
 					{#if item.isShared ? item.canUnlink : item.canDelete}
 						{#if confirmingId === item.id}
 							<div

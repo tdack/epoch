@@ -20,7 +20,7 @@
 </script>
 
 {#if changes.length === 0}
-	<p class="mt-2 text-xs text-stone-500 italic">{emptyText}</p>
+	<p class="mt-2 text-xs text-stone-500 italic print:hidden">{emptyText}</p>
 {:else}
 	<ul class="mt-2 space-y-1.5 text-xs" data-testid="history">
 		{#each changes as change (change.id)}
