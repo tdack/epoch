@@ -303,7 +303,7 @@ describe('PersonFacts as a timeline', () => {
 			'Death'
 		]);
 		const union = byTestId('life-union-event')!;
-		expect(union.textContent).toContain('06 APR 1935 · with Myrtle Blishen');
+		expect(union.textContent).toContain('6 April 1935 · with Myrtle Blishen');
 		expect(union.querySelector('a[href$="/people/p2"]')).not.toBeNull();
 		// A viewer may follow the partnership but not edit it.
 		expect(union.querySelector('button')).toBeNull();

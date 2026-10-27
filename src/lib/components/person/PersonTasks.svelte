@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { Plus } from '@lucide/svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import TaskDialog from '#lib/components/tasks/TaskDialog.svelte';
@@ -21,6 +22,7 @@
 	}
 
 	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const showDate = dateReader();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let isDialogOpen = $state(false);
@@ -33,7 +35,7 @@
 		},
 		...dto.facts.map((f) => ({
 			ref: { kind: TASK_SUBJECT_KINDS.EVENT, id: f.id },
-			label: `the ${f.label.toLowerCase()}${f.dateText ? ` (${f.dateText})` : ''}`
+			label: `the ${f.label.toLowerCase()}${f.dateText ? ` (${showDate(f.dateText)})` : ''}`
 		}))
 	]);
 

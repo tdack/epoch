@@ -3,6 +3,8 @@
  * joined by a line (ADR-078). Pure, so the order and the grouping are tested without a map.
  */
 
+import { DEFAULT_DATE_FORMAT, displayDate, type DateFormat } from './date-display';
+
 const LIFE_GROUPS = {
 	BIRTH: 'birth',
 	PARTNERSHIP: 'partnership',
@@ -78,8 +80,8 @@ export interface LifeMapData {
 const sameSpot = (a: FactLocation, b: FactLocation) =>
 	a.latitude === b.latitude && a.longitude === b.longitude;
 
-function describe(f: LifeFact): string {
-	return [f.label, f.dateText, f.place].filter(Boolean).join(', ');
+function describe(f: LifeFact, format: DateFormat): string {
+	return [f.label, displayDate(f.dateText, format), f.place].filter(Boolean).join(', ');
 }
 
 /**
@@ -88,7 +90,8 @@ function describe(f: LifeFact): string {
  */
 export function lifeMap(
 	facts: readonly LifeFact[],
-	locations: Readonly<Record<string, FactLocation>>
+	locations: Readonly<Record<string, FactLocation>>,
+	format: DateFormat = DEFAULT_DATE_FORMAT
 ): LifeMapData {
 	const located = facts.filter((f) => locations[f.id]);
 	const dated = located
@@ -102,17 +105,17 @@ export function lifeMap(
 		const at = locations[f.id]!;
 		const last = stops.at(-1);
 		const n = i + 1;
-		const line = `${n}. ${describe(f)}`;
+		const line = `${n}. ${describe(f, format)}`;
 		if (last && last.numbers.length > 0 && sameSpot(last, at)) {
 			last.numbers.push(n);
 			last.lines.push(line);
 		} else stops.push({ ...at, group: lifeGroupOf(f.type), numbers: [n], lines: [line] });
-		items.push({ n, text: describe(f) });
+		items.push({ n, text: describe(f, format) });
 	});
 	const path = stops.map((s): [number, number] => [s.latitude, s.longitude]);
 	for (const f of undated) {
 		const at = locations[f.id]!;
-		const text = describe(f);
+		const text = describe(f, format);
 		const existing = stops.find((s) => s.numbers.length === 0 && sameSpot(s, at));
 		if (existing) existing.lines.push(text);
 		else stops.push({ ...at, group: lifeGroupOf(f.type), numbers: [], lines: [text] });

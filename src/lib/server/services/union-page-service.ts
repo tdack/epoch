@@ -118,7 +118,7 @@ export class UnionPageService {
 					)
 				).graph
 			: EMPTY_GRAPH;
-		const labels = partnershipLabels(graph.unions);
+		const labels = partnershipLabels(graph.unions, (await this.trees.findById(treeId))?.dateFormat);
 
 		const people = await personSummaries(
 			this.repo,

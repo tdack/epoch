@@ -367,7 +367,7 @@ export class PersonPageService {
 		};
 
 		// ---- Partnerships ----
-		const labels = partnershipLabels(graph.unions);
+		const labels = partnershipLabels(graph.unions, (await this.trees.findById(treeId))?.dateFormat);
 		const mergeable = mergeableUnionIds(graph.unions);
 		const deceased = new Set(graph.people.filter((p) => p.isDeceased).map((p) => p.id));
 		const widowed = new Set(

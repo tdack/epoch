@@ -22,3 +22,12 @@ export function dateReader(): (raw: string | null | undefined) => string {
 	const read = getContext<(() => DateFormat) | undefined>(KEY);
 	return (raw) => displayDate(raw, read?.() ?? DEFAULT_DATE_FORMAT);
 }
+
+/**
+ * Call during component setup, for code that builds a whole string from a date (a shared helper)
+ * rather than printing one. Read it where it is used, so a changed setting is picked up.
+ */
+export function dateFormatReader(): () => DateFormat {
+	const read = getContext<(() => DateFormat) | undefined>(KEY);
+	return () => read?.() ?? DEFAULT_DATE_FORMAT;
+}

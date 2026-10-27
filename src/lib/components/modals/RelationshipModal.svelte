@@ -21,6 +21,7 @@
 	import { planRelationshipApi, applyRelationshipApi } from '#lib/api/relationships.js';
 	import { namesWithBirth, personName } from '#lib/shared/person-name.js';
 	import { SEX_LABELS, SEX_VALUES, type Sex } from '#lib/shared/sex.js';
+	import { dateFormatReader } from '#lib/components/date-format.js';
 	import { partnershipLabels } from '#lib/shared/partnership-labels.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateText } from '#lib/shared/date-value.js';
@@ -77,6 +78,7 @@
 		onsaved,
 		onrefresh
 	}: Props = $props();
+	const dateFormat = dateFormatReader();
 
 	let kind = $state<RelationshipKind>('add_parent');
 	let role = $state<ParentRole>('parent');
@@ -87,7 +89,7 @@
 	let newGivenName = $state('');
 	let newSurname = $state('');
 	let newSex = $state<Sex>('U');
-	const resultLabels = $derived(namesWithBirth(results, personName));
+	const resultLabels = $derived(namesWithBirth(results, personName, dateFormat()));
 	let isAddingNewPerson = $state(false);
 	let deathDate = $state('');
 	let deathPlace = $state('');
@@ -147,7 +149,7 @@
 			: null
 	);
 	const nameOf = (id: string) => graph.people.find((p) => p.id === id)?.displayName ?? id;
-	const unionLabels = $derived(partnershipLabels(graph.unions));
+	const unionLabels = $derived(partnershipLabels(graph.unions, dateFormat()));
 
 	interface UnionOption {
 		/** Null for "a new partnership" when adding a partner. */

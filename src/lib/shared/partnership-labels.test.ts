@@ -45,7 +45,7 @@ describe('partnershipLabels', () => {
 			position: 1,
 			total: 2,
 			title: '1st partnership',
-			full: '1st partnership (m. 11 Oct 1980 – div. 1990)'
+			full: '1st partnership (m. 11 October 1980 – div. 1990)'
 		});
 		expect(labels.get('remarriage')).toMatchObject({
 			position: 2,

@@ -72,6 +72,7 @@
 	const reload = () => invalidate(DATA_KEY);
 	const editor = new TreeEditor({
 		treeId: () => data.summary.tree.id,
+		dateFormat: () => data.summary.tree.dateFormat,
 		toasts,
 		refresh: reload,
 		onPersonCreated: (personId) => void goto(personPath(data.summary.tree.id, personId)),

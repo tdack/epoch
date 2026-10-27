@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { ArrowDown, ArrowUp, Plus } from '@lucide/svelte';
 	import NameDialog from '#lib/components/modals/NameDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -32,6 +33,7 @@
 	}
 
 	let { dto, treeId, treeSlug = null, role, editor, toasts }: Props = $props();
+	const showDate = dateReader();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
 	// A viewer, and the public visitor, may read facts and names but not change them.
 	const canEditNames = $derived(canCreateRecords(role));
@@ -70,7 +72,7 @@
 
 	/** "In use from 1998, taken through" (the partnership link follows it); built here because the template drops the space after a comma between blocks. */
 	function nameContext(name: NameDto): string {
-		const from = name.dateText ? `In use from ${name.dateText}` : '';
+		const from = name.dateText ? `In use from ${showDate(name.dateText)}` : '';
 		const through = partnershipLabel(name.unionId) ? `${from ? 'taken' : 'Taken'} through` : '';
 		return [from, through].filter(Boolean).join(from && through ? ', ' : '');
 	}

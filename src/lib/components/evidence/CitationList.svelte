@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { ArrowDown, ArrowUp, Plus } from '@lucide/svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
@@ -42,6 +43,7 @@
 		editor,
 		toasts
 	}: Props = $props();
+	const showDate = dateReader();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
 
 	let dialog = $state<{ citation: CitationDto | null } | null>(null);
@@ -103,7 +105,7 @@
 					<p class="mt-0.5 text-stone-600">
 						{[
 							citation.quality !== null ? CITATION_QUALITY_LABELS[citation.quality] : null,
-							citation.entryDate ? `Recorded ${citation.entryDate}` : null
+							citation.entryDate ? `Recorded ${showDate(citation.entryDate)}` : null
 						]
 							.filter(Boolean)
 							.join(' · ')}

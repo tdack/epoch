@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { ArrowDown, ArrowUp, ChevronDown, MapPin, Plus } from '@lucide/svelte';
 	import FactDialog from '#lib/components/modals/FactDialog.svelte';
 	import type { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
@@ -48,6 +49,7 @@
 	}
 
 	let { dto, treeId, treeSlug = null, role, editor, toasts, mode = 'grouped' }: Props = $props();
+	const showDate = dateReader();
 	const uid = $props.id();
 	const treeRef = $derived({ id: treeId, slug: treeSlug });
 	// A viewer, and the public visitor, may read facts and names but not change them.
@@ -225,14 +227,14 @@
 						>{/if}</span
 				>{/if}
 			<span class="text-xs text-stone-600"
-				>{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}{' '}
+				>{showDate(fact.dateText) || 'Date unknown'}{#if fact.isApproximate}{' '}
 					<span class="text-stone-400">(approximate)</span>{/if}{@render age(fact)}</span
 			>
 		</div>
 	{:else if fact.kind !== FACT_KINDS.ATTRIBUTE}
 		<!-- An event is placed by its date; an undated one says so rather than looking complete. -->
 		<p class="text-sm text-stone-900">
-			{fact.dateText ?? 'Date unknown'}{#if fact.isApproximate}{' '}
+			{showDate(fact.dateText) || 'Date unknown'}{#if fact.isApproximate}{' '}
 				<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(
 				fact
 			)}{#if fact.value}<span class="text-stone-600">{' · '}{fact.value}</span>{/if}
@@ -241,7 +243,7 @@
 		<!-- An attribute is its value; most have no date, and "Date unknown" on each would be noise. -->
 		<p class="text-sm text-stone-900">
 			{fact.value ?? ''}{#if fact.dateText}<span class="text-xs text-stone-600"
-					>{fact.value ? ' · ' : ''}{fact.dateText}</span
+					>{fact.value ? ' · ' : ''}{showDate(fact.dateText)}</span
 				>{#if fact.isApproximate}{' '}
 					<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(fact)}{/if}
 		</p>
@@ -378,7 +380,8 @@
 		<h4 class={timelineHeading}>Birth of {childWord(entry.child, entry.types)}</h4>
 		<div class="min-w-0">
 			<p class="text-sm text-stone-900">
-				{entry.child.birthDate}{@render textAge(entry.child.birthDate)}<span class="text-stone-600"
+				{showDate(entry.child.birthDate)}{@render textAge(entry.child.birthDate)}<span
+					class="text-stone-600"
 					>{' · '}<PersonLink
 						person={entry.child}
 						href={personPath(treeRef, entry.child.id)}
@@ -394,7 +397,7 @@
 		<h4 class={timelineHeading}>{UNION_EVENT_LABELS[entry.event.type]}</h4>
 		<div class="min-w-0">
 			<p class="text-sm text-stone-900">
-				{entry.event.dateText ?? 'Date unknown'}{@render textAge(
+				{showDate(entry.event.dateText) || 'Date unknown'}{@render textAge(
 					entry.event.dateText
 				)}{#if entry.partners.length > 0}<span class="text-stone-600"
 						>{' · with'}

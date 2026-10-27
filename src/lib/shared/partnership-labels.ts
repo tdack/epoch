@@ -7,6 +7,7 @@
  * Browser-safe: the drawer, the editor title, the canvas and the server's previews all use it.
  */
 
+import { DEFAULT_DATE_FORMAT, displayDate, type DateFormat } from './date-display';
 import { partnerSetKey } from './union-merge';
 import { UNION_EVENT_ABBREVIATIONS, UNION_EVENT_TYPES, isUnionEventType } from './union-events';
 
@@ -71,11 +72,11 @@ function firstDated(union: LabelableUnion, types: string[]) {
 }
 
 /** "m. 1990 – div. 1995": the start and the end, each only when it has a date. */
-function datesOf(union: LabelableUnion): string | null {
+function datesOf(union: LabelableUnion, format: DateFormat): string | null {
 	const part = (types: string[]) => {
 		const event = firstDated(union, types);
 		return event && isUnionEventType(event.type)
-			? `${UNION_EVENT_ABBREVIATIONS[event.type]} ${event.dateText}`
+			? `${UNION_EVENT_ABBREVIATIONS[event.type]} ${displayDate(event.dateText, format)}`
 			: null;
 	};
 	const parts = [part(SUMMARY_START), part(SUMMARY_END)].filter(Boolean);
@@ -87,7 +88,10 @@ function datesOf(union: LabelableUnion): string | null {
  * undated ones follow in the order they were recorded, then by id, so the labels are stable between
  * renders and a preview agrees with the save (a new partnership always comes after existing ones).
  */
-export function partnershipLabels(unions: LabelableUnion[]): Map<string, PartnershipLabel> {
+export function partnershipLabels(
+	unions: LabelableUnion[],
+	format: DateFormat = DEFAULT_DATE_FORMAT
+): Map<string, PartnershipLabel> {
 	const groups = new Map<string, LabelableUnion[]>();
 	for (const union of unions) {
 		// One recorded partner says nothing about who the other was, so two such records are not
@@ -110,7 +114,7 @@ export function partnershipLabels(unions: LabelableUnion[]): Map<string, Partner
 		});
 		ordered.forEach((union, index) => {
 			const title = `${ordinal(index + 1)} partnership`;
-			const dates = datesOf(union);
+			const dates = datesOf(union, format);
 			labels.set(union.id, {
 				position: index + 1,
 				total: ordered.length,

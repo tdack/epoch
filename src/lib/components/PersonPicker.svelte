@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { searchPeopleApi } from '#lib/api/lists.js';
+	import { dateFormatReader } from '#lib/components/date-format.js';
 	import { namesWithBirth } from '#lib/shared/person-name.js';
 	import type { PeopleSearchResult } from '#lib/types/genealogy.js';
 
@@ -29,6 +30,7 @@
 		emptyName = 'Nobody chosen',
 		isInline = false
 	}: Props = $props();
+	const dateFormat = dateFormatReader();
 
 	const SEARCH_DEBOUNCE_MS = 200;
 	const uid = $props.id();
@@ -58,7 +60,7 @@
 				const found = await searchPeopleApi(treeId, query.trim());
 				// A slower earlier answer must not replace a later one.
 				if (request !== latest) return;
-				const names = namesWithBirth(found, nameOf);
+				const names = namesWithBirth(found, nameOf, dateFormat());
 				results = found.map((p, i) => ({ id: p.id, name: names[i], alias: p.matchedName }));
 				highlighted = 0;
 				isOpen = true;
