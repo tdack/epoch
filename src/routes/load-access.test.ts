@@ -96,7 +96,19 @@ const EXPECTED: Record<string, Expected> = {
 	'./trees/[id]/privacy/+page.server.ts': CLOSED,
 	'./trees/[id]/files/+page.server.ts': NOT_THEIRS,
 	'./trees/[id]/settings/+page.server.ts': SETTINGS,
-	'./trees/[id]/trees/+page.server.ts': NOT_THEIRS
+	'./trees/[id]/trees/+page.server.ts': NOT_THEIRS,
+	// Reports (ADR-080): each reads through the service its screen uses, so each is open as that is.
+	'./trees/[id]/reports/+page.server.ts': TREE,
+	'./trees/[id]/calendar/+page.server.ts': TREE,
+	'./trees/[id]/place/report/+page.server.ts': TREE,
+	'./trees/[id]/sources/[sourceId]/usage/+page.server.ts': TREE,
+	'./trees/[id]/unions/[unionId]/sheet/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/book/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/evidence/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/gaps/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/interview/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/kin/+page.server.ts': TREE,
+	'./trees/[id]/people/[personId]/narrative/+page.server.ts': TREE
 };
 
 /** Loads that read no tree and no person: the app's own details and the sign-in pages. */
