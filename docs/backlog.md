@@ -177,9 +177,7 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 ### Settings
 
 - **More app-wide settings beyond colours and reduced motion.** Left out of the first settings page
-  (ADR-054), because the dates and names ones touch many render sites:
-  - **Date display format** (day-month-year, month-day-year, ISO). `date_value` keeps the original
-    text, so this is a display choice only. Every place that formats a date needs to read it.
+  (ADR-054), because they touch many render sites. The date format is now per tree (ADR-079):
   - **Name display order** (given then surname, or surname first), including how the "née" line and
     list sort labels read. `name-display.ts` is the start, but cards, lists, search results and the
     3D labels each format names themselves.
@@ -214,9 +212,6 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   the latest changes. It does not yet honour a sub-tree lens (it says so), show quality-finding
   counts (the report reads every table, too heavy for a page opened often), or name who made each
   change. A dual-dated (Julian) day is never an anniversary.
-- **Dates read as GEDCOM everywhere.** Lists, the person page and the Overview show a date as
-  written ("BET 1968 AND 1970", "ABT 1900"), which reads as jargon to a relative. A shared
-  plain-English rendering ("between 1968 and 1970") would need to apply app-wide, not per page.
 - **The tree tabs overflow a phone.** At 375px the tab row shows about 218px; Tree, People,
   Partnerships and Places alone need about 315px, so the row scrolls behind a fade, and Overview
   added another 90px. Fixing it means regrouping the tabs on narrow screens, not shortening one.
