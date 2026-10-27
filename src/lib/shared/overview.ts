@@ -1,11 +1,19 @@
 import type { TaskDto } from './tasks';
 
 /** What a tree's Overview page shows: counts and spreads over the people the viewer may see. */
+interface BornDto {
+	id: string;
+	name: string;
+	year: number;
+}
+
 export interface OverviewStatsDto {
 	people: number;
 	partnerships: number;
-	/** People per century of birth (`1800` holds 1800–1899), oldest first; births within one year only. */
-	birthsByCentury: { century: number; people: number }[];
+	/** People per decade of birth (`1840` holds 1840–1849), oldest first; births within one year only. */
+	birthsByDecade: { decade: number; people: number }[];
+	/** The first and last births dated to a single year; null when there are none. */
+	birthSpan: { earliest: BornDto; latest: BornDto } | null;
 	/** Mean whole years between birth and death, over people whose both dates name a single year. */
 	averageLifespanYears: number | null;
 	oldest: { id: string; name: string; years: number } | null;
