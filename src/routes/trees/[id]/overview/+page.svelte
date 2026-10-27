@@ -335,7 +335,11 @@
 				</section>
 			{/if}
 			{#if hasWork}
-				<section aria-labelledby="your-work" class="section-card" data-testid="overview-work">
+				<section
+					aria-labelledby="your-work"
+					class="section-card print:hidden"
+					data-testid="overview-work"
+				>
 					<h2 id="your-work" class="section-heading">Your work</h2>
 					{#if work.myTasks && work.myTasks.open > 0}
 						<h3 class="mt-3 text-xs font-semibold text-stone-600">Your open tasks</h3>
@@ -415,7 +419,11 @@
 				</section>
 			{/if}
 			{#if marks.favorites.length > 0 || recents.length > 0}
-				<section aria-labelledby="jump-back" class="section-card" data-testid="overview-marks">
+				<section
+					aria-labelledby="jump-back"
+					class="section-card print:hidden"
+					data-testid="overview-marks"
+				>
 					<h2 id="jump-back" class="section-heading">Jump back in</h2>
 					{#each [{ label: 'Favourites', people: marks.favorites }, { label: 'Recently viewed', people: recents }] as group (group.label)}
 						{#if group.people.length > 0}

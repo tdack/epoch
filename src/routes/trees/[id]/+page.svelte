@@ -514,7 +514,12 @@
 	}
 </script>
 
-<div class="flex min-h-[600px] flex-1 flex-col">
+<!-- The canvas is for the screen; a chart or an outline prints far better. -->
+<p class="hidden text-sm print:block" data-testid="print-note">
+	Print a chart or an outline from a person's page instead.
+</p>
+
+<div class="flex min-h-[600px] flex-1 flex-col print:hidden">
 	<h1 class="sr-only">{data.summary.tree.name}</h1>
 	{#if graph}
 		<div class="mb-2 sm:mb-3">

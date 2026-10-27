@@ -117,7 +117,7 @@
 			onpick={(latitude, longitude) => (draft = { latitude, longitude })}
 		/>
 	{:else}
-		<p class="mt-1 text-sm text-stone-700" data-testid="no-location">
+		<p class="mt-1 text-sm text-stone-700 print:hidden" data-testid="no-location">
 			{location?.status === 'ignored'
 				? 'This place is left off maps.'
 				: 'This place has no location yet.'}

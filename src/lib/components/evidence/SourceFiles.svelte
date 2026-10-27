@@ -82,7 +82,11 @@
 	}
 </script>
 
-<section aria-labelledby="source-files-heading" class="section-card" data-testid="source-files">
+<section
+	aria-labelledby="source-files-heading"
+	class={['section-card', files.length === 0 && 'print:hidden']}
+	data-testid="source-files"
+>
 	<div class="flex items-center justify-between gap-3">
 		<h3 id="source-files-heading" class="section-heading">
 			Files
@@ -98,7 +102,9 @@
 					aria-expanded={detached !== null}
 					><Link2 class="h-3.5 w-3.5" aria-hidden="true" />Attach existing</button
 				>
-				<label class="action-btn focus-within:outline-2 focus-within:outline-emerald-700">
+				<label
+					class="action-btn focus-within:outline-2 focus-within:outline-emerald-700 print:hidden"
+				>
 					<Upload class="h-3.5 w-3.5" aria-hidden="true" />
 					<span>Upload</span>
 					<input
@@ -152,13 +158,16 @@
 	{/if}
 
 	{#if files.length === 0}
-		<p class="mt-2 text-xs text-stone-500 italic" data-testid="no-source-files">
+		<p class="mt-2 text-xs text-stone-500 italic print:hidden" data-testid="no-source-files">
 			{canManage
 				? 'No file is attached. Upload a scan or photo of the source, or attach one from the tree.'
 				: 'No file is attached to this source.'}
 		</p>
 	{:else}
-		<ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Attached files">
+		<ul
+			class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-4"
+			aria-label="Attached files"
+		>
 			{#each files as file (file.id)}
 				<li class="flex flex-col gap-1" data-testid="source-file">
 					<a

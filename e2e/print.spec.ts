@@ -23,3 +23,40 @@ test('a printed person page drops the app chrome and says whose view it is', asy
 	await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
 	await expect(folded).toHaveCount(before);
 });
+
+test('a printed partnership page reads as a family group sheet', async ({ page, api }) => {
+	const ann = await api.addPerson('Ann', 'Fox');
+	const bob = await api.addPerson('Bob', 'Fox');
+	const kit = await api.addPerson('Kit', 'Fox');
+	await api.partner(ann, bob);
+	await api.child(ann, kit);
+	const [union] = (await api.graph()).unions;
+	await open(page, `/trees/${api.treeSlug}/unions/${encodeURIComponent(union.id)}`);
+	await page.emulateMedia({ media: 'print' });
+
+	await expect(page.getByRole('heading', { name: 'Children' })).toBeVisible();
+	await expect(page.getByTestId('union-children').getByText('Kit Fox')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'History' })).toBeHidden();
+	await expect(page.getByRole('heading', { name: 'Warnings' })).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeHidden();
+});
+
+test('a printed chart keeps its drawing and drops its controls', async ({ page, api }) => {
+	const ann = await api.addPerson('Ann', 'Fox');
+	const kit = await api.addPerson('Kit', 'Fox');
+	await api.parent(kit, ann);
+	await open(page, `/trees/${api.treeSlug}/people/${encodeURIComponent(kit.id)}/pedigree`);
+	await page.emulateMedia({ media: 'print' });
+
+	await expect(page.getByRole('group', { name: /ancestors/i }).first()).toBeVisible();
+	await expect(page.getByRole('navigation', { name: 'Chart style' })).toBeHidden();
+	await expect(page.getByRole('link', { name: 'More generations' })).toBeHidden();
+	await expect(page.getByTestId('print-footer')).toBeVisible();
+});
+
+test('a printed tree canvas points to a chart instead', async ({ page, api }) => {
+	await api.addPerson('Ann', 'Fox');
+	await open(page, `/trees/${api.treeSlug}`);
+	await page.emulateMedia({ media: 'print' });
+	await expect(page.getByTestId('print-note')).toBeVisible();
+});

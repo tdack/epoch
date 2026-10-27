@@ -144,7 +144,7 @@
 	</blockquote>
 {/if}
 
-<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+<div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] print:grid-cols-1">
 	<section aria-labelledby="cited-heading" class="section-card">
 		<h3 id="cited-heading" class="section-heading">
 			What it supports
@@ -161,7 +161,7 @@
 			>
 		{/if}
 		{#if source.groups.length === 0}
-			<p class="mt-2 text-xs text-stone-500 italic" data-testid="not-cited">
+			<p class="mt-2 text-xs text-stone-500 italic print:hidden" data-testid="not-cited">
 				Nothing you can see cites this source yet. Cite it from a fact, a name or a partnership.
 			</p>
 		{:else}
@@ -217,7 +217,9 @@
 				{/if}
 			</div>
 			{#if source.repositories.length === 0}
-				<p class="mt-2 text-xs text-stone-500 italic">No repository is recorded for this source.</p>
+				<p class="mt-2 text-xs text-stone-500 italic print:hidden">
+					No repository is recorded for this source.
+				</p>
 			{:else}
 				<ul class="mt-2 space-y-2 text-sm" data-testid="source-repositories">
 					{#each source.repositories as link (link.linkId)}
@@ -261,7 +263,11 @@
 			/>
 		{/if}
 
-		<section aria-labelledby="source-notes-heading" class="section-card" data-testid="source-notes">
+		<section
+			aria-labelledby="source-notes-heading"
+			class={['section-card', source.notes.length === 0 && 'print:hidden']}
+			data-testid="source-notes"
+		>
 			<h3 id="source-notes-heading" class="section-heading">Notes</h3>
 			<div class="mt-2">
 				<NoteList

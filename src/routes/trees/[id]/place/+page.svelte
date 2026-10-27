@@ -74,8 +74,8 @@
 	{/if}
 </div>
 
-<div class="mt-4 grid gap-6 lg:grid-cols-2 lg:items-start">
-	<div class="lg:sticky lg:top-4">
+<div class="mt-4 grid gap-6 lg:grid-cols-2 lg:items-start print:grid-cols-1">
+	<div class="lg:sticky lg:top-4 print:static">
 		<PlaceLocation
 			treeId={data.summary.tree.id}
 			placeId={place.id}

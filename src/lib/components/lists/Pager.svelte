@@ -41,7 +41,7 @@
 
 <nav class="flex flex-wrap items-center justify-between gap-3 text-sm" aria-label="Pages">
 	<span class="text-stone-600" aria-live="polite">{summary}</span>
-	<span class="flex flex-wrap gap-2">
+	<span class="flex flex-wrap gap-2 print:hidden">
 		{#if pages}
 			{@render step('First', pages.current > 1 ? pages.hrefFor(1) : null)}
 		{/if}
