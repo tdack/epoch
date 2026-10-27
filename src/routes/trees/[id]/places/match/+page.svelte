@@ -6,7 +6,7 @@
 	import PlaceRewriteDialog from '#lib/components/modals/PlaceRewriteDialog.svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
-	import { findPlaceApi, ignorePlaceLocationApi } from '#lib/api/lists.js';
+	import { findPlaceApi, ignorePlaceLocationApi, setPlaceLocationApi } from '#lib/api/lists.js';
 	import {
 		acceptMatchApi,
 		acceptMatchesApi,
@@ -35,7 +35,6 @@
 	const review = $derived(data.review);
 	const run = $derived(review.run);
 	const isRunning = $derived(run?.status === 'running');
-	const placeHref = (name: string) => `${base}/place?name=${encodeURIComponent(name)}`;
 
 	let selectedId = $state<string | null>(null);
 	const selected = $derived(
@@ -46,6 +45,10 @@
 	let searchingId = $state<string | null>(null);
 	let searchText = $state('');
 	let renaming = $state<{ place: MatchPlaceDto; candidate: MatchCandidateDto } | null>(null);
+	// Picking happens on this page's map, beside the candidates, because the place page shows no map
+	// until a location exists, which left nothing to orient by.
+	let pickingId = $state<string | null>(null);
+	let draft = $state<{ latitude: number; longitude: number } | null>(null);
 	let isConfirmingBulk = $state(false);
 	let isAcceptingBulk = $state(false);
 	let bulkError = $state<string | null>(null);
@@ -163,6 +166,34 @@
 		}
 		await invalidateAll();
 	}
+
+	function startPicking(place: MatchPlaceDto) {
+		selectedId = place.id;
+		pickingId = place.id;
+		draft = null;
+		// On a phone the map sits below the whole list.
+		document.querySelector('[data-testid="match-preview"]')?.scrollIntoView({ block: 'nearest' });
+	}
+
+	function stopPicking() {
+		pickingId = null;
+		draft = null;
+	}
+
+	const savePick = (place: MatchPlaceDto) =>
+		draft &&
+		act(
+			place,
+			async () => {
+				const { change } = await setPlaceLocationApi(treeId, place.id, draft!, undefined);
+				stopPicking();
+				await invalidateAll();
+				toasts.push(change?.summary ?? 'This place already has a location', {
+					action: undoAction(change)
+				});
+			},
+			'Could not save the location'
+		);
 
 	function startSearch(place: MatchPlaceDto) {
 		searchingId = place.id;
@@ -359,7 +390,13 @@
 								disabled={busyId === place.id}
 								onclick={() => ignore(place)}>Ignore</button
 							>
-							<a class="row-action" href={placeHref(place.name)}>Pick on map</a>
+							<button
+								type="button"
+								class="row-action"
+								disabled={busyId === place.id}
+								aria-pressed={pickingId === place.id}
+								onclick={() => startPicking(place)}>Pick on map</button
+							>
 							<button
 								type="button"
 								class="row-action"
@@ -413,10 +450,27 @@
 						class="mt-2 h-72"
 						label="Map of the candidates for {selected.name}. Pins are not keyboard targets; the list below has the same candidates."
 						{markers}
+						pin={pickingId === selected.id ? draft : null}
+						isPicking={pickingId === selected.id}
+						onpick={(latitude, longitude) => (draft = { latitude, longitude })}
 						tileUrl={data.tiles.tileUrl}
 						tileAttribution={data.tiles.tileAttribution}
 					/>
 				{/key}
+				{#if pickingId === selected.id}
+					<div class="mt-2 flex flex-wrap items-center gap-2" data-testid="match-picking">
+						<p class="text-xs text-stone-600">
+							Click the map or drag the pin, then save. The numbered pins are the candidates.
+						</p>
+						<button
+							type="button"
+							class="btn-primary-sm"
+							disabled={!draft || busyId === selected.id}
+							onclick={() => savePick(selected)}>Save location</button
+						>
+						<button type="button" class="row-action" onclick={stopPicking}>Cancel</button>
+					</div>
+				{/if}
 				<ol class="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
 					{#each selected.candidates as candidate (candidate.rank)}
 						<li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
