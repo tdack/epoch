@@ -51,8 +51,8 @@ What the headers mean for maps:
 - The referrer policy already meets OSM's Referer rule. Tile hosts receive the page's **origin**,
   which includes the tree's subdomain (ADR-041 subdomains). They never receive the path, so no
   person id leaks. Self-hosted tiles (section 3.3) remove even that.
-- No CSP exists, so adding tile hosts needs no header change. If a CSP is added later, it must allow
-  the tile and geocoder hosts.
+- A report-only CSP exists (ADR-048, `vite.config.ts`), so a tile host must be added to its
+  `img-src`. The geocoder needs no entry, because the browser calls it through Epoch's proxy.
 
 ---
 
@@ -226,7 +226,8 @@ an image needs no CORS to display. CORS matters only in these cases:
   required `User-Agent` and caching happen. A browser can't set `User-Agent` on `fetch`, so the
   proxy is needed anyway.
 
-**CSP: Epoch sends none today, so nothing blocks tiles.** If a CSP is added later, the map needs
+**CSP: Epoch sends a report-only policy (ADR-048, `vite.config.ts`).** It reports a tile host
+that is not allowed rather than blocking it, but it will block once it is enforced. The map needs
 these directives:
 
 | Directive | Value | Why |

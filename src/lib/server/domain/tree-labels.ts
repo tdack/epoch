@@ -176,6 +176,9 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 			}
 			case 'notes':
 				return `Shared note “${noteTitle(row.text, 40)}”`;
+			case 'place_locations':
+				// The place's text is not in the row, and the preview must not need it: the summary names it.
+				return 'Location of a place';
 			case 'subtree':
 				return `Sub-tree “${String(row.name ?? '').slice(0, 60)}”`;
 			case 'research_tasks':

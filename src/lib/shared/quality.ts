@@ -99,6 +99,12 @@ export const QUALITY_RULES = [
 		why: 'An event is certainly dated more than a year after the death, and it is not a burial, cremation or probate.'
 	},
 	{
+		code: 'fact_coordinates_far_from_place',
+		severity: 'warning',
+		title: 'A fact’s map coordinates are far from its place',
+		why: 'The latitude and longitude on a fact are more than 50 km from the confirmed location of the place it names. One of them is probably wrong, or the place was set to the wrong town.'
+	},
+	{
 		code: 'duplicate_partnership',
 		severity: 'suggestion',
 		title: 'The same partners recorded twice',
@@ -173,6 +179,12 @@ export const QUALITY_RULES = [
 		severity: 'suggestion',
 		title: 'Not connected to the rest of the tree',
 		why: 'No chain of parents, children or partners links these people to the largest connected family in the tree. They may be waiting for a relationship to be recorded, or have come in with an import and belong in another tree.'
+	},
+	{
+		code: 'place_without_location',
+		severity: 'suggestion',
+		title: 'A place with no location',
+		why: 'A place that a visible fact names has no location, so it is not on the map. Give it a location, or mark it ignored if it does not need one.'
 	}
 ] as const satisfies readonly QualityRule[];
 
@@ -184,7 +196,8 @@ export const QUALITY_RULE_BY_CODE: ReadonlyMap<string, QualityRule> = new Map(
 
 /** A record a finding is about, so the page can link to it. */
 export interface FindingSubject {
-	kind: 'person' | 'partnership';
+	/** A `place` is linked by its text, not by an id: the place page finds it by name. */
+	kind: 'person' | 'partnership' | 'place';
 	id: string;
 	/** The name shown for it; "Private" for a placeholder. */
 	name: string;

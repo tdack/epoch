@@ -11,6 +11,7 @@ import { individuals, places as placeTable, unionPartners } from '../db/schema';
 import { describeCommand } from '../domain/command-summary';
 import type { ImpactSummary } from '../../shared/impact';
 import type { PlaceCommand } from '../domain/place-ops';
+import type { PlaceLocationCommand } from '../domain/place-location-ops';
 import { NotFoundError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { eventLabel } from '../domain/tree-labels';
@@ -24,7 +25,8 @@ import {
 	placeText,
 	type PlaceDto,
 	type PlaceFactDto,
-	type PlaceListItem
+	type PlaceListItem,
+	type PlaceMapData
 } from '../../shared/places';
 import { personName } from './kinship-service';
 import { MutationRunner, type MutationClock, type MutationResult } from './mutation-runner';
@@ -56,7 +58,7 @@ export class PlaceService {
 	/** One page of places, optionally only those whose text contains `query` (any ASCII case). */
 	async list(
 		treeId: string,
-		query: { q?: string; offset?: number; limit?: number },
+		query: { q?: string; isUnlocated?: boolean; offset?: number; limit?: number },
 		context: AuthenticatedContext,
 		lensRootId: string | null = null
 	): Promise<Page<PlaceListItem>> {
@@ -74,12 +76,58 @@ export class PlaceService {
 			placeText(query.q ?? ''),
 			page,
 			scope,
-			lensRootId
+			lensRootId,
+			query.isUnlocated ?? false
+		);
+		const locations = await this.places.locationsOf(
+			treeId,
+			rows.map((r) => r.id)
 		);
 		return {
-			items: rows.map((r) => ({ id: r.id, name: r.name, facts: r.facts, people: r.people })),
+			items: rows.map((r) => ({
+				id: r.id,
+				name: r.name,
+				facts: r.facts,
+				people: r.people,
+				location: locations.get(r.id) ?? null
+			})),
 			hasMore,
 			...page
+		};
+	}
+
+	/**
+	 * Every located place the viewer may see, for the map. The counts are the list's, over the same
+	 * visibility, except that a living person's residence and census facts are not counted and a
+	 * place only they give is absent (ADR-078).
+	 */
+	async mapData(
+		treeId: string,
+		context: AuthenticatedContext,
+		lensRootId: string | null = null
+	): Promise<PlaceMapData> {
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
+		const [rows, unlocatedCount] = await Promise.all([
+			this.places.mapRows(treeId, scope, lensRootId),
+			this.places.unlocatedCount(treeId, scope, lensRootId)
+		]);
+		return {
+			points: rows.map((r) => ({
+				placeId: r.id,
+				name: r.name,
+				latitude: r.latitude,
+				longitude: r.longitude,
+				factCount: r.facts,
+				peopleCount: r.people
+			})),
+			unlocatedCount
 		};
 	}
 
@@ -155,7 +203,9 @@ export class PlaceService {
 					? (names.get(r.entityId) ?? r.entityId)
 					: [...(partners.get(r.entityId) ?? [])].sort().join(' & ') || 'Partnership'
 		}));
-		return { id: rows[0]!.placeId, name: rows[0]!.name, facts, hasMore, ...page };
+		const placeId = rows[0]!.placeId;
+		const location = (await this.places.locationsOf(treeId, [placeId])).get(placeId) ?? null;
+		return { id: placeId, name: rows[0]!.name, facts, location, hasMore, ...page };
 	}
 
 	/**
@@ -187,6 +237,35 @@ export class PlaceService {
 			if (rows[0]) to = rows[0].name;
 		}
 		return { kind: 'rewrite_place', placeId, fromKey: source.nameKey, to };
+	}
+
+	/**
+	 * Set, ignore or clear a place's location (ADR-078). Editors and above, checked before anything
+	 * is read so the refusal never depends on what the tree holds; an unknown place is not found
+	 * and the refusal names its id, never its text.
+	 */
+	async changeLocation(
+		treeId: string,
+		change:
+			| Omit<Extract<PlaceLocationCommand, { kind: 'set_place_location' }>, 'placeKey'>
+			| Omit<Extract<PlaceLocationCommand, { kind: 'ignore_place_location' }>, 'placeKey'>
+			| Extract<PlaceLocationCommand, { kind: 'clear_place_location' }>,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		await this.runner.requireAccess(treeId, context, 'record:edit');
+		const [place] = await this.db
+			.select({ nameKey: placeTable.nameKey })
+			.from(placeTable)
+			.where(and(eq(placeTable.treeId, treeId), eq(placeTable.id, change.placeId)))
+			.limit(1);
+		if (!place) throw new NotFoundError('Place', change.placeId);
+		const command = { ...change, placeKey: place.nameKey } as PlaceLocationCommand;
+		return this.runner.run(treeId, context, {
+			kind: command.kind,
+			summary: (rows) => describeCommand(command, rows),
+			commands: [command],
+			requiredAction: () => 'record:edit'
+		});
 	}
 
 	/** What renaming or merging a place would write, without writing it. */

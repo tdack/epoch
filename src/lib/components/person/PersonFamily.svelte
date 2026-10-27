@@ -6,7 +6,7 @@
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import type { RelativeAction, TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 	import type { ParentChildType } from '#lib/shared/relationship-model.js';
-	import type { PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
+	import type { AssociationDto, PersonPageDto, PersonSummaryDto } from '#lib/shared/person-page.js';
 	import type { RelationshipKind } from '#lib/types/genealogy.js';
 	import { CITATION_SUBJECT_KINDS } from '#lib/shared/evidence.js';
 	import { canChangeRecords, canCreateRecords, type TreeRole } from '#lib/shared/roles.js';
@@ -64,6 +64,17 @@
 
 	const hasParents = $derived(dto.parentFamilies.length > 0);
 	const hasSiblings = $derived(dto.siblings.full.length > 0 || dto.siblings.half.length > 0);
+
+	/** Read as the linked person's part: "godfather at christening", or this person's part in theirs. */
+	function associationNote(association: AssociationDto): string {
+		const fact = association.factLabel?.toLowerCase();
+		// Files often capitalise the word ("Godfather"); it sits mid-sentence here.
+		const role = association.role?.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()) ?? null;
+		if (!association.isNamedBy)
+			return fact ? `${role ?? 'associate'} at ${fact}` : (role ?? 'associate');
+		if (fact) return role ? `this person was ${role} at their ${fact}` : `named at their ${fact}`;
+		return role ? `this person was their ${role}` : 'names this person as an associate';
+	}
 
 	function add(kind: RelationshipKind, unionId?: string) {
 		editor.openRelationship(editor.anchorFor(dto.person.id), { kind, unionId });
@@ -267,6 +278,18 @@
 			{/each}
 			{#each dto.stepChildren as step (step.person.id)}
 				{@render relative(step.person, `step-child, via ${step.via.displayName}`)}
+			{/each}
+		</ul>
+	</div>
+{/if}
+
+{#if dto.associations.length > 0}
+	<!-- Imported and read-only: Epoch keeps the lines, it does not edit them yet. -->
+	<div class="space-y-2" data-testid="associates">
+		<h4 class={subheading}>Associates</h4>
+		<ul class="space-y-1">
+			{#each dto.associations as association, i (i)}
+				{@render relative(association.person, associationNote(association))}
 			{/each}
 		</ul>
 	</div>

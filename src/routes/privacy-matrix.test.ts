@@ -148,9 +148,27 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
 	},
+	[`${API}/trees/[id]/places/[placeId]/location/+server.ts`]: {
+		kind: 'guarded-write',
+		covers: 'services/place-location.test.ts'
+	},
 	[`${API}/trees/[id]/places/[placeId]/impact/+server.ts`]: {
 		kind: 'guarded-write',
 		covers: 'services/place-service.test.ts'
+	},
+	// Sends place text to a third party and sweeps every place, so a manager's alone, and the text
+	// it sends is chosen by the living rule and never by the caller's view.
+	[`${API}/trees/[id]/places/match/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
+	},
+	[`${API}/trees/[id]/places/match/accept/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
+	},
+	[`${API}/trees/[id]/places/[placeId]/match/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/place-match.test.ts'
 	},
 	// Sweeps every date, private people's included, so it is a manager's alone.
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: {
@@ -158,6 +176,10 @@ const ENTRIES: Record<string, Entry> = {
 		covers: 'services/date-service.test.ts'
 	},
 	[`${API}/trees/[id]/people-search/+server.ts`]: { kind: 'paged-sql', covers: READS },
+	[`${API}/trees/[id]/geo/search/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/geo-service.test.ts'
+	},
 	[`${API}/trees/[id]/note-links/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/note-links/[linkId]/+server.ts`]: { kind: 'guarded-write', covers: NOTES },
 	[`${API}/trees/[id]/note-links/[linkId]/share/+server.ts`]: {
@@ -264,6 +286,7 @@ const LOADS = [
 	'./trees/[id]/overview/+page.server.ts',
 	'./trees/[id]/place/+page.server.ts',
 	'./trees/[id]/places/+page.server.ts',
+	'./trees/[id]/places/match/+page.server.ts',
 	'./trees/[id]/people/[personId]/+page.server.ts',
 	'./trees/[id]/people/[personId]/descendants/+page.server.ts',
 	'./trees/[id]/people/[personId]/fan/+page.server.ts',
@@ -335,6 +358,8 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/trees/[id]/lists/sources/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/unions/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/members/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/geo/search/+server.ts`]: 'refused',
+	[`${API}/trees/[id]/places/match/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/people-search/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/people/[personId]/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/places/+server.ts`]: 'public-tree-only',

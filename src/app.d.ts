@@ -10,6 +10,7 @@ import type { AccessIdentity, UserIdentity } from '#lib/server/domain/identity.j
 import type { HostTree } from '#lib/shared/tree-host.js';
 import type { ImportQueueMessage } from '#lib/server/services/gedcom-service.js';
 import type { GedcomExportPayload } from '#lib/server/workflows/export-workflow.js';
+import type { PlaceMatchPayload } from '#lib/server/workflows/place-match-workflow.js';
 
 declare global {
 	/** The short commit this build was made from (`vite.config.ts`); null when it was not known. */
@@ -31,6 +32,7 @@ declare global {
 				MEDIA_BUCKET: R2Bucket;
 				GEDCOM_IMPORT_QUEUE?: Queue<ImportQueueMessage>;
 				GEDCOM_EXPORT_WORKFLOW?: Workflow<GedcomExportPayload>;
+				PLACE_MATCH_WORKFLOW?: Workflow<PlaceMatchPayload>;
 				/** The four below are absent in unit tests and bare previews; a missing one allows the request (ADR-066). */
 				UPLOAD_RATE_LIMIT?: RateLimit;
 				IMPORT_RATE_LIMIT?: RateLimit;

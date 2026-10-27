@@ -13,12 +13,14 @@
 		/** The place being changed: its record and the name it has now. */
 		placeId: string;
 		currentName: string;
+		/** Text to start from instead of the current name, e.g. a geocoder's spelling to review. */
+		initialName?: string;
 		/** Called after a save, with the change so the caller can offer Undo, and the text the place now has. */
 		onsaved: (change: ChangeSummary | null, name: string) => void | Promise<void>;
 		oncancel: () => void;
 	}
 
-	let { isOpen, treeId, placeId, currentName, onsaved, oncancel }: Props = $props();
+	let { isOpen, treeId, placeId, currentName, initialName, onsaved, oncancel }: Props = $props();
 
 	const PREVIEW_DELAY_MS = 250;
 	const field =
@@ -37,7 +39,7 @@
 
 	$effect(() => {
 		if (!isOpen) return;
-		name = currentName;
+		name = initialName ?? currentName;
 		impact = null;
 		previewError = null;
 		submission.clearError();

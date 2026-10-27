@@ -330,6 +330,34 @@
       "when": 1792985240102,
       "tag": "0046_tree_recent_death_years",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1793009950152,
+      "tag": "0047_association_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1793009962239,
+      "tag": "0048_place_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1793010095632,
+      "tag": "0049_geo_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1793017802690,
+      "tag": "0050_place_match",
+      "breakpoints": true
     }
   ]
 }

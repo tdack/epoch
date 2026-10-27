@@ -1,0 +1,2 @@
+CREATE INDEX `idx_event_asso` ON `events` (`tree_id`) WHERE instr(gedcom_extra, 'ASSO @') > 0;--> statement-breakpoint
+CREATE INDEX `idx_preserved_asso` ON `gedcom_preserved` (`tree_id`) WHERE instr(lines, 'ASSO @') > 0;

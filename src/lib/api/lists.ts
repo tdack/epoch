@@ -1,7 +1,12 @@
 import type { ImpactResponse, PeopleSearchResponse } from '#lib/shared/api-contracts.js';
 import type { PeopleSearchResult, ChangeSummary, ImpactSummary } from '#lib/types/genealogy.js';
 import type { MarksDto } from '#lib/shared/marks.js';
-import { MAX_PLACE_SUGGESTIONS, type PlaceListItem } from '#lib/shared/places.js';
+import {
+	MAX_PLACE_SUGGESTIONS,
+	placeKey,
+	placeText,
+	type PlaceListItem
+} from '#lib/shared/places.js';
 import type { Page } from '#lib/shared/lists.js';
 import { call, json, path } from './client.js';
 
@@ -73,6 +78,46 @@ export async function rewritePlaceApi(
 	);
 }
 
+/** Pin a place by hand. `version` is the location's, absent when it has none yet. */
+export async function setPlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	where: { latitude: number; longitude: number },
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location`,
+		json('PUT', { status: 'confirmed', ...where, source: 'manual', version }),
+		'Failed to save the location'
+	);
+}
+
+/** Leave a place off the maps; it has no real location. */
+export async function ignorePlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location`,
+		json('PUT', { status: 'ignored', version }),
+		'Failed to ignore the location'
+	);
+}
+
+export async function clearPlaceLocationApi(
+	treeId: string,
+	placeId: string,
+	version: number | undefined
+): Promise<{ change: ChangeSummary | null }> {
+	return call(
+		path`/api/trees/${treeId}/places/${placeId}/location` +
+			(version === undefined ? '' : `?version=${version}`),
+		{ method: 'DELETE' },
+		'Failed to clear the location'
+	);
+}
+
 /** The dates that would take their standard spelling, before and after. Saves nothing. */
 export async function previewStandardiseDatesApi(
 	treeId: string
@@ -127,4 +172,14 @@ export async function restoreFindingApi(treeId: string, key: string): Promise<vo
 		{ method: 'DELETE' },
 		'Failed to restore the finding'
 	);
+}
+
+/**
+ * The place record whose text is `text` (the key is ASCII-case-insensitive), or null. `q` matches
+ * by containment, so a short name may sit past the first page; 100 is the page limit.
+ */
+export async function findPlaceApi(treeId: string, text: string): Promise<PlaceListItem | null> {
+	const wanted = placeKey(placeText(text));
+	const data = await fetchPlaces(treeId, new URLSearchParams({ q: wanted, limit: '100' }));
+	return data.items.find((p) => placeKey(p.name) === wanted) ?? null;
 }

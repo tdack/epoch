@@ -144,7 +144,8 @@ export class WindowState {
 			notes: [],
 			noteAttachments: [],
 			researchTasks: [],
-			subtrees: []
+			subtrees: [],
+			placeLocations: []
 		};
 	}
 

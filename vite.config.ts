@@ -66,7 +66,9 @@ export default defineConfig({
 					'script-src': ['self'],
 					// Svelte transitions and component styles set inline styles.
 					'style-src': ['self', 'unsafe-inline'],
-					'img-src': ['self', 'data:', 'blob:'],
+					// The default map tile host (ADR-078). The policy is fixed at build time, so a tile URL
+					// changed in site settings must be added here too.
+					'img-src': ['self', 'data:', 'blob:', 'https://tile.openstreetmap.org'],
 					'font-src': ['self', 'data:'],
 					'connect-src': ['self'],
 					'worker-src': ['self', 'blob:'],

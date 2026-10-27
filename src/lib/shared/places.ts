@@ -17,6 +17,20 @@ export const MAX_PLACE_SUGGESTIONS = 10;
  */
 export const MAX_PLACE_REWRITE_FACTS = 200;
 
+export const OSM_TYPES = ['node', 'way', 'relation'] as const;
+/** `gedcom` is written by the importer and the backfill only; a command cannot claim the file said so. */
+export const COMMAND_LOCATION_SOURCES = ['photon', 'manual'] as const;
+
+/** Where a place is (ADR-078). Coordinates are null when the place is `ignored`, i.e. left off maps. */
+export interface PlaceLocationDto {
+	latitude: number | null;
+	longitude: number | null;
+	status: 'confirmed' | 'ignored';
+	source: 'gedcom' | 'photon' | 'manual';
+	/** For `expectedVersion` on the next change. */
+	version: number;
+}
+
 export interface PlaceListItem {
 	/** The place record, which a rename or a merge names. */
 	id: string;
@@ -26,6 +40,24 @@ export interface PlaceListItem {
 	facts: number;
 	/** Distinct people with such a fact; a partnership's fact counts as a fact and not as a person. */
 	people: number;
+	/** Null when the place has no location yet. */
+	location: PlaceLocationDto | null;
+}
+
+/** One located place for the map (ADR-078). */
+interface PlaceMapPoint {
+	placeId: string;
+	name: string;
+	latitude: number;
+	longitude: number;
+	factCount: number;
+	peopleCount: number;
+}
+
+export interface PlaceMapData {
+	points: PlaceMapPoint[];
+	/** Places the viewer may see that have no location row yet (ignored ones are not counted). */
+	unlocatedCount: number;
 }
 
 export interface PlaceFactDto {
@@ -43,6 +75,7 @@ export interface PlaceDto {
 	id: string;
 	name: string;
 	facts: PlaceFactDto[];
+	location: PlaceLocationDto | null;
 	hasMore: boolean;
 	offset: number;
 	limit: number;

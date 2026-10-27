@@ -71,4 +71,5 @@
 	{toasts}
 	{marks}
 	layout="page"
+	tiles={data.tiles}
 />

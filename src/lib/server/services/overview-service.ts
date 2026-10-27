@@ -89,7 +89,8 @@ export class OverviewService {
 			notes: [],
 			noteAttachments: [],
 			researchTasks: [],
-			subtrees: []
+			subtrees: [],
+			placeLocations: []
 		};
 		const visible = omitForScope(rows, scope);
 		const now = new Date(this.now());

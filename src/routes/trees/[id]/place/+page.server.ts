@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { treeServerLoad } from '#lib/server/http/page-load.js';
 import { PlaceService } from '#lib/server/services/place-service.js';
+import { SettingsService } from '#lib/server/services/settings-service.js';
 import { parseListParams } from '#lib/shared/lists.js';
 import type { PageServerLoad } from './$types';
 
@@ -10,6 +11,7 @@ export const load: PageServerLoad = treeServerLoad(
 	async ({ db, ctx, treeId, subtree }, { url }) => {
 		const name = url.searchParams.get('name');
 		if (!name) error(404, 'Place not found');
+		const { tileUrl, tileAttribution } = await new SettingsService(db).maps();
 		return {
 			place: await new PlaceService(db).detail(
 				treeId,
@@ -17,7 +19,8 @@ export const load: PageServerLoad = treeServerLoad(
 				parseListParams(url.searchParams),
 				ctx,
 				subtree?.rootPersonId ?? null
-			)
+			),
+			tiles: { tileUrl, tileAttribution }
 		};
 	}
 );

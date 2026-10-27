@@ -16,8 +16,6 @@ webtrees capabilities but not its screens or implementation. Identity comes from
 Epoch stores roles and permissions. The canonical model is GEDCOM-aware and must round-trip every
 supported structure without loss; unsupported imported structures are retained for later export.
 
-**Stack:** Svelte 5 / SvelteKit 3, Cloudflare Workers, D1 (Drizzle ORM), R2, Queues, and Workflows.
-
 **Layering:** domain → repositories → services → routes. Routes never touch D1; `server/` and
 `shared/` never import `components/`; every edit goes through the mutation runner. Read
 `docs/architecture.md` (layering, resources, data model) before changing a layer boundary.
@@ -73,13 +71,9 @@ These are the highest-value things to remember and are all established in the pl
 - **Colocate `*.test.ts` beside the source.** Vitest for units/integration; service
   and repository tests get a real D1 from wrangler's `getPlatformProxy` (`server/testing/d1.ts`);
   Playwright for e2e, outside the push gate.
-- **Prettier** (`.prettierrc`): tabs, single quotes, semi, 100 cols, no trailing commas, with
-  `prettier-plugin-svelte` and `prettier-plugin-tailwindcss`. `npm run format` writes, `npm run
-  format:check` verifies. `.git-blame-ignore-revs` hides the one-off reformat; run `git config
+- **Prettier:** `.git-blame-ignore-revs` hides the one-off reformat; run `git config
   blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.
-- **ESLint** (flat config; typescript-eslint and eslint-plugin-svelte) and **knip** (`knip.jsonc`,
-  unused files, exports and dependencies; findings fail `npm run lint`).
-  `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools
+- **ESLint** and **knip:** `npm run lint` runs the format check, ESLint and knip, and is the push gate. The choice of tools
   and what would change it is ADR-025.
 - **Svelte components:** declare a `Props` interface with TSDoc per prop, destructure from
   `$props()`. No reaching into globals/stores not received.

@@ -43,6 +43,7 @@ import type { SubtreeCommand } from './subtree-ops';
 import type { TaskCommand } from './task-ops';
 import type { PersonMergeCommand } from './person-merge';
 import type { PlaceCommand } from './place-ops';
+import type { PlaceLocationCommand } from './place-location-ops';
 import type { DateCommand } from './date-ops';
 import type { MediaCommand } from './media-ops';
 
@@ -54,6 +55,7 @@ export type RelationshipCommand =
 	| SubtreeCommand
 	| NameCommand
 	| PlaceCommand
+	| PlaceLocationCommand
 	| DateCommand
 	| PersonMergeCommand
 	| MediaCommand

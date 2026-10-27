@@ -114,6 +114,20 @@ interface ParentFamilyDto {
 	}>;
 }
 
+/** One association between the person and someone else, as an imported file recorded it. */
+export interface AssociationDto {
+	person: PersonSummaryDto;
+	/** What the associate was ("godfather"), as the file wrote it; null when it says nothing. */
+	role: string | null;
+	/** The fact it was recorded on ("Christening"); null for one recorded on a person. */
+	factLabel: string | null;
+	/**
+	 * True when it is recorded on the other person's record or fact, naming this person as the
+	 * associate; false when this person's own record names the other.
+	 */
+	isNamedBy: boolean;
+}
+
 export interface PartnershipDto extends PrivacyFlag {
 	unionId: string;
 	version: number;
@@ -164,6 +178,11 @@ interface PersonPrivacyDto {
 }
 
 export interface PersonPageDto extends PrivacyFlag {
+	/**
+	 * Fact id to the confirmed location of its place, only for facts that may be mapped (ADR-078): a
+	 * living person's residence and census facts are absent though the facts themselves show.
+	 */
+	factLocations: Record<string, { latitude: number; longitude: number }>;
 	/** Present only when the page was asked for through a sub-tree address: is the person a member of that lens. */
 	isInSubtree?: boolean;
 	/** Null for a viewer who may not change privacy; set for roles that see everyone. */
@@ -194,6 +213,8 @@ export interface PersonPageDto extends PrivacyFlag {
 	siblings: { full: PersonSummaryDto[]; half: PersonSummaryDto[] };
 	stepParents: Array<{ person: PersonSummaryDto; unionId: string }>;
 	stepChildren: Array<{ person: PersonSummaryDto; via: PersonSummaryDto; unionId: string }>;
+	/** Godparents, witnesses and the like, read from imported `ASSO` lines; never anyone hidden. */
+	associations: AssociationDto[];
 	media: MediaDto[];
 	/** The notes on the person themself, in order (ADR-029). */
 	notes: NoteDto[];

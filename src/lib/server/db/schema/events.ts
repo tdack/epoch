@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	index,
+	uniqueIndex,
+	check
+} from 'drizzle-orm/sqlite-core';
 import { trees } from './trees';
 
 // A place record (ADR-019): an identity for the place a fact's text names. The text on the fact stays
@@ -19,6 +27,41 @@ export const places = sqliteTable(
 	},
 	(table) => ({
 		keyIdx: uniqueIndex('idx_place_key').on(table.treeId, table.nameKey)
+	})
+);
+
+// Where a place record is (ADR-078). The place id is the primary key: a place has at most one
+// location, so a separate id plus a unique place_id would only add a second key to keep in step, and
+// the change log's record id is then the id of the place a refusal already names. No `ON DELETE`
+// on `id`: place records are never deleted, and a cascade would change this row outside the
+// logged ops. `latitude`/`longitude` are null when the status is `ignored`.
+export const placeLocations = sqliteTable(
+	'place_locations',
+	{
+		id: text('id')
+			.primaryKey()
+			.references(() => places.id),
+		treeId: text('tree_id')
+			.notNull()
+			.references(() => trees.id, { onDelete: 'cascade' }),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		status: text('status', { enum: ['confirmed', 'ignored'] }).notNull(),
+		source: text('source', { enum: ['gedcom', 'photon', 'manual'] }).notNull(),
+		osmType: text('osm_type'),
+		osmId: integer('osm_id'),
+		displayName: text('display_name'),
+		version: integer('version').notNull().default(1),
+		createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date())
+	},
+	(table) => ({
+		treeIdx: index('idx_place_location_tree').on(table.treeId),
+		statusCheck: check('place_locations_status', sql`${table.status} in ('confirmed','ignored')`),
+		sourceCheck: check(
+			'place_locations_source',
+			sql`${table.source} in ('gedcom','photon','manual')`
+		)
 	})
 );
 
@@ -122,6 +165,11 @@ export const events = sqliteTable(
 	(table) => ({
 		entityIdx: index('idx_event_entity').on(table.entityType, table.entityId),
 		treeIdx: index('idx_event_tree').on(table.treeId),
+		// Only the facts whose kept lines hold an association, so the person page finds the ones naming
+		// a person without reading every fact of the tree. A query uses it only by repeating the term.
+		assoIdx: index('idx_event_asso')
+			.on(table.treeId)
+			.where(sql`instr(gedcom_extra, 'ASSO @') > 0`),
 		// A place is the text on a fact, grouped and looked up without regard to case (ADR-018); the
 		// place page finds its facts by this, and the place list scans it in order.
 		placeRecordIdx: index('idx_event_place_id').on(table.placeId),

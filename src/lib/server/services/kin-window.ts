@@ -150,7 +150,8 @@ export async function loadKinWindow(
 			notes: [],
 			noteAttachments: [],
 			researchTasks: [],
-			subtrees: []
+			subtrees: [],
+			placeLocations: []
 		},
 		foundStartIds: request.startIds.filter((id) => existing.has(id)),
 		hasMoreAbove,

@@ -20,7 +20,8 @@ export type EntityType =
 	| 'note'
 	| 'note_link'
 	| 'task'
-	| 'subtree';
+	| 'subtree'
+	| 'place_location';
 
 export const RECORD_ACTIONS = {
 	CREATED: 'created',

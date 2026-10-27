@@ -20,6 +20,8 @@ import {
 	PERSON_PRIVACY_VALUES
 } from '../../shared/privacy';
 import { z } from 'zod';
+import { COMMAND_LOCATION_SOURCES, OSM_TYPES } from '../../shared/places';
+import { isLocalHostname } from '../auth/access';
 import { MAX_GROUP_FACT_PEOPLE } from '../../shared/fact-types';
 import { LAYOUT_MODE_VALUES } from '../../shared/view-mode';
 import {
@@ -375,6 +377,31 @@ export const factImpactSchema = z.discriminatedUnion('kind', [
 
 /** The text every fact at a place will carry; a name another place has makes it a merge into that place. */
 export const placeRewriteSchema = z.object({ name: z.string().trim().min(1).max(200) });
+
+/**
+ * Where a place is, or that it is to stay off maps (ADR-078). Ranges are the command's to check, so
+ * the refusal reads the same from every caller; this only fixes the shape.
+ */
+export const placeLocationSchema = z.discriminatedUnion('status', [
+	z.object({
+		status: z.literal('confirmed'),
+		latitude: z.number().finite(),
+		longitude: z.number().finite(),
+		source: z.enum(COMMAND_LOCATION_SOURCES),
+		osmType: z.enum(OSM_TYPES).nullish(),
+		osmId: z.number().int().nullish(),
+		displayName: z.string().max(500).nullish(),
+		shouldSkipIfLocated: z.boolean().optional(),
+		version: versionSchema.optional()
+	}),
+	z.object({ status: z.literal('ignored'), version: versionSchema.optional() })
+]);
+
+/** Edited text for one place's "Search again" (ADR-078). Whether it may be sent is the service's call. */
+export const placeMatchSearchSchema = z.object({ text: z.string().trim().min(1).max(200) });
+
+/** Bulk accept: every top candidate scoring at least `minScore`; the range is the service's to check. */
+export const placeMatchAcceptSchema = z.object({ minScore: z.number().finite() });
 
 /** Dismissing a data-quality finding: the finding's key, and why it is fine. */
 /**
@@ -833,6 +860,31 @@ export const profileNameSchema = z.object({
 /** The address typed to confirm leaving; the service compares it with the caller's own. */
 export const leaveSchema = z.object({ confirmEmail: z.string().max(320) });
 
+/** https only, or http for this machine, so a local Photon or tile server can be tried (ADR-078). */
+const mapUrlSchema = (label: string) =>
+	z
+		.string()
+		.trim()
+		.max(500)
+		.refine((value) => {
+			try {
+				const url = new URL(value);
+				return (
+					url.protocol === 'https:' || (url.protocol === 'http:' && isLocalHostname(url.hostname))
+				);
+			} catch {
+				return false;
+			}
+		}, `${label} must be an https address`);
+
+/** The site's map group; every field optional so a stored subset still reads. */
+const mapsSettingsSchema = z.object({
+	isGeocodingEnabled: z.boolean().optional(),
+	photonUrl: mapUrlSchema('The Photon address').optional(),
+	tileUrl: mapUrlSchema('The tile address').optional(),
+	tileAttribution: z.string().trim().min(1).max(1000).optional()
+});
+
 /** A change to a settings layer: a group replaces, `null` clears it, an absent key is left alone. */
 export const settingsPatchSchema = z.object({
 	sexColours: sexColoursSchema.nullable().optional(),
@@ -841,14 +893,17 @@ export const settingsPatchSchema = z.object({
 	isMotionReduced: z.boolean().nullable().optional()
 });
 /** The site default has no motion setting, so the install owner cannot set one for everyone. */
-export const siteSettingsPatchSchema = settingsPatchSchema.omit({ isMotionReduced: true });
+export const siteSettingsPatchSchema = settingsPatchSchema
+	.omit({ isMotionReduced: true })
+	.extend({ maps: mapsSettingsSchema.nullable().optional() });
 /** The versioned document stored per layer. Unknown keys are stripped on every read. */
 export const settingsDocumentSchema = z.object({
 	version: z.literal(1).optional(),
 	sexColours: sexColoursSchema.optional(),
 	tracePalette: tracePaletteSchema.optional(),
 	focusColours: focusColoursSchema.optional(),
-	isMotionReduced: z.boolean().optional()
+	isMotionReduced: z.boolean().optional(),
+	maps: mapsSettingsSchema.optional()
 });
 
 /** A sub-tree to make: a name, its address within the tree, and the person it is rooted at. */

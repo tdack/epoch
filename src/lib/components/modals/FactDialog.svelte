@@ -5,7 +5,9 @@
 	import ImpactDialog from './ImpactDialog.svelte';
 	import SourceSection from '#lib/components/evidence/SourceSection.svelte';
 	import type { CitationDto, CitationInput } from '#lib/shared/evidence.js';
-	import type { TreeRole } from '#lib/shared/roles.js';
+	import { canChangeRecords, type TreeRole } from '#lib/shared/roles.js';
+	import type { GeoCandidate } from '#lib/shared/geo.js';
+	import { attachCandidateLocationApi } from '#lib/api/geo.js';
 	import DateInput from '#lib/components/forms/DateInput.svelte';
 	import { checkDateEdit } from '#lib/shared/date-value.js';
 	import {
@@ -85,6 +87,8 @@
 	let isDetailsOpen = $state(false);
 	let citation = $state<CitationInput | null>(null);
 	let tickedIds = $state<string[]>([]);
+	// The OpenStreetMap place picked for the field; PlaceInput clears it when the text moves off it.
+	let osmPick = $state<GeoCandidate | null>(null);
 
 	let impact = $state<ImpactSummary | null>(null);
 	let previewError = $state<string | null>(null);
@@ -149,6 +153,7 @@
 		type = source?.type ?? 'OCCU';
 		dateText = source?.dateText ?? '';
 		place = source?.place ?? '';
+		osmPick = null;
 		value = source?.value ?? '';
 		cause = source?.cause ?? '';
 		age = source?.age ?? '';
@@ -234,6 +239,9 @@
 					? await createGroupFactApi(treeId, targetIds, input, citation)
 					: await createFactApi(treeId, targetIds[0], input, citation);
 			await onsaved(change);
+			// After the fact: its place record exists only once the fact is saved. A second undo entry.
+			if (osmPick && canChangeRecords(role))
+				await attachCandidateLocationApi(treeId, place, osmPick);
 		}, 'Could not save the fact');
 	}
 </script>
@@ -321,6 +329,8 @@
 						id="fact-place"
 						{treeId}
 						bind:value={place}
+						shouldSuggestOsm
+						onosmpick={(candidate) => (osmPick = candidate)}
 						inputClass={field}
 						placeholder="e.g. Leeds, Yorkshire"
 					/>

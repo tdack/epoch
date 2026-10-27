@@ -112,7 +112,8 @@
 	/** The record a task from a finding is about: the finding's first person or partnership, if it has one. */
 	const taskSubjectOf = (finding: QualityFinding) => {
 		const first = finding.subjects[0];
-		return first
+		// A task's subject is a person, partnership or fact; a place is none of them, so it has none.
+		return first && first.kind !== 'place'
 			? {
 					ref: {
 						kind: first.kind === 'person' ? ('person' as const) : ('union' as const),
@@ -170,7 +171,9 @@
 	);
 
 	const subjectHref = (subject: FindingSubject) =>
-		`${base}/${subject.kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(subject.id)}`;
+		subject.kind === 'place'
+			? `${base}/place?name=${encodeURIComponent(subject.name)}`
+			: `${base}/${subject.kind === 'person' ? 'people' : 'unions'}/${encodeURIComponent(subject.id)}`;
 
 	function startDismissing(finding: QualityFinding) {
 		dismissing = finding.key;

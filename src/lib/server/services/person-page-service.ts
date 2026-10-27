@@ -18,6 +18,7 @@ import { sortByBirth } from '../../shared/birth-order';
 import type { ParentChildType } from '../../shared/relationship-model';
 import { EvidenceRepository } from '../repositories/evidence-repository';
 import { NoteRepository } from '../repositories/note-repository';
+import { PlaceRepository } from '../repositories/place-repository';
 import { isSubtreeMember } from '../repositories/subtree-membership';
 import { visibleAmong } from '../repositories/visibility';
 import { NOTE_SUBJECT_KINDS, type NoteDto } from '../../shared/notes';
@@ -46,6 +47,7 @@ import { isSex } from '../../shared/sex';
 import { mergeableUnionIds } from '../../shared/union-merge';
 import { widowhoods } from '../../shared/widowhood';
 import { loadFocusWindow } from './focus-window';
+import { personAssociations } from './person-associations';
 import { personSummaries } from './person-summaries';
 import type {
 	ChangeEntryDto,
@@ -210,6 +212,7 @@ export class PersonPageService {
 	private tasks: TaskReadService;
 	private users: UserRepository;
 	private trees: TreeRepository;
+	private places: PlaceRepository;
 
 	constructor(
 		private db: DbClient,
@@ -223,6 +226,7 @@ export class PersonPageService {
 		this.tasks = new TaskReadService(db, now);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
+		this.places = new PlaceRepository(db);
 	}
 
 	private requireView(treeId: string, context: AuthenticatedContext): Promise<ViewerScope> {
@@ -424,6 +428,7 @@ export class PersonPageService {
 		}));
 
 		return {
+			factLocations: await this.places.factLocationsOf(treeId, personId, scope),
 			...privacyOf(self.row),
 			...(lensRootId === null
 				? {}
@@ -480,6 +485,15 @@ export class PersonPageService {
 				via: summary(s.viaPartnerId),
 				unionId: s.unionId
 			})),
+			associations: await personAssociations(
+				this.repo,
+				treeId,
+				self.row,
+				rows,
+				relatives.partnerships.map((p) => p.unionId),
+				graph,
+				scope
+			),
 			media: mediaRows.map(({ row }: { row: MediaRow }) => ({
 				...privacyOf(row),
 				id: row.id,
