@@ -104,7 +104,7 @@ function addDays(iso: string, days: number): string {
 	return isoDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
-interface ParsedDateParts {
+export interface ParsedDateParts {
 	year: number;
 	month: number | null;
 	day: number | null;
@@ -118,7 +118,7 @@ function parseMonth(token: string): number | null {
  * Parse a single (non-ranged) date token into its numeric parts.
  * Accepts `DD MMM YYYY`, `MMM YYYY`, and `YYYY` forms.
  */
-function parseDateParts(token: string): ParsedDateParts | null {
+export function parseDateParts(token: string): ParsedDateParts | null {
 	const trimmed = token.trim();
 	const dayMonthYear = trimmed.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{3,4})$/);
 	if (dayMonthYear) {
