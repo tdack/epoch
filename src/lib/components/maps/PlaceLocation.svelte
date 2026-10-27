@@ -93,12 +93,12 @@
 		}, 'Could not clear the location');
 </script>
 
-<section class="mt-4" aria-labelledby="place-location-heading" data-testid="place-location">
+<section aria-labelledby="place-location-heading" data-testid="place-location">
 	<h2 id="place-location-heading" class="text-sm font-semibold text-stone-900">Location</h2>
 
 	{#if pin}
 		<PlaceMap
-			class="mt-2 h-64"
+			class="mt-2 h-64 lg:h-96"
 			label="Map showing where this place is. The pin is not a keyboard target; the coordinates below give the same information."
 			markers={[]}
 			{pin}
@@ -109,7 +109,7 @@
 		/>
 	{:else if isPicking}
 		<PlaceMap
-			class="mt-2 h-64"
+			class="mt-2 h-64 lg:h-96"
 			label="Map for choosing this place's location. Click the map to drop the pin."
 			{isPicking}
 			{tileUrl}
