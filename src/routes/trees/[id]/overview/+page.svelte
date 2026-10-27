@@ -424,7 +424,12 @@
 							</h3>
 							<ul class="mt-1 space-y-1 text-sm">
 								{#each group.people as person (person.id)}
-									{@const dates = lifeDates(person.birthDate, person.deathDate, person.isDeceased)}
+									{@const dates = lifeDates(
+										person.birthDate,
+										person.deathDate,
+										person.isDeceased,
+										data.summary.tree.dateFormat
+									)}
 									<li class="flex flex-wrap items-center gap-x-1.5">
 										<a
 											href={personPath(data.summary.tree, person.id)}

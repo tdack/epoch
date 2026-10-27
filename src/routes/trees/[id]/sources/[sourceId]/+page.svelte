@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import { goto } from '$app/navigation';
 	import { GitMerge, Pencil, Plus, Trash2 } from '@lucide/svelte';
@@ -23,6 +24,7 @@
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
+	const showDate = dateReader();
 	const { editor, toasts } = getTreeContext();
 
 	const source = $derived(data.source);
@@ -176,7 +178,7 @@
 									{[
 										citation.page,
 										citation.quality !== null ? CITATION_QUALITY_LABELS[citation.quality] : null,
-										citation.entryDate ? `Recorded ${citation.entryDate}` : null
+										citation.entryDate ? `Recorded ${showDate(citation.entryDate)}` : null
 									]
 										.filter(Boolean)
 										.join(' · ') || 'No page or detail'}

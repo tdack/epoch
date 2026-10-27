@@ -83,7 +83,12 @@
 						></td
 					>
 					<td class="px-4 py-2 text-stone-600"
-						>{lifeDates(person.birthDate, person.deathDate, person.isDeceased)}</td
+						>{lifeDates(
+							person.birthDate,
+							person.deathDate,
+							person.isDeceased,
+							data.summary.tree.dateFormat
+						)}</td
 					>
 					<td class="px-4 py-2 text-stone-500">{person.xref ?? ''}</td>
 				</tr>

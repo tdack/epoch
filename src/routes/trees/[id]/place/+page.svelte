@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { goto } from '$app/navigation';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import PlaceLocation from '#lib/components/maps/PlaceLocation.svelte';
@@ -12,6 +13,7 @@
 	import { treePath } from '#lib/shared/tree-slug.js';
 
 	let { data }: PageProps = $props();
+	const showDate = dateReader();
 	const { toasts } = getTreeContext();
 
 	const base = $derived(treePath(data.summary.tree));
@@ -100,7 +102,7 @@
 							class="font-semibold text-emerald-900 hover:underline">{fact.entityName}</a
 						>
 					</span>
-					<span class="text-stone-600">{fact.dateText ?? 'Date unknown'}</span>
+					<span class="text-stone-600">{showDate(fact.dateText) || 'Date unknown'}</span>
 				</li>
 			{/each}
 		</ul>

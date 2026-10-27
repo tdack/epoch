@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import Pager from '#lib/components/lists/Pager.svelte';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
 	import type { UnionStatus } from '#lib/shared/relationship-model.js';
@@ -10,6 +11,7 @@
 	}
 
 	let { data }: Props = $props();
+	const showDate = dateReader();
 
 	const base = $derived(treePath(data.summary.tree));
 	const page = $derived(data.page);
@@ -57,9 +59,9 @@
 						>{UNION_STATUS_LABELS[union.status as UnionStatus] ?? union.status}</td
 					>
 					<td class="px-4 py-2 text-stone-600"
-						>{[union.marriageDate, union.marriagePlace].filter(Boolean).join(' in ')}</td
+						>{[showDate(union.marriageDate), union.marriagePlace].filter(Boolean).join(' in ')}</td
 					>
-					<td class="px-4 py-2 text-stone-600">{union.endDate ?? ''}</td>
+					<td class="px-4 py-2 text-stone-600">{showDate(union.endDate)}</td>
 				</tr>
 			{/each}
 		</tbody>

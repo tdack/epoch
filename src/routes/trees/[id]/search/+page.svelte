@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import PlaceInput from '#lib/components/forms/PlaceInput.svelte';
 	import { Search } from '@lucide/svelte';
 	import Pager from '#lib/components/lists/Pager.svelte';
@@ -13,6 +14,7 @@
 	}
 
 	let { data }: Props = $props();
+	const showDate = dateReader();
 
 	const base = $derived(treePath(data.summary.tree));
 	const query = $derived(data.query);
@@ -45,7 +47,7 @@
 			return match.isDisplayName
 				? `Name: ${match.text}`
 				: `Also known as ${match.text} (${nameTypeLabel(match.nameType).toLowerCase()})`;
-		const where = [match.dateText, match.placeText].filter(Boolean).join(' in ');
+		const where = [showDate(match.dateText), match.placeText].filter(Boolean).join(' in ');
 		return `${match.label}${match.isPartnershipFact ? ' (partnership)' : ''}: ${where || 'no date or place'}`;
 	}
 </script>
@@ -143,7 +145,12 @@
 						data-testid="search-result">{person.displayName}</a
 					>
 					<span class="text-xs text-stone-500"
-						>{lifeDates(person.birthDate, person.deathDate, person.isDeceased)}</span
+						>{lifeDates(
+							person.birthDate,
+							person.deathDate,
+							person.isDeceased,
+							data.summary.tree.dateFormat
+						)}</span
 					>
 				</div>
 				<ul class="text-xs text-stone-600" aria-label="Why this matched">

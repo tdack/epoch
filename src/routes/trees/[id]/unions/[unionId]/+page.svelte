@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateReader } from '#lib/components/date-format.js';
 	import { treeLinkSlug } from '#lib/shared/tree-slug.js';
 	import {
 		GitMerge,
@@ -35,6 +36,7 @@
 	}
 
 	let { data }: Props = $props();
+	const showDate = dateReader();
 	const { editor, toasts } = getTreeContext();
 
 	const dto = $derived(data.union);
@@ -177,8 +179,8 @@
 					<li>
 						<PersonLink person={partner} href={personHref(partner.id)} />
 						<span class="text-xs text-stone-500"
-							>{partner.birthDate ?? ''}{partner.isDeceased
-								? ` – ${partner.deathDate ?? 'deceased'}`
+							>{showDate(partner.birthDate)}{partner.isDeceased
+								? ` – ${showDate(partner.deathDate) || 'deceased'}`
 								: ''}</span
 						>
 					</li>
@@ -196,7 +198,7 @@
 					<li>
 						<span class="font-medium">{event.label}</span>
 						<span class="text-xs text-stone-600"
-							>{event.dateText ?? 'Date unknown'}{#if event.place}{' · '}<a
+							>{showDate(event.dateText) || 'Date unknown'}{#if event.place}{' · '}<a
 									href="{treePath(data.summary.tree)}/place?name={encodeURIComponent(event.place)}"
 									class="hover:underline">{event.place}</a
 								>{/if}</span
@@ -334,7 +336,7 @@
 				{#each dto.children as child (child.person.id)}
 					<li>
 						<PersonLink person={child.person} href={personHref(child.person.id)} />
-						<span class="text-xs text-stone-500">{child.person.birthDate ?? ''}</span>
+						<span class="text-xs text-stone-500">{showDate(child.person.birthDate)}</span>
 						<span class="block text-xs text-stone-500"
 							>{child.links.map((l) => `${l.parentName}: ${l.type}`).join(' · ')}</span
 						>
@@ -353,7 +355,9 @@
 			<ol class="mt-2 space-y-1 text-sm" data-testid="chronology">
 				{#each dto.chronology as entry, index (index)}
 					<li class="flex gap-3">
-						<span class="w-28 shrink-0 text-xs text-stone-500">{entry.dateText ?? 'undated'}</span>
+						<span class="w-28 shrink-0 text-xs text-stone-500"
+							>{showDate(entry.dateText) || 'undated'}</span
+						>
 						<span class={entry.kind === 'union_event' ? 'font-semibold text-emerald-900' : ''}>
 							{#if entry.personId && !privateIds.has(entry.personId)}<a
 									class="row-link"
