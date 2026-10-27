@@ -9,6 +9,7 @@ import { UnionPageService } from './union-page-service';
 import { CHRONOLOGY_KINDS } from '../../shared/union-page';
 import { UNION_WARNING_CODES } from '../../shared/union-warnings';
 import {
+	addTestMember,
 	createTestDatabase,
 	createTestTree,
 	createTestUser,
@@ -175,5 +176,75 @@ describe('chronology and warnings', () => {
 		await expect(
 			service().getUnion(first.treeId, second.unionId, actor.context)
 		).rejects.toBeInstanceOf(NotFoundError);
+	});
+});
+
+describe('the family group sheet', () => {
+	async function family() {
+		const treeId = await createTestTree(t.db, actor);
+		const people = new PersonService(t.db);
+		const relationships = new RelationshipService(t.db);
+		const add = async (givenName: string, extra: object = {}) =>
+			(await people.create(treeId, { givenName, ...extra }, actor.context)).individual;
+		const ref = (p: { id: string; givenName: string | null }) => ({
+			id: p.id,
+			givenName: p.givenName,
+			surname: null
+		});
+		const run = (intent: object) => relationships.execute(treeId, intent as never, actor.context);
+		const ann = await add('Ann', { birthDate: 'ABT 1801', birthPlace: 'Leeds' });
+		const ben = await add('Ben', { birthDate: '1799', deathDate: '1840', deathPlace: 'York' });
+		const gail = await add('Gail', { birthDate: '1770', deathDate: '1850' });
+		const cat = await add('Cat', { birthDate: '1825' });
+		// Born recently, so living: a viewer may not see him.
+		const dan = await add('Dan', { birthDate: '1990' });
+		await run({ kind: 'add_partner', person: ref(ann), partner: ref(ben), unionLabel: null });
+		const unionId = (await wholeGraph(t.db, treeId, actor.context)).unions[0]!.id;
+		await run({
+			kind: 'add_parent',
+			child: ref(ann),
+			parent: ref(gail),
+			type: 'adoptive',
+			role: 'mother',
+			unionLabel: null
+		});
+		await run({
+			kind: 'add_child',
+			parent: ref(ann),
+			child: ref(cat),
+			type: 'biological',
+			unionLabel: null,
+			unionId
+		});
+		await run({ kind: 'add_partner', person: ref(cat), partner: ref(dan), unionLabel: null });
+		return { treeId, unionId, ann, ben, gail, cat, dan };
+	}
+
+	it("adds each person's vitals with places, the partners' parents and the children's partners", async () => {
+		const { treeId, unionId, ann, ben, gail, cat, dan } = await family();
+		const sheet = await service().getGroupSheet(treeId, unionId, actor.context);
+		expect(sheet.page.union.id).toBe(unionId);
+		expect(sheet.vitals[ann.id]).toEqual([
+			{ type: 'BIRT', label: 'Birth', dateText: 'ABT 1801', place: 'Leeds' }
+		]);
+		expect(sheet.vitals[ben.id]!.map((v) => [v.type, v.place])).toEqual([
+			['BIRT', null],
+			['DEAT', 'York']
+		]);
+		expect(sheet.parents[ann.id]!.map((p) => [p.person.id, p.type])).toEqual([
+			[gail.id, 'adoptive']
+		]);
+		expect(sheet.parents[ben.id]).toEqual([]);
+		expect(sheet.partnersOfChildren[cat.id]!.map((p) => p.person.id)).toEqual([dan.id]);
+	});
+
+	it('leaves out a living partner of a child for a viewer, as the page leaves out private people', async () => {
+		const { treeId, unionId, cat, dan } = await family();
+		const viewer = await createTestUser(t.db, 'sheet-viewer');
+		await addTestMember(t.db, treeId, viewer, 'viewer');
+		const sheet = await service().getGroupSheet(treeId, unionId, viewer.context);
+		expect(sheet.partnersOfChildren[cat.id]).toEqual([]);
+		expect(sheet.vitals[dan.id]).toBeUndefined();
+		expect(JSON.stringify(sheet)).not.toContain('Dan');
 	});
 });

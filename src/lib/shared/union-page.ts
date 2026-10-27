@@ -81,3 +81,24 @@ export interface UnionPageDto extends PrivacyFlag {
 	/** The window around the first partner, for the editing dialogs. */
 	graph: RelationshipGraph;
 }
+
+/** A vital fact as a group sheet prints it: the date as stored, and where. */
+export interface GroupSheetVitalDto {
+	type: string;
+	label: string;
+	dateText: string | null;
+	place: string | null;
+}
+
+/**
+ * The partnership page plus what a family group sheet adds. Keyed by person id, and only for people
+ * the page shows by name: a placeholder has no entry.
+ */
+export interface GroupSheetDto {
+	page: UnionPageDto;
+	vitals: Record<string, GroupSheetVitalDto[]>;
+	/** Each partner's own parents, with the kind of link (adoptive, foster, …). */
+	parents: Record<string, Array<{ person: PersonSummaryDto; type: ParentChildType }>>;
+	/** Each child's partners, one entry per partnership. */
+	partnersOfChildren: Record<string, Array<{ unionId: string; person: PersonSummaryDto }>>;
+}

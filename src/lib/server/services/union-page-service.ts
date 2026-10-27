@@ -34,12 +34,17 @@ import { type PersonSummaryDto } from '../../shared/person-page';
 import { requireTreeScope, type ViewerScope } from './tree-access';
 import {
 	type UnionPageDto,
+	type GroupSheetDto,
+	type GroupSheetVitalDto,
 	type UnionEventDto,
 	type UnionChildDto,
 	type ChronologyKind,
 	type ChronologyEntryDto,
 	CHRONOLOGY_KINDS
 } from '../../shared/union-page';
+
+/** The facts a family group sheet gives each person, in the order it gives them. */
+const GROUP_SHEET_VITALS: readonly string[] = ['BIRT', 'CHR', 'BAPM', 'DEAT', 'BURI', 'CREM'];
 
 const EMPTY_GRAPH: RelationshipGraph = { people: [], unions: [], parentChild: [] };
 
@@ -70,8 +75,106 @@ export class UnionPageService {
 		unionId: string,
 		context: AuthenticatedContext
 	): Promise<UnionPageDto> {
-		const scope = await this.requireView(treeId, context);
+		return this.unionPage(treeId, unionId, await this.requireView(treeId, context));
+	}
 
+	/**
+	 * The partnership page plus what a family group sheet adds: each shown person's vital facts with
+	 * places, the partners' own parents and the children's partners. Built on the page, so every
+	 * person it leaves out or masks stays left out or masked here.
+	 */
+	async getGroupSheet(
+		treeId: string,
+		unionId: string,
+		context: AuthenticatedContext
+	): Promise<GroupSheetDto> {
+		const scope = await this.requireView(treeId, context);
+		const page = await this.unionPage(treeId, unionId, scope);
+		const shownIds = (people: PersonSummaryDto[]) =>
+			people.filter((p) => !p.isPrivate).map((p) => p.id);
+		const partnerIds = shownIds(page.partners);
+		const childIds = shownIds(page.children.map((c) => c.person));
+
+		const [vitalRows, parentLinks, childPartnerRows] = await this.repo.run(
+			this.repo.eventsOf(treeId, 'INDIVIDUAL', [...partnerIds, ...childIds], GROUP_SHEET_VITALS),
+			this.repo.linksBy(treeId, 'child', partnerIds),
+			this.repo.partnerRowsOfPersons(treeId, childIds)
+		);
+		const childUnionIds = [...new Set(childPartnerRows.map((r) => r.row.unionId))];
+		const [coPartnerRows] = await this.repo.run(
+			this.repo.partnerRowsOfUnions(treeId, childUnionIds)
+		);
+		const parentIds = [...new Set(parentLinks.map((l) => l.row.parentId))];
+		const coPartnerIds = [...new Set(coPartnerRows.map((r) => r.row.personId))].filter(
+			(id) => !childIds.includes(id)
+		);
+		const people = await personSummaries(
+			this.repo,
+			treeId,
+			undefined,
+			[...parentIds, ...coPartnerIds],
+			scope
+		);
+		// Same rule as the page's children: a private relative is a placeholder or is left out.
+		const isListed = (id: string) => !people.get(id)?.isPrivate || scope.shouldShowPrivateStructure;
+
+		const vitalsOf = (personId: string): GroupSheetVitalDto[] =>
+			vitalRows
+				.filter((e) => e.row.entityId === personId)
+				.sort(
+					(a, b) =>
+						GROUP_SHEET_VITALS.indexOf(a.row.type) - GROUP_SHEET_VITALS.indexOf(b.row.type) ||
+						a.rid - b.rid
+				)
+				.map(({ row }) => ({
+					type: row.type,
+					label: eventLabel(row.type),
+					dateText: row.dateRaw,
+					place: row.place
+				}));
+
+		const parents = Object.fromEntries(
+			partnerIds.map((id) => [
+				id,
+				parentLinks
+					.filter((l) => l.row.childId === id && isListed(l.row.parentId))
+					.sort((a, b) => a.rid - b.rid)
+					.map((l) => ({
+						person: people.get(l.row.parentId)!,
+						type: l.row.type as ParentChildType
+					}))
+			])
+		);
+		const partnersOfChildren = Object.fromEntries(
+			childIds.map((id) => [
+				id,
+				childPartnerRows
+					.filter((r) => r.row.personId === id)
+					.flatMap((r) =>
+						coPartnerRows
+							.filter(
+								(c) =>
+									c.row.unionId === r.row.unionId &&
+									c.row.personId !== id &&
+									isListed(c.row.personId)
+							)
+							.map((c) => ({ unionId: c.row.unionId, person: people.get(c.row.personId)! }))
+					)
+			])
+		);
+		return {
+			page,
+			vitals: Object.fromEntries([...partnerIds, ...childIds].map((id) => [id, vitalsOf(id)])),
+			parents,
+			partnersOfChildren
+		};
+	}
+
+	private async unionPage(
+		treeId: string,
+		unionId: string,
+		scope: ViewerScope
+	): Promise<UnionPageDto> {
 		const [[unionRecord], partnerRows, linkRows, eventRows] = await this.repo.run(
 			this.repo.unionsIn(treeId, [unionId]),
 			this.repo.partnerRowsOfUnions(treeId, [unionId]),
