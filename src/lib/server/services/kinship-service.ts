@@ -7,7 +7,7 @@
 
 import type { DbClient } from '../db';
 import type { AuthenticatedContext } from '../domain/identity';
-import type { TreeRows } from '../domain/change-log';
+import type { EventRow, TreeRows } from '../domain/change-log';
 import { PRIVATE_PLACEHOLDER_NAME, requireVisibleSubject } from '../domain/privacy-mask';
 import {
 	findRelationships,
@@ -17,7 +17,14 @@ import {
 import { GraphWindowRepository } from '../repositories/graph-window-repository';
 import { TreeRepository } from '../repositories/tree-repository';
 import { UserRepository } from '../repositories/user-repository';
-import type { KinRouteDto, RelationshipDto } from '../../shared/kinship';
+import {
+	MAX_KIN_LIST_GENERATIONS,
+	type KinListDto,
+	type KinListEntryDto,
+	type KinRouteDto,
+	type RelationshipDto
+} from '../../shared/kinship';
+import { ValidationError } from '../domain/errors';
 import { loadKinWindow } from './kin-window';
 import { requireTreeScope } from './tree-access';
 
@@ -28,6 +35,23 @@ export function personName(row: {
 	surname: string | null;
 }): string {
 	return [row.givenName, row.surname].filter(Boolean).join(' ') || row.id;
+}
+
+function kinGraphOf(rows: TreeRows, placeholderIds: ReadonlySet<string>): KinGraph {
+	return {
+		people: new Map(
+			rows.individuals.map((i) => [
+				i.id,
+				{ name: personName(i), sex: i.sex, isPrivate: placeholderIds.has(i.id) }
+			])
+		),
+		links: rows.parentChild.map((l) => ({
+			parentId: l.parentId,
+			childId: l.childId,
+			type: l.type
+		})),
+		partners: partnersFromRows(rows)
+	};
 }
 
 function partnersFromRows(rows: TreeRows): Map<string, string[]> {
@@ -90,21 +114,8 @@ export class KinshipService {
 		});
 
 		const { rows, placeholderIds } = requireVisibleSubject(window, [fromId, toId], scope);
-		const people = new Map(
-			rows.individuals.map((i) => [
-				i.id,
-				{ name: personName(i), sex: i.sex, isPrivate: placeholderIds.has(i.id) }
-			])
-		);
-		const graph: KinGraph = {
-			people,
-			links: rows.parentChild.map((l) => ({
-				parentId: l.parentId,
-				childId: l.childId,
-				type: l.type
-			})),
-			partners: partnersFromRows(rows)
-		};
+		const graph = kinGraphOf(rows, placeholderIds);
+		const people = graph.people;
 		const result = findRelationships(fromId, toId, graph);
 		const ref = (id: string) => ({
 			id,
@@ -127,6 +138,88 @@ export class KinshipService {
 			to: ref(toId),
 			routes,
 			isIncomplete: result.isIncomplete || window.hasMoreAbove || window.isCapped
+		};
+	}
+	/**
+	 * Everyone the viewer may see who is related to one person: blood relatives up to `generations`
+	 * above them and every line down from those ancestors to one generation below the person, plus
+	 * their partners. Two bounded window loads, then the calculator in memory, so the cost is one
+	 * read per generation however many relatives there are.
+	 */
+	async kinshipList(
+		treeId: string,
+		personId: string,
+		generations: number,
+		context: AuthenticatedContext
+	): Promise<KinListDto> {
+		if (!Number.isInteger(generations) || generations < 1 || generations > MAX_KIN_LIST_GENERATIONS)
+			throw new ValidationError(
+				`Generations must be a whole number from 1 to ${MAX_KIN_LIST_GENERATIONS}`
+			);
+		const scope = await requireTreeScope(
+			this.users,
+			this.trees,
+			treeId,
+			context,
+			'tree:view',
+			this.now()
+		);
+		const cutoff = scope.isRestricted ? scope.cutoff : undefined;
+		const up = await loadKinWindow(this.repo, {
+			treeId,
+			startIds: [personId],
+			ancestorGenerations: generations,
+			descendantGenerations: null,
+			partnersOf: 'none',
+			cutoff
+		});
+		// Walking down from every ancestor also picks up the links between them, so this one window holds the whole family.
+		const window = await loadKinWindow(this.repo, {
+			treeId,
+			startIds: [personId, ...up.rows.individuals.map((i) => i.id).filter((id) => id !== personId)],
+			ancestorGenerations: null,
+			descendantGenerations: generations + 1,
+			partnersOf: 'starts',
+			cutoff
+		});
+		const { rows, placeholderIds } = requireVisibleSubject(
+			{ rows: window.rows, foundStartIds: up.foundStartIds },
+			personId,
+			scope
+		);
+		const graph = kinGraphOf(rows, placeholderIds);
+
+		const firstOf = (events: EventRow[], type: string) =>
+			events
+				.filter((e) => e.type === type)
+				.sort((a, b) => (a.dateSort ?? '').localeCompare(b.dateSort ?? ''))[0]?.dateRaw ?? null;
+		const eventsBy = Map.groupBy(
+			rows.events.filter((e) => e.entityType === 'INDIVIDUAL'),
+			(e) => e.entityId
+		);
+		const entries: KinListEntryDto[] = rows.individuals.flatMap((i) => {
+			if (i.id === personId || placeholderIds.has(i.id)) return [];
+			const route = findRelationships(personId, i.id, graph).routes[0];
+			if (!route) return [];
+			const own = eventsBy.get(i.id) ?? [];
+			return [
+				{
+					id: i.id,
+					name: personName(i),
+					label: route.label,
+					distance: route.steps.length - 1,
+					birth: firstOf(own, 'BIRT'),
+					death: firstOf(own, 'DEAT')
+				}
+			];
+		});
+		entries.sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
+		const subject = graph.people.get(personId)!;
+		return {
+			person: { id: personId, name: subject.name, isPrivate: false },
+			generations,
+			entries,
+			isIncomplete: up.hasMoreAbove || up.isCapped || window.hasMoreBelow || window.isCapped
 		};
 	}
 }

@@ -33,6 +33,30 @@ export interface RelationshipDto {
 	isIncomplete: boolean;
 }
 
+/** Generations up from the person a kinship list looks: 3 reaches 2nd cousins. */
+export const DEFAULT_KIN_LIST_GENERATIONS = 3;
+export const MAX_KIN_LIST_GENERATIONS = 5;
+
+export interface KinListEntryDto {
+	id: string;
+	name: string;
+	/** What this person is to the list's subject, by the nearest route. */
+	label: string;
+	/** Links on that route, for ordering nearest first. */
+	distance: number;
+	/** The original text of the first birth and death dates, when recorded. */
+	birth: string | null;
+	death: string | null;
+}
+
+export interface KinListDto {
+	person: KinPersonRef;
+	generations: number;
+	entries: KinListEntryDto[];
+	/** More relatives exist past the generations or the size the list loaded. */
+	isIncomplete: boolean;
+}
+
 const OF_A_PARTNER = / of partner$/;
 
 /**
