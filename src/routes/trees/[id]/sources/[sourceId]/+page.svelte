@@ -120,8 +120,9 @@
 				.join(' · ') || 'No author or publication recorded'}
 		</p>
 	</div>
-	{#if canChangeEvidence(role)}
-		<div class="flex flex-wrap gap-2">
+	<div class="flex flex-wrap gap-2 print:hidden">
+		<a href={`${base}/sources/${encodeURIComponent(source.id)}/usage`} class="action-btn">Report</a>
+		{#if canChangeEvidence(role)}
 			<button type="button" class="action-btn" onclick={() => (isEditing = true)}
 				><Pencil class="h-3.5 w-3.5" />Edit</button
 			>
@@ -131,8 +132,8 @@
 			<button type="button" class="action-btn text-red-700" onclick={remove}
 				><Trash2 class="h-3.5 w-3.5" />Delete…</button
 			>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </header>
 
 {#if source.text}

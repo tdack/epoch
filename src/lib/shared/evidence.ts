@@ -59,6 +59,12 @@ export const CLAIM_STATE_LABELS: Record<ClaimState, string> = {
 
 /** The most a source or repository page lists in one response. */
 export const MAX_EVIDENCE_PAGE_SIZE = 100;
+/**
+ * The most citations the source usage report lists in one go. A report is printed, not paged, so it
+ * reads past `MAX_EVIDENCE_PAGE_SIZE`; the cap keeps one request's reads bounded (each citation
+ * costs a few lookups) and the page says when it was reached.
+ */
+export const MAX_SOURCE_USAGE_CITATIONS = 500;
 export const DEFAULT_EVIDENCE_PAGE_SIZE = 25;
 
 /** The fields a source is made and edited with. A missing field on an edit is left as it is. */
@@ -193,6 +199,8 @@ export interface SourceCitationGroup {
 	/** Where the group links to: the person or the partnership it is about. */
 	personId: string | null;
 	unionId: string | null;
+	/** When, and where, the fact happened, for a group that is about one fact; null otherwise. */
+	fact: { dateText: string | null; place: string | null } | null;
 	citations: CitationDto[];
 }
 
