@@ -227,25 +227,22 @@
 						>{/if}</span
 				>{/if}
 			<span class="text-xs text-stone-600"
-				>{showDate(fact.dateText) || 'Date unknown'}{#if fact.isApproximate}{' '}
-					<span class="text-stone-400">(approximate)</span>{/if}{@render age(fact)}</span
+				>{showDate(fact.dateText) || 'Date unknown'}{@render age(fact)}</span
 			>
 		</div>
 	{:else if fact.kind !== FACT_KINDS.ATTRIBUTE}
 		<!-- An event is placed by its date; an undated one says so rather than looking complete. -->
 		<p class="text-sm text-stone-900">
-			{showDate(fact.dateText) || 'Date unknown'}{#if fact.isApproximate}{' '}
-				<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(
-				fact
-			)}{#if fact.value}<span class="text-stone-600">{' · '}{fact.value}</span>{/if}
+			{showDate(fact.dateText) || 'Date unknown'}{@render age(fact)}{#if fact.value}<span
+					class="text-stone-600">{' · '}{fact.value}</span
+				>{/if}
 		</p>
 	{:else}
 		<!-- An attribute is its value; most have no date, and "Date unknown" on each would be noise. -->
 		<p class="text-sm text-stone-900">
 			{fact.value ?? ''}{#if fact.dateText}<span class="text-xs text-stone-600"
 					>{fact.value ? ' · ' : ''}{showDate(fact.dateText)}</span
-				>{#if fact.isApproximate}{' '}
-					<span class="text-xs text-stone-500">(approximate)</span>{/if}{@render age(fact)}{/if}
+				>{@render age(fact)}{/if}
 		</p>
 	{/if}
 	{#if fact.place}<p class="mt-1 flex items-center text-xs text-stone-600">
