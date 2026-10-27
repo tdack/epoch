@@ -84,3 +84,15 @@ test('the family group sheet and a narrative print as plain documents', async ({
 	await expect(page.getByRole('article').filter({ hasText: 'Kit Fox' }).last()).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Print' })).toBeHidden();
 });
+
+test('the calendar prints one month and drops its controls', async ({ page, api }) => {
+	await api.addPerson('Ann', 'Fox', { birthDate: '12 MAY 1900' });
+	await open(page, `/trees/${api.treeSlug}/calendar?month=5`);
+	await page.emulateMedia({ media: 'print' });
+
+	await expect(page.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+	await expect(page.getByRole('table').getByText('Ann Fox born')).toBeVisible();
+	await expect(page.getByLabel('Month')).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Download CSV' })).toBeHidden();
+	await expect(page.getByTestId('print-footer')).toBeVisible();
+});

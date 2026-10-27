@@ -31,7 +31,12 @@
 			label: 'Places',
 			hint: 'Every place, and the people and events at each.'
 		},
-		{ href: `${base}/sources`, label: 'Sources', hint: 'Every source, and what it supports.' }
+		{ href: `${base}/sources`, label: 'Sources', hint: 'Every source, and what it supports.' },
+		{
+			href: `${base}/calendar`,
+			label: 'Calendar',
+			hint: 'Births, partnerships and deaths by day of the month.'
+		}
 	]);
 </script>
 
@@ -76,6 +81,18 @@
 						>Descendant narrative</a
 					>
 				</li>
+				<li>
+					<a class="text-link" href="{personBase(picked.id)}/kin">Relatives list</a>
+				</li>
+				<li>
+					<a class="text-link" href="{personBase(picked.id)}/gaps">Research gaps</a>
+				</li>
+				<li>
+					<a class="text-link" href="{personBase(picked.id)}/evidence">Evidence summary</a>
+				</li>
+				<li>
+					<a class="text-link" href="{personBase(picked.id)}/interview">Interview sheet</a>
+				</li>
 			</ul>
 		{/if}
 	</section>
@@ -103,8 +120,6 @@
 
 	<section aria-labelledby="coming-later" class="section-card">
 		<h2 id="coming-later" class="section-heading">Coming later</h2>
-		<p class="mt-2 text-sm text-stone-700">
-			A calendar, a kinship list, an interview sheet, brick walls and a family book.
-		</p>
+		<p class="mt-2 text-sm text-stone-700">A family book.</p>
 	</section>
 </div>
