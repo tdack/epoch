@@ -203,8 +203,14 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **Other relatives' events in the person page's Life timeline.** Children's births are shown
   (from the summary's `birthSort`); a parent's, sibling's or partner's death and grandchildren's
   births, as webtrees offers, are not. (ADR-058)
-- **Printable reports:** family group, individual summary, ancestors and descendants. Must be
-  accessible and printable.
+- **Report follow-ups** (ADR-080):
+  - The place page answers 404 for a place with no facts of its own (Ireland when only "Cork,
+    Ireland" has facts), so its places-within list cannot be reached.
+  - The calendar's default month is the server's UTC month, and in the `.ics` file a 29 February
+    anniversary recurs only in leap years.
+  - Tiling a wall chart across A4 sheets, and a d'Aboville or Henry choice on the descendant chart.
+  - The family book's name index sorts on the last word of the display name, which misfiles "Jr."
+    and particles.
 - **A request access flow:** a signed-out visitor (or a signed-in non-member) asks to join a tree,
   and a manager accepts (sending the usual invitation) or declines. None exists today; admission is
   invitation only (ADR-034).

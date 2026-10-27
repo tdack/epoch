@@ -38,7 +38,7 @@ dates, and accessibility.
 | Ahnentafel | `AncestorOutline.svelte`, with Ahnentafel numbers | No print styles. No facts beyond the summary line. |
 | Descendant report | `DescendantOutline.svelte` | No numbering system (Henry, d'Aboville or Register). No narrative. |
 | Pedigree, descendant, fan and hourglass charts | `ChartCanvas.svelte` and `FanChart.svelte`, as SVG with a `viewBox` | They scale to one page already. Nothing tiles a large chart over several pages. |
-| Data errors and missing facts | Quality report, with 21 rules, including `unsourced_key_fact`, `probably_dead_no_death` and `unconnected_people` | Screen only. |
+| Data errors and missing facts | Quality report, with 24 rules, including `unsourced_key_fact`, `probably_dead_no_death` and `unconnected_people` | Screen only. |
 | Changes report | Audit log and record history (ADR-068) | Editors and above only (comparison 1.15). |
 | On this day and anniversaries | Overview tab | No month or year calendar, and no print layout. |
 | Place report | `/place` page for one place | No events listed by place over time. |
