@@ -497,7 +497,8 @@ function nameLines(
 		if (name.surnamePrefix) lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
 		if (name.surname) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
 		if (name.suffix) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
-		const note = nameChangeNote(name.dateText, name.unionXref);
+		// A family made in Epoch has a bare id; unwrapped, the note's pointer could not be read back.
+		const note = nameChangeNote(name.dateText, name.unionXref ? asXref(name.unionXref) : null);
 		if (note) lines.push(`2 NOTE ${escapedSingleLine(note)}`);
 		lines.push(...citationLines(2, name.citations, format));
 		lines.push(...foldLines(name.extra));
