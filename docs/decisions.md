@@ -82,3 +82,4 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 76 | Sub-trees and trees are reordered by dragging, saved as one batch | [ADR-076.md](adr/ADR-076.md) | Implemented |
 | 77 | Epoch is an installable PWA; its service worker caches no private data | [ADR-077.md](adr/ADR-077.md) | Implemented |
 | 78 | Places get a location; maps use Leaflet and OSM tiles, and geocoding uses Photon only | [ADR-078.md](adr/ADR-078.md) | Implemented |
+| 79 | Dates are shown in words, in a format each tree chooses | [ADR-079.md](adr/ADR-079.md) | Accepted |
