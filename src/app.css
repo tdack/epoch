@@ -283,7 +283,8 @@ select:not([multiple]) {
 	scroll-behavior: auto !important;
 	transition-duration: 0s !important;
 }
-[data-reduce-motion] .motion-safe\:animate-spin {
+[data-reduce-motion] .motion-safe\:animate-spin,
+[data-reduce-motion] .motion-safe\:animate-pulse {
 	animation: none;
 }
 

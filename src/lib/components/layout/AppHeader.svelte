@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { UserPlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
+	import { navigating } from '$app/state';
 	import EpochMark from '#lib/components/brand/EpochMark.svelte';
 	import TreeSwitcher from '#lib/components/layout/TreeSwitcher.svelte';
 	import AvatarMenu from '#lib/components/profile/AvatarMenu.svelte';
@@ -73,8 +74,12 @@
 >
 	<!-- `/` resolves the viewer's default tree, so the link needs no tree list of its own. -->
 	<a href={homeHref} class="flex items-center space-x-3 rounded-xl focus-ring">
+		<!-- Pulses while a page loads: the only sign of a slow link in the installed app, which has no browser spinner. -->
 		<div
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-800 shadow-md shadow-emerald-900/15"
+			class={[
+				'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-800 shadow-md shadow-emerald-900/15',
+				navigating.to && 'motion-safe:animate-pulse'
+			]}
 		>
 			<EpochMark size={26} ink="#fffbeb" ancestryOpacity={0.5} />
 		</div>
