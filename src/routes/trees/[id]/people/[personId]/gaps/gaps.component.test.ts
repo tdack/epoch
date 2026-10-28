@@ -35,5 +35,5 @@ it('shows completeness per generation and the brick walls', () => {
 	]);
 	const wall = document.querySelector('[data-testid="brick-walls"] li')!;
 	expect(wall.textContent).toContain('Ann Fox');
-	expect(wall.textContent).toContain('one parent not recorded');
+	expect(wall.textContent).toContain('One parent not recorded');
 });

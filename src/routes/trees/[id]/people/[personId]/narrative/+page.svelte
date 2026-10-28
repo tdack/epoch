@@ -2,6 +2,7 @@
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import NarrativeBody from '#lib/components/reports/NarrativeBody.svelte';
+	import ReportHeader from '#lib/components/reports/ReportHeader.svelte';
 	import {
 		DESCENDANT_NUMBERING_LABELS,
 		DESCENDANT_NUMBERINGS,
@@ -25,6 +26,11 @@
 	const heading = $derived(
 		`${dto.kind === NARRATIVE_KINDS.ANCESTORS ? 'Ancestors' : 'Descendants'} of ${dto.person.name}`
 	);
+	const about = $derived(
+		dto.kind === NARRATIVE_KINDS.ANCESTORS
+			? `${dto.generations} ${dto.generations === 1 ? 'generation' : 'generations'}, numbered by Ahnentafel: the parents of number n are 2n and 2n + 1.`
+			: `${dto.generations} ${dto.generations === 1 ? 'generation' : 'generations'}, each person numbered by their line of descent.`
+	);
 	const numberingId = $props.id();
 </script>
 
@@ -32,51 +38,56 @@
 	<title>{heading} · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-sm text-stone-600 print:hidden">
-	<a href={base} class="text-link">{data.summary.tree.name}</a> /
-	<a href={personHref(dto.person.id)} class="text-link">{dto.person.name}</a>
-</nav>
-<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
-
-<div class="mt-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
-	<nav aria-label="Narrative kind" class="flex gap-1">
-		{#each Object.values(NARRATIVE_KINDS) as kind (kind)}
-			<a
-				href={address(kind, dto.generations, numbering)}
-				aria-current={kind === dto.kind ? 'page' : undefined}
-				class="rounded-lg border border-stone-300 px-2.5 py-1 font-semibold {kind === dto.kind
-					? 'bg-emerald-800 text-white'
-					: ''}">{kind === NARRATIVE_KINDS.ANCESTORS ? 'Ancestors' : 'Descendants'}</a
-			>
-		{/each}
-	</nav>
-	<GenerationStepper
-		label="Generations"
-		value={dto.generations}
-		max={MAX_NARRATIVE_GENERATIONS}
-		hrefFor={(n) => address(dto.kind, n, numbering)}
-	/>
-	{#if dto.kind === NARRATIVE_KINDS.DESCENDANTS}
-		<!-- A plain form: the choice lives in the address like the other controls. -->
-		<form method="get" class="flex items-center gap-2">
-			<input type="hidden" name="kind" value={dto.kind} />
-			<input type="hidden" name="generations" value={dto.generations} />
-			<label for={numberingId} class="font-semibold text-stone-700">Numbering</label>
-			<select
-				id={numberingId}
-				name="numbering"
-				class="field-input w-auto"
-				value={numbering}
-				onchange={(e) => e.currentTarget.form?.requestSubmit()}
-			>
-				{#each Object.values(DESCENDANT_NUMBERINGS) as value (value)}
-					<option {value}>{DESCENDANT_NUMBERING_LABELS[value]}</option>
-				{/each}
-			</select>
-			<noscript><button type="submit" class="action-btn">Apply</button></noscript>
-		</form>
-	{/if}
-	<PrintButton />
-</div>
+<ReportHeader
+	crumbs={[
+		{ label: data.summary.tree.name, href: base },
+		{ label: dto.person.name, href: personHref(dto.person.id) }
+	]}
+	title={heading}
+>
+	{#snippet summary()}{about}{/snippet}
+	{#snippet actions()}
+		<nav aria-label="Narrative kind" class="flex gap-1">
+			{#each Object.values(NARRATIVE_KINDS) as kind (kind)}
+				<a
+					href={address(kind, dto.generations, numbering)}
+					aria-current={kind === dto.kind ? 'page' : undefined}
+					class="rounded-lg border px-2.5 py-1 font-semibold focus-ring coarse:min-h-11 coarse:content-center {kind ===
+					dto.kind
+						? 'border-emerald-800 bg-emerald-800 text-amber-50'
+						: 'border-stone-300 text-stone-700 hover:bg-stone-100'}"
+					>{kind === NARRATIVE_KINDS.ANCESTORS ? 'Ancestors' : 'Descendants'}</a
+				>
+			{/each}
+		</nav>
+		<GenerationStepper
+			label="Generations"
+			value={dto.generations}
+			max={MAX_NARRATIVE_GENERATIONS}
+			hrefFor={(n) => address(dto.kind, n, numbering)}
+		/>
+		{#if dto.kind === NARRATIVE_KINDS.DESCENDANTS}
+			<!-- A plain form: the choice lives in the address like the other controls. -->
+			<form method="get" class="flex items-center gap-2">
+				<input type="hidden" name="kind" value={dto.kind} />
+				<input type="hidden" name="generations" value={dto.generations} />
+				<label for={numberingId} class="font-semibold text-stone-700">Numbering</label>
+				<select
+					id={numberingId}
+					name="numbering"
+					class="field-input w-auto"
+					value={numbering}
+					onchange={(e) => e.currentTarget.form?.requestSubmit()}
+				>
+					{#each Object.values(DESCENDANT_NUMBERINGS) as value (value)}
+						<option {value}>{DESCENDANT_NUMBERING_LABELS[value]}</option>
+					{/each}
+				</select>
+				<noscript><button type="submit" class="action-btn">Apply</button></noscript>
+			</form>
+		{/if}
+		<PrintButton />
+	{/snippet}
+</ReportHeader>
 
 <NarrativeBody narrative={dto} {personHref} />

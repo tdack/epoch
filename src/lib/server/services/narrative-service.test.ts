@@ -119,6 +119,21 @@ describe('the descendant narrative', () => {
 		expect(report.endnotes).toEqual([{ number: 1, text: 'Parish register, p. 4.' }]);
 	});
 
+	it('can leave the first person untold, with none of their citations in the notes', async () => {
+		const report = await new NarrativeService(t.db).narrative(
+			treeId,
+			idOf('Ann'),
+			NARRATIVE_KINDS.DESCENDANTS,
+			3,
+			DESCENDANT_NUMBERINGS.DABOVILLE,
+			owner.context,
+			{ shouldSkipRoot: true }
+		);
+		expect(report.entries[0]!.sentences).toEqual([]);
+		expect(report.entries.map((e) => e.number)).toEqual(['1', '1.1', '1.2']);
+		expect(report.endnotes).toEqual([]);
+	});
+
 	it('says nothing a viewer may not see about a living descendant', async () => {
 		const report = await narrative(idOf('Ann'), NARRATIVE_KINDS.DESCENDANTS, viewer);
 		expect(JSON.stringify(report)).not.toContain('Zed');
@@ -138,5 +153,15 @@ describe('the ancestor narrative', () => {
 			['4', 'Dot Ash', 3]
 		]);
 		expect(report.entries[2]!.sentences[0]!.text).toBe('Ben Birch was born in 1798.');
+	});
+
+	it('tells a family once, and points the second partner back to it', async () => {
+		const report = await narrative(idOf('Cal'), NARRATIVE_KINDS.ANCESTORS);
+		const [ann, ben] = [report.entries[1]!, report.entries[2]!].map((e) =>
+			e.sentences.map((s) => s.text)
+		);
+		expect(ann).toContain('Their children were Cal Birch (1) and Zed Birch.');
+		expect(ben.at(-1)).toBe('Ben’s family with Ann Ash is told under number 2.');
+		expect(ben.join(' ')).not.toContain('children');
 	});
 });

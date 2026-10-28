@@ -167,6 +167,50 @@ select:not([multiple]) {
 		text-transform: uppercase;
 		color: var(--color-stone-600);
 	}
+	/* The reports' tables: a white list panel on screen, plain ruled rows on paper (print block). */
+	.report-panel {
+		overflow-x: auto;
+		border-radius: 0.75rem;
+		border: 1px solid var(--color-stone-200);
+		background: #fff;
+	}
+	.report-table {
+		width: 100%;
+		border-collapse: collapse;
+		text-align: left;
+		font-size: 0.875rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-stone-800);
+		& thead th {
+			padding: 0.625rem 0.75rem;
+			border-bottom: 1px solid var(--color-stone-200);
+			font-size: 0.75rem;
+			font-weight: 700;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+			white-space: nowrap;
+			color: var(--color-stone-600);
+		}
+		& tbody th,
+		& tbody td {
+			padding: 0.5rem 0.75rem;
+			vertical-align: top;
+		}
+		& tbody th {
+			font-weight: 500;
+			color: var(--color-stone-900);
+		}
+		& tbody tr + tr {
+			border-top: 1px solid var(--color-stone-100);
+		}
+	}
+	/* Inside a section card the card's own padding is the gutter, so the cells line up with its label. */
+	.section-card .report-table :is(th, td):first-child {
+		padding-left: 0;
+	}
+	.section-card .report-table :is(th, td):last-child {
+		padding-right: 0;
+	}
 	.action-btn {
 		display: inline-flex;
 		align-items: center;
@@ -349,6 +393,25 @@ select:not([multiple]) {
 		padding: 0.5rem 0;
 		border-width: 0 0 1px;
 		border-radius: 0;
+	}
+	.report-panel {
+		overflow: visible;
+		border: 0;
+		border-radius: 0;
+	}
+	.report-table {
+		font-size: 9.5pt;
+		& thead th {
+			border-bottom-color: #a8a29e;
+		}
+		& thead th,
+		& tbody th,
+		& tbody td {
+			padding: 0.3rem 0.75rem 0.3rem 0;
+		}
+		& tbody tr + tr {
+			border-top-color: #e7e5e4;
+		}
 	}
 	h1,
 	h2,

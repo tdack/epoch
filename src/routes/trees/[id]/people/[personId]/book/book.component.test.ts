@@ -62,8 +62,10 @@ it('puts the ticked parts in its contents and indexes every name by part and num
 	const index = [...document.querySelectorAll('[data-testid="book-index"] li')].map((li) =>
 		li.textContent!.replace(/\s+/g, ' ').trim()
 	);
-	// Ash before Fox; a "see number" repeat is not indexed again.
-	expect(index).toEqual(['Bob Ash: A2', 'Ann Fox: A1, D1']);
+	// Surname first, under letters; a "see number" repeat and the folded D1 are not indexed again.
+	expect(index).toEqual(['Ash, Bob A2', 'Fox, Ann A1']);
+	expect(document.getElementById('d-entry-1')!.textContent).toContain('Told under A1');
+	expect(document.getElementById('d-entry-1')!.textContent).not.toContain('was born');
 	expect(document.getElementById('a-entry-2')).not.toBeNull();
 	expect(document.getElementById('d-entry-1')).not.toBeNull();
 });

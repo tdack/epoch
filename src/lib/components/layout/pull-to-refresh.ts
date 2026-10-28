@@ -7,7 +7,7 @@ const MAX_PULL_PX = PULL_THRESHOLD_PX * 1.5;
 /** A home-screen app has no reload button or browser pull-to-refresh, so only there is one added. */
 export function isInstalledApp(): boolean {
 	return (
-		window.matchMedia('(display-mode: standalone)').matches ||
+		window.matchMedia?.('(display-mode: standalone)').matches ||
 		// Safari's own flag, which predates display-mode and is missing from the DOM types.
 		Reflect.get(navigator, 'standalone') === true
 	);

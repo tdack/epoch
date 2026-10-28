@@ -41,6 +41,8 @@ interface NarrativePartnership {
 	partnerName: string | null;
 	events: NarrativeFact[];
 	children: NarrativeChild[];
+	/** The number of the partner's entry when it already tells this family, which is then not retold. */
+	toldUnder?: string | null;
 }
 
 export interface NarrativePerson {
@@ -190,7 +192,7 @@ export function narrativeOf(
 	const opening = birth ?? person.facts.find((f) => f.type === 'CHR' || f.type === 'BAPM');
 	const intro = `${person.name}${parentsClause(person.parents)}`;
 	if (opening) say(`${intro} ${PERSON_VERBS[opening.type]!(opening, format)}.`, [opening]);
-	else say(`${intro.replace(/,$/, '')}.`);
+	else if (person.parents.length > 0) say(`${intro.replace(/,$/, '')}.`);
 
 	for (const fact of person.facts) {
 		if (fact === opening) continue;
@@ -209,6 +211,12 @@ export function narrativeOf(
 	}
 
 	for (const partnership of person.partnerships) {
+		if (partnership.toldUnder) {
+			say(
+				`${person.givenName}’s family with ${partnership.partnerName ?? 'a partner'} is told under number ${partnership.toldUnder}.`
+			);
+			continue;
+		}
 		const marriage = partnership.events.find((e) => e.type === 'MARR');
 		const partner = partnership.partnerName;
 		if (marriage)
@@ -232,5 +240,7 @@ export function narrativeOf(
 		say(
 			`${person.givenName} also had ${person.otherChildren.length === 1 ? 'a child' : 'children'} with no other parent recorded: ${listOf(person.otherChildren.map(childName))}.`
 		);
+	// A bare name only repeats the entry's heading, so it is said only when nothing else is.
+	if (sentences.length === 0) say(`${person.name}.`);
 	return sentences;
 }

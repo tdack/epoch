@@ -2,6 +2,7 @@
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import NarrativeBody from '#lib/components/reports/NarrativeBody.svelte';
 	import ResearchGaps from '#lib/components/reports/ResearchGaps.svelte';
+	import { brickWalls } from '#lib/shared/pedigree-stats.js';
 	import {
 		BOOK_SECTION_LABELS,
 		BOOK_SECTIONS,
@@ -28,21 +29,59 @@
 	const narrativeOf = (section: BookSection): NarrativeDto | null =>
 		section === BOOK_SECTIONS.ANCESTORS ? book.ancestors : book.descendants;
 
-	// shortcut: sorts on the last word of the display name, which misfiles "Jr." and particles; upgrade with a surname field on the entry.
+	// Both parts open on the subject; the ancestors part tells them, the descendants part points back.
+	const isRootFolded = $derived(has(BOOK_SECTIONS.ANCESTORS) && book.ancestors !== null);
+	const rootToldAt = (section: BookSection) =>
+		section === BOOK_SECTIONS.DESCENDANTS && isRootFolded
+			? { label: 'A1 in the ancestors part', href: '#a-entry-1' }
+			: null;
+
+	// shortcut: sorts and inverts on the last word of the display name, which misfiles "Jr." and particles; upgrade with a surname field on the entry.
+	const surnameFirst = (name: string) => {
+		const words = name.split(' ');
+		return words.length > 1 ? `${words.at(-1)}, ${words.slice(0, -1).join(' ')}` : name;
+	};
 	const index = $derived.by(() => {
 		const byName = new Map<string, Array<{ label: string; href: string }>>();
 		for (const part of PARTS) {
 			for (const entry of narrativeOf(part.section)?.entries ?? []) {
 				if (entry.isPrivate || entry.seeNumber) continue;
+				if (rootToldAt(part.section) && entry.generation === 1) continue;
 				byName.set(entry.name, [
 					...(byName.get(entry.name) ?? []),
 					{ label: `${part.mark}${entry.number}`, href: `#${part.prefix}entry-${entry.number}` }
 				]);
 			}
 		}
-		const key = (name: string) => `${name.split(' ').at(-1)} ${name}`.toLowerCase();
-		return [...byName].sort(([a], [b]) => key(a).localeCompare(key(b)));
+		return [...byName]
+			.map(([name, refs]) => ({ name: surnameFirst(name), refs }))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	});
+	/** The index under letter headings, as a printed index reads. */
+	const indexGroups = $derived.by(() => {
+		const groups = new Map<string, typeof index>();
+		for (const item of index) {
+			const letter = item.name.charAt(0).toLocaleUpperCase();
+			groups.set(letter, [...(groups.get(letter) ?? []), item]);
+		}
+		return [...groups];
+	});
+
+	const told = (narrative: NarrativeDto | null) =>
+		narrative?.entries.filter((e) => !e.isPrivate && !e.seeNumber).length ?? 0;
+	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+	/** What each part holds, beside its line in the contents. */
+	const extent = $derived<Record<BookSection, string>>({
+		[BOOK_SECTIONS.ANCESTORS]: plural(told(book.ancestors), 'person', 'people'),
+		[BOOK_SECTIONS.DESCENDANTS]: plural(told(book.descendants), 'person', 'people'),
+		[BOOK_SECTIONS.GAPS]: plural(brickWalls(book.pedigree).length, 'brick wall', 'brick walls'),
+		[BOOK_SECTIONS.INDEX]: plural(index.length, 'name', 'names')
+	});
+	const PART_NOTES: Record<(typeof PARTS)[number]['section'], string> = {
+		[BOOK_SECTIONS.ANCESTORS]: 'Numbered by Ahnentafel: the parents of number n are 2n and 2n + 1.',
+		[BOOK_SECTIONS.DESCENDANTS]:
+			"Numbered d'Aboville: each child adds a place to their parent's number."
+	};
 </script>
 
 <svelte:head>
@@ -85,20 +124,28 @@
 	</div>
 </form>
 
-<header id="book-title" class="mt-8 scroll-mt-32 print:mt-[30vh] print:text-center">
-	<h1 class="text-3xl font-bold text-stone-900">{heading}</h1>
-	<p class="mt-2 text-stone-600">From {data.summary.tree.name}</p>
+<header
+	id="book-title"
+	class="mt-10 max-w-2xl scroll-mt-32 print:mt-[28vh] print:max-w-none print:text-center"
+>
+	<h1 class="text-2xl font-bold text-balance text-stone-900 print:text-4xl">{heading}</h1>
+	<p class="mt-2 text-sm text-stone-600 print:mt-4 print:text-base">
+		From {data.summary.tree.name} · {plural(book.generations, 'generation', 'generations')}
+	</p>
 </header>
 
 <nav
 	aria-label="Contents"
-	class="mt-8 max-w-3xl print:break-before-page"
+	class="mt-8 max-w-md print:mt-0 print:max-w-lg print:break-before-page"
 	data-testid="book-contents"
 >
-	<h2 class="text-lg font-bold text-stone-900">Contents</h2>
-	<ol class="mt-2 list-decimal space-y-1 pl-5 text-sm">
+	<h2 class="section-heading border-b border-stone-200 pb-1.5 print:border-stone-400">Contents</h2>
+	<ol class="text-sm">
 		{#each book.sections as section (section)}
-			<li><a class="text-link" href="#book-{section}">{BOOK_SECTION_LABELS[section]}</a></li>
+			<li class="flex items-baseline gap-3 border-b border-stone-100 py-2 print:border-stone-200">
+				<a class="text-link" href="#book-{section}">{BOOK_SECTION_LABELS[section]}</a>
+				<span class="ml-auto text-xs text-stone-500 tabular-nums">{extent[section]}</span>
+			</li>
 		{/each}
 	</ol>
 </nav>
@@ -109,12 +156,22 @@
 		<section
 			id="book-{part.section}"
 			aria-labelledby="book-{part.section}-heading"
-			class="mt-10 print:break-before-page"
+			class="mt-16 scroll-mt-32 print:mt-0 print:break-before-page"
 		>
-			<h2 id="book-{part.section}-heading" class="text-2xl font-bold text-stone-900">
+			<h2
+				id="book-{part.section}-heading"
+				class="max-w-2xl text-xl font-bold text-balance text-stone-900 print:text-2xl"
+			>
 				{BOOK_SECTION_LABELS[part.section]} of {subject.name}
 			</h2>
-			<NarrativeBody {narrative} {personHref} idPrefix={part.prefix} level={3} />
+			<p class="mt-1 max-w-2xl text-sm text-stone-600">{PART_NOTES[part.section]}</p>
+			<NarrativeBody
+				{narrative}
+				{personHref}
+				idPrefix={part.prefix}
+				level={3}
+				rootToldAt={rootToldAt(part.section)}
+			/>
 		</section>
 	{/if}
 {/each}
@@ -123,9 +180,11 @@
 	<section
 		id="book-gaps"
 		aria-labelledby="book-gaps-heading"
-		class="mt-10 max-w-3xl print:break-before-page"
+		class="mt-16 max-w-3xl scroll-mt-32 print:mt-0 print:break-before-page"
 	>
-		<h2 id="book-gaps-heading" class="text-2xl font-bold text-stone-900">Research gaps</h2>
+		<h2 id="book-gaps-heading" class="text-xl font-bold text-stone-900 print:text-2xl">
+			Research gaps
+		</h2>
 		<ResearchGaps chart={book.pedigree} {personHref} level={3} />
 	</section>
 {/if}
@@ -134,23 +193,35 @@
 	<section
 		id="book-index"
 		aria-labelledby="book-index-heading"
-		class="mt-10 max-w-3xl print:break-before-page"
+		class="mt-16 max-w-3xl scroll-mt-32 print:mt-0 print:max-w-none print:break-before-page"
 	>
-		<h2 id="book-index-heading" class="text-2xl font-bold text-stone-900">Index of names</h2>
-		<p class="mt-1 text-sm text-stone-600">A is the ancestors part, D the descendants part.</p>
+		<h2 id="book-index-heading" class="text-xl font-bold text-stone-900 print:text-2xl">
+			Index of names
+		</h2>
+		<p class="mt-1 text-sm text-stone-600">
+			A refers to the ancestors part and D to the descendants part, then the person's number.
+		</p>
 		{#if index.length === 0}
-			<p class="mt-2 text-sm text-stone-600">Tick a narrative to index its names.</p>
+			<p class="mt-4 text-sm text-stone-600">Tick a narrative to index its names.</p>
 		{:else}
-			<ul class="mt-2 columns-2 gap-6 text-sm" data-testid="book-index">
-				{#each index as [name, refs] (name)}
-					<li class="break-inside-avoid">
-						{name}:
-						{#each refs as ref, i (ref.href)}{i > 0 ? ', ' : ''}<a class="text-link" href={ref.href}
-								>{ref.label}</a
-							>{/each}
-					</li>
+			<div class="mt-6 gap-8 text-sm sm:columns-2 lg:columns-3" data-testid="book-index">
+				{#each indexGroups as [letter, items] (letter)}
+					<h3 class="section-heading mt-4 break-after-avoid first:mt-0">{letter}</h3>
+					<ul class="mt-1 space-y-0.5">
+						{#each items as item (item.name)}
+							<li class="break-inside-avoid pl-4 -indent-4">
+								<span class="text-stone-800">{item.name}</span>
+								<span class="ml-1 text-stone-500 tabular-nums">
+									{#each item.refs as ref, i (ref.href)}{i > 0 ? ', ' : ''}<a
+											class="row-link"
+											href={ref.href}>{ref.label}</a
+										>{/each}
+								</span>
+							</li>
+						{/each}
+					</ul>
 				{/each}
-			</ul>
+			</div>
 		{/if}
 	</section>
 {/if}

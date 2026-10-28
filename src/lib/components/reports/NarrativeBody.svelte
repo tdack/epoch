@@ -10,27 +10,36 @@
 		idPrefix?: string;
 		/** Heading level of each generation; entries are one level below and notes share it. */
 		level?: 2 | 3;
+		/**
+		 * Where the first person's own story is already told on this page, so their entry points
+		 * there instead of repeating it (the family book's descendants part).
+		 */
+		rootToldAt?: { label: string; href: string } | null;
 	}
 
-	let { narrative, personHref, idPrefix = '', level = 2 }: Props = $props();
+	let { narrative, personHref, idPrefix = '', level = 2, rootToldAt = null }: Props = $props();
 	const generationNumbers = $derived([...new Set(narrative.entries.map((e) => e.generation))]);
 	const heading = $derived(`h${level}`);
 	const entryHeading = $derived(`h${level + 1}`);
 </script>
 
 {#each generationNumbers as generation (generation)}
-	<section aria-labelledby="{idPrefix}generation-{generation}" class="mt-6">
+	<section aria-labelledby="{idPrefix}generation-{generation}" class="mt-8">
 		<svelte:element
 			this={heading}
 			id="{idPrefix}generation-{generation}"
-			class="break-after-avoid text-lg font-bold text-stone-900"
+			class="section-heading max-w-2xl break-after-avoid border-b border-stone-200 pb-1.5 print:border-stone-400"
 		>
 			Generation {generation}
 		</svelte:element>
 		{#each narrative.entries.filter((e) => e.generation === generation) as entry (entry.number)}
-			<article id="{idPrefix}entry-{entry.number}" class="mt-3 max-w-3xl text-sm leading-relaxed">
-				<svelte:element this={entryHeading} class="break-after-avoid font-semibold">
-					{entry.number}.
+			{@const isFolded = rootToldAt !== null && entry.generation === 1}
+			<article
+				id="{idPrefix}entry-{entry.number}"
+				class="mt-4 max-w-2xl scroll-mt-32 text-sm/relaxed text-stone-800"
+			>
+				<svelte:element this={entryHeading} class="break-after-avoid">
+					<span class="mr-1 font-semibold text-stone-500 tabular-nums">{entry.number}.</span>
 					{#if entry.isPrivate}
 						<span class="text-stone-600 italic">Private</span>
 					{:else}
@@ -38,18 +47,26 @@
 					{/if}
 				</svelte:element>
 				{#if !entry.isPrivate}
-					{#if entry.seeNumber}
-						<p>
+					{#if isFolded && rootToldAt}
+						<p class="mt-0.5 text-stone-600">
+							Told under <a href={rootToldAt.href} class="text-link">{rootToldAt.label}</a>; the
+							children follow.
+						</p>
+					{:else if entry.seeNumber}
+						<p class="mt-0.5 text-stone-600">
 							See number <a href="#{idPrefix}entry-{entry.seeNumber}" class="text-link"
 								>{entry.seeNumber}</a
 							>.
 						</p>
 					{:else}
-						<p>
+						<p class="mt-0.5 text-pretty">
 							{#each entry.sentences as sentence, i (i)}{i > 0
 									? ' '
 									: ''}{sentence.text}{#each sentence.notes as n (n)}<sup
-										><a href="#{idPrefix}note-{n}" aria-label="Note {n}" class="text-link">{n}</a
+										><a
+											href="#{idPrefix}note-{n}"
+											aria-label="Note {n}"
+											class="text-link ml-px text-xs">{n}</a
 										></sup
 									>{/each}{/each}
 						</p>
@@ -61,19 +78,26 @@
 {/each}
 
 {#if narrative.hasMore}
-	<p class="mt-6 text-sm text-stone-600" data-testid="more">
+	<p class="mt-8 max-w-2xl text-sm text-stone-600" data-testid="more">
 		More generations exist past generation {narrative.generations}.
 	</p>
 {/if}
 
 {#if narrative.endnotes.length > 0}
-	<section aria-labelledby="{idPrefix}endnotes" class="mt-8 border-t border-stone-300 pt-3">
-		<svelte:element this={heading} id="{idPrefix}endnotes" class="text-lg font-bold text-stone-900"
+	<section aria-labelledby="{idPrefix}endnotes" class="mt-10 max-w-2xl">
+		<svelte:element
+			this={heading}
+			id="{idPrefix}endnotes"
+			class="section-heading border-b border-stone-200 pb-1.5 print:border-stone-400"
 			>Notes</svelte:element
 		>
-		<ol class="mt-2 list-decimal space-y-1 pl-5 text-sm">
-			{#each narrative.endnotes as note (note.number)}<li id="{idPrefix}note-{note.number}">
-					{note.text}
+		<ol class="mt-3 space-y-1 text-xs/relaxed text-stone-700">
+			{#each narrative.endnotes as note (note.number)}<li
+					id="{idPrefix}note-{note.number}"
+					class="grid scroll-mt-32 grid-cols-[2rem_1fr]"
+				>
+					<span class="text-right font-semibold text-stone-500 tabular-nums">{note.number}.</span
+					><span class="pl-2">{note.text}</span>
 				</li>{/each}
 		</ol>
 	</section>
