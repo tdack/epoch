@@ -78,4 +78,16 @@ describe('a member’s own person', () => {
 		const members = await new MemberService(t.db).list(s.treeId, s.owner.context);
 		expect(JSON.stringify(members)).not.toMatch(/self|Olda/i);
 	});
+
+	it('names a person for the reports only when the caller may see them', async () => {
+		const s = await setup();
+		const olda = await idOf(s.treeId, 'Olda');
+		const hidden = await idOf(s.treeId, 'Dateless');
+		expect(await s.service.visiblePerson(s.treeId, olda, s.viewer.context)).toEqual({
+			id: olda,
+			name: expect.any(String)
+		});
+		expect(await s.service.visiblePerson(s.treeId, hidden, s.viewer.context)).toBeNull();
+		expect(await s.service.visiblePerson(s.treeId, 'missing', s.viewer.context)).toBeNull();
+	});
 });

@@ -102,6 +102,9 @@
 	</div>
 	<div class="flex flex-wrap gap-2 print:hidden">
 		<a href="{unionHref(dto.union.id)}/sheet" class="action-btn">Family group sheet</a>
+		<a href="{treeHref}/reports?union={encodeURIComponent(dto.union.id)}" class="action-btn"
+			>Reports</a
+		>
 		<button type="button" onclick={() => editor.editUnion(dto.union.id)} class="action-btn"
 			><Pencil class="h-3.5 w-3.5" />Edit</button
 		>

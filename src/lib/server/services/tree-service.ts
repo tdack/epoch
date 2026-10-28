@@ -214,6 +214,16 @@ export class TreeService {
 		return name === null ? null : { id: mine.selfPersonId, name };
 	}
 
+	/** A person named by an address or a remembered focus, if they exist and the caller may see them. */
+	async visiblePerson(
+		treeId: string,
+		personId: string,
+		context: AuthenticatedContext
+	): Promise<{ id: string; name: string } | null> {
+		const name = await this.visibleName(treeId, personId, context);
+		return name === null ? null : { id: personId, name };
+	}
+
 	/** The display names of the caller's own "this is me" people, by tree; stale or hidden ones are left out. */
 	async selfPersonNames(context: AuthenticatedContext): Promise<Record<string, string>> {
 		const names: Record<string, string> = {};
