@@ -2,6 +2,7 @@
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
+	import ReportHeader from '#lib/components/reports/ReportHeader.svelte';
 	import { PARENT_CHILD_TYPES, type ParentChildType } from '#lib/shared/relationship-model.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import { UNION_STATUS_LABELS } from '#lib/shared/union-events.js';
@@ -40,26 +41,20 @@
 	<title>Family group sheet: {title} · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-xs text-stone-600 print:hidden">
-	<a href={treeHref} class="text-link">{data.summary.tree.name}</a>
-	<span aria-hidden="true"> › </span>
-	<a href={unionHref} class="text-link">{title}</a>
-</nav>
+<ReportHeader
+	crumbs={[
+		{ label: data.summary.tree.name, href: treeHref },
+		{ label: title, href: unionHref }
+	]}
+	title="Family group sheet"
+>
+	{#snippet summary()}
+		{title} · {dto.union.label?.full ?? 'Partnership'} · {UNION_STATUS_LABELS[dto.union.status]}
+	{/snippet}
+	{#snippet actions()}<PrintButton />{/snippet}
+</ReportHeader>
 
-<header class="flex flex-wrap items-start justify-between gap-3">
-	<div>
-		<h1 class="text-2xl font-bold text-stone-900">Family group sheet</h1>
-		<p class="mt-1 text-sm text-stone-600">
-			{title} · {dto.union.label?.full ?? 'Partnership'} · {UNION_STATUS_LABELS[dto.union.status]}
-		</p>
-	</div>
-	<div class="flex flex-wrap items-center gap-3 print:hidden">
-		<a href={unionHref} class="text-link text-sm">Back to the partnership</a>
-		<PrintButton />
-	</div>
-</header>
-
-<div class="mt-4 space-y-4">
+<div class="mt-6 space-y-4">
 	{#each dto.partners as partner, i (partner.id)}
 		<section aria-labelledby="partner-{i}" class="section-card break-inside-avoid">
 			<h2 id="partner-{i}" class="section-heading">Partner {i + 1}</h2>
@@ -105,31 +100,31 @@
 		{#if dto.children.length === 0}
 			<p class="mt-2 text-sm text-stone-600">No children recorded.</p>
 		{:else}
-			<table class="mt-2 w-full text-left text-sm" data-testid="sheet-children">
+			<table class="report-table mt-2" data-testid="sheet-children">
 				<thead>
-					<tr class="border-b border-stone-300 text-xs text-stone-600">
-						<th scope="col" class="py-1 pr-3">Name</th>
-						<th scope="col" class="py-1 pr-3">Born</th>
-						<th scope="col" class="py-1 pr-3">Died</th>
-						<th scope="col" class="py-1">Partners</th>
+					<tr>
+						<th scope="col">Name</th>
+						<th scope="col">Born</th>
+						<th scope="col">Died</th>
+						<th scope="col">Partners</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each dto.children as child (child.person.id)}
 						{@const id = child.person.id}
-						<tr class="break-inside-avoid border-b border-stone-200 align-top">
-							<th scope="row" class="py-1 pr-3 font-medium">
+						<tr>
+							<th scope="row">
 								<PersonLink person={child.person} href={personHref(id)} />
 								{#each unusualLinks(child.links) as note (note)}
 									<span class="block text-xs font-normal text-stone-600">{note}</span>
 								{/each}
 							</th>
 							{#if child.person.isPrivate}
-								<td class="py-1 pr-3"></td><td class="py-1 pr-3"></td><td class="py-1"></td>
+								<td></td><td></td><td></td>
 							{:else}
-								<td class="py-1 pr-3">{dateAndPlace(vital(id, 'BIRT')) || ''}</td>
-								<td class="py-1 pr-3">{dateAndPlace(vital(id, 'DEAT')) || ''}</td>
-								<td class="py-1">
+								<td>{dateAndPlace(vital(id, 'BIRT')) || ''}</td>
+								<td>{dateAndPlace(vital(id, 'DEAT')) || ''}</td>
+								<td>
 									{#each data.sheet.partnersOfChildren[id] ?? [] as p, i (p.unionId)}{i > 0
 											? ', '
 											: ''}<PersonLink person={p.person} href={personHref(p.person.id)} />{/each}

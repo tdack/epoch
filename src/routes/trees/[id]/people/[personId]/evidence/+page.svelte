@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
+	import ReportHeader from '#lib/components/reports/ReportHeader.svelte';
 	import {
 		CITATION_QUALITY_LABELS,
 		CITATION_SUBJECT_KINDS,
@@ -82,59 +83,60 @@
 	<title>{heading} · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-sm text-stone-600 print:hidden">
-	<a href={base} class="text-link">{data.summary.tree.name}</a> /
-	<a href={personHref} class="text-link">{page.person.displayName}</a>
-</nav>
-<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
-<p class="mt-1 text-sm text-stone-600">
-	{sourcedCount} of {claims.length} claims have a source.
-</p>
-<div class="mt-3 print:hidden">
-	<PrintButton />
-</div>
+<ReportHeader
+	crumbs={[
+		{ label: data.summary.tree.name, href: base },
+		{ label: page.person.displayName, href: personHref }
+	]}
+	title={heading}
+>
+	{#snippet summary()}{sourcedCount} of {claims.length} claims have a source.{/snippet}
+	{#snippet actions()}<PrintButton />{/snippet}
+</ReportHeader>
 
-<table class="mt-5 w-full max-w-4xl text-left text-sm" data-testid="evidence-summary">
-	<caption class="sr-only">{heading}</caption>
-	<thead class="border-b border-stone-300 text-stone-600">
-		<tr>
-			<th scope="col" class="py-1.5 pr-3 font-semibold">Claim</th>
-			<th scope="col" class="py-1.5 pr-3 font-semibold">Date</th>
-			<th scope="col" class="py-1.5 pr-3 font-semibold">Place</th>
-			<th scope="col" class="py-1.5 font-semibold">Sources</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each claims as claim (claim.key)}
-			<tr class="break-inside-avoid border-b border-stone-200 align-top">
-				<th scope="row" class="py-1.5 pr-3 font-normal">{claim.what}</th>
-				<td class="py-1.5 pr-3">{date(claim.date)}</td>
-				<td class="py-1.5 pr-3">{claim.place ?? ''}</td>
-				<td class="py-1.5">
-					{#if claim.citations.length === 0}
-						<span class="text-stone-600"
-							>{claim.isKey ? 'No source yet: worth finding' : 'No source'}</span
-						>
-					{:else}
-						<ul class="space-y-1">
-							{#each claim.citations as c (c.id)}
-								<li>
-									{#if c.sourceId}
-										<a class="text-link" href="{base}/sources/{encodeURIComponent(c.sourceId)}"
-											>{c.sourceLabel}</a
-										>
-									{:else}
-										{c.sourceLabel}
-									{/if}{c.page ? `, ${c.page}` : ''}
-									{#if c.quality !== null}
-										<span class="text-stone-600"> · {CITATION_QUALITY_LABELS[c.quality]}</span>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</td>
+<div class="report-panel mt-5 max-w-4xl">
+	<table class="report-table" data-testid="evidence-summary">
+		<caption class="sr-only">{heading}</caption>
+		<thead>
+			<tr>
+				<th scope="col">Claim</th>
+				<th scope="col">Date</th>
+				<th scope="col">Place</th>
+				<th scope="col">Sources</th>
 			</tr>
-		{/each}
-	</tbody>
-</table>
+		</thead>
+		<tbody>
+			{#each claims as claim (claim.key)}
+				<tr>
+					<th scope="row">{claim.what}</th>
+					<td class="whitespace-nowrap">{date(claim.date)}</td>
+					<td>{claim.place ?? ''}</td>
+					<td>
+						{#if claim.citations.length === 0}
+							<span class={claim.isKey ? 'font-medium text-amber-900' : 'text-stone-600'}
+								>{claim.isKey ? 'No source yet: worth finding' : 'No source'}</span
+							>
+						{:else}
+							<ul class="space-y-1">
+								{#each claim.citations as c (c.id)}
+									<li>
+										{#if c.sourceId}
+											<a class="text-link" href="{base}/sources/{encodeURIComponent(c.sourceId)}"
+												>{c.sourceLabel}</a
+											>
+										{:else}
+											{c.sourceLabel}
+										{/if}{c.page ? `, ${c.page}` : ''}
+										{#if c.quality !== null}
+											<span class="text-stone-600"> · {CITATION_QUALITY_LABELS[c.quality]}</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+</div>

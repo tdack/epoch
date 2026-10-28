@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
+	import ReportHeader from '#lib/components/reports/ReportHeader.svelte';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import type { PageProps } from './$types';
 
@@ -73,20 +74,21 @@
 	<title>{heading} · {data.summary.tree.name} · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-sm text-stone-600 print:hidden">
-	<a href={base} class="text-link">{data.summary.tree.name}</a> /
-	<a href={personHref} class="text-link">{name}</a>
-</nav>
-<h1 class="mt-1 text-2xl font-bold text-stone-900">{heading}</h1>
-<p class="mt-2 text-sm text-stone-700">
-	Interviewed by <span class="inline-block w-48 border-b border-stone-400"></span> on
-	<span class="inline-block w-32 border-b border-stone-400"></span>
-</p>
-<div class="mt-3 print:hidden">
-	<PrintButton />
-</div>
+<ReportHeader
+	crumbs={[
+		{ label: data.summary.tree.name, href: base },
+		{ label: name, href: personHref }
+	]}
+	title={heading}
+>
+	{#snippet summary()}
+		Interviewed by <span class="inline-block w-48 border-b border-stone-400"></span> on
+		<span class="inline-block w-32 border-b border-stone-400"></span>
+	{/snippet}
+	{#snippet actions()}<PrintButton />{/snippet}
+</ReportHeader>
 
-<div class="mt-5 max-w-3xl space-y-6">
+<div class="mt-6 max-w-2xl space-y-8">
 	<section aria-labelledby="recorded-heading">
 		<h2 id="recorded-heading" class="section-heading">What the tree records</h2>
 		<p class="mt-1 text-sm text-stone-600">Tick what is right; write any correction beneath.</p>
@@ -96,8 +98,14 @@
 			<ul class="mt-2 space-y-3 text-sm" data-testid="interview-recorded">
 				{#each recorded as item (item.key)}
 					<li class="break-inside-avoid">
-						<span aria-hidden="true">☐</span>
-						{item.text}
+						<span class="flex items-start gap-2.5">
+							<!-- A box to tick with a pen; drawn, so it prints the same on every system. -->
+							<span
+								class="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-stone-500"
+								aria-hidden="true"
+							></span>
+							<span>{item.text}</span>
+						</span>
 						<div class="mt-4 border-b border-stone-300"></div>
 					</li>
 				{/each}

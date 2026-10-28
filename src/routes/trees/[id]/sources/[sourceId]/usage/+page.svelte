@@ -2,6 +2,7 @@
 	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import CsvDownload from '#lib/components/lists/CsvDownload.svelte';
+	import ReportHeader from '#lib/components/reports/ReportHeader.svelte';
 	import {
 		CITATION_QUALITY_LABELS,
 		MAX_SOURCE_USAGE_CITATIONS,
@@ -52,30 +53,26 @@
 	<title>Usage of {title} · Sources · Epoch</title>
 </svelte:head>
 
-<nav aria-label="Breadcrumb" class="text-xs text-stone-600 print:hidden">
-	<a href={base} class="text-link">{data.summary.tree.name}</a>
-	<span aria-hidden="true"> › </span>
-	<a href={sourceHref} class="text-link">{title}</a>
-</nav>
-
-<header class="flex flex-wrap items-start justify-between gap-3">
-	<div>
-		<h1 class="text-2xl font-bold text-stone-900">Source usage</h1>
-		<p class="mt-1 text-sm text-stone-600">
-			{title} · {source.citationCount}
-			{source.citationCount === 1 ? 'citation' : 'citations'}
-		</p>
-	</div>
-	<div class="flex flex-wrap items-center gap-3 print:hidden">
-		<a href={sourceHref} class="text-link text-sm">Back to the source</a>
+<ReportHeader
+	crumbs={[
+		{ label: data.summary.tree.name, href: base },
+		{ label: title, href: sourceHref }
+	]}
+	title="What {title} supports"
+>
+	{#snippet summary()}
+		{source.citationCount}
+		{source.citationCount === 1 ? 'citation' : 'citations'} of this source, grouped by what they support.
+	{/snippet}
+	{#snippet actions()}
 		<CsvDownload
 			filename="source-usage.csv"
 			header={HEADER}
 			rows={rows.map((r) => [r.label, r.date, r.place, r.detail])}
 		/>
 		<PrintButton />
-	</div>
-</header>
+	{/snippet}
+</ReportHeader>
 
 {#if source.hasMore}
 	<p class="mt-3 text-sm text-stone-700" role="status" data-testid="usage-capped">
@@ -86,25 +83,27 @@
 {#if rows.length === 0}
 	<p class="mt-4 text-sm text-stone-600">Nothing you can see cites this source.</p>
 {:else}
-	<table class="mt-4 w-full text-left text-sm" data-testid="usage-table">
-		<caption class="sr-only">What {title} supports</caption>
-		<thead>
-			<tr class="border-b border-stone-300">
-				{#each HEADER as h (h)}<th scope="col" class="py-1 pr-3 font-semibold">{h}</th>{/each}
-			</tr>
-		</thead>
-		<tbody>
-			{#each rows as row (row.key)}
-				<tr class="break-inside-avoid border-b border-stone-200 align-top">
-					<th scope="row" class="py-1 pr-3 font-normal">
-						{#if row.href}<a href={row.href} class="text-link">{row.label}</a
-							>{:else}{row.label}{/if}
-					</th>
-					<td class="py-1 pr-3">{row.date}</td>
-					<td class="py-1 pr-3">{row.place}</td>
-					<td class="py-1">{row.detail}</td>
+	<div class="report-panel mt-4">
+		<table class="report-table" data-testid="usage-table">
+			<caption class="sr-only">What {title} supports</caption>
+			<thead>
+				<tr>
+					{#each HEADER as h (h)}<th scope="col">{h}</th>{/each}
 				</tr>
-			{/each}
-		</tbody>
-	</table>
+			</thead>
+			<tbody>
+				{#each rows as row (row.key)}
+					<tr>
+						<th scope="row">
+							{#if row.href}<a href={row.href} class="text-link">{row.label}</a
+								>{:else}{row.label}{/if}
+						</th>
+						<td class="whitespace-nowrap">{row.date}</td>
+						<td>{row.place}</td>
+						<td>{row.detail}</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 {/if}
