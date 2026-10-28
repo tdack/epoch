@@ -144,7 +144,7 @@ describe('narrativeOf', () => {
 				otherChildren: [{ name: 'Fay Ash', number: null, type: 'foster' }]
 			})
 		);
-		expect(sentences.slice(1)).toEqual([
+		expect(sentences).toEqual([
 			'Ann married Ben Birch in 1922 in Leeds.',
 			'They divorced in 1930.',
 			'Their children were Cal Birch (1.1) and Dee Birch (adopted).',
@@ -152,6 +152,13 @@ describe('narrativeOf', () => {
 			'Ann also had a child with no other parent recorded: Fay Ash (foster child).'
 		]);
 		expect(sentences.join(' ')).not.toMatch(/married Eli/);
+	});
+
+	it('says the bare name only when nothing else is known, since it repeats the heading', () => {
+		expect(text(person())).toEqual(['Ann Ash.']);
+		expect(
+			text(person({ partnerships: [{ partnerName: 'Ben Birch', events: [], children: [] }] }))
+		).toEqual(['Ann had a partnership with Ben Birch.']);
 	});
 
 	it("names the subject's children when no partner is recorded", () => {

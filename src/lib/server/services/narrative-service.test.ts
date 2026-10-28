@@ -139,4 +139,14 @@ describe('the ancestor narrative', () => {
 		]);
 		expect(report.entries[2]!.sentences[0]!.text).toBe('Ben Birch was born in 1798.');
 	});
+
+	it('tells a family once, and points the second partner back to it', async () => {
+		const report = await narrative(idOf('Cal'), NARRATIVE_KINDS.ANCESTORS);
+		const [ann, ben] = [report.entries[1]!, report.entries[2]!].map((e) =>
+			e.sentences.map((s) => s.text)
+		);
+		expect(ann).toContain('Their children were Cal Birch (1) and Zed Birch.');
+		expect(ben.at(-1)).toBe('Ben’s family with Ann Ash is told under number 2.');
+		expect(ben.join(' ')).not.toContain('children');
+	});
 });

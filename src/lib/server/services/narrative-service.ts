@@ -234,6 +234,8 @@ export class NarrativeService {
 				: [];
 		};
 
+		// Report order: a family is told once, by whichever partner the report reaches first.
+		const position = new Map([...numbers.keys()].map((id, index) => [id, index]));
 		const out = new Map<string, NarrativePerson>();
 		for (const { row: person } of individuals) {
 			const id = person.id;
@@ -262,11 +264,17 @@ export class NarrativeService {
 					.sort(bySortThenOrder)
 					.map(factOf),
 				partnerships: myUnions.map((unionId) => {
-					const partners = coPartnerRows
-						.filter((r) => r.row.unionId === unionId && r.row.personId !== id)
-						.flatMap((r) => nameOf(r.row.personId) ?? []);
+					const partners = coPartnerRows.filter(
+						(r) => r.row.unionId === unionId && r.row.personId !== id
+					);
+					const toldBy = partners
+						.map((r) => r.row.personId)
+						.filter((p) => !isPrivate(p) && (position.get(p) ?? Infinity) < position.get(id)!)
+						.sort((a, b) => position.get(a)! - position.get(b)!)[0];
+					const names = partners.flatMap((r) => nameOf(r.row.personId) ?? []);
 					return {
-						partnerName: partners.length > 0 ? partners.join(' and ') : null,
+						partnerName: names.length > 0 ? names.join(' and ') : null,
+						toldUnder: toldBy ? numbers.get(toldBy)! : null,
 						events: shownUnionEvents
 							.filter((e) => e.entityId === unionId)
 							.sort(bySortThenOrder)
