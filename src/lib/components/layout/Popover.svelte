@@ -21,6 +21,8 @@
 		role?: 'menu' | 'dialog';
 		/** Which edge of the trigger the panel lines up with. */
 		align?: 'start' | 'end';
+		/** Opens upward, for a trigger pinned to the bottom of its pane. */
+		isAbove?: boolean;
 		/** Draw the panel as a modal bottom sheet over a backdrop, for phones. */
 		isSheet?: boolean;
 		/** Extra classes for the panel, for width and padding. */
@@ -37,6 +39,7 @@
 		label,
 		role = 'menu',
 		align = 'start',
+		isAbove = false,
 		isSheet = false,
 		panelClass = '',
 		class: rootClass = '',
@@ -195,7 +198,7 @@
 			onclick={onPanelClick}
 			class="border border-stone-300 bg-white text-stone-800 shadow-lg shadow-stone-900/10 focus:outline-none {isSheet
 				? 'fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl p-4'
-				: `absolute top-full z-40 mt-1.5 rounded-xl ${placedAlign === 'end' ? 'right-0' : 'left-0'}`} {panelClass}"
+				: `absolute ${isAbove ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-40 rounded-xl ${placedAlign === 'end' ? 'right-0' : 'left-0'}`} {panelClass}"
 		>
 			{@render children({ close: () => close(true) })}
 		</div>
