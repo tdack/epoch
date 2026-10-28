@@ -74,8 +74,10 @@ The rules beside it say how the sheet is sized: the short side up to A0's, the l
 		mask-image: linear-gradient(to left, transparent, #1c1917 40px);
 	}
 
+	/* The fade would clip the focus ring, so a focused region shows its whole edge instead. */
 	.pan:focus-visible {
 		outline-offset: 3px;
+		mask-image: none;
 	}
 
 	.spread {

@@ -66,8 +66,10 @@
 		mask-image: linear-gradient(to left, transparent, #1c1917 40px);
 	}
 
+	/* The fade would clip the focus ring, so a focused region shows its whole edge instead. */
 	.scroller:focus-visible {
 		outline-offset: 3px;
+		mask-image: none;
 	}
 
 	/* The drawing's lens runs on the figure's timeline, named, because a bare view() would bind to

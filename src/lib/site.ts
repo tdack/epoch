@@ -256,7 +256,7 @@ export const REPORT_GROUPS: ReportGroup[] = [
 			},
 			{
 				name: 'Family book',
-				text: 'Ancestors, descendants and research gaps in one book, with contents and an index of names.'
+				text: 'Ancestors, descendants and research gaps in one book, with contents and an index of names.'
 			}
 		]
 	},
