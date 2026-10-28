@@ -18,11 +18,16 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - **Step relationships** are worked out from a parent's partnerships rather than entered by hand.
 - **Honest dates.** Approximate, ranged, incomplete and conflicting dates are kept as written;
   `ABT 1900` never becomes an invented exact day.
+- **Dates in words.** `ABT 1900` is shown as "about 1900" and `BET 1968 AND 1970` as "between 1968
+  and 1970", in a format each tree chooses: 3 March 1900, March 3, 1900, 03 Mar 1900 or 03/03/1900.
+  The stored text, search and GEDCOM export are unchanged.
 - **Several names per person**, with types, components and a preferred display name, plus
   repeatable facts and events for people and partnerships.
 
 ### Exploring the tree
 
+- An **Overview** tab that opens on the family's span, births by decade and surnames, with
+  on-this-day and coming-up anniversaries, your open tasks and the latest changes.
 - A focus-centred family view where generations up and down, siblings, step relatives and
   relationship types can be shown or hidden. The view is kept in the address, so reloading,
   **Back** and shared links restore it.
@@ -40,11 +45,48 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - **Person pages:** names, facts (add, edit, remove, reorder), family, evidence, media and history.
 - **Partnership pages:** partners, events, children, chronology, evidence and warnings.
 - **Places** named by facts, with rename and merge.
+- **Person pages** also show the age at each event, a Life timeline with children's births, and
+  associations imported from GEDCOM on both people's pages.
 - **Sources, repositories and citations**, showing what each source supports.
 - **Shared notes**, and where each one is used.
 - **Research tasks** with filters.
 - A **data-quality report** that flags likely mistakes, with dismissals.
 - **Media** attached to people, kept private in your own storage.
+
+### Places and maps
+
+- **A location for each place,** from the GEDCOM file's coordinates, an OpenStreetMap search or a
+  pin dropped on the map. Setting, clearing or ignoring a location is logged and can be undone.
+- **The Places tab is a map** with the list beside it, clustering places that sit close together.
+  A place page shows its pin, and a person page maps the located facts of a life in order.
+- **Place suggestions as you type,** the tree's own places first, then OpenStreetMap's.
+- **Match places** looks up a tree's unlocated places in the background and lists the candidates,
+  scored against the place text, for a manager to accept one by one or all the high matches at once.
+- **Free OpenStreetMap services only:** Leaflet with OpenStreetMap tiles, and Photon for search,
+  called through your own install. Only place text is sent, never a person, date or tree. Text that
+  looks like a street address is never sent, and living people's homes are left off the maps.
+- The install owner can turn geocoding off or point it at their own Photon server.
+
+### Reports and printing
+
+- A **Reports** hub under Research. Each report reads the tree as you may see it, so a printout never
+  shows more than the screen.
+- **About a person:** individual summary, ancestor and descendant narratives (Ahnentafel, d'Aboville
+  or Henry numbering, with sources as numbered endnotes), relatives list, research gaps
+  (completeness by generation and brick walls), evidence summary, an interview sheet to take to a
+  relative, and a **family book** built from the sections you tick, with an index of names.
+- **About a partnership:** the family group sheet.
+- **Across the tree:** source usage, a place report including the places within a place, and a
+  month calendar of anniversaries.
+- **Downloads:** CSV from the source usage, place and calendar reports, and the anniversaries as an
+  iCalendar (`.ics`) file.
+- **Every page prints plainly:** no menus or buttons, black on white, with a footer naming the tree,
+  the print date and your role, and page numbers in Chrome 131 or later.
+- **Wall charts.** A chart prints landscape, and on A3 to A0 it is fitted to one sheet.
+- **The flat tree as a poster.** Printing the family view draws every loaded card at full detail on
+  one sheet cut to the drawing, from A4 up. Only the short side is held to A0's 841 mm, so a wide
+  tree runs on as a banner for a plotter roll instead of shrinking. **Download PDF** saves the
+  poster at its own size, for print dialogs that only offer the printer's paper.
 
 ### Editing safely together
 
@@ -58,6 +100,8 @@ data. Epoch is inspired by webtrees' capabilities, not its screens.
 - **Conflict protection.** If two people edit the same record at once, the second save is refused
   rather than overwriting the first.
 - **Delete with impact.** Removing a person or link first shows exactly what will be affected.
+- **Your own person.** Each member can say which person they are, and choose the person the tree
+  opens on for them.
 
 ### GEDCOM import and export
 
@@ -77,10 +121,10 @@ below.
 
 | Role        | Adds                                                                                                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer      | Browse people, places, charts and 3D views, and search. Living and private people are hidden.                                                                             |
+| Viewer      | Browse people, places, maps, charts and 3D views, search, and print and download the reports. Living and private people are hidden.                                       |
 | Contributor | Add people, relationships, citations, notes and research tasks. You see living people you added, but private people stay hidden.                                           |
-| Editor      | Change or delete any record, import GEDCOM and upload media. You see everyone, can read the change log and can undo your own changes.                                      |
-| Manager     | Invite people and change the roles of editors, contributors and viewers. Decide who is private, set tree options, export GEDCOM and undo anyone's change.                  |
+| Editor      | Change or delete any record, set a place's map location, import GEDCOM and upload media. You see everyone, can read the change log and can undo your own changes.         |
+| Manager     | Invite people and change the roles of editors, contributors and viewers. Decide who is private, set tree options such as the date format, match places to map locations, export GEDCOM and undo anyone's change. |
 | Owner       | Invite managers and other owners, and delete the tree. A tree always keeps at least one owner.                                                                             |
 
 The install owner is separate from tree roles: setup records you as the install owner, and you
@@ -117,7 +161,7 @@ It is kept and written back on export.
 </details>
 
 <details>
-<summary>What if o people edit the same person?</summary>
+<summary>What if two people edit the same person?</summary>
 
 The first save wins and the second is refused, with an explanation. Undo reverts your latest change, and warns you if the records have changed since.
 
@@ -148,7 +192,8 @@ Yes, under the GNU Affero General Public License, version 3 or later.
 <details>
 <summary>Does it work on a phone?</summary>
 
-Record pages, lists and the family view have phone layouts. The 3D views suit larger screens.
+Record pages, lists and the family view have phone layouts, and Epoch installs as a home-screen
+app with pull to refresh and an offline page. The 3D views suit larger screens.
 
 </details>
 
@@ -156,6 +201,15 @@ Record pages, lists and the family view have phone layouts. The 3D views suit la
 <summary>How does it relate to webtrees?</summary>
 
 Epoch is inspired by webtrees' capabilities, not its screens or code. It is a separate application that exchanges data with it through GEDCOM.
+
+</details>
+
+<details>
+<summary>Can I print the tree?</summary>
+
+Yes. Every page prints without the app's menus, the Reports hub has narratives, a family group
+sheet and a family book, charts print as wall charts on A3 to A0, and the family view prints or
+downloads as a PDF poster sized to the drawing.
 
 </details>
 
