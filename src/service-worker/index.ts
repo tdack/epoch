@@ -8,7 +8,8 @@ const CACHE_NAME = `epoch-shell-${version}`;
 // Private family data: only immutable assets and the offline page are ever cached. Pages, /api and
 // /media are never stored, because devices may be shared (ADR-077).
 const PRECACHE = [
-	...immutable.map((a) => resolve(a.path)),
+	// The poster PDF's fonts are 1.3 MB fetched only on a download; every install need not carry them.
+	...immutable.filter((a) => !a.path.endsWith('.ttf')).map((a) => resolve(a.path)),
 	...assets.map((a) => resolve(a.path)).filter(isShellFile)
 ];
 const OFFLINE_URL = '/offline.html';

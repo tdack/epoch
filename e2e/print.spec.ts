@@ -106,8 +106,12 @@ test('the flat tree prints alone on one sheet cut to the drawing', async ({ page
 	await open(page, `/trees/${api.treeSlug}?focus=${encodeURIComponent(kit.id)}&mode=flat`);
 	await expect(page.getByRole('button', { name: /Print as a poster/ })).toBeVisible();
 
+	// Drawn before the dialog opens: a poster drawn in a real print's beforeprint came out blank.
+	await page.evaluate(() => {
+		window.print = () => window.dispatchEvent(new Event('beforeprint'));
+	});
+	await page.getByRole('button', { name: /Print as a poster/ }).click();
 	await page.emulateMedia({ media: 'print' });
-	await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
 	const poster = page.locator('body > [data-tree-poster]');
 	await expect(poster.getByText('Kit Fox', { exact: true })).toBeVisible();
 	await expect(page.getByTestId('print-note')).toBeHidden();
@@ -121,4 +125,26 @@ test('the flat tree prints alone on one sheet cut to the drawing', async ({ page
 
 	await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
 	await expect(poster).toHaveCount(0);
+});
+
+test('the flat tree downloads as a PDF on the poster’s own sheet', async ({ page, api }) => {
+	const ann = await api.addPerson('Ann', 'Fox', { sex: 'F' });
+	const kit = await api.addPerson('Kit', 'Fox', { sex: 'M' });
+	await api.child(ann, kit);
+	await open(page, `/trees/${api.treeSlug}?focus=${encodeURIComponent(kit.id)}&mode=flat`);
+
+	await page.getByRole('button', { name: 'More poster options' }).click();
+	const [download] = await Promise.all([
+		page.waitForEvent('download'),
+		page.getByRole('menuitem', { name: 'Download PDF' }).click()
+	]);
+	expect(download.suggestedFilename()).toMatch(/poster\.pdf$/);
+	const pdf = (await import('node:fs')).readFileSync((await download.path())!).toString('latin1');
+	expect(pdf.match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
+	const [, width, height] = pdf.match(/\/MediaBox\s*\[\s*0 0 ([\d.]+) ([\d.]+)/)!;
+	// A parent above a child is taller than wide, so this sheet is A4 portrait.
+	expect([width, height].map((pt) => Math.round(Number(pt) / 2.8346))).toEqual([210, 297]);
+	// The sex symbols need a font of their own; PDF's built-in fonts have none of them.
+	expect(pdf).toContain('/FontFile2');
+	await expect(page.locator('body > [data-tree-poster]')).toHaveCount(0);
 });

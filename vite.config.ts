@@ -26,7 +26,7 @@ function buildCommit(): string | null {
 
 export default defineConfig({
 	define: { __EPOCH_COMMIT__: JSON.stringify(buildCommit()) },
-	// The WebGL scenes are imported lazily, so the dev server only finds three.js when a 3D view first
+	// The WebGL scenes and the poster PDF are imported lazily, so the dev server only finds three.js when a 3D view first
 	// opens; it then re-bundles and reloads the page mid-session, failing that load and losing the
 	// next click (a cold-cache e2e run landed on Ribbons instead of Flat). Bundling them up front
 	// avoids the reload. Dev only: the production build splits these chunks as before.
@@ -39,7 +39,9 @@ export default defineConfig({
 			'three/addons/lines/LineMaterial.js',
 			'three/addons/lines/LineSegments2.js',
 			'three/addons/lines/LineSegmentsGeometry.js',
-			'three/addons/utils/BufferGeometryUtils.js'
+			'three/addons/utils/BufferGeometryUtils.js',
+			'jspdf',
+			'svg2pdf.js'
 		]
 	},
 	plugins: [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { POSTER_MARGIN_MM, POSTER_MM_PER_UNIT, posterSheet } from './poster';
+import { POSTER_MARGIN_MM, POSTER_MM_PER_UNIT, posterPanels, posterSheet } from './poster';
 
 describe('the poster sheet', () => {
 	it('prints a tree at readable size on a sheet cut to fit it', () => {
@@ -30,5 +30,28 @@ describe('the poster sheet', () => {
 	it('never goes below A4', () => {
 		const sheet = posterSheet({ minX: 0, minY: 0, maxX: 210, maxY: 74 });
 		expect([sheet.widthMm, sheet.heightMm]).toEqual([297, 210]);
+	});
+});
+
+describe('the poster PDF’s panels', () => {
+	it('keeps a sheet within the page limit on one page', () => {
+		expect(posterPanels({ widthMm: 5080, heightMm: 400 })).toMatchObject({
+			count: 1,
+			widthMm: 5080
+		});
+	});
+
+	it('cuts a longer banner into equal panels along its long side', () => {
+		expect(posterPanels({ widthMm: 6794, heightMm: 394 })).toEqual({
+			count: 2,
+			widthMm: 3397,
+			heightMm: 394,
+			isWide: true
+		});
+		expect(posterPanels({ widthMm: 600, heightMm: 12_000 })).toMatchObject({
+			count: 3,
+			widthMm: 600,
+			heightMm: 4000
+		});
 	});
 });
