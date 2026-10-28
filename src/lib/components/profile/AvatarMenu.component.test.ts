@@ -23,7 +23,7 @@ function render(viewer: { name: string | null; avatarUrl: string | null }, admin
 }
 
 describe('AvatarMenu', () => {
-	it('shows initials on the trigger, and Account and Sign out when opened', () => {
+	it('shows initials on the trigger, and Account, Refresh and Sign out when opened', () => {
 		render({ name: 'Troy Dack', avatarUrl: null });
 		const trigger = document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
 		expect(trigger.getAttribute('aria-label')).toBe('Account menu');
@@ -33,9 +33,10 @@ describe('AvatarMenu', () => {
 		const items = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')];
 		expect(items.map((a) => [a.textContent?.trim(), a.getAttribute('href')])).toEqual([
 			['Account', '/account'],
+			['Refresh', expect.any(String)],
 			['Sign out', '/cdn-cgi/access/logout?returnTo=x']
 		]);
-		expect(items[1].hasAttribute('data-sveltekit-reload')).toBe(true);
+		expect(items.slice(1).every((a) => a.hasAttribute('data-sveltekit-reload'))).toBe(true);
 	});
 
 	it('offers Administration only when given its address', () => {
@@ -45,7 +46,7 @@ describe('AvatarMenu', () => {
 		const labels = [...document.querySelectorAll('[role="menuitem"]')].map((a) =>
 			a.textContent?.trim()
 		);
-		expect(labels).toEqual(['Account', 'Administration', 'Sign out']);
+		expect(labels).toEqual(['Account', 'Administration', 'Refresh', 'Sign out']);
 	});
 
 	it('shows the picture, labelled, when there is one, and the email initial with no name', () => {

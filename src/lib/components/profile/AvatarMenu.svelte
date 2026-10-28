@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { LogOut, Shield, User } from '@lucide/svelte';
+	import { LogOut, RefreshCw, Shield, User } from '@lucide/svelte';
+	import { page } from '$app/state';
 	import Popover from '#lib/components/layout/Popover.svelte';
 	import Avatar from '#lib/components/profile/Avatar.svelte';
 	import type { ProfileViewDto } from '#lib/shared/profile.js';
@@ -47,6 +48,11 @@
 				Administration
 			</a>
 		{/if}
+		<!-- A home-screen app has no reload button, and the pull gesture is no use to a screen reader. -->
+		<a href={page.url.href} role="menuitem" data-sveltekit-reload class={itemClass}>
+			<RefreshCw class="h-3.5 w-3.5" aria-hidden="true" />
+			Refresh
+		</a>
 		<!-- The reload keeps the client router from answering the Cloudflare path with a 404. -->
 		<a href={signOutHref} role="menuitem" data-sveltekit-reload class={itemClass}>
 			<LogOut class="h-3.5 w-3.5" aria-hidden="true" />
