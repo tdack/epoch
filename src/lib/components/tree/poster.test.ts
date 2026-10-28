@@ -11,14 +11,20 @@ describe('the poster sheet', () => {
 		expect(sheet.viewBox).toBe('-30 -30 4000 2000');
 	});
 
-	it('shrinks a tree too big for A0 onto A0, turned to suit its shape', () => {
+	it('runs a wide tree on as a banner at readable size', () => {
 		const wide = posterSheet({ minX: 0, minY: 0, maxX: 20_000, maxY: 2_000 });
-		expect(wide.widthMm).toBeLessThanOrEqual(1189);
+		expect(wide.cardWidthMm).toBe(210 * POSTER_MM_PER_UNIT);
+		expect(wide.widthMm).toBeGreaterThan(5_000);
 		expect(wide.heightMm).toBeLessThanOrEqual(841);
-		expect(wide.cardWidthMm).toBeLessThan(210 * POSTER_MM_PER_UNIT);
-		const tall = posterSheet({ minX: 0, minY: 0, maxX: 2_000, maxY: 20_000 });
+	});
+
+	it('shrinks a tree only when its short side is wider than a roll, turned to suit its shape', () => {
+		const huge = posterSheet({ minX: 0, minY: 0, maxX: 20_000, maxY: 8_000 });
+		expect(huge.heightMm).toBeLessThanOrEqual(841);
+		expect(huge.cardWidthMm).toBeLessThan(210 * POSTER_MM_PER_UNIT);
+		const tall = posterSheet({ minX: 0, minY: 0, maxX: 8_000, maxY: 20_000 });
 		expect(tall.widthMm).toBeLessThanOrEqual(841);
-		expect(tall.heightMm).toBeLessThanOrEqual(1189);
+		expect(tall.heightMm).toBeGreaterThan(tall.widthMm);
 	});
 
 	it('never goes below A4', () => {
