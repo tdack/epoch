@@ -233,6 +233,10 @@
 		<a href={`${treeHref}/relationship?from=${encodeURIComponent(dto.person.id)}`} class="text-link"
 			>Relationship to…</a
 		>
+		<span aria-hidden="true">·</span>
+		<a href={`${treeHref}/reports?focus=${encodeURIComponent(dto.person.id)}`} class="text-link"
+			>Reports</a
+		>
 	</p>
 </div>
 

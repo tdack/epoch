@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import PersonPicker from '#lib/components/PersonPicker.svelte';
 	import { chartAddress } from '#lib/shared/charts.js';
 	import { DEFAULT_NARRATIVE_GENERATIONS, NARRATIVE_KINDS } from '#lib/shared/reports.js';
@@ -10,7 +9,10 @@
 	const treeId = $derived(data.summary.tree.id);
 	const base = $derived(treePath(data.summary.tree));
 
-	let picked = $state<{ id: string; name: string } | null>(untrack(() => data.me));
+	// Writable, so a pick sticks until the address names someone else (back and forward reuse the page).
+	let picked = $derived<{ id: string; name: string } | null>(
+		data.focus ?? data.union?.partners[0] ?? data.me
+	);
 	const personBase = (id: string) => `${base}/people/${encodeURIComponent(id)}`;
 	const narrative = (id: string, kind: string) =>
 		`${personBase(id)}/narrative?kind=${kind}&generations=${DEFAULT_NARRATIVE_GENERATIONS}`;
@@ -102,11 +104,31 @@
 
 	<section aria-labelledby="about-partnership" class="section-card">
 		<h2 id="about-partnership" class="section-heading">About a partnership</h2>
-		<p class="mt-2 text-sm text-stone-700">
-			A family group sheet lists a partnership's partners, their parents and the children. Open a
-			partnership, then choose Family group sheet.
-		</p>
-		<p class="mt-2 text-sm"><a class="text-link" href="{base}/unions">Partnerships</a></p>
+		{#if data.union}
+			<ul class="mt-2 space-y-1.5 text-sm" data-testid="union-reports">
+				<li>
+					<a class="text-link" href="{base}/unions/{encodeURIComponent(data.union.id)}/sheet"
+						>Family group sheet</a
+					>
+					<span class="text-stone-600">
+						· {data.union.partners.map((p) => p.name).join(' and ') || 'Partnership'}</span
+					>
+				</li>
+				{#each data.union.partners as partner (partner.id)}
+					<li>
+						<button type="button" class="text-link" onclick={() => (picked = partner)}
+							>Reports about {partner.name}</button
+						>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="mt-2 text-sm text-stone-700">
+				A family group sheet lists a partnership's partners, their parents and the children. Open a
+				partnership, then choose Reports.
+			</p>
+			<p class="mt-2 text-sm"><a class="text-link" href="{base}/unions">Partnerships</a></p>
+		{/if}
 	</section>
 
 	<section aria-labelledby="across-tree" class="section-card">

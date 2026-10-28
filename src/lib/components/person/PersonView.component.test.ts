@@ -286,6 +286,12 @@ describe('relativeTarget', () => {
 		expect(document.querySelector('[data-testid="siblings"] a')).toBeNull();
 	});
 
+	it('links to the reports about this person', () => {
+		open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
+		const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Reports')!;
+		expect(link.getAttribute('href')).toBe(`/trees/t/reports?focus=${family().person.id}`);
+	});
+
 	it('is a link to their page on the person page', () => {
 		open(family(), { layout: 'page', relativeTarget: { kind: 'link' } });
 		const link = document.querySelector('[data-testid="siblings"] a')!;
