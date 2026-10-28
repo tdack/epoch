@@ -5,7 +5,6 @@ export const DEMO_URL = 'https://demo.epochgenealogy.app';
 const DEMO_TREE_URL = `${DEMO_URL}/trees/windsor-glucksburg-extended-lineage`;
 export const DEMO_SUBTREE_URL = `${DEMO_TREE_URL}~windsor-line`;
 export const DEMO_REPORTS_URL = `${DEMO_TREE_URL}/reports`;
-export const DEMO_PLACES_URL = `${DEMO_TREE_URL}/places`;
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';
@@ -316,9 +315,7 @@ export const MAPS_PAGE = {
 	paragraphs: [
 		'A place gets its location from the coordinates in a GEDCOM file, from an OpenStreetMap search, or from a pin dropped on the map. The Places tab shows them all on a map beside the list, and a person’s page traces their life from place to place.',
 		'While you type a place, Epoch suggests the tree’s own places first, then OpenStreetMap’s. An [editor](/roles) can set or clear a location, and a manager can run Match places, which looks up every unlocated place and lists the likely matches to accept. Every change to a location can be undone.'
-	],
-	closeTitle: 'See the demo family’s places.',
-	closeAction: 'Open the demo’s map'
+	]
 };
 
 /** What a place search sends and what it never does (ADR-078 on `main`). */

@@ -4,7 +4,7 @@
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import RichText from '#lib/components/RichText.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
-	import { DEMO_PLACES_URL, MAP_PRIVACY, MAPS_NOTE, MAPS_PAGE, SITE_URL } from '#lib/site.js';
+	import { MAP_PRIVACY, MAPS_NOTE, MAPS_PAGE, SITE_URL } from '#lib/site.js';
 </script>
 
 <svelte:head>
@@ -58,11 +58,8 @@
 	</section>
 </main>
 
-<SiteFooter
-	title={MAPS_PAGE.closeTitle}
-	actionLabel={MAPS_PAGE.closeAction}
-	actionHref={DEMO_PLACES_URL}
-/>
+<!-- The demo's places have no locations yet, so the close opens the tree, not an empty map. -->
+<SiteFooter />
 
 <style>
 	.wrap {
