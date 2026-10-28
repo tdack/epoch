@@ -77,7 +77,7 @@ describe('narrative page', () => {
 		expect(hidden!.textContent).toContain('Private');
 		expect(hidden!.textContent).not.toContain('Hidden');
 		expect(hidden!.querySelector('p')).toBeNull();
-		expect(document.getElementById('note-1')!.textContent).toBe('Birth certificate');
+		expect(document.getElementById('note-1')!.textContent).toBe('1.Birth certificate');
 		expect(document.querySelector('[data-testid="more"]')).not.toBeNull();
 	});
 });
