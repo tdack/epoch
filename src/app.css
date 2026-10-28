@@ -302,6 +302,13 @@ select:not([multiple]) {
 			color: #57534e;
 		}
 	}
+	/* The flat tree's poster prints alone on a sheet cut to the drawing (TreeCanvas sets its size). */
+	body:has(> [data-tree-poster]) {
+		page: tree-poster;
+	}
+	body:has(> [data-tree-poster]) > :not([data-tree-poster]) {
+		display: none !important;
+	}
 	/* A chart is wider than it is tall, and the page it is on says so. */
 	@page chart {
 		size: A4 landscape;
