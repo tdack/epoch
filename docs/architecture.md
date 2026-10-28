@@ -199,6 +199,12 @@ tree too, with unconnected families side by side ([ADR-046](./adr/ADR-046.md)). 
 renders both the drawer and the person page ([ADR-027](./adr/ADR-027.md)); the page leads with the person's life as a
 timeline, and the drawer groups facts by kind ([ADR-053](./adr/ADR-053.md), [ADR-058](./adr/ADR-058.md)).
 
+Reports are ordinary pages with a print stylesheet, each read through a service a screen already
+uses, so a printout never shows more than the screen ([ADR-080](./adr/ADR-080.md)). The hub at
+Research, Reports takes its subject from the person, drawer or partnership page that linked to it.
+The flat view prints as one poster cut to the drawing, or downloads it as a PDF built in the browser
+with jsPDF and svg2pdf.js, loaded only on a download ([ADR-081](./adr/ADR-081.md)).
+
 Colours and motion are settings, layered like webtrees: the built-in palette, a site default the
 install owner sets, and each person's own choice, one group at a time (sex colours, trace palette,
 focus line). There is no per-tree layer. The root layout resolves the palette once per page and
