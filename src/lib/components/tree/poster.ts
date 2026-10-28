@@ -56,3 +56,21 @@ export function posterSheet(bounds: TreeLayout['bounds']): PosterSheet {
 		cardWidthMm: round(LAYOUT_METRICS.cardWidth * mmPerUnit)
 	};
 }
+
+/** PDF's own page limit, 200 inches; jsPDF clips a longer side to it, and so does Acrobat. */
+const MAX_PAGE_MM = 5080;
+
+/**
+ * How a sheet is cut into equal panels that butt together along its long side, each within the
+ * PDF page limit; one panel for any sheet that already fits.
+ */
+export function posterPanels(sheet: Pick<PosterSheet, 'widthMm' | 'heightMm'>) {
+	const isWide = sheet.widthMm >= sheet.heightMm;
+	const count = Math.ceil(Math.max(sheet.widthMm, sheet.heightMm) / MAX_PAGE_MM);
+	return {
+		count,
+		widthMm: isWide ? sheet.widthMm / count : sheet.widthMm,
+		heightMm: isWide ? sheet.heightMm : sheet.heightMm / count,
+		isWide
+	};
+}

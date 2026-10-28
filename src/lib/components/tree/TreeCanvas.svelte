@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { Printer } from '@lucide/svelte';
+	import { ChevronUp, Download, Printer } from '@lucide/svelte';
+	import Popover from '#lib/components/layout/Popover.svelte';
 	import { requestPrint } from '#lib/components/layout/print.js';
 	import {
 		LAYOUT_METRICS,
@@ -26,7 +27,7 @@
 	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
-	import { POSTER_MARGIN_MM, posterSheet } from './poster.js';
+	import { POSTER_MARGIN_MM, posterSheet, type PosterSheet } from './poster.js';
 	import { keyIntentOf } from './tree-keyboard.js';
 	import {
 		personMenuItems,
@@ -199,30 +200,66 @@
 	let isPrinting = $state(false);
 	let isPrintUnavailable = $state(false);
 
+	let isDownloading = $state(false);
+	let didDownloadFail = $state(false);
+	let posterSvg = $state<SVGSVGElement | null>(null);
+
 	/**
-	 * Draws the poster, then opens the print dialog. Not from `beforeprint`: during a real print
-	 * Chrome refuses the Trusted Types call Svelte makes to build new markup, so a poster drawn there
-	 * prints blank and the failure takes the page down with it.
+	 * Draws the poster and returns the function that takes it away. Never from `beforeprint`: during a
+	 * real print Chrome refuses the Trusted Types call Svelte makes to build new markup, so a poster
+	 * drawn there prints blank and the failure takes the page down with it.
 	 */
-	async function printPoster() {
-		if (!sheet || isPrinting) return;
-		isPrintUnavailable = false;
+	async function showPoster(size: PosterSheet): Promise<() => void> {
 		// The page size is the drawing's own, and CSS cannot take a variable inside `size`.
 		const pageRule = document.createElement('style');
-		pageRule.textContent = `@page tree-poster { size: ${sheet.widthMm}mm ${sheet.heightMm}mm; margin: ${POSTER_MARGIN_MM}mm; @bottom-right { content: none; } }`;
+		pageRule.textContent = `@page tree-poster { size: ${size.widthMm}mm ${size.heightMm}mm; margin: ${POSTER_MARGIN_MM}mm; @bottom-right { content: none; } }`;
 		document.head.appendChild(pageRule);
 		isPrinting = true;
 		await tick();
-		const done = () => {
-			window.removeEventListener('afterprint', done);
+		return () => {
 			pageRule.remove();
 			isPrinting = false;
+		};
+	}
+
+	async function printPoster() {
+		if (!sheet || isPrinting) return;
+		isPrintUnavailable = false;
+		didDownloadFail = false;
+		const hide = await showPoster(sheet);
+		const done = () => {
+			window.removeEventListener('afterprint', done);
+			hide();
 		};
 		window.addEventListener('afterprint', done);
 		requestPrint(() => {
 			done();
 			isPrintUnavailable = true;
 		});
+	}
+
+	async function downloadPoster() {
+		if (!sheet || isPrinting) return;
+		isPrintUnavailable = false;
+		didDownloadFail = false;
+		isDownloading = true;
+		const size = sheet;
+		const hide = await showPoster(size);
+		try {
+			const { posterPdf } = await import('./poster-pdf.js');
+			const url = URL.createObjectURL(await posterPdf(posterSvg!, size));
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `${document.title.split(' · ')[0] || 'Family tree'} poster.pdf`;
+			link.click();
+			// Revoked later: Safari reads the file after the click returns.
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		} catch {
+			didDownloadFail = true;
+		} finally {
+			hide();
+			isDownloading = false;
+		}
 	}
 
 	/** Cmd-P or Ctrl-P prints the poster too; the browser's own print would only get the note. */
@@ -760,15 +797,42 @@
 	>
 		{#snippet leading()}
 			{#if sheet}
-				<button
-					type="button"
-					class="poster"
-					title={posterLabel}
-					aria-label={posterLabel}
-					onclick={printPoster}
-				>
-					<Printer class="h-4 w-4" />
-				</button>
+				<div class="flex items-center" role="group" aria-label="Poster">
+					<button
+						type="button"
+						class="poster"
+						title={posterLabel}
+						aria-label={posterLabel}
+						disabled={isDownloading}
+						onclick={printPoster}
+					>
+						<Printer class="h-4 w-4" />
+					</button>
+					<Popover label="Poster options" align="end" isAbove panelClass="w-56 py-1">
+						{#snippet trigger(attrs)}
+							<button
+								type="button"
+								{...attrs}
+								class="poster narrow"
+								aria-label="More poster options"
+							>
+								<ChevronUp class="h-3.5 w-3.5" />
+							</button>
+						{/snippet}
+						<button type="button" role="menuitem" class="poster-item" onclick={printPoster}>
+							<Printer class="h-4 w-4" />Print
+						</button>
+						<button
+							type="button"
+							role="menuitem"
+							class="poster-item"
+							disabled={isDownloading}
+							onclick={downloadPoster}
+						>
+							<Download class="h-4 w-4" />{isDownloading ? 'Making the PDF…' : 'Download PDF'}
+						</button>
+					</Popover>
+				</div>
 			{/if}
 			{#if onToggleWholeTree}
 				<button
@@ -811,6 +875,16 @@
 		/>
 	{/if}
 
+	{#if isDownloading || didDownloadFail}
+		<p
+			role="status"
+			class="absolute right-6 bottom-20 z-20 max-w-xs rounded-lg border border-stone-300 bg-white p-2 text-xs text-stone-700 shadow-md"
+		>
+			{isDownloading
+				? 'Making the poster PDF…'
+				: 'The poster PDF could not be made. Try again, or print it instead.'}
+		</p>
+	{/if}
 	{#if isPrintUnavailable}
 		<p
 			role="status"
@@ -838,6 +912,7 @@
 			2 * POSTER_MARGIN_MM}mm; height: {sheet.heightMm - 2 * POSTER_MARGIN_MM - 1}mm;"
 	>
 		<svg
+			bind:this={posterSvg}
 			viewBox={sheet.viewBox}
 			width="{sheet.drawingWidthMm}mm"
 			height="{sheet.drawingHeightMm}mm"
@@ -858,6 +933,30 @@
 	.poster:hover {
 		background: rgb(231 229 228 / 0.6);
 		color: #1c1917;
+	}
+	.poster.narrow {
+		padding-inline: 0.25rem;
+	}
+	.poster:disabled {
+		cursor: progress;
+		opacity: 0.5;
+	}
+	.poster-item {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.875rem;
+		text-align: left;
+		cursor: pointer;
+	}
+	.poster-item:hover {
+		background: rgb(245 245 244);
+	}
+	.poster-item:disabled {
+		cursor: progress;
+		opacity: 0.6;
 	}
 	.poster:focus-visible {
 		outline: 2px solid var(--tree-focus-ring);
