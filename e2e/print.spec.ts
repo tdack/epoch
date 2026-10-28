@@ -106,8 +106,12 @@ test('the flat tree prints alone on one sheet cut to the drawing', async ({ page
 	await open(page, `/trees/${api.treeSlug}?focus=${encodeURIComponent(kit.id)}&mode=flat`);
 	await expect(page.getByRole('button', { name: /Print as a poster/ })).toBeVisible();
 
+	// Drawn before the dialog opens: a poster drawn in a real print's beforeprint came out blank.
+	await page.evaluate(() => {
+		window.print = () => window.dispatchEvent(new Event('beforeprint'));
+	});
+	await page.getByRole('button', { name: /Print as a poster/ }).click();
 	await page.emulateMedia({ media: 'print' });
-	await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
 	const poster = page.locator('body > [data-tree-poster]');
 	await expect(poster.getByText('Kit Fox', { exact: true })).toBeVisible();
 	await expect(page.getByTestId('print-note')).toBeHidden();

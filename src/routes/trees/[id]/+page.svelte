@@ -514,9 +514,13 @@
 	}
 </script>
 
-<!-- The canvas is for the screen; a chart or an outline prints far better. -->
+<!-- The canvas is for the screen; the flat view's poster, a chart or an outline prints far better. -->
 <p class="hidden text-sm print:block" data-testid="print-note">
-	Print a chart or an outline from a person's page instead.
+	{#if mode === LAYOUT_MODES.FLAT}
+		Use the print button beside the zoom controls to print the tree as a poster.
+	{:else}
+		Print a chart or an outline from a person's page instead.
+	{/if}
 </p>
 
 <div class="flex min-h-[600px] flex-1 flex-col print:hidden">

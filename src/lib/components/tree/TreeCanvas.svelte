@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { flushSync, onMount, tick, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { Printer } from '@lucide/svelte';
-	import { onPrint, requestPrint } from '#lib/components/layout/print.js';
+	import { requestPrint } from '#lib/components/layout/print.js';
 	import {
 		LAYOUT_METRICS,
 		type ChildAssertion,
@@ -198,21 +198,39 @@
 	// Drawn only while printing: a second full-detail copy of a big tree is too heavy to keep around.
 	let isPrinting = $state(false);
 	let isPrintUnavailable = $state(false);
-	$effect(() =>
-		onPrint(() => {
-			if (!sheet) return () => {};
-			// The page size is the drawing's own, and CSS cannot take a variable inside `size`.
-			const pageRule = document.createElement('style');
-			pageRule.textContent = `@page tree-poster { size: ${sheet.widthMm}mm ${sheet.heightMm}mm; margin: ${POSTER_MARGIN_MM}mm; @bottom-right { content: none; } }`;
-			document.head.appendChild(pageRule);
-			isPrinting = true;
-			flushSync();
-			return () => {
-				pageRule.remove();
-				isPrinting = false;
-			};
-		})
-	);
+
+	/**
+	 * Draws the poster, then opens the print dialog. Not from `beforeprint`: during a real print
+	 * Chrome refuses the Trusted Types call Svelte makes to build new markup, so a poster drawn there
+	 * prints blank and the failure takes the page down with it.
+	 */
+	async function printPoster() {
+		if (!sheet || isPrinting) return;
+		isPrintUnavailable = false;
+		// The page size is the drawing's own, and CSS cannot take a variable inside `size`.
+		const pageRule = document.createElement('style');
+		pageRule.textContent = `@page tree-poster { size: ${sheet.widthMm}mm ${sheet.heightMm}mm; margin: ${POSTER_MARGIN_MM}mm; @bottom-right { content: none; } }`;
+		document.head.appendChild(pageRule);
+		isPrinting = true;
+		await tick();
+		const done = () => {
+			window.removeEventListener('afterprint', done);
+			pageRule.remove();
+			isPrinting = false;
+		};
+		window.addEventListener('afterprint', done);
+		requestPrint(() => {
+			done();
+			isPrintUnavailable = true;
+		});
+	}
+
+	/** Cmd-P or Ctrl-P prints the poster too; the browser's own print would only get the note. */
+	function onWindowKeydown(event: KeyboardEvent) {
+		if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'p' || !sheet) return;
+		event.preventDefault();
+		void printPoster();
+	}
 
 	/** Moves the poster to the end of the body, where app.css can print it alone. */
 	function toBody(node: HTMLElement) {
@@ -546,6 +564,8 @@
 	const emptyLabel = 'No people in this tree yet.';
 </script>
 
+<svelte:window onkeydown={onWindowKeydown} />
+
 {#snippet scene(lvl: LevelOfDetail, k: number, isPrint: boolean)}
 	{#each layout.edges as edge (edge.id)}
 		{@const stub = edge.kind === 'stub' ? stubById.get(edge.stubId) : undefined}
@@ -745,10 +765,7 @@
 					class="poster"
 					title={posterLabel}
 					aria-label={posterLabel}
-					onclick={() => {
-						isPrintUnavailable = false;
-						requestPrint(() => (isPrintUnavailable = true));
-					}}
+					onclick={printPoster}
 				>
 					<Printer class="h-4 w-4" />
 				</button>
