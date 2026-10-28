@@ -37,8 +37,8 @@
 				<li><a href="/#install">Install</a></li>
 				<li><a href="/reports">Reports</a></li>
 				<li><a href="/maps">Maps</a></li>
-				<li><a href="/roles">Roles</a></li>
 				<li><a href="/sub-trees">Sub-trees</a></li>
+				<li><a href="/roles">Roles</a></li>
 			</ul>
 		</div>
 	</div>

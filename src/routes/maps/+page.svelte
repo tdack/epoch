@@ -36,7 +36,7 @@
 				<LifeMapFigure />
 				<div class="scope">
 					<div>
-						<h2 class="label">What a search sends</h2>
+						<h2 class="label">What leaves your install</h2>
 						<ul>
 							{#each MAP_PRIVACY.sent as item (item)}
 								<li>{item}</li>
@@ -44,7 +44,7 @@
 						</ul>
 					</div>
 					<div>
-						<h2 class="label">What it never sends</h2>
+						<h2 class="label">What never leaves</h2>
 						<ul>
 							{#each MAP_PRIVACY.never as item (item)}
 								<li>{item}</li>
@@ -73,9 +73,9 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+		grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
 		gap: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 64px);
-		align-items: center;
+		align-items: start;
 	}
 
 	.stack {

@@ -18,7 +18,7 @@
 	];
 
 	// An equirectangular projection narrowed by cos 54°, close enough across one county.
-	const BOUNDS = { west: -2.3, east: -0.3, north: 54.62, south: 53.68 } as const;
+	const BOUNDS = { west: -2.3, east: -0.3, north: 54.62, south: 53.6 } as const;
 	const SCALE = 340;
 	const NARROW = Math.cos((54 * Math.PI) / 180);
 	const W = Math.round((BOUNDS.east - BOUNDS.west) * NARROW * SCALE);
@@ -75,7 +75,11 @@
 </figure>
 
 <style>
+	/* Capped, because the labels scale with the drawing: past this they outgrow the page's h3. */
 	.life {
+		max-width: 480px;
+		width: 100%;
+		justify-self: center;
 		margin: 0;
 		display: flex;
 		flex-direction: column;
@@ -133,7 +137,7 @@
 	}
 
 	.event {
-		font-size: 12px;
+		font-size: 13px;
 		fill: var(--stone-strong);
 		font-variant-numeric: tabular-nums;
 	}

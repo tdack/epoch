@@ -44,13 +44,14 @@ The rules beside it say how the sheet is sized: the short side up to A0's, the l
 					<span>28 October 2026 · Viewer</span>
 				</p>
 			</div>
-			<div class="rule short" aria-hidden="true"><span>up to 841 mm</span></div>
+			<div class="rule short" aria-hidden="true"><span>up to 841 mm</span></div>
 			<div class="rule long" aria-hidden="true"><span>as long as the family needs</span></div>
 		</div>
 	</div>
 	<figcaption id="poster-caption">
 		The sample family’s view as it prints: every card at full detail on one sheet cut to the
-		drawing, with the tree, the day and the reader’s role in the footer.
+		drawing, with the tree, the day and the reader’s role in the footer. The short side is held to
+		A0’s 841 mm; the long side runs on as far as the family needs.
 	</figcaption>
 </figure>
 
@@ -148,6 +149,18 @@ The rules beside it say how the sheet is sized: the short side up to A0's, the l
 
 	.rule.long span {
 		padding: 0 10px;
+	}
+
+	/* On a phone the sheet pans, so its rules would sit off screen; the caption gives the sizes. */
+	@media (max-width: 640px) {
+		.spread {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto;
+		}
+
+		.rule {
+			display: none;
+		}
 	}
 
 	figcaption {

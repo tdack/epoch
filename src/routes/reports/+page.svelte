@@ -98,10 +98,12 @@
 		display: grid;
 		grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
 		gap: clamp(32px, 5vw, 64px);
-		align-items: center;
+		align-items: start;
 	}
 
+	/* Level with the top of the printed sheet rather than the figure's frame. */
 	.stack {
+		padding-top: 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
@@ -179,19 +181,13 @@
 		color: var(--stone-text);
 	}
 
-	/* Printing: the night emerald band, so the page turns from what to read to what comes off the
-	printer, and the close's lighter emerald still reads as a step down. */
+	/* Printing stays on the paper, so the close is the page's one emerald ground. */
 	.printing {
-		background: var(--emerald-950);
-		color: var(--vellum);
+		border-top: 1px solid var(--stone-rule);
 	}
 
 	.printing .wrap {
 		padding-top: var(--section-gap);
-	}
-
-	.printing h2 {
-		color: var(--vellum);
 	}
 
 	.ledger {
@@ -202,17 +198,15 @@
 
 	.ledger > div {
 		padding: 18px 0 20px;
-		border-top: 1px solid var(--emerald-mist-20);
+		border-top: 1px solid var(--stone-rule);
 	}
 
 	.ledger dt {
-		color: var(--vellum);
 		font-size: var(--site-h4);
 	}
 
 	.ledger dd {
 		margin-top: 6px;
-		color: var(--emerald-100);
 		max-width: 52ch;
 	}
 

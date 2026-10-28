@@ -11,7 +11,7 @@
 		{ href: '/#code', label: 'Get the code' },
 		{ href: '/#install', label: 'Install' },
 		{ href: '/#faq', label: 'FAQ' },
-		{ href: '/reports', label: 'Reports' },
+		{ href: '/reports', label: 'Reports', isPage: true },
 		{ href: '/maps', label: 'Maps' },
 		{ href: '/sub-trees', label: 'Sub-trees' },
 		{ href: '/roles', label: 'Roles' }
@@ -44,7 +44,7 @@ down, so the photograph still runs to the top edge. -->
 		</a>
 		<ul class="links">
 			{#each NAV as item (item.href)}
-				<li>
+				<li class:starts-pages={item.isPage}>
 					<a href={item.href} aria-current={current(item.href)}>{item.label}</a>
 				</li>
 			{/each}
@@ -53,7 +53,7 @@ down, so the photograph still runs to the top edge. -->
 			<summary>Menu</summary>
 			<ul>
 				{#each NAV as item (item.href)}
-					<li>
+					<li class:starts-pages={item.isPage}>
 						<a href={item.href} aria-current={current(item.href)} onclick={closeMenu}
 							>{item.label}</a
 						>
@@ -155,6 +155,19 @@ down, so the photograph still runs to the top edge. -->
 	.bar :focus-visible {
 		outline-color: var(--amber-300);
 		outline-offset: 4px;
+	}
+
+	/* A hairline between the home page's sections and the pages of their own. */
+	.links .starts-pages {
+		margin-left: 8px;
+		padding-left: 16px;
+		border-left: 1px solid rgb(255 251 235 / 0.25);
+	}
+
+	.menu .starts-pages {
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 1px solid rgb(255 251 235 / 0.25);
 	}
 
 	.menu {

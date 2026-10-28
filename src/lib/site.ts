@@ -77,7 +77,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 	},
 	{
 		title: 'Reports, printing and maps',
-		text: 'Read the family as a book, print it for the wall, and see where its lives were lived.',
+		text: 'Read the family as a book, print it for the wall, and see where they lived.',
 		points: [
 			'Narratives, a family group sheet, a family book and other reports, all printable',
 			'The family view as a poster sized to the drawing, printed or saved as a PDF',
@@ -217,7 +217,7 @@ export const REPORTS_PAGE = {
 		'Every tree has its reports under Research. Each one is an ordinary page that reads the tree as you may see it, so a printout never shows more than the screen. Living and private people stay hidden from anyone without the [right to see them](/roles).',
 		'The narratives tell a family in sentences: “born about 1900”, never “ABT 1900”. A partnership is called a marriage only when a marriage is recorded, an adoption is said as one, and the sources become numbered endnotes.'
 	],
-	closeTitle: 'Read the demo family as a book.',
+	closeTitle: 'Read the demo family’s reports.',
 	closeAction: 'Open the demo’s reports'
 };
 
@@ -297,7 +297,7 @@ export const PRINTING: Report[] = [
 	},
 	{
 		name: 'The family view as a poster',
-		text: 'Every card at full detail on one sheet cut to the drawing. Only the short side is held to A0’s 841 mm, so a wide family runs on as a banner for a plotter roll.'
+		text: 'Every card at full detail on one sheet cut to the drawing. Only the short side is held to A0’s 841 mm, so a wide family runs on as a banner for a plotter roll.'
 	},
 	{
 		name: 'PDF and CSV',
@@ -324,9 +324,9 @@ export const MAPS_PAGE = {
 /** What a place search sends and what it never does (ADR-078 on `main`). */
 export const MAP_PRIVACY = {
 	sent: [
-		'The text of a place, such as “Whitby, Yorkshire”',
+		'The text of a place, such as “Whitby, Yorkshire”, to Photon',
 		'For Match places, only places of people the living rule treats as dead, or who are public',
-		'The map tiles each reader’s browser loads from OpenStreetMap'
+		'Each reader’s browser asks OpenStreetMap for the map tiles it shows'
 	],
 	never: [
 		'A person, a date or the tree',
