@@ -2,7 +2,10 @@ import type { LensId } from './family.js';
 
 export const DEMO_URL = 'https://demo.epochgenealogy.app';
 /** A public sub-tree on the demo (ADR-069); a bare address opens on its starting person. */
-export const DEMO_SUBTREE_URL = `${DEMO_URL}/trees/windsor-glucksburg-extended-lineage~windsor-line`;
+const DEMO_TREE_URL = `${DEMO_URL}/trees/windsor-glucksburg-extended-lineage`;
+export const DEMO_SUBTREE_URL = `${DEMO_TREE_URL}~windsor-line`;
+export const DEMO_REPORTS_URL = `${DEMO_TREE_URL}/reports`;
+export const DEMO_PLACES_URL = `${DEMO_TREE_URL}/places`;
 export const REPO_URL = 'https://github.com/tdack/epoch';
 export const REPO_CLONE_URL = 'https://github.com/tdack/epoch.git';
 export const BACKLOG_URL = 'https://github.com/tdack/epoch/blob/main/docs/backlog.md';
@@ -56,6 +59,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		title: 'Ways to see the family',
 		text: 'A focus-centred family view kept in the address, so Back and shared links restore it.',
 		points: [
+			'An Overview of the family’s span, its anniversaries and the latest changes',
 			'Pedigree, descendants, fan and hourglass charts, each with a text outline',
 			'A relationship finder that shows every route between two people',
 			'Ranked search that says why each person matched'
@@ -65,9 +69,19 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 		title: 'Records and research',
 		text: 'Pages for people, partnerships, places and sources, built around the evidence.',
 		points: [
+			'Dates in words, “about 1900” rather than “ABT 1900”, in the format the tree chooses',
 			'Sources, repositories and citations, showing what each source supports',
 			'Shared notes, research tasks and a data-quality report',
 			'Media attached to people, kept private in your own storage'
+		]
+	},
+	{
+		title: 'Reports, printing and maps',
+		text: 'Read the family as a book, print it for the wall, and see where its lives were lived.',
+		points: [
+			'Narratives, a family group sheet, a family book and other reports, all printable',
+			'The family view as a poster sized to the drawing, printed or saved as a PDF',
+			'Places on an OpenStreetMap map, and each person’s life traced across it'
 		]
 	},
 	{
@@ -109,7 +123,11 @@ export const ROLES: Role[] = [
 	{
 		name: 'Viewer',
 		summary: 'Looks the family up.',
-		adds: ['Browses people, places, the charts and the 3D views', 'Searches and opens files'],
+		adds: [
+			'Browses people, places, the charts and the 3D views',
+			'Searches and opens files',
+			'Reads, prints and downloads the [reports](/reports)'
+		],
 		note: 'Living and private people are hidden.'
 	},
 	{
@@ -127,6 +145,7 @@ export const ROLES: Role[] = [
 		summary: 'Keeps the records right.',
 		adds: [
 			'Changes and deletes any record',
+			'Sets where a place is on the [map](/maps)',
 			'Imports GEDCOM files',
 			'Uploads files, and deletes their own',
 			'Reads the audit log and undoes their own changes'
@@ -138,7 +157,8 @@ export const ROLES: Role[] = [
 		summary: 'Looks after the tree and its members.',
 		adds: [
 			'Invites editors, contributors and viewers, and changes their roles',
-			'Decides who is private, and sets the tree’s settings',
+			'Decides who is private, and sets the tree’s settings, such as how dates are written',
+			'Matches the tree’s places to map locations',
 			'Exports the tree as GEDCOM, living people included',
 			'[Makes sub-trees](/sub-trees) for one family line at a time',
 			'Chooses which sub-trees visitors to a public tree can open',
@@ -185,9 +205,142 @@ export const SUBTREES_PAGE = {
 	closeAction: 'Open the Windsor line'
 };
 
-/** The sentence on the home page that points to the two pages above. `[text](url)` links. */
+/** The reports page: what there is to read and how it prints. */
+export const REPORTS_PAGE = {
+	path: '/reports',
+	title: 'Reports and printing',
+	description:
+		'Epoch’s reports tell a family as narratives, sheets and a family book, and print from the browser. The family view prints as a poster sized to the drawing, or saves as a PDF.',
+	lede: 'Read the family as a book, a sheet or a wall chart, and print it from the browser.',
+	/** Plain paragraphs; `[text](url)` becomes a link. */
+	paragraphs: [
+		'Every tree has its reports under Research. Each one is an ordinary page that reads the tree as you may see it, so a printout never shows more than the screen. Living and private people stay hidden from anyone without the [right to see them](/roles).',
+		'The narratives tell a family in sentences: “born about 1900”, never “ABT 1900”. A partnership is called a marriage only when a marriage is recorded, an adoption is said as one, and the sources become numbered endnotes.'
+	],
+	closeTitle: 'Read the demo family as a book.',
+	closeAction: 'Open the demo’s reports'
+};
+
+export interface Report {
+	name: string;
+	text: string;
+}
+
+export interface ReportGroup {
+	title: string;
+	reports: Report[];
+}
+
+/** The reports hub on `main` (`/trees/[id]/reports`), in its order. ADR-080 lists them. */
+export const REPORT_GROUPS: ReportGroup[] = [
+	{
+		title: 'About a person',
+		reports: [
+			{ name: 'Individual summary', text: 'The person’s page, printed without its buttons.' },
+			{
+				name: 'Ancestor and descendant narratives',
+				text: 'Generation by generation, numbered Ahnentafel for ancestors and d’Aboville or Henry for descendants.'
+			},
+			{
+				name: 'Relatives list',
+				text: 'Everyone related within the generations you choose, with how they are related.'
+			},
+			{
+				name: 'Research gaps',
+				text: 'How complete each generation of ancestors is, and the brick walls where a line stops.'
+			},
+			{ name: 'Evidence summary', text: 'Each claim about the person and the sources behind it.' },
+			{
+				name: 'Interview sheet',
+				text: 'What the tree records and what it is missing, to tick and correct with a relative.'
+			},
+			{
+				name: 'Family book',
+				text: 'Ancestors, descendants and research gaps in one book, with contents and an index of names.'
+			}
+		]
+	},
+	{
+		title: 'About a partnership',
+		reports: [
+			{
+				name: 'Family group sheet',
+				text: 'The partners, their parents and their children on one sheet.'
+			}
+		]
+	},
+	{
+		title: 'Across the tree',
+		reports: [
+			{ name: 'Source usage', text: 'Every citation of a source and what it supports.' },
+			{
+				name: 'Place report',
+				text: 'The people and events at a place, and at the places within it.'
+			},
+			{
+				name: 'Anniversary calendar',
+				text: 'Births, partnerships and deaths by day of the month, also as an iCalendar file.'
+			}
+		]
+	}
+];
+
+/** How things print (ADR-080 and the poster commits on `main`). */
+export const PRINTING: Report[] = [
+	{
+		name: 'Any page',
+		text: 'Prints without the app’s menus and buttons, black on white, with a footer naming the tree, the day and your role. Chrome 131 and later add page numbers.'
+	},
+	{
+		name: 'Wall charts',
+		text: 'A chart prints landscape. On A3 to A0 it is fitted to one sheet; on A4 it keeps its size across several pages.'
+	},
+	{
+		name: 'The family view as a poster',
+		text: 'Every card at full detail on one sheet cut to the drawing. Only the short side is held to A0’s 841 mm, so a wide family runs on as a banner for a plotter roll.'
+	},
+	{
+		name: 'PDF and CSV',
+		text: 'Download PDF saves the poster at its own size, for print dialogs that only offer the printer’s paper. The source, place and calendar reports download as CSV.'
+	}
+];
+
+/** The maps page: where places are, and what leaves the install to find them. */
+export const MAPS_PAGE = {
+	path: '/maps',
+	title: 'Places and maps',
+	description:
+		'Epoch puts a family’s places on an OpenStreetMap map and traces each person’s life across it. Only place text leaves your install, and living people’s homes stay off the map.',
+	lede: 'Where the family lived, married and was buried, on a map you do not have to pay for.',
+	/** Plain paragraphs; `[text](url)` becomes a link. */
+	paragraphs: [
+		'A place gets its location from the coordinates in a GEDCOM file, from an OpenStreetMap search, or from a pin dropped on the map. The Places tab shows them all on a map beside the list, and a person’s page traces their life from place to place.',
+		'While you type a place, Epoch suggests the tree’s own places first, then OpenStreetMap’s. An [editor](/roles) can set or clear a location, and a manager can run Match places, which looks up every unlocated place and lists the likely matches to accept. Every change to a location can be undone.'
+	],
+	closeTitle: 'See the demo family’s places.',
+	closeAction: 'Open the demo’s map'
+};
+
+/** What a place search sends and what it never does (ADR-078 on `main`). */
+export const MAP_PRIVACY = {
+	sent: [
+		'The text of a place, such as “Whitby, Yorkshire”',
+		'For Match places, only places of people the living rule treats as dead, or who are public',
+		'The map tiles each reader’s browser loads from OpenStreetMap'
+	],
+	never: [
+		'A person, a date or the tree',
+		'Text that looks like a street address',
+		'Living people’s homes and census entries, which stay off the maps'
+	]
+} as const;
+
+export const MAPS_NOTE =
+	'Epoch uses free OpenStreetMap services only: Leaflet draws the map from OpenStreetMap’s tiles, and Photon answers searches through your own install, which keeps its answers. The install owner can turn searching off or point it at their own Photon server. There is no Google option.';
+
+/** The sentence on the home page that points to the pages below it. `[text](url)` links. */
 export const FEATURES_MORE =
-	'Every tree role adds to the one before it: see [who can do what](/roles). A manager can also cut a large tree down to one family line with [sub-trees](/sub-trees).';
+	'Read about [reports and printing](/reports) and [places and maps](/maps). Every tree role adds to the one before it: see [who can do what](/roles). A manager can also cut a large tree down to one family line with [sub-trees](/sub-trees).';
 
 /** What a sub-tree narrows and what it leaves whole (ADR-062 on `main`). */
 export const SUBTREE_SCOPE = {
@@ -255,6 +408,12 @@ export const FAQS: Faq[] = [
 		]
 	},
 	{
+		question: 'Can I print the tree?',
+		answer: [
+			'Yes. Every page prints without the app’s menus, and the reports include narratives, a family group sheet and a family book. Charts print as wall charts on A3 to A0, and the family view prints or saves as a PDF poster sized to the drawing. [Reports and printing](/reports).'
+		]
+	},
+	{
 		question: 'Is it open source?',
 		answer: [
 			'Yes. Epoch is licensed under the [GNU Affero General Public License, version 3 or later](' +
@@ -265,7 +424,7 @@ export const FAQS: Faq[] = [
 	{
 		question: 'Does it work on a phone?',
 		answer: [
-			'Record pages, lists and the family view have phone layouts. The 3D views are best on a larger screen.'
+			'Record pages, lists and the family view have phone layouts, and Epoch installs as a home-screen app with pull to refresh. The 3D views are best on a larger screen.'
 		]
 	},
 	{
@@ -277,7 +436,7 @@ export const FAQS: Faq[] = [
 	{
 		question: 'Is Epoch ready for my family’s records?',
 		answer: [
-			'Epoch is young and under active development. Known gaps and planned work, such as printable reports, timelines and maps, are listed in [the backlog](' +
+			'Epoch is young and under active development. Known gaps and planned work, such as timelines, phonetic search and contributor suggestions, are listed in [the backlog](' +
 				BACKLOG_URL +
 				'). Export your tree as GEDCOM regularly, whatever software you use.'
 		]

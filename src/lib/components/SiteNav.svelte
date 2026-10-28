@@ -3,7 +3,7 @@
 	import EpochMark from './EpochMark.svelte';
 
 	// The in-page links follow the home page's order and start with `/`, so they also work from the
-	// pages below it. Roles is a page of its own, so it comes last.
+	// pages below it. The pages of their own come last.
 	const NAV = [
 		{ href: '/#explore', label: 'Explore' },
 		{ href: '/#features', label: 'Features' },
@@ -11,7 +11,9 @@
 		{ href: '/#code', label: 'Get the code' },
 		{ href: '/#install', label: 'Install' },
 		{ href: '/#faq', label: 'FAQ' },
-		{ href: '/sub-trees', label: 'Sub-Trees' },
+		{ href: '/reports', label: 'Reports' },
+		{ href: '/maps', label: 'Maps' },
+		{ href: '/sub-trees', label: 'Sub-trees' },
 		{ href: '/roles', label: 'Roles' }
 	];
 
@@ -192,8 +194,8 @@ down, so the photograph still runs to the top edge. -->
 		display: flex;
 	}
 
-	/* Seven links on one line need about 760px; below that a label would break inside its link. */
-	@media (max-width: 820px) {
+	/* Ten links on one line need about 1000px beside the brand; below that one would wrap. */
+	@media (max-width: 1140px) {
 		.links {
 			display: none;
 		}

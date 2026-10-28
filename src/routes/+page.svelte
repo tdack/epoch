@@ -426,7 +426,7 @@
 		background: var(--emerald-800);
 	}
 
-	/* The way on to the two pages below the home page. */
+	/* The way on to the pages below the home page. */
 	.more {
 		max-width: 62ch;
 		margin: clamp(36px, 4vw, 48px) auto 0;
@@ -434,12 +434,14 @@
 		color: var(--stone-strong);
 	}
 
+	/* Six groups fill three rows, so the demo prompt runs the width beneath them. */
 	.try {
+		grid-column: 1 / -1;
 		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: flex-start;
-		gap: 18px;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		gap: 18px 32px;
 		padding: clamp(24px, 3vw, 36px);
 		border-radius: 16px;
 		background: var(--emerald-800);
