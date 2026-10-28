@@ -74,9 +74,19 @@ export const DISTANCE: Record<string, number> = {
 const byId = new Map(PEOPLE.map((p) => [p.id, p]));
 const personOf = (id: string) => byId.get(id)!;
 
-/** The app's date line (`FanChart`, `ChartCanvas`): the original text, never a tidied date. */
+/**
+ * A stored date as the app shows it (`displayDate` in `date-display.ts` on `main`): `ABT 1900` is
+ * "about 1900" and `BET 1908 AND 1910` "between 1908 and 1910", never a tidied exact year. Only the
+ * forms this family uses are read.
+ */
+const say = (text: string) =>
+	text.replace(/^BET (.+) AND (.+)$/, 'between $1 and $2').replace(/^ABT /, 'about ');
+
+/** The app's chart date line (`FanChart`, `ChartCanvas`). */
 export const datesOf = (p: FamilyPerson) =>
-	p.birth || p.death ? `${p.birth ?? '?'} – ${p.death ?? ''}`.trim() : '';
+	p.birth || p.death
+		? `${p.birth ? say(p.birth) : '?'} – ${p.death ? say(p.death) : ''}`.trim()
+		: '';
 
 /**
  * The pedigree in the app's heap order: a person at i has parents at 2i+1 and 2i+2. A null slot
@@ -164,9 +174,11 @@ export const FAMILY_X = {
 	nell: 889
 } as const;
 
-/** The tree card's date lines: the recorded text after "b." and "†", as the app writes them. */
+/** The tree card's date lines: the date in words after "b." and "†", as the app writes them. */
 const treeLines = (p: FamilyPerson) =>
-	[p.birth && `b. ${p.birth}`, p.death && `† ${p.death}`].filter((line): line is string => !!line);
+	[p.birth && `b. ${say(p.birth)}`, p.death && `† ${say(p.death)}`].filter(
+		(line): line is string => !!line
+	);
 
 const treeAt = (id: string, centreX: number, y: number): Place => ({
 	...box(centreX - TREE_CARD.w / 2, y, TREE_CARD.w, TREE_CARD.h, 'tree'),
