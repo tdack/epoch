@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import NarrativeBody from '#lib/components/reports/NarrativeBody.svelte';
 	import {
@@ -75,7 +76,7 @@
 			<noscript><button type="submit" class="action-btn">Apply</button></noscript>
 		</form>
 	{/if}
-	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+	<PrintButton />
 </div>
 
 <NarrativeBody narrative={dto} {personHref} />

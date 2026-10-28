@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import NarrativeBody from '#lib/components/reports/NarrativeBody.svelte';
 	import ResearchGaps from '#lib/components/reports/ResearchGaps.svelte';
 	import {
@@ -53,8 +54,10 @@
 	<a href={personHref(subject.id)} class="text-link">{subject.name}</a>
 </nav>
 
+<!-- The fragment survives the GET, so a phone lands on the new book rather than the form above it. -->
 <form
 	method="get"
+	action="#book-title"
 	class="section-card mt-3 max-w-3xl text-sm print:hidden"
 	aria-labelledby={formId}
 >
@@ -78,11 +81,11 @@
 			</select>
 		</label>
 		<button type="submit" class="action-btn">Make the book</button>
-		<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+		<PrintButton />
 	</div>
 </form>
 
-<header class="mt-8 print:mt-[30vh] print:text-center">
+<header id="book-title" class="mt-8 scroll-mt-32 print:mt-[30vh] print:text-center">
 	<h1 class="text-3xl font-bold text-stone-900">{heading}</h1>
 	<p class="mt-2 text-stone-600">From {data.summary.tree.name}</p>
 </header>

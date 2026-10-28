@@ -35,3 +35,22 @@ export function onPrint(before: () => () => void): () => void {
 		end();
 	};
 }
+
+/** How long a print dialog may take to announce itself before we call it unavailable. */
+const PRINT_START_TIMEOUT_MS = 1_000;
+
+/**
+ * Asks for the print dialog and calls `onUnavailable` if it never opens. A home-screen app on
+ * iOS ignores `window.print()` without an error, and browsers that do print fire `beforeprint`
+ * before the dialog shows, so the missing event is the only signal there is.
+ */
+export function requestPrint(onUnavailable: () => void): void {
+	let didStart = false;
+	const started = () => (didStart = true);
+	window.addEventListener('beforeprint', started, { once: true });
+	window.print();
+	setTimeout(() => {
+		window.removeEventListener('beforeprint', started);
+		if (!didStart) onUnavailable();
+	}, PRINT_START_TIMEOUT_MS);
+}

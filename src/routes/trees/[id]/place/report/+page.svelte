@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import CsvDownload from '#lib/components/lists/CsvDownload.svelte';
 	import { MAX_PLACE_REPORT_FACTS } from '#lib/shared/places.js';
@@ -37,7 +38,7 @@
 	<div class="flex flex-wrap items-center gap-3 print:hidden">
 		<a href={placeHref} class="text-link text-sm">Back to the place</a>
 		<CsvDownload filename="place-report.csv" header={HEADER} {rows} />
-		<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+		<PrintButton />
 	</div>
 </header>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import PersonLink from '#lib/components/PersonLink.svelte';
 	import { PARENT_CHILD_TYPES, type ParentChildType } from '#lib/shared/relationship-model.js';
@@ -54,7 +55,7 @@
 	</div>
 	<div class="flex flex-wrap items-center gap-3 print:hidden">
 		<a href={unionHref} class="text-link text-sm">Back to the partnership</a>
-		<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+		<PrintButton />
 	</div>
 </header>
 

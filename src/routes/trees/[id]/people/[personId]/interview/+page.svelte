@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import { treePath } from '#lib/shared/tree-slug.js';
 	import type { PageProps } from './$types';
@@ -82,7 +83,7 @@
 	<span class="inline-block w-32 border-b border-stone-400"></span>
 </p>
 <div class="mt-3 print:hidden">
-	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+	<PrintButton />
 </div>
 
 <div class="mt-5 max-w-3xl space-y-6">

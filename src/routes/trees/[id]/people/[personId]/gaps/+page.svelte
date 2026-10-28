@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import ResearchGaps from '#lib/components/reports/ResearchGaps.svelte';
 	import { MAX_PEDIGREE_GENERATIONS } from '#lib/shared/charts.js';
@@ -29,7 +30,7 @@
 		max={MAX_PEDIGREE_GENERATIONS}
 		hrefFor={(n) => `${personHref(chart.person.id)}/gaps?generations=${n}`}
 	/>
-	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+	<PrintButton />
 </div>
 
 <ResearchGaps {chart} {personHref} />

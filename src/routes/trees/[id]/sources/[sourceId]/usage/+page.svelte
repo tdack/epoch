@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import CsvDownload from '#lib/components/lists/CsvDownload.svelte';
 	import {
@@ -72,7 +73,7 @@
 			header={HEADER}
 			rows={rows.map((r) => [r.label, r.date, r.place, r.detail])}
 		/>
-		<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+		<PrintButton />
 	</div>
 </header>
 

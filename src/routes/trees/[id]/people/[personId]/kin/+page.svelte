@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import GenerationStepper from '#lib/components/charts/GenerationStepper.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import { MAX_KIN_LIST_GENERATIONS } from '#lib/shared/kinship.js';
@@ -34,7 +35,7 @@
 		max={MAX_KIN_LIST_GENERATIONS}
 		hrefFor={(n) => `${personHref(kin.person.id)}/kin?generations=${n}`}
 	/>
-	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+	<PrintButton />
 </div>
 
 {#if kin.entries.length === 0}

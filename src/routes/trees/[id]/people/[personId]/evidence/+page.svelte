@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import {
 		CITATION_QUALITY_LABELS,
@@ -90,7 +91,7 @@
 	{sourcedCount} of {claims.length} claims have a source.
 </p>
 <div class="mt-3 print:hidden">
-	<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+	<PrintButton />
 </div>
 
 <table class="mt-5 w-full max-w-4xl text-left text-sm" data-testid="evidence-summary">
