@@ -218,6 +218,17 @@ components:
     typography: '{typography.body}'
     rounded: '{rounded.xl}'
     padding: '12px 16px'
+  report-panel:
+    backgroundColor: '{colors.field-white}'
+    rounded: '{rounded.xl}'
+  report-table-heading:
+    textColor: '{colors.stone-text}'
+    typography: '{typography.section-label}'
+    padding: '10px 12px'
+  report-table-cell:
+    textColor: '{colors.stone-body}'
+    typography: '{typography.body}'
+    padding: '8px 12px'
 ---
 
 # Design System: Epoch
@@ -250,7 +261,8 @@ and parent-child lines distinguished by line style first and hue second.
 - Stone inks for all text and rules; emerald for action and the brand only.
 - One system sans stack at small sizes; hierarchy comes from weight and uppercase labels.
 - Flat by default: borders and tonal steps carry structure, shadows mean "floating".
-- Light theme only. There is no dark mode.
+- Light theme only. There is no dark mode. On paper the cream falls away: reports, record pages and
+  the tree poster print black on white.
 - Lucide line icons at 14–16px beside labels.
 
 ## Colors
@@ -361,13 +373,25 @@ they only take effect where the system font supports them.
   section card on a record page.
 
 Text inside the tree's SVG cards uses its own scale: names at 14px bold and dates at 12px in the
-standard card, larger when the card is compacted for a zoomed-out view.
+standard card, larger when the card is compacted for a zoomed-out view. The flat tree's poster
+prints that card at 0.25mm per unit, so names land near 10pt and dates near 8.5pt; its PDF embeds
+DejaVu Sans Condensed, because the PDF's own fonts lack the sex symbols.
+
+Reports are set for reading. A narrative runs in a `max-w-2xl` column at 0.875rem with relaxed
+leading; each generation opens under a section label over a stone hairline; the entry's number
+sits before the name in muted, tabular stone-500; sources are numbered endnotes at 0.75rem in a
+number-then-text grid. On paper the family book's title page is the one place type grows past the
+app's ceiling: 2.25rem, centred about a quarter of the way down the sheet.
 
 ### Named Rules
 
 **The Weight Not Size Rule.** Hierarchy inside the app comes from weight (400, 600, 700) and the
 uppercase section label, not from large type. Nothing in the app chrome exceeds 1.5rem; the
 display size belongs to the splash.
+
+**The Book On Paper Rule.** The 1.5rem ceiling holds on screen. Only printed report titles grow
+(the family book's title page to 2.25rem, its part titles to 1.5rem), because a book is read
+at arm's length, not scanned.
 
 **The Sixteen-Pixel Field Rule.** On a coarse pointer every input, select and textarea renders at
 16px or larger, so iOS never zooms when a dialog focuses a field.
@@ -388,6 +412,15 @@ Spacing follows Tailwind's 4px step: 8px inside dense rows, 12–16px inside car
 dialogs. The header is at least 64px tall and wraps on phones, giving the person finder its own
 full-width row. On a coarse pointer, menu rows and header buttons grow to 44px targets
 (`coarse:` variant), whatever the screen width.
+
+**On paper.** `app.css` holds one `@media print` block. The chrome, every button and the maps drop
+out; the page column prints as plain blocks so page breaks work; section cards become ruled rows on
+white; links print as plain text, except a source's web address, which follows in angle brackets.
+Pages carry 15mm margins and a page number at the bottom right (Chrome 131 and later), and a footer
+names the tree, the print date and the viewer's role. Charts print on a landscape page, A4 to A0 by
+choice. Each part of the family book starts a new sheet, and its name index runs in two or three
+columns with hanging indents. The flat tree prints as one poster on a sheet cut to the drawing, its
+short side never past A0's 841mm; the 3D views do not print.
 
 Breakpoints are Tailwind's defaults (`sm` 640px, `md` 768px, `lg` 1024px). A list panel with
 more than three columns (Administration's trees, Files) is a table only from `lg`; below that each
@@ -486,6 +519,14 @@ rows to scan on an index page.
 - **Shadow Strategy:** none.
 - **Internal Padding:** per row, about 12–16px; a form panel takes 20px.
 
+**Report panel**
+
+- **Corner Style:** 12px (`report-panel`), like a list panel.
+- **Background:** white with a 1px stone-200 border; it scrolls sideways inside itself on a phone.
+- **On paper:** the border and corner go, leaving the table's own rules.
+- **Inside a section card:** the card's padding is the gutter, so the first and last cells lose
+  their outer padding and line up with the card's label.
+
 ### Inputs / Fields
 
 - **Style:** field white, 1px stone-edge border, 8px radius, 8px padding, 0.875rem text, a 0.75rem
@@ -582,6 +623,38 @@ opened.
 - **Optional form part:** a semibold emerald summary that names what it adds ("Add another source")
   and opens fields beneath.
 
+### Report Header
+
+Every report opens the same way (`ReportHeader`): an 0.75rem breadcrumb in stone-600 with `›`
+separators, the headline-size title, then one line of stone-600 saying what the report covers, and
+the report's controls (generations, Print, downloads) at the right, wrapping under the title on a
+phone. A stone hairline closes the header. The breadcrumb and controls never print; the title and
+its summary do.
+
+### Report Table
+
+The one table style for reports (`report-table`): uppercase 0.75rem bold stone-600 column headings
+over a stone-200 rule, 0.875rem stone-800 cells with tabular numerals, the row's lead cell in medium
+stone-900, and stone-100 hairlines between rows. No stripes and no hover. It prints at 9.5pt with
+padding cut to the left edge. A percentage may carry a small completeness bar beside it on screen,
+and prints as the number alone.
+
+### Narrative (signature)
+
+The ancestor and descendant narratives, and the family book built from them. Each entry is a
+generation-numbered paragraph: muted tabular number, linked name, then the person's facts as
+sentences, with superscript note numbers in emerald. A person told elsewhere on the page is a short
+stone-600 pointer instead ("See number 4", "Told under A1 in the ancestors part"), never a second
+telling. Interview sheets use drawn tick boxes, never a glyph; a key fact with no source reads in
+amber-900.
+
+### Tree Poster
+
+The flat tree's print control sits at the start of the zoom bar: a printer button that prints at
+once, and a narrow chevron that opens a menu upward (the bar sits at the bottom) with Print and
+Download PDF. While a PDF is made, the control dims and a small white status note above the bar
+says so. On paper the poster is the scene alone, at full detail whatever the screen's zoom.
+
 ### Person Card (signature)
 
 The unit of the tree. An SVG card tinted by the muted sex palette with a darker edge and a symbol at
@@ -614,6 +687,9 @@ without a trace. Zoomed out, the card compacts to a larger name and dates, then 
 - **Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the
   parent-child type, a dashed edge for privacy.
 - **Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them.
+- **Do** open a report with `ReportHeader` and set its tables in `report-table` inside a
+  `report-panel`, so every report reads as one set.
+- **Do** check a report in print media: black on white, no controls, and tables as ruled rows.
 
 ### Don't:
 
@@ -628,3 +704,6 @@ without a trace. Zoomed out, the card compacts to a larger name and dates, then 
   names, and a global rule would leak into them.
 - **Don't** use a white page background, or white for section cards; white is for fields, list
   panels and tables.
+- **Don't** print a colour bar or tint as the only carrier of a value; with background graphics off
+  it prints blank, so the number prints instead.
+- **Don't** tell the same person twice on one report page; point to the entry that tells them.
