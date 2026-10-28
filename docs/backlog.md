@@ -172,7 +172,7 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 ### 3D views
 
 - **Printing or exporting a 3D view,** free VR, and drawing cousins in the flat hourglass are out of
-  scope today.
+  scope today. The flat view prints and downloads as a poster (ADR-081).
 
 ### Settings
 
@@ -211,6 +211,18 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   - Tiling a wall chart across A4 sheets, and a d'Aboville or Henry choice on the descendant chart.
   - The family book's name index sorts on the last word of the display name, which misfiles "Jr."
     and particles.
+  - **Records and statistics** (reports plan #11): oldest, youngest parent, longest partnership,
+    people per century and age at death, read through `ViewerScope`. The Overview's figures show
+    only the oldest person today.
+  - **CSV for every tabular report** (reports plan #13): the calendar, place report and source usage
+    have one; the relatives list, Quality and Tasks do not. Built in the browser from what the page
+    holds, as the others are.
+- **Flat tree poster follow-ups** (ADR-081):
+  - File, Print from the browser menu bypasses the poster button and prints only a note; only the
+    button and Cmd-P or Ctrl-P draw the poster first.
+  - The PDF download is untested in Safari and in the installed app on macOS and iPhone, and
+    Safari's print may ignore the poster's page size.
+  - Names keep the cards' on-screen truncation, which loses more on paper than it saves.
 - **A request access flow:** a signed-out visitor (or a signed-in non-member) asks to join a tree,
   and a manager accepts (sending the usual invitation) or declines. None exists today; admission is
   invitation only (ADR-034).

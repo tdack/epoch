@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T11:30:45Z",
+  "generatedAt": "2026-10-28T21:09:50Z",
   "title": "Design System: Epoch",
   "extensions": {
     "colorMeta": {
@@ -916,6 +916,22 @@
       "description": "The shared 16px tick and radio, for choices that wait for a Save or Filter.",
       "html": "<div class=\"ds-checks\"><label><input type=\"checkbox\" class=\"ds-check\" checked> Assigned to me</label><label><input type=\"checkbox\" class=\"ds-check\"> Include notes</label><label><input type=\"radio\" name=\"ds-r\" class=\"ds-check ds-radio\" checked> Default tree</label><label><input type=\"radio\" name=\"ds-r\" class=\"ds-check ds-radio\"> Other tree</label></div>",
       "css": ".ds-checks { display: grid; gap: 8px; font: 400 0.875rem/1.25rem ui-sans-serif, system-ui, sans-serif; color: #292524; } .ds-checks label { display: flex; align-items: center; gap: 8px; cursor: pointer; } .ds-check { appearance: none; flex-shrink: 0; width: 16px; height: 16px; margin: 0; cursor: pointer; border: 1px solid #a8a29e; border-radius: 4px; background: #ffffff center / 75% no-repeat; transition: background-color 150ms, border-color 150ms; } .ds-check:hover { border-color: #78716c; } .ds-check:checked { border-color: #065f46; background-color: #065f46; background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fffbeb' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E\"); } .ds-radio { border-radius: 9999px; } .ds-radio:checked { background-image: radial-gradient(circle, #fffbeb 0 30%, transparent 32%); background-size: 100%; } .ds-check:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Report Header",
+      "kind": "custom",
+      "refersTo": "report-header",
+      "description": "How every report opens: breadcrumb, title, one line of what it covers, and its controls at the right.",
+      "html": "<div class=\"ds-report-head\"><nav class=\"ds-crumbs\"><a href=\"#\">The Simpsons</a><span>›</span><a href=\"#\">Reports</a></nav><header><div><h1>Ancestors of Bart Simpson</h1><p>Four generations, told as sentences with numbered sources.</p></div><button type=\"button\" class=\"ds-report-action\">Print</button></header></div>",
+      "css": ".ds-report-head{font-family:ui-sans-serif,system-ui,sans-serif;background:#fcf9f2;padding:16px}.ds-crumbs{font-size:.75rem;color:#57534e}.ds-crumbs a{color:#065f46;font-weight:600;text-decoration:none}.ds-crumbs a:hover{text-decoration:underline}.ds-crumbs span{margin:0 4px}.ds-report-head header{margin-top:4px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;border-bottom:1px solid #e7e5e4;padding-bottom:16px}.ds-report-head h1{margin:0;font-size:1.5rem;line-height:2rem;font-weight:700;color:#1c1917}.ds-report-head p{margin:4px 0 0;font-size:.875rem;color:#57534e}.ds-report-action{display:inline-flex;align-items:center;gap:6px;border:1px solid #d6d3d1;border-radius:8px;background:#f5f5f4;padding:6px 12px;font-size:.75rem;font-weight:600;color:#292524;cursor:pointer}.ds-report-action:hover{background:#e7e5e4}.ds-report-action:focus-visible{outline:2px solid #047857;outline-offset:2px}"
+    },
+    {
+      "name": "Report Table",
+      "kind": "card",
+      "refersTo": "report-panel",
+      "description": "The one table style for reports: a white panel on screen, plain ruled rows on paper.",
+      "html": "<div class=\"ds-report-panel\"><table class=\"ds-report-table\"><thead><tr><th>Generation</th><th>Known</th><th>Of</th><th>Complete</th></tr></thead><tbody><tr><th>Parents</th><td>2</td><td>2</td><td>100%</td></tr><tr><th>Grandparents</th><td>3</td><td>4</td><td>75%</td></tr><tr><th>Great-grandparents</th><td>2</td><td>8</td><td>25%</td></tr></tbody></table></div>",
+      "css": ".ds-report-panel{overflow-x:auto;border-radius:12px;border:1px solid #e7e5e4;background:#fff;font-family:ui-sans-serif,system-ui,sans-serif}.ds-report-table{width:100%;border-collapse:collapse;text-align:left;font-size:.875rem;font-variant-numeric:tabular-nums;color:#292524}.ds-report-table thead th{padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:.75rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;color:#57534e}.ds-report-table tbody th,.ds-report-table tbody td{padding:8px 12px;vertical-align:top}.ds-report-table tbody th{font-weight:500;color:#1c1917}.ds-report-table tbody tr+tr{border-top:1px solid #f5f5f4}"
     }
   ],
   "narrative": {
@@ -926,7 +942,7 @@
       "Stone inks for all text and rules; emerald for action and the brand only.",
       "One system sans stack at small sizes; hierarchy comes from weight and uppercase labels.",
       "Flat by default: borders and tonal steps carry structure, shadows mean \"floating\".",
-      "Light theme only. There is no dark mode.",
+      "Light theme only. There is no dark mode. On paper the cream falls away: reports, record pages and the tree poster print black on white.",
       "Lucide line icons at 14–16px beside labels."
     ],
     "rules": [
@@ -948,6 +964,11 @@
       {
         "name": "The Weight Not Size Rule",
         "body": "Hierarchy inside the app comes from weight (400, 600, 700) and the uppercase section label, not from large type. Nothing in the app chrome exceeds 1.5rem; the display size belongs to the splash.",
+        "section": "typography"
+      },
+      {
+        "name": "The Book On Paper Rule",
+        "body": "The 1.5rem ceiling holds on screen. Only printed report titles grow (the family book's title page to 2.25rem, its part titles to 1.5rem), because a book is read at arm's length, not scanned.",
         "section": "typography"
       },
       {
@@ -986,7 +1007,9 @@
       "**Do** keep motion to short colour and transform transitions, and let it go: `motion-reduce` and the viewer's own \"Reduce animation\" setting (`data-reduce-motion`) both remove it.",
       "**Do** make a destructive action two steps: a red-outlined trigger, then a dialog with the one red-filled confirm.",
       "**Do** pair every colour on the tree with a second signal: a symbol for sex, a line style for the parent-child type, a dashed edge for privacy.",
-      "**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them."
+      "**Do** add new tree colours to `tree-tokens.ts` so the contrast tests cover them.",
+      "**Do** open a report with `ReportHeader` and set its tables in `report-table` inside a `report-panel`, so every report reads as one set.",
+      "**Do** check a report in print media: black on white, no controls, and tables as ruled rows."
     ],
     "donts": [
       "**Don't** add a chevron icon beside a select or restyle a checkbox per component; the shared styles already draw them.",
@@ -995,7 +1018,9 @@
       "**Don't** use blue or pink for parent-child lines; they would read as sex.",
       "**Don't** set app-chrome text larger than 1.5rem; the display size belongs to the splash.",
       "**Don't** name a global class `.card`, `.btn`, `.link` or `.heading`; components scope those names, and a global rule would leak into them.",
-      "**Don't** use a white page background, or white for section cards; white is for fields, list panels and tables."
+      "**Don't** use a white page background, or white for section cards; white is for fields, list panels and tables.",
+      "**Don't** print a colour bar or tint as the only carrier of a value; with background graphics off it prints blank, so the number prints instead.",
+      "**Don't** tell the same person twice on one report page; point to the entry that tells them."
     ]
   }
 }
