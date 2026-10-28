@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import '../app.css';
+	import PullToRefresh from '#lib/components/layout/PullToRefresh.svelte';
 	import type { LayoutData } from './$types';
 
 	interface Props {
@@ -26,4 +27,5 @@
      styles and scripts key off the attribute. `display: contents` keeps it out of the layout. -->
 <div style="display: contents" data-reduce-motion={data.isMotionReduced ? '' : undefined}>
 	{@render children()}
+	<PullToRefresh />
 </div>
