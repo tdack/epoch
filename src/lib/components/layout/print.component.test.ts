@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { onPrint, openForPrint } from './print';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { onPrint, openForPrint, requestPrint } from './print';
 
 afterEach(() => {
 	document.body.innerHTML = '';
@@ -38,5 +38,32 @@ describe('onPrint', () => {
 		window.dispatchEvent(new Event('beforeprint'));
 		stop();
 		expect(calls).toEqual(['after']);
+	});
+});
+
+describe('requestPrint', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it('stays quiet when the print dialog opens', () => {
+		vi.useFakeTimers();
+		vi.spyOn(window, 'print').mockImplementation(() =>
+			window.dispatchEvent(new Event('beforeprint'))
+		);
+		const onUnavailable = vi.fn();
+		requestPrint(onUnavailable);
+		vi.runAllTimers();
+		expect(onUnavailable).not.toHaveBeenCalled();
+	});
+
+	it('reports a print that never starts, as an iOS home-screen app does', () => {
+		vi.useFakeTimers();
+		vi.spyOn(window, 'print').mockImplementation(() => {});
+		const onUnavailable = vi.fn();
+		requestPrint(onUnavailable);
+		vi.runAllTimers();
+		expect(onUnavailable).toHaveBeenCalledOnce();
 	});
 });

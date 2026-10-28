@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintButton from '#lib/components/layout/PrintButton.svelte';
 	import { dateReader } from '#lib/components/date-format.js';
 	import CsvDownload from '#lib/components/lists/CsvDownload.svelte';
 	import { MONTH_NAMES, anniversaryDateText, anniversaryWhat } from '#lib/shared/calendar.js';
@@ -37,7 +38,7 @@
 		<a href="{base}/calendar/anniversaries.ics" class="action-btn" download
 			>Download all months (.ics)</a
 		>
-		<button type="button" class="action-btn" onclick={() => window.print()}>Print</button>
+		<PrintButton />
 	</div>
 </header>
 
