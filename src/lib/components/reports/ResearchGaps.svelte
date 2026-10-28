@@ -48,9 +48,10 @@
 							<td>
 								<span class="flex items-center gap-2">
 									<span class="w-10 text-right">{percent(row.found, row.possible)}</span>
-									<!-- The share drawn as well as said, so the generations compare at a glance. -->
+									<!-- The share drawn as well as said, so the generations compare at a glance. Paper keeps
+										     only the number: print dialogs drop background colour by default. -->
 									<span
-										class="h-1.5 w-24 overflow-hidden rounded-full bg-stone-200 print:border print:border-stone-400"
+										class="h-1.5 w-24 overflow-hidden rounded-full bg-stone-200 print:hidden"
 										aria-hidden="true"
 									>
 										<span
