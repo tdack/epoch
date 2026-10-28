@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
+	import { flushSync, onMount, tick, untrack } from 'svelte';
+	import { Printer } from '@lucide/svelte';
+	import { onPrint, requestPrint } from '#lib/components/layout/print.js';
 	import {
 		LAYOUT_METRICS,
 		type ChildAssertion,
@@ -24,6 +26,7 @@
 	import { DEFAULT_PALETTE, treeTokenStyle, type Palette } from '#lib/shared/palette.js';
 	import type { PartnershipLabel } from '#lib/shared/partnership-labels.js';
 	import { activateOnKey } from './activate-on-key.js';
+	import { POSTER_MARGIN_MM, posterSheet } from './poster.js';
 	import { keyIntentOf } from './tree-keyboard.js';
 	import {
 		personMenuItems,
@@ -37,6 +40,7 @@
 	import {
 		isEndedUnion,
 		levelOfDetail,
+		type LevelOfDetail,
 		neighbourOf,
 		relationLabel,
 		unionLabelText,
@@ -185,6 +189,36 @@
 	);
 
 	const level = $derived(levelOfDetail(transform.k));
+	const sheet = $derived(layout.people.length > 0 ? posterSheet(layout.bounds) : null);
+	const posterLabel = $derived(
+		sheet
+			? `Print as a poster, ${Math.round(sheet.widthMm)} × ${Math.round(sheet.heightMm)} mm with cards ${Math.round(sheet.cardWidthMm)} mm wide`
+			: 'Print as a poster'
+	);
+	// Drawn only while printing: a second full-detail copy of a big tree is too heavy to keep around.
+	let isPrinting = $state(false);
+	let isPrintUnavailable = $state(false);
+	$effect(() =>
+		onPrint(() => {
+			if (!sheet) return () => {};
+			// The page size is the drawing's own, and CSS cannot take a variable inside `size`.
+			const pageRule = document.createElement('style');
+			pageRule.textContent = `@page tree-poster { size: ${sheet.widthMm}mm ${sheet.heightMm}mm; margin: ${POSTER_MARGIN_MM}mm; @bottom-right { content: none; } }`;
+			document.head.appendChild(pageRule);
+			isPrinting = true;
+			flushSync();
+			return () => {
+				pageRule.remove();
+				isPrinting = false;
+			};
+		})
+	);
+
+	/** Moves the poster to the end of the body, where app.css can print it alone. */
+	function toBody(node: HTMLElement) {
+		document.body.appendChild(node);
+		return { destroy: () => node.remove() };
+	}
 	const peopleById = $derived(new Map(layout.people.map((p) => [p.id, p])));
 	const unionById = $derived(new Map(layout.unions.map((u) => [u.id, u])));
 	const stubById = $derived(new Map(layout.stubs.map((s) => [s.id, s])));
@@ -512,6 +546,52 @@
 	const emptyLabel = 'No people in this tree yet.';
 </script>
 
+{#snippet scene(lvl: LevelOfDetail, k: number, isPrint: boolean)}
+	{#each layout.edges as edge (edge.id)}
+		{@const stub = edge.kind === 'stub' ? stubById.get(edge.stubId) : undefined}
+		{@const unionId = edge.kind === 'partner' ? edge.unionId : undefined}
+		<TreeEdge
+			{edge}
+			{stub}
+			isFromUnion={stub ? stub.unionId !== null : false}
+			isUnionEnded={unionId
+				? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active')
+				: false}
+			isSelected={!isPrint && selectedEdgeId === edge.id}
+		/>
+	{/each}
+
+	{#each layout.unions as union (union.id)}
+		<UnionMarker
+			{union}
+			level={lvl}
+			isEnded={isEndedUnion(union.union.status)}
+			isNonAdjacent={nonAdjacentIds.has(union.id)}
+			label={unionLabelText(union.union, dateFormat())}
+			ordinalTitle={partnershipLabels?.get(union.id)?.title}
+			zoom={k}
+			onContextMenu={openUnionMenu}
+		/>
+	{/each}
+
+	{#each layout.people as node (node.id)}
+		<PersonCard
+			{node}
+			level={lvl}
+			zoom={lvl === 'block' ? k : 1}
+			isSelf={node.id === selfPersonId}
+			isFocus={node.id === layout.focusPersonId}
+			isSelected={!isPrint && node.id === selectedPersonId}
+			isActive={!isPrint && node.id === activeId}
+			hasMultiplePaths={collapsedIds.has(node.id)}
+			relation={relations.get(node.id) ?? ''}
+			onSelect={(id) => onSelectPerson?.(id)}
+			onOpen={(id) => onOpenPerson?.(id)}
+			onContextMenu={openPersonMenu}
+		/>
+	{/each}
+{/snippet}
+
 <!-- Arrow-key handling is delegated from the focusable cards inside; the container itself is not a tab stop. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
@@ -537,49 +617,7 @@
 		aria-hidden={layout.people.length === 0 ? 'true' : undefined}
 	>
 		<g class="scene" transform="translate({transform.x},{transform.y}) scale({transform.k})">
-			{#each layout.edges as edge (edge.id)}
-				{@const stub = edge.kind === 'stub' ? stubById.get(edge.stubId) : undefined}
-				{@const unionId = edge.kind === 'partner' ? edge.unionId : undefined}
-				<TreeEdge
-					{edge}
-					{stub}
-					isFromUnion={stub ? stub.unionId !== null : false}
-					isUnionEnded={unionId
-						? isEndedUnion(unionById.get(unionId)?.union.status ?? 'active')
-						: false}
-					isSelected={selectedEdgeId === edge.id}
-				/>
-			{/each}
-
-			{#each layout.unions as union (union.id)}
-				<UnionMarker
-					{union}
-					{level}
-					isEnded={isEndedUnion(union.union.status)}
-					isNonAdjacent={nonAdjacentIds.has(union.id)}
-					label={unionLabelText(union.union, dateFormat())}
-					ordinalTitle={partnershipLabels?.get(union.id)?.title}
-					zoom={transform.k}
-					onContextMenu={openUnionMenu}
-				/>
-			{/each}
-
-			{#each layout.people as node (node.id)}
-				<PersonCard
-					{node}
-					{level}
-					zoom={level === 'block' ? transform.k : 1}
-					isSelf={node.id === selfPersonId}
-					isFocus={node.id === layout.focusPersonId}
-					isSelected={node.id === selectedPersonId}
-					isActive={node.id === activeId}
-					hasMultiplePaths={collapsedIds.has(node.id)}
-					relation={relations.get(node.id) ?? ''}
-					onSelect={(id) => onSelectPerson?.(id)}
-					onOpen={(id) => onOpenPerson?.(id)}
-					onContextMenu={openPersonMenu}
-				/>
-			{/each}
+			{@render scene(level, transform.k, false)}
 
 			<!-- Hit targets come after the cards in the document, so Tab reaches a person's lines and partnerships right after the person. -->
 			{#each layout.edges as edge (edge.id)}
@@ -701,6 +739,20 @@
 		onFit={() => viewport.fitStep(layout)}
 	>
 		{#snippet leading()}
+			{#if sheet}
+				<button
+					type="button"
+					class="poster"
+					title={posterLabel}
+					aria-label={posterLabel}
+					onclick={() => {
+						isPrintUnavailable = false;
+						requestPrint(() => (isPrintUnavailable = true));
+					}}
+				>
+					<Printer class="h-4 w-4" />
+				</button>
+			{/if}
 			{#if onToggleWholeTree}
 				<button
 					type="button"
@@ -742,10 +794,66 @@
 		/>
 	{/if}
 
+	{#if isPrintUnavailable}
+		<p
+			role="status"
+			class="absolute right-6 bottom-20 z-20 max-w-xs rounded-lg border border-stone-300 bg-white p-2 text-xs text-stone-700 shadow-md"
+		>
+			This app window can't print.
+			<a class="text-link" href={location.href} target="_blank" rel="noopener"
+				>Open this page in the browser</a
+			>
+			and print from there.
+		</p>
+	{/if}
+
 	<p class="sr-only" aria-live="polite">{announcement}</p>
 </div>
 
+{#if isPrinting && sheet}
+	<div
+		use:toBody
+		data-tree-poster
+		aria-hidden="true"
+		inert
+		class="hidden items-center justify-center print:flex"
+		style="{treeTokenStyle(palette)}; width: {sheet.widthMm -
+			2 * POSTER_MARGIN_MM}mm; height: {sheet.heightMm - 2 * POSTER_MARGIN_MM - 1}mm;"
+	>
+		<svg
+			viewBox={sheet.viewBox}
+			width="{sheet.drawingWidthMm}mm"
+			height="{sheet.drawingHeightMm}mm"
+			style="max-height: 100%;"
+		>
+			{@render scene('full', 1, true)}
+		</svg>
+	</div>
+{/if}
+
 <style>
+	.poster {
+		padding: 0.5rem;
+		border-radius: 0.5rem;
+		color: #57534e;
+		cursor: pointer;
+	}
+	.poster:hover {
+		background: rgb(231 229 228 / 0.6);
+		color: #1c1917;
+	}
+	.poster:focus-visible {
+		outline: 2px solid var(--tree-focus-ring);
+	}
+	@media (pointer: coarse) {
+		.poster {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 2.75rem;
+			min-height: 2.75rem;
+		}
+	}
 	/* Matches the WebGL views' Whole tree toggle, so the one control reads the same in every view. */
 	.whole-tree {
 		padding: 0.25rem 0.625rem;
