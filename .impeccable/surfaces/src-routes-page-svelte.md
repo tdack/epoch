@@ -7,8 +7,9 @@ related_targets: []
 
 ## Scope
 
-The public site at epochgenealogy.app: the home page (`src/routes/+page.svelte`) and two detail
-pages in the same design, `/roles` and `/sub-trees` (2026-10-22). Mode: Persuade. Visitors are
+The public site at epochgenealogy.app: the home page (`src/routes/+page.svelte`) and four detail
+pages in the same design, `/roles` and `/sub-trees` (2026-10-22), `/reports` and `/maps`
+(2026-10-28). Mode: Persuade. Visitors are
 families and researchers deciding whether to try Epoch, and technical relatives who would install
 it. The action is the demo (demo.epochgenealogy.app); the second action is the code and the install.
 Proof is the product's own drawing of a family, labelled as synthetic. No invented claims:
@@ -16,9 +17,10 @@ no users, testimonials, prices or benchmarks.
 
 Home page order (2026-10-22, after the critique): why, the explorer, features, the 3D views, get
 the code, install, FAQ, then the close. Roles and sub-trees are second-order depth, so they left
-the home page; the features section ends with a sentence linking to both. The nav follows the home
-order (Explore, Features, 3D Views, Get the code, Install, FAQ) and ends with Roles, a page of its
-own. Its in-page links are `/#…`, so they work from the detail pages, which share the nav, the
+the home page; the features section ends with a sentence linking to them and to reports and maps.
+The nav follows the home order (Explore, Features, 3D Views, Get the code, Install, FAQ) and ends
+with the pages of their own: Reports, Maps, Sub-trees, Roles. With ten links it folds into the Menu
+below 1140px. Its in-page links are `/#…`, so they work from the detail pages, which share the nav, the
 close and the footer (`SiteFooter`) and open with a compact emerald header (`PageHeader`).
 
 ## Direction contract
@@ -75,6 +77,20 @@ as the figure scrolls in, the page's one moment, static under reduced motion. On
 figure scrolls sideways inside its frame, with an edge fade, so its names stay legible. Copy holds
 that a sub-tree is a lens, not an access boundary (ADR-062), and members-only until a manager shows
 it to visitors (ADR-069). Page copy is `ROLES_PAGE` and `SUBTREES_PAGE` in `site.ts`.
+
+Reports and maps (2026-10-28): the app gained reports, printing and OpenStreetMap maps, so each
+has a page. `/reports` ("Reports and printing") pairs its two paragraphs with the sample family's
+view drawn as the printed poster: a white sheet cut to the drawing with the app's print footer, and
+printer's dimension rules beside it, the short side "up to 841 mm", the long side running on dashed.
+Below it the reports sit on two shelves (the person's long list against the partnership and the
+whole tree), then an emerald-950 band lists how things print. `/maps` ("Places and maps") draws
+Ellen Marsh's life as the person page maps it, numbered stops joined by a line, on a plain
+graticule at the real towns' positions, so the site loads no tiles; under it, what a place search
+sends and never sends. `MarshDrawing.svelte` is the family drawing both the sub-trees figure and
+the poster use, 760 units wide since dates read as words ("between 1908 and 1910"), as the app's
+charts now show them. The explorer's dates are in words too. Copy is `REPORTS_PAGE`,
+`REPORT_GROUPS`, `PRINTING`, `MAPS_PAGE`, `MAP_PRIVACY` and `MAPS_NOTE` in `site.ts`, checked
+against ADR-078, ADR-080 and the reports hub on `main`.
 
 Colour and buttons (2026-10-22): amber marks the action and the child, nothing else. The primary
 action, opening the demo tree, is the amber pill (`.button.action` in `app.css`) in the hero, the

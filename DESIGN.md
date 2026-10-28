@@ -292,10 +292,11 @@ they only take effect where the system font supports them.
 - **Section label** (700, 0.75rem, 0.05em tracking, uppercase, `stone-text`): the heading of every
   section card on a record page.
 
-**Drawing text.** SVG text inside the explorer and sub-tree figures is sized in the drawing's user
-units (11, 13, 16, 19 and 20, copied from the app's tree cards) and scales with the figure, so it is
-not on the page ramp. The design detector ignores those values in `FamilyExplorer.svelte` and
-`SubtreeFigure.svelte` only.
+**Drawing text.** SVG text inside the explorer, the Marsh family drawing (the sub-trees figure and
+the reports page's poster) and the life map is sized in the drawing's user units (11, 13, 16, 19
+and 20, copied from the app's tree cards) and scales with the figure, so it is not on the page
+ramp. The design detector ignores those values in `FamilyExplorer.svelte`, `MarshDrawing.svelte`
+and `LifeMapFigure.svelte` only.
 
 Text inside the tree's SVG cards uses its own scale: names at 14px bold and dates at 12px in the
 standard card, larger when the card is compacted for a zoomed-out view.
