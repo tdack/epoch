@@ -100,7 +100,9 @@ export class NarrativeService {
 		kind: NarrativeKind,
 		generations: number,
 		numbering: DescendantNumbering,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		/** Leaves the first person untold, and their citations out of the notes: the family book tells them in its ancestors part. */
+		options: { shouldSkipRoot?: boolean } = {}
 	): Promise<NarrativeDto> {
 		const scope = await requireTreeScope(
 			this.users,
@@ -137,7 +139,8 @@ export class NarrativeService {
 		const endnotes = new Endnotes();
 		const entries: NarrativeEntryDto[] = slots.map((slot) => {
 			const isRepeat = firstNumber.get(slot.person.id) !== slot.number;
-			const input = people.get(slot.person.id);
+			const input =
+				options.shouldSkipRoot && slot === slots[0] ? undefined : people.get(slot.person.id);
 			return {
 				number: slot.number,
 				generation: slot.generation,

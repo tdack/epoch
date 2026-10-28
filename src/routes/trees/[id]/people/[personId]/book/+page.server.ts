@@ -25,6 +25,8 @@ export const load: PageServerLoad = treeServerLoad(
 			max: MAX_NARRATIVE_GENERATIONS
 		});
 		const narratives = new NarrativeService(db);
+		// The descendants part opens on the subject the ancestors part already told; the page points back.
+		const isRootFolded = sections.includes(BOOK_SECTIONS.ANCESTORS);
 		const tell = (kind: (typeof NARRATIVE_KINDS)[keyof typeof NARRATIVE_KINDS]) =>
 			narratives.narrative(
 				treeId,
@@ -32,7 +34,8 @@ export const load: PageServerLoad = treeServerLoad(
 				kind,
 				generations,
 				DESCENDANT_NUMBERINGS.DABOVILLE,
-				ctx
+				ctx,
+				{ shouldSkipRoot: kind === NARRATIVE_KINDS.DESCENDANTS && isRootFolded }
 			);
 		const [ancestors, descendants, pedigree] = await Promise.all([
 			sections.includes(BOOK_SECTIONS.ANCESTORS) ? tell(NARRATIVE_KINDS.ANCESTORS) : null,

@@ -119,6 +119,21 @@ describe('the descendant narrative', () => {
 		expect(report.endnotes).toEqual([{ number: 1, text: 'Parish register, p. 4.' }]);
 	});
 
+	it('can leave the first person untold, with none of their citations in the notes', async () => {
+		const report = await new NarrativeService(t.db).narrative(
+			treeId,
+			idOf('Ann'),
+			NARRATIVE_KINDS.DESCENDANTS,
+			3,
+			DESCENDANT_NUMBERINGS.DABOVILLE,
+			owner.context,
+			{ shouldSkipRoot: true }
+		);
+		expect(report.entries[0]!.sentences).toEqual([]);
+		expect(report.entries.map((e) => e.number)).toEqual(['1', '1.1', '1.2']);
+		expect(report.endnotes).toEqual([]);
+	});
+
 	it('says nothing a viewer may not see about a living descendant', async () => {
 		const report = await narrative(idOf('Ann'), NARRATIVE_KINDS.DESCENDANTS, viewer);
 		expect(JSON.stringify(report)).not.toContain('Zed');
