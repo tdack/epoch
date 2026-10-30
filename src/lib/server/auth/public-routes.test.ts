@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	isPublicTreeSegment,
 	isPublicPagePath,
+	SETUP_PATH,
 	LOGIN_PATH,
 	NOT_INVITED_PATH,
 	notAdmittedOutcome,
@@ -24,6 +25,7 @@ describe('public routes', () => {
 	it('lists only the welcome and login pages as public', () => {
 		expect(isPublicPagePath(WELCOME_PATH)).toBe(true);
 		expect(isPublicPagePath(LOGIN_PATH)).toBe(true);
+		expect(isPublicPagePath(SETUP_PATH)).toBe(true);
 		expect(isPublicPagePath('/')).toBe(false);
 		expect(isPublicPagePath('/welcome/extra')).toBe(false);
 		expect(isPublicPagePath('/trees/t1')).toBe(false);

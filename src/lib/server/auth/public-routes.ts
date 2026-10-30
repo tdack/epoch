@@ -10,8 +10,14 @@ export { WELCOME_PATH };
  */
 export const LOGIN_PATH = '/login';
 
+/**
+ * A button install's one-time setup page (ADR-082). It answers 404 everywhere but an unclaimed
+ * workers.dev install, so listing it here opens nothing on any other.
+ */
+export const SETUP_PATH = '/setup';
+
 /** Pages served without an identified user. Every other page and endpoint denies by default. */
-const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH];
+const PUBLIC_PAGE_PATHS: readonly string[] = [WELCOME_PATH, LOGIN_PATH, SETUP_PATH];
 
 export function isPublicPagePath(pathname: string): boolean {
 	return PUBLIC_PAGE_PATHS.includes(pathname);
