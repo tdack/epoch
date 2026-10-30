@@ -7,6 +7,19 @@
 	"engines": {
 		"node": ">=24"
 	},
+	"cloudflare": {
+		"bindings": {
+			"DB": {
+				"description": "The family trees: people, partnerships, sources and the change log."
+			},
+			"MEDIA_BUCKET": {
+				"description": "Photos and documents attached to records, kept private in your own storage."
+			},
+			"GEDCOM_IMPORT_QUEUE": {
+				"description": "Runs GEDCOM imports in the background. Queues need a **paid Workers plan**."
+			}
+		}
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -36,7 +49,7 @@
 		"pretest": "node scripts/ensure-setup-deps.mjs",
 		"build:worker": "node scripts/deploy-config.mjs && vite build",
 		"deploy:worker": "npm run db:migrate && wrangler deploy workers/entry.ts -c wrangler.deploy.jsonc",
-		"deploy": "npm run build:worker && npm run deploy:worker",
+		"deploy": "EPOCH_BUTTON_DEPLOY=1 npm run build:worker && npm run deploy:worker",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"tree:baseline": "RECORD_CROSSING_BASELINE=1 vitest run src/lib/tree-layout/crossings.record.test.ts -u",

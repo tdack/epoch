@@ -19,7 +19,7 @@ into your own Cloudflare account, and looking after it afterwards. For what Epoc
 ```sh
 nvm use                       # or otherwise install Node 24
 npm install
-cp .dev.vars.example .dev.vars
+cp .dev.vars.local-example .dev.vars
 npm run db:migrate:local      # creates the local database
 npm run dev
 ```

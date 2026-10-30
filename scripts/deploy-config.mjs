@@ -58,6 +58,37 @@ export async function writeDeployConfigFromEnv(env = process.env) {
 	return true;
 }
 
+/**
+ * Set only by `npm run deploy`, the command a Deploy to Cloudflare button runs (ADR-082). `./setup
+ * builds` points Workers Builds at `build:worker` and `deploy:worker` instead, which never set it, so
+ * a `./setup` install that has lost EPOCH_DEPLOY_VALUES still stops here rather than deploying the
+ * dev-safe tracked file.
+ */
+export const BUTTON_DEPLOY_VARIABLE = 'EPOCH_BUTTON_DEPLOY';
+
+/**
+ * A button install has no setup values: the button provisioned the resources named in the tracked
+ * file, and `/setup` keeps the rest in D1. So on Workers Builds, through `npm run deploy`, with
+ * neither a deploy file nor the variable, the deploy config is the tracked file without
+ * `send_email`, whose placeholder sender Cloudflare would refuse. Invitations are then saved but not
+ * emailed, as for any install without a sender.
+ */
+export async function writeButtonDeployConfig(env = process.env) {
+	if (env.WORKERS_CI !== '1' || env[BUTTON_DEPLOY_VARIABLE] !== '1') return false;
+	if (env[DEPLOY_VALUES_VARIABLE] || existsSync(DEPLOY_CONFIG)) return false;
+	const { rawConfig } = await experimental_readRawConfig(
+		{ config: TRACKED_CONFIG },
+		{ useRedirectIfAvailable: false }
+	);
+	const { send_email: _sendEmail, ...config } = rawConfig;
+	writeFileSync(
+		DEPLOY_CONFIG,
+		`// Written by scripts/deploy-config.mjs for a Deploy to Cloudflare button install (ADR-082).\n` +
+			`${JSON.stringify(config, null, '\t')}\n`
+	);
+	return true;
+}
+
 /** Throws when the deploy config is missing or disagrees with the tracked file on a build field. */
 export function assertBuildFieldsAgree() {
 	requireDeployConfig();
@@ -80,6 +111,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	try {
 		if (await writeDeployConfigFromEnv()) {
 			console.error(`Wrote ${DEPLOY_CONFIG} from ${DEPLOY_VALUES_VARIABLE}`);
+		} else if (await writeButtonDeployConfig()) {
+			console.error(`Wrote ${DEPLOY_CONFIG} from ${TRACKED_CONFIG} for a button install`);
 		}
 		assertBuildFieldsAgree();
 	} catch (error) {

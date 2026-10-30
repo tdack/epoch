@@ -1,2 +1,0 @@
-# Copy to .dev.vars for local development. Never set this in production.
-ACCESS_BYPASS_DEV=true
