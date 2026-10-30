@@ -6,6 +6,7 @@ into your own Cloudflare account, and looking after it afterwards. For what Epoc
 
 - [Requirements](#requirements)
 - [Running locally](#running-locally)
+- [Installing with the Deploy to Cloudflare button](#installing-with-the-deploy-to-cloudflare-button)
 - [Installing into Cloudflare](#installing-into-cloudflare)
 
 ## Requirements
@@ -53,6 +54,32 @@ in for the install owner. To act as someone else, send the `x-dev-user-sub`, `x-
 The bypass only applies when the flag is set and the app runs from the dev server (`npm run dev`); a
 built bundle ignores it. **Never set it in a deployed environment.**
 `.dev.vars` is git-ignored.
+
+## Installing with the Deploy to Cloudflare button
+
+The quickest install needs no terminal (ADR-082):
+
+1. In Zero Trust, make sure your organisation has a login method under **Settings →
+   Authentication**. One-time PIN, which emails a code, is the simplest.
+2. Click **Deploy to Cloudflare** in the [README](./README.md#getting-started). Cloudflare copies
+   the repository into your GitHub account, creates the database, bucket and queue, and deploys
+   to `<worker>.<your-subdomain>.workers.dev`. Keep the build and deploy commands it suggests.
+3. Open that address. It sends you to `/setup`, which links to a Cloudflare page for creating an
+   account API token with the permissions it needs. Paste the token and your email address.
+4. Setup checks that the token belongs to the account that serves the address, creates an Access
+   application on `/login` that admits only you, and records you as the install owner. The page then
+   closes for good. Delete the token: Epoch does not keep it.
+
+Every push to the copy in your GitHub account deploys again through Workers Builds.
+
+A button install differs from one made by `./setup`:
+
+- It is served on workers.dev only. For your own domain, use `./setup`.
+- Invitations are saved but not emailed, because the button cannot set up a sender. Tell the
+  people you invite the address yourself; signing in with the invited email is all they need.
+- Its Access settings are kept in the database, not in the Worker's vars, and `./setup doctor`,
+  `allow` and `teardown` don't know about it. To let someone else sign in, invite them and add their
+  address to the Access policy named `Epoch <worker> sign-in` in Zero Trust.
 
 ## Installing into Cloudflare
 

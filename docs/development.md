@@ -56,7 +56,11 @@ custom-domain route), the vars and the sender address.
 - **On Workers Builds:** `npm run build:worker` writes it from the `EPOCH_DEPLOY_VALUES` build
   variable, which `./setup` (or `./setup builds`) sets.
 
-Without the file or the variable, remote commands stop and say to run setup.
+Without the file or the variable, remote commands stop and say to run setup. The one exception is
+a Deploy to Cloudflare button install (ADR-082): `npm run deploy` on Workers Builds sets
+`EPOCH_BUTTON_DEPLOY`, and with neither the file nor the variable the script writes the deploy
+config from `wrangler.jsonc` without `send_email`. `./setup builds` uses `build:worker` and
+`deploy:worker`, which never set it, so a setup install missing its variable still stops.
 
 The tracked `wrangler.jsonc` carries one var of its own, `EPOCH_SOURCE_URL`: the repository every
 page's "Source code (AGPL)" link points to. It belongs to the fork rather than the install, so it

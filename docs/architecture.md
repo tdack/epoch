@@ -147,7 +147,10 @@ with 5.5.1 as a compatibility profile ([ADR-010](./adr/ADR-010.md), [ADR-036](./
 Cloudflare Access supplies the identity; the Worker validates the JWT and upserts the user by stable
 `sub` ([ADR-001](./adr/ADR-001.md)). The Access audience check fails closed, and local development uses an explicit,
 non-production identity adapter (`ACCESS_BYPASS_DEV`). One Access application protects `/login`;
-the Worker gates everything else ([ADR-026](./adr/ADR-026.md)).
+the Worker gates everything else ([ADR-026](./adr/ADR-026.md)). A Deploy to Cloudflare button
+install has no `CF_ACCESS_*` vars: its one-time `/setup` page, open only on an unclaimed workers.dev
+install, creates the Access application with a pasted token and keeps the team domain and audience
+in `install_meta`, which the hook reads when the vars are empty ([ADR-082](./adr/ADR-082.md)).
 
 Tree roles `owner` > `manager` > `editor` > `contributor` > `viewer` gate actions through
 `isActionAllowed`. Every endpoint denies by default.

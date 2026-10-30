@@ -222,8 +222,15 @@ Epoch is young and in active development. Known gaps are in [docs/backlog.md](./
 
 ## Getting started
 
-To run Epoch on your own machine or install it into your own Cloudflare account, follow
-[INSTALL.md](./INSTALL.md).
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tdack/epoch)
+
+The button copies Epoch into your GitHub account and deploys it to a workers.dev address on your
+Cloudflare account. Then open that address and finish on its setup page, which puts Cloudflare
+Access in front of sign-in and records you as the owner. You need a paid Workers plan and a Zero
+Trust organisation with a login method.
+
+To use your own domain, run Epoch on your own machine, or have setup manage the install afterwards,
+follow [INSTALL.md](./INSTALL.md).
 
 ## Developing Epoch
 
