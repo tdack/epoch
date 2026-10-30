@@ -26,10 +26,16 @@
 					Cloudflare Access now guards sign-in on the account “{form.accountName}”, and you are
 					recorded as the install owner. This page is closed for good.
 				</p>
-				{#if !form.didCreateApp}
+				{#if form.isAppForeign}
 					<p>
 						An Access application already covered this address's sign-in page, so it was used as it
 						is. If you cannot sign in, check its policy admits your address.
+					</p>
+				{:else}
+					<p>
+						Access admits {form.ownerEmail} through the policy “{form.policyName}”. To let someone
+						else sign in, invite them from a tree's Members page and add their address to that
+						policy in Zero Trust.
 					</p>
 				{/if}
 				<p class="font-semibold">

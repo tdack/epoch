@@ -79,7 +79,8 @@ A button install differs from one made by `./setup`:
   people you invite the address yourself; signing in with the invited email is all they need.
 - Its Access settings are kept in the database, not in the Worker's vars, and `./setup doctor`,
   `allow` and `teardown` don't know about it. To let someone else sign in, invite them and add their
-  address to the Access policy named `Epoch <worker> sign-in` in Zero Trust.
+  address to the Access policy named `Epoch <worker> sign-in` in Zero Trust. Edit the same policy if
+  you mistyped your own address on a first attempt at `/setup`.
 
 ## Installing into Cloudflare
 

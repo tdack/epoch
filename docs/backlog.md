@@ -146,7 +146,23 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
   then steps down). (ADR-016)
 - **Cloudflare Access is configured separately.** An invited address must also be allowed by the
   Access policy; the app cannot edit it. `npm run setup -- allow <email>` covers a policy the setup
-  tool created.
+  tool created. A button install has no setup manifest, so its policy is edited by hand in Zero
+  Trust. (ADR-082)
+
+### Deploy to Cloudflare button
+
+- **Not yet tried end to end.** Watch the first button install. Unverified: that an account-owned
+  token can call `GET /accounts`; that the template's short keys (`access`, `access_acct`,
+  `workers_scripts`) pick the groups `/setup` names; that the button accepts the tracked
+  `wrangler.jsonc` with its placeholder `send_email`, Workflows and rate limits before the build
+  strips `send_email`; and that it writes the new resource ids into `wrangler.jsonc` before the
+  build. (ADR-082)
+- **`./setup` cannot adopt a button install.** It has no `.epoch/install.json`, so `doctor`,
+  `allow`, `teardown` and a later move to a custom domain do not know it. Adopting means reading the
+  `install_meta` row and the Access application by name. (ADR-082)
+- **A retry keeps the first attempt's policy.** If `/setup` created the policy and then failed, a
+  second submission with a corrected address reuses the policy as it is. The success page names the
+  policy; fixing it is a Zero Trust edit. (ADR-082)
 
 ### Tests
 

@@ -46,8 +46,14 @@ export interface ClaimRequest {
 
 export interface ClaimResult {
 	accountName: string;
-	/** False when an Access application on `/login` already existed and was used as it was. */
-	didCreateApp: boolean;
+	/**
+	 * An Access application Epoch did not name already covered `/login` and was used as it was, so
+	 * its own policy decides who signs in. Epoch's own app, found again on a retry, is not foreign.
+	 */
+	isAppForeign: boolean;
+	/** The policy that admits the owner, when Epoch's own app is in use. */
+	policyName: string;
+	ownerEmail: string;
 }
 
 /**
@@ -103,7 +109,6 @@ export async function claimInstall(request: ClaimRequest): Promise<ClaimResult> 
 	const names = accessNames(host.workerName);
 	const domain = `${host.workerName}.${host.subdomain}.workers.dev/login`;
 	let app = await api.findAppByDomain(account.id, domain);
-	const didCreateApp = app === null;
 	if (!app) {
 		const policy =
 			(await api.findPolicyByName(account.id, names.policy)) ??
@@ -128,5 +133,10 @@ export async function claimInstall(request: ClaimRequest): Promise<ClaimResult> 
 		accessAud: app.aud
 	});
 	if (!didClaim) throw new SetupStepError('This install already has an owner.');
-	return { accountName: account.name, didCreateApp };
+	return {
+		accountName: account.name,
+		isAppForeign: app.name !== names.app,
+		policyName: names.policy,
+		ownerEmail
+	};
 }

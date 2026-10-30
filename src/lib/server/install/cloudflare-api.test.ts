@@ -65,7 +65,12 @@ describe('createCloudflareApi', () => {
 	it('creates an owner-only policy and the app with the same body ./setup sends', async () => {
 		const { fetchFn, seen } = fakeFetch({
 			'POST /accounts/acc1/access/policies': ok({ id: 'pol1' }),
-			'POST /accounts/acc1/access/apps': ok({ id: 'app1', domain: 'x/login', aud: 'aud1' })
+			'POST /accounts/acc1/access/apps': ok({
+				id: 'app1',
+				name: 'Epoch (x)',
+				domain: 'x/login',
+				aud: 'aud1'
+			})
 		});
 		const api = createCloudflareApi(TOKEN, fetchFn);
 		expect(await api.createOwnerPolicy('acc1', 'Epoch x sign-in', 'Owner@Example.com')).toEqual({
@@ -81,7 +86,7 @@ describe('createCloudflareApi', () => {
 			policyIds: ['pol1'],
 			idpIds: ['idp1']
 		});
-		expect(app).toEqual({ id: 'app1', domain: 'x/login', aud: 'aud1' });
+		expect(app).toEqual({ id: 'app1', name: 'Epoch (x)', domain: 'x/login', aud: 'aud1' });
 		expect(seen[1]!.body).toMatchObject({
 			type: 'self_hosted',
 			policies: [{ id: 'pol1', precedence: 1 }],

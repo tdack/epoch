@@ -33,6 +33,7 @@ interface IdentityProvider {
 
 export interface AccessApplication {
 	id: string;
+	name: string;
 	domain: string;
 	aud: string;
 }
@@ -111,7 +112,7 @@ export function createCloudflareApi(token: string, fetchFn: typeof fetch = fetch
 
 	function parseApp(raw: unknown): AccessApplication {
 		const app = isRec(raw) ? raw : {};
-		return { id: str(app.id), domain: str(app.domain), aud: str(app.aud) };
+		return { id: str(app.id), name: str(app.name), domain: str(app.domain), aud: str(app.aud) };
 	}
 
 	return {

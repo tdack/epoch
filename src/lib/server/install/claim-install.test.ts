@@ -42,7 +42,7 @@ function fakeApi(overrides: Partial<CloudflareApi> = {}) {
 		findAppByDomain: async () => null,
 		createApp: async (_id, app): Promise<AccessApplication> => {
 			created.apps.push(app);
-			return { id: 'app1', domain: app.domain, aud: 'aud1' };
+			return { id: 'app1', name: app.name, domain: app.domain, aud: 'aud1' };
 		},
 		...overrides
 	};
@@ -76,7 +76,12 @@ describe('claimInstall', () => {
 	it('makes the policy and the app on /login, then records the owner', async () => {
 		const { api, created } = fakeApi();
 		const result = await claim(api);
-		expect(result).toEqual({ accountName: 'Family', didCreateApp: true });
+		expect(result).toEqual({
+			accountName: 'Family',
+			isAppForeign: false,
+			policyName: 'Epoch epoch-genealogy sign-in',
+			ownerEmail: 'owner@example.com'
+		});
 		expect(created.policies).toEqual([accessNames('epoch-genealogy').policy]);
 		expect(created.apps[0]).toMatchObject({
 			name: 'Epoch (epoch-genealogy)',
@@ -113,13 +118,28 @@ describe('claimInstall', () => {
 		);
 	});
 
-	it('reuses an existing app on /login and an existing policy, creating nothing', async () => {
+	it("reuses its own app on a retry, without calling it someone else's", async () => {
+		const { api, created } = fakeApi({
+			findAppByDomain: async (_id, domain) => ({
+				id: 'app0',
+				name: 'Epoch (epoch-genealogy)',
+				domain,
+				aud: 'aud0'
+			})
+		});
+		expect((await claim(api)).isAppForeign).toBe(false);
+		expect(created).toEqual({ policies: [], apps: [] });
+	});
+
+	it('reuses an app it did not name on /login, creating nothing, and says so', async () => {
 		const { api, created } = fakeApi({
 			findAppByDomain: async (_id, domain) =>
-				domain === LOGIN_DOMAIN ? { id: 'app0', domain, aud: 'aud0' } : null,
+				domain === LOGIN_DOMAIN
+					? { id: 'app0', name: 'Family sign-in', domain, aud: 'aud0' }
+					: null,
 			findPolicyByName: async () => ({ id: 'pol0' })
 		});
-		expect((await claim(api)).didCreateApp).toBe(false);
+		expect((await claim(api)).isAppForeign).toBe(true);
 		expect(created).toEqual({ policies: [], apps: [] });
 		expect((await new InstallRepository(t.db).findAccessConfig())?.aud).toBe('aud0');
 	});
