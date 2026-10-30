@@ -18,10 +18,10 @@ let storedConfig: StoredAccessConfig | null = null;
  * `validateAccessJwt`.
  */
 export async function resolveAccessConfig(
-	vars: AccessConfig,
+	vars: Partial<AccessConfig>,
 	d1: D1Database | undefined
 ): Promise<AccessConfig> {
-	if (vars.teamDomain && vars.aud) return vars;
+	if (vars.teamDomain && vars.aud) return { teamDomain: vars.teamDomain, aud: vars.aud };
 	if (!storedConfig && d1) storedConfig = await new InstallRepository(getDb(d1)).findAccessConfig();
 	return {
 		teamDomain: vars.teamDomain || storedConfig?.teamDomain || '',

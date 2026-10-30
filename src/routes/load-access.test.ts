@@ -116,7 +116,9 @@ const NOT_ABOUT_A_TREE = [
 	'./+layout.server.ts',
 	'./(app)/+layout.server.ts',
 	'./login/+page.server.ts',
-	'./welcome/+page.server.ts'
+	'./welcome/+page.server.ts',
+	// A button install's one-time setup (ADR-082): reads only whether the install has an owner.
+	'./setup/+page.server.ts'
 ];
 
 const modules = import.meta.glob<LoadModule>(['./**/+page.server.ts', './**/+layout.server.ts'], {

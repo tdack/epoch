@@ -14,12 +14,12 @@ export class SetupStepError extends Error {
 	}
 }
 
-export interface CloudflareAccount {
+interface CloudflareAccount {
 	id: string;
 	name: string;
 }
 
-export interface IdentityProvider {
+interface IdentityProvider {
 	id: string;
 	name: string;
 }

@@ -339,6 +339,8 @@ const NO_RECORD_LOADS = [
 	'./+layout.server.ts',
 	'./login/+page.server.ts',
 	'./welcome/+page.server.ts',
+	// A button install's one-time setup (ADR-082): reads only whether the install has an owner.
+	'./setup/+page.server.ts',
 	// The person's own pages (ADR-075): their tree list with roles, their profile and colours, and,
 	// for the install owner alone, every tree's name and counts. No person record of any tree.
 	'./(app)/+layout.server.ts',
