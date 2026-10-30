@@ -10,6 +10,7 @@ import {
 } from '#lib/server/auth/access.js';
 import { WorkersInvitationMailer } from '#lib/server/email/workers-invitation-mailer.js';
 import { resolveUser } from '#lib/server/auth/resolve-user.js';
+import { resolveAccessConfig } from '#lib/server/auth/access-config.js';
 import {
 	notAdmittedOutcome,
 	isPublicTreeSegment,
@@ -159,13 +160,16 @@ const handleRequest: Handle = async ({ event, resolve }) => {
 	};
 
 	if (token) {
+		// Read here, not above, so only a request carrying a token can cost the D1 read a button
+		// install needs when its Worker has no CF_ACCESS_* vars (ADR-082). Outside the `try` below, so
+		// a D1 failure is not mistaken for a bad token and sent round to `/login`.
+		const accessConfig = await resolveAccessConfig(
+			{ teamDomain: accessTeamDomain, aud: accessAud },
+			bindings.DB
+		);
 		let validated: Awaited<ReturnType<typeof validateAccessJwt>> | null = null;
 		try {
-			validated = await validateAccessJwt(token, {
-				teamDomain: accessTeamDomain,
-				aud: accessAud,
-				allowDevBypass
-			});
+			validated = await validateAccessJwt(token, { ...accessConfig, allowDevBypass });
 		} catch (err: unknown) {
 			hasInvalidToken = true;
 			requestLogger.warn('Cloudflare Access token validation failed', {
