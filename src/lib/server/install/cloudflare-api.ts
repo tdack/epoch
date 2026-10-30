@@ -6,6 +6,13 @@
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 
+/**
+ * What Cloudflare answers, as a 400, for a token it cannot read at all: 6003 "Invalid request
+ * headers", 6111 "Invalid format for Authorization header", 9109 "Invalid access token". A typo in
+ * the pasted token lands here, so it is told apart from a real API failure.
+ */
+const MALFORMED_TOKEN_CODES: readonly number[] = [6003, 6111, 9109];
+
 /** Shown to the owner as is, so it never carries the token or a raw response body. */
 export class SetupStepError extends Error {
 	constructor(message: string) {
@@ -86,8 +93,13 @@ export function createCloudflareApi(token: string, fetchFn: typeof fetch = fetch
 				`Cloudflare refused the token when asked to ${purpose}. Check it has the permissions listed and was copied in full.`
 			);
 		}
+		const first = isRec(body) ? list(body.errors)[0] : undefined;
+		if (res.status === 400 && first && MALFORMED_TOKEN_CODES.includes(Number(first.code))) {
+			throw new SetupStepError(
+				'Cloudflare did not recognise the token. Copy it again in full, with nothing before or after it.'
+			);
+		}
 		if (!res.ok || !isRec(body) || body.success === false) {
-			const first = isRec(body) ? list(body.errors)[0] : undefined;
 			const detail = first ? `: ${str(first.message)}` : '';
 			throw new SetupStepError(`Cloudflare could not ${purpose} (HTTP ${res.status})${detail}.`);
 		}

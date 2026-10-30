@@ -104,6 +104,19 @@ describe('createCloudflareApi', () => {
 		expect((err as Error).message).not.toContain(TOKEN);
 	});
 
+	it('tells a token Cloudflare cannot read apart from an API failure', async () => {
+		const api = createCloudflareApi(
+			TOKEN,
+			fakeFetch({
+				'GET /accounts?per_page=50': {
+					status: 400,
+					body: { success: false, errors: [{ code: 6003, message: 'Invalid request headers' }] }
+				}
+			}).fetchFn
+		);
+		await expect(api.listAccounts()).rejects.toThrow(/did not recognise the token/);
+	});
+
 	it('passes on the API error message for any other failure', async () => {
 		const api = createCloudflareApi(
 			TOKEN,
