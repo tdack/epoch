@@ -47,33 +47,6 @@
         ],
         "createdAt": "2026-10-22T07:14:45.448Z",
         "reason": "Agent: SVG text in drawing user units copied from the app's tree cards; DESIGN.md Typography > Drawing text"
-      },
-      {
-        "rule": "design-system-font-size",
-        "value": "11px",
-        "files": [
-          "src/lib/components/LifeMapFigure.svelte"
-        ],
-        "createdAt": "2026-10-28T12:18:05.329Z",
-        "reason": "Agent: SVG text in drawing user units, scaling with the life map; DESIGN.md Typography > Drawing text"
-      },
-      {
-        "rule": "design-system-font-size",
-        "value": "13px",
-        "files": [
-          "src/lib/components/LifeMapFigure.svelte"
-        ],
-        "createdAt": "2026-10-28T12:18:05.329Z",
-        "reason": "Agent: SVG text in drawing user units, scaling with the life map; DESIGN.md Typography > Drawing text"
-      },
-      {
-        "rule": "design-system-font-size",
-        "value": "16px",
-        "files": [
-          "src/lib/components/LifeMapFigure.svelte"
-        ],
-        "createdAt": "2026-10-28T12:18:05.329Z",
-        "reason": "Agent: SVG text in drawing user units, scaling with the life map; DESIGN.md Typography > Drawing text"
       }
     ]
   }

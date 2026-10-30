@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Descent from '#lib/components/Descent.svelte';
-	import LifeMapFigure from '#lib/components/LifeMapFigure.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
+	import PlacesMapFigure from '#lib/components/PlacesMapFigure.svelte';
 	import RichText from '#lib/components/RichText.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import { DEMO_PLACES_URL, MAP_PRIVACY, MAPS_NOTE, MAPS_PAGE, SITE_URL } from '#lib/site.js';
@@ -33,7 +33,7 @@
 						<p><RichText text={paragraph} /></p>
 					{/each}
 				</div>
-				<LifeMapFigure />
+				<PlacesMapFigure />
 				<div class="scope">
 					<div>
 						<h2 class="label">What leaves your install</h2>

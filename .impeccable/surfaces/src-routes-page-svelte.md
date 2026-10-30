@@ -83,10 +83,10 @@ has a page. `/reports` ("Reports and printing") pairs its two paragraphs with th
 view drawn as the printed poster: a white sheet cut to the drawing with the app's print footer, and
 printer's dimension rules beside it, the short side "up to 841 mm", the long side running on dashed.
 Below it the reports sit on two shelves (the person's long list against the partnership and the
-whole tree), then an emerald-950 band lists how things print. `/maps` ("Places and maps") draws
-Ellen Marsh's life as the person page maps it, numbered stops joined by a line, on a plain
-graticule at the real towns' positions, so the site loads no tiles; under it, what a place search
-sends and never sends. `MarshDrawing.svelte` is the family drawing both the sub-trees figure and
+whole tree), then an emerald-950 band lists how things print. `/maps` ("Places and maps") shows the
+demo tree's Places tab map, a 2x capture with its OpenStreetMap credit (2026-10-30, replacing a
+drawn life map on a plain graticule, which did not look like the app); under it, what leaves the
+install and what never does. `MarshDrawing.svelte` is the family drawing both the sub-trees figure and
 the poster use, 760 units wide since dates read as words ("between 1908 and 1910"), as the app's
 charts now show them. The explorer's dates are in words too. Copy is `REPORTS_PAGE`,
 `REPORT_GROUPS`, `PRINTING`, `MAPS_PAGE`, `MAP_PRIVACY` and `MAPS_NOTE` in `site.ts`, checked

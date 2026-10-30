@@ -52,8 +52,7 @@ only. Preview URLs are a Worker setting, so they work only once a production dep
   `SiteNav.svelte` and to the footer links in `SiteFooter.svelte`.
 - `src/lib/components/`: the hero, the family explorer, the section connectors and the copyable
   command blocks. `MarshDrawing.svelte` draws the sample family's view for the sub-trees figure and
-  the reports page's poster; `LifeMapFigure.svelte` is the maps page's drawn life map, which loads
-  no map tiles. `EpochMark.svelte` is copied from the app; change the two together.
+  the reports page's poster. `EpochMark.svelte` is copied from the app; change the two together.
 - `src/lib/family.ts` and `src/lib/morph.ts`: the explorer's invented family, where each view
   puts its people, and the bent-card geometry that morphs one view into the next. The layouts
   copy the app's `chart-layout.ts`, `fan-layout.ts`, `PersonCard` and `TreeEdge`; check them
@@ -68,5 +67,9 @@ only. Preview URLs are a Worker setting, so they work only once a production dep
   darker than R+G+B 72 is set to one colour (ffmpeg `geq`) before encoding. Re-record them when a
   view changes, and bump `CLIP_VERSION` in `src/lib/site.ts`: the edge cache keeps the old clips
   under their old URLs whatever the Worker deploys.
+- `static/maps/`: the maps page's picture, the demo tree's Places tab map captured at 2x from
+  <https://demo.epochgenealogy.app> at 1280 wide (`places.webp`, and `places-600.webp` at half
+  size). It keeps the map's own OpenStreetMap credit. Recapture it when the app's map or the demo's
+  places change, under a new file name, because the edge cache keeps the old one.
 - `PRODUCT.md` and `DESIGN.md`: copies of the app's product and design context, which the site
   follows. The site's own design direction is in `.impeccable/surfaces/`.
