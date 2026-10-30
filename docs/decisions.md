@@ -85,3 +85,4 @@ Each decision lives in `docs/adr/ADR-NNN.md`; a new ADR takes the next number an
 | 79 | Dates are shown in words, in a format each tree chooses | [ADR-079.md](adr/ADR-079.md) | Implemented |
 | 80 | Reports are pages printed by the browser, read through the services the screens use | [ADR-080.md](adr/ADR-080.md) | Implemented |
 | 81 | The flat tree prints as one poster cut to its drawing, and downloads as a PDF built in the browser | [ADR-081.md](adr/ADR-081.md) | Implemented |
+| 82 | A Deploy to Cloudflare button, finished by a one-time `/setup` page on the Worker | [ADR-082.md](adr/ADR-082.md) | Proposed |
