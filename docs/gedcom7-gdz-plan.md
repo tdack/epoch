@@ -144,6 +144,30 @@ them repeatable.
 - **Pointers:** a pointer to a missing record (`@MISSING@`) is written as it came. Write `@VOID@`
   instead (1A.6).
 
+**Gap report (round-trip suite, 2026-10-31).** `conformance.test.ts` lists every known gap in
+`KNOWN_GAPS`, with the task that closes it. Five official files already round-trip with an empty
+diff: `minimal70`, `notes-1`, `filename-1`, `long-url` and `same-sex-marriage`. The causes below
+are the ones the list above does not already name.
+
+- **Import crash on `date.ged`:** the D1 write fails with `fetch failed` (`ECONNRESET`), not a
+  foreign-key error. The file has many repeated events, so the batch may be too large; the existing
+  Windsors tests fail the same way on one machine, so this may be the local D1 and not Epoch. Check
+  it with the FK failures (1A.0).
+- **Invented values:** the export writes `NAME //` and `SEX U` for a person the file leaves
+  without them (`age`, `escapes`, `extension-record`, `obje-1`, `remarriage1`, `remarriage2`,
+  `warnings70`, `xref`). It should write nothing (1A.5).
+- **Dropped header lines:** `HEAD.LANG` and `HEAD.SCHMA` are lost (`lang`, `extensions`). `SCHMA`
+  belongs to 1A.1 and `LANG` to 1A.3.
+- **`AGE` with only a `PHRASE`** (`age`) is dropped (1A.5).
+- **`FAMC @VOID@` with `PEDI`** under a person (`extensions`) is dropped (1A.6).
+- **Person-level structures lost:** `ASSO` with an extension `ROLE`, `SUBM` and an extension
+  pointer structure (`_PARTY`) under a person (`extensions`). `ASSO` is 1A.5; the others are kept
+  lines (1A.1).
+- **Dates with an extension calendar** (`extensions`) are written as an empty `DATE` with a
+  `PHRASE`. The date text should stay in the `DATE` (1A.5).
+- **A record with no xref** (`0 INDI`, in `xref` and `extensions`) gets a UUID xref, which
+  the validator rejects. The short-xref rule in 1A.6 covers it.
+
 **Exit:** every conformance fixture exports with no validator errors. The round-trip diff is empty
 apart from the allowlist, and every allowlisted item is written in ADR-036's "known losses".
 
