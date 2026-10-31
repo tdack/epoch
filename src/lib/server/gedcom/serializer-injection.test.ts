@@ -46,11 +46,14 @@ const INJECTIONS = [
 // eslint-disable-next-line no-control-regex
 const EMBEDDED_TERMINATOR = /[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]/;
 const isClean = (out: string) => out.split('\r\n').every((line) => !EMBEDDED_TERMINATOR.test(line));
+// The 5.5.1 export names a submitter the 7.0 one does not, so that record is left out too.
 // The `SOUR` records a 7.0 export makes for inline source text are left out: they come from the
 // text of a citation, whose own line cannot start a record, so they are not a forged record.
 const MADE_SOURCE = /^0 @SOUR_[0-9A-F]{8}(?:_\d+)?@ SOUR$/;
 const recordLines = (out: string) =>
-	out.split('\r\n').filter((line) => /^0 /.test(line) && !MADE_SOURCE.test(line));
+	out
+		.split('\r\n')
+		.filter((line) => /^0 /.test(line) && !MADE_SOURCE.test(line) && !/ SUBM$/.test(line));
 const pointerRecords = (out: string) => recordLines(out).filter((line) => /^0 @/.test(line));
 
 const note: ExportNote = {

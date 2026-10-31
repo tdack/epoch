@@ -28,6 +28,8 @@ interface KnownGap {
 }
 
 const INVENTS_NAME_SEX = 'export invents NAME // and SEX U for a person the file leaves without';
+const SUBMITTER_KEPT_AND_COPIED =
+	'the SUBM record has more than a name, email and web address, so it is kept and a second, plain one is written from the tree setting';
 
 const KNOWN_GAPS: Record<string, KnownGap> = {
 	'age.ged': {
@@ -49,10 +51,10 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'extension-record.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'extensions.ged': {
 		reason:
-			'SCHMA dropped; ASSO, SUBM and _PARTY dropped from a person; ' +
+			'ASSO, SUBM and _PARTY dropped from a person; ' +
 			'extension-calendar dates become an empty DATE + PHRASE; ' +
 			INVENTS_NAME_SEX,
-		task: '1A.1, 1A.3, 1A.5',
+		task: '1A.1, 1A.5',
 		diffs: [
 			'added INDI.BIRT.DATE.PHRASE',
 			'added INDI.DEAT.DATE.PHRASE',
@@ -62,20 +64,20 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed INDI.BIRT.DATE',
 			'changed INDI.DEAT.DATE',
 			'changed INDI.GRAD.DATE',
-			'missing HEAD.SCHMA',
 			'missing INDI.ASSO',
 			'missing INDI.SUBM',
 			'missing INDI._PARTY'
 		]
 	},
 	'lang.ged': {
-		reason: 'HEAD.LANG and HEAD.SCHMA dropped',
-		task: '1A.1, 1A.3',
-		diffs: ['missing HEAD.LANG', 'missing HEAD.SCHMA']
+		reason: SUBMITTER_KEPT_AND_COPIED,
+		task: '1A.3',
+		diffs: ['record-added SUBM']
 	},
+	'notes-1.ged': { reason: SUBMITTER_KEPT_AND_COPIED, task: '1A.3', diffs: ['record-added SUBM'] },
 	'maximal70.ged': {
 		reason:
-			'HUSB, WIFE and CHIL PHRASE dropped; HEAD.LANG and HEAD.SCHMA dropped; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
+			'HUSB, WIFE and CHIL PHRASE dropped; a second SUBM is written from the setting; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
 			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
 		task: '1A.1, 1A.3, 1A.5',
 		errors: ['cardinality-max INDI.RESN'],
@@ -109,8 +111,7 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'missing FAM.CHIL.PHRASE',
 			'missing FAM.HUSB.PHRASE',
 			'missing FAM.WIFE.PHRASE',
-			'missing HEAD.LANG',
-			'missing HEAD.SCHMA'
+			'record-added SUBM'
 		]
 	},
 	'maximal70-lds.ged': {

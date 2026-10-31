@@ -172,13 +172,33 @@ export class GedcomRepository {
 	async writeImport({
 		treeId,
 		treeName,
-		parsed,
+		parsed: file,
 		mode,
 		isExistingTree
 	}: ImportWrite): Promise<ImportWritten> {
 		const db = this.db;
 		const batch: ImportBatch = { writes: [], isTreeEmpty: !isExistingTree || mode === 'replace' };
 		const { writes } = batch;
+		// The submitter the header names becomes the tree's setting when it has none (ADR-075). Then the
+		// record is not kept, or an export would write it twice; otherwise it stays a root record
+		// unless it says what the setting already says.
+		let parsed = file;
+		let fill: { name: string; email: string | null; www: string | null } | null = null;
+		if (file.submitter) {
+			const { record, ...incoming } = file.submitter;
+			const current = isExistingTree
+				? await db.select().from(trees).where(eq(trees.id, treeId)).get()
+				: undefined;
+			const isUnset = !current?.submitterName && !current?.submitterEmail && !current?.submitterWww;
+			const isSame =
+				current?.submitterName === incoming.name &&
+				(current.submitterEmail ?? undefined) === incoming.email &&
+				(current.submitterWww ?? undefined) === incoming.www;
+			if (isUnset)
+				fill = { name: incoming.name, email: incoming.email ?? null, www: incoming.www ?? null };
+			if (!incoming.isPlain || !(isUnset || isSame))
+				parsed = { ...file, preserved: [...file.preserved, record] };
+		}
 		if (!isExistingTree) {
 			const name = treeName || parsed.treeName || 'Imported Tree';
 			writes.push(
@@ -188,11 +208,30 @@ export class GedcomRepository {
 					position: await nextTreePosition(db),
 					name,
 					description: `Imported with ${parsed.individuals.length} individuals and ${parsed.families.length} families`,
+					...(fill && {
+						submitterName: fill.name,
+						submitterEmail: fill.email,
+						submitterWww: fill.www
+					}),
 					createdAt: new Date(),
 					updatedAt: new Date()
 				})
 			);
-		} else if (mode === 'replace') {
+		} else if (fill) {
+			writes.push(
+				db
+					.update(trees)
+					.set({
+						submitterName: fill.name,
+						submitterEmail: fill.email,
+						submitterWww: fill.www,
+						version: sql`${trees.version} + 1`,
+						updatedAt: new Date()
+					})
+					.where(eq(trees.id, treeId))
+			);
+		}
+		if (isExistingTree && mode === 'replace') {
 			// Wipe all existing tree data, in the same batch as the writes that follow. Notes first, then citations: attachments point
 			// at shared notes and citations at sources, and the links between sources and repositories go
 			// with their source.

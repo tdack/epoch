@@ -204,6 +204,55 @@ export interface GedcomExportPayload {
 	notes?: ExportSharedNote[];
 	/** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
 	preserved?: Array<{ xref: string | null; lines: string[] }>;
+	/** The tree's submitter (ADR-075). A 7.0 file names one only when `name` is set; 5.5.1 always does. */
+	submitter?: { name?: string | null; email?: string | null; www?: string | null } | null;
+	/** When the export was made, for `HEAD.DATE`; now when absent. */
+	exportedAt?: Date;
+	/**
+	 * Header structures an import kept (`LANG`, `PLAC`, `SCHMA`), one block each, verbatim with their
+	 * levels. Only the first `LANG` and `PLAC` are written; the `SCHMA` blocks merge with Epoch's own.
+	 */
+	headerBlocks?: string[][];
+}
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/** The `HEAD.DATE` structure, in UTC. 7.0 marks the time as UTC with `Z`; 5.5.1 has no such mark. */
+function headerDateLines(at: Date, format: GedcomFormat): string[] {
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const time = `${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}`;
+	return [
+		`1 DATE ${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()}`,
+		`2 TIME ${time}${format === 'gedcom7' ? 'Z' : ''}`
+	];
+}
+
+/**
+ * The tag it is written under in the file, with a name no kept record can hold, so the numbering in
+ * `renumberXrefs` gives it the next free `@U1@`.
+ */
+const SUBMITTER_PLACEHOLDER_XREF = '@epoch-submitter@';
+
+/** The submitter's name, or null for a 7.0 file with none; 5.5.1 requires one and says `Unknown`. */
+function submitterName(data: GedcomExportPayload, format: GedcomFormat): string | null {
+	return data.submitter?.name?.trim() || (format === 'gedcom551' ? 'Unknown' : null);
+}
+
+function submitterRecord(data: GedcomExportPayload, format: GedcomFormat): string[] {
+	const name = submitterName(data, format);
+	if (!name) return [];
+	const lines = [`0 ${SUBMITTER_PLACEHOLDER_XREF} SUBM`, `1 NAME ${escapedSingleLine(name)}`];
+	if (data.submitter?.name?.trim()) {
+		if (data.submitter.email) lines.push(`1 EMAIL ${escapedSingleLine(data.submitter.email)}`);
+		if (data.submitter.www) lines.push(`1 WWW ${escapedSingleLine(data.submitter.www)}`);
+	}
+	return lines;
+}
+
+/** The first kept header block that starts with `tag`, folded to single lines. */
+function keptHeaderBlock(data: GedcomExportPayload, tag: string): string[] {
+	const block = (data.headerBlocks ?? []).find((b) => new RegExp(`^1 ${tag}\\b`).test(b[0] ?? ''));
+	return foldLines(block);
 }
 
 /**
@@ -749,10 +798,14 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	lines.push('1 GEDC');
 	lines.push('2 VERS 5.5.1');
 	lines.push('2 FORM LINEAGE-LINKED');
+	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom551'));
+	if (submitterName(data, 'gedcom551')) lines.push(`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`);
 	lines.push('1 CHAR UTF-8');
+	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {
 		lines.push(...fieldLines(1, 'NOTE', `Tree: ${data.treeName}`));
 	}
+	lines.push(...submitterRecord(data, 'gedcom551'));
 
 	// Individuals
 	for (const ind of data.individuals) {
@@ -840,9 +893,15 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	lines.push('2 VERS 7.0');
 	lines.push('1 SOUR EPOCH_GENEALOGY');
 	lines.push('2 VERS 1.0');
+	lines.push('2 NAME Epoch Family Genealogy Repository');
+	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom7'));
+	if (submitterName(data, 'gedcom7')) lines.push(`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`);
+	lines.push(...keptHeaderBlock(data, 'LANG'));
+	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {
 		lines.push(...fieldLines(1, 'NOTE', `Tree: ${data.treeName}`));
 	}
+	lines.push(...submitterRecord(data, 'gedcom7'));
 
 	// Individuals
 	for (const ind of data.individuals) {
@@ -904,19 +963,36 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	lines.push('0 TRLR');
 	const converted = renumberXrefs(toGedcom7Lines(lines), 'gedcom7');
 	// After `GEDC`, which is lines 1 and 2.
-	converted.splice(3, 0, ...schemaLines(converted));
+	converted.splice(3, 0, ...schemaLines(converted, data.headerBlocks));
 	return converted.join('\r\n') + '\r\n';
 }
 
-/** `SCHMA` for the extension tags Epoch defines that these lines use; none when they use none. */
-function schemaLines(lines: readonly string[]): string[] {
+/**
+ * `SCHMA` for the extension tags the file defines: the ones an import kept, in the order it had
+ * them, then the Epoch tags these lines use. Epoch's URI wins for its own tag. None when there are
+ * none.
+ */
+function schemaLines(lines: readonly string[], kept: readonly string[][] = []): string[] {
+	// A tag may be documented at several URIs, so every pair is kept, not one per tag.
+	const entries = new Map<string, [string, string]>();
+	for (const block of kept) {
+		if (!/^1 SCHMA\b/.test(block[0] ?? '')) continue;
+		for (const line of block) {
+			const m = /^2 TAG (\S+) (\S.*)$/.exec(singleLine(line) ?? '');
+			if (m) entries.set(`${m[1]} ${m[2]}`, [m[1], m[2]]);
+		}
+	}
 	const used = new Set<string>();
 	for (const line of lines) {
 		const tag = line.match(/^\d+ (?:@[^@\s]+@ )?(_\S+)/)?.[1];
 		if (tag && EXTENSION_TAG_URIS[tag]) used.add(tag);
 	}
-	if (used.size === 0) return [];
-	return ['1 SCHMA', ...[...used].sort().map((tag) => `2 TAG ${tag} ${EXTENSION_TAG_URIS[tag]}`)];
+	for (const tag of [...used].sort()) {
+		for (const [key, [keptTag]] of [...entries]) if (keptTag === tag) entries.delete(key);
+		entries.set(`${tag} ${EXTENSION_TAG_URIS[tag]}`, [tag, EXTENSION_TAG_URIS[tag]]);
+	}
+	if (entries.size === 0) return [];
+	return ['1 SCHMA', ...[...entries.values()].map(([tag, uri]) => `2 TAG ${tag} ${uri}`)];
 }
 
 /**

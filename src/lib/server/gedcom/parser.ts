@@ -157,6 +157,30 @@ export interface ParsedEvent extends FactDetails {
 	citations?: ParsedCitation[];
 }
 
+/** The submitter record a `HEAD.SUBM` names. */
+interface ParsedSubmitter {
+	name: string;
+	email?: string;
+	www?: string;
+	/** The whole record as the file wrote it. */
+	record: { xref: string | null; lines: string[] };
+	/**
+	 * Whether the setting holds all of it: the record has only a name, an email and a web address, and
+	 * nothing else in the file points at it. If not, the import keeps the record as well, so its
+	 * address, notes and the pointers to it are not lost.
+	 */
+	isPlain: boolean;
+}
+
+/**
+ * The owner of the header structures kept verbatim (`LANG`, `PLAC`, `SCHMA`). It has no `@`, so no
+ * record's XREF can be it.
+ */
+export const HEADER_OWNER = 'HEAD';
+
+/** The `HEAD` children Epoch cannot rebuild and so keeps as they were. `LANG` and `SCHMA` are 7.0 only. */
+const KEPT_HEADER_TAGS: ReadonlySet<string> = new Set(['LANG', 'PLAC', 'SCHMA']);
+
 export interface ParsedGedcomData {
 	version: GedcomVersion;
 	individuals: ParsedIndividual[];
@@ -171,6 +195,12 @@ export interface ParsedGedcomData {
 	 * tree/header-level records).
 	 */
 	preserved: Array<{ xref: string | null; lines: string[] }>;
+	/**
+	 * The record `HEAD.SUBM` points at, read as the tree's submitter (ADR-075). It is not in
+	 * `preserved`: the import decides whether it fills the tree's setting, and keeps it as a root
+	 * record only when it does not, so it is never exported twice.
+	 */
+	submitter?: ParsedSubmitter;
 	/** Root `SOUR` records (ADR-028). Empty when the file is read with `isEvidenceModelled` off. */
 	sources: ParsedSource[];
 	/** Root `REPO` records. */
@@ -515,6 +545,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const preserved: ParsedGedcomData['preserved'] = [];
 	let treeName: string | undefined;
 	let fileTreeName: string | undefined;
+	let submitter: ParsedSubmitter | undefined;
+	const headSubmitterXref = rootNodes
+		.find((n) => n.tag === 'HEAD')
+		?.children.find((c) => c.tag === 'SUBM')
+		?.value?.trim();
 
 	// A link in the model needs both ends to be rows, so a pointer is only followed when the file has the
 	// record. Anything else (`@VOID@`, a record that was never there) is kept as the line it was.
@@ -546,6 +581,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const fileNode = node.children.find((c) => c.tag === 'FILE');
 			if (fileNode?.value) fileTreeName = fileNode.value.trim();
 			treeName = headTreeName(node);
+			for (const child of node.children) {
+				if (!KEPT_HEADER_TAGS.has(child.tag)) continue;
+				if (version !== '7.0' && (child.tag === 'LANG' || child.tag === 'SCHMA')) continue;
+				preserved.push({ xref: HEADER_OWNER, lines: collectLines(child) });
+			}
 		} else if (node.tag === 'INDI') {
 			const id = node.xref || crypto.randomUUID();
 			const names: ParsedName[] = [];
@@ -835,6 +875,24 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			repositories.push(parseRepositoryRecord(node, isNotesModelled));
 		} else if (isNotesModelled && isNoteNode(node) && node.xref) {
 			sharedNotes.push(parseNoteRecord(node));
+		} else if (
+			node.tag === 'SUBM' &&
+			node.xref &&
+			node.xref === headSubmitterXref &&
+			!submitter &&
+			node.children.find((c) => c.tag === 'NAME')?.value?.trim()
+		) {
+			const text = (tag: string) => node.children.find((c) => c.tag === tag)?.value?.trim();
+			submitter = {
+				name: text('NAME')!,
+				...(text('EMAIL') ? { email: text('EMAIL') } : {}),
+				...(text('WWW') ? { www: text('WWW') } : {}),
+				record: { xref: node.xref, lines: collectLines(node) },
+				isPlain:
+					node.children.every(
+						(c) => ['NAME', 'EMAIL', 'WWW'].includes(c.tag) && c.children.length === 0
+					) && rawContent.split(node.xref).length - 1 === 2
+			};
 		} else if (node.tag !== 'TRLR') {
 			// Preserve unrecognized root-level records (NOTE, SUBM, OBJE, custom records) so they are
 			// retained for export. A root SOUR or REPO without an XREF cannot be pointed at, so it stays too.
@@ -880,6 +938,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		treeName,
 		fileTreeName,
 		preserved,
+		...(submitter ? { submitter } : {}),
 		sources,
 		repositories,
 		notes: sharedNotes,

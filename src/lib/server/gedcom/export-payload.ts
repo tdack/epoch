@@ -26,6 +26,7 @@ import type {
 } from '../db';
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
 import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
+import { HEADER_OWNER } from './parser';
 import type { ExportCitation, ExportNote, GedcomExportPayload } from './serializer';
 
 /** Every row of one tree the export needs, as the repository reads them. */
@@ -290,6 +291,13 @@ export function exportPayloadFrom(
 
 	return {
 		treeName: tree?.name || 'Family Tree',
+		submitter: tree
+			? { name: tree.submitterName, email: tree.submitterEmail, www: tree.submitterWww }
+			: null,
+		headerBlocks: treePreserved
+			.filter((p) => p.ownerXref === HEADER_OWNER)
+			.sort((a, b) => a.order - b.order)
+			.map((p) => p.lines as unknown as string[]),
 		individuals: treeInds.map((ind) => {
 			const exportId = indXrefMap.get(ind.id) || ind.id;
 			return {
@@ -389,6 +397,7 @@ export function exportPayloadFrom(
 		preserved: treePreserved
 			.slice()
 			.sort((a, b) => a.order - b.order)
+			.filter((p) => p.ownerXref !== HEADER_OWNER)
 			.filter((p) => !(p.ownerXref !== null && modelledXrefs.has(p.ownerXref) && isRootRecord(p)))
 			.map((p) => {
 				return {
