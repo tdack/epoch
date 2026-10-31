@@ -102,7 +102,8 @@ describe('a person link to a family that is not in the file', () => {
 		expect(out).toContain('1 FAMS @GONE@');
 		// The serializer writes a retained FAMC only under a link that exists, so a FAMC @VOID@ stays in
 		// the store (Phase 1A serializer work) but not in this export.
-		const kept = (await getTreeExportData(t.d1, treeId)).preserved.map((p) => p.lines.join('\n'));
+		const { preserved = [] } = await getTreeExportData(t.d1, treeId);
+		const kept = preserved.map((p) => p.lines.join('\n'));
 		expect(kept).toContain('1 FAMC @VOID@\n2 PEDI ADOPTED');
 	});
 });
