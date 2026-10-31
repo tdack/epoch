@@ -28,7 +28,6 @@ interface KnownGap {
 }
 
 const INVENTS_NAME_SEX = 'export invents NAME // and SEX U for a person the file leaves without';
-const FIXTURE_LEGACY_LINES = 'kept 5.5.1 lines written as they came';
 
 const KNOWN_GAPS: Record<string, KnownGap> = {
 	'age.ged': {
@@ -236,23 +235,9 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	},
 	// Epoch's own fixtures: validated only, since they are 5.5.1-era text.
 	'evidence.ged': {
-		reason: `${FIXTURE_LEGACY_LINES}: shared NOTE, inline SOUR, FAMC.SOUR, MISSING pointer, OBJE with no FILE`,
-		task: '1A.1, 1A.6',
-		errors: [
-			'cardinality-min OBJE.FILE',
-			'payload-unexpected INDI.BIRT.NOTE',
-			'payload-unexpected INDI.NOTE',
-			'payload-unexpected SOUR.NOTE',
-			'pointer-format INDI.SOUR',
-			'pointer-unresolved INDI.DEAT.SOUR',
-			'root-tag-unknown NOTE',
-			'tag-not-allowed INDI.FAMC.SOUR'
-		]
-	},
-	'sources7.ged': {
-		reason: 'SOUR under INDI.FAMC is written as it came',
-		task: '1A.1',
-		errors: ['tag-not-allowed INDI.FAMC.SOUR']
+		reason: 'a pointer to a record the file lacks (@MISSING@) is written as it came',
+		task: '1A.6',
+		errors: ['pointer-unresolved INDI.DEAT.SOUR']
 	}
 };
 

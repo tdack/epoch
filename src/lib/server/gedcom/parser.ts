@@ -3,6 +3,7 @@ import type { Sex } from '../../shared/sex';
 import { NAME_TYPES, type NameType } from '../domain/genealogy-model';
 import {
 	FAMILY_ALIAS_REFN_TYPE,
+	FAMC_CITATION_TAG,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
 	LEGACY_MARRIED_NAME_TAG,
@@ -604,7 +605,11 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const familyId = child.value.trim();
 					famc.push(familyId);
 					const parentPedigrees: Record<string, Pedigree> = {};
-					for (const sub of child.children) {
+					// A 7.0 export writes a citation here as `_SOUR`, which 7.0 has no `SOUR` for.
+					const famcSubs = child.children.map((sub) =>
+						sub.tag === FAMC_CITATION_TAG ? { ...sub, tag: 'SOUR' } : sub
+					);
+					for (const sub of famcSubs) {
 						const parentPedigree =
 							sub.tag === PARENT_PEDIGREE_TAG && sub.value
 								? parsePedigree(sub.children.find((c) => c.tag === 'PEDI')?.value)
@@ -613,10 +618,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					}
 					// STAT, NOTE and the like under FAMC have no model. Keep them, headed by their FAMC line,
 					// so export writes them back under the same link (ADR-009).
-					const { notes: linkNotes, others: linkOthers } = splitNotes(
-						child.children,
-						isNotesModelled
-					);
+					const { notes: linkNotes, others: linkOthers } = splitNotes(famcSubs, isNotesModelled);
 					const extras = linkOthers.filter(
 						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG && !isCitation(sub)
 					);
@@ -626,7 +628,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						familyId,
 						pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
 						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}),
-						citations: citationsOf(child.children),
+						citations: citationsOf(famcSubs),
 						notes: linkNotes
 					});
 				} else if (child.tag === 'FAMS' && child.value) {

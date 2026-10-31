@@ -55,10 +55,11 @@ describe('every structure the fixture carries comes back', () => {
 		await importGedcomToDb(t.d1, treeId, FIXTURE, 'Evidence');
 		for (const format of ['551', '7'] as const) {
 			const out = await exportOf(treeId, format);
+			// 7.0 has no `NOTE` record: a shared note is an `SNOTE` there.
 			for (const record of [
 				'0 @S1@ SOUR',
 				'0 @R1@ REPO',
-				'0 @N1@ NOTE Shared note text',
+				`0 @N1@ ${format === '7' ? 'SNOTE' : 'NOTE'} Shared note text`,
 				'0 @M1@ OBJE'
 			]) {
 				expect(
@@ -122,7 +123,8 @@ describe('an OBJE under a source', () => {
 			source.findIndex((line, i) => i > 0 && line.startsWith('0 '))
 		);
 		expect(block.filter((line) => line === '1 OBJE @M1@')).toHaveLength(1);
-		expect(block).toContain('1 OBJE');
+		// 7.0 allows only a pointer under a source, so the embedded object is kept as an extension.
+		expect(block).toContain(format === '7' ? '1 _OBJE' : '1 OBJE');
 		expect(block).toContain('2 FILE scan.png');
 		expect(out.filter((line) => line === '0 @M1@ OBJE')).toHaveLength(1);
 	});

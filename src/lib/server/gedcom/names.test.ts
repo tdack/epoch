@@ -91,7 +91,8 @@ describe('names survive export', () => {
 			async () => {
 				const { text551, text7 } = await importAndExport(source);
 				expect(namesOf(text551)).toEqual(namesOf(source));
-				expect(namesOf(text7)).toEqual(namesOf(source));
+				// A `FONE` with no `TYPE` has no 7.0 language, so 7.0 writes the extension `_FONE`.
+				expect(namesOf(text7.replace(/^(\d+) _FONE /gm, '$1 FONE '))).toEqual(namesOf(source));
 			},
 			// The Windsors file is several times the size of the others.
 			IMPORT_MS

@@ -59,7 +59,7 @@ describe('toGedcom7Lines', () => {
 			'4 PHRASE certificate',
 			'0 @I1@ INDI',
 			'1 ASSO @I2@',
-			'2 ROLE OTHER',
+			'2 ROLE GODP',
 			'3 PHRASE Godfather',
 			'1 FAMC @F1@',
 			'2 STAT CHALLENGED',

@@ -45,3 +45,65 @@ Written in GEDCOM 5.5.1 and 7.0. See [ADR-015](adr/ADR-015.md).
 Only a 5.5.1 export writes this tag. GEDCOM 5.5.1's `SEX` has no `X`, so the export writes
 `SEX U` followed by `_EPOCH_SEX X`. Epoch restores `X` when `SEX` is still `U`. GEDCOM 7.0 writes
 `SEX X` directly. See [ADR-010](adr/ADR-010.md).
+
+## `_SOUR`
+
+A citation on a child's `FAMC` link. GEDCOM 7.0 has no `SOUR` under `INDI.FAMC` (5.5.1 programs wrote
+one), so a 7.0 export writes it as this extension and import reads it back as the citation it is. A
+5.5.1 export writes the standard `SOUR`.
+
+- **Context:** under `FAMC`.
+- **Payload:** a pointer to a `SOUR` record.
+- **Substructure:** the same as a citation: `PAGE`, `QUAY`, `DATA`, notes.
+
+```
+1 FAMC @F1@
+2 _SOUR @S1@
+3 PAGE 12
+```
+
+Written in GEDCOM 7.0 only.
+
+## `_FONE` and `_ROMN`
+
+A phonetic (`FONE`) or romanized (`ROMN`) variation of a name or place, as 5.5.1 wrote them, that has
+no faithful 7.0 `TRAN`. GEDCOM 7.0 replaced both with `TRAN`, which needs a `LANG`. Epoch derives
+the language from the 5.5.1 `TYPE`:
+
+| 5.5.1                          | 7.0 `TRAN` `LANG`  |
+| ------------------------------ | ------------------ |
+| `ROMN`, `TYPE pinyin`          | `zh-Latn-pinyin`   |
+| `ROMN`, `TYPE romanji`/`romaji` | `ja-Latn`          |
+| `ROMN`, `TYPE wadegiles`       | `zh-Latn-wadegile` |
+| `ROMN`, no `TYPE`              | `und-Latn`         |
+| `FONE`, `TYPE hangul`          | `ko-Hang`          |
+| `FONE`, `TYPE kana`            | `ja-Kana`          |
+
+A `FONE` with no `TYPE`, and either kind with any other `TYPE`, has no language to give, so it is
+written as `_FONE` or `_ROMN` with its lines unchanged. A 5.5.1 export writes all of these back as
+`FONE` and `ROMN` with their `TYPE`.
+
+- **Context:** under `NAME` or `PLAC`.
+- **Payload and substructure:** as 5.5.1's `FONE` / `ROMN`, including `TYPE`.
+
+```
+1 NAME 王 /李/
+2 _FONE Wang /Li/
+3 TYPE other
+```
+
+Written in GEDCOM 7.0 only.
+
+## Other kept lines
+
+Lines kept from a 5.5.1 file that GEDCOM 7.0 has no place for are written with an underscore prefix
+(`CEME` as `_CEME`), so the 7.0 file stays valid and nothing is lost. These are not listed in `SCHMA`:
+Epoch did not define them and does not know their URIs. The same applies to an embedded `OBJE` (with
+its own `FILE`) where 7.0 allows only a pointer: it is written whole as `_OBJE`. A `URL` becomes `WWW`
+where 7.0 has `WWW`.
+
+Other 5.5.1 structures are written in their 7.0 form rather than as extensions: `ASSO` `RELA` becomes
+`ROLE` (a word 7.0 has no value for is `ROLE OTHER` with the word as its `PHRASE`), a shared `NOTE`
+becomes `SNOTE`, an inline `SOUR text` becomes a pointer to a new `SOUR` record whose `TITL` is the
+text, and a `FILE` with no or an empty `FORM` gets one from its extension (`application/octet-stream`
+when it has none).
