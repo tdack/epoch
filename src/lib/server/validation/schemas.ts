@@ -12,6 +12,11 @@ import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/q
 import { isDateFormat } from '../../shared/date-display';
 import { UPLOAD_PURPOSES } from '../../shared/uploads';
 import { isValidTreeSlug } from '../../shared/tree-slug';
+import {
+	MAX_SUBMITTER_EMAIL_LENGTH,
+	MAX_SUBMITTER_NAME_LENGTH,
+	MAX_SUBMITTER_WWW_LENGTH
+} from '../../shared/tree-submitter';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
 import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
 import { TREE_ROLES } from '../../shared/roles';
@@ -223,6 +228,9 @@ export const treeCreateSchema = z.object({
 	description: optionalText
 });
 
+const submitterField = (max: number) =>
+	z.string().max(max).refine(hasNoLineBreak, SINGLE_LINE_MESSAGE).nullable();
+
 export const treeRenameSchema = z.object({
 	name: z
 		.string()
@@ -244,6 +252,14 @@ export const treeRenameSchema = z.object({
 	isOnSubdomain: z.boolean().optional(),
 	/** How the tree's dates read as words (ADR-079). Omitted keeps the current setting. */
 	dateFormat: z.string().refine(isDateFormat, 'Not a date format').optional(),
+	/** Who a GEDCOM export names as its submitter (ADR-075). Omitted keeps it; empty text clears a field. */
+	submitter: z
+		.object({
+			name: submitterField(MAX_SUBMITTER_NAME_LENGTH),
+			email: submitterField(MAX_SUBMITTER_EMAIL_LENGTH),
+			www: submitterField(MAX_SUBMITTER_WWW_LENGTH)
+		})
+		.optional(),
 	version: versionSchema
 });
 

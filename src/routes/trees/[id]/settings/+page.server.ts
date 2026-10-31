@@ -3,6 +3,7 @@ import { isActionAllowed } from '#lib/server/auth/authorization.js';
 import { treeServerLoad } from '#lib/server/http/page-load.js';
 import { PersonPageService } from '#lib/server/services/person-page-service.js';
 import { PrivacyService } from '#lib/server/services/privacy-service.js';
+import { TreeService } from '#lib/server/services/tree-service.js';
 import { SubtreeService } from '#lib/server/services/subtree-service.js';
 import type { PageServerLoad } from './$types';
 
@@ -19,9 +20,11 @@ export const load: PageServerLoad = treeServerLoad(
 		const { role, isInstallOwner } = summary.viewer;
 		if (!isActionAllowed(role, 'tree:update_settings')) redirect(302, '/account');
 
-		const [privacy, subtrees] = await Promise.all([
+		const [privacy, subtrees, submitter] = await Promise.all([
 			new PrivacyService(db).getSettings(treeId, ctx),
-			new SubtreeService(db).list(treeId, ctx)
+			new SubtreeService(db).list(treeId, ctx),
+			// Not in the tree summary every reader gets: it holds a contact address.
+			new TreeService(db).getSubmitter(treeId, ctx)
 		]);
 		// The list carries ids only; a root the viewer cannot open (deleted, or hidden by privacy) has no
 		// name to show, and the row says so rather than failing the page.
@@ -42,6 +45,7 @@ export const load: PageServerLoad = treeServerLoad(
 		);
 		return {
 			privacy,
+			submitter,
 			subtrees,
 			rootNames,
 			// Decided here so the page never imports the server's action table; the endpoints still decide.

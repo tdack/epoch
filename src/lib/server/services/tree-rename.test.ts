@@ -58,6 +58,69 @@ describe('renaming a tree', () => {
 		).rejects.toThrow('Forbidden');
 	});
 
+	it('saves the GEDCOM submitter, clears it, and leaves it alone when a save omits it', async () => {
+		const s = await setup();
+		expect((await s.repo.findById(s.treeId))!.submitter).toEqual({
+			name: null,
+			email: null,
+			www: null
+		});
+		await s.service.updateTree(
+			s.treeId,
+			await s.version(),
+			{
+				submitter: { name: ' Ada Smith ', email: 'ada@example.com', www: 'https://example.com/ada' }
+			},
+			s.manager.context
+		);
+		const expected = {
+			name: 'Ada Smith',
+			email: 'ada@example.com',
+			www: 'https://example.com/ada'
+		};
+		expect(await s.service.getSubmitter(s.treeId, s.manager.context)).toEqual(expected);
+		await s.service.updateTree(s.treeId, await s.version(), { name: 'Other' }, s.manager.context);
+		expect((await s.repo.findById(s.treeId))!.submitter).toEqual(expected);
+		await s.service.updateTree(
+			s.treeId,
+			await s.version(),
+			{ submitter: { name: '', email: '  ', www: null } },
+			s.manager.context
+		);
+		expect((await s.repo.findById(s.treeId))!.submitter).toEqual({
+			name: null,
+			email: null,
+			www: null
+		});
+	});
+
+	it('refuses a submitter with an address and no name, or a bad email or web address', async () => {
+		const s = await setup();
+		for (const submitter of [
+			{ name: null, email: 'ada@example.com', www: null },
+			{ name: 'Ada', email: 'not an email', www: null },
+			{ name: 'Ada', email: null, www: 'ftp://example.com' }
+		]) {
+			await expect(
+				s.service.updateTree(s.treeId, await s.version(), { submitter }, s.manager.context)
+			).rejects.toBeInstanceOf(ValidationError);
+		}
+	});
+
+	it('shows the submitter and lets it be changed only to a manager or above', async () => {
+		const s = await setup();
+		await expect(s.service.getSubmitter(s.treeId, s.editor.context)).rejects.toThrow('Forbidden');
+		await expect(
+			s.service.updateTree(
+				s.treeId,
+				await s.version(),
+				{ submitter: { name: 'Ada', email: null, www: null } },
+				s.editor.context
+			)
+		).rejects.toThrow('Forbidden');
+		expect((await s.service.getSubmitter(s.treeId, s.owner.context)).name).toBeNull();
+	});
+
 	it('refuses an editor', async () => {
 		const s = await setup();
 		await expect(

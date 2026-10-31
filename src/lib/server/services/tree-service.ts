@@ -7,6 +7,7 @@ import type { TreeAction } from '../auth/authorization';
 import type { LayoutMode } from '../../shared/view-mode';
 import type { DateFormat } from '../../shared/date-display';
 import { isValidTreeSlug } from '../../shared/tree-slug';
+import { cleanSubmitter, submitterProblem, type TreeSubmitter } from '../../shared/tree-submitter';
 import { requireRealUser, requireTreeAction, requireTreeScope } from './tree-access';
 import { SubtreeRepository } from '../repositories/subtree-repository';
 import { visibleAmong } from '../repositories/visibility';
@@ -128,6 +129,7 @@ export class TreeService {
 			slug?: string | null;
 			isOnSubdomain?: boolean;
 			dateFormat?: DateFormat;
+			submitter?: TreeSubmitter;
 		},
 		context: AuthenticatedContext,
 		subdomains: TreeHostConfig | null = null
@@ -151,7 +153,21 @@ export class TreeService {
 				if (refusal) throw new ValidationError(refusal);
 			}
 		}
+		if (data.submitter) {
+			const submitter = cleanSubmitter(data.submitter);
+			const problem = submitterProblem(submitter);
+			if (problem) throw new ValidationError(problem);
+			data = { ...data, submitter };
+		}
 		return this.treeRepo.update(treeId, expectedVersion, data);
+	}
+
+	/** The submitter a GEDCOM export names, for the settings page; whoever may change it may read it. */
+	async getSubmitter(treeId: string, context: AuthenticatedContext): Promise<TreeSubmitter> {
+		await this.requireOwnerOrAction(treeId, context, 'tree:update_settings');
+		const tree = await this.treeRepo.findById(treeId);
+		if (!tree) throw new NotFoundError('Tree', treeId);
+		return tree.submitter ?? cleanSubmitter({});
 	}
 
 	/**
