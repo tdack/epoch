@@ -384,6 +384,13 @@ export class GedcomService {
 			// A family merged into another in an earlier import must not come back under its old XREF.
 			parsed = foldIntoExistingAliases(parsed, await this.repo.aliasesInTree(treeId)).parsed;
 		}
+		if (parsed.unresolved.absent > 0) {
+			// Not an error: the pointers are kept as lines, but a file that points at records it lacks is
+			// worth a trace when someone asks why an export differs from what they expected.
+			console.warn(
+				`GEDCOM import ${treeId}: ${parsed.unresolved.absent} pointer(s) to records the file does not have were kept as lines`
+			);
+		}
 		const written = await this.repo.writeImport({ treeId, treeName, parsed, mode, isExistingTree });
 		await this.renameCreatedTree(treeId, parsed, options);
 		return { ...written, mergedFamiliesCount: folded.mergedCount };

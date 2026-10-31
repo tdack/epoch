@@ -57,6 +57,9 @@ interface ParsedFamcLink {
 	notes: ParsedNoteLink[];
 }
 
+/** The 7.0 pointer to a record that is not in this file. */
+const VOID_POINTER = '@VOID@';
+
 /** `RESN` words that mean "keep this person from viewers": they become the private override. */
 const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
 
@@ -171,6 +174,12 @@ export interface ParsedGedcomData {
 	repositories: ParsedRepository[];
 	/** Root `NOTE`/`SNOTE` records (ADR-029). Empty when the file is read with `isNotesModelled` off. */
 	notes: ParsedSharedNote[];
+	/**
+	 * Pointers the file makes to a record it does not have, kept as retained lines instead of links.
+	 * `void` is the 7.0 `@VOID@`, a legal pointer meaning "a record that is not in this file"; `absent`
+	 * names an XREF no record of the file carries, which is a broken file but not a reason to fail.
+	 */
+	unresolved: { void: number; absent: number };
 }
 
 export interface ParseOptions {
@@ -504,6 +513,19 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	let treeName: string | undefined;
 	let fileTreeName: string | undefined;
 
+	// A link in the model needs both ends to be rows, so a pointer is only followed when the file has the
+	// record. Anything else (`@VOID@`, a record that was never there) is kept as the line it was.
+	const personXrefs = new Set(
+		rootNodes.filter((n) => n.tag === 'INDI' && n.xref).map((n) => n.xref)
+	);
+	const unresolved = { void: 0, absent: 0 };
+	/** Whether `pointer` names a record in `known`; if not, counts it for the report. */
+	const isResolved = (pointer: string, known: Set<string | undefined>) => {
+		if (known.has(pointer)) return true;
+		unresolved[pointer === VOID_POINTER ? 'void' : 'absent']++;
+		return false;
+	};
+
 	/** The citations among these nodes, or none when the file is read the retained way. */
 	const citationsOf = (nodes: GedcomNode[]) =>
 		isEvidenceModelled
@@ -703,7 +725,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const notes: ParsedNoteLink[] = [];
 
 			for (const child of node.children) {
-				if (child.tag === 'HUSB' && child.value) {
+				if (
+					(child.tag === 'HUSB' || child.tag === 'WIFE' || child.tag === 'CHIL') &&
+					child.value &&
+					!isResolved(child.value.trim(), personXrefs)
+				) {
+					// A partner or child who is not a person of this file cannot be a row; the line, with its
+					// PHRASE or any other sub-line, is written back as it came.
+					preserved.push({ xref: id, lines: collectLines(child) });
+				} else if (child.tag === 'HUSB' && child.value) {
 					husbandId = child.value.trim();
 				} else if (child.tag === 'WIFE' && child.value) {
 					wifeId = child.value.trim();
@@ -827,6 +857,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		preserved,
 		sources,
 		repositories,
-		notes: sharedNotes
+		notes: sharedNotes,
+		unresolved
 	};
 }
