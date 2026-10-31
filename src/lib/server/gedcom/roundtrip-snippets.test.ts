@@ -91,3 +91,31 @@ describe('an AGE with only a PHRASE', () => {
 		expect(text).toMatch(/2 AGE\r\n3 PHRASE Zero/);
 	});
 });
+
+describe('a PHRASE under HUSB, WIFE and CHIL', () => {
+	it('stays under the same link', async () => {
+		const text = await expectClean(
+			file(
+				...FAMILY,
+				'0 @I3@ INDI',
+				'1 NAME Cy /Ash/',
+				'1 SEX M',
+				'1 FAMC @F1@',
+				'0 @F1@ FAM',
+				'1 HUSB @I2@',
+				'2 PHRASE the husband',
+				'1 WIFE @I1@',
+				'2 PHRASE the wife',
+				'1 CHIL @I3@',
+				'2 PHRASE the child'
+			)
+		);
+		expect(text).toMatch(/1 CHIL @\w+@\r\n2 PHRASE the child/);
+	});
+
+	it('keeps a PHRASE on a child of a family with no partner', async () => {
+		await expectClean(
+			file('0 @I3@ INDI', '1 NAME Cy /Ash/', '1 SEX M', '0 @F1@ FAM', '1 CHIL @I3@', '2 PHRASE kid')
+		);
+	});
+});

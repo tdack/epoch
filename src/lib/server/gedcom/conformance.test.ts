@@ -59,14 +59,9 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	},
 	'notes-1.ged': { reason: SUBMITTER_KEPT_AND_COPIED, task: '1A.3', diffs: ['record-added SUBM'] },
 	'maximal70.ged': {
-		reason: 'HUSB, WIFE and CHIL PHRASE dropped; a second SUBM is written from the setting',
+		reason: 'a second SUBM is written from the setting',
 		task: '1A.1, 1A.3, 1A.5',
-		diffs: [
-			'missing FAM.CHIL.PHRASE',
-			'missing FAM.HUSB.PHRASE',
-			'missing FAM.WIFE.PHRASE',
-			'record-added SUBM'
-		]
+		diffs: ['record-added SUBM']
 	},
 	'maximal70-lds.ged': {
 		reason: 'SLGS (LDS ordinances) dropped',

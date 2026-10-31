@@ -801,6 +801,17 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
 			const notes: ParsedNoteLink[] = [];
+			// What hangs under a partner or child link (`PHRASE`, a custom tag) has no column. It is kept
+			// headed by its own line, as a `FAMC`'s is, and written back inside the same link.
+			const linkLines: { key: string; lines: string[] }[] = [];
+			const keepLinkLines = (link: GedcomNode) => {
+				const subs = link.children.filter((c) => !(link.tag === 'CHIL' && c.tag === 'PEDI'));
+				if (subs.length > 0)
+					linkLines.push({
+						key: `${link.tag} ${link.value!.trim()}`,
+						lines: [link.rawLine, ...subs.flatMap(collectLines)]
+					});
+			};
 
 			for (const child of node.children) {
 				if (
@@ -813,9 +824,12 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					preserved.push({ xref: id, lines: collectLines(child) });
 				} else if (child.tag === 'HUSB' && child.value) {
 					husbandId = child.value.trim();
+					keepLinkLines(child);
 				} else if (child.tag === 'WIFE' && child.value) {
 					wifeId = child.value.trim();
+					keepLinkLines(child);
 				} else if (child.tag === 'CHIL' && child.value) {
+					keepLinkLines(child);
 					// `PEDI` under `CHIL` is not standard; files Epoch used to export carry it there, so it is
 					// still read, but the child's own `FAMC` takes precedence below.
 					const pedigree =
@@ -872,8 +886,12 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			// A child is held by a link to a parent, so a family with no partner has nowhere to keep one.
 			// The CHIL lines stay as written rather than the children vanishing from the family.
 			if (!husbandId && !wifeId && children.length > 0) {
-				for (const child of children.splice(0))
-					preserved.push({ xref: id, lines: [`1 CHIL ${child.childId}`] });
+				for (const child of children.splice(0)) {
+					const kept = linkLines.find((l) => l.key === `CHIL ${child.childId}`);
+					preserved.push({ xref: id, lines: kept?.lines ?? [`1 CHIL ${child.childId}`] });
+				}
+			} else {
+				for (const link of linkLines) preserved.push({ xref: id, lines: link.lines });
 			}
 
 			families.push({

@@ -693,6 +693,34 @@ function isFamcExtra(entry: { lines: string[] }): boolean {
 	return /^1 FAMC\s+\S+/.test(entry.lines[0] ?? '');
 }
 
+/** The same, for any of the four links a record's retained lines can hang under. */
+function isLinkExtra(entry: { lines: string[] }): boolean {
+	return /^1 (FAMC|HUSB|WIFE|CHIL)\s+\S+/.test(entry.lines[0] ?? '');
+}
+
+/** The lines the file kept under the link `tag` to `target`, once each, marked as written. */
+function linkSubLines(
+	tag: 'HUSB' | 'WIFE' | 'CHIL',
+	target: string,
+	owned: readonly { lines: string[] }[] | undefined,
+	written: Set<object>
+): string[] {
+	const out: string[] = [];
+	const seen = new Set<string>();
+	for (const entry of owned ?? []) {
+		const head = /^1 (\S+)\s+(\S+)/.exec(entry.lines[0] ?? '');
+		if (head?.[1] !== tag || asXref(head[2]) !== asXref(target)) continue;
+		written.add(entry);
+		for (const line of entry.lines.slice(1)) {
+			const folded = singleLine(line) ?? '';
+			if (seen.has(folded)) continue;
+			seen.add(folded);
+			out.push(folded);
+		}
+	}
+	return out;
+}
+
 function famcTarget(entry: { lines: string[] }): string {
 	return entry.lines[0].trim().split(/\s+/)[2];
 }
@@ -736,7 +764,7 @@ function appendPreserved(
 ): void {
 	for (const entry of preserved.get(ownerXref) ?? []) {
 		if (skipped.has(entry)) continue;
-		if (!(ownerXref !== null && isFamcExtra(entry) && written.has(entry))) {
+		if (!(ownerXref !== null && isLinkExtra(entry) && written.has(entry))) {
 			lines.push(...foldLines(entry.lines));
 		}
 	}
@@ -907,15 +935,19 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	for (const fam of data.families) {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
+		const owned = preserved.get(xref);
 		if (fam.husbandId) {
 			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
+			lines.push(...linkSubLines('HUSB', fam.husbandId, owned, written));
 		}
 		if (fam.wifeId) {
 			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
+			lines.push(...linkSubLines('WIFE', fam.wifeId, owned, written));
 		}
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);
+				lines.push(...linkSubLines('CHIL', child.childId, owned, written));
 			}
 		}
 		lines.push(...aliasLines(fam.aliases));
@@ -1000,15 +1032,19 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	for (const fam of data.families) {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
+		const owned = preserved.get(xref);
 		if (fam.husbandId) {
 			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
+			lines.push(...linkSubLines('HUSB', fam.husbandId, owned, written));
 		}
 		if (fam.wifeId) {
 			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
+			lines.push(...linkSubLines('WIFE', fam.wifeId, owned, written));
 		}
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);
+				lines.push(...linkSubLines('CHIL', child.childId, owned, written));
 			}
 		}
 		lines.push(...aliasLines(fam.aliases));
