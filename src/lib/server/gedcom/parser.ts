@@ -518,6 +518,9 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const personXrefs = new Set(
 		rootNodes.filter((n) => n.tag === 'INDI' && n.xref).map((n) => n.xref)
 	);
+	const familyXrefs = new Set(
+		rootNodes.filter((n) => n.tag === 'FAM' && n.xref).map((n) => n.xref)
+	);
 	const unresolved = { void: 0, absent: 0 };
 	/** Whether `pointer` names a record in `known`; if not, counts it for the report. */
 	const isResolved = (pointer: string, known: Set<string | undefined>) => {
@@ -589,6 +592,14 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					child.value?.trim().toLowerCase() === 'public'
 				) {
 					privacy = 'public';
+				} else if (
+					(child.tag === 'FAMC' || child.tag === 'FAMS') &&
+					child.value &&
+					!isResolved(child.value.trim(), familyXrefs)
+				) {
+					// Family links are rebuilt from the families on export, so a link to no family of the
+					// file would vanish with its PEDI, STAT, NOTE and the rest. It stays as the line it was.
+					preserved.push({ xref: id, lines: collectLines(child) });
 				} else if (child.tag === 'FAMC' && child.value) {
 					const familyId = child.value.trim();
 					famc.push(familyId);
