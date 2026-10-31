@@ -25,6 +25,11 @@ export const trees = sqliteTable(
 		// ADR-079. How the tree's dates read as words, a `DateFormat`; a tree that never sets it
 		// keeps the day-month-year order.
 		dateFormat: text('date_format').notNull().default('day_month_year'),
+		// ADR-075. Who a GEDCOM export names as its submitter. All three are null until a manager sets
+		// them, and a 7.0 export writes a submitter only when the name is set.
+		submitterName: text('submitter_name'),
+		submitterEmail: text('submitter_email'),
+		submitterWww: text('submitter_www'),
 		version: integer('version').notNull().default(1),
 		// The install owner's order for every tree list, lowest first. Its own column rather than
 		// `updated_at`: reordering must not bump `version` (it guards renames) or look like an edit.
