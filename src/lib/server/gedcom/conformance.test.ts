@@ -27,10 +27,7 @@ interface KnownGap {
 	diffs?: string[];
 }
 
-const IMPORT_FAILS_FK = 'import fails (FK)';
-
 const INVENTS_NAME_SEX = 'export invents NAME // and SEX U for a person the file leaves without';
-const IMPORT_FAILS_D1 = 'import fails (D1 write: fetch failed)';
 const FIXTURE_LEGACY_LINES = 'kept 5.5.1 lines written as they came';
 
 const KNOWN_GAPS: Record<string, KnownGap> = {
@@ -39,7 +36,16 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		task: '1A.5',
 		diffs: ['added INDI.NAME', 'added INDI.SEX', 'missing INDI.CHR.AGE']
 	},
-	'date.ged': { reason: IMPORT_FAILS_D1, task: '1A.0', isImportFailure: true },
+	'date.ged': {
+		reason: `_UNKNOWN dates become an empty DATE + PHRASE; ${INVENTS_NAME_SEX}`,
+		task: '1A.5',
+		diffs: [
+			'added INDI.BIRT.DATE.PHRASE',
+			'added INDI.NAME',
+			'added INDI.SEX',
+			'changed INDI.BIRT.DATE'
+		]
+	},
 	'escapes.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'extension-record.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'extensions.ged': {
@@ -70,12 +76,139 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		task: '1A.1, 1A.3',
 		diffs: ['missing HEAD.LANG', 'missing HEAD.SCHMA']
 	},
-	'maximal70-lds.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
-	'maximal70-memories1.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
-	'maximal70-memories2.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
-	'maximal70-tree1.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
-	'maximal70-tree2.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
-	'maximal70.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
+	'maximal70.ged': {
+		reason:
+			'HUSB, WIFE and CHIL PHRASE dropped; HEAD.LANG and HEAD.SCHMA dropped; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.1, 1A.3, 1A.5, 1A.6',
+		errors: ['cardinality-max INDI.RESN'],
+		diffs: [
+			'added FAM.ANUL.NOTE',
+			'added FAM.CENS.NOTE',
+			'added FAM.DIV.NOTE',
+			'added FAM.DIVF.NOTE',
+			'added FAM.ENGA.NOTE',
+			'added FAM.EVEN.NOTE',
+			'added FAM.MARB.NOTE',
+			'added FAM.MARC.NOTE',
+			'added FAM.MARL.NOTE',
+			'added FAM.MARR.NOTE',
+			'added FAM.MARS.NOTE',
+			'added INDI.NAME',
+			'added INDI.RESN',
+			'changed FAM.ANUL',
+			'changed FAM.CENS',
+			'changed FAM.DIV',
+			'changed FAM.DIVF',
+			'changed FAM.ENGA',
+			'changed FAM.EVEN',
+			'changed FAM.MARB',
+			'changed FAM.MARC',
+			'changed FAM.MARL',
+			'changed FAM.MARR',
+			'changed FAM.MARS',
+			'changed INDI.NAME',
+			'changed INDI.RESN',
+			'missing FAM.CHIL.PHRASE',
+			'missing FAM.HUSB.PHRASE',
+			'missing FAM.WIFE.PHRASE',
+			'missing HEAD.LANG',
+			'missing HEAD.SCHMA',
+			'missing INDI.FAMC'
+		]
+	},
+	'maximal70-lds.ged': {
+		reason:
+			'SLGS (LDS ordinances) dropped; ' +
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: [
+			'added FAM.MARR.NOTE',
+			'added INDI.NAME',
+			'added INDI.NAME.TYPE',
+			'changed FAM.MARR',
+			'changed INDI.NAME',
+			'missing FAM.SLGS',
+			'missing INDI.FAMC'
+		]
+	},
+	'maximal70-memories1.ged': {
+		reason:
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: [
+			'added FAM.MARR.NOTE',
+			'added INDI.NAME',
+			'added INDI.NAME.TYPE',
+			'changed FAM.MARR',
+			'changed INDI.NAME',
+			'missing INDI.FAMC'
+		]
+	},
+	'maximal70-memories2.ged': {
+		reason:
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: [
+			'added FAM.MARR.NOTE',
+			'added INDI.NAME',
+			'added INDI.NAME.TYPE',
+			'changed FAM.MARR',
+			'changed INDI.NAME',
+			'missing INDI.FAMC'
+		]
+	},
+	'maximal70-tree1.ged': {
+		reason:
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: [
+			'added FAM.MARR.NOTE',
+			'added INDI.NAME',
+			'added INDI.NAME.TYPE',
+			'changed FAM.MARR',
+			'changed INDI.NAME',
+			'missing INDI.FAMC'
+		]
+	},
+	'maximal70-tree2.ged': {
+		reason:
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: [
+			'added FAM.ANUL.NOTE',
+			'added FAM.CENS.NOTE',
+			'added FAM.DIV.NOTE',
+			'added FAM.DIVF.NOTE',
+			'added FAM.ENGA.NOTE',
+			'added FAM.EVEN.NOTE',
+			'added FAM.MARB.NOTE',
+			'added FAM.MARC.NOTE',
+			'added FAM.MARL.NOTE',
+			'added FAM.MARR.NOTE',
+			'added FAM.MARS.NOTE',
+			'added INDI.NAME',
+			'changed FAM.ANUL',
+			'changed FAM.CENS',
+			'changed FAM.DIV',
+			'changed FAM.DIVF',
+			'changed FAM.ENGA',
+			'changed FAM.EVEN',
+			'changed FAM.MARB',
+			'changed FAM.MARC',
+			'changed FAM.MARL',
+			'changed FAM.MARR',
+			'changed FAM.MARS',
+			'changed INDI.NAME',
+			'missing INDI.FAMC'
+		]
+	},
 	'obje-1.ged': {
 		reason: INVENTS_NAME_SEX,
 		task: '1A.5',
@@ -83,7 +216,13 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	},
 	'remarriage1.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'remarriage2.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
-	'voidptr.ged': { reason: IMPORT_FAILS_FK, task: '1A.0', isImportFailure: true },
+	'voidptr.ged': {
+		reason:
+			`${INVENTS_NAME_SEX}; ` +
+			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
+		task: '1A.5, 1A.6',
+		diffs: ['added INDI.SEX', 'missing INDI.FAMC']
+	},
 	'warnings70.ged': {
 		reason: INVENTS_NAME_SEX,
 		task: '1A.5',
