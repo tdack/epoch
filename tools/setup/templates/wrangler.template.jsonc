@@ -65,6 +65,9 @@
 			}
 		}
 	],
+	"triggers": {
+		"crons": ["17 * * * *"]
+	},
 	// Per-location counters with no resource to create: the namespace_id is a number we choose
 	// (ADR-066). The limits live in src/lib/server/http/rate-limit.ts; keep the two in step.
 	"ratelimits": [

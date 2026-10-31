@@ -65,6 +65,11 @@
 			}
 		}
 	],
+	// Hourly, off the top of the hour so it does not join the rush of other scheduled work. It only
+	// closes upload sessions that were abandoned past their expiry (see UploadService.sweepExpired).
+	"triggers": {
+		"crons": ["17 * * * *"]
+	},
 	// Per-location counters with no resource to create: the namespace_id is a number we choose
 	// (ADR-066). The limits live in src/lib/server/http/rate-limit.ts; keep the two in step.
 	"ratelimits": [

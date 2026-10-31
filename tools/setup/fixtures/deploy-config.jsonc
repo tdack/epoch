@@ -93,6 +93,9 @@
 			"enabled": true
 		}
 	},
+	"triggers": {
+		"crons": ["17 * * * *"]
+	},
 	"ratelimits": [
 		{
 			"name": "UPLOAD_RATE_LIMIT",
