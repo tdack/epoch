@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, lte, sql } from 'drizzle-orm';
 import type { DbClient } from '../db';
 import { uploadSessions } from '../db/schema';
 import type { UploadPurpose } from '../../shared/uploads';
@@ -92,6 +92,26 @@ export class UploadRepository {
 			.where(and(eq(uploadSessions.id, id), eq(uploadSessions.status, 'open')))
 			.returning({ id: uploadSessions.id });
 		return changed.length > 0;
+	}
+
+	/**
+	 * Open sessions whose expiry has passed, oldest first, at most `limit`. The `(status, expires_at)`
+	 * index serves this, so a sweep costs one bounded range scan however many sessions are closed.
+	 */
+	async findExpiredOpen(
+		now: Date,
+		limit: number
+	): Promise<Array<Pick<UploadSessionRow, 'id' | 'r2Key' | 'r2UploadId'>>> {
+		return this.db
+			.select({
+				id: uploadSessions.id,
+				r2Key: uploadSessions.r2Key,
+				r2UploadId: uploadSessions.r2UploadId
+			})
+			.from(uploadSessions)
+			.where(and(eq(uploadSessions.status, 'open'), lte(uploadSessions.expiresAt, now)))
+			.orderBy(asc(uploadSessions.expiresAt))
+			.limit(limit);
 	}
 
 	/**

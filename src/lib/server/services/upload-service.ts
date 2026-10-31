@@ -27,6 +27,19 @@ import {
 	type UploadSessionStateDto
 } from '../../shared/uploads';
 
+/**
+ * Sessions one sweep run may close. Each costs an R2 abort and a D1 write, so this bounds a run's
+ * subrequests and CPU well inside a scheduled invocation; a backlog drains over later runs.
+ */
+export const UPLOAD_SWEEP_BATCH_SIZE = 100;
+
+export interface UploadSweepResult {
+	/** Sessions this run closed. */
+	closed: number;
+	/** Of those, the ones whose R2 abort failed for a reason other than the upload being gone. */
+	abortFailed: number;
+}
+
 /** The existing action checks, reused so an upload cannot be allowed to someone the feature is not. */
 const ACTION_BY_PURPOSE: Record<UploadPurpose, TreeAction> = {
 	gedzip_import: 'tree:import',
@@ -70,6 +83,11 @@ function sessionDto(
 		})),
 		expiresAt: expiresAt.getTime()
 	};
+}
+
+/** R2 reports a multipart upload it no longer has as "does not exist" (NoSuchUpload on the wire). */
+function isMissingUploadError(err: unknown): boolean {
+	return err instanceof Error && /does not exist|NoSuchUpload/i.test(err.message);
 }
 
 export class UploadService {
@@ -209,6 +227,36 @@ export class UploadService {
 		}
 		await this.uploads.closeOpen(session.id, 'complete');
 		return { sessionId: session.id, r2Key: session.r2Key, totalBytes: session.totalBytes };
+	}
+
+	/**
+	 * Closes open sessions whose expiry has passed and aborts their R2 multipart uploads, so the
+	 * parts stop occupying storage. Runs from the scheduled handler; at most `limit` per call.
+	 *
+	 * The row is closed before R2 is asked to abort, as `discard` does, and an abort is only sent
+	 * when this call made the change, so a session completed a moment earlier is left to its
+	 * importer. A session whose abort fails is still closed: left open, it would sit at the head of
+	 * every later run and starve the sessions behind it. The R2 lifecycle rule drops any parts R2
+	 * kept, within a day.
+	 */
+	async sweepExpired(limit = UPLOAD_SWEEP_BATCH_SIZE): Promise<UploadSweepResult> {
+		const expired = await this.uploads.findExpiredOpen(this.now(), limit);
+		let closed = 0;
+		let abortFailed = 0;
+		for (const session of expired) {
+			if (!(await this.uploads.closeOpen(session.id, 'aborted'))) continue;
+			closed++;
+			try {
+				await this.bucket.resumeMultipartUpload(session.r2Key, session.r2UploadId).abort();
+			} catch (err) {
+				// An upload R2 no longer has was already assembled or aborted: the outcome we wanted.
+				if (!isMissingUploadError(err)) {
+					abortFailed++;
+					console.error(`Could not abort upload session ${session.id}:`, err);
+				}
+			}
+		}
+		return { closed, abortFailed };
 	}
 
 	/** Idempotent: a closed session (aborted, or already complete) is left as it is. */

@@ -92,3 +92,38 @@ describe('UploadRepository', () => {
 		expect(await repo.reservedBytes(otherTree, 'media', LATER)).toBe(0);
 	});
 });
+
+describe('UploadRepository.findExpiredOpen', () => {
+	// Earlier than every expiry the rows above use, so their open sessions are not swept here.
+	const SWEEP_AT = new Date('2025-06-01T00:00:00Z');
+	const OLDER = new Date('2024-12-30T00:00:00Z');
+	const NEWER = new Date('2024-12-31T00:00:00Z');
+
+	it('returns open sessions past expiry, oldest first, and no others', async () => {
+		const newer = session({ expiresAt: NEWER });
+		const older = session({ expiresAt: OLDER });
+		const future = session({ expiresAt: LATER });
+		const closed = session({ expiresAt: OLDER });
+		const completed = session({ expiresAt: OLDER });
+		// Inserted newest-first, so only the ORDER BY can put the oldest first.
+		for (const row of [newer, older, future, closed, completed]) await repo.insert(row);
+		await repo.closeOpen(closed.id, 'aborted');
+		await repo.closeOpen(completed.id, 'complete');
+
+		const found = await repo.findExpiredOpen(SWEEP_AT, 10);
+		expect(found.map((row) => row.id)).toEqual([older.id, newer.id]);
+		expect(found[0]).toEqual({
+			id: older.id,
+			r2Key: older.r2Key,
+			r2UploadId: older.r2UploadId
+		});
+	});
+
+	it('answers at most the limit', async () => {
+		// Earlier than the rows the test above left open, so the one the limit keeps is this one.
+		const oldest = session({ expiresAt: new Date('2024-01-01T00:00:00Z') });
+		await repo.insert(oldest);
+		const found = await repo.findExpiredOpen(SWEEP_AT, 1);
+		expect(found.map((row) => row.id)).toEqual([oldest.id]);
+	});
+});

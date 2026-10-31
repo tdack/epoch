@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { getPlatformProxy } from 'wrangler';
 import { treeMemberships } from '../db/schema';
@@ -16,7 +16,7 @@ import {
 } from '../testing/d1';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { MAX_GEDZIP_UPLOAD_BYTES, UPLOAD_SESSION_TTL_SECONDS } from '../../shared/uploads';
-import { UploadService } from './upload-service';
+import { UPLOAD_SWEEP_BATCH_SIZE, UploadService } from './upload-service';
 
 const PART = 10;
 
@@ -373,5 +373,146 @@ describe('against local R2 multipart', () => {
 		} finally {
 			await proxy.dispose();
 		}
+	}, 60_000);
+});
+
+describe('UploadService.sweepExpired', () => {
+	const HOUR_MS = 60 * 60 * 1000;
+	// Before every session the rest of this file opens, so their open sessions are never swept here.
+	const SWEEP_AT = new Date('2025-01-01T00:00:00Z');
+
+	beforeEach(() => {
+		clock = SWEEP_AT;
+	});
+
+	/** An open session in R2 and in D1, expiring at `expiresAt`, as if `create` had opened it. */
+	async function openSession(expiresAt: Date) {
+		const id = crypto.randomUUID();
+		const key = `staging/uploads/${treeId}/${id}`;
+		const upload = await bucket.createMultipartUpload(key);
+		await new UploadRepository(t.db).insert({
+			id,
+			treeId,
+			purpose: 'media',
+			r2Key: key,
+			r2UploadId: upload.uploadId,
+			partSizeBytes: PART,
+			totalBytes: 25,
+			createdBy: owner.userId,
+			createdAt: clock,
+			expiresAt
+		});
+		return { id, key, uploadId: upload.uploadId };
+	}
+
+	const statusOf = async (id: string) => (await new UploadRepository(t.db).find(id))!.status;
+	const uploadStateOf = (uploadId: string) => bucket.uploads.get(uploadId)?.state;
+	const expiredAt = (hoursAgo: number) => new Date(SWEEP_AT.getTime() - hoursAgo * HOUR_MS);
+	const laterAt = (hoursAhead: number) => new Date(SWEEP_AT.getTime() + hoursAhead * HOUR_MS);
+
+	it('closes expired open sessions and aborts their R2 uploads', async () => {
+		const first = await openSession(expiredAt(1));
+		const second = await openSession(expiredAt(2));
+
+		const result = await service().sweepExpired();
+
+		expect(result).toEqual({ closed: 2, abortFailed: 0 });
+		expect(await statusOf(first.id)).toBe('aborted');
+		expect(await statusOf(second.id)).toBe('aborted');
+		expect(uploadStateOf(first.uploadId)).toBe('aborted');
+		expect(uploadStateOf(second.uploadId)).toBe('aborted');
+	});
+
+	it('leaves unexpired, completed and already-aborted sessions untouched', async () => {
+		const svc = service();
+		const done = await svc.create(media(25), owner.context);
+		for (const [partNumber, bytes] of [
+			[1, 10],
+			[2, 10],
+			[3, 5]
+		] as const) {
+			await svc.putPart(done.sessionId, partNumber, bytes, stream(bytes), owner.context);
+		}
+		await svc.complete(done.sessionId, owner.context);
+		const aborted = await svc.create(media(25), owner.context);
+		await svc.abort(aborted.sessionId, owner.context);
+		const doneRow = await new UploadRepository(t.db).find(done.sessionId);
+		const abortedRow = await new UploadRepository(t.db).find(aborted.sessionId);
+		const fresh = await openSession(laterAt(1));
+		const expired = await openSession(expiredAt(1));
+
+		expect(await svc.sweepExpired()).toEqual({ closed: 1, abortFailed: 0 });
+
+		expect(await statusOf(expired.id)).toBe('aborted');
+		expect(await statusOf(fresh.id)).toBe('open');
+		expect(uploadStateOf(fresh.uploadId)).toBe('open');
+		expect(await statusOf(done.sessionId)).toBe('complete');
+		expect(uploadStateOf(doneRow!.r2UploadId)).toBe('completed');
+		expect(await statusOf(aborted.sessionId)).toBe('aborted');
+		expect(uploadStateOf(abortedRow!.r2UploadId)).toBe('aborted');
+	});
+
+	it('treats a session expiring exactly now as expired, as the upload itself does', async () => {
+		const session = await openSession(SWEEP_AT);
+		expect(await service().sweepExpired()).toEqual({ closed: 1, abortFailed: 0 });
+		expect(await statusOf(session.id)).toBe('aborted');
+	});
+
+	it('closes a session whose R2 upload is already gone without counting it as a failure', async () => {
+		const session = await openSession(expiredAt(1));
+		await bucket.resumeMultipartUpload(session.key, session.uploadId).abort();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		expect(await service().sweepExpired()).toEqual({ closed: 1, abortFailed: 0 });
+		expect(await statusOf(session.id)).toBe('aborted');
+		expect(error).not.toHaveBeenCalled();
+		error.mockRestore();
+	});
+
+	it('keeps going when one abort fails, closes that session too, and counts the failure', async () => {
+		// The older session is swept first, so its failure comes before the other one's abort.
+		const failing = await openSession(expiredAt(2));
+		const after = await openSession(expiredAt(1));
+		const realResume = bucket.resumeMultipartUpload.bind(bucket);
+		vi.spyOn(bucket, 'resumeMultipartUpload').mockImplementation((key, uploadId) => {
+			const upload = realResume(key, uploadId);
+			if (uploadId !== failing.uploadId) return upload;
+			return {
+				...upload,
+				abort: async () => {
+					throw new Error('R2 is unavailable');
+				}
+			} as unknown as ReturnType<typeof realResume>;
+		});
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		try {
+			expect(await service().sweepExpired()).toEqual({ closed: 2, abortFailed: 1 });
+			expect(error).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.restoreAllMocks();
+		}
+
+		expect(await statusOf(failing.id)).toBe('aborted');
+		expect(await statusOf(after.id)).toBe('aborted');
+		expect(uploadStateOf(after.uploadId)).toBe('aborted');
+	});
+
+	it('answers at most the limit, and a backlog drains over later runs', async () => {
+		for (let i = 0; i < 5; i++) await openSession(expiredAt(1));
+		const svc = service();
+
+		expect(await svc.sweepExpired(2)).toEqual({ closed: 2, abortFailed: 0 });
+		expect(await svc.sweepExpired(2)).toEqual({ closed: 2, abortFailed: 0 });
+		expect(await svc.sweepExpired(2)).toEqual({ closed: 1, abortFailed: 0 });
+		expect(await svc.sweepExpired(2)).toEqual({ closed: 0, abortFailed: 0 });
+	});
+
+	it('bounds a default run to UPLOAD_SWEEP_BATCH_SIZE sessions', async () => {
+		for (let i = 0; i < UPLOAD_SWEEP_BATCH_SIZE + 1; i++) await openSession(expiredAt(1));
+		const svc = service();
+
+		expect((await svc.sweepExpired()).closed).toBe(UPLOAD_SWEEP_BATCH_SIZE);
+		expect((await svc.sweepExpired()).closed).toBe(1);
 	}, 60_000);
 });
