@@ -126,6 +126,24 @@ run at once.
 1A.3, 1A.6 and 1A.7 all touch `serializer.ts`, so they run one after another. 1A.1 and 1A.2 share
 `dialect.ts` and are also ordered. 1A.4 and 1A.5 run beside them.
 
+**First findings (validator, 2026-10-31).** These came from running Epoch's 7.0 export of its own
+fixtures and of the official files through `validateGedcom7`. The 0.4 round-trip suite will make
+them repeatable.
+
+- **Import fails outright** with `FOREIGN KEY constraint failed` on all five `maximal70*.ged`
+  variants and on `voidptr.ged`. The likely cause is `@VOID@` or a pointer to a record kind Epoch
+  does not model. This is the first 1A task, ahead of 1A.1.
+- **Xrefs:** the exporter writes UUID xrefs (`@52d1e0bc-…@`), but 7.0 allows only `[A-Z0-9_]`.
+  Map ids to short xrefs at export (1A.6).
+- **Notes:** a 5.5.1 shared note (`0 @N1@ NOTE`, and `NOTE @N1@` pointers to it) is written as it
+  came. It should become `SNOTE` (1A.1).
+- **Sources:** an inline `SOUR` with text instead of a pointer, and `SOUR` under `INDI.FAMC`, which
+  7.0 does not allow there (1A.1).
+- **Media:** an embedded `OBJE.FILE` with no `FORM`. This one belongs to the empty-`FORM` rule
+  (1A.1) and to Phase 2.
+- **Pointers:** a pointer to a missing record (`@MISSING@`) is written as it came. Write `@VOID@`
+  instead (1A.6).
+
 **Exit:** every conformance fixture exports with no validator errors. The round-trip diff is empty
 apart from the allowlist, and every allowlisted item is written in ADR-036's "known losses".
 
