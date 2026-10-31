@@ -49,11 +49,10 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'extension-record.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'extensions.ged': {
 		reason:
-			'SCHMA dropped; FAMC @VOID@ dropped; ASSO, SUBM and _PARTY dropped from a person; ' +
-			'extension-calendar dates become an empty DATE + PHRASE; a record with no xref gets a UUID; ' +
+			'SCHMA dropped; ASSO, SUBM and _PARTY dropped from a person; ' +
+			'extension-calendar dates become an empty DATE + PHRASE; ' +
 			INVENTS_NAME_SEX,
-		task: '1A.1, 1A.5, 1A.6',
-		errors: ['xref-format INDI'],
+		task: '1A.1, 1A.3, 1A.5',
 		diffs: [
 			'added INDI.BIRT.DATE.PHRASE',
 			'added INDI.DEAT.DATE.PHRASE',
@@ -65,7 +64,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed INDI.GRAD.DATE',
 			'missing HEAD.SCHMA',
 			'missing INDI.ASSO',
-			'missing INDI.FAMC',
 			'missing INDI.SUBM',
 			'missing INDI._PARTY'
 		]
@@ -78,9 +76,8 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'maximal70.ged': {
 		reason:
 			'HUSB, WIFE and CHIL PHRASE dropped; HEAD.LANG and HEAD.SCHMA dropped; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.1, 1A.3, 1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.1, 1A.3, 1A.5',
 		errors: ['cardinality-max INDI.RESN'],
 		diffs: [
 			'added FAM.ANUL.NOTE',
@@ -113,73 +110,63 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'missing FAM.HUSB.PHRASE',
 			'missing FAM.WIFE.PHRASE',
 			'missing HEAD.LANG',
-			'missing HEAD.SCHMA',
-			'missing INDI.FAMC'
+			'missing HEAD.SCHMA'
 		]
 	},
 	'maximal70-lds.ged': {
 		reason:
 			'SLGS (LDS ordinances) dropped; ' +
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.5',
 		diffs: [
 			'added FAM.MARR.NOTE',
 			'added INDI.NAME',
 			'added INDI.NAME.TYPE',
 			'changed FAM.MARR',
 			'changed INDI.NAME',
-			'missing FAM.SLGS',
-			'missing INDI.FAMC'
+			'missing FAM.SLGS'
 		]
 	},
 	'maximal70-memories1.ged': {
 		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.5',
 		diffs: [
 			'added FAM.MARR.NOTE',
 			'added INDI.NAME',
 			'added INDI.NAME.TYPE',
 			'changed FAM.MARR',
-			'changed INDI.NAME',
-			'missing INDI.FAMC'
+			'changed INDI.NAME'
 		]
 	},
 	'maximal70-memories2.ged': {
 		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.5',
 		diffs: [
 			'added FAM.MARR.NOTE',
 			'added INDI.NAME',
 			'added INDI.NAME.TYPE',
 			'changed FAM.MARR',
-			'changed INDI.NAME',
-			'missing INDI.FAMC'
+			'changed INDI.NAME'
 		]
 	},
 	'maximal70-tree1.ged': {
 		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.5',
 		diffs: [
 			'added FAM.MARR.NOTE',
 			'added INDI.NAME',
 			'added INDI.NAME.TYPE',
 			'changed FAM.MARR',
-			'changed INDI.NAME',
-			'missing INDI.FAMC'
+			'changed INDI.NAME'
 		]
 	},
 	'maximal70-tree2.ged': {
 		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes; ' +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
+			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		task: '1A.5',
 		diffs: [
 			'added FAM.ANUL.NOTE',
 			'added FAM.CENS.NOTE',
@@ -204,8 +191,7 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed FAM.MARL',
 			'changed FAM.MARR',
 			'changed FAM.MARS',
-			'changed INDI.NAME',
-			'missing INDI.FAMC'
+			'changed INDI.NAME'
 		]
 	},
 	'obje-1.ged': {
@@ -216,11 +202,9 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'remarriage1.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'remarriage2.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'voidptr.ged': {
-		reason:
-			`${INVENTS_NAME_SEX}; ` +
-			'FAMC @VOID@ and a FAMC to a partnerless family are kept but not written: the serializer writes a retained FAMC only under an existing link',
-		task: '1A.5, 1A.6',
-		diffs: ['added INDI.SEX', 'missing INDI.FAMC']
+		reason: INVENTS_NAME_SEX,
+		task: '1A.5',
+		diffs: ['added INDI.SEX']
 	},
 	'warnings70.ged': {
 		reason: INVENTS_NAME_SEX,
@@ -228,16 +212,9 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		diffs: ['added INDI.NAME', 'added INDI.SEX']
 	},
 	'xref.ged': {
-		reason: `a record with no xref gets a UUID; ${INVENTS_NAME_SEX}`,
-		task: '1A.5, 1A.6',
-		errors: ['xref-format INDI'],
+		reason: INVENTS_NAME_SEX,
+		task: '1A.5',
 		diffs: ['added INDI.NAME', 'added INDI.SEX']
-	},
-	// Epoch's own fixtures: validated only, since they are 5.5.1-era text.
-	'evidence.ged': {
-		reason: 'a pointer to a record the file lacks (@MISSING@) is written as it came',
-		task: '1A.6',
-		errors: ['pointer-unresolved INDI.DEAT.SOUR']
 	}
 };
 

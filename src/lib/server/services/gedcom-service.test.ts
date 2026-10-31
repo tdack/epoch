@@ -258,11 +258,17 @@ describe('runImport', () => {
 		const s = await tree();
 		const service = new GedcomService(t.db);
 		await service.runImport(s.treeId, FILE);
-		// The child the family names is not in the file, so its link fails its foreign key after the
-		// people and the partnership are already queued.
-		const broken =
-			'0 HEAD\n0 @I7@ INDI\n1 NAME Cy /Oak/\n0 @F1@ FAM\n1 HUSB @I7@\n1 CHIL @I99@\n0 TRLR';
-		await expect(service.runImport(s.treeId, broken, undefined, 'replace')).rejects.toThrow();
+		// A pointer at a record the file lacks is kept as a line now, so no file fails that way. A trigger
+		// stands in for the failure: it aborts the new person's insert after the old ones are queued to go.
+		const broken = '0 HEAD\n0 @I7@ INDI\n1 NAME Cy /Oak/\n0 TRLR';
+		await t.d1.exec(
+			"CREATE TRIGGER fail_import BEFORE INSERT ON individuals WHEN NEW.xref_id = '@I7@' BEGIN SELECT RAISE(ABORT, 'no'); END"
+		);
+		try {
+			await expect(service.runImport(s.treeId, broken, undefined, 'replace')).rejects.toThrow();
+		} finally {
+			await t.d1.exec('DROP TRIGGER fail_import');
+		}
 		const people = await t.db
 			.select({ xref: individuals.xrefId })
 			.from(individuals)
@@ -398,7 +404,8 @@ describe('export', () => {
 			{ format: 'gedcom551' },
 			s.owner.context
 		);
-		expect(content).toMatch(/0 @F\|1@ FAM[^]*1 CHIL @I2@/);
+		// `|` is not a legal xref character, so the family is renumbered; its child must still follow.
+		expect(content).toMatch(/0 @F1@ FAM[^]*1 CHIL @I2@/);
 	});
 
 	it('names a download and the stored copy alike, by the tree', async () => {

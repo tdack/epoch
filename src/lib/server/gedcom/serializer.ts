@@ -8,6 +8,7 @@ import {
 	FAMILY_ALIAS_REFN_TYPE,
 	type GedcomFormat,
 	LEGACY_MARRIED_NAME_TAG,
+	NAME_CHANGE_NOTE,
 	nameChangeNote,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
@@ -549,7 +550,8 @@ function famcLines(
 	childId: string,
 	index: ReturnType<typeof pedigreeIndex>,
 	format: GedcomFormat,
-	preserved: PreservedByOwner
+	preserved: PreservedByOwner,
+	written: Set<object>
 ): string[] {
 	const lines = [`1 FAMC ${asXref(familyId)}`];
 	const link = index.get(`${familyId}|${childId}`);
@@ -562,13 +564,14 @@ function famcLines(
 	}
 	lines.push(...citationLines(2, link?.citations, format));
 	// A child linked to a merged family once per copy has several blocks for one link; write each line once.
-	const written = new Set<string>();
+	const seen = new Set<string>();
 	for (const entry of preserved.get(childId) ?? []) {
 		if (!isFamcExtra(entry) || asXref(famcTarget(entry)) !== asXref(familyId)) continue;
+		written.add(entry);
 		for (const line of entry.lines.slice(1)) {
 			const folded = singleLine(line) ?? '';
-			if (written.has(folded)) continue;
-			written.add(folded);
+			if (seen.has(folded)) continue;
+			seen.add(folded);
 			lines.push(folded);
 		}
 	}
@@ -610,14 +613,19 @@ function indexPreserved(preserved: GedcomExportPayload['preserved']): PreservedB
  * Append preserved (unmodeled) GEDCOM structures to the output.
  * Structures owned by a specific record are emitted immediately after that
  * record; tree/header-level records are emitted before the trailer.
+ *
+ * A retained `FAMC` is written inside its link by `famcLines` when the person has one. The rest
+ * (a `FAMC @VOID@`, a `FAMC` at a family that is not there or lists no parent) have no link to sit
+ * in, so they are written here, under their person, as the file had them.
  */
 function appendPreserved(
 	lines: string[],
 	preserved: PreservedByOwner,
-	ownerXref: string | null
+	ownerXref: string | null,
+	written: ReadonlySet<object>
 ): void {
 	for (const entry of preserved.get(ownerXref) ?? []) {
-		if (!(ownerXref !== null && isFamcExtra(entry))) {
+		if (!(ownerXref !== null && isFamcExtra(entry) && written.has(entry))) {
 			lines.push(...foldLines(entry.lines));
 		}
 	}
@@ -639,6 +647,91 @@ function appendRootRecords(lines: string[], data: GedcomExportPayload, format: G
 	}
 }
 
+/** The letter an exported record's xref starts with, by its tag; any other record kind takes `X`. */
+const XREF_LETTER_BY_TAG: Readonly<Record<string, string>> = {
+	INDI: 'I',
+	FAM: 'F',
+	SOUR: 'S',
+	REPO: 'R',
+	NOTE: 'N',
+	SNOTE: 'N',
+	SUBM: 'U',
+	OBJE: 'O'
+};
+
+/**
+ * What both dialects accept as an xref: upper-case letters, digits and `_` (7.0), at most 20
+ * characters (5.5.1). `VOID` is reserved for a pointer at nothing.
+ */
+const LEGAL_XREF = /^@(?!VOID@)[A-Z0-9_]{1,20}@$/;
+
+const POINTER_PAYLOAD = /^@[^@\s#][^@\s]*@$/;
+const RECORD_LINE = /^0 (@[^@\s]+@) (\S+)/;
+
+/**
+ * Rewrites every xref in `lines` to one both dialects accept, and every pointer through the same map.
+ *
+ * It runs over the finished lines, which is the one place that sees all of them: the ids the
+ * payload names (a UUID for a record made in Epoch), the pointers inside lines kept verbatim, and
+ * a record the file wrote with no xref at all. An xref that is already legal is kept, so a tree
+ * imported from `@I500@` exports as `@I500@`; the rest are numbered per record kind (`@I1@`,
+ * `@F1@`, `@S1@` ...) in the order the records are written, skipping any number a kept xref holds,
+ * so the same tree always exports the same way.
+ *
+ * A pointer at a record this file does not have is `@VOID@` in 7.0. 5.5.1 has no such value, so it
+ * is left as it was. A pointer is told from text by its being the whole payload: model text that
+ * begins with `@` is escaped to `@@`, so it can never look like one (ADR-042).
+ */
+function renumberXrefs(lines: readonly string[], format: GedcomFormat): string[] {
+	const defined: Array<{ index: number; xref: string; tag: string }> = [];
+	lines.forEach((line, index) => {
+		const m = RECORD_LINE.exec(line);
+		if (m) defined.push({ index, xref: m[1], tag: m[2] });
+	});
+	const map = new Map<string, string>();
+	const assigned = new Map<number, string>();
+	const used = new Set<string>();
+	for (const { index, xref } of defined) {
+		if (!LEGAL_XREF.test(xref) || used.has(xref)) continue;
+		used.add(xref);
+		assigned.set(index, xref);
+		map.set(xref, xref);
+	}
+	const counters = new Map<string, number>();
+	for (const { index, xref, tag } of defined) {
+		if (assigned.has(index)) continue;
+		const letter = XREF_LETTER_BY_TAG[tag] ?? 'X';
+		let next = counters.get(letter) ?? 0;
+		let candidate: string;
+		do candidate = `@${letter}${++next}@`;
+		while (used.has(candidate));
+		counters.set(letter, next);
+		used.add(candidate);
+		assigned.set(index, candidate);
+		// The first record to carry an xref is the one a pointer means.
+		if (!map.has(xref)) map.set(xref, candidate);
+	}
+	// An extension tag's pointer is left as the file wrote it even when nothing here answers to it: the
+	// extension may mean a record this file does not carry, and `@VOID@` would change what it says.
+	const target = (pointer: string, tag: string) =>
+		pointer === '@VOID@' || tag.startsWith('_')
+			? (map.get(pointer) ?? pointer)
+			: (map.get(pointer) ?? (format === 'gedcom7' ? '@VOID@' : pointer));
+	return lines.map((line, index) => {
+		const own = assigned.get(index);
+		if (own) return line.replace(RECORD_LINE, (_, __, tag) => `0 ${own} ${tag}`);
+		const m = /^(\d+) (\S+) (.*)$/.exec(line);
+		if (!m || m[2] === 'CONT' || m[2] === 'CONC') return line;
+		if (POINTER_PAYLOAD.test(m[3])) return `${m[1]} ${m[2]} ${target(m[3], m[2])}`;
+		// The note under a name that says which family it came through names it by its xref.
+		if (m[2] === 'NOTE') {
+			const change = NAME_CHANGE_NOTE.exec(m[3]);
+			if (change?.[2] && map.has(change[2])) return line.replace(change[2], map.get(change[2])!);
+		}
+		return line;
+	});
+}
+
 /**
  * Builds GEDCOM 5.5.1 standard text output from tree database models
  */
@@ -646,6 +739,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
 	const preserved = indexPreserved(data.preserved);
+	const written = new Set<object>();
 
 	// Header
 	lines.push('0 HEAD');
@@ -680,7 +774,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom551', preserved, written));
 			}
 		}
 
@@ -689,7 +783,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written);
 		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
 	}
 
@@ -713,16 +807,16 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written);
 		lines.push(...noteLines(1, fam.notes, 'gedcom551'));
 	}
 
-	appendPreserved(lines, preserved, null);
+	appendPreserved(lines, preserved, null, written);
 	appendRootRecords(lines, data, 'gedcom551');
 
 	// Trailer
 	lines.push('0 TRLR');
-	return toGedcom551Lines(lines).join('\r\n') + '\r\n';
+	return toGedcom551Lines(renumberXrefs(lines, 'gedcom551')).join('\r\n') + '\r\n';
 }
 
 /**
@@ -738,6 +832,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	const lines: string[] = [];
 	const pedigrees = pedigreeIndex(data);
 	const preserved = indexPreserved(data.preserved);
+	const written = new Set<object>();
 
 	// Header
 	lines.push('0 HEAD');
@@ -765,7 +860,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
-				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', preserved));
+				lines.push(...famcLines(f, ind.id, pedigrees, 'gedcom7', preserved, written));
 			}
 		}
 
@@ -774,7 +869,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written);
 		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
 	}
 
@@ -798,16 +893,16 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
-		appendPreserved(lines, preserved, xref);
+		appendPreserved(lines, preserved, xref, written);
 		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
 	}
 
-	appendPreserved(lines, preserved, null);
+	appendPreserved(lines, preserved, null, written);
 	appendRootRecords(lines, data, 'gedcom7');
 
 	// Trailer
 	lines.push('0 TRLR');
-	const converted = toGedcom7Lines(lines);
+	const converted = renumberXrefs(toGedcom7Lines(lines), 'gedcom7');
 	// After `GEDC`, which is lines 1 and 2.
 	converted.splice(3, 0, ...schemaLines(converted));
 	return converted.join('\r\n') + '\r\n';

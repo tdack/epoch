@@ -235,10 +235,10 @@ describe('when a name came into use, and from which partnership', () => {
 			}
 		}
 		const text = buildGedcom551String(data);
-		expect(text).toContain('0 @fam-1@ FAM');
-		expect(text).toContain('2 NOTE Name in use from ABT 1998, through family @fam-1@.');
+		expect(text).toContain('0 @F1@ FAM');
+		expect(text).toContain('2 NOTE Name in use from ABT 1998, through family @F1@.');
 		const married = namesOf(text)['@I1@']!.find((n) => n.type === 'married');
-		expect(married).toMatchObject({ dateText: 'ABT 1998', unionXref: '@fam-1@' });
+		expect(married).toMatchObject({ dateText: 'ABT 1998', unionXref: '@F1@' });
 	});
 
 	it('handles a date alone, a family alone, and a note naming a family the file lacks (kept as written)', async () => {

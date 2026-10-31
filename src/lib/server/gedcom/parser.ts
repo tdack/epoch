@@ -56,6 +56,8 @@ interface ParsedFamcLink {
 	citations: ParsedCitation[];
 	/** The notes under this `FAMC`. */
 	notes: ParsedNoteLink[];
+	/** The `FAMC` and everything under it as the file wrote it, for a link the model cannot hold. */
+	raw: string[];
 }
 
 /** The 7.0 pointer to a record that is not in this file. */
@@ -522,6 +524,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const familyXrefs = new Set(
 		rootNodes.filter((n) => n.tag === 'FAM' && n.xref).map((n) => n.xref)
 	);
+	/** The retained lines of a `FAMC` link's extras, so a link the model cannot hold can swap in the whole block. */
+	const keptFamcExtras = new Map<ParsedFamcLink, { xref: string | null; lines: string[] }>();
 	const unresolved = { void: 0, absent: 0 };
 	/** Whether `pointer` names a record in `known`; if not, counts it for the report. */
 	const isResolved = (pointer: string, known: Set<string | undefined>) => {
@@ -622,15 +626,21 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const extras = linkOthers.filter(
 						(sub) => sub.tag !== 'PEDI' && sub.tag !== PARENT_PEDIGREE_TAG && !isCitation(sub)
 					);
-					if (extras.length > 0)
-						preserved.push({ xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] });
-					famcLinks.push({
+					const kept =
+						extras.length > 0
+							? { xref: id, lines: [child.rawLine, ...extras.flatMap(collectLines)] }
+							: null;
+					if (kept) preserved.push(kept);
+					const link: ParsedFamcLink = {
 						familyId,
 						pedigree: parsePedigree(child.children.find((c) => c.tag === 'PEDI')?.value),
 						...(Object.keys(parentPedigrees).length > 0 ? { parentPedigrees } : {}),
 						citations: citationsOf(famcSubs),
-						notes: linkNotes
-					});
+						notes: linkNotes,
+						raw: collectLines(child)
+					};
+					famcLinks.push(link);
+					if (kept) keptFamcExtras.set(link, kept);
 				} else if (child.tag === 'FAMS' && child.value) {
 					fams.push(child.value.trim());
 				} else if (INDIVIDUAL_EVENT_TAGS.has(child.tag)) {
@@ -836,35 +846,30 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	const linkOf = new Map<string, ParsedFamcLink>();
 	for (const ind of individuals)
 		for (const link of ind.famcLinks ?? []) linkOf.set(`${ind.id}|${link.familyId}`, link);
-	const attached = new Set<ParsedFamcLink>();
 	for (const fam of families) {
 		for (const child of fam.children) {
 			const link = linkOf.get(`${child.childId}|${fam.id}`);
 			if (link?.pedigree) child.pedigree = link.pedigree;
 			if (link?.parentPedigrees) child.parentPedigrees = link.parentPedigrees;
-			if (link && link.citations.length > 0) {
-				child.citations = link.citations;
-				attached.add(link);
-			}
-			if (link && link.notes.length > 0) {
-				child.notes = link.notes;
-				attached.add(link);
-			}
+			if (link && link.citations.length > 0) child.citations = link.citations;
+			if (link && link.notes.length > 0) child.notes = link.notes;
 		}
 	}
-	// A `FAMC` whose family does not list the child has nowhere to hang its citations in the model.
-	// They stay under the link as retained lines, as a link's other extras always have (ADR-009).
+	// A link is held by a family that has a partner and lists the child. Any other `FAMC` (to a family
+	// with no partner, whose children stay as `CHIL` lines, or to one that does not list the child)
+	// has nowhere to keep its pedigree, citations and notes, so the whole block stays as the file
+	// wrote it, under the person (ADR-009). Its extras, retained as it was read, are the same lines.
+	const holdsChildren = new Map(
+		families
+			.filter((f) => f.husbandId || f.wifeId)
+			.map((f) => [f.id, new Set(f.children.map((c) => c.childId))] as const)
+	);
 	for (const ind of individuals) {
 		for (const link of ind.famcLinks ?? []) {
-			if ((link.citations.length === 0 && link.notes.length === 0) || attached.has(link)) continue;
-			preserved.push({
-				xref: ind.id,
-				lines: [
-					`1 FAMC ${link.familyId}`,
-					...link.citations.flatMap((c) => c.raw),
-					...link.notes.flatMap((n) => n.raw)
-				]
-			});
+			if (holdsChildren.get(link.familyId)?.has(ind.id)) continue;
+			const entry = keptFamcExtras.get(link);
+			if (entry) entry.lines = link.raw;
+			else preserved.push({ xref: ind.id, lines: link.raw });
 		}
 	}
 

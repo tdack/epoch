@@ -79,7 +79,7 @@ describe('a family member that is not a person of the file', () => {
 		expect(parseGedcom(text).unresolved).toEqual({ void: 0, absent: 1 });
 		const { out, people } = await roundTrip(text);
 		expect(people).toHaveLength(2);
-		expect(out).toContain('1 CHIL @MISSING@');
+		expect(out).toContain('1 CHIL @VOID@');
 	});
 
 	it('counts @VOID@ apart from a record that is absent', () => {
@@ -99,11 +99,12 @@ describe('a person link to a family that is not in the file', () => {
 		const { treeId, out } = await roundTrip(text);
 		expect(parseGedcom(text).unresolved).toEqual({ void: 2, absent: 1 });
 		expect(out).toContain('1 FAMS @VOID@\n2 NOTE The second wife\n');
-		expect(out).toContain('1 FAMS @GONE@');
-		// The serializer writes a retained FAMC only under a link that exists, so a FAMC @VOID@ stays in
-		// the store (Phase 1A serializer work) but not in this export.
-		const { preserved = [] } = await getTreeExportData(t.d1, treeId);
-		const kept = preserved.map((p) => p.lines.join('\n'));
+		expect(out).toContain('1 FAMS @VOID@');
+		// A FAMC with no link to sit in is written under its person, with the PEDI beneath it.
+		expect(out).toContain('1 FAMC @VOID@\n2 PEDI ADOPTED\n');
+		const kept = ((await getTreeExportData(t.d1, treeId)).preserved ?? []).map((p) =>
+			p.lines.join('\n')
+		);
 		expect(kept).toContain('1 FAMC @VOID@\n2 PEDI ADOPTED');
 	});
 });
