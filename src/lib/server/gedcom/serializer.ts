@@ -515,10 +515,13 @@ function nameLines(
 	ind: GedcomExportPayload['individuals'][number],
 	format: GedcomFormat
 ): string[] {
+	// A person with no name at all is written with none; `NAME //` would be a name nobody gave.
 	const names: ExportName[] =
 		ind.names && ind.names.length > 0
 			? ind.names
-			: [{ type: 'birth', givenName: ind.givenName, surname: ind.surname }];
+			: ind.givenName || ind.surname
+				? [{ type: 'birth', givenName: ind.givenName, surname: ind.surname }]
+				: [];
 	const lines: string[] = [];
 	const line = (name: ExportName) => {
 		const given = [name.prefix, name.givenName].filter(Boolean).join(' ');

@@ -271,7 +271,8 @@ export class GedcomRepository {
 			xrefId: ind.id,
 			givenName: ind.givenName || null,
 			surname: ind.surname || null,
-			sex: ind.sex || 'U',
+			// No SEX line is stored as none, not as U, so the export does not invent one.
+			sex: ind.sex ?? null,
 			privacy: ind.privacy ?? ('auto' as const),
 			createdAt: new Date()
 		}));

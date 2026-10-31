@@ -27,40 +27,28 @@ interface KnownGap {
 	diffs?: string[];
 }
 
-const INVENTS_NAME_SEX = 'export invents NAME // and SEX U for a person the file leaves without';
 const SUBMITTER_KEPT_AND_COPIED =
 	'the SUBM record has more than a name, email and web address, so it is kept and a second, plain one is written from the tree setting';
 
 const KNOWN_GAPS: Record<string, KnownGap> = {
 	'age.ged': {
-		reason: `AGE with only a PHRASE is dropped; ${INVENTS_NAME_SEX}`,
+		reason: 'AGE with only a PHRASE is dropped',
 		task: '1A.5',
-		diffs: ['added INDI.NAME', 'added INDI.SEX', 'missing INDI.CHR.AGE']
+		diffs: ['missing INDI.CHR.AGE']
 	},
 	'date.ged': {
-		reason: `_UNKNOWN dates become an empty DATE + PHRASE; ${INVENTS_NAME_SEX}`,
+		reason: '_UNKNOWN dates become an empty DATE + PHRASE',
 		task: '1A.5',
-		diffs: [
-			'added INDI.BIRT.DATE.PHRASE',
-			'added INDI.NAME',
-			'added INDI.SEX',
-			'changed INDI.BIRT.DATE'
-		]
+		diffs: ['added INDI.BIRT.DATE.PHRASE', 'changed INDI.BIRT.DATE']
 	},
-	'escapes.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
-	'extension-record.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
 	'extensions.ged': {
 		reason:
-			'ASSO, SUBM and _PARTY dropped from a person; ' +
-			'extension-calendar dates become an empty DATE + PHRASE; ' +
-			INVENTS_NAME_SEX,
+			'ASSO, SUBM and _PARTY dropped from a person; extension-calendar dates become an empty DATE + PHRASE',
 		task: '1A.1, 1A.5',
 		diffs: [
 			'added INDI.BIRT.DATE.PHRASE',
 			'added INDI.DEAT.DATE.PHRASE',
 			'added INDI.GRAD.DATE.PHRASE',
-			'added INDI.NAME',
-			'added INDI.SEX',
 			'changed INDI.BIRT.DATE',
 			'changed INDI.DEAT.DATE',
 			'changed INDI.GRAD.DATE',
@@ -93,7 +81,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'added FAM.MARL.NOTE',
 			'added FAM.MARR.NOTE',
 			'added FAM.MARS.NOTE',
-			'added INDI.NAME',
 			'added INDI.RESN',
 			'changed FAM.ANUL',
 			'changed FAM.CENS',
@@ -121,7 +108,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		task: '1A.5',
 		diffs: [
 			'added FAM.MARR.NOTE',
-			'added INDI.NAME',
 			'added INDI.NAME.TYPE',
 			'changed FAM.MARR',
 			'changed INDI.NAME',
@@ -132,37 +118,19 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		reason:
 			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
 		task: '1A.5',
-		diffs: [
-			'added FAM.MARR.NOTE',
-			'added INDI.NAME',
-			'added INDI.NAME.TYPE',
-			'changed FAM.MARR',
-			'changed INDI.NAME'
-		]
+		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
 	},
 	'maximal70-memories2.ged': {
 		reason:
 			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
 		task: '1A.5',
-		diffs: [
-			'added FAM.MARR.NOTE',
-			'added INDI.NAME',
-			'added INDI.NAME.TYPE',
-			'changed FAM.MARR',
-			'changed INDI.NAME'
-		]
+		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
 	},
 	'maximal70-tree1.ged': {
 		reason:
 			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
 		task: '1A.5',
-		diffs: [
-			'added FAM.MARR.NOTE',
-			'added INDI.NAME',
-			'added INDI.NAME.TYPE',
-			'changed FAM.MARR',
-			'changed INDI.NAME'
-		]
+		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
 	},
 	'maximal70-tree2.ged': {
 		reason:
@@ -180,7 +148,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'added FAM.MARL.NOTE',
 			'added FAM.MARR.NOTE',
 			'added FAM.MARS.NOTE',
-			'added INDI.NAME',
 			'changed FAM.ANUL',
 			'changed FAM.CENS',
 			'changed FAM.DIV',
@@ -194,28 +161,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed FAM.MARS',
 			'changed INDI.NAME'
 		]
-	},
-	'obje-1.ged': {
-		reason: INVENTS_NAME_SEX,
-		task: '1A.5',
-		diffs: ['added INDI.NAME', 'added INDI.SEX']
-	},
-	'remarriage1.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
-	'remarriage2.ged': { reason: INVENTS_NAME_SEX, task: '1A.5', diffs: ['added INDI.SEX'] },
-	'voidptr.ged': {
-		reason: INVENTS_NAME_SEX,
-		task: '1A.5',
-		diffs: ['added INDI.SEX']
-	},
-	'warnings70.ged': {
-		reason: INVENTS_NAME_SEX,
-		task: '1A.5',
-		diffs: ['added INDI.NAME', 'added INDI.SEX']
-	},
-	'xref.ged': {
-		reason: INVENTS_NAME_SEX,
-		task: '1A.5',
-		diffs: ['added INDI.NAME', 'added INDI.SEX']
 	}
 };
 

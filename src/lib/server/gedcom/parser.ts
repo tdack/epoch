@@ -590,7 +590,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const id = node.xref || crypto.randomUUID();
 			const names: ParsedName[] = [];
 			const legacyMarried: string[] = [];
-			let sex: Sex = 'U';
+			// Absent until a SEX line is read: a person the file gave none stays without one on export.
+			let sex: Sex | undefined;
 			let isSexXFallback = false;
 			let privacy: 'private' | 'public' | undefined;
 			const famc: string[] = [];
@@ -768,7 +769,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				surname: names[0]?.surname,
 				names,
 				// A 5.5.1 export cannot say X, so it writes U and `_EPOCH_SEX X`; put the X back.
-				sex: sex === 'U' && isSexXFallback ? 'X' : sex,
+				sex: (sex === 'U' || sex === undefined) && isSexXFallback ? 'X' : sex,
 				...(privacy ? { privacy } : {}),
 				famc,
 				famcLinks,
