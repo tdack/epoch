@@ -24,6 +24,9 @@ export const SEX_X_TAG = '_EPOCH_SEX';
  */
 export const PRIVACY_PUBLIC_TAG = '_EPOCH_PRIVACY';
 
+/** `RESN` words that mean "keep this person from viewers": they become the private override. */
+export const RESTRICTING_RESN_WORDS: ReadonlySet<string> = new Set(['privacy', 'confidential']);
+
 /**
  * Marks a name that came from the legacy `_MARNM` tag (ADR-013). It is a married name in the model
  * and is written back as `_MARNM`, not as a second `NAME`, so a round trip does not double it.

@@ -66,9 +66,10 @@ describe('RESN and the privacy override (ADR-015)', () => {
 		const kept = (
 			await t.db.select().from(gedcomPreserved).where(eq(gedcomPreserved.treeId, treeId)).all()
 		).flatMap((p) => p.lines as string[]);
-		// Only the `LOCKED` words survive as RESN lines: one beside CONFIDENTIAL, one on its own.
+		// Only a list the override cannot say survives as a RESN line: CONFIDENTIAL with its LOCKED, and
+		// LOCKED on its own. A bare `privacy` is the override itself.
 		expect(kept.filter((l) => l.includes('RESN')).sort()).toEqual([
-			'1 RESN LOCKED',
+			'1 RESN CONFIDENTIAL, LOCKED',
 			'1 RESN locked'
 		]);
 	});
@@ -92,5 +93,20 @@ describe('RESN and the privacy override (ADR-015)', () => {
 				Person: 'auto'
 			});
 		}
+	});
+
+	it('writes a RESN list as one line in 7.0, and drops its restricting word once the person is not private', async () => {
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, ged, 'Privacy');
+		const data = await getTreeExportData(t.d1, treeId);
+		const text7 = buildGedcom7String(data);
+		expect(text7.match(/^1 RESN CONFIDENTIAL, LOCKED\r$/gm)).toHaveLength(1);
+		expect(text7.match(/^1 RESN .*LOCKED/gim)).toHaveLength(2);
+		// Opened up since the import, the person is no longer confidential; the LOCKED stays.
+		const fidential = data.individuals.find((i) => i.surname === 'Fidential')!;
+		fidential.privacy = 'auto';
+		const opened = buildGedcom7String(data);
+		expect(opened).not.toContain('CONFIDENTIAL');
+		expect(buildGedcom551String(data).match(/^1 RESN locked/gim)).toHaveLength(2);
 	});
 });

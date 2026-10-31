@@ -6,6 +6,7 @@ import {
 	FAMC_CITATION_TAG,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
+	RESTRICTING_RESN_WORDS,
 	LEGACY_MARRIED_NAME_TAG,
 	NAME_CHANGE_NOTE,
 	SEX_X_TAG
@@ -63,9 +64,6 @@ interface ParsedFamcLink {
 
 /** The 7.0 pointer to a record that is not in this file. */
 const VOID_POINTER = '@VOID@';
-
-/** `RESN` words that mean "keep this person from viewers": they become the private override. */
-const RESTRICTING_RESN_WORDS = new Set(['privacy', 'confidential']);
 
 /** One `NAME` record of an individual, in file order. The first is the primary name. */
 interface ParsedName {
@@ -642,15 +640,13 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					child.tag === 'RESN' &&
 					child.value?.split(',').some((w) => RESTRICTING_RESN_WORDS.has(w.trim().toLowerCase()))
 				) {
-					// The restriction becomes the override, so there is one source of truth. A `LOCKED` beside it
-					// has no meaning to Epoch and is kept under its own `RESN` line.
+					// The restriction becomes the override, so there is one source of truth. The whole list is
+					// kept (`CONFIDENTIAL, LOCKED`): export writes it back as one line, and uses its
+					// restricting word only while the person is still private.
 					privacy = 'private';
-					const rest = child.value
-						.split(',')
-						.map((w) => w.trim())
-						.filter((w) => w && !RESTRICTING_RESN_WORDS.has(w.toLowerCase()));
-					if (rest.length > 0)
-						preserved.push({ xref: id, lines: [`${child.level} RESN ${rest.join(', ')}`] });
+					// A bare `privacy` is exactly what the override writes, so it needs no line of its own.
+					if (child.value.trim().toUpperCase() !== 'PRIVACY')
+						preserved.push({ xref: id, lines: [`${child.level} RESN ${child.value.trim()}`] });
 				} else if (
 					child.tag === PRIVACY_PUBLIC_TAG &&
 					child.value?.trim().toLowerCase() === 'public'

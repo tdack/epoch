@@ -13,6 +13,7 @@ import {
 	nameChangeNote,
 	PARENT_PEDIGREE_TAG,
 	PRIVACY_PUBLIC_TAG,
+	RESTRICTING_RESN_WORDS,
 	SEX_X_TAG
 } from './tags';
 
@@ -196,6 +197,8 @@ export interface GedcomExportPayload {
 				dateRaw: string | null;
 				place: string | null;
 				description: string | null;
+				/** The payload on the event's own line: `Y`, or text in 5.5.1. */
+				value?: string | null;
 				gedcomExtra?: string[] | null;
 				citations?: ExportCitation[];
 				noteLinks?: ExportNote[];
@@ -264,12 +267,44 @@ function keptHeaderBlock(data: GedcomExportPayload, tag: string): string[] {
 }
 
 /**
- * `RESN` for a private person and the custom line for an explicit public one; nothing for `auto`.
+ * The `RESN` line of a person. 7.0's is one line holding a list (`CONFIDENTIAL, LOCKED`), so the
+ * restriction Epoch models and a word it only keeps (`LOCKED`) go out together; two lines would break
+ * the cardinality. The import keeps the file's whole list, and the restricting word in it is used
+ * only while the person is still private, so an edit to the override is not undone by a stale word.
+ * 5.5.1's `RESN` is a single value, so there the kept words go on a line of their own.
+ * `merged` holds the kept lines read here, to be left out of the ones written after.
  */
-function privacyLines(privacy: string | null | undefined, restrictionWord: string): string[] {
-	if (privacy === 'private') return [`1 RESN ${restrictionWord}`];
-	if (privacy === 'public') return [`1 ${PRIVACY_PUBLIC_TAG} public`];
-	return [];
+function resnLines(
+	privacy: string | null | undefined,
+	owned: readonly { lines: string[] }[] | undefined,
+	format: GedcomFormat
+): { lines: string[]; merged: Set<object> } {
+	const merged = new Set<object>();
+	const words: string[] = [];
+	for (const entry of owned ?? []) {
+		const m = entry.lines.length === 1 ? /^1 RESN (.+)$/.exec(entry.lines[0]) : null;
+		if (!m) continue;
+		merged.add(entry);
+		words.push(
+			...m[1]
+				.split(',')
+				.map((w) => w.trim())
+				.filter(Boolean)
+		);
+	}
+	const isRestricting = (w: string) => RESTRICTING_RESN_WORDS.has(w.toLowerCase());
+	const rest = words.filter((w) => !isRestricting(w));
+	const lines: string[] = [];
+	if (format === 'gedcom7') {
+		const list =
+			privacy === 'private' ? (words.some(isRestricting) ? words : ['PRIVACY', ...words]) : rest;
+		if (list.length > 0) lines.push(`1 RESN ${list.join(', ')}`);
+	} else {
+		if (privacy === 'private') lines.push('1 RESN privacy');
+		if (rest.length > 0) lines.push(`1 RESN ${rest.join(', ')}`);
+	}
+	if (privacy === 'public') lines.push(`1 ${PRIVACY_PUBLIC_TAG} public`);
+	return { lines, merged };
 }
 
 /**
@@ -688,9 +723,11 @@ function appendPreserved(
 	lines: string[],
 	preserved: PreservedByOwner,
 	ownerXref: string | null,
-	written: ReadonlySet<object>
+	written: ReadonlySet<object>,
+	skipped: ReadonlySet<object> = new Set()
 ): void {
 	for (const entry of preserved.get(ownerXref) ?? []) {
+		if (skipped.has(entry)) continue;
 		if (!(ownerXref !== null && isFamcExtra(entry) && written.has(entry))) {
 			lines.push(...foldLines(entry.lines));
 		}
@@ -835,7 +872,8 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			lines.push('1 SEX U');
 			lines.push(`1 ${SEX_X_TAG} X`);
 		} else if (ind.sex) lines.push(`1 SEX ${singleLine(ind.sex)}`);
-		lines.push(...privacyLines(ind.privacy, 'privacy'));
+		const resn = resnLines(ind.privacy, preserved.get(xref), 'gedcom551');
+		lines.push(...resn.lines);
 
 		if (ind.events) {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom551'));
@@ -853,7 +891,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref, written);
+		appendPreserved(lines, preserved, xref, written, resn.merged);
 		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
 	}
 
@@ -927,7 +965,8 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 
 		lines.push(...nameLines(ind, 'gedcom7'));
 		if (ind.sex) lines.push(`1 SEX ${singleLine(ind.sex)}`);
-		lines.push(...privacyLines(ind.privacy, 'PRIVACY'));
+		const resn = resnLines(ind.privacy, preserved.get(xref), 'gedcom7');
+		lines.push(...resn.lines);
 
 		if (ind.events) {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom7'));
@@ -945,7 +984,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref, written);
+		appendPreserved(lines, preserved, xref, written, resn.merged);
 		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
 	}
 
