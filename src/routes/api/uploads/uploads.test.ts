@@ -11,9 +11,13 @@ import {
 import { FakeMultipartBucket } from '#lib/server/testing/fake-multipart-bucket.js';
 import { FakeRateLimit } from '#lib/server/testing/fake-rate-limit.js';
 import { MAX_TREE_MEDIA_BYTES } from '#lib/shared/media.js';
-import { UPLOAD_PART_BYTES, type UploadSessionDto } from '#lib/shared/uploads.js';
+import {
+	UPLOAD_PART_BYTES,
+	type UploadSessionDto,
+	type UploadSessionStateDto
+} from '#lib/shared/uploads.js';
 import { POST as createUpload } from './+server.js';
-import { DELETE as abortUpload } from './[id]/+server.js';
+import { DELETE as abortUpload, GET as describeUpload } from './[id]/+server.js';
 import { POST as completeUpload } from './[id]/complete/+server.js';
 import { PUT as putPart } from './[id]/parts/[n]/+server.js';
 
@@ -208,4 +212,25 @@ describe('upload lifecycle over the routes', () => {
 		);
 		expect(response.status).toBe(400);
 	});
+});
+
+describe('GET /api/uploads/:id', () => {
+	const get = (actor: TestActor | null, id: string) =>
+		describeUpload(event(actor, new Request('http://localhost/x'), { id }));
+
+	it('reports the parts that arrived, to the creator only', async () => {
+		const dto = await open(UPLOAD_PART_BYTES * 2);
+		await putPart(event(owner, partRequest(UPLOAD_PART_BYTES), { id: dto.sessionId, n: '2' }));
+		const response = await get(owner, dto.sessionId);
+		expect(response.status).toBe(200);
+		// The database keeps whole seconds, so the expiry may differ from create's by under one.
+		const state = (await response.json()) as UploadSessionStateDto;
+		expect(Math.abs(state.expiresAt - dto.expiresAt)).toBeLessThan(1000);
+		expect(state).toEqual({ ...dto, expiresAt: state.expiresAt, receivedParts: [2] });
+
+		const other = await createTestUser(t.db, 'peeker');
+		await addTestMember(t.db, treeId, other, 'owner');
+		expect((await get(other, dto.sessionId)).status).toBe(404);
+		expect((await get(null, dto.sessionId)).status).toBe(401);
+	}, 30_000);
 });

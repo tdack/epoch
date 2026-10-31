@@ -19,10 +19,16 @@ export class FakeMediaBucket {
 
 	async put(
 		key: string,
-		value: Uint8Array | ArrayBuffer,
+		value: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>,
 		options?: { httpMetadata?: { contentType?: string } }
 	) {
-		const body = value instanceof Uint8Array ? value : new Uint8Array(value);
+		// A stream is how the app copies one stored object to another key.
+		const body =
+			value instanceof Uint8Array
+				? value
+				: value instanceof ArrayBuffer
+					? new Uint8Array(value)
+					: new Uint8Array(await new Response(value).arrayBuffer());
 		this.objects.set(key, {
 			body,
 			size: body.byteLength,

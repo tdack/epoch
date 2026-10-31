@@ -23,7 +23,8 @@ import {
 	type UploadCompleteDto,
 	type UploadPartDto,
 	type UploadPurpose,
-	type UploadSessionDto
+	type UploadSessionDto,
+	type UploadSessionStateDto
 } from '../../shared/uploads';
 
 /** The existing action checks, reused so an upload cannot be allowed to someone the feature is not. */
@@ -49,6 +50,26 @@ export interface UploadServiceOptions {
 /** Where the client sends a part. Chosen here, so it can become a signed R2 URL without a client change. */
 function partUrl(sessionId: string, partNumber: number): string {
 	return `/api/uploads/${sessionId}/parts/${partNumber}`;
+}
+
+function sessionDto(
+	sessionId: string,
+	partSizeBytes: number,
+	totalBytes: number,
+	expiresAt: Date
+): UploadSessionDto {
+	const partCount = uploadPartCount(totalBytes, partSizeBytes);
+	return {
+		sessionId,
+		partSizeBytes,
+		partCount,
+		parts: Array.from({ length: partCount }, (_, i) => ({
+			partNumber: i + 1,
+			url: partUrl(sessionId, i + 1),
+			method: 'PUT' as const
+		})),
+		expiresAt: expiresAt.getTime()
+	};
 }
 
 export class UploadService {
@@ -112,17 +133,21 @@ export class UploadService {
 			throw err;
 		}
 
-		const partCount = uploadPartCount(input.totalBytes, this.partSizeBytes);
+		return sessionDto(sessionId, this.partSizeBytes, input.totalBytes, expiresAt);
+	}
+
+	/**
+	 * An open session as `create` described it, plus which parts have arrived, so a client that
+	 * lost its page can carry on. Only the creator may ask: part numbers say nothing secret, but
+	 * the same rule as every other call keeps one answer for "not yours" and "not there".
+	 */
+	async describe(sessionId: string, context: AuthenticatedContext): Promise<UploadSessionStateDto> {
+		const session = await this.requireOpenSession(sessionId, context);
 		return {
-			sessionId,
-			partSizeBytes: this.partSizeBytes,
-			partCount,
-			parts: Array.from({ length: partCount }, (_, i) => ({
-				partNumber: i + 1,
-				url: partUrl(sessionId, i + 1),
-				method: 'PUT' as const
-			})),
-			expiresAt: expiresAt.getTime()
+			...sessionDto(session.id, session.partSizeBytes, session.totalBytes, session.expiresAt),
+			receivedParts: Object.keys(session.parts)
+				.map(Number)
+				.sort((a, b) => a - b)
 		};
 	}
 

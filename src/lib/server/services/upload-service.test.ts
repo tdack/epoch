@@ -238,6 +238,34 @@ describe('UploadService.putPart', () => {
 	});
 });
 
+describe('UploadService.describe', () => {
+	it('lists the parts that have arrived, in order, with the urls create gave', async () => {
+		const svc = service();
+		const opened = await svc.create(media(25), owner.context);
+		await svc.putPart(opened.sessionId, 3, 5, stream(5), owner.context);
+		await svc.putPart(opened.sessionId, 1, 10, stream(10), owner.context);
+		const state = await svc.describe(opened.sessionId, owner.context);
+		expect(state).toEqual({ ...opened, receivedParts: [1, 3] });
+	});
+
+	it('answers only the creator, as not found for anyone else', async () => {
+		const svc = service();
+		const { sessionId } = await svc.create(media(25), owner.context);
+		const other = await createTestUser(t.db, 'describer');
+		await addTestMember(t.db, treeId, other, 'owner');
+		await expect(svc.describe(sessionId, other.context)).rejects.toThrow(NotFoundError);
+	});
+
+	it('refuses a closed or expired session', async () => {
+		const svc = service();
+		const { sessionId } = await svc.create(media(25), owner.context);
+		clock = new Date(clock.getTime() + (UPLOAD_SESSION_TTL_SECONDS + 1) * 1000);
+		await expect(svc.describe(sessionId, owner.context)).rejects.toThrow(ValidationError);
+		await svc.abort(sessionId, owner.context);
+		await expect(svc.describe(sessionId, owner.context)).rejects.toThrow(ValidationError);
+	});
+});
+
 describe('UploadService.complete', () => {
 	it('names the missing parts and leaves the session open', async () => {
 		const svc = service();

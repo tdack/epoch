@@ -14,6 +14,7 @@ import {
 } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { parseMediaKey } from '../media/media-key';
+import { validateMediaUpload } from '../media/media-type';
 import { listAllObjects, storedBytesByTree, sumStoredBytes } from '../media/stored-bytes';
 import {
 	MediaRepository,
@@ -23,6 +24,7 @@ import {
 	type StoredMedia
 } from '../repositories/media-repository';
 import { TreeRepository } from '../repositories/tree-repository';
+import { UploadRepository } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong, visibleSourcesAmong } from '../repositories/visibility';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
@@ -300,7 +302,29 @@ function fileDto(
 	};
 }
 
+/** Enough for every signature `sniffMediaType` reads, including a long HEIF brand list. */
+const SNIFF_BYTES = 512;
+
+async function readPrefix(stream: ReadableStream, limit: number): Promise<Uint8Array> {
+	const reader = stream.getReader();
+	const out = new Uint8Array(limit);
+	let filled = 0;
+	while (filled < limit) {
+		const { done: isDone, value } = (await reader.read()) as {
+			done: boolean;
+			value?: Uint8Array;
+		};
+		if (isDone || !value) break;
+		const take = Math.min(value.byteLength, limit - filled);
+		out.set(value.subarray(0, take), filled);
+		filled += take;
+	}
+	await reader.cancel().catch(() => undefined);
+	return out.subarray(0, filled);
+}
+
 export class MediaService {
+	private uploads: UploadRepository;
 	private media: MediaRepository;
 	private users: UserRepository;
 	private trees: TreeRepository;
@@ -312,6 +336,7 @@ export class MediaService {
 		private now: () => Date = () => new Date()
 	) {
 		this.media = new MediaRepository(db);
+		this.uploads = new UploadRepository(db);
 		this.users = new UserRepository(db);
 		this.trees = new TreeRepository(db);
 		this.runner = new MutationRunner(db, {
@@ -723,6 +748,60 @@ export class MediaService {
 				sizeBytes: c.size,
 				uploadedAt: c.uploaded.getTime()
 			}));
+	}
+
+	/**
+	 * Turns a finished `media` upload session into a file: checks the bytes, copies the staged
+	 * object to its final `media/<tree>/<id>.<ext>` key and records the row. R2 has no rename, so
+	 * the copy streams object to object and the staged object is deleted after the row exists; a
+	 * second call then finds nothing staged and is refused, which is what stops one upload from
+	 * becoming two files. Every refusal happens before the copy.
+	 */
+	async recordFromUpload(
+		input: { sessionId: string; entityId: string; title: string },
+		bucket: R2Bucket,
+		context: AuthenticatedContext
+	): Promise<{ id: string; objectKey: string; title: string; mimeType: string; treeId: string }> {
+		const session = await this.uploads.find(input.sessionId);
+		// One answer for another person's session and for none at all.
+		if (!session || session.createdBy !== context.user.id || session.purpose !== 'media')
+			throw new NotFoundError('Upload');
+		const treeId = session.treeId;
+		await this.requireUpload(treeId, input.entityId, context);
+		if (session.status !== 'complete') throw new ValidationError('This upload is not finished');
+		await this.requireQuotaFor(treeId, session.totalBytes, bucket);
+
+		// A file's type comes from its first bytes, never from what the client declared. A range
+		// keeps a multi-gigabyte object from being read to look at a header.
+		const head = await bucket.get(session.r2Key, { range: { offset: 0, length: SNIFF_BYTES } });
+		if (!head) throw new ValidationError('This upload was already used or has expired');
+		const header = await readPrefix(head.body, SNIFF_BYTES);
+		const { mimeType, extension } = validateMediaUpload('', header);
+
+		const mediaId = crypto.randomUUID();
+		const objectKey = `media/${treeId}/${mediaId}.${extension}`;
+		const source = await bucket.get(session.r2Key);
+		if (!source) throw new ValidationError('This upload was already used or has expired');
+		await bucket.put(objectKey, source.body, { httpMetadata: { contentType: mimeType } });
+
+		const title = input.title;
+		try {
+			await this.record(treeId, input.entityId, {
+				id: mediaId,
+				objectKey,
+				title,
+				mimeType,
+				sizeBytes: session.totalBytes,
+				uploadedBy: context.user.id
+			});
+		} catch (err) {
+			// Otherwise unreachable and still counted against the quota.
+			await bucket.delete(objectKey).catch(() => undefined);
+			throw err;
+		}
+		// A failed delete leaves staged bytes the lifecycle rule removes; the file already exists.
+		await bucket.delete(session.r2Key).catch(() => undefined);
+		return { id: mediaId, objectKey, title, mimeType, treeId };
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

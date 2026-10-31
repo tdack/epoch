@@ -46,6 +46,14 @@ export interface UploadSessionDto {
 	expiresAt: number;
 }
 
+/**
+ * `GET /api/uploads/:id` response: the session as it was opened plus the parts the server holds,
+ * so a reloaded page can resume without re-sending them.
+ */
+export interface UploadSessionStateDto extends UploadSessionDto {
+	receivedParts: number[];
+}
+
 /** `PUT` response for one part. */
 export interface UploadPartDto {
 	partNumber: number;

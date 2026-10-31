@@ -943,3 +943,10 @@ export const uploadCreateSchema = z.object({
 	contentType: z.string().max(255),
 	totalBytes: z.number().int().positive().safe()
 });
+
+/** Turns a finished media upload session into a file on one record. The tree comes from the session. */
+export const mediaFromUploadSchema = z.object({
+	sessionId: idSchema,
+	entityId: idSchema,
+	title: z.string().trim().min(1).max(255)
+});

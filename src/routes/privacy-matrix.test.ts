@@ -66,6 +66,10 @@ const ENTRIES: Record<string, Entry> = {
 	},
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	[`${API}/media/from-upload/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/media-from-upload.test.ts'
+	},
 	// An upload session carries bytes, never a record, and only its creator can touch it.
 	[`${API}/uploads/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
 	[`${API}/uploads/[id]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
@@ -379,6 +383,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/import/[jobId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
 	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
+	[`${API}/uploads/[id]/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',
