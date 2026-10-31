@@ -140,7 +140,7 @@ describe('importFile', () => {
 		const sent: ImportQueueMessage[] = [];
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({
@@ -152,7 +152,7 @@ describe('importFile', () => {
 			}),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 		expect(sent).toHaveLength(1);
 		expect(sent[0]).toMatchObject({
 			treeId: s.treeId,
@@ -183,7 +183,7 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		await expect(
 			service.importFile(fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }), s.owner.context)
@@ -202,13 +202,13 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async () => {} }
+			importWorkflow: { create: async () => {} }
 		});
 		const outcome = await service.importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 	});
 
 	it('counts only this tree’s staged files against its cap', async () => {
@@ -222,16 +222,16 @@ describe('importFile', () => {
 		});
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
 			s.owner.context
 		);
-		expect(outcome).toEqual({ status: 'queued', treeId: s.treeId });
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 	});
 
-	it('imports a large file in the request when the queue is not bound', async () => {
+	it('imports a large file in the request when the workflow is not bound', async () => {
 		const s = await tree();
 		const outcome = await new GedcomService(t.db, { bucket: fakeBucket().bucket }).importFile(
 			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
@@ -646,7 +646,7 @@ describe('naming a tree from the file it imports', () => {
 		const sent: ImportQueueMessage[] = [];
 		const service = new GedcomService(t.db, {
 			bucket,
-			queue: { send: async (message: ImportQueueMessage) => void sent.push(message) }
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
 		});
 		const outcome = await service.importFile(
 			fileOf({ fileName: 'big.ged', text: NAMED_FILE, sizeBytes: 3 * 1024 * 1024 }),

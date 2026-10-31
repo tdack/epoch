@@ -1,7 +1,7 @@
 /**
- * GEDCOM import and export. The routes, the queue consumer and the export workflow all come
+ * GEDCOM import and export. The routes, the import and export workflows and the queue consumer (until it is retired) all come
  * through here, so authorization (`tree:import`, `tree:export`), the large-file hand-off to the
- * queue and the one way an export is named and stored each live in one place.
+ * import workflow and the one way an export is named and stored each live in one place.
  *
  * Authorization reads only the caller's membership, never the tree's rows. The methods that take
  * no context (`runImport`, `loadExport`, `storeExport`) never face a request: a queued import is
@@ -39,6 +39,7 @@ import { parseGedcom, type ParsedGedcomData } from '../gedcom/parser';
 import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
 import { GedcomRepository } from '../repositories/gedcom-repository';
+import { ImportJobRepository } from '../repositories/import-job-repository';
 import { UserRepository } from '../repositories/user-repository';
 import {
 	parseExportInstanceId,
@@ -49,10 +50,14 @@ import {
 import { TreeService } from './tree-service';
 import { requireMemberAction, requireTreeAction } from './tree-access';
 
-/** Above this a file is staged in R2 and imported by the queue consumer, when both are bound. */
+/** Above this a file is staged in R2 and imported by the import workflow, when both are bound. */
 const LARGE_IMPORT_BYTES = 2 * 1024 * 1024;
 
-/** What travels through the import queue. A message outlives a deploy, so keep it additive. */
+/**
+ * What an import carries from the request to whatever runs it: the workflow's payload now, and the
+ * queue's message until the queue is retired (ADR-074). An instance or message outlives a deploy,
+ * so keep it additive.
+ */
 export interface ImportQueueMessage {
 	treeId: string;
 	r2ObjectKey: string;
@@ -98,11 +103,20 @@ export interface RunImportOptions extends ImportOptions {
 	actorId?: string;
 }
 
-/** The storage and queue an import or export may use; a binding that is absent is simply not used. */
+/** The storage and workflow an import or export may use; a binding that is absent is simply not used. */
 export interface GedcomBindings {
 	bucket?: R2Bucket;
-	queue?: { send(message: ImportQueueMessage): Promise<unknown> };
+	importWorkflow?: {
+		create(options: {
+			id: string;
+			params: ImportQueueMessage;
+			retention?: { successRetention: string; errorRetention: string };
+		}): Promise<unknown>;
+	};
 }
+
+/** Same retention as the export workflow's instances, and as `wrangler.jsonc` sets for this one. */
+const IMPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
 export interface ImportCounts {
 	individualsCount: number;
@@ -123,7 +137,8 @@ export interface ImportFile {
 }
 
 export type ImportOutcome =
-	{ status: 'queued'; treeId: string } | ({ status: 'complete'; treeId: string } & ImportCounts);
+	| { status: 'queued'; treeId: string; jobId: string }
+	| ({ status: 'complete'; treeId: string } & ImportCounts);
 
 /** How a tree is exported. */
 export interface ExportOptions {
@@ -176,6 +191,7 @@ export const isStagingKeyOf = (treeId: string, key: string) =>
 export class GedcomService {
 	private repo: GedcomRepository;
 	private users: UserRepository;
+	private jobs: ImportJobRepository;
 
 	constructor(
 		private db: DbClient,
@@ -183,6 +199,7 @@ export class GedcomService {
 	) {
 		this.repo = new GedcomRepository(db);
 		this.users = new UserRepository(db);
+		this.jobs = new ImportJobRepository(db);
 	}
 
 	/**
@@ -253,7 +270,7 @@ export class GedcomService {
 
 	/**
 	 * Import a file, creating the tree first when none is named. A large file is staged in R2 for
-	 * the queue consumer when both are bound, and imported in the request otherwise.
+	 * the import workflow when both are bound, and imported in the request otherwise.
 	 */
 	async importFile(file: ImportFile, context: AuthenticatedContext): Promise<ImportOutcome> {
 		// Before any tree is created: an over-large dataset must not leave an empty tree behind.
@@ -287,8 +304,8 @@ export class GedcomService {
 				}
 			: {};
 
-		const { bucket, queue } = this.bindings;
-		if (file.sizeBytes > LARGE_IMPORT_BYTES && queue && bucket) {
+		const { bucket, importWorkflow } = this.bindings;
+		if (file.sizeBytes > LARGE_IMPORT_BYTES && importWorkflow && bucket) {
 			// Counts what this tree already has queued, not the new file's exact UTF-8 size: the
 			// dataset length is at most MAX_DATASET_BYTES, so a fresh tree can never trip the cap
 			// after `createTree` has run. The read and the put are not atomic, so two imports racing
@@ -307,6 +324,7 @@ export class GedcomService {
 			}
 			const r2ObjectKey = `${stagingPrefix(treeId)}${Date.now()}-${crypto.randomUUID()}.ged`;
 			await bucket.put(r2ObjectKey, file.text);
+			const jobId = crypto.randomUUID();
 			const message: ImportQueueMessage = {
 				treeId,
 				r2ObjectKey,
@@ -316,8 +334,26 @@ export class GedcomService {
 				actorId: context.user.id,
 				...nameOptions
 			};
-			await queue.send(message);
-			return { status: 'queued', treeId };
+			try {
+				await this.jobs.create({
+					id: jobId,
+					treeId,
+					r2ObjectKey,
+					createdBy: context.user.id
+				});
+				await importWorkflow.create({
+					id: jobId,
+					params: message,
+					retention: IMPORT_INSTANCE_RETENTION
+				});
+			} catch (err) {
+				// Nothing will ever read the staged text, and a pending row with no instance would poll
+				// forever. A failed cleanup is left to the `staging/` lifecycle rule.
+				await bucket.delete(r2ObjectKey).catch(() => undefined);
+				await this.jobs.fail(jobId, 'The import could not be started.').catch(() => undefined);
+				throw err;
+			}
+			return { status: 'queued', treeId, jobId };
 		}
 
 		const counts = await this.runImport(treeId, file.text, file.treeName ?? undefined, file.mode, {
@@ -392,6 +428,11 @@ export class GedcomService {
 	 * holds `tree:import` on the tree, since access may have been revoked after the message was sent.
 	 */
 	async importStaged(message: ImportQueueMessage): Promise<boolean> {
+		return (await this.importStagedCounted(message)) !== null;
+	}
+
+	/** `importStaged`, answering the counts the import wrote, or null when the object is gone. */
+	async importStagedCounted(message: ImportQueueMessage): Promise<ImportCounts | null> {
 		const bucket = this.bindings.bucket;
 		if (!bucket) throw new Error('Storage binding unavailable');
 		// The key comes from the message, and this bucket also holds media and exports: refuse anything
@@ -412,7 +453,7 @@ export class GedcomService {
 			throw err;
 		}
 		const object = await bucket.get(message.r2ObjectKey);
-		if (!object) return false;
+		if (!object) return null;
 		// The queue message is not trusted to carry a sane payload: the staged object is read whole, so
 		// its size is checked before `text()` buffers it.
 		if (object.size > MAX_STAGED_BYTES) {
@@ -420,7 +461,7 @@ export class GedcomService {
 			await bucket.delete(message.r2ObjectKey);
 			throw new PayloadTooLargeError(`Staged dataset exceeds the ${MAX_STAGED_BYTES} byte limit`);
 		}
-		await this.runImport(
+		const counts = await this.runImport(
 			message.treeId,
 			await object.text(),
 			message.treeName,
@@ -441,7 +482,7 @@ export class GedcomService {
 			// whatever was edited since. A left-over file stops counting against the cap once it is old.
 			console.error(`Imported ${message.r2ObjectKey} but could not delete it:`, err);
 		}
-		return true;
+		return counts;
 	}
 
 	/**
