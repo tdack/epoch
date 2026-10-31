@@ -3,7 +3,7 @@ import type { DbClient } from '../db';
 import { uploadSessions } from '../db/schema';
 import type { UploadPurpose } from '../../shared/uploads';
 
-export type UploadStatus = 'open' | 'complete' | 'aborted';
+type UploadStatus = 'open' | 'complete' | 'aborted';
 
 export interface UploadSessionRow {
 	id: string;
@@ -50,11 +50,7 @@ export class UploadRepository {
 	}
 
 	async find(id: string): Promise<UploadSessionRow | null> {
-		const row = await this.db
-			.select()
-			.from(uploadSessions)
-			.where(eq(uploadSessions.id, id))
-			.get();
+		const row = await this.db.select().from(uploadSessions).where(eq(uploadSessions.id, id)).get();
 		if (!row) return null;
 		return {
 			id: row.id,

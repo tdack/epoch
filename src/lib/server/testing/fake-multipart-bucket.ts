@@ -12,8 +12,8 @@ async function readAll(body: ReadableStream<Uint8Array> | ArrayBuffer | Uint8Arr
 	const chunks: Uint8Array[] = [];
 	const reader = body.getReader();
 	for (;;) {
-		const { done, value } = await reader.read();
-		if (done) break;
+		const { done: isDone, value } = await reader.read();
+		if (isDone) break;
 		chunks.push(value);
 	}
 	const out = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));

@@ -137,7 +137,11 @@ describe('POST /api/uploads', () => {
 			event(owner, createRequest(mediaBody(MAX_TREE_MEDIA_BYTES + 1)))
 		);
 		expect(over.status).toBe(413);
-		for (const bad of [{ ...mediaBody(0) }, { ...mediaBody(1.5) }, { ...mediaBody(5), purpose: 'x' }]) {
+		for (const bad of [
+			{ ...mediaBody(0) },
+			{ ...mediaBody(1.5) },
+			{ ...mediaBody(5), purpose: 'x' }
+		]) {
 			expect((await createUpload(event(owner, createRequest(bad)))).status).toBe(400);
 		}
 	});

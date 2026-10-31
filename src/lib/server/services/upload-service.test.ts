@@ -323,14 +323,15 @@ describe('against local R2 multipart', () => {
 					return {
 						uploadPart: async (n: number, body: ReadableStream<Uint8Array>) =>
 							upload.uploadPart(n, await new Response(body).arrayBuffer()),
-						complete: (parts: Array<{ partNumber: number; etag: string }>) => upload.complete(parts),
+						complete: (parts: Array<{ partNumber: number; etag: string }>) =>
+							upload.complete(parts),
 						abort: () => upload.abort()
 					};
 				}
 			} as unknown as R2Bucket;
 			const svc = new UploadService(t.db, buffering, { partSizeBytes: FIVE_MIB, now: () => clock });
 			const { sessionId } = await svc.create(media(total), owner.context);
-			const toStream = (bytes: Uint8Array) => new Response(bytes).body!;
+			const toStream = (bytes: Uint8Array) => new Response(bytes as BodyInit).body!;
 			await svc.putPart(sessionId, 2, 10, toStream(new Uint8Array(10).fill(2)), owner.context);
 			await svc.putPart(
 				sessionId,

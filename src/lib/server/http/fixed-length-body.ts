@@ -25,7 +25,8 @@ export function fixedLengthBody(body: ReadableStream<Uint8Array>, length: number
 				controller.enqueue(chunk);
 			},
 			flush() {
-				if (seen !== length) throw new ValidationError('The part is shorter than its Content-Length');
+				if (seen !== length)
+					throw new ValidationError('The part is shorter than its Content-Length');
 			}
 		})
 	);

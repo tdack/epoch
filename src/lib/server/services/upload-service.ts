@@ -4,14 +4,11 @@
  * Nothing here uses the finished object: a later task imports it or turns it into a media file.
  */
 
-import type { R2Bucket } from '@cloudflare/workers-types';
+import type { R2Bucket, ReadableStream as WorkersReadableStream } from '@cloudflare/workers-types';
 import { NotFoundError, PayloadTooLargeError, ValidationError } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { sumStoredBytes } from '../media/stored-bytes';
-import {
-	UploadRepository,
-	type UploadSessionRow
-} from '../repositories/upload-repository';
+import { UploadRepository, type UploadSessionRow } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
 import type { DbClient } from '../db';
 import { requireTreeAction } from './tree-access';
@@ -138,7 +135,7 @@ export class UploadService {
 		sessionId: string,
 		partNumber: number,
 		contentLength: number | null,
-		body: ReadableStream<Uint8Array> | null,
+		body: ReadableStream | null,
 		context: AuthenticatedContext
 	): Promise<UploadPartDto> {
 		const session = await this.requireOpenSession(sessionId, context);
@@ -153,7 +150,8 @@ export class UploadService {
 
 		const part = await this.bucket
 			.resumeMultipartUpload(session.r2Key, session.r2UploadId)
-			.uploadPart(partNumber, body);
+			// The DOM and Workers stream types differ only in declarations; it is one runtime object.
+			.uploadPart(partNumber, body as unknown as WorkersReadableStream);
 		await this.uploads.recordPart(session.id, partNumber, part.etag);
 		return { partNumber, etag: part.etag };
 	}
@@ -172,9 +170,7 @@ export class UploadService {
 			throw new ValidationError('Some parts have not been uploaded', { missingParts: missing });
 
 		try {
-			await this.bucket
-				.resumeMultipartUpload(session.r2Key, session.r2UploadId)
-				.complete(parts);
+			await this.bucket.resumeMultipartUpload(session.r2Key, session.r2UploadId).complete(parts);
 		} catch {
 			await this.discard(session.id, session.r2Key, session.r2UploadId);
 			throw new ValidationError('The upload could not be assembled; start it again');

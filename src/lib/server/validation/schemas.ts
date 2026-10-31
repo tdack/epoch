@@ -10,6 +10,7 @@
 
 import { MAX_BULK_DISMISSALS, MAX_DISMISSAL_REASON_LENGTH } from '../../shared/quality';
 import { isDateFormat } from '../../shared/date-display';
+import { UPLOAD_PURPOSES } from '../../shared/uploads';
 import { isValidTreeSlug } from '../../shared/tree-slug';
 import { MAX_SUBTREE_NAME_LENGTH } from '../../shared/subtrees';
 import { MAX_DISPLAY_NAME_LENGTH } from '../../shared/profile';
@@ -937,7 +938,7 @@ export const subtreeReorderSchema = z.object({
  */
 export const uploadCreateSchema = z.object({
 	treeId: idSchema,
-	purpose: z.enum(['gedzip_import', 'media']),
+	purpose: z.enum(UPLOAD_PURPOSES),
 	fileName: z.string().min(1).max(255),
 	contentType: z.string().max(255),
 	totalBytes: z.number().int().positive().safe()
