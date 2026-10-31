@@ -119,3 +119,78 @@ describe('a PHRASE under HUSB, WIFE and CHIL', () => {
 		);
 	});
 });
+
+describe('LDS ordinances', () => {
+	const ordinance = (tag: string) => [
+		`1 ${tag}`,
+		'2 DATE 27 MAR 2022',
+		'2 TEMP SLAKE',
+		'2 PLAC Salt Lake City',
+		'2 STAT COMPLETED',
+		'3 DATE 28 MAR 2022',
+		'4 TIME 10:00:00',
+		'2 NOTE An ordinance',
+		'2 SOUR @S1@'
+	];
+
+	it('keeps every individual ordinance, with its TEMP, STAT, PLAC and DATE', async () => {
+		const text = await expectClean(
+			file(
+				'0 @I1@ INDI',
+				'1 NAME Ann /Ash/',
+				'1 SEX F',
+				...['BAPL', 'CONL', 'ENDL', 'INIL'].flatMap(ordinance),
+				'1 SLGC',
+				'2 TEMP SLAKE',
+				'2 FAMC @F1@',
+				'1 FAMC @F1@',
+				'0 @I2@ INDI',
+				'1 SEX M',
+				'1 FAMS @F1@',
+				'0 @F1@ FAM',
+				'1 HUSB @I2@',
+				'1 CHIL @I1@',
+				'0 @S1@ SOUR',
+				'1 TITL A source'
+			)
+		);
+		expect(text.match(/^1 (BAPL|CONL|ENDL|INIL)$/gm)).toHaveLength(4);
+	});
+
+	it('keeps a family sealing, and repeats of it', async () => {
+		const text = await expectClean(
+			file(
+				...FAMILY,
+				'0 @F1@ FAM',
+				'1 HUSB @I2@',
+				'1 WIFE @I1@',
+				...ordinance('SLGS'),
+				'1 SLGS',
+				'2 DATE 27 MAR 2022',
+				'1 SLGS',
+				'2 DATE 27 MAR 2022',
+				'0 @S1@ SOUR',
+				'1 TITL A source'
+			)
+		);
+		expect(text.match(/^1 SLGS$/gm)).toHaveLength(3);
+	});
+
+	it('does not double the repeats when the same file is merged in again', async () => {
+		const original = file(
+			...FAMILY,
+			'0 @F1@ FAM',
+			'1 HUSB @I2@',
+			'1 WIFE @I1@',
+			'1 SLGS',
+			'2 DATE 27 MAR 2022',
+			'1 SLGS',
+			'2 DATE 27 MAR 2022'
+		);
+		const treeId = crypto.randomUUID();
+		await importGedcomToDb(t.d1, treeId, original, 'Merge');
+		await importGedcomToDb(t.d1, treeId, original, 'Merge', 'merge');
+		const text = buildGedcom7String(await getTreeExportData(t.d1, treeId));
+		expect(text.match(/^1 SLGS$/gm)).toHaveLength(2);
+	});
+});

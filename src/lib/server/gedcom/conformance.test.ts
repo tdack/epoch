@@ -62,11 +62,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		reason: 'a second SUBM is written from the setting',
 		task: '1A.1, 1A.3, 1A.5',
 		diffs: ['record-added SUBM']
-	},
-	'maximal70-lds.ged': {
-		reason: 'SLGS (LDS ordinances) dropped',
-		task: '1A.5',
-		diffs: ['missing FAM.SLGS']
 	}
 };
 
