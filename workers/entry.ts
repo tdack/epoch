@@ -6,6 +6,7 @@ import type { ImportQueueMessage } from '../src/lib/server/services/gedcom-servi
 
 // Re-export Workflows and Durable Objects so Wrangler can resolve their class_name
 export { GedcomExportWorkflow } from '../src/lib/server/workflows/export-workflow';
+export { GedcomImportWorkflow } from '../src/lib/server/workflows/import-workflow';
 export { PlaceMatchWorkflow } from '../src/lib/server/workflows/place-match-workflow';
 
 interface Env {
@@ -13,6 +14,7 @@ interface Env {
 	MEDIA_BUCKET: R2Bucket;
 	GEDCOM_IMPORT_QUEUE: Queue<ImportQueueMessage>;
 	GEDCOM_EXPORT_WORKFLOW: Workflow;
+	GEDCOM_IMPORT_WORKFLOW: Workflow;
 	PLACE_MATCH_WORKFLOW: Workflow;
 }
 

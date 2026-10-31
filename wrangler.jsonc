@@ -47,6 +47,15 @@
 			}
 		},
 		{
+			"name": "epoch-genealogy-import-workflow",
+			"binding": "GEDCOM_IMPORT_WORKFLOW",
+			"class_name": "GedcomImportWorkflow",
+			"default_retention": {
+				"success_retention": "3 days",
+				"error_retention": "7 days"
+			}
+		},
+		{
 			"name": "epoch-genealogy-match-workflow",
 			"binding": "PLACE_MATCH_WORKFLOW",
 			"class_name": "PlaceMatchWorkflow",

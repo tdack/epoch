@@ -1,6 +1,6 @@
 import { ERROR_CODES, SetupError } from './errors.ts';
 
-/** 63 is the limit for a bucket or queue name, and the longest suffix added to the Worker name is `-export-workflow`. */
+/** 63 is the limit for a bucket or queue name, and the longest suffix added to the Worker name is `-export-workflow` (`-import-workflow` is as long). */
 const MAX_WORKER_NAME_LENGTH = 63 - '-export-workflow'.length;
 const WORKER_NAME_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -26,6 +26,7 @@ export function resourceNames(workerName: string) {
 		r2: `${workerName}-media`,
 		queue: `${workerName}-import-queue`,
 		workflow: `${workerName}-export-workflow`,
+		importWorkflow: `${workerName}-import-workflow`,
 		placeMatchWorkflow: `${workerName}-match-workflow`,
 		accessApp: `Epoch (${workerName})`,
 		accessPolicy: `Epoch ${workerName} sign-in`,
