@@ -8,7 +8,7 @@
  * re-authorized against its actor in `importStaged` before `runImport` is reached.
  */
 
-import type { R2Bucket } from '@cloudflare/workers-types';
+import type { R2Bucket, WorkflowInstanceCreateOptions } from '@cloudflare/workers-types';
 import type { DbClient } from '../db';
 import {
 	NotFoundError,
@@ -110,7 +110,7 @@ export interface GedcomBindings {
 		create(options: {
 			id: string;
 			params: ImportQueueMessage;
-			retention?: { successRetention: string; errorRetention: string };
+			retention?: WorkflowInstanceCreateOptions['retention'];
 		}): Promise<unknown>;
 	};
 }
