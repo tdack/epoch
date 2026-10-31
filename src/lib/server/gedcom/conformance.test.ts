@@ -31,23 +31,6 @@ const SUBMITTER_KEPT_AND_COPIED =
 	'the SUBM record has more than a name, email and web address, so it is kept and a second, plain one is written from the tree setting';
 
 const KNOWN_GAPS: Record<string, KnownGap> = {
-	'date.ged': {
-		reason: '_UNKNOWN dates become an empty DATE + PHRASE',
-		task: '1A.5',
-		diffs: ['added INDI.BIRT.DATE.PHRASE', 'changed INDI.BIRT.DATE']
-	},
-	'extensions.ged': {
-		reason: 'extension-calendar dates become an empty DATE + PHRASE',
-		task: '1A.5',
-		diffs: [
-			'added INDI.BIRT.DATE.PHRASE',
-			'added INDI.DEAT.DATE.PHRASE',
-			'added INDI.GRAD.DATE.PHRASE',
-			'changed INDI.BIRT.DATE',
-			'changed INDI.DEAT.DATE',
-			'changed INDI.GRAD.DATE'
-		]
-	},
 	'lang.ged': {
 		reason: SUBMITTER_KEPT_AND_COPIED,
 		task: '1A.3',
