@@ -32,9 +32,6 @@ export const uploadSessions = sqliteTable(
 	},
 	(table) => ({
 		treeCreatedIdx: index('idx_upload_session_tree_created').on(table.treeId, table.createdAt),
-		statusExpiresIdx: index('idx_upload_session_status_expires').on(
-			table.status,
-			table.expiresAt
-		)
+		statusExpiresIdx: index('idx_upload_session_status_expires').on(table.status, table.expiresAt)
 	})
 );
