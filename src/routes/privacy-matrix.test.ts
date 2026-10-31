@@ -45,6 +45,8 @@ const PUBLIC_TREE = 'services/public-tree.test.ts';
 
 const FILES = 'services/media-files.test.ts';
 
+const UPLOADS = 'services/upload-service.test.ts';
+
 const API = './api';
 const ENTRIES: Record<string, Entry> = {
 	[`${API}/admin/public-tree/+server.ts`]: { kind: 'role-gated', covers: PUBLIC_TREE },
@@ -64,6 +66,11 @@ const ENTRIES: Record<string, Entry> = {
 	},
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
+	// An upload session carries bytes, never a record, and only its creator can touch it.
+	[`${API}/uploads/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/complete/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
+	[`${API}/uploads/[id]/parts/[n]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
