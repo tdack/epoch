@@ -674,7 +674,7 @@ function famcLines(
 	lines.push(...citationLines(2, link?.citations, format));
 	// A child linked to a merged family once per copy has several blocks for one link; write each line once.
 	const seen = new Set<string>();
-	for (const entry of preserved.get(childId) ?? []) {
+	for (const entry of preserved.get(asXref(childId)) ?? []) {
 		if (!isFamcExtra(entry) || asXref(famcTarget(entry)) !== asXref(familyId)) continue;
 		written.add(entry);
 		for (const line of entry.lines.slice(1)) {
@@ -739,9 +739,12 @@ type PreservedByOwner = Map<string | null, NonNullable<GedcomExportPayload['pres
 function indexPreserved(preserved: GedcomExportPayload['preserved']): PreservedByOwner {
 	const byOwner: PreservedByOwner = new Map();
 	for (const entry of preserved ?? []) {
-		const group = byOwner.get(entry.xref);
+		// A record the file gave no XREF is owned by the id import made up, which has no `@`; the record's
+		// own XREF is written with them, so the key has to be too.
+		const owner = entry.xref === null ? null : asXref(entry.xref);
+		const group = byOwner.get(owner);
 		if (group) group.push(entry);
-		else byOwner.set(entry.xref, [entry]);
+		else byOwner.set(owner, [entry]);
 	}
 	return byOwner;
 }

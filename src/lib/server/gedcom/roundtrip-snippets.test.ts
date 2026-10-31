@@ -194,3 +194,35 @@ describe('LDS ordinances', () => {
 		expect(text.match(/^1 SLGS$/gm)).toHaveLength(2);
 	});
 });
+
+describe('a person record the file gave no XREF', () => {
+	it('keeps its ASSO with an extension ROLE, its SUBM pointer and an extension pointer structure', async () => {
+		const text = await expectClean(
+			[
+				'0 HEAD',
+				'1 GEDC',
+				'2 VERS 7.0',
+				'1 SCHMA',
+				'2 TAG _PARTY http://example.com/party-participation',
+				'2 TAG _ROLE http://example.com/role',
+				'0 @U1@ SUBM',
+				'1 NAME Someone',
+				'0 @I1@ INDI',
+				'1 NAME Ann /Ash/',
+				'1 SEX F',
+				'0 INDI',
+				'1 NAME Bob /Ash/',
+				'1 SEX M',
+				'1 SUBM @U1@',
+				'1 ASSO @I1@',
+				'2 ROLE _ROLE',
+				'1 _PARTY @P1@',
+				'2 ROLE NGHBR',
+				'0 @P1@ _PARTY',
+				'1 NAME A party',
+				'0 TRLR'
+			].join('\n')
+		);
+		expect(text).toMatch(/1 ASSO @\w+@\r\n2 ROLE _ROLE/);
+	});
+});

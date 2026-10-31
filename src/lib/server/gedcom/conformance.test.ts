@@ -37,19 +37,15 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		diffs: ['added INDI.BIRT.DATE.PHRASE', 'changed INDI.BIRT.DATE']
 	},
 	'extensions.ged': {
-		reason:
-			'ASSO, SUBM and _PARTY dropped from a person; extension-calendar dates become an empty DATE + PHRASE',
-		task: '1A.1, 1A.5',
+		reason: 'extension-calendar dates become an empty DATE + PHRASE',
+		task: '1A.5',
 		diffs: [
 			'added INDI.BIRT.DATE.PHRASE',
 			'added INDI.DEAT.DATE.PHRASE',
 			'added INDI.GRAD.DATE.PHRASE',
 			'changed INDI.BIRT.DATE',
 			'changed INDI.DEAT.DATE',
-			'changed INDI.GRAD.DATE',
-			'missing INDI.ASSO',
-			'missing INDI.SUBM',
-			'missing INDI._PARTY'
+			'changed INDI.GRAD.DATE'
 		]
 	},
 	'lang.ged': {
