@@ -149,6 +149,17 @@ them repeatable.
 diff: `minimal70`, `notes-1`, `filename-1`, `long-url` and `same-sex-marriage`. The causes below
 are the ones the list above does not already name.
 
+**Status (1A.5 and the round-trip gaps).** `KNOWN_GAPS` is now empty: every official file
+round-trips with an empty diff and no validator error. Fixed, one commit each: no invented `NAME`
+or `SEX`; a `NAME` line (and an absent `TYPE`) written as the file gave it, kept as marker lines in
+`gedcom_extra` (`name-value.ts`, ADR-013); a family event's payload (`Y`) as its `value`; `RESN` as
+one list line in 7.0; an `AGE` with only a `PHRASE`; `PHRASE` and other sub-lines under
+`HUSB`/`WIFE`/`CHIL`; repeated retained lines (five `SLGS`) no longer collapsed on import; retained
+lines of a record with no XREF; extension-calendar dates written as the file gave them; and
+`HEAD.SUBM` pointed at the kept submitter record. `NO`, `SDATE`, `TIME`, 7.0 `AGE` syntax, `ALIA`
+and `FAMC.STAT` already held and now have tests (`roundtrip-snippets.test.ts`). Still open: a
+family with only a `WIFE` exports it as `HUSB` (the partner order carries no role).
+
 - **Import crash on `date.ged`:** the D1 write fails with `fetch failed` (`ECONNRESET`), not a
   foreign-key error. The file has many repeated events, so the batch may be too large; the existing
   Windsors tests fail the same way on one machine, so this may be the local D1 and not Epoch. Check
