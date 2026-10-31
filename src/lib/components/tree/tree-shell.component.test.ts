@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastStore } from '#lib/components/feedback/toasts.svelte.js';
-import { clearExportClientUuid, exportStatusApi, startGedcomExport } from '#lib/api/files.js';
+import {
+	clearExportClientUuid,
+	exportStatusApi,
+	importStatusApi,
+	startGedcomExport,
+	submitGedcomImport
+} from '#lib/api/files.js';
 import { isExpiredExportError } from '#lib/api/client.js';
 import { TreeShell } from './tree-shell.svelte.js';
 
@@ -11,6 +17,7 @@ vi.mock('#lib/api/client.js', () => ({
 vi.mock('#lib/api/files.js', () => ({
 	previewGedcomImport: vi.fn(),
 	submitGedcomImport: vi.fn(),
+	importStatusApi: vi.fn(),
 	startGedcomExport: vi.fn(),
 	exportStatusApi: vi.fn(),
 	clearExportClientUuid: vi.fn(),
@@ -213,5 +220,48 @@ describe('TreeShell.resumeExport', () => {
 		expect(navigations).toEqual(['/api/export/download/i1']);
 		expect(shell.pendingExportInstanceId).toBeNull();
 		expect(clearClientUuid).toHaveBeenCalledWith('t1', choice);
+	});
+});
+
+describe('TreeShell.confirmImport for a queued import', () => {
+	const submit = vi.mocked(submitGedcomImport);
+	const importStatus = vi.mocked(importStatusApi);
+	const COUNTS = { individualsCount: 7, familiesCount: 3, eventsCount: 0, mergedFamiliesCount: 0 };
+
+	function queued() {
+		const ctx = setup();
+		ctx.shell.pendingImportFile = new File(['x'], 'big.ged');
+		submit.mockResolvedValue({ status: 'queued', treeId: 't1', jobId: 'j1' });
+		return ctx;
+	}
+
+	it('polls the job and reports its counts when it completes', async () => {
+		vi.useFakeTimers();
+		const { shell } = queued();
+		importStatus
+			.mockResolvedValueOnce({ status: 'running' })
+			.mockResolvedValueOnce({ status: 'complete', result: COUNTS });
+
+		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		await vi.advanceTimersByTimeAsync(2_000);
+		await vi.advanceTimersByTimeAsync(5_000);
+		await running;
+
+		expect(importStatus).toHaveBeenCalledWith('j1');
+		expect(shell.importStatus).toBe('Import complete: 7 individuals, 3 families.');
+		expect(shell.importConfirmError).toBeNull();
+	});
+
+	it('shows the job’s error when it fails', async () => {
+		vi.useFakeTimers();
+		const { shell } = queued();
+		importStatus.mockResolvedValue({ status: 'failed', error: 'The file is too large to import.' });
+
+		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+		await vi.advanceTimersByTimeAsync(2_000);
+		await running;
+
+		expect(shell.importConfirmError).toBe('The file is too large to import.');
+		expect(shell.importStatus).toBeNull();
 	});
 });

@@ -23,17 +23,23 @@ export async function previewGedcomImport(
 	return call('/api/import', { method: 'PUT', body: fd }, 'Failed to preview import');
 }
 
+/** What an import answers: the counts when it ran in the request, a job to poll when it was queued. */
+export interface GedcomImportResult {
+	status?: 'complete' | 'queued';
+	individualsCount?: number;
+	familiesCount?: number;
+	mergedFamiliesCount?: number;
+	treeId?: string;
+	/** Present when the import was queued; poll it with `importStatusApi`. */
+	jobId?: string;
+}
+
 export async function submitGedcomImport(
 	file: File,
 	mode: 'replace' | 'merge',
 	treeId?: string | null,
 	options: { shouldMergeDuplicateFamilies?: boolean } = {}
-): Promise<{
-	individualsCount?: number;
-	familiesCount?: number;
-	mergedFamiliesCount?: number;
-	treeId?: string;
-}> {
+): Promise<GedcomImportResult> {
 	const fd = new FormData();
 	fd.append('file', file);
 	fd.append('mode', mode);
@@ -42,6 +48,24 @@ export async function submitGedcomImport(
 	}
 	if (options.shouldMergeDuplicateFamilies) fd.append('mergeDuplicates', 'true');
 	return call('/api/import', { method: 'POST', body: fd }, 'Import failed');
+}
+
+/** A queued import's state, as `GET /api/import/<jobId>` answers it. */
+export interface GedcomImportStatus {
+	status: 'pending' | 'running' | 'complete' | 'failed';
+	result?: {
+		individualsCount: number;
+		familiesCount: number;
+		eventsCount: number;
+		mergedFamiliesCount: number;
+	};
+	/** A fixed sentence the server chose; safe to show. */
+	error?: string;
+}
+
+/** One poll of a queued import. `signal` lets the caller abandon a superseded poll. */
+export function importStatusApi(jobId: string, signal?: AbortSignal): Promise<GedcomImportStatus> {
+	return call(path`/api/import/${jobId}`, { signal }, 'Failed to check the import');
 }
 
 /** How a tree is exported: the GEDCOM version and whether to package it as a `.gdz`. */

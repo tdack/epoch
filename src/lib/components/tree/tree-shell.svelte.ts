@@ -10,10 +10,12 @@ import {
 	exportDownloadUrl,
 	exportStatusApi,
 	gedcomExportUrl,
+	importStatusApi,
 	previewGedcomImport,
 	startGedcomExport,
 	submitGedcomImport,
-	type GedcomExportChoice
+	type GedcomExportChoice,
+	type GedcomImportResult
 } from '#lib/api/files.js';
 import { createTreeApi } from '#lib/api/trees.js';
 import { messageOf } from '#lib/components/feedback/error-message.js';
@@ -26,6 +28,8 @@ const EXPORT_POLL_TIMEOUT_MS = 120_000;
 const EXPORT_POLL_INITIAL_MS = 1_000;
 /** The longest gap between polls. */
 const EXPORT_POLL_MAX_MS = 10_000;
+/** How long the client polls a queued import. A big file takes minutes; past this the job still runs. */
+const IMPORT_POLL_TIMEOUT_MS = 600_000;
 /** Where a timed-out export is remembered so the person can resume it. */
 const PENDING_EXPORT_KEY = 'epoch.export.pending';
 
@@ -281,12 +285,16 @@ export class TreeShell {
 		this.isImporting = true;
 		this.importStatus = 'Importing GEDCOM records into Cloudflare D1...';
 		try {
-			const result = await submitGedcomImport(
+			let result: GedcomImportResult = await submitGedcomImport(
 				this.pendingImportFile,
 				mode,
 				this.options.treeId(),
 				options
 			);
+			if (result.status === 'queued' && result.jobId) {
+				// A large file runs in the background; the dialog stays open on its progress until it ends.
+				result = { ...(await this.pollImport(result.jobId)), treeId: result.treeId };
+			}
 			this.importStatus = `Import complete: ${result.individualsCount || 0} individuals, ${result.familiesCount || 0} families${result.mergedFamiliesCount ? ` (${result.mergedFamiliesCount} duplicate families merged)` : ''}.`;
 			this.isImportConfirmModalOpen = false;
 			this.pendingImportFile = null;
@@ -301,6 +309,27 @@ export class TreeShell {
 			this.isImporting = false;
 		}
 	};
+
+	/**
+	 * Wait for a queued import to end and answer its counts. A failed job throws its fixed message, so
+	 * the dialog shows it the way it shows a refused upload; running out of time throws too, because the
+	 * import may still finish and the person should look before importing again.
+	 */
+	private async pollImport(jobId: string): Promise<GedcomImportResult> {
+		const deadline = Date.now() + IMPORT_POLL_TIMEOUT_MS;
+		let delay = EXPORT_POLL_INITIAL_MS;
+		while (Date.now() < deadline) {
+			this.importStatus = 'Importing a large file in the background…';
+			await sleep(delay + Math.random() * EXPORT_POLL_INITIAL_MS);
+			const job = await importStatusApi(jobId);
+			if (job.status === 'complete') return job.result ?? {};
+			if (job.status === 'failed') throw new Error(job.error || 'The import failed.');
+			delay = Math.min(delay * 2, EXPORT_POLL_MAX_MS);
+		}
+		throw new Error(
+			'The import is taking longer than usual. It may still finish; check the tree before importing again.'
+		);
+	}
 
 	cancelImport = () => {
 		this.isImportConfirmModalOpen = false;
