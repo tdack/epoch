@@ -249,7 +249,47 @@ function submitterName(data: GedcomExportPayload, format: GedcomFormat): string 
 	return data.submitter?.name?.trim() || (format === 'gedcom551' ? 'Unknown' : null);
 }
 
+/**
+ * The kept `SUBM` record that `HEAD.SUBM` pointed at on import, while the tree's submitter still says
+ * what that record says. Export then points the header at it and writes no second record. Once the
+ * setting is edited the two differ, so Epoch's own record is written and the kept one is a plain
+ * record again.
+ */
+function keptSubmitterXref(data: GedcomExportPayload): string | null {
+	const pointer = (data.headerBlocks ?? [])
+		.find((b) => /^1 SUBM\s/.test(b[0] ?? ''))?.[0]
+		?.replace(/^1 SUBM\s+/, '')
+		.trim();
+	if (!pointer) return null;
+	const record = (data.preserved ?? []).find(
+		(p) =>
+			p.xref !== null &&
+			asXref(p.xref) === asXref(pointer) &&
+			/^0 \S+ SUBM\b/.test(p.lines[0] ?? '')
+	);
+	if (!record) return null;
+	const field = (tag: string) =>
+		record.lines
+			.find((l) => l.startsWith(`1 ${tag} `))
+			?.slice(`1 ${tag} `.length)
+			.trim() ?? '';
+	const setting = data.submitter;
+	const isSame =
+		(setting?.name?.trim() ?? '') === field('NAME') &&
+		(setting?.email?.trim() ?? '') === field('EMAIL') &&
+		(setting?.www?.trim() ?? '') === field('WWW');
+	return isSame ? asXref(pointer) : null;
+}
+
+/** The `HEAD.SUBM` line: the kept record when it still stands for the setting, else Epoch's own. */
+function headerSubmitterLine(data: GedcomExportPayload, format: GedcomFormat): string[] {
+	const kept = keptSubmitterXref(data);
+	if (kept) return [`1 SUBM ${kept}`];
+	return submitterName(data, format) ? [`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`] : [];
+}
+
 function submitterRecord(data: GedcomExportPayload, format: GedcomFormat): string[] {
+	if (keptSubmitterXref(data)) return [];
 	const name = submitterName(data, format);
 	if (!name) return [];
 	const lines = [`0 ${SUBMITTER_PLACEHOLDER_XREF} SUBM`, `1 NAME ${escapedSingleLine(name)}`];
@@ -892,7 +932,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 	lines.push('2 VERS 5.5.1');
 	lines.push('2 FORM LINEAGE-LINKED');
 	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom551'));
-	if (submitterName(data, 'gedcom551')) lines.push(`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`);
+	lines.push(...headerSubmitterLine(data, 'gedcom551'));
 	lines.push('1 CHAR UTF-8');
 	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {
@@ -993,7 +1033,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 	lines.push('2 VERS 1.0');
 	lines.push('2 NAME Epoch Family Genealogy Repository');
 	lines.push(...headerDateLines(data.exportedAt ?? new Date(), 'gedcom7'));
-	if (submitterName(data, 'gedcom7')) lines.push(`1 SUBM ${SUBMITTER_PLACEHOLDER_XREF}`);
+	lines.push(...headerSubmitterLine(data, 'gedcom7'));
 	lines.push(...keptHeaderBlock(data, 'LANG'));
 	lines.push(...keptHeaderBlock(data, 'PLAC'));
 	if (data.treeName) {

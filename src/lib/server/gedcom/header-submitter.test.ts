@@ -137,8 +137,31 @@ describe('importing a header', () => {
 		const pointed = await importAndExport(
 			file(PLAIN).replace('1 NAME A /B/\n', '1 NAME A /B/\n1 SUBM @U9@\n')
 		);
-		expect(pointed.out.match(/^0 @\S+@ SUBM/gm)).toHaveLength(2);
-		expect(pointed.out).toContain('1 SUBM @U1@');
+		// The kept record is the one HEAD.SUBM points at, so there is one record and not two.
+		expect(pointed.out.match(/^0 @\S+@ SUBM/gm)).toHaveLength(1);
+		expect(pointed.out).toMatch(/^1 SUBM @U9@\r$/m);
+	});
+
+	it('points HEAD.SUBM at the kept record while the setting still says what it says', async () => {
+		const { out } = await importAndExport(file(PLAIN + '1 ADDR 1 Main St\n'));
+		expect(out.match(/^0 @\S+@ SUBM/gm)).toHaveLength(1);
+		expect(out).toMatch(/^1 SUBM @U9@\r$/m);
+		expect(out).toContain('0 @U9@ SUBM\r\n1 NAME Ada Smith');
+		expect(out).toContain('1 ADDR 1 Main St');
+	});
+
+	it('writes the tree’s own record once the setting is edited, and the kept one stays a record', async () => {
+		const { data } = await importAndExport(file(PLAIN + '1 ADDR 1 Main St\n'));
+		const edited = buildGedcom7String({
+			...data,
+			exportedAt: AT,
+			submitter: { ...data.submitter, name: 'Ada Jones' }
+		});
+		expect(edited.match(/^0 @\S+@ SUBM/gm)).toHaveLength(2);
+		expect(edited).toContain('1 NAME Ada Jones');
+		expect(edited).toContain('1 NAME Ada Smith');
+		const head = edited.slice(0, edited.indexOf('0 @I'));
+		expect(head).toContain('1 SUBM @U1@');
 	});
 
 	it('keeps the header’s LANG, PLAC and SCHMA tags through an import and export', async () => {

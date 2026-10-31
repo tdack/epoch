@@ -27,22 +27,7 @@ interface KnownGap {
 	diffs?: string[];
 }
 
-const SUBMITTER_KEPT_AND_COPIED =
-	'the SUBM record has more than a name, email and web address, so it is kept and a second, plain one is written from the tree setting';
-
-const KNOWN_GAPS: Record<string, KnownGap> = {
-	'lang.ged': {
-		reason: SUBMITTER_KEPT_AND_COPIED,
-		task: '1A.3',
-		diffs: ['record-added SUBM']
-	},
-	'notes-1.ged': { reason: SUBMITTER_KEPT_AND_COPIED, task: '1A.3', diffs: ['record-added SUBM'] },
-	'maximal70.ged': {
-		reason: 'a second SUBM is written from the setting',
-		task: '1A.1, 1A.3, 1A.5',
-		diffs: ['record-added SUBM']
-	}
-};
+const KNOWN_GAPS: Record<string, KnownGap> = {};
 
 // The files are fetched by `npm run gedcom:conformance` and gitignored, so a fresh clone has none
 // and the suite skips, as validate7.test.ts does.

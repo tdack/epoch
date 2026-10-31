@@ -208,6 +208,8 @@ export interface ParsedGedcomData {
 	 * record only when it does not, so it is never exported twice.
 	 */
 	submitter?: ParsedSubmitter;
+	/** The XREF `HEAD.SUBM` points at, so an import that keeps that record can keep the pointer too. */
+	headerSubmitterXref?: string;
 	/** Root `SOUR` records (ADR-028). Empty when the file is read with `isEvidenceModelled` off. */
 	sources: ParsedSource[];
 	/** Root `REPO` records. */
@@ -974,6 +976,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		fileTreeName,
 		preserved,
 		...(submitter ? { submitter } : {}),
+		...(headSubmitterXref ? { headerSubmitterXref: headSubmitterXref } : {}),
 		sources,
 		repositories,
 		notes: sharedNotes,

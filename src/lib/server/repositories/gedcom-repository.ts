@@ -36,7 +36,7 @@ import {
 	type PreviewRows
 } from '../gedcom/import-preview';
 import { factDetailColumns } from '../gedcom/fact-details';
-import type { ParsedCitation, ParsedGedcomData } from '../gedcom/parser';
+import { HEADER_OWNER, type ParsedCitation, type ParsedGedcomData } from '../gedcom/parser';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import {
 	importCitations,
@@ -199,6 +199,17 @@ export class GedcomRepository {
 			if (!incoming.isPlain || !(isUnset || isSame))
 				parsed = { ...file, preserved: [...file.preserved, record] };
 		}
+		// A header that points at a record this import keeps keeps the pointer, so export points `HEAD.SUBM`
+		// at that record and does not write a second one beside it (until the setting is edited).
+		const keptSubmitter = parsed.headerSubmitterXref;
+		if (
+			keptSubmitter &&
+			parsed.preserved.some((p) => p.xref === keptSubmitter && p.lines[0]?.startsWith('0 '))
+		)
+			parsed = {
+				...parsed,
+				preserved: [...parsed.preserved, { xref: HEADER_OWNER, lines: [`1 SUBM ${keptSubmitter}`] }]
+			};
 		if (!isExistingTree) {
 			const name = treeName || parsed.treeName || 'Imported Tree';
 			writes.push(
