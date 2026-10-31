@@ -148,7 +148,7 @@ export interface ParsedEvent extends FactDetails {
 	dateSort?: string;
 	dateSortEnd?: string | null;
 	place?: string;
-	/** Pre-fact-field text (CAUS, NOTE or line value in one). Family events still use it. */
+	/** Pre-fact-field text (CAUS, NOTE or line value in one). Rows imported before a family event's payload was its `value` still hold it here. */
 	description?: string;
 	/** Individual events only: the text on the event's own line (`1 OCCU Carpenter`). */
 	value?: string;
@@ -852,7 +852,9 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						dateSort: sort,
 						dateSortEnd: sortEnd,
 						place: placNode?.value?.trim(),
-						description: child.value?.trim(),
+						// The payload (`Y`, or text in 5.5.1) is the fact's own value, written back as the payload
+						// and not as a note.
+						value: child.value?.trim() || undefined,
 						...(areFactDetailsModelled
 							? subLinesOf('dateExtra', dateNode, version === '7.0' ? 'PHRASE' : undefined)
 							: {}),

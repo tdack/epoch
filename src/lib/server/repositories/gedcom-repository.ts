@@ -345,7 +345,7 @@ export class GedcomRepository {
 					...dateColumnsFor(ev.dateRaw),
 					place: ev.place || null,
 					description: ev.description || null,
-					value: null,
+					value: ev.value || null,
 					cause: null,
 					age: null,
 					notes: null,

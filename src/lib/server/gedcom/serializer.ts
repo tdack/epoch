@@ -390,7 +390,8 @@ function familyEventLines(
 	ev: NonNullable<GedcomExportPayload['families'][number]['events']>[number],
 	format: GedcomFormat
 ): string[] {
-	const lines = [`1 ${requireSingleLineToken(ev.type, 'An event type')}`];
+	const tag = requireSingleLineToken(ev.type, 'An event type');
+	const lines = [ev.value ? `1 ${tag} ${escapedSingleLine(ev.value)}` : `1 ${tag}`];
 	if (ev.classification) lines.push(`2 TYPE ${escapedSingleLine(ev.classification)}`);
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));

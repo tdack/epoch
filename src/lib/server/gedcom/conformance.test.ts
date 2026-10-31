@@ -65,34 +65,11 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'notes-1.ged': { reason: SUBMITTER_KEPT_AND_COPIED, task: '1A.3', diffs: ['record-added SUBM'] },
 	'maximal70.ged': {
 		reason:
-			'HUSB, WIFE and CHIL PHRASE dropped; a second SUBM is written from the setting; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
-			'an event payload Y becomes a NOTE Y',
+			'HUSB, WIFE and CHIL PHRASE dropped; a second SUBM is written from the setting; RESN CONFIDENTIAL, LOCKED split into two lines',
 		task: '1A.1, 1A.3, 1A.5',
 		errors: ['cardinality-max INDI.RESN'],
 		diffs: [
-			'added FAM.ANUL.NOTE',
-			'added FAM.CENS.NOTE',
-			'added FAM.DIV.NOTE',
-			'added FAM.DIVF.NOTE',
-			'added FAM.ENGA.NOTE',
-			'added FAM.EVEN.NOTE',
-			'added FAM.MARB.NOTE',
-			'added FAM.MARC.NOTE',
-			'added FAM.MARL.NOTE',
-			'added FAM.MARR.NOTE',
-			'added FAM.MARS.NOTE',
 			'added INDI.RESN',
-			'changed FAM.ANUL',
-			'changed FAM.CENS',
-			'changed FAM.DIV',
-			'changed FAM.DIVF',
-			'changed FAM.ENGA',
-			'changed FAM.EVEN',
-			'changed FAM.MARB',
-			'changed FAM.MARC',
-			'changed FAM.MARL',
-			'changed FAM.MARR',
-			'changed FAM.MARS',
 			'changed INDI.RESN',
 			'missing FAM.CHIL.PHRASE',
 			'missing FAM.HUSB.PHRASE',
@@ -101,52 +78,9 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		]
 	},
 	'maximal70-lds.ged': {
-		reason: 'SLGS (LDS ordinances) dropped; ' + 'an event payload Y becomes a NOTE Y',
+		reason: 'SLGS (LDS ordinances) dropped',
 		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR', 'missing FAM.SLGS']
-	},
-	'maximal70-memories1.ged': {
-		reason: 'an event payload Y becomes a NOTE Y',
-		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
-	},
-	'maximal70-memories2.ged': {
-		reason: 'an event payload Y becomes a NOTE Y',
-		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
-	},
-	'maximal70-tree1.ged': {
-		reason: 'an event payload Y becomes a NOTE Y',
-		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
-	},
-	'maximal70-tree2.ged': {
-		reason: 'an event payload Y becomes a NOTE Y',
-		task: '1A.5',
-		diffs: [
-			'added FAM.ANUL.NOTE',
-			'added FAM.CENS.NOTE',
-			'added FAM.DIV.NOTE',
-			'added FAM.DIVF.NOTE',
-			'added FAM.ENGA.NOTE',
-			'added FAM.EVEN.NOTE',
-			'added FAM.MARB.NOTE',
-			'added FAM.MARC.NOTE',
-			'added FAM.MARL.NOTE',
-			'added FAM.MARR.NOTE',
-			'added FAM.MARS.NOTE',
-			'changed FAM.ANUL',
-			'changed FAM.CENS',
-			'changed FAM.DIV',
-			'changed FAM.DIVF',
-			'changed FAM.ENGA',
-			'changed FAM.EVEN',
-			'changed FAM.MARB',
-			'changed FAM.MARC',
-			'changed FAM.MARL',
-			'changed FAM.MARR',
-			'changed FAM.MARS'
-		]
+		diffs: ['missing FAM.SLGS']
 	}
 };
 
