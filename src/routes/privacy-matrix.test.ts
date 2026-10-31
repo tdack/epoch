@@ -58,6 +58,10 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/import/+server.ts`]: { kind: 'role-gated', covers: 'auth/authorization.test.ts' },
+	[`${API}/import/[jobId]/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/import-job-service.test.ts'
+	},
 	[`${API}/media/[...key]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/media/upload/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
@@ -365,6 +369,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/files/usage/+server.ts`]: 'refused',
 	[`${API}/export/download/[instanceId]/+server.ts`]: 'refused',
 	[`${API}/export/status/[instanceId]/+server.ts`]: 'refused',
+	[`${API}/import/[jobId]/+server.ts`]: 'refused',
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
 	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
