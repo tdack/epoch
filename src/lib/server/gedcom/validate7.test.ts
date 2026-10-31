@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { GEDCOM7_ISSUE_CODES, validateGedcom7, type Gedcom7IssueCode } from './validate7';
+import {
+	GEDCOM7_ISSUE_CODES,
+	validateGedcom7,
+	type Gedcom7Issue,
+	type Gedcom7IssueCode
+} from './validate7';
 
 const HEAD = '0 HEAD\n1 GEDC\n2 VERS 7.0\n';
 const TRLR = '0 TRLR\n';
@@ -9,8 +14,9 @@ const file = (body: string) => HEAD + body + TRLR;
 /** A file whose header also carries `schma` (lines at level 2 under SCHMA). */
 const withSchema = (schma: string, body = '') => HEAD + `1 SCHMA\n${schma}` + body + TRLR;
 
-const errorCodes = (text: string) => validateGedcom7(text).errors.map((e) => e.code);
-const warningCodes = (text: string) => validateGedcom7(text).warnings.map((e) => e.code);
+const codesOf = (issues: Gedcom7Issue[]) => issues.map((issue) => issue.code);
+const errorCodes = (text: string) => codesOf(validateGedcom7(text).errors);
+const warningCodes = (text: string) => codesOf(validateGedcom7(text).warnings);
 
 /** The code appears for `bad` and not for `good`, which is clean of errors. */
 function expectError(code: Gedcom7IssueCode, bad: string, good: string) {
