@@ -12,6 +12,18 @@ export async function uploadMediaApi(treeId: string, entityId: string, file: Fil
 	await call('/api/media/upload', { method: 'POST', body }, 'Upload failed');
 }
 
+/**
+ * Files a finished upload session as media on a person, partnership or source. The bytes are
+ * already stored, so this sends only the session and the record; the server checks them again.
+ */
+export async function mediaFromUploadApi(input: {
+	sessionId: string;
+	entityId: string;
+	title: string;
+}): Promise<void> {
+	await call('/api/media/from-upload', json('POST', input), 'Could not add the file');
+}
+
 export async function previewGedcomImport(
 	file: File,
 	treeId?: string | null

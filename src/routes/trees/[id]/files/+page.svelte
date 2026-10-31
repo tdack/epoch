@@ -31,9 +31,12 @@
 		fetchUnlinkedFiles,
 		linkFileApi,
 		renameFileApi,
-		unlinkFileApi,
-		uploadMediaApi
+		mediaFromUploadApi,
+		unlinkFileApi
 	} from '#lib/api/files.js';
+	import { isAbortError, startUpload } from '#lib/api/uploader.js';
+	import UploadProgress from '#lib/components/forms/UploadProgress.svelte';
+	import type { UploadCompleteDto } from '#lib/shared/uploads.js';
 	import type { FileRowDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 	import {
 		formatMediaSize,
@@ -77,6 +80,16 @@
 	let dialogError = $state<string | null>(null);
 	let renameTitle = $state('');
 	let uploadFile = $state<File | null>(null);
+	/** Where the chosen file's upload stands; `null` before one starts. */
+	let upload = $state<{
+		phase: 'uploading' | 'finishing' | 'failed';
+		uploadedBytes: number;
+		error: string | null;
+	} | null>(null);
+	const isSending = $derived(upload?.phase === 'uploading' || upload?.phase === 'finishing');
+	/** Kept after the bytes arrive, so a failed filing retries without sending them again. */
+	let uploaded: UploadCompleteDto | null = null;
+	let uploadAbort: AbortController | null = null;
 	/** The person or source the upload dialog has chosen. */
 	let chosenOwner = $state<{ id: string; name: string } | null>(null);
 
@@ -172,13 +185,22 @@
 		isBusy = false;
 		chosenOwner = null;
 		if (kind === 'rename') renameTitle = file?.title ?? '';
-		if (kind === 'upload') uploadFile = null;
+		if (kind === 'upload') resetUpload(null);
+	}
+
+	/** Forgets any upload in progress and the file it was for, stopping its requests. */
+	function resetUpload(file: File | null) {
+		uploadAbort?.abort();
+		uploadAbort = null;
+		uploaded = null;
+		upload = null;
+		uploadFile = file;
 	}
 
 	/** A file dropped on the list opens the upload dialog with it chosen; the record is still the user's pick. */
 	function dropToUpload(dropped: File[]) {
 		openDialog('upload');
-		uploadFile = dropped[0]!;
+		resetUpload(dropped[0]!);
 		if (dropped.length > 1)
 			toasts.push('Files are added one at a time, so only the first is selected.');
 	}
@@ -207,6 +229,8 @@
 	}
 
 	function closeDialog() {
+		// Leaving the dialog mid-upload is a cancel; the session is deleted rather than left to expire.
+		if (dialog === 'upload') uploadAbort?.abort();
 		dialog = null;
 	}
 
@@ -235,12 +259,51 @@
 		}
 	}
 
-	const uploadTo = () => {
+	/**
+	 * Sends the file in parts, then files it on the chosen record. Not `run`: a failure stays in the
+	 * progress panel with its own retry, and a retry resumes rather than starting over.
+	 */
+	async function uploadTo() {
 		const file = uploadFile;
 		const owner = chosenOwner;
-		if (!file || !owner) return;
-		return run(() => uploadMediaApi(treeId, owner.id, file), `Uploaded ${file.name}`);
-	};
+		if (!file || !owner || isSending) return;
+		const controller = new AbortController();
+		uploadAbort = controller;
+		upload = { phase: 'uploading', uploadedBytes: upload?.uploadedBytes ?? 0, error: null };
+		try {
+			uploaded ??= await startUpload({
+				file,
+				treeId,
+				purpose: 'media',
+				signal: controller.signal,
+				onProgress: (p) => {
+					if (upload) upload = { ...upload, uploadedBytes: p.uploadedBytes };
+				}
+			});
+			upload = { phase: 'finishing', uploadedBytes: file.size, error: null };
+			await mediaFromUploadApi({
+				sessionId: uploaded.sessionId,
+				entityId: owner.id,
+				title: file.name
+			});
+			uploadAbort = null;
+			upload = null;
+			dialog = null;
+			toasts.push(`Uploaded ${file.name}`);
+			await reload();
+		} catch (cause) {
+			// A cancel is the person's own doing, so it returns to the picker without an error.
+			if (isAbortError(cause) || controller.signal.aborted) {
+				upload = null;
+				return;
+			}
+			upload = {
+				phase: 'failed',
+				uploadedBytes: upload?.uploadedBytes ?? 0,
+				error: messageOf(cause, 'The upload failed')
+			};
+		}
+	}
 
 	function rename(event: SubmitEvent) {
 		event.preventDefault();
@@ -626,8 +689,9 @@
 				id="upload-file"
 				type="file"
 				accept={MEDIA_UPLOAD_ACCEPT}
+				disabled={isSending}
 				onchange={(event) =>
-					(uploadFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null)}
+					resetUpload((event.currentTarget as HTMLInputElement).files?.[0] ?? null)}
 				class="mt-1 text-xs"
 			/>
 			{#if uploadFile}
@@ -644,14 +708,29 @@
 				bind:picked={chosenOwner}
 			/>
 		{/if}
+		{#if upload && uploadFile}
+			<UploadProgress
+				fileName={uploadFile.name}
+				uploadedBytes={upload.uploadedBytes}
+				totalBytes={uploadFile.size}
+				phase={upload.phase}
+				error={upload.error}
+				oncancel={() => uploadAbort?.abort()}
+				onretry={() => void uploadTo()}
+			/>
+		{/if}
 		<div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
 			<button
 				type="button"
 				onclick={closeDialog}
 				class="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-600">Cancel</button
 			>
-			<button type="submit" disabled={isBusy || !uploadFile || !chosenOwner} class="btn-primary-sm">
-				{isBusy ? 'Uploading…' : 'Upload'}
+			<button
+				type="submit"
+				disabled={upload !== null || !uploadFile || !chosenOwner}
+				class="btn-primary-sm"
+			>
+				Upload
 			</button>
 		</div>
 	</form>

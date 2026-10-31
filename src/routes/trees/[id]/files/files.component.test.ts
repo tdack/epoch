@@ -18,7 +18,11 @@ vi.mock('#lib/api/files.js', () => ({
 	linkFileApi: vi.fn(),
 	renameFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
-	uploadMediaApi: vi.fn()
+	mediaFromUploadApi: vi.fn()
+}));
+vi.mock('#lib/api/uploader.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/api/uploader.js')>()),
+	startUpload: vi.fn()
 }));
 
 import {
@@ -29,14 +33,16 @@ import {
 	linkFileApi,
 	renameFileApi,
 	unlinkFileApi,
-	uploadMediaApi
+	mediaFromUploadApi
 } from '#lib/api/files.js';
+import { startUpload } from '#lib/api/uploader.js';
 import { ConflictError } from '#lib/api/client.js';
 import { fetchSources } from '#lib/api/evidence.js';
 import Page from './+page.svelte';
 
 const remove = vi.mocked(deleteFileApi);
-const upload = vi.mocked(uploadMediaApi);
+const upload = vi.mocked(mediaFromUploadApi);
+const send = vi.mocked(startUpload);
 const rename = vi.mocked(renameFileApi);
 const link = vi.mocked(linkFileApi);
 const unlink = vi.mocked(unlinkFileApi);
@@ -61,6 +67,7 @@ beforeEach(() => {
 	remove.mockReset();
 	rename.mockReset();
 	upload.mockReset();
+	send.mockReset();
 	link.mockReset();
 	unlink.mockReset();
 	sources.mockReset();
@@ -284,6 +291,7 @@ describe('Files page upload to a source', () => {
 
 	it('uploads a file to the source chosen', async () => {
 		upload.mockResolvedValue(undefined);
+		send.mockResolvedValue({ sessionId: 'u1', r2Key: 'k', totalBytes: 1 });
 		listFiles.mockResolvedValue({ files: [], nextCursor: null });
 		render({ role: 'editor', files: [] });
 		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
@@ -294,7 +302,68 @@ describe('Files page upload to a source', () => {
 		input.dispatchEvent(new Event('change', { bubbles: true }));
 		await pickSource();
 		click('Upload');
-		await vi.waitFor(() => expect(upload).toHaveBeenCalledWith('t1', 's1', file));
+		await vi.waitFor(() =>
+			expect(upload).toHaveBeenCalledWith({
+				sessionId: 'u1',
+				entityId: 's1',
+				title: 'scan.png'
+			})
+		);
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ file, treeId: 't1', purpose: 'media' })
+		);
+	});
+
+	async function chooseAndStart(file: File) {
+		listFiles.mockResolvedValue({ files: [], nextCursor: null });
+		render({ role: 'editor', files: [] });
+		document.querySelector<HTMLButtonElement>('[data-testid="files-add"]')!.click();
+		flushSync();
+		const input = document.querySelector<HTMLInputElement>('#upload-file')!;
+		Object.defineProperty(input, 'files', { value: [file] });
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		await pickSource();
+		click('Upload');
+	}
+
+	it('shows progress while the parts go up', async () => {
+		send.mockImplementation(async ({ onProgress }) => {
+			onProgress?.({ uploadedBytes: 500, totalBytes: 1000 });
+			return new Promise(() => {});
+		});
+		await chooseAndStart(new File([new Uint8Array(1000)], 'big.pdf'));
+		await vi.waitFor(() =>
+			expect(document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe(
+				'50'
+			)
+		);
+	});
+
+	it('cancels an upload from the progress panel and returns to the picker', async () => {
+		send.mockImplementation(
+			({ signal }) =>
+				new Promise((_resolve, reject) =>
+					signal?.addEventListener('abort', () => reject(new DOMException('x', 'AbortError')))
+				)
+		);
+		await chooseAndStart(new File(['x'], 'a.png'));
+		await vi.waitFor(() => expect(document.querySelector('[role="progressbar"]')).not.toBeNull());
+		click('Cancel upload');
+		await vi.waitFor(() => expect(document.querySelector('[role="progressbar"]')).toBeNull());
+		expect(document.querySelector('[role="alert"]')).toBeNull();
+		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it('shows a failure with a retry that does not send the bytes again once they arrived', async () => {
+		send.mockResolvedValue({ sessionId: 'u1', r2Key: 'k', totalBytes: 1 });
+		upload.mockRejectedValueOnce(new Error('This upload is not finished')).mockResolvedValue();
+		await chooseAndStart(new File(['x'], 'a.png'));
+		await vi.waitFor(() =>
+			expect(document.querySelector('[role="alert"]')?.textContent).toContain('not finished')
+		);
+		click('Try again');
+		await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it('closes the dialog, reloads and says so when the file changed under a rename', async () => {

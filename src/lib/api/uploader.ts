@@ -17,7 +17,7 @@ const BACKOFF_BASE_MS = 500;
 const BACKOFF_CAP_MS = 15_000;
 
 /** Bytes of the file delivered so far. `uploadedBytes` never exceeds `totalBytes`. */
-export interface UploadProgress {
+interface UploadProgress {
 	uploadedBytes: number;
 	totalBytes: number;
 }
@@ -41,7 +41,7 @@ export interface PartResponse {
  * Sends one part and resolves with the HTTP answer whatever its status. It rejects only when no
  * answer came (a dropped connection) or the signal aborted; the uploader decides what to retry.
  */
-export type PartSender = (request: PartRequest) => Promise<PartResponse>;
+type PartSender = (request: PartRequest) => Promise<PartResponse>;
 
 /** Seams for tests; every one defaults to the browser's own. */
 export interface UploaderEnvironment {
@@ -69,7 +69,7 @@ export interface StartUploadOptions {
  * XHR rather than fetch: `fetch` cannot report how much of a request body has gone, and a
  * 50 MiB part on a slow link would show no movement for minutes.
  */
-export const xhrSendPart: PartSender = ({ url, method, body, signal, onProgress }) =>
+const xhrSendPart: PartSender = ({ url, method, body, signal, onProgress }) =>
 	new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
 		const abort = () => xhr.abort();
@@ -112,7 +112,7 @@ export function isAbortError(error: unknown): boolean {
 }
 
 /** A network error and the answers that say "try again": a timeout, a rate limit, a server fault. */
-export function isRetryableStatus(status: number): boolean {
+function isRetryableStatus(status: number): boolean {
 	return status === 408 || status === 429 || status >= 500;
 }
 
@@ -127,7 +127,7 @@ export function backoffMs(attempt: number, random: number): number {
 const RESUME_STORAGE_KEY = 'epoch.uploads.resumable';
 
 /** What is kept to recognise the same file again; the part urls come back from the server. */
-export interface ResumableUpload {
+interface ResumableUpload {
 	sessionId: string;
 	fileName: string;
 	size: number;
@@ -172,7 +172,7 @@ function writeRecords(store: ResumeStore | null, records: Record<string, Resumab
 }
 
 /** The remembered session for this very file, if it has not run out. */
-export function findResumable(
+function findResumable(
 	store: ResumeStore | null,
 	file: Pick<File, 'name' | 'size' | 'lastModified'>,
 	treeId: string,

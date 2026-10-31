@@ -305,16 +305,13 @@ function fileDto(
 /** Enough for every signature `sniffMediaType` reads, including a long HEIF brand list. */
 const SNIFF_BYTES = 512;
 
-async function readPrefix(stream: ReadableStream, limit: number): Promise<Uint8Array> {
+async function readPrefix(stream: ReadableStream<Uint8Array>, limit: number): Promise<Uint8Array> {
 	const reader = stream.getReader();
 	const out = new Uint8Array(limit);
 	let filled = 0;
 	while (filled < limit) {
-		const { done: isDone, value } = (await reader.read()) as {
-			done: boolean;
-			value?: Uint8Array;
-		};
-		if (isDone || !value) break;
+		const { done: isDone, value } = await reader.read();
+		if (isDone) break;
 		const take = Math.min(value.byteLength, limit - filled);
 		out.set(value.subarray(0, take), filled);
 		filled += take;
@@ -775,7 +772,10 @@ export class MediaService {
 		// keeps a multi-gigabyte object from being read to look at a header.
 		const head = await bucket.get(session.r2Key, { range: { offset: 0, length: SNIFF_BYTES } });
 		if (!head) throw new ValidationError('This upload was already used or has expired');
-		const header = await readPrefix(head.body, SNIFF_BYTES);
+		const header = await readPrefix(
+			head.body as unknown as ReadableStream<Uint8Array>,
+			SNIFF_BYTES
+		);
 		const { mimeType, extension } = validateMediaUpload('', header);
 
 		const mediaId = crypto.randomUUID();
