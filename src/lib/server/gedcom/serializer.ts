@@ -402,9 +402,17 @@ function individualEventLines(
 	if (ev.dateRaw) lines.push(`2 DATE ${singleLine(ev.dateRaw)}`, ...keptUnder(3, 3, ev.dateExtra));
 	lines.push(...placeLines(ev));
 	lines.push(...addressAndContactLines(ev));
-	if (ev.cause)
-		lines.push(`2 CAUS ${escapedSingleLine(ev.cause)}`, ...keptUnder(3, 3, ev.causeExtra));
-	if (ev.age) lines.push(`2 AGE ${escapedSingleLine(ev.age)}`, ...keptUnder(3, 3, ev.ageExtra));
+	// A payload-less AGE or CAUS can still carry a PHRASE, which is then all it says.
+	if (ev.cause || ev.causeExtra?.length)
+		lines.push(
+			ev.cause ? `2 CAUS ${escapedSingleLine(ev.cause)}` : '2 CAUS',
+			...keptUnder(3, 3, ev.causeExtra)
+		);
+	if (ev.age || ev.ageExtra?.length)
+		lines.push(
+			ev.age ? `2 AGE ${escapedSingleLine(ev.age)}` : '2 AGE',
+			...keptUnder(3, 3, ev.ageExtra)
+		);
 	// A tree that has not had its notes backfilled still holds a fact's note in `notes`; it stays
 	// written until the backfill moves it, so no export loses it. The legacy description stands in for
 	// a note only when the fact has none of its own. Both are text and may span lines.

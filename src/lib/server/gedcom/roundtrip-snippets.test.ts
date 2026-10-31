@@ -74,3 +74,20 @@ describe('an event payload', () => {
 		expect(text).toMatch(/1 BIRT Y\r\n/);
 	});
 });
+
+describe('an AGE with only a PHRASE', () => {
+	it('is kept', async () => {
+		const text = await expectClean(
+			file(
+				'0 @I1@ INDI',
+				'1 CHR',
+				'2 AGE',
+				'3 PHRASE Zero',
+				'1 BAPM',
+				'2 AGE < 3m',
+				'3 PHRASE Small'
+			)
+		);
+		expect(text).toMatch(/2 AGE\r\n3 PHRASE Zero/);
+	});
+});
