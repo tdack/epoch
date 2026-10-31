@@ -26,6 +26,7 @@ import type {
 } from '../db';
 import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/evidence';
 import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
+import { splitNameMarkers } from './name-value';
 import { HEADER_OWNER } from './parser';
 import type { ExportCitation, ExportNote, GedcomExportPayload } from './serializer';
 
@@ -313,7 +314,12 @@ export function exportPayloadFrom(
 					.map((n) =>
 						n.isPreferred ? { ...n, givenName: ind.givenName, surname: ind.surname } : n
 					)
-					.map((n) => ({
+					.map((n) => ({ n, kept: splitNameMarkers(n.gedcomExtra) }))
+					.map(({ n, kept }) => ({
+						rawValue: kept.rawValue,
+						canonValue: kept.canonValue,
+						isUntyped: kept.isUntyped,
+						isLineOnly: kept.isLineOnly,
 						type: n.type,
 						gedcomType: n.gedcomType,
 						givenName: n.givenName,
@@ -324,7 +330,7 @@ export function exportPayloadFrom(
 						surnamePrefix: n.surnamePrefix,
 						dateText: n.dateRaw,
 						unionXref: n.unionId ? (famXrefMap.get(n.unionId) ?? null) : null,
-						extra: n.gedcomExtra?.map(remap) ?? null,
+						extra: kept.extra.map(remap),
 						citations: citationsFor(CITATION_SUBJECT_KINDS.NAME, n.id),
 						notes: notesFor(NOTE_SUBJECT_KINDS.NAME, n.id)
 					})),

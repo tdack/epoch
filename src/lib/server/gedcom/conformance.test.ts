@@ -66,7 +66,7 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 	'maximal70.ged': {
 		reason:
 			'HUSB, WIFE and CHIL PHRASE dropped; a second SUBM is written from the setting; RESN CONFIDENTIAL, LOCKED split into two lines; ' +
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+			'an event payload Y becomes a NOTE Y',
 		task: '1A.1, 1A.3, 1A.5',
 		errors: ['cardinality-max INDI.RESN'],
 		diffs: [
@@ -93,7 +93,6 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed FAM.MARL',
 			'changed FAM.MARR',
 			'changed FAM.MARS',
-			'changed INDI.NAME',
 			'changed INDI.RESN',
 			'missing FAM.CHIL.PHRASE',
 			'missing FAM.HUSB.PHRASE',
@@ -102,39 +101,27 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 		]
 	},
 	'maximal70-lds.ged': {
-		reason:
-			'SLGS (LDS ordinances) dropped; ' +
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		reason: 'SLGS (LDS ordinances) dropped; ' + 'an event payload Y becomes a NOTE Y',
 		task: '1A.5',
-		diffs: [
-			'added FAM.MARR.NOTE',
-			'added INDI.NAME.TYPE',
-			'changed FAM.MARR',
-			'changed INDI.NAME',
-			'missing FAM.SLGS'
-		]
+		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR', 'missing FAM.SLGS']
 	},
 	'maximal70-memories1.ged': {
-		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		reason: 'an event payload Y becomes a NOTE Y',
 		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
+		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
 	},
 	'maximal70-memories2.ged': {
-		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		reason: 'an event payload Y becomes a NOTE Y',
 		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
+		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
 	},
 	'maximal70-tree1.ged': {
-		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		reason: 'an event payload Y becomes a NOTE Y',
 		task: '1A.5',
-		diffs: ['added FAM.MARR.NOTE', 'added INDI.NAME.TYPE', 'changed FAM.MARR', 'changed INDI.NAME']
+		diffs: ['added FAM.MARR.NOTE', 'changed FAM.MARR']
 	},
 	'maximal70-tree2.ged': {
-		reason:
-			'an event payload Y becomes a NOTE Y; a NAME with no TYPE gets TYPE AKA and a suffix moves inside the slashes',
+		reason: 'an event payload Y becomes a NOTE Y',
 		task: '1A.5',
 		diffs: [
 			'added FAM.ANUL.NOTE',
@@ -158,8 +145,7 @@ const KNOWN_GAPS: Record<string, KnownGap> = {
 			'changed FAM.MARC',
 			'changed FAM.MARL',
 			'changed FAM.MARR',
-			'changed FAM.MARS',
-			'changed INDI.NAME'
+			'changed FAM.MARS'
 		]
 	}
 };

@@ -22,6 +22,7 @@ import {
 	gedcomPreserved
 } from '../db/schema';
 import { dateColumnsFor } from '../domain/date-columns';
+import { nameMarkerLines } from '../gedcom/name-value';
 import type { ParsedGedcomData } from '../gedcom/parser';
 import { treeScopedId } from '../gedcom/import-preview';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
@@ -141,8 +142,10 @@ export async function importNeutralModel(
 						(f) => f.id === name.unionXref || f.aliases?.includes(name.unionXref!)
 					)
 				: undefined;
-			const extra =
-				!family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra;
+			const extra = [
+				...nameMarkerLines(name),
+				...(!family && name.changeNoteLine ? [name.changeNoteLine, ...name.extra] : name.extra)
+			];
 			const key = nameContentKey(name.type, {
 				givenName: name.givenName,
 				surname: name.surname,

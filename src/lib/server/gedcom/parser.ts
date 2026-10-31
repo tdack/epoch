@@ -11,6 +11,7 @@ import {
 	SEX_X_TAG
 } from './tags';
 import { fromGedcom7Date } from './date-dialect';
+import { canonicalNameValue } from './name-value';
 import { buildGedcomTree, collectLines, type GedcomNode } from './node';
 import { extractFactDetails, type FactDetails } from './fact-details';
 import { LINE_BREAK, logicalText, normalizedNodeText } from './evidence-lines';
@@ -83,6 +84,14 @@ interface ParsedName {
 	unionXref?: string;
 	/** That note's own line, kept so a family the file does not have leaves the note in place. */
 	changeNoteLine?: string;
+	/** The `NAME` payload as the file wrote it, when the parts do not rebuild it exactly (name-value.ts). */
+	rawValue?: string;
+	/** What the parts build on import; the raw payload is written back only while they still do. */
+	canonValue?: string;
+	/** The `NAME` had no `TYPE` and is not the first, so it reads as `aka` without ever saying so. */
+	isUntyped?: boolean;
+	/** The name was on the `NAME` line alone: no `GIVN`, `SURN`, `NPFX`, `NSFX` or `SPFX` beneath it. */
+	isLineOnly?: boolean;
 	/** Sub-structures with no column (NOTE, SOUR, FONE, ROMN, custom tags), verbatim, written back inside this NAME. */
 	extra: string[];
 	/** The `SOUR` citations under this `NAME`, in file order. */
@@ -442,6 +451,8 @@ function parseNameType(
 
 const MODELLED_NAME_TAGS = new Set(['TYPE', 'NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX']);
 
+const NAME_PART_TAGS: ReadonlySet<string> = new Set(['GIVN', 'SURN', 'NPFX', 'NSFX', 'SPFX']);
+
 /**
  * Read one `NAME` record. The line's value supplies what the sub-tags do not; the sub-tags win.
  * A suffix on the line is kept in the given name when there is no `NSFX`, as it always was. An
@@ -482,16 +493,23 @@ function parseNameNode(
 	const change = changeNode ? NAME_CHANGE_NOTE.exec(changeNode.value!.trim()) : null;
 	// Epoch's own name-change note (ADR-013) is never a user's note; any other note is.
 	const { notes, others } = splitNotes(node.children, isNotesModelled, (c) => c === changeNode);
-	return {
-		...(typeNode
-			? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value)
-			: { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
+	const parts = {
 		givenName: sub('GIVN') ?? givenName,
 		surname: surn ?? surname,
 		prefix,
 		suffix: sub('NSFX') ?? undefined,
+		surnamePrefix: spfx
+	};
+	const canonValue = canonicalNameValue(parts);
+	return {
+		...(typeNode
+			? parseNameType(typeNode.value, typeNode.children.find((c) => c.tag === 'PHRASE')?.value)
+			: { type: isPrimary ? NAME_TYPES.BIRTH : NAME_TYPES.AKA }),
+		...parts,
 		nickname: sub('NICK'),
-		surnamePrefix: spfx,
+		...(value && value !== canonValue ? { rawValue: value, canonValue } : {}),
+		...(!typeNode && !isPrimary ? { isUntyped: true } : {}),
+		...(!node.children.some((c) => NAME_PART_TAGS.has(c.tag)) ? { isLineOnly: true } : {}),
 		...(change?.[1] ? { dateText: change[1] } : {}),
 		...(change?.[2] ? { unionXref: change[2] } : {}),
 		...(changeNode ? { changeNoteLine: changeNode.rawLine } : {}),

@@ -19,8 +19,17 @@ afterAll(async () => {
 	await t.dispose();
 });
 
+// How the file spelled the NAME line is not the name (name-value.ts), so it is left out of the comparison.
 const namesOf = (ged: string) =>
-	Object.fromEntries(parseGedcom(ged).individuals.map((i) => [i.id, i.names]));
+	Object.fromEntries(
+		parseGedcom(ged).individuals.map((i) => [
+			i.id,
+			i.names?.map(
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				({ rawValue, canonValue, isUntyped, isLineOnly, ...name }) => name
+			)
+		])
+	);
 
 async function importAndExport(ged: string) {
 	const treeId = crypto.randomUUID();

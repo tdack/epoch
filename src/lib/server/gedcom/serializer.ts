@@ -1,5 +1,6 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 import { escapedSingleLine, fieldLines, keptLines, LINE_BREAK, singleLine } from './evidence-lines';
+import { canonicalNameValue } from './name-value';
 import { levelOfLine } from './node';
 import { ValidationError } from '../domain/errors';
 import {
@@ -32,6 +33,13 @@ interface ExportName {
 	/** The family the name came from, as its export XREF. */
 	unionXref?: string | null;
 	extra?: string[] | null;
+	/** The `NAME` payload as imported, written while the parts still build `canonValue` (name-value.ts). */
+	rawValue?: string;
+	canonValue?: string;
+	/** Imported with no `TYPE`: an `aka` that is not the first is then written without one. */
+	isUntyped?: boolean;
+	/** Imported with the name on the `NAME` line alone, so its parts are not written beneath it. */
+	isLineOnly?: boolean;
 	citations?: ExportCitation[];
 	notes?: ExportNote[];
 }
@@ -524,9 +532,8 @@ function nameLines(
 				: [];
 	const lines: string[] = [];
 	const line = (name: ExportName) => {
-		const given = [name.prefix, name.givenName].filter(Boolean).join(' ');
-		const surname = [name.surnamePrefix, name.surname].filter(Boolean).join(' ');
-		return `${given} /${surname}/${name.suffix ? ` ${name.suffix}` : ''}`.trim();
+		const canonical = canonicalNameValue(name);
+		return name.rawValue !== undefined && name.canonValue === canonical ? name.rawValue : canonical;
 	};
 	let isFirst = true;
 	for (const name of names) {
@@ -538,18 +545,24 @@ function nameLines(
 			);
 			continue;
 		}
-		lines.push(`1 NAME ${escapedSingleLine(line(name))}`);
-		if (!(isFirst && name.type === 'birth')) {
+		const value = line(name);
+		// A name the file gave on its line alone has no part sub-lines to put back, while its line is kept.
+		const isLineOnly = name.isLineOnly && value === name.rawValue;
+		lines.push(`1 NAME ${escapedSingleLine(value)}`);
+		const isDefaultType =
+			(isFirst && name.type === 'birth') || (!isFirst && name.isUntyped && name.type === 'aka');
+		if (!isDefaultType) {
 			const { token, phrase } = nameTypeTokens(name, format);
 			lines.push(`2 TYPE ${escapedSingleLine(token)}`);
 			if (phrase) lines.push(`3 PHRASE ${escapedSingleLine(phrase)}`);
 		}
-		if (name.prefix) lines.push(`2 NPFX ${escapedSingleLine(name.prefix)}`);
-		if (name.givenName) lines.push(`2 GIVN ${escapedSingleLine(name.givenName)}`);
+		if (name.prefix && !isLineOnly) lines.push(`2 NPFX ${escapedSingleLine(name.prefix)}`);
+		if (name.givenName && !isLineOnly) lines.push(`2 GIVN ${escapedSingleLine(name.givenName)}`);
 		if (name.nickname) lines.push(`2 NICK ${escapedSingleLine(name.nickname)}`);
-		if (name.surnamePrefix) lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
-		if (name.surname) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
-		if (name.suffix) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
+		if (name.surnamePrefix && !isLineOnly)
+			lines.push(`2 SPFX ${escapedSingleLine(name.surnamePrefix)}`);
+		if (name.surname && !isLineOnly) lines.push(`2 SURN ${escapedSingleLine(name.surname)}`);
+		if (name.suffix && !isLineOnly) lines.push(`2 NSFX ${escapedSingleLine(name.suffix)}`);
 		// A family made in Epoch has a bare id; unwrapped, the note's pointer could not be read back.
 		const note = nameChangeNote(name.dateText, name.unionXref ? asXref(name.unionXref) : null);
 		if (note) lines.push(`2 NOTE ${escapedSingleLine(note)}`);

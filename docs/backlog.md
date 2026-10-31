@@ -68,8 +68,9 @@ Last reviewed: 2026-10-26. The comparison with webtrees 2.2.6 is in
 - **`_MARNM` handling is unconfirmed against webtrees.** The reading rests on a recollection: level 1
   on the `INDI`, either `Given /Surname/` or a bare surname. A level-2 `_MARNM` under a `NAME` is
   kept as an extra line, not modelled. (ADR-013)
-- **A `NAME` line that disagrees with its `GIVN`/`SURN`, or carries a quoted nickname, comes back in
-  canonical form.** Known round-trip loss. (ADR-013)
+- **A `NAME` line that disagrees with its `GIVN`/`SURN` is written as the file gave it only until a
+  part is edited.** The original payload, and the absence of a `TYPE`, are kept as marker lines in
+  `gedcom_extra` (`gedcom/name-value.ts`); an edit to any part writes the canonical form. (ADR-013)
 - **`events.notes` is still read once on export.** Drop the column in a later contract migration.
   (ADR-029)
 - **A source or shared-note merge or delete is refused when what it moves besides citations and
