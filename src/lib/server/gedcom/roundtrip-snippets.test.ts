@@ -340,3 +340,66 @@ describe('fact structures', () => {
 		expect(text).toMatch(/2 STAT CHALLENGED\r\n3 PHRASE disputed/);
 	});
 });
+
+describe('partner roles in a family', () => {
+	const person = (n: number, sex: string) => [
+		`0 @I${n}@ INDI`,
+		`1 NAME P${n} /Ash/`,
+		`1 SEX ${sex}`,
+		'1 FAMS @F1@'
+	];
+	const roles = (text: string) =>
+		text
+			.split(/\r?\n/)
+			.filter((l) => /^1 (HUSB|WIFE) /.test(l))
+			.map((l) => l.slice(2));
+
+	it('keeps a family with only a WIFE as a WIFE', async () => {
+		const { exported, diffs } = await trip(file(...person(1, 'M'), '0 @F1@ FAM', '1 WIFE @I1@'));
+		expect(diffs).toEqual([]);
+		expect(roles(exported)).toEqual(['WIFE @I1@']);
+	});
+
+	it('keeps a family with only a HUSB as a HUSB', async () => {
+		const { exported, diffs } = await trip(file(...person(1, 'F'), '0 @F1@ FAM', '1 HUSB @I1@'));
+		expect(diffs).toEqual([]);
+		expect(roles(exported)).toEqual(['HUSB @I1@']);
+	});
+
+	it('keeps the order when the WIFE is listed before the HUSB', async () => {
+		const { exported, diffs, errors } = await trip(
+			file(...person(1, 'F'), ...person(2, 'M'), '0 @F1@ FAM', '1 WIFE @I1@', '1 HUSB @I2@')
+		);
+		expect(diffs).toEqual([]);
+		expect(errors).toEqual([]);
+		expect(roles(exported)).toEqual(['WIFE @I1@', 'HUSB @I2@']);
+	});
+
+	it('keeps two HUSBs', async () => {
+		const { exported, diffs } = await trip(
+			file(...person(1, 'M'), ...person(2, 'M'), '0 @F1@ FAM', '1 HUSB @I1@', '1 HUSB @I2@')
+		);
+		expect(diffs).toEqual([]);
+		expect(roles(exported)).toEqual(['HUSB @I1@', 'HUSB @I2@']);
+	});
+
+	it('keeps two WIFEs', async () => {
+		const { exported, diffs } = await trip(
+			file(...person(1, 'F'), ...person(2, 'F'), '0 @F1@ FAM', '1 WIFE @I1@', '1 WIFE @I2@')
+		);
+		expect(diffs).toEqual([]);
+		expect(roles(exported)).toEqual(['WIFE @I1@', 'WIFE @I2@']);
+	});
+
+	it('takes the role from SEX, then order, for a partnership with no stored role', async () => {
+		const { partnerRolesOf } = await import('./export-payload');
+		const sexes: Record<string, string | null> = { a: 'F', b: 'M', c: null, d: null };
+		const sexOf = (id: string) => sexes[id];
+		const row = (personId: string) => ({ personId, gedcomRole: null });
+		const rolesOf = (...ids: string[]) => partnerRolesOf(ids.map(row), sexOf).map((p) => p.role);
+		expect(rolesOf('a', 'b')).toEqual(['WIFE', 'HUSB']);
+		expect(rolesOf('c', 'd')).toEqual(['HUSB', 'WIFE']);
+		expect(rolesOf('c', 'b')).toEqual(['WIFE', 'HUSB']);
+		expect(rolesOf('c')).toEqual(['HUSB']);
+	});
+});

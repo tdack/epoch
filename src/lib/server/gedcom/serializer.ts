@@ -179,6 +179,8 @@ export interface GedcomExportPayload {
 		id: string;
 		husbandId: string | null;
 		wifeId: string | null;
+		/** The partners in the order and with the roles to write; absent means `husbandId` then `wifeId`. */
+		partners?: Array<{ personId: string; role: 'HUSB' | 'WIFE' }>;
 		children?: Array<{
 			childId: string;
 			pedigree: string | null;
@@ -761,6 +763,22 @@ function linkSubLines(
 	return out;
 }
 
+/** `HUSB`/`WIFE` lines in the order the partners are held, each with the lines the file kept under it. */
+function partnerLines(
+	fam: GedcomExportPayload['families'][number],
+	owned: readonly { lines: string[] }[] | undefined,
+	written: Set<object>
+): string[] {
+	const partners = fam.partners ?? [
+		...(fam.husbandId ? [{ personId: fam.husbandId, role: 'HUSB' as const }] : []),
+		...(fam.wifeId ? [{ personId: fam.wifeId, role: 'WIFE' as const }] : [])
+	];
+	return partners.flatMap(({ personId, role }) => [
+		`1 ${role} ${asXref(personId)}`,
+		...linkSubLines(role, personId, owned, written)
+	]);
+}
+
 function famcTarget(entry: { lines: string[] }): string {
 	return entry.lines[0].trim().split(/\s+/)[2];
 }
@@ -979,14 +997,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
 		const owned = preserved.get(xref);
-		if (fam.husbandId) {
-			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
-			lines.push(...linkSubLines('HUSB', fam.husbandId, owned, written));
-		}
-		if (fam.wifeId) {
-			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
-			lines.push(...linkSubLines('WIFE', fam.wifeId, owned, written));
-		}
+		lines.push(...partnerLines(fam, owned, written));
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);
@@ -1076,14 +1087,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 		const xref = asXref(fam.id);
 		lines.push(`0 ${xref} FAM`);
 		const owned = preserved.get(xref);
-		if (fam.husbandId) {
-			lines.push(`1 HUSB ${asXref(fam.husbandId)}`);
-			lines.push(...linkSubLines('HUSB', fam.husbandId, owned, written));
-		}
-		if (fam.wifeId) {
-			lines.push(`1 WIFE ${asXref(fam.wifeId)}`);
-			lines.push(...linkSubLines('WIFE', fam.wifeId, owned, written));
-		}
+		lines.push(...partnerLines(fam, owned, written));
 		if (fam.children) {
 			for (const child of fam.children) {
 				lines.push(`1 CHIL ${asXref(child.childId)}`);

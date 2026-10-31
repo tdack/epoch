@@ -156,7 +156,14 @@ function createUnion(
 	const ops: RowOp[] = [{ table: 'unions', id: union.id, before: null, after: union }];
 	personIds.forEach((personId, order) => {
 		const id = ctx.newId();
-		const partner: UnionPartnerRow = { id, unionId: union.id, personId, order, createdAt: ctx.now };
+		const partner: UnionPartnerRow = {
+			id,
+			unionId: union.id,
+			personId,
+			order,
+			gedcomRole: null,
+			createdAt: ctx.now
+		};
 		ops.push({ table: 'union_partners', id, before: null, after: partner });
 	});
 	return ops;
@@ -178,6 +185,7 @@ function addPartner(
 		unionId: union.id,
 		personId: command.personId,
 		order,
+		gedcomRole: null,
 		createdAt: ctx.now
 	};
 	return [

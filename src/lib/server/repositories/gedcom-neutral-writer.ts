@@ -233,7 +233,7 @@ export async function importNeutralModel(
 	const linkRows: Array<typeof parentChild.$inferInsert> = [];
 	for (const fam of parsed.families) {
 		const unionId = scoped(fam.id);
-		const participants = [fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
+		const participants = fam.partners.map((p) => p.personId);
 
 		unionRows.push({
 			id: unionId,
@@ -248,7 +248,8 @@ export async function importNeutralModel(
 				treeId,
 				unionId,
 				personId: scoped(personId),
-				order: index
+				order: index,
+				gedcomRole: fam.partners[index].role
 			})
 		);
 

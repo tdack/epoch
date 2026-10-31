@@ -119,8 +119,11 @@ interface ParsedIndividual {
 
 export interface ParsedFamily {
 	id: string; // e.g. @F1@ or F1
+	/** The first `HUSB` and the first `WIFE`; `partners` is the whole list. */
 	husbandId?: string;
 	wifeId?: string;
+	/** Every resolved `HUSB` and `WIFE`, in the order the file listed them, with the role it used. */
+	partners: { personId: string; role: 'HUSB' | 'WIFE' }[];
 	children: {
 		childId: string;
 		pedigree?: Pedigree;
@@ -798,6 +801,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const id = node.xref || crypto.randomUUID();
 			let husbandId: string | undefined;
 			let wifeId: string | undefined;
+			const partners: ParsedFamily['partners'] = [];
 			const children: ParsedFamily['children'] = [];
 			const aliases: string[] = [];
 			const events: ParsedEvent[] = [];
@@ -825,10 +829,13 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					// PHRASE or any other sub-line, is written back as it came.
 					preserved.push({ xref: id, lines: collectLines(child) });
 				} else if (child.tag === 'HUSB' && child.value) {
-					husbandId = child.value.trim();
+					// A same-sex family may carry two `HUSB`; the first stays the one `husbandId` names.
+					husbandId ??= child.value.trim();
+					partners.push({ personId: child.value.trim(), role: 'HUSB' });
 					keepLinkLines(child);
 				} else if (child.tag === 'WIFE' && child.value) {
-					wifeId = child.value.trim();
+					wifeId ??= child.value.trim();
+					partners.push({ personId: child.value.trim(), role: 'WIFE' });
 					keepLinkLines(child);
 				} else if (child.tag === 'CHIL' && child.value) {
 					keepLinkLines(child);
@@ -887,7 +894,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 
 			// A child is held by a link to a parent, so a family with no partner has nowhere to keep one.
 			// The CHIL lines stay as written rather than the children vanishing from the family.
-			if (!husbandId && !wifeId && children.length > 0) {
+			if (partners.length === 0 && children.length > 0) {
 				for (const child of children.splice(0)) {
 					const kept = linkLines.find((l) => l.key === `CHIL ${child.childId}`);
 					preserved.push({ xref: id, lines: kept?.lines ?? [`1 CHIL ${child.childId}`] });
@@ -900,6 +907,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				id,
 				husbandId,
 				wifeId,
+				partners,
 				children,
 				events,
 				citations,
@@ -956,7 +964,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 	// wrote it, under the person (ADR-009). Its extras, retained as it was read, are the same lines.
 	const holdsChildren = new Map(
 		families
-			.filter((f) => f.husbandId || f.wifeId)
+			.filter((f) => f.partners.length > 0)
 			.map((f) => [f.id, new Set(f.children.map((c) => c.childId))] as const)
 	);
 	for (const ind of individuals) {

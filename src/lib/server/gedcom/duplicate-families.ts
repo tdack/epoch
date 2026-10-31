@@ -22,8 +22,7 @@ import {
 	POSSIBLE_DUPLICATE_REASONS
 } from '../../shared/duplicate-families';
 
-const partnersOf = (fam: ParsedFamily) =>
-	[fam.husbandId, fam.wifeId].filter((id): id is string => Boolean(id));
+const partnersOf = (fam: ParsedFamily) => fam.partners.map((p) => p.personId);
 
 const factsOf = (events: ParsedEvent[]) => events.map((e) => factKey(mergeFactOf(e)));
 
@@ -280,6 +279,10 @@ export function foldIntoExistingAliases(
 			...existing,
 			husbandId: existing.husbandId ?? fam.husbandId,
 			wifeId: existing.wifeId ?? fam.wifeId,
+			partners: [
+				...existing.partners,
+				...fam.partners.filter((p) => !existing.partners.some((e) => e.personId === p.personId))
+			],
 			children: [...children.values()],
 			events: [...events.values()],
 			citations: mergeCitations(existing.citations, fam.citations),

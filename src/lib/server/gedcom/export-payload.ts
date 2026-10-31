@@ -66,6 +66,34 @@ function isRootRecord(entry: { lines: unknown }): boolean {
 	return (entry.lines as string[])[0]?.startsWith('0 ') ?? false;
 }
 
+/**
+ * The `HUSB`/`WIFE` role each partner is written with, in partner order.
+ *
+ * The role the file used (`gedcom_role`) wins. A partner without one (made in Epoch, or imported
+ * before the column) takes it from `SEX`, M as `HUSB` and F as `WIFE`; whoever is still undecided
+ * takes the role no one in the family holds, `HUSB` first. Export needs a tag and nothing more:
+ * nothing here says anything about gender or marriage beyond that.
+ */
+export function partnerRolesOf(
+	rows: ReadonlyArray<{ personId: string; gedcomRole: 'HUSB' | 'WIFE' | null }>,
+	sexOf: (personId: string) => string | null
+): Array<{ personId: string; role: 'HUSB' | 'WIFE' }> {
+	const roles = rows.map((r) => {
+		if (r.gedcomRole) return r.gedcomRole;
+		const sex = sexOf(r.personId);
+		return sex === 'M' ? 'HUSB' : sex === 'F' ? 'WIFE' : null;
+	});
+	const used = new Set(roles);
+	return rows.map((r, i) => {
+		let role = roles[i];
+		if (!role) {
+			role = !used.has('HUSB') ? 'HUSB' : !used.has('WIFE') ? 'WIFE' : 'HUSB';
+			used.add(role);
+		}
+		return { personId: r.personId, role };
+	});
+}
+
 export function exportPayloadFrom(
 	treeId: string,
 	rows: ExportRows
@@ -94,11 +122,14 @@ export function exportPayloadFrom(
 
 	// Group ordered partners by union.
 	const partnersByUnion = new Map<string, string[]>();
-	for (const p of treePartners) {
+	const partnerRowsByUnion = new Map<string, Array<typeof unionPartners.$inferSelect>>();
+	for (const p of [...treePartners].sort((a, b) => a.order - b.order)) {
 		const list = partnersByUnion.get(p.unionId) ?? [];
-		list[p.order] = p.personId;
+		list.push(p.personId);
 		partnersByUnion.set(p.unionId, list);
+		partnerRowsByUnion.set(p.unionId, [...(partnerRowsByUnion.get(p.unionId) ?? []), p]);
 	}
+	const sexOf = new Map(treeInds.map((i) => [i.id, i.sex] as const));
 
 	// Collapse per-parent assertions into family-wide children. A child is listed once per union.
 	// PEDI is per link to the family, so it is the first parent's type; a parent whose type differs
@@ -345,13 +376,16 @@ export function exportPayloadFrom(
 		}),
 		families: treeUnions.map((u) => {
 			const exportFamId = famXrefMap.get(u.id) || u.id;
-			const partners = partnersByUnion.get(u.id) ?? [];
-			const husbandId = partners[0] ?? null;
-			const wifeId = partners[1] ?? null;
+			// GEDCOM binary: at most two partners are written (ADR-003), a third has no line to go on.
+			const partners = partnerRolesOf(
+				(partnerRowsByUnion.get(u.id) ?? []).slice(0, 2),
+				(personId) => sexOf.get(personId) ?? null
+			).map((p) => ({ personId: indXrefMap.get(p.personId) || p.personId, role: p.role }));
 			return {
 				id: exportFamId,
-				husbandId: husbandId ? indXrefMap.get(husbandId) || husbandId : null,
-				wifeId: wifeId ? indXrefMap.get(wifeId) || wifeId : null,
+				husbandId: partners.find((p) => p.role === 'HUSB')?.personId ?? null,
+				wifeId: partners.find((p) => p.role === 'WIFE')?.personId ?? null,
+				partners,
 				children: (childrenByUnion.get(u.id) || []).map((c) => ({
 					childId: indXrefMap.get(c.childId) || c.childId,
 					pedigree: c.pedigree,

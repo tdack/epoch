@@ -212,6 +212,7 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 				unionId: u.id,
 				personId,
 				order,
+				gedcomRole: null,
 				createdAt: T0
 			})
 		);
