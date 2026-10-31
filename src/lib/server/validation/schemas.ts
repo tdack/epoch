@@ -930,3 +930,15 @@ export const subtreeUpdateSchema = z.object({
 export const subtreeReorderSchema = z.object({
 	order: z.array(z.object({ id: idSchema, version: versionSchema }))
 });
+
+/**
+ * Opens an upload session. The size caps per purpose are the service's call, since the quota
+ * check shares them; this only refuses what is not a size at all.
+ */
+export const uploadCreateSchema = z.object({
+	treeId: idSchema,
+	purpose: z.enum(['gedzip_import', 'media']),
+	fileName: z.string().min(1).max(255),
+	contentType: z.string().max(255),
+	totalBytes: z.number().int().positive().safe()
+});
