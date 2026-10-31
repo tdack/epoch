@@ -800,6 +800,13 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				}
 			}
 
+			// A child is held by a link to a parent, so a family with no partner has nowhere to keep one.
+			// The CHIL lines stay as written rather than the children vanishing from the family.
+			if (!husbandId && !wifeId && children.length > 0) {
+				for (const child of children.splice(0))
+					preserved.push({ xref: id, lines: [`1 CHIL ${child.childId}`] });
+			}
+
 			families.push({
 				id,
 				husbandId,

@@ -106,3 +106,15 @@ describe('a person link to a family that is not in the file', () => {
 		expect(kept).toContain('1 FAMC @VOID@\n2 PEDI ADOPTED');
 	});
 });
+
+describe('a family with no partner', () => {
+	it('keeps its children as CHIL lines, since a child is held by a link to a parent', async () => {
+		const { out, links } = await roundTrip(
+			file('0 @I1@ INDI\n1 NAME A /B/\n1 FAMC @F1@\n0 @F1@ FAM\n1 HUSB @VOID@\n1 CHIL @I1@\n')
+		);
+		expect(links).toHaveLength(0);
+		expect(out).toContain(
+			'1 CHIL @I1@'.replace('I1', out.match(/^0 (@[^@]+@) INDI/m)![1].slice(1, -1))
+		);
+	});
+});
