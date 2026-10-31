@@ -84,6 +84,34 @@ change that removed the placeholder id, run `npm run db:migrate:local` (and `npm
 The design of the setup tool, and the checks that still need a real account
 (`./setup spike`), are listed in [backlog.md](./backlog.md#setup-tool-npm-run-setup).
 
+## Storage cleanup
+
+Three things leave the media bucket on their own. Setup writes all three lifecycle rules by
+read-merge-write, so rules an owner added in the dashboard survive; a rule it finds that would
+delete live `media/` objects makes setup stop.
+
+- **`exports/`** (ADR-040): objects expire after one day. A download past that answers `410`, and the
+  rule removes the object.
+- **`staging/`** (ADR-040): objects expire after seven days. This also covers `staging/uploads/`,
+  whose completed uploads are consumed by an import or a media file; the rule is the backstop.
+- **`staging/uploads/`** (ADR-074): incomplete multipart uploads are aborted after one day, which
+  is the session lifetime. R2 otherwise keeps their parts for seven days.
+
+The abort rule is set by setup. To add it by hand, for a bucket that was not set up with this tool:
+
+```sh
+npx wrangler r2 bucket lifecycle add <bucket> epoch-upload-abort staging/uploads/ --abort-multipart-days 1
+```
+
+Run `npx wrangler r2 bucket lifecycle add --help` first if the command has changed. Setup replaces a
+rule with the same id and prefix, so the two do not conflict.
+
+A scheduled Worker handler runs hourly (`triggers.crons` in `wrangler.jsonc`, at minute 17). It
+closes upload sessions that were opened and never completed, and aborts their R2 uploads. It handles
+at most 100 sessions per run, so a backlog clears over several hours. The handler lives in
+`workers/entry.ts` and calls `UploadService.sweepExpired`. The lifecycle rule above is only the
+backstop for parts the handler could not abort.
+
 ## Identity and sign-in
 
 Epoch uses **one** Cloudflare Access application, covering only `<host>/login`. Every other path is
