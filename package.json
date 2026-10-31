@@ -22,6 +22,7 @@
 		"db:backfill:media-sizes": "node scripts/backfill-media-sizes.mjs",
 		"seed": "node scripts/seed.mjs",
 		"gedcom:spec": "node scripts/gedcom-spec/generate.mjs",
+		"gedcom:conformance": "node scripts/fetch-gedcom-conformance.mjs",
 		"brand:render": "node scripts/render-brand-assets.mjs",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p tools/setup",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
