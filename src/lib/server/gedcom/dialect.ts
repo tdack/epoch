@@ -104,6 +104,67 @@ function mediaTypeOfPath(path: string | undefined): string {
 	return MEDIA_TYPES[extension] ?? UNKNOWN_MEDIA_TYPE;
 }
 
+// --- FILE paths (ADR-082) ----------------------------------------------------------------------
+
+/** Characters a URI reference may hold as they are; `%` is checked apart, since it needs two hex digits. */
+const URI_SAFE = "A-Za-z0-9\\-._~!$&'()*+,;=:@/?#\\[\\]";
+const NOT_URI_SAFE = new RegExp(`%(?![0-9A-Fa-f]{2})|[^${URI_SAFE}%]`, 'gu');
+/** A scheme of two letters or more, so `C:\` is a drive and `file:` is a URI. */
+const URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]+:/;
+const WINDOWS_DRIVE = /^[A-Za-z]:(?:[\\/]|$)/;
+
+/**
+ * What a `FILE` payload is, told from its text alone. A `uri` (`file:`, `https:`) means one thing
+ * in both dialects. A `relative` reference is already a valid URI reference. A `path` is 5.5.1's
+ * free text (a drive letter, a backslash, a space), which 7.0 does not allow.
+ */
+function fileReferenceKind(path: string): 'uri' | 'relative' | 'path' {
+	if (URI_SCHEME.test(path)) return 'uri';
+	if (WINDOWS_DRIVE.test(path) || path.includes('\\')) return 'path';
+	return new RegExp(NOT_URI_SAFE.source, 'u').test(path) ? 'path' : 'relative';
+}
+
+function percentEncodeUnsafe(text: string): string {
+	return text.replace(NOT_URI_SAFE, (char) => {
+		try {
+			return encodeURIComponent(char);
+		} catch {
+			return char;
+		}
+	});
+}
+
+/**
+ * A `FILE` as 7.0 writes it. A 5.5.1 path becomes a URI reference: `\` becomes `/`, a drive becomes
+ * a `file:///C:/…` URI, and anything a URI cannot hold is percent-encoded. The stored text is never
+ * changed, so a 5.5.1 export of the same file comes back exactly as it was.
+ */
+function fileTextFor7(path: string): string {
+	if (fileReferenceKind(path) !== 'path') return path;
+	let text: string;
+	if (WINDOWS_DRIVE.test(path)) text = `file:///${path.replace(/\\/g, '/')}`;
+	else if (path.startsWith('\\\\')) text = `file://${path.slice(2).replace(/\\/g, '/')}`;
+	else text = path.replace(/\\/g, '/');
+	return percentEncodeUnsafe(text);
+}
+
+/** A `FILE` as 5.5.1 writes it: a relative reference is percent-decoded, because 5.5.1 means a plain path. */
+function fileTextFor551(path: string): string {
+	if (fileReferenceKind(path) !== 'relative') return path;
+	return path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+		try {
+			return decodeURIComponent(run);
+		} catch {
+			return run;
+		}
+	});
+}
+
+/** The format word 5.5.1 uses for a media type, from the same table the other direction reads. */
+function formatWordOfMediaType(mediaType: string): string {
+	return Object.entries(MEDIA_TYPES).find(([, type]) => type === mediaType)?.[0] ?? mediaType;
+}
+
 /**
  * One kept 5.5.1 structure in its 7.0 form, by its parent's tag: a file's `FORM` as a media type and
  * its `TYPE` as `MEDI` (an unknown kind as `OTHER`), and an enumeration in capitals. What needs the
@@ -111,6 +172,9 @@ function mediaTypeOfPath(path: string | undefined): string {
  */
 function restructure7(line: Line, parentTag: string | undefined): Line[] {
 	const { tag, payload } = line;
+	if (tag === 'FILE' && parentTag === 'OBJE' && payload) {
+		return [{ ...line, payload: fileTextFor7(payload) }];
+	}
 	if (tag === 'FORM' && parentTag === 'FILE' && payload && !payload.includes('/')) {
 		return [{ ...line, payload: MEDIA_TYPES[payload.trim().toLowerCase()] ?? payload }];
 	}
@@ -538,6 +602,10 @@ function rewriteNodes551(nodes: readonly Node[], parentTag: string | undefined):
 			}
 		} else if (isVariationParent(parentTag) && (line.tag === '_FONE' || line.tag === '_ROMN')) {
 			line = { ...line, tag: line.tag.slice(1) };
+		} else if (line.tag === 'FILE' && parentTag === 'OBJE' && line.payload) {
+			line = { ...line, payload: fileTextFor551(line.payload) };
+		} else if (line.tag === 'FORM' && parentTag === 'FILE' && line.payload?.includes('/')) {
+			line = { ...line, payload: formatWordOfMediaType(line.payload) };
 		}
 		return { line, children: rewriteNodes551(children, line.tag) };
 	});

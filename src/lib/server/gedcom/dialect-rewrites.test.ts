@@ -352,3 +352,37 @@ describe('FONE and ROMN', () => {
 		}
 	});
 });
+
+describe('FILE paths of a media record', () => {
+	const file = (path: string) => ['0 @M1@ OBJE', `1 FILE ${path}`, '2 FORM image/jpeg'];
+	const filePayload = (lines: string[]) => lines[1].slice('1 FILE '.length);
+
+	it.each([
+		['C:\\Photos\\a b.jpg', 'file:///C:/Photos/a%20b.jpg'],
+		['c:/Photos/a.jpg', 'file:///c:/Photos/a.jpg'],
+		['\\\\server\\share\\a.jpg', 'file://server/share/a.jpg'],
+		['photos\\2020\\a.jpg', 'photos/2020/a.jpg'],
+		['a b.jpg', 'a%20b.jpg'],
+		['100%.jpg', '100%25.jpg'],
+		['Brontë.jpg', 'Bront%C3%AB.jpg']
+	])('writes the 5.5.1 path %s as the reference %s in 7.0', (path, written) => {
+		expect(filePayload(toGedcom7Lines(file(path)))).toBe(written);
+	});
+
+	it.each([
+		'media/a%20b.jpg',
+		'file:///C:/a.jpg',
+		'https://x.org/Brontë.jpg?s=1#f',
+		'https%3a//not.a.url/x'
+	])('leaves %s alone in 7.0', (path) => {
+		expect(filePayload(toGedcom7Lines(file(path)))).toBe(path);
+	});
+
+	it('percent-decodes only a relative reference for 5.5.1', () => {
+		expect(filePayload(toGedcom551Lines(file('media/Bront%C3%AB%20x.jpg')))).toBe(
+			'media/Brontë x.jpg'
+		);
+		for (const path of ['file:///C:/a%20b.jpg', 'C:\\a%20b.jpg', 'https://x.org/a%20b.jpg'])
+			expect(filePayload(toGedcom551Lines(file(path)))).toBe(path);
+	});
+});
