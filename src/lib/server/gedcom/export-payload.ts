@@ -333,6 +333,8 @@ export function exportPayloadFrom(
 		individuals: treeInds.map((ind) => {
 			const exportId = indXrefMap.get(ind.id) || ind.id;
 			return {
+				changedAt: ind.updatedAt,
+				createdAt: ind.createdAt,
 				id: exportId,
 				givenName: ind.givenName,
 				surname: ind.surname,
@@ -382,6 +384,8 @@ export function exportPayloadFrom(
 				(personId) => sexOf.get(personId) ?? null
 			).map((p) => ({ personId: indXrefMap.get(p.personId) || p.personId, role: p.role }));
 			return {
+				changedAt: u.updatedAt,
+				createdAt: u.createdAt,
 				id: exportFamId,
 				husbandId: partners.find((p) => p.role === 'HUSB')?.personId ?? null,
 				wifeId: partners.find((p) => p.role === 'WIFE')?.personId ?? null,
@@ -401,6 +405,8 @@ export function exportPayloadFrom(
 		}),
 		sources: rows.sources.map((s) => ({
 			xref: sourceXrefs.get(s.id)!,
+			changedAt: s.updatedAt,
+			createdAt: s.createdAt,
 			title: s.title,
 			author: s.author,
 			publication: s.publication,
@@ -419,6 +425,8 @@ export function exportPayloadFrom(
 		})),
 		repositories: rows.repositories.map((r) => ({
 			xref: repositoryXrefs.get(r.id)!,
+			changedAt: r.updatedAt,
+			createdAt: r.createdAt,
 			name: r.name,
 			address: r.address,
 			layout: r.gedcomLayout,
@@ -427,6 +435,8 @@ export function exportPayloadFrom(
 		})),
 		notes: rows.notes.map((n) => ({
 			xref: noteXrefs.get(n.id)!,
+			changedAt: n.updatedAt,
+			createdAt: n.createdAt,
 			tag: n.gedcomTag ?? ('SNOTE' as const),
 			text: n.text,
 			mime: n.mime,

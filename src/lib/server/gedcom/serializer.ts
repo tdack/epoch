@@ -59,8 +59,18 @@ export interface ExportNote {
 	extra?: string[] | null;
 }
 
+/**
+ * When Epoch's own row was last changed and first made. Written as `CHAN` and (7.0 only) `CREA`,
+ * and they take the place of any `CHAN`/`CREA` the file brought, which would only say when someone
+ * else's copy was edited.
+ */
+interface RecordStamps {
+	changedAt?: Date | null;
+	createdAt?: Date | null;
+}
+
 /** A shared note record as written. */
-interface ExportSharedNote {
+interface ExportSharedNote extends RecordStamps {
 	xref: string;
 	/** The root tag a 7.0 file writes the record with; 5.5.1 always writes `NOTE`. */
 	tag: 'NOTE' | 'SNOTE';
@@ -86,7 +96,7 @@ export interface ExportCitation {
 }
 
 /** A source record as written. */
-interface ExportSource {
+interface ExportSource extends RecordStamps {
 	xref: string;
 	title?: string | null;
 	author?: string | null;
@@ -105,7 +115,7 @@ interface ExportSource {
 }
 
 /** A repository record as written. */
-interface ExportRepository {
+interface ExportRepository extends RecordStamps {
 	xref: string;
 	name?: string | null;
 	address?: string | null;
@@ -174,8 +184,12 @@ export interface GedcomExportPayload {
 		notes?: ExportNote[];
 		famc?: string[];
 		fams?: string[];
+		changedAt?: Date | null;
+		createdAt?: Date | null;
 	}>;
 	families: Array<{
+		changedAt?: Date | null;
+		createdAt?: Date | null;
 		id: string;
 		husbandId: string | null;
 		wifeId: string | null;
@@ -524,7 +538,8 @@ function sharedNoteLines(note: ExportSharedNote, format: GedcomFormat): string[]
 		...body.slice(1),
 		...(note.mime ? [`1 MIME ${escapedSingleLine(note.mime)}`] : []),
 		...(note.language ? [`1 LANG ${escapedSingleLine(note.language)}`] : []),
-		...keptLines(1, foldLines(note.extra))
+		...keptLines(1, foldLines(withoutSupersededStamps(note.extra, note, format))),
+		...stampLines(note, format)
 	];
 }
 
@@ -572,8 +587,9 @@ function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[]
 		if (link.callNumber) lines.push(`2 CALN ${escapedSingleLine(link.callNumber)}`);
 		lines.push(...foldLines(link.extra));
 	}
-	lines.push(...foldLines(source.extra));
+	lines.push(...foldLines(withoutSupersededStamps(source.extra, source, format)));
 	lines.push(...noteLines(1, source.notes, format));
+	lines.push(...stampLines(source, format));
 	return lines;
 }
 
@@ -582,8 +598,9 @@ function repositoryRecordLines(repository: ExportRepository, format: GedcomForma
 		`0 ${singleLine(repository.xref)} REPO`,
 		...fieldLines(1, 'NAME', repository.name, repository.layout?.NAME),
 		...fieldLines(1, 'ADDR', repository.address, repository.layout?.ADDR),
-		...foldLines(repository.extra),
-		...noteLines(1, repository.notes, format)
+		...foldLines(withoutSupersededStamps(repository.extra, repository, format)),
+		...noteLines(1, repository.notes, format),
+		...stampLines(repository, format)
 	];
 }
 
@@ -791,6 +808,47 @@ function aliasLines(aliases: string[] | undefined): string[] {
 	]);
 }
 
+/**
+ * `CHAN` (and, in 7.0, `CREA`) from Epoch's own timestamps, in UTC. 7.0 marks the time as UTC with
+ * `Z`; 5.5.1 has no `CREA` and no such mark.
+ */
+function stampLines(stamps: RecordStamps, format: GedcomFormat): string[] {
+	const lines: string[] = [];
+	const block = (tag: 'CHAN' | 'CREA', at: Date) => {
+		const [date, time] = headerDateLines(at, format);
+		lines.push(`1 ${tag}`, `2 ${date.slice(2)}`, `3 ${time.slice(2)}`);
+	};
+	if (stamps.changedAt) block('CHAN', stamps.changedAt);
+	if (stamps.createdAt && format === 'gedcom7') block('CREA', stamps.createdAt);
+	return lines;
+}
+
+/**
+ * The retained lines without the `CHAN`/`CREA` blocks Epoch's own timestamps supersede. An imported
+ * stamp must never overwrite Epoch's: it says when another program last saw the record, and Epoch's
+ * export must say when Epoch did. Where the row has no timestamp (rows from before the column) the
+ * imported block is the only date there is, so it stays as a retained line.
+ */
+function withoutSupersededStamps(
+	lines: readonly string[] | null | undefined,
+	stamps: RecordStamps,
+	format: GedcomFormat
+): string[] {
+	const drop = new Set<string>();
+	if (stamps.changedAt) drop.add('CHAN');
+	// 5.5.1 has no `CREA`, so a retained one would be an invalid line there whether or not Epoch has a date.
+	if (stamps.createdAt || format === 'gedcom551') drop.add('CREA');
+	if (drop.size === 0) return [...(lines ?? [])];
+	const out: string[] = [];
+	let isSkipping = false;
+	for (const line of lines ?? []) {
+		const level = levelOfLine(line);
+		if (level !== null && level <= 1) isSkipping = level === 1 && drop.has(line.split(/\s/)[1]);
+		if (!isSkipping) out.push(line);
+	}
+	return out;
+}
+
 type PreservedByOwner = Map<string | null, NonNullable<GedcomExportPayload['preserved']>>;
 
 /** Grouped once per export: scanning the whole list per record is quadratic on a large import. */
@@ -821,12 +879,17 @@ function appendPreserved(
 	preserved: PreservedByOwner,
 	ownerXref: string | null,
 	written: ReadonlySet<object>,
-	skipped: ReadonlySet<object> = new Set()
+	skipped: ReadonlySet<object> = new Set(),
+	own?: { stamps: RecordStamps; format: GedcomFormat }
 ): void {
 	for (const entry of preserved.get(ownerXref) ?? []) {
 		if (skipped.has(entry)) continue;
 		if (!(ownerXref !== null && isLinkExtra(entry) && written.has(entry))) {
-			lines.push(...foldLines(entry.lines));
+			lines.push(
+				...foldLines(
+					own ? withoutSupersededStamps(entry.lines, own.stamps, own.format) : entry.lines
+				)
+			);
 		}
 	}
 }
@@ -988,8 +1051,12 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref, written, resn.merged);
+		appendPreserved(lines, preserved, xref, written, resn.merged, {
+			stamps: ind,
+			format: 'gedcom551'
+		});
 		lines.push(...noteLines(1, ind.notes, 'gedcom551'));
+		lines.push(...stampLines(ind, 'gedcom551'));
 	}
 
 	// Families
@@ -1009,8 +1076,12 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
-		appendPreserved(lines, preserved, xref, written);
+		appendPreserved(lines, preserved, xref, written, undefined, {
+			stamps: fam,
+			format: 'gedcom551'
+		});
 		lines.push(...noteLines(1, fam.notes, 'gedcom551'));
+		lines.push(...stampLines(fam, 'gedcom551'));
 	}
 
 	appendPreserved(lines, preserved, null, written);
@@ -1078,8 +1149,12 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 				lines.push(`1 FAMS ${asXref(f)}`);
 			}
 		}
-		appendPreserved(lines, preserved, xref, written, resn.merged);
+		appendPreserved(lines, preserved, xref, written, resn.merged, {
+			stamps: ind,
+			format: 'gedcom7'
+		});
 		lines.push(...noteLines(1, ind.notes, 'gedcom7'));
+		lines.push(...stampLines(ind, 'gedcom7'));
 	}
 
 	// Families
@@ -1099,8 +1174,9 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
-		appendPreserved(lines, preserved, xref, written);
+		appendPreserved(lines, preserved, xref, written, undefined, { stamps: fam, format: 'gedcom7' });
 		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
+		lines.push(...stampLines(fam, 'gedcom7'));
 	}
 
 	appendPreserved(lines, preserved, null, written);

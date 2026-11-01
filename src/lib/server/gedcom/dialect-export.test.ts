@@ -5,7 +5,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
-import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
 import EVIDENCE from './fixtures/evidence.ged?raw';
 import NOTES7 from './fixtures/notes7.ged?raw';
 import SOURCES7 from './fixtures/sources7.ged?raw';
@@ -56,9 +56,10 @@ describe.each([
 			text
 				.slice(text.indexOf('\r\n0 @'))
 				.replace(/@[0-9a-f-]{36}@/g, '@U@')
-				.split('\r\n')
-				.sort();
-		expect(body(twice)).toEqual(body(once));
+				.split('\r\n');
+		// Epoch's own CHAN/CREA differ between the two exports, and a made record gains one.
+		const sorted = (text: string) => withoutStamps(body(text)).sort();
+		expect(sorted(twice)).toEqual(sorted(once));
 	});
 });
 

@@ -5,7 +5,7 @@
  *
  * Normalised away: xref text (records are matched structurally and pointers compared through the
  * match), line terminators, a leading BOM, `CONT`/`CONC` versus one line, the `@@` escape, the
- * order of substructures (except the same-tag runs in `ORDERED_TAGS`), `CHAN`, a `NAME`'s
+ * order of substructures (except the same-tag runs in `ORDERED_TAGS`), `CHAN` and `CREA`, a `NAME`'s
  * `GIVN`/`SURN` that only restate its payload, and every `HEAD` line other than `GEDC`, `SCHMA`
  * and `LANG`. A `SUBM` record that only the export has is ignored, because Epoch writes one from
  * the tree's settings.
@@ -87,7 +87,7 @@ function canonical(node: GedcomNode, isHead = false): CNode {
 	const pointerMatch = node.value !== undefined ? POINTER.exec(node.value) : null;
 	const restated = node.tag === 'NAME' ? restatedNameParts(foldText(node)) : null;
 	const children = node.children
-		.filter((c) => c.tag !== 'CONT' && c.tag !== 'CONC' && c.tag !== 'CHAN')
+		.filter((c) => c.tag !== 'CONT' && c.tag !== 'CONC' && c.tag !== 'CHAN' && c.tag !== 'CREA')
 		.filter((c) => !isHead || KEPT_HEAD_TAGS.has(c.tag))
 		.filter((c) => !restated || restated.get(c.tag) !== foldText(c).trim())
 		.map((c) => canonical(c));

@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import FIXTURE from './fixtures/evidence.ged?raw';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
-import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
+import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -22,7 +22,7 @@ afterAll(async () => {
 const lines = (text: string) => text.replace(/\r\n/g, '\n').split('\n').filter(Boolean);
 /** The header describes the file Epoch writes, not the tree, so it is Epoch's own. */
 const withoutHeader = (all: string[]) =>
-	all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 ')));
+	withoutStamps(all.slice(all.findIndex((line, i) => i > 0 && line.startsWith('0 '))));
 const exportOf = async (treeId: string, format: '551' | '7' = '551') => {
 	const data = await getTreeExportData(t.d1, treeId);
 	return lines(format === '551' ? buildGedcom551String(data) : buildGedcom7String(data));

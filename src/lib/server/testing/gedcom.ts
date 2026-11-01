@@ -79,3 +79,18 @@ export function importGedcomAsRetainedFactDetails(
 		isExistingTree: false
 	});
 }
+
+/**
+ * Lines with the `CHAN` and `CREA` blocks removed. Epoch writes them from its own row timestamps, so
+ * two exports made at different moments differ only there.
+ */
+export function withoutStamps(lines: string[]): string[] {
+	const out: string[] = [];
+	let isSkipping = false;
+	for (const line of lines) {
+		const m = /^(\d+) (\S+)/.exec(line);
+		if (m && Number(m[1]) <= 1) isSkipping = m[1] === '1' && (m[2] === 'CHAN' || m[2] === 'CREA');
+		if (!isSkipping) out.push(line);
+	}
+	return out;
+}
