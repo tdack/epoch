@@ -112,7 +112,9 @@ export function partnerRolesOf(
 
 export function exportPayloadFrom(
 	treeId: string,
-	rows: ExportRows
+	rows: ExportRows,
+	/** File id to the `FILE` text of its archive entry; a file not in it keeps its stored text. */
+	archiveFileTexts?: ReadonlyMap<string, string>
 ): GedcomExportPayload & { treeName: string } {
 	const tree = rows.tree;
 	const treeInds = rows.individuals;
@@ -384,7 +386,7 @@ export function exportPayloadFrom(
 		createdAt: o.createdAt,
 		privacy: o.privacy,
 		files: (filesOfObject.get(o.id) ?? []).map((file) => ({
-			path: exportedFileText(file),
+			path: archiveFileTexts?.get(file.id) ?? exportedFileText(file),
 			mimeType: file.mimeType,
 			medium: file.medium,
 			title: file.title,
