@@ -360,7 +360,16 @@ describe('TreeShell with an uploaded .gdz', () => {
 		importStatus.mockImplementation(async () =>
 			++done < 120
 				? { status: 'running', progress: { done, total: 120 } }
-				: { status: 'complete', result: { individualsCount: 1, media: MEDIA } }
+				: {
+						status: 'complete',
+						result: {
+							individualsCount: 1,
+							familiesCount: 0,
+							eventsCount: 0,
+							mergedFamiliesCount: 0,
+							media: MEDIA
+						}
+					}
 		);
 
 		const running = shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
