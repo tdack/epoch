@@ -27,11 +27,11 @@ const UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  * splitting would let a crafted tree id or client id containing a separator forge another id.
  */
 const INSTANCE_ID_PATTERN = new RegExp(
-	`^export_(${UUID_PATTERN})_(g551|g7|g7z)_(${UUID_PATTERN})$`
+	`^export_(${UUID_PATTERN})_(g551|g7|g7z|g7m)_(${UUID_PATTERN})$`
 );
 
 /** The short token that carries the format and the packaging inside an instance id. */
-export type ExportFormatToken = 'g551' | 'g7' | 'g7z';
+export type ExportFormatToken = 'g551' | 'g7' | 'g7z' | 'g7m';
 
 /** What a parsed instance id tells the caller: enough to authorise, and to name the object key. */
 export interface ParsedExportInstance {
@@ -39,10 +39,22 @@ export interface ParsedExportInstance {
 	token: ExportFormatToken;
 	format: GedcomFormat;
 	shouldCompress: boolean;
+	/** A `.gdz` that carries the tree's media, written as segments (ADR-074 Phase 3). */
+	shouldIncludeMedia: boolean;
 	clientUuid: string;
 }
 
-function tokenFor(format: GedcomFormat, shouldCompress: boolean): ExportFormatToken {
+function tokenFor(
+	format: GedcomFormat,
+	shouldCompress: boolean,
+	shouldIncludeMedia: boolean
+): ExportFormatToken {
+	if (shouldIncludeMedia) {
+		if (format !== 'gedcom7' || !shouldCompress) {
+			throw new ValidationError('Media can only be included in a GEDCOM 7.0 .gdz archive');
+		}
+		return 'g7m';
+	}
 	if (format === 'gedcom551') {
 		// GEDZip is defined for 7.0 alone; a `.gdz` cannot hold a 5.5.1 file.
 		if (shouldCompress) throw new ValidationError('A .gdz archive can only hold a GEDCOM 7.0 file');
@@ -51,9 +63,18 @@ function tokenFor(format: GedcomFormat, shouldCompress: boolean): ExportFormatTo
 	return shouldCompress ? 'g7z' : 'g7';
 }
 
-function formatFor(token: ExportFormatToken): { format: GedcomFormat; shouldCompress: boolean } {
-	if (token === 'g551') return { format: 'gedcom551', shouldCompress: false };
-	return { format: 'gedcom7', shouldCompress: token === 'g7z' };
+function formatFor(token: ExportFormatToken): {
+	format: GedcomFormat;
+	shouldCompress: boolean;
+	shouldIncludeMedia: boolean;
+} {
+	if (token === 'g551')
+		return { format: 'gedcom551', shouldCompress: false, shouldIncludeMedia: false };
+	return {
+		format: 'gedcom7',
+		shouldCompress: token === 'g7z' || token === 'g7m',
+		shouldIncludeMedia: token === 'g7m'
+	};
 }
 
 /**
@@ -65,6 +86,7 @@ function formatFor(token: ExportFormatToken): { format: GedcomFormat; shouldComp
  * @param format - The GEDCOM dialect.
  * @param shouldCompress - Package as GEDZip; only meaningful for 7.0.
  * @param clientUuid - A per-attempt id from the client, so a retry can be told apart from a new click.
+ * @param shouldIncludeMedia - A `.gdz` with the tree's files in it; needs 7.0 and `shouldCompress`.
  * @returns `export_<treeId>_<token>_<clientUuid>`.
  * @throws ValidationError - If `shouldCompress` is asked for a 5.5.1 file, or either id is not a
  *   UUID, or the result would be too long to be an instance id. The message is fixed and never
@@ -74,9 +96,10 @@ export function buildExportInstanceId(
 	treeId: string,
 	format: GedcomFormat,
 	shouldCompress: boolean,
-	clientUuid: string
+	clientUuid: string,
+	shouldIncludeMedia = false
 ): string {
-	const id = `export_${treeId}_${tokenFor(format, shouldCompress)}_${clientUuid}`;
+	const id = `export_${treeId}_${tokenFor(format, shouldCompress, shouldIncludeMedia)}_${clientUuid}`;
 	if (id.length > MAX_INSTANCE_ID_LENGTH || parseExportInstanceId(id) === null) {
 		throw new ValidationError('Refusing to build an export instance id from unsafe input');
 	}
@@ -106,8 +129,29 @@ export function exportObjectKey(
 	token: ExportFormatToken,
 	clientUuid: string
 ): string {
-	const extension = token === 'g7z' ? 'gdz' : 'ged';
+	// A segmented export has no single file: this key is its manifest, written last, so its presence
+	// means every segment is already in place.
+	const extension = token === 'g7z' ? 'gdz' : token === 'g7m' ? 'json' : 'ged';
 	return `${EXPORT_LIFECYCLE_PREFIX}${treeId}-${token}-${clientUuid}.${extension}`;
+}
+
+/**
+ * The prefix every object of one segmented export shares: its manifest, segments, segment records
+ * and file plan. Ends in `.` after a fixed-length uuid, so no other export's key can start with it,
+ * and deleting by it removes the whole export, orphaned or expired.
+ */
+export function exportPartsPrefix(treeId: string, clientUuid: string): string {
+	return `${EXPORT_LIFECYCLE_PREFIX}${treeId}-g7m-${clientUuid}.`;
+}
+
+/** Segment `n` of a segmented export, and beside it (`.json`) the zip entry records it wrote. */
+export function exportSegmentKey(treeId: string, clientUuid: string, n: number): string {
+	return `${exportPartsPrefix(treeId, clientUuid)}part-${n}`;
+}
+
+/** The list of files a segmented export will copy, decided once by its dataset step. */
+export function exportPlanKey(treeId: string, clientUuid: string): string {
+	return `${exportPartsPrefix(treeId, clientUuid)}plan.json`;
 }
 
 /**

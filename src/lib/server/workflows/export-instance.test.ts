@@ -27,8 +27,33 @@ describe('buildExportInstanceId', () => {
 			token: 'g551',
 			format: 'gedcom551',
 			shouldCompress: false,
+			shouldIncludeMedia: false,
 			clientUuid: CLIENT
 		});
+	});
+
+	it('carries a gdz-with-media token, and refuses it for anything but a 7.0 gdz', () => {
+		const id = buildExportInstanceId(TREE, 'gedcom7', true, CLIENT, true);
+		expect(id).toBe(`export_${TREE}_g7m_${CLIENT}`);
+		expect(parseExportInstanceId(id)).toMatchObject({
+			token: 'g7m',
+			format: 'gedcom7',
+			shouldCompress: true,
+			shouldIncludeMedia: true
+		});
+		expect(exportObjectKey(TREE, 'g7m', CLIENT)).toBe(`exports/${TREE}-g7m-${CLIENT}.json`);
+		expect(() => buildExportInstanceId(TREE, 'gedcom7', false, CLIENT, true)).toThrow(
+			ValidationError
+		);
+		expect(() => buildExportInstanceId(TREE, 'gedcom551', true, CLIENT, true)).toThrow(
+			ValidationError
+		);
+	});
+
+	it('refuses forged tokens', () => {
+		for (const token of ['g7M', 'g7mm', 'g7m_', 'g8m', ' g7m'])
+			expect(parseExportInstanceId(`export_${TREE}_${token}_${CLIENT}`)).toBeNull();
+		expect(parseExportInstanceId(`export_${TREE}_g7m_${CLIENT}x`)).toBeNull();
 	});
 
 	it('distinguishes a 7.0 file from a 7.0 GEDZip', () => {
