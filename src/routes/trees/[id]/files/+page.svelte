@@ -6,6 +6,8 @@
 		Download,
 		Eye,
 		FileText,
+		FileX,
+		Info,
 		Image as ImageIcon,
 		Link,
 		User,
@@ -21,6 +23,8 @@
 	} from '@lucide/svelte';
 	import { fileDrop } from '#lib/components/forms/fileDrop.js';
 	import BaseModal from '#lib/components/modals/BaseModal.svelte';
+	import MediaFileList from '#lib/components/media/MediaFileList.svelte';
+	import NotStoredBadge from '#lib/components/media/NotStoredBadge.svelte';
 	import FileOwnerPicker from '#lib/components/FileOwnerPicker.svelte';
 	import { canChangeEvidence } from '#lib/components/evidence/evidence-permissions.js';
 	import { getTreeContext } from '#lib/components/tree/tree-context.js';
@@ -40,10 +44,13 @@
 	import type { UploadCompleteDto } from '#lib/shared/uploads.js';
 	import type { FileRowDto, FileUsageDto, UnlinkedListDto } from '#lib/shared/files.js';
 	import {
+		extraFilesLabel,
 		formatMediaSize,
 		isInlineMediaType,
 		MEDIA_UPLOAD_ACCEPT,
-		mediaUrl
+		mediaUrl,
+		unresolvedFileLabel,
+		type ObjectFileView
 	} from '#lib/shared/media.js';
 	import { canChangeRecords, isManagerOrAbove } from '#lib/shared/roles.js';
 	import type { PageProps } from './$types';
@@ -75,7 +82,7 @@
 	let unlinked = $state<UnlinkedListDto | null>(null);
 	let isCheckingUnlinked = $state(false);
 
-	type Dialog = 'upload' | 'rename' | 'link' | 'delete' | 'preview' | 'unlinked' | null;
+	type Dialog = 'upload' | 'rename' | 'link' | 'delete' | 'preview' | 'details' | 'unlinked' | null;
 	let dialog = $state<Dialog>(null);
 	let target = $state<FileRowDto | null>(null);
 	let isBusy = $state(false);
@@ -101,6 +108,14 @@
 	// Below lg a row is a card, so each figure carries its own label in place of the column header.
 	const cellClass =
 		'col-start-2 text-stone-600 before:text-stone-500 before:content-[attr(data-label)] max-lg:before:mr-1 lg:table-cell lg:px-3 lg:py-2 lg:before:content-none';
+	/** An object's first file and the rest, as its details list them. */
+	const filesOf = (file: FileRowDto): ObjectFileView[] => [file, ...file.extraFiles];
+	/** Whether there is anything to see beyond the row: more files, or a file whose bytes are not here. */
+	const hasDetails = (file: FileRowDto) =>
+		file.extraFiles.length > 0 || file.isUnresolved || file.gedcomPath !== null;
+	const nameOf = (file: FileRowDto) =>
+		file.isUnresolved ? unresolvedFileLabel(file) : (file.title ?? 'Untitled');
+
 	const scopeOf = (value: string) => (value === ALL_TREES ? null : value);
 	const hasUploader = $derived(files.some((file) => file.uploadedBy !== null));
 	const thisTreeUsage = $derived(usage.trees.find((t) => t.treeId === treeId) ?? null);
@@ -495,6 +510,8 @@
 								loading="lazy"
 								class="h-9 w-9 rounded object-cover"
 							/>
+						{:else if file.isUnresolved}
+							<FileX class="h-6 w-6 text-stone-500" aria-hidden="true" />
 						{:else if file.mimeType === 'application/pdf'}
 							<FileText class="h-6 w-6 text-stone-500" aria-hidden="true" />
 						{:else}
@@ -505,11 +522,19 @@
 						scope="row"
 						class="text-left text-sm font-semibold break-words text-stone-900 lg:table-cell lg:max-w-xs lg:px-3 lg:py-2 lg:text-xs"
 					>
-						{file.title ?? 'Untitled'}
+						{nameOf(file)}
+						{#if file.isUnresolved}
+							<span class="ml-1 align-middle"><NotStoredBadge /></span>
+						{/if}
+						{#if file.extraFiles.length > 0}
+							<span class="ml-1 font-normal text-stone-600" data-testid="file-extra-count"
+								>{extraFilesLabel(file.extraFiles.length)}</span
+							>
+						{/if}
 					</th>
 					<td class={cellClass} data-label="Type:">{file.mimeType}</td>
 					<td class="{cellClass} whitespace-nowrap tabular-nums lg:text-right" data-label="Size:"
-						>{formatMediaSize(file.sizeBytes)}</td
+						>{file.isUnresolved ? '—' : formatMediaSize(file.sizeBytes)}</td
 					>
 					<td class="col-start-2 max-lg:order-1 max-lg:pt-1 lg:table-cell lg:px-3 lg:py-2">
 						{#if file.links.length === 0}
@@ -574,6 +599,15 @@
 									>
 								</button>
 							{/if}
+							{#if hasDetails(file)}
+								<button
+									type="button"
+									class="row-action"
+									onclick={() => openDialog('details', file)}
+								>
+									<Info aria-hidden="true" />Details<span class="sr-only">{' '}{nameOf(file)}</span>
+								</button>
+							{/if}
 							{#if file.canRename}
 								<button type="button" class="row-action" onclick={() => openDialog('rename', file)}>
 									<Pencil aria-hidden="true" />Rename<span class="sr-only"
@@ -599,7 +633,7 @@
 									>
 								</button>
 							{/if}
-							{#if !file.canPreview}
+							{#if !file.canPreview && !hasDetails(file)}
 								<span class="px-2 py-1 text-stone-500">Details only</span>
 							{/if}
 						</div>
@@ -905,6 +939,27 @@
 			</button>
 		</div>
 	</div>
+</BaseModal>
+
+<BaseModal
+	isOpen={dialog === 'details'}
+	title={target ? nameOf(target) : 'File'}
+	icon={Info}
+	maxWidthClass="max-w-xl"
+	onclose={closeDialog}
+>
+	{#if target}
+		<MediaFileList
+			files={filesOf(target)}
+			treeId={target.treeId}
+			canAdd={target.canLink}
+			onresolved={async () => {
+				dialog = null;
+				toasts.push('File added');
+				await reload();
+			}}
+		/>
+	{/if}
 </BaseModal>
 
 <BaseModal

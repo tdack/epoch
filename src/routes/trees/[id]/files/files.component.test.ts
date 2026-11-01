@@ -555,3 +555,82 @@ describe('Files page link chips', () => {
 		await vi.waitFor(() => expect(link).toHaveBeenCalledWith('f1', 't1', 's1', 3));
 	});
 });
+
+describe('Files page imported objects', () => {
+	const missing = (overrides: Partial<FileRowDto> = {}) =>
+		row({
+			id: 'u1',
+			title: null,
+			isUnresolved: true,
+			previewKey: null,
+			canPreview: false,
+			sizeBytes: null,
+			gedcomPath: 'C:\\Photos\\ada-1923.jpg',
+			mimeType: 'image/jpeg',
+			...overrides
+		});
+
+	it('shows an unresolved file with the last path segment, a text badge, no image and no preview', () => {
+		render({ role: 'editor', files: [missing()] });
+		const tr = document.querySelector('[data-testid="file-row"]')!;
+		expect(tr.textContent).toContain('ada-1923.jpg');
+		expect(tr.textContent).toContain('Not stored in Epoch');
+		expect(tr.querySelector('img')).toBeNull();
+		expect(actions()).toEqual(['Details ada-1923.jpg']);
+		expect(tr.querySelector('td:nth-child(4)')!.textContent).toContain('—');
+	});
+
+	it('shows the path as plain text in the details, and an http address as a safe link', () => {
+		render({ role: 'editor', files: [missing()] });
+		document.querySelector<HTMLButtonElement>('tbody button')!.click();
+		flushSync();
+		const path = document.querySelector('[data-testid="file-path"]')!;
+		expect(path.textContent).toContain('C:\\Photos\\ada-1923.jpg');
+		expect(path.querySelector('a')).toBeNull();
+		unmountAll();
+		render({ role: 'editor', files: [missing({ gedcomPath: 'https://example.org/a.jpg' })] });
+		document.querySelector<HTMLButtonElement>('tbody button')!.click();
+		flushSync();
+		const link = document.querySelector<HTMLAnchorElement>('[data-testid="file-path"] a')!;
+		expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+		expect(link.getAttribute('target')).toBe('_blank');
+	});
+
+	it('offers "Add file…" in the details to an editor, not to a viewer', () => {
+		const openDetails = () => {
+			[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
+				.find((b) => b.textContent?.trim().startsWith('Details'))!
+				.click();
+			flushSync();
+		};
+		render({ role: 'editor', files: [missing({ canLink: true })] });
+		openDetails();
+		expect(document.querySelector('[data-testid="add-file-input"]')).not.toBeNull();
+		unmountAll();
+		render({ role: 'viewer', files: [missing({ canLink: false })] });
+		openDetails();
+		expect(document.querySelector('[data-testid="add-file-input"]')).toBeNull();
+	});
+
+	it('says "+n files" and lists every file of the object in its details', () => {
+		const extra = (id: string) => ({
+			id,
+			title: `${id}.png`,
+			version: 1,
+			mimeType: 'image/png',
+			sizeBytes: 5,
+			isUnresolved: false,
+			gedcomPath: null,
+			previewKey: `media/t1/${id}.png`
+		});
+		render({ role: 'editor', files: [row({ extraFiles: [extra('b'), extra('c')] })] });
+		expect(document.querySelector('[data-testid="file-extra-count"]')!.textContent).toBe(
+			'+2 files'
+		);
+		[...document.querySelectorAll<HTMLButtonElement>('tbody button')]
+			.find((b) => b.textContent?.trim().startsWith('Details'))!
+			.click();
+		flushSync();
+		expect(document.querySelectorAll('[data-testid="object-file"]')).toHaveLength(3);
+	});
+});
