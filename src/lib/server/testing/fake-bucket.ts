@@ -5,6 +5,7 @@ export interface FakeObject {
 	contentType?: string;
 	httpEtag?: string;
 	uploaded?: Date;
+	customMetadata?: Record<string, string>;
 }
 
 /**
@@ -20,7 +21,10 @@ export class FakeMediaBucket {
 	async put(
 		key: string,
 		value: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>,
-		options?: { httpMetadata?: { contentType?: string } }
+		options?: {
+			httpMetadata?: { contentType?: string };
+			customMetadata?: Record<string, string>;
+		}
 	) {
 		// A stream is how the app copies one stored object to another key.
 		const body =
@@ -33,6 +37,7 @@ export class FakeMediaBucket {
 			body,
 			size: body.byteLength,
 			contentType: options?.httpMetadata?.contentType,
+			customMetadata: options?.customMetadata,
 			uploaded: new Date()
 		});
 		return { key, size: body.byteLength };
@@ -47,6 +52,9 @@ export class FakeMediaBucket {
 			size: object.size,
 			httpEtag: object.httpEtag ?? `"${key.length}-${object.size}"`,
 			httpMetadata: { contentType: object.contentType },
+			customMetadata: object.customMetadata,
+			uploaded: object.uploaded ?? new Date(),
+			text: async () => new TextDecoder().decode(bytes),
 			body: new ReadableStream({
 				start(controller) {
 					controller.enqueue(bytes);
@@ -59,7 +67,12 @@ export class FakeMediaBucket {
 	async head(key: string) {
 		const object = this.objects.get(key);
 		if (!object) return null;
-		return { key, size: object.size };
+		return {
+			key,
+			size: object.size,
+			customMetadata: object.customMetadata,
+			uploaded: object.uploaded ?? new Date()
+		};
 	}
 
 	/** The size of each `delete` call, so a test can prove no call went over R2's limit. */
