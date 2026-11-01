@@ -1,8 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { deflateSync, strToU8, Zip, ZipDeflate, ZipPassThrough, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { PayloadTooLargeError, ValidationError } from '../domain/errors';
+import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { crc32 } from './crc32';
+import {
+	MAX_DATASET_BYTES,
+	MAX_GEDZIP_UNCOMPRESSED_BYTES,
+	MAX_GEDZIP_UPLOAD_BYTES
+} from './limits';
 import {
 	openEntry,
 	r2ZipSource,
@@ -11,6 +16,9 @@ import {
 	type ZipLimits,
 	type ZipSource
 } from './zip-reader';
+
+// @ts-expect-error @types/node is not installed; the fixtures are binary, so they are read here.
+const { existsSync, readFileSync } = await import('node:fs');
 
 /** A source over a buffer that hands streams out in small chunks, as R2 would. */
 function memorySource(bytes: Uint8Array, chunkBytes = 1000): ZipSource {
@@ -37,8 +45,8 @@ async function drain(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
 	const chunks: Uint8Array[] = [];
 	const reader = stream.getReader();
 	for (;;) {
-		const { done, value } = await reader.read();
-		if (done) break;
+		const { done: isDone, value } = await reader.read();
+		if (isDone) break;
 		chunks.push(value);
 	}
 	const out = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
@@ -89,7 +97,7 @@ function buildZip(entries: TestEntry[], options: BuildOptions = {}): Uint8Array 
 		const compressedSize = entry.compressedSize ?? stored.length;
 		const uncompressedSize = entry.uncompressedSize ?? entry.data.length;
 		const isNonAscii = name.some((byte) => byte > 0x7f);
-		const flags = entry.flags ?? ((isNonAscii ? 0x800 : 0) | (entry.isDescriptor ? 8 : 0));
+		const flags = entry.flags ?? (isNonAscii ? 0x800 : 0) | (entry.isDescriptor ? 8 : 0);
 		const localExtra = entry.localExtra ?? 0;
 
 		const local = new DataView(new ArrayBuffer(30));
@@ -203,7 +211,8 @@ async function readAll(bytes: Uint8Array, limits: Partial<ZipLimits> = {}) {
 	const directory = await readCentralDirectory(source, limits);
 	const files = new Map<string, Uint8Array>();
 	for (const entry of directory.entries) {
-		if (!entry.isDirectory) files.set(entry.name, await drain(await openEntry(source, entry, limits)));
+		if (!entry.isDirectory)
+			files.set(entry.name, await drain(await openEntry(source, entry, limits)));
 	}
 	return { directory, files };
 }
@@ -351,7 +360,13 @@ describe.each([
 		it('stored data shorter than the directory says', async () => {
 			// The directory claims 100 bytes but the entry holds 5, so the next header is read as data.
 			const bytes = buildZip([
-				{ name: 'a.txt', data: strToU8('short'), method: 0, uncompressedSize: 100, compressedSize: 100 },
+				{
+					name: 'a.txt',
+					data: strToU8('short'),
+					method: 0,
+					uncompressedSize: 100,
+					compressedSize: 100
+				},
 				{ name: 'b.txt', data: strToU8('next'), method: 0 }
 			]);
 			await expectRejected(readAll(bytes, limits), ValidationError);
@@ -391,7 +406,13 @@ describe.each([
 
 		it('an entry whose size runs into the next entry', async () => {
 			const bytes = buildZip([
-				{ name: 'a.txt', data: BODY, method: 0, compressedSize: BODY.length + 50, uncompressedSize: BODY.length + 50 },
+				{
+					name: 'a.txt',
+					data: BODY,
+					method: 0,
+					compressedSize: BODY.length + 50,
+					uncompressedSize: BODY.length + 50
+				},
 				{ name: 'b.txt', data: BODY, method: 0 }
 			]);
 			await expectRejected(readAll(bytes, limits), ValidationError, /overlaps/);
@@ -515,27 +536,39 @@ describe('the official GEDCOM 7.0 archives', () => {
 			expect(text(files.get('gedcom.ged')!)).toMatch(/^0 HEAD/);
 		});
 
-		it.each([false, true])('streams every entry of maximal70.gdz (fflate: %s)', async (isFallback) => {
-			const { directory, files } = await readAll(maximal!, { isNativeInflateDisabled: isFallback });
-			const names = directory.entries.map((entry) => entry.name);
-			expect(names).toEqual([
-				'gedcom.ged',
-				'media/',
-				'media/CharlotteBrontë.jpg',
-				'media/derived.oga',
-				'media/original.mp3',
-				'media/transcript.vtt',
-				'path/',
-				'path/to/',
-				'path/to/file1'
-			]);
-			expect(files.get('media/CharlotteBrontë.jpg')).toHaveLength(79000);
-			expect(files.get('gedcom.ged')).toHaveLength(15112);
-			expect(files.get('media/transcript.vtt')).toHaveLength(35);
-			expect(directory.entries.filter((entry) => entry.isDirectory)).toHaveLength(3);
-			// The data descriptor entries carry no sizes in the local header, so the directory's are used.
-			expect(directory.totalUncompressedBytes).toBe(15112 + 79000 + 210 + 625 + 35 + 28);
-		});
+		it.each([false, true])(
+			'streams every entry of maximal70.gdz (fflate: %s)',
+			async (isFallback) => {
+				const { directory, files } = await readAll(maximal!, {
+					isNativeInflateDisabled: isFallback
+				});
+				const names = directory.entries.map((entry) => entry.name);
+				expect(names).toEqual([
+					'gedcom.ged',
+					'media/',
+					'media/CharlotteBrontë.jpg',
+					'media/derived.oga',
+					'media/original.mp3',
+					'media/transcript.vtt',
+					'path/',
+					'path/to/',
+					'path/to/file1'
+				]);
+				expect(files.get('media/CharlotteBrontë.jpg')).toHaveLength(79000);
+				expect(files.get('gedcom.ged')).toHaveLength(15112);
+				expect(files.get('media/transcript.vtt')).toHaveLength(35);
+				expect(directory.entries.filter((entry) => entry.isDirectory)).toHaveLength(3);
+				// The data descriptor entries carry no sizes in the local header, so the directory's are used.
+				expect(directory.totalUncompressedBytes).toBe(15112 + 79000 + 210 + 625 + 35 + 28);
+			}
+		);
+	});
+});
+
+describe('the archive limits', () => {
+	it('allow a full tree of media plus its dataset', () => {
+		expect(MAX_GEDZIP_UPLOAD_BYTES).toBe(MAX_TREE_MEDIA_BYTES + MAX_DATASET_BYTES);
+		expect(MAX_GEDZIP_UNCOMPRESSED_BYTES).toBeGreaterThanOrEqual(MAX_GEDZIP_UPLOAD_BYTES);
 	});
 });
 
@@ -553,7 +586,10 @@ describe('r2ZipSource', () => {
 			},
 			async get(_key: string, options: { range: { offset: number; length: number } }) {
 				ranges.push(options.range);
-				const slice = bytes.slice(options.range.offset, options.range.offset + options.range.length);
+				const slice = bytes.slice(
+					options.range.offset,
+					options.range.offset + options.range.length
+				);
 				return {
 					arrayBuffer: async () => slice.buffer,
 					body: new Blob([slice]).stream()

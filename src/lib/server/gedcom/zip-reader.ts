@@ -58,7 +58,7 @@ export async function r2ZipSource(bucket: R2Bucket, key: string): Promise<ZipSou
 }
 
 /** The compression methods read: stored and deflate. Zip defines others; none is accepted. */
-export const ZIP_METHOD = { stored: 0, deflate: 8 } as const;
+const ZIP_METHOD = { stored: 0, deflate: 8 } as const;
 
 export interface ZipEntry {
 	/** The name decoded per the entry's UTF-8 flag (UTF-8) or, without it, as CP437. */
@@ -179,7 +179,8 @@ export async function readCentralDirectory(
 		if (eocdOffset < ZIP64_LOCATOR_BYTES) throw bad('its Zip64 locator is missing');
 		const locator = await source.readRange(eocdOffset - ZIP64_LOCATOR_BYTES, ZIP64_LOCATOR_BYTES);
 		const locatorView = new DataView(locator.buffer, locator.byteOffset, locator.byteLength);
-		if (locatorView.getUint32(0, true) !== SIG_ZIP64_LOCATOR) throw bad('its Zip64 locator is missing');
+		if (locatorView.getUint32(0, true) !== SIG_ZIP64_LOCATOR)
+			throw bad('its Zip64 locator is missing');
 		if (locatorView.getUint32(4, true) !== 0 || locatorView.getUint32(16, true) > 1) {
 			throw bad('multi-disk archives are not supported');
 		}
@@ -206,7 +207,8 @@ export async function readCentralDirectory(
 		throw bad('multi-disk archives are not supported');
 	}
 
-	if (entryCount > config.maxEntries) throw new PayloadTooLargeError('The archive has too many entries');
+	if (entryCount > config.maxEntries)
+		throw new PayloadTooLargeError('The archive has too many entries');
 	if (directorySize > config.maxDirectoryBytes) {
 		throw new PayloadTooLargeError('The archive directory is too large');
 	}
@@ -265,7 +267,9 @@ function parseEntries(directory: Uint8Array, count: number, directoryOffset: num
 			throw new ValidationError('The archive has an encrypted entry, which cannot be read');
 		}
 		if (method !== ZIP_METHOD.stored && method !== ZIP_METHOD.deflate) {
-			throw new ValidationError(`The archive uses compression method ${method}, which is not supported`);
+			throw new ValidationError(
+				`The archive uses compression method ${method}, which is not supported`
+			);
 		}
 		const name = decodeName(rawName, (flags & FLAG_UTF8_NAME) !== 0);
 
@@ -387,7 +391,8 @@ export async function openEntry(
 	);
 	if (header.length < LOCAL_HEADER_BYTES + entry.rawName.length) throw bad('an entry is truncated');
 	const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
-	if (view.getUint32(0, true) !== SIG_LOCAL) throw bad(`the entry ${entry.name} has no local header`);
+	if (view.getUint32(0, true) !== SIG_LOCAL)
+		throw bad(`the entry ${entry.name} has no local header`);
 	const localNameLength = view.getUint16(26, true);
 	const extraLength = view.getUint16(28, true);
 	const localName = header.subarray(LOCAL_HEADER_BYTES);
@@ -424,9 +429,14 @@ function emptyStream(): ReadableStream<Uint8Array> {
  * is the fallback for a runtime that lacks it, kept to small input slices because fflate inflates
  * everything pushed before it reports any (see `INFLATE_SLICE_BYTES` in gedzip.ts).
  */
-function inflateRaw(input: ReadableStream<Uint8Array>, config: ZipLimits): ReadableStream<Uint8Array> {
+function inflateRaw(
+	input: ReadableStream<Uint8Array>,
+	config: ZipLimits
+): ReadableStream<Uint8Array> {
 	if (!config.isNativeInflateDisabled && typeof DecompressionStream !== 'undefined') {
-		return input.pipeThrough(new DecompressionStream('deflate-raw') as ReadableWritablePair<Uint8Array, Uint8Array>);
+		return input.pipeThrough(
+			new DecompressionStream('deflate-raw') as ReadableWritablePair<Uint8Array, Uint8Array>
+		);
 	}
 	const SLICE_BYTES = 4 * 1024;
 	const reader = input.getReader();
@@ -436,9 +446,9 @@ function inflateRaw(input: ReadableStream<Uint8Array>, config: ZipLimits): Reada
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			while (pending.length === 0 && !isFinished) {
-				const { done, value } = await reader.read();
+				const { done: isDone, value } = await reader.read();
 				try {
-					if (done) {
+					if (isDone) {
 						inflate.push(new Uint8Array(0), true);
 						isFinished = true;
 					} else {
@@ -472,17 +482,21 @@ function verify(
 		controller.error(
 			error instanceof ValidationError
 				? error
-				: new ValidationError(`The archive entry ${entry.name} could not be read: it is corrupt or truncated`)
+				: new ValidationError(
+						`The archive entry ${entry.name} could not be read: it is corrupt or truncated`
+					)
 		);
 		void reader.cancel().catch(() => undefined);
 	};
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			try {
-				const { done, value } = await reader.read();
-				if (done) {
+				const { done: isDone, value } = await reader.read();
+				if (isDone) {
 					if (count !== entry.uncompressedSize) {
-						throw new ValidationError(`The archive entry ${entry.name} is shorter than it declares`);
+						throw new ValidationError(
+							`The archive entry ${entry.name} is shorter than it declares`
+						);
 					}
 					if (crc !== entry.crc32) {
 						throw new ValidationError(`The archive entry ${entry.name} fails its checksum`);

@@ -16,7 +16,8 @@ describe('crc32', () => {
 		const data = text('The quick brown fox jumps over the lazy dog');
 		expect(crc32(data)).toBe(0x414fa339);
 		let running = 0;
-		for (let i = 0; i < data.length; i += 5) running = crc32Update(running, data.subarray(i, i + 5));
+		for (let i = 0; i < data.length; i += 5)
+			running = crc32Update(running, data.subarray(i, i + 5));
 		expect(running).toBe(0x414fa339);
 	});
 

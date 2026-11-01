@@ -4,8 +4,6 @@
  * because the import holds the whole dataset in the isolate, and a small archive can expand far.
  */
 
-import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
-
 /** The largest uploaded import file, as sent. */
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
@@ -35,8 +33,10 @@ export const STAGED_IMPORT_MAX_AGE_MS = 4 * 24 * 60 * 60 * 1000;
  * The largest `.gdz` upload, as sent. A tree's media may total `MAX_TREE_MEDIA_BYTES`, and the
  * dataset rides beside it, so an archive that carries a full tree is no larger than their sum. The
  * archive lives in R2 and is read by range, so unlike `MAX_IMPORT_BYTES` this does not bound memory.
+ * The 2 GiB is `MAX_TREE_MEDIA_BYTES` written out: this file is also compiled by the setup tool,
+ * whose module settings cannot follow the import. A test pins the two together.
  */
-export const MAX_GEDZIP_UPLOAD_BYTES = MAX_TREE_MEDIA_BYTES + MAX_DATASET_BYTES;
+export const MAX_GEDZIP_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024 + MAX_DATASET_BYTES;
 
 /**
  * The most bytes an archive's entries may declare in total once inflated. Media is mostly already
