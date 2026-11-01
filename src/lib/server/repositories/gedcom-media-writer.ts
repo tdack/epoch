@@ -6,8 +6,8 @@
  * its files, then the links, because `object_id` is a foreign key. Until the contract migrations
  * an object's id is its first file's id.
  *
- * Identity on a merge-mode import: an object is the same record when its xref is already in the
- * tree, else when its first file's path is the first file's path of a stored object, as sources
+ * Identity on a merge or replace import (a replace keeps the tree's objects and files): an object
+ * is the same record when its xref is already in the tree, else when its first file's path is the first file's path of a stored object, as sources
  * match by xref (ADR-028). A matched object gains only the files and links it lacks.
  */
 
@@ -69,17 +69,18 @@ async function storedObjects(db: DbClient, treeId: string) {
 
 /**
  * Queue the writes for the file's media records and for `targets`, the pointers every host of the
- * file holds. The caller has already queued the replace-mode wipe, which clears these tables.
+ * file holds. The caller has already queued the replace-mode wipe, which clears the links and
+ * keeps the objects and files.
  */
 export async function importMedia(
 	db: DbClient,
 	treeId: string,
 	parsed: ParsedGedcomData,
 	targets: readonly MediaTarget[],
-	{ writes, isTreeEmpty }: ImportBatch
+	{ writes, isNewTree }: ImportBatch
 ): Promise<void> {
 	if (parsed.media.length === 0) return;
-	const stored = isTreeEmpty
+	const stored = isNewTree
 		? { byXref: new Map<string, StoredObject>(), byFirstPath: new Map<string, StoredObject>() }
 		: await storedObjects(db, treeId);
 	const importedAt = new Date();

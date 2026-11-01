@@ -100,3 +100,19 @@ describe('retained tags in the import preview', () => {
 		expect(previewNewTree(parseGedcom(file)).retainedTags).toEqual([]);
 	});
 });
+
+describe('linked files', () => {
+	const file = parseGedcom(fileWithEvents(['1 BIRT']));
+	const rows = { individuals: [], unions: [], parentChild: [], events: [] };
+
+	it('reports the count of linked files only when there are some', () => {
+		expect(
+			previewAgainstTree('t', file, file, { ...rows, linkedMediaObjectCount: 5 })
+				.linkedMediaObjectCount
+		).toBe(5);
+		expect(
+			previewAgainstTree('t', file, file, { ...rows, linkedMediaObjectCount: 0 })
+		).not.toHaveProperty('linkedMediaObjectCount');
+		expect(previewNewTree(file)).not.toHaveProperty('linkedMediaObjectCount');
+	});
+});

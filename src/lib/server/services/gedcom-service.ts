@@ -28,7 +28,6 @@ import {
 	STAGED_IMPORT_MAX_AGE_MS
 } from '../gedcom/limits';
 import { sumStoredBytes } from '../media/stored-bytes';
-import { chunkIds } from '../repositories/param-chunks';
 import {
 	previewAgainstTree,
 	previewNewTree,
@@ -115,9 +114,6 @@ export interface GedcomBindings {
 		}): Promise<unknown>;
 	};
 }
-
-/** R2 deletes at most this many keys in one call. */
-const R2_DELETE_BATCH = 1000;
 
 /** Same retention as the export workflow's instances, and as `wrangler.jsonc` sets for this one. */
 const IMPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
@@ -395,28 +391,9 @@ export class GedcomService {
 				`GEDCOM import ${treeId}: ${parsed.unresolved.absent} pointer(s) to records the file does not have were kept as lines`
 			);
 		}
-		// A replace deletes the tree's media rows in the same batch (ADR-082); the bytes go once it has
-		// committed, so a failed batch leaves the old tree with all its files.
-		const replacedKeys =
-			isExistingTree && mode === 'replace' ? await this.repo.storedMediaKeys(treeId) : [];
 		const written = await this.repo.writeImport({ treeId, treeName, parsed, mode, isExistingTree });
-		await this.removeStoredBytes(replacedKeys);
 		await this.renameCreatedTree(treeId, parsed, options);
 		return { ...written, mergedFamiliesCount: folded.mergedCount };
-	}
-
-	/**
-	 * Delete bytes whose rows an import removed. Best effort: a key that stays is an orphan the
-	 * unlinked scan reports, not a reason to fail an import that has already committed.
-	 */
-	private async removeStoredBytes(keys: string[]): Promise<void> {
-		const bucket = this.bindings.bucket;
-		if (!bucket) return;
-		for (const part of chunkIds(keys, R2_DELETE_BATCH)) {
-			await bucket.delete(part).catch((error: unknown) => {
-				console.warn('GEDCOM import: could not remove replaced media bytes', error);
-			});
-		}
 	}
 
 	/**

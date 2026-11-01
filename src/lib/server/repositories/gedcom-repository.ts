@@ -138,19 +138,6 @@ export class GedcomRepository {
 		return row?.count ?? 0;
 	}
 
-	/**
-	 * The bucket keys of the tree's stored media, for removing the bytes of rows a replace import
-	 * deletes. An unresolved file holds a placeholder that names no object, so it is left out.
-	 */
-	async storedMediaKeys(treeId: string): Promise<string[]> {
-		const rows = await this.db
-			.select({ key: mediaItems.r2ObjectKey, status: mediaItems.status })
-			.from(mediaItems)
-			.where(eq(mediaItems.treeId, treeId))
-			.all();
-		return rows.filter((row) => row.status !== 'unresolved').map((row) => row.key);
-	}
-
 	/** Alias XREF to surviving XREF for unions already in the tree that absorbed other families. */
 	async aliasesInTree(treeId: string): Promise<Map<string, string>> {
 		const map = new Map<string, string>();
@@ -169,13 +156,19 @@ export class GedcomRepository {
 
 	/** What an import preview compares the file against. */
 	async previewRows(treeId: string): Promise<PreviewRows> {
-		const [individualRows, unionRows, links, eventRows] = await Promise.all([
+		const [individualRows, unionRows, links, eventRows, linkedMedia] = await Promise.all([
 			this.db.select().from(individuals).where(eq(individuals.treeId, treeId)).all(),
 			this.db.select().from(unions).where(eq(unions.treeId, treeId)).all(),
 			this.db.select().from(parentChild).where(eq(parentChild.treeId, treeId)).all(),
-			this.db.select().from(events).where(eq(events.treeId, treeId)).all()
+			this.db.select().from(events).where(eq(events.treeId, treeId)).all(),
+			this.db
+				.select({ count: sql<number>`count(distinct ${mediaLinks.mediaId})` })
+				.from(mediaLinks)
+				.where(eq(mediaLinks.treeId, treeId))
+				.get()
 		]);
 		return {
+			linkedMediaObjectCount: linkedMedia?.count ?? 0,
 			individuals: individualRows,
 			unions: unionRows,
 			parentChild: links,
@@ -199,7 +192,11 @@ export class GedcomRepository {
 		isExistingTree
 	}: ImportWrite): Promise<ImportWritten> {
 		const db = this.db;
-		const batch: ImportBatch = { writes: [], isTreeEmpty: !isExistingTree || mode === 'replace' };
+		const batch: ImportBatch = {
+			writes: [],
+			isTreeEmpty: !isExistingTree || mode === 'replace',
+			isNewTree: !isExistingTree
+		};
 		const { writes } = batch;
 		// The submitter the header names becomes the tree's setting when it has none (ADR-075). Then the
 		// record is not kept, or an export would write it twice; otherwise it stays a root record
@@ -277,11 +274,10 @@ export class GedcomRepository {
 					.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
 					.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')))
 			);
-			// A media object goes with its files and links, which the new file brings its own of; the
-			// bytes are removed by the service once this batch has committed (ADR-082).
+			// Only the links go, because their hosts do. The objects and their files stay with their
+			// bytes, so photos someone uploaded survive a replace; the import relinks the ones the file
+			// names, and the rest are unlinked files the owner can link again or delete (ADR-082).
 			writes.push(db.delete(mediaLinks).where(eq(mediaLinks.treeId, treeId)));
-			writes.push(db.delete(mediaItems).where(eq(mediaItems.treeId, treeId)));
-			writes.push(db.delete(mediaObjects).where(eq(mediaObjects.treeId, treeId)));
 			writes.push(db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId)));
 			writes.push(db.delete(notes).where(eq(notes.treeId, treeId)));
 			writes.push(db.delete(citations).where(eq(citations.treeId, treeId)));

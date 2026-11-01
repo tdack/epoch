@@ -511,9 +511,10 @@ describe('importing again', () => {
 		]);
 	});
 
-	it('replace mode deletes the objects, files and links, and the bytes of resolved files', async () => {
+	/** A tree holding an uploaded photo (resolved bytes, no link) beside the imported object. */
+	async function treeWithUpload() {
 		const treeId = await importIt(FILE);
-		const key = `media/${treeId}/stale.png`;
+		const key = `media/${treeId}/upload.png`;
 		const objectId = crypto.randomUUID();
 		await t.db.insert(mediaObjects).values({ id: objectId, treeId });
 		await t.db.insert(mediaItems).values({
@@ -526,13 +527,54 @@ describe('importing again', () => {
 		});
 		const bucket = new FakeMediaBucket();
 		await bucket.put(key, new Uint8Array([1, 2, 3]));
+		const deleted: unknown[] = [];
+		(bucket as unknown as { delete: (k: unknown) => Promise<void> }).delete = async (k) => {
+			deleted.push(k);
+		};
 		const service = new GedcomService(getDb(t.d1), { bucket: bucket as never });
+		return { treeId, key, objectId, bucket, deleted, service };
+	}
+
+	it('replace mode keeps every object and file with its bytes, and relinks by xref', async () => {
+		const { treeId, key, objectId, bucket, deleted, service } = await treeWithUpload();
 		await service.runImport(treeId, FILE, 'Media', 'replace');
-		expect(await objectsOf(treeId)).toHaveLength(1);
-		const files = await filesOf(treeId);
-		expect(files.map((f) => f.gedcomPath)).toEqual(['a.png']);
-		expect(files[0].id).not.toBe(objectId);
-		expect(bucket.objects.has(key)).toBe(false);
+		// The imported O1 is the kept object, not a copy; the upload stays beside it.
+		const objects = await objectsOf(treeId);
+		expect(objects).toHaveLength(2);
+		expect(objects.map((o) => o.id)).toContain(objectId);
+		expect(await filesOf(treeId)).toHaveLength(2);
+		expect(bucket.objects.has(key)).toBe(true);
+		expect(deleted).toEqual([]);
+		const links = await linksOf(treeId);
+		expect(links).toHaveLength(1);
+		expect(links[0].entityId).toBe(`${treeId}:@I1@`);
+	});
+
+	it('replace mode removes the links, leaving the object unlinked when the file lacks it', async () => {
+		const { treeId, service } = await treeWithUpload();
+		const without = gedcom(HEAD7, '0 @I1@ INDI');
+		await service.runImport(treeId, without, 'Media', 'replace');
+		expect(await linksOf(treeId)).toEqual([]);
+		expect(await objectsOf(treeId)).toHaveLength(2);
+		expect(await filesOf(treeId)).toHaveLength(2);
+	});
+
+	it('replace mode matches an object by the first file path when the xref differs', async () => {
+		const { treeId, service } = await treeWithUpload();
+		const renamed = gedcom(
+			HEAD7,
+			'0 @I1@ INDI',
+			'1 OBJE @X9@',
+			'0 @X9@ OBJE',
+			'1 FILE a.png',
+			'2 FORM image/png'
+		);
+		await service.runImport(treeId, renamed, 'Media', 'replace');
+		const objects = await objectsOf(treeId);
+		expect(objects).toHaveLength(2);
+		expect(objects.map((o) => o.xref)).toContain('@O1@');
+		expect(objects.map((o) => o.xref)).not.toContain('@X9@');
+		expect(await linksOf(treeId)).toHaveLength(1);
 	});
 });
 

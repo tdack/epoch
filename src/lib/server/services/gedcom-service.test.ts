@@ -391,6 +391,23 @@ describe('previewImport', () => {
 	});
 });
 
+describe('previewImport and linked files', () => {
+	const WITH_PHOTO =
+		'0 HEAD\n0 @I1@ INDI\n1 NAME Ann /Fox/\n1 OBJE @O1@\n0 @O1@ OBJE\n1 FILE a.png\n2 FORM image/png\n0 TRLR';
+
+	it('counts the files a replace would unlink, once, and only when there are some', async () => {
+		const s = await tree();
+		const service = new GedcomService(t.db);
+		await service.runImport(s.treeId, FILE, 'T', 'replace');
+		expect(
+			(await service.previewImport(s.treeId, FILE, s.owner.context)).linkedMediaObjectCount
+		).toBeUndefined();
+		await service.runImport(s.treeId, WITH_PHOTO, 'T', 'replace');
+		const preview = await service.previewImport(s.treeId, FILE, s.owner.context);
+		expect(preview.linkedMediaObjectCount).toBe(1);
+	});
+});
+
 describe('export', () => {
 	it('keeps the children of a family whose XREF contains a bar', async () => {
 		const s = await tree();
