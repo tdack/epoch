@@ -54,6 +54,7 @@ function peopleOf(
 			const row = (op.after ?? op.before)!;
 			return row.entityType === 'INDIVIDUAL' ? [row.entityId] : partnersOf(row.entityId);
 		}
+		case 'media_object':
 		case 'media_items':
 			// A file row on its own (a rename) is about no person; its links say whose it is.
 			return [];

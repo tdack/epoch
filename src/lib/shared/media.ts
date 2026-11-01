@@ -112,7 +112,41 @@ export function formatMediaSize(bytes: number | null): string {
 	return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
-/** A link's row id: one link per file and record, so a second link to the same record is the same row. */
-export function mediaLinkId(mediaId: string, entityId: string): string {
-	return `${mediaId}:${entityId}`;
+/**
+ * A link's row id: `<mediaId>:<entityId>` for a pointer on the record, `<mediaId>:<entityId>:<factId>`
+ * for one under a fact (ADR-082). `mediaId` names an object, and for the life of the expand phase an
+ * object's id is its first file's id, so a legacy link needs no rewrite.
+ */
+export function mediaLinkId(mediaId: string, entityId: string, factId?: string | null): string {
+	return factId ? `${mediaId}:${entityId}:${factId}` : `${mediaId}:${entityId}`;
+}
+
+/**
+ * The object a file belongs to. A null `object_id` is a file written before the backfill (ADR-082,
+ * migration step 3), and means "an object whose id is the file's own id". Every reader that needs
+ * an object goes through here so that fallback lives in one place.
+ */
+export function objectIdOf(file: { id: string; objectId: string | null }): string {
+	return file.objectId ?? file.id;
+}
+
+/** Whether a file's bytes are not in Epoch. A null status is `resolved`, which every older row is. */
+export function isUnresolvedFile(file: { status: string | null }): boolean {
+	return file.status === 'unresolved';
+}
+
+/**
+ * The key an unresolved file holds in `r2_object_key`, which stays NOT NULL until the contract
+ * migrations (ADR-082). It names no bucket object: `parseMediaKey` refuses it.
+ */
+export function unresolvedMediaKey(itemId: string): string {
+	return `unresolved/${itemId}`;
+}
+
+/** A pointer's crop in whole pixels; all four are set or none is. */
+export interface MediaCrop {
+	top: number;
+	left: number;
+	height: number;
+	width: number;
 }

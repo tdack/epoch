@@ -135,6 +135,7 @@ export class WindowState {
 			unionPartners: inOrder(this.partners).filter((p) => this.unions.has(p.unionId)),
 			parentChild: inOrder(this.links),
 			events: inOrder(this.events),
+			mediaObjects: [],
 			mediaItems: [],
 			mediaLinks: [],
 			sources: [],

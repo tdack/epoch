@@ -30,6 +30,7 @@ import {
 	places,
 	mediaItems,
 	mediaLinks,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -71,6 +72,7 @@ const TABLES: Record<RecordTable, SQLiteTable> = {
 	union_partners: unionPartners,
 	parent_child: parentChild,
 	events,
+	media_object: mediaObjects,
 	media_items: mediaItems,
 	media_links: mediaLinks,
 	sources,
@@ -122,6 +124,7 @@ const TREE_ROW_TABLES: Record<keyof TreeRows, SQLiteTable> = {
 	unionPartners,
 	parentChild,
 	events,
+	mediaObjects,
 	mediaItems,
 	mediaLinks,
 	personNames,
@@ -147,9 +150,10 @@ type ColumnMap = Record<string, { dataType: string }>;
 /**
  * Columns left out of row images: `placeId` is derived from `place`; `sizeBytes` and `uploadedBy`
  * arrived with migration 0029, so an inverse written before it has no such keys and would never
- * match a row that has them. See `EventRow` and `MediaRow`.
+ * match a row that has them; `sha256` and `crc32` are caches an upload or a backfill fills in, not
+ * edits (ADR-082). See `EventRow` and `MediaRow`.
  */
-const DERIVED_COLUMNS = new Set(['placeId', 'sizeBytes', 'uploadedBy']);
+const DERIVED_COLUMNS = new Set(['placeId', 'sizeBytes', 'uploadedBy', 'sha256', 'crc32']);
 
 /**
  * Child tables whose `tree_id` stays out of row images. Their logged images predate migration 0036,

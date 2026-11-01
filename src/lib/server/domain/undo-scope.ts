@@ -74,7 +74,10 @@ export function undoSeed(ops: readonly RowOp[]): ScopeSeed {
 						image?.entityId ?? null
 					);
 				break;
+			case 'media_object':
 			case 'media_items':
+				// An object's id is its first file's id for the whole expand phase (ADR-082), so the file seed
+				// reaches both, and the loader brings the object of every file it loads.
 				ids.media.push(op.id);
 				break;
 			case 'media_links':

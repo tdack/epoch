@@ -20,6 +20,7 @@ import { UNION_EVENT_LABELS, isUnionEventType } from '../../shared/union-events'
 import { ordinal as ordinalOf, partnershipLabels } from '../../shared/partnership-labels';
 import { CITATION_SUBJECT_KINDS, sourceLabel } from '../../shared/evidence';
 import { NOTE_SUBJECT_KINDS, noteTitle } from '../../shared/notes';
+import { objectIdOf } from '../../shared/media';
 
 export function eventLabel(type: string): string {
 	if (isUnionEventType(type)) return UNION_EVENT_LABELS[type];
@@ -151,6 +152,10 @@ export function makeLabeler(rows: TreeRows, ops: RowOp[]): RowLabeler {
 				// Two occupations or residences share a name, so a preview names the one it means.
 				const detail = row.value ? ` (${row.value})` : '';
 				return `${eventLabel(row.type)}${detail} of ${owner}`;
+			}
+			case 'media_object': {
+				const first = known.mediaItems.find((m) => objectIdOf(m) === row.id);
+				return first?.title ? `File record “${first.title.slice(0, 60)}”` : 'File record';
 			}
 			case 'media_items':
 				return row.title ? `File “${row.title.slice(0, 60)}”` : 'File';

@@ -15,6 +15,7 @@ import type {
 	individuals,
 	mediaItems,
 	mediaLinks,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -61,9 +62,17 @@ export type EventRow = Omit<Imaged<typeof events.$inferSelect>, 'placeId'>;
 /**
  * `sizeBytes` and `uploadedBy` are left out of the image for the same reason as `placeId` above:
  * an inverse written before migration 0029 lacks them, and must still match the row as it is now.
+ * `sha256` and `crc32` are caches the upload or a backfill computes, so they are left out too
+ * (ADR-082). The columns migration 0055 added are in the image: `withAllColumns` reads a key an
+ * older image lacks as null, which is why each of them is nullable with no default.
  */
-export type MediaRow = Omit<Imaged<typeof mediaItems.$inferSelect>, 'sizeBytes' | 'uploadedBy'>;
-/** A file's link to a person, union or source. `id` is `<mediaId>:<entityId>`, see the schema. */
+export type MediaRow = Omit<
+	Imaged<typeof mediaItems.$inferSelect>,
+	'sizeBytes' | 'uploadedBy' | 'sha256' | 'crc32'
+>;
+/** A GEDCOM `OBJE` record: the unit that links point at and that owns one or more files (ADR-082). */
+export type MediaObjectRow = Imaged<typeof mediaObjects.$inferSelect>;
+/** An object's link to a person, union, source or fact. `id` is `<mediaId>:<entityId>[:<factId>]`, see the schema. */
 export type MediaLinkRow = Imaged<typeof mediaLinks.$inferSelect>;
 export type SourceRow = Imaged<typeof sources.$inferSelect>;
 export type RepositoryRow = Imaged<typeof repositories.$inferSelect>;
@@ -84,6 +93,7 @@ export interface TreeRows {
 	unionPartners: UnionPartnerRow[];
 	parentChild: ParentChildRow[];
 	events: EventRow[];
+	mediaObjects: MediaObjectRow[];
 	mediaItems: MediaRow[];
 	mediaLinks: MediaLinkRow[];
 	sources: SourceRow[];
@@ -105,6 +115,7 @@ export interface TableRows {
 	union_partners: UnionPartnerRow;
 	parent_child: ParentChildRow;
 	events: EventRow;
+	media_object: MediaObjectRow;
 	media_items: MediaRow;
 	media_links: MediaLinkRow;
 	sources: SourceRow;
@@ -128,27 +139,29 @@ const TABLE_RANK: Record<RecordTable, number> = {
 	union_partners: 3,
 	parent_child: 4,
 	events: 5,
-	media_items: 6,
+	// A file has a foreign key to its object, so the object is created first and deleted last.
+	media_object: 6,
+	media_items: 7,
 	// Evidence points at the rows above and at each other: a citation at its source and its subject,
 	// a link at its source and repository.
-	sources: 7,
-	repositories: 8,
-	source_repositories: 9,
-	citations: 10,
+	sources: 8,
+	repositories: 9,
+	source_repositories: 10,
+	citations: 11,
 	// Notes point at the rows above (an attachment at its subject, whichever table that is) and at
 	// each other: an attachment at its shared note.
-	notes: 11,
-	note_attachments: 12,
+	notes: 12,
+	note_attachments: 13,
 	// A task points at a record of any of the above and nothing points at it.
-	research_tasks: 13,
+	research_tasks: 14,
 	// Points at a person by id with no foreign key, and nothing points at it.
-	subtree: 14,
+	subtree: 15,
 	// Points at a file and nothing points at it; a link is created after its file and deleted before.
-	media_links: 15,
+	media_links: 16,
 	// Points at a place record, which is not a record table: the change store derives places from fact
 	// text and a location is only ever set on one that exists, so no create here depends on an op in
 	// the same change. Nothing points at it.
-	place_locations: 16
+	place_locations: 17
 };
 
 /** The name a table's rows go by in the log and in previews. */
@@ -159,6 +172,7 @@ const ENTITY_TYPES = {
 	union_partners: 'partner',
 	parent_child: 'link',
 	events: 'event',
+	media_object: 'media_object',
 	media_items: 'media',
 	media_links: 'media_link',
 	sources: 'source',
