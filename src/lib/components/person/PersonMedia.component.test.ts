@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import type { PersonPageDto } from '#lib/shared/person-page.js';
+import type { PersonMediaDto, PersonPageDto } from '#lib/shared/person-page.js';
 import type { TreeRole } from '#lib/shared/roles.js';
 import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
 
@@ -12,8 +12,12 @@ vi.mock('#lib/components/tree/tree-context.js', () => ({
 vi.mock('#lib/api/files.js', () => ({
 	deleteFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
-	uploadMediaApi: vi.fn()
+	uploadMediaApi: vi.fn(),
+	reorderFilesApi: vi.fn(),
+	updateFileLinkTitleApi: vi.fn(),
+	resolveFileFromUploadApi: vi.fn()
 }));
+vi.mock('#lib/api/uploader.js', () => ({ startUpload: vi.fn(), isAbortError: () => false }));
 
 import { deleteFileApi, unlinkFileApi, uploadMediaApi } from '#lib/api/files.js';
 import PersonMedia from './PersonMedia.svelte';
@@ -35,11 +39,19 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-const file = (id: string, canDelete: boolean, isShared = false) => ({
+const file = (id: string, canDelete: boolean, isShared = false): PersonMediaDto => ({
 	id,
+	objectId: id,
+	objectVersion: 3,
 	title: `${id}.pdf`,
+	linkTitle: null,
+	factId: null,
+	factLabel: null,
 	mimeType: 'application/pdf',
 	r2ObjectKey: `media/t1/${id}.pdf`,
+	isUnresolved: false,
+	gedcomPath: null,
+	extraFiles: [],
 	version: 3,
 	isShared,
 	canUnlink: true,
@@ -47,7 +59,7 @@ const file = (id: string, canDelete: boolean, isShared = false) => ({
 	isPrivate: false
 });
 
-function render(media: ReturnType<typeof file>[], role: TreeRole | undefined = 'editor') {
+function render(media: PersonMediaDto[], role: TreeRole | undefined = 'editor') {
 	const refresh = vi.fn().mockResolvedValue(undefined);
 	const dto = { person: { id: 'p1' }, media } as unknown as PersonPageDto;
 	component = mount(PersonMedia, {
@@ -118,7 +130,7 @@ describe('PersonMedia on a file linked elsewhere too', () => {
 		expect(document.body.textContent).toContain('stays on the other records');
 		button('Confirm remove')!.click();
 		await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
-		expect(unlink).toHaveBeenCalledWith('a', 't1', 'p1', 3);
+		expect(unlink).toHaveBeenCalledWith('a', 't1', 'p1', 3, null);
 		expect(remove).not.toHaveBeenCalled();
 	});
 });

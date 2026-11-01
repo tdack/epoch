@@ -143,6 +143,61 @@ export function unresolvedMediaKey(itemId: string): string {
 	return `unresolved/${itemId}`;
 }
 
+/**
+ * Whether a `FILE` text is a web address a person may follow. Only `http:` and `https:` qualify: a
+ * `file:` URI, a Windows path and a relative reference are text, and `javascript:` or `data:` must
+ * never become a link (ADR-082). Nothing here fetches; the UI opens it only on a click.
+ */
+export function isWebUrl(path: string | null | undefined): path is string {
+	if (!path) return false;
+	try {
+		const { protocol } = new URL(path);
+		return protocol === 'http:' || protocol === 'https:';
+	} catch {
+		// A relative reference or a Windows path does not parse as an absolute URL.
+		return false;
+	}
+}
+
+/**
+ * What to call an unresolved file: its title, else the last segment of the path it was written
+ * with (either slash, no query), else a plain "Missing file".
+ */
+export function unresolvedFileLabel(file: {
+	title: string | null;
+	gedcomPath: string | null;
+}): string {
+	const title = file.title?.trim();
+	if (title) return title;
+	const last = (file.gedcomPath ?? '')
+		.split(/[?#]/)[0]!
+		.split(/[\\/]/)
+		.filter((part) => part !== '')
+		.pop();
+	return last ?? 'Missing file';
+}
+
+/** The summary of an object's details: "+2 files" when it has more than its first, else just "Details". */
+export function extraFilesLabel(extraCount: number): string {
+	if (extraCount <= 0) return 'Details';
+	return `+${extraCount} ${extraCount === 1 ? 'file' : 'files'}`;
+}
+
+/** One file of a media object, in the shape every screen can supply for its details. */
+export interface ObjectFileView {
+	id: string;
+	title: string | null;
+	/** The file row's version, sent back when the file is resolved. */
+	version: number;
+	mimeType: string;
+	sizeBytes: number | null;
+	isUnresolved: boolean;
+	/** The `FILE` text as written. Plain text unless it is an http(s) address; never fetched. */
+	gedcomPath: string | null;
+	/** The stored key to open the file by; null when unresolved or when the viewer may not preview. */
+	previewKey: string | null;
+}
+
 /** A pointer's crop in whole pixels; all four are set or none is. */
 export interface MediaCrop {
 	top: number;
