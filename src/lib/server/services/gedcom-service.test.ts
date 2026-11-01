@@ -231,6 +231,24 @@ describe('importFile', () => {
 		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
 	});
 
+	it('does not count a tree’s upload-session bytes against its staging cap', async () => {
+		const s = await tree();
+		const { objects, bucket } = fakeBucket();
+		objects.set(`staging/uploads/${s.treeId}/session-1`, {
+			value: '',
+			size: MAX_STAGED_BYTES_PER_TREE * 4
+		});
+		const service = new GedcomService(t.db, {
+			bucket,
+			importWorkflow: { create: async () => {} }
+		});
+		const outcome = await service.importFile(
+			fileOf({ treeId: s.treeId, sizeBytes: 3 * 1024 * 1024 }),
+			s.owner.context
+		);
+		expect(outcome).toMatchObject({ status: 'queued', treeId: s.treeId });
+	});
+
 	it('imports a large file in the request when the workflow is not bound', async () => {
 		const s = await tree();
 		const outcome = await new GedcomService(t.db, { bucket: fakeBucket().bucket }).importFile(
