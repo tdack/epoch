@@ -193,7 +193,7 @@ const fs = (await import(/* @vite-ignore */ fsModule)) as {
 };
 const url = (await import(/* @vite-ignore */ urlModule)) as { fileURLToPath(url: URL): string };
 const maximal = url.fileURLToPath(
-	new URL('./fixtures/conformance/files/maximal70.gdz', import.meta.url)
+	new URL('../../../../test/gedcom/conformance/files/maximal70.gdz', import.meta.url)
 );
 
 describe.skipIf(!fs.existsSync(maximal))('the official maximal70.gdz', () => {

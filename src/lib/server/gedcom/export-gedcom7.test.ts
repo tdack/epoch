@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { getTreeExportData, importGedcomToDb } from '../testing/gedcom';
-import EVIDENCE from './fixtures/evidence.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
 import { parseGedcom } from './parser';
 import { buildGedcom7String } from './serializer';
 

@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import FIXTURE from './fixtures/evidence.ged?raw';
+import FIXTURE from '../../../../test/gedcom/evidence.ged?raw';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { buildGedcom551String, buildGedcom7String } from './serializer';
 import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';

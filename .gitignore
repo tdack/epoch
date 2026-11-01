@@ -51,4 +51,4 @@ vite.config.ts.timestamp-*
 docs/archive/
 
 # GEDCOM 7 conformance files are fetched, not committed (no upstream licence).
-/src/lib/server/gedcom/fixtures/conformance/files/
+/test/gedcom/conformance/files/

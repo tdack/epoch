@@ -6,9 +6,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
-import EVIDENCE from './fixtures/evidence.ged?raw';
-import NOTES7 from './fixtures/notes7.ged?raw';
-import SOURCES7 from './fixtures/sources7.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
+import NOTES7 from '../../../../test/gedcom/notes7.ged?raw';
+import SOURCES7 from '../../../../test/gedcom/sources7.ged?raw';
 import { parseGedcom } from './parser';
 import { buildGedcom7String } from './serializer';
 import { validateGedcom7 } from './validate7';

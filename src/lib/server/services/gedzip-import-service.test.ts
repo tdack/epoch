@@ -37,7 +37,10 @@ vi.mock('../workflows/workflow-runtime', () => ({
 
 // @ts-expect-error @types/node is not installed; the fixture is binary, so it is read here.
 const { existsSync, readFileSync } = await import('node:fs');
-const archiveUrl = new URL('../gedcom/fixtures/conformance/files/maximal70.gdz', import.meta.url);
+const archiveUrl = new URL(
+	'../../../../test/gedcom/conformance/files/maximal70.gdz',
+	import.meta.url
+);
 
 /** A bucket that serves the ranged reads and `head` the zip reader makes. */
 class RangeBucket extends FakeMediaBucket {

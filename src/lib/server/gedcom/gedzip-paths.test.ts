@@ -302,7 +302,7 @@ describe('classifyMediaEntry', () => {
 });
 
 describe('the official maximal70.gdz', () => {
-	const folder = new URL('./fixtures/conformance/files/', import.meta.url);
+	const folder = new URL('../../../../test/gedcom/conformance/files/', import.meta.url);
 	const archive = new URL('maximal70.gdz', folder);
 	const dataset = new URL('maximal70.ged', folder);
 
