@@ -17,8 +17,11 @@ their commits here. A new session resumes by reading this section, then
 - **Done:** Phase 0; 1A.1–1A.6; 1B.1–1B.6; 2.1–2.6 and 2.2b; 3.1, 3.2; 4.1; a 500 MiB per-file
   media cap (`MAX_MEDIA_FILE_BYTES`); replace imports keep files and warn before unlinking them.
   `MAX_GEDZIP_UPLOAD_BYTES` (half of 3.5) is in.
-- **In flight (started 2026-11-01):** 3.3 + the rest of 3.5 (`.gdz` import Workflow); 4.2 + 4.3
-  (`.gdz` export segments and download); 1B.7 (remaining single uploads onto sessions).
+- **In flight (started 2026-11-01, paused for a host restart):** 3.3 + the rest of 3.5 (`.gdz`
+  import Workflow) on `worktree-agent-a5e9d19705d28d33d`; 4.2 + 4.3 (`.gdz` export segments and
+  download) on `worktree-agent-a2c8010c03aa76fcf`; 1B.7 (remaining single uploads onto sessions) on
+  `worktree-agent-aacd6eece2845b3b3`. Each may end in a `wip:` commit: finish it in its worktree
+  under `.claude/worktrees/agent-<id>`, then squash the `wip:` commit away before merging.
 - **Next:** 3.4 (preview and UI) and 4.4 (export menu) once those land; then 1B.8 (own deploy);
   Phase 5. ADR-082 migrations 5–6 wait until 2.2b is deployed and `db:backfill:media-objects` has
   run twice. 1A.7 and 5.5 are optional.
