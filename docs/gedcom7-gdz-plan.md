@@ -6,7 +6,30 @@ purpose. Work is done by subagents. An orchestrator (Opus, in the main session) 
 what they return and merges it. When an item lands, record it in `backlog.md`, the ADRs and
 `architecture.md`. This file only says how the work is ordered.
 
-## Where things stand
+## Progress (hand-off, updated 2026-11-01)
+
+Branch `feat/gedcom7-gdz`, not pushed. Agents work in their own worktrees on branches named
+`worktree-agent-<id>`, each reset to this branch's tip; the orchestrator reviews and cherry-picks
+their commits here. A new session resumes by reading this section, then
+`git branch --list 'worktree-agent-*'` for branches not yet merged
+(`git log feat/gedcom7-gdz..<branch>`).
+
+- **Done:** Phase 0; 1A.1–1A.6; 1B.1–1B.6; 2.1–2.6 and 2.2b; 3.1, 3.2; 4.1; a 500 MiB per-file
+  media cap (`MAX_MEDIA_FILE_BYTES`); replace imports keep files and warn before unlinking them.
+  `MAX_GEDZIP_UPLOAD_BYTES` (half of 3.5) is in.
+- **In flight (started 2026-11-01):** 3.3 + the rest of 3.5 (`.gdz` import Workflow); 4.2 + 4.3
+  (`.gdz` export segments and download); 1B.7 (remaining single uploads onto sessions).
+- **Next:** 3.4 (preview and UI) and 4.4 (export menu) once those land; then 1B.8 (own deploy);
+  Phase 5. ADR-082 migrations 5–6 wait until 2.2b is deployed and `db:backfill:media-objects` has
+  run twice. 1A.7 and 5.5 are optional.
+- **Known limits:** a source's file reorder fails above 100 linked files (it lists one page);
+  `whole-tree-window.test.ts` and `bounded-form.test.ts` fail only under a full parallel run
+  (local D1 drops, and an existing stream error on `main`).
+- **Supersedes the 3.3 row:** ADR-082 replaced `mediaId = hash(jobId, entryPath)`. The dataset
+  import creates unresolved rows first; a media step resolves a row found by
+  `(tree_id, gedcom_path)`, and an entry no `FILE` names becomes a detached object.
+
+## Where things stood (2026-10-31)
 
 - **Already in 7.0:** export is 7.0 by default, made valid line by line (`toGedcom7Lines`). It
   handles dates and `PHRASE`, `SNOTE`, `MIME` and `LANG` on notes, `FORM`/`MEDI`, and a `SCHMA` for
