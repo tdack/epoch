@@ -1,4 +1,4 @@
-import { MAX_TREE_MEDIA_BYTES } from './media';
+import { MAX_MEDIA_FILE_BYTES, MAX_TREE_MEDIA_BYTES } from './media';
 
 /**
  * Resumable upload sessions (ADR-074). A file goes up in fixed-size parts, each one a request of
@@ -25,12 +25,12 @@ export const UPLOAD_PURPOSES = ['gedzip_import', 'media'] as const;
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 
 /**
- * The largest file each purpose may upload. Media equals the tree's whole quota for now: a single
- * file may use all of it, and the quota check refuses it when the tree has less room.
+ * The largest file each purpose may upload. Media is checked against the quota as well, so a file
+ * under its cap is still refused when the tree has less room.
  */
 export const MAX_UPLOAD_BYTES_BY_PURPOSE: Record<UploadPurpose, number> = {
 	gedzip_import: MAX_GEDZIP_UPLOAD_BYTES,
-	media: MAX_TREE_MEDIA_BYTES
+	media: MAX_MEDIA_FILE_BYTES
 };
 
 /** How long an open session lives. A sweep aborts the R2 upload of one left past this. */

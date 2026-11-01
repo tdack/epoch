@@ -276,4 +276,7 @@ tool).
    optional, so a 7.0 export writes a submitter only when the tree has one. An imported
    submitter fills the setting.
 4. **Size caps:** the Workers plan is paid. Parts are 50 MiB, and a `.gdz` may be about 2.05 GB
-   (`MAX_TREE_MEDIA_BYTES` plus `MAX_DATASET_BYTES`).
+   (`MAX_TREE_MEDIA_BYTES` plus `MAX_DATASET_BYTES`). One media file may be at most 500 MiB
+   (`MAX_MEDIA_FILE_BYTES`), whether uploaded or read from a `.gdz` (decided 2026-11-01): anything
+   larger is a long video, which belongs somewhere other than a family tree. A `.gdz` entry over
+   the cap is skipped and reported, not imported.

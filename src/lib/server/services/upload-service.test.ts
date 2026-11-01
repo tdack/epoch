@@ -14,7 +14,7 @@ import {
 	type TestActor,
 	type TestDatabase
 } from '../testing/d1';
-import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
+import { MAX_MEDIA_FILE_BYTES, MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { MAX_GEDZIP_UPLOAD_BYTES, UPLOAD_SESSION_TTL_SECONDS } from '../../shared/uploads';
 import { UPLOAD_SWEEP_BATCH_SIZE, UploadService } from './upload-service';
 
@@ -87,9 +87,12 @@ describe('UploadService.create', () => {
 	});
 
 	it('refuses a file over its purpose cap', async () => {
-		await expect(service().create(media(MAX_TREE_MEDIA_BYTES + 1), owner.context)).rejects.toThrow(
+		await expect(service().create(media(MAX_MEDIA_FILE_BYTES + 1), owner.context)).rejects.toThrow(
 			PayloadTooLargeError
 		);
+		const real = new UploadService(t.db, bucket as unknown as R2Bucket, { now: () => clock });
+		const capTree = await createTestTree(t.db, owner);
+		await real.create({ ...media(MAX_MEDIA_FILE_BYTES), treeId: capTree }, owner.context);
 		await expect(
 			service().create(
 				{ ...media(MAX_GEDZIP_UPLOAD_BYTES + 1), purpose: 'gedzip_import' },
@@ -101,11 +104,15 @@ describe('UploadService.create', () => {
 	it('counts open sessions against the quota, so parallel sessions cannot overrun it', async () => {
 		const quotaTree = await createTestTree(t.db, owner);
 		const input = (bytes: number) => ({ ...media(bytes), treeId: quotaTree });
-		const half = MAX_TREE_MEDIA_BYTES / 2;
+		// Stored media leaves room for exactly two files at the cap.
+		bucket.objects.set(`media/${quotaTree}/x.png`, {
+			body: new Uint8Array(),
+			size: MAX_TREE_MEDIA_BYTES - 2 * MAX_MEDIA_FILE_BYTES
+		});
 		// A small part size would put this over R2's part cap, so the quota test uses the real one.
 		const real = new UploadService(t.db, bucket as unknown as R2Bucket, { now: () => clock });
-		await real.create(input(half), owner.context);
-		await real.create(input(half), owner.context);
+		await real.create(input(MAX_MEDIA_FILE_BYTES), owner.context);
+		await real.create(input(MAX_MEDIA_FILE_BYTES), owner.context);
 		await expect(real.create(input(1), owner.context)).rejects.toThrow(PayloadTooLargeError);
 	});
 
@@ -122,8 +129,12 @@ describe('UploadService.create', () => {
 
 	it('stops reserving room once a session expires', async () => {
 		const quotaTree = await createTestTree(t.db, owner);
+		bucket.objects.set(`media/${quotaTree}/x.png`, {
+			body: new Uint8Array(),
+			size: MAX_TREE_MEDIA_BYTES - MAX_MEDIA_FILE_BYTES
+		});
 		const real = new UploadService(t.db, bucket as unknown as R2Bucket, { now: () => clock });
-		const input = { ...media(MAX_TREE_MEDIA_BYTES), treeId: quotaTree };
+		const input = { ...media(MAX_MEDIA_FILE_BYTES), treeId: quotaTree };
 		await real.create(input, owner.context);
 		await expect(real.create(input, owner.context)).rejects.toThrow(PayloadTooLargeError);
 		clock = new Date(clock.getTime() + (UPLOAD_SESSION_TTL_SECONDS + 1) * 1000);

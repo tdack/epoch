@@ -50,6 +50,13 @@ export const MAX_MEDIA_UPLOAD_BYTES = 25 * 1024 * 1024;
  */
 export const MAX_TREE_MEDIA_BYTES = 2 * 1024 * 1024 * 1024;
 
+/**
+ * How large one media file may be, however it arrives (a chunked upload or a `.gdz` entry). Not the
+ * quota: a file this size is a long recording or a large scan, and a family tree is the wrong home
+ * for video, so the cap stops one file taking a quarter of the tree's room.
+ */
+export const MAX_MEDIA_FILE_BYTES = 500 * 1024 * 1024;
+
 /** Whether a stored type may be rendered inline on our own origin. */
 export function isInlineMediaType(mime: string | undefined | null): mime is InlineMediaType {
 	return mime != null && (INLINE_MEDIA_TYPES as readonly string[]).includes(mime);
