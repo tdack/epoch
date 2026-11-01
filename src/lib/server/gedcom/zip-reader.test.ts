@@ -520,7 +520,7 @@ describe.each([
 });
 
 describe('the official GEDCOM 7.0 archives', () => {
-	const folder = new URL('./fixtures/conformance/files/', import.meta.url);
+	const folder = new URL('../../../../test/gedcom/conformance/files/', import.meta.url);
 	const load = (name: string) => {
 		const url = new URL(name, folder);
 		return existsSync(url) ? new Uint8Array(readFileSync(url)) : null;

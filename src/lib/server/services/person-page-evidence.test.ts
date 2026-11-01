@@ -4,7 +4,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import SOURCES7 from '../gedcom/fixtures/sources7.ged?raw';
+import SOURCES7 from '../../../../test/gedcom/sources7.ged?raw';
 import { importGedcomToDb } from '../testing/gedcom';
 import {
 	createTestDatabase,

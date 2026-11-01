@@ -7,7 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
-import NOTES7 from './fixtures/notes7.ged?raw';
+import NOTES7 from '../../../../test/gedcom/notes7.ged?raw';
 import { toGedcom7Lines } from './dialect';
 import {
 	citations,

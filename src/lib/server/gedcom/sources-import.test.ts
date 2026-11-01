@@ -5,8 +5,8 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
-import EVIDENCE from './fixtures/evidence.ged?raw';
-import SOURCES7 from './fixtures/sources7.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
+import SOURCES7 from '../../../../test/gedcom/sources7.ged?raw';
 import { citations, events, repositories, sourceRepositories, sources } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';

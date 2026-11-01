@@ -31,12 +31,12 @@ const KNOWN_GAPS: Record<string, KnownGap> = {};
 
 // The files are fetched by `npm run gedcom:conformance` and gitignored, so a fresh clone has none
 // and the suite skips, as validate7.test.ts does.
-const conformance = import.meta.glob<string>('./fixtures/conformance/files/*.ged', {
+const conformance = import.meta.glob<string>('../../../../test/gedcom/conformance/files/*.ged', {
 	query: '?raw',
 	import: 'default',
 	eager: true
 });
-const own = import.meta.glob<string>('./fixtures/*.ged', {
+const own = import.meta.glob<string>('../../../../test/gedcom/*.ged', {
 	query: '?raw',
 	import: 'default',
 	eager: true

@@ -42,10 +42,7 @@ const FILES = [
 	['xref.ged', 'c194630901c65e13724b47ecd0f11818ac6d4b089757c916506caa08ab8c0870']
 ];
 
-const targetDir = join(
-	dirname(fileURLToPath(import.meta.url)),
-	'../src/lib/server/gedcom/fixtures/conformance/files'
-);
+const targetDir = join(dirname(fileURLToPath(import.meta.url)), '../test/gedcom/conformance/files');
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 

@@ -7,8 +7,8 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import EVIDENCE from './fixtures/evidence.ged?raw';
-import NOTES7 from './fixtures/notes7.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
+import NOTES7 from '../../../../test/gedcom/notes7.ged?raw';
 import {
 	citations,
 	events,

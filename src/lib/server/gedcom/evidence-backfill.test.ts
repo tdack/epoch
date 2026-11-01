@@ -6,8 +6,8 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import EVIDENCE from './fixtures/evidence.ged?raw';
-import SOURCES7 from './fixtures/sources7.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
+import SOURCES7 from '../../../../test/gedcom/sources7.ged?raw';
 import { citations, repositories, sourceRepositories, sources } from '../db/schema';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import {

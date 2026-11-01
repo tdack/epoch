@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ValidationError } from '../domain/errors';
 import { createTestDatabase, type TestDatabase } from '../testing/d1';
 import { getTreeExportData, importGedcomToDb, withoutStamps } from '../testing/gedcom';
-import EVIDENCE from './fixtures/evidence.ged?raw';
+import EVIDENCE from '../../../../test/gedcom/evidence.ged?raw';
 import { parseGedcom } from './parser';
 import {
 	buildGedcom551String,

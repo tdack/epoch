@@ -411,7 +411,7 @@ describe('the code list', () => {
 
 // The files are fetched by `npm run gedcom:conformance` and gitignored, so the glob is empty
 // on a fresh clone and the suite skips instead of failing.
-const official = import.meta.glob<string>('./fixtures/conformance/files/*.ged', {
+const official = import.meta.glob<string>('../../../../test/gedcom/conformance/files/*.ged', {
 	query: '?raw',
 	import: 'default',
 	eager: true
@@ -425,7 +425,7 @@ describe.skipIf(names.length === 0)('the official GEDCOM 7.0 example files', () 
 	});
 
 	it('reads the 52 KB date file quickly', () => {
-		const text = official['./fixtures/conformance/files/date.ged'];
+		const text = official['../../../../test/gedcom/conformance/files/date.ged'];
 		const start = performance.now();
 		validateGedcom7(text);
 		expect(performance.now() - start).toBeLessThan(500);
