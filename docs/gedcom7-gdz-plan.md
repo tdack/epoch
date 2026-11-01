@@ -157,8 +157,16 @@ one list line in 7.0; an `AGE` with only a `PHRASE`; `PHRASE` and other sub-line
 `HUSB`/`WIFE`/`CHIL`; repeated retained lines (five `SLGS`) no longer collapsed on import; retained
 lines of a record with no XREF; extension-calendar dates written as the file gave them; and
 `HEAD.SUBM` pointed at the kept submitter record. `NO`, `SDATE`, `TIME`, 7.0 `AGE` syntax, `ALIA`
-and `FAMC.STAT` already held and now have tests (`roundtrip-snippets.test.ts`). Still open: a
-family with only a `WIFE` exports it as `HUSB` (the partner order carries no role).
+and `FAMC.STAT` already held and now have tests (`roundtrip-snippets.test.ts`). The partner role
+is kept too: migration 0056 adds `union_partners.gedcom_role`, so a `WIFE`-only family, two `HUSB`
+lines and a `WIFE` written first all export as the file gave them; with no stored role, export falls
+back to `SEX`, then to whichever role is free.
+
+**Status (1A.4).** Done. `EXID`, `UID` and `REFN` already round-tripped as kept lines on every
+record kind and now have tests (`record-metadata.test.ts`). `CHAN` (and `CREA` in 7.0) is written
+from each row's own timestamps; an imported stamp is kept only where Epoch has no timestamp of its
+own (`OBJE`, `SUBM`). Exports now differ between runs, so tests that compare two exports strip the
+stamps first (`withoutStamps`).
 
 - **Import crash on `date.ged`:** the D1 write fails with `fetch failed` (`ECONNRESET`), not a
   foreign-key error. The file has many repeated events, so the batch may be too large; the existing
