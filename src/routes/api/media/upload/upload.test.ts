@@ -9,6 +9,8 @@ import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { individuals, mediaItems } from '#lib/server/db/index.js';
+import { createHash } from 'node:crypto';
+import { crc32 } from '#lib/server/gedcom/crc32.js';
 import { MediaRepository } from '#lib/server/repositories/media-repository.js';
 import {
 	createTestDatabase,
@@ -209,6 +211,14 @@ describe('media upload type checks', () => {
 			uploadedBy: owner.userId,
 			version: 1
 		});
+	});
+
+	it('records the SHA-256 and CRC-32 of the stored bytes', async () => {
+		const response = await upload(owner, new File([PNG_BYTES], 'photo.png', { type: 'image/png' }));
+		const body = (await response.json()) as { media: { id: string } };
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, body.media.id)).get();
+		expect(row?.sha256).toBe(createHash('sha256').update(PNG_BYTES).digest('hex'));
+		expect(row?.crc32).toBe(crc32(PNG_BYTES));
 	});
 
 	it('deletes the stored object when the row cannot be recorded', async () => {

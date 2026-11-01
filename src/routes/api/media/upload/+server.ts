@@ -1,10 +1,15 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { enforceRateLimit } from '#lib/server/http/rate-limit.js';
 import { parseBoundedFormData } from '#lib/server/http/bounded-form.js';
+import { crc32 } from '#lib/server/gedcom/crc32.js';
 import { assertUploadWithinSizeLimit, validateMediaUpload } from '#lib/server/media/media-type.js';
 import { MediaService } from '#lib/server/services/media-service.js';
 import { BindingUnavailableError, ValidationError } from '#lib/server/domain/errors.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '#lib/shared/media.js';
+
+function hexOf(digest: ArrayBuffer): string {
+	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export const POST = apiHandler(
 	{ failure: 'Failed to upload media', status: 201 },
@@ -54,6 +59,11 @@ export const POST = apiHandler(
 		const mediaId = crypto.randomUUID();
 		const objectKey = `media/${treeId}/${mediaId}.${extension}`;
 
+		// The body is already whole in memory (the type is sniffed from it), so both checksums come
+		// from these bytes with no second read of the file or of R2. A stream would only add a pass.
+		const sha256 = hexOf(await crypto.subtle.digest('SHA-256', bytes));
+		const crc = crc32(bytes);
+
 		await bucket.put(objectKey, bytes, { httpMetadata: { contentType: mimeType } });
 
 		const mediaTitle = typeof title === 'string' && title !== '' ? title : file.name;
@@ -64,6 +74,8 @@ export const POST = apiHandler(
 				title: mediaTitle,
 				mimeType,
 				sizeBytes: file.size,
+				sha256,
+				crc32: crc,
 				uploadedBy: ctx.user.id
 			});
 		} catch (err) {
