@@ -8,20 +8,31 @@
  * parent first, so no marker has to be invented and the column still holds plain GEDCOM.
  */
 
-import { levelOfLine } from './node';
+import { collectLines, levelOfLine, shiftLevels, type GedcomNode } from './node';
 
 /** The level a `FILE`'s kept children are stored at, by the structure they sit under. */
 const FILE_CHILD_LEVEL = 2;
 const FORM_CHILD_LEVEL = 3;
 
 /** The kept children of one `FILE`, split by the structure each sits under. */
-interface FileExtras {
+export interface FileExtras {
 	/** Under `MEDI`, at level 4: the `PHRASE` that says what `OTHER` means. */
 	medi: string[];
 	/** Under `FORM` (other than `MEDI`), at level 3. */
 	form: string[];
 	/** Under the `FILE` itself, at level 2: `TRAN` and extensions. */
 	file: string[];
+}
+
+/** A node's lines moved so the node sits at `level`, whatever level the file wrote it at. */
+export function linesAt(node: GedcomNode, level: number): string[] {
+	return shiftLevels(collectLines(node), level - node.level);
+}
+
+/** The stored column for a file's kept children, or null when it has none. */
+export function joinFileExtras(extras: FileExtras): string[] | null {
+	const lines = [...extras.medi, ...extras.form, ...extras.file];
+	return lines.length > 0 ? lines : null;
 }
 
 /**

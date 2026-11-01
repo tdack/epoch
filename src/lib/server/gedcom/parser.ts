@@ -27,6 +27,16 @@ import {
 } from './evidence-parse';
 
 import {
+	embeddedContentKey,
+	linkTitleFor,
+	normalisedFilePath,
+	parseMediaBody,
+	parseMediaPointer,
+	parseMediaRecord,
+	type ParsedMediaLink,
+	type ParsedMediaObject
+} from './media-parse';
+import {
 	isNoteNode,
 	mergeNoteLinks,
 	parseNoteLink,
@@ -37,6 +47,7 @@ import {
 } from './note-parse';
 
 export type { ParsedCitation } from './evidence-parse';
+export type { ParsedMediaLink } from './media-parse';
 export { mergeCitations, mergeNoteLinks };
 
 /** The dialects an import reads. 5.5 is read as 5.5.1, of which it is very nearly a subset. */
@@ -115,6 +126,8 @@ interface ParsedIndividual {
 	citations: ParsedCitation[];
 	/** The notes on the person themself, in file order. */
 	notes: ParsedNoteLink[];
+	/** Pointers to media records on the person themself, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 }
 
 export interface ParsedFamily {
@@ -138,6 +151,8 @@ export interface ParsedFamily {
 	citations: ParsedCitation[];
 	/** The notes on the family record. */
 	notes: ParsedNoteLink[];
+	/** Pointers to media records on the family record, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 	/** XREFs of families merged into this one, from `REFN` records typed `epoch-merged-family`. */
 	aliases?: string[];
 }
@@ -165,6 +180,8 @@ export interface ParsedEvent extends FactDetails {
 	extra?: string[];
 	/** The `SOUR` citations under the event, in file order. */
 	citations?: ParsedCitation[];
+	/** Pointers to media records under the event, in file order. */
+	mediaLinks?: ParsedMediaLink[];
 }
 
 /** The submitter record a `HEAD.SUBM` names. */
@@ -219,6 +236,11 @@ export interface ParsedGedcomData {
 	repositories: ParsedRepository[];
 	/** Root `NOTE`/`SNOTE` records (ADR-029). Empty when the file is read with `isNotesModelled` off. */
 	notes: ParsedSharedNote[];
+	/**
+	 * Media records (ADR-082): every `0 @x@ OBJE`, then each distinct embedded 5.5.1 `OBJE`. A
+	 * pointer under a person, family, source or fact names one by `key`.
+	 */
+	media: ParsedMediaObject[];
 	/**
 	 * Pointers the file makes to a record it does not have, kept as retained lines instead of links.
 	 * `void` is the 7.0 `@VOID@`, a legal pointer meaning "a record that is not in this file"; `absent`
@@ -590,6 +612,63 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		return false;
 	};
 
+	// Media records are read first, so a pointer can tell a record of the file from a missing one.
+	const media: ParsedMediaObject[] = [];
+	const mediaRecords = new Map<string, ParsedMediaObject>();
+	const mediaRecordNodes = new Set<GedcomNode>();
+	for (const node of rootNodes) {
+		if (node.tag !== 'OBJE' || !node.xref || mediaRecords.has(node.xref)) continue;
+		const record = parseMediaRecord(node);
+		mediaRecords.set(node.xref, record);
+		mediaRecordNodes.add(node);
+		media.push(record);
+	}
+	/** Embedded copies by their first path, with what else they say, so a repeat joins the first. */
+	const embeddedByPath = new Map<string, { object: ParsedMediaObject; content: string }>();
+	/** Which object each host and fact has a pointer to already; a second one stays a kept line. */
+	const pointedAt = new Set<string>();
+	/**
+	 * The link a pointer or an embedded `OBJE` under `scope` (a host, or a fact of it) becomes, or
+	 * null when it stays a retained line: it names a record the file lacks, or `@VOID@`, or this
+	 * scope has a link to that object already (ADR-082).
+	 */
+	const mediaLinkOf = (node: GedcomNode, scope: string): ParsedMediaLink | null => {
+		if (node.tag !== 'OBJE') return null;
+		const pointer = node.rawValue?.trim();
+		let link: ParsedMediaLink;
+		if (pointer) {
+			const record = mediaRecords.get(pointer);
+			if (node.isAtEscaped || !record || pointedAt.has(`${scope}|${record.key}`)) return null;
+			link = parseMediaPointer(node, record.key);
+		} else {
+			if (node.children.length === 0) return null;
+			const body = parseMediaBody(node);
+			const first = body.files[0];
+			const content = embeddedContentKey(body);
+			const known = first ? embeddedByPath.get(normalisedFilePath(first.path)) : undefined;
+			let object: ParsedMediaObject;
+			if (known && known.content === content) {
+				object = known.object;
+			} else {
+				object = { key: `embedded:${media.length}`, ...body };
+				media.push(object);
+				if (first) embeddedByPath.set(normalisedFilePath(first.path), { object, content });
+			}
+			if (pointedAt.has(`${scope}|${object.key}`)) return null;
+			const title = linkTitleFor(first?.title, object);
+			link = { objectKey: object.key, ...(title !== undefined ? { title } : {}), extra: [] };
+		}
+		pointedAt.add(`${scope}|${link.objectKey}`);
+		return link;
+	};
+	/** The nodes left after the media pointers among them are taken into `into`. */
+	const takeMediaLinks = (nodes: GedcomNode[], scope: string, into: ParsedMediaLink[]) =>
+		nodes.filter((n) => {
+			const link = mediaLinkOf(n, scope);
+			if (link) into.push(link);
+			return !link;
+		});
+
 	/** The citations among these nodes, or none when the file is read the retained way. */
 	const citationsOf = (nodes: GedcomNode[]) =>
 		isEvidenceModelled
@@ -621,6 +700,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
 			const notes: ParsedNoteLink[] = [];
+			const personMedia: ParsedMediaLink[] = [];
 
 			for (const child of node.children) {
 				if (child.tag === 'NAME') {
@@ -704,6 +784,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				} else if (child.tag === 'FAMS' && child.value) {
 					fams.push(child.value.trim());
 				} else if (INDIVIDUAL_EVENT_TAGS.has(child.tag)) {
+					const factMedia: ParsedMediaLink[] = [];
+					child.children = takeMediaLinks(child.children, `${id}#${events.length}`, factMedia);
 					const dateNode = child.children.find((c) => c.tag === 'DATE');
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const textOf = (tag: string) =>
@@ -767,12 +849,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						...(details ? details.details : {}),
-						citations: citationsOf(child.children)
+						citations: citationsOf(child.children),
+						...(factMedia.length > 0 ? { mediaLinks: factMedia } : {})
 					});
 				} else if (isCitation(child)) {
 					citations.push(parseCitation(child, isNotesModelled));
 				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
 					notes.push(parseNoteLink(child)!);
+				} else if (takeMediaLinks([child], id, personMedia).length === 0) {
+					// A pointer to a media record of the file is a link, not a kept line.
 				} else {
 					// Preserve unmodeled individual-level structures (CHAN, NOTE, OBJE, REFN, ASSO, custom
 					// tags, etc.) verbatim. A citation is one only while evidence is read the retained way.
@@ -795,7 +880,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				fams,
 				events,
 				citations,
-				notes
+				notes,
+				...(personMedia.length > 0 ? { mediaLinks: personMedia } : {})
 			});
 		} else if (node.tag === 'FAM') {
 			const id = node.xref || crypto.randomUUID();
@@ -807,6 +893,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 			const events: ParsedEvent[] = [];
 			const citations: ParsedCitation[] = [];
 			const notes: ParsedNoteLink[] = [];
+			const familyMedia: ParsedMediaLink[] = [];
 			// What hangs under a partner or child link (`PHRASE`, a custom tag) has no column. It is kept
 			// headed by its own line, as a `FAMC`'s is, and written back inside the same link.
 			const linkLines: { key: string; lines: string[] }[] = [];
@@ -852,6 +939,8 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 					const alias = child.value.trim();
 					aliases.push(alias.startsWith('@') ? alias : `@${alias}@`);
 				} else if (FAMILY_EVENT_TAGS.has(child.tag)) {
+					const factMedia: ParsedMediaLink[] = [];
+					child.children = takeMediaLinks(child.children, `${id}#${events.length}`, factMedia);
 					const dateNode = child.children.find((c) => c.tag === 'DATE');
 					const placNode = child.children.find((c) => c.tag === 'PLAC');
 					const { raw, sort, sortEnd } = normalizeGedcomDate(dateTextOf(dateNode, version));
@@ -880,12 +969,15 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						...(isNotesModelled ? { noteLinks } : {}),
 						...(extra.length > 0 ? { extra } : {}),
 						...(details ? details.details : {}),
-						citations: citationsOf(child.children)
+						citations: citationsOf(child.children),
+						...(factMedia.length > 0 ? { mediaLinks: factMedia } : {})
 					});
 				} else if (isCitation(child)) {
 					citations.push(parseCitation(child, isNotesModelled));
 				} else if (isNotesModelled && isNoteNode(child) && parseNoteLink(child)) {
 					notes.push(parseNoteLink(child)!);
+				} else if (takeMediaLinks([child], id, familyMedia).length === 0) {
+					// A pointer to a media record of the file is a link, not a kept line.
 				} else {
 					// Preserve unmodeled family-level structures verbatim.
 					preserved.push({ xref: id, lines: collectLines(child) });
@@ -912,10 +1004,16 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 				events,
 				citations,
 				notes,
+				...(familyMedia.length > 0 ? { mediaLinks: familyMedia } : {}),
 				...(aliases.length > 0 ? { aliases } : {})
 			});
 		} else if (isEvidenceModelled && node.tag === 'SOUR' && node.xref) {
-			sources.push(parseSourceRecord(node, isNotesModelled));
+			const sourceMedia: ParsedMediaLink[] = [];
+			const kept = takeMediaLinks(node.children, node.xref, sourceMedia);
+			sources.push({
+				...parseSourceRecord({ ...node, children: kept }, isNotesModelled),
+				...(sourceMedia.length > 0 ? { mediaLinks: sourceMedia } : {})
+			});
 		} else if (isEvidenceModelled && node.tag === 'REPO' && node.xref) {
 			repositories.push(parseRepositoryRecord(node, isNotesModelled));
 		} else if (isNotesModelled && isNoteNode(node) && node.xref) {
@@ -938,7 +1036,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 						(c) => ['NAME', 'EMAIL', 'WWW'].includes(c.tag) && c.children.length === 0
 					) && rawContent.split(node.xref).length - 1 === 2
 			};
-		} else if (node.tag !== 'TRLR') {
+		} else if (node.tag !== 'TRLR' && !mediaRecordNodes.has(node)) {
 			// Preserve unrecognized root-level records (NOTE, SUBM, OBJE, custom records) so they are
 			// retained for export. A root SOUR or REPO without an XREF cannot be pointed at, so it stays too.
 			preserved.push({ xref: node.xref ?? null, lines: collectLines(node) });
@@ -988,6 +1086,7 @@ export function parseGedcom(rawContent: string, options: ParseOptions = {}): Par
 		sources,
 		repositories,
 		notes: sharedNotes,
+		media,
 		unresolved
 	};
 }

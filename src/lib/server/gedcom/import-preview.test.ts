@@ -33,12 +33,9 @@ describe('retained tags in the import preview', () => {
 		]);
 	});
 
-	it('shows what remains of the Windsors file: objects and associations only', () => {
+	it('shows what remains of the Windsors file: associations only', () => {
 		const preview = previewNewTree(parseGedcom(windsors));
-		expect(preview.retainedTags).toEqual([
-			{ tag: 'OBJE', count: 50 },
-			{ tag: 'ASSO', count: 6 }
-		]);
+		expect(preview.retainedTags).toEqual([{ tag: 'ASSO', count: 6 }]);
 	});
 
 	it('counts a second TYPE or ADDR under one event, which has no column', () => {

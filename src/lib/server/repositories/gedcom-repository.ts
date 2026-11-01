@@ -39,7 +39,12 @@ import {
 	type PreviewRows
 } from '../gedcom/import-preview';
 import { factDetailColumns } from '../gedcom/fact-details';
-import { HEADER_OWNER, type ParsedCitation, type ParsedGedcomData } from '../gedcom/parser';
+import {
+	HEADER_OWNER,
+	type ParsedCitation,
+	type ParsedGedcomData,
+	type ParsedMediaLink
+} from '../gedcom/parser';
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import {
 	importCitations,
@@ -55,6 +60,7 @@ import {
 } from './gedcom-note-writer';
 import type { ParsedNoteLink } from '../gedcom/note-parse';
 import { importNeutralModel } from './gedcom-neutral-writer';
+import { importMedia, type MediaTarget } from './gedcom-media-writer';
 import { chunkByParamLimit } from './param-chunks';
 import { pointFactsAtPlaces, seedLocationsFromFacts } from './place-repository';
 import type { ImportBatch } from './import-batch';
@@ -130,6 +136,19 @@ export class GedcomRepository {
 			.where(eq(individuals.treeId, treeId))
 			.get();
 		return row?.count ?? 0;
+	}
+
+	/**
+	 * The bucket keys of the tree's stored media, for removing the bytes of rows a replace import
+	 * deletes. An unresolved file holds a placeholder that names no object, so it is left out.
+	 */
+	async storedMediaKeys(treeId: string): Promise<string[]> {
+		const rows = await this.db
+			.select({ key: mediaItems.r2ObjectKey, status: mediaItems.status })
+			.from(mediaItems)
+			.where(eq(mediaItems.treeId, treeId))
+			.all();
+		return rows.filter((row) => row.status !== 'unresolved').map((row) => row.key);
 	}
 
 	/** Alias XREF to surviving XREF for unions already in the tree that absorbed other families. */
@@ -258,6 +277,11 @@ export class GedcomRepository {
 					.set({ linkClearedKind: 'event', subjectKind: null, subjectId: null })
 					.where(and(eq(researchTasks.treeId, treeId), eq(researchTasks.subjectKind, 'event')))
 			);
+			// A media object goes with its files and links, which the new file brings its own of; the
+			// bytes are removed by the service once this batch has committed (ADR-082).
+			writes.push(db.delete(mediaLinks).where(eq(mediaLinks.treeId, treeId)));
+			writes.push(db.delete(mediaItems).where(eq(mediaItems.treeId, treeId)));
+			writes.push(db.delete(mediaObjects).where(eq(mediaObjects.treeId, treeId)));
 			writes.push(db.delete(noteAttachments).where(eq(noteAttachments.treeId, treeId)));
 			writes.push(db.delete(notes).where(eq(notes.treeId, treeId)));
 			writes.push(db.delete(citations).where(eq(citations.treeId, treeId)));
@@ -317,12 +341,15 @@ export class GedcomRepository {
 		// What each new event cites, by the id it is about to be given.
 		const eventCitations = new Map<string, ParsedCitation[]>();
 		const eventNotes = new Map<string, ParsedNoteLink[]>();
+		const mediaTargets: MediaTarget[] = [];
+		const eventMedia = new Map<string, ParsedMediaLink[]>();
 		for (const ind of parsed.individuals) {
 			const scopedIndId = treeScopedId(treeId, ind.id);
 			for (const ev of ind.events) {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
 				eventNotes.set(id, ev.noteLinks ?? []);
+				eventMedia.set(id, ev.mediaLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -349,6 +376,7 @@ export class GedcomRepository {
 				const id = crypto.randomUUID();
 				eventCitations.set(id, ev.citations ?? []);
 				eventNotes.set(id, ev.noteLinks ?? []);
+				eventMedia.set(id, ev.mediaLinks ?? []);
 				eventValues.push({
 					id,
 					treeId,
@@ -389,6 +417,11 @@ export class GedcomRepository {
 						citations: eventCitations.get(ev.id!) ?? [],
 						notes: eventNotes.get(ev.id!) ?? []
 					});
+					mediaTargets.push({
+						entityId: ev.entityId!,
+						factId: sameFactId,
+						links: eventMedia.get(ev.id!) ?? []
+					});
 					continue;
 				}
 				idByKey.set(key, ev.id!);
@@ -403,6 +436,11 @@ export class GedcomRepository {
 				id: ev.id!,
 				citations: eventCitations.get(ev.id!) ?? [],
 				notes: eventNotes.get(ev.id!) ?? []
+			});
+			mediaTargets.push({
+				entityId: ev.entityId!,
+				factId: ev.id!,
+				links: eventMedia.get(ev.id!) ?? []
 			});
 		}
 
@@ -426,6 +464,21 @@ export class GedcomRepository {
 				...targets.map((t) => ({ kind: t.kind, id: t.id, notes: t.notes ?? [] }))
 			],
 			noteOf,
+			batch
+		);
+		await importMedia(
+			db,
+			treeId,
+			parsed,
+			[
+				...parsed.individuals.map((i) => ({ entityId: scoped(i.id), links: i.mediaLinks ?? [] })),
+				...parsed.families.map((f) => ({ entityId: scoped(f.id), links: f.mediaLinks ?? [] })),
+				...parsed.sources.flatMap((s) => {
+					const entityId = sourceOf(s.id);
+					return entityId ? [{ entityId, links: s.mediaLinks ?? [] }] : [];
+				}),
+				...mediaTargets
+			],
 			batch
 		);
 		const [first, ...rest] = writes;

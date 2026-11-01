@@ -8,6 +8,7 @@
  */
 
 import { factKey, mergeFactOf, partnerSetKey } from '../../shared/union-merge';
+import { mergeMediaLinks } from './media-parse';
 import {
 	mergeCitations,
 	mergeNoteLinks,
@@ -175,10 +176,12 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 		const aliases = new Set<string>(survivor.aliases ?? []);
 		let familyCitations = survivor.citations;
 		let familyNotes = survivor.notes;
+		let familyMedia = survivor.mediaLinks ?? [];
 		for (const fam of [survivor, ...cluster.filter((f) => f !== survivor)]) {
 			// What a repeated record cites is evidence, and is kept on the record that absorbs it.
 			familyCitations = mergeCitations(familyCitations, fam.citations);
 			familyNotes = mergeNoteLinks(familyNotes, fam.notes);
+			familyMedia = mergeMediaLinks(familyMedia, fam.mediaLinks ?? []);
 			for (const child of fam.children) {
 				const kept = children.get(child.childId);
 				if (!kept) children.set(child.childId, child);
@@ -193,11 +196,12 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 				const key = factsOf([event])[0];
 				const kept = events.get(key);
 				if (!kept) events.set(key, event);
-				else if (event.citations || event.noteLinks)
+				else if (event.citations || event.noteLinks || event.mediaLinks)
 					events.set(key, {
 						...kept,
 						citations: mergeCitations(kept.citations ?? [], event.citations ?? []),
-						noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? [])
+						noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? []),
+						mediaLinks: mergeMediaLinks(kept.mediaLinks ?? [], event.mediaLinks ?? [])
 					});
 			}
 			if (fam !== survivor) {
@@ -212,6 +216,7 @@ export function mergeExactDuplicateFamilies(parsed: ParsedGedcomData): {
 			events: [...events.values()],
 			citations: familyCitations,
 			notes: familyNotes,
+			...(familyMedia.length > 0 ? { mediaLinks: familyMedia } : {}),
 			...(aliases.size > 0 ? { aliases: [...aliases] } : {})
 		});
 	}
@@ -268,11 +273,12 @@ export function foldIntoExistingAliases(
 			const key = factsOf([event])[0];
 			const kept = events.get(key);
 			if (!kept) events.set(key, event);
-			else if (event.citations || event.noteLinks)
+			else if (event.citations || event.noteLinks || event.mediaLinks)
 				events.set(key, {
 					...kept,
 					citations: mergeCitations(kept.citations ?? [], event.citations ?? []),
-					noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? [])
+					noteLinks: mergeNoteLinks(kept.noteLinks ?? [], event.noteLinks ?? []),
+					mediaLinks: mergeMediaLinks(kept.mediaLinks ?? [], event.mediaLinks ?? [])
 				});
 		}
 		families.set(target, {
@@ -286,7 +292,10 @@ export function foldIntoExistingAliases(
 			children: [...children.values()],
 			events: [...events.values()],
 			citations: mergeCitations(existing.citations, fam.citations),
-			notes: mergeNoteLinks(existing.notes, fam.notes)
+			notes: mergeNoteLinks(existing.notes, fam.notes),
+			...(existing.mediaLinks || fam.mediaLinks
+				? { mediaLinks: mergeMediaLinks(existing.mediaLinks ?? [], fam.mediaLinks ?? []) }
+				: {})
 		});
 	}
 

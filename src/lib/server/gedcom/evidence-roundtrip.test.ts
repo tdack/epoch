@@ -97,8 +97,8 @@ describe('importing again changes nothing', () => {
 
 /**
  * A source can have files in Epoch (ADR-061), but a GEDCOM `OBJE` carries a path, never bytes, so an
- * import creates no file. The `OBJE` under a `SOUR` stays a retained line, written once; a file
- * attached in Epoch is written as its own record with a pointer under the source.
+ * import creates no bytes. An `OBJE` under a `SOUR`, embedded or by pointer, becomes a media record
+ * with a link, written once; a file attached in Epoch is written as one more record and pointer.
  */
 describe('an OBJE under a source', () => {
 	const SOURCE_OBJE = `0 HEAD
@@ -123,10 +123,12 @@ describe('an OBJE under a source', () => {
 			source.findIndex((line, i) => i > 0 && line.startsWith('0 '))
 		);
 		expect(block.filter((line) => line === '1 OBJE @M1@')).toHaveLength(1);
-		// 7.0 allows only a pointer under a source, so the embedded object is kept as an extension.
-		expect(block).toContain(format === '7' ? '1 _OBJE' : '1 OBJE');
-		expect(block).toContain('2 FILE scan.png');
+		// The embedded copy is a record of its own with a pointer, in 7.0 and in 5.5.1.
+		expect(block.filter((line) => /^1 OBJE @O\d+@$/.test(line))).toHaveLength(1);
+		expect(block.some((line) => line.includes('_OBJE'))).toBe(false);
 		expect(out.filter((line) => line === '0 @M1@ OBJE')).toHaveLength(1);
+		expect(out.filter((line) => /^0 @O\d+@ OBJE$/.test(line))).toHaveLength(1);
+		expect(out.filter((line) => line === '1 FILE scan.png')).toHaveLength(1);
 	});
 
 	it('gains a record and a pointer for a file attached to the source in Epoch', async () => {

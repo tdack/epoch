@@ -96,6 +96,16 @@ const MEDIA_TYPES: Record<string, string> = {
 /** What 7.0 asks for when neither the `FORM` nor the file name says what a file is. */
 const UNKNOWN_MEDIA_TYPE = 'application/octet-stream';
 
+/**
+ * The media type for a file: its `FORM` when that is one, the type a 5.5.1 format word names, else
+ * what the path implies (`application/octet-stream` when it implies nothing).
+ */
+export function mediaTypeOf(form: string | undefined, path: string): string {
+	const word = form?.trim();
+	if (word?.includes('/')) return word;
+	return (word && MEDIA_TYPES[word.toLowerCase()]) || mediaTypeOfPath(path);
+}
+
 /** The media type a file's extension implies, or `application/octet-stream`. */
 function mediaTypeOfPath(path: string | undefined): string {
 	const name = (path ?? '').split(/[?#]/)[0];
@@ -471,7 +481,7 @@ function rewriteNodes(nodes: readonly Node[], parent: Parent | undefined, ctx: C
  * One kept 5.5.1 structure in 7.0 form, where the rule needs its parent or its children:
  * `RELA` as `ROLE`, `FONE`/`ROMN` as `TRAN`, a shared note as `SNOTE`, an inline source as a pointer
  * to a record, a `FILE` with its `FORM`, `URL` as `WWW`, and any other tag the spec has no place for
- * (or a pointer tag with no pointer, such as an embedded `OBJE`) as an extension (underscore prefix). Nothing inside an extension is touched: the spec says nothing
+ * (or a pointer tag with no pointer, such as an embedded `OBJE` the import kept) as an extension (underscore prefix). Nothing inside an extension is touched: the spec says nothing
  * of what is there.
  */
 function rewriteNode(node: LineNode, parent: Parent | undefined, ctx: Context): Node[] {
@@ -516,8 +526,10 @@ function rewriteNode(node: LineNode, parent: Parent | undefined, ctx: Context): 
 				structureByUri(sub.uri)?.payload.kind === 'pointer' &&
 				!(line.payload && isPointerLike(line.payload))
 			) {
-				// 5.5.1 embedded an `OBJE` and its `FILE` where 7.0 allows only a pointer. Until media are
-				// modelled it is kept whole as an extension, which keeps what is inside it.
+				// A pointer structure written with no pointer, which 7.0 cannot hold. The import models an
+				// embedded `OBJE` under a person, family, source or fact as a pointer to a record of its
+				// own, so what reaches here is one it kept (under a citation, a name, an association);
+				// it stays whole as an extension, which keeps what is inside it.
 				line = { ...line, tag: `_${line.tag}` };
 			}
 		}
