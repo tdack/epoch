@@ -393,6 +393,13 @@
       "when": 1793486687754,
       "tag": "0055_media_records_expand",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1793502030769,
+      "tag": "0056_union_partner_gedcom_role",
+      "breakpoints": true
     }
   ]
 }
