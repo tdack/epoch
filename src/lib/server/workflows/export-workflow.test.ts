@@ -9,6 +9,7 @@ import {
 	createTestUser,
 	type TestDatabase
 } from '../testing/d1';
+import { FakeMediaBucket } from '../testing/fake-bucket';
 import { buildExportInstanceId } from './export-instance';
 import { GedcomExportWorkflow, type GedcomExportPayload } from './export-workflow';
 
@@ -127,6 +128,49 @@ describe('GedcomExportWorkflow', () => {
 			shouldCompress: false
 		});
 		expect(objects.has(result.fileKey)).toBe(true);
+	});
+
+	it('writes a gdz with media as a dataset step, media steps and a tail step', async () => {
+		const s = await setup();
+		const bucket = new FakeMediaBucket();
+		const clientUuid = crypto.randomUUID();
+		const instanceId = buildExportInstanceId(s.treeId, 'gedcom7', true, clientUuid, true);
+		const names: string[] = [];
+
+		const result = await workflowWith(bucket as unknown as R2Bucket).run(
+			eventFor(instanceId, {
+				treeId: s.treeId,
+				userId: s.owner.userId,
+				format: 'gedcom7',
+				shouldCompress: true,
+				shouldIncludeMedia: true
+			}),
+			recordingStep(names)
+		);
+
+		// A tree with no files has no media steps: the dataset segment and the tail make the archive.
+		expect(names).toEqual(['dataset', 'tail']);
+		expect(result.fileKey).toBe(`exports/${s.treeId}-g7m-${clientUuid}.json`);
+		expect(bucket.objects.has(result.fileKey)).toBe(true);
+	});
+
+	it('fails without retrying a payload that disagrees with the media token', async () => {
+		const s = await setup();
+		const bucket = new FakeMediaBucket();
+		const instanceId = buildExportInstanceId(s.treeId, 'gedcom7', true, crypto.randomUUID(), true);
+		const error = (await workflowWith(bucket as unknown as R2Bucket)
+			.run(
+				eventFor(instanceId, {
+					treeId: s.treeId,
+					userId: s.owner.userId,
+					format: 'gedcom7',
+					shouldCompress: true
+				}),
+				recordingStep([])
+			)
+			.catch((e: unknown) => e)) as Error;
+		expect(error.name).toBe('NonRetryableError');
+		expect(bucket.objects.size).toBe(0);
 	});
 
 	it('fails without retrying, and writes nothing, a requester who may not export', async () => {

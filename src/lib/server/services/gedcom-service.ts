@@ -165,6 +165,8 @@ export interface ExportOptions {
 	format: GedcomFormat;
 	/** Package the file as a GEDZip (`.gdz`) archive. GEDZip is defined for 7.0 only. */
 	shouldCompress?: boolean;
+	/** Include the tree's files in the `.gdz`. Only the export workflow can write one. */
+	shouldIncludeMedia?: boolean;
 }
 
 export interface ExportFile {
@@ -176,9 +178,16 @@ export interface ExportFile {
 export const GEDCOM_CONTENT_TYPE = 'text/vnd.familysearch.gedcom';
 
 /** GEDZip's version is the dataset's, and 7.0 was its first, so a 5.5.1 file has no archive form. */
-export function assertExportable({ format, shouldCompress }: ExportOptions): void {
+export function assertExportable({
+	format,
+	shouldCompress,
+	shouldIncludeMedia
+}: ExportOptions): void {
 	if (shouldCompress && format !== 'gedcom7') {
 		throw new ValidationError('A .gdz archive can only hold a GEDCOM 7.0 file');
+	}
+	if (shouldIncludeMedia && !shouldCompress) {
+		throw new ValidationError('Media can only be included in a .gdz archive');
 	}
 }
 

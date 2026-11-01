@@ -283,7 +283,9 @@ export const exportBodySchema = z.object({
 	/** Per click, so a retried async export reuses its instance instead of starting a second. */
 	clientUuid: z.string().uuid(),
 	format: z.enum(['gedcom551', 'gedcom7']).optional(),
-	shouldCompress: z.boolean().optional()
+	shouldCompress: z.boolean().optional(),
+	/** Put the tree's files in a `.gdz`; needs 7.0 and `shouldCompress`, and always runs as a workflow. */
+	includeMedia: z.boolean().optional()
 });
 
 /** The synchronous download's query. The tree id is validated here, so a non-UUID is a 400, never a 500. */

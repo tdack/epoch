@@ -1,6 +1,7 @@
 import { apiHandler } from '#lib/server/http/handler.js';
 import { downloadHeaders } from '#lib/server/http/export-download.js';
-import type { R2Bucket, R2ObjectBody, WorkflowInstance } from '@cloudflare/workers-types';
+import { deleteExport, openSegmentedExport } from '#lib/server/http/export-storage.js';
+import type { R2ObjectBody, WorkflowInstance } from '@cloudflare/workers-types';
 import {
 	ExportExpiredError,
 	ExportUnavailableError,
@@ -21,30 +22,6 @@ import {
 } from '#lib/server/workflows/export-instance.js';
 
 const options = { failure: 'Export failed' };
-
-/** Best-effort delete of an expired object: the lifecycle rule is the backstop if it fails. */
-async function discard(bucket: R2Bucket, fileKey: string): Promise<void> {
-	try {
-		await bucket.delete(fileKey);
-	} catch {
-		// The object is past its window whether or not the delete lands, so the answer is unchanged.
-	}
-}
-
-/**
- * Remove an object whose instance is gone. An instance can be purged independently of its file
- * (an operator, a deployment, a shorter retention than this app asks for), which would otherwise
- * strand the object until the lifecycle rule runs. Best effort, and the key comes from the parsed
- * id, never the client. The lifecycle rule is the backstop if the head or delete fails.
- */
-async function discardOrphan(bucket: R2Bucket, parsed: ParsedExportInstance): Promise<void> {
-	try {
-		const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
-		if (await bucket.head(fileKey)) await bucket.delete(fileKey);
-	} catch {
-		// The lifecycle rule is the backstop if the head or delete fails.
-	}
-}
 
 /**
  * The finished file of an asynchronous export. It streams only a complete export, derives the
@@ -68,7 +45,7 @@ export const GET = apiHandler(
 		} catch {
 			// The runtime no longer knows the instance: it has been purged. Its file, if the workflow
 			// wrote one, is now an orphan, so clear it before answering the same 404.
-			await discardOrphan(bucket, parsed);
+			await deleteExport(bucket, parsed);
 			throw new NotFoundError('Export');
 		}
 
@@ -83,6 +60,20 @@ export const GET = apiHandler(
 			return Response.json({ status: state, code: EXPORT_CODES[state] }, { status: 409 });
 		}
 
+		if (parsed.shouldIncludeMedia) {
+			// Segments are streamed in order and never merged; the length is their sum.
+			let segmented: Awaited<ReturnType<typeof openSegmentedExport>>;
+			try {
+				segmented = await openSegmentedExport(bucket, parsed);
+			} catch (err) {
+				if (err instanceof NotFoundError || err instanceof ExportExpiredError) throw err;
+				throw new ExportUnavailableError();
+			}
+			const headers = downloadHeaders(segmented.filename, GEDZIP_CONTENT_TYPE, false);
+			headers.set('Content-Length', String(segmented.length));
+			return new Response(segmented.body, { status: 200, headers });
+		}
+
 		const fileKey = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
 		// Derived from the instance id, so this only guards against the two ever drifting apart.
 		if (!matchesExportKey(fileKey, parsed)) throw new NotFoundError('Export');
@@ -95,7 +86,7 @@ export const GET = apiHandler(
 		}
 		if (!object) throw new NotFoundError('Export');
 		if (isExportExpired(exportWriteTime(object))) {
-			await discard(bucket, fileKey);
+			await deleteExport(bucket, parsed, true);
 			throw new ExportExpiredError();
 		}
 

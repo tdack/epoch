@@ -167,9 +167,46 @@ describe('POST /api/export', () => {
 		expect(body).not.toHaveProperty('fileKey');
 		expect(create).toHaveBeenCalledWith({
 			id: body.instanceId,
-			params: { treeId: large, userId: owner.userId, format: 'gedcom7', shouldCompress: false },
+			params: {
+				treeId: large,
+				userId: owner.userId,
+				format: 'gedcom7',
+				shouldCompress: false,
+				shouldIncludeMedia: false
+			},
 			retention: { successRetention: '3 days', errorRetention: '7 days' }
 		});
+	});
+
+	it('runs a media export as a workflow even for a small tree', async () => {
+		const { create, workflow } = fakeWorkflow();
+		const clientUuid = uuid();
+		const response = await post(
+			owner,
+			{ treeId: small, clientUuid, format: 'gedcom7', shouldCompress: true, includeMedia: true },
+			workflow
+		);
+		const body = (await response.json()) as { status: string; instanceId: string };
+		expect(body).toEqual({
+			status: 'started',
+			instanceId: buildExportInstanceId(small, 'gedcom7', true, clientUuid, true)
+		});
+		expect(body.instanceId).toContain('_g7m_');
+		expect(create).toHaveBeenCalledWith(
+			expect.objectContaining({
+				params: expect.objectContaining({ shouldIncludeMedia: true, shouldCompress: true })
+			})
+		);
+	});
+
+	it('refuses media in anything but a 7.0 gdz', async () => {
+		const { workflow } = fakeWorkflow();
+		const response = await post(
+			owner,
+			{ treeId: small, clientUuid: uuid(), format: 'gedcom7', includeMedia: true },
+			workflow
+		);
+		expect(response.status).toBe(400);
 	});
 
 	it('answers 410 when the collided instance finished but its file is gone', async () => {

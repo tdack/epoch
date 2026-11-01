@@ -25,10 +25,16 @@ const MAX_DELETE_KEYS = 1000;
  * client. A segmented export is found by listing its prefix, which also catches the parts of one
  * that never finished. The lifecycle rule is the backstop if any call fails.
  */
-export async function deleteExport(bucket: R2Bucket, parsed: ParsedExportInstance): Promise<void> {
+export async function deleteExport(
+	bucket: R2Bucket,
+	parsed: ParsedExportInstance,
+	/** The caller just read the object, so a single-object export need not be probed for first. */
+	isKnownPresent = false
+): Promise<void> {
 	try {
 		if (!parsed.shouldIncludeMedia) {
-			await bucket.delete(exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid));
+			const key = exportObjectKey(parsed.treeId, parsed.token, parsed.clientUuid);
+			if (isKnownPresent || (await bucket.head(key))) await bucket.delete(key);
 			return;
 		}
 		const prefix = exportPartsPrefix(parsed.treeId, parsed.clientUuid);
@@ -60,7 +66,7 @@ export async function openSegmentedExport(
 	);
 	if (!manifestObject) throw new NotFoundError('Export');
 	if (isExportExpired(exportWriteTime(manifestObject))) {
-		await deleteExport(bucket, parsed);
+		await deleteExport(bucket, parsed, true);
 		throw new ExportExpiredError();
 	}
 	const manifest = JSON.parse(await manifestObject.text()) as SegmentedManifest;

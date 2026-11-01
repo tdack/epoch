@@ -28,8 +28,8 @@ import { exportObjectKey, exportPlanKey, exportSegmentKey } from '../workflows/e
 import { GedcomService } from './gedcom-service';
 
 /** Media is included only up to these sizes (ADR-074); above them the archive holds the dataset alone. */
-export const MEDIA_EXPORT_MAX_PEOPLE = 10_000;
-export const MEDIA_EXPORT_MAX_FILES = 50_000;
+const MEDIA_EXPORT_MAX_PEOPLE = 10_000;
+const MEDIA_EXPORT_MAX_FILES = 50_000;
 
 /**
  * A media step copies at most this many files or bytes (a larger file gets a step of its own).
@@ -38,8 +38,8 @@ export const MEDIA_EXPORT_MAX_FILES = 50_000;
  * is a few seconds of R2 transfer and a trivial CPU cost, so a retry repeats little. Neither bound
  * is memory: bytes stream through.
  */
-export const MEDIA_BATCH_MAX_FILES = 100;
-export const MEDIA_BATCH_MAX_BYTES = 64 * 1024 * 1024;
+const MEDIA_BATCH_MAX_FILES = 100;
+const MEDIA_BATCH_MAX_BYTES = 64 * 1024 * 1024;
 /** What a file with no recorded size counts for when batching; its real size is read at copy time. */
 const UNKNOWN_SIZE_ESTIMATE_BYTES = 1024 * 1024;
 
@@ -120,7 +120,10 @@ export class GdzExportService {
 		const customMetadata = { uploadedAt: new Date().toISOString() };
 		await this.bucket.put(
 			key,
-			bytes instanceof Uint8Array ? bytes : fixedLengthBody(bytes.stream, bytes.length),
+			// The DOM and workers-types stream types differ; it is the same object at run time.
+			(bytes instanceof Uint8Array
+				? bytes
+				: fixedLengthBody(bytes.stream, bytes.length)) as Parameters<R2Bucket['put']>[1],
 			{ customMetadata }
 		);
 		// After the bytes: a segment's records are known only once its stream has been consumed.
