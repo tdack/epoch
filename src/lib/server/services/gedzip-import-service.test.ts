@@ -42,8 +42,7 @@ const archiveUrl = new URL('../gedcom/fixtures/conformance/files/maximal70.gdz',
 /** A bucket that serves the ranged reads and `head` the zip reader makes. */
 class RangeBucket extends FakeMediaBucket {
 	async head(key: string) {
-		const object = this.objects.get(key);
-		return object ? { key, size: object.body.byteLength } : null;
+		return super.head(key);
 	}
 	async get(key: string, options?: { range?: { offset: number; length: number } }) {
 		const object = this.objects.get(key);
@@ -57,6 +56,9 @@ class RangeBucket extends FakeMediaBucket {
 			size: object.size,
 			httpEtag: '"etag"',
 			httpMetadata: { contentType: object.contentType },
+			customMetadata: object.customMetadata,
+			uploaded: object.uploaded ?? new Date(),
+			text: async () => new TextDecoder().decode(bytes),
 			body: new ReadableStream<Uint8Array>({
 				start(controller) {
 					controller.enqueue(bytes);
