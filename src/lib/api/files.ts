@@ -96,6 +96,8 @@ export interface GedcomExportChoice {
 	format: 'gedcom7' | 'gedcom551';
 	/** Only meaningful for 7.0: GEDZip is defined for 7.0 alone. */
 	shouldCompress: boolean;
+	/** Only meaningful for a 7.0 `.gdz`. Absent, not false, when unchecked: the request omits it. */
+	shouldIncludeMedia?: true;
 }
 
 /** The download address for a tree's export. A plain navigation, so the browser saves the file. */
@@ -128,7 +130,13 @@ function browserSession(): Storage | null {
 
 /** The sessionStorage key holding one export choice's idempotency id. */
 function exportClientUuidKey(treeId: string, choice: GedcomExportChoice): string {
-	return `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${choice.shouldCompress ? 'gdz' : 'ged'}`;
+	// A media export is its own file, so it must not reuse a plain `.gdz` export's id.
+	const packaging = choice.shouldCompress
+		? choice.shouldIncludeMedia
+			? 'gdz-media'
+			: 'gdz'
+		: 'ged';
+	return `${EXPORT_CLIENT_UUID_KEY}:${treeId}:${choice.format}:${packaging}`;
 }
 
 /**
@@ -177,7 +185,8 @@ export async function startGedcomExport(
 			treeId,
 			clientUuid: exportClientUuid(treeId, choice),
 			format: choice.format,
-			shouldCompress: choice.shouldCompress
+			shouldCompress: choice.shouldCompress,
+			includeMedia: choice.shouldIncludeMedia
 		})
 	});
 	if (response.status === 503) return { status: 'unavailable' };
