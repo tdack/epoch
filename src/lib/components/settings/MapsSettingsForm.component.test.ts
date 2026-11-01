@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { flushSync, mount, unmount } from 'svelte';
+import { flushSync, mount, tick, unmount } from 'svelte';
 import MapsSettingsForm from './MapsSettingsForm.svelte';
 
 let component: Record<string, unknown> | null = null;
@@ -61,5 +61,20 @@ describe('MapsSettingsForm', () => {
 		expect(photon.value).toBe(original);
 		expect(saveButton().disabled).toBe(true);
 		expect(onsave).not.toHaveBeenCalled();
+	});
+
+	it('lists public Photon servers from the (i) beside the address, and stays open when tabbing into it', async () => {
+		render();
+		const help = document.querySelector<HTMLButtonElement>('#maps-photon-url-help-button')!;
+		help.dispatchEvent(new FocusEvent('focus'));
+		await tick();
+		flushSync();
+		const tooltip = document.querySelector('[role="tooltip"]')!;
+		expect(tooltip.textContent).toContain('https://photon.koalasec.org/');
+		const link = tooltip.querySelector('a')!;
+		help.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: link }));
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		flushSync();
+		expect(document.querySelector('[role="tooltip"]')).not.toBeNull();
 	});
 });
