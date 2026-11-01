@@ -172,6 +172,36 @@ describe('Files page visibility', () => {
 		expect(document.body.textContent).toContain('Not linked');
 	});
 
+	it('marks an unlinked file with a text badge', () => {
+		render({ role: 'editor', files: [row({ id: 'f2', links: [] })] });
+		expect(document.querySelector('[data-testid="file-unlinked-badge"]')?.textContent).toContain(
+			'Not linked'
+		);
+	});
+
+	it('lists only unlinked files when asked, and all of them again when cleared', async () => {
+		render({ role: 'editor', files: [row({}), row({ id: 'f2', links: [] })] });
+		listFiles.mockResolvedValue({ files: [row({ id: 'f2', links: [] })], nextCursor: null });
+		const toggle = document.querySelector(
+			'[data-testid="files-unlinked-only"]'
+		) as HTMLInputElement;
+		toggle.checked = true;
+		toggle.dispatchEvent(new Event('change', { bubbles: true }));
+		await vi.waitFor(() =>
+			expect(listFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ treeId: 't1', isDetachedOnly: true })
+			)
+		);
+		await vi.waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(1));
+		toggle.checked = false;
+		toggle.dispatchEvent(new Event('change', { bubbles: true }));
+		await vi.waitFor(() =>
+			expect(listFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ treeId: 't1', isDetachedOnly: false })
+			)
+		);
+	});
+
 	it('shows metadata only, with no actions, for a row the caller cannot open', () => {
 		render({
 			role: 'owner',
@@ -257,7 +287,7 @@ describe('Files page paging', () => {
 			.find((b) => b.textContent?.trim() === 'Load more files')!
 			.click();
 		await vi.waitFor(() => expect(document.body.textContent).toContain('Second.pdf'));
-		expect(listFiles).toHaveBeenCalledWith({ treeId: 't1', cursor: 'c1' });
+		expect(listFiles).toHaveBeenCalledWith({ treeId: 't1', isDetachedOnly: false, cursor: 'c1' });
 		expect(document.querySelectorAll('[data-testid="file-row"]')).toHaveLength(2);
 	});
 
@@ -271,7 +301,11 @@ describe('Files page paging', () => {
 			.click();
 		await vi.waitFor(() => expect(document.body.textContent).toContain('Found.pdf'));
 		expect(listFiles).toHaveBeenCalledTimes(2);
-		expect(listFiles).toHaveBeenLastCalledWith({ treeId: 't1', cursor: 'c2' });
+		expect(listFiles).toHaveBeenLastCalledWith({
+			treeId: 't1',
+			isDetachedOnly: false,
+			cursor: 'c2'
+		});
 	});
 });
 

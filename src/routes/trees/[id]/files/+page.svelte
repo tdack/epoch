@@ -15,6 +15,7 @@
 		Plus,
 		Search,
 		Trash2,
+		Unlink,
 		Upload,
 		X
 	} from '@lucide/svelte';
@@ -64,6 +65,8 @@
 	let files = $state<FileRowDto[]>(untrack(() => data.files.files));
 	let nextCursor = $state<string | null>(untrack(() => data.files.nextCursor));
 	let usage = $state<FileUsageDto>(untrack(() => data.usage));
+	/** Lists only files with no link, such as the ones a replace import leaves behind (ADR-082). */
+	let isUnlinkedOnly = $state(false);
 	let isLoading = $state(false);
 	let listError = $state<string | null>(null);
 	/** Bumped on every new listing, so an answer to an earlier filter cannot overwrite the current one. */
@@ -125,7 +128,7 @@
 			let page;
 			let found: FileRowDto[] = [];
 			do {
-				page = await fetchFiles({ treeId: scopeOf(value), cursor });
+				page = await fetchFiles({ treeId: scopeOf(value), isDetachedOnly: isUnlinkedOnly, cursor });
 				found = [...found, ...page.files];
 				cursor = page.nextCursor;
 			} while (page.files.length === 0 && cursor !== null);
@@ -149,7 +152,11 @@
 			let page;
 			let found: FileRowDto[] = [];
 			do {
-				page = await fetchFiles({ treeId: scopeOf(filter), cursor });
+				page = await fetchFiles({
+					treeId: scopeOf(filter),
+					isDetachedOnly: isUnlinkedOnly,
+					cursor
+				});
 				found = [...found, ...page.files];
 				cursor = page.nextCursor;
 			} while (page.files.length === 0 && cursor !== null);
@@ -170,6 +177,11 @@
 	/** Reloads the list as it stands, and the storage figures, after a change. */
 	async function reload() {
 		await Promise.all([listFrom(filter), refreshUsage()]);
+	}
+
+	function changeUnlinkedOnly(isOnly: boolean) {
+		isUnlinkedOnly = isOnly;
+		void listFrom(filter);
 	}
 
 	function changeFilter(value: string) {
@@ -414,6 +426,15 @@
 			{/each}
 		</select>
 	</div>
+	<label class="flex items-center gap-1.5 pb-1.5 text-xs font-semibold text-stone-700">
+		<input
+			type="checkbox"
+			data-testid="files-unlinked-only"
+			checked={isUnlinkedOnly}
+			onchange={(event) => changeUnlinkedOnly(event.currentTarget.checked)}
+		/>
+		Unlinked only
+	</label>
 	<p class="pb-1.5 text-xs text-stone-600" role="status" aria-live="polite">
 		{#if isLoading}Loading files…{:else}{files.length} shown{nextCursor
 				? ', more to load'
@@ -492,7 +513,13 @@
 					>
 					<td class="col-start-2 max-lg:order-1 max-lg:pt-1 lg:table-cell lg:px-3 lg:py-2">
 						{#if file.links.length === 0}
-							<span class="text-stone-600">Not linked</span>
+							<span
+								data-testid="file-unlinked-badge"
+								class="inline-flex items-center gap-1 rounded-full border border-dashed border-stone-400 bg-stone-100 px-2 py-0.5 text-stone-800"
+							>
+								<Unlink class="h-3 w-3" aria-hidden="true" />
+								Not linked
+							</span>
 						{:else}
 							<ul class="flex flex-wrap gap-1" aria-label="Linked records">
 								{#each file.links as link (link.entityId)}
