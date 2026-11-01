@@ -18,6 +18,8 @@ import type { ImportCounts } from './gedcom-service';
 /** What a client is told about a job: counts on success, a safe message on failure, nothing else. */
 export interface ImportJobStatusDto {
 	status: ImportJobStatus;
+	/** Media entries handled so far of all in the archive; present while a `.gdz` import runs. */
+	progress?: { done: number; total: number };
 	result?: ImportCounts;
 	error?: string;
 }
@@ -37,6 +39,10 @@ export class ImportJobService {
 
 	start(id: string): Promise<void> {
 		return this.jobs.markRunning(id);
+	}
+
+	progress(id: string, done: number, total: number): Promise<void> {
+		return this.jobs.setProgress(id, JSON.stringify({ done, total }));
 	}
 
 	complete(id: string, counts: ImportCounts): Promise<void> {
@@ -62,9 +68,13 @@ export class ImportJobService {
 		if (!(await this.users.getMembership(job.treeId, context.user.id))) {
 			throw new NotFoundError('Import');
 		}
+		const stored = job.result ? (JSON.parse(job.result) as unknown) : null;
 		return {
 			status: job.status,
-			...(job.result ? { result: JSON.parse(job.result) as ImportCounts } : {}),
+			...(stored && job.status === 'complete' ? { result: stored as ImportCounts } : {}),
+			...(stored && job.status === 'running'
+				? { progress: stored as { done: number; total: number } }
+				: {}),
 			...(job.error ? { error: job.error } : {})
 		};
 	}

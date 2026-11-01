@@ -83,6 +83,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: 'services/gedzip-import-service.test.ts'
 	},
+	[`${API}/uploads/[id]/preview/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/gedzip-import-service.test.ts'
+	},
 	[`${API}/trees/+server.ts`]: { kind: 'no-record-data', covers: ACCESS },
 	[`${API}/csp-report/+server.ts`]: { kind: 'no-record-data', covers: 'http/csp-report.test.ts' },
 	[`${API}/trees/[id]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
@@ -392,6 +396,7 @@ const VISITOR_READS: Record<string, 'refused' | 'public-tree-only'> = {
 	[`${API}/media/[...key]/+server.ts`]: 'public-tree-only',
 	[`${API}/profile/avatar/[userId]/+server.ts`]: 'refused',
 	[`${API}/uploads/[id]/+server.ts`]: 'refused',
+	[`${API}/uploads/[id]/preview/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/dates/standardise/+server.ts`]: 'refused',
 	[`${API}/trees/[id]/graph/+server.ts`]: 'public-tree-only',
 	[`${API}/trees/[id]/lists/notes/+server.ts`]: 'public-tree-only',

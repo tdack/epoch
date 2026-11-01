@@ -35,6 +35,7 @@ import {
 	type ImportOptions,
 	type ImportPreview
 } from '../gedcom/import-preview';
+import type { GedzipMediaCounts } from '../../shared/media';
 import { parseGedcom, type ParsedGedcomData } from '../gedcom/parser';
 import { buildGedcomString } from '../gedcom/serializer';
 import type { GedcomFormat } from '../gedcom/tags';
@@ -120,21 +121,7 @@ export interface GedcomBindings {
 /** Same retention as the export workflow's instances, and as `wrangler.jsonc` sets for this one. */
 const IMPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
-/** What a `.gdz` import did with the archive's media entries (ADR-074, Phase 2). */
-export interface GedzipMediaCounts {
-	/** Unresolved files that now hold bytes. */
-	resolved: number;
-	/** Files of the tree still without bytes once the import ended. Set by the close step. */
-	unresolved: number;
-	/** Entries no `FILE` named, added as objects of their own. */
-	detachedAdded: number;
-	/** Entries of a type Epoch does not accept, or whose bytes are not the type they claim. */
-	skippedByType: number;
-	overCap: number;
-	overQuota: number;
-	/** Entries that failed their size or checksum while streaming, and so were not stored. */
-	unreadable: number;
-}
+export type { GedzipMediaCounts };
 
 export interface ImportCounts {
 	individualsCount: number;
@@ -290,7 +277,11 @@ export class GedcomService {
 
 	/** The comparison itself, with no authorization check: see `previewImport`. */
 	async previewTree(treeId: string, text: string): Promise<ImportPreview> {
-		const fresh = parseGedcom(text);
+		return this.previewParsed(treeId, parseGedcom(text));
+	}
+
+	/** `previewTree` for a caller that already parsed the file and needs the result for more. */
+	async previewParsed(treeId: string, fresh: ParsedGedcomData): Promise<ImportPreview> {
 		if (!(await this.repo.treeExists(treeId))) return previewNewTree(fresh);
 		// A family that was merged into another the last time counts as that one, so the counts match what the import will do.
 		const parsed = foldIntoExistingAliases(fresh, await this.repo.aliasesInTree(treeId)).parsed;

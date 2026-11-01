@@ -122,7 +122,20 @@ async function setup(role: 'owner' | 'editor' | 'viewer' = 'editor') {
 		);
 	const service = new GedzipImportService(t.db, { bucket: bucket as unknown as R2Bucket });
 	const files = () => t.db.select().from(mediaItems).where(eq(mediaItems.treeId, treeId));
-	return { owner, treeId, key, jobId, jobs, bucket, message, run, service, files };
+	return {
+		owner,
+		requester,
+		requesterId: requester.userId,
+		treeId,
+		key,
+		jobId,
+		jobs,
+		bucket,
+		message,
+		run,
+		service,
+		files
+	};
 }
 
 describe.skipIf(!existsSync(archiveUrl))('importing maximal70.gdz', () => {
@@ -269,5 +282,83 @@ describe.skipIf(!existsSync(archiveUrl))('importing maximal70.gdz', () => {
 			status: 409
 		});
 		expect(sent).toHaveLength(1);
+	});
+
+	describe('previewing an upload', () => {
+		async function session(role: 'owner' | 'editor' | 'viewer' = 'editor') {
+			const s = await setup(role);
+			const id = crypto.randomUUID();
+			const key = `staging/uploads/${s.treeId}/${id}`;
+			await s.bucket.put(key, new Uint8Array(readFileSync(archiveUrl)));
+			const uploads = new UploadRepository(t.db);
+			await uploads.insert({
+				id,
+				treeId: s.treeId,
+				purpose: 'gedzip_import',
+				r2Key: key,
+				r2UploadId: 'u',
+				partSizeBytes: 10,
+				totalBytes: 10,
+				createdBy: s.requesterId,
+				createdAt: new Date(),
+				expiresAt: new Date(Date.now() + 60_000)
+			});
+			await uploads.closeOpen(id, 'complete');
+			return { ...s, id, previewKey: key };
+		}
+
+		it('reports the media before anything is written', async () => {
+			const s = await session();
+			const out = await s.service.preview(s.id, s.requester.context);
+
+			expect(out.media).toMatchObject({
+				resolvableFiles: 2,
+				unresolvedFiles: 3,
+				extraEntries: 2,
+				skippedByType: 1,
+				overCap: 0,
+				quotaRemainingBytes: MAX_TREE_MEDIA_BYTES
+			});
+			expect(out.media.entryCount).toBe(4);
+			expect(out.media.totalBytes).toBeGreaterThan(79000);
+			expect(out.incoming.individuals).toBeGreaterThan(0);
+			expect(await s.files()).toEqual([]);
+			expect(s.bucket.objects.has(s.previewKey)).toBe(true);
+		});
+
+		it('refuses a viewer, another user, and a missing session', async () => {
+			const viewer = await session('viewer');
+			await expect(
+				viewer.service.preview(viewer.id, viewer.requester.context)
+			).rejects.toMatchObject({ status: 403 });
+			const s = await session();
+			const other = await createTestUser(t.db);
+			await expect(s.service.preview(s.id, other.context)).rejects.toMatchObject({ status: 404 });
+			await expect(
+				s.service.preview(crypto.randomUUID(), s.requester.context)
+			).rejects.toMatchObject({ status: 404 });
+		});
+
+		it('answers 409 once the upload has been imported', async () => {
+			const s = await session();
+			await new UploadRepository(t.db).claimForImport(s.id);
+			await expect(s.service.preview(s.id, s.requester.context)).rejects.toMatchObject({
+				status: 409
+			});
+		});
+	});
+
+	it('records media progress on the job while it runs', async () => {
+		const s = await setup();
+		await s.jobs.start(s.jobId);
+		await s.jobs.progress(s.jobId, 3, 9);
+		expect(await s.jobs.status(s.jobId, s.owner.context)).toEqual({
+			status: 'running',
+			progress: { done: 3, total: 9 }
+		});
+		await s.run();
+		const done = await s.jobs.status(s.jobId, s.owner.context);
+		expect(done.status).toBe('complete');
+		expect(done.progress).toBeUndefined();
 	});
 });

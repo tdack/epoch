@@ -48,8 +48,11 @@ export interface ImportPreviewData {
 	duplicates: DuplicateFamilyReport;
 	/** Structures under events kept as written and not editable yet, by top-level tag, with counts only. */
 	retainedTags: Array<{ tag: string; count: number }>;
+	/** Present only when the file is a `.gdz` uploaded for import. */
+	media?: GedzipMediaPreview;
 }
 
+import type { GedzipMediaPreview } from '#lib/shared/media.js';
 export type { PossibleDuplicateGroup } from '#lib/shared/duplicate-families.js';
 import type { DuplicateFamilyReport } from '#lib/shared/duplicate-families.js';
 export type { ImpactSummary } from '#lib/shared/impact.js';

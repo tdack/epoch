@@ -198,3 +198,55 @@ export interface MediaCrop {
 	height: number;
 	width: number;
 }
+
+/** What a `.gdz` would add to the tree, worked out from its directory and dataset alone (ADR-074). */
+export interface GedzipMediaPreview {
+	/** Entries that will be stored: the ones a `FILE` names plus those no `FILE` names. */
+	entryCount: number;
+	/** Their uncompressed size in bytes. */
+	totalBytes: number;
+	/** Room left in the tree's media quota now, in bytes. */
+	quotaRemainingBytes: number;
+	/** `FILE`s that will gain bytes from an entry. */
+	resolvableFiles: number;
+	/** `FILE`s that stay without bytes: no matching entry, a web address, or a path on someone's machine. */
+	unresolvedFiles: number;
+	/** Entries no `FILE` names; each is added to Files on its own. */
+	extraEntries: number;
+	/** Entries of a type Epoch does not accept. */
+	skippedByType: number;
+	/** Entries over the per-file size cap. */
+	overCap: number;
+}
+
+/** What a `.gdz` import did with the archive's media; the server's counts, as the job reports them. */
+export interface GedzipMediaCounts {
+	/** Unresolved files that now hold bytes. */
+	resolved: number;
+	/** Files of the tree still without bytes once the import ended. */
+	unresolved: number;
+	/** Entries no `FILE` named, added as objects of their own. */
+	detachedAdded: number;
+	/** Entries of a type Epoch does not accept, or whose bytes are not the type they claim. */
+	skippedByType: number;
+	overCap: number;
+	overQuota: number;
+	/** Entries that failed their size or checksum while streaming, and so were not stored. */
+	unreadable: number;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** The import's media outcome in plain words, nothing for a count of zero. */
+export function describeMediaResult(m: GedzipMediaCounts): string {
+	const stored = m.resolved + m.detachedAdded;
+	const parts = [
+		`${plural(stored, 'file', 'files')} stored${m.detachedAdded ? ` (${m.detachedAdded} not linked to any record)` : ''}`
+	];
+	if (m.unresolved) parts.push(`${plural(m.unresolved, 'file is', 'files are')} still missing`);
+	if (m.skippedByType) parts.push(`${m.skippedByType} skipped as a type Epoch does not accept`);
+	if (m.overCap) parts.push(`${m.overCap} skipped as over the file size limit`);
+	if (m.overQuota) parts.push(`${m.overQuota} skipped because the tree is out of media space`);
+	if (m.unreadable) parts.push(`${m.unreadable} skipped as damaged`);
+	return `Media: ${parts.join('; ')}.`;
+}

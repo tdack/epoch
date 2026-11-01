@@ -22,7 +22,8 @@ import {
 	isReservedEntryName,
 	resolveFileReference
 } from '../gedcom/gedzip-paths';
-import type { ImportMode } from '../gedcom/import-preview';
+import type { ImportMode, ImportPreview } from '../gedcom/import-preview';
+import { parseGedcom } from '../gedcom/parser';
 import { MAX_DATASET_BYTES } from '../gedcom/limits';
 import {
 	openEntry,
@@ -38,7 +39,12 @@ import { ImportJobRepository } from '../repositories/import-job-repository';
 import { MediaRepository } from '../repositories/media-repository';
 import { UploadRepository } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
-import { isUploadMediaType, MAX_MEDIA_FILE_BYTES, MAX_TREE_MEDIA_BYTES } from '../../shared/media';
+import {
+	isUploadMediaType,
+	MAX_MEDIA_FILE_BYTES,
+	MAX_TREE_MEDIA_BYTES,
+	type GedzipMediaPreview
+} from '../../shared/media';
 import {
 	GedcomService,
 	type GedcomBindings,
@@ -90,6 +96,8 @@ export interface GedzipImportInput {
 export interface MediaBatchResult {
 	/** Index of the next entry to handle, or null when the archive is done. */
 	next: number | null;
+	/** Entries in the archive that can hold media, so a caller can say how far along it is. */
+	total: number;
 	counts: GedzipMediaCounts;
 }
 
@@ -171,15 +179,7 @@ export class GedzipImportService {
 	): Promise<{ status: 'queued'; treeId: string; jobId: string }> {
 		const { bucket, importWorkflow } = this.bindings;
 		if (!bucket || !importWorkflow) throw new Error('Import workflow binding unavailable');
-		const session = await this.uploads.find(sessionId);
-		if (!session || session.createdBy !== context.user.id || session.purpose !== 'gedzip_import') {
-			throw new NotFoundError('Upload');
-		}
-		await requireTreeAction(this.users, session.treeId, context, 'tree:import');
-		if (session.status === 'imported') {
-			throw new ConcurrencyConflictError('This upload has already been imported');
-		}
-		if (session.status !== 'complete') throw new ValidationError('This upload is not finished');
+		const session = await this.ownedSession(sessionId, context);
 
 		if (!(await this.uploads.claimForImport(session.id))) {
 			throw new ConcurrencyConflictError('This upload has already been imported');
@@ -212,6 +212,89 @@ export class GedzipImportService {
 			throw err;
 		}
 		return { status: 'queued', treeId: session.treeId, jobId };
+	}
+
+	/**
+	 * The session's own `gedzip_import` upload, still waiting to be imported. Only its creator sees
+	 * it, and only while they hold `tree:import`; anyone else gets the same 404 as for a missing id.
+	 */
+	private async ownedSession(sessionId: string, context: AuthenticatedContext) {
+		const session = await this.uploads.find(sessionId);
+		if (!session || session.createdBy !== context.user.id || session.purpose !== 'gedzip_import') {
+			throw new NotFoundError('Upload');
+		}
+		await requireTreeAction(this.users, session.treeId, context, 'tree:import');
+		if (session.status === 'imported') {
+			throw new ConcurrencyConflictError('This upload has already been imported');
+		}
+		if (session.status !== 'complete') throw new ValidationError('This upload is not finished');
+		return session;
+	}
+
+	/**
+	 * What importing this archive would do, before anything is written: the dataset's usual preview
+	 * plus the media it would store. Reads the central directory and `gedcom.ged` only. A `FILE`
+	 * counts once per mention, an entry once however many name it.
+	 */
+	async preview(
+		sessionId: string,
+		context: AuthenticatedContext
+	): Promise<ImportPreview & { media: GedzipMediaPreview }> {
+		const { bucket } = this.bindings;
+		if (!bucket) throw new Error('Storage binding unavailable');
+		const session = await this.ownedSession(sessionId, context);
+		const source = await r2ZipSource(bucket, session.r2Key);
+		const directory = await readCentralDirectory(source);
+		const { names } = indexEntryNames(directory.entries.map((e) => e.name));
+		const dataset = directory.entries.find((e) => e.name === 'gedcom.ged');
+		if (!dataset) throw new ValidationError('The archive has no gedcom.ged');
+		if (dataset.uncompressedSize > MAX_DATASET_BYTES) {
+			throw new PayloadTooLargeError(`The dataset exceeds the ${MAX_DATASET_BYTES} byte limit`);
+		}
+		const text = decodeGedcomFile(
+			new Uint8Array(await new Response(await openEntry(source, dataset)).arrayBuffer())
+		);
+		const parsed = parseGedcom(text);
+		const dataPreview = await new GedcomService(this.db).previewParsed(session.treeId, parsed);
+
+		const entryNames = new Set(names.keys());
+		const entries = new Map(directory.entries.map((e) => [e.name, e]));
+		const media: GedzipMediaPreview = {
+			entryCount: 0,
+			totalBytes: 0,
+			quotaRemainingBytes: Math.max(
+				0,
+				MAX_TREE_MEDIA_BYTES - (await sumStoredBytes(bucket, `media/${session.treeId}/`))
+			),
+			resolvableFiles: 0,
+			unresolvedFiles: 0,
+			extraEntries: 0,
+			skippedByType: 0,
+			overCap: 0
+		};
+		// Entries the import would store; a `FILE` naming any other entry stays without bytes.
+		const storable = new Set<string>();
+		for (const name of entryNames) {
+			const entry = entries.get(name);
+			if (!entry || entry.isDirectory || isReservedEntryName(name)) continue;
+			if (classifyMediaEntry(name).kind !== 'media') media.skippedByType++;
+			else if (entry.uncompressedSize > MAX_MEDIA_FILE_BYTES) media.overCap++;
+			else {
+				storable.add(name);
+				media.entryCount++;
+				media.totalBytes += entry.uncompressedSize;
+			}
+		}
+		const named = new Set<string>();
+		for (const file of parsed.media.flatMap((m) => m.files)) {
+			const ref = resolveFileReference(file.path, entryNames);
+			if (ref.kind === 'entry' && storable.has(ref.name)) {
+				media.resolvableFiles++;
+				named.add(ref.name);
+			} else media.unresolvedFiles++;
+		}
+		media.extraEntries = storable.size - named.size;
+		return { ...dataPreview, media };
 	}
 
 	/** Reads `gedcom.ged` out of the archive and imports it; media rows come out unresolved. */
@@ -306,7 +389,7 @@ export class GedzipImportService {
 				}
 			}
 		}
-		return { next: at < entries.length ? at : null, counts };
+		return { next: at < entries.length ? at : null, total: entries.length, counts };
 	}
 
 	/** Deletes the staged archive and answers how many files of the tree still have no bytes. */

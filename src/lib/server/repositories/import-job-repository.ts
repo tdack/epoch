@@ -46,6 +46,17 @@ export class ImportJobRepository {
 			.where(and(eq(importJobs.id, id), inArray(importJobs.status, ['pending', 'running'])));
 	}
 
+	/**
+	 * Progress rides in `result` while the job runs (a migration for two numbers is not worth it);
+	 * `complete` overwrites it, and `status` only reads it as progress before then.
+	 */
+	async setProgress(id: string, progressJson: string): Promise<void> {
+		await this.db
+			.update(importJobs)
+			.set({ result: progressJson, updatedAt: new Date() })
+			.where(and(eq(importJobs.id, id), eq(importJobs.status, 'running')));
+	}
+
 	async complete(id: string, resultJson: string): Promise<void> {
 		await this.db
 			.update(importJobs)

@@ -122,7 +122,9 @@ export class GedcomImportWorkflow extends WorkflowEntrypoint<
 						{ retries: { limit: 2 } },
 						async () => {
 							try {
-								return await archive.importMediaBatch(message, from);
+								const result = await archive.importMediaBatch(message, from);
+								await jobs.progress(jobId, result.next ?? result.total, result.total);
+								return result;
 							} catch (err) {
 								console.error(`Import job ${jobId} failed:`, err);
 								throw asNonRetryable(err);
