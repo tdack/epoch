@@ -18,6 +18,7 @@ import type { IndividualRow, MediaLinkRow, RowOp, TreeRows } from './change-log'
 import { CITATION_SUBJECT_KINDS } from '../../shared/evidence';
 import { NOTE_SUBJECT_KINDS } from '../../shared/notes';
 import { NotFoundError } from './errors';
+import { objectIdOf } from '../../shared/media';
 
 export const PRIVATE_PLACEHOLDER_NAME = 'Private';
 
@@ -211,13 +212,17 @@ export function maskRows(
 	// A file on a source is as visible as the source (ADR-028), whether or not anyone is private.
 	const knownSources = new Set(rows.sources.map((s) => s.id));
 	const keptSources = new Set(visible.sources.map((s) => s.id));
-	const linksOfFile = new Map<string, MediaLinkRow[]>();
+	const linksOfObject = new Map<string, MediaLinkRow[]>();
 	for (const link of rows.mediaLinks)
-		linksOfFile.set(link.mediaId, [...(linksOfFile.get(link.mediaId) ?? []), link]);
-	// A file is seen only when every record it is linked to is (ADR-050). A file with no link is
-	// editor-only, which `hasOwner` asks for; nobody being private does not make it public.
-	const isFileKept = (m: { id: string }, hasOwner: boolean) => {
-		const links = linksOfFile.get(m.id) ?? [];
+		linksOfObject.set(link.mediaId, [...(linksOfObject.get(link.mediaId) ?? []), link]);
+	const privateObjects = privateObjectIds(rows);
+	// An object is seen only when every record it is linked to is (ADR-050, ADR-082): a fact link is
+	// judged by `entity_id`, its owner. An object with no link is editor-only, which `hasOwner` asks
+	// for; nobody being private does not make it public. An object whose `privacy` is `private` is
+	// hidden from every restricted viewer, and `public` is no bypass of any of the above.
+	const isObjectKept = (objectId: string, hasOwner: boolean) => {
+		if (privateObjects.has(objectId)) return false;
+		const links = linksOfObject.get(objectId) ?? [];
 		if (links.length === 0) return !hasOwner;
 		return links.every(
 			(l) =>
@@ -227,15 +232,20 @@ export function maskRows(
 		);
 	};
 	const filesOf = (hasOwner: boolean) => {
-		const mediaItems = rows.mediaItems.filter((m) => isFileKept(m, hasOwner));
-		const keptIds = new Set(mediaItems.map((m) => m.id));
-		return { mediaItems, mediaLinks: rows.mediaLinks.filter((l) => keptIds.has(l.mediaId)) };
+		const mediaItems = rows.mediaItems.filter((m) => isObjectKept(objectIdOf(m), hasOwner));
+		const keptObjects = new Set(mediaItems.map((m) => objectIdOf(m)));
+		return {
+			mediaObjects: rows.mediaObjects.filter((o) => isObjectKept(o.id, hasOwner)),
+			mediaItems,
+			mediaLinks: rows.mediaLinks.filter((l) => keptObjects.has(l.mediaId))
+		};
 	};
 	if (hidden.size === 0) {
 		// Nothing is private, and a viewer who sees all the evidence is handed the rows as they were.
 		const files = filesOf(false);
 		const isEvidenceWhole =
 			files.mediaItems.length === rows.mediaItems.length &&
+			files.mediaObjects.length === rows.mediaObjects.length &&
 			(Object.keys(evidence) as Array<keyof typeof evidence>).every(
 				(key) => evidence[key].length === rows[key].length
 			);
@@ -290,6 +300,11 @@ export function maskRows(
 		},
 		placeholderIds: new Set()
 	};
+}
+
+/** The objects whose own `privacy` hides them from a restricted viewer. */
+function privateObjectIds(rows: Pick<TreeRows, 'mediaObjects'>): Set<string> {
+	return new Set(rows.mediaObjects.filter((o) => o.privacy === 'private').map((o) => o.id));
 }
 
 /** The part of a viewer's scope that decides what they see of private people; a `ViewerScope` has it. */
@@ -350,9 +365,12 @@ export function opsTouchPrivate(
 	// happens to hold no private person must answer as the whole tree does. Only that one rule
 	// survives an empty `hidden`, which keeps the early return cheap for every other op.
 	const files = fileLinksAround(rows, ops);
+	// An op on an object, its files or its links is about a private object whatever people are hidden.
+	const isObjectOp = (op: RowOp) => op.table === 'media_object' || op.table === 'media_items';
 	if (
 		hidden.size === 0 &&
-		!ops.some((op) => op.table === 'media_items' && !files.linked.has(op.id))
+		files.privateObjects.size === 0 &&
+		!ops.some((op) => isObjectOp(op) && !files.linked.has(objectOfOp(op)))
 	)
 		return false;
 	const hiddenUnions = new Set(
@@ -389,10 +407,24 @@ function fileLinksAround(rows: TreeRows, ops: readonly RowOp[]) {
 			around.set(op.id, op.after);
 		} else after.delete(op.id);
 	}
+	// An object made private by this very change is as private as one that was.
+	const privateObjects = privateObjectIds(rows);
+	for (const op of ops)
+		if (op.table === 'media_object')
+			for (const image of [op.before, op.after])
+				if (image?.privacy === 'private') privateObjects.add(op.id);
 	return {
 		links: [...around.values()],
-		linked: new Set([...after.values()].map((l) => l.mediaId))
+		linked: new Set([...after.values()].map((l) => l.mediaId)),
+		privateObjects
 	};
+}
+
+/** The object an op on a media row is about: the row itself, or the file's object. */
+function objectOfOp(op: RowOp): string {
+	if (op.table === 'media_object') return op.id;
+	if (op.table === 'media_items') return objectIdOf((op.after ?? op.before)!);
+	return op.id;
 }
 
 function touchesHidden(
@@ -402,7 +434,11 @@ function touchesHidden(
 	hiddenKeys: Set<string>,
 	hiddenCitations: Set<string>,
 	hiddenRecords: { sources: Set<string>; notes: Set<string> },
-	files: { links: readonly MediaLinkRow[]; linked: ReadonlySet<string> }
+	files: {
+		links: readonly MediaLinkRow[];
+		linked: ReadonlySet<string>;
+		privateObjects: ReadonlySet<string>;
+	}
 ): boolean {
 	// Either image may carry the link to a hidden record, so a row hidden before or after hides the op.
 	const some = <R>(before: R | null, after: R | null, isHidden: (row: R) => boolean) =>
@@ -430,23 +466,29 @@ function touchesHidden(
 			return some(op.before, op.after, (r) =>
 				r.entityType === 'INDIVIDUAL' ? hidden.has(r.entityId) : hiddenUnions.has(r.entityId)
 			);
-		case 'media_items':
-			// A file linked to a hidden record is theirs too; a file left with no link is editor-only.
+		case 'media_object':
+		case 'media_items': {
+			// A file or object linked to a hidden record is theirs too; one left with no link is editor-only,
+			// and so is one whose object is private.
+			const objectId = objectOfOp(op);
 			return (
-				!files.linked.has(op.id) ||
+				files.privateObjects.has(objectId) ||
+				!files.linked.has(objectId) ||
 				files.links.some(
 					(l) =>
-						l.mediaId === op.id &&
+						l.mediaId === objectId &&
 						(hidden.has(l.entityId) ||
 							hiddenUnions.has(l.entityId) ||
 							hiddenRecords.sources.has(l.entityId))
 				)
 			);
+		}
 		case 'media_links':
 			return some(
 				op.before,
 				op.after,
 				(r) =>
+					files.privateObjects.has(r.mediaId) ||
 					hidden.has(r.entityId) ||
 					hiddenUnions.has(r.entityId) ||
 					hiddenRecords.sources.has(r.entityId)
