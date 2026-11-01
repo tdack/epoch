@@ -3,13 +3,14 @@
 // Output is terse and meant for an agent; every subcommand takes --help and --json.
 // No dependencies: it shells out to git/npx with argument arrays, never through a shell, because
 // a zsh session once passed a whole file list to prettier as one name and it checked nothing.
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+// The file lives at tools/agent-cli/agent-cli, so the repository root is two directories up.
+const ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const argv = process.argv.slice(2);
 const isJson = argv.includes('--json');
 const wantsHelp = argv.includes('--help') || argv.includes('-h');
@@ -772,7 +773,7 @@ function docSearch(file, term, section) {
 }
 
 // ---------- dispatch ----------
-const usage = `agent-cli <command> [args] [--json] [--help]
+const usage = `tools/agent-cli/agent-cli <command> [args] [--json] [--help]
 commands:
 ${Object.entries(commands)
 	.filter(([k]) => k !== 'commit-check')

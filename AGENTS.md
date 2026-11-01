@@ -2,9 +2,29 @@
 
 This file provides guidance to LLMs when working with code in this repository.
 
-**Use `./bin/agent-cli` first** (`./bin/agent-cli` lists commands; each has `--help` and `--json`): prefer
-it over re-reading files or guessing commands for repo state, ADR/migration numbers, backlog and docs
-lookups, finding code, lint/check/tests, the dev server and push verification.
+## Agent CLI: use it first
+
+`tools/agent-cli/agent-cli` answers the questions and runs the commands agents repeat across
+sessions. Run it with no arguments for the command list; each command has `--help` and `--json`.
+Reach for it **before** reading a file, chaining `grep`/`sed`/`ls`, or composing a command from
+memory. See `tools/agent-cli/README.md` for the full table.
+
+- **Starting a session or before committing:** `status`, then `changed`.
+- **Writing an ADR or a migration:** `adr next` and `migration next` give the number. Never work it
+  out with `ls`.
+- **Looking something up in the docs:** `backlog <term>`, `backlog --section <name>`, `docs <term>`,
+  `adr grep <term>`, rather than reading whole files.
+- **Finding code:** `find`, `uses <Name>`, `def <symbol>`, `exports <file>`, `map [layer]`.
+- **Checking work:** `lint`, `check` and `test --changed` while iterating; `gate` once, before
+  asking to push.
+- **Running the app:** `dev` for the live port and local D1 state, `dev seed` for test data.
+- **Pushing:** `ship` prints the plan; `ship --yes` pushes `main` to cloudflare, which deploys
+  production. Use `--yes` only after the user approves that push. Afterwards, `remotes` verifies
+  both remotes.
+
+Read files directly when you need code the CLI does not show, or when editing. If a CLI command
+fails or gives a wrong answer, say so and fix the tool rather than quietly working around it. If you
+repeat a lookup or command that the CLI lacks, add a subcommand.
 
 ## Project status
 This repository is an initial proof of concept implementation of webtrees.net using more contemporary frameworks, particularly svelte, sveltekit and cloudflare workers, D1, queues and other resources.
