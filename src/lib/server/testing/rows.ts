@@ -70,6 +70,14 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 				treeId: TEST_TREE_ID,
 				mediaId: m.id,
 				entityId,
+				factId: null,
+				sortOrder: null,
+				cropTop: null,
+				cropLeft: null,
+				cropHeight: null,
+				cropWidth: null,
+				title: null,
+				gedcomExtra: null,
 				createdAt: 1_000
 			});
 		rows.mediaItems.push({
@@ -81,6 +89,14 @@ export function treeRows(spec: RowsSpec = {}): TreeRows {
 			version: 1,
 			createdAt: 1_000,
 			updatedAt: 1_000,
+			objectId: null,
+			sortOrder: null,
+			gedcomPath: null,
+			status: null,
+			medium: null,
+			sha256: null,
+			crc32: null,
+			gedcomExtra: null,
 			...m
 		});
 	}

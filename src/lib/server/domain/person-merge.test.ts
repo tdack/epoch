@@ -217,6 +217,14 @@ describe('what moves and what is kept once', () => {
 			treeId: TEST_TREE_ID,
 			mediaId: 'm1',
 			entityId: 'b',
+			factId: null,
+			sortOrder: null,
+			cropTop: null,
+			cropLeft: null,
+			cropHeight: null,
+			cropWidth: null,
+			title: null,
+			gedcomExtra: null,
 			createdAt: 1
 		});
 		rows.mediaItems.push({

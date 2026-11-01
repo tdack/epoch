@@ -98,6 +98,14 @@ export function buildMediaOps(rows: TreeRows, command: MediaCommand, ctx: MediaC
 						treeId: ctx.treeId,
 						mediaId: before.id,
 						entityId: command.entityId,
+						factId: null,
+						sortOrder: null,
+						cropTop: null,
+						cropLeft: null,
+						cropHeight: null,
+						cropWidth: null,
+						title: null,
+						gedcomExtra: null,
 						createdAt: ctx.now
 					}
 				}
