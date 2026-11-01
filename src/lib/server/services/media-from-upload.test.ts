@@ -17,6 +17,8 @@ import {
 	type TestDatabase
 } from '../testing/d1';
 import { FakeMultipartBucket } from '../testing/fake-multipart-bucket';
+import { crc32 } from '../gedcom/crc32';
+import { crc32Tap } from '../http/crc32-tap';
 import { MAX_TREE_MEDIA_BYTES } from '../../shared/media';
 import { MediaService } from './media-service';
 import { UploadService } from './upload-service';
@@ -68,6 +70,67 @@ async function finished(bytes: number[], actor = owner): Promise<string> {
 }
 
 const service = () => new MediaService(t.db);
+
+/** Sends `bytes` in `partSize` parts, last first, each through the CRC tap the route uses. */
+async function finishedInParts(
+	bytes: Uint8Array,
+	partSize: number,
+	isTapped: boolean
+): Promise<string> {
+	const uploads = new UploadService(t.db, r2(), { partSizeBytes: partSize });
+	const { sessionId } = await uploads.create(
+		{
+			treeId,
+			purpose: 'media',
+			fileName: 'x.png',
+			contentType: 'image/png',
+			totalBytes: bytes.length
+		},
+		owner.context
+	);
+	const count = Math.ceil(bytes.length / partSize);
+	for (let n = count; n >= 1; n--) {
+		const piece = bytes.subarray((n - 1) * partSize, n * partSize);
+		const tap = crc32Tap(new Response(piece).body!);
+		await uploads.putPart(
+			sessionId,
+			n,
+			piece.length,
+			tap.body,
+			owner.context,
+			isTapped ? tap.crc32 : undefined
+		);
+	}
+	await uploads.complete(sessionId, owner.context);
+	return sessionId;
+}
+
+describe('MediaService.recordFromUpload checksums', () => {
+	const whole = new Uint8Array([...PNG, ...Array.from({ length: 23 }, (_, i) => i * 7)]);
+
+	it('stores the CRC combined from the parts and leaves the SHA-256 null', async () => {
+		const sessionId = await finishedInParts(whole, 10, true);
+		const media = await service().recordFromUpload(
+			{ sessionId, entityId: personId, title: 'P' },
+			r2(),
+			owner.context
+		);
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, media.id)).get();
+		expect(row?.crc32).toBe(crc32(whole));
+		expect(row?.sha256).toBeNull();
+	});
+
+	it('leaves the CRC null when a part was stored without one', async () => {
+		const sessionId = await finishedInParts(whole, 10, false);
+		const media = await service().recordFromUpload(
+			{ sessionId, entityId: personId, title: 'P' },
+			r2(),
+			owner.context
+		);
+		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, media.id)).get();
+		expect(row?.crc32).toBeNull();
+	});
+});
 
 describe('MediaService.recordFromUpload', () => {
 	it('files the object under its final key with the sniffed type and removes the staged copy', async () => {

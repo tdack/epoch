@@ -34,6 +34,9 @@ export interface StoredMedia {
 	mimeType: string;
 	sizeBytes: number;
 	uploadedBy: string;
+	/** Hex digest and CRC-32 when the upload computed them; null leaves the cache for the backfill. */
+	sha256?: string | null;
+	crc32?: number | null;
 }
 
 /** A position in the Files listing: the newest-first key of the last row scanned. */
@@ -237,6 +240,8 @@ export class MediaRepository {
 				title: media.title,
 				mimeType: media.mimeType,
 				sizeBytes: media.sizeBytes,
+				sha256: media.sha256 ?? null,
+				crc32: media.crc32 ?? null,
 				uploadedBy: media.uploadedBy,
 				createdAt: now,
 				updatedAt: now

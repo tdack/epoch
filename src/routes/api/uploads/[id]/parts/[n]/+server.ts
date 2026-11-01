@@ -1,5 +1,6 @@
 import { BindingUnavailableError, ValidationError } from '#lib/server/domain/errors.js';
 import { fixedLengthBody } from '#lib/server/http/fixed-length-body.js';
+import { crc32Tap } from '#lib/server/http/crc32-tap.js';
 import { apiHandler } from '#lib/server/http/handler.js';
 import { UploadService } from '#lib/server/services/upload-service.js';
 import type { UploadPartDto } from '#lib/shared/uploads.js';
@@ -24,7 +25,8 @@ export const PUT = apiHandler(
 		if (!bucket) throw new BindingUnavailableError('MEDIA_BUCKET');
 		if (!/^\d+$/.test(params.n!)) throw new ValidationError('The part number must be a number');
 		const length = contentLengthOf(event.request);
-		const body = event.request.body;
+		const tap = event.request.body ? crc32Tap(event.request.body) : null;
+		const body = tap?.body ?? null;
 		return new UploadService(db, bucket).putPart(
 			params.id!,
 			Number(params.n),
@@ -32,7 +34,8 @@ export const PUT = apiHandler(
 			// The service compares `length` with the part's expected size before reading a byte, so a
 			// wrong one never reaches R2; the wrapper then makes the runtime enforce it.
 			body && length !== null ? fixedLengthBody(body, length) : null,
-			ctx
+			ctx,
+			tap?.crc32
 		);
 	}
 );

@@ -15,20 +15,43 @@ export interface UploadSessionRow {
 	totalBytes: number;
 	/** Part number to the etag R2 returned for it. */
 	parts: Record<string, string>;
+	/** Part number to the CRC-32 of its bytes; absent for a part stored before CRCs were kept. */
+	partCrcs: Record<string, number>;
 	status: UploadStatus;
 	createdBy: string | null;
 	expiresAt: Date;
 }
 
-export type NewUploadSession = Omit<UploadSessionRow, 'parts' | 'status'> & { createdAt: Date };
+export type NewUploadSession = Omit<UploadSessionRow, 'parts' | 'partCrcs' | 'status'> & {
+	createdAt: Date;
+};
 
-function parseParts(json: string): Record<string, string> {
+/**
+ * `parts_json` holds, per part, either the bare etag (sessions opened before CRCs were kept) or
+ * `{ etag, crc32 }`. Both read back the same way, so no migration is needed.
+ */
+function parseParts(json: string): {
+	parts: Record<string, string>;
+	partCrcs: Record<string, number>;
+} {
+	const parts: Record<string, string> = {};
+	const partCrcs: Record<string, number> = {};
 	try {
 		const value: unknown = JSON.parse(json);
-		return value && typeof value === 'object' ? (value as Record<string, string>) : {};
+		if (value && typeof value === 'object') {
+			for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+				if (typeof entry === 'string') parts[key] = entry;
+				else if (entry && typeof entry === 'object') {
+					const { etag, crc32 } = entry as { etag?: unknown; crc32?: unknown };
+					if (typeof etag === 'string') parts[key] = etag;
+					if (typeof etag === 'string' && typeof crc32 === 'number') partCrcs[key] = crc32;
+				}
+			}
+		}
 	} catch {
-		return {};
+		// An unreadable column is an empty one: the client re-sends its parts.
 	}
+	return { parts, partCrcs };
 }
 
 export class UploadRepository {
@@ -60,7 +83,7 @@ export class UploadRepository {
 			r2UploadId: row.r2UploadId,
 			partSizeBytes: row.partSizeBytes,
 			totalBytes: row.totalBytes,
-			parts: parseParts(row.partsJson),
+			...parseParts(row.partsJson),
 			status: row.status,
 			createdBy: row.createdBy,
 			expiresAt: row.expiresAt
@@ -68,16 +91,26 @@ export class UploadRepository {
 	}
 
 	/**
-	 * Records one part's etag with a single `json_set`, not a read, merge and write: two parts that
+	 * Records one part's etag (and CRC, when known) with a single `json_set`, not a read, merge and write: two parts that
 	 * finish together each touch only their own key, so neither loses the other's etag. Only an open
 	 * session takes a part, so a part landing after complete or abort changes nothing.
 	 */
-	async recordPart(id: string, partNumber: number, etag: string): Promise<void> {
+	async recordPart(
+		id: string,
+		partNumber: number,
+		etag: string,
+		crc32: number | null = null
+	): Promise<void> {
 		// The key is quoted because a bare numeric label is not a reliable JSON path in SQLite.
 		const path = `$."${partNumber}"`;
 		await this.db
 			.update(uploadSessions)
-			.set({ partsJson: sql`json_set(${uploadSessions.partsJson}, ${path}, ${etag})` })
+			.set({
+				partsJson:
+					crc32 === null
+						? sql`json_set(${uploadSessions.partsJson}, ${path}, ${etag})`
+						: sql`json_set(${uploadSessions.partsJson}, ${path}, json(${JSON.stringify({ etag, crc32 })}))`
+			})
 			.where(and(eq(uploadSessions.id, id), eq(uploadSessions.status, 'open')));
 	}
 

@@ -14,6 +14,7 @@ import {
 } from '../domain/errors';
 import type { AuthenticatedContext } from '../domain/identity';
 import { parseMediaKey } from '../media/media-key';
+import { combinedPartCrc32 } from '../media/upload-crc';
 import { validateMediaUpload } from '../media/media-type';
 import { listAllObjects, storedBytesByTree, sumStoredBytes } from '../media/stored-bytes';
 import {
@@ -792,6 +793,7 @@ export class MediaService {
 				title,
 				mimeType,
 				sizeBytes: session.totalBytes,
+				crc32: combinedPartCrc32(session),
 				uploadedBy: context.user.id
 			});
 		} catch (err) {

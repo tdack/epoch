@@ -179,7 +179,9 @@ export class UploadService {
 		partNumber: number,
 		contentLength: number | null,
 		body: ReadableStream | null,
-		context: AuthenticatedContext
+		context: AuthenticatedContext,
+		/** The CRC-32 of the bytes `body` carried; asked for only once the upload has finished. */
+		crc32Of?: () => number
 	): Promise<UploadPartDto> {
 		const session = await this.requireOpenSession(sessionId, context);
 		const count = uploadPartCount(session.totalBytes, session.partSizeBytes);
@@ -195,7 +197,7 @@ export class UploadService {
 			.resumeMultipartUpload(session.r2Key, session.r2UploadId)
 			// The DOM and Workers stream types differ only in declarations; it is one runtime object.
 			.uploadPart(partNumber, body as unknown as WorkersReadableStream);
-		await this.uploads.recordPart(session.id, partNumber, part.etag);
+		await this.uploads.recordPart(session.id, partNumber, part.etag, crc32Of?.() ?? null);
 		return { partNumber, etag: part.etag };
 	}
 

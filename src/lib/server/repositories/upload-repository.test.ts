@@ -69,6 +69,16 @@ describe('UploadRepository', () => {
 		expect((await repo.find(row.id))!.parts).toEqual({ '2': 'second' });
 	});
 
+	it('keeps a part CRC beside its etag, and reads a bare-etag part as having none', async () => {
+		const row = session();
+		await repo.insert(row);
+		await repo.recordPart(row.id, 1, 'a', 0xdeadbeef);
+		await repo.recordPart(row.id, 2, 'b');
+		const found = (await repo.find(row.id))!;
+		expect(found.parts).toEqual({ '1': 'a', '2': 'b' });
+		expect(found.partCrcs).toEqual({ '1': 0xdeadbeef });
+	});
+
 	it('takes no part once the session is closed, and closes only once', async () => {
 		const row = session();
 		await repo.insert(row);
