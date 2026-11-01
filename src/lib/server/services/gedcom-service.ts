@@ -81,6 +81,8 @@ export interface ImportQueueMessage {
 	createdTreeVersion?: number;
 	/** Who imported, for the change log. */
 	actorId?: string;
+	/** True when `r2ObjectKey` is a staged `.gdz` upload, which the archive import steps read. */
+	isArchive?: boolean;
 }
 
 /** Options for `runImport`: the merge switch, plus how to name a tree this import created. */
@@ -118,11 +120,29 @@ export interface GedcomBindings {
 /** Same retention as the export workflow's instances, and as `wrangler.jsonc` sets for this one. */
 const IMPORT_INSTANCE_RETENTION = { successRetention: '3 days', errorRetention: '7 days' } as const;
 
+/** What a `.gdz` import did with the archive's media entries (ADR-074, Phase 2). */
+export interface GedzipMediaCounts {
+	/** Unresolved files that now hold bytes. */
+	resolved: number;
+	/** Files of the tree still without bytes once the import ended. Set by the close step. */
+	unresolved: number;
+	/** Entries no `FILE` named, added as objects of their own. */
+	detachedAdded: number;
+	/** Entries of a type Epoch does not accept, or whose bytes are not the type they claim. */
+	skippedByType: number;
+	overCap: number;
+	overQuota: number;
+	/** Entries that failed their size or checksum while streaming, and so were not stored. */
+	unreadable: number;
+}
+
 export interface ImportCounts {
 	individualsCount: number;
 	familiesCount: number;
 	eventsCount: number;
 	mergedFamiliesCount: number;
+	/** Present only for a `.gdz` import. */
+	media?: GedzipMediaCounts;
 }
 
 export interface ImportFile {

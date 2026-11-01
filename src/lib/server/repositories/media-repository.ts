@@ -519,6 +519,91 @@ export class MediaRepository {
 			.where(eq(mediaItems.id, mediaId));
 	}
 
+	/** Every file of the tree that carries a `FILE` text: what a `.gdz` import matches entries against. */
+	async filesWithPath(
+		treeId: string
+	): Promise<Array<{ id: string; gedcomPath: string; status: string | null }>> {
+		const rows = await this.db
+			.select({ id: mediaItems.id, gedcomPath: mediaItems.gedcomPath, status: mediaItems.status })
+			.from(mediaItems)
+			.where(and(eq(mediaItems.treeId, treeId), sql`${mediaItems.gedcomPath} is not null`))
+			.all();
+		return rows.map((row) => ({ ...row, gedcomPath: row.gedcomPath! }));
+	}
+
+	async countUnresolved(treeId: string): Promise<number> {
+		const row = await this.db
+			.select({ total: sql<number>`count(*)` })
+			.from(mediaItems)
+			.where(and(eq(mediaItems.treeId, treeId), eq(mediaItems.status, 'unresolved')))
+			.get();
+		return Number(row?.total ?? 0);
+	}
+
+	/**
+	 * Gives an unresolved file the bytes just stored for it. Written straight to the row, like the
+	 * rest of an import: no change log, no version bump. The `sha256` stays null for the hourly fill.
+	 * Only an unresolved row changes, so a retry of the step that stored the bytes is a no-op.
+	 */
+	async markResolved(
+		mediaId: string,
+		stored: { objectKey: string; mimeType: string; sizeBytes: number; crc32: number }
+	): Promise<void> {
+		await this.db
+			.update(mediaItems)
+			.set({
+				r2ObjectKey: stored.objectKey,
+				mimeType: stored.mimeType,
+				sizeBytes: stored.sizeBytes,
+				crc32: stored.crc32,
+				status: null,
+				updatedAt: new Date()
+			})
+			.where(and(eq(mediaItems.id, mediaId), eq(mediaItems.status, 'unresolved')));
+	}
+
+	/**
+	 * An archive entry no `FILE` names: an object with one resolved file whose path is the entry's
+	 * name (ADR-082, owner decision 4). The object's id is the file's, as for an upload.
+	 */
+	async insertDetached(
+		treeId: string,
+		file: {
+			id: string;
+			gedcomPath: string;
+			objectKey: string;
+			mimeType: string;
+			sizeBytes: number;
+			crc32: number;
+			uploadedBy: string | null;
+		}
+	): Promise<void> {
+		const now = new Date();
+		await this.db.batch([
+			this.db
+				.insert(mediaObjects)
+				.values({ ...objectValues(treeId, file.id, {}, now), createdBy: file.uploadedBy })
+				.onConflictDoNothing(),
+			this.db
+				.insert(mediaItems)
+				.values({
+					id: file.id,
+					treeId,
+					objectId: file.id,
+					gedcomPath: file.gedcomPath,
+					status: null,
+					r2ObjectKey: file.objectKey,
+					mimeType: file.mimeType,
+					sizeBytes: file.sizeBytes,
+					crc32: file.crc32,
+					uploadedBy: file.uploadedBy,
+					createdAt: now,
+					updatedAt: now
+				})
+				.onConflictDoNothing()
+		]);
+	}
+
 	/** Removes one file's row and leaves its object, links and other files. */
 	async deleteFileRow(mediaId: string): Promise<void> {
 		await this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId));
