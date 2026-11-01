@@ -23,8 +23,7 @@ their commits here. A new session resumes by reading this section, then
   `FixedLengthStream` over R2 bodies, ranged R2 gets and `crypto.DigestStream` behave as the Node
   tests assume. Then 1B.8 (own deploy, after the queue drains). ADR-082 migrations 5–6 wait until
   2.2b is deployed and `db:backfill:media-objects` has run twice. 1A.7 and 5.5 are optional.
-- **Known limits:** a source's file reorder fails above 100 linked files (it lists one page); a
-  `.gdz` imported as a new tree brings its dataset only (an upload session belongs to a tree); the
+- **Known limits:** a source's file reorder fails above 100 linked files (it lists one page); the
   merge preview counts already-stored files as new; a file deleted mid-export leaves a `FILE` line
   with no entry; the export caps (10,000 people, 50,000 files) have no test.
   `whole-tree-window.test.ts` and `bounded-form.test.ts` fail only under a full parallel run (local
