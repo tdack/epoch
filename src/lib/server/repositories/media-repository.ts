@@ -57,6 +57,51 @@ export interface NewMediaObject {
 	gedcomExtra?: string[] | null;
 }
 
+/**
+ * The row for an unresolved file. A function of its own so the import can insert many in one
+ * statement and an upload-free write (`insertUnresolved`) cannot drift from it.
+ */
+export function unresolvedFileValues(
+	treeId: string,
+	file: UnresolvedFile,
+	now: Date = new Date()
+): typeof mediaItems.$inferInsert {
+	return {
+		id: file.id,
+		treeId,
+		objectId: file.objectId,
+		sortOrder: file.sortOrder ?? null,
+		gedcomPath: file.gedcomPath,
+		status: 'unresolved',
+		r2ObjectKey: unresolvedMediaKey(file.id),
+		title: file.title ?? null,
+		mimeType: file.mimeType,
+		medium: file.medium ?? null,
+		gedcomExtra: file.gedcomExtra ?? null,
+		uploadedBy: file.uploadedBy ?? null,
+		createdAt: now,
+		updatedAt: now
+	};
+}
+
+/** The row for a new object record. */
+export function objectValues(
+	treeId: string,
+	id: string,
+	object: NewMediaObject = {},
+	now: Date = new Date()
+): typeof mediaObjects.$inferInsert {
+	return {
+		id,
+		treeId,
+		xref: object.xref ?? null,
+		privacy: object.privacy ?? 'auto',
+		gedcomExtra: object.gedcomExtra ?? null,
+		createdAt: now,
+		updatedAt: now
+	};
+}
+
 export interface StoredMedia {
 	id: string;
 	objectKey: string;
@@ -331,35 +376,12 @@ export class MediaRepository {
 	 * `status` is written; a resolved file keeps it null (ADR-082).
 	 */
 	unresolvedFileStatement(treeId: string, file: UnresolvedFile, now: Date = new Date()) {
-		return this.db.insert(mediaItems).values({
-			id: file.id,
-			treeId,
-			objectId: file.objectId,
-			sortOrder: file.sortOrder ?? null,
-			gedcomPath: file.gedcomPath,
-			status: 'unresolved',
-			r2ObjectKey: unresolvedMediaKey(file.id),
-			title: file.title ?? null,
-			mimeType: file.mimeType,
-			medium: file.medium ?? null,
-			gedcomExtra: file.gedcomExtra ?? null,
-			uploadedBy: file.uploadedBy ?? null,
-			createdAt: now,
-			updatedAt: now
-		});
+		return this.db.insert(mediaItems).values(unresolvedFileValues(treeId, file, now));
 	}
 
 	/** The statement for a new, empty object record. */
 	objectStatement(treeId: string, id: string, object: NewMediaObject = {}, now: Date = new Date()) {
-		return this.db.insert(mediaObjects).values({
-			id,
-			treeId,
-			xref: object.xref ?? null,
-			privacy: object.privacy ?? 'auto',
-			gedcomExtra: object.gedcomExtra ?? null,
-			createdAt: now,
-			updatedAt: now
-		});
+		return this.db.insert(mediaObjects).values(objectValues(treeId, id, object, now));
 	}
 
 	/**
