@@ -2,6 +2,10 @@
 
 This file provides guidance to LLMs when working with code in this repository.
 
+**Use `./bin/agent-cli` first** (`./bin/agent-cli` lists commands; each has `--help` and `--json`): prefer
+it over re-reading files or guessing commands for repo state, ADR/migration numbers, backlog and docs
+lookups, finding code, lint/check/tests, the dev server and push verification.
+
 ## Project status
 This repository is an initial proof of concept implementation of webtrees.net using more contemporary frameworks, particularly svelte, sveltekit and cloudflare workers, D1, queues and other resources.
 
