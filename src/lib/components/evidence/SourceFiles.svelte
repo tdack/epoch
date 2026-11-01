@@ -1,14 +1,27 @@
 <script lang="ts">
-	import { FileText, Link2, Unlink, Upload } from '@lucide/svelte';
+	import { FileText, FileX, Link2, Unlink, Upload } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
-	import { linkFileApi, unlinkFileApi, fetchFiles, uploadMediaApi } from '#lib/api/files.js';
-	import type { FileRowDto } from '#lib/shared/files.js';
 	import {
+		linkFileApi,
+		unlinkFileApi,
+		fetchFiles,
+		reorderFilesApi,
+		updateFileLinkTitleApi,
+		uploadMediaApi
+	} from '#lib/api/files.js';
+	import LinkControls from '#lib/components/media/LinkControls.svelte';
+	import MediaFileList from '#lib/components/media/MediaFileList.svelte';
+	import NotStoredBadge from '#lib/components/media/NotStoredBadge.svelte';
+	import type { ExtraFileDto, FileRowDto } from '#lib/shared/files.js';
+	import {
+		extraFilesLabel,
 		formatMediaSize,
 		isInlineMediaType,
 		mediaUrl,
-		MEDIA_UPLOAD_ACCEPT
+		MEDIA_UPLOAD_ACCEPT,
+		unresolvedFileLabel,
+		type ObjectFileView
 	} from '#lib/shared/media.js';
 
 	interface Props {
@@ -33,7 +46,63 @@
 	let isLoadingDetached = $state(false);
 	let pickerError = $state<string | null>(null);
 
-	const nameOf = (file: FileRowDto) => file.title ?? 'Untitled file';
+	/** The title this source gives the file, else the file's own; an unresolved file falls back to its path. */
+	const nameOf = (file: FileRowDto) =>
+		file.hostLink?.title ??
+		(file.isUnresolved ? unresolvedFileLabel(file) : (file.title ?? 'Untitled file'));
+
+	/** The source's own order: the pointer's `sort_order` (null read as 0), then the listing's order. */
+	const ordered = $derived(
+		files
+			.map((file, index) => ({ file, index }))
+			.sort(
+				(a, b) =>
+					(a.file.hostLink?.sortOrder ?? 0) - (b.file.hostLink?.sortOrder ?? 0) || a.index - b.index
+			)
+			.map(({ file }) => file)
+	);
+
+	const viewOf = (file: {
+		id: string;
+		title: string | null;
+		version: number;
+		mimeType: string;
+		sizeBytes: number | null;
+		isUnresolved: boolean;
+		gedcomPath: string | null;
+		previewKey: string | null;
+	}): ObjectFileView => file;
+	const allFilesOf = (file: FileRowDto): ObjectFileView[] => [
+		viewOf(file),
+		...file.extraFiles.map((extra: ExtraFileDto) => viewOf(extra))
+	];
+
+	function move(file: FileRowDto, direction: 'up' | 'down') {
+		const from = ordered.indexOf(file);
+		const to = direction === 'up' ? from - 1 : from + 1;
+		if (from < 0 || to < 0 || to >= ordered.length) return;
+		const order = ordered.map((other) => other.objectId);
+		[order[from], order[to]] = [order[to]!, order[from]!];
+		void editor.mutate(
+			() => reorderFilesApi({ treeId, entityId: sourceId, factId: null, orderedMediaIds: order }),
+			{ done: 'Files reordered', failure: 'Could not reorder the files' }
+		);
+	}
+
+	function saveTitle(file: FileRowDto, title: string): Promise<boolean> {
+		return editor.mutate(
+			() =>
+				updateFileLinkTitleApi({
+					fileId: file.objectId,
+					treeId,
+					entityId: sourceId,
+					factId: null,
+					title,
+					version: file.objectVersion
+				}),
+			{ done: 'Title saved', failure: 'Could not save the title' }
+		);
+	}
 
 	async function upload(event: Event) {
 		const input = event.target as HTMLInputElement;
@@ -75,7 +144,7 @@
 	}
 
 	async function detach(file: FileRowDto) {
-		await editor.mutate(() => unlinkFileApi(file.id, treeId, sourceId, undefined), {
+		await editor.mutate(() => unlinkFileApi(file.objectId, treeId, sourceId, undefined), {
 			done: 'File detached from the source',
 			failure: 'Could not detach the file'
 		});
@@ -168,28 +237,64 @@
 			class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-4"
 			aria-label="Attached files"
 		>
-			{#each files as file (file.id)}
+			{#each ordered as file, position (file.id)}
 				<li class="flex flex-col gap-1" data-testid="source-file">
-					<a
-						href={file.previewKey ? mediaUrl(file.previewKey) : undefined}
-						target="_blank"
-						rel="noreferrer"
-						class="group flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border border-stone-300 bg-stone-100 hover:border-emerald-600"
-					>
-						{#if file.previewKey && isInlineMediaType(file.mimeType)}
-							<img
-								src={mediaUrl(file.previewKey)}
-								alt={nameOf(file)}
-								class="h-full w-full object-cover"
-							/>
-						{:else}
-							<FileText class="h-8 w-8 text-stone-500" aria-hidden="true" />
-						{/if}
-						<span class="sr-only">{nameOf(file)} (opens in a new tab)</span>
-					</a>
+					{#if file.isUnresolved}
+						<!-- No link and no <img>: the path is text the file was written with, never an address to fetch. -->
+						<div
+							class="flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-dashed border-stone-400 bg-stone-100 p-1"
+							data-testid="missing-file-tile"
+						>
+							<FileX class="h-8 w-8 text-stone-500" aria-hidden="true" />
+							<NotStoredBadge />
+						</div>
+					{:else}
+						<a
+							href={file.previewKey ? mediaUrl(file.previewKey) : undefined}
+							target="_blank"
+							rel="noreferrer"
+							class="group flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg border border-stone-300 bg-stone-100 hover:border-emerald-600"
+						>
+							{#if file.previewKey && isInlineMediaType(file.mimeType)}
+								<img
+									src={mediaUrl(file.previewKey)}
+									alt={nameOf(file)}
+									class="h-full w-full object-cover"
+								/>
+							{:else}
+								<FileText class="h-8 w-8 text-stone-500" aria-hidden="true" />
+							{/if}
+							<span class="sr-only">{nameOf(file)} (opens in a new tab)</span>
+						</a>
+					{/if}
 					<span class="truncate text-xs font-medium text-stone-800" title={nameOf(file)}
 						>{nameOf(file)}</span
 					>
+					{#if file.extraFiles.length > 0 || file.isUnresolved || file.gedcomPath}
+						<details class="text-[11px] text-stone-700 print:hidden">
+							<summary class="cursor-pointer font-medium"
+								>{extraFilesLabel(file.extraFiles.length)}</summary
+							>
+							<div class="mt-1">
+								<MediaFileList
+									files={allFilesOf(file)}
+									{treeId}
+									canAdd={canManage}
+									onresolved={() => editor.refresh()}
+								/>
+							</div>
+						</details>
+					{/if}
+					{#if canManage && file.canLink}
+						<LinkControls
+							label={nameOf(file)}
+							linkTitle={file.hostLink?.title ?? null}
+							canMoveUp={position > 0}
+							canMoveDown={position < ordered.length - 1}
+							onsavetitle={(title) => saveTitle(file, title)}
+							onmove={(direction) => move(file, direction)}
+						/>
+					{/if}
 					{#if file.canLink}
 						<button
 							type="button"

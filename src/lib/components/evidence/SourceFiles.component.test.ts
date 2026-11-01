@@ -7,10 +7,20 @@ vi.mock('#lib/api/files.js', () => ({
 	linkFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
 	fetchFiles: vi.fn(),
-	uploadMediaApi: vi.fn()
+	uploadMediaApi: vi.fn(),
+	reorderFilesApi: vi.fn(),
+	updateFileLinkTitleApi: vi.fn(),
+	resolveFileFromUploadApi: vi.fn()
 }));
+vi.mock('#lib/api/uploader.js', () => ({ startUpload: vi.fn(), isAbortError: () => false }));
 
-import { linkFileApi, unlinkFileApi, fetchFiles } from '#lib/api/files.js';
+import {
+	linkFileApi,
+	unlinkFileApi,
+	fetchFiles,
+	reorderFilesApi,
+	updateFileLinkTitleApi
+} from '#lib/api/files.js';
 import SourceFiles from './SourceFiles.svelte';
 
 const detachApi = vi.mocked(unlinkFileApi);
@@ -116,5 +126,108 @@ describe('SourceFiles', () => {
 		expect(listApi).toHaveBeenCalledWith({ treeId: 't1', isDetachedOnly: true, limit: 100 });
 		document.querySelector<HTMLButtonElement>('[aria-label^="Attach loose"]')!.click();
 		await vi.waitFor(() => expect(attachApi).toHaveBeenCalledWith('loose', 't1', 's1', undefined));
+	});
+});
+
+describe('SourceFiles imported objects', () => {
+	const reorder = vi.mocked(reorderFilesApi);
+	const retitle = vi.mocked(updateFileLinkTitleApi);
+	const missing = (id: string, overrides: Partial<FileRowDto> = {}) =>
+		file(id, {
+			isUnresolved: true,
+			previewKey: null,
+			canPreview: false,
+			sizeBytes: null,
+			title: null,
+			gedcomPath: 'https://example.org/register.pdf',
+			mimeType: 'application/pdf',
+			...overrides
+		});
+
+	it('shows an unresolved file as a missing-file tile: badge, path link, no image', () => {
+		render([missing('u1')], true);
+		const item = document.querySelector('[data-testid="source-file"]')!;
+		expect(item.textContent).toContain('Not stored in Epoch');
+		expect(item.textContent).toContain('register.pdf');
+		expect(item.querySelector('img')).toBeNull();
+		expect(item.querySelector('[data-testid="missing-file-tile"]')!.closest('a')).toBeNull();
+		const link = item.querySelector<HTMLAnchorElement>('[data-testid="file-path"] a')!;
+		expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+		expect(link.getAttribute('target')).toBe('_blank');
+	});
+
+	it('keeps a Windows path as text', () => {
+		render([missing('u1', { gedcomPath: 'C:\\Scans\\register.pdf' })], false);
+		const path = document.querySelector('[data-testid="file-path"]')!;
+		expect(path.querySelector('a')).toBeNull();
+		expect(path.textContent).toContain('C:\\Scans\\register.pdf');
+	});
+
+	it('says "+n files" and lists the object’s other files', () => {
+		const extra = (id: string) => ({
+			id,
+			title: `${id}.png`,
+			version: 1,
+			mimeType: 'image/png',
+			sizeBytes: 5,
+			isUnresolved: false,
+			gedcomPath: null,
+			previewKey: `media/t1/${id}.png`
+		});
+		render([file('a', { extraFiles: [extra('b'), extra('c')] })], false);
+		expect(document.querySelector('summary')!.textContent).toContain('+2 files');
+		expect(document.querySelectorAll('[data-testid="object-file"]')).toHaveLength(3);
+	});
+
+	it('orders by the source’s pointer order and shows its title in place of the file’s', () => {
+		render(
+			[
+				file('a', { hostLink: { title: null, sortOrder: 1 } }),
+				file('b', { hostLink: { title: 'Front page', sortOrder: 0 } })
+			],
+			false
+		);
+		const names = [...document.querySelectorAll('[data-testid="source-file"] > span')].map((n) =>
+			n.textContent?.trim()
+		);
+		expect(names).toEqual(['Front page', 'a.png']);
+	});
+
+	it('saves a title and moves a file for this source', async () => {
+		retitle.mockResolvedValue({ change: null });
+		reorder.mockResolvedValue({ change: null });
+		render([file('a'), file('b')], true);
+		const later = [...document.querySelectorAll<HTMLButtonElement>('button')].filter((b) =>
+			b.textContent?.includes('later')
+		);
+		later[0]!.click();
+		await vi.waitFor(() =>
+			expect(reorder).toHaveBeenCalledWith({
+				treeId: 't1',
+				entityId: 's1',
+				factId: null,
+				orderedMediaIds: ['b', 'a']
+			})
+		);
+		[...document.querySelectorAll('button')]
+			.find((b) => b.textContent?.includes('Edit title'))!
+			.click();
+		flushSync();
+		const input = document.querySelector<HTMLInputElement>(
+			'[data-testid="link-title-form"] input'
+		)!;
+		input.value = 'Cover';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		button('Save title')!.click();
+		await vi.waitFor(() =>
+			expect(retitle).toHaveBeenCalledWith({
+				fileId: 'a',
+				treeId: 't1',
+				entityId: 's1',
+				factId: null,
+				title: 'Cover',
+				version: 1
+			})
+		);
 	});
 });
