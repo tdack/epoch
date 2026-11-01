@@ -840,12 +840,31 @@ export const fileRenameSchema = z.object({
 export const fileLinkSchema = z.object({
 	treeId: idSchema,
 	entityId: idSchema,
+	/** The fact the pointer sits under; absent for a pointer on the record itself. */
+	factId: idSchema.nullable().optional(),
 	version: versionSchema.optional()
+});
+
+/** An edit of one pointer: the title that overrides the file's for this record (null or blank clears it). */
+export const fileLinkUpdateSchema = z.object({
+	treeId: idSchema,
+	factId: idSchema.nullable().optional(),
+	title: z.string().nullable(),
+	version: versionSchema.optional()
+});
+
+/** The new order of every object linked to one record or fact. */
+export const fileOrderSchema = z.object({
+	treeId: idSchema,
+	entityId: idSchema,
+	factId: idSchema.nullable().optional(),
+	orderedMediaIds: z.array(idSchema).min(1).max(500)
 });
 
 /** An unlink names its tree and the version read in the query: DELETE carries no body. */
 export const fileUnlinkQuerySchema = z.object({
 	treeId: idSchema,
+	factId: idSchema.optional(),
 	version: z.coerce.number().int().nonnegative().optional()
 });
 

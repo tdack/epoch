@@ -10,6 +10,7 @@ export const POST = apiHandler(
 			treeId: body.treeId,
 			mediaId: params.id!,
 			entityId: body.entityId,
+			factId: body.factId,
 			expectedVersion: body.version
 		})
 );

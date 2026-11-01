@@ -276,15 +276,20 @@ export async function linkFileApi(
 	);
 }
 
-/** Unlinks a file from one record; the file itself is kept. */
+/**
+ * Unlinks a file from one record, or from one of its facts when `factId` is given; the file itself
+ * is kept. `fileId` names the object.
+ */
 export async function unlinkFileApi(
 	fileId: string,
 	treeId: string,
 	entityId: string,
-	version: number | undefined
+	version: number | undefined,
+	factId?: string | null
 ): Promise<FileLinkResponse> {
 	const query = new URLSearchParams({ treeId });
 	if (version !== undefined) query.set('version', String(version));
+	if (factId) query.set('factId', factId);
 	return call(
 		path`/api/files/${fileId}/links/${entityId}` + `?${query}`,
 		{ method: 'DELETE' },
@@ -312,4 +317,58 @@ export async function deleteUnlinkedFilesApi(
 ): Promise<{ deleted: number; failed: number }> {
 	const qs = treeId ? `?treeId=${encodeURIComponent(treeId)}` : '';
 	return call(`/api/files/unlinked${qs}`, { method: 'DELETE' }, 'Failed to delete stored files');
+}
+
+/**
+ * Sets the title that overrides the file's for one record or fact; blank clears it. `fileId` names
+ * the object and `version` is its version, so a stale edit is refused.
+ */
+export async function updateFileLinkTitleApi(input: {
+	fileId: string;
+	treeId: string;
+	entityId: string;
+	factId?: string | null;
+	title: string | null;
+	version: number | undefined;
+}): Promise<FileLinkResponse> {
+	return call(
+		path`/api/files/${input.fileId}/links/${input.entityId}`,
+		json('PATCH', {
+			treeId: input.treeId,
+			factId: input.factId ?? null,
+			title: input.title,
+			version: input.version
+		}),
+		'Failed to edit the link'
+	);
+}
+
+/** Sets the order of every file on one record or fact; `orderedMediaIds` names objects, first first. */
+export async function reorderFilesApi(input: {
+	treeId: string;
+	entityId: string;
+	factId?: string | null;
+	orderedMediaIds: string[];
+}): Promise<FileLinkResponse> {
+	return call(
+		'/api/files/order',
+		json('PUT', { ...input, factId: input.factId ?? null }),
+		'Failed to reorder the files'
+	);
+}
+
+/**
+ * Gives an unresolved file the bytes of a finished upload ("Add file…"). `fileId` is the file's own
+ * id, not its object's; `version` is the file's version.
+ */
+export async function resolveFileFromUploadApi(input: {
+	fileId: string;
+	sessionId: string;
+	version: number | undefined;
+}): Promise<FileLinkResponse> {
+	return call(
+		path`/api/media/${input.fileId}/resolve-from-upload`,
+		json('POST', { sessionId: input.sessionId, version: input.version }),
+		'Could not add the file'
+	);
 }

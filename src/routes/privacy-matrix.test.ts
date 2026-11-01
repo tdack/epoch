@@ -56,6 +56,7 @@ const ENTRIES: Record<string, Entry> = {
 	[`${API}/files/[id]/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/[id]/links/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/[id]/links/[entityId]/+server.ts`]: { kind: 'guarded-write', covers: FILES },
+	[`${API}/files/order/+server.ts`]: { kind: 'guarded-write', covers: FILES },
 	[`${API}/files/unlinked/+server.ts`]: { kind: 'role-gated', covers: FILES },
 	[`${API}/export/status/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
 	[`${API}/export/download/[instanceId]/+server.ts`]: { kind: 'role-gated', covers: ACCESS },
