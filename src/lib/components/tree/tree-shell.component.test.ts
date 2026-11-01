@@ -11,6 +11,7 @@ import {
 } from '#lib/api/files.js';
 import { ApiError, isExpiredExportError } from '#lib/api/client.js';
 import { startUpload } from '#lib/api/uploader.js';
+import { createTreeApi, deleteTreeApi } from '#lib/api/trees.js';
 import { TreeShell } from './tree-shell.svelte.js';
 
 vi.mock('#lib/api/client.js', () => ({
@@ -59,7 +60,7 @@ const clearClientUuid = vi.mocked(clearExportClientUuid);
 const isExpired = vi.mocked(isExpiredExportError);
 const navigations: string[] = [];
 
-function setup() {
+function setup(treeId: string | null = 't1') {
 	navigations.length = 0;
 	sessionStorage.clear();
 	vi.stubGlobal('window', {
@@ -74,7 +75,7 @@ function setup() {
 	});
 	const toasts = new ToastStore();
 	const shell = new TreeShell({
-		treeId: () => 't1',
+		treeId: () => treeId,
 		toasts,
 		reload: async () => {},
 		goTo: () => {}
@@ -345,11 +346,59 @@ describe('TreeShell with an uploaded .gdz', () => {
 
 		expect(startGedzipImport).toHaveBeenCalledWith('s1', {
 			mode: 'replace',
-			shouldMergeDuplicateFamilies: false
+			shouldMergeDuplicateFamilies: false,
+			isNewTree: false
 		});
 		expect(shell.importStatus).toBe(
 			'Import complete: 7 individuals, 3 families. Media: 4 files stored (2 not linked to any record); 3 files are still missing; 1 skipped as a type Epoch does not accept.'
 		);
+	});
+
+	describe('with no tree open', () => {
+		async function previewedNew() {
+			const ctx = setup(null);
+			vi.mocked(createTreeApi).mockResolvedValue({ id: 'new1', name: 'family' });
+			vi.mocked(startUpload).mockResolvedValue({ sessionId: 's1', r2Key: 'k', totalBytes: 1 });
+			vi.mocked(previewGedzipImport).mockResolvedValue({
+				mode: 'replace',
+				incoming: { individuals: 1, families: 0, events: 0 },
+				duplicates: { exact: [], possible: [] },
+				retainedTags: []
+			});
+			ctx.shell.importFile(new File(['x'], 'family.gdz'));
+			await vi.waitFor(() => expect(ctx.shell.importPreview).not.toBeNull());
+			return ctx;
+		}
+
+		it('makes a tree named from the file and uploads into it', async () => {
+			await previewedNew();
+			expect(createTreeApi).toHaveBeenCalledWith({ name: 'family' });
+			expect(startUpload).toHaveBeenCalledWith(
+				expect.objectContaining({ treeId: 'new1', purpose: 'gedzip_import' })
+			);
+		});
+
+		it('imports into it as a new tree and keeps it', async () => {
+			const { shell } = await previewedNew();
+			vi.mocked(startGedzipImport).mockResolvedValue({
+				status: 'complete',
+				treeId: 'new1',
+				individualsCount: 1
+			} as never);
+			await shell.confirmImport('replace', { shouldMergeDuplicateFamilies: false });
+			expect(startGedzipImport).toHaveBeenCalledWith(
+				's1',
+				expect.objectContaining({ isNewTree: true })
+			);
+			shell.cancelImport();
+			expect(deleteTreeApi).not.toHaveBeenCalled();
+		});
+
+		it('deletes the tree when the import is cancelled before it starts', async () => {
+			const { shell } = await previewedNew();
+			shell.cancelImport();
+			expect(deleteTreeApi).toHaveBeenCalledWith('new1');
+		});
 	});
 
 	it('keeps polling past the timeout while files are still being stored', async () => {

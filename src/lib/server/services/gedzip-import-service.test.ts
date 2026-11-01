@@ -284,6 +284,54 @@ describe.skipIf(!existsSync(archiveUrl))('importing maximal70.gdz', () => {
 		expect(sent).toHaveLength(1);
 	});
 
+	it('lets a new, empty tree be renamed from the file, and refuses that for a tree with people', async () => {
+		const owner = await createTestUser(t.db);
+		const sent: GedcomImportPayload[] = [];
+		const service = new GedzipImportService(t.db, {
+			bucket: new RangeBucket() as unknown as R2Bucket,
+			importWorkflow: { create: async ({ params }) => void sent.push(params) }
+		});
+		const completeSession = async (treeId: string) => {
+			const id = crypto.randomUUID();
+			const uploads = new UploadRepository(t.db);
+			await uploads.insert({
+				id,
+				treeId,
+				purpose: 'gedzip_import',
+				r2Key: `staging/uploads/${treeId}/${id}`,
+				r2UploadId: 'u',
+				partSizeBytes: 10,
+				totalBytes: 10,
+				createdBy: owner.userId,
+				createdAt: new Date(),
+				expiresAt: new Date(Date.now() + 60_000)
+			});
+			await uploads.closeOpen(id, 'complete');
+			return id;
+		};
+		const input = {
+			mode: 'replace',
+			shouldMergeDuplicateFamilies: false,
+			isNewTree: true
+		} as const;
+
+		const empty = await createTestTree(t.db, owner);
+		await service.start(await completeSession(empty), input, owner.context);
+		expect(sent[0]).toMatchObject({ isTreeNameExplicit: false, createdTreeVersion: 1 });
+		expect(sent[0].createdTreeName).toBeTruthy();
+
+		const used = await createTestTree(t.db, owner);
+		await t.db.insert(individuals).values({ id: crypto.randomUUID(), treeId: used });
+		const usedSession = await completeSession(used);
+		await expect(service.start(usedSession, input, owner.context)).rejects.toMatchObject({
+			status: 400
+		});
+		// Refused before the claim, so the upload can still be imported without the flag.
+		await expect(
+			service.start(usedSession, { ...input, isNewTree: false }, owner.context)
+		).resolves.toMatchObject({ status: 'queued' });
+	});
+
 	describe('previewing an upload', () => {
 		async function session(role: 'owner' | 'editor' | 'viewer' = 'editor') {
 			const s = await setup(role);

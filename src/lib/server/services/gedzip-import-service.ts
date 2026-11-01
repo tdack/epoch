@@ -35,7 +35,9 @@ import {
 import { fixedLengthBody } from '../http/fixed-length-body';
 import { sniffMediaType } from '../media/media-type';
 import { sumStoredBytes } from '../media/stored-bytes';
+import { GedcomRepository } from '../repositories/gedcom-repository';
 import { ImportJobRepository } from '../repositories/import-job-repository';
+import { TreeRepository } from '../repositories/tree-repository';
 import { MediaRepository } from '../repositories/media-repository';
 import { UploadRepository } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
@@ -91,6 +93,7 @@ export const isUploadKeyOf = (treeId: string, key: string) => {
 export interface GedzipImportInput {
 	mode: ImportMode;
 	shouldMergeDuplicateFamilies: boolean;
+	isNewTree?: boolean;
 }
 
 export interface MediaBatchResult {
@@ -181,6 +184,7 @@ export class GedzipImportService {
 		if (!bucket || !importWorkflow) throw new Error('Import workflow binding unavailable');
 		const session = await this.ownedSession(sessionId, context);
 
+		const naming = input.isNewTree ? await this.newTreeNaming(session.treeId) : {};
 		if (!(await this.uploads.claimForImport(session.id))) {
 			throw new ConcurrencyConflictError('This upload has already been imported');
 		}
@@ -192,7 +196,8 @@ export class GedzipImportService {
 			mode: input.mode,
 			shouldMergeDuplicateFamilies: input.shouldMergeDuplicateFamilies,
 			actorId: context.user.id,
-			isArchive: true
+			isArchive: true,
+			...naming
 		};
 		try {
 			await this.jobs.create({
@@ -212,6 +217,25 @@ export class GedzipImportService {
 			throw err;
 		}
 		return { status: 'queued', treeId: session.treeId, jobId };
+	}
+
+	/**
+	 * Lets the import rename a tree the client just made for this file, as a new-tree import of a
+	 * `.ged` does. Only an empty tree qualifies, so the flag cannot rename a tree people already use.
+	 * The tree's current name stands in for the filename: the client named it from the file.
+	 */
+	private async newTreeNaming(treeId: string): Promise<Partial<ImportQueueMessage>> {
+		if ((await new GedcomRepository(this.db).countIndividuals(treeId)) > 0) {
+			throw new ValidationError('Only an empty tree can take a new-tree import');
+		}
+		const tree = await new TreeRepository(this.db).findById(treeId);
+		if (!tree) throw new NotFoundError('Tree');
+		return {
+			isTreeNameExplicit: false,
+			createdTreeName: tree.name,
+			createdTreeFileName: tree.name,
+			createdTreeVersion: tree.version
+		};
 	}
 
 	/**
@@ -313,7 +337,11 @@ export class GedzipImportService {
 			message.mode ?? 'replace',
 			{
 				shouldMergeDuplicateFamilies: message.shouldMergeDuplicateFamilies,
-				actorId: message.actorId
+				actorId: message.actorId,
+				isTreeNameExplicit: message.isTreeNameExplicit,
+				createdTreeName: message.createdTreeName,
+				createdTreeFileName: message.createdTreeFileName,
+				createdTreeVersion: message.createdTreeVersion
 			}
 		);
 	}

@@ -984,7 +984,9 @@ export const uploadCreateSchema = z.object({
 /** Starts the import of a finished `.gdz` upload session; the tree and the archive come from the session. */
 export const gedzipImportSchema = z.object({
 	mode: z.enum(['replace', 'merge']).default('replace'),
-	shouldMergeDuplicateFamilies: z.boolean().default(false)
+	shouldMergeDuplicateFamilies: z.boolean().default(false),
+	/** The client made this tree for this file, so the file's own `Tree:` name may replace its name. */
+	isNewTree: z.boolean().default(false)
 });
 
 /** Gives an unresolved file the bytes of a finished media upload session; the file comes from the path. */

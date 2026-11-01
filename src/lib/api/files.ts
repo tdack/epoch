@@ -48,7 +48,7 @@ export function previewGedzipImport(
 /** Starts the import of an uploaded `.gdz`; a second start of the same upload is a 409. */
 export function startGedzipImport(
 	sessionId: string,
-	input: { mode: 'replace' | 'merge'; shouldMergeDuplicateFamilies: boolean }
+	input: { mode: 'replace' | 'merge'; shouldMergeDuplicateFamilies: boolean; isNewTree?: boolean }
 ): Promise<GedcomImportResult> {
 	return call(path`/api/uploads/${sessionId}/import`, json('POST', input), 'Import failed');
 }
