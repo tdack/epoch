@@ -446,8 +446,10 @@ export class TreeShell {
 		const treeId = this.gedzipNewTreeId;
 		if (!treeId) return;
 		this.gedzipNewTreeId = null;
-		await deleteTreeApi(treeId).catch((err: unknown) => {
+		try {
+			await deleteTreeApi(treeId);
+		} catch (err) {
 			console.error('Failed to delete the unused import tree', err);
-		});
+		}
 	}
 }
