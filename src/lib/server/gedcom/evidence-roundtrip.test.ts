@@ -97,8 +97,8 @@ describe('importing again changes nothing', () => {
 
 /**
  * A source can have files in Epoch (ADR-061), but a GEDCOM `OBJE` carries a path, never bytes, so an
- * import creates no file and an export has no file to write. The `OBJE` under a `SOUR` stays a
- * retained line, written once; a file attached in Epoch adds nothing to the export.
+ * import creates no file. The `OBJE` under a `SOUR` stays a retained line, written once; a file
+ * attached in Epoch is written as its own record with a pointer under the source.
  */
 describe('an OBJE under a source', () => {
 	const SOURCE_OBJE = `0 HEAD
@@ -129,7 +129,7 @@ describe('an OBJE under a source', () => {
 		expect(out.filter((line) => line === '0 @M1@ OBJE')).toHaveLength(1);
 	});
 
-	it('is unchanged by a file attached to the source in Epoch', async () => {
+	it('gains a record and a pointer for a file attached to the source in Epoch', async () => {
 		const treeId = crypto.randomUUID();
 		await importGedcomToDb(t.d1, treeId, SOURCE_OBJE, 'Source OBJE');
 		const before = withoutHeader(await exportOf(treeId));
@@ -151,7 +151,13 @@ describe('an OBJE under a source', () => {
 			.prepare(`insert into media_links (id, tree_id, media_id, entity_id) values (?, ?, 'm-1', ?)`)
 			.bind(`m-1:${source.id}`, treeId, source.id)
 			.run();
-		expect(withoutHeader(await exportOf(treeId))).toEqual(before);
-		expect(withoutHeader(await exportOf(treeId, '7'))).toEqual(before7);
+		// The file is a record of its own, which leaves everything the import kept as it was.
+		const after = withoutHeader(await exportOf(treeId));
+		const after7 = withoutHeader(await exportOf(treeId, '7'));
+		expect(after).toEqual(expect.arrayContaining(before));
+		expect(after7).toEqual(expect.arrayContaining(before7));
+		expect(after).toContain('1 FILE media/scan-m-1.png');
+		expect(after7).toContain('1 FILE media/scan-m-1.png');
+		expect(after.filter((line) => line === '1 OBJE @O1@')).toHaveLength(1);
 	});
 });

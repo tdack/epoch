@@ -13,6 +13,9 @@ import type {
 	events,
 	gedcomPreserved,
 	individuals,
+	mediaItems,
+	mediaLinks,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -28,7 +31,15 @@ import { CITATION_SUBJECT_KINDS, type CitationSubjectKind } from '../../shared/e
 import { NOTE_SUBJECT_KINDS, type NoteSubjectKind } from '../../shared/notes';
 import { splitNameMarkers } from './name-value';
 import { HEADER_OWNER } from './parser';
-import type { ExportCitation, ExportNote, GedcomExportPayload } from './serializer';
+import { objectIdOf } from '../../shared/media';
+import { exportedFileText } from './media-export';
+import type {
+	ExportCitation,
+	ExportMediaLink,
+	ExportMediaObject,
+	ExportNote,
+	GedcomExportPayload
+} from './serializer';
 
 /** Every row of one tree the export needs, as the repository reads them. */
 export interface ExportRows {
@@ -49,6 +60,11 @@ export interface ExportRows {
 	citations: Array<typeof citations.$inferSelect>;
 	notes: Array<typeof notes.$inferSelect>;
 	noteAttachments: Array<typeof noteAttachments.$inferSelect>;
+	mediaObjects: Array<typeof mediaObjects.$inferSelect>;
+	/** In file order within an object, so a tie on `sort_order` keeps insertion order. */
+	mediaFiles: Array<typeof mediaItems.$inferSelect>;
+	/** In insertion order, so a tie on `sort_order` keeps the order they were written in. */
+	mediaLinks: Array<typeof mediaLinks.$inferSelect>;
 }
 
 /**
@@ -304,8 +320,78 @@ export function exportPayloadFrom(
 		linksOfSource.set(link.sourceId, [...(linksOfSource.get(link.sourceId) ?? []), link]);
 	// A record kept as lines before it was modelled is superseded by its row, so it is never written twice.
 	const modelledXrefs = new Set(
-		[...rows.sources, ...rows.repositories, ...rows.notes].flatMap((r) => (r.xref ? [r.xref] : []))
+		[...rows.sources, ...rows.repositories, ...rows.notes, ...rows.mediaObjects].flatMap((r) =>
+			r.xref ? [r.xref] : []
+		)
 	);
+
+	// ---- Media (ADR-082) ----
+	const filesOfObject = new Map<string, Array<typeof mediaItems.$inferSelect>>();
+	for (const file of [...rows.mediaFiles].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))) {
+		const key = objectIdOf(file);
+		filesOfObject.set(key, [...(filesOfObject.get(key) ?? []), file]);
+	}
+	// A file written before the backfill has no object row yet and reads as an object of its own.
+	const knownObjects = new Set(rows.mediaObjects.map((o) => o.id));
+	const objectRows = [
+		...rows.mediaObjects,
+		...[...filesOfObject]
+			.filter(([id]) => !knownObjects.has(id))
+			.map(([id, files]) => ({
+				id,
+				treeId,
+				xref: null,
+				privacy: 'auto' as const,
+				gedcomExtra: null,
+				createdBy: null,
+				version: files[0].version,
+				createdAt: files[0].createdAt,
+				updatedAt: files[0].updatedAt
+			}))
+	];
+	const mediaXrefs = new Map(objectRows.map((o) => [o.id, o.xref ?? `@${o.id}@`] as const));
+	const mediaLinksOf = new Map<string, ExportMediaLink[]>();
+	for (const link of [...rows.mediaLinks].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))) {
+		const pointer = mediaXrefs.get(link.mediaId);
+		// A link whose object is gone could only be a pointer at nothing.
+		if (!pointer) continue;
+		const hasCrop = [link.cropTop, link.cropLeft, link.cropHeight, link.cropWidth].some(
+			(side) => side !== null
+		);
+		const key = `${link.entityId}|${link.factId ?? ''}`;
+		mediaLinksOf.set(key, [
+			...(mediaLinksOf.get(key) ?? []),
+			{
+				pointer,
+				crop: hasCrop
+					? {
+							top: link.cropTop,
+							left: link.cropLeft,
+							height: link.cropHeight,
+							width: link.cropWidth
+						}
+					: null,
+				title: link.title,
+				extra: link.gedcomExtra?.map(remap) ?? null
+			}
+		]);
+	}
+	const mediaFor = (entityId: string, factId?: string) =>
+		mediaLinksOf.get(`${entityId}|${factId ?? ''}`) ?? [];
+	const mediaObjectsOut: ExportMediaObject[] = objectRows.map((o) => ({
+		xref: mediaXrefs.get(o.id)!,
+		changedAt: o.updatedAt,
+		createdAt: o.createdAt,
+		privacy: o.privacy,
+		files: (filesOfObject.get(o.id) ?? []).map((file) => ({
+			path: exportedFileText(file),
+			mimeType: file.mimeType,
+			medium: file.medium,
+			title: file.title,
+			extra: file.gedcomExtra
+		})),
+		extra: o.gedcomExtra?.map(remap) ?? null
+	}));
 
 	const withKeptLines = (list: typeof treeEvents) =>
 		list.map((ev) => ({
@@ -318,7 +404,8 @@ export function exportPayloadFrom(
 			...(ev.ageExtra?.length ? { ageExtra: ev.ageExtra.map(remap) } : {}),
 			...(ev.addressLayout?.length ? { addressLayout: ev.addressLayout.map(remap) } : {}),
 			citations: citationsFor(CITATION_SUBJECT_KINDS.EVENT, ev.id),
-			noteLinks: notesFor(NOTE_SUBJECT_KINDS.EVENT, ev.id)
+			noteLinks: notesFor(NOTE_SUBJECT_KINDS.EVENT, ev.id),
+			media: mediaFor(ev.entityId, ev.id)
 		}));
 
 	return {
@@ -371,6 +458,7 @@ export function exportPayloadFrom(
 				privacy: ind.privacy,
 				citations: citationsFor(CITATION_SUBJECT_KINDS.PERSON, ind.id),
 				notes: notesFor(NOTE_SUBJECT_KINDS.PERSON, ind.id),
+				media: mediaFor(ind.id),
 				events: withKeptLines(eventsByEntity[ind.id] || []),
 				famc: (famcByChild[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid),
 				fams: (famsByInd[ind.id] || []).map((fid) => famXrefMap.get(fid) || fid)
@@ -400,7 +488,8 @@ export function exportPayloadFrom(
 				...(u.xrefAliases && u.xrefAliases.length > 0 ? { aliases: u.xrefAliases } : {}),
 				events: withKeptLines(eventsByEntity[u.id] || []),
 				citations: citationsFor(CITATION_SUBJECT_KINDS.UNION, u.id),
-				notes: notesFor(NOTE_SUBJECT_KINDS.UNION, u.id)
+				notes: notesFor(NOTE_SUBJECT_KINDS.UNION, u.id),
+				media: mediaFor(u.id)
 			};
 		}),
 		sources: rows.sources.map((s) => ({
@@ -415,6 +504,7 @@ export function exportPayloadFrom(
 			layout: s.gedcomLayout,
 			extra: s.gedcomExtra?.map(remap) ?? null,
 			notes: notesFor(NOTE_SUBJECT_KINDS.SOURCE, s.id),
+			media: mediaFor(s.id),
 			repositories: (linksOfSource.get(s.id) ?? []).map((link) => ({
 				pointer: link.repositoryId
 					? (repositoryXrefs.get(link.repositoryId) ?? null)
@@ -444,6 +534,7 @@ export function exportPayloadFrom(
 			layout: n.gedcomLayout,
 			extra: n.gedcomExtra?.map(remap) ?? null
 		})),
+		media: mediaObjectsOut,
 		preserved: treePreserved
 			.slice()
 			.sort((a, b) => a.order - b.order)

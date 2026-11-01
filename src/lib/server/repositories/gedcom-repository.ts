@@ -12,6 +12,9 @@ import {
 	events,
 	gedcomPreserved,
 	individuals,
+	mediaItems,
+	mediaLinks,
+	mediaObjects,
 	noteAttachments,
 	notes,
 	parentChild,
@@ -512,6 +515,24 @@ export class GedcomRepository {
 			.where(eq(noteAttachments.treeId, treeId))
 			.orderBy(sql`${noteAttachments}.rowid`)
 			.all();
+		const treeMediaObjects = await db
+			.select()
+			.from(mediaObjects)
+			.where(eq(mediaObjects.treeId, treeId))
+			.orderBy(sql`${mediaObjects}.rowid`)
+			.all();
+		const treeMediaFiles = await db
+			.select()
+			.from(mediaItems)
+			.where(eq(mediaItems.treeId, treeId))
+			.orderBy(sql`${mediaItems}.rowid`)
+			.all();
+		const treeMediaLinks = await db
+			.select()
+			.from(mediaLinks)
+			.where(eq(mediaLinks.treeId, treeId))
+			.orderBy(sql`${mediaLinks}.rowid`)
+			.all();
 		return {
 			tree,
 			individuals: treeInds,
@@ -526,7 +547,10 @@ export class GedcomRepository {
 			sourceRepositories: treeSourceLinks,
 			citations: treeCitations,
 			notes: treeNotes,
-			noteAttachments: treeNoteAttachments
+			noteAttachments: treeNoteAttachments,
+			mediaObjects: treeMediaObjects,
+			mediaFiles: treeMediaFiles,
+			mediaLinks: treeMediaLinks
 		};
 	}
 }

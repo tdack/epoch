@@ -1,6 +1,7 @@
 import { toGedcom551Lines, toGedcom7Lines } from './dialect';
 import { escapedSingleLine, fieldLines, keptLines, LINE_BREAK, singleLine } from './evidence-lines';
 import { canonicalNameValue } from './name-value';
+import { splitFileExtras } from './media-lines';
 import { levelOfLine } from './node';
 import { ValidationError } from '../domain/errors';
 import {
@@ -106,6 +107,8 @@ interface ExportSource extends RecordStamps {
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
 	notes?: ExportNote[];
+	/** Pointers to media records on the source. */
+	media?: ExportMediaLink[];
 	/** `REPO` links in order: the pointer (or none), the call number, and the lines kept under the link. */
 	repositories: Array<{
 		pointer: string | null;
@@ -122,6 +125,44 @@ interface ExportRepository extends RecordStamps {
 	layout?: Record<string, string[]> | null;
 	extra?: string[] | null;
 	notes?: ExportNote[];
+}
+
+/** One `FILE` of a media record as written (ADR-082). */
+interface ExportMediaFile {
+	/** The `FILE` text before the dialect converts it: the stored path, or a relative one made up for it. */
+	path: string;
+	/** `FORM`: a media type. 5.5.1 gets the format word for the common ones. */
+	mimeType: string;
+	/** `MEDI`, as the file wrote it. */
+	medium?: string | null;
+	title?: string | null;
+	/** The lines kept under the `FILE`, `FORM` and `MEDI`, in the order `media-lines.ts` splits. */
+	extra?: string[] | null;
+}
+
+/** A media record (`OBJE`) as written: its files, its privacy, and the lines it keeps. */
+export interface ExportMediaObject extends RecordStamps {
+	xref: string;
+	/** The object's privacy; `auto` (or absent) writes nothing. */
+	privacy?: string | null;
+	files: ExportMediaFile[];
+	extra?: string[] | null;
+}
+
+/**
+ * A pointer to a media record under a person, family, source or fact. `crop` holds only the sides
+ * the file gave; 5.5.1 has no place for it or for `title`, so that dialect drops both.
+ */
+export interface ExportMediaLink {
+	pointer: string;
+	crop?: {
+		top: number | null;
+		left: number | null;
+		height: number | null;
+		width: number | null;
+	} | null;
+	title?: string | null;
+	extra?: string[] | null;
 }
 
 /**
@@ -176,12 +217,16 @@ export interface GedcomExportPayload {
 				citations?: ExportCitation[];
 				/** The notes under the fact, written before its citations. */
 				noteLinks?: ExportNote[];
+				/** Pointers to media records under the fact. */
+				media?: ExportMediaLink[];
 			}
 		>;
 		/** Citations of the person themself. */
 		citations?: ExportCitation[];
 		/** Notes on the person themself. */
 		notes?: ExportNote[];
+		/** Pointers to media records on the person themself. */
+		media?: ExportMediaLink[];
 		famc?: string[];
 		fams?: string[];
 		changedAt?: Date | null;
@@ -218,17 +263,22 @@ export interface GedcomExportPayload {
 				gedcomExtra?: string[] | null;
 				citations?: ExportCitation[];
 				noteLinks?: ExportNote[];
+				media?: ExportMediaLink[];
 			}
 		>;
 		/** Citations of the family record. */
 		citations?: ExportCitation[];
 		/** Notes on the family record. */
 		notes?: ExportNote[];
+		/** Pointers to media records on the family record. */
+		media?: ExportMediaLink[];
 	}>;
 	/** Root `SOUR`, `REPO` and shared note records, written after the last family. */
 	sources?: ExportSource[];
 	repositories?: ExportRepository[];
 	notes?: ExportSharedNote[];
+	/** Media records, written as `OBJE` after the shared notes (ADR-082). */
+	media?: ExportMediaObject[];
 	/** Unmodeled GEDCOM structures to re-emit verbatim, keyed by owner XREF. */
 	preserved?: Array<{ xref: string | null; lines: string[] }>;
 	/** The tree's submitter (ADR-075). A 7.0 file names one only when `name` is set; 5.5.1 always does. */
@@ -476,6 +526,7 @@ function individualEventLines(
 	const note = ev.notes ?? (hasNoteRecords ? null : ev.description);
 	if (note) lines.push(...fieldLines(2, 'NOTE', note));
 	lines.push(...citationLines(2, ev.citations, format));
+	lines.push(...mediaPointerLines(2, ev.media, format));
 	lines.push(...foldLines(ev.gedcomExtra));
 	lines.push(...noteLines(2, ev.noteLinks, format));
 	return lines;
@@ -497,6 +548,7 @@ function familyEventLines(
 	lines.push(...addressAndContactLines(ev));
 	if (ev.description) lines.push(...fieldLines(2, 'NOTE', ev.description));
 	lines.push(...citationLines(2, ev.citations, format));
+	lines.push(...mediaPointerLines(2, ev.media, format));
 	lines.push(...foldLines(ev.gedcomExtra));
 	lines.push(...noteLines(2, ev.noteLinks, format));
 	return lines;
@@ -574,6 +626,84 @@ function citationLines(
 	return lines;
 }
 
+/** The sides of a crop in the order 7.0 lists them. */
+const CROP_SIDES = [
+	['TOP', 'top'],
+	['LEFT', 'left'],
+	['HEIGHT', 'height'],
+	['WIDTH', 'width']
+] as const;
+
+/**
+ * Pointers to media records at `level`, in order. 5.5.1 has no `CROP` and no title on a pointer, so
+ * that dialect writes the bare pointer, and a bare `CROP` the file kept goes with the rest.
+ */
+function mediaPointerLines(
+	level: number,
+	links: ExportMediaLink[] | undefined,
+	format: GedcomFormat
+): string[] {
+	const lines: string[] = [];
+	for (const link of links ?? []) {
+		lines.push(`${level} OBJE ${asXref(link.pointer)}`);
+		let kept = foldLines(link.extra);
+		if (format === 'gedcom7') {
+			if (link.crop) {
+				lines.push(`${level + 1} CROP`);
+				for (const [tag, side] of CROP_SIDES) {
+					const value = link.crop[side];
+					if (value !== null && value !== undefined) lines.push(`${level + 2} ${tag} ${value}`);
+				}
+			}
+			lines.push(...fieldLines(level + 1, 'TITL', link.title));
+		} else {
+			kept = kept.filter((line) => !/^\d+ CROP$/.test(line));
+		}
+		lines.push(...keptUnder(level + 1, level + 1, kept));
+	}
+	return lines;
+}
+
+/** `FORM` and `MEDI`/`TYPE` under a `FILE`: 5.5.1 says the kind of source with `TYPE` and has no `PHRASE`. */
+function mediaFileLines(file: ExportMediaFile, format: GedcomFormat): string[] {
+	const extras = splitFileExtras(file.extra);
+	const lines = [file.path ? `1 FILE ${escapedSingleLine(file.path)}` : '1 FILE'];
+	lines.push(`2 FORM ${escapedSingleLine(file.mimeType)}`);
+	if (file.medium) {
+		if (format === 'gedcom7') {
+			lines.push(`3 MEDI ${escapedSingleLine(file.medium)}`, ...keptUnder(4, 4, extras.medi));
+		} else {
+			// 5.5.1 has no `PHRASE`, so the words it stood for are the `TYPE`.
+			const phrase = extras.medi
+				.map((line) => /^4 PHRASE (.*)$/.exec(line)?.[1])
+				.find((text) => text !== undefined);
+			const isOther = file.medium.toUpperCase() === 'OTHER';
+			lines.push(`3 TYPE ${escapedSingleLine(isOther && phrase ? phrase : file.medium)}`);
+		}
+	}
+	lines.push(...keptUnder(3, 3, extras.form));
+	lines.push(...fieldLines(2, 'TITL', file.title));
+	lines.push(...keptUnder(2, 2, extras.file));
+	return lines;
+}
+
+/**
+ * A media record: its files, then its restriction, the lines it keeps (notes, citations, `EXID`,
+ * `UID`, `REFN`) and Epoch's own `CHAN`/`CREA`.
+ */
+function mediaRecordLines(object: ExportMediaObject, format: GedcomFormat): string[] {
+	const lines = [`0 ${singleLine(object.xref)} OBJE`];
+	for (const file of object.files) lines.push(...mediaFileLines(file, format));
+	// The restriction is one line holding a list, so the kept words and the privacy go out together.
+	const owned = foldLines(object.extra).map((line) => ({ lines: [line] }));
+	const resn = resnLines(object.privacy, owned, format);
+	lines.push(...resn.lines);
+	const rest = owned.filter((entry) => !resn.merged.has(entry)).map((entry) => entry.lines[0]);
+	lines.push(...keptUnder(1, 1, withoutSupersededStamps(rest, object, format)));
+	lines.push(...stampLines(object, format));
+	return lines;
+}
+
 /** A source record: its fields, its `REPO` links, then every line kept beside them. */
 function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[] {
 	const lines = [`0 ${singleLine(source.xref)} SOUR`];
@@ -587,6 +717,7 @@ function sourceRecordLines(source: ExportSource, format: GedcomFormat): string[]
 		if (link.callNumber) lines.push(`2 CALN ${escapedSingleLine(link.callNumber)}`);
 		lines.push(...foldLines(link.extra));
 	}
+	lines.push(...mediaPointerLines(1, source.media, format));
 	lines.push(...foldLines(withoutSupersededStamps(source.extra, source, format)));
 	lines.push(...noteLines(1, source.notes, format));
 	lines.push(...stampLines(source, format));
@@ -904,6 +1035,7 @@ function appendRootRecords(lines: string[], data: GedcomExportPayload, format: G
 	for (const repository of data.repositories ?? [])
 		lines.push(...repositoryRecordLines(repository, format));
 	for (const note of data.notes ?? []) lines.push(...sharedNoteLines(note, format));
+	for (const object of data.media ?? []) lines.push(...mediaRecordLines(object, format));
 	for (const entry of data.preserved ?? []) {
 		if (entry.xref !== null && entry.lines[0]?.startsWith('0 '))
 			lines.push(...foldLines(entry.lines));
@@ -1039,6 +1171,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, ind.citations, 'gedcom551'));
+		lines.push(...mediaPointerLines(1, ind.media, 'gedcom551'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
@@ -1076,6 +1209,7 @@ export function buildGedcom551String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom551'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom551'));
+		lines.push(...mediaPointerLines(1, fam.media, 'gedcom551'));
 		appendPreserved(lines, preserved, xref, written, undefined, {
 			stamps: fam,
 			format: 'gedcom551'
@@ -1137,6 +1271,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of ind.events) lines.push(...individualEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, ind.citations, 'gedcom7'));
+		lines.push(...mediaPointerLines(1, ind.media, 'gedcom7'));
 
 		if (ind.famc) {
 			for (const f of ind.famc) {
@@ -1174,6 +1309,7 @@ export function buildGedcom7String(data: GedcomExportPayload): string {
 			for (const ev of fam.events) lines.push(...familyEventLines(ev, 'gedcom7'));
 		}
 		lines.push(...citationLines(1, fam.citations, 'gedcom7'));
+		lines.push(...mediaPointerLines(1, fam.media, 'gedcom7'));
 		appendPreserved(lines, preserved, xref, written, undefined, { stamps: fam, format: 'gedcom7' });
 		lines.push(...noteLines(1, fam.notes, 'gedcom7'));
 		lines.push(...stampLines(fam, 'gedcom7'));
