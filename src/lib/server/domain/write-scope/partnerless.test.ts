@@ -158,6 +158,12 @@ function commandsFor(rows: TreeRows): RelationshipCommand[] {
 		{ kind: 'record_death', personId: 'dead5', dateText: '1980', place: null },
 		// Files
 		{ kind: 'rename_media', mediaId: 'file-lonely', title: 'Renamed' },
+		{
+			kind: 'resolve_media_file',
+			fileId: 'file-lonely',
+			objectKey: 'media/tree-1/file-lonely.png',
+			mimeType: 'image/png'
+		},
 		{ kind: 'unlink_media', mediaId: 'file-lonely', entityId: UNION },
 		{ kind: 'link_media', mediaId: 'file-lonely', entityId: UNION },
 		{ kind: 'link_media', mediaId: 'file-dead5', entityId: UNION },

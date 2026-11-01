@@ -214,6 +214,10 @@ export function describeCommand(command: RelationshipCommand, rows: TreeRows): s
 		}
 		case 'rename_media':
 			return `Renamed the file “${command.title.trim().slice(0, 60)}”`;
+		case 'resolve_media_file': {
+			const file = rows.mediaItems.find((m) => m.id === command.fileId);
+			return `Added the file for “${(file?.title ?? file?.gedcomPath ?? 'a file').slice(0, 60)}”`;
+		}
 		case 'link_media':
 		case 'unlink_media':
 		case 'update_media_link': {

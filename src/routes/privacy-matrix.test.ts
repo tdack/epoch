@@ -70,6 +70,10 @@ const ENTRIES: Record<string, Entry> = {
 		kind: 'role-gated',
 		covers: 'services/media-from-upload.test.ts'
 	},
+	[`${API}/media/[id]/resolve-from-upload/+server.ts`]: {
+		kind: 'role-gated',
+		covers: 'services/media-resolve.test.ts'
+	},
 	// An upload session carries bytes, never a record, and only its creator can touch it.
 	[`${API}/uploads/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },
 	[`${API}/uploads/[id]/+server.ts`]: { kind: 'role-gated', covers: UPLOADS },

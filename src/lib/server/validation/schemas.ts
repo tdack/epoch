@@ -960,6 +960,12 @@ export const uploadCreateSchema = z.object({
 	totalBytes: z.number().int().positive().safe()
 });
 
+/** Gives an unresolved file the bytes of a finished media upload session; the file comes from the path. */
+export const resolveFromUploadSchema = z.object({
+	sessionId: idSchema,
+	version: versionSchema.optional()
+});
+
 /** Turns a finished media upload session into a file on one record. The tree comes from the session. */
 export const mediaFromUploadSchema = z.object({
 	sessionId: idSchema,

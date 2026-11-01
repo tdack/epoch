@@ -47,6 +47,7 @@ export const PERSON_COMMAND_SCOPES: ScopeTable = {
  */
 export const MEDIA_SCOPES: ScopeTable = {
 	rename_media: (c) => seedOf({ media: [c.mediaId] }),
+	resolve_media_file: (c) => seedOf({ media: [c.fileId] }),
 	unlink_media: (c) => seedOf({ media: [c.mediaId] }),
 	link_media: (c) =>
 		seedOf({

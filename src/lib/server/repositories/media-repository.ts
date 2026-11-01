@@ -456,6 +456,17 @@ export class MediaRepository {
 		]);
 	}
 
+	/** Writes the derived size and CRC of a file whose bytes just arrived; a row image leaves both out. */
+	async setStoredBytesInfo(
+		mediaId: string,
+		info: { sizeBytes: number; crc32: number | null }
+	): Promise<void> {
+		await this.db
+			.update(mediaItems)
+			.set({ sizeBytes: info.sizeBytes, crc32: info.crc32 })
+			.where(eq(mediaItems.id, mediaId));
+	}
+
 	/** Removes one file's row and leaves its object, links and other files. */
 	async deleteFileRow(mediaId: string): Promise<void> {
 		await this.db.delete(mediaItems).where(eq(mediaItems.id, mediaId));

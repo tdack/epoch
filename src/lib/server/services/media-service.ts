@@ -29,6 +29,7 @@ import { UploadRepository } from '../repositories/upload-repository';
 import { UserRepository } from '../repositories/user-repository';
 import { visibleAmong, visibleSourcesAmong } from '../repositories/visibility';
 import {
+	MAX_MEDIA_FILE_BYTES,
 	MAX_TREE_MEDIA_BYTES,
 	isUnresolvedFile,
 	objectIdOf,
@@ -910,6 +911,73 @@ export class MediaService {
 		// A failed delete leaves staged bytes the lifecycle rule removes; the file already exists.
 		await bucket.delete(session.r2Key).catch(() => undefined);
 		return { id: mediaId, objectKey, title, mimeType, treeId };
+	}
+
+	/**
+	 * Gives an unresolved file its bytes from a finished `media` upload session (ADR-082's "Add
+	 * file…"). The checks are `recordFromUpload`'s, in the same order: the session is the caller's,
+	 * the bytes are sniffed, the per-file cap and the quota are applied, and every refusal comes before
+	 * the copy. The key is `media/<tree>/<fileId>.<ext>`, fixed by the row, so a retry after an undo
+	 * writes the same object. The row is updated by the logged `resolve_media_file`; if that is refused
+	 * the copy is removed again, so a stale version leaves nothing in the bucket.
+	 */
+	async resolveFromUpload(
+		input: { sessionId: string; fileId: string; expectedVersion?: number },
+		bucket: R2Bucket,
+		context: AuthenticatedContext
+	): Promise<MutationResult> {
+		requireRealUser(context);
+		const session = await this.uploads.find(input.sessionId);
+		if (!session || session.createdBy !== context.user.id || session.purpose !== 'media')
+			throw new NotFoundError('Upload');
+		const treeId = session.treeId;
+		await requireTreeScope(this.users, this.trees, treeId, context, 'media:manage', this.now());
+		const file = await this.media.findById(input.fileId);
+		if (!file || file.treeId !== treeId) throw new NotFoundError('File', input.fileId);
+		if (!isUnresolvedFile(file)) throw new ValidationError('This file is already stored in Epoch.');
+		if (session.status !== 'complete') throw new ValidationError('This upload is not finished');
+		// The session creator already enforces this at creation; a second check keeps the cap true even
+		// for a session row written some other way.
+		if (session.totalBytes > MAX_MEDIA_FILE_BYTES)
+			throw new PayloadTooLargeError('This file is too large to store in Epoch');
+		await this.requireQuotaFor(treeId, session.totalBytes, bucket);
+
+		const head = await bucket.get(session.r2Key, { range: { offset: 0, length: SNIFF_BYTES } });
+		if (!head) throw new ValidationError('This upload was already used or has expired');
+		const header = await readPrefix(
+			head.body as unknown as ReadableStream<Uint8Array>,
+			SNIFF_BYTES
+		);
+		const { mimeType, extension } = validateMediaUpload('', header);
+
+		const objectKey = `media/${treeId}/${file.id}.${extension}`;
+		const source = await bucket.get(session.r2Key);
+		if (!source) throw new ValidationError('This upload was already used or has expired');
+		await bucket.put(objectKey, source.body, { httpMetadata: { contentType: mimeType } });
+
+		let result: MutationResult;
+		try {
+			result = await this.editFile(treeId, context, {
+				kind: 'resolve_media_file',
+				fileId: file.id,
+				objectKey,
+				mimeType,
+				expectedVersion: input.expectedVersion
+			});
+		} catch (err) {
+			await bucket.delete(objectKey).catch(() => undefined);
+			throw err;
+		}
+		// Derived columns are not in a row image, so they are written outside the logged change. A
+		// failure leaves them null for the fill and backfill to supply; the file itself is stored.
+		await this.media
+			.setStoredBytesInfo(file.id, {
+				sizeBytes: session.totalBytes,
+				crc32: combinedPartCrc32(session)
+			})
+			.catch(() => undefined);
+		await bucket.delete(session.r2Key).catch(() => undefined);
+		return result;
 	}
 
 	record(treeId: string, entityId: string, media: StoredMedia): Promise<void> {

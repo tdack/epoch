@@ -174,6 +174,7 @@ function buildOps(rows: TreeRows, command: RelationshipCommand, ctx: OpContext):
 		case 'merge_notes':
 			return buildNoteOps(rows, command, ctx);
 		case 'rename_media':
+		case 'resolve_media_file':
 		case 'link_media':
 		case 'unlink_media':
 		case 'update_media_link':

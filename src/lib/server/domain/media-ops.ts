@@ -11,12 +11,32 @@
 
 import type { MediaLinkRow, MediaObjectRow, MediaRow, RowOp, TreeRows } from './change-log';
 import { ConcurrencyConflictError, NotFoundError, ValidationError } from './errors';
-import { MAX_MEDIA_TITLE_LENGTH, mediaLinkId, type MediaCrop } from '../../shared/media';
+import {
+	MAX_MEDIA_TITLE_LENGTH,
+	isUnresolvedFile,
+	isUploadMediaType,
+	mediaLinkId,
+	type MediaCrop
+} from '../../shared/media';
 import type { PersonPrivacy } from '../../shared/privacy';
 import { PERSON_PRIVACY_VALUES } from '../../shared/privacy';
 
 export type MediaCommand =
 	| { kind: 'rename_media'; mediaId: string; title: string; expectedVersion?: number }
+	| {
+			/**
+			 * Gives an unresolved file its bytes (ADR-082). Names the file, not the object: a secondary file
+			 * is resolved on its own. The bytes are stored before this runs; size and checksums are derived
+			 * columns the service writes after, since a row image leaves them out.
+			 */
+			kind: 'resolve_media_file';
+			fileId: string;
+			/** Where the bytes now are: `media/<treeId>/<fileId>.<ext>`. */
+			objectKey: string;
+			/** The sniffed type, never the one the `FORM` line claimed. */
+			mimeType: string;
+			expectedVersion?: number;
+	  }
 	| {
 			kind: 'link_media';
 			/** An object (before the contract migrations, its first file's id). */
@@ -234,6 +254,23 @@ export function buildMediaOps(rows: TreeRows, command: MediaCommand, ctx: MediaC
 			const title = validateMediaTitle(command.title);
 			if (title === before.title) return [];
 			return updateFile(before, touch({ ...before, title }, ctx));
+		}
+		case 'resolve_media_file': {
+			const before = requireFile(rows, command.fileId);
+			checkFileVersion(before, command.expectedVersion);
+			if (!isUnresolvedFile(before))
+				throw new ValidationError('This file is already stored in Epoch.');
+			if (!isUploadMediaType(command.mimeType))
+				throw new ValidationError('That type of file cannot be stored in Epoch.');
+			return updateFile(
+				before,
+				// Null, not 'resolved': a resolved row keeps its status null (ADR-082), so an undo image of
+				// this change and one of an uploaded file look alike.
+				touch(
+					{ ...before, r2ObjectKey: command.objectKey, mimeType: command.mimeType, status: null },
+					ctx
+				)
+			);
 		}
 		case 'link_media': {
 			const target = requireTarget(rows, command.mediaId);
