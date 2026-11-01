@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { crc32, crc32Update } from './crc32';
+import { crc32, crc32Combine, crc32Update } from './crc32';
 
 const text = (s: string) => new TextEncoder().encode(s);
 
@@ -23,5 +23,42 @@ describe('crc32', () => {
 
 	it('is unsigned', () => {
 		expect(crc32(new Uint8Array([0xff, 0xff, 0xff, 0xff]))).toBeGreaterThan(0x7fffffff);
+	});
+});
+
+describe('crc32Combine', () => {
+	const bytesOf = (length: number, seed: number) =>
+		Uint8Array.from({ length }, (_, i) => (i * 31 + seed) & 0xff);
+
+	it('equals the CRC of the concatenation, for any split including odd and empty parts', () => {
+		for (const [a, b] of [
+			[0, 0],
+			[0, 7],
+			[9, 0],
+			[1, 1],
+			[13, 255],
+			[1024, 4097],
+			[70_001, 3]
+		] as const) {
+			const left = bytesOf(a, 3);
+			const right = bytesOf(b, 11);
+			const whole = new Uint8Array(a + b);
+			whole.set(left);
+			whole.set(right, a);
+			expect(crc32Combine(crc32(left), crc32(right), b)).toBe(crc32(whole));
+		}
+	});
+
+	it('folds many parts in order', () => {
+		const parts = [5, 64, 1, 300, 17].map((n, i) => bytesOf(n, i));
+		let combined = 0;
+		for (const part of parts) combined = crc32Combine(combined, crc32(part), part.length);
+		const whole = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+		let at = 0;
+		for (const part of parts) {
+			whole.set(part, at);
+			at += part.length;
+		}
+		expect(combined).toBe(crc32(whole));
 	});
 });
