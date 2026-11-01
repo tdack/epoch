@@ -91,7 +91,7 @@ async function finishedInParts(
 	const count = Math.ceil(bytes.length / partSize);
 	for (let n = count; n >= 1; n--) {
 		const piece = bytes.subarray((n - 1) * partSize, n * partSize);
-		const tap = crc32Tap(new Response(piece).body!);
+		const tap = crc32Tap(new Response(piece as unknown as BodyInit).body!);
 		await uploads.putPart(
 			sessionId,
 			n,

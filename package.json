@@ -20,6 +20,7 @@
 		"db:backfill:fact-details": "node scripts/backfill-fact-details.mjs",
 		"db:backfill:notes": "node scripts/backfill-notes.mjs",
 		"db:backfill:media-sizes": "node scripts/backfill-media-sizes.mjs",
+		"db:backfill:media-checksums": "node scripts/backfill-media-checksums.mjs",
 		"seed": "node scripts/seed.mjs",
 		"gedcom:spec": "node scripts/gedcom-spec/generate.mjs",
 		"gedcom:conformance": "node scripts/fetch-gedcom-conformance.mjs",

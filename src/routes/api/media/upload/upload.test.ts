@@ -9,7 +9,6 @@ import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { individuals, mediaItems } from '#lib/server/db/index.js';
-import { createHash } from 'node:crypto';
 import { crc32 } from '#lib/server/gedcom/crc32.js';
 import { MediaRepository } from '#lib/server/repositories/media-repository.js';
 import {
@@ -45,6 +44,11 @@ const SVG_BYTES = new Uint8Array(ascii('<svg xmlns="http://www.w3.org/2000/svg">
 
 const UPLOAD_URL = 'http://localhost/api/media/upload';
 const MULTIPART_BOUNDARY = 'epoch-upload-test';
+
+const sha256Hex = async (bytes: Uint8Array) =>
+	[...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource))]
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
 
 let t: TestDatabase;
 let treeId: string;
@@ -217,7 +221,7 @@ describe('media upload type checks', () => {
 		const response = await upload(owner, new File([PNG_BYTES], 'photo.png', { type: 'image/png' }));
 		const body = (await response.json()) as { media: { id: string } };
 		const row = await t.db.select().from(mediaItems).where(eq(mediaItems.id, body.media.id)).get();
-		expect(row?.sha256).toBe(createHash('sha256').update(PNG_BYTES).digest('hex'));
+		expect(row?.sha256).toBe(await sha256Hex(PNG_BYTES));
 		expect(row?.crc32).toBe(crc32(PNG_BYTES));
 	});
 
