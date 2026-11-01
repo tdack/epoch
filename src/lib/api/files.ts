@@ -31,9 +31,26 @@ export interface GedcomImportResult {
 	individualsCount?: number;
 	familiesCount?: number;
 	mergedFamiliesCount?: number;
+	/** Present only for a `.gdz`. */
+	media?: import('#lib/shared/media.js').GedzipMediaCounts;
 	treeId?: string;
 	/** Present when the import was queued; poll it with `importStatusApi`. */
 	jobId?: string;
+}
+
+/** What the archive would add, from the uploaded `.gdz`'s directory and dataset alone. */
+export function previewGedzipImport(
+	sessionId: string
+): Promise<import('#lib/types/genealogy.js').ImportPreviewData> {
+	return call(path`/api/uploads/${sessionId}/preview`, {}, 'Failed to preview the archive');
+}
+
+/** Starts the import of an uploaded `.gdz`; a second start of the same upload is a 409. */
+export function startGedzipImport(
+	sessionId: string,
+	input: { mode: 'replace' | 'merge'; shouldMergeDuplicateFamilies: boolean }
+): Promise<GedcomImportResult> {
+	return call(path`/api/uploads/${sessionId}/import`, json('POST', input), 'Import failed');
 }
 
 export async function submitGedcomImport(
@@ -60,7 +77,11 @@ export interface GedcomImportStatus {
 		familiesCount: number;
 		eventsCount: number;
 		mergedFamiliesCount: number;
+		/** Present only for a `.gdz`. */
+		media?: import('#lib/shared/media.js').GedzipMediaCounts;
 	};
+	/** Media entries handled so far of all in the archive; present while a `.gdz` import runs. */
+	progress?: { done: number; total: number };
 	/** A fixed sentence the server chose; safe to show. */
 	error?: string;
 }
