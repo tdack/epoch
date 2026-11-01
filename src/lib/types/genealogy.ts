@@ -27,6 +27,8 @@ export interface ImportPreviewData {
 		events: number;
 		childLinks: number;
 	};
+	/** Files linked to records that a replace would leave unlinked; absent when there are none. */
+	linkedMediaObjectCount?: number;
 	merge?: {
 		newIndividuals: number;
 		existingIndividuals: number;

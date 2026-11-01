@@ -70,6 +70,22 @@
 	const confirm = (mode: 'replace' | 'merge') => onconfirm(mode, { shouldMergeDuplicateFamilies });
 </script>
 
+{#snippet unlinkNotice()}
+	{#if preview?.linkedMediaObjectCount}
+		{@const count = preview.linkedMediaObjectCount}
+		<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-stone-800">
+			<p class="font-semibold text-amber-950">Files will be unlinked</p>
+			<p>
+				{count}
+				{count === 1 ? 'file is' : 'files are'} linked to people, families or sources. A replace removes
+				{count === 1 ? 'that link' : 'those links'}; the {count === 1 ? 'file stays' : 'files stay'}
+				in Files as unlinked, where you can link {count === 1 ? 'it' : 'them'} again or delete
+				{count === 1 ? 'it' : 'them'}.
+			</p>
+		</div>
+	{/if}
+{/snippet}
+
 {#snippet duplicatesBlock()}
 	{#if preview && (preview.duplicates.exact.length > 0 || preview.duplicates.possible.length > 0)}
 		<div class="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
@@ -191,6 +207,7 @@
 						{familiesToWrite} families from the file.
 					</p>
 				</div>
+				{@render unlinkNotice()}
 				{@render duplicatesBlock()}
 				<div class="flex space-x-2 border-t border-stone-200 pt-2">
 					<button
@@ -251,6 +268,7 @@
 						</p>
 					{/if}
 				</div>
+				{#if preview.deleteCounts}{@render unlinkNotice()}{/if}
 				{@render duplicatesBlock()}
 				<div class="flex space-x-2 border-t border-stone-200 pt-2">
 					<button

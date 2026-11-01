@@ -64,3 +64,53 @@ describe('ImportConfirmModal retained structures', () => {
 		expect(document.body.textContent).not.toContain('Kept as-is');
 	});
 });
+
+describe('ImportConfirmModal unlinked files', () => {
+	const existing = (linkedMediaObjectCount?: number): ImportPreviewData => ({
+		...preview([]),
+		mode: 'merge',
+		deleteCounts: { individuals: 4, families: 2, events: 9, childLinks: 3 },
+		...(linkedMediaObjectCount !== undefined && { linkedMediaObjectCount }),
+		merge: {
+			newIndividuals: 0,
+			existingIndividuals: 2,
+			newFamilies: 0,
+			mergedFamilies: 1,
+			newChildLinks: 0,
+			duplicateChildLinks: 0,
+			newEvents: 0,
+			duplicateEvents: 0
+		}
+	});
+
+	function renderExisting(data: ImportPreviewData) {
+		component = mount(ImportConfirmModal, {
+			target: document.body,
+			props: {
+				isOpen: true,
+				hasSelectedTree: true,
+				preview: data,
+				onclose: () => {},
+				onconfirm: () => {}
+			}
+		});
+		flushSync();
+	}
+
+	it('warns how many linked files a replace unlinks, and where they go', () => {
+		renderExisting(existing(12));
+		expect(document.body.textContent.replace(/\s+/g, ' ')).toContain(
+			'12 files are linked to people, families or sources. A replace removes those links; the files stay in Files as unlinked, where you can link them again or delete them.'
+		);
+	});
+
+	it('says nothing when no file is linked', () => {
+		renderExisting(existing());
+		expect(document.body.textContent).not.toContain('Files will be unlinked');
+	});
+
+	it('says nothing for a new tree', () => {
+		render({ ...preview([]), linkedMediaObjectCount: 3 });
+		expect(document.body.textContent).not.toContain('Files will be unlinked');
+	});
+});
