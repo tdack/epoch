@@ -7,7 +7,7 @@ vi.mock('#lib/api/files.js', () => ({
 	linkFileApi: vi.fn(),
 	unlinkFileApi: vi.fn(),
 	fetchFiles: vi.fn(),
-	uploadMediaApi: vi.fn(),
+	mediaFromUploadApi: vi.fn(),
 	reorderFilesApi: vi.fn(),
 	updateFileLinkTitleApi: vi.fn(),
 	resolveFileFromUploadApi: vi.fn()

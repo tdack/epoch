@@ -2,14 +2,17 @@
 	import { FileText, FileX, Link2, Unlink, Upload } from '@lucide/svelte';
 	import { messageOf } from '#lib/components/feedback/error-message.js';
 	import type { TreeEditor } from '#lib/components/tree/tree-editor.svelte.js';
+	import UploadProgress from '#lib/components/forms/UploadProgress.svelte';
 	import {
 		linkFileApi,
 		unlinkFileApi,
 		fetchFiles,
+		mediaFromUploadApi,
 		reorderFilesApi,
-		updateFileLinkTitleApi,
-		uploadMediaApi
+		updateFileLinkTitleApi
 	} from '#lib/api/files.js';
+	import { isAbortError, startUpload } from '#lib/api/uploader.js';
+	import type { UploadCompleteDto } from '#lib/shared/uploads.js';
 	import LinkControls from '#lib/components/media/LinkControls.svelte';
 	import MediaFileList from '#lib/components/media/MediaFileList.svelte';
 	import NotStoredBadge from '#lib/components/media/NotStoredBadge.svelte';
@@ -37,9 +40,17 @@
 
 	let { treeId, sourceId, files, canManage, editor }: Props = $props();
 
-	let isUploading = $state(false);
-	let uploadError = $state<string | null>(null);
 	let fileInput: HTMLInputElement | null = $state(null);
+	/** The file on its way: its bytes so far, where it is, and the finished session once it is stored. */
+	let sending = $state<{
+		file: File;
+		uploadedBytes: number;
+		phase: 'uploading' | 'finishing' | 'failed';
+		error: string | null;
+		uploaded: UploadCompleteDto | null;
+	} | null>(null);
+	let uploadAbort: AbortController | null = null;
+	const isBusy = $derived(sending !== null && sending.phase !== 'failed');
 
 	/** Files in the tree with no owner, loaded when the picker opens; null while it is closed. */
 	let detached = $state<FileRowDto[] | null>(null);
@@ -104,21 +115,51 @@
 		);
 	}
 
-	async function upload(event: Event) {
-		const input = event.target as HTMLInputElement;
-		const picked = input.files?.[0];
-		if (!picked) return;
-		isUploading = true;
-		uploadError = null;
+	/**
+	 * Sends the file in parts, then files it on the source. A failure stays in the progress panel
+	 * with its own retry, which files the finished session rather than sending the bytes again.
+	 */
+	async function send(file: File, uploaded: UploadCompleteDto | null) {
+		const controller = new AbortController();
+		uploadAbort = controller;
+		const patch = (changes: Partial<NonNullable<typeof sending>>) => {
+			if (sending) sending = { ...sending, ...changes };
+		};
+		let done = uploaded;
+		sending = { file, uploadedBytes: 0, phase: 'uploading', error: null, uploaded };
 		try {
-			await uploadMediaApi(treeId, sourceId, picked);
+			done ??= await startUpload({
+				file,
+				treeId,
+				purpose: 'media',
+				signal: controller.signal,
+				onProgress: (p) => patch({ uploadedBytes: p.uploadedBytes })
+			});
+			patch({ phase: 'finishing', uploadedBytes: file.size, uploaded: done });
+			await mediaFromUploadApi({ sessionId: done.sessionId, entityId: sourceId, title: file.name });
+			sending = null;
 			await editor.refresh();
 		} catch (cause) {
-			uploadError = messageOf(cause, 'Could not upload the file');
+			if (controller.signal.aborted || isAbortError(cause)) {
+				sending = null;
+				return;
+			}
+			patch({
+				phase: 'failed',
+				error: messageOf(cause, 'Could not upload the file'),
+				uploaded: done
+			});
 		} finally {
-			isUploading = false;
-			if (fileInput) fileInput.value = '';
+			uploadAbort = null;
 		}
+	}
+
+	function upload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const picked = input.files?.[0];
+		// Cleared so picking the same file again still fires a change.
+		input.value = '';
+		if (picked) void send(picked, null);
 	}
 
 	async function openPicker() {
@@ -181,6 +222,7 @@
 						type="file"
 						accept={MEDIA_UPLOAD_ACCEPT}
 						onchange={upload}
+						disabled={isBusy}
 						class="sr-only"
 						data-testid="source-file-input"
 					/>
@@ -189,11 +231,18 @@
 		{/if}
 	</div>
 
-	{#if isUploading}
-		<p class="mt-2 animate-pulse text-xs font-medium text-emerald-800" role="status">Uploading…</p>
-	{/if}
-	{#if uploadError}
-		<p class="mt-2 text-xs font-medium text-red-700" role="alert">{uploadError}</p>
+	{#if sending}
+		<div class="mt-2">
+			<UploadProgress
+				fileName={sending.file.name}
+				uploadedBytes={sending.uploadedBytes}
+				totalBytes={sending.file.size}
+				phase={sending.phase}
+				error={sending.error}
+				oncancel={() => uploadAbort?.abort()}
+				onretry={() => sending && void send(sending.file, sending.uploaded)}
+			/>
+		</div>
 	{/if}
 
 	{#if detached !== null}
