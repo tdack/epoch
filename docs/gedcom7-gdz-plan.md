@@ -21,7 +21,25 @@ their commits here. A new session resumes by reading this section, then
   import Workflow) on `worktree-agent-a5e9d19705d28d33d`; 4.2 + 4.3 (`.gdz` export segments and
   download) on `worktree-agent-a2c8010c03aa76fcf`; 1B.7 (remaining single uploads onto sessions) on
   `worktree-agent-aacd6eece2845b3b3`. Each may end in a `wip:` commit: finish it in its worktree
-  under `.claude/worktrees/agent-<id>`, then squash the `wip:` commit away before merging.
+  under `.claude/worktrees/agent-<id>`, then squash the `wip:` commit away before merging. Left on
+  each when paused:
+  - **3.3 (`9032be6c` wip, untested):** `gedzip-import-service.ts` (`start`, `importDataset`,
+    `importMediaBatch` at 100 entries or 256 MiB, `close`) and media-repository helpers exist.
+    Left: wire `import-workflow.ts` (archive branch, media step loop, `ValidationError` as a fixed
+    non-retryable message, close step); route `POST /api/uploads/[id]/import` and its
+    privacy-matrix entry; tests on `maximal70.gdz` in a fake bucket with ranged gets; a test that
+    `staging/uploads/` is outside `MAX_STAGED_BYTES_PER_TREE` (already true); ADR-074; lint/check.
+  - **4.2/4.3 (`e15da549` wip, 28 tests pass, lint/check not run):** token `g7m` (7.0 + compressed
+    only) in `export-instance.ts`; keys `<base>.part-N`, `.part-N.json`, `.plan.json`, manifest
+    `exports/<tree>-g7m-<uuid>.json` written last; `archive-paths.ts` `planArchiveFiles`;
+    `exportPayloadFrom` takes a file-id → `FILE` text map. Left: segment service (dataset, media
+    batches of 100 files or 64 MiB, tail); workflow wiring; `includeMedia` on the export body and
+    POST (media always via the Workflow); segmented download (`Content-Length` = sum, delete by
+    prefix on expiry/orphan); fake-bucket extensions; tests; ADR-040/074; lint/check.
+  - **1B.7 (`c9f08aa5` wip):** person and source uploads use sessions. Left: delete
+    `routes/api/media/upload/`, `uploadMediaApi` and its tests, the privacy-matrix entry; check
+    whether `assertUploadWithinSizeLimit`/`MAX_MEDIA_UPLOAD_BYTES` are now dead (keep
+    `parseBoundedFormData`, import and avatar use it); ADR-050/074 text; lint.
 - **Next:** 3.4 (preview and UI) and 4.4 (export menu) once those land; then 1B.8 (own deploy);
   Phase 5. ADR-082 migrations 5–6 wait until 2.2b is deployed and `db:backfill:media-objects` has
   run twice. 1A.7 and 5.5 are optional.
