@@ -23,6 +23,7 @@ const radio = (label: string) =>
 		.find((l) => l.textContent?.includes(label))!
 		.querySelector('input')!;
 const compress = () => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+const media = () => document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]!;
 
 describe('GedcomExportChoices', () => {
 	it('exports GEDCOM 7.0, uncompressed, by default', () => {
@@ -50,5 +51,79 @@ describe('GedcomExportChoices', () => {
 		expect(document.body.textContent).toContain('GEDZip holds GEDCOM 7.0 files only.');
 		exportButton().click();
 		expect(onexport).toHaveBeenCalledWith({ format: 'gedcom551', shouldCompress: false });
+	});
+
+	it('disables Include media unless 7.0 is compressed to .gdz', () => {
+		const onexport = render();
+		expect(media().disabled).toBe(true);
+		compress().click();
+		flushSync();
+		expect(media().disabled).toBe(false);
+		radio('GEDCOM 5.5.1 (legacy)').click();
+		flushSync();
+		expect(media().disabled).toBe(true);
+		expect(media().checked).toBe(false);
+		exportButton().click();
+		expect(onexport).toHaveBeenCalledWith({ format: 'gedcom551', shouldCompress: false });
+	});
+
+	it('sends includeMedia when Include media is checked', () => {
+		const onexport = render();
+		compress().click();
+		flushSync();
+		media().click();
+		flushSync();
+		exportButton().click();
+		expect(onexport).toHaveBeenCalledWith({
+			format: 'gedcom7',
+			shouldCompress: true,
+			shouldIncludeMedia: true
+		});
+	});
+
+	it('leaves includeMedia out when Include media is unchecked', () => {
+		const onexport = render();
+		compress().click();
+		flushSync();
+		media().click();
+		flushSync();
+		media().click();
+		flushSync();
+		exportButton().click();
+		const [choice] = onexport.mock.calls[0]!;
+		expect(choice).toEqual({ format: 'gedcom7', shouldCompress: true });
+		expect(choice).not.toHaveProperty('shouldIncludeMedia');
+	});
+
+	it('clears Include media when compression is unchecked', () => {
+		const onexport = render();
+		compress().click();
+		flushSync();
+		media().click();
+		flushSync();
+		compress().click();
+		flushSync();
+		compress().click();
+		flushSync();
+		expect(media().checked).toBe(false);
+		exportButton().click();
+		expect(onexport).toHaveBeenCalledWith({ format: 'gedcom7', shouldCompress: true });
+	});
+
+	it('shows the stored size, or a plain note when the figure is unknown', () => {
+		component = mount(GedcomExportChoices, {
+			target: document.body,
+			props: { onexport: vi.fn(), mediaBytes: 2 * 1024 * 1024 }
+		});
+		compress().click();
+		flushSync();
+		expect(document.body.textContent).toContain('Adds 2.0 MB of stored files.');
+		unmount(component);
+		document.body.innerHTML = '';
+		render();
+		expect(document.body.textContent).toContain('Needs GEDCOM 7.0 compressed to .gdz.');
+		compress().click();
+		flushSync();
+		expect(document.body.textContent).toContain('Adds every stored file; may be large.');
 	});
 });
